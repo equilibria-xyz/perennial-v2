@@ -1,10 +1,10 @@
 // SPDX-License-Identifier: Apache-2.0
 pragma solidity ^0.8.13;
 
-import "./root/UFixed6.sol";
-import "./root/JumpRateUtilizationCurve6.sol";
-import "../interfaces/IPayoffProvider.sol";
-import "../interfaces/IOracleProvider.sol";
+import "@equilibria/perennial-v2-payoff/contracts/IPayoffProvider.sol";
+import "@equilibria/perennial-v2-oracle/contracts/IOracleProvider.sol";
+import "@equilibria/root-v2/contracts/UFixed6.sol";
+import "@equilibria/root-v2/contracts/JumpRateUtilizationCurve6.sol";
 import "./Payoff.sol";
 
 /// @dev MarketParameter type

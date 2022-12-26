@@ -1,10 +1,9 @@
 // SPDX-License-Identifier: Apache-2.0
 pragma solidity 0.8.17;
 
-import "./root/Accumulator6.sol";
-import "./root/UAccumulator6.sol";
+import "@equilibria/root-v2/contracts/Accumulator6.sol";
+import "@equilibria/root-v2/contracts/UAccumulator6.sol";
 import "./Position.sol";
-import "./OracleVersion.sol";
 import "./ProtocolParameter.sol";
 import "./MarketParameter.sol";
 import "./Fee.sol";

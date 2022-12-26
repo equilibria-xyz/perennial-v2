@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: Apache-2.0
 pragma solidity ^0.8.13;
 
-import "./root/UFixed6.sol";
+import "@equilibria/root-v2/contracts/UFixed6.sol";
 
 /// @dev ProtocolParameter type
 struct ProtocolParameter {

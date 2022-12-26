@@ -1,14 +1,14 @@
 // SPDX-License-Identifier: Apache-2.0
 pragma solidity ^0.8.13;
 
-import "../types/root/UFixed6.sol";
+import "@equilibria/root-v2/contracts/UFixed6.sol";
 import "@equilibria/root/token/types/Token18.sol";
-import "./IOracleProvider.sol";
+import "@equilibria/perennial-v2-oracle/contracts/IOracleProvider.sol";
+import "@equilibria/perennial-v2-oracle/contracts/types/OracleVersion.sol";
 import "../types/Position.sol";
 import "../types/Version.sol";
 import "../types/Account.sol";
 import "../types/Fee.sol";
-import "../types/OracleVersion.sol";
 
 interface IMarket {
     struct MarketDefinition {

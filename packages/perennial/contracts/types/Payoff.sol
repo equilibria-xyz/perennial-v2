@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: Apache-2.0
 pragma solidity ^0.8.13;
 
-import "../interfaces/IPayoffProvider.sol";
-import "./OracleVersion.sol";
+import "@equilibria/perennial-v2-payoff/contracts/IPayoffProvider.sol";
+import "@equilibria/perennial-v2-oracle/contracts/types/OracleVersion.sol";
 
 /// @dev Payoff type
 struct Payoff {

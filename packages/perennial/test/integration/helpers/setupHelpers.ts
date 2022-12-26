@@ -16,8 +16,6 @@ import {
   Market__factory,
   Lens,
   Lens__factory,
-  IBatcher,
-  IBatcher__factory,
   ERC20PresetMinterPauser,
   ERC20PresetMinterPauser__factory,
   ProxyAdmin,
@@ -56,7 +54,6 @@ export interface InstanceVars {
   chainlinkOracle: ChainlinkOracle
   marketImpl: Market
   lens: Lens
-  batcher: IBatcher
   rewardToken: ERC20PresetMinterPauser
 }
 
@@ -79,7 +76,6 @@ export async function deployProtocol(): Promise<InstanceVars> {
   const contractPayoffProvider = await new TestnetContractPayoffProvider__factory(owner).deploy()
   const dsu = await IERC20Metadata__factory.connect((await deployments.get('DSU')).address, owner)
   const usdc = await IERC20Metadata__factory.connect((await deployments.get('USDC')).address, owner)
-  const batcher = await IBatcher__factory.connect((await deployments.get('Batcher')).address, owner)
 
   // Deploy protocol contracts
   const proxyAdmin = await new ProxyAdmin__factory(owner).deploy()
@@ -143,7 +139,6 @@ export async function deployProtocol(): Promise<InstanceVars> {
     controller,
     marketImpl,
     lens,
-    batcher,
     rewardToken,
   }
 }
