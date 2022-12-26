@@ -11,8 +11,7 @@ const func: DeployFunction = async function (hre: HardhatRuntimeEnvironment) {
 
   // NETWORK CONSTANTS
 
-  const chainlinkRegistryAddress =
-    (await getOrNull('ChainlinkFeedRegistry'))?.address || (await getOrNull('TestnetChainlinkFeedRegistry'))?.address
+  const chainlinkRegistryAddress = (await getOrNull('ChainlinkFeedRegistry'))?.address
 
   // ORACLE
 

@@ -23,9 +23,9 @@ import {
   TransparentUpgradeableProxy__factory,
 } from '../../../types/generated'
 import { ChainlinkContext } from './chainlinkHelpers'
-import { buildChainlinkRoundId } from '../../../util/buildChainlinkRoundId'
-import { CHAINLINK_CUSTOM_CURRENCIES } from '../../../util/constants'
 import { parse6decimal } from '../../../../common/testutil/types'
+import { buildChainlinkRoundId } from '@equilibria/perennial-v2-oracle/util/buildChainlinkRoundId'
+import { CHAINLINK_CUSTOM_CURRENCIES } from '@equilibria/perennial-v2-oracle/util/constants'
 const { config, deployments, ethers } = HRE
 
 export const INITIAL_PHASE_ID = 1
