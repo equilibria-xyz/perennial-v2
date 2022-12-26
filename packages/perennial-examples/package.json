@@ -1,6 +1,6 @@
 {
-  "name": "@equilibria/perennial-examples",
-  "version": "0.1.0",
+  "name": "@equilibria/perennial-v2-payoff",
+  "version": "1.0.0",
   "description": "Perennial product examples",
   "files": [
     "contracts/examples",
@@ -32,9 +32,9 @@
   "author": "",
   "license": "APACHE-2.0",
   "dependencies": {
-    "@equilibria/perennial": "0.2.1",
+    "@equilibria/perennial-v2": "1.0.0",
     "@equilibria/root": "0.1.6",
-    "@openzeppelin/contracts": "4.6.0"
+    "@openzeppelin/contracts": "4.7.3"
   },
   "peerDependencies": {
     "@nomiclabs/hardhat-ethers": "^2.1.0",

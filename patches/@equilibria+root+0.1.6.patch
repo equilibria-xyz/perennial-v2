@@ -1,0 +1,202 @@
+diff --git a/node_modules/@equilibria/root/curve/types/JumpRateUtilizationCurve.sol b/node_modules/@equilibria/root/curve/types/JumpRateUtilizationCurve.sol
+index b7dc3b4..caed452 100644
+--- a/node_modules/@equilibria/root/curve/types/JumpRateUtilizationCurve.sol
++++ b/node_modules/@equilibria/root/curve/types/JumpRateUtilizationCurve.sol
+@@ -66,6 +66,6 @@ library JumpRateUtilizationCurveStorageLib {
+ 
+     function _storagePointer(JumpRateUtilizationCurveStorage self)
+     private pure returns (JumpRateUtilizationCurve storage pointer) {
+-        assembly { pointer.slot := self }
++        assembly ("memory-safe") { pointer.slot := self }
+     }
+ }
+\ No newline at end of file
+diff --git a/node_modules/@equilibria/root/curve/types/LinearUtilizationCurve.sol b/node_modules/@equilibria/root/curve/types/LinearUtilizationCurve.sol
+index 2eaaeea..659be40 100644
+--- a/node_modules/@equilibria/root/curve/types/LinearUtilizationCurve.sol
++++ b/node_modules/@equilibria/root/curve/types/LinearUtilizationCurve.sol
+@@ -51,6 +51,6 @@ library LinearUtilizationCurveStorageLib {
+ 
+     function _storagePointer(LinearUtilizationCurveStorage self)
+     private pure returns (LinearUtilizationCurve storage pointer) {
+-        assembly { pointer.slot := self }
++        assembly ("memory-safe") { pointer.slot := self }
+     }
+ }
+\ No newline at end of file
+diff --git a/node_modules/@equilibria/root/number/types/Fixed18.sol b/node_modules/@equilibria/root/number/types/Fixed18.sol
+index 9c81c88..d6ba29c 100644
+--- a/node_modules/@equilibria/root/number/types/Fixed18.sol
++++ b/node_modules/@equilibria/root/number/types/Fixed18.sol
+@@ -290,13 +290,13 @@ library Fixed18Lib {
+ 
+ library Fixed18StorageLib {
+     function read(Fixed18Storage self) internal view returns (Fixed18 value) {
+-        assembly {
++        assembly ("memory-safe") {
+             value := sload(self)
+         }
+     }
+ 
+     function store(Fixed18Storage self, Fixed18 value) internal {
+-        assembly {
++        assembly ("memory-safe") {
+             sstore(self, value)
+         }
+     }
+diff --git a/node_modules/@equilibria/root/number/types/UFixed18.sol b/node_modules/@equilibria/root/number/types/UFixed18.sol
+index 7fece41..a4bd2be 100644
+--- a/node_modules/@equilibria/root/number/types/UFixed18.sol
++++ b/node_modules/@equilibria/root/number/types/UFixed18.sol
+@@ -249,13 +249,13 @@ library UFixed18Lib {
+ 
+ library UFixed18StorageLib {
+     function read(UFixed18Storage self) internal view returns (UFixed18 value) {
+-        assembly {
++        assembly("memory-safe")  {
+             value := sload(self)
+         }
+     }
+ 
+     function store(UFixed18Storage self, UFixed18 value) internal {
+-        assembly {
++        assembly ("memory-safe") {
+             sstore(self, value)
+         }
+     }
+diff --git a/node_modules/@equilibria/root/storage/UStorage.sol b/node_modules/@equilibria/root/storage/UStorage.sol
+index f63916c..d8ee383 100644
+--- a/node_modules/@equilibria/root/storage/UStorage.sol
++++ b/node_modules/@equilibria/root/storage/UStorage.sol
+@@ -62,7 +62,7 @@ library Uint256StorageLib {
+      * @return value Stored uint256 value
+      */
+     function read(Uint256Storage self) internal view returns (uint256 value) {
+-        assembly {
++        assembly ("memory-safe") {
+             value := sload(self)
+         }
+     }
+@@ -73,7 +73,7 @@ library Uint256StorageLib {
+      * @param value uint256 value to store
+      */
+     function store(Uint256Storage self, uint256 value) internal {
+-        assembly {
++        assembly ("memory-safe") {
+             sstore(self, value)
+         }
+     }
+@@ -90,7 +90,7 @@ library Int256StorageLib {
+      * @return value Stored int256 value
+      */
+     function read(Int256Storage self) internal view returns (int256 value) {
+-        assembly {
++        assembly ("memory-safe") {
+             value := sload(self)
+         }
+     }
+@@ -101,7 +101,7 @@ library Int256StorageLib {
+      * @param value int256 value to store
+      */
+     function store(Int256Storage self, int256 value) internal {
+-        assembly {
++        assembly ("memory-safe") {
+             sstore(self, value)
+         }
+     }
+@@ -118,7 +118,7 @@ library AddressStorageLib {
+      * @return value Stored address value
+      */
+     function read(AddressStorage self) internal view returns (address value) {
+-        assembly {
++        assembly ("memory-safe") {
+             value := sload(self)
+         }
+     }
+@@ -129,7 +129,7 @@ library AddressStorageLib {
+      * @param value address value to store
+      */
+     function store(AddressStorage self, address value) internal {
+-        assembly {
++        assembly ("memory-safe") {
+             sstore(self, value)
+         }
+     }
+@@ -146,7 +146,7 @@ library Bytes32StorageLib {
+      * @return value Stored bytes32 value
+      */
+     function read(Bytes32Storage self) internal view returns (bytes32 value) {
+-        assembly {
++        assembly ("memory-safe") {
+             value := sload(self)
+         }
+     }
+@@ -157,7 +157,7 @@ library Bytes32StorageLib {
+      * @param value bytes32 value to store
+      */
+     function store(Bytes32Storage self, bytes32 value) internal {
+-        assembly {
++        assembly ("memory-safe") {
+             sstore(self, value)
+         }
+     }
+diff --git a/node_modules/@equilibria/root/token/types/Token18.sol b/node_modules/@equilibria/root/token/types/Token18.sol
+index fe397af..40c3cfe 100644
+--- a/node_modules/@equilibria/root/token/types/Token18.sol
++++ b/node_modules/@equilibria/root/token/types/Token18.sol
+@@ -145,13 +145,13 @@ library Token18Lib {
+ 
+ library Token18StorageLib {
+     function read(Token18Storage self) internal view returns (Token18 value) {
+-        assembly {
++        assembly ("memory-safe") {
+             value := sload(self)
+         }
+     }
+ 
+     function store(Token18Storage self, Token18 value) internal {
+-        assembly {
++        assembly ("memory-safe") {
+             sstore(self, value)
+         }
+     }
+diff --git a/node_modules/@equilibria/root/token/types/Token6.sol b/node_modules/@equilibria/root/token/types/Token6.sol
+index 98612ad..20f6808 100644
+--- a/node_modules/@equilibria/root/token/types/Token6.sol
++++ b/node_modules/@equilibria/root/token/types/Token6.sol
+@@ -222,13 +222,13 @@ library Token6Lib {
+ 
+ library Token6StorageLib {
+     function read(Token6Storage self) internal view returns (Token6 value) {
+-        assembly {
++        assembly ("memory-safe") {
+             value := sload(self)
+         }
+     }
+ 
+     function store(Token6Storage self, Token6 value) internal {
+-        assembly {
++        assembly ("memory-safe") {
+             sstore(self, value)
+         }
+     }
+diff --git a/node_modules/@equilibria/root/token/types/TokenOrEther18.sol b/node_modules/@equilibria/root/token/types/TokenOrEther18.sol
+index 9d013b5..aaae878 100644
+--- a/node_modules/@equilibria/root/token/types/TokenOrEther18.sol
++++ b/node_modules/@equilibria/root/token/types/TokenOrEther18.sol
+@@ -173,13 +173,13 @@ library TokenOrEther18Lib {
+ 
+ library TokenOrEther18StorageLib {
+     function read(TokenOrEther18Storage self) internal view returns (TokenOrEther18 value) {
+-        assembly {
++        assembly ("memory-safe") {
+             value := sload(self)
+         }
+     }
+ 
+     function store(TokenOrEther18Storage self, TokenOrEther18 value) internal {
+-        assembly {
++        assembly ("memory-safe") {
+             sstore(self, value)
+         }
+     }
