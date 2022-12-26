@@ -1,12 +1,12 @@
 import { MockContract } from '@ethereum-waffle/mock-contract'
-import { utils } from 'ethers'
 import { SignerWithAddress } from '@nomiclabs/hardhat-ethers/signers'
 import { expect } from 'chai'
 import HRE, { waffle } from 'hardhat'
 
-import { ChainlinkOracle, ChainlinkOracle__factory, FeedRegistryInterface__factory } from '../../../types/generated'
 import { currentBlockTimestamp } from '../../../../common/testutil/time'
-import { buildChainlinkRoundId } from '../../../util/buildChainlinkRoundId'
+import { buildChainlinkRoundId } from '@equilibria/perennial-v2/util/buildChainlinkRoundId'
+import { parse6decimal } from '../../../../common/testutil/types'
+import { ChainlinkOracle, ChainlinkOracle__factory, FeedRegistryInterface__factory } from '../../../types/generated'
 
 const { ethers } = HRE
 
@@ -30,6 +30,9 @@ describe('ChainlinkOracle', () => {
   describe('#constructor', async () => {
     it('sets initial params', async () => {
       await registry.mock.decimals.withArgs(eth.address, usd.address).returns(8)
+      await registry.mock.getPhaseRange
+        .withArgs(eth.address, usd.address, 1)
+        .returns(buildChainlinkRoundId(1, 100), buildChainlinkRoundId(1, 500))
 
       oracle = await new ChainlinkOracle__factory(owner).deploy(registry.address, eth.address, usd.address)
 
@@ -65,17 +68,17 @@ describe('ChainlinkOracle', () => {
       const returnValue = await oracle.callStatic.sync()
       oracle.connect(user).sync()
 
-      expect(returnValue.price).to.equal(utils.parseEther('1111'))
+      expect(returnValue.price).to.equal(parse6decimal('1111'))
       expect(returnValue.timestamp).to.equal(TIMESTAMP_START)
       expect(returnValue.version).to.equal(23)
 
       const currentVersion = await oracle.currentVersion()
-      expect(currentVersion.price).to.equal(utils.parseEther('1111'))
+      expect(currentVersion.price).to.equal(parse6decimal('1111'))
       expect(currentVersion.timestamp).to.equal(TIMESTAMP_START)
       expect(currentVersion.version).to.equal(23)
 
       const atVersion = await oracle.atVersion(23)
-      expect(atVersion.price).to.equal(utils.parseEther('1111'))
+      expect(atVersion.price).to.equal(parse6decimal('1111'))
       expect(atVersion.timestamp).to.equal(TIMESTAMP_START)
       expect(atVersion.version).to.equal(23)
     })
@@ -104,17 +107,17 @@ describe('ChainlinkOracle', () => {
         const returnValue = await oracle.callStatic.sync()
         oracle.connect(user).sync()
 
-        expect(returnValue.price).to.equal(utils.parseEther('1111'))
+        expect(returnValue.price).to.equal(parse6decimal('1111'))
         expect(returnValue.timestamp).to.equal(TIMESTAMP_START)
         expect(returnValue.version).to.equal(23)
 
         const currentVersion = await oracle.currentVersion()
-        expect(currentVersion.price).to.equal(utils.parseEther('1111'))
+        expect(currentVersion.price).to.equal(parse6decimal('1111'))
         expect(currentVersion.timestamp).to.equal(TIMESTAMP_START)
         expect(currentVersion.version).to.equal(23)
 
         const atVersion = await oracle.atVersion(23)
-        expect(atVersion.price).to.equal(utils.parseEther('1111'))
+        expect(atVersion.price).to.equal(parse6decimal('1111'))
         expect(atVersion.timestamp).to.equal(TIMESTAMP_START)
         expect(atVersion.version).to.equal(23)
       })
@@ -132,17 +135,17 @@ describe('ChainlinkOracle', () => {
         const returnValue = await oracle.callStatic.sync()
         oracle.connect(user).sync()
 
-        expect(returnValue.price).to.equal(utils.parseEther('1222'))
+        expect(returnValue.price).to.equal(parse6decimal('1222'))
         expect(returnValue.timestamp).to.equal(TIMESTAMP_START + HOUR)
         expect(returnValue.version).to.equal(24)
 
         const currentVersion = await oracle.currentVersion()
-        expect(currentVersion.price).to.equal(utils.parseEther('1222'))
+        expect(currentVersion.price).to.equal(parse6decimal('1222'))
         expect(currentVersion.timestamp).to.equal(TIMESTAMP_START + HOUR)
         expect(currentVersion.version).to.equal(24)
 
         const atVersion = await oracle.atVersion(24)
-        expect(atVersion.price).to.equal(utils.parseEther('1222'))
+        expect(atVersion.price).to.equal(parse6decimal('1222'))
         expect(atVersion.timestamp).to.equal(TIMESTAMP_START + HOUR)
         expect(atVersion.version).to.equal(24)
       })
@@ -164,17 +167,17 @@ describe('ChainlinkOracle', () => {
         const returnValue = await oracle.callStatic.sync()
         await oracle.connect(user).sync()
 
-        expect(returnValue.price).to.equal(utils.parseEther('1333'))
+        expect(returnValue.price).to.equal(parse6decimal('1333'))
         expect(returnValue.timestamp).to.equal(TIMESTAMP_START + HOUR)
         expect(returnValue.version).to.equal(426)
 
         const currentVersion = await oracle.currentVersion()
-        expect(currentVersion.price).to.equal(utils.parseEther('1333'))
+        expect(currentVersion.price).to.equal(parse6decimal('1333'))
         expect(currentVersion.timestamp).to.equal(TIMESTAMP_START + HOUR)
         expect(currentVersion.version).to.equal(426)
 
         const atVersion = await oracle.atVersion(426)
-        expect(atVersion.price).to.equal(utils.parseEther('1333'))
+        expect(atVersion.price).to.equal(parse6decimal('1333'))
         expect(atVersion.timestamp).to.equal(TIMESTAMP_START + HOUR)
         expect(atVersion.version).to.equal(426)
       })
@@ -210,7 +213,7 @@ describe('ChainlinkOracle', () => {
         .returns(roundId, ethers.BigNumber.from(111100000000), TIMESTAMP_START - HOUR, TIMESTAMP_START, roundId)
 
       const atVersion = await oracle.atVersion(12)
-      expect(atVersion.price).to.equal(utils.parseEther('1111'))
+      expect(atVersion.price).to.equal(parse6decimal('1111'))
       expect(atVersion.timestamp).to.equal(TIMESTAMP_START)
       expect(atVersion.version).to.equal(12)
     })
@@ -241,7 +244,7 @@ describe('ChainlinkOracle', () => {
         .returns(roundId, ethers.BigNumber.from(111100000000), TIMESTAMP_START - HOUR, TIMESTAMP_START, roundId)
 
       const atVersion = await oracle.atVersion(12)
-      expect(atVersion.price).to.equal(utils.parseEther('1111'))
+      expect(atVersion.price).to.equal(parse6decimal('1111'))
       expect(atVersion.timestamp).to.equal(TIMESTAMP_START)
       expect(atVersion.version).to.equal(12)
     })

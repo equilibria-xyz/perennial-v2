@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: Apache-2.0
 pragma solidity ^0.8.13;
 
-import "../types/OracleVersion.sol";
+import "./types/OracleVersion.sol";
 
 interface IOracleProvider {
     function sync() external returns (OracleVersion memory);

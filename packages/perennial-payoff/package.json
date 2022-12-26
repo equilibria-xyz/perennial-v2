@@ -1,10 +1,10 @@
 {
   "name": "@equilibria/perennial-v2-payoff",
   "version": "1.0.0",
-  "description": "Perennial product examples",
+  "description": "Perennial V2 Payoff",
   "files": [
-    "contracts/payoff",
-    "artifacts/contracts/examples",
+    "contracts",
+    "artifacts/contracts",
     "deployments/!(localhost)",
     "dist"
   ],

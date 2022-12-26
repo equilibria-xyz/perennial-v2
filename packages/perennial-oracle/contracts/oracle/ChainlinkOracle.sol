@@ -3,7 +3,7 @@ pragma solidity 0.8.17;
 
 import "@chainlink/contracts/src/v0.8/interfaces/FeedRegistryInterface.sol";
 import "@openzeppelin/contracts/utils/math/SafeCast.sol";
-import "../interfaces/IOracleProvider.sol";
+import "../IOracleProvider.sol";
 
 /**
  * @title ChainlinkOracle
@@ -71,8 +71,8 @@ contract ChainlinkOracle is IOracleProvider {
         while (_phaseId(round) > _latestPhaseId()) {
             _phases.push(
                 Phase(
-                    uint128(_getRoundCount(_latestPhaseId())) + _phases[_phases.length - 1].startingRoundId,
-                    uint128(_getStartingRoundId(_latestPhaseId()))
+                    uint128(_getRoundCount(_latestPhaseId())) + _phases[_phases.length - 1].startingVersion,
+                    uint128(_getStartingRoundId(_latestPhaseId() + 1))
                 )
             );
         }
