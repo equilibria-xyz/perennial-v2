@@ -1,4 +1,4 @@
-import { BigNumberish } from 'ethers'
+import { BigNumber, BigNumberish, utils } from 'ethers'
 import { expect } from 'chai'
 
 export interface Position {
@@ -58,4 +58,8 @@ export function createPayoffDefinition({
   }
 
   return definition
+}
+
+export function parse6decimal(amount: string): BigNumber {
+  return utils.parseEther(amount).div(1e12)
 }

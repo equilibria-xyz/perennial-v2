@@ -120,7 +120,7 @@ export default function defaultConfig({
       overrides: solidityOverrides,
     },
     dependencyCompiler: {
-      paths: dependencyPaths,
+      paths: dependencyPaths || [],
     },
     namedAccounts: {
       deployer: 0,

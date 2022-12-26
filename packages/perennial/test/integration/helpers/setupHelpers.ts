@@ -27,7 +27,7 @@ import {
 import { ChainlinkContext } from './chainlinkHelpers'
 import { buildChainlinkRoundId } from '../../../util/buildChainlinkRoundId'
 import { CHAINLINK_CUSTOM_CURRENCIES } from '../../../util/constants'
-import { parse6decimal } from '../../../util/number'
+import { parse6decimal } from '../../../../common/testutil/types'
 const { config, deployments, ethers } = HRE
 
 export const INITIAL_PHASE_ID = 1

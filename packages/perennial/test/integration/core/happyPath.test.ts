@@ -3,9 +3,8 @@ import 'hardhat'
 import { constants } from 'ethers'
 
 import { InstanceVars, deployProtocol, createMarket, INITIAL_VERSION } from '../helpers/setupHelpers'
-import { expectPositionEq } from '../../../../common/testutil/types'
+import { expectPositionEq, parse6decimal } from '../../../../common/testutil/types'
 import { Market__factory } from '../../../types/generated'
-import { parse6decimal } from '../../../util/number'
 
 describe.only('Happy Path', () => {
   let instanceVars: InstanceVars

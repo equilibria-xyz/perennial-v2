@@ -3,7 +3,7 @@ import 'hardhat'
 import { BigNumber, constants, utils } from 'ethers'
 
 import { InstanceVars, deployProtocol, createMarket } from '../helpers/setupHelpers'
-import { parse6decimal } from '../../../util/number'
+import { parse6decimal } from '../../../../common/testutil/types'
 
 describe('Liquidate', () => {
   let instanceVars: InstanceVars

@@ -1,10 +1,9 @@
 import { expect } from 'chai'
 import 'hardhat'
-import { constants, utils } from 'ethers'
+import { constants } from 'ethers'
 
 import { InstanceVars, deployProtocol, createMarket } from '../helpers/setupHelpers'
-import { expectPositionEq } from '../../../../common/testutil/types'
-import { parse6decimal } from '../../../util/number'
+import { expectPositionEq, parse6decimal } from '../../../../common/testutil/types'
 
 const SECONDS_IN_YEAR = 60 * 60 * 24 * 365
 const SECONDS_IN_DAY = 60 * 60 * 24

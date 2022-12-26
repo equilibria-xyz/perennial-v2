@@ -1,10 +1,10 @@
 import { expect } from 'chai'
 import 'hardhat'
-import { utils, constants } from 'ethers'
+import { constants } from 'ethers'
 
 import { InstanceVars, deployProtocol, createMarket } from '../helpers/setupHelpers'
 import { Market } from '../../../types/generated'
-import { parse6decimal } from '../../../util/number'
+import { parse6decimal } from '../../../../common/testutil/types'
 
 describe('Closed Market', () => {
   let instanceVars: InstanceVars
