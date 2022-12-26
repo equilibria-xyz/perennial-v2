@@ -1,6 +1,6 @@
 import { HardhatRuntimeEnvironment } from 'hardhat/types'
 import { DeployFunction } from 'hardhat-deploy/types'
-import { Controller, Controller__factory } from '../types/generated'
+import { Factory, Factory__factory } from '../types/generated'
 import { SignerWithAddress } from '@nomiclabs/hardhat-ethers/signers'
 
 const func: DeployFunction = async function (hre: HardhatRuntimeEnvironment) {
@@ -11,13 +11,13 @@ const func: DeployFunction = async function (hre: HardhatRuntimeEnvironment) {
 
   // NETWORK CONSTANTS
 
-  const controller: Controller = new Controller__factory(deployerSigner).attach((await get('Controller_Proxy')).address)
-  console.log('using Controller at ' + controller.address)
+  const factory: Factory = new Factory__factory(deployerSigner).attach((await get('Factory_Proxy')).address)
+  console.log('using Controller at ' + factory.address)
 
   // LENS
   await deploy('PerennialLens_V01', {
     contract: 'PerennialLens',
-    args: [controller.address],
+    args: [factory.address],
     from: deployer,
     skipIfAlreadyDeployed: true,
     log: true,
