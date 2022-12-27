@@ -8,8 +8,8 @@ import "./interfaces/IMarket.sol";
 import "./interfaces/IFactory.sol";
 import "hardhat/console.sol";
 
-
-// TODO: position needs less settle on the second period for both global and account
+// TODO: versioned params and other 1.1 fixes (position fee + liquidation bugs)
+// TODO:  we no longer need reentrancy guards
 
 /**
  * @title Market
@@ -224,13 +224,7 @@ contract Market is IMarket, UInitializable, UOwnable, UReentrancyGuard {
             context.marketParameter
         );
         context.position.update(makerAmount, takerAmount);
-        UFixed6 positionFee = context.version.update(
-            context.position,
-            makerFee,
-            takerFee,
-            context.protocolParameter,
-            context.marketParameter
-        );
+        UFixed6 positionFee = context.version.update(context.position, makerFee, takerFee, context.marketParameter);
         context.fee.update(positionFee, context.protocolParameter);
 
         // after

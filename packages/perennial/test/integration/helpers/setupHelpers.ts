@@ -44,7 +44,7 @@ export interface InstanceVars {
   treasuryA: SignerWithAddress
   treasuryB: SignerWithAddress
   proxyAdmin: ProxyAdmin
-  controller: Factory
+  factory: Factory
   contractPayoffProvider: TestnetContractPayoffProvider
   dsu: IERC20Metadata
   usdc: IERC20Metadata
@@ -82,23 +82,23 @@ export async function deployProtocol(): Promise<InstanceVars> {
 
   const marketImpl = await new Market__factory(owner).deploy()
 
-  const controllerImpl = await new Factory__factory(owner).deploy(marketImpl.address)
+  const factoryImpl = await new Factory__factory(owner).deploy(marketImpl.address)
 
-  const controllerProxy = await new TransparentUpgradeableProxy__factory(owner).deploy(
-    controllerImpl.address,
+  const factoryProxy = await new TransparentUpgradeableProxy__factory(owner).deploy(
+    factoryImpl.address,
     proxyAdmin.address,
     [],
   )
 
-  const controller = await new Factory__factory(owner).attach(controllerProxy.address)
+  const factory = await new Factory__factory(owner).attach(factoryProxy.address)
 
   // Init
-  await controller.initialize()
+  await factory.initialize()
 
   // Params
-  await controller.updatePauser(pauser.address)
-  await controller.updateTreasury(treasuryA.address)
-  await controller.updateParameter({
+  await factory.updatePauser(pauser.address)
+  await factory.updateTreasury(treasuryA.address)
+  await factory.updateParameter({
     protocolFee: parse6decimal('0.50'),
     minFundingFee: parse6decimal('0.10'),
     liquidationFee: parse6decimal('0.50'),
@@ -115,7 +115,7 @@ export async function deployProtocol(): Promise<InstanceVars> {
   const usdcHolder = await impersonate.impersonateWithBalance(USDC_HOLDER, utils.parseEther('10'))
   await chainlinkOracle.sync()
 
-  const lens = await new Lens__factory(owner).deploy(controller.address)
+  const lens = await new Lens__factory(owner).deploy(factory.address)
 
   const rewardToken = await new ERC20PresetMinterPauser__factory(owner).deploy('Incentive Token', 'ITKN')
 
@@ -136,7 +136,7 @@ export async function deployProtocol(): Promise<InstanceVars> {
     usdc,
     usdcHolder,
     proxyAdmin,
-    controller,
+    factory,
     marketImpl,
     lens,
     rewardToken,
@@ -148,7 +148,7 @@ export async function createMarket(
   payoffProvider?: TestnetContractPayoffProvider,
   oracle?: ChainlinkOracle,
 ): Promise<Market> {
-  const { owner, controller, treasuryB, chainlinkOracle, rewardToken, dsu } = instanceVars
+  const { owner, factory, treasuryB, chainlinkOracle, rewardToken, dsu } = instanceVars
   if (!payoffProvider) {
     payoffProvider = instanceVars.contractPayoffProvider
   }
@@ -184,8 +184,8 @@ export async function createMarket(
       short: false,
     },
   }
-  const marketAddress = await controller.callStatic.createMarket(definition, parameter)
-  await controller.createMarket(definition, parameter)
+  const marketAddress = await factory.callStatic.createMarket(definition, parameter)
+  await factory.createMarket(definition, parameter)
 
   const market = Market__factory.connect(marketAddress, owner)
   await market.acceptOwner()

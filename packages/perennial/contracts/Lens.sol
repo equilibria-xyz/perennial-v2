@@ -120,10 +120,12 @@ contract Lens is ILens {
         return market.token();
     }
 
-    function definition(IMarket market) public view returns (IMarket.MarketDefinition memory _definition) {
-        _definition.name = name(market);
-        _definition.symbol = symbol(market);
-        _definition.token = token(market);
+    function reward(IMarket market) public view returns (Token18) {
+        return market.reward();
+    }
+
+    function definition(IMarket market) public view returns (IMarket.MarketDefinition memory) {
+        return IMarket.MarketDefinition(name(market), symbol(market), token(market), reward(market));
     }
 
     function parameter(IMarket market) public view returns (MarketParameter memory) {
@@ -186,8 +188,7 @@ contract Lens is ILens {
      */
     function rate(IMarket market) public settle(market) returns (Fixed6) {
         UFixed6 utilization_ = _latestPosition(market).utilization();
-        Fixed6 annualRate_ = market.parameter().utilizationCurve.compute(utilization_);
-        return annualRate_.div(Fixed6Lib.from(365 days));
+        return market.parameter().utilizationCurve.compute(utilization_);
     }
 
     /**

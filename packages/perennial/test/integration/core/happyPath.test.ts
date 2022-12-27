@@ -14,7 +14,7 @@ describe.only('Happy Path', () => {
   })
 
   it('creates a market', async () => {
-    const { owner, controller, treasuryB, contractPayoffProvider, chainlinkOracle, dsu, rewardToken } = instanceVars
+    const { owner, factory, treasuryB, contractPayoffProvider, chainlinkOracle, dsu, rewardToken } = instanceVars
 
     const definition = {
       name: 'Squeeth',
@@ -44,8 +44,8 @@ describe.only('Happy Path', () => {
         short: false,
       },
     }
-    const marketAddress = await controller.callStatic.createMarket(definition, parameter)
-    await expect(controller.createMarket(definition, parameter)).to.emit(controller, 'MarketCreated')
+    const marketAddress = await factory.callStatic.createMarket(definition, parameter)
+    await expect(factory.createMarket(definition, parameter)).to.emit(factory, 'MarketCreated')
     const market = Market__factory.connect(marketAddress, owner)
     await market.connect(owner).acceptOwner()
     await market.connect(owner).updateTreasury(treasuryB.address)
@@ -433,10 +433,10 @@ describe.only('Happy Path', () => {
   })
 
   it('disables actions when paused', async () => {
-    const { controller, pauser, user } = instanceVars
+    const { factory, pauser, user } = instanceVars
     const market = await createMarket(instanceVars)
 
-    await expect(controller.connect(pauser).updatePaused(true)).to.emit(controller, 'ParameterUpdated')
+    await expect(factory.connect(pauser).updatePaused(true)).to.emit(factory, 'ParameterUpdated')
     await expect(market.update(0, parse6decimal('1000'))).to.be.revertedWith('PausedError()')
     await expect(market.liquidate(user.address)).to.be.revertedWith('PausedError()')
     await expect(market.update(parse6decimal('0.001'), 0)).to.be.revertedWith('PausedError()')

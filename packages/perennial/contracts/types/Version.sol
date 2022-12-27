@@ -50,7 +50,6 @@ library VersionLib {
         Position memory position,
         UFixed6 makerFee,
         UFixed6 takerFee,
-        ProtocolParameter memory protocolParameter,
         MarketParameter memory marketParameter
     ) internal pure returns (UFixed6 positionFee) {
         (UFixed6 makerProtocolFee, UFixed6 takerProtocolFee) =
@@ -62,14 +61,14 @@ library VersionLib {
         if (!position.maker.isZero()) {
             self.makerValue.increment(Fixed6Lib.from(takerFee), position.maker);
         } else {
-            positionFee = protocolParameter.protocolFee.add(takerFee);
+            positionFee = positionFee.add(takerFee);
         }
 
         // If there are takers to distribute the maker's position fee to, distribute. Otherwise give it to the protocol
         if (!position.taker.isZero()) {
             self.takerValue.increment(Fixed6Lib.from(makerFee), position.taker);
         } else {
-            positionFee = protocolParameter.protocolFee.add(makerFee);
+            positionFee = positionFee.add(makerFee);
         }
     }
 
@@ -120,8 +119,8 @@ library VersionLib {
 
         Fixed6 fundingAccumulated = marketParameter.utilizationCurve.compute(position.utilization())     // yearly funding rate
             .mul(Fixed6Lib.from(int256(toOracleVersion.timestamp - fromOracleVersion.timestamp)))        // multiply by seconds in period
-            .div(Fixed6Lib.from(365 days))                                                               // divide by seconds in year (funding rate for period)
-            .mul(Fixed6Lib.from(socializedNotional));                                                    // multiply by socialized notion (funding for period)
+            .mul(Fixed6Lib.from(socializedNotional))                                                     // multiply by socialized notional (funding for period)
+            .div(Fixed6Lib.from(365 days));                                                              // divide by seconds in year (funding rate for period)
         UFixed6 boundedFundingFee = UFixed6Lib.max(marketParameter.fundingFee, protocolParameter.minFundingFee);
         fundingFeeAmount = fundingAccumulated.abs().mul(boundedFundingFee);
 
