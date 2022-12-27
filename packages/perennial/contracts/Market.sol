@@ -3,7 +3,6 @@ pragma solidity 0.8.17;
 
 import "@equilibria/root/control/unstructured/UInitializable.sol";
 import "@equilibria/root/control/unstructured/UOwnable.sol";
-import "@equilibria/root/control/unstructured/UReentrancyGuard.sol";
 import "./interfaces/IMarket.sol";
 import "./interfaces/IFactory.sol";
 import "hardhat/console.sol";
@@ -16,7 +15,7 @@ import "hardhat/console.sol";
  * @notice Manages logic and state for a single market market.
  * @dev Cloned by the Factory contract to launch new market markets.
  */
-contract Market is IMarket, UInitializable, UOwnable, UReentrancyGuard {
+contract Market is IMarket, UInitializable, UOwnable {
     struct CurrentContext {
         /* Global Parameters */
         ProtocolParameter protocolParameter;
@@ -82,7 +81,6 @@ contract Market is IMarket, UInitializable, UOwnable, UReentrancyGuard {
         MarketParameter calldata parameter_
     ) external initializer(1) {
         __UOwnable__initialize();
-        __UReentrancyGuard__initialize();
 
         factory = IFactory(msg.sender);
         name = definition_.name;
@@ -93,7 +91,7 @@ contract Market is IMarket, UInitializable, UOwnable, UReentrancyGuard {
     }
 
     //TODO: address 0?
-    function settle(address account) external nonReentrant {
+    function settle(address account) external {
         CurrentContext memory context = _loadContext(account);
         _settle(context);
         _saveContext(context, account);
@@ -109,7 +107,6 @@ contract Market is IMarket, UInitializable, UOwnable, UReentrancyGuard {
 
     function liquidate(address account)
     external
-    nonReentrant
     {
         CurrentContext memory context = _loadContext(account);
         _settle(context);

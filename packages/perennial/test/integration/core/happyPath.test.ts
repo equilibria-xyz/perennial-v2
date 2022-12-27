@@ -511,8 +511,8 @@ describe.only('Happy Path', () => {
       takerNext: POSITION.div(2),
     })
     const version = await market.versions(INITIAL_VERSION + 4)
-    expect(version.makerValue._value).to.equal('-357225572122')
-    expect(version.takerValue._value).to.equal('367444018181')
+    expect(version.makerValue._value).to.equal('-357213713941')
+    expect(version.takerValue._value).to.equal('367430843636')
     expect(version.makerReward._value).to.equal('60683636363')
     expect(version.takerReward._value).to.equal('606836363635')
   })
