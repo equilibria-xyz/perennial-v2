@@ -83,6 +83,7 @@ library AccountLib {
         self.collateral = self.collateral.add(Fixed6Lib.from(self.position.abs()).mul(valueDelta));
         self.reward = self.reward.add(self.position.abs().mul(rewardDelta));
         self.position = self.next;
+        self.liquidation = false;
     }
 
     /**

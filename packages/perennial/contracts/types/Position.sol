@@ -3,6 +3,7 @@ pragma solidity ^0.8.13;
 
 import "@equilibria/perennial-v2-oracle/contracts/types/OracleVersion.sol";
 import "@equilibria/root-v2/contracts/UFixed6.sol";
+import "hardhat/console.sol";
 
 /// @dev Position type
 struct Position {
@@ -66,7 +67,8 @@ library PositionLib {
         return _socializationFactor(self.maker, self.taker);
     }
 
-    function socializationFactorNext(Position memory self) internal pure returns (UFixed6) {
+    function socializationFactorNext(Position memory self) internal view returns (UFixed6) {
+        console.log("makerNext: %s, takerNext: %s", UFixed6.unwrap(self.makerNext), UFixed6.unwrap(self.takerNext));
         return _socializationFactor(self.makerNext, self.takerNext);
     }
 

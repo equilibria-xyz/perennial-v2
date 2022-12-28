@@ -9,7 +9,7 @@ import { Market } from '../../../types/generated'
 const POSITION = parse6decimal('0.0001')
 const COLLATERAL = parse6decimal('1000')
 
-describe.only('Lens', () => {
+describe('Lens', () => {
   let instanceVars: InstanceVars
   let market: Market
 

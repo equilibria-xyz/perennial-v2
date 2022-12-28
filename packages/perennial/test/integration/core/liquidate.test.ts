@@ -14,10 +14,45 @@ describe.only('Liquidate', () => {
 
   it('liquidates a user', async () => {
     const POSITION = parse6decimal('0.0001')
+    const COLLATERAL = parse6decimal('1000')
     const { user, userB, dsu, chainlink, lens } = instanceVars
 
     const market = await createMarket(instanceVars)
-    await market.connect(user).update(POSITION.mul(-1), parse6decimal('1000'))
+    await dsu.connect(user).approve(market.address, COLLATERAL.mul(1e12))
+    await market.connect(user).update(POSITION.mul(-1), COLLATERAL)
+
+    expect(await lens.callStatic.liquidatable(user.address, market.address)).to.be.false
+
+    // Settle the market with a new oracle version
+    await chainlink.nextWithPriceModification(price => price.mul(2))
+    await market.settle(user.address)
+
+    expect(await lens.callStatic.liquidatable(user.address, market.address)).to.be.true
+    console.log('liquidate')
+    await expect(market.connect(userB).liquidate(user.address))
+      .to.emit(market, 'Liquidation')
+      .withArgs(user.address, userB.address, '682778988')
+
+    expect((await market.accounts(user.address)).liquidation).to.be.true
+
+    expect((await market.accounts(user.address)).collateral).to.equal('317221012')
+    expect(await lens.callStatic['collateral(address)'](market.address)).to.equal('317221012')
+    expect(await dsu.balanceOf(userB.address)).to.equal(utils.parseEther('20682.778988')) // Original 20000 + fee
+
+    await chainlink.next()
+    await market.settle(user.address)
+
+    expect((await market.accounts(user.address)).liquidation).to.be.false
+  })
+
+  it('liquidates a user with a reward larger than total collateral', async () => {
+    const POSITION = parse6decimal('0.0001')
+    const COLLATERAL = parse6decimal('1000')
+    const { user, userB, dsu, chainlink, lens } = instanceVars
+
+    const market = await createMarket(instanceVars)
+    await dsu.connect(user).approve(market.address, COLLATERAL.mul(1e12))
+    await market.connect(user).update(POSITION.mul(-1), COLLATERAL)
 
     expect(await lens.callStatic.liquidatable(user.address, market.address)).to.be.false
 
@@ -26,10 +61,10 @@ describe.only('Liquidate', () => {
     await market.settle(user.address)
 
     expect(await lens.callStatic.liquidatable(user.address, market.address)).to.be.true
-
+    console.log('liquidate')
     await expect(market.connect(userB).liquidate(user.address))
       .to.emit(market, 'Liquidation')
-      .withArgs(user.address, market.address, userB.address, parse6decimal('1000'))
+      .withArgs(user.address, userB.address, COLLATERAL)
 
     expect((await market.accounts(user.address)).liquidation).to.be.true
 
@@ -45,9 +80,12 @@ describe.only('Liquidate', () => {
 
   it('creates and resolves a shortfall', async () => {
     const POSITION = parse6decimal('0.0001')
+    const COLLATERAL = parse6decimal('1000')
     const { user, userB, dsu, chainlink } = instanceVars
 
     const market = await createMarket(instanceVars)
+    await dsu.connect(user).approve(market.address, COLLATERAL.mul(1e12))
+    await dsu.connect(userB).approve(market.address, COLLATERAL.mul(1e12))
     await market.connect(user).update(POSITION.mul(-1), parse6decimal('1000'))
     await market.connect(userB).update(POSITION, parse6decimal('1000'))
 
@@ -59,26 +97,34 @@ describe.only('Liquidate', () => {
     await market.settle(user.address)
     await market.settle(userB.address)
 
-    expect((await market.accounts(user.address)).collateral).to.equal(BigNumber.from('-2463736825720737646856'))
+    expect((await market.accounts(user.address)).collateral).to.equal(BigNumber.from('-2463736824'))
 
     const userBCollateral = (await market.accounts(userB.address)).collateral
-    await expect(market.connect(userB).update(0, userBCollateral.mul(-1))).to.be.revertedWith('0x11') // underflow
+    await expect(market.connect(userB).update(0, userBCollateral.mul(-1))).to.be.revertedWith('MarketInDebtError()') // underflow
+
+    await market.connect(userB).liquidate(user.address)
+    await chainlink.next()
 
     await dsu.connect(userB).approve(market.address, constants.MaxUint256)
-    await market.connect(user).update(0, '2463736825720737646856') //TODO: from userB?
+    await market.connect(user).update(0, 0) //TODO: from userB?
 
     expect((await market.accounts(user.address)).collateral).to.equal(0)
   })
 
   it('uses a socialization factor', async () => {
     const POSITION = parse6decimal('0.0001')
-    const { user, userB, userC, userD, chainlink, lens } = instanceVars
+    const COLLATERAL = parse6decimal('1000')
+    const { user, userB, userC, userD, chainlink, dsu, lens } = instanceVars
 
     const market = await createMarket(instanceVars)
-    await market.connect(user).update(POSITION.mul(-1), parse6decimal('1000'))
-    await market.connect(userB).update(POSITION.mul(-1), parse6decimal('1000'))
-    await market.connect(userC).update(POSITION, parse6decimal('10000'))
-    await market.connect(userD).update(POSITION, parse6decimal('10000'))
+    await dsu.connect(user).approve(market.address, COLLATERAL.mul(1e12))
+    await dsu.connect(userB).approve(market.address, COLLATERAL.mul(1e12))
+    await dsu.connect(userC).approve(market.address, COLLATERAL.mul(10).mul(1e12))
+    await dsu.connect(userD).approve(market.address, COLLATERAL.mul(10).mul(1e12))
+    await market.connect(user).update(POSITION.mul(-1), COLLATERAL)
+    await market.connect(userB).update(POSITION.mul(-1), COLLATERAL)
+    await market.connect(userC).update(POSITION, COLLATERAL.mul(10))
+    await market.connect(userD).update(POSITION, COLLATERAL.mul(10))
 
     expect(await lens.callStatic.liquidatable(user.address, market.address)).to.be.false
 
@@ -86,10 +132,10 @@ describe.only('Liquidate', () => {
     await chainlink.nextWithPriceModification(price => price.mul(2))
 
     // Liquidate `user` which results in taker > maker
-    const expectedLiquidationFee = BigNumber.from('682778989173237912428')
+    const expectedLiquidationFee = BigNumber.from('682778988')
     await expect(market.connect(userB).liquidate(user.address))
       .to.emit(market, 'Liquidation')
-      .withArgs(user.address, market.address, userB.address, expectedLiquidationFee)
+      .withArgs(user.address, userB.address, expectedLiquidationFee)
 
     await chainlink.next()
     await market.settle(user.address)

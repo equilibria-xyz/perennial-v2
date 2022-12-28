@@ -8,8 +8,8 @@ import "./interfaces/IFactory.sol";
 import "hardhat/console.sol";
 
 // TODO: versioned params and other 1.1 fixes (position fee + liquidation bugs)
-// TODO:  we no longer need reentrancy guards
-
+// TODO: should we move position fees to account position settle so that there's intra-version netting?
+// TODO: combine liquidate into settle flow
 /**
  * @title Market
  * @notice Manages logic and state for a single market market.
@@ -176,6 +176,10 @@ contract Market is IMarket, UInitializable, UOwnable {
             UFixed6Lib.max(maintenance, context.protocolParameter.minCollateral)
                 .mul(context.protocolParameter.liquidationFee)
         );
+        liquidationReward = liquidationReward.min(Fixed6.wrap(int256(UFixed18.unwrap(token.balanceOf())) / 1e12));
+
+        console.log("position: %s, price: %s", UFixed6.unwrap(context.account.position.abs()), uint256(Fixed6.unwrap(context.currentOracleVersion.price)));
+        console.log("maintenance: %s, liquidationReward: %s", UFixed6.unwrap(maintenance), uint256(Fixed6.unwrap(liquidationReward)));
 
         // close position
         _update(context, account, msg.sender, Fixed6Lib.ZERO, context.account.collateral.sub(liquidationReward), true);
@@ -192,6 +196,7 @@ contract Market is IMarket, UInitializable, UOwnable {
         Fixed6 newCollateral,
         bool force
     ) private {
+        console.log("newPosition: %s", uint256(Fixed6.unwrap(newPosition)));
         _startGas(context, "_update before-update-after: %s");
 
         // before
@@ -216,6 +221,7 @@ contract Market is IMarket, UInitializable, UOwnable {
         context.fee.update(positionFee, context.protocolParameter);
 
         // after
+        console.log("newPosition: %s", uint256(Fixed6.unwrap(newPosition)));
         if (!force) _checkPosition(context);
         if (!force) _checkCollateral(context);
 
@@ -224,6 +230,7 @@ contract Market is IMarket, UInitializable, UOwnable {
         _startGas(context, "_update fund-events: %s");
 
         // fund
+        console.log("balance: %s, collateralAmount: %s", UFixed18.unwrap(token.balanceOf()), UFixed6.unwrap(collateralAmount.abs()));
         if (collateralAmount.sign() == 1) token.pull(account, UFixed18.wrap(UFixed6.unwrap(collateralAmount.abs()) * 1e12));
         if (collateralAmount.sign() == -1) token.push(receiver, UFixed18.wrap(UFixed6.unwrap(collateralAmount.abs()) * 1e12));
 
@@ -338,13 +345,18 @@ contract Market is IMarket, UInitializable, UOwnable {
     ) private pure {
         if (context.currentOracleVersion.version > context.account.latestVersion) {
             context.account.accumulate(toOracleVersion, fromVersion, toVersion);
-            context.account.liquidation = false;
         }
     }
 
-    function _checkPosition(CurrentContext memory context) private pure {
-        if (!context.marketParameter.closed && context.position.socializationFactorNext().lt(UFixed6Lib.ONE))
-            revert MarketInsufficientLiquidityError();
+    function _checkPosition(CurrentContext memory context) private view {
+        console.log("!context.marketParameter.closed: %s", !context.marketParameter.closed);
+        console.log("context.position.socializationFactorNext().lt(UFixed6Lib.ONE): %s", context.position.socializationFactorNext().lt(UFixed6Lib.ONE));
+        console.log("context.account.next.gt(context.account.position): %s", context.account.next.gt(context.account.position));
+        if (
+            !context.marketParameter.closed &&
+            context.position.socializationFactorNext().lt(UFixed6Lib.ONE) &&
+            context.account.next.gt(context.account.position)
+        ) revert MarketInsufficientLiquidityError();
 
         if (context.position.makerNext.gt(context.marketParameter.makerLimit))
             revert MarketMakerOverLimitError();
