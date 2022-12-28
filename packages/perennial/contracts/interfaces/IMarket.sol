@@ -21,7 +21,7 @@ interface IMarket {
     event Settle(uint256 preVersion, uint256 toVersion);
     event AccountSettle(address indexed account, uint256 preVersion, uint256 toVersion);
     event Updated(address indexed account, uint256 version, Fixed6 positionAmount, Fixed6 collateralAmount);
-    event Liquidation(address indexed account, address liquidator, UFixed6 fee);
+    event Liquidation(address indexed account, address liquidator, Fixed6 fee);
     event FeeSettled(UFixed6 protocolFeeAmount, UFixed6 marketFeeAmount);
     event CollateralSettled(address indexed account, Fixed6 amount, UFixed6 newShortfall);
     event TreasuryUpdated(address newTreasury);

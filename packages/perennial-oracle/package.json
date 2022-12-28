@@ -37,6 +37,6 @@
   "dependencies": {
     "@equilibria/root": "0.1.6",
     "@equilibria/root-v2": "1.0.0",
-    "@openzeppelin/contracts": "4.7.3"
+    "@openzeppelin/contracts": "4.8.0"
   }
 }

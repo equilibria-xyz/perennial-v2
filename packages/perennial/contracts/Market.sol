@@ -101,7 +101,7 @@ contract Market is IMarket, UInitializable, UOwnable {
     function update(Fixed6 newPosition, Fixed6 newCollateral) external {
         CurrentContext memory context = _loadContext(msg.sender);
         _settle(context);
-        _update(context, msg.sender, newPosition, newCollateral, false);
+        _update(context, msg.sender, msg.sender, newPosition, newCollateral, false);
         _saveContext(context, msg.sender);
     }
 
@@ -172,24 +172,14 @@ contract Market is IMarket, UInitializable, UOwnable {
         UFixed6 maintenance = context.account.maintenance(context.currentOracleVersion, context.marketParameter.maintenance);
         if (context.account.collateral.gte(Fixed6Lib.from(maintenance))) revert MarketCantLiquidate();
 
-        // close all positions
-        _update(context, account, context.account.position.mul(Fixed6Lib.NEG_ONE), Fixed6Lib.ZERO, true);
+        Fixed6 liquidationReward = Fixed6Lib.from(
+            UFixed6Lib.max(maintenance, context.protocolParameter.minCollateral)
+                .mul(context.protocolParameter.liquidationFee)
+        );
 
-        // handle liquidation fee
-        UFixed6 liquidationReward = UFixed6Lib.min(
-            context.account.collateral.max(Fixed6Lib.ZERO).abs(),
-            maintenance.mul(context.protocolParameter.liquidationFee)
-        );
-        context.account.update(
-            Fixed6Lib.ZERO, //TODO: all the position stuff is not needed here so might be a gas efficiency check here
-            Fixed6Lib.from(-1, liquidationReward),
-            context.currentOracleVersion,
-            context.marketParameter
-        );
+        // close position
+        _update(context, account, msg.sender, Fixed6Lib.ZERO, context.account.collateral.sub(liquidationReward), true);
         context.account.liquidation = true;
-
-        // remit liquidation reward
-        token.push(msg.sender, UFixed18.wrap(UFixed6.unwrap(liquidationReward) * 1e12));
 
         emit Liquidation(account, msg.sender, liquidationReward);
     }
@@ -197,6 +187,7 @@ contract Market is IMarket, UInitializable, UOwnable {
     function _update(
         CurrentContext memory context,
         address account, //TODO: use for onbehalf of?
+        address receiver,
         Fixed6 newPosition,
         Fixed6 newCollateral,
         bool force
@@ -234,7 +225,7 @@ contract Market is IMarket, UInitializable, UOwnable {
 
         // fund
         if (collateralAmount.sign() == 1) token.pull(account, UFixed18.wrap(UFixed6.unwrap(collateralAmount.abs()) * 1e12));
-        if (collateralAmount.sign() == -1) token.push(account, UFixed18.wrap(UFixed6.unwrap(collateralAmount.abs()) * 1e12));
+        if (collateralAmount.sign() == -1) token.push(receiver, UFixed18.wrap(UFixed6.unwrap(collateralAmount.abs()) * 1e12));
 
         // events
         emit Updated(account, context.currentOracleVersion.version, newPosition, newCollateral);

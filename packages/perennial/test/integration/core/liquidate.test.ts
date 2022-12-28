@@ -5,7 +5,7 @@ import { BigNumber, constants, utils } from 'ethers'
 import { InstanceVars, deployProtocol, createMarket } from '../helpers/setupHelpers'
 import { parse6decimal } from '../../../../common/testutil/types'
 
-describe('Liquidate', () => {
+describe.only('Liquidate', () => {
   let instanceVars: InstanceVars
 
   beforeEach(async () => {

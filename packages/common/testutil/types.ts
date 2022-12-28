@@ -1,4 +1,4 @@
-import { BigNumber, BigNumberish, utils } from 'ethers'
+import { BigNumber, BigNumberish, utils, constants } from 'ethers'
 import { expect } from 'chai'
 
 export interface Position {
@@ -62,4 +62,28 @@ export function createPayoffDefinition({
 
 export function parse6decimal(amount: string): BigNumber {
   return utils.parseEther(amount).div(1e12)
+}
+
+export class Big18Math {
+  public static BASE = constants.WeiPerEther
+
+  public static mul(a: BigNumber, b: BigNumber): BigNumber {
+    return a.mul(b).div(this.BASE)
+  }
+
+  public static div(a: BigNumber, b: BigNumber): BigNumber {
+    return a.mul(this.BASE).div(b)
+  }
+}
+
+export class Big6Math {
+  public static BASE = BigNumber.from(1_000_000)
+
+  public static mul(a: BigNumber, b: BigNumber): BigNumber {
+    return a.mul(b).div(this.BASE)
+  }
+
+  public static div(a: BigNumber, b: BigNumber): BigNumber {
+    return a.mul(this.BASE).div(b)
+  }
 }

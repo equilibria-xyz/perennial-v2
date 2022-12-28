@@ -14,7 +14,7 @@ describe('Closed Market', () => {
   })
 
   it('closes the market', async () => {
-    const POSITION = parse6decimal('0.0001')
+    const POSITION = parse6decimal('0.1')
     const { user, chainlink } = instanceVars
 
     const market = await createMarket(instanceVars)
@@ -40,7 +40,7 @@ describe('Closed Market', () => {
 
   describe('changes to system constraints', async () => {
     let market: Market
-    const POSITION = parse6decimal('0.0001')
+    const POSITION = parse6decimal('0.1')
 
     beforeEach(async () => {
       const { user, userB } = instanceVars
@@ -72,7 +72,7 @@ describe('Closed Market', () => {
   })
 
   it('zeroes PnL and fees', async () => {
-    const POSITION = parse6decimal('0.0001')
+    const POSITION = parse6decimal('0.1')
     const { user, userB, chainlink } = instanceVars
 
     const market = await createMarket(instanceVars)
@@ -104,7 +104,7 @@ describe('Closed Market', () => {
   })
 
   it('handles closing during liquidations', async () => {
-    const POSITION = parse6decimal('0.0001')
+    const POSITION = parse6decimal('0.1')
     const { user, userB, chainlink } = instanceVars
 
     const market = await createMarket(instanceVars)

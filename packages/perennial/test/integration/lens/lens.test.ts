@@ -9,7 +9,7 @@ import { Market } from '../../../types/generated'
 const POSITION = parse6decimal('0.0001')
 const COLLATERAL = parse6decimal('1000')
 
-describe('Lens', () => {
+describe.only('Lens', () => {
   let instanceVars: InstanceVars
   let market: Market
 
@@ -175,7 +175,7 @@ describe('Lens', () => {
 
     fees = await lens.callStatic.fees(market.address)
     expect(fees.protocol).to.equal('4127')
-    expect(fees.market).to.equal('1238')
+    expect(fees.market).to.equal('12381')
   })
 
   it('#collateral (market)', async () => {
@@ -185,7 +185,7 @@ describe('Lens', () => {
     await chainlink.nextWithPriceModification(price => price.mul(2))
     await market.connect(userB).liquidate(user.address)
 
-    expect(await lens.callStatic['collateral(address)'](market.address)).to.equal('1999983491')
+    expect(await lens.callStatic['collateral(address)'](market.address)).to.equal('1999983492')
   })
 
   it('#collateral (account)', async () => {
@@ -215,7 +215,7 @@ describe('Lens', () => {
     await market.settle(user.address)
 
     const prices = await lens.callStatic.atVersions(market.address, [2472, 2475])
-    expect(prices[0].price).to.equal('11388297509860')
-    expect(prices[1].price).to.equal('11628475351618')
+    expect(prices[0].price).to.equal('11388297509658')
+    expect(prices[1].price).to.equal('11628475348548')
   })
 })

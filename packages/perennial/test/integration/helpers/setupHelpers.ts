@@ -5,13 +5,11 @@ import { utils } from 'ethers'
 import { time, impersonate } from '../../../../common/testutil'
 import {
   Factory,
-  TestnetContractPayoffProvider,
   IERC20Metadata,
   ChainlinkOracle,
   Market,
   IERC20Metadata__factory,
   Factory__factory,
-  TestnetContractPayoffProvider__factory,
   ChainlinkOracle__factory,
   Market__factory,
   Lens,
@@ -21,11 +19,15 @@ import {
   ProxyAdmin,
   ProxyAdmin__factory,
   TransparentUpgradeableProxy__factory,
+  IPayoffProvider,
+  IPayoffProvider__factory,
 } from '../../../types/generated'
 import { ChainlinkContext } from './chainlinkHelpers'
 import { parse6decimal } from '../../../../common/testutil/types'
 import { buildChainlinkRoundId } from '@equilibria/perennial-v2-oracle/util/buildChainlinkRoundId'
 import { CHAINLINK_CUSTOM_CURRENCIES } from '@equilibria/perennial-v2-oracle/util/constants'
+import { PayoffStruct } from '../../../types/generated/contracts/Factory'
+import { MilliSquared__factory, Squared__factory } from '@equilibria/perennial-v2-payoff/types/generated'
 const { config, deployments, ethers } = HRE
 
 export const INITIAL_PHASE_ID = 1
@@ -45,7 +47,7 @@ export interface InstanceVars {
   treasuryB: SignerWithAddress
   proxyAdmin: ProxyAdmin
   factory: Factory
-  contractPayoffProvider: TestnetContractPayoffProvider
+  payoffProvider: IPayoffProvider
   dsu: IERC20Metadata
   usdc: IERC20Metadata
   dsuHolder: SignerWithAddress
@@ -73,7 +75,12 @@ export async function deployProtocol(): Promise<InstanceVars> {
     CHAINLINK_CUSTOM_CURRENCIES.ETH,
     CHAINLINK_CUSTOM_CURRENCIES.USD,
   )
-  const contractPayoffProvider = await new TestnetContractPayoffProvider__factory(owner).deploy()
+  const payoffProvider = await IPayoffProvider__factory.connect(
+    (
+      await new Squared__factory(owner).deploy()
+    ).address,
+    owner,
+  )
   const dsu = await IERC20Metadata__factory.connect((await deployments.get('DSU')).address, owner)
   const usdc = await IERC20Metadata__factory.connect((await deployments.get('USDC')).address, owner)
 
@@ -131,7 +138,7 @@ export async function deployProtocol(): Promise<InstanceVars> {
     dsuHolder,
     chainlink,
     chainlinkOracle,
-    contractPayoffProvider: contractPayoffProvider,
+    payoffProvider,
     dsu,
     usdc,
     usdcHolder,
@@ -145,20 +152,31 @@ export async function deployProtocol(): Promise<InstanceVars> {
 
 export async function createMarket(
   instanceVars: InstanceVars,
-  payoffProvider?: TestnetContractPayoffProvider,
+  name?: string,
+  symbol?: string,
   oracle?: ChainlinkOracle,
+  payoff?: PayoffStruct,
 ): Promise<Market> {
   const { owner, factory, treasuryB, chainlinkOracle, rewardToken, dsu } = instanceVars
-  if (!payoffProvider) {
-    payoffProvider = instanceVars.contractPayoffProvider
+  if (!payoff) {
+    payoff = {
+      provider: instanceVars.payoffProvider.address,
+      short: false,
+    }
   }
   if (!oracle) {
     oracle = chainlinkOracle
   }
+  if (!name) {
+    name = 'Squeeth'
+  }
+  if (!symbol) {
+    symbol = 'SQTH'
+  }
 
   const definition = {
-    name: 'Squeeth',
-    symbol: 'SQTH',
+    name,
+    symbol,
     token: dsu.address,
     reward: rewardToken.address,
   }
@@ -168,7 +186,7 @@ export async function createMarket(
     makerFee: 0,
     takerFee: 0,
     positionFee: 0,
-    makerLimit: parse6decimal('1'),
+    makerLimit: parse6decimal('1000'),
     closed: false,
     utilizationCurve: {
       minRate: 0,
@@ -179,10 +197,7 @@ export async function createMarket(
     makerRewardRate: 0,
     takerRewardRate: 0,
     oracle: oracle.address,
-    payoff: {
-      provider: payoffProvider.address,
-      short: false,
-    },
+    payoff: payoff,
   }
   const marketAddress = await factory.callStatic.createMarket(definition, parameter)
   await factory.createMarket(definition, parameter)

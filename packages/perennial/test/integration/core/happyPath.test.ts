@@ -6,7 +6,7 @@ import { InstanceVars, deployProtocol, createMarket, INITIAL_VERSION } from '../
 import { expectPositionEq, parse6decimal } from '../../../../common/testutil/types'
 import { Market__factory } from '../../../types/generated'
 
-describe.only('Happy Path', () => {
+describe('Happy Path', () => {
   let instanceVars: InstanceVars
 
   beforeEach(async () => {
@@ -14,7 +14,7 @@ describe.only('Happy Path', () => {
   })
 
   it('creates a market', async () => {
-    const { owner, factory, treasuryB, contractPayoffProvider, chainlinkOracle, dsu, rewardToken } = instanceVars
+    const { owner, factory, treasuryB, payoffProvider, chainlinkOracle, dsu, rewardToken } = instanceVars
 
     const definition = {
       name: 'Squeeth',
@@ -40,7 +40,7 @@ describe.only('Happy Path', () => {
       takerRewardRate: 0,
       oracle: chainlinkOracle.address,
       payoff: {
-        provider: contractPayoffProvider.address,
+        provider: payoffProvider.address,
         short: false,
       },
     }
@@ -449,7 +449,7 @@ describe.only('Happy Path', () => {
 
     const POSITION = parse6decimal('0.0001')
     const COLLATERAL = parse6decimal('1000')
-    const { user, userB, dsu, chainlink, chainlinkOracle, contractPayoffProvider } = instanceVars
+    const { user, userB, dsu, chainlink, chainlinkOracle, payoffProvider } = instanceVars
 
     const parameter = {
       maintenance: parse6decimal('0.3'),
@@ -469,7 +469,7 @@ describe.only('Happy Path', () => {
       takerRewardRate: incentizesOn ? parse6decimal('0.001') : 0,
       oracle: chainlinkOracle.address,
       payoff: {
-        provider: contractPayoffProvider.address,
+        provider: payoffProvider.address,
         short: false,
       },
     }
