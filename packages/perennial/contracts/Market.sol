@@ -178,9 +178,6 @@ contract Market is IMarket, UInitializable, UOwnable {
         );
         liquidationReward = liquidationReward.min(Fixed6.wrap(int256(UFixed18.unwrap(token.balanceOf())) / 1e12));
 
-        console.log("position: %s, price: %s", UFixed6.unwrap(context.account.position.abs()), uint256(Fixed6.unwrap(context.currentOracleVersion.price)));
-        console.log("maintenance: %s, liquidationReward: %s", UFixed6.unwrap(maintenance), uint256(Fixed6.unwrap(liquidationReward)));
-
         // close position
         _update(context, account, msg.sender, Fixed6Lib.ZERO, context.account.collateral.sub(liquidationReward), true);
         context.account.liquidation = true;
@@ -196,7 +193,6 @@ contract Market is IMarket, UInitializable, UOwnable {
         Fixed6 newCollateral,
         bool force
     ) private {
-        console.log("newPosition: %s", uint256(Fixed6.unwrap(newPosition)));
         _startGas(context, "_update before-update-after: %s");
 
         // before
@@ -221,7 +217,6 @@ contract Market is IMarket, UInitializable, UOwnable {
         context.fee.update(positionFee, context.protocolParameter);
 
         // after
-        console.log("newPosition: %s", uint256(Fixed6.unwrap(newPosition)));
         if (!force) _checkPosition(context);
         if (!force) _checkCollateral(context);
 
@@ -230,7 +225,6 @@ contract Market is IMarket, UInitializable, UOwnable {
         _startGas(context, "_update fund-events: %s");
 
         // fund
-        console.log("balance: %s, collateralAmount: %s", UFixed18.unwrap(token.balanceOf()), UFixed6.unwrap(collateralAmount.abs()));
         if (collateralAmount.sign() == 1) token.pull(account, UFixed18.wrap(UFixed6.unwrap(collateralAmount.abs()) * 1e12));
         if (collateralAmount.sign() == -1) token.push(receiver, UFixed18.wrap(UFixed6.unwrap(collateralAmount.abs()) * 1e12));
 
@@ -348,10 +342,7 @@ contract Market is IMarket, UInitializable, UOwnable {
         }
     }
 
-    function _checkPosition(CurrentContext memory context) private view {
-        console.log("!context.marketParameter.closed: %s", !context.marketParameter.closed);
-        console.log("context.position.socializationFactorNext().lt(UFixed6Lib.ONE): %s", context.position.socializationFactorNext().lt(UFixed6Lib.ONE));
-        console.log("context.account.next.gt(context.account.position): %s", context.account.next.gt(context.account.position));
+    function _checkPosition(CurrentContext memory context) private pure {
         if (
             !context.marketParameter.closed &&
             context.position.socializationFactorNext().lt(UFixed6Lib.ONE) &&

@@ -5,7 +5,7 @@ import { BigNumber, constants, utils } from 'ethers'
 import { InstanceVars, deployProtocol, createMarket } from '../helpers/setupHelpers'
 import { parse6decimal } from '../../../../common/testutil/types'
 
-describe.only('Liquidate', () => {
+describe('Liquidate', () => {
   let instanceVars: InstanceVars
 
   beforeEach(async () => {
@@ -28,7 +28,6 @@ describe.only('Liquidate', () => {
     await market.settle(user.address)
 
     expect(await lens.callStatic.liquidatable(user.address, market.address)).to.be.true
-    console.log('liquidate')
     await expect(market.connect(userB).liquidate(user.address))
       .to.emit(market, 'Liquidation')
       .withArgs(user.address, userB.address, '682778988')
@@ -61,7 +60,6 @@ describe.only('Liquidate', () => {
     await market.settle(user.address)
 
     expect(await lens.callStatic.liquidatable(user.address, market.address)).to.be.true
-    console.log('liquidate')
     await expect(market.connect(userB).liquidate(user.address))
       .to.emit(market, 'Liquidation')
       .withArgs(user.address, userB.address, COLLATERAL)

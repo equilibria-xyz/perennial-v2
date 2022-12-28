@@ -4,7 +4,6 @@ pragma solidity 0.8.17;
 import "@openzeppelin/contracts-upgradeable/token/ERC20/extensions/ERC4626Upgradeable.sol";
 import "./interfaces/IBalancedVault.sol";
 import "@equilibria/perennial-v2/contracts/interfaces/IMarket.sol";
-import "hardhat/console.sol";
 
 /**
  * @title BalancedVault
@@ -168,7 +167,6 @@ contract BalancedVault is IBalancedVault, ERC4626Upgradeable {
      * @return The amount of shares taken from `receiver`
      */
     function withdraw(uint256 assets, address receiver, address owner) public override returns (uint256) {
-        console.log("withdraw (before) - assets: %s, max: %s", assets, maxWithdraw(owner));
         _before();
         return super.withdraw(assets, receiver, owner);
     }
@@ -218,8 +216,6 @@ contract BalancedVault is IBalancedVault, ERC4626Upgradeable {
      */
     function _withdraw(address caller, address receiver, address owner, uint256 assets, uint256 shares) internal override {
         _update(_toUFixed6(assets));
-        console.log("withdraw - assets: %s, max: %s", assets, maxWithdraw(owner));
-        console.log("withdraw - collateral: %s, balance: %s", totalAssets(), UFixed18.unwrap(Token18.wrap(asset()).balanceOf()));
         super._withdraw(caller, receiver, owner, assets, shares);
     }
 
@@ -315,13 +311,9 @@ contract BalancedVault is IBalancedVault, ERC4626Upgradeable {
     function _adjustCollateral(IMarket market, UFixed6 targetCollateral) private returns (bool) {
         ProtocolParameter memory _protocolParameter = factory.parameter();
         targetCollateral = targetCollateral.gte(_protocolParameter.minCollateral) ? targetCollateral : UFixed6Lib.ZERO;
-        console.log("adjust collateral - %s", UFixed6.unwrap(targetCollateral));
         Fixed6 _next = market.accounts(address(this)).next;
-        console.log("adjust collateral - maint. %s", UFixed6.unwrap(_maintenance(market)));
-        console.log("adjust collateral - maint. next %s", UFixed6.unwrap(_maintenanceNext(market)));
         try market.update(_next, Fixed6Lib.from(targetCollateral)) { } catch { return false; }
         emit Updated(market, _next, Fixed6Lib.from(targetCollateral));
-        console.log("collateral update succeeded");
         return true;
     }
 

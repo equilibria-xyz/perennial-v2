@@ -17,7 +17,7 @@ struct Version {
 }
 using VersionLib for Version global;
 struct StoredVersion {
-    int64 _makerValue;
+    int64 _makerValue; // TODO: do these need twice the precision of the positions?
     int64 _takerValue;
     uint64 _makerReward;
     uint64 _takerReward;

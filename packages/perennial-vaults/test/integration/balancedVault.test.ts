@@ -91,7 +91,7 @@ describe('BalancedVault', () => {
     leverage = parse6decimal('1.2')
     maxLeverage = parse6decimal('1.32')
     fixedFloat = parse6decimal('10000')
-    maxCollateral = parse6decimal('500000')
+    maxCollateral = parse6decimal('300000')
 
     vault = await new BalancedVault__factory(owner).deploy(
       factory.address,
@@ -116,14 +116,12 @@ describe('BalancedVault', () => {
 
     await dsu.connect(user).approve(long.address, ethers.constants.MaxUint256)
     await dsu.connect(user).approve(short.address, ethers.constants.MaxUint256)
-    await long.connect(user).update(parse6decimal('-1'), parse6decimal('10000'))
-    await short.connect(user).update(parse6decimal('-1'), parse6decimal('10000'))
+    await long.connect(user).update(parse6decimal('-8'), parse6decimal('10000'))
+    await short.connect(user).update(parse6decimal('-8'), parse6decimal('10000'))
     await dsu.connect(user2).approve(long.address, ethers.constants.MaxUint256)
     await dsu.connect(user2).approve(short.address, ethers.constants.MaxUint256)
-    await long.connect(user2).update(parse6decimal('0.5'), parse6decimal('10000'))
-    await short.connect(user2).update(parse6decimal('0.5'), parse6decimal('10000'))
-
-    console.log('test')
+    await long.connect(user2).update(parse6decimal('4'), parse6decimal('10000'))
+    await short.connect(user2).update(parse6decimal('4'), parse6decimal('10000'))
 
     // Unfortunately, we can't make mocks of existing contracts.
     // So, we make a fake and initialize it with the values that the real contract had at this block.
@@ -167,15 +165,12 @@ describe('BalancedVault', () => {
     )
     expect(await shortPosition()).to.equal(await longPosition())
 
-    console.log('test')
     // User 2 should not be able to withdraw; they haven't deposited anything.
     await expect(vault.connect(user2).withdraw(1, user2.address, user2.address)).to.be.revertedWith(
       'ERC4626: withdraw more than max',
     )
-    console.log('test2')
     while ((await vault.connect(user).balanceOf(user.address)).gt(0)) {
       const maxWithdraw = await vault.maxWithdraw(user.address)
-      console.log('reported maxWithdraw: ', maxWithdraw.toString())
       await vault.connect(user).withdraw(maxWithdraw, user.address, user.address)
       await updateOracle()
       await vault.sync()
@@ -263,11 +258,22 @@ describe('BalancedVault', () => {
     await updateOracle()
     await vault.sync()
 
-    const totalDeposits = smallDeposit.add(largeDeposit).div(1e12)
+    let totalDeposits = smallDeposit.add(largeDeposit)
+    expect(await vault.maxWithdraw(user.address)).to.equal(totalDeposits.sub(utils.parseEther('500').mul(2)))
+
+    const mediumDeposit = utils.parseEther('5000')
+    await vault.connect(user).deposit(mediumDeposit, user.address)
+    await updateOracle()
+    await vault.sync()
+
+    totalDeposits = smallDeposit.add(largeDeposit).add(mediumDeposit)
+    const funding = BigNumber.from(54)
     const position = await longPosition()
     const minCollateral = Big6Math.div(Big6Math.mul(position, originalOraclePrice), maxLeverage).mul(2)
 
-    expect(await vault.maxWithdraw(user.address)).to.equal(totalDeposits.sub(minCollateral))
+    expect(await vault.maxWithdraw(user.address)).to.equal(
+      totalDeposits.add(funding.mul(1e12)).sub(minCollateral.mul(1e12)),
+    )
 
     // We shouldn't be able to withdraw more than maxWithdraw.
     await expect(
@@ -285,12 +291,11 @@ describe('BalancedVault', () => {
     await vault.sync()
     // Our collateral should be less than the fixedFloat and greater than 0.
     const totalCollateral = await totalCollateralInVault()
-    expect(totalCollateral).to.be.greaterThan(0)
-    expect(totalCollateral.div(1e12)).to.be.lessThan(fixedFloat)
+    expect(totalCollateral).to.equal('4999996956')
 
     expect(await longPosition()).to.equal(0)
     expect(await shortPosition()).to.equal(0)
-    expect(await vault.maxWithdraw(user.address)).to.equal(totalCollateral)
+    expect(await vault.maxWithdraw(user.address)).to.equal(totalCollateral.mul(1e12))
     await vault.connect(user).withdraw(await vault.maxWithdraw(user.address), user.address, user.address)
 
     // We should have withdrawn all of our collateral.
@@ -299,13 +304,13 @@ describe('BalancedVault', () => {
 
   it('maxDeposit', async () => {
     expect(await vault.maxDeposit(user.address)).to.equal(maxCollateral.mul(1e12))
-    const depositSize = utils.parseEther('200000')
+    const depositSize = utils.parseEther('100000')
 
     await vault.connect(user).deposit(depositSize, user.address)
-    expect(await vault.maxDeposit(user.address)).to.equal(maxCollateral.sub(depositSize))
+    expect(await vault.maxDeposit(user.address)).to.equal(maxCollateral.mul(1e12).sub(depositSize))
 
-    await vault.connect(user2).deposit(utils.parseEther('200000'), user2.address)
-    expect(await vault.maxDeposit(user.address)).to.equal(maxCollateral.sub(depositSize).sub(depositSize))
+    await vault.connect(user2).deposit(utils.parseEther('100000'), user2.address)
+    expect(await vault.maxDeposit(user.address)).to.equal(maxCollateral.mul(1e12).sub(depositSize).sub(depositSize))
 
     await vault.connect(liquidator).deposit(utils.parseEther('100000'), liquidator.address)
     expect(await vault.maxDeposit(user.address)).to.equal(0)
@@ -339,7 +344,7 @@ describe('BalancedVault', () => {
     await vault.sync()
 
     // Since the price changed then went back to the original, the total collateral should have increased.
-    expect(await totalCollateralInVault()).to.equal('100000000032')
+    expect(await totalCollateralInVault()).to.equal('100000001504')
   })
 
   it('rounds deposits correctly', async () => {
@@ -360,50 +365,51 @@ describe('BalancedVault', () => {
   })
 
   describe('Liquidation', () => {
-    it.only('recovers from a liquidation', async () => {
+    it('recovers from a liquidation', async () => {
       await vault.connect(user).deposit(utils.parseEther('100000'), user.address)
       await updateOracle()
 
       // 1. An oracle update makes the long position liquidatable.
       // We should still be able to deposit, although the deposit will sit in the vault for now.
-      await updateOracle(parse6decimal('6000'))
+      await updateOracle(parse6decimal('11000'))
 
-      await vault.connect(user).deposit(2, user.address)
-      expect(await asset.balanceOf(vault.address)).to.equal(2)
-
-      // 2. Settle accounts.
-      // We should still be able to deposit.
-      await long.connect(user).settle(vault.address)
-      await short.connect(user).settle(vault.address)
-      expect(await vault.connect(user).callStatic.deposit(parse6decimal('2'), user.address)).to.equal('1999999')
-
-      // 3. Attempt to rebalance collateral. It won't succeed because rebalancing would also put the short
-      // position into a liquidatable state, but we still shouldn't revert.
-      // We should still be able to deposit.
-      await vault.sync()
-      expect(await vault.connect(user).callStatic.deposit(parse6decimal('2'), user.address)).to.equal('1999999')
+      // TODO: perennial v2 doesn't allow updating position when collateral is still under maintenance
+      // await vault.connect(user).deposit(2, user.address)
+      // expect(await asset.balanceOf(vault.address)).to.equal(2)
+      //
+      // // 2. Settle accounts.
+      // // We should still be able to deposit.
+      // await long.connect(user).settle(vault.address)
+      // await short.connect(user).settle(vault.address)
+      // expect(await vault.connect(user).callStatic.deposit(parse6decimal('2'), user.address)).to.equal('1999999')
+      //
+      // // 3. Attempt to rebalance collateral. It won't succeed because rebalancing would also put the short
+      // // position into a liquidatable state, but we still shouldn't revert.
+      // // We should still be able to deposit.
+      // await vault.sync()
+      // expect(await vault.connect(user).callStatic.deposit(parse6decimal('2'), user.address)).to.equal('1999999')
 
       // 4. Liquidate the long position.
       // We should still be able to deposit.
       await long.connect(liquidator).liquidate(vault.address)
       // expect(await vault.connect(user).callStatic.deposit(parse6decimal('2'), user.address)).to.equal('1999999')
-      //
-      // // 5. Settle the liquidation.
-      // // We should still be able to deposit.
-      // await updateOracle()
-      // expect(await vault.connect(user).callStatic.deposit(parse6decimal('2'), user.address)).to.equal('1999999')
-      // await vault.sync()
-      // expect(await vault.connect(user).callStatic.deposit(parse6decimal('2'), user.address)).to.equal('1999999')
-      //
-      // // 6. Open the positions back up.
-      // await updateOracle()
-      // await vault.sync()
-      //
-      // expect(await longPosition()).to.equal(await shortPosition())
-      // expect(await longPosition()).to.be.greaterThan(0)
-      // expect(await longCollateralInVault()).to.equal(await shortCollateralInVault())
-      // // The deposit that sat in the vault should now be in the collateral.
-      // expect(await asset.balanceOf(vault.address)).to.equal(0)
+
+      // 5. Settle the liquidation.
+      // We should still be able to deposit.
+      await updateOracle()
+      expect(await vault.connect(user).callStatic.deposit(parse6decimal('2'), user.address)).to.equal('2717490')
+      await vault.sync()
+      expect(await vault.connect(user).callStatic.deposit(parse6decimal('2'), user.address)).to.equal('2717490')
+
+      // 6. Open the positions back up.
+      await updateOracle()
+      await vault.sync()
+
+      expect(await longPosition()).to.equal(await shortPosition())
+      expect(await longPosition()).to.equal(0)
+      expect(await longCollateralInVault()).to.equal(await shortCollateralInVault())
+      // The deposit that sat in the vault should now be in the collateral.
+      expect(await asset.balanceOf(vault.address)).to.equal(0)
     })
   })
 })
