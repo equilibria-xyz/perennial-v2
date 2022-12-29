@@ -258,15 +258,23 @@ contract BalancedVault is IBalancedVault, ERC4626Upgradeable {
      * @return Whether the rebalance occurred successfully
      */
     function _handleRetarget(UFixed6 withdrawalAmount) private returns (bool) {
-        UFixed6 currentCollateral = _toUFixed6(totalAssets()).sub(withdrawalAmount);
+        ProtocolParameter memory _protocolParameter = factory.parameter();
+
+        (Fixed6 longCollateral, Fixed6 shortCollateral, UFixed18 idleCollateral) = _collateral();
+        UFixed6 currentCollateral = UFixed6Lib.from(longCollateral)
+            .add(UFixed6Lib.from(shortCollateral))
+            .add(_toUFixed6(UFixed18.unwrap(idleCollateral)))
+            .sub(withdrawalAmount);
         UFixed6 effectiveCollateral = currentCollateral.gt(fixedFloat) ? currentCollateral.sub(fixedFloat) : UFixed6Lib.ZERO;
-        (Fixed6 longCollateral, Fixed6 shortCollateral, ) = _collateral(); //TODO: remove
 
         UFixed6 targetCollateral = currentCollateral.div(TWO);
         UFixed6 targetPosition = effectiveCollateral.mul(targetLeverage).div(_currentPrice(long).abs()).div(TWO);
 
         (IMarket greaterMarket, IMarket lesserMarket) = longCollateral.gt(shortCollateral) ? (long, short) : (short, long);
-        return _retarget(greaterMarket, targetPosition, targetCollateral) && _retarget(lesserMarket, targetPosition, targetCollateral);
+        return (
+            _retarget(_protocolParameter, greaterMarket, targetPosition, targetCollateral) &&
+            _retarget(_protocolParameter, lesserMarket, targetPosition, targetCollateral)
+        );
     }
 
     /**
@@ -275,8 +283,12 @@ contract BalancedVault is IBalancedVault, ERC4626Upgradeable {
      * @param targetPosition The new position to target
      * @param targetCollateral The new collateral to target
      */
-    function _retarget(IMarket market, UFixed6 targetPosition, UFixed6 targetCollateral) private returns (bool) {
-        ProtocolParameter memory _protocolParameter = factory.parameter();
+    function _retarget(
+        ProtocolParameter memory protocolParameter,
+        IMarket market,
+        UFixed6 targetPosition,
+        UFixed6 targetCollateral
+    ) private returns (bool) {
         Account memory _account = market.accounts(address(this));
 
         UFixed6 currentPosition = _account.next.abs();
@@ -285,7 +297,7 @@ contract BalancedVault is IBalancedVault, ERC4626Upgradeable {
         UFixed6 buffer = makerLimit.gt(currentMaker) ? makerLimit.sub(currentMaker) : UFixed6Lib.ZERO;
 
         targetPosition = targetPosition.gt(currentPosition.add(buffer)) ? currentPosition.add(buffer) : targetPosition;
-        targetCollateral = targetCollateral.gte(_protocolParameter.minCollateral) ? targetCollateral : UFixed6Lib.ZERO;
+        targetCollateral = targetCollateral.gte(protocolParameter.minCollateral) ? targetCollateral : UFixed6Lib.ZERO;
 
         try market.update(Fixed6Lib.from(-1, targetPosition), Fixed6Lib.from(targetCollateral)) { } catch { return false; }
 
