@@ -233,12 +233,13 @@ contract BalancedVault is IBalancedVault, ERC4626Upgradeable {
      * @param withdrawalAmount The amount of assets that will be withdrawn from the vault at the end of the operation
      */
     function _update(UFixed6 withdrawalAmount) private {
-        // Rebalance collateral if possible
-        bool rebalanced = _updateCollateral(withdrawalAmount);
+        if (!healthy()) {
+            _reset();
+            return;
+        }
 
-        // Rebalance position if healthy
-        if (!healthy() || !rebalanced) _reset();
-        else _updatePosition(withdrawalAmount);
+        // Rebalance collateral if possible
+        if (!_handleRetarget(withdrawalAmount)) _reset();
     }
 
     /**
@@ -246,74 +247,49 @@ contract BalancedVault is IBalancedVault, ERC4626Upgradeable {
      * @dev Called when an unhealthy state is detected
      */
     function _reset() private {
-        _adjustPosition(long, UFixed6Lib.ZERO);
-        _adjustPosition(short, UFixed6Lib.ZERO);
+        long.update(Fixed6Lib.ZERO, long.accounts(address(this)).collateral);
+        short.update(Fixed6Lib.ZERO, short.accounts(address(this)).collateral);
     }
 
     /**
-     * @notice Rebalances the collateral of the vault
+     * @notice Rebalances the position of the vault
      * @dev Does not revert when rebalance fails, returns false instead allowing the vault to reset
      * @param withdrawalAmount The amount of assets that will be withdrawn from the vault at the end of the operation
      * @return Whether the rebalance occurred successfully
      */
-    function _updateCollateral(UFixed6 withdrawalAmount) private returns (bool) {
-        (Fixed6 longCollateral, Fixed6 shortCollateral, ) = _collateral();
+    function _handleRetarget(UFixed6 withdrawalAmount) private returns (bool) {
         UFixed6 currentCollateral = _toUFixed6(totalAssets()).sub(withdrawalAmount);
+        UFixed6 effectiveCollateral = currentCollateral.gt(fixedFloat) ? currentCollateral.sub(fixedFloat) : UFixed6Lib.ZERO;
+        (Fixed6 longCollateral, Fixed6 shortCollateral, ) = _collateral(); //TODO: remove
+
         UFixed6 targetCollateral = currentCollateral.div(TWO);
+        UFixed6 targetPosition = effectiveCollateral.mul(targetLeverage).div(_currentPrice(long).abs()).div(TWO);
 
-        (IMarket greaterMarket, IMarket lesserMarket) = longCollateral.gt(shortCollateral) ?
-            (long, short) :
-            (short, long);
-
-        return _adjustCollateral(greaterMarket, targetCollateral) &&
-            _adjustCollateral(lesserMarket, currentCollateral.sub(targetCollateral));
-    }
-
-    /**
-     * @notice Re-targets the positions of the vault
-     * @param withdrawalAmount The amount of assets that will be withdrawn from the vault at the end of the operation
-     */
-    function _updatePosition(UFixed6 withdrawalAmount) private {
-        // 1. Calculate the target position size for each market.
-        UFixed6 currentCollateral = _toUFixed6(totalAssets()).sub(withdrawalAmount);
-        UFixed6 currentUtilized = currentCollateral.gt(fixedFloat) ? currentCollateral.sub(fixedFloat) : UFixed6Lib.ZERO;
-        UFixed6 currentPrice = _currentPrice(long).abs();
-        UFixed6 targetPosition = currentUtilized.mul(targetLeverage).div(currentPrice).div(TWO);
-
-        // 2. Adjust positions to target position size.
-        _adjustPosition(long, targetPosition);
-        _adjustPosition(short, targetPosition);
+        (IMarket greaterMarket, IMarket lesserMarket) = longCollateral.gt(shortCollateral) ? (long, short) : (short, long);
+        return _retarget(greaterMarket, targetPosition, targetCollateral) && _retarget(lesserMarket, targetPosition, targetCollateral);
     }
 
     /**
      * @notice Adjusts the position on `market` to `targetPosition`
      * @param market The market to adjust the vault's position on
      * @param targetPosition The new position to target
+     * @param targetCollateral The new collateral to target
      */
-    function _adjustPosition(IMarket market, UFixed6 targetPosition) private {
+    function _retarget(IMarket market, UFixed6 targetPosition, UFixed6 targetCollateral) private returns (bool) {
+        ProtocolParameter memory _protocolParameter = factory.parameter();
         Account memory _account = market.accounts(address(this));
+
         UFixed6 currentPosition = _account.next.abs();
         UFixed6 currentMaker = market.position().makerNext;
         UFixed6 makerLimit = market.parameter().makerLimit;
         UFixed6 buffer = makerLimit.gt(currentMaker) ? makerLimit.sub(currentMaker) : UFixed6Lib.ZERO;
+
         targetPosition = targetPosition.gt(currentPosition.add(buffer)) ? currentPosition.add(buffer) : targetPosition;
-
-        market.update(Fixed6Lib.from(-1, targetPosition), _account.collateral);
-        emit Updated(market, Fixed6Lib.from(-1, targetPosition),  _account.collateral);
-    }
-
-    /**
-     * @notice Adjusts the collateral on `market` to `targetCollateral`
-     * @param market The market to adjust the vault's collateral on
-     * @param targetCollateral The new collateral to target
-     * @return Whether the collateral adjust succeeded
-     */
-    function _adjustCollateral(IMarket market, UFixed6 targetCollateral) private returns (bool) {
-        ProtocolParameter memory _protocolParameter = factory.parameter();
         targetCollateral = targetCollateral.gte(_protocolParameter.minCollateral) ? targetCollateral : UFixed6Lib.ZERO;
-        Fixed6 _next = market.accounts(address(this)).next;
-        try market.update(_next, Fixed6Lib.from(targetCollateral)) { } catch { return false; }
-        emit Updated(market, _next, Fixed6Lib.from(targetCollateral));
+
+        try market.update(Fixed6Lib.from(-1, targetPosition), Fixed6Lib.from(targetCollateral)) { } catch { return false; }
+
+        emit Updated(market, Fixed6Lib.from(-1, targetPosition), Fixed6Lib.from(targetCollateral));
         return true;
     }
 
