@@ -9,20 +9,26 @@ struct Position {
     uint256 latestVersion;
     /// @dev Quantity of the maker position
     UFixed6 maker;
-    /// @dev Quantity of the taker position
-    UFixed6 taker;
+    /// @dev Quantity of the long position
+    UFixed6 long;
+    /// @dev Quantity of the short position
+    UFixed6 short;
     /// @dev Quantity of the next maker position
     UFixed6 makerNext;
-    /// @dev Quantity of the next taker position
-    UFixed6 takerNext;
+    /// @dev Quantity of the next long position
+    UFixed6 longNext;
+    /// @dev Quantity of the next short position
+    UFixed6 shortNext;
 }
 using PositionLib for Position global;
 struct StoredPosition {
     uint32 _latestVersion;
-    uint56 _maker;
-    uint56 _taker;
-    uint56 _makerNext;
-    uint56 _takerNext;
+    uint80 _maker;
+    uint80 _long;
+    uint80 _short;
+    uint80 _makerNext;
+    uint80 _longNext;
+    uint80 _shortNext;
 }
 struct PositionStorage { StoredPosition value; }
 using PositionStorageLib for PositionStorage global;
@@ -34,15 +40,17 @@ using PositionStorageLib for PositionStorage global;
  *      denominated as a unit of the product's payoff function.
  */
 library PositionLib {
-    function update(Position memory self, Fixed6 makerAmount, Fixed6 takerAmount) internal pure {
+    function update(Position memory self, Fixed6 makerAmount, Fixed6 longAmount, UFixed6 shortAmount) internal pure {
         self.makerNext = UFixed6Lib.from(Fixed6Lib.from(self.makerNext).add(makerAmount));
-        self.takerNext = UFixed6Lib.from(Fixed6Lib.from(self.takerNext).add(takerAmount));
+        self.longNext = UFixed6Lib.from(Fixed6Lib.from(self.longNext).add(longAmount));
+        self.shortNext = UFixed6Lib.from(Fixed6Lib.from(self.shortNext).add(shortAmount));
     }
 
     function settle(Position memory self, OracleVersion memory toOracleVersion) internal pure {
         self.latestVersion = toOracleVersion.version;
         self.maker = self.makerNext;
-        self.taker = self.takerNext;
+        self.long = self.longNext;
+        self.short = self.shortNext;
     }
 
     /**
@@ -51,23 +59,23 @@ library PositionLib {
      * @return utilization ratio
      */
     function utilization(Position memory self) internal pure returns (UFixed6) {
-        return self.taker.unsafeDiv(self.maker);
+        return Fixed6Lib.from(self.long).sub(Fixed6Lib.from(self.short)).abs().unsafeDiv(self.maker);
     }
 
-    /**
-     * @notice Returns the socialization factor for the current position
-     * @dev Socialization account for the case where `taker` > `maker` temporarily due to a liquidation
-     *      on the maker side. This dampens the taker's exposure pro-rata to ensure that the maker side
-     *      is never exposed over 1 x short.
-     * @param self The Position to operate on
-     * @return Socialization factor
-     */
-    function socializationFactor(Position memory self) internal pure returns (UFixed6) {
-        return _socializationFactor(self.maker, self.taker);
+    function socializationFactorLong(Position memory self) internal pure returns (UFixed6) {
+        return _socializationFactor(self.maker.add(self.short), self.long);
     }
 
-    function socializationFactorNext(Position memory self) internal pure returns (UFixed6) {
-        return _socializationFactor(self.makerNext, self.takerNext);
+    function socializationFactorShort(Position memory self) internal pure returns (UFixed6) {
+        return _socializationFactor(self.maker.add(self.long), self.short);
+    }
+
+    function socializationFactorLongNext(Position memory self) internal pure returns (UFixed6) {
+        return _socializationFactor(self.makerNext.add(self.shortNext), self.longNext);
+    }
+
+    function socializationFactorShortNext(Position memory self) internal pure returns (UFixed6) {
+        return _socializationFactor(self.makerNext.add(self.longNext), self.shortNext);
     }
 
     function _socializationFactor(UFixed6 makerAmount, UFixed6 takerAmount) private pure returns (UFixed6) {
@@ -83,25 +91,31 @@ library PositionStorageLib {
         return Position(
             uint256(storedValue._latestVersion),
             UFixed6.wrap(uint256(storedValue._maker)),
-            UFixed6.wrap(uint256(storedValue._taker)),
+            UFixed6.wrap(uint256(storedValue._long)),
+            UFixed6.wrap(uint256(storedValue._short)),
             UFixed6.wrap(uint256(storedValue._makerNext)),
-            UFixed6.wrap(uint256(storedValue._takerNext))
+            UFixed6.wrap(uint256(storedValue._longNext)),
+            UFixed6.wrap(uint256(storedValue._shortNext))
         );
     }
 
     function store(PositionStorage storage self, Position memory newValue) internal {
         if (newValue.latestVersion > type(uint32).max) revert PositionStorageInvalidError();
         if (newValue.maker.gt(UFixed6Lib.MAX_56)) revert PositionStorageInvalidError();
-        if (newValue.taker.gt(UFixed6Lib.MAX_56)) revert PositionStorageInvalidError();
+        if (newValue.long.gt(UFixed6Lib.MAX_56)) revert PositionStorageInvalidError();
+        if (newValue.short.gt(UFixed6Lib.MAX_56)) revert PositionStorageInvalidError();
         if (newValue.makerNext.gt(UFixed6Lib.MAX_56)) revert PositionStorageInvalidError();
-        if (newValue.takerNext.gt(UFixed6Lib.MAX_56)) revert PositionStorageInvalidError();
+        if (newValue.longNext.gt(UFixed6Lib.MAX_56)) revert PositionStorageInvalidError();
+        if (newValue.shortNext.gt(UFixed6Lib.MAX_56)) revert PositionStorageInvalidError();
 
         self.value = StoredPosition(
             uint32(newValue.latestVersion),
             uint56(UFixed6.unwrap(newValue.maker)),
-            uint56(UFixed6.unwrap(newValue.taker)),
+            uint56(UFixed6.unwrap(newValue.long)),
+            uint56(UFixed6.unwrap(newValue.short)),
             uint56(UFixed6.unwrap(newValue.makerNext)),
-            uint56(UFixed6.unwrap(newValue.takerNext))
+            uint56(UFixed6.unwrap(newValue.longNext)),
+            uint56(UFixed6.unwrap(newValue.shortNext))
         );
     }
 }
