@@ -26,6 +26,7 @@ interface IMarket {
     event CollateralSettled(address indexed account, Fixed6 amount, UFixed6 newShortfall);
     event TreasuryUpdated(address newTreasury);
     event FeeClaimed(address indexed treasury, UFixed6 feeAmount);
+    event RewardClaimed(address indexed account, UFixed6 rewardAmount);
     event ParameterUpdated(MarketParameter newParameter);
 
     error MarketInsufficientLiquidityError();

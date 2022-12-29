@@ -145,7 +145,16 @@ contract Market is IMarket, UInitializable, UOwnable {
         _fee.store(newFee);
     }
 
-    //TODO: claim reward
+    function claimReward() external {
+        Account memory newAccount = _accounts[msg.sender].read();
+
+        UFixed6 rewardAmount = newAccount.reward;
+        newAccount.reward = UFixed6Lib.ZERO;
+        reward.push(msg.sender, UFixed18.wrap(UFixed6.unwrap(rewardAmount) * 1e12));
+        emit RewardClaimed(msg.sender, rewardAmount);
+
+        _accounts[msg.sender].store(newAccount);
+    }
 
     function accounts(address account) external view returns (Account memory) {
         return _accounts[account].read();

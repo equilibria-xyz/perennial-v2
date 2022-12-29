@@ -3,6 +3,8 @@ pragma solidity 0.8.17;
 
 import "./Version.sol";
 
+//TODO: switch back to maker / taker for position and next?
+
 /// @dev Account type
 struct Account {
     uint256 latestVersion;
