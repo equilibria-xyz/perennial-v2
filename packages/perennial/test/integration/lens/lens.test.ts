@@ -26,8 +26,8 @@ describe('Lens', () => {
     // Setup position
     await dsu.connect(user).approve(market.address, COLLATERAL.mul(1e12))
     await dsu.connect(userB).approve(market.address, COLLATERAL.mul(1e12))
-    await market.connect(user).update(POSITION.mul(-1), COLLATERAL)
-    await market.connect(userB).update(POSITION, COLLATERAL)
+    await market.connect(user).update(POSITION, 0, COLLATERAL)
+    await market.connect(userB).update(0, POSITION, COLLATERAL)
   })
 
   it('#factory', async () => {
@@ -73,18 +73,22 @@ describe('Lens', () => {
   it('#snapshots (accounts)', async () => {
     const { lens, user, chainlink } = instanceVars
     let userSnapshot = (await lens.callStatic['snapshots(address,address[])'](user.address, [market.address]))[0]
-    expect(userSnapshot.next).to.equal(POSITION.mul(-1))
-    expect(userSnapshot.position).to.equal(0)
+    expect(userSnapshot.maker).to.equal(0)
+    expect(userSnapshot.taker).to.equal(0)
+    expect(userSnapshot.nextMaker).to.equal(POSITION)
+    expect(userSnapshot.nextTaker).to.equal(0)
     expect(userSnapshot.maintenance).to.equal(0)
     expect(userSnapshot.openInterest).to.equal(0)
 
     await chainlink.next()
 
     userSnapshot = await lens.callStatic['snapshot(address,address)'](user.address, market.address)
-    expect(userSnapshot.position).to.equal(POSITION.mul(-1))
-    expect(userSnapshot.next).to.equal(POSITION.mul(-1))
+    expect(userSnapshot.maker).to.equal(POSITION)
+    expect(userSnapshot.taker).to.equal(0)
+    expect(userSnapshot.nextMaker).to.equal(POSITION)
+    expect(userSnapshot.nextTaker).to.equal(0)
     expect(userSnapshot.maintenance).to.equal('341389494')
-    expect(userSnapshot.openInterest).to.equal('-1137964981')
+    expect(userSnapshot.openInterest).to.equal('1137964981')
   })
 
   it('#maintenanceRequired (accounts)', async () => {
@@ -108,16 +112,18 @@ describe('Lens', () => {
 
     await chainlink.next()
 
-    expect(await lens.callStatic['openInterest(address,address)'](user.address, market.address)).to.equal('-1137964981')
+    expect(await lens.callStatic['openInterest(address,address)'](user.address, market.address)).to.equal('1137964981')
     expect(await lens.callStatic['openInterest(address,address)'](userB.address, market.address)).to.equal('1137964981')
   })
 
   it('#userPosition', async () => {
     const { lens, userB, chainlink } = instanceVars
     await chainlink.next()
-    const [position, next] = await lens.callStatic.userPosition(userB.address, market.address)
-    expect(position).to.equal(POSITION)
-    expect(next).to.equal(POSITION)
+    const [maker, taker, nextMaker, nextTaker] = await lens.callStatic.userPosition(userB.address, market.address)
+    expect(maker).to.equal(0)
+    expect(taker).to.equal(POSITION)
+    expect(nextMaker).to.equal(0)
+    expect(nextTaker).to.equal(POSITION)
   })
 
   it('#latestVersion', async () => {
@@ -185,7 +191,7 @@ describe('Lens', () => {
     await chainlink.nextWithPriceModification(price => price.mul(2))
     await market.connect(userB).liquidate(user.address)
 
-    expect(await lens.callStatic['collateral(address)'](market.address)).to.equal('1999983492')
+    expect(await lens.callStatic['collateral(address)'](market.address)).to.equal('1309705935')
   })
 
   it('#collateral (account)', async () => {
@@ -195,12 +201,8 @@ describe('Lens', () => {
     await chainlink.nextWithPriceModification(price => price.mul(2))
     await market.connect(userB).liquidate(user.address)
 
-    expect(await lens.callStatic['collateral(address,address)'](user.address, market.address)).to.equal(
-      '-2463736825720737646856',
-    )
-    expect(await lens.callStatic['collateral(address,address)'](userB.address, market.address)).to.equal(
-      '4463720317001203086618',
-    )
+    expect(await lens.callStatic['collateral(address,address)'](user.address, market.address)).to.equal('-3154014381')
+    expect(await lens.callStatic['collateral(address,address)'](userB.address, market.address)).to.equal('4463720316')
   })
 
   it('#atVersions', async () => {

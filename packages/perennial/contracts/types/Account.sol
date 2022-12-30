@@ -3,22 +3,23 @@ pragma solidity 0.8.17;
 
 import "./Version.sol";
 
-//TODO: switch back to maker / taker for position and next?
-
 /// @dev Account type
 struct Account {
     uint256 latestVersion;
-    Fixed6 position;
-    Fixed6 next;
+    UFixed6 maker;
+    UFixed6 taker;
+    UFixed6 nextMaker;
+    UFixed6 nextTaker;
     Fixed6 collateral;
     UFixed6 reward;
     bool liquidation;
 }
 using AccountLib for Account global;
 struct StoredAccount {
-    uint32 _latestVersion;          // <= 4.29b
-    int56 _position;                // <= 36b
-    int56 _next;                    // <= 36b
+    uint8 _positionMask;
+    uint24 _latestVersion;          // <= 4.29b
+    uint56 _position;                // <= 36b
+    uint56 _next;                    // <= 36b
     int56 _collateral;              // <= 36b
     uint56 _liquidationAndReward;   // <= 36b
 }
@@ -30,9 +31,18 @@ using AccountStorageLib for AccountStorage global;
  * @notice Library that manages an account-level position.
  */
 library AccountLib {
+    function position(Account memory self) internal pure returns (UFixed6) {
+        return self.maker.add(self.taker);
+    }
+
+    function next(Account memory self) internal pure returns (UFixed6) {
+        return self.nextMaker.add(self.nextTaker);
+    }
+
     function update(
         Account memory self,
-        Fixed6 newPosition,
+        UFixed6 newMaker,
+        UFixed6 newTaker,
         Fixed6 newCollateral,
         OracleVersion memory currentOracleVersion,
         MarketParameter memory marketParameter
@@ -43,25 +53,21 @@ library AccountLib {
         UFixed6 takerFee,
         Fixed6 collateralAmount
     ) {
-        // compute position update
-        (Fixed6 currentMaker, Fixed6 currentTaker) = _splitPosition(self.next);
-        (Fixed6 nextMaker, Fixed6 nextTaker) = _splitPosition(newPosition);
-        (makerAmount, takerAmount) = (nextMaker.sub(currentMaker), nextTaker.sub(currentTaker));
-
-        // compute collateral update
+        // compute
+        (makerAmount, takerAmount) = (
+            Fixed6Lib.from(newMaker).sub(Fixed6Lib.from(self.nextMaker)),
+            Fixed6Lib.from(newTaker).sub(Fixed6Lib.from(self.nextTaker))
+        );
         (makerFee, takerFee) = (
             makerAmount.mul(currentOracleVersion.price).abs().mul(marketParameter.makerFee),
             takerAmount.mul(currentOracleVersion.price).abs().mul(marketParameter.takerFee)
         );
         collateralAmount = newCollateral.sub(self.collateral).sub(Fixed6Lib.from(makerFee.add(takerFee)));
 
-        // update position
-        self.next = newPosition;
+        // update
+        self.nextMaker = newMaker;
+        self.nextTaker = newTaker;
         self.collateral = newCollateral;
-    }
-
-    function _splitPosition(Fixed6 newPosition) private pure returns (Fixed6, Fixed6) {
-        return (newPosition.min(Fixed6Lib.ZERO).mul(Fixed6Lib.NEG_ONE), newPosition.max(Fixed6Lib.ZERO));
     }
 
     /**
@@ -74,17 +80,16 @@ library AccountLib {
         Version memory fromVersion,
         Version memory toVersion
     ) internal pure {
-        Fixed6 valueDelta = (self.position.sign() == 1)
-            ? toVersion.takerValue.accumulated(fromVersion.takerValue)
-            : toVersion.makerValue.accumulated(fromVersion.makerValue);
-        UFixed6 rewardDelta = (self.position.sign() == 1)
-            ? toVersion.takerReward.accumulated(fromVersion.takerReward)
-            : toVersion.makerReward.accumulated(fromVersion.makerReward);
+        Fixed6 collateralAmount = Fixed6Lib.from(self.maker).mul(toVersion.makerValue.accumulated(fromVersion.makerValue))
+            .add(Fixed6Lib.from(self.taker).mul(toVersion.takerValue.accumulated(fromVersion.takerValue)));
+        UFixed6 rewardAmount = self.maker.mul(toVersion.makerReward.accumulated(fromVersion.makerReward))
+            .add(self.taker.mul(toVersion.takerReward.accumulated(fromVersion.takerReward)));
 
         self.latestVersion = toOracleVersion.version;
-        self.collateral = self.collateral.add(Fixed6Lib.from(self.position.abs()).mul(valueDelta));
-        self.reward = self.reward.add(self.position.abs().mul(rewardDelta));
-        self.position = self.next;
+        self.maker = self.nextMaker;
+        self.taker = self.nextTaker;
+        self.collateral = self.collateral.add(collateralAmount);
+        self.reward = self.reward.add(rewardAmount);
         self.liquidation = false;
     }
 
@@ -99,7 +104,7 @@ library AccountLib {
         OracleVersion memory currentOracleVersion,
         UFixed6 maintenanceRatio
     ) internal pure returns (UFixed6) {
-        return _maintenance(self.position, currentOracleVersion, maintenanceRatio);
+        return _maintenance(position(self), currentOracleVersion, maintenanceRatio);
     }
 
     /**
@@ -113,7 +118,7 @@ library AccountLib {
         OracleVersion memory currentOracleVersion,
         UFixed6 maintenanceRatio
     ) internal pure returns (UFixed6) {
-        return _maintenance(self.next, currentOracleVersion, maintenanceRatio);
+        return _maintenance(next(self), currentOracleVersion, maintenanceRatio);
     }
 
     /**
@@ -123,23 +128,33 @@ library AccountLib {
      * @return Next maintenance requirement for the account
      */
     function _maintenance(
-        Fixed6 _position,
+        UFixed6 _position,
         OracleVersion memory currentOracleVersion,
         UFixed6 maintenanceRatio
     ) private pure returns (UFixed6) {
-        return _position.mul(currentOracleVersion.price).abs().mul(maintenanceRatio);
+        return _position.mul(currentOracleVersion.price.abs()).mul(maintenanceRatio);
     }
 }
 
 library AccountStorageLib {
+    error AccountStorageDoubleSidedError();
+
     uint64 constant LIQUIDATION_MASK = uint64(1 << 55);
 
     function read(AccountStorage storage self) internal view returns (Account memory) {
         StoredAccount memory storedValue =  self.value;
+
+        bool isMaker = storedValue._positionMask & uint256(1) != 0;
+        bool isTaker = storedValue._positionMask & uint256(1 << 1) != 0;
+        bool isNextMaker = storedValue._positionMask & uint256(1 << 2) != 0;
+        bool isNextTaker = storedValue._positionMask & uint256(1 << 3) != 0;
+
         return Account(
             uint256(storedValue._latestVersion),
-            Fixed6.wrap(int256(storedValue._position)),
-            Fixed6.wrap(int256(storedValue._next)),
+            UFixed6.wrap(uint256(isMaker ? storedValue._position : 0)),
+            UFixed6.wrap(uint256(isTaker ? storedValue._position : 0)),
+            UFixed6.wrap(uint256(isNextMaker ? storedValue._next : 0)),
+            UFixed6.wrap(uint256(isNextTaker ? storedValue._next : 0)),
             Fixed6.wrap(int256(storedValue._collateral)),
             UFixed6.wrap(uint256(storedValue._liquidationAndReward & ~LIQUIDATION_MASK)),
             bool(storedValue._liquidationAndReward & LIQUIDATION_MASK != 0)
@@ -147,10 +162,19 @@ library AccountStorageLib {
     }
 
     function store(AccountStorage storage self, Account memory newValue) internal {
+        if (!newValue.nextMaker.isZero() && !newValue.nextTaker.isZero()) revert AccountStorageDoubleSidedError();
+
+        uint256 _positionMask =
+            ((newValue.maker.isZero() ? 0 : 1)) |
+            ((newValue.taker.isZero() ? 0 : 1) << 1) |
+            ((newValue.nextMaker.isZero() ? 0 : 1) << 2) |
+            ((newValue.nextTaker.isZero() ? 0 : 1) << 3);
+
         self.value = StoredAccount(
-            uint32(newValue.latestVersion),
-            int56(Fixed6.unwrap(newValue.position)),
-            int56(Fixed6.unwrap(newValue.next)),
+            uint8(_positionMask),
+            uint24(newValue.latestVersion),
+            uint56(UFixed6.unwrap(newValue.position())),
+            uint56(UFixed6.unwrap(newValue.next())),
             int56(Fixed6.unwrap(newValue.collateral)),
             uint56((UFixed6.unwrap(newValue.reward)) | (uint56(newValue.liquidation ? 1 : 0) << 55))
         );

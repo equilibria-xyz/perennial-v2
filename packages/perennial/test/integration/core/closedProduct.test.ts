@@ -18,7 +18,7 @@ describe('Closed Market', () => {
     const { user, chainlink } = instanceVars
 
     const market = await createMarket(instanceVars)
-    await market.connect(user).update(POSITION.mul(-1), parse6decimal('1000'))
+    await market.connect(user).update(POSITION, 0, parse6decimal('1000'))
 
     //TODO: uncomment when versioned params are added
     //expect(await market.closed()).to.be.false
@@ -46,19 +46,19 @@ describe('Closed Market', () => {
       const { user, userB } = instanceVars
 
       market = await createMarket(instanceVars)
-      await market.connect(user).update(POSITION.mul(-1), parse6decimal('1000'))
-      await market.connect(userB).update(POSITION, parse6decimal('1000'))
+      await market.connect(user).update(POSITION, 0, parse6decimal('1000'))
+      await market.connect(userB).update(0, POSITION, parse6decimal('1000'))
       const parameters = await market.parameter()
       parameters.closed = true
       await market.updateParameter(parameters)
     })
 
     it('reverts on new open positions', async () => {
-      await expect(market.connect(instanceVars.user).update(POSITION, 0)).to.be.revertedWith('MarketClosedError()')
+      await expect(market.connect(instanceVars.user).update(0, POSITION, 0)).to.be.revertedWith('MarketClosedError()')
     })
 
     it('allows insufficient liquidity for close positions', async () => {
-      await expect(market.connect(instanceVars.user).update(POSITION, 0)).to.not.be.reverted
+      await expect(market.connect(instanceVars.user).update(0, POSITION, 0)).to.not.be.reverted
     })
 
     it('reverts on attempts to liquidate', async () => {
@@ -76,8 +76,8 @@ describe('Closed Market', () => {
     const { user, userB, chainlink } = instanceVars
 
     const market = await createMarket(instanceVars)
-    await market.connect(user).update(POSITION.mul(-1), parse6decimal('1000'))
-    await market.connect(userB).update(POSITION, parse6decimal('1000'))
+    await market.connect(user).update(POSITION, 0, parse6decimal('1000'))
+    await market.connect(userB).update(0, POSITION, parse6decimal('1000'))
 
     await chainlink.next()
     await chainlink.next()
@@ -108,8 +108,8 @@ describe('Closed Market', () => {
     const { user, userB, chainlink } = instanceVars
 
     const market = await createMarket(instanceVars)
-    await market.connect(user).update(POSITION.mul(-1), parse6decimal('1000'))
-    await market.connect(userB).update(POSITION, parse6decimal('1000'))
+    await market.connect(user).update(POSITION, 0, parse6decimal('1000'))
+    await market.connect(userB).update(0, POSITION, parse6decimal('1000'))
 
     await chainlink.next()
     await chainlink.nextWithPriceModification(price => price.mul(2))

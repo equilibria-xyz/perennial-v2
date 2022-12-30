@@ -19,7 +19,7 @@ describe('Liquidate', () => {
 
     const market = await createMarket(instanceVars)
     await dsu.connect(user).approve(market.address, COLLATERAL.mul(1e12))
-    await market.connect(user).update(POSITION.mul(-1), COLLATERAL)
+    await market.connect(user).update(POSITION, 0, COLLATERAL)
 
     expect(await lens.callStatic.liquidatable(user.address, market.address)).to.be.false
 
@@ -51,7 +51,7 @@ describe('Liquidate', () => {
 
     const market = await createMarket(instanceVars)
     await dsu.connect(user).approve(market.address, COLLATERAL.mul(1e12))
-    await market.connect(user).update(POSITION.mul(-1), COLLATERAL)
+    await market.connect(user).update(POSITION, 0, COLLATERAL)
 
     expect(await lens.callStatic.liquidatable(user.address, market.address)).to.be.false
 
@@ -84,8 +84,8 @@ describe('Liquidate', () => {
     const market = await createMarket(instanceVars)
     await dsu.connect(user).approve(market.address, COLLATERAL.mul(1e12))
     await dsu.connect(userB).approve(market.address, COLLATERAL.mul(1e12))
-    await market.connect(user).update(POSITION.mul(-1), parse6decimal('1000'))
-    await market.connect(userB).update(POSITION, parse6decimal('1000'))
+    await market.connect(user).update(POSITION, 0, parse6decimal('1000'))
+    await market.connect(userB).update(0, POSITION, parse6decimal('1000'))
 
     // Settle the market with a new oracle version
     await chainlink.next()
@@ -98,13 +98,13 @@ describe('Liquidate', () => {
     expect((await market.accounts(user.address)).collateral).to.equal(BigNumber.from('-2463736824'))
 
     const userBCollateral = (await market.accounts(userB.address)).collateral
-    await expect(market.connect(userB).update(0, userBCollateral.mul(-1))).to.be.revertedWith('MarketInDebtError()') // underflow
+    await expect(market.connect(userB).update(0, 0, userBCollateral.mul(-1))).to.be.revertedWith('MarketInDebtError()') // underflow
 
     await market.connect(userB).liquidate(user.address)
     await chainlink.next()
 
     await dsu.connect(userB).approve(market.address, constants.MaxUint256)
-    await market.connect(user).update(0, 0) //TODO: from userB?
+    await market.connect(user).update(0, 0, 0) //TODO: from userB?
 
     expect((await market.accounts(user.address)).collateral).to.equal(0)
   })
@@ -119,10 +119,10 @@ describe('Liquidate', () => {
     await dsu.connect(userB).approve(market.address, COLLATERAL.mul(1e12))
     await dsu.connect(userC).approve(market.address, COLLATERAL.mul(10).mul(1e12))
     await dsu.connect(userD).approve(market.address, COLLATERAL.mul(10).mul(1e12))
-    await market.connect(user).update(POSITION.mul(-1), COLLATERAL)
-    await market.connect(userB).update(POSITION.mul(-1), COLLATERAL)
-    await market.connect(userC).update(POSITION, COLLATERAL.mul(10))
-    await market.connect(userD).update(POSITION, COLLATERAL.mul(10))
+    await market.connect(user).update(POSITION, 0, COLLATERAL)
+    await market.connect(userB).update(POSITION, 0, COLLATERAL)
+    await market.connect(userC).update(0, POSITION, COLLATERAL.mul(10))
+    await market.connect(userD).update(0, POSITION, COLLATERAL.mul(10))
 
     expect(await lens.callStatic.liquidatable(user.address, market.address)).to.be.false
 

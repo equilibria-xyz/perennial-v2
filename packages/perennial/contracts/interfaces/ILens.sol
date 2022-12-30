@@ -30,11 +30,13 @@ interface ILens {
         address userAddress;
         Fixed6 collateral;
         UFixed6 maintenance;
-        Fixed6 next;
-        Fixed6 position;
+        UFixed6 maker;
+        UFixed6 taker;
+        UFixed6 nextMaker;
+        UFixed6 nextTaker;
         bool liquidatable;
-        Fixed6 openInterest;
-        Fixed6 exposure;
+        UFixed6 openInterest;
+        UFixed6 exposure;
     }
 
     // Protocol Values
@@ -66,14 +68,14 @@ interface ILens {
     function maintenance(address account, IMarket market) external returns (UFixed6);
     function maintenanceNext(address account, IMarket market) external returns (UFixed6);
     function liquidatable(address account, IMarket market) external returns (bool);
-    function next(address account, IMarket market) external returns (Fixed6);
-    function position(address account, IMarket market) external returns (Fixed6);
-    function userPosition(address account, IMarket market) external returns (Fixed6, Fixed6);
-    function openInterest(address account, IMarket market) external returns (Fixed6);
-    function exposure(address account, IMarket market) external returns (Fixed6);
+    function next(address account, IMarket market) external returns (UFixed6, UFixed6);
+    function position(address account, IMarket market) external returns (UFixed6, UFixed6);
+    function userPosition(address account, IMarket market) external returns (UFixed6, UFixed6, UFixed6, UFixed6);
+    function openInterest(address account, IMarket market) external returns (UFixed6);
+    function exposure(address account, IMarket market) external returns (UFixed6);
     function maintenanceRequired(
         address account,
         IMarket market,
-        Fixed6 positionSize
+        UFixed6 positionSize
     ) external returns (UFixed6);
 }

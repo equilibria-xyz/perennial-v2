@@ -83,8 +83,8 @@ contract Lens is ILens {
         _snapshot.userAddress = account;
         _snapshot.collateral = collateral(account, market);
         _snapshot.maintenance = maintenance(account, market);
-        _snapshot.next = next(account, market);
-        _snapshot.position = position(account, market);
+        (_snapshot.nextMaker, _snapshot.nextTaker) = next(account, market);
+        (_snapshot.maker, _snapshot.taker) = position(account, market);
         _snapshot.liquidatable = liquidatable(account, market);
         _snapshot.openInterest = openInterest(account, market);
         _snapshot.exposure = exposure(account, market);
@@ -249,12 +249,12 @@ contract Lens is ILens {
      */
     function maintenance(address account, IMarket market) public settleAccount(account, market) returns (UFixed6) {
         Account memory marketAccount = market.accounts(account);
-        return _maintenance(market, marketAccount.position);
+        return _maintenance(market, marketAccount.position());
     }
 
     function maintenanceNext(address account, IMarket market) public settleAccount(account, market) returns (UFixed6) {
         Account memory marketAccount = market.accounts(account);
-        return _maintenance(market, marketAccount.next);
+        return _maintenance(market, marketAccount.next());
     }
 
     /**
@@ -265,7 +265,7 @@ contract Lens is ILens {
      */
     function liquidatable(address account, IMarket market) public settleAccount(account, market) returns (bool) {
         Account memory marketAccount = market.accounts(account);
-        UFixed6 maintenanceAmount = _maintenance(market, marketAccount.position);
+        UFixed6 maintenanceAmount = _maintenance(market, marketAccount.position());
         return Fixed6Lib.from(maintenanceAmount).gt(marketAccount.collateral);
     }
 
@@ -278,10 +278,10 @@ contract Lens is ILens {
     function next(address account, IMarket market)
         public
         settleAccount(account, market)
-        returns (Fixed6)
+        returns (UFixed6, UFixed6)
     {
         Account memory marketAccount = market.accounts(account);
-        return marketAccount.next;
+        return (marketAccount.nextMaker, marketAccount.nextTaker);
     }
 
     /**
@@ -293,10 +293,10 @@ contract Lens is ILens {
     function position(address account, IMarket market)
         public
         settleAccount(account, market)
-        returns (Fixed6)
+        returns (UFixed6, UFixed6)
     {
         Account memory marketAccount = market.accounts(account);
-        return marketAccount.position;
+        return (marketAccount.maker, marketAccount.taker);
     }
 
     /**
@@ -309,10 +309,10 @@ contract Lens is ILens {
     function userPosition(address account, IMarket market)
         public
         settleAccount(account, market)
-        returns (Fixed6, Fixed6)
+        returns (UFixed6, UFixed6, UFixed6, UFixed6)
     {
         Account memory marketAccount = market.accounts(account);
-        return (marketAccount.position, marketAccount.next);
+        return (marketAccount.maker, marketAccount.taker, marketAccount.nextMaker, marketAccount.nextTaker);
     }
 
     /**
@@ -324,10 +324,10 @@ contract Lens is ILens {
     function openInterest(address account, IMarket market)
         public
         settleAccount(account, market)
-        returns (Fixed6)
+        returns (UFixed6)
     {
         Account memory marketAccount = market.accounts(account);
-        return marketAccount.position.mul(_latestVersion(market).price);
+        return marketAccount.position().mul(_latestVersion(market).price.abs());
     }
 
     /**
@@ -336,17 +336,18 @@ contract Lens is ILens {
      * @param market Market address
      * @return User's exposure (openInterest * utilization) after settle
      */
-    function exposure(address account, IMarket market) public settleAccount(account, market) returns (Fixed6) {
+    function exposure(address account, IMarket market) public settleAccount(account, market) returns (UFixed6) {
         Position memory _position = position(market);
-        if (_position.maker.isZero()) { return Fixed6Lib.ZERO; }
+        if (_position.maker.isZero()) { return UFixed6Lib.ZERO; }
 
-        Fixed6 _openInterest = openInterest(account, market);
-        if (_openInterest.sign() == 1) {
+        Account memory marketAccount = market.accounts(account);
+        UFixed6 _openInterest = openInterest(account, market);
+        if (marketAccount.maker.isZero()) {
             return _openInterest; // Taker exposure is always 100% of openInterest
         }
 
         UFixed6 utilization = _position.utilization();
-        return Fixed6Lib.from(utilization).mul(_openInterest); // Maker exposure is openInterest * utilization
+        return utilization.mul(_openInterest); // Maker exposure is openInterest * utilization
     }
 
     /**
@@ -356,7 +357,7 @@ contract Lens is ILens {
      * @param positionSize size of position for maintenance calculation
      * @return Maintenance required for position in market
      */
-    function maintenanceRequired(address account, IMarket market, Fixed6 positionSize)
+    function maintenanceRequired(address account, IMarket market, UFixed6 positionSize)
         public
         settleAccount(account, market)
         returns (UFixed6)
@@ -368,9 +369,9 @@ contract Lens is ILens {
      *  End UserMarket Individual Fields Functions
      */
 
-    function _maintenance(IMarket market, Fixed6 positionSize) private view returns (UFixed6) {
+    function _maintenance(IMarket market, UFixed6 positionSize) private view returns (UFixed6) {
         UFixed6 maintenance_ = market.parameter().maintenance;
-        UFixed6 notional = positionSize.mul(_latestVersion(market).price).abs();
+        UFixed6 notional = positionSize.mul(_latestVersion(market).price.abs());
         return notional.mul(maintenance_);
     }
 

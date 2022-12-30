@@ -97,11 +97,12 @@ contract Market is IMarket, UInitializable, UOwnable {
         _saveContext(context, account);
     }
 
-    //TODO support depositTo and withdrawTo
-    function update(Fixed6 newPosition, Fixed6 newCollateral) external {
+    //TODO: support depositTo and withdrawTo
+    //TODO: newCollateral of maxuint to signify "don't change collateral"
+    function update(UFixed6 newMaker, UFixed6 newTaker, Fixed6 newCollateral) external {
         CurrentContext memory context = _loadContext(msg.sender);
         _settle(context);
-        _update(context, msg.sender, msg.sender, newPosition, newCollateral, false);
+        _update(context, msg.sender, msg.sender, newMaker, newTaker, newCollateral, false);
         _saveContext(context, msg.sender);
     }
 
@@ -188,7 +189,7 @@ contract Market is IMarket, UInitializable, UOwnable {
         liquidationReward = liquidationReward.min(Fixed6.wrap(int256(UFixed18.unwrap(token.balanceOf())) / 1e12));
 
         // close position
-        _update(context, account, msg.sender, Fixed6Lib.ZERO, context.account.collateral.sub(liquidationReward), true);
+        _update(context, account, msg.sender, UFixed6Lib.ZERO, UFixed6Lib.ZERO, context.account.collateral.sub(liquidationReward), true);
         context.account.liquidation = true;
 
         emit Liquidation(account, msg.sender, liquidationReward);
@@ -198,7 +199,8 @@ contract Market is IMarket, UInitializable, UOwnable {
         CurrentContext memory context,
         address account, //TODO: use for onbehalf of?
         address receiver,
-        Fixed6 newPosition,
+        UFixed6 newMaker,
+        UFixed6 newTaker,
         Fixed6 newCollateral,
         bool force
     ) private {
@@ -206,7 +208,7 @@ contract Market is IMarket, UInitializable, UOwnable {
 
         // before
         if (context.account.liquidation) revert MarketInLiquidationError();
-        if (context.marketParameter.closed && !newPosition.isZero()) revert MarketClosedError();
+        if (context.marketParameter.closed && !newMaker.add(newTaker).isZero()) revert MarketClosedError();
 
         // update
         (
@@ -216,7 +218,8 @@ contract Market is IMarket, UInitializable, UOwnable {
             UFixed6 takerFee,
             Fixed6 collateralAmount
         ) = context.account.update(
-            newPosition,
+            newMaker,
+            newTaker,
             newCollateral,
             context.currentOracleVersion,
             context.marketParameter
@@ -238,7 +241,7 @@ contract Market is IMarket, UInitializable, UOwnable {
         if (collateralAmount.sign() == -1) token.push(receiver, UFixed18.wrap(UFixed6.unwrap(collateralAmount.abs()) * 1e12));
 
         // events
-        emit Updated(account, context.currentOracleVersion.version, newPosition, newCollateral);
+        emit Updated(account, context.currentOracleVersion.version, newMaker, newTaker, newCollateral);
 
         _endGas(context);
     }
@@ -281,7 +284,7 @@ contract Market is IMarket, UInitializable, UOwnable {
         _endGas(context);
     }
 
-    function _settle(CurrentContext memory context) private { //TODO: should be pure
+    function _settle(CurrentContext memory context) private {
         _startGas(context, "_settle: %s");
 
         // Initialize memory
@@ -291,7 +294,7 @@ contract Market is IMarket, UInitializable, UOwnable {
         Version memory toVersion;
 
         // settle market a->b if necessary
-        fromOracleVersion = context.position.latestVersion == context.currentOracleVersion.version ? // TODO: make a lazy loader here
+        fromOracleVersion = context.position.latestVersion == context.currentOracleVersion.version ?
             context.currentOracleVersion :
             _oracleVersionAt(context.marketParameter, context.position.latestVersion);
         toOracleVersion = context.position.latestVersion + 1 == context.currentOracleVersion.version ?
@@ -355,7 +358,10 @@ contract Market is IMarket, UInitializable, UOwnable {
         if (
             !context.marketParameter.closed &&
             context.position.socializationFactorNext().lt(UFixed6Lib.ONE) &&
-            context.account.next.gt(context.account.position)
+            (
+                context.account.nextTaker.gt(context.account.taker) ||
+                context.account.nextMaker.lt(context.account.maker)
+            )
         ) revert MarketInsufficientLiquidityError();
 
         if (context.position.makerNext.gt(context.marketParameter.makerLimit))
