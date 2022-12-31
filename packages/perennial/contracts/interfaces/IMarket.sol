@@ -39,7 +39,6 @@ interface IMarket {
     error MarketPausedError();
     error MarketClosedError();
     error MarketCollateralUnderLimitError();
-    error MarketCantLiquidate();
     error MarketNotTreasuryError();
     error PayoffProviderInvalidOracle();
     error PayoffProviderInvalidPayoffDefinitionError();
@@ -56,7 +55,6 @@ interface IMarket {
     function fee() external view returns (Fee memory);
     function settle(address account) external;
     function update(UFixed6 newMaker, UFixed6 newTaker, Fixed6 newCollateral) external;
-    function liquidate(address account) external;
     function updateTreasury(address newTreasury) external;
     function parameter() external view returns (MarketParameter memory);
     function updateParameter(MarketParameter memory newParameter) external;

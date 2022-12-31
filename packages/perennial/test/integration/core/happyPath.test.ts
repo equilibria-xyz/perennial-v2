@@ -461,8 +461,6 @@ describe.only('Happy Path', () => {
 
     await expect(factory.connect(pauser).updatePaused(true)).to.emit(factory, 'ParameterUpdated')
     await expect(market.update(0, 0, parse6decimal('1000'))).to.be.revertedWith('PausedError()')
-    await expect(market.liquidate(user.address)).to.be.revertedWith('PausedError()')
-    await expect(market.update(0, parse6decimal('0.001'), 0)).to.be.revertedWith('PausedError()')
     await expect(market.settle(user.address)).to.be.revertedWith('PausedError()')
   })
 

@@ -263,10 +263,11 @@ contract Lens is ILens {
      * @param market Market address
      * @return Whether or not the user's position eligible to be liquidated
      */
-    function liquidatable(address account, IMarket market) public settleAccount(account, market) returns (bool) {
-        Account memory marketAccount = market.accounts(account);
-        UFixed6 maintenanceAmount = _maintenance(market, marketAccount.position());
-        return Fixed6Lib.from(maintenanceAmount).gt(marketAccount.collateral);
+    function liquidatable(address account, IMarket market) public returns (bool) {
+        Account memory marketAccountBefore = market.accounts(account);
+        market.settle(account);
+        Account memory marketAccountAfter = market.accounts(account);
+        return !marketAccountBefore.liquidation && marketAccountAfter.liquidation;
     }
 
     /**

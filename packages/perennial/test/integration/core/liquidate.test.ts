@@ -25,10 +25,9 @@ describe('Liquidate', () => {
 
     // Settle the market with a new oracle version
     await chainlink.nextWithPriceModification(price => price.mul(2))
-    await market.settle(user.address)
 
     expect(await lens.callStatic.liquidatable(user.address, market.address)).to.be.true
-    await expect(market.connect(userB).liquidate(user.address))
+    await expect(market.connect(userB).settle(user.address)) // liquidate
       .to.emit(market, 'Liquidation')
       .withArgs(user.address, userB.address, '682778988')
 
@@ -57,10 +56,9 @@ describe('Liquidate', () => {
 
     // Settle the market with a new oracle version
     await chainlink.nextWithPriceModification(price => price.mul(10))
-    await market.settle(user.address)
 
     expect(await lens.callStatic.liquidatable(user.address, market.address)).to.be.true
-    await expect(market.connect(userB).liquidate(user.address))
+    await expect(market.connect(userB).settle(user.address)) // liquidate
       .to.emit(market, 'Liquidation')
       .withArgs(user.address, userB.address, COLLATERAL)
 
@@ -92,15 +90,14 @@ describe('Liquidate', () => {
     await market.settle(constants.AddressZero)
 
     await chainlink.nextWithPriceModification(price => price.mul(2))
-    await market.settle(user.address)
+
     await market.settle(userB.address)
-
-    expect((await market.accounts(user.address)).collateral).to.equal(BigNumber.from('-2463736824'))
-
     const userBCollateral = (await market.accounts(userB.address)).collateral
     await expect(market.connect(userB).update(0, 0, userBCollateral.mul(-1))).to.be.revertedWith('MarketInDebtError()') // underflow
 
-    await market.connect(userB).liquidate(user.address)
+    await market.connect(userB).settle(user.address) // liquidate
+    expect((await market.accounts(user.address)).collateral).to.equal(BigNumber.from('-3154014381'))
+
     await chainlink.next()
 
     await dsu.connect(userB).approve(market.address, constants.MaxUint256)
@@ -131,7 +128,7 @@ describe('Liquidate', () => {
 
     // Liquidate `user` which results in taker > maker
     const expectedLiquidationFee = BigNumber.from('682778988')
-    await expect(market.connect(userB).liquidate(user.address))
+    await expect(market.connect(userB).settle(user.address)) // liquidate
       .to.emit(market, 'Liquidation')
       .withArgs(user.address, userB.address, expectedLiquidationFee)
 

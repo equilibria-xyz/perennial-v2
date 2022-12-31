@@ -9,7 +9,8 @@ import "hardhat/console.sol";
 
 // TODO: versioned params and other 1.1 fixes (position fee + liquidation bugs)
 // TODO: should we move position fees to account position settle so that there's intra-version netting?
-// TODO: combine liquidate into settle flow
+// TODO: combine update and settle to enable on-behalf managers
+
 /**
  * @title Market
  * @notice Manages logic and state for a single market market.
@@ -93,25 +94,16 @@ contract Market is IMarket, UInitializable, UOwnable {
     function settle(address account) external {
         CurrentContext memory context = _loadContext(account);
         _settle(context);
+        _liquidate(context, account);
         _saveContext(context, account);
     }
 
-    //TODO: support depositTo and withdrawTo
     //TODO: newCollateral of maxuint to signify "don't change collateral"
     function update(UFixed6 newMaker, UFixed6 newTaker, Fixed6 newCollateral) external {
         CurrentContext memory context = _loadContext(msg.sender);
         _settle(context);
         _update(context, msg.sender, msg.sender, newMaker, newTaker, newCollateral, false);
         _saveContext(context, msg.sender);
-    }
-
-    function liquidate(address account)
-    external
-    {
-        CurrentContext memory context = _loadContext(account);
-        _settle(context);
-        _liquidate(context, account);
-        _saveContext(context, account);
     }
 
     function updateTreasury(address newTreasury) external onlyOwner {
@@ -179,16 +171,17 @@ contract Market is IMarket, UInitializable, UOwnable {
     function _liquidate(CurrentContext memory context, address account) private {
         // before
         UFixed6 maintenance = context.account.maintenance(context.currentOracleVersion, context.marketParameter.maintenance);
-        if (context.account.collateral.gte(Fixed6Lib.from(maintenance))) revert MarketCantLiquidate();
+        if (context.account.collateral.gte(Fixed6Lib.from(maintenance)) || context.account.liquidation) return; // cant liquidate
 
+        // compute reward
         Fixed6 liquidationReward = Fixed6Lib.from(
             UFixed6Lib.max(maintenance, context.protocolParameter.minCollateral)
                 .mul(context.protocolParameter.liquidationFee)
-        );
-        liquidationReward = liquidationReward.min(Fixed6.wrap(int256(UFixed18.unwrap(token.balanceOf())) / 1e12));
+        ).min(Fixed6.wrap(int256(UFixed18.unwrap(token.balanceOf())) / 1e12));
+        Fixed6 newCollateral = context.account.collateral.sub(liquidationReward);
 
         // close position
-        _update(context, account, msg.sender, UFixed6Lib.ZERO, UFixed6Lib.ZERO, context.account.collateral.sub(liquidationReward), true);
+        _update(context, account, msg.sender, UFixed6Lib.ZERO, UFixed6Lib.ZERO, newCollateral, true);
         context.account.liquidation = true;
 
         emit Liquidation(account, msg.sender, liquidationReward);
@@ -196,7 +189,7 @@ contract Market is IMarket, UInitializable, UOwnable {
 
     function _update(
         CurrentContext memory context,
-        address account, //TODO: use for onbehalf of?
+        address account,
         address receiver,
         UFixed6 newMaker,
         UFixed6 newTaker,
