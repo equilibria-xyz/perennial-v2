@@ -11,7 +11,6 @@ import "./Payoff.sol";
 struct MarketParameter {
     UFixed6 maintenance; // <= 429496%
     UFixed6 fundingFee;  // <= 429496%
-    UFixed6 makerFee;    // <= 429496%
     UFixed6 takerFee;    // <= 429496%
     UFixed6 positionFee; // <= 429496%
     UFixed6 makerLimit;  // <= 18.45tn
@@ -27,8 +26,8 @@ struct StoredMarketParameter {
     address oracle;
     uint24 maintenance; // <= 1677%
     uint24 fundingFee;  // <= 1677%
-    uint24 makerFee;    // <= 1677%
     uint24 takerFee;    // <= 1677%
+    bytes3 __unallocated0__;
 
     /* slot 2 */
     address payoffProvider;
@@ -44,7 +43,7 @@ struct StoredMarketParameter {
     int32 utilizationCurveTargetRate;         // <= 214748%
     uint24 utilizationCurveTargetUtilization; // <= 1677%
     bool closed;
-    bytes10 __unallocated0__;
+    bytes10 __unallocated1__;
 }
 struct MarketParameterStorage { StoredMarketParameter value; }
 using MarketParameterStorageLib for MarketParameterStorage global;
@@ -57,7 +56,6 @@ library MarketParameterStorageLib {
         return MarketParameter(
             UFixed6.wrap(uint256(value.maintenance)),
             UFixed6.wrap(uint256(value.fundingFee)),
-            UFixed6.wrap(uint256(value.makerFee)),
             UFixed6.wrap(uint256(value.takerFee)),
             UFixed6.wrap(uint256(value.positionFee)),
             UFixed6.wrap(uint256(value.makerLimit)),
@@ -79,14 +77,12 @@ library MarketParameterStorageLib {
         //TODO: check mod for precision
         if (parameter.maintenance.gt(UFixed6Lib.ONE)) revert MarketParameterStorageOverflowError();
         if (parameter.fundingFee.gt(UFixed6Lib.ONE)) revert MarketParameterStorageOverflowError();
-        if (parameter.makerFee.gt(UFixed6Lib.ONE)) revert MarketParameterStorageOverflowError();
         if (parameter.takerFee.gt(UFixed6Lib.ONE)) revert MarketParameterStorageOverflowError();
         if (parameter.positionFee.gt(UFixed6Lib.ONE)) revert MarketParameterStorageOverflowError();
 
         self.value = StoredMarketParameter({
             maintenance: uint24(UFixed6.unwrap(parameter.maintenance)),
             fundingFee: uint24(UFixed6.unwrap(parameter.fundingFee)),
-            makerFee: uint24(UFixed6.unwrap(parameter.makerFee)),
             takerFee: uint24(UFixed6.unwrap(parameter.takerFee)),
             positionFee: uint24(UFixed6.unwrap(parameter.positionFee)),
             makerLimit: uint48(UFixed6.unwrap(parameter.makerLimit)),
@@ -100,7 +96,8 @@ library MarketParameterStorageLib {
             oracle: address(parameter.oracle),
             payoffProvider: address(parameter.payoff.provider),
             payoffShort: parameter.payoff.short,
-            __unallocated0__: bytes10(0x00000000000000000000)
+            __unallocated0__: bytes3(0),
+            __unallocated1__: bytes10(0)
         });
     }
 }

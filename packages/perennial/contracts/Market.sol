@@ -210,13 +210,7 @@ contract Market is IMarket, UInitializable, UOwnable {
         if (context.marketParameter.closed && !newMaker.add(newTaker).isZero()) revert MarketClosedError();
 
         // update
-        (
-            Fixed6 makerAmount,
-            Fixed6 takerAmount,
-            UFixed6 makerFee,
-            UFixed6 takerFee,
-            Fixed6 collateralAmount
-        ) = context.account.update(
+        (Fixed6 makerAmount, Fixed6 takerAmount, UFixed6 takerFee, Fixed6 collateralAmount) = context.account.update(
             newMaker,
             newTaker,
             newCollateral,
@@ -224,8 +218,8 @@ contract Market is IMarket, UInitializable, UOwnable {
             context.marketParameter
         );
         context.position.update(makerAmount, takerAmount);
-        UFixed6 positionFee = context.version.update(context.position, makerFee, takerFee, context.marketParameter);
-        context.fee.update(positionFee, context.protocolParameter);
+        UFixed6 takerMarketFee = context.version.update(context.position, takerFee, context.marketParameter);
+        context.fee.update(takerMarketFee, context.protocolParameter);
 
         // after
         if (!force) _checkPosition(context);

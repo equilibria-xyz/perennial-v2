@@ -43,33 +43,20 @@ library VersionLib {
      *      calculate the user's fee total. In the event that settlement is occurring over multiple oracle versions
      *      (i.e. from a -> b -> c) it is safe to use the latestOracleVersion because in the a -> b case, a is always
      *      b - 1, and in the b -> c case the `PrePosition` is always empty so this is skipped.
-     * @return positionFee The position fee that is retained by the protocol and product
+     * @return takerMarketFee The position fee that is retained by the protocol and product
      */
     function update(
         Version memory self,
         Position memory position,
-        UFixed6 makerFee,
         UFixed6 takerFee,
         MarketParameter memory marketParameter
-    ) internal pure returns (UFixed6 positionFee) {
-        (UFixed6 makerProtocolFee, UFixed6 takerProtocolFee) =
-            (marketParameter.positionFee.mul(makerFee), marketParameter.positionFee.mul(takerFee));
-        (makerFee, takerFee) = (makerFee.sub(makerProtocolFee), takerFee.sub(takerProtocolFee));
-        positionFee = makerProtocolFee.add(takerProtocolFee);
+    ) internal pure returns (UFixed6 takerMarketFee) {
+        UFixed6 takerProtocolFee = marketParameter.positionFee.mul(takerFee);
+        takerMarketFee = takerFee.sub(takerProtocolFee);
 
         // If there are makers to distribute the taker's position fee to, distribute. Otherwise give it to the protocol
-        if (!position.maker.isZero()) {
-            self.makerValue.increment(Fixed6Lib.from(takerFee), position.maker);
-        } else {
-            positionFee = positionFee.add(takerFee);
-        }
-
-        // If there are takers to distribute the maker's position fee to, distribute. Otherwise give it to the protocol
-        if (!position.taker.isZero()) {
-            self.takerValue.increment(Fixed6Lib.from(makerFee), position.taker);
-        } else {
-            positionFee = positionFee.add(makerFee);
-        }
+        if (position.maker.isZero()) takerMarketFee = takerMarketFee.add(takerFee);
+        else self.makerValue.increment(Fixed6Lib.from(takerFee), position.maker);
     }
 
     /**

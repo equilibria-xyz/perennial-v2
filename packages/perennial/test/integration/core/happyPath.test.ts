@@ -25,7 +25,6 @@ describe.only('Happy Path', () => {
     const parameter = {
       maintenance: parse6decimal('0.3'),
       fundingFee: parse6decimal('0.1'),
-      makerFee: 0,
       takerFee: 0,
       positionFee: 0,
       makerLimit: parse6decimal('1'),
@@ -478,7 +477,6 @@ describe.only('Happy Path', () => {
     const parameter = {
       maintenance: parse6decimal('0.3'),
       fundingFee: parse6decimal('0.1'),
-      makerFee: positionFeesOn ? parse6decimal('0.001') : 0,
       takerFee: positionFeesOn ? parse6decimal('0.001') : 0,
       positionFee: positionFeesOn ? parse6decimal('0.1') : 0,
       makerLimit: parse6decimal('1'),
@@ -537,8 +535,8 @@ describe.only('Happy Path', () => {
       takerNext: POSITION.div(2),
     })
     const version = await market.versions(INITIAL_VERSION + 4)
-    expect(version.makerValue._value).to.equal('-357213713941')
-    expect(version.takerValue._value).to.equal('367430843636')
+    expect(version.makerValue._value).to.equal('-356621077577')
+    expect(version.takerValue._value).to.equal('362096873940')
     expect(version.makerReward._value).to.equal('60683636363')
     expect(version.takerReward._value).to.equal('606836363635')
   })

@@ -183,7 +183,6 @@ export async function createMarket(
   const parameter = {
     maintenance: parse6decimal('0.3'),
     fundingFee: parse6decimal('0.1'),
-    makerFee: 0,
     takerFee: 0,
     positionFee: 0,
     makerLimit: parse6decimal('1000'),

@@ -49,7 +49,6 @@ library AccountLib {
     ) internal pure returns (
         Fixed6 makerAmount,
         Fixed6 takerAmount,
-        UFixed6 makerFee,
         UFixed6 takerFee,
         Fixed6 collateralAmount
     ) {
@@ -58,11 +57,8 @@ library AccountLib {
             Fixed6Lib.from(newMaker).sub(Fixed6Lib.from(self.nextMaker)),
             Fixed6Lib.from(newTaker).sub(Fixed6Lib.from(self.nextTaker))
         );
-        (makerFee, takerFee) = (
-            makerAmount.mul(currentOracleVersion.price).abs().mul(marketParameter.makerFee),
-            takerAmount.mul(currentOracleVersion.price).abs().mul(marketParameter.takerFee)
-        );
-        collateralAmount = newCollateral.sub(self.collateral).sub(Fixed6Lib.from(makerFee.add(takerFee)));
+        takerFee = takerAmount.mul(currentOracleVersion.price).abs().mul(marketParameter.takerFee);
+        collateralAmount = newCollateral.sub(self.collateral).sub(Fixed6Lib.from(takerFee));
 
         // update
         self.nextMaker = newMaker;
