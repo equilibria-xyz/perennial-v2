@@ -90,7 +90,6 @@ contract Market is IMarket, UInitializable, UOwnable {
         updateParameter(parameter_);
     }
 
-    //TODO: address 0?
     function settle(address account) external {
         CurrentContext memory context = _loadContext(account);
         _settle(context);
