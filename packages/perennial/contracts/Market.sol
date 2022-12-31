@@ -98,7 +98,6 @@ contract Market is IMarket, UInitializable, UOwnable {
         _saveContext(context, account);
     }
 
-    //TODO: newCollateral of maxuint to signify "don't change collateral"
     function update(UFixed6 newMaker, UFixed6 newTaker, Fixed6 newCollateral) external {
         CurrentContext memory context = _loadContext(msg.sender);
         _settle(context);
@@ -203,6 +202,7 @@ contract Market is IMarket, UInitializable, UOwnable {
         if (context.marketParameter.closed && !newMaker.add(newTaker).isZero()) revert MarketClosedError();
 
         // update
+        if (newCollateral.eq(Fixed6Lib.MAX)) newCollateral = context.account.collateral;
         (Fixed6 makerAmount, Fixed6 takerAmount, UFixed6 takerFee, Fixed6 collateralAmount) = context.account.update(
             newMaker,
             newTaker,
