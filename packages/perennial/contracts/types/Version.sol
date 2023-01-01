@@ -79,7 +79,7 @@ library VersionLib {
         _accumulatePosition(self, position, fromOracleVersion, toOracleVersion, marketParameter);
 
         // accumulate reward
-        _accumulateReward(self, position, fromOracleVersion, toOracleVersion, marketParameter); //TODO: auto-shutoff if not enough reward ERC20s in contract?
+        _accumulateReward(self, position, fromOracleVersion, toOracleVersion, marketParameter);
     }
 
     /**

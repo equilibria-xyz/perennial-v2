@@ -10,7 +10,8 @@ import "hardhat/console.sol";
 // TODO: versioned params and other 1.1 fixes (position fee + liquidation bugs)
 // TODO: should we move position fees to account position settle so that there's intra-version netting?
 // TODO: combine update and settle to enable on-behalf managers
-// TODO: finalize bound check on state store (add constants to number types)
+// TODO: general parameter validity checks
+// TODO: auto-shutoff rewards if not enough reward ERC20s in contract during accumulate?
 
 /**
  * @title Market
@@ -23,7 +24,6 @@ contract Market is IMarket, UInitializable, UOwnable {
         ProtocolParameter protocolParameter;
 
         /* Market Parameters */
-
         MarketParameter marketParameter;
 
         /* Current Global State */
@@ -112,7 +112,6 @@ contract Market is IMarket, UInitializable, UOwnable {
     }
 
     function updateParameter(MarketParameter memory newParameter) public onlyOwner {
-        //TODO: disallow non-editable params
         _parameter.store(newParameter);
         emit ParameterUpdated(newParameter);
     }
