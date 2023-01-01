@@ -7,9 +7,11 @@ import "./Version.sol";
 struct Account {
     uint256 latestVersion;
     UFixed6 maker;
-    UFixed6 taker;
+    UFixed6 long;
+    UFixed6 short;
     UFixed6 nextMaker;
-    UFixed6 nextTaker;
+    UFixed6 nextLong;
+    UFixed6 nextShort;
     Fixed6 collateral;
     UFixed6 reward;
     bool liquidation;
@@ -32,37 +34,41 @@ using AccountStorageLib for AccountStorage global;
  */
 library AccountLib {
     function position(Account memory self) internal pure returns (UFixed6) {
-        return self.maker.add(self.taker);
+        return self.maker.add(self.long).add(self.short);
     }
 
     function next(Account memory self) internal pure returns (UFixed6) {
-        return self.nextMaker.add(self.nextTaker);
+        return self.nextMaker.add(self.nextLong).add(self.nextShort);
     }
 
     function update(
         Account memory self,
         UFixed6 newMaker,
-        UFixed6 newTaker,
+        UFixed6 newLong,
+        UFixed6 newShort,
         Fixed6 newCollateral,
         OracleVersion memory currentOracleVersion,
         MarketParameter memory marketParameter
     ) internal pure returns (
         Fixed6 makerAmount,
-        Fixed6 takerAmount,
+        Fixed6 longAmount,
+        Fixed6 shortAmount,
         UFixed6 takerFee,
         Fixed6 collateralAmount
     ) {
         // compute
-        (makerAmount, takerAmount) = (
+        (makerAmount, longAmount, shortAmount) = (
             Fixed6Lib.from(newMaker).sub(Fixed6Lib.from(self.nextMaker)),
-            Fixed6Lib.from(newTaker).sub(Fixed6Lib.from(self.nextTaker))
+            Fixed6Lib.from(newLong).sub(Fixed6Lib.from(self.nextLong)),
+            Fixed6Lib.from(newShort).sub(Fixed6Lib.from(self.nextShort))
         );
-        takerFee = takerAmount.mul(currentOracleVersion.price).abs().mul(marketParameter.takerFee);
+        takerFee = longAmount.add(shortAmount).mul(currentOracleVersion.price).abs().mul(marketParameter.takerFee);
         collateralAmount = newCollateral.sub(self.collateral).sub(Fixed6Lib.from(takerFee));
 
         // update
         self.nextMaker = newMaker;
-        self.nextTaker = newTaker;
+        self.nextLong = newLong;
+        self.nextShort = newShort;
         self.collateral = newCollateral;
     }
 
@@ -77,13 +83,16 @@ library AccountLib {
         Version memory toVersion
     ) internal pure {
         Fixed6 collateralAmount = toVersion.makerValue.accumulated(fromVersion.makerValue, self.maker)
-            .add(toVersion.takerValue.accumulated(fromVersion.takerValue, self.taker));
+            .add(toVersion.longValue.accumulated(fromVersion.longValue, self.long))
+            .add(toVersion.shortValue.accumulated(fromVersion.shortValue, self.short));
         UFixed6 rewardAmount = toVersion.makerReward.accumulated(fromVersion.makerReward, self.maker)
-            .add(toVersion.takerReward.accumulated(fromVersion.takerReward, self.taker));
+            .add(toVersion.longReward.accumulated(fromVersion.longReward, self.long))
+            .add(toVersion.shortReward.accumulated(fromVersion.shortReward, self.short));
 
         self.latestVersion = toOracleVersion.version;
         self.maker = self.nextMaker;
-        self.taker = self.nextTaker;
+        self.long = self.nextLong;
+        self.short = self.nextShort;
         self.collateral = self.collateral.add(collateralAmount);
         self.reward = self.reward.add(rewardAmount);
         self.liquidation = false;
@@ -142,16 +151,20 @@ library AccountStorageLib {
         StoredAccount memory storedValue =  self.value;
 
         bool isMaker = storedValue._positionMask & uint256(1) != 0;
-        bool isTaker = storedValue._positionMask & uint256(1 << 1) != 0;
-        bool isNextMaker = storedValue._positionMask & uint256(1 << 2) != 0;
-        bool isNextTaker = storedValue._positionMask & uint256(1 << 3) != 0;
+        bool isLong = storedValue._positionMask & uint256(1 << 1) != 0;
+        bool isShort = storedValue._positionMask & uint256(1 << 2) != 0;
+        bool isNextMaker = storedValue._positionMask & uint256(1 << 3) != 0;
+        bool isNextLong = storedValue._positionMask & uint256(1 << 4) != 0;
+        bool isNextShort = storedValue._positionMask & uint256(1 << 5) != 0;
 
         return Account(
             uint256(storedValue._latestVersion),
             UFixed6.wrap(uint256(isMaker ? storedValue._position : 0)),
-            UFixed6.wrap(uint256(isTaker ? storedValue._position : 0)),
+            UFixed6.wrap(uint256(isLong ? storedValue._position : 0)),
+            UFixed6.wrap(uint256(isShort ? storedValue._position : 0)),
             UFixed6.wrap(uint256(isNextMaker ? storedValue._next : 0)),
-            UFixed6.wrap(uint256(isNextTaker ? storedValue._next : 0)),
+            UFixed6.wrap(uint256(isNextLong ? storedValue._next : 0)),
+            UFixed6.wrap(uint256(isNextShort ? storedValue._next : 0)),
             Fixed6.wrap(int256(storedValue._collateral)),
             UFixed6.wrap(uint256(storedValue._liquidationAndReward & ~LIQUIDATION_MASK)),
             bool(storedValue._liquidationAndReward & LIQUIDATION_MASK != 0)
@@ -165,13 +178,19 @@ library AccountStorageLib {
         if (newValue.collateral.gt(Fixed6Lib.MAX_56)) revert AccountStorageInvalidError();
         if (newValue.reward.gt(UFixed6.wrap((1 << 55) - 1))) revert AccountStorageInvalidError();
 
-        if (!newValue.nextMaker.isZero() && !newValue.nextTaker.isZero()) revert AccountStorageDoubleSidedError();
+        if (
+            !newValue.nextMaker.isZero() && !newValue.nextLong.isZero() ||
+            !newValue.nextLong.isZero() && !newValue.nextShort.isZero() ||
+            !newValue.nextShort.isZero() && !newValue.nextMaker.isZero()
+        ) revert AccountStorageDoubleSidedError();
 
         uint256 _positionMask =
             ((newValue.maker.isZero() ? 0 : 1)) |
-            ((newValue.taker.isZero() ? 0 : 1) << 1) |
-            ((newValue.nextMaker.isZero() ? 0 : 1) << 2) |
-            ((newValue.nextTaker.isZero() ? 0 : 1) << 3);
+            ((newValue.long.isZero() ? 0 : 1) << 1) |
+            ((newValue.short.isZero() ? 0 : 1) << 2) |
+            ((newValue.nextMaker.isZero() ? 0 : 1) << 3) |
+            ((newValue.nextLong.isZero() ? 0 : 1) << 4) |
+            ((newValue.nextShort.isZero() ? 0 : 1) << 5);
 
         self.value = StoredAccount(
             uint8(_positionMask),

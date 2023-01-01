@@ -22,11 +22,11 @@ struct Position {
 }
 using PositionLib for Position global;
 struct StoredPosition {
-    uint32 _latestVersion;
-    uint80 _maker;
-    uint80 _long;
-    uint80 _short;
-    uint80 _makerNext;
+    uint40 _latestVersion;
+    uint72 _maker;
+    uint72 _long;
+    uint72 _short;
+    uint88 _makerNext;
     uint80 _longNext;
     uint80 _shortNext;
 }
@@ -40,7 +40,7 @@ using PositionStorageLib for PositionStorage global;
  *      denominated as a unit of the product's payoff function.
  */
 library PositionLib {
-    function update(Position memory self, Fixed6 makerAmount, Fixed6 longAmount, UFixed6 shortAmount) internal pure {
+    function update(Position memory self, Fixed6 makerAmount, Fixed6 longAmount, Fixed6 shortAmount) internal pure {
         self.makerNext = UFixed6Lib.from(Fixed6Lib.from(self.makerNext).add(makerAmount));
         self.longNext = UFixed6Lib.from(Fixed6Lib.from(self.longNext).add(longAmount));
         self.shortNext = UFixed6Lib.from(Fixed6Lib.from(self.shortNext).add(shortAmount));
@@ -100,22 +100,22 @@ library PositionStorageLib {
     }
 
     function store(PositionStorage storage self, Position memory newValue) internal {
-        if (newValue.latestVersion > type(uint32).max) revert PositionStorageInvalidError();
-        if (newValue.maker.gt(UFixed6Lib.MAX_56)) revert PositionStorageInvalidError();
-        if (newValue.long.gt(UFixed6Lib.MAX_56)) revert PositionStorageInvalidError();
-        if (newValue.short.gt(UFixed6Lib.MAX_56)) revert PositionStorageInvalidError();
-        if (newValue.makerNext.gt(UFixed6Lib.MAX_56)) revert PositionStorageInvalidError();
-        if (newValue.longNext.gt(UFixed6Lib.MAX_56)) revert PositionStorageInvalidError();
-        if (newValue.shortNext.gt(UFixed6Lib.MAX_56)) revert PositionStorageInvalidError();
+        if (newValue.latestVersion > type(uint40).max) revert PositionStorageInvalidError();
+        if (newValue.maker.gt(UFixed6Lib.MAX_72)) revert PositionStorageInvalidError();
+        if (newValue.long.gt(UFixed6Lib.MAX_72)) revert PositionStorageInvalidError();
+        if (newValue.short.gt(UFixed6Lib.MAX_72)) revert PositionStorageInvalidError();
+        if (newValue.makerNext.gt(UFixed6Lib.MAX_88)) revert PositionStorageInvalidError();
+        if (newValue.longNext.gt(UFixed6Lib.MAX_80)) revert PositionStorageInvalidError();
+        if (newValue.shortNext.gt(UFixed6Lib.MAX_80)) revert PositionStorageInvalidError();
 
         self.value = StoredPosition(
-            uint32(newValue.latestVersion),
-            uint56(UFixed6.unwrap(newValue.maker)),
-            uint56(UFixed6.unwrap(newValue.long)),
-            uint56(UFixed6.unwrap(newValue.short)),
-            uint56(UFixed6.unwrap(newValue.makerNext)),
-            uint56(UFixed6.unwrap(newValue.longNext)),
-            uint56(UFixed6.unwrap(newValue.shortNext))
+            uint40(newValue.latestVersion),
+            uint72(UFixed6.unwrap(newValue.maker)),
+            uint72(UFixed6.unwrap(newValue.long)),
+            uint72(UFixed6.unwrap(newValue.short)),
+            uint88(UFixed6.unwrap(newValue.makerNext)),
+            uint80(UFixed6.unwrap(newValue.longNext)),
+            uint80(UFixed6.unwrap(newValue.shortNext))
         );
     }
 }
