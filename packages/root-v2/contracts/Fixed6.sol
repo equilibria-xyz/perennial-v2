@@ -22,8 +22,30 @@ library Fixed6Lib {
     Fixed6 public constant ONE = Fixed6.wrap(BASE);
     Fixed6 public constant NEG_ONE = Fixed6.wrap(-1 * BASE);
     Fixed6 public constant MAX = Fixed6.wrap(type(int256).max);
+    Fixed6 public constant MAX_128 = Fixed6.wrap(type(int128).max);
+    Fixed6 public constant MAX_96 = Fixed6.wrap(type(int96).max);
+    Fixed6 public constant MAX_80 = Fixed6.wrap(type(int80).max);
+    Fixed6 public constant MAX_64 = Fixed6.wrap(type(int64).max);
+    Fixed6 public constant MAX_56 = Fixed6.wrap(type(int56).max);
+    Fixed6 public constant MAX_48 = Fixed6.wrap(type(int48).max);
+    Fixed6 public constant MAX_40 = Fixed6.wrap(type(int40).max);
+    Fixed6 public constant MAX_32 = Fixed6.wrap(type(int32).max);
+    Fixed6 public constant MAX_24 = Fixed6.wrap(type(int24).max);
+    Fixed6 public constant MAX_16 = Fixed6.wrap(type(int16).max);
+    Fixed6 public constant MAX_8 = Fixed6.wrap(type(int8).max);
     Fixed6 public constant MIN = Fixed6.wrap(type(int256).min);
-
+    Fixed6 public constant MIN_128 = Fixed6.wrap(type(int128).min);
+    Fixed6 public constant MIN_96 = Fixed6.wrap(type(int96).min);
+    Fixed6 public constant MIN_80 = Fixed6.wrap(type(int80).min);
+    Fixed6 public constant MIN_64 = Fixed6.wrap(type(int64).min);
+    Fixed6 public constant MIN_56 = Fixed6.wrap(type(int56).min);
+    Fixed6 public constant MIN_48 = Fixed6.wrap(type(int48).min);
+    Fixed6 public constant MIN_40 = Fixed6.wrap(type(int40).min);
+    Fixed6 public constant MIN_32 = Fixed6.wrap(type(int32).min);
+    Fixed6 public constant MIN_24 = Fixed6.wrap(type(int24).min);
+    Fixed6 public constant MIN_16 = Fixed6.wrap(type(int16).min);
+    Fixed6 public constant MIN_8 = Fixed6.wrap(type(int8).min);
+    
     /**
      * @notice Creates a signed fixed-decimal from an unsigned fixed-decimal
      * @param a Unsigned fixed-decimal

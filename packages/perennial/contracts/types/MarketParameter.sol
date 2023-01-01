@@ -49,7 +49,7 @@ struct MarketParameterStorage { StoredMarketParameter value; }
 using MarketParameterStorageLib for MarketParameterStorage global;
 
 library MarketParameterStorageLib {
-    error MarketParameterStorageOverflowError();
+    error MarketParameterStorageInvalidError();
 
     function read(MarketParameterStorage storage self) internal view returns (MarketParameter memory) {
         StoredMarketParameter memory value = self.value;
@@ -73,29 +73,35 @@ library MarketParameterStorageLib {
         );
     }
 
-    function store(MarketParameterStorage storage self, MarketParameter memory parameter) internal {
-        //TODO: check mod for precision
-        if (parameter.maintenance.gt(UFixed6Lib.ONE)) revert MarketParameterStorageOverflowError();
-        if (parameter.fundingFee.gt(UFixed6Lib.ONE)) revert MarketParameterStorageOverflowError();
-        if (parameter.takerFee.gt(UFixed6Lib.ONE)) revert MarketParameterStorageOverflowError();
-        if (parameter.positionFee.gt(UFixed6Lib.ONE)) revert MarketParameterStorageOverflowError();
+    function store(MarketParameterStorage storage self, MarketParameter memory newValue) internal {
+        if (newValue.maintenance.gt(UFixed6Lib.MAX_24)) revert MarketParameterStorageInvalidError();
+        if (newValue.fundingFee.gt(UFixed6Lib.MAX_24)) revert MarketParameterStorageInvalidError();
+        if (newValue.takerFee.gt(UFixed6Lib.MAX_24)) revert MarketParameterStorageInvalidError();
+        if (newValue.positionFee.gt(UFixed6Lib.MAX_24)) revert MarketParameterStorageInvalidError();
+        if (newValue.makerLimit.gt(UFixed6Lib.MAX_48)) revert MarketParameterStorageInvalidError();
+        if (newValue.makerRewardRate.gt(UFixed6Lib.MAX_32)) revert MarketParameterStorageInvalidError();
+        if (newValue.takerRewardRate.gt(UFixed6Lib.MAX_32)) revert MarketParameterStorageInvalidError();
+        if (newValue.utilizationCurve.minRate.gt(Fixed6Lib.MAX_32)) revert MarketParameterStorageInvalidError();
+        if (newValue.utilizationCurve.maxRate.gt(Fixed6Lib.MAX_32)) revert MarketParameterStorageInvalidError();
+        if (newValue.utilizationCurve.targetRate.gt(Fixed6Lib.MAX_32)) revert MarketParameterStorageInvalidError();
+        if (newValue.utilizationCurve.targetUtilization.gt(UFixed6Lib.MAX_32)) revert MarketParameterStorageInvalidError();
 
         self.value = StoredMarketParameter({
-            maintenance: uint24(UFixed6.unwrap(parameter.maintenance)),
-            fundingFee: uint24(UFixed6.unwrap(parameter.fundingFee)),
-            takerFee: uint24(UFixed6.unwrap(parameter.takerFee)),
-            positionFee: uint24(UFixed6.unwrap(parameter.positionFee)),
-            makerLimit: uint48(UFixed6.unwrap(parameter.makerLimit)),
-            closed: parameter.closed,
-            makerRewardRate: uint32(UFixed6.unwrap(parameter.makerRewardRate)),
-            takerRewardRate: uint32(UFixed6.unwrap(parameter.takerRewardRate)),
-            utilizationCurveMinRate: int32(Fixed6.unwrap(parameter.utilizationCurve.minRate)),
-            utilizationCurveMaxRate: int32(Fixed6.unwrap(parameter.utilizationCurve.maxRate)),
-            utilizationCurveTargetRate: int32(Fixed6.unwrap(parameter.utilizationCurve.targetRate)),
-            utilizationCurveTargetUtilization: uint24(UFixed6.unwrap(parameter.utilizationCurve.targetUtilization)),
-            oracle: address(parameter.oracle),
-            payoffProvider: address(parameter.payoff.provider),
-            payoffShort: parameter.payoff.short,
+            maintenance: uint24(UFixed6.unwrap(newValue.maintenance)),
+            fundingFee: uint24(UFixed6.unwrap(newValue.fundingFee)),
+            takerFee: uint24(UFixed6.unwrap(newValue.takerFee)),
+            positionFee: uint24(UFixed6.unwrap(newValue.positionFee)),
+            makerLimit: uint48(UFixed6.unwrap(newValue.makerLimit)),
+            closed: newValue.closed,
+            makerRewardRate: uint32(UFixed6.unwrap(newValue.makerRewardRate)),
+            takerRewardRate: uint32(UFixed6.unwrap(newValue.takerRewardRate)),
+            utilizationCurveMinRate: int32(Fixed6.unwrap(newValue.utilizationCurve.minRate)),
+            utilizationCurveMaxRate: int32(Fixed6.unwrap(newValue.utilizationCurve.maxRate)),
+            utilizationCurveTargetRate: int32(Fixed6.unwrap(newValue.utilizationCurve.targetRate)),
+            utilizationCurveTargetUtilization: uint24(UFixed6.unwrap(newValue.utilizationCurve.targetUtilization)),
+            oracle: address(newValue.oracle),
+            payoffProvider: address(newValue.payoff.provider),
+            payoffShort: newValue.payoff.short,
             __unallocated0__: bytes3(0),
             __unallocated1__: bytes10(0)
         });

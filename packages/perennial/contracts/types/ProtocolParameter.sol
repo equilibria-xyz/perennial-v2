@@ -24,7 +24,7 @@ struct ProtocolParameterStorage { StoredProtocolParameter value; }
 using ProtocolParameterStorageLib for ProtocolParameterStorage global;
 
 library ProtocolParameterStorageLib {
-    error ProtocolParameterStorageOverflowError();
+    error ProtocolParameterStorageInvalidError();
 
     function read(ProtocolParameterStorage storage self) internal view returns (ProtocolParameter memory) {
         StoredProtocolParameter memory value = self.value;
@@ -37,20 +37,19 @@ library ProtocolParameterStorageLib {
         );
     }
 
-    function store(ProtocolParameterStorage storage self, ProtocolParameter memory parameter) internal {
-        //TODO: check mod for precision
-        if (parameter.protocolFee.gt(UFixed6Lib.ONE)) revert ProtocolParameterStorageOverflowError();
-        if (parameter.minFundingFee.gt(UFixed6Lib.ONE)) revert ProtocolParameterStorageOverflowError();
-        if (parameter.liquidationFee.gt(UFixed6Lib.ONE)) revert ProtocolParameterStorageOverflowError();
-        if (parameter.minCollateral.gt(UFixed6Lib.from(281_474_976))) revert ProtocolParameterStorageOverflowError();
+    function store(ProtocolParameterStorage storage self, ProtocolParameter memory newValue) internal {
+        if (newValue.protocolFee.gt(UFixed6Lib.MAX_24)) revert ProtocolParameterStorageInvalidError();
+        if (newValue.minFundingFee.gt(UFixed6Lib.MAX_24)) revert ProtocolParameterStorageInvalidError();
+        if (newValue.liquidationFee.gt(UFixed6Lib.MAX_24)) revert ProtocolParameterStorageInvalidError();
+        if (newValue.minCollateral.gt(UFixed6Lib.MAX_48)) revert ProtocolParameterStorageInvalidError();
 
         self.value = StoredProtocolParameter(
-            uint24(UFixed6.unwrap(parameter.protocolFee)),
-            uint24(UFixed6.unwrap(parameter.minFundingFee)),
-            uint24(UFixed6.unwrap(parameter.liquidationFee)),
-            uint48(UFixed6.unwrap(parameter.minCollateral)),
-            parameter.paused,
-            bytes16(0x00000000000000000000000000000000)
+            uint24(UFixed6.unwrap(newValue.protocolFee)),
+            uint24(UFixed6.unwrap(newValue.minFundingFee)),
+            uint24(UFixed6.unwrap(newValue.liquidationFee)),
+            uint48(UFixed6.unwrap(newValue.minCollateral)),
+            newValue.paused,
+            bytes16(0)
         );
     }
 }

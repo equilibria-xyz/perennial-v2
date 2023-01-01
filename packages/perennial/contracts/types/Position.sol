@@ -76,6 +76,8 @@ library PositionLib {
 }
 
 library PositionStorageLib {
+    error PositionStorageInvalidError();
+
     function read(PositionStorage storage self) internal view returns (Position memory) {
         StoredPosition memory storedValue =  self.value;
         return Position(
@@ -88,6 +90,12 @@ library PositionStorageLib {
     }
 
     function store(PositionStorage storage self, Position memory newValue) internal {
+        if (newValue.latestVersion > type(uint32).max) revert PositionStorageInvalidError();
+        if (newValue.maker.gt(UFixed6Lib.MAX_56)) revert PositionStorageInvalidError();
+        if (newValue.taker.gt(UFixed6Lib.MAX_56)) revert PositionStorageInvalidError();
+        if (newValue.makerNext.gt(UFixed6Lib.MAX_56)) revert PositionStorageInvalidError();
+        if (newValue.takerNext.gt(UFixed6Lib.MAX_56)) revert PositionStorageInvalidError();
+
         self.value = StoredPosition(
             uint32(newValue.latestVersion),
             uint56(UFixed6.unwrap(newValue.maker)),

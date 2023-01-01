@@ -17,7 +17,7 @@ struct Version {
 }
 using VersionLib for Version global;
 struct StoredVersion {
-    int64 _makerValue; // TODO: do these need twice the precision of the positions?
+    int64 _makerValue;
     int64 _takerValue;
     uint64 _makerReward;
     uint64 _takerReward;
@@ -166,6 +166,8 @@ library VersionLib {
 }
 
 library VersionStorageLib {
+    error VersionStorageInvalidError();
+
     function read(VersionStorage storage self) internal view returns (Version memory) {
         StoredVersion memory storedValue =  self.value;
         return Version(
@@ -177,6 +179,13 @@ library VersionStorageLib {
     }
 
     function store(VersionStorage storage self, Version memory newValue) internal {
+        if (newValue.makerValue._value.gt(Fixed6Lib.MAX_64)) revert VersionStorageInvalidError();
+        if (newValue.makerValue._value.lt(Fixed6Lib.MIN_64)) revert VersionStorageInvalidError();
+        if (newValue.takerValue._value.gt(Fixed6Lib.MAX_64)) revert VersionStorageInvalidError();
+        if (newValue.takerValue._value.lt(Fixed6Lib.MIN_64)) revert VersionStorageInvalidError();
+        if (newValue.makerReward._value.gt(UFixed6Lib.MAX_64)) revert VersionStorageInvalidError();
+        if (newValue.takerReward._value.gt(UFixed6Lib.MAX_64)) revert VersionStorageInvalidError();
+
         self.value = StoredVersion(
             int64(Fixed6.unwrap(newValue.makerValue._value)),
             int64(Fixed6.unwrap(newValue.takerValue._value)),

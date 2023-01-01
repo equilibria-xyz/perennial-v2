@@ -10,6 +10,7 @@ import "hardhat/console.sol";
 // TODO: versioned params and other 1.1 fixes (position fee + liquidation bugs)
 // TODO: should we move position fees to account position settle so that there's intra-version netting?
 // TODO: combine update and settle to enable on-behalf managers
+// TODO: finalize bound check on state store (add constants to number types)
 
 /**
  * @title Market
@@ -235,23 +236,18 @@ contract Market is IMarket, UInitializable, UOwnable {
     function _loadContext(address account) private returns (CurrentContext memory context) {
         _startGas(context, "_loadContext: %s");
 
-        // Load protocol parameters
+        // parameters
         context.protocolParameter = factory.parameter();
-
-        // Load market parameters
         context.marketParameter = _parameter.read();
 
-        // Load market state
+        // state
+        context.currentOracleVersion = _sync(context.marketParameter);
         context.position = _position.read();
         context.fee = _fee.read();
-        context.currentOracleVersion = _sync(context.marketParameter);
         context.version = _versions[context.position.latestVersion + 1].read();
-
-        // Load account state
         context.account = _accounts[account].read();
 
         // after
-        if (context.protocolParameter.paused) revert MarketPausedError();
 
         _endGas(context);
     }
@@ -259,12 +255,10 @@ contract Market is IMarket, UInitializable, UOwnable {
     function _saveContext(CurrentContext memory context, address account) private {
         _startGas(context, "_saveContext: %s");
 
-        // Save market state
+        // state
         _position.store(context.position);
         _fee.store(context.fee);
         _versions[context.position.latestVersion + 1].store(context.version);
-
-        // Load account state
         _accounts[account].store(context.account);
 
         _endGas(context);
@@ -272,6 +266,9 @@ contract Market is IMarket, UInitializable, UOwnable {
 
     function _settle(CurrentContext memory context) private {
         _startGas(context, "_settle: %s");
+
+        // before
+        if (context.protocolParameter.paused) revert MarketPausedError();
 
         // Initialize memory
         OracleVersion memory fromOracleVersion;

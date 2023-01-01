@@ -133,6 +133,7 @@ library AccountLib {
 }
 
 library AccountStorageLib {
+    error AccountStorageInvalidError();
     error AccountStorageDoubleSidedError();
 
     uint64 constant LIQUIDATION_MASK = uint64(1 << 55);
@@ -158,6 +159,12 @@ library AccountStorageLib {
     }
 
     function store(AccountStorage storage self, Account memory newValue) internal {
+        if (newValue.latestVersion > type(uint24).max) revert AccountStorageInvalidError();
+        if (newValue.position().gt(UFixed6Lib.MAX_56)) revert AccountStorageInvalidError();
+        if (newValue.next().gt(UFixed6Lib.MAX_56)) revert AccountStorageInvalidError();
+        if (newValue.collateral.gt(Fixed6Lib.MAX_56)) revert AccountStorageInvalidError();
+        if (newValue.reward.gt(UFixed6.wrap((1 << 55) - 1))) revert AccountStorageInvalidError();
+
         if (!newValue.nextMaker.isZero() && !newValue.nextTaker.isZero()) revert AccountStorageDoubleSidedError();
 
         uint256 _positionMask =

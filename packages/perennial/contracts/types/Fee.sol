@@ -3,8 +3,6 @@ pragma solidity 0.8.17;
 
 import "./ProtocolParameter.sol";
 
-//TODO: add interface fee?
-
 /// @dev Fee type
 struct Fee {
     UFixed6 protocol;
@@ -32,6 +30,8 @@ library FeeLib {
 }
 
 library FeeStorageLib {
+    error FeeStorageInvalidError();
+
     function read(FeeStorage storage self) internal view returns (Fee memory) {
         StoredFee memory storedValue =  self.value;
         return Fee(
@@ -41,6 +41,9 @@ library FeeStorageLib {
     }
 
     function store(FeeStorage storage self, Fee memory newValue) internal {
+        if (newValue.protocol.gt(UFixed6Lib.MAX_64)) revert FeeStorageInvalidError();
+        if (newValue.market.gt(UFixed6Lib.MAX_64)) revert FeeStorageInvalidError();
+
         self.value = StoredFee(
             uint64(UFixed6.unwrap(newValue.protocol)),
             uint64(UFixed6.unwrap(newValue.market))

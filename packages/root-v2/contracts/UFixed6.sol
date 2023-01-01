@@ -20,6 +20,17 @@ library UFixed6Lib {
     UFixed6 public constant ZERO = UFixed6.wrap(0);
     UFixed6 public constant ONE = UFixed6.wrap(BASE);
     UFixed6 public constant MAX = UFixed6.wrap(type(uint256).max);
+    UFixed6 public constant MAX_128 = UFixed6.wrap(type(uint128).max);
+    UFixed6 public constant MAX_96 = UFixed6.wrap(type(uint96).max);
+    UFixed6 public constant MAX_80 = UFixed6.wrap(type(uint80).max);
+    UFixed6 public constant MAX_64 = UFixed6.wrap(type(uint64).max);
+    UFixed6 public constant MAX_56 = UFixed6.wrap(type(uint56).max);
+    UFixed6 public constant MAX_48 = UFixed6.wrap(type(uint48).max);
+    UFixed6 public constant MAX_40 = UFixed6.wrap(type(uint40).max);
+    UFixed6 public constant MAX_32 = UFixed6.wrap(type(uint32).max);
+    UFixed6 public constant MAX_24 = UFixed6.wrap(type(uint24).max);
+    UFixed6 public constant MAX_16 = UFixed6.wrap(type(uint16).max);
+    UFixed6 public constant MAX_8 = UFixed6.wrap(type(uint8).max);
 
     /**
      * @notice Creates a unsigned fixed-decimal from a signed fixed-decimal
