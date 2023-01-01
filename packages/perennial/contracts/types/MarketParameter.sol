@@ -38,9 +38,9 @@ struct StoredMarketParameter {
 
     /* slot 3 */
     uint48 makerLimit;  // <= 281m
-    int32 utilizationCurveMinRate;            // <= 214748%
-    int32 utilizationCurveMaxRate;            // <= 214748%
-    int32 utilizationCurveTargetRate;         // <= 214748%
+    uint32 utilizationCurveMinRate;            // <= 214748%
+    uint32 utilizationCurveMaxRate;            // <= 214748%
+    uint32 utilizationCurveTargetRate;         // <= 214748%
     uint24 utilizationCurveTargetUtilization; // <= 1677%
     bool closed;
     bool payoffShort;
@@ -65,9 +65,9 @@ library MarketParameterStorageLib {
             UFixed6.wrap(uint256(value.longRewardRate)),
             UFixed6.wrap(uint256(value.shortRewardRate)),
             JumpRateUtilizationCurve6(
-                Fixed6.wrap(int256(value.utilizationCurveMinRate)),
-                Fixed6.wrap(int256(value.utilizationCurveMaxRate)),
-                Fixed6.wrap(int256(value.utilizationCurveTargetRate)),
+                Fixed6.wrap(int256(uint256(value.utilizationCurveMinRate))),
+                Fixed6.wrap(int256(uint256(value.utilizationCurveMaxRate))),
+                Fixed6.wrap(int256(uint256(value.utilizationCurveTargetRate))),
                 UFixed6.wrap(uint256(value.utilizationCurveTargetUtilization))
             ),
             IOracleProvider(value.oracle),
@@ -99,9 +99,9 @@ library MarketParameterStorageLib {
             makerRewardRate: uint32(UFixed6.unwrap(newValue.makerRewardRate)),
             longRewardRate: uint32(UFixed6.unwrap(newValue.longRewardRate)),
             shortRewardRate: uint32(UFixed6.unwrap(newValue.shortRewardRate)),
-            utilizationCurveMinRate: int32(Fixed6.unwrap(newValue.utilizationCurve.minRate)),
-            utilizationCurveMaxRate: int32(Fixed6.unwrap(newValue.utilizationCurve.maxRate)),
-            utilizationCurveTargetRate: int32(Fixed6.unwrap(newValue.utilizationCurve.targetRate)),
+            utilizationCurveMinRate: uint32(uint256(Fixed6.unwrap(newValue.utilizationCurve.minRate))),
+            utilizationCurveMaxRate: uint32(uint256(Fixed6.unwrap(newValue.utilizationCurve.maxRate))),
+            utilizationCurveTargetRate: uint32(uint256(Fixed6.unwrap(newValue.utilizationCurve.targetRate))),
             utilizationCurveTargetUtilization: uint24(UFixed6.unwrap(newValue.utilizationCurve.targetUtilization)),
             oracle: address(newValue.oracle),
             payoffProvider: address(newValue.payoff.provider),

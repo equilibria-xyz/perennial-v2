@@ -105,28 +105,26 @@ library VersionLib {
     ) private pure returns (UFixed6 fundingFeeAmount) {
         if (position.taker.isZero() || position.maker.isZero()) return UFixed6Lib.ZERO;
 
-        // TODO: new funding rate logic
-//        UFixed6 takerNotional = Fixed6Lib.from(position.taker).mul(fromOracleVersion.price).abs();
-//        UFixed6 socializedTakerNotional = takerNotional.mul(position.socializationFactor());
-//        Fixed6 fundingAccumulated = marketParameter.utilizationCurve.accumulate(
-//            position.utilization(),
-//            fromOracleVersion.timestamp,
-//            toOracleVersion.timestamp,
-//            socializedTakerNotional
-//        );
-//        UFixed6 boundedFundingFee = UFixed6Lib.max(marketParameter.fundingFee, protocolParameter.minFundingFee);
-//        fundingFeeAmount = fundingAccumulated.abs().mul(boundedFundingFee);
-//
-//        Fixed6 fundingAccumulatedWithoutFee = Fixed6Lib.from(
-//            fundingAccumulated.sign(),
-//            fundingAccumulated.abs().sub(fundingFeeAmount)
-//        );
-//
-//        bool makerPaysFunding = fundingAccumulated.sign() < 0;
-//        self.makerValue.increment(
-//            makerPaysFunding ? fundingAccumulated : fundingAccumulatedWithoutFee, position.maker);
-//        self.takerValue.decrement(
-//            makerPaysFunding ? fundingAccumulatedWithoutFee : fundingAccumulated, position.taker);
+        UFixed6 takerNotional = position.long.max(position.short).mul(fromOracleVersion.price.abs());
+        // UFixed6 socializedTakerNotional = takerNotional.mul(position.socializationFactor()); TODO: figure out socialization?
+        UFixed6 totalFunding = UFixed6Lib.from(marketParameter.utilizationCurve.accumulate(
+            position.utilization(),
+            toOracleVersion.timestamp,
+            fromOracleVersion.timestamp,
+            takerNotional
+        ));
+        UFixed6 totalFundingFee = UFixed6Lib.max(marketParameter.fundingFee, protocolParameter.minFundingFee);
+        fundingFeeAmount = totalFunding.mul(totalFundingFee);
+        UFixed6 makerFee = position.long.min(position.short).div(position.long.max(position.short)); // TODO: add guaranteed minimum %
+        UFixed6 makerFeeAmount = totalFunding.mul(makerFee);
+
+        UFixed6 totalFundingWithoutFee = totalFunding.sub(fundingFeeAmount).sub(makerFeeAmount);
+        bool longsPayShorts = position.long.gt(position.short);
+        self.longValue.decrement(
+            Fixed6Lib.from(longsPayShorts ? totalFunding : totalFundingWithoutFee), position.long);
+        self.shortValue.increment(
+            Fixed6Lib.from(longsPayShorts ? totalFundingWithoutFee : totalFunding), position.short);
+        self.makerValue.increment(Fixed6Lib.from(makerFeeAmount), position.maker);
     }
 
     /**
@@ -166,15 +164,10 @@ library VersionLib {
 
         if (!position.maker.isZero())
             self.makerReward.increment(elapsed.mul(marketParameter.makerRewardRate), position.maker);
-<<<<<<< HEAD
-        if (!position.taker.isZero())
-            self.takerReward.increment(elapsed.mul(marketParameter.takerRewardRate), position.taker);
-=======
         if (!position.long.isZero())
             self.longReward.increment(elapsed.mul(marketParameter.longRewardRate), position.long);
         if (!position.short.isZero())
             self.shortReward.increment(elapsed.mul(marketParameter.shortRewardRate), position.short);
->>>>>>> 5a9bf3a (update state)
     }
 }
 
