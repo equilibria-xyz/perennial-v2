@@ -19,12 +19,12 @@ struct Version {
 }
 using VersionLib for Version global;
 struct StoredVersion {
-    int88 _makerValue;
-    int80 _longValue;
-    int80 _shortValue;
-    uint88 _makerReward;
-    uint80 _longReward;
-    uint80 _shortReward;
+    int80 _makerValue;
+    int88 _longValue;
+    int88 _shortValue;
+    uint80 _makerReward;
+    uint88 _longReward;
+    uint88 _shortReward;
 }
 struct VersionStorage { StoredVersion value; }
 using VersionStorageLib for VersionStorage global;
@@ -103,7 +103,7 @@ library VersionLib {
         ProtocolParameter memory protocolParameter,
         MarketParameter memory marketParameter
     ) private pure returns (UFixed6 fundingFeeAmount) {
-        if (position.taker.isZero() || position.maker.isZero()) return UFixed6Lib.ZERO;
+        if (position.long.add(position.short).isZero() || position.maker.isZero()) return;
 
         UFixed6 takerNotional = position.long.max(position.short).mul(fromOracleVersion.price.abs());
         // UFixed6 socializedTakerNotional = takerNotional.mul(position.socializationFactor()); TODO: figure out socialization?
@@ -120,11 +120,11 @@ library VersionLib {
 
         UFixed6 totalFundingWithoutFee = totalFunding.sub(fundingFeeAmount).sub(makerFeeAmount);
         bool longsPayShorts = position.long.gt(position.short);
-        self.longValue.decrement(
+        if (!position.long.isZero()) self.longValue.decrement(
             Fixed6Lib.from(longsPayShorts ? totalFunding : totalFundingWithoutFee), position.long);
-        self.shortValue.increment(
+        if (!position.short.isZero()) self.shortValue.increment(
             Fixed6Lib.from(longsPayShorts ? totalFundingWithoutFee : totalFunding), position.short);
-        self.makerValue.increment(Fixed6Lib.from(makerFeeAmount), position.maker);
+        if (!position.maker.isZero()) self.makerValue.increment(Fixed6Lib.from(makerFeeAmount), position.maker);
     }
 
     /**
@@ -137,16 +137,17 @@ library VersionLib {
         OracleVersion memory toOracleVersion,
         MarketParameter memory marketParameter
     ) private pure {
-        if (position.taker.isZero() || position.maker.isZero()) return;
+        if (position.long.add(position.short).isZero() || position.maker.isZero()) return;
 
         Fixed6 totalLongDelta = toOracleVersion.price.sub(fromOracleVersion.price)
             .mul(Fixed6Lib.from(position.long.mul(position.socializationFactorLong())));
         Fixed6 totalShortDelta = fromOracleVersion.price.sub(toOracleVersion.price)
             .mul(Fixed6Lib.from(position.short.mul(position.socializationFactorShort())));
+        Fixed6 totalMakerDelta = totalLongDelta.add(totalShortDelta);
 
-        self.longValue.increment(totalLongDelta, position.long);
-        self.shortValue.increment(totalShortDelta, position.short);
-        self.makerValue.decrement(totalLongDelta.add(totalShortDelta), position.maker);
+        if (!position.long.isZero()) self.longValue.increment(totalLongDelta, position.long);
+        if (!position.short.isZero()) self.shortValue.increment(totalShortDelta, position.short);
+        if (!position.maker.isZero()) self.makerValue.decrement(totalMakerDelta, position.maker);
     }
 
     /**
@@ -161,6 +162,7 @@ library VersionLib {
         MarketParameter memory marketParameter
     ) private pure {
         UFixed6 elapsed = UFixed6Lib.from(toOracleVersion.timestamp - fromOracleVersion.timestamp);
+        //TODO: refunded rewards here will effect the "auto-close functionality"
 
         if (!position.maker.isZero())
             self.makerReward.increment(elapsed.mul(marketParameter.makerRewardRate), position.maker);
@@ -187,23 +189,23 @@ library VersionStorageLib {
     }
 
     function store(VersionStorage storage self, Version memory newValue) internal {
-        if (newValue.makerValue._value.gt(Fixed6Lib.MAX_88)) revert VersionStorageInvalidError();
-        if (newValue.makerValue._value.lt(Fixed6Lib.MIN_88)) revert VersionStorageInvalidError();
-        if (newValue.longValue._value.gt(Fixed6Lib.MAX_80)) revert VersionStorageInvalidError();
-        if (newValue.longValue._value.lt(Fixed6Lib.MAX_80)) revert VersionStorageInvalidError();
-        if (newValue.shortValue._value.gt(Fixed6Lib.MAX_80)) revert VersionStorageInvalidError();
-        if (newValue.shortValue._value.lt(Fixed6Lib.MAX_80)) revert VersionStorageInvalidError();
-        if (newValue.makerReward._value.gt(UFixed6Lib.MAX_88)) revert VersionStorageInvalidError();
-        if (newValue.longReward._value.gt(UFixed6Lib.MAX_80)) revert VersionStorageInvalidError();
-        if (newValue.shortReward._value.gt(UFixed6Lib.MAX_80)) revert VersionStorageInvalidError();
+        if (newValue.makerValue._value.gt(Fixed6Lib.MAX_80)) revert VersionStorageInvalidError();
+        if (newValue.makerValue._value.lt(Fixed6Lib.MIN_80)) revert VersionStorageInvalidError();
+        if (newValue.longValue._value.gt(Fixed6Lib.MAX_88)) revert VersionStorageInvalidError();
+        if (newValue.longValue._value.lt(Fixed6Lib.MIN_88)) revert VersionStorageInvalidError();
+        if (newValue.shortValue._value.gt(Fixed6Lib.MAX_88)) revert VersionStorageInvalidError();
+        if (newValue.shortValue._value.lt(Fixed6Lib.MIN_88)) revert VersionStorageInvalidError();
+        if (newValue.makerReward._value.gt(UFixed6Lib.MAX_80)) revert VersionStorageInvalidError();
+        if (newValue.longReward._value.gt(UFixed6Lib.MAX_88)) revert VersionStorageInvalidError();
+        if (newValue.shortReward._value.gt(UFixed6Lib.MAX_88)) revert VersionStorageInvalidError();
 
         self.value = StoredVersion(
-            int88(Fixed6.unwrap(newValue.makerValue._value)),
-            int80(Fixed6.unwrap(newValue.longValue._value)),
-            int80(Fixed6.unwrap(newValue.shortValue._value)),
-            uint88(UFixed6.unwrap(newValue.makerReward._value)),
-            uint80(UFixed6.unwrap(newValue.longReward._value)),
-            uint80(UFixed6.unwrap(newValue.shortReward._value))
+            int80(Fixed6.unwrap(newValue.makerValue._value)),
+            int88(Fixed6.unwrap(newValue.longValue._value)),
+            int88(Fixed6.unwrap(newValue.shortValue._value)),
+            uint80(UFixed6.unwrap(newValue.makerReward._value)),
+            uint88(UFixed6.unwrap(newValue.longReward._value)),
+            uint88(UFixed6.unwrap(newValue.shortReward._value))
         );
     }
 }

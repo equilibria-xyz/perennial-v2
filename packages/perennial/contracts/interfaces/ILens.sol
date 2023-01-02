@@ -21,7 +21,8 @@ interface ILens {
         Position position;
         Fee fee;
         UFixed6 openMakerInterest;
-        UFixed6 openTakerInterest;
+        UFixed6 openLongInterest;
+        UFixed6 openShortInterest;
     }
 
     /// @dev Snapshot of User state for a Market
@@ -31,9 +32,11 @@ interface ILens {
         Fixed6 collateral;
         UFixed6 maintenance;
         UFixed6 maker;
-        UFixed6 taker;
+        UFixed6 long;
+        UFixed6 short;
         UFixed6 nextMaker;
-        UFixed6 nextTaker;
+        UFixed6 nextLong;
+        UFixed6 nextShort;
         bool liquidatable;
         UFixed6 openInterest;
         UFixed6 exposure;
@@ -60,7 +63,7 @@ interface ILens {
     function latestVersion(IMarket market) external returns (OracleVersion memory);
     function atVersions(IMarket market, uint[] memory versions) external returns (OracleVersion[] memory);
     function rate(IMarket market) external returns (Fixed6);
-    function openInterest(IMarket market) external returns (UFixed6, UFixed6);
+    function openInterest(IMarket market) external returns (UFixed6, UFixed6, UFixed6);
     function dailyRate(IMarket market) external returns (Fixed6);
 
     // UserMarket Values
@@ -68,9 +71,9 @@ interface ILens {
     function maintenance(address account, IMarket market) external returns (UFixed6);
     function maintenanceNext(address account, IMarket market) external returns (UFixed6);
     function liquidatable(address account, IMarket market) external returns (bool);
-    function next(address account, IMarket market) external returns (UFixed6, UFixed6);
-    function position(address account, IMarket market) external returns (UFixed6, UFixed6);
-    function userPosition(address account, IMarket market) external returns (UFixed6, UFixed6, UFixed6, UFixed6);
+    function next(address account, IMarket market) external returns (UFixed6, UFixed6, UFixed6);
+    function position(address account, IMarket market) external returns (UFixed6, UFixed6, UFixed6);
+    function userPosition(address account, IMarket market) external returns (UFixed6, UFixed6, UFixed6, UFixed6, UFixed6, UFixed6);
     function openInterest(address account, IMarket market) external returns (UFixed6);
     function exposure(address account, IMarket market) external returns (UFixed6);
     function maintenanceRequired(

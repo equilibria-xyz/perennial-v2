@@ -26,8 +26,8 @@ describe('Lens', () => {
     // Setup position
     await dsu.connect(user).approve(market.address, COLLATERAL.mul(1e12))
     await dsu.connect(userB).approve(market.address, COLLATERAL.mul(1e12))
-    await market.connect(user).update(POSITION, 0, COLLATERAL)
-    await market.connect(userB).update(0, POSITION, COLLATERAL)
+    await market.connect(user).update(POSITION, 0, 0, COLLATERAL)
+    await market.connect(userB).update(0, POSITION, 0, COLLATERAL)
   })
 
   it('#factory', async () => {
@@ -49,24 +49,29 @@ describe('Lens', () => {
     let marketSnapshot = (await lens.callStatic['snapshots(address[])']([market.address]))[0]
     expectPositionEq(marketSnapshot.position, {
       maker: 0,
-      taker: 0,
+      long: 0,
+      short: 0,
       makerNext: POSITION,
-      takerNext: POSITION,
+      longNext: POSITION,
+      shortNext: POSITION,
     })
     expect(marketSnapshot.latestVersion.price).to.equal('11388297509658')
     expect(marketSnapshot.rate).to.equal(parse6decimal('5.00'))
     expect(marketSnapshot.dailyRate).to.equal(parse6decimal('5.00').div(365))
     expect(marketSnapshot.openMakerInterest).to.equal(0)
-    expect(marketSnapshot.openTakerInterest).to.equal(0)
+    expect(marketSnapshot.openLongInterest).to.equal(0)
+    expect(marketSnapshot.openShortInterest).to.equal(0)
 
     await chainlink.next()
 
     marketSnapshot = await lens.callStatic['snapshot(address)'](market.address)
     expectPositionEq(marketSnapshot.position, {
       maker: POSITION,
-      taker: POSITION,
+      long: POSITION,
+      short: POSITION,
       makerNext: POSITION,
-      takerNext: POSITION,
+      longNext: POSITION,
+      shortNext: POSITION,
     })
   })
 
@@ -74,9 +79,11 @@ describe('Lens', () => {
     const { lens, user, chainlink } = instanceVars
     let userSnapshot = (await lens.callStatic['snapshots(address,address[])'](user.address, [market.address]))[0]
     expect(userSnapshot.maker).to.equal(0)
-    expect(userSnapshot.taker).to.equal(0)
+    expect(userSnapshot.long).to.equal(0)
+    expect(userSnapshot.short).to.equal(0)
     expect(userSnapshot.nextMaker).to.equal(POSITION)
-    expect(userSnapshot.nextTaker).to.equal(0)
+    expect(userSnapshot.nextLong).to.equal(0)
+    expect(userSnapshot.nextShort).to.equal(0)
     expect(userSnapshot.maintenance).to.equal(0)
     expect(userSnapshot.openInterest).to.equal(0)
 
@@ -84,9 +91,11 @@ describe('Lens', () => {
 
     userSnapshot = await lens.callStatic['snapshot(address,address)'](user.address, market.address)
     expect(userSnapshot.maker).to.equal(POSITION)
-    expect(userSnapshot.taker).to.equal(0)
+    expect(userSnapshot.long).to.equal(0)
+    expect(userSnapshot.short).to.equal(0)
     expect(userSnapshot.nextMaker).to.equal(POSITION)
-    expect(userSnapshot.nextTaker).to.equal(0)
+    expect(userSnapshot.nextLong).to.equal(0)
+    expect(userSnapshot.nextShort).to.equal(0)
     expect(userSnapshot.maintenance).to.equal('341389494')
     expect(userSnapshot.openInterest).to.equal('1137964981')
   })

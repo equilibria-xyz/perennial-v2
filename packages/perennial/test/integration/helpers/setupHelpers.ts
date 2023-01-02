@@ -194,7 +194,8 @@ export async function createMarket(
       targetUtilization: parse6decimal('0.80'),
     },
     makerRewardRate: 0,
-    takerRewardRate: 0,
+    longRewardRate: 0,
+    shortRewardRate: 0,
     oracle: oracle.address,
     payoff: payoff,
   }

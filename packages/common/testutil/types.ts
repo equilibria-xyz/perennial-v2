@@ -3,9 +3,11 @@ import { expect } from 'chai'
 
 export interface Position {
   maker: BigNumberish
-  taker: BigNumberish
+  long: BigNumberish
+  short: BigNumberish
   makerNext: BigNumberish
-  takerNext: BigNumberish
+  longNext: BigNumberish
+  shortNext: BigNumberish
 }
 
 export interface ProgramInfo {
@@ -21,9 +23,11 @@ export interface ProgramInfo {
 
 export function expectPositionEq(a: Position, b: Position): void {
   expect(a.maker).to.equal(b.maker)
-  expect(a.taker).to.equal(b.taker)
+  expect(a.long).to.equal(b.long)
+  expect(a.short).to.equal(b.short)
   expect(a.makerNext).to.equal(b.makerNext)
-  expect(a.takerNext).to.equal(b.takerNext)
+  expect(a.longNext).to.equal(b.longNext)
+  expect(a.shortNext).to.equal(b.shortNext)
 }
 
 export function expectProgramInfoEq(a: ProgramInfo, b: ProgramInfo): void {

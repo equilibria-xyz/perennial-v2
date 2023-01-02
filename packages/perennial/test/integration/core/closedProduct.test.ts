@@ -20,7 +20,7 @@ describe('Closed Market', () => {
 
     const market = await createMarket(instanceVars)
     await dsu.connect(user).approve(market.address, COLLATERAL.mul(1e12))
-    await market.connect(user).update(POSITION, 0, COLLATERAL)
+    await market.connect(user).update(POSITION, 0, 0, COLLATERAL)
 
     //TODO: uncomment when versioned params are added
     //expect(await market.closed()).to.be.false
@@ -51,19 +51,21 @@ describe('Closed Market', () => {
       market = await createMarket(instanceVars)
       await dsu.connect(user).approve(market.address, COLLATERAL.mul(1e12))
       await dsu.connect(userB).approve(market.address, COLLATERAL.mul(1e12))
-      await market.connect(user).update(POSITION, 0, COLLATERAL)
-      await market.connect(userB).update(0, POSITION, COLLATERAL)
+      await market.connect(user).update(POSITION, 0, 0, COLLATERAL)
+      await market.connect(userB).update(0, POSITION, 0, COLLATERAL)
       const parameters = { ...(await market.parameter()) }
       parameters.closed = true
       await market.updateParameter(parameters)
     })
 
     it('reverts on new open positions', async () => {
-      await expect(market.connect(instanceVars.user).update(0, POSITION, 0)).to.be.revertedWith('MarketClosedError()')
+      await expect(market.connect(instanceVars.user).update(0, POSITION, 0, 0)).to.be.revertedWith(
+        'MarketClosedError()',
+      )
     })
 
     it('allows insufficient liquidity for close positions', async () => {
-      await expect(market.connect(instanceVars.user).update(0, 0, 0)).to.not.be.reverted
+      await expect(market.connect(instanceVars.user).update(0, 0, 0, 0)).to.not.be.reverted
     })
   })
 
@@ -73,10 +75,10 @@ describe('Closed Market', () => {
     const { user, userB, chainlink, dsu } = instanceVars
 
     const market = await createMarket(instanceVars)
-    await dsu.connect(user).approve(market.address, COLLATERAL.mul(1e12))
+      await dsu.connect(user).approve(market.address, COLLATERAL.mul(1e12))
     await dsu.connect(userB).approve(market.address, COLLATERAL.mul(1e12))
-    await market.connect(user).update(POSITION, 0, COLLATERAL)
-    await market.connect(userB).update(0, POSITION, COLLATERAL)
+    await market.connect(user).update(POSITION, 0, 0, COLLATERAL)
+    await market.connect(userB).update(0, POSITION, 0, COLLATERAL)
 
     await chainlink.next()
     await chainlink.next()
@@ -108,10 +110,10 @@ describe('Closed Market', () => {
     const { user, userB, chainlink, dsu } = instanceVars
 
     const market = await createMarket(instanceVars)
-    await dsu.connect(user).approve(market.address, COLLATERAL.mul(1e12))
+      await dsu.connect(user).approve(market.address, COLLATERAL.mul(1e12))
     await dsu.connect(userB).approve(market.address, COLLATERAL.mul(1e12))
-    await market.connect(user).update(POSITION, 0, COLLATERAL)
-    await market.connect(userB).update(0, POSITION, COLLATERAL)
+    await market.connect(user).update(POSITION, 0, 0, COLLATERAL)
+    await market.connect(userB).update(0, POSITION, 0, COLLATERAL)
 
     await chainlink.next()
     await chainlink.nextWithPriceModification(price => price.mul(2))
