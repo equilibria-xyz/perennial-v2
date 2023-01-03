@@ -102,12 +102,12 @@ library VersionLib {
         if (position.maker.isZero()) return UFixed6Lib.ZERO;
 
         UFixed6 takerNotional = Fixed6Lib.from(position.taker).mul(fromOracleVersion.price).abs();
-        UFixed6 socializedNotional = takerNotional.mul(position.socializationFactor());
-
-        Fixed6 fundingAccumulated = marketParameter.utilizationCurve.compute(position.utilization())     // yearly funding rate
-            .mul(Fixed6Lib.from(int256(toOracleVersion.timestamp - fromOracleVersion.timestamp)))        // multiply by seconds in period
-            .mul(Fixed6Lib.from(socializedNotional))                                                     // multiply by socialized notional (funding for period)
-            .div(Fixed6Lib.from(365 days));                                                              // divide by seconds in year (funding rate for period)
+        Fixed6 fundingAccumulated = marketParameter.utilizationCurve.accumulate(
+            position.utilization(),
+            toOracleVersion.timestamp,
+            fromOracleVersion.timestamp,
+            takerNotional
+        );
         UFixed6 boundedFundingFee = UFixed6Lib.max(marketParameter.fundingFee, protocolParameter.minFundingFee);
         fundingFeeAmount = fundingAccumulated.abs().mul(boundedFundingFee);
 
@@ -159,9 +159,9 @@ library VersionLib {
         UFixed6 elapsed = UFixed6Lib.from(toOracleVersion.timestamp - fromOracleVersion.timestamp);
 
         if (!position.maker.isZero())
-            self.makerReward.increment(elapsed.mul(marketParameter.takerRewardRate), position.maker);
+            self.makerReward.increment(elapsed.mul(marketParameter.makerRewardRate), position.maker);
         if (!position.taker.isZero())
-            self.takerReward.increment(elapsed.mul(marketParameter.makerRewardRate), position.taker);
+            self.takerReward.increment(elapsed.mul(marketParameter.takerRewardRate), position.taker);
     }
 }
 

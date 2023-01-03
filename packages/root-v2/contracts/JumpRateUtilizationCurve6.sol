@@ -45,4 +45,17 @@ library JumpRateUtilizationCurve6Lib {
         }
         return self.maxRate;
     }
+
+    function accumulate(
+        JumpRateUtilizationCurve6 memory self,
+        UFixed6 utilization,
+        uint256 fromTimestamp,
+        uint256 toTimestamp,
+        UFixed6 notional
+    ) internal pure returns (Fixed6) {
+        return compute(self, utilization)
+            .mul(Fixed6Lib.from(int256(toTimestamp - fromTimestamp)))
+            .mul(Fixed6Lib.from(notional))
+            .div(Fixed6Lib.from(365 days));
+    }
 }

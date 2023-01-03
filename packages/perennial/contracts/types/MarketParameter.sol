@@ -63,10 +63,10 @@ library MarketParameterStorageLib {
             UFixed6.wrap(uint256(value.makerRewardRate)),
             UFixed6.wrap(uint256(value.takerRewardRate)),
             JumpRateUtilizationCurve6(
-                Fixed6.wrap(int128(value.utilizationCurveMinRate)),
-                Fixed6.wrap(int128(value.utilizationCurveMaxRate)),
-                Fixed6.wrap(int128(value.utilizationCurveTargetRate)),
-                UFixed6.wrap(uint128(value.utilizationCurveTargetUtilization))
+                Fixed6.wrap(int256(value.utilizationCurveMinRate)),
+                Fixed6.wrap(int256(value.utilizationCurveMaxRate)),
+                Fixed6.wrap(int256(value.utilizationCurveTargetRate)),
+                UFixed6.wrap(uint256(value.utilizationCurveTargetUtilization))
             ),
             IOracleProvider(value.oracle),
             Payoff(IPayoffProvider(value.payoffProvider), value.payoffShort)
