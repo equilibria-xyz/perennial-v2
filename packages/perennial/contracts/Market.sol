@@ -171,6 +171,7 @@ contract Market is IMarket, UInitializable, UOwnable {
         // before
         UFixed6 maintenance = context.account.maintenance(context.currentOracleVersion, context.marketParameter.maintenance);
         if (context.account.collateral.gte(Fixed6Lib.from(maintenance)) || context.account.liquidation) return; // cant liquidate
+        if (context.marketParameter.closed) return; // cant liquidate
 
         // compute reward
         Fixed6 liquidationReward = Fixed6Lib.from(
