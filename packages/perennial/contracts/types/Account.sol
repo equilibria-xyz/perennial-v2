@@ -76,10 +76,10 @@ library AccountLib {
         Version memory fromVersion,
         Version memory toVersion
     ) internal pure {
-        Fixed6 collateralAmount = Fixed6Lib.from(self.maker).mul(toVersion.makerValue.accumulated(fromVersion.makerValue))
-            .add(Fixed6Lib.from(self.taker).mul(toVersion.takerValue.accumulated(fromVersion.takerValue)));
-        UFixed6 rewardAmount = self.maker.mul(toVersion.makerReward.accumulated(fromVersion.makerReward))
-            .add(self.taker.mul(toVersion.takerReward.accumulated(fromVersion.takerReward)));
+        Fixed6 collateralAmount = toVersion.makerValue.accumulated(fromVersion.makerValue, self.maker)
+            .add(toVersion.takerValue.accumulated(fromVersion.takerValue, self.taker));
+        UFixed6 rewardAmount = toVersion.makerReward.accumulated(fromVersion.makerReward, self.maker)
+            .add(toVersion.takerReward.accumulated(fromVersion.takerReward, self.taker));
 
         self.latestVersion = toOracleVersion.version;
         self.maker = self.nextMaker;

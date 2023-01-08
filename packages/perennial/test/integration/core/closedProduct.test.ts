@@ -64,10 +64,9 @@ describe('Closed Market', () => {
     it('reverts on attempts to liquidate', async () => {
       const { user, chainlink, lens } = instanceVars
       await chainlink.nextWithPriceModification(price => price.mul(10))
-      await market.settle(user.address)
 
       expect(await lens.callStatic.liquidatable(user.address, market.address)).to.be.true
-      await expect(market.liquidate(user.address)).to.be.revertedWith('MarketClosedError()')
+      await expect(market.settle(user.address)).to.be.revertedWith('MarketClosedError()')
     })
   })
 
@@ -113,7 +112,7 @@ describe('Closed Market', () => {
 
     await chainlink.next()
     await chainlink.nextWithPriceModification(price => price.mul(2))
-    await expect(market.liquidate(user.address)).to.not.be.reverted
+    await expect(market.settle(user.address)).to.not.be.reverted
     expect((await market.accounts(user.address)).liquidation).to.be.true
     const parameters = await market.parameter()
     parameters.closed = true

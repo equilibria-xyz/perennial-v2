@@ -177,7 +177,7 @@ describe('Lens', () => {
     expect(fees.market).to.equal(0)
 
     await chainlink.nextWithPriceModification(price => price.mul(2))
-    await market.connect(userB).liquidate(user.address)
+    await market.connect(userB).settle(user.address)
 
     fees = await lens.callStatic.fees(market.address)
     expect(fees.protocol).to.equal('4127')
@@ -189,7 +189,7 @@ describe('Lens', () => {
 
     await chainlink.next()
     await chainlink.nextWithPriceModification(price => price.mul(2))
-    await market.connect(userB).liquidate(user.address)
+    await market.connect(userB).settle(user.address)
 
     expect(await lens.callStatic['collateral(address)'](market.address)).to.equal('1309705935')
   })
@@ -199,7 +199,7 @@ describe('Lens', () => {
 
     await chainlink.next()
     await chainlink.nextWithPriceModification(price => price.mul(2))
-    await market.connect(userB).liquidate(user.address)
+    await market.connect(userB).settle(user.address)
 
     expect(await lens.callStatic['collateral(address,address)'](user.address, market.address)).to.equal('-3154014381')
     expect(await lens.callStatic['collateral(address,address)'](userB.address, market.address)).to.equal('4463720316')
@@ -210,7 +210,7 @@ describe('Lens', () => {
 
     await chainlink.next()
     await chainlink.nextWithPriceModification(price => price.mul(2))
-    await market.connect(userB).liquidate(user.address)
+    await market.connect(userB).settle(user.address)
     await chainlink.next()
     await market.settle(constants.AddressZero)
     await chainlink.next()

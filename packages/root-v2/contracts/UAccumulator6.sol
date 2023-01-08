@@ -15,8 +15,8 @@ using UAccumulator6Lib for UAccumulator6 global;
  * @dev
  */
 library UAccumulator6Lib {
-    function accumulated(UAccumulator6 memory self, UAccumulator6 memory from) internal pure returns (UFixed6) {
-        return self._value.sub(from._value);
+    function accumulated(UAccumulator6 memory self, UAccumulator6 memory from, UFixed6 total) internal pure returns (UFixed6) {
+        return self._value.sub(from._value).mul(total);
     }
 
     function increment(UAccumulator6 memory self, UFixed6 amount, UFixed6 total) internal pure {

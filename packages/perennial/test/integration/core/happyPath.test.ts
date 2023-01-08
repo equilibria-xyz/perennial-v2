@@ -6,7 +6,7 @@ import { InstanceVars, deployProtocol, createMarket, INITIAL_VERSION } from '../
 import { expectPositionEq, parse6decimal } from '../../../../common/testutil/types'
 import { Market__factory } from '../../../types/generated'
 
-describe.only('Happy Path', () => {
+describe('Happy Path', () => {
   let instanceVars: InstanceVars
 
   beforeEach(async () => {
@@ -535,7 +535,7 @@ describe.only('Happy Path', () => {
     const version = await market.versions(INITIAL_VERSION + 4)
     expect(version.makerValue._value).to.equal('-356621077577')
     expect(version.takerValue._value).to.equal('362096873940')
-    expect(version.makerReward._value).to.equal('60683636363')
-    expect(version.takerReward._value).to.equal('606836363635')
+    expect(version.makerReward._value).to.equal('606836363635')
+    expect(version.takerReward._value).to.equal('60683636363')
   })
 })

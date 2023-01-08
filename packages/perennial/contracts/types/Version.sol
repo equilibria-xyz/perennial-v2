@@ -102,11 +102,12 @@ library VersionLib {
         if (position.maker.isZero()) return UFixed6Lib.ZERO;
 
         UFixed6 takerNotional = Fixed6Lib.from(position.taker).mul(fromOracleVersion.price).abs();
+        UFixed6 socializedTakerNotional = takerNotional.mul(position.socializationFactor());
         Fixed6 fundingAccumulated = marketParameter.utilizationCurve.accumulate(
             position.utilization(),
-            toOracleVersion.timestamp,
             fromOracleVersion.timestamp,
-            takerNotional
+            toOracleVersion.timestamp,
+            socializedTakerNotional
         );
         UFixed6 boundedFundingFee = UFixed6Lib.max(marketParameter.fundingFee, protocolParameter.minFundingFee);
         fundingFeeAmount = fundingAccumulated.abs().mul(boundedFundingFee);

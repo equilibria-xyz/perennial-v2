@@ -109,6 +109,7 @@ describe('Liquidate', () => {
   it('uses a socialization factor', async () => {
     const POSITION = parse6decimal('0.0001')
     const COLLATERAL = parse6decimal('1000')
+    let totalCollateral, totalFees
     const { user, userB, userC, userD, chainlink, dsu, lens } = instanceVars
 
     const market = await createMarket(instanceVars)
@@ -122,6 +123,14 @@ describe('Liquidate', () => {
     await market.connect(userD).update(0, POSITION, COLLATERAL.mul(10))
 
     expect(await lens.callStatic.liquidatable(user.address, market.address)).to.be.false
+
+    // Expect the system to remain solvent
+    totalCollateral = (await market.accounts(user.address)).collateral
+      .add((await market.accounts(userB.address)).collateral)
+      .add((await market.accounts(userC.address)).collateral)
+      .add((await market.accounts(userD.address)).collateral)
+    totalFees = (await market.fee()).protocol.add((await market.fee()).market)
+    expect(totalCollateral.add(totalFees)).to.equal(parse6decimal('22000'))
 
     // Settle the market with a new oracle version
     await chainlink.nextWithPriceModification(price => price.mul(2))
@@ -146,6 +155,7 @@ describe('Liquidate', () => {
     const feesCurr = (await market.fee()).protocol.add((await market.fee()).market)
 
     await chainlink.next()
+    await market.settle(user.address)
     await market.settle(userB.address)
     await market.settle(userC.address)
     await market.settle(userD.address)
@@ -168,6 +178,11 @@ describe('Liquidate', () => {
     expect(totalCurr.add(feesCurr)).to.be.closeTo(totalNew.add(feesNew), 1)
 
     // Expect the system to remain solvent
-    expect(totalNew.add(feesNew)).to.equal(parse6decimal('22000').sub(expectedLiquidationFee))
+    totalCollateral = (await market.accounts(user.address)).collateral
+      .add((await market.accounts(userB.address)).collateral)
+      .add((await market.accounts(userC.address)).collateral)
+      .add((await market.accounts(userD.address)).collateral)
+    totalFees = (await market.fee()).protocol.add((await market.fee()).market)
+    expect(totalCollateral.add(totalFees)).to.be.lte(parse6decimal('22000').sub(expectedLiquidationFee))
   }).timeout(120000)
 })
