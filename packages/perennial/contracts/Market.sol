@@ -7,7 +7,6 @@ import "./interfaces/IMarket.sol";
 import "./interfaces/IFactory.sol";
 import "hardhat/console.sol";
 
-// TODO: versioned params and other 1.1 fixes (position fee + liquidation bugs)
 // TODO: should we move position fees to account position settle so that there's intra-version netting?
 // TODO: combine update and settle to enable on-behalf managers
 // TODO: general parameter validity checks
