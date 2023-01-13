@@ -71,6 +71,8 @@ library VersionLib {
         ProtocolParameter memory protocolParameter,
         MarketParameter memory marketParameter
     ) internal pure returns (UFixed6 fundingFeeAmount) {
+        if (marketParameter.closed) return UFixed6Lib.ZERO;
+
         // accumulate funding
         fundingFeeAmount =
             _accumulateFunding(self, position, fromOracleVersion, toOracleVersion, protocolParameter, marketParameter);
@@ -97,9 +99,7 @@ library VersionLib {
         ProtocolParameter memory protocolParameter,
         MarketParameter memory marketParameter
     ) private pure returns (UFixed6 fundingFeeAmount) {
-        if (marketParameter.closed) return UFixed6Lib.ZERO;
-        if (position.taker.isZero()) return UFixed6Lib.ZERO;
-        if (position.maker.isZero()) return UFixed6Lib.ZERO;
+        if (position.taker.isZero() || position.maker.isZero()) return UFixed6Lib.ZERO;
 
         UFixed6 takerNotional = Fixed6Lib.from(position.taker).mul(fromOracleVersion.price).abs();
         UFixed6 socializedTakerNotional = takerNotional.mul(position.socializationFactor());
@@ -134,9 +134,7 @@ library VersionLib {
         OracleVersion memory toOracleVersion,
         MarketParameter memory marketParameter
     ) private pure {
-        if (marketParameter.closed) return;
-        if (position.taker.isZero()) return;
-        if (position.maker.isZero()) return;
+        if (position.taker.isZero() || position.maker.isZero()) return;
 
         Fixed6 totalTakerDelta =
             toOracleVersion.price.sub(fromOracleVersion.price).mul(Fixed6Lib.from(position.taker));

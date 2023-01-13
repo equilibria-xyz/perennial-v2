@@ -18,31 +18,6 @@ import "hardhat/console.sol";
  * @dev Cloned by the Factory contract to launch new market markets.
  */
 contract Market is IMarket, UInitializable, UOwnable {
-    struct CurrentContext {
-        /* Global Parameters */
-        ProtocolParameter protocolParameter;
-
-        /* Market Parameters */
-        MarketParameter marketParameter;
-
-        /* Current Global State */
-        OracleVersion currentOracleVersion;
-
-        Version version;
-
-        Position position;
-
-        Fee fee;
-
-        /* Current Account State */
-        Account account;
-
-        /* Debugging */
-        uint256 gasCounter;
-
-        string gasCounterMessage;
-    }
-
     /// @dev The name of the market
     string public name;
 

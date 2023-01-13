@@ -19,6 +19,19 @@ interface IMarket is IOwnable {
         Token18 reward;
     }
 
+    struct CurrentContext {
+        ProtocolParameter protocolParameter;
+        MarketParameter marketParameter;
+        OracleVersion currentOracleVersion;
+        Version version;
+        Position position;
+        Fee fee;
+        Account account;
+
+        uint256 gasCounter;
+        string gasCounterMessage;
+    }
+
     event Settle(uint256 preVersion, uint256 toVersion);
     event AccountSettle(address indexed account, uint256 preVersion, uint256 toVersion);
     event Updated(address indexed account, uint256 version, UFixed6 newMaker, UFixed6 newTaker, Fixed6 newCollateral);

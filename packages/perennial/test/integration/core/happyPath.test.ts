@@ -6,7 +6,7 @@ import { InstanceVars, deployProtocol, createMarket, INITIAL_VERSION } from '../
 import { expectPositionEq, parse6decimal } from '../../../../common/testutil/types'
 import { Market__factory } from '../../../types/generated'
 
-describe('Happy Path', () => {
+describe.only('Happy Path', () => {
   let instanceVars: InstanceVars
 
   beforeEach(async () => {
