@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: Apache-2.0
 pragma solidity 0.8.17;
 
-import "@equilibria/root/control/unstructured/UOwnable.sol";
+import "@equilibria/root-v2/contracts/UOwnable.sol";
 import "@openzeppelin/contracts/proxy/beacon/BeaconProxy.sol";
 import "./interfaces/IFactory.sol";
 
@@ -70,7 +70,7 @@ contract Factory is IFactory, UOwnable {
             address(this),
             abi.encodeCall(IMarket.initialize, (definition, marketParameter))
         )));
-        UOwnable(address(newMarket)).updatePendingOwner(msg.sender); //TODO: IOwnable in root
+        newMarket.updatePendingOwner(msg.sender);
 
         //TODO: create2 or registration?
 

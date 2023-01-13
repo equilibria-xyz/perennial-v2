@@ -2,7 +2,7 @@
 pragma solidity 0.8.17;
 
 import "@equilibria/root/control/unstructured/UInitializable.sol";
-import "@equilibria/root/control/unstructured/UOwnable.sol";
+import "@equilibria/root-v2/contracts/UOwnable.sol";
 import "./interfaces/IMarket.sol";
 import "./interfaces/IFactory.sol";
 import "hardhat/console.sol";

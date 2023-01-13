@@ -1,12 +1,13 @@
 // SPDX-License-Identifier: Apache-2.0
 pragma solidity ^0.8.13;
 
+import "@equilibria/root-v2/contracts/IOwnable.sol";
 import "@equilibria/root/number/types/UFixed18.sol";
 import "@openzeppelin/contracts/proxy/beacon/IBeacon.sol";
 import "./IMarket.sol";
 import "../types/ProtocolParameter.sol";
 
-interface IFactory is IBeacon {
+interface IFactory is IBeacon, IOwnable {
     event ParameterUpdated(ProtocolParameter newParameter);
     event TreasuryUpdated(address newTreasury);
     event PauserUpdated(address newPauser);
