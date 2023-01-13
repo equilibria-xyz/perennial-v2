@@ -5,6 +5,8 @@ import "@equilibria/root-v2/contracts/UOwnable.sol";
 import "@openzeppelin/contracts/proxy/beacon/BeaconProxy.sol";
 import "./interfaces/IFactory.sol";
 
+//TODO: create2 or registration for markets?
+
 /**
  * @title Factory
  * @notice Manages creating new markets and global protocol parameters.
@@ -71,8 +73,6 @@ contract Factory is IFactory, UOwnable {
             abi.encodeCall(IMarket.initialize, (definition, marketParameter))
         )));
         newMarket.updatePendingOwner(msg.sender);
-
-        //TODO: create2 or registration?
 
         emit MarketCreated(newMarket, definition, marketParameter);
     }
