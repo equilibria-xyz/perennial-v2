@@ -62,24 +62,16 @@ library PositionLib {
         return Fixed6Lib.from(self.long).sub(Fixed6Lib.from(self.short)).abs().unsafeDiv(self.maker);
     }
 
-    function socializationFactorLong(Position memory self) internal pure returns (UFixed6) {
-        return _socializationFactor(self.maker.add(self.short), self.long);
+    function socializedNext(Position memory self) internal pure returns (bool) {
+        return self.maker.add(self.short).lt(self.long) || self.maker.add(self.long).lt(self.short);
     }
 
-    function socializationFactorShort(Position memory self) internal pure returns (UFixed6) {
-        return _socializationFactor(self.maker.add(self.long), self.short);
+    function longSocialized(Position memory self) internal pure returns (UFixed6) {
+        return self.maker.add(self.short).min(self.long);
     }
 
-    function socializationFactorLongNext(Position memory self) internal pure returns (UFixed6) {
-        return _socializationFactor(self.makerNext.add(self.shortNext), self.longNext);
-    }
-
-    function socializationFactorShortNext(Position memory self) internal pure returns (UFixed6) {
-        return _socializationFactor(self.makerNext.add(self.longNext), self.shortNext);
-    }
-
-    function _socializationFactor(UFixed6 makerAmount, UFixed6 takerAmount) private pure returns (UFixed6) {
-        return takerAmount.isZero() ? UFixed6Lib.ONE : UFixed6Lib.min(UFixed6Lib.ONE, makerAmount.div(takerAmount));
+    function shortSocialized(Position memory self) internal pure returns (UFixed6) {
+        return self.maker.add(self.long).min(self.short);
     }
 }
 

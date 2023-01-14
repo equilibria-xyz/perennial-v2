@@ -8,7 +8,7 @@ import { Market__factory } from '../../../types/generated'
 
 //TODO: short tests
 
-describe.only('Happy Path', () => {
+describe('Happy Path', () => {
   let instanceVars: InstanceVars
 
   beforeEach(async () => {
@@ -606,7 +606,7 @@ describe.only('Happy Path', () => {
       shortNext: 0,
     })
     const version = await market.versions(INITIAL_VERSION + 4)
-    expect(version.makerValue._value).to.equal('-356621077579')
+    expect(version.makerValue._value).to.equal('-360678818790')
     expect(version.longValue._value).to.equal('362096873938')
     expect(version.shortValue._value).to.equal(0)
     expect(version.makerReward._value).to.equal('606836363635')

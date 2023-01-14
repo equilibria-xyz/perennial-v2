@@ -53,7 +53,7 @@ describe('Lens', () => {
       short: 0,
       makerNext: POSITION,
       longNext: POSITION,
-      shortNext: POSITION,
+      shortNext: 0,
     })
     expect(marketSnapshot.latestVersion.price).to.equal('11388297509658')
     expect(marketSnapshot.rate).to.equal(parse6decimal('5.00'))
@@ -68,10 +68,10 @@ describe('Lens', () => {
     expectPositionEq(marketSnapshot.position, {
       maker: POSITION,
       long: POSITION,
-      short: POSITION,
+      short: 0,
       makerNext: POSITION,
       longNext: POSITION,
-      shortNext: POSITION,
+      shortNext: 0,
     })
   })
 
@@ -128,11 +128,16 @@ describe('Lens', () => {
   it('#userPosition', async () => {
     const { lens, userB, chainlink } = instanceVars
     await chainlink.next()
-    const [maker, taker, nextMaker, nextTaker] = await lens.callStatic.userPosition(userB.address, market.address)
+    const [maker, long, short, nextMaker, nextLong, nextShort] = await lens.callStatic.userPosition(
+      userB.address,
+      market.address,
+    )
     expect(maker).to.equal(0)
-    expect(taker).to.equal(POSITION)
+    expect(long).to.equal(POSITION)
+    expect(short).to.equal(0)
     expect(nextMaker).to.equal(0)
-    expect(nextTaker).to.equal(POSITION)
+    expect(nextLong).to.equal(POSITION)
+    expect(nextShort).to.equal(0)
   })
 
   it('#latestVersion', async () => {
@@ -210,7 +215,7 @@ describe('Lens', () => {
     await chainlink.nextWithPriceModification(price => price.mul(2))
     await market.connect(userB).settle(user.address)
 
-    expect(await lens.callStatic['collateral(address,address)'](user.address, market.address)).to.equal('-3154014381')
+    expect(await lens.callStatic['collateral(address,address)'](user.address, market.address)).to.equal('-3154162960')
     expect(await lens.callStatic['collateral(address,address)'](userB.address, market.address)).to.equal('4463720316')
   })
 

@@ -317,10 +317,8 @@ contract Market is IMarket, UInitializable, UOwnable {
     function _checkPosition(CurrentContext memory context) private pure {
         if (
             !context.marketParameter.closed &&
+            context.position.socializedNext() &&
             (
-                context.position.socializationFactorLongNext().lt(UFixed6Lib.ONE) ||
-                context.position.socializationFactorShortNext().lt(UFixed6Lib.ONE)
-            ) && (
                 context.account.nextLong.gt(context.account.long) ||
                 context.account.nextShort.gt(context.account.short) ||
                 context.account.nextMaker.lt(context.account.maker)

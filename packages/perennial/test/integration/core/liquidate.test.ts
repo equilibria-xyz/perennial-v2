@@ -98,7 +98,7 @@ describe('Liquidate', () => {
     ) // underflow
 
     await market.connect(userB).settle(user.address) // liquidate
-    expect((await market.accounts(user.address)).collateral).to.equal(BigNumber.from('-3154014381'))
+    expect((await market.accounts(user.address)).collateral).to.equal(BigNumber.from('-3154162960'))
 
     await chainlink.next()
 
@@ -108,7 +108,7 @@ describe('Liquidate', () => {
     expect((await market.accounts(user.address)).collateral).to.equal(0)
   })
 
-  it('uses a socialization factor', async () => {
+  it.only('uses a socialization factor', async () => {
     const POSITION = parse6decimal('0.0001')
     const COLLATERAL = parse6decimal('1000')
     let totalCollateral, totalFees

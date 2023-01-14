@@ -82,7 +82,7 @@ library VersionLib {
             _accumulateFunding(self, position, fromOracleVersion, toOracleVersion, protocolParameter, marketParameter);
 
         // accumulate position
-        _accumulatePosition(self, position, fromOracleVersion, toOracleVersion, marketParameter);
+        _accumulatePosition(self, position, fromOracleVersion, toOracleVersion);
 
         // accumulate reward
         _accumulateReward(self, position, fromOracleVersion, toOracleVersion, marketParameter);
@@ -93,7 +93,7 @@ library VersionLib {
      * @dev If an oracle version is skipped due to no pre positions, funding will continue to be
      *      pegged to the price of the last snapshotted oracleVersion until a new one is accumulated.
      *      This is an acceptable approximation.
-     * @return fundingFeeAmount The total fee accrued from funding accumulation
+     * @return fundingFee The total fee accrued from funding accumulation
      */
     function _accumulateFunding(
         Version memory self,
@@ -102,29 +102,27 @@ library VersionLib {
         OracleVersion memory toOracleVersion,
         ProtocolParameter memory protocolParameter,
         MarketParameter memory marketParameter
-    ) private pure returns (UFixed6 fundingFeeAmount) {
-        if (position.long.add(position.short).isZero() || position.maker.isZero()) return;
+    ) private pure returns (UFixed6 fundingFee) {
+        if (position.long.add(position.short).isZero() || position.maker.isZero()) return UFixed6Lib.ZERO;
 
-        UFixed6 takerNotional = position.long.max(position.short).mul(fromOracleVersion.price.abs());
-        // UFixed6 socializedTakerNotional = takerNotional.mul(position.socializationFactor()); TODO: figure out socialization?
-        UFixed6 totalFunding = UFixed6Lib.from(marketParameter.utilizationCurve.accumulate(
+        UFixed6 notional = position.longSocialized().max(position.shortSocialized()).mul(fromOracleVersion.price.abs()); //TODO: can optimize this
+        UFixed6 funding = UFixed6Lib.from(marketParameter.utilizationCurve.accumulate(
             position.utilization(),
-            toOracleVersion.timestamp,
             fromOracleVersion.timestamp,
-            takerNotional
+            toOracleVersion.timestamp,
+            notional
         ));
-        UFixed6 totalFundingFee = UFixed6Lib.max(marketParameter.fundingFee, protocolParameter.minFundingFee);
-        fundingFeeAmount = totalFunding.mul(totalFundingFee);
-        UFixed6 makerFee = position.long.min(position.short).div(position.long.max(position.short)); // TODO: add guaranteed minimum %
-        UFixed6 makerFeeAmount = totalFunding.mul(makerFee);
+        fundingFee = UFixed6Lib.max(marketParameter.fundingFee, protocolParameter.minFundingFee).mul(funding);
+        UFixed6 makerFee = position.long.min(position.short).div(position.long.max(position.short)).mul(funding); // TODO: add guaranteed minimum %
 
-        UFixed6 totalFundingWithoutFee = totalFunding.sub(fundingFeeAmount).sub(makerFeeAmount);
+        UFixed6 fundingWithoutFee = funding.sub(fundingFee).sub(makerFee);
         bool longsPayShorts = position.long.gt(position.short);
-        if (!position.long.isZero()) self.longValue.decrement(
-            Fixed6Lib.from(longsPayShorts ? totalFunding : totalFundingWithoutFee), position.long);
-        if (!position.short.isZero()) self.shortValue.increment(
-            Fixed6Lib.from(longsPayShorts ? totalFundingWithoutFee : totalFunding), position.short);
-        if (!position.maker.isZero()) self.makerValue.increment(Fixed6Lib.from(makerFeeAmount), position.maker);
+
+        if (!position.long.isZero())
+            self.longValue.decrement(Fixed6Lib.from(longsPayShorts ? funding : fundingWithoutFee), position.long);
+        if (!position.short.isZero())
+            self.shortValue.increment(Fixed6Lib.from(longsPayShorts ? fundingWithoutFee : funding), position.short);
+        if (!position.maker.isZero()) self.makerValue.increment(Fixed6Lib.from(makerFee), position.maker);
     }
 
     /**
@@ -134,15 +132,14 @@ library VersionLib {
         Version memory self,
         Position memory position,
         OracleVersion memory fromOracleVersion,
-        OracleVersion memory toOracleVersion,
-        MarketParameter memory marketParameter
+        OracleVersion memory toOracleVersion
     ) private pure {
         if (position.long.add(position.short).isZero() || position.maker.isZero()) return;
 
         Fixed6 totalLongDelta = toOracleVersion.price.sub(fromOracleVersion.price)
-            .mul(Fixed6Lib.from(position.long.mul(position.socializationFactorLong())));
+            .mul(Fixed6Lib.from(position.longSocialized()));
         Fixed6 totalShortDelta = fromOracleVersion.price.sub(toOracleVersion.price)
-            .mul(Fixed6Lib.from(position.short.mul(position.socializationFactorShort())));
+            .mul(Fixed6Lib.from(position.shortSocialized()));
         Fixed6 totalMakerDelta = totalLongDelta.add(totalShortDelta);
 
         if (!position.long.isZero()) self.longValue.increment(totalLongDelta, position.long);
