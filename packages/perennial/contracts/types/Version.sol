@@ -11,16 +11,20 @@ import "./Fee.sol";
 /// @dev Version type
 struct Version {
     Accumulator6 makerValue;
-    Accumulator6 takerValue;
+    Accumulator6 longValue;
+    Accumulator6 shortValue;
     UAccumulator6 makerReward;
-    UAccumulator6 takerReward;
+    UAccumulator6 longReward;
+    UAccumulator6 shortReward;
 }
 using VersionLib for Version global;
 struct StoredVersion {
-    int64 _makerValue;
-    int64 _takerValue;
-    uint64 _makerReward;
-    uint64 _takerReward;
+    int80 _makerValue;
+    int88 _longValue;
+    int88 _shortValue;
+    uint80 _makerReward;
+    uint88 _longReward;
+    uint88 _shortReward;
 }
 struct VersionStorage { StoredVersion value; }
 using VersionStorageLib for VersionStorage global;
@@ -78,7 +82,7 @@ library VersionLib {
             _accumulateFunding(self, position, fromOracleVersion, toOracleVersion, protocolParameter, marketParameter);
 
         // accumulate position
-        _accumulatePosition(self, position, fromOracleVersion, toOracleVersion, marketParameter);
+        _accumulatePosition(self, position, fromOracleVersion, toOracleVersion);
 
         // accumulate reward
         _accumulateReward(self, position, fromOracleVersion, toOracleVersion, marketParameter);
@@ -89,7 +93,7 @@ library VersionLib {
      * @dev If an oracle version is skipped due to no pre positions, funding will continue to be
      *      pegged to the price of the last snapshotted oracleVersion until a new one is accumulated.
      *      This is an acceptable approximation.
-     * @return fundingFeeAmount The total fee accrued from funding accumulation
+     * @return fundingFee The total fee accrued from funding accumulation
      */
     function _accumulateFunding(
         Version memory self,
@@ -98,30 +102,30 @@ library VersionLib {
         OracleVersion memory toOracleVersion,
         ProtocolParameter memory protocolParameter,
         MarketParameter memory marketParameter
-    ) private pure returns (UFixed6 fundingFeeAmount) {
-        if (position.taker.isZero() || position.maker.isZero()) return UFixed6Lib.ZERO;
+    ) private pure returns (UFixed6 fundingFee) {
+        if (position.long.add(position.short).isZero()) return UFixed6Lib.ZERO;
 
-        UFixed6 takerNotional = Fixed6Lib.from(position.taker).mul(fromOracleVersion.price).abs();
-        UFixed6 socializedTakerNotional = takerNotional.mul(position.socializationFactor());
-        Fixed6 fundingAccumulated = marketParameter.utilizationCurve.accumulate(
-            position.utilization(),
+        UFixed6 notional = position.takerSocialized().mul(fromOracleVersion.price.abs());
+        UFixed6 funding = marketParameter.utilizationCurve.accumulate(
+            position.utilization(marketParameter),
             fromOracleVersion.timestamp,
             toOracleVersion.timestamp,
-            socializedTakerNotional
+            notional
         );
-        UFixed6 boundedFundingFee = UFixed6Lib.max(marketParameter.fundingFee, protocolParameter.minFundingFee);
-        fundingFeeAmount = fundingAccumulated.abs().mul(boundedFundingFee);
+        fundingFee = UFixed6Lib.max(marketParameter.fundingFee, protocolParameter.minFundingFee).mul(funding);
+        UFixed6 makerUtilized = position.utilized(marketParameter);
+        UFixed6 makerFee = makerUtilized.div(makerUtilized.add(position.long.min(position.short)))
+            .mul(funding.sub(fundingFee));
+        UFixed6 fundingWithoutFee = funding.sub(fundingFee).sub(makerFee);
 
-        Fixed6 fundingAccumulatedWithoutFee = Fixed6Lib.from(
-            fundingAccumulated.sign(),
-            fundingAccumulated.abs().sub(fundingFeeAmount)
-        );
-
-        bool makerPaysFunding = fundingAccumulated.sign() < 0;
-        self.makerValue.increment(
-            makerPaysFunding ? fundingAccumulated : fundingAccumulatedWithoutFee, position.maker);
-        self.takerValue.decrement(
-            makerPaysFunding ? fundingAccumulatedWithoutFee : fundingAccumulated, position.taker);
+        if (position.long.gt(position.short)) {
+            if (!position.long.isZero()) self.longValue.decrement(Fixed6Lib.from(funding), position.long);
+            if (!position.short.isZero()) self.shortValue.increment(Fixed6Lib.from(fundingWithoutFee), position.short);
+        } else {
+            if (!position.long.isZero()) self.longValue.increment(Fixed6Lib.from(fundingWithoutFee), position.long);
+            if (!position.short.isZero()) self.shortValue.decrement(Fixed6Lib.from(funding), position.short);
+        }
+        if (!position.maker.isZero()) self.makerValue.increment(Fixed6Lib.from(makerFee), position.maker);
     }
 
     /**
@@ -131,17 +135,19 @@ library VersionLib {
         Version memory self,
         Position memory position,
         OracleVersion memory fromOracleVersion,
-        OracleVersion memory toOracleVersion,
-        MarketParameter memory marketParameter
+        OracleVersion memory toOracleVersion
     ) private pure {
-        if (position.taker.isZero() || position.maker.isZero()) return;
+        if (position.long.add(position.short).isZero() || position.maker.isZero()) return;
 
-        Fixed6 totalTakerDelta =
-            toOracleVersion.price.sub(fromOracleVersion.price).mul(Fixed6Lib.from(position.taker));
-        Fixed6 socializedTakerDelta = totalTakerDelta.mul(Fixed6Lib.from(position.socializationFactor()));
+        Fixed6 totalLongDelta = toOracleVersion.price.sub(fromOracleVersion.price)
+            .mul(Fixed6Lib.from(position.longSocialized()));
+        Fixed6 totalShortDelta = fromOracleVersion.price.sub(toOracleVersion.price)
+            .mul(Fixed6Lib.from(position.shortSocialized()));
+        Fixed6 totalMakerDelta = totalLongDelta.add(totalShortDelta);
 
-        self.makerValue.decrement(socializedTakerDelta, position.maker);
-        self.takerValue.increment(socializedTakerDelta, position.taker);
+        if (!position.long.isZero()) self.longValue.increment(totalLongDelta, position.long);
+        if (!position.short.isZero()) self.shortValue.increment(totalShortDelta, position.short);
+        if (!position.maker.isZero()) self.makerValue.decrement(totalMakerDelta, position.maker);
     }
 
     /**
@@ -156,11 +162,14 @@ library VersionLib {
         MarketParameter memory marketParameter
     ) private pure {
         UFixed6 elapsed = UFixed6Lib.from(toOracleVersion.timestamp - fromOracleVersion.timestamp);
+        //TODO: refunded rewards here will effect the "auto-close functionality"
 
         if (!position.maker.isZero())
             self.makerReward.increment(elapsed.mul(marketParameter.makerRewardRate), position.maker);
-        if (!position.taker.isZero())
-            self.takerReward.increment(elapsed.mul(marketParameter.takerRewardRate), position.taker);
+        if (!position.long.isZero())
+            self.longReward.increment(elapsed.mul(marketParameter.longRewardRate), position.long);
+        if (!position.short.isZero())
+            self.shortReward.increment(elapsed.mul(marketParameter.shortRewardRate), position.short);
     }
 }
 
@@ -171,25 +180,32 @@ library VersionStorageLib {
         StoredVersion memory storedValue =  self.value;
         return Version(
             Accumulator6(Fixed6.wrap(int256(storedValue._makerValue))),
-            Accumulator6(Fixed6.wrap(int256(storedValue._takerValue))),
+            Accumulator6(Fixed6.wrap(int256(storedValue._longValue))),
+            Accumulator6(Fixed6.wrap(int256(storedValue._shortValue))),
             UAccumulator6(UFixed6.wrap(uint256(storedValue._makerReward))),
-            UAccumulator6(UFixed6.wrap(uint256(storedValue._takerReward)))
+            UAccumulator6(UFixed6.wrap(uint256(storedValue._longReward))),
+            UAccumulator6(UFixed6.wrap(uint256(storedValue._shortReward)))
         );
     }
 
     function store(VersionStorage storage self, Version memory newValue) internal {
-        if (newValue.makerValue._value.gt(Fixed6Lib.MAX_64)) revert VersionStorageInvalidError();
-        if (newValue.makerValue._value.lt(Fixed6Lib.MIN_64)) revert VersionStorageInvalidError();
-        if (newValue.takerValue._value.gt(Fixed6Lib.MAX_64)) revert VersionStorageInvalidError();
-        if (newValue.takerValue._value.lt(Fixed6Lib.MIN_64)) revert VersionStorageInvalidError();
-        if (newValue.makerReward._value.gt(UFixed6Lib.MAX_64)) revert VersionStorageInvalidError();
-        if (newValue.takerReward._value.gt(UFixed6Lib.MAX_64)) revert VersionStorageInvalidError();
+        if (newValue.makerValue._value.gt(Fixed6Lib.MAX_80)) revert VersionStorageInvalidError();
+        if (newValue.makerValue._value.lt(Fixed6Lib.MIN_80)) revert VersionStorageInvalidError();
+        if (newValue.longValue._value.gt(Fixed6Lib.MAX_88)) revert VersionStorageInvalidError();
+        if (newValue.longValue._value.lt(Fixed6Lib.MIN_88)) revert VersionStorageInvalidError();
+        if (newValue.shortValue._value.gt(Fixed6Lib.MAX_88)) revert VersionStorageInvalidError();
+        if (newValue.shortValue._value.lt(Fixed6Lib.MIN_88)) revert VersionStorageInvalidError();
+        if (newValue.makerReward._value.gt(UFixed6Lib.MAX_80)) revert VersionStorageInvalidError();
+        if (newValue.longReward._value.gt(UFixed6Lib.MAX_88)) revert VersionStorageInvalidError();
+        if (newValue.shortReward._value.gt(UFixed6Lib.MAX_88)) revert VersionStorageInvalidError();
 
         self.value = StoredVersion(
-            int64(Fixed6.unwrap(newValue.makerValue._value)),
-            int64(Fixed6.unwrap(newValue.takerValue._value)),
-            uint64(UFixed6.unwrap(newValue.makerReward._value)),
-            uint64(UFixed6.unwrap(newValue.takerReward._value))
+            int80(Fixed6.unwrap(newValue.makerValue._value)),
+            int88(Fixed6.unwrap(newValue.longValue._value)),
+            int88(Fixed6.unwrap(newValue.shortValue._value)),
+            uint80(UFixed6.unwrap(newValue.makerReward._value)),
+            uint88(UFixed6.unwrap(newValue.longReward._value)),
+            uint88(UFixed6.unwrap(newValue.shortReward._value))
         );
     }
 }

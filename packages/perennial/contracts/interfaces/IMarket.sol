@@ -34,7 +34,7 @@ interface IMarket is IOwnable {
 
     event Settle(uint256 preVersion, uint256 toVersion);
     event AccountSettle(address indexed account, uint256 preVersion, uint256 toVersion);
-    event Updated(address indexed account, uint256 version, UFixed6 newMaker, UFixed6 newTaker, Fixed6 newCollateral);
+    event Updated(address indexed account, uint256 version, UFixed6 newMaker, UFixed6 newLong, UFixed6 newShort, Fixed6 newCollateral);
     event Liquidation(address indexed account, address liquidator, Fixed6 fee);
     event FeeSettled(UFixed6 protocolFeeAmount, UFixed6 marketFeeAmount);
     event CollateralSettled(address indexed account, Fixed6 amount, UFixed6 newShortfall);
@@ -68,7 +68,7 @@ interface IMarket is IOwnable {
     function position() external view returns (Position memory);
     function fee() external view returns (Fee memory);
     function settle(address account) external;
-    function update(UFixed6 newMaker, UFixed6 newTaker, Fixed6 newCollateral) external;
+    function update(UFixed6 newMaker, UFixed6 newLong, UFixed6 newShort, Fixed6 newCollateral) external;
     function updateTreasury(address newTreasury) external;
     function parameter() external view returns (MarketParameter memory);
     function updateParameter(MarketParameter memory newParameter) external;

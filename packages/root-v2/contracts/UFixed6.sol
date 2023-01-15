@@ -22,7 +22,9 @@ library UFixed6Lib {
     UFixed6 public constant MAX = UFixed6.wrap(type(uint256).max);
     UFixed6 public constant MAX_128 = UFixed6.wrap(type(uint128).max);
     UFixed6 public constant MAX_96 = UFixed6.wrap(type(uint96).max);
+    UFixed6 public constant MAX_88 = UFixed6.wrap(type(uint80).max);
     UFixed6 public constant MAX_80 = UFixed6.wrap(type(uint80).max);
+    UFixed6 public constant MAX_72 = UFixed6.wrap(type(uint64).max);
     UFixed6 public constant MAX_64 = UFixed6.wrap(type(uint64).max);
     UFixed6 public constant MAX_56 = UFixed6.wrap(type(uint56).max);
     UFixed6 public constant MAX_48 = UFixed6.wrap(type(uint48).max);

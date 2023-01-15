@@ -185,6 +185,7 @@ export async function createMarket(
     fundingFee: parse6decimal('0.1'),
     takerFee: 0,
     positionFee: 0,
+    makerLiquidity: parse6decimal('0.2'),
     makerLimit: parse6decimal('1000'),
     closed: false,
     utilizationCurve: {
@@ -194,7 +195,8 @@ export async function createMarket(
       targetUtilization: parse6decimal('0.80'),
     },
     makerRewardRate: 0,
-    takerRewardRate: 0,
+    longRewardRate: 0,
+    shortRewardRate: 0,
     oracle: oracle.address,
     payoff: payoff,
   }

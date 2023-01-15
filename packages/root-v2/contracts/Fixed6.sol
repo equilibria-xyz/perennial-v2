@@ -24,7 +24,9 @@ library Fixed6Lib {
     Fixed6 public constant MAX = Fixed6.wrap(type(int256).max);
     Fixed6 public constant MAX_128 = Fixed6.wrap(type(int128).max);
     Fixed6 public constant MAX_96 = Fixed6.wrap(type(int96).max);
+    Fixed6 public constant MAX_88 = Fixed6.wrap(type(int80).max);
     Fixed6 public constant MAX_80 = Fixed6.wrap(type(int80).max);
+    Fixed6 public constant MAX_72 = Fixed6.wrap(type(int64).max);
     Fixed6 public constant MAX_64 = Fixed6.wrap(type(int64).max);
     Fixed6 public constant MAX_56 = Fixed6.wrap(type(int56).max);
     Fixed6 public constant MAX_48 = Fixed6.wrap(type(int48).max);
@@ -36,7 +38,9 @@ library Fixed6Lib {
     Fixed6 public constant MIN = Fixed6.wrap(type(int256).min);
     Fixed6 public constant MIN_128 = Fixed6.wrap(type(int128).min);
     Fixed6 public constant MIN_96 = Fixed6.wrap(type(int96).min);
+    Fixed6 public constant MIN_88 = Fixed6.wrap(type(int80).min);
     Fixed6 public constant MIN_80 = Fixed6.wrap(type(int80).min);
+    Fixed6 public constant MIN_72 = Fixed6.wrap(type(int64).min);
     Fixed6 public constant MIN_64 = Fixed6.wrap(type(int64).min);
     Fixed6 public constant MIN_56 = Fixed6.wrap(type(int56).min);
     Fixed6 public constant MIN_48 = Fixed6.wrap(type(int48).min);
