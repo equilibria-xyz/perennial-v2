@@ -17,7 +17,7 @@ import { createPayoffDefinition, expectPositionEq, expectPrePositionEq } from '.
 const { ethers } = HRE
 use(smock.matchers)
 
-describe('PerennialLens', () => {
+describe('Lens', () => {
   let user: SignerWithAddress
   let protocolTreasury: SignerWithAddress
   let productTreasury: SignerWithAddress
