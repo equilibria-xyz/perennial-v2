@@ -215,7 +215,7 @@ describe('Lens', () => {
     await chainlink.nextWithPriceModification(price => price.mul(2))
     await market.connect(userB).settle(user.address)
 
-    expect(await lens.callStatic['collateral(address,address)'](user.address, market.address)).to.equal('-3154162960')
+    expect(await lens.callStatic['collateral(address,address)'](user.address, market.address)).to.equal('-3154014381')
     expect(await lens.callStatic['collateral(address,address)'](userB.address, market.address)).to.equal('4463720316')
   })
 

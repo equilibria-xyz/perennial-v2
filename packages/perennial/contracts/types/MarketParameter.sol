@@ -4,7 +4,7 @@ pragma solidity ^0.8.13;
 import "@equilibria/perennial-v2-payoff/contracts/IPayoffProvider.sol";
 import "@equilibria/perennial-v2-oracle/contracts/IOracleProvider.sol";
 import "@equilibria/root-v2/contracts/UFixed6.sol";
-import "@equilibria/root-v2/contracts/JumpRateUtilizationCurve6.sol";
+import "@equilibria/root-v2/contracts/UJumpRateUtilizationCurve6.sol";
 import "./Payoff.sol";
 
 /// @dev MarketParameter type
@@ -18,7 +18,7 @@ struct MarketParameter {
     UFixed6 makerRewardRate;
     UFixed6 longRewardRate;
     UFixed6 shortRewardRate;
-    JumpRateUtilizationCurve6 utilizationCurve;
+    UJumpRateUtilizationCurve6 utilizationCurve;
     IOracleProvider oracle;
     Payoff payoff;
 }
@@ -64,10 +64,10 @@ library MarketParameterStorageLib {
             UFixed6.wrap(uint256(value.makerRewardRate)),
             UFixed6.wrap(uint256(value.longRewardRate)),
             UFixed6.wrap(uint256(value.shortRewardRate)),
-            JumpRateUtilizationCurve6(
-                Fixed6.wrap(int256(uint256(value.utilizationCurveMinRate))),
-                Fixed6.wrap(int256(uint256(value.utilizationCurveMaxRate))),
-                Fixed6.wrap(int256(uint256(value.utilizationCurveTargetRate))),
+            UJumpRateUtilizationCurve6(
+                UFixed6.wrap(uint256(value.utilizationCurveMinRate)),
+                UFixed6.wrap(uint256(value.utilizationCurveMaxRate)),
+                UFixed6.wrap(uint256(value.utilizationCurveTargetRate)),
                 UFixed6.wrap(uint256(value.utilizationCurveTargetUtilization))
             ),
             IOracleProvider(value.oracle),
@@ -84,9 +84,9 @@ library MarketParameterStorageLib {
         if (newValue.makerRewardRate.gt(UFixed6Lib.MAX_32)) revert MarketParameterStorageInvalidError();
         if (newValue.longRewardRate.gt(UFixed6Lib.MAX_32)) revert MarketParameterStorageInvalidError();
         if (newValue.shortRewardRate.gt(UFixed6Lib.MAX_32)) revert MarketParameterStorageInvalidError();
-        if (newValue.utilizationCurve.minRate.gt(Fixed6Lib.MAX_32)) revert MarketParameterStorageInvalidError();
-        if (newValue.utilizationCurve.maxRate.gt(Fixed6Lib.MAX_32)) revert MarketParameterStorageInvalidError();
-        if (newValue.utilizationCurve.targetRate.gt(Fixed6Lib.MAX_32)) revert MarketParameterStorageInvalidError();
+        if (newValue.utilizationCurve.minRate.gt(UFixed6Lib.MAX_32)) revert MarketParameterStorageInvalidError();
+        if (newValue.utilizationCurve.maxRate.gt(UFixed6Lib.MAX_32)) revert MarketParameterStorageInvalidError();
+        if (newValue.utilizationCurve.targetRate.gt(UFixed6Lib.MAX_32)) revert MarketParameterStorageInvalidError();
         if (newValue.utilizationCurve.targetUtilization.gt(UFixed6Lib.MAX_32)) revert MarketParameterStorageInvalidError();
 
         self.value = StoredMarketParameter({
@@ -99,9 +99,9 @@ library MarketParameterStorageLib {
             makerRewardRate: uint32(UFixed6.unwrap(newValue.makerRewardRate)),
             longRewardRate: uint32(UFixed6.unwrap(newValue.longRewardRate)),
             shortRewardRate: uint32(UFixed6.unwrap(newValue.shortRewardRate)),
-            utilizationCurveMinRate: uint32(uint256(Fixed6.unwrap(newValue.utilizationCurve.minRate))),
-            utilizationCurveMaxRate: uint32(uint256(Fixed6.unwrap(newValue.utilizationCurve.maxRate))),
-            utilizationCurveTargetRate: uint32(uint256(Fixed6.unwrap(newValue.utilizationCurve.targetRate))),
+            utilizationCurveMinRate: uint32(UFixed6.unwrap(newValue.utilizationCurve.minRate)),
+            utilizationCurveMaxRate: uint32(UFixed6.unwrap(newValue.utilizationCurve.maxRate)),
+            utilizationCurveTargetRate: uint32(UFixed6.unwrap(newValue.utilizationCurve.targetRate)),
             utilizationCurveTargetUtilization: uint24(UFixed6.unwrap(newValue.utilizationCurve.targetUtilization)),
             oracle: address(newValue.oracle),
             payoffProvider: address(newValue.payoff.provider),

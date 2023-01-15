@@ -63,7 +63,7 @@ library PositionLib {
     }
 
     function socializedNext(Position memory self) internal pure returns (bool) {
-        return self.maker.add(self.short).lt(self.long) || self.maker.add(self.long).lt(self.short);
+        return self.makerNext.add(self.shortNext).lt(self.longNext) || self.makerNext.add(self.longNext).lt(self.shortNext);
     }
 
     function longSocialized(Position memory self) internal pure returns (UFixed6) {

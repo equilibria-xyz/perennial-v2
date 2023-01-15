@@ -34,4 +34,28 @@ library CurveMath6 {
         UFixed6 xRatio = targetX.sub(startX).div(xRange);
         return yRange.mul(Fixed6Lib.from(xRatio)).add(startY);
     }
+
+    /**
+     * @notice Computes a linear interpolation between two points
+     * @param startX First point's x-coordinate
+     * @param startY First point's y-coordinate
+     * @param endX Second point's x-coordinate
+     * @param endY Second point's y-coordinate
+     * @param targetX x-coordinate to interpolate
+     * @return y-coordinate for `targetX` along the line from (`startX`, `startY`) -> (`endX`, `endY`)
+     */
+    function linearInterpolation(
+        UFixed6 startX,
+        UFixed6 startY,
+        UFixed6 endX,
+        UFixed6 endY,
+        UFixed6 targetX
+    ) internal pure returns (UFixed6) {
+        if (targetX.lt(startX) || targetX.gt(endX)) revert CurveMath6OutOfBoundsError();
+
+        UFixed6 xRange = endX.sub(startX);
+        UFixed6 yRange = endY.sub(startY);
+        UFixed6 xRatio = targetX.sub(startX).div(xRange);
+        return yRange.mul(xRatio).add(startY);
+    }
 }

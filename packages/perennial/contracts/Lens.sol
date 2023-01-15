@@ -186,7 +186,7 @@ contract Lens is ILens {
      * @param market Market address
      * @return Market current funding rate
      */
-    function rate(IMarket market) public settle(market) returns (Fixed6) {
+    function rate(IMarket market) public settle(market) returns (UFixed6) {
         UFixed6 utilization_ = _latestPosition(market).utilization();
         return market.parameter().utilizationCurve.compute(utilization_);
     }
@@ -196,10 +196,10 @@ contract Lens is ILens {
      * @param market Market address
      * @return Market current funding extrapolated to a daily rate
      */
-    function dailyRate(IMarket market) public settle(market) returns (Fixed6) {
+    function dailyRate(IMarket market) public settle(market) returns (UFixed6) {
         UFixed6 utilization_ = _latestPosition(market).utilization();
-        Fixed6 annualRate_ = market.parameter().utilizationCurve.compute(utilization_);
-        return annualRate_.div(Fixed6Lib.from(365));
+        UFixed6 annualRate_ = market.parameter().utilizationCurve.compute(utilization_);
+        return annualRate_.div(UFixed6Lib.from(365));
     }
 
     /**

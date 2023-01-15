@@ -103,25 +103,27 @@ library VersionLib {
         ProtocolParameter memory protocolParameter,
         MarketParameter memory marketParameter
     ) private pure returns (UFixed6 fundingFee) {
-        if (position.long.add(position.short).isZero() || position.maker.isZero()) return UFixed6Lib.ZERO;
+        if (position.long.add(position.short).isZero()) return UFixed6Lib.ZERO;
 
         UFixed6 notional = position.longSocialized().max(position.shortSocialized()).mul(fromOracleVersion.price.abs()); //TODO: can optimize this
-        UFixed6 funding = UFixed6Lib.from(marketParameter.utilizationCurve.accumulate(
+        UFixed6 funding = marketParameter.utilizationCurve.accumulate(
             position.utilization(),
             fromOracleVersion.timestamp,
             toOracleVersion.timestamp,
             notional
-        ));
+        );
         fundingFee = UFixed6Lib.max(marketParameter.fundingFee, protocolParameter.minFundingFee).mul(funding);
-        UFixed6 makerFee = position.long.min(position.short).div(position.long.max(position.short)).mul(funding); // TODO: add guaranteed minimum %
-
+        UFixed6 makerFee = UFixed6Lib.ONE.sub(position.long.min(position.short).div(position.long.max(position.short)))
+            .mul(funding.sub(fundingFee)); // TODO: add guaranteed minimum %
         UFixed6 fundingWithoutFee = funding.sub(fundingFee).sub(makerFee);
-        bool longsPayShorts = position.long.gt(position.short);
 
-        if (!position.long.isZero())
-            self.longValue.decrement(Fixed6Lib.from(longsPayShorts ? funding : fundingWithoutFee), position.long);
-        if (!position.short.isZero())
-            self.shortValue.increment(Fixed6Lib.from(longsPayShorts ? fundingWithoutFee : funding), position.short);
+        if (position.long.gt(position.short)) {
+            if (!position.long.isZero()) self.longValue.decrement(Fixed6Lib.from(funding), position.long);
+            if (!position.short.isZero()) self.shortValue.increment(Fixed6Lib.from(fundingWithoutFee), position.short);
+        } else {
+            if (!position.long.isZero()) self.longValue.increment(Fixed6Lib.from(fundingWithoutFee), position.long);
+            if (!position.short.isZero()) self.shortValue.decrement(Fixed6Lib.from(funding), position.short);
+        }
         if (!position.maker.isZero()) self.makerValue.increment(Fixed6Lib.from(makerFee), position.maker);
     }
 

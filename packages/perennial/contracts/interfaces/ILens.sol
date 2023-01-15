@@ -14,8 +14,8 @@ interface ILens {
         IMarket.MarketDefinition definition;
         MarketParameter parameter;
         address marketAddress;
-        Fixed6 rate;
-        Fixed6 dailyRate;
+        UFixed6 rate;
+        UFixed6 dailyRate;
         OracleVersion latestVersion;
         Fixed6 collateral;
         Position position;
@@ -62,9 +62,9 @@ interface ILens {
     function position(IMarket market) external returns (Position memory);
     function latestVersion(IMarket market) external returns (OracleVersion memory);
     function atVersions(IMarket market, uint[] memory versions) external returns (OracleVersion[] memory);
-    function rate(IMarket market) external returns (Fixed6);
+    function rate(IMarket market) external returns (UFixed6);
     function openInterest(IMarket market) external returns (UFixed6, UFixed6, UFixed6);
-    function dailyRate(IMarket market) external returns (Fixed6);
+    function dailyRate(IMarket market) external returns (UFixed6);
 
     // UserMarket Values
     function collateral(address account, IMarket market) external returns (Fixed6);
