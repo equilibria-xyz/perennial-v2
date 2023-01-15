@@ -105,16 +105,17 @@ library VersionLib {
     ) private pure returns (UFixed6 fundingFee) {
         if (position.long.add(position.short).isZero()) return UFixed6Lib.ZERO;
 
-        UFixed6 notional = position.longSocialized().max(position.shortSocialized()).mul(fromOracleVersion.price.abs()); //TODO: can optimize this
+        UFixed6 notional = position.takerSocialized().mul(fromOracleVersion.price.abs());
         UFixed6 funding = marketParameter.utilizationCurve.accumulate(
-            position.utilization(),
+            position.utilization(marketParameter),
             fromOracleVersion.timestamp,
             toOracleVersion.timestamp,
             notional
         );
         fundingFee = UFixed6Lib.max(marketParameter.fundingFee, protocolParameter.minFundingFee).mul(funding);
-        UFixed6 makerFee = UFixed6Lib.ONE.sub(position.long.min(position.short).div(position.long.max(position.short)))
-            .mul(funding.sub(fundingFee)); // TODO: add guaranteed minimum %
+        UFixed6 makerUtilized = position.utilized(marketParameter);
+        UFixed6 makerFee = makerUtilized.div(makerUtilized.add(position.long.min(position.short)))
+            .mul(funding.sub(fundingFee));
         UFixed6 fundingWithoutFee = funding.sub(fundingFee).sub(makerFee);
 
         if (position.long.gt(position.short)) {

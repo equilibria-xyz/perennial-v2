@@ -29,6 +29,7 @@ describe('Happy Path', () => {
       fundingFee: parse6decimal('0.1'),
       takerFee: 0,
       positionFee: 0,
+      makerLiquidity: parse6decimal('0.2'),
       makerLimit: parse6decimal('1'),
       closed: true,
       utilizationCurve: {
@@ -545,6 +546,7 @@ describe('Happy Path', () => {
       fundingFee: parse6decimal('0.1'),
       takerFee: positionFeesOn ? parse6decimal('0.001') : 0,
       positionFee: positionFeesOn ? parse6decimal('0.1') : 0,
+      makerLiquidity: parse6decimal('0.2'),
       makerLimit: parse6decimal('1'),
       closed: false,
       utilizationCurve: {

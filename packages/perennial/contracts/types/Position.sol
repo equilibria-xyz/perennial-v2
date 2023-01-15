@@ -3,6 +3,7 @@ pragma solidity ^0.8.13;
 
 import "@equilibria/perennial-v2-oracle/contracts/types/OracleVersion.sol";
 import "@equilibria/root-v2/contracts/UFixed6.sol";
+import "./MarketParameter.sol";
 
 /// @dev Position type
 struct Position {
@@ -58,12 +59,13 @@ library PositionLib {
      * @param self The Position to operate on
      * @return utilization ratio
      */
-    function utilization(Position memory self) internal pure returns (UFixed6) {
-        return Fixed6Lib.from(self.long).sub(Fixed6Lib.from(self.short)).abs().unsafeDiv(self.maker);
+    function utilization(Position memory self, MarketParameter memory marketParameter) internal pure returns (UFixed6) {
+        return utilized(self, marketParameter).unsafeDiv(self.maker);
     }
 
-    function socializedNext(Position memory self) internal pure returns (bool) {
-        return self.makerNext.add(self.shortNext).lt(self.longNext) || self.makerNext.add(self.longNext).lt(self.shortNext);
+    function utilized(Position memory self, MarketParameter memory marketParameter) internal pure returns (UFixed6) {
+        return Fixed6Lib.from(self.long).sub(Fixed6Lib.from(self.short)).abs()    // net oi
+            .max(self.long.max(self.short).mul(marketParameter.makerLiquidity));  // liquidity
     }
 
     function longSocialized(Position memory self) internal pure returns (UFixed6) {
@@ -72,6 +74,14 @@ library PositionLib {
 
     function shortSocialized(Position memory self) internal pure returns (UFixed6) {
         return self.maker.add(self.long).min(self.short);
+    }
+
+    function takerSocialized(Position memory self) internal pure returns (UFixed6) {
+        return self.long.max(self.short).min(self.long.min(self.short).add(self.maker));
+    }
+
+    function socializedNext(Position memory self) internal pure returns (bool) {
+        return self.makerNext.add(self.shortNext).lt(self.longNext) || self.makerNext.add(self.longNext).lt(self.shortNext);
     }
 }
 

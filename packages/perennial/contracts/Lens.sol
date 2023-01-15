@@ -187,7 +187,8 @@ contract Lens is ILens {
      * @return Market current funding rate
      */
     function rate(IMarket market) public settle(market) returns (UFixed6) {
-        UFixed6 utilization_ = _latestPosition(market).utilization();
+        MarketParameter memory marketParameter = market.parameter();
+        UFixed6 utilization_ = _latestPosition(market).utilization(marketParameter);
         return market.parameter().utilizationCurve.compute(utilization_);
     }
 
@@ -197,7 +198,8 @@ contract Lens is ILens {
      * @return Market current funding extrapolated to a daily rate
      */
     function dailyRate(IMarket market) public settle(market) returns (UFixed6) {
-        UFixed6 utilization_ = _latestPosition(market).utilization();
+        MarketParameter memory marketParameter = market.parameter();
+        UFixed6 utilization_ = _latestPosition(market).utilization(marketParameter);
         UFixed6 annualRate_ = market.parameter().utilizationCurve.compute(utilization_);
         return annualRate_.div(UFixed6Lib.from(365));
     }
@@ -342,12 +344,13 @@ contract Lens is ILens {
         if (_position.maker.isZero()) { return UFixed6Lib.ZERO; }
 
         Account memory marketAccount = market.accounts(account);
+        MarketParameter memory marketParameter = market.parameter();
         UFixed6 _openInterest = openInterest(account, market);
         if (marketAccount.maker.isZero()) {
             return _openInterest; // Taker exposure is always 100% of openInterest
         }
 
-        UFixed6 utilization = _position.utilization();
+        UFixed6 utilization = _position.utilization(marketParameter);
         return utilization.mul(_openInterest); // Maker exposure is openInterest * utilization
     }
 
