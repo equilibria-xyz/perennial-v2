@@ -7,11 +7,6 @@ import "./interfaces/IMarket.sol";
 import "./interfaces/IFactory.sol";
 import "hardhat/console.sol";
 
-// TODO: should we move position fees to account position settle so that there's intra-version netting?
-// TODO: combine update and settle to enable on-behalf managers
-// TODO: general parameter validity checks
-// TODO: auto-shutoff rewards if not enough reward ERC20s in contract during accumulate?
-
 /**
  * @title Market
  * @notice Manages logic and state for a single market market.
