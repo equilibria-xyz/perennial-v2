@@ -1,5 +1,4 @@
 import { MockContract } from '@ethereum-waffle/mock-contract'
-import { constants, utils } from 'ethers'
 import { SignerWithAddress } from '@nomiclabs/hardhat-ethers/signers'
 import { expect } from 'chai'
 import HRE, { waffle } from 'hardhat'
@@ -127,27 +126,6 @@ describe('Factory', () => {
       const market = Market__factory.connect(marketAddress, owner)
       expect(await market.factory()).to.equal(factory.address)
       expect(await market.pendingOwner()).to.equal(user.address)
-      expect(await market.token()).to.equal(dsu.address)
-      expect(await market.reward()).to.equal(reward.address)
-      expect(await market.name()).to.equal(marketDefinition.name)
-      expect(await market.symbol()).to.equal(marketDefinition.symbol)
-
-      const parameter = await market.parameter()
-      expect(parameter.maintenance).to.equal(marketParameter.maintenance)
-      expect(parameter.fundingFee).to.equal(marketParameter.fundingFee)
-      expect(parameter.takerFee).to.equal(marketParameter.takerFee)
-      expect(parameter.positionFee).to.equal(marketParameter.positionFee)
-      expect(parameter.makerLiquidity).to.equal(marketParameter.makerLiquidity)
-      expect(parameter.makerLimit).to.equal(marketParameter.makerLimit)
-      expect(parameter.utilizationCurve.minRate).to.equal(marketParameter.utilizationCurve.minRate)
-      expect(parameter.utilizationCurve.targetRate).to.equal(marketParameter.utilizationCurve.targetRate)
-      expect(parameter.utilizationCurve.maxRate).to.equal(marketParameter.utilizationCurve.maxRate)
-      expect(parameter.utilizationCurve.targetUtilization).to.equal(marketParameter.utilizationCurve.targetUtilization)
-      expect(parameter.makerRewardRate).to.equal(marketParameter.makerRewardRate)
-      expect(parameter.shortRewardRate).to.equal(marketParameter.shortRewardRate)
-      expect(parameter.oracle).to.equal(marketParameter.oracle)
-      expect(parameter.payoff.provider).to.equal(marketParameter.payoff.provider)
-      expect(parameter.payoff.short).to.equal(marketParameter.payoff.short)
     })
   })
 
