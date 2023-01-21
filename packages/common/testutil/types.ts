@@ -19,6 +19,7 @@ export interface Account {
 }
 
 export interface Position {
+  latestVersion: BigNumberish
   maker: BigNumberish
   long: BigNumberish
   short: BigNumberish
@@ -50,6 +51,7 @@ export function expectAccountEq(a: Account, b: Account): void {
 }
 
 export function expectPositionEq(a: Position, b: Position): void {
+  expect(a.latestVersion).to.equal(b.latestVersion)
   expect(a.maker).to.equal(b.maker)
   expect(a.long).to.equal(b.long)
   expect(a.short).to.equal(b.short)
@@ -59,12 +61,12 @@ export function expectPositionEq(a: Position, b: Position): void {
 }
 
 export function expectVersionEq(a: Version, b: Version): void {
-  expect(a.makerValue).to.equal(b.makerValue)
-  expect(a.longValue).to.equal(b.longValue)
-  expect(a.shortValue).to.equal(b.shortValue)
-  expect(a.makerReward).to.equal(b.makerReward)
-  expect(a.longReward).to.equal(b.longReward)
-  expect(a.shortReward).to.equal(b.shortReward)
+  expect(a.makerValue._value).to.equal(b.makerValue._value)
+  expect(a.longValue._value).to.equal(b.longValue._value)
+  expect(a.shortValue._value).to.equal(b.shortValue._value)
+  expect(a.makerReward._value).to.equal(b.makerReward._value)
+  expect(a.longReward._value).to.equal(b.longReward._value)
+  expect(a.shortReward._value).to.equal(b.shortReward._value)
 }
 
 export function parse6decimal(amount: string): BigNumber {

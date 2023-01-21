@@ -248,33 +248,37 @@ contract Market is IMarket, UInitializable, UOwnable {
         Version memory fromVersion;
         Version memory toVersion;
 
-        // settle market a->b if necessary
-        fromOracleVersion = context.position.latestVersion == context.currentOracleVersion.version ?
-            context.currentOracleVersion :
-            _oracleVersionAt(context.marketParameter, context.position.latestVersion);
-        toOracleVersion = context.position.latestVersion + 1 == context.currentOracleVersion.version ?
-            context.currentOracleVersion :
-            _oracleVersionAt(context.marketParameter, context.position.latestVersion + 1);
-        _settlePeriod(context, fromOracleVersion, toOracleVersion);
+        if ( context.currentOracleVersion.version > context.position.latestVersion) {
+            // settle market a->b if necessary
+            fromOracleVersion = context.position.latestVersion == context.currentOracleVersion.version ?
+                context.currentOracleVersion :
+                _oracleVersionAt(context.marketParameter, context.position.latestVersion);
+            toOracleVersion = context.position.latestVersion + 1 == context.currentOracleVersion.version ?
+                context.currentOracleVersion :
+                _oracleVersionAt(context.marketParameter, context.position.latestVersion + 1);
+            _settlePeriod(context, fromOracleVersion, toOracleVersion);
 
-        // settle market b->c if necessary
-        fromOracleVersion = toOracleVersion;
-        toOracleVersion = context.currentOracleVersion;
-        _settlePeriod(context, fromOracleVersion, toOracleVersion);
+            // settle market b->c if necessary
+            fromOracleVersion = toOracleVersion;
+            toOracleVersion = context.currentOracleVersion;
+            _settlePeriod(context, fromOracleVersion, toOracleVersion);
+        }
 
-        // settle account a->b if necessary
-        toOracleVersion = context.account.latestVersion + 1 == context.currentOracleVersion.version ?
-            context.currentOracleVersion :
-            _oracleVersionAt(context.marketParameter, context.account.latestVersion + 1);
-        fromVersion = _versions[context.account.latestVersion].read();
-        toVersion = _versions[context.account.latestVersion + 1].read();
-        _settlePeriodAccount(context, toOracleVersion, fromVersion, toVersion);
+        if (context.currentOracleVersion.version > context.account.latestVersion) {
+            // settle account a->b if necessary
+            toOracleVersion = context.account.latestVersion + 1 == context.currentOracleVersion.version ?
+                context.currentOracleVersion :
+                _oracleVersionAt(context.marketParameter, context.account.latestVersion + 1);
+            fromVersion = _versions[context.account.latestVersion].read();
+            toVersion = _versions[context.account.latestVersion + 1].read();
+            _settlePeriodAccount(context, toOracleVersion, fromVersion, toVersion);
 
-        // settle account b->c if necessary
-        toOracleVersion = context.currentOracleVersion;
-        fromVersion = toVersion;
-        toVersion = context.version;
-        _settlePeriodAccount(context, toOracleVersion, fromVersion, toVersion);
+            // settle account b->c if necessary
+            toOracleVersion = context.currentOracleVersion;
+            fromVersion = toVersion;
+            toVersion = context.version;
+            _settlePeriodAccount(context, toOracleVersion, fromVersion, toVersion);
+        }
 
         _endGas(context);
     }
@@ -349,6 +353,7 @@ contract Market is IMarket, UInitializable, UOwnable {
         MarketParameter memory marketParameter,
         uint256 version
     ) internal view returns (OracleVersion memory oracleVersion) {
+        console.log("version: %s", version);
         oracleVersion = marketParameter.oracle.atVersion(version);
         marketParameter.payoff.transform(oracleVersion);
     }

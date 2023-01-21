@@ -2,7 +2,7 @@ import { expect } from 'chai'
 import 'hardhat'
 import { constants } from 'ethers'
 
-import { InstanceVars, deployProtocol, createMarket } from '../helpers/setupHelpers'
+import { InstanceVars, deployProtocol, createMarket, INITIAL_VERSION } from '../helpers/setupHelpers'
 import { expectPositionEq, parse6decimal } from '../../../../common/testutil/types'
 import { Market } from '../../../types/generated'
 
@@ -48,6 +48,7 @@ describe('Lens', () => {
     const { lens, chainlink } = instanceVars
     let marketSnapshot = (await lens.callStatic['snapshots(address[])']([market.address]))[0]
     expectPositionEq(marketSnapshot.position, {
+      latestVersion: INITIAL_VERSION,
       maker: 0,
       long: 0,
       short: 0,
@@ -66,6 +67,7 @@ describe('Lens', () => {
 
     marketSnapshot = await lens.callStatic['snapshot(address)'](market.address)
     expectPositionEq(marketSnapshot.position, {
+      latestVersion: INITIAL_VERSION + 1,
       maker: POSITION,
       long: POSITION,
       short: 0,
