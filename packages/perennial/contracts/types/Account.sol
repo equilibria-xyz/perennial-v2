@@ -63,7 +63,7 @@ library AccountLib {
             Fixed6Lib.from(newShort).sub(Fixed6Lib.from(self.nextShort))
         );
         takerFee = longAmount.add(shortAmount).mul(currentOracleVersion.price).abs().mul(marketParameter.takerFee);
-        collateralAmount = newCollateral.sub(self.collateral).sub(Fixed6Lib.from(takerFee));
+        collateralAmount = newCollateral.sub(self.collateral).add(Fixed6Lib.from(takerFee));
 
         // update
         self.nextMaker = newMaker;

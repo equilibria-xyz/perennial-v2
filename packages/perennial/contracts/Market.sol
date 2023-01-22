@@ -184,8 +184,10 @@ contract Market is IMarket, UInitializable, UOwnable {
                 context.marketParameter
             );
         context.position.update(makerAmount, longAmount, shortAmount);
-        UFixed6 takerMarketFee = context.version.update(context.position, takerFee, context.marketParameter);
-        context.fee.update(takerMarketFee, context.protocolParameter);
+        console.log("takerFee: %s", UFixed6.unwrap(takerFee));
+        UFixed6 positionFee = context.version.update(context.position, takerFee, context.marketParameter);
+        console.log("positionFee: %s", UFixed6.unwrap(positionFee));
+        context.fee.update(positionFee, context.protocolParameter);
 
         // after
         if (!force) _checkPosition(context);
@@ -353,7 +355,6 @@ contract Market is IMarket, UInitializable, UOwnable {
         MarketParameter memory marketParameter,
         uint256 version
     ) internal view returns (OracleVersion memory oracleVersion) {
-        console.log("version: %s", version);
         oracleVersion = marketParameter.oracle.atVersion(version);
         marketParameter.payoff.transform(oracleVersion);
     }
