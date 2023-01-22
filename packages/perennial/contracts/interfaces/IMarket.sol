@@ -56,6 +56,7 @@ interface IMarket is IOwnable {
     error MarketNotTreasuryError();
     error PayoffProviderInvalidOracle();
     error PayoffProviderInvalidPayoffDefinitionError();
+    error MarketOperatorNotAllowed();
 
     function initialize(MarketDefinition calldata definition_, MarketParameter calldata parameter_) external;
     function name() external view returns (string memory);
@@ -68,7 +69,7 @@ interface IMarket is IOwnable {
     function position() external view returns (Position memory);
     function fee() external view returns (Fee memory);
     function settle(address account) external;
-    function update(UFixed6 newMaker, UFixed6 newLong, UFixed6 newShort, Fixed6 newCollateral) external;
+    function update(address account, UFixed6 newMaker, UFixed6 newLong, UFixed6 newShort, Fixed6 newCollateral) external;
     function updateTreasury(address newTreasury) external;
     function parameter() external view returns (MarketParameter memory);
     function updateParameter(MarketParameter memory newParameter) external;

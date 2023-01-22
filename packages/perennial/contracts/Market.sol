@@ -68,11 +68,18 @@ contract Market is IMarket, UInitializable, UOwnable {
         _saveContext(context, account);
     }
 
-    function update(UFixed6 newMaker, UFixed6 newLong, UFixed6 newShort, Fixed6 newCollateral) external {
-        CurrentContext memory context = _loadContext(msg.sender);
+    function update(
+        address account,
+        UFixed6 newMaker,
+        UFixed6 newLong,
+        UFixed6 newShort,
+        Fixed6 newCollateral
+    ) external {
+        CurrentContext memory context = _loadContext(account);
+        _checkOperator(context, account, newMaker, newLong, newShort, newCollateral);
         _settle(context);
-        _update(context, msg.sender, msg.sender, newMaker, newLong, newShort, newCollateral, false);
-        _saveContext(context, msg.sender);
+        _update(context, account, newMaker, newLong, newShort, newCollateral, false);
+        _saveContext(context, account);
     }
 
     function updateTreasury(address newTreasury) external onlyOwner {
@@ -150,7 +157,7 @@ contract Market is IMarket, UInitializable, UOwnable {
         Fixed6 newCollateral = context.account.collateral.sub(liquidationReward);
 
         // close position
-        _update(context, account, msg.sender, UFixed6Lib.ZERO, UFixed6Lib.ZERO, UFixed6Lib.ZERO, newCollateral, true);
+        _update(context, account, UFixed6Lib.ZERO, UFixed6Lib.ZERO, UFixed6Lib.ZERO, newCollateral, true);
         context.account.liquidation = true;
 
         emit Liquidation(account, msg.sender, liquidationReward);
@@ -159,7 +166,6 @@ contract Market is IMarket, UInitializable, UOwnable {
     function _update(
         CurrentContext memory context,
         address account,
-        address receiver,
         UFixed6 newMaker,
         UFixed6 newLong,
         UFixed6 newShort,
@@ -184,9 +190,7 @@ contract Market is IMarket, UInitializable, UOwnable {
                 context.marketParameter
             );
         context.position.update(makerAmount, longAmount, shortAmount);
-        console.log("takerFee: %s", UFixed6.unwrap(takerFee));
         UFixed6 positionFee = context.version.update(context.position, takerFee, context.marketParameter);
-        console.log("positionFee: %s", UFixed6.unwrap(positionFee));
         context.fee.update(positionFee, context.protocolParameter);
 
         // after
@@ -198,8 +202,8 @@ contract Market is IMarket, UInitializable, UOwnable {
         _startGas(context, "_update fund-events: %s");
 
         // fund
-        if (collateralAmount.sign() == 1) token.pull(account, UFixed18.wrap(UFixed6.unwrap(collateralAmount.abs()) * 1e12));
-        if (collateralAmount.sign() == -1) token.push(receiver, UFixed18.wrap(UFixed6.unwrap(collateralAmount.abs()) * 1e12));
+        if (collateralAmount.sign() == 1) token.pull(msg.sender, UFixed18.wrap(UFixed6.unwrap(collateralAmount.abs()) * 1e12));
+        if (collateralAmount.sign() == -1) token.push(msg.sender, UFixed18.wrap(UFixed6.unwrap(collateralAmount.abs()) * 1e12));
 
         // events
         emit Updated(account, context.currentOracleVersion.version, newMaker, newLong, newShort, newCollateral);
@@ -313,6 +317,26 @@ contract Market is IMarket, UInitializable, UOwnable {
         if (context.currentOracleVersion.version > context.account.latestVersion) {
             context.account.accumulate(toOracleVersion, fromVersion, toVersion);
         }
+    }
+
+    function _checkOperator(
+        CurrentContext memory context,
+        address account,
+        UFixed6 newMaker,
+        UFixed6 newLong,
+        UFixed6 newShort,
+        Fixed6 newCollateral
+    ) private view {
+        if (account == msg.sender) return;                  // sender is operating on own account
+        if (factory.operators(account, msg.sender)) return; // sender is operator enabled for this account
+        if (
+            context.account.collateral.sign() == -1 &&
+            newCollateral.isZero() &&
+            context.account.nextMaker.eq(newMaker) &&
+            context.account.nextLong.eq(newLong) &&
+            context.account.nextShort.eq(newShort)
+        ) return;                                           // sender is repaying shortfall for this account
+        revert MarketOperatorNotAllowed();
     }
 
     function _checkPosition(CurrentContext memory context) private pure {

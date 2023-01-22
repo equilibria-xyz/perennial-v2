@@ -177,4 +177,6 @@ describe('Factory', () => {
       await expect(factory.connect(user).updatePaused(true)).to.be.revertedWith(`FactoryNotPauserError()`)
     })
   })
+
+  //TODO: operator
 })

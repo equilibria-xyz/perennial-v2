@@ -21,6 +21,8 @@ contract Factory is IFactory, UOwnable {
     /// @dev Protocol pauser address. address(0) defaults to owner(0)
     address private _pauser;
 
+    mapping(address => mapping(address => bool)) public operators;
+
     constructor(address implementation_) {
         implementation = implementation_;
     }
@@ -56,6 +58,11 @@ contract Factory is IFactory, UOwnable {
     function updatePauser(address newPauser) public onlyOwner {
         _pauser = newPauser;
         emit PauserUpdated(newPauser);
+    }
+
+    function updateOperator(address operator, bool newEnabled) external {
+        operators[msg.sender][operator] = newEnabled;
+        emit OperatorUpdated(msg.sender, operator, newEnabled);
     }
 
     /**

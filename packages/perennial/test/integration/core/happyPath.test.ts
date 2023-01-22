@@ -62,7 +62,7 @@ describe('Happy Path', () => {
     const market = await createMarket(instanceVars)
     await dsu.connect(user).approve(market.address, COLLATERAL.mul(1e12))
 
-    await expect(market.connect(user).update(POSITION, 0, 0, COLLATERAL))
+    await expect(market.connect(user).update(user.address, POSITION, 0, 0, COLLATERAL))
       .to.emit(market, 'Updated')
       .withArgs(user.address, INITIAL_VERSION, POSITION, 0, 0, COLLATERAL)
 
@@ -127,10 +127,10 @@ describe('Happy Path', () => {
     const market = await createMarket(instanceVars)
     await dsu.connect(user).approve(market.address, COLLATERAL.mul(1e12))
 
-    await market.connect(user).update(POSITION.div(2), 0, 0, COLLATERAL)
-    await market.connect(user).update(POSITION.div(2), 0, 0, COLLATERAL)
+    await market.connect(user).update(user.address, POSITION.div(2), 0, 0, COLLATERAL)
+    await market.connect(user).update(user.address, POSITION.div(2), 0, 0, COLLATERAL)
 
-    await expect(market.connect(user).update(POSITION, 0, 0, COLLATERAL))
+    await expect(market.connect(user).update(user.address, POSITION, 0, 0, COLLATERAL))
       .to.emit(market, 'Updated')
       .withArgs(user.address, INITIAL_VERSION, POSITION, 0, 0, COLLATERAL)
 
@@ -196,8 +196,8 @@ describe('Happy Path', () => {
     const market = await createMarket(instanceVars)
     await dsu.connect(user).approve(market.address, COLLATERAL.mul(1e12))
 
-    await market.connect(user).update(POSITION, 0, 0, COLLATERAL)
-    await expect(market.connect(user).update(0, 0, 0, COLLATERAL))
+    await market.connect(user).update(user.address, POSITION, 0, 0, COLLATERAL)
+    await expect(market.connect(user).update(user.address, 0, 0, 0, COLLATERAL))
       .to.emit(market, 'Updated')
       .withArgs(user.address, INITIAL_VERSION, 0, 0, 0, COLLATERAL)
 
@@ -239,10 +239,10 @@ describe('Happy Path', () => {
     const market = await createMarket(instanceVars)
     await dsu.connect(user).approve(market.address, COLLATERAL.mul(1e12))
 
-    await market.connect(user).update(POSITION, 0, 0, COLLATERAL)
-    await market.connect(user).update(POSITION.div(2), 0, 0, COLLATERAL)
+    await market.connect(user).update(user.address, POSITION, 0, 0, COLLATERAL)
+    await market.connect(user).update(user.address, POSITION.div(2), 0, 0, COLLATERAL)
 
-    await expect(market.connect(user).update(0, 0, 0, COLLATERAL))
+    await expect(market.connect(user).update(user.address, 0, 0, 0, COLLATERAL))
       .to.emit(market, 'Updated')
       .withArgs(user.address, INITIAL_VERSION, 0, 0, 0, COLLATERAL)
 
@@ -286,8 +286,8 @@ describe('Happy Path', () => {
     await dsu.connect(user).approve(market.address, COLLATERAL.mul(1e12))
     await dsu.connect(userB).approve(market.address, COLLATERAL.mul(1e12))
 
-    await market.connect(user).update(POSITION, 0, 0, COLLATERAL)
-    await expect(market.connect(userB).update(0, POSITION_B, 0, COLLATERAL))
+    await market.connect(user).update(user.address, POSITION, 0, 0, COLLATERAL)
+    await expect(market.connect(userB).update(userB.address, 0, POSITION_B, 0, COLLATERAL))
       .to.emit(market, 'Updated')
       .withArgs(userB.address, INITIAL_VERSION, 0, POSITION_B, 0, COLLATERAL)
 
@@ -356,10 +356,10 @@ describe('Happy Path', () => {
     await dsu.connect(user).approve(market.address, COLLATERAL.mul(1e12))
     await dsu.connect(userB).approve(market.address, COLLATERAL.mul(1e12))
 
-    await market.connect(user).update(POSITION, 0, 0, COLLATERAL)
-    await market.connect(userB).update(0, POSITION_B.div(2), 0, COLLATERAL)
+    await market.connect(user).update(user.address, POSITION, 0, 0, COLLATERAL)
+    await market.connect(userB).update(userB.address, 0, POSITION_B.div(2), 0, COLLATERAL)
 
-    await expect(market.connect(userB).update(0, POSITION_B, 0, COLLATERAL))
+    await expect(market.connect(userB).update(userB.address, 0, POSITION_B, 0, COLLATERAL))
       .to.emit(market, 'Updated')
       .withArgs(userB.address, INITIAL_VERSION, 0, POSITION_B, 0, COLLATERAL)
 
@@ -427,13 +427,13 @@ describe('Happy Path', () => {
     await dsu.connect(user).approve(market.address, COLLATERAL.mul(1e12))
     await dsu.connect(userB).approve(market.address, COLLATERAL.mul(1e12))
 
-    await expect(market.connect(userB).update(0, POSITION_B, 0, COLLATERAL)).to.be.revertedWith(
+    await expect(market.connect(userB).update(userB.address, 0, POSITION_B, 0, COLLATERAL)).to.be.revertedWith(
       'MarketInsufficientLiquidityError()',
     )
-    await market.connect(user).update(POSITION, 0, 0, COLLATERAL)
-    await market.connect(userB).update(0, POSITION_B, 0, COLLATERAL)
+    await market.connect(user).update(user.address, POSITION, 0, 0, COLLATERAL)
+    await market.connect(userB).update(userB.address, 0, POSITION_B, 0, COLLATERAL)
 
-    await expect(market.connect(userB).update(0, 0, 0, COLLATERAL))
+    await expect(market.connect(userB).update(userB.address, 0, 0, 0, COLLATERAL))
       .to.emit(market, 'Updated')
       .withArgs(userB.address, INITIAL_VERSION, 0, 0, 0, COLLATERAL)
 
@@ -477,14 +477,14 @@ describe('Happy Path', () => {
     await dsu.connect(user).approve(market.address, COLLATERAL.mul(1e12))
     await dsu.connect(userB).approve(market.address, COLLATERAL.mul(1e12))
 
-    await expect(market.connect(userB).update(0, POSITION_B, 0, COLLATERAL)).to.be.revertedWith(
+    await expect(market.connect(userB).update(userB.address, 0, POSITION_B, 0, COLLATERAL)).to.be.revertedWith(
       'MarketInsufficientLiquidityError()',
     )
-    await market.connect(user).update(POSITION, 0, 0, COLLATERAL)
-    await market.connect(userB).update(0, POSITION_B, 0, COLLATERAL)
-    await market.connect(userB).update(POSITION_B.div(2), 0, 0, COLLATERAL)
+    await market.connect(user).update(user.address, POSITION, 0, 0, COLLATERAL)
+    await market.connect(userB).update(userB.address, 0, POSITION_B, 0, COLLATERAL)
+    await market.connect(userB).update(userB.address, POSITION_B.div(2), 0, 0, COLLATERAL)
 
-    await expect(market.connect(userB).update(0, 0, 0, COLLATERAL))
+    await expect(market.connect(userB).update(userB.address, 0, 0, 0, COLLATERAL))
       .to.emit(market, 'Updated')
       .withArgs(userB.address, INITIAL_VERSION, 0, 0, 0, COLLATERAL)
 
@@ -532,8 +532,10 @@ describe('Happy Path', () => {
     const market = await createMarket(instanceVars)
 
     await expect(factory.connect(pauser).updatePaused(true)).to.emit(factory, 'ParameterUpdated')
-    await expect(market.update(0, 0, 0, parse6decimal('1000'))).to.be.revertedWith('PausedError()')
-    await expect(market.settle(user.address)).to.be.revertedWith('PausedError()')
+    await expect(market.connect(user.address).update(user.address, 0, 0, 0, parse6decimal('1000'))).to.be.revertedWith(
+      'PausedError()',
+    )
+    await expect(market.connect(user.address).settle(user.address)).to.be.revertedWith('PausedError()')
   })
 
   it('delayed update w/ collateral (gas)', async () => {
@@ -574,20 +576,20 @@ describe('Happy Path', () => {
     await dsu.connect(user).approve(market.address, COLLATERAL.mul(2).mul(1e12))
     await dsu.connect(userB).approve(market.address, COLLATERAL.mul(2).mul(1e12))
 
-    await market.connect(user).update(POSITION.div(3), 0, 0, COLLATERAL)
-    await market.connect(userB).update(0, POSITION.div(3), 0, COLLATERAL)
+    await market.connect(user).update(user.address, POSITION.div(3), 0, 0, COLLATERAL)
+    await market.connect(userB).update(userB.address, 0, POSITION.div(3), 0, COLLATERAL)
 
     await chainlink.next()
     await chainlink.next()
 
-    await market.connect(user).update(POSITION.div(2), 0, 0, COLLATERAL)
-    await market.connect(userB).update(0, POSITION.div(2), 0, COLLATERAL)
+    await market.connect(user).update(user.address, POSITION.div(2), 0, 0, COLLATERAL)
+    await market.connect(userB).update(userB.address, 0, POSITION.div(2), 0, COLLATERAL)
 
     // Ensure a->b->c
     await chainlink.next()
     await chainlink.next()
 
-    await expect(market.connect(user).update(POSITION, 0, 0, COLLATERAL.sub(1)))
+    await expect(market.connect(user).update(user.address, POSITION, 0, 0, COLLATERAL.sub(1)))
       .to.emit(market, 'Updated')
       .withArgs(user.address, INITIAL_VERSION + 4, POSITION, 0, 0, COLLATERAL.sub(1))
 
@@ -611,7 +613,7 @@ describe('Happy Path', () => {
       shortNext: 0,
     })
     const version = await market.versions(INITIAL_VERSION + 4)
-    expect(version.makerValue._value).to.equal('-356621077579')
+    expect(version.makerValue._value).to.equal('-357213713943')
     expect(version.longValue._value).to.equal('362096873938')
     expect(version.shortValue._value).to.equal(0)
     expect(version.makerReward._value).to.equal('606836363635')

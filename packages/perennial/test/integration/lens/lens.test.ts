@@ -26,8 +26,8 @@ describe('Lens', () => {
     // Setup position
     await dsu.connect(user).approve(market.address, COLLATERAL.mul(1e12))
     await dsu.connect(userB).approve(market.address, COLLATERAL.mul(1e12))
-    await market.connect(user).update(POSITION, 0, 0, COLLATERAL)
-    await market.connect(userB).update(0, POSITION, 0, COLLATERAL)
+    await market.connect(user).update(user.address, POSITION, 0, 0, COLLATERAL)
+    await market.connect(userB).update(userB.address, 0, POSITION, 0, COLLATERAL)
   })
 
   it('#factory', async () => {

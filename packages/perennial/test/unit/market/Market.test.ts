@@ -266,7 +266,7 @@ describe.only('Market', () => {
             })
 
             it('opens the position', async () => {
-              await expect(market.connect(user).update(POSITION, 0, 0, COLLATERAL))
+              await expect(market.connect(user).update(user.address, POSITION, 0, 0, COLLATERAL))
                 .to.emit(market, 'Updated')
                 .withArgs(user.address, 1, POSITION, 0, 0, COLLATERAL)
 
@@ -302,7 +302,7 @@ describe.only('Market', () => {
             })
 
             it('opens the position and settles', async () => {
-              await expect(market.connect(user).update(POSITION, 0, 0, COLLATERAL))
+              await expect(market.connect(user).update(user.address, POSITION, 0, 0, COLLATERAL))
                 .to.emit(market, 'Updated')
                 .withArgs(user.address, 1, POSITION, 0, 0, COLLATERAL)
 
@@ -344,10 +344,10 @@ describe.only('Market', () => {
             })
 
             it('opens a second position (same version)', async () => {
-              await market.connect(user).update(POSITION, 0, 0, COLLATERAL)
+              await market.connect(user).update(user.address, POSITION, 0, 0, COLLATERAL)
 
               console.log((await market.position()).latestVersion)
-              await expect(market.connect(user).update(POSITION.mul(2), 0, 0, COLLATERAL))
+              await expect(market.connect(user).update(user.address, POSITION.mul(2), 0, 0, COLLATERAL))
                 .to.emit(market, 'Updated')
                 .withArgs(user.address, 1, POSITION.mul(2), 0, 0, COLLATERAL)
 
@@ -383,9 +383,9 @@ describe.only('Market', () => {
             })
 
             it('opens a second position and settles (same version)', async () => {
-              await market.connect(user).update(POSITION, 0, 0, COLLATERAL)
+              await market.connect(user).update(user.address, POSITION, 0, 0, COLLATERAL)
 
-              await expect(market.connect(user).update(POSITION.mul(2), 0, 0, COLLATERAL))
+              await expect(market.connect(user).update(user.address, POSITION.mul(2), 0, 0, COLLATERAL))
                 .to.emit(market, 'Updated')
                 .withArgs(user.address, 1, POSITION.mul(2), 0, 0, COLLATERAL)
 
@@ -427,13 +427,13 @@ describe.only('Market', () => {
             })
 
             it('opens a second position (next version)', async () => {
-              await market.connect(user).update(POSITION, 0, 0, COLLATERAL)
+              await market.connect(user).update(user.address, POSITION, 0, 0, COLLATERAL)
 
               await oracle.mock.currentVersion.withArgs().returns(ORACLE_VERSION_2)
               await oracle.mock.atVersion.withArgs(2).returns(ORACLE_VERSION_2)
               await oracle.mock.sync.withArgs().returns(ORACLE_VERSION_2)
 
-              await expect(market.connect(user).update(POSITION.mul(2), 0, 0, COLLATERAL))
+              await expect(market.connect(user).update(user.address, POSITION.mul(2), 0, 0, COLLATERAL))
                 .to.emit(market, 'Updated')
                 .withArgs(user.address, 2, POSITION.mul(2), 0, 0, COLLATERAL)
 
@@ -469,13 +469,13 @@ describe.only('Market', () => {
             })
 
             it('opens a second position and settles (next version)', async () => {
-              await market.connect(user).update(POSITION, 0, 0, COLLATERAL)
+              await market.connect(user).update(user.address, POSITION, 0, 0, COLLATERAL)
 
               await oracle.mock.currentVersion.withArgs().returns(ORACLE_VERSION_2)
               await oracle.mock.atVersion.withArgs(2).returns(ORACLE_VERSION_2)
               await oracle.mock.sync.withArgs().returns(ORACLE_VERSION_2)
 
-              await expect(market.connect(user).update(POSITION.mul(2), 0, 0, COLLATERAL))
+              await expect(market.connect(user).update(user.address, POSITION.mul(2), 0, 0, COLLATERAL))
                 .to.emit(market, 'Updated')
                 .withArgs(user.address, 2, POSITION.mul(2), 0, 0, COLLATERAL)
 
@@ -517,7 +517,7 @@ describe.only('Market', () => {
             })
 
             it('opens the position and settles later', async () => {
-              await expect(market.connect(user).update(POSITION, 0, 0, COLLATERAL))
+              await expect(market.connect(user).update(user.address, POSITION, 0, 0, COLLATERAL))
                 .to.emit(market, 'Updated')
                 .withArgs(user.address, 1, POSITION, 0, 0, COLLATERAL)
 
@@ -564,11 +564,11 @@ describe.only('Market', () => {
           context('close', async () => {
             beforeEach(async () => {
               await dsu.mock.transferFrom.withArgs(user.address, market.address, COLLATERAL.mul(1e12)).returns(true)
-              await market.connect(user).update(POSITION, 0, 0, COLLATERAL)
+              await market.connect(user).update(user.address, POSITION, 0, 0, COLLATERAL)
             })
 
             it('closes the position', async () => {
-              await expect(market.connect(user).update(0, 0, 0, COLLATERAL))
+              await expect(market.connect(user).update(user.address, 0, 0, 0, COLLATERAL))
                 .to.emit(market, 'Updated')
                 .withArgs(user.address, 1, 0, 0, 0, COLLATERAL)
 
@@ -604,7 +604,7 @@ describe.only('Market', () => {
             })
 
             it('closes the position partially', async () => {
-              await expect(market.connect(user).update(POSITION.div(2), 0, 0, COLLATERAL))
+              await expect(market.connect(user).update(user.address, POSITION.div(2), 0, 0, COLLATERAL))
                 .to.emit(market, 'Updated')
                 .withArgs(user.address, 1, POSITION.div(2), 0, 0, COLLATERAL)
 
@@ -649,7 +649,7 @@ describe.only('Market', () => {
               })
 
               it('closes the position', async () => {
-                await expect(market.connect(user).update(0, 0, 0, COLLATERAL))
+                await expect(market.connect(user).update(user.address, 0, 0, 0, COLLATERAL))
                   .to.emit(market, 'Updated')
                   .withArgs(user.address, 2, 0, 0, 0, COLLATERAL)
 
@@ -685,7 +685,7 @@ describe.only('Market', () => {
               })
 
               it('closes the position and settles', async () => {
-                await expect(market.connect(user).update(0, 0, 0, COLLATERAL))
+                await expect(market.connect(user).update(user.address, 0, 0, 0, COLLATERAL))
                   .to.emit(market, 'Updated')
                   .withArgs(user.address, 2, 0, 0, 0, COLLATERAL)
 
@@ -727,9 +727,9 @@ describe.only('Market', () => {
               })
 
               it('closes a second position (same version)', async () => {
-                await market.connect(user).update(POSITION.div(2), 0, 0, COLLATERAL)
+                await market.connect(user).update(user.address, POSITION.div(2), 0, 0, COLLATERAL)
 
-                await expect(market.connect(user).update(0, 0, 0, COLLATERAL))
+                await expect(market.connect(user).update(user.address, 0, 0, 0, COLLATERAL))
                   .to.emit(market, 'Updated')
                   .withArgs(user.address, 2, 0, 0, 0, COLLATERAL)
 
@@ -765,9 +765,9 @@ describe.only('Market', () => {
               })
 
               it('closes a second position and settles (same version)', async () => {
-                await market.connect(user).update(POSITION.div(2), 0, 0, COLLATERAL)
+                await market.connect(user).update(user.address, POSITION.div(2), 0, 0, COLLATERAL)
 
-                await expect(market.connect(user).update(0, 0, 0, COLLATERAL))
+                await expect(market.connect(user).update(user.address, 0, 0, 0, COLLATERAL))
                   .to.emit(market, 'Updated')
                   .withArgs(user.address, 2, 0, 0, 0, COLLATERAL)
 
@@ -809,13 +809,13 @@ describe.only('Market', () => {
               })
 
               it('closes a second position (next version)', async () => {
-                await market.connect(user).update(POSITION.div(2), 0, 0, COLLATERAL)
+                await market.connect(user).update(user.address, POSITION.div(2), 0, 0, COLLATERAL)
 
                 await oracle.mock.currentVersion.withArgs().returns(ORACLE_VERSION_3)
                 await oracle.mock.atVersion.withArgs(3).returns(ORACLE_VERSION_3)
                 await oracle.mock.sync.withArgs().returns(ORACLE_VERSION_3)
 
-                await expect(market.connect(user).update(0, 0, 0, COLLATERAL))
+                await expect(market.connect(user).update(user.address, 0, 0, 0, COLLATERAL))
                   .to.emit(market, 'Updated')
                   .withArgs(user.address, 3, 0, 0, 0, COLLATERAL)
 
@@ -851,13 +851,13 @@ describe.only('Market', () => {
               })
 
               it('closes a second position and settles (next version)', async () => {
-                await market.connect(user).update(POSITION.div(2), 0, 0, COLLATERAL)
+                await market.connect(user).update(user.address, POSITION.div(2), 0, 0, COLLATERAL)
 
                 await oracle.mock.currentVersion.withArgs().returns(ORACLE_VERSION_3)
                 await oracle.mock.atVersion.withArgs(3).returns(ORACLE_VERSION_3)
                 await oracle.mock.sync.withArgs().returns(ORACLE_VERSION_3)
 
-                await expect(market.connect(user).update(0, 0, 0, COLLATERAL))
+                await expect(market.connect(user).update(user.address, 0, 0, 0, COLLATERAL))
                   .to.emit(market, 'Updated')
                   .withArgs(user.address, 3, 0, 0, 0, COLLATERAL)
 
@@ -899,7 +899,7 @@ describe.only('Market', () => {
               })
 
               it('closes the position and settles later', async () => {
-                await expect(market.connect(user).update(0, 0, 0, COLLATERAL))
+                await expect(market.connect(user).update(user.address, 0, 0, 0, COLLATERAL))
                   .to.emit(market, 'Updated')
                   .withArgs(user.address, 2, 0, 0, 0, COLLATERAL)
 
@@ -953,11 +953,11 @@ describe.only('Market', () => {
           context.only('open', async () => {
             beforeEach(async () => {
               await dsu.mock.transferFrom.withArgs(userB.address, market.address, COLLATERAL.mul(1e12)).returns(true)
-              await market.connect(userB).update(POSITION, 0, 0, COLLATERAL)
+              await market.connect(userB).update(userB.address, POSITION, 0, 0, COLLATERAL)
             })
 
             it('opens the position', async () => {
-              await expect(market.connect(user).update(0, POSITION, 0, COLLATERAL))
+              await expect(market.connect(user).update(user.address, 0, POSITION, 0, COLLATERAL))
                 .to.emit(market, 'Updated')
                 .withArgs(user.address, 1, 0, POSITION, 0, COLLATERAL)
 
@@ -993,7 +993,7 @@ describe.only('Market', () => {
             })
 
             it('opens the position and settles', async () => {
-              await expect(market.connect(user).update(0, POSITION, 0, COLLATERAL))
+              await expect(market.connect(user).update(user.address, 0, POSITION, 0, COLLATERAL))
                 .to.emit(market, 'Updated')
                 .withArgs(user.address, 1, 0, POSITION, 0, COLLATERAL)
 
@@ -1035,9 +1035,9 @@ describe.only('Market', () => {
             })
 
             it('opens a second position (same version)', async () => {
-              await market.connect(user).update(0, POSITION.div(2), 0, COLLATERAL)
+              await market.connect(user).update(user.address, 0, POSITION.div(2), 0, COLLATERAL)
 
-              await expect(market.connect(user).update(0, POSITION, 0, COLLATERAL))
+              await expect(market.connect(user).update(user.address, 0, POSITION, 0, COLLATERAL))
                 .to.emit(market, 'Updated')
                 .withArgs(user.address, 1, 0, POSITION, 0, COLLATERAL)
 
@@ -1073,9 +1073,9 @@ describe.only('Market', () => {
             })
 
             it('opens a second position and settles (same version)', async () => {
-              await market.connect(user).update(0, POSITION.div(2), 0, COLLATERAL)
+              await market.connect(user).update(user.address, 0, POSITION.div(2), 0, COLLATERAL)
 
-              await expect(market.connect(user).update(0, POSITION, 0, COLLATERAL))
+              await expect(market.connect(user).update(user.address, 0, POSITION, 0, COLLATERAL))
                 .to.emit(market, 'Updated')
                 .withArgs(user.address, 1, 0, POSITION, 0, COLLATERAL)
 
@@ -1117,13 +1117,13 @@ describe.only('Market', () => {
             })
 
             it('opens a second position (next version)', async () => {
-              await market.connect(user).update(0, POSITION.div(2), 0, COLLATERAL)
+              await market.connect(user).update(user.address, 0, POSITION.div(2), 0, COLLATERAL)
 
               await oracle.mock.currentVersion.withArgs().returns(ORACLE_VERSION_2)
               await oracle.mock.atVersion.withArgs(2).returns(ORACLE_VERSION_2)
               await oracle.mock.sync.withArgs().returns(ORACLE_VERSION_2)
 
-              await expect(market.connect(user).update(0, POSITION, 0, COLLATERAL))
+              await expect(market.connect(user).update(user.address, 0, POSITION, 0, COLLATERAL))
                 .to.emit(market, 'Updated')
                 .withArgs(user.address, 2, 0, POSITION, 0, COLLATERAL)
 
@@ -1165,13 +1165,13 @@ describe.only('Market', () => {
               const EXPECTED_FUNDING_FEE = EXPECTED_FUNDING.div(10)
               const EXPECTED_FUNDING_WITH_FEE = EXPECTED_FUNDING.sub(EXPECTED_FUNDING_FEE)
 
-              await market.connect(user).update(0, POSITION.div(2), 0, COLLATERAL)
+              await market.connect(user).update(user.address, 0, POSITION.div(2), 0, COLLATERAL)
 
               await oracle.mock.currentVersion.withArgs().returns(ORACLE_VERSION_2)
               await oracle.mock.atVersion.withArgs(2).returns(ORACLE_VERSION_2)
               await oracle.mock.sync.withArgs().returns(ORACLE_VERSION_2)
 
-              await expect(market.connect(user).update(0, POSITION, 0, COLLATERAL))
+              await expect(market.connect(user).update(user.address, 0, POSITION, 0, COLLATERAL))
                 .to.emit(market, 'Updated')
                 .withArgs(user.address, 2, 0, POSITION, 0, COLLATERAL)
 
@@ -1232,7 +1232,7 @@ describe.only('Market', () => {
               const EXPECTED_FUNDING_FEE = EXPECTED_FUNDING.div(10)
               const EXPECTED_FUNDING_WITH_FEE = EXPECTED_FUNDING.sub(EXPECTED_FUNDING_FEE)
 
-              await expect(market.connect(user).update(0, POSITION.div(2), 0, COLLATERAL))
+              await expect(market.connect(user).update(user.address, 0, POSITION.div(2), 0, COLLATERAL))
                 .to.emit(market, 'Updated')
                 .withArgs(user.address, 1, 0, POSITION.div(2), 0, COLLATERAL)
 
@@ -1304,7 +1304,7 @@ describe.only('Market', () => {
               await dsu.mock.transferFrom
                 .withArgs(user.address, market.address, COLLATERAL.add(TAKER_FEE).mul(1e12))
                 .returns(true)
-              await expect(market.connect(user).update(0, POSITION.div(2), 0, COLLATERAL))
+              await expect(market.connect(user).update(user.address, 0, POSITION.div(2), 0, COLLATERAL))
                 .to.emit(market, 'Updated')
                 .withArgs(user.address, 1, 0, POSITION.div(2), 0, COLLATERAL)
 
@@ -1382,7 +1382,7 @@ describe.only('Market', () => {
               await dsu.mock.transferFrom
                 .withArgs(user.address, market.address, COLLATERAL.add(TAKER_FEE).mul(1e12))
                 .returns(true)
-              await expect(market.connect(user).update(0, POSITION.div(2), 0, COLLATERAL))
+              await expect(market.connect(user).update(user.address, 0, POSITION.div(2), 0, COLLATERAL))
                 .to.emit(market, 'Updated')
                 .withArgs(user.address, 2, 0, POSITION.div(2), 0, COLLATERAL)
 
@@ -2002,7 +2002,7 @@ describe.only('Market', () => {
           it('reverts if can liquidate', async () => {
             await dsu.mock.transferFrom.withArgs(user.address, market.address, utils.parseEther('500')).returns(true)
             await expect(
-              market.connect(user).update(parse6decimal('1000'), 0, 0, parse6decimal('500')),
+              market.connect(user).update(user.address, parse6decimal('1000'), 0, 0, parse6decimal('500')),
             ).to.be.revertedWith('MarketInsufficientCollateralError()')
           })
 
@@ -2014,14 +2014,16 @@ describe.only('Market', () => {
               minCollateral: parse6decimal('500'),
               paused: true,
             })
-            await expect(market.connect(user).update(POSITION, 0, 0, COLLATERAL)).to.be.revertedWith('PausedError()')
+            await expect(market.connect(user).update(user.address, POSITION, 0, 0, COLLATERAL)).to.be.revertedWith(
+              'PausedError()',
+            )
           })
 
           it('reverts if over maker limit', async () => {
             const marketParameter = { ...(await market.parameter()) }
             marketParameter.makerLimit = POSITION.div(2)
             await market.updateParameter(marketParameter)
-            await expect(market.connect(user).update(POSITION, 0, 0, COLLATERAL)).to.be.revertedWith(
+            await expect(market.connect(user).update(user.address, POSITION, 0, 0, COLLATERAL)).to.be.revertedWith(
               'MarketMakerOverLimitError()',
             )
           })
@@ -2030,7 +2032,7 @@ describe.only('Market', () => {
             const marketParameter = { ...(await market.parameter()) }
             marketParameter.closed = true
             await market.updateParameter(marketParameter)
-            await expect(market.connect(user).update(POSITION, 0, 0, COLLATERAL)).to.be.revertedWith(
+            await expect(market.connect(user).update(user.address, POSITION, 0, 0, COLLATERAL)).to.be.revertedWith(
               'MarketClosedError()',
             )
           })
@@ -2895,6 +2897,7 @@ describe.only('Market', () => {
         //TODO: liquidiation
         //TODO: shortfall
         //TODO: socialization
+        //TODO: operator
       })
 
       // TODO: short market
