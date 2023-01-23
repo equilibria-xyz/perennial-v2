@@ -37,6 +37,11 @@ export interface Version {
   shortReward: Accumulator
 }
 
+export interface Fee {
+  protocol: BigNumberish
+  market: BigNumberish
+}
+
 export function expectAccountEq(a: Account, b: Account): void {
   expect(a.latestVersion).to.equal(b.latestVersion)
   expect(a.maker).to.equal(b.maker)
@@ -67,6 +72,11 @@ export function expectVersionEq(a: Version, b: Version): void {
   expect(a.makerReward._value).to.equal(b.makerReward._value)
   expect(a.longReward._value).to.equal(b.longReward._value)
   expect(a.shortReward._value).to.equal(b.shortReward._value)
+}
+
+export function expectFeeEq(a: Fee, b: Fee): void {
+  expect(a.protocol).to.equal(b.protocol)
+  expect(a.market).to.equal(b.market)
 }
 
 export function parse6decimal(amount: string): BigNumber {

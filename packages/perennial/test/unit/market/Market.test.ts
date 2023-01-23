@@ -14,7 +14,13 @@ import {
   Factory__factory,
   IERC20Metadata__factory,
 } from '../../../types/generated'
-import { expectAccountEq, expectPositionEq, expectVersionEq, parse6decimal } from '../../../../common/testutil/types'
+import {
+  expectAccountEq,
+  expectFeeEq,
+  expectPositionEq,
+  expectVersionEq,
+  parse6decimal,
+} from '../../../../common/testutil/types'
 import { IMarket, MarketParameterStruct } from '../../../types/generated/contracts/Market'
 
 const { ethers } = HRE
@@ -260,7 +266,6 @@ describe.only('Market', () => {
         })
 
         context('make position', async () => {
-          //TODO: check fees
           //TODO: non-zero reward
 
           context('open', async () => {
@@ -948,8 +953,7 @@ describe.only('Market', () => {
           })
         })
 
-        context('long position', async () => {
-          //TODO: check fees
+        context.only('long position', async () => {
           //TODO: non-zero reward
 
           beforeEach(async () => {
@@ -1229,6 +1233,10 @@ describe.only('Market', () => {
                 longReward: { _value: 0 },
                 shortReward: { _value: 0 },
               })
+              expectFeeEq(await market.fee(), {
+                protocol: EXPECTED_FUNDING_FEE.div(2),
+                market: EXPECTED_FUNDING_FEE.div(2),
+              })
             })
 
             it('opens the position and settles later', async () => {
@@ -1291,6 +1299,10 @@ describe.only('Market', () => {
                 makerReward: { _value: 0 },
                 longReward: { _value: 0 },
                 shortReward: { _value: 0 },
+              })
+              expectFeeEq(await market.fee(), {
+                protocol: EXPECTED_FUNDING_FEE.div(2),
+                market: EXPECTED_FUNDING_FEE.div(2),
               })
             })
 
@@ -1363,6 +1375,10 @@ describe.only('Market', () => {
                 makerReward: { _value: 0 },
                 longReward: { _value: 0 },
                 shortReward: { _value: 0 },
+              })
+              expectFeeEq(await market.fee(), {
+                protocol: EXPECTED_FUNDING_FEE.add(TAKER_FEE).div(2), // no makers yet, taker fee is forwarded
+                market: EXPECTED_FUNDING_FEE.add(TAKER_FEE).div(2),
               })
             })
 
@@ -1441,6 +1457,10 @@ describe.only('Market', () => {
                 makerReward: { _value: 0 },
                 longReward: { _value: 0 },
                 shortReward: { _value: 0 },
+              })
+              expectFeeEq(await market.fee(), {
+                protocol: EXPECTED_FUNDING_FEE.div(2),
+                market: EXPECTED_FUNDING_FEE.div(2),
               })
             })
           })
@@ -1729,6 +1749,10 @@ describe.only('Market', () => {
                   longReward: { _value: 0 },
                   shortReward: { _value: 0 },
                 })
+                expectFeeEq(await market.fee(), {
+                  protocol: EXPECTED_FUNDING_FEE.div(2),
+                  market: EXPECTED_FUNDING_FEE.div(2),
+                })
               })
 
               it('closes a second position (next version)', async () => {
@@ -1793,6 +1817,10 @@ describe.only('Market', () => {
                   makerReward: { _value: 0 },
                   longReward: { _value: 0 },
                   shortReward: { _value: 0 },
+                })
+                expectFeeEq(await market.fee(), {
+                  protocol: EXPECTED_FUNDING_FEE.div(2),
+                  market: EXPECTED_FUNDING_FEE.div(2),
                 })
               })
 
@@ -1876,6 +1904,10 @@ describe.only('Market', () => {
                   longReward: { _value: 0 },
                   shortReward: { _value: 0 },
                 })
+                expectFeeEq(await market.fee(), {
+                  protocol: EXPECTED_FUNDING_FEE_1.add(EXPECTED_FUNDING_FEE_2).div(2),
+                  market: EXPECTED_FUNDING_FEE_1.add(EXPECTED_FUNDING_FEE_2).div(2).add(1), // odd number
+                })
               })
 
               it('closes the position and settles later', async () => {
@@ -1938,6 +1970,10 @@ describe.only('Market', () => {
                   makerReward: { _value: 0 },
                   longReward: { _value: 0 },
                   shortReward: { _value: 0 },
+                })
+                expectFeeEq(await market.fee(), {
+                  protocol: EXPECTED_FUNDING_FEE.div(2),
+                  market: EXPECTED_FUNDING_FEE.div(2),
                 })
               })
 
@@ -2008,6 +2044,10 @@ describe.only('Market', () => {
                   makerReward: { _value: 0 },
                   longReward: { _value: 0 },
                   shortReward: { _value: 0 },
+                })
+                expectFeeEq(await market.fee(), {
+                  protocol: EXPECTED_FUNDING_FEE.div(2),
+                  market: EXPECTED_FUNDING_FEE.div(2),
                 })
               })
             })
@@ -2996,7 +3036,7 @@ describe.only('Market', () => {
           })
         })
 
-        //TODO: liquidiation
+        //TODO: liquidation
         //TODO: shortfall
         //TODO: socialization
         //TODO: operator
