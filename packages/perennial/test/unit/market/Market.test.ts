@@ -2365,7 +2365,7 @@ describe.only('Market', () => {
               })
             })
 
-            it.only('with partial socialization', async () => {
+            it('with partial socialization', async () => {
               await dsu.mock.transferFrom.withArgs(userC.address, market.address, COLLATERAL.mul(1e12)).returns(true)
               await market.connect(userC).update(userC.address, POSITION.div(4), 0, 0, COLLATERAL)
 
@@ -2531,7 +2531,127 @@ describe.only('Market', () => {
               })
             })
 
-            //TODO: shortfall
+            it('with shortfall', async () => {
+              await oracle.mock.currentVersion.withArgs().returns(ORACLE_VERSION_2)
+              await oracle.mock.atVersion.withArgs(2).returns(ORACLE_VERSION_2)
+              await oracle.mock.sync.withArgs().returns(ORACLE_VERSION_2)
+
+              await market.connect(user).settle(user.address)
+              await market.connect(user).settle(userB.address)
+
+              const EXPECTED_PNL = parse6decimal('80').mul(5)
+              const EXPECTED_LIQUIDATION_FEE = parse6decimal('60.9')
+
+              // rate * elapsed * utilization * maker * price
+              // ( 0.1 * 10^6 / 365 / 24 / 60 / 60 ) * 3600 * 5 * 203 = 8565
+              const EXPECTED_FUNDING_2 = BigNumber.from('11586')
+              const EXPECTED_FUNDING_FEE_2 = EXPECTED_FUNDING_2.div(10)
+              const EXPECTED_FUNDING_WITH_FEE_2 = EXPECTED_FUNDING_2.sub(EXPECTED_FUNDING_FEE_2)
+
+              const oracleVersionHigherPrice = {
+                price: parse6decimal('203'),
+                timestamp: TIMESTAMP + 7200,
+                version: 3,
+              }
+              await oracle.mock.currentVersion.withArgs().returns(oracleVersionHigherPrice)
+              await oracle.mock.atVersion.withArgs(3).returns(oracleVersionHigherPrice)
+              await oracle.mock.sync.withArgs().returns(oracleVersionHigherPrice)
+
+              await market.connect(user).settle(user.address)
+              await dsu.mock.transfer.withArgs(liquidator.address, EXPECTED_LIQUIDATION_FEE.mul(1e12)).returns(true)
+              await dsu.mock.balanceOf.withArgs(market.address).returns(COLLATERAL.mul(1e12))
+
+              await expect(market.connect(liquidator).settle(userB.address))
+                .to.emit(market, 'Liquidation')
+                .withArgs(userB.address, liquidator.address, EXPECTED_LIQUIDATION_FEE)
+
+              expectAccountEq(await market.accounts(user.address), {
+                latestVersion: 3,
+                maker: 0,
+                long: POSITION.div(2),
+                short: 0,
+                nextMaker: 0,
+                nextLong: POSITION.div(2),
+                nextShort: 0,
+                collateral: COLLATERAL.sub(EXPECTED_FUNDING).add(EXPECTED_PNL),
+                reward: 0,
+                liquidation: false,
+              })
+              expectAccountEq(await market.accounts(userB.address), {
+                latestVersion: 3,
+                maker: POSITION,
+                long: 0,
+                short: 0,
+                nextMaker: 0,
+                nextLong: 0,
+                nextShort: 0,
+                collateral: parse6decimal('450')
+                  .add(EXPECTED_FUNDING_WITH_FEE)
+                  .sub(EXPECTED_LIQUIDATION_FEE)
+                  .sub(EXPECTED_PNL)
+                  .sub(8), // loss of precision
+                reward: 0,
+                liquidation: true,
+              })
+              expectPositionEq(await market.position(), {
+                latestVersion: 3,
+                maker: POSITION,
+                long: POSITION.div(2),
+                short: 0,
+                makerNext: 0,
+                longNext: POSITION.div(2),
+                shortNext: 0,
+              })
+              expectVersionEq(await market.versions(3), {
+                makerValue: { _value: EXPECTED_FUNDING_WITH_FEE.sub(EXPECTED_PNL).div(10).sub(1) }, // loss of precision
+                longValue: { _value: EXPECTED_FUNDING.sub(EXPECTED_PNL).div(5).mul(-1) },
+                shortValue: { _value: 0 },
+                makerReward: { _value: 0 },
+                longReward: { _value: 0 },
+                shortReward: { _value: 0 },
+              })
+              expectFeeEq(await market.fee(), {
+                protocol: EXPECTED_FUNDING_FEE.div(2),
+                market: EXPECTED_FUNDING_FEE.div(2),
+              })
+
+              const oracleVersionHigherPrice2 = {
+                price: parse6decimal('203'),
+                timestamp: TIMESTAMP + 10800,
+                version: 4,
+              }
+              await oracle.mock.currentVersion.withArgs().returns(oracleVersionHigherPrice2)
+              await oracle.mock.atVersion.withArgs(4).returns(oracleVersionHigherPrice2)
+              await oracle.mock.sync.withArgs().returns(oracleVersionHigherPrice2)
+
+              const shortfall = parse6decimal('450')
+                .add(EXPECTED_FUNDING_WITH_FEE)
+                .add(EXPECTED_FUNDING_WITH_FEE_2)
+                .sub(EXPECTED_LIQUIDATION_FEE)
+                .sub(EXPECTED_PNL)
+                .sub(16) // loss of precision
+              console.log(shortfall)
+              await dsu.mock.transferFrom
+                .withArgs(liquidator.address, market.address, shortfall.mul(-1).mul(1e12))
+                .returns(true)
+              await factory.mock.operators.withArgs(userB.address, liquidator.address).returns(false)
+              await expect(market.connect(liquidator).update(userB.address, 0, 0, 0, 0))
+                .to.emit(market, 'Updated')
+                .withArgs(userB.address, 4, 0, 0, 0, 0)
+
+              expectAccountEq(await market.accounts(userB.address), {
+                latestVersion: 4,
+                maker: 0,
+                long: 0,
+                short: 0,
+                nextMaker: 0,
+                nextLong: 0,
+                nextShort: 0,
+                collateral: 0,
+                reward: 0,
+                liquidation: false,
+              })
+            })
           })
 
           context('closed', async () => {
@@ -2647,77 +2767,6 @@ describe.only('Market', () => {
         //TODO: short position
 
         //TODO: all position
-
-        describe('#closeAll', async () => {
-          it('closes maker side', async () => {
-            await market.connect(user).openMake(POSITION)
-
-            await oracle.mock.currentVersion.withArgs().returns(ORACLE_VERSION_2)
-            await oracle.mock.atVersion.withArgs(2).returns(ORACLE_VERSION_2)
-            await incentivizer.mock.sync.withArgs(ORACLE_VERSION_2).returns()
-            await oracle.mock.sync.withArgs().returns(ORACLE_VERSION_2)
-
-            await market.connect(user).settle()
-            await market.connect(user).settleAccount(user.address)
-
-            await market.connect(user).openMake(POSITION)
-
-            await market.connect(collateralSigner).closeAll(user.address)
-
-            expectPositionEq(await market.positionAtVersion(2), { maker: POSITION, taker: 0 })
-            expectPrePositionEq(await market['pre()'](), {
-              oracleVersion: 2,
-              openPosition: { maker: 0, taker: 0 },
-              closePosition: { maker: POSITION, taker: 0 },
-            })
-
-            expectPositionEq(await market.position(user.address), { maker: POSITION, taker: 0 })
-            expectPrePositionEq(await market['pre(address)'](user.address), {
-              oracleVersion: 2,
-              openPosition: { maker: 0, taker: 0 },
-              closePosition: { maker: POSITION, taker: 0 },
-            })
-            expect(await market.isLiquidating(user.address)).to.equal(true)
-            expect(await market['maintenance(address)'](user.address)).to.equal(0)
-          })
-
-          it('closes taker side', async () => {
-            await market.connect(userB).openMake(POSITION.mul(2))
-            await market.connect(user).openTake(POSITION)
-
-            await oracle.mock.currentVersion.withArgs().returns(ORACLE_VERSION_2)
-            await oracle.mock.atVersion.withArgs(2).returns(ORACLE_VERSION_2)
-            await incentivizer.mock.sync.withArgs(ORACLE_VERSION_2).returns()
-            await oracle.mock.sync.withArgs().returns(ORACLE_VERSION_2)
-
-            await market.connect(user).settle()
-            await market.connect(user).settleAccount(user.address)
-
-            await market.connect(user).openTake(POSITION)
-
-            await market.connect(collateralSigner).closeAll(user.address)
-
-            expectPositionEq(await market.positionAtVersion(2), { maker: POSITION.mul(2), taker: POSITION })
-            expectPrePositionEq(await market['pre()'](), {
-              oracleVersion: 2,
-              openPosition: { maker: 0, taker: 0 },
-              closePosition: { maker: 0, taker: POSITION },
-            })
-
-            expectPositionEq(await market.position(user.address), { maker: 0, taker: POSITION })
-            expectPrePositionEq(await market['pre(address)'](user.address), {
-              oracleVersion: 2,
-              openPosition: { maker: 0, taker: 0 },
-              closePosition: { maker: 0, taker: POSITION },
-            })
-            expect(await market.isLiquidating(user.address)).to.equal(true)
-            expect(await market['maintenance(address)'](user.address)).to.equal(0)
-          })
-
-          it('reverts if already initialized', async () => {
-            await expect(market.connect(user).closeAll(user.address)).to.be.revertedWith(`NotCollateralError()`)
-          })
-        })
 
         context('invariant violations', async () => {
           it('reverts if can liquidate', async () => {
