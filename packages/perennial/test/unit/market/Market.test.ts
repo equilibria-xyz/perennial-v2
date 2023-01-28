@@ -2657,6 +2657,7 @@ describe.only('Market', () => {
           context('closed', async () => {
             beforeEach(async () => {
               await market.connect(user).update(user.address, POSITION, 0, 0, COLLATERAL)
+              await dsu.mock.transferFrom.withArgs(userB.address, market.address, COLLATERAL.mul(1e12)).returns(true)
               await market.connect(userB).update(userB.address, 0, POSITION.div(2), 0, COLLATERAL)
 
               await oracle.mock.currentVersion.withArgs().returns(ORACLE_VERSION_2)
@@ -2668,98 +2669,83 @@ describe.only('Market', () => {
             })
 
             it('zeroes PnL and fees (price change)', async () => {
-              await collateral.mock.settleMarket.withArgs(EXPECTED_FUNDING_FEE).returns()
-              await collateral.mock.settleAccount.withArgs(user.address, EXPECTED_FUNDING_WITH_FEE).returns()
-              await collateral.mock.settleAccount.withArgs(userB.address, -1 * EXPECTED_FUNDING).returns()
-
-              await oracle.mock.currentVersion.withArgs().returns(ORACLE_VERSION_3)
-              await oracle.mock.atVersion.withArgs(3).returns(ORACLE_VERSION_3)
-              await incentivizer.mock.sync.withArgs(ORACLE_VERSION_3).returns()
-              await oracle.mock.sync.withArgs().returns(ORACLE_VERSION_3)
-
-              await expect(market.connect(owner).updateClosed(true))
-                .to.emit(market, 'ClosedUpdated')
-                .withArgs(true, 3)
-                .to.emit(market, 'Settle')
-                .withArgs(3, 3)
-              expect(await market.closed()).to.be.true
-
-              await expect(market.connect(user).settleAccount(user.address))
-                .to.emit(market, 'AccountSettle')
-                .withArgs(user.address, 3, 3)
-              await expect(market.connect(userB).settleAccount(userB.address))
-                .to.emit(market, 'AccountSettle')
-                .withArgs(userB.address, 3, 3)
+              const marketParameter = { ...(await market.parameter()) }
+              marketParameter.closed = true
+              await market.updateParameter(marketParameter)
 
               const oracleVersionHigherPrice_0 = {
-                price: utils.parseEther('125'),
+                price: parse6decimal('125'),
+                timestamp: TIMESTAMP + 7200,
+                version: 3,
+              }
+              const oracleVersionHigherPrice_1 = {
+                price: parse6decimal('128'),
                 timestamp: TIMESTAMP + 10800,
                 version: 4,
               }
-              const oracleVersionHigherPrice_1 = {
-                price: utils.parseEther('128'),
-                timestamp: TIMESTAMP + 10800,
-                version: 5,
-              }
               await oracle.mock.currentVersion.withArgs().returns(oracleVersionHigherPrice_0)
-              await oracle.mock.atVersion.withArgs(4).returns(oracleVersionHigherPrice_0)
-              await incentivizer.mock.sync.withArgs(oracleVersionHigherPrice_0).returns()
+              await oracle.mock.atVersion.withArgs(3).returns(oracleVersionHigherPrice_0)
 
               await oracle.mock.currentVersion.withArgs().returns(oracleVersionHigherPrice_1)
-              await oracle.mock.atVersion.withArgs(5).returns(oracleVersionHigherPrice_1)
-              await incentivizer.mock.sync.withArgs(oracleVersionHigherPrice_1).returns()
+              await oracle.mock.atVersion.withArgs(4).returns(oracleVersionHigherPrice_1)
               await oracle.mock.sync.withArgs().returns(oracleVersionHigherPrice_1)
 
-              await expect(market.connect(user).settle()).to.emit(market, 'Settle').withArgs(5, 5)
+              await market.connect(user).settle(user.address)
+              await market.connect(user).settle(userB.address)
 
-              expect(await market['latestVersion()']()).to.equal(5)
-              expectPositionEq(await market.positionAtVersion(3), { maker: POSITION, taker: POSITION.div(2) })
-              expectPositionEq(await market.positionAtVersion(5), { maker: POSITION, taker: POSITION.div(2) })
-              expectPrePositionEq(await market['pre()'](), {
-                oracleVersion: 0,
-                openPosition: { maker: 0, taker: 0 },
-                closePosition: { maker: 0, taker: 0 },
+              expectAccountEq(await market.accounts(user.address), {
+                latestVersion: 4,
+                maker: POSITION,
+                long: 0,
+                short: 0,
+                nextMaker: POSITION,
+                nextLong: 0,
+                nextShort: 0,
+                collateral: COLLATERAL,
+                reward: 0,
+                liquidation: false,
               })
-              expectPositionEq(await market.valueAtVersion(3), {
-                maker: EXPECTED_FUNDING_WITH_FEE / 10,
-                taker: (-1 * EXPECTED_FUNDING) / 5,
+              expectAccountEq(await market.accounts(userB.address), {
+                latestVersion: 4,
+                maker: 0,
+                long: POSITION.div(2),
+                short: 0,
+                nextMaker: 0,
+                nextLong: POSITION.div(2),
+                nextShort: 0,
+                collateral: COLLATERAL,
+                reward: 0,
+                liquidation: false,
               })
-              expectPositionEq(await market.shareAtVersion(3), {
-                maker: utils.parseEther('0.1').mul(3600),
-                taker: utils.parseEther('0.2').mul(3600),
+              expectPositionEq(await market.position(), {
+                latestVersion: 4,
+                maker: POSITION,
+                long: POSITION.div(2),
+                short: 0,
+                makerNext: POSITION,
+                longNext: POSITION.div(2),
+                shortNext: 0,
               })
-              expectPositionEq(await market.valueAtVersion(5), {
-                maker: EXPECTED_FUNDING_WITH_FEE / 10,
-                taker: (-1 * EXPECTED_FUNDING) / 5,
+              expectVersionEq(await market.versions(3), {
+                makerValue: { _value: 0 },
+                longValue: { _value: 0 },
+                shortValue: { _value: 0 },
+                makerReward: { _value: 0 },
+                longReward: { _value: 0 },
+                shortReward: { _value: 0 },
               })
-              expectPositionEq(await market.shareAtVersion(5), {
-                maker: utils.parseEther('0.1').mul(7200),
-                taker: utils.parseEther('0.2').mul(7200),
+              expectVersionEq(await market.versions(4), {
+                makerValue: { _value: 0 },
+                longValue: { _value: 0 },
+                shortValue: { _value: 0 },
+                makerReward: { _value: 0 },
+                longReward: { _value: 0 },
+                shortReward: { _value: 0 },
               })
-
-              await expect(market.connect(user).settleAccount(user.address))
-                .to.emit(market, 'AccountSettle')
-                .withArgs(user.address, 5, 5)
-
-              expectPositionEq(await market.position(user.address), { maker: POSITION, taker: 0 })
-              expectPrePositionEq(await market['pre(address)'](user.address), {
-                oracleVersion: 0,
-                openPosition: { maker: 0, taker: 0 },
-                closePosition: { maker: 0, taker: 0 },
+              expectFeeEq(await market.fee(), {
+                protocol: 0,
+                market: 0,
               })
-              expect(await market['latestVersion(address)'](user.address)).to.equal(5)
-
-              await expect(market.connect(userB).settleAccount(userB.address))
-                .to.emit(market, 'AccountSettle')
-                .withArgs(userB.address, 5, 5)
-
-              expectPositionEq(await market.position(userB.address), { maker: 0, taker: POSITION.div(2) })
-              expectPrePositionEq(await market['pre(address)'](userB.address), {
-                oracleVersion: 0,
-                openPosition: { maker: 0, taker: 0 },
-                closePosition: { maker: 0, taker: 0 },
-              })
-              expect(await market['latestVersion(address)'](userB.address)).to.equal(5)
             })
           })
         })
