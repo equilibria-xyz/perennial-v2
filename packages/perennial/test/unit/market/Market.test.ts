@@ -84,9 +84,9 @@ describe.only('Market', () => {
         targetRate: parse6decimal('0.10'),
         targetUtilization: parse6decimal('1'),
       },
-      makerRewardRate: 0,
-      longRewardRate: 0,
-      shortRewardRate: 0,
+      makerRewardRate: parse6decimal('0.3'),
+      longRewardRate: parse6decimal('0.2'),
+      shortRewardRate: parse6decimal('0.1'),
       oracle: oracle.address,
       payoff: {
         provider: constants.AddressZero,
@@ -215,7 +215,7 @@ describe.only('Market', () => {
       })
     })
 
-    describe('#update', async () => {
+    describe('#update / #settle', async () => {
       describe.only('long market', async () => {
         const ORACLE_VERSION = 1
         const TIMESTAMP = 1636401093
@@ -251,17 +251,13 @@ describe.only('Market', () => {
           version: ORACLE_VERSION + 3,
         }
 
-        const ORACLE_VERSION_5 = {
-          price: PRICE,
-          timestamp: TIMESTAMP + 14400,
-          version: ORACLE_VERSION + 4,
-        }
-
         // rate * elapsed * utilization * maker * price
         // ( 0.1 * 10^6 / 365 / 24 / 60 / 60 ) * 3600 * 5 * 123 = 7020
         const EXPECTED_FUNDING = ethers.BigNumber.from('7020')
         const EXPECTED_FUNDING_FEE = EXPECTED_FUNDING.div(10)
         const EXPECTED_FUNDING_WITH_FEE = EXPECTED_FUNDING.sub(EXPECTED_FUNDING_FEE)
+
+        const EXPECTED_REWARD = parse6decimal('0.1').mul(3600)
 
         beforeEach(async () => {
           await oracle.mock.atVersion.withArgs(0).returns(ORACLE_VERSION_0)
@@ -280,8 +276,6 @@ describe.only('Market', () => {
         })
 
         context('make position', async () => {
-          //TODO: non-zero reward
-
           context('open', async () => {
             beforeEach(async () => {
               await dsu.mock.transferFrom.withArgs(user.address, market.address, COLLATERAL.mul(1e12)).returns(true)
@@ -516,7 +510,7 @@ describe.only('Market', () => {
                 nextLong: 0,
                 nextShort: 0,
                 collateral: COLLATERAL,
-                reward: 0,
+                reward: EXPECTED_REWARD.mul(3),
                 liquidation: false,
               })
               expectPositionEq(await market.position(), {
@@ -532,7 +526,7 @@ describe.only('Market', () => {
                 makerValue: { _value: 0 },
                 longValue: { _value: 0 },
                 shortValue: { _value: 0 },
-                makerReward: { _value: 0 },
+                makerReward: { _value: EXPECTED_REWARD.mul(3).div(10) },
                 longReward: { _value: 0 },
                 shortReward: { _value: 0 },
               })
@@ -560,7 +554,7 @@ describe.only('Market', () => {
                 nextLong: 0,
                 nextShort: 0,
                 collateral: COLLATERAL,
-                reward: 0,
+                reward: EXPECTED_REWARD.mul(3),
                 liquidation: false,
               })
               expectPositionEq(await market.position(), {
@@ -576,7 +570,7 @@ describe.only('Market', () => {
                 makerValue: { _value: 0 },
                 longValue: { _value: 0 },
                 shortValue: { _value: 0 },
-                makerReward: { _value: 0 },
+                makerReward: { _value: EXPECTED_REWARD.mul(3).div(10) },
                 longReward: { _value: 0 },
                 shortReward: { _value: 0 },
               })
@@ -726,7 +720,7 @@ describe.only('Market', () => {
                   nextLong: 0,
                   nextShort: 0,
                   collateral: COLLATERAL,
-                  reward: 0,
+                  reward: EXPECTED_REWARD.mul(3),
                   liquidation: false,
                 })
                 expectPositionEq(await market.position(), {
@@ -742,7 +736,7 @@ describe.only('Market', () => {
                   makerValue: { _value: 0 },
                   longValue: { _value: 0 },
                   shortValue: { _value: 0 },
-                  makerReward: { _value: 0 },
+                  makerReward: { _value: EXPECTED_REWARD.mul(3).div(10) },
                   longReward: { _value: 0 },
                   shortReward: { _value: 0 },
                 })
@@ -808,7 +802,7 @@ describe.only('Market', () => {
                   nextLong: 0,
                   nextShort: 0,
                   collateral: COLLATERAL,
-                  reward: 0,
+                  reward: EXPECTED_REWARD.mul(3),
                   liquidation: false,
                 })
                 expectPositionEq(await market.position(), {
@@ -824,7 +818,7 @@ describe.only('Market', () => {
                   makerValue: { _value: 0 },
                   longValue: { _value: 0 },
                   shortValue: { _value: 0 },
-                  makerReward: { _value: 0 },
+                  makerReward: { _value: EXPECTED_REWARD.mul(3).div(10) },
                   longReward: { _value: 0 },
                   shortReward: { _value: 0 },
                 })
@@ -850,7 +844,7 @@ describe.only('Market', () => {
                   nextLong: 0,
                   nextShort: 0,
                   collateral: COLLATERAL,
-                  reward: 0,
+                  reward: EXPECTED_REWARD.mul(3),
                   liquidation: false,
                 })
                 expectPositionEq(await market.position(), {
@@ -866,7 +860,7 @@ describe.only('Market', () => {
                   makerValue: { _value: 0 },
                   longValue: { _value: 0 },
                   shortValue: { _value: 0 },
-                  makerReward: { _value: 0 },
+                  makerReward: { _value: EXPECTED_REWARD.mul(3).div(10) },
                   longReward: { _value: 0 },
                   shortReward: { _value: 0 },
                 })
@@ -898,7 +892,7 @@ describe.only('Market', () => {
                   nextLong: 0,
                   nextShort: 0,
                   collateral: COLLATERAL,
-                  reward: 0,
+                  reward: EXPECTED_REWARD.mul(3).mul(2),
                   liquidation: false,
                 })
                 expectPositionEq(await market.position(), {
@@ -914,7 +908,7 @@ describe.only('Market', () => {
                   makerValue: { _value: 0 },
                   longValue: { _value: 0 },
                   shortValue: { _value: 0 },
-                  makerReward: { _value: 0 },
+                  makerReward: { _value: EXPECTED_REWARD.mul(3).div(10).add(EXPECTED_REWARD.mul(3).div(5)) },
                   longReward: { _value: 0 },
                   shortReward: { _value: 0 },
                 })
@@ -942,7 +936,7 @@ describe.only('Market', () => {
                   nextLong: 0,
                   nextShort: 0,
                   collateral: COLLATERAL,
-                  reward: 0,
+                  reward: EXPECTED_REWARD.mul(3),
                   liquidation: false,
                 })
                 expectPositionEq(await market.position(), {
@@ -958,7 +952,7 @@ describe.only('Market', () => {
                   makerValue: { _value: 0 },
                   longValue: { _value: 0 },
                   shortValue: { _value: 0 },
-                  makerReward: { _value: 0 },
+                  makerReward: { _value: EXPECTED_REWARD.mul(3).div(10) },
                   longReward: { _value: 0 },
                   shortReward: { _value: 0 },
                 })
@@ -968,8 +962,6 @@ describe.only('Market', () => {
         })
 
         context('long position', async () => {
-          //TODO: non-zero reward
-
           beforeEach(async () => {
             await dsu.mock.transferFrom.withArgs(user.address, market.address, COLLATERAL.mul(1e12)).returns(true)
           })
@@ -1216,7 +1208,7 @@ describe.only('Market', () => {
                   nextLong: POSITION,
                   nextShort: 0,
                   collateral: COLLATERAL.sub(EXPECTED_FUNDING),
-                  reward: 0,
+                  reward: EXPECTED_REWARD.mul(2),
                   liquidation: false,
                 })
                 expectAccountEq(await market.accounts(userB.address), {
@@ -1228,7 +1220,7 @@ describe.only('Market', () => {
                   nextLong: 0,
                   nextShort: 0,
                   collateral: COLLATERAL.add(EXPECTED_FUNDING_WITH_FEE).sub(8), // loss of precision
-                  reward: 0,
+                  reward: EXPECTED_REWARD.mul(3),
                   liquidation: false,
                 })
                 expectPositionEq(await market.position(), {
@@ -1244,8 +1236,8 @@ describe.only('Market', () => {
                   makerValue: { _value: EXPECTED_FUNDING_WITH_FEE.div(10) },
                   longValue: { _value: EXPECTED_FUNDING.div(5).mul(-1) },
                   shortValue: { _value: 0 },
-                  makerReward: { _value: 0 },
-                  longReward: { _value: 0 },
+                  makerReward: { _value: EXPECTED_REWARD.mul(3).div(10) },
+                  longReward: { _value: EXPECTED_REWARD.mul(2).div(5) },
                   shortReward: { _value: 0 },
                 })
                 expectFeeEq(await market.fee(), {
@@ -1283,7 +1275,7 @@ describe.only('Market', () => {
                   nextLong: POSITION.div(2),
                   nextShort: 0,
                   collateral: COLLATERAL.sub(EXPECTED_FUNDING),
-                  reward: 0,
+                  reward: EXPECTED_REWARD.mul(2),
                   liquidation: false,
                 })
                 expectAccountEq(await market.accounts(userB.address), {
@@ -1295,7 +1287,7 @@ describe.only('Market', () => {
                   nextLong: 0,
                   nextShort: 0,
                   collateral: COLLATERAL.add(EXPECTED_FUNDING_WITH_FEE).sub(8), // loss of precision
-                  reward: 0,
+                  reward: EXPECTED_REWARD.mul(3),
                   liquidation: false,
                 })
                 expectPositionEq(await market.position(), {
@@ -1311,8 +1303,8 @@ describe.only('Market', () => {
                   makerValue: { _value: EXPECTED_FUNDING_WITH_FEE.div(10) },
                   longValue: { _value: EXPECTED_FUNDING.div(5).mul(-1) },
                   shortValue: { _value: 0 },
-                  makerReward: { _value: 0 },
-                  longReward: { _value: 0 },
+                  makerReward: { _value: EXPECTED_REWARD.mul(3).div(10) },
+                  longReward: { _value: EXPECTED_REWARD.mul(2).div(5) },
                   shortReward: { _value: 0 },
                 })
                 expectFeeEq(await market.fee(), {
@@ -1359,7 +1351,7 @@ describe.only('Market', () => {
                   nextLong: POSITION.div(2),
                   nextShort: 0,
                   collateral: COLLATERAL.sub(EXPECTED_FUNDING),
-                  reward: 0,
+                  reward: EXPECTED_REWARD.mul(2),
                   liquidation: false,
                 })
                 expectAccountEq(await market.accounts(userB.address), {
@@ -1371,7 +1363,7 @@ describe.only('Market', () => {
                   nextLong: 0,
                   nextShort: 0,
                   collateral: COLLATERAL.add(EXPECTED_FUNDING_WITH_FEE).sub(8), // loss of precision
-                  reward: 0,
+                  reward: EXPECTED_REWARD.mul(3),
                   liquidation: false,
                 })
                 expectPositionEq(await market.position(), {
@@ -1387,8 +1379,8 @@ describe.only('Market', () => {
                   makerValue: { _value: EXPECTED_FUNDING_WITH_FEE.div(10) },
                   longValue: { _value: EXPECTED_FUNDING.div(5).mul(-1) },
                   shortValue: { _value: 0 },
-                  makerReward: { _value: 0 },
-                  longReward: { _value: 0 },
+                  makerReward: { _value: EXPECTED_REWARD.mul(3).div(10) },
+                  longReward: { _value: EXPECTED_REWARD.mul(2).div(5) },
                   shortReward: { _value: 0 },
                 })
                 expectFeeEq(await market.fee(), {
@@ -1441,7 +1433,7 @@ describe.only('Market', () => {
                   nextLong: POSITION.div(2),
                   nextShort: 0,
                   collateral: COLLATERAL.sub(EXPECTED_FUNDING),
-                  reward: 0,
+                  reward: EXPECTED_REWARD.mul(2),
                   liquidation: false,
                 })
                 expectAccountEq(await market.accounts(userB.address), {
@@ -1453,7 +1445,7 @@ describe.only('Market', () => {
                   nextLong: 0,
                   nextShort: 0,
                   collateral: COLLATERAL.add(TAKER_FEE.add(EXPECTED_FUNDING_WITH_FEE)).sub(8), // loss of precision
-                  reward: 0,
+                  reward: EXPECTED_REWARD.mul(3).mul(2),
                   liquidation: false,
                 })
                 expectPositionEq(await market.position(), {
@@ -1469,8 +1461,8 @@ describe.only('Market', () => {
                   makerValue: { _value: TAKER_FEE.add(EXPECTED_FUNDING_WITH_FEE).div(10) },
                   longValue: { _value: EXPECTED_FUNDING.div(5).mul(-1) },
                   shortValue: { _value: 0 },
-                  makerReward: { _value: 0 },
-                  longReward: { _value: 0 },
+                  makerReward: { _value: EXPECTED_REWARD.mul(3).mul(2).div(10) },
+                  longReward: { _value: EXPECTED_REWARD.mul(2).div(5) },
                   shortReward: { _value: 0 },
                 })
                 expectFeeEq(await market.fee(), {
@@ -1625,7 +1617,7 @@ describe.only('Market', () => {
                     nextLong: 0,
                     nextShort: 0,
                     collateral: COLLATERAL.sub(EXPECTED_FUNDING),
-                    reward: 0,
+                    reward: EXPECTED_REWARD.mul(2),
                     liquidation: false,
                   })
                   expectAccountEq(await market.accounts(userB.address), {
@@ -1637,7 +1629,7 @@ describe.only('Market', () => {
                     nextLong: 0,
                     nextShort: 0,
                     collateral: COLLATERAL.add(EXPECTED_FUNDING_WITH_FEE).sub(8), // loss of precision
-                    reward: 0,
+                    reward: EXPECTED_REWARD.mul(3),
                     liquidation: false,
                   })
                   expectPositionEq(await market.position(), {
@@ -1653,8 +1645,8 @@ describe.only('Market', () => {
                     makerValue: { _value: EXPECTED_FUNDING_WITH_FEE.div(10) },
                     longValue: { _value: EXPECTED_FUNDING.div(5).mul(-1) },
                     shortValue: { _value: 0 },
-                    makerReward: { _value: 0 },
-                    longReward: { _value: 0 },
+                    makerReward: { _value: EXPECTED_REWARD.mul(3).div(10) },
+                    longReward: { _value: EXPECTED_REWARD.mul(2).div(5) },
                     shortReward: { _value: 0 },
                   })
                 })
@@ -1720,7 +1712,7 @@ describe.only('Market', () => {
                     nextLong: 0,
                     nextShort: 0,
                     collateral: COLLATERAL.sub(EXPECTED_FUNDING),
-                    reward: 0,
+                    reward: EXPECTED_REWARD.mul(2),
                     liquidation: false,
                   })
                   expectAccountEq(await market.accounts(userB.address), {
@@ -1732,7 +1724,7 @@ describe.only('Market', () => {
                     nextLong: 0,
                     nextShort: 0,
                     collateral: COLLATERAL.add(EXPECTED_FUNDING_WITH_FEE).sub(8), // loss of precision
-                    reward: 0,
+                    reward: EXPECTED_REWARD.mul(3),
                     liquidation: false,
                   })
                   expectPositionEq(await market.position(), {
@@ -1748,8 +1740,8 @@ describe.only('Market', () => {
                     makerValue: { _value: EXPECTED_FUNDING_WITH_FEE.div(10) },
                     longValue: { _value: EXPECTED_FUNDING.div(5).mul(-1) },
                     shortValue: { _value: 0 },
-                    makerReward: { _value: 0 },
-                    longReward: { _value: 0 },
+                    makerReward: { _value: EXPECTED_REWARD.mul(3).div(10) },
+                    longReward: { _value: EXPECTED_REWARD.mul(2).div(5) },
                     shortReward: { _value: 0 },
                   })
                   expectFeeEq(await market.fee(), {
@@ -1783,7 +1775,7 @@ describe.only('Market', () => {
                     nextLong: 0,
                     nextShort: 0,
                     collateral: COLLATERAL, // EXPECTED_FUNDING paid at update
-                    reward: 0,
+                    reward: EXPECTED_REWARD.mul(2),
                     liquidation: false,
                   })
                   expectAccountEq(await market.accounts(userB.address), {
@@ -1795,7 +1787,7 @@ describe.only('Market', () => {
                     nextLong: 0,
                     nextShort: 0,
                     collateral: COLLATERAL.add(EXPECTED_FUNDING_WITH_FEE).sub(8), // loss of precision
-                    reward: 0,
+                    reward: EXPECTED_REWARD.mul(3),
                     liquidation: false,
                   })
                   expectPositionEq(await market.position(), {
@@ -1811,8 +1803,8 @@ describe.only('Market', () => {
                     makerValue: { _value: EXPECTED_FUNDING_WITH_FEE.div(10) },
                     longValue: { _value: EXPECTED_FUNDING.div(5).mul(-1) },
                     shortValue: { _value: 0 },
-                    makerReward: { _value: 0 },
-                    longReward: { _value: 0 },
+                    makerReward: { _value: EXPECTED_REWARD.mul(3).div(10) },
+                    longReward: { _value: EXPECTED_REWARD.mul(2).div(5) },
                     shortReward: { _value: 0 },
                   })
                   expectFeeEq(await market.fee(), {
@@ -1857,7 +1849,7 @@ describe.only('Market', () => {
                     nextLong: 0,
                     nextShort: 0,
                     collateral: COLLATERAL.sub(EXPECTED_FUNDING_2), // EXPECTED_FUNDING_1 paid at update
-                    reward: 0,
+                    reward: EXPECTED_REWARD.mul(2).mul(2),
                     liquidation: false,
                   })
                   expectAccountEq(await market.accounts(userB.address), {
@@ -1869,7 +1861,7 @@ describe.only('Market', () => {
                     nextLong: 0,
                     nextShort: 0,
                     collateral: COLLATERAL.add(EXPECTED_FUNDING_WITH_FEE).add(EXPECTED_FUNDING_WITH_FEE_2).sub(17), // loss of precision
-                    reward: 0,
+                    reward: EXPECTED_REWARD.mul(3).mul(2),
                     liquidation: false,
                   })
                   expectPositionEq(await market.position(), {
@@ -1885,16 +1877,16 @@ describe.only('Market', () => {
                     makerValue: { _value: EXPECTED_FUNDING_WITH_FEE.div(10) },
                     longValue: { _value: EXPECTED_FUNDING.div(5).mul(-1) },
                     shortValue: { _value: 0 },
-                    makerReward: { _value: 0 },
-                    longReward: { _value: 0 },
+                    makerReward: { _value: EXPECTED_REWARD.mul(3).div(10) },
+                    longReward: { _value: EXPECTED_REWARD.mul(2).div(5) },
                     shortReward: { _value: 0 },
                   })
                   expectVersionEq(await market.versions(4), {
                     makerValue: { _value: EXPECTED_FUNDING_WITH_FEE.add(EXPECTED_FUNDING_WITH_FEE_2).div(10).sub(1) }, // loss of precision
                     longValue: { _value: EXPECTED_FUNDING.div(5).add(EXPECTED_FUNDING_2.mul(2).div(5)).mul(-1) },
                     shortValue: { _value: 0 },
-                    makerReward: { _value: 0 },
-                    longReward: { _value: 0 },
+                    makerReward: { _value: EXPECTED_REWARD.mul(3).mul(2).div(10) },
+                    longReward: { _value: EXPECTED_REWARD.mul(2).div(5).add(EXPECTED_REWARD.mul(2).mul(2).div(5)) },
                     shortReward: { _value: 0 },
                   })
                   expectFeeEq(await market.fee(), {
@@ -1926,7 +1918,7 @@ describe.only('Market', () => {
                     nextLong: 0,
                     nextShort: 0,
                     collateral: COLLATERAL.sub(EXPECTED_FUNDING),
-                    reward: 0,
+                    reward: EXPECTED_REWARD.mul(2),
                     liquidation: false,
                   })
                   expectAccountEq(await market.accounts(userB.address), {
@@ -1938,7 +1930,7 @@ describe.only('Market', () => {
                     nextLong: 0,
                     nextShort: 0,
                     collateral: COLLATERAL.add(EXPECTED_FUNDING_WITH_FEE).sub(8), // loss of precision
-                    reward: 0,
+                    reward: EXPECTED_REWARD.mul(3).mul(2),
                     liquidation: false,
                   })
                   expectPositionEq(await market.position(), {
@@ -1954,8 +1946,8 @@ describe.only('Market', () => {
                     makerValue: { _value: EXPECTED_FUNDING_WITH_FEE.div(10) },
                     longValue: { _value: EXPECTED_FUNDING.div(5).mul(-1) },
                     shortValue: { _value: 0 },
-                    makerReward: { _value: 0 },
-                    longReward: { _value: 0 },
+                    makerReward: { _value: EXPECTED_REWARD.mul(3).mul(2).div(10) },
+                    longReward: { _value: EXPECTED_REWARD.mul(2).div(5) },
                     shortReward: { _value: 0 },
                   })
                   expectFeeEq(await market.fee(), {
@@ -1994,7 +1986,7 @@ describe.only('Market', () => {
                     nextLong: 0,
                     nextShort: 0,
                     collateral: COLLATERAL.sub(EXPECTED_FUNDING),
-                    reward: 0,
+                    reward: EXPECTED_REWARD.mul(2),
                     liquidation: false,
                   })
                   expectAccountEq(await market.accounts(userB.address), {
@@ -2006,7 +1998,7 @@ describe.only('Market', () => {
                     nextLong: 0,
                     nextShort: 0,
                     collateral: COLLATERAL.add(EXPECTED_FUNDING_WITH_FEE).add(TAKER_FEE).sub(8), // loss of precision
-                    reward: 0,
+                    reward: EXPECTED_REWARD.mul(3).mul(2),
                     liquidation: false,
                   })
                   expectPositionEq(await market.position(), {
@@ -2022,8 +2014,8 @@ describe.only('Market', () => {
                     makerValue: { _value: EXPECTED_FUNDING_WITH_FEE.add(TAKER_FEE).div(10) },
                     longValue: { _value: EXPECTED_FUNDING.div(5).mul(-1) },
                     shortValue: { _value: 0 },
-                    makerReward: { _value: 0 },
-                    longReward: { _value: 0 },
+                    makerReward: { _value: EXPECTED_REWARD.mul(3).mul(2).div(10) },
+                    longReward: { _value: EXPECTED_REWARD.mul(2).div(5) },
                     shortReward: { _value: 0 },
                   })
                   expectFeeEq(await market.fee(), {
@@ -2136,7 +2128,7 @@ describe.only('Market', () => {
                 nextLong: POSITION.div(2),
                 nextShort: 0,
                 collateral: COLLATERAL.sub(EXPECTED_PNL).sub(EXPECTED_FUNDING),
-                reward: 0,
+                reward: EXPECTED_REWARD.mul(2),
                 liquidation: false,
               })
               expectAccountEq(await market.accounts(userB.address), {
@@ -2148,7 +2140,7 @@ describe.only('Market', () => {
                 nextLong: 0,
                 nextShort: 0,
                 collateral: COLLATERAL.add(EXPECTED_PNL).add(EXPECTED_FUNDING_WITH_FEE).sub(8), // loss of precision
-                reward: 0,
+                reward: EXPECTED_REWARD.mul(3),
                 liquidation: false,
               })
               expectPositionEq(await market.position(), {
@@ -2164,8 +2156,8 @@ describe.only('Market', () => {
                 makerValue: { _value: EXPECTED_PNL.add(EXPECTED_FUNDING_WITH_FEE).div(10) },
                 longValue: { _value: EXPECTED_PNL.add(EXPECTED_FUNDING).div(5).mul(-1) },
                 shortValue: { _value: 0 },
-                makerReward: { _value: 0 },
-                longReward: { _value: 0 },
+                makerReward: { _value: EXPECTED_REWARD.mul(3).div(10) },
+                longReward: { _value: EXPECTED_REWARD.mul(2).div(5) },
                 shortReward: { _value: 0 },
               })
               expectFeeEq(await market.fee(), {
@@ -2198,7 +2190,7 @@ describe.only('Market', () => {
                 nextLong: POSITION.div(2),
                 nextShort: 0,
                 collateral: COLLATERAL.sub(EXPECTED_PNL).sub(EXPECTED_FUNDING),
-                reward: 0,
+                reward: EXPECTED_REWARD.mul(2),
                 liquidation: false,
               })
               expectAccountEq(await market.accounts(userB.address), {
@@ -2210,7 +2202,7 @@ describe.only('Market', () => {
                 nextLong: 0,
                 nextShort: 0,
                 collateral: COLLATERAL.add(EXPECTED_PNL).add(EXPECTED_FUNDING_WITH_FEE).sub(8), // loss of precision
-                reward: 0,
+                reward: EXPECTED_REWARD.mul(3),
                 liquidation: false,
               })
               expectPositionEq(await market.position(), {
@@ -2226,8 +2218,8 @@ describe.only('Market', () => {
                 makerValue: { _value: EXPECTED_PNL.add(EXPECTED_FUNDING_WITH_FEE).div(10).sub(1) }, // loss of precision
                 longValue: { _value: EXPECTED_PNL.add(EXPECTED_FUNDING).div(5).mul(-1) },
                 shortValue: { _value: 0 },
-                makerReward: { _value: 0 },
-                longReward: { _value: 0 },
+                makerReward: { _value: EXPECTED_REWARD.mul(3).div(10) },
+                longReward: { _value: EXPECTED_REWARD.mul(2).div(5) },
                 shortReward: { _value: 0 },
               })
               expectFeeEq(await market.fee(), {
@@ -2307,7 +2299,7 @@ describe.only('Market', () => {
                 nextLong: POSITION.div(2),
                 nextShort: 0,
                 collateral: COLLATERAL.sub(EXPECTED_FUNDING).sub(EXPECTED_FUNDING_2),
-                reward: 0,
+                reward: EXPECTED_REWARD.mul(2).mul(3),
                 liquidation: false,
               })
               expectAccountEq(await market.accounts(userB.address), {
@@ -2323,7 +2315,7 @@ describe.only('Market', () => {
                   .add(EXPECTED_FUNDING_WITH_FEE_2)
                   .sub(EXPECTED_LIQUIDATION_FEE)
                   .sub(17), // loss of precision
-                reward: 0,
+                reward: EXPECTED_REWARD.mul(3).mul(2),
                 liquidation: false,
               })
               expectPositionEq(await market.position(), {
@@ -2339,24 +2331,24 @@ describe.only('Market', () => {
                 makerValue: { _value: EXPECTED_FUNDING_WITH_FEE.sub(EXPECTED_PNL).div(10).sub(1) }, // loss of precision
                 longValue: { _value: EXPECTED_FUNDING.sub(EXPECTED_PNL).div(5).mul(-1) },
                 shortValue: { _value: 0 },
-                makerReward: { _value: 0 },
-                longReward: { _value: 0 },
+                makerReward: { _value: EXPECTED_REWARD.mul(3).div(10) },
+                longReward: { _value: EXPECTED_REWARD.mul(2).div(5) },
                 shortReward: { _value: 0 },
               })
               expectVersionEq(await market.versions(4), {
                 makerValue: { _value: EXPECTED_FUNDING_WITH_FEE.add(EXPECTED_FUNDING_WITH_FEE_2).div(10).sub(1) }, // loss of precision
                 longValue: { _value: EXPECTED_FUNDING.add(EXPECTED_FUNDING_2).div(5).mul(-1) },
                 shortValue: { _value: 0 },
-                makerReward: { _value: 0 },
-                longReward: { _value: 0 },
+                makerReward: { _value: EXPECTED_REWARD.mul(3).div(10).mul(2) },
+                longReward: { _value: EXPECTED_REWARD.mul(2).div(5).mul(2) },
                 shortReward: { _value: 0 },
               })
               expectVersionEq(await market.versions(5), {
                 makerValue: { _value: EXPECTED_FUNDING_WITH_FEE.add(EXPECTED_FUNDING_WITH_FEE_2).div(10).sub(1) }, // loss of precision
                 longValue: { _value: EXPECTED_FUNDING.add(EXPECTED_FUNDING_2).div(5).mul(-1) },
                 shortValue: { _value: 0 },
-                makerReward: { _value: 0 },
-                longReward: { _value: 0 },
+                makerReward: { _value: EXPECTED_REWARD.mul(3).div(10).mul(2) },
+                longReward: { _value: EXPECTED_REWARD.mul(2).div(5).mul(3) },
                 shortReward: { _value: 0 },
               })
               expectFeeEq(await market.fee(), {
@@ -2442,7 +2434,7 @@ describe.only('Market', () => {
                   .sub(EXPECTED_FUNDING_2)
                   .sub(EXPECTED_FUNDING_3)
                   .add(EXPECTED_PNL),
-                reward: 0,
+                reward: EXPECTED_REWARD.mul(2).mul(3),
                 liquidation: false,
               })
               expectAccountEq(await market.accounts(userB.address), {
@@ -2458,7 +2450,7 @@ describe.only('Market', () => {
                   .add(EXPECTED_FUNDING_WITH_FEE_2.mul(4).div(5))
                   .sub(EXPECTED_LIQUIDATION_FEE)
                   .sub(11), // loss of precision
-                reward: 0,
+                reward: EXPECTED_REWARD.mul(4).div(5).mul(3).mul(2),
                 liquidation: false,
               })
               expectAccountEq(await market.accounts(userC.address), {
@@ -2474,7 +2466,7 @@ describe.only('Market', () => {
                   .add(EXPECTED_FUNDING_WITH_FEE_3)
                   .sub(EXPECTED_PNL)
                   .sub(4), // loss of precision
-                reward: 0,
+                reward: EXPECTED_REWARD.div(5).mul(3).mul(2).add(EXPECTED_REWARD.mul(3)),
                 liquidation: false,
               })
               expectPositionEq(await market.position(), {
@@ -2490,8 +2482,8 @@ describe.only('Market', () => {
                 makerValue: { _value: EXPECTED_FUNDING_WITH_FEE.sub(EXPECTED_PNL.mul(2)).mul(2).div(25).sub(1) }, // loss of precision
                 longValue: { _value: EXPECTED_FUNDING.sub(EXPECTED_PNL.mul(2)).div(5).mul(-1) },
                 shortValue: { _value: 0 },
-                makerReward: { _value: 0 },
-                longReward: { _value: 0 },
+                makerReward: { _value: EXPECTED_REWARD.mul(3).mul(2).div(25) },
+                longReward: { _value: EXPECTED_REWARD.mul(2).div(5) },
                 shortReward: { _value: 0 },
               })
               expectVersionEq(await market.versions(4), {
@@ -2500,8 +2492,8 @@ describe.only('Market', () => {
                 }, // loss of precision
                 longValue: { _value: EXPECTED_FUNDING.add(EXPECTED_FUNDING_2).div(5).mul(-1) },
                 shortValue: { _value: 0 },
-                makerReward: { _value: 0 },
-                longReward: { _value: 0 },
+                makerReward: { _value: EXPECTED_REWARD.mul(3).mul(2).div(25).mul(2) },
+                longReward: { _value: EXPECTED_REWARD.mul(2).mul(2).div(5) },
                 shortReward: { _value: 0 },
               })
               expectVersionEq(await market.versions(5), {
@@ -2521,8 +2513,10 @@ describe.only('Market', () => {
                     .mul(-1),
                 },
                 shortValue: { _value: 0 },
-                makerReward: { _value: 0 },
-                longReward: { _value: 0 },
+                makerReward: {
+                  _value: EXPECTED_REWARD.mul(3).mul(2).div(25).mul(2).add(EXPECTED_REWARD.mul(3).mul(2).div(5)),
+                },
+                longReward: { _value: EXPECTED_REWARD.mul(2).mul(3).div(5) },
                 shortReward: { _value: 0 },
               })
               expectFeeEq(await market.fee(), {
@@ -2574,7 +2568,7 @@ describe.only('Market', () => {
                 nextLong: POSITION.div(2),
                 nextShort: 0,
                 collateral: COLLATERAL.sub(EXPECTED_FUNDING).add(EXPECTED_PNL),
-                reward: 0,
+                reward: EXPECTED_REWARD.mul(2),
                 liquidation: false,
               })
               expectAccountEq(await market.accounts(userB.address), {
@@ -2590,7 +2584,7 @@ describe.only('Market', () => {
                   .sub(EXPECTED_LIQUIDATION_FEE)
                   .sub(EXPECTED_PNL)
                   .sub(8), // loss of precision
-                reward: 0,
+                reward: EXPECTED_REWARD.mul(3),
                 liquidation: true,
               })
               expectPositionEq(await market.position(), {
@@ -2606,8 +2600,8 @@ describe.only('Market', () => {
                 makerValue: { _value: EXPECTED_FUNDING_WITH_FEE.sub(EXPECTED_PNL).div(10).sub(1) }, // loss of precision
                 longValue: { _value: EXPECTED_FUNDING.sub(EXPECTED_PNL).div(5).mul(-1) },
                 shortValue: { _value: 0 },
-                makerReward: { _value: 0 },
-                longReward: { _value: 0 },
+                makerReward: { _value: EXPECTED_REWARD.mul(3).div(10) },
+                longReward: { _value: EXPECTED_REWARD.mul(2).div(5) },
                 shortReward: { _value: 0 },
               })
               expectFeeEq(await market.fee(), {
@@ -2648,7 +2642,7 @@ describe.only('Market', () => {
                 nextLong: 0,
                 nextShort: 0,
                 collateral: 0,
-                reward: 0,
+                reward: EXPECTED_REWARD.mul(3).mul(2),
                 liquidation: false,
               })
             })
@@ -2828,6 +2822,7 @@ describe.only('Market', () => {
             await factory.mock.paused.withArgs().returns(true)
             await expect(market.connect(user).closeTake(POSITION)).to.be.revertedWith('PausedError()')
           })
+
           //TODO: more revert states?
         })
 
@@ -2837,52 +2832,6 @@ describe.only('Market', () => {
       // TODO: short market
       // TODO: long contract payoff market
       // TODO: short contract payoff market
-    })
-
-    describe('#settle', async () => {
-      it('credits the account', async () => {
-        await expect(collateral.connect(marketSigner).settleAccount(user.address, 101))
-          .to.emit(collateral, 'AccountSettle')
-          .withArgs(market.address, user.address, 101, 0)
-        expect(await collateral['collateral(address,address)'](user.address, market.address)).to.equal(101)
-        expect(await collateral['collateral(address)'](market.address)).to.equal(0)
-      })
-
-      context('negative credit', async () => {
-        it('doesnt create a shortfall', async () => {
-          await token.mock.transferFrom.withArgs(owner.address, collateral.address, 100).returns(true)
-          await collateral.depositTo(user.address, market.address, 100)
-
-          await expect(collateral.connect(marketSigner).settleAccount(user.address, -99))
-            .to.emit(collateral, 'AccountSettle')
-            .withArgs(market.address, user.address, -99, 0)
-
-          expect(await collateral['collateral(address,address)'](user.address, market.address)).to.equal(1)
-          expect(await collateral['collateral(address)'](market.address)).to.equal(100)
-          expect(await collateral.shortfall(market.address)).to.equal(0)
-        })
-
-        it('creates a shortfall', async () => {
-          await token.mock.transferFrom.withArgs(owner.address, collateral.address, 100).returns(true)
-          await collateral.depositTo(user.address, market.address, 100)
-
-          await expect(collateral.connect(marketSigner).settleAccount(user.address, -101))
-            .to.emit(collateral, 'AccountSettle')
-            .withArgs(market.address, user.address, -101, 1)
-
-          expect(await collateral['collateral(address,address)'](user.address, market.address)).to.equal(0)
-          expect(await collateral['collateral(address)'](market.address)).to.equal(100)
-          expect(await collateral.shortfall(market.address)).to.equal(1)
-        })
-      })
-
-      it('reverts if not market', async () => {
-        await factory.mock.isMarket.withArgs(user.address).returns(false)
-
-        await expect(collateral.connect(user).settleAccount(user.address, 101)).to.be.revertedWith(
-          `NotMarketError("${user.address}")`,
-        )
-      })
     })
 
     describe('#claimFee', async () => {
