@@ -202,7 +202,6 @@ contract Market is IMarket, UInitializable, UOwnable {
         _startGas(context, "_update fund-events: %s");
 
         // fund
-        console.log("collateralAmount: %s", UFixed6.unwrap(collateralAmount.abs()));
         if (collateralAmount.sign() == 1) token.pull(msg.sender, UFixed18.wrap(UFixed6.unwrap(collateralAmount.abs()) * 1e12));
         if (collateralAmount.sign() == -1) token.push(msg.sender, UFixed18.wrap(UFixed6.unwrap(collateralAmount.abs()) * 1e12));
 
