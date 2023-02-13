@@ -215,7 +215,7 @@ describe.only('Market', () => {
     })
 
     describe('#update / #settle', async () => {
-      describe.only('passthrough market', async () => {
+      describe('passthrough market', async () => {
         const ORACLE_VERSION = 1
         const TIMESTAMP = 1636401093
         const PRICE = parse6decimal('123')
@@ -5089,6 +5089,13 @@ describe.only('Market', () => {
             )
           })
 
+          it('reverts if under collateral limit', async () => {
+            await dsu.mock.transferFrom.withArgs(user.address, market.address, utils.parseEther('1')).returns(true)
+            await expect(market.connect(user).update(user.address, 0, 0, 0, parse6decimal('1'))).to.be.revertedWith(
+              'MarketCollateralUnderLimitError()',
+            )
+          })
+
           it('reverts if closed', async () => {
             const marketParameter = { ...(await market.parameter()) }
             marketParameter.closed = true
@@ -5099,42 +5106,41 @@ describe.only('Market', () => {
           })
 
           it('reverts if taker > maker', async () => {
-            const socialization = utils.parseEther('0.5')
-            await expect(market.connect(user).openTake(POSITION.mul(4))).to.be.revertedWith(
-              `MarketInsufficientLiquidityError(${socialization})`,
-            )
+            await expect(
+              market.connect(user).update(user.address, 0, POSITION.mul(4), 0, COLLATERAL),
+            ).to.be.revertedWith(`MarketInsufficientLiquidityError()`)
           })
 
-          it('reverts if in liquidation', async () => {
-            await market.connect(collateralSigner).closeAll(user.address)
-            await expect(market.connect(user).openTake(POSITION)).to.be.revertedWith('MarketInLiquidationError()')
-          })
+          context('in liquidation', async () => {
+            beforeEach(async () => {
+              await dsu.mock.transferFrom.withArgs(userB.address, market.address, utils.parseEther('450')).returns(true)
+              await market.connect(userB).update(userB.address, POSITION, 0, 0, parse6decimal('450'))
+              await dsu.mock.transferFrom.withArgs(user.address, market.address, COLLATERAL.mul(1e12)).returns(true)
+              await market.connect(user).update(user.address, 0, POSITION.div(2), 0, COLLATERAL)
 
-          it('reverts if paused', async () => {
-            await factory.mock.paused.withArgs().returns(true)
-            await expect(market.connect(user).openTake(POSITION)).to.be.revertedWith('PausedError()')
-          })
+              await oracle.mock.atVersion.withArgs(2).returns(ORACLE_VERSION_2)
+              const EXPECTED_LIQUIDATION_FEE = parse6decimal('45')
 
-          it('reverts if closed', async () => {
-            await market.updateClosed(true)
-            await expect(market.connect(user).openTake(POSITION)).to.be.revertedWith('MarketClosedError()')
-          })
+              const oracleVersionHigherPrice = {
+                price: parse6decimal('150'),
+                timestamp: TIMESTAMP + 7200,
+                version: 3,
+              }
+              await oracle.mock.currentVersion.withArgs().returns(oracleVersionHigherPrice)
+              await oracle.mock.atVersion.withArgs(3).returns(oracleVersionHigherPrice)
+              await oracle.mock.sync.withArgs().returns(oracleVersionHigherPrice)
 
-          it('reverts if underflow', async () => {
-            await expect(market.connect(user).closeTake(POSITION.mul(2))).to.be.revertedWith('MarketOverClosedError()')
-          })
+              await dsu.mock.transfer.withArgs(liquidator.address, EXPECTED_LIQUIDATION_FEE.mul(1e12)).returns(true)
+              await dsu.mock.balanceOf.withArgs(market.address).returns(COLLATERAL.mul(1e12))
+              await market.connect(liquidator).settle(userB.address)
+            })
 
-          it('reverts if in liquidation', async () => {
-            await market.connect(collateralSigner).closeAll(user.address)
-            await expect(market.connect(user).closeTake(POSITION)).to.be.revertedWith('MarketInLiquidationError()')
+            it('it reverts', async () => {
+              await expect(market.connect(userB).update(userB.address, 0, POSITION, 0, COLLATERAL)).to.be.revertedWith(
+                'MarketInLiquidationError()',
+              )
+            })
           })
-
-          it('reverts if paused', async () => {
-            await factory.mock.paused.withArgs().returns(true)
-            await expect(market.connect(user).closeTake(POSITION)).to.be.revertedWith('PausedError()')
-          })
-
-          // TODO: more revert states?
         })
 
         context('liquidation w/ under min collateral', async () => {

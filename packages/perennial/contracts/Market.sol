@@ -349,7 +349,7 @@ contract Market is IMarket, UInitializable, UOwnable {
                 context.account.nextShort.gt(context.account.short) ||
                 context.account.nextMaker.lt(context.account.maker)
             )
-        ) revert MarketInsufficientLiquidityError(); //TODO: reevaluate this check
+        ) revert MarketInsufficientLiquidityError();
 
         if (context.position.makerNext.gt(context.marketParameter.makerLimit))
             revert MarketMakerOverLimitError();
