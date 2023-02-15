@@ -29,7 +29,50 @@ use(smock.matchers)
 const POSITION = parse6decimal('10.000')
 const COLLATERAL = parse6decimal('10000')
 
+const ORACLE_VERSION = 1
+const TIMESTAMP = 1636401093
+const PRICE = parse6decimal('123')
+
+const ORACLE_VERSION_0 = {
+  price: 0,
+  timestamp: 0,
+  version: 0,
+}
+
+const ORACLE_VERSION_1 = {
+  price: PRICE,
+  timestamp: TIMESTAMP,
+  version: ORACLE_VERSION,
+}
+
+const ORACLE_VERSION_2 = {
+  price: PRICE,
+  timestamp: TIMESTAMP + 3600,
+  version: ORACLE_VERSION + 1,
+}
+
+const ORACLE_VERSION_3 = {
+  price: PRICE,
+  timestamp: TIMESTAMP + 7200,
+  version: ORACLE_VERSION + 2,
+}
+
+const ORACLE_VERSION_4 = {
+  price: PRICE,
+  timestamp: TIMESTAMP + 10800,
+  version: ORACLE_VERSION + 3,
+}
+
+// rate * elapsed * utilization * maker * price
+// ( 0.1 * 10^6 / 365 / 24 / 60 / 60 ) * 3600 * 5 * 123 = 7020
+const EXPECTED_FUNDING = ethers.BigNumber.from('7020')
+const EXPECTED_FUNDING_FEE = EXPECTED_FUNDING.div(10)
+const EXPECTED_FUNDING_WITH_FEE = EXPECTED_FUNDING.sub(EXPECTED_FUNDING_FEE)
+
+const EXPECTED_REWARD = parse6decimal('0.1').mul(3600)
+
 describe.only('Market', () => {
+  let protocolTreasury: SignerWithAddress
   let owner: SignerWithAddress
   let treasury: SignerWithAddress
   let user: SignerWithAddress
@@ -47,7 +90,7 @@ describe.only('Market', () => {
   let marketParameter: MarketParameterStruct
 
   beforeEach(async () => {
-    ;[owner, treasury, user, userB, userC, liquidator] = await ethers.getSigners()
+    ;[protocolTreasury, owner, treasury, user, userB, userC, liquidator] = await ethers.getSigners()
     oracle = await waffle.deployMockContract(owner, IOracleProvider__factory.abi)
     dsu = await waffle.deployMockContract(owner, IERC20Metadata__factory.abi)
     reward = await waffle.deployMockContract(owner, IERC20Metadata__factory.abi)
@@ -216,48 +259,6 @@ describe.only('Market', () => {
 
     describe('#update / #settle', async () => {
       describe('passthrough market', async () => {
-        const ORACLE_VERSION = 1
-        const TIMESTAMP = 1636401093
-        const PRICE = parse6decimal('123')
-
-        const ORACLE_VERSION_0 = {
-          price: 0,
-          timestamp: 0,
-          version: 0,
-        }
-
-        const ORACLE_VERSION_1 = {
-          price: PRICE,
-          timestamp: TIMESTAMP,
-          version: ORACLE_VERSION,
-        }
-
-        const ORACLE_VERSION_2 = {
-          price: PRICE,
-          timestamp: TIMESTAMP + 3600,
-          version: ORACLE_VERSION + 1,
-        }
-
-        const ORACLE_VERSION_3 = {
-          price: PRICE,
-          timestamp: TIMESTAMP + 7200,
-          version: ORACLE_VERSION + 2,
-        }
-
-        const ORACLE_VERSION_4 = {
-          price: PRICE,
-          timestamp: TIMESTAMP + 10800,
-          version: ORACLE_VERSION + 3,
-        }
-
-        // rate * elapsed * utilization * maker * price
-        // ( 0.1 * 10^6 / 365 / 24 / 60 / 60 ) * 3600 * 5 * 123 = 7020
-        const EXPECTED_FUNDING = ethers.BigNumber.from('7020')
-        const EXPECTED_FUNDING_FEE = EXPECTED_FUNDING.div(10)
-        const EXPECTED_FUNDING_WITH_FEE = EXPECTED_FUNDING.sub(EXPECTED_FUNDING_FEE)
-
-        const EXPECTED_REWARD = parse6decimal('0.1').mul(3600)
-
         beforeEach(async () => {
           await oracle.mock.atVersion.withArgs(0).returns(ORACLE_VERSION_0)
           await oracle.mock.currentVersion.withArgs().returns(ORACLE_VERSION_1)
@@ -5235,69 +5236,111 @@ describe.only('Market', () => {
 
     describe('#claimFee', async () => {
       beforeEach(async () => {
-        await token.mock.transferFrom.withArgs(owner.address, collateral.address, 100).returns(true)
-        await collateral.depositTo(user.address, market.address, 100)
+        await factory.mock['treasury()'].returns(protocolTreasury.address)
 
-        await factory.mock['treasury()'].returns(treasuryA.address)
-        await factory.mock['treasury(address)'].withArgs(market.address).returns(treasuryB.address)
-        await factory.mock.protocolFee.returns(utils.parseEther('0.1'))
+        await oracle.mock.atVersion.withArgs(0).returns(ORACLE_VERSION_0)
 
-        await collateral.connect(marketSigner).settleMarket(90)
+        await oracle.mock.currentVersion.withArgs().returns(ORACLE_VERSION_1)
+        await oracle.mock.atVersion.withArgs(1).returns(ORACLE_VERSION_1)
+        await oracle.mock.sync.withArgs().returns(ORACLE_VERSION_1)
+
+        await dsu.mock.transferFrom.withArgs(userB.address, market.address, COLLATERAL.mul(1e12)).returns(true)
+        await market.connect(userB).update(userB.address, POSITION, 0, 0, COLLATERAL)
+        await dsu.mock.transferFrom.withArgs(user.address, market.address, COLLATERAL.mul(1e12)).returns(true)
+        await market.connect(user).update(user.address, 0, POSITION.div(2), 0, COLLATERAL)
+
+        await oracle.mock.atVersion.withArgs(2).returns(ORACLE_VERSION_2)
+
+        await oracle.mock.currentVersion.withArgs().returns(ORACLE_VERSION_3)
+        await oracle.mock.atVersion.withArgs(3).returns(ORACLE_VERSION_3)
+        await oracle.mock.sync.withArgs().returns(ORACLE_VERSION_3)
+
+        await market.connect(user).settle(user.address)
+        await market.connect(user).settle(userB.address)
+
+        await market.updateTreasury(treasury.address)
       })
 
-      it('claims fee', async () => {
-        await token.mock.transfer.withArgs(treasuryA.address, 9).returns(true)
-        await token.mock.transfer.withArgs(treasuryB.address, 81).returns(true)
+      it('claims fee (protocol)', async () => {
+        await dsu.mock.transfer.withArgs(protocolTreasury.address, EXPECTED_FUNDING_FEE.div(2).mul(1e12)).returns(true)
 
-        await expect(collateral.connect(treasuryA).claimFee())
-          .to.emit(collateral, 'FeeClaim')
-          .withArgs(treasuryA.address, 9)
+        await expect(market.connect(protocolTreasury).claimFee())
+          .to.emit(market, 'FeeClaimed')
+          .withArgs(protocolTreasury.address, EXPECTED_FUNDING_FEE.div(2))
 
-        await expect(collateral.connect(treasuryB).claimFee())
-          .to.emit(collateral, 'FeeClaim')
-          .withArgs(treasuryB.address, 81)
-
-        expect(await collateral.fees(treasuryA.address)).to.equal(0)
-        expect(await collateral.fees(treasuryB.address)).to.equal(0)
+        expect((await market.fee()).protocol).to.equal(0)
+        expect((await market.fee()).market).to.equal(EXPECTED_FUNDING_FEE.div(2))
       })
 
-      it('reverts if paused', async () => {
-        await factory.mock.paused.returns(true)
-        await expect(collateral.connect(treasuryB).claimFee()).to.be.revertedWith('PausedError()')
+      it('claims fee (market)', async () => {
+        await dsu.mock.transfer.withArgs(treasury.address, EXPECTED_FUNDING_FEE.div(2).mul(1e12)).returns(true)
+
+        await expect(market.connect(treasury).claimFee())
+          .to.emit(market, 'FeeClaimed')
+          .withArgs(treasury.address, EXPECTED_FUNDING_FEE.div(2))
+
+        expect((await market.fee()).protocol).to.equal(EXPECTED_FUNDING_FEE.div(2))
+        expect((await market.fee()).market).to.equal(0)
+      })
+
+      it('claims fee (neither)', async () => {
+        await market.connect(user).claimFee()
+
+        expect((await market.fee()).protocol).to.equal(EXPECTED_FUNDING_FEE.div(2))
+        expect((await market.fee()).market).to.equal(EXPECTED_FUNDING_FEE.div(2))
       })
     })
 
-    describe('#claimReward', async () => {
+    describe.only('#claimReward', async () => {
       beforeEach(async () => {
-        await token.mock.transferFrom.withArgs(owner.address, collateral.address, 100).returns(true)
-        await collateral.depositTo(user.address, market.address, 100)
+        await factory.mock['treasury()'].returns(protocolTreasury.address)
 
-        await factory.mock['treasury()'].returns(treasuryA.address)
-        await factory.mock['treasury(address)'].withArgs(market.address).returns(treasuryB.address)
-        await factory.mock.protocolFee.returns(utils.parseEther('0.1'))
+        await oracle.mock.atVersion.withArgs(0).returns(ORACLE_VERSION_0)
 
-        await collateral.connect(marketSigner).settleMarket(90)
+        await oracle.mock.currentVersion.withArgs().returns(ORACLE_VERSION_1)
+        await oracle.mock.atVersion.withArgs(1).returns(ORACLE_VERSION_1)
+        await oracle.mock.sync.withArgs().returns(ORACLE_VERSION_1)
+
+        await dsu.mock.transferFrom.withArgs(userB.address, market.address, COLLATERAL.mul(1e12)).returns(true)
+        await market.connect(userB).update(userB.address, POSITION, 0, 0, COLLATERAL)
+        await dsu.mock.transferFrom.withArgs(user.address, market.address, COLLATERAL.mul(1e12)).returns(true)
+        await market.connect(user).update(user.address, 0, POSITION.div(2), 0, COLLATERAL)
+
+        await oracle.mock.atVersion.withArgs(2).returns(ORACLE_VERSION_2)
+
+        await oracle.mock.currentVersion.withArgs().returns(ORACLE_VERSION_3)
+        await oracle.mock.atVersion.withArgs(3).returns(ORACLE_VERSION_3)
+        await oracle.mock.sync.withArgs().returns(ORACLE_VERSION_3)
+
+        await market.connect(user).settle(user.address)
+        await market.connect(user).settle(userB.address)
+
+        await market.updateTreasury(treasury.address)
+
+        expectVersionEq(await market.versions(3), {
+          makerValue: { _value: EXPECTED_FUNDING_WITH_FEE.div(10) },
+          longValue: { _value: EXPECTED_FUNDING.div(5).mul(-1) },
+          shortValue: { _value: 0 },
+          makerReward: { _value: EXPECTED_REWARD.mul(3).div(10) },
+          longReward: { _value: EXPECTED_REWARD.mul(2).div(5) },
+          shortReward: { _value: 0 },
+        })
       })
 
-      it('claims fee', async () => {
-        await token.mock.transfer.withArgs(treasuryA.address, 9).returns(true)
-        await token.mock.transfer.withArgs(treasuryB.address, 81).returns(true)
+      it('claims reward', async () => {
+        await reward.mock.transfer.withArgs(user.address, EXPECTED_REWARD.mul(2).mul(1e12)).returns(true)
 
-        await expect(collateral.connect(treasuryA).claimFee())
-          .to.emit(collateral, 'FeeClaim')
-          .withArgs(treasuryA.address, 9)
+        await expect(market.connect(user).claimReward())
+          .to.emit(market, 'RewardClaimed')
+          .withArgs(user.address, EXPECTED_REWARD.mul(2))
 
-        await expect(collateral.connect(treasuryB).claimFee())
-          .to.emit(collateral, 'FeeClaim')
-          .withArgs(treasuryB.address, 81)
-
-        expect(await collateral.fees(treasuryA.address)).to.equal(0)
-        expect(await collateral.fees(treasuryB.address)).to.equal(0)
+        expect((await market.accounts(user.address)).reward).to.equal(0)
       })
 
-      it('reverts if paused', async () => {
-        await factory.mock.paused.returns(true)
-        await expect(collateral.connect(treasuryB).claimFee()).to.be.revertedWith('PausedError()')
+      it('claims reward (none)', async () => {
+        await reward.mock.transfer.withArgs(userC.address, 0).returns(true)
+
+        await expect(market.connect(userC).claimReward()).to.emit(market, 'RewardClaimed').withArgs(userC.address, 0)
       })
     })
   })
