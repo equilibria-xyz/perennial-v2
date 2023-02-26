@@ -268,11 +268,155 @@ describe.only('Market', () => {
         })
 
         context('no position', async () => {
-          beforeEach(async () => {
+          it('deposits and withdraws (immediately)', async () => {
             await dsu.mock.transferFrom.withArgs(user.address, market.address, COLLATERAL.mul(1e12)).returns(true)
+            await expect(market.connect(user).update(user.address, 0, 0, 0, COLLATERAL))
+              .to.emit(market, 'Updated')
+              .withArgs(user.address, 1, 0, 0, 0, COLLATERAL)
+
+            expectAccountEq(await market.accounts(user.address), {
+              latestVersion: ORACLE_VERSION,
+              maker: 0,
+              long: 0,
+              short: 0,
+              nextMaker: 0,
+              nextLong: 0,
+              nextShort: 0,
+              collateral: COLLATERAL,
+              reward: 0,
+              liquidation: false,
+            })
+            expectPositionEq(await market.position(), {
+              latestVersion: ORACLE_VERSION,
+              maker: 0,
+              long: 0,
+              short: 0,
+              makerNext: 0,
+              longNext: 0,
+              shortNext: 0,
+            })
+            expectVersionEq(await market.versions(ORACLE_VERSION), {
+              makerValue: { _value: 0 },
+              longValue: { _value: 0 },
+              shortValue: { _value: 0 },
+              makerReward: { _value: 0 },
+              longReward: { _value: 0 },
+              shortReward: { _value: 0 },
+            })
+
+            await dsu.mock.transfer.withArgs(user.address, COLLATERAL.mul(1e12)).returns(true)
+            await expect(market.connect(user).update(user.address, 0, 0, 0, 0))
+              .to.emit(market, 'Updated')
+              .withArgs(user.address, 1, 0, 0, 0, 0)
+
+            expectAccountEq(await market.accounts(user.address), {
+              latestVersion: ORACLE_VERSION,
+              maker: 0,
+              long: 0,
+              short: 0,
+              nextMaker: 0,
+              nextLong: 0,
+              nextShort: 0,
+              collateral: 0,
+              reward: 0,
+              liquidation: false,
+            })
+            expectPositionEq(await market.position(), {
+              latestVersion: ORACLE_VERSION,
+              maker: 0,
+              long: 0,
+              short: 0,
+              makerNext: 0,
+              longNext: 0,
+              shortNext: 0,
+            })
+            expectVersionEq(await market.versions(ORACLE_VERSION), {
+              makerValue: { _value: 0 },
+              longValue: { _value: 0 },
+              shortValue: { _value: 0 },
+              makerReward: { _value: 0 },
+              longReward: { _value: 0 },
+              shortReward: { _value: 0 },
+            })
           })
 
-          // TODO
+          it('deposits and withdraws (next)', async () => {
+            await dsu.mock.transferFrom.withArgs(user.address, market.address, COLLATERAL.mul(1e12)).returns(true)
+            await expect(market.connect(user).update(user.address, 0, 0, 0, COLLATERAL))
+              .to.emit(market, 'Updated')
+              .withArgs(user.address, 1, 0, 0, 0, COLLATERAL)
+
+            expectAccountEq(await market.accounts(user.address), {
+              latestVersion: ORACLE_VERSION,
+              maker: 0,
+              long: 0,
+              short: 0,
+              nextMaker: 0,
+              nextLong: 0,
+              nextShort: 0,
+              collateral: COLLATERAL,
+              reward: 0,
+              liquidation: false,
+            })
+            expectPositionEq(await market.position(), {
+              latestVersion: ORACLE_VERSION,
+              maker: 0,
+              long: 0,
+              short: 0,
+              makerNext: 0,
+              longNext: 0,
+              shortNext: 0,
+            })
+            expectVersionEq(await market.versions(ORACLE_VERSION), {
+              makerValue: { _value: 0 },
+              longValue: { _value: 0 },
+              shortValue: { _value: 0 },
+              makerReward: { _value: 0 },
+              longReward: { _value: 0 },
+              shortReward: { _value: 0 },
+            })
+
+            await oracle.mock.currentVersion.withArgs().returns(ORACLE_VERSION_2)
+            await oracle.mock.atVersion.withArgs(2).returns(ORACLE_VERSION_2)
+            await oracle.mock.sync.withArgs().returns(ORACLE_VERSION_2)
+
+            await market.connect(user).settle(user.address)
+
+            await dsu.mock.transfer.withArgs(user.address, COLLATERAL.mul(1e12)).returns(true)
+            await expect(market.connect(user).update(user.address, 0, 0, 0, 0))
+              .to.emit(market, 'Updated')
+              .withArgs(user.address, 2, 0, 0, 0, 0)
+
+            expectAccountEq(await market.accounts(user.address), {
+              latestVersion: 2,
+              maker: 0,
+              long: 0,
+              short: 0,
+              nextMaker: 0,
+              nextLong: 0,
+              nextShort: 0,
+              collateral: 0,
+              reward: 0,
+              liquidation: false,
+            })
+            expectPositionEq(await market.position(), {
+              latestVersion: 2,
+              maker: 0,
+              long: 0,
+              short: 0,
+              makerNext: 0,
+              longNext: 0,
+              shortNext: 0,
+            })
+            expectVersionEq(await market.versions(2), {
+              makerValue: { _value: 0 },
+              longValue: { _value: 0 },
+              shortValue: { _value: 0 },
+              makerReward: { _value: 0 },
+              longReward: { _value: 0 },
+              shortReward: { _value: 0 },
+            })
+          })
         })
 
         context('make position', async () => {
@@ -5291,7 +5435,7 @@ describe.only('Market', () => {
       })
     })
 
-    describe.only('#claimReward', async () => {
+    describe('#claimReward', async () => {
       beforeEach(async () => {
         await factory.mock['treasury()'].returns(protocolTreasury.address)
 

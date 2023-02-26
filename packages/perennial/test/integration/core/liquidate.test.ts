@@ -15,18 +15,15 @@ describe('Liquidate', () => {
   it('liquidates a user', async () => {
     const POSITION = parse6decimal('0.0001')
     const COLLATERAL = parse6decimal('1000')
-    const { user, userB, dsu, chainlink, lens } = instanceVars
+    const { user, userB, dsu, chainlink } = instanceVars
 
     const market = await createMarket(instanceVars)
     await dsu.connect(user).approve(market.address, COLLATERAL.mul(1e12))
     await market.connect(user).update(user.address, POSITION, 0, 0, COLLATERAL)
 
-    expect(await lens.callStatic.liquidatable(user.address, market.address)).to.be.false
-
     // Settle the market with a new oracle version
     await chainlink.nextWithPriceModification(price => price.mul(2))
 
-    expect(await lens.callStatic.liquidatable(user.address, market.address)).to.be.true
     await expect(market.connect(userB).settle(user.address)) // liquidate
       .to.emit(market, 'Liquidation')
       .withArgs(user.address, userB.address, '682778988')
@@ -34,7 +31,7 @@ describe('Liquidate', () => {
     expect((await market.accounts(user.address)).liquidation).to.be.true
 
     expect((await market.accounts(user.address)).collateral).to.equal('317221012')
-    expect(await lens.callStatic['collateral(address)'](market.address)).to.equal('317221012')
+    expect(await dsu.balanceOf(market.address)).to.equal('317221012')
     expect(await dsu.balanceOf(userB.address)).to.equal(utils.parseEther('20682.778988')) // Original 20000 + fee
 
     await chainlink.next()
@@ -46,18 +43,15 @@ describe('Liquidate', () => {
   it('liquidates a user with a reward larger than total collateral', async () => {
     const POSITION = parse6decimal('0.0001')
     const COLLATERAL = parse6decimal('1000')
-    const { user, userB, dsu, chainlink, lens } = instanceVars
+    const { user, userB, dsu, chainlink } = instanceVars
 
     const market = await createMarket(instanceVars)
     await dsu.connect(user).approve(market.address, COLLATERAL.mul(1e12))
     await market.connect(user).update(user.address, POSITION, 0, 0, COLLATERAL)
 
-    expect(await lens.callStatic.liquidatable(user.address, market.address)).to.be.false
-
     // Settle the market with a new oracle version
     await chainlink.nextWithPriceModification(price => price.mul(10))
 
-    expect(await lens.callStatic.liquidatable(user.address, market.address)).to.be.true
     await expect(market.connect(userB).settle(user.address)) // liquidate
       .to.emit(market, 'Liquidation')
       .withArgs(user.address, userB.address, COLLATERAL)
@@ -65,7 +59,7 @@ describe('Liquidate', () => {
     expect((await market.accounts(user.address)).liquidation).to.be.true
 
     expect((await market.accounts(user.address)).collateral).to.equal(0)
-    expect(await lens.callStatic['collateral(address)'](market.address)).to.equal(0)
+    expect(await dsu.balanceOf(market.address)).to.equal(0)
     expect(await dsu.balanceOf(userB.address)).to.equal(utils.parseEther('21000')) // Original 20000 + fee
 
     await chainlink.next()
@@ -112,7 +106,7 @@ describe('Liquidate', () => {
     const POSITION = parse6decimal('0.0001')
     const COLLATERAL = parse6decimal('1000')
     let totalCollateral, totalFees
-    const { user, userB, userC, userD, chainlink, dsu, lens } = instanceVars
+    const { user, userB, userC, userD, chainlink, dsu } = instanceVars
 
     const market = await createMarket(instanceVars)
     await dsu.connect(user).approve(market.address, COLLATERAL.mul(1e12))
@@ -123,8 +117,6 @@ describe('Liquidate', () => {
     await market.connect(userB).update(userB.address, POSITION, 0, 0, COLLATERAL)
     await market.connect(userC).update(userC.address, 0, POSITION, 0, COLLATERAL.mul(10))
     await market.connect(userD).update(userD.address, 0, POSITION, 0, COLLATERAL.mul(10))
-
-    expect(await lens.callStatic.liquidatable(user.address, market.address)).to.be.false
 
     // Expect the system to remain solvent
     totalCollateral = (await market.accounts(user.address)).collateral

@@ -191,7 +191,7 @@ describe('Happy Path', () => {
   it('closes a make position', async () => {
     const POSITION = parse6decimal('0.0001')
     const COLLATERAL = parse6decimal('1000')
-    const { user, dsu, lens } = instanceVars
+    const { user, dsu } = instanceVars
 
     const market = await createMarket(instanceVars)
     await dsu.connect(user).approve(market.address, COLLATERAL.mul(1e12))
@@ -202,8 +202,6 @@ describe('Happy Path', () => {
       .withArgs(user.address, INITIAL_VERSION, 0, 0, 0, COLLATERAL)
 
     // User state
-    expect(await lens.callStatic.maintenance(user.address, market.address)).to.equal(0)
-    expect(await lens.callStatic.maintenanceNext(user.address, market.address)).to.equal(0)
     expect((await market.accounts(user.address)).maker).to.equal(0)
     expect((await market.accounts(user.address)).long).to.equal(0)
     expect((await market.accounts(user.address)).short).to.equal(0)
@@ -234,7 +232,7 @@ describe('Happy Path', () => {
   it('closes multiple make positions', async () => {
     const POSITION = parse6decimal('0.0001')
     const COLLATERAL = parse6decimal('1000')
-    const { user, dsu, lens } = instanceVars
+    const { user, dsu } = instanceVars
 
     const market = await createMarket(instanceVars)
     await dsu.connect(user).approve(market.address, COLLATERAL.mul(1e12))
@@ -247,8 +245,6 @@ describe('Happy Path', () => {
       .withArgs(user.address, INITIAL_VERSION, 0, 0, 0, COLLATERAL)
 
     // User state
-    expect(await lens.callStatic.maintenance(user.address, market.address)).to.equal(0)
-    expect(await lens.callStatic.maintenanceNext(user.address, market.address)).to.equal(0)
     expect((await market.accounts(user.address)).maker).to.equal(0)
     expect((await market.accounts(user.address)).long).to.equal(0)
     expect((await market.accounts(user.address)).short).to.equal(0)
@@ -421,7 +417,7 @@ describe('Happy Path', () => {
     const POSITION = parse6decimal('0.0001')
     const POSITION_B = parse6decimal('0.00001')
     const COLLATERAL = parse6decimal('1000')
-    const { user, userB, dsu, lens } = instanceVars
+    const { user, userB, dsu } = instanceVars
 
     const market = await createMarket(instanceVars)
     await dsu.connect(user).approve(market.address, COLLATERAL.mul(1e12))
@@ -438,8 +434,6 @@ describe('Happy Path', () => {
       .withArgs(userB.address, INITIAL_VERSION, 0, 0, 0, COLLATERAL)
 
     // User State
-    expect(await lens.callStatic.maintenance(userB.address, market.address)).to.equal(0)
-    expect(await lens.callStatic.maintenanceNext(userB.address, market.address)).to.equal(0)
     expect((await market.accounts(userB.address)).maker).to.equal(0)
     expect((await market.accounts(userB.address)).long).to.equal(0)
     expect((await market.accounts(userB.address)).short).to.equal(0)
@@ -471,7 +465,7 @@ describe('Happy Path', () => {
     const POSITION = parse6decimal('0.0001')
     const POSITION_B = parse6decimal('0.00001')
     const COLLATERAL = parse6decimal('1000')
-    const { user, userB, dsu, lens } = instanceVars
+    const { user, userB, dsu } = instanceVars
 
     const market = await createMarket(instanceVars)
     await dsu.connect(user).approve(market.address, COLLATERAL.mul(1e12))
@@ -489,8 +483,6 @@ describe('Happy Path', () => {
       .withArgs(userB.address, INITIAL_VERSION, 0, 0, 0, COLLATERAL)
 
     // User State
-    expect(await lens.callStatic.maintenance(userB.address, market.address)).to.equal(0)
-    expect(await lens.callStatic.maintenanceNext(userB.address, market.address)).to.equal(0)
     expect((await market.accounts(userB.address)).maker).to.equal(0)
     expect((await market.accounts(userB.address)).long).to.equal(0)
     expect((await market.accounts(userB.address)).short).to.equal(0)

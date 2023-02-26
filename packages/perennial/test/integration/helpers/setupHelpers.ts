@@ -12,8 +12,6 @@ import {
   Factory__factory,
   ChainlinkOracle__factory,
   Market__factory,
-  Lens,
-  Lens__factory,
   ERC20PresetMinterPauser,
   ERC20PresetMinterPauser__factory,
   ProxyAdmin,
@@ -27,7 +25,7 @@ import { parse6decimal } from '../../../../common/testutil/types'
 import { buildChainlinkRoundId } from '@equilibria/perennial-v2-oracle/util/buildChainlinkRoundId'
 import { CHAINLINK_CUSTOM_CURRENCIES } from '@equilibria/perennial-v2-oracle/util/constants'
 import { PayoffStruct } from '../../../types/generated/contracts/Factory'
-import { MilliSquared__factory, Squared__factory } from '@equilibria/perennial-v2-payoff/types/generated'
+import { Squared__factory } from '@equilibria/perennial-v2-payoff/types/generated'
 const { config, deployments, ethers } = HRE
 
 export const INITIAL_PHASE_ID = 1
@@ -55,7 +53,6 @@ export interface InstanceVars {
   chainlink: ChainlinkContext
   chainlinkOracle: ChainlinkOracle
   marketImpl: Market
-  lens: Lens
   rewardToken: ERC20PresetMinterPauser
 }
 
@@ -122,8 +119,6 @@ export async function deployProtocol(): Promise<InstanceVars> {
   const usdcHolder = await impersonate.impersonateWithBalance(USDC_HOLDER, utils.parseEther('10'))
   await chainlinkOracle.sync()
 
-  const lens = await new Lens__factory(owner).deploy(factory.address)
-
   const rewardToken = await new ERC20PresetMinterPauser__factory(owner).deploy('Incentive Token', 'ITKN')
 
   return {
@@ -145,7 +140,6 @@ export async function deployProtocol(): Promise<InstanceVars> {
     proxyAdmin,
     factory,
     marketImpl,
-    lens,
     rewardToken,
   }
 }
