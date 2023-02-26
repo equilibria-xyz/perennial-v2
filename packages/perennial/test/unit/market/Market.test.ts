@@ -203,11 +203,10 @@ describe.only('Market', () => {
           makerRewardRate: parse6decimal('0.1'),
           longRewardRate: parse6decimal('0.1'),
           shortRewardRate: parse6decimal('0.1'),
-          oracle: constants.AddressZero,
+          oracle: marketParameter.oracle,
           payoff: {
-            //TODO: many of these should not be updateable
-            provider: constants.AddressZero,
-            short: true,
+            provider: marketParameter.payoff.provider,
+            short: marketParameter.payoff.short,
           },
         }
 
@@ -233,13 +232,99 @@ describe.only('Market', () => {
         expect(parameter.payoff.short).to.equal(newMarketParameter.payoff.short)
       })
 
-      it('reverts if not owner', async () => {
-        await expect(market.connect(user).updateParameter(marketParameter)).to.be.be.revertedWith(
-          'UOwnableNotOwnerError()',
+      it('reverts when updating (oracle)', async () => {
+        const newMarketParameter = {
+          maintenance: parse6decimal('0.4'),
+          fundingFee: parse6decimal('0.2'),
+          takerFee: parse6decimal('0.1'),
+          positionFee: parse6decimal('0.1'),
+          makerLiquidity: parse6decimal('0.1'),
+          makerLimit: parse6decimal('2000'),
+          closed: true,
+          utilizationCurve: {
+            minRate: parse6decimal('0.20'),
+            maxRate: parse6decimal('0.20'),
+            targetRate: parse6decimal('0.20'),
+            targetUtilization: parse6decimal('0.75'),
+          },
+          makerRewardRate: parse6decimal('0.1'),
+          longRewardRate: parse6decimal('0.1'),
+          shortRewardRate: parse6decimal('0.1'),
+          oracle: constants.AddressZero,
+          payoff: {
+            provider: marketParameter.payoff.provider,
+            short: marketParameter.payoff.short,
+          },
+        }
+
+        await expect(market.connect(owner).updateParameter(newMarketParameter)).to.revertedWith(
+          'MarketParameterStorageImmutableError()',
         )
       })
 
-      //TODO: should be more validation on parameters
+      it('reverts when updating (payoff.provider)', async () => {
+        const newMarketParameter = {
+          maintenance: parse6decimal('0.4'),
+          fundingFee: parse6decimal('0.2'),
+          takerFee: parse6decimal('0.1'),
+          positionFee: parse6decimal('0.1'),
+          makerLiquidity: parse6decimal('0.1'),
+          makerLimit: parse6decimal('2000'),
+          closed: true,
+          utilizationCurve: {
+            minRate: parse6decimal('0.20'),
+            maxRate: parse6decimal('0.20'),
+            targetRate: parse6decimal('0.20'),
+            targetUtilization: parse6decimal('0.75'),
+          },
+          makerRewardRate: parse6decimal('0.1'),
+          longRewardRate: parse6decimal('0.1'),
+          shortRewardRate: parse6decimal('0.1'),
+          oracle: marketParameter.oracle,
+          payoff: {
+            provider: user.address,
+            short: marketParameter.payoff.short,
+          },
+        }
+
+        await expect(market.connect(owner).updateParameter(newMarketParameter)).to.be.revertedWith(
+          'MarketParameterStorageImmutableError()',
+        )
+      })
+
+      it('reverts when updating (payoff.short)', async () => {
+        const newMarketParameter = {
+          maintenance: parse6decimal('0.4'),
+          fundingFee: parse6decimal('0.2'),
+          takerFee: parse6decimal('0.1'),
+          positionFee: parse6decimal('0.1'),
+          makerLiquidity: parse6decimal('0.1'),
+          makerLimit: parse6decimal('2000'),
+          closed: true,
+          utilizationCurve: {
+            minRate: parse6decimal('0.20'),
+            maxRate: parse6decimal('0.20'),
+            targetRate: parse6decimal('0.20'),
+            targetUtilization: parse6decimal('0.75'),
+          },
+          makerRewardRate: parse6decimal('0.1'),
+          longRewardRate: parse6decimal('0.1'),
+          shortRewardRate: parse6decimal('0.1'),
+          oracle: marketParameter.oracle,
+          payoff: {
+            provider: marketParameter.payoff.provider,
+            short: true,
+          },
+        }
+
+        await expect(market.connect(owner).updateParameter(newMarketParameter)).to.be.revertedWith(
+          'MarketParameterStorageImmutableError()',
+        )
+      })
+
+      it('reverts if not owner', async () => {
+        await expect(market.connect(user).updateParameter(marketParameter)).to.be.revertedWith('UOwnableNotOwnerError')
+      })
     })
 
     describe('#updateTreasury', async () => {

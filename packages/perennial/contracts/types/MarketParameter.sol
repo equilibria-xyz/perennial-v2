@@ -46,13 +46,15 @@ struct StoredMarketParameter {
     uint24 utilizationCurveTargetUtilization; // <= 1677%
     bool closed;
     bool payoffShort;
-    bytes6 __unallocated0__;
+    bool fuse;
+    bytes5 __unallocated0__;
 }
 struct MarketParameterStorage { StoredMarketParameter value; }
 using MarketParameterStorageLib for MarketParameterStorage global;
 
 library MarketParameterStorageLib {
     error MarketParameterStorageInvalidError();
+    error MarketParameterStorageImmutableError();
 
     function read(MarketParameterStorage storage self) internal view returns (MarketParameter memory) {
         StoredMarketParameter memory value = self.value;
@@ -79,6 +81,8 @@ library MarketParameterStorageLib {
     }
 
     function store(MarketParameterStorage storage self, MarketParameter memory newValue) internal {
+        StoredMarketParameter memory oldValue = self.value;
+
         if (newValue.maintenance.gt(UFixed6Lib.MAX_24)) revert MarketParameterStorageInvalidError();
         if (newValue.fundingFee.gt(UFixed6Lib.MAX_24)) revert MarketParameterStorageInvalidError();
         if (newValue.takerFee.gt(UFixed6Lib.MAX_24)) revert MarketParameterStorageInvalidError();
@@ -92,6 +96,10 @@ library MarketParameterStorageLib {
         if (newValue.utilizationCurve.maxRate.gt(UFixed6Lib.MAX_32)) revert MarketParameterStorageInvalidError();
         if (newValue.utilizationCurve.targetRate.gt(UFixed6Lib.MAX_32)) revert MarketParameterStorageInvalidError();
         if (newValue.utilizationCurve.targetUtilization.gt(UFixed6Lib.MAX_32)) revert MarketParameterStorageInvalidError();
+
+        if (oldValue.fuse && address(newValue.oracle) != oldValue.oracle) revert MarketParameterStorageImmutableError();
+        if (oldValue.fuse && address(newValue.payoff.provider) != oldValue.payoffProvider) revert MarketParameterStorageImmutableError();
+        if (oldValue.fuse && newValue.payoff.short != oldValue.payoffShort) revert MarketParameterStorageImmutableError();
 
         self.value = StoredMarketParameter({
             maintenance: uint24(UFixed6.unwrap(newValue.maintenance)),
@@ -111,7 +119,8 @@ library MarketParameterStorageLib {
             oracle: address(newValue.oracle),
             payoffProvider: address(newValue.payoff.provider),
             payoffShort: newValue.payoff.short,
-            __unallocated0__: bytes6(0)
+            fuse: true,
+            __unallocated0__: bytes5(0)
         });
     }
 }
