@@ -79,6 +79,7 @@ describe.only('Market', () => {
   let userB: SignerWithAddress
   let userC: SignerWithAddress
   let liquidator: SignerWithAddress
+  let operator: SignerWithAddress
   let factorySigner: SignerWithAddress
   let factory: MockContract
   let oracle: MockContract
@@ -90,7 +91,7 @@ describe.only('Market', () => {
   let marketParameter: MarketParameterStruct
 
   beforeEach(async () => {
-    ;[protocolTreasury, owner, treasury, user, userB, userC, liquidator] = await ethers.getSigners()
+    ;[protocolTreasury, owner, treasury, user, userB, userC, liquidator, operator] = await ethers.getSigners()
     oracle = await waffle.deployMockContract(owner, IOracleProvider__factory.abi)
     dsu = await waffle.deployMockContract(owner, IERC20Metadata__factory.abi)
     reward = await waffle.deployMockContract(owner, IERC20Metadata__factory.abi)
@@ -5457,7 +5458,55 @@ describe.only('Market', () => {
           })
         })
 
-        // TODO: operator
+        context('operator', async () => {
+          beforeEach(async () => {
+            await dsu.mock.transferFrom.withArgs(operator.address, market.address, COLLATERAL.mul(1e12)).returns(true)
+          })
+
+          it('opens the position when operator', async () => {
+            await factory.mock.operators.withArgs(user.address, operator.address).returns(true)
+            await expect(market.connect(operator).update(user.address, POSITION, 0, 0, COLLATERAL))
+              .to.emit(market, 'Updated')
+              .withArgs(user.address, 1, POSITION, 0, 0, COLLATERAL)
+
+            expectAccountEq(await market.accounts(user.address), {
+              latestVersion: ORACLE_VERSION,
+              maker: 0,
+              long: 0,
+              short: 0,
+              nextMaker: POSITION,
+              nextLong: 0,
+              nextShort: 0,
+              collateral: COLLATERAL,
+              reward: 0,
+              liquidation: false,
+            })
+            expectPositionEq(await market.position(), {
+              latestVersion: ORACLE_VERSION,
+              maker: 0,
+              long: 0,
+              short: 0,
+              makerNext: POSITION,
+              longNext: 0,
+              shortNext: 0,
+            })
+            expectVersionEq(await market.versions(ORACLE_VERSION), {
+              makerValue: { _value: 0 },
+              longValue: { _value: 0 },
+              shortValue: { _value: 0 },
+              makerReward: { _value: 0 },
+              longReward: { _value: 0 },
+              shortReward: { _value: 0 },
+            })
+          })
+
+          it('reverts when not operator', async () => {
+            await factory.mock.operators.withArgs(user.address, operator.address).returns(false)
+            await expect(market.connect(operator).update(user.address, POSITION, 0, 0, COLLATERAL)).to.be.revertedWith(
+              'MarketOperatorNotAllowed',
+            )
+          })
+        })
       })
 
       // TODO: payoff market
