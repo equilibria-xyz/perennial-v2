@@ -31,7 +31,7 @@ describe('Liquidate', () => {
     expect((await market.accounts(user.address)).liquidation).to.be.true
 
     expect((await market.accounts(user.address)).collateral).to.equal('317221012')
-    expect(await dsu.balanceOf(market.address)).to.equal('317221012')
+    expect(await dsu.balanceOf(market.address)).to.equal(utils.parseEther('317.221012'))
     expect(await dsu.balanceOf(userB.address)).to.equal(utils.parseEther('20682.778988')) // Original 20000 + fee
 
     await chainlink.next()
