@@ -13,7 +13,6 @@ struct MarketParameter {
     UFixed6 fundingFee;     // <= 429496%
     UFixed6 takerFee;       // <= 429496%
     UFixed6 positionFee;    // <= 429496%
-    UFixed6 makerLiquidity; // <= 429496%
     UFixed6 makerLimit;     // <= 18.45tn
     bool closed;
     UFixed6 makerRewardRate;
@@ -38,7 +37,6 @@ struct StoredMarketParameter {
     uint32 shortRewardRate;  // <= 2147.48 / s
 
     /* slot 3 */
-    uint24 makerLiquidity;                    // <= 1677%
     uint48 makerLimit;                        // <= 281m
     uint32 utilizationCurveMinRate;           // <= 214748%
     uint32 utilizationCurveMaxRate;           // <= 214748%
@@ -47,7 +45,7 @@ struct StoredMarketParameter {
     bool closed;
     bool payoffShort;
     bool fuse;
-    bytes5 __unallocated0__;
+    bytes8 __unallocated0__;
 }
 struct MarketParameterStorage { StoredMarketParameter value; }
 using MarketParameterStorageLib for MarketParameterStorage global;
@@ -63,7 +61,6 @@ library MarketParameterStorageLib {
             UFixed6.wrap(uint256(value.fundingFee)),
             UFixed6.wrap(uint256(value.takerFee)),
             UFixed6.wrap(uint256(value.positionFee)),
-            UFixed6.wrap(uint256(value.makerLiquidity)),
             UFixed6.wrap(uint256(value.makerLimit)),
             value.closed,
             UFixed6.wrap(uint256(value.makerRewardRate)),
@@ -87,7 +84,6 @@ library MarketParameterStorageLib {
         if (newValue.fundingFee.gt(UFixed6Lib.MAX_24)) revert MarketParameterStorageInvalidError();
         if (newValue.takerFee.gt(UFixed6Lib.MAX_24)) revert MarketParameterStorageInvalidError();
         if (newValue.positionFee.gt(UFixed6Lib.MAX_24)) revert MarketParameterStorageInvalidError();
-        if (newValue.makerLiquidity.gt(UFixed6Lib.MAX_24)) revert MarketParameterStorageInvalidError();
         if (newValue.makerLimit.gt(UFixed6Lib.MAX_48)) revert MarketParameterStorageInvalidError();
         if (newValue.makerRewardRate.gt(UFixed6Lib.MAX_32)) revert MarketParameterStorageInvalidError();
         if (newValue.longRewardRate.gt(UFixed6Lib.MAX_32)) revert MarketParameterStorageInvalidError();
@@ -106,7 +102,6 @@ library MarketParameterStorageLib {
             fundingFee: uint24(UFixed6.unwrap(newValue.fundingFee)),
             takerFee: uint24(UFixed6.unwrap(newValue.takerFee)),
             positionFee: uint24(UFixed6.unwrap(newValue.positionFee)),
-            makerLiquidity: uint24(UFixed6.unwrap(newValue.makerLiquidity)),
             makerLimit: uint48(UFixed6.unwrap(newValue.makerLimit)),
             closed: newValue.closed,
             makerRewardRate: uint32(UFixed6.unwrap(newValue.makerRewardRate)),
@@ -120,7 +115,7 @@ library MarketParameterStorageLib {
             payoffProvider: address(newValue.payoff.provider),
             payoffShort: newValue.payoff.short,
             fuse: true,
-            __unallocated0__: bytes5(0)
+            __unallocated0__: bytes8(0)
         });
     }
 }

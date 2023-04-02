@@ -107,25 +107,24 @@ library VersionLib {
 
         UFixed6 notional = position.takerSocialized().mul(fromOracleVersion.price.abs());
         UFixed6 funding = marketParameter.utilizationCurve.accumulate(
-            position.utilization(marketParameter),
+            position.utilization(),
             fromOracleVersion.timestamp,
             toOracleVersion.timestamp,
             notional
         );
         fundingFee = UFixed6Lib.max(marketParameter.fundingFee, protocolParameter.minFundingFee).mul(funding);
-        UFixed6 makerUtilized = position.utilized(marketParameter);
-        UFixed6 makerFee = makerUtilized.div(makerUtilized.add(position.long.min(position.short)))
-            .mul(funding.sub(fundingFee));
-        UFixed6 fundingWithoutFee = funding.sub(fundingFee).sub(makerFee);
+        UFixed6 fundingWithoutFee = funding.sub(fundingFee);
+        UFixed6 fundingWithoutFeeTaker = fundingWithoutFee.mul(position.long.min(position.short));
+        UFixed6 fundingWithoutFeeMaker = fundingWithoutFee.sub(fundingWithoutFeeTaker);
 
         if (position.long.gt(position.short)) {
             if (!position.long.isZero()) self.longValue.decrement(Fixed6Lib.from(funding), position.long);
-            if (!position.short.isZero()) self.shortValue.increment(Fixed6Lib.from(fundingWithoutFee), position.short);
+            if (!position.short.isZero()) self.shortValue.increment(Fixed6Lib.from(fundingWithoutFeeTaker), position.short);
         } else {
-            if (!position.long.isZero()) self.longValue.increment(Fixed6Lib.from(fundingWithoutFee), position.long);
+            if (!position.long.isZero()) self.longValue.increment(Fixed6Lib.from(fundingWithoutFeeTaker), position.long);
             if (!position.short.isZero()) self.shortValue.decrement(Fixed6Lib.from(funding), position.short);
         }
-        if (!position.maker.isZero()) self.makerValue.increment(Fixed6Lib.from(makerFee), position.maker);
+        if (!position.maker.isZero()) self.makerValue.increment(Fixed6Lib.from(fundingWithoutFeeMaker), position.maker);
     }
 
     /**

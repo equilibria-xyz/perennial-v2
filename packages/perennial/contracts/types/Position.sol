@@ -59,13 +59,20 @@ library PositionLib {
      * @param self The Position to operate on
      * @return utilization ratio
      */
-    function utilization(Position memory self, MarketParameter memory marketParameter) internal pure returns (UFixed6) {
-        return utilized(self, marketParameter).unsafeDiv(self.maker);
+    function utilization(Position memory self) internal pure returns (UFixed6) {
+        UFixed6 _magnitude = magnitude(self);
+        UFixed6 _net = net(self);
+        UFixed6 buffer = self.maker.gt(_net) ? self.maker.sub(_net) : UFixed6Lib.ZERO;
+
+        return _magnitude.unsafeDiv(_magnitude.add(buffer));
     }
 
-    function utilized(Position memory self, MarketParameter memory marketParameter) internal pure returns (UFixed6) {
-        return Fixed6Lib.from(self.long).sub(Fixed6Lib.from(self.short)).abs()    // net oi
-            .max(self.long.max(self.short).mul(marketParameter.makerLiquidity));  // liquidity
+    function magnitude(Position memory self) internal pure returns (UFixed6) {
+        return self.long.max(self.short);
+    }
+
+    function net(Position memory self) internal pure returns (UFixed6) {
+        return Fixed6Lib.from(self.long).sub(Fixed6Lib.from(self.short)).abs();
     }
 
     function longSocialized(Position memory self) internal pure returns (UFixed6) {
@@ -77,7 +84,7 @@ library PositionLib {
     }
 
     function takerSocialized(Position memory self) internal pure returns (UFixed6) {
-        return self.long.max(self.short).min(self.long.min(self.short).add(self.maker));
+        return magnitude(self).min(self.long.min(self.short).add(self.maker));
     }
 
     function socializedNext(Position memory self) internal pure returns (bool) {

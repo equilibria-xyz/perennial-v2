@@ -118,7 +118,6 @@ describe.only('Market', () => {
       fundingFee: parse6decimal('0.1'),
       takerFee: 0,
       positionFee: 0,
-      makerLiquidity: parse6decimal('0.2'),
       makerLimit: parse6decimal('1000'),
       closed: false,
       utilizationCurve: {
@@ -157,7 +156,6 @@ describe.only('Market', () => {
       expect(parameter.fundingFee).to.equal(marketParameter.fundingFee)
       expect(parameter.takerFee).to.equal(marketParameter.takerFee)
       expect(parameter.positionFee).to.equal(marketParameter.positionFee)
-      expect(parameter.makerLiquidity).to.equal(marketParameter.makerLiquidity)
       expect(parameter.makerLimit).to.equal(marketParameter.makerLimit)
       expect(parameter.utilizationCurve.minRate).to.equal(marketParameter.utilizationCurve.minRate)
       expect(parameter.utilizationCurve.targetRate).to.equal(marketParameter.utilizationCurve.targetRate)
@@ -218,7 +216,6 @@ describe.only('Market', () => {
         expect(parameter.fundingFee).to.equal(newMarketParameter.fundingFee)
         expect(parameter.takerFee).to.equal(newMarketParameter.takerFee)
         expect(parameter.positionFee).to.equal(newMarketParameter.positionFee)
-        expect(parameter.makerLiquidity).to.equal(newMarketParameter.makerLiquidity)
         expect(parameter.makerLimit).to.equal(newMarketParameter.makerLimit)
         expect(parameter.utilizationCurve.minRate).to.equal(newMarketParameter.utilizationCurve.minRate)
         expect(parameter.utilizationCurve.targetRate).to.equal(newMarketParameter.utilizationCurve.targetRate)
