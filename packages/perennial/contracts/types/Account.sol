@@ -53,7 +53,7 @@ library AccountLib {
         Fixed6 makerAmount,
         Fixed6 longAmount,
         Fixed6 shortAmount,
-        UFixed6 takerFee,
+        UFixed6 positionFee,
         Fixed6 collateralAmount
     ) {
         // compute
@@ -62,8 +62,11 @@ library AccountLib {
             Fixed6Lib.from(newLong).sub(Fixed6Lib.from(self.nextLong)),
             Fixed6Lib.from(newShort).sub(Fixed6Lib.from(self.nextShort))
         );
-        takerFee = longAmount.add(shortAmount).mul(currentOracleVersion.price).abs().mul(marketParameter.takerFee);
-        collateralAmount = newCollateral.sub(self.collateral).add(Fixed6Lib.from(takerFee));
+        positionFee = currentOracleVersion.price.abs().mul(
+            longAmount.abs().add(shortAmount.abs()).mul(marketParameter.takerFee)
+                .add(makerAmount.abs().mul(marketParameter.makerFee))
+        );
+        collateralAmount = newCollateral.sub(self.collateral).add(Fixed6Lib.from(positionFee));
 
         // update
         self.nextMaker = newMaker;

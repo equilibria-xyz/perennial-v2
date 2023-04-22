@@ -182,7 +182,7 @@ contract Market is IMarket, UInitializable, UOwnable {
 
         // update
         if (newCollateral.eq(Fixed6Lib.MAX)) newCollateral = context.account.collateral;
-        (Fixed6 makerAmount, Fixed6 longAmount, Fixed6 shortAmount, UFixed6 takerFee, Fixed6 collateralAmount) =
+        (Fixed6 makerAmount, Fixed6 longAmount, Fixed6 shortAmount, UFixed6 positionFee, Fixed6 collateralAmount) =
             context.account.update(
                 newMaker,
                 newLong,
@@ -192,8 +192,8 @@ contract Market is IMarket, UInitializable, UOwnable {
                 context.marketParameter
             );
         context.position.update(makerAmount, longAmount, shortAmount);
-        UFixed6 positionFee = context.version.update(context.position, takerFee, context.marketParameter);
-        context.fee.update(positionFee, context.protocolParameter);
+        UFixed6 protocolFee = context.version.update(context.position, positionFee, context.marketParameter);
+        context.fee.update(protocolFee, context.protocolParameter);
 
         // after
         if (!force) _checkPosition(context);

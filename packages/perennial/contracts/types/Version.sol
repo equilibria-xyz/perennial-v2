@@ -47,20 +47,20 @@ library VersionLib {
      *      calculate the user's fee total. In the event that settlement is occurring over multiple oracle versions
      *      (i.e. from a -> b -> c) it is safe to use the latestOracleVersion because in the a -> b case, a is always
      *      b - 1, and in the b -> c case the `PrePosition` is always empty so this is skipped.
-     * @return positionFee The position fee that is retained by the protocol and product
+     * @return protocolFee The position fee that is retained by the protocol and product
      */
     function update(
         Version memory self,
         Position memory position,
-        UFixed6 takerFee,
+        UFixed6 positionFee,
         MarketParameter memory marketParameter
-    ) internal pure returns (UFixed6 positionFee) {
-        positionFee = marketParameter.positionFee.mul(takerFee);
-        takerFee = takerFee.sub(positionFee);
+    ) internal pure returns (UFixed6 protocolFee) {
+        // If there are no makers to distribute the taker's position fee to, give it to the protocol
+        if (position.maker.isZero()) return positionFee;
 
-        // If there are makers to distribute the taker's position fee to, distribute. Otherwise give it to the protocol
-        if (position.maker.isZero()) positionFee = positionFee.add(takerFee);
-        else self.makerValue.increment(Fixed6Lib.from(takerFee), position.maker);
+        protocolFee = marketParameter.positionFee.mul(positionFee);
+        positionFee = positionFee.sub(protocolFee);
+        self.makerValue.increment(Fixed6Lib.from(positionFee), position.maker);
     }
 
     /**

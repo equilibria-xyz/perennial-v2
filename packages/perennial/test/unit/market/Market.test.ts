@@ -118,6 +118,7 @@ describe.only('Market', () => {
       maintenance: parse6decimal('0.3'),
       fundingFee: parse6decimal('0.1'),
       takerFee: 0,
+      makerFee: 0,
       positionFee: 0,
       makerLimit: parse6decimal('1000'),
       closed: false,
@@ -156,6 +157,7 @@ describe.only('Market', () => {
       expect(parameter.maintenance).to.equal(marketParameter.maintenance)
       expect(parameter.fundingFee).to.equal(marketParameter.fundingFee)
       expect(parameter.takerFee).to.equal(marketParameter.takerFee)
+      expect(parameter.makerFee).to.equal(marketParameter.makerFee)
       expect(parameter.positionFee).to.equal(marketParameter.positionFee)
       expect(parameter.makerLimit).to.equal(marketParameter.makerLimit)
       expect(parameter.utilizationCurve.minRate).to.equal(marketParameter.utilizationCurve.minRate)
@@ -190,6 +192,7 @@ describe.only('Market', () => {
           maintenance: parse6decimal('0.4'),
           fundingFee: parse6decimal('0.2'),
           takerFee: parse6decimal('0.1'),
+          makerFee: parse6decimal('0.05'),
           positionFee: parse6decimal('0.1'),
           makerLiquidity: parse6decimal('0.1'),
           makerLimit: parse6decimal('2000'),
@@ -236,6 +239,7 @@ describe.only('Market', () => {
           maintenance: parse6decimal('0.4'),
           fundingFee: parse6decimal('0.2'),
           takerFee: parse6decimal('0.1'),
+          makerFee: parse6decimal('0.05'),
           positionFee: parse6decimal('0.1'),
           makerLiquidity: parse6decimal('0.1'),
           makerLimit: parse6decimal('2000'),
@@ -266,6 +270,7 @@ describe.only('Market', () => {
           maintenance: parse6decimal('0.4'),
           fundingFee: parse6decimal('0.2'),
           takerFee: parse6decimal('0.1'),
+          makerFee: parse6decimal('0.05'),
           positionFee: parse6decimal('0.1'),
           makerLiquidity: parse6decimal('0.1'),
           makerLimit: parse6decimal('2000'),
@@ -296,6 +301,7 @@ describe.only('Market', () => {
           maintenance: parse6decimal('0.4'),
           fundingFee: parse6decimal('0.2'),
           takerFee: parse6decimal('0.1'),
+          makerFee: parse6decimal('0.05'),
           positionFee: parse6decimal('0.1'),
           makerLiquidity: parse6decimal('0.1'),
           makerLimit: parse6decimal('2000'),

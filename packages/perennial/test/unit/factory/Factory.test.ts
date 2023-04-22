@@ -98,6 +98,7 @@ describe('Factory', () => {
         maintenance: parse6decimal('0.3'),
         fundingFee: parse6decimal('0.1'),
         takerFee: 0,
+        makerFee: 0,
         positionFee: 0,
         makerLiquidity: parse6decimal('0.2'),
         makerLimit: parse6decimal('1000'),
@@ -135,6 +136,7 @@ describe('Factory', () => {
       minFundingFee: parse6decimal('0.10'),
       liquidationFee: parse6decimal('0.50'),
       minCollateral: parse6decimal('500'),
+      minSpread: parse6decimal('500'),
       paused: false,
     }
 
