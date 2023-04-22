@@ -107,6 +107,7 @@ export async function deployProtocol(): Promise<InstanceVars> {
     minFundingFee: parse6decimal('0.10'),
     liquidationFee: parse6decimal('0.50'),
     minCollateral: parse6decimal('500'),
+    minSpread: parse6decimal('0.20'),
     paused: false,
   })
 

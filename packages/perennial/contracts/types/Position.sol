@@ -75,6 +75,10 @@ library PositionLib {
         return Fixed6Lib.from(self.long).sub(Fixed6Lib.from(self.short)).abs();
     }
 
+    function spread(Position memory self) internal pure returns (UFixed6) {
+        return net(self).div(magnitude(self));
+    }
+
     function longSocialized(Position memory self) internal pure returns (UFixed6) {
         return self.maker.add(self.short).min(self.long);
     }

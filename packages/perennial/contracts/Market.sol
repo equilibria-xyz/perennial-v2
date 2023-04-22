@@ -13,6 +13,8 @@ import "hardhat/console.sol";
  * @dev Cloned by the Factory contract to launch new market markets.
  */
 contract Market is IMarket, UInitializable, UOwnable {
+    bool private constant GAS_PROFILE = false;
+
     /// @dev The name of the market
     string public name;
 
@@ -202,7 +204,6 @@ contract Market is IMarket, UInitializable, UOwnable {
         _startGas(context, "_update fund-events: %s");
 
         // fund
-        console.log("collateralAmount: %s", UFixed6.unwrap(collateralAmount.abs()));
         if (collateralAmount.sign() == 1) token.pull(msg.sender, UFixed18.wrap(UFixed6.unwrap(collateralAmount.abs()) * 1e12));
         if (collateralAmount.sign() == -1) token.push(msg.sender, UFixed18.wrap(UFixed6.unwrap(collateralAmount.abs()) * 1e12));
 
@@ -255,7 +256,7 @@ contract Market is IMarket, UInitializable, UOwnable {
         Version memory fromVersion;
         Version memory toVersion;
 
-        if ( context.currentOracleVersion.version > context.position.latestVersion) {
+        if (context.currentOracleVersion.version > context.position.latestVersion) {
             // settle market a->b if necessary
             fromOracleVersion = context.position.latestVersion == context.currentOracleVersion.version ?
                 context.currentOracleVersion :
@@ -392,6 +393,6 @@ contract Market is IMarket, UInitializable, UOwnable {
 
     function _endGas(CurrentContext memory context) private view {
         uint256 endGas = gasleft();
-        console.log(context.gasCounterMessage,  context.gasCounter - endGas);
+        if (GAS_PROFILE) console.log(context.gasCounterMessage,  context.gasCounter - endGas);
     }
 }

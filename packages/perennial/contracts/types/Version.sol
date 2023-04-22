@@ -114,8 +114,9 @@ library VersionLib {
         );
         fundingFee = UFixed6Lib.max(marketParameter.fundingFee, protocolParameter.minFundingFee).mul(funding);
         UFixed6 fundingWithoutFee = funding.sub(fundingFee);
-        UFixed6 fundingWithoutFeeTaker = fundingWithoutFee.mul(position.long.min(position.short));
-        UFixed6 fundingWithoutFeeMaker = fundingWithoutFee.sub(fundingWithoutFeeTaker);
+        UFixed6 spread = position.spread().max(protocolParameter.minSpread);
+        UFixed6 fundingWithoutFeeMaker = fundingWithoutFee.mul(spread);
+        UFixed6 fundingWithoutFeeTaker = fundingWithoutFee.sub(fundingWithoutFeeMaker);
 
         if (position.long.gt(position.short)) {
             if (!position.long.isZero()) self.longValue.decrement(Fixed6Lib.from(funding), position.long);
