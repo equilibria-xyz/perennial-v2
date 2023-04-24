@@ -9,6 +9,7 @@ struct Account {
     UFixed6 maker;
     UFixed6 long;
     UFixed6 short;
+    uint256 nextVersion;
     UFixed6 nextMaker;
     UFixed6 nextLong;
     UFixed6 nextShort;
@@ -17,13 +18,14 @@ struct Account {
     bool liquidation;
 }
 using AccountLib for Account global;
-struct StoredAccount {
+struct StoredAccount { //TODO: packed probably too tight
     uint8 _positionMask;
-    uint24 _latestVersion;          // <= 4.29b
-    uint56 _position;                // <= 36b
-    uint56 _next;                    // <= 36b
+    uint24 _latestVersion;          // <= 16m
+    uint48 _position;               // <= 281m
+    uint24 _nextVersion;            // <= 16m
+    uint48 _next;                   // <= 281m
     int56 _collateral;              // <= 36b
-    uint56 _liquidationAndReward;   // <= 36b
+    uint48 _liquidationAndReward;   // <= 281m
 }
 struct AccountStorage { StoredAccount value; }
 using AccountStorageLib for AccountStorage global;
@@ -69,6 +71,7 @@ library AccountLib {
         collateralAmount = newCollateral.sub(self.collateral).add(Fixed6Lib.from(positionFee));
 
         // update
+        self.nextVersion = currentOracleVersion.version + 1;
         self.nextMaker = newMaker;
         self.nextLong = newLong;
         self.nextShort = newShort;
@@ -81,7 +84,6 @@ library AccountLib {
      */
     function accumulate(
         Account memory self,
-        OracleVersion memory toOracleVersion,
         Version memory fromVersion,
         Version memory toVersion
     ) internal pure {
@@ -92,7 +94,7 @@ library AccountLib {
             .add(toVersion.longReward.accumulated(fromVersion.longReward, self.long))
             .add(toVersion.shortReward.accumulated(fromVersion.shortReward, self.short));
 
-        self.latestVersion = toOracleVersion.version;
+        self.latestVersion = self.nextVersion;
         self.maker = self.nextMaker;
         self.long = self.nextLong;
         self.short = self.nextShort;
@@ -148,7 +150,8 @@ library AccountStorageLib {
     error AccountStorageInvalidError();
     error AccountStorageDoubleSidedError();
 
-    uint64 constant LIQUIDATION_MASK = uint64(1 << 55);
+    uint64 constant REWARD_AND_LIQUIDATION_SIZE = 48;
+    uint64 constant LIQUIDATION_MASK = uint64(1 << (REWARD_AND_LIQUIDATION_SIZE - 1));
 
     function read(AccountStorage storage self) internal view returns (Account memory) {
         StoredAccount memory storedValue =  self.value;
@@ -165,6 +168,7 @@ library AccountStorageLib {
             UFixed6.wrap(uint256(isMaker ? storedValue._position : 0)),
             UFixed6.wrap(uint256(isLong ? storedValue._position : 0)),
             UFixed6.wrap(uint256(isShort ? storedValue._position : 0)),
+            uint256(storedValue._nextVersion),
             UFixed6.wrap(uint256(isNextMaker ? storedValue._next : 0)),
             UFixed6.wrap(uint256(isNextLong ? storedValue._next : 0)),
             UFixed6.wrap(uint256(isNextShort ? storedValue._next : 0)),
@@ -176,10 +180,11 @@ library AccountStorageLib {
 
     function store(AccountStorage storage self, Account memory newValue) internal {
         if (newValue.latestVersion > type(uint24).max) revert AccountStorageInvalidError();
-        if (newValue.position().gt(UFixed6Lib.MAX_56)) revert AccountStorageInvalidError();
-        if (newValue.next().gt(UFixed6Lib.MAX_56)) revert AccountStorageInvalidError();
+        if (newValue.position().gt(UFixed6Lib.MAX_48)) revert AccountStorageInvalidError();
+        if (newValue.nextVersion > type(uint24).max) revert AccountStorageInvalidError();
+        if (newValue.next().gt(UFixed6Lib.MAX_48)) revert AccountStorageInvalidError();
         if (newValue.collateral.gt(Fixed6Lib.MAX_56)) revert AccountStorageInvalidError();
-        if (newValue.reward.gt(UFixed6.wrap((1 << 55) - 1))) revert AccountStorageInvalidError();
+        if (newValue.reward.gt(UFixed6.wrap((1 << (REWARD_AND_LIQUIDATION_SIZE - 1)) - 1))) revert AccountStorageInvalidError();
 
         if (
             !newValue.nextMaker.isZero() && !newValue.nextLong.isZero() ||
@@ -198,10 +203,11 @@ library AccountStorageLib {
         self.value = StoredAccount(
             uint8(_positionMask),
             uint24(newValue.latestVersion),
-            uint56(UFixed6.unwrap(newValue.position())),
-            uint56(UFixed6.unwrap(newValue.next())),
-            int56(Fixed6.unwrap(newValue.collateral)),
-            uint56((UFixed6.unwrap(newValue.reward)) | (uint56(newValue.liquidation ? 1 : 0) << 55))
+            uint48(UFixed6.unwrap(newValue.position())),
+            uint24(newValue.nextVersion),
+            uint48(UFixed6.unwrap(newValue.next())),
+        int56(Fixed6.unwrap(newValue.collateral)),
+            uint48((UFixed6.unwrap(newValue.reward)) | (uint48(newValue.liquidation ? 1 : 0) << (REWARD_AND_LIQUIDATION_SIZE - 1)))
         );
     }
 }

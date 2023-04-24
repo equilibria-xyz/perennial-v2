@@ -65,6 +65,8 @@ contract Market is IMarket, UInitializable, UOwnable {
 
     function settle(address account) external {
         CurrentContext memory context = _loadContext(account);
+        if (context.protocolParameter.paused) revert MarketPausedError();
+
         _settle(context);
         _liquidate(context, account);
         _saveContext(context, account);
@@ -78,6 +80,8 @@ contract Market is IMarket, UInitializable, UOwnable {
         Fixed6 newCollateral
     ) external {
         CurrentContext memory context = _loadContext(account);
+        if (context.protocolParameter.paused) revert MarketPausedError();
+
         _checkOperator(context, account, newMaker, newLong, newShort, newCollateral);
         _settle(context);
         _update(context, account, newMaker, newLong, newShort, newCollateral, false);
@@ -191,7 +195,7 @@ contract Market is IMarket, UInitializable, UOwnable {
                 context.currentOracleVersion,
                 context.marketParameter
             );
-        context.position.update(makerAmount, longAmount, shortAmount);
+        context.position.update(makerAmount, longAmount, shortAmount, context.currentOracleVersion);
         UFixed6 protocolFee = context.version.update(context.position, positionFee, context.marketParameter);
         context.fee.update(protocolFee, context.protocolParameter);
 
@@ -224,11 +228,10 @@ contract Market is IMarket, UInitializable, UOwnable {
         context.currentOracleVersion = _sync(context.marketParameter);
         context.position = _position.read();
         context.fee = _fee.read();
-        context.version = _versions[context.position.latestVersion + 1].read();
+        context.version = _versions[context.position.versionNext].read();
         context.account = _accounts[account].read();
 
         // after
-
         _endGas(context);
     }
 
@@ -238,7 +241,7 @@ contract Market is IMarket, UInitializable, UOwnable {
         // state
         _position.store(context.position);
         _fee.store(context.fee);
-        _versions[context.position.latestVersion + 1].store(context.version);
+        _versions[context.position.versionNext].store(context.version);
         _accounts[account].store(context.account);
 
         _endGas(context);
@@ -247,78 +250,27 @@ contract Market is IMarket, UInitializable, UOwnable {
     function _settle(CurrentContext memory context) private {
         _startGas(context, "_settle: %s");
 
-        // before
-        if (context.protocolParameter.paused) revert MarketPausedError();
-
-        // Initialize memory
-        OracleVersion memory fromOracleVersion;
-        OracleVersion memory toOracleVersion;
-        Version memory fromVersion;
-        Version memory toVersion;
-
-        if (context.currentOracleVersion.version > context.position.latestVersion) {
-            // settle market a->b if necessary
-            fromOracleVersion = context.position.latestVersion == context.currentOracleVersion.version ?
-                context.currentOracleVersion :
-                _oracleVersionAt(context.marketParameter, context.position.latestVersion);
-            toOracleVersion = context.position.latestVersion + 1 == context.currentOracleVersion.version ?
-                context.currentOracleVersion :
-                _oracleVersionAt(context.marketParameter, context.position.latestVersion + 1);
-            _settlePeriod(context, fromOracleVersion, toOracleVersion);
-
-            // settle market b->c if necessary
-            fromOracleVersion = toOracleVersion;
-            toOracleVersion = context.currentOracleVersion;
-            _settlePeriod(context, fromOracleVersion, toOracleVersion);
-        }
-
-        if (context.currentOracleVersion.version > context.account.latestVersion) {
-            // settle account a->b if necessary
-            toOracleVersion = context.account.latestVersion + 1 == context.currentOracleVersion.version ?
-                context.currentOracleVersion :
-                _oracleVersionAt(context.marketParameter, context.account.latestVersion + 1);
-            fromVersion = _versions[context.account.latestVersion].read();
-            toVersion = _versions[context.account.latestVersion + 1].read();
-            _settlePeriodAccount(context, toOracleVersion, fromVersion, toVersion);
-
-            // settle account b->c if necessary
-            toOracleVersion = context.currentOracleVersion;
-            fromVersion = toVersion;
-            toVersion = context.version;
-            _settlePeriodAccount(context, toOracleVersion, fromVersion, toVersion);
-        }
-
-        _endGas(context);
-    }
-
-    function _settlePeriod(
-        CurrentContext memory context,
-        OracleVersion memory fromOracleVersion,
-        OracleVersion memory toOracleVersion
-    ) private {
-        if (context.currentOracleVersion.version > context.position.latestVersion) {
+        if (context.currentOracleVersion.version >= context.position.versionNext) {
             UFixed6 fundingFee = context.version.accumulate(
                 context.position,
-                fromOracleVersion,
-                toOracleVersion,
+                _oracleVersionAt(context.marketParameter, context.position.latestVersion),
+                _oracleVersionAt(context.marketParameter, context.position.versionNext),
                 context.protocolParameter,
                 context.marketParameter
             );
             context.fee.update(fundingFee, context.protocolParameter);
-            context.position.settle(toOracleVersion);
-            _versions[toOracleVersion.version].store(context.version);
+            _versions[context.position.versionNext].store(context.version);
+            context.position.settle();
         }
-    }
 
-    function _settlePeriodAccount(
-        CurrentContext memory context,
-        OracleVersion memory toOracleVersion,
-        Version memory fromVersion,
-        Version memory toVersion
-    ) private pure {
-        if (context.currentOracleVersion.version > context.account.latestVersion) {
-            context.account.accumulate(toOracleVersion, fromVersion, toVersion);
+        if (context.currentOracleVersion.version >= context.account.nextVersion) {
+            context.account.accumulate(
+                _versions[context.account.latestVersion].read(),
+                _versions[context.account.nextVersion].read()
+            );
         }
+
+        _endGas(context);
     }
 
     function _checkOperator(
@@ -332,12 +284,13 @@ contract Market is IMarket, UInitializable, UOwnable {
         if (account == msg.sender) return;                  // sender is operating on own account
         if (factory.operators(account, msg.sender)) return; // sender is operator enabled for this account
         if (
-            context.account.collateral.sign() == -1 &&
-            newCollateral.isZero() &&
             context.account.nextMaker.eq(newMaker) &&
             context.account.nextLong.eq(newLong) &&
-            context.account.nextShort.eq(newShort)
-        ) return;                                           // sender is repaying shortfall for this account
+            context.account.nextShort.eq(newShort) && (
+                (context.account.collateral.sign() == -1 && newCollateral.isZero()) || // sender is repaying shortfall for this account
+                (context.account.collateral.eq(newCollateral))                         // sender is triggering a noop settlement for the this account
+            )
+        ) return;
         revert MarketOperatorNotAllowed();
     }
 

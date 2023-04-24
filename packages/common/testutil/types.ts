@@ -10,6 +10,7 @@ export interface Account {
   maker: BigNumberish
   long: BigNumberish
   short: BigNumberish
+  nextVersion: BigNumberish
   nextMaker: BigNumberish
   nextLong: BigNumberish
   nextShort: BigNumberish
@@ -23,6 +24,7 @@ export interface Position {
   maker: BigNumberish
   long: BigNumberish
   short: BigNumberish
+  versionNext: BigNumberish
   makerNext: BigNumberish
   longNext: BigNumberish
   shortNext: BigNumberish
@@ -47,6 +49,7 @@ export function expectAccountEq(a: Account, b: Account): void {
   expect(a.maker).to.equal(b.maker)
   expect(a.long).to.equal(b.long)
   expect(a.short).to.equal(b.short)
+  expect(a.nextVersion).to.equal(b.nextVersion)
   expect(a.nextMaker).to.equal(b.nextMaker)
   expect(a.nextLong).to.equal(b.nextLong)
   expect(a.nextShort).to.equal(b.nextShort)
@@ -60,6 +63,7 @@ export function expectPositionEq(a: Position, b: Position): void {
   expect(a.maker).to.equal(b.maker)
   expect(a.long).to.equal(b.long)
   expect(a.short).to.equal(b.short)
+  expect(a.versionNext).to.equal(b.versionNext)
   expect(a.makerNext).to.equal(b.makerNext)
   expect(a.longNext).to.equal(b.longNext)
   expect(a.shortNext).to.equal(b.shortNext)

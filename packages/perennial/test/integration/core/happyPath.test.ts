@@ -3,7 +3,7 @@ import 'hardhat'
 import { constants } from 'ethers'
 
 import { InstanceVars, deployProtocol, createMarket, INITIAL_VERSION } from '../helpers/setupHelpers'
-import { expectPositionEq, parse6decimal } from '../../../../common/testutil/types'
+import { expectAccountEq, expectPositionEq, expectVersionEq, parse6decimal } from '../../../../common/testutil/types'
 import { Market__factory } from '../../../types/generated'
 
 //TODO: short tests
@@ -68,31 +68,39 @@ describe('Happy Path', () => {
       .withArgs(user.address, INITIAL_VERSION, POSITION, 0, 0, COLLATERAL)
 
     // Check user is in the correct state
-    expect((await market.accounts(user.address)).maker).to.equal(0)
-    expect((await market.accounts(user.address)).long).to.equal(0)
-    expect((await market.accounts(user.address)).short).to.equal(0)
-    expect((await market.accounts(user.address)).nextMaker).to.equal(POSITION)
-    expect((await market.accounts(user.address)).nextLong).to.equal(0)
-    expect((await market.accounts(user.address)).nextShort).to.equal(0)
-    expect((await market.accounts(user.address)).latestVersion).to.equal(INITIAL_VERSION)
-
-    // Check global state
-    expectPositionEq(await market.position(), {
-      latestVersion: INITIAL_VERSION,
+    expectAccountEq(await market.accounts(user.address), {
+      latestVersion: 0,
       maker: 0,
       long: 0,
       short: 0,
+      nextVersion: INITIAL_VERSION + 1,
+      nextMaker: POSITION,
+      nextLong: 0,
+      nextShort: 0,
+      collateral: COLLATERAL,
+      reward: 0,
+      liquidation: false,
+    })
+
+    // Check global state
+    expectPositionEq(await market.position(), {
+      latestVersion: 0,
+      maker: 0,
+      long: 0,
+      short: 0,
+      versionNext: INITIAL_VERSION + 1,
       makerNext: POSITION,
       longNext: 0,
       shortNext: 0,
     })
-    const version = await market.versions(INITIAL_VERSION)
-    expect(version.makerValue._value).to.equal(0)
-    expect(version.longValue._value).to.equal(0)
-    expect(version.shortValue._value).to.equal(0)
-    expect(version.makerReward._value).to.equal(0)
-    expect(version.longValue._value).to.equal(0)
-    expect(version.shortReward._value).to.equal(0)
+    expectVersionEq(await market.versions(INITIAL_VERSION), {
+      makerValue: { _value: 0 },
+      longValue: { _value: 0 },
+      shortValue: { _value: 0 },
+      makerReward: { _value: 0 },
+      longReward: { _value: 0 },
+      shortReward: { _value: 0 },
+    })
 
     // Settle the market with a new oracle version
     await chainlink.next()
@@ -104,6 +112,7 @@ describe('Happy Path', () => {
       maker: POSITION,
       long: 0,
       short: 0,
+      versionNext: INITIAL_VERSION + 1,
       makerNext: POSITION,
       longNext: 0,
       shortNext: 0,
@@ -111,13 +120,19 @@ describe('Happy Path', () => {
 
     // Settle user and check state
     await market.settle(user.address)
-    expect((await market.accounts(user.address)).maker).to.equal(POSITION)
-    expect((await market.accounts(user.address)).long).to.equal(0)
-    expect((await market.accounts(user.address)).short).to.equal(0)
-    expect((await market.accounts(user.address)).nextMaker).to.equal(POSITION)
-    expect((await market.accounts(user.address)).nextLong).to.equal(0)
-    expect((await market.accounts(user.address)).nextShort).to.equal(0)
-    expect((await market.accounts(user.address)).latestVersion).to.equal(INITIAL_VERSION + 1)
+    expectAccountEq(await market.accounts(user.address), {
+      latestVersion: INITIAL_VERSION + 1,
+      maker: POSITION,
+      long: 0,
+      short: 0,
+      nextVersion: INITIAL_VERSION + 1,
+      nextMaker: POSITION,
+      nextLong: 0,
+      nextShort: 0,
+      collateral: COLLATERAL,
+      reward: 0,
+      liquidation: false,
+    })
   })
 
   it('opens multiple make positions', async () => {
@@ -129,38 +144,45 @@ describe('Happy Path', () => {
     await dsu.connect(user).approve(market.address, COLLATERAL.mul(1e12))
 
     await market.connect(user).update(user.address, POSITION.div(2), 0, 0, COLLATERAL)
-    await market.connect(user).update(user.address, POSITION.div(2), 0, 0, COLLATERAL)
 
     await expect(market.connect(user).update(user.address, POSITION, 0, 0, COLLATERAL))
       .to.emit(market, 'Updated')
       .withArgs(user.address, INITIAL_VERSION, POSITION, 0, 0, COLLATERAL)
 
     // Check user is in the correct state
-    expect((await market.accounts(user.address)).maker).to.equal(0)
-    expect((await market.accounts(user.address)).long).to.equal(0)
-    expect((await market.accounts(user.address)).short).to.equal(0)
-    expect((await market.accounts(user.address)).nextMaker).to.equal(POSITION)
-    expect((await market.accounts(user.address)).nextLong).to.equal(0)
-    expect((await market.accounts(user.address)).nextShort).to.equal(0)
-    expect((await market.accounts(user.address)).latestVersion).to.equal(INITIAL_VERSION)
-
-    // Check global state
-    expectPositionEq(await market.position(), {
-      latestVersion: INITIAL_VERSION,
+    expectAccountEq(await market.accounts(user.address), {
+      latestVersion: 0,
       maker: 0,
       long: 0,
       short: 0,
+      nextVersion: INITIAL_VERSION + 1,
+      nextMaker: POSITION,
+      nextLong: 0,
+      nextShort: 0,
+      collateral: COLLATERAL,
+      reward: 0,
+      liquidation: false,
+    })
+
+    // Check global state
+    expectPositionEq(await market.position(), {
+      latestVersion: 0,
+      maker: 0,
+      long: 0,
+      short: 0,
+      versionNext: INITIAL_VERSION + 1,
       makerNext: POSITION,
       longNext: 0,
       shortNext: 0,
     })
-    const version = await market.versions(INITIAL_VERSION)
-    expect(version.makerValue._value).to.equal(0)
-    expect(version.longValue._value).to.equal(0)
-    expect(version.shortValue._value).to.equal(0)
-    expect(version.makerReward._value).to.equal(0)
-    expect(version.longReward._value).to.equal(0)
-    expect(version.shortReward._value).to.equal(0)
+    expectVersionEq(await market.versions(INITIAL_VERSION), {
+      makerValue: { _value: 0 },
+      longValue: { _value: 0 },
+      shortValue: { _value: 0 },
+      makerReward: { _value: 0 },
+      longReward: { _value: 0 },
+      shortReward: { _value: 0 },
+    })
 
     // Settle the market with a new oracle version
     await chainlink.next()
@@ -173,6 +195,7 @@ describe('Happy Path', () => {
       maker: POSITION,
       long: 0,
       short: 0,
+      versionNext: INITIAL_VERSION + 1,
       makerNext: POSITION,
       longNext: 0,
       shortNext: 0,
@@ -180,13 +203,19 @@ describe('Happy Path', () => {
 
     // Settle user and check state
     await market.settle(user.address)
-    expect((await market.accounts(user.address)).maker).to.equal(POSITION)
-    expect((await market.accounts(user.address)).long).to.equal(0)
-    expect((await market.accounts(user.address)).short).to.equal(0)
-    expect((await market.accounts(user.address)).nextMaker).to.equal(POSITION)
-    expect((await market.accounts(user.address)).nextLong).to.equal(0)
-    expect((await market.accounts(user.address)).nextShort).to.equal(0)
-    expect((await market.accounts(user.address)).latestVersion).to.equal(INITIAL_VERSION + 1)
+    expectAccountEq(await market.accounts(user.address), {
+      latestVersion: INITIAL_VERSION + 1,
+      maker: POSITION,
+      long: 0,
+      short: 0,
+      nextVersion: INITIAL_VERSION + 1,
+      nextMaker: POSITION,
+      nextLong: 0,
+      nextShort: 0,
+      collateral: COLLATERAL,
+      reward: 0,
+      liquidation: false,
+    })
   })
 
   it('closes a make position', async () => {
@@ -203,31 +232,39 @@ describe('Happy Path', () => {
       .withArgs(user.address, INITIAL_VERSION, 0, 0, 0, COLLATERAL)
 
     // User state
-    expect((await market.accounts(user.address)).maker).to.equal(0)
-    expect((await market.accounts(user.address)).long).to.equal(0)
-    expect((await market.accounts(user.address)).short).to.equal(0)
-    expect((await market.accounts(user.address)).nextMaker).to.equal(0)
-    expect((await market.accounts(user.address)).nextLong).to.equal(0)
-    expect((await market.accounts(user.address)).nextShort).to.equal(0)
-    expect((await market.accounts(user.address)).latestVersion).to.equal(INITIAL_VERSION)
-
-    // Global State
-    expectPositionEq(await market.position(), {
-      latestVersion: INITIAL_VERSION,
+    expectAccountEq(await market.accounts(user.address), {
+      latestVersion: 0,
       maker: 0,
       long: 0,
       short: 0,
+      nextVersion: INITIAL_VERSION + 1,
+      nextMaker: 0,
+      nextLong: 0,
+      nextShort: 0,
+      collateral: COLLATERAL,
+      reward: 0,
+      liquidation: false,
+    })
+
+    // Global State
+    expectPositionEq(await market.position(), {
+      latestVersion: 0,
+      maker: 0,
+      long: 0,
+      short: 0,
+      versionNext: INITIAL_VERSION + 1,
       makerNext: 0,
       longNext: 0,
       shortNext: 0,
     })
-    const version = await market.versions(INITIAL_VERSION)
-    expect(version.makerValue._value).to.equal(0)
-    expect(version.longValue._value).to.equal(0)
-    expect(version.shortValue._value).to.equal(0)
-    expect(version.makerReward._value).to.equal(0)
-    expect(version.longReward._value).to.equal(0)
-    expect(version.shortReward._value).to.equal(0)
+    expectVersionEq(await market.versions(INITIAL_VERSION), {
+      makerValue: { _value: 0 },
+      longValue: { _value: 0 },
+      shortValue: { _value: 0 },
+      makerReward: { _value: 0 },
+      longReward: { _value: 0 },
+      shortReward: { _value: 0 },
+    })
   })
 
   it('closes multiple make positions', async () => {
@@ -246,31 +283,39 @@ describe('Happy Path', () => {
       .withArgs(user.address, INITIAL_VERSION, 0, 0, 0, COLLATERAL)
 
     // User state
-    expect((await market.accounts(user.address)).maker).to.equal(0)
-    expect((await market.accounts(user.address)).long).to.equal(0)
-    expect((await market.accounts(user.address)).short).to.equal(0)
-    expect((await market.accounts(user.address)).nextMaker).to.equal(0)
-    expect((await market.accounts(user.address)).nextLong).to.equal(0)
-    expect((await market.accounts(user.address)).nextShort).to.equal(0)
-    expect((await market.accounts(user.address)).latestVersion).to.equal(INITIAL_VERSION)
-
-    // Global State
-    expectPositionEq(await market.position(), {
-      latestVersion: INITIAL_VERSION,
+    expectAccountEq(await market.accounts(user.address), {
+      latestVersion: 0,
       maker: 0,
       long: 0,
       short: 0,
+      nextVersion: INITIAL_VERSION + 1,
+      nextMaker: 0,
+      nextLong: 0,
+      nextShort: 0,
+      collateral: COLLATERAL,
+      reward: 0,
+      liquidation: false,
+    })
+
+    // Global State
+    expectPositionEq(await market.position(), {
+      latestVersion: 0,
+      maker: 0,
+      long: 0,
+      short: 0,
+      versionNext: INITIAL_VERSION + 1,
       makerNext: 0,
       longNext: 0,
       shortNext: 0,
     })
-    const version = await market.versions(INITIAL_VERSION)
-    expect(version.makerValue._value).to.equal(0)
-    expect(version.longValue._value).to.equal(0)
-    expect(version.shortValue._value).to.equal(0)
-    expect(version.makerReward._value).to.equal(0)
-    expect(version.longReward._value).to.equal(0)
-    expect(version.shortReward._value).to.equal(0)
+    expectVersionEq(await market.versions(INITIAL_VERSION), {
+      makerValue: { _value: 0 },
+      longValue: { _value: 0 },
+      shortValue: { _value: 0 },
+      makerReward: { _value: 0 },
+      longReward: { _value: 0 },
+      shortReward: { _value: 0 },
+    })
   })
 
   it('opens a long position', async () => {
@@ -289,32 +334,52 @@ describe('Happy Path', () => {
       .withArgs(userB.address, INITIAL_VERSION, 0, POSITION_B, 0, COLLATERAL)
 
     // User State
-    expect((await market.accounts(userB.address)).maker).to.equal(0)
-    expect((await market.accounts(userB.address)).long).to.equal(0)
-    expect((await market.accounts(userB.address)).short).to.equal(0)
-    expect((await market.accounts(userB.address)).nextMaker).to.equal(0)
-    expect((await market.accounts(userB.address)).nextLong).to.equal(POSITION_B)
-    expect((await market.accounts(userB.address)).nextShort).to.equal(0)
-    expect((await market.accounts(userB.address)).latestVersion).to.equal(INITIAL_VERSION)
-
-    // Global State
-    expect((await market.position()).latestVersion).to.equal(INITIAL_VERSION)
-    expectPositionEq(await market.position(), {
-      latestVersion: INITIAL_VERSION,
+    expectAccountEq(await market.accounts(user.address), {
+      latestVersion: 0,
       maker: 0,
       long: 0,
       short: 0,
+      nextVersion: INITIAL_VERSION + 1,
+      nextMaker: POSITION,
+      nextLong: 0,
+      nextShort: 0,
+      collateral: COLLATERAL,
+      reward: 0,
+      liquidation: false,
+    })
+    expectAccountEq(await market.accounts(userB.address), {
+      latestVersion: 0,
+      maker: 0,
+      long: 0,
+      short: 0,
+      nextVersion: INITIAL_VERSION + 1,
+      nextMaker: 0,
+      nextLong: POSITION_B,
+      nextShort: 0,
+      collateral: COLLATERAL,
+      reward: 0,
+      liquidation: false,
+    })
+
+    // Global State
+    expectPositionEq(await market.position(), {
+      latestVersion: 0,
+      maker: 0,
+      long: 0,
+      short: 0,
+      versionNext: INITIAL_VERSION + 1,
       makerNext: POSITION,
       longNext: POSITION_B,
       shortNext: 0,
     })
-    const version = await market.versions(INITIAL_VERSION)
-    expect(version.makerValue._value).to.equal(0)
-    expect(version.longValue._value).to.equal(0)
-    expect(version.shortValue._value).to.equal(0)
-    expect(version.makerReward._value).to.equal(0)
-    expect(version.longValue._value).to.equal(0)
-    expect(version.shortValue._value).to.equal(0)
+    expectVersionEq(await market.versions(INITIAL_VERSION), {
+      makerValue: { _value: 0 },
+      longValue: { _value: 0 },
+      shortValue: { _value: 0 },
+      makerReward: { _value: 0 },
+      longReward: { _value: 0 },
+      shortReward: { _value: 0 },
+    })
 
     // One round
     await chainlink.next()
@@ -323,24 +388,31 @@ describe('Happy Path', () => {
     // Another round
     await chainlink.next()
     await market.settle(constants.AddressZero)
+    await market.settle(userB.address)
 
     expectPositionEq(await market.position(), {
-      latestVersion: INITIAL_VERSION + 2,
+      latestVersion: INITIAL_VERSION + 1,
       maker: POSITION,
       long: POSITION_B,
       short: 0,
+      versionNext: INITIAL_VERSION + 1,
       makerNext: POSITION,
       longNext: POSITION_B,
       shortNext: 0,
     })
-    await market.settle(userB.address)
-    expect((await market.accounts(userB.address)).maker).to.equal(0)
-    expect((await market.accounts(userB.address)).long).to.equal(POSITION_B)
-    expect((await market.accounts(userB.address)).short).to.equal(0)
-    expect((await market.accounts(userB.address)).nextMaker).to.equal(0)
-    expect((await market.accounts(userB.address)).nextLong).to.equal(POSITION_B)
-    expect((await market.accounts(userB.address)).nextShort).to.equal(0)
-    expect((await market.accounts(userB.address)).latestVersion).to.equal(INITIAL_VERSION + 2)
+    expectAccountEq(await market.accounts(userB.address), {
+      latestVersion: INITIAL_VERSION + 1,
+      maker: 0,
+      long: POSITION_B,
+      short: 0,
+      nextVersion: INITIAL_VERSION + 1,
+      nextMaker: 0,
+      nextLong: POSITION_B,
+      nextShort: 0,
+      collateral: COLLATERAL,
+      reward: 0,
+      liquidation: false,
+    })
   })
 
   it('opens multiple take positions', async () => {
@@ -361,31 +433,39 @@ describe('Happy Path', () => {
       .withArgs(userB.address, INITIAL_VERSION, 0, POSITION_B, 0, COLLATERAL)
 
     // User State
-    expect((await market.accounts(userB.address)).maker).to.equal(0)
-    expect((await market.accounts(userB.address)).long).to.equal(0)
-    expect((await market.accounts(userB.address)).short).to.equal(0)
-    expect((await market.accounts(userB.address)).nextMaker).to.equal(0)
-    expect((await market.accounts(userB.address)).nextLong).to.equal(POSITION_B)
-    expect((await market.accounts(userB.address)).nextShort).to.equal(0)
-    expect((await market.accounts(userB.address)).latestVersion).to.equal(INITIAL_VERSION)
-
-    // Global State
-    expectPositionEq(await market.position(), {
-      latestVersion: INITIAL_VERSION,
+    expectAccountEq(await market.accounts(userB.address), {
+      latestVersion: 0,
       maker: 0,
       long: 0,
       short: 0,
+      nextVersion: INITIAL_VERSION + 1,
+      nextMaker: 0,
+      nextLong: POSITION_B,
+      nextShort: 0,
+      collateral: COLLATERAL,
+      reward: 0,
+      liquidation: false,
+    })
+
+    // Global State
+    expectPositionEq(await market.position(), {
+      latestVersion: 0,
+      maker: 0,
+      long: 0,
+      short: 0,
+      versionNext: INITIAL_VERSION + 1,
       makerNext: POSITION,
       longNext: POSITION_B,
       shortNext: 0,
     })
-    const version = await market.versions(INITIAL_VERSION)
-    expect(version.makerValue._value).to.equal(0)
-    expect(version.longValue._value).to.equal(0)
-    expect(version.shortValue._value).to.equal(0)
-    expect(version.makerReward._value).to.equal(0)
-    expect(version.longReward._value).to.equal(0)
-    expect(version.shortReward._value).to.equal(0)
+    expectVersionEq(await market.versions(INITIAL_VERSION), {
+      makerValue: { _value: 0 },
+      longValue: { _value: 0 },
+      shortValue: { _value: 0 },
+      makerReward: { _value: 0 },
+      longReward: { _value: 0 },
+      shortReward: { _value: 0 },
+    })
 
     // One round
     await chainlink.next()
@@ -396,22 +476,29 @@ describe('Happy Path', () => {
     await market.settle(constants.AddressZero)
 
     expectPositionEq(await market.position(), {
-      latestVersion: INITIAL_VERSION + 2,
+      latestVersion: INITIAL_VERSION + 1,
       maker: POSITION,
       long: POSITION_B,
       short: 0,
+      versionNext: INITIAL_VERSION + 1,
       makerNext: POSITION,
       longNext: POSITION_B,
       shortNext: 0,
     })
     await market.settle(userB.address)
-    expect((await market.accounts(userB.address)).maker).to.equal(0)
-    expect((await market.accounts(userB.address)).long).to.equal(POSITION_B)
-    expect((await market.accounts(userB.address)).short).to.equal(0)
-    expect((await market.accounts(userB.address)).nextMaker).to.equal(0)
-    expect((await market.accounts(userB.address)).nextLong).to.equal(POSITION_B)
-    expect((await market.accounts(userB.address)).nextShort).to.equal(0)
-    expect((await market.accounts(userB.address)).latestVersion).to.equal(INITIAL_VERSION + 2)
+    expectAccountEq(await market.accounts(userB.address), {
+      latestVersion: INITIAL_VERSION + 1,
+      maker: 0,
+      long: POSITION_B,
+      short: 0,
+      nextVersion: INITIAL_VERSION + 1,
+      nextMaker: 0,
+      nextLong: POSITION_B,
+      nextShort: 0,
+      collateral: COLLATERAL,
+      reward: 0,
+      liquidation: false,
+    })
   })
 
   it('closes a long position', async () => {
@@ -435,31 +522,39 @@ describe('Happy Path', () => {
       .withArgs(userB.address, INITIAL_VERSION, 0, 0, 0, COLLATERAL)
 
     // User State
-    expect((await market.accounts(userB.address)).maker).to.equal(0)
-    expect((await market.accounts(userB.address)).long).to.equal(0)
-    expect((await market.accounts(userB.address)).short).to.equal(0)
-    expect((await market.accounts(userB.address)).nextMaker).to.equal(0)
-    expect((await market.accounts(userB.address)).nextLong).to.equal(0)
-    expect((await market.accounts(userB.address)).nextShort).to.equal(0)
-    expect((await market.accounts(userB.address)).latestVersion).to.equal(INITIAL_VERSION)
-
-    // Global State
-    expectPositionEq(await market.position(), {
-      latestVersion: INITIAL_VERSION,
+    expectAccountEq(await market.accounts(userB.address), {
+      latestVersion: 0,
       maker: 0,
       long: 0,
       short: 0,
+      nextVersion: INITIAL_VERSION + 1,
+      nextMaker: 0,
+      nextLong: 0,
+      nextShort: 0,
+      collateral: COLLATERAL,
+      reward: 0,
+      liquidation: false,
+    })
+
+    // Global State
+    expectPositionEq(await market.position(), {
+      latestVersion: 0,
+      maker: 0,
+      long: 0,
+      short: 0,
+      versionNext: INITIAL_VERSION + 1,
       makerNext: POSITION,
       longNext: 0,
       shortNext: 0,
     })
-    const version = await market.versions(INITIAL_VERSION)
-    expect(version.makerValue._value).to.equal(0)
-    expect(version.longValue._value).to.equal(0)
-    expect(version.shortValue._value).to.equal(0)
-    expect(version.makerReward._value).to.equal(0)
-    expect(version.longReward._value).to.equal(0)
-    expect(version.shortReward._value).to.equal(0)
+    expectVersionEq(await market.versions(INITIAL_VERSION), {
+      makerValue: { _value: 0 },
+      longValue: { _value: 0 },
+      shortValue: { _value: 0 },
+      makerReward: { _value: 0 },
+      longReward: { _value: 0 },
+      shortReward: { _value: 0 },
+    })
   })
 
   it('closes multiple long positions', async () => {
@@ -484,31 +579,39 @@ describe('Happy Path', () => {
       .withArgs(userB.address, INITIAL_VERSION, 0, 0, 0, COLLATERAL)
 
     // User State
-    expect((await market.accounts(userB.address)).maker).to.equal(0)
-    expect((await market.accounts(userB.address)).long).to.equal(0)
-    expect((await market.accounts(userB.address)).short).to.equal(0)
-    expect((await market.accounts(userB.address)).nextMaker).to.equal(0)
-    expect((await market.accounts(userB.address)).nextLong).to.equal(0)
-    expect((await market.accounts(userB.address)).nextShort).to.equal(0)
-    expect((await market.accounts(userB.address)).latestVersion).to.equal(INITIAL_VERSION)
-
-    // Global State
-    expectPositionEq(await market.position(), {
-      latestVersion: INITIAL_VERSION,
+    expectAccountEq(await market.accounts(userB.address), {
+      latestVersion: 0,
       maker: 0,
       long: 0,
       short: 0,
+      nextVersion: INITIAL_VERSION + 1,
+      nextMaker: 0,
+      nextLong: 0,
+      nextShort: 0,
+      collateral: COLLATERAL,
+      reward: 0,
+      liquidation: false,
+    })
+
+    // Global State
+    expectPositionEq(await market.position(), {
+      latestVersion: 0,
+      maker: 0,
+      long: 0,
+      short: 0,
+      versionNext: INITIAL_VERSION + 1,
       makerNext: POSITION,
       longNext: 0,
       shortNext: 0,
     })
-    const version = await market.versions(INITIAL_VERSION)
-    expect(version.makerValue._value).to.equal(0)
-    expect(version.longValue._value).to.equal(0)
-    expect(version.shortValue._value).to.equal(0)
-    expect(version.makerReward._value).to.equal(0)
-    expect(version.longReward._value).to.equal(0)
-    expect(version.shortReward._value).to.equal(0)
+    expectVersionEq(await market.versions(INITIAL_VERSION), {
+      makerValue: { _value: 0 },
+      longValue: { _value: 0 },
+      shortValue: { _value: 0 },
+      makerReward: { _value: 0 },
+      longReward: { _value: 0 },
+      shortReward: { _value: 0 },
+    })
   })
 
   it('settle no op (gas test)', async () => {
@@ -588,30 +691,38 @@ describe('Happy Path', () => {
       .withArgs(user.address, INITIAL_VERSION + 4, POSITION, 0, 0, COLLATERAL.sub(1))
 
     // Check user is in the correct state
-    expect((await market.accounts(user.address)).maker).to.equal(POSITION.div(2))
-    expect((await market.accounts(user.address)).long).to.equal(0)
-    expect((await market.accounts(user.address)).short).to.equal(0)
-    expect((await market.accounts(user.address)).nextMaker).to.equal(POSITION)
-    expect((await market.accounts(user.address)).nextLong).to.equal(0)
-    expect((await market.accounts(user.address)).nextShort).to.equal(0)
-    expect((await market.accounts(user.address)).latestVersion).to.equal(INITIAL_VERSION + 4)
+    expectAccountEq(await market.accounts(user.address), {
+      latestVersion: INITIAL_VERSION + 3,
+      maker: POSITION.div(2),
+      long: 0,
+      short: 0,
+      nextVersion: INITIAL_VERSION + 5,
+      nextMaker: POSITION,
+      nextLong: 0,
+      nextShort: 0,
+      collateral: COLLATERAL.sub(1),
+      reward: '11009999',
+      liquidation: false,
+    })
 
     // Check global state
     expectPositionEq(await market.position(), {
-      latestVersion: INITIAL_VERSION + 4,
+      latestVersion: INITIAL_VERSION + 3,
       maker: POSITION.div(2),
       long: POSITION.div(2),
       short: 0,
+      versionNext: INITIAL_VERSION + 5,
       makerNext: POSITION,
       longNext: POSITION.div(2),
       shortNext: 0,
     })
-    const version = await market.versions(INITIAL_VERSION + 4)
-    expect(version.makerValue._value).to.equal('-362547683639')
-    expect(version.longValue._value).to.equal('362096873938')
-    expect(version.shortValue._value).to.equal(0)
-    expect(version.makerReward._value).to.equal('606836363635')
-    expect(version.longReward._value).to.equal('60683636363')
-    expect(version.shortReward._value).to.equal(0)
+    expectVersionEq(await market.versions(INITIAL_VERSION + 3), {
+      makerValue: { _value: '-247037696971' },
+      longValue: { _value: '246839060605' },
+      shortValue: { _value: 0 },
+      makerReward: { _value: '333636363636' },
+      longReward: { _value: '33363636363' },
+      shortReward: { _value: 0 },
+    })
   })
 })

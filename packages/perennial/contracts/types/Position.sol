@@ -14,6 +14,8 @@ struct Position {
     UFixed6 long;
     /// @dev Quantity of the short position
     UFixed6 short;
+
+    uint256 versionNext;
     /// @dev Quantity of the next maker position
     UFixed6 makerNext;
     /// @dev Quantity of the next long position
@@ -23,13 +25,14 @@ struct Position {
 }
 using PositionLib for Position global;
 struct StoredPosition {
-    uint40 _latestVersion;
+    uint40 _latestVersion; //TODO: name version
     uint72 _maker;
     uint72 _long;
     uint72 _short;
-    uint88 _makerNext;
-    uint80 _longNext;
-    uint80 _shortNext;
+    uint40 _versionNext;   //TODO: flip next order?
+    uint72 _makerNext;
+    uint72 _longNext;
+    uint72 _shortNext;
 }
 struct PositionStorage { StoredPosition value; }
 using PositionStorageLib for PositionStorage global;
@@ -41,14 +44,21 @@ using PositionStorageLib for PositionStorage global;
  *      denominated as a unit of the product's payoff function.
  */
 library PositionLib {
-    function update(Position memory self, Fixed6 makerAmount, Fixed6 longAmount, Fixed6 shortAmount) internal pure {
+    function update(
+        Position memory self,
+        Fixed6 makerAmount,
+        Fixed6 longAmount,
+        Fixed6 shortAmount,
+        OracleVersion memory currentOracleVersion
+    ) internal pure {
+        self.versionNext = currentOracleVersion.version + 1;
         self.makerNext = UFixed6Lib.from(Fixed6Lib.from(self.makerNext).add(makerAmount));
         self.longNext = UFixed6Lib.from(Fixed6Lib.from(self.longNext).add(longAmount));
         self.shortNext = UFixed6Lib.from(Fixed6Lib.from(self.shortNext).add(shortAmount));
     }
 
-    function settle(Position memory self, OracleVersion memory toOracleVersion) internal pure {
-        self.latestVersion = toOracleVersion.version;
+    function settle(Position memory self) internal pure {
+        self.latestVersion = self.versionNext;
         self.maker = self.makerNext;
         self.long = self.longNext;
         self.short = self.shortNext;
@@ -106,6 +116,7 @@ library PositionStorageLib {
             UFixed6.wrap(uint256(storedValue._maker)),
             UFixed6.wrap(uint256(storedValue._long)),
             UFixed6.wrap(uint256(storedValue._short)),
+            uint256(storedValue._versionNext),
             UFixed6.wrap(uint256(storedValue._makerNext)),
             UFixed6.wrap(uint256(storedValue._longNext)),
             UFixed6.wrap(uint256(storedValue._shortNext))
@@ -117,18 +128,20 @@ library PositionStorageLib {
         if (newValue.maker.gt(UFixed6Lib.MAX_72)) revert PositionStorageInvalidError();
         if (newValue.long.gt(UFixed6Lib.MAX_72)) revert PositionStorageInvalidError();
         if (newValue.short.gt(UFixed6Lib.MAX_72)) revert PositionStorageInvalidError();
-        if (newValue.makerNext.gt(UFixed6Lib.MAX_88)) revert PositionStorageInvalidError();
-        if (newValue.longNext.gt(UFixed6Lib.MAX_80)) revert PositionStorageInvalidError();
-        if (newValue.shortNext.gt(UFixed6Lib.MAX_80)) revert PositionStorageInvalidError();
+        if (newValue.versionNext > type(uint40).max) revert PositionStorageInvalidError();
+        if (newValue.makerNext.gt(UFixed6Lib.MAX_72)) revert PositionStorageInvalidError();
+        if (newValue.longNext.gt(UFixed6Lib.MAX_72)) revert PositionStorageInvalidError();
+        if (newValue.shortNext.gt(UFixed6Lib.MAX_72)) revert PositionStorageInvalidError();
 
         self.value = StoredPosition(
             uint40(newValue.latestVersion),
             uint72(UFixed6.unwrap(newValue.maker)),
             uint72(UFixed6.unwrap(newValue.long)),
             uint72(UFixed6.unwrap(newValue.short)),
-            uint88(UFixed6.unwrap(newValue.makerNext)),
-            uint80(UFixed6.unwrap(newValue.longNext)),
-            uint80(UFixed6.unwrap(newValue.shortNext))
+            uint40(newValue.versionNext),
+            uint72(UFixed6.unwrap(newValue.makerNext)),
+            uint72(UFixed6.unwrap(newValue.longNext)),
+            uint72(UFixed6.unwrap(newValue.shortNext))
         );
     }
 }
