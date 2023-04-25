@@ -10,6 +10,7 @@ import "../types/Position.sol";
 import "../types/Version.sol";
 import "../types/Account.sol";
 import "../types/Fee.sol";
+import "../types/Order.sol";
 
 interface IMarket is IOwnable {
     struct MarketDefinition {
@@ -27,6 +28,7 @@ interface IMarket is IOwnable {
         Position position;
         Fee fee;
         Account account;
+        Order order;
 
         uint256 gasCounter;
         string gasCounterMessage;
@@ -64,6 +66,7 @@ interface IMarket is IOwnable {
     function token() external view returns (Token18);
     function reward() external view returns (Token18);
     function treasury() external view returns (address);
+    function orders(address account) external view returns (Order memory);
     function accounts(address account) external view returns (Account memory);
     function versions(uint256 oracleVersion) external view returns (Version memory);
     function position() external view returns (Position memory);

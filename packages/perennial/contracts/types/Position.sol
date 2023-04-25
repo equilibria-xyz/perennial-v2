@@ -1,9 +1,7 @@
 // SPDX-License-Identifier: Apache-2.0
 pragma solidity ^0.8.13;
 
-import "@equilibria/perennial-v2-oracle/contracts/types/OracleVersion.sol";
-import "@equilibria/root-v2/contracts/UFixed6.sol";
-import "./MarketParameter.sol";
+import "./Order.sol";
 
 /// @dev Position type
 struct Position {
@@ -46,12 +44,12 @@ using PositionStorageLib for PositionStorage global;
 library PositionLib {
     function update(
         Position memory self,
+        uint256 version,
         Fixed6 makerAmount,
         Fixed6 longAmount,
-        Fixed6 shortAmount,
-        OracleVersion memory currentOracleVersion
+        Fixed6 shortAmount
     ) internal pure {
-        self.versionNext = currentOracleVersion.version + 1;
+        self.versionNext = version;
         self.makerNext = UFixed6Lib.from(Fixed6Lib.from(self.makerNext).add(makerAmount));
         self.longNext = UFixed6Lib.from(Fixed6Lib.from(self.longNext).add(longAmount));
         self.shortNext = UFixed6Lib.from(Fixed6Lib.from(self.shortNext).add(shortAmount));
