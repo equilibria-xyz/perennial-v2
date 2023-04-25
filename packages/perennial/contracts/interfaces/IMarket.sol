@@ -6,7 +6,6 @@ import "@equilibria/root-v2/contracts/UFixed6.sol";
 import "@equilibria/root/token/types/Token18.sol";
 import "@equilibria/perennial-v2-oracle/contracts/IOracleProvider.sol";
 import "@equilibria/perennial-v2-oracle/contracts/types/OracleVersion.sol";
-import "../types/Position.sol";
 import "../types/Version.sol";
 import "../types/Account.sol";
 import "../types/Fee.sol";
@@ -25,10 +24,11 @@ interface IMarket is IOwnable {
         MarketParameter marketParameter;
         OracleVersion currentOracleVersion;
         Version version;
-        Position position;
+        Order order;
+        Order position;
         Fee fee;
         Account account;
-        Order order;
+        Order accountOrder;
 
         uint256 gasCounter;
         string gasCounterMessage;
@@ -69,7 +69,8 @@ interface IMarket is IOwnable {
     function orders(address account) external view returns (Order memory);
     function accounts(address account) external view returns (Account memory);
     function versions(uint256 oracleVersion) external view returns (Version memory);
-    function position() external view returns (Position memory);
+    function order() external view returns (Order memory);
+    function position() external view returns (Order memory);
     function fee() external view returns (Fee memory);
     function settle(address account) external;
     function update(address account, UFixed6 newMaker, UFixed6 newLong, UFixed6 newShort, Fixed6 newCollateral) external;

@@ -93,19 +93,17 @@ describe('Happy Path', () => {
     })
 
     // Check global state
-    expectPositionEq(await market.position(), {
-      order: {
-        version: 0,
-        maker: 0,
-        long: 0,
-        short: 0,
-      },
-      pending: {
-        version: INITIAL_VERSION + 1,
-        maker: POSITION,
-        long: 0,
-        short: 0,
-      },
+    expectOrderEq(await market.order(), {
+      version: INITIAL_VERSION + 1,
+      maker: POSITION,
+      long: 0,
+      short: 0,
+    })
+    expectOrderEq(await market.position(), {
+      version: 0,
+      maker: 0,
+      long: 0,
+      short: 0,
     })
     expectVersionEq(await market.versions(INITIAL_VERSION), {
       makerValue: { _value: 0 },
@@ -121,19 +119,17 @@ describe('Happy Path', () => {
     await market.settle(constants.AddressZero)
 
     // Check global post-settlement state
-    expectPositionEq(await market.position(), {
-      order: {
-        version: INITIAL_VERSION + 1,
-        maker: POSITION,
-        long: 0,
-        short: 0,
-      },
-      pending: {
-        version: INITIAL_VERSION + 1,
-        maker: POSITION,
-        long: 0,
-        short: 0,
-      },
+    expectOrderEq(await market.order(), {
+      version: INITIAL_VERSION + 1,
+      maker: POSITION,
+      long: 0,
+      short: 0,
+    })
+    expectOrderEq(await market.position(), {
+      version: INITIAL_VERSION + 1,
+      maker: POSITION,
+      long: 0,
+      short: 0,
     })
 
     // Settle user and check state
@@ -191,19 +187,17 @@ describe('Happy Path', () => {
     })
 
     // Check global state
-    expectPositionEq(await market.position(), {
-      order: {
-        version: 0,
-        maker: 0,
-        long: 0,
-        short: 0,
-      },
-      pending: {
-        version: INITIAL_VERSION + 1,
-        maker: POSITION,
-        long: 0,
-        short: 0,
-      },
+    expectOrderEq(await market.order(), {
+      version: INITIAL_VERSION + 1,
+      maker: POSITION,
+      long: 0,
+      short: 0,
+    })
+    expectOrderEq(await market.position(), {
+      version: 0,
+      maker: 0,
+      long: 0,
+      short: 0,
     })
     expectVersionEq(await market.versions(INITIAL_VERSION), {
       makerValue: { _value: 0 },
@@ -219,19 +213,17 @@ describe('Happy Path', () => {
     await market.settle(constants.AddressZero)
 
     // Check global post-settlement state
-    expectPositionEq(await market.position(), {
-      order: {
-        version: INITIAL_VERSION + 1,
-        maker: POSITION,
-        long: 0,
-        short: 0,
-      },
-      pending: {
-        version: INITIAL_VERSION + 1,
-        maker: POSITION,
-        long: 0,
-        short: 0,
-      },
+    expectOrderEq(await market.order(), {
+      version: INITIAL_VERSION + 1,
+      maker: POSITION,
+      long: 0,
+      short: 0,
+    })
+    expectOrderEq(await market.position(), {
+      version: INITIAL_VERSION + 1,
+      maker: POSITION,
+      long: 0,
+      short: 0,
     })
 
     // Settle user and check state
@@ -288,19 +280,17 @@ describe('Happy Path', () => {
     })
 
     // Global State
-    expectPositionEq(await market.position(), {
-      order: {
-        version: 0,
-        maker: 0,
-        long: 0,
-        short: 0,
-      },
-      pending: {
-        version: INITIAL_VERSION + 1,
-        maker: 0,
-        long: 0,
-        short: 0,
-      },
+    expectOrderEq(await market.order(), {
+      version: INITIAL_VERSION + 1,
+      maker: 0,
+      long: 0,
+      short: 0,
+    })
+    expectOrderEq(await market.position(), {
+      version: 0,
+      maker: 0,
+      long: 0,
+      short: 0,
     })
     expectVersionEq(await market.versions(INITIAL_VERSION), {
       makerValue: { _value: 0 },
@@ -347,19 +337,17 @@ describe('Happy Path', () => {
     })
 
     // Global State
-    expectPositionEq(await market.position(), {
-      order: {
-        version: 0,
-        maker: 0,
-        long: 0,
-        short: 0,
-      },
-      pending: {
-        version: INITIAL_VERSION + 1,
-        maker: 0,
-        long: 0,
-        short: 0,
-      },
+    expectOrderEq(await market.order(), {
+      version: INITIAL_VERSION + 1,
+      maker: 0,
+      long: 0,
+      short: 0,
+    })
+    expectOrderEq(await market.position(), {
+      version: 0,
+      maker: 0,
+      long: 0,
+      short: 0,
     })
     expectVersionEq(await market.versions(INITIAL_VERSION), {
       makerValue: { _value: 0 },
@@ -423,19 +411,17 @@ describe('Happy Path', () => {
     })
 
     // Global State
-    expectPositionEq(await market.position(), {
-      order: {
-        version: 0,
-        maker: 0,
-        long: 0,
-        short: 0,
-      },
-      pending: {
-        version: INITIAL_VERSION + 1,
-        maker: POSITION,
-        long: POSITION_B,
-        short: 0,
-      },
+    expectOrderEq(await market.order(), {
+      version: INITIAL_VERSION + 1,
+      maker: POSITION,
+      long: POSITION_B,
+      short: 0,
+    })
+    expectOrderEq(await market.position(), {
+      version: 0,
+      maker: 0,
+      long: 0,
+      short: 0,
     })
     expectVersionEq(await market.versions(INITIAL_VERSION), {
       makerValue: { _value: 0 },
@@ -455,19 +441,17 @@ describe('Happy Path', () => {
     await market.settle(constants.AddressZero)
     await market.settle(userB.address)
 
-    expectPositionEq(await market.position(), {
-      order: {
-        version: INITIAL_VERSION + 1,
-        maker: POSITION,
-        long: POSITION_B,
-        short: 0,
-      },
-      pending: {
-        version: INITIAL_VERSION + 1,
-        maker: POSITION,
-        long: POSITION_B,
-        short: 0,
-      },
+    expectOrderEq(await market.order(), {
+      version: INITIAL_VERSION + 1,
+      maker: POSITION,
+      long: POSITION_B,
+      short: 0,
+    })
+    expectOrderEq(await market.position(), {
+      version: INITIAL_VERSION + 1,
+      maker: POSITION,
+      long: POSITION_B,
+      short: 0,
     })
     expectOrderEq(await market.orders(userB.address), {
       version: INITIAL_VERSION + 1,
@@ -525,19 +509,17 @@ describe('Happy Path', () => {
     })
 
     // Global State
-    expectPositionEq(await market.position(), {
-      order: {
-        version: 0,
-        maker: 0,
-        long: 0,
-        short: 0,
-      },
-      pending: {
-        version: INITIAL_VERSION + 1,
-        maker: POSITION,
-        long: POSITION_B,
-        short: 0,
-      },
+    expectOrderEq(await market.order(), {
+      version: INITIAL_VERSION + 1,
+      maker: POSITION,
+      long: POSITION_B,
+      short: 0,
+    })
+    expectOrderEq(await market.position(), {
+      version: 0,
+      maker: 0,
+      long: 0,
+      short: 0,
     })
     expectVersionEq(await market.versions(INITIAL_VERSION), {
       makerValue: { _value: 0 },
@@ -556,19 +538,17 @@ describe('Happy Path', () => {
     await chainlink.next()
     await market.settle(constants.AddressZero)
 
-    expectPositionEq(await market.position(), {
-      order: {
-        version: INITIAL_VERSION + 1,
-        maker: POSITION,
-        long: POSITION_B,
-        short: 0,
-      },
-      pending: {
-        version: INITIAL_VERSION + 1,
-        maker: POSITION,
-        long: POSITION_B,
-        short: 0,
-      },
+    expectOrderEq(await market.order(), {
+      version: INITIAL_VERSION + 1,
+      maker: POSITION,
+      long: POSITION_B,
+      short: 0,
+    })
+    expectOrderEq(await market.position(), {
+      version: INITIAL_VERSION + 1,
+      maker: POSITION,
+      long: POSITION_B,
+      short: 0,
     })
     await market.settle(userB.address) // TODO: needed?
     expectOrderEq(await market.orders(userB.address), {
@@ -630,19 +610,17 @@ describe('Happy Path', () => {
     })
 
     // Global State
-    expectPositionEq(await market.position(), {
-      order: {
-        version: 0,
-        maker: 0,
-        long: 0,
-        short: 0,
-      },
-      pending: {
-        version: INITIAL_VERSION + 1,
-        maker: POSITION,
-        long: 0,
-        short: 0,
-      },
+    expectOrderEq(await market.order(), {
+      version: INITIAL_VERSION + 1,
+      maker: POSITION,
+      long: 0,
+      short: 0,
+    })
+    expectOrderEq(await market.position(), {
+      version: 0,
+      maker: 0,
+      long: 0,
+      short: 0,
     })
     expectVersionEq(await market.versions(INITIAL_VERSION), {
       makerValue: { _value: 0 },
@@ -695,19 +673,17 @@ describe('Happy Path', () => {
     })
 
     // Global State
-    expectPositionEq(await market.position(), {
-      order: {
-        version: 0,
-        maker: 0,
-        long: 0,
-        short: 0,
-      },
-      pending: {
-        version: INITIAL_VERSION + 1,
-        maker: POSITION,
-        long: 0,
-        short: 0,
-      },
+    expectOrderEq(await market.order(), {
+      version: INITIAL_VERSION + 1,
+      maker: POSITION,
+      long: 0,
+      short: 0,
+    })
+    expectOrderEq(await market.position(), {
+      version: 0,
+      maker: 0,
+      long: 0,
+      short: 0,
     })
     expectVersionEq(await market.versions(INITIAL_VERSION), {
       makerValue: { _value: 0 },
@@ -815,19 +791,17 @@ describe('Happy Path', () => {
     })
 
     // Check global state
-    expectPositionEq(await market.position(), {
-      order: {
-        version: INITIAL_VERSION + 3,
-        maker: POSITION.div(2),
-        long: POSITION.div(2),
-        short: 0,
-      },
-      pending: {
-        version: INITIAL_VERSION + 5,
-        maker: POSITION,
-        long: POSITION.div(2),
-        short: 0,
-      },
+    expectOrderEq(await market.order(), {
+      version: INITIAL_VERSION + 5,
+      maker: POSITION,
+      long: POSITION.div(2),
+      short: 0,
+    })
+    expectOrderEq(await market.position(), {
+      version: INITIAL_VERSION + 3,
+      maker: POSITION.div(2),
+      long: POSITION.div(2),
+      short: 0,
     })
     expectVersionEq(await market.versions(INITIAL_VERSION + 3), {
       makerValue: { _value: '-247037696971' },

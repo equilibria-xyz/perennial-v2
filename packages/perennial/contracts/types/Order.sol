@@ -45,7 +45,25 @@ library OrderLib {
             longAmount.abs().add(shortAmount.abs()).mul(marketParameter.takerFee)
             .add(makerAmount.abs().mul(marketParameter.makerFee))
         );
+        update(self, newOrder);
+    }
 
+    function update( // TODO: make a OrderDelta model?
+        Order memory self,
+        uint256 version,
+        Fixed6 makerAmount,
+        Fixed6 longAmount,
+        Fixed6 shortAmount
+    ) internal pure {
+        update(self, Order(
+            version,
+            UFixed6Lib.from(Fixed6Lib.from(self.maker).add(makerAmount)),
+            UFixed6Lib.from(Fixed6Lib.from(self.long).add(longAmount)),
+            UFixed6Lib.from(Fixed6Lib.from(self.short).add(shortAmount))
+        ));
+    }
+
+    function update(Order memory self, Order memory newOrder) internal pure {
         self.version = newOrder.version;
         self.maker = newOrder.maker;
         self.long = newOrder.long;
@@ -54,6 +72,38 @@ library OrderLib {
 
     function position(Order memory self) internal pure returns (UFixed6) {
         return self.long.max(self.short).max(self.maker);
+    }
+
+    function magnitude(Order memory self) internal pure returns (UFixed6) {
+        return self.long.max(self.short);
+    }
+
+    function net(Order memory self) internal pure returns (UFixed6) {
+        return Fixed6Lib.from(self.long).sub(Fixed6Lib.from(self.short)).abs();
+    }
+
+    function spread(Order memory self) internal pure returns (UFixed6) {
+        return net(self).div(magnitude(self));
+    }
+
+    function utilization(Order memory self) internal pure returns (UFixed6) {
+        return magnitude(self).unsafeDiv(self.maker.add(self.long.min(self.short)));
+    }
+
+    function longSocialized(Order memory self) internal pure returns (UFixed6) {
+        return self.maker.add(self.short).min(self.long);
+    }
+
+    function shortSocialized(Order memory self) internal pure returns (UFixed6) {
+        return self.maker.add(self.long).min(self.short);
+    }
+
+    function takerSocialized(Order memory self) internal pure returns (UFixed6) {
+        return magnitude(self).min(self.long.min(self.short).add(self.maker));
+    }
+
+    function socialized(Order memory self) internal pure returns (bool) {
+        return self.maker.add(self.short).lt(self.long) || self.maker.add(self.long).lt(self.short);
     }
 }
 
