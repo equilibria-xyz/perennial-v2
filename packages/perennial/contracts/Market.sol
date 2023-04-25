@@ -230,7 +230,7 @@ contract Market is IMarket, UInitializable, UOwnable {
         context.currentOracleVersion = _sync(context.marketParameter);
         context.position = _position.read();
         context.fee = _fee.read();
-        context.version = _versions[context.position.versionNext].read();
+        context.version = _versions[context.position.pending.version].read();
         context.account = _accounts[account].read();
         context.order = _orders[account].read();
 
@@ -244,7 +244,7 @@ contract Market is IMarket, UInitializable, UOwnable {
         // state
         _position.store(context.position);
         _fee.store(context.fee);
-        _versions[context.position.versionNext].store(context.version);
+        _versions[context.position.pending.version].store(context.version);
         _accounts[account].store(context.account);
         _orders[account].store(context.order);
 
@@ -254,16 +254,16 @@ contract Market is IMarket, UInitializable, UOwnable {
     function _settle(CurrentContext memory context) private {
         _startGas(context, "_settle: %s");
 
-        if (context.currentOracleVersion.version >= context.position.versionNext) {
+        if (context.currentOracleVersion.version >= context.position.pending.version) {
             UFixed6 fundingFee = context.version.accumulate(
                 context.position,
-                _oracleVersionAt(context.marketParameter, context.position.latestVersion),
-                _oracleVersionAt(context.marketParameter, context.position.versionNext),
+                _oracleVersionAt(context.marketParameter, context.position.order.version),
+                _oracleVersionAt(context.marketParameter, context.position.pending.version),
                 context.protocolParameter,
                 context.marketParameter
             );
             context.fee.update(fundingFee, context.protocolParameter);
-            _versions[context.position.versionNext].store(context.version);
+            _versions[context.position.pending.version].store(context.version);
             context.position.settle();
         }
 
@@ -314,7 +314,7 @@ contract Market is IMarket, UInitializable, UOwnable {
             )
         ) revert MarketInsufficientLiquidityError();
 
-        if (context.position.makerNext.gt(context.marketParameter.makerLimit))
+        if (context.position.pending.maker.gt(context.marketParameter.makerLimit))
             revert MarketMakerOverLimitError();
     }
 

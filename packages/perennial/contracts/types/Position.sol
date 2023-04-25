@@ -5,32 +5,19 @@ import "./Order.sol";
 
 /// @dev Position type
 struct Position {
-    uint256 latestVersion;
-    /// @dev Quantity of the maker position
-    UFixed6 maker;
-    /// @dev Quantity of the long position
-    UFixed6 long;
-    /// @dev Quantity of the short position
-    UFixed6 short;
-
-    uint256 versionNext;
-    /// @dev Quantity of the next maker position
-    UFixed6 makerNext;
-    /// @dev Quantity of the next long position
-    UFixed6 longNext;
-    /// @dev Quantity of the next short position
-    UFixed6 shortNext;
+    Order order;
+    Order pending;
 }
 using PositionLib for Position global;
 struct StoredPosition {
-    uint40 _latestVersion; //TODO: name version
+    uint40 _version;
     uint72 _maker;
     uint72 _long;
     uint72 _short;
-    uint40 _versionNext;   //TODO: flip next order?
-    uint72 _makerNext;
-    uint72 _longNext;
-    uint72 _shortNext;
+    uint40 _pendingVersion;
+    uint72 _pendingMaker;
+    uint72 _pendingLong;
+    uint72 _pendingShort;
 }
 struct PositionStorage { StoredPosition value; }
 using PositionStorageLib for PositionStorage global;
@@ -49,17 +36,17 @@ library PositionLib {
         Fixed6 longAmount,
         Fixed6 shortAmount
     ) internal pure {
-        self.versionNext = version;
-        self.makerNext = UFixed6Lib.from(Fixed6Lib.from(self.makerNext).add(makerAmount));
-        self.longNext = UFixed6Lib.from(Fixed6Lib.from(self.longNext).add(longAmount));
-        self.shortNext = UFixed6Lib.from(Fixed6Lib.from(self.shortNext).add(shortAmount));
+        self.pending.version = version;
+        self.pending.maker = UFixed6Lib.from(Fixed6Lib.from(self.pending.maker).add(makerAmount));
+        self.pending.long = UFixed6Lib.from(Fixed6Lib.from(self.pending.long).add(longAmount));
+        self.pending.short = UFixed6Lib.from(Fixed6Lib.from(self.pending.short).add(shortAmount));
     }
 
     function settle(Position memory self) internal pure {
-        self.latestVersion = self.versionNext;
-        self.maker = self.makerNext;
-        self.long = self.longNext;
-        self.short = self.shortNext;
+        self.order.version = self.pending.version;
+        self.order.maker = self.pending.maker;
+        self.order.long = self.pending.long;
+        self.order.short = self.pending.short;
     }
 
     /**
@@ -68,19 +55,20 @@ library PositionLib {
      * @return utilization ratio
      */
     function utilization(Position memory self) internal pure returns (UFixed6) {
+        //TODO: simplify formula
         UFixed6 _magnitude = magnitude(self);
         UFixed6 _net = net(self);
-        UFixed6 buffer = self.maker.gt(_net) ? self.maker.sub(_net) : UFixed6Lib.ZERO;
+        UFixed6 buffer = self.order.maker.gt(_net) ? self.order.maker.sub(_net) : UFixed6Lib.ZERO;
 
         return _magnitude.unsafeDiv(_magnitude.add(buffer));
     }
 
     function magnitude(Position memory self) internal pure returns (UFixed6) {
-        return self.long.max(self.short);
+        return self.order.long.max(self.order.short);
     }
 
     function net(Position memory self) internal pure returns (UFixed6) {
-        return Fixed6Lib.from(self.long).sub(Fixed6Lib.from(self.short)).abs();
+        return Fixed6Lib.from(self.order.long).sub(Fixed6Lib.from(self.order.short)).abs();
     }
 
     function spread(Position memory self) internal pure returns (UFixed6) {
@@ -88,19 +76,19 @@ library PositionLib {
     }
 
     function longSocialized(Position memory self) internal pure returns (UFixed6) {
-        return self.maker.add(self.short).min(self.long);
+        return self.order.maker.add(self.order.short).min(self.order.long);
     }
 
     function shortSocialized(Position memory self) internal pure returns (UFixed6) {
-        return self.maker.add(self.long).min(self.short);
+        return self.order.maker.add(self.order.long).min(self.order.short);
     }
 
     function takerSocialized(Position memory self) internal pure returns (UFixed6) {
-        return magnitude(self).min(self.long.min(self.short).add(self.maker));
+        return magnitude(self).min(self.order.long.min(self.order.short).add(self.order.maker));
     }
 
     function socializedNext(Position memory self) internal pure returns (bool) {
-        return self.makerNext.add(self.shortNext).lt(self.longNext) || self.makerNext.add(self.longNext).lt(self.shortNext);
+        return self.pending.maker.add(self.pending.short).lt(self.pending.long) || self.pending.maker.add(self.pending.long).lt(self.pending.short);
     }
 }
 
@@ -110,36 +98,40 @@ library PositionStorageLib {
     function read(PositionStorage storage self) internal view returns (Position memory) {
         StoredPosition memory storedValue =  self.value;
         return Position(
-            uint256(storedValue._latestVersion),
-            UFixed6.wrap(uint256(storedValue._maker)),
-            UFixed6.wrap(uint256(storedValue._long)),
-            UFixed6.wrap(uint256(storedValue._short)),
-            uint256(storedValue._versionNext),
-            UFixed6.wrap(uint256(storedValue._makerNext)),
-            UFixed6.wrap(uint256(storedValue._longNext)),
-            UFixed6.wrap(uint256(storedValue._shortNext))
+            Order(
+                uint256(storedValue._version),
+                UFixed6.wrap(uint256(storedValue._maker)),
+                UFixed6.wrap(uint256(storedValue._long)),
+                UFixed6.wrap(uint256(storedValue._short))
+            ),
+            Order(
+                uint256(storedValue._pendingVersion),
+                UFixed6.wrap(uint256(storedValue._pendingMaker)),
+                UFixed6.wrap(uint256(storedValue._pendingLong)),
+                UFixed6.wrap(uint256(storedValue._pendingShort))
+            )
         );
     }
 
     function store(PositionStorage storage self, Position memory newValue) internal {
-        if (newValue.latestVersion > type(uint40).max) revert PositionStorageInvalidError();
-        if (newValue.maker.gt(UFixed6Lib.MAX_72)) revert PositionStorageInvalidError();
-        if (newValue.long.gt(UFixed6Lib.MAX_72)) revert PositionStorageInvalidError();
-        if (newValue.short.gt(UFixed6Lib.MAX_72)) revert PositionStorageInvalidError();
-        if (newValue.versionNext > type(uint40).max) revert PositionStorageInvalidError();
-        if (newValue.makerNext.gt(UFixed6Lib.MAX_72)) revert PositionStorageInvalidError();
-        if (newValue.longNext.gt(UFixed6Lib.MAX_72)) revert PositionStorageInvalidError();
-        if (newValue.shortNext.gt(UFixed6Lib.MAX_72)) revert PositionStorageInvalidError();
+        if (newValue.order.version > type(uint40).max) revert PositionStorageInvalidError();
+        if (newValue.order.maker.gt(UFixed6Lib.MAX_72)) revert PositionStorageInvalidError();
+        if (newValue.order.long.gt(UFixed6Lib.MAX_72)) revert PositionStorageInvalidError();
+        if (newValue.order.short.gt(UFixed6Lib.MAX_72)) revert PositionStorageInvalidError();
+        if (newValue.pending.version > type(uint40).max) revert PositionStorageInvalidError();
+        if (newValue.pending.maker.gt(UFixed6Lib.MAX_72)) revert PositionStorageInvalidError();
+        if (newValue.pending.long.gt(UFixed6Lib.MAX_72)) revert PositionStorageInvalidError();
+        if (newValue.pending.short.gt(UFixed6Lib.MAX_72)) revert PositionStorageInvalidError();
 
         self.value = StoredPosition(
-            uint40(newValue.latestVersion),
-            uint72(UFixed6.unwrap(newValue.maker)),
-            uint72(UFixed6.unwrap(newValue.long)),
-            uint72(UFixed6.unwrap(newValue.short)),
-            uint40(newValue.versionNext),
-            uint72(UFixed6.unwrap(newValue.makerNext)),
-            uint72(UFixed6.unwrap(newValue.longNext)),
-            uint72(UFixed6.unwrap(newValue.shortNext))
+            uint40(newValue.order.version),
+            uint72(UFixed6.unwrap(newValue.order.maker)),
+            uint72(UFixed6.unwrap(newValue.order.long)),
+            uint72(UFixed6.unwrap(newValue.order.short)),
+            uint40(newValue.pending.version),
+            uint72(UFixed6.unwrap(newValue.pending.maker)),
+            uint72(UFixed6.unwrap(newValue.pending.long)),
+            uint72(UFixed6.unwrap(newValue.pending.short))
         );
     }
 }

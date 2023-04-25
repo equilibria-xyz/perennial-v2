@@ -56,11 +56,11 @@ library VersionLib {
         MarketParameter memory marketParameter
     ) internal pure returns (UFixed6 protocolFee) {
         // If there are no makers to distribute the taker's position fee to, give it to the protocol
-        if (position.maker.isZero()) return positionFee;
+        if (position.order.maker.isZero()) return positionFee;
 
         protocolFee = marketParameter.positionFee.mul(positionFee);
         positionFee = positionFee.sub(protocolFee);
-        self.makerValue.increment(Fixed6Lib.from(positionFee), position.maker);
+        self.makerValue.increment(Fixed6Lib.from(positionFee), position.order.maker);
     }
 
     /**
@@ -103,7 +103,7 @@ library VersionLib {
         ProtocolParameter memory protocolParameter,
         MarketParameter memory marketParameter
     ) private pure returns (UFixed6 fundingFee) {
-        if (position.long.add(position.short).isZero()) return UFixed6Lib.ZERO;
+        if (position.magnitude().isZero()) return UFixed6Lib.ZERO;
 
         UFixed6 notional = position.takerSocialized().mul(fromOracleVersion.price.abs());
         UFixed6 funding = marketParameter.utilizationCurve.accumulate(
@@ -118,14 +118,14 @@ library VersionLib {
         UFixed6 fundingWithoutFeeMaker = fundingWithoutFee.mul(spread);
         UFixed6 fundingWithoutFeeTaker = fundingWithoutFee.sub(fundingWithoutFeeMaker);
 
-        if (position.long.gt(position.short)) {
-            if (!position.long.isZero()) self.longValue.decrement(Fixed6Lib.from(funding), position.long);
-            if (!position.short.isZero()) self.shortValue.increment(Fixed6Lib.from(fundingWithoutFeeTaker), position.short);
+        if (position.order.long.gt(position.order.short)) {
+            if (!position.order.long.isZero()) self.longValue.decrement(Fixed6Lib.from(funding), position.order.long);
+            if (!position.order.short.isZero()) self.shortValue.increment(Fixed6Lib.from(fundingWithoutFeeTaker), position.order.short);
         } else {
-            if (!position.long.isZero()) self.longValue.increment(Fixed6Lib.from(fundingWithoutFeeTaker), position.long);
-            if (!position.short.isZero()) self.shortValue.decrement(Fixed6Lib.from(funding), position.short);
+            if (!position.order.long.isZero()) self.longValue.increment(Fixed6Lib.from(fundingWithoutFeeTaker), position.order.long);
+            if (!position.order.short.isZero()) self.shortValue.decrement(Fixed6Lib.from(funding), position.order.short);
         }
-        if (!position.maker.isZero()) self.makerValue.increment(Fixed6Lib.from(fundingWithoutFeeMaker), position.maker);
+        if (!position.order.maker.isZero()) self.makerValue.increment(Fixed6Lib.from(fundingWithoutFeeMaker), position.order.maker);
     }
 
     /**
@@ -137,7 +137,7 @@ library VersionLib {
         OracleVersion memory fromOracleVersion,
         OracleVersion memory toOracleVersion
     ) private pure {
-        if (position.long.add(position.short).isZero() || position.maker.isZero()) return;
+        if (position.magnitude().isZero() || position.order.maker.isZero()) return;
 
         Fixed6 totalLongDelta = toOracleVersion.price.sub(fromOracleVersion.price)
             .mul(Fixed6Lib.from(position.longSocialized()));
@@ -145,9 +145,9 @@ library VersionLib {
             .mul(Fixed6Lib.from(position.shortSocialized()));
         Fixed6 totalMakerDelta = totalLongDelta.add(totalShortDelta);
 
-        if (!position.long.isZero()) self.longValue.increment(totalLongDelta, position.long);
-        if (!position.short.isZero()) self.shortValue.increment(totalShortDelta, position.short);
-        if (!position.maker.isZero()) self.makerValue.decrement(totalMakerDelta, position.maker);
+        if (!position.order.long.isZero()) self.longValue.increment(totalLongDelta, position.order.long);
+        if (!position.order.short.isZero()) self.shortValue.increment(totalShortDelta, position.order.short);
+        if (!position.order.maker.isZero()) self.makerValue.decrement(totalMakerDelta, position.order.maker);
     }
 
     /**
@@ -164,12 +164,12 @@ library VersionLib {
         UFixed6 elapsed = UFixed6Lib.from(toOracleVersion.timestamp - fromOracleVersion.timestamp);
         //TODO: refunded rewards here will effect the "auto-close functionality"
 
-        if (!position.maker.isZero())
-            self.makerReward.increment(elapsed.mul(marketParameter.makerRewardRate), position.maker);
-        if (!position.long.isZero())
-            self.longReward.increment(elapsed.mul(marketParameter.longRewardRate), position.long);
-        if (!position.short.isZero())
-            self.shortReward.increment(elapsed.mul(marketParameter.shortRewardRate), position.short);
+        if (!position.order.maker.isZero())
+            self.makerReward.increment(elapsed.mul(marketParameter.makerRewardRate), position.order.maker);
+        if (!position.order.long.isZero())
+            self.longReward.increment(elapsed.mul(marketParameter.longRewardRate), position.order.long);
+        if (!position.order.short.isZero())
+            self.shortReward.increment(elapsed.mul(marketParameter.shortRewardRate), position.order.short);
     }
 }
 
@@ -177,7 +177,7 @@ library VersionStorageLib {
     error VersionStorageInvalidError();
 
     function read(VersionStorage storage self) internal view returns (Version memory) {
-        StoredVersion memory storedValue =  self.value;
+        StoredVersion memory storedValue = self.value;
         return Version(
             Accumulator6(Fixed6.wrap(int256(storedValue._makerValue))),
             Accumulator6(Fixed6.wrap(int256(storedValue._longValue))),

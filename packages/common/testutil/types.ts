@@ -20,14 +20,8 @@ export interface Account {
 }
 
 export interface Position {
-  latestVersion: BigNumberish
-  maker: BigNumberish
-  long: BigNumberish
-  short: BigNumberish
-  versionNext: BigNumberish
-  makerNext: BigNumberish
-  longNext: BigNumberish
-  shortNext: BigNumberish
+  order: Order
+  pending: Order
 }
 
 export interface Version {
@@ -59,14 +53,8 @@ export function expectAccountEq(a: Account, b: Account): void {
 }
 
 export function expectPositionEq(a: Position, b: Position): void {
-  expect(a.latestVersion).to.equal(b.latestVersion)
-  expect(a.maker).to.equal(b.maker)
-  expect(a.long).to.equal(b.long)
-  expect(a.short).to.equal(b.short)
-  expect(a.versionNext).to.equal(b.versionNext)
-  expect(a.makerNext).to.equal(b.makerNext)
-  expect(a.longNext).to.equal(b.longNext)
-  expect(a.shortNext).to.equal(b.shortNext)
+  expectOrderEq(a.order, b.order)
+  expectOrderEq(a.pending, b.pending)
 }
 
 export function expectVersionEq(a: Version, b: Version): void {
