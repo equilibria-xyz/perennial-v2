@@ -27,7 +27,7 @@ contract Market is IMarket, UInitializable, UOwnable {
     /// @dev ERC20 stablecoin for collateral
     Token18 public token;
 
-    /// @dev ERC20 stablecoin for reward
+    /// @dev ERC20 token for reward
     Token18 public reward;
 
     /// @dev Treasury of the market, collects fees
@@ -35,8 +35,6 @@ contract Market is IMarket, UInitializable, UOwnable {
 
     /// @dev Protocol and market fees collected, but not yet claimed
     FeeStorage private _fee;
-
-    OrderStorage private _position;
 
     /// @dev Mapping of the historical version data
     mapping(uint256 => VersionStorage) _versions;
@@ -46,7 +44,9 @@ contract Market is IMarket, UInitializable, UOwnable {
 
     OrderStorage private _order;
 
-    mapping(address => OrderStorage) private _orders;
+    OrderStorage private _pendingOrder;
+
+    mapping(address => OrderStorage) private _pendingOrders;
 
     MarketParameterStorage private _parameter;
 
@@ -133,32 +133,32 @@ contract Market is IMarket, UInitializable, UOwnable {
         _accounts[msg.sender].store(newAccount);
     }
 
-    function orders(address account) external view returns (Order memory) {
-        return _orders[account].read();
-    }
-
-    function accounts(address account) external view returns (Account memory) {
-        return _accounts[account].read();
-    }
-
-    function versions(uint256 oracleVersion) external view returns (Version memory) {
-        return _versions[oracleVersion].read();
+    function parameter() external view returns (MarketParameter memory) {
+        return _parameter.read();
     }
 
     function order() external view returns (Order memory) {
         return _order.read();
     }
 
-    function position() external view returns (Order memory) {
-        return _position.read();
-    }
-
     function fee() external view returns (Fee memory) {
         return _fee.read();
     }
 
-    function parameter() external view returns (MarketParameter memory) {
-        return _parameter.read();
+    function versions(uint256 oracleVersion) external view returns (Version memory) {
+        return _versions[oracleVersion].read();
+    }
+
+    function accounts(address account) external view returns (Account memory) {
+        return _accounts[account].read();
+    }
+
+    function pendingOrder() external view returns (Order memory) {
+        return _pendingOrder.read();
+    }
+
+    function pendingOrders(address account) external view returns (Order memory) {
+        return _pendingOrders[account].read();
     }
 
     function _liquidate(CurrentContext memory context, address account) private {
@@ -201,10 +201,10 @@ contract Market is IMarket, UInitializable, UOwnable {
         Order memory order = Order(context.currentOracleVersion.version + 1, newMaker, newLong, newShort);
 
         (Fixed6 makerAmount, Fixed6 longAmount, Fixed6 shortAmount, UFixed6 positionFee) =
-            context.accountOrder.update(order, context.currentOracleVersion, context.marketParameter);
+            context.accountPendingOrder.update(order, context.currentOracleVersion, context.marketParameter);
         Fixed6 collateralAmount = context.account.update(newCollateral, positionFee);
-        context.order.update(order.version, makerAmount, longAmount, shortAmount);
-        UFixed6 protocolFee = context.version.update(context.position, positionFee, context.marketParameter);
+        context.pendingOrder.update(order.version, makerAmount, longAmount, shortAmount);
+        UFixed6 protocolFee = context.version.update(context.order, positionFee, context.marketParameter);
         context.fee.update(protocolFee, context.protocolParameter);
 
         // after
@@ -234,12 +234,12 @@ contract Market is IMarket, UInitializable, UOwnable {
 
         // state
         context.currentOracleVersion = _sync(context.marketParameter);
+        context.pendingOrder = _pendingOrder.read();
         context.order = _order.read();
-        context.position = _position.read();
         context.fee = _fee.read();
-        context.version = _versions[context.order.version].read();
+        context.version = _versions[context.pendingOrder.version].read();
         context.account = _accounts[account].read();
-        context.accountOrder = _orders[account].read();
+        context.accountPendingOrder = _pendingOrders[account].read();
 
         // after
         _endGas(context);
@@ -249,12 +249,12 @@ contract Market is IMarket, UInitializable, UOwnable {
         _startGas(context, "_saveContext: %s");
 
         // state
+        _pendingOrder.store(context.pendingOrder);
         _order.store(context.order);
-        _position.store(context.position);
         _fee.store(context.fee);
-        _versions[context.order.version].store(context.version);
+        _versions[context.pendingOrder.version].store(context.version);
         _accounts[account].store(context.account);
-        _orders[account].store(context.accountOrder);
+        _pendingOrders[account].store(context.accountPendingOrder);
 
         _endGas(context);
     }
@@ -262,23 +262,23 @@ contract Market is IMarket, UInitializable, UOwnable {
     function _settle(CurrentContext memory context) private {
         _startGas(context, "_settle: %s");
 
-        if (context.order.ready(context.currentOracleVersion)) _processOrder(context, context.order);
-        if (context.accountOrder.ready(context.currentOracleVersion)) _processOrderAccount(context, context.accountOrder);
+        if (context.pendingOrder.ready(context.currentOracleVersion)) _processOrder(context, context.pendingOrder);
+        if (context.accountPendingOrder.ready(context.currentOracleVersion)) _processOrderAccount(context, context.accountPendingOrder);
 
         _endGas(context);
     }
 
     function _processOrder(CurrentContext memory context, Order memory order) private {
         UFixed6 fundingFee = context.version.accumulate(
-            context.position,
-            _oracleVersionAt(context.marketParameter, context.position.version),
+            context.order,
+            _oracleVersionAt(context.marketParameter, context.order.version),
             _oracleVersionAt(context.marketParameter, order.version),
             context.protocolParameter,
             context.marketParameter
         );
         context.fee.update(fundingFee, context.protocolParameter);
-        _versions[context.order.version].store(context.version);
-        context.position.update(context.order);
+        _versions[context.pendingOrder.version].store(context.version);
+        context.order.update(context.pendingOrder);
     }
 
     function _processOrderAccount(CurrentContext memory context, Order memory order) private view {
@@ -301,9 +301,9 @@ contract Market is IMarket, UInitializable, UOwnable {
         if (account == msg.sender) return;                  // sender is operating on own account
         if (factory.operators(account, msg.sender)) return; // sender is operator enabled for this account
         if (
-            context.accountOrder.maker.eq(newMaker) &&
-            context.accountOrder.long.eq(newLong) &&
-            context.accountOrder.short.eq(newShort) && (
+            context.accountPendingOrder.maker.eq(newMaker) &&
+            context.accountPendingOrder.long.eq(newLong) &&
+            context.accountPendingOrder.short.eq(newShort) && (
                 (context.account.collateral.sign() == -1 && newCollateral.isZero()) || // sender is repaying shortfall for this account
                 (context.account.collateral.eq(newCollateral))                         // sender is triggering a noop settlement for the this account
             )
@@ -315,15 +315,15 @@ contract Market is IMarket, UInitializable, UOwnable {
         // TODO: check double sided
         if (
             !context.marketParameter.closed &&
-            context.order.socialized() &&
+            context.pendingOrder.socialized() &&
             (
-                context.accountOrder.maker.lt(context.account.order.maker) ||
-                context.accountOrder.long.gt(context.account.order.long) ||
-                context.accountOrder.short.gt(context.account.order.short)
+                context.accountPendingOrder.maker.lt(context.account.order.maker) ||
+                context.accountPendingOrder.long.gt(context.account.order.long) ||
+                context.accountPendingOrder.short.gt(context.account.order.short)
             )
         ) revert MarketInsufficientLiquidityError();
 
-        if (context.order.maker.gt(context.marketParameter.makerLimit))
+        if (context.pendingOrder.maker.gt(context.marketParameter.makerLimit))
             revert MarketMakerOverLimitError();
     }
 
@@ -337,7 +337,7 @@ contract Market is IMarket, UInitializable, UOwnable {
 
         (UFixed6 maintenanceAmount, UFixed6 maintenanceNextAmount) = (
             context.account.maintenance(context.currentOracleVersion, context.marketParameter.maintenance),
-            AccountLib.maintenance(context.accountOrder, context.currentOracleVersion, context.marketParameter.maintenance) // TODO: cleanup
+            AccountLib.maintenance(context.accountPendingOrder, context.currentOracleVersion, context.marketParameter.maintenance) // TODO: cleanup
         );
         if (maintenanceAmount.max(maintenanceNextAmount).gt(boundedCollateral))
             revert MarketInsufficientCollateralError();
