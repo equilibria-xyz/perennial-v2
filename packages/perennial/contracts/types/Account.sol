@@ -6,10 +6,7 @@ import "./Order.sol";
 
 /// @dev Account type
 struct Account {
-    uint256 latestVersion;
-    UFixed6 maker;
-    UFixed6 long;
-    UFixed6 short;
+    Order order;
     Fixed6 collateral;
     UFixed6 reward;
     bool liquidation;
@@ -17,7 +14,7 @@ struct Account {
 using AccountLib for Account global;
 struct StoredAccount {
     uint8 _positionMask;
-    uint32 _latestVersion;          // <= 4.29b
+    uint32 _version;                // <= 4.29b
     uint72 _position;               // <= 4.7e21
     int72 _collateral;              // <= 2.4e21
     uint72 _liquidationAndReward;   // <= 2.4e21
@@ -49,17 +46,17 @@ library AccountLib {
         Version memory fromVersion,
         Version memory toVersion
     ) internal pure {
-        Fixed6 collateralAmount = toVersion.makerValue.accumulated(fromVersion.makerValue, self.maker)
-            .add(toVersion.longValue.accumulated(fromVersion.longValue, self.long))
-            .add(toVersion.shortValue.accumulated(fromVersion.shortValue, self.short));
-        UFixed6 rewardAmount = toVersion.makerReward.accumulated(fromVersion.makerReward, self.maker)
-            .add(toVersion.longReward.accumulated(fromVersion.longReward, self.long))
-            .add(toVersion.shortReward.accumulated(fromVersion.shortReward, self.short));
+        Fixed6 collateralAmount = toVersion.makerValue.accumulated(fromVersion.makerValue, self.order.maker)
+            .add(toVersion.longValue.accumulated(fromVersion.longValue, self.order.long))
+            .add(toVersion.shortValue.accumulated(fromVersion.shortValue, self.order.short));
+        UFixed6 rewardAmount = toVersion.makerReward.accumulated(fromVersion.makerReward, self.order.maker)
+            .add(toVersion.longReward.accumulated(fromVersion.longReward, self.order.long))
+            .add(toVersion.shortReward.accumulated(fromVersion.shortReward, self.order.short));
 
-        self.latestVersion = order.version;
-        self.maker = order.maker;
-        self.long = order.long;
-        self.short = order.short;
+        self.order.version = order.version;
+        self.order.maker = order.maker;
+        self.order.long = order.long;
+        self.order.short = order.short;
         self.collateral = self.collateral.add(collateralAmount);
         self.reward = self.reward.add(rewardAmount);
         self.liquidation = false;
@@ -76,7 +73,7 @@ library AccountLib {
         OracleVersion memory currentOracleVersion,
         UFixed6 maintenanceRatio
     ) internal pure returns (UFixed6) {
-        return position(self).mul(currentOracleVersion.price.abs()).mul(maintenanceRatio);
+        return maintenance(self.order, currentOracleVersion, maintenanceRatio);
     }
 
     /**
@@ -90,11 +87,7 @@ library AccountLib {
         OracleVersion memory currentOracleVersion,
         UFixed6 maintenanceRatio
     ) internal pure returns (UFixed6) {
-        return order.maker.add(order.long).add(order.short).mul(currentOracleVersion.price.abs()).mul(maintenanceRatio);
-    }
-
-    function position(Account memory self) internal pure returns (UFixed6) {
-        return self.maker.add(self.long).add(self.short);
+        return order.position().mul(currentOracleVersion.price.abs()).mul(maintenanceRatio);
     }
 }
 
@@ -112,10 +105,12 @@ library AccountStorageLib {
         bool isShort = storedValue._positionMask & uint256(1 << 2) != 0;
 
         return Account(
-            uint256(storedValue._latestVersion),
-            UFixed6.wrap(uint256(isMaker ? storedValue._position : 0)),
-            UFixed6.wrap(uint256(isLong ? storedValue._position : 0)),
-            UFixed6.wrap(uint256(isShort ? storedValue._position : 0)),
+            Order(
+                uint256(storedValue._version),
+                UFixed6.wrap(uint256(isMaker ? storedValue._position : 0)),
+                UFixed6.wrap(uint256(isLong ? storedValue._position : 0)),
+                UFixed6.wrap(uint256(isShort ? storedValue._position : 0))
+            ),
             Fixed6.wrap(int256(storedValue._collateral)),
             UFixed6.wrap(uint256(storedValue._liquidationAndReward & ~LIQUIDATION_MASK)),
             bool(storedValue._liquidationAndReward & LIQUIDATION_MASK != 0)
@@ -123,20 +118,20 @@ library AccountStorageLib {
     }
 
     function store(AccountStorage storage self, Account memory newValue) internal {
-        if (newValue.latestVersion > type(uint32).max) revert AccountStorageInvalidError();
-        if (newValue.position().gt(UFixed6Lib.MAX_72)) revert AccountStorageInvalidError();
+        if (newValue.order.version > type(uint32).max) revert AccountStorageInvalidError();
+        if (newValue.order.position().gt(UFixed6Lib.MAX_72)) revert AccountStorageInvalidError();
         if (newValue.collateral.gt(Fixed6Lib.MAX_72)) revert AccountStorageInvalidError();
         if (newValue.reward.gt(UFixed6.wrap((1 << (REWARD_AND_LIQUIDATION_SIZE - 1)) - 1))) revert AccountStorageInvalidError();
 
         uint256 _positionMask =
-            ((newValue.maker.isZero() ? 0 : 1)) |
-            ((newValue.long.isZero() ? 0 : 1) << 1) |
-            ((newValue.short.isZero() ? 0 : 1) << 2);
+            ((newValue.order.maker.isZero() ? 0 : 1)) |
+            ((newValue.order.long.isZero() ? 0 : 1) << 1) |
+            ((newValue.order.short.isZero() ? 0 : 1) << 2);
 
         self.value = StoredAccount(
             uint8(_positionMask),
-            uint32(newValue.latestVersion),
-            uint72(UFixed6.unwrap(newValue.position())),
+            uint32(newValue.order.version),
+            uint72(UFixed6.unwrap(newValue.order.position())),
             int72(Fixed6.unwrap(newValue.collateral)),
             uint72((UFixed6.unwrap(newValue.reward)) | (uint72(newValue.liquidation ? 1 : 0) << (REWARD_AND_LIQUIDATION_SIZE - 1)))
         );

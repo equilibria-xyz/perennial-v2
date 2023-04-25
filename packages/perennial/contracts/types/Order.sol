@@ -51,6 +51,10 @@ library OrderLib {
         self.long = newOrder.long;
         self.short = newOrder.short;
     }
+
+    function position(Order memory self) internal pure returns (UFixed6) {
+        return self.long.max(self.short).max(self.maker);
+    }
 }
 
 library OrderStorageLib {

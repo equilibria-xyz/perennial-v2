@@ -13,10 +13,7 @@ export interface Order {
 }
 
 export interface Account {
-  latestVersion: BigNumberish
-  maker: BigNumberish
-  long: BigNumberish
-  short: BigNumberish
+  order: Order
   collateral: BigNumberish
   reward: BigNumberish
   liquidation: boolean
@@ -55,10 +52,7 @@ export function expectOrderEq(a: Order, b: Order): void {
 }
 
 export function expectAccountEq(a: Account, b: Account): void {
-  expect(a.latestVersion).to.equal(b.latestVersion)
-  expect(a.maker).to.equal(b.maker)
-  expect(a.long).to.equal(b.long)
-  expect(a.short).to.equal(b.short)
+  expectOrderEq(a.order, b.order)
   expect(a.collateral).to.equal(b.collateral)
   expect(a.reward).to.equal(b.reward)
   expect(a.liquidation).to.equal(b.liquidation)

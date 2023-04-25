@@ -272,10 +272,10 @@ contract Market is IMarket, UInitializable, UOwnable {
         _endGas(context);
     }
 
-    function _processOrderAccount(CurrentContext memory context, Order memory order) private {
+    function _processOrderAccount(CurrentContext memory context, Order memory order) private view {
         context.account.accumulate(
-            context.order,
-            _versions[context.account.latestVersion].read(),
+            order,
+            _versions[context.account.order.version].read(),
             _versions[context.order.version].read()
         );
     }
@@ -308,9 +308,9 @@ contract Market is IMarket, UInitializable, UOwnable {
             !context.marketParameter.closed &&
             context.position.socializedNext() &&
             (
-                context.order.maker.lt(context.account.maker) ||
-                context.order.long.gt(context.account.long) ||
-                context.order.short.gt(context.account.short)
+                context.order.maker.lt(context.account.order.maker) ||
+                context.order.long.gt(context.account.order.long) ||
+                context.order.short.gt(context.account.order.short)
             )
         ) revert MarketInsufficientLiquidityError();
 
