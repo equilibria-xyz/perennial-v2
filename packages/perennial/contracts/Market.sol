@@ -204,12 +204,12 @@ contract Market is IMarket, UInitializable, UOwnable {
 
         // update
         if (newCollateral.eq(Fixed6Lib.MAX)) newCollateral = context.account.collateral;
-        Order memory order = Order(context.currentOracleVersion.version + 1, newMaker, newLong, newShort);
+        Order memory newOrder = Order(context.currentOracleVersion.version + 1, newMaker, newLong, newShort);
 
         (Fixed6 makerAmount, Fixed6 longAmount, Fixed6 shortAmount, UFixed6 positionFee) =
-            context.accountPendingOrder.update(order, context.currentOracleVersion, context.marketParameter);
+            context.accountPendingOrder.update(newOrder, context.currentOracleVersion, context.marketParameter);
         Fixed6 collateralAmount = context.account.update(newCollateral, positionFee);
-        context.pendingOrder.update(order.version, makerAmount, longAmount, shortAmount);
+        context.pendingOrder.update(newOrder.version, makerAmount, longAmount, shortAmount);
         UFixed6 protocolFee = context.version.update(context.order, positionFee, context.marketParameter);
         context.fee.update(protocolFee, context.protocolParameter);
 
@@ -276,26 +276,27 @@ contract Market is IMarket, UInitializable, UOwnable {
         _endGas(context);
     }
 
-    function _processOrder(CurrentContext memory context, Order memory order) private {
+    function _processOrder(CurrentContext memory context, Order memory newOrder) private {
         UFixed6 fundingFee = context.version.accumulate(
             context.order,
             _oracleVersionAt(context.marketParameter, context.order.version),
-            _oracleVersionAt(context.marketParameter, order.version),
+            _oracleVersionAt(context.marketParameter, newOrder.version),
             context.protocolParameter,
             context.marketParameter
         );
         context.fee.update(fundingFee, context.protocolParameter);
+        context.order.update(newOrder);
+
         _versions[context.pendingOrder.version].store(context.version);
-        context.order.update(context.pendingOrder);
     }
 
-    function _processOrderAccount(CurrentContext memory context, Order memory order) private view {
+    function _processOrderAccount(CurrentContext memory context, Order memory newOrder) private view {
         context.account.accumulate(
             context.accountOrder,
             _versions[context.accountOrder.version].read(),
-            _versions[order.version].read()
+            _versions[newOrder.version].read()
         );
-        context.accountOrder.update(order);
+        context.accountOrder.update(newOrder);
     }
 
     // TODO: should move of of these validations to order-specific
@@ -312,11 +313,9 @@ contract Market is IMarket, UInitializable, UOwnable {
         if (
             context.accountPendingOrder.maker.eq(newMaker) &&
             context.accountPendingOrder.long.eq(newLong) &&
-            context.accountPendingOrder.short.eq(newShort) && (
-                (context.account.collateral.sign() == -1 && newCollateral.isZero()) || // sender is repaying shortfall for this account
-                (context.account.collateral.eq(newCollateral))                         // sender is triggering a noop settlement for the this account
-            )
-        ) return;
+            context.accountPendingOrder.short.eq(newShort) &&
+            context.account.collateral.sign() == -1 && newCollateral.isZero()
+        ) return; // sender is repaying shortfall for this account
         revert MarketOperatorNotAllowed();
     }
 
