@@ -80,13 +80,13 @@ describe('Happy Path', () => {
       long: 0,
       short: 0,
     })
+    expectOrderEq(await market.orders(user.address), {
+      version: 0,
+      maker: 0,
+      long: 0,
+      short: 0,
+    })
     expectAccountEq(await market.accounts(user.address), {
-      order: {
-        version: 0,
-        maker: 0,
-        long: 0,
-        short: 0,
-      },
       collateral: COLLATERAL,
       reward: 0,
       liquidation: false,
@@ -140,13 +140,13 @@ describe('Happy Path', () => {
       long: 0,
       short: 0,
     })
+    expectOrderEq(await market.orders(user.address), {
+      version: INITIAL_VERSION + 1,
+      maker: POSITION,
+      long: 0,
+      short: 0,
+    })
     expectAccountEq(await market.accounts(user.address), {
-      order: {
-        version: INITIAL_VERSION + 1,
-        maker: POSITION,
-        long: 0,
-        short: 0,
-      },
       collateral: COLLATERAL,
       reward: 0,
       liquidation: false,
@@ -174,13 +174,13 @@ describe('Happy Path', () => {
       long: 0,
       short: 0,
     })
+    expectOrderEq(await market.orders(user.address), {
+      version: 0,
+      maker: 0,
+      long: 0,
+      short: 0,
+    })
     expectAccountEq(await market.accounts(user.address), {
-      order: {
-        version: 0,
-        maker: 0,
-        long: 0,
-        short: 0,
-      },
       collateral: COLLATERAL,
       reward: 0,
       liquidation: false,
@@ -234,13 +234,13 @@ describe('Happy Path', () => {
       long: 0,
       short: 0,
     })
+    expectOrderEq(await market.orders(user.address), {
+      version: INITIAL_VERSION + 1,
+      maker: POSITION,
+      long: 0,
+      short: 0,
+    })
     expectAccountEq(await market.accounts(user.address), {
-      order: {
-        version: INITIAL_VERSION + 1,
-        maker: POSITION,
-        long: 0,
-        short: 0,
-      },
       collateral: COLLATERAL,
       reward: 0,
       liquidation: false,
@@ -267,13 +267,13 @@ describe('Happy Path', () => {
       long: 0,
       short: 0,
     })
+    expectOrderEq(await market.orders(user.address), {
+      version: 0,
+      maker: 0,
+      long: 0,
+      short: 0,
+    })
     expectAccountEq(await market.accounts(user.address), {
-      order: {
-        version: 0,
-        maker: 0,
-        long: 0,
-        short: 0,
-      },
       collateral: COLLATERAL,
       reward: 0,
       liquidation: false,
@@ -324,13 +324,13 @@ describe('Happy Path', () => {
       long: 0,
       short: 0,
     })
+    expectOrderEq(await market.orders(user.address), {
+      version: 0,
+      maker: 0,
+      long: 0,
+      short: 0,
+    })
     expectAccountEq(await market.accounts(user.address), {
-      order: {
-        version: 0,
-        maker: 0,
-        long: 0,
-        short: 0,
-      },
       collateral: COLLATERAL,
       reward: 0,
       liquidation: false,
@@ -381,13 +381,13 @@ describe('Happy Path', () => {
       long: 0,
       short: 0,
     })
+    expectOrderEq(await market.orders(user.address), {
+      version: 0,
+      maker: 0,
+      long: 0,
+      short: 0,
+    })
     expectAccountEq(await market.accounts(user.address), {
-      order: {
-        version: 0,
-        maker: 0,
-        long: 0,
-        short: 0,
-      },
       collateral: COLLATERAL,
       reward: 0,
       liquidation: false,
@@ -398,13 +398,13 @@ describe('Happy Path', () => {
       long: POSITION_B,
       short: 0,
     })
+    expectOrderEq(await market.orders(userB.address), {
+      version: 0,
+      maker: 0,
+      long: 0,
+      short: 0,
+    })
     expectAccountEq(await market.accounts(userB.address), {
-      order: {
-        version: 0,
-        maker: 0,
-        long: 0,
-        short: 0,
-      },
       collateral: COLLATERAL,
       reward: 0,
       liquidation: false,
@@ -459,13 +459,13 @@ describe('Happy Path', () => {
       long: POSITION_B,
       short: 0,
     })
+    expectOrderEq(await market.orders(userB.address), {
+      version: INITIAL_VERSION + 1,
+      maker: 0,
+      long: POSITION_B,
+      short: 0,
+    })
     expectAccountEq(await market.accounts(userB.address), {
-      order: {
-        version: INITIAL_VERSION + 1,
-        maker: 0,
-        long: POSITION_B,
-        short: 0,
-      },
       collateral: COLLATERAL,
       reward: 0,
       liquidation: false,
@@ -496,13 +496,13 @@ describe('Happy Path', () => {
       long: POSITION_B,
       short: 0,
     })
+    expectOrderEq(await market.orders(userB.address), {
+      version: 0,
+      maker: 0,
+      long: 0,
+      short: 0,
+    })
     expectAccountEq(await market.accounts(userB.address), {
-      order: {
-        version: 0,
-        maker: 0,
-        long: 0,
-        short: 0,
-      },
       collateral: COLLATERAL,
       reward: 0,
       liquidation: false,
@@ -550,20 +550,20 @@ describe('Happy Path', () => {
       long: POSITION_B,
       short: 0,
     })
-    await market.settle(userB.address) // TODO: needed?
+    await market.settle(userB.address)
     expectOrderEq(await market.pendingOrders(userB.address), {
       version: INITIAL_VERSION + 1,
       maker: 0,
       long: POSITION_B,
       short: 0,
     })
+    expectOrderEq(await market.orders(userB.address), {
+      version: INITIAL_VERSION + 1,
+      maker: 0,
+      long: POSITION_B,
+      short: 0,
+    })
     expectAccountEq(await market.accounts(userB.address), {
-      order: {
-        version: INITIAL_VERSION + 1,
-        maker: 0,
-        long: POSITION_B,
-        short: 0,
-      },
       collateral: COLLATERAL,
       reward: 0,
       liquidation: false,
@@ -597,13 +597,13 @@ describe('Happy Path', () => {
       long: 0,
       short: 0,
     })
+    expectOrderEq(await market.orders(userB.address), {
+      version: 0,
+      maker: 0,
+      long: 0,
+      short: 0,
+    })
     expectAccountEq(await market.accounts(userB.address), {
-      order: {
-        version: 0,
-        maker: 0,
-        long: 0,
-        short: 0,
-      },
       collateral: COLLATERAL,
       reward: 0,
       liquidation: false,
@@ -660,13 +660,13 @@ describe('Happy Path', () => {
       long: 0,
       short: 0,
     })
+    expectOrderEq(await market.orders(userB.address), {
+      version: 0,
+      maker: 0,
+      long: 0,
+      short: 0,
+    })
     expectAccountEq(await market.accounts(userB.address), {
-      order: {
-        version: 0,
-        maker: 0,
-        long: 0,
-        short: 0,
-      },
       collateral: COLLATERAL,
       reward: 0,
       liquidation: false,
@@ -778,13 +778,13 @@ describe('Happy Path', () => {
       long: 0,
       short: 0,
     })
+    expectOrderEq(await market.orders(user.address), {
+      version: INITIAL_VERSION + 3,
+      maker: POSITION.div(2),
+      long: 0,
+      short: 0,
+    })
     expectAccountEq(await market.accounts(user.address), {
-      order: {
-        version: INITIAL_VERSION + 3,
-        maker: POSITION.div(2),
-        long: 0,
-        short: 0,
-      },
       collateral: COLLATERAL.sub(1),
       reward: '11009999',
       liquidation: false,

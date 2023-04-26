@@ -105,6 +105,14 @@ library OrderLib {
     function socialized(Order memory self) internal pure returns (bool) {
         return self.maker.add(self.short).lt(self.long) || self.maker.add(self.long).lt(self.short);
     }
+
+    function maintenance(
+        Order memory self,
+        OracleVersion memory currentOracleVersion,
+        MarketParameter memory marketParameter
+    ) internal pure returns (UFixed6) {
+        return position(self).mul(currentOracleVersion.price.abs()).mul(marketParameter.maintenance);
+    }
 }
 
 library OrderStorageLib {

@@ -46,6 +46,8 @@ contract Market is IMarket, UInitializable, UOwnable {
 
     OrderStorage private _pendingOrder;
 
+    mapping(address => OrderStorage) private _orders;
+
     mapping(address => OrderStorage) private _pendingOrders;
 
     MarketParameterStorage private _parameter;
@@ -141,6 +143,10 @@ contract Market is IMarket, UInitializable, UOwnable {
         return _order.read();
     }
 
+    function orders(address account) external view returns (Order memory) {
+        return _orders[account].read();
+    }
+
     function fee() external view returns (Fee memory) {
         return _fee.read();
     }
@@ -163,7 +169,7 @@ contract Market is IMarket, UInitializable, UOwnable {
 
     function _liquidate(CurrentContext memory context, address account) private {
         // before
-        UFixed6 maintenance = context.account.maintenance(context.currentOracleVersion, context.marketParameter.maintenance);
+        UFixed6 maintenance = context.accountOrder.maintenance(context.currentOracleVersion, context.marketParameter);
         if (context.account.collateral.gte(Fixed6Lib.from(maintenance)) || context.account.liquidation) return; // cant liquidate
         if (context.marketParameter.closed) return; // cant liquidate
 
@@ -237,9 +243,10 @@ contract Market is IMarket, UInitializable, UOwnable {
         context.pendingOrder = _pendingOrder.read();
         context.order = _order.read();
         context.fee = _fee.read();
-        context.version = _versions[context.pendingOrder.version].read();
-        context.account = _accounts[account].read();
         context.accountPendingOrder = _pendingOrders[account].read();
+        context.accountOrder = _orders[account].read();
+        context.account = _accounts[account].read();
+        context.version = _versions[context.pendingOrder.version].read();
 
         // after
         _endGas(context);
@@ -252,9 +259,10 @@ contract Market is IMarket, UInitializable, UOwnable {
         _pendingOrder.store(context.pendingOrder);
         _order.store(context.order);
         _fee.store(context.fee);
-        _versions[context.pendingOrder.version].store(context.version);
-        _accounts[account].store(context.account);
         _pendingOrders[account].store(context.accountPendingOrder);
+        _orders[account].store(context.accountOrder);
+        _accounts[account].store(context.account);
+        _versions[context.pendingOrder.version].store(context.version);
 
         _endGas(context);
     }
@@ -283,10 +291,11 @@ contract Market is IMarket, UInitializable, UOwnable {
 
     function _processOrderAccount(CurrentContext memory context, Order memory order) private view {
         context.account.accumulate(
-            order,
-            _versions[context.account.order.version].read(),
+            context.accountOrder,
+            _versions[context.accountOrder.version].read(),
             _versions[order.version].read()
         );
+        context.accountOrder.update(order);
     }
 
     // TODO: should move of of these validations to order-specific
@@ -317,9 +326,9 @@ contract Market is IMarket, UInitializable, UOwnable {
             !context.marketParameter.closed &&
             context.pendingOrder.socialized() &&
             (
-                context.accountPendingOrder.maker.lt(context.account.order.maker) ||
-                context.accountPendingOrder.long.gt(context.account.order.long) ||
-                context.accountPendingOrder.short.gt(context.account.order.short)
+                context.accountPendingOrder.maker.lt(context.accountOrder.maker) ||
+                context.accountPendingOrder.long.gt(context.accountOrder.long) ||
+                context.accountPendingOrder.short.gt(context.accountOrder.short)
             )
         ) revert MarketInsufficientLiquidityError();
 
@@ -335,12 +344,10 @@ contract Market is IMarket, UInitializable, UOwnable {
         if (!context.account.collateral.isZero() && boundedCollateral.lt(context.protocolParameter.minCollateral))
             revert MarketCollateralUnderLimitError();
 
-        (UFixed6 maintenanceAmount, UFixed6 maintenanceNextAmount) = (
-            context.account.maintenance(context.currentOracleVersion, context.marketParameter.maintenance),
-            AccountLib.maintenance(context.accountPendingOrder, context.currentOracleVersion, context.marketParameter.maintenance) // TODO: cleanup
-        );
-        if (maintenanceAmount.max(maintenanceNextAmount).gt(boundedCollateral))
-            revert MarketInsufficientCollateralError();
+        UFixed6 maintenanceAmount =
+            context.accountOrder.maintenance(context.currentOracleVersion, context.marketParameter)
+                .max(context.accountPendingOrder.maintenance(context.currentOracleVersion, context.marketParameter));
+        if (maintenanceAmount.gt(boundedCollateral)) revert MarketInsufficientCollateralError();
     }
 
     function _sync(MarketParameter memory marketParameter) private returns (OracleVersion memory oracleVersion) {

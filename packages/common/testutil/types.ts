@@ -13,7 +13,6 @@ export interface Order {
 }
 
 export interface Account {
-  order: Order
   collateral: BigNumberish
   reward: BigNumberish
   liquidation: boolean
@@ -46,7 +45,6 @@ export function expectOrderEq(a: Order, b: Order): void {
 }
 
 export function expectAccountEq(a: Account, b: Account): void {
-  expectOrderEq(a.order, b.order)
   expect(a.collateral).to.equal(b.collateral)
   expect(a.reward).to.equal(b.reward)
   expect(a.liquidation).to.equal(b.liquidation)

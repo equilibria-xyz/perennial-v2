@@ -28,6 +28,7 @@ interface IMarket is IOwnable {
         Order order;
         Fee fee;
         Account account;
+        Order accountOrder;
         Order accountPendingOrder;
 
         uint256 gasCounter;
@@ -66,6 +67,7 @@ interface IMarket is IOwnable {
     function token() external view returns (Token18);
     function reward() external view returns (Token18);
     function treasury() external view returns (address);
+    function orders(address account) external view returns (Order memory);
     function pendingOrders(address account) external view returns (Order memory);
     function accounts(address account) external view returns (Account memory);
     function versions(uint256 oracleVersion) external view returns (Version memory);
