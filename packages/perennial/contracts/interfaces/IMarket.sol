@@ -60,6 +60,7 @@ interface IMarket is IOwnable {
     error PayoffProviderInvalidOracle();
     error PayoffProviderInvalidPayoffDefinitionError();
     error MarketOperatorNotAllowed();
+    error MarketNotSingleSidedError();
 
     function initialize(MarketDefinition calldata definition_, MarketParameter calldata parameter_) external;
     function name() external view returns (string memory);

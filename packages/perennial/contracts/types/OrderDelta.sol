@@ -26,4 +26,8 @@ library OrderDeltaLib {
             .add(self.long.abs().add(self.short.abs()).mul(marketParameter.takerFee))
             .mul(currentOracleVersion.price.abs());
     }
+
+    function decreasesLiquidity(OrderDelta memory self) internal pure returns (bool) {
+        return self.maker.lt(Fixed6Lib.ZERO) || self.long.gt(Fixed6Lib.ZERO) || self.long.gt(Fixed6Lib.ZERO);
+    }
 }

@@ -302,7 +302,7 @@ contract Market is IMarket, UInitializable, UOwnable {
         context.accountOrder.update(newOrder);
     }
 
-    // TODO: should move of of these validations to order-specific
+    // TODO: this needs to be cleaned up somehow
     function _checkOperator(
         CurrentContext memory context,
         address account,
@@ -323,19 +323,13 @@ contract Market is IMarket, UInitializable, UOwnable {
     }
 
     function _checkPosition(CurrentContext memory context) private pure {
-        // TODO: check double sided
         if (
             !context.marketParameter.closed &&
             context.pendingOrder.socialized() &&
-            (
-                context.accountPendingOrder.maker.lt(context.accountOrder.maker) ||
-                context.accountPendingOrder.long.gt(context.accountOrder.long) ||
-                context.accountPendingOrder.short.gt(context.accountOrder.short)
-            )
+            context.accountPendingOrder.sub(context.accountOrder).decreasesLiquidity()
         ) revert MarketInsufficientLiquidityError();
-
-        if (context.pendingOrder.maker.gt(context.marketParameter.makerLimit))
-            revert MarketMakerOverLimitError();
+        if (context.pendingOrder.maker.gt(context.marketParameter.makerLimit)) revert MarketMakerOverLimitError();
+        if (!context.accountPendingOrder.singleSided()) revert MarketNotSingleSidedError();
     }
 
     function _checkCollateral(CurrentContext memory context) private pure {

@@ -78,6 +78,10 @@ library OrderLib {
         return self.maker.add(self.short).lt(self.long) || self.maker.add(self.long).lt(self.short);
     }
 
+    function singleSided(Order memory self) internal pure returns (bool) {
+        return position(self).eq(self.maker.add(self.long).add(self.short));
+    }
+
     function maintenance(
         Order memory self,
         OracleVersion memory currentOracleVersion,
