@@ -174,11 +174,12 @@ contract Market is IMarket, UInitializable, UOwnable {
         if (context.marketParameter.closed) return; // cant liquidate
 
         // compute reward
-        Fixed6 liquidationReward = Fixed6Lib.from( //TODO: move in to orderdelta
-            UFixed6Lib.max(maintenance, context.protocolParameter.minCollateral)
-                .mul(context.protocolParameter.liquidationFee)
-        ).min(Fixed6.wrap(int256(UFixed18.unwrap(token.balanceOf())) / 1e12));
-        Fixed6 newCollateral = context.account.collateral.sub(liquidationReward);
+        UFixed6 liquidationReward = context.accountOrder.liquidationFee(
+            context.currentOracleVersion,
+            context.marketParameter,
+            context.protocolParameter
+        ).min(UFixed6Lib.from(token.balanceOf()));
+        Fixed6 newCollateral = context.account.collateral.sub(Fixed6Lib.from(liquidationReward));
 
         // close position
         _update(context, account, UFixed6Lib.ZERO, UFixed6Lib.ZERO, UFixed6Lib.ZERO, newCollateral, true);
@@ -193,7 +194,7 @@ contract Market is IMarket, UInitializable, UOwnable {
         UFixed6 newMaker,
         UFixed6 newLong,
         UFixed6 newShort,
-        Fixed6 newCollateral,
+        Fixed6 newCollateral, //TODO: make delta
         bool force
     ) private {
         _startGas(context, "_update before-update-after: %s");
@@ -205,11 +206,8 @@ contract Market is IMarket, UInitializable, UOwnable {
         // update position
         Order memory newAccountOrder = Order(context.currentOracleVersion.version + 1, newMaker, newLong, newShort);
         OrderDelta memory accountOrderDelta = newAccountOrder.sub(context.accountPendingOrder);
-        Order memory newOrder = context.pendingOrder.add(accountOrderDelta);
-        newOrder.version = newAccountOrder.version;
-
         context.accountPendingOrder.update(newAccountOrder);
-        context.pendingOrder.update(newOrder);
+        context.pendingOrder.update(newAccountOrder.version, accountOrderDelta);
 
         // update collateral
         if (newCollateral.eq(Fixed6Lib.MAX)) newCollateral = context.account.collateral;

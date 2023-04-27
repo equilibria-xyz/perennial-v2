@@ -83,6 +83,15 @@ library Fixed6Lib {
     }
 
     /**
+     * @notice Creates a signed fixed-decimal from a base-18 signed fixed-decimal
+     * @param a Base-18 signed fixed-decimal
+     * @return New signed fixed-decimal
+     */
+    function from(Fixed18 a) internal pure returns (Fixed6) {
+        return Fixed6.wrap(Fixed18.unwrap(a) / 1e12);
+    }
+
+    /**
      * @notice Returns whether the signed fixed-decimal is equal to zero.
      * @param a Signed fixed-decimal
      * @return Whether the signed fixed-decimal is zero.

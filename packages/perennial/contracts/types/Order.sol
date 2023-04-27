@@ -2,6 +2,7 @@
 pragma solidity 0.8.17;
 
 import "@equilibria/perennial-v2-oracle/contracts/types/OracleVersion.sol";
+import "./ProtocolParameter.sol";
 import "./MarketParameter.sol";
 import "./OrderDelta.sol";
 
@@ -34,6 +35,11 @@ library OrderLib {
     function update(Order memory self, Order memory newOrder) internal pure {
         (self.version, self.maker, self.long, self.short) =
             (newOrder.version, newOrder.maker, newOrder.long, newOrder.short);
+    }
+
+    function update(Order memory self, uint256 newVersion, OrderDelta memory orderDelta) internal pure {
+        self.version = newVersion;
+        update(self, add(self, orderDelta));
     }
 
     function position(Order memory self) internal pure returns (UFixed6) {
@@ -78,6 +84,18 @@ library OrderLib {
         MarketParameter memory marketParameter
     ) internal pure returns (UFixed6) {
         return position(self).mul(currentOracleVersion.price.abs()).mul(marketParameter.maintenance);
+    }
+
+    function liquidationFee(
+        Order memory self,
+        OracleVersion memory currentOracleVersion,
+        MarketParameter memory marketParameter,
+        ProtocolParameter memory protocolParameter
+    ) internal pure returns (UFixed6) {
+        return maintenance(self, currentOracleVersion, marketParameter)
+            .max(protocolParameter.minCollateral)
+            .mul(protocolParameter.liquidationFee
+        );
     }
 
     function sub(Order memory self, Order memory order) internal pure returns (OrderDelta memory) {
