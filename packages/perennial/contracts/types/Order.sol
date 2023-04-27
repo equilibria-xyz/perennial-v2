@@ -3,6 +3,7 @@ pragma solidity 0.8.17;
 
 import "@equilibria/perennial-v2-oracle/contracts/types/OracleVersion.sol";
 import "./MarketParameter.sol";
+import "./OrderDelta.sol";
 
 /// @dev Order type
 struct Order {
@@ -30,44 +31,9 @@ library OrderLib {
         return currentOracleVersion.version >= self.version;
     }
 
-    function update(
-        Order memory self,
-        Order memory newOrder,
-        OracleVersion memory currentOracleVersion,
-        MarketParameter memory marketParameter
-    ) internal pure returns (Fixed6 makerAmount, Fixed6 longAmount, Fixed6 shortAmount, UFixed6 positionFee) {
-        (makerAmount, longAmount, shortAmount) = (
-            Fixed6Lib.from(newOrder.maker).sub(Fixed6Lib.from(self.maker)),
-            Fixed6Lib.from(newOrder.long).sub(Fixed6Lib.from(self.long)),
-            Fixed6Lib.from(newOrder.short).sub(Fixed6Lib.from(self.short))
-        );
-        positionFee = currentOracleVersion.price.abs().mul(
-            longAmount.abs().add(shortAmount.abs()).mul(marketParameter.takerFee)
-            .add(makerAmount.abs().mul(marketParameter.makerFee))
-        );
-        update(self, newOrder);
-    }
-
-    function update( // TODO: make a OrderDelta model?
-        Order memory self,
-        uint256 version,
-        Fixed6 makerAmount,
-        Fixed6 longAmount,
-        Fixed6 shortAmount
-    ) internal pure {
-        update(self, Order(
-            version,
-            UFixed6Lib.from(Fixed6Lib.from(self.maker).add(makerAmount)),
-            UFixed6Lib.from(Fixed6Lib.from(self.long).add(longAmount)),
-            UFixed6Lib.from(Fixed6Lib.from(self.short).add(shortAmount))
-        ));
-    }
-
     function update(Order memory self, Order memory newOrder) internal pure {
-        self.version = newOrder.version;
-        self.maker = newOrder.maker;
-        self.long = newOrder.long;
-        self.short = newOrder.short;
+        (self.version, self.maker, self.long, self.short) =
+            (newOrder.version, newOrder.maker, newOrder.long, newOrder.short);
     }
 
     function position(Order memory self) internal pure returns (UFixed6) {
@@ -112,6 +78,23 @@ library OrderLib {
         MarketParameter memory marketParameter
     ) internal pure returns (UFixed6) {
         return position(self).mul(currentOracleVersion.price.abs()).mul(marketParameter.maintenance);
+    }
+
+    function sub(Order memory self, Order memory order) internal pure returns (OrderDelta memory) {
+        return OrderDelta(
+            Fixed6Lib.from(self.maker).sub(Fixed6Lib.from(order.maker)),
+            Fixed6Lib.from(self.long).sub(Fixed6Lib.from(order.long)),
+            Fixed6Lib.from(self.short).sub(Fixed6Lib.from(order.short))
+        );
+    }
+
+    function add(Order memory self, OrderDelta memory orderDelta) internal pure returns (Order memory) {
+        return Order(
+            self.version,
+            UFixed6Lib.from(Fixed6Lib.from(self.maker).add(orderDelta.maker)),
+            UFixed6Lib.from(Fixed6Lib.from(self.long).add(orderDelta.long)),
+            UFixed6Lib.from(Fixed6Lib.from(self.short).add(orderDelta.short))
+        );
     }
 }
 

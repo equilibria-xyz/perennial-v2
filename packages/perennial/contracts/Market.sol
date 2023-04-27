@@ -174,7 +174,7 @@ contract Market is IMarket, UInitializable, UOwnable {
         if (context.marketParameter.closed) return; // cant liquidate
 
         // compute reward
-        Fixed6 liquidationReward = Fixed6Lib.from(
+        Fixed6 liquidationReward = Fixed6Lib.from( //TODO: move in to orderdelta
             UFixed6Lib.max(maintenance, context.protocolParameter.minCollateral)
                 .mul(context.protocolParameter.liquidationFee)
         ).min(Fixed6.wrap(int256(UFixed18.unwrap(token.balanceOf())) / 1e12));
@@ -202,14 +202,19 @@ contract Market is IMarket, UInitializable, UOwnable {
         if (context.account.liquidation) revert MarketInLiquidationError();
         if (context.marketParameter.closed && !newMaker.add(newLong).add(newShort).isZero()) revert MarketClosedError();
 
-        // update
-        if (newCollateral.eq(Fixed6Lib.MAX)) newCollateral = context.account.collateral;
-        Order memory newOrder = Order(context.currentOracleVersion.version + 1, newMaker, newLong, newShort);
+        // update position
+        Order memory newAccountOrder = Order(context.currentOracleVersion.version + 1, newMaker, newLong, newShort);
+        OrderDelta memory accountOrderDelta = newAccountOrder.sub(context.accountPendingOrder);
+        Order memory newOrder = context.pendingOrder.add(accountOrderDelta);
+        newOrder.version = newAccountOrder.version;
 
-        (Fixed6 makerAmount, Fixed6 longAmount, Fixed6 shortAmount, UFixed6 positionFee) =
-            context.accountPendingOrder.update(newOrder, context.currentOracleVersion, context.marketParameter);
+        context.accountPendingOrder.update(newAccountOrder);
+        context.pendingOrder.update(newOrder);
+
+        // update collateral
+        if (newCollateral.eq(Fixed6Lib.MAX)) newCollateral = context.account.collateral;
+        UFixed6 positionFee = accountOrderDelta.fee(context.currentOracleVersion, context.marketParameter);
         Fixed6 collateralAmount = context.account.update(newCollateral, positionFee);
-        context.pendingOrder.update(newOrder.version, makerAmount, longAmount, shortAmount);
         UFixed6 protocolFee = context.version.update(context.order, positionFee, context.marketParameter);
         context.fee.update(protocolFee, context.protocolParameter);
 
@@ -222,7 +227,7 @@ contract Market is IMarket, UInitializable, UOwnable {
         _startGas(context, "_update fund-events: %s");
 
         // fund
-        if (collateralAmount.sign() == 1) token.pull(msg.sender, UFixed18.wrap(UFixed6.unwrap(collateralAmount.abs()) * 1e12));
+        if (collateralAmount.sign() == 1) token.pull(msg.sender, UFixed18.wrap(UFixed6.unwrap(collateralAmount.abs()) * 1e12)); //TODO: use .to6()
         if (collateralAmount.sign() == -1) token.push(msg.sender, UFixed18.wrap(UFixed6.unwrap(collateralAmount.abs()) * 1e12));
 
         // events
