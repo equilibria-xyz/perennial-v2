@@ -9,7 +9,7 @@ import "@equilibria/perennial-v2-oracle/contracts/types/OracleVersion.sol";
 import "../types/Version.sol";
 import "../types/Account.sol";
 import "../types/Fee.sol";
-import "../types/Order.sol";
+import "../types/Position.sol";
 
 interface IMarket is IOwnable {
     struct MarketDefinition {
@@ -24,12 +24,12 @@ interface IMarket is IOwnable {
         MarketParameter marketParameter;
         OracleVersion currentOracleVersion;
         Version version;
-        Order pendingOrder;
-        Order order;
+        Position pendingPosition;
+        Position position;
         Fee fee;
         Account account;
-        Order accountOrder;
-        Order accountPendingOrder;
+        Position accountPosition;
+        Position accountPendingPosition;
 
         uint256 gasCounter;
         string gasCounterMessage;
@@ -68,12 +68,12 @@ interface IMarket is IOwnable {
     function token() external view returns (Token18);
     function reward() external view returns (Token18);
     function treasury() external view returns (address);
-    function orders(address account) external view returns (Order memory);
-    function pendingOrders(address account) external view returns (Order memory);
+    function positions(address account) external view returns (Position memory);
+    function pendingPositions(address account) external view returns (Position memory);
     function accounts(address account) external view returns (Account memory);
     function versions(uint256 oracleVersion) external view returns (Version memory);
-    function pendingOrder() external view returns (Order memory);
-    function order() external view returns (Order memory);
+    function pendingPosition() external view returns (Position memory);
+    function position() external view returns (Position memory);
     function fee() external view returns (Fee memory);
     function settle(address account) external;
     function update(address account, UFixed6 newMaker, UFixed6 newLong, UFixed6 newShort, Fixed6 newCollateral) external;

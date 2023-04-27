@@ -6,7 +6,7 @@ import "@equilibria/root-v2/contracts/UAccumulator6.sol";
 import "./ProtocolParameter.sol";
 import "./MarketParameter.sol";
 import "./Fee.sol";
-import "./Order.sol";
+import "./Position.sol";
 
 /// @dev Version type
 struct Version {
@@ -29,8 +29,6 @@ struct StoredVersion {
 struct VersionStorage { StoredVersion value; }
 using VersionStorageLib for VersionStorage global;
 
-//TODO: natspec on 'position'
-
 /**
  * @title VersionLib
  * @notice Library that manages global versioned accumulator state.
@@ -39,7 +37,7 @@ using VersionStorageLib for VersionStorage global;
  *      incentivization rewards).
  *
  *      Both accumulators are stamped for historical lookup anytime there is a global settlement, which services
- *      the delayed-order accounting. It is not guaranteed that every version will have a value stamped, but
+ *      the delayed-position accounting. It is not guaranteed that every version will have a value stamped, but
  *      only versions when a settlement occurred are needed for this historical computation.
  */
 library VersionLib {
@@ -53,16 +51,16 @@ library VersionLib {
      */
     function update(
         Version memory self,
-        Order memory order,
+        Position memory position,
         UFixed6 positionFee,
         MarketParameter memory marketParameter
     ) internal pure returns (UFixed6 protocolFee) {
         // If there are no makers to distribute the taker's position fee to, give it to the protocol
-        if (order.maker.isZero()) return positionFee;
+        if (position.maker.isZero()) return positionFee;
 
         protocolFee = marketParameter.positionFee.mul(positionFee);
         positionFee = positionFee.sub(protocolFee);
-        self.makerValue.increment(Fixed6Lib.from(positionFee), order.maker);
+        self.makerValue.increment(Fixed6Lib.from(positionFee), position.maker);
     }
 
     /**
@@ -71,7 +69,7 @@ library VersionLib {
      */
     function accumulate(
         Version memory self,
-        Order memory order,
+        Position memory position,
         OracleVersion memory fromOracleVersion,
         OracleVersion memory toOracleVersion,
         ProtocolParameter memory protocolParameter,
@@ -81,53 +79,53 @@ library VersionLib {
 
         // accumulate funding
         fundingFeeAmount =
-            _accumulateFunding(self, order, fromOracleVersion, toOracleVersion, protocolParameter, marketParameter);
+            _accumulateFunding(self, position, fromOracleVersion, toOracleVersion, protocolParameter, marketParameter);
 
         // accumulate P&L
-        _accumulatePNL(self, order, fromOracleVersion, toOracleVersion);
+        _accumulatePNL(self, position, fromOracleVersion, toOracleVersion);
 
         // accumulate reward
-        _accumulateReward(self, order, fromOracleVersion, toOracleVersion, marketParameter);
+        _accumulateReward(self, position, fromOracleVersion, toOracleVersion, marketParameter);
     }
 
     /**
      * @notice Globally accumulates all funding since last oracle update
-     * @dev If an oracle version is skipped due to no orders, funding will continue to be
+     * @dev If an oracle version is skipped due to no positions, funding will continue to be
      *      pegged to the price of the last snapshotted oracleVersion until a new one is accumulated.
      *      This is an acceptable approximation.
      * @return fundingFee The total fee accrued from funding accumulation
      */
     function _accumulateFunding(
         Version memory self,
-        Order memory order,
+        Position memory position,
         OracleVersion memory fromOracleVersion,
         OracleVersion memory toOracleVersion,
         ProtocolParameter memory protocolParameter,
         MarketParameter memory marketParameter
     ) private pure returns (UFixed6 fundingFee) {
-        if (order.magnitude().isZero()) return UFixed6Lib.ZERO;
+        if (position.major().isZero()) return UFixed6Lib.ZERO;
 
-        UFixed6 notional = order.takerSocialized().mul(fromOracleVersion.price.abs());
+        UFixed6 notional = position.takerSocialized().mul(fromOracleVersion.price.abs());
         UFixed6 funding = marketParameter.utilizationCurve.accumulate(
-            order.utilization(),
+            position.utilization(),
             fromOracleVersion.timestamp,
             toOracleVersion.timestamp,
             notional
         );
         fundingFee = UFixed6Lib.max(marketParameter.fundingFee, protocolParameter.minFundingFee).mul(funding);
         UFixed6 fundingWithoutFee = funding.sub(fundingFee);
-        UFixed6 spread = order.spread().max(protocolParameter.minSpread);
+        UFixed6 spread = position.spread().max(protocolParameter.minSpread);
         UFixed6 fundingWithoutFeeMaker = fundingWithoutFee.mul(spread);
         UFixed6 fundingWithoutFeeTaker = fundingWithoutFee.sub(fundingWithoutFeeMaker);
 
-        if (order.long.gt(order.short)) {
-            if (!order.long.isZero()) self.longValue.decrement(Fixed6Lib.from(funding), order.long);
-            if (!order.short.isZero()) self.shortValue.increment(Fixed6Lib.from(fundingWithoutFeeTaker), order.short);
+        if (position.long.gt(position.short)) {
+            if (!position.long.isZero()) self.longValue.decrement(Fixed6Lib.from(funding), position.long);
+            if (!position.short.isZero()) self.shortValue.increment(Fixed6Lib.from(fundingWithoutFeeTaker), position.short);
         } else {
-            if (!order.long.isZero()) self.longValue.increment(Fixed6Lib.from(fundingWithoutFeeTaker), order.long);
-            if (!order.short.isZero()) self.shortValue.decrement(Fixed6Lib.from(funding), order.short);
+            if (!position.long.isZero()) self.longValue.increment(Fixed6Lib.from(fundingWithoutFeeTaker), position.long);
+            if (!position.short.isZero()) self.shortValue.decrement(Fixed6Lib.from(funding), position.short);
         }
-        if (!order.maker.isZero()) self.makerValue.increment(Fixed6Lib.from(fundingWithoutFeeMaker), order.maker);
+        if (!position.maker.isZero()) self.makerValue.increment(Fixed6Lib.from(fundingWithoutFeeMaker), position.maker);
     }
 
     /**
@@ -135,21 +133,21 @@ library VersionLib {
      */
     function _accumulatePNL(
         Version memory self,
-        Order memory order,
+        Position memory position,
         OracleVersion memory fromOracleVersion,
         OracleVersion memory toOracleVersion
     ) private pure {
-        if (order.magnitude().isZero() || order.maker.isZero()) return;
+        if (position.major().isZero() || position.maker.isZero()) return;
 
         Fixed6 totalLongDelta = toOracleVersion.price.sub(fromOracleVersion.price)
-            .mul(Fixed6Lib.from(order.longSocialized()));
+            .mul(Fixed6Lib.from(position.longSocialized()));
         Fixed6 totalShortDelta = fromOracleVersion.price.sub(toOracleVersion.price)
-            .mul(Fixed6Lib.from(order.shortSocialized()));
+            .mul(Fixed6Lib.from(position.shortSocialized()));
         Fixed6 totalMakerDelta = totalLongDelta.add(totalShortDelta);
 
-        if (!order.long.isZero()) self.longValue.increment(totalLongDelta, order.long);
-        if (!order.short.isZero()) self.shortValue.increment(totalShortDelta, order.short);
-        if (!order.maker.isZero()) self.makerValue.decrement(totalMakerDelta, order.maker);
+        if (!position.long.isZero()) self.longValue.increment(totalLongDelta, position.long);
+        if (!position.short.isZero()) self.shortValue.increment(totalShortDelta, position.short);
+        if (!position.maker.isZero()) self.makerValue.decrement(totalMakerDelta, position.maker);
     }
 
     /**
@@ -158,7 +156,7 @@ library VersionLib {
      */
     function _accumulateReward(
         Version memory self,
-        Order memory order,
+        Position memory position,
         OracleVersion memory fromOracleVersion,
         OracleVersion memory toOracleVersion,
         MarketParameter memory marketParameter
@@ -166,12 +164,12 @@ library VersionLib {
         UFixed6 elapsed = UFixed6Lib.from(toOracleVersion.timestamp - fromOracleVersion.timestamp);
         //TODO: refunded rewards here will effect the "auto-close functionality"
 
-        if (!order.maker.isZero())
-            self.makerReward.increment(elapsed.mul(marketParameter.makerRewardRate), order.maker);
-        if (!order.long.isZero())
-            self.longReward.increment(elapsed.mul(marketParameter.longRewardRate), order.long);
-        if (!order.short.isZero())
-            self.shortReward.increment(elapsed.mul(marketParameter.shortRewardRate), order.short);
+        if (!position.maker.isZero())
+            self.makerReward.increment(elapsed.mul(marketParameter.makerRewardRate), position.maker);
+        if (!position.long.isZero())
+            self.longReward.increment(elapsed.mul(marketParameter.longRewardRate), position.long);
+        if (!position.short.isZero())
+            self.shortReward.increment(elapsed.mul(marketParameter.shortRewardRate), position.short);
     }
 }
 

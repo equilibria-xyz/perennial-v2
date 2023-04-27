@@ -2,7 +2,7 @@
 pragma solidity 0.8.17;
 
 import "./Version.sol";
-import "./Order.sol";
+import "./Position.sol";
 
 /// @dev Account type
 struct Account {
@@ -40,7 +40,7 @@ library AccountLib {
      */
     function accumulate(
         Account memory self,
-        Order memory order,
+        Position memory order,
         Version memory fromVersion,
         Version memory toVersion
     ) internal pure {

@@ -5,7 +5,7 @@ export interface Accumulator {
   _value: BigNumberish
 }
 
-export interface Order {
+export interface Position {
   version: BigNumberish
   maker: BigNumberish
   long: BigNumberish
@@ -16,11 +16,6 @@ export interface Account {
   collateral: BigNumberish
   reward: BigNumberish
   liquidation: boolean
-}
-
-export interface Position {
-  order: Order
-  pending: Order
 }
 
 export interface Version {
@@ -37,7 +32,7 @@ export interface Fee {
   market: BigNumberish
 }
 
-export function expectOrderEq(a: Order, b: Order): void {
+export function expectPositionEq(a: Position, b: Position): void {
   expect(a.version).to.equal(b.version)
   expect(a.maker).to.equal(b.maker)
   expect(a.long).to.equal(b.long)
@@ -48,11 +43,6 @@ export function expectAccountEq(a: Account, b: Account): void {
   expect(a.collateral).to.equal(b.collateral)
   expect(a.reward).to.equal(b.reward)
   expect(a.liquidation).to.equal(b.liquidation)
-}
-
-export function expectPositionEq(a: Position, b: Position): void {
-  expectOrderEq(a.order, b.order)
-  expectOrderEq(a.pending, b.pending)
 }
 
 export function expectVersionEq(a: Version, b: Version): void {
