@@ -7,8 +7,8 @@ import "./interfaces/IMarket.sol";
 import "./interfaces/IFactory.sol";
 import "hardhat/console.sol";
 
-// TODO: use new position flow to clean up liquidations
-// TODO: re-evaluate oracle interface for multi-delayed settlement
+// TODO: add in multi-checkpoint settlement
+// TODO: add in nullable checkpoints
 
 /**
  * @title Market
@@ -173,13 +173,13 @@ contract Market is IMarket, UInitializable, UOwnable {
 
     function _liquidate(CurrentContext memory context, address account) private {
         // before
-        UFixed6 maintenance = context.accountPosition.maintenance(context.currentOracleVersion, context.marketParameter);
+        UFixed6 maintenance = context.accountPosition.maintenance(context.latestVersion, context.marketParameter);
         if (context.account.collateral.gte(Fixed6Lib.from(maintenance)) || context.account.liquidation) return; // cant liquidate
         if (context.marketParameter.closed) return; // cant liquidate
 
         // compute reward
         UFixed6 liquidationReward = context.accountPosition.liquidationFee(
-            context.currentOracleVersion,
+            context.latestVersion,
             context.marketParameter,
             context.protocolParameter
         ).min(UFixed6Lib.from(token.balanceOf()));
@@ -208,14 +208,14 @@ contract Market is IMarket, UInitializable, UOwnable {
         if (context.marketParameter.closed && !newMaker.add(newLong).add(newShort).isZero()) revert MarketClosedError();
 
         // update position
-        Position memory newAccountPosition = Position(context.currentOracleVersion.version + 1, newMaker, newLong, newShort);
+        Position memory newAccountPosition = Position(context.currentVersion, newMaker, newLong, newShort);
         Order memory accountOrder = newAccountPosition.sub(context.accountPendingPosition);
         context.accountPendingPosition.update(newAccountPosition);
         context.pendingPosition.update(newAccountPosition.version, accountOrder);
 
         // update collateral
         if (newCollateral.eq(Fixed6Lib.MAX)) newCollateral = context.account.collateral;
-        UFixed6 positionFee = accountOrder.fee(context.currentOracleVersion, context.marketParameter);
+        UFixed6 positionFee = accountOrder.fee(context.latestVersion, context.marketParameter);
         Fixed6 collateralAmount = context.account.update(newCollateral, positionFee);
         UFixed6 protocolFee = context.version.update(context.position, positionFee, context.marketParameter);
         context.fee.update(protocolFee, context.protocolParameter);
@@ -233,7 +233,7 @@ contract Market is IMarket, UInitializable, UOwnable {
         if (collateralAmount.sign() == -1) token.push(msg.sender, UFixed18.wrap(UFixed6.unwrap(collateralAmount.abs()) * 1e12));
 
         // events
-        emit Updated(account, context.currentOracleVersion.version, newMaker, newLong, newShort, newCollateral);
+        emit Updated(account, context.currentVersion, newMaker, newLong, newShort, newCollateral);
 
         _endGas(context);
     }
@@ -246,7 +246,7 @@ contract Market is IMarket, UInitializable, UOwnable {
         context.marketParameter = _parameter.read();
 
         // state
-        context.currentOracleVersion = _sync(context.marketParameter);
+        (context.latestVersion, context.currentVersion) = _oracleVersion(context.marketParameter);
         context.pendingPosition = _pendingPosition.read();
         context.position = _position.read();
         context.fee = _fee.read();
@@ -277,8 +277,10 @@ contract Market is IMarket, UInitializable, UOwnable {
     function _settle(CurrentContext memory context) private {
         _startGas(context, "_settle: %s");
 
-        if (context.pendingPosition.ready(context.currentOracleVersion)) _processPosition(context, context.pendingPosition);
-        if (context.accountPendingPosition.ready(context.currentOracleVersion)) _processPositionAccount(context, context.accountPendingPosition);
+        if (context.pendingPosition.ready(context.latestVersion))
+            _processPosition(context, context.pendingPosition);
+        if (context.accountPendingPosition.ready(context.latestVersion))
+            _processPositionAccount(context, context.accountPendingPosition);
 
         _endGas(context);
     }
@@ -286,10 +288,10 @@ contract Market is IMarket, UInitializable, UOwnable {
     function _sync(CurrentContext memory context) private {
         _startGas(context, "_sync: %s");
 
-        if (context.currentOracleVersion.version > context.pendingPosition.version)
-            context.pendingPosition.version = context.currentOracleVersion.version;
-        if (context.currentOracleVersion.version > context.accountPendingPosition.version)
-            context.accountPendingPosition.version = context.currentOracleVersion.version;
+        if (context.latestVersion.version > context.pendingPosition.version)
+            context.pendingPosition.version = context.latestVersion.version;
+        if (context.latestVersion.version > context.accountPendingPosition.version)
+            context.accountPendingPosition.version = context.latestVersion.version;
 
         _settle(context);
 
@@ -358,32 +360,36 @@ contract Market is IMarket, UInitializable, UOwnable {
             revert MarketCollateralUnderLimitError();
 
         UFixed6 maintenanceAmount =
-            context.accountPosition.maintenance(context.currentOracleVersion, context.marketParameter)
-                .max(context.accountPendingPosition.maintenance(context.currentOracleVersion, context.marketParameter));
+            context.accountPosition.maintenance(context.latestVersion, context.marketParameter)
+                .max(context.accountPendingPosition.maintenance(context.latestVersion, context.marketParameter));
         if (maintenanceAmount.gt(boundedCollateral)) revert MarketInsufficientCollateralError();
     }
 
-    function _sync(MarketParameter memory marketParameter) private returns (OracleVersion memory oracleVersion) {
-        oracleVersion = marketParameter.oracle.sync();
-        marketParameter.payoff.transform(oracleVersion);
+    function _oracleVersion(
+        MarketParameter memory marketParameter
+    ) private returns (OracleVersion memory latestVersion, uint256 currentVersion) {
+        (latestVersion, currentVersion) = marketParameter.oracle.sync();
+        marketParameter.payoff.transform(latestVersion);
     }
 
     function _oracleVersionAt(
         MarketParameter memory marketParameter,
         uint256 version
-    ) internal view returns (OracleVersion memory oracleVersion) {
-        oracleVersion = marketParameter.oracle.atVersion(version);
+    ) private view returns (OracleVersion memory oracleVersion) {
+        oracleVersion = marketParameter.oracle.at(version);
         marketParameter.payoff.transform(oracleVersion);
     }
 
     // Debug
     function _startGas(CurrentContext memory context, string memory message) private view {
+        if (!GAS_PROFILE) return;
         context.gasCounterMessage = message;
         context.gasCounter = gasleft();
     }
 
     function _endGas(CurrentContext memory context) private view {
+        if (!GAS_PROFILE) return;
         uint256 endGas = gasleft();
-        if (GAS_PROFILE) console.log(context.gasCounterMessage,  context.gasCounter - endGas);
+        console.log(context.gasCounterMessage,  context.gasCounter - endGas);
     }
 }

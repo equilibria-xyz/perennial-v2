@@ -22,6 +22,9 @@ contract ChainlinkOracle is IOracleProvider {
     /// @dev Phase ID offset location in the round ID
     uint256 constant private PHASE_OFFSET = 64;
 
+    /// @dev Delay before round is valid
+    uint256 constant private ROUND_DELAY = 1;
+
     /// @dev Chainlink registry feed address
     FeedRegistryInterface public immutable registry;
 
@@ -61,9 +64,10 @@ contract ChainlinkOracle is IOracleProvider {
 
     /**
      * @notice Checks for a new price and updates the internal phase annotation state accordingly
-     * @return The current oracle version after sync
+     * @return latestVersion The latest synced oracle version
+     * @return currentVersion The current oracle version collecting new orders
      */
-    function sync() external returns (OracleVersion memory) {
+    function sync() external returns (OracleVersion memory latestVersion, uint256 currentVersion) {
         // Fetch latest round
         ChainlinkRound memory round = _getLatestRound();
 
@@ -78,15 +82,24 @@ contract ChainlinkOracle is IOracleProvider {
         }
 
         // Return packaged oracle version
-        return _buildOracleVersion(round);
+        latestVersion = _buildOracleVersion(round);
+        currentVersion = latestVersion.version + ROUND_DELAY;
     }
 
     /**
-     * @notice Returns the current oracle version
-     * @return oracleVersion Current oracle version
+     * @notice Returns the latest synced oracle version
+     * @return Latest oracle version
      */
-    function currentVersion() public view returns (OracleVersion memory oracleVersion) {
+    function latest() public view returns (OracleVersion memory) {
         return _buildOracleVersion(_getLatestRound());
+    }
+
+    /**
+     * @notice Returns the current oracle version accepting new orders
+     * @return Current oracle version
+     */
+    function current() public view returns (uint256) {
+        return _buildOracleVersion(_getLatestRound()).version + ROUND_DELAY;
     }
 
     /**
@@ -94,7 +107,7 @@ contract ChainlinkOracle is IOracleProvider {
      * @param version The version of which to lookup
      * @return oracleVersion Oracle version at version `version`
      */
-    function atVersion(uint256 version) public view returns (OracleVersion memory oracleVersion) {
+    function at(uint256 version) public view returns (OracleVersion memory oracleVersion) {
         return _buildOracleVersion(_getRound(_versionToRoundId(version)), version);
     }
 

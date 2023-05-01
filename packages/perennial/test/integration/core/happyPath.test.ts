@@ -65,7 +65,7 @@ describe('Happy Path', () => {
 
     await expect(market.connect(user).update(user.address, POSITION, 0, 0, COLLATERAL))
       .to.emit(market, 'Updated')
-      .withArgs(user.address, INITIAL_VERSION, POSITION, 0, 0, COLLATERAL)
+      .withArgs(user.address, INITIAL_VERSION + 1, POSITION, 0, 0, COLLATERAL)
 
     // Check user is in the correct state
     expectPositionEq(await market.pendingPositions(user.address), {
@@ -159,7 +159,7 @@ describe('Happy Path', () => {
 
     await expect(market.connect(user).update(user.address, POSITION, 0, 0, COLLATERAL))
       .to.emit(market, 'Updated')
-      .withArgs(user.address, INITIAL_VERSION, POSITION, 0, 0, COLLATERAL)
+      .withArgs(user.address, INITIAL_VERSION + 1, POSITION, 0, 0, COLLATERAL)
 
     // Check user is in the correct state
     expectPositionEq(await market.pendingPositions(user.address), {
@@ -252,7 +252,7 @@ describe('Happy Path', () => {
     await market.connect(user).update(user.address, POSITION, 0, 0, COLLATERAL)
     await expect(market.connect(user).update(user.address, 0, 0, 0, COLLATERAL))
       .to.emit(market, 'Updated')
-      .withArgs(user.address, INITIAL_VERSION, 0, 0, 0, COLLATERAL)
+      .withArgs(user.address, INITIAL_VERSION + 1, 0, 0, 0, COLLATERAL)
 
     // User state
     expectPositionEq(await market.pendingPositions(user.address), {
@@ -309,7 +309,7 @@ describe('Happy Path', () => {
 
     await expect(market.connect(user).update(user.address, 0, 0, 0, COLLATERAL))
       .to.emit(market, 'Updated')
-      .withArgs(user.address, INITIAL_VERSION, 0, 0, 0, COLLATERAL)
+      .withArgs(user.address, INITIAL_VERSION + 1, 0, 0, 0, COLLATERAL)
 
     // User state
     expectPositionEq(await market.pendingPositions(user.address), {
@@ -366,7 +366,7 @@ describe('Happy Path', () => {
     await market.connect(user).update(user.address, POSITION, 0, 0, COLLATERAL)
     await expect(market.connect(userB).update(userB.address, 0, POSITION_B, 0, COLLATERAL))
       .to.emit(market, 'Updated')
-      .withArgs(userB.address, INITIAL_VERSION, 0, POSITION_B, 0, COLLATERAL)
+      .withArgs(userB.address, INITIAL_VERSION + 1, 0, POSITION_B, 0, COLLATERAL)
 
     // User State
     expectPositionEq(await market.pendingPositions(user.address), {
@@ -480,7 +480,7 @@ describe('Happy Path', () => {
 
     await expect(market.connect(userB).update(userB.address, 0, POSITION_B, 0, COLLATERAL))
       .to.emit(market, 'Updated')
-      .withArgs(userB.address, INITIAL_VERSION, 0, POSITION_B, 0, COLLATERAL)
+      .withArgs(userB.address, INITIAL_VERSION + 1, 0, POSITION_B, 0, COLLATERAL)
 
     // User State
     expectPositionEq(await market.pendingPositions(userB.address), {
@@ -581,7 +581,7 @@ describe('Happy Path', () => {
 
     await expect(market.connect(userB).update(userB.address, 0, 0, 0, COLLATERAL))
       .to.emit(market, 'Updated')
-      .withArgs(userB.address, INITIAL_VERSION, 0, 0, 0, COLLATERAL)
+      .withArgs(userB.address, INITIAL_VERSION + 1, 0, 0, 0, COLLATERAL)
 
     // User State
     expectPositionEq(await market.pendingPositions(userB.address), {
@@ -644,7 +644,7 @@ describe('Happy Path', () => {
 
     await expect(market.connect(userB).update(userB.address, 0, 0, 0, COLLATERAL))
       .to.emit(market, 'Updated')
-      .withArgs(userB.address, INITIAL_VERSION, 0, 0, 0, COLLATERAL)
+      .withArgs(userB.address, INITIAL_VERSION + 1, 0, 0, 0, COLLATERAL)
 
     // User State
     expectPositionEq(await market.pendingPositions(userB.address), {
@@ -762,7 +762,7 @@ describe('Happy Path', () => {
 
     await expect(market.connect(user).update(user.address, POSITION, 0, 0, COLLATERAL.sub(1)))
       .to.emit(market, 'Updated')
-      .withArgs(user.address, INITIAL_VERSION + 4, POSITION, 0, 0, COLLATERAL.sub(1))
+      .withArgs(user.address, INITIAL_VERSION + 5, POSITION, 0, 0, COLLATERAL.sub(1))
 
     // Check user is in the correct state
     expectPositionEq(await market.pendingPositions(user.address), {
