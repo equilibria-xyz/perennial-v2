@@ -1,6 +1,6 @@
 import { expect } from 'chai'
 import 'hardhat'
-import { constants } from 'ethers'
+import { BigNumber, constants } from 'ethers'
 
 import { InstanceVars, deployProtocol, createMarket, INITIAL_VERSION } from '../helpers/setupHelpers'
 import { expectAccountEq, expectPositionEq, expectVersionEq, parse6decimal } from '../../../../common/testutil/types'
@@ -432,35 +432,34 @@ describe('Happy Path', () => {
 
     // Another round
     await chainlink.next()
-    await market.settle(constants.AddressZero)
     await market.settle(userB.address)
 
     expectPositionEq(await market.pendingPosition(), {
-      version: INITIAL_VERSION + 1,
+      version: INITIAL_VERSION + 2,
       maker: POSITION,
       long: POSITION_B,
       short: 0,
     })
     expectPositionEq(await market.position(), {
-      version: INITIAL_VERSION + 1,
+      version: INITIAL_VERSION + 2,
       maker: POSITION,
       long: POSITION_B,
       short: 0,
     })
     expectPositionEq(await market.pendingPositions(userB.address), {
-      version: INITIAL_VERSION + 1,
+      version: INITIAL_VERSION + 2,
       maker: 0,
       long: POSITION_B,
       short: 0,
     })
     expectPositionEq(await market.positions(userB.address), {
-      version: INITIAL_VERSION + 1,
+      version: INITIAL_VERSION + 2,
       maker: 0,
       long: POSITION_B,
       short: 0,
     })
     expectAccountEq(await market.accounts(userB.address), {
-      collateral: COLLATERAL,
+      collateral: COLLATERAL.add(BigNumber.from('1249431')),
       reward: 0,
       liquidation: false,
     })
@@ -530,35 +529,35 @@ describe('Happy Path', () => {
 
     // Another round
     await chainlink.next()
-    await market.settle(constants.AddressZero)
+    await market.settle(userB.address)
 
     expectPositionEq(await market.pendingPosition(), {
-      version: INITIAL_VERSION + 1,
+      version: INITIAL_VERSION + 2,
       maker: POSITION,
       long: POSITION_B,
       short: 0,
     })
     expectPositionEq(await market.position(), {
-      version: INITIAL_VERSION + 1,
+      version: INITIAL_VERSION + 2,
       maker: POSITION,
       long: POSITION_B,
       short: 0,
     })
     await market.settle(userB.address)
     expectPositionEq(await market.pendingPositions(userB.address), {
-      version: INITIAL_VERSION + 1,
+      version: INITIAL_VERSION + 2,
       maker: 0,
       long: POSITION_B,
       short: 0,
     })
     expectPositionEq(await market.positions(userB.address), {
-      version: INITIAL_VERSION + 1,
+      version: INITIAL_VERSION + 2,
       maker: 0,
       long: POSITION_B,
       short: 0,
     })
     expectAccountEq(await market.accounts(userB.address), {
-      collateral: COLLATERAL,
+      collateral: COLLATERAL.add(BigNumber.from('1249431')),
       reward: 0,
       liquidation: false,
     })

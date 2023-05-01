@@ -7,6 +7,9 @@ import "./interfaces/IMarket.sol";
 import "./interfaces/IFactory.sol";
 import "hardhat/console.sol";
 
+// TODO: use new position flow to clean up liquidations
+// TODO: re-evaluate oracle interface for multi-delayed settlement
+
 /**
  * @title Market
  * @notice Manages logic and state for a single market market.
@@ -74,6 +77,7 @@ contract Market is IMarket, UInitializable, UOwnable {
         if (context.protocolParameter.paused) revert MarketPausedError();
 
         _settle(context);
+        _sync(context);
         _liquidate(context, account);
         _saveContext(context, account);
     }
@@ -275,6 +279,19 @@ contract Market is IMarket, UInitializable, UOwnable {
 
         if (context.pendingPosition.ready(context.currentOracleVersion)) _processPosition(context, context.pendingPosition);
         if (context.accountPendingPosition.ready(context.currentOracleVersion)) _processPositionAccount(context, context.accountPendingPosition);
+
+        _endGas(context);
+    }
+
+    function _sync(CurrentContext memory context) private {
+        _startGas(context, "_sync: %s");
+
+        if (context.currentOracleVersion.version > context.pendingPosition.version)
+            context.pendingPosition.version = context.currentOracleVersion.version;
+        if (context.currentOracleVersion.version > context.accountPendingPosition.version)
+            context.accountPendingPosition.version = context.currentOracleVersion.version;
+
+        _settle(context);
 
         _endGas(context);
     }
