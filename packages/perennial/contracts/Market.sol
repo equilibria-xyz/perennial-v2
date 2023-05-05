@@ -36,7 +36,7 @@ contract Market is IMarket, UInitializable, UOwnable {
     address public treasury;
 
     /// @dev Protocol and market fees collected, but not yet claimed
-    FeeStorage private _fee;
+    GlobalStorage private _global;
 
     /// @dev Mapping of the historical version data
     mapping(uint256 => VersionStorage) _versions;
@@ -46,7 +46,6 @@ contract Market is IMarket, UInitializable, UOwnable {
 
     PositionStorage private _position;
 
-    uint256 private _currentId;
     mapping(uint256 => PositionStorage) private _pendingPosition;
 
     mapping(address => PositionStorage) private _positions;
@@ -111,23 +110,22 @@ contract Market is IMarket, UInitializable, UOwnable {
     }
 
     function claimFee() external {
-        Fee memory newFee = _fee.read();
+        Global memory newGlobal = _global.read();
 
         if (msg.sender == treasury) {
-            UFixed6 feeAmount = newFee.market;
-            newFee.market = UFixed6Lib.ZERO;
+            UFixed6 feeAmount = newGlobal.marketFee;
             token.push(msg.sender, UFixed18.wrap(UFixed6.unwrap(feeAmount) * 1e12));
             emit FeeClaimed(msg.sender, feeAmount);
         }
 
         if (msg.sender == factory.treasury()) {
-            UFixed6 feeAmount = newFee.protocol;
-            newFee.protocol = UFixed6Lib.ZERO;
+            UFixed6 feeAmount = newGlobal.protocolFee;
             token.push(msg.sender, UFixed18.wrap(UFixed6.unwrap(feeAmount) * 1e12));
             emit FeeClaimed(msg.sender, feeAmount);
         }
 
-        _fee.store(newFee);
+        newGlobal.clearFees();
+        _global.store(newGlobal);
     }
 
     function claimReward() external {
@@ -153,8 +151,8 @@ contract Market is IMarket, UInitializable, UOwnable {
         return _positions[account].read();
     }
 
-    function fee() external view returns (Fee memory) {
-        return _fee.read();
+    function global() external view returns (Global memory) {
+        return _global.read();
     }
 
     function versions(uint256 oracleVersion) external view returns (Version memory) {
@@ -174,7 +172,7 @@ contract Market is IMarket, UInitializable, UOwnable {
     }
 
     function currentId() external view returns (uint256) {
-        return _currentId;
+        return _global.read().currentId; //TODO: cleanup?
     }
 
     function currentIds(address account) external view returns (uint256) {
@@ -228,8 +226,8 @@ contract Market is IMarket, UInitializable, UOwnable {
             context.latestVersion,
             context.marketParameter
         );
-        if (context.currentVersion > context.pendingPosition.version) context.currentId++;
-        context.pendingPosition.update(context.currentId, context.currentVersion, newOrder);
+        if (context.currentVersion > context.pendingPosition.version) context.global.currentId++;
+        context.pendingPosition.update(context.global.currentId, context.currentVersion, newOrder);
 
         // update collateral
         Fixed6 collateralAmount =
@@ -260,20 +258,20 @@ contract Market is IMarket, UInitializable, UOwnable {
         context.protocolParameter = factory.parameter();
         context.marketParameter = _parameter.read();
 
-        // oracle
-        (context.latestVersion, context.currentVersion) = _oracleVersion(context.marketParameter);
-
         // global
-        context.currentId = _currentId;
-        context.pendingPosition = _pendingPosition[context.currentId].read();
+        context.global = _global.read();
+        context.pendingPosition = _pendingPosition[context.global.currentId].read();
         context.position = _position.read();
-        context.fee = _fee.read();
 
         // account
         context.currentAccountId = _currentIds[account];
+        context.account = _accounts[account].read();
         context.accountPendingPosition = _pendingPositions[account][context.currentAccountId].read();
         context.accountPosition = _positions[account].read();
-        context.account = _accounts[account].read();
+
+        // oracle
+        (context.latestVersion, context.currentVersion) = _oracleVersion(context.marketParameter);
+        context.positionVersion = _oracleVersionAt(context.marketParameter, context.position.version);
 
         // after
         _endGas(context);
@@ -283,16 +281,15 @@ contract Market is IMarket, UInitializable, UOwnable {
         _startGas(context, "_saveContext: %s");
 
         // global
-        _currentId = context.currentId;
-        _pendingPosition[context.currentId].store(context.pendingPosition);
+        _global.store(context.global);
+        _pendingPosition[context.global.currentId].store(context.pendingPosition);
         _position.store(context.position);
-        _fee.store(context.fee);
 
         // account
         _currentIds[account] = context.currentAccountId;
+        _accounts[account].store(context.account);
         _pendingPositions[account][context.currentAccountId].store(context.accountPendingPosition);
         _positions[account].store(context.accountPosition);
-        _accounts[account].store(context.account);
 
 
         _endGas(context);
@@ -304,7 +301,7 @@ contract Market is IMarket, UInitializable, UOwnable {
         Position memory nextPosition;
 
         while (
-            context.currentId != context.position.id &&
+            context.global.currentId != context.position.id &&
             (nextPosition = _pendingPosition[context.position.id + 1].read()).ready(context.latestVersion)
         ) _processPosition(context, nextPosition);
 
@@ -337,16 +334,18 @@ contract Market is IMarket, UInitializable, UOwnable {
 
     function _processPosition(CurrentContext memory context, Position memory newPosition) private {
         Version memory version = _versions[context.position.version].read();
+        OracleVersion memory oracleVersion = _oracleVersionAt(context.marketParameter, newPosition.version);
         UFixed6 accumulatedFee = version.accumulate(
             context.position,
             newPosition,
-            _oracleVersionAt(context.marketParameter, context.position.version),
-            _oracleVersionAt(context.marketParameter, newPosition.version),
+            context.positionVersion,
+            oracleVersion,
             context.protocolParameter,
             context.marketParameter
         );
         context.position.update(newPosition);
-        context.fee.update(accumulatedFee, context.protocolParameter);
+        context.global.incrementFees(accumulatedFee, context.protocolParameter);
+        context.positionVersion = oracleVersion;
         _versions[newPosition.version].store(version);
     }
 

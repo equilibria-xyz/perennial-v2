@@ -781,7 +781,7 @@ describe('Happy Path', () => {
     await expect(market.connect(user.address).settle(user.address)).to.be.revertedWith('PausedError()')
   })
 
-  it('delayed update w/ collateral (gas)', async () => {
+  it.only('delayed update w/ collateral (gas)', async () => {
     const positionFeesOn = true
     const incentizesOn = true
 

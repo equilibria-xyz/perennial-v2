@@ -8,7 +8,7 @@ import "@equilibria/perennial-v2-oracle/contracts/IOracleProvider.sol";
 import "@equilibria/perennial-v2-oracle/contracts/types/OracleVersion.sol";
 import "../types/Version.sol";
 import "../types/Account.sol";
-import "../types/Fee.sol";
+import "../types/Global.sol";
 import "../types/Position.sol";
 
 interface IMarket is IOwnable {
@@ -23,12 +23,12 @@ interface IMarket is IOwnable {
         ProtocolParameter protocolParameter;
         MarketParameter marketParameter;
         uint256 currentVersion;
-        uint256 currentId;
         uint256 currentAccountId;
         OracleVersion latestVersion;
+        OracleVersion positionVersion;
         Position pendingPosition;
         Position position;
-        Fee fee;
+        Global global;
         Account account;
         Position accountPosition;
         Position accountPendingPosition;
@@ -78,7 +78,7 @@ interface IMarket is IOwnable {
     function currentId() external view returns (uint256);
     function pendingPosition(uint256 id) external view returns (Position memory);
     function position() external view returns (Position memory);
-    function fee() external view returns (Fee memory);
+    function global() external view returns (Global memory);
     function settle(address account) external;
     function update(address account, UFixed6 newMaker, UFixed6 newLong, UFixed6 newShort, Fixed6 newCollateral) external;
     function updateTreasury(address newTreasury) external;

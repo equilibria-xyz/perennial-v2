@@ -5,7 +5,7 @@ import "@equilibria/root-v2/contracts/Accumulator6.sol";
 import "@equilibria/root-v2/contracts/UAccumulator6.sol";
 import "./ProtocolParameter.sol";
 import "./MarketParameter.sol";
-import "./Fee.sol";
+import "./Global.sol";
 import "./Position.sol";
 
 /// @dev Version type
