@@ -71,6 +71,7 @@ export async function deployProtocol(): Promise<InstanceVars> {
     chainlink.feedRegistry.address,
     CHAINLINK_CUSTOM_CURRENCIES.ETH,
     CHAINLINK_CUSTOM_CURRENCIES.USD,
+    1,
   )
   const payoffProvider = await IPayoffProvider__factory.connect(
     (

@@ -10,10 +10,10 @@ import {
   expectVersionEq,
   parse6decimal,
 } from '../../../../common/testutil/types'
-import { Market__factory } from '../../../types/generated'
+import { ChainlinkOracle__factory, Market__factory } from '../../../types/generated'
+import { CHAINLINK_CUSTOM_CURRENCIES } from '@equilibria/perennial-v2-oracle/util/constants'
 
 //TODO: short tests
-//TODO: test for multi-stage settle
 
 describe('Happy Path', () => {
   let instanceVars: InstanceVars
@@ -947,6 +947,115 @@ describe('Happy Path', () => {
       makerReward: { _value: '606836363635' },
       longReward: { _value: '60683636363' },
       shortReward: { _value: 0 },
+    })
+  })
+
+  it.skip('multi-delayed update w/ collateral (gas)', async () => {
+    const positionFeesOn = true
+    const incentizesOn = true
+    const delay = 5
+    const sync = true
+
+    const POSITION = parse6decimal('0.0001')
+    const COLLATERAL = parse6decimal('1000')
+    const { owner, user, userB, dsu, chainlink, payoffProvider } = instanceVars
+
+    const chainlinkOracle = await new ChainlinkOracle__factory(owner).deploy(
+      chainlink.feedRegistry.address,
+      CHAINLINK_CUSTOM_CURRENCIES.ETH,
+      CHAINLINK_CUSTOM_CURRENCIES.USD,
+      delay,
+    )
+    const parameter = {
+      maintenance: parse6decimal('0.3'),
+      fundingFee: parse6decimal('0.1'),
+      takerFee: positionFeesOn ? parse6decimal('0.001') : 0,
+      makerFee: positionFeesOn ? parse6decimal('0.0005') : 0,
+      positionFee: positionFeesOn ? parse6decimal('0.1') : 0,
+      makerLiquidity: parse6decimal('0.2'),
+      makerLimit: parse6decimal('1'),
+      closed: false,
+      utilizationCurve: {
+        minRate: 0,
+        maxRate: parse6decimal('5.00'),
+        targetRate: parse6decimal('0.80'),
+        targetUtilization: parse6decimal('0.80'),
+      },
+      makerRewardRate: incentizesOn ? parse6decimal('0.01') : 0,
+      longRewardRate: incentizesOn ? parse6decimal('0.001') : 0,
+      shortRewardRate: incentizesOn ? parse6decimal('0.001') : 0,
+      oracle: chainlinkOracle.address,
+      payoff: {
+        provider: payoffProvider.address,
+        short: false,
+      },
+    }
+
+    const market = await createMarket(instanceVars, 'Squeeth', 'SQTH', chainlinkOracle)
+    await market.updateParameter(parameter)
+
+    await dsu.connect(user).approve(market.address, COLLATERAL.mul(2).mul(1e12))
+    await dsu.connect(userB).approve(market.address, COLLATERAL.mul(2).mul(1e12))
+
+    for (let i = 0; i < delay; i++) {
+      await market.connect(user).update(user.address, POSITION.sub(delay - i), 0, 0, COLLATERAL)
+      await market.connect(userB).update(userB.address, 0, POSITION.sub(delay - i), 0, COLLATERAL) // 0 -> 1
+
+      await chainlink.next()
+    }
+
+    // ensure all pending can settle
+    for (let i = 0; i < delay - 1; i++) await chainlink.next()
+    if (sync) await chainlink.next()
+
+    const currentVersion = delay + delay + delay - (sync ? 0 : 1)
+    const latestVersion = delay + delay - (sync ? 0 : 1)
+
+    await expect(market.connect(user).update(user.address, POSITION, 0, 0, COLLATERAL.sub(1))) // 2 -> 4
+      .to.emit(market, 'Updated')
+      .withArgs(user.address, INITIAL_VERSION + currentVersion, POSITION, 0, 0, COLLATERAL.sub(1))
+
+    // Check user is in the correct state
+    expectLocalEq(await market.locals(user.address), {
+      currentId: delay + 1,
+      collateral: COLLATERAL.sub(1),
+      reward: (await market.locals(user.address)).reward,
+      liquidation: 0,
+    })
+    expectPositionEq(await market.pendingPositions(user.address, delay + 1), {
+      id: delay + 1,
+      version: INITIAL_VERSION + currentVersion,
+      maker: POSITION,
+      long: 0,
+      short: 0,
+    })
+    expectPositionEq(await market.positions(user.address), {
+      id: delay,
+      version: INITIAL_VERSION + latestVersion,
+      maker: POSITION.sub(1),
+      long: 0,
+      short: 0,
+    })
+
+    // Check global state
+    expectGlobalEq(await market.global(), {
+      currentId: delay + 1,
+      protocolFee: (await market.global()).protocolFee,
+      marketFee: (await market.global()).marketFee,
+    })
+    expectPositionEq(await market.pendingPosition(delay + 1), {
+      id: delay + 1,
+      version: INITIAL_VERSION + currentVersion,
+      maker: POSITION,
+      long: POSITION.sub(1),
+      short: 0,
+    })
+    expectPositionEq(await market.position(), {
+      id: delay,
+      version: INITIAL_VERSION + latestVersion,
+      maker: POSITION.sub(1),
+      long: POSITION.sub(1),
+      short: 0,
     })
   })
 })

@@ -22,9 +22,6 @@ contract ChainlinkOracle is IOracleProvider {
     /// @dev Phase ID offset location in the round ID
     uint256 constant private PHASE_OFFSET = 64;
 
-    /// @dev Delay before round is valid
-    uint256 constant private ROUND_DELAY = 1;
-
     /// @dev Chainlink registry feed address
     FeedRegistryInterface public immutable registry;
 
@@ -33,6 +30,9 @@ contract ChainlinkOracle is IOracleProvider {
 
     /// @dev Quote token address for the Chainlink oracle
     address public immutable quote;
+
+    /// @dev Delay before round is valid
+    uint256 public immutable delay;
 
     /// @dev Decimal offset used to normalize chainlink price to 6 decimals
     int256 private immutable _decimalOffset;
@@ -51,10 +51,11 @@ contract ChainlinkOracle is IOracleProvider {
      * @param base_ base currency for feed
      * @param quote_ quote currency for feed
      */
-    constructor(FeedRegistryInterface registry_, address base_, address quote_) {
+    constructor(FeedRegistryInterface registry_, address base_, address quote_, uint256 delay_) {
         registry = registry_;
         base = base_;
         quote = quote_;
+        delay = delay_;
 
         _phases.push(Phase(uint128(0), uint128(0))); // phaseId is 1-indexed, skip index 0
         _phases.push(Phase(uint128(0), uint128(_getStartingRoundId(1)))); // phaseId is 1-indexed, first phase starts as version 0
@@ -83,7 +84,7 @@ contract ChainlinkOracle is IOracleProvider {
 
         // Return packaged oracle version
         latestVersion = _buildOracleVersion(round);
-        currentVersion = latestVersion.version + ROUND_DELAY;
+        currentVersion = latestVersion.version + delay;
     }
 
     /**
@@ -99,7 +100,7 @@ contract ChainlinkOracle is IOracleProvider {
      * @return Current oracle version
      */
     function current() public view returns (uint256) {
-        return _buildOracleVersion(_getLatestRound()).version + ROUND_DELAY;
+        return _buildOracleVersion(_getLatestRound()).version + delay;
     }
 
     /**
