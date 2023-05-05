@@ -79,7 +79,7 @@ describe('Happy Path', () => {
       currentId: 1,
       collateral: COLLATERAL,
       reward: 0,
-      liquidation: false,
+      liquidation: 0,
     })
     expectPositionEq(await market.pendingPositions(user.address, 1), {
       id: 1,
@@ -134,7 +134,7 @@ describe('Happy Path', () => {
       currentId: 1,
       collateral: COLLATERAL,
       reward: 0,
-      liquidation: false,
+      liquidation: 0,
     })
     expectPositionEq(await market.pendingPositions(user.address, 1), {
       id: 1,
@@ -192,7 +192,7 @@ describe('Happy Path', () => {
       currentId: 1,
       collateral: COLLATERAL,
       reward: 0,
-      liquidation: false,
+      liquidation: 0,
     })
     expectPositionEq(await market.pendingPositions(user.address, 1), {
       id: 1,
@@ -247,7 +247,7 @@ describe('Happy Path', () => {
       currentId: 1,
       collateral: COLLATERAL,
       reward: 0,
-      liquidation: false,
+      liquidation: 0,
     })
     expectPositionEq(await market.pendingPositions(user.address, 1), {
       id: 1,
@@ -309,7 +309,7 @@ describe('Happy Path', () => {
       currentId: 1,
       collateral: COLLATERAL,
       reward: 0,
-      liquidation: false,
+      liquidation: 0,
     })
     expectPositionEq(await market.pendingPositions(user.address, 1), {
       id: 1,
@@ -376,7 +376,7 @@ describe('Happy Path', () => {
       currentId: 1,
       collateral: COLLATERAL,
       reward: 0,
-      liquidation: false,
+      liquidation: 0,
     })
     expectPositionEq(await market.pendingPositions(user.address, 1), {
       id: 1,
@@ -443,7 +443,7 @@ describe('Happy Path', () => {
       currentId: 1,
       collateral: COLLATERAL,
       reward: 0,
-      liquidation: false,
+      liquidation: 0,
     })
     expectPositionEq(await market.pendingPositions(user.address, 1), {
       id: 1,
@@ -464,7 +464,7 @@ describe('Happy Path', () => {
       currentId: 1,
       collateral: COLLATERAL,
       reward: 0,
-      liquidation: false,
+      liquidation: 0,
     })
     expectPositionEq(await market.pendingPositions(userB.address, 1), {
       id: 1,
@@ -542,7 +542,7 @@ describe('Happy Path', () => {
       currentId: 1,
       collateral: COLLATERAL.add(BigNumber.from('1249431')),
       reward: 0,
-      liquidation: false,
+      liquidation: 0,
     })
     expectPositionEq(await market.pendingPositions(userB.address, 1), {
       id: 1,
@@ -582,7 +582,7 @@ describe('Happy Path', () => {
       currentId: 1,
       collateral: COLLATERAL,
       reward: 0,
-      liquidation: false,
+      liquidation: 0,
     })
     expectPositionEq(await market.pendingPositions(userB.address, 1), {
       id: 1,
@@ -659,7 +659,7 @@ describe('Happy Path', () => {
       currentId: 1,
       collateral: COLLATERAL.add(BigNumber.from('1249431')),
       reward: 0,
-      liquidation: false,
+      liquidation: 0,
     })
     expectPositionEq(await market.pendingPositions(userB.address, 1), {
       id: 1,
@@ -702,7 +702,7 @@ describe('Happy Path', () => {
       currentId: 1,
       collateral: COLLATERAL,
       reward: 0,
-      liquidation: false,
+      liquidation: 0,
     })
     expectPositionEq(await market.pendingPositions(userB.address, 1), {
       id: 1,
@@ -775,7 +775,7 @@ describe('Happy Path', () => {
       currentId: 1,
       collateral: COLLATERAL,
       reward: 0,
-      liquidation: false,
+      liquidation: 0,
     })
     expectPositionEq(await market.pendingPositions(userB.address, 1), {
       id: 1,
@@ -903,7 +903,7 @@ describe('Happy Path', () => {
       currentId: 3,
       collateral: COLLATERAL.sub(1),
       reward: '24669998',
-      liquidation: false,
+      liquidation: 0,
     })
     expectPositionEq(await market.pendingPositions(user.address, 3), {
       id: 3,

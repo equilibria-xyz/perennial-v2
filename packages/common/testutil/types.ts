@@ -23,7 +23,7 @@ export interface Local {
   currentId: BigNumberish
   collateral: BigNumberish
   reward: BigNumberish
-  liquidation: boolean
+  liquidation: BigNumberish
 }
 
 export interface Version {

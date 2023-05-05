@@ -9,15 +9,14 @@ struct Local {
     uint256 currentId;
     Fixed6 collateral;
     UFixed6 reward;
-    bool liquidation;
+    uint256 liquidation;
 }
 using LocalLib for Local global;
 struct StoredLocal {
     uint64 _currentId;
     int64 _collateral;
     uint64 _reward;
-    bool _liquidation;
-    bytes7 __unallocated__;
+    uint64 _liquidation;
 }
 struct LocalStorage { StoredLocal value; }
 using LocalStorageLib for LocalStorage global;
@@ -53,7 +52,6 @@ library LocalLib {
 
         self.collateral = self.collateral.add(collateralAmount).sub(feeAmount);
         self.reward = self.reward.add(rewardAmount);
-        self.liquidation = false; // TODO: not guaranteed to clear after one version in multi-delay
     }
 
     function clearReward(Local memory self) internal pure {
@@ -71,7 +69,7 @@ library LocalStorageLib {
             uint256(storedValue._currentId),
             Fixed6.wrap(int256(storedValue._collateral)),
             UFixed6.wrap(uint256(storedValue._reward)),
-            bool(storedValue._liquidation)
+            uint256(storedValue._liquidation)
         );
     }
 
@@ -79,13 +77,13 @@ library LocalStorageLib {
         if (newValue.currentId > type(uint64).max) revert LocalStorageInvalidError();
         if (newValue.collateral.gt(Fixed6Lib.MAX_64)) revert LocalStorageInvalidError();
         if (newValue.reward.gt(UFixed6Lib.MAX_64)) revert LocalStorageInvalidError();
+        if (newValue.liquidation > type(uint64).max) revert LocalStorageInvalidError();
 
         self.value = StoredLocal(
             uint64(newValue.currentId),
             int64(Fixed6.unwrap(newValue.collateral)),
             uint64(UFixed6.unwrap(newValue.reward)),
-            bool(newValue.liquidation),
-            bytes7(0)
+            uint64(newValue.liquidation)
         );
     }
 }
