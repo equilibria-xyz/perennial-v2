@@ -7,7 +7,6 @@ import "./interfaces/IMarket.sol";
 import "./interfaces/IFactory.sol";
 import "hardhat/console.sol";
 
-// TODO: add in multi-checkpoint settlement
 // TODO: add in nullable checkpoints
 
 /**
@@ -47,11 +46,13 @@ contract Market is IMarket, UInitializable, UOwnable {
 
     PositionStorage private _position;
 
-    PositionStorage private _pendingPosition;
+    uint256 private _currentId;
+    mapping(uint256 => PositionStorage) private _pendingPosition;
 
     mapping(address => PositionStorage) private _positions;
 
-    mapping(address => PositionStorage) private _pendingPositions;
+    mapping(address => uint256) private _currentIds;
+    mapping(address => mapping(uint256 => PositionStorage)) private _pendingPositions;
 
     MarketParameterStorage private _parameter;
 
@@ -76,8 +77,8 @@ contract Market is IMarket, UInitializable, UOwnable {
         CurrentContext memory context = _loadContext(account);
         if (context.protocolParameter.paused) revert MarketPausedError();
 
-        _settle(context);
-        _sync(context);
+        _settle(context, account);
+        _sync(context, account);
         _liquidate(context, account);
         _saveContext(context, account);
     }
@@ -93,7 +94,8 @@ contract Market is IMarket, UInitializable, UOwnable {
         if (context.protocolParameter.paused) revert MarketPausedError();
 
         _checkOperator(context, account, newMaker, newLong, newShort, newCollateral);
-        _settle(context);
+        _settle(context, account);
+        _sync(context, account);
         _update(context, account, newMaker, newLong, newShort, newCollateral, false);
         _saveContext(context, account);
     }
@@ -163,12 +165,20 @@ contract Market is IMarket, UInitializable, UOwnable {
         return _accounts[account].read();
     }
 
-    function pendingPosition() external view returns (Position memory) {
-        return _pendingPosition.read();
+    function pendingPosition(uint256 id) external view returns (Position memory) {
+        return _pendingPosition[id].read();
     }
 
-    function pendingPositions(address account) external view returns (Position memory) {
-        return _pendingPositions[account].read();
+    function pendingPositions(address account, uint256 id) external view returns (Position memory) {
+        return _pendingPositions[account][id].read();
+    }
+
+    function currentId() external view returns (uint256) {
+        return _currentId;
+    }
+
+    function currentIds(address account) external view returns (uint256) {
+        return _currentIds[account];
     }
 
     function _liquidate(CurrentContext memory context, address account) private {
@@ -205,20 +215,25 @@ contract Market is IMarket, UInitializable, UOwnable {
 
         // before
         if (context.account.liquidation) revert MarketInLiquidationError();
-        if (context.marketParameter.closed && !newMaker.add(newLong).add(newShort).isZero()) revert MarketClosedError();
+        if (context.marketParameter.closed && !newMaker.add(newLong).add(newShort).isZero()) revert MarketClosedError(); // TODO: duplicate?
 
         // update position
-        Position memory newAccountPosition = Position(context.currentVersion, newMaker, newLong, newShort);
-        Order memory accountOrder = newAccountPosition.sub(context.accountPendingPosition);
-        context.accountPendingPosition.update(newAccountPosition);
-        context.pendingPosition.update(newAccountPosition.version, accountOrder);
+        if (context.currentVersion > context.accountPendingPosition.version) context.currentAccountId++;
+        Order memory newOrder = context.accountPendingPosition.update(
+            context.currentAccountId,
+            context.currentVersion,
+            newMaker,
+            newLong,
+            newShort,
+            context.latestVersion,
+            context.marketParameter
+        );
+        if (context.currentVersion > context.pendingPosition.version) context.currentId++;
+        context.pendingPosition.update(context.currentId, context.currentVersion, newOrder);
 
         // update collateral
-        if (newCollateral.eq(Fixed6Lib.MAX)) newCollateral = context.account.collateral;
-        UFixed6 positionFee = accountOrder.fee(context.latestVersion, context.marketParameter);
-        Fixed6 collateralAmount = context.account.update(newCollateral, positionFee);
-        UFixed6 protocolFee = context.version.update(context.position, positionFee, context.marketParameter);
-        context.fee.update(protocolFee, context.protocolParameter);
+        Fixed6 collateralAmount =
+            context.account.update(newCollateral.eq(Fixed6Lib.MAX) ? context.account.collateral : newCollateral);
 
         // after
         if (!force) _checkPosition(context);
@@ -245,15 +260,20 @@ contract Market is IMarket, UInitializable, UOwnable {
         context.protocolParameter = factory.parameter();
         context.marketParameter = _parameter.read();
 
-        // state
+        // oracle
         (context.latestVersion, context.currentVersion) = _oracleVersion(context.marketParameter);
-        context.pendingPosition = _pendingPosition.read();
+
+        // global
+        context.currentId = _currentId;
+        context.pendingPosition = _pendingPosition[context.currentId].read();
         context.position = _position.read();
         context.fee = _fee.read();
-        context.accountPendingPosition = _pendingPositions[account].read();
+
+        // account
+        context.currentAccountId = _currentIds[account];
+        context.accountPendingPosition = _pendingPositions[account][context.currentAccountId].read();
         context.accountPosition = _positions[account].read();
         context.account = _accounts[account].read();
-        context.version = _versions[context.pendingPosition.version].read();
 
         // after
         _endGas(context);
@@ -262,59 +282,78 @@ contract Market is IMarket, UInitializable, UOwnable {
     function _saveContext(CurrentContext memory context, address account) private {
         _startGas(context, "_saveContext: %s");
 
-        // state
-        _pendingPosition.store(context.pendingPosition);
+        // global
+        _currentId = context.currentId;
+        _pendingPosition[context.currentId].store(context.pendingPosition);
         _position.store(context.position);
         _fee.store(context.fee);
-        _pendingPositions[account].store(context.accountPendingPosition);
+
+        // account
+        _currentIds[account] = context.currentAccountId;
+        _pendingPositions[account][context.currentAccountId].store(context.accountPendingPosition);
         _positions[account].store(context.accountPosition);
         _accounts[account].store(context.account);
-        _versions[context.pendingPosition.version].store(context.version);
+
 
         _endGas(context);
     }
 
-    function _settle(CurrentContext memory context) private {
+    function _settle(CurrentContext memory context, address account) private {
         _startGas(context, "_settle: %s");
 
-        if (context.pendingPosition.ready(context.latestVersion))
-            _processPosition(context, context.pendingPosition);
-        if (context.accountPendingPosition.ready(context.latestVersion))
-            _processPositionAccount(context, context.accountPendingPosition);
+        Position memory nextPosition;
+
+        while (
+            context.currentId != context.position.id &&
+            (nextPosition = _pendingPosition[context.position.id + 1].read()).ready(context.latestVersion)
+        ) _processPosition(context, nextPosition);
+
+        while (
+            context.currentAccountId != context.accountPosition.id &&
+            (nextPosition = _pendingPositions[account][context.accountPosition.id + 1].read()).ready(context.latestVersion)
+        ) _processPositionAccount(context, nextPosition);
 
         _endGas(context);
     }
 
-    function _sync(CurrentContext memory context) private {
+    function _sync(CurrentContext memory context, address account) private {
         _startGas(context, "_sync: %s");
 
-        if (context.latestVersion.version > context.pendingPosition.version)
-            context.pendingPosition.version = context.latestVersion.version;
-        if (context.latestVersion.version > context.accountPendingPosition.version)
-            context.accountPendingPosition.version = context.latestVersion.version;
+        Position memory nextPosition;
 
-        _settle(context);
+        if (context.latestVersion.version > context.position.version) {
+            nextPosition = _pendingPosition[context.position.id].read();
+            nextPosition.version = context.latestVersion.version;
+            _processPosition(context, nextPosition);
+        }
+        if (context.latestVersion.version > context.accountPosition.version) {
+            nextPosition = _pendingPositions[account][context.accountPosition.id].read();
+            nextPosition.version = context.latestVersion.version;
+            _processPositionAccount(context, nextPosition);
+        }
 
         _endGas(context);
     }
 
     function _processPosition(CurrentContext memory context, Position memory newPosition) private {
-        UFixed6 fundingFee = context.version.accumulate(
+        Version memory version = _versions[context.position.version].read();
+        UFixed6 accumulatedFee = version.accumulate(
             context.position,
+            newPosition,
             _oracleVersionAt(context.marketParameter, context.position.version),
             _oracleVersionAt(context.marketParameter, newPosition.version),
             context.protocolParameter,
             context.marketParameter
         );
-        context.fee.update(fundingFee, context.protocolParameter);
         context.position.update(newPosition);
-
-        _versions[context.pendingPosition.version].store(context.version);
+        context.fee.update(accumulatedFee, context.protocolParameter);
+        _versions[newPosition.version].store(version);
     }
 
     function _processPositionAccount(CurrentContext memory context, Position memory newPosition) private view {
         context.account.accumulate(
             context.accountPosition,
+            newPosition,
             _versions[context.accountPosition.version].read(),
             _versions[newPosition.version].read()
         );

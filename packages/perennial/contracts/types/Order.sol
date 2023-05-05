@@ -9,6 +9,7 @@ struct Order {
     Fixed6 maker;
     Fixed6 long;
     Fixed6 short;
+    UFixed6 fee;
 }
 using OrderLib for Order global;
 
@@ -17,14 +18,14 @@ using OrderLib for Order global;
  * @notice Library
  */
 library OrderLib {
-    function fee(
+    function registerFee(
         Order memory self,
-        OracleVersion memory currentOracleVersion,
+        OracleVersion memory latestVersion,
         MarketParameter memory marketParameter
-    ) internal pure returns (UFixed6) {
-        return self.maker.abs().mul(marketParameter.makerFee)
+    ) internal pure {
+        self.fee = self.maker.abs().mul(marketParameter.makerFee)
             .add(self.long.abs().add(self.short.abs()).mul(marketParameter.takerFee))
-            .mul(currentOracleVersion.price.abs());
+            .mul(latestVersion.price.abs());
     }
 
     function decreasesLiquidity(Order memory self) internal pure returns (bool) {

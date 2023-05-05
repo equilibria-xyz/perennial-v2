@@ -42,50 +42,59 @@ using VersionStorageLib for VersionStorage global;
  */
 library VersionLib {
     /**
-     * @notice Globally accumulates position fees since last oracle update
-     * @dev Position fees are calculated based on the price at `latestOracleVersion` as that is the price used to
-     *      calculate the user's fee total. In the event that settlement is occurring over multiple oracle versions
-     *      (i.e. from a -> b -> c) it is safe to use the latestOracleVersion because in the a -> b case, a is always
-     *      b - 1, and in the b -> c case the `PrePosition` is always empty so this is skipped.
-     * @return protocolFee The position fee that is retained by the protocol and product
-     */
-    function update(
-        Version memory self,
-        Position memory position,
-        UFixed6 positionFee,
-        MarketParameter memory marketParameter
-    ) internal pure returns (UFixed6 protocolFee) {
-        // If there are no makers to distribute the taker's position fee to, give it to the protocol
-        if (position.maker.isZero()) return positionFee;
-
-        protocolFee = marketParameter.positionFee.mul(positionFee);
-        positionFee = positionFee.sub(protocolFee);
-        self.makerValue.increment(Fixed6Lib.from(positionFee), position.maker);
-    }
-
-    /**
      * @notice Accumulates the global state for the period from `fromVersion` to `toOracleVersion`
      * @param self The struct to operate on
      */
     function accumulate(
         Version memory self,
-        Position memory position,
+        Position memory fromPosition,
+        Position memory toPosition,
         OracleVersion memory fromOracleVersion,
         OracleVersion memory toOracleVersion,
         ProtocolParameter memory protocolParameter,
         MarketParameter memory marketParameter
-    ) internal pure returns (UFixed6 fundingFeeAmount) {
+    ) internal pure returns (UFixed6 fee) {
         if (marketParameter.closed) return UFixed6Lib.ZERO;
 
+        UFixed6 fundingFee; UFixed6 positionFee;
+
+        // accumulate position
+        positionFee = _accumulatePositionFee(self, fromPosition, toPosition, marketParameter);
+
         // accumulate funding
-        fundingFeeAmount =
-            _accumulateFunding(self, position, fromOracleVersion, toOracleVersion, protocolParameter, marketParameter);
+        fundingFee =
+            _accumulateFunding(self, fromPosition, fromOracleVersion, toOracleVersion, protocolParameter, marketParameter);
 
         // accumulate P&L
-        _accumulatePNL(self, position, fromOracleVersion, toOracleVersion);
+        _accumulatePNL(self, fromPosition, fromOracleVersion, toOracleVersion);
 
         // accumulate reward
-        _accumulateReward(self, position, fromOracleVersion, toOracleVersion, marketParameter);
+        _accumulateReward(self, fromPosition, fromOracleVersion, toOracleVersion, marketParameter);
+
+        return positionFee.add(fundingFee);
+    }
+
+    /**
+     * @notice Globally accumulates position fees since last oracle update
+     * @dev Position fees are calculated based on the price at `latestOracleVersion` as that is the price used to
+     *      calculate the user's fee total. In the event that settlement is occurring over multiple oracle versions
+     *      (i.e. from a -> b -> c) it is safe to use the latestOracleVersion because in the a -> b case, a is always
+     *      b - 1, and in the b -> c case the `PrePosition` is always empty so this is skipped.
+     * @return positionFee The position fee that is retained by the protocol and product
+     */
+    function _accumulatePositionFee(
+        Version memory self,
+        Position memory fromPosition,
+        Position memory toPosition,
+        MarketParameter memory marketParameter
+    ) private pure returns (UFixed6 positionFee) {
+        // If there are no makers to distribute the taker's position fee to, give it to the protocol
+        if (toPosition.maker.isZero()) return positionFee;
+
+        UFixed6 fee = toPosition.fee.sub(fromPosition.fee);
+        positionFee = marketParameter.positionFee.mul(fee);
+        UFixed6 makerFee = fee.sub(positionFee);
+        self.makerValue.increment(Fixed6Lib.from(makerFee), toPosition.maker);
     }
 
     /**

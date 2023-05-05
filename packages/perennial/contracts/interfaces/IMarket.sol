@@ -23,8 +23,9 @@ interface IMarket is IOwnable {
         ProtocolParameter protocolParameter;
         MarketParameter marketParameter;
         uint256 currentVersion;
+        uint256 currentId;
+        uint256 currentAccountId;
         OracleVersion latestVersion;
-        Version version;
         Position pendingPosition;
         Position position;
         Fee fee;
@@ -69,11 +70,13 @@ interface IMarket is IOwnable {
     function token() external view returns (Token18);
     function reward() external view returns (Token18);
     function treasury() external view returns (address);
+    function currentIds(address account) external view returns (uint256);
     function positions(address account) external view returns (Position memory);
-    function pendingPositions(address account) external view returns (Position memory);
+    function pendingPositions(address account, uint256 id) external view returns (Position memory);
     function accounts(address account) external view returns (Account memory);
     function versions(uint256 oracleVersion) external view returns (Version memory);
-    function pendingPosition() external view returns (Position memory);
+    function currentId() external view returns (uint256);
+    function pendingPosition(uint256 id) external view returns (Position memory);
     function position() external view returns (Position memory);
     function fee() external view returns (Fee memory);
     function settle(address account) external;

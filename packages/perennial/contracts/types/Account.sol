@@ -25,12 +25,8 @@ using AccountStorageLib for AccountStorage global;
  * @notice Library that manages an account-level position.
  */
 library AccountLib {
-    function update(
-        Account memory self,
-        Fixed6 newCollateral,
-        UFixed6 positionFee
-    ) internal pure returns (Fixed6 collateralAmount) {
-        collateralAmount = newCollateral.sub(self.collateral).add(Fixed6Lib.from(positionFee));
+    function update(Account memory self, Fixed6 newCollateral) internal pure returns (Fixed6 collateralAmount) {
+        collateralAmount = newCollateral.sub(self.collateral);
         self.collateral = newCollateral;
     }
 
@@ -40,18 +36,20 @@ library AccountLib {
      */
     function accumulate(
         Account memory self,
-        Position memory order,
+        Position memory fromPosition,
+        Position memory toPosition,
         Version memory fromVersion,
         Version memory toVersion
     ) internal pure {
-        Fixed6 collateralAmount = toVersion.makerValue.accumulated(fromVersion.makerValue, order.maker)
-            .add(toVersion.longValue.accumulated(fromVersion.longValue, order.long))
-            .add(toVersion.shortValue.accumulated(fromVersion.shortValue, order.short));
-        UFixed6 rewardAmount = toVersion.makerReward.accumulated(fromVersion.makerReward, order.maker)
-            .add(toVersion.longReward.accumulated(fromVersion.longReward, order.long))
-            .add(toVersion.shortReward.accumulated(fromVersion.shortReward, order.short));
+        Fixed6 collateralAmount = toVersion.makerValue.accumulated(fromVersion.makerValue, fromPosition.maker)
+            .add(toVersion.longValue.accumulated(fromVersion.longValue, fromPosition.long))
+            .add(toVersion.shortValue.accumulated(fromVersion.shortValue, fromPosition.short));
+        UFixed6 rewardAmount = toVersion.makerReward.accumulated(fromVersion.makerReward, fromPosition.maker)
+            .add(toVersion.longReward.accumulated(fromVersion.longReward, fromPosition.long))
+            .add(toVersion.shortReward.accumulated(fromVersion.shortReward, fromPosition.short));
+        Fixed6 feeAmount = Fixed6Lib.from(toPosition.fee.sub(fromPosition.fee));
 
-        self.collateral = self.collateral.add(collateralAmount);
+        self.collateral = self.collateral.add(collateralAmount).sub(feeAmount);
         self.reward = self.reward.add(rewardAmount);
         self.liquidation = false; // TODO: not guaranteed to clear after one version in multi-delay
     }

@@ -8,17 +8,21 @@ import "./Order.sol";
 
 /// @dev Order type
 struct Position {
+    uint256 id; // TODO: try to remove
     uint256 version;
     UFixed6 maker;
     UFixed6 long;
     UFixed6 short;
+    UFixed6 fee;
 }
 using PositionLib for Position global;
 struct StoredPosition {
-    uint40 _version;
-    uint72 _maker;
-    uint72 _long;
-    uint72 _short;
+    uint32 _id;
+    uint32 _version;
+    uint48 _maker;
+    uint48 _long;
+    uint48 _short;
+    uint48 _fee;
 }
 struct PositionStorage { StoredPosition value; }
 using PositionStorageLib for PositionStorage global;
@@ -28,18 +32,57 @@ using PositionStorageLib for PositionStorage global;
  * @notice Library
  */
 library PositionLib {
-    function ready(Position memory self, OracleVersion memory currentOracleVersion) internal pure returns (bool) {
-        return currentOracleVersion.version >= self.version;
+    function ready(Position memory self, OracleVersion memory latestVersion) internal pure returns (bool) {
+        return latestVersion.version >= self.version;
     }
 
     function update(Position memory self, Position memory newPosition) internal pure {
-        (self.version, self.maker, self.long, self.short) =
-            (newPosition.version, newPosition.maker, newPosition.long, newPosition.short);
+        (self.id, self.version, self.maker, self.long, self.short, self.fee) = (
+            newPosition.id,
+            newPosition.version,
+            newPosition.maker,
+            newPosition.long,
+            newPosition.short,
+            newPosition.fee
+        );
     }
 
-    function update(Position memory self, uint256 newVersion, Order memory order) internal pure {
-        self.version = newVersion;
-        update(self, add(self, order));
+    function update(
+        Position memory self,
+        uint256 currentId,
+        uint256 currentVersion,
+        UFixed6 newMaker,
+        UFixed6 newLong,
+        UFixed6 newShort,
+        OracleVersion memory latestVersion,
+        MarketParameter memory marketParameter
+    ) internal pure returns (Order memory newOrder) {
+        (newOrder.maker, newOrder.long, newOrder.short) = (
+            Fixed6Lib.from(newMaker).sub(Fixed6Lib.from(self.maker)),
+            Fixed6Lib.from(newLong).sub(Fixed6Lib.from(self.long)),
+            newOrder.short = Fixed6Lib.from(newShort).sub(Fixed6Lib.from(self.short))
+        );
+        newOrder.registerFee(latestVersion, marketParameter);
+
+        (self.id, self.version, self.maker, self.long, self.short, self.fee) = (
+            currentId,
+            currentVersion,
+            newMaker,
+            newLong,
+            newShort,
+            self.fee.add(newOrder.fee)
+        );
+    }
+
+    function update(Position memory self, uint256 currentId, uint256 currentVersion, Order memory order) internal pure {
+        (self.id, self.version, self.maker, self.long, self.short, self.fee) = (
+            currentId,
+            currentVersion,
+            UFixed6Lib.from(Fixed6Lib.from(self.maker).add(order.maker)),
+            UFixed6Lib.from(Fixed6Lib.from(self.long).add(order.long)),
+            UFixed6Lib.from(Fixed6Lib.from(self.short).add(order.short)),
+            self.fee.add(order.fee)
+        );
     }
 
     function magnitude(Position memory self) internal pure returns (UFixed6) {
@@ -106,20 +149,11 @@ library PositionLib {
         );
     }
 
-    function sub(Position memory self, Position memory position) internal pure returns (Order memory) {
-        return Order(
+    function sub(Position memory self, Position memory position) internal pure returns (Order memory newOrder) {
+        (newOrder.maker, newOrder.long, newOrder.short) = (
             Fixed6Lib.from(self.maker).sub(Fixed6Lib.from(position.maker)),
             Fixed6Lib.from(self.long).sub(Fixed6Lib.from(position.long)),
             Fixed6Lib.from(self.short).sub(Fixed6Lib.from(position.short))
-        );
-    }
-
-    function add(Position memory self, Order memory order) internal pure returns (Position memory) {
-        return Position(
-            self.version,
-            UFixed6Lib.from(Fixed6Lib.from(self.maker).add(order.maker)),
-            UFixed6Lib.from(Fixed6Lib.from(self.long).add(order.long)),
-            UFixed6Lib.from(Fixed6Lib.from(self.short).add(order.short))
         );
     }
 }
@@ -131,24 +165,30 @@ library PositionStorageLib {
         StoredPosition memory storedValue =  self.value;
 
         return Position(
+            uint256(storedValue._id),
             uint256(storedValue._version),
             UFixed6.wrap(uint256(storedValue._maker)),
             UFixed6.wrap(uint256(storedValue._long)),
-            UFixed6.wrap(uint256(storedValue._short))
+            UFixed6.wrap(uint256(storedValue._short)),
+            UFixed6.wrap(uint256(storedValue._fee))
         );
     }
 
     function store(PositionStorage storage self, Position memory newValue) internal {
-        if (newValue.version > type(uint40).max) revert PositionStorageInvalidError();
-        if (newValue.maker.gt(UFixed6Lib.MAX_72)) revert PositionStorageInvalidError();
-        if (newValue.long.gt(UFixed6Lib.MAX_72)) revert PositionStorageInvalidError();
-        if (newValue.short.gt(UFixed6Lib.MAX_72)) revert PositionStorageInvalidError();
+        if (newValue.id > type(uint32).max) revert PositionStorageInvalidError();
+        if (newValue.version > type(uint32).max) revert PositionStorageInvalidError();
+        if (newValue.maker.gt(UFixed6Lib.MAX_48)) revert PositionStorageInvalidError();
+        if (newValue.long.gt(UFixed6Lib.MAX_48)) revert PositionStorageInvalidError();
+        if (newValue.short.gt(UFixed6Lib.MAX_48)) revert PositionStorageInvalidError();
+        if (newValue.fee.gt(UFixed6Lib.MAX_48)) revert PositionStorageInvalidError();
 
         self.value = StoredPosition(
-            uint40(newValue.version),
-            uint72(UFixed6.unwrap(newValue.maker)),
-            uint72(UFixed6.unwrap(newValue.long)),
-            uint72(UFixed6.unwrap(newValue.short))
+            uint32(newValue.id),
+            uint32(newValue.version),
+            uint48(UFixed6.unwrap(newValue.maker)),
+            uint48(UFixed6.unwrap(newValue.long)),
+            uint48(UFixed6.unwrap(newValue.short)),
+            uint48(UFixed6.unwrap(newValue.fee))
         );
     }
 }
