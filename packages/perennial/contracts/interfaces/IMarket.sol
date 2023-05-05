@@ -7,7 +7,7 @@ import "@equilibria/root/token/types/Token18.sol";
 import "@equilibria/perennial-v2-oracle/contracts/IOracleProvider.sol";
 import "@equilibria/perennial-v2-oracle/contracts/types/OracleVersion.sol";
 import "../types/Version.sol";
-import "../types/Account.sol";
+import "../types/Local.sol";
 import "../types/Global.sol";
 import "../types/Position.sol";
 
@@ -23,13 +23,12 @@ interface IMarket is IOwnable {
         ProtocolParameter protocolParameter;
         MarketParameter marketParameter;
         uint256 currentVersion;
-        uint256 currentAccountId;
         OracleVersion latestVersion;
         OracleVersion positionVersion;
         Position pendingPosition;
         Position position;
         Global global;
-        Account account;
+        Local local;
         Position accountPosition;
         Position accountPendingPosition;
 
@@ -70,12 +69,10 @@ interface IMarket is IOwnable {
     function token() external view returns (Token18);
     function reward() external view returns (Token18);
     function treasury() external view returns (address);
-    function currentIds(address account) external view returns (uint256);
     function positions(address account) external view returns (Position memory);
     function pendingPositions(address account, uint256 id) external view returns (Position memory);
-    function accounts(address account) external view returns (Account memory);
+    function locals(address account) external view returns (Local memory);
     function versions(uint256 oracleVersion) external view returns (Version memory);
-    function currentId() external view returns (uint256);
     function pendingPosition(uint256 id) external view returns (Position memory);
     function position() external view returns (Position memory);
     function global() external view returns (Global memory);

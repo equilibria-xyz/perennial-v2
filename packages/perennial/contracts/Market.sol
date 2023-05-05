@@ -42,7 +42,7 @@ contract Market is IMarket, UInitializable, UOwnable {
     mapping(uint256 => VersionStorage) _versions;
 
     /// @dev The individual state for each account
-    mapping(address => AccountStorage) private _accounts;
+    mapping(address => LocalStorage) private _locals;
 
     PositionStorage private _position;
 
@@ -113,15 +113,13 @@ contract Market is IMarket, UInitializable, UOwnable {
         Global memory newGlobal = _global.read();
 
         if (msg.sender == treasury) {
-            UFixed6 feeAmount = newGlobal.marketFee;
-            token.push(msg.sender, UFixed18.wrap(UFixed6.unwrap(feeAmount) * 1e12));
-            emit FeeClaimed(msg.sender, feeAmount);
+            token.push(msg.sender, UFixed18.wrap(UFixed6.unwrap(newGlobal.marketFee) * 1e12));
+            emit FeeClaimed(msg.sender, newGlobal.marketFee);
         }
 
         if (msg.sender == factory.treasury()) {
-            UFixed6 feeAmount = newGlobal.protocolFee;
-            token.push(msg.sender, UFixed18.wrap(UFixed6.unwrap(feeAmount) * 1e12));
-            emit FeeClaimed(msg.sender, feeAmount);
+            token.push(msg.sender, UFixed18.wrap(UFixed6.unwrap(newGlobal.protocolFee) * 1e12));
+            emit FeeClaimed(msg.sender, newGlobal.protocolFee);
         }
 
         newGlobal.clearFees();
@@ -129,14 +127,13 @@ contract Market is IMarket, UInitializable, UOwnable {
     }
 
     function claimReward() external {
-        Account memory newAccount = _accounts[msg.sender].read();
+        Local memory newLocal = _locals[msg.sender].read();
 
-        UFixed6 rewardAmount = newAccount.reward;
-        newAccount.reward = UFixed6Lib.ZERO;
-        reward.push(msg.sender, UFixed18.wrap(UFixed6.unwrap(rewardAmount) * 1e12));
-        emit RewardClaimed(msg.sender, rewardAmount);
+        reward.push(msg.sender, UFixed18.wrap(UFixed6.unwrap(newLocal.reward) * 1e12));
+        emit RewardClaimed(msg.sender, newLocal.reward);
 
-        _accounts[msg.sender].store(newAccount);
+        newLocal.clearReward();
+        _locals[msg.sender].store(newLocal);
     }
 
     function parameter() external view returns (MarketParameter memory) {
@@ -159,8 +156,8 @@ contract Market is IMarket, UInitializable, UOwnable {
         return _versions[oracleVersion].read();
     }
 
-    function accounts(address account) external view returns (Account memory) {
-        return _accounts[account].read();
+    function locals(address account) external view returns (Local memory) {
+        return _locals[account].read();
     }
 
     function pendingPosition(uint256 id) external view returns (Position memory) {
@@ -171,18 +168,10 @@ contract Market is IMarket, UInitializable, UOwnable {
         return _pendingPositions[account][id].read();
     }
 
-    function currentId() external view returns (uint256) {
-        return _global.read().currentId; //TODO: cleanup?
-    }
-
-    function currentIds(address account) external view returns (uint256) {
-        return _currentIds[account];
-    }
-
     function _liquidate(CurrentContext memory context, address account) private {
         // before
         UFixed6 maintenance = context.accountPosition.maintenance(context.latestVersion, context.marketParameter);
-        if (context.account.collateral.gte(Fixed6Lib.from(maintenance)) || context.account.liquidation) return; // cant liquidate
+        if (context.local.collateral.gte(Fixed6Lib.from(maintenance)) || context.local.liquidation) return; // cant liquidate
         if (context.marketParameter.closed) return; // cant liquidate
 
         // compute reward
@@ -191,11 +180,11 @@ contract Market is IMarket, UInitializable, UOwnable {
             context.marketParameter,
             context.protocolParameter
         ).min(UFixed6Lib.from(token.balanceOf()));
-        Fixed6 newCollateral = context.account.collateral.sub(Fixed6Lib.from(liquidationReward));
+        Fixed6 newCollateral = context.local.collateral.sub(Fixed6Lib.from(liquidationReward));
 
         // close position
         _update(context, account, UFixed6Lib.ZERO, UFixed6Lib.ZERO, UFixed6Lib.ZERO, newCollateral, true);
-        context.account.liquidation = true;
+        context.local.liquidation = true;
 
         emit Liquidation(account, msg.sender, liquidationReward);
     }
@@ -212,13 +201,13 @@ contract Market is IMarket, UInitializable, UOwnable {
         _startGas(context, "_update before-update-after: %s");
 
         // before
-        if (context.account.liquidation) revert MarketInLiquidationError();
+        if (context.local.liquidation) revert MarketInLiquidationError();
         if (context.marketParameter.closed && !newMaker.add(newLong).add(newShort).isZero()) revert MarketClosedError(); // TODO: duplicate?
 
         // update position
-        if (context.currentVersion > context.accountPendingPosition.version) context.currentAccountId++;
+        if (context.currentVersion > context.accountPendingPosition.version) context.local.currentId++;
         Order memory newOrder = context.accountPendingPosition.update(
-            context.currentAccountId,
+            context.local.currentId,
             context.currentVersion,
             newMaker,
             newLong,
@@ -231,7 +220,7 @@ contract Market is IMarket, UInitializable, UOwnable {
 
         // update collateral
         Fixed6 collateralAmount =
-            context.account.update(newCollateral.eq(Fixed6Lib.MAX) ? context.account.collateral : newCollateral);
+            context.local.update(newCollateral.eq(Fixed6Lib.MAX) ? context.local.collateral : newCollateral);
 
         // after
         if (!force) _checkPosition(context);
@@ -264,9 +253,8 @@ contract Market is IMarket, UInitializable, UOwnable {
         context.position = _position.read();
 
         // account
-        context.currentAccountId = _currentIds[account];
-        context.account = _accounts[account].read();
-        context.accountPendingPosition = _pendingPositions[account][context.currentAccountId].read();
+        context.local = _locals[account].read();
+        context.accountPendingPosition = _pendingPositions[account][context.local.currentId].read();
         context.accountPosition = _positions[account].read();
 
         // oracle
@@ -286,9 +274,8 @@ contract Market is IMarket, UInitializable, UOwnable {
         _position.store(context.position);
 
         // account
-        _currentIds[account] = context.currentAccountId;
-        _accounts[account].store(context.account);
-        _pendingPositions[account][context.currentAccountId].store(context.accountPendingPosition);
+        _locals[account].store(context.local);
+        _pendingPositions[account][context.local.currentId].store(context.accountPendingPosition);
         _positions[account].store(context.accountPosition);
 
 
@@ -306,7 +293,7 @@ contract Market is IMarket, UInitializable, UOwnable {
         ) _processPosition(context, nextPosition);
 
         while (
-            context.currentAccountId != context.accountPosition.id &&
+            context.local.currentId != context.accountPosition.id &&
             (nextPosition = _pendingPositions[account][context.accountPosition.id + 1].read()).ready(context.latestVersion)
         ) _processPositionAccount(context, nextPosition);
 
@@ -350,7 +337,7 @@ contract Market is IMarket, UInitializable, UOwnable {
     }
 
     function _processPositionAccount(CurrentContext memory context, Position memory newPosition) private view {
-        context.account.accumulate(
+        context.local.accumulate(
             context.accountPosition,
             newPosition,
             _versions[context.accountPosition.version].read(),
@@ -374,7 +361,7 @@ contract Market is IMarket, UInitializable, UOwnable {
             context.accountPendingPosition.maker.eq(newMaker) &&
             context.accountPendingPosition.long.eq(newLong) &&
             context.accountPendingPosition.short.eq(newShort) &&
-            context.account.collateral.sign() == -1 && newCollateral.isZero()
+            context.local.collateral.sign() == -1 && newCollateral.isZero()
         ) return; // sender is repaying shortfall for this account
         revert MarketOperatorNotAllowed();
     }
@@ -390,11 +377,11 @@ contract Market is IMarket, UInitializable, UOwnable {
     }
 
     function _checkCollateral(CurrentContext memory context) private pure {
-        if (context.account.collateral.sign() == -1) revert MarketInDebtError();
+        if (context.local.collateral.sign() == -1) revert MarketInDebtError();
 
-        UFixed6 boundedCollateral = UFixed6Lib.from(context.account.collateral);
+        UFixed6 boundedCollateral = UFixed6Lib.from(context.local.collateral);
 
-        if (!context.account.collateral.isZero() && boundedCollateral.lt(context.protocolParameter.minCollateral))
+        if (!context.local.collateral.isZero() && boundedCollateral.lt(context.protocolParameter.minCollateral))
             revert MarketCollateralUnderLimitError();
 
         UFixed6 maintenanceAmount =

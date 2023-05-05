@@ -13,7 +13,14 @@ export interface Position {
   short: BigNumberish
 }
 
-export interface Account {
+export interface Global {
+  currentId: BigNumberish
+  protocolFee: BigNumberish
+  marketFee: BigNumberish
+}
+
+export interface Local {
+  currentId: BigNumberish
   collateral: BigNumberish
   reward: BigNumberish
   liquidation: boolean
@@ -41,7 +48,14 @@ export function expectPositionEq(a: Position, b: Position): void {
   expect(a.short).to.equal(b.short)
 }
 
-export function expectAccountEq(a: Account, b: Account): void {
+export function expectGlobalEq(a: Global, b: Global): void {
+  expect(a.currentId).to.equal(b.currentId)
+  expect(a.protocolFee).to.equal(b.protocolFee)
+  expect(a.marketFee).to.equal(b.marketFee)
+}
+
+export function expectLocalEq(a: Local, b: Local): void {
+  expect(a.currentId).to.equal(b.currentId)
   expect(a.collateral).to.equal(b.collateral)
   expect(a.reward).to.equal(b.reward)
   expect(a.liquidation).to.equal(b.liquidation)

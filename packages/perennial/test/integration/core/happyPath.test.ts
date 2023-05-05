@@ -3,7 +3,13 @@ import 'hardhat'
 import { BigNumber, constants } from 'ethers'
 
 import { InstanceVars, deployProtocol, createMarket, INITIAL_VERSION } from '../helpers/setupHelpers'
-import { expectAccountEq, expectPositionEq, expectVersionEq, parse6decimal } from '../../../../common/testutil/types'
+import {
+  expectGlobalEq,
+  expectLocalEq,
+  expectPositionEq,
+  expectVersionEq,
+  parse6decimal,
+} from '../../../../common/testutil/types'
 import { Market__factory } from '../../../types/generated'
 
 //TODO: short tests
@@ -69,7 +75,12 @@ describe('Happy Path', () => {
       .withArgs(user.address, INITIAL_VERSION + 1, POSITION, 0, 0, COLLATERAL)
 
     // Check user is in the correct state
-    expect(await market.currentIds(user.address)).to.be.eq(1)
+    expectLocalEq(await market.locals(user.address), {
+      currentId: 1,
+      collateral: COLLATERAL,
+      reward: 0,
+      liquidation: false,
+    })
     expectPositionEq(await market.pendingPositions(user.address, 1), {
       id: 1,
       version: INITIAL_VERSION + 1,
@@ -84,14 +95,13 @@ describe('Happy Path', () => {
       long: 0,
       short: 0,
     })
-    expectAccountEq(await market.accounts(user.address), {
-      collateral: COLLATERAL,
-      reward: 0,
-      liquidation: false,
-    })
 
     // Check global state
-    expect(await market.currentId()).to.be.eq(1)
+    expectGlobalEq(await market.global(), {
+      currentId: 1,
+      protocolFee: 0,
+      marketFee: 0,
+    })
     expectPositionEq(await market.pendingPosition(1), {
       id: 1,
       version: INITIAL_VERSION + 1,
@@ -120,7 +130,12 @@ describe('Happy Path', () => {
     await market.settle(user.address)
 
     // check user state
-    expect(await market.currentIds(user.address)).to.be.eq(1)
+    expectLocalEq(await market.locals(user.address), {
+      currentId: 1,
+      collateral: COLLATERAL,
+      reward: 0,
+      liquidation: false,
+    })
     expectPositionEq(await market.pendingPositions(user.address, 1), {
       id: 1,
       version: INITIAL_VERSION + 1,
@@ -135,14 +150,13 @@ describe('Happy Path', () => {
       long: 0,
       short: 0,
     })
-    expectAccountEq(await market.accounts(user.address), {
-      collateral: COLLATERAL,
-      reward: 0,
-      liquidation: false,
-    })
 
     // Check global post-settlement state
-    expect(await market.currentId()).to.be.eq(1)
+    expectGlobalEq(await market.global(), {
+      currentId: 1,
+      protocolFee: 0,
+      marketFee: 0,
+    })
     expectPositionEq(await market.pendingPosition(1), {
       id: 1,
       version: INITIAL_VERSION + 1,
@@ -174,7 +188,12 @@ describe('Happy Path', () => {
       .withArgs(user.address, INITIAL_VERSION + 1, POSITION, 0, 0, COLLATERAL)
 
     // Check user is in the correct state
-    expect(await market.currentIds(user.address)).to.be.eq(1)
+    expectLocalEq(await market.locals(user.address), {
+      currentId: 1,
+      collateral: COLLATERAL,
+      reward: 0,
+      liquidation: false,
+    })
     expectPositionEq(await market.pendingPositions(user.address, 1), {
       id: 1,
       version: INITIAL_VERSION + 1,
@@ -189,14 +208,13 @@ describe('Happy Path', () => {
       long: 0,
       short: 0,
     })
-    expectAccountEq(await market.accounts(user.address), {
-      collateral: COLLATERAL,
-      reward: 0,
-      liquidation: false,
-    })
 
     // Check global state
-    expect(await market.currentId()).to.be.eq(1)
+    expectGlobalEq(await market.global(), {
+      currentId: 1,
+      protocolFee: 0,
+      marketFee: 0,
+    })
     expectPositionEq(await market.pendingPosition(1), {
       id: 1,
       version: INITIAL_VERSION + 1,
@@ -225,7 +243,12 @@ describe('Happy Path', () => {
     await market.settle(user.address)
 
     // check user state
-    expect(await market.currentIds(user.address)).to.be.eq(1)
+    expectLocalEq(await market.locals(user.address), {
+      currentId: 1,
+      collateral: COLLATERAL,
+      reward: 0,
+      liquidation: false,
+    })
     expectPositionEq(await market.pendingPositions(user.address, 1), {
       id: 1,
       version: INITIAL_VERSION + 1,
@@ -240,14 +263,13 @@ describe('Happy Path', () => {
       long: 0,
       short: 0,
     })
-    expectAccountEq(await market.accounts(user.address), {
-      collateral: COLLATERAL,
-      reward: 0,
-      liquidation: false,
-    })
 
     // Check global post-settlement state
-    expect(await market.currentId()).to.be.eq(1)
+    expectGlobalEq(await market.global(), {
+      currentId: 1,
+      protocolFee: 0,
+      marketFee: 0,
+    })
     expectPositionEq(await market.pendingPosition(1), {
       id: 1,
       version: INITIAL_VERSION + 1,
@@ -261,6 +283,11 @@ describe('Happy Path', () => {
       maker: POSITION,
       long: 0,
       short: 0,
+    })
+    expectGlobalEq(await market.global(), {
+      currentId: 1,
+      protocolFee: 0,
+      marketFee: 0,
     })
   })
 
@@ -278,7 +305,12 @@ describe('Happy Path', () => {
       .withArgs(user.address, INITIAL_VERSION + 1, 0, 0, 0, COLLATERAL)
 
     // User state
-    expect(await market.currentIds(user.address)).to.be.eq(1)
+    expectLocalEq(await market.locals(user.address), {
+      currentId: 1,
+      collateral: COLLATERAL,
+      reward: 0,
+      liquidation: false,
+    })
     expectPositionEq(await market.pendingPositions(user.address, 1), {
       id: 1,
       version: INITIAL_VERSION + 1,
@@ -293,14 +325,13 @@ describe('Happy Path', () => {
       long: 0,
       short: 0,
     })
-    expectAccountEq(await market.accounts(user.address), {
-      collateral: COLLATERAL,
-      reward: 0,
-      liquidation: false,
-    })
 
     // Global State
-    expect(await market.currentId()).to.be.eq(1)
+    expectGlobalEq(await market.global(), {
+      currentId: 1,
+      protocolFee: 0,
+      marketFee: 0,
+    })
     expectPositionEq(await market.pendingPosition(1), {
       id: 1,
       version: INITIAL_VERSION + 1,
@@ -341,7 +372,12 @@ describe('Happy Path', () => {
       .withArgs(user.address, INITIAL_VERSION + 1, 0, 0, 0, COLLATERAL)
 
     // User state
-    expect(await market.currentIds(user.address)).to.be.eq(1)
+    expectLocalEq(await market.locals(user.address), {
+      currentId: 1,
+      collateral: COLLATERAL,
+      reward: 0,
+      liquidation: false,
+    })
     expectPositionEq(await market.pendingPositions(user.address, 1), {
       id: 1,
       version: INITIAL_VERSION + 1,
@@ -356,14 +392,13 @@ describe('Happy Path', () => {
       long: 0,
       short: 0,
     })
-    expectAccountEq(await market.accounts(user.address), {
-      collateral: COLLATERAL,
-      reward: 0,
-      liquidation: false,
-    })
 
     // Global State
-    expect(await market.currentId()).to.be.eq(1)
+    expectGlobalEq(await market.global(), {
+      currentId: 1,
+      protocolFee: 0,
+      marketFee: 0,
+    })
     expectPositionEq(await market.pendingPosition(1), {
       id: 1,
       version: INITIAL_VERSION + 1,
@@ -404,7 +439,12 @@ describe('Happy Path', () => {
       .withArgs(userB.address, INITIAL_VERSION + 1, 0, POSITION_B, 0, COLLATERAL)
 
     // User State
-    expect(await market.currentIds(user.address)).to.be.eq(1)
+    expectLocalEq(await market.locals(user.address), {
+      currentId: 1,
+      collateral: COLLATERAL,
+      reward: 0,
+      liquidation: false,
+    })
     expectPositionEq(await market.pendingPositions(user.address, 1), {
       id: 1,
       version: INITIAL_VERSION + 1,
@@ -419,12 +459,13 @@ describe('Happy Path', () => {
       long: 0,
       short: 0,
     })
-    expectAccountEq(await market.accounts(user.address), {
+
+    expectLocalEq(await market.locals(userB.address), {
+      currentId: 1,
       collateral: COLLATERAL,
       reward: 0,
       liquidation: false,
     })
-    expect(await market.currentIds(userB.address)).to.be.eq(1)
     expectPositionEq(await market.pendingPositions(userB.address, 1), {
       id: 1,
       version: INITIAL_VERSION + 1,
@@ -439,14 +480,13 @@ describe('Happy Path', () => {
       long: 0,
       short: 0,
     })
-    expectAccountEq(await market.accounts(userB.address), {
-      collateral: COLLATERAL,
-      reward: 0,
-      liquidation: false,
-    })
 
     // Global State
-    expect(await market.currentId()).to.be.eq(1)
+    expectGlobalEq(await market.global(), {
+      currentId: 1,
+      protocolFee: 0,
+      marketFee: 0,
+    })
     expectPositionEq(await market.pendingPosition(1), {
       id: 1,
       version: INITIAL_VERSION + 1,
@@ -478,7 +518,11 @@ describe('Happy Path', () => {
     await chainlink.next()
     await market.settle(userB.address)
 
-    expect(await market.currentId()).to.be.eq(1)
+    expectGlobalEq(await market.global(), {
+      currentId: 1,
+      protocolFee: '16',
+      marketFee: '17',
+    })
     expectPositionEq(await market.pendingPosition(1), {
       id: 1,
       version: INITIAL_VERSION + 1,
@@ -493,7 +537,13 @@ describe('Happy Path', () => {
       long: POSITION_B,
       short: 0,
     })
-    expect(await market.currentIds(userB.address)).to.be.eq(1)
+
+    expectLocalEq(await market.locals(userB.address), {
+      currentId: 1,
+      collateral: COLLATERAL.add(BigNumber.from('1249431')),
+      reward: 0,
+      liquidation: false,
+    })
     expectPositionEq(await market.pendingPositions(userB.address, 1), {
       id: 1,
       version: INITIAL_VERSION + 1,
@@ -507,11 +557,6 @@ describe('Happy Path', () => {
       maker: 0,
       long: POSITION_B,
       short: 0,
-    })
-    expectAccountEq(await market.accounts(userB.address), {
-      collateral: COLLATERAL.add(BigNumber.from('1249431')),
-      reward: 0,
-      liquidation: false,
     })
   })
 
@@ -533,7 +578,12 @@ describe('Happy Path', () => {
       .withArgs(userB.address, INITIAL_VERSION + 1, 0, POSITION_B, 0, COLLATERAL)
 
     // User State
-    expect(await market.currentIds(userB.address)).to.be.eq(1)
+    expectLocalEq(await market.locals(userB.address), {
+      currentId: 1,
+      collateral: COLLATERAL,
+      reward: 0,
+      liquidation: false,
+    })
     expectPositionEq(await market.pendingPositions(userB.address, 1), {
       id: 1,
       version: INITIAL_VERSION + 1,
@@ -548,14 +598,13 @@ describe('Happy Path', () => {
       long: 0,
       short: 0,
     })
-    expectAccountEq(await market.accounts(userB.address), {
-      collateral: COLLATERAL,
-      reward: 0,
-      liquidation: false,
-    })
 
     // Global State
-    expect(await market.currentId()).to.be.eq(1)
+    expectGlobalEq(await market.global(), {
+      currentId: 1,
+      protocolFee: 0,
+      marketFee: 0,
+    })
     expectPositionEq(await market.pendingPosition(1), {
       id: 1,
       version: INITIAL_VERSION + 1,
@@ -587,7 +636,11 @@ describe('Happy Path', () => {
     await chainlink.next()
     await market.settle(userB.address)
 
-    expect(await market.currentId()).to.be.eq(1)
+    expectGlobalEq(await market.global(), {
+      currentId: 1,
+      protocolFee: '16',
+      marketFee: '17',
+    })
     expectPositionEq(await market.pendingPosition(1), {
       id: 1,
       version: INITIAL_VERSION + 1,
@@ -602,7 +655,12 @@ describe('Happy Path', () => {
       long: POSITION_B,
       short: 0,
     })
-    expect(await market.currentIds(userB.address)).to.be.eq(1)
+    expectLocalEq(await market.locals(userB.address), {
+      currentId: 1,
+      collateral: COLLATERAL.add(BigNumber.from('1249431')),
+      reward: 0,
+      liquidation: false,
+    })
     expectPositionEq(await market.pendingPositions(userB.address, 1), {
       id: 1,
       version: INITIAL_VERSION + 1,
@@ -616,11 +674,6 @@ describe('Happy Path', () => {
       maker: 0,
       long: POSITION_B,
       short: 0,
-    })
-    expectAccountEq(await market.accounts(userB.address), {
-      collateral: COLLATERAL.add(BigNumber.from('1249431')),
-      reward: 0,
-      liquidation: false,
     })
   })
 
@@ -645,7 +698,12 @@ describe('Happy Path', () => {
       .withArgs(userB.address, INITIAL_VERSION + 1, 0, 0, 0, COLLATERAL)
 
     // User State
-    expect(await market.currentIds(userB.address)).to.be.eq(1)
+    expectLocalEq(await market.locals(userB.address), {
+      currentId: 1,
+      collateral: COLLATERAL,
+      reward: 0,
+      liquidation: false,
+    })
     expectPositionEq(await market.pendingPositions(userB.address, 1), {
       id: 1,
       version: INITIAL_VERSION + 1,
@@ -660,14 +718,13 @@ describe('Happy Path', () => {
       long: 0,
       short: 0,
     })
-    expectAccountEq(await market.accounts(userB.address), {
-      collateral: COLLATERAL,
-      reward: 0,
-      liquidation: false,
-    })
 
     // Global State
-    expect(await market.currentId()).to.be.eq(1)
+    expectGlobalEq(await market.global(), {
+      currentId: 1,
+      protocolFee: 0,
+      marketFee: 0,
+    })
     expectPositionEq(await market.pendingPosition(1), {
       id: 1,
       version: INITIAL_VERSION + 1,
@@ -714,7 +771,12 @@ describe('Happy Path', () => {
       .withArgs(userB.address, INITIAL_VERSION + 1, 0, 0, 0, COLLATERAL)
 
     // User State
-    expect(await market.currentIds(userB.address)).to.be.eq(1)
+    expectLocalEq(await market.locals(userB.address), {
+      currentId: 1,
+      collateral: COLLATERAL,
+      reward: 0,
+      liquidation: false,
+    })
     expectPositionEq(await market.pendingPositions(userB.address, 1), {
       id: 1,
       version: INITIAL_VERSION + 1,
@@ -729,14 +791,13 @@ describe('Happy Path', () => {
       long: 0,
       short: 0,
     })
-    expectAccountEq(await market.accounts(userB.address), {
-      collateral: COLLATERAL,
-      reward: 0,
-      liquidation: false,
-    })
 
     // Global State
-    expect(await market.currentId()).to.be.eq(1)
+    expectGlobalEq(await market.global(), {
+      currentId: 1,
+      protocolFee: 0,
+      marketFee: 0,
+    })
     expectPositionEq(await market.pendingPosition(1), {
       id: 1,
       version: INITIAL_VERSION + 1,
@@ -781,7 +842,7 @@ describe('Happy Path', () => {
     await expect(market.connect(user.address).settle(user.address)).to.be.revertedWith('PausedError()')
   })
 
-  it.only('delayed update w/ collateral (gas)', async () => {
+  it('delayed update w/ collateral (gas)', async () => {
     const positionFeesOn = true
     const incentizesOn = true
 
@@ -838,7 +899,12 @@ describe('Happy Path', () => {
       .withArgs(user.address, INITIAL_VERSION + 5, POSITION, 0, 0, COLLATERAL.sub(1))
 
     // Check user is in the correct state
-    expect(await market.currentIds(user.address)).to.be.eq(3)
+    expectLocalEq(await market.locals(user.address), {
+      currentId: 3,
+      collateral: COLLATERAL.sub(1),
+      reward: '24669998',
+      liquidation: false,
+    })
     expectPositionEq(await market.pendingPositions(user.address, 3), {
       id: 3,
       version: INITIAL_VERSION + 5,
@@ -853,14 +919,13 @@ describe('Happy Path', () => {
       long: 0,
       short: 0,
     })
-    expectAccountEq(await market.accounts(user.address), {
-      collateral: COLLATERAL.sub(1),
-      reward: '24669998',
-      liquidation: false,
-    })
 
     // Check global state
-    expect(await market.currentId()).to.be.eq(3)
+    expectGlobalEq(await market.global(), {
+      currentId: 3,
+      protocolFee: '9578',
+      marketFee: '9580',
+    })
     expectPositionEq(await market.pendingPosition(3), {
       id: 3,
       version: INITIAL_VERSION + 5,

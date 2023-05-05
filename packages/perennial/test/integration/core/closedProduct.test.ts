@@ -90,20 +90,20 @@ describe('Closed Market', () => {
     await market.settle(user.address)
     await market.settle(userB.address)
 
-    const userCollateralBefore = (await market.accounts(user.address)).collateral
-    const userBCollateralBefore = (await market.accounts(userB.address)).collateral
-    const feesABefore = (await market.fee()).protocol
-    const feesBBefore = (await market.fee()).market
+    const userCollateralBefore = (await market.locals(user.address)).collateral
+    const userBCollateralBefore = (await market.locals(userB.address)).collateral
+    const feesABefore = (await market.global()).protocolFee
+    const feesBBefore = (await market.global()).marketFee
 
     await chainlink.nextWithPriceModification(price => price.mul(4))
     await chainlink.nextWithPriceModification(price => price.mul(4))
     await market.settle(user.address)
     await market.settle(userB.address)
 
-    expect((await market.accounts(user.address)).collateral).to.equal(userCollateralBefore)
-    expect((await market.accounts(userB.address)).collateral).to.equal(userBCollateralBefore)
-    expect((await market.fee()).protocol).to.equal(feesABefore)
-    expect((await market.fee()).market).to.equal(feesBBefore)
+    expect((await market.locals(user.address)).collateral).to.equal(userCollateralBefore)
+    expect((await market.locals(userB.address)).collateral).to.equal(userBCollateralBefore)
+    expect((await market.global()).protocolFee).to.equal(feesABefore)
+    expect((await market.global()).marketFee).to.equal(feesBBefore)
   })
 
   it('handles closing during liquidations', async () => {
@@ -120,7 +120,7 @@ describe('Closed Market', () => {
     await chainlink.next()
     await chainlink.nextWithPriceModification(price => price.mul(2))
     await expect(market.settle(user.address)).to.not.be.reverted
-    expect((await market.accounts(user.address)).liquidation).to.be.true
+    expect((await market.locals(user.address)).liquidation).to.be.true
     const parameters = { ...(await market.parameter()) }
     parameters.closed = true
     await market.updateParameter(parameters)
@@ -129,20 +129,20 @@ describe('Closed Market', () => {
     await market.settle(user.address)
     await market.settle(userB.address)
 
-    expect((await market.accounts(user.address)).liquidation).to.be.false
-    const userCollateralBefore = (await market.accounts(user.address)).collateral
-    const userBCollateralBefore = (await market.accounts(userB.address)).collateral
-    const feesABefore = (await market.fee()).protocol
-    const feesBBefore = (await market.fee()).market
+    expect((await market.locals(user.address)).liquidation).to.be.false
+    const userCollateralBefore = (await market.locals(user.address)).collateral
+    const userBCollateralBefore = (await market.locals(userB.address)).collateral
+    const feesABefore = (await market.global()).protocolFee
+    const feesBBefore = (await market.global()).marketFee
 
     await chainlink.nextWithPriceModification(price => price.mul(4))
     await chainlink.nextWithPriceModification(price => price.mul(4))
     await market.settle(user.address)
     await market.settle(userB.address)
 
-    expect((await market.accounts(user.address)).collateral).to.equal(userCollateralBefore)
-    expect((await market.accounts(userB.address)).collateral).to.equal(userBCollateralBefore)
-    expect((await market.fee()).protocol).to.equal(feesABefore)
-    expect((await market.fee()).market).to.equal(feesBBefore)
+    expect((await market.locals(user.address)).collateral).to.equal(userCollateralBefore)
+    expect((await market.locals(userB.address)).collateral).to.equal(userBCollateralBefore)
+    expect((await market.global()).protocolFee).to.equal(feesABefore)
+    expect((await market.global()).marketFee).to.equal(feesBBefore)
   })
 })
