@@ -136,7 +136,7 @@ contract ChainlinkOracle is IOracleProvider {
         returns (OracleVersion memory)
     {
         Fixed6 price = Fixed6Lib.ratio(round.answer, _decimalOffset);
-        return OracleVersion(version, round.timestamp, price);
+        return OracleVersion(version, round.timestamp, price, true);
     }
 
     /**

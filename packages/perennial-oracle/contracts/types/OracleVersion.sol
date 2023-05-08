@@ -13,4 +13,7 @@ struct OracleVersion {
 
     /// @dev The oracle price of the corresponding version
     Fixed6 price;
+
+    /// @dev Whether the version is valid
+    bool valid;
 }
