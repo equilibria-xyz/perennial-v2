@@ -7,7 +7,7 @@ const config = defaultConfig({
       settings: {
         optimizer: {
           enabled: OPTIMIZER_ENABLED,
-          runs: 100000, // Maximum value as of commit e6b7ab7
+          runs: 100,
         },
         viaIR: true,
       },

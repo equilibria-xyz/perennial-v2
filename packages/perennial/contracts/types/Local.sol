@@ -48,7 +48,7 @@ library LocalLib {
         UFixed6 rewardAmount = toVersion.makerReward.accumulated(fromVersion.makerReward, fromPosition.maker)
             .add(toVersion.longReward.accumulated(fromVersion.longReward, fromPosition.long))
             .add(toVersion.shortReward.accumulated(fromVersion.shortReward, fromPosition.short));
-        Fixed6 feeAmount = Fixed6Lib.from(toPosition.fee.sub(fromPosition.fee));
+        Fixed6 feeAmount = Fixed6Lib.from(toPosition.fee);
 
         self.collateral = self.collateral.add(collateralAmount).sub(feeAmount);
         self.reward = self.reward.add(rewardAmount);

@@ -324,6 +324,8 @@ contract Market is IMarket, UInitializable, UOwnable {
     function _processPosition(CurrentContext memory context, Position memory newPosition) private {
         Version memory version = _versions[context.position.version].read();
         OracleVersion memory oracleVersion = _oracleVersionAt(context.marketParameter, newPosition.version);
+        if (!oracleVersion.valid) return; // skip processing if invalid
+
         UFixed6 accumulatedFee = version.accumulate(
             context.position,
             newPosition,
@@ -339,6 +341,9 @@ contract Market is IMarket, UInitializable, UOwnable {
     }
 
     function _processPositionAccount(CurrentContext memory context, Position memory newPosition) private view {
+        OracleVersion memory oracleVersion = _oracleVersionAt(context.marketParameter, newPosition.version);
+        if (!oracleVersion.valid) return; // skip processing if invalid
+
         context.local.accumulate(
             context.accountPosition,
             newPosition,
