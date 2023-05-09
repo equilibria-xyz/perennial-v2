@@ -5,6 +5,7 @@ import { SignerWithAddress } from '@nomiclabs/hardhat-ethers/signers'
 import { expect, use } from 'chai'
 import HRE, { waffle } from 'hardhat'
 
+//TODO: maxPendingId test
 //TODO: invalid version test
 //TODO: multi-version test
 

@@ -381,6 +381,8 @@ contract Market is IMarket, UInitializable, UOwnable {
         ) revert MarketInsufficientLiquidityError();
         if (context.pendingPosition.maker.gt(context.marketParameter.makerLimit)) revert MarketMakerOverLimitError();
         if (!context.accountPendingPosition.singleSided()) revert MarketNotSingleSidedError();
+        if (context.pendingPosition.id > context.position.id + context.protocolParameter.maxPendingIds)
+            revert MarketExceedsPendingIdLimitError();
     }
 
     function _checkCollateral(CurrentContext memory context) private pure {

@@ -109,6 +109,7 @@ export async function deployProtocol(): Promise<InstanceVars> {
     liquidationFee: parse6decimal('0.50'),
     minCollateral: parse6decimal('500'),
     minSpread: parse6decimal('0.20'),
+    maxPendingIds: 8,
     paused: false,
   })
 

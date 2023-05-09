@@ -62,6 +62,7 @@ interface IMarket is IOwnable {
     error PayoffProviderInvalidPayoffDefinitionError();
     error MarketOperatorNotAllowed();
     error MarketNotSingleSidedError();
+    error MarketExceedsPendingIdLimitError();
 
     function initialize(MarketDefinition calldata definition_, MarketParameter calldata parameter_) external;
     function name() external view returns (string memory);
