@@ -13,7 +13,7 @@ struct Position {
     UFixed6 maker;
     UFixed6 long;
     UFixed6 short;
-    UFixed6 fee;
+    UFixed6 fee; // TODO: unused in the non-pending instances
 }
 using PositionLib for Position global;
 struct StoredPosition {
@@ -37,13 +37,12 @@ library PositionLib {
     }
 
     function update(Position memory self, Position memory newPosition) internal pure {
-        (self.id, self.version, self.maker, self.long, self.short, self.fee) = (
+        (self.id, self.version, self.maker, self.long, self.short) = (
             newPosition.id,
             newPosition.version,
             newPosition.maker,
             newPosition.long,
-            newPosition.short,
-            newPosition.fee
+            newPosition.short
         );
     }
 
@@ -70,7 +69,7 @@ library PositionLib {
             newMaker,
             newLong,
             newShort,
-            self.fee.add(newOrder.fee)
+            self.id == currentId ? self.fee.add(newOrder.fee) : newOrder.fee
         );
     }
 
@@ -81,7 +80,7 @@ library PositionLib {
             UFixed6Lib.from(Fixed6Lib.from(self.maker).add(order.maker)),
             UFixed6Lib.from(Fixed6Lib.from(self.long).add(order.long)),
             UFixed6Lib.from(Fixed6Lib.from(self.short).add(order.short)),
-            self.fee.add(order.fee)
+            self.id == currentId ? self.fee.add(order.fee) : order.fee
         );
     }
 
