@@ -341,14 +341,14 @@ contract Market is IMarket, UInitializable, UOwnable {
     }
 
     function _processPositionAccount(CurrentContext memory context, Position memory newPosition) private view {
-        OracleVersion memory oracleVersion = _oracleVersionAt(context.marketParameter, newPosition.version);
-        if (!oracleVersion.valid) return; // skip processing if invalid
+        Version memory version = _versions[newPosition.version].read();
+        if (!version.valid) return; // skip processing if invalid
 
         context.local.accumulate(
             context.accountPosition,
             newPosition,
             _versions[context.accountPosition.version].read(),
-            _versions[newPosition.version].read()
+            version
         );
         context.accountPosition.update(newPosition);
     }

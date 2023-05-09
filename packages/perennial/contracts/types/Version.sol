@@ -16,15 +16,18 @@ struct Version {
     UAccumulator6 makerReward;
     UAccumulator6 longReward;
     UAccumulator6 shortReward;
+    bool valid;
 }
 using VersionLib for Version global;
-struct StoredVersion {
+struct StoredVersion { // TODO: w/ careful overflow enablement we can collapse this to a single slot
     int80 _makerValue;
     int88 _longValue;
     int88 _shortValue;
     uint80 _makerReward;
-    uint88 _longReward;
-    uint88 _shortReward;
+    uint80 _longReward;
+    uint80 _shortReward;
+    bool _valid;
+    bytes1 __unallocated__;
 }
 struct VersionStorage { StoredVersion value; }
 using VersionStorageLib for VersionStorage global;
@@ -191,7 +194,8 @@ library VersionStorageLib {
             Accumulator6(Fixed6.wrap(int256(storedValue._shortValue))),
             UAccumulator6(UFixed6.wrap(uint256(storedValue._makerReward))),
             UAccumulator6(UFixed6.wrap(uint256(storedValue._longReward))),
-            UAccumulator6(UFixed6.wrap(uint256(storedValue._shortReward)))
+            UAccumulator6(UFixed6.wrap(uint256(storedValue._shortReward))),
+            storedValue._valid
         );
     }
 
@@ -211,8 +215,10 @@ library VersionStorageLib {
             int88(Fixed6.unwrap(newValue.longValue._value)),
             int88(Fixed6.unwrap(newValue.shortValue._value)),
             uint80(UFixed6.unwrap(newValue.makerReward._value)),
-            uint88(UFixed6.unwrap(newValue.longReward._value)),
-            uint88(UFixed6.unwrap(newValue.shortReward._value))
+            uint80(UFixed6.unwrap(newValue.longReward._value)),
+            uint80(UFixed6.unwrap(newValue.shortReward._value)),
+            true, // only valid versions get stored
+            bytes1(0)
         );
     }
 }
