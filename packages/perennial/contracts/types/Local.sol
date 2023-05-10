@@ -18,7 +18,7 @@ struct StoredLocal {
     uint64 _reward;
     uint64 _liquidation;
 }
-struct LocalStorage { StoredLocal value; }
+struct LocalStorage { uint256 value; }
 using LocalStorageLib for LocalStorage global;
 
 /**
@@ -63,13 +63,12 @@ library LocalStorageLib {
     error LocalStorageInvalidError();
 
     function read(LocalStorage storage self) internal view returns (Local memory) {
-        StoredLocal memory storedValue =  self.value;
-
+        uint256 value = self.value;
         return Local(
-            uint256(storedValue._currentId),
-            Fixed6.wrap(int256(storedValue._collateral)),
-            UFixed6.wrap(uint256(storedValue._reward)),
-            uint256(storedValue._liquidation)
+            uint256(value << 192) >> 192,
+            Fixed6.wrap(int256(value << 128) >> 192),
+            UFixed6.wrap(uint256(value << 64) >> 192),
+            uint256(value) >> 192
         );
     }
 
@@ -79,11 +78,13 @@ library LocalStorageLib {
         if (newValue.reward.gt(UFixed6Lib.MAX_64)) revert LocalStorageInvalidError();
         if (newValue.liquidation > type(uint64).max) revert LocalStorageInvalidError();
 
-        self.value = StoredLocal(
-            uint64(newValue.currentId),
-            int64(Fixed6.unwrap(newValue.collateral)),
-            uint64(UFixed6.unwrap(newValue.reward)),
-            uint64(newValue.liquidation)
-        );
+        uint256 encoded =
+            uint256(newValue.currentId << 192) >> 192 |
+            uint256(Fixed6.unwrap(newValue.collateral) << 192) >> 128 |
+            uint256(UFixed6.unwrap(newValue.reward) << 192) >> 54 |
+            uint256(newValue.liquidation << 192);
+        assembly {
+            sstore(self.slot, encoded)
+        }
     }
 }
