@@ -59,7 +59,7 @@ library LocalLib {
     }
 }
 
-library LocalStorageLib {
+library LocalStorageLib { // TODO: automate this storage format to save contract size
     error LocalStorageInvalidError();
 
     function read(LocalStorage storage self) internal view returns (Local memory) {
@@ -81,7 +81,7 @@ library LocalStorageLib {
         uint256 encoded =
             uint256(newValue.currentId << 192) >> 192 |
             uint256(Fixed6.unwrap(newValue.collateral) << 192) >> 128 |
-            uint256(UFixed6.unwrap(newValue.reward) << 192) >> 54 |
+            uint256(UFixed6.unwrap(newValue.reward) << 192) >> 64 |
             uint256(newValue.liquidation << 192);
         assembly {
             sstore(self.slot, encoded)
