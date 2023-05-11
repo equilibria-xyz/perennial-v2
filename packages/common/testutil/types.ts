@@ -11,6 +11,7 @@ export interface Position {
   maker: BigNumberish
   long: BigNumberish
   short: BigNumberish
+  fee: BigNumberish
 }
 
 export interface Global {
@@ -68,11 +69,6 @@ export function expectVersionEq(a: Version, b: Version): void {
   expect(a.makerReward._value).to.equal(b.makerReward._value)
   expect(a.longReward._value).to.equal(b.longReward._value)
   expect(a.shortReward._value).to.equal(b.shortReward._value)
-}
-
-export function expectFeeEq(a: Fee, b: Fee): void {
-  expect(a.protocol).to.equal(b.protocol)
-  expect(a.market).to.equal(b.market)
 }
 
 export function parse6decimal(amount: string): BigNumber {

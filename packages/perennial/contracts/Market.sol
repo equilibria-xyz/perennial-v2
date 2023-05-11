@@ -7,8 +7,6 @@ import "./interfaces/IMarket.sol";
 import "./interfaces/IFactory.sol";
 import "hardhat/console.sol";
 
-// TODO: add in nullable checkpoints
-
 /**
  * @title Market
  * @notice Manages logic and state for a single market market.
