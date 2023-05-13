@@ -112,14 +112,15 @@ contract Market is IMarket, UInitializable, UOwnable {
         if (msg.sender == treasury) {
             token.push(msg.sender, UFixed18.wrap(UFixed6.unwrap(newGlobal.marketFee) * 1e12));
             emit FeeClaimed(msg.sender, newGlobal.marketFee);
+            newGlobal.marketFee = UFixed6Lib.ZERO;
         }
 
         if (msg.sender == factory.treasury()) {
             token.push(msg.sender, UFixed18.wrap(UFixed6.unwrap(newGlobal.protocolFee) * 1e12));
             emit FeeClaimed(msg.sender, newGlobal.protocolFee);
+            newGlobal.protocolFee = UFixed6Lib.ZERO;
         }
 
-        newGlobal.clearFees();
         _global.store(newGlobal);
     }
 

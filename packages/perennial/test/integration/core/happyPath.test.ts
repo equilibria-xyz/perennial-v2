@@ -88,6 +88,7 @@ describe('Happy Path', () => {
       maker: POSITION,
       long: 0,
       short: 0,
+      fee: 0,
     })
     expectPositionEq(await market.positions(user.address), {
       id: 0,
@@ -95,6 +96,7 @@ describe('Happy Path', () => {
       maker: 0,
       long: 0,
       short: 0,
+      fee: 0,
     })
 
     // Check global state
@@ -109,6 +111,7 @@ describe('Happy Path', () => {
       maker: POSITION,
       long: 0,
       short: 0,
+      fee: 0,
     })
     expectPositionEq(await market.position(), {
       id: 0,
@@ -116,6 +119,7 @@ describe('Happy Path', () => {
       maker: 0,
       long: 0,
       short: 0,
+      fee: 0,
     })
     expectVersionEq(await market.versions(INITIAL_VERSION), {
       makerValue: { _value: 0 },
@@ -143,6 +147,7 @@ describe('Happy Path', () => {
       maker: POSITION,
       long: 0,
       short: 0,
+      fee: 0,
     })
     expectPositionEq(await market.positions(user.address), {
       id: 1,
@@ -150,6 +155,7 @@ describe('Happy Path', () => {
       maker: POSITION,
       long: 0,
       short: 0,
+      fee: 0,
     })
 
     // Check global post-settlement state
@@ -164,6 +170,7 @@ describe('Happy Path', () => {
       maker: POSITION,
       long: 0,
       short: 0,
+      fee: 0,
     })
     expectPositionEq(await market.position(), {
       id: 1,
@@ -171,6 +178,7 @@ describe('Happy Path', () => {
       maker: POSITION,
       long: 0,
       short: 0,
+      fee: 0,
     })
   })
 
@@ -201,6 +209,7 @@ describe('Happy Path', () => {
       maker: POSITION,
       long: 0,
       short: 0,
+      fee: 0,
     })
     expectPositionEq(await market.positions(user.address), {
       id: 0,
@@ -208,6 +217,7 @@ describe('Happy Path', () => {
       maker: 0,
       long: 0,
       short: 0,
+      fee: 0,
     })
 
     // Check global state
@@ -222,6 +232,7 @@ describe('Happy Path', () => {
       maker: POSITION,
       long: 0,
       short: 0,
+      fee: 0,
     })
     expectPositionEq(await market.position(), {
       id: 0,
@@ -229,6 +240,7 @@ describe('Happy Path', () => {
       maker: 0,
       long: 0,
       short: 0,
+      fee: 0,
     })
     expectVersionEq(await market.versions(INITIAL_VERSION), {
       makerValue: { _value: 0 },
@@ -256,6 +268,7 @@ describe('Happy Path', () => {
       maker: POSITION,
       long: 0,
       short: 0,
+      fee: 0,
     })
     expectPositionEq(await market.positions(user.address), {
       id: 1,
@@ -263,6 +276,7 @@ describe('Happy Path', () => {
       maker: POSITION,
       long: 0,
       short: 0,
+      fee: 0,
     })
 
     // Check global post-settlement state
@@ -277,6 +291,7 @@ describe('Happy Path', () => {
       maker: POSITION,
       long: 0,
       short: 0,
+      fee: 0,
     })
     expectPositionEq(await market.position(), {
       id: 1,
@@ -284,6 +299,7 @@ describe('Happy Path', () => {
       maker: POSITION,
       long: 0,
       short: 0,
+      fee: 0,
     })
     expectGlobalEq(await market.global(), {
       currentId: 1,
@@ -318,6 +334,7 @@ describe('Happy Path', () => {
       maker: 0,
       long: 0,
       short: 0,
+      fee: 0,
     })
     expectPositionEq(await market.positions(user.address), {
       id: 0,
@@ -325,6 +342,7 @@ describe('Happy Path', () => {
       maker: 0,
       long: 0,
       short: 0,
+      fee: 0,
     })
 
     // Global State
@@ -339,6 +357,7 @@ describe('Happy Path', () => {
       maker: 0,
       long: 0,
       short: 0,
+      fee: 0,
     })
     expectPositionEq(await market.position(), {
       id: 0,
@@ -346,6 +365,7 @@ describe('Happy Path', () => {
       maker: 0,
       long: 0,
       short: 0,
+      fee: 0,
     })
     expectVersionEq(await market.versions(INITIAL_VERSION), {
       makerValue: { _value: 0 },
@@ -385,6 +405,7 @@ describe('Happy Path', () => {
       maker: 0,
       long: 0,
       short: 0,
+      fee: 0,
     })
     expectPositionEq(await market.positions(user.address), {
       id: 0,
@@ -392,6 +413,7 @@ describe('Happy Path', () => {
       maker: 0,
       long: 0,
       short: 0,
+      fee: 0,
     })
 
     // Global State
@@ -406,6 +428,7 @@ describe('Happy Path', () => {
       maker: 0,
       long: 0,
       short: 0,
+      fee: 0,
     })
     expectPositionEq(await market.position(), {
       id: 0,
@@ -413,6 +436,7 @@ describe('Happy Path', () => {
       maker: 0,
       long: 0,
       short: 0,
+      fee: 0,
     })
     expectVersionEq(await market.versions(INITIAL_VERSION), {
       makerValue: { _value: 0 },
@@ -452,6 +476,7 @@ describe('Happy Path', () => {
       maker: POSITION,
       long: 0,
       short: 0,
+      fee: 0,
     })
     expectPositionEq(await market.positions(user.address), {
       id: 0,
@@ -459,6 +484,7 @@ describe('Happy Path', () => {
       maker: 0,
       long: 0,
       short: 0,
+      fee: 0,
     })
 
     expectLocalEq(await market.locals(userB.address), {
@@ -473,6 +499,7 @@ describe('Happy Path', () => {
       maker: 0,
       long: POSITION_B,
       short: 0,
+      fee: 0,
     })
     expectPositionEq(await market.positions(userB.address), {
       id: 0,
@@ -480,6 +507,7 @@ describe('Happy Path', () => {
       maker: 0,
       long: 0,
       short: 0,
+      fee: 0,
     })
 
     // Global State
@@ -494,6 +522,7 @@ describe('Happy Path', () => {
       maker: POSITION,
       long: POSITION_B,
       short: 0,
+      fee: 0,
     })
     expectPositionEq(await market.position(), {
       id: 0,
@@ -501,6 +530,7 @@ describe('Happy Path', () => {
       maker: 0,
       long: 0,
       short: 0,
+      fee: 0,
     })
     expectVersionEq(await market.versions(INITIAL_VERSION), {
       makerValue: { _value: 0 },
@@ -530,6 +560,7 @@ describe('Happy Path', () => {
       maker: POSITION,
       long: POSITION_B,
       short: 0,
+      fee: 0,
     })
     expectPositionEq(await market.position(), {
       id: 1,
@@ -537,6 +568,7 @@ describe('Happy Path', () => {
       maker: POSITION,
       long: POSITION_B,
       short: 0,
+      fee: 0,
     })
 
     expectLocalEq(await market.locals(userB.address), {
@@ -551,6 +583,7 @@ describe('Happy Path', () => {
       maker: 0,
       long: POSITION_B,
       short: 0,
+      fee: 0,
     })
     expectPositionEq(await market.positions(userB.address), {
       id: 1,
@@ -558,6 +591,7 @@ describe('Happy Path', () => {
       maker: 0,
       long: POSITION_B,
       short: 0,
+      fee: 0,
     })
   })
 
@@ -591,6 +625,7 @@ describe('Happy Path', () => {
       maker: 0,
       long: POSITION_B,
       short: 0,
+      fee: 0,
     })
     expectPositionEq(await market.positions(userB.address), {
       id: 0,
@@ -598,6 +633,7 @@ describe('Happy Path', () => {
       maker: 0,
       long: 0,
       short: 0,
+      fee: 0,
     })
 
     // Global State
@@ -612,6 +648,7 @@ describe('Happy Path', () => {
       maker: POSITION,
       long: POSITION_B,
       short: 0,
+      fee: 0,
     })
     expectPositionEq(await market.position(), {
       id: 0,
@@ -619,6 +656,7 @@ describe('Happy Path', () => {
       maker: 0,
       long: 0,
       short: 0,
+      fee: 0,
     })
     expectVersionEq(await market.versions(INITIAL_VERSION), {
       makerValue: { _value: 0 },
@@ -648,6 +686,7 @@ describe('Happy Path', () => {
       maker: POSITION,
       long: POSITION_B,
       short: 0,
+      fee: 0,
     })
     expectPositionEq(await market.position(), {
       id: 1,
@@ -655,6 +694,7 @@ describe('Happy Path', () => {
       maker: POSITION,
       long: POSITION_B,
       short: 0,
+      fee: 0,
     })
     expectLocalEq(await market.locals(userB.address), {
       currentId: 1,
@@ -668,6 +708,7 @@ describe('Happy Path', () => {
       maker: 0,
       long: POSITION_B,
       short: 0,
+      fee: 0,
     })
     expectPositionEq(await market.positions(userB.address), {
       id: 1,
@@ -675,6 +716,7 @@ describe('Happy Path', () => {
       maker: 0,
       long: POSITION_B,
       short: 0,
+      fee: 0,
     })
   })
 
@@ -711,6 +753,7 @@ describe('Happy Path', () => {
       maker: 0,
       long: 0,
       short: 0,
+      fee: 0,
     })
     expectPositionEq(await market.positions(userB.address), {
       id: 0,
@@ -718,6 +761,7 @@ describe('Happy Path', () => {
       maker: 0,
       long: 0,
       short: 0,
+      fee: 0,
     })
 
     // Global State
@@ -732,6 +776,7 @@ describe('Happy Path', () => {
       maker: POSITION,
       long: 0,
       short: 0,
+      fee: 0,
     })
     expectPositionEq(await market.position(), {
       id: 0,
@@ -739,6 +784,7 @@ describe('Happy Path', () => {
       maker: 0,
       long: 0,
       short: 0,
+      fee: 0,
     })
     expectVersionEq(await market.versions(INITIAL_VERSION), {
       makerValue: { _value: 0 },
@@ -784,6 +830,7 @@ describe('Happy Path', () => {
       maker: 0,
       long: 0,
       short: 0,
+      fee: 0,
     })
     expectPositionEq(await market.positions(userB.address), {
       id: 0,
@@ -791,6 +838,7 @@ describe('Happy Path', () => {
       maker: 0,
       long: 0,
       short: 0,
+      fee: 0,
     })
 
     // Global State
@@ -805,6 +853,7 @@ describe('Happy Path', () => {
       maker: POSITION,
       long: 0,
       short: 0,
+      fee: 0,
     })
     expectPositionEq(await market.position(), {
       id: 0,
@@ -812,6 +861,7 @@ describe('Happy Path', () => {
       maker: 0,
       long: 0,
       short: 0,
+      fee: 0,
     })
     expectVersionEq(await market.versions(INITIAL_VERSION), {
       makerValue: { _value: 0 },
@@ -912,6 +962,7 @@ describe('Happy Path', () => {
       maker: POSITION,
       long: 0,
       short: 0,
+      fee: 0,
     })
     expectPositionEq(await market.positions(user.address), {
       id: 2,
@@ -919,6 +970,7 @@ describe('Happy Path', () => {
       maker: POSITION.div(2),
       long: 0,
       short: 0,
+      fee: 0,
     })
 
     // Check global state
@@ -933,6 +985,7 @@ describe('Happy Path', () => {
       maker: POSITION,
       long: POSITION.div(2),
       short: 0,
+      fee: 0,
     })
     expectPositionEq(await market.position(), {
       id: 2,
@@ -940,6 +993,7 @@ describe('Happy Path', () => {
       maker: POSITION.div(2),
       long: POSITION.div(2),
       short: 0,
+      fee: 0,
     })
     expectVersionEq(await market.versions(INITIAL_VERSION + 4), {
       makerValue: { _value: '-362547683639' },
@@ -1029,6 +1083,7 @@ describe('Happy Path', () => {
       maker: POSITION,
       long: 0,
       short: 0,
+      fee: 0,
     })
     expectPositionEq(await market.positions(user.address), {
       id: delay,
@@ -1036,6 +1091,7 @@ describe('Happy Path', () => {
       maker: POSITION.sub(1),
       long: 0,
       short: 0,
+      fee: 0,
     })
 
     // Check global state
@@ -1050,6 +1106,7 @@ describe('Happy Path', () => {
       maker: POSITION,
       long: POSITION.sub(1),
       short: 0,
+      fee: 0,
     })
     expectPositionEq(await market.position(), {
       id: delay,
@@ -1057,6 +1114,7 @@ describe('Happy Path', () => {
       maker: POSITION.sub(1),
       long: POSITION.sub(1),
       short: 0,
+      fee: 0,
     })
   })
 })

@@ -30,11 +30,6 @@ library GlobalLib {
         self.protocolFee = self.protocolFee.add(protocolAmount);
         self.marketFee = self.marketFee.add(marketAmount);
     }
-
-    function clearFees(Global memory self) internal pure {
-        self.protocolFee = UFixed6Lib.ZERO;
-        self.marketFee = UFixed6Lib.ZERO;
-    }
 }
 
 library GlobalStorageLib {

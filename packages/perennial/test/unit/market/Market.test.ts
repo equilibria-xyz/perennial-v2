@@ -8352,22 +8352,20 @@ describe.only('Market', () => {
       beforeEach(async () => {
         await factory.mock['treasury()'].returns(protocolTreasury.address)
 
-        await oracle.mock.atVersion.withArgs(0).returns(ORACLE_VERSION_0)
+        await oracle.mock.at.withArgs(0).returns(ORACLE_VERSION_0)
 
-        await oracle.mock.currentVersion.withArgs().returns(ORACLE_VERSION_1)
-        await oracle.mock.atVersion.withArgs(1).returns(ORACLE_VERSION_1)
-        await oracle.mock.sync.withArgs().returns(ORACLE_VERSION_1)
+        await oracle.mock.at.withArgs(1).returns(ORACLE_VERSION_1)
+        await oracle.mock.sync.withArgs().returns(ORACLE_VERSION_1, ORACLE_VERSION_2.version)
 
         await dsu.mock.transferFrom.withArgs(userB.address, market.address, COLLATERAL.mul(1e12)).returns(true)
         await market.connect(userB).update(userB.address, POSITION, 0, 0, COLLATERAL)
         await dsu.mock.transferFrom.withArgs(user.address, market.address, COLLATERAL.mul(1e12)).returns(true)
         await market.connect(user).update(user.address, 0, POSITION.div(2), 0, COLLATERAL)
 
-        await oracle.mock.atVersion.withArgs(2).returns(ORACLE_VERSION_2)
+        await oracle.mock.at.withArgs(2).returns(ORACLE_VERSION_2)
 
-        await oracle.mock.currentVersion.withArgs().returns(ORACLE_VERSION_3)
-        await oracle.mock.atVersion.withArgs(3).returns(ORACLE_VERSION_3)
-        await oracle.mock.sync.withArgs().returns(ORACLE_VERSION_3)
+        await oracle.mock.at.withArgs(3).returns(ORACLE_VERSION_3)
+        await oracle.mock.sync.withArgs().returns(ORACLE_VERSION_3, ORACLE_VERSION_3.version)
 
         await market.connect(user).settle(user.address)
         await market.connect(user).settle(userB.address)
@@ -8382,8 +8380,8 @@ describe.only('Market', () => {
           .to.emit(market, 'FeeClaimed')
           .withArgs(protocolTreasury.address, EXPECTED_FUNDING_FEE.div(2))
 
-        expect((await market.fee()).protocol).to.equal(0)
-        expect((await market.fee()).market).to.equal(EXPECTED_FUNDING_FEE.div(2))
+        expect((await market.global()).protocolFee).to.equal(0)
+        expect((await market.global()).marketFee).to.equal(EXPECTED_FUNDING_FEE.div(2))
       })
 
       it('claims fee (market)', async () => {
@@ -8393,15 +8391,15 @@ describe.only('Market', () => {
           .to.emit(market, 'FeeClaimed')
           .withArgs(treasury.address, EXPECTED_FUNDING_FEE.div(2))
 
-        expect((await market.fee()).protocol).to.equal(EXPECTED_FUNDING_FEE.div(2))
-        expect((await market.fee()).market).to.equal(0)
+        expect((await market.global()).protocolFee).to.equal(EXPECTED_FUNDING_FEE.div(2))
+        expect((await market.global()).marketFee).to.equal(0)
       })
 
       it('claims fee (neither)', async () => {
         await market.connect(user).claimFee()
 
-        expect((await market.fee()).protocol).to.equal(EXPECTED_FUNDING_FEE.div(2))
-        expect((await market.fee()).market).to.equal(EXPECTED_FUNDING_FEE.div(2))
+        expect((await market.global()).protocolFee).to.equal(EXPECTED_FUNDING_FEE.div(2))
+        expect((await market.global()).marketFee).to.equal(EXPECTED_FUNDING_FEE.div(2))
       })
     })
 
@@ -8409,22 +8407,20 @@ describe.only('Market', () => {
       beforeEach(async () => {
         await factory.mock['treasury()'].returns(protocolTreasury.address)
 
-        await oracle.mock.atVersion.withArgs(0).returns(ORACLE_VERSION_0)
+        await oracle.mock.at.withArgs(0).returns(ORACLE_VERSION_0)
 
-        await oracle.mock.currentVersion.withArgs().returns(ORACLE_VERSION_1)
-        await oracle.mock.atVersion.withArgs(1).returns(ORACLE_VERSION_1)
-        await oracle.mock.sync.withArgs().returns(ORACLE_VERSION_1)
+        await oracle.mock.at.withArgs(1).returns(ORACLE_VERSION_1)
+        await oracle.mock.sync.withArgs().returns(ORACLE_VERSION_1, ORACLE_VERSION_2.version)
 
         await dsu.mock.transferFrom.withArgs(userB.address, market.address, COLLATERAL.mul(1e12)).returns(true)
         await market.connect(userB).update(userB.address, POSITION, 0, 0, COLLATERAL)
         await dsu.mock.transferFrom.withArgs(user.address, market.address, COLLATERAL.mul(1e12)).returns(true)
         await market.connect(user).update(user.address, 0, POSITION.div(2), 0, COLLATERAL)
 
-        await oracle.mock.atVersion.withArgs(2).returns(ORACLE_VERSION_2)
+        await oracle.mock.at.withArgs(2).returns(ORACLE_VERSION_2)
 
-        await oracle.mock.currentVersion.withArgs().returns(ORACLE_VERSION_3)
-        await oracle.mock.atVersion.withArgs(3).returns(ORACLE_VERSION_3)
-        await oracle.mock.sync.withArgs().returns(ORACLE_VERSION_3)
+        await oracle.mock.at.withArgs(3).returns(ORACLE_VERSION_3)
+        await oracle.mock.sync.withArgs().returns(ORACLE_VERSION_3, ORACLE_VERSION_4.version)
 
         await market.connect(user).settle(user.address)
         await market.connect(user).settle(userB.address)
@@ -8448,7 +8444,7 @@ describe.only('Market', () => {
           .to.emit(market, 'RewardClaimed')
           .withArgs(user.address, EXPECTED_REWARD.mul(2))
 
-        expect((await market.accounts(user.address)).reward).to.equal(0)
+        expect((await market.locals(user.address)).reward).to.equal(0)
       })
 
       it('claims reward (none)', async () => {
