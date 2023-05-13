@@ -308,11 +308,13 @@ contract Market is IMarket, UInitializable, UOwnable {
         if (context.latestVersion.version > context.position.version) {
             nextPosition = _pendingPosition[context.position.id].read();
             nextPosition.version = context.latestVersion.version;
+            nextPosition.fee = UFixed6Lib.ZERO;
             _processPosition(context, nextPosition);
         }
         if (context.latestVersion.version > context.accountPosition.version) {
             nextPosition = _pendingPositions[account][context.accountPosition.id].read();
             nextPosition.version = context.latestVersion.version;
+            nextPosition.fee = UFixed6Lib.ZERO;
             _processPositionAccount(context, nextPosition);
         }
 

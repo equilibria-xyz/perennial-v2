@@ -62,7 +62,7 @@ library VersionLib {
         UFixed6 fundingFee; UFixed6 positionFee;
 
         // accumulate position
-        positionFee = _accumulatePositionFee(self, toPosition, marketParameter);
+        positionFee = _accumulatePositionFee(self, fromPosition, toPosition, marketParameter);
 
         // accumulate funding
         fundingFee =
@@ -87,15 +87,16 @@ library VersionLib {
      */
     function _accumulatePositionFee(
         Version memory self,
+        Position memory fromPosition,
         Position memory toPosition,
         MarketParameter memory marketParameter
     ) private pure returns (UFixed6 positionFee) {
         // If there are no makers to distribute the taker's position fee to, give it to the protocol
-        if (toPosition.maker.isZero()) return positionFee;
+        if (fromPosition.maker.isZero()) return toPosition.fee;
 
         positionFee = marketParameter.positionFee.mul(toPosition.fee);
         UFixed6 makerFee = toPosition.fee.sub(positionFee);
-        self.makerValue.increment(Fixed6Lib.from(makerFee), toPosition.maker);
+        self.makerValue.increment(Fixed6Lib.from(makerFee), fromPosition.maker);
     }
 
     /**
