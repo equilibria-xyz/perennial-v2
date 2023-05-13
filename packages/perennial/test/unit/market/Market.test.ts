@@ -8140,6 +8140,7 @@ describe.only('Market', () => {
               liquidationFee: parse6decimal('0.50'),
               minCollateral: parse6decimal('500'),
               minSpread: parse6decimal('0.20'),
+              maxPendingIds: 5,
               paused: true,
             })
             await expect(market.connect(user).update(user.address, POSITION, 0, 0, COLLATERAL)).to.be.revertedWith(
@@ -8185,17 +8186,17 @@ describe.only('Market', () => {
               await dsu.mock.transferFrom.withArgs(user.address, market.address, COLLATERAL.mul(1e12)).returns(true)
               await market.connect(user).update(user.address, 0, POSITION.div(2), 0, COLLATERAL)
 
-              await oracle.mock.atVersion.withArgs(2).returns(ORACLE_VERSION_2)
+              await oracle.mock.at.withArgs(2).returns(ORACLE_VERSION_2)
               const EXPECTED_LIQUIDATION_FEE = parse6decimal('45')
 
               const oracleVersionHigherPrice = {
                 price: parse6decimal('150'),
                 timestamp: TIMESTAMP + 7200,
                 version: 3,
+                valid: true,
               }
-              await oracle.mock.currentVersion.withArgs().returns(oracleVersionHigherPrice)
-              await oracle.mock.atVersion.withArgs(3).returns(oracleVersionHigherPrice)
-              await oracle.mock.sync.withArgs().returns(oracleVersionHigherPrice)
+              await oracle.mock.at.withArgs(3).returns(oracleVersionHigherPrice)
+              await oracle.mock.sync.withArgs().returns(oracleVersionHigherPrice, oracleVersionHigherPrice.version + 1)
 
               await dsu.mock.transfer.withArgs(liquidator.address, EXPECTED_LIQUIDATION_FEE.mul(1e12)).returns(true)
               await dsu.mock.balanceOf.withArgs(market.address).returns(COLLATERAL.mul(1e12))
