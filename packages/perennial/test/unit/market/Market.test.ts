@@ -9495,9 +9495,8 @@ describe.only('Market', () => {
           })
 
           it('properly charges liquidation fee', async () => {
-            await oracle.mock.currentVersion.withArgs().returns(ORACLE_VERSION_2)
-            await oracle.mock.atVersion.withArgs(2).returns(ORACLE_VERSION_2)
-            await oracle.mock.sync.withArgs().returns(ORACLE_VERSION_2)
+            await oracle.mock.at.withArgs(2).returns(ORACLE_VERSION_2)
+            await oracle.mock.sync.withArgs().returns(ORACLE_VERSION_2, ORACLE_VERSION_3.version)
 
             await market.connect(user).settle(user.address)
             await market.connect(user).settle(userB.address)
@@ -9509,10 +9508,10 @@ describe.only('Market', () => {
               price: parse6decimal('43'),
               timestamp: TIMESTAMP + 7200,
               version: 3,
+              valid: true,
             }
-            await oracle.mock.currentVersion.withArgs().returns(oracleVersionLowerPrice)
-            await oracle.mock.atVersion.withArgs(3).returns(oracleVersionLowerPrice)
-            await oracle.mock.sync.withArgs().returns(oracleVersionLowerPrice)
+            await oracle.mock.at.withArgs(3).returns(oracleVersionLowerPrice)
+            await oracle.mock.sync.withArgs().returns(oracleVersionLowerPrice, ORACLE_VERSION_4.version)
 
             await market.connect(user).settle(userB.address)
             await dsu.mock.transfer.withArgs(liquidator.address, EXPECTED_LIQUIDATION_FEE.mul(1e12)).returns(true)
@@ -9522,50 +9521,78 @@ describe.only('Market', () => {
               .to.emit(market, 'Liquidation')
               .withArgs(user.address, liquidator.address, EXPECTED_LIQUIDATION_FEE)
 
-            expectAccountEq(await market.accounts(user.address), {
-              latestVersion: 3,
+            expectLocalEq(await market.locals(user.address), {
+              currentId: 2,
+              collateral: parse6decimal('195').sub(EXPECTED_FUNDING).sub(EXPECTED_PNL).sub(EXPECTED_LIQUIDATION_FEE),
+              reward: EXPECTED_REWARD.mul(2),
+              liquidation: ORACLE_VERSION_3.version + 1,
+            })
+            expectPositionEq(await market.positions(user.address), {
+              id: 1,
+              version: ORACLE_VERSION_3.version,
               maker: 0,
               long: POSITION.div(2),
               short: 0,
-              nextMaker: 0,
-              nextLong: 0,
-              nextShort: 0,
-              collateral: parse6decimal('195').sub(EXPECTED_FUNDING).sub(EXPECTED_PNL).sub(EXPECTED_LIQUIDATION_FEE),
-              reward: EXPECTED_REWARD.mul(2),
-              liquidation: true,
+              fee: 0,
             })
-            expectAccountEq(await market.accounts(userB.address), {
-              latestVersion: 3,
+            expectPositionEq(await market.pendingPositions(user.address, 2), {
+              id: 2,
+              version: ORACLE_VERSION_3.version + 1,
+              maker: 0,
+              long: 0,
+              short: 0,
+              fee: 0,
+            })
+            expectLocalEq(await market.locals(userB.address), {
+              currentId: 1,
+              collateral: COLLATERAL.add(EXPECTED_FUNDING_WITH_FEE).add(EXPECTED_PNL).sub(8), // loss of precision
+              reward: EXPECTED_REWARD.mul(3),
+              liquidation: 0,
+            })
+            expectPositionEq(await market.positions(userB.address), {
+              id: 1,
+              version: ORACLE_VERSION_3.version,
               maker: POSITION,
               long: 0,
               short: 0,
-              nextMaker: POSITION,
-              nextLong: 0,
-              nextShort: 0,
-              collateral: COLLATERAL.add(EXPECTED_FUNDING_WITH_FEE).add(EXPECTED_PNL).sub(8), // loss of precision
-              reward: EXPECTED_REWARD.mul(3),
-              liquidation: false,
+              fee: 0,
+            })
+            expectPositionEq(await market.pendingPositions(userB.address, 1), {
+              id: 1,
+              version: ORACLE_VERSION_1.version + 1,
+              maker: POSITION,
+              long: 0,
+              short: 0,
+              fee: 0,
+            })
+            expectGlobalEq(await market.global(), {
+              currentId: 2,
+              protocolFee: EXPECTED_FUNDING_FEE.div(2),
+              marketFee: EXPECTED_FUNDING_FEE.div(2),
             })
             expectPositionEq(await market.position(), {
-              latestVersion: 3,
+              id: 1,
+              version: ORACLE_VERSION_3.version,
               maker: POSITION,
               long: POSITION.div(2),
               short: 0,
-              makerNext: POSITION,
-              longNext: 0,
-              shortNext: 0,
+              fee: 0,
             })
-            expectVersionEq(await market.versions(3), {
+            expectPositionEq(await market.pendingPosition(2), {
+              id: 2,
+              version: ORACLE_VERSION_3.version + 1,
+              maker: POSITION,
+              long: 0,
+              short: 0,
+              fee: 0,
+            })
+            expectVersionEq(await market.versions(ORACLE_VERSION_3.version), {
               makerValue: { _value: EXPECTED_FUNDING_WITH_FEE.add(EXPECTED_PNL).div(10) },
               longValue: { _value: EXPECTED_FUNDING.add(EXPECTED_PNL).div(5).mul(-1) },
               shortValue: { _value: 0 },
               makerReward: { _value: EXPECTED_REWARD.mul(3).div(10) },
               longReward: { _value: EXPECTED_REWARD.mul(2).div(5) },
               shortReward: { _value: 0 },
-            })
-            expectFeeEq(await market.fee(), {
-              protocol: EXPECTED_FUNDING_FEE.div(2),
-              market: EXPECTED_FUNDING_FEE.div(2),
             })
           })
         })
@@ -9579,30 +9606,52 @@ describe.only('Market', () => {
             await factory.mock.operators.withArgs(user.address, operator.address).returns(true)
             await expect(market.connect(operator).update(user.address, POSITION, 0, 0, COLLATERAL))
               .to.emit(market, 'Updated')
-              .withArgs(user.address, 1, POSITION, 0, 0, COLLATERAL)
+              .withArgs(user.address, ORACLE_VERSION_1.version + 1, POSITION, 0, 0, COLLATERAL)
 
-            expectAccountEq(await market.accounts(user.address), {
-              latestVersion: ORACLE_VERSION,
-              maker: 0,
-              long: 0,
-              short: 0,
-              nextMaker: POSITION,
-              nextLong: 0,
-              nextShort: 0,
+            expectLocalEq(await market.locals(user.address), {
+              currentId: 1,
               collateral: COLLATERAL,
               reward: 0,
-              liquidation: false,
+              liquidation: 0,
             })
-            expectPositionEq(await market.position(), {
-              latestVersion: ORACLE_VERSION,
+            expectPositionEq(await market.positions(user.address), {
+              id: 0,
+              version: ORACLE_VERSION_1.version,
               maker: 0,
               long: 0,
               short: 0,
-              makerNext: POSITION,
-              longNext: 0,
-              shortNext: 0,
+              fee: 0,
             })
-            expectVersionEq(await market.versions(ORACLE_VERSION), {
+            expectPositionEq(await market.pendingPositions(user.address, 1), {
+              id: 1,
+              version: ORACLE_VERSION_1.version + 1,
+              maker: POSITION,
+              long: 0,
+              short: 0,
+              fee: 0,
+            })
+            expectGlobalEq(await market.global(), {
+              currentId: 1,
+              protocolFee: 0,
+              marketFee: 0,
+            })
+            expectPositionEq(await market.position(), {
+              id: 0,
+              version: ORACLE_VERSION_1.version,
+              maker: 0,
+              long: 0,
+              short: 0,
+              fee: 0,
+            })
+            expectPositionEq(await market.pendingPosition(1), {
+              id: 1,
+              version: ORACLE_VERSION_1.version + 1,
+              maker: POSITION,
+              long: 0,
+              short: 0,
+              fee: 0,
+            })
+            expectVersionEq(await market.versions(ORACLE_VERSION_1.version), {
               makerValue: { _value: 0 },
               longValue: { _value: 0 },
               shortValue: { _value: 0 },
