@@ -91,7 +91,7 @@ contract PythOracle is IOracleProvider {
      * @notice Commits the price represented by `updateData` to the next version that needs to be committed
      * @param updateData The update data to commit
      */
-    function commit(bytes calldata updateData) external {
+    function commit(bytes calldata updateData) external payable {
         // This check isn't necessary since the caller would not be able to produce a valid updateData
         // with an update time corresponding to a null version, but reverting with a specific error is
         // clearer.
@@ -103,7 +103,7 @@ contract PythOracle is IOracleProvider {
         updateDataList[0] = updateData;
         bytes32[] memory priceIdList = new bytes32[](1);
         priceIdList[0] = priceId;
-        PythStructs.Price memory pythPrice = pyth.parsePriceFeedUpdates(
+        PythStructs.Price memory pythPrice = pyth.parsePriceFeedUpdates{value: pyth.getUpdateFee(updateDataList)}(
             updateDataList,
             priceIdList,
             SafeCast.toUint64(versionToCommit + MIN_VALID_TIME_AFTER_VERSION),
