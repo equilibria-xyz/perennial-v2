@@ -28,9 +28,6 @@ contract PythOracle is IOracleProvider {
     /// @dev Mapping from oracle version to oracle version data
     mapping (uint256 => OracleVersion) private _versions;
 
-    /// @dev Last committed oracle version
-    OracleVersion private lastCommittedVersion;
-
     /// @dev List of all requested oracle versions
     uint256[] private _versionList;
 
@@ -58,7 +55,7 @@ contract PythOracle is IOracleProvider {
         }
 
         // TODO: Figure out what to do in the core protocol if no version has ever been committed.
-        latestVersion = lastCommittedVersion;
+        latestVersion = latest();
         currentVersion = latestVersion.version == 0 ? 0 : block.timestamp;
     }
 
@@ -67,7 +64,11 @@ contract PythOracle is IOracleProvider {
      * @return Latest oracle version
      */
     function latest() public view returns (OracleVersion memory) {
-        return lastCommittedVersion;
+        if (_nextVersionIndexToCommit == 0) {
+            OracleVersion memory empty;
+            return empty;
+        }
+        return _versions[_versionList[_nextVersionIndexToCommit - 1]];
     }
 
     /**
@@ -79,7 +80,7 @@ contract PythOracle is IOracleProvider {
     }
 
     /**
-     * @notice Returns the current oracle version
+     * @notice Returns the oracle version at version `version`
      * @param version The version of which to lookup
      * @return oracleVersion Oracle version at version `version`
      */
@@ -120,8 +121,6 @@ contract PythOracle is IOracleProvider {
             valid: true
         });
         _versions[versionToCommit] = oracleVersion;
-        lastCommittedVersion = oracleVersion;
-
         ++_nextVersionIndexToCommit;
     }
 }
