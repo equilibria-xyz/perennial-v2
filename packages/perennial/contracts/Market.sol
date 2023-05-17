@@ -84,7 +84,7 @@ contract Market is IMarket, UInitializable, UOwnable {
         UFixed6 newMaker,
         UFixed6 newLong,
         UFixed6 newShort,
-        Fixed6 newCollateral
+        Fixed6 newCollateral // TODO: should we enforce this as a UFixed6?
     ) external {
         CurrentContext memory context = _loadContext(account);
         if (context.protocolParameter.paused) revert MarketPausedError();

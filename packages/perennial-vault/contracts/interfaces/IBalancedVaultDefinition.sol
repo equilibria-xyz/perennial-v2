@@ -1,9 +1,7 @@
 //SPDX-License-Identifier: Apache-2.0
 pragma solidity ^0.8.13;
 
-import "@equilibria/perennial-v2/contracts/interfaces/IProduct.sol";
-import "@equilibria/perennial-v2/contracts/interfaces/IController.sol";
-import "../../../perennial/contracts/interfaces/IFactory.sol";
+import "@equilibria/perennial-v2/contracts/interfaces/IFactory.sol";
 
 interface IBalancedVaultDefinition {
     struct MarketDefinition {
@@ -15,9 +13,9 @@ interface IBalancedVaultDefinition {
     error BalancedVaultDefinitionZeroTargetLeverageError();
     error BalancedVaultDefinitionNoMarketsError();
     error BalancedVaultDefinitionLongAndShortAreSameProductError();
-    error BalancedVaultInvalidProductError(IProduct product);
+    error BalancedVaultInvalidProductError(IMarket product);
     error BalancedVaultDefinitionOracleMismatchError();
-    error BalancedVaultDefinitionWrongPayoffDirectionError(IProduct product);
+    error BalancedVaultDefinitionWrongPayoffDirectionError(IMarket product);
     error BalancedVaultDefinitionMismatchedPayoffDataError();
     error BalancedVaultDefinitionAllZeroWeightError();
     error BalancedVaultDefinitionMarketsMismatchedWithPreviousImplementationError();

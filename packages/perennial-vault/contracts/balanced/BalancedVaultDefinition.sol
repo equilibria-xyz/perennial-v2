@@ -1,5 +1,5 @@
 //SPDX-License-Identifier: Apache-2.0
-pragma solidity 0.8.17;
+pragma solidity 0.8.19;
 
 import "../interfaces/IBalancedVaultDefinition.sol";
 
@@ -57,12 +57,10 @@ contract BalancedVaultDefinition is IBalancedVaultDefinition {
 
     /**
      * @notice Constructor for BalancedVaultDefinition
-     * @dev previousImplementation_ is an optional feature that gives extra protections against parameter errors during the upgrade process
-     * @param controller_ The controller contract
+     * @param factory_ The factory contract
      * @param targetLeverage_ The target leverage for the vault
      * @param maxCollateral_ The maximum amount of collateral that can be held in the vault
      * @param marketDefinitions_ The market definitions for the vault
-     * @param previousImplementation_ The previous implementation of the vault. Set to address(0) if there is none
      */
     constructor(
         IFactory factory_,
@@ -72,9 +70,8 @@ contract BalancedVaultDefinition is IBalancedVaultDefinition {
     ) {
         if (targetLeverage_.eq(UFixed18Lib.ZERO)) revert BalancedVaultDefinitionZeroTargetLeverageError();
 
-        controller = controller_;
-        collateral = controller_.collateral();
-        asset = collateral.token();
+        factory = factory_;
+        asset = marketDefinitions_[0].market.token(); // TODO: this doesn't seem ideal
         targetLeverage = targetLeverage_;
         maxCollateral = maxCollateral_;
 

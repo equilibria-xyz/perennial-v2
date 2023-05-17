@@ -1,5 +1,5 @@
 //SPDX-License-Identifier: Apache-2.0
-pragma solidity 0.8.17;
+pragma solidity 0.8.19;
 
 import "../interfaces/IBalancedVault.sol";
 import "@equilibria/root/control/unstructured/UInitializable.sol";
@@ -89,12 +89,10 @@ contract BalancedVault is IBalancedVault, BalancedVaultDefinition, UInitializabl
 
     /**
      * @notice Constructor for BalancedVaultDefinition
-     * @dev previousImplementation_ is an optional feature that gives extra protections against parameter errors during the upgrade process
-     * @param controller_ The controller contract
+     * @param factory_ The factory contract
      * @param targetLeverage_ The target leverage for the vault
      * @param maxCollateral_ The maximum amount of collateral that can be held in the vault
      * @param marketDefinitions_ The market definitions for the vault
-     * @param previousImplementation_ The previous implementation of the vault. Set to address(0) if there is none
      */
     constructor(
         IFactory factory_,
@@ -114,14 +112,16 @@ contract BalancedVault is IBalancedVault, BalancedVaultDefinition, UInitializabl
         __unused0 = ""; // deprecate `symbol`
 
         // set or reset allowance compliant with both an initial deployment or an upgrade
-        asset.approve(address(collateral), UFixed18Lib.ZERO);
-        asset.approve(address(collateral));
+        for (uint256 marketId = 1; marketId < totalMarkets; marketId++) {
+            asset.approve(address(markets(marketId).market), UFixed18Lib.ZERO);
+            asset.approve(address(markets(marketId).market));
+        }
 
         // Stamp new market's data for first epoch
         (EpochContext memory context, )  = _settle(address(0));
         for (uint256 marketId = 1; marketId < totalMarkets; marketId++) {
             if (_marketAccounts[marketId].versionOf[context.epoch] == 0) {
-                _marketAccounts[marketId].versionOf[context.epoch] = markets(marketId).long.latestVersion();
+                _marketAccounts[marketId].versionOf[context.epoch] = markets(marketId).market.position().version;
             }
         }
     }
@@ -342,10 +342,7 @@ contract BalancedVault is IBalancedVault, BalancedVaultDefinition, UInitializabl
      */
     function currentEpochComplete() public view returns (bool) {
         for (uint256 marketId; marketId < totalMarkets; marketId++) {
-            if (
-                Math.min(markets(marketId).long.latestVersion(), markets(marketId).short.latestVersion()) ==
-                _versionAtEpoch(marketId, _latestEpoch)
-            ) return false;
+            if (markets(marketId).market.position().version == _versionAtEpoch(marketId, _latestEpoch)) return false;
         }
         return true;
     }
@@ -357,10 +354,7 @@ contract BalancedVault is IBalancedVault, BalancedVaultDefinition, UInitializabl
      */
     function currentEpochStale() public view returns (bool) {
         for (uint256 marketId; marketId < totalMarkets; marketId++) {
-            if (
-                Math.max(markets(marketId).long.latestVersion(), markets(marketId).short.latestVersion()) >
-                _versionAtEpoch(marketId, _latestEpoch)
-            ) return true;
+            if (markets(marketId).market.position().version > _versionAtEpoch(marketId, _latestEpoch)) return true;
         }
         return false;
     }
@@ -386,9 +380,9 @@ contract BalancedVault is IBalancedVault, BalancedVaultDefinition, UInitializabl
                 MarketEpoch storage marketEpoch = _marketAccounts[marketId].epochs[context.epoch];
 
                 marketEpoch.position = markets(marketId).market.positions(address(this)).maker;
-                marketEpoch.assets = markets(marketId).market.collateral(address(this));
+                marketEpoch.assets = _toS18(markets(marketId).market.locals(address(this)).collateral);
 
-                _marketAccounts[marketId].versionOf[context.epoch] = markets(marketId).market.latestVersion();
+                _marketAccounts[marketId].versionOf[context.epoch] = markets(marketId).market.position().version;
             }
             _marketAccounts[0].epochs[context.epoch].totalShares = _totalSupplyAtEpoch(context);
             _marketAccounts[0].epochs[context.epoch].totalAssets = _totalAssetsAtEpoch(context);
@@ -427,108 +421,79 @@ contract BalancedVault is IBalancedVault, BalancedVaultDefinition, UInitializabl
      * @param claimAmount The amount of assets that will be withdrawn from the vault at the end of the operation
      */
     function _rebalance(EpochContext memory context, UFixed18 claimAmount) private {
-        _rebalanceCollateral(claimAmount);
-        _rebalancePosition(context, claimAmount);
-    }
-
-    /**
-     * @notice Rebalances the collateral of the vault
-     * @param claimAmount The amount of assets that will be withdrawn from the vault at the end of the operation
-     */
-    function _rebalanceCollateral(UFixed18 claimAmount) private {
         // Compute target collateral
-        UFixed18 targetCollateral = _assets().sub(claimAmount)
-        if (targetCollateral.muldiv(minWeight, totalWeight).lt(controller.minCollateral()))
-            targetCollateral = UFixed18Lib.ZERO;
+        UFixed18 collateral = _assets()
+            .sub(claimAmount);
+        if (collateral.muldiv(minWeight, totalWeight).lt(_toU18(factory.parameter().minCollateral))) collateral = UFixed18Lib.ZERO;
+
+        // Compute target collateral
+        UFixed18 availableCollateral = _totalAssetsAtEpoch(context)
+            .sub(claimAmount)
+            .mul(_totalSupplyAtEpoch(context).unsafeDiv(_totalSupplyAtEpoch(context).add(_redemption)))
+            .add(_deposit);
+        if (availableCollateral.muldiv(minWeight, totalWeight).lt(_toU18(factory.parameter().minCollateral))) availableCollateral = UFixed18Lib.ZERO;
 
         // Remove collateral from markets above target
         for (uint256 marketId; marketId < totalMarkets; marketId++) {
-            UFixed18 marketCollateral = targetCollateral.muldiv(markets(marketId).weight, totalWeight);
+            UFixed18 targetCollateral = collateral.muldiv(markets(marketId).weight, totalWeight);
+            UFixed18 marketCollateral = availableCollateral.muldiv(markets(marketId).weight, totalWeight);
+            if (markets(marketId).market.parameter().closed) marketCollateral = UFixed18Lib.ZERO;
 
-            if (markets(marketId).market.collateral(address(this)).gt(marketCollateral))
-                _updateCollateral(markets(marketId).long, marketCollateral);
+            uint256 version = _versionAtEpoch(marketId, context.epoch);
+            Payoff memory payoff = markets(marketId).market.parameter().payoff;
+            IOracleProvider oracle = markets(marketId).market.parameter().oracle;
+            OracleVersion memory latestOracleVersion = oracle.at(version);
+            payoff.transform(latestOracleVersion);
+            UFixed18 currentPrice = _toU18(latestOracleVersion.price.abs());
+
+            UFixed18 targetPosition = marketCollateral.mul(targetLeverage).div(currentPrice);
+
+            if (_toU18(markets(marketId).market.locals(address(this)).collateral.max(Fixed6Lib.ZERO).abs()).gt(targetCollateral))
+                _update(markets(marketId).market, _toU6(targetPosition), _toU6(targetCollateral));
         }
 
         // Deposit collateral to markets below target
         for (uint256 marketId; marketId < totalMarkets; marketId++) {
-            UFixed18 marketCollateral = targetCollateral.muldiv(markets(marketId).weight, totalWeight);
-
-            if (markets(marketId).market.collateral(address(this)).lt(marketCollateral))
-                _updateCollateral(markets(marketId).long, marketCollateral);
-        }
-    }
-
-    /**
-     * @notice Rebalances the position of the vault
-     * @param context Epoch context to use in calculation
-     * @param claimAmount The amount of assets that will be withdrawn from the vault at the end of the operation
-     */
-    function _rebalancePosition(EpochContext memory context, UFixed18 claimAmount) private {
-        // Compute target collateral
-        UFixed18 targetCollateral = _totalAssetsAtEpoch(context).sub(claimAmount)
-            .mul(_totalSupplyAtEpoch(context).unsafeDiv(_totalSupplyAtEpoch(context).add(_redemption)))
-            .add(_deposit);
-        if (targetCollateral.muldiv(minWeight, totalWeight).lt(factory.minCollateral()))
-            targetCollateral = UFixed18Lib.ZERO;
-
-        // Target new maker position per market price and weight
-        for (uint256 marketId; marketId < totalMarkets; marketId++) {
-            UFixed18 marketCollateral = targetCollateral.muldiv(markets(marketId).weight, totalWeight);
-            if (markets(marketId).market.closed()) marketCollateral = UFixed18Lib.ZERO;
+            UFixed18 targetCollateral = collateral.muldiv(markets(marketId).weight, totalWeight);
+            UFixed18 marketCollateral = availableCollateral.muldiv(markets(marketId).weight, totalWeight);
+            if (markets(marketId).market.parameter().closed) marketCollateral = UFixed18Lib.ZERO;
 
             uint256 version = _versionAtEpoch(marketId, context.epoch);
-            UFixed18 currentPrice = markets(marketId).market.atVersion(version).price.abs();
+            Payoff memory payoff = markets(marketId).market.parameter().payoff;
+            IOracleProvider oracle = markets(marketId).market.parameter().oracle;
+            OracleVersion memory latestOracleVersion = oracle.at(version);
+            payoff.transform(latestOracleVersion);
+            UFixed18 currentPrice = _toU18(latestOracleVersion.price.abs());
             UFixed18 targetPosition = marketCollateral.mul(targetLeverage).div(currentPrice);
 
-            _updateMakerPosition(markets(marketId).long, targetPosition);
-            _updateMakerPosition(markets(marketId).short, targetPosition);
+            if (_toU18(markets(marketId).market.locals(address(this)).collateral.max(Fixed6Lib.ZERO).abs()).lt(targetCollateral))
+                _update(markets(marketId).market, _toU6(targetPosition), _toU6(targetCollateral));
         }
     }
 
     /**
-     * @notice Adjusts the position on `product` to `targetPosition`
-     * @param product The product to adjust the vault's position on
+     * @notice Adjusts the position on `market` to `targetPosition`
+     * @param market The market to adjust the vault's position on
      * @param targetPosition The new position to target
+     * @param targetCollateral The new collateral to target
      */
-    function _updateMakerPosition(IProduct product, UFixed18 targetPosition) private {
-        UFixed18 accountPosition = product.position(address(this)).next(product.pre(address(this))).maker;
-
-        // TODO~~~
+    function _update(IMarket market, UFixed6 targetPosition, UFixed6 targetCollateral) private {
+        UFixed6 accountPosition = market.pendingPositions(address(this), market.locals(address(this)).currentId).maker;
+        Position memory currenPosition = market.pendingPosition(market.global().currentId);
 
         if (targetPosition.lt(accountPosition)) {
             // compute headroom until hitting taker amount
-            Position memory position = product.positionAtVersion(product.latestVersion()).next(product.pre());
-            UFixed18 makerAvailable = position.maker.gt(position.taker) ?
-                position.maker.sub(position.taker) :
-                UFixed18Lib.ZERO;
-
-            product.closeMake(accountPosition.sub(targetPosition).min(makerAvailable));
+            UFixed6 makerAvailable = currenPosition.maker.gt(currenPosition.net()) ? currenPosition.maker.sub(currenPosition.net()) : UFixed6Lib.ZERO;
+            targetPosition = accountPosition.sub(accountPosition.sub(targetPosition).min(makerAvailable));
         }
-
         if (targetPosition.gt(accountPosition)) {
             // compute headroom until hitting makerLimit
-            UFixed18 currentMaker = product.positionAtVersion(product.latestVersion()).next(product.pre()).maker;
-            UFixed18 makerLimit = product.makerLimit();
-            UFixed18 makerAvailable = makerLimit.gt(currentMaker) ? makerLimit.sub(currentMaker) : UFixed18Lib.ZERO;
-
-            product.openMake(targetPosition.sub(accountPosition).min(makerAvailable));
+            UFixed6 makerLimit = market.parameter().makerLimit;
+            UFixed6 makerAvailable = makerLimit.gt(currenPosition.maker) ? makerLimit.sub(currenPosition.maker) : UFixed6Lib.ZERO;
+            targetPosition = accountPosition.add(targetPosition.sub(accountPosition).min(makerAvailable));
         }
-    }
 
-    /**
-     * @notice Adjusts the collateral on `product` to `targetCollateral`
-     * @param product The product to adjust the vault's collateral on
-     * @param targetCollateral The new collateral to target
-     */
-    function _updateCollateral(IMarket market, UFixed18 targetCollateral) private {
-        //TODO: ~~~ combine with above
-
-        UFixed18 currentCollateral = collateral.collateral(address(this), product);
-
-        if (currentCollateral.gt(targetCollateral))
-            collateral.withdrawTo(address(this), product, currentCollateral.sub(targetCollateral));
-        if (currentCollateral.lt(targetCollateral))
-            collateral.depositTo(address(this), product, targetCollateral.sub(currentCollateral));
+        market.update(address(this), UFixed6Lib.ZERO, UFixed6Lib.ZERO, targetPosition, Fixed6Lib.from(targetCollateral));
     }
 
     /**
@@ -620,9 +585,10 @@ contract BalancedVault is IBalancedVault, BalancedVaultDefinition, UInitializabl
      * @return bool true if unhealthy, false if healthy
      */
     function _unhealthy(MarketDefinition memory marketDefinition) internal view returns (bool) {
-        //TODO: !!!
-        return collateral.liquidatable(address(this), marketDefinition.long)
-            || marketDefinition.long.isLiquidating(address(this));
+        //TODO: figure out how to compute "can liquidate"
+        return /* collateral.liquidatable(address(this), marketDefinition.long) || */ (
+                marketDefinition.market.locals(address(this)).liquidation < marketDefinition.market.position().version
+            );
     }
 
     /**
@@ -714,7 +680,7 @@ contract BalancedVault is IBalancedVault, BalancedVaultDefinition, UInitializabl
     function _assets() public view returns (UFixed18 value) {
         value = asset.balanceOf();
         for (uint256 marketId; marketId < totalMarkets; marketId++)
-           value = value.add(markets(marketId).market.collateral(address(this)));
+           value = value.add(_toU18(markets(marketId).market.locals(address(this)).collateral.max(Fixed6Lib.ZERO).abs()));
     }
 
     /**
@@ -748,11 +714,11 @@ contract BalancedVault is IBalancedVault, BalancedVaultDefinition, UInitializabl
     function _assetsAtEpoch(uint256 epoch) private view returns (UFixed18) {
         Fixed18 assets = Fixed18Lib.from(_marketAccounts[0].epochs[epoch].totalAssets);
         for (uint256 marketId; marketId < totalMarkets; marketId++) {
-            assets = assets.add(_accumulatedAtEpoch(marketId, epoch));
+            assets = assets.add(_toS18(_accumulatedAtEpoch(marketId, epoch)));
         }
 
         // collateral can't go negative within the vault, socializes into unclaimed if triggered
-        return UFixed18Lib.from(assets.max(Fixed18Lib.ZERO));
+        return UFixed18Lib.from(assets.max(Fixed18Lib.ZERO)); // TODO: does this this work this way?
     }
 
     /**
@@ -769,19 +735,20 @@ contract BalancedVault is IBalancedVault, BalancedVaultDefinition, UInitializabl
      * @dev Calculates accumulated PnL for `version` to `version + 1`
      * @param marketId The market ID to accumulate for
      * @param epoch Epoch to get total assets at
-     * @return Total assets accumulated
+     * @return accumulated Total assets accumulated
      */
-    function _accumulatedAtEpoch(uint256 marketId, uint256 epoch) private view returns (Fixed18 accumulated) {
+    function _accumulatedAtEpoch(uint256 marketId, uint256 epoch) private view returns (Fixed6 accumulated) {
         MarketEpoch memory marketEpoch = _marketAccounts[marketId].epochs[epoch];
         uint256 version = _versionAtEpoch(marketId, epoch);
 
         // accumulate value from version n + 1
-        accumulated = markets(marketId).long.valueAtVersion(version + 1).maker
-            .sub(markets(marketId).long.valueAtVersion(version).maker)
-            .mul(Fixed18Lib.from(marketEpoch.longPosition));
+        // TODO: we're not doing n + 1 anymore
+        accumulated = markets(marketId).market.versions(version + 1).makerValue._value // TODO: use accumulator?
+            .sub(markets(marketId).market.versions(version).makerValue._value)
+            .mul(Fixed6Lib.from(marketEpoch.position));
 
         // collateral can't go negative on a product
-        accumulated = accumulated.max(Fixed18Lib.from(marketEpoch.longAssets).mul(Fixed18Lib.NEG_ONE));
+        accumulated = accumulated.max(Fixed6Lib.from(marketEpoch.assets).mul(Fixed6Lib.NEG_ONE)); // TODO: does this this work this way?
     }
 
     /**
@@ -797,5 +764,22 @@ contract BalancedVault is IBalancedVault, BalancedVaultDefinition, UInitializabl
         if (epoch > _latestEpoch) return 0;
         uint256 version = _marketAccounts[marketId].versionOf[epoch];
         return (version == 0) ? epoch : version;
+    }
+
+    //TODO: replace these with root functions
+    function _toU18(UFixed6 n) private pure returns (UFixed18) {
+        return UFixed18.wrap(UFixed6.unwrap(n) * 1e12);
+    }
+
+    function _toU6(UFixed18 n) private pure returns (UFixed6) {
+        return UFixed6.wrap(UFixed18.unwrap(n) / 1e12);
+    }
+
+    function _toS18(Fixed6 n) private pure returns (Fixed18) {
+        return Fixed18.wrap(Fixed6.unwrap(n) * 1e12);
+    }
+
+    function _toS6(Fixed18 n) private pure returns (Fixed6) {
+        return Fixed6.wrap(Fixed18.unwrap(n) / 1e12);
     }
 }

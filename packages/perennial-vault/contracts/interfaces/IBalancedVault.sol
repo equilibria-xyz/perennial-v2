@@ -1,9 +1,8 @@
 //SPDX-License-Identifier: Apache-2.0
 pragma solidity ^0.8.13;
 
-import "@equilibria/perennial-v2/contracts/interfaces/IController.sol";
-import "@equilibria/perennial-v2/contracts/interfaces/ICollateral.sol";
-import "@equilibria/root-v2/number/types/UFixed6.sol";
+import "@equilibria/perennial-v2/contracts/interfaces/IFactory.sol";
+import "@equilibria/root-v2/contracts/UFixed6.sol";
 import "./IBalancedVaultDefinition.sol";
 
 interface IBalancedVault is IBalancedVaultDefinition {
@@ -15,8 +14,8 @@ interface IBalancedVault is IBalancedVaultDefinition {
     }
 
     struct MarketEpoch {
-        UFixed18 position;
-        UFixed18 assets;
+        UFixed6 position;
+        Fixed18 assets;
         UFixed18 totalShares;
         UFixed18 totalAssets;
     }
