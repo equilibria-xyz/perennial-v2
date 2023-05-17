@@ -87,7 +87,7 @@ const EXPECTED_FUNDING_WITH_FEE = EXPECTED_FUNDING.sub(EXPECTED_FUNDING_FEE)
 
 const EXPECTED_REWARD = parse6decimal('0.1').mul(3600)
 
-describe.only('Market', () => {
+describe('Market', () => {
   let protocolTreasury: SignerWithAddress
   let owner: SignerWithAddress
   let treasury: SignerWithAddress
