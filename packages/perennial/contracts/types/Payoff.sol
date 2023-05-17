@@ -7,7 +7,7 @@ import "@equilibria/perennial-v2-oracle/contracts/types/OracleVersion.sol";
 /// @dev Payoff type
 struct Payoff {
     IPayoffProvider provider;
-    bool short;
+    bool short; // TODO: don't need this
 }
 using PayoffLib for Payoff global;
 
