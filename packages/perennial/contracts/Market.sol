@@ -13,7 +13,7 @@ import "hardhat/console.sol";
  * @dev Cloned by the Factory contract to launch new market markets.
  */
 contract Market is IMarket, UInitializable, UOwnable {
-    bool private constant GAS_PROFILE = false;
+    bool private constant GAS_PROFILE = true;
 
     /// @dev The name of the market
     string public name;
@@ -286,6 +286,8 @@ contract Market is IMarket, UInitializable, UOwnable {
     function _settle(CurrentContext memory context, address account) private {
         _startGas(context, "_settle: %s");
 
+        console.log("settle");
+
         Position memory nextPosition;
 
         while (
@@ -323,9 +325,17 @@ contract Market is IMarket, UInitializable, UOwnable {
     }
 
     function _processPosition(CurrentContext memory context, Position memory newPosition) private {
+        console.log("_processPosition");
         Version memory version = _versions[context.position.version].read();
         OracleVersion memory oracleVersion = _oracleVersionAt(context.marketParameter, newPosition.version);
         if (!oracleVersion.valid) return; // skip processing if invalid
+
+        console.log("context.position.id", context.position.id);
+        console.log("context.position.version", context.position.version);
+        console.log("context.position.maker", UFixed6.unwrap(context.position.maker));
+        console.log("newPosition.id", newPosition.id);
+        console.log("newPosition.version", newPosition.version);
+        console.log("newPosition.maker", UFixed6.unwrap(newPosition.maker));
 
         UFixed6 accumulatedFee = version.accumulate(
             context.position,
@@ -342,6 +352,7 @@ contract Market is IMarket, UInitializable, UOwnable {
     }
 
     function _processPositionAccount(CurrentContext memory context, Position memory newPosition) private view {
+        console.log("_processPositionAccount");
         Version memory version = _versions[newPosition.version].read();
         if (!version.valid) return; // skip processing if invalid
 
@@ -386,7 +397,7 @@ contract Market is IMarket, UInitializable, UOwnable {
             revert MarketExceedsPendingIdLimitError();
     }
 
-    function _checkCollateral(CurrentContext memory context) private pure {
+    function _checkCollateral(CurrentContext memory context) private view {
         if (context.local.collateral.sign() == -1) revert MarketInDebtError();
 
         UFixed6 boundedCollateral = UFixed6Lib.from(context.local.collateral);
@@ -397,6 +408,10 @@ contract Market is IMarket, UInitializable, UOwnable {
         UFixed6 maintenanceAmount =
             context.accountPosition.maintenance(context.latestVersion, context.marketParameter)
                 .max(context.accountPendingPosition.maintenance(context.latestVersion, context.marketParameter));
+        console.log("context.accountPendingPosition", UFixed6.unwrap(context.accountPendingPosition.maker));
+        console.log("context.latestVersion", UFixed6.unwrap(context.latestVersion.price.abs()));
+        console.log("maintenanceAmount", UFixed6.unwrap(maintenanceAmount));
+        console.log("boundedCollateral", UFixed6.unwrap(boundedCollateral));
         if (maintenanceAmount.gt(boundedCollateral)) revert MarketInsufficientCollateralError();
     }
 

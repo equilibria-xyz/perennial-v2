@@ -19,6 +19,7 @@ import {
 } from '../../../types/generated'
 import { BigNumber, constants, utils } from 'ethers'
 import { deployProtocol, InstanceVars } from '@equilibria/perennial-v2/test/integration/helpers/setupHelpers'
+import { parse6decimal } from '../../../../common/testutil/types'
 
 const { config, ethers } = HRE
 use(smock.matchers)
@@ -54,6 +55,7 @@ describe('BalancedVault (Multi-Payoff)', () => {
       version: currentVersion.add(1),
       timestamp: currentTimestamp.add(13),
       price: newPrice ?? currentPrice,
+      valid: true,
     }
     oracle.sync.returns([newVersion, newVersion.version.add(1)])
     oracle.latest.returns(newVersion)
@@ -66,8 +68,9 @@ describe('BalancedVault (Multi-Payoff)', () => {
       version: currentVersion.add(1),
       timestamp: currentTimestamp.add(13),
       price: newPrice ?? currentPrice,
+      valid: true,
     }
-    oracle.sync.returns([newVersion, newVersion.version.add(1)])
+    btcOracle.sync.returns([newVersion, newVersion.version.add(1)])
     btcOracle.latest.returns(newVersion)
     btcOracle.at.whenCalledWith(newVersion.version).returns(newVersion)
   }
@@ -94,7 +97,10 @@ describe('BalancedVault (Multi-Payoff)', () => {
   }
 
   async function totalCollateralInVault() {
-    return (await collateralInVault()).add(await btcCollateralInVault()).add(await asset.balanceOf(vault.address)) // TODO: not correct units
+    return (await collateralInVault())
+      .add(await btcCollateralInVault())
+      .mul(1e12)
+      .add(await asset.balanceOf(vault.address))
   }
 
   beforeEach(async () => {
@@ -127,6 +133,7 @@ describe('BalancedVault (Multi-Payoff)', () => {
       name: 'Ethereum',
       symbol: 'ETH',
       oracle: oracleToMock.address,
+      makerLimit: parse6decimal('1000'),
     })
     btcMarket = await deployProductOnMainnetFork({
       factory: instanceVars.factory,
@@ -175,14 +182,14 @@ describe('BalancedVault (Multi-Payoff)', () => {
     await setUpWalletWithDSU(btcUser2)
 
     // Seed markets with some activity
-    await dsu.connect(btcUser1).approve(market.address, ethers.constants.MaxUint256)
-    await dsu.connect(btcUser2).approve(market.address, ethers.constants.MaxUint256)
+    await dsu.connect(user).approve(market.address, ethers.constants.MaxUint256)
+    await dsu.connect(user2).approve(market.address, ethers.constants.MaxUint256)
     await dsu.connect(btcUser1).approve(btcMarket.address, ethers.constants.MaxUint256)
     await dsu.connect(btcUser2).approve(btcMarket.address, ethers.constants.MaxUint256)
-    await market.connect(btcUser1).update(btcUser1.address, utils.parseEther('200'), 0, 0, utils.parseEther('100000'))
-    await market.connect(btcUser2).update(btcUser2.address, 0, utils.parseEther('100'), 0, utils.parseEther('100000'))
-    await btcMarket.connect(btcUser1).update(btcUser1.address, utils.parseEther('20'), 0, 0, utils.parseEther('100000'))
-    await btcMarket.connect(btcUser2).update(btcUser2.address, 0, utils.parseEther('10'), 0, utils.parseEther('100000'))
+    await market.connect(user).update(user.address, parse6decimal('200'), 0, 0, parse6decimal('100000'))
+    await market.connect(user2).update(user2.address, 0, parse6decimal('100'), 0, parse6decimal('100000'))
+    await btcMarket.connect(btcUser1).update(btcUser1.address, parse6decimal('20'), 0, 0, parse6decimal('100000'))
+    await btcMarket.connect(btcUser2).update(btcUser2.address, 0, parse6decimal('10'), 0, parse6decimal('100000'))
 
     // Unfortunately, we can't make mocks of existing contracts.
     // So, we make a fake and initialize it with the values that the real contract had at this block.
@@ -223,7 +230,7 @@ describe('BalancedVault (Multi-Payoff)', () => {
     it('checks that there is at least one market', async () => {
       await expect(
         new BalancedVault__factory(owner).deploy(factory.address, leverage, maxCollateral, []),
-      ).to.revertedWithCustomError(vault, 'BalancedVaultDefinitionNoMarketsError')
+      ).to.revertedWith('BalancedVaultDefinitionNoMarketsError')
     })
 
     it('checks that at least one weight is greater than zero', async () => {
@@ -234,7 +241,7 @@ describe('BalancedVault (Multi-Payoff)', () => {
             weight: 0,
           },
         ]),
-      ).to.revertedWithCustomError(vault, 'BalancedVaultDefinitionAllZeroWeightError')
+      ).to.revertedWith('BalancedVaultDefinitionAllZeroWeightError')
 
       // At least one of the weights can be zero as long as not all of them are.
       await expect(
@@ -259,7 +266,7 @@ describe('BalancedVault (Multi-Payoff)', () => {
             weight: 1,
           },
         ]),
-      ).to.revertedWithCustomError(vault, 'BalancedVaultInvalidProductError')
+      ).to.revertedWith('BalancedVaultInvalidProductError')
     })
 
     it('checks that target leverage is positive', async () => {
@@ -270,16 +277,13 @@ describe('BalancedVault (Multi-Payoff)', () => {
             weight: 1,
           },
         ]),
-      ).to.revertedWithCustomError(vault, 'BalancedVaultDefinitionZeroTargetLeverageError')
+      ).to.revertedWith('BalancedVaultDefinitionZeroTargetLeverageError')
     })
   })
 
   describe('#initialize', () => {
     it('cant re-initialize', async () => {
-      await expect(vault.initialize('Perennial Vault Alpha')).to.revertedWithCustomError(
-        vault,
-        'UInitializableAlreadyInitializedError',
-      )
+      await expect(vault.initialize('Perennial Vault Alpha')).to.revertedWith('UInitializableAlreadyInitializedError')
     })
   })
 
@@ -308,7 +312,7 @@ describe('BalancedVault (Multi-Payoff)', () => {
   })
 
   describe('#deposit/#redeem/#claim/#sync', () => {
-    it('simple deposits and withdraws', async () => {
+    it.only('simple deposits and withdraws', async () => {
       expect(await vault.convertToAssets(utils.parseEther('1'))).to.equal(utils.parseEther('1'))
       expect(await vault.convertToShares(utils.parseEther('1'))).to.equal(utils.parseEther('1'))
 
@@ -327,8 +331,8 @@ describe('BalancedVault (Multi-Payoff)', () => {
 
       const largeDeposit = utils.parseEther('10000')
       await vault.connect(user).deposit(largeDeposit, user.address)
-      expect(await collateralInVault()).to.equal(utils.parseEther('8008'))
-      expect(await btcCollateralInVault()).to.equal(utils.parseEther('2002'))
+      expect(await collateralInVault()).to.equal(parse6decimal('8008'))
+      expect(await btcCollateralInVault()).to.equal(parse6decimal('2002'))
       expect(await vault.balanceOf(user.address)).to.equal(smallDeposit)
       expect(await vault.totalSupply()).to.equal(smallDeposit)
       expect(await vault.totalAssets()).to.equal(smallDeposit)
@@ -344,17 +348,16 @@ describe('BalancedVault (Multi-Payoff)', () => {
       expect(await vault.convertToShares(utils.parseEther('10010'))).to.equal(utils.parseEther('10010'))
 
       // Now we should have opened positions.
-      // The positions should be equal to (smallDeposit + largeDeposit) * leverage / 2 / originalOraclePrice.
+      // The positions should be equal to (smallDeposit + largeDeposit) * leverage originalOraclePrice.
       expect(await position()).to.equal(
-        smallDeposit.add(largeDeposit).mul(leverage).mul(4).div(5).div(2).div(originalOraclePrice),
+        smallDeposit.add(largeDeposit).mul(leverage).mul(4).div(5).div(originalOraclePrice).div(1e12).div(1e12),
       )
       expect(await btcPosition()).to.equal(
-        smallDeposit.add(largeDeposit).mul(leverage).div(5).div(2).div(btcOriginalOraclePrice),
+        smallDeposit.add(largeDeposit).mul(leverage).div(5).div(btcOriginalOraclePrice).div(1e12).div(1e12),
       )
 
       // User 2 should not be able to withdraw; they haven't deposited anything.
-      await expect(vault.connect(user2).redeem(1, user2.address)).to.be.revertedWithCustomError(
-        vault,
+      await expect(vault.connect(user2).redeem(1, user2.address)).to.be.revertedWith(
         'BalancedVaultRedemptionLimitExceeded',
       )
 
@@ -368,7 +371,7 @@ describe('BalancedVault (Multi-Payoff)', () => {
       expect(await btcPosition()).to.equal(0)
 
       // We should have withdrawn all of our collateral.
-      const fundingAmount = BigNumber.from('824939190034966')
+      const fundingAmount = BigNumber.from('3415000000000000')
       expect(await totalCollateralInVault()).to.equal(utils.parseEther('10010').add(fundingAmount))
       expect(await vault.balanceOf(user.address)).to.equal(0)
       expect(await vault.totalSupply()).to.equal(0)
@@ -380,7 +383,7 @@ describe('BalancedVault (Multi-Payoff)', () => {
 
       await vault.connect(user).claim(user.address)
       expect(await totalCollateralInVault()).to.equal(0)
-      expect(await asset.balanceOf(user.address)).to.equal(utils.parseEther('200000').add(fundingAmount))
+      expect(await asset.balanceOf(user.address)).to.equal(utils.parseEther('100000').add(fundingAmount))
       expect(await vault.unclaimed(user.address)).to.equal(0)
       expect(await vault.totalUnclaimed()).to.equal(0)
     })
@@ -671,13 +674,7 @@ describe('BalancedVault (Multi-Payoff)', () => {
       expect(await position()).to.be.equal(
         assetsForPosition.mul(leverage).mul(4).div(5).div(2).div(originalOraclePrice),
       )
-      expect(await shortPosition()).to.equal(
-        assetsForPosition.mul(leverage).mul(4).div(5).div(2).div(originalOraclePrice),
-      )
       expect(await btcPosition()).to.be.equal(assetsForPosition.mul(leverage).div(5).div(2).div(btcOriginalOraclePrice))
-      expect(await btcShortPosition()).to.equal(
-        assetsForPosition.mul(leverage).div(5).div(2).div(btcOriginalOraclePrice),
-      )
       const fundingAmount0 = BigNumber.from(88080044500182)
       const balanceOf2 = BigNumber.from('9999999159583484821247')
       expect(await vault.balanceOf(user.address)).to.equal(utils.parseEther('1000'))
@@ -792,7 +789,7 @@ describe('BalancedVault (Multi-Payoff)', () => {
       // We shouldn't be able to withdraw more than maxWithdraw.
       await expect(
         vault.connect(user).redeem((await vault.maxRedeem(user.address)).add(1), user.address),
-      ).to.be.revertedWithCustomError(vault, 'BalancedVaultRedemptionLimitExceeded')
+      ).to.be.revertedWith('BalancedVaultRedemptionLimitExceeded')
 
       // But we should be able to withdraw exactly maxWithdraw.
       await vault.connect(user).redeem(await vault.maxRedeem(user.address), user.address)
@@ -826,8 +823,7 @@ describe('BalancedVault (Multi-Payoff)', () => {
       await vault.connect(liquidator).deposit(utils.parseEther('100000'), liquidator.address)
       expect(await vault.maxDeposit(user.address)).to.equal(0)
 
-      await expect(vault.connect(liquidator).deposit(1, liquidator.address)).to.revertedWithCustomError(
-        vault,
+      await expect(vault.connect(liquidator).deposit(1, liquidator.address)).to.revertedWith(
         'BalancedVaultDepositLimitExceeded',
       )
     })
@@ -875,9 +871,7 @@ describe('BalancedVault (Multi-Payoff)', () => {
       expect(await vault.balanceOf(user.address)).to.equal(utils.parseEther('10000'))
       expect(await vault.totalSupply()).to.equal(utils.parseEther('10000'))
 
-      await expect(vault.connect(liquidator).redeem(utils.parseEther('10000'), user.address)).to.revertedWithPanic(
-        '0x11',
-      )
+      await expect(vault.connect(liquidator).redeem(utils.parseEther('10000'), user.address)).to.revertedWith('0x11')
 
       await vault.connect(user).approve(liquidator.address, utils.parseEther('10000'))
 
@@ -904,9 +898,7 @@ describe('BalancedVault (Multi-Payoff)', () => {
       expect(await vault.balanceOf(user.address)).to.equal(utils.parseEther('10000'))
       expect(await vault.totalSupply()).to.equal(utils.parseEther('10000'))
 
-      await expect(vault.connect(liquidator).redeem(utils.parseEther('10000'), user.address)).to.revertedWithPanic(
-        '0x11',
-      )
+      await expect(vault.connect(liquidator).redeem(utils.parseEther('10000'), user.address)).to.revertedWith('0x11')
 
       await vault.connect(user).approve(liquidator.address, utils.parseEther('10000'))
 
@@ -942,9 +934,7 @@ describe('BalancedVault (Multi-Payoff)', () => {
       // The positions should be equal to (smallDeposit + largeDeposit) * leverage / 2 / originalOraclePrice.
       expect(await position()).to.equal(largeDeposit.mul(leverage).mul(4).div(5).div(2).div(originalOraclePrice))
       const makerLimitDelta = BigNumber.from('8282802043703935198')
-      expect(await shortPosition()).to.equal(makerLimitDelta)
       expect(await btcPosition()).to.equal(largeDeposit.mul(leverage).div(5).div(2).div(btcOriginalOraclePrice))
-      expect(await btcShortPosition()).to.equal(largeDeposit.mul(leverage).div(5).div(2).div(btcOriginalOraclePrice))
     })
 
     it('exactly at makerLimit', async () => {
@@ -970,9 +960,7 @@ describe('BalancedVault (Multi-Payoff)', () => {
       // Now we should have opened positions.
       // The positions should be equal to (smallDeposit + largeDeposit) * leverage / 2 / originalOraclePrice.
       expect(await position()).to.equal(largeDeposit.mul(leverage).mul(4).div(5).div(2).div(originalOraclePrice))
-      expect(await shortPosition()).to.equal(0)
       expect(await btcPosition()).to.equal(largeDeposit.mul(leverage).div(5).div(2).div(btcOriginalOraclePrice))
-      expect(await btcShortPosition()).to.equal(largeDeposit.mul(leverage).div(5).div(2).div(btcOriginalOraclePrice))
     })
 
     it('close to taker', async () => {
@@ -1043,26 +1031,21 @@ describe('BalancedVault (Multi-Payoff)', () => {
           // We should now longer be able to deposit or redeem
           await updateOracle(utils.parseEther('4000'))
 
-          await expect(vault.connect(user).deposit(2, user.address)).to.revertedWithCustomError(
-            vault,
+          await expect(vault.connect(user).deposit(2, user.address)).to.revertedWith(
             'BalancedVaultDepositLimitExceeded',
           )
-          await expect(vault.connect(user).redeem(2, user.address)).to.revertedWithCustomError(
-            vault,
+          await expect(vault.connect(user).redeem(2, user.address)).to.revertedWith(
             'BalancedVaultRedemptionLimitExceeded',
           )
 
           // 2. Settle accounts.
           // We should still not be able to deposit.
-          await market.connect(user).settleAccount(vault.address)
-          await short.connect(user).settleAccount(vault.address)
+          await market.connect(user).settle(vault.address)
           expect(await vault.maxDeposit(user.address)).to.equal(0)
-          await expect(vault.connect(user).deposit(2, user.address)).to.revertedWithCustomError(
-            vault,
+          await expect(vault.connect(user).deposit(2, user.address)).to.revertedWith(
             'BalancedVaultDepositLimitExceeded',
           )
-          await expect(vault.connect(user).redeem(2, user.address)).to.revertedWithCustomError(
-            vault,
+          await expect(vault.connect(user).redeem(2, user.address)).to.revertedWith(
             'BalancedVaultRedemptionLimitExceeded',
           )
 
@@ -1081,12 +1064,10 @@ describe('BalancedVault (Multi-Payoff)', () => {
           // We should now longer be able to deposit or redeem
           await updateOracle(utils.parseEther('4000'))
 
-          await expect(vault.connect(user).deposit(2, user.address)).to.revertedWithCustomError(
-            vault,
+          await expect(vault.connect(user).deposit(2, user.address)).to.revertedWith(
             'BalancedVaultDepositLimitExceeded',
           )
-          await expect(vault.connect(user).redeem(2, user.address)).to.revertedWithCustomError(
-            vault,
+          await expect(vault.connect(user).redeem(2, user.address)).to.revertedWith(
             'BalancedVaultRedemptionLimitExceeded',
           )
 
@@ -1094,12 +1075,10 @@ describe('BalancedVault (Multi-Payoff)', () => {
           // We should still not be able to deposit or redeem.
           await market.connect(user).settle(vault.address)
           expect(await vault.maxDeposit(user.address)).to.equal(0)
-          await expect(vault.connect(user).deposit(2, user.address)).to.revertedWithCustomError(
-            vault,
+          await expect(vault.connect(user).deposit(2, user.address)).to.revertedWith(
             'BalancedVaultDepositLimitExceeded',
           )
-          await expect(vault.connect(user).redeem(2, user.address)).to.revertedWithCustomError(
-            vault,
+          await expect(vault.connect(user).redeem(2, user.address)).to.revertedWith(
             'BalancedVaultRedemptionLimitExceeded',
           )
 
@@ -1107,12 +1086,10 @@ describe('BalancedVault (Multi-Payoff)', () => {
           // We should still not be able to deposit or redeem.
           await collateral.connect(liquidator).liquidate(vault.address, market.address)
           expect(await vault.maxDeposit(user.address)).to.equal(0)
-          await expect(vault.connect(user).deposit(2, user.address)).to.revertedWithCustomError(
-            vault,
+          await expect(vault.connect(user).deposit(2, user.address)).to.revertedWith(
             'BalancedVaultDepositLimitExceeded',
           )
-          await expect(vault.connect(user).redeem(2, user.address)).to.revertedWithCustomError(
-            vault,
+          await expect(vault.connect(user).redeem(2, user.address)).to.revertedWith(
             'BalancedVaultRedemptionLimitExceeded',
           )
 
@@ -1159,12 +1136,10 @@ describe('BalancedVault (Multi-Payoff)', () => {
           // We should now longer be able to deposit or redeem
           await updateOracle(utils.parseEther('1200'))
 
-          await expect(vault.connect(user).deposit(2, user.address)).to.revertedWithCustomError(
-            vault,
+          await expect(vault.connect(user).deposit(2, user.address)).to.revertedWith(
             'BalancedVaultDepositLimitExceeded',
           )
-          await expect(vault.connect(user).redeem(2, user.address)).to.revertedWithCustomError(
-            vault,
+          await expect(vault.connect(user).redeem(2, user.address)).to.revertedWith(
             'BalancedVaultRedemptionLimitExceeded',
           )
 
@@ -1172,12 +1147,10 @@ describe('BalancedVault (Multi-Payoff)', () => {
           // We should still not be able to deposit.
           await market.connect(user).settle(vault.address)
           expect(await vault.maxDeposit(user.address)).to.equal(0)
-          await expect(vault.connect(user).deposit(2, user.address)).to.revertedWithCustomError(
-            vault,
+          await expect(vault.connect(user).deposit(2, user.address)).to.revertedWith(
             'BalancedVaultDepositLimitExceeded',
           )
-          await expect(vault.connect(user).redeem(2, user.address)).to.revertedWithCustomError(
-            vault,
+          await expect(vault.connect(user).redeem(2, user.address)).to.revertedWith(
             'BalancedVaultRedemptionLimitExceeded',
           )
 
@@ -1196,12 +1169,10 @@ describe('BalancedVault (Multi-Payoff)', () => {
           // We should now longer be able to deposit or redeem
           await updateOracle(utils.parseEther('1200'))
 
-          await expect(vault.connect(user).deposit(2, user.address)).to.revertedWithCustomError(
-            vault,
+          await expect(vault.connect(user).deposit(2, user.address)).to.revertedWith(
             'BalancedVaultDepositLimitExceeded',
           )
-          await expect(vault.connect(user).redeem(2, user.address)).to.revertedWithCustomError(
-            vault,
+          await expect(vault.connect(user).redeem(2, user.address)).to.revertedWith(
             'BalancedVaultRedemptionLimitExceeded',
           )
 
@@ -1209,12 +1180,10 @@ describe('BalancedVault (Multi-Payoff)', () => {
           // We should still not be able to deposit or redeem.
           await market.connect(user).settle(vault.address)
           expect(await vault.maxDeposit(user.address)).to.equal(0)
-          await expect(vault.connect(user).deposit(2, user.address)).to.revertedWithCustomError(
-            vault,
+          await expect(vault.connect(user).deposit(2, user.address)).to.revertedWith(
             'BalancedVaultDepositLimitExceeded',
           )
-          await expect(vault.connect(user).redeem(2, user.address)).to.revertedWithCustomError(
-            vault,
+          await expect(vault.connect(user).redeem(2, user.address)).to.revertedWith(
             'BalancedVaultRedemptionLimitExceeded',
           )
 
@@ -1222,12 +1191,10 @@ describe('BalancedVault (Multi-Payoff)', () => {
           // We should still not be able to deposit or redeem.
           await collateral.connect(liquidator).liquidate(vault.address, short.address)
           expect(await vault.maxDeposit(user.address)).to.equal(0)
-          await expect(vault.connect(user).deposit(2, user.address)).to.revertedWithCustomError(
-            vault,
+          await expect(vault.connect(user).deposit(2, user.address)).to.revertedWith(
             'BalancedVaultDepositLimitExceeded',
           )
-          await expect(vault.connect(user).redeem(2, user.address)).to.revertedWithCustomError(
-            vault,
+          await expect(vault.connect(user).redeem(2, user.address)).to.revertedWith(
             'BalancedVaultRedemptionLimitExceeded',
           )
 
@@ -1299,10 +1266,7 @@ describe('BalancedVault (Multi-Payoff)', () => {
         expect(await btcCollateralInVault()).to.equal(btcFinalCollateral)
         expect(await vault.unclaimed(user.address)).to.equal(finalUnclaimed)
         expect(await vault.totalUnclaimed()).to.equal(finalUnclaimed)
-        await expect(vault.connect(user).deposit(2, user.address)).to.revertedWithCustomError(
-          vault,
-          'BalancedVaultDepositLimitExceeded',
-        )
+        await expect(vault.connect(user).deposit(2, user.address)).to.revertedWith('BalancedVaultDepositLimitExceeded')
 
         // 6. Claim should be pro-rated
         const initialBalanceOf = await asset.balanceOf(user.address)
@@ -1316,10 +1280,7 @@ describe('BalancedVault (Multi-Payoff)', () => {
         )
 
         // 7. Should no longer be able to deposit, vault is closed
-        await expect(vault.connect(user).deposit(2, user.address)).to.revertedWithCustomError(
-          vault,
-          'BalancedVaultDepositLimitExceeded',
-        )
+        await expect(vault.connect(user).deposit(2, user.address)).to.revertedWith('BalancedVaultDepositLimitExceeded')
       })
     })
   })

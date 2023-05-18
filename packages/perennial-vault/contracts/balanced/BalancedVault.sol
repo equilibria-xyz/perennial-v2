@@ -5,6 +5,7 @@ import "../interfaces/IBalancedVault.sol";
 import "@equilibria/root/control/unstructured/UInitializable.sol";
 import "@openzeppelin/contracts/utils/math/Math.sol";
 import "./BalancedVaultDefinition.sol";
+import "hardhat/console.sol";
 
 /**
  * @title BalancedVault
@@ -112,17 +113,18 @@ contract BalancedVault is IBalancedVault, BalancedVaultDefinition, UInitializabl
         __unused0 = ""; // deprecate `symbol`
 
         // set or reset allowance compliant with both an initial deployment or an upgrade
-        for (uint256 marketId = 1; marketId < totalMarkets; marketId++) {
+        for (uint256 marketId; marketId < totalMarkets; marketId++) {
             asset.approve(address(markets(marketId).market), UFixed18Lib.ZERO);
             asset.approve(address(markets(marketId).market));
         }
 
         // Stamp new market's data for first epoch
         (EpochContext memory context, )  = _settle(address(0));
-        for (uint256 marketId = 1; marketId < totalMarkets; marketId++) {
-            if (_marketAccounts[marketId].versionOf[context.epoch] == 0) {
+
+
+        for (uint256 marketId; marketId < totalMarkets; marketId++) {
+            if (_marketAccounts[marketId].versionOf[context.epoch] == 0)
                 _marketAccounts[marketId].versionOf[context.epoch] = markets(marketId).market.position().version;
-            }
         }
     }
 
@@ -371,6 +373,7 @@ contract BalancedVault is IBalancedVault, BalancedVaultDefinition, UInitializabl
 
         if (context.epoch > _latestEpoch) {
             _delayedMint(_totalSupplyAtEpoch(context).sub(_totalSupply.add(_pendingRedemption)));
+            console.log("_totalUnclaimedAtEpoch(context)", UFixed18.unwrap(_totalUnclaimedAtEpoch(context)));
             _totalUnclaimed = _totalUnclaimedAtEpoch(context);
             _deposit = UFixed18Lib.ZERO;
             _redemption = UFixed18Lib.ZERO;
@@ -433,6 +436,9 @@ contract BalancedVault is IBalancedVault, BalancedVaultDefinition, UInitializabl
             .add(_deposit);
         if (availableCollateral.muldiv(minWeight, totalWeight).lt(_toU18(factory.parameter().minCollateral))) availableCollateral = UFixed18Lib.ZERO;
 
+        console.log("collateral", UFixed18.unwrap(collateral));
+        console.log("availableCollateral", UFixed18.unwrap(availableCollateral));
+
         // Remove collateral from markets above target
         for (uint256 marketId; marketId < totalMarkets; marketId++) {
             UFixed18 targetCollateral = collateral.muldiv(markets(marketId).weight, totalWeight);
@@ -466,7 +472,7 @@ contract BalancedVault is IBalancedVault, BalancedVaultDefinition, UInitializabl
             UFixed18 currentPrice = _toU18(latestOracleVersion.price.abs());
             UFixed18 targetPosition = marketCollateral.mul(targetLeverage).div(currentPrice);
 
-            if (_toU18(markets(marketId).market.locals(address(this)).collateral.max(Fixed6Lib.ZERO).abs()).lt(targetCollateral))
+            if (_toU18(markets(marketId).market.locals(address(this)).collateral.max(Fixed6Lib.ZERO).abs()).lte(targetCollateral))
                 _update(markets(marketId).market, _toU6(targetPosition), _toU6(targetCollateral));
         }
     }
@@ -493,7 +499,10 @@ contract BalancedVault is IBalancedVault, BalancedVaultDefinition, UInitializabl
             targetPosition = accountPosition.add(targetPosition.sub(accountPosition).min(makerAvailable));
         }
 
-        market.update(address(this), UFixed6Lib.ZERO, UFixed6Lib.ZERO, targetPosition, Fixed6Lib.from(targetCollateral));
+        console.log("targetPosition", UFixed6.unwrap(targetPosition));
+        console.log("targetCollateral", UFixed6.unwrap(targetCollateral));
+        market.update(address(this), targetPosition, UFixed6Lib.ZERO, UFixed6Lib.ZERO, Fixed6Lib.from(targetCollateral));
+        console.log("updated");
     }
 
     /**
@@ -587,7 +596,7 @@ contract BalancedVault is IBalancedVault, BalancedVaultDefinition, UInitializabl
     function _unhealthy(MarketDefinition memory marketDefinition) internal view returns (bool) {
         //TODO: figure out how to compute "can liquidate"
         return /* collateral.liquidatable(address(this), marketDefinition.long) || */ (
-                marketDefinition.market.locals(address(this)).liquidation < marketDefinition.market.position().version
+                marketDefinition.market.locals(address(this)).liquidation >= marketDefinition.market.position().version
             );
     }
 

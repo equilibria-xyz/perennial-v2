@@ -69,6 +69,7 @@ contract BalancedVaultDefinition is IBalancedVaultDefinition {
         MarketDefinition[] memory marketDefinitions_
     ) {
         if (targetLeverage_.eq(UFixed18Lib.ZERO)) revert BalancedVaultDefinitionZeroTargetLeverageError();
+        if (marketDefinitions_.length == 0) revert BalancedVaultDefinitionNoMarketsError();
 
         factory = factory_;
         asset = marketDefinitions_[0].market.token(); // TODO: this doesn't seem ideal
