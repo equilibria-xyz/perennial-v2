@@ -19,19 +19,22 @@ contract PythOracle is IOracleProvider {
     /// @dev A Pyth update must come at most this long after a version to be valid
     uint256 constant private MAX_VALID_TIME_AFTER_VERSION = 15 seconds;
 
+    /// @dev After this amount of time has passed for a version without being committed, the version can be invalidated.
+    uint256 constant private GRACE_PERIOD = 1 minutes;
+
     /// @dev Pyth contract
     AbstractPyth public immutable pyth;
 
     /// @dev Pyth price feed id
     bytes32 public immutable priceId;
 
+    /// @dev List of all requested oracle versions
+    uint256[] public versionList;
+
     /// @dev Mapping from oracle version to oracle version data
     mapping (uint256 => OracleVersion) private _versions;
 
-    /// @dev List of all requested oracle versions
-    uint256[] private _versionList;
-
-    /// @dev Index in `_versionList` of the next version a keeper should commit
+    /// @dev Index in `versionList` of the next version a keeper should commit
     uint256 private _nextVersionIndexToCommit;
 
     error PythOracleInvalidPriceId(bytes32 priceId);
@@ -50,8 +53,8 @@ contract PythOracle is IOracleProvider {
      * @return currentVersion The current oracle version collecting new orders
      */
     function sync() external returns (OracleVersion memory latestVersion, uint256 currentVersion) {
-        if (_versionList.length == 0 || _versionList[_versionList.length - 1] != block.timestamp) {
-            _versionList.push(block.timestamp);
+        if (versionList.length == 0 || versionList[versionList.length - 1] != block.timestamp) {
+            versionList.push(block.timestamp);
         }
 
         // TODO: Figure out what to do in the core protocol if no version has ever been committed.
@@ -68,7 +71,7 @@ contract PythOracle is IOracleProvider {
             OracleVersion memory empty;
             return empty;
         }
-        return _versions[_versionList[_nextVersionIndexToCommit - 1]];
+        return _versions[versionList[_nextVersionIndexToCommit - 1]];
     }
 
     /**
@@ -96,9 +99,9 @@ contract PythOracle is IOracleProvider {
         // This check isn't necessary since the caller would not be able to produce a valid updateData
         // with an update time corresponding to a null version, but reverting with a specific error is
         // clearer.
-        if (_nextVersionIndexToCommit >= _versionList.length) revert PythOracleNoNewVersionToCommit();
+        if (_nextVersionIndexToCommit >= versionList.length) revert PythOracleNoNewVersionToCommit();
 
-        uint256 versionToCommit = _versionList[_nextVersionIndexToCommit];
+        uint256 versionToCommit = versionList[_nextVersionIndexToCommit];
 
         bytes[] memory updateDataList = new bytes[](1);
         updateDataList[0] = updateData;
