@@ -39,6 +39,7 @@ contract PythOracle is IOracleProvider {
 
     error PythOracleInvalidPriceId(bytes32 priceId);
     error PythOracleNoNewVersionToCommit();
+    error PythOracleInvalidVersionIndex();
 
     constructor(AbstractPyth pyth_, bytes32 priceId_) {
         if (!pyth_.priceFeedExists(priceId_)) revert PythOracleInvalidPriceId(priceId_);
@@ -93,13 +94,16 @@ contract PythOracle is IOracleProvider {
 
     /**
      * @notice Commits the price represented by `updateData` to the next version that needs to be committed
+     * @dev Will revert if there is an earlier versionIndex that could be committed with `updateData`
+     * @param versionIndex The index of the version to commit
      * @param updateData The update data to commit
      */
-    function commit(bytes calldata updateData) external payable {
+    function commit(uint256 versionIndex, bytes calldata updateData) external payable {
         // This check isn't necessary since the caller would not be able to produce a valid updateData
         // with an update time corresponding to a null version, but reverting with a specific error is
         // clearer.
         if (_nextVersionIndexToCommit >= versionList.length) revert PythOracleNoNewVersionToCommit();
+        if (versionIndex < _nextVersionIndexToCommit) revert PythOracleInvalidVersionIndex();
 
         uint256 versionToCommit = versionList[_nextVersionIndexToCommit];
 
@@ -114,6 +118,13 @@ contract PythOracle is IOracleProvider {
             SafeCast.toUint64(versionToCommit + MAX_VALID_TIME_AFTER_VERSION)
         )[0].price;
 
+        // Ensure that the keeper is not committing the earliest possible version
+        if (versionIndex > 0) {
+            uint256 previousVersion = versionList[versionIndex - 1];
+            if (block.timestamp <= previousVersion + GRACE_PERIOD) revert PythOracleInvalidVersionIndex();
+            if (pythPrice.publishTime >= previousVersion + MIN_VALID_TIME_AFTER_VERSION && pythPrice.publishTime <= previousVersion + MAX_VALID_TIME_AFTER_VERSION) revert PythOracleInvalidVersionIndex();
+        }
+
         Fixed6 multiplicand = Fixed6Lib.from(pythPrice.price);
         Fixed6 multiplier = Fixed6Lib.from(SafeCast.toInt256(10 ** SafeCast.toUint256(pythPrice.expo > 0 ? pythPrice.expo: -pythPrice.expo)));
 
@@ -124,6 +135,6 @@ contract PythOracle is IOracleProvider {
             valid: true
         });
         _versions[versionToCommit] = oracleVersion;
-        ++_nextVersionIndexToCommit;
+        _nextVersionIndexToCommit = _nextVersionIndexToCommit + 1;
     }
 }
