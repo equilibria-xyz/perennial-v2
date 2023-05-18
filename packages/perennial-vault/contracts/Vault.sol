@@ -373,19 +373,19 @@ contract Vault is IVault, VaultDefinition, UInitializable {
 
         if (context.epoch > _latestEpoch) {
             _delayedMint(_totalSupplyAtEpoch(context).sub(_totalSupply.add(_pendingRedemption)));
-            console.log("_totalUnclaimedAtEpoch(context)", UFixed18.unwrap(_totalUnclaimedAtEpoch(context)));
             _totalUnclaimed = _totalUnclaimedAtEpoch(context);
             _deposit = UFixed18Lib.ZERO;
             _redemption = UFixed18Lib.ZERO;
             _latestEpoch = context.epoch;
 
             for (uint256 marketId; marketId < totalMarkets; marketId++) {
+                IMarket market = markets(marketId).market;
                 MarketEpoch storage marketEpoch = _marketAccounts[marketId].epochs[context.epoch];
 
-                marketEpoch.position = markets(marketId).market.positions(address(this)).maker;
-                marketEpoch.assets = _toS18(markets(marketId).market.locals(address(this)).collateral);
+                marketEpoch.position = market.positions(address(this)).maker;
+                marketEpoch.assets = _toS18(market.locals(address(this)).collateral);
 
-                _marketAccounts[marketId].versionOf[context.epoch] = markets(marketId).market.position().version;
+                _marketAccounts[marketId].versionOf[context.epoch] = market.position().version;
             }
             _marketAccounts[0].epochs[context.epoch].totalShares = _totalSupplyAtEpoch(context);
             _marketAccounts[0].epochs[context.epoch].totalAssets = _totalAssetsAtEpoch(context);
@@ -424,85 +424,103 @@ contract Vault is IVault, VaultDefinition, UInitializable {
      * @param claimAmount The amount of assets that will be withdrawn from the vault at the end of the operation
      */
     function _rebalance(EpochContext memory context, UFixed18 claimAmount) private {
-        // Compute target collateral
-        UFixed18 collateral = _assets()
-            .sub(claimAmount);
-        if (collateral.muldiv(minWeight, totalWeight).lt(_toU18(factory.parameter().minCollateral))) collateral = UFixed18Lib.ZERO;
+        UFixed18 assetsInVault = _assets().sub(claimAmount);
+        UFixed18 minCollateral = _toU18(factory.parameter().minCollateral);
 
-        // Compute target collateral
-        UFixed18 availableCollateral = _totalAssetsAtEpoch(context)
-            .sub(claimAmount)
+        // Compute available collateral
+        UFixed18 collateral = assetsInVault;
+        if (collateral.muldiv(minWeight, totalWeight).lt(minCollateral)) collateral = UFixed18Lib.ZERO;
+
+        // Compute available capital
+        UFixed18 capital = assetsInVault
+            .sub(_totalUnclaimedAtEpoch(context).add(_deposit).add(_pendingDeposit))
             .mul(_totalSupplyAtEpoch(context).unsafeDiv(_totalSupplyAtEpoch(context).add(_redemption)))
             .add(_deposit);
-        if (availableCollateral.muldiv(minWeight, totalWeight).lt(_toU18(factory.parameter().minCollateral))) availableCollateral = UFixed18Lib.ZERO;
+        if (capital.muldiv(minWeight, totalWeight).lt(minCollateral)) capital = UFixed18Lib.ZERO;
 
-        console.log("collateral", UFixed18.unwrap(collateral));
-        console.log("availableCollateral", UFixed18.unwrap(availableCollateral));
+        Target[] memory targets = _computeTargets(context, collateral, capital);
 
         // Remove collateral from markets above target
         for (uint256 marketId; marketId < totalMarkets; marketId++) {
-            UFixed18 targetCollateral = collateral.muldiv(markets(marketId).weight, totalWeight);
-            UFixed18 marketCollateral = availableCollateral.muldiv(markets(marketId).weight, totalWeight);
-            if (markets(marketId).market.parameter().closed) marketCollateral = UFixed18Lib.ZERO;
-
-            uint256 version = _versionAtEpoch(marketId, context.epoch);
-            Payoff memory payoff = markets(marketId).market.parameter().payoff;
-            IOracleProvider oracle = markets(marketId).market.parameter().oracle;
-            OracleVersion memory latestOracleVersion = oracle.at(version);
-            payoff.transform(latestOracleVersion);
-            UFixed18 currentPrice = _toU18(latestOracleVersion.price.abs());
-
-            UFixed18 targetPosition = marketCollateral.mul(targetLeverage).div(currentPrice);
-
-            if (_toU18(markets(marketId).market.locals(address(this)).collateral.max(Fixed6Lib.ZERO).abs()).gt(targetCollateral))
-                _update(markets(marketId).market, _toU6(targetPosition), _toU6(targetCollateral));
+            if (targets[marketId].currentCollateral.gt(targets[marketId].targetCollateral))
+                _update(markets(marketId).market, targets[marketId]);
         }
 
         // Deposit collateral to markets below target
         for (uint256 marketId; marketId < totalMarkets; marketId++) {
-            UFixed18 targetCollateral = collateral.muldiv(markets(marketId).weight, totalWeight);
-            UFixed18 marketCollateral = availableCollateral.muldiv(markets(marketId).weight, totalWeight);
-            if (markets(marketId).market.parameter().closed) marketCollateral = UFixed18Lib.ZERO;
+            if (targets[marketId].currentCollateral.lte(targets[marketId].targetCollateral))
+                _update(markets(marketId).market, targets[marketId]);
+        }
+    }
+
+    struct Target {
+        UFixed6 currentCollateral;
+        UFixed6 currentPosition;
+        UFixed6 targetCollateral;
+        UFixed6 targetPosition;
+    }
+
+    function _computeTargets(
+        EpochContext memory context,
+        UFixed18 collateral,
+        UFixed18 capital
+    ) private view returns (Target[] memory targets) {
+        targets = new Target[](totalMarkets);
+
+        for (uint256 marketId; marketId < totalMarkets; marketId++) {
+            MarketDefinition memory marketDefinition = markets(marketId);
+            MarketParameter memory marketParameter = marketDefinition.market.parameter();
+            Local memory local = marketDefinition.market.locals(address(this));
+
+            targets[marketId].currentCollateral = local.collateral.max(Fixed6Lib.ZERO).abs();
+            targets[marketId].currentPosition = marketDefinition.market.pendingPositions(address(this), local.currentId).maker;
+
+            UFixed18 marketCapital = capital.muldiv(marketDefinition.weight, totalWeight);
+            if (marketParameter.closed) marketCapital = UFixed18Lib.ZERO;
 
             uint256 version = _versionAtEpoch(marketId, context.epoch);
-            Payoff memory payoff = markets(marketId).market.parameter().payoff;
-            IOracleProvider oracle = markets(marketId).market.parameter().oracle;
-            OracleVersion memory latestOracleVersion = oracle.at(version);
-            payoff.transform(latestOracleVersion);
+            OracleVersion memory latestOracleVersion = marketParameter.oracle.at(version);
+            marketParameter.payoff.transform(latestOracleVersion);
             UFixed18 currentPrice = _toU18(latestOracleVersion.price.abs());
-            UFixed18 targetPosition = marketCollateral.mul(targetLeverage).div(currentPrice);
 
-            if (_toU18(markets(marketId).market.locals(address(this)).collateral.max(Fixed6Lib.ZERO).abs()).lte(targetCollateral))
-                _update(markets(marketId).market, _toU6(targetPosition), _toU6(targetCollateral));
+            targets[marketId].targetCollateral = _toU6(collateral.muldiv(marketDefinition.weight, totalWeight));
+            targets[marketId].targetPosition = _toU6(marketCapital.mul(targetLeverage).div(currentPrice));
         }
     }
 
     /**
      * @notice Adjusts the position on `market` to `targetPosition`
      * @param market The market to adjust the vault's position on
-     * @param targetPosition The new position to target
-     * @param targetCollateral The new collateral to target
+     * @param target The new state to target
      */
-    function _update(IMarket market, UFixed6 targetPosition, UFixed6 targetCollateral) private {
-        UFixed6 accountPosition = market.pendingPositions(address(this), market.locals(address(this)).currentId).maker;
-        Position memory currenPosition = market.pendingPosition(market.global().currentId);
+    function _update(IMarket market, Target memory target) private {
+        Position memory currentPosition = market.pendingPosition(market.global().currentId); //TODO: optimization?
 
-        if (targetPosition.lt(accountPosition)) {
+        if (target.targetPosition.lt(target.currentPosition)) {
             // compute headroom until hitting taker amount
-            UFixed6 makerAvailable = currenPosition.maker.gt(currenPosition.net()) ? currenPosition.maker.sub(currenPosition.net()) : UFixed6Lib.ZERO;
-            targetPosition = accountPosition.sub(accountPosition.sub(targetPosition).min(makerAvailable));
+            UFixed6 makerAvailable = currentPosition.maker.gt(currentPosition.net()) ?
+                currentPosition.maker.sub(currentPosition.net()) :
+                UFixed6Lib.ZERO;
+            target.targetPosition = target.currentPosition
+                .sub(target.currentPosition.sub(target.targetPosition).min(makerAvailable));
         }
-        if (targetPosition.gt(accountPosition)) {
+        if (target.targetPosition.gt(target.currentPosition)) {
             // compute headroom until hitting makerLimit
             UFixed6 makerLimit = market.parameter().makerLimit;
-            UFixed6 makerAvailable = makerLimit.gt(currenPosition.maker) ? makerLimit.sub(currenPosition.maker) : UFixed6Lib.ZERO;
-            targetPosition = accountPosition.add(targetPosition.sub(accountPosition).min(makerAvailable));
+            UFixed6 makerAvailable = makerLimit.gt(currentPosition.maker) ?
+                makerLimit.sub(currentPosition.maker) :
+                UFixed6Lib.ZERO;
+            target.targetPosition = target.currentPosition
+                .add(target.targetPosition.sub(target.currentPosition).min(makerAvailable));
         }
 
-        console.log("targetPosition", UFixed6.unwrap(targetPosition));
-        console.log("targetCollateral", UFixed6.unwrap(targetCollateral));
-        market.update(address(this), targetPosition, UFixed6Lib.ZERO, UFixed6Lib.ZERO, Fixed6Lib.from(targetCollateral));
-        console.log("updated");
+        market.update(
+            address(this),
+            target.targetPosition,
+            UFixed6Lib.ZERO,
+            UFixed6Lib.ZERO,
+            Fixed6Lib.from(target.targetCollateral)
+        );
     }
 
     /**
