@@ -7,15 +7,46 @@ import "./IVaultDefinition.sol";
 
 interface IVault is IVaultDefinition {
 
-    struct EpochContext {
+    struct Context {
         uint256 epoch;
+
         UFixed18 latestAssets;
         UFixed18 latestShares;
+        UFixed18 latestAssetsAccount;
+        UFixed18 latestSharesAccount;
+
+        // markets
+        MarketContext[] markets;
+    }
+
+    struct MarketContext {
+        // parameter
+        bool closed;
+        UFixed6 makerLimit;
+        IOracleProvider oracle;
+        Payoff payoff;
+
+        // latest position
+        uint256 latestVersion;
+
+        // current position
+        Position currentPosition;
+
+        // latest account position
+        uint256 latestVersionAccount;
+        UFixed6 latestPositionAccount;
+
+        // current account position
+        UFixed6 currentPositionAccount;
+
+        // local
+        UFixed18 collateral;
+        uint256 liquidation;
     }
 
     struct MarketEpoch {
         UFixed6 position;
-        Fixed18 assets;
+        UFixed18 assets;
         UFixed18 totalShares;
         UFixed18 totalAssets;
     }
