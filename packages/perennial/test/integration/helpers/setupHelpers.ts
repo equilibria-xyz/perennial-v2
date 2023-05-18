@@ -33,6 +33,7 @@ export const INITIAL_AGGREGATOR_ROUND_ID = 10000
 export const INITIAL_VERSION = 2472 // registry's phase 1 starts at aggregatorRoundID 7528
 export const DSU_HOLDER = '0x0B663CeaCEF01f2f88EB7451C70Aa069f19dB997'
 export const USDC_HOLDER = '0x0A59649758aa4d66E25f08Dd01271e891fe52199'
+const DSU_MINTER = '0xD05aCe63789cCb35B9cE71d01e4d632a0486Da4B'
 
 export interface InstanceVars {
   owner: SignerWithAddress
@@ -48,7 +49,6 @@ export interface InstanceVars {
   payoffProvider: IPayoffProvider
   dsu: IERC20Metadata
   usdc: IERC20Metadata
-  dsuHolder: SignerWithAddress
   usdcHolder: SignerWithAddress
   chainlink: ChainlinkContext
   chainlinkOracle: ChainlinkOracle
@@ -114,11 +114,10 @@ export async function deployProtocol(): Promise<InstanceVars> {
   })
 
   // Set state
-  const dsuHolder = await impersonate.impersonateWithBalance(DSU_HOLDER, utils.parseEther('10'))
-  await dsu.connect(dsuHolder).transfer(user.address, utils.parseEther('20000'))
-  await dsu.connect(dsuHolder).transfer(userB.address, utils.parseEther('20000'))
-  await dsu.connect(dsuHolder).transfer(userC.address, utils.parseEther('20000'))
-  await dsu.connect(dsuHolder).transfer(userD.address, utils.parseEther('20000'))
+  await fundWallet(dsu, user)
+  await fundWallet(dsu, userB)
+  await fundWallet(dsu, userC)
+  await fundWallet(dsu, userD)
   const usdcHolder = await impersonate.impersonateWithBalance(USDC_HOLDER, utils.parseEther('10'))
   await chainlinkOracle.sync()
 
@@ -133,7 +132,6 @@ export async function deployProtocol(): Promise<InstanceVars> {
     userD,
     treasuryA,
     treasuryB,
-    dsuHolder,
     chainlink,
     chainlinkOracle,
     payoffProvider,
@@ -145,6 +143,17 @@ export async function deployProtocol(): Promise<InstanceVars> {
     marketImpl,
     rewardToken,
   }
+}
+
+export async function fundWallet(dsu: IERC20Metadata, wallet: SignerWithAddress) {
+  const dsuMinter = await impersonate.impersonateWithBalance(DSU_MINTER, utils.parseEther('10'))
+  const dsuIface = new utils.Interface(['function mint(uint256)'])
+  await dsuMinter.sendTransaction({
+    to: dsu.address,
+    value: 0,
+    data: dsuIface.encodeFunctionData('mint', [utils.parseEther('200000')]),
+  })
+  await dsu.connect(dsuMinter).transfer(wallet.address, utils.parseEther('200000'))
 }
 
 export async function createMarket(
