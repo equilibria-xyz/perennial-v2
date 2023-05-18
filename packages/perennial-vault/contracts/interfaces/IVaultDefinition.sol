@@ -3,22 +3,22 @@ pragma solidity ^0.8.13;
 
 import "@equilibria/perennial-v2/contracts/interfaces/IFactory.sol";
 
-interface IBalancedVaultDefinition {
+interface IVaultDefinition {
     struct MarketDefinition {
         IMarket market;
         uint256 weight; // TODO: more settings?
     }
 
-    error BalancedVaultDefinitionInvalidMarketIdError();
-    error BalancedVaultDefinitionZeroTargetLeverageError();
-    error BalancedVaultDefinitionNoMarketsError();
-    error BalancedVaultDefinitionLongAndShortAreSameProductError();
-    error BalancedVaultInvalidProductError(IMarket product);
-    error BalancedVaultDefinitionOracleMismatchError();
-    error BalancedVaultDefinitionWrongPayoffDirectionError(IMarket product);
-    error BalancedVaultDefinitionMismatchedPayoffDataError();
-    error BalancedVaultDefinitionAllZeroWeightError();
-    error BalancedVaultDefinitionMarketsMismatchedWithPreviousImplementationError();
+    error VaultDefinitionInvalidMarketIdError();
+    error VaultDefinitionZeroTargetLeverageError();
+    error VaultDefinitionNoMarketsError();
+    error VaultDefinitionLongAndShortAreSameProductError();
+    error VaultInvalidProductError(IMarket product);
+    error VaultDefinitionOracleMismatchError();
+    error VaultDefinitionWrongPayoffDirectionError(IMarket product);
+    error VaultDefinitionMismatchedPayoffDataError();
+    error VaultDefinitionAllZeroWeightError();
+    error VaultDefinitionMarketsMismatchedWithPreviousImplementationError();
 
     function asset() external view returns (Token18);
     function totalMarkets() external view returns (uint256);

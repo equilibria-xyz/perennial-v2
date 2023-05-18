@@ -1,10 +1,10 @@
 //SPDX-License-Identifier: Apache-2.0
 pragma solidity 0.8.19;
 
-import "../interfaces/IBalancedVaultDefinition.sol";
+import "./interfaces/IVaultDefinition.sol";
 
 /**
- * @title BalancedVault
+ * @title Vault
  * @notice ERC4626 vault that manages a 50-50 position between long-short markets of the same payoff on Perennial.
  * @dev Vault deploys and rebalances collateral between the corresponding long and short markets, while attempting to
  *      maintain `targetLeverage` with its open positions at any given time. Deposits are only gated in so much as to cap
@@ -21,7 +21,7 @@ import "../interfaces/IBalancedVaultDefinition.sol";
  *      force settlement and rebalancing. This is most useful to prevent vault liquidation due to PnL changes
  *      causing the vault to be in an unhealthy state (far away from target leverage)
  */
-contract BalancedVaultDefinition is IBalancedVaultDefinition {
+contract VaultDefinition is IVaultDefinition {
     IMarket private constant DEFAULT_MARKET = IMarket(address(0));
     uint256 private constant DEFAULT_WEIGHT = 0;
     uint256 private constant MAX_MARKETS = 2;
@@ -56,7 +56,7 @@ contract BalancedVaultDefinition is IBalancedVaultDefinition {
     uint256 private immutable weight1;
 
     /**
-     * @notice Constructor for BalancedVaultDefinition
+     * @notice Constructor for VaultDefinition
      * @param factory_ The factory contract
      * @param targetLeverage_ The target leverage for the vault
      * @param maxCollateral_ The maximum amount of collateral that can be held in the vault
@@ -68,8 +68,8 @@ contract BalancedVaultDefinition is IBalancedVaultDefinition {
         UFixed18 maxCollateral_,
         MarketDefinition[] memory marketDefinitions_
     ) {
-        if (targetLeverage_.eq(UFixed18Lib.ZERO)) revert BalancedVaultDefinitionZeroTargetLeverageError();
-        if (marketDefinitions_.length == 0) revert BalancedVaultDefinitionNoMarketsError();
+        if (targetLeverage_.eq(UFixed18Lib.ZERO)) revert VaultDefinitionZeroTargetLeverageError();
+        if (marketDefinitions_.length == 0) revert VaultDefinitionNoMarketsError();
 
         factory = factory_;
         asset = marketDefinitions_[0].market.token(); // TODO: this doesn't seem ideal
@@ -105,6 +105,6 @@ contract BalancedVaultDefinition is IBalancedVaultDefinition {
         if (totalMarkets > 0 && marketId == 0) return MarketDefinition(market0, weight0);
         if (totalMarkets > 1 && marketId == 1) return MarketDefinition(market1, weight1);
 
-        revert BalancedVaultDefinitionInvalidMarketIdError();
+        revert VaultDefinitionInvalidMarketIdError();
     }
 }

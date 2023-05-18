@@ -3,9 +3,9 @@ pragma solidity ^0.8.13;
 
 import "@equilibria/perennial-v2/contracts/interfaces/IFactory.sol";
 import "@equilibria/root-v2/contracts/UFixed6.sol";
-import "./IBalancedVaultDefinition.sol";
+import "./IVaultDefinition.sol";
 
-interface IBalancedVault is IBalancedVaultDefinition {
+interface IVault is IVaultDefinition {
 
     struct EpochContext {
         uint256 epoch;
@@ -32,8 +32,8 @@ interface IBalancedVault is IBalancedVaultDefinition {
     event Redemption(address indexed sender, address indexed account, uint256 version, UFixed18 shares);
     event Claim(address indexed sender, address indexed account, UFixed18 assets);
 
-    error BalancedVaultDepositLimitExceeded();
-    error BalancedVaultRedemptionLimitExceeded();
+    error VaultDepositLimitExceeded();
+    error VaultRedemptionLimitExceeded();
 
     function name() external view returns (string memory);
     function initialize(string memory name_) external;

@@ -1,14 +1,14 @@
 //SPDX-License-Identifier: Apache-2.0
 pragma solidity 0.8.19;
 
-import "../interfaces/IBalancedVault.sol";
+import "./interfaces/IVault.sol";
 import "@equilibria/root/control/unstructured/UInitializable.sol";
 import "@openzeppelin/contracts/utils/math/Math.sol";
-import "./BalancedVaultDefinition.sol";
+import "./VaultDefinition.sol";
 import "hardhat/console.sol";
 
 /**
- * @title BalancedVault
+ * @title Vault
  * @notice ERC4626 vault that manages a 50-50 position between long-short markets of the same payoff on Perennial.
  * @dev Vault deploys and rebalances collateral between the corresponding long and short markets, while attempting to
  *      maintain `targetLeverage` with its open positions at any given time. Deposits are only gated in so much as to cap
@@ -26,9 +26,9 @@ import "hardhat/console.sol";
  *      causing the vault to be in an unhealthy state (far away from target leverage)
  *
  *      This implementation is designed to be upgrade-compatible with instances of the previous single-payoff
- *      BalancedVault, here: https://github.com/equilibria-xyz/perennial-mono/blob/d970debe95e41598228e8c4ae52fb816797820fb/packages/perennial-vaults/contracts/BalancedVault.sol.
+ *      Vault, here: https://github.com/equilibria-xyz/perennial-mono/blob/d970debe95e41598228e8c4ae52fb816797820fb/packages/perennial-vaults/contracts/Vault.sol.
  */
-contract BalancedVault is IBalancedVault, BalancedVaultDefinition, UInitializable {
+contract Vault is IVault, VaultDefinition, UInitializable {
     UFixed18 constant private TWO = UFixed18.wrap(2e18);
 
     /// @dev The name of the vault
@@ -89,7 +89,7 @@ contract BalancedVault is IBalancedVault, BalancedVaultDefinition, UInitializabl
     mapping(address => uint256) private _pendingEpochs;
 
     /**
-     * @notice Constructor for BalancedVaultDefinition
+     * @notice Constructor for VaultDefinition
      * @param factory_ The factory contract
      * @param targetLeverage_ The target leverage for the vault
      * @param maxCollateral_ The maximum amount of collateral that can be held in the vault
@@ -101,7 +101,7 @@ contract BalancedVault is IBalancedVault, BalancedVaultDefinition, UInitializabl
         UFixed18 maxCollateral_,
         MarketDefinition[] memory marketDefinitions_
     )
-    BalancedVaultDefinition(factory_, targetLeverage_, maxCollateral_, marketDefinitions_)
+    VaultDefinition(factory_, targetLeverage_, maxCollateral_, marketDefinitions_)
     { }
 
     /**
@@ -153,7 +153,7 @@ contract BalancedVault is IBalancedVault, BalancedVaultDefinition, UInitializabl
      */
     function deposit(UFixed18 assets, address account) external {
         (EpochContext memory context, ) = _settle(account);
-        if (assets.gt(_maxDepositAtEpoch(context))) revert BalancedVaultDepositLimitExceeded();
+        if (assets.gt(_maxDepositAtEpoch(context))) revert VaultDepositLimitExceeded();
 
         if (currentEpochStale()) {
             _pendingDeposit = _pendingDeposit.add(assets);
@@ -183,7 +183,7 @@ contract BalancedVault is IBalancedVault, BalancedVaultDefinition, UInitializabl
         if (msg.sender != account) _consumeAllowance(account, msg.sender, shares);
 
         (EpochContext memory context, EpochContext memory accountContext) = _settle(account);
-        if (shares.gt(_maxRedeemAtEpoch(context, accountContext, account))) revert BalancedVaultRedemptionLimitExceeded();
+        if (shares.gt(_maxRedeemAtEpoch(context, accountContext, account))) revert VaultRedemptionLimitExceeded();
 
         if (currentEpochStale()) {
             _pendingRedemption = _pendingRedemption.add(shares);
