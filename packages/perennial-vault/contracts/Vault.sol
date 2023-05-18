@@ -29,13 +29,8 @@ import "hardhat/console.sol";
  *      Vault, here: https://github.com/equilibria-xyz/perennial-mono/blob/d970debe95e41598228e8c4ae52fb816797820fb/packages/perennial-vaults/contracts/Vault.sol.
  */
 contract Vault is IVault, VaultDefinition, UInitializable {
-    UFixed18 constant private TWO = UFixed18.wrap(2e18);
-
     /// @dev The name of the vault
     string public name;
-
-    /// @dev Deprecated storage variable. Formerly `symbol`
-    string private __unused0;
 
     /// @dev Mapping of allowance across all users
     mapping(address => mapping(address => UFixed18)) public allowance;
@@ -109,8 +104,7 @@ contract Vault is IVault, VaultDefinition, UInitializable {
      * @param name_ ERC20 asset name
      */
     function initialize(string memory name_) external initializer(2) {
-        name = name_;   // allow `name` to be reset
-        __unused0 = ""; // deprecate `symbol`
+        name = name_;
 
         // set or reset allowance compliant with both an initial deployment or an upgrade
         for (uint256 marketId; marketId < totalMarkets; marketId++) {
