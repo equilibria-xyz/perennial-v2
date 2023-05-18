@@ -190,7 +190,8 @@ contract Vault is IVault, VaultDefinition, UInitializable {
             emit Redemption(msg.sender, account, context.epoch, shares);
         }
 
-        _burn(account, shares);
+        _balanceOf[account] = _balanceOf[account].sub(shares);
+        _totalSupply = _totalSupply.sub(shares);
 
         _rebalance(context, UFixed18Lib.ZERO);
     }
@@ -236,8 +237,7 @@ contract Vault is IVault, VaultDefinition, UInitializable {
      * @return Maximum available deposit amount
      */
     function maxDeposit(address) external view returns (UFixed18) {
-        Context memory context = _loadContextForRead(address(0));
-        return _maxDepositAtEpoch(context);
+        return _maxDepositAtEpoch(_loadContextForRead(address(0)));
     }
 
     /**
@@ -247,8 +247,7 @@ contract Vault is IVault, VaultDefinition, UInitializable {
      * @return Maximum available redeemable amount
      */
     function maxRedeem(address account) external view returns (UFixed18) {
-        Context memory context = _loadContextForRead(account);
-        return _maxRedeemAtEpoch(context, account);
+        return _maxRedeemAtEpoch(_loadContextForRead(account), account);
     }
 
     /**
@@ -256,8 +255,7 @@ contract Vault is IVault, VaultDefinition, UInitializable {
      * @return Amount of assets held by the vault
      */
     function totalAssets() external view returns (UFixed18) {
-        Context memory context = _loadContextForRead(address(0));
-        return _totalAssetsAtEpoch(context);
+        return _totalAssetsAtEpoch(_loadContextForRead(address(0)));
     }
 
     /**
@@ -265,8 +263,7 @@ contract Vault is IVault, VaultDefinition, UInitializable {
      * @return Amount of shares currently issued
      */
     function totalSupply() external view returns (UFixed18) {
-        Context memory context = _loadContextForRead(address(0));
-        return _totalSupplyAtEpoch(context);
+        return _totalSupplyAtEpoch(_loadContextForRead(address(0)));
     }
 
     /**
@@ -275,8 +272,7 @@ contract Vault is IVault, VaultDefinition, UInitializable {
      * @return Number of shares held by `account`
      */
     function balanceOf(address account) external view returns (UFixed18) {
-        Context memory context = _loadContextForRead(account);
-        return _balanceOfAtEpoch(context, account);
+        return _balanceOfAtEpoch(_loadContextForRead(account), account);
     }
 
     /**
@@ -284,8 +280,7 @@ contract Vault is IVault, VaultDefinition, UInitializable {
      * @return Total unclaimed assets in vault
      */
     function totalUnclaimed() external view returns (UFixed18) {
-        Context memory context = _loadContextForRead(address(0));
-        return _totalUnclaimedAtEpoch(context);
+        return _totalUnclaimedAtEpoch(_loadContextForRead(address(0)));
     }
 
     /**
@@ -294,8 +289,7 @@ contract Vault is IVault, VaultDefinition, UInitializable {
      * @return `account`'s unclaimed assets
      */
     function unclaimed(address account) external view returns (UFixed18) {
-        Context memory context = _loadContextForRead(account);
-        return _unclaimedAtEpoch(context, account);
+        return _unclaimedAtEpoch(_loadContextForRead(account), account);
     }
 
     /**
@@ -327,28 +321,7 @@ contract Vault is IVault, VaultDefinition, UInitializable {
      * @return The current epoch
      */
     function currentEpoch() external view returns (uint256) {
-        Context memory context = _loadContextForRead(address(0));
-        return _currentEpoch(context);
-    }
-
-    /**
-     * @notice Returns the whether the current epoch is currently complete
-     * @dev An epoch is "complete" when all of the underlying oracles have advanced a version
-     * @return Whether the current epoch is complete
-     */
-    function currentEpochComplete() external view returns (bool) {
-        Context memory context = _loadContextForRead(address(0));
-        return _currentEpochComplete(context);
-    }
-
-    /**
-     * @notice Returns the whether the current epoch is currently stale
-     * @dev An epoch is "stale" when any one of the underlying oracles have advanced a version
-     * @return Whether the current epoch is stale
-     */
-    function currentEpochStale() external view returns (bool) {
-        Context memory context = _loadContextForRead(address(0));
-        return _currentEpochStale(context);
+        return _currentEpoch(_loadContextForRead(address(0)));
     }
 
     /**
@@ -393,7 +366,7 @@ contract Vault is IVault, VaultDefinition, UInitializable {
         context = _loadContextForWrite(account);
 
         if (context.epoch > _latestEpoch) {
-            _delayedMint(_totalSupplyAtEpoch(context).sub(_totalSupply.add(_pendingRedemption)));
+            _totalSupply = _totalSupplyAtEpoch(context);
             _totalUnclaimed = _totalUnclaimedAtEpoch(context);
             _deposit = UFixed18Lib.ZERO;
             _redemption = UFixed18Lib.ZERO;
@@ -420,7 +393,8 @@ contract Vault is IVault, VaultDefinition, UInitializable {
 
         if (account != address(0)) {
             if (context.epoch > _latestEpochs[account]) {
-                _delayedMintAccount(account, _balanceOfAtEpoch(context, account).sub(_balanceOf[account].add(_pendingRedemptions[account])));
+
+                _balanceOf[account] = _balanceOfAtEpoch(context, account);
                 _unclaimed[account] = _unclaimedAtEpoch(context, account);
                 _deposits[account] = UFixed18Lib.ZERO;
                 _redemptions[account] = UFixed18Lib.ZERO;
@@ -490,7 +464,7 @@ contract Vault is IVault, VaultDefinition, UInitializable {
             MarketDefinition memory marketDefinition = markets(marketId);
 
             UFixed18 marketCapital = capital.muldiv(marketDefinition.weight, totalWeight);
-            if (context.markets[marketId].closed) marketCapital = UFixed18Lib.ZERO; // TODO: call()
+            if (context.markets[marketId].closed) marketCapital = UFixed18Lib.ZERO;
 
             uint256 version = _versionAtEpoch(marketId, context.epoch);
             OracleVersion memory latestOracleVersion = context.markets[marketId].oracle.at(version);
@@ -535,35 +509,6 @@ contract Vault is IVault, VaultDefinition, UInitializable {
             UFixed6Lib.ZERO,
             Fixed6Lib.from(_toU6(target.targetCollateral))
         );
-    }
-
-    /**
-     * @notice Burns `amount` shares from `from`, adjusting totalSupply
-     * @param from Address to burn shares from
-     * @param amount Amount of shares to burn
-     */
-    function _burn(address from, UFixed18 amount) private {
-        _balanceOf[from] = _balanceOf[from].sub(amount);
-        _totalSupply = _totalSupply.sub(amount);
-        emit Burn(from, amount);
-    }
-
-    /**
-     * @notice Mints `amount` shares, adjusting totalSupply
-     * @param amount Amount of shares to mint
-     */
-    function _delayedMint(UFixed18 amount) private {
-        _totalSupply = _totalSupply.add(amount);
-    }
-
-    /**
-     * @notice Mints `amount` shares to `to`
-     * @param to Address to mint shares to
-     * @param amount Amount of shares to mint
-     */
-    function _delayedMintAccount(address to, UFixed18 amount) private {
-        _balanceOf[to] = _balanceOf[to].add(amount);
-        emit Mint(to, amount);
     }
 
     /**
