@@ -94,6 +94,8 @@ contract VaultDefinition is IVaultDefinition {
         totalMarkets = totalMarkets_;
         totalWeight = totalWeight_;
         minWeight = minWeight_;
+
+        if (totalWeight_ == 0) revert VaultDefinitionAllZeroWeightError();
     }
 
     /**

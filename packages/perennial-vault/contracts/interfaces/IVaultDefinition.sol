@@ -6,19 +6,13 @@ import "@equilibria/perennial-v2/contracts/interfaces/IFactory.sol";
 interface IVaultDefinition {
     struct MarketDefinition {
         IMarket market;
-        uint256 weight; // TODO: more settings?
+        uint256 weight;
     }
 
-    error VaultDefinitionInvalidMarketIdError();
     error VaultDefinitionZeroTargetLeverageError();
     error VaultDefinitionNoMarketsError();
-    error VaultDefinitionLongAndShortAreSameProductError();
-    error VaultInvalidProductError(IMarket product);
-    error VaultDefinitionOracleMismatchError();
-    error VaultDefinitionWrongPayoffDirectionError(IMarket product);
-    error VaultDefinitionMismatchedPayoffDataError();
     error VaultDefinitionAllZeroWeightError();
-    error VaultDefinitionMarketsMismatchedWithPreviousImplementationError();
+    error VaultDefinitionInvalidMarketIdError();
 
     function asset() external view returns (Token18);
     function totalMarkets() external view returns (uint256);

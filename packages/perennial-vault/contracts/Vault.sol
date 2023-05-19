@@ -65,9 +65,6 @@ contract Vault is IVault, VaultDefinition, UInitializable {
     /// @dev Mapping of the latest epoch that a pending deposit or redemption has been placed per user
     mapping(address => uint256) private _latestEpochs;
 
-    /// @dev Per-asset accounting state variables (reserve space for maximum 50 assets due to storage pattern)
-    MarketAccount[50] private _marketAccounts;
-
     /// @dev Deposits that are queued for the following epoch due to the current epoch being stale
     UFixed18 private _pendingDeposit;
 
@@ -82,6 +79,12 @@ contract Vault is IVault, VaultDefinition, UInitializable {
 
     /// @dev Mapping of the latest epoch for any queued deposit / redemption per user
     mapping(address => uint256) private _pendingEpochs;
+
+    /// @dev Per-epoch accounting state variables
+    mapping(uint256 => Epoch) private _epochs;
+
+    /// @dev Per-asset accounting state variables
+    mapping(uint256 => MarketAccount) private _marketAccounts;
 
     /**
      * @notice Constructor for VaultDefinition
@@ -381,8 +384,8 @@ contract Vault is IVault, VaultDefinition, UInitializable {
 
                 _marketAccounts[marketId].versionOf[context.epoch] = context.markets[marketId].latestVersion;
             }
-            _marketAccounts[0].epochs[context.epoch].totalShares = _totalSupplyAtEpoch(context);
-            _marketAccounts[0].epochs[context.epoch].totalAssets = _totalAssetsAtEpoch(context);
+            _epochs[context.epoch].totalShares = _totalSupplyAtEpoch(context);
+            _epochs[context.epoch].totalAssets = _totalAssetsAtEpoch(context);
 
             // process pending deposit / redemption after new epoch is settled
             _deposit = _pendingDeposit;
@@ -446,11 +449,6 @@ contract Vault is IVault, VaultDefinition, UInitializable {
             if (context.markets[marketId].collateral.lte(targets[marketId].targetCollateral))
                 _update(context.markets[marketId], markets(marketId).market, targets[marketId]);
         }
-    }
-
-    struct Target {
-        UFixed18 targetCollateral;
-        UFixed6 targetPosition;
     }
 
     function _computeTargets(
@@ -722,7 +720,7 @@ contract Vault is IVault, VaultDefinition, UInitializable {
      * @return assets Total assets in the vault at the given epoch
      */
     function _assetsAtEpoch(uint256 epoch) private view returns (UFixed18) {
-        Fixed18 assets = Fixed18Lib.from(_marketAccounts[0].epochs[epoch].totalAssets);
+        Fixed18 assets = Fixed18Lib.from(_epochs[epoch].totalAssets);
         for (uint256 marketId; marketId < totalMarkets; marketId++) {
             assets = assets.add(_accumulatedAtEpoch(marketId, epoch));
         }
@@ -737,7 +735,7 @@ contract Vault is IVault, VaultDefinition, UInitializable {
      * @return Total shares at `epoch`
      */
     function _sharesAtEpoch(uint256 epoch) private view returns (UFixed18) {
-        return _marketAccounts[0].epochs[epoch].totalShares;
+        return _epochs[epoch].totalShares;
     }
 
     /**

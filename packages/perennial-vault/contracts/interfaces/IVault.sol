@@ -44,17 +44,24 @@ interface IVault is IVaultDefinition {
         uint256 liquidation;
     }
 
+    struct Epoch {
+        UFixed18 totalShares;
+        UFixed18 totalAssets;
+    }
+
     struct MarketEpoch {
         UFixed6 position;
         UFixed18 assets;
-        UFixed18 totalShares;
-        UFixed18 totalAssets;
     }
 
     struct MarketAccount {
         mapping(uint256 => MarketEpoch) epochs;
         mapping(uint256 => uint256) versionOf;
-        uint256[50] __reserved__;
+    }
+
+    struct Target {
+        UFixed18 targetCollateral;
+        UFixed6 targetPosition;
     }
 
     event Mint(address indexed account, UFixed18 amount);
