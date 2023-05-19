@@ -5,6 +5,7 @@ import "./interfaces/IVault.sol";
 import "@equilibria/root/control/unstructured/UInitializable.sol";
 import "@openzeppelin/contracts/utils/math/Math.sol";
 import "./VaultDefinition.sol";
+import "./types/Delta.sol";
 import "hardhat/console.sol";
 
 /**
@@ -47,38 +48,17 @@ contract Vault is IVault, VaultDefinition, UInitializable {
     /// @dev Total unclaimed underlying of the vault across all users
     UFixed18 private _totalUnclaimed;
 
-    /// @dev Deposits that have not been settled, or have been settled but not yet processed by this contract
-    UFixed18 private _deposit;
+    /// @dev
+    Delta private _delta;
 
-    /// @dev Redemptions that have not been settled, or have been settled but not yet processed by this contract
-    UFixed18 private _redemption;
+    /// @dev
+    mapping(address => Delta) private _deltas;
 
-    /// @dev The latest epoch that a pending deposit or redemption has been placed
-    uint256 private _latestEpoch;
+    /// @dev
+    Delta private _pendingDelta;
 
-    /// @dev Mapping of pending (not yet converted to shares) per user
-    mapping(address => UFixed18) private _deposits;
-
-    /// @dev Mapping of pending (not yet withdrawn) per user
-    mapping(address => UFixed18) private _redemptions;
-
-    /// @dev Mapping of the latest epoch that a pending deposit or redemption has been placed per user
-    mapping(address => uint256) private _latestEpochs;
-
-    /// @dev Deposits that are queued for the following epoch due to the current epoch being stale
-    UFixed18 private _pendingDeposit;
-
-    /// @dev Redemptions that are queued for the following epoch due to the current epoch being stale
-    UFixed18 private _pendingRedemption;
-
-    /// @dev Mapping of queued deposits (due to stale epoch) per user
-    mapping(address => UFixed18) private _pendingDeposits;
-
-    /// @dev Mapping of queued redemptions (due to stale epoch) per user
-    mapping(address => UFixed18) private _pendingRedemptions;
-
-    /// @dev Mapping of the latest epoch for any queued deposit / redemption per user
-    mapping(address => uint256) private _pendingEpochs;
+    /// @dev
+    mapping(address => Delta) private _pendingDeltas;
 
     /// @dev Per-epoch accounting state variables
     mapping(uint256 => Epoch) private _epochs;
@@ -116,6 +96,7 @@ contract Vault is IVault, VaultDefinition, UInitializable {
         }
 
         // Stamp new market's data for first epoch
+        _pendingDelta.clear(1); // initiate pending at correct epoch (TODO) better way to do this?
         Context memory context  = _settle(address(0));
 
         for (uint256 marketId; marketId < totalMarkets; marketId++) {
@@ -152,14 +133,12 @@ contract Vault is IVault, VaultDefinition, UInitializable {
         if (assets.gt(_maxDepositAtEpoch(context))) revert VaultDepositLimitExceeded();
 
         if (_currentEpochStale(context)) {
-            _pendingDeposit = _pendingDeposit.add(assets);
-            _pendingDeposits[account] = _pendingDeposits[account].add(assets);
-            _pendingEpochs[account] = context.epoch + 1;
+            _pendingDelta.processDeposit(context.epoch + 1, assets);
+            _pendingDeltas[account].processDeposit(context.epoch + 1, assets);
             emit Deposit(msg.sender, account, context.epoch + 1, assets);
         } else {
-            _deposit = _deposit.add(assets);
-            _deposits[account] = _deposits[account].add(assets);
-            _latestEpochs[account] = context.epoch;
+            _delta.processDeposit(context.epoch, assets);
+            _deltas[account].processDeposit(context.epoch, assets);
             emit Deposit(msg.sender, account, context.epoch, assets);
         }
 
@@ -182,14 +161,12 @@ contract Vault is IVault, VaultDefinition, UInitializable {
         if (shares.gt(_maxRedeemAtEpoch(context, account))) revert VaultRedemptionLimitExceeded();
 
         if (_currentEpochStale(context)) {
-            _pendingRedemption = _pendingRedemption.add(shares);
-            _pendingRedemptions[account] = _pendingRedemptions[account].add(shares);
-            _pendingEpochs[account] = context.epoch + 1;
+            _pendingDelta.processRedemption(context.epoch + 1, shares);
+            _pendingDeltas[account].processRedemption(context.epoch + 1, shares);
             emit Redemption(msg.sender, account, context.epoch + 1, shares);
         } else {
-            _redemption = _redemption.add(shares);
-            _redemptions[account] = _redemptions[account].add(shares);
-            _latestEpochs[account] = context.epoch;
+            _delta.processRedemption(context.epoch, shares);
+            _deltas[account].processRedemption(context.epoch, shares);
             emit Redemption(msg.sender, account, context.epoch, shares);
         }
 
@@ -332,7 +309,7 @@ contract Vault is IVault, VaultDefinition, UInitializable {
      * @return The current epoch
      */
     function _currentEpoch(Context memory context) private view returns (uint256) {
-        return _currentEpochComplete(context) ? _latestEpoch + 1 : _latestEpoch;
+        return _currentEpochComplete(context) ? _delta.epoch + 1 : _delta.epoch;
     }
 
     /**
@@ -342,7 +319,7 @@ contract Vault is IVault, VaultDefinition, UInitializable {
      */
     function _currentEpochComplete(Context memory context) private view returns (bool) {
         for (uint256 marketId; marketId < totalMarkets; marketId++) {
-            if (context.markets[marketId].latestVersion == _versionAtEpoch(marketId, _latestEpoch)) return false;
+            if (context.markets[marketId].latestVersion == _versionAtEpoch(marketId, _delta.epoch)) return false;
         }
         return true;
     }
@@ -354,7 +331,7 @@ contract Vault is IVault, VaultDefinition, UInitializable {
      */
     function _currentEpochStale(Context memory context) private view returns (bool) {
         for (uint256 marketId; marketId < totalMarkets; marketId++) {
-            if (context.markets[marketId].latestVersion > _versionAtEpoch(marketId, _latestEpoch)) return true;
+            if (context.markets[marketId].latestVersion > _versionAtEpoch(marketId, _delta.epoch)) return true;
         }
         return false;
     }
@@ -368,12 +345,10 @@ contract Vault is IVault, VaultDefinition, UInitializable {
     function _settle(address account) private returns (Context memory context) {
         context = _loadContextForWrite(account);
 
-        if (context.epoch > _latestEpoch) {
+        if (context.epoch > _delta.epoch) {
             _totalSupply = _totalSupplyAtEpoch(context);
             _totalUnclaimed = _totalUnclaimedAtEpoch(context);
-            _deposit = UFixed18Lib.ZERO;
-            _redemption = UFixed18Lib.ZERO;
-            _latestEpoch = context.epoch;
+            _delta.clear(context.epoch); // TODO: get rid of epoch write?
 
             for (uint256 marketId; marketId < totalMarkets; marketId++) {
                 IMarket market = markets(marketId).market;
@@ -388,28 +363,20 @@ contract Vault is IVault, VaultDefinition, UInitializable {
             _epochs[context.epoch].totalAssets = _totalAssetsAtEpoch(context);
 
             // process pending deposit / redemption after new epoch is settled
-            _deposit = _pendingDeposit;
-            _redemption = _pendingRedemption;
-            _pendingDeposit = UFixed18Lib.ZERO;
-            _pendingRedemption = UFixed18Lib.ZERO;
+            if (_pendingDelta.epoch != context.epoch) console.log("writing %s != %s", _pendingDelta.epoch, context.epoch);
+            _delta.overwrite(_pendingDelta);
+            _pendingDelta.clear(context.epoch + 1);
         }
 
         if (account != address(0)) {
-            if (context.epoch > _latestEpochs[account]) {
-
+            if (context.epoch > _deltas[account].epoch) {
                 _balanceOf[account] = _balanceOfAtEpoch(context, account);
                 _unclaimed[account] = _unclaimedAtEpoch(context, account);
-                _deposits[account] = UFixed18Lib.ZERO;
-                _redemptions[account] = UFixed18Lib.ZERO;
-                _latestEpochs[account] = context.epoch;
+                _deltas[account].clear(context.epoch);
             }
-            if (context.epoch > _pendingEpochs[account]) {
-                _deposits[account] = _pendingDeposits[account];
-                _redemptions[account] = _pendingRedemptions[account];
-                _latestEpochs[account] = _pendingEpochs[account];
-                _pendingDeposits[account] = UFixed18Lib.ZERO;
-                _pendingRedemptions[account] = UFixed18Lib.ZERO;
-                _pendingEpochs[account] = context.epoch;
+            if (context.epoch > _pendingDeltas[account].epoch) {
+                _deltas[account].overwrite(_pendingDeltas[account]);
+                _pendingDeltas[account].clear(context.epoch);
 
                 context = _settle(account); // run settle again after moving pending deposits and redemptions into current
             }
@@ -431,9 +398,9 @@ contract Vault is IVault, VaultDefinition, UInitializable {
 
         // Compute available capital
         UFixed18 capital = assetsInVault
-            .sub(_totalUnclaimedAtEpoch(context).add(_deposit).add(_pendingDeposit))
-            .mul(_totalSupplyAtEpoch(context).unsafeDiv(_totalSupplyAtEpoch(context).add(_redemption)))
-            .add(_deposit);
+            .sub(_totalUnclaimedAtEpoch(context).add(_delta.deposit).add(_pendingDelta.deposit))
+            .mul(_totalSupplyAtEpoch(context).unsafeDiv(_totalSupplyAtEpoch(context).add(_delta.redemption)))
+            .add(_delta.deposit);
         if (capital.muldiv(minWeight, totalWeight).lt(minCollateral)) capital = UFixed18Lib.ZERO;
 
         Target[] memory targets = _computeTargets(context, collateral, capital);
@@ -540,10 +507,10 @@ contract Vault is IVault, VaultDefinition, UInitializable {
      * @return context Epoch context
      */
     function _loadContextForRead(address account) private view returns (Context memory context) {
-        context.latestAssets = _assetsAtEpoch(_latestEpoch);
-        context.latestShares = _sharesAtEpoch(_latestEpoch);
-        context.latestAssetsAccount = _assetsAtEpoch(_latestEpochs[account]);
-        context.latestSharesAccount = _sharesAtEpoch(_latestEpochs[account]);
+        context.latestAssets = _assetsAtEpoch(_delta.epoch);
+        context.latestShares = _sharesAtEpoch(_delta.epoch);
+        context.latestAssetsAccount = _assetsAtEpoch(_deltas[account].epoch);
+        context.latestSharesAccount = _sharesAtEpoch(_deltas[account].epoch);
 
         context.markets = new MarketContext[](totalMarkets);
         for (uint256 marketId; marketId < totalMarkets; marketId++) {
@@ -610,7 +577,7 @@ contract Vault is IVault, VaultDefinition, UInitializable {
      */
     function _maxDepositAtEpoch(Context memory context) private view returns (UFixed18) {
         if (_unhealthyAtEpoch(context)) return UFixed18Lib.ZERO;
-        UFixed18 currentCollateral = _totalAssetsAtEpoch(context).add(_deposit).add(_pendingDeposit);
+        UFixed18 currentCollateral = _totalAssetsAtEpoch(context).add(_delta.deposit).add(_pendingDelta.deposit);
         return maxCollateral.gt(currentCollateral) ? maxCollateral.sub(currentCollateral) : UFixed18Lib.ZERO;
     }
 
@@ -633,7 +600,7 @@ contract Vault is IVault, VaultDefinition, UInitializable {
     function _totalAssetsAtEpoch(Context memory context) private view returns (UFixed18) {
         (UFixed18 totalCollateral, UFixed18 totalDebt) = (
             _assets(context),
-            _totalUnclaimedAtEpoch(context).add(_deposit).add(_pendingDeposit)
+            _totalUnclaimedAtEpoch(context).add(_delta.deposit).add(_pendingDelta.deposit)
         );
         return totalCollateral.gt(totalDebt) ? totalCollateral.sub(totalDebt) : UFixed18Lib.ZERO;
     }
@@ -644,9 +611,9 @@ contract Vault is IVault, VaultDefinition, UInitializable {
      * @return Total supply amount at epoch
      */
     function _totalSupplyAtEpoch(Context memory context) private view returns (UFixed18) {
-        if (context.epoch == _latestEpoch) return _totalSupply.add(_pendingRedemption);
-        return _totalSupply.add(_pendingRedemption)
-            .add(_convertToSharesAtEpoch(context.latestAssets, context.latestShares, _deposit));
+        if (context.epoch == _delta.epoch) return _totalSupply.add(_pendingDelta.redemption);
+        return _totalSupply.add(_pendingDelta.redemption)
+            .add(_convertToSharesAtEpoch(context.latestAssets, context.latestShares, _delta.deposit));
     }
 
     /**
@@ -656,9 +623,9 @@ contract Vault is IVault, VaultDefinition, UInitializable {
      * @return Account balance at epoch
      */
     function _balanceOfAtEpoch(Context memory context, address account) private view returns (UFixed18) {
-        if (context.epoch == _latestEpochs[account]) return _balanceOf[account].add(_pendingRedemptions[account]);
-        return _balanceOf[account].add(_pendingRedemptions[account])
-            .add(_convertToSharesAtEpoch(context.latestAssetsAccount, context.latestSharesAccount, _deposits[account]));
+        if (context.epoch == _deltas[account].epoch) return _balanceOf[account].add(_pendingDeltas[account].redemption);
+        return _balanceOf[account].add(_pendingDeltas[account].redemption)
+            .add(_convertToSharesAtEpoch(context.latestAssetsAccount, context.latestSharesAccount, _deltas[account].deposit));
     }
 
     /**
@@ -667,8 +634,8 @@ contract Vault is IVault, VaultDefinition, UInitializable {
      * @return Total unclaimed asset amount at epoch
      */
     function _totalUnclaimedAtEpoch(Context memory context) private view returns (UFixed18) {
-        if (context.epoch == _latestEpoch) return _totalUnclaimed;
-        return _totalUnclaimed.add(_convertToAssetsAtEpoch(context.latestAssets, context.latestShares, _redemption));
+        if (context.epoch == _delta.epoch) return _totalUnclaimed;
+        return _totalUnclaimed.add(_convertToAssetsAtEpoch(context.latestAssets, context.latestShares, _delta.redemption));
     }
 
     /**
@@ -678,9 +645,9 @@ contract Vault is IVault, VaultDefinition, UInitializable {
      * @return Total unclaimed asset amount for `account` at epoch
      */
     function _unclaimedAtEpoch(Context memory context, address account) private view returns (UFixed18) {
-        if (context.epoch == _latestEpochs[account]) return _unclaimed[account];
+        if (context.epoch == _deltas[account].epoch) return _unclaimed[account];
         return _unclaimed[account]
-            .add(_convertToAssetsAtEpoch(context.latestAssetsAccount, context.latestSharesAccount, _redemptions[account]));
+            .add(_convertToAssetsAtEpoch(context.latestAssetsAccount, context.latestSharesAccount, _deltas[account].redemption));
     }
 
     /**
@@ -771,7 +738,7 @@ contract Vault is IVault, VaultDefinition, UInitializable {
      * @return The version at epoch
      */
     function _versionAtEpoch(uint256 marketId, uint256 epoch) private view returns (uint256) {
-        if (epoch > _latestEpoch) return 0;
+        if (epoch > _delta.epoch) return 0;
         uint256 version = _marketAccounts[marketId].versionOf[epoch];
         return (version == 0) ? epoch : version;
     }
