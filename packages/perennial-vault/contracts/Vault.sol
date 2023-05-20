@@ -366,7 +366,6 @@ contract Vault is IVault, VaultDefinition, UInitializable {
             _pendingDelta.clear(context.epoch + 1);
         }
 
-
         if (account != address(0)) {
             if (context.epoch > _deltas[account].epoch) {
                 _balanceOf[account] = _balanceOfAtEpoch(context, account).sub(_pendingDeltas[account].redemption); // TODO: clean this up

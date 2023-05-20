@@ -910,7 +910,7 @@ describe('Vault (Multi-Payoff)', () => {
       expect(await asset.balanceOf(user.address)).to.equal(utils.parseEther('100000').add(fundingAmount))
     })
 
-    it.only('close to makerLimit', async () => {
+    it('close to makerLimit', async () => {
       // Get maker product very close to the makerLimit
       await asset.connect(perennialUser).approve(market.address, constants.MaxUint256)
       await market
@@ -930,15 +930,15 @@ describe('Vault (Multi-Payoff)', () => {
       expect(await position()).to.equal(
         largeDeposit.mul(leverage).mul(4).div(5).div(originalOraclePrice).div(1e12).div(1e12),
       )
-      console.log(largeDeposit.mul(leverage).div(5).div(originalOraclePrice).div(1e12).div(1e12))
       expect(await btcPosition()).to.equal('205981')
     })
 
-    it.only('exactly at makerLimit', async () => {
+    it('exactly at makerLimit', async () => {
       // Get maker product very close to the makerLimit
       await asset.connect(perennialUser).approve(market.address, constants.MaxUint256)
-      const makerAvailable = (await market.parameter()).makerLimit.sub((await market.position()).maker)
-      console.log(makerAvailable)
+      const makerAvailable = (await market.parameter()).makerLimit.sub(
+        (await market.pendingPosition((await market.global()).currentId)).maker,
+      )
       await market.connect(perennialUser).update(perennialUser.address, makerAvailable, 0, 0, parse6decimal('400000'))
 
       await updateOracle()
@@ -952,9 +952,7 @@ describe('Vault (Multi-Payoff)', () => {
 
       // Now we should have opened positions.
       // The positions should be equal to (smallDeposit + largeDeposit) * leverage / 2 / originalOraclePrice.
-      expect(await position()).to.equal(
-        largeDeposit.mul(leverage).mul(4).div(5).div(originalOraclePrice).div(1e12).div(1e12),
-      )
+      expect(await position()).to.equal(0)
       expect(await btcPosition()).to.equal(
         largeDeposit.mul(leverage).div(5).div(btcOriginalOraclePrice).div(1e12).div(1e12),
       )
@@ -971,7 +969,7 @@ describe('Vault (Multi-Payoff)', () => {
       await asset.connect(perennialUser).approve(market.address, constants.MaxUint256)
       await market
         .connect(perennialUser)
-        .update(perennialUser.address, 0, parse6decimal('1280'), 0, parse6decimal('1000000'))
+        .update(perennialUser.address, 0, parse6decimal('110'), 0, parse6decimal('1000000'))
 
       await updateOracle()
       await vault.sync()
@@ -981,11 +979,7 @@ describe('Vault (Multi-Payoff)', () => {
       await updateOracle()
       await vault.sync()
 
-      const takerMinimum = BigNumber.from('6692251470872433151')
-      expect(await shortPosition()).to.equal(takerMinimum)
-      expect((await short.positionAtVersion(await short['latestVersion()']()))[0]).to.equal(
-        (await short.positionAtVersion(await short['latestVersion()']()))[1],
-      )
+      expect((await market.position()).maker).to.equal((await market.position()).long)
     })
 
     it('product closing closes all positions', async () => {
@@ -993,14 +987,19 @@ describe('Vault (Multi-Payoff)', () => {
       await vault.connect(user).deposit(largeDeposit, user.address)
       await updateOracleAndSync()
 
-      expect(await position()).to.be.greaterThan(0)
-      expect(await btcPosition()).to.be.greaterThan(0)
-      const productOwner = await impersonate.impersonateWithBalance(
-        await factory['owner(address)'](market.address),
-        utils.parseEther('10'),
+      expect(await position()).to.equal(
+        largeDeposit.mul(leverage).mul(4).div(5).div(originalOraclePrice).div(1e12).div(1e12),
       )
-      await market.connect(productOwner).updateClosed(true)
-      await btcMarket.connect(owner).updateClosed(true)
+      expect(await btcPosition()).to.equal(
+        largeDeposit.mul(leverage).div(5).div(btcOriginalOraclePrice).div(1e12).div(1e12),
+      )
+      const marketParameter = { ...(await market.parameter()) }
+      const btcMarketParameter = { ...(await btcMarket.parameter()) }
+
+      marketParameter.closed = true
+      await market.connect(owner).updateParameter(marketParameter)
+      btcMarketParameter.closed = true
+      await btcMarket.connect(owner).updateParameter(btcMarketParameter)
       await updateOracleAndSync()
       await updateOracleAndSync()
 
@@ -1008,14 +1007,20 @@ describe('Vault (Multi-Payoff)', () => {
       expect(await position()).to.equal(0)
       expect(await btcPosition()).to.equal(0)
 
-      await market.connect(productOwner).updateClosed(false)
-      await btcMarket.connect(owner).updateClosed(false)
+      marketParameter.closed = false
+      await market.connect(owner).updateParameter(marketParameter)
+      btcMarketParameter.closed = false
+      await btcMarket.connect(owner).updateParameter(btcMarketParameter)
       await updateOracleAndSync()
       await updateOracleAndSync()
 
       // Positions should be opened back up again
-      expect(await position()).to.be.greaterThan(0)
-      expect(await btcPosition()).to.be.greaterThan(0)
+      expect(await position()).to.equal(
+        largeDeposit.mul(leverage).mul(4).div(5).div(originalOraclePrice).div(1e12).div(1e12),
+      )
+      expect(await btcPosition()).to.equal(
+        largeDeposit.mul(leverage).div(5).div(btcOriginalOraclePrice).div(1e12).div(1e12),
+      )
     })
 
     context('liquidation', () => {

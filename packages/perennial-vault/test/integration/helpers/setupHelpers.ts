@@ -42,8 +42,8 @@ export async function deployProductOnMainnetFork({
     shortRewardRate: 0,
     utilizationCurve: utilizationCurve ?? {
       minRate: parse6decimal('0.02'),
-      maxRate: parse6decimal('0.08'),
-      targetRate: parse6decimal('0.80'),
+      maxRate: parse6decimal('0.80'),
+      targetRate: parse6decimal('0.08'),
       targetUtilization: parse6decimal('0.80'),
     },
     oracle: oracle ?? constants.AddressZero,
@@ -62,5 +62,8 @@ export async function deployProductOnMainnetFork({
   const productAddress = await factory.connect(owner).callStatic.createMarket(marketDefinition, marketParameter)
   await factory.connect(owner).createMarket(marketDefinition, marketParameter)
 
-  return IMarket__factory.connect(productAddress, owner)
+  const market = IMarket__factory.connect(productAddress, owner)
+  await market.connect(owner).acceptOwner()
+
+  return market
 }
