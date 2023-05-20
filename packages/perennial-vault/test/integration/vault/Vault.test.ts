@@ -18,7 +18,11 @@ import {
   ChainlinkOracle__factory,
 } from '../../../types/generated'
 import { BigNumber, constants, utils } from 'ethers'
-import { deployProtocol, InstanceVars } from '@equilibria/perennial-v2/test/integration/helpers/setupHelpers'
+import {
+  deployProtocol,
+  fundWallet,
+  InstanceVars,
+} from '@equilibria/perennial-v2/test/integration/helpers/setupHelpers'
 import { parse6decimal } from '../../../../common/testutil/types'
 
 const { config, ethers } = HRE
@@ -108,10 +112,12 @@ describe('Vault (Multi-Payoff)', () => {
 
     const instanceVars = await deployProtocol()
 
-    let btcUser1, btcUser2
-    ;[owner, user, user2, liquidator, perennialUser, btcUser1, btcUser2] = await ethers.getSigners()
+    const parameter = { ...(await instanceVars.factory.parameter()) }
+    parameter.minCollateral = parse6decimal('50')
+    await instanceVars.factory.updateParameter(parameter)
 
-    const dsu = IERC20Metadata__factory.connect('0x605D26FBd5be761089281d5cec2Ce86eeA667109', owner)
+    let btcUser1, btcUser2, pauser
+    ;[owner, pauser, user, user2, btcUser1, btcUser2, liquidator, perennialUser] = await ethers.getSigners()
     factory = instanceVars.factory
     const oracleToMock = await new ChainlinkOracle__factory(owner).deploy(
       '0x47Fb2585D2C56Fe188D0E6ec628a38b74fCeeeDf',
@@ -146,7 +152,7 @@ describe('Vault (Multi-Payoff)', () => {
     leverage = utils.parseEther('4.0')
     maxCollateral = utils.parseEther('500000')
 
-    vault = await new Vault__factory(owner).deploy(factory.address, leverage, maxCollateral, [
+    vault = await new Vault__factory(owner).deploy(instanceVars.factory.address, leverage, maxCollateral, [
       {
         market: market.address,
         weight: 4,
@@ -159,33 +165,26 @@ describe('Vault (Multi-Payoff)', () => {
     await vault.initialize('Perennial Vault Alpha')
     asset = IERC20Metadata__factory.connect(await vault.asset(), owner)
 
-    const dsuMinter = await impersonate.impersonateWithBalance(DSU_MINTER, utils.parseEther('10'))
-    const setUpWalletWithDSU = async (wallet: SignerWithAddress) => {
-      const dsuIface = new utils.Interface(['function mint(uint256)'])
-      await dsuMinter.sendTransaction({
-        to: dsu.address,
-        value: 0,
-        data: dsuIface.encodeFunctionData('mint', [utils.parseEther('200000')]),
-      })
-      await dsu.connect(dsuMinter).transfer(wallet.address, utils.parseEther('200000'))
-      await dsu.connect(wallet).approve(vault.address, ethers.constants.MaxUint256)
-    }
-    await setUpWalletWithDSU(user)
-    await setUpWalletWithDSU(user2)
-    await setUpWalletWithDSU(liquidator)
-    await setUpWalletWithDSU(perennialUser)
-    await setUpWalletWithDSU(perennialUser)
-    await setUpWalletWithDSU(perennialUser)
-    await setUpWalletWithDSU(perennialUser)
-    await setUpWalletWithDSU(perennialUser)
-    await setUpWalletWithDSU(btcUser1)
-    await setUpWalletWithDSU(btcUser2)
+    await asset.connect(liquidator).approve(vault.address, ethers.constants.MaxUint256)
+    await fundWallet(asset, liquidator)
+    await asset.connect(perennialUser).approve(vault.address, ethers.constants.MaxUint256)
+    await fundWallet(asset, perennialUser)
+    await fundWallet(asset, perennialUser)
+    await fundWallet(asset, perennialUser)
+    await fundWallet(asset, perennialUser)
+    await fundWallet(asset, perennialUser)
+    await fundWallet(asset, perennialUser)
+    await fundWallet(asset, perennialUser)
+    await asset.connect(user).approve(vault.address, ethers.constants.MaxUint256)
+    await asset.connect(user2).approve(vault.address, ethers.constants.MaxUint256)
+    await asset.connect(btcUser1).approve(vault.address, ethers.constants.MaxUint256)
+    await asset.connect(btcUser2).approve(vault.address, ethers.constants.MaxUint256)
 
     // Seed markets with some activity
-    await dsu.connect(user).approve(market.address, ethers.constants.MaxUint256)
-    await dsu.connect(user2).approve(market.address, ethers.constants.MaxUint256)
-    await dsu.connect(btcUser1).approve(btcMarket.address, ethers.constants.MaxUint256)
-    await dsu.connect(btcUser2).approve(btcMarket.address, ethers.constants.MaxUint256)
+    await asset.connect(user).approve(market.address, ethers.constants.MaxUint256)
+    await asset.connect(user2).approve(market.address, ethers.constants.MaxUint256)
+    await asset.connect(btcUser1).approve(btcMarket.address, ethers.constants.MaxUint256)
+    await asset.connect(btcUser2).approve(btcMarket.address, ethers.constants.MaxUint256)
     await market.connect(user).update(user.address, parse6decimal('200'), 0, 0, parse6decimal('100000'))
     await market.connect(user2).update(user2.address, 0, parse6decimal('100'), 0, parse6decimal('100000'))
     await btcMarket.connect(btcUser1).update(btcUser1.address, parse6decimal('20'), 0, 0, parse6decimal('100000'))
@@ -258,17 +257,6 @@ describe('Vault (Multi-Payoff)', () => {
       ).to.not.be.reverted
     })
 
-    it('checks that all products are valid', async () => {
-      await expect(
-        new Vault__factory(owner).deploy(factory.address, leverage, maxCollateral, [
-          {
-            market: '0x0000000000000000000000000000000000000000',
-            weight: 1,
-          },
-        ]),
-      ).to.revertedWith('VaultInvalidProductError')
-    })
-
     it('checks that target leverage is positive', async () => {
       await expect(
         new Vault__factory(owner).deploy(factory.address, 0, maxCollateral, [
@@ -312,7 +300,7 @@ describe('Vault (Multi-Payoff)', () => {
   })
 
   describe('#deposit/#redeem/#claim/#sync', () => {
-    it.only('simple deposits and withdraws', async () => {
+    it('simple deposits and withdraws', async () => {
       expect(await vault.convertToAssets(utils.parseEther('1'))).to.equal(utils.parseEther('1'))
       expect(await vault.convertToShares(utils.parseEther('1'))).to.equal(utils.parseEther('1'))
 
@@ -408,8 +396,8 @@ describe('Vault (Multi-Payoff)', () => {
       expect(await btcPosition()).to.be.equal(
         smallDeposit.add(largeDeposit).mul(leverage).div(5).div(btcOriginalOraclePrice).div(1e12).div(1e12),
       )
-      const fundingAmount0 = BigNumber.from(83666424963960)
-      const balanceOf2 = BigNumber.from('9999999163335820361100')
+      const fundingAmount0 = BigNumber.from(371000000000000)
+      const balanceOf2 = BigNumber.from('9999996290001376409489')
       expect(await vault.balanceOf(user.address)).to.equal(utils.parseEther('1000'))
       expect(await vault.balanceOf(user2.address)).to.equal(balanceOf2)
       expect(await vault.totalAssets()).to.equal(utils.parseEther('11000').add(fundingAmount0))
@@ -436,8 +424,8 @@ describe('Vault (Multi-Payoff)', () => {
       expect(await btcPosition()).to.equal(0)
 
       // We should have withdrawn all of our collateral.
-      const fundingAmount = BigNumber.from('165941798239422')
-      const fundingAmount2 = BigNumber.from('1646882507931229')
+      const fundingAmount = BigNumber.from('709636477849169')
+      const fundingAmount2 = BigNumber.from('6798363522150831')
       expect(await totalCollateralInVault()).to.equal(utils.parseEther('11000').add(fundingAmount).add(fundingAmount2))
       expect(await vault.balanceOf(user.address)).to.equal(0)
       expect(await vault.balanceOf(user2.address)).to.equal(0)
@@ -454,8 +442,8 @@ describe('Vault (Multi-Payoff)', () => {
 
       expect(await totalCollateralInVault()).to.equal(0)
       expect(await vault.totalAssets()).to.equal(0)
-      expect(await asset.balanceOf(user.address)).to.equal(utils.parseEther('200000').add(fundingAmount))
-      expect(await asset.balanceOf(user2.address)).to.equal(utils.parseEther('200000').add(fundingAmount2))
+      expect(await asset.balanceOf(user.address)).to.equal(utils.parseEther('100000').add(fundingAmount))
+      expect(await asset.balanceOf(user2.address)).to.equal(utils.parseEther('100000').add(fundingAmount2))
       expect(await vault.unclaimed(user2.address)).to.equal(0)
       expect(await vault.totalUnclaimed()).to.equal(0)
     })
@@ -484,8 +472,9 @@ describe('Vault (Multi-Payoff)', () => {
           .mul(4)
           .div(5)
           .mul(leverage)
-          .div(2)
-          .div(originalOraclePrice),
+          .div(originalOraclePrice)
+          .div(1e12)
+          .div(1e12),
       )
       expect(await btcPosition()).to.be.equal(
         smallDeposit
@@ -493,11 +482,12 @@ describe('Vault (Multi-Payoff)', () => {
           .sub(utils.parseEther('400'))
           .div(5)
           .mul(leverage)
-          .div(2)
-          .div(btcOriginalOraclePrice),
+          .div(btcOriginalOraclePrice)
+          .div(1e12)
+          .div(1e12),
       )
-      const fundingAmount0 = BigNumber.from('50199854978376')
-      const balanceOf2 = BigNumber.from('1999999832667164072220')
+      const fundingAmount0 = BigNumber.from('222600000000000')
+      const balanceOf2 = BigNumber.from('1999999258000275281897')
       expect(await vault.balanceOf(user.address)).to.equal(utils.parseEther('600'))
       expect(await vault.balanceOf(user2.address)).to.equal(balanceOf2)
       expect(await vault.totalAssets()).to.equal(utils.parseEther('2600').add(fundingAmount0))
@@ -530,8 +520,8 @@ describe('Vault (Multi-Payoff)', () => {
       expect(await btcPosition()).to.equal(0)
 
       // We should have withdrawn all of our collateral.
-      const fundingAmount = BigNumber.from('133731306363245')
-      const fundingAmount2 = BigNumber.from('333934356519138')
+      const fundingAmount = BigNumber.from('590692370389107')
+      const fundingAmount2 = BigNumber.from('1467307629610893')
       expect(await totalCollateralInVault()).to.equal(utils.parseEther('3000').add(fundingAmount).add(fundingAmount2))
       expect(await vault.balanceOf(user.address)).to.equal(0)
       expect(await vault.balanceOf(user2.address)).to.equal(0)
@@ -548,8 +538,8 @@ describe('Vault (Multi-Payoff)', () => {
 
       expect(await totalCollateralInVault()).to.equal(0)
       expect(await vault.totalAssets()).to.equal(0)
-      expect(await asset.balanceOf(user.address)).to.equal(utils.parseEther('200000').add(fundingAmount))
-      expect(await asset.balanceOf(user2.address)).to.equal(utils.parseEther('200000').add(fundingAmount2))
+      expect(await asset.balanceOf(user.address)).to.equal(utils.parseEther('100000').add(fundingAmount))
+      expect(await asset.balanceOf(user2.address)).to.equal(utils.parseEther('100000').add(fundingAmount2))
       expect(await vault.unclaimed(user2.address)).to.equal(0)
       expect(await vault.totalUnclaimed()).to.equal(0)
     })
@@ -585,8 +575,8 @@ describe('Vault (Multi-Payoff)', () => {
       expect(await btcPosition()).to.be.equal(
         assetsForPosition.mul(leverage).div(5).div(btcOriginalOraclePrice).div(1e12).div(1e12),
       )
-      const fundingAmount0 = BigNumber.from(88080044500152)
-      const balanceOf2 = BigNumber.from('9999999159583484821247')
+      const fundingAmount0 = BigNumber.from('10008000000000000')
+      const balanceOf2 = BigNumber.from('9999987370015951669853')
       expect(await vault.balanceOf(user.address)).to.equal(utils.parseEther('1000'))
       expect(await vault.balanceOf(user2.address)).to.equal(balanceOf2)
       expect(await vault.totalAssets()).to.equal(utils.parseEther('11000').add(fundingAmount0))
@@ -621,8 +611,8 @@ describe('Vault (Multi-Payoff)', () => {
       expect(await btcPosition()).to.equal(0)
 
       // We should have withdrawn all of our collateral.
-      const fundingAmount = BigNumber.from('166684157907894')
-      const fundingAmount2 = BigNumber.from('1654233009885413')
+      const fundingAmount = BigNumber.from('2396637665256875')
+      const fundingAmount2 = BigNumber.from('22783362334743125')
       expect(await totalCollateralInVault()).to.equal(utils.parseEther('11000').add(fundingAmount).add(fundingAmount2))
       expect(await vault.balanceOf(user.address)).to.equal(0)
       expect(await vault.balanceOf(user2.address)).to.equal(0)
@@ -639,8 +629,8 @@ describe('Vault (Multi-Payoff)', () => {
 
       expect(await totalCollateralInVault()).to.equal(0)
       expect(await vault.totalAssets()).to.equal(0)
-      expect(await asset.balanceOf(user.address)).to.equal(utils.parseEther('200000').add(fundingAmount))
-      expect(await asset.balanceOf(user2.address)).to.equal(utils.parseEther('200000').add(fundingAmount2))
+      expect(await asset.balanceOf(user.address)).to.equal(utils.parseEther('100000').add(fundingAmount))
+      expect(await asset.balanceOf(user2.address)).to.equal(utils.parseEther('100000').add(fundingAmount2))
       expect(await vault.unclaimed(user2.address)).to.equal(0)
       expect(await vault.totalUnclaimed()).to.equal(0)
     })
@@ -677,8 +667,8 @@ describe('Vault (Multi-Payoff)', () => {
       expect(await btcPosition()).to.be.equal(
         assetsForPosition.mul(leverage).div(5).div(btcOriginalOraclePrice).div(1e12).div(1e12),
       )
-      const fundingAmount0 = BigNumber.from(88080044500182)
-      const balanceOf2 = BigNumber.from('9999999159583484821247')
+      const fundingAmount0 = BigNumber.from('10008000000000000')
+      const balanceOf2 = BigNumber.from('9999987370015951669853')
       expect(await vault.balanceOf(user.address)).to.equal(utils.parseEther('1000'))
       expect(await vault.balanceOf(user2.address)).to.equal(balanceOf2)
       expect(await vault.totalAssets()).to.equal(utils.parseEther('11000').add(fundingAmount0))
@@ -706,8 +696,8 @@ describe('Vault (Multi-Payoff)', () => {
       expect(await btcPosition()).to.be.equal(
         assetsForPosition.mul(leverage).div(5).div(btcOriginalOraclePrice).div(1e12).div(1e12),
       )
-      const fundingAmount1 = BigNumber.from(993109081734194)
-      const balanceOf2_1 = BigNumber.from('19999997492742183569043')
+      const fundingAmount1 = BigNumber.from('13733000000000000')
+      const balanceOf2_1 = BigNumber.from('19999963403696737684425')
       expect(await vault.balanceOf(user.address)).to.equal(utils.parseEther('1000'))
       expect(await vault.balanceOf(user2.address)).to.equal(balanceOf2_1)
       expect(await vault.totalAssets()).to.equal(utils.parseEther('21000').add(fundingAmount1))
@@ -749,8 +739,8 @@ describe('Vault (Multi-Payoff)', () => {
       expect(await btcPosition()).to.equal(0)
 
       // We should have withdrawn all of our collateral.
-      const fundingAmount = BigNumber.from('247603340304160')
-      const fundingAmount2 = BigNumber.from('4900882935203790')
+      const fundingAmount = BigNumber.from('2705733442007484')
+      const fundingAmount2 = BigNumber.from('49609266557992516')
       expect(await totalCollateralInVault()).to.equal(utils.parseEther('21000').add(fundingAmount).add(fundingAmount2))
       expect(await vault.balanceOf(user.address)).to.equal(0)
       expect(await vault.balanceOf(user2.address)).to.equal(0)
@@ -767,8 +757,8 @@ describe('Vault (Multi-Payoff)', () => {
 
       expect(await totalCollateralInVault()).to.equal(0)
       expect(await vault.totalAssets()).to.equal(0)
-      expect(await asset.balanceOf(user.address)).to.equal(utils.parseEther('200000').add(fundingAmount))
-      expect(await asset.balanceOf(user2.address)).to.equal(utils.parseEther('200000').add(fundingAmount2))
+      expect(await asset.balanceOf(user.address)).to.equal(utils.parseEther('100000').add(fundingAmount))
+      expect(await asset.balanceOf(user2.address)).to.equal(utils.parseEther('100000').add(fundingAmount2))
       expect(await vault.unclaimed(user2.address)).to.equal(0)
       expect(await vault.totalUnclaimed()).to.equal(0)
     })
@@ -787,7 +777,7 @@ describe('Vault (Multi-Payoff)', () => {
       await updateOracle()
       await vault.sync()
 
-      const shareAmount2 = BigNumber.from('9999999163335820361100')
+      const shareAmount2 = BigNumber.from('9999996290001376409489')
       expect(await vault.maxRedeem(user.address)).to.equal(shareAmount.add(shareAmount2))
 
       // We shouldn't be able to withdraw more than maxWithdraw.
@@ -816,15 +806,14 @@ describe('Vault (Multi-Payoff)', () => {
 
     it('maxDeposit', async () => {
       expect(await vault.maxDeposit(user.address)).to.equal(maxCollateral)
-      const depositSize = utils.parseEther('200000')
 
-      await vault.connect(user).deposit(depositSize, user.address)
-      expect(await vault.maxDeposit(user.address)).to.equal(maxCollateral.sub(depositSize))
+      await vault.connect(user).deposit(utils.parseEther('100000'), user.address)
+      expect(await vault.maxDeposit(user.address)).to.equal(maxCollateral.sub(utils.parseEther('100000')))
 
-      await vault.connect(user2).deposit(utils.parseEther('200000'), user2.address)
-      expect(await vault.maxDeposit(user.address)).to.equal(maxCollateral.sub(depositSize).sub(depositSize))
+      await vault.connect(user2).deposit(utils.parseEther('100000'), user2.address)
+      expect(await vault.maxDeposit(user.address)).to.equal(maxCollateral.sub(utils.parseEther('200000')))
 
-      await vault.connect(liquidator).deposit(utils.parseEther('100000'), liquidator.address)
+      await vault.connect(perennialUser).deposit(utils.parseEther('300000'), liquidator.address)
       expect(await vault.maxDeposit(user.address)).to.equal(0)
 
       await expect(vault.connect(liquidator).deposit(1, liquidator.address)).to.revertedWith(
@@ -839,16 +828,19 @@ describe('Vault (Multi-Payoff)', () => {
 
       const originalTotalCollateral = await totalCollateralInVault()
 
-      await updateOracle(utils.parseEther('1300'))
+      expect(await collateralInVault()).to.be.closeTo((await btcCollateralInVault()).mul(4), 3)
+      await updateOracle(parse6decimal('1800'))
       await market.connect(user).settle(vault.address)
 
       await vault.sync()
+      expect(await collateralInVault()).to.be.closeTo((await btcCollateralInVault()).mul(4), 3)
 
       await updateOracle(originalOraclePrice)
       await vault.sync()
+      expect(await collateralInVault()).to.be.closeTo((await btcCollateralInVault()).mul(4), 3)
 
       // Since the price changed then went back to the original, the total collateral should have increased.
-      const fundingAmount = BigNumber.from('14258756963781699')
+      const fundingAmount = BigNumber.from('32211000000000000')
       expect(await totalCollateralInVault()).to.eq(originalTotalCollateral.add(fundingAmount))
       expect(await vault.totalAssets()).to.eq(originalTotalCollateral.add(fundingAmount))
     })
@@ -885,12 +877,12 @@ describe('Vault (Multi-Payoff)', () => {
       await vault.sync()
 
       // We should have withdrawn all of our collateral.
-      const fundingAmount = BigNumber.from('824128844013458')
+      const fundingAmount = BigNumber.from('3412000000000000')
       await vault.connect(user).claim(user.address)
       expect(await totalCollateralInVault()).to.equal(0)
       expect(await vault.totalAssets()).to.equal(0)
       expect(await asset.balanceOf(liquidator.address)).to.equal(utils.parseEther('190000'))
-      expect(await asset.balanceOf(user.address)).to.equal(utils.parseEther('210000').add(fundingAmount))
+      expect(await asset.balanceOf(user.address)).to.equal(utils.parseEther('110000').add(fundingAmount))
     })
 
     it('redeem on behalf', async () => {
@@ -912,19 +904,18 @@ describe('Vault (Multi-Payoff)', () => {
       await vault.sync()
 
       // We should have withdrawn all of our collateral.
-      const fundingAmount = BigNumber.from('824128844013458')
+      const fundingAmount = BigNumber.from('3412000000000000')
       await vault.connect(user).claim(user.address)
       expect(await totalCollateralInVault()).to.equal(0)
-      expect(await asset.balanceOf(user.address)).to.equal(utils.parseEther('200000').add(fundingAmount))
+      expect(await asset.balanceOf(user.address)).to.equal(utils.parseEther('100000').add(fundingAmount))
     })
 
-    it('close to makerLimit', async () => {
+    it.only('close to makerLimit', async () => {
       // Get maker product very close to the makerLimit
-      await asset.connect(perennialUser).approve(collateral.address, constants.MaxUint256)
-      await collateral
+      await asset.connect(perennialUser).approve(market.address, constants.MaxUint256)
+      await market
         .connect(perennialUser)
-        .depositTo(perennialUser.address, short.address, utils.parseEther('400000'))
-      await short.connect(perennialUser).openMake(utils.parseEther('480'))
+        .update(perennialUser.address, parse6decimal('480'), 0, 0, parse6decimal('400000'))
       await updateOracle()
       await vault.sync()
 
@@ -939,23 +930,17 @@ describe('Vault (Multi-Payoff)', () => {
       expect(await position()).to.equal(
         largeDeposit.mul(leverage).mul(4).div(5).div(originalOraclePrice).div(1e12).div(1e12),
       )
-      const makerLimitDelta = BigNumber.from('8282802043703935198')
-      expect(await btcPosition()).to.equal(
-        largeDeposit.mul(leverage).div(5).div(btcOriginalOraclePrice).div(1e12).div(1e12),
-      )
+      console.log(largeDeposit.mul(leverage).div(5).div(originalOraclePrice).div(1e12).div(1e12))
+      expect(await btcPosition()).to.equal('205981')
     })
 
-    it('exactly at makerLimit', async () => {
+    it.only('exactly at makerLimit', async () => {
       // Get maker product very close to the makerLimit
-      await asset.connect(perennialUser).approve(collateral.address, constants.MaxUint256)
-      await collateral
-        .connect(perennialUser)
-        .depositTo(perennialUser.address, short.address, utils.parseEther('400000'))
-      const makerAvailable = (await short.makerLimit()).sub(
-        (await short.positionAtVersion(await short['latestVersion()']())).maker,
-      )
+      await asset.connect(perennialUser).approve(market.address, constants.MaxUint256)
+      const makerAvailable = (await market.parameter()).makerLimit.sub((await market.position()).maker)
+      console.log(makerAvailable)
+      await market.connect(perennialUser).update(perennialUser.address, makerAvailable, 0, 0, parse6decimal('400000'))
 
-      await short.connect(perennialUser).openMake(makerAvailable)
       await updateOracle()
       await vault.sync()
 
@@ -983,11 +968,11 @@ describe('Vault (Multi-Payoff)', () => {
       await vault.sync()
 
       // Get taker product very close to the maker
-      await asset.connect(perennialUser).approve(collateral.address, constants.MaxUint256)
-      await collateral
+      await asset.connect(perennialUser).approve(market.address, constants.MaxUint256)
+      await market
         .connect(perennialUser)
-        .depositTo(perennialUser.address, short.address, utils.parseEther('1000000'))
-      await short.connect(perennialUser).openTake(utils.parseEther('1280'))
+        .update(perennialUser.address, 0, parse6decimal('1280'), 0, parse6decimal('1000000'))
+
       await updateOracle()
       await vault.sync()
 

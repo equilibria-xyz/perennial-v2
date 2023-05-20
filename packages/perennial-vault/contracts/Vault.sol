@@ -109,7 +109,7 @@ contract Vault is IVault, VaultDefinition, UInitializable {
      * @notice Rebalances the collateral and position of the vault without a deposit or withdraw
      * @dev Should be called by a keeper when a new epoch is available, and there are pending deposits / redemptions
      */
-    function sync() external {
+    function sync() external { // TODO: remove
         syncAccount(address(0));
     }
 
@@ -345,32 +345,31 @@ contract Vault is IVault, VaultDefinition, UInitializable {
     function _settle(address account) private returns (Context memory context) {
         context = _loadContextForWrite(account);
 
+
         if (context.epoch > _delta.epoch) {
-            _totalSupply = _totalSupplyAtEpoch(context);
+            _totalSupply = _totalSupplyAtEpoch(context).sub(_pendingDelta.redemption); // TODO: clean that up
             _totalUnclaimed = _totalUnclaimedAtEpoch(context);
-            _delta.clear(context.epoch); // TODO: get rid of epoch write?
+            _delta.clear(context.epoch);
 
             for (uint256 marketId; marketId < totalMarkets; marketId++) {
-                IMarket market = markets(marketId).market;
-                MarketEpoch storage marketEpoch = _marketAccounts[marketId].epochs[context.epoch];
-
-                marketEpoch.position = context.markets[marketId].latestPositionAccount;
-                marketEpoch.assets = context.markets[marketId].collateral;
-
+                _marketAccounts[marketId].epochs[context.epoch] = MarketEpoch(
+                    context.markets[marketId].latestPositionAccount,
+                    context.markets[marketId].collateral
+                );
                 _marketAccounts[marketId].versionOf[context.epoch] = context.markets[marketId].latestVersion;
             }
             _epochs[context.epoch].totalShares = _totalSupplyAtEpoch(context);
             _epochs[context.epoch].totalAssets = _totalAssetsAtEpoch(context);
 
             // process pending deposit / redemption after new epoch is settled
-            if (_pendingDelta.epoch != context.epoch) console.log("writing %s != %s", _pendingDelta.epoch, context.epoch);
             _delta.overwrite(_pendingDelta);
             _pendingDelta.clear(context.epoch + 1);
         }
 
+
         if (account != address(0)) {
             if (context.epoch > _deltas[account].epoch) {
-                _balanceOf[account] = _balanceOfAtEpoch(context, account);
+                _balanceOf[account] = _balanceOfAtEpoch(context, account).sub(_pendingDeltas[account].redemption); // TODO: clean this up
                 _unclaimed[account] = _unclaimedAtEpoch(context, account);
                 _deltas[account].clear(context.epoch);
             }
@@ -737,7 +736,7 @@ contract Vault is IVault, VaultDefinition, UInitializable {
      * @param epoch Epoch to get total assets at
      * @return The version at epoch
      */
-    function _versionAtEpoch(uint256 marketId, uint256 epoch) private view returns (uint256) {
+    function _versionAtEpoch(uint256 marketId, uint256 epoch) private view returns (uint256) { // TODO: remove
         if (epoch > _delta.epoch) return 0;
         uint256 version = _marketAccounts[marketId].versionOf[epoch];
         return (version == 0) ? epoch : version;
