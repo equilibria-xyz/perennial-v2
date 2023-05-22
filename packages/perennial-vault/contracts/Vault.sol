@@ -6,7 +6,6 @@ import "@equilibria/root/control/unstructured/UInitializable.sol";
 import "@openzeppelin/contracts/utils/math/Math.sol";
 import "./VaultDefinition.sol";
 import "./types/Delta.sol";
-import "hardhat/console.sol";
 
 /**
  * @title Vault
@@ -191,8 +190,9 @@ contract Vault is IVault, VaultDefinition, UInitializable {
 
         // pro-rate if vault has less collateral than unclaimed
         UFixed18 claimAmount = unclaimedAmount;
-        UFixed18 totalCollateral = _assets(context);
-        if (totalCollateral.lt(unclaimedTotal)) claimAmount = claimAmount.muldiv(totalCollateral, unclaimedTotal);
+        UFixed18 totalCollateral = UFixed18Lib.from(_assets(context).max(Fixed18Lib.ZERO));
+        if (totalCollateral.lt(unclaimedTotal))
+            claimAmount = claimAmount.muldiv(totalCollateral, unclaimedTotal);
 
         _rebalance(context, claimAmount);
 
@@ -387,15 +387,18 @@ contract Vault is IVault, VaultDefinition, UInitializable {
      * @param claimAmount The amount of assets that will be withdrawn from the vault at the end of the operation
      */
     function _rebalance(Context memory context, UFixed18 claimAmount) private {
-        UFixed18 assetsInVault = _assets(context).sub(claimAmount);
+        Fixed18 assetsInVault = _assets(context).sub(Fixed18Lib.from(claimAmount));
         UFixed18 minCollateral = _toU18(factory.parameter().minCollateral);
 
+        // if negative assets, skip rebalance
+        if (assetsInVault.lt(Fixed18Lib.ZERO)) return;
+
         // Compute available collateral
-        UFixed18 collateral = assetsInVault;
+        UFixed18 collateral = UFixed18Lib.from(assetsInVault);
         if (collateral.muldiv(minWeight, totalWeight).lt(minCollateral)) collateral = UFixed18Lib.ZERO;
 
         // Compute available capital
-        UFixed18 capital = assetsInVault
+        UFixed18 capital = UFixed18Lib.from(assetsInVault)
             .sub(_totalUnclaimedAtEpoch(context).add(_delta.deposit).add(_pendingDelta.deposit))
             .mul(_totalSupplyAtEpoch(context).unsafeDiv(_totalSupplyAtEpoch(context).add(_delta.redemption)))
             .add(_delta.deposit);
@@ -405,13 +408,13 @@ contract Vault is IVault, VaultDefinition, UInitializable {
 
         // Remove collateral from markets above target
         for (uint256 marketId; marketId < totalMarkets; marketId++) {
-            if (context.markets[marketId].collateral.gt(targets[marketId].targetCollateral))
+            if (context.markets[marketId].collateral.gt(Fixed18Lib.from(targets[marketId].targetCollateral)))
                 _update(context.markets[marketId], markets(marketId).market, targets[marketId]);
         }
 
         // Deposit collateral to markets below target
         for (uint256 marketId; marketId < totalMarkets; marketId++) {
-            if (context.markets[marketId].collateral.lte(targets[marketId].targetCollateral))
+            if (context.markets[marketId].collateral.lte(Fixed18Lib.from(targets[marketId].targetCollateral)))
                 _update(context.markets[marketId], markets(marketId).market, targets[marketId]);
         }
     }
@@ -535,7 +538,7 @@ contract Vault is IVault, VaultDefinition, UInitializable {
             context.markets[marketId].latestVersionAccount = latestPosition.version;
             context.markets[marketId].latestPositionAccount = latestPosition.maker;
             context.markets[marketId].currentPositionAccount = currentPosition.maker;
-            context.markets[marketId].collateral = _toU18(local.collateral.max(Fixed6Lib.ZERO).abs());
+            context.markets[marketId].collateral = _toS18(local.collateral);
             context.markets[marketId].liquidation = local.liquidation;
         }
 
@@ -561,10 +564,10 @@ contract Vault is IVault, VaultDefinition, UInitializable {
      * @param marketContext The configuration of the market
      * @return bool true if unhealthy, false if healthy
      */
-    function _unhealthy(MarketContext memory marketContext) internal pure returns (bool) {
+    function _unhealthy(MarketContext memory marketContext) internal view returns (bool) {
         //TODO: figure out how to compute "can liquidate"
         return /* collateral.liquidatable(address(this), marketDefinition.long) || */ (
-            marketContext.liquidation >= marketContext.latestVersionAccount
+            marketContext.liquidation > marketContext.latestVersionAccount
         );
     }
 
@@ -596,11 +599,11 @@ contract Vault is IVault, VaultDefinition, UInitializable {
      * @return Total assets amount at epoch
      */
     function _totalAssetsAtEpoch(Context memory context) private view returns (UFixed18) {
-        (UFixed18 totalCollateral, UFixed18 totalDebt) = (
+        (Fixed18 totalCollateral, UFixed18 totalDebt) = (
             _assets(context),
             _totalUnclaimedAtEpoch(context).add(_delta.deposit).add(_pendingDelta.deposit)
         );
-        return totalCollateral.gt(totalDebt) ? totalCollateral.sub(totalDebt) : UFixed18Lib.ZERO;
+        return UFixed18Lib.from(totalCollateral.sub(Fixed18Lib.from(totalDebt)).max(Fixed18Lib.ZERO));
     }
 
     /**
@@ -652,8 +655,8 @@ contract Vault is IVault, VaultDefinition, UInitializable {
      * @notice Returns the amounts of the individual sources of assets in the vault
      * @return value The real amount of collateral in the vault
      **/
-    function _assets(Context memory context) public view returns (UFixed18 value) {
-        value = asset.balanceOf();
+    function _assets(Context memory context) public view returns (Fixed18 value) {
+        value = Fixed18Lib.from(asset.balanceOf());
         for (uint256 marketId; marketId < totalMarkets; marketId++)
             value = value.add(context.markets[marketId].collateral);
     }
@@ -723,7 +726,7 @@ contract Vault is IVault, VaultDefinition, UInitializable {
         );
 
         // collateral can't go negative on a product
-        accumulated = accumulated.max(Fixed18Lib.from(marketEpoch.assets).mul(Fixed18Lib.NEG_ONE)); // TODO: does this this work this way?
+        accumulated = accumulated.max(marketEpoch.assets.mul(Fixed18Lib.NEG_ONE)); // TODO: does this this work this way?
     }
 
     /**

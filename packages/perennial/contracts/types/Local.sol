@@ -75,6 +75,7 @@ library LocalStorageLib { // TODO: automate this storage format to save contract
     function store(LocalStorage storage self, Local memory newValue) internal {
         if (newValue.currentId > type(uint64).max) revert LocalStorageInvalidError();
         if (newValue.collateral.gt(Fixed6Lib.MAX_64)) revert LocalStorageInvalidError();
+        if (newValue.collateral.lt(Fixed6Lib.MIN_64)) revert LocalStorageInvalidError();
         if (newValue.reward.gt(UFixed6Lib.MAX_64)) revert LocalStorageInvalidError();
         if (newValue.liquidation > type(uint64).max) revert LocalStorageInvalidError();
 

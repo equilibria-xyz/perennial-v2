@@ -40,7 +40,7 @@ interface IVault is IVaultDefinition {
         UFixed6 currentPositionAccount;
 
         // local
-        UFixed18 collateral;
+        Fixed18 collateral;
         uint256 liquidation;
     }
 
@@ -51,7 +51,7 @@ interface IVault is IVaultDefinition {
 
     struct MarketEpoch {
         UFixed6 position;
-        UFixed18 assets;
+        Fixed18 assets;
     }
 
     struct MarketAccount {

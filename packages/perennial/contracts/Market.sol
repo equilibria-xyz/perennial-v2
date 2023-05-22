@@ -7,6 +7,8 @@ import "./interfaces/IMarket.sol";
 import "./interfaces/IFactory.sol";
 import "hardhat/console.sol";
 
+// TODO: because the vault needs to call settle(), there's no way around it liquidating itself and locking the vault for 1 version
+
 /**
  * @title Market
  * @notice Manages logic and state for a single market market.
@@ -170,7 +172,7 @@ contract Market is IMarket, UInitializable, UOwnable {
         // before
         UFixed6 maintenance = context.accountPosition.maintenance(context.latestVersion, context.marketParameter);
         if (
-            context.local.collateral.gte(Fixed6Lib.from(maintenance)) ||
+            context.local.collateral.max(Fixed6Lib.ZERO).gte(Fixed6Lib.from(maintenance)) ||
             context.local.liquidation > context.accountPosition.version ||
             context.marketParameter.closed
         ) return;
@@ -386,7 +388,7 @@ contract Market is IMarket, UInitializable, UOwnable {
             revert MarketExceedsPendingIdLimitError();
     }
 
-    function _checkCollateral(CurrentContext memory context) private pure {
+    function _checkCollateral(CurrentContext memory context) private view {
         if (context.local.collateral.sign() == -1) revert MarketInDebtError();
 
         UFixed6 boundedCollateral = UFixed6Lib.from(context.local.collateral);
@@ -397,6 +399,7 @@ contract Market is IMarket, UInitializable, UOwnable {
         UFixed6 maintenanceAmount =
             context.accountPosition.maintenance(context.latestVersion, context.marketParameter)
                 .max(context.accountPendingPosition.maintenance(context.latestVersion, context.marketParameter));
+
         if (maintenanceAmount.gt(boundedCollateral)) revert MarketInsufficientCollateralError();
     }
 
