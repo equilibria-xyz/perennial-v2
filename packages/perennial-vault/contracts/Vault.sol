@@ -7,6 +7,9 @@ import "@openzeppelin/contracts/utils/math/Math.sol";
 import "./VaultDefinition.sol";
 import "./types/Delta.sol";
 
+// TODO: only pull out what you can from collateral when really unbalanced
+// TODO: make sure maker fees are supported
+
 /**
  * @title Vault
  * @notice ERC4626 vault that manages a 50-50 position between long-short markets of the same payoff on Perennial.
@@ -398,8 +401,11 @@ contract Vault is IVault, VaultDefinition, UInitializable {
         if (collateral.muldiv(minWeight, totalWeight).lt(minCollateral)) collateral = UFixed18Lib.ZERO;
 
         // Compute available capital
-        UFixed18 capital = UFixed18Lib.from(assetsInVault)
-            .sub(_totalUnclaimedAtEpoch(context).add(_delta.deposit).add(_pendingDelta.deposit))
+        UFixed18 capital = UFixed18Lib.from(
+                assetsInVault
+                    .sub(Fixed18Lib.from(_totalUnclaimedAtEpoch(context).add(_delta.deposit).add(_pendingDelta.deposit)))
+                    .max(Fixed18Lib.ZERO)
+            )
             .mul(_totalSupplyAtEpoch(context).unsafeDiv(_totalSupplyAtEpoch(context).add(_delta.redemption)))
             .add(_delta.deposit);
         if (capital.muldiv(minWeight, totalWeight).lt(minCollateral)) capital = UFixed18Lib.ZERO;

@@ -8,6 +8,7 @@ import "./interfaces/IFactory.sol";
 import "hardhat/console.sol";
 
 // TODO: because the vault needs to call settle(), there's no way around it liquidating itself and locking the vault for 1 version
+// TODO: maintenance only checks latest and current, could have intermediary version with higher maintenance than is allowed
 
 /**
  * @title Market
