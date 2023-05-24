@@ -32,7 +32,7 @@ describe('Liquidate', () => {
 
     expect((await market.locals(user.address)).collateral).to.equal('317221012')
     expect(await dsu.balanceOf(market.address)).to.equal(utils.parseEther('317.221012'))
-    expect(await dsu.balanceOf(userB.address)).to.equal(utils.parseEther('20682.778988')) // Original 20000 + fee
+    expect(await dsu.balanceOf(userB.address)).to.equal(utils.parseEther('200682.778988')) // Original 200000 + fee
 
     await chainlink.next()
     await market.settle(user.address)
@@ -61,7 +61,7 @@ describe('Liquidate', () => {
 
     expect((await market.locals(user.address)).collateral).to.equal(0)
     expect(await dsu.balanceOf(market.address)).to.equal(0)
-    expect(await dsu.balanceOf(userB.address)).to.equal(utils.parseEther('21000')) // Original 20000 + fee
+    expect(await dsu.balanceOf(userB.address)).to.equal(utils.parseEther('201000')) // Original 200000 + fee
 
     await chainlink.next()
     await market.settle(user.address)
