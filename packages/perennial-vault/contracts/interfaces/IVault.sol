@@ -8,26 +8,21 @@ import "./IVaultDefinition.sol";
 interface IVault is IVaultDefinition {
 
     struct Context {
-        uint256 epoch;
-
-        UFixed18 latestAssets;
-        UFixed18 latestShares;
-        UFixed18 latestAssetsAccount;
-        UFixed18 latestSharesAccount;
+        uint256 current;
+        uint256 latest;
 
         // markets
         MarketContext[] markets;
     }
 
     struct MarketContext {
+        uint256 currentId;
+
         // parameter
         bool closed;
         UFixed6 makerLimit;
         IOracleProvider oracle;
         Payoff payoff;
-
-        // latest position
-        uint256 latestVersion;
 
         // current position
         Position currentPosition;
@@ -44,24 +39,19 @@ interface IVault is IVaultDefinition {
         uint256 liquidation;
     }
 
-    struct Epoch {
-        UFixed18 totalShares;
-        UFixed18 totalAssets;
+    struct Version {
+        Basis basis;
+        mapping(uint256 => uint256) ids;
     }
 
-    struct MarketEpoch {
-        UFixed6 position;
+    struct Basis {
+        UFixed18 shares;
         Fixed18 assets;
     }
 
-    struct MarketAccount {
-        mapping(uint256 => MarketEpoch) epochs;
-        mapping(uint256 => uint256) versionOf;
-    }
-
     struct Target {
-        UFixed18 targetCollateral;
-        UFixed6 targetPosition;
+        UFixed18 collateral;
+        UFixed6 position;
     }
 
     event Mint(address indexed account, UFixed18 amount);
@@ -70,17 +60,16 @@ interface IVault is IVaultDefinition {
     event Redemption(address indexed sender, address indexed account, uint256 version, UFixed18 shares);
     event Claim(address indexed sender, address indexed account, UFixed18 assets);
 
-    error VaultDepositLimitExceeded();
-    error VaultRedemptionLimitExceeded();
+    error VaultDepositLimitExceededError();
+    error VaultRedemptionLimitExceededError();
+    error VaultExistingOrderError();
 
     function name() external view returns (string memory);
     function initialize(string memory name_) external;
-    function sync() external;
-    function syncAccount(address account) external;
+    function settle(address account) external;
     function unclaimed(address account) external view returns (UFixed18);
     function totalUnclaimed() external view returns (UFixed18);
     function claim(address account) external;
-    function currentEpoch() external view returns (uint256);
 
     /* Partial ERC4626 Interface */
 

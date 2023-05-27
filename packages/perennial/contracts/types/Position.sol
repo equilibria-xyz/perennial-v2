@@ -14,15 +14,22 @@ struct Position {
     UFixed6 long;
     UFixed6 short;
     UFixed6 fee; // TODO: unused in the non-pending instances
+    Fixed6 collateral;
+    Fixed6 delta;
 }
 using PositionLib for Position global;
 struct StoredPosition {
+    // slot 1
     uint32 _id;
     uint32 _version;
     uint48 _maker;
     uint48 _long;
     uint48 _short;
     uint48 _fee;
+
+    // slot 2
+    int128 _collateral;
+    int128 _delta;
 }
 struct PositionStorage { StoredPosition value; }
 using PositionStorageLib for PositionStorage global;
@@ -36,6 +43,7 @@ library PositionLib {
         return latestVersion.version >= self.version;
     }
 
+    /// @dev update the latest position
     function update(Position memory self, Position memory newPosition) internal pure {
         (self.id, self.version, self.maker, self.long, self.short) = (
             newPosition.id,
@@ -46,6 +54,7 @@ library PositionLib {
         );
     }
 
+    /// @dev update the current local position
     function update(
         Position memory self,
         uint256 currentId,
@@ -73,6 +82,7 @@ library PositionLib {
         );
     }
 
+    /// @dev update the current global position
     function update(Position memory self, uint256 currentId, uint256 currentVersion, Order memory order) internal pure {
         (self.id, self.version, self.maker, self.long, self.short, self.fee) = (
             currentId,
@@ -82,6 +92,11 @@ library PositionLib {
             UFixed6Lib.from(Fixed6Lib.from(self.short).add(order.short)),
             self.id == currentId ? self.fee.add(order.fee) : order.fee
         );
+    }
+
+    /// @dev update the collateral delta of the local position
+    function update(Position memory self, Fixed6 collateralAmount) internal pure {
+        self.delta = self.delta.add(collateralAmount);
     }
 
     function magnitude(Position memory self) internal pure returns (UFixed6) {
@@ -161,7 +176,7 @@ library PositionStorageLib {
     error PositionStorageInvalidError();
 
     function read(PositionStorage storage self) internal view returns (Position memory) {
-        StoredPosition memory storedValue =  self.value;
+        StoredPosition memory storedValue = self.value;
 
         return Position(
             uint256(storedValue._id),
@@ -169,7 +184,9 @@ library PositionStorageLib {
             UFixed6.wrap(uint256(storedValue._maker)),
             UFixed6.wrap(uint256(storedValue._long)),
             UFixed6.wrap(uint256(storedValue._short)),
-            UFixed6.wrap(uint256(storedValue._fee))
+            UFixed6.wrap(uint256(storedValue._fee)),
+            Fixed6.wrap(int128(storedValue._collateral)),
+            Fixed6.wrap(int128(storedValue._delta))
         );
     }
 
@@ -180,6 +197,10 @@ library PositionStorageLib {
         if (newValue.long.gt(UFixed6Lib.MAX_48)) revert PositionStorageInvalidError();
         if (newValue.short.gt(UFixed6Lib.MAX_48)) revert PositionStorageInvalidError();
         if (newValue.fee.gt(UFixed6Lib.MAX_48)) revert PositionStorageInvalidError();
+        if (newValue.collateral.gt(Fixed6Lib.MAX_128)) revert PositionStorageInvalidError();
+        if (newValue.collateral.lt(Fixed6Lib.MIN_128)) revert PositionStorageInvalidError();
+        if (newValue.delta.gt(Fixed6Lib.MAX_128)) revert PositionStorageInvalidError();
+        if (newValue.delta.lt(Fixed6Lib.MIN_128)) revert PositionStorageInvalidError();
 
         self.value = StoredPosition(
             uint32(newValue.id),
@@ -187,7 +208,9 @@ library PositionStorageLib {
             uint48(UFixed6.unwrap(newValue.maker)),
             uint48(UFixed6.unwrap(newValue.long)),
             uint48(UFixed6.unwrap(newValue.short)),
-            uint48(UFixed6.unwrap(newValue.fee))
+            uint48(UFixed6.unwrap(newValue.fee)),
+            int128(Fixed6.unwrap(newValue.collateral)),
+            int128(Fixed6.unwrap(newValue.delta))
         );
     }
 }

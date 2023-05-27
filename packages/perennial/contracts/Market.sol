@@ -225,6 +225,7 @@ contract Market is IMarket, UInitializable, UOwnable {
         // update collateral
         Fixed6 collateralAmount =
             context.local.update(newCollateral.eq(Fixed6Lib.MAX) ? context.local.collateral : newCollateral);
+        context.accountPendingPosition.update(collateralAmount);
 
         // after
         if (!force) _checkPosition(context);
@@ -272,14 +273,18 @@ contract Market is IMarket, UInitializable, UOwnable {
     function _saveContext(CurrentContext memory context, address account) private {
         _startGas(context, "_saveContext: %s");
 
+        //TODO(gas): should try to remove all of these position writes
+
         // global
         _global.store(context.global);
-        _pendingPosition[context.global.currentId].store(context.pendingPosition);
+        if (context.global.currentId > context.position.id)
+            _pendingPosition[context.global.currentId].store(context.pendingPosition);
         _position.store(context.position);
 
         // account
         _locals[account].store(context.local);
-        _pendingPositions[account][context.local.currentId].store(context.accountPendingPosition);
+        if (context.local.currentId > context.accountPosition.id)
+            _pendingPositions[account][context.local.currentId].store(context.accountPendingPosition);
         _positions[account].store(context.accountPosition);
 
 
@@ -299,7 +304,12 @@ contract Market is IMarket, UInitializable, UOwnable {
         while (
             context.local.currentId != context.accountPosition.id &&
             (nextPosition = _pendingPositions[account][context.accountPosition.id + 1].read()).ready(context.latestVersion)
-        ) _processPositionAccount(context, nextPosition);
+        ) {
+            _processPositionAccount(context, nextPosition);
+            nextPosition.collateral = context.local.collateral
+                .sub(context.accountPendingPosition.delta.sub(nextPosition.delta));
+            _pendingPositions[account][nextPosition.id].store(nextPosition);
+        }
 
         _endGas(context);
     }
@@ -389,7 +399,7 @@ contract Market is IMarket, UInitializable, UOwnable {
             revert MarketExceedsPendingIdLimitError();
     }
 
-    function _checkCollateral(CurrentContext memory context) private view {
+    function _checkCollateral(CurrentContext memory context) private pure {
         if (context.local.collateral.sign() == -1) revert MarketInDebtError();
 
         UFixed6 boundedCollateral = UFixed6Lib.from(context.local.collateral);
