@@ -6,6 +6,7 @@ import "@equilibria/root/control/unstructured/UInitializable.sol";
 import "@openzeppelin/contracts/utils/math/Math.sol";
 import "./VaultDefinition.sol";
 import "./types/Delta.sol";
+import "hardhat/console.sol";
 
 // TODO: only pull out what you can from collateral when really unbalanced
 // TODO: make sure maker fees are supported
@@ -28,8 +29,6 @@ import "./types/Delta.sol";
  *      force settlement and rebalancing. This is most useful to prevent vault liquidation due to PnL changes
  *      causing the vault to be in an unhealthy state (far away from target leverage)
  *
- *      This implementation is designed to be upgrade-compatible with instances of the previous single-payoff
- *      Vault, here: https://github.com/equilibria-xyz/perennial-mono/blob/d970debe95e41598228e8c4ae52fb816797820fb/packages/perennial-vaults/contracts/Vault.sol.
  */
 contract Vault is IVault, VaultDefinition, UInitializable {
     /// @dev The name of the vault
@@ -249,6 +248,7 @@ contract Vault is IVault, VaultDefinition, UInitializable {
     function _settle(address account) private returns (Context memory context) {
         context = _loadContextForWrite(account);
 
+        // process pending deltas
         while (context.latest >= _delta[latestId + 1].version && currentId > latestId)
             _processDelta(_delta[latestId + 1]);
         if (context.latest >= _deltas[account].version && context.latest > latestVersions[account]) {
@@ -256,12 +256,16 @@ contract Vault is IVault, VaultDefinition, UInitializable {
             _deltas[account].clear();
         }
 
+        // sync data for new id
         if (context.current > _delta[currentId].version) {
             for (uint256 marketId; marketId < totalMarkets; marketId++) {
                 _versions[context.current].ids[marketId] = context.markets[marketId].currentId;
             }
-            _versions[context.current].basis.shares = totalSupply;
-            _versions[context.current].basis.assets = _assets();
+            _versions[context.current]._basis = BasisStorage(
+                uint120(UFixed18.unwrap(totalSupply)),
+                int128(Fixed18.unwrap(_assets())),
+                false
+            );
 
             currentId++;
             _delta[currentId].version = context.current;
@@ -270,7 +274,7 @@ contract Vault is IVault, VaultDefinition, UInitializable {
 
     function _processDelta(Delta memory delta) private {
         // sync state
-        Basis memory basis = basis(delta.version);
+        Basis memory basis = _basis(delta.version);
         totalSupply = totalSupply.add(_convertToShares(basis, delta.deposit));
         totalUnclaimed = totalUnclaimed.add(_convertToAssets(basis, delta.redemption));
 
@@ -284,7 +288,7 @@ contract Vault is IVault, VaultDefinition, UInitializable {
         if (account == address(0)) return; // gas optimization
 
         // sync state
-        Basis memory basis = basis(delta.version);
+        Basis memory basis = _basis(delta.version);
         balanceOf[account] = balanceOf[account].add(_convertToShares(basis, delta.deposit));
         unclaimed[account] = unclaimed[account].add(_convertToAssets(basis, delta.redemption));
         latestVersions[account] = delta.version;
@@ -367,8 +371,8 @@ contract Vault is IVault, VaultDefinition, UInitializable {
     function _update(MarketContext memory marketContext, IMarket market, Target memory target) private {
         // compute headroom until hitting taker amount
         if (target.position.lt(marketContext.currentPositionAccount)) {
-            UFixed6 makerAvailable = marketContext.currentPosition.maker.gt(marketContext.currentPosition.net()) ?
-                marketContext.currentPosition.maker.sub(marketContext.currentPosition.net()) :
+            UFixed6 makerAvailable = marketContext.currentPosition.gt(marketContext.currentNet) ?
+                marketContext.currentPosition.sub(marketContext.currentNet) :
                 UFixed6Lib.ZERO;
             target.position = marketContext.currentPositionAccount
                 .sub(marketContext.currentPositionAccount.sub(target.position).min(makerAvailable));
@@ -376,9 +380,8 @@ contract Vault is IVault, VaultDefinition, UInitializable {
 
         // compute headroom until hitting makerLimit
         if (target.position.gt(marketContext.currentPositionAccount)) {
-            UFixed6 makerLimit = marketContext.makerLimit;
-            UFixed6 makerAvailable = makerLimit.gt(marketContext.currentPosition.maker) ?
-                makerLimit.sub(marketContext.currentPosition.maker) :
+            UFixed6 makerAvailable = marketContext.makerLimit.gt(marketContext.currentPosition) ?
+                marketContext.makerLimit.sub(marketContext.currentPosition) :
                 UFixed6Lib.ZERO;
             target.position = marketContext.currentPositionAccount
                 .add(target.position.sub(marketContext.currentPositionAccount).min(makerAvailable));
@@ -425,13 +428,16 @@ contract Vault is IVault, VaultDefinition, UInitializable {
      * @return context Epoch context
      */
     function _loadContextForRead(address account) private view returns (Context memory context) {
-        context.current = current();
-        context.latest = latest();
-
+        context.current = type(uint256).max;
+        context.latest = type(uint256).max;
+        context.liquidation = 0;
         context.markets = new MarketContext[](totalMarkets);
+
         for (uint256 marketId; marketId < totalMarkets; marketId++) {
             MarketDefinition memory marketDefinition = markets(marketId);
             MarketParameter memory marketParameter = marketDefinition.market.parameter();
+            uint256 currentVersion = marketParameter.oracle.current();
+
             context.markets[marketId].closed = marketParameter.closed;
             context.markets[marketId].makerLimit = marketParameter.makerLimit;
             context.markets[marketId].oracle = marketParameter.oracle;
@@ -442,20 +448,20 @@ contract Vault is IVault, VaultDefinition, UInitializable {
             Position memory currentPosition = marketDefinition.market.pendingPosition(global.currentId);
             Position memory latestPosition = marketDefinition.market.position();
 
-            context.markets[marketId].currentPosition = currentPosition;
+            context.markets[marketId].currentPosition = currentPosition.maker;
+            context.markets[marketId].currentNet = currentPosition.net();
+            if (latestPosition.version < context.latest) context.latest = latestPosition.version;
+            if (currentVersion < context.current) context.current = currentVersion;
 
             // local
             Local memory local = marketDefinition.market.locals(address(this));
             currentPosition = marketDefinition.market.pendingPositions(address(this), local.currentId);
             latestPosition = marketDefinition.market.positions(address(this));
-            uint256 currentVersion = marketParameter.oracle.current();
 
             context.markets[marketId].currentId = (currentVersion > currentPosition.version) ? local.currentId + 1 : local.currentId;
-            context.markets[marketId].latestVersionAccount = latestPosition.version;
-            context.markets[marketId].latestPositionAccount = latestPosition.maker;
             context.markets[marketId].currentPositionAccount = currentPosition.maker;
             context.markets[marketId].collateral = _toS18(local.collateral);
-            context.markets[marketId].liquidation = local.liquidation;
+            if (local.liquidation > context.liquidation) context.liquidation = local.liquidation;
         }
     }
 
@@ -464,26 +470,14 @@ contract Vault is IVault, VaultDefinition, UInitializable {
      * @param context Epoch context to calculate health
      * @return bool true if unhealthy, false if healthy
      */
-    function _unhealthyAtEpoch(Context memory context) private view returns (bool) {
-        Basis memory basis = basis(latest());
-        if (!basis.shares.isZero() && basis.assets.lte(Fixed18Lib.ZERO)) return true;
-        for (uint256 marketId; marketId < totalMarkets; marketId++) {
-            if (_unhealthy(context.markets[marketId])) return true;
-        }
-        return false;
-    }
-
-    /**
-     * @notice Determines whether the market pair is currently in an unhealthy state
-     * @dev market is unhealthy if either the long or short markets are liquidating or liquidatable
-     * @param marketContext The configuration of the market
-     * @return bool true if unhealthy, false if healthy
-     */
-    function _unhealthy(MarketContext memory marketContext) internal view returns (bool) {
-        //TODO: figure out how to compute "can liquidate"
-        return /* collateral.liquidatable(address(this), marketDefinition.long) || */ (
-            marketContext.liquidation > marketContext.latestVersionAccount
+    function _unhealthy(Context memory context) private view returns (bool) {
+        BasisStorage memory storedBasis = _versions[context.latest]._basis; // latest basis will always be complete
+        Basis memory basis;
+        (basis.shares, basis.assets) = (
+            UFixed18.wrap(uint256(storedBasis.shares)),
+            Fixed18.wrap(int256(storedBasis.assets))
         );
+        return (!basis.shares.isZero() && basis.assets.lte(Fixed18Lib.ZERO)) || (context.liquidation > context.latest);
     }
 
     /**
@@ -493,7 +487,7 @@ contract Vault is IVault, VaultDefinition, UInitializable {
      */
     function _maxDeposit(Context memory context) private view returns (UFixed18) {
         UFixed18 collateral = UFixed18Lib.from(_collateral(context).max(Fixed18Lib.ZERO));
-        return _unhealthyAtEpoch(context) ?
+        return _unhealthy(context) ?
             UFixed18Lib.ZERO :
             maxCollateral.gt(collateral) ?
                 maxCollateral.sub(collateral).add(totalUnclaimed) :
@@ -507,7 +501,7 @@ contract Vault is IVault, VaultDefinition, UInitializable {
      * @return Maximum available redeemable amount at epoch
      */
     function _maxRedeem(Context memory context, address account) private view returns (UFixed18) {
-        return _unhealthyAtEpoch(context) ? UFixed18Lib.ZERO : balanceOf[account];
+        return _unhealthy(context) ? UFixed18Lib.ZERO : balanceOf[account];
     }
 
     /**
@@ -551,33 +545,25 @@ contract Vault is IVault, VaultDefinition, UInitializable {
         return basis.shares.isZero() ? shares : shares.muldiv(basisAssets, basis.shares);
     }
 
-    function latest() public view returns (uint256 version) {
-        version = type(uint256).max;
-        for(uint256 marketId; marketId < totalMarkets; marketId++) {
-            uint256 marketLatestVersion = markets(marketId).market.position().version;
-            if (marketLatestVersion < version) version = marketLatestVersion;
-        }
-    }
-
-    function current() public view returns (uint256 version) {
-        version = type(uint256).max;
-        for(uint256 marketId; marketId < totalMarkets; marketId++) {
-            uint256 marketCurrentVersion = markets(marketId).market.parameter().oracle.current();
-            if (marketCurrentVersion < version) version = marketCurrentVersion;
-        }
-    }
-
-    function basis(uint256 version) public view returns (Basis memory basis) {
-        basis = _versions[version].basis;
+    function _basis(uint256 version) private returns (Basis memory basis) {
+        BasisStorage memory storedBasis = _versions[version]._basis;
+        (basis.shares, basis.assets, basis.complete) = (
+            UFixed18.wrap(uint256(storedBasis.shares)),
+            Fixed18.wrap(int256(storedBasis.assets)),
+            storedBasis.complete
+        );
+        if (basis.complete) return basis;
 
         for(uint256 marketId; marketId < totalMarkets; marketId++) {
-            uint256 id = _versions[version].ids[marketId];
-            Position memory position = markets(marketId).market.pendingPositions(address(this), id); // TODO: fix market and move this into that
-            Position memory pre = markets(marketId).market.pendingPositions(address(this), id == 0 ? 0 : id - 1);
-            Fixed18 marketCollateral = _toS18(position.collateral.sub(position.delta.sub(pre.delta)));
-
-            basis.assets = basis.assets.add(marketCollateral);
+            Position memory position =
+                markets(marketId).market.pendingPositions(address(this), _versions[version].ids[marketId]);
+            basis.assets = basis.assets.add(_toS18(position.collateral));
         }
+        _versions[version]._basis = BasisStorage(
+            uint120(UFixed18.unwrap(basis.shares)),
+            int128(Fixed18.unwrap(basis.assets)),
+            true
+        );
 
         // TODO: should this cap the assets at 0?
     }

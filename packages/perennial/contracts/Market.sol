@@ -305,9 +305,10 @@ contract Market is IMarket, UInitializable, UOwnable {
             context.local.currentId != context.accountPosition.id &&
             (nextPosition = _pendingPositions[account][context.accountPosition.id + 1].read()).ready(context.latestVersion)
         ) {
+            Fixed6 previousDelta = _pendingPositions[account][context.accountPosition.id].read().delta;
             _processPositionAccount(context, nextPosition);
             nextPosition.collateral = context.local.collateral
-                .sub(context.accountPendingPosition.delta.sub(nextPosition.delta));
+                .sub(context.accountPendingPosition.delta.sub(previousDelta));
             _pendingPositions[account][nextPosition.id].store(nextPosition);
         }
 

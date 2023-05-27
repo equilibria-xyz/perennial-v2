@@ -10,6 +10,7 @@ interface IVault is IVaultDefinition {
     struct Context {
         uint256 current;
         uint256 latest;
+        uint256 liquidation;
 
         // markets
         MarketContext[] markets;
@@ -25,10 +26,10 @@ interface IVault is IVaultDefinition {
         Payoff payoff;
 
         // current position
-        Position currentPosition;
+        UFixed6 currentPosition;
+        UFixed6 currentNet;
 
         // latest account position
-        uint256 latestVersionAccount;
         UFixed6 latestPositionAccount;
 
         // current account position
@@ -36,17 +37,23 @@ interface IVault is IVaultDefinition {
 
         // local
         Fixed18 collateral;
-        uint256 liquidation;
     }
 
     struct Version {
-        Basis basis;
+        BasisStorage _basis;
         mapping(uint256 => uint256) ids;
     }
 
     struct Basis {
         UFixed18 shares;
         Fixed18 assets;
+        bool complete;
+    }
+
+    struct BasisStorage {
+        uint120 shares;
+        int128 assets;
+        bool complete;
     }
 
     struct Target {
