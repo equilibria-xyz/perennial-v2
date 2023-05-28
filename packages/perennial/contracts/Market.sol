@@ -41,19 +41,19 @@ contract Market is IMarket, UInitializable, UOwnable {
     /// @dev Protocol and market fees collected, but not yet claimed
     GlobalStorage private _global;
 
-    PositionStorage private _position;
+    PositionStorageGlobal private _position;
 
-    mapping(uint256 => PositionStorage) private _pendingPosition;
+    mapping(uint256 => PositionStorageGlobal) private _pendingPosition;
 
     /// @dev The individual state for each account
     mapping(address => LocalStorage) private _locals;
 
-    mapping(address => PositionStorage) private _positions;
+    mapping(address => PositionStorageLocal) private _positions;
 
-    mapping(address => mapping(uint256 => PositionStorage)) private _pendingPositions;
+    mapping(address => mapping(uint256 => PositionStorageLocal)) private _pendingPositions;
 
     /// @dev Mapping of the historical version data
-    mapping(uint256 => VersionStorage) _versions;
+    mapping(uint256 => VersionStorage) private _versions;
 
     /**
      * @notice Initializes the contract state

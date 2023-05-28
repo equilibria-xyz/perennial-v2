@@ -14,25 +14,31 @@ struct Position {
     UFixed6 long;
     UFixed6 short;
     UFixed6 fee; // TODO: unused in the non-pending instances
-    Fixed6 collateral;
-    Fixed6 delta;
+    Fixed6 collateral; // TODO: unused in the non-pending and global instances
+    Fixed6 delta; // TODO: unused in the non-pending and global instances
 }
 using PositionLib for Position global;
-struct StoredPosition {
-    // slot 1
+struct StoredPositionGlobal {
     uint32 _id;
     uint32 _version;
     uint48 _maker;
     uint48 _long;
     uint48 _short;
     uint48 _fee;
-
-    // slot 2
-    int128 _collateral;
-    int128 _delta;
 }
-struct PositionStorage { StoredPosition value; }
-using PositionStorageLib for PositionStorage global;
+struct PositionStorageGlobal { StoredPositionGlobal value; }
+using PositionStorageGlobalLib for PositionStorageGlobal global;
+struct StoredPositionLocal {
+    uint24 _id;
+    uint32 _version;
+    uint8 _direction;
+    uint48 _position;
+    uint48 _fee;
+    int48 _collateral;
+    int48 _delta;
+}
+struct PositionStorageLocal { StoredPositionLocal value; }
+using PositionStorageLocalLib for PositionStorageLocal global;
 
 /**
  * @title PositionLib
@@ -172,11 +178,11 @@ library PositionLib {
     }
 }
 
-library PositionStorageLib {
-    error PositionStorageInvalidError();
+library PositionStorageGlobalLib {
+    error PositionStorageGlobalInvalidError();
 
-    function read(PositionStorage storage self) internal view returns (Position memory) {
-        StoredPosition memory storedValue = self.value;
+    function read(PositionStorageGlobal storage self) internal view returns (Position memory) {
+        StoredPositionGlobal memory storedValue = self.value;
 
         return Position(
             uint256(storedValue._id),
@@ -185,32 +191,68 @@ library PositionStorageLib {
             UFixed6.wrap(uint256(storedValue._long)),
             UFixed6.wrap(uint256(storedValue._short)),
             UFixed6.wrap(uint256(storedValue._fee)),
-            Fixed6.wrap(int128(storedValue._collateral)),
-            Fixed6.wrap(int128(storedValue._delta))
+            Fixed6Lib.ZERO,
+            Fixed6Lib.ZERO
         );
     }
 
-    function store(PositionStorage storage self, Position memory newValue) internal {
-        if (newValue.id > type(uint32).max) revert PositionStorageInvalidError();
-        if (newValue.version > type(uint32).max) revert PositionStorageInvalidError();
-        if (newValue.maker.gt(UFixed6Lib.MAX_48)) revert PositionStorageInvalidError();
-        if (newValue.long.gt(UFixed6Lib.MAX_48)) revert PositionStorageInvalidError();
-        if (newValue.short.gt(UFixed6Lib.MAX_48)) revert PositionStorageInvalidError();
-        if (newValue.fee.gt(UFixed6Lib.MAX_48)) revert PositionStorageInvalidError();
-        if (newValue.collateral.gt(Fixed6Lib.MAX_128)) revert PositionStorageInvalidError();
-        if (newValue.collateral.lt(Fixed6Lib.MIN_128)) revert PositionStorageInvalidError();
-        if (newValue.delta.gt(Fixed6Lib.MAX_128)) revert PositionStorageInvalidError();
-        if (newValue.delta.lt(Fixed6Lib.MIN_128)) revert PositionStorageInvalidError();
+    function store(PositionStorageGlobal storage self, Position memory newValue) internal {
+        if (newValue.id > type(uint32).max) revert PositionStorageGlobalInvalidError();
+        if (newValue.version > type(uint32).max) revert PositionStorageGlobalInvalidError();
+        if (newValue.maker.gt(UFixed6Lib.MAX_48)) revert PositionStorageGlobalInvalidError();
+        if (newValue.long.gt(UFixed6Lib.MAX_48)) revert PositionStorageGlobalInvalidError();
+        if (newValue.short.gt(UFixed6Lib.MAX_48)) revert PositionStorageGlobalInvalidError();
+        if (newValue.fee.gt(UFixed6Lib.MAX_48)) revert PositionStorageGlobalInvalidError();
 
-        self.value = StoredPosition(
+        self.value = StoredPositionGlobal(
             uint32(newValue.id),
             uint32(newValue.version),
             uint48(UFixed6.unwrap(newValue.maker)),
             uint48(UFixed6.unwrap(newValue.long)),
             uint48(UFixed6.unwrap(newValue.short)),
+            uint48(UFixed6.unwrap(newValue.fee))
+        );
+    }
+}
+
+library PositionStorageLocalLib {
+    error PositionStorageLocalInvalidError();
+
+    function read(PositionStorageLocal storage self) internal view returns (Position memory) {
+        StoredPositionLocal memory storedValue = self.value;
+
+        return Position(
+            uint256(storedValue._id),
+            uint256(storedValue._version),
+            UFixed6.wrap(uint256((storedValue._direction == 0) ? storedValue._position : 0)),
+            UFixed6.wrap(uint256((storedValue._direction == 1) ? storedValue._position : 0)),
+            UFixed6.wrap(uint256((storedValue._direction == 2) ? storedValue._position : 0)),
+            UFixed6.wrap(uint256(storedValue._fee)),
+            Fixed6.wrap(int256(storedValue._collateral)),
+            Fixed6.wrap(int256(storedValue._delta))
+        );
+    }
+
+    function store(PositionStorageLocal storage self, Position memory newValue) internal {
+        if (newValue.id > type(uint24).max) revert PositionStorageLocalInvalidError();
+        if (newValue.version > type(uint32).max) revert PositionStorageLocalInvalidError();
+        if (newValue.maker.gt(UFixed6Lib.MAX_48)) revert PositionStorageLocalInvalidError();
+        if (newValue.long.gt(UFixed6Lib.MAX_48)) revert PositionStorageLocalInvalidError();
+        if (newValue.short.gt(UFixed6Lib.MAX_48)) revert PositionStorageLocalInvalidError();
+        if (newValue.fee.gt(UFixed6Lib.MAX_48)) revert PositionStorageLocalInvalidError();
+        if (newValue.collateral.gt(Fixed6Lib.MAX_48)) revert PositionStorageLocalInvalidError();
+        if (newValue.collateral.lt(Fixed6Lib.MIN_48)) revert PositionStorageLocalInvalidError();
+        if (newValue.delta.gt(Fixed6Lib.MAX_48)) revert PositionStorageLocalInvalidError();
+        if (newValue.delta.lt(Fixed6Lib.MIN_48)) revert PositionStorageLocalInvalidError();
+
+        self.value = StoredPositionLocal(
+            uint24(newValue.id),
+            uint32(newValue.version),
+            uint8(newValue.long.isZero() ? (newValue.short.isZero() ? 0 : 2) : 1),
+            uint48(UFixed6.unwrap(newValue.magnitude())),
             uint48(UFixed6.unwrap(newValue.fee)),
-            int128(Fixed6.unwrap(newValue.collateral)),
-            int128(Fixed6.unwrap(newValue.delta))
+            int48(Fixed6.unwrap(newValue.collateral)),
+            int48(Fixed6.unwrap(newValue.delta))
         );
     }
 }

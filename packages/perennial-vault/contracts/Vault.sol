@@ -63,7 +63,6 @@ contract Vault is IVault, VaultDefinition, UInitializable {
 
     mapping(address account => uint256 id) public _latestIds;
 
-
     /// @dev
     mapping(address account => Delta) private _deltas;
 
