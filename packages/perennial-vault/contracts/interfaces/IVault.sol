@@ -8,8 +8,10 @@ import "./IVaultDefinition.sol";
 interface IVault is IVaultDefinition {
 
     struct Context {
-        uint256 current;
-        uint256 latest;
+        uint256 currentId;
+        uint256 latestId;
+        uint256 currentVersion;
+        uint256 latestVersion;
         uint256 liquidation;
 
         // markets
@@ -17,8 +19,6 @@ interface IVault is IVaultDefinition {
     }
 
     struct MarketContext {
-        uint256 currentId;
-
         // parameter
         bool closed;
         UFixed6 makerLimit;
@@ -30,6 +30,7 @@ interface IVault is IVaultDefinition {
         UFixed6 currentNet;
 
         // latest account position
+        UFixed6 latestId;
         UFixed6 latestPositionAccount;
 
         // current account position
@@ -39,9 +40,13 @@ interface IVault is IVaultDefinition {
         Fixed18 collateral;
     }
 
-    struct Version {
+    struct Registration {
+        IMarket market;
+        uint256 initialId;
+    }
+
+    struct Checkpoint {
         BasisStorage _basis;
-        mapping(uint256 => uint256) ids;
     }
 
     struct Basis {
@@ -70,6 +75,7 @@ interface IVault is IVaultDefinition {
     error VaultDepositLimitExceededError();
     error VaultRedemptionLimitExceededError();
     error VaultExistingOrderError();
+    error VaultMarketMismatchError();
 
     function name() external view returns (string memory);
     function initialize(string memory name_) external;

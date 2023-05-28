@@ -6,7 +6,6 @@ import "@equilibria/root/control/unstructured/UInitializable.sol";
 import "@openzeppelin/contracts/utils/math/Math.sol";
 import "./VaultDefinition.sol";
 import "./types/Delta.sol";
-import "hardhat/console.sol";
 
 // TODO: only pull out what you can from collateral when really unbalanced
 // TODO: make sure maker fees are supported
@@ -34,6 +33,8 @@ contract Vault is IVault, VaultDefinition, UInitializable {
     /// @dev The name of the vault
     string public name;
 
+    mapping(uint256 => Registration) private _registrations;
+
     /// @dev Mapping of allowance across all users
     mapping(address => mapping(address => UFixed18)) public allowance;
 
@@ -50,6 +51,7 @@ contract Vault is IVault, VaultDefinition, UInitializable {
     UFixed18 public totalUnclaimed;
 
     uint256 public currentId;
+
     uint256 public latestId;
 
     Delta private _pending;
@@ -59,11 +61,14 @@ contract Vault is IVault, VaultDefinition, UInitializable {
 
     mapping(address account => uint256 version) public latestVersions;
 
+    mapping(address account => uint256 id) public _latestIds;
+
+
     /// @dev
     mapping(address account => Delta) private _deltas;
 
-    /// @dev Per-version accounting state variables
-    mapping(uint256 version => Version) private _versions;
+    /// @dev Per-id accounting state variables
+    mapping(uint256 id => Checkpoint) private _checkpoints;
 
     /**
      * @notice Constructor for VaultDefinition
@@ -88,10 +93,19 @@ contract Vault is IVault, VaultDefinition, UInitializable {
     function initialize(string memory name_) external initializer(1) {
         name = name_;
 
+        Context memory context = _settle(address(0));
+
         // set or reset allowance compliant with both an initial deployment or an upgrade
         for (uint256 marketId; marketId < totalMarkets; marketId++) {
             asset.approve(address(markets(marketId).market), UFixed18Lib.ZERO);
             asset.approve(address(markets(marketId).market));
+
+            if (address(_registrations[marketId].market) == address(0)) {
+                _registrations[marketId].market = markets(marketId).market;
+                _registrations[marketId].initialId = context.currentId - 1;
+            }
+
+            if (_registrations[marketId].market != markets(marketId).market) revert VaultMarketMismatchError();
         }
     }
 
@@ -114,10 +128,11 @@ contract Vault is IVault, VaultDefinition, UInitializable {
         Context memory context = _settle(account);
         if (assets.gt(_maxDeposit(context))) revert VaultDepositLimitExceededError();
 
-        if (context.latest >= _deltas[account].version) {
+        if (context.latestVersion >= _deltas[account].version) {
             _pending.deposit = _pending.deposit.add(assets);
             _delta[currentId].deposit = _delta[currentId].deposit.add(assets);
-            _deltas[account].version = context.current;
+            _latestIds[account] = context.currentId;
+            _deltas[account].version = context.currentVersion;
             _deltas[account].deposit = assets;
         } else revert VaultExistingOrderError();
 
@@ -125,7 +140,7 @@ contract Vault is IVault, VaultDefinition, UInitializable {
 
         _rebalance(context, UFixed18Lib.ZERO);
 
-        emit Deposit(msg.sender, account, context.current, assets);
+        emit Deposit(msg.sender, account, context.currentVersion, assets);
     }
 
     /**
@@ -141,10 +156,11 @@ contract Vault is IVault, VaultDefinition, UInitializable {
         Context memory context = _settle(account);
         if (shares.gt(_maxRedeem(context, account))) revert VaultRedemptionLimitExceededError();
 
-        if (context.latest >= _deltas[account].version) {
+        if (context.latestVersion >= _deltas[account].version) {
             _pending.redemption = _pending.redemption.add(shares);
             _delta[currentId].redemption = _delta[currentId].redemption.add(shares);
-            _deltas[account].version = context.current;
+            _latestIds[account] = context.currentId;
+            _deltas[account].version = context.currentVersion;
             _deltas[account].redemption = shares;
         } else revert VaultExistingOrderError();
 
@@ -153,7 +169,7 @@ contract Vault is IVault, VaultDefinition, UInitializable {
 
         _rebalance(context, UFixed18Lib.ZERO);
 
-        emit Redemption(msg.sender, account, context.current, shares);
+        emit Redemption(msg.sender, account, context.currentVersion, shares);
     }
 
     /**
@@ -249,32 +265,29 @@ contract Vault is IVault, VaultDefinition, UInitializable {
         context = _loadContextForWrite(account);
 
         // process pending deltas
-        while (context.latest >= _delta[latestId + 1].version && currentId > latestId)
-            _processDelta(_delta[latestId + 1]);
-        if (context.latest >= _deltas[account].version && context.latest > latestVersions[account]) {
-            _processDeltaAccount(account, _deltas[account]);
+        while (context.latestVersion >= _delta[latestId + 1].version && currentId > latestId)
+            _processDelta(latestId + 1, _delta[latestId + 1]);
+        if (context.latestVersion >= _deltas[account].version && context.latestVersion > latestVersions[account]) {
+            _processDeltaAccount(account, _latestIds[account], _deltas[account]);
             _deltas[account].clear();
         }
 
         // sync data for new id
-        if (context.current > _delta[currentId].version) {
-            for (uint256 marketId; marketId < totalMarkets; marketId++) {
-                _versions[context.current].ids[marketId] = context.markets[marketId].currentId;
-            }
-            _versions[context.current]._basis = BasisStorage(
+        if (context.currentVersion > _delta[currentId].version) {
+            _checkpoints[context.currentId]._basis = BasisStorage(
                 uint120(UFixed18.unwrap(totalSupply)),
                 int128(Fixed18.unwrap(_assets())),
                 false
             );
 
             currentId++;
-            _delta[currentId].version = context.current;
+            _delta[currentId].version = context.currentVersion;
         }
     }
 
-    function _processDelta(Delta memory delta) private {
+    function _processDelta(uint256 id, Delta memory delta) private {
         // sync state
-        Basis memory basis = _basis(delta.version);
+        Basis memory basis = _basis(id);
         totalSupply = totalSupply.add(_convertToShares(basis, delta.deposit));
         totalUnclaimed = totalUnclaimed.add(_convertToAssets(basis, delta.redemption));
 
@@ -284,11 +297,11 @@ contract Vault is IVault, VaultDefinition, UInitializable {
         latestId++;
     }
 
-    function _processDeltaAccount(address account, Delta memory delta) private {
+    function _processDeltaAccount(address account, uint256 id, Delta memory delta) private {
         if (account == address(0)) return; // gas optimization
 
         // sync state
-        Basis memory basis = _basis(delta.version);
+        Basis memory basis = _basis(id);
         balanceOf[account] = balanceOf[account].add(_convertToShares(basis, delta.deposit));
         unclaimed[account] = unclaimed[account].add(_convertToAssets(basis, delta.redemption));
         latestVersions[account] = delta.version;
@@ -354,7 +367,7 @@ contract Vault is IVault, VaultDefinition, UInitializable {
             UFixed18 marketAssets = assets.muldiv(marketDefinition.weight, totalWeight);
             if (context.markets[marketId].closed) marketAssets = UFixed18Lib.ZERO;
 
-            OracleVersion memory latestOracleVersion = context.markets[marketId].oracle.at(context.latest);
+            OracleVersion memory latestOracleVersion = context.markets[marketId].oracle.at(context.latestVersion);
             context.markets[marketId].payoff.transform(latestOracleVersion);
             UFixed18 currentPrice = _toU18(latestOracleVersion.price.abs());
 
@@ -428,9 +441,8 @@ contract Vault is IVault, VaultDefinition, UInitializable {
      * @return context Epoch context
      */
     function _loadContextForRead(address account) private view returns (Context memory context) {
-        context.current = type(uint256).max;
-        context.latest = type(uint256).max;
-        context.liquidation = 0;
+        context.latestId = type(uint256).max;
+        context.latestVersion = type(uint256).max;
         context.markets = new MarketContext[](totalMarkets);
 
         for (uint256 marketId; marketId < totalMarkets; marketId++) {
@@ -450,18 +462,22 @@ contract Vault is IVault, VaultDefinition, UInitializable {
 
             context.markets[marketId].currentPosition = currentPosition.maker;
             context.markets[marketId].currentNet = currentPosition.net();
-            if (latestPosition.version < context.latest) context.latest = latestPosition.version;
-            if (currentVersion < context.current) context.current = currentVersion;
+            if (latestPosition.version < context.latestVersion) {
+                context.latestId = latestPosition.id;
+                context.latestVersion = latestPosition.version;
+            }
+            if (marketId == 0) context.currentVersion = currentVersion;
 
             // local
             Local memory local = marketDefinition.market.locals(address(this));
             currentPosition = marketDefinition.market.pendingPositions(address(this), local.currentId);
             latestPosition = marketDefinition.market.positions(address(this));
 
-            context.markets[marketId].currentId = (currentVersion > currentPosition.version) ? local.currentId + 1 : local.currentId;
             context.markets[marketId].currentPositionAccount = currentPosition.maker;
             context.markets[marketId].collateral = _toS18(local.collateral);
+
             if (local.liquidation > context.liquidation) context.liquidation = local.liquidation;
+            if (marketId == 0) context.currentId = currentVersion > currentPosition.version ? local.currentId + 1 : local.currentId;
         }
     }
 
@@ -471,13 +487,13 @@ contract Vault is IVault, VaultDefinition, UInitializable {
      * @return bool true if unhealthy, false if healthy
      */
     function _unhealthy(Context memory context) private view returns (bool) {
-        BasisStorage memory storedBasis = _versions[context.latest]._basis; // latest basis will always be complete
+        BasisStorage memory storedBasis = _checkpoints[context.latestId]._basis; // latest basis will always be complete
         Basis memory basis;
         (basis.shares, basis.assets) = (
             UFixed18.wrap(uint256(storedBasis.shares)),
             Fixed18.wrap(int256(storedBasis.assets))
         );
-        return (!basis.shares.isZero() && basis.assets.lte(Fixed18Lib.ZERO)) || (context.liquidation > context.latest);
+        return (!basis.shares.isZero() && basis.assets.lte(Fixed18Lib.ZERO)) || (context.liquidation > context.latestVersion);
     }
 
     /**
@@ -545,8 +561,8 @@ contract Vault is IVault, VaultDefinition, UInitializable {
         return basis.shares.isZero() ? shares : shares.muldiv(basisAssets, basis.shares);
     }
 
-    function _basis(uint256 version) private returns (Basis memory basis) {
-        BasisStorage memory storedBasis = _versions[version]._basis;
+    function _basis(uint256 id) private returns (Basis memory basis) {
+        BasisStorage memory storedBasis = _checkpoints[id]._basis;
         (basis.shares, basis.assets, basis.complete) = (
             UFixed18.wrap(uint256(storedBasis.shares)),
             Fixed18.wrap(int256(storedBasis.assets)),
@@ -556,10 +572,11 @@ contract Vault is IVault, VaultDefinition, UInitializable {
 
         for(uint256 marketId; marketId < totalMarkets; marketId++) {
             Position memory position =
-                markets(marketId).market.pendingPositions(address(this), _versions[version].ids[marketId]);
+                markets(marketId).market.pendingPositions(address(this), id - _registrations[marketId].initialId);
             basis.assets = basis.assets.add(_toS18(position.collateral));
         }
-        _versions[version]._basis = BasisStorage(
+
+        _checkpoints[id]._basis = BasisStorage(
             uint120(UFixed18.unwrap(basis.shares)),
             int128(Fixed18.unwrap(basis.assets)),
             true
