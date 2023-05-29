@@ -36,7 +36,7 @@ library GlobalStorageLib {
     error GlobalStorageInvalidError();
 
     function read(GlobalStorage storage self) internal view returns (Global memory) {
-        StoredGlobal memory storedValue =  self.value;
+        StoredGlobal memory storedValue = self.value;
         return Global(
             uint256(storedValue._currentId),
             UFixed6.wrap(uint256(storedValue._protocolFee)),
