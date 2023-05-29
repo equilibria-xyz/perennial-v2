@@ -57,7 +57,8 @@ interface IVault is IVaultDefinition {
 
     struct BasisStorage {
         uint120 shares;
-        int128 assets;
+        int120 assets;
+        bool started;
         bool complete;
     }
 

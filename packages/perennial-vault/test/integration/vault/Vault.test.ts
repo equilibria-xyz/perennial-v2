@@ -937,9 +937,9 @@ describe('Vault', () => {
           await updateOracle()
           await vault.settle(user.address)
 
-          const finalPosition = BigNumber.from('109531977')
+          const finalPosition = BigNumber.from('122126339')
           const finalCollateral = BigNumber.from('71749947027')
-          const btcFinalPosition = BigNumber.from('2391664')
+          const btcFinalPosition = BigNumber.from('2666666')
           const btcFinalCollateral = BigNumber.from('17937486756')
           expect(await position()).to.equal(finalPosition)
           expect(await collateralInVault()).to.equal(finalCollateral)
@@ -972,9 +972,9 @@ describe('Vault', () => {
           await updateOracle()
           await vault.settle(user.address)
 
-          const finalPosition = BigNumber.from('109657756')
+          const finalPosition = BigNumber.from('122126339')
           const finalCollateral = BigNumber.from('71832339772')
-          const btcFinalPosition = BigNumber.from('2394411')
+          const btcFinalPosition = BigNumber.from('2666666')
           const btcFinalCollateral = BigNumber.from('17958084943')
           expect(await position()).to.equal(finalPosition)
           expect(await collateralInVault()).to.equal(finalCollateral)

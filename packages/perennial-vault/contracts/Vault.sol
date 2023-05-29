@@ -9,6 +9,7 @@ import "./types/Delta.sol";
 
 // TODO: only pull out what you can from collateral when really unbalanced
 // TODO: make sure maker fees are supported
+// TODO: assumes no one can create an order for the vault (check if liquidation / shortfall break this model)
 
 /**
  * @title Vault
@@ -50,16 +51,12 @@ contract Vault is IVault, VaultDefinition, UInitializable {
     /// @dev Total unclaimed underlying of the vault across all users
     UFixed18 public totalUnclaimed;
 
-    uint256 public currentId;
-
     uint256 public latestId;
 
     Delta private _pending;
 
     /// @dev
     mapping(uint256 id => Delta) private _delta;
-
-    mapping(address account => uint256 version) public latestVersions;
 
     mapping(address account => uint256 id) public _latestIds;
 
@@ -127,11 +124,10 @@ contract Vault is IVault, VaultDefinition, UInitializable {
         Context memory context = _settle(account);
         if (assets.gt(_maxDeposit(context))) revert VaultDepositLimitExceededError();
 
-        if (context.latestVersion >= _deltas[account].version) {
+        if (context.latestId >= _latestIds[account]) {
             _pending.deposit = _pending.deposit.add(assets);
-            _delta[currentId].deposit = _delta[currentId].deposit.add(assets);
+            _delta[context.currentId].deposit = _delta[context.currentId].deposit.add(assets);
             _latestIds[account] = context.currentId;
-            _deltas[account].version = context.currentVersion;
             _deltas[account].deposit = assets;
         } else revert VaultExistingOrderError();
 
@@ -155,11 +151,10 @@ contract Vault is IVault, VaultDefinition, UInitializable {
         Context memory context = _settle(account);
         if (shares.gt(_maxRedeem(context, account))) revert VaultRedemptionLimitExceededError();
 
-        if (context.latestVersion >= _deltas[account].version) {
+        if (context.latestId >= _latestIds[account]) {
             _pending.redemption = _pending.redemption.add(shares);
-            _delta[currentId].redemption = _delta[currentId].redemption.add(shares);
+            _delta[context.currentId].redemption = _delta[context.currentId].redemption.add(shares);
             _latestIds[account] = context.currentId;
-            _deltas[account].version = context.currentVersion;
             _deltas[account].redemption = shares;
         } else revert VaultExistingOrderError();
 
@@ -264,23 +259,20 @@ contract Vault is IVault, VaultDefinition, UInitializable {
         context = _loadContextForWrite(account);
 
         // process pending deltas
-        while (context.latestVersion >= _delta[latestId + 1].version && currentId > latestId)
-            _processDelta(latestId + 1, _delta[latestId + 1]);
-        if (context.latestVersion >= _deltas[account].version && context.latestVersion > latestVersions[account]) {
+        while (context.latestId > latestId) _processDelta(latestId + 1, _delta[latestId + 1]);
+        if (context.latestId >= _latestIds[account]) {
             _processDeltaAccount(account, _latestIds[account], _deltas[account]);
             _deltas[account].clear();
         }
 
         // sync data for new id
-        if (context.currentVersion > _delta[currentId].version) {
+        if (!_checkpoints[context.currentId]._basis.started) {
             _checkpoints[context.currentId]._basis = BasisStorage(
                 uint120(UFixed18.unwrap(totalSupply)),
-                int128(Fixed18.unwrap(_assets())),
+                int120(Fixed18.unwrap(_assets())),
+                true,
                 false
             );
-
-            currentId++;
-            _delta[currentId].version = context.currentVersion;
         }
     }
 
@@ -303,7 +295,6 @@ contract Vault is IVault, VaultDefinition, UInitializable {
         Basis memory basis = _basis(id);
         balanceOf[account] = balanceOf[account].add(_convertToShares(basis, delta.deposit));
         unclaimed[account] = unclaimed[account].add(_convertToAssets(basis, delta.redemption));
-        latestVersions[account] = delta.version;
     }
 
     function _assets() private view returns (Fixed18) {
@@ -577,7 +568,8 @@ contract Vault is IVault, VaultDefinition, UInitializable {
 
         _checkpoints[id]._basis = BasisStorage(
             uint120(UFixed18.unwrap(basis.shares)),
-            int128(Fixed18.unwrap(basis.assets)),
+            int120(Fixed18.unwrap(basis.assets)),
+            true,
             true
         );
 
