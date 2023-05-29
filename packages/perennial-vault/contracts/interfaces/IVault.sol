@@ -37,7 +37,7 @@ interface IVault is IVaultDefinition {
         UFixed6 currentPositionAccount;
 
         // local
-        Fixed18 collateral;
+        Fixed6 collateral;
     }
 
     struct Registration {
@@ -51,7 +51,7 @@ interface IVault is IVaultDefinition {
 
     struct Basis {
         UFixed18 shares;
-        Fixed18 assets;
+        Fixed6 assets;
         bool complete;
     }
 
@@ -63,14 +63,14 @@ interface IVault is IVaultDefinition {
     }
 
     struct Target {
-        UFixed18 collateral;
+        UFixed6 collateral;
         UFixed6 position;
     }
 
     event Mint(address indexed account, UFixed18 amount);
     event Burn(address indexed account, UFixed18 amount);
-    event Deposit(address indexed sender, address indexed account, uint256 version, UFixed18 assets);
-    event Redemption(address indexed sender, address indexed account, uint256 version, UFixed18 shares);
+    event Deposit(address indexed sender, address indexed account, uint256 version, UFixed6 assets);
+    event Redemption(address indexed sender, address indexed account, uint256 version, UFixed6 shares);
     event Claim(address indexed sender, address indexed account, UFixed18 assets);
 
     error VaultDepositLimitExceededError();
@@ -87,13 +87,13 @@ interface IVault is IVaultDefinition {
 
     /* Partial ERC4626 Interface */
 
-    function totalAssets() external view returns (UFixed18);
-    function convertToShares(UFixed18 assets) external view returns (UFixed18);
-    function convertToAssets(UFixed18 shares) external view returns (UFixed18);
-    function maxDeposit(address account) external view returns (UFixed18);
-    function deposit(UFixed18 assets, address account) external;
-    function maxRedeem(address account) external view returns (UFixed18);
-    function redeem(UFixed18 shares, address account) external;
+    function totalAssets() external view returns (UFixed6);
+    function convertToShares(UFixed6 assets) external view returns (UFixed6);
+    function convertToAssets(UFixed6 shares) external view returns (UFixed6);
+    function maxDeposit(address account) external view returns (UFixed6);
+    function deposit(UFixed6 assets, address account) external;
+    function maxRedeem(address account) external view returns (UFixed6);
+    function redeem(UFixed6 shares, address account) external;
 
     /* Partial ERC20 Interface */
 
