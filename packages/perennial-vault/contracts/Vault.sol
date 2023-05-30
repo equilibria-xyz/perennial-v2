@@ -131,7 +131,7 @@ contract Vault is IVault, VaultDefinition, UInitializable {
 
         _rebalance(context, UFixed6Lib.ZERO);
 
-        emit Deposit(msg.sender, account, context.currentVersion, assets);
+        emit Deposit(msg.sender, account, context.currentId, assets);
     }
 
     /**
@@ -164,7 +164,7 @@ contract Vault is IVault, VaultDefinition, UInitializable {
 
         _rebalance(context, UFixed6Lib.ZERO);
 
-        emit Redemption(msg.sender, account, context.currentVersion, shares);
+        emit Redemption(msg.sender, account, context.currentId, shares);
     }
 
     /**
@@ -381,12 +381,8 @@ contract Vault is IVault, VaultDefinition, UInitializable {
             UFixed6 marketAssets = assets.muldiv(marketDefinition.weight, totalWeight);
             if (context.markets[marketId].closed) marketAssets = UFixed6Lib.ZERO;
 
-            OracleVersion memory latestOracleVersion = context.markets[marketId].oracle.at(context.latestVersion);
-            context.markets[marketId].payoff.transform(latestOracleVersion);
-            UFixed6 currentPrice = latestOracleVersion.price.abs();
-
             targets[marketId].collateral = collateral.muldiv(marketDefinition.weight, totalWeight);
-            targets[marketId].position = marketAssets.mul(targetLeverage).div(currentPrice);
+            targets[marketId].position = marketAssets.mul(targetLeverage).div(context.markets[marketId].price);
         }
     }
 
@@ -466,21 +462,21 @@ contract Vault is IVault, VaultDefinition, UInitializable {
 
             context.markets[marketId].closed = marketParameter.closed;
             context.markets[marketId].makerLimit = marketParameter.makerLimit;
-            context.markets[marketId].oracle = marketParameter.oracle;
-            context.markets[marketId].payoff = marketParameter.payoff;
 
             // global
             Global memory global = marketDefinition.market.global();
             Position memory currentPosition = marketDefinition.market.pendingPosition(global.currentId);
             Position memory latestPosition = marketDefinition.market.position();
+            OracleVersion memory latestOracleVersion = marketParameter.oracle.at(latestPosition.version);
+            marketParameter.payoff.transform(latestOracleVersion);
 
+            context.markets[marketId].price = latestOracleVersion.price.abs();
             context.markets[marketId].currentPosition = currentPosition.maker;
             context.markets[marketId].currentNet = currentPosition.net();
             if (latestPosition.version < context.latestVersion) {
                 context.latestId = latestPosition.id;
                 context.latestVersion = latestPosition.version;
             }
-            if (marketId == 0) context.currentVersion = currentVersion;
 
             // local
             Local memory local = marketDefinition.market.locals(address(this));

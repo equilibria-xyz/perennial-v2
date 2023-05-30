@@ -10,7 +10,6 @@ interface IVault is IVaultDefinition {
     struct Context {
         uint256 currentId;
         uint256 latestId;
-        uint256 currentVersion;
         uint256 latestVersion;
         uint256 liquidation;
 
@@ -22,21 +21,20 @@ interface IVault is IVaultDefinition {
         // parameter
         bool closed;
         UFixed6 makerLimit;
-        IOracleProvider oracle;
-        Payoff payoff;
 
-        // current position
+        // latest global
+        UFixed6 price;
+
+        // current global
         UFixed6 currentPosition;
         UFixed6 currentNet;
 
-        // latest account position
+        // latest local
         UFixed6 latestId;
         UFixed6 latestPositionAccount;
 
-        // current account position
+        // current local
         UFixed6 currentPositionAccount;
-
-        // local
         Fixed6 collateral;
     }
 
