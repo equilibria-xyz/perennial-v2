@@ -48,23 +48,6 @@ interface IVault is IVaultDefinition {
         uint256 initialId;
     }
 
-    struct Checkpoint {
-        BasisStorage _basis;
-    }
-
-    struct Basis {
-        UFixed6 shares;
-        Fixed6 assets;
-        bool complete;
-    }
-
-    struct BasisStorage {
-        uint120 shares;
-        int120 assets;
-        bool started;
-        bool complete;
-    }
-
     struct Target {
         UFixed6 collateral;
         UFixed6 position;

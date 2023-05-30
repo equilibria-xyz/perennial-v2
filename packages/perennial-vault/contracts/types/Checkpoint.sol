@@ -1,0 +1,77 @@
+// SPDX-License-Identifier: Apache-2.0
+pragma solidity ^0.8.13;
+
+import "@equilibria/root-v2/contracts/UFixed6.sol";
+
+/// @dev Checkpoint type
+struct Checkpoint {
+    uint256 latest;
+    UFixed6 deposit;
+    UFixed6 redemption;
+    UFixed6 shares;
+    Fixed6 assets;
+    bool started;
+    bool complete;
+}
+using CheckpointLib for Checkpoint global;
+struct StoredCheckpoint {
+    uint32 _latest;
+    uint48 _deposit;
+    uint48 _redemption;
+    uint56 _shares;
+    int56 _assets;
+    bool _started;
+    bool _complete;
+}
+struct CheckpointStorage { StoredCheckpoint value; }
+using CheckpointStorageLib for CheckpointStorage global;
+
+/**
+ * @title CheckpointLib
+ * @notice
+ */
+library CheckpointLib {
+    function checkpoint(Checkpoint memory checkpoint, UFixed6 shares, Fixed6 assets) internal pure {
+        if (!checkpoint.started) {
+            checkpoint.started = true;
+            checkpoint.shares = shares;
+            checkpoint.assets = assets;
+        }
+    }
+}
+
+library CheckpointStorageLib {
+    error CheckpointStorageInvalidError();
+
+    function read(CheckpointStorage storage self) internal view returns (Checkpoint memory) {
+        StoredCheckpoint memory storedValue = self.value;
+        return Checkpoint(
+            uint256(storedValue._latest),
+            UFixed6.wrap(uint256(storedValue._deposit)),
+            UFixed6.wrap(uint256(storedValue._redemption)),
+            UFixed6.wrap(uint256(storedValue._shares)),
+            Fixed6.wrap(int256(storedValue._assets)),
+            storedValue._started,
+            storedValue._complete
+        );
+    }
+
+    function store(CheckpointStorage storage self, Checkpoint memory newValue) internal {
+        if (newValue.latest > type(uint32).max) revert CheckpointStorageInvalidError();
+        if (newValue.deposit.gt(UFixed6Lib.MAX_48)) revert CheckpointStorageInvalidError();
+        if (newValue.redemption.gt(UFixed6Lib.MAX_48)) revert CheckpointStorageInvalidError();
+        if (newValue.shares.gt(UFixed6Lib.MAX_56)) revert CheckpointStorageInvalidError();
+        if (newValue.assets.gt(Fixed6Lib.MAX_56)) revert CheckpointStorageInvalidError();
+        if (newValue.assets.lt(Fixed6Lib.MIN_56)) revert CheckpointStorageInvalidError();
+
+        self.value = StoredCheckpoint(
+            uint32(newValue.latest),
+            uint48(UFixed6.unwrap(newValue.deposit)),
+            uint48(UFixed6.unwrap(newValue.redemption)),
+            uint56(UFixed6.unwrap(newValue.shares)),
+            int56(Fixed6.unwrap(newValue.assets)),
+            newValue.started,
+            newValue.complete
+        );
+    }
+}
