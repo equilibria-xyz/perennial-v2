@@ -481,7 +481,6 @@ contract Vault is IVault, VaultDefinition, UInitializable {
             // local
             Local memory local = marketDefinition.market.locals(address(this));
             currentPosition = marketDefinition.market.pendingPositions(address(this), local.currentId);
-            latestPosition = marketDefinition.market.positions(address(this));
 
             context.markets[marketId].currentPositionAccount = currentPosition.maker;
             context.markets[marketId].collateral = local.collateral;
