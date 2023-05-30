@@ -81,8 +81,8 @@ interface IVault is IVaultDefinition {
     function name() external view returns (string memory);
     function initialize(string memory name_) external;
     function settle(address account) external;
-    function unclaimed(address account) external view returns (UFixed6);
     function totalUnclaimed() external view returns (UFixed6);
+    function unclaimed(address account) external view returns (UFixed6);
     function claim(address account) external;
 
     /* Partial ERC4626 Interface */
