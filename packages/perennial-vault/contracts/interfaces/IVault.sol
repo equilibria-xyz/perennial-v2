@@ -50,7 +50,7 @@ interface IVault is IVaultDefinition {
     }
 
     struct Basis {
-        UFixed18 shares;
+        UFixed6 shares;
         Fixed6 assets;
         bool complete;
     }
@@ -67,11 +67,11 @@ interface IVault is IVaultDefinition {
         UFixed6 position;
     }
 
-    event Mint(address indexed account, UFixed18 amount);
-    event Burn(address indexed account, UFixed18 amount);
+    event Mint(address indexed account, UFixed6 amount);
+    event Burn(address indexed account, UFixed6 amount);
     event Deposit(address indexed sender, address indexed account, uint256 version, UFixed6 assets);
     event Redemption(address indexed sender, address indexed account, uint256 version, UFixed6 shares);
-    event Claim(address indexed sender, address indexed account, UFixed18 assets);
+    event Claim(address indexed sender, address indexed account, UFixed6 assets);
 
     error VaultDepositLimitExceededError();
     error VaultRedemptionLimitExceededError();
@@ -81,8 +81,8 @@ interface IVault is IVaultDefinition {
     function name() external view returns (string memory);
     function initialize(string memory name_) external;
     function settle(address account) external;
-    function unclaimed(address account) external view returns (UFixed18);
-    function totalUnclaimed() external view returns (UFixed18);
+    function unclaimed(address account) external view returns (UFixed6);
+    function totalUnclaimed() external view returns (UFixed6);
     function claim(address account) external;
 
     /* Partial ERC4626 Interface */
@@ -97,10 +97,10 @@ interface IVault is IVaultDefinition {
 
     /* Partial ERC20 Interface */
 
-    event Approval(address indexed account, address indexed spender, UFixed18 amount);
+    event Approval(address indexed account, address indexed spender, UFixed6 amount);
 
-    function totalSupply() external view returns (UFixed18);
-    function balanceOf(address account) external view returns (UFixed18);
-    function allowance(address account, address spender) external view returns (UFixed18);
-    function approve(address spender, UFixed18 amount) external returns (bool);
+    function totalSupply() external view returns (UFixed6);
+    function balanceOf(address account) external view returns (UFixed6);
+    function allowance(address account, address spender) external view returns (UFixed6);
+    function approve(address spender, UFixed6 amount) external returns (bool);
 }

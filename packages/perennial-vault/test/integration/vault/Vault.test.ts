@@ -297,11 +297,11 @@ describe('Vault', () => {
     it('approves correctly', async () => {
       expect(await vault.allowance(user.address, liquidator.address)).to.eq(0)
 
-      await expect(vault.connect(user).approve(liquidator.address, utils.parseEther('10')))
+      await expect(vault.connect(user).approve(liquidator.address, parse6decimal('10')))
         .to.emit(vault, 'Approval')
-        .withArgs(user.address, liquidator.address, utils.parseEther('10'))
+        .withArgs(user.address, liquidator.address, parse6decimal('10'))
 
-      expect(await vault.allowance(user.address, liquidator.address)).to.eq(utils.parseEther('10'))
+      expect(await vault.allowance(user.address, liquidator.address)).to.eq(parse6decimal('10'))
 
       await expect(vault.connect(user).approve(liquidator.address, 0))
         .to.emit(vault, 'Approval')
@@ -332,16 +332,16 @@ describe('Vault', () => {
       await vault.connect(user).deposit(largeDeposit, user.address)
       expect(await collateralInVault()).to.equal(parse6decimal('8008'))
       expect(await btcCollateralInVault()).to.equal(parse6decimal('2002'))
-      expect(await vault.balanceOf(user.address)).to.equal(smallDeposit.mul(1e12))
-      expect(await vault.totalSupply()).to.equal(smallDeposit.mul(1e12))
+      expect(await vault.balanceOf(user.address)).to.equal(smallDeposit)
+      expect(await vault.totalSupply()).to.equal(smallDeposit)
       expect(await vault.totalAssets()).to.equal(smallDeposit)
       expect(await vault.convertToAssets(parse6decimal('10'))).to.equal(parse6decimal('10'))
       expect(await vault.convertToShares(parse6decimal('10'))).to.equal(parse6decimal('10'))
       await updateOracle()
       await vault.settle(user.address)
 
-      expect(await vault.balanceOf(user.address)).to.equal(utils.parseEther('10010'))
-      expect(await vault.totalSupply()).to.equal(utils.parseEther('10010'))
+      expect(await vault.balanceOf(user.address)).to.equal(parse6decimal('10010'))
+      expect(await vault.totalSupply()).to.equal(parse6decimal('10010'))
       expect(await vault.totalAssets()).to.equal(parse6decimal('10010'))
       expect(await vault.convertToAssets(parse6decimal('10010'))).to.equal(parse6decimal('10010'))
       expect(await vault.convertToShares(parse6decimal('10010'))).to.equal(parse6decimal('10010'))
@@ -369,19 +369,19 @@ describe('Vault', () => {
       expect(await btcPosition()).to.equal(0)
 
       // We should have withdrawn all of our collateral.
-      const fundingAmount = BigNumber.from('388000000000000')
-      expect(await totalCollateralInVault()).to.equal(utils.parseEther('10010').add(fundingAmount))
+      const fundingAmount = BigNumber.from('388')
+      expect(await totalCollateralInVault()).to.equal(parse6decimal('10010').add(fundingAmount).mul(1e12))
       expect(await vault.balanceOf(user.address)).to.equal(0)
       expect(await vault.totalSupply()).to.equal(0)
       expect(await vault.totalAssets()).to.equal(0)
       expect(await vault.convertToAssets(parse6decimal('1'))).to.equal(parse6decimal('1'))
       expect(await vault.convertToShares(parse6decimal('1'))).to.equal(parse6decimal('1'))
-      expect(await vault.unclaimed(user.address)).to.equal(utils.parseEther('10010').add(fundingAmount))
-      expect(await vault.totalUnclaimed()).to.equal(utils.parseEther('10010').add(fundingAmount))
+      expect(await vault.unclaimed(user.address)).to.equal(parse6decimal('10010').add(fundingAmount))
+      expect(await vault.totalUnclaimed()).to.equal(parse6decimal('10010').add(fundingAmount))
 
       await vault.connect(user).claim(user.address)
       expect(await totalCollateralInVault()).to.equal(0)
-      expect(await asset.balanceOf(user.address)).to.equal(utils.parseEther('100000').add(fundingAmount))
+      expect(await asset.balanceOf(user.address)).to.equal(parse6decimal('100000').add(fundingAmount).mul(1e12))
       expect(await vault.unclaimed(user.address)).to.equal(0)
       expect(await vault.totalUnclaimed()).to.equal(0)
     })
@@ -408,17 +408,17 @@ describe('Vault', () => {
       expect(await btcPosition()).to.be.equal(
         smallDeposit.add(largeDeposit).mul(leverage).div(5).div(btcOriginalOraclePrice).div(1e12),
       )
-      const fundingAmount0 = BigNumber.from('40000000000000')
-      const balanceOf2 = BigNumber.from('9999999600000000000000')
-      expect(await vault.balanceOf(user.address)).to.equal(utils.parseEther('1000'))
+      const fundingAmount0 = BigNumber.from('40')
+      const balanceOf2 = BigNumber.from('9999999600')
+      expect(await vault.balanceOf(user.address)).to.equal(parse6decimal('1000'))
       expect(await vault.balanceOf(user2.address)).to.equal(balanceOf2)
-      expect(await vault.totalAssets()).to.equal(parse6decimal('11000').add(fundingAmount0.div(1e12)))
-      expect(await vault.totalSupply()).to.equal(utils.parseEther('1000').add(balanceOf2))
-      expect(await vault.convertToAssets(parse6decimal('1000').add(balanceOf2.div(1e12)))).to.equal(
-        parse6decimal('11000').add(fundingAmount0.div(1e12)),
+      expect(await vault.totalAssets()).to.equal(parse6decimal('11000').add(fundingAmount0))
+      expect(await vault.totalSupply()).to.equal(parse6decimal('1000').add(balanceOf2))
+      expect(await vault.convertToAssets(parse6decimal('1000').add(balanceOf2))).to.equal(
+        parse6decimal('11000').add(fundingAmount0),
       )
-      expect(await vault.convertToShares(parse6decimal('11000').add(fundingAmount0.div(1e12)))).to.equal(
-        parse6decimal('1000').add(balanceOf2.div(1e12)),
+      expect(await vault.convertToShares(parse6decimal('11000').add(fundingAmount0))).to.equal(
+        parse6decimal('1000').add(balanceOf2),
       )
 
       const maxRedeem = await vault.maxRedeem(user.address)
@@ -436,26 +436,28 @@ describe('Vault', () => {
       expect(await btcPosition()).to.equal(0)
 
       // We should have withdrawn all of our collateral.
-      const fundingAmount = BigNumber.from('78000000000000')
-      const fundingAmount2 = BigNumber.from('776000000000000')
-      expect(await totalCollateralInVault()).to.equal(utils.parseEther('11000').add(fundingAmount).add(fundingAmount2))
+      const fundingAmount = BigNumber.from('78')
+      const fundingAmount2 = BigNumber.from('776')
+      expect(await totalCollateralInVault()).to.equal(
+        parse6decimal('11000').add(fundingAmount).add(fundingAmount2).mul(1e12),
+      )
       expect(await vault.balanceOf(user.address)).to.equal(0)
       expect(await vault.balanceOf(user2.address)).to.equal(0)
       expect(await vault.totalAssets()).to.equal(0)
       expect(await vault.totalSupply()).to.equal(0)
       expect(await vault.convertToAssets(parse6decimal('1'))).to.equal(parse6decimal('1'))
       expect(await vault.convertToShares(parse6decimal('1'))).to.equal(parse6decimal('1'))
-      expect(await vault.unclaimed(user.address)).to.equal(utils.parseEther('1000').add(fundingAmount))
-      expect(await vault.unclaimed(user2.address)).to.equal(utils.parseEther('10000').add(fundingAmount2))
-      expect(await vault.totalUnclaimed()).to.equal(utils.parseEther('11000').add(fundingAmount).add(fundingAmount2))
+      expect(await vault.unclaimed(user.address)).to.equal(parse6decimal('1000').add(fundingAmount))
+      expect(await vault.unclaimed(user2.address)).to.equal(parse6decimal('10000').add(fundingAmount2))
+      expect(await vault.totalUnclaimed()).to.equal(parse6decimal('11000').add(fundingAmount).add(fundingAmount2))
 
       await vault.connect(user).claim(user.address)
       await vault.connect(user2).claim(user2.address)
 
       expect(await totalCollateralInVault()).to.equal(0)
       expect(await vault.totalAssets()).to.equal(0)
-      expect(await asset.balanceOf(user.address)).to.equal(utils.parseEther('100000').add(fundingAmount))
-      expect(await asset.balanceOf(user2.address)).to.equal(utils.parseEther('100000').add(fundingAmount2))
+      expect(await asset.balanceOf(user.address)).to.equal(parse6decimal('100000').add(fundingAmount).mul(1e12))
+      expect(await asset.balanceOf(user2.address)).to.equal(parse6decimal('100000').add(fundingAmount2).mul(1e12))
       expect(await vault.unclaimed(user2.address)).to.equal(0)
       expect(await vault.totalUnclaimed()).to.equal(0)
     })
@@ -497,23 +499,20 @@ describe('Vault', () => {
           .div(btcOriginalOraclePrice)
           .div(1e12),
       )
-      const fundingAmount0 = BigNumber.from('24000000000000')
-      const balanceOf2 = BigNumber.from('1999999920000000000000')
-      expect(await vault.balanceOf(user.address)).to.equal(utils.parseEther('600'))
+      const fundingAmount0 = BigNumber.from('24')
+      const balanceOf2 = BigNumber.from('1999999920')
+      expect(await vault.balanceOf(user.address)).to.equal(parse6decimal('600'))
       expect(await vault.balanceOf(user2.address)).to.equal(balanceOf2)
-      expect(await vault.totalAssets()).to.equal(parse6decimal('2600').add(fundingAmount0.div(1e12)))
+      expect(await vault.totalAssets()).to.equal(parse6decimal('2600').add(fundingAmount0))
       expect(await totalCollateralInVault()).to.equal(
-        utils
-          .parseEther('2600')
-          .add(fundingAmount0)
-          .add(await vault.totalUnclaimed()),
+        utils.parseEther('2600').add(fundingAmount0.add(await vault.totalUnclaimed()).mul(1e12)),
       )
-      expect(await vault.totalSupply()).to.equal(utils.parseEther('600').add(balanceOf2))
-      expect(await vault.convertToAssets(parse6decimal('600').add(balanceOf2.div(1e12)))).to.equal(
-        parse6decimal('2600').add(fundingAmount0.div(1e12)),
+      expect(await vault.totalSupply()).to.equal(parse6decimal('600').add(balanceOf2))
+      expect(await vault.convertToAssets(parse6decimal('600').add(balanceOf2))).to.equal(
+        parse6decimal('2600').add(fundingAmount0),
       )
-      expect(await vault.convertToShares(parse6decimal('2600').add(fundingAmount0.div(1e12)))).to.equal(
-        parse6decimal('600').add(balanceOf2.div(1e12)),
+      expect(await vault.convertToShares(parse6decimal('2600').add(fundingAmount0))).to.equal(
+        parse6decimal('600').add(balanceOf2),
       )
 
       const maxRedeem = await vault.maxRedeem(user.address)
@@ -531,26 +530,28 @@ describe('Vault', () => {
       expect(await btcPosition()).to.equal(0)
 
       // We should have withdrawn all of our collateral.
-      const fundingAmount = BigNumber.from('64000000000000')
-      const fundingAmount2 = BigNumber.from('164000000000000')
-      expect(await totalCollateralInVault()).to.equal(utils.parseEther('3000').add(fundingAmount).add(fundingAmount2))
+      const fundingAmount = BigNumber.from('64')
+      const fundingAmount2 = BigNumber.from('164')
+      expect(await totalCollateralInVault()).to.equal(
+        parse6decimal('3000').add(fundingAmount).add(fundingAmount2).mul(1e12),
+      )
       expect(await vault.balanceOf(user.address)).to.equal(0)
       expect(await vault.balanceOf(user2.address)).to.equal(0)
       expect(await vault.totalAssets()).to.equal(0)
       expect(await vault.totalSupply()).to.equal(0)
       expect(await vault.convertToAssets(parse6decimal('1'))).to.equal(parse6decimal('1'))
       expect(await vault.convertToShares(parse6decimal('1'))).to.equal(parse6decimal('1'))
-      expect(await vault.unclaimed(user.address)).to.equal(utils.parseEther('1000').add(fundingAmount))
-      expect(await vault.unclaimed(user2.address)).to.equal(utils.parseEther('2000').add(fundingAmount2))
-      expect(await vault.totalUnclaimed()).to.equal(utils.parseEther('3000').add(fundingAmount).add(fundingAmount2))
+      expect(await vault.unclaimed(user.address)).to.equal(parse6decimal('1000').add(fundingAmount))
+      expect(await vault.unclaimed(user2.address)).to.equal(parse6decimal('2000').add(fundingAmount2))
+      expect(await vault.totalUnclaimed()).to.equal(parse6decimal('3000').add(fundingAmount).add(fundingAmount2))
 
       await vault.connect(user).claim(user.address)
       await vault.connect(user2).claim(user2.address)
 
       expect(await totalCollateralInVault()).to.equal(0)
       expect(await vault.totalAssets()).to.equal(0)
-      expect(await asset.balanceOf(user.address)).to.equal(utils.parseEther('100000').add(fundingAmount))
-      expect(await asset.balanceOf(user2.address)).to.equal(utils.parseEther('100000').add(fundingAmount2))
+      expect(await asset.balanceOf(user.address)).to.equal(parse6decimal('100000').add(fundingAmount).mul(1e12))
+      expect(await asset.balanceOf(user2.address)).to.equal(parse6decimal('100000').add(fundingAmount2).mul(1e12))
       expect(await vault.unclaimed(user2.address)).to.equal(0)
       expect(await vault.totalUnclaimed()).to.equal(0)
     })
@@ -632,9 +633,9 @@ describe('Vault', () => {
       expect(await collateralInVault()).to.be.closeTo((await btcCollateralInVault()).mul(4), 3)
 
       // Since the price changed then went back to the original, the total collateral should have increased.
-      const fundingAmount = BigNumber.from('3892000000000000')
-      expect(await totalCollateralInVault()).to.eq(originalTotalCollateral.add(fundingAmount))
-      expect(await vault.totalAssets()).to.eq(originalTotalCollateral.add(fundingAmount).div(1e12))
+      const fundingAmount = BigNumber.from('3892')
+      expect(await totalCollateralInVault()).to.eq(originalTotalCollateral.add(fundingAmount.mul(1e12)))
+      expect(await vault.totalAssets()).to.eq(originalTotalCollateral.div(1e12).add(fundingAmount))
     })
 
     it('rounds deposits correctly', async () => {
@@ -656,12 +657,12 @@ describe('Vault', () => {
       await updateOracle()
 
       await vault.settle(user.address)
-      expect(await vault.balanceOf(user.address)).to.equal(utils.parseEther('10000'))
-      expect(await vault.totalSupply()).to.equal(utils.parseEther('10000'))
+      expect(await vault.balanceOf(user.address)).to.equal(parse6decimal('10000'))
+      expect(await vault.totalSupply()).to.equal(parse6decimal('10000'))
 
       await expect(vault.connect(liquidator).redeem(parse6decimal('10000'), user.address)).to.revertedWith('0x11')
 
-      await vault.connect(user).approve(liquidator.address, utils.parseEther('10000'))
+      await vault.connect(user).approve(liquidator.address, parse6decimal('10000'))
 
       // User 2 should not be able to withdraw; they haven't deposited anything.
       await vault.connect(liquidator).redeem(parse6decimal('10000'), user.address)
@@ -669,12 +670,12 @@ describe('Vault', () => {
       await vault.settle(user.address)
 
       // We should have withdrawn all of our collateral.
-      const fundingAmount = BigNumber.from('388000000000000')
+      const fundingAmount = BigNumber.from('388')
       await vault.connect(user).claim(user.address)
       expect(await totalCollateralInVault()).to.equal(0)
       expect(await vault.totalAssets()).to.equal(0)
-      expect(await asset.balanceOf(liquidator.address)).to.equal(utils.parseEther('190000'))
-      expect(await asset.balanceOf(user.address)).to.equal(utils.parseEther('110000').add(fundingAmount))
+      expect(await asset.balanceOf(liquidator.address)).to.equal(parse6decimal('190000').mul(1e12))
+      expect(await asset.balanceOf(user.address)).to.equal(parse6decimal('110000').add(fundingAmount).mul(1e12))
     })
 
     it('redeem on behalf', async () => {
@@ -683,12 +684,12 @@ describe('Vault', () => {
       await updateOracle()
 
       await vault.settle(user.address)
-      expect(await vault.balanceOf(user.address)).to.equal(utils.parseEther('10000'))
-      expect(await vault.totalSupply()).to.equal(utils.parseEther('10000'))
+      expect(await vault.balanceOf(user.address)).to.equal(parse6decimal('10000'))
+      expect(await vault.totalSupply()).to.equal(parse6decimal('10000'))
 
       await expect(vault.connect(liquidator).redeem(parse6decimal('10000'), user.address)).to.revertedWith('0x11')
 
-      await vault.connect(user).approve(liquidator.address, utils.parseEther('10000'))
+      await vault.connect(user).approve(liquidator.address, parse6decimal('10000'))
 
       // User 2 should not be able to withdraw; they haven't deposited anything.
       await vault.connect(liquidator).redeem(parse6decimal('10000'), user.address)
@@ -696,10 +697,10 @@ describe('Vault', () => {
       await vault.settle(user.address)
 
       // We should have withdrawn all of our collateral.
-      const fundingAmount = BigNumber.from('388000000000000')
+      const fundingAmount = BigNumber.from('388')
       await vault.connect(user).claim(user.address)
       expect(await totalCollateralInVault()).to.equal(0)
-      expect(await asset.balanceOf(user.address)).to.equal(utils.parseEther('100000').add(fundingAmount))
+      expect(await asset.balanceOf(user.address)).to.equal(parse6decimal('100000').add(fundingAmount).mul(1e12))
     })
 
     it('close to makerLimit', async () => {
@@ -1002,7 +1003,7 @@ describe('Vault', () => {
         const finalCollateral = BigNumber.from('11439452775')
         const btcFinalPosition = BigNumber.from('0')
         const btcFinalCollateral = BigNumber.from('2859863193')
-        const finalUnclaimed = BigNumber.from('80000001849000000000000')
+        const finalUnclaimed = BigNumber.from('80000001849')
         const vaultFinalCollateral = await asset.balanceOf(vault.address)
         expect(await position()).to.equal(finalPosition)
         expect(await collateralInVault()).to.equal(finalCollateral)
@@ -1048,7 +1049,7 @@ describe('Vault', () => {
         const finalCollateral = BigNumber.from('-133577466786')
         const btcFinalPosition = BigNumber.from('411963') // small position because vault is net negative and won't rebalance
         const btcFinalCollateral = BigNumber.from('20000000790')
-        const finalUnclaimed = BigNumber.from('80000001849000000000000')
+        const finalUnclaimed = BigNumber.from('80000001849')
         expect(await position()).to.equal(finalPosition)
         expect(await collateralInVault()).to.equal(finalCollateral)
         expect(await btcPosition()).to.equal(btcFinalPosition)

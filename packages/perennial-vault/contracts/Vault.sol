@@ -37,19 +37,19 @@ contract Vault is IVault, VaultDefinition, UInitializable {
     mapping(uint256 => Registration) private _registrations;
 
     /// @dev Mapping of allowance across all users
-    mapping(address => mapping(address => UFixed18)) public allowance;
+    mapping(address => mapping(address => UFixed6)) public allowance;
 
     /// @dev Mapping of shares of the vault per user
-    mapping(address => UFixed18) public balanceOf;
+    mapping(address => UFixed6) public balanceOf;
 
     /// @dev Total number of shares across all users
-    UFixed18 public totalSupply;
+    UFixed6 public totalSupply;
 
     /// @dev Mapping of unclaimed underlying of the vault per user
-    mapping(address => UFixed18) public unclaimed;
+    mapping(address => UFixed6) public unclaimed;
 
     /// @dev Total unclaimed underlying of the vault across all users
-    UFixed18 public totalUnclaimed;
+    UFixed6 public totalUnclaimed;
 
     uint256 public latestId;
 
@@ -158,8 +158,8 @@ contract Vault is IVault, VaultDefinition, UInitializable {
             _deltas[account].redemption = shares;
         } else revert VaultExistingOrderError();
 
-        balanceOf[account] = balanceOf[account].sub(_toU18(shares));
-        totalSupply = totalSupply.sub(_toU18(shares)); // TODO: can we keep this?
+        balanceOf[account] = balanceOf[account].sub(shares);
+        totalSupply = totalSupply.sub(shares); // TODO: can we keep this?
 
         _rebalance(context, UFixed6Lib.ZERO);
 
@@ -173,21 +173,21 @@ contract Vault is IVault, VaultDefinition, UInitializable {
     function claim(address account) external {
         Context memory context = _settle(account);
 
-        UFixed18 unclaimedAmount = unclaimed[account];
-        UFixed18 unclaimedTotal = totalUnclaimed;
-        unclaimed[account] = UFixed18Lib.ZERO;
+        UFixed6 unclaimedAmount = unclaimed[account];
+        UFixed6 unclaimedTotal = totalUnclaimed;
+        unclaimed[account] = UFixed6Lib.ZERO;
         totalUnclaimed = unclaimedTotal.sub(unclaimedAmount);
         emit Claim(msg.sender, account, unclaimedAmount);
 
         // pro-rate if vault has less collateral than unclaimed
-        UFixed18 claimAmount = unclaimedAmount;
-        UFixed18 totalCollateral = UFixed18Lib.from(_toS18(_collateral(context).max(Fixed6Lib.ZERO)));
+        UFixed6 claimAmount = unclaimedAmount;
+        UFixed6 totalCollateral = UFixed6Lib.from(_collateral(context).max(Fixed6Lib.ZERO));
         if (totalCollateral.lt(unclaimedTotal))
             claimAmount = claimAmount.muldiv(totalCollateral, unclaimedTotal);
 
-        _rebalance(context, _toU6(claimAmount));
+        _rebalance(context, claimAmount);
 
-        asset.push(account, claimAmount);
+        asset.push(account, _toU18(claimAmount));
     }
 
     /**
@@ -196,7 +196,7 @@ contract Vault is IVault, VaultDefinition, UInitializable {
      * @param amount Amount of shares that spender can operate on
      * @return bool true if the approval was successful, otherwise reverts
      */
-    function approve(address spender, UFixed18 amount) external returns (bool) {
+    function approve(address spender, UFixed6 amount) external returns (bool) {
         allowance[msg.sender][spender] = amount;
         emit Approval(msg.sender, spender, amount);
         return true;
@@ -236,7 +236,7 @@ contract Vault is IVault, VaultDefinition, UInitializable {
      */
     function convertToShares(UFixed6 assets) external view returns (UFixed6) {
         UFixed6 totalAssets = _totalAssets(_loadContextForRead(address(0))); // TODO: clean up
-        return totalAssets.isZero() ? assets: assets.muldiv(_toU6(totalSupply), totalAssets);
+        return totalAssets.isZero() ? assets: assets.muldiv(totalSupply, totalAssets);
     }
 
     /**
@@ -246,7 +246,7 @@ contract Vault is IVault, VaultDefinition, UInitializable {
      */
     function convertToAssets(UFixed6 shares) external view returns (UFixed6) {
         UFixed6 totalAssets = _totalAssets(_loadContextForRead(address(0)));  // TODO: clean up
-        return _toU6(totalSupply).isZero() ? shares : shares.muldiv(totalAssets, _toU6(totalSupply));
+        return totalSupply.isZero() ? shares : shares.muldiv(totalAssets, totalSupply);
     }
 
     /**
@@ -268,7 +268,7 @@ contract Vault is IVault, VaultDefinition, UInitializable {
         // sync data for new id
         if (!_checkpoints[context.currentId]._basis.started) {
             _checkpoints[context.currentId]._basis = BasisStorage(
-                uint120(UFixed18.unwrap(totalSupply)),
+                uint120(UFixed6.unwrap(totalSupply)),
                 int120(Fixed6.unwrap(_assets())),
                 true,
                 false
@@ -279,8 +279,8 @@ contract Vault is IVault, VaultDefinition, UInitializable {
     function _processDelta(uint256 id, Delta memory delta) private {
         // sync state
         Basis memory basis = _basis(id);
-        totalSupply = totalSupply.add(_toU18(_convertToShares(basis, delta.deposit)));
-        totalUnclaimed = totalUnclaimed.add(_toU18(_convertToAssets(basis, delta.redemption)));
+        totalSupply = totalSupply.add(_convertToShares(basis, delta.deposit));
+        totalUnclaimed = totalUnclaimed.add(_convertToAssets(basis, delta.redemption));
 
         // prepare for the next delta id
         _pending.deposit = _pending.deposit.sub(delta.deposit);
@@ -293,14 +293,14 @@ contract Vault is IVault, VaultDefinition, UInitializable {
 
         // sync state
         Basis memory basis = _basis(id);
-        balanceOf[account] = balanceOf[account].add(_toU18(_convertToShares(basis, delta.deposit)));
-        unclaimed[account] = unclaimed[account].add(_toU18(_convertToAssets(basis, delta.redemption)));
+        balanceOf[account] = balanceOf[account].add(_convertToShares(basis, delta.deposit));
+        unclaimed[account] = unclaimed[account].add(_convertToAssets(basis, delta.redemption));
     }
 
     function _assets() private view returns (Fixed6) {
         return Fixed6Lib.from(_toU6(asset.balanceOf()))
             .sub(Fixed6Lib.from(_pending.deposit))
-            .sub(Fixed6Lib.from(_toU6(totalUnclaimed)));
+            .sub(Fixed6Lib.from(totalUnclaimed));
     }
 
     /**
@@ -322,10 +322,10 @@ contract Vault is IVault, VaultDefinition, UInitializable {
         // Compute available assets
         UFixed6 assets = UFixed6Lib.from(
                 collateralInVault
-                    .sub(Fixed6Lib.from(_toU6(totalUnclaimed).add(_pending.deposit)))
+                    .sub(Fixed6Lib.from(totalUnclaimed.add(_pending.deposit)))
                     .max(Fixed6Lib.ZERO)
             )
-            .mul(_toU6(totalSupply).unsafeDiv(_toU6(totalSupply).add(_pending.redemption)))
+            .mul(totalSupply.unsafeDiv(totalSupply.add(_pending.redemption)))
             .add(_pending.deposit);
         if (assets.muldiv(minWeight, totalWeight).lt(minCollateral)) assets = UFixed6Lib.ZERO;
 
@@ -408,8 +408,8 @@ contract Vault is IVault, VaultDefinition, UInitializable {
      * @param amount Amount to decrease allowance by
      */
     function _consumeAllowance(address account, address spender, UFixed6 amount) private {
-        if (allowance[account][spender].eq(UFixed18Lib.MAX)) return;
-        allowance[account][spender] = allowance[account][spender].sub(_toU18(amount));
+        if (allowance[account][spender].eq(UFixed6Lib.MAX)) return;
+        allowance[account][spender] = allowance[account][spender].sub(amount);
     }
 
     /**
@@ -480,7 +480,7 @@ contract Vault is IVault, VaultDefinition, UInitializable {
         BasisStorage memory storedBasis = _checkpoints[context.latestId]._basis; // latest basis will always be complete
         Basis memory basis;
         (basis.shares, basis.assets) = (
-            UFixed18.wrap(uint256(storedBasis.shares)),
+            UFixed6.wrap(uint256(storedBasis.shares)),
             Fixed6.wrap(int256(storedBasis.assets))
         );
         return (!basis.shares.isZero() && basis.assets.lte(Fixed6Lib.ZERO)) || (context.liquidation > context.latestVersion);
@@ -496,8 +496,8 @@ contract Vault is IVault, VaultDefinition, UInitializable {
         return _unhealthy(context) ?
             UFixed6Lib.ZERO :
             _toU6(maxCollateral).gt(collateral) ?
-                _toU6(maxCollateral).sub(collateral).add(_toU6(totalUnclaimed)) :
-                _toU6(totalUnclaimed);
+                _toU6(maxCollateral).sub(collateral).add(totalUnclaimed) :
+                totalUnclaimed;
     }
 
     /**
@@ -507,7 +507,7 @@ contract Vault is IVault, VaultDefinition, UInitializable {
      * @return Maximum available redeemable amount at epoch
      */
     function _maxRedeem(Context memory context, address account) private view returns (UFixed6) {
-        return _unhealthy(context) ? UFixed6Lib.ZERO : _toU6(balanceOf[account]);
+        return _unhealthy(context) ? UFixed6Lib.ZERO : balanceOf[account];
     }
 
     /**
@@ -517,7 +517,7 @@ contract Vault is IVault, VaultDefinition, UInitializable {
      */
     function _totalAssets(Context memory context) private view returns (UFixed6) {
         return UFixed6Lib.from(
-            _collateral(context).sub(Fixed6Lib.from(_toU6(totalUnclaimed).add(_pending.deposit))).max(Fixed6Lib.ZERO)
+            _collateral(context).sub(Fixed6Lib.from(totalUnclaimed.add(_pending.deposit))).max(Fixed6Lib.ZERO)
         );
     }
 
@@ -538,7 +538,7 @@ contract Vault is IVault, VaultDefinition, UInitializable {
      */
     function _convertToShares(Basis memory basis, UFixed6 assets) private pure returns (UFixed6) {
         UFixed6 basisAssets = UFixed6Lib.from(basis.assets.max(Fixed6Lib.ZERO)); // TODO: what to do if vault is insolvent
-        return basisAssets.isZero() ? assets : assets.muldiv(_toU6(basis.shares), basisAssets);
+        return basisAssets.isZero() ? assets : assets.muldiv(basis.shares, basisAssets);
     }
 
     /**
@@ -548,13 +548,13 @@ contract Vault is IVault, VaultDefinition, UInitializable {
      */
     function _convertToAssets(Basis memory basis, UFixed6 shares) private pure returns (UFixed6) {
         UFixed6 basisAssets = UFixed6Lib.from(basis.assets.max(Fixed6Lib.ZERO)); // TODO: what to do if vault is insolvent
-        return _toU6(basis.shares).isZero() ? shares : shares.muldiv(basisAssets, _toU6(basis.shares));
+        return basis.shares.isZero() ? shares : shares.muldiv(basisAssets, basis.shares);
     }
 
     function _basis(uint256 id) private returns (Basis memory basis) {
         BasisStorage memory storedBasis = _checkpoints[id]._basis;
         (basis.shares, basis.assets, basis.complete) = (
-            UFixed18.wrap(uint256(storedBasis.shares)),
+            UFixed6.wrap(uint256(storedBasis.shares)),
             Fixed6.wrap(int256(storedBasis.assets)),
             storedBasis.complete
         );
@@ -567,7 +567,7 @@ contract Vault is IVault, VaultDefinition, UInitializable {
         }
 
         _checkpoints[id]._basis = BasisStorage(
-            uint120(UFixed18.unwrap(basis.shares)),
+            uint120(UFixed6.unwrap(basis.shares)),
             int120(Fixed6.unwrap(basis.assets)),
             true,
             true
