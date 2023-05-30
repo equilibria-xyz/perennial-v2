@@ -4,6 +4,7 @@ pragma solidity ^0.8.13;
 import "@equilibria/perennial-v2/contracts/interfaces/IFactory.sol";
 import "@equilibria/root-v2/contracts/UFixed6.sol";
 import "./IVaultDefinition.sol";
+import "../types/Account.sol";
 
 interface IVault is IVaultDefinition {
 
@@ -15,6 +16,10 @@ interface IVault is IVaultDefinition {
 
         // markets
         MarketContext[] markets;
+
+        // state
+        Account global;
+        Account local;
     }
 
     struct MarketContext {

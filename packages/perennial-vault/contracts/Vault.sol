@@ -104,6 +104,7 @@ contract Vault is IVault, VaultDefinition, UInitializable {
     function settle(address account) public {
         Context memory context = _settle(account);
         _rebalance(context, UFixed6Lib.ZERO);
+        _saveContext(context, account);
     }
 
     /**
@@ -115,21 +116,18 @@ contract Vault is IVault, VaultDefinition, UInitializable {
         Context memory context = _settle(account);
         if (assets.gt(_maxDeposit(context))) revert VaultDepositLimitExceededError();
 
-        Account memory local = _accounts[account].read();
-        if (context.latestId >= local.latest) {
-            Account memory global = _account.read();
-
-            global.deposit = global.deposit.add(assets);
-            local.processDeposit(context.currentId, assets);
+        if (context.latestId >=  context.local.latest) {
+            context.global.deposit =  context.global.deposit.add(assets);
+            context.local.latest = context.currentId;
+            context.local.deposit = assets;
             _delta[context.currentId].deposit = _delta[context.currentId].deposit.add(assets);
-
-            _account.store(global);
-            _accounts[account].store(local);
         } else revert VaultExistingOrderError();
 
         asset.pull(msg.sender, _toU18(assets));
 
         _rebalance(context, UFixed6Lib.ZERO);
+
+        _saveContext(context, account);
 
         emit Deposit(msg.sender, account, context.currentId, assets);
     }
@@ -147,22 +145,19 @@ contract Vault is IVault, VaultDefinition, UInitializable {
         Context memory context = _settle(account);
         if (shares.gt(_maxRedeem(context, account))) revert VaultRedemptionLimitExceededError();
 
-        Account memory local = _accounts[account].read();
-        Account memory global = _account.read();
-
-        if (context.latestId >= local.latest) {
-            global.redemption = global.redemption.add(shares);
-            local.processRedemption(context.currentId, shares);
+        if (context.latestId >=  context.local.latest) {
+            context.global.redemption =  context.global.redemption.add(shares);
+            context.local.latest = context.currentId;
+            context.local.redemption = shares;
             _delta[context.currentId].redemption = _delta[context.currentId].redemption.add(shares);
         } else revert VaultExistingOrderError();
 
-        local.shares = local.shares.sub(shares);
-        global.shares = global.shares.sub(shares);
-
-        _account.store(global);
-        _accounts[account].store(local);
+        context.local.shares = context.local.shares.sub(shares);
+        context.global.shares = context.global.shares.sub(shares);
 
         _rebalance(context, UFixed6Lib.ZERO);
+
+        _saveContext(context, account);
 
         emit Redemption(msg.sender, account, context.currentId, shares);
     }
@@ -174,13 +169,10 @@ contract Vault is IVault, VaultDefinition, UInitializable {
     function claim(address account) external {
         Context memory context = _settle(account);
 
-        Account memory local = _accounts[account].read();
-        Account memory global = _account.read();
-
-        UFixed6 unclaimedAmount = local.assets;
-        UFixed6 unclaimedTotal = global.assets;
-        local.assets = UFixed6Lib.ZERO;
-        global.assets = unclaimedTotal.sub(unclaimedAmount);
+        UFixed6 unclaimedAmount = context.local.assets;
+        UFixed6 unclaimedTotal = context.global.assets;
+        context.local.assets = UFixed6Lib.ZERO;
+        context.global.assets = unclaimedTotal.sub(unclaimedAmount);
         emit Claim(msg.sender, account, unclaimedAmount);
 
         // pro-rate if vault has less collateral than unclaimed
@@ -189,10 +181,9 @@ contract Vault is IVault, VaultDefinition, UInitializable {
         if (totalCollateral.lt(unclaimedTotal))
             claimAmount = claimAmount.muldiv(totalCollateral, unclaimedTotal);
 
-        _account.store(global);
-        _accounts[account].store(local);
-
         _rebalance(context, claimAmount);
+
+        _saveContext(context, account);
 
         asset.push(account, _toU18(claimAmount));
     }
@@ -268,62 +259,51 @@ contract Vault is IVault, VaultDefinition, UInitializable {
         context = _loadContextForWrite(account);
 
         // process pending deltas
-        while (context.latestId > _account.read().latest) _processDelta(_account.read().latest + 1);
-        if (context.latestId >= _accounts[account].read().latest) {
-            _processDeltaAccount(account);
-
-            // TODO: remove
-            Account memory local = _accounts[account].read();
-            local.clear();
-            _accounts[account].store(local);
+        while (context.latestId > context.global.latest) _processDelta(context, context.global.latest + 1);
+        if (context.latestId >= context.local.latest) {
+            _processDeltaAccount(context, account);
+            context.local.deposit = UFixed6Lib.ZERO;
+            context.local.redemption = UFixed6Lib.ZERO;
         }
 
         // sync data for new id
         if (!_checkpoints[context.currentId]._basis.started) {
             _checkpoints[context.currentId]._basis = BasisStorage(
-                uint120(UFixed6.unwrap(_account.read().shares)),
-                int120(Fixed6.unwrap(_assets())),
+                uint120(UFixed6.unwrap(context.global.shares)),
+                int120(Fixed6.unwrap(_assets(context))),
                 true,
                 false
             );
         }
     }
 
-    function _processDelta(uint256 id) private {
+    function _processDelta(Context memory context, uint256 id) private {
         Delta memory delta = _delta[id];
-        Account memory global = _account.read();
 
         // sync state
         Basis memory basis = _basis(id);
-        global.shares = global.shares.add(_convertToShares(basis, delta.deposit));
-        global.assets = global.assets.add(_convertToAssets(basis, delta.redemption));
+        context.global.shares = context.global.shares.add(_convertToShares(basis, delta.deposit));
+        context.global.assets = context.global.assets.add(_convertToAssets(basis, delta.redemption));
 
         // prepare for the next delta id
-        global.deposit = global.deposit.sub(delta.deposit);
-        global.redemption = global.redemption.sub(delta.redemption);
-        global.latest = id;
-
-        _account.store(global);
+        context.global.deposit = context.global.deposit.sub(delta.deposit);
+        context.global.redemption = context.global.redemption.sub(delta.redemption);
+        context.global.latest = id;
     }
 
-    function _processDeltaAccount(address account) private {
+    function _processDeltaAccount(Context memory context, address account) private {
         if (account == address(0)) return; // gas optimization
 
-        Account memory local = _accounts[account].read();
-
         // sync state
-        Basis memory basis = _basis(local.latest);
-        local.shares = local.shares.add(_convertToShares(basis, local.deposit));
-        local.assets = local.assets.add(_convertToAssets(basis, local.redemption));
-
-        _accounts[account].store(local);
+        Basis memory basis = _basis(context.local.latest);
+        context.local.shares = context.local.shares.add(_convertToShares(basis, context.local.deposit));
+        context.local.assets = context.local.assets.add(_convertToAssets(basis, context.local.redemption));
     }
 
-    function _assets() private view returns (Fixed6) {
-        Account memory global = _account.read();
+    function _assets(Context memory context) private view returns (Fixed6) {
         return Fixed6Lib.from(_toU6(asset.balanceOf()))
-            .sub(Fixed6Lib.from(global.deposit))
-            .sub(Fixed6Lib.from(global.assets));
+            .sub(Fixed6Lib.from(context.global.deposit))
+            .sub(Fixed6Lib.from(context.global.assets));
     }
 
     /**
@@ -343,14 +323,13 @@ contract Vault is IVault, VaultDefinition, UInitializable {
         if (collateral.muldiv(minWeight, totalWeight).lt(minCollateral)) collateral = UFixed6Lib.ZERO;
 
         // Compute available assets
-        Account memory global = _account.read();
         UFixed6 assets = UFixed6Lib.from(
                 collateralInVault
-                    .sub(Fixed6Lib.from(global.assets.add(global.deposit)))
+                    .sub(Fixed6Lib.from(context.global.assets.add(context.global.deposit)))
                     .max(Fixed6Lib.ZERO)
             )
-            .mul(global.shares.unsafeDiv(global.shares.add(global.redemption)))
-            .add(global.deposit);
+            .mul(context.global.shares.unsafeDiv(context.global.shares.add(context.global.redemption)))
+            .add(context.global.deposit);
         if (assets.muldiv(minWeight, totalWeight).lt(minCollateral)) assets = UFixed6Lib.ZERO;
 
         Target[] memory targets = _computeTargets(context, collateral, assets);
@@ -488,6 +467,14 @@ contract Vault is IVault, VaultDefinition, UInitializable {
             if (local.liquidation > context.liquidation) context.liquidation = local.liquidation;
             if (marketId == 0) context.currentId = currentVersion > currentPosition.version ? local.currentId + 1 : local.currentId;
         }
+
+        context.global = _account.read();
+        context.local = _accounts[account].read();
+    }
+
+    function _saveContext(Context memory context, address account) private {
+        _account.store(context.global);
+        _accounts[account].store(context.local);
     }
 
     /**
@@ -512,12 +499,11 @@ contract Vault is IVault, VaultDefinition, UInitializable {
      */
     function _maxDeposit(Context memory context) private view returns (UFixed6) {
         UFixed6 collateral = UFixed6Lib.from(_collateral(context).max(Fixed6Lib.ZERO));
-        Account memory global = _account.read();
         return _unhealthy(context) ?
             UFixed6Lib.ZERO :
             maxCollateral.gt(collateral) ?
-                maxCollateral.sub(collateral).add(global.assets) :
-                global.assets;
+                maxCollateral.sub(collateral).add(context.global.assets) :
+                context.global.assets;
     }
 
     /**
@@ -527,7 +513,7 @@ contract Vault is IVault, VaultDefinition, UInitializable {
      * @return Maximum available redeemable amount at epoch
      */
     function _maxRedeem(Context memory context, address account) private view returns (UFixed6) {
-        return _unhealthy(context) ? UFixed6Lib.ZERO : _accounts[account].read().shares;
+        return _unhealthy(context) ? UFixed6Lib.ZERO : context.local.shares;
     }
 
     /**
@@ -536,9 +522,10 @@ contract Vault is IVault, VaultDefinition, UInitializable {
      * @return Total assets amount at epoch
      */
     function _totalAssets(Context memory context) private view returns (UFixed6) {
-        Account memory global = _account.read();
         return UFixed6Lib.from(
-            _collateral(context).sub(Fixed6Lib.from(global.assets.add(global.deposit))).max(Fixed6Lib.ZERO)
+            _collateral(context)
+                .sub(Fixed6Lib.from(context.global.assets.add(context.global.deposit)))
+                .max(Fixed6Lib.ZERO)
         );
     }
 

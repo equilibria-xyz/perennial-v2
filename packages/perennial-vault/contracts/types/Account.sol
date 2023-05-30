@@ -27,20 +27,7 @@ using AccountStorageLib for AccountStorage global;
  * @notice
  */
 library AccountLib {
-    function processDeposit(Account memory self, uint256 id, UFixed6 amount) internal {
-        self.latest = id;
-        self.deposit = self.deposit.add(amount);
-    }
 
-    function processRedemption(Account memory self, uint256 id, UFixed6 amount) internal {
-        self.latest = id;
-        self.redemption = self.redemption.add(amount);
-    }
-
-    function clear(Account memory self) internal { // TODO: remove
-        self.deposit = UFixed6Lib.ZERO;
-        self.redemption = UFixed6Lib.ZERO;
-    }
 }
 
 library AccountStorageLib {
