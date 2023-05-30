@@ -30,10 +30,10 @@ contract VaultDefinition is IVaultDefinition {
     IFactory public immutable factory;
 
     /// @dev The target leverage amount for the vault
-    UFixed18 public immutable targetLeverage;
+    UFixed6 public immutable targetLeverage;
 
     /// @dev The collateral cap for the vault
-    UFixed18 public immutable maxCollateral;
+    UFixed6 public immutable maxCollateral;
 
     /// @dev The underlying asset of the vault
     Token18 public immutable asset;
@@ -64,11 +64,11 @@ contract VaultDefinition is IVaultDefinition {
      */
     constructor(
         IFactory factory_,
-        UFixed18 targetLeverage_,
-        UFixed18 maxCollateral_,
+        UFixed6 targetLeverage_,
+        UFixed6 maxCollateral_,
         MarketDefinition[] memory marketDefinitions_
     ) {
-        if (targetLeverage_.eq(UFixed18Lib.ZERO)) revert VaultDefinitionZeroTargetLeverageError();
+        if (targetLeverage_.eq(UFixed6Lib.ZERO)) revert VaultDefinitionZeroTargetLeverageError();
         if (marketDefinitions_.length == 0) revert VaultDefinitionNoMarketsError();
 
         factory = factory_;

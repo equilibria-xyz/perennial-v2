@@ -75,8 +75,8 @@ contract Vault is IVault, VaultDefinition, UInitializable {
      */
     constructor(
         IFactory factory_,
-        UFixed18 targetLeverage_,
-        UFixed18 maxCollateral_,
+        UFixed6 targetLeverage_,
+        UFixed6 maxCollateral_,
         MarketDefinition[] memory marketDefinitions_
     )
     VaultDefinition(factory_, targetLeverage_, maxCollateral_, marketDefinitions_)
@@ -362,7 +362,7 @@ contract Vault is IVault, VaultDefinition, UInitializable {
             UFixed6 currentPrice = latestOracleVersion.price.abs();
 
             targets[marketId].collateral = collateral.muldiv(marketDefinition.weight, totalWeight);
-            targets[marketId].position = marketAssets.mul(_toU6(targetLeverage)).div(currentPrice);
+            targets[marketId].position = marketAssets.mul(targetLeverage).div(currentPrice);
         }
     }
 
@@ -495,8 +495,8 @@ contract Vault is IVault, VaultDefinition, UInitializable {
         UFixed6 collateral = UFixed6Lib.from(_collateral(context).max(Fixed6Lib.ZERO));
         return _unhealthy(context) ?
             UFixed6Lib.ZERO :
-            _toU6(maxCollateral).gt(collateral) ?
-                _toU6(maxCollateral).sub(collateral).add(totalUnclaimed) :
+            maxCollateral.gt(collateral) ?
+                maxCollateral.sub(collateral).add(totalUnclaimed) :
                 totalUnclaimed;
     }
 
@@ -583,13 +583,5 @@ contract Vault is IVault, VaultDefinition, UInitializable {
 
     function _toU6(UFixed18 n) private pure returns (UFixed6) {
         return UFixed6.wrap(UFixed18.unwrap(n) / 1e12);
-    }
-
-    function _toS18(Fixed6 n) private pure returns (Fixed18) {
-        return Fixed18.wrap(Fixed6.unwrap(n) * 1e12);
-    }
-
-    function _toS6(Fixed18 n) private pure returns (Fixed6) {
-        return Fixed6.wrap(Fixed18.unwrap(n) / 1e12);
     }
 }

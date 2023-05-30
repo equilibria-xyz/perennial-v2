@@ -18,7 +18,7 @@ interface IVaultDefinition {
     function totalMarkets() external view returns (uint256);
     function totalWeight() external view returns (uint256);
     function factory() external view returns (IFactory);
-    function targetLeverage() external view returns (UFixed18);
-    function maxCollateral() external view returns (UFixed18);
+    function targetLeverage() external view returns (UFixed6);
+    function maxCollateral() external view returns (UFixed6);
     function markets(uint256 marketId) external view returns (MarketDefinition memory);
 }
