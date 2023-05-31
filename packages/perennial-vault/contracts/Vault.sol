@@ -12,6 +12,7 @@ import "./types/Checkpoint.sol";
 // TODO: make sure maker fees are supported
 // TODO: assumes no one can create an order for the vault (check if liquidation / shortfall break this model)
 // TODO: add or remove? assets
+// TODO: maxRedeem extra logic
 
 /**
  * @title Vault
@@ -254,41 +255,21 @@ contract Vault is IVault, VaultDefinition, UInitializable {
         context = _loadContextForWrite(account);
 
         // process pending deltas
-        while (context.latestId > context.global.latest) _processDelta(context, context.global.latest + 1);
-        if (context.latestId >= context.local.latest) _processDeltaAccount(context, account);
+        while (context.latestId > context.global.latest) {
+            Checkpoint memory checkpoint = _checkpoint(context.global.latest + 1); // TODO: convert checkpoint to start / complete
+            context.global.process(checkpoint, checkpoint.deposit, checkpoint.redemption, context.global.latest + 1);
+        }
+        if (context.latestId >= context.local.latest) {
+            Checkpoint memory checkpoint = _checkpoints[context.local.latest].read();
+            context.local.process(checkpoint, context.local.deposit, context.local.redemption, context.local.latest);
+        }
 
         // sync data for new id
-        context.checkpoint.checkpoint(
+        context.checkpoint.start(
             context.global.shares,
             Fixed6Lib.from(_toU6(asset.balanceOf()))
-                .sub(Fixed6Lib.from(context.global.deposit))
-                .sub(Fixed6Lib.from(context.global.assets))
+                .sub(Fixed6Lib.from(context.global.deposit.add(context.global.assets)))
         );
-    }
-
-    function _processDelta(Context memory context, uint256 id) private {
-        // sync state
-        Checkpoint memory checkpoint = _checkpoint(id);
-        context.global.shares = context.global.shares.add(_convertToShares(checkpoint, checkpoint.deposit));
-        context.global.assets = context.global.assets.add(_convertToAssets(checkpoint, checkpoint.redemption));
-
-        // prepare for the next delta id
-        context.global.deposit = context.global.deposit.sub(checkpoint.deposit);
-        context.global.redemption = context.global.redemption.sub(checkpoint.redemption);
-        context.global.latest = id;
-    }
-
-    function _processDeltaAccount(Context memory context, address account) private {
-        if (account == address(0)) return; // gas optimization
-
-        // sync state
-        Checkpoint memory checkpoint = _checkpoint(context.local.latest);
-        context.local.shares = context.local.shares.add(_convertToShares(checkpoint, context.local.deposit));
-        context.local.assets = context.local.assets.add(_convertToAssets(checkpoint, context.local.redemption));
-
-        // prepare for the next delta id
-        context.local.deposit = UFixed6Lib.ZERO;
-        context.local.redemption = UFixed6Lib.ZERO;
     }
 
     /**
@@ -519,26 +500,6 @@ contract Vault is IVault, VaultDefinition, UInitializable {
         value = Fixed6Lib.from(_toU6(asset.balanceOf()));
         for (uint256 marketId; marketId < totalMarkets; marketId++)
             value = value.add(context.markets[marketId].collateral);
-    }
-
-    /**
-     * @notice Converts a given amount of assets to shares at basis
-     * @param assets Number of assets to convert to shares
-     * @return Amount of shares for the given assets at basis
-     */
-    function _convertToShares(Checkpoint memory checkpoint, UFixed6 assets) private pure returns (UFixed6) {
-        UFixed6 basisAssets = UFixed6Lib.from(checkpoint.assets.max(Fixed6Lib.ZERO)); // TODO: what to do if vault is insolvent
-        return basisAssets.isZero() ? assets : assets.muldiv(checkpoint.shares, basisAssets);
-    }
-
-    /**
-     * @notice Converts a given amount of shares to assets with basis
-     * @param shares Number of shares to convert to shares
-     * @return Amount of assets for the given shares at basis
-     */
-    function _convertToAssets(Checkpoint memory checkpoint, UFixed6 shares) private pure returns (UFixed6) {
-        UFixed6 basisAssets = UFixed6Lib.from(checkpoint.assets.max(Fixed6Lib.ZERO)); // TODO: what to do if vault is insolvent
-        return checkpoint.shares.isZero() ? shares : shares.muldiv(basisAssets, checkpoint.shares);
     }
 
     function _checkpoint(uint256 id) private returns (Checkpoint memory checkpoint) {

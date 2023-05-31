@@ -31,12 +31,32 @@ using CheckpointStorageLib for CheckpointStorage global;
  * @notice
  */
 library CheckpointLib {
-    function checkpoint(Checkpoint memory checkpoint, UFixed6 shares, Fixed6 assets) internal pure {
+    function start(Checkpoint memory checkpoint, UFixed6 shares, Fixed6 assets) internal pure {
         if (!checkpoint.started) {
             checkpoint.started = true;
             checkpoint.shares = shares;
             checkpoint.assets = assets;
         }
+    }
+
+    /**
+     * @notice Converts a given amount of assets to shares at basis
+     * @param assets Number of assets to convert to shares
+     * @return Amount of shares for the given assets at basis
+     */
+    function toShares(Checkpoint memory self, UFixed6 assets) internal pure returns (UFixed6) {
+        UFixed6 basisAssets = UFixed6Lib.from(self.assets.max(Fixed6Lib.ZERO)); // TODO: what to do if vault is insolvent
+        return basisAssets.isZero() ? assets : assets.muldiv(self.shares, basisAssets);
+    }
+
+    /**
+     * @notice Converts a given amount of shares to assets with basis
+     * @param shares Number of shares to convert to shares
+     * @return Amount of assets for the given shares at basis
+     */
+    function toAssets(Checkpoint memory self, UFixed6 shares) internal pure returns (UFixed6) {
+        UFixed6 basisAssets = UFixed6Lib.from(self.assets.max(Fixed6Lib.ZERO)); // TODO: what to do if vault is insolvent
+        return self.shares.isZero() ? shares : shares.muldiv(basisAssets, self.shares);
     }
 }
 

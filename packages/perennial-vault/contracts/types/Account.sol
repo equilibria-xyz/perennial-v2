@@ -2,6 +2,7 @@
 pragma solidity ^0.8.13;
 
 import "@equilibria/root-v2/contracts/UFixed6.sol";
+import "./Checkpoint.sol";
 
 /// @dev Account type
 struct Account {
@@ -27,7 +28,19 @@ using AccountStorageLib for AccountStorage global;
  * @notice
  */
 library AccountLib {
-
+    function process(
+        Account memory account,
+        Checkpoint memory checkpoint,
+        UFixed6 deposit,
+        UFixed6 redemption,
+        uint256 id
+    ) internal pure {
+        account.shares = account.shares.add(checkpoint.toShares(deposit));
+        account.assets = account.assets.add(checkpoint.toAssets(redemption));
+        account.deposit = account.deposit.sub(deposit);
+        account.redemption = account.redemption.sub(redemption);
+        account.latest = id;
+    }
 }
 
 library AccountStorageLib {
