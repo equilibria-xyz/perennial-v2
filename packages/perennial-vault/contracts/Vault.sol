@@ -11,6 +11,7 @@ import "./types/Checkpoint.sol";
 // TODO: only pull out what you can from collateral when really unbalanced
 // TODO: make sure maker fees are supported
 // TODO: assumes no one can create an order for the vault (check if liquidation / shortfall break this model)
+// TODO: add or remove? assets
 
 /**
  * @title Vault
@@ -111,23 +112,18 @@ contract Vault is IVault, VaultDefinition, UInitializable {
      */
     function deposit(UFixed6 assets, address account) external {
         Context memory context = _settle(account);
+
         if (assets.gt(_maxDeposit(context))) revert VaultDepositLimitExceededError();
+        if (context.latestId < context.local.latest) revert VaultExistingOrderError();
 
-        Checkpoint memory checkpoint = _checkpoints[context.currentId].read();
-
-        if (context.latestId >=  context.local.latest) {
-            context.global.deposit =  context.global.deposit.add(assets);
-            context.local.latest = context.currentId;
-            context.local.deposit = assets;
-            checkpoint.deposit = checkpoint.deposit.add(assets);
-
-            _checkpoints[context.currentId].store(checkpoint);
-        } else revert VaultExistingOrderError();
+        context.global.deposit =  context.global.deposit.add(assets);
+        context.local.latest = context.currentId;
+        context.local.deposit = assets;
+        context.checkpoint.deposit = context.checkpoint.deposit.add(assets);
 
         asset.pull(msg.sender, _toU18(assets));
-
+        
         _rebalance(context, UFixed6Lib.ZERO);
-
         _saveContext(context, account);
 
         emit Deposit(msg.sender, account, context.currentId, assets);
@@ -145,23 +141,17 @@ contract Vault is IVault, VaultDefinition, UInitializable {
 
         Context memory context = _settle(account);
         if (shares.gt(_maxRedeem(context, account))) revert VaultRedemptionLimitExceededError();
+        if (context.latestId < context.local.latest) revert VaultExistingOrderError();
 
-        Checkpoint memory checkpoint = _checkpoints[context.currentId].read();
-
-        if (context.latestId >=  context.local.latest) {
-            context.global.redemption =  context.global.redemption.add(shares);
-            context.local.latest = context.currentId;
-            context.local.redemption = shares;
-            checkpoint.redemption = checkpoint.redemption.add(shares);
-
-            _checkpoints[context.currentId].store(checkpoint);
-        } else revert VaultExistingOrderError();
+        context.global.redemption =  context.global.redemption.add(shares);
+        context.local.latest = context.currentId;
+        context.local.redemption = shares;
+        context.checkpoint.redemption = context.checkpoint.redemption.add(shares);
 
         context.local.shares = context.local.shares.sub(shares);
         context.global.shares = context.global.shares.sub(shares);
 
         _rebalance(context, UFixed6Lib.ZERO);
-
         _saveContext(context, account);
 
         emit Redemption(msg.sender, account, context.currentId, shares);
@@ -265,21 +255,15 @@ contract Vault is IVault, VaultDefinition, UInitializable {
 
         // process pending deltas
         while (context.latestId > context.global.latest) _processDelta(context, context.global.latest + 1);
-        if (context.latestId >= context.local.latest) {
-            _processDeltaAccount(context, account);
-            context.local.deposit = UFixed6Lib.ZERO;
-            context.local.redemption = UFixed6Lib.ZERO;
-        }
+        if (context.latestId >= context.local.latest) _processDeltaAccount(context, account);
 
         // sync data for new id
-        Checkpoint memory checkpoint = _checkpoints[context.currentId].read();
-        checkpoint.checkpoint(
+        context.checkpoint.checkpoint(
             context.global.shares,
             Fixed6Lib.from(_toU6(asset.balanceOf()))
                 .sub(Fixed6Lib.from(context.global.deposit))
                 .sub(Fixed6Lib.from(context.global.assets))
         );
-        _checkpoints[context.currentId].store(checkpoint);
     }
 
     function _processDelta(Context memory context, uint256 id) private {
@@ -301,6 +285,10 @@ contract Vault is IVault, VaultDefinition, UInitializable {
         Checkpoint memory checkpoint = _checkpoint(context.local.latest);
         context.local.shares = context.local.shares.add(_convertToShares(checkpoint, context.local.deposit));
         context.local.assets = context.local.assets.add(_convertToAssets(checkpoint, context.local.redemption));
+
+        // prepare for the next delta id
+        context.local.deposit = UFixed6Lib.ZERO;
+        context.local.redemption = UFixed6Lib.ZERO;
     }
 
     /**
@@ -465,11 +453,13 @@ contract Vault is IVault, VaultDefinition, UInitializable {
             if (marketId == 0) context.currentId = currentVersion > currentPosition.version ? local.currentId + 1 : local.currentId;
         }
 
+        context.checkpoint = _checkpoints[context.currentId].read();
         context.global = _account.read();
         context.local = _accounts[account].read();
     }
 
     function _saveContext(Context memory context, address account) private {
+        _checkpoints[context.currentId].store(context.checkpoint);
         _account.store(context.global);
         _accounts[account].store(context.local);
     }

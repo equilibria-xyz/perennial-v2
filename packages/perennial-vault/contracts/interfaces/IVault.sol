@@ -5,6 +5,7 @@ import "@equilibria/perennial-v2/contracts/interfaces/IFactory.sol";
 import "@equilibria/root-v2/contracts/UFixed6.sol";
 import "./IVaultDefinition.sol";
 import "../types/Account.sol";
+import "../types/Checkpoint.sol";
 
 interface IVault is IVaultDefinition {
 
@@ -18,6 +19,7 @@ interface IVault is IVaultDefinition {
         MarketContext[] markets;
 
         // state
+        Checkpoint checkpoint;
         Account global;
         Account local;
     }
