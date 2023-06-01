@@ -28,6 +28,8 @@ import { parse6decimal } from '../../../../common/testutil/types'
 const { config, ethers } = HRE
 use(smock.matchers)
 
+// TODO: parameter tests
+
 describe('Vault', () => {
   let vault: Vault
   let asset: IERC20Metadata
@@ -198,17 +200,13 @@ describe('Vault', () => {
     leverage = parse6decimal('4.0')
     maxCollateral = parse6decimal('500000')
 
-    vault = await new Vault__factory(owner).deploy(instanceVars.factory.address, leverage, maxCollateral, [
-      {
-        market: market.address,
-        weight: 4,
-      },
-      {
-        market: btcMarket.address,
-        weight: 1,
-      },
-    ])
-    await vault.initialize('Perennial Vault Alpha')
+    vault = await new Vault__factory(owner).deploy(instanceVars.factory.address, instanceVars.dsu.address)
+    await vault.initialize(market.address)
+    await vault.register(btcMarket.address)
+    await vault.updateWeight(0, 4)
+    await vault.updateWeight(1, 1)
+    await vault.updateLeverage(leverage)
+    await vault.updateCap(maxCollateral)
     asset = IERC20Metadata__factory.connect(await vault.asset(), owner)
 
     await asset.connect(liquidator).approve(vault.address, ethers.constants.MaxUint256)
@@ -237,59 +235,16 @@ describe('Vault', () => {
     await btcMarket.connect(btcUser2).update(btcUser2.address, 0, parse6decimal('10'), 0, parse6decimal('100000'))
   })
 
-  describe('#constructor', () => {
-    it('checks that there is at least one market', async () => {
-      await expect(new Vault__factory(owner).deploy(factory.address, leverage, maxCollateral, [])).to.revertedWith(
-        'VaultDefinitionNoMarketsError',
-      )
-    })
-
-    it('checks that at least one weight is greater than zero', async () => {
-      await expect(
-        new Vault__factory(owner).deploy(factory.address, leverage, maxCollateral, [
-          {
-            market: market.address,
-            weight: 0,
-          },
-        ]),
-      ).to.revertedWith('VaultDefinitionAllZeroWeightError')
-
-      // At least one of the weights can be zero as long as not all of them are.
-      await expect(
-        new Vault__factory(owner).deploy(factory.address, leverage, maxCollateral, [
-          {
-            market: market.address,
-            weight: 0,
-          },
-          {
-            market: market.address,
-            weight: 1,
-          },
-        ]),
-      ).to.not.be.reverted
-    })
-
-    it('checks that target leverage is positive', async () => {
-      await expect(
-        new Vault__factory(owner).deploy(factory.address, 0, maxCollateral, [
-          {
-            market: market.address,
-            weight: 1,
-          },
-        ]),
-      ).to.revertedWith('VaultDefinitionZeroTargetLeverageError')
-    })
-  })
-
   describe('#initialize', () => {
     it('cant re-initialize', async () => {
-      await expect(vault.initialize('Perennial Vault Alpha')).to.revertedWith('UInitializableAlreadyInitializedError')
+      console.log('123123')
+      await expect(vault.initialize(market.address)).to.revertedWith('UInitializableAlreadyInitializedError')
     })
   })
 
   describe('#name', () => {
     it('is correct', async () => {
-      expect(await vault.name()).to.equal('Perennial Vault Alpha')
+      expect(await vault.name()).to.equal('Vault-XX')
     })
   })
 

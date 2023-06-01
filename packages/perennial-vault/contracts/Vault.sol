@@ -4,15 +4,16 @@ pragma solidity 0.8.19;
 import "./interfaces/IVault.sol";
 import "@equilibria/root/control/unstructured/UInitializable.sol";
 import "@openzeppelin/contracts/utils/math/Math.sol";
-import "./VaultDefinition.sol";
 import "./types/Account.sol";
 import "./types/Checkpoint.sol";
+import "./types/Registration.sol";
 
 // TODO: only pull out what you can from collateral when really unbalanced
 // TODO: make sure maker fees are supported
 // TODO: assumes no one can create an order for the vault (check if liquidation / shortfall break this model)
 // TODO: add or remove? assets
 // TODO: maxRedeem extra logic
+// TODO: add ownable and factory flow
 
 /**
  * @title Vault
@@ -33,11 +34,23 @@ import "./types/Checkpoint.sol";
  *      causing the vault to be in an unhealthy state (far away from target leverage)
  *
  */
-contract Vault is IVault, VaultDefinition, UInitializable {
-    /// @dev The name of the vault
-    string public name;
+contract Vault is IVault, UInitializable {
+    IFactory public factory;
 
-    mapping(uint256 => Registration) private _registrations;
+    /// @dev The underlying asset of the vault
+    Token18 public immutable asset;
+
+    uint256 public totalMarkets; // TODO: pack into a single slot
+
+    uint256 public totalWeight;
+
+    uint256 public minWeight;
+
+    UFixed6 public leverage;
+
+    UFixed6 public cap;
+
+    mapping(uint256 => RegistrationStorage) private _registrations;
 
     /// @dev Mapping of allowance across all users
     mapping(address => mapping(address => UFixed6)) public allowance;
@@ -54,19 +67,13 @@ contract Vault is IVault, VaultDefinition, UInitializable {
     /**
      * @notice Constructor for VaultDefinition
      * @param factory_ The factory contract
-     * @param targetLeverage_ The target leverage for the vault
-     * @param maxCollateral_ The maximum amount of collateral that can be held in the vault
-     * @param marketDefinitions_ The market definitions for the vault
      */
-    constructor(
-        IFactory factory_,
-        UFixed6 targetLeverage_,
-        UFixed6 maxCollateral_,
-        MarketDefinition[] memory marketDefinitions_
-    )
-    VaultDefinition(factory_, targetLeverage_, maxCollateral_, marketDefinitions_)
-    { }
+    constructor(IFactory factory_, Token18 asset_) {
+        factory = factory_;
+        asset = asset_;
+    }
 
+    function name() external view returns (string memory) { return "Vault-XX"; } // TODO generate
     function totalSupply() external view returns (UFixed6) { return _account.read().shares; }
     function balanceOf(address account) external view returns (UFixed6) { return _accounts[account].read().shares; }
     function totalUnclaimed() external view returns (UFixed6) { return _account.read().assets; }
@@ -106,27 +113,59 @@ contract Vault is IVault, VaultDefinition, UInitializable {
         return _totalShares.isZero() ? shares : shares.muldiv(_totalAssets, _totalShares);
     }
 
-    /**
-     * @notice Initializes the contract state
-     * @param name_ ERC20 asset name
-     */
-    function initialize(string memory name_) external initializer(1) {
-        name = name_;
+    function initialize(IMarket market) external initializer(1) {
+        _registrations[0].store(Registration(market, 0, 0));
+        totalMarkets++;
+        asset.approve(address(market));
+        emit MarketRegistered(0, market);
+    }
 
-        Context memory context = _settle(address(0));
+    function register(IMarket market) external {
+        Context memory context = _settle(address(0)); // TODO: can we get rid of this?
 
-        // set or reset allowance compliant with both an initial deployment or an upgrade
         for (uint256 marketId; marketId < totalMarkets; marketId++) {
-            asset.approve(address(markets(marketId).market), UFixed18Lib.ZERO);
-            asset.approve(address(markets(marketId).market));
-
-            if (address(_registrations[marketId].market) == address(0)) {
-                _registrations[marketId].market = markets(marketId).market;
-                _registrations[marketId].initialId = context.currentId - 1;
-            }
-
-            if (_registrations[marketId].market != markets(marketId).market) revert VaultMarketMismatchError();
+            if (_registrations[marketId].read().market == market) revert VaultMarketExistsError();
         }
+
+        // TODO: verify its a market in the factory
+
+        asset.approve(address(market));
+
+        _registrations[totalMarkets].store(Registration(market, context.currentId - 1, 0));
+        emit MarketRegistered(totalMarkets, market);
+
+        totalMarkets++;
+    }
+
+    function updateWeight(uint256 marketId, uint256 newWeight) external {
+        if (marketId >= totalMarkets) revert VaultMarketDoesNotExistError();
+
+        Registration memory registration = _registrations[marketId].read();
+        totalWeight = totalWeight + newWeight - registration.weight;
+        registration.weight = newWeight;
+        _registrations[marketId].store(registration);
+        _updateMinWeight();
+
+        emit WeightUpdated(marketId, newWeight);
+    }
+
+    function updateLeverage(UFixed6 newLeverage) external {
+        leverage = newLeverage;
+        emit LeverageUpdated(newLeverage);
+    }
+
+    function updateCap(UFixed6 newCap) external {
+        cap = newCap;
+        emit CapUpdated(newCap);
+    }
+
+    function _updateMinWeight() private {
+        uint256 newMinWeight = type(uint256).max;
+        for (uint256 marketId; marketId < totalMarkets; marketId++) {
+            Registration memory registration = _registrations[marketId].read();
+            if (registration.weight > 0 && registration.weight < newMinWeight) newMinWeight = registration.weight;
+        }
+        minWeight = newMinWeight;
     }
 
     /**
@@ -260,7 +299,7 @@ contract Vault is IVault, VaultDefinition, UInitializable {
 
         // process pending deltas
         while (context.latestId > context.global.latest) {
-            Checkpoint memory checkpoint = _checkpoints[context.global.latest + 1].read(); // TODO: convert checkpoint to start / complete
+            Checkpoint memory checkpoint = _checkpoints[context.global.latest + 1].read();
             checkpoint.complete(_collateral(context, context.global.latest + 1));
             _checkpoints[context.global.latest + 1].store(checkpoint);
             context.global.process(checkpoint, checkpoint.deposit, checkpoint.redemption, context.global.latest + 1);
@@ -309,13 +348,13 @@ contract Vault is IVault, VaultDefinition, UInitializable {
         // Remove collateral from markets above target
         for (uint256 marketId; marketId < totalMarkets; marketId++) {
             if (context.markets[marketId].collateral.gt(targets[marketId].collateral))
-                _update(context.markets[marketId], markets(marketId).market, targets[marketId]);
+                _update(context.markets[marketId], targets[marketId]);
         }
 
         // Deposit collateral to markets below target
         for (uint256 marketId; marketId < totalMarkets; marketId++) {
             if (context.markets[marketId].collateral.lte(targets[marketId].collateral))
-                _update(context.markets[marketId], markets(marketId).market, targets[marketId]);
+                _update(context.markets[marketId], targets[marketId]);
         }
     }
 
@@ -327,22 +366,19 @@ contract Vault is IVault, VaultDefinition, UInitializable {
         targets = new Target[](totalMarkets);
 
         for (uint256 marketId; marketId < totalMarkets; marketId++) {
-            MarketDefinition memory marketDefinition = markets(marketId);
-
-            UFixed6 marketAssets = assets.muldiv(marketDefinition.weight, totalWeight);
+            UFixed6 marketAssets = assets.muldiv(context.markets[marketId].weight, totalWeight);
             if (context.markets[marketId].closed) marketAssets = UFixed6Lib.ZERO;
 
-            targets[marketId].collateral = Fixed6Lib.from(collateral.muldiv(marketDefinition.weight, totalWeight));
-            targets[marketId].position = marketAssets.mul(targetLeverage).div(context.markets[marketId].price);
+            targets[marketId].collateral = Fixed6Lib.from(collateral.muldiv(context.markets[marketId].weight, totalWeight));
+            targets[marketId].position = marketAssets.mul(leverage).div(context.markets[marketId].price);
         }
     }
 
     /**
      * @notice Adjusts the position on `market` to `targetPosition`
-     * @param market The market to adjust the vault's position on
      * @param target The new state to target
      */
-    function _update(MarketContext memory marketContext, IMarket market, Target memory target) private {
+    function _update(MarketContext memory marketContext, Target memory target) private {
         // compute headroom until hitting taker amount
         if (target.position.lt(marketContext.currentPositionAccount)) {
             UFixed6 makerAvailable = marketContext.currentPosition.gt(marketContext.currentNet) ?
@@ -362,7 +398,7 @@ contract Vault is IVault, VaultDefinition, UInitializable {
         }
 
         // issue position update
-        market.update(address(this), target.position, UFixed6Lib.ZERO, UFixed6Lib.ZERO, target.collateral);
+        marketContext.market.update(address(this), target.position, UFixed6Lib.ZERO, UFixed6Lib.ZERO, target.collateral);
     }
 
     /**
@@ -384,7 +420,7 @@ contract Vault is IVault, VaultDefinition, UInitializable {
      */
     function _loadContextForWrite(address account) private returns (Context memory) {
         for (uint256 marketId; marketId < totalMarkets; marketId++) {
-            markets(marketId).market.settle(address(this));
+            _registrations[marketId].read().market.settle(address(this));
         }
 
         return _loadContextForRead(account);
@@ -401,17 +437,19 @@ contract Vault is IVault, VaultDefinition, UInitializable {
         context.markets = new MarketContext[](totalMarkets);
 
         for (uint256 marketId; marketId < totalMarkets; marketId++) {
-            MarketDefinition memory marketDefinition = markets(marketId);
-            MarketParameter memory marketParameter = marketDefinition.market.parameter();
+            Registration memory registration = _registrations[marketId].read();
+            MarketParameter memory marketParameter = registration.market.parameter();
             uint256 currentVersion = marketParameter.oracle.current();
 
+            context.markets[marketId].market = registration.market;
+            context.markets[marketId].weight = registration.weight;
             context.markets[marketId].closed = marketParameter.closed;
             context.markets[marketId].makerLimit = marketParameter.makerLimit;
 
             // global
-            Global memory global = marketDefinition.market.global();
-            Position memory currentPosition = marketDefinition.market.pendingPosition(global.currentId);
-            Position memory latestPosition = marketDefinition.market.position();
+            Global memory global = registration.market.global();
+            Position memory currentPosition = registration.market.pendingPosition(global.currentId);
+            Position memory latestPosition = registration.market.position();
             OracleVersion memory latestOracleVersion = marketParameter.oracle.at(latestPosition.version);
             marketParameter.payoff.transform(latestOracleVersion);
 
@@ -424,8 +462,8 @@ contract Vault is IVault, VaultDefinition, UInitializable {
             }
 
             // local
-            Local memory local = marketDefinition.market.locals(address(this));
-            currentPosition = marketDefinition.market.pendingPositions(address(this), local.currentId);
+            Local memory local = registration.market.locals(address(this));
+            currentPosition = registration.market.pendingPositions(address(this), local.currentId);
 
             context.markets[marketId].currentPositionAccount = currentPosition.maker;
             context.markets[marketId].collateral = local.collateral;
@@ -464,8 +502,8 @@ contract Vault is IVault, VaultDefinition, UInitializable {
         UFixed6 collateral = UFixed6Lib.from(_collateral(context).max(Fixed6Lib.ZERO));
         return _unhealthy(context) ?
             UFixed6Lib.ZERO :
-            maxCollateral.gt(collateral) ?
-                maxCollateral.sub(collateral).add(context.global.assets) :
+            cap.gt(collateral) ?
+                cap.sub(collateral).add(context.global.assets) :
                 context.global.assets;
     }
 
@@ -491,8 +529,10 @@ contract Vault is IVault, VaultDefinition, UInitializable {
 
     function _collateral(Context memory context, uint256 id) public view returns (Fixed6 value) {
         for (uint256 marketId; marketId < totalMarkets; marketId++)
-            value = value.add(markets(marketId)
-                .market.pendingPositions(address(this), id - _registrations[marketId].initialId).collateral);
+            value = value.add(
+                _registrations[marketId].read().market
+                    .pendingPositions(address(this), id - _registrations[marketId].read().initialId).collateral
+            );
         // TODO: should this cap the assets at 0?
     }
 

@@ -3,12 +3,10 @@ pragma solidity ^0.8.13;
 
 import "@equilibria/perennial-v2/contracts/interfaces/IFactory.sol";
 import "@equilibria/root-v2/contracts/UFixed6.sol";
-import "./IVaultDefinition.sol";
 import "../types/Account.sol";
 import "../types/Checkpoint.sol";
 
-interface IVault is IVaultDefinition {
-
+interface IVault {
     struct Context {
         uint256 currentId;
         uint256 latestId;
@@ -26,6 +24,8 @@ interface IVault is IVaultDefinition {
 
     struct MarketContext {
         // parameter
+        IMarket market;
+        uint256 weight;
         bool closed;
         UFixed6 makerLimit;
 
@@ -45,16 +45,15 @@ interface IVault is IVaultDefinition {
         Fixed6 collateral;
     }
 
-    struct Registration {
-        IMarket market;
-        uint256 initialId;
-    }
-
     struct Target {
         Fixed6 collateral;
         UFixed6 position;
     }
 
+    event MarketRegistered(uint256 indexed marketId, IMarket market);
+    event WeightUpdated(uint256 indexed marketId, uint256 newWeight);
+    event LeverageUpdated(UFixed6 newLeverage);
+    event CapUpdated(UFixed6 newCap);
     event Mint(address indexed account, UFixed6 amount);
     event Burn(address indexed account, UFixed6 amount);
     event Deposit(address indexed sender, address indexed account, uint256 version, UFixed6 assets);
@@ -64,10 +63,28 @@ interface IVault is IVaultDefinition {
     error VaultDepositLimitExceededError();
     error VaultRedemptionLimitExceededError();
     error VaultExistingOrderError();
-    error VaultMarketMismatchError();
+    error VaultMarketExistsError();
+    error VaultMarketDoesNotExistError();
 
-    function name() external view returns (string memory);
-    function initialize(string memory name_) external;
+    /* immutable */
+
+    function factory() external view returns (IFactory);
+    function asset() external view returns (Token18);
+
+    /* parameters */
+
+    function totalMarkets() external view returns (uint256);
+    function totalWeight() external view returns (uint256);
+    function leverage() external view returns (UFixed6);
+    function cap() external view returns (UFixed6);
+    function register(IMarket market) external;
+    function updateWeight(uint256 marketId, uint256 newWeight) external;
+    function updateLeverage(UFixed6 newLeverage) external;
+    function updateCap(UFixed6 newCap) external;
+
+    /* Vault Interface */
+
+    function initialize(IMarket market) external;
     function settle(address account) external;
     function totalUnclaimed() external view returns (UFixed6);
     function unclaimed(address account) external view returns (UFixed6);
