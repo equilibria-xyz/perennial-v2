@@ -1,0 +1,44 @@
+{
+  "name": "@equilibria/perennial-extensions",
+  "version": "1.0.0",
+  "description": "Perennial V2 Extensions",
+  "files": [
+    "contracts/interfaces",
+    "artifacts/contracts/interfaces",
+    "deployments/!(localhost)"
+  ],
+  "scripts": {
+    "build": "yarn compile",
+    "compile": "OPTIMIZER_ENABLED=true hardhat compile",
+    "deploy": "OPTIMIZER_ENABLED=true hardhat deploy",
+    "verify": "hardhat etherscan-verify --sleep --solc-input",
+    "gasReport": "REPORT_GAS=true OPTIMIZER_ENABLED=true yarn test:integration",
+    "test": "OPTIMIZER_ENABLED=true hardhat test test/unit/**/*",
+    "test:integration": "OPTIMIZER_ENABLED=true FORK_ENABLED=true FORK_BLOCK_NUMBER=14325080 hardhat test test/integration/**/*",
+    "coverage": "hardhat coverage --testfiles 'test/unit/**/*'",
+    "coverage:integration": "FORK_ENABLED=true FORK_BLOCK_NUMBER=14325080 hardhat coverage --testfiles 'test/integration/**/*'",
+    "lint": "eslint --fix --ext '.ts,.js' ./ && solhint 'contracts/**/*.sol' --fix",
+    "format": "prettier -w .",
+    "clean": "rm -rf cache artifacts types/generated deployments/localhost",
+    "node:fork:kovan": "FORK_ENABLED=true FORK_NETWORK=kovan NODE_INTERVAL_MINING=500 hardhat node",
+    "deploy:fork:kovan": "FORK_ENABLED=true FORK_NETWORK=kovan hardhat deploy --network localhost",
+    "node:fork:goerli": "FORK_ENABLED=true FORK_NETWORK=goerli NODE_INTERVAL_MINING=500 hardhat node",
+    "deploy:fork:goerli": "FORK_ENABLED=true FORK_NETWORK=goerli hardhat deploy --network localhost",
+    "prepack": "yarn clean && yarn build && find artifacts/contracts -name '*.dbg.json' -type f -delete"
+  },
+  "author": "",
+  "license": "Apache-2.0",
+  "dependencies": {
+    "@chainlink/contracts": "0.3.1",
+    "@equilibria/perennial-v2-oracle": "1.0.0",
+    "@equilibria/perennial-v2-payoff": "1.0.0",
+    "@equilibria/root": "0.1.6",
+    "@equilibria/root-v2": "1.0.0",
+    "@openzeppelin/contracts": "4.8.0"
+  },
+  "devDependencies": {
+    "@ethersproject/abstract-provider": "^5",
+    "@ethersproject/abstract-signer": "^5",
+    "lodash": "^4.17.15"
+  }
+}
