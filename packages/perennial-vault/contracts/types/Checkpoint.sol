@@ -5,13 +5,13 @@ import "@equilibria/root-v2/contracts/UFixed6.sol";
 
 /// @dev Checkpoint type
 struct Checkpoint {
-    uint256 latest;
+    uint256 latest;  // TODO: don't really use this anymore
     UFixed6 deposit;
     UFixed6 redemption;
     UFixed6 shares;
     Fixed6 assets;
     bool started;
-    bool complete;
+    bool completed; // TODO: don't really use this anymore
 }
 using CheckpointLib for Checkpoint global;
 struct StoredCheckpoint {
@@ -21,7 +21,7 @@ struct StoredCheckpoint {
     uint56 _shares;
     int56 _assets;
     bool _started;
-    bool _complete;
+    bool _completed;
 }
 struct CheckpointStorage { StoredCheckpoint value; }
 using CheckpointStorageLib for CheckpointStorage global;
@@ -31,12 +31,17 @@ using CheckpointStorageLib for CheckpointStorage global;
  * @notice
  */
 library CheckpointLib {
-    function start(Checkpoint memory checkpoint, UFixed6 shares, Fixed6 assets) internal pure {
-        if (!checkpoint.started) {
-            checkpoint.started = true;
-            checkpoint.shares = shares;
-            checkpoint.assets = assets;
+    function start(Checkpoint memory self, UFixed6 shares, Fixed6 assets) internal pure {
+        if (!self.started) {
+            self.started = true;
+            self.shares = shares;
+            self.assets = assets; // TODO: can we encapsulate this?
         }
+    }
+
+    function complete(Checkpoint memory self, Fixed6 assets) internal pure {
+        self.completed = true;
+        self.assets = self.assets.add(assets);
     }
 
     /**
@@ -72,7 +77,7 @@ library CheckpointStorageLib {
             UFixed6.wrap(uint256(storedValue._shares)),
             Fixed6.wrap(int256(storedValue._assets)),
             storedValue._started,
-            storedValue._complete
+            storedValue._completed
         );
     }
 
@@ -91,7 +96,7 @@ library CheckpointStorageLib {
             uint56(UFixed6.unwrap(newValue.shares)),
             int56(Fixed6.unwrap(newValue.assets)),
             newValue.started,
-            newValue.complete
+            newValue.completed
         );
     }
 }

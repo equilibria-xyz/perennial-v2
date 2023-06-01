@@ -72,6 +72,40 @@ contract Vault is IVault, VaultDefinition, UInitializable {
     function totalUnclaimed() external view returns (UFixed6) { return _account.read().assets; }
     function unclaimed(address account) external view returns (UFixed6) { return _accounts[account].read().assets; }
 
+    function totalAssets() public view returns (Fixed6) {
+        Checkpoint memory checkpoint = _checkpoints[_account.read().latest].read();
+        return checkpoint.assets
+            .add(Fixed6Lib.from(checkpoint.deposit))
+            .sub(Fixed6Lib.from(checkpoint.toAssets(checkpoint.redemption)));
+    }
+
+    function totalShares() public view returns (UFixed6) {
+        Checkpoint memory checkpoint = _checkpoints[_account.read().latest].read();
+        return checkpoint.shares.sub(checkpoint.redemption).add(checkpoint.toShares(checkpoint.deposit));
+    }
+
+    /**
+     * @notice Converts a given amount of assets to shares
+     * @param assets Number of assets to convert to shares
+     * @return Amount of shares for the given assets
+     */
+    function convertToShares(UFixed6 assets) external view returns (UFixed6) {
+        (UFixed6 _totalAssets, UFixed6 _totalShares) =
+            (UFixed6Lib.from(totalAssets().max(Fixed6Lib.ZERO)), totalShares());
+        return _totalAssets.isZero() ? assets : _totalAssets.muldiv(_totalShares, _totalAssets);
+    }
+
+    /**
+     * @notice Converts a given amount of shares to assets
+     * @param shares Number of shares to convert to assets
+     * @return Amount of assets for the given shares
+     */
+    function convertToAssets(UFixed6 shares) external view returns (UFixed6) {
+        (UFixed6 _totalAssets, UFixed6 _totalShares) =
+            (UFixed6Lib.from(totalAssets().max(Fixed6Lib.ZERO)), totalShares());
+        return _totalShares.isZero() ? shares : shares.muldiv(_totalAssets, _totalShares);
+    }
+
     /**
      * @notice Initializes the contract state
      * @param name_ ERC20 asset name
@@ -123,7 +157,7 @@ contract Vault is IVault, VaultDefinition, UInitializable {
         context.checkpoint.deposit = context.checkpoint.deposit.add(assets);
 
         asset.pull(msg.sender, _toU18(assets));
-        
+
         _rebalance(context, UFixed6Lib.ZERO);
         _saveContext(context, account);
 
@@ -216,36 +250,6 @@ contract Vault is IVault, VaultDefinition, UInitializable {
     }
 
     /**
-     * @notice The total amount of assets currently held by the vault
-     * @return Amount of assets held by the vault
-     */
-    function totalAssets() external view returns (UFixed6) {
-        return _totalAssets(_loadContextForRead(address(0)));
-    }
-
-    /**
-     * @notice Converts a given amount of assets to shares
-     * @param assets Number of assets to convert to shares
-     * @return Amount of shares for the given assets
-     */
-    function convertToShares(UFixed6 assets) external view returns (UFixed6) {
-        UFixed6 totalAssets = _totalAssets(_loadContextForRead(address(0))); // TODO: clean up
-        UFixed6 totalShares = _account.read().shares;
-        return totalAssets.isZero() ? assets: assets.muldiv(totalShares, totalAssets);
-    }
-
-    /**
-     * @notice Converts a given amount of shares to assets
-     * @param shares Number of shares to convert to assets
-     * @return Amount of assets for the given shares
-     */
-    function convertToAssets(UFixed6 shares) external view returns (UFixed6) {
-        UFixed6 totalAssets = _totalAssets(_loadContextForRead(address(0)));  // TODO: clean up
-        UFixed6 totalShares = _account.read().shares;
-        return totalShares.isZero() ? shares : shares.muldiv(totalAssets, totalShares);
-    }
-
-    /**
      * @notice Hook that is called before every stateful operation
      * @dev Settles the vault's account on both the long and short product, along with any global or user-specific deposits/redemptions
      * @param account The account that called the operation, or 0 if called by a keeper.
@@ -256,7 +260,9 @@ contract Vault is IVault, VaultDefinition, UInitializable {
 
         // process pending deltas
         while (context.latestId > context.global.latest) {
-            Checkpoint memory checkpoint = _checkpoint(context.global.latest + 1); // TODO: convert checkpoint to start / complete
+            Checkpoint memory checkpoint = _checkpoints[context.global.latest + 1].read(); // TODO: convert checkpoint to start / complete
+            checkpoint.complete(_collateral(context, context.global.latest + 1));
+            _checkpoints[context.global.latest + 1].store(checkpoint);
             context.global.process(checkpoint, checkpoint.deposit, checkpoint.redemption, context.global.latest + 1);
         }
         if (context.latestId >= context.local.latest) {
@@ -302,13 +308,13 @@ contract Vault is IVault, VaultDefinition, UInitializable {
 
         // Remove collateral from markets above target
         for (uint256 marketId; marketId < totalMarkets; marketId++) {
-            if (context.markets[marketId].collateral.gt(Fixed6Lib.from(targets[marketId].collateral)))
+            if (context.markets[marketId].collateral.gt(targets[marketId].collateral))
                 _update(context.markets[marketId], markets(marketId).market, targets[marketId]);
         }
 
         // Deposit collateral to markets below target
         for (uint256 marketId; marketId < totalMarkets; marketId++) {
-            if (context.markets[marketId].collateral.lte(Fixed6Lib.from(targets[marketId].collateral)))
+            if (context.markets[marketId].collateral.lte(targets[marketId].collateral))
                 _update(context.markets[marketId], markets(marketId).market, targets[marketId]);
         }
     }
@@ -326,7 +332,7 @@ contract Vault is IVault, VaultDefinition, UInitializable {
             UFixed6 marketAssets = assets.muldiv(marketDefinition.weight, totalWeight);
             if (context.markets[marketId].closed) marketAssets = UFixed6Lib.ZERO;
 
-            targets[marketId].collateral = collateral.muldiv(marketDefinition.weight, totalWeight);
+            targets[marketId].collateral = Fixed6Lib.from(collateral.muldiv(marketDefinition.weight, totalWeight));
             targets[marketId].position = marketAssets.mul(targetLeverage).div(context.markets[marketId].price);
         }
     }
@@ -356,13 +362,7 @@ contract Vault is IVault, VaultDefinition, UInitializable {
         }
 
         // issue position update
-        market.update(
-            address(this),
-            target.position,
-            UFixed6Lib.ZERO,
-            UFixed6Lib.ZERO,
-            Fixed6Lib.from(target.collateral)
-        );
+        market.update(address(this), target.position, UFixed6Lib.ZERO, UFixed6Lib.ZERO, target.collateral);
     }
 
     /**
@@ -480,19 +480,6 @@ contract Vault is IVault, VaultDefinition, UInitializable {
     }
 
     /**
-     * @notice The total assets at the given epoch
-     * @param context Epoch context to use in calculation
-     * @return Total assets amount at epoch
-     */
-    function _totalAssets(Context memory context) private view returns (UFixed6) {
-        return UFixed6Lib.from(
-            _collateral(context)
-                .sub(Fixed6Lib.from(context.global.assets.add(context.global.deposit)))
-                .max(Fixed6Lib.ZERO)
-        );
-    }
-
-    /**
      * @notice Returns the real amount of collateral in the vault
      * @return value The real amount of collateral in the vault
      **/
@@ -502,18 +489,10 @@ contract Vault is IVault, VaultDefinition, UInitializable {
             value = value.add(context.markets[marketId].collateral);
     }
 
-    function _checkpoint(uint256 id) private returns (Checkpoint memory checkpoint) {
-        checkpoint = _checkpoints[id].read();
-        if (checkpoint.complete) return checkpoint;
-
-        for(uint256 marketId; marketId < totalMarkets; marketId++) {
-            Position memory position =
-                markets(marketId).market.pendingPositions(address(this), id - _registrations[marketId].initialId);
-            checkpoint.assets = checkpoint.assets.add(position.collateral);
-        }
-        checkpoint.complete = true;
-        _checkpoints[id].store(checkpoint);
-
+    function _collateral(Context memory context, uint256 id) public view returns (Fixed6 value) {
+        for (uint256 marketId; marketId < totalMarkets; marketId++)
+            value = value.add(markets(marketId)
+                .market.pendingPositions(address(this), id - _registrations[marketId].initialId).collateral);
         // TODO: should this cap the assets at 0?
     }
 

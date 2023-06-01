@@ -51,7 +51,7 @@ interface IVault is IVaultDefinition {
     }
 
     struct Target {
-        UFixed6 collateral;
+        Fixed6 collateral;
         UFixed6 position;
     }
 
@@ -75,7 +75,8 @@ interface IVault is IVaultDefinition {
 
     /* Partial ERC4626 Interface */
 
-    function totalAssets() external view returns (UFixed6);
+    function totalAssets() external view returns (Fixed6);
+    function totalShares() external view returns (UFixed6);
     function convertToShares(UFixed6 assets) external view returns (UFixed6);
     function convertToAssets(UFixed6 shares) external view returns (UFixed6);
     function maxDeposit(address account) external view returns (UFixed6);
