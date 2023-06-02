@@ -47,10 +47,7 @@ export async function deployProductOnMainnetFork({
       targetUtilization: parse6decimal('0.80'),
     },
     oracle: oracle ?? constants.AddressZero,
-    payoff: {
-      provider: constants.AddressZero,
-      short: false,
-    },
+    payoff: constants.AddressZero,
   }
   const marketDefinition: IMarket.MarketDefinitionStruct = {
     name: name,

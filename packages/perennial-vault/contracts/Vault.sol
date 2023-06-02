@@ -11,8 +11,7 @@ import "./types/VaultParameter.sol";
 
 // TODO: only pull out what you can from collateral when really unbalanced
 // TODO: make sure maker fees are supported
-// TODO: assumes no one can create an order for the vault (check if liquidation / shortfall break this model)
-// TODO: add or remove? assets
+// TODO: assumes no one can create an order for the vault (check if liquidation / shortfall break this model?
 // TODO: add ownable and factory flow
 // TODO: lock down params to owner
 
@@ -467,8 +466,7 @@ contract Vault is IVault, UInitializable {
             Global memory global = registration.market.global();
             Position memory currentPosition = registration.market.pendingPosition(global.currentId);
             Position memory latestPosition = registration.market.position();
-            OracleVersion memory latestOracleVersion = marketParameter.oracle.at(latestPosition.version);
-            marketParameter.payoff.transform(latestOracleVersion);
+            OracleVersion memory latestOracleVersion = registration.market.at(latestPosition.version);
 
             context.markets[marketId].price = latestOracleVersion.price.abs();
             context.markets[marketId].currentPosition = currentPosition.maker;
@@ -489,7 +487,7 @@ contract Vault is IVault, UInitializable {
             if (marketId == 0) context.currentId = currentVersion > currentPosition.version ? local.currentId + 1 : local.currentId;
         }
 
-        context.checkpoint = _checkpoints[context.currentId].read();
+        context.checkpoint = _checkpoints[context.currentId].read(); //TODO: latest checkpoint
         context.global = _account.read();
         context.local = _accounts[account].read();
     }
@@ -516,12 +514,9 @@ contract Vault is IVault, UInitializable {
      * @return Maximum available deposit amount at epoch
      */
     function _maxDeposit(Context memory context) private view returns (UFixed6) {
+        if (_unhealthy(context)) return UFixed6Lib.ZERO;
         UFixed6 collateral = UFixed6Lib.from(totalAssets().max(Fixed6Lib.ZERO)).add(_account.read().deposit);
-        return _unhealthy(context) ?
-            UFixed6Lib.ZERO :
-            context.parameter.cap.gt(collateral) ?
-                context.parameter.cap.sub(collateral).add(context.global.assets) :
-                context.global.assets;
+        return context.global.assets.add(context.parameter.cap.sub(collateral.min(context.parameter.cap)));
     }
 
     /**

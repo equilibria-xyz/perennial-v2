@@ -414,11 +414,16 @@ contract Market is IMarket, UInitializable, UOwnable {
         if (maintenanceAmount.gt(boundedCollateral)) revert MarketInsufficientCollateralError();
     }
 
+    function at(uint256 version) public view returns (OracleVersion memory) {
+        MarketParameter memory marketParameter = _parameter.read();
+        return _oracleVersionAt(marketParameter, version);
+    }
+
     function _oracleVersion(
         MarketParameter memory marketParameter
     ) private returns (OracleVersion memory latestVersion, uint256 currentVersion) {
         (latestVersion, currentVersion) = marketParameter.oracle.sync();
-        marketParameter.payoff.transform(latestVersion);
+        _transform(marketParameter, latestVersion);
     }
 
     function _oracleVersionAt(
@@ -426,7 +431,12 @@ contract Market is IMarket, UInitializable, UOwnable {
         uint256 version
     ) private view returns (OracleVersion memory oracleVersion) {
         oracleVersion = marketParameter.oracle.at(version);
-        marketParameter.payoff.transform(oracleVersion);
+        _transform(marketParameter, oracleVersion);
+    }
+
+    function _transform(MarketParameter memory marketParameter, OracleVersion memory oracleVersion) private pure {
+        if (address(marketParameter.payoff) != address(0))
+            oracleVersion.price = marketParameter.payoff.payoff(oracleVersion.price);
     }
 
     // Debug

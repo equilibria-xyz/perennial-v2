@@ -24,7 +24,7 @@ describe('Happy Path', () => {
   })
 
   it('creates a market', async () => {
-    const { owner, factory, treasuryB, payoffProvider, chainlinkOracle, dsu, rewardToken } = instanceVars
+    const { owner, factory, treasuryB, payoff, chainlinkOracle, dsu, rewardToken } = instanceVars
 
     const definition = {
       name: 'Squeeth',
@@ -51,10 +51,7 @@ describe('Happy Path', () => {
       longRewardRate: 0,
       shortRewardRate: 0,
       oracle: chainlinkOracle.address,
-      payoff: {
-        provider: payoffProvider.address,
-        short: false,
-      },
+      payoff: payoff.address,
     }
     const marketAddress = await factory.callStatic.createMarket(definition, parameter)
     await expect(factory.createMarket(definition, parameter)).to.emit(factory, 'MarketCreated')
@@ -899,7 +896,7 @@ describe('Happy Path', () => {
 
     const POSITION = parse6decimal('0.0001')
     const COLLATERAL = parse6decimal('1000')
-    const { user, userB, dsu, chainlink, chainlinkOracle, payoffProvider } = instanceVars
+    const { user, userB, dsu, chainlink, chainlinkOracle, payoff } = instanceVars
 
     const parameter = {
       maintenance: parse6decimal('0.3'),
@@ -920,10 +917,7 @@ describe('Happy Path', () => {
       longRewardRate: incentizesOn ? parse6decimal('0.001') : 0,
       shortRewardRate: incentizesOn ? parse6decimal('0.001') : 0,
       oracle: chainlinkOracle.address,
-      payoff: {
-        provider: payoffProvider.address,
-        short: false,
-      },
+      payoff: payoff.address,
     }
 
     const market = await createMarket(instanceVars)
@@ -1013,7 +1007,7 @@ describe('Happy Path', () => {
 
     const POSITION = parse6decimal('0.0001')
     const COLLATERAL = parse6decimal('1000')
-    const { owner, user, userB, dsu, chainlink, payoffProvider } = instanceVars
+    const { owner, user, userB, dsu, chainlink, payoff } = instanceVars
 
     const chainlinkOracle = await new ChainlinkOracle__factory(owner).deploy(
       chainlink.feedRegistry.address,
@@ -1040,10 +1034,7 @@ describe('Happy Path', () => {
       longRewardRate: incentizesOn ? parse6decimal('0.001') : 0,
       shortRewardRate: incentizesOn ? parse6decimal('0.001') : 0,
       oracle: chainlinkOracle.address,
-      payoff: {
-        provider: payoffProvider.address,
-        short: false,
-      },
+      payoff: payoff.address,
     }
 
     const market = await createMarket(instanceVars, 'Squeeth', 'SQTH', chainlinkOracle)

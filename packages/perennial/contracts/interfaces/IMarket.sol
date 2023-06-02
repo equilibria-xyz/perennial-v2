@@ -70,6 +70,7 @@ interface IMarket is IOwnable {
     function token() external view returns (Token18);
     function reward() external view returns (Token18);
     function treasury() external view returns (address);
+    function at(uint256 version) external view returns (OracleVersion memory);
     function positions(address account) external view returns (Position memory);
     function pendingPositions(address account, uint256 id) external view returns (Position memory);
     function locals(address account) external view returns (Local memory);

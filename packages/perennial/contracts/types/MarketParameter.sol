@@ -5,7 +5,6 @@ import "@equilibria/perennial-v2-payoff/contracts/IPayoffProvider.sol";
 import "@equilibria/perennial-v2-oracle/contracts/IOracleProvider.sol";
 import "@equilibria/root-v2/contracts/UFixed6.sol";
 import "@equilibria/root-v2/contracts/UJumpRateUtilizationCurve6.sol";
-import "./Payoff.sol";
 
 /// @dev MarketParameter type
 struct MarketParameter {
@@ -21,7 +20,7 @@ struct MarketParameter {
     UFixed6 shortRewardRate;
     UJumpRateUtilizationCurve6 utilizationCurve;
     IOracleProvider oracle;
-    Payoff payoff;
+    IPayoffProvider payoff;
 }
 struct StoredMarketParameter {
     /* slot 1 */
@@ -30,11 +29,11 @@ struct StoredMarketParameter {
     uint24 fundingFee;  // <= 1677%
     uint24 positionFee; // <= 1677%
     bool closed;
-    bool payoffShort;
     bool fuse;
+    bytes1 __unallocated0__;
 
     /* slot 2 */
-    address payoffProvider;
+    address payoff;
     uint32 makerRewardRate;  // <= 2147.48 / s
     uint32 longRewardRate;   // <= 2147.48 / s
     uint32 shortRewardRate;  // <= 2147.48 / s
@@ -47,7 +46,7 @@ struct StoredMarketParameter {
     uint24 utilizationCurveTargetUtilization; // <= 1677%
     uint24 takerFee;                          // <= 1677%
     uint24 makerFee;                          // <= 1677%
-    bytes5 __unallocated0__;
+    bytes5 __unallocated1__;
 }
 struct MarketParameterStorage { StoredMarketParameter value; }
 using MarketParameterStorageLib for MarketParameterStorage global;
@@ -76,7 +75,7 @@ library MarketParameterStorageLib {
                 UFixed6.wrap(uint256(value.utilizationCurveTargetUtilization))
             ),
             IOracleProvider(value.oracle),
-            Payoff(IPayoffProvider(value.payoffProvider), value.payoffShort)
+            IPayoffProvider(value.payoff)
         );
     }
 
@@ -98,8 +97,7 @@ library MarketParameterStorageLib {
         if (newValue.utilizationCurve.targetUtilization.gt(UFixed6Lib.MAX_32)) revert MarketParameterStorageInvalidError();
 
         if (oldValue.fuse && address(newValue.oracle) != oldValue.oracle) revert MarketParameterStorageImmutableError();
-        if (oldValue.fuse && address(newValue.payoff.provider) != oldValue.payoffProvider) revert MarketParameterStorageImmutableError();
-        if (oldValue.fuse && newValue.payoff.short != oldValue.payoffShort) revert MarketParameterStorageImmutableError();
+        if (oldValue.fuse && address(newValue.payoff) != oldValue.payoff) revert MarketParameterStorageImmutableError();
 
         self.value = StoredMarketParameter({
             maintenance: uint24(UFixed6.unwrap(newValue.maintenance)),
@@ -117,10 +115,10 @@ library MarketParameterStorageLib {
             utilizationCurveTargetRate: uint32(UFixed6.unwrap(newValue.utilizationCurve.targetRate)),
             utilizationCurveTargetUtilization: uint24(UFixed6.unwrap(newValue.utilizationCurve.targetUtilization)),
             oracle: address(newValue.oracle),
-            payoffProvider: address(newValue.payoff.provider),
-            payoffShort: newValue.payoff.short,
+            payoff: address(newValue.payoff),
             fuse: true,
-            __unallocated0__: bytes5(0)
+            __unallocated0__: bytes1(0),
+            __unallocated1__: bytes5(0)
         });
     }
 }

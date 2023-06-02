@@ -24,7 +24,6 @@ import { ChainlinkContext } from './chainlinkHelpers'
 import { parse6decimal } from '../../../../common/testutil/types'
 import { buildChainlinkRoundId } from '@equilibria/perennial-v2-oracle/util/buildChainlinkRoundId'
 import { CHAINLINK_CUSTOM_CURRENCIES } from '@equilibria/perennial-v2-oracle/util/constants'
-import { PayoffStruct } from '../../../types/generated/contracts/Factory'
 import { Squared__factory } from '@equilibria/perennial-v2-payoff/types/generated'
 const { config, deployments, ethers } = HRE
 
@@ -46,7 +45,7 @@ export interface InstanceVars {
   treasuryB: SignerWithAddress
   proxyAdmin: ProxyAdmin
   factory: Factory
-  payoffProvider: IPayoffProvider
+  payoff: IPayoffProvider
   dsu: IERC20Metadata
   usdc: IERC20Metadata
   usdcHolder: SignerWithAddress
@@ -73,12 +72,7 @@ export async function deployProtocol(): Promise<InstanceVars> {
     CHAINLINK_CUSTOM_CURRENCIES.USD,
     1,
   )
-  const payoffProvider = await IPayoffProvider__factory.connect(
-    (
-      await new Squared__factory(owner).deploy()
-    ).address,
-    owner,
-  )
+  const payoff = await IPayoffProvider__factory.connect((await new Squared__factory(owner).deploy()).address, owner)
   const dsu = await IERC20Metadata__factory.connect((await deployments.get('DSU')).address, owner)
   const usdc = await IERC20Metadata__factory.connect((await deployments.get('USDC')).address, owner)
 
@@ -134,7 +128,7 @@ export async function deployProtocol(): Promise<InstanceVars> {
     treasuryB,
     chainlink,
     chainlinkOracle,
-    payoffProvider,
+    payoff,
     dsu,
     usdc,
     usdcHolder,
@@ -161,14 +155,11 @@ export async function createMarket(
   name?: string,
   symbol?: string,
   oracle?: ChainlinkOracle,
-  payoff?: PayoffStruct,
+  payoff?: IPayoffProvider,
 ): Promise<Market> {
   const { owner, factory, treasuryB, chainlinkOracle, rewardToken, dsu } = instanceVars
   if (!payoff) {
-    payoff = {
-      provider: instanceVars.payoffProvider.address,
-      short: false,
-    }
+    payoff = instanceVars.payoff
   }
   if (!oracle) {
     oracle = chainlinkOracle
@@ -205,7 +196,7 @@ export async function createMarket(
     longRewardRate: 0,
     shortRewardRate: 0,
     oracle: oracle.address,
-    payoff: payoff,
+    payoff: instanceVars.payoff.address,
   }
   const marketAddress = await factory.callStatic.createMarket(definition, parameter)
   await factory.createMarket(definition, parameter)
