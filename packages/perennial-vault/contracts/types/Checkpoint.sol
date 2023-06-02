@@ -63,6 +63,10 @@ library CheckpointLib {
         UFixed6 basisAssets = UFixed6Lib.from(self.assets.max(Fixed6Lib.ZERO)); // TODO: what to do if vault is insolvent
         return self.shares.isZero() ? shares : shares.muldiv(basisAssets, self.shares);
     }
+
+    function unhealthy(Checkpoint memory self) internal pure returns (bool) {
+        return !self.shares.isZero() && self.assets.lte(Fixed6Lib.ZERO);
+    }
 }
 
 library CheckpointStorageLib {

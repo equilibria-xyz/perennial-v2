@@ -13,7 +13,6 @@ import "./types/VaultParameter.sol";
 // TODO: make sure maker fees are supported
 // TODO: assumes no one can create an order for the vault (check if liquidation / shortfall break this model)
 // TODO: add or remove? assets
-// TODO: maxRedeem extra logic
 // TODO: add ownable and factory flow
 // TODO: lock down params to owner
 
@@ -74,7 +73,7 @@ contract Vault is IVault, UInitializable {
     function cap() external view returns (UFixed6) { return _parameters.read().cap; }
     function name() external view returns (string memory) { return "Vault-XX"; } // TODO generate
     function totalSupply() external view returns (UFixed6) { return _account.read().shares; }
-    function balanceOf(address account) external view returns (UFixed6) { return _accounts[account].read().shares; }
+    function balanceOf(address account) public view returns (UFixed6) { return _accounts[account].read().shares; }
     function totalUnclaimed() external view returns (UFixed6) { return _account.read().assets; }
     function unclaimed(address account) external view returns (UFixed6) { return _accounts[account].read().assets; }
 
@@ -98,7 +97,7 @@ contract Vault is IVault, UInitializable {
     function convertToShares(UFixed6 assets) external view returns (UFixed6) {
         (UFixed6 _totalAssets, UFixed6 _totalShares) =
             (UFixed6Lib.from(totalAssets().max(Fixed6Lib.ZERO)), totalShares());
-        return _totalAssets.isZero() ? assets : _totalAssets.muldiv(_totalShares, _totalAssets);
+        return _totalAssets.isZero() ? assets : assets.muldiv(_totalShares, _totalAssets);
     }
 
     /**
@@ -398,18 +397,16 @@ contract Vault is IVault, UInitializable {
     function _update(MarketContext memory marketContext, Target memory target) private {
         // compute headroom until hitting taker amount
         if (target.position.lt(marketContext.currentPositionAccount)) {
-            UFixed6 makerAvailable = marketContext.currentPosition.gt(marketContext.currentNet) ?
-                marketContext.currentPosition.sub(marketContext.currentNet) :
-                UFixed6Lib.ZERO;
+            UFixed6 makerAvailable = marketContext.currentPosition
+                .sub(marketContext.currentNet.min(marketContext.currentPosition));
             target.position = marketContext.currentPositionAccount
                 .sub(marketContext.currentPositionAccount.sub(target.position).min(makerAvailable));
         }
 
         // compute headroom until hitting makerLimit
         if (target.position.gt(marketContext.currentPositionAccount)) {
-            UFixed6 makerAvailable = marketContext.makerLimit.gt(marketContext.currentPosition) ?
-                marketContext.makerLimit.sub(marketContext.currentPosition) :
-                UFixed6Lib.ZERO;
+            UFixed6 makerAvailable = marketContext.makerLimit
+                .sub(marketContext.currentPosition.min(marketContext.makerLimit));
             target.position = marketContext.currentPositionAccount
                 .add(target.position.sub(marketContext.currentPositionAccount).min(makerAvailable));
         }
@@ -510,7 +507,7 @@ contract Vault is IVault, UInitializable {
      */
     function _unhealthy(Context memory context) private view returns (bool) {
         Checkpoint memory checkpoint = _checkpoints[context.latestId].read(); // latest basis will always be complete
-        return (!checkpoint.shares.isZero() && checkpoint.assets.lte(Fixed6Lib.ZERO)) || (context.liquidation > context.latestVersion);
+        return checkpoint.unhealthy() || (context.liquidation > context.latestVersion);
     }
 
     /**
@@ -519,7 +516,7 @@ contract Vault is IVault, UInitializable {
      * @return Maximum available deposit amount at epoch
      */
     function _maxDeposit(Context memory context) private view returns (UFixed6) {
-        UFixed6 collateral = UFixed6Lib.from(_collateral(context).max(Fixed6Lib.ZERO));
+        UFixed6 collateral = UFixed6Lib.from(totalAssets().max(Fixed6Lib.ZERO)).add(_account.read().deposit);
         return _unhealthy(context) ?
             UFixed6Lib.ZERO :
             context.parameter.cap.gt(collateral) ?
@@ -531,10 +528,22 @@ contract Vault is IVault, UInitializable {
      * @notice The maximum available redeemable amount at the given epoch for `account`
      * @param context Epoch context to use in calculation
      * @param account Account to calculate redeemable amount
-     * @return Maximum available redeemable amount at epoch
+     * @return redemptionAmount Maximum available redeemable amount at epoch
      */
-    function _maxRedeem(Context memory context, address account) private view returns (UFixed6) {
-        return _unhealthy(context) ? UFixed6Lib.ZERO : context.local.shares;
+    function _maxRedeem(Context memory context, address account) private view returns (UFixed6 redemptionAmount) {
+        if (_unhealthy(context)) return UFixed6Lib.ZERO;
+
+        redemptionAmount = balanceOf(account);
+        for (uint256 marketId; marketId < context.parameter.totalMarkets; marketId++) {
+            UFixed6 makerAvailable = context.markets[marketId].currentPosition
+                .sub(context.markets[marketId].currentNet.min(context.markets[marketId].currentPosition));
+
+            UFixed6 collateral = makerAvailable.muldiv(context.markets[marketId].price, context.parameter.leverage)
+                .muldiv(context.parameter.totalWeight, context.markets[marketId].weight);
+
+            Checkpoint memory checkpoint = _checkpoints[context.latestId].read();
+            redemptionAmount = redemptionAmount.min(checkpoint.toShares(collateral));
+        }
     }
 
     /**

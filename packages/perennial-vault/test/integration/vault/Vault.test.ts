@@ -542,6 +542,47 @@ describe('Vault', () => {
       expect(await vault.totalAssets()).to.equal(0)
     })
 
+    it('maxRedeem with close limited', async () => {
+      const largeDeposit = parse6decimal('10000')
+
+      await vault.connect(user).deposit(largeDeposit, user.address)
+      await updateOracle()
+      await vault.settle(user.address)
+
+      const currentPosition = await market.pendingPosition((await market.global()).currentId)
+      const currentNet = currentPosition.long.sub(currentPosition.short).abs()
+
+      // Open taker position up to 100% utilization minus 1 ETH
+      await asset.connect(perennialUser).approve(market.address, constants.MaxUint256)
+      await market
+        .connect(perennialUser)
+        .update(
+          perennialUser.address,
+          0,
+          currentPosition.maker.sub(currentNet).sub(parse6decimal('1')),
+          0,
+          parse6decimal('1000000'),
+        )
+
+      // Settle the take position
+      await updateOracle()
+      await vault.settle(user.address)
+
+      const makerAvailable = parse6decimal('1').add(1) // extra 1 due to rebalance
+      // The vault can close 1 ETH of maker positions in the ETH market, which means the user can withdraw 5/4 this amount
+      expect(await vault.maxRedeem(user.address)).to.equal(
+        await vault.convertToShares(originalOraclePrice.mul(makerAvailable).mul(5).div(4).div(leverage)),
+      )
+
+      await vault.settle(user.address)
+
+      await expect(
+        vault.connect(user).redeem((await vault.maxRedeem(user.address)).add(1), user.address),
+      ).to.be.revertedWith('VaultRedemptionLimitExceededError')
+
+      await expect(vault.connect(user).redeem(await vault.maxRedeem(user.address), user.address)).to.not.be.reverted
+    })
+
     it('maxDeposit', async () => {
       expect(await vault.maxDeposit(user.address)).to.equal(maxCollateral)
 
@@ -709,7 +750,7 @@ describe('Vault', () => {
       await vault.settle(user.address)
 
       // Redeem should create a greater position delta than what's available
-      await vault.connect(user).redeem(parse6decimal('4000'), user.address)
+      await vault.connect(user).redeem(await vault.maxRedeem(user.address), user.address)
       await updateOracle()
       await vault.settle(user.address)
 
