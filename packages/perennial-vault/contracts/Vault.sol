@@ -35,12 +35,7 @@ import "./types/VaultParameter.sol";
  *
  */
 contract Vault is IVault, UInitializable {
-    IFactory public factory;
-
-    /// @dev The underlying asset of the vault
-    Token18 public immutable asset;
-
-    VaultParameterStorage private _parameters;
+    VaultParameterStorage private _parameter;
 
     mapping(uint256 => RegistrationStorage) private _registrations;
 
@@ -56,20 +51,13 @@ contract Vault is IVault, UInitializable {
     /// @dev Per-id accounting state variables
     mapping(uint256 id => CheckpointStorage) private _checkpoints;
 
-    /**
-     * @notice Constructor for VaultDefinition
-     * @param factory_ The factory contract
-     */
-    constructor(IFactory factory_, Token18 asset_) {
-        factory = factory_;
-        asset = asset_;
-    }
-
-    function totalMarkets() external view returns (uint256) { return _parameters.read().totalMarkets; }
-    function totalWeight() external view returns (uint256) { return _parameters.read().totalWeight; }
-    function minWeight() external view returns (uint256) { return _parameters.read().minWeight; }
-    function leverage() external view returns (UFixed6) { return _parameters.read().leverage; }
-    function cap() external view returns (UFixed6) { return _parameters.read().cap; }
+    function factory() external view returns (IFactory) { return _parameter.read().factory; }
+    function asset() external view returns (Token18) { return _parameter.read().asset; }
+    function totalMarkets() external view returns (uint256) { return _parameter.read().totalMarkets; }
+    function totalWeight() external view returns (uint256) { return _parameter.read().totalWeight; }
+    function minWeight() external view returns (uint256) { return _parameter.read().minWeight; }
+    function leverage() external view returns (UFixed6) { return _parameter.read().leverage; }
+    function cap() external view returns (UFixed6) { return _parameter.read().cap; }
     function name() external view returns (string memory) { return "Vault-XX"; } // TODO generate
     function totalSupply() external view returns (UFixed6) { return _account.read().shares; }
     function balanceOf(address account) public view returns (UFixed6) { return _accounts[account].read().shares; }
@@ -110,15 +98,17 @@ contract Vault is IVault, UInitializable {
         return _totalShares.isZero() ? shares : shares.muldiv(_totalAssets, _totalShares);
     }
 
-    function initialize(IMarket market) external initializer(1) {
-        _registrations[0].store(Registration(market, 0, 0));
+    function initialize(IFactory factory_, Token18 asset_, IMarket initialMarket) external initializer(1) {
+        _registrations[0].store(Registration(initialMarket, 0, 0));
 
-        VaultParameter memory vaultParameter = _parameters.read();
+        VaultParameter memory vaultParameter;
+        vaultParameter.factory = factory_;
+        vaultParameter.asset = asset_;
         vaultParameter.totalMarkets++;
-        _parameters.store(vaultParameter);
+        _parameter.store(vaultParameter);
 
-        asset.approve(address(market));
-        emit MarketRegistered(0, market);
+        asset_.approve(address(initialMarket));
+        emit MarketRegistered(0, initialMarket);
     }
 
     function register(IMarket market) external {
@@ -130,18 +120,17 @@ contract Vault is IVault, UInitializable {
 
         // TODO: verify its a market in the factory
 
-        asset.approve(address(market));
+        context.parameter.asset.approve(address(market));
 
         _registrations[context.parameter.totalMarkets].store(Registration(market, context.currentId - 1, 0));
         emit MarketRegistered(context.parameter.totalMarkets, market);
 
-        VaultParameter memory vaultParameter = _parameters.read();
-        vaultParameter.totalMarkets++;
-        _parameters.store(vaultParameter);
+        context.parameter.totalMarkets++;
+        _parameter.store(context.parameter);
     }
 
     function updateWeight(uint256 marketId, uint256 newWeight) external {
-        VaultParameter memory vaultParameter = _parameters.read();
+        VaultParameter memory vaultParameter = _parameter.read();
 
         if (marketId >= vaultParameter.totalMarkets) revert VaultMarketDoesNotExistError();
 
@@ -150,28 +139,28 @@ contract Vault is IVault, UInitializable {
         registration.weight = newWeight;
         _updateMinWeight(vaultParameter);
         _registrations[marketId].store(registration);
-        _parameters.store(vaultParameter);
+        _parameter.store(vaultParameter);
 
         emit WeightUpdated(marketId, newWeight);
     }
 
     function updateLeverage(UFixed6 newLeverage) external {
-        VaultParameter memory vaultParameter = _parameters.read();
+        VaultParameter memory vaultParameter = _parameter.read();
         vaultParameter.leverage = newLeverage;
-        _parameters.store(vaultParameter);
+        _parameter.store(vaultParameter);
 
         emit LeverageUpdated(newLeverage);
     }
 
     function updateCap(UFixed6 newCap) external {
-        VaultParameter memory vaultParameter = _parameters.read();
+        VaultParameter memory vaultParameter = _parameter.read();
         vaultParameter.cap = newCap;
-        _parameters.store(vaultParameter);
+        _parameter.store(vaultParameter);
 
         emit CapUpdated(newCap);
     }
 
-    function _updateMinWeight(VaultParameter memory vaultParameter) private {
+    function _updateMinWeight(VaultParameter memory vaultParameter) private view {
         vaultParameter.minWeight = type(uint32).max;
         for (uint256 marketId; marketId < vaultParameter.totalMarkets; marketId++) {
             Registration memory registration = _registrations[marketId].read();
@@ -207,7 +196,7 @@ contract Vault is IVault, UInitializable {
         context.local.deposit = assets;
         context.checkpoint.deposit = context.checkpoint.deposit.add(assets);
 
-        asset.pull(msg.sender, _toU18(assets));
+        context.parameter.asset.pull(msg.sender, _toU18(assets));
 
         _rebalance(context, UFixed6Lib.ZERO);
         _saveContext(context, account);
@@ -266,7 +255,7 @@ contract Vault is IVault, UInitializable {
 
         _saveContext(context, account);
 
-        asset.push(account, _toU18(claimAmount));
+        context.parameter.asset.push(account, _toU18(claimAmount));
     }
 
     /**
@@ -324,7 +313,7 @@ contract Vault is IVault, UInitializable {
         // sync data for new id
         context.checkpoint.start(
             context.global.shares,
-            Fixed6Lib.from(_toU6(asset.balanceOf()))
+            Fixed6Lib.from(_toU6(context.parameter.asset.balanceOf()))
                 .sub(Fixed6Lib.from(context.global.deposit.add(context.global.assets)))
         );
     }
@@ -336,7 +325,7 @@ contract Vault is IVault, UInitializable {
      */
     function _rebalance(Context memory context, UFixed6 claimAmount) private {
         Fixed6 collateralInVault = _collateral(context).sub(Fixed6Lib.from(claimAmount));
-        UFixed6 minCollateral = factory.parameter().minCollateral;
+        UFixed6 minCollateral = context.parameter.factory.parameter().minCollateral;
 
         // if negative assets, skip rebalance
         if (collateralInVault.lt(Fixed6Lib.ZERO)) return;
@@ -376,7 +365,7 @@ contract Vault is IVault, UInitializable {
         Context memory context,
         UFixed6 collateral,
         UFixed6 assets
-    ) private view returns (Target[] memory targets) {
+    ) private pure returns (Target[] memory targets) {
         targets = new Target[](context.parameter.totalMarkets);
 
         for (uint256 marketId; marketId < context.parameter.totalMarkets; marketId++) {
@@ -433,7 +422,7 @@ contract Vault is IVault, UInitializable {
      */
     function _loadContextForWrite(address account) private returns (Context memory) {
 
-        for (uint256 marketId; marketId < _parameters.read().totalMarkets; marketId++) {
+        for (uint256 marketId; marketId < _parameter.read().totalMarkets; marketId++) {
             _registrations[marketId].read().market.settle(address(this));
         }
 
@@ -446,7 +435,7 @@ contract Vault is IVault, UInitializable {
      * @return context Epoch context
      */
     function _loadContextForRead(address account) private view returns (Context memory context) {
-        context.parameter = _parameters.read();
+        context.parameter = _parameter.read();
 
         context.latestId = type(uint256).max;
         context.latestVersion = type(uint256).max;
@@ -546,7 +535,7 @@ contract Vault is IVault, UInitializable {
      * @return value The real amount of collateral in the vault
      **/
     function _collateral(Context memory context) public view returns (Fixed6 value) {
-        value = Fixed6Lib.from(_toU6(asset.balanceOf()));
+        value = Fixed6Lib.from(_toU6(context.parameter.asset.balanceOf()));
         for (uint256 marketId; marketId < context.parameter.totalMarkets; marketId++)
             value = value.add(context.markets[marketId].collateral);
     }

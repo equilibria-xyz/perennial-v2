@@ -86,7 +86,7 @@ interface IVault {
 
     /* Vault Interface */
 
-    function initialize(IMarket market) external;
+    function initialize(IFactory factory, Token18 asset, IMarket market) external;
     function settle(address account) external;
     function totalUnclaimed() external view returns (UFixed6);
     function unclaimed(address account) external view returns (UFixed6);

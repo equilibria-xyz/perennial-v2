@@ -200,15 +200,15 @@ describe('Vault', () => {
     leverage = parse6decimal('4.0')
     maxCollateral = parse6decimal('500000')
 
-    vault = await new Vault__factory(owner).deploy(instanceVars.factory.address, instanceVars.dsu.address)
-    await vault.initialize(market.address)
+    vault = await new Vault__factory(owner).deploy()
+    await vault.initialize(instanceVars.factory.address, instanceVars.dsu.address, market.address)
     await vault.register(btcMarket.address)
     await vault.updateWeight(0, 4)
     await vault.updateWeight(1, 1)
     await vault.updateLeverage(leverage)
     await vault.updateCap(maxCollateral)
-    asset = IERC20Metadata__factory.connect(await vault.asset(), owner)
 
+    asset = IERC20Metadata__factory.connect(await vault.asset(), owner)
     await asset.connect(liquidator).approve(vault.address, ethers.constants.MaxUint256)
     await fundWallet(asset, liquidator)
     await asset.connect(perennialUser).approve(vault.address, ethers.constants.MaxUint256)
@@ -237,8 +237,9 @@ describe('Vault', () => {
 
   describe('#initialize', () => {
     it('cant re-initialize', async () => {
-      console.log('123123')
-      await expect(vault.initialize(market.address)).to.revertedWith('UInitializableAlreadyInitializedError')
+      await expect(vault.initialize(factory.address, asset.address, market.address)).to.revertedWith(
+        'UInitializableAlreadyInitializedError',
+      )
     })
   })
 
