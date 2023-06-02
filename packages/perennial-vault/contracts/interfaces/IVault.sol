@@ -5,6 +5,7 @@ import "@equilibria/perennial-v2/contracts/interfaces/IFactory.sol";
 import "@equilibria/root-v2/contracts/UFixed6.sol";
 import "../types/Account.sol";
 import "../types/Checkpoint.sol";
+import "../types/VaultParameter.sol";
 
 interface IVault {
     struct Context {
@@ -17,6 +18,7 @@ interface IVault {
         MarketContext[] markets;
 
         // state
+        VaultParameter parameter;
         Checkpoint checkpoint;
         Account global;
         Account local;

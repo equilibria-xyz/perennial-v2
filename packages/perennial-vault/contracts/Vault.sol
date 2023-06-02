@@ -7,6 +7,7 @@ import "@openzeppelin/contracts/utils/math/Math.sol";
 import "./types/Account.sol";
 import "./types/Checkpoint.sol";
 import "./types/Registration.sol";
+import "./types/VaultParameter.sol";
 
 // TODO: only pull out what you can from collateral when really unbalanced
 // TODO: make sure maker fees are supported
@@ -14,6 +15,7 @@ import "./types/Registration.sol";
 // TODO: add or remove? assets
 // TODO: maxRedeem extra logic
 // TODO: add ownable and factory flow
+// TODO: lock down params to owner
 
 /**
  * @title Vault
@@ -40,15 +42,7 @@ contract Vault is IVault, UInitializable {
     /// @dev The underlying asset of the vault
     Token18 public immutable asset;
 
-    uint256 public totalMarkets; // TODO: pack into a single slot
-
-    uint256 public totalWeight;
-
-    uint256 public minWeight;
-
-    UFixed6 public leverage;
-
-    UFixed6 public cap;
+    VaultParameterStorage private _parameters;
 
     mapping(uint256 => RegistrationStorage) private _registrations;
 
@@ -73,6 +67,11 @@ contract Vault is IVault, UInitializable {
         asset = asset_;
     }
 
+    function totalMarkets() external view returns (uint256) { return _parameters.read().totalMarkets; }
+    function totalWeight() external view returns (uint256) { return _parameters.read().totalWeight; }
+    function minWeight() external view returns (uint256) { return _parameters.read().minWeight; }
+    function leverage() external view returns (UFixed6) { return _parameters.read().leverage; }
+    function cap() external view returns (UFixed6) { return _parameters.read().cap; }
     function name() external view returns (string memory) { return "Vault-XX"; } // TODO generate
     function totalSupply() external view returns (UFixed6) { return _account.read().shares; }
     function balanceOf(address account) external view returns (UFixed6) { return _accounts[account].read().shares; }
@@ -115,7 +114,11 @@ contract Vault is IVault, UInitializable {
 
     function initialize(IMarket market) external initializer(1) {
         _registrations[0].store(Registration(market, 0, 0));
-        totalMarkets++;
+
+        VaultParameter memory vaultParameter = _parameters.read();
+        vaultParameter.totalMarkets++;
+        _parameters.store(vaultParameter);
+
         asset.approve(address(market));
         emit MarketRegistered(0, market);
     }
@@ -123,7 +126,7 @@ contract Vault is IVault, UInitializable {
     function register(IMarket market) external {
         Context memory context = _settle(address(0)); // TODO: can we get rid of this?
 
-        for (uint256 marketId; marketId < totalMarkets; marketId++) {
+        for (uint256 marketId; marketId < context.parameter.totalMarkets; marketId++) {
             if (_registrations[marketId].read().market == market) revert VaultMarketExistsError();
         }
 
@@ -131,41 +134,52 @@ contract Vault is IVault, UInitializable {
 
         asset.approve(address(market));
 
-        _registrations[totalMarkets].store(Registration(market, context.currentId - 1, 0));
-        emit MarketRegistered(totalMarkets, market);
+        _registrations[context.parameter.totalMarkets].store(Registration(market, context.currentId - 1, 0));
+        emit MarketRegistered(context.parameter.totalMarkets, market);
 
-        totalMarkets++;
+        VaultParameter memory vaultParameter = _parameters.read();
+        vaultParameter.totalMarkets++;
+        _parameters.store(vaultParameter);
     }
 
     function updateWeight(uint256 marketId, uint256 newWeight) external {
-        if (marketId >= totalMarkets) revert VaultMarketDoesNotExistError();
+        VaultParameter memory vaultParameter = _parameters.read();
+
+        if (marketId >= vaultParameter.totalMarkets) revert VaultMarketDoesNotExistError();
 
         Registration memory registration = _registrations[marketId].read();
-        totalWeight = totalWeight + newWeight - registration.weight;
+        vaultParameter.totalWeight = vaultParameter.totalWeight + newWeight - registration.weight;
         registration.weight = newWeight;
+        _updateMinWeight(vaultParameter);
         _registrations[marketId].store(registration);
-        _updateMinWeight();
+        _parameters.store(vaultParameter);
 
         emit WeightUpdated(marketId, newWeight);
     }
 
     function updateLeverage(UFixed6 newLeverage) external {
-        leverage = newLeverage;
+        VaultParameter memory vaultParameter = _parameters.read();
+        vaultParameter.leverage = newLeverage;
+        _parameters.store(vaultParameter);
+
         emit LeverageUpdated(newLeverage);
     }
 
     function updateCap(UFixed6 newCap) external {
-        cap = newCap;
+        VaultParameter memory vaultParameter = _parameters.read();
+        vaultParameter.cap = newCap;
+        _parameters.store(vaultParameter);
+
         emit CapUpdated(newCap);
     }
 
-    function _updateMinWeight() private {
-        uint256 newMinWeight = type(uint256).max;
-        for (uint256 marketId; marketId < totalMarkets; marketId++) {
+    function _updateMinWeight(VaultParameter memory vaultParameter) private {
+        vaultParameter.minWeight = type(uint32).max;
+        for (uint256 marketId; marketId < vaultParameter.totalMarkets; marketId++) {
             Registration memory registration = _registrations[marketId].read();
-            if (registration.weight > 0 && registration.weight < newMinWeight) newMinWeight = registration.weight;
+            if (registration.weight > 0 && registration.weight < vaultParameter.minWeight)
+                vaultParameter.minWeight = registration.weight;
         }
-        minWeight = newMinWeight;
     }
 
     /**
@@ -331,7 +345,8 @@ contract Vault is IVault, UInitializable {
 
         // Compute available collateral
         UFixed6 collateral = UFixed6Lib.from(collateralInVault);
-        if (collateral.muldiv(minWeight, totalWeight).lt(minCollateral)) collateral = UFixed6Lib.ZERO;
+        if (collateral.muldiv(context.parameter.minWeight, context.parameter.totalWeight).lt(minCollateral))
+            collateral = UFixed6Lib.ZERO;
 
         // Compute available assets
         UFixed6 assets = UFixed6Lib.from(
@@ -341,18 +356,19 @@ contract Vault is IVault, UInitializable {
             )
             .mul(context.global.shares.unsafeDiv(context.global.shares.add(context.global.redemption)))
             .add(context.global.deposit);
-        if (assets.muldiv(minWeight, totalWeight).lt(minCollateral)) assets = UFixed6Lib.ZERO;
+        if (assets.muldiv(context.parameter.minWeight, context.parameter.totalWeight).lt(minCollateral))
+            assets = UFixed6Lib.ZERO;
 
         Target[] memory targets = _computeTargets(context, collateral, assets);
 
         // Remove collateral from markets above target
-        for (uint256 marketId; marketId < totalMarkets; marketId++) {
+        for (uint256 marketId; marketId < context.parameter.totalMarkets; marketId++) {
             if (context.markets[marketId].collateral.gt(targets[marketId].collateral))
                 _update(context.markets[marketId], targets[marketId]);
         }
 
         // Deposit collateral to markets below target
-        for (uint256 marketId; marketId < totalMarkets; marketId++) {
+        for (uint256 marketId; marketId < context.parameter.totalMarkets; marketId++) {
             if (context.markets[marketId].collateral.lte(targets[marketId].collateral))
                 _update(context.markets[marketId], targets[marketId]);
         }
@@ -363,14 +379,15 @@ contract Vault is IVault, UInitializable {
         UFixed6 collateral,
         UFixed6 assets
     ) private view returns (Target[] memory targets) {
-        targets = new Target[](totalMarkets);
+        targets = new Target[](context.parameter.totalMarkets);
 
-        for (uint256 marketId; marketId < totalMarkets; marketId++) {
-            UFixed6 marketAssets = assets.muldiv(context.markets[marketId].weight, totalWeight);
+        for (uint256 marketId; marketId < context.parameter.totalMarkets; marketId++) {
+            UFixed6 marketAssets = assets.muldiv(context.markets[marketId].weight, context.parameter.totalWeight);
             if (context.markets[marketId].closed) marketAssets = UFixed6Lib.ZERO;
 
-            targets[marketId].collateral = Fixed6Lib.from(collateral.muldiv(context.markets[marketId].weight, totalWeight));
-            targets[marketId].position = marketAssets.mul(leverage).div(context.markets[marketId].price);
+            targets[marketId].collateral =
+                Fixed6Lib.from(collateral.muldiv(context.markets[marketId].weight, context.parameter.totalWeight));
+            targets[marketId].position = marketAssets.mul(context.parameter.leverage).div(context.markets[marketId].price);
         }
     }
 
@@ -419,7 +436,8 @@ contract Vault is IVault, UInitializable {
      * @return Epoch context
      */
     function _loadContextForWrite(address account) private returns (Context memory) {
-        for (uint256 marketId; marketId < totalMarkets; marketId++) {
+
+        for (uint256 marketId; marketId < _parameters.read().totalMarkets; marketId++) {
             _registrations[marketId].read().market.settle(address(this));
         }
 
@@ -432,11 +450,13 @@ contract Vault is IVault, UInitializable {
      * @return context Epoch context
      */
     function _loadContextForRead(address account) private view returns (Context memory context) {
+        context.parameter = _parameters.read();
+
         context.latestId = type(uint256).max;
         context.latestVersion = type(uint256).max;
-        context.markets = new MarketContext[](totalMarkets);
+        context.markets = new MarketContext[](context.parameter.totalMarkets);
 
-        for (uint256 marketId; marketId < totalMarkets; marketId++) {
+        for (uint256 marketId; marketId < context.parameter.totalMarkets; marketId++) {
             Registration memory registration = _registrations[marketId].read();
             MarketParameter memory marketParameter = registration.market.parameter();
             uint256 currentVersion = marketParameter.oracle.current();
@@ -502,8 +522,8 @@ contract Vault is IVault, UInitializable {
         UFixed6 collateral = UFixed6Lib.from(_collateral(context).max(Fixed6Lib.ZERO));
         return _unhealthy(context) ?
             UFixed6Lib.ZERO :
-            cap.gt(collateral) ?
-                cap.sub(collateral).add(context.global.assets) :
+            context.parameter.cap.gt(collateral) ?
+                context.parameter.cap.sub(collateral).add(context.global.assets) :
                 context.global.assets;
     }
 
@@ -523,12 +543,12 @@ contract Vault is IVault, UInitializable {
      **/
     function _collateral(Context memory context) public view returns (Fixed6 value) {
         value = Fixed6Lib.from(_toU6(asset.balanceOf()));
-        for (uint256 marketId; marketId < totalMarkets; marketId++)
+        for (uint256 marketId; marketId < context.parameter.totalMarkets; marketId++)
             value = value.add(context.markets[marketId].collateral);
     }
 
     function _collateral(Context memory context, uint256 id) public view returns (Fixed6 value) {
-        for (uint256 marketId; marketId < totalMarkets; marketId++)
+        for (uint256 marketId; marketId < context.parameter.totalMarkets; marketId++)
             value = value.add(
                 _registrations[marketId].read().market
                     .pendingPositions(address(this), id - _registrations[marketId].read().initialId).collateral
