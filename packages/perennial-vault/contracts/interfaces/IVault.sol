@@ -107,6 +107,7 @@ interface IVault {
 
     event Approval(address indexed account, address indexed spender, UFixed6 amount);
 
+    function name() external view returns (string memory);
     function totalSupply() external view returns (UFixed6);
     function balanceOf(address account) external view returns (UFixed6);
     function allowance(address account, address spender) external view returns (UFixed6);

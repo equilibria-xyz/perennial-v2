@@ -16,6 +16,9 @@ import {
   IOracleProvider__factory,
   IOracleProvider,
   ChainlinkOracle__factory,
+  VaultFactory__factory,
+  IVaultFactory,
+  IVault__factory,
 } from '../../../types/generated'
 import { BigNumber, constants, utils } from 'ethers'
 import {
@@ -33,6 +36,7 @@ use(smock.matchers)
 describe('Vault', () => {
   let vault: Vault
   let asset: IERC20Metadata
+  let vaultFactory: IVaultFactory
   let factory: IFactory
   let owner: SignerWithAddress
   let user: SignerWithAddress
@@ -200,8 +204,15 @@ describe('Vault', () => {
     leverage = parse6decimal('4.0')
     maxCollateral = parse6decimal('500000')
 
-    vault = await new Vault__factory(owner).deploy()
-    await vault.initialize(instanceVars.factory.address, instanceVars.dsu.address, market.address)
+    const vaultImpl = await new Vault__factory(owner).deploy()
+    vaultFactory = await new VaultFactory__factory(owner).deploy(instanceVars.factory.address, vaultImpl.address)
+    vault = IVault__factory.connect(
+      await vaultFactory.callStatic.create(instanceVars.dsu.address, market.address),
+      owner,
+    )
+
+    await vaultFactory.create(instanceVars.dsu.address, market.address)
+
     await vault.register(btcMarket.address)
     await vault.updateWeight(0, 4)
     await vault.updateWeight(1, 1)
