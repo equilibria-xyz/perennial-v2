@@ -12,8 +12,6 @@ import "./types/VaultParameter.sol";
 // TODO: only pull out what you can from collateral when really unbalanced
 // TODO: make sure maker fees are supported
 // TODO: assumes no one can create an order for the vault (check if liquidation / shortfall break this model?
-// TODO: add ownable and factory flow
-// TODO: lock down params to owner
 
 /**
  * @title Vault
@@ -51,7 +49,7 @@ contract Vault is IVault, UInitializable {
     /// @dev Per-id accounting state variables
     mapping(uint256 id => CheckpointStorage) private _checkpoints;
 
-    function factory() external view returns (IFactory) { return _parameter.read().factory; }
+    function factory() public view returns (IFactory) { return _parameter.read().factory; }
     function asset() external view returns (Token18) { return _parameter.read().asset; }
     function totalMarkets() external view returns (uint256) { return _parameter.read().totalMarkets; }
     function totalWeight() external view returns (uint256) { return _parameter.read().totalWeight; }
@@ -111,7 +109,7 @@ contract Vault is IVault, UInitializable {
         emit MarketRegistered(0, initialMarket);
     }
 
-    function register(IMarket market) external {
+    function register(IMarket market) external onlyOwner {
         Context memory context = _settle(address(0)); // TODO: can we get rid of this?
 
         for (uint256 marketId; marketId < context.parameter.totalMarkets; marketId++) {
@@ -129,7 +127,7 @@ contract Vault is IVault, UInitializable {
         _parameter.store(context.parameter);
     }
 
-    function updateWeight(uint256 marketId, uint256 newWeight) external {
+    function updateWeight(uint256 marketId, uint256 newWeight) external onlyOwner {
         VaultParameter memory vaultParameter = _parameter.read();
 
         if (marketId >= vaultParameter.totalMarkets) revert VaultMarketDoesNotExistError();
@@ -144,7 +142,7 @@ contract Vault is IVault, UInitializable {
         emit WeightUpdated(marketId, newWeight);
     }
 
-    function updateLeverage(UFixed6 newLeverage) external {
+    function updateLeverage(UFixed6 newLeverage) external onlyOwner {
         VaultParameter memory vaultParameter = _parameter.read();
         vaultParameter.leverage = newLeverage;
         _parameter.store(vaultParameter);
@@ -152,7 +150,7 @@ contract Vault is IVault, UInitializable {
         emit LeverageUpdated(newLeverage);
     }
 
-    function updateCap(UFixed6 newCap) external {
+    function updateCap(UFixed6 newCap) external onlyOwner {
         VaultParameter memory vaultParameter = _parameter.read();
         vaultParameter.cap = newCap;
         _parameter.store(vaultParameter);
@@ -547,6 +545,11 @@ contract Vault is IVault, UInitializable {
                     .pendingPositions(address(this), id - _registrations[marketId].read().initialId).collateral
             );
         // TODO: should this cap the assets at 0?
+    }
+
+    modifier onlyOwner {
+        if (msg.sender != factory().owner()) revert VaultNotOwnerError();
+        _;
     }
 
     //TODO: replace these with root functions

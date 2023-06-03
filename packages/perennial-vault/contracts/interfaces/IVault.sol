@@ -67,6 +67,7 @@ interface IVault {
     error VaultExistingOrderError();
     error VaultMarketExistsError();
     error VaultMarketDoesNotExistError();
+    error VaultNotOwnerError();
 
     /* immutable */
 

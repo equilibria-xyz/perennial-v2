@@ -8,24 +8,17 @@ import {
   IERC20Metadata,
   IERC20Metadata__factory,
   IFactory,
-  IFactory__factory,
   IMarket,
-  IMarket__factory,
-  Vault,
   Vault__factory,
-  IOracleProvider__factory,
   IOracleProvider,
   ChainlinkOracle__factory,
   VaultFactory__factory,
   IVaultFactory,
   IVault__factory,
+  IVault,
 } from '../../../types/generated'
-import { BigNumber, constants, utils } from 'ethers'
-import {
-  deployProtocol,
-  fundWallet,
-  InstanceVars,
-} from '@equilibria/perennial-v2/test/integration/helpers/setupHelpers'
+import { BigNumber, constants } from 'ethers'
+import { deployProtocol, fundWallet } from '@equilibria/perennial-v2/test/integration/helpers/setupHelpers'
 import { parse6decimal } from '../../../../common/testutil/types'
 
 const { config, ethers } = HRE
@@ -34,7 +27,7 @@ use(smock.matchers)
 // TODO: parameter tests
 
 describe('Vault', () => {
-  let vault: Vault
+  let vault: IVault
   let asset: IERC20Metadata
   let vaultFactory: IVaultFactory
   let factory: IFactory
