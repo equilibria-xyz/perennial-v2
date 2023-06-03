@@ -4,7 +4,7 @@ import { utils } from 'ethers'
 
 import { time, impersonate } from '../../../../common/testutil'
 import {
-  Factory,
+  IFactory,
   IERC20Metadata,
   ChainlinkOracle,
   Market,
@@ -44,7 +44,7 @@ export interface InstanceVars {
   treasuryA: SignerWithAddress
   treasuryB: SignerWithAddress
   proxyAdmin: ProxyAdmin
-  factory: Factory
+  factory: IFactory
   payoff: IPayoffProvider
   dsu: IERC20Metadata
   usdc: IERC20Metadata

@@ -33,6 +33,8 @@ import "./types/VaultParameter.sol";
  *
  */
 contract Vault is IVault, UInitializable {
+    IOwnable public vaultFactory;
+
     VaultParameterStorage private _parameter;
 
     mapping(uint256 => RegistrationStorage) private _registrations;
@@ -97,6 +99,8 @@ contract Vault is IVault, UInitializable {
     }
 
     function initialize(IFactory factory_, Token18 asset_, IMarket initialMarket) external initializer(1) {
+        vaultFactory = IOwnable(msg.sender);
+
         _registrations[0].store(Registration(initialMarket, 0, 0));
 
         VaultParameter memory vaultParameter;
@@ -110,50 +114,53 @@ contract Vault is IVault, UInitializable {
     }
 
     function register(IMarket market) external onlyOwner {
-        Context memory context = _settle(address(0)); // TODO: can we get rid of this?
+        Context memory context = _settle(address(0));
+
+        if (!factory().markets(market)) revert VaultNotMarketError();
 
         for (uint256 marketId; marketId < context.parameter.totalMarkets; marketId++) {
             if (_registrations[marketId].read().market == market) revert VaultMarketExistsError();
         }
 
-        // TODO: verify its a market in the factory
-
         context.parameter.asset.approve(address(market));
 
-        _registrations[context.parameter.totalMarkets].store(Registration(market, context.currentId - 1, 0));
-        emit MarketRegistered(context.parameter.totalMarkets, market);
-
+        uint256 newMarketId = context.parameter.totalMarkets;
+        _registrations[newMarketId].store(Registration(market, context.currentId - 1, 0));
         context.parameter.totalMarkets++;
         _parameter.store(context.parameter);
+
+        emit MarketRegistered(newMarketId, market);
     }
 
     function updateWeight(uint256 marketId, uint256 newWeight) external onlyOwner {
-        VaultParameter memory vaultParameter = _parameter.read();
+        Context memory context = _settle(address(0));
 
-        if (marketId >= vaultParameter.totalMarkets) revert VaultMarketDoesNotExistError();
+        if (marketId >= context.parameter.totalMarkets) revert VaultMarketDoesNotExistError();
 
         Registration memory registration = _registrations[marketId].read();
-        vaultParameter.totalWeight = vaultParameter.totalWeight + newWeight - registration.weight;
+        context.parameter.totalWeight = context.parameter.totalWeight + newWeight - registration.weight;
         registration.weight = newWeight;
-        _updateMinWeight(vaultParameter);
+        _updateMinWeight(context.parameter);
         _registrations[marketId].store(registration);
-        _parameter.store(vaultParameter);
+        _parameter.store(context.parameter);
 
         emit WeightUpdated(marketId, newWeight);
     }
 
     function updateLeverage(UFixed6 newLeverage) external onlyOwner {
-        VaultParameter memory vaultParameter = _parameter.read();
-        vaultParameter.leverage = newLeverage;
-        _parameter.store(vaultParameter);
+        Context memory context = _settle(address(0));
+
+        context.parameter.leverage = newLeverage;
+        _parameter.store(context.parameter);
 
         emit LeverageUpdated(newLeverage);
     }
 
     function updateCap(UFixed6 newCap) external onlyOwner {
-        VaultParameter memory vaultParameter = _parameter.read();
-        vaultParameter.cap = newCap;
-        _parameter.store(vaultParameter);
+        Context memory context = _settle(address(0));
+
+        context.parameter.cap = newCap;
+        _parameter.store(context.parameter);
 
         emit CapUpdated(newCap);
     }
@@ -548,7 +555,7 @@ contract Vault is IVault, UInitializable {
     }
 
     modifier onlyOwner {
-        if (msg.sender != factory().owner()) revert VaultNotOwnerError();
+        if (msg.sender != vaultFactory.owner()) revert VaultNotOwnerError();
         _;
     }
 

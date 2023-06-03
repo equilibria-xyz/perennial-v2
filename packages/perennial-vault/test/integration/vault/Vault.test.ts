@@ -199,6 +199,7 @@ describe('Vault', () => {
 
     const vaultImpl = await new Vault__factory(owner).deploy()
     vaultFactory = await new VaultFactory__factory(owner).deploy(instanceVars.factory.address, vaultImpl.address)
+    await vaultFactory.initialize()
     vault = IVault__factory.connect(
       await vaultFactory.callStatic.create(instanceVars.dsu.address, market.address),
       owner,

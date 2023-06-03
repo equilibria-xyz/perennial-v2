@@ -23,6 +23,8 @@ contract Factory is IFactory, UOwnable {
 
     mapping(address => mapping(address => bool)) public operators;
 
+    mapping(IMarket => bool) public markets;
+
     constructor(address implementation_) {
         implementation = implementation_;
     }
@@ -78,6 +80,7 @@ contract Factory is IFactory, UOwnable {
             abi.encodeCall(IMarket.initialize, (definition, marketParameter))
         )));
         newMarket.updatePendingOwner(msg.sender);
+        markets[newMarket] = true;
 
         emit MarketCreated(newMarket, definition, marketParameter);
     }

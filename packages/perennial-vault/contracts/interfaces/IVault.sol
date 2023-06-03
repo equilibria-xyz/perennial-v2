@@ -2,6 +2,7 @@
 pragma solidity ^0.8.13;
 
 import "@equilibria/perennial-v2/contracts/interfaces/IFactory.sol";
+import "@equilibria/root-v2/contracts/IOwnable.sol";
 import "@equilibria/root-v2/contracts/UFixed6.sol";
 import "../types/Account.sol";
 import "../types/Checkpoint.sol";
@@ -68,6 +69,7 @@ interface IVault {
     error VaultMarketExistsError();
     error VaultMarketDoesNotExistError();
     error VaultNotOwnerError();
+    error VaultNotMarketError();
 
     /* immutable */
 

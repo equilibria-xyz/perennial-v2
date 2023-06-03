@@ -22,6 +22,7 @@ interface IFactory is IBeacon, IOwnable {
     function treasury() external view returns (address);
     function pauser() external view returns (address);
     function operators(address account, address operator) external view returns (bool);
+    function markets(IMarket market) external view returns (bool);
     function initialize() external;
     function updateParameter(ProtocolParameter memory newParameter) external;
     function updateTreasury(address newTreasury) external;
