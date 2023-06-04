@@ -24,6 +24,7 @@ import { parse6decimal } from '../../../../common/testutil/types'
 const { config, ethers } = HRE
 use(smock.matchers)
 
+const LEGACY_ORACLE_DELAY = 1
 // TODO: parameter tests
 
 describe('Vault', () => {
@@ -61,9 +62,9 @@ describe('Vault', () => {
       price: newPrice ?? currentPrice,
       valid: true,
     }
-    oracle.sync.returns([newVersion, newVersion.version.add(1)])
+    oracle.sync.returns([newVersion, newVersion.version.add(LEGACY_ORACLE_DELAY)])
     oracle.latest.returns(newVersion)
-    oracle.current.returns(newVersion.version.add(1))
+    oracle.current.returns(newVersion.version.add(LEGACY_ORACLE_DELAY))
     oracle.at.whenCalledWith(newVersion.version).returns(newVersion)
   }
 
@@ -75,9 +76,9 @@ describe('Vault', () => {
       price: newPrice ?? currentPrice,
       valid: true,
     }
-    btcOracle.sync.returns([newVersion, newVersion.version.add(1)])
+    btcOracle.sync.returns([newVersion, newVersion.version.add(LEGACY_ORACLE_DELAY)])
     btcOracle.latest.returns(newVersion)
-    btcOracle.current.returns(newVersion.version.add(1))
+    btcOracle.current.returns(newVersion.version.add(LEGACY_ORACLE_DELAY))
     btcOracle.at.whenCalledWith(newVersion.version).returns(newVersion)
   }
 
@@ -150,9 +151,9 @@ describe('Vault', () => {
     oracle = await smock.fake<IOracleProvider>('IOracleProvider', {
       address: oracleToMock.address,
     })
-    oracle.sync.returns([currentVersion, currentVersion.version.add(1)]) // TODO: hardcoded delay
+    oracle.sync.returns([currentVersion, currentVersion.version.add(LEGACY_ORACLE_DELAY)])
     oracle.latest.returns(currentVersion)
-    oracle.current.returns(currentVersion.version.add(1)) // TODO: hardcoded delay
+    oracle.current.returns(currentVersion.version.add(LEGACY_ORACLE_DELAY))
     oracle.at.whenCalledWith(currentVersion.version).returns(currentVersion)
 
     const realBtcOracle = await new ChainlinkOracle__factory(owner).deploy(
@@ -173,9 +174,9 @@ describe('Vault', () => {
     btcOracle = await smock.fake<IOracleProvider>('IOracleProvider', {
       address: btcOracleToMock.address,
     })
-    btcOracle.sync.returns([btcCurrentVersion, btcCurrentVersion.version.add(1)]) // TODO: hardcoded delay
+    btcOracle.sync.returns([btcCurrentVersion, btcCurrentVersion.version.add(LEGACY_ORACLE_DELAY)])
     btcOracle.latest.returns(btcCurrentVersion)
-    btcOracle.current.returns(btcCurrentVersion.version.add(1)) // TODO: hardcoded delay
+    btcOracle.current.returns(btcCurrentVersion.version.add(LEGACY_ORACLE_DELAY))
     btcOracle.at.whenCalledWith(btcCurrentVersion.version).returns(btcCurrentVersion)
 
     market = await deployProductOnMainnetFork({
