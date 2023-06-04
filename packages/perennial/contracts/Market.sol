@@ -307,7 +307,8 @@ contract Market is IMarket, UInitializable, UOwnable {
             Fixed6 previousDelta = _pendingPositions[account][context.accountPosition.id].read().delta;
             _processPositionAccount(context, nextPosition);
             nextPosition.collateral = context.local.collateral
-                .sub(context.accountPendingPosition.delta.sub(previousDelta));
+                .sub(context.accountPendingPosition.delta.sub(previousDelta)) // deposits happen after snapshot point
+                .add(Fixed6Lib.from(nextPosition.fee));                       // position fee happens after snapshot point
             _pendingPositions[account][nextPosition.id].store(nextPosition);
         }
 

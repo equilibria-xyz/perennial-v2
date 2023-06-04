@@ -14,6 +14,7 @@ interface IVault {
         uint256 latestId;
         uint256 latestVersion;
         uint256 liquidation;
+        UFixed6 makerFee;
 
         // markets
         MarketContext[] markets;
@@ -57,6 +58,7 @@ interface IVault {
     event WeightUpdated(uint256 indexed marketId, uint256 newWeight);
     event LeverageUpdated(UFixed6 newLeverage);
     event CapUpdated(UFixed6 newCap);
+    event PremiumUpdated(UFixed6 newPremium);
     event Mint(address indexed account, UFixed6 amount);
     event Burn(address indexed account, UFixed6 amount);
     event Deposit(address indexed sender, address indexed account, uint256 version, UFixed6 assets);
@@ -85,6 +87,7 @@ interface IVault {
     function register(IMarket market) external;
     function updateWeight(uint256 marketId, uint256 newWeight) external;
     function updateLeverage(UFixed6 newLeverage) external;
+    function updatePremium(UFixed6 newPremium) external;
     function updateCap(UFixed6 newCap) external;
 
     /* Vault Interface */

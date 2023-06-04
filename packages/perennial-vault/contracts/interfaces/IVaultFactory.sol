@@ -9,5 +9,6 @@ interface IVaultFactory is IBeacon, IOwnable {
     event VaultCreated(IVault indexed vault, IFactory indexed factory, Token18 indexed asset, IMarket initialMarket);
 
     function factory() external view returns (IFactory);
+    function initialize() external;
     function create(Token18 asset, IMarket initialMarket) external returns (IVault);
 }

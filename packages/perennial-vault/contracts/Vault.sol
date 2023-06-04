@@ -10,8 +10,8 @@ import "./types/Registration.sol";
 import "./types/VaultParameter.sol";
 
 // TODO: only pull out what you can from collateral when really unbalanced
-// TODO: make sure maker fees are supported
 // TODO: assumes no one can create an order for the vault (check if liquidation / shortfall break this model?
+// TODO: separate out the allocation strategy from the accounting state to make upgrades cleaner
 
 /**
  * @title Vault
@@ -58,7 +58,7 @@ contract Vault is IVault, UInitializable {
     function minWeight() external view returns (uint256) { return _parameter.read().minWeight; }
     function leverage() external view returns (UFixed6) { return _parameter.read().leverage; }
     function cap() external view returns (UFixed6) { return _parameter.read().cap; }
-    function name() external view returns (string memory) { return "Vault-XX"; } // TODO generate
+    function name() external pure returns (string memory) { return "Vault-XX"; } // TODO generate
     function totalSupply() external view returns (UFixed6) { return _account.read().shares; }
     function balanceOf(address account) public view returns (UFixed6) { return _accounts[account].read().shares; }
     function totalUnclaimed() external view returns (UFixed6) { return _account.read().assets; }
@@ -84,7 +84,7 @@ contract Vault is IVault, UInitializable {
     function convertToShares(UFixed6 assets) external view returns (UFixed6) {
         (UFixed6 _totalAssets, UFixed6 _totalShares) =
             (UFixed6Lib.from(totalAssets().max(Fixed6Lib.ZERO)), totalShares());
-        return _totalAssets.isZero() ? assets : assets.muldiv(_totalShares, _totalAssets);
+        return _totalShares.isZero() ? assets : assets.muldiv(_totalShares, _totalAssets);
     }
 
     /**
@@ -165,6 +165,15 @@ contract Vault is IVault, UInitializable {
         emit CapUpdated(newCap);
     }
 
+    function updatePremium(UFixed6 newPremium) external onlyOwner {
+        Context memory context = _settle(address(0));
+
+        context.parameter.premium = newPremium;
+        _parameter.store(context.parameter);
+
+        emit PremiumUpdated(newPremium);
+    }
+
     function _updateMinWeight(VaultParameter memory vaultParameter) private view {
         vaultParameter.minWeight = type(uint32).max;
         for (uint256 marketId; marketId < vaultParameter.totalMarkets; marketId++) {
@@ -187,6 +196,7 @@ contract Vault is IVault, UInitializable {
 
     /**
      * @notice Deposits `assets` assets into the vault, returning shares to `account` after the deposit settles.
+     * @dev Accounts for makerFee by burning then airdropping makerFee * premium percent of the deposit
      * @param assets The amount of assets to deposit
      * @param account The account to deposit on behalf of
      */
@@ -196,10 +206,13 @@ contract Vault is IVault, UInitializable {
         if (assets.gt(_maxDeposit(context))) revert VaultDepositLimitExceededError();
         if (context.latestId < context.local.latest) revert VaultExistingOrderError();
 
-        context.global.deposit =  context.global.deposit.add(assets);
+        UFixed6 depositAmount = assets
+            .sub(assets.mul(context.makerFee.mul(UFixed6Lib.ONE.add(context.parameter.premium))));
+
+        context.global.deposit =  context.global.deposit.add(depositAmount);
         context.local.latest = context.currentId;
-        context.local.deposit = assets;
-        context.checkpoint.deposit = context.checkpoint.deposit.add(assets);
+        context.local.deposit = depositAmount;
+        context.checkpoint.deposit = context.checkpoint.deposit.add(depositAmount);
 
         context.parameter.asset.pull(msg.sender, _toU18(assets));
 
@@ -211,6 +224,7 @@ contract Vault is IVault, UInitializable {
 
     /**
      * @notice Redeems `shares` shares from the vault
+     * @dev Accounts for makerFee by burning then airdropping makerFee * premium percent of the redemption
      * @dev Does not return any assets to the user due to delayed settlement. Use `claim` to claim assets
      *      If account is not msg.sender, requires prior spending approval
      * @param shares The amount of shares to redeem
@@ -223,10 +237,13 @@ contract Vault is IVault, UInitializable {
         if (shares.gt(_maxRedeem(context, account))) revert VaultRedemptionLimitExceededError();
         if (context.latestId < context.local.latest) revert VaultExistingOrderError();
 
-        context.global.redemption =  context.global.redemption.add(shares);
+        UFixed6 redemptionAmount = shares
+            .sub(shares.mul(context.makerFee.mul(UFixed6Lib.ONE.add(context.parameter.premium))));
+
+        context.global.redemption =  context.global.redemption.add(redemptionAmount);
         context.local.latest = context.currentId;
-        context.local.redemption = shares;
-        context.checkpoint.redemption = context.checkpoint.redemption.add(shares);
+        context.local.redemption = redemptionAmount;
+        context.checkpoint.redemption = context.checkpoint.redemption.add(redemptionAmount);
 
         context.local.shares = context.local.shares.sub(shares);
         context.global.shares = context.global.shares.sub(shares);
@@ -236,6 +253,8 @@ contract Vault is IVault, UInitializable {
 
         emit Redemption(msg.sender, account, context.currentId, shares);
     }
+
+
 
     /**
      * @notice Claims all claimable assets for account, sending assets to account
@@ -370,7 +389,7 @@ contract Vault is IVault, UInitializable {
         Context memory context,
         UFixed6 collateral,
         UFixed6 assets
-    ) private pure returns (Target[] memory targets) {
+    ) private view returns (Target[] memory targets) {
         targets = new Target[](context.parameter.totalMarkets);
 
         for (uint256 marketId; marketId < context.parameter.totalMarkets; marketId++) {
@@ -469,6 +488,9 @@ contract Vault is IVault, UInitializable {
                 context.latestId = latestPosition.id;
                 context.latestVersion = latestPosition.version;
             }
+            if (context.parameter.totalWeight != 0) context.makerFee = context.makerFee
+                .add(marketParameter.makerFee.mul(context.parameter.leverage)
+                .muldiv(registration.weight, context.parameter.totalWeight));
 
             // local
             Local memory local = registration.market.locals(address(this));
@@ -551,7 +573,6 @@ contract Vault is IVault, UInitializable {
                 _registrations[marketId].read().market
                     .pendingPositions(address(this), id - _registrations[marketId].read().initialId).collateral
             );
-        // TODO: should this cap the assets at 0?
     }
 
     modifier onlyOwner {

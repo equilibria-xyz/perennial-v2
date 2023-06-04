@@ -14,6 +14,7 @@ struct VaultParameter {
     uint256 minWeight;
     UFixed6 leverage;
     UFixed6 cap;
+    UFixed6 premium;
 }
 struct StoredVaultParameter {
     // slot 1
@@ -23,10 +24,10 @@ struct StoredVaultParameter {
 
     // slot 2
     address _asset;
-    uint8 _totalMarkets;
+    uint8 _totalMarkets; // TODO: can get rid of these
     uint32 _totalWeight;
     uint32 _minWeight;
-    bytes3 __unallocated0__;
+    uint24 _premium;
 }
 struct VaultParameterStorage { StoredVaultParameter value; }
 using VaultParameterStorageLib for VaultParameterStorage global;
@@ -43,7 +44,8 @@ library VaultParameterStorageLib {
             uint256(storedValue._totalWeight),
             uint256(storedValue._minWeight),
             UFixed6.wrap(uint256(storedValue._leverage)),
-            UFixed6.wrap(uint256(storedValue._cap))
+            UFixed6.wrap(uint256(storedValue._cap)),
+            UFixed6.wrap(uint256(storedValue._premium))
         );
     }
 
@@ -53,6 +55,7 @@ library VaultParameterStorageLib {
         if (newValue.minWeight > type(uint32).max) revert VaultParameterStorageInvalidError();
         if (newValue.leverage.gt(UFixed6Lib.MAX_32)) revert VaultParameterStorageInvalidError();
         if (newValue.cap.gt(UFixed6Lib.MAX_64)) revert VaultParameterStorageInvalidError();
+        if (newValue.premium.gt(UFixed6Lib.MAX_24)) revert VaultParameterStorageInvalidError();
 
         self.value = StoredVaultParameter(
             address(newValue.factory),
@@ -62,7 +65,7 @@ library VaultParameterStorageLib {
             uint8(newValue.totalMarkets),
             uint32(newValue.totalWeight),
             uint32(newValue.minWeight),
-            bytes3(0)
+            uint24(UFixed6.unwrap(newValue.premium))
         );
     }
 }
