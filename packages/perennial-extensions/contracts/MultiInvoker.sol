@@ -75,15 +75,13 @@ contract MultiInvoker is IMultiInvoker {
     }
 
     function _update(address market, Position memory newPosition) internal {
-        // @todo figure out with settle
-        Local memory local = IMarket(market).locals(msg.sender);
 
         IMarket(market).update(
                 msg.sender, 
                 newPosition.maker, 
                 newPosition.long,
                 newPosition.short, 
-                local.collateral);
+                Fixed6Lib.ZERO);
     }
 
     function _executeOrder(address account, address market, uint256 orderNonce) internal {
