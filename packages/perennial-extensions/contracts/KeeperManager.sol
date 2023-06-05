@@ -65,7 +65,7 @@ contract KeeperManager is IKeeperManager {
         if(openOrder.execPrice.isZero()) revert KeeperManager_UpdateOrder_OrderDoesNotExist();
 
         openOrder.execPrice = update.execPrice.isZero() ? openOrder.execPrice : update.execPrice;
-        openOrder.maxFee = update.maxFee == 0 ? openOrder.maxFee : update.maxFee;
+        openOrder.maxFee = update.maxFee.isZero() ? openOrder.maxFee : update.maxFee;
 
         allOpenOrders[account][market][nonce] = openOrder;
 
@@ -131,7 +131,7 @@ contract KeeperManager is IKeeperManager {
     }
 
     function _validateOrderFee(Order memory o, UFixed6 fee) internal pure returns (bool) {
-        return o.size.muldiv(fee, UFixed6Lib.from(MAX_PCT)).gte(UFixed6Lib.from(uint256(o.maxFee)));
+        return o.size.muldiv(fee, UFixed6Lib.from(MAX_PCT)).gte(UFixed6Lib.from(o.maxFee));
     }
     
     function _readOrder(address account, address market, uint256 nonce) internal view returns (Order memory order) {

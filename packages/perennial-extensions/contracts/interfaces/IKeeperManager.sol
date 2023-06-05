@@ -2,7 +2,8 @@ pragma solidity ^0.8.13;
 
 import { IMarket, Position, MarketParameter } from "@equilibria/perennial-v2/contracts/interfaces/IMarket.sol";
 import { UFixed6, UFixed6Lib } from "@equilibria/root-v2/contracts/UFixed6.sol";
-import { Fixed6 } from "@equilibria/root-v2/contracts/Fixed6.sol";
+import { Fixed6, Fixed6Lib } from "@equilibria/root-v2/contracts/Fixed6.sol";
+
 interface IKeeperManager {
 
     // (-) exec price -> execute order when market price >= exec price 
@@ -11,7 +12,7 @@ interface IKeeperManager {
         // slot 1
         bool isLimit; // true/false = increase/decrease order size of market position upon execution
         bool isLong;  // true/false = change long/short size of market position upon execution
-        uint8 maxFee; // 
+        Fixed6 maxFee; // @todo optimization: set as % with some precision
 
         // slot 2&3
         Fixed6 execPrice; // execute order when mkt price >= (-) execPrice or mkt price <= (+) execPrice
@@ -45,7 +46,7 @@ interface IKeeperManager {
         uint256 orderNonce,
         uint8 _openOrders,
         Fixed6 execPrice,
-        uint8 maxFee);    
+        Fixed6 maxFee);    
 
     event OrderExecuted(
         address indexed account,
@@ -62,7 +63,7 @@ interface IKeeperManager {
         address indexed market, 
         uint256 orderNonce, 
         Fixed6 execPrice,
-        uint8 maxFee);
+        Fixed6 maxFee);
 
     function readOrder(address account, address market, uint256 nonce) external view returns(Order memory);
     function placeOrder(address account, address market, Order memory order) external;

@@ -74,16 +74,6 @@ contract MultiInvoker is IMultiInvoker {
         }
     }
 
-    function _update(address market, Position memory newPosition) internal {
-
-        IMarket(market).update(
-                msg.sender, 
-                newPosition.maker, 
-                newPosition.long,
-                newPosition.short, 
-                Fixed6Lib.ZERO);
-    }
-
     function _executeOrder(address account, address market, uint256 orderNonce) internal {
         uint256 startGas = gasleft();
 
@@ -112,7 +102,7 @@ contract MultiInvoker is IMultiInvoker {
              _handleExecFee(
                 account, 
                 market, 
-                Fixed6Lib.from(UFixed6.wrap(order.maxFee)), 
+                order.maxFee, 
                 startGas, 
                 position);
         }
@@ -128,8 +118,7 @@ contract MultiInvoker is IMultiInvoker {
         
         Fixed6 gasUsed = Fixed6Lib.from(UFixed6.wrap(startGas - gasleft()));
         Fixed6 chargeFee = gasUsed.muldiv(keeperPremium, Fixed6.wrap(100));
-        
-        // @todo resolve max fee storage type, % or value 
+
         if(chargeFee.gt(maxFee)) revert MultiInvoker_ExecuteOrder_MaxFeeExceeded();
 
         IMarket(market).update(
