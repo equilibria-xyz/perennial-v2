@@ -1077,9 +1077,7 @@ describe('Vault', () => {
         await updateOracle(parse6decimal('10000'))
         await market.connect(user).settle(vault.address)
         await market.connect(user).settle(user2.address)
-
-        const user2Collateral = (await market.locals(user2.address)).collateral
-        await market.connect(user2).update(user2.address, 0, 0, 0, user2Collateral)
+        await market.connect(user2).update(user2.address, 0, 0, 0, 0)
 
         // 4. Settle the vault to recover and rebalance
         await updateOracle() // let take settle at high price

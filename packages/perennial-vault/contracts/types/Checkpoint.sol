@@ -51,7 +51,7 @@ library CheckpointLib {
      */
     function toShares(Checkpoint memory self, UFixed6 assets) internal pure returns (UFixed6) {
         UFixed6 basisAssets = UFixed6Lib.from(self.assets.max(Fixed6Lib.ZERO)); // TODO: what to do if vault is insolvent
-        return self.shares.isZero() ? assets : assets.muldiv(self.shares, basisAssets);
+        return self.shares.isZero() || basisAssets.isZero() ? assets : assets.muldiv(self.shares, basisAssets);
     }
 
     /**

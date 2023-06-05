@@ -8,6 +8,7 @@ import "./types/Account.sol";
 import "./types/Checkpoint.sol";
 import "./types/Registration.sol";
 import "./types/VaultParameter.sol";
+import "hardhat/console.sol";
 
 // TODO: only pull out what you can from collateral when really unbalanced
 // TODO: shortfall or liquidation will cause an extra order on one market de-syncing the ids from initialId
@@ -358,18 +359,10 @@ contract Vault is IVault, UInitializable {
             assets = UFixed6Lib.ZERO;
 
         Target[] memory targets = _computeTargets(context, collateral, assets);
-
-        // Remove collateral from markets above target
-        for (uint256 marketId; marketId < context.markets.length; marketId++) {
-            if (context.markets[marketId].collateral.gt(targets[marketId].collateral))
-                _update(context.markets[marketId], targets[marketId]);
-        }
-
-        // Deposit collateral to markets below target
-        for (uint256 marketId; marketId < context.markets.length; marketId++) {
-            if (context.markets[marketId].collateral.lte(targets[marketId].collateral))
-                _update(context.markets[marketId], targets[marketId]);
-        }
+        for (uint256 marketId; marketId < context.markets.length; marketId++)
+            if (targets[marketId].collateral.lt(Fixed6Lib.ZERO)) _update(context.markets[marketId], targets[marketId]);
+        for (uint256 marketId; marketId < context.markets.length; marketId++)
+            if (targets[marketId].collateral.gte(Fixed6Lib.ZERO)) _update(context.markets[marketId], targets[marketId]);
     }
 
     function _computeTargets(
@@ -383,8 +376,9 @@ contract Vault is IVault, UInitializable {
             UFixed6 marketAssets = assets.muldiv(context.markets[marketId].weight, context.totalWeight);
             if (context.markets[marketId].closed) marketAssets = UFixed6Lib.ZERO;
 
-            targets[marketId].collateral =
+            Fixed6 targetCollateral =
                 Fixed6Lib.from(collateral.muldiv(context.markets[marketId].weight, context.totalWeight));
+            targets[marketId].collateral = targetCollateral.sub(context.markets[marketId].collateral);
             targets[marketId].position = marketAssets.mul(context.parameter.leverage).div(context.markets[marketId].price);
         }
     }
