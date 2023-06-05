@@ -8,6 +8,7 @@ import "./interfaces/IFactory.sol";
 import "hardhat/console.sol";
 
 // TODO: because the vault needs to call settle(), there's no way around it liquidating itself and locking the vault for 1 version
+// TODO: double check all fees are using notional
 
 /**
  * @title Market
@@ -86,15 +87,15 @@ contract Market is IMarket, UInitializable, UOwnable {
         UFixed6 newMaker,
         UFixed6 newLong,
         UFixed6 newShort,
-        Fixed6 newCollateral // TODO: should we enforce this as a UFixed6?
+        Fixed6 collateral
     ) external {
         CurrentContext memory context = _loadContext(account);
         if (context.protocolParameter.paused) revert MarketPausedError();
 
-        _checkOperator(context, account, newMaker, newLong, newShort, newCollateral);
+        _checkOperator(context, account, newMaker, newLong, newShort, collateral);
         _settle(context, account);
         _sync(context, account);
-        _update(context, account, newMaker, newLong, newShort, newCollateral, false);
+        _update(context, account, newMaker, newLong, newShort, collateral, false);
         _saveContext(context, account);
     }
 
@@ -178,18 +179,17 @@ contract Market is IMarket, UInitializable, UOwnable {
         ) return;
 
         // compute reward
-        UFixed6 liquidationReward = context.accountPosition.liquidationFee(
+        UFixed6 liquidationFee = context.accountPosition.liquidationFee(
             context.latestVersion,
             context.marketParameter,
             context.protocolParameter
         ).min(UFixed6Lib.from(token.balanceOf()));
-        Fixed6 newCollateral = context.local.collateral.sub(Fixed6Lib.from(liquidationReward));
 
         // close position
-        _update(context, account, UFixed6Lib.ZERO, UFixed6Lib.ZERO, UFixed6Lib.ZERO, newCollateral, true);
+        _update(context, account, UFixed6Lib.ZERO, UFixed6Lib.ZERO, UFixed6Lib.ZERO, Fixed6Lib.from(-1, liquidationFee), true);
         context.local.liquidation = context.accountPendingPosition.version;
 
-        emit Liquidation(account, msg.sender, liquidationReward);
+        emit Liquidation(account, msg.sender, liquidationFee);
     }
 
     function _update(
@@ -198,7 +198,7 @@ contract Market is IMarket, UInitializable, UOwnable {
         UFixed6 newMaker,
         UFixed6 newLong,
         UFixed6 newShort,
-        Fixed6 newCollateral, //TODO: make delta
+        Fixed6 collateral,
         bool force
     ) private {
         _startGas(context, "_update before-update-after: %s");
@@ -222,8 +222,8 @@ contract Market is IMarket, UInitializable, UOwnable {
         context.pendingPosition.update(context.global.currentId, context.currentVersion, newOrder);
 
         // update collateral
-        Fixed6 collateralAmount =
-            context.local.update(newCollateral.eq(Fixed6Lib.MAX) ? context.local.collateral : newCollateral);
+        Fixed6 collateralAmount = collateral.eq(Fixed6Lib.MIN) ? context.local.collateral.mul(Fixed6Lib.NEG_ONE) : collateral;
+        context.local.update(collateralAmount);
         context.accountPendingPosition.update(collateralAmount);
 
         // after
@@ -235,11 +235,13 @@ contract Market is IMarket, UInitializable, UOwnable {
         _startGas(context, "_update fund-events: %s");
 
         // fund
-        if (collateralAmount.sign() == 1) token.pull(msg.sender, UFixed18.wrap(UFixed6.unwrap(collateralAmount.abs()) * 1e12)); //TODO: use .to6()
-        if (collateralAmount.sign() == -1) token.push(msg.sender, UFixed18.wrap(UFixed6.unwrap(collateralAmount.abs()) * 1e12));
+        if (collateralAmount.sign() == 1)
+            token.pull(msg.sender, UFixed18.wrap(UFixed6.unwrap(collateralAmount.abs()) * 1e12)); //TODO: use .to6()
+        if (collateralAmount.sign() == -1)
+            token.push(msg.sender, UFixed18.wrap(UFixed6.unwrap(collateralAmount.abs()) * 1e12));
 
         // events
-        emit Updated(account, context.currentVersion, newMaker, newLong, newShort, newCollateral);
+        emit Updated(account, context.currentVersion, newMaker, newLong, newShort, collateral);
 
         _endGas(context);
     }
@@ -375,7 +377,7 @@ contract Market is IMarket, UInitializable, UOwnable {
         UFixed6 newMaker,
         UFixed6 newLong,
         UFixed6 newShort,
-        Fixed6 newCollateral
+        Fixed6 collateral
     ) private view {
         if (account == msg.sender) return;                  // sender is operating on own account
         if (factory.operators(account, msg.sender)) return; // sender is operator enabled for this account
@@ -383,7 +385,7 @@ contract Market is IMarket, UInitializable, UOwnable {
             context.accountPendingPosition.maker.eq(newMaker) &&
             context.accountPendingPosition.long.eq(newLong) &&
             context.accountPendingPosition.short.eq(newShort) &&
-            context.local.collateral.sign() == -1 && newCollateral.isZero()
+            context.local.collateral.sign() == -1 && context.local.collateral.add(collateral).isZero()
         ) return; // sender is repaying shortfall for this account
         revert MarketOperatorNotAllowed();
     }
@@ -400,7 +402,7 @@ contract Market is IMarket, UInitializable, UOwnable {
             revert MarketExceedsPendingIdLimitError();
     }
 
-    function _checkCollateral(CurrentContext memory context) private pure {
+    function _checkCollateral(CurrentContext memory context) private view {
         if (context.local.collateral.sign() == -1) revert MarketInDebtError();
 
         UFixed6 boundedCollateral = UFixed6Lib.from(context.local.collateral);
@@ -408,6 +410,7 @@ contract Market is IMarket, UInitializable, UOwnable {
         if (!context.local.collateral.isZero() && boundedCollateral.lt(context.protocolParameter.minCollateral))
             revert MarketCollateralUnderLimitError();
 
+        // TODO: check all pending positions
         UFixed6 maintenanceAmount =
             context.accountPosition.maintenance(context.latestVersion, context.marketParameter)
                 .max(context.accountPendingPosition.maintenance(context.latestVersion, context.marketParameter));

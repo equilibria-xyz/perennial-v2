@@ -26,9 +26,8 @@ using LocalStorageLib for LocalStorage global;
  * @notice Library
  */
 library LocalLib {
-    function update(Local memory self, Fixed6 newCollateral) internal pure returns (Fixed6 collateralAmount) {
-        collateralAmount = newCollateral.sub(self.collateral);
-        self.collateral = newCollateral;
+    function update(Local memory self, Fixed6 collateral) internal pure {
+        self.collateral = self.collateral.add(collateral);
     }
 
     /**
