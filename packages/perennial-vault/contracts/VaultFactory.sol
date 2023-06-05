@@ -30,8 +30,8 @@ contract VaultFactory is IVaultFactory, UOwnable {
     function create(Token18 asset, IMarket initialMarket) external returns (IVault newVault) {
         newVault = IVault(address(new BeaconProxy(
             address(this),
-            abi.encodeCall(IVault.initialize, (factory, asset, initialMarket))
+            abi.encodeCall(IVault.initialize, (asset, initialMarket))
         )));
-        emit VaultCreated(newVault, factory, asset, initialMarket);
+        emit VaultCreated(newVault, asset, initialMarket);
     }
 }

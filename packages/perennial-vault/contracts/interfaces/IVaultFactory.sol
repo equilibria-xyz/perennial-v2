@@ -6,7 +6,7 @@ import "@openzeppelin/contracts/proxy/beacon/IBeacon.sol";
 import "./IVault.sol";
 
 interface IVaultFactory is IBeacon, IOwnable {
-    event VaultCreated(IVault indexed vault, IFactory indexed factory, Token18 indexed asset, IMarket initialMarket);
+    event VaultCreated(IVault indexed vault, Token18 indexed asset, IMarket initialMarket);
 
     function factory() external view returns (IFactory);
     function initialize() external;

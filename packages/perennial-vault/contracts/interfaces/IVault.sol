@@ -2,7 +2,6 @@
 pragma solidity ^0.8.13;
 
 import "@equilibria/perennial-v2/contracts/interfaces/IFactory.sol";
-import "@equilibria/root-v2/contracts/IOwnable.sol";
 import "@equilibria/root-v2/contracts/UFixed6.sol";
 import "../types/Account.sol";
 import "../types/Checkpoint.sol";
@@ -60,9 +59,7 @@ interface IVault {
 
     event MarketRegistered(uint256 indexed marketId, IMarket market);
     event WeightUpdated(uint256 indexed marketId, uint256 newWeight);
-    event LeverageUpdated(UFixed6 newLeverage);
-    event CapUpdated(UFixed6 newCap);
-    event PremiumUpdated(UFixed6 newPremium);
+    event ParameterUpdated(VaultParameter newParameter);
     event Mint(address indexed account, UFixed6 amount);
     event Burn(address indexed account, UFixed6 amount);
     event Deposit(address indexed sender, address indexed account, uint256 version, UFixed6 assets);
@@ -76,26 +73,20 @@ interface IVault {
     error VaultMarketDoesNotExistError();
     error VaultNotOwnerError();
     error VaultNotMarketError();
-
-    /* immutable */
-
-    function factory() external view returns (IFactory);
-    function asset() external view returns (Token18);
+    error VaultIncorrectAssetError();
 
     /* parameters */
 
     function totalMarkets() external view returns (uint256);
-    function leverage() external view returns (UFixed6);
-    function cap() external view returns (UFixed6);
+    function parameter() external view returns (VaultParameter memory);
+    function asset() external view returns (Token18);
     function register(IMarket market) external;
     function updateWeight(uint256 marketId, uint256 newWeight) external;
-    function updateLeverage(UFixed6 newLeverage) external;
-    function updatePremium(UFixed6 newPremium) external;
-    function updateCap(UFixed6 newCap) external;
+    function updateParameter(VaultParameter memory newParameter) external;
 
     /* Vault Interface */
 
-    function initialize(IFactory factory, Token18 asset, IMarket market) external;
+    function initialize(Token18 asset, IMarket market) external;
     function settle(address account) external;
     function totalUnclaimed() external view returns (UFixed6);
     function unclaimed(address account) external view returns (UFixed6);

@@ -16,10 +16,12 @@ import {
   IVaultFactory,
   IVault__factory,
   IVault,
+  IVaultFactory__factory,
 } from '../../../types/generated'
 import { BigNumber, constants } from 'ethers'
 import { deployProtocol, fundWallet } from '@equilibria/perennial-v2/test/integration/helpers/setupHelpers'
 import { parse6decimal } from '../../../../common/testutil/types'
+import { TransparentUpgradeableProxy__factory } from '@equilibria/perennial-v2/types/generated'
 
 const { config, ethers } = HRE
 use(smock.matchers)
@@ -200,22 +202,36 @@ describe('Vault', () => {
     maxCollateral = parse6decimal('500000')
     premium = parse6decimal('0.10')
 
-    const vaultImpl = await new Vault__factory(owner).deploy()
-    vaultFactory = await new VaultFactory__factory(owner).deploy(instanceVars.factory.address, vaultImpl.address)
+    const vaultFactoryProxy = await new TransparentUpgradeableProxy__factory(owner).deploy(
+      instanceVars.factory.address, // dummy contract
+      instanceVars.proxyAdmin.address,
+      [],
+    )
+
+    const vaultImpl = await new Vault__factory(owner).deploy(vaultFactoryProxy.address)
+    const vaultFactoryImpl = await new VaultFactory__factory(owner).deploy(
+      instanceVars.factory.address,
+      vaultImpl.address,
+    )
+    await instanceVars.proxyAdmin.upgrade(vaultFactoryProxy.address, vaultFactoryImpl.address)
+    vaultFactory = IVaultFactory__factory.connect(vaultFactoryProxy.address, owner)
     await vaultFactory.initialize()
+
     vault = IVault__factory.connect(
       await vaultFactory.callStatic.create(instanceVars.dsu.address, market.address),
       owner,
     )
-
     await vaultFactory.create(instanceVars.dsu.address, market.address)
 
     await vault.register(btcMarket.address)
     await vault.updateWeight(0, 4)
     await vault.updateWeight(1, 1)
-    await vault.updateLeverage(leverage)
-    await vault.updateCap(maxCollateral)
-    await vault.updatePremium(premium)
+    await vault.updateParameter({
+      asset: instanceVars.dsu.address,
+      leverage: leverage,
+      cap: maxCollateral,
+      premium: premium,
+    })
 
     asset = IERC20Metadata__factory.connect(await vault.asset(), owner)
     await asset.connect(liquidator).approve(vault.address, ethers.constants.MaxUint256)
@@ -246,7 +262,7 @@ describe('Vault', () => {
 
   describe('#initialize', () => {
     it('cant re-initialize', async () => {
-      await expect(vault.initialize(factory.address, asset.address, market.address)).to.revertedWith(
+      await expect(vault.initialize(asset.address, market.address)).to.revertedWith(
         'UInitializableAlreadyInitializedError',
       )
     })
