@@ -14,7 +14,11 @@ interface IVault {
         uint256 latestId;
         uint256 latestVersion;
         uint256 liquidation;
+
+        // parameters
         UFixed6 makerFee;
+        uint256 minWeight;
+        uint256 totalWeight;
 
         // markets
         MarketContext[] markets;
@@ -81,7 +85,6 @@ interface IVault {
     /* parameters */
 
     function totalMarkets() external view returns (uint256);
-    function totalWeight() external view returns (uint256);
     function leverage() external view returns (UFixed6);
     function cap() external view returns (UFixed6);
     function register(IMarket market) external;
