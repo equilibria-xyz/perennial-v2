@@ -5,7 +5,6 @@ import "@equilibria/root-v2/contracts/UFixed6.sol";
 
 /// @dev Checkpoint type
 struct Checkpoint {
-    uint256 latest;  // TODO: don't really use this anymore
     UFixed6 deposit;
     UFixed6 redemption;
     UFixed6 shares;
@@ -14,12 +13,12 @@ struct Checkpoint {
 }
 using CheckpointLib for Checkpoint global;
 struct StoredCheckpoint {
-    uint32 _latest;
     uint48 _deposit;
     uint48 _redemption;
     uint56 _shares;
     int56 _assets;
     bool _started;
+    bytes5 __unallocated__;
 }
 struct CheckpointStorage { StoredCheckpoint value; }
 using CheckpointStorageLib for CheckpointStorage global;
@@ -47,8 +46,12 @@ library CheckpointLib {
      * @return Amount of shares for the given assets at basis
      */
     function toShares(Checkpoint memory self, UFixed6 assets) internal pure returns (UFixed6) {
-        UFixed6 basisAssets = UFixed6Lib.from(self.assets.max(Fixed6Lib.ZERO)); // TODO: what to do if vault is insolvent
-        return self.shares.isZero() || basisAssets.isZero() ? assets : assets.muldiv(self.shares, basisAssets);
+        UFixed6 basisAssets = UFixed6Lib.from(self.assets.max(Fixed6Lib.ZERO));
+        return self.shares.isZero() ?
+            assets :  // vault is fresh, use par value
+            basisAssets.isZero() ?
+                assets :  // vault is insolvent, default to par value
+                assets.muldiv(self.shares, basisAssets);
     }
 
     /**
@@ -57,8 +60,10 @@ library CheckpointLib {
      * @return Amount of assets for the given shares at basis
      */
     function toAssets(Checkpoint memory self, UFixed6 shares) internal pure returns (UFixed6) {
-        UFixed6 basisAssets = UFixed6Lib.from(self.assets.max(Fixed6Lib.ZERO)); // TODO: what to do if vault is insolvent
-        return self.shares.isZero() ? shares : shares.muldiv(basisAssets, self.shares);
+        UFixed6 basisAssets = UFixed6Lib.from(self.assets.max(Fixed6Lib.ZERO));
+        return self.shares.isZero() ?
+            shares :  // vault is fresh, use par value
+            shares.muldiv(basisAssets, self.shares);
     }
 
     function unhealthy(Checkpoint memory self) internal pure returns (bool) {
@@ -72,7 +77,6 @@ library CheckpointStorageLib {
     function read(CheckpointStorage storage self) internal view returns (Checkpoint memory) {
         StoredCheckpoint memory storedValue = self.value;
         return Checkpoint(
-            uint256(storedValue._latest),
             UFixed6.wrap(uint256(storedValue._deposit)),
             UFixed6.wrap(uint256(storedValue._redemption)),
             UFixed6.wrap(uint256(storedValue._shares)),
@@ -82,7 +86,6 @@ library CheckpointStorageLib {
     }
 
     function store(CheckpointStorage storage self, Checkpoint memory newValue) internal {
-        if (newValue.latest > type(uint32).max) revert CheckpointStorageInvalidError();
         if (newValue.deposit.gt(UFixed6Lib.MAX_48)) revert CheckpointStorageInvalidError();
         if (newValue.redemption.gt(UFixed6Lib.MAX_48)) revert CheckpointStorageInvalidError();
         if (newValue.shares.gt(UFixed6Lib.MAX_56)) revert CheckpointStorageInvalidError();
@@ -90,12 +93,12 @@ library CheckpointStorageLib {
         if (newValue.assets.lt(Fixed6Lib.MIN_56)) revert CheckpointStorageInvalidError();
 
         self.value = StoredCheckpoint(
-            uint32(newValue.latest),
             uint48(UFixed6.unwrap(newValue.deposit)),
             uint48(UFixed6.unwrap(newValue.redemption)),
             uint56(UFixed6.unwrap(newValue.shares)),
             int56(Fixed6.unwrap(newValue.assets)),
-            newValue.started
+            newValue.started,
+            bytes5(0)
         );
     }
 }
