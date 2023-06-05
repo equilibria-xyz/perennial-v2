@@ -2,20 +2,18 @@ pragma solidity ^0.8.13;
 
 import { IMarket, Position, MarketParameter } from "@equilibria/perennial-v2/contracts/interfaces/IMarket.sol";
 import { UFixed6, UFixed6Lib } from "@equilibria/root-v2/contracts/UFixed6.sol";
-
+import { Fixed6 } from "@equilibria/root-v2/contracts/Fixed6.sol";
 interface IKeeperManager {
 
     struct Order {
         // slot 1
+        bool isLimit;
         bool isLong;
-        bool isFilled;
         uint8 maxFee;
-        uint128 nonce;
 
-        UFixed6 limitPrice; // 0 on open if market order
+        // slot 2&3
+        Fixed6 execPrice;
         UFixed6 size;
-        UFixed6 takeProfit;
-        UFixed6 stopLoss; 
     }
 
     error KeeeperManager_NotOnlyInvoker();
@@ -38,32 +36,36 @@ interface IKeeperManager {
         UFixed6 takeProfit,
         UFixed6 stopLoss,
         uint8 fee);
-    event OrderClosed(address indexed account, address indexed market, uint256 orderIndex, uint128 orderNonce); // todo fee accrued
-    event OrderCancelled(address indexed account, address indexed market, uint256 orderIndex, uint128 orderNonce); // todo fee accrued
     
+    event OrderPlaced(
+        address indexed account, 
+        address indexed market,
+        uint256 orderNonce,
+        uint8 _openOrders,
+        Fixed6 execPrice,
+        uint8 maxFee);    
+
+    event OrderExecuted(
+        address indexed account,
+        address indexed market,
+        uint256 nonce,
+        UFixed6 marketPrice,
+        Fixed6 execPrice);
+
+
+    event OrderCancelled(address indexed account, address indexed market, uint256 orderNonce);
+
     event OrderUpdated(
         address indexed account, 
         address indexed market, 
-        uint256 index, 
-        uint256 nonce,
-        UFixed6 newTakeProfit,
-        UFixed6 newStopLoss,
-        UFixed6 limitPrice,
-        uint8 newFee);
+        uint256 orderNonce, 
+        Fixed6 execPrice,
+        uint8 maxFee);
 
-    event OrderFilled(
-            address indexed account,
-            address indexed market,
-            uint256 orderIndex,
-            uint128 orderNonce,
-            UFixed6 limitPrice,
-            UFixed6 fillPrice);
-        // todo fee accrued
-
-    function readOrderAtIndex(address account, address market, uint256 index) external view returns (Order memory order);
+    function readOrder(address account, address market, uint256 nonce) external view returns(Order memory);
     function placeOrder(address account, address market, Order memory order) external;
-    function updateOrder(address account, address market, uint256 orderIndex, Order memory order) external;
-    function closeOrderInvoker(address account, address market, uint256 index) external;
-    function closeOrderKeeper(address account, address market, uint256 index) external;
-
+    function updateOrder(address account, address market, uint256 nonce, Order memory update) external;
+    function cancelOrder(address account, address market, uint256 nonce) external; 
+    function executeOrder(address account, address market, uint256 nonce) external;
+    
 }

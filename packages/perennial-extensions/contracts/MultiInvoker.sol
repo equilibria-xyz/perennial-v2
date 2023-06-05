@@ -1,17 +1,32 @@
 pragma solidity ^0.8.13;
 pragma abicoder v2;
 
-
-import {IMultiInvoker, IMarket, UFixed6, UFixed6Lib, Position, Local } from "./interfaces/IMultiInvoker.sol";
+import {IOracleProvider} from "@equilibria/perennial-v2-oracle/contracts/IOracleProvider.sol";
+import {
+    IMultiInvoker, 
+    IMarket, 
+    UFixed6, 
+    UFixed6Lib, 
+    Fixed6, 
+    Fixed6Lib,
+    UFixed18,
+    UFixed18Lib, 
+    Position, 
+    Local 
+} from "./interfaces/IMultiInvoker.sol";
 import {IKeeperManager} from "./interfaces/IKeeperManager.sol";
 
 
 contract MultiInvoker is IMultiInvoker {
     //using PositionLib for Position;
 
-    IKeeperManager immutable keeper;
+    IOracleProvider public ethOracle;
+    IKeeperManager public immutable keeper;
+
+    Fixed6 public keeperPremium;
     
-    constructor(address keeper_) {
+    constructor(address ethOracle_, address keeper_) {
+        ethOracle = IOracleProvider(ethOracle_);
         keeper = IKeeperManager(keeper_);
     }
 
@@ -23,98 +38,115 @@ contract MultiInvoker is IMultiInvoker {
         for(uint i = 0; i < invocations.length; ++i) {
             Invocation memory invocation = invocations[i];
 
-            if(invocation.action == PerennialAction.OPEN_ORDER) {
-                (
-                    address market,
-                    IKeeperManager.Order memory order,
-                    Position memory newPosition
-                ) = abi.decode(invocation.args, (address, IKeeperManager.Order, Position));
+            if (invocation.action == PerennialAction.UPDATE) {
+                (   
+                    IMarket market,
+                    UFixed6 newMaker,
+                    UFixed6 newLong,
+                    UFixed6 newShort,
+                    Fixed6 newCollateral
+                ) = abi.decode(invocation.args, (IMarket, UFixed6, UFixed6, UFixed6, Fixed6));
 
-                _placeOrder(market, order, newPosition);
-            } else if (invocation.action == PerennialAction.CLOSE_ORDER) {
-              
+                market.update(msg.sender, newMaker, newLong, newShort, newCollateral);
 
-            } else if (invocation.action == PerennialAction.MODIFY_ORDER) {
+            } else if (invocation.action == PerennialAction.PLACE_ORDER) {
+                (address market, IKeeperManager.Order memory order) 
+                    = abi.decode(invocation.args, (address, IKeeperManager.Order));
+
+                keeper.placeOrder(msg.sender, market, order);
+            } else if (invocation.action == PerennialAction.UPDATE_ORDER) {
                 // modify tp / sl / max fee in keeper manager
                 // modify collateral in market? size in keeper manager?
 
-                (address market, IKeeperManager.Order memory newOrder, uint256 orderId) = 
+                (address market, IKeeperManager.Order memory newOrder, uint256 orderNonce) = 
                     abi.decode(invocation.args, (address, IKeeperManager.Order, uint256));
 
-                _updateOrder(market, newOrder, orderId);
+                keeper.updateOrder(msg.sender, market, orderNonce, newOrder);
             } else if (invocation.action == PerennialAction.CANCEL_ORDER) {
-                (address market, uint256 orderIndex) = abi.decode(invocation.args, (address, uint256));
+                (address market, uint256 orderNonce) = abi.decode(invocation.args, (address, uint256));
 
-                keeper.closeOrderInvoker(msg.sender, market, orderIndex);
+                keeper.cancelOrder(msg.sender, market, orderNonce);
+            } else if (invocation.action == PerennialAction.EXEC_ORDER) {
+                (address account, address market, uint256 orderNonce) = 
+                    abi.decode(invocation.args, (address, address, uint256));
+                
+                _executeOrder(account, market, orderNonce);
             }
         }
     }
 
-    function _placeOrder(address market, IKeeperManager.Order memory order, Position memory newPosition) internal {
-        Position memory position = IMarket(market).positions(msg.sender);
+    function _update(address market, Position memory newPosition) internal {
+        // @todo figure out with settle
         Local memory local = IMarket(market).locals(msg.sender);
 
-        bool newLong = !position.long.eq(newPosition.long);
-        bool newShort = !position.short.eq(newPosition.short);
-
-        if(newLong && newShort) revert MultiInvoker_PlaceOrder_OrderMustBeSingleSided();
-        order.size = newLong ? newPosition.long.sub(position.long) : newPosition.short.sub(position.short);
-
-        // market order
-        if(order.limitPrice.eq(UFixed6Lib.ZERO)) {
-            IMarket(market).update(
+        IMarket(market).update(
                 msg.sender, 
                 newPosition.maker, 
                 newPosition.long,
                 newPosition.short, 
                 local.collateral);
-        }
-
-        keeper.placeOrder(msg.sender, market, order);
     }
 
+    function _executeOrder(address account, address market, uint256 orderNonce) internal {
+        uint256 startGas = gasleft();
 
-    function _closeOrder(address account, address market, uint256 orderIndex, UFixed6 close) internal {
         Position memory position = IMarket(market).positions(account);
+        // @todo figure out with settle
         Local memory local = IMarket(market).locals(account);
 
-        IKeeperManager.Order memory order = keeper.readOrderAtIndex(msg.sender, market, orderIndex);
+        IKeeperManager.Order memory order = keeper.readOrder(account, market, orderNonce);
 
-        order.isLong ? 
-            position.long = position.long.sub(order.size) :
-            position.short = position.short.sub(order.size);
-        
+        order.isLong ?
+            order.isLimit ? 
+                position.long.add(order.size) :
+                position.long.sub(order.size) 
+            :
+            order.isLimit ?
+                position.short.add(order.size) :
+                position.short.sub(order.size) ;
+
         IMarket(market).update(
             account, 
             position.maker, 
             position.long, 
             position.short, 
             local.collateral);
-        
-        if (account == msg.sender) {
-            // avoids charging fee and checking tp/sl correctness
-            // keeper.closeOrderInvoker();
-        } else {
-            // keeper.closeOrderKeeper();
-        }
+
+        keeper.executeOrder(account, market, orderNonce);
+
+        _handleExecFee(account, market, Fixed6Lib.from(UFixed6.wrap(order.maxFee)), startGas, position, local.collateral);
 
     }
 
-    function _closeOrderKeeper(address account, IMarket market, uint256 orderIndex) internal {
-        
-    }
-
-    function _updateOrder(address market, IKeeperManager.Order memory order, uint256 orderIndex) internal {
-        keeper.updateOrder(msg.sender, market, orderIndex, order);
-    }
-
-    function _update( 
+    function _handleExecFee(
         address account,
-        UFixed6 newMaker,
-        UFixed6 newLong,
-        UFixed6 newShort,
-        UFixed6 newCollateral
+        address market, 
+        Fixed6 maxFee, 
+        uint256 startGas, 
+        Position memory position,
+        Fixed6 collateral
     ) internal {
+        
+        Fixed6 gasUsed = Fixed6Lib.from(UFixed6.wrap(startGas - gasleft()));
+        Fixed6 chargeFee = gasUsed.muldiv(keeperPremium, Fixed6.wrap(100));
+        
+        if(chargeFee.gt(maxFee)) revert MultiInvoker_ExecuteOrder_MaxFeeExceeded();
 
+        IMarket(market).update(
+            account, 
+            position.maker, 
+            position.long, 
+            position.short,
+            collateral.sub(chargeFee));
+
+        uint256 fee = UFixed6.unwrap(chargeFee.abs());
+
+        IMarket(market).token().push(msg.sender, UFixed18Lib.from(fee));
+
+        emit KeeperFeeCharged(account, market, msg.sender, chargeFee);
+    }
+
+    function _ethPrice() internal returns (Fixed6) {
+        return ethOracle.latest().price;
     }
 }

@@ -1,6 +1,8 @@
 pragma solidity ^0.8.13;
-import { IMarket, Position, Local } from "@equilibria/perennial-v2/contracts/interfaces/IMarket.sol";
+import { IMarket, Position, Local, UFixed18Lib, UFixed18 } from "@equilibria/perennial-v2/contracts/interfaces/IMarket.sol";
 import { UFixed6, UFixed6Lib } from "@equilibria/root-v2/contracts/UFixed6.sol";
+import { Fixed6, Fixed6Lib } from "@equilibria/root-v2/contracts/Fixed6.sol";
+// import { UFixed18 } from "@equilibria/root/number/types/Token18.sol";
 interface IMultiInvoker {
     enum PerennialAction {
         NO_OP,
@@ -17,10 +19,10 @@ interface IMultiInvoker {
         VAULT_CLAIM,
         VAULT_WRAP_AND_DEPOSIT,
         CHARGE_FEE,
-        OPEN_ORDER,
-        MODIFY_ORDER,
+        PLACE_ORDER,
+        UPDATE_ORDER,
         CANCEL_ORDER,
-        CLOSE_ORDER
+        EXEC_ORDER
     }
     
     struct KeeperOrder {
@@ -35,9 +37,12 @@ interface IMultiInvoker {
         PerennialAction action;
         bytes args;
     }
+    
+    event KeeperFeeCharged(address indexed account, address indexed market, address indexed to, Fixed6 fee);
 
     error MultiInvoker_Invoke_BadSender();
     error MultiInvoker_PlaceOrder_OrderMustBeSingleSided();
+    error MultiInvoker_ExecuteOrder_MaxFeeExceeded();
     
     function invoke(Invocation[] calldata invocations) external;
 
