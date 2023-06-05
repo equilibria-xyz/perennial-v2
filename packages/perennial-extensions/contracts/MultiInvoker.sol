@@ -30,10 +30,10 @@ contract MultiInvoker is IMultiInvoker {
     }
 
     function invoke(Invocation[] calldata invocations) external {
-        _invoke(invocations, msg.sender);
+        _invoke(invocations);
     }
 
-    function _invoke(Invocation[] calldata invocations, address account) internal {
+    function _invoke(Invocation[] calldata invocations) internal {
         for(uint i = 0; i < invocations.length; ++i) {
             Invocation memory invocation = invocations[i];
 
