@@ -10,7 +10,7 @@ import "./types/Registration.sol";
 import "./types/VaultParameter.sol";
 
 // TODO: only pull out what you can from collateral when really unbalanced
-// TODO: assumes no one can create an order for the vault (check if liquidation / shortfall break this model?
+// TODO: shortfall or liquidation will cause an extra order on one market de-syncing the ids from initialId
 // TODO: separate out the allocation strategy from the accounting state to make upgrades cleaner
 
 /**
@@ -254,8 +254,6 @@ contract Vault is IVault, UInitializable {
         emit Redemption(msg.sender, account, context.currentId, shares);
     }
 
-
-
     /**
      * @notice Claims all claimable assets for account, sending assets to account
      * @param account The account to claim for
@@ -300,7 +298,7 @@ contract Vault is IVault, UInitializable {
      * @return Maximum available deposit amount
      */
     function maxDeposit(address) external view returns (UFixed6) {
-        return _maxDeposit(_loadContextForRead(address(0)));
+        return _maxDeposit(_loadContext(address(0)));
     }
 
     /**
@@ -310,7 +308,7 @@ contract Vault is IVault, UInitializable {
      * @return Maximum available redeemable amount
      */
     function maxRedeem(address account) external view returns (UFixed6) {
-        return _maxRedeem(_loadContextForRead(account), account);
+        return _maxRedeem(_loadContext(account), account);
     }
 
     /**
@@ -320,7 +318,10 @@ contract Vault is IVault, UInitializable {
      * @return context The current epoch contexts for each market
      */
     function _settle(address account) private returns (Context memory context) {
-        context = _loadContextForWrite(account);
+        for (uint256 marketId; marketId < _parameter.read().totalMarkets; marketId++)
+            _registrations[marketId].read().market.settle(address(this));
+
+        context = _loadContext(account);
 
         // process pending deltas
         while (context.latestId > context.global.latest) {
@@ -440,25 +441,11 @@ contract Vault is IVault, UInitializable {
     }
 
     /**
-     * @notice Loads the context for the given `account`, settling the vault first
-     * @param account Account to load the context for
-     * @return Epoch context
-     */
-    function _loadContextForWrite(address account) private returns (Context memory) {
-
-        for (uint256 marketId; marketId < _parameter.read().totalMarkets; marketId++) {
-            _registrations[marketId].read().market.settle(address(this));
-        }
-
-        return _loadContextForRead(account);
-    }
-
-    /**
      * @notice Loads the context for the given `account`
      * @param account Account to load the context for
      * @return context Epoch context
      */
-    function _loadContextForRead(address account) private view returns (Context memory context) {
+    function _loadContext(address account) private view returns (Context memory context) {
         context.parameter = _parameter.read();
 
         context.latestId = type(uint256).max;
@@ -503,7 +490,7 @@ contract Vault is IVault, UInitializable {
             if (marketId == 0) context.currentId = currentVersion > currentPosition.version ? local.currentId + 1 : local.currentId;
         }
 
-        context.checkpoint = _checkpoints[context.currentId].read(); //TODO: latest checkpoint
+        context.checkpoint = _checkpoints[context.currentId].read();
         context.global = _account.read();
         context.local = _accounts[account].read();
     }
