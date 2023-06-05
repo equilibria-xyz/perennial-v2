@@ -10,8 +10,7 @@ struct Checkpoint {
     UFixed6 redemption;
     UFixed6 shares;
     Fixed6 assets;
-    bool started;
-    bool completed; // TODO: don't really use this anymore
+    bool started;  // TODO: don't really use this anymore
 }
 using CheckpointLib for Checkpoint global;
 struct StoredCheckpoint {
@@ -21,7 +20,6 @@ struct StoredCheckpoint {
     uint56 _shares;
     int56 _assets;
     bool _started;
-    bool _completed;
 }
 struct CheckpointStorage { StoredCheckpoint value; }
 using CheckpointStorageLib for CheckpointStorage global;
@@ -40,7 +38,6 @@ library CheckpointLib {
     }
 
     function complete(Checkpoint memory self, Fixed6 assets) internal view {
-        self.completed = true;
         self.assets = self.assets.add(assets);
     }
 
@@ -80,8 +77,7 @@ library CheckpointStorageLib {
             UFixed6.wrap(uint256(storedValue._redemption)),
             UFixed6.wrap(uint256(storedValue._shares)),
             Fixed6.wrap(int256(storedValue._assets)),
-            storedValue._started,
-            storedValue._completed
+            storedValue._started
         );
     }
 
@@ -99,8 +95,7 @@ library CheckpointStorageLib {
             uint48(UFixed6.unwrap(newValue.redemption)),
             uint56(UFixed6.unwrap(newValue.shares)),
             int56(Fixed6.unwrap(newValue.assets)),
-            newValue.started,
-            newValue.completed
+            newValue.started
         );
     }
 }
