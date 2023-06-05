@@ -16,7 +16,6 @@ import {
 } from "./interfaces/IMultiInvoker.sol";
 import {IKeeperManager} from "./interfaces/IKeeperManager.sol";
 
-
 contract MultiInvoker is IMultiInvoker {
     //using PositionLib for Position;
 
@@ -91,9 +90,6 @@ contract MultiInvoker is IMultiInvoker {
         uint256 startGas = gasleft();
 
         Position memory position = IMarket(market).positions(account);
-        // @todo figure out with settle
-        Local memory local = IMarket(market).locals(account);
-
         IKeeperManager.Order memory order = keeper.readOrder(account, market, orderNonce);
 
         order.isLong ?
@@ -110,12 +106,18 @@ contract MultiInvoker is IMultiInvoker {
             position.maker, 
             position.long, 
             position.short, 
-            local.collateral);
+            Fixed6Lib.ZERO);
 
         keeper.executeOrder(account, market, orderNonce);
 
-        _handleExecFee(account, market, Fixed6Lib.from(UFixed6.wrap(order.maxFee)), startGas, position, local.collateral);
-
+        if(msg.sender != account) {
+             _handleExecFee(
+                account, 
+                market, 
+                Fixed6Lib.from(UFixed6.wrap(order.maxFee)), 
+                startGas, 
+                position);
+        }
     }
 
     function _handleExecFee(
@@ -123,13 +125,13 @@ contract MultiInvoker is IMultiInvoker {
         address market, 
         Fixed6 maxFee, 
         uint256 startGas, 
-        Position memory position,
-        Fixed6 collateral
+        Position memory position
     ) internal {
         
         Fixed6 gasUsed = Fixed6Lib.from(UFixed6.wrap(startGas - gasleft()));
         Fixed6 chargeFee = gasUsed.muldiv(keeperPremium, Fixed6.wrap(100));
         
+        // @todo resolve max fee storage type, % or value 
         if(chargeFee.gt(maxFee)) revert MultiInvoker_ExecuteOrder_MaxFeeExceeded();
 
         IMarket(market).update(
@@ -137,7 +139,7 @@ contract MultiInvoker is IMultiInvoker {
             position.maker, 
             position.long, 
             position.short,
-            collateral.sub(chargeFee));
+            chargeFee.mul(Fixed6.wrap(-1)));
 
         uint256 fee = UFixed6.unwrap(chargeFee.abs());
 

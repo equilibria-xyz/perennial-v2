@@ -53,7 +53,7 @@ contract KeeperManager is IKeeperManager {
             order.maxFee); 
     }
 
-    /// @notice Opdate order invoker action to change stop loss, take profit, and or (if limit not filled) limit price.
+    /// @notice Opdate order invoker action to change exec price and or max fee.
     function updateOrder(
         address account,
         address market,

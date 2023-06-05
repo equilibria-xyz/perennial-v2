@@ -5,15 +5,17 @@ import { UFixed6, UFixed6Lib } from "@equilibria/root-v2/contracts/UFixed6.sol";
 import { Fixed6 } from "@equilibria/root-v2/contracts/Fixed6.sol";
 interface IKeeperManager {
 
+    // (-) exec price -> execute order when market price >= exec price 
+    // (+) exec price -> execure order when market price <= 
     struct Order {
         // slot 1
-        bool isLimit;
-        bool isLong;
-        uint8 maxFee;
+        bool isLimit; // true/false = increase/decrease order size of market position upon execution
+        bool isLong;  // true/false = change long/short size of market position upon execution
+        uint8 maxFee; // 
 
         // slot 2&3
-        Fixed6 execPrice;
-        UFixed6 size;
+        Fixed6 execPrice; // execute order when mkt price >= (-) execPrice or mkt price <= (+) execPrice
+        UFixed6 size;     // notional (?) magnitude of order on market position
     }
 
     error KeeeperManager_NotOnlyInvoker();
