@@ -22,6 +22,7 @@ import { BigNumber, constants } from 'ethers'
 import { deployProtocol, fundWallet } from '@equilibria/perennial-v2/test/integration/helpers/setupHelpers'
 import { parse6decimal } from '../../../../common/testutil/types'
 import { TransparentUpgradeableProxy__factory } from '@equilibria/perennial-v2/types/generated'
+import { beforeEach } from 'mocha'
 
 const { config, ethers } = HRE
 use(smock.matchers)
@@ -293,7 +294,90 @@ describe('Vault', () => {
     })
   })
 
-  describe('#deposit/#redeem/#claim/#sync', () => {
+  describe('#register', () => {
+    let market3: IMarket
+
+    beforeEach(async () => {
+      const oracleToMock3 = await new ChainlinkOracle__factory(owner).deploy(
+        '0x47Fb2585D2C56Fe188D0E6ec628a38b74fCeeeDf',
+        '0x514910771AF9Ca656af840dff83E8264EcF986CA',
+        '0x0000000000000000000000000000000000000348',
+        1,
+      )
+      const realOracle3 = await new ChainlinkOracle__factory(owner).deploy(
+        '0x47Fb2585D2C56Fe188D0E6ec628a38b74fCeeeDf',
+        '0x514910771AF9Ca656af840dff83E8264EcF986CA',
+        '0x0000000000000000000000000000000000000348',
+        1,
+      )
+      const realVersion3 = { ...(await realOracle3.latest()) }
+      const currentVersion3 = {
+        version: BigNumber.from(1000000),
+        timestamp: realVersion3.timestamp,
+        price: realVersion3.price,
+        valid: true,
+      }
+
+      const oracle3 = await smock.fake<IOracleProvider>('IOracleProvider', {
+        address: oracleToMock3.address,
+      })
+      oracle3.sync.returns([currentVersion3, currentVersion3.version.add(LEGACY_ORACLE_DELAY)])
+      oracle3.latest.returns(currentVersion3)
+      oracle3.current.returns(currentVersion3.version.add(LEGACY_ORACLE_DELAY))
+      oracle3.at.whenCalledWith(currentVersion3.version).returns(currentVersion3)
+
+      market3 = await deployProductOnMainnetFork({
+        factory: factory,
+        token: asset,
+        owner: owner,
+        name: 'Chainlink Token',
+        symbol: 'LINK',
+        oracle: oracleToMock3.address,
+        makerLimit: parse6decimal('1000000'),
+      })
+    })
+
+    it('registers new market correctly', async () => {
+      await expect(vault.connect(owner).register(market3.address))
+        .to.emit(vault, 'MarketRegistered')
+        .withArgs(2, market3.address)
+    })
+
+    it('reverts when not owner', async () => {
+      await expect(vault.connect(user).register(market.address)).to.be.revertedWith('VaultNotOwnerError')
+    })
+
+    it('reverts when market already registered', async () => {
+      await expect(vault.connect(owner).register(market.address)).to.be.revertedWith('VaultMarketExistsError')
+    })
+
+    it('reverts when not real market', async () => {
+      await expect(vault.connect(owner).register(constants.AddressZero)).to.be.revertedWith('VaultNotMarketError')
+    })
+
+    it('reverts when the asset is incorrect', async () => {
+      const oracleToMockBadAsset = await new ChainlinkOracle__factory(owner).deploy(
+        '0x47Fb2585D2C56Fe188D0E6ec628a38b74fCeeeDf',
+        '0x514910771AF9Ca656af840dff83E8264EcF986CA',
+        '0x0000000000000000000000000000000000000348',
+        1,
+      )
+
+      const marketBadAsset = await deployProductOnMainnetFork({
+        factory: factory,
+        token: IERC20Metadata__factory.connect(constants.AddressZero, owner),
+        owner: owner,
+        name: 'Chainlink Token',
+        symbol: 'LINK',
+        oracle: oracleToMockBadAsset.address,
+        makerLimit: parse6decimal('1000000'),
+      })
+
+      await expect(vault.connect(owner).register(marketBadAsset.address)).to.be.revertedWith('VaultIncorrectAssetError')
+    })
+  })
+
+  describe('#deposit/#redeem/#claim/#settle', () => {
     it('simple deposits and withdraws', async () => {
       expect(await vault.convertToAssets(parse6decimal('1'))).to.equal(parse6decimal('1'))
       expect(await vault.convertToShares(parse6decimal('1'))).to.equal(parse6decimal('1'))
