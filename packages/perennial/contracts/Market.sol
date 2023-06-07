@@ -7,8 +7,6 @@ import "./interfaces/IMarket.sol";
 import "./interfaces/IFactory.sol";
 import "hardhat/console.sol";
 
-// TODO: double check all fees are using notional
-
 /**
  * @title Market
  * @notice Manages logic and state for a single market market.
@@ -112,13 +110,13 @@ contract Market is IMarket, UInitializable, UOwnable {
         Global memory newGlobal = _global.read();
 
         if (msg.sender == treasury) {
-            token.push(msg.sender, UFixed18.wrap(UFixed6.unwrap(newGlobal.marketFee) * 1e12));
+            token.push(msg.sender, UFixed18Lib.from(newGlobal.marketFee));
             emit FeeClaimed(msg.sender, newGlobal.marketFee);
             newGlobal.marketFee = UFixed6Lib.ZERO;
         }
 
         if (msg.sender == factory.treasury()) {
-            token.push(msg.sender, UFixed18.wrap(UFixed6.unwrap(newGlobal.protocolFee) * 1e12));
+            token.push(msg.sender, UFixed18Lib.from(newGlobal.protocolFee));
             emit FeeClaimed(msg.sender, newGlobal.protocolFee);
             newGlobal.protocolFee = UFixed6Lib.ZERO;
         }
@@ -129,7 +127,7 @@ contract Market is IMarket, UInitializable, UOwnable {
     function claimReward() external {
         Local memory newLocal = _locals[msg.sender].read();
 
-        reward.push(msg.sender, UFixed18.wrap(UFixed6.unwrap(newLocal.reward) * 1e12));
+        reward.push(msg.sender, UFixed18Lib.from(newLocal.reward));
         emit RewardClaimed(msg.sender, newLocal.reward);
 
         newLocal.clearReward();
