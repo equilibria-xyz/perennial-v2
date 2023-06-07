@@ -71,10 +71,7 @@ describe('KeeperManager', () => {
         targetUtilization: '0',
       },
       oracle: oracle.address,
-      payoff: {
-        provider: payoff.address,
-        short: false,
-      },
+      payoff: payoff.address,
     }
 
     const marketDefinition: IMarket.MarketDefinitionStruct = {
