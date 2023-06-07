@@ -30,6 +30,15 @@ contract KeeperManager is IKeeperManager {
     function readOrder(address account, address market, uint256 nonce) external view returns(Order memory) {
         return _readOrder(account, market, nonce);
     }
+
+    function canExecuteOrder(address account, address market, uint256 nonce) external view returns(bool) {
+        Order memory o = _readOrder(account, market, nonce);
+        if(o.execPrice.isZero()) return false;
+
+        (, bool canFill) = _canFillOrder(o, market);
+        return canFill;
+    }
+
     /// @notice Places order on behalf of `account` from the invoker
     function placeOrder(
         address account, 
@@ -53,7 +62,7 @@ contract KeeperManager is IKeeperManager {
             order.maxFee); 
     }
 
-    /// @notice Opdate order invoker action to change exec price and or max fee.
+    /// @notice Update order invoker action to change exec price and or max fee.
     function updateOrder(
         address account,
         address market,
@@ -64,8 +73,10 @@ contract KeeperManager is IKeeperManager {
 
         if(openOrder.execPrice.isZero()) revert KeeperManager_UpdateOrder_OrderDoesNotExist();
 
+        
         openOrder.execPrice = update.execPrice.isZero() ? openOrder.execPrice : update.execPrice;
         openOrder.maxFee = update.maxFee.isZero() ? openOrder.maxFee : update.maxFee;
+        openOrder.size = openOrder.isLimit && !update.size.isZero() ? update.size : openOrder.size;
 
         allOpenOrders[account][market][nonce] = openOrder;
 
@@ -82,7 +93,9 @@ contract KeeperManager is IKeeperManager {
         address market,
         uint256 nonce
     ) external onlyInvoker {
-       // Order memory order = _readOrder(account, market, nonce);
+        Order memory order = _readOrder(account, market, nonce);
+
+        if(order.execPrice.isZero()) return;
 
         delete allOpenOrders[account][market][nonce];
         --numOpenOrders[account][market];
