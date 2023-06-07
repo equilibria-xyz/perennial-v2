@@ -46,10 +46,12 @@ contract KeeperManager is IKeeperManager {
         Order memory order
     ) external onlyInvoker {
         
-        uint256 _orderNonce = orderNonce;
+        uint256 _orderNonce = ++orderNonce;
+        //++orderNonce;
         allOpenOrders[account][market][orderNonce] = order;
 
         ++numOpenOrders[account][market];
+        
         uint8 _openOrders = numOpenOrders[account][market];
         if(_openOrders > 10) revert KeeperManager_PlaceOrder_MaxOpenOrders();
         
