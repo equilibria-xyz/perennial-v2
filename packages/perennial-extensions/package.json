@@ -33,7 +33,7 @@
     "@equilibria/emptyset-batcher": "^0.1.0",
     "@equilibria/perennial-v2-oracle": "1.0.0",
     "@equilibria/perennial-v2-payoff": "1.0.0",
-    "@equilibria/root": "0.1.6",
+    "@equilibria/root": "0.3.0-beta0",
     "@equilibria/root-v2": "1.0.0",
     "@nomicfoundation/hardhat-network-helpers": "^1.0.8",
     "@openzeppelin/contracts": "4.8.0"
