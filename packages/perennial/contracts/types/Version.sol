@@ -173,7 +173,7 @@ library VersionLib {
         MarketParameter memory marketParameter
     ) private pure {
         UFixed6 elapsed = UFixed6Lib.from(toOracleVersion.timestamp - fromOracleVersion.timestamp);
-        //TODO: refunded rewards here will effect the "auto-close functionality"
+        //TODO (reward auto-close): refunded rewards here will effect the "auto-close functionality"
 
         if (!position.maker.isZero())
             self.makerReward.increment(elapsed.mul(marketParameter.makerRewardRate), position.maker);

@@ -58,7 +58,7 @@ library LocalLib {
     }
 }
 
-library LocalStorageLib { // TODO: automate this storage format to save contract size
+library LocalStorageLib { // TODO (gas hint): automate this storage format to save contract size
     error LocalStorageInvalidError();
 
     function read(LocalStorage storage self) internal view returns (Local memory) {

@@ -29,8 +29,6 @@ use(smock.matchers)
 
 const LEGACY_ORACLE_DELAY = 1
 
-// TODO: parameter tests
-
 describe('Vault', () => {
   let vault: IVault
   let asset: IERC20Metadata
@@ -374,6 +372,68 @@ describe('Vault', () => {
       })
 
       await expect(vault.connect(owner).register(marketBadAsset.address)).to.be.revertedWith('VaultIncorrectAssetError')
+    })
+  })
+
+  describe('#updateParameter', () => {
+    it('updates correctly', async () => {
+      const newParameter = {
+        asset: asset.address,
+        leverage: parse6decimal('5'),
+        cap: parse6decimal('1000000'),
+        premium: parse6decimal('0.20'),
+      }
+      await expect(vault.connect(owner).updateParameter(newParameter))
+        .to.emit(vault, 'ParameterUpdated')
+        .withArgs(newParameter)
+
+      const parameter = await vault.parameter()
+      expect(parameter.asset).to.deep.contain(newParameter.asset)
+      expect(parameter.leverage).to.deep.contain(newParameter.leverage)
+      expect(parameter.cap).to.deep.contain(newParameter.cap)
+      expect(parameter.premium).to.deep.contain(newParameter.premium)
+    })
+
+    it('reverts when asset changes', async () => {
+      const newParameter = {
+        asset: constants.AddressZero,
+        leverage: parse6decimal('5'),
+        cap: parse6decimal('1000000'),
+        premium: parse6decimal('0.20'),
+      }
+      await expect(vault.connect(owner).updateParameter(newParameter)).to.be.revertedWith(
+        'VaultParameterStorageImmutableError',
+      )
+    })
+
+    it('reverts when not owner', async () => {
+      const newParameter = {
+        asset: asset.address,
+        leverage: parse6decimal('5'),
+        cap: parse6decimal('1000000'),
+        premium: parse6decimal('0.20'),
+      }
+      await expect(vault.connect(user).updateParameter(newParameter)).to.be.revertedWith('VaultNotOwnerError')
+    })
+  })
+
+  describe('#updateWeight', () => {
+    it('updates correctly', async () => {
+      await expect(vault.connect(owner).updateWeight(1, 2)).to.emit(vault, 'WeightUpdated').withArgs(1, 2)
+
+      expect((await vault.registrations(1)).weight).to.eq(2)
+
+      await expect(vault.connect(owner).updateWeight(1, 0)).to.emit(vault, 'WeightUpdated').withArgs(1, 0)
+
+      expect((await vault.registrations(1)).weight).to.eq(0)
+    })
+
+    it('reverts when invalid marketId', async () => {
+      await expect(vault.connect(owner).updateWeight(2, 10)).to.be.revertedWith('VaultMarketDoesNotExistError')
+    })
+
+    it('reverts when not owner', async () => {
+      await expect(vault.connect(user).updateWeight(1, 2)).to.be.revertedWith('VaultNotOwnerError')
     })
   })
 
