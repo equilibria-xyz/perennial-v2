@@ -2,9 +2,7 @@ pragma solidity ^0.8.13;
 
 import {IMultiInvoker } from "./interfaces/IMultiInvoker.sol";
 import {IKeeperManager, IMarket, MarketParameter, UFixed6, UFixed6Lib} from "./interfaces/IKeeperManager.sol";
-
-
-import { Fixed6 } from "@equilibria/root-v2/contracts/Fixed6.sol";
+import { Fixed6 } from "@equilibria/root/number/types/Fixed6.sol";
 
 contract KeeperManager is IKeeperManager {
 

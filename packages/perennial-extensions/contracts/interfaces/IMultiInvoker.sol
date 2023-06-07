@@ -1,7 +1,7 @@
 pragma solidity ^0.8.13;
 import { IMarket, Position, Local, UFixed18Lib, UFixed18 } from "@equilibria/perennial-v2/contracts/interfaces/IMarket.sol";
-import { UFixed6, UFixed6Lib } from "@equilibria/root-v2/contracts/UFixed6.sol";
-import { Fixed6, Fixed6Lib } from "@equilibria/root-v2/contracts/Fixed6.sol";
+import { UFixed6, UFixed6Lib } from "@equilibria/root/number/types/UFixed6.sol";
+import { Fixed6, Fixed6Lib } from "@equilibria/root/number/types/Fixed6.sol";
 import { Token6 } from "@equilibria/root/token/types/Token6.sol";
 import { Token18 } from "@equilibria/root/token/types/Token18.sol";
 interface IMultiInvoker {

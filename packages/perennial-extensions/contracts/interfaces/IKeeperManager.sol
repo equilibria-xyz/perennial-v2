@@ -1,8 +1,8 @@
 pragma solidity ^0.8.13;
 
 import { IMarket, Position, MarketParameter } from "@equilibria/perennial-v2/contracts/interfaces/IMarket.sol";
-import { UFixed6, UFixed6Lib } from "@equilibria/root-v2/contracts/UFixed6.sol";
-import { Fixed6, Fixed6Lib } from "@equilibria/root-v2/contracts/Fixed6.sol";
+import { UFixed6, UFixed6Lib } from "@equilibria/root/number/types/UFixed6.sol";
+import { Fixed6, Fixed6Lib } from "@equilibria/root/number/types/Fixed6.sol";
 
 interface IKeeperManager {
 
