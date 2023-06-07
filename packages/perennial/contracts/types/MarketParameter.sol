@@ -3,8 +3,8 @@ pragma solidity ^0.8.13;
 
 import "@equilibria/perennial-v2-payoff/contracts/IPayoffProvider.sol";
 import "@equilibria/perennial-v2-oracle/contracts/IOracleProvider.sol";
-import "@equilibria/root-v2/contracts/UFixed6.sol";
-import "@equilibria/root-v2/contracts/UJumpRateUtilizationCurve6.sol";
+import "@equilibria/root/number/types/UFixed6.sol";
+import "@equilibria/root/curve/types/UJumpRateUtilizationCurve6.sol";
 
 /// @dev MarketParameter type
 struct MarketParameter {
@@ -82,19 +82,19 @@ library MarketParameterStorageLib {
     function store(MarketParameterStorage storage self, MarketParameter memory newValue) internal {
         StoredMarketParameter memory oldValue = self.value;
 
-        if (newValue.maintenance.gt(UFixed6Lib.MAX_24)) revert MarketParameterStorageInvalidError();
-        if (newValue.fundingFee.gt(UFixed6Lib.MAX_24)) revert MarketParameterStorageInvalidError();
-        if (newValue.takerFee.gt(UFixed6Lib.MAX_24)) revert MarketParameterStorageInvalidError();
-        if (newValue.makerFee.gt(UFixed6Lib.MAX_24)) revert MarketParameterStorageInvalidError();
-        if (newValue.positionFee.gt(UFixed6Lib.MAX_24)) revert MarketParameterStorageInvalidError();
-        if (newValue.makerLimit.gt(UFixed6Lib.MAX_48)) revert MarketParameterStorageInvalidError();
-        if (newValue.makerRewardRate.gt(UFixed6Lib.MAX_32)) revert MarketParameterStorageInvalidError();
-        if (newValue.longRewardRate.gt(UFixed6Lib.MAX_32)) revert MarketParameterStorageInvalidError();
-        if (newValue.shortRewardRate.gt(UFixed6Lib.MAX_32)) revert MarketParameterStorageInvalidError();
-        if (newValue.utilizationCurve.minRate.gt(UFixed6Lib.MAX_32)) revert MarketParameterStorageInvalidError();
-        if (newValue.utilizationCurve.maxRate.gt(UFixed6Lib.MAX_32)) revert MarketParameterStorageInvalidError();
-        if (newValue.utilizationCurve.targetRate.gt(UFixed6Lib.MAX_32)) revert MarketParameterStorageInvalidError();
-        if (newValue.utilizationCurve.targetUtilization.gt(UFixed6Lib.MAX_32)) revert MarketParameterStorageInvalidError();
+        if (newValue.maintenance.gt(UFixed6.wrap(type(uint24).max))) revert MarketParameterStorageInvalidError();
+        if (newValue.fundingFee.gt(UFixed6.wrap(type(uint24).max))) revert MarketParameterStorageInvalidError();
+        if (newValue.takerFee.gt(UFixed6.wrap(type(uint24).max))) revert MarketParameterStorageInvalidError();
+        if (newValue.makerFee.gt(UFixed6.wrap(type(uint24).max))) revert MarketParameterStorageInvalidError();
+        if (newValue.positionFee.gt(UFixed6.wrap(type(uint24).max))) revert MarketParameterStorageInvalidError();
+        if (newValue.makerLimit.gt(UFixed6.wrap(type(uint48).max))) revert MarketParameterStorageInvalidError();
+        if (newValue.makerRewardRate.gt(UFixed6.wrap(type(uint32).max))) revert MarketParameterStorageInvalidError();
+        if (newValue.longRewardRate.gt(UFixed6.wrap(type(uint32).max))) revert MarketParameterStorageInvalidError();
+        if (newValue.shortRewardRate.gt(UFixed6.wrap(type(uint32).max))) revert MarketParameterStorageInvalidError();
+        if (newValue.utilizationCurve.minRate.gt(UFixed6.wrap(type(uint32).max))) revert MarketParameterStorageInvalidError();
+        if (newValue.utilizationCurve.maxRate.gt(UFixed6.wrap(type(uint32).max))) revert MarketParameterStorageInvalidError();
+        if (newValue.utilizationCurve.targetRate.gt(UFixed6.wrap(type(uint32).max))) revert MarketParameterStorageInvalidError();
+        if (newValue.utilizationCurve.targetUtilization.gt(UFixed6.wrap(type(uint32).max))) revert MarketParameterStorageInvalidError();
 
         if (oldValue.fuse && address(newValue.oracle) != oldValue.oracle) revert MarketParameterStorageImmutableError();
         if (oldValue.fuse && address(newValue.payoff) != oldValue.payoff) revert MarketParameterStorageImmutableError();

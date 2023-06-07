@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: Apache-2.0
 pragma solidity ^0.8.13;
 
-import "@equilibria/root-v2/contracts/IOwnable.sol";
-import "@equilibria/root-v2/contracts/UFixed6.sol";
+import "@equilibria/root/control/interfaces/IOwnable.sol";
+import "@equilibria/root/number/types/UFixed6.sol";
 import "@equilibria/root/token/types/Token18.sol";
 import "@equilibria/perennial-v2-oracle/contracts/IOracleProvider.sol";
 import "@equilibria/perennial-v2-oracle/contracts/types/OracleVersion.sol";

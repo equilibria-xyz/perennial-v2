@@ -197,12 +197,12 @@ library PositionStorageGlobalLib {
     }
 
     function store(PositionStorageGlobal storage self, Position memory newValue) internal {
-        if (newValue.id > type(uint32).max) revert PositionStorageGlobalInvalidError();
-        if (newValue.version > type(uint32).max) revert PositionStorageGlobalInvalidError();
-        if (newValue.maker.gt(UFixed6Lib.MAX_48)) revert PositionStorageGlobalInvalidError();
-        if (newValue.long.gt(UFixed6Lib.MAX_48)) revert PositionStorageGlobalInvalidError();
-        if (newValue.short.gt(UFixed6Lib.MAX_48)) revert PositionStorageGlobalInvalidError();
-        if (newValue.fee.gt(UFixed6Lib.MAX_48)) revert PositionStorageGlobalInvalidError();
+        if (newValue.id > uint256(type(uint32).max)) revert PositionStorageGlobalInvalidError();
+        if (newValue.version > uint256(type(uint32).max)) revert PositionStorageGlobalInvalidError();
+        if (newValue.maker.gt(UFixed6.wrap(type(uint48).max))) revert PositionStorageGlobalInvalidError();
+        if (newValue.long.gt(UFixed6.wrap(type(uint48).max))) revert PositionStorageGlobalInvalidError();
+        if (newValue.short.gt(UFixed6.wrap(type(uint48).max))) revert PositionStorageGlobalInvalidError();
+        if (newValue.fee.gt(UFixed6.wrap(type(uint48).max))) revert PositionStorageGlobalInvalidError();
 
         self.value = StoredPositionGlobal(
             uint32(newValue.id),
@@ -236,14 +236,14 @@ library PositionStorageLocalLib {
     function store(PositionStorageLocal storage self, Position memory newValue) internal {
         if (newValue.id > type(uint24).max) revert PositionStorageLocalInvalidError();
         if (newValue.version > type(uint32).max) revert PositionStorageLocalInvalidError();
-        if (newValue.maker.gt(UFixed6Lib.MAX_48)) revert PositionStorageLocalInvalidError();
-        if (newValue.long.gt(UFixed6Lib.MAX_48)) revert PositionStorageLocalInvalidError();
-        if (newValue.short.gt(UFixed6Lib.MAX_48)) revert PositionStorageLocalInvalidError();
-        if (newValue.fee.gt(UFixed6Lib.MAX_48)) revert PositionStorageLocalInvalidError();
-        if (newValue.collateral.gt(Fixed6Lib.MAX_48)) revert PositionStorageLocalInvalidError();
-        if (newValue.collateral.lt(Fixed6Lib.MIN_48)) revert PositionStorageLocalInvalidError();
-        if (newValue.delta.gt(Fixed6Lib.MAX_48)) revert PositionStorageLocalInvalidError();
-        if (newValue.delta.lt(Fixed6Lib.MIN_48)) revert PositionStorageLocalInvalidError();
+        if (newValue.maker.gt(UFixed6.wrap(type(uint48).max))) revert PositionStorageLocalInvalidError();
+        if (newValue.long.gt(UFixed6.wrap(type(uint48).max))) revert PositionStorageLocalInvalidError();
+        if (newValue.short.gt(UFixed6.wrap(type(uint48).max))) revert PositionStorageLocalInvalidError();
+        if (newValue.fee.gt(UFixed6.wrap(type(uint48).max))) revert PositionStorageLocalInvalidError();
+        if (newValue.collateral.gt(Fixed6.wrap(type(int48).max))) revert PositionStorageLocalInvalidError();
+        if (newValue.collateral.lt(Fixed6.wrap(type(int48).min))) revert PositionStorageLocalInvalidError();
+        if (newValue.delta.gt(Fixed6.wrap(type(int48).max))) revert PositionStorageLocalInvalidError();
+        if (newValue.delta.lt(Fixed6.wrap(type(int48).min))) revert PositionStorageLocalInvalidError();
 
         self.value = StoredPositionLocal(
             uint24(newValue.id),

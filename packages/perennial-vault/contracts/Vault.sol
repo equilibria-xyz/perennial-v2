@@ -187,7 +187,7 @@ contract Vault is IVault, UInitializable {
         context.local.deposit = depositAmount;
         context.checkpoint.deposit = context.checkpoint.deposit.add(depositAmount);
 
-        context.parameter.asset.pull(msg.sender, _toU18(assets));
+        context.parameter.asset.pull(msg.sender, UFixed18Lib.from(assets));
 
         _rebalance(context, UFixed6Lib.ZERO);
         _saveContext(context, account);
@@ -250,7 +250,7 @@ contract Vault is IVault, UInitializable {
 
         _saveContext(context, account);
 
-        context.parameter.asset.push(account, _toU18(claimAmount));
+        context.parameter.asset.push(account, UFixed18Lib.from(claimAmount));
     }
 
     /**
@@ -311,7 +311,7 @@ contract Vault is IVault, UInitializable {
         // sync data for new id
         context.checkpoint.start(
             context.global.shares,
-            Fixed6Lib.from(_toU6(context.parameter.asset.balanceOf()))
+            Fixed6Lib.from(UFixed6Lib.from(context.parameter.asset.balanceOf()))
                 .sub(Fixed6Lib.from(context.global.deposit.add(context.global.assets)))
         );
     }
@@ -520,7 +520,7 @@ contract Vault is IVault, UInitializable {
      * @return value The real amount of collateral in the vault
      **/
     function _collateral(Context memory context) public view returns (Fixed6 value) {
-        value = Fixed6Lib.from(_toU6(context.parameter.asset.balanceOf()));
+        value = Fixed6Lib.from(UFixed6Lib.from(context.parameter.asset.balanceOf()));
         for (uint256 marketId; marketId < context.markets.length; marketId++)
             value = value.add(context.markets[marketId].collateral);
     }
@@ -536,14 +536,5 @@ contract Vault is IVault, UInitializable {
     modifier onlyOwner {
         if (msg.sender != factory.owner()) revert VaultNotOwnerError();
         _;
-    }
-
-    //TODO: replace these with root functions
-    function _toU18(UFixed6 n) private pure returns (UFixed18) {
-        return UFixed18.wrap(UFixed6.unwrap(n) * 1e12);
-    }
-
-    function _toU6(UFixed18 n) private pure returns (UFixed6) {
-        return UFixed6.wrap(UFixed18.unwrap(n) / 1e12);
     }
 }

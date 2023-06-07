@@ -103,6 +103,13 @@
   dependencies:
     "@openzeppelin/contracts" "4.6.0"
 
+"@equilibria/root@0.3.0-beta0":
+  version "0.3.0-beta0"
+  resolved "https://registry.yarnpkg.com/@equilibria/root/-/root-0.3.0-beta0.tgz#019ef52896e4f2f2da674863a73973515009eeb6"
+  integrity sha512-3A/iLPPifK9rCL6+BETuKSHuhU1h7uZCjBcp7UXotmsbH+J9N/y0ICXIpYEDyY/j8IqAJDY87B3frGBaEKTaxg==
+  dependencies:
+    "@openzeppelin/contracts" "4.6.0"
+
 "@eslint/eslintrc@^0.4.3":
   version "0.4.3"
   resolved "https://registry.yarnpkg.com/@eslint/eslintrc/-/eslintrc-0.4.3.tgz#9e42981ef035beb3dd49add17acb96e8ff6f394c"

@@ -2,7 +2,7 @@
 pragma solidity ^0.8.13;
 
 import "@equilibria/perennial-v2/contracts/interfaces/IFactory.sol";
-import "@equilibria/root-v2/contracts/UFixed6.sol";
+import "@equilibria/root/contracts/number/types/UFixed6.sol";
 import "../types/Account.sol";
 import "../types/Checkpoint.sol";
 import "../types/VaultParameter.sol";

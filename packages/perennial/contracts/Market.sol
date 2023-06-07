@@ -2,7 +2,7 @@
 pragma solidity 0.8.19;
 
 import "@equilibria/root/control/unstructured/UInitializable.sol";
-import "@equilibria/root-v2/contracts/UOwnable.sol";
+import "@equilibria/root/control/unstructured/UOwnable.sol";
 import "./interfaces/IMarket.sol";
 import "./interfaces/IFactory.sol";
 import "hardhat/console.sol";
@@ -235,10 +235,8 @@ contract Market is IMarket, UInitializable, UOwnable {
         _startGas(context, "_update fund-events: %s");
 
         // fund
-        if (collateralAmount.sign() == 1)
-            token.pull(msg.sender, UFixed18.wrap(UFixed6.unwrap(collateralAmount.abs()) * 1e12)); //TODO: use .to6()
-        if (collateralAmount.sign() == -1)
-            token.push(msg.sender, UFixed18.wrap(UFixed6.unwrap(collateralAmount.abs()) * 1e12));
+        if (collateralAmount.sign() == 1) token.pull(msg.sender, UFixed18Lib.from(collateralAmount.abs()));
+        if (collateralAmount.sign() == -1) token.push(msg.sender, UFixed18Lib.from(collateralAmount.abs()));
 
         // events
         emit Updated(account, context.currentVersion, newMaker, newLong, newShort, collateral);
