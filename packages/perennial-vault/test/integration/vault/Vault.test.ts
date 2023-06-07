@@ -27,6 +27,7 @@ const { config, ethers } = HRE
 use(smock.matchers)
 
 const LEGACY_ORACLE_DELAY = 1
+
 // TODO: parameter tests
 
 describe('Vault', () => {
@@ -1097,7 +1098,8 @@ describe('Vault', () => {
 
         // 4. Settle the vault to recover and rebalance
         await updateOracle() // let take settle at high price
-        await updateOracle(parse6decimal('1500'), parse6decimal('5000')) // lower prices to allow rebalance (TODO)
+        // TODO: this can be used to verify the resolution to the rebalance revert bricking issue
+        await updateOracle(parse6decimal('1500'), parse6decimal('5000')) // lower prices to allow rebalance
         await vault.settle(user.address)
         await updateOracle()
         await vault.settle(user.address)

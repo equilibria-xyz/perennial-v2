@@ -5,9 +5,6 @@ import "@equilibria/root-v2/contracts/UOwnable.sol";
 import "@openzeppelin/contracts/proxy/beacon/BeaconProxy.sol";
 import "./interfaces/IVaultFactory.sol";
 
-// TODO: pause?
-// TODO: operator?
-
 /**
  * @title VaultFactory
  * @notice Manages creating new vaults

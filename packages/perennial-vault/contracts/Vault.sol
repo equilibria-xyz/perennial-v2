@@ -11,10 +11,6 @@ import "./types/Registration.sol";
 import "./types/VaultParameter.sol";
 import "hardhat/console.sol";
 
-// TODO: only pull out what you can from collateral when really unbalanced
-// TODO: shortfall or liquidation will cause an extra order on one market de-syncing the ids from initialId
-// TODO: separate out the allocation strategy from the accounting state to make upgrades cleaner
-
 /**
  * @title Vault
  * @notice ERC4626 vault that manages a 50-50 position between long-short markets of the same payoff on Perennial.
