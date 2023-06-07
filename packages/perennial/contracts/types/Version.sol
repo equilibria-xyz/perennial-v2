@@ -19,7 +19,7 @@ struct Version {
     bool valid;
 }
 using VersionLib for Version global;
-struct StoredVersion { // TODO: w/ careful overflow enablement we can collapse this to a single slot
+struct StoredVersion { // TODO (gas hint): w/ careful overflow enablement we can collapse this to a single slot
     int80 _makerValue;
     int88 _longValue;
     int88 _shortValue;

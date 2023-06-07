@@ -13,9 +13,9 @@ struct Position {
     UFixed6 maker;
     UFixed6 long;
     UFixed6 short;
-    UFixed6 fee; // TODO: unused in the non-pending instances
-    Fixed6 collateral; // TODO: unused in the non-pending and global instances
-    Fixed6 delta; // TODO: unused in the non-pending and global instances
+    UFixed6 fee; // TODO (gas hint): unused in the non-pending instances
+    Fixed6 collateral;
+    Fixed6 delta;
 }
 using PositionLib for Position global;
 struct StoredPositionGlobal {

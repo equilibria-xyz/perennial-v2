@@ -7,7 +7,6 @@ import "./interfaces/IMarket.sol";
 import "./interfaces/IFactory.sol";
 import "hardhat/console.sol";
 
-// TODO: because the vault needs to call settle(), there's no way around it liquidating itself and locking the vault for 1 version
 // TODO: double check all fees are using notional
 
 /**
