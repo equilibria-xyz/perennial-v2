@@ -59,6 +59,10 @@ contract Vault is IVault, UInitializable {
         return _parameter.read();
     }
 
+    function registrations(uint256 marketId) external view returns (Registration memory) {
+        return _registrations[marketId].read();
+    }
+
     function asset() external view returns (Token18) { return _parameter.read().asset; }
     function name() external pure returns (string memory) { return "Vault-XX"; } // TODO generate
     function totalSupply() external view returns (UFixed6) { return _account.read().shares; }

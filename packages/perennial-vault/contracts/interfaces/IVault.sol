@@ -6,6 +6,7 @@ import "@equilibria/root/number/types/UFixed6.sol";
 import "../types/Account.sol";
 import "../types/Checkpoint.sol";
 import "../types/VaultParameter.sol";
+import "../types/Registration.sol";
 
 interface IVault {
     struct Context {
@@ -79,6 +80,7 @@ interface IVault {
 
     function totalMarkets() external view returns (uint256);
     function parameter() external view returns (VaultParameter memory);
+    function registrations(uint256 marketId) external view returns (Registration memory);
     function asset() external view returns (Token18);
     function register(IMarket market) external;
     function updateWeight(uint256 marketId, uint256 newWeight) external;
