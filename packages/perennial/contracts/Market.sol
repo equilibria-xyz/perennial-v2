@@ -168,12 +168,12 @@ contract Market is IMarket, UInitializable, UOwnable {
 
     function _liquidate(CurrentContext memory context, address account) private {
         // before
-        UFixed6 maintenance = context.accountPosition.maintenance(context.latestVersion, context.marketParameter);
-        if (
-            context.local.collateral.max(Fixed6Lib.ZERO).gte(Fixed6Lib.from(maintenance)) ||
-            context.local.liquidation > context.accountPosition.version ||
-            context.marketParameter.closed
-        ) return;
+        UFixed6 maintenance = context.marketParameter.closed ?
+            UFixed6Lib.ZERO :
+            context.accountPosition.maintenance(context.latestVersion, context.marketParameter);
+
+        if (context.local.collateral.max(Fixed6Lib.ZERO).gte(Fixed6Lib.from(maintenance)) ||
+            context.local.liquidation > context.accountPosition.version) return;
 
         // compute reward
         UFixed6 liquidationFee = context.accountPosition.liquidationFee(
@@ -202,7 +202,7 @@ contract Market is IMarket, UInitializable, UOwnable {
 
         // before
         if (context.local.liquidation > context.accountPosition.version) revert MarketInLiquidationError();
-        if (context.marketParameter.closed && !newMaker.add(newLong).add(newShort).isZero()) revert MarketClosedError(); // TODO: duplicate?
+        if (context.marketParameter.closed && !newMaker.add(newLong).add(newShort).isZero()) revert MarketClosedError();
 
         // update position
         if (context.currentVersion > context.accountPendingPosition.version) context.local.currentId++;
