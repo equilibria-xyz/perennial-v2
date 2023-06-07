@@ -14,7 +14,7 @@ contract KeeperManager is IKeeperManager {
     mapping(address => mapping(address=> uint8)) public numOpenOrders;
     mapping(address => mapping(address => mapping(uint256 => Order))) public allOpenOrders;
 
-    uint8 public constant MAX_PCT = 100;
+    // uint8 public constant MAX_PCT = 100;
 
     constructor(address invoker_) {
         invoker = IMultiInvoker(invoker_);
@@ -143,9 +143,9 @@ contract KeeperManager is IKeeperManager {
         return (price, canFill);
     }
 
-    function _validateOrderFee(Order memory o, UFixed6 fee) internal pure returns (bool) {
-        return o.size.muldiv(fee, UFixed6Lib.from(MAX_PCT)).gte(UFixed6Lib.from(o.maxFee));
-    }
+    // function _validateOrderFee(Order memory o, UFixed6 fee) internal pure returns (bool) {
+    //     return o.size.muldiv(fee, UFixed6Lib.from(MAX_PCT)).gte(UFixed6Lib.from(o.maxFee));
+    // }
     
     function _readOrder(address account, address market, uint256 nonce) internal view returns (Order memory order) {
         order = allOpenOrders[account][market][nonce];

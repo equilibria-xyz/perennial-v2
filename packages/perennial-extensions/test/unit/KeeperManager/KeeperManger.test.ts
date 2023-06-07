@@ -85,7 +85,6 @@ describe('KeeperManager', () => {
     market.parameter.returns(marketParam)
 
     await market.connect(owner).initialize(marketDefinition, marketParam)
-    console.log('HERE')
   })
 
   describe('#constructor', () => {
