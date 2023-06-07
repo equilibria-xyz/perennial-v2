@@ -18,7 +18,7 @@
   "devDependencies": {
     "@codechecks/client": "^0.1.10",
     "@defi-wonderland/smock": "^2.0.7",
-    "@equilibria/root": "0.1.6",
+    "@equilibria/root": "0.3.0-beta0",
     "@ethersproject/abi": "^5.3.1",
     "@ethersproject/bytes": "^5.0.0",
     "@ethersproject/providers": "^5.3.1",
@@ -40,7 +40,7 @@
     "eslint-config-prettier": "^8.3.0",
     "ethereum-waffle": "^3.4.4",
     "ethers": "^5.5.1",
-    "hardhat": "^2.12.1-ir.0",
+    "hardhat": "2.12.1-ir.0",
     "hardhat-contract-sizer": "^2.4.0",
     "hardhat-dependency-compiler": "^1.1.2",
     "hardhat-deploy": "^0.9.27",

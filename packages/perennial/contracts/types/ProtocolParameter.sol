@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: Apache-2.0
 pragma solidity ^0.8.13;
 
-import "@equilibria/root-v2/contracts/UFixed6.sol";
+import "@equilibria/root/number/types/UFixed6.sol";
 
 /// @dev ProtocolParameter type
 struct ProtocolParameter {
@@ -44,12 +44,12 @@ library ProtocolParameterStorageLib {
     }
 
     function store(ProtocolParameterStorage storage self, ProtocolParameter memory newValue) internal {
-        if (newValue.protocolFee.gt(UFixed6Lib.MAX_24)) revert ProtocolParameterStorageInvalidError();
-        if (newValue.minFundingFee.gt(UFixed6Lib.MAX_24)) revert ProtocolParameterStorageInvalidError();
-        if (newValue.liquidationFee.gt(UFixed6Lib.MAX_24)) revert ProtocolParameterStorageInvalidError();
-        if (newValue.minCollateral.gt(UFixed6Lib.MAX_48)) revert ProtocolParameterStorageInvalidError();
-        if (newValue.minSpread.gt(UFixed6Lib.MAX_24)) revert ProtocolParameterStorageInvalidError();
-        if (newValue.maxPendingIds > type(uint8).max) revert ProtocolParameterStorageInvalidError();
+        if (newValue.protocolFee.gt(UFixed6.wrap(type(uint24).max))) revert ProtocolParameterStorageInvalidError();
+        if (newValue.minFundingFee.gt(UFixed6.wrap(type(uint24).max))) revert ProtocolParameterStorageInvalidError();
+        if (newValue.liquidationFee.gt(UFixed6.wrap(type(uint24).max))) revert ProtocolParameterStorageInvalidError();
+        if (newValue.minCollateral.gt(UFixed6.wrap(type(uint48).max))) revert ProtocolParameterStorageInvalidError();
+        if (newValue.minSpread.gt(UFixed6.wrap(type(uint24).max))) revert ProtocolParameterStorageInvalidError();
+        if (newValue.maxPendingIds > uint256(type(uint8).max)) revert ProtocolParameterStorageInvalidError();
 
         self.value = StoredProtocolParameter(
             uint24(UFixed6.unwrap(newValue.protocolFee)),

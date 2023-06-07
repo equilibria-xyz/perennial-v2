@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: Apache-2.0
 pragma solidity ^0.8.13;
 
-import "@equilibria/root-v2/contracts/IOwnable.sol";
-import "@equilibria/root-v2/contracts/UFixed6.sol";
+import "@equilibria/root/control/interfaces/IOwnable.sol";
+import "@equilibria/root/number/types/UFixed6.sol";
 import "@equilibria/root/token/types/Token18.sol";
 import "@equilibria/perennial-v2-oracle/contracts/IOracleProvider.sol";
 import "@equilibria/perennial-v2-oracle/contracts/types/OracleVersion.sol";
@@ -38,8 +38,8 @@ interface IMarket is IOwnable {
 
     event Settle(uint256 preVersion, uint256 toVersion);
     event AccountSettle(address indexed account, uint256 preVersion, uint256 toVersion);
-    event Updated(address indexed account, uint256 version, UFixed6 newMaker, UFixed6 newLong, UFixed6 newShort, Fixed6 newCollateral);
-    event Liquidation(address indexed account, address liquidator, UFixed6 liquidationReward);
+    event Updated(address indexed account, uint256 version, UFixed6 newMaker, UFixed6 newLong, UFixed6 newShort, Fixed6 collateral);
+    event Liquidation(address indexed account, address liquidator, UFixed6 liquidationFee);
     event FeeSettled(UFixed6 protocolFeeAmount, UFixed6 marketFeeAmount);
     event CollateralSettled(address indexed account, Fixed6 amount, UFixed6 newShortfall);
     event TreasuryUpdated(address newTreasury);
@@ -70,6 +70,7 @@ interface IMarket is IOwnable {
     function token() external view returns (Token18);
     function reward() external view returns (Token18);
     function treasury() external view returns (address);
+    function at(uint256 version) external view returns (OracleVersion memory);
     function positions(address account) external view returns (Position memory);
     function pendingPositions(address account, uint256 id) external view returns (Position memory);
     function locals(address account) external view returns (Local memory);

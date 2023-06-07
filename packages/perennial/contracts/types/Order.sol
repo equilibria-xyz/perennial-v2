@@ -23,9 +23,8 @@ library OrderLib {
         OracleVersion memory latestVersion,
         MarketParameter memory marketParameter
     ) internal pure {
-        self.fee = self.maker.abs().mul(marketParameter.makerFee)
-            .add(self.long.abs().add(self.short.abs()).mul(marketParameter.takerFee))
-            .mul(latestVersion.price.abs());
+        self.fee = self.maker.abs().mul(latestVersion.price.abs()).mul(marketParameter.makerFee)
+            .add(self.long.abs().add(self.short.abs()).mul(latestVersion.price.abs()).mul(marketParameter.takerFee));
     }
 
     function decreasesLiquidity(Order memory self) internal pure returns (bool) {

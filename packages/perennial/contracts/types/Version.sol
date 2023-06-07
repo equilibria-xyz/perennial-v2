@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: Apache-2.0
 pragma solidity ^0.8.13;
 
-import "@equilibria/root-v2/contracts/Accumulator6.sol";
-import "@equilibria/root-v2/contracts/UAccumulator6.sol";
+import "@equilibria/root/accumulator/types/Accumulator6.sol";
+import "@equilibria/root/accumulator/types/UAccumulator6.sol";
 import "./ProtocolParameter.sol";
 import "./MarketParameter.sol";
 import "./Global.sol";
@@ -19,7 +19,7 @@ struct Version {
     bool valid;
 }
 using VersionLib for Version global;
-struct StoredVersion { // TODO: w/ careful overflow enablement we can collapse this to a single slot
+struct StoredVersion { // TODO (gas hint): w/ careful overflow enablement we can collapse this to a single slot
     int80 _makerValue;
     int88 _longValue;
     int88 _shortValue;
@@ -201,15 +201,15 @@ library VersionStorageLib {
     }
 
     function store(VersionStorage storage self, Version memory newValue) internal {
-        if (newValue.makerValue._value.gt(Fixed6Lib.MAX_80)) revert VersionStorageInvalidError();
-        if (newValue.makerValue._value.lt(Fixed6Lib.MIN_80)) revert VersionStorageInvalidError();
-        if (newValue.longValue._value.gt(Fixed6Lib.MAX_88)) revert VersionStorageInvalidError();
-        if (newValue.longValue._value.lt(Fixed6Lib.MIN_88)) revert VersionStorageInvalidError();
-        if (newValue.shortValue._value.gt(Fixed6Lib.MAX_88)) revert VersionStorageInvalidError();
-        if (newValue.shortValue._value.lt(Fixed6Lib.MIN_88)) revert VersionStorageInvalidError();
-        if (newValue.makerReward._value.gt(UFixed6Lib.MAX_80)) revert VersionStorageInvalidError();
-        if (newValue.longReward._value.gt(UFixed6Lib.MAX_88)) revert VersionStorageInvalidError();
-        if (newValue.shortReward._value.gt(UFixed6Lib.MAX_88)) revert VersionStorageInvalidError();
+        if (newValue.makerValue._value.gt(Fixed6.wrap(type(int80).max))) revert VersionStorageInvalidError();
+        if (newValue.makerValue._value.lt(Fixed6.wrap(type(int80).min))) revert VersionStorageInvalidError();
+        if (newValue.longValue._value.gt(Fixed6.wrap(type(int88).max))) revert VersionStorageInvalidError();
+        if (newValue.longValue._value.lt(Fixed6.wrap(type(int88).min))) revert VersionStorageInvalidError();
+        if (newValue.shortValue._value.gt(Fixed6.wrap(type(int88).max))) revert VersionStorageInvalidError();
+        if (newValue.shortValue._value.lt(Fixed6.wrap(type(int88).min))) revert VersionStorageInvalidError();
+        if (newValue.makerReward._value.gt(UFixed6.wrap(type(uint80).max))) revert VersionStorageInvalidError();
+        if (newValue.longReward._value.gt(UFixed6.wrap(type(uint88).max))) revert VersionStorageInvalidError();
+        if (newValue.shortReward._value.gt(UFixed6.wrap(type(uint88).max))) revert VersionStorageInvalidError();
 
         self.value = StoredVersion(
             int80(Fixed6.unwrap(newValue.makerValue._value)),

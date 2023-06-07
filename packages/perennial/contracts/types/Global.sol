@@ -36,7 +36,7 @@ library GlobalStorageLib {
     error GlobalStorageInvalidError();
 
     function read(GlobalStorage storage self) internal view returns (Global memory) {
-        StoredGlobal memory storedValue =  self.value;
+        StoredGlobal memory storedValue = self.value;
         return Global(
             uint256(storedValue._currentId),
             UFixed6.wrap(uint256(storedValue._protocolFee)),
@@ -45,9 +45,9 @@ library GlobalStorageLib {
     }
 
     function store(GlobalStorage storage self, Global memory newValue) internal {
-        if (newValue.currentId > type(uint64).max) revert GlobalStorageInvalidError();
-        if (newValue.protocolFee.gt(UFixed6Lib.MAX_64)) revert GlobalStorageInvalidError();
-        if (newValue.marketFee.gt(UFixed6Lib.MAX_64)) revert GlobalStorageInvalidError();
+        if (newValue.currentId > uint256(type(uint64).max)) revert GlobalStorageInvalidError();
+        if (newValue.protocolFee.gt(UFixed6.wrap(type(uint64).max))) revert GlobalStorageInvalidError();
+        if (newValue.marketFee.gt(UFixed6.wrap(type(uint64).max))) revert GlobalStorageInvalidError();
 
         self.value = StoredGlobal(
             uint64(newValue.currentId),

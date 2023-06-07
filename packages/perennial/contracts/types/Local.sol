@@ -26,9 +26,8 @@ using LocalStorageLib for LocalStorage global;
  * @notice Library
  */
 library LocalLib {
-    function update(Local memory self, Fixed6 newCollateral) internal pure returns (Fixed6 collateralAmount) {
-        collateralAmount = newCollateral.sub(self.collateral);
-        self.collateral = newCollateral;
+    function update(Local memory self, Fixed6 collateral) internal pure {
+        self.collateral = self.collateral.add(collateral);
     }
 
     /**
@@ -73,10 +72,11 @@ library LocalStorageLib { // TODO: automate this storage format to save contract
     }
 
     function store(LocalStorage storage self, Local memory newValue) internal {
-        if (newValue.currentId > type(uint64).max) revert LocalStorageInvalidError();
-        if (newValue.collateral.gt(Fixed6Lib.MAX_64)) revert LocalStorageInvalidError();
-        if (newValue.reward.gt(UFixed6Lib.MAX_64)) revert LocalStorageInvalidError();
-        if (newValue.liquidation > type(uint64).max) revert LocalStorageInvalidError();
+        if (newValue.currentId > uint256(type(uint64).max)) revert LocalStorageInvalidError();
+        if (newValue.collateral.gt(Fixed6.wrap(type(int64).max))) revert LocalStorageInvalidError();
+        if (newValue.collateral.lt(Fixed6.wrap(type(int64).min))) revert LocalStorageInvalidError();
+        if (newValue.reward.gt(UFixed6.wrap(type(uint64).max))) revert LocalStorageInvalidError();
+        if (newValue.liquidation > uint256(type(uint64).max)) revert LocalStorageInvalidError();
 
         uint256 encoded =
             uint256(newValue.currentId << 192) >> 192 |

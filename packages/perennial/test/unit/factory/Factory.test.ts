@@ -13,6 +13,7 @@ import {
   IPayoffProvider__factory,
 } from '../../../types/generated'
 import { parse6decimal } from '../../../../common/testutil/types'
+import { BigNumber } from 'ethers'
 
 const { ethers } = HRE
 
@@ -53,6 +54,7 @@ describe('Factory', () => {
       expect(parameter.minFundingFee).to.equal(0)
       expect(parameter.liquidationFee).to.equal(0)
       expect(parameter.minCollateral).to.equal(0)
+      expect(parameter.maxPendingIds).to.equal(0)
     })
 
     it('reverts if already initialized', async () => {
@@ -136,7 +138,8 @@ describe('Factory', () => {
       minFundingFee: parse6decimal('0.10'),
       liquidationFee: parse6decimal('0.50'),
       minCollateral: parse6decimal('500'),
-      minSpread: parse6decimal('500'),
+      minSpread: parse6decimal('0.20'),
+      maxPendingIds: BigNumber.from(5),
       paused: false,
     }
 
@@ -149,6 +152,7 @@ describe('Factory', () => {
       expect(parameter.minFundingFee).to.equal(newParameter.minFundingFee)
       expect(parameter.liquidationFee).to.equal(newParameter.liquidationFee)
       expect(parameter.minCollateral).to.equal(newParameter.minCollateral)
+      expect(parameter.maxPendingIds).to.equal(newParameter.maxPendingIds)
     })
 
     it('reverts if not owner', async () => {

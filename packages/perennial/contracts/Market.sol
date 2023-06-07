@@ -2,10 +2,12 @@
 pragma solidity 0.8.19;
 
 import "@equilibria/root/control/unstructured/UInitializable.sol";
-import "@equilibria/root-v2/contracts/UOwnable.sol";
+import "@equilibria/root/control/unstructured/UOwnable.sol";
 import "./interfaces/IMarket.sol";
 import "./interfaces/IFactory.sol";
 import "hardhat/console.sol";
+
+// TODO: double check all fees are using notional
 
 /**
  * @title Market
@@ -38,19 +40,19 @@ contract Market is IMarket, UInitializable, UOwnable {
     /// @dev Protocol and market fees collected, but not yet claimed
     GlobalStorage private _global;
 
-    PositionStorage private _position;
+    PositionStorageGlobal private _position;
 
-    mapping(uint256 => PositionStorage) private _pendingPosition;
+    mapping(uint256 => PositionStorageGlobal) private _pendingPosition;
 
     /// @dev The individual state for each account
     mapping(address => LocalStorage) private _locals;
 
-    mapping(address => PositionStorage) private _positions;
+    mapping(address => PositionStorageLocal) private _positions;
 
-    mapping(address => mapping(uint256 => PositionStorage)) private _pendingPositions;
+    mapping(address => mapping(uint256 => PositionStorageLocal)) private _pendingPositions;
 
     /// @dev Mapping of the historical version data
-    mapping(uint256 => VersionStorage) _versions;
+    mapping(uint256 => VersionStorage) private _versions;
 
     /**
      * @notice Initializes the contract state
@@ -84,15 +86,15 @@ contract Market is IMarket, UInitializable, UOwnable {
         UFixed6 newMaker,
         UFixed6 newLong,
         UFixed6 newShort,
-        Fixed6 newCollateral
+        Fixed6 collateral
     ) external {
         CurrentContext memory context = _loadContext(account);
         if (context.protocolParameter.paused) revert MarketPausedError();
 
-        _checkOperator(context, account, newMaker, newLong, newShort, newCollateral);
+        _checkOperator(context, account, newMaker, newLong, newShort, collateral);
         _settle(context, account);
         _sync(context, account);
-        _update(context, account, newMaker, newLong, newShort, newCollateral, false);
+        _update(context, account, newMaker, newLong, newShort, collateral, false);
         _saveContext(context, account);
     }
 
@@ -170,24 +172,23 @@ contract Market is IMarket, UInitializable, UOwnable {
         // before
         UFixed6 maintenance = context.accountPosition.maintenance(context.latestVersion, context.marketParameter);
         if (
-            context.local.collateral.gte(Fixed6Lib.from(maintenance)) ||
+            context.local.collateral.max(Fixed6Lib.ZERO).gte(Fixed6Lib.from(maintenance)) ||
             context.local.liquidation > context.accountPosition.version ||
             context.marketParameter.closed
         ) return;
 
         // compute reward
-        UFixed6 liquidationReward = context.accountPosition.liquidationFee(
+        UFixed6 liquidationFee = context.accountPosition.liquidationFee(
             context.latestVersion,
             context.marketParameter,
             context.protocolParameter
         ).min(UFixed6Lib.from(token.balanceOf()));
-        Fixed6 newCollateral = context.local.collateral.sub(Fixed6Lib.from(liquidationReward));
 
         // close position
-        _update(context, account, UFixed6Lib.ZERO, UFixed6Lib.ZERO, UFixed6Lib.ZERO, newCollateral, true);
+        _update(context, account, UFixed6Lib.ZERO, UFixed6Lib.ZERO, UFixed6Lib.ZERO, Fixed6Lib.from(-1, liquidationFee), true);
         context.local.liquidation = context.accountPendingPosition.version;
 
-        emit Liquidation(account, msg.sender, liquidationReward);
+        emit Liquidation(account, msg.sender, liquidationFee);
     }
 
     function _update(
@@ -196,7 +197,7 @@ contract Market is IMarket, UInitializable, UOwnable {
         UFixed6 newMaker,
         UFixed6 newLong,
         UFixed6 newShort,
-        Fixed6 newCollateral, //TODO: make delta
+        Fixed6 collateral,
         bool force
     ) private {
         _startGas(context, "_update before-update-after: %s");
@@ -220,8 +221,9 @@ contract Market is IMarket, UInitializable, UOwnable {
         context.pendingPosition.update(context.global.currentId, context.currentVersion, newOrder);
 
         // update collateral
-        Fixed6 collateralAmount =
-            context.local.update(newCollateral.eq(Fixed6Lib.MAX) ? context.local.collateral : newCollateral);
+        Fixed6 collateralAmount = collateral.eq(Fixed6Lib.MIN) ? context.local.collateral.mul(Fixed6Lib.NEG_ONE) : collateral;
+        context.local.update(collateralAmount);
+        context.accountPendingPosition.update(collateralAmount);
 
         // after
         if (!force) _checkPosition(context);
@@ -232,11 +234,11 @@ contract Market is IMarket, UInitializable, UOwnable {
         _startGas(context, "_update fund-events: %s");
 
         // fund
-        if (collateralAmount.sign() == 1) token.pull(msg.sender, UFixed18.wrap(UFixed6.unwrap(collateralAmount.abs()) * 1e12)); //TODO: use .to6()
-        if (collateralAmount.sign() == -1) token.push(msg.sender, UFixed18.wrap(UFixed6.unwrap(collateralAmount.abs()) * 1e12));
+        if (collateralAmount.sign() == 1) token.pull(msg.sender, UFixed18Lib.from(collateralAmount.abs()));
+        if (collateralAmount.sign() == -1) token.push(msg.sender, UFixed18Lib.from(collateralAmount.abs()));
 
         // events
-        emit Updated(account, context.currentVersion, newMaker, newLong, newShort, newCollateral);
+        emit Updated(account, context.currentVersion, newMaker, newLong, newShort, collateral);
 
         _endGas(context);
     }
@@ -269,14 +271,18 @@ contract Market is IMarket, UInitializable, UOwnable {
     function _saveContext(CurrentContext memory context, address account) private {
         _startGas(context, "_saveContext: %s");
 
+        //TODO(gas): should try to remove all of these position writes
+
         // global
         _global.store(context.global);
-        _pendingPosition[context.global.currentId].store(context.pendingPosition);
+        if (context.global.currentId > context.position.id)
+            _pendingPosition[context.global.currentId].store(context.pendingPosition);
         _position.store(context.position);
 
         // account
         _locals[account].store(context.local);
-        _pendingPositions[account][context.local.currentId].store(context.accountPendingPosition);
+        if (context.local.currentId > context.accountPosition.id)
+            _pendingPositions[account][context.local.currentId].store(context.accountPendingPosition);
         _positions[account].store(context.accountPosition);
 
 
@@ -296,7 +302,14 @@ contract Market is IMarket, UInitializable, UOwnable {
         while (
             context.local.currentId != context.accountPosition.id &&
             (nextPosition = _pendingPositions[account][context.accountPosition.id + 1].read()).ready(context.latestVersion)
-        ) _processPositionAccount(context, nextPosition);
+        ) {
+            Fixed6 previousDelta = _pendingPositions[account][context.accountPosition.id].read().delta;
+            _processPositionAccount(context, nextPosition);
+            nextPosition.collateral = context.local.collateral
+                .sub(context.accountPendingPosition.delta.sub(previousDelta)) // deposits happen after snapshot point
+                .add(Fixed6Lib.from(nextPosition.fee));                       // position fee happens after snapshot point
+            _pendingPositions[account][nextPosition.id].store(nextPosition);
+        }
 
         _endGas(context);
     }
@@ -361,7 +374,7 @@ contract Market is IMarket, UInitializable, UOwnable {
         UFixed6 newMaker,
         UFixed6 newLong,
         UFixed6 newShort,
-        Fixed6 newCollateral
+        Fixed6 collateral
     ) private view {
         if (account == msg.sender) return;                  // sender is operating on own account
         if (factory.operators(account, msg.sender)) return; // sender is operator enabled for this account
@@ -369,7 +382,7 @@ contract Market is IMarket, UInitializable, UOwnable {
             context.accountPendingPosition.maker.eq(newMaker) &&
             context.accountPendingPosition.long.eq(newLong) &&
             context.accountPendingPosition.short.eq(newShort) &&
-            context.local.collateral.sign() == -1 && newCollateral.isZero()
+            context.local.collateral.sign() == -1 && context.local.collateral.add(collateral).isZero()
         ) return; // sender is repaying shortfall for this account
         revert MarketOperatorNotAllowed();
     }
@@ -386,7 +399,7 @@ contract Market is IMarket, UInitializable, UOwnable {
             revert MarketExceedsPendingIdLimitError();
     }
 
-    function _checkCollateral(CurrentContext memory context) private pure {
+    function _checkCollateral(CurrentContext memory context) private view {
         if (context.local.collateral.sign() == -1) revert MarketInDebtError();
 
         UFixed6 boundedCollateral = UFixed6Lib.from(context.local.collateral);
@@ -394,17 +407,24 @@ contract Market is IMarket, UInitializable, UOwnable {
         if (!context.local.collateral.isZero() && boundedCollateral.lt(context.protocolParameter.minCollateral))
             revert MarketCollateralUnderLimitError();
 
+        // TODO: check all pending positions
         UFixed6 maintenanceAmount =
             context.accountPosition.maintenance(context.latestVersion, context.marketParameter)
                 .max(context.accountPendingPosition.maintenance(context.latestVersion, context.marketParameter));
+
         if (maintenanceAmount.gt(boundedCollateral)) revert MarketInsufficientCollateralError();
+    }
+
+    function at(uint256 version) public view returns (OracleVersion memory) {
+        MarketParameter memory marketParameter = _parameter.read();
+        return _oracleVersionAt(marketParameter, version);
     }
 
     function _oracleVersion(
         MarketParameter memory marketParameter
     ) private returns (OracleVersion memory latestVersion, uint256 currentVersion) {
         (latestVersion, currentVersion) = marketParameter.oracle.sync();
-        marketParameter.payoff.transform(latestVersion);
+        _transform(marketParameter, latestVersion);
     }
 
     function _oracleVersionAt(
@@ -412,7 +432,12 @@ contract Market is IMarket, UInitializable, UOwnable {
         uint256 version
     ) private view returns (OracleVersion memory oracleVersion) {
         oracleVersion = marketParameter.oracle.at(version);
-        marketParameter.payoff.transform(oracleVersion);
+        _transform(marketParameter, oracleVersion);
+    }
+
+    function _transform(MarketParameter memory marketParameter, OracleVersion memory oracleVersion) private pure {
+        if (address(marketParameter.payoff) != address(0))
+            oracleVersion.price = marketParameter.payoff.payoff(oracleVersion.price);
     }
 
     // Debug
