@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: Apache-2.0
 pragma solidity ^0.8.13;
 
-import "@equilibria/root-v2/contracts/IOwnable.sol";
+import "@equilibria/root/control/interfaces/IOwnable.sol";
 import "@openzeppelin/contracts/proxy/beacon/IBeacon.sol";
 import "./IVault.sol";
 

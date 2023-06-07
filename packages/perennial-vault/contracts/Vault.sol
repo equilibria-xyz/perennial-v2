@@ -102,34 +102,29 @@ contract Vault is IVault, UInitializable {
 
     function initialize(Token18 asset_, IMarket initialMarket) external initializer(1) {
         _parameter.store(VaultParameter(asset_, UFixed6Lib.ZERO, UFixed6Lib.ZERO, UFixed6Lib.ZERO));
-
-        // TODO: can we use register?
-        if (!factory.factory().markets(initialMarket)) revert VaultNotMarketError();
-        if (!initialMarket.token().eq(asset_)) revert VaultIncorrectAssetError();
-
-        asset_.approve(address(initialMarket));
-
-        _registrations[0].store(Registration(initialMarket, 0, 0));
-        totalMarkets++;
-
-        emit MarketRegistered(0, initialMarket);
+        _register(initialMarket, 0);
     }
 
     function register(IMarket market) external onlyOwner {
         Context memory context = _settle(address(0));
 
-        if (!factory.factory().markets(market)) revert VaultNotMarketError();
-        if (!market.token().eq(context.parameter.asset)) revert VaultIncorrectAssetError();
-
         for (uint256 marketId; marketId < context.markets.length; marketId++) {
             if (_registrations[marketId].read().market == market) revert VaultMarketExistsError();
         }
 
-        context.parameter.asset.approve(address(market));
+        _register(market, context.currentId - 1);
+    }
 
-        uint256 newMarketId = context.markets.length;
-        _registrations[newMarketId].store(Registration(market, context.currentId - 1, 0));
-        totalMarkets++;
+    function _register(IMarket market, uint256 initialId) private {
+        VaultParameter memory vaultParameter = _parameter.read();
+
+        if (!factory.factory().markets(market)) revert VaultNotMarketError();
+        if (!market.token().eq(vaultParameter.asset)) revert VaultIncorrectAssetError();
+
+        vaultParameter.asset.approve(address(market));
+
+        uint256 newMarketId = totalMarkets++;
+        _registrations[newMarketId].store(Registration(market, initialId, 0));
 
         emit MarketRegistered(newMarketId, market);
     }

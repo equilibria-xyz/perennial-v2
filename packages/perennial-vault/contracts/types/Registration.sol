@@ -2,7 +2,7 @@
 pragma solidity ^0.8.13;
 
 import "@equilibria/perennial-v2/contracts/interfaces/IMarket.sol";
-import "@equilibria/root-v2/contracts/UFixed6.sol";
+import "@equilibria/root/number/types/UFixed6.sol";
 import "./Checkpoint.sol";
 
 /// @dev Registration type
@@ -41,8 +41,8 @@ library RegistrationStorageLib {
     }
 
     function store(RegistrationStorage storage self, Registration memory newValue) internal {
-        if (newValue.initialId > type(uint32).max) revert RegistrationStorageInvalidError();
-        if (newValue.weight > type(uint64).max) revert RegistrationStorageInvalidError();
+        if (newValue.initialId > uint256(type(uint32).max)) revert RegistrationStorageInvalidError();
+        if (newValue.weight > uint256(type(uint64).max)) revert RegistrationStorageInvalidError();
 
         self.value = StoredRegistration(
             address(newValue.market),

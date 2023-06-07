@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: Apache-2.0
 pragma solidity ^0.8.13;
 
-import "@equilibria/root-v2/contracts/UFixed6.sol";
+import "@equilibria/root/number/types/UFixed6.sol";
 import "./Checkpoint.sol";
 
 /// @dev Account type
@@ -58,11 +58,11 @@ library AccountStorageLib {
     }
 
     function store(AccountStorage storage self, Account memory newValue) internal {
-        if (newValue.latest > type(uint32).max) revert AccountStorageInvalidError();
-        if (newValue.shares.gt(UFixed6Lib.MAX_56)) revert AccountStorageInvalidError();
-        if (newValue.assets.gt(UFixed6Lib.MAX_56)) revert AccountStorageInvalidError();
-        if (newValue.deposit.gt(UFixed6Lib.MAX_56)) revert AccountStorageInvalidError();
-        if (newValue.redemption.gt(UFixed6Lib.MAX_56)) revert AccountStorageInvalidError();
+        if (newValue.latest > uint256(type(uint32).max)) revert AccountStorageInvalidError();
+        if (newValue.shares.gt(UFixed6.wrap(type(uint56).max))) revert AccountStorageInvalidError();
+        if (newValue.assets.gt(UFixed6.wrap(type(uint56).max))) revert AccountStorageInvalidError();
+        if (newValue.deposit.gt(UFixed6.wrap(type(uint56).max))) revert AccountStorageInvalidError();
+        if (newValue.redemption.gt(UFixed6.wrap(type(uint56).max))) revert AccountStorageInvalidError();
 
         self.value = StoredAccount(
             uint32(newValue.latest),

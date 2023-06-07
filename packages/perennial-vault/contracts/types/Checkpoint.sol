@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: Apache-2.0
 pragma solidity ^0.8.13;
 
-import "@equilibria/root-v2/contracts/UFixed6.sol";
+import "@equilibria/root/number/types/UFixed6.sol";
 
 /// @dev Checkpoint type
 struct Checkpoint {
@@ -86,11 +86,11 @@ library CheckpointStorageLib {
     }
 
     function store(CheckpointStorage storage self, Checkpoint memory newValue) internal {
-        if (newValue.deposit.gt(UFixed6Lib.MAX_48)) revert CheckpointStorageInvalidError();
-        if (newValue.redemption.gt(UFixed6Lib.MAX_48)) revert CheckpointStorageInvalidError();
-        if (newValue.shares.gt(UFixed6Lib.MAX_56)) revert CheckpointStorageInvalidError();
-        if (newValue.assets.gt(Fixed6Lib.MAX_56)) revert CheckpointStorageInvalidError();
-        if (newValue.assets.lt(Fixed6Lib.MIN_56)) revert CheckpointStorageInvalidError();
+        if (newValue.deposit.gt(UFixed6.wrap(type(uint48).max))) revert CheckpointStorageInvalidError();
+        if (newValue.redemption.gt(UFixed6.wrap(type(uint48).max))) revert CheckpointStorageInvalidError();
+        if (newValue.shares.gt(UFixed6.wrap(type(uint56).max))) revert CheckpointStorageInvalidError();
+        if (newValue.assets.gt(Fixed6.wrap(type(int56).max))) revert CheckpointStorageInvalidError();
+        if (newValue.assets.lt(Fixed6.wrap(type(int56).min))) revert CheckpointStorageInvalidError();
 
         self.value = StoredCheckpoint(
             uint48(UFixed6.unwrap(newValue.deposit)),

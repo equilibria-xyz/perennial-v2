@@ -2,7 +2,7 @@
 pragma solidity ^0.8.13;
 
 import "@equilibria/perennial-v2/contracts/interfaces/IFactory.sol";
-import "@equilibria/root-v2/contracts/UFixed6.sol";
+import "@equilibria/root/number/types/UFixed6.sol";
 import "./Checkpoint.sol";
 
 /// @dev VaultParameter type
@@ -40,9 +40,9 @@ library VaultParameterStorageLib {
     function store(VaultParameterStorage storage self, VaultParameter memory newValue) internal {
         StoredVaultParameter memory oldValue = self.value;
 
-        if (newValue.leverage.gt(UFixed6Lib.MAX_32)) revert VaultParameterStorageInvalidError();
+        if (newValue.leverage.gt(UFixed6.wrap(type(uint32).max))) revert VaultParameterStorageInvalidError();
         if (UFixed6.unwrap(newValue.cap) > uint256(type(uint32).max) * 1000e6) revert VaultParameterStorageInvalidError();
-        if (newValue.premium.gt(UFixed6Lib.MAX_24)) revert VaultParameterStorageInvalidError();
+        if (newValue.premium.gt(UFixed6.wrap(type(uint24).max))) revert VaultParameterStorageInvalidError();
 
         if (oldValue._fuse && oldValue._asset != Token18.unwrap(newValue.asset)) revert VaultParameterStorageImmutableError();
 
