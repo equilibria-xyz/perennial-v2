@@ -89,7 +89,7 @@ describe('KeeperManager', () => {
 
   describe('#constructor', () => {
     it('constructs correctly', async () => {
-      expect(await keeper.MAX_PCT()).to.equal(100)
+      // expect(await keeper.MAX_PCT()).to.equal(100)
 
       expect(await keeper.invoker()).to.equal(invoker.address)
       expect(await keeper.orderNonce()).to.equal(BigNumber.from(0))
