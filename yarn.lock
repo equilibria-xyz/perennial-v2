@@ -96,13 +96,6 @@
   resolved "https://registry.yarnpkg.com/@ensdomains/resolver/-/resolver-0.2.4.tgz#c10fe28bf5efbf49bff4666d909aed0265efbc89"
   integrity sha512-bvaTH34PMCbv6anRa9I/0zjLJgY4EuznbEMgbV77JBCQ9KNC46rzi0avuxpOfu+xDjPEtSFGqVEOr5GlUSGudA==
 
-"@equilibria/root@0.1.6":
-  version "0.1.6"
-  resolved "https://registry.yarnpkg.com/@equilibria/root/-/root-0.1.6.tgz#78b3bea69bd45128612d935ddeea8bb20e3e1894"
-  integrity sha512-aPvgqx5P+stnYjPuEkIoKbFlCfqJ7gzx7scK/rdk189FDVv01lYCNA/MUmuRcLXqWlqFxmKjU4TLcc9Jm+zSNg==
-  dependencies:
-    "@openzeppelin/contracts" "4.6.0"
-
 "@equilibria/root@0.3.0-beta0":
   version "0.3.0-beta0"
   resolved "https://registry.yarnpkg.com/@equilibria/root/-/root-0.3.0-beta0.tgz#019ef52896e4f2f2da674863a73973515009eeb6"

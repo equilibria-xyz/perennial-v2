@@ -34,8 +34,5 @@
   },
   "author": "",
   "license": "APACHE-2.0",
-  "dependencies": {
-    "@equilibria/root": "0.1.6",
-    "@openzeppelin/contracts": "4.8.0"
-  }
+  "dependencies": {}
 }
