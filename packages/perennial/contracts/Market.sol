@@ -365,7 +365,6 @@ contract Market is IMarket, UInitializable, UOwnable {
         context.accountPosition.update(newPosition);
     }
 
-    // TODO: this needs to be cleaned up somehow
     function _checkOperator(
         CurrentContext memory context,
         address account,
@@ -393,7 +392,7 @@ contract Market is IMarket, UInitializable, UOwnable {
         ) revert MarketInsufficientLiquidityError();
         if (context.pendingPosition.maker.gt(context.marketParameter.makerLimit)) revert MarketMakerOverLimitError();
         if (!context.accountPendingPosition.singleSided()) revert MarketNotSingleSidedError();
-        if (context.pendingPosition.id > context.position.id + context.protocolParameter.maxPendingIds)
+        if (context.global.currentId > context.position.id + context.protocolParameter.maxPendingIds)
             revert MarketExceedsPendingIdLimitError();
     }
 
@@ -405,7 +404,6 @@ contract Market is IMarket, UInitializable, UOwnable {
         if (!context.local.collateral.isZero() && boundedCollateral.lt(context.protocolParameter.minCollateral))
             revert MarketCollateralUnderLimitError();
 
-        // TODO: check all pending positions
         UFixed6 maintenanceAmount =
             context.accountPosition.maintenance(context.latestVersion, context.marketParameter)
                 .max(context.accountPendingPosition.maintenance(context.latestVersion, context.marketParameter));
