@@ -33,6 +33,8 @@ import "hardhat/console.sol";
 contract Vault is IVault, UInitializable {
     IVaultFactory public immutable factory;
 
+    string private _name;
+
     VaultParameterStorage private _parameter;
 
     uint256 public totalMarkets;
@@ -64,7 +66,7 @@ contract Vault is IVault, UInitializable {
     }
 
     function asset() external view returns (Token18) { return _parameter.read().asset; }
-    function name() external pure returns (string memory) { return "Vault-XX"; } // TODO generate
+    function name() external view returns (string memory) { return string(abi.encodePacked("Perennial V2 Vault: ", _name)); }
     function totalSupply() external view returns (UFixed6) { return _account.read().shares; }
     function balanceOf(address account) public view returns (UFixed6) { return _accounts[account].read().shares; }
     function totalUnclaimed() external view returns (UFixed6) { return _account.read().assets; }
@@ -104,7 +106,8 @@ contract Vault is IVault, UInitializable {
         return _totalShares.isZero() ? shares : shares.muldiv(_totalAssets, _totalShares);
     }
 
-    function initialize(Token18 asset_, IMarket initialMarket) external initializer(1) {
+    function initialize(Token18 asset_, IMarket initialMarket, string calldata name_) external initializer(1) {
+        _name = name_;
         _parameter.store(VaultParameter(asset_, UFixed6Lib.ZERO, UFixed6Lib.ZERO, UFixed6Lib.ZERO));
         _register(initialMarket, 0);
     }
@@ -347,7 +350,7 @@ contract Vault is IVault, UInitializable {
         Context memory context,
         UFixed6 collateral,
         UFixed6 assets
-    ) private view returns (Target[] memory targets) {
+    ) private pure returns (Target[] memory targets) {
         targets = new Target[](context.markets.length);
 
         for (uint256 marketId; marketId < context.markets.length; marketId++) {

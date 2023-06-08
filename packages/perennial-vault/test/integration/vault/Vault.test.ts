@@ -218,10 +218,10 @@ describe('Vault', () => {
     await vaultFactory.initialize()
 
     vault = IVault__factory.connect(
-      await vaultFactory.callStatic.create(instanceVars.dsu.address, market.address),
+      await vaultFactory.callStatic.create(instanceVars.dsu.address, market.address, 'Blue Chip'),
       owner,
     )
-    await vaultFactory.create(instanceVars.dsu.address, market.address)
+    await vaultFactory.create(instanceVars.dsu.address, market.address, 'Blue Chip')
 
     await vault.register(btcMarket.address)
     await vault.updateWeight(0, 4)
@@ -270,7 +270,7 @@ describe('Vault', () => {
 
   describe('#name', () => {
     it('is correct', async () => {
-      expect(await vault.name()).to.equal('Vault-XX')
+      expect(await vault.name()).to.equal('Perennial V2 Vault: Blue Chip')
     })
   })
 

@@ -34,7 +34,7 @@ library AccountLib {
         UFixed6 deposit,
         UFixed6 redemption,
         uint256 id
-    ) internal view {
+    ) internal pure {
         account.shares = account.shares.add(checkpoint.toShares(deposit));
         account.assets = account.assets.add(checkpoint.toAssets(redemption));
         account.deposit = account.deposit.sub(deposit);

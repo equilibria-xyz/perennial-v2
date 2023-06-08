@@ -38,7 +38,7 @@ library CheckpointLib {
         );
     }
 
-    function complete(Checkpoint memory self, Fixed6 assets) internal view {
+    function complete(Checkpoint memory self, Fixed6 assets) internal pure {
         self.assets = self.assets.add(assets);
     }
 
