@@ -184,5 +184,5 @@ describe('Factory', () => {
     })
   })
 
-  //TODO: operator
+  //TODO (coveragehint): operator
 })

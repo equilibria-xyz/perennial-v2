@@ -13,8 +13,8 @@ import {
 import { ChainlinkOracle__factory, Market__factory } from '../../../types/generated'
 import { CHAINLINK_CUSTOM_CURRENCIES } from '@equilibria/perennial-v2-oracle/util/constants'
 
-//TODO: invalid version test
-//TODO: short tests
+//TODO (coverage hint): invalid version test
+//TODO (coverage hint): short tests
 
 describe('Happy Path', () => {
   let instanceVars: InstanceVars

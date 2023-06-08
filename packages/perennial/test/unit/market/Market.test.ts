@@ -5,9 +5,9 @@ import { SignerWithAddress } from '@nomiclabs/hardhat-ethers/signers'
 import { expect, use } from 'chai'
 import HRE, { waffle } from 'hardhat'
 
-//TODO: maxPendingId test
-//TODO: invalid version test
-//TODO: multi-version test
+//TODO (coverage hint): maxPendingId test
+//TODO (coverage hint): invalid version test
+//TODO (coverage hint): multi-version test
 
 import { impersonate } from '../../../../common/testutil'
 
@@ -7223,7 +7223,7 @@ describe('Market', () => {
             await dsu.mock.transferFrom.withArgs(userC.address, market.address, COLLATERAL.mul(1e12)).returns(true)
           })
 
-          // TODO
+          // TODO (coverage hint)
           // context.only('position delta', async () => {
           //   context.only('open', async () => {
           //     beforeEach(async () => {
@@ -9670,7 +9670,7 @@ describe('Market', () => {
         })
       })
 
-      // TODO: payoff market
+      // TODO (coverage hint): payoff market
     })
 
     describe('#claimFee', async () => {
