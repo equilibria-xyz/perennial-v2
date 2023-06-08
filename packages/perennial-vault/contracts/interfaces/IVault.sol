@@ -32,8 +32,7 @@ interface IVault {
 
     struct MarketContext {
         // parameter
-        IMarket market;
-        uint256 weight;
+        Registration registration;
         bool closed;
         UFixed6 makerLimit;
 

@@ -2,6 +2,7 @@
 pragma solidity ^0.8.13;
 
 import "@equilibria/root/number/types/UFixed6.sol";
+import "./Account.sol";
 
 /// @dev Checkpoint type
 struct Checkpoint {
@@ -9,7 +10,7 @@ struct Checkpoint {
     UFixed6 redemption;
     UFixed6 shares;
     Fixed6 assets;
-    bool started;  // TODO: don't really use this anymore
+    bool initialized;
 }
 using CheckpointLib for Checkpoint global;
 struct StoredCheckpoint {
@@ -17,7 +18,7 @@ struct StoredCheckpoint {
     uint48 _redemption;
     uint56 _shares;
     int56 _assets;
-    bool _started;
+    bool _initialized;
     bytes5 __unallocated__;
 }
 struct CheckpointStorage { StoredCheckpoint value; }
@@ -28,12 +29,13 @@ using CheckpointStorageLib for CheckpointStorage global;
  * @notice
  */
 library CheckpointLib {
-    function start(Checkpoint memory self, UFixed6 shares, Fixed6 assets) internal pure {
-        if (!self.started) {
-            self.started = true;
-            self.shares = shares;
-            self.assets = assets; // TODO: can we encapsulate this?
-        }
+    function start(Checkpoint memory self, Account memory global, UFixed18 balance) internal pure {
+        if (self.initialized) return;
+        (self.initialized, self.shares, self.assets) = (
+            true,
+            global.shares,
+            Fixed6Lib.from(UFixed6Lib.from(balance)).sub(Fixed6Lib.from(global.deposit.add(global.assets)))
+        );
     }
 
     function complete(Checkpoint memory self, Fixed6 assets) internal view {
@@ -81,7 +83,7 @@ library CheckpointStorageLib {
             UFixed6.wrap(uint256(storedValue._redemption)),
             UFixed6.wrap(uint256(storedValue._shares)),
             Fixed6.wrap(int256(storedValue._assets)),
-            storedValue._started
+            storedValue._initialized
         );
     }
 
@@ -97,7 +99,7 @@ library CheckpointStorageLib {
             uint48(UFixed6.unwrap(newValue.redemption)),
             uint56(UFixed6.unwrap(newValue.shares)),
             int56(Fixed6.unwrap(newValue.assets)),
-            newValue.started,
+            newValue.initialized,
             bytes5(0)
         );
     }

@@ -293,10 +293,11 @@ contract Vault is IVault, UInitializable {
 
         // process pending deltas
         while (context.latestId > context.global.latest) {
-            Checkpoint memory checkpoint = _checkpoints[context.global.latest + 1].read();
-            checkpoint.complete(_collateral(context, context.global.latest + 1));
-            _checkpoints[context.global.latest + 1].store(checkpoint);
-            context.global.process(checkpoint, checkpoint.deposit, checkpoint.redemption, context.global.latest + 1);
+            uint256 processId = context.global.latest + 1;
+            Checkpoint memory checkpoint = _checkpoints[processId].read();
+            checkpoint.complete(_collateralAtId(context, processId));
+            _checkpoints[processId].store(checkpoint);
+            context.global.process(checkpoint, checkpoint.deposit, checkpoint.redemption, processId);
         }
         if (context.latestId >= context.local.latest) {
             Checkpoint memory checkpoint = _checkpoints[context.local.latest].read();
@@ -304,11 +305,7 @@ contract Vault is IVault, UInitializable {
         }
 
         // sync data for new id
-        context.checkpoint.start(
-            context.global.shares,
-            Fixed6Lib.from(UFixed6Lib.from(context.parameter.asset.balanceOf()))
-                .sub(Fixed6Lib.from(context.global.deposit.add(context.global.assets)))
-        );
+        context.checkpoint.start(context.global, context.parameter.asset.balanceOf());
     }
 
     /**
@@ -354,11 +351,11 @@ contract Vault is IVault, UInitializable {
         targets = new Target[](context.markets.length);
 
         for (uint256 marketId; marketId < context.markets.length; marketId++) {
-            UFixed6 marketAssets = assets.muldiv(context.markets[marketId].weight, context.totalWeight);
+            UFixed6 marketAssets = assets.muldiv(context.markets[marketId].registration.weight, context.totalWeight);
             if (context.markets[marketId].closed) marketAssets = UFixed6Lib.ZERO;
 
             Fixed6 targetCollateral =
-                Fixed6Lib.from(collateral.muldiv(context.markets[marketId].weight, context.totalWeight));
+                Fixed6Lib.from(collateral.muldiv(context.markets[marketId].registration.weight, context.totalWeight));
             targets[marketId].collateral = targetCollateral.sub(context.markets[marketId].collateral);
             targets[marketId].position = marketAssets.mul(context.parameter.leverage).div(context.markets[marketId].price);
         }
@@ -386,7 +383,13 @@ contract Vault is IVault, UInitializable {
         }
 
         // issue position update
-        marketContext.market.update(address(this), target.position, UFixed6Lib.ZERO, UFixed6Lib.ZERO, target.collateral);
+        marketContext.registration.market.update(
+            address(this),
+            target.position,
+            UFixed6Lib.ZERO,
+            UFixed6Lib.ZERO,
+            target.collateral
+        );
     }
 
     /**
@@ -420,8 +423,7 @@ contract Vault is IVault, UInitializable {
             MarketParameter memory marketParameter = registration.market.parameter();
             uint256 currentVersion = marketParameter.oracle.current();
 
-            context.markets[marketId].market = registration.market;
-            context.markets[marketId].weight = registration.weight;
+            context.markets[marketId].registration = registration;
             context.markets[marketId].closed = marketParameter.closed;
             context.markets[marketId].makerLimit = marketParameter.makerLimit;
 
@@ -503,7 +505,7 @@ contract Vault is IVault, UInitializable {
                 .sub(context.markets[marketId].currentNet.min(context.markets[marketId].currentPosition));
 
             UFixed6 collateral = makerAvailable.muldiv(context.markets[marketId].price, context.parameter.leverage)
-                .muldiv(context.totalWeight, context.markets[marketId].weight);
+                .muldiv(context.totalWeight, context.markets[marketId].registration.weight);
 
             Checkpoint memory checkpoint = _checkpoints[context.latestId].read();
             redemptionAmount = redemptionAmount.min(checkpoint.toShares(collateral));
@@ -520,11 +522,13 @@ contract Vault is IVault, UInitializable {
             value = value.add(context.markets[marketId].collateral);
     }
 
-    function _collateral(Context memory context, uint256 id) public view returns (Fixed6 value) {
+    function _collateralAtId(Context memory context, uint256 id) public view returns (Fixed6 value) {
         for (uint256 marketId; marketId < context.markets.length; marketId++)
             value = value.add(
-                _registrations[marketId].read().market
-                    .pendingPositions(address(this), id - _registrations[marketId].read().initialId).collateral
+                context.markets[marketId].registration.market.pendingPositions(
+                    address(this),
+                    id - context.markets[marketId].registration.initialId
+                ).collateral
             );
     }
 
