@@ -7,7 +7,7 @@ import { Fixed6, Fixed6Lib } from "@equilibria/root/number/types/Fixed6.sol";
 interface IKeeperManager {
 
     // (-) exec price -> execute order when market price >= exec price 
-    // (+) exec price -> execure order when market price <= 
+    // (+) exec price -> execure order when market price <= exec price
     struct Order {
         // slot 1
         bool isLimit; // true/false = increase/decrease order size of market position upon execution
@@ -16,7 +16,7 @@ interface IKeeperManager {
 
         // slot 2&3
         Fixed6 execPrice; // execute order when mkt price >= (-) execPrice or mkt price <= (+) execPrice
-        UFixed6 size;     // notional (?) magnitude of order on market position
+        UFixed6 size;     // notional (?) magnitude of order on market position @todo add sign to replace isLong
     }
 
     error KeeeperManager_NotOnlyInvoker();
