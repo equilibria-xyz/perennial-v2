@@ -14,9 +14,18 @@ contract KeeperManager is IKeeperManager {
     mapping(address => mapping(address=> uint8)) public numOpenOrders;
     mapping(address => mapping(address => mapping(uint256 => Order))) public allOpenOrders;
 
+    // test state @todo remove
+    address immutable owner;
+
     // uint8 public constant MAX_PCT = 100;
 
-    constructor(address invoker_) {
+    constructor() {
+        // invoker = IMultiInvoker(invoker_);
+        owner = msg.sender;
+    }
+
+    function initialize(address invoker_) external {
+        if (msg.sender != owner) revert("bad owner");
         invoker = IMultiInvoker(invoker_);
     }
 

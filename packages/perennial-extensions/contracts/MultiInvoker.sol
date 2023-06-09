@@ -59,6 +59,11 @@ contract MultiInvoker is IMultiInvoker {
         keeper = keeper_;
         reserve = reserve_;
     }
+    
+    // @todo UOwnable
+    function initialize() external {
+        
+    }
 
     function invoke(Invocation[] calldata invocations) external {
         for(uint i = 0; i < invocations.length; ++i) {

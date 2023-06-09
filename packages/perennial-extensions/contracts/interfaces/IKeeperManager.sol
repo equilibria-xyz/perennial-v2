@@ -71,4 +71,6 @@ interface IKeeperManager {
     function cancelOrder(address account, address market, uint256 nonce) external; 
     function executeOrder(address account, address market, uint256 nonce) external;
     
+    // @todo for testing remove
+    function initialize(address keeper_) external; 
 }
