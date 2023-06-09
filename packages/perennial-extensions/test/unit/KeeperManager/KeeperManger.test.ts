@@ -46,10 +46,11 @@ describe('KeeperManager', () => {
     payoff = await smock.fake<IPayoffProvider>('IPayoffProvider')
     keeper = await new KeeperManager__factory(owner).deploy(invoker.address)
 
+    // Default mkt price: 1150
     const oracleVersion: OracleVersionStruct = {
       version: BigNumber.from(0),
       timestamp: BigNumber.from(0),
-      price: BigNumber.from(11501e6),
+      price: BigNumber.from(1150e6),
       valid: true,
     }
 
@@ -96,22 +97,22 @@ describe('KeeperManager', () => {
       expect(await keeper.numOpenOrders(user.address, market.address)).to.equal(0)
 
       expect((await market.parameter()).oracle).to.equal(oracle.address)
-      expect((await oracle.latest()).price).to.equal(BigNumber.from(11501e6))
+      expect((await oracle.latest()).price).to.equal(BigNumber.from(1150e6))
     })
   })
 
   describe('#Orders', () => {
     const size = utils.parseEther('1000')
-
+    // default exec price +1000
     const defaultOrder: IKeeperManager.OrderStruct = {
       isLimit: true,
       isLong: true,
       maxFee: size.div(20), // 5% fee
-      execPrice: BigNumber.from(10001e6),
+      execPrice: BigNumber.from(1000e6),
       size: size,
     }
 
-    it('opens an order', async () => {
+    it('opens a limit order', async () => {
       const txn = keeper.connect(invoker).placeOrder(user.address, market.address, defaultOrder)
 
       expect(await txn)
@@ -130,6 +131,129 @@ describe('KeeperManager', () => {
           orderState.execPrice.eq(defaultOrder.execPrice.toString()) &&
           orderState.size.eq(defaultOrder.size.toString()),
       ).to.be.true
+    })
+
+    it('opens a tp order', async () => {
+      defaultOrder.isLimit = false
+      defaultOrder.execPrice = BigNumber.from(1200e6)
+      await keeper.connect(invoker).placeOrder(user.address, market.address, defaultOrder)
+
+      // can execute = 1200 >= mkt price (1150)
+      expect(await keeper.canExecuteOrder(user.address, market.address, 1)).to.be.true
+
+      defaultOrder.execPrice = BigNumber.from(1100e6)
+      await keeper.connect(invoker).placeOrder(user.address, market.address, defaultOrder)
+
+      // can execute = !(1100 >= mkt price (1150))
+      expect(await keeper.canExecuteOrder(user.address, market.address, 2)).to.be.false
+    })
+
+    it('opens a sl order', async () => {
+      defaultOrder.isLimit = false
+      defaultOrder.execPrice = BigNumber.from(-1100e6)
+      await keeper.connect(invoker).placeOrder(user.address, market.address, defaultOrder)
+
+      // can execute = |-1100| <= mkt price (1150)
+      expect(await keeper.canExecuteOrder(user.address, market.address, 1)).to.be.true
+
+      defaultOrder.execPrice = BigNumber.from(-1200e6)
+      await keeper.connect(invoker).placeOrder(user.address, market.address, defaultOrder)
+
+      // can execute = |-1200| !<= mkt.price
+      expect(await keeper.canExecuteOrder(user.address, market.address, 2)).to.be.false
+    })
+
+    it('updates an order', async () => {
+      defaultOrder.isLimit = true
+      await expect(
+        keeper.connect(invoker).updateOrder(user.address, market.address, 1, defaultOrder),
+      ).to.be.revertedWith('KeeperManager_UpdateOrder_OrderDoesNotExist')
+
+      await keeper.connect(invoker).placeOrder(user.address, market.address, defaultOrder)
+
+      defaultOrder.execPrice = BigNumber.from(1300e6)
+      defaultOrder.size = BigNumber.from(utils.parseEther('2000'))
+      defaultOrder.maxFee = defaultOrder.size.div(20) // 100 ether
+
+      await expect(keeper.connect(invoker).updateOrder(user.address, market.address, 1, defaultOrder))
+        .to.emit(keeper, 'OrderUpdated')
+        .withArgs(user.address, market.address, 1, defaultOrder.execPrice, defaultOrder.maxFee)
+
+      const openOrder = await keeper.readOrder(user.address, market.address, 1)
+
+      expect(
+        defaultOrder.execPrice.eq(openOrder.execPrice) &&
+          defaultOrder.maxFee.eq(openOrder.maxFee) &&
+          defaultOrder.size.eq(openOrder.size),
+      ).to.be.true
+    })
+
+    it('cancels an order', async () => {
+      await expect(keeper.connect(invoker).cancelOrder(user.address, market.address, 1)).to.not.emit(
+        keeper,
+        'OrderCancelled',
+      )
+
+      expect(await keeper.numOpenOrders(user.address, market.address)).to.eq(0)
+      expect(await keeper.orderNonce()).to.eq(0)
+
+      await keeper.connect(invoker).placeOrder(user.address, market.address, defaultOrder)
+
+      await expect(keeper.connect(invoker).cancelOrder(user.address, market.address, 1))
+        .to.emit(keeper, 'OrderCancelled')
+        .withArgs(user.address, market.address, 1)
+
+      expect(await keeper.numOpenOrders(user.address, market.address)).to.eq(0)
+      expect(await keeper.orderNonce()).to.eq(1)
+    })
+
+    it('executes a long limit, short limit, long tp/sl, short tp/sl order', async () => {
+      defaultOrder.isLimit = true
+
+      // long limit: limit = true && mkt price (1150) <= exec price 1200
+      defaultOrder.execPrice = BigNumber.from(1200e6)
+      await keeper.connect(invoker).placeOrder(user.address, market.address, defaultOrder)
+      await expect(keeper.connect(invoker).executeOrder(user.address, market.address, 1)).to.emit(
+        keeper,
+        'OrderExecuted',
+      )
+
+      // short limit: limit = true && mkt price (1150) >= exec price (|-1100|)
+      defaultOrder.execPrice = BigNumber.from(-1000e6)
+      await keeper.connect(invoker).placeOrder(user.address, market.address, defaultOrder)
+      await expect(keeper.connect(invoker).executeOrder(user.address, market.address, 2)).to.emit(
+        keeper,
+        'OrderExecuted',
+      )
+
+      defaultOrder.isLimit = false
+      // long tp / short sl: limit = false && mkt price (1150) >= exec price (|-1100|)
+      await keeper.connect(invoker).placeOrder(user.address, market.address, defaultOrder)
+      await expect(keeper.connect(invoker).executeOrder(user.address, market.address, 3)).to.emit(
+        keeper,
+        'OrderExecuted',
+      )
+
+      // long sl / short tp: limit = false && mkt price(1150) <= exec price 1200
+      defaultOrder.execPrice = BigNumber.from(1200e6)
+      await keeper.connect(invoker).placeOrder(user.address, market.address, defaultOrder)
+      await expect(keeper.connect(invoker).executeOrder(user.address, market.address, 4)).to.emit(
+        keeper,
+        'OrderExecuted',
+      )
+    })
+
+    it('opens max # of orders for market user', async () => {
+      for (let i = 0; i < 11; i++) {
+        //let txn = keeper.connect(invoker).placeOrder(user.address, market.address, defaultOrder)
+        if (i < 10) {
+          expect(keeper.connect(invoker).placeOrder(user.address, market.address, defaultOrder)).to.not.be.reverted
+        } else {
+          await expect(
+            keeper.connect(invoker).placeOrder(user.address, market.address, defaultOrder),
+          ).to.be.revertedWith('KeeperManager_PlaceOrder_MaxOpenOrders()')
+        }
+      }
     })
   })
 })
