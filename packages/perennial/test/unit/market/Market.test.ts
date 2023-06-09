@@ -192,6 +192,32 @@ describe('Market', () => {
     })
   })
 
+  describe('#updateReward', async () => {
+    beforeEach(async () => {
+      const marketDefinitionNoReward = { ...marketDefinition }
+      marketDefinitionNoReward.reward = constants.AddressZero
+      await market.connect(factorySigner).initialize(marketDefinitionNoReward, marketParameter)
+      await market.connect(factorySigner).updatePendingOwner(owner.address)
+      await market.connect(owner).acceptOwner()
+    })
+
+    it('updates the reward', async () => {
+      await expect(market.connect(owner).updateReward(reward.address))
+        .to.emit(market, 'RewardUpdated')
+        .withArgs(reward.address)
+      expect(await market.reward()).to.equal(reward.address)
+    })
+
+    it('reverts if already set', async () => {
+      await market.connect(owner).updateReward(reward.address)
+      await expect(market.connect(user).updateReward(dsu.address)).to.be.revertedWith('MarketRewardAlreadySetError()')
+    })
+
+    it('reverts if not owner', async () => {
+      await expect(market.connect(user).updateReward(treasury.address)).to.be.revertedWith('UOwnableNotOwnerError()')
+    })
+  })
+
   context('already initialized', async () => {
     beforeEach(async () => {
       await market.connect(factorySigner).initialize(marketDefinition, marketParameter)

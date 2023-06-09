@@ -105,6 +105,12 @@ contract Market is IMarket, UInitializable, UOwnable {
         emit ParameterUpdated(newParameter);
     }
 
+    function updateReward(Token18 newReward) public onlyOwner {
+        if (!reward.eq(Token18Lib.ZERO)) revert MarketRewardAlreadySetError();
+        reward = newReward;
+        emit RewardUpdated(newReward);
+    }
+
     function claimFee() external {
         Global memory newGlobal = _global.read();
 
