@@ -22,8 +22,7 @@ describe('Closed Market', () => {
     await dsu.connect(user).approve(market.address, COLLATERAL.mul(1e12))
     await market.connect(user).update(user.address, POSITION, 0, 0, COLLATERAL)
 
-    //TODO: uncomment when versioned params are added
-    //expect(await market.closed()).to.be.false
+    expect((await market.parameter()).closed).to.be.false
 
     // Settle the market with a new oracle version
     await chainlink.nextWithPriceModification(price => price.mul(10))
@@ -33,11 +32,8 @@ describe('Closed Market', () => {
     const parameters = { ...(await market.parameter()) }
     parameters.closed = true
     await market.updateParameter(parameters)
-    // await expect(market.updateClosed(true))
-    //   .to.emit(market, 'Updated')
-    //   .withArgs(true, 2474)
 
-    // expect(await market.closed()).to.be.true
+    expect((await market.parameter()).closed).to.be.true
   })
 
   describe('changes to system constraints', async () => {

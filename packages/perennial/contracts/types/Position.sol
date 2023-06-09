@@ -8,7 +8,7 @@ import "./Order.sol";
 
 /// @dev Order type
 struct Position {
-    uint256 id; // TODO: try to remove
+    uint256 id; // TODO (gas hint): unused in the pending instances
     uint256 version;
     UFixed6 maker;
     UFixed6 long;

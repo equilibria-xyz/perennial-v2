@@ -168,12 +168,12 @@ contract Market is IMarket, UInitializable, UOwnable {
 
     function _liquidate(CurrentContext memory context, address account) private {
         // before
-        UFixed6 maintenance = context.accountPosition.maintenance(context.latestVersion, context.marketParameter);
-        if (
-            context.local.collateral.max(Fixed6Lib.ZERO).gte(Fixed6Lib.from(maintenance)) ||
-            context.local.liquidation > context.accountPosition.version ||
-            context.marketParameter.closed
-        ) return;
+        UFixed6 maintenance = context.marketParameter.closed ?
+            UFixed6Lib.ZERO :
+            context.accountPosition.maintenance(context.latestVersion, context.marketParameter);
+
+        if (context.local.collateral.max(Fixed6Lib.ZERO).gte(Fixed6Lib.from(maintenance)) ||
+            context.local.liquidation > context.accountPosition.version) return;
 
         // compute reward
         UFixed6 liquidationFee = context.accountPosition.liquidationFee(
@@ -202,7 +202,7 @@ contract Market is IMarket, UInitializable, UOwnable {
 
         // before
         if (context.local.liquidation > context.accountPosition.version) revert MarketInLiquidationError();
-        if (context.marketParameter.closed && !newMaker.add(newLong).add(newShort).isZero()) revert MarketClosedError(); // TODO: duplicate?
+        if (context.marketParameter.closed && !newMaker.add(newLong).add(newShort).isZero()) revert MarketClosedError();
 
         // update position
         if (context.currentVersion > context.accountPendingPosition.version) context.local.currentId++;
@@ -269,8 +269,6 @@ contract Market is IMarket, UInitializable, UOwnable {
     function _saveContext(CurrentContext memory context, address account) private {
         _startGas(context, "_saveContext: %s");
 
-        //TODO(gas): should try to remove all of these position writes
-
         // global
         _global.store(context.global);
         if (context.global.currentId > context.position.id)
@@ -282,7 +280,6 @@ contract Market is IMarket, UInitializable, UOwnable {
         if (context.local.currentId > context.accountPosition.id)
             _pendingPositions[account][context.local.currentId].store(context.accountPendingPosition);
         _positions[account].store(context.accountPosition);
-
 
         _endGas(context);
     }
@@ -365,7 +362,6 @@ contract Market is IMarket, UInitializable, UOwnable {
         context.accountPosition.update(newPosition);
     }
 
-    // TODO: this needs to be cleaned up somehow
     function _checkOperator(
         CurrentContext memory context,
         address account,
@@ -393,11 +389,11 @@ contract Market is IMarket, UInitializable, UOwnable {
         ) revert MarketInsufficientLiquidityError();
         if (context.pendingPosition.maker.gt(context.marketParameter.makerLimit)) revert MarketMakerOverLimitError();
         if (!context.accountPendingPosition.singleSided()) revert MarketNotSingleSidedError();
-        if (context.pendingPosition.id > context.position.id + context.protocolParameter.maxPendingIds)
+        if (context.global.currentId > context.position.id + context.protocolParameter.maxPendingIds)
             revert MarketExceedsPendingIdLimitError();
     }
 
-    function _checkCollateral(CurrentContext memory context) private view {
+    function _checkCollateral(CurrentContext memory context) private pure {
         if (context.local.collateral.sign() == -1) revert MarketInDebtError();
 
         UFixed6 boundedCollateral = UFixed6Lib.from(context.local.collateral);
@@ -405,7 +401,6 @@ contract Market is IMarket, UInitializable, UOwnable {
         if (!context.local.collateral.isZero() && boundedCollateral.lt(context.protocolParameter.minCollateral))
             revert MarketCollateralUnderLimitError();
 
-        // TODO: check all pending positions
         UFixed6 maintenanceAmount =
             context.accountPosition.maintenance(context.latestVersion, context.marketParameter)
                 .max(context.accountPendingPosition.maintenance(context.latestVersion, context.marketParameter));
