@@ -115,10 +115,7 @@ describe('Factory', () => {
         longRewardRate: 0,
         shortRewardRate: 0,
         oracle: oracle.address,
-        payoff: {
-          provider: payoffProvider.address,
-          short: false,
-        },
+        payoff: payoffProvider.address,
       }
 
       const marketAddress = await factory.callStatic.createMarket(marketDefinition, marketParameter)

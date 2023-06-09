@@ -149,10 +149,7 @@ describe('Market', () => {
       longRewardRate: parse6decimal('0.2'),
       shortRewardRate: parse6decimal('0.1'),
       oracle: oracle.address,
-      payoff: {
-        provider: constants.AddressZero,
-        short: false,
-      },
+      payoff: constants.AddressZero,
     }
     market = await new Market__factory(owner).deploy()
   })
@@ -184,8 +181,7 @@ describe('Market', () => {
       expect(parameter.makerRewardRate).to.equal(marketParameter.makerRewardRate)
       expect(parameter.shortRewardRate).to.equal(marketParameter.shortRewardRate)
       expect(parameter.oracle).to.equal(marketParameter.oracle)
-      expect(parameter.payoff.provider).to.equal(marketParameter.payoff.provider)
-      expect(parameter.payoff.short).to.equal(marketParameter.payoff.short)
+      expect(parameter.payoff).to.equal(marketParameter.payoff)
     })
 
     it('reverts if already initialized', async () => {
@@ -224,10 +220,7 @@ describe('Market', () => {
           longRewardRate: parse6decimal('0.1'),
           shortRewardRate: parse6decimal('0.1'),
           oracle: marketParameter.oracle,
-          payoff: {
-            provider: marketParameter.payoff.provider,
-            short: marketParameter.payoff.short,
-          },
+          payoff: marketParameter.payoff,
         }
 
         await expect(market.connect(owner).updateParameter(newMarketParameter)).to.emit(market, 'ParameterUpdated')
@@ -247,8 +240,7 @@ describe('Market', () => {
         expect(parameter.makerRewardRate).to.equal(newMarketParameter.makerRewardRate)
         expect(parameter.shortRewardRate).to.equal(newMarketParameter.shortRewardRate)
         expect(parameter.oracle).to.equal(newMarketParameter.oracle)
-        expect(parameter.payoff.provider).to.equal(newMarketParameter.payoff.provider)
-        expect(parameter.payoff.short).to.equal(newMarketParameter.payoff.short)
+        expect(parameter.payoff).to.equal(newMarketParameter.payoff)
       })
 
       it('reverts when updating (oracle)', async () => {
@@ -271,10 +263,7 @@ describe('Market', () => {
           longRewardRate: parse6decimal('0.1'),
           shortRewardRate: parse6decimal('0.1'),
           oracle: constants.AddressZero,
-          payoff: {
-            provider: marketParameter.payoff.provider,
-            short: marketParameter.payoff.short,
-          },
+          payoff: marketParameter.payoff,
         }
 
         await expect(market.connect(owner).updateParameter(newMarketParameter)).to.revertedWith(
@@ -282,7 +271,7 @@ describe('Market', () => {
         )
       })
 
-      it('reverts when updating (payoff.provider)', async () => {
+      it('reverts when updating (payoff)', async () => {
         const newMarketParameter = {
           maintenance: parse6decimal('0.4'),
           fundingFee: parse6decimal('0.2'),
@@ -302,41 +291,7 @@ describe('Market', () => {
           longRewardRate: parse6decimal('0.1'),
           shortRewardRate: parse6decimal('0.1'),
           oracle: marketParameter.oracle,
-          payoff: {
-            provider: user.address,
-            short: marketParameter.payoff.short,
-          },
-        }
-
-        await expect(market.connect(owner).updateParameter(newMarketParameter)).to.be.revertedWith(
-          'MarketParameterStorageImmutableError()',
-        )
-      })
-
-      it('reverts when updating (payoff.short)', async () => {
-        const newMarketParameter = {
-          maintenance: parse6decimal('0.4'),
-          fundingFee: parse6decimal('0.2'),
-          takerFee: parse6decimal('0.1'),
-          makerFee: parse6decimal('0.05'),
-          positionFee: parse6decimal('0.1'),
-          makerLiquidity: parse6decimal('0.1'),
-          makerLimit: parse6decimal('2000'),
-          closed: true,
-          utilizationCurve: {
-            minRate: parse6decimal('0.20'),
-            maxRate: parse6decimal('0.20'),
-            targetRate: parse6decimal('0.20'),
-            targetUtilization: parse6decimal('0.75'),
-          },
-          makerRewardRate: parse6decimal('0.1'),
-          longRewardRate: parse6decimal('0.1'),
-          shortRewardRate: parse6decimal('0.1'),
-          oracle: marketParameter.oracle,
-          payoff: {
-            provider: marketParameter.payoff.provider,
-            short: true,
-          },
+          payoff: user.address,
         }
 
         await expect(market.connect(owner).updateParameter(newMarketParameter)).to.be.revertedWith(
@@ -433,9 +388,9 @@ describe('Market', () => {
             })
 
             await dsu.mock.transfer.withArgs(user.address, COLLATERAL.mul(1e12)).returns(true)
-            await expect(market.connect(user).update(user.address, 0, 0, 0, 0))
+            await expect(market.connect(user).update(user.address, 0, 0, 0, COLLATERAL.mul(-1)))
               .to.emit(market, 'Updated')
-              .withArgs(user.address, ORACLE_VERSION_1.version + 1, 0, 0, 0, 0)
+              .withArgs(user.address, ORACLE_VERSION_1.version + 1, 0, 0, 0, COLLATERAL.mul(-1))
 
             expectLocalEq(await market.locals(user.address), {
               currentId: 1,
@@ -554,9 +509,9 @@ describe('Market', () => {
             await market.connect(user).settle(user.address)
 
             await dsu.mock.transfer.withArgs(user.address, COLLATERAL.mul(1e12)).returns(true)
-            await expect(market.connect(user).update(user.address, 0, 0, 0, 0))
+            await expect(market.connect(user).update(user.address, 0, 0, 0, COLLATERAL.mul(-1)))
               .to.emit(market, 'Updated')
-              .withArgs(user.address, ORACLE_VERSION_2.version + 1, 0, 0, 0, 0)
+              .withArgs(user.address, ORACLE_VERSION_2.version + 1, 0, 0, 0, COLLATERAL.mul(-1))
 
             expectLocalEq(await market.locals(user.address), {
               currentId: 2,
@@ -742,9 +697,9 @@ describe('Market', () => {
             it('opens a second position (same version)', async () => {
               await market.connect(user).update(user.address, POSITION, 0, 0, COLLATERAL)
 
-              await expect(market.connect(user).update(user.address, POSITION.mul(2), 0, 0, COLLATERAL))
+              await expect(market.connect(user).update(user.address, POSITION.mul(2), 0, 0, 0))
                 .to.emit(market, 'Updated')
-                .withArgs(user.address, ORACLE_VERSION_1.version + 1, POSITION.mul(2), 0, 0, COLLATERAL)
+                .withArgs(user.address, ORACLE_VERSION_1.version + 1, POSITION.mul(2), 0, 0, 0)
 
               expectLocalEq(await market.locals(user.address), {
                 currentId: 1,
@@ -802,9 +757,9 @@ describe('Market', () => {
             it('opens a second position and settles (same version)', async () => {
               await market.connect(user).update(user.address, POSITION, 0, 0, COLLATERAL)
 
-              await expect(market.connect(user).update(user.address, POSITION.mul(2), 0, 0, COLLATERAL))
+              await expect(market.connect(user).update(user.address, POSITION.mul(2), 0, 0, 0))
                 .to.emit(market, 'Updated')
-                .withArgs(user.address, ORACLE_VERSION_1.version + 1, POSITION.mul(2), 0, 0, COLLATERAL)
+                .withArgs(user.address, ORACLE_VERSION_1.version + 1, POSITION.mul(2), 0, 0, 0)
 
               await oracle.mock.at.withArgs(2).returns(ORACLE_VERSION_2)
               await oracle.mock.sync.withArgs().returns(ORACLE_VERSION_2, ORACLE_VERSION_3.version)
@@ -870,9 +825,9 @@ describe('Market', () => {
               await oracle.mock.at.withArgs(2).returns(ORACLE_VERSION_2)
               await oracle.mock.sync.withArgs().returns(ORACLE_VERSION_2, ORACLE_VERSION_3.version)
 
-              await expect(market.connect(user).update(user.address, POSITION.mul(2), 0, 0, COLLATERAL))
+              await expect(market.connect(user).update(user.address, POSITION.mul(2), 0, 0, 0))
                 .to.emit(market, 'Updated')
-                .withArgs(user.address, ORACLE_VERSION_2.version + 1, POSITION.mul(2), 0, 0, COLLATERAL)
+                .withArgs(user.address, ORACLE_VERSION_2.version + 1, POSITION.mul(2), 0, 0, 0)
 
               expectLocalEq(await market.locals(user.address), {
                 currentId: 2,
@@ -933,9 +888,9 @@ describe('Market', () => {
               await oracle.mock.at.withArgs(2).returns(ORACLE_VERSION_2)
               await oracle.mock.sync.withArgs().returns(ORACLE_VERSION_2, ORACLE_VERSION_3.version)
 
-              await expect(market.connect(user).update(user.address, POSITION.mul(2), 0, 0, COLLATERAL))
+              await expect(market.connect(user).update(user.address, POSITION.mul(2), 0, 0, 0))
                 .to.emit(market, 'Updated')
-                .withArgs(user.address, ORACLE_VERSION_2.version + 1, POSITION.mul(2), 0, 0, COLLATERAL)
+                .withArgs(user.address, ORACLE_VERSION_2.version + 1, POSITION.mul(2), 0, 0, 0)
 
               await oracle.mock.at.withArgs(3).returns(ORACLE_VERSION_3)
               await oracle.mock.sync.withArgs().returns(ORACLE_VERSION_3, ORACLE_VERSION_4.version)
@@ -1067,9 +1022,9 @@ describe('Market', () => {
             })
 
             it('closes the position', async () => {
-              await expect(market.connect(user).update(user.address, 0, 0, 0, COLLATERAL))
+              await expect(market.connect(user).update(user.address, 0, 0, 0, 0))
                 .to.emit(market, 'Updated')
-                .withArgs(user.address, ORACLE_VERSION_1.version + 1, 0, 0, 0, COLLATERAL)
+                .withArgs(user.address, ORACLE_VERSION_1.version + 1, 0, 0, 0, 0)
 
               expectLocalEq(await market.locals(user.address), {
                 currentId: 1,
@@ -1125,9 +1080,9 @@ describe('Market', () => {
             })
 
             it('closes the position partially', async () => {
-              await expect(market.connect(user).update(user.address, POSITION.div(2), 0, 0, COLLATERAL))
+              await expect(market.connect(user).update(user.address, POSITION.div(2), 0, 0, 0))
                 .to.emit(market, 'Updated')
-                .withArgs(user.address, ORACLE_VERSION_1.version + 1, POSITION.div(2), 0, 0, COLLATERAL)
+                .withArgs(user.address, ORACLE_VERSION_1.version + 1, POSITION.div(2), 0, 0, 0)
 
               expectLocalEq(await market.locals(user.address), {
                 currentId: 1,
@@ -1191,9 +1146,9 @@ describe('Market', () => {
               })
 
               it('closes the position', async () => {
-                await expect(market.connect(user).update(user.address, 0, 0, 0, COLLATERAL))
+                await expect(market.connect(user).update(user.address, 0, 0, 0, 0))
                   .to.emit(market, 'Updated')
-                  .withArgs(user.address, ORACLE_VERSION_2.version + 1, 0, 0, 0, COLLATERAL)
+                  .withArgs(user.address, ORACLE_VERSION_2.version + 1, 0, 0, 0, 0)
 
                 expectLocalEq(await market.locals(user.address), {
                   currentId: 2,
@@ -1249,9 +1204,9 @@ describe('Market', () => {
               })
 
               it('closes the position and settles', async () => {
-                await expect(market.connect(user).update(user.address, 0, 0, 0, COLLATERAL))
+                await expect(market.connect(user).update(user.address, 0, 0, 0, 0))
                   .to.emit(market, 'Updated')
-                  .withArgs(user.address, ORACLE_VERSION_2.version + 1, 0, 0, 0, COLLATERAL)
+                  .withArgs(user.address, ORACLE_VERSION_2.version + 1, 0, 0, 0, 0)
 
                 await oracle.mock.at.withArgs(3).returns(ORACLE_VERSION_3)
                 await oracle.mock.sync.withArgs().returns(ORACLE_VERSION_3, ORACLE_VERSION_4.version)
@@ -1312,11 +1267,11 @@ describe('Market', () => {
               })
 
               it('closes a second position (same version)', async () => {
-                await market.connect(user).update(user.address, POSITION.div(2), 0, 0, COLLATERAL)
+                await market.connect(user).update(user.address, POSITION.div(2), 0, 0, 0)
 
-                await expect(market.connect(user).update(user.address, 0, 0, 0, COLLATERAL))
+                await expect(market.connect(user).update(user.address, 0, 0, 0, 0))
                   .to.emit(market, 'Updated')
-                  .withArgs(user.address, ORACLE_VERSION_2.version + 1, 0, 0, 0, COLLATERAL)
+                  .withArgs(user.address, ORACLE_VERSION_2.version + 1, 0, 0, 0, 0)
 
                 expectLocalEq(await market.locals(user.address), {
                   currentId: 2,
@@ -1372,11 +1327,11 @@ describe('Market', () => {
               })
 
               it('closes a second position and settles (same version)', async () => {
-                await market.connect(user).update(user.address, POSITION.div(2), 0, 0, COLLATERAL)
+                await market.connect(user).update(user.address, POSITION.div(2), 0, 0, 0)
 
-                await expect(market.connect(user).update(user.address, 0, 0, 0, COLLATERAL))
+                await expect(market.connect(user).update(user.address, 0, 0, 0, 0))
                   .to.emit(market, 'Updated')
-                  .withArgs(user.address, ORACLE_VERSION_2.version + 1, 0, 0, 0, COLLATERAL)
+                  .withArgs(user.address, ORACLE_VERSION_2.version + 1, 0, 0, 0, 0)
 
                 await oracle.mock.at.withArgs(3).returns(ORACLE_VERSION_3)
                 await oracle.mock.sync.withArgs().returns(ORACLE_VERSION_3, ORACLE_VERSION_4.version)
@@ -1437,14 +1392,14 @@ describe('Market', () => {
               })
 
               it('closes a second position (next version)', async () => {
-                await market.connect(user).update(user.address, POSITION.div(2), 0, 0, COLLATERAL)
+                await market.connect(user).update(user.address, POSITION.div(2), 0, 0, 0)
 
                 await oracle.mock.at.withArgs(3).returns(ORACLE_VERSION_3)
                 await oracle.mock.sync.withArgs().returns(ORACLE_VERSION_3, ORACLE_VERSION_4.version)
 
-                await expect(market.connect(user).update(user.address, 0, 0, 0, COLLATERAL))
+                await expect(market.connect(user).update(user.address, 0, 0, 0, 0))
                   .to.emit(market, 'Updated')
-                  .withArgs(user.address, ORACLE_VERSION_3.version + 1, 0, 0, 0, COLLATERAL)
+                  .withArgs(user.address, ORACLE_VERSION_3.version + 1, 0, 0, 0, 0)
 
                 expectLocalEq(await market.locals(user.address), {
                   currentId: 3,
@@ -1500,14 +1455,14 @@ describe('Market', () => {
               })
 
               it('closes a second position and settles (next version)', async () => {
-                await market.connect(user).update(user.address, POSITION.div(2), 0, 0, COLLATERAL)
+                await market.connect(user).update(user.address, POSITION.div(2), 0, 0, 0)
 
                 await oracle.mock.at.withArgs(3).returns(ORACLE_VERSION_3)
                 await oracle.mock.sync.withArgs().returns(ORACLE_VERSION_3, ORACLE_VERSION_4.version)
 
-                await expect(market.connect(user).update(user.address, 0, 0, 0, COLLATERAL))
+                await expect(market.connect(user).update(user.address, 0, 0, 0, 0))
                   .to.emit(market, 'Updated')
-                  .withArgs(user.address, ORACLE_VERSION_3.version + 1, 0, 0, 0, COLLATERAL)
+                  .withArgs(user.address, ORACLE_VERSION_3.version + 1, 0, 0, 0, 0)
 
                 await oracle.mock.at.withArgs(4).returns(ORACLE_VERSION_4)
                 await oracle.mock.sync.withArgs().returns(ORACLE_VERSION_4, ORACLE_VERSION_5.version)
@@ -1568,9 +1523,9 @@ describe('Market', () => {
               })
 
               it('closes the position and settles later', async () => {
-                await expect(market.connect(user).update(user.address, 0, 0, 0, COLLATERAL))
+                await expect(market.connect(user).update(user.address, 0, 0, 0, 0))
                   .to.emit(market, 'Updated')
-                  .withArgs(user.address, ORACLE_VERSION_2.version + 1, 0, 0, 0, COLLATERAL)
+                  .withArgs(user.address, ORACLE_VERSION_2.version + 1, 0, 0, 0, 0)
 
                 await oracle.mock.at.withArgs(3).returns(ORACLE_VERSION_3)
 
@@ -1771,9 +1726,9 @@ describe('Market', () => {
               it('opens a second position (same version)', async () => {
                 await market.connect(user).update(user.address, 0, POSITION.div(2), 0, COLLATERAL)
 
-                await expect(market.connect(user).update(user.address, 0, POSITION, 0, COLLATERAL))
+                await expect(market.connect(user).update(user.address, 0, POSITION, 0, 0))
                   .to.emit(market, 'Updated')
-                  .withArgs(user.address, ORACLE_VERSION_1.version + 1, 0, POSITION, 0, COLLATERAL)
+                  .withArgs(user.address, ORACLE_VERSION_1.version + 1, 0, POSITION, 0, 0)
 
                 expectLocalEq(await market.locals(user.address), {
                   currentId: 1,
@@ -1831,9 +1786,9 @@ describe('Market', () => {
               it('opens a second position and settles (same version)', async () => {
                 await market.connect(user).update(user.address, 0, POSITION.div(2), 0, COLLATERAL)
 
-                await expect(market.connect(user).update(user.address, 0, POSITION, 0, COLLATERAL))
+                await expect(market.connect(user).update(user.address, 0, POSITION, 0, 0))
                   .to.emit(market, 'Updated')
-                  .withArgs(user.address, ORACLE_VERSION_1.version + 1, 0, POSITION, 0, COLLATERAL)
+                  .withArgs(user.address, ORACLE_VERSION_1.version + 1, 0, POSITION, 0, 0)
 
                 await oracle.mock.at.withArgs(2).returns(ORACLE_VERSION_2)
                 await oracle.mock.sync.withArgs().returns(ORACLE_VERSION_2, ORACLE_VERSION_3.version)
@@ -1899,9 +1854,9 @@ describe('Market', () => {
                 await oracle.mock.at.withArgs(2).returns(ORACLE_VERSION_2)
                 await oracle.mock.sync.withArgs().returns(ORACLE_VERSION_2, ORACLE_VERSION_3.version)
 
-                await expect(market.connect(user).update(user.address, 0, POSITION, 0, COLLATERAL))
+                await expect(market.connect(user).update(user.address, 0, POSITION, 0, 0))
                   .to.emit(market, 'Updated')
-                  .withArgs(user.address, ORACLE_VERSION_2.version + 1, 0, POSITION, 0, COLLATERAL)
+                  .withArgs(user.address, ORACLE_VERSION_2.version + 1, 0, POSITION, 0, 0)
 
                 expectLocalEq(await market.locals(user.address), {
                   currentId: 2,
@@ -1968,9 +1923,9 @@ describe('Market', () => {
                 await oracle.mock.at.withArgs(2).returns(ORACLE_VERSION_2)
                 await oracle.mock.sync.withArgs().returns(ORACLE_VERSION_2, ORACLE_VERSION_3.version)
 
-                await expect(market.connect(user).update(user.address, 0, POSITION, 0, COLLATERAL))
+                await expect(market.connect(user).update(user.address, 0, POSITION, 0, 0))
                   .to.emit(market, 'Updated')
-                  .withArgs(user.address, ORACLE_VERSION_2.version + 1, 0, POSITION, 0, COLLATERAL)
+                  .withArgs(user.address, ORACLE_VERSION_2.version + 1, 0, POSITION, 0, 0)
 
                 await oracle.mock.at.withArgs(3).returns(ORACLE_VERSION_3)
                 await oracle.mock.sync.withArgs().returns(ORACLE_VERSION_3, ORACLE_VERSION_4.version)
@@ -2361,9 +2316,9 @@ describe('Market', () => {
               })
 
               it('closes the position partially', async () => {
-                await expect(market.connect(user).update(user.address, 0, POSITION.div(4), 0, COLLATERAL))
+                await expect(market.connect(user).update(user.address, 0, POSITION.div(4), 0, 0))
                   .to.emit(market, 'Updated')
-                  .withArgs(user.address, ORACLE_VERSION_1.version + 1, 0, POSITION.div(4), 0, COLLATERAL)
+                  .withArgs(user.address, ORACLE_VERSION_1.version + 1, 0, POSITION.div(4), 0, 0)
 
                 expectLocalEq(await market.locals(user.address), {
                   currentId: 1,
@@ -2419,9 +2374,9 @@ describe('Market', () => {
               })
 
               it('closes the position', async () => {
-                await expect(market.connect(user).update(user.address, 0, 0, 0, COLLATERAL))
+                await expect(market.connect(user).update(user.address, 0, 0, 0, 0))
                   .to.emit(market, 'Updated')
-                  .withArgs(user.address, ORACLE_VERSION_1.version + 1, 0, 0, 0, COLLATERAL)
+                  .withArgs(user.address, ORACLE_VERSION_1.version + 1, 0, 0, 0, 0)
 
                 expectLocalEq(await market.locals(user.address), {
                   currentId: 1,
@@ -2485,9 +2440,9 @@ describe('Market', () => {
                 })
 
                 it('closes the position', async () => {
-                  await expect(market.connect(user).update(user.address, 0, 0, 0, COLLATERAL))
+                  await expect(market.connect(user).update(user.address, 0, 0, 0, 0))
                     .to.emit(market, 'Updated')
-                    .withArgs(user.address, ORACLE_VERSION_2.version + 1, 0, 0, 0, COLLATERAL)
+                    .withArgs(user.address, ORACLE_VERSION_2.version + 1, 0, 0, 0, 0)
 
                   expectLocalEq(await market.locals(user.address), {
                     currentId: 2,
@@ -2543,9 +2498,9 @@ describe('Market', () => {
                 })
 
                 it('closes the position and settles', async () => {
-                  await expect(market.connect(user).update(user.address, 0, 0, 0, COLLATERAL))
+                  await expect(market.connect(user).update(user.address, 0, 0, 0, 0))
                     .to.emit(market, 'Updated')
-                    .withArgs(user.address, ORACLE_VERSION_2.version + 1, 0, 0, 0, COLLATERAL)
+                    .withArgs(user.address, ORACLE_VERSION_2.version + 1, 0, 0, 0, 0)
 
                   await oracle.mock.at.withArgs(3).returns(ORACLE_VERSION_3)
                   await oracle.mock.sync.withArgs().returns(ORACLE_VERSION_3, ORACLE_VERSION_4.version + 1)
@@ -2629,11 +2584,11 @@ describe('Market', () => {
                 })
 
                 it('closes a second position (same version)', async () => {
-                  await market.connect(user).update(user.address, 0, POSITION.div(4), 0, COLLATERAL)
+                  await market.connect(user).update(user.address, 0, POSITION.div(4), 0, 0)
 
-                  await expect(market.connect(user).update(user.address, 0, 0, 0, COLLATERAL))
+                  await expect(market.connect(user).update(user.address, 0, 0, 0, 0))
                     .to.emit(market, 'Updated')
-                    .withArgs(user.address, ORACLE_VERSION_2.version + 1, 0, 0, 0, COLLATERAL)
+                    .withArgs(user.address, ORACLE_VERSION_2.version + 1, 0, 0, 0, 0)
 
                   expectLocalEq(await market.locals(user.address), {
                     currentId: 2,
@@ -2689,11 +2644,11 @@ describe('Market', () => {
                 })
 
                 it('closes a second position and settles (same version)', async () => {
-                  await market.connect(user).update(user.address, 0, POSITION.div(4), 0, COLLATERAL)
+                  await market.connect(user).update(user.address, 0, POSITION.div(4), 0, 0)
 
-                  await expect(market.connect(user).update(user.address, 0, 0, 0, COLLATERAL))
+                  await expect(market.connect(user).update(user.address, 0, 0, 0, 0))
                     .to.emit(market, 'Updated')
-                    .withArgs(user.address, ORACLE_VERSION_2.version + 1, 0, 0, 0, COLLATERAL)
+                    .withArgs(user.address, ORACLE_VERSION_2.version + 1, 0, 0, 0, 0)
 
                   await oracle.mock.at.withArgs(3).returns(ORACLE_VERSION_3)
                   await oracle.mock.sync.withArgs().returns(ORACLE_VERSION_3, ORACLE_VERSION_4.version)
@@ -2777,24 +2732,21 @@ describe('Market', () => {
                 })
 
                 it('closes a second position (next version)', async () => {
-                  await market.connect(user).update(user.address, 0, POSITION.div(4), 0, COLLATERAL)
+                  await market.connect(user).update(user.address, 0, POSITION.div(4), 0, 0)
 
                   await oracle.mock.at.withArgs(3).returns(ORACLE_VERSION_3)
                   await oracle.mock.sync.withArgs().returns(ORACLE_VERSION_3, ORACLE_VERSION_4.version)
 
-                  await dsu.mock.transferFrom
-                    .withArgs(user.address, market.address, EXPECTED_FUNDING.mul(1e12))
-                    .returns(true)
-                  await expect(market.connect(user).update(user.address, 0, 0, 0, COLLATERAL))
+                  await expect(market.connect(user).update(user.address, 0, 0, 0, 0))
                     .to.emit(market, 'Updated')
-                    .withArgs(user.address, ORACLE_VERSION_3.version + 1, 0, 0, 0, COLLATERAL)
+                    .withArgs(user.address, ORACLE_VERSION_3.version + 1, 0, 0, 0, 0)
 
                   await market.settle(user.address)
                   await market.settle(userB.address)
 
                   expectLocalEq(await market.locals(user.address), {
                     currentId: 3,
-                    collateral: COLLATERAL, // EXPECTED_FUNDING paid at update
+                    collateral: COLLATERAL.sub(EXPECTED_FUNDING),
                     reward: EXPECTED_REWARD.mul(2),
                     liquidation: 0,
                   })
@@ -2874,17 +2826,14 @@ describe('Market', () => {
                   const EXPECTED_FUNDING_FEE_2 = EXPECTED_FUNDING_2.div(10)
                   const EXPECTED_FUNDING_WITH_FEE_2 = EXPECTED_FUNDING_2.sub(EXPECTED_FUNDING_FEE_2)
 
-                  await market.connect(user).update(user.address, 0, POSITION.div(4), 0, COLLATERAL)
+                  await market.connect(user).update(user.address, 0, POSITION.div(4), 0, 0)
 
                   await oracle.mock.at.withArgs(3).returns(ORACLE_VERSION_3)
                   await oracle.mock.sync.withArgs().returns(ORACLE_VERSION_3, ORACLE_VERSION_4.version)
 
-                  await dsu.mock.transferFrom
-                    .withArgs(user.address, market.address, EXPECTED_FUNDING.mul(1e12))
-                    .returns(true)
-                  await expect(market.connect(user).update(user.address, 0, 0, 0, COLLATERAL))
+                  await expect(market.connect(user).update(user.address, 0, 0, 0, 0))
                     .to.emit(market, 'Updated')
-                    .withArgs(user.address, ORACLE_VERSION_3.version + 1, 0, 0, 0, COLLATERAL)
+                    .withArgs(user.address, ORACLE_VERSION_3.version + 1, 0, 0, 0, 0)
 
                   await oracle.mock.at.withArgs(4).returns(ORACLE_VERSION_4)
                   await oracle.mock.sync.withArgs().returns(ORACLE_VERSION_4, ORACLE_VERSION_5.version)
@@ -2894,7 +2843,7 @@ describe('Market', () => {
 
                   expectLocalEq(await market.locals(user.address), {
                     currentId: 3,
-                    collateral: COLLATERAL.sub(EXPECTED_FUNDING_2), // EXPECTED_FUNDING_1 paid at update
+                    collateral: COLLATERAL.sub(EXPECTED_FUNDING).sub(EXPECTED_FUNDING_2),
                     reward: EXPECTED_REWARD.mul(2).mul(2),
                     liquidation: 0,
                   })
@@ -2976,9 +2925,9 @@ describe('Market', () => {
                 })
 
                 it('closes the position and settles later', async () => {
-                  await expect(market.connect(user).update(user.address, 0, 0, 0, COLLATERAL))
+                  await expect(market.connect(user).update(user.address, 0, 0, 0, 0))
                     .to.emit(market, 'Updated')
-                    .withArgs(user.address, ORACLE_VERSION_2.version + 1, 0, 0, 0, COLLATERAL)
+                    .withArgs(user.address, ORACLE_VERSION_2.version + 1, 0, 0, 0, 0)
 
                   await oracle.mock.at.withArgs(3).returns(ORACLE_VERSION_3)
 
@@ -3070,9 +3019,9 @@ describe('Market', () => {
 
                   const TAKER_FEE = parse6decimal('6.15') // position * taker fee * price
 
-                  await expect(market.connect(user).update(user.address, 0, 0, 0, COLLATERAL))
+                  await expect(market.connect(user).update(user.address, 0, 0, 0, 0))
                     .to.emit(market, 'Updated')
-                    .withArgs(user.address, ORACLE_VERSION_2.version + 1, 0, 0, 0, COLLATERAL)
+                    .withArgs(user.address, ORACLE_VERSION_2.version + 1, 0, 0, 0, 0)
 
                   await oracle.mock.at.withArgs(3).returns(ORACLE_VERSION_3)
 
@@ -3943,13 +3892,13 @@ describe('Market', () => {
                   .sub(EXPECTED_LIQUIDATION_FEE)
                   .sub(EXPECTED_PNL)
                   .sub(19) // loss of precision
+                await factory.mock.operators.withArgs(userB.address, liquidator.address).returns(false)
                 await dsu.mock.transferFrom
                   .withArgs(liquidator.address, market.address, shortfall.mul(-1).mul(1e12))
                   .returns(true)
-                await factory.mock.operators.withArgs(userB.address, liquidator.address).returns(false)
-                await expect(market.connect(liquidator).update(userB.address, 0, 0, 0, 0))
+                await expect(market.connect(liquidator).update(userB.address, 0, 0, 0, shortfall.mul(-1)))
                   .to.emit(market, 'Updated')
-                  .withArgs(userB.address, ORACLE_VERSION_4.version + 1, 0, 0, 0, 0)
+                  .withArgs(userB.address, ORACLE_VERSION_4.version + 1, 0, 0, 0, shortfall.mul(-1))
 
                 expectLocalEq(await market.locals(userB.address), {
                   currentId: 3,
@@ -4269,9 +4218,9 @@ describe('Market', () => {
                   .withArgs(liquidator.address, market.address, shortfall.mul(-1).mul(1e12))
                   .returns(true)
                 await factory.mock.operators.withArgs(user.address, liquidator.address).returns(false)
-                await expect(market.connect(liquidator).update(user.address, 0, 0, 0, 0))
+                await expect(market.connect(liquidator).update(user.address, 0, 0, 0, shortfall.mul(-1)))
                   .to.emit(market, 'Updated')
-                  .withArgs(user.address, ORACLE_VERSION_4.version + 1, 0, 0, 0, 0)
+                  .withArgs(user.address, ORACLE_VERSION_4.version + 1, 0, 0, 0, shortfall.mul(-1))
 
                 expectLocalEq(await market.locals(user.address), {
                   currentId: 3,
@@ -4558,9 +4507,9 @@ describe('Market', () => {
               it('opens a second position (same version)', async () => {
                 await market.connect(user).update(user.address, 0, 0, POSITION.div(2), COLLATERAL)
 
-                await expect(market.connect(user).update(user.address, 0, 0, POSITION, COLLATERAL))
+                await expect(market.connect(user).update(user.address, 0, 0, POSITION, 0))
                   .to.emit(market, 'Updated')
-                  .withArgs(user.address, ORACLE_VERSION_1.version + 1, 0, 0, POSITION, COLLATERAL)
+                  .withArgs(user.address, ORACLE_VERSION_1.version + 1, 0, 0, POSITION, 0)
 
                 expectLocalEq(await market.locals(user.address), {
                   currentId: 1,
@@ -4618,9 +4567,9 @@ describe('Market', () => {
               it('opens a second position and settles (same version)', async () => {
                 await market.connect(user).update(user.address, 0, 0, POSITION.div(2), COLLATERAL)
 
-                await expect(market.connect(user).update(user.address, 0, 0, POSITION, COLLATERAL))
+                await expect(market.connect(user).update(user.address, 0, 0, POSITION, 0))
                   .to.emit(market, 'Updated')
-                  .withArgs(user.address, ORACLE_VERSION_1.version + 1, 0, 0, POSITION, COLLATERAL)
+                  .withArgs(user.address, ORACLE_VERSION_1.version + 1, 0, 0, POSITION, 0)
 
                 await oracle.mock.at.withArgs(2).returns(ORACLE_VERSION_2)
                 await oracle.mock.sync.withArgs().returns(ORACLE_VERSION_2, ORACLE_VERSION_3.version)
@@ -4686,9 +4635,9 @@ describe('Market', () => {
                 await oracle.mock.at.withArgs(2).returns(ORACLE_VERSION_2)
                 await oracle.mock.sync.withArgs().returns(ORACLE_VERSION_2, ORACLE_VERSION_3.version)
 
-                await expect(market.connect(user).update(user.address, 0, 0, POSITION, COLLATERAL))
+                await expect(market.connect(user).update(user.address, 0, 0, POSITION, 0))
                   .to.emit(market, 'Updated')
-                  .withArgs(user.address, ORACLE_VERSION_2.version + 1, 0, 0, POSITION, COLLATERAL)
+                  .withArgs(user.address, ORACLE_VERSION_2.version + 1, 0, 0, POSITION, 0)
 
                 expectLocalEq(await market.locals(user.address), {
                   currentId: 2,
@@ -4755,9 +4704,9 @@ describe('Market', () => {
                 await oracle.mock.at.withArgs(2).returns(ORACLE_VERSION_2)
                 await oracle.mock.sync.withArgs().returns(ORACLE_VERSION_2, ORACLE_VERSION_3.version)
 
-                await expect(market.connect(user).update(user.address, 0, 0, POSITION, COLLATERAL))
+                await expect(market.connect(user).update(user.address, 0, 0, POSITION, 0))
                   .to.emit(market, 'Updated')
-                  .withArgs(user.address, ORACLE_VERSION_2.version + 1, 0, 0, POSITION, COLLATERAL)
+                  .withArgs(user.address, ORACLE_VERSION_2.version + 1, 0, 0, POSITION, 0)
 
                 await oracle.mock.at.withArgs(3).returns(ORACLE_VERSION_3)
                 await oracle.mock.sync.withArgs().returns(ORACLE_VERSION_3, ORACLE_VERSION_4.version)
@@ -5154,9 +5103,9 @@ describe('Market', () => {
               })
 
               it('closes the position partially', async () => {
-                await expect(market.connect(user).update(user.address, 0, 0, POSITION.div(4), COLLATERAL))
+                await expect(market.connect(user).update(user.address, 0, 0, POSITION.div(4), 0))
                   .to.emit(market, 'Updated')
-                  .withArgs(user.address, ORACLE_VERSION_1.version + 1, 0, 0, POSITION.div(4), COLLATERAL)
+                  .withArgs(user.address, ORACLE_VERSION_1.version + 1, 0, 0, POSITION.div(4), 0)
 
                 expectLocalEq(await market.locals(user.address), {
                   currentId: 1,
@@ -5212,9 +5161,9 @@ describe('Market', () => {
               })
 
               it('closes the position', async () => {
-                await expect(market.connect(user).update(user.address, 0, 0, 0, COLLATERAL))
+                await expect(market.connect(user).update(user.address, 0, 0, 0, 0))
                   .to.emit(market, 'Updated')
-                  .withArgs(user.address, ORACLE_VERSION_1.version + 1, 0, 0, 0, COLLATERAL)
+                  .withArgs(user.address, ORACLE_VERSION_1.version + 1, 0, 0, 0, 0)
 
                 expectLocalEq(await market.locals(user.address), {
                   currentId: 1,
@@ -5278,9 +5227,9 @@ describe('Market', () => {
                 })
 
                 it('closes the position', async () => {
-                  await expect(market.connect(user).update(user.address, 0, 0, 0, COLLATERAL))
+                  await expect(market.connect(user).update(user.address, 0, 0, 0, 0))
                     .to.emit(market, 'Updated')
-                    .withArgs(user.address, ORACLE_VERSION_2.version + 1, 0, 0, 0, COLLATERAL)
+                    .withArgs(user.address, ORACLE_VERSION_2.version + 1, 0, 0, 0, 0)
 
                   expectLocalEq(await market.locals(user.address), {
                     currentId: 2,
@@ -5336,9 +5285,9 @@ describe('Market', () => {
                 })
 
                 it('closes the position and settles', async () => {
-                  await expect(market.connect(user).update(user.address, 0, 0, 0, COLLATERAL))
+                  await expect(market.connect(user).update(user.address, 0, 0, 0, 0))
                     .to.emit(market, 'Updated')
-                    .withArgs(user.address, ORACLE_VERSION_2.version + 1, 0, 0, 0, COLLATERAL)
+                    .withArgs(user.address, ORACLE_VERSION_2.version + 1, 0, 0, 0, 0)
 
                   await oracle.mock.at.withArgs(3).returns(ORACLE_VERSION_3)
                   await oracle.mock.sync.withArgs().returns(ORACLE_VERSION_3, ORACLE_VERSION_4.version)
@@ -5422,11 +5371,11 @@ describe('Market', () => {
                 })
 
                 it('closes a second position (same version)', async () => {
-                  await market.connect(user).update(user.address, 0, 0, POSITION.div(4), COLLATERAL)
+                  await market.connect(user).update(user.address, 0, 0, POSITION.div(4), 0)
 
-                  await expect(market.connect(user).update(user.address, 0, 0, 0, COLLATERAL))
+                  await expect(market.connect(user).update(user.address, 0, 0, 0, 0))
                     .to.emit(market, 'Updated')
-                    .withArgs(user.address, ORACLE_VERSION_2.version + 1, 0, 0, 0, COLLATERAL)
+                    .withArgs(user.address, ORACLE_VERSION_2.version + 1, 0, 0, 0, 0)
 
                   expectLocalEq(await market.locals(user.address), {
                     currentId: 2,
@@ -5482,11 +5431,11 @@ describe('Market', () => {
                 })
 
                 it('closes a second position and settles (same version)', async () => {
-                  await market.connect(user).update(user.address, 0, 0, POSITION.div(4), COLLATERAL)
+                  await market.connect(user).update(user.address, 0, 0, POSITION.div(4), 0)
 
-                  await expect(market.connect(user).update(user.address, 0, 0, 0, COLLATERAL))
+                  await expect(market.connect(user).update(user.address, 0, 0, 0, 0))
                     .to.emit(market, 'Updated')
-                    .withArgs(user.address, ORACLE_VERSION_2.version + 1, 0, 0, 0, COLLATERAL)
+                    .withArgs(user.address, ORACLE_VERSION_2.version + 1, 0, 0, 0, 0)
 
                   await oracle.mock.at.withArgs(3).returns(ORACLE_VERSION_3)
                   await oracle.mock.sync.withArgs().returns(ORACLE_VERSION_3, ORACLE_VERSION_4.version)
@@ -5570,23 +5519,20 @@ describe('Market', () => {
                 })
 
                 it('closes a second position (next version)', async () => {
-                  await market.connect(user).update(user.address, 0, 0, POSITION.div(4), COLLATERAL)
+                  await market.connect(user).update(user.address, 0, 0, POSITION.div(4), 0)
 
                   await oracle.mock.at.withArgs(3).returns(ORACLE_VERSION_3)
                   await oracle.mock.sync.withArgs().returns(ORACLE_VERSION_3, ORACLE_VERSION_4.version)
 
-                  await dsu.mock.transferFrom
-                    .withArgs(user.address, market.address, EXPECTED_FUNDING.mul(1e12))
-                    .returns(true)
-                  await expect(market.connect(user).update(user.address, 0, 0, 0, COLLATERAL))
+                  await expect(market.connect(user).update(user.address, 0, 0, 0, 0))
                     .to.emit(market, 'Updated')
-                    .withArgs(user.address, ORACLE_VERSION_3.version + 1, 0, 0, 0, COLLATERAL)
+                    .withArgs(user.address, ORACLE_VERSION_3.version + 1, 0, 0, 0, 0)
 
                   await market.settle(userB.address)
 
                   expectLocalEq(await market.locals(user.address), {
                     currentId: 3,
-                    collateral: COLLATERAL, // EXPECTED_FUNDING paid at update
+                    collateral: COLLATERAL.sub(EXPECTED_FUNDING),
                     reward: EXPECTED_REWARD,
                     liquidation: 0,
                   })
@@ -5666,17 +5612,14 @@ describe('Market', () => {
                   const EXPECTED_FUNDING_FEE_2 = EXPECTED_FUNDING_2.div(10)
                   const EXPECTED_FUNDING_WITH_FEE_2 = EXPECTED_FUNDING_2.sub(EXPECTED_FUNDING_FEE_2)
 
-                  await market.connect(user).update(user.address, 0, 0, POSITION.div(4), COLLATERAL)
+                  await market.connect(user).update(user.address, 0, 0, POSITION.div(4), 0)
 
                   await oracle.mock.at.withArgs(3).returns(ORACLE_VERSION_3)
                   await oracle.mock.sync.withArgs().returns(ORACLE_VERSION_3, ORACLE_VERSION_4.version)
 
-                  await dsu.mock.transferFrom
-                    .withArgs(user.address, market.address, EXPECTED_FUNDING.mul(1e12))
-                    .returns(true)
-                  await expect(market.connect(user).update(user.address, 0, 0, 0, COLLATERAL))
+                  await expect(market.connect(user).update(user.address, 0, 0, 0, 0))
                     .to.emit(market, 'Updated')
-                    .withArgs(user.address, ORACLE_VERSION_3.version + 1, 0, 0, 0, COLLATERAL)
+                    .withArgs(user.address, ORACLE_VERSION_3.version + 1, 0, 0, 0, 0)
 
                   await oracle.mock.at.withArgs(4).returns(ORACLE_VERSION_4)
                   await oracle.mock.sync.withArgs().returns(ORACLE_VERSION_4, ORACLE_VERSION_5.version)
@@ -5686,7 +5629,7 @@ describe('Market', () => {
 
                   expectLocalEq(await market.locals(user.address), {
                     currentId: 3,
-                    collateral: COLLATERAL.sub(EXPECTED_FUNDING_2), // EXPECTED_FUNDING_1 paid at update
+                    collateral: COLLATERAL.sub(EXPECTED_FUNDING).sub(EXPECTED_FUNDING_2),
                     reward: EXPECTED_REWARD.mul(2),
                     liquidation: 0,
                   })
@@ -5768,9 +5711,9 @@ describe('Market', () => {
                 })
 
                 it('closes the position and settles later', async () => {
-                  await expect(market.connect(user).update(user.address, 0, 0, 0, COLLATERAL))
+                  await expect(market.connect(user).update(user.address, 0, 0, 0, 0))
                     .to.emit(market, 'Updated')
-                    .withArgs(user.address, ORACLE_VERSION_2.version + 1, 0, 0, 0, COLLATERAL)
+                    .withArgs(user.address, ORACLE_VERSION_2.version + 1, 0, 0, 0, 0)
 
                   await oracle.mock.at.withArgs(3).returns(ORACLE_VERSION_3)
 
@@ -5863,9 +5806,9 @@ describe('Market', () => {
                   const TAKER_FEE = parse6decimal('6.15') // position * taker fee * price
 
                   await dsu.mock.transferFrom.withArgs(user.address, market.address, TAKER_FEE.mul(1e12)).returns(true)
-                  await expect(market.connect(user).update(user.address, 0, 0, 0, COLLATERAL))
+                  await expect(market.connect(user).update(user.address, 0, 0, 0, 0))
                     .to.emit(market, 'Updated')
-                    .withArgs(user.address, ORACLE_VERSION_2.version + 1, 0, 0, 0, COLLATERAL)
+                    .withArgs(user.address, ORACLE_VERSION_2.version + 1, 0, 0, 0, 0)
 
                   await oracle.mock.at.withArgs(3).returns(ORACLE_VERSION_3)
 
@@ -6742,9 +6685,9 @@ describe('Market', () => {
                   .withArgs(liquidator.address, market.address, shortfall.mul(-1).mul(1e12))
                   .returns(true)
                 await factory.mock.operators.withArgs(userB.address, liquidator.address).returns(false)
-                await expect(market.connect(liquidator).update(userB.address, 0, 0, 0, 0))
+                await expect(market.connect(liquidator).update(userB.address, 0, 0, 0, shortfall.mul(-1)))
                   .to.emit(market, 'Updated')
-                  .withArgs(userB.address, ORACLE_VERSION_4.version + 1, 0, 0, 0, 0)
+                  .withArgs(userB.address, ORACLE_VERSION_4.version + 1, 0, 0, 0, shortfall.mul(-1))
 
                 expectLocalEq(await market.locals(userB.address), {
                   currentId: 3,
@@ -7064,9 +7007,9 @@ describe('Market', () => {
                   .withArgs(liquidator.address, market.address, shortfall.mul(-1).mul(1e12))
                   .returns(true)
                 await factory.mock.operators.withArgs(user.address, liquidator.address).returns(false)
-                await expect(market.connect(liquidator).update(user.address, 0, 0, 0, 0))
+                await expect(market.connect(liquidator).update(user.address, 0, 0, 0, shortfall.mul(-1)))
                   .to.emit(market, 'Updated')
-                  .withArgs(user.address, ORACLE_VERSION_4.version + 1, 0, 0, 0, 0)
+                  .withArgs(user.address, ORACLE_VERSION_4.version + 1, 0, 0, 0, shortfall.mul(-1))
 
                 expectLocalEq(await market.locals(user.address), {
                   currentId: 3,

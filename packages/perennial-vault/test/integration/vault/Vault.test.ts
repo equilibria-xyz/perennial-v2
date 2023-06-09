@@ -262,7 +262,7 @@ describe('Vault', () => {
 
   describe('#initialize', () => {
     it('cant re-initialize', async () => {
-      await expect(vault.initialize(asset.address, market.address)).to.revertedWith(
+      await expect(vault.initialize(asset.address, market.address, 'Blue Chip')).to.revertedWith(
         'UInitializableAlreadyInitializedError',
       )
     })

@@ -89,7 +89,6 @@ contract Market is IMarket, UInitializable, UOwnable {
         CurrentContext memory context = _loadContext(account);
         if (context.protocolParameter.paused) revert MarketPausedError();
 
-        _checkOperator(context, account, newMaker, newLong, newShort, collateral);
         _settle(context, account);
         _sync(context, account);
         _update(context, account, newMaker, newLong, newShort, collateral, false);
@@ -224,6 +223,7 @@ contract Market is IMarket, UInitializable, UOwnable {
         context.accountPendingPosition.update(collateralAmount);
 
         // after
+        if (!force) _checkOperator(context, account, newOrder, collateral);
         if (!force) _checkPosition(context);
         if (!force) _checkCollateral(context);
 
@@ -365,19 +365,12 @@ contract Market is IMarket, UInitializable, UOwnable {
     function _checkOperator(
         CurrentContext memory context,
         address account,
-        UFixed6 newMaker,
-        UFixed6 newLong,
-        UFixed6 newShort,
+        Order memory newOrder,
         Fixed6 collateral
     ) private view {
-        if (account == msg.sender) return;                  // sender is operating on own account
-        if (factory.operators(account, msg.sender)) return; // sender is operator enabled for this account
-        if (
-            context.accountPendingPosition.maker.eq(newMaker) &&
-            context.accountPendingPosition.long.eq(newLong) &&
-            context.accountPendingPosition.short.eq(newShort) &&
-            context.local.collateral.sign() == -1 && context.local.collateral.add(collateral).isZero()
-        ) return; // sender is repaying shortfall for this account
+        if (account == msg.sender) return;                                                                      // sender is operating on own account
+        if (factory.operators(account, msg.sender)) return;                                                     // sender is operator enabled for this account
+        if (newOrder.isEmpty() && context.local.collateral.isZero() && collateral.gt(Fixed6Lib.ZERO)) return;   // sender is repaying shortfall for this account
         revert MarketOperatorNotAllowed();
     }
 
