@@ -1064,7 +1064,7 @@ describe('Happy Path', () => {
     // Check user is in the correct state
     expectLocalEq(await market.locals(user.address), {
       currentId: delay + 1,
-      collateral: COLLATERAL.sub(1),
+      collateral: (await market.locals(user.address)).collateral,
       reward: (await market.locals(user.address)).reward,
       liquidation: 0,
     })

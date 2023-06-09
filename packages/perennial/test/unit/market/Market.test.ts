@@ -7,7 +7,7 @@ import HRE, { waffle } from 'hardhat'
 
 //TODO (coverage hint): maxPendingId test
 //TODO (coverage hint): invalid version test
-//TODO (coverage hint): multi-version test
+//TODO (coverage hint): multi-version test w/ collateral change
 
 import { impersonate } from '../../../../common/testutil'
 

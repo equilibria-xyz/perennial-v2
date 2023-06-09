@@ -225,7 +225,7 @@ contract Market is IMarket, UInitializable, UOwnable {
         // after
         if (!force) _checkOperator(context, account, newOrder, collateral);
         if (!force) _checkPosition(context);
-        if (!force) _checkCollateral(context);
+        if (!force) _checkCollateral(context, account);
 
         _endGas(context);
 
@@ -386,7 +386,7 @@ contract Market is IMarket, UInitializable, UOwnable {
             revert MarketExceedsPendingIdLimitError();
     }
 
-    function _checkCollateral(CurrentContext memory context) private pure {
+    function _checkCollateral(CurrentContext memory context, address account) private view {
         if (context.local.collateral.sign() == -1) revert MarketInDebtError();
 
         UFixed6 boundedCollateral = UFixed6Lib.from(context.local.collateral);
@@ -395,8 +395,10 @@ contract Market is IMarket, UInitializable, UOwnable {
             revert MarketCollateralUnderLimitError();
 
         UFixed6 maintenanceAmount =
-            context.accountPosition.maintenance(context.latestVersion, context.marketParameter)
-                .max(context.accountPendingPosition.maintenance(context.latestVersion, context.marketParameter));
+            context.accountPendingPosition.maintenance(context.latestVersion, context.marketParameter);
+        for (uint256 id = context.accountPosition.id + 1; id < context.local.currentId; id++)
+            maintenanceAmount = maintenanceAmount
+                .max(_pendingPositions[account][id].read().maintenance(context.latestVersion, context.marketParameter));
 
         if (maintenanceAmount.gt(boundedCollateral)) revert MarketInsufficientCollateralError();
     }
