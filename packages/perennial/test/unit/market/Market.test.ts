@@ -117,7 +117,6 @@ describe('Market', () => {
     await factory.mock.owner.withArgs().returns(owner.address)
     await factory.mock.parameter.withArgs().returns({
       protocolFee: parse6decimal('0.50'),
-      minFundingFee: parse6decimal('0.10'),
       liquidationFee: parse6decimal('0.10'),
       minCollateral: parse6decimal('100'),
       minSpread: parse6decimal('0.20'),
@@ -4111,7 +4110,6 @@ describe('Market', () => {
               it('with shortfall', async () => {
                 await factory.mock.parameter.withArgs().returns({
                   protocolFee: parse6decimal('0.50'),
-                  minFundingFee: parse6decimal('0.10'),
                   liquidationFee: parse6decimal('0.10'),
                   minCollateral: parse6decimal('50'),
                   minSpread: parse6decimal('0.20'),
@@ -6900,7 +6898,6 @@ describe('Market', () => {
               it('with shortfall', async () => {
                 await factory.mock.parameter.withArgs().returns({
                   protocolFee: parse6decimal('0.50'),
-                  minFundingFee: parse6decimal('0.10'),
                   liquidationFee: parse6decimal('0.10'),
                   minCollateral: parse6decimal('50'),
                   minSpread: parse6decimal('0.20'),
@@ -9149,7 +9146,6 @@ describe('Market', () => {
           //     it('with shortfall', async () => {
           //       await factory.mock.parameter.withArgs().returns({
           //         protocolFee: parse6decimal('0.50'),
-          //         minFundingFee: parse6decimal('0.10'),
           //         liquidationFee: parse6decimal('0.10'),
           //         minCollateral: parse6decimal('50'),
           //         paused: false,
@@ -9380,7 +9376,6 @@ describe('Market', () => {
           it('reverts if paused', async () => {
             await factory.mock.parameter.withArgs().returns({
               protocolFee: parse6decimal('0.50'),
-              minFundingFee: parse6decimal('0.10'),
               liquidationFee: parse6decimal('0.50'),
               minCollateral: parse6decimal('500'),
               minSpread: parse6decimal('0.20'),

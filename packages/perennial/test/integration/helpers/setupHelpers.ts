@@ -4,7 +4,6 @@ import { utils } from 'ethers'
 
 import { time, impersonate } from '../../../../common/testutil'
 import {
-  IFactory,
   IERC20Metadata,
   ChainlinkOracle,
   Market,
@@ -19,6 +18,7 @@ import {
   TransparentUpgradeableProxy__factory,
   IPayoffProvider,
   IPayoffProvider__factory,
+  Factory,
 } from '../../../types/generated'
 import { ChainlinkContext } from './chainlinkHelpers'
 import { parse6decimal } from '../../../../common/testutil/types'
@@ -44,7 +44,7 @@ export interface InstanceVars {
   treasuryA: SignerWithAddress
   treasuryB: SignerWithAddress
   proxyAdmin: ProxyAdmin
-  factory: IFactory
+  factory: Factory
   payoff: IPayoffProvider
   dsu: IERC20Metadata
   usdc: IERC20Metadata
@@ -99,7 +99,6 @@ export async function deployProtocol(): Promise<InstanceVars> {
   await factory.updateTreasury(treasuryA.address)
   await factory.updateParameter({
     protocolFee: parse6decimal('0.50'),
-    minFundingFee: parse6decimal('0.10'),
     liquidationFee: parse6decimal('0.50'),
     minCollateral: parse6decimal('500'),
     minSpread: parse6decimal('0.20'),

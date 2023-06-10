@@ -123,7 +123,7 @@ library VersionLib {
             toOracleVersion.timestamp,
             notional
         );
-        fundingFee = UFixed6Lib.max(marketParameter.fundingFee, protocolParameter.minFundingFee).mul(funding);
+        fundingFee = funding.mul(marketParameter.fundingFee);
         UFixed6 fundingWithoutFee = funding.sub(fundingFee);
         UFixed6 spread = position.spread().max(protocolParameter.minSpread);
         UFixed6 fundingWithoutFeeMaker = fundingWithoutFee.mul(spread);

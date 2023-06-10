@@ -51,7 +51,6 @@ describe('Factory', () => {
       const parameter = await factory.parameter()
       expect(parameter.paused).to.equal(false)
       expect(parameter.protocolFee).to.equal(0)
-      expect(parameter.minFundingFee).to.equal(0)
       expect(parameter.liquidationFee).to.equal(0)
       expect(parameter.minCollateral).to.equal(0)
       expect(parameter.maxPendingIds).to.equal(0)
@@ -132,7 +131,6 @@ describe('Factory', () => {
   describe('#updateParameter', async () => {
     const newParameter = {
       protocolFee: parse6decimal('0.50'),
-      minFundingFee: parse6decimal('0.10'),
       liquidationFee: parse6decimal('0.50'),
       minCollateral: parse6decimal('500'),
       minSpread: parse6decimal('0.20'),
@@ -146,7 +144,6 @@ describe('Factory', () => {
       const parameter = await factory.parameter()
       expect(parameter.paused).to.equal(newParameter.paused)
       expect(parameter.protocolFee).to.equal(newParameter.protocolFee)
-      expect(parameter.minFundingFee).to.equal(newParameter.minFundingFee)
       expect(parameter.liquidationFee).to.equal(newParameter.liquidationFee)
       expect(parameter.minCollateral).to.equal(newParameter.minCollateral)
       expect(parameter.maxPendingIds).to.equal(newParameter.maxPendingIds)
