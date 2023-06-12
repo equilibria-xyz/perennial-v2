@@ -7,9 +7,7 @@ import { Token18 } from "@equilibria/root/token/types/Token18.sol";
 interface IMultiInvoker {
     enum PerennialAction {
         NO_OP,
-        DEPOSIT,
-        WITHDRAW,
-        UPDATE,
+        UPDATE_POSITION,
         CLAIM,
         WRAP,
         UNWRAP,

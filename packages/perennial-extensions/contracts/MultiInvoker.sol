@@ -4,6 +4,7 @@ pragma abicoder v2;
 import {IOracleProvider} from "@equilibria/perennial-v2-oracle/contracts/IOracleProvider.sol";
 import { IBatcher } from "@equilibria/emptyset-batcher/interfaces/IBatcher.sol";
 import { IEmptySetReserve } from "@equilibria/emptyset-batcher/interfaces/IEmptySetReserve.sol";
+import "hardhat/console.sol";
 
 import { 
     IMultiInvoker,
@@ -62,32 +63,24 @@ contract MultiInvoker is IMultiInvoker {
     
     // @todo UOwnable
     function initialize() external {
-        
+
     }
 
     function invoke(Invocation[] calldata invocations) external {
+
         for(uint i = 0; i < invocations.length; ++i) {
             Invocation memory invocation = invocations[i];
 
-            if (invocation.action == PerennialAction.WRAP) {
-                (address receiver, UFixed6 amount) = 
-                    abi.decode(invocation.args, (address, UFixed6));
-                
-                _wrap(receiver, amount);
-            } else if (invocation.action == PerennialAction.UNWRAP) {
-                (address receiver, UFixed6 amount) = 
-                    abi.decode(invocation.args, (address, UFixed6));
+            if (invocation.action == PerennialAction.UPDATE_POSITION) {
 
-                _unwrap(receiver, amount);
-            } else if (invocation.action == PerennialAction.UPDATE) {
                 (   
                     address market,
-                    Fixed6 makerDelta,
-                    Fixed6 longDelta,
-                    Fixed6 shortDelta,
+                    UFixed6 makerDelta,
+                    UFixed6 longDelta,
+                    UFixed6 shortDelta,
                     Fixed6 collateralDelta,
                     bool handleWrap
-                ) = abi.decode(invocation.args, (address, Fixed6, Fixed6, Fixed6, Fixed6, bool));
+                ) = abi.decode(invocation.args, (address, UFixed6, UFixed6, UFixed6, Fixed6, bool));
 
                 _update(msg.sender, market, makerDelta, longDelta, shortDelta, collateralDelta, handleWrap);
             } else if (invocation.action == PerennialAction.PLACE_ORDER) {
@@ -116,21 +109,22 @@ contract MultiInvoker is IMultiInvoker {
     function _update(
         address account, 
         address market,
-        Fixed6 makerDelta,
-        Fixed6 longDelta,
-        Fixed6 shortDelta,
+        UFixed6 newMaker,
+        UFixed6 newLong,
+        UFixed6 newShort,
         Fixed6 collateralDelta,
         bool handleWrap
     ) internal returns (Position memory position) {
         position = IMarket(market).positions(account);
-
-        position.maker.add(UFixed6Lib.from(makerDelta));
-        position.long.add(UFixed6Lib.from(longDelta));
-        position.short.add(UFixed6Lib.from(shortDelta));
+        
+        
+        position.maker = newMaker;
+        position.long = newLong;
+        position.short = newShort;
 
         // collateral is transferred from this address to the market, transfer from account to here
         if(collateralDelta.sign() == 1) {
-            _deposit(account, toUFixed18(collateralDelta.abs()), handleWrap);
+            _deposit(account, collateralDelta.abs(), handleWrap);
         }
 
         IMarket(market).update(
@@ -142,7 +136,7 @@ contract MultiInvoker is IMultiInvoker {
 
         // collateral is transferred from the market to this address, transfer to account from here
         if(collateralDelta.sign() == -1) {
-            _withdraw(account, toUFixed18(collateralDelta.abs()), handleWrap);
+            _withdraw(account, collateralDelta.abs(), handleWrap);
         }
     }
 
@@ -201,7 +195,7 @@ contract MultiInvoker is IMultiInvoker {
             position.short,
             chargeFee);
 
-        _withdraw(account, toUFixed18(chargeFee.abs()), false);
+        _withdraw(account, chargeFee.abs(), false);
 
         emit KeeperFeeCharged(account, market, msg.sender, chargeFee.abs());
     }
@@ -210,47 +204,22 @@ contract MultiInvoker is IMultiInvoker {
         return ethOracle.latest().price;
     }
 
-    function _deposit(address account, UFixed18 collateralDelta, bool handleWrap ) internal {
+    function _deposit(address account, UFixed6 collateralDelta, bool handleWrap ) internal {
         if(handleWrap) {
-            _handleWrap(address(this), collateralDelta);
+            USDC.pull(msg.sender, UFixed18Lib.from(collateralDelta), true);
+            _handleWrap(address(this), UFixed18Lib.from(collateralDelta));
         } else {
-            DSU.pull(account, collateralDelta); // @todo change to 1e6?
+            DSU.pull(account, UFixed18Lib.from(collateralDelta)); // @todo change to 1e6?
         }
     }
 
-    function _withdraw(address account, UFixed18 collateralDelta, bool handleUnwrap) internal {
+    function _withdraw(address account, UFixed6 collateralDelta, bool handleUnwrap) internal {
         if(handleUnwrap) {
-            _handleUnwrap(account, collateralDelta);
+            DSU.push(account, UFixed18Lib.from(collateralDelta));
+            _handleUnwrap(account, UFixed18Lib.from(collateralDelta));
         } else {
-            DSU.push(account, collateralDelta); // // @todo change to 1e6?
+            DSU.push(account, UFixed18Lib.from(collateralDelta)); // // @todo change to 1e6?
         }
-    }
-
-    /**
-     * @notice Wraps `amount` USDC into DSU, pulling from `msg.sender` and sending to `receiver`
-     * @param receiver Address to receive the DSU
-     * @param amount Amount of USDC to wrap
-     */
-    function _wrap(address receiver, UFixed6 amount) internal {
-        UFixed18 amountScaled = toUFixed18(amount);
-
-        // Pull USDC from the `msg.sender`
-        USDC.pull(msg.sender, amountScaled, true);
-
-        _handleWrap(receiver, amountScaled);
-    }
-
-    /**
-     * @notice Unwraps `amount` DSU into USDC, pulling from `msg.sender` and sending  to `receiver`
-     * @param receiver Address to receive the USDC
-     * @param amount Amount of DSU to unwrap
-     */
-    function _unwrap(address receiver, UFixed6 amount) internal {
-        UFixed18 amountScaled = toUFixed18(amount);
-        // Pull the token from the `msg.sender`
-        DSU.pull(msg.sender, amountScaled);
-
-        _handleUnwrap(receiver, amountScaled);
     }
 
     /**
