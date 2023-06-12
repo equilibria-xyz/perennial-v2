@@ -49,8 +49,9 @@ describe('Happy Path', () => {
       },
       pController: {
         value: 0,
-        _k: parse6decimal('0.0025'),
+        _k: parse6decimal('40000'),
         _skew: 0,
+        _max: parse6decimal('1.20'),
       },
       makerRewardRate: 0,
       longRewardRate: 0,
@@ -895,6 +896,66 @@ describe('Happy Path', () => {
     await expect(market.connect(user.address).settle(user.address)).to.be.revertedWith('PausedError()')
   })
 
+  it('opens a long position and settles after max funding', async () => {
+    const POSITION = parse6decimal('0.0001')
+    const POSITION_B = parse6decimal('0.00001')
+    const COLLATERAL = parse6decimal('1000')
+    const { user, userB, dsu, chainlink, chainlinkOracle } = instanceVars
+
+    const market = await createMarket(instanceVars)
+    await dsu.connect(user).approve(market.address, COLLATERAL.mul(1e12))
+    await dsu.connect(userB).approve(market.address, COLLATERAL.mul(1e12))
+
+    await market.connect(user).update(user.address, POSITION, 0, 0, COLLATERAL)
+    await expect(market.connect(userB).update(userB.address, 0, POSITION_B, 0, COLLATERAL))
+      .to.emit(market, 'Updated')
+      .withArgs(userB.address, INITIAL_VERSION + 1, 0, POSITION_B, 0, COLLATERAL)
+
+    // 50 rounds (120% max)
+    for (let i = 0; i < 50; i++) {
+      await chainlink.next()
+      await chainlinkOracle.sync()
+    }
+    await market.settle(userB.address)
+    expect((await market.parameter()).pController.value).to.eq(parse6decimal('1.20'))
+
+    // one more round
+    await chainlink.next()
+    await chainlinkOracle.sync()
+    await market.settle(userB.address)
+    expect((await market.parameter()).pController.value).to.eq(parse6decimal('1.20'))
+  })
+
+  it('opens a short position and settles after max funding', async () => {
+    const POSITION = parse6decimal('0.0001')
+    const POSITION_B = parse6decimal('0.00001')
+    const COLLATERAL = parse6decimal('1000')
+    const { user, userB, dsu, chainlink, chainlinkOracle } = instanceVars
+
+    const market = await createMarket(instanceVars)
+    await dsu.connect(user).approve(market.address, COLLATERAL.mul(1e12))
+    await dsu.connect(userB).approve(market.address, COLLATERAL.mul(1e12))
+
+    await market.connect(user).update(user.address, POSITION, 0, 0, COLLATERAL)
+    await expect(market.connect(userB).update(userB.address, 0, 0, POSITION_B, COLLATERAL))
+      .to.emit(market, 'Updated')
+      .withArgs(userB.address, INITIAL_VERSION + 1, 0, 0, POSITION_B, COLLATERAL)
+
+    // 50 rounds (120% max)
+    for (let i = 0; i < 50; i++) {
+      await chainlink.next()
+      await chainlinkOracle.sync()
+    }
+    await market.settle(userB.address)
+    expect((await market.parameter()).pController.value).to.eq(parse6decimal('-1.20'))
+
+    // one more round
+    await chainlink.next()
+    await chainlinkOracle.sync()
+    await market.settle(userB.address)
+    expect((await market.parameter()).pController.value).to.eq(parse6decimal('-1.20'))
+  })
+
   it('delayed update w/ collateral (gas)', async () => {
     const positionFeesOn = true
     const incentizesOn = true
@@ -922,6 +983,7 @@ describe('Happy Path', () => {
         value: 0,
         _k: parse6decimal('400000'),
         _skew: 0,
+        _max: parse6decimal('1.20'),
       },
       makerRewardRate: incentizesOn ? parse6decimal('0.01') : 0,
       longRewardRate: incentizesOn ? parse6decimal('0.001') : 0,
@@ -1044,6 +1106,7 @@ describe('Happy Path', () => {
         value: 0,
         _k: parse6decimal('40000'),
         _skew: 0,
+        _max: parse6decimal('1.20'),
       },
       makerRewardRate: incentizesOn ? parse6decimal('0.01') : 0,
       longRewardRate: incentizesOn ? parse6decimal('0.001') : 0,

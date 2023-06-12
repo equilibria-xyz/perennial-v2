@@ -54,6 +54,7 @@ struct StoredMarketParameter {
     int32 pControllerValue;                  // <= 214748%
     uint48 pControllerK;                     // <= 281m
     int24 pControllerSkew;                   // <= 1677%
+    uint32 pControllerMax;                    // <= 214748%
     bytes19 __unallocated2__;
 }
 struct MarketParameterStorage { StoredMarketParameter value; }
@@ -85,7 +86,8 @@ library MarketParameterStorageLib {
             PController6(
                 Fixed6.wrap(int256(value.pControllerValue)),
                 UFixed6.wrap(uint256(value.pControllerK)),
-                Fixed6.wrap(int256(value.pControllerSkew))
+                Fixed6.wrap(int256(value.pControllerSkew)),
+                UFixed6.wrap(uint256(value.pControllerMax))
             ),
             IOracleProvider(value.oracle),
             IPayoffProvider(value.payoff)
@@ -113,6 +115,7 @@ library MarketParameterStorageLib {
         if (newValue.pController._k.gt(UFixed6.wrap(type(uint48).max))) revert MarketParameterStorageInvalidError();
         if (newValue.pController._skew.gt(Fixed6.wrap(type(int24).max))) revert MarketParameterStorageInvalidError();
         if (newValue.pController._skew.lt(Fixed6.wrap(type(int24).min))) revert MarketParameterStorageInvalidError();
+        if (newValue.pController._max.gt(UFixed6.wrap(type(uint32).max))) revert MarketParameterStorageInvalidError();
 
         if (oldValue.fuse && address(newValue.oracle) != oldValue.oracle) revert MarketParameterStorageImmutableError();
         if (oldValue.fuse && address(newValue.payoff) != oldValue.payoff) revert MarketParameterStorageImmutableError();
@@ -135,6 +138,7 @@ library MarketParameterStorageLib {
             pControllerValue: int32(Fixed6.unwrap(newValue.pController.value)),
             pControllerK: uint48(UFixed6.unwrap(newValue.pController._k)),
             pControllerSkew: int24(Fixed6.unwrap(newValue.pController._skew)),
+            pControllerMax: uint32(UFixed6.unwrap(newValue.pController._max)),
             oracle: address(newValue.oracle),
             payoff: address(newValue.payoff),
             fuse: true,

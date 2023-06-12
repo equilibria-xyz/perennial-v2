@@ -114,6 +114,7 @@ describe('Factory', () => {
           value: 0,
           _k: parse6decimal('40000'),
           _skew: 0,
+          _max: parse6decimal('1.20'),
         },
         makerRewardRate: 0,
         longRewardRate: 0,
