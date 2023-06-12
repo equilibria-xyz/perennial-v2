@@ -15,9 +15,9 @@ import {
   KeeperManager__factory,
 } from '../../../types/generated'
 
-import { OracleVersionStruct } from '../../../types/generated/@equilibria/perennial-v2-oracle/contracts/IOracleProvider'
-
 import { loadFixture } from '@nomicfoundation/hardhat-network-helpers'
+
+import { OracleVersionStruct } from '../../../types/generated/@equilibria/perennial-v2-oracle/contracts/IOracleProvider'
 import { MarketParameterStruct } from '../../../types/generated/@equilibria/perennial-v2/contracts/interfaces/IMarket'
 
 const ethers = { HRE }
@@ -44,7 +44,7 @@ describe('KeeperManager', () => {
     market = await smock.fake<IMarket>('IMarket')
     oracle = await smock.fake<IOracleProvider>('IOracleProvider')
     payoff = await smock.fake<IPayoffProvider>('IPayoffProvider')
-    keeper = await new KeeperManager__factory(owner).deploy(invoker.address)
+    keeper = await new KeeperManager__factory(owner).deploy()
 
     // Default mkt price: 1150
     const oracleVersion: OracleVersionStruct = {
@@ -86,6 +86,7 @@ describe('KeeperManager', () => {
     market.parameter.returns(marketParam)
 
     await market.connect(owner).initialize(marketDefinition, marketParam)
+    await keeper.connect(owner).initialize(invoker.address)
   })
 
   describe('#constructor', () => {
