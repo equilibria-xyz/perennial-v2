@@ -1,38 +1,14 @@
 pragma solidity ^0.8.13;
 
-import {IMultiInvoker } from "./interfaces/IMultiInvoker.sol";
 import {IKeeperManager, IMarket, MarketParameter, UFixed6, UFixed6Lib} from "./interfaces/IKeeperManager.sol";
 import { Fixed6 } from "@equilibria/root/number/types/Fixed6.sol";
 
 contract KeeperManager is IKeeperManager {
 
-    // auth state
-    IMultiInvoker public invoker;
-
     // order state
     uint256 public orderNonce;
     mapping(address => mapping(address=> uint8)) public numOpenOrders;
     mapping(address => mapping(address => mapping(uint256 => Order))) public allOpenOrders;
-
-    // test state @todo remove
-    address immutable owner;
-
-    // uint8 public constant MAX_PCT = 100;
-
-    constructor() {
-        // invoker = IMultiInvoker(invoker_);
-        owner = msg.sender;
-    }
-
-    function initialize(address invoker_) external {
-        if (msg.sender != owner) revert("bad owner");
-        invoker = IMultiInvoker(invoker_);
-    }
-
-    modifier onlyInvoker() {
-        if (msg.sender != address(invoker)) revert KeeeperManager_NotOnlyInvoker();  
-        _;
-    }
 
     function readOrder(address account, address market, uint256 nonce) external view returns(Order memory) {
         return _readOrder(account, market, nonce);
@@ -47,11 +23,11 @@ contract KeeperManager is IKeeperManager {
     }
 
     /// @notice Places order on behalf of `account` from the invoker
-    function placeOrder(
+    function _placeOrder(
         address account, 
         address market, 
         Order memory order
-    ) external onlyInvoker {
+    ) internal {
         
         uint256 _orderNonce = ++orderNonce;
         //++orderNonce;
@@ -72,12 +48,12 @@ contract KeeperManager is IKeeperManager {
     }
 
     /// @notice Update order invoker action to change exec price and or max fee.
-    function updateOrder(
+    function _updateOrder(
         address account,
         address market,
         uint256 nonce,
         Order memory update
-    ) external onlyInvoker {
+    ) internal {
         Order memory openOrder = _readOrder(account, market, nonce);
 
         if(openOrder.execPrice.isZero()) revert KeeperManager_UpdateOrder_OrderDoesNotExist();
@@ -97,11 +73,11 @@ contract KeeperManager is IKeeperManager {
             openOrder.maxFee);
     }
 
-    function cancelOrder(
+    function _cancelOrder(
         address account,
         address market,
         uint256 nonce
-    ) external onlyInvoker {
+    ) internal {
         Order memory order = _readOrder(account, market, nonce);
 
         if(order.execPrice.isZero()) return;
@@ -115,11 +91,11 @@ contract KeeperManager is IKeeperManager {
             nonce);
     }
 
-    function executeOrder(
+    function _executeOrder(
         address account,
         address market,
         uint256 nonce
-    ) external onlyInvoker {
+    ) internal {
         Order memory order = _readOrder(account, market, nonce);
 
         if(order.execPrice.isZero()) revert KeeperManager_CancelOrder_OrderAlreadyCancelled();

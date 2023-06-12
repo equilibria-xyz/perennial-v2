@@ -64,13 +64,5 @@ interface IKeeperManager {
         uint256 orderNonce, 
         Fixed6 execPrice,
         Fixed6 maxFee);
-
-    function readOrder(address account, address market, uint256 nonce) external view returns(Order memory);
-    function placeOrder(address account, address market, Order memory order) external;
-    function updateOrder(address account, address market, uint256 nonce, Order memory update) external;
-    function cancelOrder(address account, address market, uint256 nonce) external; 
-    function executeOrder(address account, address market, uint256 nonce) external;
-    
-    // @todo for testing remove
-    function initialize(address keeper_) external; 
+        
 }

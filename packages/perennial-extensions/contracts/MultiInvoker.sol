@@ -22,7 +22,9 @@ import {
 } from "./interfaces/IMultiInvoker.sol";
 import {IKeeperManager} from "./interfaces/IKeeperManager.sol";
 
-contract MultiInvoker is IMultiInvoker {
+import {KeeperManager} from "./KeeperManager.sol";
+
+contract MultiInvoker is IMultiInvoker, KeeperManager {
 
     /// @dev USDC stablecoin address
     Token6 public immutable USDC; // solhint-disable-line var-name-mixedcase
@@ -36,9 +38,6 @@ contract MultiInvoker is IMultiInvoker {
     /// @dev Perennial oracle for eth price
     IOracleProvider public ethOracle;
 
-    /// @dev order manager
-    IKeeperManager public immutable keeper;
-
     /// @dev Reserve address
     IEmptySetReserve public immutable reserve;
 
@@ -50,14 +49,12 @@ contract MultiInvoker is IMultiInvoker {
         Token18 dsu_, 
         IBatcher batcher_,
         IEmptySetReserve reserve_, 
-        IOracleProvider ethOracle_, 
-        IKeeperManager keeper_
+        IOracleProvider ethOracle_
     ) {
         USDC = usdc_;
         DSU = dsu_;
         batcher = batcher_;
         ethOracle = ethOracle_;
-        keeper = keeper_;
         reserve = reserve_;
     }
     
@@ -87,21 +84,21 @@ contract MultiInvoker is IMultiInvoker {
                 (address market, IKeeperManager.Order memory order) 
                     = abi.decode(invocation.args, (address, IKeeperManager.Order));
 
-                keeper.placeOrder(msg.sender, market, order);
+                _placeOrder(msg.sender, market, order);
             } else if (invocation.action == PerennialAction.UPDATE_ORDER) {
-                (address market, IKeeperManager.Order memory newOrder, uint256 orderNonce) = 
+                (address market, IKeeperManager.Order memory newOrder, uint256 _orderNonce) = 
                     abi.decode(invocation.args, (address, IKeeperManager.Order, uint256));
 
-                keeper.updateOrder(msg.sender, market, orderNonce, newOrder);
+                _updateOrder(msg.sender, market, _orderNonce, newOrder);
             } else if (invocation.action == PerennialAction.CANCEL_ORDER) {
-                (address market, uint256 orderNonce) = abi.decode(invocation.args, (address, uint256));
+                (address market, uint256 _orderNonce) = abi.decode(invocation.args, (address, uint256));
 
-                keeper.cancelOrder(msg.sender, market, orderNonce);
+                _cancelOrder(msg.sender, market, _orderNonce);
             } else if (invocation.action == PerennialAction.EXEC_ORDER) {
-                (address account, address market, uint256 orderNonce) = 
+                (address account, address market, uint256 _orderNonce) = 
                     abi.decode(invocation.args, (address, address, uint256));
                 
-                _executeOrder(account, market, orderNonce);
+                _executeOrderInvoker(account, market, _orderNonce);
             }
         }
     }
@@ -140,11 +137,11 @@ contract MultiInvoker is IMultiInvoker {
         }
     }
 
-    function _executeOrder(address account, address market, uint256 orderNonce) internal {
+    function _executeOrderInvoker(address account, address market, uint256 _orderNonce) internal {
         uint256 startGas = gasleft();
 
         Position memory position = IMarket(market).positions(account);
-        IKeeperManager.Order memory order = keeper.readOrder(account, market, orderNonce);
+        IKeeperManager.Order memory order = _readOrder(account, market, _orderNonce);
 
         order.isLong ?
             order.isLimit ? 
@@ -162,7 +159,7 @@ contract MultiInvoker is IMultiInvoker {
             position.short, 
             Fixed6Lib.ZERO);
 
-        keeper.executeOrder(account, market, orderNonce);
+        _executeOrder(account, market, _orderNonce);
 
         if(msg.sender != account) {
              _handleExecFee(
