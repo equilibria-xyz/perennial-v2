@@ -121,8 +121,8 @@ library PositionLib {
         return Fixed6Lib.from(self.long).sub(Fixed6Lib.from(self.short)).abs();
     }
 
-    function spread(Position memory self) internal pure returns (UFixed6) {
-        return net(self).div(major(self));
+    function skew(Position memory self) internal pure returns (Fixed6) {
+        return Fixed6Lib.from(self.long).sub(Fixed6Lib.from(self.short)).div(Fixed6Lib.from(major(self)));
     }
 
     function utilization(Position memory self) internal pure returns (UFixed6) {

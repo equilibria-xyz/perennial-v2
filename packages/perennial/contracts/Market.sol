@@ -346,13 +346,13 @@ contract Market is IMarket, UInitializable, UOwnable {
             newPosition,
             context.positionVersion,
             oracleVersion,
-            context.protocolParameter,
             context.marketParameter
         );
         context.position.update(newPosition);
         context.global.incrementFees(accumulatedFee, context.protocolParameter);
         context.positionVersion = oracleVersion;
         _versions[newPosition.version].store(version);
+        _parameter.store(context.marketParameter); // TODO: remove if split out pController state
     }
 
     function _processPositionAccount(CurrentContext memory context, Position memory newPosition) private view {

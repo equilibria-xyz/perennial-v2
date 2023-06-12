@@ -54,7 +54,6 @@ library VersionLib {
         Position memory toPosition,
         OracleVersion memory fromOracleVersion,
         OracleVersion memory toOracleVersion,
-        ProtocolParameter memory protocolParameter,
         MarketParameter memory marketParameter
     ) internal pure returns (UFixed6 fee) {
         if (marketParameter.closed) return UFixed6Lib.ZERO;
@@ -66,7 +65,7 @@ library VersionLib {
 
         // accumulate funding
         fundingFee =
-            _accumulateFunding(self, fromPosition, fromOracleVersion, toOracleVersion, protocolParameter, marketParameter);
+            _accumulateFunding(self, fromPosition, fromOracleVersion, toOracleVersion, marketParameter);
 
         // accumulate P&L
         _accumulatePNL(self, fromPosition, fromOracleVersion, toOracleVersion);
@@ -111,32 +110,41 @@ library VersionLib {
         Position memory position,
         OracleVersion memory fromOracleVersion,
         OracleVersion memory toOracleVersion,
-        ProtocolParameter memory protocolParameter,
         MarketParameter memory marketParameter
     ) private pure returns (UFixed6 fundingFee) {
         if (position.major().isZero()) return UFixed6Lib.ZERO;
 
-        UFixed6 notional = position.takerSocialized().mul(fromOracleVersion.price.abs());
-        UFixed6 funding = marketParameter.utilizationCurve.accumulate(
+        // Compute maker interest rate
+        UFixed6 makerFee = marketParameter.utilizationCurve.accumulate(
             position.utilization(),
             fromOracleVersion.timestamp,
             toOracleVersion.timestamp,
-            notional
+            position.takerSocialized().mul(fromOracleVersion.price.abs())
         );
-        fundingFee = funding.mul(marketParameter.fundingFee);
-        UFixed6 fundingWithoutFee = funding.sub(fundingFee);
-        UFixed6 spread = position.spread().max(protocolParameter.minSpread);
-        UFixed6 fundingWithoutFeeMaker = fundingWithoutFee.mul(spread);
-        UFixed6 fundingWithoutFeeTaker = fundingWithoutFee.sub(fundingWithoutFeeMaker);
 
-        if (position.long.gt(position.short)) {
-            if (!position.long.isZero()) self.longValue.decrement(Fixed6Lib.from(funding), position.long);
-            if (!position.short.isZero()) self.shortValue.increment(Fixed6Lib.from(fundingWithoutFeeTaker), position.short);
-        } else {
-            if (!position.long.isZero()) self.longValue.increment(Fixed6Lib.from(fundingWithoutFeeTaker), position.long);
-            if (!position.short.isZero()) self.shortValue.decrement(Fixed6Lib.from(funding), position.short);
-        }
-        if (!position.maker.isZero()) self.makerValue.increment(Fixed6Lib.from(fundingWithoutFeeMaker), position.maker);
+        // Compute long-short funding rate
+        Fixed6 funding = marketParameter.pController.accumulate(
+            position.skew(),
+            fromOracleVersion.timestamp,
+            toOracleVersion.timestamp,
+            position.takerSocialized().mul(fromOracleVersion.price.abs())
+        );
+        fundingFee = funding.abs().mul(marketParameter.fundingFee);
+
+        // Compute funding rate spread
+        Fixed6 fundingLong = (funding.sign() == 1) ? funding : funding.add(Fixed6Lib.from(makerFee.add(fundingFee)));
+        Fixed6 fundingShort = (funding.sign() == 1) ? funding.sub(Fixed6Lib.from(makerFee.add(fundingFee))) : funding;
+        Fixed6 fundingMaker = Fixed6Lib.from(position.skew().abs())
+            .mul(position.long.gt(position.short) ? fundingShort : fundingLong.mul(Fixed6Lib.NEG_ONE));
+
+        // Adjust minor for maker's portion
+        fundingLong = (position.long.gt(position.short)) ? fundingLong : fundingLong.sub(fundingMaker);
+        fundingShort = (position.long.gt(position.short)) ? fundingShort.sub(fundingMaker) : fundingShort;
+
+        // Compute accumulated values
+        if (!position.maker.isZero()) self.makerValue.increment(fundingMaker.add(Fixed6Lib.from(makerFee)), position.maker);
+        if (!position.long.isZero()) self.longValue.decrement(fundingLong, position.long);
+        if (!position.short.isZero()) self.shortValue.increment(fundingShort, position.short);
     }
 
     /**

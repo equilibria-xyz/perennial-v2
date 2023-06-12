@@ -101,7 +101,6 @@ export async function deployProtocol(): Promise<InstanceVars> {
     protocolFee: parse6decimal('0.50'),
     liquidationFee: parse6decimal('0.50'),
     minCollateral: parse6decimal('500'),
-    minSpread: parse6decimal('0.20'),
     maxPendingIds: 8,
     paused: false,
   })
@@ -190,6 +189,11 @@ export async function createMarket(
       maxRate: parse6decimal('5.00'),
       targetRate: parse6decimal('0.80'),
       targetUtilization: parse6decimal('0.80'),
+    },
+    pController: {
+      value: 0,
+      _k: parse6decimal('40000'),
+      _skew: 0,
     },
     makerRewardRate: 0,
     longRewardRate: 0,

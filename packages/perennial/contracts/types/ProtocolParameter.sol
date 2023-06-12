@@ -8,7 +8,6 @@ struct ProtocolParameter {
     UFixed6 protocolFee;    // <= 1677%
     UFixed6 liquidationFee; // <= 1677%
     UFixed6 minCollateral;  // <= 281mn
-    UFixed6 minSpread;      // <= 1677%
     uint256 maxPendingIds;  // <= 255
     bool paused;
 }
@@ -16,11 +15,10 @@ struct StoredProtocolParameter {
     uint24 _protocolFee;     // <= 1677%
     uint24 _liquidationFee;  // <= 1677
     uint48 _minCollateral;   // <= 281mn
-    uint24 _minSpread;       // <= 1677%
     uint8 _maxPendingIds;    // <= 255
     bool _paused;
 
-    bytes15 __unallocated__;
+    bytes18 __unallocated__;
 }
 struct ProtocolParameterStorage { StoredProtocolParameter value; }
 using ProtocolParameterStorageLib for ProtocolParameterStorage global;
@@ -34,7 +32,6 @@ library ProtocolParameterStorageLib {
             UFixed6.wrap(uint256(value._protocolFee)),
             UFixed6.wrap(uint256(value._liquidationFee)),
             UFixed6.wrap(uint256(value._minCollateral)),
-            UFixed6.wrap(uint256(value._minSpread)),
             uint256(value._maxPendingIds),
             value._paused
         );
@@ -44,14 +41,12 @@ library ProtocolParameterStorageLib {
         if (newValue.protocolFee.gt(UFixed6.wrap(type(uint24).max))) revert ProtocolParameterStorageInvalidError();
         if (newValue.liquidationFee.gt(UFixed6.wrap(type(uint24).max))) revert ProtocolParameterStorageInvalidError();
         if (newValue.minCollateral.gt(UFixed6.wrap(type(uint48).max))) revert ProtocolParameterStorageInvalidError();
-        if (newValue.minSpread.gt(UFixed6.wrap(type(uint24).max))) revert ProtocolParameterStorageInvalidError();
         if (newValue.maxPendingIds > uint256(type(uint8).max)) revert ProtocolParameterStorageInvalidError();
 
         self.value = StoredProtocolParameter(
             uint24(UFixed6.unwrap(newValue.protocolFee)),
             uint24(UFixed6.unwrap(newValue.liquidationFee)),
             uint48(UFixed6.unwrap(newValue.minCollateral)),
-            uint24(UFixed6.unwrap(newValue.minSpread)),
             uint8(newValue.maxPendingIds),
             newValue.paused,
             bytes12(0)

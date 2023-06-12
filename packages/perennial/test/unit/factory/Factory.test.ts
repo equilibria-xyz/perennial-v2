@@ -110,6 +110,11 @@ describe('Factory', () => {
           targetRate: parse6decimal('0.10'),
           targetUtilization: parse6decimal('1'),
         },
+        pController: {
+          value: 0,
+          _k: parse6decimal('40000'),
+          _skew: 0,
+        },
         makerRewardRate: 0,
         longRewardRate: 0,
         shortRewardRate: 0,
@@ -133,7 +138,6 @@ describe('Factory', () => {
       protocolFee: parse6decimal('0.50'),
       liquidationFee: parse6decimal('0.50'),
       minCollateral: parse6decimal('500'),
-      minSpread: parse6decimal('0.20'),
       maxPendingIds: BigNumber.from(5),
       paused: false,
     }

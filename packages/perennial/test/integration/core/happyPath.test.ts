@@ -47,6 +47,11 @@ describe('Happy Path', () => {
         targetRate: parse6decimal('0.80'),
         targetUtilization: parse6decimal('0.80'),
       },
+      pController: {
+        value: 0,
+        _k: parse6decimal('0.0025'),
+        _skew: 0,
+      },
       makerRewardRate: 0,
       longRewardRate: 0,
       shortRewardRate: 0,
@@ -548,8 +553,8 @@ describe('Happy Path', () => {
 
     expectGlobalEq(await market.global(), {
       currentId: 1,
-      protocolFee: '16',
-      marketFee: '17',
+      protocolFee: '1',
+      marketFee: '2',
     })
     expectPositionEq(await market.pendingPosition(1), {
       id: 1,
@@ -570,7 +575,7 @@ describe('Happy Path', () => {
 
     expectLocalEq(await market.locals(userB.address), {
       currentId: 1,
-      collateral: COLLATERAL.add(BigNumber.from('1249431')),
+      collateral: COLLATERAL.add(BigNumber.from('1249724')),
       reward: 0,
       liquidation: 0,
     })
@@ -674,8 +679,8 @@ describe('Happy Path', () => {
 
     expectGlobalEq(await market.global(), {
       currentId: 1,
-      protocolFee: '16',
-      marketFee: '17',
+      protocolFee: '1',
+      marketFee: '2',
     })
     expectPositionEq(await market.pendingPosition(1), {
       id: 1,
@@ -695,7 +700,7 @@ describe('Happy Path', () => {
     })
     expectLocalEq(await market.locals(userB.address), {
       currentId: 1,
-      collateral: COLLATERAL.add(BigNumber.from('1249431')),
+      collateral: COLLATERAL.add(BigNumber.from('1249724')),
       reward: 0,
       liquidation: 0,
     })
@@ -913,6 +918,11 @@ describe('Happy Path', () => {
         targetRate: parse6decimal('0.80'),
         targetUtilization: parse6decimal('0.80'),
       },
+      pController: {
+        value: 0,
+        _k: parse6decimal('400000'),
+        _skew: 0,
+      },
       makerRewardRate: incentizesOn ? parse6decimal('0.01') : 0,
       longRewardRate: incentizesOn ? parse6decimal('0.001') : 0,
       shortRewardRate: incentizesOn ? parse6decimal('0.001') : 0,
@@ -946,7 +956,7 @@ describe('Happy Path', () => {
     // Check user is in the correct state
     expectLocalEq(await market.locals(user.address), {
       currentId: 3,
-      collateral: '986050533',
+      collateral: '985878212',
       reward: '24669998',
       liquidation: 0,
     })
@@ -970,8 +980,8 @@ describe('Happy Path', () => {
     // Check global state
     expectGlobalEq(await market.global(), {
       currentId: 3,
-      protocolFee: '306105',
-      marketFee: '306108',
+      protocolFee: '296532',
+      marketFee: '296535',
     })
     expectPositionEq(await market.pendingPosition(3), {
       id: 3,
@@ -990,8 +1000,8 @@ describe('Happy Path', () => {
       fee: 0,
     })
     expectVersionEq(await market.versions(INITIAL_VERSION + 4), {
-      makerValue: { _value: '-354546744246' },
-      longValue: { _value: '362096873938' },
+      makerValue: { _value: '-358601980609' },
+      longValue: { _value: '366602669695' },
       shortValue: { _value: 0 },
       makerReward: { _value: '606836363635' },
       longReward: { _value: '60683636363' },
@@ -1029,6 +1039,11 @@ describe('Happy Path', () => {
         maxRate: parse6decimal('5.00'),
         targetRate: parse6decimal('0.80'),
         targetUtilization: parse6decimal('0.80'),
+      },
+      pController: {
+        value: 0,
+        _k: parse6decimal('40000'),
+        _skew: 0,
       },
       makerRewardRate: incentizesOn ? parse6decimal('0.01') : 0,
       longRewardRate: incentizesOn ? parse6decimal('0.001') : 0,
