@@ -84,7 +84,7 @@ contract ChainlinkOracle is IOracleProvider {
 
         // Return packaged oracle version
         latestVersion = _buildOracleVersion(round);
-        currentVersion = latestVersion.version + delay;
+        currentVersion = latestVersion.timestamp + delay;
     }
 
     /**
@@ -100,7 +100,7 @@ contract ChainlinkOracle is IOracleProvider {
      * @return Current oracle version
      */
     function current() public view returns (uint256) {
-        return _buildOracleVersion(_getLatestRound()).version + delay;
+        return _buildOracleVersion(_getLatestRound()).timestamp + delay;
     }
 
     /**

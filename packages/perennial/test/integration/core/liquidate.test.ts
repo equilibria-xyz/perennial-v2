@@ -2,8 +2,10 @@ import { expect } from 'chai'
 import 'hardhat'
 import { BigNumber, constants, utils } from 'ethers'
 
-import { InstanceVars, deployProtocol, createMarket, INITIAL_VERSION } from '../helpers/setupHelpers'
+import { InstanceVars, deployProtocol, createMarket } from '../helpers/setupHelpers'
 import { parse6decimal } from '../../../../common/testutil/types'
+
+export const TIMESTAMP_2 = 1631113819
 
 describe('Liquidate', () => {
   let instanceVars: InstanceVars
@@ -28,7 +30,7 @@ describe('Liquidate', () => {
       .to.emit(market, 'Liquidation')
       .withArgs(user.address, userB.address, '682778988')
 
-    expect((await market.locals(user.address)).liquidation).to.eq(INITIAL_VERSION + 2)
+    expect((await market.locals(user.address)).liquidation).to.eq(TIMESTAMP_2)
 
     expect((await market.locals(user.address)).collateral).to.equal('317221012')
     expect(await dsu.balanceOf(market.address)).to.equal(utils.parseEther('317.221012'))
@@ -37,8 +39,8 @@ describe('Liquidate', () => {
     await chainlink.next()
     await market.settle(user.address)
 
-    expect((await market.position()).version).to.eq(INITIAL_VERSION + 2)
-    expect((await market.locals(user.address)).liquidation).to.eq(INITIAL_VERSION + 2)
+    expect((await market.position()).version).to.eq(TIMESTAMP_2)
+    expect((await market.locals(user.address)).liquidation).to.eq(TIMESTAMP_2)
   })
 
   it('liquidates a user with a reward larger than total collateral', async () => {
@@ -57,7 +59,7 @@ describe('Liquidate', () => {
       .to.emit(market, 'Liquidation')
       .withArgs(user.address, userB.address, COLLATERAL)
 
-    expect((await market.locals(user.address)).liquidation).to.eq(INITIAL_VERSION + 2)
+    expect((await market.locals(user.address)).liquidation).to.eq(TIMESTAMP_2)
 
     expect((await market.locals(user.address)).collateral).to.equal(0)
     expect(await dsu.balanceOf(market.address)).to.equal(0)
@@ -66,8 +68,8 @@ describe('Liquidate', () => {
     await chainlink.next()
     await market.settle(user.address)
 
-    expect((await market.position()).version).to.eq(INITIAL_VERSION + 2)
-    expect((await market.locals(user.address)).liquidation).to.eq(INITIAL_VERSION + 2)
+    expect((await market.position()).version).to.eq(TIMESTAMP_2)
+    expect((await market.locals(user.address)).liquidation).to.eq(TIMESTAMP_2)
   })
 
   it('creates and resolves a shortfall', async () => {
