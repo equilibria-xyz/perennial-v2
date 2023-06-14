@@ -197,7 +197,7 @@ describe('PythOracle', () => {
       await oracle.connect(user).commit(0, VAA, user.address, {
         value: 1,
       })
-      const version = await oracle.connect(user).at(1686198973)
+      const version = await oracle.connect(user).at(1686198974)
       expect(version.valid).to.be.true
       expect(version.price).to.equal('18381670317700000000000000')
     })
