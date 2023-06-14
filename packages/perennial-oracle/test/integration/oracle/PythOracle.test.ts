@@ -134,7 +134,7 @@ describe('PythOracle', () => {
 
     it('skips a version if the grace period has expired', async () => {
       await oracle.connect(user).sync()
-      await time.increase(60)
+      await time.increase(59)
       await oracle.connect(user).sync()
       await oracle.connect(user).commit(1, VAA_AFTER_EXPIRATION, user.address, {
         value: 1,
