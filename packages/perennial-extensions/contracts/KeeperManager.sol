@@ -2,6 +2,7 @@ pragma solidity ^0.8.13;
 
 import {IKeeperManager, IMarket, MarketParameter, UFixed6, UFixed6Lib} from "./interfaces/IKeeperManager.sol";
 import { Fixed6 } from "@equilibria/root/number/types/Fixed6.sol";
+import "hardhat/console.sol";
 
 contract KeeperManager is IKeeperManager {
 
@@ -28,16 +29,16 @@ contract KeeperManager is IKeeperManager {
         address market, 
         Order memory order
     ) internal {
-        
+
         uint256 _orderNonce = ++orderNonce;
-        //++orderNonce;
+       //  ++orderNonce;
         allOpenOrders[account][market][orderNonce] = order;
 
         ++numOpenOrders[account][market];
         
         uint8 _openOrders = numOpenOrders[account][market];
         if(_openOrders > 10) revert KeeperManager_PlaceOrder_MaxOpenOrders();
-        
+
         emit OrderPlaced(
             account, 
             market,
@@ -45,32 +46,6 @@ contract KeeperManager is IKeeperManager {
             _openOrders,
             order.execPrice,
             order.maxFee); 
-    }
-
-    /// @notice Update order invoker action to change exec price and or max fee.
-    function _updateOrder(
-        address account,
-        address market,
-        uint256 nonce,
-        Order memory update
-    ) internal {
-        Order memory openOrder = _readOrder(account, market, nonce);
-
-        if(openOrder.execPrice.isZero()) revert KeeperManager_UpdateOrder_OrderDoesNotExist();
-
-        
-        openOrder.execPrice = update.execPrice.isZero() ? openOrder.execPrice : update.execPrice;
-        openOrder.maxFee = update.maxFee.isZero() ? openOrder.maxFee : update.maxFee;
-        openOrder.size = openOrder.isLimit && !update.size.isZero() ? update.size : openOrder.size;
-
-        allOpenOrders[account][market][nonce] = openOrder;
-
-        emit OrderUpdated(
-            account, 
-            market, 
-            nonce, 
-            openOrder.execPrice,
-            openOrder.maxFee);
     }
 
     function _cancelOrder(

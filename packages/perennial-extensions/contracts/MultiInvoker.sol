@@ -56,6 +56,7 @@ contract MultiInvoker is IMultiInvoker, KeeperManager {
         batcher = batcher_;
         ethOracle = ethOracle_;
         reserve = reserve_;
+        keeperPremium = Fixed6.wrap(8);
     }
     
     // @todo UOwnable
@@ -85,11 +86,6 @@ contract MultiInvoker is IMultiInvoker, KeeperManager {
                     = abi.decode(invocation.args, (address, IKeeperManager.Order));
 
                 _placeOrder(msg.sender, market, order);
-            } else if (invocation.action == PerennialAction.UPDATE_ORDER) {
-                (address market, IKeeperManager.Order memory newOrder, uint256 _orderNonce) = 
-                    abi.decode(invocation.args, (address, IKeeperManager.Order, uint256));
-
-                _updateOrder(msg.sender, market, _orderNonce, newOrder);
             } else if (invocation.action == PerennialAction.CANCEL_ORDER) {
                 (address market, uint256 _orderNonce) = abi.decode(invocation.args, (address, uint256));
 
@@ -97,7 +93,7 @@ contract MultiInvoker is IMultiInvoker, KeeperManager {
             } else if (invocation.action == PerennialAction.EXEC_ORDER) {
                 (address account, address market, uint256 _orderNonce) = 
                     abi.decode(invocation.args, (address, address, uint256));
-                
+
                 _executeOrderInvoker(account, market, _orderNonce);
             }
         }
@@ -179,11 +175,13 @@ contract MultiInvoker is IMultiInvoker, KeeperManager {
         Position memory position
     ) internal {
         
+        Fixed6 ethPrice = ethPrice();
         Fixed6 gasUsed = Fixed6Lib.from(UFixed6.wrap(startGas - gasleft()));
         Fixed6 chargeFee = gasUsed.muldiv(keeperPremium, Fixed6.wrap(100));
-
+        
         if(chargeFee.gt(maxFee)) revert MultiInvoker_ExecuteOrder_MaxFeeExceeded();
-        chargeFee.mul(Fixed6.wrap(-1));
+
+        chargeFee = chargeFee.mul(Fixed6Lib.NEG_ONE).mul(ethPrice);
 
         IMarket(market).update(
             account, 
@@ -192,12 +190,12 @@ contract MultiInvoker is IMultiInvoker, KeeperManager {
             position.short,
             chargeFee);
 
-        _withdraw(account, chargeFee.abs(), false);
+        _withdraw(msg.sender, chargeFee.abs(), false);
 
         emit KeeperFeeCharged(account, market, msg.sender, chargeFee.abs());
     }
 
-    function _ethPrice() internal view returns (Fixed6) {
+    function ethPrice() public view returns (Fixed6) {
         return ethOracle.latest().price;
     }
 
@@ -249,9 +247,5 @@ contract MultiInvoker is IMultiInvoker, KeeperManager {
             // Unwrap the DSU into USDC and return to the receiver
             batcher.unwrap(amount, receiver);
         }
-    }
-
-    function toUFixed18(UFixed6 base) internal pure returns (UFixed18 result) {
-        result = UFixed18.wrap(UFixed6.unwrap(base) * 1e12);
     }
 }

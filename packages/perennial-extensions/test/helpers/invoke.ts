@@ -1,6 +1,14 @@
 import { BigNumber, BigNumberish, utils } from 'ethers'
 import { IMultiInvoker, MultiInvoker } from '../../types/generated'
 
+export type OrderStruct = {
+  isLong?: boolean
+  isLimit?: boolean
+  maxFee: BigNumberish
+  execPrice?: BigNumberish
+  size?: BigNumberish
+}
+
 // export type RawAction =
 //     | 'UPDATE_POSITION'
 //     | 'PLACE_ORDER'
@@ -15,15 +23,6 @@ import { IMultiInvoker, MultiInvoker } from '../../types/generated'
 //     | 'CLOSE_ORDER';
 
 export type Actions = IMultiInvoker.InvocationStruct[]
-
-type UPDATE = {
-  user: string
-  makerDelta: BigNumberish
-  longDelta: BigNumberish
-  shortDelta: BigNumberish
-  collateralDetla: BigNumberish
-  handleWrap: boolean
-}
 
 export const buildUpdateMarket = ({
   market,
@@ -62,39 +61,32 @@ export const buildPlaceOrder = ({
   short,
   collateral,
   handleWrap,
-
-  isLong,
-  isLimit,
-  maxFee,
-  execPrice,
-  size,
+  order,
 }: {
   market: string
   long?: BigNumberish
   short?: BigNumberish
   collateral?: BigNumberish
   handleWrap?: boolean
-
-  isLong?: boolean
-  isLimit?: boolean
-  maxFee: BigNumberish
-  execPrice?: BigNumberish
-  size?: BigNumberish
+  order: OrderStruct
 }): Actions => {
   if (long && short) {
     if (BigNumber.from(long).gt(short)) {
-      isLong = true
-      size = BigNumber.from(long).sub(short)
+      order.isLong = true
+      order.size = BigNumber.from(long).sub(short)
     } else {
-      isLong = false
-      size = BigNumber.from(short).sub(long)
+      order.isLong = false
+      order.size = BigNumber.from(short).sub(long)
     }
   } else if (long) {
-    isLong = true
-    size = long
+    order.isLong = true
+    order.size = long
   } else if (short) {
-    isLong = false
-    size = short
+    order.isLong = false
+    order.size = short
+  } else {
+    long = order.isLong ? order.size : '0'
+    short = !order.isLong ? order.size : '0'
   }
 
   return [
@@ -118,7 +110,13 @@ export const buildPlaceOrder = ({
         ['address', 'tuple(bool,bool,int256,int256,uint256)'],
         [
           market,
-          [isLimit ? isLimit : false, isLong ? isLong : false, maxFee, execPrice ? execPrice : '0', size ? size : '0'],
+          [
+            order.isLimit ? order.isLimit : false,
+            order.isLong ? order.isLong : false,
+            order.maxFee,
+            order.execPrice ? order.execPrice : '0',
+            order.size ? order.size : '0',
+          ],
         ],
       ),
     },
@@ -128,7 +126,7 @@ export const buildPlaceOrder = ({
 export const buildCancelOrder = ({ market, orderId }: { market: string; orderId: BigNumberish }): Actions => {
   return [
     {
-      action: 4,
+      action: 3,
       args: utils.defaultAbiCoder.encode(['address', 'uint256'], [market, orderId]),
     },
   ]
@@ -167,7 +165,7 @@ export const buildExecOrder = ({
 }): Actions => {
   return [
     {
-      action: 5,
+      action: 4,
       args: utils.defaultAbiCoder.encode(['address', 'address', 'uint256'], [user, market, orderId]),
     },
   ]

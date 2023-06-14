@@ -8,6 +8,9 @@ interface IMultiInvoker {
     enum PerennialAction {
         NO_OP,
         UPDATE_POSITION,
+        PLACE_ORDER,
+        CANCEL_ORDER,
+        EXEC_ORDER,
         CLAIM,
         WRAP,
         UNWRAP,
@@ -18,10 +21,7 @@ interface IMultiInvoker {
         VAULT_CLAIM,
         VAULT_WRAP_AND_DEPOSIT,
         CHARGE_FEE,
-        PLACE_ORDER,
-        UPDATE_ORDER,
-        CANCEL_ORDER,
-        EXEC_ORDER
+        UPDATE_ORDER
     }
     
     struct KeeperOrder {

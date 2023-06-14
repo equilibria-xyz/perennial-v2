@@ -2,7 +2,7 @@ import { FakeContract, smock } from '@defi-wonderland/smock'
 import { SignerWithAddress } from '@nomiclabs/hardhat-ethers/signers'
 import { expect, use } from 'chai'
 import HRE from 'hardhat'
-import { BigNumber, constants, utils } from 'ethers'
+import { BigNumber, BigNumberish, constants, utils } from 'ethers'
 
 import {
   IMultiInvoker,
@@ -14,7 +14,6 @@ import {
   IERC20,
   IPayoffProvider,
   KeeperManager,
-  KeeperManager__factory,
 } from '../../../types/generated'
 import { loadFixture } from '@nomicfoundation/hardhat-network-helpers'
 import * as helpers from '../../helpers/invoke'
@@ -26,8 +25,9 @@ import {
 } from '../../../types/generated/@equilibria/perennial-v2-oracle/contracts/IOracleProvider'
 import { MarketParameterStruct } from '../../../types/generated/@equilibria/perennial-v2/contracts/interfaces/IMarket'
 import { PositionStruct } from '../../../types/generated/@equilibria/perennial-v2/contracts/interfaces/IMarket'
-import { parse6decimal } from '../../../../common/testutil/types'
 
+import { parse6decimal } from '../../../../common/testutil/types'
+import { openPosition, setMarketPosition } from '../../helpers/types'
 const ethers = { HRE }
 use(smock.matchers)
 
@@ -42,7 +42,6 @@ describe('MultiInvoker', () => {
   let batcher: FakeContract<IBatcher>
   let reserve: FakeContract<IEmptySetReserve>
   let reward: FakeContract<IERC20>
-  let keeper: KeeperManager
   let multiInvoker: MultiInvoker
 
   const multiInvokerFixture = async () => {
@@ -61,15 +60,12 @@ describe('MultiInvoker', () => {
     batcher = await smock.fake<IBatcher>('IBatcher')
     reserve = await smock.fake<IEmptySetReserve>('IEmptySetReserve')
 
-    keeper = await new KeeperManager__factory(owner).deploy()
-
     multiInvoker = await new MultiInvoker__factory(owner).deploy(
       usdc.address,
       dsu.address,
       batcher.address,
       reserve.address,
       oracle.address,
-      keeper.address,
     )
 
     // Default mkt price: 1150
@@ -112,7 +108,6 @@ describe('MultiInvoker', () => {
     market.parameter.returns(marketParam)
 
     await market.connect(owner).initialize(marketDefinition, marketParam)
-    await keeper.initialize(multiInvoker.address)
 
     usdc.transferFrom.whenCalledWith(user.address).returns(true)
 
@@ -138,8 +133,9 @@ describe('MultiInvoker', () => {
         market: market.address,
         long: collateral.div(2),
         collateral: collateral,
-        maxFee: collateral.div(20),
-        execPrice: BigNumber.from(1000e6),
+        order: { maxFee: '0' },
+        // maxFee: collateral.div(20),
+        // execPrice: BigNumber.from(1000e6),
       })
 
       dsu.transferFrom.whenCalledWith(user.address, multiInvoker.address, collateral.mul(1e12)).returns(true)
@@ -212,26 +208,189 @@ describe('MultiInvoker', () => {
       expect(batcher.unwrap).to.have.been.calledWith(dsuCollateral, user.address)
       expect(dsu.transfer).to.have.been.calledWith(user.address, dsuCollateral)
     })
+  })
 
-    // it('opens an order', async () => {
+  describe('#keeper order invoke', () => {
+    const collateral = parse6decimal('10000')
+    const position = parse6decimal('10')
 
-    //     // await expect(multiInvoker.connect(user).invoke(placeOrder)).to.not.be.reverted
+    const defaultOrder = {
+      isLimit: true,
+      isLong: true,
+      maxFee: position.div(20), // 5% fee
+      execPrice: BigNumber.from(1000e6),
+      size: position,
+    }
 
-    //     // handle wrap false
+    // Default mkt price: 1150
+    const oracleVersion: OracleVersionStruct = {
+      version: BigNumber.from(0),
+      timestamp: BigNumber.from(0),
+      price: BigNumber.from(1150e6),
+      valid: true,
+    }
 
-    // })
+    it('places a limit order', async () => {
+      const a = helpers.buildPlaceOrder({ market: market.address, order: defaultOrder })
 
-    it('executes an order from a keeper', async () => {
-      const a = helpers.buildExecOrder({ user: user.address, market: market.address, orderId: '1' })
-      expect(keeper.executeOrder).to.have.been.calledWith(user.address, market.address, 1)
+      const txn = await multiInvoker.connect(user).invoke(a)
+
+      expect(txn)
+        .to.emit(multiInvoker, 'OrderPlaced')
+        .withArgs(user.address, market.address, 1, 1, defaultOrder.execPrice, defaultOrder.maxFee)
+
+      expect(await multiInvoker.orderNonce()).to.eq(1)
+      expect(await multiInvoker.numOpenOrders(user.address, market.address)).to.eq(1)
+
+      const orderState = await multiInvoker.readOrder(user.address, market.address, 1)
+
+      expect(
+        orderState.isLimit == defaultOrder.isLimit &&
+          orderState.isLong == defaultOrder.isLong &&
+          orderState.maxFee.eq(defaultOrder.maxFee.toString()) &&
+          orderState.execPrice.eq(defaultOrder.execPrice.toString()) &&
+          orderState.size.eq(defaultOrder.size.toString()),
+      ).to.be.true
     })
 
-    // it('executes an order from the user', async () => {
+    it('opens a tp order', async () => {
+      defaultOrder.isLimit = false
+      defaultOrder.execPrice = BigNumber.from(1200e6)
+      let a = helpers.buildPlaceOrder({ market: market.address, order: defaultOrder })
 
-    // })
+      await multiInvoker.connect(user).invoke(a)
+
+      // can execute = 1200 >= mkt price (1150)
+      expect(await multiInvoker.canExecuteOrder(user.address, market.address, 1)).to.be.true
+
+      defaultOrder.execPrice = BigNumber.from(1100e6)
+      a = helpers.buildPlaceOrder({ market: market.address, order: defaultOrder })
+
+      await multiInvoker.connect(user).invoke(a)
+
+      // can execute = !(1100 >= mkt price (1150))
+      expect(await multiInvoker.canExecuteOrder(user.address, market.address, 2)).to.be.false
+    })
+
+    it('opens a sl order', async () => {
+      defaultOrder.isLimit = false
+      defaultOrder.execPrice = BigNumber.from(-1100e6)
+      let a = helpers.buildPlaceOrder({ market: market.address, order: defaultOrder })
+
+      await multiInvoker.connect(user).invoke(a)
+
+      // can execute = |-1100| <= mkt price (1150)
+      expect(await multiInvoker.canExecuteOrder(user.address, market.address, 1)).to.be.true
+
+      defaultOrder.execPrice = BigNumber.from(-1200e6)
+      a = helpers.buildPlaceOrder({ market: market.address, order: defaultOrder })
+
+      await multiInvoker.connect(user).invoke(a)
+
+      // can execute = |-1200| !<= mkt.price
+      expect(await multiInvoker.canExecuteOrder(user.address, market.address, 2)).to.be.false
+    })
+
+    it('cancels an order', async () => {
+      const cancelAction = helpers.buildCancelOrder({ market: market.address, orderId: 1 })
+
+      // cancelling an order that does not exist
+      await expect(multiInvoker.connect(user).invoke(cancelAction)).to.not.emit(multiInvoker, 'OrderCancelled')
+
+      expect(await multiInvoker.numOpenOrders(user.address, market.address)).to.eq(0)
+      expect(await multiInvoker.orderNonce()).to.eq(0)
+
+      // place the order to cancel
+      const placeAction = helpers.buildPlaceOrder({ market: market.address, order: defaultOrder })
+      await multiInvoker.connect(user).invoke(placeAction)
+
+      // cancel the order
+      await expect(multiInvoker.connect(user).invoke(cancelAction))
+        .to.emit(multiInvoker, 'OrderCancelled')
+        .withArgs(user.address, market.address, 1)
+
+      expect(await multiInvoker.numOpenOrders(user.address, market.address)).to.eq(0)
+      expect(await multiInvoker.orderNonce()).to.eq(1)
+    })
+
+    it('executes a long limit, short limit, long tp/sl, short tp/sl order', async () => {
+      // long limit: limit = true && mkt price (1150) <= exec price 1200
+      defaultOrder.isLimit = true
+      defaultOrder.execPrice = BigNumber.from(1200e6)
+
+      const position = openPosition({
+        maker: '0',
+        long: defaultOrder.size,
+        short: '0',
+        collateral: collateral,
+      })
+
+      let placeOrder = helpers.buildPlaceOrder({ market: market.address, order: defaultOrder })
+      await expect(multiInvoker.connect(user).invoke(placeOrder)).to.not.be.reverted
+
+      setMarketPosition(market, user, position)
+
+      let execOrder = helpers.buildExecOrder({ user: user.address, market: market.address, orderId: 1 })
+      await expect(multiInvoker.connect(user).invoke(execOrder))
+        .to.emit(multiInvoker, 'OrderExecuted')
+        .to.not.emit(multiInvoker, 'KeeperFeeCharged') // user execing self => no keeper fee charged
+
+      // short limit: limit = true && mkt price (1150) >= exec price (|-1100|)
+      defaultOrder.execPrice = BigNumber.from(-1000e6)
+
+      placeOrder = helpers.buildPlaceOrder({ market: market.address, order: defaultOrder })
+      await multiInvoker.connect(user).invoke(placeOrder)
+
+      execOrder = helpers.buildExecOrder({ user: user.address, market: market.address, orderId: 2 })
+      await expect(multiInvoker.connect(user).invoke(execOrder)).to.emit(multiInvoker, 'OrderExecuted')
+
+      // long tp / short sl: limit = false && mkt price (1150) >= exec price (|-1100|)
+      defaultOrder.isLimit = false
+
+      placeOrder = helpers.buildPlaceOrder({ market: market.address, order: defaultOrder })
+      await multiInvoker.connect(user).invoke(placeOrder)
+
+      execOrder = helpers.buildExecOrder({ user: user.address, market: market.address, orderId: 3 })
+      await expect(multiInvoker.connect(user).invoke(execOrder)).to.emit(multiInvoker, 'OrderExecuted')
+
+      // long sl / short tp: limit = false && mkt price(1150) <= exec price 1200
+      defaultOrder.execPrice = BigNumber.from(1200e6)
+
+      placeOrder = helpers.buildPlaceOrder({ market: market.address, order: defaultOrder })
+      await multiInvoker.connect(user).invoke(placeOrder)
+
+      execOrder = helpers.buildExecOrder({ user: user.address, market: market.address, orderId: 4 })
+      await expect(multiInvoker.connect(user).invoke(execOrder)).to.emit(multiInvoker, 'OrderExecuted')
+    })
+
+    it('executes an order and charges keeper fee to sender', async () => {
+      // long limit: limit = true && mkt price (1150) <= exec price 1200
+      defaultOrder.isLimit = true
+      defaultOrder.execPrice = BigNumber.from(1200e6)
+
+      const position = openPosition({
+        maker: '0',
+        long: defaultOrder.size,
+        short: '0',
+        collateral: collateral,
+      })
+
+      const placeOrder = helpers.buildPlaceOrder({ market: market.address, order: defaultOrder })
+      await expect(multiInvoker.connect(user).invoke(placeOrder)).to.not.be.reverted
+
+      setMarketPosition(market, user, position)
+
+      // charge fee
+      dsu.transfer.returns(true)
+
+      const execOrder = helpers.buildExecOrder({ user: user.address, market: market.address, orderId: 1 })
+
+      oracle.latest.returns(oracleVersion)
+
+      await expect(multiInvoker.connect(owner).invoke(execOrder))
+        .to.emit(multiInvoker, 'OrderExecuted')
+        .to.emit(multiInvoker, 'KeeperFeeCharged')
+        .withArgs(user.address, market.address, owner.address, BigNumber.from(3774300))
+    })
   })
 })
-
-function setMarketPosition(market: FakeContract<IMarket>, user: SignerWithAddress, position: PositionStruct) {
-  market.positions.whenCalledWith(user.address).returns(position)
-}

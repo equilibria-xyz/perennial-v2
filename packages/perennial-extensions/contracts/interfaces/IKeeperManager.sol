@@ -57,12 +57,4 @@ interface IKeeperManager {
 
 
     event OrderCancelled(address indexed account, address indexed market, uint256 orderNonce);
-
-    event OrderUpdated(
-        address indexed account, 
-        address indexed market, 
-        uint256 orderNonce, 
-        Fixed6 execPrice,
-        Fixed6 maxFee);
-        
 }
