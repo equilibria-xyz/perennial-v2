@@ -65,7 +65,7 @@ describe('PythOracle', () => {
   })
 
   describe('#commit', async () => {
-    it.only('commits successfully and incentivizes the keeper', async () => {
+    it('commits successfully and incentivizes the keeper', async () => {
       const originalDSUBalance = await dsu.callStatic.balanceOf(user.address)
       await oracle.connect(user).sync()
       await oracle.connect(user).commit(0, VAA, user.address, {
