@@ -1,6 +1,9 @@
 // SPDX-License-Identifier: Apache-2.0
 pragma solidity 0.8.19;
 
+import "@chainlink/contracts/src/v0.8/interfaces/AggregatorV3Interface.sol";
+import "@equilibria/root/token/types/Token18.sol";
+import "@openzeppelin/contracts/access/Ownable.sol";
 import "@openzeppelin/contracts/utils/math/SafeCast.sol";
 import "@pythnetwork/pyth-sdk-solidity/AbstractPyth.sol";
 import "../IOracleProvider.sol";
@@ -12,7 +15,7 @@ import "../IOracleProvider.sol";
  *      PythOracle instance if their payoff functions are based on the same underlying oracle.
  *      This implementation only supports non-negative prices.
  */
-contract PythOracle is IOracleProvider {
+contract PythOracle is IOracleProvider, Ownable {
     /// @dev A Pyth update must come at least this long after a version to be valid
     uint256 constant private MIN_VALID_TIME_AFTER_VERSION = 12 seconds;
 
@@ -31,21 +34,46 @@ contract PythOracle is IOracleProvider {
     /// @dev List of all requested oracle versions
     uint256[] public versionList;
 
+    /// @dev Keepers are incentivized with block.basefee * `_rewardMultiplier`.
+    uint256 public rewardMultiplier;
+
+    /// @dev Keepers are incentivized in the DSU token
+    Token18 public immutable DSU;
+
     /// @dev Mapping from oracle version to oracle version data
     mapping (uint256 => OracleVersion) private _versions;
 
     /// @dev Index in `versionList` of the next version a keeper should commit
     uint256 private _nextVersionIndexToCommit;
 
+    /// @dev Chainlink price feed for rewarding keeper in DSU
+    AggregatorV3Interface private immutable chainlinkFeed;
+
     error PythOracleInvalidPriceId(bytes32 priceId);
     error PythOracleNoNewVersionToCommit();
     error PythOracleInvalidVersionIndex();
+    error PythOracleInvalidMessageValue();
+    error PythOracleFailedToCalculateReward();
+    error PythOracleFailedToSendReward();
 
-    constructor(AbstractPyth pyth_, bytes32 priceId_) {
+    /**
+     * @notice Initializes the contract state
+     * @param pyth_ Pyth contract
+     * @param priceId_ price ID for Pyth price feed
+     * @param chainlinkFeed_ Chainlink price feed for rewarding keeper in DSU
+     */
+    constructor(AbstractPyth pyth_, bytes32 priceId_, uint256 rewardMultiplier_, AggregatorV3Interface chainlinkFeed_, Token18 dsu_) {
         if (!pyth_.priceFeedExists(priceId_)) revert PythOracleInvalidPriceId(priceId_);
 
         pyth = pyth_;
         priceId = priceId_;
+        rewardMultiplier = rewardMultiplier_;
+        chainlinkFeed = chainlinkFeed_;
+        DSU = dsu_;
+    }
+
+    function updateRewardMultiplier(uint256 rewardMultiplier_) external onlyOwner {
+        rewardMultiplier = rewardMultiplier_;
     }
 
     /**
@@ -97,20 +125,24 @@ contract PythOracle is IOracleProvider {
      * @dev Will revert if there is an earlier versionIndex that could be committed with `updateData`
      * @param versionIndex The index of the version to commit
      * @param updateData The update data to commit
+     * @param rewardRecipient The address that should receive the reward for committing a version.
      */
-    function commit(uint256 versionIndex, bytes calldata updateData) external payable {
+    function commit(uint256 versionIndex, bytes calldata updateData, address rewardRecipient) external payable {
         // This check isn't necessary since the caller would not be able to produce a valid updateData
         // with an update time corresponding to a null version, but reverting with a specific error is
         // clearer.
         if (_nextVersionIndexToCommit >= versionList.length) revert PythOracleNoNewVersionToCommit();
         if (versionIndex < _nextVersionIndexToCommit) revert PythOracleInvalidVersionIndex();
 
-        uint256 versionToCommit = versionList[_nextVersionIndexToCommit];
+        uint256 versionToCommit = versionList[versionIndex];
 
         bytes[] memory updateDataList = new bytes[](1);
         updateDataList[0] = updateData;
         bytes32[] memory priceIdList = new bytes32[](1);
         priceIdList[0] = priceId;
+
+        if (msg.value != pyth.getUpdateFee(updateDataList)) revert PythOracleInvalidMessageValue();
+
         PythStructs.Price memory pythPrice = pyth.parsePriceFeedUpdates{value: pyth.getUpdateFee(updateDataList)}(
             updateDataList,
             priceIdList,
@@ -118,10 +150,13 @@ contract PythOracle is IOracleProvider {
             SafeCast.toUint64(versionToCommit + MAX_VALID_TIME_AFTER_VERSION)
         )[0].price;
 
-        // Ensure that the keeper is not committing the earliest possible version
-        if (versionIndex > 0) {
+        // Ensure that the keeper is committing the earliest possible version
+        if (versionIndex > _nextVersionIndexToCommit) {
             uint256 previousVersion = versionList[versionIndex - 1];
+            // We can only skip the previous version if the grace period has expired
             if (block.timestamp <= previousVersion + GRACE_PERIOD) revert PythOracleInvalidVersionIndex();
+
+            // If the update is valid for the previous version, we can't skip the previous version
             if (pythPrice.publishTime >= previousVersion + MIN_VALID_TIME_AFTER_VERSION && pythPrice.publishTime <= previousVersion + MAX_VALID_TIME_AFTER_VERSION) revert PythOracleInvalidVersionIndex();
         }
 
@@ -136,5 +171,16 @@ contract PythOracle is IOracleProvider {
         });
         _versions[versionToCommit] = oracleVersion;
         _nextVersionIndexToCommit = _nextVersionIndexToCommit + 1;
+
+        (uint80 roundID, int256 price, , uint256 updatedAt, uint80 answeredInRound) = chainlinkFeed.latestRoundData();
+        // Check that the Chainlink data is valid
+        if (answeredInRound < roundID || updatedAt == 0) {
+            revert PythOracleFailedToCalculateReward();
+        }
+        if (price <= 0) {
+            revert PythOracleFailedToCalculateReward();
+        }
+
+        DSU.push(rewardRecipient, UFixed18.wrap(block.basefee * rewardMultiplier * uint256(price) / (10 ** 8)));
     }
 }
