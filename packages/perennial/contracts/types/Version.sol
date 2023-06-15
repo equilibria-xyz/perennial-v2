@@ -171,6 +171,12 @@ library VersionLib {
             position.long.add(position.short).min(position.maker).mul(fromOracleVersion.price.abs())
         );
 
+        console.log("position.long", UFixed6.unwrap(position.long));
+        console.log("position.short", UFixed6.unwrap(position.short));
+        console.log("position.maker", UFixed6.unwrap(position.maker));
+        console.log("position.long.add(position.short).min(position.maker)", UFixed6.unwrap(position.long.add(position.short).min(position.maker)));
+        console.log("fromOracleVersion.price.abs()", UFixed6.unwrap(fromOracleVersion.price.abs()));
+        console.log("position.utilization()", UFixed6.unwrap(position.utilization()));
         console.log("interest", UFixed6.unwrap(interest));
 
         // Compute fee
