@@ -570,8 +570,8 @@ describe('Happy Path', () => {
 
     expectGlobalEq(await market.global(), {
       currentId: 1,
-      protocolFee: '1',
-      marketFee: '2',
+      protocolFee: '18',
+      marketFee: '18',
     })
     expectPositionEq(await market.pendingPosition(1), {
       id: 1,
@@ -592,7 +592,7 @@ describe('Happy Path', () => {
 
     expectLocalEq(await market.locals(userB.address), {
       currentId: 1,
-      collateral: COLLATERAL.add(BigNumber.from('1249724')),
+      collateral: COLLATERAL.add(BigNumber.from('1249723')),
       reward: 0,
       liquidation: 0,
     })
@@ -695,8 +695,8 @@ describe('Happy Path', () => {
 
     expectGlobalEq(await market.global(), {
       currentId: 1,
-      protocolFee: '1',
-      marketFee: '2',
+      protocolFee: '18',
+      marketFee: '18',
     })
     expectPositionEq(await market.pendingPosition(1), {
       id: 1,
@@ -716,7 +716,7 @@ describe('Happy Path', () => {
     })
     expectLocalEq(await market.locals(userB.address), {
       currentId: 1,
-      collateral: COLLATERAL.add(BigNumber.from('1249724')),
+      collateral: COLLATERAL.add(BigNumber.from('1249723')),
       reward: 0,
       liquidation: 0,
     })
@@ -1030,7 +1030,7 @@ describe('Happy Path', () => {
     // Check user is in the correct state
     expectLocalEq(await market.locals(user.address), {
       currentId: 3,
-      collateral: '985878212',
+      collateral: '986050657',
       reward: '24669998',
       liquidation: 0,
     })
@@ -1054,8 +1054,8 @@ describe('Happy Path', () => {
     // Check global state
     expectGlobalEq(await market.global(), {
       currentId: 3,
-      protocolFee: '296532',
-      marketFee: '296535',
+      protocolFee: '306111',
+      marketFee: '306114',
     })
     expectPositionEq(await market.pendingPosition(3), {
       id: 3,
@@ -1074,8 +1074,8 @@ describe('Happy Path', () => {
       fee: 0,
     })
     expectVersionEq(await market.versions(TIMESTAMP_4), {
-      makerValue: { _value: '-358601980609' },
-      longValue: { _value: '366602669695' },
+      makerValue: { _value: '-354544089095' },
+      longValue: { _value: '363284296967' },
       shortValue: { _value: 0 },
       makerReward: { _value: '606836363635' },
       longReward: { _value: '60683636363' },

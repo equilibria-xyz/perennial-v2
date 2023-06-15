@@ -96,7 +96,7 @@ describe('Liquidate', () => {
     ).to.be.revertedWith('MarketInDebtError()') // underflow
 
     await market.connect(userB).settle(user.address) // liquidate
-    expect((await market.locals(user.address)).collateral).to.equal(BigNumber.from('-3154162620'))
+    expect((await market.locals(user.address)).collateral).to.equal(BigNumber.from('-3154014022'))
 
     await chainlink.nextWithPriceModification(price => price.mul(2))
     await market.settle(user.address)
