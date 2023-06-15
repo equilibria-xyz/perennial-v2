@@ -51,6 +51,7 @@ describe('Happy Path', () => {
     const parameter = {
       maintenance: parse6decimal('0.3'),
       fundingFee: parse6decimal('0.1'),
+      interestFee: parse6decimal('0.1'),
       takerFee: 0,
       makerFee: 0,
       positionFee: 0,
@@ -977,6 +978,7 @@ describe('Happy Path', () => {
     const parameter = {
       maintenance: parse6decimal('0.3'),
       fundingFee: parse6decimal('0.1'),
+      interestFee: parse6decimal('0.1'),
       takerFee: positionFeesOn ? parse6decimal('0.001') : 0,
       makerFee: positionFeesOn ? parse6decimal('0.0005') : 0,
       positionFee: positionFeesOn ? parse6decimal('0.1') : 0,
@@ -1102,6 +1104,7 @@ describe('Happy Path', () => {
     const parameter = {
       maintenance: parse6decimal('0.3'),
       fundingFee: parse6decimal('0.1'),
+      interestFee: parse6decimal('0.1'),
       takerFee: positionFeesOn ? parse6decimal('0.001') : 0,
       makerFee: positionFeesOn ? parse6decimal('0.0005') : 0,
       positionFee: positionFeesOn ? parse6decimal('0.1') : 0,
