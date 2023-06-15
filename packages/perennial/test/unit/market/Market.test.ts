@@ -7187,15 +7187,12 @@ describe('Market', () => {
                 await oracle.mock.at.withArgs(4).returns(oracleVersionHigherPrice2)
                 await oracle.mock.sync.withArgs().returns(oracleVersionHigherPrice2, ORACLE_VERSION_5.version)
 
-                await market.settle(userB.address)
-                console.log((await market.locals(userB.address)).collateral)
                 const shortfall = parse6decimal('390')
                   .add(EXPECTED_FUNDING_WITHOUT_FEE_1_5_123.add(EXPECTED_INTEREST_WITHOUT_FEE_5_123))
                   .add(EXPECTED_FUNDING_WITHOUT_FEE_2_5_43.add(EXPECTED_INTEREST_WITHOUT_FEE_5_43))
                   .sub(EXPECTED_LIQUIDATION_FEE)
                   .sub(EXPECTED_PNL)
                   .sub(28) // loss of precision
-                console.log(shortfall)
                 await dsu.mock.transferFrom
                   .withArgs(liquidator.address, market.address, shortfall.mul(-1).mul(1e12))
                   .returns(true)
@@ -10049,7 +10046,10 @@ describe('Market', () => {
 
             expectLocalEq(await market.locals(user.address), {
               currentId: 2,
-              collateral: parse6decimal('195').sub(EXPECTED_FUNDING).sub(EXPECTED_PNL).sub(EXPECTED_LIQUIDATION_FEE),
+              collateral: parse6decimal('195')
+                .sub(EXPECTED_FUNDING_WITH_FEE_1_5_123.add(EXPECTED_INTEREST_5_123))
+                .sub(EXPECTED_PNL)
+                .sub(EXPECTED_LIQUIDATION_FEE),
               reward: EXPECTED_REWARD.mul(2),
               liquidation: ORACLE_VERSION_3.version + 1,
             })
@@ -10071,7 +10071,9 @@ describe('Market', () => {
             })
             expectLocalEq(await market.locals(userB.address), {
               currentId: 1,
-              collateral: COLLATERAL.add(EXPECTED_FUNDING_WITH_FEE).add(EXPECTED_PNL).sub(4), // loss of precision
+              collateral: COLLATERAL.add(EXPECTED_FUNDING_WITHOUT_FEE_1_5_123.add(EXPECTED_INTEREST_WITHOUT_FEE_5_123))
+                .add(EXPECTED_PNL)
+                .sub(8), // loss of precision
               reward: EXPECTED_REWARD.mul(3),
               liquidation: 0,
             })
@@ -10113,8 +10115,14 @@ describe('Market', () => {
               fee: 0,
             })
             expectVersionEq(await market.versions(ORACLE_VERSION_3.version), {
-              makerValue: { _value: EXPECTED_FUNDING_WITH_FEE.add(EXPECTED_PNL).div(10) },
-              longValue: { _value: EXPECTED_FUNDING.add(EXPECTED_PNL).div(5).mul(-1) },
+              makerValue: {
+                _value: EXPECTED_FUNDING_WITHOUT_FEE_1_5_123.add(EXPECTED_INTEREST_WITHOUT_FEE_5_123)
+                  .add(EXPECTED_PNL)
+                  .div(10),
+              },
+              longValue: {
+                _value: EXPECTED_FUNDING_WITH_FEE_1_5_123.add(EXPECTED_INTEREST_5_123).add(EXPECTED_PNL).div(5).mul(-1),
+              },
               shortValue: { _value: 0 },
               makerReward: { _value: EXPECTED_REWARD.mul(3).div(10) },
               longReward: { _value: EXPECTED_REWARD.mul(2).div(5) },
@@ -10226,33 +10234,52 @@ describe('Market', () => {
 
       it('claims fee (protocol)', async () => {
         await dsu.mock.transfer
-          .withArgs(protocolTreasury.address, EXPECTED_FUNDING_FEE.div(2).sub(1).mul(1e12))
+          .withArgs(
+            protocolTreasury.address,
+            EXPECTED_FUNDING_FEE_1_5_123.add(EXPECTED_INTEREST_FEE_5_123).div(2).sub(3).mul(1e12),
+          ) // loss of precision
           .returns(true)
 
         await expect(market.connect(protocolTreasury).claimFee())
           .to.emit(market, 'FeeClaimed')
-          .withArgs(protocolTreasury.address, EXPECTED_FUNDING_FEE.div(2).sub(1))
+          .withArgs(
+            protocolTreasury.address,
+            EXPECTED_FUNDING_FEE_1_5_123.add(EXPECTED_INTEREST_FEE_5_123).div(2).sub(3),
+          )
 
         expect((await market.global()).protocolFee).to.equal(0)
-        expect((await market.global()).marketFee).to.equal(EXPECTED_FUNDING_FEE.div(2))
+        expect((await market.global()).marketFee).to.equal(
+          EXPECTED_FUNDING_FEE_1_5_123.add(EXPECTED_INTEREST_FEE_5_123).div(2).sub(2),
+        ) // loss of precision
       })
 
       it('claims fee (market)', async () => {
-        await dsu.mock.transfer.withArgs(treasury.address, EXPECTED_FUNDING_FEE.div(2).mul(1e12)).returns(true)
+        await dsu.mock.transfer
+          .withArgs(
+            treasury.address,
+            EXPECTED_FUNDING_FEE_1_5_123.add(EXPECTED_INTEREST_FEE_5_123).div(2).sub(2).mul(1e12),
+          )
+          .returns(true)
 
         await expect(market.connect(treasury).claimFee())
           .to.emit(market, 'FeeClaimed')
-          .withArgs(treasury.address, EXPECTED_FUNDING_FEE.div(2))
+          .withArgs(treasury.address, EXPECTED_FUNDING_FEE_1_5_123.add(EXPECTED_INTEREST_FEE_5_123).div(2).sub(2))
 
-        expect((await market.global()).protocolFee).to.equal(EXPECTED_FUNDING_FEE.div(2).sub(1)) // loss of precision
+        expect((await market.global()).protocolFee).to.equal(
+          EXPECTED_FUNDING_FEE_1_5_123.add(EXPECTED_INTEREST_FEE_5_123).div(2).sub(3),
+        ) // loss of precision
         expect((await market.global()).marketFee).to.equal(0)
       })
 
       it('claims fee (neither)', async () => {
         await market.connect(user).claimFee()
 
-        expect((await market.global()).protocolFee).to.equal(EXPECTED_FUNDING_FEE.div(2).sub(1)) // loss of precision
-        expect((await market.global()).marketFee).to.equal(EXPECTED_FUNDING_FEE.div(2))
+        expect((await market.global()).protocolFee).to.equal(
+          EXPECTED_FUNDING_FEE_1_5_123.add(EXPECTED_INTEREST_FEE_5_123).div(2).sub(3),
+        ) // loss of precision
+        expect((await market.global()).marketFee).to.equal(
+          EXPECTED_FUNDING_FEE_1_5_123.add(EXPECTED_INTEREST_FEE_5_123).div(2).sub(2),
+        ) // loss of precision
       })
     })
 

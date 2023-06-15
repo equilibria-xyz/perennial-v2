@@ -7,7 +7,6 @@ import "./ProtocolParameter.sol";
 import "./MarketParameter.sol";
 import "./Global.sol";
 import "./Position.sol";
-import "hardhat/console.sol";
 
 /// @dev Version type
 struct Version {
@@ -56,7 +55,7 @@ library VersionLib {
         OracleVersion memory fromOracleVersion,
         OracleVersion memory toOracleVersion,
         MarketParameter memory marketParameter
-    ) internal view returns (UFixed6 fee) {
+    ) internal pure returns (UFixed6 fee) {
         if (marketParameter.closed) return UFixed6Lib.ZERO;
 
         // accumulate position
@@ -112,7 +111,7 @@ library VersionLib {
         OracleVersion memory fromOracleVersion,
         OracleVersion memory toOracleVersion,
         MarketParameter memory marketParameter
-    ) private view returns (UFixed6 fundingFee) {
+    ) private pure returns (UFixed6 fundingFee) {
         if (position.major().isZero()) return UFixed6Lib.ZERO;
 
         // Compute long-short funding rate
@@ -122,8 +121,6 @@ library VersionLib {
             toOracleVersion.timestamp,
             position.takerSocialized().mul(fromOracleVersion.price.abs())
         );
-
-        console.log("funding", uint256(Fixed6.unwrap(funding)));
 
         // Compute fee spread
         fundingFee = funding.abs().mul(marketParameter.fundingFee);
@@ -160,7 +157,7 @@ library VersionLib {
         OracleVersion memory fromOracleVersion,
         OracleVersion memory toOracleVersion,
         MarketParameter memory marketParameter
-    ) private view returns (UFixed6 interestFee) {
+    ) private pure returns (UFixed6 interestFee) {
         if (position.major().isZero()) return UFixed6Lib.ZERO;
 
         // Compute maker interest
@@ -170,14 +167,6 @@ library VersionLib {
             toOracleVersion.timestamp,
             position.long.add(position.short).min(position.maker).mul(fromOracleVersion.price.abs())
         );
-
-        console.log("position.long", UFixed6.unwrap(position.long));
-        console.log("position.short", UFixed6.unwrap(position.short));
-        console.log("position.maker", UFixed6.unwrap(position.maker));
-        console.log("position.long.add(position.short).min(position.maker)", UFixed6.unwrap(position.long.add(position.short).min(position.maker)));
-        console.log("fromOracleVersion.price.abs()", UFixed6.unwrap(fromOracleVersion.price.abs()));
-        console.log("position.utilization()", UFixed6.unwrap(position.utilization()));
-        console.log("interest", UFixed6.unwrap(interest));
 
         // Compute fee
         interestFee = interest.mul(marketParameter.interestFee);
