@@ -26,7 +26,8 @@ import { beforeEach } from 'mocha'
 const { config, ethers } = HRE
 use(smock.matchers)
 
-const LEGACY_ORACLE_DELAY = 1
+const STARTING_TIMESTAMP = BigNumber.from(1646456563)
+const LEGACY_ORACLE_DELAY = 3600
 
 describe('Vault', () => {
   let vault: IVault
@@ -58,7 +59,7 @@ describe('Vault', () => {
   async function _updateOracleEth(newPrice?: BigNumber) {
     const [currentVersion, currentTimestamp, currentPrice] = await oracle.latest()
     const newVersion = {
-      version: currentVersion.add(1),
+      version: currentVersion.add(LEGACY_ORACLE_DELAY),
       timestamp: currentTimestamp.add(3600),
       price: newPrice ?? currentPrice,
       valid: true,
@@ -72,7 +73,7 @@ describe('Vault', () => {
   async function _updateOracleBtc(newPrice?: BigNumber) {
     const [currentVersion, currentTimestamp, currentPrice] = await btcOracle.latest()
     const newVersion = {
-      version: currentVersion.add(1),
+      version: currentVersion.add(LEGACY_ORACLE_DELAY),
       timestamp: currentTimestamp.add(3600),
       price: newPrice ?? currentPrice,
       valid: true,
@@ -120,44 +121,32 @@ describe('Vault', () => {
     factory = instanceVars.factory
 
     const realVersion = {
-      version: BigNumber.from('12990'),
-      timestamp: BigNumber.from('1646456348'),
+      version: STARTING_TIMESTAMP,
+      timestamp: STARTING_TIMESTAMP,
       price: BigNumber.from('2620237388'),
-      valid: true,
-    }
-    const currentVersion = {
-      version: BigNumber.from(1000000),
-      timestamp: realVersion.timestamp,
-      price: realVersion.price,
       valid: true,
     }
     originalOraclePrice = realVersion.price
 
     oracle = await smock.fake<IOracleProvider>('IOracleProvider')
-    oracle.sync.returns([currentVersion, currentVersion.version.add(LEGACY_ORACLE_DELAY)])
-    oracle.latest.returns(currentVersion)
-    oracle.current.returns(currentVersion.version.add(LEGACY_ORACLE_DELAY))
-    oracle.at.whenCalledWith(currentVersion.version).returns(currentVersion)
+    oracle.sync.returns([realVersion, realVersion.version.add(LEGACY_ORACLE_DELAY)])
+    oracle.latest.returns(realVersion)
+    oracle.current.returns(realVersion.version.add(LEGACY_ORACLE_DELAY))
+    oracle.at.whenCalledWith(realVersion.version).returns(realVersion)
 
     const btcRealVersion = {
-      version: BigNumber.from('10645'),
-      timestamp: BigNumber.from('1646456563'),
+      version: STARTING_TIMESTAMP,
+      timestamp: STARTING_TIMESTAMP,
       price: BigNumber.from('38838362695'),
-      valid: true,
-    }
-    const btcCurrentVersion = {
-      version: BigNumber.from(1000000),
-      timestamp: btcRealVersion.timestamp,
-      price: btcRealVersion.price,
       valid: true,
     }
     btcOriginalOraclePrice = btcRealVersion.price
 
     btcOracle = await smock.fake<IOracleProvider>('IOracleProvider')
-    btcOracle.sync.returns([btcCurrentVersion, btcCurrentVersion.version.add(LEGACY_ORACLE_DELAY)])
-    btcOracle.latest.returns(btcCurrentVersion)
-    btcOracle.current.returns(btcCurrentVersion.version.add(LEGACY_ORACLE_DELAY))
-    btcOracle.at.whenCalledWith(btcCurrentVersion.version).returns(btcCurrentVersion)
+    btcOracle.sync.returns([btcRealVersion, btcRealVersion.version.add(LEGACY_ORACLE_DELAY)])
+    btcOracle.latest.returns(btcRealVersion)
+    btcOracle.current.returns(btcRealVersion.version.add(LEGACY_ORACLE_DELAY))
+    btcOracle.at.whenCalledWith(btcRealVersion.version).returns(btcRealVersion)
 
     market = await deployProductOnMainnetFork({
       factory: instanceVars.factory,
@@ -275,23 +264,17 @@ describe('Vault', () => {
 
     beforeEach(async () => {
       const realVersion3 = {
-        version: BigNumber.from('7603'),
-        timestamp: BigNumber.from('1646455460'),
+        version: STARTING_TIMESTAMP,
+        timestamp: STARTING_TIMESTAMP,
         price: BigNumber.from('13720000'),
-        valid: true,
-      }
-      const currentVersion3 = {
-        version: BigNumber.from(1000000),
-        timestamp: realVersion3.timestamp,
-        price: realVersion3.price,
         valid: true,
       }
 
       const oracle3 = await smock.fake<IOracleProvider>('IOracleProvider')
-      oracle3.sync.returns([currentVersion3, currentVersion3.version.add(LEGACY_ORACLE_DELAY)])
-      oracle3.latest.returns(currentVersion3)
-      oracle3.current.returns(currentVersion3.version.add(LEGACY_ORACLE_DELAY))
-      oracle3.at.whenCalledWith(currentVersion3.version).returns(currentVersion3)
+      oracle3.sync.returns([realVersion3, realVersion3.version.add(LEGACY_ORACLE_DELAY)])
+      oracle3.latest.returns(realVersion3)
+      oracle3.current.returns(realVersion3.version.add(LEGACY_ORACLE_DELAY))
+      oracle3.at.whenCalledWith(realVersion3.version).returns(realVersion3)
 
       market3 = await deployProductOnMainnetFork({
         factory: factory,
