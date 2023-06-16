@@ -172,11 +172,9 @@ library VersionLib {
         interestFee = interest.mul(marketParameter.interestFee);
 
         // Adjust long and short funding with spread
-        (Fixed6 interestLong, Fixed6 interestShort, Fixed6 interestMaker) = (
-            Fixed6Lib.from(interest.mul(position.long).div(position.long.add(position.short))),
-            Fixed6Lib.from(interest.mul(position.short).div(position.long.add(position.short))),
-            Fixed6Lib.from(interest.sub(interestFee))
-        );
+        Fixed6 interestLong = Fixed6Lib.from(interest.mul(position.long.div(position.long.add(position.short))));
+        Fixed6 interestShort = Fixed6Lib.from(interest).sub(interestLong);
+        Fixed6 interestMaker = Fixed6Lib.from(interest.sub(interestFee));
 
         // Compute accumulated values
         if (!position.maker.isZero()) self.makerValue.increment(interestMaker, position.maker);

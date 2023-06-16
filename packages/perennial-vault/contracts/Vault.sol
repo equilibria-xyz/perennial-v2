@@ -9,7 +9,6 @@ import "./types/Account.sol";
 import "./types/Checkpoint.sol";
 import "./types/Registration.sol";
 import "./types/VaultParameter.sol";
-import "hardhat/console.sol";
 
 /**
  * @title Vault

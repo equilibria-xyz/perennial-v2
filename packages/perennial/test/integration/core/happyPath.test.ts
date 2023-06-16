@@ -592,7 +592,7 @@ describe('Happy Path', () => {
 
     expectLocalEq(await market.locals(userB.address), {
       currentId: 1,
-      collateral: COLLATERAL.add(BigNumber.from('1249723')),
+      collateral: COLLATERAL.add(BigNumber.from('1249393')),
       reward: 0,
       liquidation: 0,
     })
@@ -716,7 +716,7 @@ describe('Happy Path', () => {
     })
     expectLocalEq(await market.locals(userB.address), {
       currentId: 1,
-      collateral: COLLATERAL.add(BigNumber.from('1249723')),
+      collateral: COLLATERAL.add(BigNumber.from('1249393')),
       reward: 0,
       liquidation: 0,
     })
@@ -1075,7 +1075,7 @@ describe('Happy Path', () => {
     })
     expectVersionEq(await market.versions(TIMESTAMP_4), {
       makerValue: { _value: '-354544089095' },
-      longValue: { _value: '363284296967' },
+      longValue: { _value: '362094018785' },
       shortValue: { _value: 0 },
       makerReward: { _value: '606836363635' },
       longReward: { _value: '60683636363' },
@@ -1083,7 +1083,7 @@ describe('Happy Path', () => {
     })
   })
 
-  it.skip('multi-delayed update w/ collateral (gas)', async () => {
+  it('multi-delayed update w/ collateral (gas)', async () => {
     const positionFeesOn = true
     const incentizesOn = true
     const delay = 5

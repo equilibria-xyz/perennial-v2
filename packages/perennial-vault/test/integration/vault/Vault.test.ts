@@ -739,11 +739,10 @@ describe('Vault', () => {
       await updateOracle()
       await vault.settle(user.address)
 
-      console.log(await market.position())
-      const makerAvailable = parse6decimal('1')
+      const makerAvailable = BigNumber.from(1000268) // drift due to funding
       // The vault can close 1 ETH of maker positions in the ETH market, which means the user can withdraw 5/4 this amount
       expect(await vault.maxRedeem(user.address)).to.equal(
-        await vault.convertToShares(originalOraclePrice.mul(makerAvailable).mul(5).div(4).div(leverage)),
+        await vault.convertToShares(originalOraclePrice.mul(makerAvailable).mul(5).div(4).div(leverage).sub(1)),
       )
 
       await vault.settle(user.address)
