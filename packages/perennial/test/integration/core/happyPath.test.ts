@@ -6,7 +6,6 @@ import {
   InstanceVars,
   deployProtocol,
   createMarket,
-  INITIAL_VERSION,
   INITIAL_PHASE_ID,
   INITIAL_AGGREGATOR_ROUND_ID,
 } from '../helpers/setupHelpers'
@@ -17,7 +16,7 @@ import {
   expectVersionEq,
   parse6decimal,
 } from '../../../../common/testutil/types'
-import { ChainlinkOracle__factory, IOracleProvider__factory, Market__factory } from '../../../types/generated'
+import { IOracleProvider__factory, Market__factory } from '../../../types/generated'
 import { CHAINLINK_CUSTOM_CURRENCIES } from '@equilibria/perennial-v2-oracle/util/constants'
 import { buildChainlinkRoundId } from '@equilibria/perennial-v2-oracle/util/buildChainlinkRoundId'
 import { ChainlinkContext } from '../helpers/chainlinkHelpers'

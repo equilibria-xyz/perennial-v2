@@ -5,11 +5,9 @@ import { utils } from 'ethers'
 import { time, impersonate } from '../../../../common/testutil'
 import {
   IERC20Metadata,
-  ChainlinkOracle,
   Market,
   IERC20Metadata__factory,
   Factory__factory,
-  ChainlinkOracle__factory,
   Market__factory,
   ERC20PresetMinterPauser,
   ERC20PresetMinterPauser__factory,
@@ -26,8 +24,6 @@ import { parse6decimal } from '../../../../common/testutil/types'
 import { buildChainlinkRoundId } from '@equilibria/perennial-v2-oracle/util/buildChainlinkRoundId'
 import { CHAINLINK_CUSTOM_CURRENCIES } from '@equilibria/perennial-v2-oracle/util/constants'
 import { Squared__factory } from '@equilibria/perennial-v2-payoff/types/generated'
-import { FakeContract, smock } from '@defi-wonderland/smock'
-import { address } from 'hardhat/internal/core/config/config-validation'
 const { config, deployments, ethers } = HRE
 
 export const INITIAL_PHASE_ID = 1

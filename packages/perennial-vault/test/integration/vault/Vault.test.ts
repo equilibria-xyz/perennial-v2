@@ -11,7 +11,6 @@ import {
   IMarket,
   Vault__factory,
   IOracleProvider,
-  ChainlinkOracle__factory,
   VaultFactory__factory,
   IVaultFactory,
   IVault__factory,
@@ -120,28 +119,12 @@ describe('Vault', () => {
     ;[owner, pauser, user, user2, btcUser1, btcUser2, liquidator, perennialUser] = await ethers.getSigners()
     factory = instanceVars.factory
 
-    const oracleToMock = await new ChainlinkOracle__factory(owner).deploy(
-      '0x47Fb2585D2C56Fe188D0E6ec628a38b74fCeeeDf',
-      '0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE',
-      '0x0000000000000000000000000000000000000348',
-      1,
-    )
-    const btcOracleToMock = await new ChainlinkOracle__factory(owner).deploy(
-      '0x47Fb2585D2C56Fe188D0E6ec628a38b74fCeeeDf',
-      '0xbBbBBBBbbBBBbbbBbbBbbbbBBbBbbbbBbBbbBBbB',
-      '0x0000000000000000000000000000000000000348',
-      1,
-    )
-
-    // Unfortunately, we can't make mocks of existing contracts.
-    // So, we make a fake and initialize it with the values that the real contract had at this block.
-    const realOracle = await new ChainlinkOracle__factory(owner).deploy(
-      '0x47Fb2585D2C56Fe188D0E6ec628a38b74fCeeeDf',
-      '0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE',
-      '0x0000000000000000000000000000000000000348',
-      1,
-    )
-    const realVersion = { ...(await realOracle.latest()) }
+    const realVersion = {
+      version: BigNumber.from('12990'),
+      timestamp: BigNumber.from('1646456348'),
+      price: BigNumber.from('2620237388'),
+      valid: true,
+    }
     const currentVersion = {
       version: BigNumber.from(1000000),
       timestamp: realVersion.timestamp,
@@ -150,21 +133,18 @@ describe('Vault', () => {
     }
     originalOraclePrice = realVersion.price
 
-    oracle = await smock.fake<IOracleProvider>('IOracleProvider', {
-      address: oracleToMock.address,
-    })
+    oracle = await smock.fake<IOracleProvider>('IOracleProvider')
     oracle.sync.returns([currentVersion, currentVersion.version.add(LEGACY_ORACLE_DELAY)])
     oracle.latest.returns(currentVersion)
     oracle.current.returns(currentVersion.version.add(LEGACY_ORACLE_DELAY))
     oracle.at.whenCalledWith(currentVersion.version).returns(currentVersion)
 
-    const realBtcOracle = await new ChainlinkOracle__factory(owner).deploy(
-      '0x47Fb2585D2C56Fe188D0E6ec628a38b74fCeeeDf',
-      '0xbBbBBBBbbBBBbbbBbbBbbbbBBbBbbbbBbBbbBBbB',
-      '0x0000000000000000000000000000000000000348',
-      1,
-    )
-    const btcRealVersion = { ...(await realBtcOracle.latest()) }
+    const btcRealVersion = {
+      version: BigNumber.from('10645'),
+      timestamp: BigNumber.from('1646456563'),
+      price: BigNumber.from('38838362695'),
+      valid: true,
+    }
     const btcCurrentVersion = {
       version: BigNumber.from(1000000),
       timestamp: btcRealVersion.timestamp,
@@ -173,9 +153,7 @@ describe('Vault', () => {
     }
     btcOriginalOraclePrice = btcRealVersion.price
 
-    btcOracle = await smock.fake<IOracleProvider>('IOracleProvider', {
-      address: btcOracleToMock.address,
-    })
+    btcOracle = await smock.fake<IOracleProvider>('IOracleProvider')
     btcOracle.sync.returns([btcCurrentVersion, btcCurrentVersion.version.add(LEGACY_ORACLE_DELAY)])
     btcOracle.latest.returns(btcCurrentVersion)
     btcOracle.current.returns(btcCurrentVersion.version.add(LEGACY_ORACLE_DELAY))
@@ -187,7 +165,7 @@ describe('Vault', () => {
       owner: owner,
       name: 'Ethereum',
       symbol: 'ETH',
-      oracle: oracleToMock.address,
+      oracle: oracle.address,
       makerLimit: parse6decimal('1000'),
     })
     btcMarket = await deployProductOnMainnetFork({
@@ -196,7 +174,7 @@ describe('Vault', () => {
       owner: owner,
       name: 'Bitcoin',
       symbol: 'BTC',
-      oracle: btcOracleToMock.address,
+      oracle: btcOracle.address,
     })
     leverage = parse6decimal('4.0')
     maxCollateral = parse6decimal('500000')
@@ -296,19 +274,12 @@ describe('Vault', () => {
     let market3: IMarket
 
     beforeEach(async () => {
-      const oracleToMock3 = await new ChainlinkOracle__factory(owner).deploy(
-        '0x47Fb2585D2C56Fe188D0E6ec628a38b74fCeeeDf',
-        '0x514910771AF9Ca656af840dff83E8264EcF986CA',
-        '0x0000000000000000000000000000000000000348',
-        1,
-      )
-      const realOracle3 = await new ChainlinkOracle__factory(owner).deploy(
-        '0x47Fb2585D2C56Fe188D0E6ec628a38b74fCeeeDf',
-        '0x514910771AF9Ca656af840dff83E8264EcF986CA',
-        '0x0000000000000000000000000000000000000348',
-        1,
-      )
-      const realVersion3 = { ...(await realOracle3.latest()) }
+      const realVersion3 = {
+        version: BigNumber.from('7603'),
+        timestamp: BigNumber.from('1646455460'),
+        price: BigNumber.from('13720000'),
+        valid: true,
+      }
       const currentVersion3 = {
         version: BigNumber.from(1000000),
         timestamp: realVersion3.timestamp,
@@ -316,9 +287,7 @@ describe('Vault', () => {
         valid: true,
       }
 
-      const oracle3 = await smock.fake<IOracleProvider>('IOracleProvider', {
-        address: oracleToMock3.address,
-      })
+      const oracle3 = await smock.fake<IOracleProvider>('IOracleProvider')
       oracle3.sync.returns([currentVersion3, currentVersion3.version.add(LEGACY_ORACLE_DELAY)])
       oracle3.latest.returns(currentVersion3)
       oracle3.current.returns(currentVersion3.version.add(LEGACY_ORACLE_DELAY))
@@ -330,7 +299,7 @@ describe('Vault', () => {
         owner: owner,
         name: 'Chainlink Token',
         symbol: 'LINK',
-        oracle: oracleToMock3.address,
+        oracle: oracle3.address,
         makerLimit: parse6decimal('1000000'),
       })
     })
@@ -354,20 +323,13 @@ describe('Vault', () => {
     })
 
     it('reverts when the asset is incorrect', async () => {
-      const oracleToMockBadAsset = await new ChainlinkOracle__factory(owner).deploy(
-        '0x47Fb2585D2C56Fe188D0E6ec628a38b74fCeeeDf',
-        '0x514910771AF9Ca656af840dff83E8264EcF986CA',
-        '0x0000000000000000000000000000000000000348',
-        1,
-      )
-
       const marketBadAsset = await deployProductOnMainnetFork({
         factory: factory,
         token: IERC20Metadata__factory.connect(constants.AddressZero, owner),
         owner: owner,
         name: 'Chainlink Token',
         symbol: 'LINK',
-        oracle: oracleToMockBadAsset.address,
+        oracle: constants.AddressZero,
         makerLimit: parse6decimal('1000000'),
       })
 

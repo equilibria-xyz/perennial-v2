@@ -3,8 +3,8 @@ pragma solidity 0.8.19;
 
 import "../IOracleProvider.sol";
 
-contract SimpleKeeperOracle is IOracleProvider {
-    error SimpleKeeperOracleOutOfOrderCommitError();
+contract ReferenceKeeperOracle is IOracleProvider {
+    error ReferenceKeeperOracleOutOfOrderCommitError();
 
     mapping(uint256 => uint256) public _versions;
     mapping(uint256 => OracleVersion) public _at;
@@ -24,7 +24,7 @@ contract SimpleKeeperOracle is IOracleProvider {
     function at(uint256 version) public view returns (OracleVersion memory) { return _at[version]; }
 
     function commit(uint256 version, Fixed6 price) external {
-        if (version != _versions[_latest]) revert SimpleKeeperOracleOutOfOrderCommitError();
+        if (version != _versions[_latest]) revert ReferenceKeeperOracleOutOfOrderCommitError();
         _at[version] = OracleVersion(version, version, price, true);
         _latest++;
     }
