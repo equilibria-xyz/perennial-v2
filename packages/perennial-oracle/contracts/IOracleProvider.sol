@@ -14,8 +14,7 @@ import "./types/OracleVersion.sol";
 ///         - This is useful for immediately liquidating an account with a valid off-chain price in between orders
 ///         - Satisfying the above constraints, only versions more recent than the latest version may be committed
 interface IOracleProvider {
-    function sync() external returns (OracleVersion memory, uint256);
+    function sync() external returns (OracleVersion memory);
     function latest() external view returns (OracleVersion memory);
-    function current() external view returns (uint256);
-    function at(uint256 version) external view returns (OracleVersion memory);
+    function at(uint256 timestamp) external view returns (OracleVersion memory);
 }

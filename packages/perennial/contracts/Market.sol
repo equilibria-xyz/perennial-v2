@@ -178,7 +178,7 @@ contract Market is IMarket, UInitializable, UOwnable {
             context.accountPosition.maintenance(context.latestVersion, context.marketParameter);
 
         if (context.local.collateral.max(Fixed6Lib.ZERO).gte(Fixed6Lib.from(maintenance)) ||
-            context.local.liquidation > context.accountPosition.version) return;
+            context.local.liquidation > context.accountPosition.timestamp) return;
 
         // compute reward
         UFixed6 liquidationFee = context.accountPosition.liquidationFee(
@@ -189,7 +189,7 @@ contract Market is IMarket, UInitializable, UOwnable {
 
         // close position
         _update(context, account, UFixed6Lib.ZERO, UFixed6Lib.ZERO, UFixed6Lib.ZERO, Fixed6Lib.from(-1, liquidationFee), true);
-        context.local.liquidation = context.accountPendingPosition.version;
+        context.local.liquidation = context.accountPendingPosition.timestamp;
 
         emit Liquidation(account, msg.sender, liquidationFee);
     }
@@ -206,22 +206,22 @@ contract Market is IMarket, UInitializable, UOwnable {
         _startGas(context, "_update before-update-after: %s");
 
         // before
-        if (context.local.liquidation > context.accountPosition.version) revert MarketInLiquidationError();
+        if (context.local.liquidation > context.accountPosition.timestamp) revert MarketInLiquidationError();
         if (context.marketParameter.closed && !newMaker.add(newLong).add(newShort).isZero()) revert MarketClosedError();
 
         // update position
-        if (context.currentVersion > context.accountPendingPosition.version) context.local.currentId++;
+        if (context.currentTimestamp > context.accountPendingPosition.timestamp) context.local.currentId++;
         Order memory newOrder = context.accountPendingPosition.update(
             context.local.currentId,
-            context.currentVersion,
+            context.currentTimestamp,
             newMaker,
             newLong,
             newShort,
             context.latestVersion,
             context.marketParameter
         );
-        if (context.currentVersion > context.pendingPosition.version) context.global.currentId++;
-        context.pendingPosition.update(context.global.currentId, context.currentVersion, newOrder);
+        if (context.currentTimestamp > context.pendingPosition.timestamp) context.global.currentId++;
+        context.pendingPosition.update(context.global.currentId, context.currentTimestamp, newOrder);
 
         // update collateral
         Fixed6 collateralAmount = collateral.eq(Fixed6Lib.MIN) ? context.local.collateral.mul(Fixed6Lib.NEG_ONE) : collateral;
@@ -242,7 +242,7 @@ contract Market is IMarket, UInitializable, UOwnable {
         if (collateralAmount.sign() == -1) token.push(msg.sender, UFixed18Lib.from(collateralAmount.abs()));
 
         // events
-        emit Updated(account, context.currentVersion, newMaker, newLong, newShort, collateral);
+        emit Updated(account, context.currentTimestamp, newMaker, newLong, newShort, collateral);
 
         _endGas(context);
     }
@@ -265,8 +265,9 @@ contract Market is IMarket, UInitializable, UOwnable {
         context.accountPosition = _positions[account].read();
 
         // oracle
-        (context.latestVersion, context.currentVersion) = _oracleVersion(context.marketParameter);
-        context.positionVersion = _oracleVersionAt(context.marketParameter, context.position.version);
+        context.currentTimestamp = block.timestamp;
+        context.latestVersion = _oracleVersion(context.marketParameter);
+        context.positionVersion = _oracleVersionAt(context.marketParameter, context.position.timestamp);
 
         // after
         _endGas(context);
@@ -320,15 +321,15 @@ contract Market is IMarket, UInitializable, UOwnable {
 
         Position memory nextPosition;
 
-        if (context.latestVersion.version > context.position.version) {
+        if (context.latestVersion.timestamp > context.position.timestamp) {
             nextPosition = _pendingPosition[context.position.id].read();
-            nextPosition.version = context.latestVersion.version;
+            nextPosition.timestamp = context.latestVersion.timestamp;
             nextPosition.fee = UFixed6Lib.ZERO;
             _processPosition(context, nextPosition);
         }
-        if (context.latestVersion.version > context.accountPosition.version) {
+        if (context.latestVersion.timestamp > context.accountPosition.timestamp) {
             nextPosition = _pendingPositions[account][context.accountPosition.id].read();
-            nextPosition.version = context.latestVersion.version;
+            nextPosition.timestamp = context.latestVersion.timestamp;
             nextPosition.fee = UFixed6Lib.ZERO;
             _processPositionAccount(context, nextPosition);
         }
@@ -337,8 +338,8 @@ contract Market is IMarket, UInitializable, UOwnable {
     }
 
     function _processPosition(CurrentContext memory context, Position memory newPosition) private {
-        Version memory version = _versions[context.position.version].read();
-        OracleVersion memory oracleVersion = _oracleVersionAt(context.marketParameter, newPosition.version);
+        Version memory version = _versions[context.position.timestamp].read();
+        OracleVersion memory oracleVersion = _oracleVersionAt(context.marketParameter, newPosition.timestamp);
         if (!oracleVersion.valid) return; // skip processing if invalid
 
         UFixed6 accumulatedFee = version.accumulate(
@@ -351,18 +352,18 @@ contract Market is IMarket, UInitializable, UOwnable {
         context.position.update(newPosition);
         context.global.incrementFees(accumulatedFee, context.protocolParameter);
         context.positionVersion = oracleVersion;
-        _versions[newPosition.version].store(version);
+        _versions[newPosition.timestamp].store(version);
         _parameter.store(context.marketParameter); // TODO: remove if split out pController state
     }
 
     function _processPositionAccount(CurrentContext memory context, Position memory newPosition) private view {
-        Version memory version = _versions[newPosition.version].read();
+        Version memory version = _versions[newPosition.timestamp].read();
         if (!version.valid) return; // skip processing if invalid
 
         context.local.accumulate(
             context.accountPosition,
             newPosition,
-            _versions[context.accountPosition.version].read(),
+            _versions[context.accountPosition.timestamp].read(),
             version
         );
         context.accountPosition.update(newPosition);
@@ -409,23 +410,23 @@ contract Market is IMarket, UInitializable, UOwnable {
         if (maintenanceAmount.gt(boundedCollateral)) revert MarketInsufficientCollateralError();
     }
 
-    function at(uint256 version) public view returns (OracleVersion memory) {
+    function at(uint256 timestamp) public view returns (OracleVersion memory) {
         MarketParameter memory marketParameter = _parameter.read();
-        return _oracleVersionAt(marketParameter, version);
+        return _oracleVersionAt(marketParameter, timestamp);
     }
 
     function _oracleVersion(
         MarketParameter memory marketParameter
-    ) private returns (OracleVersion memory latestVersion, uint256 currentVersion) {
-        (latestVersion, currentVersion) = marketParameter.oracle.sync();
+    ) private returns (OracleVersion memory latestVersion) {
+        latestVersion = marketParameter.oracle.sync();
         _transform(marketParameter, latestVersion);
     }
 
     function _oracleVersionAt(
         MarketParameter memory marketParameter,
-        uint256 version
+        uint256 timestamp
     ) private view returns (OracleVersion memory oracleVersion) {
-        oracleVersion = marketParameter.oracle.at(version);
+        oracleVersion = marketParameter.oracle.at(timestamp);
         _transform(marketParameter, oracleVersion);
     }
 

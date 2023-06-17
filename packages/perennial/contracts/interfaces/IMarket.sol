@@ -22,7 +22,7 @@ interface IMarket is IOwnable {
     struct CurrentContext {
         ProtocolParameter protocolParameter;
         MarketParameter marketParameter;
-        uint256 currentVersion;
+        uint256 currentTimestamp;
         OracleVersion latestVersion;
         OracleVersion positionVersion;
         Position pendingPosition;

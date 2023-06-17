@@ -12,7 +12,7 @@ interface IVault {
     struct Context {
         uint256 currentId;
         uint256 latestId;
-        uint256 latestVersion;
+        uint256 latestTimestamp;
         uint256 liquidation;
 
         // parameters

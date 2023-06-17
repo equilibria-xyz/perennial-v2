@@ -1,8 +1,13 @@
 import HRE from 'hardhat'
 import { BigNumber } from 'ethers'
-import { smock, MockContract, FakeContract } from '@defi-wonderland/smock'
 
-import { FeedRegistryInterface__factory, FeedRegistryInterface, IOracleProvider } from '../../../types/generated'
+import {
+  FeedRegistryInterface__factory,
+  FeedRegistryInterface,
+  ReferenceKeeperOracle__factory,
+  ReferenceKeeperOracle,
+} from '../../../types/generated'
+import { increaseTo } from '../../../../common/testutil/time'
 
 const { ethers, deployments } = HRE
 
@@ -15,7 +20,7 @@ export class ChainlinkContext {
   private readonly base: string
   private readonly quote: string
 
-  public oracle!: FakeContract<IOracleProvider>
+  public oracle!: ReferenceKeeperOracle
 
   constructor(base: string, quote: string, initialRoundId: BigNumber, delay: number) {
     this.base = base
@@ -34,7 +39,7 @@ export class ChainlinkContext {
       ).address,
       owner,
     )
-    this.oracle = await smock.fake<IOracleProvider>('IOracleProvider')
+    this.oracle = await new ReferenceKeeperOracle__factory(owner).deploy()
 
     this.decimals = await this.feedRegistryExternal.decimals(this.base, this.quote)
 
@@ -48,27 +53,25 @@ export class ChainlinkContext {
   }
 
   public async nextWithPriceModification(priceFn: (price: BigNumber) => BigNumber): Promise<void> {
+    // update current
     this.currentRoundId = await this.feedRegistryExternal.getNextRoundId(this.base, this.quote, this.currentRoundId)
-    if (this.currentRoundId.sub(this.latestRoundId).gt(this.delay)) {
-      this.latestRoundId = await this.feedRegistryExternal.getNextRoundId(this.base, this.quote, this.latestRoundId)
-    }
-
-    const latestData = await this.feedRegistryExternal.getRoundData(this.base, this.quote, this.latestRoundId)
     const currentData = await this.feedRegistryExternal.getRoundData(this.base, this.quote, this.currentRoundId)
+    await increaseTo(currentData.startedAt.toNumber())
+    await this.oracle.sync()
 
+    // update latest if available
+    if (this.currentRoundId.sub(this.latestRoundId).lt(this.delay)) return
+
+    this.latestRoundId = await this.feedRegistryExternal.getNextRoundId(this.base, this.quote, this.latestRoundId)
+    const latestData = await this.feedRegistryExternal.getRoundData(this.base, this.quote, this.latestRoundId)
     const latestVersion = {
-      version: latestData.startedAt,
       timestamp: latestData.startedAt,
       price: priceFn(latestData.answer.div(BigNumber.from(10).pow(this.decimals - 6))),
       valid: true,
     }
 
-    this.oracle.sync.reset()
-    this.oracle.sync.whenCalledWith().returns([latestVersion, currentData.startedAt])
-    this.oracle.current.reset()
-    this.oracle.current.whenCalledWith().returns(currentData.startedAt)
-    this.oracle.latest.reset()
-    this.oracle.latest.whenCalledWith().returns(latestVersion)
-    this.oracle.at.whenCalledWith(latestData.startedAt).returns(latestVersion)
+    const nextTimestamp = await this.oracle.next()
+    if (nextTimestamp.toNumber() == 0) console.log('[WARNING] trying to commit a non-requested version')
+    await this.oracle.commit(nextTimestamp, latestVersion.price)
   }
 }

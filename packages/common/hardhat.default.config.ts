@@ -5,12 +5,7 @@ dotenvConfig({ path: resolve(__dirname, '../../.env') })
 import { HardhatUserConfig, SolcUserConfig } from 'hardhat/types'
 import { NetworkUserConfig } from 'hardhat/types'
 
-import '@typechain/hardhat'
-import '@nomiclabs/hardhat-ethers'
-import '@nomiclabs/hardhat-waffle'
-import '@nomiclabs/hardhat-etherscan'
-import 'solidity-coverage'
-import 'hardhat-gas-reporter'
+import '@nomicfoundation/hardhat-toolbox'
 import 'hardhat-contract-sizer'
 import 'hardhat-deploy'
 import 'hardhat-dependency-compiler'
@@ -90,6 +85,7 @@ export default function defaultConfig({
               interval: NODE_INTERVAL_MINING,
             }
           : undefined,
+        allowBlocksWithSameTimestamp: true,
       },
       goerli: createNetworkConfig('goerli'),
       kovan: createNetworkConfig('kovan'),
