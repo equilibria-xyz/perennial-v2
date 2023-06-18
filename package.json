@@ -37,6 +37,7 @@
     "dotenv": "^8.2.0",
     "eslint": "^7.28.0",
     "eslint-config-prettier": "^8.3.0",
+    "ethereum-waffle": "4.0.10",
     "hardhat": "2.15.0",
     "hardhat-contract-sizer": "^2.10.0",
     "hardhat-dependency-compiler": "1.1.3",

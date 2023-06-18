@@ -265,8 +265,7 @@ contract Market is IMarket, UInitializable, UOwnable {
         context.accountPosition = _positions[account].read();
 
         // oracle
-        context.currentTimestamp = block.timestamp;
-        context.latestVersion = _oracleVersion(context.marketParameter);
+        (context.latestVersion, context.currentTimestamp) = _oracleVersion(context.marketParameter);
         context.positionVersion = _oracleVersionAt(context.marketParameter, context.position.timestamp);
 
         // after
@@ -417,8 +416,8 @@ contract Market is IMarket, UInitializable, UOwnable {
 
     function _oracleVersion(
         MarketParameter memory marketParameter
-    ) private returns (OracleVersion memory latestVersion) {
-        latestVersion = marketParameter.oracle.sync();
+    ) private returns (OracleVersion memory latestVersion, uint256 currentTimestamp) {
+        (latestVersion, currentTimestamp) = marketParameter.oracle.sync();
         _transform(marketParameter, latestVersion);
     }
 

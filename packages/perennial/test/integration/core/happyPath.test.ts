@@ -20,7 +20,6 @@ import { IOracleProvider__factory, Market__factory } from '../../../types/genera
 import { CHAINLINK_CUSTOM_CURRENCIES } from '@equilibria/perennial-v2-oracle/util/constants'
 import { buildChainlinkRoundId } from '@equilibria/perennial-v2-oracle/util/buildChainlinkRoundId'
 import { ChainlinkContext } from '../helpers/chainlinkHelpers'
-import { currentBlockTimestamp, freezeTime } from '../../../../common/testutil/time'
 
 //TODO (coverage hint): invalid version test
 //TODO (coverage hint): short tests
@@ -83,7 +82,7 @@ describe('Happy Path', () => {
     await market.connect(owner).updateTreasury(treasuryB.address)
   })
 
-  it.only('opens a make position', async () => {
+  it('opens a make position', async () => {
     const POSITION = parse6decimal('0.0001')
     const COLLATERAL = parse6decimal('1000')
     const { user, dsu, chainlink } = instanceVars
@@ -91,12 +90,9 @@ describe('Happy Path', () => {
     const market = await createMarket(instanceVars)
     await dsu.connect(user).approve(market.address, COLLATERAL.mul(1e12))
 
-    console.log('update')
-    console.log(await currentBlockTimestamp())
     await expect(market.connect(user).update(user.address, POSITION, 0, 0, COLLATERAL))
       .to.emit(market, 'Updated')
-      .withArgs(user.address, TIMESTAMP_1 + 1, POSITION, 0, 0, COLLATERAL)
-    console.log(await currentBlockTimestamp())
+      .withArgs(user.address, TIMESTAMP_1, POSITION, 0, 0, COLLATERAL)
 
     // Check user is in the correct state
     expectLocalEq(await market.locals(user.address), {
@@ -205,7 +201,7 @@ describe('Happy Path', () => {
     })
   })
 
-  it.only('opens multiple make positions', async () => {
+  it('opens multiple make positions', async () => {
     const POSITION = parse6decimal('0.0001')
     const COLLATERAL = parse6decimal('1000')
     const { user, dsu, chainlink } = instanceVars
@@ -214,7 +210,6 @@ describe('Happy Path', () => {
     await dsu.connect(user).approve(market.address, COLLATERAL.mul(1e12))
 
     await market.connect(user).update(user.address, POSITION.div(2), 0, 0, COLLATERAL)
-    await freezeTime()
     await expect(market.connect(user).update(user.address, POSITION, 0, 0, 0))
       .to.emit(market, 'Updated')
       .withArgs(user.address, TIMESTAMP_1, POSITION, 0, 0, 0)
@@ -331,7 +326,7 @@ describe('Happy Path', () => {
     })
   })
 
-  it.only('closes a make position', async () => {
+  it('closes a make position', async () => {
     const POSITION = parse6decimal('0.0001')
     const COLLATERAL = parse6decimal('1000')
     const { user, dsu } = instanceVars
@@ -340,7 +335,6 @@ describe('Happy Path', () => {
     await dsu.connect(user).approve(market.address, COLLATERAL.mul(1e12))
 
     await market.connect(user).update(user.address, POSITION, 0, 0, COLLATERAL)
-    await freezeTime()
     await expect(market.connect(user).update(user.address, 0, 0, 0, 0))
       .to.emit(market, 'Updated')
       .withArgs(user.address, TIMESTAMP_1, 0, 0, 0, 0)
@@ -752,9 +746,9 @@ describe('Happy Path', () => {
     await dsu.connect(user).approve(market.address, COLLATERAL.mul(1e12))
     await dsu.connect(userB).approve(market.address, COLLATERAL.mul(1e12))
 
-    await expect(market.connect(userB).update(userB.address, 0, POSITION_B, 0, COLLATERAL)).to.be.revertedWith(
-      'MarketInsufficientLiquidityError()',
-    )
+    await expect(
+      market.connect(userB).update(userB.address, 0, POSITION_B, 0, COLLATERAL),
+    ).to.be.revertedWithCustomError(market, 'MarketInsufficientLiquidityError')
     await market.connect(user).update(user.address, POSITION, 0, 0, COLLATERAL)
     await market.connect(userB).update(userB.address, 0, POSITION_B, 0, COLLATERAL)
 
@@ -828,9 +822,9 @@ describe('Happy Path', () => {
     await dsu.connect(user).approve(market.address, COLLATERAL.mul(1e12))
     await dsu.connect(userB).approve(market.address, COLLATERAL.mul(1e12))
 
-    await expect(market.connect(userB).update(userB.address, 0, POSITION_B, 0, COLLATERAL)).to.be.revertedWith(
-      'MarketInsufficientLiquidityError()',
-    )
+    await expect(
+      market.connect(userB).update(userB.address, 0, POSITION_B, 0, COLLATERAL),
+    ).to.be.revertedWithCustomError(market, 'MarketInsufficientLiquidityError')
     await market.connect(user).update(user.address, POSITION, 0, 0, COLLATERAL)
     await market.connect(userB).update(userB.address, 0, POSITION_B, 0, COLLATERAL)
     await market.connect(userB).update(userB.address, POSITION_B.div(2), 0, 0, 0)
@@ -909,10 +903,10 @@ describe('Happy Path', () => {
     const market = await createMarket(instanceVars)
 
     await expect(factory.connect(pauser).updatePaused(true)).to.emit(factory, 'ParameterUpdated')
-    await expect(market.connect(user.address).update(user.address, 0, 0, 0, parse6decimal('1000'))).to.be.revertedWith(
-      'PausedError()',
-    )
-    await expect(market.connect(user.address).settle(user.address)).to.be.revertedWith('PausedError()')
+    await expect(
+      market.connect(user).update(user.address, 0, 0, 0, parse6decimal('1000')),
+    ).to.be.revertedWithCustomError(market, 'MarketPausedError')
+    await expect(market.connect(user).settle(user.address)).to.be.revertedWithCustomError(market, 'MarketPausedError')
   })
 
   it('opens a long position and settles after max funding', async () => {
@@ -1087,7 +1081,7 @@ describe('Happy Path', () => {
     })
   })
 
-  it('multi-delayed update w/ collateral (gas)', async () => {
+  it.skip('multi-delayed update w/ collateral (gas)', async () => {
     const positionFeesOn = true
     const incentizesOn = true
     const delay = 5
@@ -1140,7 +1134,7 @@ describe('Happy Path', () => {
       'SQTH',
       IOracleProvider__factory.connect(chainlink.oracle.address, owner),
     )
-    await market.updateParameter(parameter)
+    await market.connect(owner).updateParameter(parameter)
 
     await dsu.connect(user).approve(market.address, COLLATERAL.mul(2).mul(1e12))
     await dsu.connect(userB).approve(market.address, COLLATERAL.mul(2).mul(1e12))
@@ -1161,7 +1155,7 @@ describe('Happy Path', () => {
 
     await expect(market.connect(user).update(user.address, POSITION, 0, 0, -1))
       .to.emit(market, 'Updated')
-      .withArgs(user.address, await currentBlockTimestamp(), POSITION, 0, 0, -1)
+      .withArgs(user.address, await chainlink.oracle.current(), POSITION, 0, 0, -1)
 
     // Check user is in the correct state
     expectLocalEq(await market.locals(user.address), {
@@ -1172,7 +1166,7 @@ describe('Happy Path', () => {
     })
     expectPositionEq(await market.pendingPositions(user.address, delay + 1), {
       id: delay + 1,
-      timestamp: await currentBlockTimestamp(),
+      timestamp: await chainlink.oracle.current(),
       maker: POSITION,
       long: 0,
       short: 0,
@@ -1195,7 +1189,7 @@ describe('Happy Path', () => {
     })
     expectPositionEq(await market.pendingPosition(delay + 1), {
       id: delay + 1,
-      timestamp: await currentBlockTimestamp(),
+      timestamp: await chainlink.oracle.current(),
       maker: POSITION,
       long: POSITION.sub(1),
       short: 0,

@@ -39,7 +39,7 @@ describe('Liquidate', () => {
     await chainlink.next()
     await market.settle(user.address)
 
-    expect((await market.position()).version).to.eq(TIMESTAMP_2)
+    expect((await market.position()).timestamp).to.eq(TIMESTAMP_2)
     expect((await market.locals(user.address)).liquidation).to.eq(TIMESTAMP_2)
   })
 
@@ -68,7 +68,7 @@ describe('Liquidate', () => {
     await chainlink.next()
     await market.settle(user.address)
 
-    expect((await market.position()).version).to.eq(TIMESTAMP_2)
+    expect((await market.position()).timestamp).to.eq(TIMESTAMP_2)
     expect((await market.locals(user.address)).liquidation).to.eq(TIMESTAMP_2)
   })
 
@@ -93,7 +93,7 @@ describe('Liquidate', () => {
     const userBCollateral = (await market.locals(userB.address)).collateral
     await expect(
       market.connect(userB).update(userB.address, 0, 0, 0, userBCollateral.mul(-1).sub(1)),
-    ).to.be.revertedWith('MarketInDebtError()') // underflow
+    ).to.be.revertedWithCustomError(market, 'MarketInDebtError') // underflow
 
     await market.connect(userB).settle(user.address) // liquidate
     expect((await market.locals(user.address)).collateral).to.equal(BigNumber.from('-3154014022'))

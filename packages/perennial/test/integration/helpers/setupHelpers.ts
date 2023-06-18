@@ -24,6 +24,7 @@ import { parse6decimal } from '../../../../common/testutil/types'
 import { buildChainlinkRoundId } from '@equilibria/perennial-v2-oracle/util/buildChainlinkRoundId'
 import { CHAINLINK_CUSTOM_CURRENCIES } from '@equilibria/perennial-v2-oracle/util/constants'
 import { Squared__factory } from '@equilibria/perennial-v2-payoff/types/generated'
+import { currentBlockTimestamp } from '../../../../common/testutil/time'
 const { config, deployments, ethers } = HRE
 
 export const INITIAL_PHASE_ID = 1
