@@ -66,6 +66,13 @@ interface IMarket is IOwnable {
     error MarketExceedsPendingIdLimitError();
     error MarketRewardAlreadySetError();
 
+    error GlobalStorageInvalidError();
+    error LocalStorageInvalidError();
+    error MarketParameterStorageInvalidError();
+    error MarketParameterStorageImmutableError();
+    error PositionStorageLocalInvalidError();
+    error VersionStorageInvalidError();
+
     function initialize(MarketDefinition calldata definition_, MarketParameter calldata parameter_) external;
     function name() external view returns (string memory);
     function symbol() external view returns (string memory);

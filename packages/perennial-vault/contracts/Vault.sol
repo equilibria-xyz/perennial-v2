@@ -423,7 +423,7 @@ contract Vault is IVault, UInitializable {
         for (uint256 marketId; marketId < context.markets.length; marketId++) {
             Registration memory registration = _registrations[marketId].read();
             MarketParameter memory marketParameter = registration.market.parameter();
-            uint256 currentTimestamp = block.timestamp;
+            uint256 currentTimestamp = marketParameter.oracle.current();
 
             context.markets[marketId].registration = registration;
             context.markets[marketId].closed = marketParameter.closed;

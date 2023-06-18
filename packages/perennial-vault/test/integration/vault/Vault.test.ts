@@ -21,7 +21,6 @@ import { BigNumber, constants } from 'ethers'
 import { deployProtocol, fundWallet } from '@equilibria/perennial-v2/test/integration/helpers/setupHelpers'
 import { parse6decimal } from '../../../../common/testutil/types'
 import { TransparentUpgradeableProxy__factory } from '@equilibria/perennial-v2/types/generated'
-import { beforeEach } from 'mocha'
 
 const { config, ethers } = HRE
 use(smock.matchers)
@@ -57,29 +56,29 @@ describe('Vault', () => {
   }
 
   async function _updateOracleEth(newPrice?: BigNumber) {
-    const [, currentTimestamp, currentPrice] = await oracle.latest()
+    const [currentTimestamp, currentPrice] = await oracle.latest()
     const newVersion = {
-      version: currentTimestamp.add(LEGACY_ORACLE_DELAY),
-      timestamp: currentTimestamp.add(STARTING_TIMESTAMP),
-      price: newPrice ?? currentPrice,
-      valid: true,
-    }
-    oracle.sync.returns([newVersion, newVersion.version.add(LEGACY_ORACLE_DELAY)])
-    oracle.latest.returns(newVersion)
-    oracle.at.whenCalledWith(newVersion.version).returns(newVersion)
-  }
-
-  async function _updateOracleBtc(newPrice?: BigNumber) {
-    const [, currentTimestamp, currentPrice] = await btcOracle.latest()
-    const newVersion = {
-      version: currentTimestamp.add(LEGACY_ORACLE_DELAY),
       timestamp: currentTimestamp.add(LEGACY_ORACLE_DELAY),
       price: newPrice ?? currentPrice,
       valid: true,
     }
-    btcOracle.sync.returns([newVersion, newVersion.version.add(LEGACY_ORACLE_DELAY)])
+    oracle.sync.returns([newVersion, newVersion.timestamp.add(LEGACY_ORACLE_DELAY)])
+    oracle.latest.returns(newVersion)
+    oracle.current.returns(newVersion.timestamp.add(LEGACY_ORACLE_DELAY))
+    oracle.at.whenCalledWith(newVersion.timestamp).returns(newVersion)
+  }
+
+  async function _updateOracleBtc(newPrice?: BigNumber) {
+    const [currentTimestamp, currentPrice] = await btcOracle.latest()
+    const newVersion = {
+      timestamp: currentTimestamp.add(LEGACY_ORACLE_DELAY),
+      price: newPrice ?? currentPrice,
+      valid: true,
+    }
+    btcOracle.sync.returns([newVersion, newVersion.timestamp.add(LEGACY_ORACLE_DELAY)])
     btcOracle.latest.returns(newVersion)
-    btcOracle.at.whenCalledWith(newVersion.version).returns(newVersion)
+    btcOracle.current.returns(newVersion.timestamp.add(LEGACY_ORACLE_DELAY))
+    btcOracle.at.whenCalledWith(newVersion.timestamp).returns(newVersion)
   }
 
   async function position() {
@@ -119,7 +118,6 @@ describe('Vault', () => {
     factory = instanceVars.factory
 
     const realVersion = {
-      version: STARTING_TIMESTAMP,
       timestamp: STARTING_TIMESTAMP,
       price: BigNumber.from('2620237388'),
       valid: true,
@@ -127,12 +125,12 @@ describe('Vault', () => {
     originalOraclePrice = realVersion.price
 
     oracle = await smock.fake<IOracleProvider>('IOracleProvider')
-    oracle.sync.returns([realVersion, realVersion.version.add(LEGACY_ORACLE_DELAY)])
+    oracle.sync.returns([realVersion, realVersion.timestamp.add(LEGACY_ORACLE_DELAY)])
     oracle.latest.returns(realVersion)
-    oracle.at.whenCalledWith(realVersion.version).returns(realVersion)
+    oracle.current.returns(realVersion.timestamp.add(LEGACY_ORACLE_DELAY))
+    oracle.at.whenCalledWith(realVersion.timestamp).returns(realVersion)
 
     const btcRealVersion = {
-      version: STARTING_TIMESTAMP,
       timestamp: STARTING_TIMESTAMP,
       price: BigNumber.from('38838362695'),
       valid: true,
@@ -140,9 +138,10 @@ describe('Vault', () => {
     btcOriginalOraclePrice = btcRealVersion.price
 
     btcOracle = await smock.fake<IOracleProvider>('IOracleProvider')
-    btcOracle.sync.returns([btcRealVersion, btcRealVersion.version.add(LEGACY_ORACLE_DELAY)])
+    btcOracle.sync.returns([btcRealVersion, btcRealVersion.timestamp.add(LEGACY_ORACLE_DELAY)])
     btcOracle.latest.returns(btcRealVersion)
-    btcOracle.at.whenCalledWith(btcRealVersion.version).returns(btcRealVersion)
+    btcOracle.current.returns(btcRealVersion.timestamp.add(LEGACY_ORACLE_DELAY))
+    btcOracle.at.whenCalledWith(btcRealVersion.timestamp).returns(btcRealVersion)
 
     market = await deployProductOnMainnetFork({
       factory: instanceVars.factory,
@@ -225,9 +224,9 @@ describe('Vault', () => {
 
   describe('#initialize', () => {
     it('cant re-initialize', async () => {
-      await expect(vault.initialize(asset.address, market.address, 'Blue Chip')).to.revertedWith(
-        'UInitializableAlreadyInitializedError',
-      )
+      await expect(vault.initialize(asset.address, market.address, 'Blue Chip'))
+        .to.revertedWithCustomError(vault, 'UInitializableAlreadyInitializedError')
+        .withArgs(1)
     })
   })
 
@@ -260,16 +259,15 @@ describe('Vault', () => {
 
     beforeEach(async () => {
       const realVersion3 = {
-        version: STARTING_TIMESTAMP,
         timestamp: STARTING_TIMESTAMP,
         price: BigNumber.from('13720000'),
         valid: true,
       }
 
       const oracle3 = await smock.fake<IOracleProvider>('IOracleProvider')
-      oracle3.sync.returns([realVersion3, realVersion3.version.add(LEGACY_ORACLE_DELAY)])
+      oracle3.sync.returns([realVersion3, realVersion3.timestamp.add(LEGACY_ORACLE_DELAY)])
       oracle3.latest.returns(realVersion3)
-      oracle3.at.whenCalledWith(realVersion3.version).returns(realVersion3)
+      oracle3.at.whenCalledWith(realVersion3.timestamp).returns(realVersion3)
 
       market3 = await deployProductOnMainnetFork({
         factory: factory,
@@ -289,15 +287,24 @@ describe('Vault', () => {
     })
 
     it('reverts when not owner', async () => {
-      await expect(vault.connect(user).register(market.address)).to.be.revertedWith('VaultNotOwnerError')
+      await expect(vault.connect(user).register(market.address)).to.be.revertedWithCustomError(
+        vault,
+        'VaultNotOwnerError',
+      )
     })
 
     it('reverts when market already registered', async () => {
-      await expect(vault.connect(owner).register(market.address)).to.be.revertedWith('VaultMarketExistsError')
+      await expect(vault.connect(owner).register(market.address)).to.be.revertedWithCustomError(
+        vault,
+        'VaultMarketExistsError',
+      )
     })
 
     it('reverts when not real market', async () => {
-      await expect(vault.connect(owner).register(constants.AddressZero)).to.be.revertedWith('VaultNotMarketError')
+      await expect(vault.connect(owner).register(constants.AddressZero)).to.be.revertedWithCustomError(
+        vault,
+        'VaultNotMarketError',
+      )
     })
 
     it('reverts when the asset is incorrect', async () => {
@@ -311,7 +318,10 @@ describe('Vault', () => {
         makerLimit: parse6decimal('1000000'),
       })
 
-      await expect(vault.connect(owner).register(marketBadAsset.address)).to.be.revertedWith('VaultIncorrectAssetError')
+      await expect(vault.connect(owner).register(marketBadAsset.address)).to.be.revertedWithCustomError(
+        vault,
+        'VaultIncorrectAssetError',
+      )
     })
   })
 
@@ -341,7 +351,8 @@ describe('Vault', () => {
         cap: parse6decimal('1000000'),
         premium: parse6decimal('0.20'),
       }
-      await expect(vault.connect(owner).updateParameter(newParameter)).to.be.revertedWith(
+      await expect(vault.connect(owner).updateParameter(newParameter)).to.be.revertedWithCustomError(
+        vault,
         'VaultParameterStorageImmutableError',
       )
     })
@@ -353,7 +364,10 @@ describe('Vault', () => {
         cap: parse6decimal('1000000'),
         premium: parse6decimal('0.20'),
       }
-      await expect(vault.connect(user).updateParameter(newParameter)).to.be.revertedWith('VaultNotOwnerError')
+      await expect(vault.connect(user).updateParameter(newParameter)).to.be.revertedWithCustomError(
+        vault,
+        'VaultNotOwnerError',
+      )
     })
   })
 
@@ -369,11 +383,14 @@ describe('Vault', () => {
     })
 
     it('reverts when invalid marketId', async () => {
-      await expect(vault.connect(owner).updateWeight(2, 10)).to.be.revertedWith('VaultMarketDoesNotExistError')
+      await expect(vault.connect(owner).updateWeight(2, 10)).to.be.revertedWithCustomError(
+        vault,
+        'VaultMarketDoesNotExistError',
+      )
     })
 
     it('reverts when not owner', async () => {
-      await expect(vault.connect(user).updateWeight(1, 2)).to.be.revertedWith('VaultNotOwnerError')
+      await expect(vault.connect(user).updateWeight(1, 2)).to.be.revertedWithCustomError(vault, 'VaultNotOwnerError')
     })
   })
 
@@ -422,7 +439,10 @@ describe('Vault', () => {
       )
 
       // User 2 should not be able to withdraw; they haven't deposited anything.
-      await expect(vault.connect(user2).redeem(1, user2.address)).to.be.revertedWith('VaultRedemptionLimitExceeded')
+      await expect(vault.connect(user2).redeem(1, user2.address)).to.be.revertedWithCustomError(
+        vault,
+        'VaultRedemptionLimitExceededError',
+      )
 
       expect(await vault.maxRedeem(user.address)).to.equal(parse6decimal('10010'))
       await vault.connect(user).redeem(await vault.maxRedeem(user.address), user.address)
@@ -632,7 +652,7 @@ describe('Vault', () => {
       // We shouldn't be able to withdraw more than maxWithdraw.
       await expect(
         vault.connect(user).redeem((await vault.maxRedeem(user.address)).add(1), user.address),
-      ).to.be.revertedWith('VaultRedemptionLimitExceeded')
+      ).to.be.revertedWithCustomError(vault, 'VaultRedemptionLimitExceededError')
 
       // But we should be able to withdraw exactly maxWithdraw.
       await vault.connect(user).redeem(await vault.maxRedeem(user.address), user.address)
@@ -689,7 +709,7 @@ describe('Vault', () => {
 
       await expect(
         vault.connect(user).redeem((await vault.maxRedeem(user.address)).add(1), user.address),
-      ).to.be.revertedWith('VaultRedemptionLimitExceededError')
+      ).to.be.revertedWithCustomError(vault, 'VaultRedemptionLimitExceededError')
 
       await expect(vault.connect(user).redeem(await vault.maxRedeem(user.address), user.address)).to.not.be.reverted
     })
@@ -706,8 +726,9 @@ describe('Vault', () => {
       await vault.connect(perennialUser).deposit(parse6decimal('300000'), liquidator.address)
       expect(await vault.maxDeposit(user.address)).to.equal(0)
 
-      await expect(vault.connect(liquidator).deposit(1, liquidator.address)).to.revertedWith(
-        'VaultDepositLimitExceeded',
+      await expect(vault.connect(liquidator).deposit(1, liquidator.address)).to.revertedWithCustomError(
+        vault,
+        'VaultDepositLimitExceededError',
       )
     })
 
@@ -757,7 +778,7 @@ describe('Vault', () => {
       expect(await vault.balanceOf(user.address)).to.equal(parse6decimal('10000'))
       expect(await vault.totalSupply()).to.equal(parse6decimal('10000'))
 
-      await expect(vault.connect(liquidator).redeem(parse6decimal('10000'), user.address)).to.revertedWith('0x11')
+      await expect(vault.connect(liquidator).redeem(parse6decimal('10000'), user.address)).to.revertedWithPanic('0x11')
 
       await vault.connect(user).approve(liquidator.address, parse6decimal('10000'))
 
@@ -784,7 +805,7 @@ describe('Vault', () => {
       expect(await vault.balanceOf(user.address)).to.equal(parse6decimal('10000'))
       expect(await vault.totalSupply()).to.equal(parse6decimal('10000'))
 
-      await expect(vault.connect(liquidator).redeem(parse6decimal('10000'), user.address)).to.revertedWith('0x11')
+      await expect(vault.connect(liquidator).redeem(parse6decimal('10000'), user.address)).to.revertedWithPanic('0x11')
 
       await vault.connect(user).approve(liquidator.address, parse6decimal('10000'))
 
@@ -1013,18 +1034,30 @@ describe('Vault', () => {
           // 1. An oracle update makes the long position liquidatable.
           // We should now longer be able to deposit or redeem
           await updateOracle(undefined, parse6decimal('50000'))
-          await expect(vault.connect(user).deposit(2, user.address)).to.revertedWith('VaultDepositLimitExceeded')
-          await expect(vault.connect(user).redeem(2, user.address)).to.revertedWith('VaultRedemptionLimitExceeded')
+          await expect(vault.connect(user).deposit(2, user.address)).to.revertedWithCustomError(
+            vault,
+            'VaultDepositLimitExceededError',
+          )
+          await expect(vault.connect(user).redeem(2, user.address)).to.revertedWithCustomError(
+            vault,
+            'VaultRedemptionLimitExceededError',
+          )
 
           // 2. Settle accounts / Liquidate the long position.
           // We should still not be able to deposit or redeem.
           await btcMarket.connect(user).settle(vault.address)
           expect((await btcMarket.locals(vault.address)).collateral).to.equal('4428767485') // no shortfall
-          expect((await btcMarket.locals(vault.address)).liquidation).to.equal(1000003)
+          expect((await btcMarket.locals(vault.address)).liquidation).to.equal(STARTING_TIMESTAMP.add(3600 * 3))
 
           //expect(await vault.maxDeposit(user.address)).to.equal(0)
-          await expect(vault.connect(user).deposit(2, user.address)).to.revertedWith('VaultDepositLimitExceeded')
-          await expect(vault.connect(user).redeem(2, user.address)).to.revertedWith('VaultRedemptionLimitExceeded')
+          await expect(vault.connect(user).deposit(2, user.address)).to.revertedWithCustomError(
+            vault,
+            'VaultDepositLimitExceededError',
+          )
+          await expect(vault.connect(user).redeem(2, user.address)).to.revertedWithCustomError(
+            vault,
+            'VaultRedemptionLimitExceededError',
+          )
 
           // 3. Settle the liquidation.
           // We now be able to deposit.
@@ -1050,18 +1083,30 @@ describe('Vault', () => {
           // 1. An oracle update makes the long position liquidatable.
           // We should now longer be able to deposit or redeem
           await updateOracle(undefined, parse6decimal('80000'))
-          await expect(vault.connect(user).deposit(2, user.address)).to.revertedWith('VaultDepositLimitExceeded')
-          await expect(vault.connect(user).redeem(2, user.address)).to.revertedWith('VaultRedemptionLimitExceeded')
+          await expect(vault.connect(user).deposit(2, user.address)).to.revertedWithCustomError(
+            vault,
+            'VaultDepositLimitExceededError',
+          )
+          await expect(vault.connect(user).redeem(2, user.address)).to.revertedWithCustomError(
+            vault,
+            'VaultRedemptionLimitExceededError',
+          )
 
           // 2. Settle accounts / Liquidate the long position.
           // We should still not be able to deposit or redeem.
           await btcMarket.connect(user).settle(vault.address)
           expect((await btcMarket.locals(vault.address)).collateral).to.equal('-26673235277') // shortfall
-          expect((await btcMarket.locals(vault.address)).liquidation).to.equal(1000003)
+          expect((await btcMarket.locals(vault.address)).liquidation).to.equal(STARTING_TIMESTAMP.add(3600 * 3))
 
           //expect(await vault.maxDeposit(user.address)).to.equal(0)
-          await expect(vault.connect(user).deposit(2, user.address)).to.revertedWith('VaultDepositLimitExceeded')
-          await expect(vault.connect(user).redeem(2, user.address)).to.revertedWith('VaultRedemptionLimitExceeded')
+          await expect(vault.connect(user).deposit(2, user.address)).to.revertedWithCustomError(
+            vault,
+            'VaultDepositLimitExceededError',
+          )
+          await expect(vault.connect(user).redeem(2, user.address)).to.revertedWithCustomError(
+            vault,
+            'VaultRedemptionLimitExceededError',
+          )
 
           // 3. Settle the liquidation.
           // We now be able to deposit.
@@ -1097,14 +1142,20 @@ describe('Vault', () => {
           // 1. An oracle update makes the long position liquidatable.
           // We should now longer be able to deposit or redeem
           await updateOracle(undefined, parse6decimal('20000'))
-          await expect(vault.connect(user).deposit(2, user.address)).to.revertedWith('VaultDepositLimitExceeded')
-          await expect(vault.connect(user).redeem(2, user.address)).to.revertedWith('VaultRedemptionLimitExceeded')
+          await expect(vault.connect(user).deposit(2, user.address)).to.revertedWithCustomError(
+            vault,
+            'VaultDepositLimitExceededError',
+          )
+          await expect(vault.connect(user).redeem(2, user.address)).to.revertedWithCustomError(
+            vault,
+            'VaultRedemptionLimitExceededError',
+          )
 
           // 2. Settle accounts / Liquidate the long position.
           // We should still not be able to deposit or redeem.
           await btcMarket.connect(user).settle(vault.address)
           expect((await btcMarket.locals(vault.address)).collateral).to.equal('350784004') // no shortfall
-          expect((await btcMarket.locals(vault.address)).liquidation).to.equal(1000004)
+          expect((await btcMarket.locals(vault.address)).liquidation).to.equal(STARTING_TIMESTAMP.add(3600 * 4))
 
           // 3. Settle the liquidation.
           // We now be able to deposit.
@@ -1132,14 +1183,20 @@ describe('Vault', () => {
           // 1. An oracle update makes the long position liquidatable.
           // We should now longer be able to deposit or redeem
           await updateOracle(undefined, parse6decimal('19000'))
-          await expect(vault.connect(user).deposit(2, user.address)).to.revertedWith('VaultDepositLimitExceeded')
-          await expect(vault.connect(user).redeem(2, user.address)).to.revertedWith('VaultRedemptionLimitExceeded')
+          await expect(vault.connect(user).deposit(2, user.address)).to.revertedWithCustomError(
+            vault,
+            'VaultDepositLimitExceededError',
+          )
+          await expect(vault.connect(user).redeem(2, user.address)).to.revertedWithCustomError(
+            vault,
+            'VaultRedemptionLimitExceededError',
+          )
 
           // 2. Settle accounts / Liquidate the long position.
           // We should still not be able to deposit or redeem.
           await btcMarket.connect(user).settle(vault.address)
           expect((await btcMarket.locals(vault.address)).collateral).to.equal('-479967521') // shortfall
-          expect((await btcMarket.locals(vault.address)).liquidation).to.equal(1000004)
+          expect((await btcMarket.locals(vault.address)).liquidation).to.equal(STARTING_TIMESTAMP.add(3600 * 4))
 
           // 3. Settle the liquidation.
           // We now be able to deposit.
@@ -1214,7 +1271,10 @@ describe('Vault', () => {
         )
 
         // 7. Should no longer be able to deposit, vault is closed
-        await expect(vault.connect(user).deposit(2, user.address)).to.revertedWith('VaultDepositLimitExceeded')
+        await expect(vault.connect(user).deposit(2, user.address)).to.revertedWithCustomError(
+          vault,
+          'VaultDepositLimitExceededError',
+        )
       })
 
       it('gracefully unwinds upon total insolvency', async () => {

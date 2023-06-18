@@ -11,6 +11,9 @@ import 'hardhat-deploy'
 import 'hardhat-dependency-compiler'
 import { getChainId } from './testutil/network'
 
+import { ethers } from 'ethers'
+ethers.utils.Logger.setLogLevel(ethers.utils.Logger.levels.ERROR) // turn off duplicate definition warnings
+
 export const SOLIDITY_VERSION = '0.8.19'
 const PRIVATE_KEY_MAINNET = process.env.PRIVATE_KEY || ''
 const PRIVATE_KEY_TESTNET = process.env.PRIVATE_KEY_TESTNET || ''
