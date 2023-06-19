@@ -2,7 +2,7 @@ pragma solidity ^0.8.13;
 
 import {IKeeperManager, IMarket, MarketParameter, UFixed6, UFixed6Lib} from "./interfaces/IKeeperManager.sol";
 import { Fixed6 } from "@equilibria/root/number/types/Fixed6.sol";
-import "hardhat/console.sol";
+// import "hardhat/console.sol";
 
 contract KeeperManager is IKeeperManager {
 
@@ -25,8 +25,8 @@ contract KeeperManager is IKeeperManager {
 
     /// @notice Places order on behalf of `account` from the invoker
     function _placeOrder(
-        address account, 
-        address market, 
+        address account,
+        address market,
         Order memory order
     ) internal {
 
@@ -35,17 +35,17 @@ contract KeeperManager is IKeeperManager {
         allOpenOrders[account][market][orderNonce] = order;
 
         ++numOpenOrders[account][market];
-        
+
         uint8 _openOrders = numOpenOrders[account][market];
         if(_openOrders > 10) revert KeeperManager_PlaceOrder_MaxOpenOrders();
 
         emit OrderPlaced(
-            account, 
+            account,
             market,
             _orderNonce,
             _openOrders,
             order.execPrice,
-            order.maxFee); 
+            order.maxFee);
     }
 
     function _cancelOrder(
@@ -96,7 +96,7 @@ contract KeeperManager is IKeeperManager {
         bool priceAtOrBelow = price.lte(o.execPrice.abs());
         bool priceAtOrAbove = price.gte(o.execPrice.abs());
 
-        canFill = o.execPrice.sign() == 1 ? 
+        canFill = o.execPrice.sign() == 1 ?
             priceAtOrBelow :
             priceAtOrAbove ;
 
@@ -106,7 +106,7 @@ contract KeeperManager is IKeeperManager {
     // function _validateOrderFee(Order memory o, UFixed6 fee) internal pure returns (bool) {
     //     return o.size.muldiv(fee, UFixed6Lib.from(MAX_PCT)).gte(UFixed6Lib.from(o.maxFee));
     // }
-    
+
     function _readOrder(address account, address market, uint256 nonce) internal view returns (Order memory order) {
         order = allOpenOrders[account][market][nonce];
     }

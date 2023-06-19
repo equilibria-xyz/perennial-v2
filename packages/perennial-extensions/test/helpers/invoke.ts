@@ -55,6 +55,7 @@ export const buildUpdateMarket = ({
   ]
 }
 
+// @todo check if setting position conflicts with isLimit
 export const buildPlaceOrder = ({
   market,
   long,
@@ -132,6 +133,7 @@ export const buildCancelOrder = ({ market, orderId }: { market: string; orderId:
   ]
 }
 
+// @todo remove in favor of cancel + place action
 export const buildUpdateOrder = ({
   market,
   newExec,
