@@ -157,14 +157,13 @@ contract MultiInvoker is IMultiInvoker, KeeperManager {
 
         _executeOrder(account, market, _orderNonce);
 
-        if(msg.sender != account) {
-             _handleExecFee(
-                account,
-                market,
-                order.maxFee,
-                startGas,
-                position);
-        }
+        _handleExecFee(
+            account,
+            market,
+            order.maxFee,
+            startGas,
+            position);
+        
     }
 
     function _handleExecFee(
