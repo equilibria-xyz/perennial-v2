@@ -5,20 +5,23 @@ import "@equilibria/perennial-v2-payoff/contracts/IPayoffProvider.sol";
 import "@equilibria/perennial-v2-oracle/contracts/IOracleProvider.sol";
 import "@equilibria/root/number/types/UFixed6.sol";
 import "@equilibria/root/curve/types/UJumpRateUtilizationCurve6.sol";
+import "@equilibria/root-v2/contracts/PController6.sol";
 
 /// @dev MarketParameter type
 struct MarketParameter {
-    UFixed6 maintenance;    // <= 429496%
-    UFixed6 fundingFee;     // <= 429496%
-    UFixed6 takerFee;       // <= 429496%
-    UFixed6 makerFee;       // <= 429496%
-    UFixed6 positionFee;    // <= 429496%
-    UFixed6 makerLimit;     // <= 18.45tn
+    UFixed6 maintenance;
+    UFixed6 fundingFee;
+    UFixed6 interestFee;
+    UFixed6 takerFee;
+    UFixed6 makerFee;
+    UFixed6 positionFee;
+    UFixed6 makerLimit;
     bool closed;
     UFixed6 makerRewardRate;
     UFixed6 longRewardRate;
     UFixed6 shortRewardRate;
     UJumpRateUtilizationCurve6 utilizationCurve;
+    PController6 pController; // TODO: should these all be stored in params and not global?
     IOracleProvider oracle;
     IPayoffProvider payoff;
 }
@@ -46,7 +49,15 @@ struct StoredMarketParameter {
     uint24 utilizationCurveTargetUtilization; // <= 1677%
     uint24 takerFee;                          // <= 1677%
     uint24 makerFee;                          // <= 1677%
-    bytes5 __unallocated1__;
+    uint24 interestFee;                       // <= 1677%
+    bytes2 __unallocated1__;
+
+    /* slot 4 */
+    int32 pControllerValue;                  // <= 214748%
+    uint48 pControllerK;                     // <= 281m
+    int24 pControllerSkew;                   // <= 1677%
+    uint32 pControllerMax;                    // <= 214748%
+    bytes19 __unallocated2__;
 }
 struct MarketParameterStorage { StoredMarketParameter value; }
 using MarketParameterStorageLib for MarketParameterStorage global;
@@ -60,6 +71,7 @@ library MarketParameterStorageLib {
         return MarketParameter(
             UFixed6.wrap(uint256(value.maintenance)),
             UFixed6.wrap(uint256(value.fundingFee)),
+            UFixed6.wrap(uint256(value.interestFee)),
             UFixed6.wrap(uint256(value.takerFee)),
             UFixed6.wrap(uint256(value.makerFee)),
             UFixed6.wrap(uint256(value.positionFee)),
@@ -74,6 +86,12 @@ library MarketParameterStorageLib {
                 UFixed6.wrap(uint256(value.utilizationCurveTargetRate)),
                 UFixed6.wrap(uint256(value.utilizationCurveTargetUtilization))
             ),
+            PController6(
+                Fixed6.wrap(int256(value.pControllerValue)),
+                UFixed6.wrap(uint256(value.pControllerK)),
+                Fixed6.wrap(int256(value.pControllerSkew)),
+                UFixed6.wrap(uint256(value.pControllerMax))
+            ),
             IOracleProvider(value.oracle),
             IPayoffProvider(value.payoff)
         );
@@ -84,6 +102,7 @@ library MarketParameterStorageLib {
 
         if (newValue.maintenance.gt(UFixed6.wrap(type(uint24).max))) revert MarketParameterStorageInvalidError();
         if (newValue.fundingFee.gt(UFixed6.wrap(type(uint24).max))) revert MarketParameterStorageInvalidError();
+        if (newValue.interestFee.gt(UFixed6.wrap(type(uint24).max))) revert MarketParameterStorageInvalidError();
         if (newValue.takerFee.gt(UFixed6.wrap(type(uint24).max))) revert MarketParameterStorageInvalidError();
         if (newValue.makerFee.gt(UFixed6.wrap(type(uint24).max))) revert MarketParameterStorageInvalidError();
         if (newValue.positionFee.gt(UFixed6.wrap(type(uint24).max))) revert MarketParameterStorageInvalidError();
@@ -95,6 +114,12 @@ library MarketParameterStorageLib {
         if (newValue.utilizationCurve.maxRate.gt(UFixed6.wrap(type(uint32).max))) revert MarketParameterStorageInvalidError();
         if (newValue.utilizationCurve.targetRate.gt(UFixed6.wrap(type(uint32).max))) revert MarketParameterStorageInvalidError();
         if (newValue.utilizationCurve.targetUtilization.gt(UFixed6.wrap(type(uint32).max))) revert MarketParameterStorageInvalidError();
+        if (newValue.pController.value.gt(Fixed6.wrap(type(int32).max))) revert MarketParameterStorageInvalidError();
+        if (newValue.pController.value.lt(Fixed6.wrap(type(int32).min))) revert MarketParameterStorageInvalidError();
+        if (newValue.pController._k.gt(UFixed6.wrap(type(uint48).max))) revert MarketParameterStorageInvalidError();
+        if (newValue.pController._skew.gt(Fixed6.wrap(type(int24).max))) revert MarketParameterStorageInvalidError();
+        if (newValue.pController._skew.lt(Fixed6.wrap(type(int24).min))) revert MarketParameterStorageInvalidError();
+        if (newValue.pController._max.gt(UFixed6.wrap(type(uint32).max))) revert MarketParameterStorageInvalidError();
 
         if (oldValue.fuse && address(newValue.oracle) != oldValue.oracle) revert MarketParameterStorageImmutableError();
         if (oldValue.fuse && address(newValue.payoff) != oldValue.payoff) revert MarketParameterStorageImmutableError();
@@ -102,6 +127,7 @@ library MarketParameterStorageLib {
         self.value = StoredMarketParameter({
             maintenance: uint24(UFixed6.unwrap(newValue.maintenance)),
             fundingFee: uint24(UFixed6.unwrap(newValue.fundingFee)),
+            interestFee: uint24(UFixed6.unwrap(newValue.interestFee)),
             takerFee: uint24(UFixed6.unwrap(newValue.takerFee)),
             makerFee: uint24(UFixed6.unwrap(newValue.makerFee)),
             positionFee: uint24(UFixed6.unwrap(newValue.positionFee)),
@@ -114,11 +140,16 @@ library MarketParameterStorageLib {
             utilizationCurveMaxRate: uint32(UFixed6.unwrap(newValue.utilizationCurve.maxRate)),
             utilizationCurveTargetRate: uint32(UFixed6.unwrap(newValue.utilizationCurve.targetRate)),
             utilizationCurveTargetUtilization: uint24(UFixed6.unwrap(newValue.utilizationCurve.targetUtilization)),
+            pControllerValue: int32(Fixed6.unwrap(newValue.pController.value)),
+            pControllerK: uint48(UFixed6.unwrap(newValue.pController._k)),
+            pControllerSkew: int24(Fixed6.unwrap(newValue.pController._skew)),
+            pControllerMax: uint32(UFixed6.unwrap(newValue.pController._max)),
             oracle: address(newValue.oracle),
             payoff: address(newValue.payoff),
             fuse: true,
             __unallocated0__: bytes1(0),
-            __unallocated1__: bytes5(0)
+            __unallocated1__: bytes2(0),
+            __unallocated2__: bytes19(0)
         });
     }
 }

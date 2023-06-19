@@ -2,9 +2,11 @@ import { expect } from 'chai'
 import 'hardhat'
 import { constants } from 'ethers'
 
-import { InstanceVars, deployProtocol, createMarket, INITIAL_VERSION } from '../helpers/setupHelpers'
+import { InstanceVars, deployProtocol, createMarket } from '../helpers/setupHelpers'
 import { Market } from '../../../types/generated'
 import { parse6decimal } from '../../../../common/testutil/types'
+
+export const TIMESTAMP_3 = 1631114005
 
 describe('Closed Market', () => {
   let instanceVars: InstanceVars
@@ -56,8 +58,9 @@ describe('Closed Market', () => {
 
     it('reverts on new open positions', async () => {
       const { user } = instanceVars
-      await expect(market.connect(user).update(user.address, 0, POSITION, 0, 0)).to.be.revertedWith(
-        'MarketClosedError()',
+      await expect(market.connect(user).update(user.address, 0, POSITION, 0, 0)).to.be.revertedWithCustomError(
+        market,
+        'MarketClosedError',
       )
     })
 
@@ -116,7 +119,7 @@ describe('Closed Market', () => {
     await chainlink.next()
     await chainlink.nextWithPriceModification(price => price.mul(2))
     await expect(market.settle(user.address)).to.not.be.reverted
-    expect((await market.locals(user.address)).liquidation).to.eq(INITIAL_VERSION + 3)
+    expect((await market.locals(user.address)).liquidation).to.eq(TIMESTAMP_3)
     const parameters = { ...(await market.parameter()) }
     parameters.closed = true
     await market.updateParameter(parameters)
@@ -125,8 +128,8 @@ describe('Closed Market', () => {
     await market.settle(user.address)
     await market.settle(userB.address)
 
-    expect((await market.position()).version).to.eq(INITIAL_VERSION + 3)
-    expect((await market.locals(user.address)).liquidation).to.eq(INITIAL_VERSION + 3)
+    expect((await market.position()).timestamp).to.eq(TIMESTAMP_3)
+    expect((await market.locals(user.address)).liquidation).to.eq(TIMESTAMP_3)
     const userCollateralBefore = (await market.locals(user.address)).collateral
     const userBCollateralBefore = (await market.locals(userB.address)).collateral
     const feesABefore = (await market.global()).protocolFee

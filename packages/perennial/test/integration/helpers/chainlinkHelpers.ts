@@ -1,28 +1,28 @@
 import HRE from 'hardhat'
 import { BigNumber } from 'ethers'
-import { smock, MockContract } from '@defi-wonderland/smock'
+import { smock, FakeContract } from '@defi-wonderland/smock'
 
-import {
-  FeedRegistryInterface__factory,
-  FeedRegistryInterface,
-  PassthroughChainlinkFeed,
-  PassthroughChainlinkFeed__factory,
-} from '../../../types/generated'
+import { FeedRegistryInterface__factory, FeedRegistryInterface, IOracleProvider } from '../../../types/generated'
 
 const { ethers, deployments } = HRE
 
 export class ChainlinkContext {
   private feedRegistryExternal!: FeedRegistryInterface
   private latestRoundId: BigNumber
+  private currentRoundId: BigNumber
+  private delay: number
+  private decimals!: number
   private readonly base: string
   private readonly quote: string
 
-  public feedRegistry!: MockContract<PassthroughChainlinkFeed>
+  public oracle!: FakeContract<IOracleProvider>
 
-  constructor(base: string, quote: string, initialRoundId: BigNumber) {
+  constructor(base: string, quote: string, initialRoundId: BigNumber, delay: number) {
     this.base = base
     this.quote = quote
     this.latestRoundId = initialRoundId
+    this.currentRoundId = initialRoundId
+    this.delay = delay
   }
 
   public async init(): Promise<ChainlinkContext> {
@@ -34,41 +34,41 @@ export class ChainlinkContext {
       ).address,
       owner,
     )
-    const feedRegistryFactory = await smock.mock<PassthroughChainlinkFeed__factory>('PassthroughChainlinkFeed')
-    this.feedRegistry = await feedRegistryFactory.deploy(this.feedRegistryExternal.address)
+    this.oracle = await smock.fake<IOracleProvider>('IOracleProvider')
 
-    const decimals = await this.feedRegistryExternal.decimals(this.base, this.quote)
-    this.feedRegistry.decimals.whenCalledWith(this.base, this.quote).returns(decimals)
+    this.decimals = await this.feedRegistryExternal.decimals(this.base, this.quote)
 
-    const latestData = await this.feedRegistryExternal.getRoundData(this.base, this.quote, this.latestRoundId)
-    this.feedRegistry.latestRoundData.whenCalledWith(this.base, this.quote).returns(latestData)
+    await this.next()
 
     return this
   }
 
   public async next(): Promise<void> {
-    this.latestRoundId = await this.feedRegistryExternal.getNextRoundId(this.base, this.quote, this.latestRoundId)
-    const latestData = await this.feedRegistryExternal.getRoundData(this.base, this.quote, this.latestRoundId)
-    this.feedRegistry.latestRoundData.reset()
-    this.feedRegistry.latestRoundData.whenCalledWith(this.base, this.quote).returns(latestData)
-    this.feedRegistry.getRoundData.whenCalledWith(this.base, this.quote, this.latestRoundId).returns(latestData)
+    await this.nextWithPriceModification(n => n)
   }
 
   public async nextWithPriceModification(priceFn: (price: BigNumber) => BigNumber): Promise<void> {
-    this.latestRoundId = await this.feedRegistryExternal.getNextRoundId(this.base, this.quote, this.latestRoundId)
-    const latestData = await this.feedRegistryExternal.getRoundData(this.base, this.quote, this.latestRoundId)
-    const modifiedData = [latestData[0], priceFn(latestData[1]), latestData[2], latestData[3], latestData[4]]
-    this.feedRegistry.latestRoundData.reset()
-    this.feedRegistry.latestRoundData.whenCalledWith(this.base, this.quote).returns(modifiedData)
-    this.feedRegistry.getRoundData.whenCalledWith(this.base, this.quote, this.latestRoundId).returns(modifiedData)
-  }
+    this.currentRoundId = await this.feedRegistryExternal.getNextRoundId(this.base, this.quote, this.currentRoundId)
+    if (this.currentRoundId.sub(this.latestRoundId).gt(this.delay)) {
+      this.latestRoundId = await this.feedRegistryExternal.getNextRoundId(this.base, this.quote, this.latestRoundId)
+    }
 
-  public async nextWithTimestampModification(timestampFn: (timestamp: BigNumber) => BigNumber): Promise<void> {
-    this.latestRoundId = await this.feedRegistryExternal.getNextRoundId(this.base, this.quote, this.latestRoundId)
     const latestData = await this.feedRegistryExternal.getRoundData(this.base, this.quote, this.latestRoundId)
-    const modifiedData = [latestData[0], latestData[1], latestData[2], timestampFn(latestData[3]), latestData[4]]
-    this.feedRegistry.latestRoundData.reset()
-    this.feedRegistry.latestRoundData.whenCalledWith(this.base, this.quote).returns(modifiedData)
-    this.feedRegistry.getRoundData.whenCalledWith(this.base, this.quote, this.latestRoundId).returns(modifiedData)
+    const currentData = await this.feedRegistryExternal.getRoundData(this.base, this.quote, this.currentRoundId)
+
+    const latestVersion = {
+      version: latestData.startedAt,
+      timestamp: latestData.startedAt,
+      price: priceFn(latestData.answer.div(BigNumber.from(10).pow(this.decimals - 6))),
+      valid: true,
+    }
+
+    this.oracle.sync.reset()
+    this.oracle.sync.whenCalledWith().returns([latestVersion, currentData.startedAt])
+    this.oracle.current.reset()
+    this.oracle.current.whenCalledWith().returns(currentData.startedAt)
+    this.oracle.latest.reset()
+    this.oracle.latest.whenCalledWith().returns(latestVersion)
+    this.oracle.at.whenCalledWith(latestData.startedAt).returns(latestVersion)
   }
 }

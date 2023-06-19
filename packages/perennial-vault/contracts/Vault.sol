@@ -9,7 +9,6 @@ import "./types/Account.sol";
 import "./types/Checkpoint.sol";
 import "./types/Registration.sol";
 import "./types/VaultParameter.sol";
-import "hardhat/console.sol";
 
 /**
  * @title Vault
@@ -416,7 +415,7 @@ contract Vault is IVault, UInitializable {
         context.parameter = _parameter.read();
 
         context.latestId = type(uint256).max;
-        context.latestVersion = type(uint256).max;
+        context.latestTimestamp = type(uint256).max;
         context.minWeight = type(uint256).max;
 
         context.markets = new MarketContext[](totalMarkets);
@@ -424,7 +423,7 @@ contract Vault is IVault, UInitializable {
         for (uint256 marketId; marketId < context.markets.length; marketId++) {
             Registration memory registration = _registrations[marketId].read();
             MarketParameter memory marketParameter = registration.market.parameter();
-            uint256 currentVersion = marketParameter.oracle.current();
+            uint256 currentTimestamp = marketParameter.oracle.current();
 
             context.markets[marketId].registration = registration;
             context.markets[marketId].closed = marketParameter.closed;
@@ -434,14 +433,14 @@ contract Vault is IVault, UInitializable {
             Global memory global = registration.market.global();
             Position memory currentPosition = registration.market.pendingPosition(global.currentId);
             Position memory latestPosition = registration.market.position();
-            OracleVersion memory latestOracleVersion = registration.market.at(latestPosition.version);
+            OracleVersion memory latestOracleVersion = registration.market.at(latestPosition.timestamp);
 
             context.markets[marketId].price = latestOracleVersion.price.abs();
             context.markets[marketId].currentPosition = currentPosition.maker;
             context.markets[marketId].currentNet = currentPosition.net();
-            if (latestPosition.version < context.latestVersion) {
+            if (latestPosition.timestamp < context.latestTimestamp) {
                 context.latestId = latestPosition.id;
-                context.latestVersion = latestPosition.version;
+                context.latestTimestamp = latestPosition.timestamp;
             }
             context.makerFee = context.makerFee
                 .add(marketParameter.makerFee.mul(context.parameter.leverage).mul(UFixed6Lib.from(registration.weight)));
@@ -456,7 +455,7 @@ contract Vault is IVault, UInitializable {
             context.markets[marketId].collateral = local.collateral;
 
             if (local.liquidation > context.liquidation) context.liquidation = local.liquidation;
-            if (marketId == 0) context.currentId = currentVersion > currentPosition.version ? local.currentId + 1 : local.currentId;
+            if (marketId == 0) context.currentId = currentTimestamp > currentPosition.timestamp ? local.currentId + 1 : local.currentId;
         }
 
         if (context.totalWeight != 0) context.makerFee = context.makerFee.div(UFixed6Lib.from(context.totalWeight));
@@ -479,7 +478,7 @@ contract Vault is IVault, UInitializable {
      */
     function _unhealthy(Context memory context) private view returns (bool) {
         Checkpoint memory checkpoint = _checkpoints[context.latestId].read(); // latest basis will always be complete
-        return checkpoint.unhealthy() || (context.liquidation > context.latestVersion);
+        return checkpoint.unhealthy() || (context.liquidation > context.latestTimestamp);
     }
 
     /**

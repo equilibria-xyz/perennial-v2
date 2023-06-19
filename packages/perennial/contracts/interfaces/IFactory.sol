@@ -17,6 +17,8 @@ interface IFactory is IBeacon, IOwnable {
     error FactoryPausedError();
     error FactoryNotContractAddressError();
 
+    error ProtocolParameterStorageInvalidError();
+
     function parameter() external view returns (ProtocolParameter memory);
     function treasury() external view returns (address);
     function pauser() external view returns (address);

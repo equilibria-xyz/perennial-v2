@@ -22,7 +22,7 @@ interface IMarket is IOwnable {
     struct CurrentContext {
         ProtocolParameter protocolParameter;
         MarketParameter marketParameter;
-        uint256 currentVersion;
+        uint256 currentTimestamp;
         OracleVersion latestVersion;
         OracleVersion positionVersion;
         Position pendingPosition;
@@ -46,6 +46,7 @@ interface IMarket is IOwnable {
     event FeeClaimed(address indexed treasury, UFixed6 feeAmount);
     event RewardClaimed(address indexed account, UFixed6 rewardAmount);
     event ParameterUpdated(MarketParameter newParameter);
+    event RewardUpdated(Token18 newReward);
 
     error MarketInsufficientLiquidityError();
     error MarketInsufficientCollateralError();
@@ -63,6 +64,14 @@ interface IMarket is IOwnable {
     error MarketOperatorNotAllowed();
     error MarketNotSingleSidedError();
     error MarketExceedsPendingIdLimitError();
+    error MarketRewardAlreadySetError();
+
+    error GlobalStorageInvalidError();
+    error LocalStorageInvalidError();
+    error MarketParameterStorageInvalidError();
+    error MarketParameterStorageImmutableError();
+    error PositionStorageLocalInvalidError();
+    error VersionStorageInvalidError();
 
     function initialize(MarketDefinition calldata definition_, MarketParameter calldata parameter_) external;
     function name() external view returns (string memory);
@@ -81,6 +90,7 @@ interface IMarket is IOwnable {
     function settle(address account) external;
     function update(address account, UFixed6 newMaker, UFixed6 newLong, UFixed6 newShort, Fixed6 newCollateral) external;
     function updateTreasury(address newTreasury) external;
+    function updateReward(Token18 newReward) external;
     function parameter() external view returns (MarketParameter memory);
     function updateParameter(MarketParameter memory newParameter) external;
 }

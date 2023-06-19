@@ -5,16 +5,14 @@ dotenvConfig({ path: resolve(__dirname, '../../.env') })
 import { HardhatUserConfig, SolcUserConfig } from 'hardhat/types'
 import { NetworkUserConfig } from 'hardhat/types'
 
-import '@typechain/hardhat'
-import '@nomiclabs/hardhat-ethers'
-import '@nomiclabs/hardhat-waffle'
-import '@nomiclabs/hardhat-etherscan'
-import 'solidity-coverage'
-import 'hardhat-gas-reporter'
+import '@nomicfoundation/hardhat-toolbox'
 import 'hardhat-contract-sizer'
 import 'hardhat-deploy'
 import 'hardhat-dependency-compiler'
 import { getChainId } from './testutil/network'
+
+import { ethers } from 'ethers'
+ethers.utils.Logger.setLogLevel(ethers.utils.Logger.levels.ERROR) // turn off duplicate definition warnings
 
 export const SOLIDITY_VERSION = '0.8.19'
 const PRIVATE_KEY_MAINNET = process.env.PRIVATE_KEY || ''
@@ -90,6 +88,7 @@ export default function defaultConfig({
               interval: NODE_INTERVAL_MINING,
             }
           : undefined,
+        allowBlocksWithSameTimestamp: true,
       },
       goerli: createNetworkConfig('goerli'),
       kovan: createNetworkConfig('kovan'),

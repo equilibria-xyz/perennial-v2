@@ -54,19 +54,18 @@ library VersionLib {
         Position memory toPosition,
         OracleVersion memory fromOracleVersion,
         OracleVersion memory toOracleVersion,
-        ProtocolParameter memory protocolParameter,
         MarketParameter memory marketParameter
     ) internal pure returns (UFixed6 fee) {
         if (marketParameter.closed) return UFixed6Lib.ZERO;
 
-        UFixed6 fundingFee; UFixed6 positionFee;
-
         // accumulate position
-        positionFee = _accumulatePositionFee(self, fromPosition, toPosition, marketParameter);
+        UFixed6 positionFee = _accumulatePositionFee(self, fromPosition, toPosition, marketParameter);
 
         // accumulate funding
-        fundingFee =
-            _accumulateFunding(self, fromPosition, fromOracleVersion, toOracleVersion, protocolParameter, marketParameter);
+        UFixed6 fundingFee = _accumulateFunding(self, fromPosition, fromOracleVersion, toOracleVersion, marketParameter);
+
+        // accumulate interest
+        UFixed6 interestFee = _accumulateInterest(self, fromPosition, fromOracleVersion, toOracleVersion, marketParameter);
 
         // accumulate P&L
         _accumulatePNL(self, fromPosition, fromOracleVersion, toOracleVersion);
@@ -74,7 +73,7 @@ library VersionLib {
         // accumulate reward
         _accumulateReward(self, fromPosition, fromOracleVersion, toOracleVersion, marketParameter);
 
-        return positionFee.add(fundingFee);
+        return positionFee.add(fundingFee).add(interestFee);
     }
 
     /**
@@ -111,32 +110,76 @@ library VersionLib {
         Position memory position,
         OracleVersion memory fromOracleVersion,
         OracleVersion memory toOracleVersion,
-        ProtocolParameter memory protocolParameter,
         MarketParameter memory marketParameter
     ) private pure returns (UFixed6 fundingFee) {
         if (position.major().isZero()) return UFixed6Lib.ZERO;
 
-        UFixed6 notional = position.takerSocialized().mul(fromOracleVersion.price.abs());
-        UFixed6 funding = marketParameter.utilizationCurve.accumulate(
+        // Compute long-short funding rate
+        Fixed6 funding = marketParameter.pController.accumulate(
+            position.skew(),
+            fromOracleVersion.timestamp,
+            toOracleVersion.timestamp,
+            position.takerSocialized().mul(fromOracleVersion.price.abs())
+        );
+
+        // Compute fee spread
+        fundingFee = funding.abs().mul(marketParameter.fundingFee);
+        Fixed6 fundingSpread = Fixed6Lib.from(fundingFee.div(UFixed6Lib.from(2)));
+
+        // Adjust long and short funding with spread
+        (Fixed6 fundingLong, Fixed6 fundingShort, Fixed6 fundingMaker) =
+            (Fixed6Lib.NEG_ONE.mul(funding).sub(fundingSpread), funding.sub(fundingSpread), Fixed6Lib.ZERO);
+
+        // Redirect net portion of minor's side to maker
+        if (position.long.gt(position.short))
+            (fundingMaker, fundingShort) =
+                (fundingShort.mul(Fixed6Lib.from(position.skew().abs())), fundingShort.sub(fundingMaker));
+        if (position.short.gt(position.long))
+            (fundingMaker, fundingLong) =
+                (fundingLong.mul(Fixed6Lib.from(position.skew().abs())), fundingLong.sub(fundingMaker));
+
+        // Compute accumulated values
+        if (!position.maker.isZero()) self.makerValue.increment(fundingMaker, position.maker);
+        if (!position.long.isZero()) self.longValue.increment(fundingLong, position.long);
+        if (!position.short.isZero()) self.shortValue.increment(fundingShort, position.short);
+    }
+
+    /**
+     * @notice Globally accumulates all interest since last oracle update
+     * @dev If an oracle version is skipped due to no positions, funding will continue to be
+     *      pegged to the price of the last snapshotted oracleVersion until a new one is accumulated.
+     *      This is an acceptable approximation.
+     * @return interestFee The total fee accrued from interest accumulation
+     */
+    function _accumulateInterest(
+        Version memory self,
+        Position memory position,
+        OracleVersion memory fromOracleVersion,
+        OracleVersion memory toOracleVersion,
+        MarketParameter memory marketParameter
+    ) private pure returns (UFixed6 interestFee) {
+        if (position.major().isZero()) return UFixed6Lib.ZERO;
+
+        // Compute maker interest
+        UFixed6 interest = marketParameter.utilizationCurve.accumulate(
             position.utilization(),
             fromOracleVersion.timestamp,
             toOracleVersion.timestamp,
-            notional
+            position.long.add(position.short).min(position.maker).mul(fromOracleVersion.price.abs())
         );
-        fundingFee = UFixed6Lib.max(marketParameter.fundingFee, protocolParameter.minFundingFee).mul(funding);
-        UFixed6 fundingWithoutFee = funding.sub(fundingFee);
-        UFixed6 spread = position.spread().max(protocolParameter.minSpread);
-        UFixed6 fundingWithoutFeeMaker = fundingWithoutFee.mul(spread);
-        UFixed6 fundingWithoutFeeTaker = fundingWithoutFee.sub(fundingWithoutFeeMaker);
 
-        if (position.long.gt(position.short)) {
-            if (!position.long.isZero()) self.longValue.decrement(Fixed6Lib.from(funding), position.long);
-            if (!position.short.isZero()) self.shortValue.increment(Fixed6Lib.from(fundingWithoutFeeTaker), position.short);
-        } else {
-            if (!position.long.isZero()) self.longValue.increment(Fixed6Lib.from(fundingWithoutFeeTaker), position.long);
-            if (!position.short.isZero()) self.shortValue.decrement(Fixed6Lib.from(funding), position.short);
-        }
-        if (!position.maker.isZero()) self.makerValue.increment(Fixed6Lib.from(fundingWithoutFeeMaker), position.maker);
+        // Compute fee
+        interestFee = interest.mul(marketParameter.interestFee);
+
+        // Adjust long and short funding with spread
+        Fixed6 interestLong = Fixed6Lib.from(interest.mul(position.long.div(position.long.add(position.short))));
+        Fixed6 interestShort = Fixed6Lib.from(interest).sub(interestLong);
+        Fixed6 interestMaker = Fixed6Lib.from(interest.sub(interestFee));
+
+        // Compute accumulated values
+        if (!position.maker.isZero()) self.makerValue.increment(interestMaker, position.maker);
+        if (!position.long.isZero()) self.longValue.decrement(interestLong, position.long);
+        if (!position.short.isZero()) self.shortValue.decrement(interestShort, position.short);
     }
 
     /**
