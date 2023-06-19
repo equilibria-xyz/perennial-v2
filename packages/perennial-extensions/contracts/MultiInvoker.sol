@@ -136,7 +136,12 @@ contract MultiInvoker is IMultiInvoker, KeeperManager {
     function _executeOrderInvoker(address account, address market, uint256 _orderNonce) internal {
         uint256 startGas = gasleft();
 
-        Position memory position = IMarket(market).positions(account);
+        Position memory position = 
+            IMarket(market).pendingPositions(
+                account, 
+                IMarket(market).locals(account).currentId
+            );
+
         IKeeperManager.Order memory order = _readOrder(account, market, _orderNonce);
 
         order.isLong ?
@@ -178,7 +183,7 @@ contract MultiInvoker is IMultiInvoker, KeeperManager {
         Fixed6 gasUsed = Fixed6Lib.from(UFixed6.wrap(startGas - gasleft()));
         Fixed6 chargeFee = gasUsed.muldiv(keeperPremium, Fixed6.wrap(100));
 
-        if(chargeFee.gt(maxFee)) revert MultiInvoker_ExecuteOrder_MaxFeeExceeded();
+        if(chargeFee.gt(maxFee)) revert MultiInvokerMaxFeeExceededError();
 
         chargeFee = chargeFee.mul(Fixed6Lib.NEG_ONE).mul(ethPrice);
 

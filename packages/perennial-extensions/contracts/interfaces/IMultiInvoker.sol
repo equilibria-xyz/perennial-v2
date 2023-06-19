@@ -39,9 +39,9 @@ interface IMultiInvoker {
     
     event KeeperFeeCharged(address indexed account, address indexed market, address indexed to, UFixed6 fee);
 
-    error MultiInvoker_Invoke_BadSender();
-    error MultiInvoker_PlaceOrder_OrderMustBeSingleSided();
-    error MultiInvoker_ExecuteOrder_MaxFeeExceeded();
+    error MultiInvokerBadSenderError();
+    error MultiInvokerOrderMustBeSingleSidedError();
+    error MultiInvokerMaxFeeExceededError();
     
     function invoke(Invocation[] calldata invocations) external;
 

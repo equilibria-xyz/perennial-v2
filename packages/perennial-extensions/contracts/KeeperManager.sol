@@ -6,9 +6,11 @@ import { Fixed6 } from "@equilibria/root/number/types/Fixed6.sol";
 
 contract KeeperManager is IKeeperManager {
 
+    uint256 private constant MAX_OPEN_ORDERS = 10;
+
     // order state
     uint256 public orderNonce;
-    mapping(address => mapping(address=> uint8)) public numOpenOrders;
+    mapping(address => mapping(address => uint256)) public numOpenOrders;
     mapping(address => mapping(address => mapping(uint256 => Order))) public allOpenOrders;
 
     function readOrder(address account, address market, uint256 nonce) external view returns(Order memory) {
@@ -36,8 +38,8 @@ contract KeeperManager is IKeeperManager {
 
         ++numOpenOrders[account][market];
 
-        uint8 _openOrders = numOpenOrders[account][market];
-        if(_openOrders > 10) revert KeeperManager_PlaceOrder_MaxOpenOrders();
+        uint256 _openOrders = numOpenOrders[account][market];
+        if(_openOrders > MAX_OPEN_ORDERS) revert KeeperManagerMaxOpenOrdersError();
 
         emit OrderPlaced(
             account,
@@ -73,10 +75,10 @@ contract KeeperManager is IKeeperManager {
     ) internal {
         Order memory order = _readOrder(account, market, nonce);
 
-        if(order.execPrice.isZero()) revert KeeperManager_CancelOrder_OrderAlreadyCancelled();
+        if(order.execPrice.isZero()) revert KeeperManagerOrderAlreadyCancelledError();
 
         (UFixed6 mktPrice, bool canFill) = _canFillOrder(order, market);
-        if(!canFill) revert KeeperManager_CloseOrderKeeper_BadClose();
+        if(!canFill) revert KeeperManagerBadCloseError();
 
         --numOpenOrders[account][market];
         delete allOpenOrders[account][market][nonce];

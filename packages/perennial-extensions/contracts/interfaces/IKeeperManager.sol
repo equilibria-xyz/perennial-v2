@@ -19,16 +19,17 @@ interface IKeeperManager {
         UFixed6 size;     // notional (?) magnitude of order on market position @todo add sign to replace isLong
     }
 
-    error KeeeperManager_NotOnlyInvoker();
-    error KeeperManager_NotOnlyKeeper();
-    error KeeperManager_BadOrderParams();
-    error KeeperManager_MaxFeeGt100();
-    error KeeperManager_PlaceOrder_MaxOpenOrders();
-    error KeeperManager_UpdateOrder_OrderDoesNotExist();
-    error KeeperManager_CancelOrder_OrderAlreadyCancelled();
-    error KeeperManager_CloseOrderKeeper_CannotCancelUnfilledOrder();
-    error KeeperManager_CloseOrderKeeper_BadClose();
-    error KeeperManager_FillOrder_CannotFill();
+    // error KeeeperManager_NotOnlyInvoker();
+    // error KeeperManager_NotOnlyKeeper();
+    // error KeeperManager_BadOrderParams();
+    // error KeeperManager_MaxFeeGt100();
+    // error KeeperManager_UpdateOrder_OrderDoesNotExist();
+    // error KeeperManager_CloseOrderKeeper_CannotCancelUnfilledOrder();
+    // error KeeperManager_FillOrder_CannotFill();
+    
+    error KeeperManagerBadCloseError();
+    error KeeperManagerMaxOpenOrdersError();
+    error KeeperManagerOrderAlreadyCancelledError();
 
     event OrderOpened(
         address indexed account, 
@@ -44,7 +45,7 @@ interface IKeeperManager {
         address indexed account, 
         address indexed market,
         uint256 orderNonce,
-        uint8 _openOrders,
+        uint256 openOrders,
         Fixed6 execPrice,
         Fixed6 maxFee);    
 
