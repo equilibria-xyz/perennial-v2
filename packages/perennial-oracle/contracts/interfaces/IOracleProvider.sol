@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: Apache-2.0
 pragma solidity ^0.8.13;
 
-import "./types/OracleVersion.sol";
+import "../types/OracleVersion.sol";
 
 /// @dev OracleVersion Invariants
 ///       - Each newly issued version must be increasing, but does not need to incrementing

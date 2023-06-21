@@ -2,8 +2,7 @@
 pragma solidity 0.8.19;
 
 import "@equilibria/root/control/unstructured/UOwnable.sol";
-import "../IOracleProvider.sol";
-import "hardhat/console.sol";
+import "../interfaces/IOracleProvider.sol";
 
 contract SwappableOracle is IOracleProvider, UOwnable {
     error SwappableOracleOutOfOrderCommitError();

@@ -1,8 +1,7 @@
 // SPDX-License-Identifier: Apache-2.0
 pragma solidity 0.8.19;
 
-import "../IOracleProvider.sol";
-import "hardhat/console.sol";
+import "../interfaces/IOracleProvider.sol";
 
 contract ReferenceKeeperOracle is IOracleProvider {
     error ReferenceKeeperOracleOutOfOrderCommitError();
@@ -22,8 +21,6 @@ contract ReferenceKeeperOracle is IOracleProvider {
     }
 
     function commit(uint256 timestamp, Fixed6 price) public {
-        console.log("commit %s @ %s", uint256(Fixed6.unwrap(price)), timestamp);
-
         if (timestamp <= (_latest == 0 ? 0 : _requested[_latest - 1]) || timestamp > _requested[_latest])
             revert ReferenceKeeperOracleOutOfOrderCommitError();
         if (timestamp == _requested[_latest]) _latest++;

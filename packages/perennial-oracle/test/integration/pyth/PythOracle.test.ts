@@ -32,7 +32,6 @@ describe('PythOracle', () => {
     )
     await oracle.connect(owner).initialize(
       '0xff61491a931112ddf1bd8147cd1b641375f79f5825126d665480874634fd0ace', // Pyth ETH/USD priceId
-      1,
     )
     dsu = IERC20Metadata__factory.connect('0x605D26FBd5be761089281d5cec2Ce86eeA667109', owner)
     const dsuHolder = await impersonateWithBalance('0x2d264EBDb6632A06A1726193D4d37FeF1E5dbDcd', utils.parseEther('10'))
@@ -47,22 +46,9 @@ describe('PythOracle', () => {
         '0x5f4eC3Df9cbd43714FE2740f5E3616155c5b8419',
         '0x605D26FBd5be761089281d5cec2Ce86eeA667109',
       )
-      await expect(oracle.initialize(invalidPriceId, 1))
+      await expect(oracle.initialize(invalidPriceId))
         .to.be.revertedWithCustomError(oracle, 'PythOracleInvalidPriceIdError')
         .withArgs(invalidPriceId)
-    })
-  })
-
-  describe('#updateRewardMultiplier', async () => {
-    it('updates rewardMultiplier', async () => {
-      await oracle.updateRewardMultiplier(2)
-      expect(await oracle.rewardMultiplier()).to.equal(2)
-    })
-
-    it('only the owner can update rewardMultiplier', async () => {
-      await expect(oracle.connect(user).updateRewardMultiplier(2))
-        .to.revertedWithCustomError(oracle, 'UOwnableNotOwnerError')
-        .withArgs(user.address)
     })
   })
 
@@ -70,18 +56,18 @@ describe('PythOracle', () => {
     it('commits successfully and incentivizes the keeper', async () => {
       const originalDSUBalance = await dsu.callStatic.balanceOf(user.address)
       await oracle.connect(user).sync()
-      await oracle.connect(user).commit(0, VAA, user.address, {
+      await oracle.connect(user).commit(0, VAA, {
         value: 1,
       })
       const newDSUBalance = await dsu.callStatic.balanceOf(user.address)
 
       // TODO: Test that this number is correct.
-      expect(newDSUBalance.sub(originalDSUBalance).toNumber()).to.be.greaterThan(0)
+      expect(newDSUBalance.sub(originalDSUBalance)).to.be.eq('11427795569858312321')
     })
 
     it('commits successfully and incentivizes the keeper', async () => {
       await oracle.connect(user).sync()
-      await expect(oracle.connect(user).commit(0, VAA, user.address)).to.revertedWithCustomError(
+      await expect(oracle.connect(user).commit(0, VAA)).to.revertedWithCustomError(
         oracle,
         'PythOracleInvalidMessageValueError',
       )
@@ -89,12 +75,12 @@ describe('PythOracle', () => {
 
     it('does not commit a version that has already been committed', async () => {
       await oracle.connect(user).sync()
-      await oracle.connect(user).commit(0, VAA, user.address, {
+      await oracle.connect(user).commit(0, VAA, {
         value: 1,
       })
       await oracle.connect(user).sync()
       await expect(
-        oracle.connect(user).commit(0, VAA, user.address, {
+        oracle.connect(user).commit(0, VAA, {
           value: 1,
         }),
       ).to.revertedWithCustomError(oracle, 'PythOracleInvalidVersionIndexError')
@@ -102,7 +88,7 @@ describe('PythOracle', () => {
 
     it('cannot commit if no version has been requested', async () => {
       await expect(
-        oracle.connect(user).commit(0, VAA, user.address, {
+        oracle.connect(user).commit(0, VAA, {
           value: 1,
         }),
       ).to.revertedWithCustomError(oracle, 'PythOracleNoNewVersionToCommitError')
@@ -111,7 +97,7 @@ describe('PythOracle', () => {
     it('rejects invalid update data', async () => {
       await oracle.connect(user).sync()
       await expect(
-        oracle.connect(user).commit(0, '0x00', user.address, {
+        oracle.connect(user).commit(0, '0x00', {
           value: 1,
         }),
       ).to.reverted
@@ -121,7 +107,7 @@ describe('PythOracle', () => {
       await oracle.connect(user).sync()
       await oracle.connect(user).sync()
       await expect(
-        oracle.connect(user).commit(1, VAA, user.address, {
+        oracle.connect(user).commit(1, VAA, {
           value: 1,
         }),
       ).to.revertedWithCustomError(oracle, 'PythOracleInvalidVersionIndexError')
@@ -131,7 +117,7 @@ describe('PythOracle', () => {
       await oracle.connect(user).sync()
       await oracle.connect(user).sync()
       await expect(
-        oracle.connect(user).commit(1, VAA, user.address, {
+        oracle.connect(user).commit(1, VAA, {
           value: 1,
         }),
       ).to.revertedWithCustomError(oracle, 'PythOracleInvalidVersionIndexError')
@@ -141,7 +127,7 @@ describe('PythOracle', () => {
       await oracle.connect(user).sync()
       await time.increase(59)
       await oracle.connect(user).sync()
-      await oracle.connect(user).commit(1, VAA_AFTER_EXPIRATION, user.address, {
+      await oracle.connect(user).commit(1, VAA_AFTER_EXPIRATION, {
         value: 1,
       })
     })
@@ -150,7 +136,7 @@ describe('PythOracle', () => {
   describe('#sync', async () => {
     it('returns the correct versions', async () => {
       await oracle.connect(user).sync()
-      await oracle.connect(user).commit(0, VAA, user.address, {
+      await oracle.connect(user).commit(0, VAA, {
         value: 1,
       })
       const [latestVersion, currentVersion] = await oracle.connect(user).callStatic.sync()
@@ -172,7 +158,7 @@ describe('PythOracle', () => {
   describe('#latest', async () => {
     it('returns the latest version', async () => {
       await oracle.connect(user).sync()
-      await oracle.connect(user).commit(0, VAA, user.address, {
+      await oracle.connect(user).commit(0, VAA, {
         value: 1,
       })
       const latestVersion = await oracle.connect(user).latest()
@@ -198,7 +184,7 @@ describe('PythOracle', () => {
     it('returns the correct version', async () => {
       console.log()
       await oracle.connect(user).sync()
-      await oracle.connect(user).commit(0, VAA, user.address, {
+      await oracle.connect(user).commit(0, VAA, {
         value: 1,
       })
       const version = await oracle.connect(user).at(1686198974)
