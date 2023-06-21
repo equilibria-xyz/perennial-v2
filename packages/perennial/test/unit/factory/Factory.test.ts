@@ -1,16 +1,16 @@
-import { MockContract } from '@ethereum-waffle/mock-contract'
+import { smock, FakeContract } from '@defi-wonderland/smock'
 import { SignerWithAddress } from '@nomiclabs/hardhat-ethers/signers'
 import { expect } from 'chai'
-import HRE, { waffle } from 'hardhat'
+import HRE from 'hardhat'
 
 import {
   Factory,
   Market,
   Factory__factory,
   Market__factory,
-  IOracleProvider__factory,
-  IERC20Metadata__factory,
-  IPayoffProvider__factory,
+  IOracleProvider,
+  IERC20Metadata,
+  IPayoffProvider,
 } from '../../../types/generated'
 import { parse6decimal } from '../../../../common/testutil/types'
 import { BigNumber } from 'ethers'
@@ -22,20 +22,20 @@ describe('Factory', () => {
   let owner: SignerWithAddress
   let treasury: SignerWithAddress
   let pauser: SignerWithAddress
-  let payoffProvider: MockContract
-  let oracle: MockContract
-  let dsu: MockContract
-  let reward: MockContract
+  let payoffProvider: FakeContract<IPayoffProvider>
+  let oracle: FakeContract<IOracleProvider>
+  let dsu: FakeContract<IERC20Metadata>
+  let reward: FakeContract<IERC20Metadata>
 
   let factory: Factory
   let marketImpl: Market
 
   beforeEach(async () => {
     ;[user, owner, treasury, pauser] = await ethers.getSigners()
-    oracle = await waffle.deployMockContract(owner, IOracleProvider__factory.abi)
-    dsu = await waffle.deployMockContract(owner, IERC20Metadata__factory.abi)
-    reward = await waffle.deployMockContract(owner, IERC20Metadata__factory.abi)
-    payoffProvider = await waffle.deployMockContract(owner, IPayoffProvider__factory.abi)
+    oracle = await smock.fake<IOracleProvider>('IOracleProvider')
+    dsu = await smock.fake<IERC20Metadata>('IERC20Metadata')
+    reward = await smock.fake<IERC20Metadata>('IERC20Metadata')
+    payoffProvider = await smock.fake<IPayoffProvider>('IPayoffProvider')
     marketImpl = await new Market__factory(owner).deploy()
     factory = await new Factory__factory(owner).deploy(marketImpl.address)
     await factory.initialize()
@@ -52,12 +52,15 @@ describe('Factory', () => {
       expect(parameter.paused).to.equal(false)
       expect(parameter.protocolFee).to.equal(0)
       expect(parameter.liquidationFee).to.equal(0)
+      expect(parameter.maxLiquidationFee).to.equal(0)
       expect(parameter.minCollateral).to.equal(0)
       expect(parameter.maxPendingIds).to.equal(0)
     })
 
     it('reverts if already initialized', async () => {
-      await expect(factory.initialize()).to.be.revertedWith('UInitializableAlreadyInitializedError(1)')
+      await expect(factory.initialize())
+        .to.be.revertedWithCustomError(factory, 'UInitializableAlreadyInitializedError')
+        .withArgs(1)
     })
   })
 
@@ -70,7 +73,10 @@ describe('Factory', () => {
     })
 
     it('reverts if not owner', async () => {
-      await expect(factory.connect(user).updateTreasury(treasury.address)).to.be.revertedWith('UOwnableNotOwnerError()')
+      await expect(factory.connect(user).updateTreasury(treasury.address)).to.be.revertedWithCustomError(
+        factory,
+        'UOwnableNotOwnerError',
+      )
     })
   })
 
@@ -83,7 +89,10 @@ describe('Factory', () => {
     })
 
     it('reverts if not owner', async () => {
-      await expect(factory.connect(user).updatePauser(pauser.address)).to.be.revertedWith('UOwnableNotOwnerError()')
+      await expect(factory.connect(user).updatePauser(pauser.address)).to.be.revertedWithCustomError(
+        factory,
+        'UOwnableNotOwnerError',
+      )
     })
   })
 
@@ -98,6 +107,7 @@ describe('Factory', () => {
       const marketParameter = {
         maintenance: parse6decimal('0.3'),
         fundingFee: parse6decimal('0.1'),
+        interestFee: parse6decimal('0.1'),
         takerFee: 0,
         makerFee: 0,
         positionFee: 0,
@@ -138,6 +148,7 @@ describe('Factory', () => {
     const newParameter = {
       protocolFee: parse6decimal('0.50'),
       liquidationFee: parse6decimal('0.50'),
+      maxLiquidationFee: parse6decimal('1000'),
       minCollateral: parse6decimal('500'),
       maxPendingIds: BigNumber.from(5),
       paused: false,
@@ -150,12 +161,16 @@ describe('Factory', () => {
       expect(parameter.paused).to.equal(newParameter.paused)
       expect(parameter.protocolFee).to.equal(newParameter.protocolFee)
       expect(parameter.liquidationFee).to.equal(newParameter.liquidationFee)
+      expect(parameter.maxLiquidationFee).to.equal(newParameter.maxLiquidationFee)
       expect(parameter.minCollateral).to.equal(newParameter.minCollateral)
       expect(parameter.maxPendingIds).to.equal(newParameter.maxPendingIds)
     })
 
     it('reverts if not owner', async () => {
-      await expect(factory.connect(user).updateParameter(newParameter)).to.be.revertedWith('UOwnableNotOwnerError()')
+      await expect(factory.connect(user).updateParameter(newParameter)).to.be.revertedWithCustomError(
+        factory,
+        'UOwnableNotOwnerError',
+      )
     })
   })
 
@@ -178,8 +193,14 @@ describe('Factory', () => {
     })
 
     it('reverts if not pauser', async () => {
-      await expect(factory.connect(owner).updatePaused(true)).to.be.revertedWith(`FactoryNotPauserError()`)
-      await expect(factory.connect(user).updatePaused(true)).to.be.revertedWith(`FactoryNotPauserError()`)
+      await expect(factory.connect(owner).updatePaused(true)).to.be.revertedWithCustomError(
+        factory,
+        `FactoryNotPauserError`,
+      )
+      await expect(factory.connect(user).updatePaused(true)).to.be.revertedWithCustomError(
+        factory,
+        `FactoryNotPauserError`,
+      )
     })
   })
 

@@ -9,12 +9,13 @@ import "@equilibria/root-v2/contracts/PController6.sol";
 
 /// @dev MarketParameter type
 struct MarketParameter {
-    UFixed6 maintenance;    // <= 429496%
-    UFixed6 fundingFee;     // <= 429496%
-    UFixed6 takerFee;       // <= 429496%
-    UFixed6 makerFee;       // <= 429496%
-    UFixed6 positionFee;    // <= 429496%
-    UFixed6 makerLimit;     // <= 18.45tn
+    UFixed6 maintenance;
+    UFixed6 fundingFee;
+    UFixed6 interestFee;
+    UFixed6 takerFee;
+    UFixed6 makerFee;
+    UFixed6 positionFee;
+    UFixed6 makerLimit;
     bool closed;
     UFixed6 makerRewardRate;
     UFixed6 longRewardRate;
@@ -48,7 +49,8 @@ struct StoredMarketParameter {
     uint24 utilizationCurveTargetUtilization; // <= 1677%
     uint24 takerFee;                          // <= 1677%
     uint24 makerFee;                          // <= 1677%
-    bytes5 __unallocated1__;
+    uint24 interestFee;                       // <= 1677%
+    bytes2 __unallocated1__;
 
     /* slot 4 */
     int32 pControllerValue;                  // <= 214748%
@@ -69,6 +71,7 @@ library MarketParameterStorageLib {
         return MarketParameter(
             UFixed6.wrap(uint256(value.maintenance)),
             UFixed6.wrap(uint256(value.fundingFee)),
+            UFixed6.wrap(uint256(value.interestFee)),
             UFixed6.wrap(uint256(value.takerFee)),
             UFixed6.wrap(uint256(value.makerFee)),
             UFixed6.wrap(uint256(value.positionFee)),
@@ -99,6 +102,7 @@ library MarketParameterStorageLib {
 
         if (newValue.maintenance.gt(UFixed6.wrap(type(uint24).max))) revert MarketParameterStorageInvalidError();
         if (newValue.fundingFee.gt(UFixed6.wrap(type(uint24).max))) revert MarketParameterStorageInvalidError();
+        if (newValue.interestFee.gt(UFixed6.wrap(type(uint24).max))) revert MarketParameterStorageInvalidError();
         if (newValue.takerFee.gt(UFixed6.wrap(type(uint24).max))) revert MarketParameterStorageInvalidError();
         if (newValue.makerFee.gt(UFixed6.wrap(type(uint24).max))) revert MarketParameterStorageInvalidError();
         if (newValue.positionFee.gt(UFixed6.wrap(type(uint24).max))) revert MarketParameterStorageInvalidError();
@@ -123,6 +127,7 @@ library MarketParameterStorageLib {
         self.value = StoredMarketParameter({
             maintenance: uint24(UFixed6.unwrap(newValue.maintenance)),
             fundingFee: uint24(UFixed6.unwrap(newValue.fundingFee)),
+            interestFee: uint24(UFixed6.unwrap(newValue.interestFee)),
             takerFee: uint24(UFixed6.unwrap(newValue.takerFee)),
             makerFee: uint24(UFixed6.unwrap(newValue.makerFee)),
             positionFee: uint24(UFixed6.unwrap(newValue.positionFee)),
@@ -143,7 +148,7 @@ library MarketParameterStorageLib {
             payoff: address(newValue.payoff),
             fuse: true,
             __unallocated0__: bytes1(0),
-            __unallocated1__: bytes5(0),
+            __unallocated1__: bytes2(0),
             __unallocated2__: bytes19(0)
         });
     }

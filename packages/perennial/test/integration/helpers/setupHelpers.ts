@@ -5,11 +5,9 @@ import { utils } from 'ethers'
 import { time, impersonate } from '../../../../common/testutil'
 import {
   IERC20Metadata,
-  ChainlinkOracle,
   Market,
   IERC20Metadata__factory,
   Factory__factory,
-  ChainlinkOracle__factory,
   Market__factory,
   ERC20PresetMinterPauser,
   ERC20PresetMinterPauser__factory,
@@ -26,8 +24,7 @@ import { parse6decimal } from '../../../../common/testutil/types'
 import { buildChainlinkRoundId } from '@equilibria/perennial-v2-oracle/util/buildChainlinkRoundId'
 import { CHAINLINK_CUSTOM_CURRENCIES } from '@equilibria/perennial-v2-oracle/util/constants'
 import { Squared__factory } from '@equilibria/perennial-v2-payoff/types/generated'
-import { FakeContract, smock } from '@defi-wonderland/smock'
-import { address } from 'hardhat/internal/core/config/config-validation'
+import { currentBlockTimestamp } from '../../../../common/testutil/time'
 const { config, deployments, ethers } = HRE
 
 export const INITIAL_PHASE_ID = 1
@@ -99,6 +96,7 @@ export async function deployProtocol(): Promise<InstanceVars> {
   await factory.updateParameter({
     protocolFee: parse6decimal('0.50'),
     liquidationFee: parse6decimal('0.50'),
+    maxLiquidationFee: parse6decimal('1000'),
     minCollateral: parse6decimal('500'),
     maxPendingIds: 8,
     paused: false,
@@ -163,6 +161,7 @@ export async function createMarket(
   const parameter = {
     maintenance: parse6decimal('0.3'),
     fundingFee: parse6decimal('0.1'),
+    interestFee: parse6decimal('0.1'),
     takerFee: 0,
     makerFee: 0,
     positionFee: 0,

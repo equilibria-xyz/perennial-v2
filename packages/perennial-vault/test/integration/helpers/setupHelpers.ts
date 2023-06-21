@@ -23,6 +23,7 @@ export async function deployProductOnMainnetFork({
   oracle,
   maintenance,
   fundingFee,
+  interestFee,
   makerFee,
   takerFee,
   positionFee,
@@ -32,6 +33,7 @@ export async function deployProductOnMainnetFork({
   const marketParameter: MarketParameterStruct = {
     maintenance: maintenance ?? parse6decimal('0.10'),
     fundingFee: fundingFee ?? parse6decimal('0.00'),
+    interestFee: interestFee ?? parse6decimal('0.00'),
     takerFee: takerFee ?? parse6decimal('0.0'),
     makerFee: makerFee ?? parse6decimal('0.0'),
     positionFee: positionFee ?? parse6decimal('0.0'),
@@ -45,6 +47,12 @@ export async function deployProductOnMainnetFork({
       maxRate: parse6decimal('0.80'),
       targetRate: parse6decimal('0.08'),
       targetUtilization: parse6decimal('0.80'),
+    },
+    pController: {
+      value: 0,
+      _k: parse6decimal('40000'),
+      _skew: 0,
+      _max: parse6decimal('1.20'),
     },
     oracle: oracle ?? constants.AddressZero,
     payoff: constants.AddressZero,

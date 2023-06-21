@@ -7,7 +7,7 @@ export interface Accumulator {
 
 export interface Position {
   id: BigNumberish
-  version: BigNumberish
+  timestamp: BigNumberish
   maker: BigNumberish
   long: BigNumberish
   short: BigNumberish
@@ -43,7 +43,7 @@ export interface Fee {
 
 export function expectPositionEq(a: Position, b: Position): void {
   expect(a.id).to.equal(b.id)
-  expect(a.version).to.equal(b.version)
+  expect(a.timestamp).to.equal(b.timestamp)
   expect(a.maker).to.equal(b.maker)
   expect(a.long).to.equal(b.long)
   expect(a.short).to.equal(b.short)

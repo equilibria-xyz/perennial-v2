@@ -39,7 +39,7 @@ describe('Liquidate', () => {
     await chainlink.next()
     await market.settle(user.address)
 
-    expect((await market.position()).version).to.eq(TIMESTAMP_2)
+    expect((await market.position()).timestamp).to.eq(TIMESTAMP_2)
     expect((await market.locals(user.address)).liquidation).to.eq(TIMESTAMP_2)
   })
 
@@ -68,7 +68,7 @@ describe('Liquidate', () => {
     await chainlink.next()
     await market.settle(user.address)
 
-    expect((await market.position()).version).to.eq(TIMESTAMP_2)
+    expect((await market.position()).timestamp).to.eq(TIMESTAMP_2)
     expect((await market.locals(user.address)).liquidation).to.eq(TIMESTAMP_2)
   })
 
@@ -93,10 +93,10 @@ describe('Liquidate', () => {
     const userBCollateral = (await market.locals(userB.address)).collateral
     await expect(
       market.connect(userB).update(userB.address, 0, 0, 0, userBCollateral.mul(-1).sub(1)),
-    ).to.be.revertedWith('MarketInDebtError()') // underflow
+    ).to.be.revertedWithCustomError(market, 'MarketInDebtError') // underflow
 
     await market.connect(userB).settle(user.address) // liquidate
-    expect((await market.locals(user.address)).collateral).to.equal(BigNumber.from('-3154162620'))
+    expect((await market.locals(user.address)).collateral).to.equal(BigNumber.from('-3154014022'))
 
     await chainlink.nextWithPriceModification(price => price.mul(2))
     await market.settle(user.address)
@@ -164,14 +164,13 @@ describe('Liquidate', () => {
     const newC = (await market.locals(userC.address)).collateral
     const newD = (await market.locals(userD.address)).collateral
     const totalNew = newA.add(newB).add(newC).add(newD)
+    const feesNew = (await market.global()).protocolFee.add((await market.global()).marketFee)
 
     // Expect the loss from B to be socialized equally to C and D
     expect(currA).to.equal(newA)
     expect(currB.gt(newB)).to.equal(true)
     expect(currC.lt(newC)).to.equal(true)
     expect(currD.lt(newD)).to.equal(true)
-
-    const feesNew = (await market.global()).protocolFee.add((await market.global()).marketFee)
 
     expect(totalCurr.add(feesCurr)).to.be.gte(totalNew.add(feesNew))
     expect(totalCurr.add(feesCurr)).to.be.closeTo(totalNew.add(feesNew), 1)

@@ -6,7 +6,6 @@ import {
   InstanceVars,
   deployProtocol,
   createMarket,
-  INITIAL_VERSION,
   INITIAL_PHASE_ID,
   INITIAL_AGGREGATOR_ROUND_ID,
 } from '../helpers/setupHelpers'
@@ -17,7 +16,7 @@ import {
   expectVersionEq,
   parse6decimal,
 } from '../../../../common/testutil/types'
-import { ChainlinkOracle__factory, IOracleProvider__factory, Market__factory } from '../../../types/generated'
+import { IOracleProvider__factory, Market__factory } from '../../../types/generated'
 import { CHAINLINK_CUSTOM_CURRENCIES } from '@equilibria/perennial-v2-oracle/util/constants'
 import { buildChainlinkRoundId } from '@equilibria/perennial-v2-oracle/util/buildChainlinkRoundId'
 import { ChainlinkContext } from '../helpers/chainlinkHelpers'
@@ -51,6 +50,7 @@ describe('Happy Path', () => {
     const parameter = {
       maintenance: parse6decimal('0.3'),
       fundingFee: parse6decimal('0.1'),
+      interestFee: parse6decimal('0.1'),
       takerFee: 0,
       makerFee: 0,
       positionFee: 0,
@@ -103,7 +103,7 @@ describe('Happy Path', () => {
     })
     expectPositionEq(await market.pendingPositions(user.address, 1), {
       id: 1,
-      version: TIMESTAMP_1,
+      timestamp: TIMESTAMP_1,
       maker: POSITION,
       long: 0,
       short: 0,
@@ -111,7 +111,7 @@ describe('Happy Path', () => {
     })
     expectPositionEq(await market.positions(user.address), {
       id: 0,
-      version: TIMESTAMP_0,
+      timestamp: TIMESTAMP_0,
       maker: 0,
       long: 0,
       short: 0,
@@ -126,7 +126,7 @@ describe('Happy Path', () => {
     })
     expectPositionEq(await market.pendingPosition(1), {
       id: 1,
-      version: TIMESTAMP_1,
+      timestamp: TIMESTAMP_1,
       maker: POSITION,
       long: 0,
       short: 0,
@@ -134,7 +134,7 @@ describe('Happy Path', () => {
     })
     expectPositionEq(await market.position(), {
       id: 0,
-      version: TIMESTAMP_0,
+      timestamp: TIMESTAMP_0,
       maker: 0,
       long: 0,
       short: 0,
@@ -162,7 +162,7 @@ describe('Happy Path', () => {
     })
     expectPositionEq(await market.pendingPositions(user.address, 1), {
       id: 1,
-      version: TIMESTAMP_1,
+      timestamp: TIMESTAMP_1,
       maker: POSITION,
       long: 0,
       short: 0,
@@ -170,7 +170,7 @@ describe('Happy Path', () => {
     })
     expectPositionEq(await market.positions(user.address), {
       id: 1,
-      version: TIMESTAMP_1,
+      timestamp: TIMESTAMP_1,
       maker: POSITION,
       long: 0,
       short: 0,
@@ -185,7 +185,7 @@ describe('Happy Path', () => {
     })
     expectPositionEq(await market.pendingPosition(1), {
       id: 1,
-      version: TIMESTAMP_1,
+      timestamp: TIMESTAMP_1,
       maker: POSITION,
       long: 0,
       short: 0,
@@ -193,7 +193,7 @@ describe('Happy Path', () => {
     })
     expectPositionEq(await market.position(), {
       id: 1,
-      version: TIMESTAMP_1,
+      timestamp: TIMESTAMP_1,
       maker: POSITION,
       long: 0,
       short: 0,
@@ -210,7 +210,6 @@ describe('Happy Path', () => {
     await dsu.connect(user).approve(market.address, COLLATERAL.mul(1e12))
 
     await market.connect(user).update(user.address, POSITION.div(2), 0, 0, COLLATERAL)
-
     await expect(market.connect(user).update(user.address, POSITION, 0, 0, 0))
       .to.emit(market, 'Updated')
       .withArgs(user.address, TIMESTAMP_1, POSITION, 0, 0, 0)
@@ -224,7 +223,7 @@ describe('Happy Path', () => {
     })
     expectPositionEq(await market.pendingPositions(user.address, 1), {
       id: 1,
-      version: TIMESTAMP_1,
+      timestamp: TIMESTAMP_1,
       maker: POSITION,
       long: 0,
       short: 0,
@@ -232,7 +231,7 @@ describe('Happy Path', () => {
     })
     expectPositionEq(await market.positions(user.address), {
       id: 0,
-      version: TIMESTAMP_0,
+      timestamp: TIMESTAMP_0,
       maker: 0,
       long: 0,
       short: 0,
@@ -247,7 +246,7 @@ describe('Happy Path', () => {
     })
     expectPositionEq(await market.pendingPosition(1), {
       id: 1,
-      version: TIMESTAMP_1,
+      timestamp: TIMESTAMP_1,
       maker: POSITION,
       long: 0,
       short: 0,
@@ -255,7 +254,7 @@ describe('Happy Path', () => {
     })
     expectPositionEq(await market.position(), {
       id: 0,
-      version: TIMESTAMP_0,
+      timestamp: TIMESTAMP_0,
       maker: 0,
       long: 0,
       short: 0,
@@ -283,7 +282,7 @@ describe('Happy Path', () => {
     })
     expectPositionEq(await market.pendingPositions(user.address, 1), {
       id: 1,
-      version: TIMESTAMP_1,
+      timestamp: TIMESTAMP_1,
       maker: POSITION,
       long: 0,
       short: 0,
@@ -291,7 +290,7 @@ describe('Happy Path', () => {
     })
     expectPositionEq(await market.positions(user.address), {
       id: 1,
-      version: TIMESTAMP_1,
+      timestamp: TIMESTAMP_1,
       maker: POSITION,
       long: 0,
       short: 0,
@@ -306,7 +305,7 @@ describe('Happy Path', () => {
     })
     expectPositionEq(await market.pendingPosition(1), {
       id: 1,
-      version: TIMESTAMP_1,
+      timestamp: TIMESTAMP_1,
       maker: POSITION,
       long: 0,
       short: 0,
@@ -314,7 +313,7 @@ describe('Happy Path', () => {
     })
     expectPositionEq(await market.position(), {
       id: 1,
-      version: TIMESTAMP_1,
+      timestamp: TIMESTAMP_1,
       maker: POSITION,
       long: 0,
       short: 0,
@@ -349,7 +348,7 @@ describe('Happy Path', () => {
     })
     expectPositionEq(await market.pendingPositions(user.address, 1), {
       id: 1,
-      version: TIMESTAMP_1,
+      timestamp: TIMESTAMP_1,
       maker: 0,
       long: 0,
       short: 0,
@@ -357,7 +356,7 @@ describe('Happy Path', () => {
     })
     expectPositionEq(await market.positions(user.address), {
       id: 0,
-      version: TIMESTAMP_0,
+      timestamp: TIMESTAMP_0,
       maker: 0,
       long: 0,
       short: 0,
@@ -372,7 +371,7 @@ describe('Happy Path', () => {
     })
     expectPositionEq(await market.pendingPosition(1), {
       id: 1,
-      version: TIMESTAMP_1,
+      timestamp: TIMESTAMP_1,
       maker: 0,
       long: 0,
       short: 0,
@@ -380,7 +379,7 @@ describe('Happy Path', () => {
     })
     expectPositionEq(await market.position(), {
       id: 0,
-      version: TIMESTAMP_0,
+      timestamp: TIMESTAMP_0,
       maker: 0,
       long: 0,
       short: 0,
@@ -420,7 +419,7 @@ describe('Happy Path', () => {
     })
     expectPositionEq(await market.pendingPositions(user.address, 1), {
       id: 1,
-      version: TIMESTAMP_1,
+      timestamp: TIMESTAMP_1,
       maker: 0,
       long: 0,
       short: 0,
@@ -428,7 +427,7 @@ describe('Happy Path', () => {
     })
     expectPositionEq(await market.positions(user.address), {
       id: 0,
-      version: TIMESTAMP_0,
+      timestamp: TIMESTAMP_0,
       maker: 0,
       long: 0,
       short: 0,
@@ -443,7 +442,7 @@ describe('Happy Path', () => {
     })
     expectPositionEq(await market.pendingPosition(1), {
       id: 1,
-      version: TIMESTAMP_1,
+      timestamp: TIMESTAMP_1,
       maker: 0,
       long: 0,
       short: 0,
@@ -451,7 +450,7 @@ describe('Happy Path', () => {
     })
     expectPositionEq(await market.position(), {
       id: 0,
-      version: TIMESTAMP_0,
+      timestamp: TIMESTAMP_0,
       maker: 0,
       long: 0,
       short: 0,
@@ -491,7 +490,7 @@ describe('Happy Path', () => {
     })
     expectPositionEq(await market.pendingPositions(user.address, 1), {
       id: 1,
-      version: TIMESTAMP_1,
+      timestamp: TIMESTAMP_1,
       maker: POSITION,
       long: 0,
       short: 0,
@@ -499,7 +498,7 @@ describe('Happy Path', () => {
     })
     expectPositionEq(await market.positions(user.address), {
       id: 0,
-      version: TIMESTAMP_0,
+      timestamp: TIMESTAMP_0,
       maker: 0,
       long: 0,
       short: 0,
@@ -514,7 +513,7 @@ describe('Happy Path', () => {
     })
     expectPositionEq(await market.pendingPositions(userB.address, 1), {
       id: 1,
-      version: TIMESTAMP_1,
+      timestamp: TIMESTAMP_1,
       maker: 0,
       long: POSITION_B,
       short: 0,
@@ -522,7 +521,7 @@ describe('Happy Path', () => {
     })
     expectPositionEq(await market.positions(userB.address), {
       id: 0,
-      version: TIMESTAMP_0,
+      timestamp: TIMESTAMP_0,
       maker: 0,
       long: 0,
       short: 0,
@@ -537,7 +536,7 @@ describe('Happy Path', () => {
     })
     expectPositionEq(await market.pendingPosition(1), {
       id: 1,
-      version: TIMESTAMP_1,
+      timestamp: TIMESTAMP_1,
       maker: POSITION,
       long: POSITION_B,
       short: 0,
@@ -545,7 +544,7 @@ describe('Happy Path', () => {
     })
     expectPositionEq(await market.position(), {
       id: 0,
-      version: TIMESTAMP_0,
+      timestamp: TIMESTAMP_0,
       maker: 0,
       long: 0,
       short: 0,
@@ -569,12 +568,12 @@ describe('Happy Path', () => {
 
     expectGlobalEq(await market.global(), {
       currentId: 1,
-      protocolFee: '1',
-      marketFee: '2',
+      protocolFee: '18',
+      marketFee: '18',
     })
     expectPositionEq(await market.pendingPosition(1), {
       id: 1,
-      version: TIMESTAMP_1,
+      timestamp: TIMESTAMP_1,
       maker: POSITION,
       long: POSITION_B,
       short: 0,
@@ -582,7 +581,7 @@ describe('Happy Path', () => {
     })
     expectPositionEq(await market.position(), {
       id: 1,
-      version: TIMESTAMP_2,
+      timestamp: TIMESTAMP_2,
       maker: POSITION,
       long: POSITION_B,
       short: 0,
@@ -591,13 +590,13 @@ describe('Happy Path', () => {
 
     expectLocalEq(await market.locals(userB.address), {
       currentId: 1,
-      collateral: COLLATERAL.add(BigNumber.from('1249724')),
+      collateral: COLLATERAL.add(BigNumber.from('1249393')),
       reward: 0,
       liquidation: 0,
     })
     expectPositionEq(await market.pendingPositions(userB.address, 1), {
       id: 1,
-      version: TIMESTAMP_1,
+      timestamp: TIMESTAMP_1,
       maker: 0,
       long: POSITION_B,
       short: 0,
@@ -605,7 +604,7 @@ describe('Happy Path', () => {
     })
     expectPositionEq(await market.positions(userB.address), {
       id: 1,
-      version: TIMESTAMP_2,
+      timestamp: TIMESTAMP_2,
       maker: 0,
       long: POSITION_B,
       short: 0,
@@ -639,7 +638,7 @@ describe('Happy Path', () => {
     })
     expectPositionEq(await market.pendingPositions(userB.address, 1), {
       id: 1,
-      version: TIMESTAMP_1,
+      timestamp: TIMESTAMP_1,
       maker: 0,
       long: POSITION_B,
       short: 0,
@@ -647,7 +646,7 @@ describe('Happy Path', () => {
     })
     expectPositionEq(await market.positions(userB.address), {
       id: 0,
-      version: TIMESTAMP_0,
+      timestamp: TIMESTAMP_0,
       maker: 0,
       long: 0,
       short: 0,
@@ -662,7 +661,7 @@ describe('Happy Path', () => {
     })
     expectPositionEq(await market.pendingPosition(1), {
       id: 1,
-      version: TIMESTAMP_1,
+      timestamp: TIMESTAMP_1,
       maker: POSITION,
       long: POSITION_B,
       short: 0,
@@ -670,7 +669,7 @@ describe('Happy Path', () => {
     })
     expectPositionEq(await market.position(), {
       id: 0,
-      version: TIMESTAMP_0,
+      timestamp: TIMESTAMP_0,
       maker: 0,
       long: 0,
       short: 0,
@@ -694,12 +693,12 @@ describe('Happy Path', () => {
 
     expectGlobalEq(await market.global(), {
       currentId: 1,
-      protocolFee: '1',
-      marketFee: '2',
+      protocolFee: '18',
+      marketFee: '18',
     })
     expectPositionEq(await market.pendingPosition(1), {
       id: 1,
-      version: TIMESTAMP_1,
+      timestamp: TIMESTAMP_1,
       maker: POSITION,
       long: POSITION_B,
       short: 0,
@@ -707,7 +706,7 @@ describe('Happy Path', () => {
     })
     expectPositionEq(await market.position(), {
       id: 1,
-      version: TIMESTAMP_2,
+      timestamp: TIMESTAMP_2,
       maker: POSITION,
       long: POSITION_B,
       short: 0,
@@ -715,13 +714,13 @@ describe('Happy Path', () => {
     })
     expectLocalEq(await market.locals(userB.address), {
       currentId: 1,
-      collateral: COLLATERAL.add(BigNumber.from('1249724')),
+      collateral: COLLATERAL.add(BigNumber.from('1249393')),
       reward: 0,
       liquidation: 0,
     })
     expectPositionEq(await market.pendingPositions(userB.address, 1), {
       id: 1,
-      version: TIMESTAMP_1,
+      timestamp: TIMESTAMP_1,
       maker: 0,
       long: POSITION_B,
       short: 0,
@@ -729,7 +728,7 @@ describe('Happy Path', () => {
     })
     expectPositionEq(await market.positions(userB.address), {
       id: 1,
-      version: TIMESTAMP_2,
+      timestamp: TIMESTAMP_2,
       maker: 0,
       long: POSITION_B,
       short: 0,
@@ -747,9 +746,9 @@ describe('Happy Path', () => {
     await dsu.connect(user).approve(market.address, COLLATERAL.mul(1e12))
     await dsu.connect(userB).approve(market.address, COLLATERAL.mul(1e12))
 
-    await expect(market.connect(userB).update(userB.address, 0, POSITION_B, 0, COLLATERAL)).to.be.revertedWith(
-      'MarketInsufficientLiquidityError()',
-    )
+    await expect(
+      market.connect(userB).update(userB.address, 0, POSITION_B, 0, COLLATERAL),
+    ).to.be.revertedWithCustomError(market, 'MarketInsufficientLiquidityError')
     await market.connect(user).update(user.address, POSITION, 0, 0, COLLATERAL)
     await market.connect(userB).update(userB.address, 0, POSITION_B, 0, COLLATERAL)
 
@@ -766,7 +765,7 @@ describe('Happy Path', () => {
     })
     expectPositionEq(await market.pendingPositions(userB.address, 1), {
       id: 1,
-      version: TIMESTAMP_1,
+      timestamp: TIMESTAMP_1,
       maker: 0,
       long: 0,
       short: 0,
@@ -774,7 +773,7 @@ describe('Happy Path', () => {
     })
     expectPositionEq(await market.positions(userB.address), {
       id: 0,
-      version: TIMESTAMP_0,
+      timestamp: TIMESTAMP_0,
       maker: 0,
       long: 0,
       short: 0,
@@ -789,7 +788,7 @@ describe('Happy Path', () => {
     })
     expectPositionEq(await market.pendingPosition(1), {
       id: 1,
-      version: TIMESTAMP_1,
+      timestamp: TIMESTAMP_1,
       maker: POSITION,
       long: 0,
       short: 0,
@@ -797,7 +796,7 @@ describe('Happy Path', () => {
     })
     expectPositionEq(await market.position(), {
       id: 0,
-      version: TIMESTAMP_0,
+      timestamp: TIMESTAMP_0,
       maker: 0,
       long: 0,
       short: 0,
@@ -823,9 +822,9 @@ describe('Happy Path', () => {
     await dsu.connect(user).approve(market.address, COLLATERAL.mul(1e12))
     await dsu.connect(userB).approve(market.address, COLLATERAL.mul(1e12))
 
-    await expect(market.connect(userB).update(userB.address, 0, POSITION_B, 0, COLLATERAL)).to.be.revertedWith(
-      'MarketInsufficientLiquidityError()',
-    )
+    await expect(
+      market.connect(userB).update(userB.address, 0, POSITION_B, 0, COLLATERAL),
+    ).to.be.revertedWithCustomError(market, 'MarketInsufficientLiquidityError')
     await market.connect(user).update(user.address, POSITION, 0, 0, COLLATERAL)
     await market.connect(userB).update(userB.address, 0, POSITION_B, 0, COLLATERAL)
     await market.connect(userB).update(userB.address, POSITION_B.div(2), 0, 0, 0)
@@ -843,7 +842,7 @@ describe('Happy Path', () => {
     })
     expectPositionEq(await market.pendingPositions(userB.address, 1), {
       id: 1,
-      version: TIMESTAMP_1,
+      timestamp: TIMESTAMP_1,
       maker: 0,
       long: 0,
       short: 0,
@@ -851,7 +850,7 @@ describe('Happy Path', () => {
     })
     expectPositionEq(await market.positions(userB.address), {
       id: 0,
-      version: TIMESTAMP_0,
+      timestamp: TIMESTAMP_0,
       maker: 0,
       long: 0,
       short: 0,
@@ -866,7 +865,7 @@ describe('Happy Path', () => {
     })
     expectPositionEq(await market.pendingPosition(1), {
       id: 1,
-      version: TIMESTAMP_1,
+      timestamp: TIMESTAMP_1,
       maker: POSITION,
       long: 0,
       short: 0,
@@ -874,7 +873,7 @@ describe('Happy Path', () => {
     })
     expectPositionEq(await market.position(), {
       id: 0,
-      version: TIMESTAMP_0,
+      timestamp: TIMESTAMP_0,
       maker: 0,
       long: 0,
       short: 0,
@@ -904,10 +903,10 @@ describe('Happy Path', () => {
     const market = await createMarket(instanceVars)
 
     await expect(factory.connect(pauser).updatePaused(true)).to.emit(factory, 'ParameterUpdated')
-    await expect(market.connect(user.address).update(user.address, 0, 0, 0, parse6decimal('1000'))).to.be.revertedWith(
-      'PausedError()',
-    )
-    await expect(market.connect(user.address).settle(user.address)).to.be.revertedWith('PausedError()')
+    await expect(
+      market.connect(user).update(user.address, 0, 0, 0, parse6decimal('1000')),
+    ).to.be.revertedWithCustomError(market, 'MarketPausedError')
+    await expect(market.connect(user).settle(user.address)).to.be.revertedWithCustomError(market, 'MarketPausedError')
   })
 
   it('opens a long position and settles after max funding', async () => {
@@ -977,6 +976,7 @@ describe('Happy Path', () => {
     const parameter = {
       maintenance: parse6decimal('0.3'),
       fundingFee: parse6decimal('0.1'),
+      interestFee: parse6decimal('0.1'),
       takerFee: positionFeesOn ? parse6decimal('0.001') : 0,
       makerFee: positionFeesOn ? parse6decimal('0.0005') : 0,
       positionFee: positionFeesOn ? parse6decimal('0.1') : 0,
@@ -1028,13 +1028,13 @@ describe('Happy Path', () => {
     // Check user is in the correct state
     expectLocalEq(await market.locals(user.address), {
       currentId: 3,
-      collateral: '985878212',
+      collateral: '986050657',
       reward: '24669998',
       liquidation: 0,
     })
     expectPositionEq(await market.pendingPositions(user.address, 3), {
       id: 3,
-      version: TIMESTAMP_5,
+      timestamp: TIMESTAMP_5,
       maker: POSITION,
       long: 0,
       short: 0,
@@ -1042,7 +1042,7 @@ describe('Happy Path', () => {
     })
     expectPositionEq(await market.positions(user.address), {
       id: 2,
-      version: TIMESTAMP_4,
+      timestamp: TIMESTAMP_4,
       maker: POSITION.div(2),
       long: 0,
       short: 0,
@@ -1052,12 +1052,12 @@ describe('Happy Path', () => {
     // Check global state
     expectGlobalEq(await market.global(), {
       currentId: 3,
-      protocolFee: '296532',
-      marketFee: '296535',
+      protocolFee: '306111',
+      marketFee: '306114',
     })
     expectPositionEq(await market.pendingPosition(3), {
       id: 3,
-      version: TIMESTAMP_5,
+      timestamp: TIMESTAMP_5,
       maker: POSITION,
       long: POSITION.div(2),
       short: 0,
@@ -1065,15 +1065,15 @@ describe('Happy Path', () => {
     })
     expectPositionEq(await market.position(), {
       id: 2,
-      version: TIMESTAMP_4,
+      timestamp: TIMESTAMP_4,
       maker: POSITION.div(2),
       long: POSITION.div(2),
       short: 0,
       fee: 0,
     })
     expectVersionEq(await market.versions(TIMESTAMP_4), {
-      makerValue: { _value: '-358601980609' },
-      longValue: { _value: '366602669695' },
+      makerValue: { _value: '-354544089095' },
+      longValue: { _value: '362094018785' },
       shortValue: { _value: 0 },
       makerReward: { _value: '606836363635' },
       longReward: { _value: '60683636363' },
@@ -1102,6 +1102,7 @@ describe('Happy Path', () => {
     const parameter = {
       maintenance: parse6decimal('0.3'),
       fundingFee: parse6decimal('0.1'),
+      interestFee: parse6decimal('0.1'),
       takerFee: positionFeesOn ? parse6decimal('0.001') : 0,
       makerFee: positionFeesOn ? parse6decimal('0.0005') : 0,
       positionFee: positionFeesOn ? parse6decimal('0.1') : 0,
@@ -1133,7 +1134,7 @@ describe('Happy Path', () => {
       'SQTH',
       IOracleProvider__factory.connect(chainlink.oracle.address, owner),
     )
-    await market.updateParameter(parameter)
+    await market.connect(owner).updateParameter(parameter)
 
     await dsu.connect(user).approve(market.address, COLLATERAL.mul(2).mul(1e12))
     await dsu.connect(userB).approve(market.address, COLLATERAL.mul(2).mul(1e12))
@@ -1165,7 +1166,7 @@ describe('Happy Path', () => {
     })
     expectPositionEq(await market.pendingPositions(user.address, delay + 1), {
       id: delay + 1,
-      version: await chainlink.oracle.current(),
+      timestamp: await chainlink.oracle.current(),
       maker: POSITION,
       long: 0,
       short: 0,
@@ -1173,7 +1174,7 @@ describe('Happy Path', () => {
     })
     expectPositionEq(await market.positions(user.address), {
       id: delay,
-      version: (await chainlink.oracle.latest()).version,
+      timestamp: (await chainlink.oracle.latest()).timestamp,
       maker: POSITION.sub(1),
       long: 0,
       short: 0,
@@ -1188,7 +1189,7 @@ describe('Happy Path', () => {
     })
     expectPositionEq(await market.pendingPosition(delay + 1), {
       id: delay + 1,
-      version: await chainlink.oracle.current(),
+      timestamp: await chainlink.oracle.current(),
       maker: POSITION,
       long: POSITION.sub(1),
       short: 0,
@@ -1196,7 +1197,7 @@ describe('Happy Path', () => {
     })
     expectPositionEq(await market.position(), {
       id: delay,
-      version: (await chainlink.oracle.latest()).version,
+      timestamp: (await chainlink.oracle.latest()).timestamp,
       maker: POSITION.sub(1),
       long: POSITION.sub(1),
       short: 0,

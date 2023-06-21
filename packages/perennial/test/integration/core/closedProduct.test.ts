@@ -58,8 +58,9 @@ describe('Closed Market', () => {
 
     it('reverts on new open positions', async () => {
       const { user } = instanceVars
-      await expect(market.connect(user).update(user.address, 0, POSITION, 0, 0)).to.be.revertedWith(
-        'MarketClosedError()',
+      await expect(market.connect(user).update(user.address, 0, POSITION, 0, 0)).to.be.revertedWithCustomError(
+        market,
+        'MarketClosedError',
       )
     })
 
@@ -127,7 +128,7 @@ describe('Closed Market', () => {
     await market.settle(user.address)
     await market.settle(userB.address)
 
-    expect((await market.position()).version).to.eq(TIMESTAMP_3)
+    expect((await market.position()).timestamp).to.eq(TIMESTAMP_3)
     expect((await market.locals(user.address)).liquidation).to.eq(TIMESTAMP_3)
     const userCollateralBefore = (await market.locals(user.address)).collateral
     const userBCollateralBefore = (await market.locals(userB.address)).collateral

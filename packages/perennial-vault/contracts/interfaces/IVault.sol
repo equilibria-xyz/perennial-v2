@@ -2,17 +2,19 @@
 pragma solidity ^0.8.13;
 
 import "@equilibria/perennial-v2/contracts/interfaces/IFactory.sol";
+import "@equilibria/root/control/interfaces/IInitializable.sol";
 import "@equilibria/root/number/types/UFixed6.sol";
 import "../types/Account.sol";
 import "../types/Checkpoint.sol";
 import "../types/VaultParameter.sol";
 import "../types/Registration.sol";
 
-interface IVault {
+
+interface IVault is IInitializable {
     struct Context {
         uint256 currentId;
         uint256 latestId;
-        uint256 latestVersion;
+        uint256 latestTimestamp;
         uint256 liquidation;
 
         // parameters
@@ -74,6 +76,12 @@ interface IVault {
     error VaultNotOwnerError();
     error VaultNotMarketError();
     error VaultIncorrectAssetError();
+
+    error AccountStorageInvalidError();
+    error CheckpointStorageInvalidError();
+    error RegistrationStorageInvalidError();
+    error VaultParameterStorageInvalidError();
+    error VaultParameterStorageImmutableError();
 
     /* parameters */
 

@@ -1,6 +1,6 @@
 import HRE from 'hardhat'
 import { BigNumber } from 'ethers'
-import { smock, MockContract, FakeContract } from '@defi-wonderland/smock'
+import { smock, FakeContract } from '@defi-wonderland/smock'
 
 import { FeedRegistryInterface__factory, FeedRegistryInterface, IOracleProvider } from '../../../types/generated'
 
