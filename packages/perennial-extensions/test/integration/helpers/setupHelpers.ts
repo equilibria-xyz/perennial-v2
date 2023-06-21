@@ -48,9 +48,9 @@ export const INITIAL_VERSION = 2472 // registry's phase 1 starts at aggregatorRo
 
 export const DSU_HOLDER = '0x0B663CeaCEF01f2f88EB7451C70Aa069f19dB997'
 export const USDC_HOLDER = '0x0A59649758aa4d66E25f08Dd01271e891fe52199'
-export const BATCHER = '0x0'
-export const RESERVE = '0x0d49c416103cbd276d9c3cd96710db264e3a0c27'
-export const ETH_ORACLE = '0x8b3BaEaee9FB366A01AE73f87F2cc1BbAb54dFC8'
+export const BATCHER = '0xAEf566ca7E84d1E736f999765a804687f39D9094'
+export const RESERVE = '0xD05aCe63789cCb35B9cE71d01e4d632a0486Da4B'
+export const ETH_ORACLE = '0x2C19eac953048801FfE1358D109A1Ac2aF7930fD'
 const DSU_MINTER = '0xD05aCe63789cCb35B9cE71d01e4d632a0486Da4B'
 
 export interface InstanceVars {
