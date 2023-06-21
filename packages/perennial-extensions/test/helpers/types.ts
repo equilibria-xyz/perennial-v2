@@ -9,20 +9,31 @@ export function setMarketPosition(market: FakeContract<IMarket>, user: SignerWit
   market.positions.whenCalledWith(user.address).returns(position)
 }
 
+export function setPendingPosition(
+  market: FakeContract<IMarket>,
+  user: SignerWithAddress,
+  currentId: BigNumberish,
+  position: PositionStruct,
+) {
+  market.pendingPositions.whenCalledWith(user.address, currentId).returns(position)
+}
+
 export const openPosition = ({
   maker,
   long,
   short,
   collateral,
+  timestamp,
 }: {
   maker?: BigNumberish
   long?: BigNumberish
   short?: BigNumberish
   collateral?: BigNumberish
+  timestamp?: BigNumberish
 }): PositionStruct => {
   const position: PositionStruct = {
     id: '0',
-    version: '0',
+    timestamp: timestamp ? timestamp : '0',
     maker: maker ? maker : '0',
     long: long ? long : '0',
     short: short ? short : '0',
@@ -40,17 +51,20 @@ export const changePosition = ({
   longDelta,
   shortDelta,
   collateralDelta,
+  timestampDelta,
 }: {
   position: PositionStruct
   makerDelta?: BigNumberish
   longDelta?: BigNumberish
   shortDelta?: BigNumberish
   collateralDelta?: BigNumberish
+  timestampDelta?: BigNumberish
 }): PositionStruct => {
   position.maker = makerDelta ? BigNumber.from(position.maker).add(makerDelta) : position.maker
   position.long = longDelta ? BigNumber.from(position.long).add(longDelta) : position.long
   position.short = shortDelta ? BigNumber.from(position.short).add(shortDelta) : position.short
   position.collateral = collateralDelta ? BigNumber.from(position.collateral).add(collateralDelta) : position.collateral
+  position.timestamp = timestampDelta ? BigNumber.from(position.timestamp).add(timestampDelta) : position.timestamp
 
   return position
 }
