@@ -2,8 +2,8 @@
 pragma solidity 0.8.19;
 
 import "@chainlink/contracts/src/v0.8/interfaces/AggregatorV3Interface.sol";
+import "@equilibria/root/control/unstructured/UOwnable.sol";
 import "@equilibria/root/token/types/Token18.sol";
-import "@openzeppelin/contracts/access/Ownable.sol";
 import "@openzeppelin/contracts/utils/math/SafeCast.sol";
 import "@pythnetwork/pyth-sdk-solidity/AbstractPyth.sol";
 import "../IOracleProvider.sol";
@@ -15,7 +15,7 @@ import "../IOracleProvider.sol";
  *      PythOracle instance if their payoff functions are based on the same underlying oracle.
  *      This implementation only supports non-negative prices.
  */
-contract PythOracle is IOracleProvider, Ownable {
+contract PythOracle is IOracleProvider, UOwnable {
     /// @dev A Pyth update must come at least this long after a version to be valid
     uint256 constant private MIN_VALID_TIME_AFTER_VERSION = 12 seconds;
 
@@ -28,17 +28,20 @@ contract PythOracle is IOracleProvider, Ownable {
     /// @dev Pyth contract
     AbstractPyth public immutable pyth;
 
-    /// @dev Pyth price feed id
-    bytes32 public immutable priceId;
+    /// @dev Chainlink price feed for rewarding keeper in DSU
+    AggregatorV3Interface private immutable chainlinkFeed;
 
-    /// @dev List of all requested oracle versions
-    uint256[] public versionList;
+    /// @dev Keepers are incentivized in the DSU token
+    Token18 public immutable DSU;
+
+    /// @dev Pyth price feed id
+    bytes32 public priceId;
 
     /// @dev Keepers are incentivized with block.basefee * `_rewardMultiplier`.
     uint256 public rewardMultiplier;
 
-    /// @dev Keepers are incentivized in the DSU token
-    Token18 public immutable DSU;
+    /// @dev List of all requested oracle versions
+    uint256[] public versionList;
 
     /// @dev Mapping from oracle version to oracle version data
     mapping (uint256 => OracleVersion) private _versions;
@@ -46,30 +49,37 @@ contract PythOracle is IOracleProvider, Ownable {
     /// @dev Index in `versionList` of the next version a keeper should commit
     uint256 private _nextVersionIndexToCommit;
 
-    /// @dev Chainlink price feed for rewarding keeper in DSU
-    AggregatorV3Interface private immutable chainlinkFeed;
+    error PythOracleInvalidPriceIdError(bytes32 priceId);
+    error PythOracleNoNewVersionToCommitError();
+    error PythOracleInvalidVersionIndexError();
+    error PythOracleInvalidMessageValueError();
+    error PythOracleFailedToCalculateRewardError();
+    error PythOracleFailedToSendRewardError();
 
-    error PythOracleInvalidPriceId(bytes32 priceId);
-    error PythOracleNoNewVersionToCommit();
-    error PythOracleInvalidVersionIndex();
-    error PythOracleInvalidMessageValue();
-    error PythOracleFailedToCalculateReward();
-    error PythOracleFailedToSendReward();
+    /**
+     * @notice Initializes the immutable contract state
+     * @param pyth_ Pyth contract
+     * @param chainlinkFeed_ Chainlink price feed for rewarding keeper in DSU
+     * @param dsu_ Token to pay the keeper reward in
+     */
+    constructor(AbstractPyth pyth_, AggregatorV3Interface chainlinkFeed_, Token18 dsu_) {
+        pyth = pyth_;
+        chainlinkFeed = chainlinkFeed_;
+        DSU = dsu_;
+    }
 
     /**
      * @notice Initializes the contract state
-     * @param pyth_ Pyth contract
      * @param priceId_ price ID for Pyth price feed
-     * @param chainlinkFeed_ Chainlink price feed for rewarding keeper in DSU
+     * @param rewardMultiplier_ Multiplier bonus for keeper reward
      */
-    constructor(AbstractPyth pyth_, bytes32 priceId_, uint256 rewardMultiplier_, AggregatorV3Interface chainlinkFeed_, Token18 dsu_) {
-        if (!pyth_.priceFeedExists(priceId_)) revert PythOracleInvalidPriceId(priceId_);
+    function initialize(bytes32 priceId_, uint256 rewardMultiplier_) external initializer(1) {
+        __UOwnable__initialize();
 
-        pyth = pyth_;
+        if (!pyth.priceFeedExists(priceId_)) revert PythOracleInvalidPriceIdError(priceId_);
+
         priceId = priceId_;
         rewardMultiplier = rewardMultiplier_;
-        chainlinkFeed = chainlinkFeed_;
-        DSU = dsu_;
     }
 
     function updateRewardMultiplier(uint256 rewardMultiplier_) external onlyOwner {
@@ -88,7 +98,7 @@ contract PythOracle is IOracleProvider, Ownable {
 
         // TODO: Figure out what to do in the core protocol if no version has ever been committed.
         latestVersion = latest();
-        currentVersion = latestVersion.version == 0 ? 0 : block.timestamp;
+        currentVersion = latestVersion.timestamp == 0 ? 0 : block.timestamp;
     }
 
     /**
@@ -131,8 +141,8 @@ contract PythOracle is IOracleProvider, Ownable {
         // This check isn't necessary since the caller would not be able to produce a valid updateData
         // with an update time corresponding to a null version, but reverting with a specific error is
         // clearer.
-        if (_nextVersionIndexToCommit >= versionList.length) revert PythOracleNoNewVersionToCommit();
-        if (versionIndex < _nextVersionIndexToCommit) revert PythOracleInvalidVersionIndex();
+        if (_nextVersionIndexToCommit >= versionList.length) revert PythOracleNoNewVersionToCommitError();
+        if (versionIndex < _nextVersionIndexToCommit) revert PythOracleInvalidVersionIndexError();
 
         uint256 versionToCommit = versionList[versionIndex];
 
@@ -141,7 +151,7 @@ contract PythOracle is IOracleProvider, Ownable {
         bytes32[] memory priceIdList = new bytes32[](1);
         priceIdList[0] = priceId;
 
-        if (msg.value != pyth.getUpdateFee(updateDataList)) revert PythOracleInvalidMessageValue();
+        if (msg.value != pyth.getUpdateFee(updateDataList)) revert PythOracleInvalidMessageValueError();
 
         PythStructs.Price memory pythPrice = pyth.parsePriceFeedUpdates{value: pyth.getUpdateFee(updateDataList)}(
             updateDataList,
@@ -154,17 +164,19 @@ contract PythOracle is IOracleProvider, Ownable {
         if (versionIndex > _nextVersionIndexToCommit) {
             uint256 previousVersion = versionList[versionIndex - 1];
             // We can only skip the previous version if the grace period has expired
-            if (block.timestamp <= previousVersion + GRACE_PERIOD) revert PythOracleInvalidVersionIndex();
+            if (block.timestamp <= previousVersion + GRACE_PERIOD) revert PythOracleInvalidVersionIndexError();
 
             // If the update is valid for the previous version, we can't skip the previous version
-            if (pythPrice.publishTime >= previousVersion + MIN_VALID_TIME_AFTER_VERSION && pythPrice.publishTime <= previousVersion + MAX_VALID_TIME_AFTER_VERSION) revert PythOracleInvalidVersionIndex();
+            if (
+                pythPrice.publishTime >= previousVersion + MIN_VALID_TIME_AFTER_VERSION &&
+                pythPrice.publishTime <= previousVersion + MAX_VALID_TIME_AFTER_VERSION
+            ) revert PythOracleInvalidVersionIndexError();
         }
 
         Fixed6 multiplicand = Fixed6Lib.from(pythPrice.price);
-        Fixed6 multiplier = Fixed6Lib.from(SafeCast.toInt256(10 ** SafeCast.toUint256(pythPrice.expo > 0 ? pythPrice.expo: -pythPrice.expo)));
+        Fixed6 multiplier = Fixed6Lib.from(SafeCast.toInt256(10 ** SafeCast.toUint256(pythPrice.expo > 0 ? pythPrice.expo : -pythPrice.expo)));
 
         OracleVersion memory oracleVersion = OracleVersion({
-            version: versionToCommit,
             timestamp: versionToCommit,
             price: multiplicand.mul(multiplier),
             valid: true
@@ -175,10 +187,10 @@ contract PythOracle is IOracleProvider, Ownable {
         (uint80 roundID, int256 price, , uint256 updatedAt, uint80 answeredInRound) = chainlinkFeed.latestRoundData();
         // Check that the Chainlink data is valid
         if (answeredInRound < roundID || updatedAt == 0) {
-            revert PythOracleFailedToCalculateReward();
+            revert PythOracleFailedToCalculateRewardError();
         }
         if (price <= 0) {
-            revert PythOracleFailedToCalculateReward();
+            revert PythOracleFailedToCalculateRewardError();
         }
 
         DSU.push(rewardRecipient, UFixed18.wrap(block.basefee * rewardMultiplier * uint256(price) / (10 ** 8)));

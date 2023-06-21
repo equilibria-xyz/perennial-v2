@@ -88,7 +88,6 @@ export default function defaultConfig({
               interval: NODE_INTERVAL_MINING,
             }
           : undefined,
-        allowBlocksWithSameTimestamp: true,
       },
       goerli: createNetworkConfig('goerli'),
       kovan: createNetworkConfig('kovan'),

@@ -27,29 +27,29 @@ describe('PythOracle', () => {
     ;[owner, user] = await ethers.getSigners()
     oracle = await new PythOracle__factory(owner).deploy(
       PYTH_ADDRESS,
-      '0xff61491a931112ddf1bd8147cd1b641375f79f5825126d665480874634fd0ace', // Pyth ETH/USD priceId
-      1,
       '0x5f4eC3Df9cbd43714FE2740f5E3616155c5b8419', // Chainlink ETH/USD price feed
       '0x605D26FBd5be761089281d5cec2Ce86eeA667109', // DSU
+    )
+    await oracle.connect(owner).initialize(
+      '0xff61491a931112ddf1bd8147cd1b641375f79f5825126d665480874634fd0ace', // Pyth ETH/USD priceId
+      1,
     )
     dsu = IERC20Metadata__factory.connect('0x605D26FBd5be761089281d5cec2Ce86eeA667109', owner)
     const dsuHolder = await impersonateWithBalance('0x2d264EBDb6632A06A1726193D4d37FeF1E5dbDcd', utils.parseEther('10'))
     await dsu.connect(dsuHolder).transfer(oracle.address, utils.parseEther('100000'))
   })
 
-  describe('#constructor', async () => {
-    it('only constructs with a valid priceId', async () => {
+  describe('#initialize', async () => {
+    it('only initializes with a valid priceId', async () => {
       const invalidPriceId = '0xff61491a931112ddf1bd8147cd1b641375f79f5825126d665480874634fd0acd'
-      const factory = new PythOracle__factory(owner)
-      await expect(
-        factory.deploy(
-          PYTH_ADDRESS,
-          invalidPriceId,
-          1,
-          '0x5f4eC3Df9cbd43714FE2740f5E3616155c5b8419',
-          '0x605D26FBd5be761089281d5cec2Ce86eeA667109',
-        ),
-      ).to.reverted
+      const oracle = await new PythOracle__factory(owner).deploy(
+        PYTH_ADDRESS,
+        '0x5f4eC3Df9cbd43714FE2740f5E3616155c5b8419',
+        '0x605D26FBd5be761089281d5cec2Ce86eeA667109',
+      )
+      await expect(oracle.initialize(invalidPriceId, 1))
+        .to.be.revertedWithCustomError(oracle, 'PythOracleInvalidPriceIdError')
+        .withArgs(invalidPriceId)
     })
   })
 
@@ -60,7 +60,9 @@ describe('PythOracle', () => {
     })
 
     it('only the owner can update rewardMultiplier', async () => {
-      await expect(oracle.connect(user).updateRewardMultiplier(2)).to.revertedWith('Ownable: caller is not the owner')
+      await expect(oracle.connect(user).updateRewardMultiplier(2))
+        .to.revertedWithCustomError(oracle, 'UOwnableNotOwnerError')
+        .withArgs(user.address)
     })
   })
 
@@ -79,7 +81,10 @@ describe('PythOracle', () => {
 
     it('commits successfully and incentivizes the keeper', async () => {
       await oracle.connect(user).sync()
-      await expect(oracle.connect(user).commit(0, VAA, user.address)).to.revertedWith('PythOracleInvalidMessageValue()')
+      await expect(oracle.connect(user).commit(0, VAA, user.address)).to.revertedWithCustomError(
+        oracle,
+        'PythOracleInvalidMessageValueError',
+      )
     })
 
     it('does not commit a version that has already been committed', async () => {
@@ -92,7 +97,7 @@ describe('PythOracle', () => {
         oracle.connect(user).commit(0, VAA, user.address, {
           value: 1,
         }),
-      ).to.revertedWith('PythOracleInvalidVersionIndex()')
+      ).to.revertedWithCustomError(oracle, 'PythOracleInvalidVersionIndexError')
     })
 
     it('cannot commit if no version has been requested', async () => {
@@ -100,7 +105,7 @@ describe('PythOracle', () => {
         oracle.connect(user).commit(0, VAA, user.address, {
           value: 1,
         }),
-      ).to.revertedWith('PythOracleNoNewVersionToCommit()')
+      ).to.revertedWithCustomError(oracle, 'PythOracleNoNewVersionToCommitError')
     })
 
     it('rejects invalid update data', async () => {
@@ -119,7 +124,7 @@ describe('PythOracle', () => {
         oracle.connect(user).commit(1, VAA, user.address, {
           value: 1,
         }),
-      ).to.revertedWith('PythOracleInvalidVersionIndex()')
+      ).to.revertedWithCustomError(oracle, 'PythOracleInvalidVersionIndexError')
     })
 
     it('does not skip a version if the update is valid for the previous version', async () => {
@@ -129,7 +134,7 @@ describe('PythOracle', () => {
         oracle.connect(user).commit(1, VAA, user.address, {
           value: 1,
         }),
-      ).to.revertedWith('PythOracleInvalidVersionIndex()')
+      ).to.revertedWithCustomError(oracle, 'PythOracleInvalidVersionIndexError')
     })
 
     it('skips a version if the grace period has expired', async () => {
@@ -158,7 +163,6 @@ describe('PythOracle', () => {
       const syncResult = await oracle.connect(user).callStatic.sync()
       expect(syncResult.currentVersion).to.equal(0)
       const latestVersion = syncResult.latestVersion
-      expect(latestVersion.version).to.equal(0)
       expect(latestVersion.timestamp).to.equal(0)
       expect(latestVersion.price).to.equal(0)
       expect(latestVersion.valid).to.be.false
@@ -178,7 +182,6 @@ describe('PythOracle', () => {
 
     it('returns empty version if no version has ever been committed', async () => {
       const latestVersion = await oracle.connect(user).latest()
-      expect(latestVersion.version).to.equal(0)
       expect(latestVersion.timestamp).to.equal(0)
       expect(latestVersion.price).to.equal(0)
       expect(latestVersion.valid).to.be.false
@@ -193,6 +196,7 @@ describe('PythOracle', () => {
 
   describe('#atVersion', async () => {
     it('returns the correct version', async () => {
+      console.log()
       await oracle.connect(user).sync()
       await oracle.connect(user).commit(0, VAA, user.address, {
         value: 1,
@@ -204,7 +208,6 @@ describe('PythOracle', () => {
 
     it('returns empty version if that version was not requested', async () => {
       const version = await oracle.connect(user).at(1686198973)
-      expect(version.version).to.equal(0)
       expect(version.timestamp).to.equal(0)
       expect(version.price).to.equal(0)
       expect(version.valid).to.be.false
@@ -213,7 +216,6 @@ describe('PythOracle', () => {
     it('returns empty version if that version was requested but not committed', async () => {
       await oracle.connect(user).sync()
       const version = await oracle.connect(user).at(1686198973)
-      expect(version.version).to.equal(0)
       expect(version.timestamp).to.equal(0)
       expect(version.price).to.equal(0)
       expect(version.valid).to.be.false
