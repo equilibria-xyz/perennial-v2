@@ -23,11 +23,14 @@ import {
   IOracleProvider,
   OracleVersionStruct,
 } from '../../../types/generated/@equilibria/perennial-v2-oracle/contracts/IOracleProvider'
-import { MarketParameterStruct } from '../../../types/generated/@equilibria/perennial-v2/contracts/interfaces/IMarket'
+import {
+  MarketParameterStruct,
+  PController6Struct,
+} from '../../../types/generated/@equilibria/perennial-v2/contracts/interfaces/IMarket'
 import { PositionStruct } from '../../../types/generated/@equilibria/perennial-v2/contracts/interfaces/IMarket'
 
 import { parse6decimal } from '../../../../common/testutil/types'
-import { openPosition, setMarketPosition } from '../../helpers/types'
+import { openPosition, setMarketPosition, setPendingPosition } from '../../helpers/types'
 const ethers = { HRE }
 use(smock.matchers)
 
@@ -70,7 +73,6 @@ describe('MultiInvoker', () => {
 
     // Default mkt price: 1150
     const oracleVersion: OracleVersionStruct = {
-      version: BigNumber.from(0),
       timestamp: BigNumber.from(0),
       price: BigNumber.from(1150e6),
       valid: true,
@@ -79,6 +81,7 @@ describe('MultiInvoker', () => {
     const marketParam: MarketParameterStruct = {
       maintenance: '0',
       fundingFee: '0',
+      interestFee: '0',
       takerFee: '0',
       makerFee: '0',
       positionFee: '0',
@@ -92,6 +95,12 @@ describe('MultiInvoker', () => {
         maxRate: '0',
         targetRate: '0',
         targetUtilization: '0',
+      },
+      pController: {
+        value: '0',
+        _k: '0',
+        _skew: '0',
+        _max: '0',
       },
       oracle: oracle.address,
       payoff: payoff.address,
@@ -224,7 +233,6 @@ describe('MultiInvoker', () => {
 
     // Default mkt price: 1150
     const oracleVersion: OracleVersionStruct = {
-      version: BigNumber.from(0),
       timestamp: BigNumber.from(0),
       price: BigNumber.from(1150e6),
       valid: true,
@@ -325,15 +333,17 @@ describe('MultiInvoker', () => {
         collateral: collateral,
       })
 
+      dsu.transfer.returns(true)
+      setPendingPosition(market, user, 0, position)
+
       let placeOrder = helpers.buildPlaceOrder({ market: market.address, order: defaultOrder })
       await expect(multiInvoker.connect(user).invoke(placeOrder)).to.not.be.reverted
 
-      setMarketPosition(market, user, position)
-
       let execOrder = helpers.buildExecOrder({ user: user.address, market: market.address, orderId: 1 })
+
       await expect(multiInvoker.connect(user).invoke(execOrder))
         .to.emit(multiInvoker, 'OrderExecuted')
-        .to.not.emit(multiInvoker, 'KeeperFeeCharged') // user execing self => no keeper fee charged
+        .to.emit(multiInvoker, 'KeeperFeeCharged')
 
       // short limit: limit = true && mkt price (1150) >= exec price (|-1100|)
       defaultOrder.execPrice = BigNumber.from(-1000e6)
@@ -341,8 +351,12 @@ describe('MultiInvoker', () => {
       placeOrder = helpers.buildPlaceOrder({ market: market.address, order: defaultOrder })
       await multiInvoker.connect(user).invoke(placeOrder)
 
+      setPendingPosition(market, user, 0, position)
+
       execOrder = helpers.buildExecOrder({ user: user.address, market: market.address, orderId: 2 })
-      await expect(multiInvoker.connect(user).invoke(execOrder)).to.emit(multiInvoker, 'OrderExecuted')
+      await expect(multiInvoker.connect(user).invoke(execOrder))
+        .to.emit(multiInvoker, 'OrderExecuted')
+        .to.emit(multiInvoker, 'KeeperFeeCharged')
 
       // long tp / short sl: limit = false && mkt price (1150) >= exec price (|-1100|)
       defaultOrder.isLimit = false
@@ -351,7 +365,9 @@ describe('MultiInvoker', () => {
       await multiInvoker.connect(user).invoke(placeOrder)
 
       execOrder = helpers.buildExecOrder({ user: user.address, market: market.address, orderId: 3 })
-      await expect(multiInvoker.connect(user).invoke(execOrder)).to.emit(multiInvoker, 'OrderExecuted')
+      await expect(multiInvoker.connect(user).invoke(execOrder))
+        .to.emit(multiInvoker, 'OrderExecuted')
+        .to.emit(multiInvoker, 'KeeperFeeCharged')
 
       // long sl / short tp: limit = false && mkt price(1150) <= exec price 1200
       defaultOrder.execPrice = BigNumber.from(1200e6)
@@ -360,7 +376,9 @@ describe('MultiInvoker', () => {
       await multiInvoker.connect(user).invoke(placeOrder)
 
       execOrder = helpers.buildExecOrder({ user: user.address, market: market.address, orderId: 4 })
-      await expect(multiInvoker.connect(user).invoke(execOrder)).to.emit(multiInvoker, 'OrderExecuted')
+      await expect(multiInvoker.connect(user).invoke(execOrder))
+        .to.emit(multiInvoker, 'OrderExecuted')
+        .to.emit(multiInvoker, 'KeeperFeeCharged')
     })
 
     it('executes an order and charges keeper fee to sender', async () => {
@@ -378,7 +396,7 @@ describe('MultiInvoker', () => {
       const placeOrder = helpers.buildPlaceOrder({ market: market.address, order: defaultOrder })
       await expect(multiInvoker.connect(user).invoke(placeOrder)).to.not.be.reverted
 
-      setMarketPosition(market, user, position)
+      setPendingPosition(market, user, '0', position)
 
       // charge fee
       dsu.transfer.returns(true)
@@ -390,7 +408,7 @@ describe('MultiInvoker', () => {
       await expect(multiInvoker.connect(owner).invoke(execOrder))
         .to.emit(multiInvoker, 'OrderExecuted')
         .to.emit(multiInvoker, 'KeeperFeeCharged')
-        .withArgs(user.address, market.address, owner.address, BigNumber.from(3774300))
+        .withArgs(user.address, market.address, owner.address, BigNumber.from(3839850))
     })
   })
 })
