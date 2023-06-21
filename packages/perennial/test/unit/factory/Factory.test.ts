@@ -52,6 +52,7 @@ describe('Factory', () => {
       expect(parameter.paused).to.equal(false)
       expect(parameter.protocolFee).to.equal(0)
       expect(parameter.liquidationFee).to.equal(0)
+      expect(parameter.maxLiquidationFee).to.equal(0)
       expect(parameter.minCollateral).to.equal(0)
       expect(parameter.maxPendingIds).to.equal(0)
     })
@@ -147,6 +148,7 @@ describe('Factory', () => {
     const newParameter = {
       protocolFee: parse6decimal('0.50'),
       liquidationFee: parse6decimal('0.50'),
+      maxLiquidationFee: parse6decimal('1000'),
       minCollateral: parse6decimal('500'),
       maxPendingIds: BigNumber.from(5),
       paused: false,
@@ -159,6 +161,7 @@ describe('Factory', () => {
       expect(parameter.paused).to.equal(newParameter.paused)
       expect(parameter.protocolFee).to.equal(newParameter.protocolFee)
       expect(parameter.liquidationFee).to.equal(newParameter.liquidationFee)
+      expect(parameter.maxLiquidationFee).to.equal(newParameter.maxLiquidationFee)
       expect(parameter.minCollateral).to.equal(newParameter.minCollateral)
       expect(parameter.maxPendingIds).to.equal(newParameter.maxPendingIds)
     })

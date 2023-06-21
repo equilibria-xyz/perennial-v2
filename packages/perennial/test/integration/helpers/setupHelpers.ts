@@ -96,6 +96,7 @@ export async function deployProtocol(): Promise<InstanceVars> {
   await factory.updateParameter({
     protocolFee: parse6decimal('0.50'),
     liquidationFee: parse6decimal('0.50'),
+    maxLiquidationFee: parse6decimal('1000'),
     minCollateral: parse6decimal('500'),
     maxPendingIds: 8,
     paused: false,

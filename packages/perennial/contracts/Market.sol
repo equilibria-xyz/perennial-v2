@@ -185,7 +185,7 @@ contract Market is IMarket, UInitializable, UOwnable {
             context.latestVersion,
             context.marketParameter,
             context.protocolParameter
-        ).min(UFixed6Lib.from(token.balanceOf()));
+        ).min(context.protocolParameter.maxLiquidationFee).min(UFixed6Lib.from(token.balanceOf()));
 
         // close position
         _update(context, account, UFixed6Lib.ZERO, UFixed6Lib.ZERO, UFixed6Lib.ZERO, Fixed6Lib.from(-1, liquidationFee), true);
