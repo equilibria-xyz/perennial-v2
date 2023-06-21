@@ -62,7 +62,7 @@ describe('PythOracle', () => {
       const newDSUBalance = await dsu.callStatic.balanceOf(user.address)
 
       // TODO: Test that this number is correct.
-      expect(newDSUBalance.sub(originalDSUBalance)).to.be.eq('11427795569858312321')
+      expect(newDSUBalance.sub(originalDSUBalance)).to.be.eq('9821666003607741835')
     })
 
     it('commits successfully and incentivizes the keeper', async () => {

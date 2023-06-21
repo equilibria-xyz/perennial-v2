@@ -39,14 +39,11 @@ contract PythOracle is IOracleProvider, UOwnable {
     /// @dev Pyth price feed id
     bytes32 public id;
 
-    /// @dev Keepers are incentivized with block.basefee * `_rewardMultiplier`.
-    uint256 public rewardMultiplier;
-
     /// @dev List of all requested oracle versions
     uint256[] public versionList;
 
     /// @dev Mapping from oracle version to oracle version data
-    mapping (uint256 => OracleVersion) private _versions;
+    mapping(uint256 => Fixed6) private _prices;
 
     /// @dev Index in `versionList` of the next version a keeper should commit
     uint256 private _nextVersionIndexToCommit;
@@ -99,14 +96,13 @@ contract PythOracle is IOracleProvider, UOwnable {
 
     /**
      * @notice Returns the latest synced oracle version
-     * @return Latest oracle version
+     * @return latestVersion Latest oracle version
      */
-    function latest() public view returns (OracleVersion memory) {
-        if (_nextVersionIndexToCommit == 0) {
-            OracleVersion memory empty;
-            return empty;
-        }
-        return _versions[versionList[_nextVersionIndexToCommit - 1]];
+    function latest() public view returns (OracleVersion memory latestVersion) {
+        if (_nextVersionIndexToCommit == 0) return latestVersion;
+
+        uint256 timestamp = versionList[_nextVersionIndexToCommit - 1];
+        latestVersion = OracleVersion(timestamp, _prices[timestamp], true);
     }
 
     /**
@@ -119,11 +115,12 @@ contract PythOracle is IOracleProvider, UOwnable {
 
     /**
      * @notice Returns the oracle version at version `version`
-     * @param version The version of which to lookup
+     * @param timestamp The timestamp of which to lookup
      * @return oracleVersion Oracle version at version `version`
      */
-    function at(uint256 version) public view returns (OracleVersion memory oracleVersion) {
-        return _versions[version];
+    function at(uint256 timestamp) public view returns (OracleVersion memory oracleVersion) {
+        Fixed6 price = _prices[timestamp];
+        return OracleVersion(timestamp, price, !price.isZero());
     }
 
     /**
@@ -172,15 +169,8 @@ contract PythOracle is IOracleProvider, UOwnable {
             ) revert PythOracleInvalidVersionIndexError();
         }
 
-        Fixed6 multiplicand = Fixed6Lib.from(pythPrice.price);
-        Fixed6 multiplier = Fixed6Lib.from(SafeCast.toInt256(10 ** SafeCast.toUint256(pythPrice.expo > 0 ? pythPrice.expo : -pythPrice.expo)));
-
-        OracleVersion memory oracleVersion = OracleVersion({
-            timestamp: versionToCommit,
-            price: multiplicand.mul(multiplier),
-            valid: true
-        });
-        _versions[versionToCommit] = oracleVersion;
+        _prices[versionToCommit] = Fixed6Lib.from(pythPrice.price)
+            .mul(Fixed6Lib.from(SafeCast.toInt256(10 ** SafeCast.toUint256(pythPrice.expo > 0 ? pythPrice.expo : -pythPrice.expo))));
         _nextVersionIndexToCommit = _nextVersionIndexToCommit + 1;
 
         // TODO: cover ETH pyth price in incentive?
