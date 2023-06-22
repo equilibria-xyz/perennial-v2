@@ -137,6 +137,21 @@ describe('PythOracle', () => {
         value: 1,
       })
     })
+
+    it('does not allow committing a version earlier than the latest committed version', async () => {
+      await oracle.connect(user).sync()
+      await time.increase(59)
+      await oracle.connect(user).sync()
+      await oracle.connect(user).commit(1, VAA_AFTER_EXPIRATION, {
+        value: 1,
+      })
+      await oracle.connect(user).sync()
+      await expect(
+        oracle.connect(user).commit(0, VAA, {
+          value: 1,
+        }),
+      ).to.revertedWithCustomError(oracle, 'PythOracleVersionIndexTooLowError')
+    })
   })
 
   describe('#sync', async () => {
