@@ -4,15 +4,13 @@ pragma solidity 0.8.19;
 import "@equilibria/root/control/unstructured/UOwnable.sol";
 import "@openzeppelin/contracts/proxy/beacon/BeaconProxy.sol";
 import "./interfaces/IFactory.sol";
+import "@equilibria/root-v2/contracts/XBeacon.sol";
 
 /**
  * @title Factory
  * @notice Manages creating new markets and global protocol parameters.
  */
-contract Factory is IFactory, UOwnable {
-    /// @dev Market implementation address
-    address public immutable implementation;
-
+contract Factory is IFactory, XBeacon, UOwnable {
     ProtocolParameterStorage private _parameter;
 
     /// @dev Protocol pauser address. address(0) defaults to owner(0)
@@ -25,9 +23,7 @@ contract Factory is IFactory, UOwnable {
 
     mapping(IMarket => bool) public markets;
 
-    constructor(address implementation_) {
-        implementation = implementation_;
-    }
+    constructor(address implementation_) XBeacon(implementation_) { }
 
     /**
      * @notice Initializes the contract state

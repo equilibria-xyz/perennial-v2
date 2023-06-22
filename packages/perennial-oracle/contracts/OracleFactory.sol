@@ -6,33 +6,25 @@ import "@pythnetwork/pyth-sdk-solidity/AbstractPyth.sol";
 import "@openzeppelin/contracts/proxy/beacon/BeaconProxy.sol";
 import "./interfaces/IOracleFactory.sol";
 import "./interfaces/IOracle.sol";
+import "@equilibria/root-v2/contracts/XBeacon.sol";
 
 /**
  * @title OracleRegistry
  * @notice
  * @dev
  */
-contract OracleFactory is IOracleFactory, UOwnable {
+contract OracleFactory is IOracleFactory, XBeacon, UOwnable {
     error OracleFactoryInvalidIdError();
     error OracleFactoryAlreadyCreatedError();
     error OracleFactoryNotRegisteredError();
     error OracleFactoryNotCreatedError();
-
-    /// @dev Pyth oracle implementation
-    address public immutable implementation;
 
     mapping(bytes32 => IOracleProvider) public oracles;
     mapping(IOracleProvider => bytes32) public ids;
 
     mapping(IOracleFactory => bool) public factories;
 
-    /**
-     * @notice Initializes the immutable contract state
-     * @param implementation_ IPythOracle implementation contract
-     */
-    constructor(address implementation_) {
-        implementation = implementation_;
-    }
+    constructor(address implementation_) XBeacon(implementation_) { }
 
     /**
      * @notice Initializes the contract state

@@ -6,16 +6,14 @@ import "@pythnetwork/pyth-sdk-solidity/AbstractPyth.sol";
 import "@openzeppelin/contracts/proxy/beacon/BeaconProxy.sol";
 import "../interfaces/IPythOracle.sol";
 import "../interfaces/IOracleFactory.sol";
+import "@equilibria/root-v2/contracts/XBeacon.sol";
 
 /**
  * @title PythRegistry
  * @notice
  * @dev
  */
-contract PythRegistry is IBeacon, IOracleFactory, UOwnable {
-    /// @dev Pyth oracle implementation
-    address public immutable implementation;
-
+contract PythFactory is IBeacon, IOracleFactory, XBeacon, UOwnable {
     mapping(IOracleProvider => bytes32) public ids;
     mapping(bytes32 => IOracleProvider) public oracles;
 
@@ -23,9 +21,7 @@ contract PythRegistry is IBeacon, IOracleFactory, UOwnable {
      * @notice Initializes the immutable contract state
      * @param implementation_ IPythOracle implementation contract
      */
-    constructor(address implementation_) {
-        implementation = implementation_;
-    }
+    constructor(address implementation_) XBeacon(implementation_) { }
 
     /**
      * @notice Initializes the contract state
