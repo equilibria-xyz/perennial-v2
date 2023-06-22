@@ -2,7 +2,7 @@ import { SignerWithAddress } from '@nomiclabs/hardhat-ethers/signers'
 import { expect } from 'chai'
 import HRE from 'hardhat'
 
-import { IOracleProvider, SwappableOracle, SwappableOracle__factory } from '../../../types/generated'
+import { IOracleProvider, Oracle, Oracle__factory } from '../../../types/generated'
 import { FakeContract, smock } from '@defi-wonderland/smock'
 import { OracleVersionStruct } from '../../../types/generated/contracts/IOracleProvider'
 import { parse6decimal } from '../../../../common/testutil/types'
@@ -22,17 +22,17 @@ function mockVersion(
 
 // TODO: at tests w/ zero timestamp
 
-describe('SwappableOracle', () => {
+describe('Oracle', () => {
   let owner: SignerWithAddress
   let user: SignerWithAddress
 
-  let oracle: SwappableOracle
+  let oracle: Oracle
   let underlying0: FakeContract<IOracleProvider>
   let underlying1: FakeContract<IOracleProvider>
 
   beforeEach(async () => {
     ;[owner, user] = await ethers.getSigners()
-    oracle = await new SwappableOracle__factory(owner).deploy()
+    oracle = await new Oracle__factory(owner).deploy()
     underlying0 = await smock.fake<IOracleProvider>('IOracleProvider')
     underlying1 = await smock.fake<IOracleProvider>('IOracleProvider')
   })

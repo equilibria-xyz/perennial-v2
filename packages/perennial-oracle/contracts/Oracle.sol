@@ -2,19 +2,19 @@
 pragma solidity 0.8.19;
 
 import "@equilibria/root/control/unstructured/UOwnable.sol";
-import "../interfaces/IOracleProvider.sol";
+import "./interfaces/IOracle.sol";
 
-contract SwappableOracle is IOracleProvider, UOwnable {
-    error SwappableOracleOutOfOrderCommitError();
+contract Oracle is IOracle, UOwnable {
+    error OracleOutOfOrderCommitError();
 
     event OracleUpdated(IOracleProvider newProvider);
 
-    struct Oracle {
+    struct Checkpoint { // TODO: naming
         IOracleProvider provider;
         uint96 timestamp;
     }
 
-    mapping(uint256 => Oracle) public oracles;
+    mapping(uint256 => Checkpoint) public oracles;
     uint256 public currentOracle;
     uint256 public latestOracle;
 
@@ -58,7 +58,7 @@ contract SwappableOracle is IOracleProvider, UOwnable {
     }
 
     function _updateCurrent(IOracleProvider newProvider) private {
-        oracles[++currentOracle] = Oracle(newProvider, 0);
+        oracles[++currentOracle] = Checkpoint(newProvider, 0);
         emit OracleUpdated(newProvider);
     }
 

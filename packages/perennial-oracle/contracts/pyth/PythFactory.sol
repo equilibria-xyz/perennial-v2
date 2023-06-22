@@ -5,20 +5,19 @@ import "@equilibria/root/control/unstructured/UOwnable.sol";
 import "@pythnetwork/pyth-sdk-solidity/AbstractPyth.sol";
 import "@openzeppelin/contracts/proxy/beacon/BeaconProxy.sol";
 import "../interfaces/IPythOracle.sol";
+import "../interfaces/IOracleFactory.sol";
 
 /**
  * @title PythRegistry
  * @notice
  * @dev
  */
-contract PythRegistry is IBeacon, UOwnable {
-    event OracleCreated(IPythOracle indexed oracle, bytes32 indexed priceId);
-
+contract PythRegistry is IBeacon, IOracleFactory, UOwnable {
     /// @dev Pyth oracle implementation
     address public immutable implementation;
 
-    mapping(IPythOracle => bool) public isOracle;
-    mapping(bytes32 => IPythOracle) public oracles;
+    mapping(IOracleProvider => bytes32) public ids;
+    mapping(bytes32 => IOracleProvider) public oracles;
 
     /**
      * @notice Initializes the immutable contract state
@@ -35,10 +34,10 @@ contract PythRegistry is IBeacon, UOwnable {
         __UOwnable__initialize();
     }
 
-    function create(bytes32 id) external onlyOwner returns (IPythOracle newOracle) {
-        newOracle = IPythOracle(address(new BeaconProxy(address(this), abi.encodeCall(IPythOracle.initialize, (id)))));
-        isOracle[newOracle] = true;
-        oracles[id] = newOracle;
-        emit OracleCreated(newOracle, id);
+    function create(bytes32 id) external onlyOwner returns (IOracleProvider oracle) {
+        oracle = IOracleProvider(address(new BeaconProxy(address(this), abi.encodeCall(IPythOracle.initialize, (id)))));
+        ids[oracle] = id;
+        oracles[id] = oracle;
+        emit OracleCreated(oracle, id);
     }
 }

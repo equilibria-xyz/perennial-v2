@@ -8,6 +8,8 @@ import "@openzeppelin/contracts/utils/math/SafeCast.sol";
 import "@pythnetwork/pyth-sdk-solidity/AbstractPyth.sol";
 import "../interfaces/IOracleProvider.sol";
 
+// TODO: do we need to mod timestamp to batch versions?
+
 /**
  * @title PythOracle
  * @notice Pyth implementation of the IOracle interface.
