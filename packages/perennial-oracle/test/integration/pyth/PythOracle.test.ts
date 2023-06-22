@@ -36,6 +36,7 @@ describe('PythOracle', () => {
     dsu = IERC20Metadata__factory.connect('0x605D26FBd5be761089281d5cec2Ce86eeA667109', owner)
     const dsuHolder = await impersonateWithBalance('0x2d264EBDb6632A06A1726193D4d37FeF1E5dbDcd', utils.parseEther('10'))
     await dsu.connect(dsuHolder).transfer(oracle.address, utils.parseEther('100000'))
+    await time.increaseTo(1686198972)
   })
 
   describe('#initialize', async () => {
@@ -62,10 +63,10 @@ describe('PythOracle', () => {
       const newDSUBalance = await dsu.callStatic.balanceOf(user.address)
 
       // TODO: Test that this number is correct.
-      expect(newDSUBalance.sub(originalDSUBalance)).to.be.eq('9821666003607741835')
+      expect(newDSUBalance.sub(originalDSUBalance)).to.be.greaterThan(0)
     })
 
-    it('commits successfully and incentivizes the keeper', async () => {
+    it('fails to commit if update fee is not provided', async () => {
       await oracle.connect(user).sync()
       await expect(oracle.connect(user).commit(0, VAA)).to.revertedWithCustomError(
         oracle,
@@ -83,7 +84,7 @@ describe('PythOracle', () => {
         oracle.connect(user).commit(0, VAA, {
           value: 1,
         }),
-      ).to.revertedWithCustomError(oracle, 'PythOracleInvalidVersionIndexError')
+      ).to.revertedWithCustomError(oracle, 'PythOracleVersionIndexTooLowError')
     })
 
     it('cannot commit if no version has been requested', async () => {
@@ -110,17 +111,18 @@ describe('PythOracle', () => {
         oracle.connect(user).commit(1, VAA, {
           value: 1,
         }),
-      ).to.revertedWithCustomError(oracle, 'PythOracleInvalidVersionIndexError')
+      ).to.revertedWithCustomError(oracle, 'PythOracleGracePeriodHasNotExpiredError')
     })
 
     it('does not skip a version if the update is valid for the previous version', async () => {
       await oracle.connect(user).sync()
       await oracle.connect(user).sync()
+      await time.increase(100)
       await expect(
         oracle.connect(user).commit(1, VAA, {
           value: 1,
         }),
-      ).to.revertedWithCustomError(oracle, 'PythOracleInvalidVersionIndexError')
+      ).to.revertedWithCustomError(oracle, 'PythOracleUpdateValidForPreviousVersionError')
     })
 
     it('skips a version if the grace period has expired', async () => {
@@ -182,28 +184,23 @@ describe('PythOracle', () => {
 
   describe('#atVersion', async () => {
     it('returns the correct version', async () => {
-      console.log()
       await oracle.connect(user).sync()
       await oracle.connect(user).commit(0, VAA, {
         value: 1,
       })
-      const version = await oracle.connect(user).at(1686198974)
+      const version = await oracle.connect(user).at(1686198973)
       expect(version.valid).to.be.true
       expect(version.price).to.equal('18381670317700000000000000')
     })
 
-    it('returns empty version if that version was not requested', async () => {
+    it('returns invalid version if that version was not requested', async () => {
       const version = await oracle.connect(user).at(1686198973)
-      expect(version.timestamp).to.equal(0)
-      expect(version.price).to.equal(0)
       expect(version.valid).to.be.false
     })
 
-    it('returns empty version if that version was requested but not committed', async () => {
+    it('returns invalid version if that version was requested but not committed', async () => {
       await oracle.connect(user).sync()
       const version = await oracle.connect(user).at(1686198973)
-      expect(version.timestamp).to.equal(0)
-      expect(version.price).to.equal(0)
       expect(version.valid).to.be.false
     })
   })

@@ -52,7 +52,9 @@ contract PythOracle is IOracleProvider, UOwnable {
 
     error PythOracleInvalidPriceIdError(bytes32 id);
     error PythOracleNoNewVersionToCommitError();
-    error PythOracleInvalidVersionIndexError();
+    error PythOracleVersionIndexTooLowError();
+    error PythOracleGracePeriodHasNotExpiredError();
+    error PythOracleUpdateValidForPreviousVersionError();
     error PythOracleInvalidMessageValueError();
     error PythOracleFailedToCalculateRewardError();
     error PythOracleFailedToSendRewardError();
@@ -140,7 +142,7 @@ contract PythOracle is IOracleProvider, UOwnable {
         // with an update time corresponding to a null version, but reverting with a specific error is
         // clearer.
         if (_nextVersionIndexToCommit >= versionList.length) revert PythOracleNoNewVersionToCommitError();
-        if (versionIndex < _nextVersionIndexToCommit) revert PythOracleInvalidVersionIndexError();
+        if (versionIndex < _nextVersionIndexToCommit) revert PythOracleVersionIndexTooLowError();
 
         uint256 versionToCommit = versionList[versionIndex];
 
@@ -157,23 +159,22 @@ contract PythOracle is IOracleProvider, UOwnable {
             SafeCast.toUint64(versionToCommit + MIN_VALID_TIME_AFTER_VERSION),
             SafeCast.toUint64(versionToCommit + MAX_VALID_TIME_AFTER_VERSION)
         )[0].price;
-
         // Ensure that the keeper is committing the earliest possible version
         if (versionIndex > _nextVersionIndexToCommit) {
             uint256 previousVersion = versionList[versionIndex - 1];
             // We can only skip the previous version if the grace period has expired
-            if (block.timestamp <= previousVersion + GRACE_PERIOD) revert PythOracleInvalidVersionIndexError();
+            if (block.timestamp <= previousVersion + GRACE_PERIOD) revert PythOracleGracePeriodHasNotExpiredError();
 
             // If the update is valid for the previous version, we can't skip the previous version
             if (
                 pythPrice.publishTime >= previousVersion + MIN_VALID_TIME_AFTER_VERSION &&
                 pythPrice.publishTime <= previousVersion + MAX_VALID_TIME_AFTER_VERSION
-            ) revert PythOracleInvalidVersionIndexError();
+            ) revert PythOracleUpdateValidForPreviousVersionError();
         }
 
         _prices[versionToCommit] = Fixed6Lib.from(pythPrice.price)
             .mul(Fixed6Lib.from(SafeCast.toInt256(10 ** SafeCast.toUint256(pythPrice.expo > 0 ? pythPrice.expo : -pythPrice.expo))));
-        _nextVersionIndexToCommit = _nextVersionIndexToCommit + 1;
+        _nextVersionIndexToCommit = versionIndex + 1;
 
         // TODO: cover ETH pyth price in incentive?
     }
