@@ -3,7 +3,6 @@ pragma solidity ^0.8.13;
 
 import "@equilibria/perennial-v2-oracle/contracts/types/OracleVersion.sol";
 import "./MarketParameter.sol";
-import "hardhat/console.sol";
 
 /// @dev Order type
 struct Order {

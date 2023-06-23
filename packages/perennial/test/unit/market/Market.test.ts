@@ -8,6 +8,7 @@ import HRE from 'hardhat'
 //TODO (coverage hint): invalid version test
 //TODO (coverage hint): multi-version test w/ collateral change
 //TODO (coverage hint): makerFee coverage
+//TODO (coverage hint): skew/impactFee coverage
 
 import { impersonate } from '../../../../common/testutil'
 

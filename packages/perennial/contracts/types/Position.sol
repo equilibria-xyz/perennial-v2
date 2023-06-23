@@ -79,18 +79,14 @@ library PositionLib {
             Fixed6Lib.from(newShort).sub(Fixed6Lib.from(self.short))
         );
 
-        (self.id, self.timestamp, self.maker, self.long, self.short, self.fee) = (
-            currentId,
-            currentTimestamp,
-            newMaker,
-            newLong,
-            newShort,
-            self.id == currentId ? self.fee.add(newOrder.fee) : newOrder.fee
-        );
+        (self.id, self.timestamp, self.maker, self.long, self.short) =
+            (currentId, currentTimestamp, newMaker, newLong, newShort);
 
         newOrder.skew = skew(self).sub(latestSkew).abs();
         newOrder.impact = Fixed6Lib.from(skew(self).abs()).sub(Fixed6Lib.from(latestSkew.abs()));
+
         newOrder.registerFee(latestVersion, marketParameter);
+        self.fee = self.id == currentId ? self.fee.add(newOrder.fee) : newOrder.fee;
     }
 
     /// @dev update the current global position
