@@ -111,6 +111,7 @@ describe('Vault', () => {
 
     const parameter = { ...(await instanceVars.factory.parameter()) }
     parameter.minCollateral = parse6decimal('50')
+    parameter.maxLiquidationFee = parse6decimal('25000')
     await instanceVars.factory.updateParameter(parameter)
 
     let pauser
