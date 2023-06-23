@@ -20,7 +20,6 @@ struct MarketParameter {
     UFixed6 makerImpactFee;
     UFixed6 positionFee;
     UFixed6 makerLimit;
-    bool closed;
     UFixed6 makerRewardRate;
     UFixed6 longRewardRate;
     UFixed6 shortRewardRate;
@@ -28,6 +27,8 @@ struct MarketParameter {
     PController6 pController; // TODO: should these all be stored in params and not global?
     IOracleProvider oracle;
     IPayoffProvider payoff;
+    bool makerReceiveOnly;
+    bool closed;
 }
 struct StoredMarketParameter {
     /* slot 1 */
@@ -35,9 +36,9 @@ struct StoredMarketParameter {
     uint24 maintenance; // <= 1677%
     uint24 fundingFee;  // <= 1677%
     uint24 positionFee; // <= 1677%
+    bool makerReceiveOnly;
     bool closed;
     bool fuse;
-    bytes1 __unallocated0__;
 
     /* slot 2 */
     address payoff;
@@ -88,7 +89,6 @@ library MarketParameterStorageLib {
             UFixed6.wrap(uint256(value.makerImpactFee)),
             UFixed6.wrap(uint256(value.positionFee)),
             UFixed6.wrap(uint256(value.makerLimit)),
-            value.closed,
             UFixed6.wrap(uint256(value.makerRewardRate)),
             UFixed6.wrap(uint256(value.longRewardRate)),
             UFixed6.wrap(uint256(value.shortRewardRate)),
@@ -105,7 +105,9 @@ library MarketParameterStorageLib {
                 UFixed6.wrap(uint256(value.pControllerMax))
             ),
             IOracleProvider(value.oracle),
-            IPayoffProvider(value.payoff)
+            IPayoffProvider(value.payoff),
+            value.makerReceiveOnly,
+            value.closed
         );
     }
 
@@ -152,7 +154,6 @@ library MarketParameterStorageLib {
             makerImpactFee: uint24(UFixed6.unwrap(newValue.makerImpactFee)),
             positionFee: uint24(UFixed6.unwrap(newValue.positionFee)),
             makerLimit: uint48(UFixed6.unwrap(newValue.makerLimit)),
-            closed: newValue.closed,
             makerRewardRate: uint32(UFixed6.unwrap(newValue.makerRewardRate)),
             longRewardRate: uint32(UFixed6.unwrap(newValue.longRewardRate)),
             shortRewardRate: uint32(UFixed6.unwrap(newValue.shortRewardRate)),
@@ -166,8 +167,9 @@ library MarketParameterStorageLib {
             pControllerMax: uint32(UFixed6.unwrap(newValue.pController._max)),
             oracle: address(newValue.oracle),
             payoff: address(newValue.payoff),
+            makerReceiveOnly: newValue.makerReceiveOnly,
+            closed: newValue.closed,
             fuse: true,
-            __unallocated0__: bytes1(0),
             __unallocated1__: bytes2(0),
             __unallocated2__: bytes7(0)
         });

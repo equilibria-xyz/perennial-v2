@@ -122,6 +122,10 @@ library VersionLib {
             position.takerSocialized().mul(fromOracleVersion.price.abs())
         );
 
+        // Handle maker receive-only status
+        if (marketParameter.makerReceiveOnly && funding.sign() != position.skew().sign())
+            funding = funding.mul(Fixed6Lib.NEG_ONE);
+
         // Compute fee spread
         fundingFee = funding.abs().mul(marketParameter.fundingFee);
         Fixed6 fundingSpread = Fixed6Lib.from(fundingFee.div(UFixed6Lib.from(2)));
