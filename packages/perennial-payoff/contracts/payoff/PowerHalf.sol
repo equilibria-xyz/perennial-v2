@@ -1,12 +1,12 @@
 // SPDX-License-Identifier: Apache-2.0
 pragma solidity 0.8.19;
 
-import "@openzeppelin/contracts/utils/math/SignedMath.sol";
 import "@openzeppelin/contracts/utils/math/Math.sol";
 import "../IPayoffProvider.sol";
 
-contract SquareRoot is IPayoffProvider {
+contract PowerHalf is IPayoffProvider {
+    uint256 private constant BASE = 1e6;
     function payoff(Fixed6 price) external pure override returns (Fixed6) {
-        return Fixed6.wrap(int256(Math.sqrt(SignedMath.abs(Fixed6.unwrap(price)) * 1e6)));
+        return Fixed6Lib.from(UFixed6.wrap(Math.sqrt(UFixed6.unwrap(price.abs()) * BASE)));
     }
 }
