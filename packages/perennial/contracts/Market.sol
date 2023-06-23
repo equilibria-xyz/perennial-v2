@@ -216,12 +216,15 @@ contract Market is IMarket, UInitializable, UOwnable {
             context.currentTimestamp,
             newMaker,
             newLong,
-            newShort,
-            context.latestVersion,
-            context.marketParameter
+            newShort
         );
         if (context.currentTimestamp > context.pendingPosition.timestamp) context.global.currentId++;
         context.pendingPosition.update(context.global.currentId, context.currentTimestamp, newOrder);
+
+        // update fee
+        newOrder.registerFee(context.latestVersion, context.marketParameter);
+        context.accountPendingPosition.registerFee(newOrder);
+        context.pendingPosition.registerFee(newOrder);
 
         // update collateral
         Fixed6 collateralAmount = collateral.eq(Fixed6Lib.MIN) ? context.local.collateral.mul(Fixed6Lib.NEG_ONE) : collateral;

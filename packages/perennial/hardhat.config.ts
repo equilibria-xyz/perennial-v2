@@ -7,7 +7,7 @@ const config = defaultConfig({
       settings: {
         optimizer: {
           enabled: OPTIMIZER_ENABLED,
-          runs: 1900,
+          runs: 1,
         },
         viaIR: true,
       },

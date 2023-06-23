@@ -969,7 +969,7 @@ describe('Happy Path', () => {
     expect((await market.parameter()).pController.value).to.eq(parse6decimal('-1.20'))
   })
 
-  it.only('delayed update w/ collateral (gas)', async () => {
+  it('delayed update w/ collateral (gas)', async () => {
     const positionFeesOn = true
     const incentizesOn = true
 
@@ -1036,7 +1036,7 @@ describe('Happy Path', () => {
     // Check user is in the correct state
     expectLocalEq(await market.locals(user.address), {
       currentId: 3,
-      collateral: '986336352',
+      collateral: '985774741',
       reward: '24669998',
       liquidation: 0,
     })
@@ -1060,8 +1060,8 @@ describe('Happy Path', () => {
     // Check global state
     expectGlobalEq(await market.global(), {
       currentId: 3,
-      protocolFee: '494018',
-      marketFee: '494021',
+      protocolFee: '395176',
+      marketFee: '395178',
     })
     expectPositionEq(await market.pendingPosition(3), {
       id: 3,
@@ -1080,7 +1080,7 @@ describe('Happy Path', () => {
       fee: 0,
     })
     expectVersionEq(await market.versions(TIMESTAMP_4), {
-      makerValue: { _value: '-354544089095' },
+      makerValue: { _value: '-357211058792' },
       longValue: { _value: '362094018785' },
       shortValue: { _value: 0 },
       makerReward: { _value: '606836363635' },

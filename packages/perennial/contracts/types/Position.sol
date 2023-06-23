@@ -67,43 +67,45 @@ library PositionLib {
         uint256 currentTimestamp,
         UFixed6 newMaker,
         UFixed6 newLong,
-        UFixed6 newShort,
-        OracleVersion memory latestVersion,
-        MarketParameter memory marketParameter
+        UFixed6 newShort
     ) internal pure returns (Order memory newOrder) {
-        Fixed6 latestSkew = skew(self);
-
         (newOrder.maker, newOrder.long, newOrder.short) = (
             Fixed6Lib.from(newMaker).sub(Fixed6Lib.from(self.maker)),
             Fixed6Lib.from(newLong).sub(Fixed6Lib.from(self.long)),
             Fixed6Lib.from(newShort).sub(Fixed6Lib.from(self.short))
         );
 
+        if (self.id == currentId) self.fee = UFixed6Lib.ZERO;
         (self.id, self.timestamp, self.maker, self.long, self.short) =
             (currentId, currentTimestamp, newMaker, newLong, newShort);
-
-        newOrder.skew = skew(self).sub(latestSkew).abs();
-        newOrder.impact = Fixed6Lib.from(skew(self).abs()).sub(Fixed6Lib.from(latestSkew.abs()));
-
-        newOrder.registerFee(latestVersion, marketParameter);
-        self.fee = self.id == currentId ? self.fee.add(newOrder.fee) : newOrder.fee;
     }
 
     /// @dev update the current global position
     function update(Position memory self, uint256 currentId, uint256 currentTimestamp, Order memory order) internal pure {
-        (self.id, self.timestamp, self.maker, self.long, self.short, self.fee) = (
+        Fixed6 latestSkew = skew(self);
+
+        if (self.id == currentId) self.fee = UFixed6Lib.ZERO;
+        (self.id, self.timestamp, self.maker, self.long, self.short) = (
             currentId,
             currentTimestamp,
             UFixed6Lib.from(Fixed6Lib.from(self.maker).add(order.maker)),
             UFixed6Lib.from(Fixed6Lib.from(self.long).add(order.long)),
-            UFixed6Lib.from(Fixed6Lib.from(self.short).add(order.short)),
-            self.id == currentId ? self.fee.add(order.fee) : order.fee
+            UFixed6Lib.from(Fixed6Lib.from(self.short).add(order.short))
+        );
+
+        (order.skew, order.impact) = (
+            skew(self).sub(latestSkew).abs(),
+            Fixed6Lib.from(skew(self).abs()).sub(Fixed6Lib.from(latestSkew.abs()))
         );
     }
 
     /// @dev update the collateral delta of the local position
     function update(Position memory self, Fixed6 collateralAmount) internal pure {
         self.delta = self.delta.add(collateralAmount);
+    }
+
+    function registerFee(Position memory self, Order memory order) internal pure {
+        self.fee = self.fee.add(order.fee);
     }
 
     function magnitude(Position memory self) internal pure returns (UFixed6) {
