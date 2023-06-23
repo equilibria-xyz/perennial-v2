@@ -60,7 +60,6 @@ describe('Happy Path', () => {
       positionFee: 0,
       makerLiquidity: parse6decimal('0.2'),
       makerLimit: parse6decimal('1'),
-      closed: true,
       utilizationCurve: {
         minRate: 0,
         maxRate: parse6decimal('5.00'),
@@ -78,6 +77,8 @@ describe('Happy Path', () => {
       shortRewardRate: 0,
       oracle: chainlink.oracle.address,
       payoff: payoff.address,
+      makerReceiveOnly: false,
+      closed: true,
     }
     const marketAddress = await factory.callStatic.createMarket(definition, parameter)
     await expect(factory.createMarket(definition, parameter)).to.emit(factory, 'MarketCreated')
@@ -990,7 +991,6 @@ describe('Happy Path', () => {
       positionFee: positionFeesOn ? parse6decimal('0.1') : 0,
       makerLiquidity: parse6decimal('0.2'),
       makerLimit: parse6decimal('1'),
-      closed: false,
       utilizationCurve: {
         minRate: 0,
         maxRate: parse6decimal('5.00'),
@@ -1008,6 +1008,8 @@ describe('Happy Path', () => {
       shortRewardRate: incentizesOn ? parse6decimal('0.001') : 0,
       oracle: chainlink.oracle.address,
       payoff: payoff.address,
+      makerReceiveOnly: false,
+      closed: false,
     }
 
     const market = await createMarket(instanceVars)
@@ -1120,7 +1122,6 @@ describe('Happy Path', () => {
       positionFee: positionFeesOn ? parse6decimal('0.1') : 0,
       makerLiquidity: parse6decimal('0.2'),
       makerLimit: parse6decimal('1'),
-      closed: false,
       utilizationCurve: {
         minRate: 0,
         maxRate: parse6decimal('5.00'),
@@ -1138,6 +1139,8 @@ describe('Happy Path', () => {
       shortRewardRate: incentizesOn ? parse6decimal('0.001') : 0,
       oracle: chainlink.oracle.address,
       payoff: payoff.address,
+      makerReceiveOnly: false,
+      closed: false,
     }
 
     const market = await createMarket(

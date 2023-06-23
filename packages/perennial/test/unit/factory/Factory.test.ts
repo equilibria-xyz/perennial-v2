@@ -117,7 +117,6 @@ describe('Factory', () => {
         positionFee: 0,
         makerLiquidity: parse6decimal('0.2'),
         makerLimit: parse6decimal('1000'),
-        closed: false,
         utilizationCurve: {
           minRate: parse6decimal('0.10'),
           maxRate: parse6decimal('0.10'),
@@ -135,6 +134,8 @@ describe('Factory', () => {
         shortRewardRate: 0,
         oracle: oracle.address,
         payoff: payoffProvider.address,
+        makerReceiveOnly: false,
+        closed: false,
       }
 
       const marketAddress = await factory.callStatic.createMarket(marketDefinition, marketParameter)

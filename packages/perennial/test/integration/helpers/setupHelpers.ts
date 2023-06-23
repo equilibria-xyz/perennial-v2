@@ -171,7 +171,6 @@ export async function createMarket(
     positionFee: 0,
     makerLiquidity: parse6decimal('0.2'),
     makerLimit: parse6decimal('1000'),
-    closed: false,
     utilizationCurve: {
       minRate: 0,
       maxRate: parse6decimal('5.00'),
@@ -189,6 +188,8 @@ export async function createMarket(
     shortRewardRate: 0,
     oracle: (oracle ?? chainlink.oracle).address,
     payoff: (payoff ?? instanceVars.payoff).address,
+    makerReceiveOnly: false,
+    closed: false,
   }
   const marketAddress = await factory.callStatic.createMarket(definition, parameter)
   await factory.createMarket(definition, parameter)

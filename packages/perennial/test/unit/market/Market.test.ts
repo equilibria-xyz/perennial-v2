@@ -222,7 +222,6 @@ describe('Market', () => {
       makerImpactFee: 0,
       positionFee: 0,
       makerLimit: parse6decimal('1000'),
-      closed: false,
       utilizationCurve: {
         minRate: parse6decimal('0.0'),
         maxRate: parse6decimal('1.00'),
@@ -240,6 +239,8 @@ describe('Market', () => {
       shortRewardRate: parse6decimal('0.1'),
       oracle: oracle.address,
       payoff: constants.AddressZero,
+      makerReceiveOnly: false,
+      closed: false,
     }
     market = await new Market__factory(owner).deploy()
   })
@@ -277,6 +278,8 @@ describe('Market', () => {
       expect(parameter.shortRewardRate).to.equal(marketParameter.shortRewardRate)
       expect(parameter.oracle).to.equal(marketParameter.oracle)
       expect(parameter.payoff).to.equal(marketParameter.payoff)
+      expect(parameter.makerReceiveOnly).to.equal(marketParameter.makerReceiveOnly)
+      expect(parameter.closed).to.equal(marketParameter.closed)
     })
 
     it('reverts if already initialized', async () => {
@@ -341,7 +344,6 @@ describe('Market', () => {
           positionFee: parse6decimal('0.1'),
           makerLiquidity: parse6decimal('0.1'),
           makerLimit: parse6decimal('2000'),
-          closed: true,
           utilizationCurve: {
             minRate: parse6decimal('0.20'),
             maxRate: parse6decimal('0.20'),
@@ -359,6 +361,8 @@ describe('Market', () => {
           shortRewardRate: parse6decimal('0.1'),
           oracle: marketParameter.oracle,
           payoff: marketParameter.payoff,
+          makerReceiveOnly: true,
+          closed: true,
         }
 
         await expect(market.connect(owner).updateParameter(newMarketParameter)).to.emit(market, 'ParameterUpdated')
@@ -385,6 +389,8 @@ describe('Market', () => {
         expect(parameter.shortRewardRate).to.equal(newMarketParameter.shortRewardRate)
         expect(parameter.oracle).to.equal(newMarketParameter.oracle)
         expect(parameter.payoff).to.equal(newMarketParameter.payoff)
+        expect(parameter.makerReceiveOnly).to.equal(newMarketParameter.makerReceiveOnly)
+        expect(parameter.closed).to.equal(newMarketParameter.closed)
       })
 
       it('reverts when updating (oracle)', async () => {
@@ -401,7 +407,6 @@ describe('Market', () => {
           positionFee: parse6decimal('0.1'),
           makerLiquidity: parse6decimal('0.1'),
           makerLimit: parse6decimal('2000'),
-          closed: true,
           utilizationCurve: {
             minRate: parse6decimal('0.20'),
             maxRate: parse6decimal('0.20'),
@@ -419,6 +424,8 @@ describe('Market', () => {
           shortRewardRate: parse6decimal('0.1'),
           oracle: constants.AddressZero,
           payoff: marketParameter.payoff,
+          makerReceiveOnly: true,
+          closed: true,
         }
 
         await expect(market.connect(owner).updateParameter(newMarketParameter)).to.revertedWithCustomError(
@@ -441,7 +448,6 @@ describe('Market', () => {
           positionFee: parse6decimal('0.1'),
           makerLiquidity: parse6decimal('0.1'),
           makerLimit: parse6decimal('2000'),
-          closed: true,
           utilizationCurve: {
             minRate: parse6decimal('0.20'),
             maxRate: parse6decimal('0.20'),
@@ -459,6 +465,8 @@ describe('Market', () => {
           shortRewardRate: parse6decimal('0.1'),
           oracle: marketParameter.oracle,
           payoff: user.address,
+          makerReceiveOnly: true,
+          closed: true,
         }
 
         await expect(market.connect(owner).updateParameter(newMarketParameter)).to.be.revertedWithCustomError(

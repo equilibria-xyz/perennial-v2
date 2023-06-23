@@ -46,7 +46,6 @@ export async function deployProductOnMainnetFork({
     makerImpactFee: makerImpactFee ?? parse6decimal('0.0'),
     positionFee: positionFee ?? parse6decimal('0.0'),
     makerLimit: makerLimit ?? parse6decimal('100'),
-    closed: false,
     makerRewardRate: 0,
     longRewardRate: 0,
     shortRewardRate: 0,
@@ -64,6 +63,8 @@ export async function deployProductOnMainnetFork({
     },
     oracle: oracle ?? constants.AddressZero,
     payoff: constants.AddressZero,
+    makerReceiveOnly: false,
+    closed: false,
   }
   const marketDefinition: IMarket.MarketDefinitionStruct = {
     name: name,
