@@ -71,12 +71,13 @@ library PositionLib {
         OracleVersion memory latestVersion,
         MarketParameter memory marketParameter
     ) internal pure returns (Order memory newOrder) {
+        Fixed6 latestSkew = skew(self);
+
         (newOrder.maker, newOrder.long, newOrder.short) = (
             Fixed6Lib.from(newMaker).sub(Fixed6Lib.from(self.maker)),
             Fixed6Lib.from(newLong).sub(Fixed6Lib.from(self.long)),
-            newOrder.short = Fixed6Lib.from(newShort).sub(Fixed6Lib.from(self.short))
+            Fixed6Lib.from(newShort).sub(Fixed6Lib.from(self.short))
         );
-        newOrder.registerFee(latestVersion, marketParameter);
 
         (self.id, self.timestamp, self.maker, self.long, self.short, self.fee) = (
             currentId,
@@ -86,6 +87,10 @@ library PositionLib {
             newShort,
             self.id == currentId ? self.fee.add(newOrder.fee) : newOrder.fee
         );
+
+        newOrder.skew = skew(self).sub(latestSkew).abs();
+        newOrder.impact = Fixed6Lib.from(skew(self).abs()).sub(Fixed6Lib.from(latestSkew.abs()));
+        newOrder.registerFee(latestVersion, marketParameter);
     }
 
     /// @dev update the current global position
@@ -122,7 +127,9 @@ library PositionLib {
     }
 
     function skew(Position memory self) internal pure returns (Fixed6) {
-        return Fixed6Lib.from(self.long).sub(Fixed6Lib.from(self.short)).div(Fixed6Lib.from(major(self)));
+        return major(self).isZero() ?
+            Fixed6Lib.ZERO :
+            Fixed6Lib.from(self.long).sub(Fixed6Lib.from(self.short)).div(Fixed6Lib.from(major(self)));
     }
 
     function utilization(Position memory self) internal pure returns (UFixed6) {

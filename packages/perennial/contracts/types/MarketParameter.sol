@@ -13,7 +13,11 @@ struct MarketParameter {
     UFixed6 fundingFee;
     UFixed6 interestFee;
     UFixed6 takerFee;
+    UFixed6 takerSkewFee;
+    UFixed6 takerImpactFee;
     UFixed6 makerFee;
+    UFixed6 makerSkewFee;
+    UFixed6 makerImpactFee;
     UFixed6 positionFee;
     UFixed6 makerLimit;
     bool closed;
@@ -56,8 +60,12 @@ struct StoredMarketParameter {
     int32 pControllerValue;                  // <= 214748%
     uint48 pControllerK;                     // <= 281m
     int24 pControllerSkew;                   // <= 1677%
-    uint32 pControllerMax;                    // <= 214748%
-    bytes19 __unallocated2__;
+    uint32 pControllerMax;                   // <= 214748%
+    uint24 takerSkewFee;                     // <= 1677%
+    uint24 takerImpactFee;                   // <= 1677%
+    uint24 makerSkewFee;                     // <= 1677%
+    uint24 makerImpactFee;                   // <= 1677%
+    bytes7 __unallocated2__;
 }
 struct MarketParameterStorage { StoredMarketParameter value; }
 using MarketParameterStorageLib for MarketParameterStorage global;
@@ -73,7 +81,11 @@ library MarketParameterStorageLib {
             UFixed6.wrap(uint256(value.fundingFee)),
             UFixed6.wrap(uint256(value.interestFee)),
             UFixed6.wrap(uint256(value.takerFee)),
+            UFixed6.wrap(uint256(value.takerSkewFee)),
+            UFixed6.wrap(uint256(value.takerImpactFee)),
             UFixed6.wrap(uint256(value.makerFee)),
+            UFixed6.wrap(uint256(value.makerSkewFee)),
+            UFixed6.wrap(uint256(value.makerImpactFee)),
             UFixed6.wrap(uint256(value.positionFee)),
             UFixed6.wrap(uint256(value.makerLimit)),
             value.closed,
@@ -104,7 +116,11 @@ library MarketParameterStorageLib {
         if (newValue.fundingFee.gt(UFixed6.wrap(type(uint24).max))) revert MarketParameterStorageInvalidError();
         if (newValue.interestFee.gt(UFixed6.wrap(type(uint24).max))) revert MarketParameterStorageInvalidError();
         if (newValue.takerFee.gt(UFixed6.wrap(type(uint24).max))) revert MarketParameterStorageInvalidError();
+        if (newValue.takerSkewFee.gt(UFixed6.wrap(type(uint24).max))) revert MarketParameterStorageInvalidError();
+        if (newValue.takerImpactFee.gt(UFixed6.wrap(type(uint24).max))) revert MarketParameterStorageInvalidError();
         if (newValue.makerFee.gt(UFixed6.wrap(type(uint24).max))) revert MarketParameterStorageInvalidError();
+        if (newValue.makerSkewFee.gt(UFixed6.wrap(type(uint24).max))) revert MarketParameterStorageInvalidError();
+        if (newValue.makerImpactFee.gt(UFixed6.wrap(type(uint24).max))) revert MarketParameterStorageInvalidError();
         if (newValue.positionFee.gt(UFixed6.wrap(type(uint24).max))) revert MarketParameterStorageInvalidError();
         if (newValue.makerLimit.gt(UFixed6.wrap(type(uint48).max))) revert MarketParameterStorageInvalidError();
         if (newValue.makerRewardRate.gt(UFixed6.wrap(type(uint32).max))) revert MarketParameterStorageInvalidError();
@@ -129,7 +145,11 @@ library MarketParameterStorageLib {
             fundingFee: uint24(UFixed6.unwrap(newValue.fundingFee)),
             interestFee: uint24(UFixed6.unwrap(newValue.interestFee)),
             takerFee: uint24(UFixed6.unwrap(newValue.takerFee)),
+            takerSkewFee: uint24(UFixed6.unwrap(newValue.takerSkewFee)),
+            takerImpactFee: uint24(UFixed6.unwrap(newValue.takerImpactFee)),
             makerFee: uint24(UFixed6.unwrap(newValue.makerFee)),
+            makerSkewFee: uint24(UFixed6.unwrap(newValue.makerSkewFee)),
+            makerImpactFee: uint24(UFixed6.unwrap(newValue.makerImpactFee)),
             positionFee: uint24(UFixed6.unwrap(newValue.positionFee)),
             makerLimit: uint48(UFixed6.unwrap(newValue.makerLimit)),
             closed: newValue.closed,
@@ -149,7 +169,7 @@ library MarketParameterStorageLib {
             fuse: true,
             __unallocated0__: bytes1(0),
             __unallocated1__: bytes2(0),
-            __unallocated2__: bytes19(0)
+            __unallocated2__: bytes7(0)
         });
     }
 }

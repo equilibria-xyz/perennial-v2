@@ -213,7 +213,11 @@ describe('Market', () => {
       fundingFee: parse6decimal('0.1'),
       interestFee: parse6decimal('0.1'),
       takerFee: 0,
+      takerSkewFee: 0,
+      takerImpactFee: 0,
       makerFee: 0,
+      makerSkewFee: 0,
+      makerImpactFee: 0,
       positionFee: 0,
       makerLimit: parse6decimal('1000'),
       closed: false,
@@ -256,7 +260,11 @@ describe('Market', () => {
       expect(parameter.fundingFee).to.equal(marketParameter.fundingFee)
       expect(parameter.interestFee).to.equal(marketParameter.interestFee)
       expect(parameter.takerFee).to.equal(marketParameter.takerFee)
+      expect(parameter.takerSkewFee).to.equal(marketParameter.takerSkewFee)
+      expect(parameter.takerImpactFee).to.equal(marketParameter.takerImpactFee)
       expect(parameter.makerFee).to.equal(marketParameter.makerFee)
+      expect(parameter.makerSkewFee).to.equal(marketParameter.makerSkewFee)
+      expect(parameter.makerImpactFee).to.equal(marketParameter.makerImpactFee)
       expect(parameter.positionFee).to.equal(marketParameter.positionFee)
       expect(parameter.makerLimit).to.equal(marketParameter.makerLimit)
       expect(parameter.utilizationCurve.minRate).to.equal(marketParameter.utilizationCurve.minRate)
@@ -323,7 +331,11 @@ describe('Market', () => {
           fundingFee: parse6decimal('0.2'),
           interestFee: parse6decimal('0.2'),
           takerFee: parse6decimal('0.1'),
+          takerSkewFee: parse6decimal('0.04'),
+          takerImpactFee: parse6decimal('0.03'),
           makerFee: parse6decimal('0.05'),
+          makerSkewFee: parse6decimal('0.02'),
+          makerImpactFee: parse6decimal('0.01'),
           positionFee: parse6decimal('0.1'),
           makerLiquidity: parse6decimal('0.1'),
           makerLimit: parse6decimal('2000'),
@@ -354,6 +366,11 @@ describe('Market', () => {
         expect(parameter.fundingFee).to.equal(newMarketParameter.fundingFee)
         expect(parameter.interestFee).to.equal(newMarketParameter.interestFee)
         expect(parameter.takerFee).to.equal(newMarketParameter.takerFee)
+        expect(parameter.takerSkewFee).to.equal(newMarketParameter.takerSkewFee)
+        expect(parameter.takerImpactFee).to.equal(newMarketParameter.takerImpactFee)
+        expect(parameter.makerFee).to.equal(newMarketParameter.makerFee)
+        expect(parameter.makerSkewFee).to.equal(newMarketParameter.makerSkewFee)
+        expect(parameter.makerImpactFee).to.equal(newMarketParameter.makerImpactFee)
         expect(parameter.positionFee).to.equal(newMarketParameter.positionFee)
         expect(parameter.makerLimit).to.equal(newMarketParameter.makerLimit)
         expect(parameter.utilizationCurve.minRate).to.equal(newMarketParameter.utilizationCurve.minRate)
@@ -374,7 +391,11 @@ describe('Market', () => {
           fundingFee: parse6decimal('0.2'),
           interestFee: parse6decimal('0.2'),
           takerFee: parse6decimal('0.1'),
+          takerSkewFee: parse6decimal('0.04'),
+          takerImpactFee: parse6decimal('0.03'),
           makerFee: parse6decimal('0.05'),
+          makerSkewFee: parse6decimal('0.02'),
+          makerImpactFee: parse6decimal('0.01'),
           positionFee: parse6decimal('0.1'),
           makerLiquidity: parse6decimal('0.1'),
           makerLimit: parse6decimal('2000'),
@@ -410,7 +431,11 @@ describe('Market', () => {
           fundingFee: parse6decimal('0.2'),
           interestFee: parse6decimal('0.2'),
           takerFee: parse6decimal('0.1'),
+          takerSkewFee: parse6decimal('0.04'),
+          takerImpactFee: parse6decimal('0.03'),
           makerFee: parse6decimal('0.05'),
+          makerSkewFee: parse6decimal('0.02'),
+          makerImpactFee: parse6decimal('0.01'),
           positionFee: parse6decimal('0.1'),
           makerLiquidity: parse6decimal('0.1'),
           makerLimit: parse6decimal('2000'),

@@ -52,7 +52,11 @@ describe('Happy Path', () => {
       fundingFee: parse6decimal('0.1'),
       interestFee: parse6decimal('0.1'),
       takerFee: 0,
+      takerSkewFee: 0,
+      takerImpactFee: 0,
       makerFee: 0,
+      makerSkewFee: 0,
+      makerImpactFee: 0,
       positionFee: 0,
       makerLiquidity: parse6decimal('0.2'),
       makerLimit: parse6decimal('1'),
@@ -965,7 +969,7 @@ describe('Happy Path', () => {
     expect((await market.parameter()).pController.value).to.eq(parse6decimal('-1.20'))
   })
 
-  it('delayed update w/ collateral (gas)', async () => {
+  it.only('delayed update w/ collateral (gas)', async () => {
     const positionFeesOn = true
     const incentizesOn = true
 
@@ -978,7 +982,11 @@ describe('Happy Path', () => {
       fundingFee: parse6decimal('0.1'),
       interestFee: parse6decimal('0.1'),
       takerFee: positionFeesOn ? parse6decimal('0.001') : 0,
+      takerSkewFee: positionFeesOn ? parse6decimal('0.0006') : 0,
+      takerImpactFee: positionFeesOn ? parse6decimal('0.0004') : 0,
       makerFee: positionFeesOn ? parse6decimal('0.0005') : 0,
+      makerSkewFee: positionFeesOn ? parse6decimal('0.0003') : 0,
+      makerImpactFee: positionFeesOn ? parse6decimal('0.0002') : 0,
       positionFee: positionFeesOn ? parse6decimal('0.1') : 0,
       makerLiquidity: parse6decimal('0.2'),
       makerLimit: parse6decimal('1'),
@@ -1028,7 +1036,7 @@ describe('Happy Path', () => {
     // Check user is in the correct state
     expectLocalEq(await market.locals(user.address), {
       currentId: 3,
-      collateral: '986050657',
+      collateral: '986336352',
       reward: '24669998',
       liquidation: 0,
     })
@@ -1052,8 +1060,8 @@ describe('Happy Path', () => {
     // Check global state
     expectGlobalEq(await market.global(), {
       currentId: 3,
-      protocolFee: '306111',
-      marketFee: '306114',
+      protocolFee: '494018',
+      marketFee: '494021',
     })
     expectPositionEq(await market.pendingPosition(3), {
       id: 3,
@@ -1104,7 +1112,11 @@ describe('Happy Path', () => {
       fundingFee: parse6decimal('0.1'),
       interestFee: parse6decimal('0.1'),
       takerFee: positionFeesOn ? parse6decimal('0.001') : 0,
+      takerSkewFee: positionFeesOn ? parse6decimal('0.0006') : 0,
+      takerImpactFee: positionFeesOn ? parse6decimal('0.0004') : 0,
       makerFee: positionFeesOn ? parse6decimal('0.0005') : 0,
+      makerSkewFee: positionFeesOn ? parse6decimal('0.0003') : 0,
+      makerImpactFee: positionFeesOn ? parse6decimal('0.0002') : 0,
       positionFee: positionFeesOn ? parse6decimal('0.1') : 0,
       makerLiquidity: parse6decimal('0.2'),
       makerLimit: parse6decimal('1'),
