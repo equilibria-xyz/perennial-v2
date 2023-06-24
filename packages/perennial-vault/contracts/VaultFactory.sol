@@ -2,9 +2,8 @@
 pragma solidity 0.8.19;
 
 import "@equilibria/root/control/unstructured/UOwnable.sol";
-import "@openzeppelin/contracts/proxy/beacon/BeaconProxy.sol";
-import "./interfaces/IVaultFactory.sol";
 import "@equilibria/root-v2/contracts/XBeacon.sol";
+import "./interfaces/IVaultFactory.sol";
 
 /**
  * @title VaultFactory
@@ -22,10 +21,7 @@ contract VaultFactory is IVaultFactory, XBeacon, UOwnable {
     }
 
     function create(Token18 asset, IMarket initialMarket, string calldata name) external returns (IVault newVault) {
-        newVault = IVault(address(new BeaconProxy(
-            address(this),
-            abi.encodeCall(IVault.initialize, (asset, initialMarket, name))
-        )));
+        newVault = IVault(create(abi.encodeCall(IVault.initialize, (asset, initialMarket, name))));
         emit VaultCreated(newVault, asset, initialMarket);
     }
 }

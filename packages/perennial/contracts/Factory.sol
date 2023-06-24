@@ -1,16 +1,18 @@
 // SPDX-License-Identifier: Apache-2.0
 pragma solidity 0.8.19;
 
-import "@equilibria/root/control/unstructured/UOwnable.sol";
-import "@openzeppelin/contracts/proxy/beacon/BeaconProxy.sol";
-import "./interfaces/IFactory.sol";
 import "@equilibria/root-v2/contracts/XBeacon.sol";
+import "@equilibria/root/control/unstructured/UOwnable.sol";
+import "@equilibria/perennial-v2-payoff/contracts/interfaces/IPayoffFactory.sol";
+import "./interfaces/IFactory.sol";
 
 /**
  * @title Factory
  * @notice Manages creating new markets and global protocol parameters.
  */
 contract Factory is IFactory, XBeacon, UOwnable {
+    IPayoffFactory public immutable payoffFactory;
+
     ProtocolParameterStorage private _parameter;
 
     /// @dev Protocol pauser address. address(0) defaults to owner(0)
@@ -23,7 +25,9 @@ contract Factory is IFactory, XBeacon, UOwnable {
 
     mapping(IMarket => bool) public markets;
 
-    constructor(address implementation_) XBeacon(implementation_) { }
+    constructor(IPayoffFactory payoffFactory_, address implementation_) XBeacon(implementation_) {
+        payoffFactory = payoffFactory_;
+    }
 
     /**
      * @notice Initializes the contract state
@@ -71,10 +75,9 @@ contract Factory is IFactory, XBeacon, UOwnable {
         IMarket.MarketDefinition calldata definition,
         MarketParameter calldata marketParameter
     ) external returns (IMarket newMarket) {
-        newMarket = IMarket(address(new BeaconProxy(
-            address(this),
-            abi.encodeCall(IMarket.initialize, (definition, marketParameter))
-        )));
+        if (payoffFactory.payoffs(marketParameter.payoff) == false) revert FactoryInvalidPayoffError();
+
+        newMarket = IMarket(create(abi.encodeCall(IMarket.initialize, (definition, marketParameter))));
         newMarket.updatePendingOwner(msg.sender);
         markets[newMarket] = true;
 

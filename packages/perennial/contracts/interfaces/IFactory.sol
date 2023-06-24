@@ -16,6 +16,7 @@ interface IFactory is IBeacon, IOwnable {
     error FactoryNotPauserError();
     error FactoryPausedError();
     error FactoryNotContractAddressError();
+    error FactoryInvalidPayoffError();
 
     error ProtocolParameterStorageInvalidError();
 

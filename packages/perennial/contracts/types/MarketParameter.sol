@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: Apache-2.0
 pragma solidity ^0.8.13;
 
-import "@equilibria/perennial-v2-payoff/contracts/IPayoffProvider.sol";
+import "@equilibria/perennial-v2-payoff/contracts/interfaces/IPayoffProvider.sol";
 import "@equilibria/perennial-v2-oracle/contracts/interfaces/IOracleProvider.sol";
 import "@equilibria/root/number/types/UFixed6.sol";
 import "@equilibria/root/curve/types/UJumpRateUtilizationCurve6.sol";

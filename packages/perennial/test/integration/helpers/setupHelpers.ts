@@ -23,15 +23,16 @@ import { ChainlinkContext } from './chainlinkHelpers'
 import { parse6decimal } from '../../../../common/testutil/types'
 import { buildChainlinkRoundId } from '@equilibria/perennial-v2-oracle/util/buildChainlinkRoundId'
 import { CHAINLINK_CUSTOM_CURRENCIES } from '@equilibria/perennial-v2-oracle/util/constants'
-import { Squared__factory } from '@equilibria/perennial-v2-payoff/types/generated'
-import { currentBlockTimestamp } from '../../../../common/testutil/time'
+import {
+  PayoffFactory,
+  PayoffFactory__factory,
+  PowerTwo__factory,
+} from '@equilibria/perennial-v2-payoff/types/generated'
 const { config, deployments, ethers } = HRE
 
 export const INITIAL_PHASE_ID = 1
 export const INITIAL_AGGREGATOR_ROUND_ID = 10000
 export const INITIAL_VERSION = 2472 // registry's phase 1 starts at aggregatorRoundID 7528
-
-export const DSU_HOLDER = '0x0B663CeaCEF01f2f88EB7451C70Aa069f19dB997'
 export const USDC_HOLDER = '0x0A59649758aa4d66E25f08Dd01271e891fe52199'
 const DSU_MINTER = '0xD05aCe63789cCb35B9cE71d01e4d632a0486Da4B'
 
@@ -45,6 +46,7 @@ export interface InstanceVars {
   treasuryA: SignerWithAddress
   treasuryB: SignerWithAddress
   proxyAdmin: ProxyAdmin
+  payoffFactory: PayoffFactory
   factory: Factory
   payoff: IPayoffProvider
   dsu: IERC20Metadata
@@ -68,16 +70,24 @@ export async function deployProtocol(): Promise<InstanceVars> {
     1,
   ).init()
 
-  const payoff = await IPayoffProvider__factory.connect((await new Squared__factory(owner).deploy()).address, owner)
+  const payoff = await IPayoffProvider__factory.connect((await new PowerTwo__factory(owner).deploy()).address, owner)
   const dsu = await IERC20Metadata__factory.connect((await deployments.get('DSU')).address, owner)
   const usdc = await IERC20Metadata__factory.connect((await deployments.get('USDC')).address, owner)
 
   // Deploy protocol contracts
   const proxyAdmin = await new ProxyAdmin__factory(owner).deploy()
 
+  const payoffFactoryImpl = await new PayoffFactory__factory(owner).deploy()
+  const payoffFactoryProxy = await new TransparentUpgradeableProxy__factory(owner).deploy(
+    payoffFactoryImpl.address,
+    proxyAdmin.address,
+    [],
+  )
+  const payoffFactory = await new PayoffFactory__factory(owner).attach(payoffFactoryProxy.address)
+
   const marketImpl = await new Market__factory(owner).deploy()
 
-  const factoryImpl = await new Factory__factory(owner).deploy(marketImpl.address)
+  const factoryImpl = await new Factory__factory(owner).deploy(payoffFactory.address, marketImpl.address)
 
   const factoryProxy = await new TransparentUpgradeableProxy__factory(owner).deploy(
     factoryImpl.address,
@@ -88,6 +98,7 @@ export async function deployProtocol(): Promise<InstanceVars> {
   const factory = await new Factory__factory(owner).attach(factoryProxy.address)
 
   // Init
+  await payoffFactory.initialize()
   await factory.initialize()
 
   // Params
@@ -101,6 +112,7 @@ export async function deployProtocol(): Promise<InstanceVars> {
     maxPendingIds: 8,
     paused: false,
   })
+  await payoffFactory.register(payoff.address)
 
   // Set state
   await fundWallet(dsu, user)
@@ -126,6 +138,7 @@ export async function deployProtocol(): Promise<InstanceVars> {
     usdc,
     usdcHolder,
     proxyAdmin,
+    payoffFactory,
     factory,
     marketImpl,
     rewardToken,

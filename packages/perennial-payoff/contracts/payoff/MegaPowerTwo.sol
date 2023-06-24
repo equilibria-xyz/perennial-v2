@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: Apache-2.0
 pragma solidity 0.8.19;
 
-import "../IPayoffProvider.sol";
+import "../interfaces/IPayoffProvider.sol";
 
 contract MegaPowerTwo is IPayoffProvider {
     Fixed6 private constant MULTIPLICAND = Fixed6.wrap(1e12);

@@ -1,14 +1,11 @@
 // SPDX-License-Identifier: Apache-2.0
 pragma solidity ^0.8.13;
 
-import "@equilibria/root-v2/contracts/XBeacon.sol";
 import "@equilibria/root/control/unstructured/UOwnable.sol";
-import "./IPayoffProvider.sol";
+import "./interfaces/IPayoffFactory.sol";
 
-contract PayoffFactory is XBeacon, UOwnable {
+contract PayoffFactory is IPayoffFactory, UOwnable {
     mapping(IPayoffProvider => bool) public payoffs;
-
-    constructor(address implementation) XBeacon(implementation) { }
 
     function initialize() initializer(1) external {
         __UOwnable__initialize();

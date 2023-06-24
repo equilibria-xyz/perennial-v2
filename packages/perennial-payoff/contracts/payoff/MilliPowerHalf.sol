@@ -2,7 +2,7 @@
 pragma solidity 0.8.19;
 
 import "@openzeppelin/contracts/utils/math/Math.sol";
-import "../IPayoffProvider.sol";
+import "../interfaces/IPayoffProvider.sol";
 
 contract MilliPowerHalf is IPayoffProvider {
     uint256 private constant BASE = 1e6;

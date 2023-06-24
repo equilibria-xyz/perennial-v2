@@ -11,6 +11,7 @@ import {
   IOracleProvider,
   IERC20Metadata,
   IPayoffProvider,
+  IPayoffFactory,
 } from '../../../types/generated'
 import { parse6decimal } from '../../../../common/testutil/types'
 import { BigNumber } from 'ethers'
@@ -22,6 +23,7 @@ describe('Factory', () => {
   let owner: SignerWithAddress
   let treasury: SignerWithAddress
   let pauser: SignerWithAddress
+  let payoffFactory: FakeContract<IPayoffFactory>
   let payoffProvider: FakeContract<IPayoffProvider>
   let oracle: FakeContract<IOracleProvider>
   let dsu: FakeContract<IERC20Metadata>
@@ -35,14 +37,16 @@ describe('Factory', () => {
     oracle = await smock.fake<IOracleProvider>('IOracleProvider')
     dsu = await smock.fake<IERC20Metadata>('IERC20Metadata')
     reward = await smock.fake<IERC20Metadata>('IERC20Metadata')
+    payoffFactory = await smock.fake<IPayoffFactory>('IPayoffFactory')
     payoffProvider = await smock.fake<IPayoffProvider>('IPayoffProvider')
     marketImpl = await new Market__factory(owner).deploy()
-    factory = await new Factory__factory(owner).deploy(marketImpl.address)
+    factory = await new Factory__factory(owner).deploy(payoffFactory.address, marketImpl.address)
     await factory.initialize()
   })
 
   describe('#initialize', async () => {
     it('initialize with the correct variables set', async () => {
+      expect(await factory.payoffFactory()).to.equal(payoffFactory.address)
       expect(await factory.implementation()).to.equal(marketImpl.address)
       expect(await factory.owner()).to.equal(owner.address)
       expect(await factory.treasury()).to.equal(owner.address)
@@ -138,6 +142,8 @@ describe('Factory', () => {
         closed: false,
       }
 
+      payoffFactory.payoffs.whenCalledWith(payoffProvider.address).returns(true)
+
       const marketAddress = await factory.callStatic.createMarket(marketDefinition, marketParameter)
       await expect(factory.connect(user).createMarket(marketDefinition, marketParameter))
         .to.emit(factory, 'MarketCreated')
@@ -146,6 +152,55 @@ describe('Factory', () => {
       const market = Market__factory.connect(marketAddress, owner)
       expect(await market.factory()).to.equal(factory.address)
       expect(await market.pendingOwner()).to.equal(user.address)
+    })
+
+    it('reverts when invalid payoff', async () => {
+      const marketDefinition = {
+        name: 'Squeeth',
+        symbol: 'SQTH',
+        token: dsu.address,
+        reward: reward.address,
+      }
+      const marketParameter = {
+        maintenance: parse6decimal('0.3'),
+        fundingFee: parse6decimal('0.1'),
+        interestFee: parse6decimal('0.1'),
+        takerFee: 0,
+        takerSkewFee: 0,
+        takerImpactFee: 0,
+        makerFee: 0,
+        makerSkewFee: 0,
+        makerImpactFee: 0,
+        positionFee: 0,
+        makerLiquidity: parse6decimal('0.2'),
+        makerLimit: parse6decimal('1000'),
+        utilizationCurve: {
+          minRate: parse6decimal('0.10'),
+          maxRate: parse6decimal('0.10'),
+          targetRate: parse6decimal('0.10'),
+          targetUtilization: parse6decimal('1'),
+        },
+        pController: {
+          value: 0,
+          _k: parse6decimal('40000'),
+          _skew: 0,
+          _max: parse6decimal('1.20'),
+        },
+        makerRewardRate: 0,
+        longRewardRate: 0,
+        shortRewardRate: 0,
+        oracle: oracle.address,
+        payoff: payoffProvider.address,
+        makerReceiveOnly: false,
+        closed: false,
+      }
+
+      payoffFactory.payoffs.whenCalledWith(payoffProvider.address).returns(false)
+
+      await expect(factory.connect(user).createMarket(marketDefinition, marketParameter)).to.revertedWithCustomError(
+        factory,
+        'FactoryInvalidPayoffError',
+      )
     })
   })
 
