@@ -3,6 +3,7 @@ import { constants } from 'ethers'
 import { parse6decimal } from '../../../../common/testutil/types'
 import { IERC20Metadata, IFactory, IMarket, IMarket__factory } from '../../../types/generated'
 import { MarketParameterStruct } from '../../../types/generated/@equilibria/perennial-v2/contracts/interfaces/IFactory'
+import { IOracle__factory } from '@equilibria/perennial-v2-oracle/types/generated'
 
 export interface DeployProductParams extends Partial<Omit<MarketParameterStruct, 'payoffDefinition'>> {
   factory: IFactory

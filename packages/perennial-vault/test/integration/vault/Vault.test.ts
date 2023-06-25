@@ -16,11 +16,13 @@ import {
   IVault__factory,
   IVault,
   IVaultFactory__factory,
+  IOracleFactory,
 } from '../../../types/generated'
 import { BigNumber, constants } from 'ethers'
 import { deployProtocol, fundWallet } from '@equilibria/perennial-v2/test/integration/helpers/setupHelpers'
 import { parse6decimal } from '../../../../common/testutil/types'
 import { TransparentUpgradeableProxy__factory } from '@equilibria/perennial-v2/types/generated'
+import { IOracle, IOracle__factory, OracleFactory } from '@equilibria/perennial-v2-oracle/types/generated'
 
 const { config, ethers } = HRE
 use(smock.matchers)
@@ -33,6 +35,8 @@ describe('Vault', () => {
   let asset: IERC20Metadata
   let vaultFactory: IVaultFactory
   let factory: IFactory
+  let oracleFactory: OracleFactory
+  let vaultOracleFactory: FakeContract<IOracleFactory>
   let owner: SignerWithAddress
   let user: SignerWithAddress
   let user2: SignerWithAddress
@@ -117,6 +121,10 @@ describe('Vault', () => {
     let pauser
     ;[owner, pauser, user, user2, btcUser1, btcUser2, liquidator, perennialUser] = await ethers.getSigners()
     factory = instanceVars.factory
+    oracleFactory = instanceVars.oracleFactory
+
+    vaultOracleFactory = await smock.fake<IOracleFactory>('IOracleFactory')
+    await oracleFactory.connect(owner).register(vaultOracleFactory.address)
 
     const realVersion = {
       timestamp: STARTING_TIMESTAMP,
@@ -144,13 +152,31 @@ describe('Vault', () => {
     btcOracle.current.returns(btcRealVersion.timestamp.add(LEGACY_ORACLE_DELAY))
     btcOracle.at.whenCalledWith(btcRealVersion.timestamp).returns(btcRealVersion)
 
+    const ETH_PRICE_FEE_ID = '0x0000000000000000000000000000000000000000000000000000000000000001'
+    const BTC_PRICE_FEE_ID = '0x0000000000000000000000000000000000000000000000000000000000000002'
+    vaultOracleFactory.ids.whenCalledWith(oracle.address).returns(ETH_PRICE_FEE_ID)
+    vaultOracleFactory.oracles.whenCalledWith(ETH_PRICE_FEE_ID).returns(oracle.address)
+    vaultOracleFactory.ids.whenCalledWith(btcOracle.address).returns(BTC_PRICE_FEE_ID)
+    vaultOracleFactory.oracles.whenCalledWith(BTC_PRICE_FEE_ID).returns(btcOracle.address)
+
+    const rootOracle = IOracle__factory.connect(
+      await instanceVars.oracleFactory.connect(owner).callStatic.create(ETH_PRICE_FEE_ID, vaultOracleFactory.address),
+      owner,
+    )
+    await instanceVars.oracleFactory.connect(owner).create(ETH_PRICE_FEE_ID, vaultOracleFactory.address)
+    const btcRootOracle = IOracle__factory.connect(
+      await instanceVars.oracleFactory.connect(owner).callStatic.create(BTC_PRICE_FEE_ID, vaultOracleFactory.address),
+      owner,
+    )
+    await instanceVars.oracleFactory.connect(owner).create(BTC_PRICE_FEE_ID, vaultOracleFactory.address)
+
     market = await deployProductOnMainnetFork({
       factory: instanceVars.factory,
       token: instanceVars.dsu,
       owner: owner,
       name: 'Ethereum',
       symbol: 'ETH',
-      oracle: oracle.address,
+      oracle: rootOracle.address,
       makerLimit: parse6decimal('1000'),
     })
     btcMarket = await deployProductOnMainnetFork({
@@ -159,7 +185,7 @@ describe('Vault', () => {
       owner: owner,
       name: 'Bitcoin',
       symbol: 'BTC',
-      oracle: btcOracle.address,
+      oracle: btcRootOracle.address,
     })
     leverage = parse6decimal('4.0')
     maxCollateral = parse6decimal('500000')
@@ -257,6 +283,7 @@ describe('Vault', () => {
 
   describe('#register', () => {
     let market3: IMarket
+    let rootOracle3: IOracle
 
     beforeEach(async () => {
       const realVersion3 = {
@@ -270,13 +297,23 @@ describe('Vault', () => {
       oracle3.latest.returns(realVersion3)
       oracle3.at.whenCalledWith(realVersion3.timestamp).returns(realVersion3)
 
+      const LINK_PRICE_FEE_ID = '0x0000000000000000000000000000000000000000000000000000000000000003'
+      vaultOracleFactory.ids.whenCalledWith(oracle3.address).returns(LINK_PRICE_FEE_ID)
+      vaultOracleFactory.oracles.whenCalledWith(LINK_PRICE_FEE_ID).returns(oracle3.address)
+
+      rootOracle3 = IOracle__factory.connect(
+        await oracleFactory.connect(owner).callStatic.create(LINK_PRICE_FEE_ID, vaultOracleFactory.address),
+        owner,
+      )
+      await oracleFactory.connect(owner).create(LINK_PRICE_FEE_ID, vaultOracleFactory.address)
+
       market3 = await deployProductOnMainnetFork({
         factory: factory,
         token: asset,
         owner: owner,
         name: 'Chainlink Token',
         symbol: 'LINK',
-        oracle: oracle3.address,
+        oracle: rootOracle3.address,
         makerLimit: parse6decimal('1000000'),
       })
     })
@@ -309,13 +346,34 @@ describe('Vault', () => {
     })
 
     it('reverts when the asset is incorrect', async () => {
+      const realVersion4 = {
+        timestamp: STARTING_TIMESTAMP,
+        price: BigNumber.from('13720000'),
+        valid: true,
+      }
+
+      const oracle4 = await smock.fake<IOracleProvider>('IOracleProvider')
+      oracle4.sync.returns([realVersion4, realVersion4.timestamp.add(LEGACY_ORACLE_DELAY)])
+      oracle4.latest.returns(realVersion4)
+      oracle4.at.whenCalledWith(realVersion4.timestamp).returns(realVersion4)
+
+      const LINK0_PRICE_FEE_ID = '0x0000000000000000000000000000000000000000000000000000000000000004'
+      vaultOracleFactory.ids.whenCalledWith(oracle4.address).returns(LINK0_PRICE_FEE_ID)
+      vaultOracleFactory.oracles.whenCalledWith(LINK0_PRICE_FEE_ID).returns(oracle4.address)
+
+      const rootOracle4 = IOracle__factory.connect(
+        await oracleFactory.connect(owner).callStatic.create(LINK0_PRICE_FEE_ID, vaultOracleFactory.address),
+        owner,
+      )
+      await oracleFactory.connect(owner).create(LINK0_PRICE_FEE_ID, vaultOracleFactory.address)
+
       const marketBadAsset = await deployProductOnMainnetFork({
         factory: factory,
         token: IERC20Metadata__factory.connect(constants.AddressZero, owner),
         owner: owner,
         name: 'Chainlink Token',
         symbol: 'LINK',
-        oracle: constants.AddressZero,
+        oracle: rootOracle4.address,
         makerLimit: parse6decimal('1000000'),
       })
 
