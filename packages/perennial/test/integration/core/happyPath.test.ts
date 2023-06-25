@@ -39,7 +39,7 @@ describe('Happy Path', () => {
   })
 
   it('creates a market', async () => {
-    const { owner, factory, treasuryB, payoff, chainlink, dsu, rewardToken } = instanceVars
+    const { owner, factory, treasuryB, payoff, oracle, dsu, rewardToken } = instanceVars
 
     const definition = {
       name: 'Squeeth',
@@ -75,7 +75,7 @@ describe('Happy Path', () => {
       makerRewardRate: 0,
       longRewardRate: 0,
       shortRewardRate: 0,
-      oracle: chainlink.oracle.address,
+      oracle: oracle.address,
       payoff: payoff.address,
       makerReceiveOnly: false,
       closed: true,
@@ -976,7 +976,7 @@ describe('Happy Path', () => {
 
     const POSITION = parse6decimal('0.0001')
     const COLLATERAL = parse6decimal('1000')
-    const { user, userB, dsu, chainlink, payoff } = instanceVars
+    const { user, userB, dsu, chainlink, oracle, payoff } = instanceVars
 
     const parameter = {
       maintenance: parse6decimal('0.3'),
@@ -1006,7 +1006,7 @@ describe('Happy Path', () => {
       makerRewardRate: incentizesOn ? parse6decimal('0.01') : 0,
       longRewardRate: incentizesOn ? parse6decimal('0.001') : 0,
       shortRewardRate: incentizesOn ? parse6decimal('0.001') : 0,
-      oracle: chainlink.oracle.address,
+      oracle: oracle.address,
       payoff: payoff.address,
       makerReceiveOnly: false,
       closed: false,

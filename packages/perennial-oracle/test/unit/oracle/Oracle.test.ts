@@ -336,6 +336,9 @@ describe('Oracle', () => {
         )
         await oracle.connect(owner).sync()
 
+        expect((await oracle.at(0)).timestamp).to.equal(0)
+        expect((await oracle.at(0)).price).to.equal(parse6decimal('0'))
+        expect((await oracle.at(0)).valid).to.equal(false)
         underlying0.at.whenCalledWith(1677229905).returns({
           timestamp: 1677229905,
           price: parse6decimal('800'),

@@ -34,7 +34,7 @@ const PRICE = parse6decimal('123')
 const ORACLE_VERSION_0 = {
   price: 0,
   timestamp: 0,
-  valid: true,
+  valid: false,
 }
 
 const ORACLE_VERSION_1 = {

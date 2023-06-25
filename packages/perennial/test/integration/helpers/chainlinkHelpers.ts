@@ -2,7 +2,12 @@ import HRE from 'hardhat'
 import { BigNumber } from 'ethers'
 import { smock, FakeContract } from '@defi-wonderland/smock'
 
-import { FeedRegistryInterface__factory, FeedRegistryInterface, IOracleProvider } from '../../../types/generated'
+import {
+  FeedRegistryInterface__factory,
+  FeedRegistryInterface,
+  IOracleProvider,
+  IOracleFactory,
+} from '../../../types/generated'
 
 const { ethers, deployments } = HRE
 
@@ -14,12 +19,15 @@ export class ChainlinkContext {
   private decimals!: number
   private readonly base: string
   private readonly quote: string
+  public readonly id: string
 
+  public oracleFactory!: FakeContract<IOracleFactory>
   public oracle!: FakeContract<IOracleProvider>
 
   constructor(base: string, quote: string, initialRoundId: BigNumber, delay: number) {
     this.base = base
     this.quote = quote
+    this.id = ethers.utils.keccak256(ethers.utils.defaultAbiCoder.encode(['string', 'string'], [base, quote]))
     this.latestRoundId = initialRoundId
     this.currentRoundId = initialRoundId
     this.delay = delay
@@ -35,8 +43,11 @@ export class ChainlinkContext {
       owner,
     )
     this.oracle = await smock.fake<IOracleProvider>('IOracleProvider')
-
+    this.oracleFactory = await smock.fake<IOracleFactory>('IOracleFactory')
     this.decimals = await this.feedRegistryExternal.decimals(this.base, this.quote)
+
+    this.oracleFactory.ids.whenCalledWith(this.oracle.address).returns(this.id)
+    this.oracleFactory.oracles.whenCalledWith(this.id).returns(this.oracle.address)
 
     await this.next()
 

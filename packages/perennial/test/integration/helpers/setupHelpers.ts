@@ -28,6 +28,12 @@ import {
   PayoffFactory__factory,
   PowerTwo__factory,
 } from '@equilibria/perennial-v2-payoff/types/generated'
+import {
+  IOracle__factory,
+  Oracle__factory,
+  OracleFactory,
+  OracleFactory__factory,
+} from '@equilibria/perennial-v2-oracle/types/generated'
 const { config, deployments, ethers } = HRE
 
 export const INITIAL_PHASE_ID = 1
@@ -46,6 +52,7 @@ export interface InstanceVars {
   treasuryA: SignerWithAddress
   treasuryB: SignerWithAddress
   proxyAdmin: ProxyAdmin
+  oracleFactory: OracleFactory
   payoffFactory: PayoffFactory
   factory: Factory
   payoff: IPayoffProvider
@@ -53,6 +60,7 @@ export interface InstanceVars {
   usdc: IERC20Metadata
   usdcHolder: SignerWithAddress
   chainlink: ChainlinkContext
+  oracle: IOracleProvider
   marketImpl: Market
   rewardToken: ERC20PresetMinterPauser
 }
@@ -77,6 +85,16 @@ export async function deployProtocol(): Promise<InstanceVars> {
   // Deploy protocol contracts
   const proxyAdmin = await new ProxyAdmin__factory(owner).deploy()
 
+  const oracleImpl = await new Oracle__factory(owner).deploy()
+
+  const oracleFactoryImpl = await new OracleFactory__factory(owner).deploy(oracleImpl.address)
+  const oracleFactoryProxy = await new TransparentUpgradeableProxy__factory(owner).deploy(
+    oracleFactoryImpl.address,
+    proxyAdmin.address,
+    [],
+  )
+  const oracleFactory = await new OracleFactory__factory(owner).attach(oracleFactoryProxy.address)
+
   const payoffFactoryImpl = await new PayoffFactory__factory(owner).deploy()
   const payoffFactoryProxy = await new TransparentUpgradeableProxy__factory(owner).deploy(
     payoffFactoryImpl.address,
@@ -87,7 +105,11 @@ export async function deployProtocol(): Promise<InstanceVars> {
 
   const marketImpl = await new Market__factory(owner).deploy()
 
-  const factoryImpl = await new Factory__factory(owner).deploy(payoffFactory.address, marketImpl.address)
+  const factoryImpl = await new Factory__factory(owner).deploy(
+    oracleFactory.address,
+    payoffFactory.address,
+    marketImpl.address,
+  )
 
   const factoryProxy = await new TransparentUpgradeableProxy__factory(owner).deploy(
     factoryImpl.address,
@@ -98,8 +120,9 @@ export async function deployProtocol(): Promise<InstanceVars> {
   const factory = await new Factory__factory(owner).attach(factoryProxy.address)
 
   // Init
-  await payoffFactory.initialize()
-  await factory.initialize()
+  await oracleFactory.connect(owner).initialize()
+  await payoffFactory.connect(owner).initialize()
+  await factory.connect(owner).initialize()
 
   // Params
   await factory.updatePauser(pauser.address)
@@ -112,7 +135,13 @@ export async function deployProtocol(): Promise<InstanceVars> {
     maxPendingIds: 8,
     paused: false,
   })
-  await payoffFactory.register(payoff.address)
+  await payoffFactory.connect(owner).register(payoff.address)
+  await oracleFactory.connect(owner).register(chainlink.oracleFactory.address)
+  const oracle = IOracle__factory.connect(
+    await oracleFactory.connect(owner).callStatic.create(chainlink.id, chainlink.oracleFactory.address),
+    owner,
+  )
+  await oracleFactory.connect(owner).create(chainlink.id, chainlink.oracleFactory.address)
 
   // Set state
   await fundWallet(dsu, user)
@@ -138,8 +167,10 @@ export async function deployProtocol(): Promise<InstanceVars> {
     usdc,
     usdcHolder,
     proxyAdmin,
+    oracleFactory,
     payoffFactory,
     factory,
+    oracle,
     marketImpl,
     rewardToken,
   }
@@ -160,10 +191,10 @@ export async function createMarket(
   instanceVars: InstanceVars,
   name?: string,
   symbol?: string,
-  oracle?: IOracleProvider,
+  oracleOverride?: IOracleProvider,
   payoff?: IPayoffProvider,
 ): Promise<Market> {
-  const { owner, factory, treasuryB, chainlink, rewardToken, dsu } = instanceVars
+  const { owner, factory, treasuryB, oracle, rewardToken, dsu } = instanceVars
 
   const definition = {
     name: name ?? 'Squeeth',
@@ -199,7 +230,7 @@ export async function createMarket(
     makerRewardRate: 0,
     longRewardRate: 0,
     shortRewardRate: 0,
-    oracle: (oracle ?? chainlink.oracle).address,
+    oracle: (oracleOverride ?? oracle).address,
     payoff: (payoff ?? instanceVars.payoff).address,
     makerReceiveOnly: false,
     closed: false,

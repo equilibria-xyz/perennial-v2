@@ -11,7 +11,7 @@ contract Oracle is IOracle, UOwnable {
 
     struct Checkpoint { // TODO: naming
         IOracleProvider provider;
-        uint96 timestamp;
+        uint96 timestamp; /// @dev The last timestamp that this oracle provider is valid
     }
 
     mapping(uint256 => Checkpoint) public oracles;
@@ -47,13 +47,14 @@ contract Oracle is IOracle, UOwnable {
         return oracles[currentOracle].provider.current();
     }
 
-    function at(uint256 timestamp) public view returns (OracleVersion memory) {
+    function at(uint256 timestamp) public view returns (OracleVersion memory atVersion) {
+        if (timestamp == 0) return atVersion;
+
         IOracleProvider provider;
-        for (uint256 i = currentOracle; i >= 0; i--) {
+        for (uint256 i = currentOracle; i > 0; i--) {
             if (timestamp > uint256(oracles[i].timestamp)) break;
             provider = oracles[i].provider;
         }
-
         return provider.at(timestamp);
     }
 

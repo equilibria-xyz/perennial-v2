@@ -3,8 +3,10 @@ pragma solidity ^0.8.13;
 
 import "@equilibria/root/control/interfaces/IOwnable.sol";
 import "@openzeppelin/contracts/proxy/beacon/IBeacon.sol";
-import "./IMarket.sol";
+import "@equilibria/perennial-v2-payoff/contracts/interfaces/IPayoffProvider.sol";
 import "../types/ProtocolParameter.sol";
+import "./IMarket.sol";
+
 
 interface IFactory is IBeacon, IOwnable {
     event ParameterUpdated(ProtocolParameter newParameter);
@@ -17,6 +19,8 @@ interface IFactory is IBeacon, IOwnable {
     error FactoryPausedError();
     error FactoryNotContractAddressError();
     error FactoryInvalidPayoffError();
+    error FactoryInvalidOracleError();
+    error FactoryAlreadyRegisteredError();
 
     error ProtocolParameterStorageInvalidError();
 
@@ -24,6 +28,7 @@ interface IFactory is IBeacon, IOwnable {
     function treasury() external view returns (address);
     function pauser() external view returns (address);
     function operators(address account, address operator) external view returns (bool);
+    function ids(bytes32 oracleId, IPayoffProvider payoff) external view returns (IMarket);
     function markets(IMarket market) external view returns (bool);
     function initialize() external;
     function updateParameter(ProtocolParameter memory newParameter) external;

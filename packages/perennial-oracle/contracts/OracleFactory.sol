@@ -1,12 +1,12 @@
 // SPDX-License-Identifier: Apache-2.0
 pragma solidity 0.8.19;
 
+import "@equilibria/root-v2/contracts/XBeacon.sol";
 import "@equilibria/root/control/unstructured/UOwnable.sol";
 import "@pythnetwork/pyth-sdk-solidity/AbstractPyth.sol";
 import "@openzeppelin/contracts/proxy/beacon/BeaconProxy.sol";
 import "./interfaces/IOracleFactory.sol";
 import "./interfaces/IOracle.sol";
-import "@equilibria/root-v2/contracts/XBeacon.sol";
 
 /**
  * @title OracleRegistry
@@ -48,8 +48,6 @@ contract OracleFactory is IOracleFactory, XBeacon, UOwnable {
             address(new BeaconProxy(address(this), abi.encodeCall(IOracle.initialize, (oracleProvider))))
         );
         (oracles[id], ids[newOracle]) = (newOracle, id);
-
-        newOracle.acceptOwner();
 
         emit OracleCreated(newOracle, id);
     }

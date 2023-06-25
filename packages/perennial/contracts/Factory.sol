@@ -4,6 +4,7 @@ pragma solidity 0.8.19;
 import "@equilibria/root-v2/contracts/XBeacon.sol";
 import "@equilibria/root/control/unstructured/UOwnable.sol";
 import "@equilibria/perennial-v2-payoff/contracts/interfaces/IPayoffFactory.sol";
+import "@equilibria/perennial-v2-oracle/contracts/interfaces/IOracleFactory.sol";
 import "./interfaces/IFactory.sol";
 
 /**
@@ -11,6 +12,7 @@ import "./interfaces/IFactory.sol";
  * @notice Manages creating new markets and global protocol parameters.
  */
 contract Factory is IFactory, XBeacon, UOwnable {
+    IOracleFactory public immutable oracleFactory;
     IPayoffFactory public immutable payoffFactory;
 
     ProtocolParameterStorage private _parameter;
@@ -23,9 +25,15 @@ contract Factory is IFactory, XBeacon, UOwnable {
 
     mapping(address => mapping(address => bool)) public operators;
 
+    mapping(bytes32 => mapping(IPayoffProvider => IMarket)) public ids;
     mapping(IMarket => bool) public markets;
 
-    constructor(IPayoffFactory payoffFactory_, address implementation_) XBeacon(implementation_) {
+    constructor(
+        IOracleFactory oracleFactory_,
+        IPayoffFactory payoffFactory_,
+        address implementation_
+    ) XBeacon(implementation_) {
+        oracleFactory = oracleFactory_;
         payoffFactory = payoffFactory_;
     }
 
@@ -75,10 +83,23 @@ contract Factory is IFactory, XBeacon, UOwnable {
         IMarket.MarketDefinition calldata definition,
         MarketParameter calldata marketParameter
     ) external returns (IMarket newMarket) {
-        if (payoffFactory.payoffs(marketParameter.payoff) == false) revert FactoryInvalidPayoffError();
+        // verify payoff
+        if (
+            marketParameter.payoff != IPayoffProvider(address(0)) &&
+            payoffFactory.payoffs(marketParameter.payoff) == false
+        ) revert FactoryInvalidPayoffError();
 
+        // verify oracle
+        bytes32 oracleId = oracleFactory.ids(marketParameter.oracle);
+        if (oracleId == bytes32(0)) revert FactoryInvalidOracleError();
+
+        // verify invariants
+        if (ids[oracleId][marketParameter.payoff] != IMarket(address(0))) revert FactoryAlreadyRegisteredError();
+
+        // create and register market
         newMarket = IMarket(create(abi.encodeCall(IMarket.initialize, (definition, marketParameter))));
         newMarket.updatePendingOwner(msg.sender);
+        ids[oracleId][marketParameter.payoff] = newMarket;
         markets[newMarket] = true;
 
         emit MarketCreated(newMarket, definition, marketParameter);
