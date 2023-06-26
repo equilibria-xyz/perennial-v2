@@ -26,24 +26,18 @@ library PAccumulator6Lib {
         uint256 toTimestamp,
         UFixed6 notional
     ) internal pure returns (Fixed6 accumulated) {
-        Fixed6 newValue = controller.compute(self._value, skew, fromTimestamp, toTimestamp);
-        Fixed6 newMax = Fixed6Lib.from(newValue.sign(), controller.max);
+        (Fixed6 newValue, Fixed6 newValueCapped, UFixed6 interceptTimestamp) =
+            controller.compute(self._value, skew, fromTimestamp, toTimestamp);
+        interceptTimestamp = interceptTimestamp.min(UFixed6Lib.from(toTimestamp));
 
-        UFixed6 totalElapsed = UFixed6Lib.from(toTimestamp - fromTimestamp);
-        UFixed6 totalRange = self._value.sub(newValue).abs();
-        UFixed6 outOfRangeAfter = Fixed6Lib.from(newValue.abs()).sub(Fixed6Lib.from(controller.max)).abs();
-        UFixed6 afterTimestamp = newValue.abs().lte(controller.max) ?
-            UFixed6Lib.from(toTimestamp) :
-            UFixed6Lib.from(fromTimestamp).add(totalElapsed.muldiv(outOfRangeAfter, totalRange));
-
-        // in range
-        accumulated = _accumulate(self._value.add(newValue), UFixed6Lib.from(fromTimestamp), afterTimestamp, notional)
+        // within max
+        accumulated = _accumulate(self._value.add(newValue), UFixed6Lib.from(fromTimestamp), interceptTimestamp, notional)
             .div(Fixed6Lib.from(2));
 
-        // out of range (after)
-        accumulated = _accumulate(newMax, afterTimestamp, UFixed6Lib.from(toTimestamp), notional).add(accumulated);
+        // outside of max
+        accumulated = _accumulate(newValueCapped, interceptTimestamp, UFixed6Lib.from(toTimestamp), notional).add(accumulated);
 
-        self._value = newValue.abs().gt(controller.max) ? newMax : newValue;
+        self._value = newValueCapped;
         self._skew = skew;
     }
 

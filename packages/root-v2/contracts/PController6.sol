@@ -23,7 +23,14 @@ library PController6Lib {
         Fixed6 skew,
         uint256 fromTimestamp,
         uint256 toTimestamp
-    ) internal pure returns (Fixed6) {
-        return value.add(Fixed6Lib.from(int256(toTimestamp - fromTimestamp)).mul(skew).div(Fixed6Lib.from(self.k)));
+    ) internal pure returns (Fixed6 newValue, Fixed6 newValueCapped, UFixed6 interceptTimestamp) {
+        newValue = value.add(Fixed6Lib.from(int256(toTimestamp - fromTimestamp)).mul(skew).div(Fixed6Lib.from(self.k)));
+
+        newValueCapped = Fixed6Lib.from(newValue.sign(), self.max.min(newValue.abs()));
+
+        (UFixed6 distance, Fixed6 range) = (UFixed6Lib.from(toTimestamp - fromTimestamp), newValue.sub(value));
+        UFixed6 buffer = newValue.sub(Fixed6Lib.from(range.sign(), self.max)).abs();
+        interceptTimestamp = UFixed6Lib.from(fromTimestamp)
+            .add(range.isZero() ? UFixed6Lib.MAX : distance.muldiv(buffer, range.abs()));
     }
 }
