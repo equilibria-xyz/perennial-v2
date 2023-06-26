@@ -3,13 +3,14 @@ pragma solidity 0.8.19;
 
 import "@equilibria/root/control/unstructured/UOwnable.sol";
 import "@equilibria/root-v2/contracts/XBeacon.sol";
+import "@equilibria/root-v2/contracts/UPausable.sol";
 import "./interfaces/IVaultFactory.sol";
 
 /**
  * @title VaultFactory
  * @notice Manages creating new vaults
  */
-contract VaultFactory is IVaultFactory, XBeacon, UOwnable {
+contract VaultFactory is IVaultFactory, XBeacon, UOwnable, UPausable {
     IFactory public immutable factory;
 
     constructor(IFactory factory_, address implementation_) XBeacon(implementation_) {

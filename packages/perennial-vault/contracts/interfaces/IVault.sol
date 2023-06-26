@@ -77,6 +77,7 @@ interface IVault is IInitializable {
     error VaultNotOwnerError();
     error VaultNotMarketError();
     error VaultIncorrectAssetError();
+    error VaultPausedError();
 
     error AccountStorageInvalidError();
     error CheckpointStorageInvalidError();

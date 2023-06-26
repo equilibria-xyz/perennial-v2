@@ -9,7 +9,7 @@ import "./types/Account.sol";
 import "./types/Checkpoint.sol";
 import "./types/Registration.sol";
 import "./types/VaultParameter.sol";
-
+import "hardhat/console.sol";
 /**
  * @title Vault
  * @notice ERC4626 vault that manages a 50-50 position between long-short markets of the same payoff on Perennial.
@@ -74,7 +74,7 @@ contract Vault is IVault, UInitializable {
         return string(abi.encodePacked("PV-", _symbol));
     }
 
-    function decimals() external view returns (uint8) { return 18; }
+    function decimals() external pure returns (uint8) { return 18; }
     function asset() external view returns (Token18) { return _parameter.read().asset; }
     function totalSupply() external view returns (UFixed6) { return _account.read().shares; }
     function balanceOf(address account) public view returns (UFixed6) { return _accounts[account].read().shares; }
@@ -174,7 +174,7 @@ contract Vault is IVault, UInitializable {
      * @dev Also rebalances the collateral and position of the vault without a deposit or withdraw
      * @param account The account that should be synced
      */
-    function settle(address account) public {
+    function settle(address account) public whenNotPaused {
         Context memory context = _settle(account);
         _rebalance(context, UFixed6Lib.ZERO);
         _saveContext(context, account);
@@ -186,7 +186,7 @@ contract Vault is IVault, UInitializable {
      * @param assets The amount of assets to deposit
      * @param account The account to deposit on behalf of
      */
-    function deposit(UFixed6 assets, address account) external {
+    function deposit(UFixed6 assets, address account) external whenNotPaused {
         Context memory context = _settle(account);
 
         if (assets.gt(_maxDeposit(context))) revert VaultDepositLimitExceededError();
@@ -216,7 +216,7 @@ contract Vault is IVault, UInitializable {
      * @param shares The amount of shares to redeem
      * @param account The account to redeem on behalf of
      */
-    function redeem(UFixed6 shares, address account) external {
+    function redeem(UFixed6 shares, address account) external whenNotPaused {
         if (msg.sender != account) _consumeAllowance(account, msg.sender, shares);
 
         Context memory context = _settle(account);
@@ -244,7 +244,7 @@ contract Vault is IVault, UInitializable {
      * @notice Claims all claimable assets for account, sending assets to account
      * @param account The account to claim for
      */
-    function claim(address account) external {
+    function claim(address account) external whenNotPaused {
         Context memory context = _settle(account);
 
         UFixed6 unclaimedAmount = context.local.assets;
@@ -272,19 +272,14 @@ contract Vault is IVault, UInitializable {
      * @param amount Amount of shares that spender can operate on
      * @return bool true if the approval was successful, otherwise reverts
      */
-    function approve(address spender, UFixed6 amount) external returns (bool) {
+    function approve(address spender, UFixed6 amount) external whenNotPaused returns (bool) {
         allowance[msg.sender][spender] = amount;
         emit Approval(msg.sender, spender, amount);
         return true;
     }
 
-    function transfer(address to, UFixed6 amount) external returns (bool) {
-        revert VaultNonTransferableError();
-    }
-
-    function transferFrom(address from, address to, UFixed6 amount) external returns (bool) {
-        revert VaultNonTransferableError();
-    }
+    function transfer(address, UFixed6) external pure returns (bool) { revert VaultNonTransferableError(); }
+    function transferFrom(address, address, UFixed6) external pure returns (bool) { revert VaultNonTransferableError(); }
 
     /**
      * @notice The maximum available deposit amount
@@ -560,6 +555,13 @@ contract Vault is IVault, UInitializable {
 
     modifier onlyOwner {
         if (msg.sender != factory.owner()) revert VaultNotOwnerError();
+        _;
+    }
+
+    modifier whenNotPaused {
+        console.log("whenNotPaused");
+        if (factory.paused()) revert VaultPausedError();
+        console.log("not paused");
         _;
     }
 }
