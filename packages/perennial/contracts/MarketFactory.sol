@@ -71,11 +71,11 @@ contract MarketFactory is IMarketFactory, Factory {
         IMarket.MarketDefinition calldata definition,
         MarketParameter calldata marketParameter
     ) external onlyOwner returns (IMarket newMarket) {
+        // TODO: lock down or use more of definition?
+
         // verify payoff
-        if (
-            marketParameter.payoff != IPayoffProvider(address(0)) &&
-            !payoffFactory.payoffs(marketParameter.payoff)
-        ) revert FactoryInvalidPayoffError();
+        if (marketParameter.payoff != IPayoffProvider(address(0)) && !payoffFactory.payoffs(marketParameter.payoff))
+            revert FactoryInvalidPayoffError();
 
         // verify oracle
         if (!oracleFactory.instances(IInstance(address(marketParameter.oracle)))) revert FactoryInvalidOracleError();

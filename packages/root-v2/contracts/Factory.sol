@@ -33,9 +33,9 @@ abstract contract Factory is IFactory, UOwnable, UPausable {
         emit InstanceCreated(newInstance);
     }
 
-    function _instances() internal pure returns (mapping(IInstance => bool) storage r) {
-        /// @solidity memory-safe-assembly
+    function _instances() private pure returns (mapping(IInstance => bool) storage r) {
         bytes32 slot = INSTANCE_MAP_SLOT;
+        /// @solidity memory-safe-assembly
         assembly { r.slot := slot }
     }
 }
