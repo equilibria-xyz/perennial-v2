@@ -8,7 +8,7 @@ import "@equilibria/perennial-v2-payoff/contracts/interfaces/IPayoffProvider.sol
 import "../types/ProtocolParameter.sol";
 import "./IMarket.sol";
 
-interface IMarketFactory is IFactory, IOwnable, IPausable {
+interface IMarketFactory is IFactory {
     event ParameterUpdated(ProtocolParameter newParameter);
     event TreasuryUpdated(address newTreasury);
     event OperatorUpdated(address indexed account, address indexed operator, bool newEnabled);

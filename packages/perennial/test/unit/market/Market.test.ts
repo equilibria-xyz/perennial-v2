@@ -201,7 +201,6 @@ describe('Market', () => {
       minCollateral: parse6decimal('100'),
       minSpread: parse6decimal('0.20'),
       maxPendingIds: 5,
-      paused: false,
     })
 
     marketDefinition = {
@@ -315,7 +314,7 @@ describe('Market', () => {
     it('reverts if not owner', async () => {
       await expect(market.connect(user).updateReward(treasury.address)).to.be.revertedWithCustomError(
         market,
-        'MarketNotOwnerError',
+        'InstanceNotOwnerError',
       )
     })
   })
@@ -474,7 +473,7 @@ describe('Market', () => {
       it('reverts if not owner', async () => {
         await expect(market.connect(user).updateParameter(marketParameter)).to.be.revertedWithCustomError(
           market,
-          'MarketNotOwnerError',
+          'InstanceNotOwnerError',
         )
       })
     })
@@ -490,7 +489,7 @@ describe('Market', () => {
       it('reverts if not owner', async () => {
         await expect(market.connect(user).updateTreasury(treasury.address)).to.be.revertedWithCustomError(
           market,
-          'MarketNotOwnerError',
+          'InstanceNotOwnerError',
         )
       })
     })
@@ -4447,7 +4446,6 @@ describe('Market', () => {
                   minCollateral: parse6decimal('50'),
                   minSpread: parse6decimal('0.20'),
                   maxPendingIds: 5,
-                  paused: false,
                 })
 
                 oracle.at.whenCalledWith(ORACLE_VERSION_2.timestamp).returns(ORACLE_VERSION_2)
@@ -7416,7 +7414,6 @@ describe('Market', () => {
                   minCollateral: parse6decimal('50'),
                   minSpread: parse6decimal('0.20'),
                   maxPendingIds: 5,
-                  paused: false,
                 })
 
                 oracle.at.whenCalledWith(ORACLE_VERSION_2.timestamp).returns(ORACLE_VERSION_2)
@@ -9687,8 +9684,7 @@ describe('Market', () => {
           //         protocolFee: parse6decimal('0.50'),
           //         liquidationFee: parse6decimal('0.10'),
           //         maxLiquidationFee: parse6decimal('1000'),
-          //         minCollateral: parse6decimal('50'),
-          //         paused: false,
+          //         minCollateral: parse6decimal('50')
           //       })
           //
           //       oracle.mock.currentVersion.withArgs().returns(ORACLE_VERSION_2)
@@ -9918,7 +9914,7 @@ describe('Market', () => {
             factory.paused.returns(true)
             await expect(
               market.connect(user).update(user.address, POSITION, 0, 0, COLLATERAL),
-            ).to.be.revertedWithCustomError(market, 'MarketPausedError')
+            ).to.be.revertedWithCustomError(market, 'InstancePausedError')
           })
 
           it('reverts if over maker limit', async () => {
@@ -10126,7 +10122,6 @@ describe('Market', () => {
               minCollateral: parse6decimal('100'),
               minSpread: parse6decimal('0.20'),
               maxPendingIds: 5,
-              paused: false,
             })
 
             const EXPECTED_PNL = parse6decimal('27').mul(5)

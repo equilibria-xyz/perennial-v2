@@ -1,31 +1,15 @@
 // SPDX-License-Identifier: Apache-2.0
 pragma solidity 0.8.19;
 
-import "@equilibria/root/control/unstructured/UOwnable.sol";
+import "@equilibria/root-v2/contracts/Instance.sol";
 import "./interfaces/IOracle.sol";
-import "@equilibria/root-v2/contracts/UInstance.sol";
 
-contract Oracle is IOracle, UInstance, UOwnable {
-    error OracleOutOfOrderCommitError();
-
-    event OracleUpdated(IOracleProvider newProvider);
-
-    struct Checkpoint { // TODO: naming
-        IOracleProvider provider;
-        uint96 timestamp; /// @dev The last timestamp that this oracle provider is valid
-    }
-
-    struct Global {
-        uint128 current;
-        uint128 latest;
-    }
-
+contract Oracle is IOracle, Instance {
     mapping(uint256 => Checkpoint) public oracles;
     Global public global;
 
     function initialize(IOracleProvider initialProvider) external initializer(1) {
-        __UOwnable__initialize();
-        __UInstance__initialize();
+        __Instance__initialize();
 
         _updateCurrent(initialProvider);
         sync();

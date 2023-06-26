@@ -2,8 +2,7 @@
 pragma solidity 0.8.19;
 
 import "@chainlink/contracts/src/v0.8/interfaces/AggregatorV3Interface.sol";
-import "@equilibria/root-v2/contracts/UInstance.sol";
-import "@equilibria/root/control/unstructured/UOwnable.sol";
+import "@equilibria/root-v2/contracts/Instance.sol";
 import "@equilibria/root/token/types/Token18.sol";
 import "@openzeppelin/contracts/utils/math/SafeCast.sol";
 import "@pythnetwork/pyth-sdk-solidity/AbstractPyth.sol";
@@ -18,7 +17,7 @@ import "../interfaces/IPythOracle.sol";
  *      PythOracle instance if their payoff functions are based on the same underlying oracle.
  *      This implementation only supports non-negative prices.
  */
-contract PythOracle is IPythOracle, UInstance, UOwnable {
+contract PythOracle is IPythOracle, Instance {
     /// @dev A Pyth update must come at least this long after a version to be valid
     uint256 constant private MIN_VALID_TIME_AFTER_VERSION = 12 seconds;
 
@@ -51,15 +50,6 @@ contract PythOracle is IPythOracle, UInstance, UOwnable {
     /// @dev Index in `versionList` of the next version a keeper should commit
     uint256 private _nextVersionIndexToCommit;
 
-    error PythOracleInvalidPriceIdError(bytes32 id);
-    error PythOracleNoNewVersionToCommitError();
-    error PythOracleVersionIndexTooLowError();
-    error PythOracleGracePeriodHasNotExpiredError();
-    error PythOracleUpdateValidForPreviousVersionError();
-    error PythOracleInvalidMessageValueError();
-    error PythOracleFailedToCalculateRewardError();
-    error PythOracleFailedToSendRewardError();
-
     /**
      * @notice Initializes the immutable contract state
      * @param pyth_ Pyth contract
@@ -77,8 +67,7 @@ contract PythOracle is IPythOracle, UInstance, UOwnable {
      * @param id_ price ID for Pyth price feed
      */
     function initialize(bytes32 id_) external initializer(1) {
-        __UOwnable__initialize();
-        __UInstance__initialize();
+        __Instance__initialize();
 
         if (!pyth.priceFeedExists(id_)) revert PythOracleInvalidPriceIdError(id_);
 

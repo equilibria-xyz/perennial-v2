@@ -339,7 +339,7 @@ describe('Vault', () => {
     it('reverts when not owner', async () => {
       await expect(vault.connect(user).register(market.address)).to.be.revertedWithCustomError(
         vault,
-        'VaultNotOwnerError',
+        'InstanceNotOwnerError',
       )
     })
 
@@ -437,7 +437,7 @@ describe('Vault', () => {
       }
       await expect(vault.connect(user).updateParameter(newParameter)).to.be.revertedWithCustomError(
         vault,
-        'VaultNotOwnerError',
+        'InstanceNotOwnerError',
       )
     })
   })
@@ -461,7 +461,7 @@ describe('Vault', () => {
     })
 
     it('reverts when not owner', async () => {
-      await expect(vault.connect(user).updateWeight(1, 2)).to.be.revertedWithCustomError(vault, 'VaultNotOwnerError')
+      await expect(vault.connect(user).updateWeight(1, 2)).to.be.revertedWithCustomError(vault, 'InstanceNotOwnerError')
     })
   })
 
@@ -1098,11 +1098,11 @@ describe('Vault', () => {
 
     it('reverts when paused', async () => {
       await vaultFactory.connect(owner).pause()
-      await expect(vault.settle(user.address)).to.revertedWithCustomError(vault, 'VaultPausedError')
-      await expect(vault.deposit(0, user.address)).to.revertedWithCustomError(vault, 'VaultPausedError')
-      await expect(vault.redeem(0, user.address)).to.revertedWithCustomError(vault, 'VaultPausedError')
-      await expect(vault.claim(user.address)).to.revertedWithCustomError(vault, 'VaultPausedError')
-      await expect(vault.approve(owner.address, 0)).to.revertedWithCustomError(vault, 'VaultPausedError')
+      await expect(vault.settle(user.address)).to.revertedWithCustomError(vault, 'InstancePausedError')
+      await expect(vault.deposit(0, user.address)).to.revertedWithCustomError(vault, 'InstancePausedError')
+      await expect(vault.redeem(0, user.address)).to.revertedWithCustomError(vault, 'InstancePausedError')
+      await expect(vault.claim(user.address)).to.revertedWithCustomError(vault, 'InstancePausedError')
+      await expect(vault.approve(owner.address, 0)).to.revertedWithCustomError(vault, 'InstancePausedError')
     })
 
     context('liquidation', () => {

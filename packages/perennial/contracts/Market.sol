@@ -1,19 +1,17 @@
 // SPDX-License-Identifier: Apache-2.0
 pragma solidity 0.8.19;
 
-import "@equilibria/root/control/unstructured/UInitializable.sol";
-import "@equilibria/root/control/unstructured/UOwnable.sol";
+import "@equilibria/root-v2/contracts/Instance.sol";
 import "./interfaces/IMarket.sol";
 import "./interfaces/IMarketFactory.sol";
 import "hardhat/console.sol";
-import "@equilibria/root-v2/contracts/UInstance.sol";
 
 /**
  * @title Market
  * @notice Manages logic and state for a single market market.
  * @dev Cloned by the Factory contract to launch new market markets.
  */
-contract Market is IMarket, UInitializable, UInstance {
+contract Market is IMarket, Instance {
     bool private constant GAS_PROFILE = false;
 
     /// @dev The name of the market
@@ -57,7 +55,7 @@ contract Market is IMarket, UInitializable, UInstance {
         IMarket.MarketDefinition calldata definition_,
         MarketParameter calldata parameter_
     ) external initializer(1) {
-        __UInstance__initialize();
+        __Instance__initialize();
 
         name = definition_.name;
         symbol = definition_.symbol;
@@ -114,7 +112,7 @@ contract Market is IMarket, UInitializable, UInstance {
             newGlobal.marketFee = UFixed6Lib.ZERO;
         }
 
-        if (msg.sender == IMarketFactory(factory()).treasury()) {
+        if (msg.sender == IMarketFactory(address(factory())).treasury()) {
             token.push(msg.sender, UFixed18Lib.from(newGlobal.protocolFee));
             emit FeeClaimed(msg.sender, newGlobal.protocolFee);
             newGlobal.protocolFee = UFixed6Lib.ZERO;
@@ -253,7 +251,7 @@ contract Market is IMarket, UInitializable, UInstance {
         _startGas(context, "_loadContext: %s");
 
         // parameters
-        context.protocolParameter = IMarketFactory(factory()).parameter();
+        context.protocolParameter = IMarketFactory(address(factory())).parameter();
         context.marketParameter = _parameter.read();
 
         // global
@@ -377,7 +375,7 @@ contract Market is IMarket, UInitializable, UInstance {
         Fixed6 collateral
     ) private view {
         if (account == msg.sender) return;                                                                      // sender is operating on own account
-        if (IMarketFactory(factory()).operators(account, msg.sender)) return;                                                     // sender is operator enabled for this account
+        if (IMarketFactory(address(factory())).operators(account, msg.sender)) return;                          // sender is operator enabled for this account
         if (newOrder.isEmpty() && context.local.collateral.isZero() && collateral.gt(Fixed6Lib.ZERO)) return;   // sender is repaying shortfall for this account
         revert MarketOperatorNotAllowed();
     }
@@ -434,16 +432,6 @@ contract Market is IMarket, UInitializable, UInstance {
     function _transform(MarketParameter memory marketParameter, OracleVersion memory oracleVersion) private pure {
         if (address(marketParameter.payoff) != address(0))
             oracleVersion.price = marketParameter.payoff.payoff(oracleVersion.price);
-    }
-
-    modifier onlyOwner {
-        if (IOwnable(factory()).owner() != msg.sender) revert MarketNotOwnerError();
-        _;
-    }
-
-    modifier whenNotPaused {
-        if (IPausable(factory()).paused()) revert MarketPausedError();
-        _;
     }
 
     // Debug

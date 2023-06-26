@@ -40,4 +40,9 @@ abstract contract UPausable is IPausable, UOwnable {
         if (_sender() != pauser() && _sender() != owner()) revert UPausableNotPauserError(_sender());
         _;
     }
+
+    modifier whenNotPaused {
+        if (paused()) revert UPausablePausedError();
+        _;
+    }
 }

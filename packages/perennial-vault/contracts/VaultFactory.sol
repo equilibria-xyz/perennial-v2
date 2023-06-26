@@ -2,7 +2,7 @@
 pragma solidity 0.8.19;
 
 import "@equilibria/root/control/unstructured/UOwnable.sol";
-import "@equilibria/root-v2/contracts/XFactory.sol";
+import "@equilibria/root-v2/contracts/Factory.sol";
 import "@equilibria/root-v2/contracts/UPausable.sol";
 import "./interfaces/IVaultFactory.sol";
 
@@ -10,15 +10,15 @@ import "./interfaces/IVaultFactory.sol";
  * @title VaultFactory
  * @notice Manages creating new vaults
  */
-contract VaultFactory is IVaultFactory, XFactory, UOwnable, UPausable {
+contract VaultFactory is IVaultFactory, Factory {
     IMarketFactory public immutable marketFactory;
 
-    constructor(IMarketFactory marketFactory_, address implementation_) XFactory(implementation_) {
+    constructor(IMarketFactory marketFactory_, address implementation_) Factory(implementation_) {
         marketFactory = marketFactory_;
     }
 
     function initialize() external initializer(1) {
-        __UOwnable__initialize();
+        __Factory__initialize();
     }
 
     function create(

@@ -1,8 +1,7 @@
 // SPDX-License-Identifier: Apache-2.0
 pragma solidity 0.8.19;
 
-import "@equilibria/root-v2/contracts/XFactory.sol";
-import "@equilibria/root/control/unstructured/UOwnable.sol";
+import "@equilibria/root-v2/contracts/Factory.sol";
 import "./interfaces/IOracleFactory.sol";
 
 /**
@@ -10,13 +9,13 @@ import "./interfaces/IOracleFactory.sol";
  * @notice
  * @dev
  */
-contract OracleFactory is IOracleFactory, XFactory, UOwnable {
+contract OracleFactory is IOracleFactory, Factory {
     mapping(bytes32 => IOracleProvider) public oracles;
     mapping(IOracleProvider => bytes32) public ids;
 
     mapping(IOracleFactory => bool) public factories;
 
-    constructor(address implementation_) XFactory(implementation_) { }
+    constructor(address implementation_) Factory(implementation_) { }
 
     /**
      * @notice Initializes the contract state

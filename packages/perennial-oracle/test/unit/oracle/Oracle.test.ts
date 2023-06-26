@@ -2,10 +2,12 @@ import { SignerWithAddress } from '@nomiclabs/hardhat-ethers/signers'
 import { expect } from 'chai'
 import HRE from 'hardhat'
 
-import { IOracleProvider, Oracle, Oracle__factory } from '../../../types/generated'
+import { IOracleFactory, IOracleProvider, Oracle, Oracle__factory } from '../../../types/generated'
 import { FakeContract, smock } from '@defi-wonderland/smock'
-import { OracleVersionStruct } from '../../../types/generated/contracts/IOracleProvider'
 import { parse6decimal } from '../../../../common/testutil/types'
+import { impersonate } from '../../../../common/testutil'
+import { utils } from 'ethers'
+import { OracleVersionStruct } from '../../../types/generated/contracts/Oracle'
 
 const { ethers } = HRE
 
@@ -29,12 +31,17 @@ describe('Oracle', () => {
   let oracle: Oracle
   let underlying0: FakeContract<IOracleProvider>
   let underlying1: FakeContract<IOracleProvider>
+  let oracleFactory: FakeContract<IOracleFactory>
+  let oracleFactorySigner: SignerWithAddress
 
   beforeEach(async () => {
     ;[owner, user] = await ethers.getSigners()
     oracle = await new Oracle__factory(owner).deploy()
     underlying0 = await smock.fake<IOracleProvider>('IOracleProvider')
     underlying1 = await smock.fake<IOracleProvider>('IOracleProvider')
+    oracleFactory = await smock.fake<IOracleFactory>('IOracleFactory')
+    oracleFactorySigner = await impersonate.impersonateWithBalance(oracleFactory.address, utils.parseEther('10'))
+    oracleFactory.owner.returns(owner.address)
   })
 
   describe('#initializer', async () => {
@@ -48,11 +55,11 @@ describe('Oracle', () => {
         },
         1687229905,
       )
-      await expect(oracle.connect(owner).initialize(underlying0.address))
+      await expect(oracle.connect(oracleFactorySigner).initialize(underlying0.address))
         .to.emit(oracle, 'OracleUpdated')
         .withArgs(underlying0.address)
 
-      expect(await oracle.owner()).to.equal(owner.address)
+      expect(await oracle.factory()).to.equal(oracleFactory.address)
       expect((await oracle.global()).current).to.equal(1)
       expect((await oracle.global()).latest).to.equal(1)
       expect((await oracle.oracles(1)).provider).to.equal(underlying0.address)
@@ -71,7 +78,7 @@ describe('Oracle', () => {
         },
         1687229905,
       )
-      await oracle.connect(owner).initialize(underlying0.address)
+      await oracle.connect(oracleFactorySigner).initialize(underlying0.address)
     })
 
     context('updates the oracle w/o sync', async () => {
@@ -368,7 +375,7 @@ describe('Oracle', () => {
 
     it('reverts when not the owner', async () => {
       await expect(oracle.connect(user).update(underlying1.address))
-        .to.revertedWithCustomError(oracle, 'UOwnableNotOwnerError')
+        .to.revertedWithCustomError(oracle, 'InstanceNotOwnerError')
         .withArgs(user.address)
     })
   })

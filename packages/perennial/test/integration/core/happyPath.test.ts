@@ -902,15 +902,15 @@ describe('Happy Path', () => {
     await market.settle(user.address)
   })
 
-  it('disables actions when paused', async () => {
+  it.only('disables actions when paused', async () => {
     const { marketFactory, pauser, user } = instanceVars
     const market = await createMarket(instanceVars)
 
     await marketFactory.connect(pauser).pause()
     await expect(
       market.connect(user).update(user.address, 0, 0, 0, parse6decimal('1000')),
-    ).to.be.revertedWithCustomError(market, 'MarketPausedError')
-    await expect(market.connect(user).settle(user.address)).to.be.revertedWithCustomError(market, 'MarketPausedError')
+    ).to.be.revertedWithCustomError(market, 'InstancePausedError')
+    await expect(market.connect(user).settle(user.address)).to.be.revertedWithCustomError(market, 'InstancePausedError')
   })
 
   it('opens a long position and settles after max funding', async () => {

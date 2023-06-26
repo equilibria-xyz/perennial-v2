@@ -1,9 +1,7 @@
 // SPDX-License-Identifier: Apache-2.0
 pragma solidity 0.8.19;
 
-import "@equilibria/root-v2/contracts/UPausable.sol";
-import "@equilibria/root-v2/contracts/XFactory.sol";
-import "@equilibria/root/control/unstructured/UOwnable.sol";
+import "@equilibria/root-v2/contracts/Factory.sol";
 import "@equilibria/perennial-v2-payoff/contracts/interfaces/IPayoffFactory.sol";
 import "@equilibria/perennial-v2-oracle/contracts/interfaces/IOracleFactory.sol";
 import "./interfaces/IMarketFactory.sol";
@@ -12,7 +10,7 @@ import "./interfaces/IMarketFactory.sol";
  * @title MarketFactory
  * @notice Manages creating new markets and global protocol parameters.
  */
-contract MarketFactory is IMarketFactory, XFactory, UOwnable, UPausable {
+contract MarketFactory is IMarketFactory, Factory {
     IOracleFactory public immutable oracleFactory;
 
     IPayoffFactory public immutable payoffFactory;
@@ -31,7 +29,7 @@ contract MarketFactory is IMarketFactory, XFactory, UOwnable, UPausable {
         IOracleFactory oracleFactory_,
         IPayoffFactory payoffFactory_,
         address implementation_
-    ) XFactory(implementation_) {
+    ) Factory(implementation_) {
         oracleFactory = oracleFactory_;
         payoffFactory = payoffFactory_;
     }
@@ -42,7 +40,7 @@ contract MarketFactory is IMarketFactory, XFactory, UOwnable, UPausable {
      *      avoid front-running
      */
     function initialize() external initializer(1) {
-        __UOwnable__initialize();
+        __Factory__initialize();
     }
 
     function updateParameter(ProtocolParameter memory newParameter) public onlyOwner {

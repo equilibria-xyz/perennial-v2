@@ -2,11 +2,10 @@
 pragma solidity ^0.8.13;
 
 import "@equilibria/root-v2/contracts/IFactory.sol";
-import "@equilibria/root/control/interfaces/IOwnable.sol";
 import "./IOracleProviderFactory.sol";
 import "./IPythOracle.sol";
 
-interface IPythFactory is IOracleProviderFactory, IFactory, IOwnable {
+interface IPythFactory is IOracleProviderFactory, IFactory {
     error OracleFactoryInvalidIdError();
     error OracleFactoryAlreadyCreatedError();
     error OracleFactoryNotRegisteredError();

@@ -1,8 +1,8 @@
 //SPDX-License-Identifier: Apache-2.0
 pragma solidity ^0.8.13;
 
+import "@equilibria/root-v2/contracts/IInstance.sol";
 import "@equilibria/perennial-v2/contracts/interfaces/IMarket.sol";
-import "@equilibria/root/control/interfaces/IInitializable.sol";
 import "@equilibria/root/number/types/UFixed6.sol";
 import "../types/Account.sol";
 import "../types/Checkpoint.sol";
@@ -10,7 +10,7 @@ import "../types/VaultParameter.sol";
 import "../types/Registration.sol";
 
 
-interface IVault is IInitializable {
+interface IVault is IInstance {
     struct Context {
         uint256 currentId;
         uint256 latestId;

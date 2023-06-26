@@ -1,8 +1,7 @@
 // SPDX-License-Identifier: Apache-2.0
 pragma solidity 0.8.19;
 
-import "@equilibria/root-v2/contracts/XFactory.sol";
-import "@equilibria/root/control/unstructured/UOwnable.sol";
+import "@equilibria/root-v2/contracts/Factory.sol";
 import "@pythnetwork/pyth-sdk-solidity/AbstractPyth.sol";
 import "../interfaces/IPythFactory.sol";
 
@@ -11,7 +10,7 @@ import "../interfaces/IPythFactory.sol";
  * @notice
  * @dev
  */
-contract PythFactory is IPythFactory, XFactory, UOwnable {
+contract PythFactory is IPythFactory, Factory {
     mapping(IOracleProvider => bytes32) public ids;
     mapping(bytes32 => IOracleProvider) public oracles;
 
@@ -19,7 +18,7 @@ contract PythFactory is IPythFactory, XFactory, UOwnable {
      * @notice Initializes the immutable contract state
      * @param implementation_ IPythOracle implementation contract
      */
-    constructor(address implementation_) XFactory(implementation_) { }
+    constructor(address implementation_) Factory(implementation_) { }
 
     /**
      * @notice Initializes the contract state

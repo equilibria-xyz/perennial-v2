@@ -1,8 +1,7 @@
 //SPDX-License-Identifier: Apache-2.0
 pragma solidity 0.8.19;
 
-import "@equilibria/root-v2/contracts/UInstance.sol";
-import "@equilibria/root/control/unstructured/UInitializable.sol";
+import "@equilibria/root-v2/contracts/Instance.sol";
 import "@openzeppelin/contracts/utils/math/Math.sol";
 import "./interfaces/IVaultFactory.sol";
 import "./types/Account.sol";
@@ -30,7 +29,7 @@ import "./interfaces/IVault.sol";
  *      causing the vault to be in an unhealthy state (far away from target leverage)
  *
  */
-contract Vault is IVault, UInitializable, UInstance {
+contract Vault is IVault, Instance {
     string private _name;
 
     string private _symbol;
@@ -59,7 +58,7 @@ contract Vault is IVault, UInitializable, UInstance {
         string calldata name_,
         string calldata symbol_
     ) external initializer(1) {
-        __UInstance__initialize();
+        __Instance__initialize();
 
         _name = name_;
         _symbol = symbol_;
@@ -137,7 +136,7 @@ contract Vault is IVault, UInitializable, UInstance {
     function _register(IMarket market, uint256 initialId) private {
         VaultParameter memory vaultParameter = _parameter.read();
 
-        if (!IVaultFactory(factory()).marketFactory().markets(market)) revert VaultNotMarketError();
+        if (!IVaultFactory(address(factory())).marketFactory().markets(market)) revert VaultNotMarketError();
         if (!market.token().eq(vaultParameter.asset)) revert VaultIncorrectAssetError();
 
         vaultParameter.asset.approve(address(market));
@@ -333,7 +332,7 @@ contract Vault is IVault, UInitializable, UInstance {
      */
     function _rebalance(Context memory context, UFixed6 claimAmount) private {
         Fixed6 collateralInVault = _collateral(context).sub(Fixed6Lib.from(claimAmount));
-        UFixed6 minCollateral = IVaultFactory(factory()).marketFactory().parameter().minCollateral;
+        UFixed6 minCollateral = IVaultFactory(address(factory())).marketFactory().parameter().minCollateral;
 
         // if negative assets, skip rebalance
         if (collateralInVault.lt(Fixed6Lib.ZERO)) return;
@@ -548,15 +547,5 @@ contract Vault is IVault, UInitializable, UInstance {
                     id - context.markets[marketId].registration.initialId
                 ).collateral
             );
-    }
-
-    modifier onlyOwner {
-        if (msg.sender != IOwnable(factory()).owner()) revert VaultNotOwnerError();
-        _;
-    }
-
-    modifier whenNotPaused {
-        if (IPausable(factory()).paused()) revert VaultPausedError();
-        _;
     }
 }
