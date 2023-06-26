@@ -2,11 +2,12 @@
 pragma solidity 0.8.19;
 
 import "@chainlink/contracts/src/v0.8/interfaces/AggregatorV3Interface.sol";
+import "@equilibria/root-v2/contracts/UInstance.sol";
 import "@equilibria/root/control/unstructured/UOwnable.sol";
 import "@equilibria/root/token/types/Token18.sol";
 import "@openzeppelin/contracts/utils/math/SafeCast.sol";
 import "@pythnetwork/pyth-sdk-solidity/AbstractPyth.sol";
-import "../interfaces/IOracleProvider.sol";
+import "../interfaces/IPythOracle.sol";
 
 // TODO: do we need to mod timestamp to batch versions?
 
@@ -17,7 +18,7 @@ import "../interfaces/IOracleProvider.sol";
  *      PythOracle instance if their payoff functions are based on the same underlying oracle.
  *      This implementation only supports non-negative prices.
  */
-contract PythOracle is IOracleProvider, UOwnable {
+contract PythOracle is IPythOracle, UInstance, UOwnable {
     /// @dev A Pyth update must come at least this long after a version to be valid
     uint256 constant private MIN_VALID_TIME_AFTER_VERSION = 12 seconds;
 
@@ -77,6 +78,7 @@ contract PythOracle is IOracleProvider, UOwnable {
      */
     function initialize(bytes32 id_) external initializer(1) {
         __UOwnable__initialize();
+        __UInstance__initialize();
 
         if (!pyth.priceFeedExists(id_)) revert PythOracleInvalidPriceIdError(id_);
 

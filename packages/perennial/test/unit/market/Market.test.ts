@@ -13,7 +13,7 @@ import HRE from 'hardhat'
 
 import { impersonate } from '../../../../common/testutil'
 
-import { Market, Market__factory, IOracleProvider, IERC20Metadata, IFactory } from '../../../types/generated'
+import { Market, Market__factory, IOracleProvider, IERC20Metadata, IMarketFactory } from '../../../types/generated'
 import {
   expectGlobalEq,
   expectLocalEq,
@@ -176,7 +176,7 @@ describe('Market', () => {
   let liquidator: SignerWithAddress
   let operator: SignerWithAddress
   let factorySigner: SignerWithAddress
-  let factory: FakeContract<IFactory>
+  let factory: FakeContract<IMarketFactory>
   let oracle: FakeContract<IOracleProvider>
   let dsu: FakeContract<IERC20Metadata>
   let reward: FakeContract<IERC20Metadata>
@@ -191,7 +191,7 @@ describe('Market', () => {
     dsu = await smock.fake<IERC20Metadata>('IERC20Metadata')
     reward = await smock.fake<IERC20Metadata>('IERC20Metadata')
 
-    factory = await smock.fake<IFactory>('IFactory')
+    factory = await smock.fake<IMarketFactory>('IMarketFactory')
     factorySigner = await impersonate.impersonateWithBalance(factory.address, utils.parseEther('10'))
     factory.owner.returns(owner.address)
     factory.parameter.returns({

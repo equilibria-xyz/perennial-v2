@@ -1,7 +1,7 @@
 //SPDX-License-Identifier: Apache-2.0
 pragma solidity 0.8.19;
 
-import "./interfaces/IVault.sol";
+import "@equilibria/root-v2/contracts/UInstance.sol";
 import "@equilibria/root/control/unstructured/UInitializable.sol";
 import "@openzeppelin/contracts/utils/math/Math.sol";
 import "./interfaces/IVaultFactory.sol";
@@ -9,6 +9,7 @@ import "./types/Account.sol";
 import "./types/Checkpoint.sol";
 import "./types/Registration.sol";
 import "./types/VaultParameter.sol";
+import "./interfaces/IVault.sol";
 
 /**
  * @title Vault
@@ -29,9 +30,7 @@ import "./types/VaultParameter.sol";
  *      causing the vault to be in an unhealthy state (far away from target leverage)
  *
  */
-contract Vault is IVault, UInitializable {
-    IVaultFactory public immutable factory;
-
+contract Vault is IVault, UInitializable, UInstance {
     string private _name;
 
     string private _symbol;
@@ -54,8 +53,18 @@ contract Vault is IVault, UInitializable {
     /// @dev Per-id accounting state variables
     mapping(uint256 id => CheckpointStorage) private _checkpoints;
 
-    constructor(IVaultFactory factory_) {
-        factory = factory_;
+    function initialize(
+        Token18 asset_,
+        IMarket initialMarket,
+        string calldata name_,
+        string calldata symbol_
+    ) external initializer(1) {
+        __UInstance__initialize();
+
+        _name = name_;
+        _symbol = symbol_;
+        _parameter.store(VaultParameter(asset_, UFixed6Lib.ZERO, UFixed6Lib.ZERO, UFixed6Lib.ZERO));
+        _register(initialMarket, 0);
     }
 
     function parameter() external view returns (VaultParameter memory) {
@@ -115,18 +124,6 @@ contract Vault is IVault, UInitializable {
         return _totalShares.isZero() ? shares : shares.muldiv(_totalAssets, _totalShares);
     }
 
-    function initialize(
-        Token18 asset_,
-        IMarket initialMarket,
-        string calldata name_,
-        string calldata symbol_
-    ) external initializer(1) {
-        _name = name_;
-        _symbol = symbol_;
-        _parameter.store(VaultParameter(asset_, UFixed6Lib.ZERO, UFixed6Lib.ZERO, UFixed6Lib.ZERO));
-        _register(initialMarket, 0);
-    }
-
     function register(IMarket market) external onlyOwner {
         Context memory context = _settle(address(0));
 
@@ -140,7 +137,7 @@ contract Vault is IVault, UInitializable {
     function _register(IMarket market, uint256 initialId) private {
         VaultParameter memory vaultParameter = _parameter.read();
 
-        if (!factory.factory().markets(market)) revert VaultNotMarketError();
+        if (!IVaultFactory(factory()).marketFactory().markets(market)) revert VaultNotMarketError();
         if (!market.token().eq(vaultParameter.asset)) revert VaultIncorrectAssetError();
 
         vaultParameter.asset.approve(address(market));
@@ -336,7 +333,7 @@ contract Vault is IVault, UInitializable {
      */
     function _rebalance(Context memory context, UFixed6 claimAmount) private {
         Fixed6 collateralInVault = _collateral(context).sub(Fixed6Lib.from(claimAmount));
-        UFixed6 minCollateral = factory.factory().parameter().minCollateral;
+        UFixed6 minCollateral = IVaultFactory(factory()).marketFactory().parameter().minCollateral;
 
         // if negative assets, skip rebalance
         if (collateralInVault.lt(Fixed6Lib.ZERO)) return;
@@ -554,12 +551,12 @@ contract Vault is IVault, UInitializable {
     }
 
     modifier onlyOwner {
-        if (msg.sender != factory.owner()) revert VaultNotOwnerError();
+        if (msg.sender != IOwnable(factory()).owner()) revert VaultNotOwnerError();
         _;
     }
 
     modifier whenNotPaused {
-        if (factory.paused()) revert VaultPausedError();
+        if (IPausable(factory()).paused()) revert VaultPausedError();
         _;
     }
 }

@@ -2,7 +2,7 @@
 pragma solidity 0.8.19;
 
 import "@equilibria/root/control/unstructured/UOwnable.sol";
-import "@equilibria/root-v2/contracts/XBeacon.sol";
+import "@equilibria/root-v2/contracts/XFactory.sol";
 import "@equilibria/root-v2/contracts/UPausable.sol";
 import "./interfaces/IVaultFactory.sol";
 
@@ -10,11 +10,11 @@ import "./interfaces/IVaultFactory.sol";
  * @title VaultFactory
  * @notice Manages creating new vaults
  */
-contract VaultFactory is IVaultFactory, XBeacon, UOwnable, UPausable {
-    IFactory public immutable factory;
+contract VaultFactory is IVaultFactory, XFactory, UOwnable, UPausable {
+    IMarketFactory public immutable marketFactory;
 
-    constructor(IFactory factory_, address implementation_) XBeacon(implementation_) {
-        factory = factory_;
+    constructor(IMarketFactory marketFactory_, address implementation_) XFactory(implementation_) {
+        marketFactory = marketFactory_;
     }
 
     function initialize() external initializer(1) {
@@ -27,7 +27,7 @@ contract VaultFactory is IVaultFactory, XBeacon, UOwnable, UPausable {
         string calldata name,
         string calldata symbol
     ) external returns (IVault newVault) {
-        newVault = IVault(create(abi.encodeCall(IVault.initialize, (asset, initialMarket, name, symbol))));
+        newVault = IVault(_create(abi.encodeCall(IVault.initialize, (asset, initialMarket, name, symbol))));
         emit VaultCreated(newVault, asset, initialMarket);
     }
 }

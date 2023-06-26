@@ -7,7 +7,7 @@ import {
   IERC20Metadata,
   Market,
   IERC20Metadata__factory,
-  Factory__factory,
+  MarketFactory__factory,
   Market__factory,
   ERC20PresetMinterPauser,
   ERC20PresetMinterPauser__factory,
@@ -16,7 +16,7 @@ import {
   TransparentUpgradeableProxy__factory,
   IPayoffProvider,
   IPayoffProvider__factory,
-  Factory,
+  MarketFactory,
   IOracleProvider,
 } from '../../../types/generated'
 import { ChainlinkContext } from './chainlinkHelpers'
@@ -54,7 +54,7 @@ export interface InstanceVars {
   proxyAdmin: ProxyAdmin
   oracleFactory: OracleFactory
   payoffFactory: PayoffFactory
-  factory: Factory
+  marketFactory: MarketFactory
   payoff: IPayoffProvider
   dsu: IERC20Metadata
   usdc: IERC20Metadata
@@ -105,7 +105,7 @@ export async function deployProtocol(): Promise<InstanceVars> {
 
   const marketImpl = await new Market__factory(owner).deploy()
 
-  const factoryImpl = await new Factory__factory(owner).deploy(
+  const factoryImpl = await new MarketFactory__factory(owner).deploy(
     oracleFactory.address,
     payoffFactory.address,
     marketImpl.address,
@@ -117,17 +117,17 @@ export async function deployProtocol(): Promise<InstanceVars> {
     [],
   )
 
-  const factory = await new Factory__factory(owner).attach(factoryProxy.address)
+  const marketFactory = await new MarketFactory__factory(owner).attach(factoryProxy.address)
 
   // Init
   await oracleFactory.connect(owner).initialize()
   await payoffFactory.connect(owner).initialize()
-  await factory.connect(owner).initialize()
+  await marketFactory.connect(owner).initialize()
 
   // Params
-  await factory.updatePauser(pauser.address)
-  await factory.updateTreasury(treasuryA.address)
-  await factory.updateParameter({
+  await marketFactory.updatePauser(pauser.address)
+  await marketFactory.updateTreasury(treasuryA.address)
+  await marketFactory.updateParameter({
     protocolFee: parse6decimal('0.50'),
     liquidationFee: parse6decimal('0.50'),
     maxLiquidationFee: parse6decimal('1000'),
@@ -168,7 +168,7 @@ export async function deployProtocol(): Promise<InstanceVars> {
     proxyAdmin,
     oracleFactory,
     payoffFactory,
-    factory,
+    marketFactory,
     oracle,
     marketImpl,
     rewardToken,
@@ -193,7 +193,7 @@ export async function createMarket(
   oracleOverride?: IOracleProvider,
   payoff?: IPayoffProvider,
 ): Promise<Market> {
-  const { owner, factory, treasuryB, oracle, rewardToken, dsu } = instanceVars
+  const { owner, marketFactory, treasuryB, oracle, rewardToken, dsu } = instanceVars
 
   const definition = {
     name: name ?? 'Squeeth',
@@ -234,8 +234,8 @@ export async function createMarket(
     makerReceiveOnly: false,
     closed: false,
   }
-  const marketAddress = await factory.callStatic.create(definition, parameter)
-  await factory.create(definition, parameter)
+  const marketAddress = await marketFactory.callStatic.create(definition, parameter)
+  await marketFactory.create(definition, parameter)
 
   const market = Market__factory.connect(marketAddress, owner)
   await market.updateTreasury(treasuryB.address)

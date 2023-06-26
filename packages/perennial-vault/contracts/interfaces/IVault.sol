@@ -1,7 +1,7 @@
 //SPDX-License-Identifier: Apache-2.0
 pragma solidity ^0.8.13;
 
-import "@equilibria/perennial-v2/contracts/interfaces/IFactory.sol";
+import "@equilibria/perennial-v2/contracts/interfaces/IMarket.sol";
 import "@equilibria/root/control/interfaces/IInitializable.sol";
 import "@equilibria/root/number/types/UFixed6.sol";
 import "../types/Account.sol";

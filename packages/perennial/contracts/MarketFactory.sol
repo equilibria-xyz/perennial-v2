@@ -2,18 +2,19 @@
 pragma solidity 0.8.19;
 
 import "@equilibria/root-v2/contracts/UPausable.sol";
-import "@equilibria/root-v2/contracts/XBeacon.sol";
+import "@equilibria/root-v2/contracts/XFactory.sol";
 import "@equilibria/root/control/unstructured/UOwnable.sol";
 import "@equilibria/perennial-v2-payoff/contracts/interfaces/IPayoffFactory.sol";
 import "@equilibria/perennial-v2-oracle/contracts/interfaces/IOracleFactory.sol";
-import "./interfaces/IFactory.sol";
+import "./interfaces/IMarketFactory.sol";
 
 /**
- * @title Factory
+ * @title MarketFactory
  * @notice Manages creating new markets and global protocol parameters.
  */
-contract Factory is IFactory, XBeacon, UOwnable, UPausable {
+contract MarketFactory is IMarketFactory, XFactory, UOwnable, UPausable {
     IOracleFactory public immutable oracleFactory;
+
     IPayoffFactory public immutable payoffFactory;
 
     ProtocolParameterStorage private _parameter;
@@ -30,7 +31,7 @@ contract Factory is IFactory, XBeacon, UOwnable, UPausable {
         IOracleFactory oracleFactory_,
         IPayoffFactory payoffFactory_,
         address implementation_
-    ) XBeacon(implementation_) {
+    ) XFactory(implementation_) {
         oracleFactory = oracleFactory_;
         payoffFactory = payoffFactory_;
     }
@@ -86,7 +87,7 @@ contract Factory is IFactory, XBeacon, UOwnable, UPausable {
         if (ids[oracleId][marketParameter.payoff] != IMarket(address(0))) revert FactoryAlreadyRegisteredError();
 
         // create and register market
-        newMarket = IMarket(create(abi.encodeCall(IMarket.initialize, (definition, marketParameter))));
+        newMarket = IMarket(_create(abi.encodeCall(IMarket.initialize, (definition, marketParameter))));
         ids[oracleId][marketParameter.payoff] = newMarket;
         markets[newMarket] = true;
 

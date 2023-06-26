@@ -1,30 +1,22 @@
 // SPDX-License-Identifier: Apache-2.0
 pragma solidity 0.8.19;
 
-import "@equilibria/root-v2/contracts/XBeacon.sol";
+import "@equilibria/root-v2/contracts/XFactory.sol";
 import "@equilibria/root/control/unstructured/UOwnable.sol";
-import "@pythnetwork/pyth-sdk-solidity/AbstractPyth.sol";
-import "@openzeppelin/contracts/proxy/beacon/BeaconProxy.sol";
 import "./interfaces/IOracleFactory.sol";
-import "./interfaces/IOracle.sol";
 
 /**
- * @title OracleRegistry
+ * @title OracleFactory
  * @notice
  * @dev
  */
-contract OracleFactory is IOracleFactory, XBeacon, UOwnable {
-    error OracleFactoryInvalidIdError();
-    error OracleFactoryAlreadyCreatedError();
-    error OracleFactoryNotRegisteredError();
-    error OracleFactoryNotCreatedError();
-
+contract OracleFactory is IOracleFactory, XFactory, UOwnable {
     mapping(bytes32 => IOracleProvider) public oracles;
     mapping(IOracleProvider => bytes32) public ids;
 
     mapping(IOracleFactory => bool) public factories;
 
-    constructor(address implementation_) XBeacon(implementation_) { }
+    constructor(address implementation_) XFactory(implementation_) { }
 
     /**
      * @notice Initializes the contract state
@@ -44,9 +36,7 @@ contract OracleFactory is IOracleFactory, XBeacon, UOwnable {
         IOracleProvider oracleProvider = factory.oracles(id);
         if (oracleProvider == IOracleProvider(address(0))) revert OracleFactoryInvalidIdError();
 
-        newOracle = IOracle(
-            address(new BeaconProxy(address(this), abi.encodeCall(IOracle.initialize, (oracleProvider))))
-        );
+        newOracle = IOracle(_create(abi.encodeCall(IOracle.initialize, (oracleProvider))));
         (oracles[id], ids[newOracle]) = (newOracle, id);
 
         emit OracleCreated(newOracle, id);

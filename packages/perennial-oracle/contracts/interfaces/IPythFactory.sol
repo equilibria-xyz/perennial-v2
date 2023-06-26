@@ -4,16 +4,14 @@ pragma solidity ^0.8.13;
 import "@equilibria/root-v2/contracts/IFactory.sol";
 import "@equilibria/root/control/interfaces/IOwnable.sol";
 import "./IOracleProviderFactory.sol";
-import "./IOracle.sol";
+import "./IPythOracle.sol";
 
-interface IOracleFactory is IOracleProviderFactory, IFactory, IOwnable {
+interface IPythFactory is IOracleProviderFactory, IFactory, IOwnable {
     error OracleFactoryInvalidIdError();
     error OracleFactoryAlreadyCreatedError();
     error OracleFactoryNotRegisteredError();
     error OracleFactoryNotCreatedError();
 
     function initialize() external;
-    function register(IOracleFactory factory) external;
-    function create(bytes32 id, IOracleFactory factory) external returns (IOracle newOracle);
-    function update(bytes32 id, IOracleFactory factory) external;
+    function create(bytes32 id) external returns (IPythOracle oracle);
 }

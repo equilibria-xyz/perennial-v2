@@ -113,14 +113,14 @@ describe('Vault', () => {
 
     const instanceVars = await deployProtocol()
 
-    const parameter = { ...(await instanceVars.factory.parameter()) }
+    const parameter = { ...(await instanceVars.marketFactory.parameter()) }
     parameter.minCollateral = parse6decimal('50')
     parameter.maxLiquidationFee = parse6decimal('25000')
-    await instanceVars.factory.updateParameter(parameter)
+    await instanceVars.marketFactory.updateParameter(parameter)
 
     let pauser
     ;[owner, pauser, user, user2, btcUser1, btcUser2, liquidator, perennialUser] = await ethers.getSigners()
-    factory = instanceVars.factory
+    factory = instanceVars.marketFactory
     oracleFactory = instanceVars.oracleFactory
 
     vaultOracleFactory = await smock.fake<IOracleFactory>('IOracleFactory')
@@ -171,7 +171,7 @@ describe('Vault', () => {
     await instanceVars.oracleFactory.connect(owner).create(BTC_PRICE_FEE_ID, vaultOracleFactory.address)
 
     market = await deployProductOnMainnetFork({
-      factory: instanceVars.factory,
+      factory: instanceVars.marketFactory,
       token: instanceVars.dsu,
       owner: owner,
       name: 'Ethereum',
@@ -180,7 +180,7 @@ describe('Vault', () => {
       makerLimit: parse6decimal('1000'),
     })
     btcMarket = await deployProductOnMainnetFork({
-      factory: instanceVars.factory,
+      factory: instanceVars.marketFactory,
       token: instanceVars.dsu,
       owner: owner,
       name: 'Bitcoin',
@@ -192,14 +192,14 @@ describe('Vault', () => {
     premium = parse6decimal('0.10')
 
     const vaultFactoryProxy = await new TransparentUpgradeableProxy__factory(owner).deploy(
-      instanceVars.factory.address, // dummy contract
+      instanceVars.marketFactory.address, // dummy contract
       instanceVars.proxyAdmin.address,
       [],
     )
 
-    const vaultImpl = await new Vault__factory(owner).deploy(vaultFactoryProxy.address)
+    const vaultImpl = await new Vault__factory(owner).deploy()
     const vaultFactoryImpl = await new VaultFactory__factory(owner).deploy(
-      instanceVars.factory.address,
+      instanceVars.marketFactory.address,
       vaultImpl.address,
     )
     await instanceVars.proxyAdmin.upgrade(vaultFactoryProxy.address, vaultFactoryImpl.address)

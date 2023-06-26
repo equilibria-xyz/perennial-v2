@@ -4,9 +4,9 @@ import { expect } from 'chai'
 import HRE from 'hardhat'
 
 import {
-  Factory,
+  MarketFactory,
   Market,
-  Factory__factory,
+  MarketFactory__factory,
   Market__factory,
   IOracleProvider,
   IERC20Metadata,
@@ -19,7 +19,7 @@ import { BigNumber, constants } from 'ethers'
 
 const { ethers } = HRE
 
-describe('Factory', () => {
+describe('MarketFactory', () => {
   let user: SignerWithAddress
   let owner: SignerWithAddress
   let treasury: SignerWithAddress
@@ -31,7 +31,7 @@ describe('Factory', () => {
   let dsu: FakeContract<IERC20Metadata>
   let reward: FakeContract<IERC20Metadata>
 
-  let factory: Factory
+  let factory: MarketFactory
   let marketImpl: Market
 
   beforeEach(async () => {
@@ -43,7 +43,11 @@ describe('Factory', () => {
     payoffFactory = await smock.fake<IPayoffFactory>('IPayoffFactory')
     payoffProvider = await smock.fake<IPayoffProvider>('IPayoffProvider')
     marketImpl = await new Market__factory(owner).deploy()
-    factory = await new Factory__factory(owner).deploy(oracleFactory.address, payoffFactory.address, marketImpl.address)
+    factory = await new MarketFactory__factory(owner).deploy(
+      oracleFactory.address,
+      payoffFactory.address,
+      marketImpl.address,
+    )
     await factory.initialize()
   })
 

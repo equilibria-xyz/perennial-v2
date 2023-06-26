@@ -3,8 +3,9 @@ pragma solidity 0.8.19;
 
 import "@equilibria/root/control/unstructured/UOwnable.sol";
 import "./interfaces/IOracle.sol";
+import "@equilibria/root-v2/contracts/UInstance.sol";
 
-contract Oracle is IOracle, UOwnable {
+contract Oracle is IOracle, UInstance, UOwnable {
     error OracleOutOfOrderCommitError();
 
     event OracleUpdated(IOracleProvider newProvider);
@@ -24,6 +25,7 @@ contract Oracle is IOracle, UOwnable {
 
     function initialize(IOracleProvider initialProvider) external initializer(1) {
         __UOwnable__initialize();
+        __UInstance__initialize();
 
         _updateCurrent(initialProvider);
         sync();
