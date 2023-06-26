@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: Apache-2.0
 pragma solidity 0.8.19;
 
+import "@equilibria/root-v2/contracts/UPausable.sol";
 import "@equilibria/root-v2/contracts/XBeacon.sol";
 import "@equilibria/root/control/unstructured/UOwnable.sol";
 import "@equilibria/perennial-v2-payoff/contracts/interfaces/IPayoffFactory.sol";
@@ -11,7 +12,7 @@ import "./interfaces/IFactory.sol";
  * @title Factory
  * @notice Manages creating new markets and global protocol parameters.
  */
-contract Factory is IFactory, XBeacon, UOwnable {
+contract Factory is IFactory, XBeacon, UOwnable, UPausable {
     IOracleFactory public immutable oracleFactory;
     IPayoffFactory public immutable payoffFactory;
 
@@ -19,9 +20,6 @@ contract Factory is IFactory, XBeacon, UOwnable {
 
     /// @dev Protocol pauser address. address(0) defaults to owner(0)
     address private _treasury;
-
-    /// @dev Protocol pauser address. address(0) defaults to owner(0)
-    address private _pauser;
 
     mapping(address => mapping(address => bool)) public operators;
 
@@ -61,15 +59,6 @@ contract Factory is IFactory, XBeacon, UOwnable {
         emit TreasuryUpdated(newTreasury);
     }
 
-    /**
-     * @notice Updates the protocol pauser address. Zero address defaults to owner(0)
-     * @param newPauser New protocol pauser address
-     */
-    function updatePauser(address newPauser) public onlyOwner {
-        _pauser = newPauser;
-        emit PauserUpdated(newPauser);
-    }
-
     function updateOperator(address operator, bool newEnabled) external {
         operators[msg.sender][operator] = newEnabled;
         emit OperatorUpdated(msg.sender, operator, newEnabled);
@@ -79,10 +68,10 @@ contract Factory is IFactory, XBeacon, UOwnable {
      * @notice Creates a new market market with `provider`
      * @return newMarket New market contract address
      */
-    function createMarket(
+    function create(
         IMarket.MarketDefinition calldata definition,
         MarketParameter calldata marketParameter
-    ) external returns (IMarket newMarket) {
+    ) external onlyOwner returns (IMarket newMarket) {
         // verify payoff
         if (
             marketParameter.payoff != IPayoffProvider(address(0)) &&
@@ -98,7 +87,6 @@ contract Factory is IFactory, XBeacon, UOwnable {
 
         // create and register market
         newMarket = IMarket(create(abi.encodeCall(IMarket.initialize, (definition, marketParameter))));
-        newMarket.updatePendingOwner(msg.sender);
         ids[oracleId][marketParameter.payoff] = newMarket;
         markets[newMarket] = true;
 
@@ -111,21 +99,5 @@ contract Factory is IFactory, XBeacon, UOwnable {
 
     function treasury() external view returns (address) {
         return _treasury == address(0) ? owner() : _treasury;
-    }
-
-    function pauser() public view returns (address) {
-        return _pauser == address(0) ? owner() : _pauser;
-    }
-
-    /**
-     * @notice Updates the protocol paused state
-     * @param newPaused New protocol paused state
-     */
-    function updatePaused(bool newPaused) public {
-        if (msg.sender != pauser()) revert FactoryNotPauserError();
-        ProtocolParameter memory newParameter = parameter();
-        newParameter.paused = newPaused;
-        _parameter.store(newParameter);
-        emit ParameterUpdated(newParameter);
     }
 }

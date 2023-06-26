@@ -133,7 +133,6 @@ export async function deployProtocol(): Promise<InstanceVars> {
     maxLiquidationFee: parse6decimal('1000'),
     minCollateral: parse6decimal('500'),
     maxPendingIds: 8,
-    paused: false,
   })
   await payoffFactory.connect(owner).register(payoff.address)
   await oracleFactory.connect(owner).register(chainlink.oracleFactory.address)
@@ -235,11 +234,10 @@ export async function createMarket(
     makerReceiveOnly: false,
     closed: false,
   }
-  const marketAddress = await factory.callStatic.createMarket(definition, parameter)
-  await factory.createMarket(definition, parameter)
+  const marketAddress = await factory.callStatic.create(definition, parameter)
+  await factory.create(definition, parameter)
 
   const market = Market__factory.connect(marketAddress, owner)
-  await market.acceptOwner()
   await market.updateTreasury(treasuryB.address)
 
   return market

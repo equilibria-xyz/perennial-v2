@@ -9,7 +9,7 @@ import "./types/Account.sol";
 import "./types/Checkpoint.sol";
 import "./types/Registration.sol";
 import "./types/VaultParameter.sol";
-import "hardhat/console.sol";
+
 /**
  * @title Vault
  * @notice ERC4626 vault that manages a 50-50 position between long-short markets of the same payoff on Perennial.
@@ -559,9 +559,7 @@ contract Vault is IVault, UInitializable {
     }
 
     modifier whenNotPaused {
-        console.log("whenNotPaused");
         if (factory.paused()) revert VaultPausedError();
-        console.log("not paused");
         _;
     }
 }

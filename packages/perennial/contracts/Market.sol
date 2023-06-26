@@ -12,7 +12,7 @@ import "hardhat/console.sol";
  * @notice Manages logic and state for a single market market.
  * @dev Cloned by the Factory contract to launch new market markets.
  */
-contract Market is IMarket, UInitializable, UOwnable {
+contract Market is IMarket, UInitializable {
     bool private constant GAS_PROFILE = false;
 
     /// @dev The name of the market
@@ -59,19 +59,16 @@ contract Market is IMarket, UInitializable, UOwnable {
         IMarket.MarketDefinition calldata definition_,
         MarketParameter calldata parameter_
     ) external initializer(1) {
-        __UOwnable__initialize();
-
         factory = IFactory(msg.sender);
         name = definition_.name;
         symbol = definition_.symbol;
         token = definition_.token;
         reward = definition_.reward;
-        updateParameter(parameter_);
+        _updateParameter(parameter_);
     }
 
-    function settle(address account) external {
+    function settle(address account) external whenNotPaused {
         CurrentContext memory context = _loadContext(account);
-        if (context.protocolParameter.paused) revert MarketPausedError();
 
         _settle(context, account);
         _sync(context, account);
@@ -85,9 +82,8 @@ contract Market is IMarket, UInitializable, UOwnable {
         UFixed6 newLong,
         UFixed6 newShort,
         Fixed6 collateral
-    ) external {
+    ) external whenNotPaused {
         CurrentContext memory context = _loadContext(account);
-        if (context.protocolParameter.paused) revert MarketPausedError();
 
         _settle(context, account);
         _sync(context, account);
@@ -100,9 +96,8 @@ contract Market is IMarket, UInitializable, UOwnable {
         emit TreasuryUpdated(newTreasury);
     }
 
-    function updateParameter(MarketParameter memory newParameter) public onlyOwner {
-        _parameter.store(newParameter);
-        emit ParameterUpdated(newParameter);
+    function updateParameter(MarketParameter memory newParameter) external onlyOwner {
+        _updateParameter(newParameter);
     }
 
     function updateReward(Token18 newReward) public onlyOwner {
@@ -169,6 +164,11 @@ contract Market is IMarket, UInitializable, UOwnable {
 
     function pendingPositions(address account, uint256 id) external view returns (Position memory) {
         return _pendingPositions[account][id].read();
+    }
+
+    function at(uint256 timestamp) public view returns (OracleVersion memory) {
+        MarketParameter memory marketParameter = _parameter.read();
+        return _oracleVersionAt(marketParameter, timestamp);
     }
 
     function _liquidate(CurrentContext memory context, address account) private {
@@ -412,9 +412,9 @@ contract Market is IMarket, UInitializable, UOwnable {
         if (maintenanceAmount.gt(boundedCollateral)) revert MarketInsufficientCollateralError();
     }
 
-    function at(uint256 timestamp) public view returns (OracleVersion memory) {
-        MarketParameter memory marketParameter = _parameter.read();
-        return _oracleVersionAt(marketParameter, timestamp);
+    function _updateParameter(MarketParameter memory newParameter) private {
+        _parameter.store(newParameter);
+        emit ParameterUpdated(newParameter);
     }
 
     function _oracleVersion(
@@ -435,6 +435,16 @@ contract Market is IMarket, UInitializable, UOwnable {
     function _transform(MarketParameter memory marketParameter, OracleVersion memory oracleVersion) private pure {
         if (address(marketParameter.payoff) != address(0))
             oracleVersion.price = marketParameter.payoff.payoff(oracleVersion.price);
+    }
+
+    modifier onlyOwner {
+        if (factory.owner() != msg.sender) revert MarketNotOwnerError();
+        _;
+    }
+
+    modifier whenNotPaused {
+        if (factory.paused()) revert MarketPausedError();
+        _;
     }
 
     // Debug

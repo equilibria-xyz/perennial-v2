@@ -53,10 +53,9 @@ describe('Factory', () => {
       expect(await factory.implementation()).to.equal(marketImpl.address)
       expect(await factory.owner()).to.equal(owner.address)
       expect(await factory.treasury()).to.equal(owner.address)
-      expect(await factory.pauser()).to.equal(owner.address)
+      expect(await factory.pauser()).to.equal(constants.AddressZero)
 
       const parameter = await factory.parameter()
-      expect(parameter.paused).to.equal(false)
       expect(parameter.protocolFee).to.equal(0)
       expect(parameter.liquidationFee).to.equal(0)
       expect(parameter.maxLiquidationFee).to.equal(0)
@@ -87,23 +86,7 @@ describe('Factory', () => {
     })
   })
 
-  describe('#updatePauser', async () => {
-    it('updates the pauser', async () => {
-      await expect(factory.connect(owner).updatePauser(pauser.address))
-        .to.emit(factory, 'PauserUpdated')
-        .withArgs(pauser.address)
-      expect(await factory.pauser()).to.equal(pauser.address)
-    })
-
-    it('reverts if not owner', async () => {
-      await expect(factory.connect(user).updatePauser(pauser.address)).to.be.revertedWithCustomError(
-        factory,
-        'UOwnableNotOwnerError',
-      )
-    })
-  })
-
-  describe('#createMarket', async () => {
+  describe('#create', async () => {
     it('creates the market', async () => {
       const marketDefinition = {
         name: 'Squeeth',
@@ -150,14 +133,13 @@ describe('Factory', () => {
         .returns('0xff61491a931112ddf1bd8147cd1b641375f79f5825126d665480874634fd0ace')
       payoffFactory.payoffs.whenCalledWith(payoffProvider.address).returns(true)
 
-      const marketAddress = await factory.callStatic.createMarket(marketDefinition, marketParameter)
-      await expect(factory.connect(user).createMarket(marketDefinition, marketParameter))
+      const marketAddress = await factory.callStatic.create(marketDefinition, marketParameter)
+      await expect(factory.connect(owner).create(marketDefinition, marketParameter))
         .to.emit(factory, 'MarketCreated')
         .withArgs(marketAddress, marketDefinition, marketParameter)
 
       const market = Market__factory.connect(marketAddress, owner)
       expect(await market.factory()).to.equal(factory.address)
-      expect(await market.pendingOwner()).to.equal(user.address)
     })
 
     it('creates the market w/ zero payoff', async () => {
@@ -205,14 +187,13 @@ describe('Factory', () => {
         .whenCalledWith(oracle.address)
         .returns('0xff61491a931112ddf1bd8147cd1b641375f79f5825126d665480874634fd0ace')
 
-      const marketAddress = await factory.callStatic.createMarket(marketDefinition, marketParameter)
-      await expect(factory.connect(user).createMarket(marketDefinition, marketParameter))
+      const marketAddress = await factory.callStatic.create(marketDefinition, marketParameter)
+      await expect(factory.connect(owner).create(marketDefinition, marketParameter))
         .to.emit(factory, 'MarketCreated')
         .withArgs(marketAddress, marketDefinition, marketParameter)
 
       const market = Market__factory.connect(marketAddress, owner)
       expect(await market.factory()).to.equal(factory.address)
-      expect(await market.pendingOwner()).to.equal(user.address)
     })
 
     it('reverts when invalid payoff', async () => {
@@ -261,7 +242,7 @@ describe('Factory', () => {
         .returns('0xff61491a931112ddf1bd8147cd1b641375f79f5825126d665480874634fd0ace')
       payoffFactory.payoffs.whenCalledWith(payoffProvider.address).returns(false)
 
-      await expect(factory.connect(user).createMarket(marketDefinition, marketParameter)).to.revertedWithCustomError(
+      await expect(factory.connect(owner).create(marketDefinition, marketParameter)).to.revertedWithCustomError(
         factory,
         'FactoryInvalidPayoffError',
       )
@@ -313,7 +294,7 @@ describe('Factory', () => {
         .returns('0x0000000000000000000000000000000000000000000000000000000000000000')
       payoffFactory.payoffs.whenCalledWith(payoffProvider.address).returns(true)
 
-      await expect(factory.connect(user).createMarket(marketDefinition, marketParameter)).to.revertedWithCustomError(
+      await expect(factory.connect(owner).create(marketDefinition, marketParameter)).to.revertedWithCustomError(
         factory,
         'FactoryInvalidOracleError',
       )
@@ -365,9 +346,9 @@ describe('Factory', () => {
         .returns('0xff61491a931112ddf1bd8147cd1b641375f79f5825126d665480874634fd0ace')
       payoffFactory.payoffs.whenCalledWith(payoffProvider.address).returns(true)
 
-      await factory.connect(user).createMarket(marketDefinition, marketParameter)
+      await factory.connect(owner).create(marketDefinition, marketParameter)
 
-      await expect(factory.connect(user).createMarket(marketDefinition, marketParameter)).to.revertedWithCustomError(
+      await expect(factory.connect(owner).create(marketDefinition, marketParameter)).to.revertedWithCustomError(
         factory,
         'FactoryAlreadyRegisteredError',
       )
@@ -381,14 +362,12 @@ describe('Factory', () => {
       maxLiquidationFee: parse6decimal('1000'),
       minCollateral: parse6decimal('500'),
       maxPendingIds: BigNumber.from(5),
-      paused: false,
     }
 
     it('updates the parameters', async () => {
       await expect(factory.updateParameter(newParameter)).to.emit(factory, 'ParameterUpdated').withArgs(newParameter)
 
       const parameter = await factory.parameter()
-      expect(parameter.paused).to.equal(newParameter.paused)
       expect(parameter.protocolFee).to.equal(newParameter.protocolFee)
       expect(parameter.liquidationFee).to.equal(newParameter.liquidationFee)
       expect(parameter.maxLiquidationFee).to.equal(newParameter.maxLiquidationFee)
@@ -400,36 +379,6 @@ describe('Factory', () => {
       await expect(factory.connect(user).updateParameter(newParameter)).to.be.revertedWithCustomError(
         factory,
         'UOwnableNotOwnerError',
-      )
-    })
-  })
-
-  describe('#updatePaused', async () => {
-    beforeEach(async () => {
-      await factory.updatePauser(pauser.address)
-    })
-
-    it('updates the protocol paused state', async () => {
-      const parameter = { ...(await factory.parameter()) }
-      parameter.paused = true
-      expect((await factory.parameter()).paused).to.equal(false)
-      await expect(factory.connect(pauser).updatePaused(true)).to.emit(factory, 'ParameterUpdated')
-
-      parameter.paused = false
-      expect((await factory.parameter()).paused).to.equal(true)
-      await expect(factory.connect(pauser).updatePaused(false)).to.emit(factory, 'ParameterUpdated')
-
-      expect((await factory.parameter()).paused).to.equal(false)
-    })
-
-    it('reverts if not pauser', async () => {
-      await expect(factory.connect(owner).updatePaused(true)).to.be.revertedWithCustomError(
-        factory,
-        `FactoryNotPauserError`,
-      )
-      await expect(factory.connect(user).updatePaused(true)).to.be.revertedWithCustomError(
-        factory,
-        `FactoryNotPauserError`,
       )
     })
   })

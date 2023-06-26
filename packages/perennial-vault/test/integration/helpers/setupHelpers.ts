@@ -74,11 +74,8 @@ export async function deployProductOnMainnetFork({
     reward: constants.AddressZero,
   }
 
-  const productAddress = await factory.connect(owner).callStatic.createMarket(marketDefinition, marketParameter)
-  await factory.connect(owner).createMarket(marketDefinition, marketParameter)
+  const productAddress = await factory.connect(owner).callStatic.create(marketDefinition, marketParameter)
+  await factory.connect(owner).create(marketDefinition, marketParameter)
 
-  const market = IMarket__factory.connect(productAddress, owner)
-  await market.connect(owner).acceptOwner()
-
-  return market
+  return IMarket__factory.connect(productAddress, owner)
 }

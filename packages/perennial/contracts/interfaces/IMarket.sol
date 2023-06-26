@@ -11,7 +11,7 @@ import "../types/Local.sol";
 import "../types/Global.sol";
 import "../types/Position.sol";
 
-interface IMarket is IOwnable {
+interface IMarket {
     struct MarketDefinition {
         string name;
         string symbol;
@@ -59,12 +59,13 @@ interface IMarket is IOwnable {
     error MarketClosedError();
     error MarketCollateralUnderLimitError();
     error MarketNotTreasuryError();
-    error PayoffProviderInvalidOracle();
-    error PayoffProviderInvalidPayoffDefinitionError();
     error MarketOperatorNotAllowed();
     error MarketNotSingleSidedError();
     error MarketExceedsPendingIdLimitError();
     error MarketRewardAlreadySetError();
+    error MarketNotOwnerError();
+    error PayoffProviderInvalidOracle();
+    error PayoffProviderInvalidPayoffDefinitionError();
 
     error GlobalStorageInvalidError();
     error LocalStorageInvalidError();

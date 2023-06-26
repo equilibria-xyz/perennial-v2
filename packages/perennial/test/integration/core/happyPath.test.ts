@@ -80,10 +80,9 @@ describe('Happy Path', () => {
       makerReceiveOnly: false,
       closed: true,
     }
-    const marketAddress = await factory.callStatic.createMarket(definition, parameter)
-    await expect(factory.createMarket(definition, parameter)).to.emit(factory, 'MarketCreated')
+    const marketAddress = await factory.callStatic.create(definition, parameter)
+    await expect(factory.create(definition, parameter)).to.emit(factory, 'MarketCreated')
     const market = Market__factory.connect(marketAddress, owner)
-    await market.connect(owner).acceptOwner()
     await market.connect(owner).updateTreasury(treasuryB.address)
   })
 
@@ -907,7 +906,7 @@ describe('Happy Path', () => {
     const { factory, pauser, user } = instanceVars
     const market = await createMarket(instanceVars)
 
-    await expect(factory.connect(pauser).updatePaused(true)).to.emit(factory, 'ParameterUpdated')
+    await factory.connect(pauser).pause()
     await expect(
       market.connect(user).update(user.address, 0, 0, 0, parse6decimal('1000')),
     ).to.be.revertedWithCustomError(market, 'MarketPausedError')

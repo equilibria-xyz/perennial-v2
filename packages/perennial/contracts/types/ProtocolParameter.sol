@@ -10,7 +10,6 @@ struct ProtocolParameter {
     UFixed6 maxLiquidationFee;
     UFixed6 minCollateral;
     uint256 maxPendingIds;
-    bool paused;
 }
 struct StoredProtocolParameter {
     uint24 _protocolFee;        // <= 1677%
@@ -18,9 +17,8 @@ struct StoredProtocolParameter {
     uint48 _maxLiquidationFee;  // <= 281mn
     uint48 _minCollateral;      // <= 281mn
     uint8 _maxPendingIds;       // <= 255
-    bool _paused;
 
-    bytes12 __unallocated__;
+    bytes13 __unallocated__;
 }
 struct ProtocolParameterStorage { StoredProtocolParameter value; }
 using ProtocolParameterStorageLib for ProtocolParameterStorage global;
@@ -35,8 +33,7 @@ library ProtocolParameterStorageLib {
             UFixed6.wrap(uint256(value._liquidationFee)),
             UFixed6.wrap(uint256(value._maxLiquidationFee)),
             UFixed6.wrap(uint256(value._minCollateral)),
-            uint256(value._maxPendingIds),
-            value._paused
+            uint256(value._maxPendingIds)
         );
     }
 
@@ -53,8 +50,7 @@ library ProtocolParameterStorageLib {
             uint48(UFixed6.unwrap(newValue.maxLiquidationFee)),
             uint48(UFixed6.unwrap(newValue.minCollateral)),
             uint8(newValue.maxPendingIds),
-            newValue.paused,
-            bytes12(0)
+            bytes13(0)
         );
     }
 }

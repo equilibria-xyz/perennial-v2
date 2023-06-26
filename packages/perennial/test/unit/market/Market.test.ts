@@ -295,8 +295,6 @@ describe('Market', () => {
       const marketDefinitionNoReward = { ...marketDefinition }
       marketDefinitionNoReward.reward = constants.AddressZero
       await market.connect(factorySigner).initialize(marketDefinitionNoReward, marketParameter)
-      await market.connect(factorySigner).updatePendingOwner(owner.address)
-      await market.connect(owner).acceptOwner()
     })
 
     it('updates the reward', async () => {
@@ -317,7 +315,7 @@ describe('Market', () => {
     it('reverts if not owner', async () => {
       await expect(market.connect(user).updateReward(treasury.address)).to.be.revertedWithCustomError(
         market,
-        'UOwnableNotOwnerError',
+        'MarketNotOwnerError',
       )
     })
   })
@@ -325,8 +323,6 @@ describe('Market', () => {
   context('already initialized', async () => {
     beforeEach(async () => {
       await market.connect(factorySigner).initialize(marketDefinition, marketParameter)
-      await market.connect(factorySigner).updatePendingOwner(owner.address)
-      await market.connect(owner).acceptOwner()
     })
 
     describe('#updateParameter', async () => {
@@ -478,7 +474,7 @@ describe('Market', () => {
       it('reverts if not owner', async () => {
         await expect(market.connect(user).updateParameter(marketParameter)).to.be.revertedWithCustomError(
           market,
-          'UOwnableNotOwnerError',
+          'MarketNotOwnerError',
         )
       })
     })
@@ -494,7 +490,7 @@ describe('Market', () => {
       it('reverts if not owner', async () => {
         await expect(market.connect(user).updateTreasury(treasury.address)).to.be.revertedWithCustomError(
           market,
-          'UOwnableNotOwnerError',
+          'MarketNotOwnerError',
         )
       })
     })
@@ -9919,15 +9915,7 @@ describe('Market', () => {
           })
 
           it('reverts if paused', async () => {
-            factory.parameter.returns({
-              protocolFee: parse6decimal('0.50'),
-              liquidationFee: parse6decimal('0.50'),
-              maxLiquidationFee: parse6decimal('1000'),
-              minCollateral: parse6decimal('500'),
-              minSpread: parse6decimal('0.20'),
-              maxPendingIds: 5,
-              paused: true,
-            })
+            factory.paused.returns(true)
             await expect(
               market.connect(user).update(user.address, POSITION, 0, 0, COLLATERAL),
             ).to.be.revertedWithCustomError(market, 'MarketPausedError')
