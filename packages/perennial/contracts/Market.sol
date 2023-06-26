@@ -13,7 +13,7 @@ import "hardhat/console.sol";
  * @dev Cloned by the Factory contract to launch new market markets.
  */
 contract Market is IMarket, UInitializable, UOwnable {
-    bool private constant GAS_PROFILE = false;
+    bool private constant GAS_PROFILE = true;
 
     /// @dev The name of the market
     string public name;
