@@ -221,10 +221,8 @@ export async function createMarket(
       targetUtilization: parse6decimal('0.80'),
     },
     pController: {
-      value: 0,
-      _k: parse6decimal('40000'),
-      _skew: 0,
-      _max: parse6decimal('1.20'),
+      k: parse6decimal('40000'),
+      max: parse6decimal('1.20'),
     },
     makerRewardRate: 0,
     longRewardRate: 0,

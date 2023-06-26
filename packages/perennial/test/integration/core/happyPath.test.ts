@@ -67,10 +67,8 @@ describe('Happy Path', () => {
         targetUtilization: parse6decimal('0.80'),
       },
       pController: {
-        value: 0,
-        _k: parse6decimal('40000'),
-        _skew: 0,
-        _max: parse6decimal('1.20'),
+        k: parse6decimal('40000'),
+        max: parse6decimal('1.20'),
       },
       makerRewardRate: 0,
       longRewardRate: 0,
@@ -933,12 +931,12 @@ describe('Happy Path', () => {
       await chainlink.next()
     }
     await market.settle(userB.address)
-    expect((await market.parameter()).pController.value).to.eq(parse6decimal('1.20'))
+    expect((await market.global()).pAccumulator._value).to.eq(parse6decimal('1.20'))
 
     // one more round
     await chainlink.next()
     await market.settle(userB.address)
-    expect((await market.parameter()).pController.value).to.eq(parse6decimal('1.20'))
+    expect((await market.global()).pAccumulator._value).to.eq(parse6decimal('1.20'))
   })
 
   it('opens a short position and settles after max funding', async () => {
@@ -961,12 +959,12 @@ describe('Happy Path', () => {
       await chainlink.next()
     }
     await market.settle(userB.address)
-    expect((await market.parameter()).pController.value).to.eq(parse6decimal('-1.20'))
+    expect((await market.global()).pAccumulator._value).to.eq(parse6decimal('-1.20'))
 
     // one more round
     await chainlink.next()
     await market.settle(userB.address)
-    expect((await market.parameter()).pController.value).to.eq(parse6decimal('-1.20'))
+    expect((await market.global()).pAccumulator._value).to.eq(parse6decimal('-1.20'))
   })
 
   it('delayed update w/ collateral (gas)', async () => {
@@ -997,10 +995,8 @@ describe('Happy Path', () => {
         targetUtilization: parse6decimal('0.80'),
       },
       pController: {
-        value: 0,
-        _k: parse6decimal('400000'),
-        _skew: 0,
-        _max: parse6decimal('1.20'),
+        k: parse6decimal('400000'),
+        max: parse6decimal('1.20'),
       },
       makerRewardRate: incentizesOn ? parse6decimal('0.01') : 0,
       longRewardRate: incentizesOn ? parse6decimal('0.001') : 0,
@@ -1128,10 +1124,8 @@ describe('Happy Path', () => {
         targetUtilization: parse6decimal('0.80'),
       },
       pController: {
-        value: 0,
-        _k: parse6decimal('40000'),
-        _skew: 0,
-        _max: parse6decimal('1.20'),
+        k: parse6decimal('40000'),
+        max: parse6decimal('1.20'),
       },
       makerRewardRate: incentizesOn ? parse6decimal('0.01') : 0,
       longRewardRate: incentizesOn ? parse6decimal('0.001') : 0,

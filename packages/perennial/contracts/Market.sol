@@ -342,6 +342,7 @@ contract Market is IMarket, Instance {
         if (!oracleVersion.valid) return; // skip processing if invalid
 
         UFixed6 accumulatedFee = version.accumulate(
+            context.global,
             context.position,
             newPosition,
             context.positionVersion,
@@ -352,7 +353,6 @@ contract Market is IMarket, Instance {
         context.global.incrementFees(accumulatedFee, context.protocolParameter);
         context.positionVersion = oracleVersion;
         _versions[newPosition.timestamp].store(version);
-        _parameter.store(context.marketParameter); // TODO: remove if split out pController state
     }
 
     function _processPositionAccount(CurrentContext memory context, Position memory newPosition) private view {

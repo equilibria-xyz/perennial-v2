@@ -50,6 +50,7 @@ library VersionLib {
      */
     function accumulate(
         Version memory self,
+        Global memory global,
         Position memory fromPosition,
         Position memory toPosition,
         OracleVersion memory fromOracleVersion,
@@ -62,7 +63,7 @@ library VersionLib {
         UFixed6 positionFee = _accumulatePositionFee(self, fromPosition, toPosition, marketParameter);
 
         // accumulate funding
-        UFixed6 fundingFee = _accumulateFunding(self, fromPosition, fromOracleVersion, toOracleVersion, marketParameter);
+        UFixed6 fundingFee = _accumulateFunding(self, global, fromPosition, fromOracleVersion, toOracleVersion, marketParameter);
 
         // accumulate interest
         UFixed6 interestFee = _accumulateInterest(self, fromPosition, fromOracleVersion, toOracleVersion, marketParameter);
@@ -107,6 +108,7 @@ library VersionLib {
      */
     function _accumulateFunding(
         Version memory self,
+        Global memory global,
         Position memory position,
         OracleVersion memory fromOracleVersion,
         OracleVersion memory toOracleVersion,
@@ -115,7 +117,8 @@ library VersionLib {
         if (position.major().isZero()) return UFixed6Lib.ZERO;
 
         // Compute long-short funding rate
-        Fixed6 funding = marketParameter.pController.accumulate(
+        Fixed6 funding = global.pAccumulator.accumulate(
+            marketParameter.pController,
             position.skew(),
             fromOracleVersion.timestamp,
             toOracleVersion.timestamp,

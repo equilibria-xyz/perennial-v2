@@ -2,19 +2,22 @@
 pragma solidity ^0.8.13;
 
 import "./ProtocolParameter.sol";
+import "@equilibria/root-v2/contracts/PAccumulator6.sol";
 
 /// @dev Global type
 struct Global {
     uint256 currentId;
     UFixed6 protocolFee;
     UFixed6 marketFee;
+    PAccumulator6 pAccumulator;
 }
 using GlobalLib for Global global;
 struct StoredGlobal {
     uint64 _currentId;
     uint64 _protocolFee;
     uint64 _marketFee;
-    bytes8 __unallocated__;
+    int40 _pAccumulatorValue;
+    int24 _pAccumulatorSkew;
 }
 struct GlobalStorage { StoredGlobal value; }
 using GlobalStorageLib for GlobalStorage global;
@@ -40,7 +43,11 @@ library GlobalStorageLib {
         return Global(
             uint256(storedValue._currentId),
             UFixed6.wrap(uint256(storedValue._protocolFee)),
-            UFixed6.wrap(uint256(storedValue._marketFee))
+            UFixed6.wrap(uint256(storedValue._marketFee)),
+            PAccumulator6(
+                Fixed6.wrap(int256(storedValue._pAccumulatorValue)),
+                Fixed6.wrap(int256(storedValue._pAccumulatorSkew))
+            )
         );
     }
 
@@ -48,12 +55,17 @@ library GlobalStorageLib {
         if (newValue.currentId > uint256(type(uint64).max)) revert GlobalStorageInvalidError();
         if (newValue.protocolFee.gt(UFixed6.wrap(type(uint64).max))) revert GlobalStorageInvalidError();
         if (newValue.marketFee.gt(UFixed6.wrap(type(uint64).max))) revert GlobalStorageInvalidError();
+        if (newValue.pAccumulator._value.gt(Fixed6.wrap(type(int40).max))) revert GlobalStorageInvalidError();
+        if (newValue.pAccumulator._value.lt(Fixed6.wrap(type(int40).min))) revert GlobalStorageInvalidError();
+        if (newValue.pAccumulator._skew.gt(Fixed6.wrap(type(int24).max))) revert GlobalStorageInvalidError();
+        if (newValue.pAccumulator._skew.lt(Fixed6.wrap(type(int24).min))) revert GlobalStorageInvalidError();
 
         self.value = StoredGlobal(
             uint64(newValue.currentId),
             uint64(UFixed6.unwrap(newValue.protocolFee)),
             uint64(UFixed6.unwrap(newValue.marketFee)),
-            bytes8(0)
+            int40(Fixed6.unwrap(newValue.pAccumulator._value)),
+            int24(Fixed6.unwrap(newValue.pAccumulator._skew))
         );
     }
 }

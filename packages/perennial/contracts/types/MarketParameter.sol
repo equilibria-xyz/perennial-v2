@@ -24,7 +24,7 @@ struct MarketParameter {
     UFixed6 longRewardRate;
     UFixed6 shortRewardRate;
     UJumpRateUtilizationCurve6 utilizationCurve;
-    PController6 pController; // TODO: should these all be stored in params and not global?
+    PController6 pController;
     IOracleProvider oracle;
     IPayoffProvider payoff;
     bool makerReceiveOnly;
@@ -58,15 +58,13 @@ struct StoredMarketParameter {
     bytes2 __unallocated1__;
 
     /* slot 4 */
-    int32 pControllerValue;                  // <= 214748%
     uint48 pControllerK;                     // <= 281m
-    int24 pControllerSkew;                   // <= 1677%
     uint32 pControllerMax;                   // <= 214748%
     uint24 takerSkewFee;                     // <= 1677%
     uint24 takerImpactFee;                   // <= 1677%
     uint24 makerSkewFee;                     // <= 1677%
     uint24 makerImpactFee;                   // <= 1677%
-    bytes7 __unallocated2__;
+    bytes14 __unallocated2__;
 }
 struct MarketParameterStorage { StoredMarketParameter value; }
 using MarketParameterStorageLib for MarketParameterStorage global;
@@ -99,9 +97,7 @@ library MarketParameterStorageLib {
                 UFixed6.wrap(uint256(value.utilizationCurveTargetUtilization))
             ),
             PController6(
-                Fixed6.wrap(int256(value.pControllerValue)),
                 UFixed6.wrap(uint256(value.pControllerK)),
-                Fixed6.wrap(int256(value.pControllerSkew)),
                 UFixed6.wrap(uint256(value.pControllerMax))
             ),
             IOracleProvider(value.oracle),
@@ -132,12 +128,8 @@ library MarketParameterStorageLib {
         if (newValue.utilizationCurve.maxRate.gt(UFixed6.wrap(type(uint32).max))) revert MarketParameterStorageInvalidError();
         if (newValue.utilizationCurve.targetRate.gt(UFixed6.wrap(type(uint32).max))) revert MarketParameterStorageInvalidError();
         if (newValue.utilizationCurve.targetUtilization.gt(UFixed6.wrap(type(uint32).max))) revert MarketParameterStorageInvalidError();
-        if (newValue.pController.value.gt(Fixed6.wrap(type(int32).max))) revert MarketParameterStorageInvalidError();
-        if (newValue.pController.value.lt(Fixed6.wrap(type(int32).min))) revert MarketParameterStorageInvalidError();
-        if (newValue.pController._k.gt(UFixed6.wrap(type(uint48).max))) revert MarketParameterStorageInvalidError();
-        if (newValue.pController._skew.gt(Fixed6.wrap(type(int24).max))) revert MarketParameterStorageInvalidError();
-        if (newValue.pController._skew.lt(Fixed6.wrap(type(int24).min))) revert MarketParameterStorageInvalidError();
-        if (newValue.pController._max.gt(UFixed6.wrap(type(uint32).max))) revert MarketParameterStorageInvalidError();
+        if (newValue.pController.k.gt(UFixed6.wrap(type(uint48).max))) revert MarketParameterStorageInvalidError();
+        if (newValue.pController.max.gt(UFixed6.wrap(type(uint32).max))) revert MarketParameterStorageInvalidError();
 
         if (oldValue.fuse && address(newValue.oracle) != oldValue.oracle) revert MarketParameterStorageImmutableError();
         if (oldValue.fuse && address(newValue.payoff) != oldValue.payoff) revert MarketParameterStorageImmutableError();
@@ -161,10 +153,8 @@ library MarketParameterStorageLib {
             utilizationCurveMaxRate: uint32(UFixed6.unwrap(newValue.utilizationCurve.maxRate)),
             utilizationCurveTargetRate: uint32(UFixed6.unwrap(newValue.utilizationCurve.targetRate)),
             utilizationCurveTargetUtilization: uint24(UFixed6.unwrap(newValue.utilizationCurve.targetUtilization)),
-            pControllerValue: int32(Fixed6.unwrap(newValue.pController.value)),
-            pControllerK: uint48(UFixed6.unwrap(newValue.pController._k)),
-            pControllerSkew: int24(Fixed6.unwrap(newValue.pController._skew)),
-            pControllerMax: uint32(UFixed6.unwrap(newValue.pController._max)),
+            pControllerK: uint48(UFixed6.unwrap(newValue.pController.k)),
+            pControllerMax: uint32(UFixed6.unwrap(newValue.pController.max)),
             oracle: address(newValue.oracle),
             payoff: address(newValue.payoff),
             makerReceiveOnly: newValue.makerReceiveOnly,

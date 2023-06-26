@@ -228,10 +228,8 @@ describe('Market', () => {
         targetUtilization: parse6decimal('0.50'),
       },
       pController: {
-        value: 0,
-        _k: parse6decimal('40000'),
-        _skew: 0,
-        _max: parse6decimal('1.20'),
+        k: parse6decimal('40000'),
+        max: parse6decimal('1.20'),
       },
       makerRewardRate: parse6decimal('0.3'),
       longRewardRate: parse6decimal('0.2'),
@@ -273,6 +271,8 @@ describe('Market', () => {
       expect(parameter.utilizationCurve.targetRate).to.equal(marketParameter.utilizationCurve.targetRate)
       expect(parameter.utilizationCurve.maxRate).to.equal(marketParameter.utilizationCurve.maxRate)
       expect(parameter.utilizationCurve.targetUtilization).to.equal(marketParameter.utilizationCurve.targetUtilization)
+      expect(parameter.pController.k).to.equal(marketParameter.pController.k)
+      expect(parameter.pController.max).to.equal(marketParameter.pController.max)
       expect(parameter.makerRewardRate).to.equal(marketParameter.makerRewardRate)
       expect(parameter.shortRewardRate).to.equal(marketParameter.shortRewardRate)
       expect(parameter.oracle).to.equal(marketParameter.oracle)
@@ -346,10 +346,8 @@ describe('Market', () => {
             targetUtilization: parse6decimal('0.75'),
           },
           pController: {
-            value: 0,
-            _k: parse6decimal('40000'),
-            _skew: 0,
-            _max: parse6decimal('1.20'),
+            k: parse6decimal('40000'),
+            max: parse6decimal('1.20'),
           },
           makerRewardRate: parse6decimal('0.1'),
           longRewardRate: parse6decimal('0.1'),
@@ -380,6 +378,8 @@ describe('Market', () => {
         expect(parameter.utilizationCurve.targetUtilization).to.equal(
           newMarketParameter.utilizationCurve.targetUtilization,
         )
+        expect(parameter.pController.k).to.equal(newMarketParameter.pController.k)
+        expect(parameter.pController.max).to.equal(newMarketParameter.pController.max)
         expect(parameter.makerRewardRate).to.equal(newMarketParameter.makerRewardRate)
         expect(parameter.shortRewardRate).to.equal(newMarketParameter.shortRewardRate)
         expect(parameter.oracle).to.equal(newMarketParameter.oracle)
@@ -409,10 +409,8 @@ describe('Market', () => {
             targetUtilization: parse6decimal('0.75'),
           },
           pController: {
-            value: 0,
-            _k: parse6decimal('40000'),
-            _skew: 0,
-            _max: parse6decimal('1.20'),
+            k: parse6decimal('40000'),
+            max: parse6decimal('1.20'),
           },
           makerRewardRate: parse6decimal('0.1'),
           longRewardRate: parse6decimal('0.1'),
@@ -450,10 +448,8 @@ describe('Market', () => {
             targetUtilization: parse6decimal('0.75'),
           },
           pController: {
-            value: 0,
-            _k: parse6decimal('40000'),
-            _skew: 0,
-            _max: parse6decimal('1.20'),
+            k: parse6decimal('40000'),
+            max: parse6decimal('1.20'),
           },
           makerRewardRate: parse6decimal('0.1'),
           longRewardRate: parse6decimal('0.1'),
