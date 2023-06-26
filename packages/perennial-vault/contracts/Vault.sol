@@ -34,6 +34,8 @@ contract Vault is IVault, UInitializable {
 
     string private _name;
 
+    string private _symbol;
+
     VaultParameterStorage private _parameter;
 
     uint256 public totalMarkets;
@@ -64,8 +66,16 @@ contract Vault is IVault, UInitializable {
         return _registrations[marketId].read();
     }
 
+    function name() external view returns (string memory) {
+        return string(abi.encodePacked("Perennial V2 Vault: ", _name));
+    }
+
+    function symbol() external view returns (string memory) {
+        return string(abi.encodePacked("PV-", _symbol));
+    }
+
+    function decimals() external view returns (uint8) { return 18; }
     function asset() external view returns (Token18) { return _parameter.read().asset; }
-    function name() external view returns (string memory) { return string(abi.encodePacked("Perennial V2 Vault: ", _name)); }
     function totalSupply() external view returns (UFixed6) { return _account.read().shares; }
     function balanceOf(address account) public view returns (UFixed6) { return _accounts[account].read().shares; }
     function totalUnclaimed() external view returns (UFixed6) { return _account.read().assets; }
@@ -105,8 +115,14 @@ contract Vault is IVault, UInitializable {
         return _totalShares.isZero() ? shares : shares.muldiv(_totalAssets, _totalShares);
     }
 
-    function initialize(Token18 asset_, IMarket initialMarket, string calldata name_) external initializer(1) {
+    function initialize(
+        Token18 asset_,
+        IMarket initialMarket,
+        string calldata name_,
+        string calldata symbol_
+    ) external initializer(1) {
         _name = name_;
+        _symbol = symbol_;
         _parameter.store(VaultParameter(asset_, UFixed6Lib.ZERO, UFixed6Lib.ZERO, UFixed6Lib.ZERO));
         _register(initialMarket, 0);
     }
@@ -260,6 +276,14 @@ contract Vault is IVault, UInitializable {
         allowance[msg.sender][spender] = amount;
         emit Approval(msg.sender, spender, amount);
         return true;
+    }
+
+    function transfer(address to, UFixed6 amount) external returns (bool) {
+        revert VaultNonTransferableError();
+    }
+
+    function transferFrom(address from, address to, UFixed6 amount) external returns (bool) {
+        revert VaultNonTransferableError();
     }
 
     /**

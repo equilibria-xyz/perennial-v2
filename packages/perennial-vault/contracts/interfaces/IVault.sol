@@ -68,6 +68,7 @@ interface IVault is IInitializable {
     event Redemption(address indexed sender, address indexed account, uint256 version, UFixed6 shares);
     event Claim(address indexed sender, address indexed account, UFixed6 assets);
 
+    error VaultNonTransferableError();
     error VaultDepositLimitExceededError();
     error VaultRedemptionLimitExceededError();
     error VaultExistingOrderError();
@@ -88,23 +89,22 @@ interface IVault is IInitializable {
     function totalMarkets() external view returns (uint256);
     function parameter() external view returns (VaultParameter memory);
     function registrations(uint256 marketId) external view returns (Registration memory);
-    function asset() external view returns (Token18);
     function register(IMarket market) external;
     function updateWeight(uint256 marketId, uint256 newWeight) external;
     function updateParameter(VaultParameter memory newParameter) external;
 
     /* Vault Interface */
 
-    function initialize(Token18 asset, IMarket market, string calldata name_) external;
+    function initialize(Token18 asset, IMarket market, string calldata name_, string calldata symbol_) external;
+    function totalShares() external view returns (UFixed6);
     function settle(address account) external;
     function totalUnclaimed() external view returns (UFixed6);
     function unclaimed(address account) external view returns (UFixed6);
     function claim(address account) external;
 
     /* Partial ERC4626 Interface */
-
+    function asset() external view returns (Token18);
     function totalAssets() external view returns (Fixed6);
-    function totalShares() external view returns (UFixed6);
     function convertToShares(UFixed6 assets) external view returns (UFixed6);
     function convertToAssets(UFixed6 shares) external view returns (UFixed6);
     function maxDeposit(address account) external view returns (UFixed6);
@@ -112,13 +112,16 @@ interface IVault is IInitializable {
     function maxRedeem(address account) external view returns (UFixed6);
     function redeem(UFixed6 shares, address account) external;
 
-    /* Partial ERC20 Interface */
-
+    /* Non-Transferable ERC20 Interface */
     event Approval(address indexed account, address indexed spender, UFixed6 amount);
 
     function name() external view returns (string memory);
+    function symbol() external view returns (string memory);
+    function decimals() external view returns (uint8);
     function totalSupply() external view returns (UFixed6);
     function balanceOf(address account) external view returns (UFixed6);
     function allowance(address account, address spender) external view returns (UFixed6);
     function approve(address spender, UFixed6 amount) external returns (bool);
+    function transfer(address to, UFixed6 amount) external returns (bool);
+    function transferFrom(address from, address to, UFixed6 amount) external returns (bool);
 }

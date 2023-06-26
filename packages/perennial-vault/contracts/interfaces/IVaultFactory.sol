@@ -10,5 +10,5 @@ interface IVaultFactory is IBeacon, IOwnable {
 
     function factory() external view returns (IFactory);
     function initialize() external;
-    function create(Token18 asset, IMarket initialMarket, string calldata name) external returns (IVault);
+    function create(Token18 asset, IMarket initialMarket, string calldata name, string calldata symbol) external returns (IVault);
 }

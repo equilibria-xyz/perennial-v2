@@ -207,10 +207,10 @@ describe('Vault', () => {
     await vaultFactory.initialize()
 
     vault = IVault__factory.connect(
-      await vaultFactory.callStatic.create(instanceVars.dsu.address, market.address, 'Blue Chip'),
+      await vaultFactory.callStatic.create(instanceVars.dsu.address, market.address, 'Blue Chip', 'BC'),
       owner,
     )
-    await vaultFactory.create(instanceVars.dsu.address, market.address, 'Blue Chip')
+    await vaultFactory.create(instanceVars.dsu.address, market.address, 'Blue Chip', 'BC')
 
     await vault.register(btcMarket.address)
     await vault.updateWeight(0, 4)
@@ -251,7 +251,7 @@ describe('Vault', () => {
 
   describe('#initialize', () => {
     it('cant re-initialize', async () => {
-      await expect(vault.initialize(asset.address, market.address, 'Blue Chip'))
+      await expect(vault.initialize(asset.address, market.address, 'Blue Chip', 'BC'))
         .to.revertedWithCustomError(vault, 'UInitializableAlreadyInitializedError')
         .withArgs(1)
     })
@@ -260,6 +260,18 @@ describe('Vault', () => {
   describe('#name', () => {
     it('is correct', async () => {
       expect(await vault.name()).to.equal('Perennial V2 Vault: Blue Chip')
+    })
+  })
+
+  describe('#symbol', () => {
+    it('is correct', async () => {
+      expect(await vault.symbol()).to.equal('PV-BC')
+    })
+  })
+
+  describe('#decimals', () => {
+    it('is correct', async () => {
+      expect(await vault.decimals()).to.equal(18)
     })
   })
 
