@@ -11,6 +11,7 @@ interface IOracleFactory is IOracleProviderFactory, IFactory {
     error OracleFactoryNotRegisteredError();
     error OracleFactoryNotCreatedError();
 
+    function factories(IOracleFactory factory) external view returns (bool);
     function initialize() external;
     function register(IOracleFactory factory) external;
     function create(bytes32 id, IOracleFactory factory) external returns (IOracle newOracle);

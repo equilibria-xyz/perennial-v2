@@ -136,7 +136,7 @@ contract Vault is IVault, Instance {
     function _register(IMarket market, uint256 initialId) private {
         VaultParameter memory vaultParameter = _parameter.read();
 
-        if (!IVaultFactory(address(factory())).marketFactory().markets(market)) revert VaultNotMarketError();
+        if (!IVaultFactory(address(factory())).marketFactory().instances(market)) revert VaultNotMarketError();
         if (!market.token().eq(vaultParameter.asset)) revert VaultIncorrectAssetError();
 
         vaultParameter.asset.approve(address(market));

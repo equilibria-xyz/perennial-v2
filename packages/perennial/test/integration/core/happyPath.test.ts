@@ -902,7 +902,7 @@ describe('Happy Path', () => {
     await market.settle(user.address)
   })
 
-  it.only('disables actions when paused', async () => {
+  it('disables actions when paused', async () => {
     const { marketFactory, pauser, user } = instanceVars
     const market = await createMarket(instanceVars)
 

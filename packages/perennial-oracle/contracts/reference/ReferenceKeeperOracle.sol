@@ -32,7 +32,6 @@ contract ReferenceKeeperOracle is IOracleProvider {
         return _at[_requested[_latest - 1]];
     }
 
-
     function current() public view returns (uint256) { return block.timestamp; }
     function at(uint256 timestamp) public view returns (OracleVersion memory) { return _at[timestamp]; }
     function next() public view returns (uint256) { return _current == _latest ? 0 : _requested[_latest]; }

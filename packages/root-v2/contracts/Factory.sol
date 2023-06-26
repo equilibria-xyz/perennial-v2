@@ -5,6 +5,7 @@ import "@openzeppelin/contracts/proxy/beacon/BeaconProxy.sol";
 import "@openzeppelin/contracts/proxy/beacon/IBeacon.sol";
 import "./IFactory.sol";
 import "./UPausable.sol";
+import "./IInstance.sol";
 
 /**
  * @title Factory
@@ -12,6 +13,8 @@ import "./UPausable.sol";
  * @dev
  */
 abstract contract Factory is IFactory, UOwnable, UPausable {
+    bytes32 private constant INSTANCE_MAP_SLOT = keccak256("equilibria.root.Factory.instances");
+
     address public immutable implementation;
 
     constructor(address implementation_) { implementation = implementation_; }
@@ -20,7 +23,19 @@ abstract contract Factory is IFactory, UOwnable, UPausable {
         __UOwnable__initialize();
     }
 
-    function _create(bytes memory data) internal returns (address) {
-        return address(new BeaconProxy(address(this), data));
+    function instances(IInstance instance) external view returns (bool) {
+        return _instances()[instance];
+    }
+
+    function _create(bytes memory data) internal returns (IInstance newInstance) {
+        newInstance = IInstance(address(new BeaconProxy(address(this), data)));
+        _instances()[newInstance] = true;
+        emit InstanceCreated(newInstance);
+    }
+
+    function _instances() internal pure returns (mapping(IInstance => bool) storage r) {
+        /// @solidity memory-safe-assembly
+        bytes32 slot = INSTANCE_MAP_SLOT;
+        assembly { r.slot := slot }
     }
 }

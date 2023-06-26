@@ -5,6 +5,7 @@ import "@equilibria/root-v2/contracts/IFactory.sol";
 import "@equilibria/root/control/interfaces/IOwnable.sol";
 import "@equilibria/root-v2/contracts/IPausable.sol";
 import "@equilibria/perennial-v2-payoff/contracts/interfaces/IPayoffProvider.sol";
+import "@equilibria/perennial-v2-oracle/contracts/interfaces/IOracleProvider.sol";
 import "../types/ProtocolParameter.sol";
 import "./IMarket.sol";
 
@@ -24,8 +25,7 @@ interface IMarketFactory is IFactory {
     function parameter() external view returns (ProtocolParameter memory);
     function treasury() external view returns (address);
     function operators(address account, address operator) external view returns (bool);
-    function ids(bytes32 oracleId, IPayoffProvider payoff) external view returns (IMarket);
-    function markets(IMarket market) external view returns (bool);
+    function markets(IOracleProvider oracle, IPayoffProvider payoff) external view returns (IMarket);
     function initialize() external;
     function updateParameter(ProtocolParameter memory newParameter) external;
     function updateTreasury(address newTreasury) external;

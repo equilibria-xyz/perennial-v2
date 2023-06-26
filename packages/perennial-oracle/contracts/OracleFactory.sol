@@ -11,7 +11,6 @@ import "./interfaces/IOracleFactory.sol";
  */
 contract OracleFactory is IOracleFactory, Factory {
     mapping(bytes32 => IOracleProvider) public oracles;
-    mapping(IOracleProvider => bytes32) public ids;
 
     mapping(IOracleFactory => bool) public factories;
 
@@ -35,8 +34,8 @@ contract OracleFactory is IOracleFactory, Factory {
         IOracleProvider oracleProvider = factory.oracles(id);
         if (oracleProvider == IOracleProvider(address(0))) revert OracleFactoryInvalidIdError();
 
-        newOracle = IOracle(_create(abi.encodeCall(IOracle.initialize, (oracleProvider))));
-        (oracles[id], ids[newOracle]) = (newOracle, id);
+        newOracle = IOracle(address(_create(abi.encodeCall(IOracle.initialize, (oracleProvider)))));
+        oracles[id] = newOracle;
 
         emit OracleCreated(newOracle, id);
     }

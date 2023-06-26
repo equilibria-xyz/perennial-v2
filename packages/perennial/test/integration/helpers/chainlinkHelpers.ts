@@ -46,7 +46,7 @@ export class ChainlinkContext {
     this.oracleFactory = await smock.fake<IOracleFactory>('IOracleFactory')
     this.decimals = await this.feedRegistryExternal.decimals(this.base, this.quote)
 
-    this.oracleFactory.ids.whenCalledWith(this.oracle.address).returns(this.id)
+    this.oracleFactory.instances.whenCalledWith(this.oracle.address).returns(true)
     this.oracleFactory.oracles.whenCalledWith(this.id).returns(this.oracle.address)
 
     await this.next()

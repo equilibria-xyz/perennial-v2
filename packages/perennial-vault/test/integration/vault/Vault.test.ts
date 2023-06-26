@@ -154,9 +154,9 @@ describe('Vault', () => {
 
     const ETH_PRICE_FEE_ID = '0x0000000000000000000000000000000000000000000000000000000000000001'
     const BTC_PRICE_FEE_ID = '0x0000000000000000000000000000000000000000000000000000000000000002'
-    vaultOracleFactory.ids.whenCalledWith(oracle.address).returns(ETH_PRICE_FEE_ID)
+    vaultOracleFactory.instances.whenCalledWith(oracle.address).returns(true)
     vaultOracleFactory.oracles.whenCalledWith(ETH_PRICE_FEE_ID).returns(oracle.address)
-    vaultOracleFactory.ids.whenCalledWith(btcOracle.address).returns(BTC_PRICE_FEE_ID)
+    vaultOracleFactory.instances.whenCalledWith(btcOracle.address).returns(true)
     vaultOracleFactory.oracles.whenCalledWith(BTC_PRICE_FEE_ID).returns(btcOracle.address)
 
     const rootOracle = IOracle__factory.connect(
@@ -310,7 +310,7 @@ describe('Vault', () => {
       oracle3.at.whenCalledWith(realVersion3.timestamp).returns(realVersion3)
 
       const LINK_PRICE_FEE_ID = '0x0000000000000000000000000000000000000000000000000000000000000003'
-      vaultOracleFactory.ids.whenCalledWith(oracle3.address).returns(LINK_PRICE_FEE_ID)
+      vaultOracleFactory.instances.whenCalledWith(oracle3.address).returns(true)
       vaultOracleFactory.oracles.whenCalledWith(LINK_PRICE_FEE_ID).returns(oracle3.address)
 
       rootOracle3 = IOracle__factory.connect(
@@ -370,7 +370,7 @@ describe('Vault', () => {
       oracle4.at.whenCalledWith(realVersion4.timestamp).returns(realVersion4)
 
       const LINK0_PRICE_FEE_ID = '0x0000000000000000000000000000000000000000000000000000000000000004'
-      vaultOracleFactory.ids.whenCalledWith(oracle4.address).returns(LINK0_PRICE_FEE_ID)
+      vaultOracleFactory.instances.whenCalledWith(oracle4.address).returns(true)
       vaultOracleFactory.oracles.whenCalledWith(LINK0_PRICE_FEE_ID).returns(oracle4.address)
 
       const rootOracle4 = IOracle__factory.connect(

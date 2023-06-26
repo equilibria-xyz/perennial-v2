@@ -132,9 +132,7 @@ describe('MarketFactory', () => {
         closed: false,
       }
 
-      oracleFactory.ids
-        .whenCalledWith(oracle.address)
-        .returns('0xff61491a931112ddf1bd8147cd1b641375f79f5825126d665480874634fd0ace')
+      oracleFactory.instances.whenCalledWith(oracle.address).returns(true)
       payoffFactory.payoffs.whenCalledWith(payoffProvider.address).returns(true)
 
       const marketAddress = await factory.callStatic.create(marketDefinition, marketParameter)
@@ -187,9 +185,7 @@ describe('MarketFactory', () => {
         closed: false,
       }
 
-      oracleFactory.ids
-        .whenCalledWith(oracle.address)
-        .returns('0xff61491a931112ddf1bd8147cd1b641375f79f5825126d665480874634fd0ace')
+      oracleFactory.instances.whenCalledWith(oracle.address).returns(true)
 
       const marketAddress = await factory.callStatic.create(marketDefinition, marketParameter)
       await expect(factory.connect(owner).create(marketDefinition, marketParameter))
@@ -241,9 +237,7 @@ describe('MarketFactory', () => {
         closed: false,
       }
 
-      oracleFactory.ids
-        .whenCalledWith(oracle.address)
-        .returns('0xff61491a931112ddf1bd8147cd1b641375f79f5825126d665480874634fd0ace')
+      oracleFactory.instances.whenCalledWith(oracle.address).returns(true)
       payoffFactory.payoffs.whenCalledWith(payoffProvider.address).returns(false)
 
       await expect(factory.connect(owner).create(marketDefinition, marketParameter)).to.revertedWithCustomError(
@@ -293,9 +287,7 @@ describe('MarketFactory', () => {
         closed: false,
       }
 
-      oracleFactory.ids
-        .whenCalledWith(oracle.address)
-        .returns('0x0000000000000000000000000000000000000000000000000000000000000000')
+      oracleFactory.instances.whenCalledWith(oracle.address).returns(false)
       payoffFactory.payoffs.whenCalledWith(payoffProvider.address).returns(true)
 
       await expect(factory.connect(owner).create(marketDefinition, marketParameter)).to.revertedWithCustomError(
@@ -345,9 +337,7 @@ describe('MarketFactory', () => {
         closed: false,
       }
 
-      oracleFactory.ids
-        .whenCalledWith(oracle.address)
-        .returns('0xff61491a931112ddf1bd8147cd1b641375f79f5825126d665480874634fd0ace')
+      oracleFactory.instances.whenCalledWith(oracle.address).returns(true)
       payoffFactory.payoffs.whenCalledWith(payoffProvider.address).returns(true)
 
       await factory.connect(owner).create(marketDefinition, marketParameter)

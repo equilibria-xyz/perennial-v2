@@ -11,7 +11,6 @@ import "../interfaces/IPythFactory.sol";
  * @dev
  */
 contract PythFactory is IPythFactory, Factory {
-    mapping(IOracleProvider => bytes32) public ids;
     mapping(bytes32 => IOracleProvider) public oracles;
 
     /**
@@ -27,10 +26,12 @@ contract PythFactory is IPythFactory, Factory {
         __UOwnable__initialize();
     }
 
-    function create(bytes32 id) external onlyOwner returns (IPythOracle oracle) {
-        oracle = IPythOracle(_create(abi.encodeCall(IPythOracle.initialize, (id))));
-        ids[oracle] = id;
-        oracles[id] = oracle;
-        emit OracleCreated(oracle, id);
+    function create(bytes32 id) external onlyOwner returns (IPythOracle newOracle) {
+        // TODO: checks for validity?
+
+        newOracle = IPythOracle(address(_create(abi.encodeCall(IPythOracle.initialize, (id)))));
+        oracles[id] = newOracle;
+
+        emit OracleCreated(newOracle, id);
     }
 }

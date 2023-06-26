@@ -7,6 +7,5 @@ import "./IOracleProvider.sol";
 interface IOracleProviderFactory {
     event OracleCreated(IOracleProvider indexed oracle, bytes32 indexed id);
 
-    function ids(IOracleProvider oracle) external view returns (bytes32 id);
     function oracles(bytes32 id) external view returns (IOracleProvider);
 }
