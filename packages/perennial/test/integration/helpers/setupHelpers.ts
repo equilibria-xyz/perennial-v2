@@ -200,6 +200,8 @@ export async function createMarket(
     symbol: symbol ?? 'SQTH',
     token: dsu.address,
     reward: rewardToken.address,
+    oracle: (oracleOverride ?? oracle).address,
+    payoff: (payoff ?? instanceVars.payoff).address,
   }
   const parameter = {
     maintenance: parse6decimal('0.3'),
@@ -227,8 +229,6 @@ export async function createMarket(
     makerRewardRate: 0,
     longRewardRate: 0,
     shortRewardRate: 0,
-    oracle: (oracleOverride ?? oracle).address,
-    payoff: (payoff ?? instanceVars.payoff).address,
     makerReceiveOnly: false,
     closed: false,
   }

@@ -5,6 +5,7 @@ import "@equilibria/root-v2/contracts/IInstance.sol";
 import "@equilibria/root/number/types/UFixed6.sol";
 import "@equilibria/root/token/types/Token18.sol";
 import "@equilibria/perennial-v2-oracle/contracts/interfaces/IOracleProvider.sol";
+import "@equilibria/perennial-v2-payoff/contracts/interfaces/IPayoffProvider.sol";
 import "@equilibria/perennial-v2-oracle/contracts/types/OracleVersion.sol";
 import "../types/Version.sol";
 import "../types/Local.sol";
@@ -17,6 +18,8 @@ interface IMarket is IInstance {
         string symbol;
         Token18 token;
         Token18 reward;
+        IOracleProvider oracle;
+        IPayoffProvider payoff;
     }
 
     struct CurrentContext {

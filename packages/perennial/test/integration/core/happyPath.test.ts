@@ -46,6 +46,8 @@ describe('Happy Path', () => {
       symbol: 'SQTH',
       token: dsu.address,
       reward: rewardToken.address,
+      oracle: oracle.address,
+      payoff: payoff.address,
     }
     const parameter = {
       maintenance: parse6decimal('0.3'),
@@ -73,8 +75,6 @@ describe('Happy Path', () => {
       makerRewardRate: 0,
       longRewardRate: 0,
       shortRewardRate: 0,
-      oracle: oracle.address,
-      payoff: payoff.address,
       makerReceiveOnly: false,
       closed: true,
     }
@@ -995,7 +995,7 @@ describe('Happy Path', () => {
         targetUtilization: parse6decimal('0.80'),
       },
       pController: {
-        k: parse6decimal('400000'),
+        k: parse6decimal('40000'),
         max: parse6decimal('1.20'),
       },
       makerRewardRate: incentizesOn ? parse6decimal('0.01') : 0,
@@ -1033,7 +1033,7 @@ describe('Happy Path', () => {
     // Check user is in the correct state
     expectLocalEq(await market.locals(user.address), {
       currentId: 3,
-      collateral: '985774741',
+      collateral: '985775856',
       reward: '24669998',
       liquidation: 0,
     })
@@ -1057,8 +1057,8 @@ describe('Happy Path', () => {
     // Check global state
     expectGlobalEq(await market.global(), {
       currentId: 3,
-      protocolFee: '395176',
-      marketFee: '395178',
+      protocolFee: '395234',
+      marketFee: '395237',
     })
     expectPositionEq(await market.pendingPosition(3), {
       id: 3,
@@ -1077,8 +1077,8 @@ describe('Happy Path', () => {
       fee: 0,
     })
     expectVersionEq(await market.versions(TIMESTAMP_4), {
-      makerValue: { _value: '-357211058792' },
-      longValue: { _value: '362094018785' },
+      makerValue: { _value: '-357187161823' },
+      longValue: { _value: '362067596968' },
       shortValue: { _value: 0 },
       makerReward: { _value: '606836363635' },
       longReward: { _value: '60683636363' },

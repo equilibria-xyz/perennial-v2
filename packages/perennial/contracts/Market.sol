@@ -26,6 +26,10 @@ contract Market is IMarket, Instance {
     /// @dev ERC20 token for reward
     Token18 public reward;
 
+    IOracleProvider public oracle;
+
+    IPayoffProvider public payoff;
+
     /// @dev Treasury of the market, collects fees
     address public treasury;
 
@@ -61,6 +65,8 @@ contract Market is IMarket, Instance {
         symbol = definition_.symbol;
         token = definition_.token;
         reward = definition_.reward;
+        oracle = definition_.oracle;
+        payoff = definition_.payoff;
         _updateParameter(parameter_);
     }
 
@@ -164,8 +170,7 @@ contract Market is IMarket, Instance {
     }
 
     function at(uint256 timestamp) public view returns (OracleVersion memory) {
-        MarketParameter memory marketParameter = _parameter.read();
-        return _oracleVersionAt(marketParameter, timestamp);
+        return _oracleVersionAt(timestamp);
     }
 
     function _liquidate(CurrentContext memory context, address account) private {
@@ -265,8 +270,8 @@ contract Market is IMarket, Instance {
         context.accountPosition = _positions[account].read();
 
         // oracle
-        (context.latestVersion, context.currentTimestamp) = _oracleVersion(context.marketParameter);
-        context.positionVersion = _oracleVersionAt(context.marketParameter, context.position.timestamp);
+        (context.latestVersion, context.currentTimestamp) = _oracleVersion();
+        context.positionVersion = _oracleVersionAt(context.position.timestamp);
 
         // after
         _endGas(context);
@@ -338,7 +343,7 @@ contract Market is IMarket, Instance {
 
     function _processPosition(CurrentContext memory context, Position memory newPosition) private {
         Version memory version = _versions[context.position.timestamp].read();
-        OracleVersion memory oracleVersion = _oracleVersionAt(context.marketParameter, newPosition.timestamp);
+        OracleVersion memory oracleVersion = _oracleVersionAt(newPosition.timestamp);
         if (!oracleVersion.valid) return; // skip processing if invalid
 
         UFixed6 accumulatedFee = version.accumulate(
@@ -414,24 +419,18 @@ contract Market is IMarket, Instance {
         emit ParameterUpdated(newParameter);
     }
 
-    function _oracleVersion(
-        MarketParameter memory marketParameter
-    ) private returns (OracleVersion memory latestVersion, uint256 currentTimestamp) {
-        (latestVersion, currentTimestamp) = marketParameter.oracle.sync();
-        _transform(marketParameter, latestVersion);
+    function _oracleVersion() private returns (OracleVersion memory latestVersion, uint256 currentTimestamp) {
+        (latestVersion, currentTimestamp) = oracle.sync();
+        _transform(latestVersion);
     }
 
-    function _oracleVersionAt(
-        MarketParameter memory marketParameter,
-        uint256 timestamp
-    ) private view returns (OracleVersion memory oracleVersion) {
-        oracleVersion = marketParameter.oracle.at(timestamp);
-        _transform(marketParameter, oracleVersion);
+    function _oracleVersionAt(uint256 timestamp) private view returns (OracleVersion memory oracleVersion) {
+        oracleVersion = oracle.at(timestamp);
+        _transform(oracleVersion);
     }
 
-    function _transform(MarketParameter memory marketParameter, OracleVersion memory oracleVersion) private pure {
-        if (address(marketParameter.payoff) != address(0))
-            oracleVersion.price = marketParameter.payoff.payoff(oracleVersion.price);
+    function _transform(OracleVersion memory oracleVersion) private view {
+        if (address(payoff) != address(0)) oracleVersion.price = payoff.payoff(oracleVersion.price);
     }
 
     // Debug

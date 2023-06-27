@@ -19,52 +19,45 @@ struct MarketParameter {
     UFixed6 makerSkewFee;
     UFixed6 makerImpactFee;
     UFixed6 positionFee;
-    UFixed6 makerLimit;
+    UFixed6 makerLimit; // TODO: zero is uncapped
     UFixed6 makerRewardRate;
     UFixed6 longRewardRate;
     UFixed6 shortRewardRate;
     UJumpRateUtilizationCurve6 utilizationCurve;
     PController6 pController;
-    IOracleProvider oracle;
-    IPayoffProvider payoff;
     bool makerReceiveOnly;
     bool closed;
 }
+
 struct StoredMarketParameter {
     /* slot 1 */
-    address oracle;
-    uint24 maintenance; // <= 1677%
-    uint24 fundingFee;  // <= 1677%
-    uint24 positionFee; // <= 1677%
+    uint48 makerLimit;                          // <= 281m
+    uint40 pControllerK;                        // <= 1.1m
+    uint32 utilizationCurveMinRate;             // <= 214748%
+    uint32 utilizationCurveMaxRate;             // <= 214748%
+    uint24 utilizationCurveTargetUtilization;   // <= 1677%
+    uint24 takerFee;                            // <= 1677%
+    uint24 makerFee;                            // <= 1677%
+    uint24 maintenance;                         // <= 1677%
     bool makerReceiveOnly;
-    bool closed;
-    bool fuse;
 
     /* slot 2 */
-    address payoff;
-    uint32 makerRewardRate;  // <= 2147.48 / s
-    uint32 longRewardRate;   // <= 2147.48 / s
-    uint32 shortRewardRate;  // <= 2147.48 / s
+    uint32 utilizationCurveTargetRate;          // <= 214748%
+    uint32 pControllerMax;                      // <= 214748%
+    uint32 makerRewardRate;                     // <= 2147.48 / s
+    uint32 longRewardRate;                      // <= 2147.48 / s
+    uint32 shortRewardRate;                     // <= 2147.48 / s
+    uint24 takerSkewFee;                        // <= 1677%
+    uint24 takerImpactFee;                      // <= 1677%
+    uint24 makerSkewFee;                        // <= 1677%
+    uint24 makerImpactFee;                      // <= 1677%
 
     /* slot 3 */
-    uint48 makerLimit;                        // <= 281m
-    uint32 utilizationCurveMinRate;           // <= 214748%
-    uint32 utilizationCurveMaxRate;           // <= 214748%
-    uint32 utilizationCurveTargetRate;        // <= 214748%
-    uint24 utilizationCurveTargetUtilization; // <= 1677%
-    uint24 takerFee;                          // <= 1677%
-    uint24 makerFee;                          // <= 1677%
-    uint24 interestFee;                       // <= 1677%
-    bytes2 __unallocated1__;
-
-    /* slot 4 */
-    uint48 pControllerK;                     // <= 281m
-    uint32 pControllerMax;                   // <= 214748%
-    uint24 takerSkewFee;                     // <= 1677%
-    uint24 takerImpactFee;                   // <= 1677%
-    uint24 makerSkewFee;                     // <= 1677%
-    uint24 makerImpactFee;                   // <= 1677%
-    bytes14 __unallocated2__;
+    uint24 interestFee;                         // <= 1677%
+    uint24 fundingFee;                          // <= 1677%
+    uint24 positionFee;                         // <= 1677%
+    bool closed;
+    bytes21 __unallocated__;
 }
 struct MarketParameterStorage { StoredMarketParameter value; }
 using MarketParameterStorageLib for MarketParameterStorage global;
@@ -100,16 +93,12 @@ library MarketParameterStorageLib {
                 UFixed6.wrap(uint256(value.pControllerK)),
                 UFixed6.wrap(uint256(value.pControllerMax))
             ),
-            IOracleProvider(value.oracle),
-            IPayoffProvider(value.payoff),
             value.makerReceiveOnly,
             value.closed
         );
     }
 
     function store(MarketParameterStorage storage self, MarketParameter memory newValue) internal {
-        StoredMarketParameter memory oldValue = self.value;
-
         if (newValue.maintenance.gt(UFixed6.wrap(type(uint24).max))) revert MarketParameterStorageInvalidError();
         if (newValue.fundingFee.gt(UFixed6.wrap(type(uint24).max))) revert MarketParameterStorageInvalidError();
         if (newValue.interestFee.gt(UFixed6.wrap(type(uint24).max))) revert MarketParameterStorageInvalidError();
@@ -128,11 +117,8 @@ library MarketParameterStorageLib {
         if (newValue.utilizationCurve.maxRate.gt(UFixed6.wrap(type(uint32).max))) revert MarketParameterStorageInvalidError();
         if (newValue.utilizationCurve.targetRate.gt(UFixed6.wrap(type(uint32).max))) revert MarketParameterStorageInvalidError();
         if (newValue.utilizationCurve.targetUtilization.gt(UFixed6.wrap(type(uint32).max))) revert MarketParameterStorageInvalidError();
-        if (newValue.pController.k.gt(UFixed6.wrap(type(uint48).max))) revert MarketParameterStorageInvalidError();
+        if (newValue.pController.k.gt(UFixed6.wrap(type(uint40).max))) revert MarketParameterStorageInvalidError();
         if (newValue.pController.max.gt(UFixed6.wrap(type(uint32).max))) revert MarketParameterStorageInvalidError();
-
-        if (oldValue.fuse && address(newValue.oracle) != oldValue.oracle) revert MarketParameterStorageImmutableError();
-        if (oldValue.fuse && address(newValue.payoff) != oldValue.payoff) revert MarketParameterStorageImmutableError();
 
         self.value = StoredMarketParameter({
             maintenance: uint24(UFixed6.unwrap(newValue.maintenance)),
@@ -153,15 +139,11 @@ library MarketParameterStorageLib {
             utilizationCurveMaxRate: uint32(UFixed6.unwrap(newValue.utilizationCurve.maxRate)),
             utilizationCurveTargetRate: uint32(UFixed6.unwrap(newValue.utilizationCurve.targetRate)),
             utilizationCurveTargetUtilization: uint24(UFixed6.unwrap(newValue.utilizationCurve.targetUtilization)),
-            pControllerK: uint48(UFixed6.unwrap(newValue.pController.k)),
+            pControllerK: uint40(UFixed6.unwrap(newValue.pController.k)),
             pControllerMax: uint32(UFixed6.unwrap(newValue.pController.max)),
-            oracle: address(newValue.oracle),
-            payoff: address(newValue.payoff),
             makerReceiveOnly: newValue.makerReceiveOnly,
             closed: newValue.closed,
-            fuse: true,
-            __unallocated1__: bytes2(0),
-            __unallocated2__: bytes7(0)
+            __unallocated__: bytes11(0)
         });
     }
 }

@@ -97,6 +97,8 @@ describe('MarketFactory', () => {
         symbol: 'SQTH',
         token: dsu.address,
         reward: reward.address,
+        oracle: oracle.address,
+        payoff: payoffProvider.address,
       }
       const marketParameter = {
         maintenance: parse6decimal('0.3'),
@@ -124,8 +126,6 @@ describe('MarketFactory', () => {
         makerRewardRate: 0,
         longRewardRate: 0,
         shortRewardRate: 0,
-        oracle: oracle.address,
-        payoff: payoffProvider.address,
         makerReceiveOnly: false,
         closed: false,
       }
@@ -148,6 +148,8 @@ describe('MarketFactory', () => {
         symbol: 'SQTH',
         token: dsu.address,
         reward: reward.address,
+        oracle: oracle.address,
+        payoff: constants.AddressZero,
       }
       const marketParameter = {
         maintenance: parse6decimal('0.3'),
@@ -175,8 +177,6 @@ describe('MarketFactory', () => {
         makerRewardRate: 0,
         longRewardRate: 0,
         shortRewardRate: 0,
-        oracle: oracle.address,
-        payoff: constants.AddressZero,
         makerReceiveOnly: false,
         closed: false,
       }
@@ -198,6 +198,8 @@ describe('MarketFactory', () => {
         symbol: 'SQTH',
         token: dsu.address,
         reward: reward.address,
+        oracle: oracle.address,
+        payoff: payoffProvider.address,
       }
       const marketParameter = {
         maintenance: parse6decimal('0.3'),
@@ -225,8 +227,6 @@ describe('MarketFactory', () => {
         makerRewardRate: 0,
         longRewardRate: 0,
         shortRewardRate: 0,
-        oracle: oracle.address,
-        payoff: payoffProvider.address,
         makerReceiveOnly: false,
         closed: false,
       }
@@ -246,6 +246,8 @@ describe('MarketFactory', () => {
         symbol: 'SQTH',
         token: dsu.address,
         reward: reward.address,
+        oracle: oracle.address,
+        payoff: payoffProvider.address,
       }
       const marketParameter = {
         maintenance: parse6decimal('0.3'),
@@ -273,8 +275,6 @@ describe('MarketFactory', () => {
         makerRewardRate: 0,
         longRewardRate: 0,
         shortRewardRate: 0,
-        oracle: oracle.address,
-        payoff: payoffProvider.address,
         makerReceiveOnly: false,
         closed: false,
       }
@@ -294,6 +294,8 @@ describe('MarketFactory', () => {
         symbol: 'SQTH',
         token: dsu.address,
         reward: reward.address,
+        oracle: oracle.address,
+        payoff: payoffProvider.address,
       }
       const marketParameter = {
         maintenance: parse6decimal('0.3'),
@@ -321,8 +323,6 @@ describe('MarketFactory', () => {
         makerRewardRate: 0,
         longRewardRate: 0,
         shortRewardRate: 0,
-        oracle: oracle.address,
-        payoff: payoffProvider.address,
         makerReceiveOnly: false,
         closed: false,
       }

@@ -74,19 +74,19 @@ contract MarketFactory is IMarketFactory, Factory {
         // TODO: lock down or use more of definition?
 
         // verify payoff
-        if (marketParameter.payoff != IPayoffProvider(address(0)) && !payoffFactory.payoffs(marketParameter.payoff))
+        if (definition.payoff != IPayoffProvider(address(0)) && !payoffFactory.payoffs(definition.payoff))
             revert FactoryInvalidPayoffError();
 
         // verify oracle
-        if (!oracleFactory.instances(IInstance(address(marketParameter.oracle)))) revert FactoryInvalidOracleError();
+        if (!oracleFactory.instances(IInstance(address(definition.oracle)))) revert FactoryInvalidOracleError();
 
         // verify invariants
-        if (markets[marketParameter.oracle][marketParameter.payoff] != IMarket(address(0)))
+        if (markets[definition.oracle][definition.payoff] != IMarket(address(0)))
             revert FactoryAlreadyRegisteredError();
 
         // create and register market
         newMarket = IMarket(address(_create(abi.encodeCall(IMarket.initialize, (definition, marketParameter)))));
-        markets[marketParameter.oracle][marketParameter.payoff] = newMarket;
+        markets[definition.oracle][definition.payoff] = newMarket;
 
         emit MarketCreated(newMarket, definition, marketParameter);
     }
