@@ -437,12 +437,12 @@ contract Vault is IVault, Instance {
 
         for (uint256 marketId; marketId < context.markets.length; marketId++) {
             Registration memory registration = _registrations[marketId].read();
-            MarketParameter memory marketParameter = registration.market.parameter();
-            uint256 currentTimestamp = marketParameter.oracle.current();
+            RiskParameter memory riskParameter = registration.market.parameter();
+            uint256 currentTimestamp = registration.market.oracle().current();
 
             context.markets[marketId].registration = registration;
-            context.markets[marketId].closed = marketParameter.closed;
-            context.markets[marketId].makerLimit = marketParameter.makerLimit;
+            context.markets[marketId].closed = riskParameter.closed;
+            context.markets[marketId].makerLimit = riskParameter.makerLimit;
 
             // global
             Global memory global = registration.market.global();
@@ -458,7 +458,7 @@ contract Vault is IVault, Instance {
                 context.latestTimestamp = latestPosition.timestamp;
             }
             context.makerFee = context.makerFee
-                .add(marketParameter.makerFee.mul(context.parameter.leverage).mul(UFixed6Lib.from(registration.weight)));
+                .add(riskParameter.makerFee.mul(context.parameter.leverage).mul(UFixed6Lib.from(registration.weight)));
             context.totalWeight += registration.weight;
             if (registration.weight < context.minWeight) context.minWeight = registration.weight;
 

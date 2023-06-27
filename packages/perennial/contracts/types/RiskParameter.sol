@@ -7,8 +7,8 @@ import "@equilibria/root/number/types/UFixed6.sol";
 import "@equilibria/root/curve/types/UJumpRateUtilizationCurve6.sol";
 import "@equilibria/root-v2/contracts/PController6.sol";
 
-/// @dev MarketParameter type
-struct MarketParameter {
+/// @dev RiskParameter type
+struct RiskParameter {
     UFixed6 maintenance;
     UFixed6 fundingFee;
     UFixed6 interestFee;
@@ -29,7 +29,7 @@ struct MarketParameter {
     bool closed;
 }
 
-struct StoredMarketParameter {
+struct StoredRiskParameter {
     /* slot 1 */
     uint48 makerLimit;                          // <= 281m
     uint40 pControllerK;                        // <= 1.1m
@@ -59,16 +59,16 @@ struct StoredMarketParameter {
     bool closed;
     bytes21 __unallocated__;
 }
-struct MarketParameterStorage { StoredMarketParameter value; }
-using MarketParameterStorageLib for MarketParameterStorage global;
+struct RiskParameterStorage { StoredRiskParameter value; }
+using RiskParameterStorageLib for RiskParameterStorage global;
 
-library MarketParameterStorageLib {
-    error MarketParameterStorageInvalidError();
-    error MarketParameterStorageImmutableError();
+library RiskParameterStorageLib {
+    error RiskParameterStorageInvalidError();
+    error RiskParameterStorageImmutableError();
 
-    function read(MarketParameterStorage storage self) internal view returns (MarketParameter memory) {
-        StoredMarketParameter memory value = self.value;
-        return MarketParameter(
+    function read(RiskParameterStorage storage self) internal view returns (RiskParameter memory) {
+        StoredRiskParameter memory value = self.value;
+        return RiskParameter(
             UFixed6.wrap(uint256(value.maintenance)),
             UFixed6.wrap(uint256(value.fundingFee)),
             UFixed6.wrap(uint256(value.interestFee)),
@@ -98,29 +98,29 @@ library MarketParameterStorageLib {
         );
     }
 
-    function store(MarketParameterStorage storage self, MarketParameter memory newValue) internal {
-        if (newValue.maintenance.gt(UFixed6.wrap(type(uint24).max))) revert MarketParameterStorageInvalidError();
-        if (newValue.fundingFee.gt(UFixed6.wrap(type(uint24).max))) revert MarketParameterStorageInvalidError();
-        if (newValue.interestFee.gt(UFixed6.wrap(type(uint24).max))) revert MarketParameterStorageInvalidError();
-        if (newValue.takerFee.gt(UFixed6.wrap(type(uint24).max))) revert MarketParameterStorageInvalidError();
-        if (newValue.takerSkewFee.gt(UFixed6.wrap(type(uint24).max))) revert MarketParameterStorageInvalidError();
-        if (newValue.takerImpactFee.gt(UFixed6.wrap(type(uint24).max))) revert MarketParameterStorageInvalidError();
-        if (newValue.makerFee.gt(UFixed6.wrap(type(uint24).max))) revert MarketParameterStorageInvalidError();
-        if (newValue.makerSkewFee.gt(UFixed6.wrap(type(uint24).max))) revert MarketParameterStorageInvalidError();
-        if (newValue.makerImpactFee.gt(UFixed6.wrap(type(uint24).max))) revert MarketParameterStorageInvalidError();
-        if (newValue.positionFee.gt(UFixed6.wrap(type(uint24).max))) revert MarketParameterStorageInvalidError();
-        if (newValue.makerLimit.gt(UFixed6.wrap(type(uint48).max))) revert MarketParameterStorageInvalidError();
-        if (newValue.makerRewardRate.gt(UFixed6.wrap(type(uint32).max))) revert MarketParameterStorageInvalidError();
-        if (newValue.longRewardRate.gt(UFixed6.wrap(type(uint32).max))) revert MarketParameterStorageInvalidError();
-        if (newValue.shortRewardRate.gt(UFixed6.wrap(type(uint32).max))) revert MarketParameterStorageInvalidError();
-        if (newValue.utilizationCurve.minRate.gt(UFixed6.wrap(type(uint32).max))) revert MarketParameterStorageInvalidError();
-        if (newValue.utilizationCurve.maxRate.gt(UFixed6.wrap(type(uint32).max))) revert MarketParameterStorageInvalidError();
-        if (newValue.utilizationCurve.targetRate.gt(UFixed6.wrap(type(uint32).max))) revert MarketParameterStorageInvalidError();
-        if (newValue.utilizationCurve.targetUtilization.gt(UFixed6.wrap(type(uint32).max))) revert MarketParameterStorageInvalidError();
-        if (newValue.pController.k.gt(UFixed6.wrap(type(uint40).max))) revert MarketParameterStorageInvalidError();
-        if (newValue.pController.max.gt(UFixed6.wrap(type(uint32).max))) revert MarketParameterStorageInvalidError();
+    function store(RiskParameterStorage storage self, RiskParameter memory newValue) internal {
+        if (newValue.maintenance.gt(UFixed6.wrap(type(uint24).max))) revert RiskParameterStorageInvalidError();
+        if (newValue.fundingFee.gt(UFixed6.wrap(type(uint24).max))) revert RiskParameterStorageInvalidError();
+        if (newValue.interestFee.gt(UFixed6.wrap(type(uint24).max))) revert RiskParameterStorageInvalidError();
+        if (newValue.takerFee.gt(UFixed6.wrap(type(uint24).max))) revert RiskParameterStorageInvalidError();
+        if (newValue.takerSkewFee.gt(UFixed6.wrap(type(uint24).max))) revert RiskParameterStorageInvalidError();
+        if (newValue.takerImpactFee.gt(UFixed6.wrap(type(uint24).max))) revert RiskParameterStorageInvalidError();
+        if (newValue.makerFee.gt(UFixed6.wrap(type(uint24).max))) revert RiskParameterStorageInvalidError();
+        if (newValue.makerSkewFee.gt(UFixed6.wrap(type(uint24).max))) revert RiskParameterStorageInvalidError();
+        if (newValue.makerImpactFee.gt(UFixed6.wrap(type(uint24).max))) revert RiskParameterStorageInvalidError();
+        if (newValue.positionFee.gt(UFixed6.wrap(type(uint24).max))) revert RiskParameterStorageInvalidError();
+        if (newValue.makerLimit.gt(UFixed6.wrap(type(uint48).max))) revert RiskParameterStorageInvalidError();
+        if (newValue.makerRewardRate.gt(UFixed6.wrap(type(uint32).max))) revert RiskParameterStorageInvalidError();
+        if (newValue.longRewardRate.gt(UFixed6.wrap(type(uint32).max))) revert RiskParameterStorageInvalidError();
+        if (newValue.shortRewardRate.gt(UFixed6.wrap(type(uint32).max))) revert RiskParameterStorageInvalidError();
+        if (newValue.utilizationCurve.minRate.gt(UFixed6.wrap(type(uint32).max))) revert RiskParameterStorageInvalidError();
+        if (newValue.utilizationCurve.maxRate.gt(UFixed6.wrap(type(uint32).max))) revert RiskParameterStorageInvalidError();
+        if (newValue.utilizationCurve.targetRate.gt(UFixed6.wrap(type(uint32).max))) revert RiskParameterStorageInvalidError();
+        if (newValue.utilizationCurve.targetUtilization.gt(UFixed6.wrap(type(uint32).max))) revert RiskParameterStorageInvalidError();
+        if (newValue.pController.k.gt(UFixed6.wrap(type(uint40).max))) revert RiskParameterStorageInvalidError();
+        if (newValue.pController.max.gt(UFixed6.wrap(type(uint32).max))) revert RiskParameterStorageInvalidError();
 
-        self.value = StoredMarketParameter({
+        self.value = StoredRiskParameter({
             maintenance: uint24(UFixed6.unwrap(newValue.maintenance)),
             fundingFee: uint24(UFixed6.unwrap(newValue.fundingFee)),
             interestFee: uint24(UFixed6.unwrap(newValue.interestFee)),

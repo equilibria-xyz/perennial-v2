@@ -2,7 +2,7 @@
 pragma solidity ^0.8.13;
 
 import "@equilibria/perennial-v2-oracle/contracts/types/OracleVersion.sol";
-import "./MarketParameter.sol";
+import "./RiskParameter.sol";
 
 /// @dev Order type
 struct Order {
@@ -23,15 +23,15 @@ library OrderLib {
     function registerFee(
         Order memory self,
         OracleVersion memory latestVersion,
-        MarketParameter memory marketParameter
+        RiskParameter memory riskParameter
     ) internal pure {
-        Fixed6 makerFee = Fixed6Lib.from(marketParameter.makerFee)
-            .add(Fixed6Lib.from(marketParameter.makerSkewFee.mul(self.skew)))
-            .add(Fixed6Lib.from(marketParameter.makerImpactFee).mul(self.impact))
+        Fixed6 makerFee = Fixed6Lib.from(riskParameter.makerFee)
+            .add(Fixed6Lib.from(riskParameter.makerSkewFee.mul(self.skew)))
+            .add(Fixed6Lib.from(riskParameter.makerImpactFee).mul(self.impact))
             .max(Fixed6Lib.ZERO);
-        Fixed6 takerFee = Fixed6Lib.from(marketParameter.takerFee)
-            .add(Fixed6Lib.from(marketParameter.takerSkewFee.mul(self.skew)))
-            .add(Fixed6Lib.from(marketParameter.takerImpactFee).mul(self.impact))
+        Fixed6 takerFee = Fixed6Lib.from(riskParameter.takerFee)
+            .add(Fixed6Lib.from(riskParameter.takerSkewFee.mul(self.skew)))
+            .add(Fixed6Lib.from(riskParameter.takerImpactFee).mul(self.impact))
             .max(Fixed6Lib.ZERO);
 
         self.fee = self.maker.abs().mul(latestVersion.price.abs()).mul(UFixed6Lib.from(makerFee))

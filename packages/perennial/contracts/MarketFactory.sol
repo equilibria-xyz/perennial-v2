@@ -69,7 +69,7 @@ contract MarketFactory is IMarketFactory, Factory {
      */
     function create(
         IMarket.MarketDefinition calldata definition,
-        MarketParameter calldata marketParameter
+        RiskParameter calldata riskParameter
     ) external onlyOwner returns (IMarket newMarket) {
         // TODO: lock down or use more of definition?
 
@@ -85,10 +85,10 @@ contract MarketFactory is IMarketFactory, Factory {
             revert FactoryAlreadyRegisteredError();
 
         // create and register market
-        newMarket = IMarket(address(_create(abi.encodeCall(IMarket.initialize, (definition, marketParameter)))));
+        newMarket = IMarket(address(_create(abi.encodeCall(IMarket.initialize, (definition, riskParameter)))));
         markets[definition.oracle][definition.payoff] = newMarket;
 
-        emit MarketCreated(newMarket, definition, marketParameter);
+        emit MarketCreated(newMarket, definition, riskParameter);
     }
 
     function parameter() public view returns (ProtocolParameter memory) {

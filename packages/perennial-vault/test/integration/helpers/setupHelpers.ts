@@ -1,15 +1,16 @@
 import { SignerWithAddress } from '@nomiclabs/hardhat-ethers/signers'
 import { constants } from 'ethers'
 import { parse6decimal } from '../../../../common/testutil/types'
-import { IERC20Metadata, IFactory, IMarket, IMarket__factory } from '../../../types/generated'
-import { MarketParameterStruct } from '../../../types/generated/@equilibria/perennial-v2/contracts/interfaces/IFactory'
-import { IOracle__factory } from '@equilibria/perennial-v2-oracle/types/generated'
+import { IERC20Metadata, IMarket, IMarket__factory, IMarketFactory } from '../../../types/generated'
+import { RiskParameterStruct } from '@equilibria/perennial-v2/types/generated/contracts/Market'
 
-export interface DeployProductParams extends Partial<Omit<MarketParameterStruct, 'payoffDefinition'>> {
-  factory: IFactory
+export interface DeployProductParams extends Partial<Omit<RiskParameterStruct, 'payoffDefinition'>> {
+  factory: IMarketFactory
   token: IERC20Metadata
   name: string
   symbol: string
+  oracle: string
+  payoff: string
   owner: SignerWithAddress
 }
 
@@ -20,8 +21,9 @@ export async function deployProductOnMainnetFork({
   factory,
   name,
   symbol,
-  owner,
   oracle,
+  payoff,
+  owner,
   maintenance,
   fundingFee,
   interestFee,
@@ -35,7 +37,7 @@ export async function deployProductOnMainnetFork({
   makerLimit,
   utilizationCurve,
 }: DeployProductParams): Promise<IMarket> {
-  const marketParameter: MarketParameterStruct = {
+  const marketParameter: RiskParameterStruct = {
     maintenance: maintenance ?? parse6decimal('0.10'),
     fundingFee: fundingFee ?? parse6decimal('0.00'),
     interestFee: interestFee ?? parse6decimal('0.00'),
@@ -57,13 +59,9 @@ export async function deployProductOnMainnetFork({
       targetUtilization: parse6decimal('0.80'),
     },
     pController: {
-      value: 0,
-      _k: parse6decimal('40000'),
-      _skew: 0,
-      _max: parse6decimal('1.20'),
+      k: parse6decimal('40000'),
+      max: parse6decimal('1.20'),
     },
-    oracle: oracle ?? constants.AddressZero,
-    payoff: constants.AddressZero,
     makerReceiveOnly: false,
     closed: false,
   }
@@ -72,6 +70,8 @@ export async function deployProductOnMainnetFork({
     symbol: symbol,
     token: token.address,
     reward: constants.AddressZero,
+    oracle: oracle ?? constants.AddressZero,
+    payoff: payoff ?? constants.AddressZero,
   }
 
   const productAddress = await factory.connect(owner).callStatic.create(marketDefinition, marketParameter)

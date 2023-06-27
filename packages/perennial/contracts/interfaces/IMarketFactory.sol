@@ -13,7 +13,7 @@ interface IMarketFactory is IFactory {
     event ParameterUpdated(ProtocolParameter newParameter);
     event TreasuryUpdated(address newTreasury);
     event OperatorUpdated(address indexed account, address indexed operator, bool newEnabled);
-    event MarketCreated(IMarket indexed market, IMarket.MarketDefinition definition, MarketParameter marketParameter);
+    event MarketCreated(IMarket indexed market, IMarket.MarketDefinition definition, RiskParameter riskParameter);
 
     error FactoryNotContractAddressError();
     error FactoryInvalidPayoffError();
@@ -30,5 +30,5 @@ interface IMarketFactory is IFactory {
     function updateParameter(ProtocolParameter memory newParameter) external;
     function updateTreasury(address newTreasury) external;
     function updateOperator(address operator, bool newEnabled) external;
-    function create(IMarket.MarketDefinition calldata definition, MarketParameter calldata marketParameter) external returns (IMarket);
+    function create(IMarket.MarketDefinition calldata definition, RiskParameter calldata riskParameter) external returns (IMarket);
 }

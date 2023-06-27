@@ -33,7 +33,7 @@ contract Market is IMarket, Instance {
     /// @dev Treasury of the market, collects fees
     address public treasury;
 
-    MarketParameterStorage private _parameter;
+    RiskParameterStorage private _parameter;
 
     /// @dev Protocol and market fees collected, but not yet claimed
     GlobalStorage private _global;
@@ -57,7 +57,7 @@ contract Market is IMarket, Instance {
      */
     function initialize(
         IMarket.MarketDefinition calldata definition_,
-        MarketParameter calldata parameter_
+        RiskParameter calldata parameter_
     ) external initializer(1) {
         __Instance__initialize();
 
@@ -99,7 +99,7 @@ contract Market is IMarket, Instance {
         emit TreasuryUpdated(newTreasury);
     }
 
-    function updateParameter(MarketParameter memory newParameter) external onlyOwner {
+    function updateParameter(RiskParameter memory newParameter) external onlyOwner {
         _updateParameter(newParameter);
     }
 
@@ -137,7 +137,7 @@ contract Market is IMarket, Instance {
         _locals[msg.sender].store(newLocal);
     }
 
-    function parameter() external view returns (MarketParameter memory) {
+    function parameter() external view returns (RiskParameter memory) {
         return _parameter.read();
     }
 
@@ -175,9 +175,9 @@ contract Market is IMarket, Instance {
 
     function _liquidate(CurrentContext memory context, address account) private {
         // before
-        UFixed6 maintenance = context.marketParameter.closed ?
+        UFixed6 maintenance = context.riskParameter.closed ?
             UFixed6Lib.ZERO :
-            context.accountPosition.maintenance(context.latestVersion, context.marketParameter);
+            context.accountPosition.maintenance(context.latestVersion, context.riskParameter);
 
         if (context.local.collateral.max(Fixed6Lib.ZERO).gte(Fixed6Lib.from(maintenance)) ||
             context.local.liquidation > context.accountPosition.timestamp) return;
@@ -185,7 +185,7 @@ contract Market is IMarket, Instance {
         // compute reward
         UFixed6 liquidationFee = context.accountPosition.liquidationFee(
             context.latestVersion,
-            context.marketParameter,
+            context.riskParameter,
             context.protocolParameter
         ).min(context.protocolParameter.maxLiquidationFee).min(UFixed6Lib.from(token.balanceOf()));
 
@@ -209,7 +209,7 @@ contract Market is IMarket, Instance {
 
         // before
         if (context.local.liquidation > context.accountPosition.timestamp) revert MarketInLiquidationError();
-        if (context.marketParameter.closed && !newMaker.add(newLong).add(newShort).isZero()) revert MarketClosedError();
+        if (context.riskParameter.closed && !newMaker.add(newLong).add(newShort).isZero()) revert MarketClosedError();
 
         // update position
         if (context.currentTimestamp > context.accountPendingPosition.timestamp) context.local.currentId++;
@@ -224,7 +224,7 @@ contract Market is IMarket, Instance {
         context.pendingPosition.update(context.global.currentId, context.currentTimestamp, newOrder);
 
         // update fee
-        newOrder.registerFee(context.latestVersion, context.marketParameter);
+        newOrder.registerFee(context.latestVersion, context.riskParameter);
         context.accountPendingPosition.registerFee(newOrder);
         context.pendingPosition.registerFee(newOrder);
 
@@ -257,7 +257,7 @@ contract Market is IMarket, Instance {
 
         // parameters
         context.protocolParameter = IMarketFactory(address(factory())).parameter();
-        context.marketParameter = _parameter.read();
+        context.riskParameter = _parameter.read();
 
         // global
         context.global = _global.read();
@@ -352,7 +352,7 @@ contract Market is IMarket, Instance {
             newPosition,
             context.positionVersion,
             oracleVersion,
-            context.marketParameter
+            context.riskParameter
         );
         context.position.update(newPosition);
         context.global.incrementFees(accumulatedFee, context.protocolParameter);
@@ -387,11 +387,11 @@ contract Market is IMarket, Instance {
 
     function _checkPosition(CurrentContext memory context) private pure {
         if (
-            !context.marketParameter.closed &&
+            !context.riskParameter.closed &&
             context.pendingPosition.socialized() &&
             context.accountPendingPosition.sub(context.accountPosition).decreasesLiquidity()
         ) revert MarketInsufficientLiquidityError();
-        if (context.pendingPosition.maker.gt(context.marketParameter.makerLimit)) revert MarketMakerOverLimitError();
+        if (context.pendingPosition.maker.gt(context.riskParameter.makerLimit)) revert MarketMakerOverLimitError();
         if (!context.accountPendingPosition.singleSided()) revert MarketNotSingleSidedError();
         if (context.global.currentId > context.position.id + context.protocolParameter.maxPendingIds)
             revert MarketExceedsPendingIdLimitError();
@@ -406,15 +406,15 @@ contract Market is IMarket, Instance {
             revert MarketCollateralUnderLimitError();
 
         UFixed6 maintenanceAmount =
-            context.accountPendingPosition.maintenance(context.latestVersion, context.marketParameter);
+            context.accountPendingPosition.maintenance(context.latestVersion, context.riskParameter);
         for (uint256 id = context.accountPosition.id + 1; id < context.local.currentId; id++)
             maintenanceAmount = maintenanceAmount
-                .max(_pendingPositions[account][id].read().maintenance(context.latestVersion, context.marketParameter));
+                .max(_pendingPositions[account][id].read().maintenance(context.latestVersion, context.riskParameter));
 
         if (maintenanceAmount.gt(boundedCollateral)) revert MarketInsufficientCollateralError();
     }
 
-    function _updateParameter(MarketParameter memory newParameter) private {
+    function _updateParameter(RiskParameter memory newParameter) private {
         _parameter.store(newParameter);
         emit ParameterUpdated(newParameter);
     }

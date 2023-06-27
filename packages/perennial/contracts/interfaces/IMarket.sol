@@ -24,7 +24,7 @@ interface IMarket is IInstance {
 
     struct CurrentContext {
         ProtocolParameter protocolParameter;
-        MarketParameter marketParameter;
+        RiskParameter riskParameter;
         uint256 currentTimestamp;
         OracleVersion latestVersion;
         OracleVersion positionVersion;
@@ -48,7 +48,7 @@ interface IMarket is IInstance {
     event TreasuryUpdated(address newTreasury);
     event FeeClaimed(address indexed treasury, UFixed6 feeAmount);
     event RewardClaimed(address indexed account, UFixed6 rewardAmount);
-    event ParameterUpdated(MarketParameter newParameter);
+    event ParameterUpdated(RiskParameter newParameter);
     event RewardUpdated(Token18 newReward);
 
     error MarketInsufficientLiquidityError();
@@ -72,16 +72,18 @@ interface IMarket is IInstance {
 
     error GlobalStorageInvalidError();
     error LocalStorageInvalidError();
-    error MarketParameterStorageInvalidError();
-    error MarketParameterStorageImmutableError();
+    error RiskParameterStorageInvalidError();
+    error RiskParameterStorageImmutableError();
     error PositionStorageLocalInvalidError();
     error VersionStorageInvalidError();
 
-    function initialize(MarketDefinition calldata definition_, MarketParameter calldata parameter_) external;
+    function initialize(MarketDefinition calldata definition_, RiskParameter calldata parameter_) external;
     function name() external view returns (string memory);
     function symbol() external view returns (string memory);
     function token() external view returns (Token18);
     function reward() external view returns (Token18);
+    function oracle() external view returns (IOracleProvider);
+    function payoff() external view returns (IPayoffProvider);
     function treasury() external view returns (address);
     function at(uint256 version) external view returns (OracleVersion memory);
     function positions(address account) external view returns (Position memory);
@@ -95,6 +97,6 @@ interface IMarket is IInstance {
     function update(address account, UFixed6 newMaker, UFixed6 newLong, UFixed6 newShort, Fixed6 newCollateral) external;
     function updateTreasury(address newTreasury) external;
     function updateReward(Token18 newReward) external;
-    function parameter() external view returns (MarketParameter memory);
-    function updateParameter(MarketParameter memory newParameter) external;
+    function parameter() external view returns (RiskParameter memory);
+    function updateParameter(RiskParameter memory newParameter) external;
 }

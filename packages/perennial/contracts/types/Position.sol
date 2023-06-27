@@ -3,7 +3,7 @@ pragma solidity ^0.8.13;
 
 import "@equilibria/perennial-v2-oracle/contracts/types/OracleVersion.sol";
 import "./ProtocolParameter.sol";
-import "./MarketParameter.sol";
+import "./RiskParameter.sol";
 import "./Order.sol";
 
 /// @dev Order type
@@ -157,18 +157,18 @@ library PositionLib {
     function maintenance(
         Position memory self,
         OracleVersion memory currentOracleVersion,
-        MarketParameter memory marketParameter
+        RiskParameter memory riskParameter
     ) internal pure returns (UFixed6) {
-        return magnitude(self).mul(currentOracleVersion.price.abs()).mul(marketParameter.maintenance);
+        return magnitude(self).mul(currentOracleVersion.price.abs()).mul(riskParameter.maintenance);
     }
 
     function liquidationFee(
         Position memory self,
         OracleVersion memory currentOracleVersion,
-        MarketParameter memory marketParameter,
+        RiskParameter memory riskParameter,
         ProtocolParameter memory protocolParameter
     ) internal pure returns (UFixed6) {
-        return maintenance(self, currentOracleVersion, marketParameter)
+        return maintenance(self, currentOracleVersion, riskParameter)
             .max(protocolParameter.minCollateral)
             .mul(protocolParameter.liquidationFee);
     }
