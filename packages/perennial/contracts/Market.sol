@@ -33,7 +33,9 @@ contract Market is IMarket, Instance {
     /// @dev Treasury of the market, collects fees
     address public treasury;
 
-    RiskParameterStorage private _parameter;
+    RiskParameterStorage private _riskParameter;
+
+    MarketParameterStorage private _parameter;
 
     /// @dev Protocol and market fees collected, but not yet claimed
     GlobalStorage private _global;
@@ -57,7 +59,7 @@ contract Market is IMarket, Instance {
      */
     function initialize(
         IMarket.MarketDefinition calldata definition_,
-        RiskParameter calldata parameter_
+        RiskParameter calldata riskParameter_
     ) external initializer(1) {
         __Instance__initialize();
 
@@ -67,7 +69,7 @@ contract Market is IMarket, Instance {
         reward = definition_.reward;
         oracle = definition_.oracle;
         payoff = definition_.payoff;
-        _updateParameter(parameter_);
+        _updateRiskParameter(riskParameter_);
     }
 
     function settle(address account) external whenNotPaused {
@@ -99,8 +101,13 @@ contract Market is IMarket, Instance {
         emit TreasuryUpdated(newTreasury);
     }
 
-    function updateParameter(RiskParameter memory newParameter) external onlyOwner {
-        _updateParameter(newParameter);
+    function updateParameter(MarketParameter memory newParameter) external onlyOwner {
+        _parameter.store(newParameter);
+        emit ParameterUpdated(newParameter);
+    }
+
+    function updateRiskParameter(RiskParameter memory newRiskParameter) external onlyOwner { // TODO: onlyRiskManager
+        _updateRiskParameter(newRiskParameter);
     }
 
     function updateReward(Token18 newReward) public onlyOwner {
@@ -137,8 +144,12 @@ contract Market is IMarket, Instance {
         _locals[msg.sender].store(newLocal);
     }
 
-    function parameter() external view returns (RiskParameter memory) {
+    function parameter() external view returns (MarketParameter memory) {
         return _parameter.read();
+    }
+
+    function riskParameter() external view returns (RiskParameter memory) {
+        return _riskParameter.read();
     }
 
     function position() external view returns (Position memory) {
@@ -175,7 +186,7 @@ contract Market is IMarket, Instance {
 
     function _liquidate(CurrentContext memory context, address account) private {
         // before
-        UFixed6 maintenance = context.riskParameter.closed ?
+        UFixed6 maintenance = context.marketParameter.closed ?
             UFixed6Lib.ZERO :
             context.accountPosition.maintenance(context.latestVersion, context.riskParameter);
 
@@ -209,7 +220,7 @@ contract Market is IMarket, Instance {
 
         // before
         if (context.local.liquidation > context.accountPosition.timestamp) revert MarketInLiquidationError();
-        if (context.riskParameter.closed && !newMaker.add(newLong).add(newShort).isZero()) revert MarketClosedError();
+        if (context.marketParameter.closed && !newMaker.add(newLong).add(newShort).isZero()) revert MarketClosedError();
 
         // update position
         if (context.currentTimestamp > context.accountPendingPosition.timestamp) context.local.currentId++;
@@ -257,7 +268,8 @@ contract Market is IMarket, Instance {
 
         // parameters
         context.protocolParameter = IMarketFactory(address(factory())).parameter();
-        context.riskParameter = _parameter.read();
+        context.marketParameter = _parameter.read();
+        context.riskParameter = _riskParameter.read();
 
         // global
         context.global = _global.read();
@@ -352,6 +364,7 @@ contract Market is IMarket, Instance {
             newPosition,
             context.positionVersion,
             oracleVersion,
+            context.marketParameter,
             context.riskParameter
         );
         context.position.update(newPosition);
@@ -387,7 +400,7 @@ contract Market is IMarket, Instance {
 
     function _checkPosition(CurrentContext memory context) private pure {
         if (
-            !context.riskParameter.closed &&
+            !context.marketParameter.closed &&
             context.pendingPosition.socialized() &&
             context.accountPendingPosition.sub(context.accountPosition).decreasesLiquidity()
         ) revert MarketInsufficientLiquidityError();
@@ -414,9 +427,9 @@ contract Market is IMarket, Instance {
         if (maintenanceAmount.gt(boundedCollateral)) revert MarketInsufficientCollateralError();
     }
 
-    function _updateParameter(RiskParameter memory newParameter) private {
-        _parameter.store(newParameter);
-        emit ParameterUpdated(newParameter);
+    function _updateRiskParameter(RiskParameter memory newRiskParameter) private {
+        _riskParameter.store(newRiskParameter);
+        emit RiskParameterUpdated(newRiskParameter);
     }
 
     function _oracleVersion() private returns (OracleVersion memory latestVersion, uint256 currentTimestamp) {

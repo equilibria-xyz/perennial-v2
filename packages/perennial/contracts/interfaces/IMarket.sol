@@ -7,6 +7,8 @@ import "@equilibria/root/token/types/Token18.sol";
 import "@equilibria/perennial-v2-oracle/contracts/interfaces/IOracleProvider.sol";
 import "@equilibria/perennial-v2-payoff/contracts/interfaces/IPayoffProvider.sol";
 import "@equilibria/perennial-v2-oracle/contracts/types/OracleVersion.sol";
+import "../types/MarketParameter.sol";
+import "../types/RiskParameter.sol";
 import "../types/Version.sol";
 import "../types/Local.sol";
 import "../types/Global.sol";
@@ -24,6 +26,7 @@ interface IMarket is IInstance {
 
     struct CurrentContext {
         ProtocolParameter protocolParameter;
+        MarketParameter marketParameter;
         RiskParameter riskParameter;
         uint256 currentTimestamp;
         OracleVersion latestVersion;
@@ -48,7 +51,8 @@ interface IMarket is IInstance {
     event TreasuryUpdated(address newTreasury);
     event FeeClaimed(address indexed treasury, UFixed6 feeAmount);
     event RewardClaimed(address indexed account, UFixed6 rewardAmount);
-    event ParameterUpdated(RiskParameter newParameter);
+    event ParameterUpdated(MarketParameter newParameter);
+    event RiskParameterUpdated(RiskParameter newRiskParameter);
     event RewardUpdated(Token18 newReward);
 
     error MarketInsufficientLiquidityError();
@@ -73,7 +77,7 @@ interface IMarket is IInstance {
     error GlobalStorageInvalidError();
     error LocalStorageInvalidError();
     error RiskParameterStorageInvalidError();
-    error RiskParameterStorageImmutableError();
+    error MarketParameterStorageInvalidError();
     error PositionStorageLocalInvalidError();
     error VersionStorageInvalidError();
 
@@ -97,6 +101,8 @@ interface IMarket is IInstance {
     function update(address account, UFixed6 newMaker, UFixed6 newLong, UFixed6 newShort, Fixed6 newCollateral) external;
     function updateTreasury(address newTreasury) external;
     function updateReward(Token18 newReward) external;
-    function parameter() external view returns (RiskParameter memory);
-    function updateParameter(RiskParameter memory newParameter) external;
+    function parameter() external view returns (MarketParameter memory);
+    function riskParameter() external view returns (RiskParameter memory);
+    function updateParameter(MarketParameter memory newParameter) external;
+    function updateRiskParameter(RiskParameter memory newRiskParameter) external;
 }

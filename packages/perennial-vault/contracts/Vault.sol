@@ -437,11 +437,12 @@ contract Vault is IVault, Instance {
 
         for (uint256 marketId; marketId < context.markets.length; marketId++) {
             Registration memory registration = _registrations[marketId].read();
-            RiskParameter memory riskParameter = registration.market.parameter();
+            MarketParameter memory marketParameter = registration.market.parameter();
+            RiskParameter memory riskParameter = registration.market.riskParameter();
             uint256 currentTimestamp = registration.market.oracle().current();
 
             context.markets[marketId].registration = registration;
-            context.markets[marketId].closed = riskParameter.closed;
+            context.markets[marketId].closed = marketParameter.closed;
             context.markets[marketId].makerLimit = riskParameter.makerLimit;
 
             // global

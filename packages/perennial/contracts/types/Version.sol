@@ -4,6 +4,7 @@ pragma solidity ^0.8.13;
 import "@equilibria/root/accumulator/types/Accumulator6.sol";
 import "@equilibria/root/accumulator/types/UAccumulator6.sol";
 import "./ProtocolParameter.sol";
+import "./MarketParameter.sol";
 import "./RiskParameter.sol";
 import "./Global.sol";
 import "./Position.sol";
@@ -55,18 +56,19 @@ library VersionLib {
         Position memory toPosition,
         OracleVersion memory fromOracleVersion,
         OracleVersion memory toOracleVersion,
+        MarketParameter memory marketParameter,
         RiskParameter memory riskParameter
     ) internal pure returns (UFixed6 fee) {
-        if (riskParameter.closed) return UFixed6Lib.ZERO;
+        if (marketParameter.closed) return UFixed6Lib.ZERO;
 
         // accumulate position
-        UFixed6 positionFee = _accumulatePositionFee(self, fromPosition, toPosition, riskParameter);
+        UFixed6 positionFee = _accumulatePositionFee(self, fromPosition, toPosition, marketParameter);
 
         // accumulate funding
-        UFixed6 fundingFee = _accumulateFunding(self, global, fromPosition, fromOracleVersion, toOracleVersion, riskParameter);
+        UFixed6 fundingFee = _accumulateFunding(self, global, fromPosition, fromOracleVersion, toOracleVersion, marketParameter, riskParameter);
 
         // accumulate interest
-        UFixed6 interestFee = _accumulateInterest(self, fromPosition, fromOracleVersion, toOracleVersion, riskParameter);
+        UFixed6 interestFee = _accumulateInterest(self, fromPosition, fromOracleVersion, toOracleVersion, marketParameter, riskParameter);
 
         // accumulate P&L
         _accumulatePNL(self, fromPosition, fromOracleVersion, toOracleVersion);
@@ -89,12 +91,12 @@ library VersionLib {
         Version memory self,
         Position memory fromPosition,
         Position memory toPosition,
-        RiskParameter memory riskParameter
+        MarketParameter memory marketParameter
     ) private pure returns (UFixed6 positionFee) {
         // If there are no makers to distribute the taker's position fee to, give it to the protocol
         if (fromPosition.maker.isZero()) return toPosition.fee;
 
-        positionFee = riskParameter.positionFee.mul(toPosition.fee);
+        positionFee = marketParameter.positionFee.mul(toPosition.fee);
         UFixed6 makerFee = toPosition.fee.sub(positionFee);
         self.makerValue.increment(Fixed6Lib.from(makerFee), fromPosition.maker);
     }
@@ -112,6 +114,7 @@ library VersionLib {
         Position memory position,
         OracleVersion memory fromOracleVersion,
         OracleVersion memory toOracleVersion,
+        MarketParameter memory marketParameter,
         RiskParameter memory riskParameter
     ) private pure returns (UFixed6 fundingFee) {
         if (position.major().isZero()) return UFixed6Lib.ZERO;
@@ -130,7 +133,7 @@ library VersionLib {
             funding = funding.mul(Fixed6Lib.NEG_ONE);
 
         // Compute fee spread
-        fundingFee = funding.abs().mul(riskParameter.fundingFee);
+        fundingFee = funding.abs().mul(marketParameter.fundingFee);
         Fixed6 fundingSpread = Fixed6Lib.from(fundingFee.div(UFixed6Lib.from(2)));
 
         // Adjust long and short funding with spread
@@ -163,6 +166,7 @@ library VersionLib {
         Position memory position,
         OracleVersion memory fromOracleVersion,
         OracleVersion memory toOracleVersion,
+        MarketParameter memory marketParameter,
         RiskParameter memory riskParameter
     ) private pure returns (UFixed6 interestFee) {
         if (position.major().isZero()) return UFixed6Lib.ZERO;
@@ -176,7 +180,7 @@ library VersionLib {
         );
 
         // Compute fee
-        interestFee = interest.mul(riskParameter.interestFee);
+        interestFee = interest.mul(marketParameter.interestFee);
 
         // Adjust long and short funding with spread
         Fixed6 interestLong = Fixed6Lib.from(interest.mul(position.long.div(position.long.add(position.short))));

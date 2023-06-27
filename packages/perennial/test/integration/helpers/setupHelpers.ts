@@ -203,17 +203,15 @@ export async function createMarket(
     oracle: (oracleOverride ?? oracle).address,
     payoff: (payoff ?? instanceVars.payoff).address,
   }
-  const parameter = {
+  const riskParameter = {
     maintenance: parse6decimal('0.3'),
-    fundingFee: parse6decimal('0.1'),
-    interestFee: parse6decimal('0.1'),
     takerFee: 0,
     takerSkewFee: 0,
     takerImpactFee: 0,
     makerFee: 0,
     makerSkewFee: 0,
     makerImpactFee: 0,
-    positionFee: 0,
+
     makerLiquidity: parse6decimal('0.2'),
     makerLimit: parse6decimal('1000'),
     utilizationCurve: {
@@ -230,12 +228,18 @@ export async function createMarket(
     longRewardRate: 0,
     shortRewardRate: 0,
     makerReceiveOnly: false,
+  }
+  const marketParameter = {
+    fundingFee: parse6decimal('0.1'),
+    interestFee: parse6decimal('0.1'),
+    positionFee: 0,
     closed: false,
   }
-  const marketAddress = await marketFactory.callStatic.create(definition, parameter)
-  await marketFactory.create(definition, parameter)
+  const marketAddress = await marketFactory.callStatic.create(definition, riskParameter)
+  await marketFactory.create(definition, riskParameter)
 
   const market = Market__factory.connect(marketAddress, owner)
+  await market.updateParameter(marketParameter)
   await market.updateTreasury(treasuryB.address)
 
   return market

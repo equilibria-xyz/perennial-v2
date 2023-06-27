@@ -49,17 +49,14 @@ describe('Happy Path', () => {
       oracle: oracle.address,
       payoff: payoff.address,
     }
-    const parameter = {
+    const riskParameter = {
       maintenance: parse6decimal('0.3'),
-      fundingFee: parse6decimal('0.1'),
-      interestFee: parse6decimal('0.1'),
       takerFee: 0,
       takerSkewFee: 0,
       takerImpactFee: 0,
       makerFee: 0,
       makerSkewFee: 0,
       makerImpactFee: 0,
-      positionFee: 0,
       makerLiquidity: parse6decimal('0.2'),
       makerLimit: parse6decimal('1'),
       utilizationCurve: {
@@ -76,11 +73,17 @@ describe('Happy Path', () => {
       longRewardRate: 0,
       shortRewardRate: 0,
       makerReceiveOnly: false,
+    }
+    const parameter = {
+      positionFee: 0,
+      fundingFee: parse6decimal('0.1'),
+      interestFee: parse6decimal('0.1'),
       closed: true,
     }
-    const marketAddress = await marketFactory.callStatic.create(definition, parameter)
-    await expect(marketFactory.create(definition, parameter)).to.emit(marketFactory, 'MarketCreated')
+    const marketAddress = await marketFactory.callStatic.create(definition, riskParameter)
+    await expect(marketFactory.create(definition, riskParameter)).to.emit(marketFactory, 'MarketCreated')
     const market = Market__factory.connect(marketAddress, owner)
+    await market.connect(owner).updateParameter(parameter)
     await market.connect(owner).updateTreasury(treasuryB.address)
   })
 
@@ -975,17 +978,15 @@ describe('Happy Path', () => {
     const COLLATERAL = parse6decimal('1000')
     const { user, userB, dsu, chainlink, oracle, payoff } = instanceVars
 
-    const parameter = {
+    const riskParameter = {
       maintenance: parse6decimal('0.3'),
-      fundingFee: parse6decimal('0.1'),
-      interestFee: parse6decimal('0.1'),
+
       takerFee: positionFeesOn ? parse6decimal('0.001') : 0,
       takerSkewFee: positionFeesOn ? parse6decimal('0.0006') : 0,
       takerImpactFee: positionFeesOn ? parse6decimal('0.0004') : 0,
       makerFee: positionFeesOn ? parse6decimal('0.0005') : 0,
       makerSkewFee: positionFeesOn ? parse6decimal('0.0003') : 0,
       makerImpactFee: positionFeesOn ? parse6decimal('0.0002') : 0,
-      positionFee: positionFeesOn ? parse6decimal('0.1') : 0,
       makerLiquidity: parse6decimal('0.2'),
       makerLimit: parse6decimal('1'),
       utilizationCurve: {
@@ -1004,11 +1005,17 @@ describe('Happy Path', () => {
       oracle: oracle.address,
       payoff: payoff.address,
       makerReceiveOnly: false,
+    }
+    const parameter = {
+      fundingFee: parse6decimal('0.1'),
+      interestFee: parse6decimal('0.1'),
+      positionFee: positionFeesOn ? parse6decimal('0.1') : 0,
       closed: false,
     }
 
     const market = await createMarket(instanceVars)
     await market.updateParameter(parameter)
+    await market.updateRiskParameter(riskParameter)
 
     await dsu.connect(user).approve(market.address, COLLATERAL.mul(2).mul(1e12))
     await dsu.connect(userB).approve(market.address, COLLATERAL.mul(2).mul(1e12))
@@ -1104,17 +1111,14 @@ describe('Happy Path', () => {
       delay,
     ).init()
 
-    const parameter = {
+    const riskParameter = {
       maintenance: parse6decimal('0.3'),
-      fundingFee: parse6decimal('0.1'),
-      interestFee: parse6decimal('0.1'),
       takerFee: positionFeesOn ? parse6decimal('0.001') : 0,
       takerSkewFee: positionFeesOn ? parse6decimal('0.0006') : 0,
       takerImpactFee: positionFeesOn ? parse6decimal('0.0004') : 0,
       makerFee: positionFeesOn ? parse6decimal('0.0005') : 0,
       makerSkewFee: positionFeesOn ? parse6decimal('0.0003') : 0,
       makerImpactFee: positionFeesOn ? parse6decimal('0.0002') : 0,
-      positionFee: positionFeesOn ? parse6decimal('0.1') : 0,
       makerLiquidity: parse6decimal('0.2'),
       makerLimit: parse6decimal('1'),
       utilizationCurve: {
@@ -1133,6 +1137,11 @@ describe('Happy Path', () => {
       oracle: chainlink.oracle.address,
       payoff: payoff.address,
       makerReceiveOnly: false,
+    }
+    const parameter = {
+      fundingFee: parse6decimal('0.1'),
+      interestFee: parse6decimal('0.1'),
+      positionFee: positionFeesOn ? parse6decimal('0.1') : 0,
       closed: false,
     }
 
@@ -1143,6 +1152,7 @@ describe('Happy Path', () => {
       IOracleProvider__factory.connect(chainlink.oracle.address, owner),
     )
     await market.connect(owner).updateParameter(parameter)
+    await market.connect(owner).updateRiskParameter(riskParameter)
 
     await dsu.connect(user).approve(market.address, COLLATERAL.mul(2).mul(1e12))
     await dsu.connect(userB).approve(market.address, COLLATERAL.mul(2).mul(1e12))

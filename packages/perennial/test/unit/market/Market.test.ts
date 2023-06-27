@@ -21,7 +21,7 @@ import {
   expectVersionEq,
   parse6decimal,
 } from '../../../../common/testutil/types'
-import { IMarket, MarketParameterStruct } from '../../../types/generated/contracts/Market'
+import { IMarket, MarketParameterStruct, RiskParameterStruct } from '../../../types/generated/contracts/Market'
 
 const { ethers } = HRE
 use(smock.matchers)
@@ -183,6 +183,7 @@ describe('Market', () => {
 
   let market: Market
   let marketDefinition: IMarket.MarketDefinitionStruct
+  let riskParameter: RiskParameterStruct
   let marketParameter: MarketParameterStruct
 
   beforeEach(async () => {
@@ -211,17 +212,14 @@ describe('Market', () => {
       oracle: oracle.address,
       payoff: constants.AddressZero,
     }
-    marketParameter = {
+    riskParameter = {
       maintenance: parse6decimal('0.3'),
-      fundingFee: parse6decimal('0.1'),
-      interestFee: parse6decimal('0.1'),
       takerFee: 0,
       takerSkewFee: 0,
       takerImpactFee: 0,
       makerFee: 0,
       makerSkewFee: 0,
       makerImpactFee: 0,
-      positionFee: 0,
       makerLimit: parse6decimal('1000'),
       utilizationCurve: {
         minRate: parse6decimal('0.0'),
@@ -237,6 +235,11 @@ describe('Market', () => {
       longRewardRate: parse6decimal('0.2'),
       shortRewardRate: parse6decimal('0.1'),
       makerReceiveOnly: false,
+    }
+    marketParameter = {
+      fundingFee: parse6decimal('0.1'),
+      interestFee: parse6decimal('0.1'),
+      positionFee: 0,
       closed: false,
     }
     market = await new Market__factory(owner).deploy()
@@ -244,7 +247,7 @@ describe('Market', () => {
 
   describe('#initialize', async () => {
     it('initialize with the correct variables set', async () => {
-      await expect(market.connect(factorySigner).initialize(marketDefinition, marketParameter)).to.emit(
+      await expect(market.connect(factorySigner).initialize(marketDefinition, riskParameter)).to.emit(
         market,
         'ParameterUpdated',
       )
@@ -257,33 +260,38 @@ describe('Market', () => {
       expect(await market.oracle()).to.equal(marketDefinition.oracle)
       expect(await market.payoff()).to.equal(marketDefinition.payoff)
 
-      const parameter = await market.parameter()
-      expect(parameter.maintenance).to.equal(marketParameter.maintenance)
-      expect(parameter.fundingFee).to.equal(marketParameter.fundingFee)
-      expect(parameter.interestFee).to.equal(marketParameter.interestFee)
-      expect(parameter.takerFee).to.equal(marketParameter.takerFee)
-      expect(parameter.takerSkewFee).to.equal(marketParameter.takerSkewFee)
-      expect(parameter.takerImpactFee).to.equal(marketParameter.takerImpactFee)
-      expect(parameter.makerFee).to.equal(marketParameter.makerFee)
-      expect(parameter.makerSkewFee).to.equal(marketParameter.makerSkewFee)
-      expect(parameter.makerImpactFee).to.equal(marketParameter.makerImpactFee)
-      expect(parameter.positionFee).to.equal(marketParameter.positionFee)
-      expect(parameter.makerLimit).to.equal(marketParameter.makerLimit)
-      expect(parameter.utilizationCurve.minRate).to.equal(marketParameter.utilizationCurve.minRate)
-      expect(parameter.utilizationCurve.targetRate).to.equal(marketParameter.utilizationCurve.targetRate)
-      expect(parameter.utilizationCurve.maxRate).to.equal(marketParameter.utilizationCurve.maxRate)
-      expect(parameter.utilizationCurve.targetUtilization).to.equal(marketParameter.utilizationCurve.targetUtilization)
-      expect(parameter.pController.k).to.equal(marketParameter.pController.k)
-      expect(parameter.pController.max).to.equal(marketParameter.pController.max)
-      expect(parameter.makerRewardRate).to.equal(marketParameter.makerRewardRate)
-      expect(parameter.shortRewardRate).to.equal(marketParameter.shortRewardRate)
-      expect(parameter.makerReceiveOnly).to.equal(marketParameter.makerReceiveOnly)
-      expect(parameter.closed).to.equal(marketParameter.closed)
+      const riskParameterResult = await market.riskParameter()
+      expect(riskParameterResult.maintenance).to.equal(riskParameter.maintenance)
+
+      expect(riskParameterResult.takerFee).to.equal(riskParameter.takerFee)
+      expect(riskParameterResult.takerSkewFee).to.equal(riskParameter.takerSkewFee)
+      expect(riskParameterResult.takerImpactFee).to.equal(riskParameter.takerImpactFee)
+      expect(riskParameterResult.makerFee).to.equal(riskParameter.makerFee)
+      expect(riskParameterResult.makerSkewFee).to.equal(riskParameter.makerSkewFee)
+      expect(riskParameterResult.makerImpactFee).to.equal(riskParameter.makerImpactFee)
+      expect(riskParameterResult.makerLimit).to.equal(riskParameter.makerLimit)
+      expect(riskParameterResult.utilizationCurve.minRate).to.equal(riskParameter.utilizationCurve.minRate)
+      expect(riskParameterResult.utilizationCurve.targetRate).to.equal(riskParameter.utilizationCurve.targetRate)
+      expect(riskParameterResult.utilizationCurve.maxRate).to.equal(riskParameter.utilizationCurve.maxRate)
+      expect(riskParameterResult.utilizationCurve.targetUtilization).to.equal(
+        riskParameter.utilizationCurve.targetUtilization,
+      )
+      expect(riskParameterResult.pController.k).to.equal(riskParameter.pController.k)
+      expect(riskParameterResult.pController.max).to.equal(riskParameter.pController.max)
+      expect(riskParameterResult.makerRewardRate).to.equal(riskParameter.makerRewardRate)
+      expect(riskParameterResult.shortRewardRate).to.equal(riskParameter.shortRewardRate)
+      expect(riskParameterResult.makerReceiveOnly).to.equal(riskParameter.makerReceiveOnly)
+
+      const marketParameterResult = await market.parameter()
+      expect(marketParameterResult.fundingFee).to.equal(0)
+      expect(marketParameterResult.interestFee).to.equal(0)
+      expect(marketParameterResult.positionFee).to.equal(0)
+      expect(marketParameterResult.closed).to.equal(false)
     })
 
     it('reverts if already initialized', async () => {
-      await market.initialize(marketDefinition, marketParameter)
-      await expect(market.initialize(marketDefinition, marketParameter))
+      await market.initialize(marketDefinition, riskParameter)
+      await expect(market.initialize(marketDefinition, riskParameter))
         .to.be.revertedWithCustomError(market, 'UInitializableAlreadyInitializedError')
         .withArgs(1)
     })
@@ -293,7 +301,7 @@ describe('Market', () => {
     beforeEach(async () => {
       const marketDefinitionNoReward = { ...marketDefinition }
       marketDefinitionNoReward.reward = constants.AddressZero
-      await market.connect(factorySigner).initialize(marketDefinitionNoReward, marketParameter)
+      await market.connect(factorySigner).initialize(marketDefinitionNoReward, riskParameter)
     })
 
     it('updates the reward', async () => {
@@ -321,22 +329,50 @@ describe('Market', () => {
 
   context('already initialized', async () => {
     beforeEach(async () => {
-      await market.connect(factorySigner).initialize(marketDefinition, marketParameter)
+      await market.connect(factorySigner).initialize(marketDefinition, riskParameter)
+      await market.connect(owner).updateParameter(marketParameter)
     })
 
     describe('#updateParameter', async () => {
       it('updates the parameters', async () => {
         const newMarketParameter = {
-          maintenance: parse6decimal('0.4'),
           fundingFee: parse6decimal('0.2'),
           interestFee: parse6decimal('0.2'),
+          positionFee: parse6decimal('0.1'),
+          closed: true,
+        }
+
+        await expect(market.connect(owner).updateParameter(newMarketParameter))
+          .to.emit(market, 'ParameterUpdated')
+          .withArgs(newMarketParameter)
+
+        const marketParameter = await market.parameter()
+        expect(marketParameter.fundingFee).to.equal(newMarketParameter.fundingFee)
+        expect(marketParameter.interestFee).to.equal(newMarketParameter.interestFee)
+        expect(marketParameter.positionFee).to.equal(newMarketParameter.positionFee)
+        expect(marketParameter.closed).to.equal(newMarketParameter.closed)
+      })
+
+      it('reverts if not owner', async () => {
+        await expect(market.connect(user).updateParameter(marketParameter)).to.be.revertedWithCustomError(
+          market,
+          'InstanceNotOwnerError',
+        )
+      })
+    })
+
+    describe('#updateRiskParameter', async () => {
+      it('updates the parameters', async () => {
+        const newRiskParameter = {
+          maintenance: parse6decimal('0.4'),
+
           takerFee: parse6decimal('0.1'),
           takerSkewFee: parse6decimal('0.04'),
           takerImpactFee: parse6decimal('0.03'),
           makerFee: parse6decimal('0.05'),
           makerSkewFee: parse6decimal('0.02'),
           makerImpactFee: parse6decimal('0.01'),
-          positionFee: parse6decimal('0.1'),
+
           makerLiquidity: parse6decimal('0.1'),
           makerLimit: parse6decimal('2000'),
           utilizationCurve: {
@@ -353,35 +389,33 @@ describe('Market', () => {
           longRewardRate: parse6decimal('0.1'),
           shortRewardRate: parse6decimal('0.1'),
           makerReceiveOnly: true,
-          closed: true,
         }
 
-        await expect(market.connect(owner).updateParameter(newMarketParameter)).to.emit(market, 'ParameterUpdated')
-
-        const parameter = await market.parameter()
-        expect(parameter.maintenance).to.equal(newMarketParameter.maintenance)
-        expect(parameter.fundingFee).to.equal(newMarketParameter.fundingFee)
-        expect(parameter.interestFee).to.equal(newMarketParameter.interestFee)
-        expect(parameter.takerFee).to.equal(newMarketParameter.takerFee)
-        expect(parameter.takerSkewFee).to.equal(newMarketParameter.takerSkewFee)
-        expect(parameter.takerImpactFee).to.equal(newMarketParameter.takerImpactFee)
-        expect(parameter.makerFee).to.equal(newMarketParameter.makerFee)
-        expect(parameter.makerSkewFee).to.equal(newMarketParameter.makerSkewFee)
-        expect(parameter.makerImpactFee).to.equal(newMarketParameter.makerImpactFee)
-        expect(parameter.positionFee).to.equal(newMarketParameter.positionFee)
-        expect(parameter.makerLimit).to.equal(newMarketParameter.makerLimit)
-        expect(parameter.utilizationCurve.minRate).to.equal(newMarketParameter.utilizationCurve.minRate)
-        expect(parameter.utilizationCurve.targetRate).to.equal(newMarketParameter.utilizationCurve.targetRate)
-        expect(parameter.utilizationCurve.maxRate).to.equal(newMarketParameter.utilizationCurve.maxRate)
-        expect(parameter.utilizationCurve.targetUtilization).to.equal(
-          newMarketParameter.utilizationCurve.targetUtilization,
+        await expect(market.connect(owner).updateRiskParameter(newRiskParameter)).to.emit(
+          market,
+          'RiskParameterUpdated',
         )
-        expect(parameter.pController.k).to.equal(newMarketParameter.pController.k)
-        expect(parameter.pController.max).to.equal(newMarketParameter.pController.max)
-        expect(parameter.makerRewardRate).to.equal(newMarketParameter.makerRewardRate)
-        expect(parameter.shortRewardRate).to.equal(newMarketParameter.shortRewardRate)
-        expect(parameter.makerReceiveOnly).to.equal(newMarketParameter.makerReceiveOnly)
-        expect(parameter.closed).to.equal(newMarketParameter.closed)
+
+        const riskParameter = await market.riskParameter()
+        expect(riskParameter.maintenance).to.equal(newRiskParameter.maintenance)
+        expect(riskParameter.takerFee).to.equal(newRiskParameter.takerFee)
+        expect(riskParameter.takerSkewFee).to.equal(newRiskParameter.takerSkewFee)
+        expect(riskParameter.takerImpactFee).to.equal(newRiskParameter.takerImpactFee)
+        expect(riskParameter.makerFee).to.equal(newRiskParameter.makerFee)
+        expect(riskParameter.makerSkewFee).to.equal(newRiskParameter.makerSkewFee)
+        expect(riskParameter.makerImpactFee).to.equal(newRiskParameter.makerImpactFee)
+        expect(riskParameter.makerLimit).to.equal(newRiskParameter.makerLimit)
+        expect(riskParameter.utilizationCurve.minRate).to.equal(newRiskParameter.utilizationCurve.minRate)
+        expect(riskParameter.utilizationCurve.targetRate).to.equal(newRiskParameter.utilizationCurve.targetRate)
+        expect(riskParameter.utilizationCurve.maxRate).to.equal(newRiskParameter.utilizationCurve.maxRate)
+        expect(riskParameter.utilizationCurve.targetUtilization).to.equal(
+          newRiskParameter.utilizationCurve.targetUtilization,
+        )
+        expect(riskParameter.pController.k).to.equal(newRiskParameter.pController.k)
+        expect(riskParameter.pController.max).to.equal(newRiskParameter.pController.max)
+        expect(riskParameter.makerRewardRate).to.equal(newRiskParameter.makerRewardRate)
+        expect(riskParameter.shortRewardRate).to.equal(newRiskParameter.shortRewardRate)
+        expect(riskParameter.makerReceiveOnly).to.equal(newRiskParameter.makerReceiveOnly)
       })
 
       it('reverts if not owner', async () => {
@@ -2188,9 +2222,9 @@ describe('Market', () => {
               })
 
               it('opens the position and settles later with fee', async () => {
-                const marketParameter = { ...(await market.parameter()) }
-                marketParameter.takerFee = parse6decimal('0.01')
-                await market.updateParameter(marketParameter)
+                const riskParameter = { ...(await market.riskParameter()) }
+                riskParameter.takerFee = parse6decimal('0.01')
+                await market.updateRiskParameter(riskParameter)
 
                 const TAKER_FEE = parse6decimal('6.15') // position * taker fee * price
 
@@ -2296,9 +2330,9 @@ describe('Market', () => {
 
                 await market.connect(user).settle(user.address)
 
-                const marketParameter = { ...(await market.parameter()) }
-                marketParameter.takerFee = parse6decimal('0.01')
-                await market.updateParameter(marketParameter)
+                const riskParameter = { ...(await market.riskParameter()) }
+                riskParameter.takerFee = parse6decimal('0.01')
+                await market.updateRiskParameter(riskParameter)
 
                 const TAKER_FEE = parse6decimal('6.15') // position * taker fee * price
 
@@ -3151,9 +3185,9 @@ describe('Market', () => {
                 })
 
                 it('closes the position and settles later with fee', async () => {
-                  const marketParameter = { ...(await market.parameter()) }
-                  marketParameter.takerFee = parse6decimal('0.01')
-                  await market.updateParameter(marketParameter)
+                  const riskParameter = { ...(await market.riskParameter()) }
+                  riskParameter.takerFee = parse6decimal('0.01')
+                  await market.updateRiskParameter(riskParameter)
 
                   const TAKER_FEE = parse6decimal('6.15') // position * taker fee * price
 
@@ -5154,9 +5188,9 @@ describe('Market', () => {
               })
 
               it('opens the position and settles later with fee', async () => {
-                const marketParameter = { ...(await market.parameter()) }
-                marketParameter.takerFee = parse6decimal('0.01')
-                await market.updateParameter(marketParameter)
+                const riskParameter = { ...(await market.riskParameter()) }
+                riskParameter.takerFee = parse6decimal('0.01')
+                await market.updateRiskParameter(riskParameter)
 
                 const TAKER_FEE = parse6decimal('6.15') // position * taker fee * price
 
@@ -5265,9 +5299,9 @@ describe('Market', () => {
 
                 await market.connect(user).settle(user.address)
 
-                const marketParameter = { ...(await market.parameter()) }
-                marketParameter.takerFee = parse6decimal('0.01')
-                await market.updateParameter(marketParameter)
+                const riskParameter = { ...(await market.riskParameter()) }
+                riskParameter.takerFee = parse6decimal('0.01')
+                await market.updateRiskParameter(riskParameter)
 
                 const TAKER_FEE = parse6decimal('6.15') // position * taker fee * price
 
@@ -6121,9 +6155,9 @@ describe('Market', () => {
                 })
 
                 it('closes the position and settles later with fee', async () => {
-                  const marketParameter = { ...(await market.parameter()) }
-                  marketParameter.takerFee = parse6decimal('0.01')
-                  await market.updateParameter(marketParameter)
+                  const riskParameter = { ...(await market.riskParameter()) }
+                  riskParameter.takerFee = parse6decimal('0.01')
+                  await market.updateRiskParameter(riskParameter)
 
                   const TAKER_FEE = parse6decimal('6.15') // position * taker fee * price
 
@@ -9832,9 +9866,9 @@ describe('Market', () => {
           })
 
           it('reverts if over maker limit', async () => {
-            const marketParameter = { ...(await market.parameter()) }
-            marketParameter.makerLimit = POSITION.div(2)
-            await market.updateParameter(marketParameter)
+            const riskParameter = { ...(await market.riskParameter()) }
+            riskParameter.makerLimit = POSITION.div(2)
+            await market.updateRiskParameter(riskParameter)
             await expect(
               market.connect(user).update(user.address, POSITION, 0, 0, COLLATERAL),
             ).to.be.revertedWithCustomError(market, 'MarketMakerOverLimitError')
