@@ -103,10 +103,14 @@ contract PythOracle is IPythOracle, Instance {
      * @return latestVersion Latest oracle version
      */
     function latest() public view returns (OracleVersion memory latestVersion) {
+        if (_mostRecentlyCommittedNonRequestedVersion > 0)
+            latestVersion = OracleVersion(_mostRecentlyCommittedNonRequestedVersion, _prices[_mostRecentlyCommittedNonRequestedVersion], true);
+
         if (_nextVersionIndexToCommit == 0) return latestVersion;
 
         uint256 timestamp = versionList[_nextVersionIndexToCommit - 1];
-        latestVersion = OracleVersion(timestamp, _prices[timestamp], true);
+        if (timestamp > _mostRecentlyCommittedNonRequestedVersion)
+            latestVersion = OracleVersion(timestamp, _prices[timestamp], true);
     }
 
     /**
