@@ -66,7 +66,7 @@ describe('Vault', () => {
       price: newPrice ?? currentPrice,
       valid: true,
     }
-    oracle.sync.returns([newVersion, newVersion.timestamp.add(LEGACY_ORACLE_DELAY)])
+    oracle.request.returns([newVersion, newVersion.timestamp.add(LEGACY_ORACLE_DELAY)])
     oracle.latest.returns(newVersion)
     oracle.current.returns(newVersion.timestamp.add(LEGACY_ORACLE_DELAY))
     oracle.at.whenCalledWith(newVersion.timestamp).returns(newVersion)
@@ -79,7 +79,7 @@ describe('Vault', () => {
       price: newPrice ?? currentPrice,
       valid: true,
     }
-    btcOracle.sync.returns([newVersion, newVersion.timestamp.add(LEGACY_ORACLE_DELAY)])
+    btcOracle.request.returns([newVersion, newVersion.timestamp.add(LEGACY_ORACLE_DELAY)])
     btcOracle.latest.returns(newVersion)
     btcOracle.current.returns(newVersion.timestamp.add(LEGACY_ORACLE_DELAY))
     btcOracle.at.whenCalledWith(newVersion.timestamp).returns(newVersion)
@@ -125,6 +125,7 @@ describe('Vault', () => {
 
     vaultOracleFactory = await smock.fake<IOracleFactory>('IOracleFactory')
     await oracleFactory.connect(owner).register(vaultOracleFactory.address)
+    await oracleFactory.connect(owner).authorize(factory.address)
 
     const realVersion = {
       timestamp: STARTING_TIMESTAMP,
@@ -134,7 +135,7 @@ describe('Vault', () => {
     originalOraclePrice = realVersion.price
 
     oracle = await smock.fake<IOracleProvider>('IOracleProvider')
-    oracle.sync.returns([realVersion, realVersion.timestamp.add(LEGACY_ORACLE_DELAY)])
+    oracle.request.returns([realVersion, realVersion.timestamp.add(LEGACY_ORACLE_DELAY)])
     oracle.latest.returns(realVersion)
     oracle.current.returns(realVersion.timestamp.add(LEGACY_ORACLE_DELAY))
     oracle.at.whenCalledWith(realVersion.timestamp).returns(realVersion)
@@ -147,7 +148,7 @@ describe('Vault', () => {
     btcOriginalOraclePrice = btcRealVersion.price
 
     btcOracle = await smock.fake<IOracleProvider>('IOracleProvider')
-    btcOracle.sync.returns([btcRealVersion, btcRealVersion.timestamp.add(LEGACY_ORACLE_DELAY)])
+    btcOracle.request.returns([btcRealVersion, btcRealVersion.timestamp.add(LEGACY_ORACLE_DELAY)])
     btcOracle.latest.returns(btcRealVersion)
     btcOracle.current.returns(btcRealVersion.timestamp.add(LEGACY_ORACLE_DELAY))
     btcOracle.at.whenCalledWith(btcRealVersion.timestamp).returns(btcRealVersion)
@@ -307,7 +308,7 @@ describe('Vault', () => {
       }
 
       const oracle3 = await smock.fake<IOracleProvider>('IOracleProvider')
-      oracle3.sync.returns([realVersion3, realVersion3.timestamp.add(LEGACY_ORACLE_DELAY)])
+      oracle3.request.returns([realVersion3, realVersion3.timestamp.add(LEGACY_ORACLE_DELAY)])
       oracle3.latest.returns(realVersion3)
       oracle3.at.whenCalledWith(realVersion3.timestamp).returns(realVersion3)
 
@@ -368,7 +369,7 @@ describe('Vault', () => {
       }
 
       const oracle4 = await smock.fake<IOracleProvider>('IOracleProvider')
-      oracle4.sync.returns([realVersion4, realVersion4.timestamp.add(LEGACY_ORACLE_DELAY)])
+      oracle4.request.returns([realVersion4, realVersion4.timestamp.add(LEGACY_ORACLE_DELAY)])
       oracle4.latest.returns(realVersion4)
       oracle4.at.whenCalledWith(realVersion4.timestamp).returns(realVersion4)
 

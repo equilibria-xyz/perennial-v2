@@ -468,7 +468,7 @@ contract Market is IMarket, Instance {
     }
 
     function _oracleVersion() private returns (OracleVersion memory latestVersion, uint256 currentTimestamp) {
-        (latestVersion, currentTimestamp) = oracle.sync();
+        (latestVersion, currentTimestamp) = oracle.request();
         _transform(latestVersion);
     }
 

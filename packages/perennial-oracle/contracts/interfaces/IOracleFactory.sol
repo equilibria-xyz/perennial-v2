@@ -23,4 +23,5 @@ interface IOracleFactory is IOracleProviderFactory, IFactory {
     function updateMaxClaim(UFixed6 newClaimAmount) external;
     function maxClaim() external view returns (UFixed6);
     function claim(UFixed6 amount) external;
+    function callers(IFactory caller) external view returns (bool);
 }

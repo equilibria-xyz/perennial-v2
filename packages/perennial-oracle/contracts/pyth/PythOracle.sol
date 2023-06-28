@@ -7,6 +7,7 @@ import "@equilibria/root/token/types/Token18.sol";
 import "@openzeppelin/contracts/utils/math/SafeCast.sol";
 import "@pythnetwork/pyth-sdk-solidity/AbstractPyth.sol";
 import "../interfaces/IPythFactory.sol";
+import "hardhat/console.sol";
 
 // TODO: do we need to mod timestamp to batch versions?
 
@@ -79,7 +80,7 @@ contract PythOracle is IPythOracle, Instance {
      * @return latestVersion The latest synced oracle version
      * @return currentVersion The current oracle version collecting new orders
      */
-    function sync() external returns (OracleVersion memory latestVersion, uint256 currentVersion) {
+    function request() external onlyAuthorized returns (OracleVersion memory latestVersion, uint256 currentVersion) {
         if (versionList.length == 0 || versionList[versionList.length - 1] != block.timestamp) {
             versionList.push(block.timestamp);
         }
@@ -184,5 +185,10 @@ contract PythOracle is IPythOracle, Instance {
 
         IPythFactory(address(factory())).claim(amount);
         token.push(msg.sender, UFixed18Lib.from(amount));
+    }
+
+    modifier onlyAuthorized {
+        if (!IOracleProviderFactory(address(factory())).authorized(msg.sender)) revert OracleProviderUnauthorizedError();
+        _;
     }
 }

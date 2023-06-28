@@ -69,6 +69,10 @@ export async function deployProtocol(): Promise<InstanceVars> {
   await time.reset(config)
   const [owner, pauser, user, userB, userC, userD, treasuryA, beneficiaryB] = await ethers.getSigners()
 
+  const payoff = await IPayoffProvider__factory.connect((await new PowerTwo__factory(owner).deploy()).address, owner)
+  const dsu = await IERC20Metadata__factory.connect((await deployments.get('DSU')).address, owner)
+  const usdc = await IERC20Metadata__factory.connect((await deployments.get('USDC')).address, owner)
+
   // Deploy external deps
   const initialRoundId = buildChainlinkRoundId(INITIAL_PHASE_ID, INITIAL_AGGREGATOR_ROUND_ID)
   const chainlink = await new ChainlinkContext(
@@ -77,10 +81,6 @@ export async function deployProtocol(): Promise<InstanceVars> {
     initialRoundId,
     1,
   ).init()
-
-  const payoff = await IPayoffProvider__factory.connect((await new PowerTwo__factory(owner).deploy()).address, owner)
-  const dsu = await IERC20Metadata__factory.connect((await deployments.get('DSU')).address, owner)
-  const usdc = await IERC20Metadata__factory.connect((await deployments.get('USDC')).address, owner)
 
   // Deploy protocol contracts
   const proxyAdmin = await new ProxyAdmin__factory(owner).deploy()
@@ -120,7 +120,7 @@ export async function deployProtocol(): Promise<InstanceVars> {
   const marketFactory = await new MarketFactory__factory(owner).attach(factoryProxy.address)
 
   // Init
-  await oracleFactory.connect(owner).initialize()
+  await oracleFactory.connect(owner).initialize(dsu.address)
   await payoffFactory.connect(owner).initialize()
   await marketFactory.connect(owner).initialize()
 
@@ -137,6 +137,7 @@ export async function deployProtocol(): Promise<InstanceVars> {
   })
   await payoffFactory.connect(owner).register(payoff.address)
   await oracleFactory.connect(owner).register(chainlink.oracleFactory.address)
+  await oracleFactory.connect(owner).authorize(marketFactory.address)
   const oracle = IOracle__factory.connect(
     await oracleFactory.connect(owner).callStatic.create(chainlink.id, chainlink.oracleFactory.address),
     owner,

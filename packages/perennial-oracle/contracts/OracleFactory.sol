@@ -16,6 +16,7 @@ contract OracleFactory is IOracleFactory, Factory {
     Token18 incentive;
     UFixed6 public maxClaim;
 
+    mapping(IFactory => bool) public callers;
     mapping(bytes32 => IOracleProvider) public oracles;
     mapping(IOracleProviderFactory => bool) public factories;
 
@@ -32,6 +33,10 @@ contract OracleFactory is IOracleFactory, Factory {
 
     function register(IOracleProviderFactory factory) external onlyOwner {
         factories[factory] = true;
+    }
+
+    function authorize(IFactory factory) external onlyOwner {
+        callers[factory] = true;
     }
 
     function create(bytes32 id, IOracleProviderFactory factory) external onlyOwner returns (IOracle newOracle) {
@@ -67,5 +72,14 @@ contract OracleFactory is IOracleFactory, Factory {
         if (amount.gt(maxClaim)) revert OracleFactoryClaimTooLargeError();
         if (!factories[IOracleProviderFactory(msg.sender)]) revert OracleFactoryNotRegisteredError();
         incentive.push(msg.sender, UFixed18Lib.from(amount));
+    }
+
+    // TODO(gas-hint): this makes a lot of calls
+    // TODO(cleanup): lots of code duplication amount oracle factories
+    function authorized(address caller) external view returns (bool) {
+        IInstance callerInstance = IInstance(caller);
+        IFactory callerFactory = callerInstance.factory();
+        if (!callerFactory.instances(callerInstance)) return false;
+        return callers[callerFactory];
     }
 }

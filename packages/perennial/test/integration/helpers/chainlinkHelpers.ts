@@ -74,8 +74,8 @@ export class ChainlinkContext {
       valid: true,
     }
 
-    this.oracle.sync.reset()
-    this.oracle.sync.whenCalledWith().returns([latestVersion, currentData.startedAt])
+    this.oracle.request.reset()
+    this.oracle.request.whenCalledWith().returns([latestVersion, currentData.startedAt])
     this.oracle.current.reset()
     this.oracle.current.whenCalledWith().returns(currentData.startedAt)
     this.oracle.latest.reset()
