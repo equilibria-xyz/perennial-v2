@@ -128,7 +128,10 @@ describe('Liquidate', () => {
       .add((await market.locals(userB.address)).collateral)
       .add((await market.locals(userC.address)).collateral)
       .add((await market.locals(userD.address)).collateral)
-    totalFees = (await market.global()).protocolFee.add((await market.global()).marketFee)
+    totalFees = (await market.global()).protocolFee
+      .add((await market.global()).oracleFee)
+      .add((await market.global()).riskFee)
+      .add((await market.global()).donation)
     expect(totalCollateral.add(totalFees)).to.equal(parse6decimal('22000'))
 
     // Settle the market with a new oracle version
@@ -151,7 +154,10 @@ describe('Liquidate', () => {
     const currC = (await market.locals(userC.address)).collateral
     const currD = (await market.locals(userD.address)).collateral
     const totalCurr = currA.add(currB).add(currC).add(currD)
-    const feesCurr = (await market.global()).protocolFee.add((await market.global()).marketFee)
+    const feesCurr = (await market.global()).protocolFee
+      .add((await market.global()).oracleFee)
+      .add((await market.global()).riskFee)
+      .add((await market.global()).donation)
 
     await chainlink.next()
     await market.settle(user.address)
@@ -164,7 +170,10 @@ describe('Liquidate', () => {
     const newC = (await market.locals(userC.address)).collateral
     const newD = (await market.locals(userD.address)).collateral
     const totalNew = newA.add(newB).add(newC).add(newD)
-    const feesNew = (await market.global()).protocolFee.add((await market.global()).marketFee)
+    const feesNew = (await market.global()).protocolFee
+      .add((await market.global()).oracleFee)
+      .add((await market.global()).riskFee)
+      .add((await market.global()).donation)
 
     // Expect the loss from B to be socialized equally to C and D
     expect(currA).to.equal(newA)
@@ -180,7 +189,10 @@ describe('Liquidate', () => {
       .add((await market.locals(userB.address)).collateral)
       .add((await market.locals(userC.address)).collateral)
       .add((await market.locals(userD.address)).collateral)
-    totalFees = (await market.global()).protocolFee.add((await market.global()).marketFee)
+    totalFees = (await market.global()).protocolFee
+      .add((await market.global()).oracleFee)
+      .add((await market.global()).riskFee)
+      .add((await market.global()).donation)
     expect(totalCollateral.add(totalFees)).to.be.lte(parse6decimal('22000').sub(expectedLiquidationFee))
   }).timeout(120000)
 })

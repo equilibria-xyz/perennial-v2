@@ -50,7 +50,7 @@ export interface InstanceVars {
   userC: SignerWithAddress
   userD: SignerWithAddress
   treasuryA: SignerWithAddress
-  treasuryB: SignerWithAddress
+  beneficiaryB: SignerWithAddress
   proxyAdmin: ProxyAdmin
   oracleFactory: OracleFactory
   payoffFactory: PayoffFactory
@@ -67,7 +67,7 @@ export interface InstanceVars {
 
 export async function deployProtocol(): Promise<InstanceVars> {
   await time.reset(config)
-  const [owner, pauser, user, userB, userC, userD, treasuryA, treasuryB] = await ethers.getSigners()
+  const [owner, pauser, user, userB, userC, userD, treasuryA, beneficiaryB] = await ethers.getSigners()
 
   // Deploy external deps
   const initialRoundId = buildChainlinkRoundId(INITIAL_PHASE_ID, INITIAL_AGGREGATOR_ROUND_ID)
@@ -132,6 +132,7 @@ export async function deployProtocol(): Promise<InstanceVars> {
     liquidationFee: parse6decimal('0.50'),
     maxLiquidationFee: parse6decimal('1000'),
     minCollateral: parse6decimal('500'),
+    settlementFee: parse6decimal('0.00'),
     maxPendingIds: 8,
   })
   await payoffFactory.connect(owner).register(payoff.address)
@@ -159,7 +160,7 @@ export async function deployProtocol(): Promise<InstanceVars> {
     userC,
     userD,
     treasuryA,
-    treasuryB,
+    beneficiaryB,
     chainlink,
     payoff,
     dsu,
@@ -193,7 +194,7 @@ export async function createMarket(
   oracleOverride?: IOracleProvider,
   payoff?: IPayoffProvider,
 ): Promise<Market> {
-  const { owner, marketFactory, treasuryB, oracle, rewardToken, dsu } = instanceVars
+  const { owner, marketFactory, beneficiaryB, oracle, rewardToken, dsu } = instanceVars
 
   const definition = {
     name: name ?? 'Squeeth',
@@ -211,7 +212,6 @@ export async function createMarket(
     makerFee: 0,
     makerSkewFee: 0,
     makerImpactFee: 0,
-
     makerLiquidity: parse6decimal('0.2'),
     makerLimit: parse6decimal('1000'),
     utilizationCurve: {
@@ -232,6 +232,8 @@ export async function createMarket(
   const marketParameter = {
     fundingFee: parse6decimal('0.1'),
     interestFee: parse6decimal('0.1'),
+    oracleFee: 0,
+    riskFee: 0,
     positionFee: 0,
     closed: false,
   }
@@ -240,7 +242,7 @@ export async function createMarket(
 
   const market = Market__factory.connect(marketAddress, owner)
   await market.updateParameter(marketParameter)
-  await market.updateTreasury(treasuryB.address)
+  await market.updateBeneficiary(beneficiaryB.address)
 
   return market
 }

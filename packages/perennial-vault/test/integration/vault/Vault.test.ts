@@ -7,7 +7,6 @@ import { expect, use } from 'chai'
 import {
   IERC20Metadata,
   IERC20Metadata__factory,
-  IFactory,
   IMarket,
   Vault__factory,
   IOracleProvider,
@@ -17,6 +16,7 @@ import {
   IVault,
   IVaultFactory__factory,
   IOracleFactory,
+  IMarketFactory,
 } from '../../../types/generated'
 import { BigNumber, constants } from 'ethers'
 import { deployProtocol, fundWallet } from '@equilibria/perennial-v2/test/integration/helpers/setupHelpers'
@@ -34,7 +34,7 @@ describe('Vault', () => {
   let vault: IVault
   let asset: IERC20Metadata
   let vaultFactory: IVaultFactory
-  let factory: IFactory
+  let factory: IMarketFactory
   let oracleFactory: OracleFactory
   let vaultOracleFactory: FakeContract<IOracleFactory>
   let owner: SignerWithAddress
@@ -177,6 +177,7 @@ describe('Vault', () => {
       name: 'Ethereum',
       symbol: 'ETH',
       oracle: rootOracle.address,
+      payoff: constants.AddressZero,
       makerLimit: parse6decimal('1000'),
     })
     btcMarket = await deployProductOnMainnetFork({
@@ -186,6 +187,7 @@ describe('Vault', () => {
       name: 'Bitcoin',
       symbol: 'BTC',
       oracle: btcRootOracle.address,
+      payoff: constants.AddressZero,
     })
     leverage = parse6decimal('4.0')
     maxCollateral = parse6decimal('500000')
@@ -326,6 +328,7 @@ describe('Vault', () => {
         name: 'Chainlink Token',
         symbol: 'LINK',
         oracle: rootOracle3.address,
+        payoff: constants.AddressZero,
         makerLimit: parse6decimal('1000000'),
       })
     })
@@ -386,6 +389,7 @@ describe('Vault', () => {
         name: 'Chainlink Token',
         symbol: 'LINK',
         oracle: rootOracle4.address,
+        payoff: constants.AddressZero,
         makerLimit: parse6decimal('1000000'),
       })
 
@@ -916,7 +920,7 @@ describe('Vault', () => {
     it('exactly at makerLimit', async () => {
       // Get maker product very close to the makerLimit
       await asset.connect(perennialUser).approve(market.address, constants.MaxUint256)
-      const makerAvailable = (await market.parameter()).makerLimit.sub(
+      const makerAvailable = (await market.riskParameter()).makerLimit.sub(
         (await market.pendingPosition((await market.global()).currentId)).maker,
       )
       await market.connect(perennialUser).update(perennialUser.address, makerAvailable, 0, 0, parse6decimal('400000'))
@@ -1004,12 +1008,12 @@ describe('Vault', () => {
 
     it('multiple users w/ makerFee', async () => {
       const makerFee = parse6decimal('0.001')
-      const marketParameters = { ...(await market.parameter()) }
-      marketParameters.makerFee = makerFee
-      await market.updateParameter(marketParameters)
-      const btcMarketParameters = { ...(await btcMarket.parameter()) }
-      btcMarketParameters.makerFee = makerFee
-      await btcMarket.updateParameter(btcMarketParameters)
+      const riskParameters = { ...(await market.riskParameter()) }
+      riskParameters.makerFee = makerFee
+      await market.updateRiskParameter(riskParameters)
+      const btcRiskParameters = { ...(await btcMarket.riskParameter()) }
+      btcRiskParameters.makerFee = makerFee
+      await btcMarket.updateRiskParameter(btcRiskParameters)
 
       expect(await vault.convertToAssets(parse6decimal('1'))).to.equal(parse6decimal('1'))
       expect(await vault.convertToShares(parse6decimal('1'))).to.equal(parse6decimal('1'))

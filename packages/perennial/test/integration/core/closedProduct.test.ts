@@ -92,7 +92,9 @@ describe('Closed Market', () => {
     const userCollateralBefore = (await market.locals(user.address)).collateral
     const userBCollateralBefore = (await market.locals(userB.address)).collateral
     const feesABefore = (await market.global()).protocolFee
-    const feesBBefore = (await market.global()).marketFee
+    const feesBBefore = (await market.global()).oracleFee
+    const feesCBefore = (await market.global()).riskFee
+    const feesDBefore = (await market.global()).donation
 
     await chainlink.nextWithPriceModification(price => price.mul(4))
     await chainlink.nextWithPriceModification(price => price.mul(4))
@@ -102,7 +104,9 @@ describe('Closed Market', () => {
     expect((await market.locals(user.address)).collateral).to.equal(userCollateralBefore)
     expect((await market.locals(userB.address)).collateral).to.equal(userBCollateralBefore)
     expect((await market.global()).protocolFee).to.equal(feesABefore)
-    expect((await market.global()).marketFee).to.equal(feesBBefore)
+    expect((await market.global()).oracleFee).to.equal(feesBBefore)
+    expect((await market.global()).riskFee).to.equal(feesCBefore)
+    expect((await market.global()).donation).to.equal(feesDBefore)
   })
 
   it('handles closing during liquidations', async () => {
@@ -133,7 +137,9 @@ describe('Closed Market', () => {
     const userCollateralBefore = (await market.locals(user.address)).collateral
     const userBCollateralBefore = (await market.locals(userB.address)).collateral
     const feesABefore = (await market.global()).protocolFee
-    const feesBBefore = (await market.global()).marketFee
+    const feesBBefore = (await market.global()).oracleFee
+    const feesCBefore = (await market.global()).riskFee
+    const feesDBefore = (await market.global()).donation
 
     await chainlink.nextWithPriceModification(price => price.mul(4))
     await chainlink.nextWithPriceModification(price => price.mul(4))
@@ -143,6 +149,8 @@ describe('Closed Market', () => {
     expect((await market.locals(user.address)).collateral).to.equal(userCollateralBefore)
     expect((await market.locals(userB.address)).collateral).to.equal(userBCollateralBefore)
     expect((await market.global()).protocolFee).to.equal(feesABefore)
-    expect((await market.global()).marketFee).to.equal(feesBBefore)
+    expect((await market.global()).oracleFee).to.equal(feesBBefore)
+    expect((await market.global()).riskFee).to.equal(feesCBefore)
+    expect((await market.global()).donation).to.equal(feesDBefore)
   })
 })
