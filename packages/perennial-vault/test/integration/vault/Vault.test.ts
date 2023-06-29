@@ -7,7 +7,6 @@ import { expect, use } from 'chai'
 import {
   IERC20Metadata,
   IERC20Metadata__factory,
-  IFactory,
   IMarket,
   Vault__factory,
   IOracleProvider,
@@ -17,6 +16,7 @@ import {
   IVault,
   IVaultFactory__factory,
   IOracleFactory,
+  IMarketFactory,
 } from '../../../types/generated'
 import { BigNumber, constants } from 'ethers'
 import { deployProtocol, fundWallet } from '@equilibria/perennial-v2/test/integration/helpers/setupHelpers'
@@ -34,7 +34,7 @@ describe('Vault', () => {
   let vault: IVault
   let asset: IERC20Metadata
   let vaultFactory: IVaultFactory
-  let factory: IFactory
+  let factory: IMarketFactory
   let oracleFactory: OracleFactory
   let vaultOracleFactory: FakeContract<IOracleFactory>
   let owner: SignerWithAddress
@@ -66,7 +66,7 @@ describe('Vault', () => {
       price: newPrice ?? currentPrice,
       valid: true,
     }
-    oracle.sync.returns([newVersion, newVersion.timestamp.add(LEGACY_ORACLE_DELAY)])
+    oracle.request.returns([newVersion, newVersion.timestamp.add(LEGACY_ORACLE_DELAY)])
     oracle.latest.returns(newVersion)
     oracle.current.returns(newVersion.timestamp.add(LEGACY_ORACLE_DELAY))
     oracle.at.whenCalledWith(newVersion.timestamp).returns(newVersion)
@@ -79,7 +79,7 @@ describe('Vault', () => {
       price: newPrice ?? currentPrice,
       valid: true,
     }
-    btcOracle.sync.returns([newVersion, newVersion.timestamp.add(LEGACY_ORACLE_DELAY)])
+    btcOracle.request.returns([newVersion, newVersion.timestamp.add(LEGACY_ORACLE_DELAY)])
     btcOracle.latest.returns(newVersion)
     btcOracle.current.returns(newVersion.timestamp.add(LEGACY_ORACLE_DELAY))
     btcOracle.at.whenCalledWith(newVersion.timestamp).returns(newVersion)
@@ -125,6 +125,7 @@ describe('Vault', () => {
 
     vaultOracleFactory = await smock.fake<IOracleFactory>('IOracleFactory')
     await oracleFactory.connect(owner).register(vaultOracleFactory.address)
+    await oracleFactory.connect(owner).authorize(factory.address)
 
     const realVersion = {
       timestamp: STARTING_TIMESTAMP,
@@ -134,7 +135,7 @@ describe('Vault', () => {
     originalOraclePrice = realVersion.price
 
     oracle = await smock.fake<IOracleProvider>('IOracleProvider')
-    oracle.sync.returns([realVersion, realVersion.timestamp.add(LEGACY_ORACLE_DELAY)])
+    oracle.request.returns([realVersion, realVersion.timestamp.add(LEGACY_ORACLE_DELAY)])
     oracle.latest.returns(realVersion)
     oracle.current.returns(realVersion.timestamp.add(LEGACY_ORACLE_DELAY))
     oracle.at.whenCalledWith(realVersion.timestamp).returns(realVersion)
@@ -147,7 +148,7 @@ describe('Vault', () => {
     btcOriginalOraclePrice = btcRealVersion.price
 
     btcOracle = await smock.fake<IOracleProvider>('IOracleProvider')
-    btcOracle.sync.returns([btcRealVersion, btcRealVersion.timestamp.add(LEGACY_ORACLE_DELAY)])
+    btcOracle.request.returns([btcRealVersion, btcRealVersion.timestamp.add(LEGACY_ORACLE_DELAY)])
     btcOracle.latest.returns(btcRealVersion)
     btcOracle.current.returns(btcRealVersion.timestamp.add(LEGACY_ORACLE_DELAY))
     btcOracle.at.whenCalledWith(btcRealVersion.timestamp).returns(btcRealVersion)
@@ -177,6 +178,7 @@ describe('Vault', () => {
       name: 'Ethereum',
       symbol: 'ETH',
       oracle: rootOracle.address,
+      payoff: constants.AddressZero,
       makerLimit: parse6decimal('1000'),
     })
     btcMarket = await deployProductOnMainnetFork({
@@ -186,6 +188,7 @@ describe('Vault', () => {
       name: 'Bitcoin',
       symbol: 'BTC',
       oracle: btcRootOracle.address,
+      payoff: constants.AddressZero,
     })
     leverage = parse6decimal('4.0')
     maxCollateral = parse6decimal('500000')
@@ -305,7 +308,7 @@ describe('Vault', () => {
       }
 
       const oracle3 = await smock.fake<IOracleProvider>('IOracleProvider')
-      oracle3.sync.returns([realVersion3, realVersion3.timestamp.add(LEGACY_ORACLE_DELAY)])
+      oracle3.request.returns([realVersion3, realVersion3.timestamp.add(LEGACY_ORACLE_DELAY)])
       oracle3.latest.returns(realVersion3)
       oracle3.at.whenCalledWith(realVersion3.timestamp).returns(realVersion3)
 
@@ -326,6 +329,7 @@ describe('Vault', () => {
         name: 'Chainlink Token',
         symbol: 'LINK',
         oracle: rootOracle3.address,
+        payoff: constants.AddressZero,
         makerLimit: parse6decimal('1000000'),
       })
     })
@@ -365,7 +369,7 @@ describe('Vault', () => {
       }
 
       const oracle4 = await smock.fake<IOracleProvider>('IOracleProvider')
-      oracle4.sync.returns([realVersion4, realVersion4.timestamp.add(LEGACY_ORACLE_DELAY)])
+      oracle4.request.returns([realVersion4, realVersion4.timestamp.add(LEGACY_ORACLE_DELAY)])
       oracle4.latest.returns(realVersion4)
       oracle4.at.whenCalledWith(realVersion4.timestamp).returns(realVersion4)
 
@@ -386,6 +390,7 @@ describe('Vault', () => {
         name: 'Chainlink Token',
         symbol: 'LINK',
         oracle: rootOracle4.address,
+        payoff: constants.AddressZero,
         makerLimit: parse6decimal('1000000'),
       })
 
@@ -916,7 +921,7 @@ describe('Vault', () => {
     it('exactly at makerLimit', async () => {
       // Get maker product very close to the makerLimit
       await asset.connect(perennialUser).approve(market.address, constants.MaxUint256)
-      const makerAvailable = (await market.parameter()).makerLimit.sub(
+      const makerAvailable = (await market.riskParameter()).makerLimit.sub(
         (await market.pendingPosition((await market.global()).currentId)).maker,
       )
       await market.connect(perennialUser).update(perennialUser.address, makerAvailable, 0, 0, parse6decimal('400000'))
@@ -1004,12 +1009,12 @@ describe('Vault', () => {
 
     it('multiple users w/ makerFee', async () => {
       const makerFee = parse6decimal('0.001')
-      const marketParameters = { ...(await market.parameter()) }
-      marketParameters.makerFee = makerFee
-      await market.updateParameter(marketParameters)
-      const btcMarketParameters = { ...(await btcMarket.parameter()) }
-      btcMarketParameters.makerFee = makerFee
-      await btcMarket.updateParameter(btcMarketParameters)
+      const riskParameters = { ...(await market.riskParameter()) }
+      riskParameters.makerFee = makerFee
+      await market.updateRiskParameter(riskParameters)
+      const btcRiskParameters = { ...(await btcMarket.riskParameter()) }
+      btcRiskParameters.makerFee = makerFee
+      await btcMarket.updateRiskParameter(btcRiskParameters)
 
       expect(await vault.convertToAssets(parse6decimal('1'))).to.equal(parse6decimal('1'))
       expect(await vault.convertToShares(parse6decimal('1'))).to.equal(parse6decimal('1'))

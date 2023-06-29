@@ -2,6 +2,7 @@
 pragma solidity ^0.8.13;
 
 import "@equilibria/perennial-v2-oracle/contracts/types/OracleVersion.sol";
+import "./ProtocolParameter.sol";
 import "./RiskParameter.sol";
 
 /// @dev Order type
@@ -12,6 +13,7 @@ struct Order {
     UFixed6 skew;
     Fixed6 impact;
     UFixed6 fee;
+    UFixed6 keeper;
 }
 using OrderLib for Order global;
 
@@ -23,6 +25,7 @@ library OrderLib {
     function registerFee(
         Order memory self,
         OracleVersion memory latestVersion,
+        ProtocolParameter memory protocolParameter,
         RiskParameter memory riskParameter
     ) internal pure {
         Fixed6 makerFee = Fixed6Lib.from(riskParameter.makerFee)
@@ -36,6 +39,8 @@ library OrderLib {
 
         self.fee = self.maker.abs().mul(latestVersion.price.abs()).mul(UFixed6Lib.from(makerFee))
             .add(self.long.abs().add(self.short.abs()).mul(latestVersion.price.abs()).mul(UFixed6Lib.from(takerFee)));
+
+        self.keeper = protocolParameter.settlementFee;
     }
 
     function decreasesLiquidity(Order memory self) internal pure returns (bool) {

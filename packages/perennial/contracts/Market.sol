@@ -30,8 +30,11 @@ contract Market is IMarket, Instance {
 
     IPayoffProvider public payoff;
 
-    /// @dev Treasury of the market, collects fees
-    address public treasury;
+    /// @dev Beneficiary of the market, receives donations
+    address public beneficiary;
+
+    /// @dev Risk coordinator of the market
+    address public coordinator;
 
     RiskParameterStorage private _riskParameter;
 
@@ -96,17 +99,20 @@ contract Market is IMarket, Instance {
         _saveContext(context, account);
     }
 
-    function updateTreasury(address newTreasury) external onlyOwner {
-        treasury = newTreasury;
-        emit TreasuryUpdated(newTreasury);
+    function updateBeneficiary(address newBeneficiary) external onlyOwner {
+        beneficiary = newBeneficiary;
+        emit BeneficiaryUpdated(newBeneficiary);
     }
 
     function updateParameter(MarketParameter memory newParameter) external onlyOwner {
+        if (newParameter.oracleFee.add(newParameter.riskFee).gt(UFixed6Lib.ONE))
+            revert MarketInvalidParameterError();
+
         _parameter.store(newParameter);
         emit ParameterUpdated(newParameter);
     }
 
-    function updateRiskParameter(RiskParameter memory newRiskParameter) external onlyOwner { // TODO: onlyRiskManager
+    function updateRiskParameter(RiskParameter memory newRiskParameter) external onlyCoordinator {
         _updateRiskParameter(newRiskParameter);
     }
 
@@ -116,21 +122,45 @@ contract Market is IMarket, Instance {
         emit RewardUpdated(newReward);
     }
 
-    function claimFee() external {
+    function claimProtocolFee() external {
         Global memory newGlobal = _global.read();
 
-        if (msg.sender == treasury) {
-            token.push(msg.sender, UFixed18Lib.from(newGlobal.marketFee));
-            emit FeeClaimed(msg.sender, newGlobal.marketFee);
-            newGlobal.marketFee = UFixed6Lib.ZERO;
-        }
+        address receiver = address(IMarketFactory(address(factory())).treasury());
+        token.push(receiver, UFixed18Lib.from(newGlobal.protocolFee));
+        emit FeeClaimed(receiver, newGlobal.protocolFee);
 
-        if (msg.sender == IMarketFactory(address(factory())).treasury()) {
-            token.push(msg.sender, UFixed18Lib.from(newGlobal.protocolFee));
-            emit FeeClaimed(msg.sender, newGlobal.protocolFee);
-            newGlobal.protocolFee = UFixed6Lib.ZERO;
-        }
+        newGlobal.protocolFee = UFixed6Lib.ZERO;
+        _global.store(newGlobal);
+    }
 
+    function claimOracleFee() external {
+        Global memory newGlobal = _global.read();
+
+        address receiver = address(IMarketFactory(address(factory())).oracleFactory());
+        token.push(receiver, UFixed18Lib.from(newGlobal.oracleFee));
+        emit FeeClaimed(receiver, newGlobal.oracleFee);
+
+        newGlobal.oracleFee = UFixed6Lib.ZERO;
+        _global.store(newGlobal);
+    }
+
+    function claimRiskFee() external onlyCoordinator {
+        Global memory newGlobal = _global.read();
+
+        token.push(coordinator, UFixed18Lib.from(newGlobal.riskFee));
+        emit FeeClaimed(coordinator, newGlobal.riskFee);
+
+        newGlobal.riskFee = UFixed6Lib.ZERO;
+        _global.store(newGlobal);
+    }
+
+    function claimDonation() external {
+        Global memory newGlobal = _global.read();
+
+        token.push(beneficiary, UFixed18Lib.from(newGlobal.donation));
+        emit FeeClaimed(beneficiary, newGlobal.donation);
+
+        newGlobal.donation = UFixed6Lib.ZERO;
         _global.store(newGlobal);
     }
 
@@ -235,7 +265,7 @@ contract Market is IMarket, Instance {
         context.pendingPosition.update(context.global.currentId, context.currentTimestamp, newOrder);
 
         // update fee
-        newOrder.registerFee(context.latestVersion, context.riskParameter);
+        newOrder.registerFee(context.latestVersion, context.protocolParameter, context.riskParameter);
         context.accountPendingPosition.registerFee(newOrder);
         context.pendingPosition.registerFee(newOrder);
 
@@ -368,7 +398,12 @@ contract Market is IMarket, Instance {
             context.riskParameter
         );
         context.position.update(newPosition);
-        context.global.incrementFees(accumulatedFee, context.protocolParameter);
+        context.global.incrementFees(
+            accumulatedFee,
+            newPosition.keeper,
+            context.marketParameter,
+            context.protocolParameter
+        );
         context.positionVersion = oracleVersion;
         _versions[newPosition.timestamp].store(version);
     }
@@ -433,7 +468,7 @@ contract Market is IMarket, Instance {
     }
 
     function _oracleVersion() private returns (OracleVersion memory latestVersion, uint256 currentTimestamp) {
-        (latestVersion, currentTimestamp) = oracle.sync();
+        (latestVersion, currentTimestamp) = oracle.request();
         _transform(latestVersion);
     }
 
@@ -444,6 +479,16 @@ contract Market is IMarket, Instance {
 
     function _transform(OracleVersion memory oracleVersion) private view {
         if (address(payoff) != address(0)) oracleVersion.price = payoff.payoff(oracleVersion.price);
+    }
+
+    modifier onlyCoordinator {
+        if (msg.sender != coordinator && msg.sender != factory().owner()) revert MarketNotCoordinatorError();
+        _;
+    }
+
+    modifier onlyBeneficiary {
+        if (msg.sender != beneficiary && msg.sender != factory().owner()) revert MarketNotBeneficiaryError();
+        _;
     }
 
     // Debug

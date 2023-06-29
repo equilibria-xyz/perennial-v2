@@ -3,6 +3,8 @@ pragma solidity 0.8.19;
 
 import "@equilibria/root-v2/contracts/Instance.sol";
 import "./interfaces/IOracle.sol";
+import "./interfaces/IOracleProviderFactory.sol";
+import "hardhat/console.sol";
 
 contract Oracle is IOracle, Instance {
     mapping(uint256 => Checkpoint) public oracles;
@@ -10,18 +12,17 @@ contract Oracle is IOracle, Instance {
 
     function initialize(IOracleProvider initialProvider) external initializer(1) {
         __Instance__initialize();
-
         _updateCurrent(initialProvider);
-        sync();
+        _updateLatest(initialProvider.latest());
     }
 
     function update(IOracleProvider newProvider) external onlyOwner {
         _updateCurrent(newProvider);
-        sync();
+        _updateLatest(newProvider.latest());
     }
 
-    function sync() public returns (OracleVersion memory latestVersion, uint256 currentTimestamp) {
-        (latestVersion, currentTimestamp) = oracles[uint256(global.current)].provider.sync();
+    function request() external onlyAuthorized returns (OracleVersion memory latestVersion, uint256 currentTimestamp) {
+        (latestVersion, currentTimestamp) = oracles[uint256(global.current)].provider.request();
         oracles[uint256(global.current)].timestamp = uint96(currentTimestamp);
 
         if (uint256(global.current) == uint256(global.latest)) {
@@ -54,7 +55,7 @@ contract Oracle is IOracle, Instance {
     }
 
     function _updateCurrent(IOracleProvider newProvider) private {
-        oracles[uint256(++global.current)] = Checkpoint(newProvider, 0);
+        oracles[uint256(++global.current)] = Checkpoint(newProvider, uint96(newProvider.current()));
         emit OracleUpdated(newProvider);
     }
 
@@ -63,5 +64,14 @@ contract Oracle is IOracle, Instance {
         if (uint256(oracles[uint256(global.latest)].timestamp) > latestTimestamp) return;
         if (uint256(oracles[uint256(global.latest)].timestamp) >= currentOracleLatestVersion.timestamp) return;
         global.latest++;
+    }
+
+    modifier onlyAuthorized {
+        if (!IOracleProviderFactory(address(factory())).authorized(msg.sender)) {
+            console.log("factory", address(factory()));
+            console.log("oracle not authorized");
+            revert OracleProviderUnauthorizedError();
+        }
+        _;
     }
 }

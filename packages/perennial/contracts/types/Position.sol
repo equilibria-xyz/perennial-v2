@@ -14,6 +14,7 @@ struct Position {
     UFixed6 long;
     UFixed6 short;
     UFixed6 fee; // TODO (gas hint): unused in the non-pending instances
+    UFixed6 keeper; // TODO (gas hint): only used in global non-pending instances
     Fixed6 collateral;
     Fixed6 delta;
 }
@@ -25,6 +26,9 @@ struct StoredPositionGlobal {
     uint48 _long;
     uint48 _short;
     uint48 _fee;
+
+    //TODO: pack better
+    uint48 _keeper;
 }
 struct PositionStorageGlobal { StoredPositionGlobal value; }
 using PositionStorageGlobalLib for PositionStorageGlobal global;
@@ -34,7 +38,9 @@ struct StoredPositionLocal {
     uint8 _direction;
     uint48 _position;
     uint48 _fee;
+    uint256 _keeper; // TODO: pack better
     int48 _collateral;
+
     int48 _delta;
 }
 struct PositionStorageLocal { StoredPositionLocal value; }
@@ -106,6 +112,7 @@ library PositionLib {
 
     function registerFee(Position memory self, Order memory order) internal pure {
         self.fee = self.fee.add(order.fee);
+        self.keeper = self.keeper.add(order.keeper);
     }
 
     function magnitude(Position memory self) internal pure returns (UFixed6) {
@@ -195,6 +202,7 @@ library PositionStorageGlobalLib {
             UFixed6.wrap(uint256(storedValue._long)),
             UFixed6.wrap(uint256(storedValue._short)),
             UFixed6.wrap(uint256(storedValue._fee)),
+            UFixed6.wrap(uint256(storedValue._keeper)),
             Fixed6Lib.ZERO,
             Fixed6Lib.ZERO
         );
@@ -207,6 +215,7 @@ library PositionStorageGlobalLib {
         if (newValue.long.gt(UFixed6.wrap(type(uint48).max))) revert PositionStorageGlobalInvalidError();
         if (newValue.short.gt(UFixed6.wrap(type(uint48).max))) revert PositionStorageGlobalInvalidError();
         if (newValue.fee.gt(UFixed6.wrap(type(uint48).max))) revert PositionStorageGlobalInvalidError();
+        if (newValue.keeper.gt(UFixed6.wrap(type(uint48).max))) revert PositionStorageGlobalInvalidError();
 
         self.value = StoredPositionGlobal(
             uint32(newValue.id),
@@ -214,7 +223,8 @@ library PositionStorageGlobalLib {
             uint48(UFixed6.unwrap(newValue.maker)),
             uint48(UFixed6.unwrap(newValue.long)),
             uint48(UFixed6.unwrap(newValue.short)),
-            uint48(UFixed6.unwrap(newValue.fee))
+            uint48(UFixed6.unwrap(newValue.fee)),
+            uint48(UFixed6.unwrap(newValue.keeper))
         );
     }
 }
@@ -232,6 +242,7 @@ library PositionStorageLocalLib {
             UFixed6.wrap(uint256((storedValue._direction == 1) ? storedValue._position : 0)),
             UFixed6.wrap(uint256((storedValue._direction == 2) ? storedValue._position : 0)),
             UFixed6.wrap(uint256(storedValue._fee)),
+            UFixed6.wrap(uint256(storedValue._keeper)),
             Fixed6.wrap(int256(storedValue._collateral)),
             Fixed6.wrap(int256(storedValue._delta))
         );
@@ -244,6 +255,7 @@ library PositionStorageLocalLib {
         if (newValue.long.gt(UFixed6.wrap(type(uint48).max))) revert PositionStorageLocalInvalidError();
         if (newValue.short.gt(UFixed6.wrap(type(uint48).max))) revert PositionStorageLocalInvalidError();
         if (newValue.fee.gt(UFixed6.wrap(type(uint48).max))) revert PositionStorageLocalInvalidError();
+        if (newValue.keeper.gt(UFixed6.wrap(type(uint48).max))) revert PositionStorageLocalInvalidError();
         if (newValue.collateral.gt(Fixed6.wrap(type(int48).max))) revert PositionStorageLocalInvalidError();
         if (newValue.collateral.lt(Fixed6.wrap(type(int48).min))) revert PositionStorageLocalInvalidError();
         if (newValue.delta.gt(Fixed6.wrap(type(int48).max))) revert PositionStorageLocalInvalidError();
@@ -255,6 +267,7 @@ library PositionStorageLocalLib {
             uint8(newValue.long.isZero() ? (newValue.short.isZero() ? 0 : 2) : 1),
             uint48(UFixed6.unwrap(newValue.magnitude())),
             uint48(UFixed6.unwrap(newValue.fee)),
+            uint48(UFixed6.unwrap(newValue.keeper)),
             int48(Fixed6.unwrap(newValue.collateral)),
             int48(Fixed6.unwrap(newValue.delta))
         );

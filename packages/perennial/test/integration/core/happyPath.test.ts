@@ -39,7 +39,7 @@ describe('Happy Path', () => {
   })
 
   it('creates a market', async () => {
-    const { owner, marketFactory, treasuryB, payoff, oracle, dsu, rewardToken } = instanceVars
+    const { owner, marketFactory, beneficiaryB, payoff, oracle, dsu, rewardToken } = instanceVars
 
     const definition = {
       name: 'Squeeth',
@@ -75,16 +75,18 @@ describe('Happy Path', () => {
       makerReceiveOnly: false,
     }
     const parameter = {
-      positionFee: 0,
       fundingFee: parse6decimal('0.1'),
       interestFee: parse6decimal('0.1'),
+      oracleFee: 0,
+      riskFee: 0,
+      positionFee: 0,
       closed: true,
     }
     const marketAddress = await marketFactory.callStatic.create(definition, riskParameter)
     await expect(marketFactory.create(definition, riskParameter)).to.emit(marketFactory, 'MarketCreated')
     const market = Market__factory.connect(marketAddress, owner)
     await market.connect(owner).updateParameter(parameter)
-    await market.connect(owner).updateTreasury(treasuryB.address)
+    await market.connect(owner).updateBeneficiary(beneficiaryB.address)
   })
 
   it('opens a make position', async () => {
@@ -127,7 +129,9 @@ describe('Happy Path', () => {
     expectGlobalEq(await market.global(), {
       currentId: 1,
       protocolFee: 0,
-      marketFee: 0,
+      riskFee: 0,
+      oracleFee: 0,
+      donation: 0,
     })
     expectPositionEq(await market.pendingPosition(1), {
       id: 1,
@@ -186,7 +190,9 @@ describe('Happy Path', () => {
     expectGlobalEq(await market.global(), {
       currentId: 1,
       protocolFee: 0,
-      marketFee: 0,
+      riskFee: 0,
+      oracleFee: 0,
+      donation: 0,
     })
     expectPositionEq(await market.pendingPosition(1), {
       id: 1,
@@ -247,7 +253,9 @@ describe('Happy Path', () => {
     expectGlobalEq(await market.global(), {
       currentId: 1,
       protocolFee: 0,
-      marketFee: 0,
+      riskFee: 0,
+      oracleFee: 0,
+      donation: 0,
     })
     expectPositionEq(await market.pendingPosition(1), {
       id: 1,
@@ -306,7 +314,9 @@ describe('Happy Path', () => {
     expectGlobalEq(await market.global(), {
       currentId: 1,
       protocolFee: 0,
-      marketFee: 0,
+      riskFee: 0,
+      oracleFee: 0,
+      donation: 0,
     })
     expectPositionEq(await market.pendingPosition(1), {
       id: 1,
@@ -327,7 +337,9 @@ describe('Happy Path', () => {
     expectGlobalEq(await market.global(), {
       currentId: 1,
       protocolFee: 0,
-      marketFee: 0,
+      riskFee: 0,
+      oracleFee: 0,
+      donation: 0,
     })
   })
 
@@ -372,7 +384,9 @@ describe('Happy Path', () => {
     expectGlobalEq(await market.global(), {
       currentId: 1,
       protocolFee: 0,
-      marketFee: 0,
+      riskFee: 0,
+      oracleFee: 0,
+      donation: 0,
     })
     expectPositionEq(await market.pendingPosition(1), {
       id: 1,
@@ -443,7 +457,9 @@ describe('Happy Path', () => {
     expectGlobalEq(await market.global(), {
       currentId: 1,
       protocolFee: 0,
-      marketFee: 0,
+      riskFee: 0,
+      oracleFee: 0,
+      donation: 0,
     })
     expectPositionEq(await market.pendingPosition(1), {
       id: 1,
@@ -537,7 +553,9 @@ describe('Happy Path', () => {
     expectGlobalEq(await market.global(), {
       currentId: 1,
       protocolFee: 0,
-      marketFee: 0,
+      riskFee: 0,
+      oracleFee: 0,
+      donation: 0,
     })
     expectPositionEq(await market.pendingPosition(1), {
       id: 1,
@@ -574,7 +592,9 @@ describe('Happy Path', () => {
     expectGlobalEq(await market.global(), {
       currentId: 1,
       protocolFee: '18',
-      marketFee: '18',
+      riskFee: 0,
+      oracleFee: 0,
+      donation: '18',
     })
     expectPositionEq(await market.pendingPosition(1), {
       id: 1,
@@ -662,7 +682,9 @@ describe('Happy Path', () => {
     expectGlobalEq(await market.global(), {
       currentId: 1,
       protocolFee: 0,
-      marketFee: 0,
+      riskFee: 0,
+      oracleFee: 0,
+      donation: 0,
     })
     expectPositionEq(await market.pendingPosition(1), {
       id: 1,
@@ -699,7 +721,9 @@ describe('Happy Path', () => {
     expectGlobalEq(await market.global(), {
       currentId: 1,
       protocolFee: '18',
-      marketFee: '18',
+      riskFee: 0,
+      oracleFee: 0,
+      donation: '18',
     })
     expectPositionEq(await market.pendingPosition(1), {
       id: 1,
@@ -789,7 +813,9 @@ describe('Happy Path', () => {
     expectGlobalEq(await market.global(), {
       currentId: 1,
       protocolFee: 0,
-      marketFee: 0,
+      riskFee: 0,
+      oracleFee: 0,
+      donation: 0,
     })
     expectPositionEq(await market.pendingPosition(1), {
       id: 1,
@@ -866,7 +892,9 @@ describe('Happy Path', () => {
     expectGlobalEq(await market.global(), {
       currentId: 1,
       protocolFee: 0,
-      marketFee: 0,
+      riskFee: 0,
+      oracleFee: 0,
+      donation: 0,
     })
     expectPositionEq(await market.pendingPosition(1), {
       id: 1,
@@ -1009,6 +1037,8 @@ describe('Happy Path', () => {
     const parameter = {
       fundingFee: parse6decimal('0.1'),
       interestFee: parse6decimal('0.1'),
+      oracleFee: 0,
+      riskFee: 0,
       positionFee: positionFeesOn ? parse6decimal('0.1') : 0,
       closed: false,
     }
@@ -1065,7 +1095,9 @@ describe('Happy Path', () => {
     expectGlobalEq(await market.global(), {
       currentId: 3,
       protocolFee: '395234',
-      marketFee: '395237',
+      riskFee: 0,
+      oracleFee: 0,
+      donation: '395237',
     })
     expectPositionEq(await market.pendingPosition(3), {
       id: 3,
@@ -1101,7 +1133,7 @@ describe('Happy Path', () => {
 
     const POSITION = parse6decimal('0.0001')
     const COLLATERAL = parse6decimal('1000')
-    const { owner, user, userB, dsu, payoff } = instanceVars
+    const { owner, user, userB, dsu, payoff, marketFactory } = instanceVars
 
     const initialRoundId = buildChainlinkRoundId(INITIAL_PHASE_ID, INITIAL_AGGREGATOR_ROUND_ID)
     const chainlink = await new ChainlinkContext(
@@ -1141,6 +1173,8 @@ describe('Happy Path', () => {
     const parameter = {
       fundingFee: parse6decimal('0.1'),
       interestFee: parse6decimal('0.1'),
+      oracleFee: 0,
+      riskFee: 0,
       positionFee: positionFeesOn ? parse6decimal('0.1') : 0,
       closed: false,
     }
@@ -1203,7 +1237,9 @@ describe('Happy Path', () => {
     expectGlobalEq(await market.global(), {
       currentId: delay + 1,
       protocolFee: (await market.global()).protocolFee,
-      marketFee: (await market.global()).marketFee,
+      riskFee: (await market.global()).riskFee,
+      oracleFee: (await market.global()).oracleFee,
+      donation: (await market.global()).donation,
     })
     expectPositionEq(await market.pendingPosition(delay + 1), {
       id: delay + 1,

@@ -9,6 +9,7 @@ struct ProtocolParameter {
     UFixed6 liquidationFee;
     UFixed6 maxLiquidationFee;
     UFixed6 minCollateral;
+    UFixed6 settlementFee;
     uint256 maxPendingIds;
 }
 struct StoredProtocolParameter {
@@ -16,9 +17,10 @@ struct StoredProtocolParameter {
     uint24 _liquidationFee;     // <= 1677%
     uint48 _maxLiquidationFee;  // <= 281mn
     uint48 _minCollateral;      // <= 281mn
+    uint24 _settlementFee;             // <= 1677%
     uint8 _maxPendingIds;       // <= 255
 
-    bytes13 __unallocated__;
+    bytes10 __unallocated__;
 }
 struct ProtocolParameterStorage { StoredProtocolParameter value; }
 using ProtocolParameterStorageLib for ProtocolParameterStorage global;
@@ -33,6 +35,7 @@ library ProtocolParameterStorageLib {
             UFixed6.wrap(uint256(value._liquidationFee)),
             UFixed6.wrap(uint256(value._maxLiquidationFee)),
             UFixed6.wrap(uint256(value._minCollateral)),
+            UFixed6.wrap(uint256(value._settlementFee)),
             uint256(value._maxPendingIds)
         );
     }
@@ -42,6 +45,7 @@ library ProtocolParameterStorageLib {
         if (newValue.liquidationFee.gt(UFixed6.wrap(type(uint24).max))) revert ProtocolParameterStorageInvalidError();
         if (newValue.maxLiquidationFee.gt(UFixed6.wrap(type(uint48).max))) revert ProtocolParameterStorageInvalidError();
         if (newValue.minCollateral.gt(UFixed6.wrap(type(uint48).max))) revert ProtocolParameterStorageInvalidError();
+        if (newValue.settlementFee.gt(UFixed6.wrap(type(uint24).max))) revert ProtocolParameterStorageInvalidError();
         if (newValue.maxPendingIds > uint256(type(uint8).max)) revert ProtocolParameterStorageInvalidError();
 
         self.value = StoredProtocolParameter(
@@ -49,8 +53,9 @@ library ProtocolParameterStorageLib {
             uint24(UFixed6.unwrap(newValue.liquidationFee)),
             uint48(UFixed6.unwrap(newValue.maxLiquidationFee)),
             uint48(UFixed6.unwrap(newValue.minCollateral)),
+            uint24(UFixed6.unwrap(newValue.settlementFee)),
             uint8(newValue.maxPendingIds),
-            bytes13(0)
+            bytes10(0)
         );
     }
 }

@@ -16,7 +16,7 @@ function mockVersion(
   latestVersion: OracleVersionStruct,
   currentTimestamp: number,
 ) {
-  oracle.sync.returns([latestVersion, currentTimestamp])
+  oracle.request.returns([latestVersion, currentTimestamp])
   oracle.latest.returns(latestVersion)
   oracle.current.returns(currentTimestamp)
   oracle.at.whenCalledWith(latestVersion.timestamp).returns(latestVersion)
@@ -27,6 +27,7 @@ function mockVersion(
 describe('Oracle', () => {
   let owner: SignerWithAddress
   let user: SignerWithAddress
+  let caller: SignerWithAddress
 
   let oracle: Oracle
   let underlying0: FakeContract<IOracleProvider>
@@ -35,13 +36,14 @@ describe('Oracle', () => {
   let oracleFactorySigner: SignerWithAddress
 
   beforeEach(async () => {
-    ;[owner, user] = await ethers.getSigners()
+    ;[owner, user, caller] = await ethers.getSigners()
     oracle = await new Oracle__factory(owner).deploy()
     underlying0 = await smock.fake<IOracleProvider>('IOracleProvider')
     underlying1 = await smock.fake<IOracleProvider>('IOracleProvider')
     oracleFactory = await smock.fake<IOracleFactory>('IOracleFactory')
     oracleFactorySigner = await impersonate.impersonateWithBalance(oracleFactory.address, utils.parseEther('10'))
     oracleFactory.owner.returns(owner.address)
+    oracleFactory.authorized.whenCalledWith(caller.address).returns(true)
   })
 
   describe('#initializer', async () => {
@@ -116,8 +118,8 @@ describe('Oracle', () => {
           },
           1687231005,
         )
-        const [latestVersion, currentTimestamp] = await oracle.connect(owner).callStatic.sync()
-        await oracle.connect(owner).sync()
+        const [latestVersion, currentTimestamp] = await oracle.connect(caller).callStatic.request()
+        await oracle.connect(caller).request()
 
         expect(latestVersion.timestamp).to.equal(1687230000)
         expect(latestVersion.price).to.equal(parse6decimal('1000'))
@@ -152,7 +154,7 @@ describe('Oracle', () => {
           },
           1687230905,
         )
-        await oracle.sync()
+        await oracle.connect(caller).request()
         await expect(oracle.connect(owner).update(underlying1.address))
           .to.emit(oracle, 'OracleUpdated')
           .withArgs(underlying1.address)
@@ -200,8 +202,8 @@ describe('Oracle', () => {
           },
           1687231005,
         )
-        const [latestVersion, currentTimestamp] = await oracle.connect(owner).callStatic.sync()
-        await oracle.connect(owner).sync()
+        const [latestVersion, currentTimestamp] = await oracle.connect(caller).callStatic.request()
+        await oracle.connect(caller).request()
 
         expect(latestVersion.timestamp).to.equal(1687230605)
         expect(latestVersion.price).to.equal(parse6decimal('1006'))
@@ -234,8 +236,8 @@ describe('Oracle', () => {
           },
           1687231005,
         )
-        const [latestVersion, currentTimestamp] = await oracle.connect(owner).callStatic.sync()
-        await oracle.connect(owner).sync()
+        const [latestVersion, currentTimestamp] = await oracle.connect(caller).callStatic.request()
+        await oracle.connect(caller).request()
 
         expect(latestVersion.timestamp).to.equal(1687230905)
         expect(latestVersion.price).to.equal(parse6decimal('1006'))
@@ -273,8 +275,8 @@ describe('Oracle', () => {
           },
           1687231005,
         )
-        const [latestVersion, currentTimestamp] = await oracle.connect(owner).callStatic.sync()
-        await oracle.connect(owner).sync()
+        const [latestVersion, currentTimestamp] = await oracle.connect(caller).callStatic.request()
+        await oracle.connect(caller).request()
 
         expect(latestVersion.timestamp).to.equal(1687230905)
         expect(latestVersion.price).to.equal(parse6decimal('1006'))
@@ -307,8 +309,8 @@ describe('Oracle', () => {
           },
           1687231005,
         )
-        const [latestVersion, currentTimestamp] = await oracle.connect(owner).callStatic.sync()
-        await oracle.connect(owner).sync()
+        const [latestVersion, currentTimestamp] = await oracle.connect(caller).callStatic.request()
+        await oracle.connect(caller).request()
 
         expect(latestVersion.timestamp).to.equal(1687230955)
         expect(latestVersion.price).to.equal(parse6decimal('1007'))
@@ -341,7 +343,7 @@ describe('Oracle', () => {
           },
           1687231005,
         )
-        await oracle.connect(owner).sync()
+        await oracle.connect(caller).request()
 
         expect((await oracle.at(0)).timestamp).to.equal(0)
         expect((await oracle.at(0)).price).to.equal(parse6decimal('0'))

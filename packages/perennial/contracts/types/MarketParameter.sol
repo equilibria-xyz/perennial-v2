@@ -12,15 +12,19 @@ struct MarketParameter {
     UFixed6 fundingFee;
     UFixed6 interestFee;
     UFixed6 positionFee;
+    UFixed6 oracleFee;
+    UFixed6 riskFee;
     bool closed;
 }
 
 struct StoredMarketParameter {
-    uint24 interestFee;         // <= 1677%
     uint24 fundingFee;          // <= 1677%
+    uint24 interestFee;         // <= 1677%
     uint24 positionFee;         // <= 1677%
+    uint24 oracleFee;           // <= 1677%
+    uint24 riskFee;             // <= 1677%
     bool closed;
-    bytes21 __unallocated__;
+    bytes16 __unallocated__;
 }
 struct MarketParameterStorage { StoredMarketParameter value; }
 using MarketParameterStorageLib for MarketParameterStorage global;
@@ -34,6 +38,8 @@ library MarketParameterStorageLib {
             UFixed6.wrap(uint256(value.fundingFee)),
             UFixed6.wrap(uint256(value.interestFee)),
             UFixed6.wrap(uint256(value.positionFee)),
+            UFixed6.wrap(uint256(value.oracleFee)),
+            UFixed6.wrap(uint256(value.riskFee)),
             value.closed
         );
     }
@@ -42,13 +48,17 @@ library MarketParameterStorageLib {
         if (newValue.fundingFee.gt(UFixed6.wrap(type(uint24).max))) revert MarketParameterStorageInvalidError();
         if (newValue.interestFee.gt(UFixed6.wrap(type(uint24).max))) revert MarketParameterStorageInvalidError();
         if (newValue.positionFee.gt(UFixed6.wrap(type(uint24).max))) revert MarketParameterStorageInvalidError();
+        if (newValue.oracleFee.gt(UFixed6.wrap(type(uint24).max))) revert MarketParameterStorageInvalidError();
+        if (newValue.riskFee.gt(UFixed6.wrap(type(uint24).max))) revert MarketParameterStorageInvalidError();
 
         self.value = StoredMarketParameter(
             uint24(UFixed6.unwrap(newValue.fundingFee)),
             uint24(UFixed6.unwrap(newValue.interestFee)),
             uint24(UFixed6.unwrap(newValue.positionFee)),
+            uint24(UFixed6.unwrap(newValue.oracleFee)),
+            uint24(UFixed6.unwrap(newValue.riskFee)),
             newValue.closed,
-            bytes21(0)
+            bytes13(0)
         );
     }
 }

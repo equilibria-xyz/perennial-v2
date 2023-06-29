@@ -17,7 +17,9 @@ export interface Position {
 export interface Global {
   currentId: BigNumberish
   protocolFee: BigNumberish
-  marketFee: BigNumberish
+  oracleFee: BigNumberish
+  riskFee: BigNumberish
+  donation: BigNumberish
 }
 
 export interface Local {
@@ -52,7 +54,10 @@ export function expectPositionEq(a: Position, b: Position): void {
 export function expectGlobalEq(a: Global, b: Global): void {
   expect(a.currentId).to.equal(b.currentId)
   expect(a.protocolFee).to.equal(b.protocolFee)
-  expect(a.marketFee).to.equal(b.marketFee)
+  expect(a.oracleFee).to.equal(b.oracleFee)
+  expect(a.riskFee).to.equal(b.riskFee)
+  expect(a.donation).to.equal(b.donation)
+  // TODO: add pAccumulator state
 }
 
 export function expectLocalEq(a: Local, b: Local): void {

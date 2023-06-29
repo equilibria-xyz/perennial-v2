@@ -23,7 +23,7 @@ abstract contract Factory is IFactory, UOwnable, UPausable {
         __UOwnable__initialize();
     }
 
-    function instances(IInstance instance) external view returns (bool) {
+    function instances(IInstance instance) public view returns (bool) {
         return _instances()[instance];
     }
 
@@ -37,5 +37,10 @@ abstract contract Factory is IFactory, UOwnable, UPausable {
         bytes32 slot = INSTANCE_MAP_SLOT;
         /// @solidity memory-safe-assembly
         assembly { r.slot := slot }
+    }
+
+    modifier onlyInstance {
+        if (!instances(IInstance(msg.sender))) revert FactoryNotInstanceError();
+        _;
     }
 }

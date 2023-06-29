@@ -50,7 +50,7 @@ export interface InstanceVars {
   userC: SignerWithAddress
   userD: SignerWithAddress
   treasuryA: SignerWithAddress
-  treasuryB: SignerWithAddress
+  beneficiaryB: SignerWithAddress
   proxyAdmin: ProxyAdmin
   oracleFactory: OracleFactory
   payoffFactory: PayoffFactory
@@ -67,7 +67,11 @@ export interface InstanceVars {
 
 export async function deployProtocol(): Promise<InstanceVars> {
   await time.reset(config)
-  const [owner, pauser, user, userB, userC, userD, treasuryA, treasuryB] = await ethers.getSigners()
+  const [owner, pauser, user, userB, userC, userD, treasuryA, beneficiaryB] = await ethers.getSigners()
+
+  const payoff = await IPayoffProvider__factory.connect((await new PowerTwo__factory(owner).deploy()).address, owner)
+  const dsu = await IERC20Metadata__factory.connect((await deployments.get('DSU')).address, owner)
+  const usdc = await IERC20Metadata__factory.connect((await deployments.get('USDC')).address, owner)
 
   // Deploy external deps
   const initialRoundId = buildChainlinkRoundId(INITIAL_PHASE_ID, INITIAL_AGGREGATOR_ROUND_ID)
@@ -77,10 +81,6 @@ export async function deployProtocol(): Promise<InstanceVars> {
     initialRoundId,
     1,
   ).init()
-
-  const payoff = await IPayoffProvider__factory.connect((await new PowerTwo__factory(owner).deploy()).address, owner)
-  const dsu = await IERC20Metadata__factory.connect((await deployments.get('DSU')).address, owner)
-  const usdc = await IERC20Metadata__factory.connect((await deployments.get('USDC')).address, owner)
 
   // Deploy protocol contracts
   const proxyAdmin = await new ProxyAdmin__factory(owner).deploy()
@@ -120,7 +120,7 @@ export async function deployProtocol(): Promise<InstanceVars> {
   const marketFactory = await new MarketFactory__factory(owner).attach(factoryProxy.address)
 
   // Init
-  await oracleFactory.connect(owner).initialize()
+  await oracleFactory.connect(owner).initialize(dsu.address)
   await payoffFactory.connect(owner).initialize()
   await marketFactory.connect(owner).initialize()
 
@@ -132,10 +132,12 @@ export async function deployProtocol(): Promise<InstanceVars> {
     liquidationFee: parse6decimal('0.50'),
     maxLiquidationFee: parse6decimal('1000'),
     minCollateral: parse6decimal('500'),
+    settlementFee: parse6decimal('0.00'),
     maxPendingIds: 8,
   })
   await payoffFactory.connect(owner).register(payoff.address)
   await oracleFactory.connect(owner).register(chainlink.oracleFactory.address)
+  await oracleFactory.connect(owner).authorize(marketFactory.address)
   const oracle = IOracle__factory.connect(
     await oracleFactory.connect(owner).callStatic.create(chainlink.id, chainlink.oracleFactory.address),
     owner,
@@ -159,7 +161,7 @@ export async function deployProtocol(): Promise<InstanceVars> {
     userC,
     userD,
     treasuryA,
-    treasuryB,
+    beneficiaryB,
     chainlink,
     payoff,
     dsu,
@@ -193,7 +195,7 @@ export async function createMarket(
   oracleOverride?: IOracleProvider,
   payoff?: IPayoffProvider,
 ): Promise<Market> {
-  const { owner, marketFactory, treasuryB, oracle, rewardToken, dsu } = instanceVars
+  const { owner, marketFactory, beneficiaryB, oracle, rewardToken, dsu } = instanceVars
 
   const definition = {
     name: name ?? 'Squeeth',
@@ -211,7 +213,6 @@ export async function createMarket(
     makerFee: 0,
     makerSkewFee: 0,
     makerImpactFee: 0,
-
     makerLiquidity: parse6decimal('0.2'),
     makerLimit: parse6decimal('1000'),
     utilizationCurve: {
@@ -232,6 +233,8 @@ export async function createMarket(
   const marketParameter = {
     fundingFee: parse6decimal('0.1'),
     interestFee: parse6decimal('0.1'),
+    oracleFee: 0,
+    riskFee: 0,
     positionFee: 0,
     closed: false,
   }
@@ -240,7 +243,7 @@ export async function createMarket(
 
   const market = Market__factory.connect(marketAddress, owner)
   await market.updateParameter(marketParameter)
-  await market.updateTreasury(treasuryB.address)
+  await market.updateBeneficiary(beneficiaryB.address)
 
   return market
 }

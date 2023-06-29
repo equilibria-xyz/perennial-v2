@@ -6,7 +6,8 @@ import "@equilibria/root-v2/contracts/Instance.sol";
 import "@equilibria/root/token/types/Token18.sol";
 import "@openzeppelin/contracts/utils/math/SafeCast.sol";
 import "@pythnetwork/pyth-sdk-solidity/AbstractPyth.sol";
-import "../interfaces/IPythOracle.sol";
+import "../interfaces/IPythFactory.sol";
+import "hardhat/console.sol";
 
 // TODO: do we need to mod timestamp to batch versions?
 
@@ -88,7 +89,7 @@ contract PythOracle is IPythOracle, Instance {
      * @return latestVersion The latest synced oracle version
      * @return currentVersion The current oracle version collecting new orders
      */
-    function sync() external returns (OracleVersion memory latestVersion, uint256 currentVersion) {
+    function request() external onlyAuthorized returns (OracleVersion memory latestVersion, uint256 currentVersion) {
         if (versionList.length == 0 || versionList[versionList.length - 1] != block.timestamp) {
             versionList.push(block.timestamp);
         }
@@ -234,11 +235,18 @@ contract PythOracle is IPythOracle, Instance {
         _;
 
         (, int256 price, , , ) = oracle.latestRoundData();
-        token.push(
-            msg.sender,
+        UFixed6 amount = UFixed6Lib.from( // TODO: correct to round this to nearest 1e6?
             UFixed18.wrap(block.basefee * (startGas - gasleft()))
-                .mul(UFixed18Lib.ratio(SafeCast.toUint256(price), 1e8)
-                .mul(UFixed18Lib.ONE.add(premium)))
+                .mul(UFixed18Lib.ONE.add(premium))
+                .mul(UFixed18Lib.ratio(SafeCast.toUint256(price), 1e8))
         );
+
+        IPythFactory(address(factory())).claim(amount);
+        token.push(msg.sender, UFixed18Lib.from(amount));
+    }
+
+    modifier onlyAuthorized {
+        if (!IOracleProviderFactory(address(factory())).authorized(msg.sender)) revert OracleProviderUnauthorizedError();
+        _;
     }
 }
