@@ -48,8 +48,17 @@ contract PythOracle is IPythOracle, Instance {
     /// @dev Mapping from oracle version to oracle version data
     mapping(uint256 => Fixed6) private _prices;
 
+    /// @dev Mapping from oracle version to when its VAA was published to Pyth
+    mapping(uint256 => uint256) private _publishTimes;
+
     /// @dev Index in `versionList` of the next version a keeper should commit
     uint256 private _nextVersionIndexToCommit;
+
+    /// @dev The time when the last committed update was published to Pyth
+    uint256 private _lastCommittedPublishTime;
+
+    /// @dev The oracle version that was most recently committed and wasn't requested
+    uint256 private _mostRecentlyCommittedNonRequestedVersion;
 
     /**
      * @notice Initializes the immutable contract state
@@ -95,10 +104,14 @@ contract PythOracle is IPythOracle, Instance {
      * @return latestVersion Latest oracle version
      */
     function latest() public view returns (OracleVersion memory latestVersion) {
+        if (_mostRecentlyCommittedNonRequestedVersion > 0)
+            latestVersion = OracleVersion(_mostRecentlyCommittedNonRequestedVersion, _prices[_mostRecentlyCommittedNonRequestedVersion], true);
+
         if (_nextVersionIndexToCommit == 0) return latestVersion;
 
         uint256 timestamp = versionList[_nextVersionIndexToCommit - 1];
-        latestVersion = OracleVersion(timestamp, _prices[timestamp], true);
+        if (timestamp > _mostRecentlyCommittedNonRequestedVersion)
+            latestVersion = OracleVersion(timestamp, _prices[timestamp], true);
     }
 
     /**
@@ -137,20 +150,11 @@ contract PythOracle is IPythOracle, Instance {
         if (versionIndex < _nextVersionIndexToCommit) revert PythOracleVersionIndexTooLowError();
 
         uint256 versionToCommit = versionList[versionIndex];
+        PythStructs.Price memory pythPrice = _validateAndGetPrice(versionToCommit, updateData);
 
-        bytes[] memory updateDataList = new bytes[](1);
-        updateDataList[0] = updateData;
-        bytes32[] memory idList = new bytes32[](1);
-        idList[0] = id;
+        if (pythPrice.publishTime <= _lastCommittedPublishTime) revert PythOracleNonIncreasingPublishTimes();
+        _lastCommittedPublishTime = pythPrice.publishTime;
 
-        if (msg.value != pyth.getUpdateFee(updateDataList)) revert PythOracleInvalidMessageValueError();
-
-        PythStructs.Price memory pythPrice = pyth.parsePriceFeedUpdates{value: pyth.getUpdateFee(updateDataList)}(
-            updateDataList,
-            idList,
-            SafeCast.toUint64(versionToCommit + MIN_VALID_TIME_AFTER_VERSION),
-            SafeCast.toUint64(versionToCommit + MAX_VALID_TIME_AFTER_VERSION)
-        )[0].price;
         // Ensure that the keeper is committing the earliest possible version
         if (versionIndex > _nextVersionIndexToCommit) {
             uint256 previousVersion = versionList[versionIndex - 1];
@@ -164,11 +168,57 @@ contract PythOracle is IPythOracle, Instance {
             ) revert PythOracleUpdateValidForPreviousVersionError();
         }
 
-        _prices[versionToCommit] = Fixed6Lib.from(pythPrice.price)
-            .mul(Fixed6Lib.from(SafeCast.toInt256(10 ** SafeCast.toUint256(pythPrice.expo > 0 ? pythPrice.expo : -pythPrice.expo))));
+        _recordPrice(versionToCommit, pythPrice);
         _nextVersionIndexToCommit = versionIndex + 1;
 
         // TODO: cover ETH pyth price in incentive?
+    }
+
+    function commitNonRequested(uint256 oracleVersion, bytes calldata updateData) external payable {
+        // Oracle versions of non-requested versions must be in order
+        if (oracleVersion <= _mostRecentlyCommittedNonRequestedVersion) revert PythOracleNonRequestedOutOfOrderError();
+
+        PythStructs.Price memory pythPrice = _validateAndGetPrice(oracleVersion, updateData);
+
+        // Must be before the next requested version to commit, if it exists
+        // Otherwise, the keeper should just commit the next request version to commit
+        if (versionList.length > _nextVersionIndexToCommit && oracleVersion >= versionList[_nextVersionIndexToCommit])
+            revert PythOracleNonRequestedTooRecentError();
+
+        // Oracle version and VAA publish time must be more recent than those of the most recently committed requested version
+        if (_nextVersionIndexToCommit > 0 && oracleVersion <= versionList[_nextVersionIndexToCommit - 1])
+            revert PythOracleNonRequestedTooOldError();
+
+        _recordPrice(oracleVersion, pythPrice);
+
+        _mostRecentlyCommittedNonRequestedVersion = oracleVersion;
+    }
+
+    /**
+     * @notice Validates that update fees have been paid, and that the VAA represented by `updateData` is within `oracleVersion + MIN_VALID_TIME_AFTER_VERSION` and `oracleVersion + MAX_VALID_TIME_AFTER_VERSION`
+     * @return price The parsed Pyth price
+     */
+    function _validateAndGetPrice(uint256 oracleVersion, bytes calldata updateData) private returns (PythStructs.Price memory price) {
+        bytes[] memory updateDataList = new bytes[](1);
+        updateDataList[0] = updateData;
+        bytes32[] memory idList = new bytes32[](1);
+        idList[0] = id;
+
+        return pyth.parsePriceFeedUpdates{value: pyth.getUpdateFee(updateDataList)}(
+            updateDataList,
+            idList,
+            SafeCast.toUint64(oracleVersion + MIN_VALID_TIME_AFTER_VERSION),
+            SafeCast.toUint64(oracleVersion + MAX_VALID_TIME_AFTER_VERSION)
+        )[0].price;
+    }
+
+    /**
+     * @notice Records `price` as a Fixed6 at version `oracleVersion`
+     */
+    function _recordPrice(uint256 oracleVersion, PythStructs.Price memory price) private {
+        _prices[oracleVersion] = Fixed6Lib.from(price.price)
+            .mul(Fixed6Lib.from(SafeCast.toInt256(10 ** SafeCast.toUint256(price.expo > 0 ? price.expo : -price.expo))));
+        _publishTimes[oracleVersion] = price.publishTime;
     }
 
     modifier incentivize8(AggregatorV3Interface oracle, Token18 token, UFixed18 premium) {
