@@ -135,10 +135,7 @@ describe('PythOracle', () => {
 
     it('fails to commit if update fee is not provided', async () => {
       await pythOracle.connect(oracleSigner).request()
-      await expect(pythOracle.connect(user).commit(0, VAA)).to.revertedWithCustomError(
-        pythOracle,
-        'PythOracleInvalidMessageValueError',
-      )
+      await expect(pythOracle.connect(user).commit(0, VAA)).to.revertedWithoutReason()
     })
 
     it('does not commit a version that has already been committed', async () => {
@@ -236,10 +233,7 @@ describe('PythOracle', () => {
     })
 
     it('fails to commit if update fee is not provided', async () => {
-      await expect(pythOracle.connect(user).commitNonRequested(STARTING_TIME, VAA)).to.revertedWithCustomError(
-        pythOracle,
-        'PythOracleInvalidMessageValueError',
-      )
+      await expect(pythOracle.connect(user).commitNonRequested(STARTING_TIME, VAA)).to.revertedWithoutReason()
     })
 
     it('can commit if there are requested versions but no committed versions', async () => {

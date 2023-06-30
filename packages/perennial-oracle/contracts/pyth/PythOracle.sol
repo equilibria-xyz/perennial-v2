@@ -182,18 +182,12 @@ contract PythOracle is IPythOracle, Instance {
 
         // Must be before the next requested version to commit, if it exists
         // Otherwise, the keeper should just commit the next request version to commit
-        if (versionList.length > _nextVersionIndexToCommit) {
-            if (oracleVersion >= versionList[_nextVersionIndexToCommit]) revert PythOracleNonRequestedTooRecentError();
-            // If updateData is valid for the next requested version to commit, `oracleVersion` is too recent
-            if (pythPrice.publishTime >= versionList[_nextVersionIndexToCommit] + MIN_VALID_TIME_AFTER_VERSION)
-                revert PythOracleNonRequestedTooRecentError();
-        }
+        if (versionList.length > _nextVersionIndexToCommit && oracleVersion >= versionList[_nextVersionIndexToCommit])
+            revert PythOracleNonRequestedTooRecentError();
 
         // Oracle version and VAA publish time must be more recent than those of the most recently committed requested version
-        if (_nextVersionIndexToCommit > 0 &&
-            (oracleVersion <= versionList[_nextVersionIndexToCommit - 1] ||
-             pythPrice.publishTime <= _publishTimes[versionList[_nextVersionIndexToCommit - 1]])
-           ) revert PythOracleNonRequestedTooOldError();
+        if (_nextVersionIndexToCommit > 0 && oracleVersion <= versionList[_nextVersionIndexToCommit - 1])
+            revert PythOracleNonRequestedTooOldError();
 
         _recordPrice(oracleVersion, pythPrice);
 
@@ -209,8 +203,6 @@ contract PythOracle is IPythOracle, Instance {
         updateDataList[0] = updateData;
         bytes32[] memory idList = new bytes32[](1);
         idList[0] = id;
-
-        if (msg.value != pyth.getUpdateFee(updateDataList)) revert PythOracleInvalidMessageValueError();
 
         return pyth.parsePriceFeedUpdates{value: pyth.getUpdateFee(updateDataList)}(
             updateDataList,

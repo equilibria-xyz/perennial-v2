@@ -10,7 +10,6 @@ interface IPythOracle is IOracleProvider, IInstance {
     error PythOracleVersionIndexTooLowError();
     error PythOracleGracePeriodHasNotExpiredError();
     error PythOracleUpdateValidForPreviousVersionError();
-    error PythOracleInvalidMessageValueError();
     error PythOracleNonIncreasingPublishTimes();
     error PythOracleFailedToCalculateRewardError();
     error PythOracleFailedToSendRewardError();
