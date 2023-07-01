@@ -7,7 +7,6 @@ import "@equilibria/root/token/types/Token18.sol";
 import "@openzeppelin/contracts/utils/math/SafeCast.sol";
 import "@pythnetwork/pyth-sdk-solidity/AbstractPyth.sol";
 import "../interfaces/IPythFactory.sol";
-import "hardhat/console.sol";
 
 // TODO: do we need to mod timestamp to batch versions?
 

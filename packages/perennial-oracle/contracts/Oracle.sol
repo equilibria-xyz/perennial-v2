@@ -4,7 +4,6 @@ pragma solidity 0.8.19;
 import "@equilibria/root-v2/contracts/Instance.sol";
 import "./interfaces/IOracle.sol";
 import "./interfaces/IOracleProviderFactory.sol";
-import "hardhat/console.sol";
 
 contract Oracle is IOracle, Instance {
     mapping(uint256 => Checkpoint) public oracles;
@@ -68,8 +67,6 @@ contract Oracle is IOracle, Instance {
 
     modifier onlyAuthorized {
         if (!IOracleProviderFactory(address(factory())).authorized(msg.sender)) {
-            console.log("factory", address(factory()));
-            console.log("oracle not authorized");
             revert OracleProviderUnauthorizedError();
         }
         _;

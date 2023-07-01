@@ -5,7 +5,6 @@ import "@equilibria/root/token/types/Token18.sol";
 import "@equilibria/root-v2/contracts/Factory.sol";
 import "./interfaces/IOracleProviderFactory.sol";
 import "./interfaces/IOracleFactory.sol";
-import "hardhat/console.sol";
 
 /**
  * @title OracleFactory
