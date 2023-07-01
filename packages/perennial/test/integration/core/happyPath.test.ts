@@ -97,9 +97,9 @@ describe('Happy Path', () => {
     const market = await createMarket(instanceVars)
     await dsu.connect(user).approve(market.address, COLLATERAL.mul(1e12))
 
-    await expect(market.connect(user).update(user.address, POSITION, 0, 0, COLLATERAL))
+    await expect(market.connect(user).update(user.address, POSITION, 0, 0, COLLATERAL, false))
       .to.emit(market, 'Updated')
-      .withArgs(user.address, TIMESTAMP_1, POSITION, 0, 0, COLLATERAL)
+      .withArgs(user.address, TIMESTAMP_1, POSITION, 0, 0, COLLATERAL, false)
 
     // Check user is in the correct state
     expectLocalEq(await market.locals(user.address), {
@@ -220,10 +220,10 @@ describe('Happy Path', () => {
     const market = await createMarket(instanceVars)
     await dsu.connect(user).approve(market.address, COLLATERAL.mul(1e12))
 
-    await market.connect(user).update(user.address, POSITION.div(2), 0, 0, COLLATERAL)
-    await expect(market.connect(user).update(user.address, POSITION, 0, 0, 0))
+    await market.connect(user).update(user.address, POSITION.div(2), 0, 0, COLLATERAL, false)
+    await expect(market.connect(user).update(user.address, POSITION, 0, 0, 0, false))
       .to.emit(market, 'Updated')
-      .withArgs(user.address, TIMESTAMP_1, POSITION, 0, 0, 0)
+      .withArgs(user.address, TIMESTAMP_1, POSITION, 0, 0, 0, false)
 
     // Check user is in the correct state
     expectLocalEq(await market.locals(user.address), {
@@ -344,10 +344,10 @@ describe('Happy Path', () => {
     const market = await createMarket(instanceVars)
     await dsu.connect(user).approve(market.address, COLLATERAL.mul(1e12))
 
-    await market.connect(user).update(user.address, POSITION, 0, 0, COLLATERAL)
-    await expect(market.connect(user).update(user.address, 0, 0, 0, 0))
+    await market.connect(user).update(user.address, POSITION, 0, 0, COLLATERAL, false)
+    await expect(market.connect(user).update(user.address, 0, 0, 0, 0, false))
       .to.emit(market, 'Updated')
-      .withArgs(user.address, TIMESTAMP_1, 0, 0, 0, 0)
+      .withArgs(user.address, TIMESTAMP_1, 0, 0, 0, 0, false)
 
     // User state
     expectLocalEq(await market.locals(user.address), {
@@ -415,12 +415,12 @@ describe('Happy Path', () => {
     const market = await createMarket(instanceVars)
     await dsu.connect(user).approve(market.address, COLLATERAL.mul(1e12))
 
-    await market.connect(user).update(user.address, POSITION, 0, 0, COLLATERAL)
-    await market.connect(user).update(user.address, POSITION.div(2), 0, 0, 0)
+    await market.connect(user).update(user.address, POSITION, 0, 0, COLLATERAL, false)
+    await market.connect(user).update(user.address, POSITION.div(2), 0, 0, 0, false)
 
-    await expect(market.connect(user).update(user.address, 0, 0, 0, 0))
+    await expect(market.connect(user).update(user.address, 0, 0, 0, 0, false))
       .to.emit(market, 'Updated')
-      .withArgs(user.address, TIMESTAMP_1, 0, 0, 0, 0)
+      .withArgs(user.address, TIMESTAMP_1, 0, 0, 0, 0, false)
 
     // User state
     expectLocalEq(await market.locals(user.address), {
@@ -490,10 +490,10 @@ describe('Happy Path', () => {
     await dsu.connect(user).approve(market.address, COLLATERAL.mul(1e12))
     await dsu.connect(userB).approve(market.address, COLLATERAL.mul(1e12))
 
-    await market.connect(user).update(user.address, POSITION, 0, 0, COLLATERAL)
-    await expect(market.connect(userB).update(userB.address, 0, POSITION_B, 0, COLLATERAL))
+    await market.connect(user).update(user.address, POSITION, 0, 0, COLLATERAL, false)
+    await expect(market.connect(userB).update(userB.address, 0, POSITION_B, 0, COLLATERAL, false))
       .to.emit(market, 'Updated')
-      .withArgs(userB.address, TIMESTAMP_1, 0, POSITION_B, 0, COLLATERAL)
+      .withArgs(userB.address, TIMESTAMP_1, 0, POSITION_B, 0, COLLATERAL, false)
 
     // User State
     expectLocalEq(await market.locals(user.address), {
@@ -640,12 +640,12 @@ describe('Happy Path', () => {
     await dsu.connect(user).approve(market.address, COLLATERAL.mul(1e12))
     await dsu.connect(userB).approve(market.address, COLLATERAL.mul(1e12))
 
-    await market.connect(user).update(user.address, POSITION, 0, 0, COLLATERAL)
-    await market.connect(userB).update(userB.address, 0, POSITION_B.div(2), 0, COLLATERAL)
+    await market.connect(user).update(user.address, POSITION, 0, 0, COLLATERAL, false)
+    await market.connect(userB).update(userB.address, 0, POSITION_B.div(2), 0, COLLATERAL, false)
 
-    await expect(market.connect(userB).update(userB.address, 0, POSITION_B, 0, 0))
+    await expect(market.connect(userB).update(userB.address, 0, POSITION_B, 0, 0, false))
       .to.emit(market, 'Updated')
-      .withArgs(userB.address, TIMESTAMP_1, 0, POSITION_B, 0, 0)
+      .withArgs(userB.address, TIMESTAMP_1, 0, POSITION_B, 0, 0, false)
 
     // User State
     expectLocalEq(await market.locals(userB.address), {
@@ -769,14 +769,14 @@ describe('Happy Path', () => {
     await dsu.connect(userB).approve(market.address, COLLATERAL.mul(1e12))
 
     await expect(
-      market.connect(userB).update(userB.address, 0, POSITION_B, 0, COLLATERAL),
+      market.connect(userB).update(userB.address, 0, POSITION_B, 0, COLLATERAL, false),
     ).to.be.revertedWithCustomError(market, 'MarketInsufficientLiquidityError')
-    await market.connect(user).update(user.address, POSITION, 0, 0, COLLATERAL)
-    await market.connect(userB).update(userB.address, 0, POSITION_B, 0, COLLATERAL)
+    await market.connect(user).update(user.address, POSITION, 0, 0, COLLATERAL, false)
+    await market.connect(userB).update(userB.address, 0, POSITION_B, 0, COLLATERAL, false)
 
-    await expect(market.connect(userB).update(userB.address, 0, 0, 0, 0))
+    await expect(market.connect(userB).update(userB.address, 0, 0, 0, 0, false))
       .to.emit(market, 'Updated')
-      .withArgs(userB.address, TIMESTAMP_1, 0, 0, 0, 0)
+      .withArgs(userB.address, TIMESTAMP_1, 0, 0, 0, 0, false)
 
     // User State
     expectLocalEq(await market.locals(userB.address), {
@@ -847,15 +847,15 @@ describe('Happy Path', () => {
     await dsu.connect(userB).approve(market.address, COLLATERAL.mul(1e12))
 
     await expect(
-      market.connect(userB).update(userB.address, 0, POSITION_B, 0, COLLATERAL),
+      market.connect(userB).update(userB.address, 0, POSITION_B, 0, COLLATERAL, false),
     ).to.be.revertedWithCustomError(market, 'MarketInsufficientLiquidityError')
-    await market.connect(user).update(user.address, POSITION, 0, 0, COLLATERAL)
-    await market.connect(userB).update(userB.address, 0, POSITION_B, 0, COLLATERAL)
-    await market.connect(userB).update(userB.address, POSITION_B.div(2), 0, 0, 0)
+    await market.connect(user).update(user.address, POSITION, 0, 0, COLLATERAL, false)
+    await market.connect(userB).update(userB.address, 0, POSITION_B, 0, COLLATERAL, false)
+    await market.connect(userB).update(userB.address, POSITION_B.div(2), 0, 0, 0, false)
 
-    await expect(market.connect(userB).update(userB.address, 0, 0, 0, 0))
+    await expect(market.connect(userB).update(userB.address, 0, 0, 0, 0, false))
       .to.emit(market, 'Updated')
-      .withArgs(userB.address, TIMESTAMP_1, 0, 0, 0, 0)
+      .withArgs(userB.address, TIMESTAMP_1, 0, 0, 0, 0, false)
 
     // User State
     expectLocalEq(await market.locals(userB.address), {
@@ -930,7 +930,7 @@ describe('Happy Path', () => {
 
     await marketFactory.connect(pauser).pause()
     await expect(
-      market.connect(user).update(user.address, 0, 0, 0, parse6decimal('1000')),
+      market.connect(user).update(user.address, 0, 0, 0, parse6decimal('1000'), false),
     ).to.be.revertedWithCustomError(market, 'InstancePausedError')
     await expect(market.connect(user).update0(user.address, 0)).to.be.revertedWithCustomError(
       market,
@@ -948,10 +948,10 @@ describe('Happy Path', () => {
     await dsu.connect(user).approve(market.address, COLLATERAL.mul(1e12))
     await dsu.connect(userB).approve(market.address, COLLATERAL.mul(1e12))
 
-    await market.connect(user).update(user.address, POSITION, 0, 0, COLLATERAL)
-    await expect(market.connect(userB).update(userB.address, 0, POSITION_B, 0, COLLATERAL))
+    await market.connect(user).update(user.address, POSITION, 0, 0, COLLATERAL, false)
+    await expect(market.connect(userB).update(userB.address, 0, POSITION_B, 0, COLLATERAL, false))
       .to.emit(market, 'Updated')
-      .withArgs(userB.address, TIMESTAMP_1, 0, POSITION_B, 0, COLLATERAL)
+      .withArgs(userB.address, TIMESTAMP_1, 0, POSITION_B, 0, COLLATERAL, false)
 
     // 50 rounds (120% max)
     for (let i = 0; i < 50; i++) {
@@ -976,10 +976,10 @@ describe('Happy Path', () => {
     await dsu.connect(user).approve(market.address, COLLATERAL.mul(1e12))
     await dsu.connect(userB).approve(market.address, COLLATERAL.mul(1e12))
 
-    await market.connect(user).update(user.address, POSITION, 0, 0, COLLATERAL)
-    await expect(market.connect(userB).update(userB.address, 0, 0, POSITION_B, COLLATERAL))
+    await market.connect(user).update(user.address, POSITION, 0, 0, COLLATERAL, false)
+    await expect(market.connect(userB).update(userB.address, 0, 0, POSITION_B, COLLATERAL, false))
       .to.emit(market, 'Updated')
-      .withArgs(userB.address, TIMESTAMP_1, 0, 0, POSITION_B, COLLATERAL)
+      .withArgs(userB.address, TIMESTAMP_1, 0, 0, POSITION_B, COLLATERAL, false)
 
     // 50 rounds (120% max)
     for (let i = 0; i < 50; i++) {
@@ -1046,22 +1046,22 @@ describe('Happy Path', () => {
     await dsu.connect(user).approve(market.address, COLLATERAL.mul(2).mul(1e12))
     await dsu.connect(userB).approve(market.address, COLLATERAL.mul(2).mul(1e12))
 
-    await market.connect(user).update(user.address, POSITION.div(3), 0, 0, COLLATERAL)
-    await market.connect(userB).update(userB.address, 0, POSITION.div(3), 0, COLLATERAL) // 0 -> 1
+    await market.connect(user).update(user.address, POSITION.div(3), 0, 0, COLLATERAL, false)
+    await market.connect(userB).update(userB.address, 0, POSITION.div(3), 0, COLLATERAL, false) // 0 -> 1
 
     await chainlink.next()
     await chainlink.next()
 
-    await market.connect(user).update(user.address, POSITION.div(2), 0, 0, 0) // 2 -> 3
-    await market.connect(userB).update(userB.address, 0, POSITION.div(2), 0, 0)
+    await market.connect(user).update(user.address, POSITION.div(2), 0, 0, 0, false) // 2 -> 3
+    await market.connect(userB).update(userB.address, 0, POSITION.div(2), 0, 0, false)
 
     // Ensure a->b->c
     await chainlink.next()
     await chainlink.next()
 
-    await expect(market.connect(user).update(user.address, POSITION, 0, 0, -1)) // 4 -> 5
+    await expect(market.connect(user).update(user.address, POSITION, 0, 0, -1, false)) // 4 -> 5
       .to.emit(market, 'Updated')
-      .withArgs(user.address, TIMESTAMP_5, POSITION, 0, 0, -1)
+      .withArgs(user.address, TIMESTAMP_5, POSITION, 0, 0, -1, false)
 
     // Check user is in the correct state
     expectLocalEq(await market.locals(user.address), {
@@ -1188,8 +1188,8 @@ describe('Happy Path', () => {
     await dsu.connect(userB).approve(market.address, COLLATERAL.mul(2).mul(1e12))
 
     for (let i = 0; i < delay; i++) {
-      await market.connect(user).update(user.address, POSITION.sub(delay - i), 0, 0, i == 0 ? COLLATERAL : 0)
-      await market.connect(userB).update(userB.address, 0, POSITION.sub(delay - i), 0, i == 0 ? COLLATERAL : 0)
+      await market.connect(user).update(user.address, POSITION.sub(delay - i), 0, 0, i == 0 ? COLLATERAL : 0, false)
+      await market.connect(userB).update(userB.address, 0, POSITION.sub(delay - i), 0, i == 0 ? COLLATERAL : 0, false)
 
       await chainlink.next()
     }
@@ -1201,9 +1201,9 @@ describe('Happy Path', () => {
     // const currentVersion = delay + delay + delay - (sync ? 0 : 1)
     // const latestVersion = delay + delay - (sync ? 0 : 1)
 
-    await expect(market.connect(user).update(user.address, POSITION, 0, 0, -1))
+    await expect(market.connect(user).update(user.address, POSITION, 0, 0, -1, false))
       .to.emit(market, 'Updated')
-      .withArgs(user.address, await chainlink.oracle.current(), POSITION, 0, 0, -1)
+      .withArgs(user.address, await chainlink.oracle.current(), POSITION, 0, 0, -1, false)
 
     // Check user is in the correct state
     expectLocalEq(await market.locals(user.address), {

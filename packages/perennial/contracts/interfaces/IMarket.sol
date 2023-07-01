@@ -25,8 +25,6 @@ interface IMarket is IInstance {
     }
 
     struct CurrentContext {
-        bool liquidation;
-
         ProtocolParameter protocolParameter;
         MarketParameter marketParameter;
         RiskParameter riskParameter;
@@ -44,7 +42,7 @@ interface IMarket is IInstance {
         string gasCounterMessage;
     }
 
-    event Updated(address indexed account, uint256 version, UFixed6 newMaker, UFixed6 newLong, UFixed6 newShort, Fixed6 collateral);
+    event Updated(address indexed account, uint256 version, UFixed6 newMaker, UFixed6 newLong, UFixed6 newShort, Fixed6 collateral, bool protect);
     event Liquidation(address indexed account, address liquidator, uint256 oracleTimestamp);
     event BeneficiaryUpdated(address newBeneficiary);
     event FeeClaimed(address indexed account, UFixed6 amount);
@@ -56,7 +54,7 @@ interface IMarket is IInstance {
     error MarketInsufficientLiquidityError();
     error MarketInsufficientCollateralizationError();
     error MarketInsufficientCollateralError();
-    error MarketInLiquidationError();
+    error MarketProtectedError();
     error MarketInDebtError();
     error MarketMakerOverLimitError();
     error MarketClosedError();
@@ -68,7 +66,7 @@ interface IMarket is IInstance {
     error MarketInvalidParameterError();
     error MarketNotCoordinatorError();
     error MarketNotBeneficiaryError();
-    error MarketMustLiquidateError();
+    error MarketMustCloseError();
 
     error GlobalStorageInvalidError();
     error LocalStorageInvalidError();
@@ -94,7 +92,7 @@ interface IMarket is IInstance {
     function position() external view returns (Position memory);
     function global() external view returns (Global memory);
     function update0(address account, Fixed6 collateral) external;
-    function update(address account, UFixed6 newMaker, UFixed6 newLong, UFixed6 newShort, Fixed6 collateral) external;
+    function update(address account, UFixed6 newMaker, UFixed6 newLong, UFixed6 newShort, Fixed6 collateral, bool protect) external;
     function updateBeneficiary(address newBeneficiary) external;
     function updateReward(Token18 newReward) external;
     function parameter() external view returns (MarketParameter memory);

@@ -21,14 +21,14 @@ describe('Liquidate', () => {
 
     const market = await createMarket(instanceVars)
     await dsu.connect(user).approve(market.address, COLLATERAL.mul(1e12))
-    await market.connect(user).update(user.address, POSITION, 0, 0, COLLATERAL)
+    await market.connect(user).update(user.address, POSITION, 0, 0, COLLATERAL, false)
 
     // Settle the market with a new oracle version
     await chainlink.nextWithPriceModification(price => price.mul(2))
 
-    await expect(market.connect(userB).update(user.address, 0, 0, 0, '-682778988')) // liquidate
-      .to.emit(market, 'Liquidation')
-      .withArgs(user.address, userB.address, TIMESTAMP_2)
+    await expect(market.connect(userB).update(user.address, 0, 0, 0, '-682778988', true)) // liquidate
+      .to.emit(market, 'Updated')
+      .withArgs(user.address, TIMESTAMP_2, 0, 0, 0, '-682778988', true)
 
     expect((await market.locals(user.address)).liquidation).to.eq(TIMESTAMP_2)
 
@@ -50,14 +50,14 @@ describe('Liquidate', () => {
 
     const market = await createMarket(instanceVars)
     await dsu.connect(user).approve(market.address, COLLATERAL.mul(1e12))
-    await market.connect(user).update(user.address, POSITION, 0, 0, COLLATERAL)
+    await market.connect(user).update(user.address, POSITION, 0, 0, COLLATERAL, false)
 
     // Settle the market with a new oracle version
     await chainlink.nextWithPriceModification(price => price.mul(10))
 
-    await expect(market.connect(userB).update(user.address, 0, 0, 0, COLLATERAL.mul(-1))) // liquidate
-      .to.emit(market, 'Liquidation')
-      .withArgs(user.address, userB.address, TIMESTAMP_2)
+    await expect(market.connect(userB).update(user.address, 0, 0, 0, COLLATERAL.mul(-1), true)) // liquidate
+      .to.emit(market, 'Updated')
+      .withArgs(user.address, TIMESTAMP_2, 0, 0, 0, COLLATERAL.mul(-1), true)
 
     expect((await market.locals(user.address)).liquidation).to.eq(TIMESTAMP_2)
 
@@ -80,8 +80,8 @@ describe('Liquidate', () => {
     const market = await createMarket(instanceVars)
     await dsu.connect(user).approve(market.address, COLLATERAL.mul(1e12))
     await dsu.connect(userB).approve(market.address, COLLATERAL.mul(1e12))
-    await market.connect(user).update(user.address, POSITION, 0, 0, parse6decimal('1000'))
-    await market.connect(userB).update(userB.address, 0, POSITION, 0, parse6decimal('1000'))
+    await market.connect(user).update(user.address, POSITION, 0, 0, parse6decimal('1000'), false)
+    await market.connect(userB).update(userB.address, 0, POSITION, 0, parse6decimal('1000'), false)
 
     // Settle the market with a new oracle version
     await chainlink.next()
@@ -92,10 +92,10 @@ describe('Liquidate', () => {
     await market.connect(userB).update0(userB.address, 0)
     const userBCollateral = (await market.locals(userB.address)).collateral
     await expect(
-      market.connect(userB).update(userB.address, 0, 0, 0, userBCollateral.mul(-1).sub(1)),
+      market.connect(userB).update(userB.address, 0, 0, 0, userBCollateral.mul(-1).sub(1), false),
     ).to.be.revertedWithCustomError(market, 'MarketInsufficientCollateralizationError') // underflow
 
-    await market.connect(userB).update(user.address, 0, 0, 0, '-690277557') // liquidate
+    await market.connect(userB).update(user.address, 0, 0, 0, '-690277557', true) // liquidate
     expect((await market.locals(user.address)).collateral).to.equal(BigNumber.from('-3154014022'))
 
     await chainlink.nextWithPriceModification(price => price.mul(2))
@@ -104,7 +104,7 @@ describe('Liquidate', () => {
     await dsu.connect(userB).approve(market.address, constants.MaxUint256)
     const userCollateral = (await market.locals(user.address)).collateral
 
-    await market.connect(userB).update(user.address, 0, 0, 0, userCollateral.mul(-1))
+    await market.connect(userB).update(user.address, 0, 0, 0, userCollateral.mul(-1), false)
     expect((await market.locals(user.address)).collateral).to.equal(0)
   })
 
@@ -119,10 +119,10 @@ describe('Liquidate', () => {
     await dsu.connect(userB).approve(market.address, COLLATERAL.mul(1e12))
     await dsu.connect(userC).approve(market.address, COLLATERAL.mul(10).mul(1e12))
     await dsu.connect(userD).approve(market.address, COLLATERAL.mul(10).mul(1e12))
-    await market.connect(user).update(user.address, POSITION, 0, 0, COLLATERAL)
-    await market.connect(userB).update(userB.address, POSITION, 0, 0, COLLATERAL)
-    await market.connect(userC).update(userC.address, 0, POSITION, 0, COLLATERAL.mul(10))
-    await market.connect(userD).update(userD.address, 0, POSITION, 0, COLLATERAL.mul(10))
+    await market.connect(user).update(user.address, POSITION, 0, 0, COLLATERAL, false)
+    await market.connect(userB).update(userB.address, POSITION, 0, 0, COLLATERAL, false)
+    await market.connect(userC).update(userC.address, 0, POSITION, 0, COLLATERAL.mul(10), false)
+    await market.connect(userD).update(userD.address, 0, POSITION, 0, COLLATERAL.mul(10), false)
 
     // Expect the system to remain solvent
     totalCollateral = (await market.locals(user.address)).collateral
@@ -140,9 +140,9 @@ describe('Liquidate', () => {
 
     // Liquidate `user` which results in taker > maker
     const expectedLiquidationFee = BigNumber.from('682778988')
-    await expect(market.connect(userB).update(user.address, 0, 0, 0, expectedLiquidationFee.mul(-1))) // liquidate
-      .to.emit(market, 'Liquidation')
-      .withArgs(user.address, userB.address, TIMESTAMP_2)
+    await expect(market.connect(userB).update(user.address, 0, 0, 0, expectedLiquidationFee.mul(-1), true)) // liquidate
+      .to.emit(market, 'Updated')
+      .withArgs(user.address, TIMESTAMP_2, 0, 0, 0, expectedLiquidationFee.mul(-1), true)
 
     await chainlink.next()
     await market.connect(user).update0(user.address, 0)

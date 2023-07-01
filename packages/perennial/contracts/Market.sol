@@ -85,7 +85,8 @@ contract Market is IMarket, Instance {
             context.accountPendingPosition.maker,
             context.accountPendingPosition.long,
             context.accountPendingPosition.short,
-            collateral
+            collateral,
+            false
         );
     }
 
@@ -94,10 +95,11 @@ contract Market is IMarket, Instance {
         UFixed6 newMaker,
         UFixed6 newLong,
         UFixed6 newShort,
-        Fixed6 collateral
+        Fixed6 collateral,
+        bool protect
     ) external whenNotPaused {
         CurrentContext memory context = _loadContext(account, true);
-        _updateInternal(context, account, newMaker, newLong, newShort, collateral);
+        _updateInternal(context, account, newMaker, newLong, newShort, collateral, protect);
     }
 
     function _updateInternal(
@@ -106,11 +108,12 @@ contract Market is IMarket, Instance {
         UFixed6 newMaker,
         UFixed6 newLong,
         UFixed6 newShort,
-        Fixed6 collateral
+        Fixed6 collateral,
+        bool protect
     ) private {
         _settle(context, account);
         _sync(context, account);
-        _update(context, account, newMaker, newLong, newShort, collateral);
+        _update(context, account, newMaker, newLong, newShort, collateral, protect);
         _saveContext(context, account);
     }
 
@@ -235,36 +238,15 @@ contract Market is IMarket, Instance {
         UFixed6 newMaker,
         UFixed6 newLong,
         UFixed6 newShort,
-        Fixed6 collateral
+        Fixed6 collateral,
+        bool protect
     ) private {
         _startGas(context, "_update before-update-after: %s");
 
-        // before -- TODO: clean this up and move to invariant
-        if (context.local.liquidation > context.accountPosition.timestamp) { // locked for liquidation
-            if (
-                !context.accountPendingPosition.maker.eq(newMaker) ||
-                !context.accountPendingPosition.long.eq(newLong) ||
-                !context.accountPendingPosition.short.eq(newShort)
-            ) revert MarketInLiquidationError();  // only revert if position changed
-        } else if (!context.accountPosition.collateralized(
-            context.latestVersion,
-            context.riskParameter,
-            context.local.collateral
-        )) {  // process liquidation and lock if insolvent
-            context.liquidation = true;
-            context.local.liquidation = context.currentTimestamp;
-            emit Liquidation(account, msg.sender, context.currentTimestamp);
-        }
-
         // update position
         if (context.currentTimestamp > context.accountPendingPosition.timestamp) context.local.currentId++;
-        Order memory newOrder = context.accountPendingPosition.update(
-            context.local.currentId,
-            context.currentTimestamp,
-            newMaker,
-            newLong,
-            newShort
-        );
+        Order memory newOrder = context.accountPendingPosition
+            .update(context.local.currentId, context.currentTimestamp, newMaker, newLong, newShort);
         if (context.currentTimestamp > context.pendingPosition.timestamp) context.global.currentId++;
         context.pendingPosition.update(context.global.currentId, context.currentTimestamp, newOrder);
 
@@ -274,27 +256,26 @@ contract Market is IMarket, Instance {
         context.pendingPosition.registerFee(newOrder);
 
         // update collateral
-        Fixed6 collateralAmount = collateral.eq(Fixed6Lib.MIN) ?
-            context.local.collateral.mul(Fixed6Lib.NEG_ONE) :
-            collateral;
-        context.local.update(collateralAmount);
-        context.accountPendingPosition.update(collateralAmount);
+        if (collateral.eq(Fixed6Lib.MIN)) collateral = context.local.collateral.mul(Fixed6Lib.NEG_ONE);
+        context.local.update(collateral);
+        context.accountPendingPosition.update(collateral);
+
+        // protect account
+        bool protected = context.local.protect(context.accountPosition, context.currentTimestamp, protect);
 
         // after
-        _checkOperator(context, account, newOrder, collateral);
-        _checkPosition(context, newOrder);
-        _checkCollateral(context, account, collateral);
+        _invariant(context, account, newOrder, collateral, protected);
 
         _endGas(context);
 
         _startGas(context, "_update fund-events: %s");
 
         // fund
-        if (collateralAmount.sign() == 1) token.pull(msg.sender, UFixed18Lib.from(collateralAmount.abs()));
-        if (collateralAmount.sign() == -1) token.push(msg.sender, UFixed18Lib.from(collateralAmount.abs()));
+        if (collateral.sign() == 1) token.pull(msg.sender, UFixed18Lib.from(collateral.abs()));
+        if (collateral.sign() == -1) token.push(msg.sender, UFixed18Lib.from(collateral.abs()));
 
         // events
-        emit Updated(account, context.currentTimestamp, newMaker, newLong, newShort, collateral);
+        emit Updated(account, context.currentTimestamp, newMaker, newLong, newShort, collateral, protect);
 
         _endGas(context);
     }
@@ -427,66 +408,78 @@ contract Market is IMarket, Instance {
         context.accountPosition.update(newPosition);
     }
 
-    function _checkOperator(
+    function _invariant(
         CurrentContext memory context,
         address account,
         Order memory newOrder,
-        Fixed6 collateral
+        Fixed6 collateral,
+        bool protected
     ) private view {
-        // compute liquidation fee
-        UFixed6 liquidationFee = context.accountPosition // TODO: cleanup
-            .liquidationFee(context.latestVersion, context.riskParameter, context.protocolParameter)
-            .min(UFixed6Lib.from(token.balanceOf()));
-
-        if (account == msg.sender) return;                                                                      // sender is operating on own account
-        if (IMarketFactory(address(factory())).operators(account, msg.sender)) return;                          // sender is operator enabled for this account
-        if (newOrder.isEmpty() && context.local.collateral.isZero() && collateral.gt(Fixed6Lib.ZERO)) return;   // sender is repaying shortfall for this account
-        if (context.liquidation && collateral.gte(Fixed6Lib.from(-1, liquidationFee))) return;                  // sender is liquidating this account
-        revert MarketOperatorNotAllowed();
-    }
-
-    function _checkPosition(CurrentContext memory context, Order memory newOrder) private pure {
-        if (context.marketParameter.closed && newOrder.increasesPosition()) revert MarketClosedError();
-        if (context.liquidation && (
-            !context.accountPendingPosition.magnitude().isZero() &&  // position is closed
-            !newOrder.isEmpty()                                      // position is not updated
-        )) revert MarketMustLiquidateError();
-        // TODO: if locked for liquidation -> revert if position changed?
         if (
-            !context.liquidation &&
-            !context.marketParameter.closed && // TODO: remove?
+            msg.sender != account &&                                                                        // sender is operating on own account
+            !IMarketFactory(address(factory())).operators(account, msg.sender) &&                           // sender is operating on own account
+            !(newOrder.isEmpty() && context.local.collateral.isZero() && collateral.gt(Fixed6Lib.ZERO)) &&  // sender is repaying shortfall for this account
+            !(protected && collateral.gte(Fixed6Lib.from(-1, _liquidationFee(context))))                    // sender is liquidating this account
+        ) { console.log("MarketOperatorNotAllowed"); revert MarketOperatorNotAllowed(); }
+
+        if (context.marketParameter.closed && newOrder.increasesPosition())
+         { console.log("MarketClosedError"); revert MarketClosedError(); }
+
+        if (protected && (!context.accountPendingPosition.magnitude().isZero()))
+            { console.log("MarketMustCloseError"); revert MarketMustCloseError(); }
+
+        if (
+            !protected &&
+            (context.local.liquidation > context.accountPosition.timestamp) &&
+            !newOrder.isEmpty()
+        ) { console.log("MarketProtectedError"); revert MarketProtectedError(); }
+
+        if (
+            !protected &&
+            !context.marketParameter.closed &&
             context.pendingPosition.socialized() &&
             newOrder.decreasesLiquidity()
-        ) revert MarketInsufficientLiquidityError();
-        if (context.pendingPosition.maker.gt(context.riskParameter.makerLimit)) revert MarketMakerOverLimitError();
-        if (!context.accountPendingPosition.singleSided()) revert MarketNotSingleSidedError();
-        if (context.global.currentId > context.position.id + context.protocolParameter.maxPendingIds)
-            revert MarketExceedsPendingIdLimitError(); // TODO: add liquidation check here too?
-    }
+        ) { console.log("MarketInsufficientLiquidityError"); revert MarketInsufficientLiquidityError(); }
 
-    function _checkCollateral(CurrentContext memory context, address account, Fixed6 collateral) private view {
+        if (context.pendingPosition.maker.gt(context.riskParameter.makerLimit))
+            { console.log("MarketMakerOverLimitError"); revert MarketMakerOverLimitError(); }
+
+        if (!context.accountPendingPosition.singleSided())
+            { console.log("MarketNotSingleSidedError"); revert MarketNotSingleSidedError(); }
+
+        if (context.global.currentId > context.position.id + context.protocolParameter.maxPendingIds)
+            { console.log("MarketExceedsPendingIdLimitError"); revert MarketExceedsPendingIdLimitError(); }// TODO: add liquidation check here too?
+
+        if (!protected && !_collateralized(context, context.accountPosition))
+            { console.log("MarketInsufficientCollateralizationError"); revert MarketInsufficientCollateralizationError(); }
+
+        // TODO: remove protected -- this shouldn't be needed unless we need to settle w/o liquidating
+        if (!protected && !_collateralized(context, context.accountPendingPosition))
+            { console.log("MarketInsufficientCollateralizationError"); revert MarketInsufficientCollateralizationError(); }
+
+        for (uint256 id = context.accountPosition.id + 1; id < context.local.currentId; id++)
+            if (!protected && !_collateralized(context, _pendingPositions[account][id].read()))
+                { console.log("MarketInsufficientCollateralizationError"); revert MarketInsufficientCollateralizationError(); }
+
         if (
-            !context.liquidation &&
+            !protected &&
             context.local.collateral.gt(Fixed6Lib.ZERO) &&
             context.local.collateral.lt(Fixed6Lib.from(context.protocolParameter.minCollateral)) &&
             !collateral.isZero() // TODO: remove? -- allows settling when in under minCollateral if collateral delta is zero
-        ) revert MarketCollateralUnderLimitError(); // TODO: a lot of situations can trigger this
+        ) { console.log("MarketCollateralUnderLimitError"); revert MarketCollateralUnderLimitError(); }// TODO: a lot of situations can trigger this
 
-        if (!context.liquidation && !context.accountPendingPosition.collateralized(
-            context.latestVersion,
-            context.riskParameter,
-            context.local.collateral
-        )) revert MarketInsufficientCollateralizationError();
+        if (!protected && collateral.lt(Fixed6Lib.ZERO) && context.local.collateral.lt(Fixed6Lib.ZERO))
+            { console.log("MarketInsufficientCollateralError"); revert MarketInsufficientCollateralError(); }
+    }
 
-        for (uint256 id = context.accountPosition.id + 1; id < context.local.currentId; id++)
-            if (!context.liquidation && !_pendingPositions[account][id].read().collateralized(
-                context.latestVersion,
-                context.riskParameter,
-                context.local.collateral)
-            ) revert MarketInsufficientCollateralizationError();
+    function _liquidationFee(CurrentContext memory context) private view returns (UFixed6) {
+        return context.accountPosition
+            .liquidationFee(context.latestVersion, context.riskParameter, context.protocolParameter)
+            .min(UFixed6Lib.from(token.balanceOf()));
+    }
 
-        if (!context.liquidation && collateral.lt(Fixed6Lib.ZERO) && context.local.collateral.lt(Fixed6Lib.ZERO))
-            revert MarketInsufficientCollateralError();
+    function _collateralized(CurrentContext memory context, Position memory position) private pure returns (bool) {
+        return position.collateralized(context.latestVersion, context.riskParameter, context.local.collateral);
     }
 
     function _updateRiskParameter(RiskParameter memory newRiskParameter) private {

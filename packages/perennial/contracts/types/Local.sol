@@ -9,7 +9,7 @@ struct Local {
     uint256 currentId;
     Fixed6 collateral;
     UFixed6 reward;
-    uint256 liquidation;
+    uint256 liquidation; // TODO: rename to lock
 }
 using LocalLib for Local global;
 struct StoredLocal {
@@ -51,6 +51,17 @@ library LocalLib {
 
         self.collateral = self.collateral.add(collateralAmount).sub(feeAmount);
         self.reward = self.reward.add(rewardAmount);
+    }
+
+    function protect(
+        Local memory self,
+        Position memory latestPosition,
+        uint256 currentTimestamp,
+        bool tryProtect
+    ) internal pure returns (bool) {
+        if (!tryProtect || self.liquidation > latestPosition.timestamp) return false;
+        self.liquidation = currentTimestamp;
+        return true;
     }
 
     function clearReward(Local memory self) internal pure {

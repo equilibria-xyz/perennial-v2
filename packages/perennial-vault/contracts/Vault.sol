@@ -405,7 +405,8 @@ contract Vault is IVault, Instance {
             target.position,
             UFixed6Lib.ZERO,
             UFixed6Lib.ZERO,
-            target.collateral
+            target.collateral,
+            false
         );
     }
 
