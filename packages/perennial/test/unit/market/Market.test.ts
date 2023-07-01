@@ -10032,7 +10032,7 @@ describe.only('Market', () => {
             dsu.transferFrom.whenCalledWith(user.address, market.address, utils.parseEther('500')).returns(true)
             await expect(
               market.connect(user).update(user.address, parse6decimal('1000'), 0, 0, parse6decimal('500')),
-            ).to.be.revertedWithCustomError(market, 'MarketInsufficientCollateralError')
+            ).to.be.revertedWithCustomError(market, 'MarketInsufficientCollateralizationError')
           })
 
           it('reverts if paused', async () => {

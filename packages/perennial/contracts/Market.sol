@@ -246,7 +246,11 @@ contract Market is IMarket, Instance {
                 !context.accountPendingPosition.long.eq(newLong) ||
                 !context.accountPendingPosition.short.eq(newShort)
             ) revert MarketInLiquidationError();  // only revert if position changed
-        } else if (!_positionSolvent(context, context.accountPosition)) {  // process liquidation and lock if insolvent
+        } else if (!context.accountPosition.collateralized(
+            context.latestVersion,
+            context.riskParameter,
+            context.local.collateral
+        )) {  // process liquidation and lock if insolvent
             context.liquidation = true;
             context.local.liquidation = context.currentTimestamp;
             emit Liquidation(account, msg.sender, context.currentTimestamp);
@@ -270,7 +274,9 @@ contract Market is IMarket, Instance {
         context.pendingPosition.registerFee(newOrder);
 
         // update collateral
-        Fixed6 collateralAmount = collateral.eq(Fixed6Lib.MIN) ? context.local.collateral.mul(Fixed6Lib.NEG_ONE) : collateral;
+        Fixed6 collateralAmount = collateral.eq(Fixed6Lib.MIN) ?
+            context.local.collateral.mul(Fixed6Lib.NEG_ONE) :
+            collateral;
         context.local.update(collateralAmount);
         context.accountPendingPosition.update(collateralAmount);
 
@@ -466,23 +472,21 @@ contract Market is IMarket, Instance {
             !collateral.isZero() // TODO: remove? -- allows settling when in under minCollateral if collateral delta is zero
         ) revert MarketCollateralUnderLimitError(); // TODO: a lot of situations can trigger this
 
-        UFixed6 maintenanceAmount =
-            context.accountPendingPosition.maintenance(context.latestVersion, context.riskParameter);
+        if (!context.liquidation && !context.accountPendingPosition.collateralized(
+            context.latestVersion,
+            context.riskParameter,
+            context.local.collateral
+        )) revert MarketInsufficientCollateralizationError();
+
         for (uint256 id = context.accountPosition.id + 1; id < context.local.currentId; id++)
-            maintenanceAmount = maintenanceAmount
-                .max(_pendingPositions[account][id].read().maintenance(context.latestVersion, context.riskParameter));
+            if (!context.liquidation && !_pendingPositions[account][id].read().collateralized(
+                context.latestVersion,
+                context.riskParameter,
+                context.local.collateral)
+            ) revert MarketInsufficientCollateralizationError();
 
-        if (
-            !context.liquidation &&
-            context.local.collateral.lt(Fixed6Lib.from(maintenanceAmount)) &&
-            (collateral.sign() < 0 || !maintenanceAmount.isZero()) // TODO: remove? -- allows settling when in shortfall w/ no position
-        ) revert MarketInsufficientCollateralError();
-    }
-
-    function _positionSolvent(CurrentContext memory context, Position memory checkPosition) private pure returns (bool) {
-        return context.local.collateral
-            .max(Fixed6Lib.ZERO) // shortfall is considered solvent for 0-position
-            .gte(Fixed6Lib.from(checkPosition.maintenance(context.latestVersion, context.riskParameter)));
+        if (!context.liquidation && collateral.lt(Fixed6Lib.ZERO) && context.local.collateral.lt(Fixed6Lib.ZERO))
+            revert MarketInsufficientCollateralError();
     }
 
     function _updateRiskParameter(RiskParameter memory newRiskParameter) private {

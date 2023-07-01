@@ -13,6 +13,7 @@ import "../types/OracleVersion.sol";
 ///       - Non-requested versions may be committed, but will not receive a keeper reward
 ///         - This is useful for immediately liquidating an account with a valid off-chain price in between orders
 ///         - Satisfying the above constraints, only versions more recent than the latest version may be committed
+///       - Current must always be greater than Latest, never equal
 interface IOracleProvider {
     error OracleProviderUnauthorizedError();
 

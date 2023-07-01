@@ -93,17 +93,17 @@ describe('Liquidate', () => {
     const userBCollateral = (await market.locals(userB.address)).collateral
     await expect(
       market.connect(userB).update(userB.address, 0, 0, 0, userBCollateral.mul(-1).sub(1)),
-    ).to.be.revertedWithCustomError(market, 'MarketInsufficientCollateralError') // underflow
-    console.log(1)
+    ).to.be.revertedWithCustomError(market, 'MarketInsufficientCollateralizationError') // underflow
+
     await market.connect(userB).update(user.address, 0, 0, 0, '-690277557') // liquidate
     expect((await market.locals(user.address)).collateral).to.equal(BigNumber.from('-3154014022'))
-    console.log(1)
+
     await chainlink.nextWithPriceModification(price => price.mul(2))
     await market.connect(user).update0(user.address, 0)
-    console.log(1)
+
     await dsu.connect(userB).approve(market.address, constants.MaxUint256)
     const userCollateral = (await market.locals(user.address)).collateral
-    console.log(userCollateral)
+
     await market.connect(userB).update(user.address, 0, 0, 0, userCollateral.mul(-1))
     expect((await market.locals(user.address)).collateral).to.equal(0)
   })
