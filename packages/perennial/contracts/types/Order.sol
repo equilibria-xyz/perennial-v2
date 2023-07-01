@@ -43,6 +43,10 @@ library OrderLib {
         self.keeper = protocolParameter.settlementFee;
     }
 
+    function increasesPosition(Order memory self) internal pure returns (bool) {
+        return self.maker.gt(Fixed6Lib.ZERO) || self.long.gt(Fixed6Lib.ZERO) || self.short.gt(Fixed6Lib.ZERO);
+    }
+
     function decreasesLiquidity(Order memory self) internal pure returns (bool) {
         return self.maker.lt(Fixed6Lib.ZERO) || self.long.gt(Fixed6Lib.ZERO) || self.short.gt(Fixed6Lib.ZERO);
     }

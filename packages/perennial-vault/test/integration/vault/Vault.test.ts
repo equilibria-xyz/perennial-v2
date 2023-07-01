@@ -18,7 +18,7 @@ import {
   IOracleFactory,
   IMarketFactory,
 } from '../../../types/generated'
-import { BigNumber, constants } from 'ethers'
+import { BigNumber, constants, Signer } from 'ethers'
 import { deployProtocol, fundWallet } from '@equilibria/perennial-v2/test/integration/helpers/setupHelpers'
 import { parse6decimal } from '../../../../common/testutil/types'
 import { TransparentUpgradeableProxy__factory } from '@equilibria/perennial-v2/types/generated'
@@ -53,6 +53,7 @@ describe('Vault', () => {
   let btcOriginalOraclePrice: BigNumber
   let btcOracle: FakeContract<IOracleProvider>
   let btcMarket: IMarket
+  let vaultSigner: SignerWithAddress
 
   async function updateOracle(newPrice?: BigNumber, newPriceBtc?: BigNumber) {
     await _updateOracleEth(newPrice)
@@ -250,6 +251,8 @@ describe('Vault', () => {
     await market.connect(user2).update(user2.address, 0, parse6decimal('100'), 0, parse6decimal('100000'))
     await btcMarket.connect(btcUser1).update(btcUser1.address, parse6decimal('20'), 0, 0, parse6decimal('100000'))
     await btcMarket.connect(btcUser2).update(btcUser2.address, 0, parse6decimal('10'), 0, parse6decimal('100000'))
+
+    vaultSigner = await impersonate.impersonateWithBalance(vault.address, ethers.utils.parseEther('10'))
   })
 
   describe('#initialize', () => {
@@ -817,7 +820,7 @@ describe('Vault', () => {
 
       expect(await collateralInVault()).to.be.closeTo((await btcCollateralInVault()).mul(4), 3)
       await updateOracle(parse6decimal('1800'))
-      await market.connect(user).settle(vault.address)
+      await market.connect(vaultSigner).update0(vault.address, 0)
 
       await vault.settle(user.address)
       expect(await collateralInVault()).to.be.closeTo((await btcCollateralInVault()).mul(4), 3)
@@ -1119,6 +1122,7 @@ describe('Vault', () => {
           // 1. An oracle update makes the long position liquidatable.
           // We should now longer be able to deposit or redeem
           await updateOracle(undefined, parse6decimal('50000'))
+          await vault.connect(user).deposit(2, user.address)
           await expect(vault.connect(user).deposit(2, user.address)).to.revertedWithCustomError(
             vault,
             'VaultDepositLimitExceededError',
@@ -1130,7 +1134,7 @@ describe('Vault', () => {
 
           // 2. Settle accounts / Liquidate the long position.
           // We should still not be able to deposit or redeem.
-          await btcMarket.connect(user).settle(vault.address)
+          await btcMarket.connect(vaultSigner).update0(vault.address, 0)
           expect((await btcMarket.locals(vault.address)).collateral).to.equal('4428767485') // no shortfall
           expect((await btcMarket.locals(vault.address)).liquidation).to.equal(STARTING_TIMESTAMP.add(3600 * 3))
 
@@ -1179,7 +1183,7 @@ describe('Vault', () => {
 
           // 2. Settle accounts / Liquidate the long position.
           // We should still not be able to deposit or redeem.
-          await btcMarket.connect(user).settle(vault.address)
+          await btcMarket.connect(vaultSigner).update0(vault.address, 0)
           expect((await btcMarket.locals(vault.address)).collateral).to.equal('-26673235277') // shortfall
           expect((await btcMarket.locals(vault.address)).liquidation).to.equal(STARTING_TIMESTAMP.add(3600 * 3))
 
@@ -1238,7 +1242,7 @@ describe('Vault', () => {
 
           // 2. Settle accounts / Liquidate the long position.
           // We should still not be able to deposit or redeem.
-          await btcMarket.connect(user).settle(vault.address)
+          await btcMarket.connect(vaultSigner).update0(vault.address, 0)
           expect((await btcMarket.locals(vault.address)).collateral).to.equal('350784004') // no shortfall
           expect((await btcMarket.locals(vault.address)).liquidation).to.equal(STARTING_TIMESTAMP.add(3600 * 4))
 
@@ -1279,7 +1283,7 @@ describe('Vault', () => {
 
           // 2. Settle accounts / Liquidate the long position.
           // We should still not be able to deposit or redeem.
-          await btcMarket.connect(user).settle(vault.address)
+          await btcMarket.connect(vaultSigner).update0(vault.address, 0)
           expect((await btcMarket.locals(vault.address)).collateral).to.equal('-479967521') // shortfall
           expect((await btcMarket.locals(vault.address)).liquidation).to.equal(STARTING_TIMESTAMP.add(3600 * 4))
 
@@ -1318,8 +1322,8 @@ describe('Vault', () => {
 
         // 3. An oracle update makes the long position liquidatable, initiate take close
         await updateOracle(parse6decimal('10000'))
-        await market.connect(user).settle(vault.address)
-        await market.connect(user).settle(user2.address)
+        await market.connect(vaultSigner).update0(vault.address, 0)
+        await market.connect(user2).update0(user2.address, 0)
         await market.connect(user2).update(user2.address, 0, 0, 0, 0)
 
         // 4. Settle the vault to recover and rebalance
@@ -1375,7 +1379,7 @@ describe('Vault', () => {
 
         // 3. An oracle update makes the long position liquidatable, initiate take close
         await updateOracle(parse6decimal('20000'))
-        await market.connect(user).settle(vault.address)
+        await market.connect(vaultSigner).update0(vault.address, 0)
         await updateOracle()
         await vault.settle(user.address)
 

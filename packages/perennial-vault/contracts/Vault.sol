@@ -304,7 +304,7 @@ contract Vault is IVault, Instance {
      */
     function _settle(address account) private returns (Context memory context) {
         for (uint256 marketId; marketId < totalMarkets; marketId++)
-            _registrations[marketId].read().market.settle(address(this));
+            _registrations[marketId].read().market.update0(address(this), Fixed6Lib.ZERO);
 
         context = _loadContext(account);
 
@@ -451,7 +451,7 @@ contract Vault is IVault, Instance {
             Position memory latestPosition = registration.market.position();
             OracleVersion memory latestOracleVersion = registration.market.at(latestPosition.timestamp);
 
-            context.markets[marketId].price = latestOracleVersion.price.abs();
+            context.markets[marketId].price = latestOracleVersion.price.abs(); // TODO: we may not have a valid price at latest due to invalid versions
             context.markets[marketId].currentPosition = currentPosition.maker;
             context.markets[marketId].currentNet = currentPosition.net();
             if (latestPosition.timestamp < context.latestTimestamp) {

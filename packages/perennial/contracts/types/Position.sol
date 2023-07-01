@@ -177,7 +177,8 @@ library PositionLib {
     ) internal pure returns (UFixed6) {
         return maintenance(self, currentOracleVersion, riskParameter)
             .max(protocolParameter.minCollateral)
-            .mul(protocolParameter.liquidationFee);
+            .mul(protocolParameter.liquidationFee)
+            .min(protocolParameter.maxLiquidationFee);
     }
 
     function sub(Position memory self, Position memory position) internal pure returns (Order memory newOrder) {

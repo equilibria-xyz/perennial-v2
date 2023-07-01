@@ -25,6 +25,8 @@ interface IMarket is IInstance {
     }
 
     struct CurrentContext {
+        bool liquidation;
+
         ProtocolParameter protocolParameter;
         MarketParameter marketParameter;
         RiskParameter riskParameter;
@@ -43,7 +45,7 @@ interface IMarket is IInstance {
     }
 
     event Updated(address indexed account, uint256 version, UFixed6 newMaker, UFixed6 newLong, UFixed6 newShort, Fixed6 collateral);
-    event Liquidation(address indexed account, address liquidator, UFixed6 liquidationFee);
+    event Liquidation(address indexed account, address liquidator, uint256 oracleTimestamp);
     event BeneficiaryUpdated(address newBeneficiary);
     event FeeClaimed(address indexed account, UFixed6 amount);
     event RewardClaimed(address indexed account, UFixed6 amount);
@@ -65,6 +67,7 @@ interface IMarket is IInstance {
     error MarketInvalidParameterError();
     error MarketNotCoordinatorError();
     error MarketNotBeneficiaryError();
+    error MarketMustLiquidateError();
 
     error GlobalStorageInvalidError();
     error LocalStorageInvalidError();
@@ -89,8 +92,8 @@ interface IMarket is IInstance {
     function pendingPosition(uint256 id) external view returns (Position memory);
     function position() external view returns (Position memory);
     function global() external view returns (Global memory);
-    function settle(address account) external;
-    function update(address account, UFixed6 newMaker, UFixed6 newLong, UFixed6 newShort, Fixed6 newCollateral) external;
+    function update0(address account, Fixed6 collateral) external;
+    function update(address account, UFixed6 newMaker, UFixed6 newLong, UFixed6 newShort, Fixed6 collateral) external;
     function updateBeneficiary(address newBeneficiary) external;
     function updateReward(Token18 newReward) external;
     function parameter() external view returns (MarketParameter memory);
