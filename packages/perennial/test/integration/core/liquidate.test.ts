@@ -30,7 +30,7 @@ describe('Liquidate', () => {
       .to.emit(market, 'Updated')
       .withArgs(user.address, TIMESTAMP_2, 0, 0, 0, '-682778988', true)
 
-    expect((await market.locals(user.address)).liquidation).to.eq(TIMESTAMP_2)
+    expect((await market.locals(user.address)).protection).to.eq(TIMESTAMP_2)
 
     expect((await market.locals(user.address)).collateral).to.equal('317221012')
     expect(await dsu.balanceOf(market.address)).to.equal(utils.parseEther('317.221012'))
@@ -40,7 +40,7 @@ describe('Liquidate', () => {
     await market.connect(user).update0(user.address, 0)
 
     expect((await market.position()).timestamp).to.eq(TIMESTAMP_2)
-    expect((await market.locals(user.address)).liquidation).to.eq(TIMESTAMP_2)
+    expect((await market.locals(user.address)).protection).to.eq(TIMESTAMP_2)
   })
 
   it('liquidates a user with a reward larger than total collateral', async () => {
@@ -59,7 +59,7 @@ describe('Liquidate', () => {
       .to.emit(market, 'Updated')
       .withArgs(user.address, TIMESTAMP_2, 0, 0, 0, COLLATERAL.mul(-1), true)
 
-    expect((await market.locals(user.address)).liquidation).to.eq(TIMESTAMP_2)
+    expect((await market.locals(user.address)).protection).to.eq(TIMESTAMP_2)
 
     expect((await market.locals(user.address)).collateral).to.equal(0)
     expect(await dsu.balanceOf(market.address)).to.equal(0)
@@ -69,7 +69,7 @@ describe('Liquidate', () => {
     await market.connect(user).update0(user.address, 0)
 
     expect((await market.position()).timestamp).to.eq(TIMESTAMP_2)
-    expect((await market.locals(user.address)).liquidation).to.eq(TIMESTAMP_2)
+    expect((await market.locals(user.address)).protection).to.eq(TIMESTAMP_2)
   })
 
   it('creates and resolves a shortfall', async () => {

@@ -43,7 +43,6 @@ interface IMarket is IInstance {
     }
 
     event Updated(address indexed account, uint256 version, UFixed6 newMaker, UFixed6 newLong, UFixed6 newShort, Fixed6 collateral, bool protect);
-    event Liquidation(address indexed account, address liquidator, uint256 oracleTimestamp);
     event BeneficiaryUpdated(address newBeneficiary);
     event FeeClaimed(address indexed account, UFixed6 amount);
     event RewardClaimed(address indexed account, UFixed6 amount);

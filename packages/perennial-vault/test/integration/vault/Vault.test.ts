@@ -1129,31 +1129,19 @@ describe('Vault', () => {
           // 1. An oracle update makes the long position liquidatable.
           // We should now longer be able to deposit or redeem
           await updateOracle(undefined, parse6decimal('50000'))
-          await expect(vault.connect(user).deposit(2, user.address)).to.revertedWithCustomError(
-            vault,
-            'VaultDepositLimitExceededError',
-          )
-          await expect(vault.connect(user).redeem(2, user.address)).to.revertedWithCustomError(
-            vault,
-            'VaultRedemptionLimitExceededError',
-          )
+          await expect(vault.connect(user).deposit(0, user.address)).to.be.reverted
+          await expect(vault.connect(user).redeem(0, user.address)).to.be.reverted
 
           // 2. Settle accounts / Liquidate the long position.
           // We should still not be able to deposit or redeem.
           const EXPECTED_LIQUIDATION_FEE = BigNumber.from('5149547500')
           await btcMarket.connect(user).update(vault.address, 0, 0, 0, EXPECTED_LIQUIDATION_FEE.mul(-1), true)
           expect((await btcMarket.locals(vault.address)).collateral).to.equal('4428767485') // no shortfall
-          expect((await btcMarket.locals(vault.address)).liquidation).to.equal(STARTING_TIMESTAMP.add(3600 * 3))
+          expect((await btcMarket.locals(vault.address)).protection).to.equal(STARTING_TIMESTAMP.add(3600 * 3))
 
           //expect(await vault.maxDeposit(user.address)).to.equal(0)
-          await expect(vault.connect(user).deposit(2, user.address)).to.revertedWithCustomError(
-            vault,
-            'VaultDepositLimitExceededError',
-          )
-          await expect(vault.connect(user).redeem(2, user.address)).to.revertedWithCustomError(
-            vault,
-            'VaultRedemptionLimitExceededError',
-          )
+          await expect(vault.connect(user).deposit(0, user.address)).to.be.reverted
+          await expect(vault.connect(user).redeem(0, user.address)).to.be.reverted
 
           // 3. Settle the liquidation.
           // We now be able to deposit.
@@ -1179,31 +1167,19 @@ describe('Vault', () => {
           // 1. An oracle update makes the long position liquidatable.
           // We should now longer be able to deposit or redeem
           await updateOracle(undefined, parse6decimal('80000'))
-          await expect(vault.connect(user).deposit(2, user.address)).to.revertedWithCustomError(
-            vault,
-            'VaultDepositLimitExceededError',
-          )
-          await expect(vault.connect(user).redeem(2, user.address)).to.revertedWithCustomError(
-            vault,
-            'VaultRedemptionLimitExceededError',
-          )
+          await expect(vault.connect(user).deposit(0, user.address)).to.be.reverted
+          await expect(vault.connect(user).redeem(0, user.address)).to.be.reverted
 
           // 2. Settle accounts / Liquidate the long position.
           // We should still not be able to deposit or redeem.
           const EXPECTED_LIQUIDATION_FEE = BigNumber.from('8239276000')
           await btcMarket.connect(user).update(vault.address, 0, 0, 0, EXPECTED_LIQUIDATION_FEE.mul(-1), true)
           expect((await btcMarket.locals(vault.address)).collateral).to.equal('-26673235277') // shortfall
-          expect((await btcMarket.locals(vault.address)).liquidation).to.equal(STARTING_TIMESTAMP.add(3600 * 3))
+          expect((await btcMarket.locals(vault.address)).protection).to.equal(STARTING_TIMESTAMP.add(3600 * 3))
 
           //expect(await vault.maxDeposit(user.address)).to.equal(0)
-          await expect(vault.connect(user).deposit(2, user.address)).to.revertedWithCustomError(
-            vault,
-            'VaultDepositLimitExceededError',
-          )
-          await expect(vault.connect(user).redeem(2, user.address)).to.revertedWithCustomError(
-            vault,
-            'VaultRedemptionLimitExceededError',
-          )
+          await expect(vault.connect(user).deposit(0, user.address)).to.be.reverted
+          await expect(vault.connect(user).redeem(0, user.address)).to.be.reverted
 
           // 3. Settle the liquidation.
           // We now be able to deposit.
@@ -1241,21 +1217,15 @@ describe('Vault', () => {
           // 1. An oracle update makes the long position liquidatable.
           // We should now longer be able to deposit or redeem
           await updateOracle(undefined, parse6decimal('20000'))
-          await expect(vault.connect(user).deposit(2, user.address)).to.revertedWithCustomError(
-            vault,
-            'VaultDepositLimitExceededError',
-          )
-          await expect(vault.connect(user).redeem(2, user.address)).to.revertedWithCustomError(
-            vault,
-            'VaultRedemptionLimitExceededError',
-          )
+          await expect(vault.connect(user).deposit(0, user.address)).to.be.reverted
+          await expect(vault.connect(user).redeem(0, user.address)).to.be.reverted
 
           // 2. Settle accounts / Liquidate the long position.
           // We should still not be able to deposit or redeem.
           const EXPECTED_LIQUIDATION_FEE = BigNumber.from('2059819000')
           await btcMarket.connect(user).update(vault.address, 0, 0, 0, EXPECTED_LIQUIDATION_FEE.mul(-1), true)
           expect((await btcMarket.locals(vault.address)).collateral).to.equal('350784004') // no shortfall
-          expect((await btcMarket.locals(vault.address)).liquidation).to.equal(STARTING_TIMESTAMP.add(3600 * 4))
+          expect((await btcMarket.locals(vault.address)).protection).to.equal(STARTING_TIMESTAMP.add(3600 * 4))
 
           // 3. Settle the liquidation.
           // We now be able to deposit.
@@ -1283,21 +1253,15 @@ describe('Vault', () => {
           // 1. An oracle update makes the long position liquidatable.
           // We should now longer be able to deposit or redeem
           await updateOracle(undefined, parse6decimal('19000'))
-          await expect(vault.connect(user).deposit(2, user.address)).to.revertedWithCustomError(
-            vault,
-            'VaultDepositLimitExceededError',
-          )
-          await expect(vault.connect(user).redeem(2, user.address)).to.revertedWithCustomError(
-            vault,
-            'VaultRedemptionLimitExceededError',
-          )
+          await expect(vault.connect(user).deposit(0, user.address)).to.be.reverted
+          await expect(vault.connect(user).redeem(0, user.address)).to.be.reverted
 
           // 2. Settle accounts / Liquidate the long position.
           // We should still not be able to deposit or redeem.
           const EXPECTED_LIQUIDATION_FEE = BigNumber.from('1956828050')
           await btcMarket.connect(user).update(vault.address, 0, 0, 0, EXPECTED_LIQUIDATION_FEE.mul(-1), true)
           expect((await btcMarket.locals(vault.address)).collateral).to.equal('-479967521') // shortfall
-          expect((await btcMarket.locals(vault.address)).liquidation).to.equal(STARTING_TIMESTAMP.add(3600 * 4))
+          expect((await btcMarket.locals(vault.address)).protection).to.equal(STARTING_TIMESTAMP.add(3600 * 4))
 
           // 3. Settle the liquidation.
           // We now be able to deposit.

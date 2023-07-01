@@ -15,6 +15,7 @@ import "hardhat/console.sol";
  */
 contract Market is IMarket, Instance {
     bool private constant GAS_PROFILE = false;
+    bool private constant LOG_REVERTS = false;
 
     /// @dev The name of the market
     string public name;
@@ -420,56 +421,56 @@ contract Market is IMarket, Instance {
             !IMarketFactory(address(factory())).operators(account, msg.sender) &&                           // sender is operating on own account
             !(newOrder.isEmpty() && context.local.collateral.isZero() && collateral.gt(Fixed6Lib.ZERO)) &&  // sender is repaying shortfall for this account
             !(protected && collateral.gte(Fixed6Lib.from(-1, _liquidationFee(context))))                    // sender is liquidating this account
-        ) { console.log("MarketOperatorNotAllowed"); revert MarketOperatorNotAllowed(); }
+        ) { if (LOG_REVERTS) console.log("MarketOperatorNotAllowed"); revert MarketOperatorNotAllowed(); }
 
         if (context.marketParameter.closed && newOrder.increasesPosition())
-         { console.log("MarketClosedError"); revert MarketClosedError(); }
+            { if (LOG_REVERTS) console.log("MarketClosedError"); revert MarketClosedError(); }
 
         if (protected && (!context.accountPendingPosition.magnitude().isZero()))
-            { console.log("MarketMustCloseError"); revert MarketMustCloseError(); }
+            { if (LOG_REVERTS) console.log("MarketMustCloseError"); revert MarketMustCloseError(); }
 
         if (
             !protected &&
-            (context.local.liquidation > context.accountPosition.timestamp) &&
+            (context.local.protection > context.accountPosition.timestamp) &&
             !newOrder.isEmpty()
-        ) { console.log("MarketProtectedError"); revert MarketProtectedError(); }
+        ) { if (LOG_REVERTS) console.log("MarketProtectedError"); revert MarketProtectedError(); }
 
         if (
             !protected &&
             !context.marketParameter.closed &&
             context.pendingPosition.socialized() &&
             newOrder.decreasesLiquidity()
-        ) { console.log("MarketInsufficientLiquidityError"); revert MarketInsufficientLiquidityError(); }
+        ) { if (LOG_REVERTS) console.log("MarketInsufficientLiquidityError"); revert MarketInsufficientLiquidityError(); }
 
         if (context.pendingPosition.maker.gt(context.riskParameter.makerLimit))
-            { console.log("MarketMakerOverLimitError"); revert MarketMakerOverLimitError(); }
+            { if (LOG_REVERTS) console.log("MarketMakerOverLimitError"); revert MarketMakerOverLimitError(); }
 
         if (!context.accountPendingPosition.singleSided())
-            { console.log("MarketNotSingleSidedError"); revert MarketNotSingleSidedError(); }
+            { if (LOG_REVERTS) console.log("MarketNotSingleSidedError"); revert MarketNotSingleSidedError(); }
 
         if (context.global.currentId > context.position.id + context.protocolParameter.maxPendingIds)
-            { console.log("MarketExceedsPendingIdLimitError"); revert MarketExceedsPendingIdLimitError(); }// TODO: add liquidation check here too?
+            { if (LOG_REVERTS) console.log("MarketExceedsPendingIdLimitError"); revert MarketExceedsPendingIdLimitError(); }// TODO: add liquidation check here too?
 
         if (!protected && !_collateralized(context, context.accountPosition))
-            { console.log("MarketInsufficientCollateralizationError"); revert MarketInsufficientCollateralizationError(); }
+            { if (LOG_REVERTS) console.log("MarketInsufficientCollateralizationError1"); revert MarketInsufficientCollateralizationError(); }
 
         // TODO: remove protected -- this shouldn't be needed unless we need to settle w/o liquidating
         if (!protected && !_collateralized(context, context.accountPendingPosition))
-            { console.log("MarketInsufficientCollateralizationError"); revert MarketInsufficientCollateralizationError(); }
+            { if (LOG_REVERTS) console.log("MarketInsufficientCollateralizationError2"); revert MarketInsufficientCollateralizationError(); }
 
         for (uint256 id = context.accountPosition.id + 1; id < context.local.currentId; id++)
             if (!protected && !_collateralized(context, _pendingPositions[account][id].read()))
-                { console.log("MarketInsufficientCollateralizationError"); revert MarketInsufficientCollateralizationError(); }
+                { if (LOG_REVERTS) console.log("MarketInsufficientCollateralizationError3"); revert MarketInsufficientCollateralizationError(); }
 
         if (
             !protected &&
             context.local.collateral.gt(Fixed6Lib.ZERO) &&
             context.local.collateral.lt(Fixed6Lib.from(context.protocolParameter.minCollateral)) &&
             !collateral.isZero() // TODO: remove? -- allows settling when in under minCollateral if collateral delta is zero
-        ) { console.log("MarketCollateralUnderLimitError"); revert MarketCollateralUnderLimitError(); }// TODO: a lot of situations can trigger this
+        ) { if (LOG_REVERTS) console.log("MarketCollateralUnderLimitError"); revert MarketCollateralUnderLimitError(); }// TODO: a lot of situations can trigger this
 
         if (!protected && collateral.lt(Fixed6Lib.ZERO) && context.local.collateral.lt(Fixed6Lib.ZERO))
-            { console.log("MarketInsufficientCollateralError"); revert MarketInsufficientCollateralError(); }
+            { if (LOG_REVERTS) console.log("MarketInsufficientCollateralError"); revert MarketInsufficientCollateralError(); }
     }
 
     function _liquidationFee(CurrentContext memory context) private view returns (UFixed6) {

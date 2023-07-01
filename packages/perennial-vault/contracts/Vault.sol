@@ -471,7 +471,7 @@ contract Vault is IVault, Instance {
             context.markets[marketId].currentPositionAccount = currentPosition.maker;
             context.markets[marketId].collateral = local.collateral;
 
-            if (local.liquidation > context.liquidation) context.liquidation = local.liquidation;
+            if (local.protection > context.protection) context.protection = local.protection;
             if (marketId == 0) context.currentId = currentTimestamp > currentPosition.timestamp ? local.currentId + 1 : local.currentId;
         }
 
@@ -495,7 +495,7 @@ contract Vault is IVault, Instance {
      */
     function _unhealthy(Context memory context) private view returns (bool) {
         Checkpoint memory checkpoint = _checkpoints[context.latestId].read(); // latest basis will always be complete
-        return checkpoint.unhealthy() || (context.liquidation > context.latestTimestamp);
+        return checkpoint.unhealthy() || (context.protection > context.latestTimestamp);
     }
 
     /**

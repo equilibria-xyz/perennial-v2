@@ -15,7 +15,7 @@ interface IVault is IInstance {
         uint256 currentId;
         uint256 latestId;
         uint256 latestTimestamp;
-        uint256 liquidation;
+        uint256 protection;
 
         // parameters
         UFixed6 makerFee;

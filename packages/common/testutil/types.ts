@@ -26,7 +26,7 @@ export interface Local {
   currentId: BigNumberish
   collateral: BigNumberish
   reward: BigNumberish
-  liquidation: BigNumberish
+  protection: BigNumberish
 }
 
 export interface Version {
@@ -64,7 +64,7 @@ export function expectLocalEq(a: Local, b: Local): void {
   expect(a.currentId).to.equal(b.currentId)
   expect(a.collateral).to.equal(b.collateral)
   expect(a.reward).to.equal(b.reward)
-  expect(a.liquidation).to.equal(b.liquidation)
+  expect(a.protection).to.equal(b.protection)
 }
 
 export function expectVersionEq(a: Version, b: Version): void {

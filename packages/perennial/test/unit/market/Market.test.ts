@@ -475,7 +475,7 @@ describe.only('Market', () => {
               currentId: 1,
               collateral: COLLATERAL,
               reward: 0,
-              liquidation: 0,
+              protection: 0,
             })
             expectPositionEq(await market.positions(user.address), {
               id: 0,
@@ -534,7 +534,7 @@ describe.only('Market', () => {
               currentId: 1,
               collateral: 0,
               reward: 0,
-              liquidation: 0,
+              protection: 0,
             })
             expectPositionEq(await market.positions(user.address), {
               id: 0,
@@ -595,7 +595,7 @@ describe.only('Market', () => {
               currentId: 1,
               collateral: COLLATERAL,
               reward: 0,
-              liquidation: 0,
+              protection: 0,
             })
             expectPositionEq(await market.positions(user.address), {
               id: 0,
@@ -659,7 +659,7 @@ describe.only('Market', () => {
               currentId: 2,
               collateral: 0,
               reward: 0,
-              liquidation: 0,
+              protection: 0,
             })
             expectPositionEq(await market.positions(user.address), {
               id: 1,
@@ -726,7 +726,7 @@ describe.only('Market', () => {
                 currentId: 1,
                 collateral: COLLATERAL,
                 reward: 0,
-                liquidation: 0,
+                protection: 0,
               })
               expectPositionEq(await market.positions(user.address), {
                 id: 0,
@@ -791,7 +791,7 @@ describe.only('Market', () => {
                 currentId: 2,
                 collateral: COLLATERAL,
                 reward: 0,
-                liquidation: 0,
+                protection: 0,
               })
               expectPositionEq(await market.positions(user.address), {
                 id: 1,
@@ -853,7 +853,7 @@ describe.only('Market', () => {
                 currentId: 1,
                 collateral: COLLATERAL,
                 reward: 0,
-                liquidation: 0,
+                protection: 0,
               })
               expectPositionEq(await market.positions(user.address), {
                 id: 0,
@@ -920,7 +920,7 @@ describe.only('Market', () => {
                 currentId: 2,
                 collateral: COLLATERAL,
                 reward: 0,
-                liquidation: 0,
+                protection: 0,
               })
               expectPositionEq(await market.positions(user.address), {
                 id: 1,
@@ -985,7 +985,7 @@ describe.only('Market', () => {
                 currentId: 2,
                 collateral: COLLATERAL,
                 reward: 0,
-                liquidation: 0,
+                protection: 0,
               })
               expectPositionEq(await market.positions(user.address), {
                 id: 1,
@@ -1055,7 +1055,7 @@ describe.only('Market', () => {
                 currentId: 3,
                 collateral: COLLATERAL,
                 reward: EXPECTED_REWARD.mul(3),
-                liquidation: 0,
+                protection: 0,
               })
               expectPositionEq(await market.positions(user.address), {
                 id: 2,
@@ -1121,7 +1121,7 @@ describe.only('Market', () => {
                 currentId: 2,
                 collateral: COLLATERAL,
                 reward: EXPECTED_REWARD.mul(3),
-                liquidation: 0,
+                protection: 0,
               })
               expectPositionEq(await market.positions(user.address), {
                 id: 1,
@@ -1188,7 +1188,7 @@ describe.only('Market', () => {
                 currentId: 1,
                 collateral: COLLATERAL,
                 reward: 0,
-                liquidation: 0,
+                protection: 0,
               })
               expectPositionEq(await market.positions(user.address), {
                 id: 0,
@@ -1248,7 +1248,7 @@ describe.only('Market', () => {
                 currentId: 1,
                 collateral: COLLATERAL,
                 reward: 0,
-                liquidation: 0,
+                protection: 0,
               })
               expectPositionEq(await market.positions(user.address), {
                 id: 0,
@@ -1316,7 +1316,7 @@ describe.only('Market', () => {
                   currentId: 2,
                   collateral: COLLATERAL,
                   reward: 0,
-                  liquidation: 0,
+                  protection: 0,
                 })
                 expectPositionEq(await market.positions(user.address), {
                   id: 1,
@@ -1381,7 +1381,7 @@ describe.only('Market', () => {
                   currentId: 3,
                   collateral: COLLATERAL,
                   reward: EXPECTED_REWARD.mul(3),
-                  liquidation: 0,
+                  protection: 0,
                 })
                 expectPositionEq(await market.positions(user.address), {
                   id: 2,
@@ -1443,7 +1443,7 @@ describe.only('Market', () => {
                   currentId: 2,
                   collateral: COLLATERAL,
                   reward: 0,
-                  liquidation: 0,
+                  protection: 0,
                 })
                 expectPositionEq(await market.positions(user.address), {
                   id: 1,
@@ -1510,7 +1510,7 @@ describe.only('Market', () => {
                   currentId: 3,
                   collateral: COLLATERAL,
                   reward: EXPECTED_REWARD.mul(3),
-                  liquidation: 0,
+                  protection: 0,
                 })
                 expectPositionEq(await market.positions(user.address), {
                   id: 2,
@@ -1575,7 +1575,7 @@ describe.only('Market', () => {
                   currentId: 3,
                   collateral: COLLATERAL,
                   reward: EXPECTED_REWARD.mul(3),
-                  liquidation: 0,
+                  protection: 0,
                 })
                 expectPositionEq(await market.positions(user.address), {
                   id: 2,
@@ -1645,7 +1645,7 @@ describe.only('Market', () => {
                   currentId: 4,
                   collateral: COLLATERAL,
                   reward: EXPECTED_REWARD.mul(3).mul(2),
-                  liquidation: 0,
+                  protection: 0,
                 })
                 expectPositionEq(await market.positions(user.address), {
                   id: 3,
@@ -1712,7 +1712,7 @@ describe.only('Market', () => {
                   currentId: 3,
                   collateral: COLLATERAL,
                   reward: EXPECTED_REWARD.mul(3),
-                  liquidation: 0,
+                  protection: 0,
                 })
                 expectPositionEq(await market.positions(user.address), {
                   id: 2,
@@ -1787,7 +1787,7 @@ describe.only('Market', () => {
                   currentId: 1,
                   collateral: COLLATERAL,
                   reward: 0,
-                  liquidation: 0,
+                  protection: 0,
                 })
                 expectPositionEq(await market.positions(user.address), {
                   id: 0,
@@ -1852,7 +1852,7 @@ describe.only('Market', () => {
                   currentId: 2,
                   collateral: COLLATERAL,
                   reward: 0,
-                  liquidation: 0,
+                  protection: 0,
                 })
                 expectPositionEq(await market.positions(user.address), {
                   id: 1,
@@ -1914,7 +1914,7 @@ describe.only('Market', () => {
                   currentId: 1,
                   collateral: COLLATERAL,
                   reward: 0,
-                  liquidation: 0,
+                  protection: 0,
                 })
                 expectPositionEq(await market.positions(user.address), {
                   id: 0,
@@ -1981,7 +1981,7 @@ describe.only('Market', () => {
                   currentId: 2,
                   collateral: COLLATERAL,
                   reward: 0,
-                  liquidation: 0,
+                  protection: 0,
                 })
                 expectPositionEq(await market.positions(user.address), {
                   id: 1,
@@ -2046,7 +2046,7 @@ describe.only('Market', () => {
                   currentId: 2,
                   collateral: COLLATERAL,
                   reward: 0,
-                  liquidation: 0,
+                  protection: 0,
                 })
                 expectPositionEq(await market.positions(user.address), {
                   id: 1,
@@ -2117,7 +2117,7 @@ describe.only('Market', () => {
                   currentId: 3,
                   collateral: COLLATERAL.sub(EXPECTED_FUNDING_WITH_FEE_1_5_123).sub(EXPECTED_INTEREST_5_123),
                   reward: EXPECTED_REWARD.mul(2),
-                  liquidation: 0,
+                  protection: 0,
                 })
                 expectPositionEq(await market.positions(user.address), {
                   id: 2,
@@ -2141,7 +2141,7 @@ describe.only('Market', () => {
                     .add(EXPECTED_INTEREST_WITHOUT_FEE_5_123)
                     .sub(8), // loss of precision
                   reward: EXPECTED_REWARD.mul(3),
-                  liquidation: 0,
+                  protection: 0,
                 })
                 expectPositionEq(await market.positions(userB.address), {
                   id: 1,
@@ -2211,7 +2211,7 @@ describe.only('Market', () => {
                   currentId: 2,
                   collateral: COLLATERAL.sub(EXPECTED_FUNDING_WITH_FEE_1_5_123).sub(EXPECTED_INTEREST_5_123),
                   reward: EXPECTED_REWARD.mul(2),
-                  liquidation: 0,
+                  protection: 0,
                 })
                 expectPositionEq(await market.positions(user.address), {
                   id: 1,
@@ -2235,7 +2235,7 @@ describe.only('Market', () => {
                     .add(EXPECTED_INTEREST_WITHOUT_FEE_5_123)
                     .sub(8), // loss of precision
                   reward: EXPECTED_REWARD.mul(3),
-                  liquidation: 0,
+                  protection: 0,
                 })
                 expectPositionEq(await market.positions(userB.address), {
                   id: 1,
@@ -2313,7 +2313,7 @@ describe.only('Market', () => {
                     .sub(EXPECTED_INTEREST_5_123)
                     .sub(TAKER_FEE),
                   reward: EXPECTED_REWARD.mul(2),
-                  liquidation: 0,
+                  protection: 0,
                 })
                 expectPositionEq(await market.positions(user.address), {
                   id: 1,
@@ -2337,7 +2337,7 @@ describe.only('Market', () => {
                     .add(EXPECTED_INTEREST_WITHOUT_FEE_5_123)
                     .sub(8), // loss of precision
                   reward: EXPECTED_REWARD.mul(3),
-                  liquidation: 0,
+                  protection: 0,
                 })
                 expectPositionEq(await market.positions(userB.address), {
                   id: 1,
@@ -2423,7 +2423,7 @@ describe.only('Market', () => {
                     .sub(EXPECTED_INTEREST_5_123)
                     .sub(TAKER_FEE),
                   reward: EXPECTED_REWARD.mul(2),
-                  liquidation: 0,
+                  protection: 0,
                 })
                 expectPositionEq(await market.positions(user.address), {
                   id: 1,
@@ -2448,7 +2448,7 @@ describe.only('Market', () => {
                     .add(EXPECTED_INTEREST_WITHOUT_FEE_5_123)
                     .sub(8), // loss of precision
                   reward: EXPECTED_REWARD.mul(3).mul(2),
-                  liquidation: 0,
+                  protection: 0,
                 })
                 expectPositionEq(await market.positions(userB.address), {
                   id: 1,
@@ -2520,7 +2520,7 @@ describe.only('Market', () => {
                   currentId: 1,
                   collateral: COLLATERAL,
                   reward: 0,
-                  liquidation: 0,
+                  protection: 0,
                 })
                 expectPositionEq(await market.positions(user.address), {
                   id: 0,
@@ -2580,7 +2580,7 @@ describe.only('Market', () => {
                   currentId: 1,
                   collateral: COLLATERAL,
                   reward: 0,
-                  liquidation: 0,
+                  protection: 0,
                 })
                 expectPositionEq(await market.positions(user.address), {
                   id: 0,
@@ -2648,7 +2648,7 @@ describe.only('Market', () => {
                     currentId: 2,
                     collateral: COLLATERAL,
                     reward: 0,
-                    liquidation: 0,
+                    protection: 0,
                   })
                   expectPositionEq(await market.positions(user.address), {
                     id: 1,
@@ -2714,7 +2714,7 @@ describe.only('Market', () => {
                     currentId: 3,
                     collateral: COLLATERAL.sub(EXPECTED_FUNDING_WITH_FEE_1_5_123).sub(EXPECTED_INTEREST_5_123),
                     reward: EXPECTED_REWARD.mul(2),
-                    liquidation: 0,
+                    protection: 0,
                   })
                   expectPositionEq(await market.positions(user.address), {
                     id: 2,
@@ -2738,7 +2738,7 @@ describe.only('Market', () => {
                       .add(EXPECTED_INTEREST_WITHOUT_FEE_5_123)
                       .sub(8), // loss of precision
                     reward: EXPECTED_REWARD.mul(3),
-                    liquidation: 0,
+                    protection: 0,
                   })
                   expectPositionEq(await market.positions(userB.address), {
                     id: 1,
@@ -2804,7 +2804,7 @@ describe.only('Market', () => {
                     currentId: 2,
                     collateral: COLLATERAL,
                     reward: 0,
-                    liquidation: 0,
+                    protection: 0,
                   })
                   expectPositionEq(await market.positions(user.address), {
                     id: 1,
@@ -2872,7 +2872,7 @@ describe.only('Market', () => {
                     currentId: 3,
                     collateral: COLLATERAL.sub(EXPECTED_FUNDING_WITH_FEE_1_5_123).sub(EXPECTED_INTEREST_5_123),
                     reward: EXPECTED_REWARD.mul(2),
-                    liquidation: 0,
+                    protection: 0,
                   })
                   expectPositionEq(await market.positions(user.address), {
                     id: 2,
@@ -2896,7 +2896,7 @@ describe.only('Market', () => {
                       .add(EXPECTED_INTEREST_WITHOUT_FEE_5_123)
                       .sub(8), // loss of precision
                     reward: EXPECTED_REWARD.mul(3),
-                    liquidation: 0,
+                    protection: 0,
                   })
                   expectPositionEq(await market.positions(userB.address), {
                     id: 1,
@@ -2968,7 +2968,7 @@ describe.only('Market', () => {
                     currentId: 3,
                     collateral: COLLATERAL.sub(EXPECTED_FUNDING_WITH_FEE_1_5_123).sub(EXPECTED_INTEREST_5_123),
                     reward: EXPECTED_REWARD.mul(2),
-                    liquidation: 0,
+                    protection: 0,
                   })
                   expectPositionEq(await market.positions(user.address), {
                     id: 2,
@@ -2992,7 +2992,7 @@ describe.only('Market', () => {
                       .add(EXPECTED_INTEREST_WITHOUT_FEE_5_123)
                       .sub(8), // loss of precision
                     reward: EXPECTED_REWARD.mul(3),
-                    liquidation: 0,
+                    protection: 0,
                   })
                   expectPositionEq(await market.positions(userB.address), {
                     id: 1,
@@ -3070,7 +3070,7 @@ describe.only('Market', () => {
                       .sub(EXPECTED_INTEREST_5_123)
                       .sub(EXPECTED_INTEREST_25_123),
                     reward: EXPECTED_REWARD.mul(2).mul(2),
-                    liquidation: 0,
+                    protection: 0,
                   })
                   expectPositionEq(await market.positions(user.address), {
                     id: 3,
@@ -3096,7 +3096,7 @@ describe.only('Market', () => {
                       .add(EXPECTED_INTEREST_WITHOUT_FEE_25_123)
                       .sub(13), // loss of precision
                     reward: EXPECTED_REWARD.mul(3).mul(2),
-                    liquidation: 0,
+                    protection: 0,
                   })
                   expectPositionEq(await market.positions(userB.address), {
                     id: 1,
@@ -3194,7 +3194,7 @@ describe.only('Market', () => {
                     currentId: 3,
                     collateral: COLLATERAL.sub(EXPECTED_FUNDING_WITH_FEE_1_5_123).sub(EXPECTED_INTEREST_5_123),
                     reward: EXPECTED_REWARD.mul(2),
-                    liquidation: 0,
+                    protection: 0,
                   })
                   expectPositionEq(await market.positions(user.address), {
                     id: 2,
@@ -3218,7 +3218,7 @@ describe.only('Market', () => {
                       .add(EXPECTED_INTEREST_WITHOUT_FEE_5_123)
                       .sub(8), // loss of precision
                     reward: EXPECTED_REWARD.mul(3).mul(2),
-                    liquidation: 0,
+                    protection: 0,
                   })
                   expectPositionEq(await market.positions(userB.address), {
                     id: 1,
@@ -3298,7 +3298,7 @@ describe.only('Market', () => {
                       .sub(EXPECTED_INTEREST_5_123)
                       .sub(TAKER_FEE),
                     reward: EXPECTED_REWARD.mul(2),
-                    liquidation: 0,
+                    protection: 0,
                   })
                   expectPositionEq(await market.positions(user.address), {
                     id: 2,
@@ -3323,7 +3323,7 @@ describe.only('Market', () => {
                       .add(TAKER_FEE)
                       .sub(8), // loss of precision
                     reward: EXPECTED_REWARD.mul(3).mul(2),
-                    liquidation: 0,
+                    protection: 0,
                   })
                   expectPositionEq(await market.positions(userB.address), {
                     id: 1,
@@ -3413,7 +3413,7 @@ describe.only('Market', () => {
                 currentId: 2,
                 collateral: COLLATERAL,
                 reward: 0,
-                liquidation: 0,
+                protection: 0,
               })
               expectPositionEq(await market.positions(user.address), {
                 id: 1,
@@ -3435,7 +3435,7 @@ describe.only('Market', () => {
                 currentId: 2,
                 collateral: COLLATERAL,
                 reward: 0,
-                liquidation: 0,
+                protection: 0,
               })
               expectPositionEq(await market.positions(userB.address), {
                 id: 1,
@@ -3508,7 +3508,7 @@ describe.only('Market', () => {
                   .sub(EXPECTED_FUNDING_WITH_FEE_1_5_123)
                   .sub(EXPECTED_INTEREST_5_123),
                 reward: EXPECTED_REWARD.mul(2),
-                liquidation: 0,
+                protection: 0,
               })
               expectPositionEq(await market.positions(user.address), {
                 id: 2,
@@ -3533,7 +3533,7 @@ describe.only('Market', () => {
                   .add(EXPECTED_INTEREST_WITHOUT_FEE_5_123)
                   .sub(8), // loss of precision
                 reward: EXPECTED_REWARD.mul(3),
-                liquidation: 0,
+                protection: 0,
               })
               expectPositionEq(await market.positions(userB.address), {
                 id: 2,
@@ -3613,7 +3613,7 @@ describe.only('Market', () => {
                   .sub(EXPECTED_FUNDING_WITH_FEE_1_5_123)
                   .sub(EXPECTED_INTEREST_5_123),
                 reward: EXPECTED_REWARD.mul(2),
-                liquidation: 0,
+                protection: 0,
               })
               expectPositionEq(await market.positions(user.address), {
                 id: 2,
@@ -3638,7 +3638,7 @@ describe.only('Market', () => {
                   .add(EXPECTED_INTEREST_WITHOUT_FEE_5_123)
                   .sub(8), // loss of precision
                 reward: EXPECTED_REWARD.mul(3),
-                liquidation: 0,
+                protection: 0,
               })
               expectPositionEq(await market.positions(userB.address), {
                 id: 2,
@@ -3761,7 +3761,7 @@ describe.only('Market', () => {
                     .sub(EXPECTED_FUNDING_WITH_FEE_2_5_150)
                     .sub(EXPECTED_INTEREST_5_150),
                   reward: EXPECTED_REWARD.mul(2).mul(3),
-                  liquidation: 0,
+                  protection: 0,
                 })
                 expectPositionEq(await market.positions(user.address), {
                   id: 4,
@@ -3789,7 +3789,7 @@ describe.only('Market', () => {
                     .sub(EXPECTED_LIQUIDATION_FEE)
                     .sub(22), // loss of precision
                   reward: EXPECTED_REWARD.mul(3).mul(2),
-                  liquidation: ORACLE_VERSION_4.timestamp,
+                  protection: ORACLE_VERSION_4.timestamp,
                 })
                 expectPositionEq(await market.positions(userB.address), {
                   id: 4,
@@ -3974,7 +3974,7 @@ describe.only('Market', () => {
                     .sub(EXPECTED_INTEREST_3)
                     .add(EXPECTED_PNL),
                   reward: EXPECTED_REWARD.mul(2).mul(3),
-                  liquidation: 0,
+                  protection: 0,
                 })
                 expectPositionEq(await market.positions(user.address), {
                   id: 4,
@@ -4000,7 +4000,7 @@ describe.only('Market', () => {
                     .sub(EXPECTED_LIQUIDATION_FEE)
                     .sub(16), // loss of precision
                   reward: EXPECTED_REWARD.mul(4).div(5).mul(3).mul(2),
-                  liquidation: ORACLE_VERSION_4.timestamp,
+                  protection: ORACLE_VERSION_4.timestamp,
                 })
                 expectPositionEq(await market.positions(userB.address), {
                   id: 4,
@@ -4028,7 +4028,7 @@ describe.only('Market', () => {
                     .sub(EXPECTED_PNL)
                     .sub(12), // loss of precision
                   reward: EXPECTED_REWARD.div(5).mul(3).mul(2).add(EXPECTED_REWARD.mul(3)),
-                  liquidation: 0,
+                  protection: 0,
                 })
                 expectPositionEq(await market.positions(userC.address), {
                   id: 4,
@@ -4175,7 +4175,7 @@ describe.only('Market', () => {
                     .sub(EXPECTED_INTEREST_5_123)
                     .add(EXPECTED_PNL),
                   reward: EXPECTED_REWARD.mul(2),
-                  liquidation: 0,
+                  protection: 0,
                 })
                 expectPositionEq(await market.positions(user.address), {
                   id: 2,
@@ -4202,7 +4202,7 @@ describe.only('Market', () => {
                     .sub(EXPECTED_PNL)
                     .sub(8), // loss of precision
                   reward: EXPECTED_REWARD.mul(3),
-                  liquidation: ORACLE_VERSION_4.timestamp,
+                  protection: ORACLE_VERSION_4.timestamp,
                 })
                 expectPositionEq(await market.positions(userB.address), {
                   id: 2,
@@ -4290,7 +4290,7 @@ describe.only('Market', () => {
                   currentId: 4,
                   collateral: 0,
                   reward: EXPECTED_REWARD.mul(3).mul(2),
-                  liquidation: ORACLE_VERSION_4.timestamp,
+                  protection: ORACLE_VERSION_4.timestamp,
                 })
                 expectPositionEq(await market.positions(userB.address), {
                   id: 3,
@@ -4371,7 +4371,7 @@ describe.only('Market', () => {
                     .sub(EXPECTED_FUNDING_WITH_FEE_2_5_96.add(EXPECTED_INTEREST_5_96))
                     .sub(EXPECTED_LIQUIDATION_FEE),
                   reward: EXPECTED_REWARD.mul(2).mul(2),
-                  liquidation: ORACLE_VERSION_4.timestamp,
+                  protection: ORACLE_VERSION_4.timestamp,
                 })
                 expectPositionEq(await market.positions(user.address), {
                   id: 4,
@@ -4397,7 +4397,7 @@ describe.only('Market', () => {
                     .add(EXPECTED_FUNDING_WITHOUT_FEE_2_5_96.add(EXPECTED_INTEREST_WITHOUT_FEE_5_96))
                     .sub(20), // loss of precision
                   reward: EXPECTED_REWARD.mul(3).mul(3),
-                  liquidation: 0,
+                  protection: 0,
                 })
                 expectPositionEq(await market.positions(userB.address), {
                   id: 4,
@@ -4543,7 +4543,7 @@ describe.only('Market', () => {
                     .sub(EXPECTED_PNL)
                     .sub(EXPECTED_LIQUIDATION_FEE),
                   reward: EXPECTED_REWARD.mul(2),
-                  liquidation: ORACLE_VERSION_4.timestamp,
+                  protection: ORACLE_VERSION_4.timestamp,
                 })
                 expectPositionEq(await market.positions(user.address), {
                   id: 2,
@@ -4569,7 +4569,7 @@ describe.only('Market', () => {
                     .add(EXPECTED_PNL)
                     .sub(8), // loss of precision
                   reward: EXPECTED_REWARD.mul(3),
-                  liquidation: 0,
+                  protection: 0,
                 })
                 expectPositionEq(await market.positions(userB.address), {
                   id: 2,
@@ -4653,7 +4653,7 @@ describe.only('Market', () => {
                   currentId: 4,
                   collateral: 0,
                   reward: EXPECTED_REWARD.mul(2).mul(2),
-                  liquidation: ORACLE_VERSION_4.timestamp,
+                  protection: ORACLE_VERSION_4.timestamp,
                 })
                 expectPositionEq(await market.positions(user.address), {
                   id: 3,
@@ -4715,7 +4715,7 @@ describe.only('Market', () => {
                 currentId: 3,
                 collateral: COLLATERAL,
                 reward: 0,
-                liquidation: 0,
+                protection: 0,
               })
               expectPositionEq(await market.positions(user.address), {
                 id: 2,
@@ -4737,7 +4737,7 @@ describe.only('Market', () => {
                 currentId: 3,
                 collateral: COLLATERAL,
                 reward: 0,
-                liquidation: 0,
+                protection: 0,
               })
               expectPositionEq(await market.positions(userB.address), {
                 id: 2,
@@ -4819,7 +4819,7 @@ describe.only('Market', () => {
                   currentId: 1,
                   collateral: COLLATERAL,
                   reward: 0,
-                  liquidation: 0,
+                  protection: 0,
                 })
                 expectPositionEq(await market.positions(user.address), {
                   id: 0,
@@ -4884,7 +4884,7 @@ describe.only('Market', () => {
                   currentId: 2,
                   collateral: COLLATERAL,
                   reward: 0,
-                  liquidation: 0,
+                  protection: 0,
                 })
                 expectPositionEq(await market.positions(user.address), {
                   id: 1,
@@ -4946,7 +4946,7 @@ describe.only('Market', () => {
                   currentId: 1,
                   collateral: COLLATERAL,
                   reward: 0,
-                  liquidation: 0,
+                  protection: 0,
                 })
                 expectPositionEq(await market.positions(user.address), {
                   id: 0,
@@ -5013,7 +5013,7 @@ describe.only('Market', () => {
                   currentId: 2,
                   collateral: COLLATERAL,
                   reward: 0,
-                  liquidation: 0,
+                  protection: 0,
                 })
                 expectPositionEq(await market.positions(user.address), {
                   id: 1,
@@ -5078,7 +5078,7 @@ describe.only('Market', () => {
                   currentId: 2,
                   collateral: COLLATERAL,
                   reward: 0,
-                  liquidation: 0,
+                  protection: 0,
                 })
                 expectPositionEq(await market.positions(user.address), {
                   id: 1,
@@ -5149,7 +5149,7 @@ describe.only('Market', () => {
                   currentId: 3,
                   collateral: COLLATERAL.sub(EXPECTED_FUNDING_WITH_FEE_1_5_123).sub(EXPECTED_INTEREST_5_123),
                   reward: EXPECTED_REWARD,
-                  liquidation: 0,
+                  protection: 0,
                 })
                 expectPositionEq(await market.positions(user.address), {
                   id: 2,
@@ -5173,7 +5173,7 @@ describe.only('Market', () => {
                     .add(EXPECTED_INTEREST_WITHOUT_FEE_5_123)
                     .sub(8), // loss of precision
                   reward: EXPECTED_REWARD.mul(3),
-                  liquidation: 0,
+                  protection: 0,
                 })
                 expectPositionEq(await market.positions(userB.address), {
                   id: 1,
@@ -5243,7 +5243,7 @@ describe.only('Market', () => {
                   currentId: 2,
                   collateral: COLLATERAL.sub(EXPECTED_FUNDING_WITH_FEE_1_5_123).sub(EXPECTED_INTEREST_5_123),
                   reward: EXPECTED_REWARD,
-                  liquidation: 0,
+                  protection: 0,
                 })
                 expectPositionEq(await market.positions(user.address), {
                   id: 1,
@@ -5267,7 +5267,7 @@ describe.only('Market', () => {
                     .add(EXPECTED_INTEREST_WITHOUT_FEE_5_123)
                     .sub(8), // loss of precision
                   reward: EXPECTED_REWARD.mul(3),
-                  liquidation: 0,
+                  protection: 0,
                 })
                 expectPositionEq(await market.positions(userB.address), {
                   id: 1,
@@ -5348,7 +5348,7 @@ describe.only('Market', () => {
                     .sub(EXPECTED_INTEREST_5_123)
                     .sub(TAKER_FEE),
                   reward: EXPECTED_REWARD,
-                  liquidation: 0,
+                  protection: 0,
                 })
                 expectPositionEq(await market.positions(user.address), {
                   id: 1,
@@ -5372,7 +5372,7 @@ describe.only('Market', () => {
                     .add(EXPECTED_INTEREST_WITHOUT_FEE_5_123)
                     .sub(8), // loss of precision
                   reward: EXPECTED_REWARD.mul(3),
-                  liquidation: 0,
+                  protection: 0,
                 })
                 expectPositionEq(await market.positions(userB.address), {
                   id: 1,
@@ -5461,7 +5461,7 @@ describe.only('Market', () => {
                     .sub(EXPECTED_INTEREST_5_123)
                     .sub(TAKER_FEE),
                   reward: EXPECTED_REWARD,
-                  liquidation: 0,
+                  protection: 0,
                 })
                 expectPositionEq(await market.positions(user.address), {
                   id: 1,
@@ -5485,7 +5485,7 @@ describe.only('Market', () => {
                     TAKER_FEE.add(EXPECTED_FUNDING_WITHOUT_FEE_1_5_123.add(EXPECTED_INTEREST_WITHOUT_FEE_5_123)),
                   ).sub(8), // loss of precision
                   reward: EXPECTED_REWARD.mul(3).mul(2),
-                  liquidation: 0,
+                  protection: 0,
                 })
                 expectPositionEq(await market.positions(userB.address), {
                   id: 1,
@@ -5557,7 +5557,7 @@ describe.only('Market', () => {
                   currentId: 1,
                   collateral: COLLATERAL,
                   reward: 0,
-                  liquidation: 0,
+                  protection: 0,
                 })
                 expectPositionEq(await market.positions(user.address), {
                   id: 0,
@@ -5617,7 +5617,7 @@ describe.only('Market', () => {
                   currentId: 1,
                   collateral: COLLATERAL,
                   reward: 0,
-                  liquidation: 0,
+                  protection: 0,
                 })
                 expectPositionEq(await market.positions(user.address), {
                   id: 0,
@@ -5685,7 +5685,7 @@ describe.only('Market', () => {
                     currentId: 2,
                     collateral: COLLATERAL,
                     reward: 0,
-                    liquidation: 0,
+                    protection: 0,
                   })
                   expectPositionEq(await market.positions(user.address), {
                     id: 1,
@@ -5751,7 +5751,7 @@ describe.only('Market', () => {
                     currentId: 3,
                     collateral: COLLATERAL.sub(EXPECTED_FUNDING_WITH_FEE_1_5_123).sub(EXPECTED_INTEREST_5_123),
                     reward: EXPECTED_REWARD,
-                    liquidation: 0,
+                    protection: 0,
                   })
                   expectPositionEq(await market.positions(user.address), {
                     id: 2,
@@ -5775,7 +5775,7 @@ describe.only('Market', () => {
                       .add(EXPECTED_INTEREST_WITHOUT_FEE_5_123)
                       .sub(8), // loss of precision
                     reward: EXPECTED_REWARD.mul(3),
-                    liquidation: 0,
+                    protection: 0,
                   })
                   expectPositionEq(await market.positions(userB.address), {
                     id: 1,
@@ -5841,7 +5841,7 @@ describe.only('Market', () => {
                     currentId: 2,
                     collateral: COLLATERAL,
                     reward: 0,
-                    liquidation: 0,
+                    protection: 0,
                   })
                   expectPositionEq(await market.positions(user.address), {
                     id: 1,
@@ -5909,7 +5909,7 @@ describe.only('Market', () => {
                     currentId: 3,
                     collateral: COLLATERAL.sub(EXPECTED_FUNDING_WITH_FEE_1_5_123).sub(EXPECTED_INTEREST_5_123),
                     reward: EXPECTED_REWARD,
-                    liquidation: 0,
+                    protection: 0,
                   })
                   expectPositionEq(await market.positions(user.address), {
                     id: 2,
@@ -5933,7 +5933,7 @@ describe.only('Market', () => {
                       .add(EXPECTED_INTEREST_WITHOUT_FEE_5_123)
                       .sub(8), // loss of precision
                     reward: EXPECTED_REWARD.mul(3),
-                    liquidation: 0,
+                    protection: 0,
                   })
                   expectPositionEq(await market.positions(userB.address), {
                     id: 1,
@@ -6004,7 +6004,7 @@ describe.only('Market', () => {
                     currentId: 3,
                     collateral: COLLATERAL.sub(EXPECTED_FUNDING_WITH_FEE_1_5_123).sub(EXPECTED_INTEREST_5_123),
                     reward: EXPECTED_REWARD,
-                    liquidation: 0,
+                    protection: 0,
                   })
                   expectPositionEq(await market.positions(user.address), {
                     id: 2,
@@ -6028,7 +6028,7 @@ describe.only('Market', () => {
                       .add(EXPECTED_INTEREST_WITHOUT_FEE_5_123)
                       .sub(8), // loss of precision
                     reward: EXPECTED_REWARD.mul(3),
-                    liquidation: 0,
+                    protection: 0,
                   })
                   expectPositionEq(await market.positions(userB.address), {
                     id: 1,
@@ -6106,7 +6106,7 @@ describe.only('Market', () => {
                       .sub(EXPECTED_INTEREST_5_123)
                       .sub(EXPECTED_INTEREST_25_123),
                     reward: EXPECTED_REWARD.mul(2),
-                    liquidation: 0,
+                    protection: 0,
                   })
                   expectPositionEq(await market.positions(user.address), {
                     id: 3,
@@ -6132,7 +6132,7 @@ describe.only('Market', () => {
                       .add(EXPECTED_INTEREST_WITHOUT_FEE_25_123)
                       .sub(13), // loss of precision
                     reward: EXPECTED_REWARD.mul(3).mul(2),
-                    liquidation: 0,
+                    protection: 0,
                   })
                   expectPositionEq(await market.positions(userB.address), {
                     id: 1,
@@ -6230,7 +6230,7 @@ describe.only('Market', () => {
                     currentId: 3,
                     collateral: COLLATERAL.sub(EXPECTED_FUNDING_WITH_FEE_1_5_123).sub(EXPECTED_INTEREST_5_123),
                     reward: EXPECTED_REWARD,
-                    liquidation: 0,
+                    protection: 0,
                   })
                   expectPositionEq(await market.positions(user.address), {
                     id: 2,
@@ -6254,7 +6254,7 @@ describe.only('Market', () => {
                       .add(EXPECTED_INTEREST_WITHOUT_FEE_5_123)
                       .sub(8), // loss of precision
                     reward: EXPECTED_REWARD.mul(3).mul(2),
-                    liquidation: 0,
+                    protection: 0,
                   })
                   expectPositionEq(await market.positions(userB.address), {
                     id: 1,
@@ -6335,7 +6335,7 @@ describe.only('Market', () => {
                       .sub(EXPECTED_INTEREST_5_123)
                       .sub(TAKER_FEE),
                     reward: EXPECTED_REWARD,
-                    liquidation: 0,
+                    protection: 0,
                   })
                   expectPositionEq(await market.positions(user.address), {
                     id: 2,
@@ -6360,7 +6360,7 @@ describe.only('Market', () => {
                       .add(TAKER_FEE)
                       .sub(8), // loss of precision
                     reward: EXPECTED_REWARD.mul(3).mul(2),
-                    liquidation: 0,
+                    protection: 0,
                   })
                   expectPositionEq(await market.positions(userB.address), {
                     id: 1,
@@ -6450,7 +6450,7 @@ describe.only('Market', () => {
                 currentId: 2,
                 collateral: COLLATERAL,
                 reward: 0,
-                liquidation: 0,
+                protection: 0,
               })
               expectPositionEq(await market.positions(user.address), {
                 id: 1,
@@ -6472,7 +6472,7 @@ describe.only('Market', () => {
                 currentId: 2,
                 collateral: COLLATERAL,
                 reward: 0,
-                liquidation: 0,
+                protection: 0,
               })
               expectPositionEq(await market.positions(userB.address), {
                 id: 1,
@@ -6545,7 +6545,7 @@ describe.only('Market', () => {
                   .sub(EXPECTED_FUNDING_WITH_FEE_1_5_123)
                   .sub(EXPECTED_INTEREST_5_123),
                 reward: EXPECTED_REWARD,
-                liquidation: 0,
+                protection: 0,
               })
               expectPositionEq(await market.positions(user.address), {
                 id: 2,
@@ -6570,7 +6570,7 @@ describe.only('Market', () => {
                   .add(EXPECTED_INTEREST_WITHOUT_FEE_5_123)
                   .sub(8), // loss of precision
                 reward: EXPECTED_REWARD.mul(3),
-                liquidation: 0,
+                protection: 0,
               })
               expectPositionEq(await market.positions(userB.address), {
                 id: 2,
@@ -6651,7 +6651,7 @@ describe.only('Market', () => {
                   .sub(EXPECTED_FUNDING_WITH_FEE_1_5_123)
                   .sub(EXPECTED_INTEREST_5_123),
                 reward: EXPECTED_REWARD,
-                liquidation: 0,
+                protection: 0,
               })
               expectPositionEq(await market.positions(user.address), {
                 id: 2,
@@ -6676,7 +6676,7 @@ describe.only('Market', () => {
                   .add(EXPECTED_INTEREST_WITHOUT_FEE_5_123)
                   .sub(8), // loss of precision
                 reward: EXPECTED_REWARD.mul(3),
-                liquidation: 0,
+                protection: 0,
               })
               expectPositionEq(await market.positions(userB.address), {
                 id: 2,
@@ -6797,7 +6797,7 @@ describe.only('Market', () => {
                     EXPECTED_FUNDING_WITH_FEE_2_5_96.add(EXPECTED_INTEREST_5_96),
                   ),
                   reward: EXPECTED_REWARD.mul(3),
-                  liquidation: 0,
+                  protection: 0,
                 })
                 expectPositionEq(await market.positions(user.address), {
                   id: 4,
@@ -6823,7 +6823,7 @@ describe.only('Market', () => {
                     .sub(EXPECTED_LIQUIDATION_FEE)
                     .sub(20), // loss of precision
                   reward: EXPECTED_REWARD.mul(3).mul(2),
-                  liquidation: ORACLE_VERSION_4.timestamp,
+                  protection: ORACLE_VERSION_4.timestamp,
                 })
                 expectPositionEq(await market.positions(userB.address), {
                   id: 4,
@@ -7002,7 +7002,7 @@ describe.only('Market', () => {
                     .sub(EXPECTED_INTEREST_3)
                     .add(EXPECTED_PNL),
                   reward: EXPECTED_REWARD.mul(3),
-                  liquidation: 0,
+                  protection: 0,
                 })
                 expectPositionEq(await market.positions(user.address), {
                   id: 4,
@@ -7028,7 +7028,7 @@ describe.only('Market', () => {
                     .sub(EXPECTED_LIQUIDATION_FEE)
                     .sub(17), // loss of precision
                   reward: EXPECTED_REWARD.mul(4).div(5).mul(3).mul(2),
-                  liquidation: ORACLE_VERSION_4.timestamp,
+                  protection: ORACLE_VERSION_4.timestamp,
                 })
                 expectPositionEq(await market.positions(userB.address), {
                   id: 4,
@@ -7056,7 +7056,7 @@ describe.only('Market', () => {
                     .sub(EXPECTED_PNL)
                     .sub(12), // loss of precision
                   reward: EXPECTED_REWARD.div(5).mul(3).mul(2).add(EXPECTED_REWARD.mul(3)),
-                  liquidation: 0,
+                  protection: 0,
                 })
                 expectPositionEq(await market.positions(userC.address), {
                   id: 4,
@@ -7204,7 +7204,7 @@ describe.only('Market', () => {
                     EXPECTED_PNL,
                   ),
                   reward: EXPECTED_REWARD,
-                  liquidation: 0,
+                  protection: 0,
                 })
                 expectPositionEq(await market.positions(user.address), {
                   id: 2,
@@ -7230,7 +7230,7 @@ describe.only('Market', () => {
                     .sub(EXPECTED_PNL)
                     .sub(8), // loss of precision
                   reward: EXPECTED_REWARD.mul(3),
-                  liquidation: ORACLE_VERSION_4.timestamp,
+                  protection: ORACLE_VERSION_4.timestamp,
                 })
                 expectPositionEq(await market.positions(userB.address), {
                   id: 2,
@@ -7316,7 +7316,7 @@ describe.only('Market', () => {
                   currentId: 4,
                   collateral: 0,
                   reward: EXPECTED_REWARD.mul(3).mul(2),
-                  liquidation: ORACLE_VERSION_4.timestamp,
+                  protection: ORACLE_VERSION_4.timestamp,
                 })
                 expectPositionEq(await market.positions(userB.address), {
                   id: 3,
@@ -7399,7 +7399,7 @@ describe.only('Market', () => {
                     .sub(EXPECTED_INTEREST_5_150)
                     .sub(EXPECTED_LIQUIDATION_FEE),
                   reward: EXPECTED_REWARD.mul(2),
-                  liquidation: ORACLE_VERSION_4.timestamp,
+                  protection: ORACLE_VERSION_4.timestamp,
                 })
                 expectPositionEq(await market.positions(user.address), {
                   id: 4,
@@ -7425,7 +7425,7 @@ describe.only('Market', () => {
                     .add(EXPECTED_INTEREST_WITHOUT_FEE_5_150)
                     .sub(22), // loss of precision
                   reward: EXPECTED_REWARD.mul(3).mul(3),
-                  liquidation: 0,
+                  protection: 0,
                 })
                 expectPositionEq(await market.positions(userB.address), {
                   id: 4,
@@ -7578,7 +7578,7 @@ describe.only('Market', () => {
                     .sub(EXPECTED_PNL)
                     .sub(EXPECTED_LIQUIDATION_FEE),
                   reward: EXPECTED_REWARD,
-                  liquidation: ORACLE_VERSION_4.timestamp,
+                  protection: ORACLE_VERSION_4.timestamp,
                 })
                 expectPositionEq(await market.positions(user.address), {
                   id: 2,
@@ -7603,7 +7603,7 @@ describe.only('Market', () => {
                     .add(EXPECTED_PNL)
                     .sub(8), // loss of precision
                   reward: EXPECTED_REWARD.mul(3),
-                  liquidation: 0,
+                  protection: 0,
                 })
                 expectPositionEq(await market.positions(userB.address), {
                   id: 2,
@@ -7689,7 +7689,7 @@ describe.only('Market', () => {
                   currentId: 4,
                   collateral: 0,
                   reward: EXPECTED_REWARD.mul(2),
-                  liquidation: ORACLE_VERSION_4.timestamp,
+                  protection: ORACLE_VERSION_4.timestamp,
                 })
                 expectPositionEq(await market.positions(user.address), {
                   id: 3,
@@ -7751,7 +7751,7 @@ describe.only('Market', () => {
                 currentId: 3,
                 collateral: COLLATERAL,
                 reward: 0,
-                liquidation: 0,
+                protection: 0,
               })
               expectPositionEq(await market.positions(user.address), {
                 id: 2,
@@ -7773,7 +7773,7 @@ describe.only('Market', () => {
                 currentId: 3,
                 collateral: COLLATERAL,
                 reward: 0,
-                liquidation: 0,
+                protection: 0,
               })
               expectPositionEq(await market.positions(userB.address), {
                 id: 2,
@@ -7866,7 +7866,7 @@ describe.only('Market', () => {
           //         nextShort: 0,
           //         collateral: COLLATERAL,
           //         reward: 0,
-          //         liquidation: false,
+          //         protection: false,
           //       })
           //       expectAccountEq(await market.accounts(userC.address), {
           //         latesttimestamp: ORACLE_VERSION,
@@ -7878,7 +7878,7 @@ describe.only('Market', () => {
           //         nextShort: POSITION.div(2),
           //         collateral: COLLATERAL,
           //         reward: 0,
-          //         liquidation: false,
+          //         protection: false,
           //       })
           //       expectPositionEq(await market.position(), {
           //         latesttimestamp: ORACLE_VERSION,
@@ -7924,7 +7924,7 @@ describe.only('Market', () => {
           //         nextShort: 0,
           //         collateral: COLLATERAL,
           //         reward: 0,
-          //         liquidation: false,
+          //         protection: false,
           //       })
           //       expectAccountEq(await market.accounts(userC.address), {
           //         latesttimestamp: 2,
@@ -7936,7 +7936,7 @@ describe.only('Market', () => {
           //         nextShort: POSITION.div(2),
           //         collateral: COLLATERAL,
           //         reward: 0,
-          //         liquidation: false,
+          //         protection: false,
           //       })
           //       expectPositionEq(await market.position(), {
           //         latesttimestamp: 2,
@@ -7975,7 +7975,7 @@ describe.only('Market', () => {
           //         nextShort: 0,
           //         collateral: COLLATERAL,
           //         reward: 0,
-          //         liquidation: false,
+          //         protection: false,
           //       })
           //       expectAccountEq(await market.accounts(userC.address), {
           //         latesttimestamp: ORACLE_VERSION,
@@ -7987,7 +7987,7 @@ describe.only('Market', () => {
           //         nextShort: POSITION.div(2),
           //         collateral: COLLATERAL,
           //         reward: 0,
-          //         liquidation: false,
+          //         protection: false,
           //       })
           //       expectPositionEq(await market.position(), {
           //         latesttimestamp: ORACLE_VERSION,
@@ -8033,7 +8033,7 @@ describe.only('Market', () => {
           //         nextShort: 0,
           //         collateral: COLLATERAL,
           //         reward: 0,
-          //         liquidation: false,
+          //         protection: false,
           //       })
           //       expectAccountEq(await market.accounts(userC.address), {
           //         latesttimestamp: 2,
@@ -8045,7 +8045,7 @@ describe.only('Market', () => {
           //         nextShort: POSITION.div(2),
           //         collateral: COLLATERAL,
           //         reward: 0,
-          //         liquidation: false,
+          //         protection: false,
           //       })
           //       expectPositionEq(await market.position(), {
           //         latesttimestamp: 2,
@@ -8088,7 +8088,7 @@ describe.only('Market', () => {
           //         nextShort: 0,
           //         collateral: COLLATERAL,
           //         reward: 0,
-          //         liquidation: false,
+          //         protection: false,
           //       })
           //       expectAccountEq(await market.accounts(userC.address), {
           //         latesttimestamp: 1,
@@ -8100,7 +8100,7 @@ describe.only('Market', () => {
           //         nextShort: POSITION.div(2),
           //         collateral: COLLATERAL,
           //         reward: 0,
-          //         liquidation: false,
+          //         protection: false,
           //       })
           //       expectPositionEq(await market.position(), {
           //         latesttimestamp: 2,
@@ -8159,7 +8159,7 @@ describe.only('Market', () => {
           //         nextShort: 0,
           //         collateral: COLLATERAL.sub(EXPECTED_FUNDING_WITH_FEE_1_5_123).sub(EXPECTED_INTEREST_5_123),
           //         reward: EXPECTED_REWARD.mul(2),
-          //         liquidation: false,
+          //         protection: false,
           //       })
           //       expectAccountEq(await market.accounts(userC.address), {
           //         latesttimestamp: 3,
@@ -8171,7 +8171,7 @@ describe.only('Market', () => {
           //         nextShort: POSITION.div(2),
           //         collateral: COLLATERAL.add(EXPECTED_FUNDING_WITH_FEE.div(2)).sub(4), // loss of precision
           //         reward: EXPECTED_REWARD.mul(1),
-          //         liquidation: false,
+          //         protection: false,
           //       })
           //       expectAccountEq(await market.accounts(userB.address), {
           //         latesttimestamp: 3,
@@ -8183,7 +8183,7 @@ describe.only('Market', () => {
           //         nextShort: 0,
           //         collateral: COLLATERAL.add(EXPECTED_FUNDING_WITH_FEE.div(2)).sub(4), // loss of precision
           //         reward: EXPECTED_REWARD.mul(3),
-          //         liquidation: false,
+          //         protection: false,
           //       })
           //       expectPositionEq(await market.position(), {
           //         latesttimestamp: 3,
@@ -8242,7 +8242,7 @@ describe.only('Market', () => {
           //         nextShort: 0,
           //         collateral: COLLATERAL.sub(EXPECTED_FUNDING_WITH_FEE_1_5_123).sub(EXPECTED_INTEREST_5_123),
           //         reward: EXPECTED_REWARD.mul(2),
-          //         liquidation: false,
+          //         protection: false,
           //       })
           //       expectAccountEq(await market.accounts(userC.address), {
           //         latesttimestamp: 3,
@@ -8254,7 +8254,7 @@ describe.only('Market', () => {
           //         nextShort: POSITION.div(4),
           //         collateral: COLLATERAL.add(EXPECTED_FUNDING_WITH_FEE.div(2)).sub(4), // loss of precision
           //         reward: EXPECTED_REWARD.mul(1),
-          //         liquidation: false,
+          //         protection: false,
           //       })
           //       expectAccountEq(await market.accounts(userB.address), {
           //         latesttimestamp: 3,
@@ -8266,7 +8266,7 @@ describe.only('Market', () => {
           //         nextShort: 0,
           //         collateral: COLLATERAL.add(EXPECTED_FUNDING_WITH_FEE.div(2)).sub(4), // loss of precision
           //         reward: EXPECTED_REWARD.mul(3),
-          //         liquidation: false,
+          //         protection: false,
           //       })
           //       expectPositionEq(await market.position(), {
           //         latesttimestamp: 3,
@@ -8337,7 +8337,7 @@ describe.only('Market', () => {
           //         nextShort: 0,
           //         collateral: COLLATERAL.sub(EXPECTED_FUNDING_WITH_FEE_1_5_123).sub(EXPECTED_INTEREST_5_123),
           //         reward: EXPECTED_REWARD.mul(2),
-          //         liquidation: false,
+          //         protection: false,
           //       })
           //       expectAccountEq(await market.accounts(userC.address), {
           //         latesttimestamp: 3,
@@ -8349,7 +8349,7 @@ describe.only('Market', () => {
           //         nextShort: POSITION.div(4),
           //         collateral: COLLATERAL.add(EXPECTED_FUNDING_WITH_FEE.div(2)).sub(4), // loss of precision
           //         reward: EXPECTED_REWARD.mul(1),
-          //         liquidation: false,
+          //         protection: false,
           //       })
           //       expectAccountEq(await market.accounts(userB.address), {
           //         latesttimestamp: 3,
@@ -8361,7 +8361,7 @@ describe.only('Market', () => {
           //         nextShort: 0,
           //         collateral: COLLATERAL.add(EXPECTED_FUNDING_WITH_FEE.div(2)).sub(4), // loss of precision
           //         reward: EXPECTED_REWARD.mul(3),
-          //         liquidation: false,
+          //         protection: false,
           //       })
           //       expectPositionEq(await market.position(), {
           //         latesttimestamp: 3,
@@ -8438,7 +8438,7 @@ describe.only('Market', () => {
           //         nextShort: 0,
           //         collateral: COLLATERAL.sub(EXPECTED_FUNDING_WITH_FEE_1_5_123).sub(EXPECTED_INTEREST_5_123),
           //         reward: EXPECTED_REWARD.mul(2),
-          //         liquidation: false,
+          //         protection: false,
           //       })
           //       expectAccountEq(await market.accounts(userC.address), {
           //         latesttimestamp: 4,
@@ -8450,7 +8450,7 @@ describe.only('Market', () => {
           //         nextShort: POSITION.div(4),
           //         collateral: COLLATERAL.sub(EXPECTED_FUNDING_WITH_FEE_1_5_123).sub(EXPECTED_INTEREST_5_123),
           //         reward: EXPECTED_REWARD.mul(1),
-          //         liquidation: false,
+          //         protection: false,
           //       })
           //       expectAccountEq(await market.accounts(userB.address), {
           //         latesttimestamp: 4,
@@ -8462,7 +8462,7 @@ describe.only('Market', () => {
           //         nextShort: 0,
           //         collateral: COLLATERAL.add(TAKER_FEE.add(EXPECTED_FUNDING_WITH_FEE)).sub(4), // loss of precision
           //         reward: EXPECTED_REWARD.mul(3).mul(2),
-          //         liquidation: false,
+          //         protection: false,
           //       })
           //       expectPositionEq(await market.position(), {
           //         latesttimestamp: 4,
@@ -8510,7 +8510,7 @@ describe.only('Market', () => {
           //         nextShort: 0,
           //         collateral: COLLATERAL,
           //         reward: 0,
-          //         liquidation: false,
+          //         protection: false,
           //       })
           //       expectPositionEq(await market.position(), {
           //         latesttimestamp: ORACLE_VERSION,
@@ -8546,7 +8546,7 @@ describe.only('Market', () => {
           //         nextShort: 0,
           //         collateral: COLLATERAL,
           //         reward: 0,
-          //         liquidation: false,
+          //         protection: false,
           //       })
           //       expectPositionEq(await market.position(), {
           //         latesttimestamp: ORACLE_VERSION,
@@ -8591,7 +8591,7 @@ describe.only('Market', () => {
           //           nextShort: 0,
           //           collateral: COLLATERAL,
           //           reward: 0,
-          //           liquidation: false,
+          //           protection: false,
           //         })
           //         expectPositionEq(await market.position(), {
           //           latesttimestamp: 2,
@@ -8634,7 +8634,7 @@ describe.only('Market', () => {
           //           nextShort: 0,
           //           collateral: COLLATERAL.sub(EXPECTED_FUNDING_WITH_FEE_1_5_123).sub(EXPECTED_INTEREST_5_123),
           //           reward: EXPECTED_REWARD.mul(2),
-          //           liquidation: false,
+          //           protection: false,
           //         })
           //         expectAccountEq(await market.accounts(userB.address), {
           //           latesttimestamp: 3,
@@ -8646,7 +8646,7 @@ describe.only('Market', () => {
           //           nextShort: 0,
           //           collateral: COLLATERAL.add(EXPECTED_FUNDING_WITHOUT_FEE_1_5_123).add(EXPECTED_INTEREST_WITHOUT_FEE_5_123).sub(8), // loss of precision
           //           reward: EXPECTED_REWARD.mul(3),
-          //           liquidation: false,
+          //           protection: false,
           //         })
           //         expectPositionEq(await market.position(), {
           //           latesttimestamp: 3,
@@ -8684,7 +8684,7 @@ describe.only('Market', () => {
           //           nextShort: 0,
           //           collateral: COLLATERAL,
           //           reward: 0,
-          //           liquidation: false,
+          //           protection: false,
           //         })
           //         expectPositionEq(await market.position(), {
           //           latesttimestamp: 2,
@@ -8729,7 +8729,7 @@ describe.only('Market', () => {
           //           nextShort: 0,
           //           collateral: COLLATERAL.sub(EXPECTED_FUNDING_WITH_FEE_1_5_123).sub(EXPECTED_INTEREST_5_123),
           //           reward: EXPECTED_REWARD.mul(2),
-          //           liquidation: false,
+          //           protection: false,
           //         })
           //         expectAccountEq(await market.accounts(userB.address), {
           //           latesttimestamp: 3,
@@ -8741,7 +8741,7 @@ describe.only('Market', () => {
           //           nextShort: 0,
           //           collateral: COLLATERAL.add(EXPECTED_FUNDING_WITHOUT_FEE_1_5_123).add(EXPECTED_INTEREST_WITHOUT_FEE_5_123).sub(8), // loss of precision
           //           reward: EXPECTED_REWARD.mul(3),
-          //           liquidation: false,
+          //           protection: false,
           //         })
           //         expectPositionEq(await market.position(), {
           //           latesttimestamp: 3,
@@ -8792,7 +8792,7 @@ describe.only('Market', () => {
           //           nextShort: 0,
           //           collateral: COLLATERAL, // EXPECTED_FUNDING paid at update
           //           reward: EXPECTED_REWARD.mul(2),
-          //           liquidation: false,
+          //           protection: false,
           //         })
           //         expectAccountEq(await market.accounts(userB.address), {
           //           latesttimestamp: 3,
@@ -8804,7 +8804,7 @@ describe.only('Market', () => {
           //           nextShort: 0,
           //           collateral: COLLATERAL.add(EXPECTED_FUNDING_WITHOUT_FEE_1_5_123).add(EXPECTED_INTEREST_WITHOUT_FEE_5_123).sub(8), // loss of precision
           //           reward: EXPECTED_REWARD.mul(3),
-          //           liquidation: false,
+          //           protection: false,
           //         })
           //         expectPositionEq(await market.position(), {
           //           latesttimestamp: 3,
@@ -8868,7 +8868,7 @@ describe.only('Market', () => {
           //           nextShort: 0,
           //           collateral: COLLATERAL.sub(EXPECTED_FUNDING_2), // EXPECTED_FUNDING_1 paid at update
           //           reward: EXPECTED_REWARD.mul(2).mul(2),
-          //           liquidation: false,
+          //           protection: false,
           //         })
           //         expectAccountEq(await market.accounts(userB.address), {
           //           latesttimestamp: 4,
@@ -8880,7 +8880,7 @@ describe.only('Market', () => {
           //           nextShort: 0,
           //           collateral: COLLATERAL.add(EXPECTED_FUNDING_WITH_FEE).add(EXPECTED_FUNDING_WITH_FEE_2).sub(10), // loss of precision
           //           reward: EXPECTED_REWARD.mul(3).mul(2),
-          //           liquidation: false,
+          //           protection: false,
           //         })
           //         expectPositionEq(await market.position(), {
           //           latesttimestamp: 4,
@@ -8937,7 +8937,7 @@ describe.only('Market', () => {
           //           nextShort: 0,
           //           collateral: COLLATERAL.sub(EXPECTED_FUNDING_WITH_FEE_1_5_123).sub(EXPECTED_INTEREST_5_123),
           //           reward: EXPECTED_REWARD.mul(2),
-          //           liquidation: false,
+          //           protection: false,
           //         })
           //         expectAccountEq(await market.accounts(userB.address), {
           //           latesttimestamp: 4,
@@ -8949,7 +8949,7 @@ describe.only('Market', () => {
           //           nextShort: 0,
           //           collateral: COLLATERAL.add(EXPECTED_FUNDING_WITHOUT_FEE_1_5_123).add(EXPECTED_INTEREST_WITHOUT_FEE_5_123).sub(8), // loss of precision
           //           reward: EXPECTED_REWARD.mul(3).mul(2),
-          //           liquidation: false,
+          //           protection: false,
           //         })
           //         expectPositionEq(await market.position(), {
           //           latesttimestamp: 4,
@@ -9005,7 +9005,7 @@ describe.only('Market', () => {
           //           nextShort: 0,
           //           collateral: COLLATERAL.sub(EXPECTED_FUNDING_WITH_FEE_1_5_123).sub(EXPECTED_INTEREST_5_123),
           //           reward: EXPECTED_REWARD.mul(2),
-          //           liquidation: false,
+          //           protection: false,
           //         })
           //         expectAccountEq(await market.accounts(userB.address), {
           //           latesttimestamp: 4,
@@ -9017,7 +9017,7 @@ describe.only('Market', () => {
           //           nextShort: 0,
           //           collateral: COLLATERAL.add(EXPECTED_FUNDING_WITHOUT_FEE_1_5_123).add(EXPECTED_INTEREST_WITHOUT_FEE_5_123).add(TAKER_FEE).sub(8), // loss of precision
           //           reward: EXPECTED_REWARD.mul(3).mul(2),
-          //           liquidation: false,
+          //           protection: false,
           //         })
           //         expectPositionEq(await market.position(), {
           //           latesttimestamp: 4,
@@ -9083,7 +9083,7 @@ describe.only('Market', () => {
           //       nextShort: 0,
           //       collateral: COLLATERAL,
           //       reward: 0,
-          //       liquidation: false,
+          //       protection: false,
           //     })
           //     expectAccountEq(await market.accounts(userB.address), {
           //       latesttimestamp: 3,
@@ -9095,7 +9095,7 @@ describe.only('Market', () => {
           //       nextShort: 0,
           //       collateral: COLLATERAL,
           //       reward: 0,
-          //       liquidation: false,
+          //       protection: false,
           //     })
           //     expectPositionEq(await market.position(), {
           //       latesttimestamp: 3,
@@ -9147,7 +9147,7 @@ describe.only('Market', () => {
           //       nextShort: 0,
           //       collateral: COLLATERAL.sub(EXPECTED_PNL).sub(EXPECTED_FUNDING_WITH_FEE_1_5_123).sub(EXPECTED_INTEREST_5_123),
           //       reward: EXPECTED_REWARD.mul(2),
-          //       liquidation: false,
+          //       protection: false,
           //     })
           //     expectAccountEq(await market.accounts(userB.address), {
           //       latesttimestamp: 3,
@@ -9159,7 +9159,7 @@ describe.only('Market', () => {
           //       nextShort: 0,
           //       collateral: COLLATERAL.add(EXPECTED_PNL).add(EXPECTED_FUNDING_WITHOUT_FEE_1_5_123).add(EXPECTED_INTEREST_WITHOUT_FEE_5_123).sub(8), // loss of precision
           //       reward: EXPECTED_REWARD.mul(3),
-          //       liquidation: false,
+          //       protection: false,
           //     })
           //     expectPositionEq(await market.position(), {
           //       latesttimestamp: 3,
@@ -9209,7 +9209,7 @@ describe.only('Market', () => {
           //       nextShort: 0,
           //       collateral: COLLATERAL.sub(EXPECTED_PNL).sub(EXPECTED_FUNDING_WITH_FEE_1_5_123).sub(EXPECTED_INTEREST_5_123),
           //       reward: EXPECTED_REWARD.mul(2),
-          //       liquidation: false,
+          //       protection: false,
           //     })
           //     expectAccountEq(await market.accounts(userB.address), {
           //       latesttimestamp: 3,
@@ -9221,7 +9221,7 @@ describe.only('Market', () => {
           //       nextShort: 0,
           //       collateral: COLLATERAL.add(EXPECTED_PNL).add(EXPECTED_FUNDING_WITHOUT_FEE_1_5_123).add(EXPECTED_INTEREST_WITHOUT_FEE_5_123).sub(8), // loss of precision
           //       reward: EXPECTED_REWARD.mul(3),
-          //       liquidation: false,
+          //       protection: false,
           //     })
           //     expectPositionEq(await market.position(), {
           //       latesttimestamp: 3,
@@ -9323,7 +9323,7 @@ describe.only('Market', () => {
           //         nextShort: 0,
           //         collateral: COLLATERAL.sub(EXPECTED_FUNDING).sub(EXPECTED_FUNDING_2),
           //         reward: EXPECTED_REWARD.mul(2).mul(3),
-          //         liquidation: false,
+          //         protection: false,
           //       })
           //       expectAccountEq(await market.accounts(userB.address), {
           //         latesttimestamp: 5,
@@ -9339,7 +9339,7 @@ describe.only('Market', () => {
           //           .sub(EXPECTED_LIQUIDATION_FEE)
           //           .sub(17), // loss of precision
           //         reward: EXPECTED_REWARD.mul(3).mul(2),
-          //         liquidation: false,
+          //         protection: false,
           //       })
           //       expectPositionEq(await market.position(), {
           //         latesttimestamp: 5,
@@ -9468,7 +9468,7 @@ describe.only('Market', () => {
           //           .sub(EXPECTED_FUNDING_3)
           //           .add(EXPECTED_PNL),
           //         reward: EXPECTED_REWARD.mul(2).mul(3),
-          //         liquidation: false,
+          //         protection: false,
           //       })
           //       expectAccountEq(await market.accounts(userB.address), {
           //         latesttimestamp: 5,
@@ -9484,7 +9484,7 @@ describe.only('Market', () => {
           //           .sub(EXPECTED_LIQUIDATION_FEE)
           //           .sub(4), // loss of precision
           //         reward: EXPECTED_REWARD.mul(4).div(5).mul(3).mul(2),
-          //         liquidation: false,
+          //         protection: false,
           //       })
           //       expectAccountEq(await market.accounts(userC.address), {
           //         latesttimestamp: 5,
@@ -9500,7 +9500,7 @@ describe.only('Market', () => {
           //           .sub(EXPECTED_PNL)
           //           .sub(7), // loss of precision
           //         reward: EXPECTED_REWARD.div(5).mul(3).mul(2).add(EXPECTED_REWARD.mul(3)),
-          //         liquidation: false,
+          //         protection: false,
           //       })
           //       expectPositionEq(await market.position(), {
           //         latesttimestamp: 5,
@@ -9604,7 +9604,7 @@ describe.only('Market', () => {
           //         nextShort: 0,
           //         collateral: COLLATERAL.sub(EXPECTED_FUNDING).add(EXPECTED_PNL),
           //         reward: EXPECTED_REWARD.mul(2),
-          //         liquidation: false,
+          //         protection: false,
           //       })
           //       expectAccountEq(await market.accounts(userB.address), {
           //         latesttimestamp: 3,
@@ -9620,7 +9620,7 @@ describe.only('Market', () => {
           //           .sub(EXPECTED_PNL)
           //           .sub(4), // loss of precision
           //         reward: EXPECTED_REWARD.mul(3),
-          //         liquidation: true,
+          //         protection: true,
           //       })
           //       expectPositionEq(await market.position(), {
           //         latesttimestamp: 3,
@@ -9677,7 +9677,7 @@ describe.only('Market', () => {
           //         nextShort: 0,
           //         collateral: 0,
           //         reward: EXPECTED_REWARD.mul(3).mul(2),
-          //         liquidation: false,
+          //         protection: false,
           //       })
           //     })
           //   })
@@ -9759,7 +9759,7 @@ describe.only('Market', () => {
           //           .sub(EXPECTED_FUNDING_2)
           //           .sub(EXPECTED_LIQUIDATION_FEE),
           //         reward: EXPECTED_REWARD.mul(2).mul(2),
-          //         liquidation: false,
+          //         protection: false,
           //       })
           //       expectAccountEq(await market.accounts(userB.address), {
           //         latesttimestamp: 5,
@@ -9771,7 +9771,7 @@ describe.only('Market', () => {
           //         nextShort: 0,
           //         collateral: COLLATERAL.add(EXPECTED_FUNDING_WITH_FEE).add(EXPECTED_FUNDING_WITH_FEE_2).sub(10), // loss of precision
           //         reward: EXPECTED_REWARD.mul(3).mul(3),
-          //         liquidation: false,
+          //         protection: false,
           //       })
           //       expectPositionEq(await market.position(), {
           //         latesttimestamp: 5,
@@ -9865,7 +9865,7 @@ describe.only('Market', () => {
           //           .sub(EXPECTED_PNL)
           //           .sub(EXPECTED_LIQUIDATION_FEE),
           //         reward: EXPECTED_REWARD.mul(2),
-          //         liquidation: true,
+          //         protection: true,
           //       })
           //       expectAccountEq(await market.accounts(userB.address), {
           //         latesttimestamp: 3,
@@ -9877,7 +9877,7 @@ describe.only('Market', () => {
           //         nextShort: 0,
           //         collateral: COLLATERAL.add(EXPECTED_FUNDING_WITH_FEE).add(EXPECTED_PNL).sub(4), // loss of precision
           //         reward: EXPECTED_REWARD.mul(3),
-          //         liquidation: false,
+          //         protection: false,
           //       })
           //       expectPositionEq(await market.position(), {
           //         latesttimestamp: 3,
@@ -9933,7 +9933,7 @@ describe.only('Market', () => {
           //         nextShort: 0,
           //         collateral: 0,
           //         reward: EXPECTED_REWARD.mul(2).mul(2),
-          //         liquidation: false,
+          //         protection: false,
           //       })
           //     })
           //   })
@@ -9988,7 +9988,7 @@ describe.only('Market', () => {
           //       nextShort: 0,
           //       collateral: COLLATERAL,
           //       reward: 0,
-          //       liquidation: false,
+          //       protection: false,
           //     })
           //     expectAccountEq(await market.accounts(userB.address), {
           //       latesttimestamp: 4,
@@ -10000,7 +10000,7 @@ describe.only('Market', () => {
           //       nextShort: 0,
           //       collateral: COLLATERAL,
           //       reward: 0,
-          //       liquidation: false,
+          //       protection: false,
           //     })
           //     expectPositionEq(await market.position(), {
           //       latesttimestamp: 4,
@@ -10155,7 +10155,7 @@ describe.only('Market', () => {
                 .sub(EXPECTED_PNL)
                 .sub(EXPECTED_LIQUIDATION_FEE),
               reward: EXPECTED_REWARD.mul(2),
-              liquidation: ORACLE_VERSION_4.timestamp,
+              protection: ORACLE_VERSION_4.timestamp,
             })
             expectPositionEq(await market.positions(user.address), {
               id: 2,
@@ -10179,7 +10179,7 @@ describe.only('Market', () => {
                 .add(EXPECTED_PNL)
                 .sub(8), // loss of precision
               reward: EXPECTED_REWARD.mul(3),
-              liquidation: 0,
+              protection: 0,
             })
             expectPositionEq(await market.positions(userB.address), {
               id: 2,
@@ -10308,7 +10308,7 @@ describe.only('Market', () => {
                 .sub(EXPECTED_INTEREST_5_150)
                 .sub(EXPECTED_LIQUIDATION_FEE),
               reward: EXPECTED_REWARD.mul(2),
-              liquidation: ORACLE_VERSION_4.timestamp,
+              protection: ORACLE_VERSION_4.timestamp,
             })
             expectPositionEq(await market.positions(user.address), {
               id: 4,
@@ -10334,7 +10334,7 @@ describe.only('Market', () => {
                 .add(EXPECTED_INTEREST_WITHOUT_FEE_5_150)
                 .sub(22), // loss of precision
               reward: EXPECTED_REWARD.mul(3).mul(3),
-              liquidation: 0,
+              protection: 0,
             })
             expectPositionEq(await market.positions(userB.address), {
               id: 4,
@@ -10455,7 +10455,7 @@ describe.only('Market', () => {
               currentId: 1,
               collateral: COLLATERAL,
               reward: 0,
-              liquidation: 0,
+              protection: 0,
             })
             expectPositionEq(await market.positions(user.address), {
               id: 0,
