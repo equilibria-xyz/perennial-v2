@@ -398,7 +398,10 @@ contract Market is IMarket, Instance {
             msg.sender != account &&                                                                        // sender is operating on own account
             !IMarketFactory(address(factory())).operators(account, msg.sender) &&                           // sender is operating on own account
             !(newOrder.isEmpty() && context.local.collateral.isZero() && collateral.gt(Fixed6Lib.ZERO)) &&  // sender is repaying shortfall for this account
-            !(protected && collateral.gte(Fixed6Lib.from(-1, _liquidationFee(context))))                    // sender is liquidating this account
+            !(
+                protected &&
+                collateral.gte(Fixed6Lib.from(-1, _liquidationFee(context)))) &&
+                !_collateralized(context, context.accountPosition)                                          // sender is liquidating this account
         ) { if (LOG_REVERTS) console.log("MarketOperatorNotAllowed"); revert MarketOperatorNotAllowed(); }
 
         if (context.marketParameter.closed && newOrder.increasesPosition())
@@ -426,14 +429,13 @@ contract Market is IMarket, Instance {
         if (!context.accountPendingPosition.singleSided())
             { if (LOG_REVERTS) console.log("MarketNotSingleSidedError"); revert MarketNotSingleSidedError(); }
 
-        if (context.global.currentId > context.position.id + context.protocolParameter.maxPendingIds)
-            { if (LOG_REVERTS) console.log("MarketExceedsPendingIdLimitError"); revert MarketExceedsPendingIdLimitError(); }// TODO: add liquidation check here too?
+        if (!protected && context.global.currentId > context.position.id + context.protocolParameter.maxPendingIds)
+            { if (LOG_REVERTS) console.log("MarketExceedsPendingIdLimitError"); revert MarketExceedsPendingIdLimitError(); }
 
         if (!protected && !_collateralized(context, context.accountPosition))
             { if (LOG_REVERTS) console.log("MarketInsufficientCollateralizationError1"); revert MarketInsufficientCollateralizationError(); }
 
-        // TODO: remove protected -- this shouldn't be needed unless we need to settle w/o liquidating
-        if (!protected && !_collateralized(context, context.accountPendingPosition))
+        if (!_collateralized(context, context.accountPendingPosition))
             { if (LOG_REVERTS) console.log("MarketInsufficientCollateralizationError2"); revert MarketInsufficientCollateralizationError(); }
 
         for (uint256 id = context.accountPosition.id + 1; id < context.local.currentId; id++)
