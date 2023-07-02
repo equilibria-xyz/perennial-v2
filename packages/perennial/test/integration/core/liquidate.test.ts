@@ -37,7 +37,7 @@ describe('Liquidate', () => {
     expect(await dsu.balanceOf(userB.address)).to.equal(utils.parseEther('200682.778988')) // Original 200000 + fee
 
     await chainlink.next()
-    await settle(market, user)
+    await market.connect(user).update(user.address, 0, 0, 0, constants.MinInt256, false) // withdraw everything
 
     expect((await market.position()).timestamp).to.eq(TIMESTAMP_2)
     expect((await market.locals(user.address)).protection).to.eq(TIMESTAMP_2)

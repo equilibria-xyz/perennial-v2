@@ -54,10 +54,9 @@ interface IMarket is IInstance {
     error MarketInsufficientCollateralizationError();
     error MarketInsufficientCollateralError();
     error MarketProtectedError();
-    error MarketInDebtError();
     error MarketMakerOverLimitError();
     error MarketClosedError();
-    error MarketCollateralUnderLimitError();
+    error MarketCollateralBelowLimitError();
     error MarketOperatorNotAllowed();
     error MarketNotSingleSidedError();
     error MarketExceedsPendingIdLimitError();

@@ -400,8 +400,9 @@ contract Market is IMarket, Instance {
             !(newOrder.isEmpty() && context.local.collateral.isZero() && collateral.gt(Fixed6Lib.ZERO)) &&  // sender is repaying shortfall for this account
             !(
                 protected &&
-                collateral.gte(Fixed6Lib.from(-1, _liquidationFee(context)))) &&
-                !_collateralized(context, context.accountPosition)                                          // sender is liquidating this account
+                collateral.gte(Fixed6Lib.from(-1, _liquidationFee(context))) &&
+                !_collateralized(context, context.accountPosition)
+            )                                                                                               // sender is liquidating this account
         ) { if (LOG_REVERTS) console.log("MarketOperatorNotAllowed"); revert MarketOperatorNotAllowed(); }
 
         if (context.marketParameter.closed && newOrder.increasesPosition())
@@ -442,12 +443,8 @@ contract Market is IMarket, Instance {
             if (!protected && !_collateralized(context, _pendingPositions[account][id].read()))
                 { if (LOG_REVERTS) console.log("MarketInsufficientCollateralizationError3"); revert MarketInsufficientCollateralizationError(); }
 
-        if (
-            !protected &&
-            context.local.collateral.gt(Fixed6Lib.ZERO) &&
-            context.local.collateral.lt(Fixed6Lib.from(context.protocolParameter.minCollateral)) &&
-            !collateral.isZero() // TODO: remove? -- allows settling when in under minCollateral if collateral delta is zero
-        ) { if (LOG_REVERTS) console.log("MarketCollateralUnderLimitError"); revert MarketCollateralUnderLimitError(); }// TODO: a lot of situations can trigger this
+        if (!protected && context.local.belowLimit(context.protocolParameter))
+            { if (LOG_REVERTS) console.log("MarketCollateralBelowLimitError"); revert MarketCollateralBelowLimitError(); }
 
         if (!protected && collateral.lt(Fixed6Lib.ZERO) && context.local.collateral.lt(Fixed6Lib.ZERO))
             { if (LOG_REVERTS) console.log("MarketInsufficientCollateralError"); revert MarketInsufficientCollateralError(); }
