@@ -176,6 +176,19 @@ contract Vault is IVault, Instance {
         _saveContext(context, account);
     }
 
+    function _fee(Context memory context) private view returns (
+        UFixed6 makerFee,
+        UFixed6 settlementFeeAssets,
+        UFixed6 settlementFeeShares
+    ) {
+        Checkpoint memory checkpoint = _checkpoints[context.latestId].read();
+        UFixed6 premiumMultiplier = UFixed6Lib.ONE.add(context.parameter.premium);
+
+        makerFee = context.makerFee.mul(premiumMultiplier); // TODO: include skew and impact
+        settlementFeeAssets = context.settlementFee;
+        settlementFeeShares = checkpoint.toShares(settlementFeeAssets.mul(premiumMultiplier));
+    }
+
     /**
      * @notice Deposits `assets` assets into the vault, returning shares to `account` after the deposit settles.
      * @dev Accounts for makerFee by burning then airdropping makerFee * premium percent of the deposit
@@ -188,8 +201,8 @@ contract Vault is IVault, Instance {
         if (assets.gt(_maxDeposit(context))) revert VaultDepositLimitExceededError();
         if (context.latestId < context.local.latest) revert VaultExistingOrderError();
 
-        UFixed6 depositAmount = assets
-            .sub(assets.mul(context.makerFee.mul(UFixed6Lib.ONE.add(context.parameter.premium))));
+        (UFixed6 makerFee, UFixed6 settlementFeeAssets, ) = _fee(context);
+        UFixed6 depositAmount = assets.sub(assets.mul(makerFee).add(settlementFeeAssets));
 
         context.global.deposit =  context.global.deposit.add(depositAmount);
         context.local.latest = context.currentId;
@@ -219,8 +232,8 @@ contract Vault is IVault, Instance {
         if (shares.gt(_maxRedeem(context, account))) revert VaultRedemptionLimitExceededError();
         if (context.latestId < context.local.latest) revert VaultExistingOrderError();
 
-        UFixed6 redemptionAmount = shares
-            .sub(shares.mul(context.makerFee.mul(UFixed6Lib.ONE.add(context.parameter.premium))));
+        (UFixed6 makerFee, , UFixed6 settlementFeeShares) = _fee(context);
+        UFixed6 redemptionAmount = shares.sub(shares.mul(makerFee).add(settlementFeeShares));
 
         context.global.redemption =  context.global.redemption.add(redemptionAmount);
         context.local.latest = context.currentId;
@@ -336,14 +349,13 @@ contract Vault is IVault, Instance {
      */
     function _rebalance(Context memory context, UFixed6 claimAmount) private {
         Fixed6 collateralInVault = _collateral(context).sub(Fixed6Lib.from(claimAmount));
-        UFixed6 minCollateral = IVaultFactory(address(factory())).marketFactory().parameter().minCollateral;
 
         // if negative assets, skip rebalance
         if (collateralInVault.lt(Fixed6Lib.ZERO)) return;
 
         // Compute available collateral
         UFixed6 collateral = UFixed6Lib.from(collateralInVault);
-        if (collateral.muldiv(context.minWeight, context.totalWeight).lt(minCollateral))
+        if (collateral.muldiv(context.minWeight, context.totalWeight).lt(context.minCollateral))
             collateral = UFixed6Lib.ZERO;
 
         // Compute available assets
@@ -354,7 +366,7 @@ contract Vault is IVault, Instance {
             )
             .mul(context.global.shares.unsafeDiv(context.global.shares.add(context.global.redemption)))
             .add(context.global.deposit);
-        if (assets.muldiv(context.minWeight, context.totalWeight).lt(minCollateral))
+        if (assets.muldiv(context.minWeight, context.totalWeight).lt(context.minCollateral))
             assets = UFixed6Lib.ZERO;
 
         Target[] memory targets = _computeTargets(context, collateral, assets);
@@ -433,6 +445,10 @@ contract Vault is IVault, Instance {
      */
     function _loadContext(address account) private view returns (Context memory context) {
         context.parameter = _parameter.read();
+
+        ProtocolParameter memory protocolParameter = IVaultFactory(address(factory())).marketFactory().parameter();
+        context.settlementFee = protocolParameter.settlementFee;
+        context.minCollateral = protocolParameter.minCollateral;
 
         context.latestId = type(uint256).max;
         context.latestTimestamp = type(uint256).max;

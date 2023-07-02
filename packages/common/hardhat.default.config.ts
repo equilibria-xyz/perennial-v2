@@ -102,7 +102,7 @@ export default function defaultConfig({
           settings: {
             optimizer: {
               enabled: OPTIMIZER_ENABLED,
-              runs: 1000000, // Max allowed by Etherscan verify
+              runs: 1,
             },
             outputSelection: OPTIMIZER_ENABLED
               ? {}

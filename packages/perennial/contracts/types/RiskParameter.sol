@@ -45,7 +45,7 @@ struct StoredRiskParameter {
     uint32 shortRewardRate;                     // <= 2147.48 / s
     uint24 takerSkewFee;                        // <= 1677%
     uint24 takerImpactFee;                      // <= 1677%
-    uint24 makerSkewFee;                        // <= 1677%
+    uint24 makerSkewFee;                        // <= 1677% // TODO: do we need both for makers
     uint24 makerImpactFee;                      // <= 1677%
 }
 struct RiskParameterStorage { StoredRiskParameter value; }

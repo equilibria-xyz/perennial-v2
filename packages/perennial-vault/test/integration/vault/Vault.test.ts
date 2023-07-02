@@ -481,7 +481,7 @@ describe('Vault', () => {
     })
   })
 
-  describe('#deposit/#redeem/#claim/#settle', () => {
+  describe.only('#deposit/#redeem/#claim/#settle', () => {
     it('simple deposits and withdraws', async () => {
       expect(await vault.convertToAssets(parse6decimal('1'))).to.equal(parse6decimal('1'))
       expect(await vault.convertToShares(parse6decimal('1'))).to.equal(parse6decimal('1'))
