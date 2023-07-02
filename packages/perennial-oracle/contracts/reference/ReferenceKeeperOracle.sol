@@ -11,12 +11,13 @@ contract ReferenceKeeperOracle is IOracleProvider {
     uint256 private _current;
     uint256 private _latest;
 
-    constructor() {
-        request();
+    constructor() { }
+
+    function request() external {
+        if (current() > _requested[_current]) _requested[_current++] = block.timestamp;
     }
 
-    function request() public returns (OracleVersion memory, uint256) {
-        if (current() > _requested[_current]) _requested[_current++] = block.timestamp;
+    function status() external view returns (OracleVersion memory, uint256) {
         return (latest(), current());
     }
 

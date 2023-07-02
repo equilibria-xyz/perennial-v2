@@ -79,7 +79,7 @@ contract Market is IMarket, Instance {
     }
 
     function update0(address account, Fixed6 collateral) external whenNotPaused {
-        CurrentContext memory context = _loadContext(account, true);
+        CurrentContext memory context = _loadContext(account);
         _updateInternal(
             context,
             account,
@@ -99,7 +99,7 @@ contract Market is IMarket, Instance {
         Fixed6 collateral,
         bool protect
     ) external whenNotPaused {
-        CurrentContext memory context = _loadContext(account, true);
+        CurrentContext memory context = _loadContext(account);
         _updateInternal(context, account, newMaker, newLong, newShort, collateral, protect);
     }
 
@@ -264,6 +264,9 @@ contract Market is IMarket, Instance {
         // protect account
         bool protected = context.local.protect(context.accountPosition, context.currentTimestamp, protect);
 
+        // request version
+        if (!newOrder.isEmpty()) oracle.request();
+
         // after
         _invariant(context, account, newOrder, collateral, protected);
 
@@ -281,7 +284,7 @@ contract Market is IMarket, Instance {
         _endGas(context);
     }
 
-    function _loadContext(address account, bool request) private returns (CurrentContext memory context) {
+    function _loadContext(address account) private view returns (CurrentContext memory context) {
         _startGas(context, "_loadContext: %s");
 
         // parameters
@@ -300,7 +303,7 @@ contract Market is IMarket, Instance {
         context.accountPosition = _positions[account].read();
 
         // oracle
-        (context.latestVersion, context.currentTimestamp) = request ? _oracleVersionRequest() : _oracleVersion();
+        (context.latestVersion, context.currentTimestamp) = _oracleVersion();
         context.positionVersion = _oracleVersionAt(context.position.timestamp);
 
         // after
@@ -479,8 +482,8 @@ contract Market is IMarket, Instance {
             .min(UFixed6Lib.from(token.balanceOf()));
     }
 
-    function _collateralized(CurrentContext memory context, Position memory position) private pure returns (bool) {
-        return position.collateralized(context.latestVersion, context.riskParameter, context.local.collateral);
+    function _collateralized(CurrentContext memory context, Position memory active) private pure returns (bool) {
+        return active.collateralized(context.latestVersion, context.riskParameter, context.local.collateral);
     }
 
     function _updateRiskParameter(RiskParameter memory newRiskParameter) private {
@@ -488,13 +491,8 @@ contract Market is IMarket, Instance {
         emit RiskParameterUpdated(newRiskParameter);
     }
 
-    function _oracleVersionRequest() private returns (OracleVersion memory latestVersion, uint256 currentTimestamp) {
-        (latestVersion, currentTimestamp) = oracle.request();
-        _transform(latestVersion);
-    }
-
     function _oracleVersion() private view returns (OracleVersion memory latestVersion, uint256 currentTimestamp) {
-        (latestVersion, currentTimestamp) = (oracle.latest(), oracle.current()); // TODO: batch call?
+        (latestVersion, currentTimestamp) = oracle.status();
         _transform(latestVersion);
     }
 

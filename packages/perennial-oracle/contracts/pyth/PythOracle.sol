@@ -84,18 +84,21 @@ contract PythOracle is IPythOracle, Instance {
     }
 
     /**
-     * @notice Checks for a new price and updates the internal phase annotation state accordingly
-     * @return latestVersion The latest synced oracle version
-     * @return currentVersion The current oracle version collecting new orders
+     * @notice Records a request for a new oracle version
      */
-    function request() external onlyAuthorized returns (OracleVersion memory latestVersion, uint256 currentVersion) {
+    function request() external onlyAuthorized {
         if (versionList.length == 0 || versionList[versionList.length - 1] != block.timestamp) {
             versionList.push(block.timestamp);
         }
+    }
 
-        // TODO: Figure out what to do in the core protocol if no version has ever been committed.
-        latestVersion = latest();
-        currentVersion = latestVersion.timestamp == 0 ? 0 : block.timestamp;
+    /**
+     * @notice Returns the latest synced oracle version and the current oracle version
+     * @return The latest synced oracle version
+     * @return The current oracle version collecting new orders
+     */
+    function status() external view returns (OracleVersion memory, uint256) {
+        return (latest(), current());
     }
 
     /**

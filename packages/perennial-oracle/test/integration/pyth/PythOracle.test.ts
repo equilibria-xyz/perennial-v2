@@ -327,27 +327,28 @@ describe('PythOracle', () => {
     })
   })
 
-  describe('#request', async () => {
+  describe('#status', async () => {
     it('returns the correct versions', async () => {
       await pythOracle.connect(oracleSigner).request()
       await pythOracle.connect(user).commit(0, VAA, {
         value: 1,
       })
-      const [latestVersion, currentVersion] = await pythOracle.connect(oracleSigner).callStatic.request()
+      const [latestVersion, currentVersion] = await pythOracle.status()
       expect(latestVersion.valid).to.be.true
       expect(latestVersion.price).to.equal('18381670317700000000000000')
       expect(currentVersion).to.equal(await currentBlockTimestamp())
     })
 
     it('returns empty versions if no version has ever been committed', async () => {
-      const syncResult = await pythOracle.connect(oracleSigner).callStatic.request()
-      expect(syncResult.currentVersion).to.equal(0)
-      const latestVersion = syncResult.latestVersion
+      const [latestVersion, currentVersion] = await pythOracle.status()
+      expect(currentVersion).to.equal(await currentBlockTimestamp())
       expect(latestVersion.timestamp).to.equal(0)
       expect(latestVersion.price).to.equal(0)
       expect(latestVersion.valid).to.be.false
     })
   })
+
+  // TODO: tests for #request
 
   describe('#latest', async () => {
     it('returns the latest version', async () => {

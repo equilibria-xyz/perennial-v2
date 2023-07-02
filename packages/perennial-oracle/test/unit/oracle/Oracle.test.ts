@@ -16,7 +16,8 @@ function mockVersion(
   latestVersion: OracleVersionStruct,
   currentTimestamp: number,
 ) {
-  oracle.request.returns([latestVersion, currentTimestamp])
+  oracle.request.returns()
+  oracle.status.returns([latestVersion, currentTimestamp])
   oracle.latest.returns(latestVersion)
   oracle.current.returns(currentTimestamp)
   oracle.at.whenCalledWith(latestVersion.timestamp).returns(latestVersion)
@@ -118,7 +119,7 @@ describe('Oracle', () => {
           },
           1687231005,
         )
-        const [latestVersion, currentTimestamp] = await oracle.connect(caller).callStatic.request()
+        const [latestVersion, currentTimestamp] = await oracle.connect(caller).status()
         await oracle.connect(caller).request()
 
         expect(latestVersion.timestamp).to.equal(1687230000)
@@ -202,7 +203,7 @@ describe('Oracle', () => {
           },
           1687231005,
         )
-        const [latestVersion, currentTimestamp] = await oracle.connect(caller).callStatic.request()
+        const [latestVersion, currentTimestamp] = await oracle.connect(caller).status()
         await oracle.connect(caller).request()
 
         expect(latestVersion.timestamp).to.equal(1687230605)
@@ -236,7 +237,7 @@ describe('Oracle', () => {
           },
           1687231005,
         )
-        const [latestVersion, currentTimestamp] = await oracle.connect(caller).callStatic.request()
+        const [latestVersion, currentTimestamp] = await oracle.connect(caller).status()
         await oracle.connect(caller).request()
 
         expect(latestVersion.timestamp).to.equal(1687230905)
@@ -275,7 +276,7 @@ describe('Oracle', () => {
           },
           1687231005,
         )
-        const [latestVersion, currentTimestamp] = await oracle.connect(caller).callStatic.request()
+        const [latestVersion, currentTimestamp] = await oracle.connect(caller).status()
         await oracle.connect(caller).request()
 
         expect(latestVersion.timestamp).to.equal(1687230905)
@@ -309,7 +310,7 @@ describe('Oracle', () => {
           },
           1687231005,
         )
-        const [latestVersion, currentTimestamp] = await oracle.connect(caller).callStatic.request()
+        const [latestVersion, currentTimestamp] = await oracle.connect(caller).status()
         await oracle.connect(caller).request()
 
         expect(latestVersion.timestamp).to.equal(1687230955)

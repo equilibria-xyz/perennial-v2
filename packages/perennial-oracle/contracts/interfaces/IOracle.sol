@@ -5,6 +5,7 @@ import "@equilibria/root-v2/contracts/IInstance.sol";
 import "./IOracleProvider.sol";
 
 interface IOracle is IOracleProvider, IInstance {
+    error OracleOutOfSyncError();
     error OracleOutOfOrderCommitError();
 
     event OracleUpdated(IOracleProvider newProvider);
