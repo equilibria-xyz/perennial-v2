@@ -52,8 +52,8 @@ contract Oracle is IOracle, Instance {
     function at(uint256 timestamp) public view returns (OracleVersion memory atVersion) {
         if (timestamp == 0) return atVersion;
 
-        IOracleProvider provider;
-        for (uint256 i = uint256(global.current); i > 0; i--) {
+        IOracleProvider provider = oracles[uint256(global.current)].provider;
+        for (uint256 i = uint256(global.current) - 1; i > 0; i--) {
             if (timestamp > uint256(oracles[i].timestamp)) break;
             provider = oracles[i].provider;
         }

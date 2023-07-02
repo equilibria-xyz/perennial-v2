@@ -67,7 +67,8 @@ describe('Vault', () => {
       price: newPrice ?? currentPrice,
       valid: true,
     }
-    oracle.request.returns([newVersion, newVersion.timestamp.add(LEGACY_ORACLE_DELAY)])
+    oracle.status.returns([newVersion, newVersion.timestamp.add(LEGACY_ORACLE_DELAY)])
+    oracle.request.returns()
     oracle.latest.returns(newVersion)
     oracle.current.returns(newVersion.timestamp.add(LEGACY_ORACLE_DELAY))
     oracle.at.whenCalledWith(newVersion.timestamp).returns(newVersion)
@@ -80,7 +81,8 @@ describe('Vault', () => {
       price: newPrice ?? currentPrice,
       valid: true,
     }
-    btcOracle.request.returns([newVersion, newVersion.timestamp.add(LEGACY_ORACLE_DELAY)])
+    btcOracle.status.returns([newVersion, newVersion.timestamp.add(LEGACY_ORACLE_DELAY)])
+    btcOracle.request.returns()
     btcOracle.latest.returns(newVersion)
     btcOracle.current.returns(newVersion.timestamp.add(LEGACY_ORACLE_DELAY))
     btcOracle.at.whenCalledWith(newVersion.timestamp).returns(newVersion)
@@ -136,7 +138,8 @@ describe('Vault', () => {
     originalOraclePrice = realVersion.price
 
     oracle = await smock.fake<IOracleProvider>('IOracleProvider')
-    oracle.request.returns([realVersion, realVersion.timestamp.add(LEGACY_ORACLE_DELAY)])
+    oracle.status.returns([realVersion, realVersion.timestamp.add(LEGACY_ORACLE_DELAY)])
+    oracle.request.returns()
     oracle.latest.returns(realVersion)
     oracle.current.returns(realVersion.timestamp.add(LEGACY_ORACLE_DELAY))
     oracle.at.whenCalledWith(realVersion.timestamp).returns(realVersion)
@@ -149,7 +152,8 @@ describe('Vault', () => {
     btcOriginalOraclePrice = btcRealVersion.price
 
     btcOracle = await smock.fake<IOracleProvider>('IOracleProvider')
-    btcOracle.request.returns([btcRealVersion, btcRealVersion.timestamp.add(LEGACY_ORACLE_DELAY)])
+    btcOracle.status.returns([btcRealVersion, btcRealVersion.timestamp.add(LEGACY_ORACLE_DELAY)])
+    btcOracle.request.returns()
     btcOracle.latest.returns(btcRealVersion)
     btcOracle.current.returns(btcRealVersion.timestamp.add(LEGACY_ORACLE_DELAY))
     btcOracle.at.whenCalledWith(btcRealVersion.timestamp).returns(btcRealVersion)

@@ -24,6 +24,8 @@ function mockVersion(
 }
 
 // TODO: at tests w/ zero timestamp
+// TODO: at tests w/ current timestamp (un-requested)
+// TODO: at tests w/ timestamp in future
 
 describe('Oracle', () => {
   let owner: SignerWithAddress

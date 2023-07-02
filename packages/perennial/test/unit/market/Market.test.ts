@@ -461,7 +461,8 @@ describe.only('Market', () => {
           oracle.at.whenCalledWith(ORACLE_VERSION_0.timestamp).returns(ORACLE_VERSION_0)
           oracle.at.whenCalledWith(ORACLE_VERSION_1.timestamp).returns(ORACLE_VERSION_1)
 
-          oracle.request.returns([ORACLE_VERSION_1, ORACLE_VERSION_2.timestamp])
+          oracle.status.returns([ORACLE_VERSION_1, ORACLE_VERSION_2.timestamp])
+          oracle.request.returns()
         })
 
         context('no position', async () => {
@@ -646,7 +647,8 @@ describe.only('Market', () => {
             })
 
             oracle.at.whenCalledWith(ORACLE_VERSION_2.timestamp).returns(ORACLE_VERSION_2)
-            oracle.request.returns([ORACLE_VERSION_2, ORACLE_VERSION_3.timestamp])
+            oracle.status.returns([ORACLE_VERSION_2, ORACLE_VERSION_3.timestamp])
+            oracle.request.returns()
 
             await market.connect(user).update0(user.address, 0)
 
@@ -783,7 +785,8 @@ describe.only('Market', () => {
                 .withArgs(user.address, ORACLE_VERSION_2.timestamp, POSITION, 0, 0, COLLATERAL, false)
 
               oracle.at.whenCalledWith(ORACLE_VERSION_2.timestamp).returns(ORACLE_VERSION_2)
-              oracle.request.returns([ORACLE_VERSION_2, ORACLE_VERSION_3.timestamp])
+              oracle.status.returns([ORACLE_VERSION_2, ORACLE_VERSION_3.timestamp])
+              oracle.request.returns()
 
               await market.connect(user).update0(user.address, 0)
 
@@ -912,7 +915,8 @@ describe.only('Market', () => {
                 .withArgs(user.address, ORACLE_VERSION_2.timestamp, POSITION.mul(2), 0, 0, 0, false)
 
               oracle.at.whenCalledWith(ORACLE_VERSION_2.timestamp).returns(ORACLE_VERSION_2)
-              oracle.request.returns([ORACLE_VERSION_2, ORACLE_VERSION_3.timestamp])
+              oracle.status.returns([ORACLE_VERSION_2, ORACLE_VERSION_3.timestamp])
+              oracle.request.returns()
 
               await market.connect(user).update0(user.address, 0)
 
@@ -975,7 +979,8 @@ describe.only('Market', () => {
               await market.connect(user).update(user.address, POSITION, 0, 0, COLLATERAL, false)
 
               oracle.at.whenCalledWith(ORACLE_VERSION_2.timestamp).returns(ORACLE_VERSION_2)
-              oracle.request.returns([ORACLE_VERSION_2, ORACLE_VERSION_3.timestamp])
+              oracle.status.returns([ORACLE_VERSION_2, ORACLE_VERSION_3.timestamp])
+              oracle.request.returns()
 
               await expect(market.connect(user).update(user.address, POSITION.mul(2), 0, 0, 0, false))
                 .to.emit(market, 'Updated')
@@ -1040,14 +1045,16 @@ describe.only('Market', () => {
               await market.connect(user).update(user.address, POSITION, 0, 0, COLLATERAL, false)
 
               oracle.at.whenCalledWith(ORACLE_VERSION_2.timestamp).returns(ORACLE_VERSION_2)
-              oracle.request.returns([ORACLE_VERSION_2, ORACLE_VERSION_3.timestamp])
+              oracle.status.returns([ORACLE_VERSION_2, ORACLE_VERSION_3.timestamp])
+              oracle.request.returns()
 
               await expect(market.connect(user).update(user.address, POSITION.mul(2), 0, 0, 0, false))
                 .to.emit(market, 'Updated')
                 .withArgs(user.address, ORACLE_VERSION_3.timestamp, POSITION.mul(2), 0, 0, 0, false)
 
               oracle.at.whenCalledWith(ORACLE_VERSION_3.timestamp).returns(ORACLE_VERSION_3)
-              oracle.request.returns([ORACLE_VERSION_3, ORACLE_VERSION_4.timestamp])
+              oracle.status.returns([ORACLE_VERSION_3, ORACLE_VERSION_4.timestamp])
+              oracle.request.returns()
 
               await market.connect(user).update0(user.address, 0)
 
@@ -1113,7 +1120,8 @@ describe.only('Market', () => {
 
               oracle.at.whenCalledWith(ORACLE_VERSION_2.timestamp).returns(ORACLE_VERSION_2)
               oracle.at.whenCalledWith(ORACLE_VERSION_3.timestamp).returns(ORACLE_VERSION_3)
-              oracle.request.returns([ORACLE_VERSION_3, ORACLE_VERSION_4.timestamp])
+              oracle.status.returns([ORACLE_VERSION_3, ORACLE_VERSION_4.timestamp])
+              oracle.request.returns()
 
               await market.connect(user).update0(user.address, 0)
 
@@ -1302,7 +1310,8 @@ describe.only('Market', () => {
             context('settles first', async () => {
               beforeEach(async () => {
                 oracle.at.whenCalledWith(ORACLE_VERSION_2.timestamp).returns(ORACLE_VERSION_2)
-                oracle.request.returns([ORACLE_VERSION_2, ORACLE_VERSION_3.timestamp])
+                oracle.status.returns([ORACLE_VERSION_2, ORACLE_VERSION_3.timestamp])
+                oracle.request.returns()
 
                 await market.connect(user).update0(user.address, 0)
               })
@@ -1373,7 +1382,8 @@ describe.only('Market', () => {
                   .withArgs(user.address, ORACLE_VERSION_3.timestamp, 0, 0, 0, 0, false)
 
                 oracle.at.whenCalledWith(ORACLE_VERSION_3.timestamp).returns(ORACLE_VERSION_3)
-                oracle.request.returns([ORACLE_VERSION_3, ORACLE_VERSION_4.timestamp])
+                oracle.status.returns([ORACLE_VERSION_3, ORACLE_VERSION_4.timestamp])
+                oracle.request.returns()
 
                 await market.connect(user).update0(user.address, 0)
 
@@ -1502,7 +1512,8 @@ describe.only('Market', () => {
                   .withArgs(user.address, ORACLE_VERSION_3.timestamp, 0, 0, 0, 0, false)
 
                 oracle.at.whenCalledWith(ORACLE_VERSION_3.timestamp).returns(ORACLE_VERSION_3)
-                oracle.request.returns([ORACLE_VERSION_3, ORACLE_VERSION_4.timestamp])
+                oracle.status.returns([ORACLE_VERSION_3, ORACLE_VERSION_4.timestamp])
+                oracle.request.returns()
 
                 await market.connect(user).update0(user.address, 0)
 
@@ -1565,7 +1576,8 @@ describe.only('Market', () => {
                 await market.connect(user).update(user.address, POSITION.div(2), 0, 0, 0, false)
 
                 oracle.at.whenCalledWith(ORACLE_VERSION_3.timestamp).returns(ORACLE_VERSION_3)
-                oracle.request.returns([ORACLE_VERSION_3, ORACLE_VERSION_4.timestamp])
+                oracle.status.returns([ORACLE_VERSION_3, ORACLE_VERSION_4.timestamp])
+                oracle.request.returns()
 
                 await expect(market.connect(user).update(user.address, 0, 0, 0, 0, false))
                   .to.emit(market, 'Updated')
@@ -1630,14 +1642,16 @@ describe.only('Market', () => {
                 await market.connect(user).update(user.address, POSITION.div(2), 0, 0, 0, false)
 
                 oracle.at.whenCalledWith(ORACLE_VERSION_3.timestamp).returns(ORACLE_VERSION_3)
-                oracle.request.returns([ORACLE_VERSION_3, ORACLE_VERSION_4.timestamp])
+                oracle.status.returns([ORACLE_VERSION_3, ORACLE_VERSION_4.timestamp])
+                oracle.request.returns()
 
                 await expect(market.connect(user).update(user.address, 0, 0, 0, 0, false))
                   .to.emit(market, 'Updated')
                   .withArgs(user.address, ORACLE_VERSION_4.timestamp, 0, 0, 0, 0, false)
 
                 oracle.at.whenCalledWith(ORACLE_VERSION_4.timestamp).returns(ORACLE_VERSION_4)
-                oracle.request.returns([ORACLE_VERSION_4, ORACLE_VERSION_5.timestamp])
+                oracle.status.returns([ORACLE_VERSION_4, ORACLE_VERSION_5.timestamp])
+                oracle.request.returns()
 
                 await market.connect(user).update0(user.address, 0)
 
@@ -1704,7 +1718,8 @@ describe.only('Market', () => {
                 oracle.at.whenCalledWith(ORACLE_VERSION_3.timestamp).returns(ORACLE_VERSION_3)
 
                 oracle.at.whenCalledWith(ORACLE_VERSION_4.timestamp).returns(ORACLE_VERSION_4)
-                oracle.request.returns([ORACLE_VERSION_4, ORACLE_VERSION_5.timestamp])
+                oracle.status.returns([ORACLE_VERSION_4, ORACLE_VERSION_5.timestamp])
+                oracle.request.returns()
 
                 await market.connect(user).update0(user.address, 0)
 
@@ -1844,7 +1859,8 @@ describe.only('Market', () => {
                   .withArgs(user.address, ORACLE_VERSION_2.timestamp, 0, POSITION, 0, COLLATERAL, false)
 
                 oracle.at.whenCalledWith(ORACLE_VERSION_2.timestamp).returns(ORACLE_VERSION_2)
-                oracle.request.returns([ORACLE_VERSION_2, ORACLE_VERSION_3.timestamp])
+                oracle.status.returns([ORACLE_VERSION_2, ORACLE_VERSION_3.timestamp])
+                oracle.request.returns()
 
                 await market.connect(user).update0(user.address, 0)
 
@@ -1973,7 +1989,8 @@ describe.only('Market', () => {
                   .withArgs(user.address, ORACLE_VERSION_2.timestamp, 0, POSITION, 0, 0, false)
 
                 oracle.at.whenCalledWith(ORACLE_VERSION_2.timestamp).returns(ORACLE_VERSION_2)
-                oracle.request.returns([ORACLE_VERSION_2, ORACLE_VERSION_3.timestamp])
+                oracle.status.returns([ORACLE_VERSION_2, ORACLE_VERSION_3.timestamp])
+                oracle.request.returns()
 
                 await market.connect(user).update0(user.address, 0)
 
@@ -2036,7 +2053,8 @@ describe.only('Market', () => {
                 await market.connect(user).update(user.address, 0, POSITION.div(2), 0, COLLATERAL, false)
 
                 oracle.at.whenCalledWith(ORACLE_VERSION_2.timestamp).returns(ORACLE_VERSION_2)
-                oracle.request.returns([ORACLE_VERSION_2, ORACLE_VERSION_3.timestamp])
+                oracle.status.returns([ORACLE_VERSION_2, ORACLE_VERSION_3.timestamp])
+                oracle.request.returns()
 
                 await expect(market.connect(user).update(user.address, 0, POSITION, 0, 0, false))
                   .to.emit(market, 'Updated')
@@ -2101,14 +2119,16 @@ describe.only('Market', () => {
                 await market.connect(user).update(user.address, 0, POSITION.div(2), 0, COLLATERAL, false)
 
                 oracle.at.whenCalledWith(ORACLE_VERSION_2.timestamp).returns(ORACLE_VERSION_2)
-                oracle.request.returns([ORACLE_VERSION_2, ORACLE_VERSION_3.timestamp])
+                oracle.status.returns([ORACLE_VERSION_2, ORACLE_VERSION_3.timestamp])
+                oracle.request.returns()
 
                 await expect(market.connect(user).update(user.address, 0, POSITION, 0, 0, false))
                   .to.emit(market, 'Updated')
                   .withArgs(user.address, ORACLE_VERSION_3.timestamp, 0, POSITION, 0, 0, false)
 
                 oracle.at.whenCalledWith(ORACLE_VERSION_3.timestamp).returns(ORACLE_VERSION_3)
-                oracle.request.returns([ORACLE_VERSION_3, ORACLE_VERSION_4.timestamp])
+                oracle.status.returns([ORACLE_VERSION_3, ORACLE_VERSION_4.timestamp])
+                oracle.request.returns()
 
                 await market.connect(user).update0(user.address, 0)
                 await market.connect(userB).update0(userB.address, 0)
@@ -2202,7 +2222,8 @@ describe.only('Market', () => {
                 oracle.at.whenCalledWith(ORACLE_VERSION_2.timestamp).returns(ORACLE_VERSION_2)
 
                 oracle.at.whenCalledWith(ORACLE_VERSION_3.timestamp).returns(ORACLE_VERSION_3)
-                oracle.request.returns([ORACLE_VERSION_3, ORACLE_VERSION_4.timestamp])
+                oracle.status.returns([ORACLE_VERSION_3, ORACLE_VERSION_4.timestamp])
+                oracle.request.returns()
 
                 await market.connect(user).update0(user.address, 0)
                 await market.connect(userB).update0(userB.address, 0)
@@ -2302,7 +2323,8 @@ describe.only('Market', () => {
                 oracle.at.whenCalledWith(ORACLE_VERSION_2.timestamp).returns(ORACLE_VERSION_2)
 
                 oracle.at.whenCalledWith(ORACLE_VERSION_3.timestamp).returns(ORACLE_VERSION_3)
-                oracle.request.returns([ORACLE_VERSION_3, ORACLE_VERSION_4.timestamp])
+                oracle.status.returns([ORACLE_VERSION_3, ORACLE_VERSION_4.timestamp])
+                oracle.request.returns()
 
                 await market.connect(user).update0(user.address, 0)
                 await market.connect(userB).update0(userB.address, 0)
@@ -2395,7 +2417,8 @@ describe.only('Market', () => {
 
               it('settles opens the position and settles later with fee', async () => {
                 oracle.at.whenCalledWith(ORACLE_VERSION_2.timestamp).returns(ORACLE_VERSION_2)
-                oracle.request.returns([ORACLE_VERSION_2, ORACLE_VERSION_3.timestamp])
+                oracle.status.returns([ORACLE_VERSION_2, ORACLE_VERSION_3.timestamp])
+                oracle.request.returns()
 
                 await market.connect(user).update0(user.address, 0)
 
@@ -2412,7 +2435,8 @@ describe.only('Market', () => {
                 oracle.at.whenCalledWith(ORACLE_VERSION_3.timestamp).returns(ORACLE_VERSION_3)
 
                 oracle.at.whenCalledWith(ORACLE_VERSION_4.timestamp).returns(ORACLE_VERSION_4)
-                oracle.request.returns([ORACLE_VERSION_4, ORACLE_VERSION_5.timestamp])
+                oracle.status.returns([ORACLE_VERSION_4, ORACLE_VERSION_5.timestamp])
+                oracle.request.returns()
 
                 await market.connect(user).update0(user.address, 0)
                 await market.connect(userB).update0(userB.address, 0)
@@ -2634,7 +2658,8 @@ describe.only('Market', () => {
               context('settles first', async () => {
                 beforeEach(async () => {
                   oracle.at.whenCalledWith(ORACLE_VERSION_2.timestamp).returns(ORACLE_VERSION_2)
-                  oracle.request.returns([ORACLE_VERSION_2, ORACLE_VERSION_3.timestamp])
+                  oracle.status.returns([ORACLE_VERSION_2, ORACLE_VERSION_3.timestamp])
+                  oracle.request.returns()
 
                   await market.connect(user).update0(user.address, 0)
                 })
@@ -2705,7 +2730,8 @@ describe.only('Market', () => {
                     .withArgs(user.address, ORACLE_VERSION_3.timestamp, 0, 0, 0, 0, false)
 
                   oracle.at.whenCalledWith(ORACLE_VERSION_3.timestamp).returns(ORACLE_VERSION_3)
-                  oracle.request.returns([ORACLE_VERSION_3, ORACLE_VERSION_4.timestamp])
+                  oracle.status.returns([ORACLE_VERSION_3, ORACLE_VERSION_4.timestamp])
+                  oracle.request.returns()
 
                   await market.connect(user).update0(user.address, 0)
                   await market.connect(userB).update0(userB.address, 0)
@@ -2863,7 +2889,8 @@ describe.only('Market', () => {
                     .withArgs(user.address, ORACLE_VERSION_3.timestamp, 0, 0, 0, 0, false)
 
                   oracle.at.whenCalledWith(ORACLE_VERSION_3.timestamp).returns(ORACLE_VERSION_3)
-                  oracle.request.returns([ORACLE_VERSION_3, ORACLE_VERSION_4.timestamp])
+                  oracle.status.returns([ORACLE_VERSION_3, ORACLE_VERSION_4.timestamp])
+                  oracle.request.returns()
 
                   await market.connect(user).update0(user.address, 0)
                   await market.connect(userB).update0(userB.address, 0)
@@ -2955,7 +2982,8 @@ describe.only('Market', () => {
                   await market.connect(user).update(user.address, 0, POSITION.div(4), 0, 0, false)
 
                   oracle.at.whenCalledWith(ORACLE_VERSION_3.timestamp).returns(ORACLE_VERSION_3)
-                  oracle.request.returns([ORACLE_VERSION_3, ORACLE_VERSION_4.timestamp])
+                  oracle.status.returns([ORACLE_VERSION_3, ORACLE_VERSION_4.timestamp])
+                  oracle.request.returns()
 
                   await expect(market.connect(user).update(user.address, 0, 0, 0, 0, false))
                     .to.emit(market, 'Updated')
@@ -3051,14 +3079,16 @@ describe.only('Market', () => {
                   await market.connect(user).update(user.address, 0, POSITION.div(4), 0, 0, false)
 
                   oracle.at.whenCalledWith(ORACLE_VERSION_3.timestamp).returns(ORACLE_VERSION_3)
-                  oracle.request.returns([ORACLE_VERSION_3, ORACLE_VERSION_4.timestamp])
+                  oracle.status.returns([ORACLE_VERSION_3, ORACLE_VERSION_4.timestamp])
+                  oracle.request.returns()
 
                   await expect(market.connect(user).update(user.address, 0, 0, 0, 0, false))
                     .to.emit(market, 'Updated')
                     .withArgs(user.address, ORACLE_VERSION_4.timestamp, 0, 0, 0, 0, false)
 
                   oracle.at.whenCalledWith(ORACLE_VERSION_4.timestamp).returns(ORACLE_VERSION_4)
-                  oracle.request.returns([ORACLE_VERSION_4, ORACLE_VERSION_5.timestamp])
+                  oracle.status.returns([ORACLE_VERSION_4, ORACLE_VERSION_5.timestamp])
+                  oracle.request.returns()
 
                   await market.connect(user).update0(user.address, 0)
                   await market.connect(userB).update0(userB.address, 0)
@@ -3185,7 +3215,8 @@ describe.only('Market', () => {
                   oracle.at.whenCalledWith(ORACLE_VERSION_3.timestamp).returns(ORACLE_VERSION_3)
 
                   oracle.at.whenCalledWith(ORACLE_VERSION_4.timestamp).returns(ORACLE_VERSION_4)
-                  oracle.request.returns([ORACLE_VERSION_4, ORACLE_VERSION_5.timestamp])
+                  oracle.status.returns([ORACLE_VERSION_4, ORACLE_VERSION_5.timestamp])
+                  oracle.request.returns()
 
                   await market.connect(user).update0(user.address, 0)
                   await market.connect(userB).update0(userB.address, 0)
@@ -3287,7 +3318,8 @@ describe.only('Market', () => {
                   oracle.at.whenCalledWith(ORACLE_VERSION_3.timestamp).returns(ORACLE_VERSION_3)
 
                   oracle.at.whenCalledWith(ORACLE_VERSION_4.timestamp).returns(ORACLE_VERSION_4)
-                  oracle.request.returns([ORACLE_VERSION_4, ORACLE_VERSION_5.timestamp])
+                  oracle.status.returns([ORACLE_VERSION_4, ORACLE_VERSION_5.timestamp])
+                  oracle.request.returns()
 
                   await market.connect(user).update0(user.address, 0)
                   await market.connect(userB).update0(userB.address, 0)
@@ -3390,7 +3422,8 @@ describe.only('Market', () => {
               await market.connect(user).update(user.address, 0, POSITION.div(2), 0, COLLATERAL, false)
 
               oracle.at.whenCalledWith(ORACLE_VERSION_2.timestamp).returns(ORACLE_VERSION_2)
-              oracle.request.returns([ORACLE_VERSION_2, ORACLE_VERSION_3.timestamp])
+              oracle.status.returns([ORACLE_VERSION_2, ORACLE_VERSION_3.timestamp])
+              oracle.request.returns()
 
               await market.connect(user).update0(user.address, 0)
               await market.connect(userB).update0(userB.address, 0)
@@ -3404,7 +3437,8 @@ describe.only('Market', () => {
               }
 
               oracle.at.whenCalledWith(oracleVersionSameTimestamp.timestamp).returns(oracleVersionSameTimestamp)
-              oracle.request.returns([oracleVersionSameTimestamp, ORACLE_VERSION_3.timestamp])
+              oracle.status.returns([oracleVersionSameTimestamp, ORACLE_VERSION_3.timestamp])
+              oracle.request.returns()
 
               await market.connect(user).update0(user.address, 0)
               await market.connect(userB).update0(userB.address, 0)
@@ -3497,7 +3531,8 @@ describe.only('Market', () => {
                 valid: true,
               }
               oracle.at.whenCalledWith(oracleVersionLowerPrice.timestamp).returns(oracleVersionLowerPrice)
-              oracle.request.returns([oracleVersionLowerPrice, ORACLE_VERSION_4.timestamp])
+              oracle.status.returns([oracleVersionLowerPrice, ORACLE_VERSION_4.timestamp])
+              oracle.request.returns()
 
               await market.connect(user).update0(user.address, 0)
               await market.connect(userB).update0(userB.address, 0)
@@ -3602,7 +3637,8 @@ describe.only('Market', () => {
                 valid: true,
               }
               oracle.at.whenCalledWith(oracleVersionHigherPrice.timestamp).returns(oracleVersionHigherPrice)
-              oracle.request.returns([oracleVersionHigherPrice, ORACLE_VERSION_4.timestamp])
+              oracle.status.returns([oracleVersionHigherPrice, ORACLE_VERSION_4.timestamp])
+              oracle.request.returns()
 
               await market.connect(user).update0(user.address, 0)
               await market.connect(userB).update0(userB.address, 0)
@@ -3711,7 +3747,8 @@ describe.only('Market', () => {
 
               it('with socialization to zero', async () => {
                 oracle.at.whenCalledWith(ORACLE_VERSION_2.timestamp).returns(ORACLE_VERSION_2)
-                oracle.request.returns([ORACLE_VERSION_2, ORACLE_VERSION_3.timestamp])
+                oracle.status.returns([ORACLE_VERSION_2, ORACLE_VERSION_3.timestamp])
+                oracle.request.returns()
 
                 await market.connect(user).update0(user.address, 0)
                 await market.connect(userB).update0(userB.address, 0)
@@ -3725,7 +3762,8 @@ describe.only('Market', () => {
                   valid: true,
                 }
                 oracle.at.whenCalledWith(oracleVersionHigherPrice.timestamp).returns(oracleVersionHigherPrice)
-                oracle.request.returns([oracleVersionHigherPrice, ORACLE_VERSION_4.timestamp])
+                oracle.status.returns([oracleVersionHigherPrice, ORACLE_VERSION_4.timestamp])
+                oracle.request.returns()
 
                 await market.connect(user).update0(user.address, 0)
                 dsu.transfer.whenCalledWith(liquidator.address, EXPECTED_LIQUIDATION_FEE.mul(1e12)).returns(true)
@@ -3738,7 +3776,8 @@ describe.only('Market', () => {
                   .withArgs(userB.address, ORACLE_VERSION_4.timestamp, 0, 0, 0, EXPECTED_LIQUIDATION_FEE.mul(-1), true)
 
                 oracle.at.whenCalledWith(ORACLE_VERSION_4.timestamp).returns(ORACLE_VERSION_4)
-                oracle.request.returns([ORACLE_VERSION_4, ORACLE_VERSION_5.timestamp])
+                oracle.status.returns([ORACLE_VERSION_4, ORACLE_VERSION_5.timestamp])
+                oracle.request.returns()
 
                 await market.connect(user).update0(user.address, 0)
                 await market.connect(userB).update0(userB.address, 0)
@@ -3749,7 +3788,8 @@ describe.only('Market', () => {
                   valid: true,
                 }
                 oracle.at.whenCalledWith(oracleVersionHigherPrice2.timestamp).returns(oracleVersionHigherPrice2)
-                oracle.request.returns([oracleVersionHigherPrice2, oracleVersionHigherPrice2.timestamp + 3600])
+                oracle.status.returns([oracleVersionHigherPrice2, oracleVersionHigherPrice2.timestamp + 3600])
+                oracle.request.returns()
 
                 await market.connect(user).update0(user.address, 0)
                 await market.connect(userB).update0(userB.address, 0)
@@ -3903,7 +3943,8 @@ describe.only('Market', () => {
                 await market.connect(userC).update(userC.address, POSITION.div(4), 0, 0, COLLATERAL, false)
 
                 oracle.at.whenCalledWith(ORACLE_VERSION_2.timestamp).returns(ORACLE_VERSION_2)
-                oracle.request.returns([ORACLE_VERSION_2, ORACLE_VERSION_3.timestamp])
+                oracle.status.returns([ORACLE_VERSION_2, ORACLE_VERSION_3.timestamp])
+                oracle.request.returns()
 
                 await market.connect(user).update0(user.address, 0)
                 await market.connect(userB).update0(userB.address, 0)
@@ -3918,7 +3959,8 @@ describe.only('Market', () => {
                   valid: true,
                 }
                 oracle.at.whenCalledWith(oracleVersionHigherPrice.timestamp).returns(oracleVersionHigherPrice)
-                oracle.request.returns([oracleVersionHigherPrice, ORACLE_VERSION_4.timestamp])
+                oracle.status.returns([oracleVersionHigherPrice, ORACLE_VERSION_4.timestamp])
+                oracle.request.returns()
 
                 await market.connect(user).update0(user.address, 0)
                 await market.connect(userC).update0(userC.address, 0)
@@ -3931,7 +3973,8 @@ describe.only('Market', () => {
                   .withArgs(userB.address, ORACLE_VERSION_4.timestamp, 0, 0, 0, EXPECTED_LIQUIDATION_FEE.mul(-1), true)
 
                 oracle.at.whenCalledWith(ORACLE_VERSION_4.timestamp).returns(ORACLE_VERSION_4)
-                oracle.request.returns([ORACLE_VERSION_4, ORACLE_VERSION_5.timestamp])
+                oracle.status.returns([ORACLE_VERSION_4, ORACLE_VERSION_5.timestamp])
+                oracle.request.returns()
 
                 await market.connect(user).update0(user.address, 0)
                 await market.connect(userB).update0(userB.address, 0)
@@ -3943,7 +3986,8 @@ describe.only('Market', () => {
                   valid: true,
                 }
                 oracle.at.whenCalledWith(oracleVersionHigherPrice2.timestamp).returns(oracleVersionHigherPrice2)
-                oracle.request.returns([oracleVersionHigherPrice2, oracleVersionHigherPrice2.timestamp + 3600])
+                oracle.status.returns([oracleVersionHigherPrice2, oracleVersionHigherPrice2.timestamp + 3600])
+                oracle.request.returns()
 
                 await market.connect(user).update0(user.address, 0)
                 await market.connect(userB).update0(userB.address, 0)
@@ -4143,7 +4187,8 @@ describe.only('Market', () => {
 
               it('with shortfall', async () => {
                 oracle.at.whenCalledWith(ORACLE_VERSION_2.timestamp).returns(ORACLE_VERSION_2)
-                oracle.request.returns([ORACLE_VERSION_2, ORACLE_VERSION_3.timestamp])
+                oracle.status.returns([ORACLE_VERSION_2, ORACLE_VERSION_3.timestamp])
+                oracle.request.returns()
 
                 await market.connect(user).update0(user.address, 0)
                 await market.connect(userB).update0(userB.address, 0)
@@ -4157,7 +4202,8 @@ describe.only('Market', () => {
                   valid: true,
                 }
                 oracle.at.whenCalledWith(oracleVersionHigherPrice.timestamp).returns(oracleVersionHigherPrice)
-                oracle.request.returns([oracleVersionHigherPrice, ORACLE_VERSION_4.timestamp])
+                oracle.status.returns([oracleVersionHigherPrice, ORACLE_VERSION_4.timestamp])
+                oracle.request.returns()
 
                 await market.connect(user).update0(user.address, 0)
                 dsu.transfer.whenCalledWith(liquidator.address, EXPECTED_LIQUIDATION_FEE.mul(1e12)).returns(true)
@@ -4268,7 +4314,8 @@ describe.only('Market', () => {
                   valid: true,
                 }
                 oracle.at.whenCalledWith(oracleVersionHigherPrice2.timestamp).returns(oracleVersionHigherPrice2)
-                oracle.request.returns([oracleVersionHigherPrice2, ORACLE_VERSION_5.timestamp])
+                oracle.status.returns([oracleVersionHigherPrice2, ORACLE_VERSION_5.timestamp])
+                oracle.request.returns()
 
                 const shortfall = parse6decimal('450')
                   .add(EXPECTED_FUNDING_WITHOUT_FEE_1_5_123)
@@ -4321,7 +4368,8 @@ describe.only('Market', () => {
 
               it('default', async () => {
                 oracle.at.whenCalledWith(ORACLE_VERSION_2.timestamp).returns(ORACLE_VERSION_2)
-                oracle.request.returns([ORACLE_VERSION_2, ORACLE_VERSION_3.timestamp])
+                oracle.status.returns([ORACLE_VERSION_2, ORACLE_VERSION_3.timestamp])
+                oracle.request.returns()
 
                 await market.connect(user).update0(user.address, 0)
                 await market.connect(userB).update0(userB.address, 0)
@@ -4335,7 +4383,8 @@ describe.only('Market', () => {
                   valid: true,
                 }
                 oracle.at.whenCalledWith(oracleVersionLowerPrice.timestamp).returns(oracleVersionLowerPrice)
-                oracle.request.returns([oracleVersionLowerPrice, ORACLE_VERSION_4.timestamp])
+                oracle.status.returns([oracleVersionLowerPrice, ORACLE_VERSION_4.timestamp])
+                oracle.request.returns()
 
                 await market.connect(userB).update0(userB.address, 0)
                 dsu.transfer.whenCalledWith(liquidator.address, EXPECTED_LIQUIDATION_FEE.mul(1e12)).returns(true)
@@ -4348,7 +4397,8 @@ describe.only('Market', () => {
                   .withArgs(user.address, ORACLE_VERSION_4.timestamp, 0, 0, 0, EXPECTED_LIQUIDATION_FEE.mul(-1), true)
 
                 oracle.at.whenCalledWith(ORACLE_VERSION_4.timestamp).returns(ORACLE_VERSION_4)
-                oracle.request.returns([ORACLE_VERSION_4, ORACLE_VERSION_5.timestamp])
+                oracle.status.returns([ORACLE_VERSION_4, ORACLE_VERSION_5.timestamp])
+                oracle.request.returns()
 
                 await market.connect(user).update0(user.address, 0)
                 await market.connect(userB).update0(userB.address, 0)
@@ -4359,7 +4409,8 @@ describe.only('Market', () => {
                   valid: true,
                 }
                 oracle.at.whenCalledWith(oracleVersionLowerPrice2.timestamp).returns(oracleVersionLowerPrice2)
-                oracle.request.returns([oracleVersionLowerPrice2, oracleVersionLowerPrice2.timestamp + 3600])
+                oracle.status.returns([oracleVersionLowerPrice2, oracleVersionLowerPrice2.timestamp + 3600])
+                oracle.request.returns()
 
                 await market.connect(user).update0(user.address, 0)
                 await market.connect(userB).update0(userB.address, 0)
@@ -4510,7 +4561,8 @@ describe.only('Market', () => {
                 })
 
                 oracle.at.whenCalledWith(ORACLE_VERSION_2.timestamp).returns(ORACLE_VERSION_2)
-                oracle.request.returns([ORACLE_VERSION_2, ORACLE_VERSION_3.timestamp])
+                oracle.status.returns([ORACLE_VERSION_2, ORACLE_VERSION_3.timestamp])
+                oracle.request.returns()
 
                 await market.connect(user).update0(user.address, 0)
                 await market.connect(userB).update0(userB.address, 0)
@@ -4524,7 +4576,8 @@ describe.only('Market', () => {
                   valid: true,
                 }
                 oracle.at.whenCalledWith(oracleVersionLowerPrice.timestamp).returns(oracleVersionLowerPrice)
-                oracle.request.returns([oracleVersionLowerPrice, ORACLE_VERSION_4.timestamp])
+                oracle.status.returns([oracleVersionLowerPrice, ORACLE_VERSION_4.timestamp])
+                oracle.request.returns()
 
                 await market.connect(userB).update0(userB.address, 0)
                 dsu.transfer.whenCalledWith(liquidator.address, EXPECTED_LIQUIDATION_FEE.mul(1e12)).returns(true)
@@ -4634,7 +4687,8 @@ describe.only('Market', () => {
                   valid: true,
                 }
                 oracle.at.whenCalledWith(oracleVersionLowerPrice2.timestamp).returns(oracleVersionLowerPrice2)
-                oracle.request.returns([oracleVersionLowerPrice2, ORACLE_VERSION_5.timestamp])
+                oracle.status.returns([oracleVersionLowerPrice2, ORACLE_VERSION_5.timestamp])
+                oracle.request.returns()
 
                 const shortfall = parse6decimal('195')
                   .sub(EXPECTED_FUNDING_WITH_FEE_1_5_123.add(EXPECTED_INTEREST_5_123))
@@ -4682,7 +4736,8 @@ describe.only('Market', () => {
               await market.connect(userB).update(userB.address, 0, POSITION.div(2), 0, COLLATERAL, false)
 
               oracle.at.whenCalledWith(ORACLE_VERSION_2.timestamp).returns(ORACLE_VERSION_2)
-              oracle.request.returns([ORACLE_VERSION_2, ORACLE_VERSION_3.timestamp])
+              oracle.status.returns([ORACLE_VERSION_2, ORACLE_VERSION_3.timestamp])
+              oracle.request.returns()
 
               await market.connect(user).update0(user.address, 0)
               await market.connect(userB).update0(userB.address, 0)
@@ -4706,7 +4761,8 @@ describe.only('Market', () => {
               oracle.at.whenCalledWith(oracleVersionHigherPrice_0.timestamp).returns(oracleVersionHigherPrice_0)
 
               oracle.at.whenCalledWith(oracleVersionHigherPrice_1.timestamp).returns(oracleVersionHigherPrice_1)
-              oracle.request.returns([oracleVersionHigherPrice_1, ORACLE_VERSION_5.timestamp])
+              oracle.status.returns([oracleVersionHigherPrice_1, ORACLE_VERSION_5.timestamp])
+              oracle.request.returns()
 
               await market.connect(user).update0(user.address, 0)
               await market.connect(userB).update0(userB.address, 0)
@@ -4876,7 +4932,8 @@ describe.only('Market', () => {
                   .withArgs(user.address, ORACLE_VERSION_2.timestamp, 0, 0, POSITION, COLLATERAL, false)
 
                 oracle.at.whenCalledWith(ORACLE_VERSION_2.timestamp).returns(ORACLE_VERSION_2)
-                oracle.request.returns([ORACLE_VERSION_2, ORACLE_VERSION_3.timestamp])
+                oracle.status.returns([ORACLE_VERSION_2, ORACLE_VERSION_3.timestamp])
+                oracle.request.returns()
 
                 await market.connect(user).update0(user.address, 0)
 
@@ -5005,7 +5062,8 @@ describe.only('Market', () => {
                   .withArgs(user.address, ORACLE_VERSION_2.timestamp, 0, 0, POSITION, 0, false)
 
                 oracle.at.whenCalledWith(ORACLE_VERSION_2.timestamp).returns(ORACLE_VERSION_2)
-                oracle.request.returns([ORACLE_VERSION_2, ORACLE_VERSION_3.timestamp])
+                oracle.status.returns([ORACLE_VERSION_2, ORACLE_VERSION_3.timestamp])
+                oracle.request.returns()
 
                 await market.connect(user).update0(user.address, 0)
 
@@ -5068,7 +5126,8 @@ describe.only('Market', () => {
                 await market.connect(user).update(user.address, 0, 0, POSITION.div(2), COLLATERAL, false)
 
                 oracle.at.whenCalledWith(ORACLE_VERSION_2.timestamp).returns(ORACLE_VERSION_2)
-                oracle.request.returns([ORACLE_VERSION_2, ORACLE_VERSION_3.timestamp])
+                oracle.status.returns([ORACLE_VERSION_2, ORACLE_VERSION_3.timestamp])
+                oracle.request.returns()
 
                 await expect(market.connect(user).update(user.address, 0, 0, POSITION, 0, false))
                   .to.emit(market, 'Updated')
@@ -5133,14 +5192,16 @@ describe.only('Market', () => {
                 await market.connect(user).update(user.address, 0, 0, POSITION.div(2), COLLATERAL, false)
 
                 oracle.at.whenCalledWith(ORACLE_VERSION_2.timestamp).returns(ORACLE_VERSION_2)
-                oracle.request.returns([ORACLE_VERSION_2, ORACLE_VERSION_3.timestamp])
+                oracle.status.returns([ORACLE_VERSION_2, ORACLE_VERSION_3.timestamp])
+                oracle.request.returns()
 
                 await expect(market.connect(user).update(user.address, 0, 0, POSITION, 0, false))
                   .to.emit(market, 'Updated')
                   .withArgs(user.address, ORACLE_VERSION_3.timestamp, 0, 0, POSITION, 0, false)
 
                 oracle.at.whenCalledWith(ORACLE_VERSION_3.timestamp).returns(ORACLE_VERSION_3)
-                oracle.request.returns([ORACLE_VERSION_3, ORACLE_VERSION_4.timestamp])
+                oracle.status.returns([ORACLE_VERSION_3, ORACLE_VERSION_4.timestamp])
+                oracle.request.returns()
 
                 await market.connect(user).update0(user.address, 0)
                 await market.connect(userB).update0(userB.address, 0)
@@ -5234,7 +5295,8 @@ describe.only('Market', () => {
                 oracle.at.whenCalledWith(ORACLE_VERSION_2.timestamp).returns(ORACLE_VERSION_2)
 
                 oracle.at.whenCalledWith(ORACLE_VERSION_3.timestamp).returns(ORACLE_VERSION_3)
-                oracle.request.returns([ORACLE_VERSION_3, ORACLE_VERSION_5.timestamp])
+                oracle.status.returns([ORACLE_VERSION_3, ORACLE_VERSION_5.timestamp])
+                oracle.request.returns()
 
                 await market.connect(user).update0(user.address, 0)
                 await market.connect(userB).update0(userB.address, 0)
@@ -5337,7 +5399,8 @@ describe.only('Market', () => {
                 oracle.at.whenCalledWith(ORACLE_VERSION_2.timestamp).returns(ORACLE_VERSION_2)
 
                 oracle.at.whenCalledWith(ORACLE_VERSION_3.timestamp).returns(ORACLE_VERSION_3)
-                oracle.request.returns([ORACLE_VERSION_3, ORACLE_VERSION_4.timestamp])
+                oracle.status.returns([ORACLE_VERSION_3, ORACLE_VERSION_4.timestamp])
+                oracle.request.returns()
 
                 await market.connect(user).update0(user.address, 0)
                 await market.connect(userB).update0(userB.address, 0)
@@ -5430,7 +5493,8 @@ describe.only('Market', () => {
 
               it('settles opens the position and settles later with fee', async () => {
                 oracle.at.whenCalledWith(ORACLE_VERSION_2.timestamp).returns(ORACLE_VERSION_2)
-                oracle.request.returns([ORACLE_VERSION_2, ORACLE_VERSION_3.timestamp])
+                oracle.status.returns([ORACLE_VERSION_2, ORACLE_VERSION_3.timestamp])
+                oracle.request.returns()
 
                 await market.connect(user).update0(user.address, 0)
 
@@ -5450,7 +5514,8 @@ describe.only('Market', () => {
                 oracle.at.whenCalledWith(ORACLE_VERSION_3.timestamp).returns(ORACLE_VERSION_3)
 
                 oracle.at.whenCalledWith(ORACLE_VERSION_4.timestamp).returns(ORACLE_VERSION_4)
-                oracle.request.returns([ORACLE_VERSION_4, ORACLE_VERSION_5.timestamp])
+                oracle.status.returns([ORACLE_VERSION_4, ORACLE_VERSION_5.timestamp])
+                oracle.request.returns()
 
                 await market.connect(user).update0(user.address, 0)
                 await market.connect(userB).update0(userB.address, 0)
@@ -5671,7 +5736,8 @@ describe.only('Market', () => {
               context('settles first', async () => {
                 beforeEach(async () => {
                   oracle.at.whenCalledWith(ORACLE_VERSION_2.timestamp).returns(ORACLE_VERSION_2)
-                  oracle.request.returns([ORACLE_VERSION_2, ORACLE_VERSION_3.timestamp])
+                  oracle.status.returns([ORACLE_VERSION_2, ORACLE_VERSION_3.timestamp])
+                  oracle.request.returns()
 
                   await market.connect(user).update0(user.address, 0)
                 })
@@ -5742,7 +5808,8 @@ describe.only('Market', () => {
                     .withArgs(user.address, ORACLE_VERSION_3.timestamp, 0, 0, 0, 0, false)
 
                   oracle.at.whenCalledWith(ORACLE_VERSION_3.timestamp).returns(ORACLE_VERSION_3)
-                  oracle.request.returns([ORACLE_VERSION_3, ORACLE_VERSION_4.timestamp])
+                  oracle.status.returns([ORACLE_VERSION_3, ORACLE_VERSION_4.timestamp])
+                  oracle.request.returns()
 
                   await market.connect(user).update0(user.address, 0)
                   await market.connect(userB).update0(userB.address, 0)
@@ -5900,7 +5967,8 @@ describe.only('Market', () => {
                     .withArgs(user.address, ORACLE_VERSION_3.timestamp, 0, 0, 0, 0, false)
 
                   oracle.at.whenCalledWith(ORACLE_VERSION_3.timestamp).returns(ORACLE_VERSION_3)
-                  oracle.request.returns([ORACLE_VERSION_3, ORACLE_VERSION_4.timestamp])
+                  oracle.status.returns([ORACLE_VERSION_3, ORACLE_VERSION_4.timestamp])
+                  oracle.request.returns()
 
                   await market.connect(user).update0(user.address, 0)
                   await market.connect(userB).update0(userB.address, 0)
@@ -5992,7 +6060,8 @@ describe.only('Market', () => {
                   await market.connect(user).update(user.address, 0, 0, POSITION.div(4), 0, false)
 
                   oracle.at.whenCalledWith(ORACLE_VERSION_3.timestamp).returns(ORACLE_VERSION_3)
-                  oracle.request.returns([ORACLE_VERSION_3, ORACLE_VERSION_4.timestamp])
+                  oracle.status.returns([ORACLE_VERSION_3, ORACLE_VERSION_4.timestamp])
+                  oracle.request.returns()
 
                   await expect(market.connect(user).update(user.address, 0, 0, 0, 0, false))
                     .to.emit(market, 'Updated')
@@ -6087,14 +6156,16 @@ describe.only('Market', () => {
                   await market.connect(user).update(user.address, 0, 0, POSITION.div(4), 0, false)
 
                   oracle.at.whenCalledWith(ORACLE_VERSION_3.timestamp).returns(ORACLE_VERSION_3)
-                  oracle.request.returns([ORACLE_VERSION_3, ORACLE_VERSION_4.timestamp])
+                  oracle.status.returns([ORACLE_VERSION_3, ORACLE_VERSION_4.timestamp])
+                  oracle.request.returns()
 
                   await expect(market.connect(user).update(user.address, 0, 0, 0, 0, false))
                     .to.emit(market, 'Updated')
                     .withArgs(user.address, ORACLE_VERSION_4.timestamp, 0, 0, 0, 0, false)
 
                   oracle.at.whenCalledWith(ORACLE_VERSION_4.timestamp).returns(ORACLE_VERSION_4)
-                  oracle.request.returns([ORACLE_VERSION_4, ORACLE_VERSION_5.timestamp])
+                  oracle.status.returns([ORACLE_VERSION_4, ORACLE_VERSION_5.timestamp])
+                  oracle.request.returns()
 
                   await market.connect(user).update0(user.address, 0)
                   await market.connect(userB).update0(userB.address, 0)
@@ -6221,7 +6292,8 @@ describe.only('Market', () => {
                   oracle.at.whenCalledWith(ORACLE_VERSION_3.timestamp).returns(ORACLE_VERSION_3)
 
                   oracle.at.whenCalledWith(ORACLE_VERSION_4.timestamp).returns(ORACLE_VERSION_4)
-                  oracle.request.returns([ORACLE_VERSION_4, ORACLE_VERSION_5.timestamp])
+                  oracle.status.returns([ORACLE_VERSION_4, ORACLE_VERSION_5.timestamp])
+                  oracle.request.returns()
 
                   await market.connect(user).update0(user.address, 0)
                   await market.connect(userB).update0(userB.address, 0)
@@ -6324,7 +6396,8 @@ describe.only('Market', () => {
                   oracle.at.whenCalledWith(ORACLE_VERSION_3.timestamp).returns(ORACLE_VERSION_3)
 
                   oracle.at.whenCalledWith(ORACLE_VERSION_4.timestamp).returns(ORACLE_VERSION_4)
-                  oracle.request.returns([ORACLE_VERSION_4, ORACLE_VERSION_5.timestamp])
+                  oracle.status.returns([ORACLE_VERSION_4, ORACLE_VERSION_5.timestamp])
+                  oracle.request.returns()
 
                   await market.connect(user).update0(user.address, 0)
                   await market.connect(userB).update0(userB.address, 0)
@@ -6427,7 +6500,8 @@ describe.only('Market', () => {
               await market.connect(user).update(user.address, 0, 0, POSITION.div(2), COLLATERAL, false)
 
               oracle.at.whenCalledWith(ORACLE_VERSION_2.timestamp).returns(ORACLE_VERSION_2)
-              oracle.request.returns([ORACLE_VERSION_2, ORACLE_VERSION_3.timestamp])
+              oracle.status.returns([ORACLE_VERSION_2, ORACLE_VERSION_3.timestamp])
+              oracle.request.returns()
 
               await market.connect(user).update0(user.address, 0)
               await market.connect(userB).update0(userB.address, 0)
@@ -6441,7 +6515,8 @@ describe.only('Market', () => {
               }
 
               oracle.at.whenCalledWith(oracleVersionSameTimestamp.timestamp).returns(oracleVersionSameTimestamp)
-              oracle.request.returns([oracleVersionSameTimestamp, ORACLE_VERSION_3.timestamp])
+              oracle.status.returns([oracleVersionSameTimestamp, ORACLE_VERSION_3.timestamp])
+              oracle.request.returns()
 
               await market.connect(user).update0(user.address, 0)
               await market.connect(userB).update0(userB.address, 0)
@@ -6534,7 +6609,8 @@ describe.only('Market', () => {
                 valid: true,
               }
               oracle.at.whenCalledWith(oracleVersionLowerPrice.timestamp).returns(oracleVersionLowerPrice)
-              oracle.request.returns([oracleVersionLowerPrice, ORACLE_VERSION_4.timestamp])
+              oracle.status.returns([oracleVersionLowerPrice, ORACLE_VERSION_4.timestamp])
+              oracle.request.returns()
 
               await market.connect(user).update0(user.address, 0)
               await market.connect(userB).update0(userB.address, 0)
@@ -6640,7 +6716,8 @@ describe.only('Market', () => {
                 valid: true,
               }
               oracle.at.whenCalledWith(oracleVersionHigherPrice.timestamp).returns(oracleVersionHigherPrice)
-              oracle.request.returns([oracleVersionHigherPrice, ORACLE_VERSION_4.timestamp])
+              oracle.status.returns([oracleVersionHigherPrice, ORACLE_VERSION_4.timestamp])
+              oracle.request.returns()
 
               await market.connect(user).update0(user.address, 0)
               await market.connect(userB).update0(userB.address, 0)
@@ -6748,7 +6825,8 @@ describe.only('Market', () => {
 
               it('with socialization to zero', async () => {
                 oracle.at.whenCalledWith(ORACLE_VERSION_2.timestamp).returns(ORACLE_VERSION_2)
-                oracle.request.returns([ORACLE_VERSION_2, ORACLE_VERSION_3.timestamp])
+                oracle.status.returns([ORACLE_VERSION_2, ORACLE_VERSION_3.timestamp])
+                oracle.request.returns()
 
                 await market.connect(user).update0(user.address, 0)
                 await market.connect(userB).update0(userB.address, 0)
@@ -6762,7 +6840,8 @@ describe.only('Market', () => {
                   valid: true,
                 }
                 oracle.at.whenCalledWith(oracleVersionLowerPrice.timestamp).returns(oracleVersionLowerPrice)
-                oracle.request.returns([oracleVersionLowerPrice, ORACLE_VERSION_4.timestamp])
+                oracle.status.returns([oracleVersionLowerPrice, ORACLE_VERSION_4.timestamp])
+                oracle.request.returns()
 
                 await market.connect(user).update0(user.address, 0)
                 dsu.transfer.whenCalledWith(liquidator.address, EXPECTED_LIQUIDATION_FEE.mul(1e12)).returns(true)
@@ -6775,7 +6854,8 @@ describe.only('Market', () => {
                   .withArgs(userB.address, ORACLE_VERSION_4.timestamp, 0, 0, 0, EXPECTED_LIQUIDATION_FEE.mul(-1), true)
 
                 oracle.at.whenCalledWith(ORACLE_VERSION_4.timestamp).returns(ORACLE_VERSION_4)
-                oracle.request.returns([ORACLE_VERSION_4, ORACLE_VERSION_5.timestamp])
+                oracle.status.returns([ORACLE_VERSION_4, ORACLE_VERSION_5.timestamp])
+                oracle.request.returns()
 
                 await market.connect(user).update0(user.address, 0)
                 await market.connect(userB).update0(userB.address, 0)
@@ -6786,7 +6866,8 @@ describe.only('Market', () => {
                   valid: true,
                 }
                 oracle.at.whenCalledWith(oracleVersionLowerPrice2.timestamp).returns(oracleVersionLowerPrice2)
-                oracle.request.returns([oracleVersionLowerPrice2, oracleVersionLowerPrice2.timestamp + 3600])
+                oracle.status.returns([oracleVersionLowerPrice2, oracleVersionLowerPrice2.timestamp + 3600])
+                oracle.request.returns()
 
                 await market.connect(user).update0(user.address, 0)
                 await market.connect(userB).update0(userB.address, 0)
@@ -6931,7 +7012,8 @@ describe.only('Market', () => {
                 await market.connect(userC).update(userC.address, POSITION.div(4), 0, 0, COLLATERAL, false)
 
                 oracle.at.whenCalledWith(ORACLE_VERSION_2.timestamp).returns(ORACLE_VERSION_2)
-                oracle.request.returns([ORACLE_VERSION_2, ORACLE_VERSION_3.timestamp])
+                oracle.status.returns([ORACLE_VERSION_2, ORACLE_VERSION_3.timestamp])
+                oracle.request.returns()
 
                 await market.connect(user).update0(user.address, 0)
                 await market.connect(userB).update0(userB.address, 0)
@@ -6961,7 +7043,8 @@ describe.only('Market', () => {
                   valid: true,
                 }
                 oracle.at.whenCalledWith(oracleVersionHigherPrice.timestamp).returns(oracleVersionHigherPrice)
-                oracle.request.returns([oracleVersionHigherPrice, ORACLE_VERSION_4.timestamp])
+                oracle.status.returns([oracleVersionHigherPrice, ORACLE_VERSION_4.timestamp])
+                oracle.request.returns()
 
                 await market.connect(user).update0(user.address, 0)
                 await market.connect(userC).update0(userC.address, 0)
@@ -6974,7 +7057,8 @@ describe.only('Market', () => {
                   .withArgs(userB.address, ORACLE_VERSION_4.timestamp, 0, 0, 0, EXPECTED_LIQUIDATION_FEE.mul(-1), true)
 
                 oracle.at.whenCalledWith(ORACLE_VERSION_4.timestamp).returns(ORACLE_VERSION_4)
-                oracle.request.returns([ORACLE_VERSION_4, ORACLE_VERSION_5.timestamp])
+                oracle.status.returns([ORACLE_VERSION_4, ORACLE_VERSION_5.timestamp])
+                oracle.request.returns()
 
                 await market.connect(user).update0(user.address, 0)
                 await market.connect(userB).update0(userB.address, 0)
@@ -6986,7 +7070,8 @@ describe.only('Market', () => {
                   valid: true,
                 }
                 oracle.at.whenCalledWith(oracleVersionHigherPrice2.timestamp).returns(oracleVersionHigherPrice2)
-                oracle.request.returns([oracleVersionHigherPrice2, oracleVersionHigherPrice2.timestamp + 3600])
+                oracle.status.returns([oracleVersionHigherPrice2, oracleVersionHigherPrice2.timestamp + 3600])
+                oracle.request.returns()
 
                 await market.connect(user).update0(user.address, 0)
                 await market.connect(userB).update0(userB.address, 0)
@@ -7172,7 +7257,8 @@ describe.only('Market', () => {
 
               it('with shortfall', async () => {
                 oracle.at.whenCalledWith(ORACLE_VERSION_2.timestamp).returns(ORACLE_VERSION_2)
-                oracle.request.returns([ORACLE_VERSION_2, ORACLE_VERSION_3.timestamp])
+                oracle.status.returns([ORACLE_VERSION_2, ORACLE_VERSION_3.timestamp])
+                oracle.request.returns()
 
                 await market.connect(user).update0(user.address, 0)
                 await market.connect(userB).update0(userB.address, 0)
@@ -7186,7 +7272,8 @@ describe.only('Market', () => {
                   valid: true,
                 }
                 oracle.at.whenCalledWith(oracleVersionHigherPrice.timestamp).returns(oracleVersionHigherPrice)
-                oracle.request.returns([oracleVersionHigherPrice, ORACLE_VERSION_4.timestamp])
+                oracle.status.returns([oracleVersionHigherPrice, ORACLE_VERSION_4.timestamp])
+                oracle.request.returns()
 
                 await market.connect(user).update0(user.address, 0)
                 dsu.transfer.whenCalledWith(liquidator.address, EXPECTED_LIQUIDATION_FEE.mul(1e12)).returns(true)
@@ -7296,7 +7383,8 @@ describe.only('Market', () => {
                   valid: true,
                 }
                 oracle.at.whenCalledWith(oracleVersionHigherPrice2.timestamp).returns(oracleVersionHigherPrice2)
-                oracle.request.returns([oracleVersionHigherPrice2, ORACLE_VERSION_5.timestamp])
+                oracle.status.returns([oracleVersionHigherPrice2, ORACLE_VERSION_5.timestamp])
+                oracle.request.returns()
 
                 const shortfall = parse6decimal('390')
                   .add(EXPECTED_FUNDING_WITHOUT_FEE_1_5_123.add(EXPECTED_INTEREST_WITHOUT_FEE_5_123))
@@ -7347,7 +7435,8 @@ describe.only('Market', () => {
 
               it('default', async () => {
                 oracle.at.whenCalledWith(ORACLE_VERSION_2.timestamp).returns(ORACLE_VERSION_2)
-                oracle.request.returns([ORACLE_VERSION_2, ORACLE_VERSION_3.timestamp])
+                oracle.status.returns([ORACLE_VERSION_2, ORACLE_VERSION_3.timestamp])
+                oracle.request.returns()
 
                 await market.connect(user).update0(user.address, 0)
                 await market.connect(userB).update0(userB.address, 0)
@@ -7361,7 +7450,8 @@ describe.only('Market', () => {
                   valid: true,
                 }
                 oracle.at.whenCalledWith(oracleVersionLowerPrice.timestamp).returns(oracleVersionLowerPrice)
-                oracle.request.returns([oracleVersionLowerPrice, ORACLE_VERSION_4.timestamp])
+                oracle.status.returns([oracleVersionLowerPrice, ORACLE_VERSION_4.timestamp])
+                oracle.request.returns()
 
                 await market.connect(userB).update0(userB.address, 0)
                 dsu.transfer.whenCalledWith(liquidator.address, EXPECTED_LIQUIDATION_FEE.mul(1e12)).returns(true)
@@ -7374,7 +7464,8 @@ describe.only('Market', () => {
                   .withArgs(user.address, ORACLE_VERSION_4.timestamp, 0, 0, 0, EXPECTED_LIQUIDATION_FEE.mul(-1), true)
 
                 oracle.at.whenCalledWith(ORACLE_VERSION_4.timestamp).returns(ORACLE_VERSION_4)
-                oracle.request.returns([ORACLE_VERSION_4, ORACLE_VERSION_5.timestamp])
+                oracle.status.returns([ORACLE_VERSION_4, ORACLE_VERSION_5.timestamp])
+                oracle.request.returns()
 
                 await market.connect(user).update0(user.address, 0)
                 await market.connect(userB).update0(userB.address, 0)
@@ -7385,7 +7476,8 @@ describe.only('Market', () => {
                   valid: true,
                 }
                 oracle.at.whenCalledWith(oracleVersionLowerPrice2.timestamp).returns(oracleVersionLowerPrice2)
-                oracle.request.returns([oracleVersionLowerPrice2, oracleVersionLowerPrice2.timestamp + 3600])
+                oracle.status.returns([oracleVersionLowerPrice2, oracleVersionLowerPrice2.timestamp + 3600])
+                oracle.request.returns()
 
                 await market.connect(user).update0(user.address, 0)
                 await market.connect(userB).update0(userB.address, 0)
@@ -7544,7 +7636,8 @@ describe.only('Market', () => {
                 })
 
                 oracle.at.whenCalledWith(ORACLE_VERSION_2.timestamp).returns(ORACLE_VERSION_2)
-                oracle.request.returns([ORACLE_VERSION_2, ORACLE_VERSION_3.timestamp])
+                oracle.status.returns([ORACLE_VERSION_2, ORACLE_VERSION_3.timestamp])
+                oracle.request.returns()
 
                 await market.connect(user).update0(user.address, 0)
                 await market.connect(userB).update0(userB.address, 0)
@@ -7558,7 +7651,8 @@ describe.only('Market', () => {
                   valid: true,
                 }
                 oracle.at.whenCalledWith(oracleVersionHigherPrice.timestamp).returns(oracleVersionHigherPrice)
-                oracle.request.returns([oracleVersionHigherPrice, ORACLE_VERSION_4.timestamp])
+                oracle.status.returns([oracleVersionHigherPrice, ORACLE_VERSION_4.timestamp])
+                oracle.request.returns()
 
                 await market.connect(userB).update0(userB.address, 0)
                 dsu.transfer.whenCalledWith(liquidator.address, EXPECTED_LIQUIDATION_FEE.mul(1e12)).returns(true)
@@ -7668,7 +7762,8 @@ describe.only('Market', () => {
                   valid: true,
                 }
                 oracle.at.whenCalledWith(oracleVersionHigherPrice2.timestamp).returns(oracleVersionHigherPrice2)
-                oracle.request.returns([oracleVersionHigherPrice2, ORACLE_VERSION_5.timestamp])
+                oracle.status.returns([oracleVersionHigherPrice2, ORACLE_VERSION_5.timestamp])
+                oracle.request.returns()
 
                 const shortfall = parse6decimal('195')
                   .sub(EXPECTED_FUNDING_WITH_FEE_1_5_123)
@@ -7718,7 +7813,8 @@ describe.only('Market', () => {
               await market.connect(userB).update(userB.address, 0, 0, POSITION.div(2), COLLATERAL, false)
 
               oracle.at.whenCalledWith(ORACLE_VERSION_2.timestamp).returns(ORACLE_VERSION_2)
-              oracle.request.returns([ORACLE_VERSION_2, ORACLE_VERSION_3.timestamp])
+              oracle.status.returns([ORACLE_VERSION_2, ORACLE_VERSION_3.timestamp])
+              oracle.request.returns()
 
               await market.connect(user).update0(user.address, 0)
               await market.connect(userB).update0(userB.address, 0)
@@ -7742,7 +7838,8 @@ describe.only('Market', () => {
               oracle.at.whenCalledWith(oracleVersionHigherPrice_0.timestamp).returns(oracleVersionHigherPrice_0)
 
               oracle.at.whenCalledWith(oracleVersionHigherPrice_1.timestamp).returns(oracleVersionHigherPrice_1)
-              oracle.request.returns([oracleVersionHigherPrice_1, ORACLE_VERSION_5.timestamp])
+              oracle.status.returns([oracleVersionHigherPrice_1, ORACLE_VERSION_5.timestamp])
+              oracle.request.returns()
 
               await market.connect(user).update0(user.address, 0)
               await market.connect(userB).update0(userB.address, 0)
@@ -10097,7 +10194,8 @@ describe.only('Market', () => {
                 valid: true,
               }
               oracle.at.whenCalledWith(oracleVersionHigherPrice.timestamp).returns(oracleVersionHigherPrice)
-              oracle.request.returns([oracleVersionHigherPrice, oracleVersionHigherPrice.timestamp + 3600])
+              oracle.status.returns([oracleVersionHigherPrice, oracleVersionHigherPrice.timestamp + 3600])
+              oracle.request.returns()
 
               dsu.transfer.whenCalledWith(liquidator.address, EXPECTED_LIQUIDATION_FEE.mul(1e12)).returns(true)
               dsu.balanceOf.whenCalledWith(market.address).returns(COLLATERAL.mul(1e12))
@@ -10122,7 +10220,8 @@ describe.only('Market', () => {
 
           it('properly charges liquidation fee', async () => {
             oracle.at.whenCalledWith(ORACLE_VERSION_2.timestamp).returns(ORACLE_VERSION_2)
-            oracle.request.returns([ORACLE_VERSION_2, ORACLE_VERSION_3.timestamp])
+            oracle.status.returns([ORACLE_VERSION_2, ORACLE_VERSION_3.timestamp])
+            oracle.request.returns()
 
             await market.connect(user).update0(user.address, 0)
             await market.connect(userB).update0(userB.address, 0)
@@ -10136,7 +10235,8 @@ describe.only('Market', () => {
               valid: true,
             }
             oracle.at.whenCalledWith(oracleVersionLowerPrice.timestamp).returns(oracleVersionLowerPrice)
-            oracle.request.returns([oracleVersionLowerPrice, ORACLE_VERSION_4.timestamp])
+            oracle.status.returns([oracleVersionLowerPrice, ORACLE_VERSION_4.timestamp])
+            oracle.request.returns()
 
             await market.connect(userB).update0(userB.address, 0)
             dsu.transfer.whenCalledWith(liquidator.address, EXPECTED_LIQUIDATION_FEE.mul(1e12)).returns(true)
@@ -10247,7 +10347,8 @@ describe.only('Market', () => {
 
           it('default', async () => {
             oracle.at.whenCalledWith(ORACLE_VERSION_2.timestamp).returns(ORACLE_VERSION_2)
-            oracle.request.returns([ORACLE_VERSION_2, ORACLE_VERSION_3.timestamp])
+            oracle.status.returns([ORACLE_VERSION_2, ORACLE_VERSION_3.timestamp])
+            oracle.request.returns()
 
             await market.connect(user).update0(user.address, 0)
             await market.connect(userB).update0(userB.address, 0)
@@ -10270,7 +10371,8 @@ describe.only('Market', () => {
               valid: true,
             }
             oracle.at.whenCalledWith(oracleVersionLowerPrice.timestamp).returns(oracleVersionLowerPrice)
-            oracle.request.returns([oracleVersionLowerPrice, ORACLE_VERSION_4.timestamp])
+            oracle.status.returns([oracleVersionLowerPrice, ORACLE_VERSION_4.timestamp])
+            oracle.request.returns()
 
             await market.connect(userB).update0(userB.address, 0)
             dsu.transfer.whenCalledWith(liquidator.address, EXPECTED_LIQUIDATION_FEE.mul(1e12)).returns(true)
@@ -10283,7 +10385,8 @@ describe.only('Market', () => {
               .withArgs(user.address, ORACLE_VERSION_4.timestamp, 0, 0, 0, EXPECTED_LIQUIDATION_FEE.mul(-1), true)
 
             oracle.at.whenCalledWith(ORACLE_VERSION_4.timestamp).returns(ORACLE_VERSION_4)
-            oracle.request.returns([ORACLE_VERSION_4, ORACLE_VERSION_5.timestamp])
+            oracle.status.returns([ORACLE_VERSION_4, ORACLE_VERSION_5.timestamp])
+            oracle.request.returns()
 
             await market.connect(user).update0(user.address, 0)
             await market.connect(userB).update0(userB.address, 0)
@@ -10294,7 +10397,8 @@ describe.only('Market', () => {
               valid: true,
             }
             oracle.at.whenCalledWith(oracleVersionLowerPrice2.timestamp).returns(oracleVersionLowerPrice2)
-            oracle.request.returns([oracleVersionLowerPrice2, oracleVersionLowerPrice2.timestamp + 3600])
+            oracle.status.returns([oracleVersionLowerPrice2, oracleVersionLowerPrice2.timestamp + 3600])
+            oracle.request.returns()
 
             await market.connect(user).update0(user.address, 0)
             await market.connect(userB).update0(userB.address, 0)
@@ -10525,7 +10629,8 @@ describe.only('Market', () => {
         oracle.at.whenCalledWith(ORACLE_VERSION_0.timestamp).returns(ORACLE_VERSION_0)
 
         oracle.at.whenCalledWith(ORACLE_VERSION_1.timestamp).returns(ORACLE_VERSION_1)
-        oracle.request.returns([ORACLE_VERSION_1, ORACLE_VERSION_2.timestamp])
+        oracle.status.returns([ORACLE_VERSION_1, ORACLE_VERSION_2.timestamp])
+        oracle.request.returns()
 
         dsu.transferFrom.whenCalledWith(userB.address, market.address, COLLATERAL.mul(1e12)).returns(true)
         await market.connect(userB).update(userB.address, POSITION, 0, 0, COLLATERAL, false)
@@ -10535,7 +10640,8 @@ describe.only('Market', () => {
         oracle.at.whenCalledWith(ORACLE_VERSION_2.timestamp).returns(ORACLE_VERSION_2)
 
         oracle.at.whenCalledWith(ORACLE_VERSION_3.timestamp).returns(ORACLE_VERSION_3)
-        oracle.request.returns([ORACLE_VERSION_3, ORACLE_VERSION_4.timestamp])
+        oracle.status.returns([ORACLE_VERSION_3, ORACLE_VERSION_4.timestamp])
+        oracle.request.returns()
 
         await market.connect(user).update0(user.address, 0)
         await market.connect(userB).update0(userB.address, 0)
@@ -10592,7 +10698,8 @@ describe.only('Market', () => {
         oracle.at.whenCalledWith(ORACLE_VERSION_0.timestamp).returns(ORACLE_VERSION_0)
 
         oracle.at.whenCalledWith(ORACLE_VERSION_1.timestamp).returns(ORACLE_VERSION_1)
-        oracle.request.returns([ORACLE_VERSION_1, ORACLE_VERSION_2.timestamp])
+        oracle.status.returns([ORACLE_VERSION_1, ORACLE_VERSION_2.timestamp])
+        oracle.request.returns()
 
         dsu.transferFrom.whenCalledWith(userB.address, market.address, COLLATERAL.mul(1e12)).returns(true)
         await market.connect(userB).update(userB.address, POSITION, 0, 0, COLLATERAL, false)
@@ -10602,7 +10709,8 @@ describe.only('Market', () => {
         oracle.at.whenCalledWith(ORACLE_VERSION_2.timestamp).returns(ORACLE_VERSION_2)
 
         oracle.at.whenCalledWith(ORACLE_VERSION_3.timestamp).returns(ORACLE_VERSION_3)
-        oracle.request.returns([ORACLE_VERSION_3, ORACLE_VERSION_4.timestamp])
+        oracle.status.returns([ORACLE_VERSION_3, ORACLE_VERSION_4.timestamp])
+        oracle.request.returns()
 
         await market.connect(user).update0(user.address, 0)
         await market.connect(userB).update0(userB.address, 0)
