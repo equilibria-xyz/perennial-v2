@@ -2,7 +2,7 @@ import { expect } from 'chai'
 import 'hardhat'
 import { BigNumber, constants } from 'ethers'
 
-import { InstanceVars, deployProtocol, createMarket } from '../helpers/setupHelpers'
+import { InstanceVars, deployProtocol, createMarket, settle } from '../helpers/setupHelpers'
 import { Market } from '../../../types/generated'
 import { parse6decimal } from '../../../../common/testutil/types'
 
@@ -28,7 +28,7 @@ describe('Closed Market', () => {
 
     // Settle the market with a new oracle version
     await chainlink.nextWithPriceModification(price => price.mul(10))
-    await market.connect(owner).update0(owner.address, 0)
+    await settle(market, owner)
 
     await chainlink.next()
     const parameters = { ...(await market.parameter()) }
@@ -86,8 +86,8 @@ describe('Closed Market', () => {
     const parameters = { ...(await market.parameter()) }
     parameters.closed = true
     await market.updateParameter(parameters)
-    await market.connect(user).update0(user.address, 0)
-    await market.connect(userB).update0(userB.address, 0)
+    await settle(market, user)
+    await settle(market, userB)
 
     const userCollateralBefore = (await market.locals(user.address)).collateral
     const userBCollateralBefore = (await market.locals(userB.address)).collateral
@@ -131,8 +131,8 @@ describe('Closed Market', () => {
     await market.updateParameter(parameters)
     await chainlink.next()
 
-    await market.connect(user).update0(user.address, 0)
-    await market.connect(userB).update0(userB.address, 0)
+    await settle(market, user)
+    await settle(market, userB)
 
     expect((await market.position()).timestamp).to.eq(TIMESTAMP_3)
     expect((await market.locals(user.address)).protection).to.eq(TIMESTAMP_3)
@@ -147,7 +147,7 @@ describe('Closed Market', () => {
     await chainlink.nextWithPriceModification(price => price.mul(4))
 
     const LIQUIDATION_FEE = BigNumber.from('1000000000')
-    await market.connect(user).update0(user.address, 0)
+    await settle(market, user)
     await market.connect(userB).update(userB.address, 0, 0, 0, LIQUIDATION_FEE.mul(-1), true)
 
     expect((await market.locals(user.address)).collateral).to.equal(userCollateralBefore)

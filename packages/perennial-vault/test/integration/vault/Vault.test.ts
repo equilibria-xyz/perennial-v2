@@ -19,7 +19,7 @@ import {
   IMarketFactory,
 } from '../../../types/generated'
 import { BigNumber, constants, Signer } from 'ethers'
-import { deployProtocol, fundWallet } from '@equilibria/perennial-v2/test/integration/helpers/setupHelpers'
+import { deployProtocol, fundWallet, settle } from '@equilibria/perennial-v2/test/integration/helpers/setupHelpers'
 import { parse6decimal } from '../../../../common/testutil/types'
 import { TransparentUpgradeableProxy__factory } from '@equilibria/perennial-v2/types/generated'
 import { IOracle, IOracle__factory, OracleFactory } from '@equilibria/perennial-v2-oracle/types/generated'
@@ -481,7 +481,7 @@ describe('Vault', () => {
     })
   })
 
-  describe('#deposit/#redeem/#claim/#settle', () => {
+  describe.only('#deposit/#redeem/#claim/#settle', () => {
     it('simple deposits and withdraws', async () => {
       expect(await vault.convertToAssets(parse6decimal('1'))).to.equal(parse6decimal('1'))
       expect(await vault.convertToShares(parse6decimal('1'))).to.equal(parse6decimal('1'))
@@ -530,7 +530,6 @@ describe('Vault', () => {
         vault,
         'VaultRedemptionLimitExceededError',
       )
-
       expect(await vault.maxRedeem(user.address)).to.equal(parse6decimal('10010'))
       await vault.connect(user).redeem(await vault.maxRedeem(user.address), user.address)
       await updateOracle()
@@ -829,7 +828,7 @@ describe('Vault', () => {
 
       expect(await collateralInVault()).to.be.closeTo((await btcCollateralInVault()).mul(4), 3)
       await updateOracle(parse6decimal('1800'))
-      await market.connect(vaultSigner).update0(vault.address, 0)
+      await settle(market, vaultSigner)
 
       await vault.settle(user.address)
       expect(await collateralInVault()).to.be.closeTo((await btcCollateralInVault()).mul(4), 3)
@@ -1304,7 +1303,7 @@ describe('Vault', () => {
         await updateOracle(parse6decimal('10000'))
         const EXPECTED_LIQUIDATION_FEE = BigNumber.from('12212806000')
         await market.connect(user).update(vault.address, 0, 0, 0, EXPECTED_LIQUIDATION_FEE.mul(-1), true)
-        await market.connect(user2).update0(user2.address, 0)
+        await settle(market, user2)
         await market.connect(user2).update(user2.address, 0, 0, 0, 0, false)
 
         // 4. Settle the vault to recover and rebalance

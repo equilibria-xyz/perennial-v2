@@ -90,7 +90,6 @@ interface IMarket is IInstance {
     function pendingPosition(uint256 id) external view returns (Position memory);
     function position() external view returns (Position memory);
     function global() external view returns (Global memory);
-    function update0(address account, Fixed6 collateral) external;
     function update(address account, UFixed6 newMaker, UFixed6 newLong, UFixed6 newShort, Fixed6 collateral, bool protect) external;
     function updateBeneficiary(address newBeneficiary) external;
     function updateReward(Token18 newReward) external;

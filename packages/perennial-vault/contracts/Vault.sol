@@ -303,8 +303,12 @@ contract Vault is IVault, Instance {
      * @return context The current epoch contexts for each market
      */
     function _settle(address account) private returns (Context memory context) {
-        for (uint256 marketId; marketId < totalMarkets; marketId++)
-            _registrations[marketId].read().market.update0(address(this), Fixed6Lib.ZERO);
+        for (uint256 marketId; marketId < totalMarkets; marketId++) {
+            IMarket market = _registrations[marketId].read().market;
+            Local memory local = market.locals(address(this));
+            Position memory currentPosition = market.pendingPositions(address(this), local.currentId);
+            market.update(address(this), currentPosition.maker, UFixed6Lib.ZERO, UFixed6Lib.ZERO, Fixed6Lib.ZERO, false);
+        }
 
         context = _loadContext(account);
 

@@ -18,6 +18,7 @@ import {
   IPayoffProvider__factory,
   MarketFactory,
   IOracleProvider,
+  IMarket,
 } from '../../../types/generated'
 import { ChainlinkContext } from './chainlinkHelpers'
 import { parse6decimal } from '../../../../common/testutil/types'
@@ -246,4 +247,12 @@ export async function createMarket(
   await market.updateBeneficiary(beneficiaryB.address)
 
   return market
+}
+
+export async function settle(market: IMarket, account: SignerWithAddress) {
+  const local = await market.locals(account.address)
+  const currentPosition = await market.pendingPositions(account.address, local.currentId)
+  await market
+    .connect(account)
+    .update(account.address, currentPosition.maker, currentPosition.long, currentPosition.short, 0, false)
 }

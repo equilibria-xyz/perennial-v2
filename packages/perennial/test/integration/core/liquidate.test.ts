@@ -2,7 +2,7 @@ import { expect } from 'chai'
 import 'hardhat'
 import { BigNumber, constants, utils } from 'ethers'
 
-import { InstanceVars, deployProtocol, createMarket } from '../helpers/setupHelpers'
+import { InstanceVars, deployProtocol, createMarket, settle } from '../helpers/setupHelpers'
 import { parse6decimal } from '../../../../common/testutil/types'
 
 export const TIMESTAMP_2 = 1631113819
@@ -37,7 +37,7 @@ describe('Liquidate', () => {
     expect(await dsu.balanceOf(userB.address)).to.equal(utils.parseEther('200682.778988')) // Original 200000 + fee
 
     await chainlink.next()
-    await market.connect(user).update0(user.address, 0)
+    await settle(market, user)
 
     expect((await market.position()).timestamp).to.eq(TIMESTAMP_2)
     expect((await market.locals(user.address)).protection).to.eq(TIMESTAMP_2)
@@ -66,7 +66,7 @@ describe('Liquidate', () => {
     expect(await dsu.balanceOf(userB.address)).to.equal(utils.parseEther('201000')) // Original 200000 + fee
 
     await chainlink.next()
-    await market.connect(user).update0(user.address, 0)
+    await settle(market, user)
 
     expect((await market.position()).timestamp).to.eq(TIMESTAMP_2)
     expect((await market.locals(user.address)).protection).to.eq(TIMESTAMP_2)
@@ -85,11 +85,11 @@ describe('Liquidate', () => {
 
     // Settle the market with a new oracle version
     await chainlink.next()
-    await market.connect(user).update0(user.address, 0)
+    await settle(market, user)
 
     await chainlink.nextWithPriceModification(price => price.mul(2))
 
-    await market.connect(userB).update0(userB.address, 0)
+    await settle(market, userB)
     const userBCollateral = (await market.locals(userB.address)).collateral
     await expect(
       market.connect(userB).update(userB.address, 0, 0, 0, userBCollateral.mul(-1).sub(1), false),
@@ -99,7 +99,7 @@ describe('Liquidate', () => {
     expect((await market.locals(user.address)).collateral).to.equal(BigNumber.from('-3154014022'))
 
     await chainlink.nextWithPriceModification(price => price.mul(2))
-    await market.connect(user).update0(user.address, 0)
+    await settle(market, user)
 
     await dsu.connect(userB).approve(market.address, constants.MaxUint256)
     const userCollateral = (await market.locals(user.address)).collateral
@@ -145,10 +145,10 @@ describe('Liquidate', () => {
       .withArgs(user.address, TIMESTAMP_2, 0, 0, 0, expectedLiquidationFee.mul(-1), true)
 
     await chainlink.next()
-    await market.connect(user).update0(user.address, 0)
-    await market.connect(userB).update0(userB.address, 0)
-    await market.connect(userC).update0(userC.address, 0)
-    await market.connect(userD).update0(userD.address, 0)
+    await settle(market, user)
+    await settle(market, userB)
+    await settle(market, userC)
+    await settle(market, userD)
 
     const currA = (await market.locals(user.address)).collateral
     const currB = (await market.locals(userB.address)).collateral
@@ -161,10 +161,10 @@ describe('Liquidate', () => {
       .add((await market.global()).donation)
 
     await chainlink.next()
-    await market.connect(user).update0(user.address, 0)
-    await market.connect(userB).update0(userB.address, 0)
-    await market.connect(userC).update0(userC.address, 0)
-    await market.connect(userD).update0(userD.address, 0)
+    await settle(market, user)
+    await settle(market, userB)
+    await settle(market, userC)
+    await settle(market, userD)
 
     const newA = (await market.locals(user.address)).collateral
     const newB = (await market.locals(userB.address)).collateral

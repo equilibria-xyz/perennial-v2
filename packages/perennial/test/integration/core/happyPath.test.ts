@@ -8,6 +8,7 @@ import {
   createMarket,
   INITIAL_PHASE_ID,
   INITIAL_AGGREGATOR_ROUND_ID,
+  settle,
 } from '../helpers/setupHelpers'
 import {
   expectGlobalEq,
@@ -160,7 +161,7 @@ describe('Happy Path', () => {
 
     // Settle the market with a new oracle version
     await chainlink.next()
-    await market.connect(user).update0(user.address, 0)
+    await settle(market, user)
 
     // check user state
     expectLocalEq(await market.locals(user.address), {
@@ -284,7 +285,7 @@ describe('Happy Path', () => {
 
     // Settle the market with a new oracle version
     await chainlink.next()
-    await market.connect(user).update0(user.address, 0)
+    await settle(market, user)
 
     // check user state
     expectLocalEq(await market.locals(user.address), {
@@ -580,7 +581,7 @@ describe('Happy Path', () => {
 
     // Another round
     await chainlink.next()
-    await market.connect(userB).update0(userB.address, 0)
+    await settle(market, userB)
 
     expectGlobalEq(await market.global(), {
       currentId: 2,
@@ -709,7 +710,7 @@ describe('Happy Path', () => {
 
     // Another round
     await chainlink.next()
-    await market.connect(userB).update0(userB.address, 0)
+    await settle(market, userB)
 
     expectGlobalEq(await market.global(), {
       currentId: 2,
@@ -920,8 +921,8 @@ describe('Happy Path', () => {
 
     const market = await createMarket(instanceVars)
 
-    await market.connect(user).update0(user.address, 0)
-    await market.connect(user).update0(user.address, 0)
+    await settle(market, user)
+    await settle(market, user)
   })
 
   it('disables actions when paused', async () => {
@@ -932,10 +933,7 @@ describe('Happy Path', () => {
     await expect(
       market.connect(user).update(user.address, 0, 0, 0, parse6decimal('1000'), false),
     ).to.be.revertedWithCustomError(market, 'InstancePausedError')
-    await expect(market.connect(user).update0(user.address, 0)).to.be.revertedWithCustomError(
-      market,
-      'InstancePausedError',
-    )
+    await expect(settle(market, user)).to.be.revertedWithCustomError(market, 'InstancePausedError')
   })
 
   it('opens a long position and settles after max funding', async () => {
@@ -957,12 +955,12 @@ describe('Happy Path', () => {
     for (let i = 0; i < 50; i++) {
       await chainlink.next()
     }
-    await market.connect(userB).update0(userB.address, 0)
+    await settle(market, userB)
     expect((await market.global()).pAccumulator._value).to.eq(parse6decimal('1.20'))
 
     // one more round
     await chainlink.next()
-    await market.connect(userB).update0(userB.address, 0)
+    await settle(market, userB)
     expect((await market.global()).pAccumulator._value).to.eq(parse6decimal('1.20'))
   })
 
@@ -985,12 +983,12 @@ describe('Happy Path', () => {
     for (let i = 0; i < 50; i++) {
       await chainlink.next()
     }
-    await market.connect(userB).update0(userB.address, 0)
+    await settle(market, userB)
     expect((await market.global()).pAccumulator._value).to.eq(parse6decimal('-1.20'))
 
     // one more round
     await chainlink.next()
-    await market.connect(userB).update0(userB.address, 0)
+    await settle(market, userB)
     expect((await market.global()).pAccumulator._value).to.eq(parse6decimal('-1.20'))
   })
 

@@ -78,19 +78,6 @@ contract Market is IMarket, Instance {
         _updateRiskParameter(riskParameter_);
     }
 
-    function update0(address account, Fixed6 collateral) external whenNotPaused {
-        CurrentContext memory context = _loadContext(account);
-        _updateInternal(
-            context,
-            account,
-            context.accountPendingPosition.maker,
-            context.accountPendingPosition.long,
-            context.accountPendingPosition.short,
-            collateral,
-            false
-        );
-    }
-
     function update(
         address account,
         UFixed6 newMaker,
@@ -100,18 +87,6 @@ contract Market is IMarket, Instance {
         bool protect
     ) external whenNotPaused {
         CurrentContext memory context = _loadContext(account);
-        _updateInternal(context, account, newMaker, newLong, newShort, collateral, protect);
-    }
-
-    function _updateInternal(
-        CurrentContext memory context,
-        address account,
-        UFixed6 newMaker,
-        UFixed6 newLong,
-        UFixed6 newShort,
-        Fixed6 collateral,
-        bool protect
-    ) private {
         _settle(context, account);
         _sync(context, account);
         _update(context, account, newMaker, newLong, newShort, collateral, protect);

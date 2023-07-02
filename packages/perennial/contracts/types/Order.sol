@@ -40,7 +40,7 @@ library OrderLib {
         self.fee = self.maker.abs().mul(latestVersion.price.abs()).mul(UFixed6Lib.from(makerFee))
             .add(self.long.abs().add(self.short.abs()).mul(latestVersion.price.abs()).mul(UFixed6Lib.from(takerFee)));
 
-        self.keeper = isEmpty(self) ? UFixedLib.ZERO : protocolParameter.settlementFee;
+        self.keeper = isEmpty(self) ? UFixed6Lib.ZERO : protocolParameter.settlementFee;
     }
 
     function increasesPosition(Order memory self) internal pure returns (bool) {

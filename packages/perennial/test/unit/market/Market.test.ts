@@ -173,6 +173,14 @@ const EXPECTED_INTEREST_25_123 = BigNumber.from(1755)
 const EXPECTED_INTEREST_FEE_25_123 = EXPECTED_INTEREST_25_123.div(10)
 const EXPECTED_INTEREST_WITHOUT_FEE_25_123 = EXPECTED_INTEREST_25_123.sub(EXPECTED_INTEREST_FEE_25_123)
 
+async function settle(market: Market, account: SignerWithAddress) {
+  const local = await market.locals(account.address)
+  const currentPosition = await market.pendingPositions(account.address, local.currentId)
+  await market
+    .connect(account)
+    .update(account.address, currentPosition.maker, currentPosition.long, currentPosition.short, 0, false)
+}
+
 describe.only('Market', () => {
   let protocolTreasury: SignerWithAddress
   let owner: SignerWithAddress
@@ -650,7 +658,7 @@ describe.only('Market', () => {
             oracle.status.returns([ORACLE_VERSION_2, ORACLE_VERSION_3.timestamp])
             oracle.request.returns()
 
-            await market.connect(user).update0(user.address, 0)
+            await settle(market, user)
 
             dsu.transfer.whenCalledWith(user.address, COLLATERAL.mul(1e12)).returns(true)
             await expect(market.connect(user).update(user.address, 0, 0, 0, COLLATERAL.mul(-1), false))
@@ -788,7 +796,7 @@ describe.only('Market', () => {
               oracle.status.returns([ORACLE_VERSION_2, ORACLE_VERSION_3.timestamp])
               oracle.request.returns()
 
-              await market.connect(user).update0(user.address, 0)
+              await settle(market, user)
 
               expectLocalEq(await market.locals(user.address), {
                 currentId: 2,
@@ -918,7 +926,7 @@ describe.only('Market', () => {
               oracle.status.returns([ORACLE_VERSION_2, ORACLE_VERSION_3.timestamp])
               oracle.request.returns()
 
-              await market.connect(user).update0(user.address, 0)
+              await settle(market, user)
 
               expectLocalEq(await market.locals(user.address), {
                 currentId: 2,
@@ -1056,7 +1064,7 @@ describe.only('Market', () => {
               oracle.status.returns([ORACLE_VERSION_3, ORACLE_VERSION_4.timestamp])
               oracle.request.returns()
 
-              await market.connect(user).update0(user.address, 0)
+              await settle(market, user)
 
               expectLocalEq(await market.locals(user.address), {
                 currentId: 3,
@@ -1123,7 +1131,7 @@ describe.only('Market', () => {
               oracle.status.returns([ORACLE_VERSION_3, ORACLE_VERSION_4.timestamp])
               oracle.request.returns()
 
-              await market.connect(user).update0(user.address, 0)
+              await settle(market, user)
 
               expectLocalEq(await market.locals(user.address), {
                 currentId: 2,
@@ -1313,7 +1321,7 @@ describe.only('Market', () => {
                 oracle.status.returns([ORACLE_VERSION_2, ORACLE_VERSION_3.timestamp])
                 oracle.request.returns()
 
-                await market.connect(user).update0(user.address, 0)
+                await settle(market, user)
               })
 
               it('closes the position', async () => {
@@ -1385,7 +1393,7 @@ describe.only('Market', () => {
                 oracle.status.returns([ORACLE_VERSION_3, ORACLE_VERSION_4.timestamp])
                 oracle.request.returns()
 
-                await market.connect(user).update0(user.address, 0)
+                await settle(market, user)
 
                 expectLocalEq(await market.locals(user.address), {
                   currentId: 3,
@@ -1515,7 +1523,7 @@ describe.only('Market', () => {
                 oracle.status.returns([ORACLE_VERSION_3, ORACLE_VERSION_4.timestamp])
                 oracle.request.returns()
 
-                await market.connect(user).update0(user.address, 0)
+                await settle(market, user)
 
                 expectLocalEq(await market.locals(user.address), {
                   currentId: 3,
@@ -1653,7 +1661,7 @@ describe.only('Market', () => {
                 oracle.status.returns([ORACLE_VERSION_4, ORACLE_VERSION_5.timestamp])
                 oracle.request.returns()
 
-                await market.connect(user).update0(user.address, 0)
+                await settle(market, user)
 
                 expectLocalEq(await market.locals(user.address), {
                   currentId: 4,
@@ -1721,7 +1729,7 @@ describe.only('Market', () => {
                 oracle.status.returns([ORACLE_VERSION_4, ORACLE_VERSION_5.timestamp])
                 oracle.request.returns()
 
-                await market.connect(user).update0(user.address, 0)
+                await settle(market, user)
 
                 expectLocalEq(await market.locals(user.address), {
                   currentId: 3,
@@ -1862,7 +1870,7 @@ describe.only('Market', () => {
                 oracle.status.returns([ORACLE_VERSION_2, ORACLE_VERSION_3.timestamp])
                 oracle.request.returns()
 
-                await market.connect(user).update0(user.address, 0)
+                await settle(market, user)
 
                 expectLocalEq(await market.locals(user.address), {
                   currentId: 2,
@@ -1992,7 +2000,7 @@ describe.only('Market', () => {
                 oracle.status.returns([ORACLE_VERSION_2, ORACLE_VERSION_3.timestamp])
                 oracle.request.returns()
 
-                await market.connect(user).update0(user.address, 0)
+                await settle(market, user)
 
                 expectLocalEq(await market.locals(user.address), {
                   currentId: 2,
@@ -2130,8 +2138,8 @@ describe.only('Market', () => {
                 oracle.status.returns([ORACLE_VERSION_3, ORACLE_VERSION_4.timestamp])
                 oracle.request.returns()
 
-                await market.connect(user).update0(user.address, 0)
-                await market.connect(userB).update0(userB.address, 0)
+                await settle(market, user)
+                await settle(market, userB)
 
                 expectLocalEq(await market.locals(user.address), {
                   currentId: 3,
@@ -2225,8 +2233,8 @@ describe.only('Market', () => {
                 oracle.status.returns([ORACLE_VERSION_3, ORACLE_VERSION_4.timestamp])
                 oracle.request.returns()
 
-                await market.connect(user).update0(user.address, 0)
-                await market.connect(userB).update0(userB.address, 0)
+                await settle(market, user)
+                await settle(market, userB)
 
                 expectLocalEq(await market.locals(user.address), {
                   currentId: 2,
@@ -2326,8 +2334,8 @@ describe.only('Market', () => {
                 oracle.status.returns([ORACLE_VERSION_3, ORACLE_VERSION_4.timestamp])
                 oracle.request.returns()
 
-                await market.connect(user).update0(user.address, 0)
-                await market.connect(userB).update0(userB.address, 0)
+                await settle(market, user)
+                await settle(market, userB)
 
                 expectLocalEq(await market.locals(user.address), {
                   currentId: 2,
@@ -2420,7 +2428,7 @@ describe.only('Market', () => {
                 oracle.status.returns([ORACLE_VERSION_2, ORACLE_VERSION_3.timestamp])
                 oracle.request.returns()
 
-                await market.connect(user).update0(user.address, 0)
+                await settle(market, user)
 
                 const riskParameter = { ...(await market.riskParameter()) }
                 riskParameter.takerFee = parse6decimal('0.01')
@@ -2438,8 +2446,8 @@ describe.only('Market', () => {
                 oracle.status.returns([ORACLE_VERSION_4, ORACLE_VERSION_5.timestamp])
                 oracle.request.returns()
 
-                await market.connect(user).update0(user.address, 0)
-                await market.connect(userB).update0(userB.address, 0)
+                await settle(market, user)
+                await settle(market, userB)
 
                 expectLocalEq(await market.locals(user.address), {
                   currentId: 2,
@@ -2661,7 +2669,7 @@ describe.only('Market', () => {
                   oracle.status.returns([ORACLE_VERSION_2, ORACLE_VERSION_3.timestamp])
                   oracle.request.returns()
 
-                  await market.connect(user).update0(user.address, 0)
+                  await settle(market, user)
                 })
 
                 it('closes the position', async () => {
@@ -2733,8 +2741,8 @@ describe.only('Market', () => {
                   oracle.status.returns([ORACLE_VERSION_3, ORACLE_VERSION_4.timestamp])
                   oracle.request.returns()
 
-                  await market.connect(user).update0(user.address, 0)
-                  await market.connect(userB).update0(userB.address, 0)
+                  await settle(market, user)
+                  await settle(market, userB)
 
                   expectLocalEq(await market.locals(user.address), {
                     currentId: 3,
@@ -2892,8 +2900,8 @@ describe.only('Market', () => {
                   oracle.status.returns([ORACLE_VERSION_3, ORACLE_VERSION_4.timestamp])
                   oracle.request.returns()
 
-                  await market.connect(user).update0(user.address, 0)
-                  await market.connect(userB).update0(userB.address, 0)
+                  await settle(market, user)
+                  await settle(market, userB)
 
                   expectLocalEq(await market.locals(user.address), {
                     currentId: 3,
@@ -2989,8 +2997,8 @@ describe.only('Market', () => {
                     .to.emit(market, 'Updated')
                     .withArgs(user.address, ORACLE_VERSION_4.timestamp, 0, 0, 0, 0, false)
 
-                  await market.connect(user).update0(user.address, 0)
-                  await market.connect(userB).update0(userB.address, 0)
+                  await settle(market, user)
+                  await settle(market, userB)
 
                   expectLocalEq(await market.locals(user.address), {
                     currentId: 3,
@@ -3090,8 +3098,8 @@ describe.only('Market', () => {
                   oracle.status.returns([ORACLE_VERSION_4, ORACLE_VERSION_5.timestamp])
                   oracle.request.returns()
 
-                  await market.connect(user).update0(user.address, 0)
-                  await market.connect(userB).update0(userB.address, 0)
+                  await settle(market, user)
+                  await settle(market, userB)
 
                   expectLocalEq(await market.locals(user.address), {
                     currentId: 4,
@@ -3218,8 +3226,8 @@ describe.only('Market', () => {
                   oracle.status.returns([ORACLE_VERSION_4, ORACLE_VERSION_5.timestamp])
                   oracle.request.returns()
 
-                  await market.connect(user).update0(user.address, 0)
-                  await market.connect(userB).update0(userB.address, 0)
+                  await settle(market, user)
+                  await settle(market, userB)
 
                   expectLocalEq(await market.locals(user.address), {
                     currentId: 3,
@@ -3321,8 +3329,8 @@ describe.only('Market', () => {
                   oracle.status.returns([ORACLE_VERSION_4, ORACLE_VERSION_5.timestamp])
                   oracle.request.returns()
 
-                  await market.connect(user).update0(user.address, 0)
-                  await market.connect(userB).update0(userB.address, 0)
+                  await settle(market, user)
+                  await settle(market, userB)
 
                   expectLocalEq(await market.locals(user.address), {
                     currentId: 3,
@@ -3425,8 +3433,8 @@ describe.only('Market', () => {
               oracle.status.returns([ORACLE_VERSION_2, ORACLE_VERSION_3.timestamp])
               oracle.request.returns()
 
-              await market.connect(user).update0(user.address, 0)
-              await market.connect(userB).update0(userB.address, 0)
+              await settle(market, user)
+              await settle(market, userB)
             })
 
             it('same price same timestamp settle', async () => {
@@ -3440,8 +3448,8 @@ describe.only('Market', () => {
               oracle.status.returns([oracleVersionSameTimestamp, ORACLE_VERSION_3.timestamp])
               oracle.request.returns()
 
-              await market.connect(user).update0(user.address, 0)
-              await market.connect(userB).update0(userB.address, 0)
+              await settle(market, user)
+              await settle(market, userB)
 
               expectLocalEq(await market.locals(user.address), {
                 currentId: 2,
@@ -3534,8 +3542,8 @@ describe.only('Market', () => {
               oracle.status.returns([oracleVersionLowerPrice, ORACLE_VERSION_4.timestamp])
               oracle.request.returns()
 
-              await market.connect(user).update0(user.address, 0)
-              await market.connect(userB).update0(userB.address, 0)
+              await settle(market, user)
+              await settle(market, userB)
 
               expectLocalEq(await market.locals(user.address), {
                 currentId: 3,
@@ -3640,8 +3648,8 @@ describe.only('Market', () => {
               oracle.status.returns([oracleVersionHigherPrice, ORACLE_VERSION_4.timestamp])
               oracle.request.returns()
 
-              await market.connect(user).update0(user.address, 0)
-              await market.connect(userB).update0(userB.address, 0)
+              await settle(market, user)
+              await settle(market, userB)
 
               expectLocalEq(await market.locals(user.address), {
                 currentId: 3,
@@ -3750,8 +3758,8 @@ describe.only('Market', () => {
                 oracle.status.returns([ORACLE_VERSION_2, ORACLE_VERSION_3.timestamp])
                 oracle.request.returns()
 
-                await market.connect(user).update0(user.address, 0)
-                await market.connect(userB).update0(userB.address, 0)
+                await settle(market, user)
+                await settle(market, userB)
 
                 const EXPECTED_PNL = parse6decimal('27').mul(5)
                 const EXPECTED_LIQUIDATION_FEE = parse6decimal('45')
@@ -3765,7 +3773,7 @@ describe.only('Market', () => {
                 oracle.status.returns([oracleVersionHigherPrice, ORACLE_VERSION_4.timestamp])
                 oracle.request.returns()
 
-                await market.connect(user).update0(user.address, 0)
+                await settle(market, user)
                 dsu.transfer.whenCalledWith(liquidator.address, EXPECTED_LIQUIDATION_FEE.mul(1e12)).returns(true)
                 dsu.balanceOf.whenCalledWith(market.address).returns(COLLATERAL.mul(1e12))
 
@@ -3779,8 +3787,8 @@ describe.only('Market', () => {
                 oracle.status.returns([ORACLE_VERSION_4, ORACLE_VERSION_5.timestamp])
                 oracle.request.returns()
 
-                await market.connect(user).update0(user.address, 0)
-                await market.connect(userB).update0(userB.address, 0)
+                await settle(market, user)
+                await settle(market, userB)
 
                 const oracleVersionHigherPrice2 = {
                   price: parse6decimal('150'),
@@ -3791,8 +3799,8 @@ describe.only('Market', () => {
                 oracle.status.returns([oracleVersionHigherPrice2, oracleVersionHigherPrice2.timestamp + 3600])
                 oracle.request.returns()
 
-                await market.connect(user).update0(user.address, 0)
-                await market.connect(userB).update0(userB.address, 0)
+                await settle(market, user)
+                await settle(market, userB)
 
                 expectLocalEq(await market.locals(user.address), {
                   currentId: 5,
@@ -3946,9 +3954,9 @@ describe.only('Market', () => {
                 oracle.status.returns([ORACLE_VERSION_2, ORACLE_VERSION_3.timestamp])
                 oracle.request.returns()
 
-                await market.connect(user).update0(user.address, 0)
-                await market.connect(userB).update0(userB.address, 0)
-                await market.connect(userC).update0(userC.address, 0)
+                await settle(market, user)
+                await settle(market, userB)
+                await settle(market, userC)
 
                 const EXPECTED_PNL = parse6decimal('27').mul(5).div(2)
                 const EXPECTED_LIQUIDATION_FEE = parse6decimal('45')
@@ -3962,8 +3970,8 @@ describe.only('Market', () => {
                 oracle.status.returns([oracleVersionHigherPrice, ORACLE_VERSION_4.timestamp])
                 oracle.request.returns()
 
-                await market.connect(user).update0(user.address, 0)
-                await market.connect(userC).update0(userC.address, 0)
+                await settle(market, user)
+                await settle(market, userC)
                 dsu.transfer.whenCalledWith(liquidator.address, EXPECTED_LIQUIDATION_FEE.mul(1e12)).returns(true)
                 dsu.balanceOf.whenCalledWith(market.address).returns(COLLATERAL.mul(1e12))
                 await expect(
@@ -3976,9 +3984,9 @@ describe.only('Market', () => {
                 oracle.status.returns([ORACLE_VERSION_4, ORACLE_VERSION_5.timestamp])
                 oracle.request.returns()
 
-                await market.connect(user).update0(user.address, 0)
-                await market.connect(userB).update0(userB.address, 0)
-                await market.connect(userC).update0(userC.address, 0)
+                await settle(market, user)
+                await settle(market, userB)
+                await settle(market, userC)
 
                 const oracleVersionHigherPrice2 = {
                   price: parse6decimal('150'),
@@ -3989,9 +3997,9 @@ describe.only('Market', () => {
                 oracle.status.returns([oracleVersionHigherPrice2, oracleVersionHigherPrice2.timestamp + 3600])
                 oracle.request.returns()
 
-                await market.connect(user).update0(user.address, 0)
-                await market.connect(userB).update0(userB.address, 0)
-                await market.connect(userC).update0(userC.address, 0)
+                await settle(market, user)
+                await settle(market, userB)
+                await settle(market, userC)
 
                 // (0.08 / 365 / 24 / 60 / 60 ) * 3600 * 5 * 123 = 5620
                 const EXPECTED_INTEREST_1 = BigNumber.from(5620)
@@ -4190,8 +4198,8 @@ describe.only('Market', () => {
                 oracle.status.returns([ORACLE_VERSION_2, ORACLE_VERSION_3.timestamp])
                 oracle.request.returns()
 
-                await market.connect(user).update0(user.address, 0)
-                await market.connect(userB).update0(userB.address, 0)
+                await settle(market, user)
+                await settle(market, userB)
 
                 const EXPECTED_PNL = parse6decimal('80').mul(5)
                 const EXPECTED_LIQUIDATION_FEE = parse6decimal('60.9')
@@ -4205,7 +4213,7 @@ describe.only('Market', () => {
                 oracle.status.returns([oracleVersionHigherPrice, ORACLE_VERSION_4.timestamp])
                 oracle.request.returns()
 
-                await market.connect(user).update0(user.address, 0)
+                await settle(market, user)
                 dsu.transfer.whenCalledWith(liquidator.address, EXPECTED_LIQUIDATION_FEE.mul(1e12)).returns(true)
                 dsu.balanceOf.whenCalledWith(market.address).returns(COLLATERAL.mul(1e12))
 
@@ -4371,8 +4379,8 @@ describe.only('Market', () => {
                 oracle.status.returns([ORACLE_VERSION_2, ORACLE_VERSION_3.timestamp])
                 oracle.request.returns()
 
-                await market.connect(user).update0(user.address, 0)
-                await market.connect(userB).update0(userB.address, 0)
+                await settle(market, user)
+                await settle(market, userB)
 
                 const EXPECTED_PNL = parse6decimal('27').mul(5)
                 const EXPECTED_LIQUIDATION_FEE = parse6decimal('14.4')
@@ -4386,7 +4394,7 @@ describe.only('Market', () => {
                 oracle.status.returns([oracleVersionLowerPrice, ORACLE_VERSION_4.timestamp])
                 oracle.request.returns()
 
-                await market.connect(userB).update0(userB.address, 0)
+                await settle(market, userB)
                 dsu.transfer.whenCalledWith(liquidator.address, EXPECTED_LIQUIDATION_FEE.mul(1e12)).returns(true)
                 dsu.balanceOf.whenCalledWith(market.address).returns(COLLATERAL.mul(1e12))
 
@@ -4400,8 +4408,8 @@ describe.only('Market', () => {
                 oracle.status.returns([ORACLE_VERSION_4, ORACLE_VERSION_5.timestamp])
                 oracle.request.returns()
 
-                await market.connect(user).update0(user.address, 0)
-                await market.connect(userB).update0(userB.address, 0)
+                await settle(market, user)
+                await settle(market, userB)
 
                 const oracleVersionLowerPrice2 = {
                   price: parse6decimal('96'),
@@ -4412,8 +4420,8 @@ describe.only('Market', () => {
                 oracle.status.returns([oracleVersionLowerPrice2, oracleVersionLowerPrice2.timestamp + 3600])
                 oracle.request.returns()
 
-                await market.connect(user).update0(user.address, 0)
-                await market.connect(userB).update0(userB.address, 0)
+                await settle(market, user)
+                await settle(market, userB)
 
                 expectLocalEq(await market.locals(user.address), {
                   currentId: 5,
@@ -4564,8 +4572,8 @@ describe.only('Market', () => {
                 oracle.status.returns([ORACLE_VERSION_2, ORACLE_VERSION_3.timestamp])
                 oracle.request.returns()
 
-                await market.connect(user).update0(user.address, 0)
-                await market.connect(userB).update0(userB.address, 0)
+                await settle(market, user)
+                await settle(market, userB)
 
                 const EXPECTED_PNL = parse6decimal('80').mul(5)
                 const EXPECTED_LIQUIDATION_FEE = parse6decimal('6.45')
@@ -4579,7 +4587,7 @@ describe.only('Market', () => {
                 oracle.status.returns([oracleVersionLowerPrice, ORACLE_VERSION_4.timestamp])
                 oracle.request.returns()
 
-                await market.connect(userB).update0(userB.address, 0)
+                await settle(market, userB)
                 dsu.transfer.whenCalledWith(liquidator.address, EXPECTED_LIQUIDATION_FEE.mul(1e12)).returns(true)
                 dsu.balanceOf.whenCalledWith(market.address).returns(COLLATERAL.mul(1e12))
 
@@ -4739,8 +4747,8 @@ describe.only('Market', () => {
               oracle.status.returns([ORACLE_VERSION_2, ORACLE_VERSION_3.timestamp])
               oracle.request.returns()
 
-              await market.connect(user).update0(user.address, 0)
-              await market.connect(userB).update0(userB.address, 0)
+              await settle(market, user)
+              await settle(market, userB)
             })
 
             it('zeroes PnL and fees (price change)', async () => {
@@ -4764,8 +4772,8 @@ describe.only('Market', () => {
               oracle.status.returns([oracleVersionHigherPrice_1, ORACLE_VERSION_5.timestamp])
               oracle.request.returns()
 
-              await market.connect(user).update0(user.address, 0)
-              await market.connect(userB).update0(userB.address, 0)
+              await settle(market, user)
+              await settle(market, userB)
 
               expectLocalEq(await market.locals(user.address), {
                 currentId: 3,
@@ -4935,7 +4943,7 @@ describe.only('Market', () => {
                 oracle.status.returns([ORACLE_VERSION_2, ORACLE_VERSION_3.timestamp])
                 oracle.request.returns()
 
-                await market.connect(user).update0(user.address, 0)
+                await settle(market, user)
 
                 expectLocalEq(await market.locals(user.address), {
                   currentId: 2,
@@ -5065,7 +5073,7 @@ describe.only('Market', () => {
                 oracle.status.returns([ORACLE_VERSION_2, ORACLE_VERSION_3.timestamp])
                 oracle.request.returns()
 
-                await market.connect(user).update0(user.address, 0)
+                await settle(market, user)
 
                 expectLocalEq(await market.locals(user.address), {
                   currentId: 2,
@@ -5203,8 +5211,8 @@ describe.only('Market', () => {
                 oracle.status.returns([ORACLE_VERSION_3, ORACLE_VERSION_4.timestamp])
                 oracle.request.returns()
 
-                await market.connect(user).update0(user.address, 0)
-                await market.connect(userB).update0(userB.address, 0)
+                await settle(market, user)
+                await settle(market, userB)
 
                 expectLocalEq(await market.locals(user.address), {
                   currentId: 3,
@@ -5298,8 +5306,8 @@ describe.only('Market', () => {
                 oracle.status.returns([ORACLE_VERSION_3, ORACLE_VERSION_5.timestamp])
                 oracle.request.returns()
 
-                await market.connect(user).update0(user.address, 0)
-                await market.connect(userB).update0(userB.address, 0)
+                await settle(market, user)
+                await settle(market, userB)
 
                 expectLocalEq(await market.locals(user.address), {
                   currentId: 2,
@@ -5402,8 +5410,8 @@ describe.only('Market', () => {
                 oracle.status.returns([ORACLE_VERSION_3, ORACLE_VERSION_4.timestamp])
                 oracle.request.returns()
 
-                await market.connect(user).update0(user.address, 0)
-                await market.connect(userB).update0(userB.address, 0)
+                await settle(market, user)
+                await settle(market, userB)
 
                 expectLocalEq(await market.locals(user.address), {
                   currentId: 2,
@@ -5496,7 +5504,7 @@ describe.only('Market', () => {
                 oracle.status.returns([ORACLE_VERSION_2, ORACLE_VERSION_3.timestamp])
                 oracle.request.returns()
 
-                await market.connect(user).update0(user.address, 0)
+                await settle(market, user)
 
                 const riskParameter = { ...(await market.riskParameter()) }
                 riskParameter.takerFee = parse6decimal('0.01')
@@ -5517,8 +5525,8 @@ describe.only('Market', () => {
                 oracle.status.returns([ORACLE_VERSION_4, ORACLE_VERSION_5.timestamp])
                 oracle.request.returns()
 
-                await market.connect(user).update0(user.address, 0)
-                await market.connect(userB).update0(userB.address, 0)
+                await settle(market, user)
+                await settle(market, userB)
 
                 expectLocalEq(await market.locals(user.address), {
                   currentId: 2,
@@ -5739,7 +5747,7 @@ describe.only('Market', () => {
                   oracle.status.returns([ORACLE_VERSION_2, ORACLE_VERSION_3.timestamp])
                   oracle.request.returns()
 
-                  await market.connect(user).update0(user.address, 0)
+                  await settle(market, user)
                 })
 
                 it('closes the position', async () => {
@@ -5811,8 +5819,8 @@ describe.only('Market', () => {
                   oracle.status.returns([ORACLE_VERSION_3, ORACLE_VERSION_4.timestamp])
                   oracle.request.returns()
 
-                  await market.connect(user).update0(user.address, 0)
-                  await market.connect(userB).update0(userB.address, 0)
+                  await settle(market, user)
+                  await settle(market, userB)
 
                   expectLocalEq(await market.locals(user.address), {
                     currentId: 3,
@@ -5970,8 +5978,8 @@ describe.only('Market', () => {
                   oracle.status.returns([ORACLE_VERSION_3, ORACLE_VERSION_4.timestamp])
                   oracle.request.returns()
 
-                  await market.connect(user).update0(user.address, 0)
-                  await market.connect(userB).update0(userB.address, 0)
+                  await settle(market, user)
+                  await settle(market, userB)
 
                   expectLocalEq(await market.locals(user.address), {
                     currentId: 3,
@@ -6067,7 +6075,7 @@ describe.only('Market', () => {
                     .to.emit(market, 'Updated')
                     .withArgs(user.address, ORACLE_VERSION_4.timestamp, 0, 0, 0, 0, false)
 
-                  await market.connect(userB).update0(userB.address, 0)
+                  await settle(market, userB)
 
                   expectLocalEq(await market.locals(user.address), {
                     currentId: 3,
@@ -6167,8 +6175,8 @@ describe.only('Market', () => {
                   oracle.status.returns([ORACLE_VERSION_4, ORACLE_VERSION_5.timestamp])
                   oracle.request.returns()
 
-                  await market.connect(user).update0(user.address, 0)
-                  await market.connect(userB).update0(userB.address, 0)
+                  await settle(market, user)
+                  await settle(market, userB)
 
                   expectLocalEq(await market.locals(user.address), {
                     currentId: 4,
@@ -6295,8 +6303,8 @@ describe.only('Market', () => {
                   oracle.status.returns([ORACLE_VERSION_4, ORACLE_VERSION_5.timestamp])
                   oracle.request.returns()
 
-                  await market.connect(user).update0(user.address, 0)
-                  await market.connect(userB).update0(userB.address, 0)
+                  await settle(market, user)
+                  await settle(market, userB)
 
                   expectLocalEq(await market.locals(user.address), {
                     currentId: 3,
@@ -6399,8 +6407,8 @@ describe.only('Market', () => {
                   oracle.status.returns([ORACLE_VERSION_4, ORACLE_VERSION_5.timestamp])
                   oracle.request.returns()
 
-                  await market.connect(user).update0(user.address, 0)
-                  await market.connect(userB).update0(userB.address, 0)
+                  await settle(market, user)
+                  await settle(market, userB)
 
                   expectLocalEq(await market.locals(user.address), {
                     currentId: 3,
@@ -6503,8 +6511,8 @@ describe.only('Market', () => {
               oracle.status.returns([ORACLE_VERSION_2, ORACLE_VERSION_3.timestamp])
               oracle.request.returns()
 
-              await market.connect(user).update0(user.address, 0)
-              await market.connect(userB).update0(userB.address, 0)
+              await settle(market, user)
+              await settle(market, userB)
             })
 
             it('same price same timestamp settle', async () => {
@@ -6518,8 +6526,8 @@ describe.only('Market', () => {
               oracle.status.returns([oracleVersionSameTimestamp, ORACLE_VERSION_3.timestamp])
               oracle.request.returns()
 
-              await market.connect(user).update0(user.address, 0)
-              await market.connect(userB).update0(userB.address, 0)
+              await settle(market, user)
+              await settle(market, userB)
 
               expectLocalEq(await market.locals(user.address), {
                 currentId: 2,
@@ -6612,8 +6620,8 @@ describe.only('Market', () => {
               oracle.status.returns([oracleVersionLowerPrice, ORACLE_VERSION_4.timestamp])
               oracle.request.returns()
 
-              await market.connect(user).update0(user.address, 0)
-              await market.connect(userB).update0(userB.address, 0)
+              await settle(market, user)
+              await settle(market, userB)
 
               expectLocalEq(await market.locals(user.address), {
                 currentId: 3,
@@ -6719,8 +6727,8 @@ describe.only('Market', () => {
               oracle.status.returns([oracleVersionHigherPrice, ORACLE_VERSION_4.timestamp])
               oracle.request.returns()
 
-              await market.connect(user).update0(user.address, 0)
-              await market.connect(userB).update0(userB.address, 0)
+              await settle(market, user)
+              await settle(market, userB)
 
               expectLocalEq(await market.locals(user.address), {
                 currentId: 3,
@@ -6828,8 +6836,8 @@ describe.only('Market', () => {
                 oracle.status.returns([ORACLE_VERSION_2, ORACLE_VERSION_3.timestamp])
                 oracle.request.returns()
 
-                await market.connect(user).update0(user.address, 0)
-                await market.connect(userB).update0(userB.address, 0)
+                await settle(market, user)
+                await settle(market, userB)
 
                 const EXPECTED_PNL = parse6decimal('27').mul(5)
                 const EXPECTED_LIQUIDATION_FEE = parse6decimal('28.8')
@@ -6843,7 +6851,7 @@ describe.only('Market', () => {
                 oracle.status.returns([oracleVersionLowerPrice, ORACLE_VERSION_4.timestamp])
                 oracle.request.returns()
 
-                await market.connect(user).update0(user.address, 0)
+                await settle(market, user)
                 dsu.transfer.whenCalledWith(liquidator.address, EXPECTED_LIQUIDATION_FEE.mul(1e12)).returns(true)
                 dsu.balanceOf.whenCalledWith(market.address).returns(COLLATERAL.mul(1e12))
 
@@ -6857,8 +6865,8 @@ describe.only('Market', () => {
                 oracle.status.returns([ORACLE_VERSION_4, ORACLE_VERSION_5.timestamp])
                 oracle.request.returns()
 
-                await market.connect(user).update0(user.address, 0)
-                await market.connect(userB).update0(userB.address, 0)
+                await settle(market, user)
+                await settle(market, userB)
 
                 const oracleVersionLowerPrice2 = {
                   price: parse6decimal('96'),
@@ -6869,8 +6877,8 @@ describe.only('Market', () => {
                 oracle.status.returns([oracleVersionLowerPrice2, oracleVersionLowerPrice2.timestamp + 3600])
                 oracle.request.returns()
 
-                await market.connect(user).update0(user.address, 0)
-                await market.connect(userB).update0(userB.address, 0)
+                await settle(market, user)
+                await settle(market, userB)
 
                 expectLocalEq(await market.locals(user.address), {
                   currentId: 5,
@@ -7015,9 +7023,9 @@ describe.only('Market', () => {
                 oracle.status.returns([ORACLE_VERSION_2, ORACLE_VERSION_3.timestamp])
                 oracle.request.returns()
 
-                await market.connect(user).update0(user.address, 0)
-                await market.connect(userB).update0(userB.address, 0)
-                await market.connect(userC).update0(userC.address, 0)
+                await settle(market, user)
+                await settle(market, userB)
+                await settle(market, userC)
 
                 const EXPECTED_PNL = parse6decimal('27').mul(5).div(2)
                 const EXPECTED_LIQUIDATION_FEE = parse6decimal('28.8')
@@ -7046,8 +7054,8 @@ describe.only('Market', () => {
                 oracle.status.returns([oracleVersionHigherPrice, ORACLE_VERSION_4.timestamp])
                 oracle.request.returns()
 
-                await market.connect(user).update0(user.address, 0)
-                await market.connect(userC).update0(userC.address, 0)
+                await settle(market, user)
+                await settle(market, userC)
                 dsu.transfer.whenCalledWith(liquidator.address, EXPECTED_LIQUIDATION_FEE.mul(1e12)).returns(true)
                 dsu.balanceOf.whenCalledWith(market.address).returns(COLLATERAL.mul(1e12))
                 await expect(
@@ -7060,9 +7068,9 @@ describe.only('Market', () => {
                 oracle.status.returns([ORACLE_VERSION_4, ORACLE_VERSION_5.timestamp])
                 oracle.request.returns()
 
-                await market.connect(user).update0(user.address, 0)
-                await market.connect(userB).update0(userB.address, 0)
-                await market.connect(userC).update0(userC.address, 0)
+                await settle(market, user)
+                await settle(market, userB)
+                await settle(market, userC)
 
                 const oracleVersionHigherPrice2 = {
                   price: parse6decimal('96'),
@@ -7073,9 +7081,9 @@ describe.only('Market', () => {
                 oracle.status.returns([oracleVersionHigherPrice2, oracleVersionHigherPrice2.timestamp + 3600])
                 oracle.request.returns()
 
-                await market.connect(user).update0(user.address, 0)
-                await market.connect(userB).update0(userB.address, 0)
-                await market.connect(userC).update0(userC.address, 0)
+                await settle(market, user)
+                await settle(market, userB)
+                await settle(market, userC)
 
                 expectLocalEq(await market.locals(user.address), {
                   currentId: 5,
@@ -7260,8 +7268,8 @@ describe.only('Market', () => {
                 oracle.status.returns([ORACLE_VERSION_2, ORACLE_VERSION_3.timestamp])
                 oracle.request.returns()
 
-                await market.connect(user).update0(user.address, 0)
-                await market.connect(userB).update0(userB.address, 0)
+                await settle(market, user)
+                await settle(market, userB)
 
                 const EXPECTED_PNL = parse6decimal('80').mul(5)
                 const EXPECTED_LIQUIDATION_FEE = parse6decimal('12.9')
@@ -7275,7 +7283,7 @@ describe.only('Market', () => {
                 oracle.status.returns([oracleVersionHigherPrice, ORACLE_VERSION_4.timestamp])
                 oracle.request.returns()
 
-                await market.connect(user).update0(user.address, 0)
+                await settle(market, user)
                 dsu.transfer.whenCalledWith(liquidator.address, EXPECTED_LIQUIDATION_FEE.mul(1e12)).returns(true)
                 dsu.balanceOf.whenCalledWith(market.address).returns(COLLATERAL.mul(1e12))
 
@@ -7438,8 +7446,8 @@ describe.only('Market', () => {
                 oracle.status.returns([ORACLE_VERSION_2, ORACLE_VERSION_3.timestamp])
                 oracle.request.returns()
 
-                await market.connect(user).update0(user.address, 0)
-                await market.connect(userB).update0(userB.address, 0)
+                await settle(market, user)
+                await settle(market, userB)
 
                 const EXPECTED_PNL = parse6decimal('27').mul(5)
                 const EXPECTED_LIQUIDATION_FEE = parse6decimal('22.5')
@@ -7453,7 +7461,7 @@ describe.only('Market', () => {
                 oracle.status.returns([oracleVersionLowerPrice, ORACLE_VERSION_4.timestamp])
                 oracle.request.returns()
 
-                await market.connect(userB).update0(userB.address, 0)
+                await settle(market, userB)
                 dsu.transfer.whenCalledWith(liquidator.address, EXPECTED_LIQUIDATION_FEE.mul(1e12)).returns(true)
                 dsu.balanceOf.whenCalledWith(market.address).returns(COLLATERAL.mul(1e12))
 
@@ -7467,8 +7475,8 @@ describe.only('Market', () => {
                 oracle.status.returns([ORACLE_VERSION_4, ORACLE_VERSION_5.timestamp])
                 oracle.request.returns()
 
-                await market.connect(user).update0(user.address, 0)
-                await market.connect(userB).update0(userB.address, 0)
+                await settle(market, user)
+                await settle(market, userB)
 
                 const oracleVersionLowerPrice2 = {
                   price: parse6decimal('150'),
@@ -7479,8 +7487,8 @@ describe.only('Market', () => {
                 oracle.status.returns([oracleVersionLowerPrice2, oracleVersionLowerPrice2.timestamp + 3600])
                 oracle.request.returns()
 
-                await market.connect(user).update0(user.address, 0)
-                await market.connect(userB).update0(userB.address, 0)
+                await settle(market, user)
+                await settle(market, userB)
 
                 expectLocalEq(await market.locals(user.address), {
                   currentId: 5,
@@ -7639,8 +7647,8 @@ describe.only('Market', () => {
                 oracle.status.returns([ORACLE_VERSION_2, ORACLE_VERSION_3.timestamp])
                 oracle.request.returns()
 
-                await market.connect(user).update0(user.address, 0)
-                await market.connect(userB).update0(userB.address, 0)
+                await settle(market, user)
+                await settle(market, userB)
 
                 const EXPECTED_PNL = parse6decimal('80').mul(5)
                 const EXPECTED_LIQUIDATION_FEE = parse6decimal('30.45')
@@ -7654,7 +7662,7 @@ describe.only('Market', () => {
                 oracle.status.returns([oracleVersionHigherPrice, ORACLE_VERSION_4.timestamp])
                 oracle.request.returns()
 
-                await market.connect(userB).update0(userB.address, 0)
+                await settle(market, userB)
                 dsu.transfer.whenCalledWith(liquidator.address, EXPECTED_LIQUIDATION_FEE.mul(1e12)).returns(true)
                 dsu.balanceOf.whenCalledWith(market.address).returns(COLLATERAL.mul(1e12))
 
@@ -7816,8 +7824,8 @@ describe.only('Market', () => {
               oracle.status.returns([ORACLE_VERSION_2, ORACLE_VERSION_3.timestamp])
               oracle.request.returns()
 
-              await market.connect(user).update0(user.address, 0)
-              await market.connect(userB).update0(userB.address, 0)
+              await settle(market, user)
+              await settle(market, userB)
             })
 
             it('zeroes PnL and fees (price change)', async () => {
@@ -7841,8 +7849,8 @@ describe.only('Market', () => {
               oracle.status.returns([oracleVersionHigherPrice_1, ORACLE_VERSION_5.timestamp])
               oracle.request.returns()
 
-              await market.connect(user).update0(user.address, 0)
-              await market.connect(userB).update0(userB.address, 0)
+              await settle(market, user)
+              await settle(market, userB)
 
               expectLocalEq(await market.locals(user.address), {
                 currentId: 3,
@@ -8008,8 +8016,8 @@ describe.only('Market', () => {
           //       oracle.mock.atVersion.withArgs(2).returns(ORACLE_VERSION_2)
           //       oracle.mock.request.withArgs().returns(ORACLE_VERSION_2)
           //
-          //       await market.connect(user).update0(user.address, 0)
-          //       await market.connect(userC).update0(userC.address, 0)
+          //       await settle(market, user)
+          //       await settle(market, userC)
           //
           //       expectAccountEq(await market.accounts(user.address), {
           //         latesttimestamp: 2,
@@ -8117,8 +8125,8 @@ describe.only('Market', () => {
           //       oracle.mock.atVersion.withArgs(2).returns(ORACLE_VERSION_2)
           //       oracle.mock.request.withArgs().returns(ORACLE_VERSION_2)
           //
-          //       await market.connect(user).update0(user.address, 0)
-          //       await market.connect(userC).update0(userC.address, 0)
+          //       await settle(market, user)
+          //       await settle(market, userC)
           //
           //       expectAccountEq(await market.accounts(user.address), {
           //         latesttimestamp: 2,
@@ -8242,9 +8250,9 @@ describe.only('Market', () => {
           //       oracle.mock.atVersion.withArgs(3).returns(ORACLE_VERSION_3)
           //       oracle.mock.request.withArgs().returns(ORACLE_VERSION_3)
           //
-          //       await market.connect(user).update0(user.address, 0)
-          //       await market.connect(userB).update0(userB.address, 0)
-          //       await market.connect(userC).update0(userC.address, 0)
+          //       await settle(market, user)
+          //       await settle(market, userB)
+          //       await settle(market, userC)
           //
           //       expectAccountEq(await market.accounts(user.address), {
           //         latesttimestamp: 3,
@@ -8325,9 +8333,9 @@ describe.only('Market', () => {
           //       oracle.mock.atVersion.withArgs(3).returns(ORACLE_VERSION_3)
           //       oracle.mock.request.withArgs().returns(ORACLE_VERSION_3)
           //
-          //       await market.connect(user).update0(user.address, 0)
-          //       await market.connect(userB).update0(userB.address, 0)
-          //       await market.connect(userC).update0(userC.address, 0)
+          //       await settle(market, user)
+          //       await settle(market, userB)
+          //       await settle(market, userC)
           //
           //       expectAccountEq(await market.accounts(user.address), {
           //         latesttimestamp: 3,
@@ -8420,9 +8428,9 @@ describe.only('Market', () => {
           //       oracle.mock.atVersion.withArgs(3).returns(ORACLE_VERSION_3)
           //       oracle.mock.request.withArgs().returns(ORACLE_VERSION_3)
           //
-          //       await market.connect(user).update0(user.address, 0)
-          //       await market.connect(userB).update0(userB.address, 0)
-          //       await market.connect(userC).update0(userC.address, 0)
+          //       await settle(market, user)
+          //       await settle(market, userB)
+          //       await settle(market, userC)
           //
           //       expectAccountEq(await market.accounts(user.address), {
           //         latesttimestamp: 3,
@@ -8488,7 +8496,7 @@ describe.only('Market', () => {
           //       oracle.mock.atVersion.withArgs(2).returns(ORACLE_VERSION_2)
           //       oracle.mock.request.withArgs().returns(ORACLE_VERSION_2)
           //
-          //       await market.connect(user).update0(user.address, 0)
+          //       await settle(market, user)
           //
           //       const marketParameter = { ...(await market.parameter()) }
           //       marketParameter.takerFee = parse6decimal('0.01')
@@ -8521,9 +8529,9 @@ describe.only('Market', () => {
           //       oracle.mock.atVersion.withArgs(4).returns(ORACLE_VERSION_4)
           //       oracle.mock.request.withArgs().returns(ORACLE_VERSION_4)
           //
-          //       await market.connect(user).update0(user.address, 0)
-          //       await market.connect(userB).update0(userB.address, 0)
-          //       await market.connect(userC).update0(userC.address, 0)
+          //       await settle(market, user)
+          //       await settle(market, userB)
+          //       await settle(market, userC)
           //
           //       expectAccountEq(await market.accounts(user.address), {
           //         latesttimestamp: 4,
@@ -8670,7 +8678,7 @@ describe.only('Market', () => {
           //         oracle.mock.atVersion.withArgs(2).returns(ORACLE_VERSION_2)
           //         oracle.mock.request.withArgs().returns(ORACLE_VERSION_2)
           //
-          //         await market.connect(user).update0(user.address, 0)
+          //         await settle(market, user)
           //       })
           //
           //       it('closes the position', async () => {
@@ -8718,8 +8726,8 @@ describe.only('Market', () => {
           //         oracle.mock.atVersion.withArgs(3).returns(ORACLE_VERSION_3)
           //         oracle.mock.request.withArgs().returns(ORACLE_VERSION_3)
           //
-          //         await market.connect(user).update0(user.address, 0)
-          //         await market.connect(userB).update0(userB.address, 0)
+          //         await settle(market, user)
+          //         await settle(market, userB)
           //
           //         expectAccountEq(await market.accounts(user.address), {
           //           latesttimestamp: 3,
@@ -8813,8 +8821,8 @@ describe.only('Market', () => {
           //         oracle.mock.atVersion.withArgs(3).returns(ORACLE_VERSION_3)
           //         oracle.mock.request.withArgs().returns(ORACLE_VERSION_3)
           //
-          //         await market.connect(user).update0(user.address, 0)
-          //         await market.connect(userB).update0(userB.address, 0)
+          //         await settle(market, user)
+          //         await settle(market, userB)
           //
           //         expectAccountEq(await market.accounts(user.address), {
           //           latesttimestamp: 3,
@@ -8877,7 +8885,7 @@ describe.only('Market', () => {
           //           .to.emit(market, 'Updated')
           //           .withArgs(user.address, 3, 0, 0, 0, COLLATERAL, false)
           //
-          //         await market.connect(userB).update0(userB.address, 0)
+          //         await settle(market, userB)
           //
           //         expectAccountEq(await market.accounts(user.address), {
           //           latesttimestamp: 3,
@@ -8952,8 +8960,8 @@ describe.only('Market', () => {
           //         oracle.mock.atVersion.withArgs(4).returns(ORACLE_VERSION_4)
           //         oracle.mock.request.withArgs().returns(ORACLE_VERSION_4)
           //
-          //         await market.connect(user).update0(user.address, 0)
-          //         await market.connect(userB).update0(userB.address, 0)
+          //         await settle(market, user)
+          //         await settle(market, userB)
           //
           //         expectAccountEq(await market.accounts(user.address), {
           //           latesttimestamp: 4,
@@ -9021,8 +9029,8 @@ describe.only('Market', () => {
           //         oracle.mock.atVersion.withArgs(4).returns(ORACLE_VERSION_4)
           //         oracle.mock.request.withArgs().returns(ORACLE_VERSION_4)
           //
-          //         await market.connect(user).update0(user.address, 0)
-          //         await market.connect(userB).update0(userB.address, 0)
+          //         await settle(market, user)
+          //         await settle(market, userB)
           //
           //         expectAccountEq(await market.accounts(user.address), {
           //           latesttimestamp: 4,
@@ -9089,8 +9097,8 @@ describe.only('Market', () => {
           //         oracle.mock.atVersion.withArgs(4).returns(ORACLE_VERSION_4)
           //         oracle.mock.request.withArgs().returns(ORACLE_VERSION_4)
           //
-          //         await market.connect(user).update0(user.address, 0)
-          //         await market.connect(userB).update0(userB.address, 0)
+          //         await settle(market, user)
+          //         await settle(market, userB)
           //
           //         expectAccountEq(await market.accounts(user.address), {
           //           latesttimestamp: 4,
@@ -9152,8 +9160,8 @@ describe.only('Market', () => {
           //     oracle.mock.atVersion.withArgs(2).returns(ORACLE_VERSION_2)
           //     oracle.mock.request.withArgs().returns(ORACLE_VERSION_2)
           //
-          //     await market.connect(user).update0(user.address, 0)
-          //     await market.connect(userB).update0(userB.address, 0)
+          //     await settle(market, user)
+          //     await settle(market, userB)
           //   })
           //
           //   it('same price same timestamp settle', async () => {
@@ -9167,8 +9175,8 @@ describe.only('Market', () => {
           //     oracle.mock.atVersion.withArgs(3).returns(oracleVersionSameTimestamp)
           //     oracle.mock.request.withArgs().returns(oracleVersionSameTimestamp)
           //
-          //     await market.connect(user).update0(user.address, 0)
-          //     await market.connect(userB).update0(userB.address, 0)
+          //     await settle(market, user)
+          //     await settle(market, userB)
           //
           //     expectAccountEq(await market.accounts(user.address), {
           //       latesttimestamp: 3,
@@ -9231,8 +9239,8 @@ describe.only('Market', () => {
           //     oracle.mock.atVersion.withArgs(3).returns(oracleVersionLowerPrice)
           //     oracle.mock.request.withArgs().returns(oracleVersionLowerPrice)
           //
-          //     await market.connect(user).update0(user.address, 0)
-          //     await market.connect(userB).update0(userB.address, 0)
+          //     await settle(market, user)
+          //     await settle(market, userB)
           //
           //     expectAccountEq(await market.accounts(user.address), {
           //       latesttimestamp: 3,
@@ -9293,8 +9301,8 @@ describe.only('Market', () => {
           //     oracle.mock.atVersion.withArgs(3).returns(oracleVersionHigherPrice)
           //     oracle.mock.request.withArgs().returns(oracleVersionHigherPrice)
           //
-          //     await market.connect(user).update0(user.address, 0)
-          //     await market.connect(userB).update0(userB.address, 0)
+          //     await settle(market, user)
+          //     await settle(market, userB)
           //
           //     expectAccountEq(await market.accounts(user.address), {
           //       latesttimestamp: 3,
@@ -9360,8 +9368,8 @@ describe.only('Market', () => {
           //       oracle.mock.atVersion.withArgs(2).returns(ORACLE_VERSION_2)
           //       oracle.mock.request.withArgs().returns(ORACLE_VERSION_2)
           //
-          //       await market.connect(user).update0(user.address, 0)
-          //       await market.connect(userB).update0(userB.address, 0)
+          //       await settle(market, user)
+          //       await settle(market, userB)
           //
           //       const EXPECTED_PNL = parse6decimal('27').mul(5)
           //       const EXPECTED_LIQUIDATION_FEE = parse6decimal('45')
@@ -9383,7 +9391,7 @@ describe.only('Market', () => {
           //       oracle.mock.atVersion.withArgs(3).returns(oracleVersionHigherPrice)
           //       oracle.mock.request.withArgs().returns(oracleVersionHigherPrice)
           //
-          //       await market.connect(user).update0(user.address, 0)
+          //       await settle(market, user)
           //       dsu.transfer.whenCalledWith(liquidator.address, EXPECTED_LIQUIDATION_FEE.mul(1e12)).returns(true)
           //       dsu.balanceOf.whenCalledWith(market.address).returns(COLLATERAL.mul(1e12))
           //
@@ -9395,8 +9403,8 @@ describe.only('Market', () => {
           //       oracle.mock.atVersion.withArgs(4).returns(ORACLE_VERSION_4)
           //       oracle.mock.request.withArgs().returns(ORACLE_VERSION_4)
           //
-          //       await market.connect(user).update0(user.address, 0)
-          //       await market.connect(userB).update0(userB.address, 0)
+          //       await settle(market, user)
+          //       await settle(market, userB)
           //
           //       const oracleVersionHigherPrice2 = {
           //         price: parse6decimal('150'),
@@ -9407,8 +9415,8 @@ describe.only('Market', () => {
           //       oracle.mock.atVersion.withArgs(5).returns(oracleVersionHigherPrice2)
           //       oracle.mock.request.withArgs().returns(oracleVersionHigherPrice2)
           //
-          //       await market.connect(user).update0(user.address, 0)
-          //       await market.connect(userB).update0(userB.address, 0)
+          //       await settle(market, user)
+          //       await settle(market, userB)
           //
           //       expectAccountEq(await market.accounts(user.address), {
           //         latesttimestamp: 5,
@@ -9485,9 +9493,9 @@ describe.only('Market', () => {
           //       oracle.mock.atVersion.withArgs(2).returns(ORACLE_VERSION_2)
           //       oracle.mock.request.withArgs().returns(ORACLE_VERSION_2)
           //
-          //       await market.connect(user).update0(user.address, 0)
-          //       await market.connect(userB).update0(userB.address, 0)
-          //       await market.connect(userC).update0(userC.address, 0)
+          //       await settle(market, user)
+          //       await settle(market, userB)
+          //       await settle(market, userC)
           //
           //       const EXPECTED_PNL = parse6decimal('27').mul(5).div(2)
           //       const EXPECTED_LIQUIDATION_FEE = parse6decimal('45')
@@ -9523,8 +9531,8 @@ describe.only('Market', () => {
           //       oracle.mock.atVersion.withArgs(3).returns(oracleVersionHigherPrice)
           //       oracle.mock.request.withArgs().returns(oracleVersionHigherPrice)
           //
-          //       await market.connect(user).update0(user.address, 0)
-          //       await market.connect(userC).update0(userC.address, 0)
+          //       await settle(market, user)
+          //       await settle(market, userC)
           //       dsu.transfer.whenCalledWith(liquidator.address, EXPECTED_LIQUIDATION_FEE.mul(1e12)).returns(true)
           //       dsu.balanceOf.whenCalledWith(market.address).returns(COLLATERAL.mul(1e12))
           //       await expect(market.connect(liquidator).settle(userB.address))
@@ -9535,9 +9543,9 @@ describe.only('Market', () => {
           //       oracle.mock.atVersion.withArgs(4).returns(ORACLE_VERSION_4)
           //       oracle.mock.request.withArgs().returns(ORACLE_VERSION_4)
           //
-          //       await market.connect(user).update0(user.address, 0)
-          //       await market.connect(userB).update0(userB.address, 0)
-          //       await market.connect(userC).update0(userC.address, 0)
+          //       await settle(market, user)
+          //       await settle(market, userB)
+          //       await settle(market, userC)
           //
           //       const oracleVersionHigherPrice2 = {
           //         price: parse6decimal('150'),
@@ -9548,9 +9556,9 @@ describe.only('Market', () => {
           //       oracle.mock.atVersion.withArgs(5).returns(oracleVersionHigherPrice2)
           //       oracle.mock.request.withArgs().returns(oracleVersionHigherPrice2)
           //
-          //       await market.connect(user).update0(user.address, 0)
-          //       await market.connect(userB).update0(userB.address, 0)
-          //       await market.connect(userC).update0(userC.address, 0)
+          //       await settle(market, user)
+          //       await settle(market, userB)
+          //       await settle(market, userC)
           //
           //       expectAccountEq(await market.accounts(user.address), {
           //         latesttimestamp: 5,
@@ -9661,8 +9669,8 @@ describe.only('Market', () => {
           //       oracle.mock.atVersion.withArgs(2).returns(ORACLE_VERSION_2)
           //       oracle.mock.request.withArgs().returns(ORACLE_VERSION_2)
           //
-          //       await market.connect(user).update0(user.address, 0)
-          //       await market.connect(userB).update0(userB.address, 0)
+          //       await settle(market, user)
+          //       await settle(market, userB)
           //
           //       const EXPECTED_PNL = parse6decimal('80').mul(5)
           //       const EXPECTED_LIQUIDATION_FEE = parse6decimal('60.9')
@@ -9683,7 +9691,7 @@ describe.only('Market', () => {
           //       oracle.mock.atVersion.withArgs(3).returns(oracleVersionHigherPrice)
           //       oracle.mock.request.withArgs().returns(oracleVersionHigherPrice)
           //
-          //       await market.connect(user).update0(user.address, 0)
+          //       await settle(market, user)
           //       dsu.transfer.whenCalledWith(liquidator.address, EXPECTED_LIQUIDATION_FEE.mul(1e12)).returns(true)
           //       dsu.balanceOf.whenCalledWith(market.address).returns(COLLATERAL.mul(1e12))
           //
@@ -9794,8 +9802,8 @@ describe.only('Market', () => {
           //       oracle.mock.atVersion.withArgs(2).returns(ORACLE_VERSION_2)
           //       oracle.mock.request.withArgs().returns(ORACLE_VERSION_2)
           //
-          //       await market.connect(user).update0(user.address, 0)
-          //       await market.connect(userB).update0(userB.address, 0)
+          //       await settle(market, user)
+          //       await settle(market, userB)
           //
           //       const EXPECTED_PNL = parse6decimal('27').mul(5)
           //       const EXPECTED_LIQUIDATION_FEE = parse6decimal('14.4')
@@ -9816,7 +9824,7 @@ describe.only('Market', () => {
           //       oracle.mock.atVersion.withArgs(3).returns(oracleVersionLowerPrice)
           //       oracle.mock.request.withArgs().returns(oracleVersionLowerPrice)
           //
-          //       await market.connect(userB).update0(userB.address, 0)
+          //       await settle(market, userB)
           //       dsu.transfer.whenCalledWith(liquidator.address, EXPECTED_LIQUIDATION_FEE.mul(1e12)).returns(true)
           //       dsu.balanceOf.whenCalledWith(market.address).returns(COLLATERAL.mul(1e12))
           //
@@ -9828,8 +9836,8 @@ describe.only('Market', () => {
           //       oracle.mock.atVersion.withArgs(4).returns(ORACLE_VERSION_4)
           //       oracle.mock.request.withArgs().returns(ORACLE_VERSION_4)
           //
-          //       await market.connect(user).update0(user.address, 0)
-          //       await market.connect(userB).update0(userB.address, 0)
+          //       await settle(market, user)
+          //       await settle(market, userB)
           //
           //       const oracleVersionLowerPrice2 = {
           //         price: parse6decimal('96'),
@@ -9840,8 +9848,8 @@ describe.only('Market', () => {
           //       oracle.mock.atVersion.withArgs(5).returns(oracleVersionLowerPrice2)
           //       oracle.mock.request.withArgs().returns(oracleVersionLowerPrice2)
           //
-          //       await market.connect(user).update0(user.address, 0)
-          //       await market.connect(userB).update0(userB.address, 0)
+          //       await settle(market, user)
+          //       await settle(market, userB)
           //
           //       expectAccountEq(await market.accounts(user.address), {
           //         latesttimestamp: 5,
@@ -9921,8 +9929,8 @@ describe.only('Market', () => {
           //       oracle.mock.atVersion.withArgs(2).returns(ORACLE_VERSION_2)
           //       oracle.mock.request.withArgs().returns(ORACLE_VERSION_2)
           //
-          //       await market.connect(user).update0(user.address, 0)
-          //       await market.connect(userB).update0(userB.address, 0)
+          //       await settle(market, user)
+          //       await settle(market, userB)
           //
           //       const EXPECTED_PNL = parse6decimal('80').mul(5)
           //       const EXPECTED_LIQUIDATION_FEE = parse6decimal('6.45')
@@ -9941,7 +9949,7 @@ describe.only('Market', () => {
           //       oracle.mock.atVersion.withArgs(3).returns(oracleVersionLowerPrice)
           //       oracle.mock.request.withArgs().returns(oracleVersionLowerPrice)
           //
-          //       await market.connect(userB).update0(userB.address, 0)
+          //       await settle(market, userB)
           //       dsu.transfer.whenCalledWith(liquidator.address, EXPECTED_LIQUIDATION_FEE.mul(1e12)).returns(true)
           //       dsu.balanceOf.whenCalledWith(market.address).returns(COLLATERAL.mul(1e12))
           //
@@ -10046,8 +10054,8 @@ describe.only('Market', () => {
           //     oracle.mock.atVersion.withArgs(2).returns(ORACLE_VERSION_2)
           //     oracle.mock.request.withArgs().returns(ORACLE_VERSION_2)
           //
-          //     await market.connect(user).update0(user.address, 0)
-          //     await market.connect(userB).update0(userB.address, 0)
+          //     await settle(market, user)
+          //     await settle(market, userB)
           //   })
           //
           //   it('zeroes PnL and fees (price change)', async () => {
@@ -10072,8 +10080,8 @@ describe.only('Market', () => {
           //     oracle.mock.atVersion.withArgs(4).returns(oracleVersionHigherPrice_1)
           //     oracle.mock.request.withArgs().returns(oracleVersionHigherPrice_1)
           //
-          //     await market.connect(user).update0(user.address, 0)
-          //     await market.connect(userB).update0(userB.address, 0)
+          //     await settle(market, user)
+          //     await settle(market, userB)
           //
           //     expectAccountEq(await market.accounts(user.address), {
           //       latesttimestamp: 4,
@@ -10223,8 +10231,8 @@ describe.only('Market', () => {
             oracle.status.returns([ORACLE_VERSION_2, ORACLE_VERSION_3.timestamp])
             oracle.request.returns()
 
-            await market.connect(user).update0(user.address, 0)
-            await market.connect(userB).update0(userB.address, 0)
+            await settle(market, user)
+            await settle(market, userB)
 
             const EXPECTED_PNL = parse6decimal('80').mul(5)
             const EXPECTED_LIQUIDATION_FEE = parse6decimal('10') // 6.45 -> under minimum
@@ -10238,7 +10246,7 @@ describe.only('Market', () => {
             oracle.status.returns([oracleVersionLowerPrice, ORACLE_VERSION_4.timestamp])
             oracle.request.returns()
 
-            await market.connect(userB).update0(userB.address, 0)
+            await settle(market, userB)
             dsu.transfer.whenCalledWith(liquidator.address, EXPECTED_LIQUIDATION_FEE.mul(1e12)).returns(true)
             dsu.balanceOf.whenCalledWith(market.address).returns(COLLATERAL.mul(1e12))
 
@@ -10350,8 +10358,8 @@ describe.only('Market', () => {
             oracle.status.returns([ORACLE_VERSION_2, ORACLE_VERSION_3.timestamp])
             oracle.request.returns()
 
-            await market.connect(user).update0(user.address, 0)
-            await market.connect(userB).update0(userB.address, 0)
+            await settle(market, user)
+            await settle(market, userB)
 
             factory.parameter.returns({
               protocolFee: parse6decimal('0.50'),
@@ -10374,7 +10382,7 @@ describe.only('Market', () => {
             oracle.status.returns([oracleVersionLowerPrice, ORACLE_VERSION_4.timestamp])
             oracle.request.returns()
 
-            await market.connect(userB).update0(userB.address, 0)
+            await settle(market, userB)
             dsu.transfer.whenCalledWith(liquidator.address, EXPECTED_LIQUIDATION_FEE.mul(1e12)).returns(true)
             dsu.balanceOf.whenCalledWith(market.address).returns(COLLATERAL.mul(1e12))
 
@@ -10388,8 +10396,8 @@ describe.only('Market', () => {
             oracle.status.returns([ORACLE_VERSION_4, ORACLE_VERSION_5.timestamp])
             oracle.request.returns()
 
-            await market.connect(user).update0(user.address, 0)
-            await market.connect(userB).update0(userB.address, 0)
+            await settle(market, user)
+            await settle(market, userB)
 
             const oracleVersionLowerPrice2 = {
               price: parse6decimal('150'),
@@ -10400,8 +10408,8 @@ describe.only('Market', () => {
             oracle.status.returns([oracleVersionLowerPrice2, oracleVersionLowerPrice2.timestamp + 3600])
             oracle.request.returns()
 
-            await market.connect(user).update0(user.address, 0)
-            await market.connect(userB).update0(userB.address, 0)
+            await settle(market, user)
+            await settle(market, userB)
 
             expectLocalEq(await market.locals(user.address), {
               currentId: 5,
@@ -10643,8 +10651,8 @@ describe.only('Market', () => {
         oracle.status.returns([ORACLE_VERSION_3, ORACLE_VERSION_4.timestamp])
         oracle.request.returns()
 
-        await market.connect(user).update0(user.address, 0)
-        await market.connect(userB).update0(userB.address, 0)
+        await settle(market, user)
+        await settle(market, userB)
 
         await market.updateBeneficiary(beneficiary.address)
       })
@@ -10712,8 +10720,8 @@ describe.only('Market', () => {
         oracle.status.returns([ORACLE_VERSION_3, ORACLE_VERSION_4.timestamp])
         oracle.request.returns()
 
-        await market.connect(user).update0(user.address, 0)
-        await market.connect(userB).update0(userB.address, 0)
+        await settle(market, user)
+        await settle(market, userB)
 
         await market.updateBeneficiary(beneficiary.address)
 
