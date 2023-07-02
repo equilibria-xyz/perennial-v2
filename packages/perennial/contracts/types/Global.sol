@@ -13,6 +13,7 @@ struct Global {
     UFixed6 riskFee;
     UFixed6 donation;
     PAccumulator6 pAccumulator;
+    Fixed6 latestPrice;
 }
 using GlobalLib for Global global;
 struct StoredGlobal { // TODO: pack better
@@ -26,6 +27,7 @@ struct StoredGlobal { // TODO: pack better
 
     /* slot 2 */
     int24 _pAccumulatorSkew;
+    int64 _latestPrice;
 }
 struct GlobalStorage { StoredGlobal value; }
 using GlobalStorageLib for GlobalStorage global;
@@ -54,6 +56,10 @@ library GlobalLib {
         self.riskFee = self.riskFee.add(riskFeeAmount);
         self.donation = self.donation.add(donationAmount);
     }
+
+    function update(Global memory self, Fixed6 latestPrice) internal pure {
+        self.latestPrice = latestPrice;
+    }
 }
 
 library GlobalStorageLib {
@@ -70,7 +76,8 @@ library GlobalStorageLib {
             PAccumulator6(
                 Fixed6.wrap(int256(storedValue._pAccumulatorValue)),
                 Fixed6.wrap(int256(storedValue._pAccumulatorSkew))
-            )
+            ),
+            Fixed6.wrap(int256(storedValue._latestPrice))
         );
     }
 
@@ -84,6 +91,7 @@ library GlobalStorageLib {
         if (newValue.pAccumulator._value.lt(Fixed6.wrap(type(int32).min))) revert GlobalStorageInvalidError();
         if (newValue.pAccumulator._skew.gt(Fixed6.wrap(type(int24).max))) revert GlobalStorageInvalidError();
         if (newValue.pAccumulator._skew.lt(Fixed6.wrap(type(int24).min))) revert GlobalStorageInvalidError();
+        if (newValue.latestPrice.gt(Fixed6.wrap(type(int64).max))) revert GlobalStorageInvalidError();
 
         self.value = StoredGlobal(
             uint32(newValue.currentId),
@@ -92,7 +100,8 @@ library GlobalStorageLib {
             uint48(UFixed6.unwrap(newValue.riskFee)),
             uint48(UFixed6.unwrap(newValue.donation)),
             int32(Fixed6.unwrap(newValue.pAccumulator._value)),
-            int24(Fixed6.unwrap(newValue.pAccumulator._skew))
+            int24(Fixed6.unwrap(newValue.pAccumulator._skew)),
+            int64(Fixed6.unwrap(newValue.latestPrice))
         );
     }
 }

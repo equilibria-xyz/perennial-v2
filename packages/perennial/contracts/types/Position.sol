@@ -110,6 +110,18 @@ library PositionLib {
         self.delta = self.delta.add(collateralAmount);
     }
 
+    /// @dev update the current global position when version is invalid
+    function invalidate(Position memory self, Position memory latestPosition) internal pure {
+        (self.id, self.maker, self.long, self.short, self.fee, self.keeper) = (
+            latestPosition.id,
+            latestPosition.maker,
+            latestPosition.long,
+            latestPosition.short,
+            UFixed6Lib.ZERO,
+            UFixed6Lib.ZERO
+        );
+    }
+
     function registerFee(Position memory self, Order memory order) internal pure {
         self.fee = self.fee.add(order.fee);
         self.keeper = self.keeper.add(order.keeper);

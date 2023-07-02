@@ -6,8 +6,6 @@ import "./interfaces/IMarket.sol";
 import "./interfaces/IMarketFactory.sol";
 import "hardhat/console.sol";
 
-// TODO: make accumulate work with latestPrice when invalid version
-
 /**
  * @title Market
  * @notice Manages logic and state for a single market market.
@@ -279,7 +277,7 @@ contract Market is IMarket, Instance {
 
         // oracle
         (context.latestVersion, context.currentTimestamp) = _oracleVersion();
-        context.positionVersion = _oracleVersionAt(context.position.timestamp);
+        context.positionVersion = _oracleVersionAtPosition(context, context.position);
 
         // after
         _endGas(context);
@@ -337,12 +335,14 @@ contract Market is IMarket, Instance {
             nextPosition = _pendingPosition[context.position.id].read();
             nextPosition.timestamp = context.latestVersion.timestamp;
             nextPosition.fee = UFixed6Lib.ZERO;
+            nextPosition.keeper = UFixed6Lib.ZERO;
             _processPosition(context, nextPosition);
         }
         if (context.latestVersion.timestamp > context.accountPosition.timestamp) {
             nextPosition = _pendingPositions[account][context.accountPosition.id].read();
             nextPosition.timestamp = context.latestVersion.timestamp;
             nextPosition.fee = UFixed6Lib.ZERO;
+            nextPosition.keeper = UFixed6Lib.ZERO;
             _processPositionAccount(context, nextPosition);
         }
 
@@ -351,8 +351,8 @@ contract Market is IMarket, Instance {
 
     function _processPosition(CurrentContext memory context, Position memory newPosition) private {
         Version memory version = _versions[context.position.timestamp].read();
-        OracleVersion memory oracleVersion = _oracleVersionAt(newPosition.timestamp);
-        if (!oracleVersion.valid) return; // skip processing if invalid
+        OracleVersion memory oracleVersion = _oracleVersionAtPosition(context, newPosition); // TODO: seems weird some logic is in here
+        if (!oracleVersion.valid) newPosition.invalidate(context.position); // TODO: combine this with sync logic?
 
         UFixed6 accumulatedFee = version.accumulate(
             context.global,
@@ -364,6 +364,7 @@ contract Market is IMarket, Instance {
             context.riskParameter
         );
         context.position.update(newPosition);
+        context.global.update(oracleVersion.price);
         context.global.incrementFees(
             accumulatedFee,
             newPosition.keeper,
@@ -376,7 +377,7 @@ contract Market is IMarket, Instance {
 
     function _processPositionAccount(CurrentContext memory context, Position memory newPosition) private view {
         Version memory version = _versions[newPosition.timestamp].read();
-        if (!version.valid) return; // skip processing if invalid
+        if (!version.valid) newPosition.invalidate(context.accountPosition);
 
         context.local.accumulate(
             context.accountPosition,
@@ -473,6 +474,14 @@ contract Market is IMarket, Instance {
     function _oracleVersionAt(uint256 timestamp) private view returns (OracleVersion memory oracleVersion) {
         oracleVersion = oracle.at(timestamp);
         _transform(oracleVersion);
+    }
+
+    function _oracleVersionAtPosition(
+        CurrentContext memory context,
+        Position memory toPosition
+    ) private view returns (OracleVersion memory oracleVersion) {
+        oracleVersion = _oracleVersion(toPosition.timestamp);
+        if (!oracleVersion.valid) oracleVersion.price = context.global.latestPrice;
     }
 
     function _transform(OracleVersion memory oracleVersion) private view {
