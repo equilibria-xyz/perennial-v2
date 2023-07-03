@@ -64,11 +64,7 @@ interface IVault is IInstance {
     event MarketRegistered(uint256 indexed marketId, IMarket market);
     event WeightUpdated(uint256 indexed marketId, uint256 newWeight);
     event ParameterUpdated(VaultParameter newParameter);
-    event Mint(address indexed account, UFixed6 amount);
-    event Burn(address indexed account, UFixed6 amount);
-    event Update(address indexed sender, address indexed account, uint256 version, UFixed6 depositAssets, UFixed6 redeemShares);
-    event Redemption(address indexed sender, address indexed account, uint256 version, UFixed6 shares);
-    event Claim(address indexed sender, address indexed account, UFixed6 assets);
+    event Update(address indexed sender, address indexed account, uint256 version, UFixed6 depositAssets, UFixed6 redeemShares, UFixed6 claimAssets);
 
     error VaultNonTransferableError();
     error VaultDepositLimitExceededError();
@@ -85,7 +81,6 @@ interface IVault is IInstance {
     error CheckpointStorageInvalidError();
     error RegistrationStorageInvalidError();
     error VaultParameterStorageInvalidError();
-    error VaultParameterStorageImmutableError();
 
     /* parameters */
 
@@ -101,10 +96,9 @@ interface IVault is IInstance {
     function initialize(Token18 asset, IMarket market, string calldata name_, string calldata symbol_) external;
     function totalShares() external view returns (UFixed6);
     function settle(address account) external;
-    function update(address account, UFixed6 depositAssets, UFixed6 redeemShares) external;
+    function update(address account, UFixed6 depositAssets, UFixed6 redeemShares, UFixed6 claimAssets) external;
     function totalUnclaimed() external view returns (UFixed6);
     function unclaimed(address account) external view returns (UFixed6);
-    function claim(address account) external;
 
     /* Partial ERC4626 Interface */
     function asset() external view returns (Token18);
