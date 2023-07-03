@@ -19,22 +19,18 @@ import {
   MarketFactory,
   IOracleProvider,
   IMarket,
+  PowerTwo__factory,
+  PayoffFactory__factory,
+  Oracle__factory,
+  OracleFactory__factory,
+  OracleFactory,
+  PayoffFactory,
+  IOracle__factory,
 } from '../../../types/generated'
 import { ChainlinkContext } from './chainlinkHelpers'
 import { parse6decimal } from '../../../../common/testutil/types'
 import { buildChainlinkRoundId } from '@equilibria/perennial-v2-oracle/util/buildChainlinkRoundId'
 import { CHAINLINK_CUSTOM_CURRENCIES } from '@equilibria/perennial-v2-oracle/util/constants'
-import {
-  PayoffFactory,
-  PayoffFactory__factory,
-  PowerTwo__factory,
-} from '@equilibria/perennial-v2-payoff/types/generated'
-import {
-  IOracle__factory,
-  Oracle__factory,
-  OracleFactory,
-  OracleFactory__factory,
-} from '@equilibria/perennial-v2-oracle/types/generated'
 const { config, deployments, ethers } = HRE
 
 export const INITIAL_PHASE_ID = 1
