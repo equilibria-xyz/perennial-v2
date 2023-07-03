@@ -11,6 +11,7 @@ import HRE from 'hardhat'
 //TODO (coverage hint): skew/impactFee coverage
 //TODO (coverage hint): makerReceiveOnly coverage
 //TODO (coverage hint): settlementFee/oracleFee/riskFee coverage
+//TODO (coverage hint): magic values
 
 import { impersonate } from '../../../../common/testutil'
 

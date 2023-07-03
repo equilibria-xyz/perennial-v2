@@ -13,7 +13,7 @@ import "hardhat/console.sol";
  */
 contract Market is IMarket, Instance {
     bool private constant GAS_PROFILE = false;
-    bool private constant LOG_REVERTS = false;
+    bool private constant LOG_REVERTS = true;
 
     /// @dev The name of the market
     string public name;
@@ -217,6 +217,12 @@ contract Market is IMarket, Instance {
     ) private {
         _startGas(context, "_update before-update-after: %s");
 
+        // magic values
+        if (collateral.eq(Fixed6Lib.MIN)) collateral = context.local.collateral.mul(Fixed6Lib.NEG_ONE);
+        if (newMaker.eq(UFixed6Lib.MAX)) newMaker = context.accountPendingPosition.maker;
+        if (newLong.eq(UFixed6Lib.MAX)) newLong = context.accountPendingPosition.long;
+        if (newShort.eq(UFixed6Lib.MAX)) newShort = context.accountPendingPosition.short;
+
         // update position
         if (context.currentTimestamp > context.accountPendingPosition.timestamp) context.local.currentId++;
         Order memory newOrder = context.accountPendingPosition
@@ -230,7 +236,6 @@ contract Market is IMarket, Instance {
         context.pendingPosition.registerFee(newOrder);
 
         // update collateral
-        if (collateral.eq(Fixed6Lib.MIN)) collateral = context.local.collateral.mul(Fixed6Lib.NEG_ONE);
         context.local.update(collateral);
         context.accountPendingPosition.update(collateral);
 
@@ -395,6 +400,9 @@ contract Market is IMarket, Instance {
         Fixed6 collateral,
         bool protected
     ) private view {
+        // TODO: protected has too many rights -- should we require latest be undercollateralized? (how do minCollateral closes work then?)
+        // TODO(idea): xor protected and accountPosition.collateralized
+
         if (
             msg.sender != account &&                                                                        // sender is operating on own account
             !IMarketFactory(address(factory())).operators(account, msg.sender) &&                           // sender is operating on own account
@@ -480,7 +488,7 @@ contract Market is IMarket, Instance {
         CurrentContext memory context,
         Position memory toPosition
     ) private view returns (OracleVersion memory oracleVersion) {
-        oracleVersion = _oracleVersion(toPosition.timestamp);
+        oracleVersion = _oracleVersionAt(toPosition.timestamp);
         if (!oracleVersion.valid) oracleVersion.price = context.global.latestPrice;
     }
 

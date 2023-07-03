@@ -14,7 +14,6 @@ interface IVault is IInstance {
     struct Context {
         uint256 currentId;
         uint256 latestId;
-        uint256 latestTimestamp;
         uint256 protection;
 
         // parameters
@@ -29,7 +28,8 @@ interface IVault is IInstance {
 
         // state
         VaultParameter parameter;
-        Checkpoint checkpoint;
+        Checkpoint currentCheckpoint;
+        Checkpoint latestCheckpoint;
         Account global;
         Account local;
     }
@@ -66,7 +66,7 @@ interface IVault is IInstance {
     event ParameterUpdated(VaultParameter newParameter);
     event Mint(address indexed account, UFixed6 amount);
     event Burn(address indexed account, UFixed6 amount);
-    event Deposit(address indexed sender, address indexed account, uint256 version, UFixed6 assets);
+    event Update(address indexed sender, address indexed account, uint256 version, UFixed6 depositAssets, UFixed6 redeemShares);
     event Redemption(address indexed sender, address indexed account, uint256 version, UFixed6 shares);
     event Claim(address indexed sender, address indexed account, UFixed6 assets);
 
@@ -101,6 +101,7 @@ interface IVault is IInstance {
     function initialize(Token18 asset, IMarket market, string calldata name_, string calldata symbol_) external;
     function totalShares() external view returns (UFixed6);
     function settle(address account) external;
+    function update(address account, UFixed6 depositAssets, UFixed6 redeemShares) external;
     function totalUnclaimed() external view returns (UFixed6);
     function unclaimed(address account) external view returns (UFixed6);
     function claim(address account) external;
@@ -111,9 +112,7 @@ interface IVault is IInstance {
     function convertToShares(UFixed6 assets) external view returns (UFixed6);
     function convertToAssets(UFixed6 shares) external view returns (UFixed6);
     function maxDeposit(address account) external view returns (UFixed6);
-    function deposit(UFixed6 assets, address account) external;
     function maxRedeem(address account) external view returns (UFixed6);
-    function redeem(UFixed6 shares, address account) external;
 
     /* Non-Transferable ERC20 Interface */
     event Approval(address indexed account, address indexed spender, UFixed6 amount);

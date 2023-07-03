@@ -10,6 +10,8 @@ import "./types/Registration.sol";
 import "./types/VaultParameter.sol";
 import "./interfaces/IVault.sol";
 
+// TODO: can we use the pendingPosition state to compute the makerFee?
+
 /**
  * @title Vault
  * @notice ERC4626 vault that manages a 50-50 position between long-short markets of the same payoff on Perennial.
@@ -44,7 +46,7 @@ contract Vault is IVault, Instance {
     mapping(address => mapping(address => UFixed6)) public allowance;
 
     /// @dev Global accounting state variables
-    AccountStorage private _account;
+    AccountStorage private _account; // TODO: use _accounts[account(0)] instead of _account
 
     /// @dev Per-account accounting state variables
     mapping(address account => AccountStorage) private _accounts;
@@ -124,7 +126,9 @@ contract Vault is IVault, Instance {
     }
 
     function register(IMarket market) external onlyOwner {
-        Context memory context = _settle(address(0));
+        _settleUnderlying();
+        Context memory context = _loadContext(address(0));
+        _settle(context);
 
         for (uint256 marketId; marketId < context.markets.length; marketId++) {
             if (_registrations[marketId].read().market == market) revert VaultMarketExistsError();
@@ -148,7 +152,9 @@ contract Vault is IVault, Instance {
     }
 
     function updateWeight(uint256 marketId, uint256 newWeight) external onlyOwner {
-        Context memory context = _settle(address(0));
+        _settleUnderlying();
+        Context memory context = _loadContext(address(0));
+        _settle(context);
 
         if (marketId >= context.markets.length) revert VaultMarketDoesNotExistError();
 
@@ -160,7 +166,10 @@ contract Vault is IVault, Instance {
     }
 
     function updateParameter(VaultParameter memory newParameter) external onlyOwner {
-        _settle(address(0));
+        _settleUnderlying();
+        Context memory context = _loadContext(address(0));
+        _settle(context);
+
         _parameter.store(newParameter);
         emit ParameterUpdated(newParameter);
     }
@@ -171,7 +180,10 @@ contract Vault is IVault, Instance {
      * @param account The account that should be synced
      */
     function settle(address account) public whenNotPaused {
-        Context memory context = _settle(account);
+        _settleUnderlying();
+        Context memory context = _loadContext(account);
+
+        _settle(context);
         _rebalance(context, UFixed6Lib.ZERO);
         _saveContext(context, account);
     }
@@ -181,98 +193,11 @@ contract Vault is IVault, Instance {
         UFixed6 settlementFeeAssets,
         UFixed6 settlementFeeShares
     ) {
-        Checkpoint memory checkpoint = _checkpoints[context.latestId].read();
         UFixed6 premiumMultiplier = UFixed6Lib.ONE.add(context.parameter.premium);
 
         makerFee = context.makerFee.mul(premiumMultiplier); // TODO: include skew and impact
         settlementFeeAssets = context.settlementFee;
-        settlementFeeShares = checkpoint.toShares(settlementFeeAssets.mul(premiumMultiplier));
-    }
-
-    /**
-     * @notice Deposits `assets` assets into the vault, returning shares to `account` after the deposit settles.
-     * @dev Accounts for makerFee by burning then airdropping makerFee * premium percent of the deposit
-     * @param assets The amount of assets to deposit
-     * @param account The account to deposit on behalf of
-     */
-    function deposit(UFixed6 assets, address account) external whenNotPaused {
-        Context memory context = _settle(account);
-
-        if (assets.gt(_maxDeposit(context))) revert VaultDepositLimitExceededError();
-        if (context.latestId < context.local.latest) revert VaultExistingOrderError();
-
-        (UFixed6 makerFee, UFixed6 settlementFeeAssets, ) = _fee(context);
-        UFixed6 depositAmount = assets.sub(assets.mul(makerFee).add(settlementFeeAssets));
-
-        context.global.deposit =  context.global.deposit.add(depositAmount);
-        context.local.latest = context.currentId;
-        context.local.deposit = depositAmount;
-        context.checkpoint.deposit = context.checkpoint.deposit.add(depositAmount);
-
-        context.parameter.asset.pull(msg.sender, UFixed18Lib.from(assets));
-
-        _rebalance(context, UFixed6Lib.ZERO);
-        _saveContext(context, account);
-
-        emit Deposit(msg.sender, account, context.currentId, assets);
-    }
-
-    /**
-     * @notice Redeems `shares` shares from the vault
-     * @dev Accounts for makerFee by burning then airdropping makerFee * premium percent of the redemption
-     * @dev Does not return any assets to the user due to delayed settlement. Use `claim` to claim assets
-     *      If account is not msg.sender, requires prior spending approval
-     * @param shares The amount of shares to redeem
-     * @param account The account to redeem on behalf of
-     */
-    function redeem(UFixed6 shares, address account) external whenNotPaused {
-        if (msg.sender != account) _consumeAllowance(account, msg.sender, shares);
-
-        Context memory context = _settle(account);
-        if (shares.gt(_maxRedeem(context, account))) revert VaultRedemptionLimitExceededError();
-        if (context.latestId < context.local.latest) revert VaultExistingOrderError();
-
-        (UFixed6 makerFee, , UFixed6 settlementFeeShares) = _fee(context);
-        UFixed6 redemptionAmount = shares.sub(shares.mul(makerFee).add(settlementFeeShares));
-
-        context.global.redemption =  context.global.redemption.add(redemptionAmount);
-        context.local.latest = context.currentId;
-        context.local.redemption = redemptionAmount;
-        context.checkpoint.redemption = context.checkpoint.redemption.add(redemptionAmount);
-
-        context.local.shares = context.local.shares.sub(shares);
-        context.global.shares = context.global.shares.sub(shares);
-
-        _rebalance(context, UFixed6Lib.ZERO);
-        _saveContext(context, account);
-
-        emit Redemption(msg.sender, account, context.currentId, shares);
-    }
-
-    /**
-     * @notice Claims all claimable assets for account, sending assets to account
-     * @param account The account to claim for
-     */
-    function claim(address account) external whenNotPaused {
-        Context memory context = _settle(account);
-
-        UFixed6 unclaimedAmount = context.local.assets;
-        UFixed6 unclaimedTotal = context.global.assets;
-        context.local.assets = UFixed6Lib.ZERO;
-        context.global.assets = unclaimedTotal.sub(unclaimedAmount);
-        emit Claim(msg.sender, account, unclaimedAmount);
-
-        // pro-rate if vault has less collateral than unclaimed
-        UFixed6 claimAmount = unclaimedAmount;
-        UFixed6 totalCollateral = UFixed6Lib.from(_collateral(context).max(Fixed6Lib.ZERO));
-        if (totalCollateral.lt(unclaimedTotal))
-            claimAmount = claimAmount.muldiv(totalCollateral, unclaimedTotal);
-
-        _rebalance(context, claimAmount);
-
-        _saveContext(context, account);
-
-        context.parameter.asset.push(account, UFixed18Lib.from(claimAmount));
+        settlementFeeShares = context.latestCheckpoint.toShares(settlementFeeAssets.mul(premiumMultiplier));
     }
 
     /**
@@ -309,29 +234,114 @@ contract Vault is IVault, Instance {
         return _maxRedeem(_loadContext(account), account);
     }
 
+    /// @notice Updates `account`, depositing `depositAssets` assets and redeeming `redeemShares` shares
+    /// @param depositAssets The amount of assets to deposit
+    /// @param redeemShares The amount of shares to redeem
+    /// @param account The account to operate on
+    function update(address account, UFixed6 depositAssets, UFixed6 redeemShares) external whenNotPaused {
+        _settleUnderlying();
+        Context memory context = _loadContext(account);
+
+        _settle(context);
+        _update(context, account, depositAssets, redeemShares);
+        _rebalance(context, UFixed6Lib.ZERO);
+        _saveContext(context, account);
+    }
+
+    function _update(Context memory context, address account, UFixed6 depositAssets, UFixed6 redeemShares) private {
+        if (msg.sender != account) _consumeAllowance(account, msg.sender, redeemShares);
+
+        if (depositAssets.gt(_maxDeposit(context))) revert VaultDepositLimitExceededError();
+        if (redeemShares.gt(_maxRedeem(context, account))) revert VaultRedemptionLimitExceededError();
+        if (context.latestId < context.local.latest) revert VaultExistingOrderError();
+
+        (UFixed6 makerFee, UFixed6 settlementFeeAssets, UFixed6 settlementFeeShares) = _fee(context);
+        UFixed6 depositAmount = depositAssets.sub(depositAssets.mul(makerFee).add(settlementFeeAssets));
+        UFixed6 redemptionAmount = redeemShares.sub(redeemShares.mul(makerFee).add(settlementFeeShares));
+
+        context.local.latest = context.currentId;
+        context.global.deposit =  context.global.deposit.add(depositAmount);
+        context.global.redemption =  context.global.redemption.add(redemptionAmount);
+        context.local.deposit = depositAmount;
+        context.local.redemption = redemptionAmount;
+        context.currentCheckpoint.deposit = context.currentCheckpoint.deposit.add(depositAmount);
+        context.currentCheckpoint.redemption = context.currentCheckpoint.redemption.add(redemptionAmount);
+
+        context.parameter.asset.pull(msg.sender, UFixed18Lib.from(depositAssets));
+        context.local.shares = context.local.shares.sub(redeemShares);
+        context.global.shares = context.global.shares.sub(redeemShares);
+
+        emit Update(msg.sender, account, context.currentId, depositAssets, redeemShares);
+    }
+
+    /**
+     * @notice Claims all claimable assets for account, sending assets to account
+     * @param account The account to claim for
+     */
+    function claim(address account) external whenNotPaused {
+        _settleUnderlying();
+        Context memory context = _loadContext(account);
+
+        _settle(context);
+
+        UFixed6 unclaimedAmount = context.local.assets;
+        UFixed6 unclaimedTotal = context.global.assets;
+        context.local.assets = UFixed6Lib.ZERO;
+        context.global.assets = unclaimedTotal.sub(unclaimedAmount);
+        emit Claim(msg.sender, account, unclaimedAmount);
+
+        // pro-rate if vault has less collateral than unclaimed
+        UFixed6 claimAmount = unclaimedAmount;
+        UFixed6 totalCollateral = UFixed6Lib.from(_collateral(context).max(Fixed6Lib.ZERO));
+        if (totalCollateral.lt(unclaimedTotal))
+            claimAmount = claimAmount.muldiv(totalCollateral, unclaimedTotal);
+
+        _rebalance(context, claimAmount);
+
+        _saveContext(context, account);
+
+        context.parameter.asset.push(account, UFixed18Lib.from(claimAmount));
+    }
+
+    function _settleUnderlying() private {
+        for (uint256 marketId; marketId < totalMarkets; marketId++)
+            _registrations[marketId].read().market.update(
+                address(this),
+                UFixed6Lib.MAX,
+                UFixed6Lib.ZERO,
+                UFixed6Lib.ZERO,
+                Fixed6Lib.ZERO,
+                false
+            );
+    }
+
     /**
      * @notice Hook that is called before every stateful operation
      * @dev Settles the vault's account on both the long and short product, along with any global or user-specific deposits/redemptions
      * @param account The account that called the operation, or 0 if called by a keeper.
      * @return context The current epoch contexts for each market
      */
-    function _settle(address account) private returns (Context memory context) {
-        for (uint256 marketId; marketId < totalMarkets; marketId++) {
-            IMarket market = _registrations[marketId].read().market;
-            Local memory local = market.locals(address(this));
-            Position memory currentPosition = market.pendingPositions(address(this), local.currentId);
-            market.update(address(this), currentPosition.maker, UFixed6Lib.ZERO, UFixed6Lib.ZERO, Fixed6Lib.ZERO, false);
-        }
-
-        context = _loadContext(account);
-
+    /// @dev context -- context.global
+    /// @dev context -- context.global.latest
+    /// @dev context -- context.latestId
+    /// @dev context -- context.local.*
+    /// @dev context -- context.currentCheckpoint
+    /// @dev context -- context.parameter
+    /// @dev context -- context.markets.length
+    /// @dev context -- context.markets[marketId].registration
+    function _settle(Context memory context) private {
         // process pending deltas
         while (context.latestId > context.global.latest) {
-            uint256 processId = context.global.latest + 1;
-            Checkpoint memory checkpoint = _checkpoints[processId].read();
-            checkpoint.complete(_collateralAtId(context, processId));
-            _checkpoints[processId].store(checkpoint);
-            context.global.process(checkpoint, checkpoint.deposit, checkpoint.redemption, processId);
+            uint256 checkpointId = context.global.latest + 1;
+            context.latestCheckpoint = _checkpoints[checkpointId].read();
+            context.latestCheckpoint.complete(_collateralAtId(context, checkpointId));
+            _checkpoints[checkpointId].store(context.latestCheckpoint);
+            context.global.process(
+                context.latestCheckpoint,
+                context.latestCheckpoint.deposit,
+                context.latestCheckpoint.redemption,
+                checkpointId
+            );
         }
         if (context.latestId >= context.local.latest) {
             Checkpoint memory checkpoint = _checkpoints[context.local.latest].read();
@@ -339,7 +349,7 @@ contract Vault is IVault, Instance {
         }
 
         // sync data for new id
-        context.checkpoint.start(context.global, context.parameter.asset.balanceOf());
+        context.currentCheckpoint.start(context.global, context.parameter.asset.balanceOf());
     }
 
     /**
@@ -451,7 +461,6 @@ contract Vault is IVault, Instance {
         context.minCollateral = protocolParameter.minCollateral;
 
         context.latestId = type(uint256).max;
-        context.latestTimestamp = type(uint256).max;
         context.minWeight = type(uint256).max;
 
         context.markets = new MarketContext[](totalMarkets);
@@ -472,13 +481,12 @@ contract Vault is IVault, Instance {
             Position memory latestPosition = registration.market.position();
             OracleVersion memory latestOracleVersion = registration.market.at(latestPosition.timestamp);
 
-            context.markets[marketId].price = latestOracleVersion.price.abs(); // TODO: we may not have a valid price at latest due to invalid versions
+            context.markets[marketId].price = latestOracleVersion.valid ? // TODO: idk if this actually works
+                latestOracleVersion.price.abs() :
+                global.latestPrice.abs();
             context.markets[marketId].currentPosition = currentPosition.maker;
             context.markets[marketId].currentNet = currentPosition.net();
-            if (latestPosition.timestamp < context.latestTimestamp) {
-                context.latestId = latestPosition.id;
-                context.latestTimestamp = latestPosition.timestamp;
-            }
+            if (latestPosition.id < context.latestId) context.latestId = latestPosition.id;
             context.makerFee = context.makerFee
                 .add(riskParameter.makerFee.mul(context.parameter.leverage).mul(UFixed6Lib.from(registration.weight)));
             context.totalWeight += registration.weight;
@@ -497,25 +505,16 @@ contract Vault is IVault, Instance {
 
         if (context.totalWeight != 0) context.makerFee = context.makerFee.div(UFixed6Lib.from(context.totalWeight));
 
-        context.checkpoint = _checkpoints[context.currentId].read();
+        context.currentCheckpoint = _checkpoints[context.currentId].read();
+        context.latestCheckpoint = _checkpoints[context.global.latest].read();
         context.global = _account.read();
         context.local = _accounts[account].read();
     }
 
     function _saveContext(Context memory context, address account) private {
-        _checkpoints[context.currentId].store(context.checkpoint);
+        _checkpoints[context.currentId].store(context.currentCheckpoint);
         _account.store(context.global);
         _accounts[account].store(context.local);
-    }
-
-    /**
-     * @notice Calculates whether or not the vault is in an unhealthy state at the provided epoch
-     * @param context Epoch context to calculate health
-     * @return bool true if unhealthy, false if healthy
-     */
-    function _unhealthy(Context memory context) private view returns (bool) {
-        Checkpoint memory checkpoint = _checkpoints[context.latestId].read(); // latest basis will always be complete
-        return checkpoint.unhealthy() || (context.protection > context.latestTimestamp);
     }
 
     /**
@@ -524,7 +523,7 @@ contract Vault is IVault, Instance {
      * @return Maximum available deposit amount at epoch
      */
     function _maxDeposit(Context memory context) private view returns (UFixed6) {
-        if (_unhealthy(context)) return UFixed6Lib.ZERO;
+        if (context.latestCheckpoint.unhealthy()) return UFixed6Lib.ZERO;
         UFixed6 collateral = UFixed6Lib.from(totalAssets().max(Fixed6Lib.ZERO)).add(_account.read().deposit);
         return context.global.assets.add(context.parameter.cap.sub(collateral.min(context.parameter.cap)));
     }
@@ -536,7 +535,7 @@ contract Vault is IVault, Instance {
      * @return redemptionAmount Maximum available redeemable amount at epoch
      */
     function _maxRedeem(Context memory context, address account) private view returns (UFixed6 redemptionAmount) {
-        if (_unhealthy(context)) return UFixed6Lib.ZERO;
+        if (context.latestCheckpoint.unhealthy()) return UFixed6Lib.ZERO;
 
         redemptionAmount = balanceOf(account);
         for (uint256 marketId; marketId < context.markets.length; marketId++) {
@@ -546,8 +545,7 @@ contract Vault is IVault, Instance {
             UFixed6 collateral = makerAvailable.muldiv(context.markets[marketId].price, context.parameter.leverage)
                 .muldiv(context.totalWeight, context.markets[marketId].registration.weight);
 
-            Checkpoint memory checkpoint = _checkpoints[context.latestId].read();
-            redemptionAmount = redemptionAmount.min(checkpoint.toShares(collateral));
+            redemptionAmount = redemptionAmount.min(context.latestCheckpoint.toShares(collateral));
         }
     }
 
@@ -561,6 +559,8 @@ contract Vault is IVault, Instance {
             value = value.add(context.markets[marketId].collateral);
     }
 
+    //// @dev context -- context.markets.length
+    //// @dev context -- context.markets[marketId].registration
     function _collateralAtId(Context memory context, uint256 id) public view returns (Fixed6 value) {
         for (uint256 marketId; marketId < context.markets.length; marketId++)
             value = value.add(
