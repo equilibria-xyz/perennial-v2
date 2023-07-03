@@ -9,6 +9,7 @@ import '@nomicfoundation/hardhat-toolbox'
 import 'hardhat-contract-sizer'
 import 'hardhat-deploy'
 import 'hardhat-dependency-compiler'
+import 'solidity-coverage'
 import { getChainId } from './testutil/network'
 
 import { ethers } from 'ethers'
@@ -111,7 +112,7 @@ export default function defaultConfig({
                     '*': ['storageLayout'],
                   },
                 },
-            viaIR: true,
+            viaIR: OPTIMIZER_ENABLED,
           },
         },
       ],
