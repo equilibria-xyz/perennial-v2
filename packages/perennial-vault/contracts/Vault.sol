@@ -9,6 +9,7 @@ import "./types/Checkpoint.sol";
 import "./types/Registration.sol";
 import "./types/VaultParameter.sol";
 import "./interfaces/IVault.sol";
+import "hardhat/console.sol";
 
 // TODO: can we use the pendingPosition state to compute the makerFee?
 
@@ -505,10 +506,10 @@ contract Vault is IVault, Instance {
 
         if (context.totalWeight != 0) context.makerFee = context.makerFee.div(UFixed6Lib.from(context.totalWeight));
 
-        context.currentCheckpoint = _checkpoints[context.currentId].read();
-        context.latestCheckpoint = _checkpoints[context.global.latest].read();
         context.global = _account.read();
         context.local = _accounts[account].read();
+        context.latestCheckpoint = _checkpoints[context.global.latest].read();
+        context.currentCheckpoint = _checkpoints[context.currentId].read();
     }
 
     function _saveContext(Context memory context, address account) private {
