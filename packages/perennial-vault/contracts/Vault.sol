@@ -217,25 +217,6 @@ contract Vault is IVault, Instance {
     function transfer(address, UFixed6) external pure returns (bool) { revert VaultNonTransferableError(); }
     function transferFrom(address, address, UFixed6) external pure returns (bool) { revert VaultNonTransferableError(); }
 
-    /**
-     * @notice The maximum available deposit amount
-     * @dev Only exact when vault is synced, otherwise approximate
-     * @return Maximum available deposit amount
-     */
-    function maxDeposit(address) external view returns (UFixed6) {
-        return _maxDeposit(_loadContext(address(0)));
-    }
-
-    /**
-     * @notice The maximum available redeemable amount
-     * @dev Only exact when vault is synced, otherwise approximate
-     * @param account The account to redeem for
-     * @return Maximum available redeemable amount
-     */
-    function maxRedeem(address account) external view returns (UFixed6) {
-        return _maxRedeem(_loadContext(account), account);
-    }
-
     /// @notice Updates `account`, depositing `depositAssets` assets, redeeming `redeemShares` shares, and claiming `claimAssets` assets
     /// @param account The account to operate on
     /// @param depositAssets The amount of assets to deposit

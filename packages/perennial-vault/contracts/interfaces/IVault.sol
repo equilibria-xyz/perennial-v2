@@ -105,8 +105,6 @@ interface IVault is IInstance {
     function totalAssets() external view returns (Fixed6);
     function convertToShares(UFixed6 assets) external view returns (UFixed6);
     function convertToAssets(UFixed6 shares) external view returns (UFixed6);
-    function maxDeposit(address account) external view returns (UFixed6);
-    function maxRedeem(address account) external view returns (UFixed6);
 
     /* Non-Transferable ERC20 Interface */
     event Approval(address indexed account, address indexed spender, UFixed6 amount);
