@@ -48,10 +48,10 @@ contract Vault is IVault, Instance {
     mapping(address => mapping(address => UFixed6)) public allowance;
 
     /// @dev Per-account accounting state variables
-    mapping(address account => AccountStorage) private _accounts;
+    mapping(address => AccountStorage) private _accounts;
 
     /// @dev Per-id accounting state variables
-    mapping(uint256 id => CheckpointStorage) private _checkpoints;
+    mapping(uint256 => CheckpointStorage) private _checkpoints;
 
     function initialize(
         Token18 asset_,
