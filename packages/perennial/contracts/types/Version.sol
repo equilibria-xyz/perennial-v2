@@ -171,12 +171,14 @@ library VersionLib {
     ) private pure returns (UFixed6 interestFee) {
         if (position.major().isZero()) return UFixed6Lib.ZERO;
 
+        UFixed6 notional = position.long.add(position.short).min(position.maker).mul(fromOracleVersion.price.abs());
+
         // Compute maker interest
         UFixed6 interest = riskParameter.utilizationCurve.accumulate(
             position.utilization(),
             fromOracleVersion.timestamp,
             toOracleVersion.timestamp,
-            position.long.add(position.short).min(position.maker).mul(fromOracleVersion.price.abs())
+            notional
         );
 
         // Compute fee
