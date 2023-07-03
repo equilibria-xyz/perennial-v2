@@ -275,19 +275,11 @@ contract Vault is IVault, Instance {
         UFixed6 redemptionAmount = redeemShares.sub(redeemShares.mul(makerFee).add(settlementFeeShares));
         UFixed6 claimAmount = _socialize(context, claimAssets);
 
-        context.local.latest = context.currentId;
-        context.global.deposit =  context.global.deposit.add(depositAmount);
-        context.global.redemption =  context.global.redemption.add(redemptionAmount);
-        context.global.assets = context.global.assets.sub(claimAssets);
-        context.local.deposit = depositAmount;
-        context.local.redemption = redemptionAmount;
-        context.local.assets = context.local.assets.sub(claimAssets);
-        context.currentCheckpoint.deposit = context.currentCheckpoint.deposit.add(depositAmount);
-        context.currentCheckpoint.redemption = context.currentCheckpoint.redemption.add(redemptionAmount);
+        context.global.update(context.global.latest, claimAssets, redeemShares, depositAmount, redemptionAmount);
+        context.local.update(context.currentId, claimAssets, redeemShares, depositAmount, redemptionAmount);
+        context.currentCheckpoint.update(depositAmount, redemptionAmount);
 
         asset.pull(msg.sender, UFixed18Lib.from(depositAssets));
-        context.local.shares = context.local.shares.sub(redeemShares);
-        context.global.shares = context.global.shares.sub(redeemShares);
 
         _rebalance(context, claimAmount);
 
@@ -330,19 +322,19 @@ contract Vault is IVault, Instance {
             context.latestCheckpoint.complete(_collateralAtId(context, checkpointId));
             _checkpoints[checkpointId].store(context.latestCheckpoint);
             context.global.process(
+                checkpointId,
                 context.latestCheckpoint,
                 context.latestCheckpoint.deposit,
-                context.latestCheckpoint.redemption,
-                checkpointId
+                context.latestCheckpoint.redemption
             );
         }
         if (context.latestId >= context.local.latest) {
             Checkpoint memory checkpoint = _checkpoints[context.local.latest].read();
-            context.local.process(checkpoint, context.local.deposit, context.local.redemption, context.local.latest);
+            context.local.process(context.local.latest, checkpoint, context.local.deposit, context.local.redemption);
         }
 
         // sync data for new id
-        context.currentCheckpoint.start(context.global, asset.balanceOf());
+        context.currentCheckpoint.initialize(context.global, asset.balanceOf());
     }
 
     /**

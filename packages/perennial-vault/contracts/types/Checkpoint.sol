@@ -29,13 +29,17 @@ using CheckpointStorageLib for CheckpointStorage global;
  * @notice
  */
 library CheckpointLib {
-    function start(Checkpoint memory self, Account memory global, UFixed18 balance) internal pure {
+    function initialize(Checkpoint memory self, Account memory global, UFixed18 balance) internal pure {
         if (self.initialized) return;
         (self.initialized, self.shares, self.assets) = (
             true,
             global.shares,
             Fixed6Lib.from(UFixed6Lib.from(balance)).sub(Fixed6Lib.from(global.deposit.add(global.assets)))
         );
+    }
+
+    function update(Checkpoint memory self, UFixed6 deposit, UFixed6 redemption) internal pure {
+        (self.deposit, self.redemption) = (self.deposit.add(deposit), self.redemption.add(redemption));
     }
 
     function complete(Checkpoint memory self, Fixed6 assets) internal pure {

@@ -29,17 +29,28 @@ using AccountStorageLib for AccountStorage global;
  */
 library AccountLib {
     function process(
-        Account memory account,
+        Account memory self,
+        uint256 id,
         Checkpoint memory checkpoint,
         UFixed6 deposit,
-        UFixed6 redemption,
-        uint256 id
+        UFixed6 redemption
     ) internal pure {
-        account.shares = account.shares.add(checkpoint.toShares(deposit));
-        account.assets = account.assets.add(checkpoint.toAssets(redemption));
-        account.deposit = account.deposit.sub(deposit);
-        account.redemption = account.redemption.sub(redemption);
-        account.latest = id;
+        self.latest = id;
+        (self.assets, self.shares) = (self.assets.add(checkpoint.toAssets(redemption)), self.shares.add(checkpoint.toShares(deposit)));
+        (self.deposit, self.redemption) = (self.deposit.sub(deposit), self.redemption.sub(redemption));
+    }
+
+    function update(
+        Account memory self,
+        uint256 id,
+        UFixed6 assets,
+        UFixed6 shares,
+        UFixed6 deposit,
+        UFixed6 redemption
+    ) internal pure {
+        self.latest = id;
+        (self.assets, self.shares) = (self.assets.sub(assets), self.shares.sub(shares));
+        (self.deposit, self.redemption) = (self.deposit.add(deposit), self.redemption.add(redemption));
     }
 }
 
