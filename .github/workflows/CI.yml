@@ -2,11 +2,10 @@ name: Automated Tests and Linting
 
 on:
   push:
-    branches: [master]
+    branches: [main]
   pull_request:
     branches:
-      - master
-      - repo-cleanup-base
+      - main
 
 env:
   CI: true
