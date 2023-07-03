@@ -46,9 +46,6 @@ contract Vault is IVault, Instance {
     /// @dev Mapping of allowance across all users
     mapping(address => mapping(address => UFixed6)) public allowance;
 
-    /// @dev Global accounting state variables
-    AccountStorage private _account; // TODO: use _accounts[account(0)] instead of _account
-
     /// @dev Per-account accounting state variables
     mapping(address account => AccountStorage) private _accounts;
 
@@ -87,20 +84,20 @@ contract Vault is IVault, Instance {
 
     function decimals() external pure returns (uint8) { return 18; }
     function asset() external view returns (Token18) { return _parameter.read().asset; }
-    function totalSupply() external view returns (UFixed6) { return _account.read().shares; }
+    function totalSupply() external view returns (UFixed6) { return _accounts[address(0)].read().shares; }
     function balanceOf(address account) public view returns (UFixed6) { return _accounts[account].read().shares; }
-    function totalUnclaimed() external view returns (UFixed6) { return _account.read().assets; }
+    function totalUnclaimed() external view returns (UFixed6) { return _accounts[address(0)].read().assets; }
     function unclaimed(address account) external view returns (UFixed6) { return _accounts[account].read().assets; }
 
     function totalAssets() public view returns (Fixed6) {
-        Checkpoint memory checkpoint = _checkpoints[_account.read().latest].read();
+        Checkpoint memory checkpoint = _checkpoints[_accounts[address(0)].read().latest].read();
         return checkpoint.assets
             .add(Fixed6Lib.from(checkpoint.deposit))
             .sub(Fixed6Lib.from(checkpoint.toAssets(checkpoint.redemption)));
     }
 
     function totalShares() public view returns (UFixed6) {
-        Checkpoint memory checkpoint = _checkpoints[_account.read().latest].read();
+        Checkpoint memory checkpoint = _checkpoints[_accounts[address(0)].read().latest].read();
         return checkpoint.shares.sub(checkpoint.redemption).add(checkpoint.toShares(checkpoint.deposit));
     }
 
@@ -506,7 +503,7 @@ contract Vault is IVault, Instance {
 
         if (context.totalWeight != 0) context.makerFee = context.makerFee.div(UFixed6Lib.from(context.totalWeight));
 
-        context.global = _account.read();
+        context.global = _accounts[address(0)].read();
         context.local = _accounts[account].read();
         context.latestCheckpoint = _checkpoints[context.global.latest].read();
         context.currentCheckpoint = _checkpoints[context.currentId].read();
@@ -514,7 +511,7 @@ contract Vault is IVault, Instance {
 
     function _saveContext(Context memory context, address account) private {
         _checkpoints[context.currentId].store(context.currentCheckpoint);
-        _account.store(context.global);
+        _accounts[address(0)].store(context.global);
         _accounts[account].store(context.local);
     }
 
@@ -525,7 +522,7 @@ contract Vault is IVault, Instance {
      */
     function _maxDeposit(Context memory context) private view returns (UFixed6) {
         if (context.latestCheckpoint.unhealthy()) return UFixed6Lib.ZERO;
-        UFixed6 collateral = UFixed6Lib.from(totalAssets().max(Fixed6Lib.ZERO)).add(_account.read().deposit);
+        UFixed6 collateral = UFixed6Lib.from(totalAssets().max(Fixed6Lib.ZERO)).add(context.global.deposit);
         return context.global.assets.add(context.parameter.cap.sub(collateral.min(context.parameter.cap)));
     }
 
