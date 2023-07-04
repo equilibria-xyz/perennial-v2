@@ -249,7 +249,7 @@ contract Vault is IVault, Instance {
         // TODO: move to invariant
         if (msg.sender != account) _consumeAllowance(account, msg.sender, redeemShares);
         if (depositAssets.gt(_maxDeposit(context))) revert VaultDepositLimitExceededError();
-        if (redeemShares.gt(_maxRedeem(context, account))) revert VaultRedemptionLimitExceededError();
+        if (redeemShares.gt(_maxRedeem(context))) revert VaultRedemptionLimitExceededError();
         if (context.latestId < context.local.latest) revert VaultExistingOrderError();
 
         // magic values
@@ -504,19 +504,19 @@ contract Vault is IVault, Instance {
     /**
      * @notice The maximum available redeemable amount at the given epoch for `account`
      * @param context Epoch context to use in calculation
-     * @param account Account to calculate redeemable amount
      * @return redemptionAmount Maximum available redeemable amount at epoch
      */
-    function _maxRedeem(Context memory context, address account) private view returns (UFixed6 redemptionAmount) {
+    function _maxRedeem(Context memory context) private pure returns (UFixed6 redemptionAmount) {
         if (context.latestCheckpoint.unhealthy()) return UFixed6Lib.ZERO;
 
-        redemptionAmount = balanceOf(account);
+        redemptionAmount = UFixed6Lib.MAX;
         for (uint256 marketId; marketId < context.markets.length; marketId++) {
-            UFixed6 makerAvailable = context.markets[marketId].currentPosition
-                .sub(context.markets[marketId].currentNet.min(context.markets[marketId].currentPosition));
+            MarketContext memory marketContext = context.markets[marketId];
 
-            UFixed6 collateral = makerAvailable.muldiv(context.markets[marketId].price, context.parameter.leverage)
-                .muldiv(context.totalWeight, context.markets[marketId].registration.weight);
+            UFixed6 collateral = marketContext.currentPosition
+                .sub(marketContext.currentNet.min(marketContext.currentPosition))   // available maker
+                .muldiv(marketContext.price, context.parameter.leverage)            // available collateral
+                .muldiv(context.totalWeight, marketContext.registration.weight);    // collateral in market
 
             redemptionAmount = redemptionAmount.min(context.latestCheckpoint.toShares(collateral));
         }
