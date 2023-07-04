@@ -246,13 +246,14 @@ contract Vault is IVault, Instance {
         UFixed6 redeemShares,
         UFixed6 claimAssets
     ) private {
+        // TODO: move to invariant
         if (msg.sender != account) _consumeAllowance(account, msg.sender, redeemShares);
-
         if (depositAssets.gt(_maxDeposit(context))) revert VaultDepositLimitExceededError();
         if (redeemShares.gt(_maxRedeem(context, account))) revert VaultRedemptionLimitExceededError();
         if (context.latestId < context.local.latest) revert VaultExistingOrderError();
 
-        // TODO: magic value for claimAssets
+        // magic values
+        if (claimAssets.eq(UFixed6Lib.MAX)) claimAssets = context.local.assets;
 
         // TODO: single sided
         (UFixed6 makerFee, UFixed6 settlementFeeAssets, UFixed6 settlementFeeShares) = _fee(context);
@@ -362,7 +363,7 @@ contract Vault is IVault, Instance {
         Context memory context,
         UFixed6 collateral,
         UFixed6 assets
-    ) private view returns (Target[] memory targets) {
+    ) private pure returns (Target[] memory targets) {
         targets = new Target[](context.markets.length);
 
         for (uint256 marketId; marketId < context.markets.length; marketId++) {
