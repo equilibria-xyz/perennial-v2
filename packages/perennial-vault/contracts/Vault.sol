@@ -183,7 +183,7 @@ contract Vault is IVault, Instance {
         Context memory context = _loadContext(account);
 
         _settle(context);
-        //_rebalance(context, UFixed6Lib.ZERO);
+        _manage(context, UFixed6Lib.ZERO, false); // TODO: support non-zero claim
         _saveContext(context, account);
     }
 
@@ -266,7 +266,7 @@ contract Vault is IVault, Instance {
 
         asset.pull(msg.sender, UFixed18Lib.from(depositAssets));
 
-        _rebalance(context, claimAmount);
+        _manage(context, claimAmount, true);
 
         asset.push(account, UFixed18Lib.from(claimAmount));
 
@@ -323,12 +323,14 @@ contract Vault is IVault, Instance {
     }
 
     /**
-     * @notice Rebalances the collateral and position of the vault
-     * @dev Rebalance is executed on best-effort, any failing legs of the strategy will not cause a revert
-     * @param claimAmount The amount of assets that will be withdrawn from the vault at the end of the operation
+     * @notice Manages the internal collateral and position strategy of the vault
+     * @param withdrawAmount The amount of assets that need to be withdrawn from the markets into the vault
+     * @param rebalance Whether to rebalance the vault's position
      */
-    function _rebalance(Context memory context, UFixed6 claimAmount) private {
-        Fixed6 collateralInVault = _collateral(context).sub(Fixed6Lib.from(claimAmount));
+    function _manage(Context memory context, UFixed6 withdrawAmount, bool rebalance) private {
+        if (!rebalance) return; // TODO: support withdrawing w/o rebalance
+
+        Fixed6 collateralInVault = _collateral(context).sub(Fixed6Lib.from(withdrawAmount));
 
         // if negative assets, skip rebalance
         if (collateralInVault.lt(Fixed6Lib.ZERO)) return;
