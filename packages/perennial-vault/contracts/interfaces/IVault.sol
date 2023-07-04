@@ -87,6 +87,7 @@ interface IVault is IInstance {
     function totalMarkets() external view returns (uint256);
     function parameter() external view returns (VaultParameter memory);
     function registrations(uint256 marketId) external view returns (Registration memory);
+    function accounts(address account) external view returns (Account memory);
     function register(IMarket market) external;
     function updateWeight(uint256 marketId, uint256 newWeight) external;
     function updateParameter(VaultParameter memory newParameter) external;

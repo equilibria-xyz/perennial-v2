@@ -45,7 +45,7 @@ contract Vault is IVault, Instance {
     mapping(uint256 => RegistrationStorage) private _registrations;
 
     /// @dev Mapping of allowance across all users
-    mapping(address => mapping(address => UFixed6)) public allowance;
+    mapping(address => mapping(address => UFixed6)) public allowance; // TODO: operator model
 
     /// @dev Per-account accounting state variables
     mapping(address account => AccountStorage) private _accounts;
@@ -73,6 +73,10 @@ contract Vault is IVault, Instance {
 
     function registrations(uint256 marketId) external view returns (Registration memory) {
         return _registrations[marketId].read();
+    }
+
+    function accounts(address account) external view returns (Account memory) {
+        return _accounts[account].read();
     }
 
     function name() external view returns (string memory) {
@@ -133,6 +137,7 @@ contract Vault is IVault, Instance {
         }
 
         _register(market, context.currentId - 1);
+        _saveContext(context, address(0));
     }
 
     function _register(IMarket market, uint256 initialId) private {
@@ -157,14 +162,12 @@ contract Vault is IVault, Instance {
         Registration memory registration = _registrations[marketId].read();
         registration.weight = newWeight;
         _registrations[marketId].store(registration);
-
+        _saveContext(context, address(0));
         emit WeightUpdated(marketId, newWeight);
     }
 
     function updateParameter(VaultParameter memory newParameter) external onlyOwner {
-        _settleUnderlying();
-        Context memory context = _loadContext(address(0));
-        _settle(context);
+        settle(address(0));
 
         _parameter.store(newParameter);
         emit ParameterUpdated(newParameter);
@@ -180,7 +183,7 @@ contract Vault is IVault, Instance {
         Context memory context = _loadContext(account);
 
         _settle(context);
-        _rebalance(context, UFixed6Lib.ZERO);
+        //_rebalance(context, UFixed6Lib.ZERO);
         _saveContext(context, account);
     }
 
@@ -251,6 +254,7 @@ contract Vault is IVault, Instance {
 
         // TODO: magic value for claimAssets
 
+        // TODO: single sided
         (UFixed6 makerFee, UFixed6 settlementFeeAssets, UFixed6 settlementFeeShares) = _fee(context);
         UFixed6 depositAmount = depositAssets.sub(depositAssets.mul(makerFee).add(settlementFeeAssets));
         UFixed6 redemptionAmount = redeemShares.sub(redeemShares.mul(makerFee).add(settlementFeeShares));
@@ -356,7 +360,7 @@ contract Vault is IVault, Instance {
         Context memory context,
         UFixed6 collateral,
         UFixed6 assets
-    ) private pure returns (Target[] memory targets) {
+    ) private view returns (Target[] memory targets) {
         targets = new Target[](context.markets.length);
 
         for (uint256 marketId; marketId < context.markets.length; marketId++) {
