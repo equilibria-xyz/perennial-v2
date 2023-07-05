@@ -311,12 +311,10 @@ contract Vault is IVault, Instance {
     /// @dev context -- context.markets.length
     /// @dev context -- context.markets[marketId].registration.market
     function _settle(Context memory context) private {
-        Mapping memory latestMapping;
-
         // settle global positions
         while (
             context.global.current > context.global.latest &&
-            (latestMapping = _mappings[context.global.latest + 1].read()).ready(context.latestIds)
+            _mappings[context.global.latest + 1].read().ready(context.latestIds)
         ) {
             uint256 newLatestId = context.global.latest + 1;
             context.latestCheckpoint = _checkpoints[newLatestId].read();
@@ -340,7 +338,7 @@ contract Vault is IVault, Instance {
         // settle local position
         if (
             context.local.current > context.local.latest &&
-            (latestMapping = _mappings[context.local.current].read()).ready(context.latestIds)
+            _mappings[context.local.current].read().ready(context.latestIds)
         ) {
             uint256 newLatestId = context.local.current;
             Checkpoint memory checkpoint = _checkpoints[newLatestId].read();
