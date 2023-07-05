@@ -70,6 +70,7 @@ interface IVault is IInstance {
     error VaultMarketDoesNotExistError();
     error VaultNotMarketError();
     error VaultIncorrectAssetError();
+    error VaultNotOperatorError();
 
     error AccountStorageInvalidError();
     error CheckpointStorageInvalidError();

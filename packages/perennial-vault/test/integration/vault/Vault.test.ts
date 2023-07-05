@@ -808,62 +808,46 @@ describe('Vault', () => {
       await vault.settle(user.address)
     })
 
-    // TODO: re-add w/ operator feature
-    // it('deposit on behalf', async () => {
-    //   const largeDeposit = parse6decimal('10000')
-    //   await vault.connect(liquidator).update(user.address, largeDeposit, 0, 0)
-    //   await updateOracle()
-    //
-    //   await vault.settle(user.address)
-    //   expect((await vault.accounts(user.address)).shares).to.equal(parse6decimal('10000'))
-    //   expect((await vault.accounts(ethers.constants.AddressZero)).shares).to.equal(parse6decimal('10000'))
-    //
-    //   await expect(vault.connect(liquidator).update(user.address, 0, parse6decimal('10000'), 0)).to.revertedWithPanic(
-    //     '0x11',
-    //   )
-    //
-    //   await vault.connect(user).approve(liquidator.address, parse6decimal('10000'))
-    //
-    //   // User 2 should not be able to redeem; they haven't deposited anything.
-    //   await vault.connect(liquidator).update(user.address, 0, parse6decimal('10000'), 0)
-    //   await updateOracle()
-    //   await vault.settle(user.address)
-    //
-    //   // We should have redeemed all of our shares.
-    //   const fundingAmount = BigNumber.from('218864')
-    //   await vault.connect(user).update(user.address, 0, 0, ethers.constants.MaxUint256)
-    //   expect(await totalCollateralInVault()).to.equal(0)
-    //   expect(await vault.totalAssets()).to.equal(0)
-    //   expect(await asset.balanceOf(liquidator.address)).to.equal(parse6decimal('190000').mul(1e12))
-    //   expect(await asset.balanceOf(user.address)).to.equal(parse6decimal('110000').add(fundingAmount).mul(1e12))
-    // })
-    //
-    // it('redeem on behalf', async () => {
-    //   const largeDeposit = parse6decimal('10000')
-    //   await vault.connect(user).update(user.address, largeDeposit, 0, 0)
-    //   await updateOracle()
-    //
-    //   await vault.settle(user.address)
-    //   expect((await vault.accounts(user.address)).shares).to.equal(parse6decimal('10000'))
-    //   expect((await vault.accounts(ethers.constants.AddressZero)).shares).to.equal(parse6decimal('10000'))
-    //
-    //   await expect(vault.connect(liquidator).update(user.address, 0, parse6decimal('10000'), 0)).to.revertedWithPanic(
-    //     '0x11',
-    //   )
-    //
-    //   await vault.connect(user).approve(liquidator.address, parse6decimal('10000'))
-    //
-    //   // User 2 should not be able to redeem; they haven't deposited anything.
-    //   await vault.connect(liquidator).update(user.address, 0, parse6decimal('10000'), 0)
-    //   await updateOracle()
-    //   await vault.settle(user.address)
-    //
-    //   // We should have redeemed all of our shares.
-    //   const fundingAmount = BigNumber.from('218864')
-    //   await vault.connect(user).update(user.address, 0, 0, ethers.constants.MaxUint256)
-    //   expect(await totalCollateralInVault()).to.equal(0)
-    //   expect(await asset.balanceOf(user.address)).to.equal(parse6decimal('100000').add(fundingAmount).mul(1e12))
-    // })
+    it('operate on behalf', async () => {
+      const largeDeposit = parse6decimal('10000')
+      await expect(vault.connect(liquidator).update(user.address, largeDeposit, 0, 0)).to.revertedWithCustomError(
+        vault,
+        'VaultNotOperatorError',
+      )
+      await vaultFactory.connect(user).updateOperator(liquidator.address, true)
+      vault.connect(liquidator).update(user.address, largeDeposit, 0, 0)
+      await vaultFactory.connect(user).updateOperator(liquidator.address, false)
+
+      await updateOracle()
+      await vault.settle(user.address)
+
+      expect((await vault.accounts(user.address)).shares).to.equal(parse6decimal('10000'))
+      expect((await vault.accounts(ethers.constants.AddressZero)).shares).to.equal(parse6decimal('10000'))
+      expect(await asset.balanceOf(liquidator.address)).to.equal(parse6decimal('190000').mul(1e12))
+      expect(await asset.balanceOf(user.address)).to.equal(parse6decimal('100000').mul(1e12))
+
+      await expect(
+        vault.connect(liquidator).update(user.address, parse6decimal('10000'), 0, 0),
+      ).to.revertedWithCustomError(vault, 'VaultNotOperatorError')
+      await vaultFactory.connect(user).updateOperator(liquidator.address, true)
+      await vault.connect(liquidator).update(user.address, 0, parse6decimal('10000'), 0)
+      await vaultFactory.connect(user).updateOperator(liquidator.address, false)
+      await updateOracle()
+      await vault.settle(user.address)
+
+      const fundingAmount = BigNumber.from('218864')
+      await expect(
+        vault.connect(liquidator).update(user.address, 0, 0, ethers.constants.MaxUint256),
+      ).to.revertedWithCustomError(vault, 'VaultNotOperatorError')
+      await vaultFactory.connect(user).updateOperator(liquidator.address, true)
+      await vault.connect(liquidator).update(user.address, 0, 0, ethers.constants.MaxUint256)
+      await vaultFactory.connect(user).updateOperator(liquidator.address, false)
+
+      expect(await totalCollateralInVault()).to.equal(0)
+      expect(await vault.totalAssets()).to.equal(0)
+      expect(await asset.balanceOf(liquidator.address)).to.equal(parse6decimal('200000').add(fundingAmount).mul(1e12))
+      expect(await asset.balanceOf(user.address)).to.equal(parse6decimal('100000').mul(1e12))
+    })
 
     it('close to makerLimit', async () => {
       // Get maker product very close to the makerLimit

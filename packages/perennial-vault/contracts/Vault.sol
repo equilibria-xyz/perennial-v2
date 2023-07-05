@@ -223,6 +223,8 @@ contract Vault is IVault, Instance {
         UFixed6 claimAssets
     ) private {
         // TODO: move to invariant
+        if (msg.sender != account && !IVaultFactory(address(factory())).operators(account, msg.sender))
+            revert VaultNotOperatorError();
         if (depositAssets.gt(_maxDeposit(context))) revert VaultDepositLimitExceededError();
         if (redeemShares.gt(_maxRedeem(context))) revert VaultRedemptionLimitExceededError();
         if (context.local.current != context.local.latest) revert VaultExistingOrderError();
@@ -253,7 +255,7 @@ contract Vault is IVault, Instance {
 
         asset.pull(msg.sender, UFixed18Lib.from(depositAssets));
         _manage(context, claimAmount, true);
-        asset.push(account, UFixed18Lib.from(claimAmount));
+        asset.push(msg.sender, UFixed18Lib.from(claimAmount));
 
         emit Update(msg.sender, account, currentId, depositAssets, redeemShares, claimAssets);
     }

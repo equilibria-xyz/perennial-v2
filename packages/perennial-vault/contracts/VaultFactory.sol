@@ -13,6 +13,8 @@ import "./interfaces/IVaultFactory.sol";
 contract VaultFactory is IVaultFactory, Factory {
     IMarketFactory public immutable marketFactory;
 
+    mapping(address => mapping(address => bool)) public operators;
+
     constructor(IMarketFactory marketFactory_, address implementation_) Factory(implementation_) {
         marketFactory = marketFactory_;
     }
@@ -32,5 +34,10 @@ contract VaultFactory is IVaultFactory, Factory {
         newVault = IVault(address(_create(abi.encodeCall(IVault.initialize, (asset, initialMarket, name, symbol)))));
 
         emit VaultCreated(newVault, asset, initialMarket);
+    }
+
+    function updateOperator(address operator, bool newEnabled) external {
+        operators[msg.sender][operator] = newEnabled;
+        emit OperatorUpdated(msg.sender, operator, newEnabled);
     }
 }
