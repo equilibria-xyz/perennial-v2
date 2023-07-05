@@ -271,6 +271,12 @@ contract Vault is IVault, Instance {
         // update current id
         uint256 currentId = context.global.current;
         if (_mappings[currentId].read().next(context.currentIds)) {
+            if (_mappings[currentId].read()._ids.length == 0) {
+                console.log("moving forward, zero length");
+            } else {
+                console.log("moving forward (%s): %s->%s", 0, _mappings[currentId].read()._ids[0], context.currentIds._ids[0]);
+                console.log("moving forward (%s): %s->%s", 1, _mappings[currentId].read()._ids[1], context.currentIds._ids[1]);
+            }
             currentId++;
             _mappings[currentId].store(context.currentIds);
         }
@@ -499,7 +505,7 @@ contract Vault is IVault, Instance {
             Position memory currentPosition = registration.market.pendingPosition(global.currentId);
             Position memory latestPosition = registration.market.position();
             OracleVersion memory latestOracleVersion = registration.market.at(latestPosition.timestamp);
-            uint256 currentTimestamp = registration.market.oracle().current();
+            uint256 currentTimestamp = registration.market.oracle().current(); // TODO: remove
 
             context.markets[marketId].price = latestOracleVersion.valid ? // TODO: idk if this actually works
                 latestOracleVersion.price.abs() :
@@ -517,6 +523,9 @@ contract Vault is IVault, Instance {
 
             context.markets[marketId].currentPositionAccount = currentPosition.maker;
             context.markets[marketId].collateral = local.collateral;
+            console.log("currentTimestamp", currentTimestamp);
+            console.log("currentPosition.timestamp", currentPosition.timestamp);
+            console.log("local.currentId", local.currentId);
             context.currentIds.update(marketId, currentTimestamp > currentPosition.timestamp ? local.currentId + 1 : local.currentId);
         }
 
