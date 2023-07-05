@@ -7,8 +7,10 @@ import "./interfaces/IVaultFactory.sol";
 import "./types/Account.sol";
 import "./types/Checkpoint.sol";
 import "./types/Registration.sol";
+import "./types/Mapping.sol";
 import "./types/VaultParameter.sol";
 import "./interfaces/IVault.sol";
+import "hardhat/console.sol";
 
 // TODO: can we use the pendingPosition state to compute the makerFee?
 
@@ -53,6 +55,9 @@ contract Vault is IVault, Instance {
     /// @dev Per-id accounting state variables
     mapping(uint256 => CheckpointStorage) private _checkpoints;
 
+    /// @dev Per-id id-mapping state variables
+    mapping(uint256 id => MappingStorage) private _mappings;
+
     function initialize(
         Token18 asset_,
         IMarket initialMarket,
@@ -64,7 +69,7 @@ contract Vault is IVault, Instance {
         asset = asset_;
         _name = name_;
         _symbol = symbol_;
-        _register(initialMarket, 0);
+        _register(initialMarket);
     }
 
     function parameter() external view returns (VaultParameter memory) {
@@ -136,18 +141,18 @@ contract Vault is IVault, Instance {
             if (_registrations[marketId].read().market == market) revert VaultMarketExistsError();
         }
 
-        _register(market, context.currentId - 1);
+        _register(market);
         _saveContext(context, address(0));
     }
 
-    function _register(IMarket market, uint256 initialId) private {
+    function _register(IMarket market) private {
         if (!IVaultFactory(address(factory())).marketFactory().instances(market)) revert VaultNotMarketError();
         if (!market.token().eq(asset)) revert VaultIncorrectAssetError();
 
         asset.approve(address(market));
 
         uint256 newMarketId = totalMarkets++;
-        _registrations[newMarketId].store(Registration(market, initialId, 0));
+        _registrations[newMarketId].store(Registration(market, 0));
 
         emit MarketRegistered(newMarketId, market);
     }
@@ -250,10 +255,19 @@ contract Vault is IVault, Instance {
         if (msg.sender != account) _consumeAllowance(account, msg.sender, redeemShares);
         if (depositAssets.gt(_maxDeposit(context))) revert VaultDepositLimitExceededError();
         if (redeemShares.gt(_maxRedeem(context))) revert VaultRedemptionLimitExceededError();
-        if (context.latestId < context.local.latest) revert VaultExistingOrderError();
+        if (context.local.current != context.local.latest) revert VaultExistingOrderError();
 
         // magic values
         if (claimAssets.eq(UFixed6Lib.MAX)) claimAssets = context.local.assets;
+
+        // update current id
+        uint256 currentId = context.global.current;
+        if (_mappings[currentId].read().next(context.currentIds)) {
+            currentId++;
+            _mappings[currentId].store(context.currentIds);
+            context.currentCheckpoint = _checkpoints[currentId].read();
+        }
+        context.currentCheckpoint.initialize(context.global, asset.balanceOf()); // TODO: is this supposed to be at the start or end?
 
         // TODO: single sided
         (UFixed6 makerFee, UFixed6 settlementFeeAssets, UFixed6 settlementFeeShares) = _fee(context);
@@ -261,17 +275,15 @@ contract Vault is IVault, Instance {
         UFixed6 redemptionAmount = redeemShares.sub(redeemShares.mul(makerFee).add(settlementFeeShares));
         UFixed6 claimAmount = _socialize(context, claimAssets);
 
-        context.global.update(context.global.latest, claimAssets, redeemShares, depositAmount, redemptionAmount);
-        context.local.update(context.currentId, claimAssets, redeemShares, depositAmount, redemptionAmount);
+        context.global.update(currentId, context.global.latest, claimAssets, redeemShares, depositAmount, redemptionAmount);
+        context.local.update(currentId, context.local.latest, claimAssets, redeemShares, depositAmount, redemptionAmount);
         context.currentCheckpoint.update(depositAmount, redemptionAmount);
 
         asset.pull(msg.sender, UFixed18Lib.from(depositAssets));
-
         _manage(context, claimAmount, true);
-
         asset.push(account, UFixed18Lib.from(claimAmount));
 
-        emit Update(msg.sender, account, context.currentId, depositAssets, redeemShares, claimAssets);
+        emit Update(msg.sender, account, currentId, depositAssets, redeemShares, claimAssets);
     }
 
     function _settleUnderlying() private {
@@ -293,34 +305,53 @@ contract Vault is IVault, Instance {
      * @return context The current epoch contexts for each market
      */
     /// @dev context -- context.global
-    /// @dev context -- context.global.latest
-    /// @dev context -- context.latestId
-    /// @dev context -- context.local.*
+    /// @dev context -- context.local
     /// @dev context -- context.currentCheckpoint
     /// @dev context -- context.parameter
     /// @dev context -- context.markets.length
-    /// @dev context -- context.markets[marketId].registration
+    /// @dev context -- context.markets[marketId].registration.market
     function _settle(Context memory context) private {
-        // process pending deltas
-        while (context.latestId > context.global.latest) {
-            uint256 checkpointId = context.global.latest + 1;
-            context.latestCheckpoint = _checkpoints[checkpointId].read();
-            context.latestCheckpoint.complete(_collateralAtId(context, checkpointId));
-            _checkpoints[checkpointId].store(context.latestCheckpoint);
+        Mapping memory latestMapping;
+
+        // settle global positions
+        while (
+            context.global.current > context.global.latest &&
+            (latestMapping = _mappings[context.global.latest + 1].read()).ready(context.latestIds)
+        ) {
+            uint256 newLatestId = context.global.latest + 1;
+            context.latestCheckpoint = _checkpoints[newLatestId].read();
+            context.latestCheckpoint.complete(_collateralAtId(context, newLatestId));
+            _checkpoints[newLatestId].store(context.latestCheckpoint);
+
+            console.log("context.latestCheckpoint.deposit", UFixed6.unwrap(context.latestCheckpoint.deposit));
+            console.log("context.latestCheckpoint.redemption", UFixed6.unwrap(context.latestCheckpoint.redemption));
+            console.log("context.global.deposit", UFixed6.unwrap(context.global.deposit));
+            console.log("context.global.redemption", UFixed6.unwrap(context.global.redemption));
+
             context.global.process(
-                checkpointId,
+                context.global.current,
+                newLatestId,
                 context.latestCheckpoint,
                 context.latestCheckpoint.deposit,
                 context.latestCheckpoint.redemption
             );
         }
-        if (context.latestId >= context.local.latest) {
-            Checkpoint memory checkpoint = _checkpoints[context.local.latest].read();
-            context.local.process(context.local.latest, checkpoint, context.local.deposit, context.local.redemption);
-        }
 
-        // sync data for new id
-        context.currentCheckpoint.initialize(context.global, asset.balanceOf());
+        // settle local position
+        if (
+            context.local.current > context.local.latest &&
+            (latestMapping = _mappings[context.local.current].read()).ready(context.latestIds)
+        ) {
+            uint256 newLatestId = context.local.current;
+            Checkpoint memory checkpoint = _checkpoints[newLatestId].read();
+            context.local.process(
+                context.local.current, // TODO: remove
+                newLatestId,
+                checkpoint,
+                context.local.deposit,
+                context.local.redemption
+            );
+        }
     }
 
     /**
@@ -433,37 +464,38 @@ contract Vault is IVault, Instance {
         context.settlementFee = protocolParameter.settlementFee;
         context.minCollateral = protocolParameter.minCollateral;
 
-        context.latestId = type(uint256).max;
         context.minWeight = type(uint256).max;
 
         context.markets = new MarketContext[](totalMarkets);
-
+        context.currentIds.initialize(totalMarkets);
+        context.latestIds.initialize(totalMarkets); // TODO: implement market addition support
         for (uint256 marketId; marketId < context.markets.length; marketId++) {
+            // parameter
             Registration memory registration = _registrations[marketId].read();
             MarketParameter memory marketParameter = registration.market.parameter();
             RiskParameter memory riskParameter = registration.market.riskParameter();
-            uint256 currentTimestamp = registration.market.oracle().current();
 
             context.markets[marketId].registration = registration;
             context.markets[marketId].closed = marketParameter.closed;
             context.markets[marketId].makerLimit = riskParameter.makerLimit;
+            if (registration.weight < context.minWeight) context.minWeight = registration.weight;
 
             // global
             Global memory global = registration.market.global();
             Position memory currentPosition = registration.market.pendingPosition(global.currentId);
             Position memory latestPosition = registration.market.position();
             OracleVersion memory latestOracleVersion = registration.market.at(latestPosition.timestamp);
+            uint256 currentTimestamp = registration.market.oracle().current();
 
             context.markets[marketId].price = latestOracleVersion.valid ? // TODO: idk if this actually works
                 latestOracleVersion.price.abs() :
                 global.latestPrice.abs();
             context.markets[marketId].currentPosition = currentPosition.maker;
             context.markets[marketId].currentNet = currentPosition.net();
-            if (latestPosition.id < context.latestId) context.latestId = latestPosition.id;
+            context.latestIds.update(marketId, latestPosition.id);
             context.makerFee = context.makerFee
                 .add(riskParameter.makerFee.mul(context.parameter.leverage).mul(UFixed6Lib.from(registration.weight)));
             context.totalWeight += registration.weight;
-            if (registration.weight < context.minWeight) context.minWeight = registration.weight;
 
             // local
             Local memory local = registration.market.locals(address(this));
@@ -471,9 +503,7 @@ contract Vault is IVault, Instance {
 
             context.markets[marketId].currentPositionAccount = currentPosition.maker;
             context.markets[marketId].collateral = local.collateral;
-
-            if (local.protection > context.protection) context.protection = local.protection;
-            if (marketId == 0) context.currentId = currentTimestamp > currentPosition.timestamp ? local.currentId + 1 : local.currentId;
+            context.currentIds.update(marketId, currentTimestamp > currentPosition.timestamp ? local.currentId + 1 : local.currentId);
         }
 
         if (context.totalWeight != 0) context.makerFee = context.makerFee.div(UFixed6Lib.from(context.totalWeight));
@@ -481,11 +511,11 @@ contract Vault is IVault, Instance {
         context.global = _accounts[address(0)].read();
         context.local = _accounts[account].read();
         context.latestCheckpoint = _checkpoints[context.global.latest].read();
-        context.currentCheckpoint = _checkpoints[context.currentId].read();
+        context.currentCheckpoint = _checkpoints[context.global.current].read();
     }
 
     function _saveContext(Context memory context, address account) private {
-        _checkpoints[context.currentId].store(context.currentCheckpoint);
+        _checkpoints[context.global.current].store(context.currentCheckpoint);
         _accounts[address(0)].store(context.global);
         _accounts[account].store(context.local);
     }
@@ -534,13 +564,14 @@ contract Vault is IVault, Instance {
 
     //// @dev context -- context.markets.length
     //// @dev context -- context.markets[marketId].registration
+    // TODO: combine with Checkpoint.complete after we have registration list
     function _collateralAtId(Context memory context, uint256 id) public view returns (Fixed6 value) {
-        for (uint256 marketId; marketId < context.markets.length; marketId++)
-            value = value.add(
-                context.markets[marketId].registration.market.pendingPositions(
-                    address(this),
-                    id - context.markets[marketId].registration.initialId
-                ).collateral
-            );
+        Mapping memory mappingAtId = _mappings[id].read();
+        for (uint256 marketId; marketId < mappingAtId.length(); marketId++) {
+            console.log("mappingAtId[%s]: %s", marketId, mappingAtId.get(marketId));
+            IMarket market = context.markets[marketId].registration.market;
+            value = value.add(market.pendingPositions(address(this), mappingAtId.get(id)).collateral);
+        }
+        console.log("_collateralAtId-%s: %s", id, uint256(Fixed6.unwrap(value)));
     }
 }

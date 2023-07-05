@@ -6,16 +6,13 @@ import "@equilibria/perennial-v2/contracts/interfaces/IMarket.sol";
 import "@equilibria/root/number/types/UFixed6.sol";
 import "../types/Account.sol";
 import "../types/Checkpoint.sol";
+import "../types/Mapping.sol";
 import "../types/VaultParameter.sol";
 import "../types/Registration.sol";
 
 
 interface IVault is IInstance {
     struct Context {
-        uint256 currentId;
-        uint256 latestId;
-        uint256 protection;
-
         // parameters
         UFixed6 makerFee;
         UFixed6 settlementFee;
@@ -25,6 +22,8 @@ interface IVault is IInstance {
 
         // markets
         MarketContext[] markets;
+        Mapping currentIds;
+        Mapping latestIds;
 
         // state
         VaultParameter parameter;
@@ -48,7 +47,6 @@ interface IVault is IInstance {
         UFixed6 currentNet;
 
         // latest local
-        UFixed6 latestId;
         UFixed6 latestPositionAccount;
 
         // current local

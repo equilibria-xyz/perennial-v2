@@ -8,14 +8,13 @@ import "./Checkpoint.sol";
 /// @dev Registration type
 struct Registration {
     IMarket market;
-    uint256 initialId;
     uint256 weight;
 }
 using RegistrationLib for Registration global;
 struct StoredRegistration {
     address _market;
-    uint32 _initialId;
     uint64 _weight;
+    bytes4 __unallocated__; // TODO: leverage?
 }
 struct RegistrationStorage { StoredRegistration value; }
 using RegistrationStorageLib for RegistrationStorage global;
@@ -25,7 +24,7 @@ using RegistrationStorageLib for RegistrationStorage global;
  * @notice
  */
 library RegistrationLib {
-
+    // TODO: delete
 }
 
 library RegistrationStorageLib {
@@ -35,19 +34,17 @@ library RegistrationStorageLib {
         StoredRegistration memory storedValue = self.value;
         return Registration(
             IMarket(storedValue._market),
-            uint256(storedValue._initialId),
             uint256(storedValue._weight)
         );
     }
 
     function store(RegistrationStorage storage self, Registration memory newValue) internal {
-        if (newValue.initialId > uint256(type(uint32).max)) revert RegistrationStorageInvalidError();
         if (newValue.weight > uint256(type(uint64).max)) revert RegistrationStorageInvalidError();
 
         self.value = StoredRegistration(
             address(newValue.market),
-            uint32(newValue.initialId),
-            uint64(newValue.weight)
+            uint64(newValue.weight),
+            bytes4(0)
         );
     }
 }

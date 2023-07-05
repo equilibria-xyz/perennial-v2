@@ -402,6 +402,7 @@ contract Market is IMarket, Instance {
     ) private view {
         // TODO: protected has too many rights -- should we require latest be undercollateralized? (how do minCollateral closes work then?)
         // TODO(idea): xor protected and accountPosition.collateralized
+        // TODO(idea): if you include the collateral delta in the accountPosition collateralization check, it gives better guarentees
 
         if (
             msg.sender != account &&                                                                        // sender is operating on own account
