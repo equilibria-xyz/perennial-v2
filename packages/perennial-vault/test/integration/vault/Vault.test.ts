@@ -555,7 +555,7 @@ describe('Vault', () => {
       expect(await vault.totalUnclaimed()).to.equal(0)
     })
 
-    it.only('multiple users', async () => {
+    it('multiple users', async () => {
       expect(await vault.convertToAssets(parse6decimal('1'))).to.equal(parse6decimal('1'))
       expect(await vault.convertToShares(parse6decimal('1'))).to.equal(parse6decimal('1'))
 
@@ -618,9 +618,7 @@ describe('Vault', () => {
       expect(await vault.unclaimed(user2.address)).to.equal(parse6decimal('10000').add(fundingAmount2))
       expect(await vault.totalUnclaimed()).to.equal(parse6decimal('11000').add(fundingAmount).add(fundingAmount2))
 
-      console.log('claim 1')
       await vault.connect(user).update(user.address, 0, 0, ethers.constants.MaxUint256)
-      console.log('claim 2')
       await vault.connect(user2).update(user2.address, 0, 0, ethers.constants.MaxUint256)
 
       expect(await totalCollateralInVault()).to.equal(0)
@@ -1261,7 +1259,7 @@ describe('Vault', () => {
     })
 
     context('insolvency', () => {
-      it.skip('gracefully unwinds upon totalClaimable insolvency', async () => {
+      it('gracefully unwinds upon totalClaimable insolvency', async () => {
         // 1. Deposit initial amount into the vault
         await vault.connect(user).update(user.address, parse6decimal('100000'), 0, 0)
         await updateOracle()
@@ -1285,16 +1283,8 @@ describe('Vault', () => {
         await updateOracle(parse6decimal('1500'), parse6decimal('5000')) // lower prices to allow rebalance
         await vault.update(user.address, 0, 0, 0)
 
-        console.log((await vault.accounts(user.address)).latest)
-        console.log((await market.position()).id)
-        console.log((await btcMarket.position()).id)
-
         await updateOracle()
         await vault.settle(user.address)
-
-        console.log((await vault.accounts(user.address)).latest)
-        console.log((await market.position()).id)
-        console.log((await btcMarket.position()).id)
 
         // 5. Vault should no longer have enough collateral to cover claims, pro-rata claim should be enabled
         const finalPosition = BigNumber.from('0')
@@ -1310,11 +1300,6 @@ describe('Vault', () => {
         expect(await vault.unclaimed(user.address)).to.equal(finalUnclaimed)
         expect(await vault.totalUnclaimed()).to.equal(finalUnclaimed)
 
-        // TODO: btc market is one version behind due to the liquidation (solved via oracle-sync resolution)
-        console.log((await vault.accounts(user.address)).latest)
-        console.log((await market.position()).id)
-        console.log((await btcMarket.position()).id)
-
         // 6. Claim should be pro-rated
         const initialBalanceOf = await asset.balanceOf(user.address)
         await vault.connect(user).update(user.address, 0, 0, ethers.constants.MaxUint256)
@@ -1326,13 +1311,6 @@ describe('Vault', () => {
         expect(await asset.balanceOf(user.address)).to.equal(
           initialBalanceOf.add(finalCollateral.add(btcFinalCollateral).mul(1e12)).add(vaultFinalCollateral),
         )
-
-        // TODO: this doesn't work
-        console.log(await vault.totalAssets())
-        console.log(await vault.totalShares())
-        console.log(await vault.totalSupply())
-        console.log(await vault.balanceOf(user.address))
-        console.log(await vault.balanceOf(user2.address))
 
         // 7. Should no longer be able to deposit, vault is closed
         await updateOracle()

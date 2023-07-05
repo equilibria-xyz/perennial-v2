@@ -99,15 +99,7 @@ contract Vault is IVault, Instance {
     function unclaimed(address account) external view returns (UFixed6) { return _accounts[account].read().assets; }
 
     function totalAssets() public view returns (Fixed6) {
-        console.log("global.latest", _accounts[address(0)].read().latest);
-
         Checkpoint memory checkpoint = _checkpoints[_accounts[address(0)].read().latest].read();
-
-        if (checkpoint.assets.sign() >= 0) console.log("checkpoint.assets %s", uint256(Fixed6.unwrap(checkpoint.assets)));
-        else console.log("checkpoint.assets -%s", uint256(-Fixed6.unwrap(checkpoint.assets)));
-        console.log("checkpoint.deposit", UFixed6.unwrap(checkpoint.deposit));
-        console.log("checkpoint.redemption", UFixed6.unwrap(checkpoint.redemption));
-
         return checkpoint.assets
             .add(Fixed6Lib.from(checkpoint.deposit))
             .sub(Fixed6Lib.from(checkpoint.toAssets(checkpoint.redemption)));
@@ -271,12 +263,6 @@ contract Vault is IVault, Instance {
         // update current id
         uint256 currentId = context.global.current;
         if (_mappings[currentId].read().next(context.currentIds)) {
-            if (_mappings[currentId].read()._ids.length == 0) {
-                console.log("moving forward, zero length");
-            } else {
-                console.log("moving forward (%s): %s->%s", 0, _mappings[currentId].read()._ids[0], context.currentIds._ids[0]);
-                console.log("moving forward (%s): %s->%s", 1, _mappings[currentId].read()._ids[1], context.currentIds._ids[1]);
-            }
             currentId++;
             _mappings[currentId].store(context.currentIds);
         }
@@ -334,18 +320,6 @@ contract Vault is IVault, Instance {
         ) {
             uint256 newLatestId = context.global.latest + 1;
             context.latestCheckpoint = _checkpoints[newLatestId].read();
-            console.log(
-                "completing checkpoint %s: %s -> %s",
-                newLatestId,
-                uint256(Fixed6.unwrap(context.latestCheckpoint.assets)),
-                uint256(Fixed6.unwrap(context.latestCheckpoint.assets.add(_collateralAtId(context, newLatestId))))
-            );
-            console.log(
-                "completing checkpoint %s: -%s -> -%s",
-                newLatestId,
-                uint256(-Fixed6.unwrap(context.latestCheckpoint.assets)),
-                uint256(-Fixed6.unwrap(context.latestCheckpoint.assets.add(_collateralAtId(context, newLatestId))))
-            );
             context.latestCheckpoint.complete(_collateralAtId(context, newLatestId));
             _checkpoints[newLatestId].store(context.latestCheckpoint);
             context.global.process(
@@ -523,9 +497,6 @@ contract Vault is IVault, Instance {
 
             context.markets[marketId].currentPositionAccount = currentPosition.maker;
             context.markets[marketId].collateral = local.collateral;
-            console.log("currentTimestamp", currentTimestamp);
-            console.log("currentPosition.timestamp", currentPosition.timestamp);
-            console.log("local.currentId", local.currentId);
             context.currentIds.update(marketId, currentTimestamp > currentPosition.timestamp ? local.currentId + 1 : local.currentId);
         }
 

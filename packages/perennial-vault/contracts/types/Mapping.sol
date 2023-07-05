@@ -42,7 +42,7 @@ library MappingLib {
 
     function ready(Mapping memory self, Mapping memory latestMapping) internal pure returns (bool) {
         for (uint256 id; id < self._ids.length; id++) // TODO: safe on additional market?
-            if (get(self, id) < get(latestMapping, id)) return false;
+            if (get(self, id) > get(latestMapping, id)) return false;
         return true;
     }
 
