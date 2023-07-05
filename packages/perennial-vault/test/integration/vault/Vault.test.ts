@@ -782,11 +782,11 @@ describe('Vault', () => {
       await updateOracle(parse6decimal('1800'))
       await settle(market, vaultSigner)
 
-      await vault.update(user.address, 0, 0, 0)
+      await vault.connect(user).update(user.address, 0, 0, 0)
       expect(await collateralInVault()).to.be.closeTo((await btcCollateralInVault()).mul(4), 3)
 
       await updateOracle(originalOraclePrice)
-      await vault.update(user.address, 0, 0, 0)
+      await vault.connect(user).update(user.address, 0, 0, 0)
       expect(await collateralInVault()).to.be.closeTo((await btcCollateralInVault()).mul(4), 3)
 
       // Since the price changed then went back to the original, the total collateral should have increased.
@@ -939,7 +939,7 @@ describe('Vault', () => {
       await btcMarket.connect(owner).updateParameter(btcMarketParameter)
 
       await updateOracle()
-      await vault.update(user.address, 0, 0, 0)
+      await vault.connect(user).update(user.address, 0, 0, 0)
 
       await updateOracle()
       await settleUnderlying(vaultSigner)
@@ -954,7 +954,7 @@ describe('Vault', () => {
       await btcMarket.connect(owner).updateParameter(btcMarketParameter)
 
       await updateOracle()
-      await vault.update(user.address, 0, 0, 0)
+      await vault.connect(user).update(user.address, 0, 0, 0)
 
       await updateOracle()
       await settleUnderlying(vaultSigner)
@@ -1245,7 +1245,7 @@ describe('Vault', () => {
         await updateOracle() // let take settle at high price
         // TODO: this can be used to verify the resolution to the rebalance revert bricking issue
         await updateOracle(parse6decimal('1500'), parse6decimal('5000')) // lower prices to allow rebalance
-        await vault.update(user.address, 0, 0, 0)
+        await vault.connect(user).update(user.address, 0, 0, 0)
 
         await updateOracle()
         await vault.settle(user.address)
