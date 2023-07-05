@@ -10,7 +10,6 @@ import "../types/Mapping.sol";
 import "../types/VaultParameter.sol";
 import "../types/Registration.sol";
 
-
 interface IVault is IInstance {
     struct Context {
         // parameters
@@ -64,24 +63,29 @@ interface IVault is IInstance {
     event ParameterUpdated(VaultParameter newParameter);
     event Update(address indexed sender, address indexed account, uint256 version, UFixed6 depositAssets, UFixed6 redeemShares, UFixed6 claimAssets);
 
-    error VaultNonTransferableError();
     error VaultDepositLimitExceededError();
     error VaultRedemptionLimitExceededError();
     error VaultExistingOrderError();
     error VaultMarketExistsError();
     error VaultMarketDoesNotExistError();
-    error VaultNotOwnerError();
     error VaultNotMarketError();
     error VaultIncorrectAssetError();
-    error VaultPausedError();
 
     error AccountStorageInvalidError();
     error CheckpointStorageInvalidError();
+    error MappingStorageInvalidError();
     error RegistrationStorageInvalidError();
     error VaultParameterStorageInvalidError();
 
-    /* parameters */
-
+    function initialize(Token18 asset, IMarket market, string calldata name_, string calldata symbol_) external;
+    function name() external view returns (string memory);
+    function settle(address account) external;
+    function update(address account, UFixed6 depositAssets, UFixed6 redeemShares, UFixed6 claimAssets) external;
+    function asset() external view returns (Token18);
+    function totalAssets() external view returns (Fixed6);
+    function totalShares() external view returns (UFixed6);
+    function convertToShares(UFixed6 assets) external view returns (UFixed6);
+    function convertToAssets(UFixed6 shares) external view returns (UFixed6);
     function totalMarkets() external view returns (uint256);
     function parameter() external view returns (VaultParameter memory);
     function registrations(uint256 marketId) external view returns (Registration memory);
@@ -89,32 +93,4 @@ interface IVault is IInstance {
     function register(IMarket market) external;
     function updateWeight(uint256 marketId, uint256 newWeight) external;
     function updateParameter(VaultParameter memory newParameter) external;
-
-    /* Vault Interface */
-
-    function initialize(Token18 asset, IMarket market, string calldata name_, string calldata symbol_) external;
-    function totalShares() external view returns (UFixed6);
-    function settle(address account) external;
-    function update(address account, UFixed6 depositAssets, UFixed6 redeemShares, UFixed6 claimAssets) external;
-    function totalUnclaimed() external view returns (UFixed6);
-    function unclaimed(address account) external view returns (UFixed6);
-
-    /* Partial ERC4626 Interface */
-    function asset() external view returns (Token18);
-    function totalAssets() external view returns (Fixed6);
-    function convertToShares(UFixed6 assets) external view returns (UFixed6);
-    function convertToAssets(UFixed6 shares) external view returns (UFixed6);
-
-    /* Non-Transferable ERC20 Interface */
-    event Approval(address indexed account, address indexed spender, UFixed6 amount);
-
-    function name() external view returns (string memory);
-    function symbol() external view returns (string memory);
-    function decimals() external view returns (uint8);
-    function totalSupply() external view returns (UFixed6);
-    function balanceOf(address account) external view returns (UFixed6);
-    function allowance(address account, address spender) external view returns (UFixed6);
-    function approve(address spender, UFixed6 amount) external returns (bool);
-    function transfer(address to, UFixed6 amount) external returns (bool);
-    function transferFrom(address from, address to, UFixed6 amount) external returns (bool);
 }

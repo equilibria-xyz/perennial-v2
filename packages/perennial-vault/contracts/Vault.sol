@@ -10,7 +10,6 @@ import "./types/Registration.sol";
 import "./types/Mapping.sol";
 import "./types/VaultParameter.sol";
 import "./interfaces/IVault.sol";
-import "hardhat/console.sol";
 
 // TODO: can we use the pendingPosition state to compute the makerFee?
 
@@ -45,9 +44,6 @@ contract Vault is IVault, Instance {
     uint256 public totalMarkets;
     
     mapping(uint256 => RegistrationStorage) private _registrations;
-
-    /// @dev Mapping of allowance across all users
-    mapping(address => mapping(address => UFixed6)) public allowance; // TODO: operator model
 
     /// @dev Per-account accounting state variables
     mapping(address => AccountStorage) private _accounts;
@@ -87,16 +83,6 @@ contract Vault is IVault, Instance {
     function name() external view returns (string memory) {
         return string(abi.encodePacked("Perennial V2 Vault: ", _name));
     }
-
-    function symbol() external view returns (string memory) {
-        return string(abi.encodePacked("PV-", _symbol));
-    }
-
-    function decimals() external pure returns (uint8) { return 18; }
-    function totalSupply() external view returns (UFixed6) { return _accounts[address(0)].read().shares; }
-    function balanceOf(address account) public view returns (UFixed6) { return _accounts[account].read().shares; }
-    function totalUnclaimed() external view returns (UFixed6) { return _accounts[address(0)].read().assets; }
-    function unclaimed(address account) external view returns (UFixed6) { return _accounts[account].read().assets; }
 
     function totalAssets() public view returns (Fixed6) {
         Checkpoint memory checkpoint = _checkpoints[_accounts[address(0)].read().latest].read();
@@ -210,21 +196,6 @@ contract Vault is IVault, Instance {
         return claimAssets.muldiv(totalCollateral.min(context.global.assets), context.global.assets);
     }
 
-    /**
-     * @notice Sets `amount` as the allowance of `spender` over the caller's shares
-     * @param spender Address which can spend operate on shares
-     * @param amount Amount of shares that spender can operate on
-     * @return bool true if the approval was successful, otherwise reverts
-     */
-    function approve(address spender, UFixed6 amount) external whenNotPaused returns (bool) {
-        allowance[msg.sender][spender] = amount;
-        emit Approval(msg.sender, spender, amount);
-        return true;
-    }
-
-    function transfer(address, UFixed6) external pure returns (bool) { revert VaultNonTransferableError(); }
-    function transferFrom(address, address, UFixed6) external pure returns (bool) { revert VaultNonTransferableError(); }
-
     /// @notice Updates `account`, depositing `depositAssets` assets, redeeming `redeemShares` shares, and claiming `claimAssets` assets
     /// @param account The account to operate on
     /// @param depositAssets The amount of assets to deposit
@@ -252,7 +223,6 @@ contract Vault is IVault, Instance {
         UFixed6 claimAssets
     ) private {
         // TODO: move to invariant
-        if (msg.sender != account) _consumeAllowance(account, msg.sender, redeemShares);
         if (depositAssets.gt(_maxDeposit(context))) revert VaultDepositLimitExceededError();
         if (redeemShares.gt(_maxRedeem(context))) revert VaultRedemptionLimitExceededError();
         if (context.local.current != context.local.latest) revert VaultExistingOrderError();
@@ -430,18 +400,6 @@ contract Vault is IVault, Instance {
             target.collateral,
             false
         );
-    }
-
-    /**
-     * @notice Decrements `spender`s allowance for `account` by `amount`
-     * @dev Does not decrement if approval is for -1
-     * @param account Address of allower
-     * @param spender Address of spender
-     * @param amount Amount to decrease allowance by
-     */
-    function _consumeAllowance(address account, address spender, UFixed6 amount) private {
-        if (allowance[account][spender].eq(UFixed6Lib.MAX)) return;
-        allowance[account][spender] = allowance[account][spender].sub(amount);
     }
 
     /**
