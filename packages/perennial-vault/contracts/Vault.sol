@@ -275,8 +275,8 @@ contract Vault is IVault, Instance {
         UFixed6 redemptionAmount = redeemShares.sub(redeemShares.mul(makerFee).add(settlementFeeShares));
         UFixed6 claimAmount = _socialize(context, claimAssets);
 
-        context.global.update(currentId, context.global.latest, claimAssets, redeemShares, depositAmount, redemptionAmount);
-        context.local.update(currentId, context.local.latest, claimAssets, redeemShares, depositAmount, redemptionAmount);
+        context.global.update(currentId, claimAssets, redeemShares, depositAmount, redemptionAmount);
+        context.local.update(currentId, claimAssets, redeemShares, depositAmount, redemptionAmount);
 
         context.currentCheckpoint.update(depositAmount, redemptionAmount);
         _checkpoints[currentId].store(context.currentCheckpoint);
@@ -323,7 +323,6 @@ contract Vault is IVault, Instance {
             context.latestCheckpoint.complete(_collateralAtId(context, newLatestId));
             _checkpoints[newLatestId].store(context.latestCheckpoint);
             context.global.process(
-                context.global.current,
                 newLatestId,
                 context.latestCheckpoint,
                 context.latestCheckpoint.deposit,
@@ -339,7 +338,6 @@ contract Vault is IVault, Instance {
             uint256 newLatestId = context.local.current;
             Checkpoint memory checkpoint = _checkpoints[newLatestId].read();
             context.local.process(
-                context.local.current, // TODO: remove
                 newLatestId,
                 checkpoint,
                 context.local.deposit,
@@ -479,7 +477,6 @@ contract Vault is IVault, Instance {
             Position memory currentPosition = registration.market.pendingPosition(global.currentId);
             Position memory latestPosition = registration.market.position();
             OracleVersion memory latestOracleVersion = registration.market.at(latestPosition.timestamp);
-            uint256 currentTimestamp = registration.market.oracle().current(); // TODO: remove
 
             context.markets[marketId].price = latestOracleVersion.valid ? // TODO: idk if this actually works
                 latestOracleVersion.price.abs() :
@@ -497,7 +494,7 @@ contract Vault is IVault, Instance {
 
             context.markets[marketId].currentPositionAccount = currentPosition.maker;
             context.markets[marketId].collateral = local.collateral;
-            context.currentIds.update(marketId, currentTimestamp > currentPosition.timestamp ? local.currentId + 1 : local.currentId);
+            context.currentIds.update(marketId, local.currentId);
         }
 
         if (context.totalWeight != 0) context.makerFee = context.makerFee.div(UFixed6Lib.from(context.totalWeight));

@@ -32,13 +32,12 @@ using AccountStorageLib for AccountStorage global;
 library AccountLib {
     function process(
         Account memory self,
-        uint256 currentId,
         uint256 latestId,
         Checkpoint memory checkpoint,
         UFixed6 deposit,
         UFixed6 redemption
     ) internal pure {
-        (self.current, self.latest) = (currentId, latestId);
+        self.latest = latestId;
         (self.assets, self.shares) = (self.assets.add(checkpoint.toAssets(redemption)), self.shares.add(checkpoint.toShares(deposit)));
         (self.deposit, self.redemption) = (self.deposit.sub(deposit), self.redemption.sub(redemption));
     }
@@ -46,13 +45,12 @@ library AccountLib {
     function update(
         Account memory self,
         uint256 currentId,
-        uint256 latestId,
         UFixed6 assets,
         UFixed6 shares,
         UFixed6 deposit,
         UFixed6 redemption
     ) internal pure {
-        (self.current, self.latest) = (currentId, latestId);
+        self.current = currentId;
         (self.assets, self.shares) = (self.assets.sub(assets), self.shares.sub(shares));
         (self.deposit, self.redemption) = (self.deposit.add(deposit), self.redemption.add(redemption));
     }
