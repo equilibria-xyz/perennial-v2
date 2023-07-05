@@ -10,7 +10,6 @@ import "./types/Registration.sol";
 import "./types/Mapping.sol";
 import "./types/VaultParameter.sol";
 import "./interfaces/IVault.sol";
-import "hardhat/console.sol";
 
 // TODO: can we use the pendingPosition state to compute the makerFee?
 
@@ -321,11 +320,6 @@ contract Vault is IVault, Instance {
             context.latestCheckpoint.complete(_collateralAtId(context, newLatestId));
             _checkpoints[newLatestId].store(context.latestCheckpoint);
 
-            console.log("context.latestCheckpoint.deposit", UFixed6.unwrap(context.latestCheckpoint.deposit));
-            console.log("context.latestCheckpoint.redemption", UFixed6.unwrap(context.latestCheckpoint.redemption));
-            console.log("context.global.deposit", UFixed6.unwrap(context.global.deposit));
-            console.log("context.global.redemption", UFixed6.unwrap(context.global.redemption));
-
             context.global.process(
                 context.global.current,
                 newLatestId,
@@ -566,10 +560,8 @@ contract Vault is IVault, Instance {
     function _collateralAtId(Context memory context, uint256 id) public view returns (Fixed6 value) {
         Mapping memory mappingAtId = _mappings[id].read();
         for (uint256 marketId; marketId < mappingAtId.length(); marketId++) {
-            console.log("mappingAtId[%s]: %s", marketId, mappingAtId.get(marketId));
             IMarket market = context.markets[marketId].registration.market;
-            value = value.add(market.pendingPositions(address(this), mappingAtId.get(id)).collateral);
+            value = value.add(market.pendingPositions(address(this), mappingAtId.get(marketId)).collateral);
         }
-        console.log("_collateralAtId-%s: %s", id, uint256(Fixed6.unwrap(value)));
     }
 }

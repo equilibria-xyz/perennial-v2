@@ -482,26 +482,23 @@ describe('Vault', () => {
   })
 
   describe.only('#deposit/#redeem/#claim/#settle', () => {
-    it.only('simple deposits and redemptions', async () => {
+    it('simple deposits and redemptions', async () => {
       expect(await vault.convertToAssets(parse6decimal('1'))).to.equal(parse6decimal('1'))
       expect(await vault.convertToShares(parse6decimal('1'))).to.equal(parse6decimal('1'))
 
       const smallDeposit = parse6decimal('10')
-      console.log(0)
       await vault.connect(user).update(user.address, smallDeposit, 0, 0)
       expect(await collateralInVault()).to.equal(0)
       expect(await btcCollateralInVault()).to.equal(0)
       expect(await vault.totalSupply()).to.equal(0)
       expect(await vault.totalAssets()).to.equal(0)
       await updateOracle()
-      console.log(0)
       await vault.settle(user.address)
 
       // We're underneath the collateral minimum, so we shouldn't have opened any positions.
       expect(await position()).to.equal(0)
       expect(await btcPosition()).to.equal(0)
       const largeDeposit = parse6decimal('10000')
-      console.log(0)
       await vault.connect(user).update(user.address, largeDeposit, 0, 0)
       expect(await collateralInVault()).to.equal(parse6decimal('8008'))
       expect(await btcCollateralInVault()).to.equal(parse6decimal('2002'))
@@ -511,7 +508,6 @@ describe('Vault', () => {
       expect(await vault.convertToAssets(parse6decimal('10'))).to.equal(parse6decimal('10'))
       expect(await vault.convertToShares(parse6decimal('10'))).to.equal(parse6decimal('10'))
       await updateOracle()
-      console.log(0)
       await vault.settle(user.address)
 
       expect(await vault.balanceOf(user.address)).to.equal(parse6decimal('10010'))
@@ -530,13 +526,10 @@ describe('Vault', () => {
       )
 
       // User 2 should not be able to redeem; they haven't deposited anything.
-      console.log(0)
       await expect(vault.connect(user2).update(user2.address, 0, 1, 0)).to.be.revertedWithPanic('0x11')
       expect(await vault.balanceOf(user.address)).to.equal(parse6decimal('10010'))
-      console.log(0)
       await vault.connect(user).update(user.address, 0, await vault.balanceOf(user.address), 0)
       await updateOracle()
-      console.log(0)
       await vault.settle(user.address)
 
       // We should have closed all positions.
@@ -555,7 +548,6 @@ describe('Vault', () => {
       expect(await vault.unclaimed(user.address)).to.equal(parse6decimal('10010').add(fundingAmount))
       expect(await vault.totalUnclaimed()).to.equal(parse6decimal('10010').add(fundingAmount))
 
-      console.log(0)
       await vault.connect(user).update(user.address, 0, 0, ethers.constants.MaxUint256)
       expect(await totalCollateralInVault()).to.equal(0)
       expect(await asset.balanceOf(user.address)).to.equal(parse6decimal('100000').add(fundingAmount).mul(1e12))
@@ -563,7 +555,7 @@ describe('Vault', () => {
       expect(await vault.totalUnclaimed()).to.equal(0)
     })
 
-    it('multiple users', async () => {
+    it.only('multiple users', async () => {
       expect(await vault.convertToAssets(parse6decimal('1'))).to.equal(parse6decimal('1'))
       expect(await vault.convertToShares(parse6decimal('1'))).to.equal(parse6decimal('1'))
 
