@@ -10,6 +10,7 @@ import "./types/Registration.sol";
 import "./types/Mapping.sol";
 import "./types/VaultParameter.sol";
 import "./interfaces/IVault.sol";
+import "hardhat/console.sol";
 
 // TODO: can we use the pendingPosition state to compute the makerFee?
 
@@ -98,7 +99,15 @@ contract Vault is IVault, Instance {
     function unclaimed(address account) external view returns (UFixed6) { return _accounts[account].read().assets; }
 
     function totalAssets() public view returns (Fixed6) {
+        console.log("global.latest", _accounts[address(0)].read().latest);
+
         Checkpoint memory checkpoint = _checkpoints[_accounts[address(0)].read().latest].read();
+
+        if (checkpoint.assets.sign() >= 0) console.log("checkpoint.assets %s", uint256(Fixed6.unwrap(checkpoint.assets)));
+        else console.log("checkpoint.assets -%s", uint256(-Fixed6.unwrap(checkpoint.assets)));
+        console.log("checkpoint.deposit", UFixed6.unwrap(checkpoint.deposit));
+        console.log("checkpoint.redemption", UFixed6.unwrap(checkpoint.redemption));
+
         return checkpoint.assets
             .add(Fixed6Lib.from(checkpoint.deposit))
             .sub(Fixed6Lib.from(checkpoint.toAssets(checkpoint.redemption)));
@@ -264,8 +273,8 @@ contract Vault is IVault, Instance {
         if (_mappings[currentId].read().next(context.currentIds)) {
             currentId++;
             _mappings[currentId].store(context.currentIds);
-            context.currentCheckpoint = _checkpoints[currentId].read();
         }
+        context.currentCheckpoint = _checkpoints[currentId].read();
         context.currentCheckpoint.initialize(context.global, asset.balanceOf()); // TODO: is this supposed to be at the start or end?
 
         // TODO: single sided
@@ -276,7 +285,9 @@ contract Vault is IVault, Instance {
 
         context.global.update(currentId, context.global.latest, claimAssets, redeemShares, depositAmount, redemptionAmount);
         context.local.update(currentId, context.local.latest, claimAssets, redeemShares, depositAmount, redemptionAmount);
+
         context.currentCheckpoint.update(depositAmount, redemptionAmount);
+        _checkpoints[currentId].store(context.currentCheckpoint);
 
         asset.pull(msg.sender, UFixed18Lib.from(depositAssets));
         _manage(context, claimAmount, true);
@@ -317,9 +328,20 @@ contract Vault is IVault, Instance {
         ) {
             uint256 newLatestId = context.global.latest + 1;
             context.latestCheckpoint = _checkpoints[newLatestId].read();
+            console.log(
+                "completing checkpoint %s: %s -> %s",
+                newLatestId,
+                uint256(Fixed6.unwrap(context.latestCheckpoint.assets)),
+                uint256(Fixed6.unwrap(context.latestCheckpoint.assets.add(_collateralAtId(context, newLatestId))))
+            );
+            console.log(
+                "completing checkpoint %s: -%s -> -%s",
+                newLatestId,
+                uint256(-Fixed6.unwrap(context.latestCheckpoint.assets)),
+                uint256(-Fixed6.unwrap(context.latestCheckpoint.assets.add(_collateralAtId(context, newLatestId))))
+            );
             context.latestCheckpoint.complete(_collateralAtId(context, newLatestId));
             _checkpoints[newLatestId].store(context.latestCheckpoint);
-
             context.global.process(
                 context.global.current,
                 newLatestId,
@@ -503,11 +525,9 @@ contract Vault is IVault, Instance {
         context.global = _accounts[address(0)].read();
         context.local = _accounts[account].read();
         context.latestCheckpoint = _checkpoints[context.global.latest].read();
-        context.currentCheckpoint = _checkpoints[context.global.current].read();
     }
 
     function _saveContext(Context memory context, address account) private {
-        _checkpoints[context.global.current].store(context.currentCheckpoint);
         _accounts[address(0)].store(context.global);
         _accounts[account].store(context.local);
     }

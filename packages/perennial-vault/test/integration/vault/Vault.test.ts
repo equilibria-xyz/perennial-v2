@@ -618,7 +618,9 @@ describe('Vault', () => {
       expect(await vault.unclaimed(user2.address)).to.equal(parse6decimal('10000').add(fundingAmount2))
       expect(await vault.totalUnclaimed()).to.equal(parse6decimal('11000').add(fundingAmount).add(fundingAmount2))
 
+      console.log('claim 1')
       await vault.connect(user).update(user.address, 0, 0, ethers.constants.MaxUint256)
+      console.log('claim 2')
       await vault.connect(user2).update(user2.address, 0, 0, ethers.constants.MaxUint256)
 
       expect(await totalCollateralInVault()).to.equal(0)
