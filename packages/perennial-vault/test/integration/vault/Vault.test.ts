@@ -2,6 +2,7 @@ import HRE from 'hardhat'
 import { time, impersonate } from '../../../../common/testutil'
 import { deployProductOnMainnetFork } from '../helpers/setupHelpers'
 import { SignerWithAddress } from '@nomiclabs/hardhat-ethers/signers'
+import { loadFixture } from '@nomicfoundation/hardhat-network-helpers'
 import { FakeContract, smock } from '@defi-wonderland/smock'
 import { expect, use } from 'chai'
 import {
@@ -116,7 +117,7 @@ describe('Vault', () => {
       .add(await asset.balanceOf(vault.address))
   }
 
-  beforeEach(async () => {
+  const fixture = async () => {
     await time.reset(config)
 
     const instanceVars = await deployProtocol()
@@ -233,28 +234,33 @@ describe('Vault', () => {
       cap: maxCollateral,
       premium: premium,
     })
+  }
 
+  beforeEach(async () => {
+    await loadFixture(fixture)
     asset = IERC20Metadata__factory.connect(await vault.asset(), owner)
-    await asset.connect(liquidator).approve(vault.address, ethers.constants.MaxUint256)
-    await fundWallet(asset, liquidator)
-    await asset.connect(perennialUser).approve(vault.address, ethers.constants.MaxUint256)
-    await fundWallet(asset, perennialUser)
-    await fundWallet(asset, perennialUser)
-    await fundWallet(asset, perennialUser)
-    await fundWallet(asset, perennialUser)
-    await fundWallet(asset, perennialUser)
-    await fundWallet(asset, perennialUser)
-    await fundWallet(asset, perennialUser)
-    await asset.connect(user).approve(vault.address, ethers.constants.MaxUint256)
-    await asset.connect(user2).approve(vault.address, ethers.constants.MaxUint256)
-    await asset.connect(btcUser1).approve(vault.address, ethers.constants.MaxUint256)
-    await asset.connect(btcUser2).approve(vault.address, ethers.constants.MaxUint256)
+    await Promise.all([
+      asset.connect(liquidator).approve(vault.address, ethers.constants.MaxUint256),
+      asset.connect(perennialUser).approve(vault.address, ethers.constants.MaxUint256),
+      fundWallet(asset, liquidator),
+      fundWallet(asset, perennialUser),
+      fundWallet(asset, perennialUser),
+      fundWallet(asset, perennialUser),
+      fundWallet(asset, perennialUser),
+      fundWallet(asset, perennialUser),
+      fundWallet(asset, perennialUser),
+      fundWallet(asset, perennialUser),
+      asset.connect(user).approve(vault.address, ethers.constants.MaxUint256),
+      asset.connect(user2).approve(vault.address, ethers.constants.MaxUint256),
+      asset.connect(btcUser1).approve(vault.address, ethers.constants.MaxUint256),
+      asset.connect(btcUser2).approve(vault.address, ethers.constants.MaxUint256),
+      asset.connect(user).approve(market.address, ethers.constants.MaxUint256),
+      asset.connect(user2).approve(market.address, ethers.constants.MaxUint256),
+      asset.connect(btcUser1).approve(btcMarket.address, ethers.constants.MaxUint256),
+      asset.connect(btcUser2).approve(btcMarket.address, ethers.constants.MaxUint256),
+    ])
 
     // Seed markets with some activity
-    await asset.connect(user).approve(market.address, ethers.constants.MaxUint256)
-    await asset.connect(user2).approve(market.address, ethers.constants.MaxUint256)
-    await asset.connect(btcUser1).approve(btcMarket.address, ethers.constants.MaxUint256)
-    await asset.connect(btcUser2).approve(btcMarket.address, ethers.constants.MaxUint256)
     await market.connect(user).update(user.address, parse6decimal('200'), 0, 0, parse6decimal('100000'), false)
     await market.connect(user2).update(user2.address, 0, parse6decimal('100'), 0, parse6decimal('100000'), false)
     await btcMarket
@@ -451,7 +457,7 @@ describe('Vault', () => {
     })
   })
 
-  describe.only('#deposit/#redeem/#claim/#settle', () => {
+  describe('#deposit/#redeem/#claim/#settle', () => {
     it('simple deposits and redemptions', async () => {
       expect(await vault.convertToAssets(parse6decimal('1'))).to.equal(parse6decimal('1'))
       expect(await vault.convertToShares(parse6decimal('1'))).to.equal(parse6decimal('1'))

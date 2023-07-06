@@ -42,7 +42,7 @@ contract Vault is IVault, Instance {
     VaultParameterStorage private _parameter;
 
     uint256 public totalMarkets;
-    
+
     mapping(uint256 => RegistrationStorage) private _registrations;
 
     /// @dev Per-account accounting state variables
@@ -52,7 +52,7 @@ contract Vault is IVault, Instance {
     mapping(uint256 => CheckpointStorage) private _checkpoints;
 
     /// @dev Per-id id-mapping state variables
-    mapping(uint256 id => MappingStorage) private _mappings;
+    mapping(uint256 => MappingStorage) private _mappings;
 
     function initialize(
         Token18 asset_,
