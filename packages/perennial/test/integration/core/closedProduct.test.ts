@@ -1,6 +1,6 @@
 import { expect } from 'chai'
 import 'hardhat'
-import { BigNumber, constants } from 'ethers'
+import { BigNumber } from 'ethers'
 
 import { InstanceVars, deployProtocol, createMarket, settle } from '../helpers/setupHelpers'
 import { Market } from '../../../types/generated'

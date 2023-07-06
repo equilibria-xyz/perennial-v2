@@ -19,7 +19,7 @@ import {
   IOracleFactory,
   IMarketFactory,
 } from '../../../types/generated'
-import { BigNumber, constants, Signer } from 'ethers'
+import { BigNumber, constants } from 'ethers'
 import { deployProtocol, fundWallet, settle } from '@equilibria/perennial-v2/test/integration/helpers/setupHelpers'
 import { parse6decimal } from '../../../../common/testutil/types'
 import { TransparentUpgradeableProxy__factory } from '@equilibria/perennial-v2/types/generated'

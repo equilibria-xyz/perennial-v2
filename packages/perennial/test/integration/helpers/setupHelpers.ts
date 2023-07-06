@@ -174,7 +174,7 @@ export async function deployProtocol(): Promise<InstanceVars> {
   }
 }
 
-export async function fundWallet(dsu: IERC20Metadata, wallet: SignerWithAddress) {
+export async function fundWallet(dsu: IERC20Metadata, wallet: SignerWithAddress): Promise<void> {
   const dsuMinter = await impersonate.impersonateWithBalance(DSU_MINTER, utils.parseEther('10'))
   const dsuIface = new utils.Interface(['function mint(uint256)'])
   await dsuMinter.sendTransaction({
@@ -245,7 +245,7 @@ export async function createMarket(
   return market
 }
 
-export async function settle(market: IMarket, account: SignerWithAddress) {
+export async function settle(market: IMarket, account: SignerWithAddress): Promise<void> {
   const local = await market.locals(account.address)
   const currentPosition = await market.pendingPositions(account.address, local.currentId)
   await market
