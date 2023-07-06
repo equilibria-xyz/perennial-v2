@@ -130,12 +130,6 @@ contract MultiInvoker is IMultiInvoker, KeeperManager {
         Fixed6 collateralDelta,
         bool handleWrap
     ) internal returns (Position memory position) {
-        position = IMarket(market).positions(msg.sender);
-
-        position.maker = newMaker;
-        position.long = newLong;
-        position.short = newShort;
-
         // collateral is transferred from this address to the market, transfer from msg.sender to here
         if(collateralDelta.sign() == 1) {
             _deposit(collateralDelta.abs(), handleWrap);
@@ -143,9 +137,9 @@ contract MultiInvoker is IMultiInvoker, KeeperManager {
 
         IMarket(market).update(
             msg.sender,
-            position.maker,
-            position.long,
-            position.short,
+            newMaker,
+            newLong,
+            newShort,
             collateralDelta);
 
         // collateral is transferred from the market to this address, transfer to msg.sender from here
