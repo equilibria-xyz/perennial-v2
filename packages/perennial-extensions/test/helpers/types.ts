@@ -68,3 +68,10 @@ export const changePosition = ({
 
   return position
 }
+
+module.exports = {
+  setMarketPosition,
+  setPendingPosition,
+  openPosition,
+  changePosition,
+}

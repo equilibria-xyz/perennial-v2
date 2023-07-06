@@ -17,12 +17,12 @@ import {
   IBatcher__factory,
   IEmptySetReserve,
   IEmptySetReserve__factory,
+  Market,
+  Market__factory,
 } from '../../../types/generated'
 
 // v2 core types
 import {
-  Market,
-  Market__factory,
   Factory,
   Factory__factory,
   ERC20PresetMinterPauser,
@@ -34,12 +34,13 @@ import {
 } from '@equilibria/perennial-v2/types/generated'
 
 import { ChainlinkContext } from '@equilibria/perennial-v2/test/integration/helpers/chainlinkHelpers'
+
 import { parse6decimal } from '../../../../common/testutil/types'
 import { buildChainlinkRoundId } from '@equilibria/perennial-v2-oracle/util/buildChainlinkRoundId'
 import { CHAINLINK_CUSTOM_CURRENCIES } from '@equilibria/perennial-v2-oracle/util/constants'
 import { Squared__factory } from '@equilibria/perennial-v2-payoff/types/generated'
 import { currentBlockTimestamp } from '../../../../common/testutil/time'
-import { ProtocolParameterStruct } from '@equilibria/perennial-v2/types/generated/contracts/Factory'
+// import { ProtocolParameterStruct } from '@equilibria/perennial-v2/types/generated/contracts/Factory'
 const { config, deployments, ethers } = HRE
 
 export const INITIAL_PHASE_ID = 1
@@ -48,10 +49,16 @@ export const INITIAL_VERSION = 2472 // registry's phase 1 starts at aggregatorRo
 
 export const DSU_HOLDER = '0x0B663CeaCEF01f2f88EB7451C70Aa069f19dB997'
 export const USDC_HOLDER = '0x0A59649758aa4d66E25f08Dd01271e891fe52199'
-export const BATCHER = '0xAEf566ca7E84d1E736f999765a804687f39D9094'
-export const RESERVE = '0xD05aCe63789cCb35B9cE71d01e4d632a0486Da4B'
-export const ETH_ORACLE = '0x2C19eac953048801FfE1358D109A1Ac2aF7930fD'
+
+// @todo fix external deployment deps
+export const BATCHER = '0x0B663CeaCEF01f2f88EB7451C70Aa069f19dB997'
+// export const RESERVE = '0xD05aCe63789cCb35B9cE71d01e4d632a0486Da4B'
+export const ETH_ORACLE = '0x5f4eC3Df9cbd43714FE2740f5E3616155c5b8419' // chainlink eth oracle
+export const CHAINLINK_REGISTRY = '0x47Fb2585D2C56Fe188D0E6ec628a38b74fCeeeDf'
+export const DSU = '0x605D26FBd5be761089281d5cec2Ce86eeA667109'
+export const USDC = '0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48'
 const DSU_MINTER = '0xD05aCe63789cCb35B9cE71d01e4d632a0486Da4B'
+const ZERO_ADDR = '0x0000000000000000000000000000000000000000'
 
 export interface InstanceVars {
   owner: SignerWithAddress
@@ -87,13 +94,14 @@ export async function deployProtocol(): Promise<InstanceVars> {
     CHAINLINK_CUSTOM_CURRENCIES.USD,
     initialRoundId,
     1,
+    CHAINLINK_REGISTRY,
   ).init()
 
   const payoff = await IPayoffProvider__factory.connect((await new Squared__factory(owner).deploy()).address, owner)
-  const dsu = await IERC20Metadata__factory.connect((await deployments.get('DSU')).address, owner)
-  const usdc = await IERC20Metadata__factory.connect((await deployments.get('USDC')).address, owner)
+  const dsu = await IERC20Metadata__factory.connect(DSU, owner)
+  const usdc = await IERC20Metadata__factory.connect(USDC, owner)
   const batcher = await IBatcher__factory.connect(BATCHER, owner)
-  const reserve = await IEmptySetReserve__factory.connect(RESERVE, owner)
+  const reserve = await IEmptySetReserve__factory.connect(DSU_MINTER, owner)
   const oracle = await IOracleProvider__factory.connect(ETH_ORACLE, owner)
   // Deploy protocol contracts
   const proxyAdmin = await new ProxyAdmin__factory(owner).deploy()
@@ -108,7 +116,7 @@ export async function deployProtocol(): Promise<InstanceVars> {
     [],
   )
 
-  const factory = await new Factory__factory(owner).attach(factoryProxy.address)
+  const factory: Factory = await new Factory__factory(owner).attach(factoryProxy.address)
 
   // Init
   await factory.initialize()
@@ -138,8 +146,9 @@ export async function deployProtocol(): Promise<InstanceVars> {
   const multiInvoker = await new MultiInvoker__factory(owner).deploy(
     usdc.address,
     dsu.address,
+    factory.address,
     BATCHER,
-    '0x0',
+    DSU_MINTER,
     ETH_ORACLE,
   )
 
@@ -173,9 +182,9 @@ export async function fundWallet(dsu: IERC20Metadata, wallet: SignerWithAddress)
   await dsuMinter.sendTransaction({
     to: dsu.address,
     value: 0,
-    data: dsuIface.encodeFunctionData('mint', [utils.parseEther('200000')]),
+    data: dsuIface.encodeFunctionData('mint', [utils.parseEther('200000000')]),
   })
-  await dsu.connect(dsuMinter).transfer(wallet.address, utils.parseEther('200000'))
+  await dsu.connect(dsuMinter).transfer(wallet.address, utils.parseEther('200000000'))
 }
 
 export async function createMarket(
@@ -188,8 +197,8 @@ export async function createMarket(
   const { owner, factory, treasuryB, chainlink, rewardToken, dsu } = instanceVars
 
   const definition = {
-    name: name ?? 'Squeeth',
-    symbol: symbol ?? 'SQTH',
+    name: name ?? 'ethereum',
+    symbol: symbol ?? 'ETH',
     token: dsu.address,
     reward: rewardToken.address,
   }

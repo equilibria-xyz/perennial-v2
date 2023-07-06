@@ -173,6 +173,14 @@ export const buildExecOrder = ({
   ]
 }
 
+module.exports = {
+  buildCancelOrder,
+  buildExecOrder,
+  buildPlaceOrder,
+  buildUpdateOrder,
+  buildUpdateMarket,
+}
+
 // @todo froentend helper to net orders into a single market update
 export const buildNetOrder = {}
 

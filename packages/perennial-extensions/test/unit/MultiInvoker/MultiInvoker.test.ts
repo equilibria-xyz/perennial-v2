@@ -31,6 +31,7 @@ import { PositionStruct } from '../../../types/generated/@equilibria/perennial-v
 
 import { parse6decimal } from '../../../../common/testutil/types'
 import { openPosition, setMarketPosition, setPendingPosition } from '../../helpers/types'
+import { IFactory } from '@equilibria/perennial-v2/types/generated'
 const ethers = { HRE }
 use(smock.matchers)
 
@@ -45,6 +46,7 @@ describe('MultiInvoker', () => {
   let batcher: FakeContract<IBatcher>
   let reserve: FakeContract<IEmptySetReserve>
   let reward: FakeContract<IERC20>
+  let factory: FakeContract<IFactory>
   let multiInvoker: MultiInvoker
 
   const multiInvokerFixture = async () => {
@@ -62,10 +64,12 @@ describe('MultiInvoker', () => {
     payoff = await smock.fake<IPayoffProvider>('IPayoffProvider')
     batcher = await smock.fake<IBatcher>('IBatcher')
     reserve = await smock.fake<IEmptySetReserve>('IEmptySetReserve')
+    factory = await smock.fake<IFactory>('IFactory')
 
     multiInvoker = await new MultiInvoker__factory(owner).deploy(
       usdc.address,
       dsu.address,
+      factory.address,
       batcher.address,
       reserve.address,
       oracle.address,
@@ -119,7 +123,7 @@ describe('MultiInvoker', () => {
     await market.connect(owner).initialize(marketDefinition, marketParam)
 
     usdc.transferFrom.whenCalledWith(user.address).returns(true)
-
+    factory.markets.whenCalledWith(market.address).returns(true)
     // set returns
   })
 
