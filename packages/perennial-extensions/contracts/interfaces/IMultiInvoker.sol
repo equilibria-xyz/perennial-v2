@@ -11,6 +11,7 @@ interface IMultiInvoker {
         PLACE_ORDER,
         CANCEL_ORDER,
         EXEC_ORDER,
+        APPROVE_MARKET,
         CLAIM,
         WRAP,
         UNWRAP,
@@ -42,6 +43,7 @@ interface IMultiInvoker {
     error MultiInvokerBadSenderError();
     error MultiInvokerOrderMustBeSingleSidedError();
     error MultiInvokerMaxFeeExceededError();
+    error MultiInvokerInvalidMarketApprovalError();
     
     function invoke(Invocation[] calldata invocations) external;
 
