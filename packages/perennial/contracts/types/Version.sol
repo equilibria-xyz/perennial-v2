@@ -99,6 +99,7 @@ library VersionLib {
 
         positionFee = marketParameter.positionFee.mul(toPosition.fee);
         UFixed6 makerFee = toPosition.fee.sub(positionFee);
+
         self.makerValue.increment(Fixed6Lib.from(makerFee), fromPosition.maker);
     }
 
@@ -118,8 +119,6 @@ library VersionLib {
         MarketParameter memory marketParameter,
         RiskParameter memory riskParameter
     ) private view returns (UFixed6 fundingFee) {
-        if (position.major().isZero()) return UFixed6Lib.ZERO;
-
         // Compute long-short funding rate
         Fixed6 funding = global.pAccumulator.accumulate(
             riskParameter.pController,
@@ -155,7 +154,6 @@ library VersionLib {
             fundingLong = fundingLong.sub(fundingMaker);
         }
 
-        // Compute accumulated values
         self.makerValue.increment(fundingMaker, position.maker);
         self.longValue.increment(fundingLong, position.long);
         self.shortValue.increment(fundingShort, position.short);
@@ -175,9 +173,7 @@ library VersionLib {
         OracleVersion memory toOracleVersion,
         MarketParameter memory marketParameter,
         RiskParameter memory riskParameter
-    ) private pure returns (UFixed6 interestFee) {
-        if (position.major().isZero()) return UFixed6Lib.ZERO;
-
+    ) private view returns (UFixed6 interestFee) {
         UFixed6 notional = position.long.add(position.short).min(position.maker).mul(fromOracleVersion.price.abs());
 
         // Compute maker interest
@@ -192,14 +188,17 @@ library VersionLib {
         interestFee = interest.mul(marketParameter.interestFee);
 
         // Adjust long and short funding with spread
-        Fixed6 interestLong = Fixed6Lib.from(interest.mul(position.long.div(position.long.add(position.short))));
+        Fixed6 interestLong = Fixed6Lib.from(
+            position.major().isZero() ?
+            interest :
+            interest.muldiv(position.long, position.long.add(position.short))
+        );
         Fixed6 interestShort = Fixed6Lib.from(interest).sub(interestLong);
         Fixed6 interestMaker = Fixed6Lib.from(interest.sub(interestFee));
 
-        // Compute accumulated values
-        if (!position.maker.isZero()) self.makerValue.increment(interestMaker, position.maker);
-        if (!position.long.isZero()) self.longValue.decrement(interestLong, position.long);
-        if (!position.short.isZero()) self.shortValue.decrement(interestShort, position.short);
+        self.makerValue.increment(interestMaker, position.maker);
+        self.longValue.decrement(interestLong, position.long);
+        self.shortValue.decrement(interestShort, position.short);
     }
 
     /**
@@ -211,17 +210,15 @@ library VersionLib {
         OracleVersion memory fromOracleVersion,
         OracleVersion memory toOracleVersion
     ) private pure {
-        if (position.major().isZero() || position.maker.isZero()) return;
-
         Fixed6 totalLongDelta = toOracleVersion.price.sub(fromOracleVersion.price)
             .mul(Fixed6Lib.from(position.longSocialized()));
         Fixed6 totalShortDelta = fromOracleVersion.price.sub(toOracleVersion.price)
             .mul(Fixed6Lib.from(position.shortSocialized()));
         Fixed6 totalMakerDelta = totalLongDelta.add(totalShortDelta);
 
-        if (!position.long.isZero()) self.longValue.increment(totalLongDelta, position.long);
-        if (!position.short.isZero()) self.shortValue.increment(totalShortDelta, position.short);
-        if (!position.maker.isZero()) self.makerValue.decrement(totalMakerDelta, position.maker);
+        self.longValue.increment(totalLongDelta, position.long);
+        self.shortValue.increment(totalShortDelta, position.short);
+        self.makerValue.decrement(totalMakerDelta, position.maker);
     }
 
     /**
