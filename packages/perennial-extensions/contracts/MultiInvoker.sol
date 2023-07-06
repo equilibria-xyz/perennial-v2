@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: Apache-2.0
 pragma solidity ^0.8.13;
 pragma abicoder v2;
 
@@ -34,7 +35,7 @@ contract MultiInvoker is IMultiInvoker, KeeperManager {
     /// @dev DSU address
     Token18 public immutable DSU; // solhint-disable-line var-name-mixedcase
 
-    /// @dev 
+    /// @dev Protocol factory to validate market approvals
     IFactory public immutable factory;
 
     /// @dev Batcher address
@@ -50,7 +51,7 @@ contract MultiInvoker is IMultiInvoker, KeeperManager {
     Fixed6 public keeperPremium;
 
     /// @dev Gas buffer estimating remaining execution gas to include in fee to cover further instructions 
-    Fixed6 immutable GAS_BUFFER = Fixed6Lib.from(UFixed6.wrap(100000));
+    Fixed6 immutable GAS_BUFFER = Fixed6Lib.from(UFixed6.wrap(100000)); // solhint-disable-line var-name-mixedcase
 
     constructor(
         Token6 usdc_,
@@ -99,7 +100,7 @@ contract MultiInvoker is IMultiInvoker, KeeperManager {
             } else if (invocation.action == PerennialAction.CANCEL_ORDER) {
                 (address market, uint256 _orderNonce) = abi.decode(invocation.args, (address, uint256));
 
-                _cancelOrder(msg.sender, market, _orderNonce);
+                _cancelOrder(market, _orderNonce);
             } else if (invocation.action == PerennialAction.EXEC_ORDER) {
                 (address account, address market, uint256 _orderNonce) =
                     abi.decode(invocation.args, (address, address, uint256));
@@ -113,6 +114,14 @@ contract MultiInvoker is IMultiInvoker, KeeperManager {
         }
     }
 
+    /**
+     * @notice Updates market on behalf of msg.sender
+     * @param market Address of market up update
+     * @param newMaker New maker position for msg.sender in `market`
+     * @param newLong New long position for msg.sender in `market`
+     * @param newShort New short position for msg.sender in `market`
+     * @param collateralDelta Net change in collateral for msg.sender in `market`
+     */
     function _update(
         address market,
         UFixed6 newMaker,
@@ -123,14 +132,13 @@ contract MultiInvoker is IMultiInvoker, KeeperManager {
     ) internal returns (Position memory position) {
         position = IMarket(market).positions(msg.sender);
 
-
         position.maker = newMaker;
         position.long = newLong;
         position.short = newShort;
 
-        // collateral is transferred from this address to the market, transfer from account to here
+        // collateral is transferred from this address to the market, transfer from msg.sender to here
         if(collateralDelta.sign() == 1) {
-            _deposit(msg.sender, collateralDelta.abs(), handleWrap);
+            _deposit(collateralDelta.abs(), handleWrap);
         }
 
         IMarket(market).update(
@@ -140,13 +148,20 @@ contract MultiInvoker is IMultiInvoker, KeeperManager {
             position.short,
             collateralDelta);
 
-        // collateral is transferred from the market to this address, transfer to account from here
+        // collateral is transferred from the market to this address, transfer to msg.sender from here
         if(collateralDelta.sign() == -1) {
-            _withdraw(account, collateralDelta.abs(), handleWrap);
+            _withdraw(msg.sender, collateralDelta.abs(), handleWrap);
         }
     }
 
+    /**
+     * @notice executes an `account's` open order for a `market` and pays a fee to `msg.sender`
+     * @param account Account to execute order of
+     * @param market Market to execute order for
+     * @param _orderNonce Id of open order to index
+     */
     function _executeOrderInvoker(address account, address market, uint256 _orderNonce) internal {
+        // @todo move this up to beginning of execute action?
         uint256 startGas = gasleft();
 
         Position memory position = 
@@ -157,6 +172,7 @@ contract MultiInvoker is IMultiInvoker, KeeperManager {
 
         IKeeperManager.Order memory order = _readOrder(account, market, _orderNonce);
 
+        // @todo swap long and limit for more clear branch?
         order.isLong ?
             order.isLimit ?
                 position.long.add(order.size) :
@@ -184,6 +200,14 @@ contract MultiInvoker is IMultiInvoker, KeeperManager {
         
     }
 
+    /**
+     * @notice Helper function to charge execution fee for orders
+     * @param account Account being executed to withdraw fee amount of collateral from
+     * @param market Market to pull collateral from
+     * @param maxFee Maximum fee specified by `account` when their order is opened
+     * @param startGas Initial remaining execution gas for tx
+     * @param position `account`'s position to preserve M/L/S of when pulling collateral
+     */
     function _handleExecFee(
         address account,
         address market,
@@ -218,21 +242,35 @@ contract MultiInvoker is IMultiInvoker, KeeperManager {
         return Fixed6.wrap(answer);
     }
 
+    
+    /// @notice Helper fn to max approve DSU for usage in a market deployed by the factory
+    /// @param market Market to approve
     function _approve(IMarket market) internal {
        if(!factory.markets(market)) 
             revert MultiInvokerInvalidMarketApprovalError();
         DSU.approve(address(market));
     }
 
-    function _deposit(address account, UFixed6 collateralDelta, bool handleWrap ) internal {
+    /**
+     * @notice Pull DSU or wrap and deposit USDC from msg.sender to this address for market usage
+     * @param collateralDelta Amount to transfer
+     * @param handleWrap Flag to wrap USDC to DSU 
+     */
+    function _deposit(UFixed6 collateralDelta, bool handleWrap) internal {
         if(handleWrap) {
             USDC.pull(msg.sender, UFixed18Lib.from(collateralDelta), true);
             _handleWrap(address(this), UFixed18Lib.from(collateralDelta));
         } else {
-            DSU.pull(account, UFixed18Lib.from(collateralDelta)); // @todo change to 1e6?
+            DSU.pull(msg.sender, UFixed18Lib.from(collateralDelta)); // @todo change to 1e6?
         }
     }
 
+    /**
+     * @notice Push DSU or unwrap DSU to push USDC from this address to `account`
+     * @param account Account to push DSU or USDC to
+     * @param collateralDelta Amount to transfer
+     * @param handleUnwrap flag to unwrap DSU to USDC
+     */
     function _withdraw(address account, UFixed6 collateralDelta, bool handleUnwrap) internal {
         if(handleUnwrap) {
             DSU.push(account, UFixed18Lib.from(collateralDelta));
