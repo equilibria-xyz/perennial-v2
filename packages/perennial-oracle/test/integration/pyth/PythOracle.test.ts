@@ -108,8 +108,11 @@ describe('PythOracle', () => {
     it('commits successfully and incentivizes the keeper', async () => {
       const originalDSUBalance = await dsu.callStatic.balanceOf(user.address)
       await pythOracle.connect(oracleSigner).request()
+      // Base fee isn't working properly in coverage, so we need to set it manually
+      await ethers.provider.send('hardhat_setNextBlockBaseFeePerGas', ['0x1000'])
       await pythOracle.connect(user).commit(0, VAA, {
         value: 1,
+        gasPrice: 10000,
       })
       const newDSUBalance = await dsu.callStatic.balanceOf(user.address)
 
