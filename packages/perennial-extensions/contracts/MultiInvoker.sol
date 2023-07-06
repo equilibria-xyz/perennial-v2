@@ -2,7 +2,7 @@
 pragma solidity ^0.8.13;
 pragma abicoder v2;
 
-import { AggregatorInterface } from "./interfaces/AggregatorInterface.sol";
+import {AggregatorInterface} from "@chainlink/contracts/src/v0.8/interfaces/AggregatorInterface.sol";
 import { IFactory } from "@equilibria/perennial-v2/contracts/interfaces/IFactory.sol";
 import { IMarket } from "@equilibria/perennial-v2/contracts/interfaces/IMarket.sol";
 import { IBatcher } from "@equilibria/emptyset-batcher/interfaces/IBatcher.sol";
