@@ -8,6 +8,7 @@ import "./MarketParameter.sol";
 import "./RiskParameter.sol";
 import "./Global.sol";
 import "./Position.sol";
+import "hardhat/console.sol";
 
 /// @dev Version type
 struct Version {
@@ -58,7 +59,7 @@ library VersionLib {
         OracleVersion memory toOracleVersion,
         MarketParameter memory marketParameter,
         RiskParameter memory riskParameter
-    ) internal pure returns (UFixed6 fee) {
+    ) internal view returns (UFixed6 fee) {
         if (marketParameter.closed) return UFixed6Lib.ZERO;
 
         // accumulate position
@@ -116,7 +117,7 @@ library VersionLib {
         OracleVersion memory toOracleVersion,
         MarketParameter memory marketParameter,
         RiskParameter memory riskParameter
-    ) private pure returns (UFixed6 fundingFee) {
+    ) private view returns (UFixed6 fundingFee) {
         if (position.major().isZero()) return UFixed6Lib.ZERO;
 
         // Compute long-short funding rate
@@ -132,26 +133,32 @@ library VersionLib {
         if (riskParameter.makerReceiveOnly && funding.sign() != position.skew().sign())
             funding = funding.mul(Fixed6Lib.NEG_ONE);
 
+        // Initialize long and short funding
+        (Fixed6 fundingLong, Fixed6 fundingShort) = (Fixed6Lib.NEG_ONE.mul(funding), funding);
+
         // Compute fee spread
         fundingFee = funding.abs().mul(marketParameter.fundingFee);
-        Fixed6 fundingSpread = Fixed6Lib.from(fundingFee.div(UFixed6Lib.from(2)));
+        Fixed6 fundingSpread = Fixed6Lib.from(fundingFee).div(Fixed6Lib.from(2));
 
-        // Adjust long and short funding with spread
-        (Fixed6 fundingLong, Fixed6 fundingShort, Fixed6 fundingMaker) =
-            (Fixed6Lib.NEG_ONE.mul(funding).sub(fundingSpread), funding.sub(fundingSpread), Fixed6Lib.ZERO);
+        // Adjust funding with spread
+        (fundingLong, fundingShort) =
+            (fundingLong.sub(Fixed6Lib.from(fundingFee)).add(fundingSpread), fundingShort.sub(fundingSpread));
 
         // Redirect net portion of minor's side to maker
-        if (position.long.gt(position.short))
-            (fundingMaker, fundingShort) =
-                (fundingShort.mul(Fixed6Lib.from(position.skew().abs())), fundingShort.sub(fundingMaker));
-        if (position.short.gt(position.long))
-            (fundingMaker, fundingLong) =
-                (fundingLong.mul(Fixed6Lib.from(position.skew().abs())), fundingLong.sub(fundingMaker));
+        Fixed6 fundingMaker;
+        if (position.long.gt(position.short)) {
+            fundingMaker = fundingShort.mul(Fixed6Lib.from(position.skew().abs()));
+            fundingShort = fundingShort.sub(fundingMaker);
+        }
+        if (position.short.gt(position.long)) {
+            fundingMaker = fundingLong.mul(Fixed6Lib.from(position.skew().abs()));
+            fundingLong = fundingLong.sub(fundingMaker);
+        }
 
         // Compute accumulated values
-        if (!position.maker.isZero()) self.makerValue.increment(fundingMaker, position.maker);
-        if (!position.long.isZero()) self.longValue.increment(fundingLong, position.long);
-        if (!position.short.isZero()) self.shortValue.increment(fundingShort, position.short);
+        self.makerValue.increment(fundingMaker, position.maker);
+        self.longValue.increment(fundingLong, position.long);
+        self.shortValue.increment(fundingShort, position.short);
     }
 
     /**

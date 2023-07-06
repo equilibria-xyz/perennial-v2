@@ -3808,7 +3808,8 @@ describe('Market', () => {
                   collateral: COLLATERAL.sub(EXPECTED_FUNDING_WITH_FEE_1_5_123)
                     .sub(EXPECTED_INTEREST_5_123)
                     .sub(EXPECTED_FUNDING_WITH_FEE_2_5_150)
-                    .sub(EXPECTED_INTEREST_5_150),
+                    .sub(EXPECTED_INTEREST_5_150)
+                    .sub(5), // loss of precision
                   reward: EXPECTED_REWARD.mul(2).mul(3),
                   protection: 0,
                 })
@@ -3918,7 +3919,8 @@ describe('Market', () => {
                       .add(EXPECTED_FUNDING_WITH_FEE_2_5_150)
                       .add(EXPECTED_INTEREST_5_150)
                       .div(5)
-                      .mul(-1),
+                      .mul(-1)
+                      .sub(1), // loss of precision
                   },
                   shortValue: { _value: 0 },
                   makerReward: { _value: EXPECTED_REWARD.mul(3).div(10).mul(2) },
@@ -3938,7 +3940,8 @@ describe('Market', () => {
                       .add(EXPECTED_FUNDING_WITH_FEE_2_5_150)
                       .add(EXPECTED_INTEREST_5_150)
                       .div(5)
-                      .mul(-1),
+                      .mul(-1)
+                      .sub(1), // loss of precision
                   },
                   shortValue: { _value: 0 },
                   makerReward: { _value: EXPECTED_REWARD.mul(3).div(10).mul(2) },
@@ -4025,7 +4028,8 @@ describe('Market', () => {
                     .sub(EXPECTED_INTEREST_2)
                     .sub(EXPECTED_FUNDING_WITH_FEE_3_25_123)
                     .sub(EXPECTED_INTEREST_3)
-                    .add(EXPECTED_PNL),
+                    .add(EXPECTED_PNL)
+                    .sub(5), // loss of precision
                   reward: EXPECTED_REWARD.mul(2).mul(3),
                   protection: 0,
                 })
@@ -4160,7 +4164,8 @@ describe('Market', () => {
                     _value: EXPECTED_FUNDING_WITH_FEE_1_5_123.add(EXPECTED_INTEREST_1)
                       .add(EXPECTED_FUNDING_WITH_FEE_2_5_150.add(EXPECTED_INTEREST_2))
                       .div(5)
-                      .mul(-1),
+                      .mul(-1)
+                      .sub(1), // loss of precision
                   },
                   shortValue: { _value: 0 },
                   makerReward: { _value: EXPECTED_REWARD.mul(3).mul(2).div(25).mul(2) },
@@ -4183,7 +4188,8 @@ describe('Market', () => {
                       .add(EXPECTED_FUNDING_WITH_FEE_3_25_123.add(EXPECTED_INTEREST_3))
                       .sub(EXPECTED_PNL)
                       .div(5)
-                      .mul(-1),
+                      .mul(-1)
+                      .sub(1), // loss of precision
                   },
                   shortValue: { _value: 0 },
                   makerReward: {
