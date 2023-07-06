@@ -13,9 +13,8 @@ interface IPythOracle is IOracleProvider, IInstance {
     error PythOracleNonIncreasingPublishTimes();
     error PythOracleFailedToCalculateRewardError();
     error PythOracleFailedToSendRewardError();
-    error PythOracleNonRequestedTooOldError();
+    error PythOracleVersionTooOldError();
     error PythOracleNonRequestedTooRecentError();
-    error PythOracleNonRequestedOutOfOrderError();
 
     function initialize(bytes32 id_) external;
     function commit(uint256 versionIndex, bytes calldata updateData) external payable;

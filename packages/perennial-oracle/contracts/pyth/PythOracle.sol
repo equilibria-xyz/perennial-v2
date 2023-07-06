@@ -56,8 +56,9 @@ contract PythOracle is IPythOracle, Instance {
     /// @dev The time when the last committed update was published to Pyth
     uint256 private _lastCommittedPublishTime;
 
-    /// @dev The oracle version that was most recently committed and wasn't requested
-    uint256 private _mostRecentlyCommittedNonRequestedVersion;
+    /// @dev The oracle version that was most recently committed
+    /// @dev We assume that we cannot commit an oracle version of 0, so `_latestVersion` being 0 means that no version has been committed yet
+    uint256 private _latestVersion;
 
     /**
      * @notice Initializes the immutable contract state
@@ -106,14 +107,9 @@ contract PythOracle is IPythOracle, Instance {
      * @return latestVersion Latest oracle version
      */
     function latest() public view returns (OracleVersion memory latestVersion) {
-        if (_mostRecentlyCommittedNonRequestedVersion > 0)
-            latestVersion = OracleVersion(_mostRecentlyCommittedNonRequestedVersion, _prices[_mostRecentlyCommittedNonRequestedVersion], true);
+        if (_latestVersion == 0) return latestVersion;
 
-        if (_nextVersionIndexToCommit == 0) return latestVersion;
-
-        uint256 timestamp = versionList[_nextVersionIndexToCommit - 1];
-        if (timestamp > _mostRecentlyCommittedNonRequestedVersion)
-            latestVersion = OracleVersion(timestamp, _prices[timestamp], true);
+        return latestVersion = OracleVersion(_latestVersion, _prices[_latestVersion], true);
     }
 
     /**
@@ -172,14 +168,12 @@ contract PythOracle is IPythOracle, Instance {
 
         _recordPrice(versionToCommit, pythPrice);
         _nextVersionIndexToCommit = versionIndex + 1;
+        _latestVersion = versionToCommit;
 
         // TODO: cover ETH pyth price in incentive?
     }
 
     function commitNonRequested(uint256 oracleVersion, bytes calldata updateData) external payable {
-        // Oracle versions of non-requested versions must be in order
-        if (oracleVersion <= _mostRecentlyCommittedNonRequestedVersion) revert PythOracleNonRequestedOutOfOrderError();
-
         PythStructs.Price memory pythPrice = _validateAndGetPrice(oracleVersion, updateData);
 
         // Must be before the next requested version to commit, if it exists
@@ -187,13 +181,11 @@ contract PythOracle is IPythOracle, Instance {
         if (versionList.length > _nextVersionIndexToCommit && oracleVersion >= versionList[_nextVersionIndexToCommit])
             revert PythOracleNonRequestedTooRecentError();
 
-        // Oracle version and VAA publish time must be more recent than those of the most recently committed requested version
-        if (_nextVersionIndexToCommit > 0 && oracleVersion <= versionList[_nextVersionIndexToCommit - 1])
-            revert PythOracleNonRequestedTooOldError();
+        // Oracle version must be more recent than those of the most recently committed version
+        if (oracleVersion <= _latestVersion) revert PythOracleVersionTooOldError();
 
         _recordPrice(oracleVersion, pythPrice);
-
-        _mostRecentlyCommittedNonRequestedVersion = oracleVersion;
+        _latestVersion = oracleVersion;
     }
 
     /**

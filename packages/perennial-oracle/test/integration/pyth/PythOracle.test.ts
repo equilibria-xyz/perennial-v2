@@ -293,7 +293,7 @@ describe('PythOracle', () => {
         pythOracle.connect(user).commitNonRequested(STARTING_TIME, VAA, {
           value: 1,
         }),
-      ).to.revertedWithCustomError(pythOracle, 'PythOracleNonRequestedTooOldError')
+      ).to.revertedWithCustomError(pythOracle, 'PythOracleVersionTooOldError')
     })
 
     it('must be before the next requested version to commit', async () => {
@@ -323,7 +323,7 @@ describe('PythOracle', () => {
         pythOracle.connect(user).commitNonRequested(STARTING_TIME, VAA, {
           value: 1,
         }),
-      ).to.revertedWithCustomError(pythOracle, 'PythOracleNonRequestedOutOfOrderError')
+      ).to.revertedWithCustomError(pythOracle, 'PythOracleVersionTooOldError')
     })
   })
 
