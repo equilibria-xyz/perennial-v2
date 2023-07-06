@@ -16,7 +16,7 @@ contract KeeperManager is IKeeperManager {
     /// @dev Number of open orders an accoutn has per market
     mapping(address => mapping(address => uint256)) public numOpenOrders;
 
-    /// @todo is keccak256(abi.encode(account, market, nonce)) under the hood worth it for the readability?
+    // @todo is keccak256(abi.encode(account, market, nonce)) under the hood worth it for the readability?
     /// @dev State for the order data
     mapping(address => mapping(address => mapping(uint256 => Order))) public allOpenOrders;
 
