@@ -1,14 +1,17 @@
 import { SignerWithAddress } from '@nomiclabs/hardhat-ethers/signers'
 import { constants } from 'ethers'
 import { parse6decimal } from '../../../../common/testutil/types'
-import { IERC20Metadata, IFactory, IMarket, IMarket__factory } from '../../../types/generated'
-import { MarketParameterStruct } from '../../../types/generated/@equilibria/perennial-v2/contracts/interfaces/IFactory'
+import { IERC20Metadata, IMarket, IMarket__factory, IMarketFactory } from '../../../types/generated'
+import { MarketParameterStruct, RiskParameterStruct } from '@equilibria/perennial-v2/types/generated/contracts/Market'
 
-export interface DeployProductParams extends Partial<Omit<MarketParameterStruct, 'payoffDefinition'>> {
-  factory: IFactory
+export interface DeployProductParams
+  extends Partial<Omit<RiskParameterStruct & MarketParameterStruct, 'payoffDefinition'>> {
+  factory: IMarketFactory
   token: IERC20Metadata
   name: string
   symbol: string
+  oracle: string
+  payoff: string
   owner: SignerWithAddress
 }
 
@@ -19,26 +22,31 @@ export async function deployProductOnMainnetFork({
   factory,
   name,
   symbol,
-  owner,
   oracle,
+  payoff,
+  owner,
   maintenance,
   fundingFee,
   interestFee,
   makerFee,
+  makerSkewFee,
+  makerImpactFee,
   takerFee,
+  takerSkewFee,
+  takerImpactFee,
   positionFee,
   makerLimit,
   utilizationCurve,
 }: DeployProductParams): Promise<IMarket> {
-  const marketParameter: MarketParameterStruct = {
+  const riskParameter: RiskParameterStruct = {
     maintenance: maintenance ?? parse6decimal('0.10'),
-    fundingFee: fundingFee ?? parse6decimal('0.00'),
-    interestFee: interestFee ?? parse6decimal('0.00'),
     takerFee: takerFee ?? parse6decimal('0.0'),
+    takerSkewFee: takerSkewFee ?? parse6decimal('0.0'),
+    takerImpactFee: takerImpactFee ?? parse6decimal('0.0'),
     makerFee: makerFee ?? parse6decimal('0.0'),
-    positionFee: positionFee ?? parse6decimal('0.0'),
+    makerSkewFee: makerSkewFee ?? parse6decimal('0.0'),
+    makerImpactFee: makerImpactFee ?? parse6decimal('0.0'),
     makerLimit: makerLimit ?? parse6decimal('100'),
-    closed: false,
     makerRewardRate: 0,
     longRewardRate: 0,
     shortRewardRate: 0,
@@ -49,26 +57,33 @@ export async function deployProductOnMainnetFork({
       targetUtilization: parse6decimal('0.80'),
     },
     pController: {
-      value: 0,
-      _k: parse6decimal('40000'),
-      _skew: 0,
-      _max: parse6decimal('1.20'),
+      k: parse6decimal('40000'),
+      max: parse6decimal('1.20'),
     },
-    oracle: oracle ?? constants.AddressZero,
-    payoff: constants.AddressZero,
+    makerReceiveOnly: false,
+  }
+  const marketParameter: MarketParameterStruct = {
+    fundingFee: fundingFee ?? parse6decimal('0.00'),
+    interestFee: interestFee ?? parse6decimal('0.00'),
+    positionFee: positionFee ?? parse6decimal('0.0'),
+    riskFee: 0,
+    oracleFee: 0,
+    closed: false,
   }
   const marketDefinition: IMarket.MarketDefinitionStruct = {
     name: name,
     symbol: symbol,
     token: token.address,
     reward: constants.AddressZero,
+    oracle: oracle ?? constants.AddressZero,
+    payoff: payoff ?? constants.AddressZero,
   }
 
-  const productAddress = await factory.connect(owner).callStatic.createMarket(marketDefinition, marketParameter)
-  await factory.connect(owner).createMarket(marketDefinition, marketParameter)
+  const productAddress = await factory.connect(owner).callStatic.create(marketDefinition, riskParameter)
+  await factory.connect(owner).create(marketDefinition, riskParameter)
 
   const market = IMarket__factory.connect(productAddress, owner)
-  await market.connect(owner).acceptOwner()
+  await market.connect(owner).updateParameter(marketParameter)
 
   return market
 }

@@ -2,18 +2,18 @@ import { SignerWithAddress } from '@nomiclabs/hardhat-ethers/signers'
 import { expect } from 'chai'
 import HRE from 'hardhat'
 
-import { Squared, Squared__factory } from '../../../types/generated'
+import { PowerTwo, PowerTwo__factory } from '../../../types/generated'
 import { parse6decimal } from '../../../../common/testutil/types'
 
 const { ethers } = HRE
 
-describe('Squared', () => {
+describe('PowerTwo', () => {
   let user: SignerWithAddress
-  let provider: Squared
+  let provider: PowerTwo
 
   beforeEach(async () => {
     ;[user] = await ethers.getSigners()
-    provider = await new Squared__factory(user).deploy()
+    provider = await new PowerTwo__factory(user).deploy()
   })
 
   describe('#payoff', async () => {

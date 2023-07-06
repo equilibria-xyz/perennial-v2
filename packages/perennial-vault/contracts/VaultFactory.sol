@@ -2,33 +2,42 @@
 pragma solidity 0.8.19;
 
 import "@equilibria/root/control/unstructured/UOwnable.sol";
-import "@openzeppelin/contracts/proxy/beacon/BeaconProxy.sol";
+import "@equilibria/root-v2/contracts/Factory.sol";
+import "@equilibria/root-v2/contracts/UPausable.sol";
 import "./interfaces/IVaultFactory.sol";
 
 /**
  * @title VaultFactory
  * @notice Manages creating new vaults
  */
-contract VaultFactory is IVaultFactory, UOwnable {
-    IFactory public immutable factory;
+contract VaultFactory is IVaultFactory, Factory {
+    IMarketFactory public immutable marketFactory;
 
-    /// @dev Market implementation address
-    address public immutable implementation;
+    mapping(address => mapping(address => bool)) public operators;
 
-    constructor(IFactory factory_, address implementation_) {
-        implementation = implementation_;
-        factory = factory_;
+    constructor(IMarketFactory marketFactory_, address implementation_) Factory(implementation_) {
+        marketFactory = marketFactory_;
     }
 
     function initialize() external initializer(1) {
-        __UOwnable__initialize();
+        __Factory__initialize();
     }
 
-    function create(Token18 asset, IMarket initialMarket, string calldata name) external returns (IVault newVault) {
-        newVault = IVault(address(new BeaconProxy(
-            address(this),
-            abi.encodeCall(IVault.initialize, (asset, initialMarket, name))
-        )));
+    function create(
+        Token18 asset,
+        IMarket initialMarket,
+        string calldata name,
+        string calldata symbol
+    ) external onlyOwner returns (IVault newVault) {
+        // TODO: validation?
+
+        newVault = IVault(address(_create(abi.encodeCall(IVault.initialize, (asset, initialMarket, name, symbol)))));
+
         emit VaultCreated(newVault, asset, initialMarket);
+    }
+
+    function updateOperator(address operator, bool newEnabled) external {
+        operators[msg.sender][operator] = newEnabled;
+        emit OperatorUpdated(msg.sender, operator, newEnabled);
     }
 }

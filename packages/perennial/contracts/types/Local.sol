@@ -9,14 +9,14 @@ struct Local {
     uint256 currentId;
     Fixed6 collateral;
     UFixed6 reward;
-    uint256 liquidation;
+    uint256 protection;
 }
 using LocalLib for Local global;
 struct StoredLocal {
     uint64 _currentId;
     int64 _collateral;
     uint64 _reward;
-    uint64 _liquidation;
+    uint64 _protection;
 }
 struct LocalStorage { uint256 value; }
 using LocalStorageLib for LocalStorage global;
@@ -53,8 +53,24 @@ library LocalLib {
         self.reward = self.reward.add(rewardAmount);
     }
 
+    function protect(
+        Local memory self,
+        Position memory latestPosition,
+        uint256 currentTimestamp,
+        bool tryProtect
+    ) internal pure returns (bool) {
+        if (!tryProtect || self.protection > latestPosition.timestamp) return false;
+        self.protection = currentTimestamp;
+        return true;
+    }
+
     function clearReward(Local memory self) internal pure {
         self.reward = UFixed6Lib.ZERO;
+    }
+
+    function belowLimit(Local memory self, ProtocolParameter memory protocolParameter) internal pure returns (bool) {
+        return self.collateral.gt(Fixed6Lib.ZERO) &&
+            self.collateral.lt(Fixed6Lib.from(protocolParameter.minCollateral));
     }
 }
 
@@ -76,13 +92,13 @@ library LocalStorageLib { // TODO (gas hint): automate this storage format to sa
         if (newValue.collateral.gt(Fixed6.wrap(type(int64).max))) revert LocalStorageInvalidError();
         if (newValue.collateral.lt(Fixed6.wrap(type(int64).min))) revert LocalStorageInvalidError();
         if (newValue.reward.gt(UFixed6.wrap(type(uint64).max))) revert LocalStorageInvalidError();
-        if (newValue.liquidation > uint256(type(uint64).max)) revert LocalStorageInvalidError();
+        if (newValue.protection > uint256(type(uint64).max)) revert LocalStorageInvalidError();
 
         uint256 encoded =
             uint256(newValue.currentId << 192) >> 192 |
             uint256(Fixed6.unwrap(newValue.collateral) << 192) >> 128 |
             uint256(UFixed6.unwrap(newValue.reward) << 192) >> 64 |
-            uint256(newValue.liquidation << 192);
+            uint256(newValue.protection << 192);
         assembly {
             sstore(self.slot, encoded)
         }

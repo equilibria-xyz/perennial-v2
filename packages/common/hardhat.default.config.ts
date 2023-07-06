@@ -9,6 +9,7 @@ import '@nomicfoundation/hardhat-toolbox'
 import 'hardhat-contract-sizer'
 import 'hardhat-deploy'
 import 'hardhat-dependency-compiler'
+import 'solidity-coverage'
 import { getChainId } from './testutil/network'
 
 import { ethers } from 'ethers'
@@ -88,7 +89,6 @@ export default function defaultConfig({
               interval: NODE_INTERVAL_MINING,
             }
           : undefined,
-        allowBlocksWithSameTimestamp: true,
       },
       goerli: createNetworkConfig('goerli'),
       kovan: createNetworkConfig('kovan'),
@@ -103,7 +103,7 @@ export default function defaultConfig({
           settings: {
             optimizer: {
               enabled: OPTIMIZER_ENABLED,
-              runs: 1000000, // Max allowed by Etherscan verify
+              runs: 1,
             },
             outputSelection: OPTIMIZER_ENABLED
               ? {}
@@ -112,7 +112,7 @@ export default function defaultConfig({
                     '*': ['storageLayout'],
                   },
                 },
-            viaIR: true,
+            viaIR: OPTIMIZER_ENABLED,
           },
         },
       ],

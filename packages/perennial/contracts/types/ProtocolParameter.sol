@@ -5,20 +5,22 @@ import "@equilibria/root/number/types/UFixed6.sol";
 
 /// @dev ProtocolParameter type
 struct ProtocolParameter {
-    UFixed6 protocolFee;    // <= 1677%
-    UFixed6 liquidationFee; // <= 1677%
-    UFixed6 minCollateral;  // <= 281mn
-    uint256 maxPendingIds;  // <= 255
-    bool paused;
+    UFixed6 protocolFee;
+    UFixed6 liquidationFee;
+    UFixed6 maxLiquidationFee;
+    UFixed6 minCollateral;
+    UFixed6 settlementFee;
+    uint256 maxPendingIds;
 }
 struct StoredProtocolParameter {
-    uint24 _protocolFee;     // <= 1677%
-    uint24 _liquidationFee;  // <= 1677
-    uint48 _minCollateral;   // <= 281mn
-    uint8 _maxPendingIds;    // <= 255
-    bool _paused;
+    uint24 _protocolFee;        // <= 1677%
+    uint24 _liquidationFee;     // <= 1677%
+    uint48 _maxLiquidationFee;  // <= 281mn
+    uint48 _minCollateral;      // <= 281mn
+    uint24 _settlementFee;             // <= 1677%
+    uint8 _maxPendingIds;       // <= 255
 
-    bytes18 __unallocated__;
+    bytes10 __unallocated__;
 }
 struct ProtocolParameterStorage { StoredProtocolParameter value; }
 using ProtocolParameterStorageLib for ProtocolParameterStorage global;
@@ -31,25 +33,29 @@ library ProtocolParameterStorageLib {
         return ProtocolParameter(
             UFixed6.wrap(uint256(value._protocolFee)),
             UFixed6.wrap(uint256(value._liquidationFee)),
+            UFixed6.wrap(uint256(value._maxLiquidationFee)),
             UFixed6.wrap(uint256(value._minCollateral)),
-            uint256(value._maxPendingIds),
-            value._paused
+            UFixed6.wrap(uint256(value._settlementFee)),
+            uint256(value._maxPendingIds)
         );
     }
 
     function store(ProtocolParameterStorage storage self, ProtocolParameter memory newValue) internal {
         if (newValue.protocolFee.gt(UFixed6.wrap(type(uint24).max))) revert ProtocolParameterStorageInvalidError();
         if (newValue.liquidationFee.gt(UFixed6.wrap(type(uint24).max))) revert ProtocolParameterStorageInvalidError();
+        if (newValue.maxLiquidationFee.gt(UFixed6.wrap(type(uint48).max))) revert ProtocolParameterStorageInvalidError();
         if (newValue.minCollateral.gt(UFixed6.wrap(type(uint48).max))) revert ProtocolParameterStorageInvalidError();
+        if (newValue.settlementFee.gt(UFixed6.wrap(type(uint24).max))) revert ProtocolParameterStorageInvalidError();
         if (newValue.maxPendingIds > uint256(type(uint8).max)) revert ProtocolParameterStorageInvalidError();
 
         self.value = StoredProtocolParameter(
             uint24(UFixed6.unwrap(newValue.protocolFee)),
             uint24(UFixed6.unwrap(newValue.liquidationFee)),
+            uint48(UFixed6.unwrap(newValue.maxLiquidationFee)),
             uint48(UFixed6.unwrap(newValue.minCollateral)),
+            uint24(UFixed6.unwrap(newValue.settlementFee)),
             uint8(newValue.maxPendingIds),
-            newValue.paused,
-            bytes12(0)
+            bytes10(0)
         );
     }
 }

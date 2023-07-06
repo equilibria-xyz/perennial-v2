@@ -1,33 +1,33 @@
 //SPDX-License-Identifier: Apache-2.0
 pragma solidity ^0.8.13;
 
-import "@equilibria/perennial-v2/contracts/interfaces/IFactory.sol";
-import "@equilibria/root/control/interfaces/IInitializable.sol";
+import "@equilibria/root-v2/contracts/IInstance.sol";
+import "@equilibria/perennial-v2/contracts/interfaces/IMarket.sol";
 import "@equilibria/root/number/types/UFixed6.sol";
 import "../types/Account.sol";
 import "../types/Checkpoint.sol";
+import "../types/Mapping.sol";
 import "../types/VaultParameter.sol";
 import "../types/Registration.sol";
 
-
-interface IVault is IInitializable {
+interface IVault is IInstance {
     struct Context {
-        uint256 currentId;
-        uint256 latestId;
-        uint256 latestTimestamp;
-        uint256 liquidation;
-
         // parameters
         UFixed6 makerFee;
+        UFixed6 settlementFee;
+        UFixed6 minCollateral;
         uint256 minWeight;
         uint256 totalWeight;
 
         // markets
         MarketContext[] markets;
+        Mapping currentIds;
+        Mapping latestIds;
 
         // state
         VaultParameter parameter;
-        Checkpoint checkpoint;
+        Checkpoint currentCheckpoint;
+        Checkpoint latestCheckpoint;
         Account global;
         Account local;
     }
@@ -46,7 +46,6 @@ interface IVault is IInitializable {
         UFixed6 currentNet;
 
         // latest local
-        UFixed6 latestId;
         UFixed6 latestPositionAccount;
 
         // current local
@@ -62,63 +61,37 @@ interface IVault is IInitializable {
     event MarketRegistered(uint256 indexed marketId, IMarket market);
     event WeightUpdated(uint256 indexed marketId, uint256 newWeight);
     event ParameterUpdated(VaultParameter newParameter);
-    event Mint(address indexed account, UFixed6 amount);
-    event Burn(address indexed account, UFixed6 amount);
-    event Deposit(address indexed sender, address indexed account, uint256 version, UFixed6 assets);
-    event Redemption(address indexed sender, address indexed account, uint256 version, UFixed6 shares);
-    event Claim(address indexed sender, address indexed account, UFixed6 assets);
+    event Update(address indexed sender, address indexed account, uint256 version, UFixed6 depositAssets, UFixed6 redeemShares, UFixed6 claimAssets);
 
     error VaultDepositLimitExceededError();
     error VaultRedemptionLimitExceededError();
     error VaultExistingOrderError();
     error VaultMarketExistsError();
     error VaultMarketDoesNotExistError();
-    error VaultNotOwnerError();
     error VaultNotMarketError();
     error VaultIncorrectAssetError();
+    error VaultNotOperatorError();
 
     error AccountStorageInvalidError();
     error CheckpointStorageInvalidError();
+    error MappingStorageInvalidError();
     error RegistrationStorageInvalidError();
     error VaultParameterStorageInvalidError();
-    error VaultParameterStorageImmutableError();
 
-    /* parameters */
-
-    function totalMarkets() external view returns (uint256);
-    function parameter() external view returns (VaultParameter memory);
-    function registrations(uint256 marketId) external view returns (Registration memory);
-    function asset() external view returns (Token18);
-    function register(IMarket market) external;
-    function updateWeight(uint256 marketId, uint256 newWeight) external;
-    function updateParameter(VaultParameter memory newParameter) external;
-
-    /* Vault Interface */
-
-    function initialize(Token18 asset, IMarket market, string calldata name_) external;
+    function initialize(Token18 asset, IMarket market, string calldata name_, string calldata symbol_) external;
+    function name() external view returns (string memory);
     function settle(address account) external;
-    function totalUnclaimed() external view returns (UFixed6);
-    function unclaimed(address account) external view returns (UFixed6);
-    function claim(address account) external;
-
-    /* Partial ERC4626 Interface */
-
+    function update(address account, UFixed6 depositAssets, UFixed6 redeemShares, UFixed6 claimAssets) external;
+    function asset() external view returns (Token18);
     function totalAssets() external view returns (Fixed6);
     function totalShares() external view returns (UFixed6);
     function convertToShares(UFixed6 assets) external view returns (UFixed6);
     function convertToAssets(UFixed6 shares) external view returns (UFixed6);
-    function maxDeposit(address account) external view returns (UFixed6);
-    function deposit(UFixed6 assets, address account) external;
-    function maxRedeem(address account) external view returns (UFixed6);
-    function redeem(UFixed6 shares, address account) external;
-
-    /* Partial ERC20 Interface */
-
-    event Approval(address indexed account, address indexed spender, UFixed6 amount);
-
-    function name() external view returns (string memory);
-    function totalSupply() external view returns (UFixed6);
-    function balanceOf(address account) external view returns (UFixed6);
-    function allowance(address account, address spender) external view returns (UFixed6);
-    function approve(address spender, UFixed6 amount) external returns (bool);
+    function totalMarkets() external view returns (uint256);
+    function parameter() external view returns (VaultParameter memory);
+    function registrations(uint256 marketId) external view returns (Registration memory);
+    function accounts(address account) external view returns (Account memory);
+    function register(IMarket market) external;
+    function updateWeight(uint256 marketId, uint256 newWeight) external;
+    function updateParameter(VaultParameter memory newParameter) external;
 }
