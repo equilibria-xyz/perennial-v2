@@ -1127,7 +1127,7 @@ describe('Happy Path', () => {
 
     const POSITION = parse6decimal('0.0001')
     const COLLATERAL = parse6decimal('1000')
-    const { owner, user, userB, dsu, payoff, marketFactory } = instanceVars
+    const { owner, user, userB, dsu, payoff } = instanceVars
 
     const initialRoundId = buildChainlinkRoundId(INITIAL_PHASE_ID, INITIAL_AGGREGATOR_ROUND_ID)
     const chainlink = await new ChainlinkContext(

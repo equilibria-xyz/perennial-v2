@@ -8,7 +8,6 @@ import "./MarketParameter.sol";
 import "./RiskParameter.sol";
 import "./Global.sol";
 import "./Position.sol";
-import "hardhat/console.sol";
 
 /// @dev Version type
 struct Version {
