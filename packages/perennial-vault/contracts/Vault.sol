@@ -225,6 +225,8 @@ contract Vault is IVault, Instance {
         // TODO: move to invariant
         if (msg.sender != account && !IVaultFactory(address(factory())).operators(account, msg.sender))
             revert VaultNotOperatorError();
+        if (!depositAssets.add(redeemShares).add(claimAssets).eq(depositAssets.max(redeemShares).max(claimAssets)))
+            revert VaultNotSingleSidedError();
         if (depositAssets.gt(_maxDeposit(context))) revert VaultDepositLimitExceededError();
         if (redeemShares.gt(_maxRedeem(context))) revert VaultRedemptionLimitExceededError();
         if (context.local.current != context.local.latest) revert VaultExistingOrderError();
@@ -241,7 +243,6 @@ contract Vault is IVault, Instance {
         context.currentCheckpoint = _checkpoints[currentId].read();
         context.currentCheckpoint.initialize(context.global, asset.balanceOf()); // TODO: is this supposed to be at the start or end?
 
-        // TODO: single sided
         (UFixed6 makerFee, UFixed6 settlementFeeAssets, UFixed6 settlementFeeShares) = _fee(context);
         UFixed6 depositAmount = depositAssets.sub(depositAssets.mul(makerFee).add(settlementFeeAssets));
         UFixed6 redemptionAmount = redeemShares.sub(redeemShares.mul(makerFee).add(settlementFeeShares));

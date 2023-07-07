@@ -1072,6 +1072,25 @@ describe('Vault', () => {
       await expect(vault.update(user.address, 0, 0, 0)).to.revertedWithCustomError(vault, 'InstancePausedError')
     })
 
+    it('reverts when not single sided', async () => {
+      await expect(vault.connect(user).update(user.address, 1, 1, 0)).to.revertedWithCustomError(
+        vault,
+        'VaultNotSingleSidedError',
+      )
+      await expect(vault.connect(user).update(user.address, 1, 0, 1)).to.revertedWithCustomError(
+        vault,
+        'VaultNotSingleSidedError',
+      )
+      await expect(vault.connect(user).update(user.address, 0, 1, 1)).to.revertedWithCustomError(
+        vault,
+        'VaultNotSingleSidedError',
+      )
+      await expect(vault.connect(user).update(user.address, 1, 1, 1)).to.revertedWithCustomError(
+        vault,
+        'VaultNotSingleSidedError',
+      )
+    })
+
     context('liquidation', () => {
       context('long', () => {
         it('recovers from a liquidation', async () => {
