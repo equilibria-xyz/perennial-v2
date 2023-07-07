@@ -51,7 +51,6 @@ describe('Vault', () => {
   let liquidator: SignerWithAddress
   let leverage: BigNumber
   let maxCollateral: BigNumber
-  let premium: BigNumber
   let originalOraclePrice: BigNumber
   let oracle: FakeContract<IOracleProvider>
   let market: IMarket
@@ -190,7 +189,6 @@ describe('Vault', () => {
 
     leverage = parse6decimal('4.0')
     maxCollateral = parse6decimal('500000')
-    premium = parse6decimal('0.10')
 
     const btcRootOracle = IOracle__factory.connect(
       await instanceVars.oracleFactory.connect(owner).callStatic.create(BTC_PRICE_FEE_ID, vaultOracleFactory.address),
@@ -234,12 +232,10 @@ describe('Vault', () => {
     await vaultFactory.create(instanceVars.dsu.address, market.address, 'Blue Chip', 'BC')
 
     await vault.register(btcMarket.address)
-    await vault.updateWeight(0, 4)
-    await vault.updateWeight(1, 1)
+    await vault.updateMarket(0, 4, leverage)
+    await vault.updateMarket(1, 1, leverage)
     await vault.updateParameter({
-      leverage: leverage,
       cap: maxCollateral,
-      premium: premium,
     })
 
     asset = IERC20Metadata__factory.connect(await vault.asset(), owner)
@@ -436,25 +432,19 @@ describe('Vault', () => {
   describe('#updateParameter', () => {
     it('updates correctly', async () => {
       const newParameter = {
-        leverage: parse6decimal('5'),
         cap: parse6decimal('1000000'),
-        premium: parse6decimal('0.20'),
       }
       await expect(vault.connect(owner).updateParameter(newParameter))
         .to.emit(vault, 'ParameterUpdated')
         .withArgs(newParameter)
 
       const parameter = await vault.parameter()
-      expect(parameter.leverage).to.deep.contain(newParameter.leverage)
       expect(parameter.cap).to.deep.contain(newParameter.cap)
-      expect(parameter.premium).to.deep.contain(newParameter.premium)
     })
 
     it('reverts when asset changes', async () => {
       const newParameter = {
-        leverage: parse6decimal('5'),
         cap: parse6decimal('1000000'),
-        premium: parse6decimal('0.20'),
       }
       await expect(vault.connect(owner).updateParameter(newParameter)).to.be.revertedWithCustomError(
         vault,
@@ -464,9 +454,7 @@ describe('Vault', () => {
 
     it('reverts when not owner', async () => {
       const newParameter = {
-        leverage: parse6decimal('5'),
         cap: parse6decimal('1000000'),
-        premium: parse6decimal('0.20'),
       }
       await expect(vault.connect(user).updateParameter(newParameter)).to.be.revertedWithCustomError(
         vault,
@@ -477,28 +465,35 @@ describe('Vault', () => {
 
   describe('#updateWeight', () => {
     it('updates correctly', async () => {
-      await expect(vault.connect(owner).updateWeight(1, 2)).to.emit(vault, 'WeightUpdated').withArgs(1, 2)
+      await expect(vault.connect(owner).updateMarket(1, 2, parse6decimal('3')))
+        .to.emit(vault, 'MarketUpdated')
+        .withArgs(1, 2, parse6decimal('3'))
 
       expect((await vault.registrations(1)).weight).to.eq(2)
+      expect((await vault.registrations(1)).leverage).to.eq(parse6decimal('3'))
 
-      await expect(vault.connect(owner).updateWeight(1, 0)).to.emit(vault, 'WeightUpdated').withArgs(1, 0)
+      await expect(vault.connect(owner).updateMarket(1, 0, 0)).to.emit(vault, 'WeightUpdated').withArgs(1, 0)
 
       expect((await vault.registrations(1)).weight).to.eq(0)
+      expect((await vault.registrations(1)).leverage).to.eq(0)
     })
 
     it('reverts when invalid marketId', async () => {
-      await expect(vault.connect(owner).updateWeight(2, 10)).to.be.revertedWithCustomError(
+      await expect(vault.connect(owner).updateMarket(2, 10, parse6decimal('1'))).to.be.revertedWithCustomError(
         vault,
         'VaultMarketDoesNotExistError',
       )
     })
 
     it('reverts when not owner', async () => {
-      await expect(vault.connect(user).updateWeight(1, 2)).to.be.revertedWithCustomError(vault, 'InstanceNotOwnerError')
+      await expect(vault.connect(user).updateMarket(2, 10, parse6decimal('1'))).to.be.revertedWithCustomError(
+        vault,
+        'InstanceNotOwnerError',
+      )
     })
   })
 
-  describe.only('#deposit/#redeem/#claim/#settle', () => {
+  describe('#deposit/#redeem/#claim/#settle', () => {
     it('simple deposits and redemptions', async () => {
       expect(await vault.convertToAssets(parse6decimal('1'))).to.equal(parse6decimal('1'))
       expect(await vault.convertToShares(parse6decimal('1'))).to.equal(parse6decimal('1'))

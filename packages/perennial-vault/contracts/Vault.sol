@@ -11,8 +11,6 @@ import "./types/Mapping.sol";
 import "./types/VaultParameter.sol";
 import "./interfaces/IVault.sol";
 
-// TODO: can we use the pendingPosition state to compute the makerFee?
-
 /**
  * @title Vault
  * @notice ERC4626 vault that manages a 50-50 position between long-short markets of the same payoff on Perennial.
@@ -135,19 +133,20 @@ contract Vault is IVault, Instance {
         asset.approve(address(market));
 
         uint256 newMarketId = totalMarkets++;
-        _registrations[newMarketId].store(Registration(market, 0));
+        _registrations[newMarketId].store(Registration(market, 0, UFixed6Lib.ZERO));
         emit MarketRegistered(newMarketId, market);
     }
 
-    function updateWeight(uint256 marketId, uint256 newWeight) external onlyOwner {
+    function updateMarket(uint256 marketId, uint256 newWeight, UFixed6 newLeverage) external onlyOwner {
         settle(address(0));
 
         if (marketId >= totalMarkets) revert VaultMarketDoesNotExistError();
 
         Registration memory registration = _registrations[marketId].read();
         registration.weight = newWeight;
+        registration.leverage = newLeverage;
         _registrations[marketId].store(registration);
-        emit WeightUpdated(marketId, newWeight);
+        emit WeightUpdated(marketId, newWeight, newLeverage);
     }
 
     function updateParameter(VaultParameter memory newParameter) external onlyOwner {
@@ -353,7 +352,7 @@ contract Vault is IVault, Instance {
             if (context.markets[marketId].closed || marketAssets.lt(context.minCollateral)) marketAssets = UFixed6Lib.ZERO;
 
             targets[marketId].collateral = Fixed6Lib.from(marketCollateral).sub(context.markets[marketId].collateral);
-            targets[marketId].position = marketAssets.mul(context.parameter.leverage).div(context.markets[marketId].price);
+            targets[marketId].position = marketAssets.mul(context.markets[marketId].registration.leverage).div(context.markets[marketId].price);
         }
     }
 
@@ -475,7 +474,7 @@ contract Vault is IVault, Instance {
 
             UFixed6 collateral = marketContext.currentPosition
                 .sub(marketContext.currentNet.min(marketContext.currentPosition))   // available maker
-                .muldiv(marketContext.price, context.parameter.leverage)            // available collateral
+                .muldiv(marketContext.price, marketContext.registration.leverage)   // available collateral
                 .muldiv(context.totalWeight, marketContext.registration.weight);    // collateral in market
 
             redemptionAmount = redemptionAmount.min(context.latestCheckpoint.toShares(collateral));
