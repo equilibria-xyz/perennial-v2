@@ -2,7 +2,7 @@ import { SignerWithAddress } from '@nomiclabs/hardhat-ethers/signers'
 import HRE from 'hardhat'
 import { utils } from 'ethers'
 
-import { time, impersonate } from '../../../../common/testutil'
+import { impersonate } from '../../../../common/testutil'
 import {
   IERC20Metadata,
   Market,
@@ -31,7 +31,7 @@ import { ChainlinkContext } from './chainlinkHelpers'
 import { parse6decimal } from '../../../../common/testutil/types'
 import { buildChainlinkRoundId } from '@equilibria/perennial-v2-oracle/util/buildChainlinkRoundId'
 import { CHAINLINK_CUSTOM_CURRENCIES } from '@equilibria/perennial-v2-oracle/util/constants'
-const { config, deployments, ethers } = HRE
+const { deployments, ethers } = HRE
 
 export const INITIAL_PHASE_ID = 1
 export const INITIAL_AGGREGATOR_ROUND_ID = 10000
@@ -63,7 +63,6 @@ export interface InstanceVars {
 }
 
 export async function deployProtocol(): Promise<InstanceVars> {
-  await time.reset(config)
   const [owner, pauser, user, userB, userC, userD, treasuryA, beneficiaryB] = await ethers.getSigners()
 
   const payoff = await IPayoffProvider__factory.connect((await new PowerTwo__factory(owner).deploy()).address, owner)
