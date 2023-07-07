@@ -5,6 +5,7 @@ import "@equilibria/root/accumulator/types/Accumulator6.sol";
 import "@equilibria/root/accumulator/types/UAccumulator6.sol";
 import "./ProtocolParameter.sol";
 import "./MarketParameter.sol";
+import "./RiskParameter.sol";
 import "./Global.sol";
 import "./Position.sol";
 
@@ -50,28 +51,30 @@ library VersionLib {
      */
     function accumulate(
         Version memory self,
+        Global memory global,
         Position memory fromPosition,
         Position memory toPosition,
         OracleVersion memory fromOracleVersion,
         OracleVersion memory toOracleVersion,
-        MarketParameter memory marketParameter
-    ) internal pure returns (UFixed6 fee) {
+        MarketParameter memory marketParameter,
+        RiskParameter memory riskParameter
+    ) internal view returns (UFixed6 fee) {
         if (marketParameter.closed) return UFixed6Lib.ZERO;
 
         // accumulate position
         UFixed6 positionFee = _accumulatePositionFee(self, fromPosition, toPosition, marketParameter);
 
         // accumulate funding
-        UFixed6 fundingFee = _accumulateFunding(self, fromPosition, fromOracleVersion, toOracleVersion, marketParameter);
+        UFixed6 fundingFee = _accumulateFunding(self, global, fromPosition, fromOracleVersion, toOracleVersion, marketParameter, riskParameter);
 
         // accumulate interest
-        UFixed6 interestFee = _accumulateInterest(self, fromPosition, fromOracleVersion, toOracleVersion, marketParameter);
+        UFixed6 interestFee = _accumulateInterest(self, fromPosition, fromOracleVersion, toOracleVersion, marketParameter, riskParameter);
 
         // accumulate P&L
         _accumulatePNL(self, fromPosition, fromOracleVersion, toOracleVersion);
 
         // accumulate reward
-        _accumulateReward(self, fromPosition, fromOracleVersion, toOracleVersion, marketParameter);
+        _accumulateReward(self, fromPosition, fromOracleVersion, toOracleVersion, riskParameter);
 
         return positionFee.add(fundingFee).add(interestFee);
     }
@@ -95,6 +98,7 @@ library VersionLib {
 
         positionFee = marketParameter.positionFee.mul(toPosition.fee);
         UFixed6 makerFee = toPosition.fee.sub(positionFee);
+
         self.makerValue.increment(Fixed6Lib.from(makerFee), fromPosition.maker);
     }
 
@@ -107,41 +111,51 @@ library VersionLib {
      */
     function _accumulateFunding(
         Version memory self,
+        Global memory global,
         Position memory position,
         OracleVersion memory fromOracleVersion,
         OracleVersion memory toOracleVersion,
-        MarketParameter memory marketParameter
-    ) private pure returns (UFixed6 fundingFee) {
-        if (position.major().isZero()) return UFixed6Lib.ZERO;
-
+        MarketParameter memory marketParameter,
+        RiskParameter memory riskParameter
+    ) private view returns (UFixed6 fundingFee) {
         // Compute long-short funding rate
-        Fixed6 funding = marketParameter.pController.accumulate(
+        Fixed6 funding = global.pAccumulator.accumulate(
+            riskParameter.pController,
             position.skew(),
             fromOracleVersion.timestamp,
             toOracleVersion.timestamp,
             position.takerSocialized().mul(fromOracleVersion.price.abs())
         );
 
+        // Handle maker receive-only status
+        if (riskParameter.makerReceiveOnly && funding.sign() != position.skew().sign())
+            funding = funding.mul(Fixed6Lib.NEG_ONE);
+
+        // Initialize long and short funding
+        (Fixed6 fundingLong, Fixed6 fundingShort) = (Fixed6Lib.NEG_ONE.mul(funding), funding);
+
         // Compute fee spread
         fundingFee = funding.abs().mul(marketParameter.fundingFee);
-        Fixed6 fundingSpread = Fixed6Lib.from(fundingFee.div(UFixed6Lib.from(2)));
+        Fixed6 fundingSpread = Fixed6Lib.from(fundingFee).div(Fixed6Lib.from(2));
 
-        // Adjust long and short funding with spread
-        (Fixed6 fundingLong, Fixed6 fundingShort, Fixed6 fundingMaker) =
-            (Fixed6Lib.NEG_ONE.mul(funding).sub(fundingSpread), funding.sub(fundingSpread), Fixed6Lib.ZERO);
+        // Adjust funding with spread
+        (fundingLong, fundingShort) =
+            (fundingLong.sub(Fixed6Lib.from(fundingFee)).add(fundingSpread), fundingShort.sub(fundingSpread));
 
         // Redirect net portion of minor's side to maker
-        if (position.long.gt(position.short))
-            (fundingMaker, fundingShort) =
-                (fundingShort.mul(Fixed6Lib.from(position.skew().abs())), fundingShort.sub(fundingMaker));
-        if (position.short.gt(position.long))
-            (fundingMaker, fundingLong) =
-                (fundingLong.mul(Fixed6Lib.from(position.skew().abs())), fundingLong.sub(fundingMaker));
+        Fixed6 fundingMaker;
+        if (position.long.gt(position.short)) {
+            fundingMaker = fundingShort.mul(Fixed6Lib.from(position.skew().abs()));
+            fundingShort = fundingShort.sub(fundingMaker);
+        }
+        if (position.short.gt(position.long)) {
+            fundingMaker = fundingLong.mul(Fixed6Lib.from(position.skew().abs()));
+            fundingLong = fundingLong.sub(fundingMaker);
+        }
 
-        // Compute accumulated values
-        if (!position.maker.isZero()) self.makerValue.increment(fundingMaker, position.maker);
-        if (!position.long.isZero()) self.longValue.increment(fundingLong, position.long);
-        if (!position.short.isZero()) self.shortValue.increment(fundingShort, position.short);
+        self.makerValue.increment(fundingMaker, position.maker);
+        self.longValue.increment(fundingLong, position.long);
+        self.shortValue.increment(fundingShort, position.short);
     }
 
     /**
@@ -156,30 +170,34 @@ library VersionLib {
         Position memory position,
         OracleVersion memory fromOracleVersion,
         OracleVersion memory toOracleVersion,
-        MarketParameter memory marketParameter
-    ) private pure returns (UFixed6 interestFee) {
-        if (position.major().isZero()) return UFixed6Lib.ZERO;
+        MarketParameter memory marketParameter,
+        RiskParameter memory riskParameter
+    ) private view returns (UFixed6 interestFee) {
+        UFixed6 notional = position.long.add(position.short).min(position.maker).mul(fromOracleVersion.price.abs());
 
         // Compute maker interest
-        UFixed6 interest = marketParameter.utilizationCurve.accumulate(
+        UFixed6 interest = riskParameter.utilizationCurve.accumulate(
             position.utilization(),
             fromOracleVersion.timestamp,
             toOracleVersion.timestamp,
-            position.long.add(position.short).min(position.maker).mul(fromOracleVersion.price.abs())
+            notional
         );
 
         // Compute fee
         interestFee = interest.mul(marketParameter.interestFee);
 
         // Adjust long and short funding with spread
-        Fixed6 interestLong = Fixed6Lib.from(interest.mul(position.long.div(position.long.add(position.short))));
+        Fixed6 interestLong = Fixed6Lib.from(
+            position.major().isZero() ?
+            interest :
+            interest.muldiv(position.long, position.long.add(position.short))
+        );
         Fixed6 interestShort = Fixed6Lib.from(interest).sub(interestLong);
         Fixed6 interestMaker = Fixed6Lib.from(interest.sub(interestFee));
 
-        // Compute accumulated values
-        if (!position.maker.isZero()) self.makerValue.increment(interestMaker, position.maker);
-        if (!position.long.isZero()) self.longValue.decrement(interestLong, position.long);
-        if (!position.short.isZero()) self.shortValue.decrement(interestShort, position.short);
+        self.makerValue.increment(interestMaker, position.maker);
+        self.longValue.decrement(interestLong, position.long);
+        self.shortValue.decrement(interestShort, position.short);
     }
 
     /**
@@ -191,17 +209,15 @@ library VersionLib {
         OracleVersion memory fromOracleVersion,
         OracleVersion memory toOracleVersion
     ) private pure {
-        if (position.major().isZero() || position.maker.isZero()) return;
-
         Fixed6 totalLongDelta = toOracleVersion.price.sub(fromOracleVersion.price)
             .mul(Fixed6Lib.from(position.longSocialized()));
         Fixed6 totalShortDelta = fromOracleVersion.price.sub(toOracleVersion.price)
             .mul(Fixed6Lib.from(position.shortSocialized()));
         Fixed6 totalMakerDelta = totalLongDelta.add(totalShortDelta);
 
-        if (!position.long.isZero()) self.longValue.increment(totalLongDelta, position.long);
-        if (!position.short.isZero()) self.shortValue.increment(totalShortDelta, position.short);
-        if (!position.maker.isZero()) self.makerValue.decrement(totalMakerDelta, position.maker);
+        self.longValue.increment(totalLongDelta, position.long);
+        self.shortValue.increment(totalShortDelta, position.short);
+        self.makerValue.decrement(totalMakerDelta, position.maker);
     }
 
     /**
@@ -213,17 +229,16 @@ library VersionLib {
         Position memory position,
         OracleVersion memory fromOracleVersion,
         OracleVersion memory toOracleVersion,
-        MarketParameter memory marketParameter
+        RiskParameter memory riskParameter
     ) private pure {
         UFixed6 elapsed = UFixed6Lib.from(toOracleVersion.timestamp - fromOracleVersion.timestamp);
-        //TODO (reward auto-close): refunded rewards here will effect the "auto-close functionality"
 
         if (!position.maker.isZero())
-            self.makerReward.increment(elapsed.mul(marketParameter.makerRewardRate), position.maker);
+            self.makerReward.increment(elapsed.mul(riskParameter.makerRewardRate), position.maker);
         if (!position.long.isZero())
-            self.longReward.increment(elapsed.mul(marketParameter.longRewardRate), position.long);
+            self.longReward.increment(elapsed.mul(riskParameter.longRewardRate), position.long);
         if (!position.short.isZero())
-            self.shortReward.increment(elapsed.mul(marketParameter.shortRewardRate), position.short);
+            self.shortReward.increment(elapsed.mul(riskParameter.shortRewardRate), position.short);
     }
 }
 

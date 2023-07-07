@@ -116,6 +116,21 @@
     rxjs "^7.2.0"
     semver "^7.3.5"
 
+"@equilibria/emptyset-batcher@^0.1.0":
+  version "0.1.0"
+  resolved "https://registry.yarnpkg.com/@equilibria/emptyset-batcher/-/emptyset-batcher-0.1.0.tgz#2068d202d38614a337d115d4109f05cf72e48d09"
+  integrity sha512-joALMtS47fdXw9nvSO4gmmcsYvfErXlC92nYDGV2wRGqyUneOZKPVC1s0TctSBK/OeXJ+ielzXVLqB84H5PZKg==
+  dependencies:
+    "@equilibria/root" "0.1.5"
+    "@openzeppelin/contracts" "4.6.0"
+
+"@equilibria/root@0.1.5":
+  version "0.1.5"
+  resolved "https://registry.yarnpkg.com/@equilibria/root/-/root-0.1.5.tgz#f9fb606fed2d0f3d7426d37d7bc45f176b26f80e"
+  integrity sha512-K++w/DyJktl58dQe4P78K0dzduQe1CKPU+Z52DsISik99FN7OwdMTQZt1APpJfovfZh0focsHMnTiRpLmIti7Q==
+  dependencies:
+    "@openzeppelin/contracts" "4.6.0"
+
 "@equilibria/root@0.3.0-beta0":
   version "0.3.0-beta0"
   resolved "https://registry.npmjs.org/@equilibria/root/-/root-0.3.0-beta0.tgz"
@@ -1695,6 +1710,11 @@
   resolved "https://registry.npmjs.org/@nomicfoundation/hardhat-toolbox/-/hardhat-toolbox-2.0.2.tgz"
   integrity sha512-vnN1AzxbvpSx9pfdRHbUzTRIXpMLPXnUlkW855VaDk6N1pwRaQ2gNzEmFAABk4lWf11E00PKwFd/q27HuwYrYg==
 
+"@nomicfoundation/hardhat-toolbox@^3.0.0":
+  version "3.0.0"
+  resolved "https://registry.yarnpkg.com/@nomicfoundation/hardhat-toolbox/-/hardhat-toolbox-3.0.0.tgz#83e2c28a745aa4eb1236072166367b0de68b4c76"
+  integrity sha512-MsteDXd0UagMksqm9KvcFG6gNKYNa3GGNCy73iQ6bEasEgg2v8Qjl6XA5hjs8o5UD5A3153B6W2BIVJ8SxYUtA==
+
 "@nomicfoundation/solidity-analyzer-darwin-arm64@0.1.0":
   version "0.1.0"
   resolved "https://registry.npmjs.org/@nomicfoundation/solidity-analyzer-darwin-arm64/-/solidity-analyzer-darwin-arm64-0.1.0.tgz"
@@ -1963,6 +1983,16 @@
   resolved "https://registry.npmjs.org/@openzeppelin/contracts/-/contracts-4.8.0.tgz"
   integrity sha512-AGuwhRRL+NaKx73WKRNzeCxOCOCxpaqF+kp8TJ89QzAipSwZy/NoflkWaL9bywXFRhIzXt8j38sfF7KBKCPWLw==
 
+"@openzeppelin/contracts@^4.9.2":
+  version "4.9.2"
+  resolved "https://registry.yarnpkg.com/@openzeppelin/contracts/-/contracts-4.9.2.tgz#1cb2d5e4d3360141a17dbc45094a8cad6aac16c1"
+  integrity sha512-mO+y6JaqXjWeMh9glYVzVu8HYPGknAAnWyxTRhGeckOruyXQMNnlcW6w/Dx9ftLeIQk6N+ZJFuVmTwF7lEIFrg==
+
+"@pythnetwork/pyth-sdk-solidity@^2.2.1":
+  version "2.2.1"
+  resolved "https://registry.yarnpkg.com/@pythnetwork/pyth-sdk-solidity/-/pyth-sdk-solidity-2.2.1.tgz#604e71840b68d688281a64369e377dfc7109173e"
+  integrity sha512-Tb/5fWrQBRZ+IHDQVz3GiHh6+ZbgeS/muaNosJrD94cuL6DuAwcr7yEgMq4DrlPSrb+x7Vw8d5NMOvpsC7+Vlw==
+
 "@resolver-engine/core@^0.3.3":
   version "0.3.3"
   resolved "https://registry.yarnpkg.com/@resolver-engine/core/-/core-0.3.3.tgz#590f77d85d45bc7ecc4e06c654f41345db6ca967"
@@ -2090,7 +2120,7 @@
     "@sentry/types" "5.30.0"
     tslib "^1.9.3"
 
-"@solidity-parser/parser@^0.14.0", "@solidity-parser/parser@^0.14.1", "@solidity-parser/parser@^0.14.5", "@solidity-parser/parser@^0.16.0", "@solidity-parser/parser@npm:@equilibria/parser":
+"@solidity-parser/parser@^0.14.0", "@solidity-parser/parser@^0.14.1", "@solidity-parser/parser@^0.16.0", "@solidity-parser/parser@npm:@equilibria/parser":
   version "0.14.2"
   resolved "https://registry.yarnpkg.com/@equilibria/parser/-/parser-0.14.2.tgz#f29ff8f297cf36e1ef8b9005c7fc61c398b7cbf5"
   integrity sha512-cVRgIYOhScWcQ0zg/lSeZFz06qthFAOdQwOin+tVK2ysh7uFAHCUmSZCVUPYW7nVg87dOENnYitL77lA0aMp1Q==
@@ -3969,11 +3999,6 @@ emittery@0.10.0:
   resolved "https://registry.yarnpkg.com/emittery/-/emittery-0.10.0.tgz#bb373c660a9d421bb44706ec4967ed50c02a8026"
   integrity sha512-AGvFfs+d0JKCJQ4o01ASQLGPmSCxgfU9RFXvzPvZdjKK8oscynksuJhWrSTSw7j7Ep/sZct5b5ZhYCi8S/t0HQ==
 
-emoji-regex@^10.2.1:
-  version "10.2.1"
-  resolved "https://registry.npmjs.org/emoji-regex/-/emoji-regex-10.2.1.tgz"
-  integrity sha512-97g6QgOk8zlDRdgq1WxwgTMgEWGVAQvB5Fdpgc1MkNy56la5SKP9GsMXKDOdqwn90/41a8yPwIGk1Y6WVbeMQA==
-
 emoji-regex@^7.0.1:
   version "7.0.3"
   resolved "https://registry.npmjs.org/emoji-regex/-/emoji-regex-7.0.3.tgz"
@@ -5208,10 +5233,10 @@ hardhat-gas-reporter@1.0.9:
     eth-gas-reporter "^0.2.25"
     sha1 "^1.1.1"
 
-hardhat@2.15.0:
-  version "2.15.0"
-  resolved "https://registry.npmjs.org/hardhat/-/hardhat-2.15.0.tgz"
-  integrity sha512-cC9tM/N10YaES04zPOp7yR13iX3YibqaNmi0//Ep40Nt9ELIJx3kFpQmucur0PAIfXYpGnw5RuXHNLkxpnVHEw==
+hardhat@2.16.1:
+  version "2.16.1"
+  resolved "https://registry.yarnpkg.com/hardhat/-/hardhat-2.16.1.tgz#fd2288ce44f6846a70ba332b3d8158522447262a"
+  integrity sha512-QpBjGXFhhSYoYBGEHyoau/A63crZOP+i3GbNxzLGkL6IklzT+piN14+wGnINNCg5BLSKisQI/RAySPzaWRcx/g==
   dependencies:
     "@ethersproject/abi" "^5.1.2"
     "@metamask/eth-sig-util" "^4.0.0"
@@ -5252,7 +5277,6 @@ hardhat@2.15.0:
     mnemonist "^0.38.0"
     mocha "^10.0.0"
     p-map "^4.0.0"
-    qs "^6.7.0"
     raw-body "^2.4.1"
     resolve "1.17.0"
     semver "^6.3.0"
@@ -7728,17 +7752,14 @@ prettier-linter-helpers@^1.0.0:
   dependencies:
     fast-diff "^1.1.2"
 
-prettier-plugin-solidity@^1.0.0-beta.6:
-  version "1.0.0"
-  resolved "https://registry.npmjs.org/prettier-plugin-solidity/-/prettier-plugin-solidity-1.0.0.tgz"
-  integrity sha512-gRJCeZ7imbWtNYN2SudjJoPmka5r6jcd2cSTV6FC3pVCtY6LFZbeQQjpKufUEp88hXBAAnkOTOh7TA5xwj9M3A==
+prettier-plugin-solidity@^1.1.3:
+  version "1.1.3"
+  resolved "https://registry.yarnpkg.com/prettier-plugin-solidity/-/prettier-plugin-solidity-1.1.3.tgz#9a35124f578404caf617634a8cab80862d726cba"
+  integrity sha512-fQ9yucPi2sBbA2U2Xjh6m4isUTJ7S7QLc/XDDsktqqxYfTwdYKJ0EnnywXHwCGAaYbQNK+HIYPL1OemxuMsgeg==
   dependencies:
-    "@solidity-parser/parser" "^0.14.5"
-    emoji-regex "^10.2.1"
-    escape-string-regexp "^4.0.0"
+    "@solidity-parser/parser" "^0.16.0"
     semver "^7.3.8"
     solidity-comments-extractor "^0.0.7"
-    string-width "^4.2.3"
 
 prettier@^2.1.2, prettier@^2.2.1, prettier@^2.3.1:
   version "2.8.0"
@@ -7842,7 +7863,7 @@ qs@^6.11.0:
   dependencies:
     side-channel "^1.0.4"
 
-qs@^6.4.0, qs@^6.7.0, qs@^6.9.4:
+qs@^6.4.0, qs@^6.9.4:
   version "6.11.0"
   resolved "https://registry.npmjs.org/qs/-/qs-6.11.0.tgz"
   integrity sha512-MvjoMCJwEarSbUYk5O+nmoSzSutSsTwF85zcHPQ9OrlFoZOYIjaqBAJIqIXjptyD5vThxGq52Xu/MaJzRkIk4Q==
@@ -8622,7 +8643,7 @@ solhint-plugin-prettier@0.0.5:
   dependencies:
     prettier-linter-helpers "^1.0.0"
 
-solhint@3.4.1:
+solhint@^3.4.1:
   version "3.4.1"
   resolved "https://registry.yarnpkg.com/solhint/-/solhint-3.4.1.tgz#8ea15b21c13d1be0b53fd46d605a24d0b36a0c46"
   integrity sha512-pzZn2RlZhws1XwvLPVSsxfHrwsteFf5eySOhpAytzXwKQYbTCJV6z8EevYDiSVKMpWrvbKpEtJ055CuEmzp4Xg==
@@ -8652,10 +8673,10 @@ solidity-comments-extractor@^0.0.7:
   resolved "https://registry.npmjs.org/solidity-comments-extractor/-/solidity-comments-extractor-0.0.7.tgz"
   integrity sha512-wciNMLg/Irp8OKGrh3S2tfvZiZ0NEyILfcRCXCD4mp7SgK/i9gzLfhY2hY7VMCQJ3kH9UB9BzNdibIVMchzyYw==
 
-solidity-coverage@0.8.2:
-  version "0.8.2"
-  resolved "https://registry.yarnpkg.com/solidity-coverage/-/solidity-coverage-0.8.2.tgz#bc39604ab7ce0a3fa7767b126b44191830c07813"
-  integrity sha512-cv2bWb7lOXPE9/SSleDO6czkFiMHgP4NXPj+iW9W7iEKLBk7Cj0AGBiNmGX3V1totl9wjPrT0gHmABZKZt65rQ==
+solidity-coverage@0.8.3:
+  version "0.8.3"
+  resolved "https://registry.yarnpkg.com/solidity-coverage/-/solidity-coverage-0.8.3.tgz#72ce51e5ca9ea1182bbf6085eb1cf526f0603b52"
+  integrity sha512-hbcNgj5z8zzgTlnp4F0pXiqj1v5ua8P4DH5i9cWOBtFPfUuIohLoXu5WiAixexWmpKVjyxXqupnu/mPb4IGr7Q==
   dependencies:
     "@ethersproject/abi" "^5.0.9"
     "@solidity-parser/parser" "^0.14.1"

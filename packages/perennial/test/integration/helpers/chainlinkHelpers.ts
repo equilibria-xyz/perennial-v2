@@ -2,7 +2,12 @@ import HRE from 'hardhat'
 import { BigNumber } from 'ethers'
 import { smock, FakeContract } from '@defi-wonderland/smock'
 
-import { FeedRegistryInterface__factory, FeedRegistryInterface, IOracleProvider } from '../../../types/generated'
+import {
+  FeedRegistryInterface__factory,
+  FeedRegistryInterface,
+  IOracleProvider,
+  IOracleFactory,
+} from '../../../types/generated'
 
 const { ethers, deployments } = HRE
 
@@ -14,33 +19,35 @@ export class ChainlinkContext {
   private decimals!: number
   private readonly base: string
   private readonly quote: string
-  private readonly feedRegistryOverride: string // optional constructor arg for using ChainlinkContext in different packages
+  public readonly id: string
 
+  public oracleFactory!: FakeContract<IOracleFactory>
   public oracle!: FakeContract<IOracleProvider>
 
   constructor(base: string, quote: string, initialRoundId: BigNumber, delay: number, feedRegistryOverride?: string) {
     this.base = base
     this.quote = quote
+    this.id = ethers.utils.keccak256(ethers.utils.defaultAbiCoder.encode(['string', 'string'], [base, quote]))
     this.latestRoundId = initialRoundId
     this.currentRoundId = initialRoundId
     this.delay = delay
-    this.feedRegistryOverride = feedRegistryOverride ? feedRegistryOverride : '0x0'
   }
 
   public async init(): Promise<ChainlinkContext> {
     const [owner] = await ethers.getSigners()
 
     this.feedRegistryExternal = await FeedRegistryInterface__factory.connect(
-      this.feedRegistryOverride === '0x0'
-        ? (
-            await deployments.get('ChainlinkFeedRegistry')
-          ).address
-        : this.feedRegistryOverride,
+      (
+        await deployments.get('ChainlinkFeedRegistry')
+      ).address,
       owner,
     )
     this.oracle = await smock.fake<IOracleProvider>('IOracleProvider')
-
+    this.oracleFactory = await smock.fake<IOracleFactory>('IOracleFactory')
     this.decimals = await this.feedRegistryExternal.decimals(this.base, this.quote)
+
+    this.oracleFactory.instances.whenCalledWith(this.oracle.address).returns(true)
+    this.oracleFactory.oracles.whenCalledWith(this.id).returns(this.oracle.address)
 
     await this.next()
 
@@ -67,8 +74,10 @@ export class ChainlinkContext {
       valid: true,
     }
 
-    this.oracle.sync.reset()
-    this.oracle.sync.whenCalledWith().returns([latestVersion, currentData.startedAt])
+    this.oracle.status.reset()
+    this.oracle.status.whenCalledWith().returns([latestVersion, currentData.startedAt])
+    this.oracle.request.reset()
+    this.oracle.request.whenCalledWith().returns()
     this.oracle.current.reset()
     this.oracle.current.whenCalledWith().returns(currentData.startedAt)
     this.oracle.latest.reset()

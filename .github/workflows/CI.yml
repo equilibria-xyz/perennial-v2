@@ -2,11 +2,10 @@ name: Automated Tests and Linting
 
 on:
   push:
-    branches: [master]
+    branches: [main]
   pull_request:
     branches:
-      - master
-      - repo-cleanup-base
+      - main
 
 env:
   CI: true
@@ -35,9 +34,9 @@ jobs:
       - name: lint
         run: yarn workspaces run lint
         if: ${{ env.PARSER_BROKEN != 'true' }}
-
-  unit-test:
-    name: Unit Tests w/ Coverage
+  # [CORE]
+  core-unit-test:
+    name: '[Core] Unit Tests w/ Coverage'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/setup-node@v3
@@ -53,22 +52,22 @@ jobs:
       - name: Install
         run: yarn --frozen-lockfile
       - name: Compile
-        run: yarn workspace @equilibria/perennial run compile
+        run: yarn workspace @equilibria/perennial-v2 run compile
       - name: Run tests
         env:
           MOCHA_REPORTER: dot
-        run: | # for now, just run for perennial
-          yarn workspace @equilibria/perennial run ${{ env.PARSER_BROKEN != 'true' && 'coverage' || 'test' }}
-      - name: Unit Test Code Coverage Report
+        run: |
+          yarn workspace @equilibria/perennial-v2 run ${{ env.PARSER_BROKEN != 'true' && 'coverage' || 'test' }}
+      - name: '[Core] Unit Test Code Coverage Report'
         uses: romeovs/lcov-reporter-action@v0.3.1
         with:
-          title: Unit Test Coverage Report
+          title: '[Core] Unit Test Coverage Report'
           lcov-file: ./packages/perennial/coverage/lcov.info
           github-token: ${{ secrets.GITHUB_TOKEN }}
           delete-old-comments: true
         if: ${{ github.event_name == 'pull_request' && env.PARSER_BROKEN != 'true' }}
-  integration-test:
-    name: Integration Tests w/ Coverage
+  core-integration-test:
+    name: '[Core] Integration Tests w/ Coverage'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/setup-node@v3
@@ -84,18 +83,213 @@ jobs:
       - name: Install
         run: yarn --frozen-lockfile
       - name: Compile
-        run: yarn workspace @equilibria/perennial run compile
+        run: yarn workspace @equilibria/perennial-v2 run compile
       - name: Run tests
         env:
           MOCHA_REPORTER: dot
-          ALCHEMY_MAINNET: ${{ secrets.ALCHEMY_MAINNET }}
-        run: | # for now, just run for perennial
-          yarn workspace @equilibria/perennial run ${{ env.PARSER_BROKEN != 'true' && 'coverage:integration' || 'test:integration' }}
-      - name: Integration Test Code Coverage Report
+          MAINNET_NODE_URL: ${{ secrets.MAINNET_NODE_URL }}
+        run: |
+          yarn workspace @equilibria/perennial-v2 run ${{ env.PARSER_BROKEN != 'true' && 'coverage:integration' || 'test:integration' }}
+      - name: '[Core] Integration Test Code Coverage Report'
         uses: romeovs/lcov-reporter-action@v0.3.1
         with:
-          title: Integration Test Coverage Report
+          title: '[Core] Integration Test Coverage Report'
           lcov-file: ./packages/perennial/coverage/lcov.info
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          delete-old-comments: true
+        if: ${{ github.event_name == 'pull_request' && env.PARSER_BROKEN != 'true' }}
+
+  # [ORACLE]
+  oracle-unit-test:
+    name: '[Oracle] Unit Tests w/ Coverage'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/setup-node@v3
+        with:
+          node-version: ${{ matrix.node }}
+      - uses: actions/checkout@v3
+      - uses: actions/cache@v3
+        id: cache
+        with:
+          path: |
+            node_modules
+          key: ${{ runner.os }}-node-${{ matrix.node }}-${{ hashFiles('yarn.lock') }}
+      - name: Install
+        run: yarn --frozen-lockfile
+      - name: Compile
+        run: yarn workspace @equilibria/perennial-v2-oracle run compile
+      - name: Run tests
+        env:
+          MOCHA_REPORTER: dot
+        run: |
+          yarn workspace @equilibria/perennial-v2-oracle run ${{ env.PARSER_BROKEN != 'true' && 'coverage' || 'test' }}
+      - name: '[Oracle] Unit Test Coverage Report'
+        uses: romeovs/lcov-reporter-action@v0.3.1
+        with:
+          title: '[Oracle] Unit Test Coverage Report'
+          lcov-file: ./packages/perennial-oracle/coverage/lcov.info
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          delete-old-comments: true
+        if: ${{ github.event_name == 'pull_request' && env.PARSER_BROKEN != 'true' }}
+  oracle-integration-test:
+    name: '[Oracle] Integration Tests w/ Coverage'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/setup-node@v3
+        with:
+          node-version: ${{ matrix.node }}
+      - uses: actions/checkout@v3
+      - uses: actions/cache@v3
+        id: cache
+        with:
+          path: |
+            node_modules
+          key: ${{ runner.os }}-node-${{ matrix.node }}-${{ hashFiles('yarn.lock') }}
+      - name: Install
+        run: yarn --frozen-lockfile
+      - name: Compile
+        run: yarn workspace @equilibria/perennial-v2-oracle run compile
+      - name: Run tests
+        env:
+          MOCHA_REPORTER: dot
+          MAINNET_NODE_URL: ${{ secrets.MAINNET_NODE_URL }}
+        run: |
+          yarn workspace @equilibria/perennial-v2-oracle run ${{ env.PARSER_BROKEN != 'true' && 'coverage:integration' || 'test:integration' }}
+      - name: '[Oracle] Integration Test Coverage Report'
+        uses: romeovs/lcov-reporter-action@v0.3.1
+        with:
+          title: '[Oracle] Integration Test Coverage Report'
+          lcov-file: ./packages/perennial-oracle/coverage/lcov.info
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          delete-old-comments: true
+        if: ${{ github.event_name == 'pull_request' && env.PARSER_BROKEN != 'true' }}
+
+  # [PAYOFF]
+  payoff-unit-test:
+    name: '[Payoff] Unit Tests w/ Coverage'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/setup-node@v3
+        with:
+          node-version: ${{ matrix.node }}
+      - uses: actions/checkout@v3
+      - uses: actions/cache@v3
+        id: cache
+        with:
+          path: |
+            node_modules
+          key: ${{ runner.os }}-node-${{ matrix.node }}-${{ hashFiles('yarn.lock') }}
+      - name: Install
+        run: yarn --frozen-lockfile
+      - name: Compile
+        run: yarn workspace @equilibria/perennial-v2-payoff run compile
+      - name: Run tests
+        env:
+          MOCHA_REPORTER: dot
+        run: |
+          yarn workspace @equilibria/perennial-v2-payoff run ${{ env.PARSER_BROKEN != 'true' && 'coverage' || 'test' }}
+      - name: '[Payoff] Unit Test Code Coverage Report'
+        uses: romeovs/lcov-reporter-action@v0.3.1
+        with:
+          title: '[Payoff] Unit Test Code Coverage Report'
+          lcov-file: ./packages/perennial-payoff/coverage/lcov.info
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          delete-old-comments: true
+        if: ${{ github.event_name == 'pull_request' && env.PARSER_BROKEN != 'true' }}
+  payoff-integration-test:
+    name: '[Payoff] Integration Tests w/ Coverage'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/setup-node@v3
+        with:
+          node-version: ${{ matrix.node }}
+      - uses: actions/checkout@v3
+      - uses: actions/cache@v3
+        id: cache
+        with:
+          path: |
+            node_modules
+          key: ${{ runner.os }}-node-${{ matrix.node }}-${{ hashFiles('yarn.lock') }}
+      - name: Install
+        run: yarn --frozen-lockfile
+      - name: Compile
+        run: yarn workspace @equilibria/perennial-v2-payoff run compile
+      - name: Run tests
+        env:
+          MOCHA_REPORTER: dot
+          MAINNET_NODE_URL: ${{ secrets.MAINNET_NODE_URL }}
+        run: |
+          yarn workspace @equilibria/perennial-v2-payoff run ${{ env.PARSER_BROKEN != 'true' && 'coverage:integration' || 'test:integration' }}
+      - name: '[Payoff] Integration Test Code Coverage Report'
+        uses: romeovs/lcov-reporter-action@v0.3.1
+        with:
+          title: '[Payoff] Integration Test Code Coverage Report'
+          lcov-file: ./packages/perennial-payoff/coverage/lcov.info
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          delete-old-comments: true
+        if: ${{ github.event_name == 'pull_request' && env.PARSER_BROKEN != 'true' }}
+
+  # [VAULT]
+  vault-unit-test:
+    name: '[Vault] Unit Tests w/ Coverage'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/setup-node@v3
+        with:
+          node-version: ${{ matrix.node }}
+      - uses: actions/checkout@v3
+      - uses: actions/cache@v3
+        id: cache
+        with:
+          path: |
+            node_modules
+          key: ${{ runner.os }}-node-${{ matrix.node }}-${{ hashFiles('yarn.lock') }}
+      - name: Install
+        run: yarn --frozen-lockfile
+      - name: Compile
+        run: yarn workspace @equilibria/perennial-v2-vault run compile
+      - name: Run tests
+        env:
+          MOCHA_REPORTER: dot
+        run: |
+          yarn workspace @equilibria/perennial-v2-vault run ${{ env.PARSER_BROKEN != 'true' && 'coverage' || 'test' }}
+      - name: '[Vault] Unit Test Code Coverage Report'
+        uses: romeovs/lcov-reporter-action@v0.3.1
+        with:
+          title: '[Vault] Unit Test Coverage Report'
+          lcov-file: ./packages/perennial-vault/coverage/lcov.info
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          delete-old-comments: true
+        if: ${{ github.event_name == 'pull_request' && env.PARSER_BROKEN != 'true' }}
+  vault-integration-test:
+    name: '[Vault] Integration Tests w/ Coverage'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/setup-node@v3
+        with:
+          node-version: ${{ matrix.node }}
+      - uses: actions/checkout@v3
+      - uses: actions/cache@v3
+        id: cache
+        with:
+          path: |
+            node_modules
+          key: ${{ runner.os }}-node-${{ matrix.node }}-${{ hashFiles('yarn.lock') }}
+      - name: Install
+        run: yarn --frozen-lockfile
+      - name: Compile
+        run: yarn workspace @equilibria/perennial-v2-vault run compile
+      - name: Run tests
+        env:
+          MOCHA_REPORTER: dot
+          MAINNET_NODE_URL: ${{ secrets.MAINNET_NODE_URL }}
+        run: |
+          yarn workspace @equilibria/perennial-v2-vault run ${{ env.PARSER_BROKEN != 'true' && 'coverage:integration' || 'test:integration' }}
+      - name: '[Vault] Integration Test Code Coverage Report'
+        uses: romeovs/lcov-reporter-action@v0.3.1
+        with:
+          title: '[Vault] Integration Test Coverage Report'
+          lcov-file: ./packages/perennial-vault/coverage/lcov.info
           github-token: ${{ secrets.GITHUB_TOKEN }}
           delete-old-comments: true
         if: ${{ github.event_name == 'pull_request' && env.PARSER_BROKEN != 'true' }}

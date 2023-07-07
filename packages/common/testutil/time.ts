@@ -25,7 +25,6 @@ export async function increase(duration: number): Promise<void> {
 }
 
 export async function increaseTo(timestamp: number): Promise<void> {
-  console.log('increaseTo', timestamp)
   const currentTimestamp = await currentBlockTimestamp()
   await ethers.provider.send('evm_increaseTime', [timestamp - currentTimestamp])
   await advanceBlock()

@@ -3,7 +3,7 @@ pragma solidity ^0.8.13;
 
 import "@equilibria/perennial-v2-oracle/contracts/types/OracleVersion.sol";
 import "./ProtocolParameter.sol";
-import "./MarketParameter.sol";
+import "./RiskParameter.sol";
 import "./Order.sol";
 
 /// @dev Order type
@@ -14,6 +14,7 @@ struct Position {
     UFixed6 long;
     UFixed6 short;
     UFixed6 fee; // TODO (gas hint): unused in the non-pending instances
+    UFixed6 keeper; // TODO (gas hint): only used in global non-pending instances
     Fixed6 collateral;
     Fixed6 delta;
 }
@@ -25,6 +26,9 @@ struct StoredPositionGlobal {
     uint48 _long;
     uint48 _short;
     uint48 _fee;
+
+    //TODO: pack better
+    uint48 _keeper;
 }
 struct PositionStorageGlobal { StoredPositionGlobal value; }
 using PositionStorageGlobalLib for PositionStorageGlobal global;
@@ -34,7 +38,9 @@ struct StoredPositionLocal {
     uint8 _direction;
     uint48 _position;
     uint48 _fee;
+    uint256 _keeper; // TODO: pack better
     int48 _collateral;
+
     int48 _delta;
 }
 struct PositionStorageLocal { StoredPositionLocal value; }
@@ -67,42 +73,58 @@ library PositionLib {
         uint256 currentTimestamp,
         UFixed6 newMaker,
         UFixed6 newLong,
-        UFixed6 newShort,
-        OracleVersion memory latestVersion,
-        MarketParameter memory marketParameter
+        UFixed6 newShort
     ) internal pure returns (Order memory newOrder) {
         (newOrder.maker, newOrder.long, newOrder.short) = (
             Fixed6Lib.from(newMaker).sub(Fixed6Lib.from(self.maker)),
             Fixed6Lib.from(newLong).sub(Fixed6Lib.from(self.long)),
-            newOrder.short = Fixed6Lib.from(newShort).sub(Fixed6Lib.from(self.short))
+            Fixed6Lib.from(newShort).sub(Fixed6Lib.from(self.short))
         );
-        newOrder.registerFee(latestVersion, marketParameter);
 
-        (self.id, self.timestamp, self.maker, self.long, self.short, self.fee) = (
-            currentId,
-            currentTimestamp,
-            newMaker,
-            newLong,
-            newShort,
-            self.id == currentId ? self.fee.add(newOrder.fee) : newOrder.fee
-        );
+        if (self.id == currentId) self.fee = UFixed6Lib.ZERO;
+        (self.id, self.timestamp, self.maker, self.long, self.short) =
+            (currentId, currentTimestamp, newMaker, newLong, newShort);
     }
 
     /// @dev update the current global position
     function update(Position memory self, uint256 currentId, uint256 currentTimestamp, Order memory order) internal pure {
-        (self.id, self.timestamp, self.maker, self.long, self.short, self.fee) = (
+        Fixed6 latestSkew = skew(self);
+
+        if (self.id == currentId) self.fee = UFixed6Lib.ZERO;
+        (self.id, self.timestamp, self.maker, self.long, self.short) = (
             currentId,
             currentTimestamp,
             UFixed6Lib.from(Fixed6Lib.from(self.maker).add(order.maker)),
             UFixed6Lib.from(Fixed6Lib.from(self.long).add(order.long)),
-            UFixed6Lib.from(Fixed6Lib.from(self.short).add(order.short)),
-            self.id == currentId ? self.fee.add(order.fee) : order.fee
+            UFixed6Lib.from(Fixed6Lib.from(self.short).add(order.short))
+        );
+
+        (order.skew, order.impact) = (
+            skew(self).sub(latestSkew).abs(),
+            Fixed6Lib.from(skew(self).abs()).sub(Fixed6Lib.from(latestSkew.abs()))
         );
     }
 
     /// @dev update the collateral delta of the local position
     function update(Position memory self, Fixed6 collateralAmount) internal pure {
         self.delta = self.delta.add(collateralAmount);
+    }
+
+    /// @dev update the current global position when version is invalid
+    function invalidate(Position memory self, Position memory latestPosition) internal pure {
+        (self.id, self.maker, self.long, self.short, self.fee, self.keeper) = (
+            latestPosition.id,
+            latestPosition.maker,
+            latestPosition.long,
+            latestPosition.short,
+            UFixed6Lib.ZERO,
+            UFixed6Lib.ZERO
+        );
+    }
+
+    function registerFee(Position memory self, Order memory order) internal pure {
+        self.fee = self.fee.add(order.fee);
+        self.keeper = self.keeper.add(order.keeper);
     }
 
     function magnitude(Position memory self) internal pure returns (UFixed6) {
@@ -122,7 +144,9 @@ library PositionLib {
     }
 
     function skew(Position memory self) internal pure returns (Fixed6) {
-        return Fixed6Lib.from(self.long).sub(Fixed6Lib.from(self.short)).div(Fixed6Lib.from(major(self)));
+        return major(self).isZero() ?
+            Fixed6Lib.ZERO :
+            Fixed6Lib.from(self.long).sub(Fixed6Lib.from(self.short)).div(Fixed6Lib.from(major(self)));
     }
 
     function utilization(Position memory self) internal pure returns (UFixed6) {
@@ -152,20 +176,32 @@ library PositionLib {
     function maintenance(
         Position memory self,
         OracleVersion memory currentOracleVersion,
-        MarketParameter memory marketParameter
+        RiskParameter memory riskParameter
     ) internal pure returns (UFixed6) {
-        return magnitude(self).mul(currentOracleVersion.price.abs()).mul(marketParameter.maintenance);
+        return magnitude(self).mul(currentOracleVersion.price.abs()).mul(riskParameter.maintenance);
+    }
+
+    /// @dev shortfall is considered solvent for 0-position
+    function collateralized(
+        Position memory self,
+        OracleVersion memory currentOracleVersion,
+        RiskParameter memory riskParameter,
+        Fixed6 collateral
+    ) internal pure returns (bool) {
+        return collateral.max(Fixed6Lib.ZERO)
+            .gte(Fixed6Lib.from(maintenance(self, currentOracleVersion, riskParameter)));
     }
 
     function liquidationFee(
         Position memory self,
         OracleVersion memory currentOracleVersion,
-        MarketParameter memory marketParameter,
+        RiskParameter memory riskParameter,
         ProtocolParameter memory protocolParameter
     ) internal pure returns (UFixed6) {
-        return maintenance(self, currentOracleVersion, marketParameter)
+        return maintenance(self, currentOracleVersion, riskParameter)
             .max(protocolParameter.minCollateral)
-            .mul(protocolParameter.liquidationFee);
+            .mul(protocolParameter.liquidationFee)
+            .min(protocolParameter.maxLiquidationFee);
     }
 
     function sub(Position memory self, Position memory position) internal pure returns (Order memory newOrder) {
@@ -190,6 +226,7 @@ library PositionStorageGlobalLib {
             UFixed6.wrap(uint256(storedValue._long)),
             UFixed6.wrap(uint256(storedValue._short)),
             UFixed6.wrap(uint256(storedValue._fee)),
+            UFixed6.wrap(uint256(storedValue._keeper)),
             Fixed6Lib.ZERO,
             Fixed6Lib.ZERO
         );
@@ -202,6 +239,7 @@ library PositionStorageGlobalLib {
         if (newValue.long.gt(UFixed6.wrap(type(uint48).max))) revert PositionStorageGlobalInvalidError();
         if (newValue.short.gt(UFixed6.wrap(type(uint48).max))) revert PositionStorageGlobalInvalidError();
         if (newValue.fee.gt(UFixed6.wrap(type(uint48).max))) revert PositionStorageGlobalInvalidError();
+        if (newValue.keeper.gt(UFixed6.wrap(type(uint48).max))) revert PositionStorageGlobalInvalidError();
 
         self.value = StoredPositionGlobal(
             uint32(newValue.id),
@@ -209,7 +247,8 @@ library PositionStorageGlobalLib {
             uint48(UFixed6.unwrap(newValue.maker)),
             uint48(UFixed6.unwrap(newValue.long)),
             uint48(UFixed6.unwrap(newValue.short)),
-            uint48(UFixed6.unwrap(newValue.fee))
+            uint48(UFixed6.unwrap(newValue.fee)),
+            uint48(UFixed6.unwrap(newValue.keeper))
         );
     }
 }
@@ -227,6 +266,7 @@ library PositionStorageLocalLib {
             UFixed6.wrap(uint256((storedValue._direction == 1) ? storedValue._position : 0)),
             UFixed6.wrap(uint256((storedValue._direction == 2) ? storedValue._position : 0)),
             UFixed6.wrap(uint256(storedValue._fee)),
+            UFixed6.wrap(uint256(storedValue._keeper)),
             Fixed6.wrap(int256(storedValue._collateral)),
             Fixed6.wrap(int256(storedValue._delta))
         );
@@ -239,6 +279,7 @@ library PositionStorageLocalLib {
         if (newValue.long.gt(UFixed6.wrap(type(uint48).max))) revert PositionStorageLocalInvalidError();
         if (newValue.short.gt(UFixed6.wrap(type(uint48).max))) revert PositionStorageLocalInvalidError();
         if (newValue.fee.gt(UFixed6.wrap(type(uint48).max))) revert PositionStorageLocalInvalidError();
+        if (newValue.keeper.gt(UFixed6.wrap(type(uint48).max))) revert PositionStorageLocalInvalidError();
         if (newValue.collateral.gt(Fixed6.wrap(type(int48).max))) revert PositionStorageLocalInvalidError();
         if (newValue.collateral.lt(Fixed6.wrap(type(int48).min))) revert PositionStorageLocalInvalidError();
         if (newValue.delta.gt(Fixed6.wrap(type(int48).max))) revert PositionStorageLocalInvalidError();
@@ -250,6 +291,7 @@ library PositionStorageLocalLib {
             uint8(newValue.long.isZero() ? (newValue.short.isZero() ? 0 : 2) : 1),
             uint48(UFixed6.unwrap(newValue.magnitude())),
             uint48(UFixed6.unwrap(newValue.fee)),
+            uint48(UFixed6.unwrap(newValue.keeper)),
             int48(Fixed6.unwrap(newValue.collateral)),
             int48(Fixed6.unwrap(newValue.delta))
         );
