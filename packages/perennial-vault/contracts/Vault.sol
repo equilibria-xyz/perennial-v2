@@ -119,16 +119,13 @@ contract Vault is IVault, Instance {
     }
 
     function register(IMarket market) external onlyOwner {
-        _settleUnderlying();
-        Context memory context = _loadContext(address(0));
-        _settle(context);
+        settle(address(0));
 
-        for (uint256 marketId; marketId < context.markets.length; marketId++) {
+        for (uint256 marketId; marketId < totalMarkets; marketId++) {
             if (_registrations[marketId].read().market == market) revert VaultMarketExistsError();
         }
 
         _register(market);
-        _saveContext(context, address(0));
     }
 
     function _register(IMarket market) private {
@@ -139,21 +136,17 @@ contract Vault is IVault, Instance {
 
         uint256 newMarketId = totalMarkets++;
         _registrations[newMarketId].store(Registration(market, 0));
-
         emit MarketRegistered(newMarketId, market);
     }
 
     function updateWeight(uint256 marketId, uint256 newWeight) external onlyOwner {
-        _settleUnderlying();
-        Context memory context = _loadContext(address(0));
-        _settle(context);
+        settle(address(0));
 
-        if (marketId >= context.markets.length) revert VaultMarketDoesNotExistError();
+        if (marketId >= totalMarkets) revert VaultMarketDoesNotExistError();
 
         Registration memory registration = _registrations[marketId].read();
         registration.weight = newWeight;
         _registrations[marketId].store(registration);
-        _saveContext(context, address(0));
         emit WeightUpdated(marketId, newWeight);
     }
 
@@ -409,7 +402,7 @@ contract Vault is IVault, Instance {
         context.minCollateral = protocolParameter.minCollateral;
 
         context.currentIds.initialize(totalMarkets);
-        context.latestIds.initialize(totalMarkets); // TODO: implement market addition support
+        context.latestIds.initialize(totalMarkets);
 
         context.markets = new MarketContext[](totalMarkets);
         for (uint256 marketId; marketId < context.markets.length; marketId++) {

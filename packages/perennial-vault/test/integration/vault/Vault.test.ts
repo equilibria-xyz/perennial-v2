@@ -31,6 +31,8 @@ use(smock.matchers)
 const STARTING_TIMESTAMP = BigNumber.from(1646456563)
 const LEGACY_ORACLE_DELAY = 3600
 
+// TODO: adding a market while position is pending to see if Mappings work correctly
+
 describe('Vault', () => {
   let vault: IVault
   let asset: IERC20Metadata
