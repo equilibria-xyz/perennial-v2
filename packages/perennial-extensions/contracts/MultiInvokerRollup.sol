@@ -33,15 +33,18 @@ contract MultiInvokerRollup is IMultiInvokerRollup, MultiInvoker {
             if (action == PerennialAction.UPDATE_POSITION) {
                 // new maker new long new short new collateral\
                 address market = _readAndCacheAddress(input, ptr);
-                UFixed6 newMaker = _readUFixed6(input, ptr);
-                UFixed6 newLong = _readUFixed6(input, ptr);
-                UFixed6 newShort = _readUFixed6(input, ptr);
+                Fixed6 makerDelta = _readUFixed6(input, ptr);
+                Fixed6 longDelta = _readUFixed6(input, ptr);
+                Fixed6 shortDelta = _readUFixed6(input, ptr);
                 Fixed6 collateralDelta = _readFixed6(input, ptr);
                 bool handleWrap = _readBool(input, ptr);
 
+                (UFixed6 newMaker, UFixed6 longDelta, UFixed6 shortDelta)
+                    = _readAbsolutePosition(market, makerDelta, longDelta, shortDelta);
+
                 _update(msg.sender, newMaker, newLong, newShort, collateralDelta);
             } else if (action == PerennialAction.PLACE_ORDER) {
-                address market = _readAndCacheAddress(input.ptr);
+                address market = _readAndCacheAddress(input, ptr);
 
                 IKeeperManager.Order memory order; 
                 (order.isLong, order.isLimit) = _readLimitAndLong(input, ptr);
@@ -65,7 +68,24 @@ contract MultiInvokerRollup is IMultiInvokerRollup, MultiInvoker {
         }
     }
 
-    function _readAbolutePosition(address market, address )
+    function _readAbolutePosition(
+        address market, 
+        Fixed6 makerDelta, 
+        Fixed6 longDelta, 
+        Fixed6 shortDelta
+    ) private view 
+      returns (UFixed6 newMaker, UFixed6 newLong, UFixed6 newShort) {
+        Position memory position = 
+            IMarket(market).pendingPositions(
+                msg.sender, 
+                IMarket(market).locals(msg.sender).currentId
+            );
+
+        newMaker = UFixed6Lib.from(Fixed6Lib.from(position.maker).add(makerDelta));
+        newLong = UFixed6Lib.from(Fixed6Lib.from(position.long).add(longDelta));
+        newShort = UFixed6Lib.from(Fixed6Lib.from(position.short).add(shortDelta));
+    }
+
     function _readAndCacheAddress(bytes calldata input, PTR memory ptr) private returns (address addr) {
         uint8 len = _readUint8(input, ptr);
 
