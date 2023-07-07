@@ -9,13 +9,11 @@ import "./Checkpoint.sol";
 struct VaultParameter {
     UFixed6 leverage;
     UFixed6 cap;
-    UFixed6 premium;
 }
 struct StoredVaultParameter {
     uint32 _leverage;
     uint64 _cap;
-    uint24 _premium;
-    bytes17 __unallocated__;
+    bytes20 __unallocated__;
 }
 struct VaultParameterStorage { StoredVaultParameter value; }
 using VaultParameterStorageLib for VaultParameterStorage global;
@@ -28,21 +26,18 @@ library VaultParameterStorageLib {
 
         return VaultParameter(
             UFixed6.wrap(uint256(storedValue._leverage)),
-            UFixed6.wrap(uint256(storedValue._cap)),
-            UFixed6.wrap(uint256(storedValue._premium))
+            UFixed6.wrap(uint256(storedValue._cap))
         );
     }
 
     function store(VaultParameterStorage storage self, VaultParameter memory newValue) internal {
         if (newValue.leverage.gt(UFixed6.wrap(type(uint32).max))) revert VaultParameterStorageInvalidError();
         if (newValue.cap.gt(UFixed6.wrap(type(uint64).max))) revert VaultParameterStorageInvalidError();
-        if (newValue.premium.gt(UFixed6.wrap(type(uint24).max))) revert VaultParameterStorageInvalidError();
 
         self.value = StoredVaultParameter(
             uint32(UFixed6.unwrap(newValue.leverage)),
             uint64(UFixed6.unwrap(newValue.cap)),
-            uint24(UFixed6.unwrap(newValue.premium)),
-            bytes17(0)
+            bytes20(0)
         );
     }
 }
