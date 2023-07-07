@@ -335,7 +335,7 @@ contract Vault is IVault, Instance {
         // Compute available collateral
         UFixed6 collateral = UFixed6Lib.from(collateralInVault);
         if (collateral.muldiv(context.minWeight, context.totalWeight).lt(context.minCollateral))
-            collateral = UFixed6Lib.ZERO;
+            collateral = UFixed6Lib.ZERO; // TODO: move check to computeTargets
 
         // Compute available assets
         UFixed6 assets = UFixed6Lib.from(
@@ -346,13 +346,26 @@ contract Vault is IVault, Instance {
             .mul(context.global.shares.unsafeDiv(context.global.shares.add(context.global.redemption)))
             .add(context.global.deposit);
         if (assets.muldiv(context.minWeight, context.totalWeight).lt(context.minCollateral))
-            assets = UFixed6Lib.ZERO;
+            assets = UFixed6Lib.ZERO;  // TODO: move check to computeTargets
 
         Target[] memory targets = _computeTargets(context, collateral, assets);
         for (uint256 marketId; marketId < context.markets.length; marketId++)
             if (targets[marketId].collateral.lt(Fixed6Lib.ZERO)) _update(context.markets[marketId], targets[marketId]);
         for (uint256 marketId; marketId < context.markets.length; marketId++)
             if (targets[marketId].collateral.gte(Fixed6Lib.ZERO)) _update(context.markets[marketId], targets[marketId]);
+    }
+
+    function _treasury(Context memory context) private view returns (Fixed6 collateral, UFixed6 assets) {
+        collateral = _collateral(context);
+
+        // collateral currently deployed
+        Fixed6 liabilities = Fixed6Lib.from(context.global.assets.add(context.global.deposit));
+        // net assets
+        assets = UFixed6Lib.from(collateral.sub(liabilities).max(Fixed6Lib.ZERO)) // TODO: zero here?
+            // approximate assets up for redemption
+            .mul(context.global.shares.unsafeDiv(context.global.shares.add(context.global.redemption)))
+            // deploy assets up for deposit
+            .add(context.global.deposit);
     }
 
     function _computeTargets(
