@@ -61,11 +61,6 @@ library CheckpointLib {
                 _toShares(self, assets);
     }
 
-    function _toShares(Checkpoint memory self, UFixed6 assets) private pure returns (UFixed6) {
-        UFixed6 selfAssets = UFixed6Lib.from(self.assets.max(Fixed6Lib.ZERO));
-        return _withSpread(self, assets.muldiv(self.shares, selfAssets));
-    }
-
     /**
      * @notice Converts a given amount of shares to assets with basis
      * @param shares Number of shares to convert to shares
@@ -75,6 +70,11 @@ library CheckpointLib {
         return self.shares.isZero() ?
             shares :  // vault is fresh, use par value
             _toAssets(self, shares);
+    }
+
+    function _toShares(Checkpoint memory self, UFixed6 assets) private pure returns (UFixed6) {
+        UFixed6 selfAssets = UFixed6Lib.from(self.assets.max(Fixed6Lib.ZERO));
+        return _withSpread(self, assets.muldiv(self.shares, selfAssets));
     }
 
     function _toAssets(Checkpoint memory self, UFixed6 shares) private pure returns (UFixed6) {
