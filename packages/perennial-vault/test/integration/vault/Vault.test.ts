@@ -25,11 +25,13 @@ import { parse6decimal } from '../../../../common/testutil/types'
 import { TransparentUpgradeableProxy__factory } from '@equilibria/perennial-v2/types/generated'
 import { IOracle, IOracle__factory, OracleFactory } from '@equilibria/perennial-v2-oracle/types/generated'
 
-const { config, ethers } = HRE
+const { ethers } = HRE
 use(smock.matchers)
 
 const STARTING_TIMESTAMP = BigNumber.from(1646456563)
 const LEGACY_ORACLE_DELAY = 3600
+const ETH_PRICE_FEE_ID = '0x0000000000000000000000000000000000000000000000000000000000000001'
+const BTC_PRICE_FEE_ID = '0x0000000000000000000000000000000000000000000000000000000000000002'
 
 // TODO: adding a market while position is pending to see if Mappings work correctly
 
@@ -120,8 +122,6 @@ describe('Vault', () => {
   }
 
   const fixture = async () => {
-    await time.reset(config)
-
     const instanceVars = await deployProtocol()
 
     const parameter = { ...(await instanceVars.marketFactory.parameter()) }
@@ -138,6 +138,7 @@ describe('Vault', () => {
     await oracleFactory.connect(owner).register(vaultOracleFactory.address)
     await oracleFactory.connect(owner).authorize(factory.address)
 
+    oracle = await smock.fake<IOracleProvider>('IOracleProvider')
     const realVersion = {
       timestamp: STARTING_TIMESTAMP,
       price: BigNumber.from('2620237388'),
@@ -145,13 +146,13 @@ describe('Vault', () => {
     }
     originalOraclePrice = realVersion.price
 
-    oracle = await smock.fake<IOracleProvider>('IOracleProvider')
     oracle.status.returns([realVersion, realVersion.timestamp.add(LEGACY_ORACLE_DELAY)])
     oracle.request.returns()
     oracle.latest.returns(realVersion)
     oracle.current.returns(realVersion.timestamp.add(LEGACY_ORACLE_DELAY))
     oracle.at.whenCalledWith(realVersion.timestamp).returns(realVersion)
 
+    btcOracle = await smock.fake<IOracleProvider>('IOracleProvider')
     const btcRealVersion = {
       timestamp: STARTING_TIMESTAMP,
       price: BigNumber.from('38838362695'),
@@ -159,15 +160,23 @@ describe('Vault', () => {
     }
     btcOriginalOraclePrice = btcRealVersion.price
 
-    btcOracle = await smock.fake<IOracleProvider>('IOracleProvider')
     btcOracle.status.returns([btcRealVersion, btcRealVersion.timestamp.add(LEGACY_ORACLE_DELAY)])
     btcOracle.request.returns()
     btcOracle.latest.returns(btcRealVersion)
     btcOracle.current.returns(btcRealVersion.timestamp.add(LEGACY_ORACLE_DELAY))
     btcOracle.at.whenCalledWith(btcRealVersion.timestamp).returns(btcRealVersion)
 
-    const ETH_PRICE_FEE_ID = '0x0000000000000000000000000000000000000000000000000000000000000001'
-    const BTC_PRICE_FEE_ID = '0x0000000000000000000000000000000000000000000000000000000000000002'
+    vaultOracleFactory.instances.whenCalledWith(oracle.address).returns(true)
+    vaultOracleFactory.oracles.whenCalledWith(ETH_PRICE_FEE_ID).returns(oracle.address)
+    vaultOracleFactory.instances.whenCalledWith(btcOracle.address).returns(true)
+    vaultOracleFactory.oracles.whenCalledWith(BTC_PRICE_FEE_ID).returns(btcOracle.address)
+
+    const vaultFactoryProxy = await new TransparentUpgradeableProxy__factory(owner).deploy(
+      instanceVars.marketFactory.address, // dummy contract
+      instanceVars.proxyAdmin.address,
+      [],
+    )
+
     vaultOracleFactory.instances.whenCalledWith(oracle.address).returns(true)
     vaultOracleFactory.oracles.whenCalledWith(ETH_PRICE_FEE_ID).returns(oracle.address)
     vaultOracleFactory.instances.whenCalledWith(btcOracle.address).returns(true)
@@ -178,6 +187,11 @@ describe('Vault', () => {
       owner,
     )
     await instanceVars.oracleFactory.connect(owner).create(ETH_PRICE_FEE_ID, vaultOracleFactory.address)
+
+    leverage = parse6decimal('4.0')
+    maxCollateral = parse6decimal('500000')
+    premium = parse6decimal('0.10')
+
     const btcRootOracle = IOracle__factory.connect(
       await instanceVars.oracleFactory.connect(owner).callStatic.create(BTC_PRICE_FEE_ID, vaultOracleFactory.address),
       owner,
@@ -203,15 +217,6 @@ describe('Vault', () => {
       oracle: btcRootOracle.address,
       payoff: constants.AddressZero,
     })
-    leverage = parse6decimal('4.0')
-    maxCollateral = parse6decimal('500000')
-    premium = parse6decimal('0.10')
-
-    const vaultFactoryProxy = await new TransparentUpgradeableProxy__factory(owner).deploy(
-      instanceVars.marketFactory.address, // dummy contract
-      instanceVars.proxyAdmin.address,
-      [],
-    )
 
     const vaultImpl = await new Vault__factory(owner).deploy()
     const vaultFactoryImpl = await new VaultFactory__factory(owner).deploy(
@@ -236,10 +241,7 @@ describe('Vault', () => {
       cap: maxCollateral,
       premium: premium,
     })
-  }
 
-  beforeEach(async () => {
-    await loadFixture(fixture)
     asset = IERC20Metadata__factory.connect(await vault.asset(), owner)
     await Promise.all([
       asset.connect(liquidator).approve(vault.address, ethers.constants.MaxUint256),
@@ -273,6 +275,43 @@ describe('Vault', () => {
       .update(btcUser2.address, 0, parse6decimal('10'), 0, parse6decimal('100000'), false)
 
     vaultSigner = await impersonate.impersonateWithBalance(vault.address, ethers.utils.parseEther('10'))
+
+    return { instanceVars, vaultFactoryProxy, rootOracle }
+  }
+
+  beforeEach(async () => {
+    await loadFixture(fixture)
+
+    const realVersion = {
+      timestamp: STARTING_TIMESTAMP,
+      price: BigNumber.from('2620237388'),
+      valid: true,
+    }
+    originalOraclePrice = realVersion.price
+
+    oracle.status.returns([realVersion, realVersion.timestamp.add(LEGACY_ORACLE_DELAY)])
+    oracle.request.returns()
+    oracle.latest.returns(realVersion)
+    oracle.current.returns(realVersion.timestamp.add(LEGACY_ORACLE_DELAY))
+    oracle.at.whenCalledWith(realVersion.timestamp).returns(realVersion)
+
+    const btcRealVersion = {
+      timestamp: STARTING_TIMESTAMP,
+      price: BigNumber.from('38838362695'),
+      valid: true,
+    }
+    btcOriginalOraclePrice = btcRealVersion.price
+
+    btcOracle.status.returns([btcRealVersion, btcRealVersion.timestamp.add(LEGACY_ORACLE_DELAY)])
+    btcOracle.request.returns()
+    btcOracle.latest.returns(btcRealVersion)
+    btcOracle.current.returns(btcRealVersion.timestamp.add(LEGACY_ORACLE_DELAY))
+    btcOracle.at.whenCalledWith(btcRealVersion.timestamp).returns(btcRealVersion)
+
+    vaultOracleFactory.instances.whenCalledWith(oracle.address).returns(true)
+    vaultOracleFactory.oracles.whenCalledWith(ETH_PRICE_FEE_ID).returns(oracle.address)
+    vaultOracleFactory.instances.whenCalledWith(btcOracle.address).returns(true)
+    vaultOracleFactory.oracles.whenCalledWith(BTC_PRICE_FEE_ID).returns(btcOracle.address)
   })
 
   describe('#initialize', () => {
