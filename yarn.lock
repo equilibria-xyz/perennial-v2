@@ -116,6 +116,21 @@
     rxjs "^7.2.0"
     semver "^7.3.5"
 
+"@equilibria/emptyset-batcher@^0.1.0":
+  version "0.1.0"
+  resolved "https://registry.yarnpkg.com/@equilibria/emptyset-batcher/-/emptyset-batcher-0.1.0.tgz#2068d202d38614a337d115d4109f05cf72e48d09"
+  integrity sha512-joALMtS47fdXw9nvSO4gmmcsYvfErXlC92nYDGV2wRGqyUneOZKPVC1s0TctSBK/OeXJ+ielzXVLqB84H5PZKg==
+  dependencies:
+    "@equilibria/root" "0.1.5"
+    "@openzeppelin/contracts" "4.6.0"
+
+"@equilibria/root@0.1.5":
+  version "0.1.5"
+  resolved "https://registry.yarnpkg.com/@equilibria/root/-/root-0.1.5.tgz#f9fb606fed2d0f3d7426d37d7bc45f176b26f80e"
+  integrity sha512-K++w/DyJktl58dQe4P78K0dzduQe1CKPU+Z52DsISik99FN7OwdMTQZt1APpJfovfZh0focsHMnTiRpLmIti7Q==
+  dependencies:
+    "@openzeppelin/contracts" "4.6.0"
+
 "@equilibria/root@0.3.0-beta0":
   version "0.3.0-beta0"
   resolved "https://registry.npmjs.org/@equilibria/root/-/root-0.3.0-beta0.tgz"
@@ -1694,6 +1709,11 @@
   version "2.0.2"
   resolved "https://registry.npmjs.org/@nomicfoundation/hardhat-toolbox/-/hardhat-toolbox-2.0.2.tgz"
   integrity sha512-vnN1AzxbvpSx9pfdRHbUzTRIXpMLPXnUlkW855VaDk6N1pwRaQ2gNzEmFAABk4lWf11E00PKwFd/q27HuwYrYg==
+
+"@nomicfoundation/hardhat-toolbox@^3.0.0":
+  version "3.0.0"
+  resolved "https://registry.yarnpkg.com/@nomicfoundation/hardhat-toolbox/-/hardhat-toolbox-3.0.0.tgz#83e2c28a745aa4eb1236072166367b0de68b4c76"
+  integrity sha512-MsteDXd0UagMksqm9KvcFG6gNKYNa3GGNCy73iQ6bEasEgg2v8Qjl6XA5hjs8o5UD5A3153B6W2BIVJ8SxYUtA==
 
 "@nomicfoundation/solidity-analyzer-darwin-arm64@0.1.0":
   version "0.1.0"
