@@ -31,5 +31,7 @@
   },
   "author": "",
   "license": "APACHE-2.0",
-  "dependencies": {}
+  "dependencies": {
+    "@openzeppelin/contracts": "^4.9.2"
+  }
 }

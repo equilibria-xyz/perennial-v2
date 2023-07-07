@@ -24,7 +24,7 @@ export class ChainlinkContext {
   public oracleFactory!: FakeContract<IOracleFactory>
   public oracle!: FakeContract<IOracleProvider>
 
-  constructor(base: string, quote: string, initialRoundId: BigNumber, delay: number) {
+  constructor(base: string, quote: string, initialRoundId: BigNumber, delay: number, feedRegistryOverride?: string) {
     this.base = base
     this.quote = quote
     this.id = ethers.utils.keccak256(ethers.utils.defaultAbiCoder.encode(['string', 'string'], [base, quote]))

@@ -1,0 +1,5 @@
+{
+  "extends": "../common/tsconfig.default",
+  "files": ["hardhat.config.ts"],
+  "include": ["deploy", "test", "types"]
+}
