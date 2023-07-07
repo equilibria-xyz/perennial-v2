@@ -3,10 +3,12 @@ pragma solidity ^0.8.13;
 pragma abicoder v2;
 
 import {AggregatorInterface} from "@chainlink/contracts/src/v0.8/interfaces/AggregatorInterface.sol";
-import { IFactory } from "@equilibria/perennial-v2/contracts/interfaces/IFactory.sol";
+import { IMarketFactory } from "@equilibria/perennial-v2/contracts/interfaces/IMarketFactory.sol";
 import { IMarket } from "@equilibria/perennial-v2/contracts/interfaces/IMarket.sol";
 import { IBatcher } from "@equilibria/emptyset-batcher/interfaces/IBatcher.sol";
 import { IEmptySetReserve } from "@equilibria/emptyset-batcher/interfaces/IEmptySetReserve.sol";
+import { IInstance } from "@equilibria/root-v2/contracts/IInstance.sol";
+
 // import "hardhat/console.sol";
 
 import {
@@ -36,7 +38,7 @@ contract MultiInvoker is IMultiInvoker, KeeperManager {
     Token18 public immutable DSU; // solhint-disable-line var-name-mixedcase
 
     /// @dev Protocol factory to validate market approvals
-    IFactory public immutable factory;
+    IMarketFactory public immutable factory;
 
     /// @dev Batcher address
     IBatcher public immutable batcher;
@@ -56,7 +58,7 @@ contract MultiInvoker is IMultiInvoker, KeeperManager {
     constructor(
         Token6 usdc_,
         Token18 dsu_,
-        IFactory factory_,
+        IMarketFactory factory_,
         IBatcher batcher_,
         IEmptySetReserve reserve_,
         AggregatorInterface ethOracle_
@@ -72,7 +74,7 @@ contract MultiInvoker is IMultiInvoker, KeeperManager {
 
     /// @notice approves a market deployed by the factory to spend DSU
     /// @param market Market to approve max DSU spending
-    function approve(IMarket market) external { _approve(market); }
+    function approve(address market) external { _approve(market); }
 
     /// @notice entry to perform invocations
     /// @param invocations List of actions to execute in order
@@ -107,8 +109,8 @@ contract MultiInvoker is IMultiInvoker, KeeperManager {
 
                 _executeOrderInvoker(account, market, _orderNonce);
             } else if (invocation.action == PerennialAction.APPROVE_MARKET) {
-                (IMarket market) =
-                    abi.decode(invocation.args, (IMarket));
+                (address market) =
+                    abi.decode(invocation.args, (address));
                 _approve(market);
             }
         }
@@ -140,7 +142,8 @@ contract MultiInvoker is IMultiInvoker, KeeperManager {
             newMaker,
             newLong,
             newShort,
-            collateralDelta);
+            collateralDelta,
+            false);
 
         // collateral is transferred from the market to this address, transfer to msg.sender from here
         if(collateralDelta.sign() == -1) {
@@ -181,7 +184,8 @@ contract MultiInvoker is IMultiInvoker, KeeperManager {
             position.maker,
             position.long,
             position.short,
-            Fixed6Lib.ZERO);
+            Fixed6Lib.ZERO,
+            false);
 
         _executeOrder(account, market, _orderNonce);
 
@@ -222,7 +226,8 @@ contract MultiInvoker is IMultiInvoker, KeeperManager {
             position.maker,
             position.long,
             position.short,
-            chargeFee);
+            chargeFee,
+            false);
 
         _withdraw(msg.sender, chargeFee.abs(), false);
 
@@ -239,8 +244,8 @@ contract MultiInvoker is IMultiInvoker, KeeperManager {
     
     /// @notice Helper fn to max approve DSU for usage in a market deployed by the factory
     /// @param market Market to approve
-    function _approve(IMarket market) internal {
-       if(!factory.markets(market)) 
+    function _approve(address market) internal {
+        if(!factory.instances(IInstance(market))) 
             revert MultiInvokerInvalidMarketApprovalError();
         DSU.approve(address(market));
     }

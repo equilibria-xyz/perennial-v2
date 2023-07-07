@@ -3,7 +3,7 @@ pragma solidity ^0.8.13;
 
 import {IKeeperManager, IMarket, MarketParameter, UFixed6, UFixed6Lib} from "./interfaces/IKeeperManager.sol";
 import { Fixed6 } from "@equilibria/root/number/types/Fixed6.sol";
-// import "hardhat/console.sol";
+import "hardhat/console.sol";
 
 contract KeeperManager is IKeeperManager {
 
@@ -139,8 +139,8 @@ contract KeeperManager is IKeeperManager {
     /// @param market Market to get price of
     /// @return price 6-deciaml price of market
     function _getMarketPrice(address market) internal view returns (UFixed6 price) {
-        MarketParameter memory marketParam = IMarket(market).parameter();
-        price = UFixed6Lib.from(marketParam.oracle.latest().price);
+        // @todo safe type conversion?
+        price = UFixed6Lib.from(IMarket(market).oracle().latest().price);
     }
 
 }
