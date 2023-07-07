@@ -14,6 +14,8 @@ import {
   IERC20,
   IPayoffProvider,
   KeeperManager,
+  IMarketFactory,
+  Market__factory,
 } from '../../../types/generated'
 import { loadFixture } from '@nomicfoundation/hardhat-network-helpers'
 import * as helpers from '../../helpers/invoke'
@@ -31,9 +33,12 @@ import { PositionStruct } from '../../../types/generated/@equilibria/perennial-v
 
 import { parse6decimal } from '../../../../common/testutil/types'
 import { openPosition, setMarketPosition, setPendingPosition } from '../../helpers/types'
-import { IFactory } from '@equilibria/perennial-v2/types/generated'
+import { impersonate } from '../../../../common/testutil'
+
 const ethers = { HRE }
 use(smock.matchers)
+
+const ZERO = BigNumber.from(0)
 
 describe('MultiInvoker', () => {
   let owner: SignerWithAddress
@@ -46,7 +51,8 @@ describe('MultiInvoker', () => {
   let batcher: FakeContract<IBatcher>
   let reserve: FakeContract<IEmptySetReserve>
   let reward: FakeContract<IERC20>
-  let factory: FakeContract<IFactory>
+  let factory: FakeContract<IMarketFactory>
+  let factorySigner: SignerWithAddress
   let multiInvoker: MultiInvoker
 
   const multiInvokerFixture = async () => {
@@ -64,7 +70,9 @@ describe('MultiInvoker', () => {
     payoff = await smock.fake<IPayoffProvider>('IPayoffProvider')
     batcher = await smock.fake<IBatcher>('IBatcher')
     reserve = await smock.fake<IEmptySetReserve>('IEmptySetReserve')
-    factory = await smock.fake<IFactory>('IFactory')
+    factory = await smock.fake<IMarketFactory>('IMarketFactory')
+
+    factorySigner = await impersonate.impersonateWithBalance(factory.address, utils.parseEther('10'))
 
     multiInvoker = await new MultiInvoker__factory(owner).deploy(
       usdc.address,
@@ -82,48 +90,29 @@ describe('MultiInvoker', () => {
       valid: true,
     }
 
-    const marketParam: MarketParameterStruct = {
-      maintenance: '0',
-      fundingFee: '0',
-      interestFee: '0',
-      takerFee: '0',
-      makerFee: '0',
-      positionFee: '0',
-      makerLimit: '0',
-      closed: false,
-      makerRewardRate: '0',
-      longRewardRate: '0',
-      shortRewardRate: '0',
-      utilizationCurve: {
-        minRate: '0',
-        maxRate: '0',
-        targetRate: '0',
-        targetUtilization: '0',
-      },
-      pController: {
-        value: '0',
-        _k: '0',
-        _skew: '0',
-        _max: '0',
-      },
-      oracle: oracle.address,
-      payoff: payoff.address,
-    }
+    // const marketParam: MarketParameterStruct = {
+    //   fundingFee: '0',
+    //   interestFee: '0',
+    //   positionFee: '0',
+    //   oracleFee: '0',
+    //   riskFee: '0',
+    //   closed: false,
+    // }
 
-    const marketDefinition: IMarket.MarketDefinitionStruct = {
-      name: 'Squeeth',
-      symbol: 'SQTH',
-      token: dsu.address,
-      reward: reward.address,
-    }
+    // const marketDefinition: IMarket.MarketDefinitionStruct = {
+    //   name: 'Squeeth',
+    //   symbol: 'SQTH',
+    //   token: dsu.address,
+    //   reward: reward.address,
+    //   oracle: oracle.address,
+    //   payoff: payoff.address,
+    // }
 
     oracle.latest.returns(oracleVersion)
-    market.parameter.returns(marketParam)
-
-    await market.connect(owner).initialize(marketDefinition, marketParam)
+    market.oracle.returns(oracle.address)
 
     usdc.transferFrom.whenCalledWith(user.address).returns(true)
-    factory.markets.whenCalledWith(market.address).returns(true)
+    factory.instances.whenCalledWith(market.address).returns(true)
     // set returns
   })
 
@@ -170,7 +159,7 @@ describe('MultiInvoker', () => {
       await expect(multiInvoker.connect(user).invoke(a)).to.not.be.reverted
 
       expect(dsu.transferFrom).to.have.been.calledWith(user.address, multiInvoker.address, collateral.mul(1e12))
-      expect(market.update).to.have.been.calledWith(user.address, '0', '0', '0', collateral)
+      expect(market.update).to.have.been.calledWith(user.address, '0', '0', '0', collateral, false)
     })
 
     it('wraps and deposits collateral', async () => {
@@ -203,7 +192,7 @@ describe('MultiInvoker', () => {
       await expect(multiInvoker.connect(user).invoke(a)).to.not.be.reverted
 
       expect(dsu.transfer).to.have.been.calledWith(user.address, dsuCollateral)
-      expect(market.update).to.have.been.calledWith(user.address, '0', '0', '0', collateral.mul(-1))
+      expect(market.update).to.have.been.calledWith(user.address, '0', '0', '0', collateral.mul(-1), false)
     })
 
     it('withdraws and unwraps collateral', async () => {
@@ -268,11 +257,18 @@ describe('MultiInvoker', () => {
     it('opens a tp order', async () => {
       defaultOrder.isLimit = false
       defaultOrder.execPrice = BigNumber.from(1200e6)
+
       let a = helpers.buildPlaceOrder({ market: market.address, order: defaultOrder })
+
+      console.log('here')
+
+      const ora = (await market.oracle()) == oracle.address
+      console.log(await market.oracle())
 
       await multiInvoker.connect(user).invoke(a)
 
       // can execute = 1200 >= mkt price (1150)
+
       expect(await multiInvoker.canExecuteOrder(user.address, market.address, 1)).to.be.true
 
       defaultOrder.execPrice = BigNumber.from(1100e6)
