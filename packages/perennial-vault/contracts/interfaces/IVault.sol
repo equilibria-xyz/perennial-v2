@@ -16,7 +16,6 @@ interface IVault is IInstance {
         UFixed6 makerFee;
         UFixed6 settlementFee;
         UFixed6 minCollateral;
-        uint256 minWeight;
         uint256 totalWeight;
 
         // markets
