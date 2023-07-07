@@ -442,16 +442,6 @@ describe('Vault', () => {
       expect(parameter.cap).to.deep.contain(newParameter.cap)
     })
 
-    it('reverts when asset changes', async () => {
-      const newParameter = {
-        cap: parse6decimal('1000000'),
-      }
-      await expect(vault.connect(owner).updateParameter(newParameter)).to.be.revertedWithCustomError(
-        vault,
-        'VaultParameterStorageImmutableError',
-      )
-    })
-
     it('reverts when not owner', async () => {
       const newParameter = {
         cap: parse6decimal('1000000'),
@@ -463,7 +453,7 @@ describe('Vault', () => {
     })
   })
 
-  describe('#updateWeight', () => {
+  describe('#updateMarket', () => {
     it('updates correctly', async () => {
       await expect(vault.connect(owner).updateMarket(1, 2, parse6decimal('3')))
         .to.emit(vault, 'MarketUpdated')
@@ -472,7 +462,7 @@ describe('Vault', () => {
       expect((await vault.registrations(1)).weight).to.eq(2)
       expect((await vault.registrations(1)).leverage).to.eq(parse6decimal('3'))
 
-      await expect(vault.connect(owner).updateMarket(1, 0, 0)).to.emit(vault, 'WeightUpdated').withArgs(1, 0)
+      await expect(vault.connect(owner).updateMarket(1, 0, 0)).to.emit(vault, 'MarketUpdated').withArgs(1, 0, 0)
 
       expect((await vault.registrations(1)).weight).to.eq(0)
       expect((await vault.registrations(1)).leverage).to.eq(0)

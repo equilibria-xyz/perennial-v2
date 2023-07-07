@@ -57,7 +57,7 @@ interface IVault is IInstance {
     }
 
     event MarketRegistered(uint256 indexed marketId, IMarket market);
-    event WeightUpdated(uint256 indexed marketId, uint256 newWeight, UFixed6 newLeverage);
+    event MarketUpdated(uint256 indexed marketId, uint256 newWeight, UFixed6 newLeverage);
     event ParameterUpdated(VaultParameter newParameter);
     event Update(address indexed sender, address indexed account, uint256 version, UFixed6 depositAssets, UFixed6 redeemShares, UFixed6 claimAssets);
 

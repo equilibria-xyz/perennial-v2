@@ -146,7 +146,7 @@ contract Vault is IVault, Instance {
         registration.weight = newWeight;
         registration.leverage = newLeverage;
         _registrations[marketId].store(registration);
-        emit WeightUpdated(marketId, newWeight, newLeverage);
+        emit MarketUpdated(marketId, newWeight, newLeverage);
     }
 
     function updateParameter(VaultParameter memory newParameter) external onlyOwner {
