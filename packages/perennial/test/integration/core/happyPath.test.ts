@@ -20,6 +20,7 @@ import {
 import { IOracleProvider__factory, Market__factory } from '../../../types/generated'
 import { CHAINLINK_CUSTOM_CURRENCIES } from '@equilibria/perennial-v2-oracle/util/constants'
 import { buildChainlinkRoundId } from '@equilibria/perennial-v2-oracle/util/buildChainlinkRoundId'
+import { loadFixture } from '@nomicfoundation/hardhat-network-helpers'
 import { ChainlinkContext } from '../helpers/chainlinkHelpers'
 
 //TODO (coverage hint): invalid version test
@@ -36,7 +37,8 @@ describe('Happy Path', () => {
   let instanceVars: InstanceVars
 
   beforeEach(async () => {
-    instanceVars = await deployProtocol()
+    instanceVars = await loadFixture(deployProtocol)
+    await instanceVars.chainlink.reset()
   })
 
   it('creates a market', async () => {

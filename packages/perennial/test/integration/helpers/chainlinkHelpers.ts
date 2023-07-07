@@ -13,6 +13,7 @@ const { ethers, deployments } = HRE
 
 export class ChainlinkContext {
   private feedRegistryExternal!: FeedRegistryInterface
+  private initialRoundId: BigNumber
   private latestRoundId: BigNumber
   private currentRoundId: BigNumber
   private delay: number
@@ -28,6 +29,7 @@ export class ChainlinkContext {
     this.base = base
     this.quote = quote
     this.id = ethers.utils.keccak256(ethers.utils.defaultAbiCoder.encode(['string', 'string'], [base, quote]))
+    this.initialRoundId = initialRoundId
     this.latestRoundId = initialRoundId
     this.currentRoundId = initialRoundId
     this.delay = delay
@@ -36,10 +38,8 @@ export class ChainlinkContext {
   public async init(): Promise<ChainlinkContext> {
     const [owner] = await ethers.getSigners()
 
-    this.feedRegistryExternal = await FeedRegistryInterface__factory.connect(
-      (
-        await deployments.get('ChainlinkFeedRegistry')
-      ).address,
+    this.feedRegistryExternal = FeedRegistryInterface__factory.connect(
+      (await deployments.get('ChainlinkFeedRegistry')).address,
       owner,
     )
     this.oracle = await smock.fake<IOracleProvider>('IOracleProvider')
@@ -83,5 +83,12 @@ export class ChainlinkContext {
     this.oracle.latest.reset()
     this.oracle.latest.whenCalledWith().returns(latestVersion)
     this.oracle.at.whenCalledWith(latestData.startedAt).returns(latestVersion)
+  }
+
+  public async reset(): Promise<void> {
+    this.currentRoundId = this.initialRoundId
+    this.latestRoundId = this.initialRoundId
+
+    await this.next()
   }
 }
