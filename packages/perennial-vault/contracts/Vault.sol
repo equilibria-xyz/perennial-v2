@@ -178,16 +178,9 @@ contract Vault is IVault, Instance {
         _saveContext(context, account);
     }
 
-    function _fee(Context memory context) private view returns (
-        UFixed6 makerFee,
-        UFixed6 settlementFeeAssets,
-        UFixed6 settlementFeeShares
-    ) {
-        UFixed6 premiumMultiplier = UFixed6Lib.ONE.add(context.parameter.premium);
-
-        makerFee = context.makerFee.mul(premiumMultiplier); // TODO: include skew and impact
-        settlementFeeAssets = context.settlementFee;
-        settlementFeeShares = context.latestCheckpoint.toShares(settlementFeeAssets.mul(premiumMultiplier));
+    function _settlementFee(Context memory context) private pure returns (UFixed6 assets, UFixed6 shares) {
+        assets = context.settlementFee;
+        shares = context.latestCheckpoint.toShares(assets);
     }
 
     function _socialize(Context memory context, UFixed6 claimAssets) private view returns (UFixed6) {
@@ -243,10 +236,10 @@ contract Vault is IVault, Instance {
         context.currentCheckpoint = _checkpoints[currentId].read();
         context.currentCheckpoint.initialize(context.global, asset.balanceOf()); // TODO: is this supposed to be at the start or end?
 
-        (UFixed6 makerFee, UFixed6 settlementFeeAssets, UFixed6 settlementFeeShares) = _fee(context);
-        UFixed6 depositAmount = depositAssets.sub(depositAssets.mul(makerFee).add(settlementFeeAssets));
-        UFixed6 redemptionAmount = redeemShares.sub(redeemShares.mul(makerFee).add(settlementFeeShares));
-        UFixed6 claimAmount = _socialize(context, claimAssets);
+        (UFixed6 settlementFeeAssets, UFixed6 settlementFeeShares) = _settlementFee(context);
+        UFixed6 depositAmount = depositAssets.sub(settlementFeeAssets);
+        UFixed6 redemptionAmount = redeemShares.sub(settlementFeeShares);
+        UFixed6 claimAmount = _socialize(context, claimAssets).sub(settlementFeeAssets);
 
         context.global.update(currentId, claimAssets, redeemShares, depositAmount, redemptionAmount);
         context.local.update(currentId, claimAssets, redeemShares, depositAmount, redemptionAmount);
@@ -293,7 +286,8 @@ contract Vault is IVault, Instance {
         ) {
             uint256 newLatestId = context.global.latest + 1;
             context.latestCheckpoint = _checkpoints[newLatestId].read();
-            context.latestCheckpoint.complete(_collateralAtId(context, newLatestId));
+            (Fixed6 collateralAtId, UFixed6 feeAtId) = _collateralAtId(context, newLatestId);
+            context.latestCheckpoint.complete(collateralAtId, feeAtId);
             _checkpoints[newLatestId].store(context.latestCheckpoint);
             context.global.process(
                 newLatestId,
@@ -439,8 +433,6 @@ contract Vault is IVault, Instance {
                 global.latestPrice.abs();
             context.markets[marketId].currentPosition = currentPosition.maker;
             context.markets[marketId].currentNet = currentPosition.net();
-            context.makerFee = context.makerFee
-                .add(riskParameter.makerFee.mul(context.parameter.leverage).mul(UFixed6Lib.from(registration.weight)));
             context.totalWeight += registration.weight;
 
             // local
@@ -454,8 +446,6 @@ contract Vault is IVault, Instance {
             context.latestIds.update(marketId, latestPosition.id);
             context.currentIds.update(marketId, local.currentId);
         }
-
-        if (context.totalWeight != 0) context.makerFee = context.makerFee.div(UFixed6Lib.from(context.totalWeight));
 
         context.global = _accounts[address(0)].read();
         context.local = _accounts[account].read();
@@ -512,11 +502,13 @@ contract Vault is IVault, Instance {
     //// @dev context -- context.markets.length
     //// @dev context -- context.markets[marketId].registration
     // TODO: combine with Checkpoint.complete after we have registration list
-    function _collateralAtId(Context memory context, uint256 id) public view returns (Fixed6 value) {
+    function _collateralAtId(Context memory context, uint256 id) public view returns (Fixed6 value, UFixed6 fee) {
         Mapping memory mappingAtId = _mappings[id].read();
         for (uint256 marketId; marketId < mappingAtId.length(); marketId++) {
-            IMarket market = context.markets[marketId].registration.market;
-            value = value.add(market.pendingPositions(address(this), mappingAtId.get(marketId)).collateral);
+            Position memory currentAccountPosition = context.markets[marketId].registration.market
+                .pendingPositions(address(this), mappingAtId.get(marketId));
+            value = value.add(currentAccountPosition.collateral);
+            fee = fee.add(currentAccountPosition.fee);
         }
     }
 }

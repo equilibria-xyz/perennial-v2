@@ -457,7 +457,7 @@ describe('Vault', () => {
     })
   })
 
-  describe.only('#deposit/#redeem/#claim/#settle', () => {
+  describe('#deposit/#redeem/#claim/#settle', () => {
     it('simple deposits and redemptions', async () => {
       expect(await vault.convertToAssets(parse6decimal('1'))).to.equal(parse6decimal('1'))
       expect(await vault.convertToShares(parse6decimal('1'))).to.equal(parse6decimal('1'))
@@ -998,16 +998,16 @@ describe('Vault', () => {
       expect(await position()).to.be.equal(collateralForRebalance.mul(leverage).mul(4).div(5).div(originalOraclePrice))
       expect(await btcPosition()).to.be.equal(collateralForRebalance.mul(leverage).div(5).div(btcOriginalOraclePrice))
 
-      const balanceOf2 = BigNumber.from('9949747788')
-      const totalAssets = BigNumber.from('10952225614')
-      expect((await vault.accounts(user.address)).shares).to.equal(parse6decimal('995.6'))
+      const balanceOf2 = BigNumber.from('10037886859') // TODO: should be under 10000000000?
+      const totalAssets = BigNumber.from('10996225614')
+      expect((await vault.accounts(user.address)).shares).to.equal(parse6decimal('1000'))
       expect((await vault.accounts(user2.address)).shares).to.equal(balanceOf2)
       expect(await vault.totalAssets()).to.equal(totalAssets)
       expect((await vault.accounts(ethers.constants.AddressZero)).shares).to.equal(
-        parse6decimal('995.6').add(balanceOf2),
+        parse6decimal('1000').add(balanceOf2),
       )
-      expect(await vault.convertToAssets(parse6decimal('995.6').add(balanceOf2))).to.equal(totalAssets)
-      expect(await vault.convertToShares(totalAssets)).to.equal(parse6decimal('995.6').add(balanceOf2))
+      expect(await vault.convertToAssets(parse6decimal('1000').add(balanceOf2))).to.equal(totalAssets)
+      expect(await vault.convertToShares(totalAssets)).to.equal(parse6decimal('1000').add(balanceOf2))
 
       await vault.connect(user).update(user.address, 0, (await vault.accounts(user.address)).shares, 0)
       await updateOracle()
@@ -1022,19 +1022,16 @@ describe('Vault', () => {
       expect(await btcPosition()).to.equal(0)
 
       // We should have redeemed all of our shares.
-      const unclaimed1 = BigNumber.from('992266617')
-      const unclaimed2 = BigNumber.from('9919195990')
-      const finalTotalAsset = BigNumber.from('43837347')
-      const finalTotalShares = BigNumber.from('43778890')
-      const dust = BigNumber.from('3982864')
-      expect(await totalCollateralInVault()).to.equal(unclaimed1.add(unclaimed2).add(dust).mul(1e12))
+      const unclaimed1 = BigNumber.from('992663910')
+      const unclaimed2 = BigNumber.from('9962636044')
+      expect(await totalCollateralInVault()).to.equal(unclaimed1.add(unclaimed2).mul(1e12)) // TODO: missing a fee?
       expect((await vault.accounts(user.address)).shares).to.equal(0)
       expect((await vault.accounts(user2.address)).shares).to.equal(0)
-      expect(await vault.totalAssets()).to.equal(finalTotalAsset)
-      expect(await vault.totalShares()).to.equal(finalTotalShares)
+      expect(await vault.totalAssets()).to.equal(0)
+      expect(await vault.totalShares()).to.equal(0)
       expect((await vault.accounts(ethers.constants.AddressZero)).shares).to.equal(0)
-      expect(await vault.convertToAssets(finalTotalShares)).to.equal(finalTotalAsset)
-      expect(await vault.convertToShares(finalTotalAsset)).to.equal(finalTotalShares)
+      expect(await vault.convertToAssets(parse6decimal('1'))).to.equal(parse6decimal('1'))
+      expect(await vault.convertToShares(parse6decimal('1'))).to.equal(parse6decimal('1'))
       expect((await vault.accounts(user.address)).assets).to.equal(unclaimed1)
       expect((await vault.accounts(user2.address)).assets).to.equal(unclaimed2)
       expect((await vault.accounts(ethers.constants.AddressZero)).assets).to.equal(unclaimed1.add(unclaimed2))
@@ -1042,9 +1039,9 @@ describe('Vault', () => {
       await vault.connect(user).update(user.address, 0, 0, ethers.constants.MaxUint256)
       await vault.connect(user2).update(user2.address, 0, 0, ethers.constants.MaxUint256)
 
-      expect(await totalCollateralInVault()).to.equal(dust.mul(1e12))
-      expect(await vault.totalAssets()).to.equal(finalTotalAsset)
-      expect(await vault.totalShares()).to.equal(finalTotalShares)
+      expect(await totalCollateralInVault()).to.equal(0)
+      expect(await vault.totalAssets()).to.equal(0)
+      expect(await vault.totalShares()).to.equal(0)
       expect(await asset.balanceOf(user.address)).to.equal(
         parse6decimal('100000').add(unclaimed1).sub(parse6decimal('1000')).mul(1e12),
       )
@@ -1059,11 +1056,11 @@ describe('Vault', () => {
       await vault.connect(user).update(user.address, smallDeposit, 0, 0)
       await updateOracle()
       await vault.settle(user.address)
-      expect((await vault.accounts(user.address)).shares).to.equal(parse6decimal('995.6'))
-      expect(await vault.totalAssets()).to.equal(parse6decimal('995.6').add(dust))
-      expect((await vault.accounts(ethers.constants.AddressZero)).shares).to.equal(parse6decimal('995.6'))
-      expect(await vault.convertToAssets(parse6decimal('995.6'))).to.equal(parse6decimal('995.6').add(dust))
-      expect(await vault.convertToShares(parse6decimal('995.6').add(dust))).to.equal(parse6decimal('995.6'))
+      expect((await vault.accounts(user.address)).shares).to.equal(parse6decimal('1000'))
+      expect(await vault.totalAssets()).to.equal(parse6decimal('1000').add(0))
+      expect((await vault.accounts(ethers.constants.AddressZero)).shares).to.equal(parse6decimal('1000'))
+      expect(await vault.convertToAssets(parse6decimal('1000'))).to.equal(parse6decimal('1000').add(0))
+      expect(await vault.convertToShares(parse6decimal('1000').add(0))).to.equal(parse6decimal('1000'))
     })
 
     it('reverts when paused', async () => {

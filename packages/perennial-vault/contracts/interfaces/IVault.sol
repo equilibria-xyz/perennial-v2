@@ -13,7 +13,6 @@ import "../types/Registration.sol";
 interface IVault is IInstance {
     struct Context {
         // parameters
-        UFixed6 makerFee;
         UFixed6 settlementFee;
         UFixed6 minCollateral;
         uint256 totalWeight;
