@@ -106,8 +106,8 @@ describe('MarketFactory', () => {
         makerRewardRate: 0,
         longRewardRate: 0,
         shortRewardRate: 0,
+        staleAfter: 7200,
         makerReceiveOnly: false,
-        closed: false,
       }
 
       oracleFactory.instances.whenCalledWith(oracle.address).returns(true)
@@ -155,8 +155,8 @@ describe('MarketFactory', () => {
         makerRewardRate: 0,
         longRewardRate: 0,
         shortRewardRate: 0,
+        staleAfter: 7200,
         makerReceiveOnly: false,
-        closed: false,
       }
 
       oracleFactory.instances.whenCalledWith(oracle.address).returns(true)
@@ -203,8 +203,8 @@ describe('MarketFactory', () => {
         makerRewardRate: 0,
         longRewardRate: 0,
         shortRewardRate: 0,
+        staleAfter: 7200,
         makerReceiveOnly: false,
-        closed: false,
       }
 
       oracleFactory.instances.whenCalledWith(oracle.address).returns(true)
@@ -249,8 +249,8 @@ describe('MarketFactory', () => {
         makerRewardRate: 0,
         longRewardRate: 0,
         shortRewardRate: 0,
+        staleAfter: 7200,
         makerReceiveOnly: false,
-        closed: false,
       }
 
       oracleFactory.instances.whenCalledWith(oracle.address).returns(false)
@@ -295,8 +295,8 @@ describe('MarketFactory', () => {
         makerRewardRate: 0,
         longRewardRate: 0,
         shortRewardRate: 0,
+        staleAfter: 7200,
         makerReceiveOnly: false,
-        closed: false,
       }
 
       oracleFactory.instances.whenCalledWith(oracle.address).returns(true)

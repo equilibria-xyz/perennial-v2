@@ -17,14 +17,15 @@ import {
   expectVersionEq,
   parse6decimal,
 } from '../../../../common/testutil/types'
-import { IOracleProvider__factory, Market__factory } from '../../../types/generated'
+import { Market__factory } from '../../../types/generated'
 import { CHAINLINK_CUSTOM_CURRENCIES } from '@equilibria/perennial-v2-oracle/util/constants'
 import { buildChainlinkRoundId } from '@equilibria/perennial-v2-oracle/util/buildChainlinkRoundId'
 import { loadFixture } from '@nomicfoundation/hardhat-network-helpers'
 import { ChainlinkContext } from '../helpers/chainlinkHelpers'
 
-//TODO (coverage hint): invalid version test
+//TODO (coverage hint): invalid version
 //TODO (coverage hint): short tests
+//TODO (coverage hint): stale oracle
 
 export const TIMESTAMP_0 = 1631112429
 export const TIMESTAMP_1 = 1631112904
@@ -74,6 +75,7 @@ describe('Happy Path', () => {
       makerRewardRate: 0,
       longRewardRate: 0,
       shortRewardRate: 0,
+      staleAfter: 7200,
       makerReceiveOnly: false,
     }
     const parameter = {
@@ -1026,6 +1028,7 @@ describe('Happy Path', () => {
       shortRewardRate: incentizesOn ? parse6decimal('0.001') : 0,
       oracle: oracle.address,
       payoff: payoff.address,
+      staleAfter: 7200,
       makerReceiveOnly: false,
     }
     const parameter = {
@@ -1161,6 +1164,7 @@ describe('Happy Path', () => {
       shortRewardRate: incentizesOn ? parse6decimal('0.001') : 0,
       oracle: chainlink.oracle.address,
       payoff: payoff.address,
+      staleAfter: 7200,
       makerReceiveOnly: false,
     }
     const parameter = {

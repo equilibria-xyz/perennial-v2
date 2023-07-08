@@ -21,6 +21,7 @@ struct RiskParameter {
     UFixed6 shortRewardRate;
     UJumpRateUtilizationCurve6 utilizationCurve;
     PController6 pController;
+    uint256 staleAfter;
     bool makerReceiveOnly;
 }
 
@@ -45,7 +46,7 @@ struct StoredRiskParameter {
     uint24 takerSkewFee;                        // <= 1677%
     uint24 takerImpactFee;                      // <= 1677%
     uint24 makerImpactFee;                      // <= 1677%
-    bytes3 __unallocated__;
+    uint24 staleAfter;                          // <= 16m s
 }
 struct RiskParameterStorage { StoredRiskParameter value; }
 using RiskParameterStorageLib for RiskParameterStorage global;
@@ -76,6 +77,7 @@ library RiskParameterStorageLib {
                 UFixed6.wrap(uint256(value.pControllerK)),
                 UFixed6.wrap(uint256(value.pControllerMax))
             ),
+            uint256(value.staleAfter),
             value.makerReceiveOnly
         );
     }
@@ -97,6 +99,7 @@ library RiskParameterStorageLib {
         if (newValue.utilizationCurve.targetUtilization.gt(UFixed6.wrap(type(uint32).max))) revert RiskParameterStorageInvalidError();
         if (newValue.pController.k.gt(UFixed6.wrap(type(uint40).max))) revert RiskParameterStorageInvalidError();
         if (newValue.pController.max.gt(UFixed6.wrap(type(uint32).max))) revert RiskParameterStorageInvalidError();
+        if (newValue.staleAfter > uint256(type(uint24).max)) revert RiskParameterStorageInvalidError();
 
         self.value = StoredRiskParameter({
             maintenance: uint24(UFixed6.unwrap(newValue.maintenance)),
@@ -115,8 +118,8 @@ library RiskParameterStorageLib {
             utilizationCurveTargetUtilization: uint24(UFixed6.unwrap(newValue.utilizationCurve.targetUtilization)),
             pControllerK: uint40(UFixed6.unwrap(newValue.pController.k)),
             pControllerMax: uint32(UFixed6.unwrap(newValue.pController.max)),
-            makerReceiveOnly: newValue.makerReceiveOnly,
-            __unallocated__: bytes3(0)
+            staleAfter: uint24(newValue.staleAfter),
+            makerReceiveOnly: newValue.makerReceiveOnly
         });
     }
 }

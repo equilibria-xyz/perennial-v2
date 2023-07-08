@@ -219,6 +219,7 @@ export async function createMarket(
     makerRewardRate: 0,
     longRewardRate: 0,
     shortRewardRate: 0,
+    staleAfter: 7200,
     makerReceiveOnly: false,
   }
   const marketParameter = {

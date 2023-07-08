@@ -12,6 +12,7 @@ import HRE from 'hardhat'
 //TODO (coverage hint): makerReceiveOnly coverage
 //TODO (coverage hint): settlementFee/oracleFee/riskFee coverage
 //TODO (coverage hint): magic values
+//TODO (coverage hint): stale oracle
 
 import { impersonate } from '../../../../common/testutil'
 
@@ -262,6 +263,7 @@ describe('Market', () => {
       makerRewardRate: parse6decimal('0.3'),
       longRewardRate: parse6decimal('0.2'),
       shortRewardRate: parse6decimal('0.1'),
+      staleAfter: 7200,
       makerReceiveOnly: false,
     }
     marketParameter = {
@@ -308,6 +310,7 @@ describe('Market', () => {
       expect(riskParameterResult.pController.max).to.equal(riskParameter.pController.max)
       expect(riskParameterResult.makerRewardRate).to.equal(riskParameter.makerRewardRate)
       expect(riskParameterResult.shortRewardRate).to.equal(riskParameter.shortRewardRate)
+      expect(riskParameterResult.staleAfter).to.equal(riskParameter.staleAfter)
       expect(riskParameterResult.makerReceiveOnly).to.equal(riskParameter.makerReceiveOnly)
 
       const marketParameterResult = await market.parameter()
@@ -416,6 +419,7 @@ describe('Market', () => {
           makerRewardRate: parse6decimal('0.1'),
           longRewardRate: parse6decimal('0.1'),
           shortRewardRate: parse6decimal('0.1'),
+          staleAfter: 9600,
           makerReceiveOnly: true,
         }
 
@@ -442,6 +446,7 @@ describe('Market', () => {
         expect(riskParameter.pController.max).to.equal(newRiskParameter.pController.max)
         expect(riskParameter.makerRewardRate).to.equal(newRiskParameter.makerRewardRate)
         expect(riskParameter.shortRewardRate).to.equal(newRiskParameter.shortRewardRate)
+        expect(riskParameter.staleAfter).to.equal(newRiskParameter.staleAfter)
         expect(riskParameter.makerReceiveOnly).to.equal(newRiskParameter.makerReceiveOnly)
       })
 

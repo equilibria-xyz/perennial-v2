@@ -57,7 +57,7 @@ interface IMarket is IInstance {
     error MarketMakerOverLimitError();
     error MarketClosedError();
     error MarketCollateralBelowLimitError();
-    error MarketOperatorNotAllowed();
+    error MarketOperatorNotAllowedError();
     error MarketNotSingleSidedError();
     error MarketExceedsPendingIdLimitError();
     error MarketRewardAlreadySetError();
@@ -65,6 +65,7 @@ interface IMarket is IInstance {
     error MarketNotCoordinatorError();
     error MarketNotBeneficiaryError();
     error MarketMustCloseError();
+    error MarketStalePriceError();
 
     error GlobalStorageInvalidError();
     error LocalStorageInvalidError();

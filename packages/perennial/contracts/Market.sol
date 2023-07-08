@@ -396,7 +396,10 @@ contract Market is IMarket, Instance {
                 collateral.gte(Fixed6Lib.from(-1, _liquidationFee(context))) &&
                 !_collateralized(context, context.accountPosition)
             )                                                                                               // sender is liquidating this account
-        ) { if (LOG_REVERTS) console.log("MarketOperatorNotAllowed"); revert MarketOperatorNotAllowed(); }
+        ) { if (LOG_REVERTS) console.log("MarketOperatorNotAllowedError"); revert MarketOperatorNotAllowedError(); }
+
+        if (context.currentTimestamp - context.latestVersion.timestamp >= context.riskParameter.staleAfter)
+            { if (LOG_REVERTS) console.log("MarketStalePriceError"); revert MarketStalePriceError(); }
 
         if (context.marketParameter.closed && newOrder.increasesPosition())
             { if (LOG_REVERTS) console.log("MarketClosedError"); revert MarketClosedError(); }
