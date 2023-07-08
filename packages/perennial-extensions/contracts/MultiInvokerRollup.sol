@@ -16,11 +16,28 @@ contract MultiInvokerRollup is IMultiInvokerRollup, MultiInvoker {
     /// @dev Number of bytes in a uint8 type
     uint256 private constant UINT8_LENGTH = 1;
 
-    constructor() {
+    /// @dev Array of all stored addresses (users, products, vaults, etc) for calldata packing
+    address[] public addressCache;
 
-    }
+    /// @dev Index lookup of above array for constructing calldata
+    mapping(address => uint256) public addressLookup;
 
-    fallback(bytes calldata input) external returns(bytes memory) {
+    constructor(
+        Token6 usdc_,
+        Token18 dsu_,
+        IMarketFactory factory_,
+        IBatcher batcher_,
+        IEmptySetReserve reserve_,
+        AggregatorInterface ethOracle_
+    ) MultiInvoker (
+        usdc_,
+        dsu_,
+        factory_,
+        batcher_,
+        reserve_,
+        ethOracle_) {} // solhint-disable-line no-empty-blocks
+    
+    fallback(bytes calldata input) external returns(bytes memory) { // solhint-disable-line payable-fallback
         PTR memory ptr;
         decodeFallbackAndInvoke(input, ptr);
         return bytes("");
@@ -32,32 +49,26 @@ contract MultiInvokerRollup is IMultiInvokerRollup, MultiInvoker {
             
             if (action == PerennialAction.UPDATE_POSITION) {
                 // new maker new long new short new collateral\
-                address market = _readAndCacheAddress(input, ptr);
-                Fixed6 makerDelta = _readUFixed6(input, ptr);
-                Fixed6 longDelta = _readUFixed6(input, ptr);
-                Fixed6 shortDelta = _readUFixed6(input, ptr);
-                Fixed6 collateralDelta = _readFixed6(input, ptr);
-                bool handleWrap = _readBool(input, ptr);
+                (
+                    address market, 
+                    UFixed6 newMaker,
+                    UFixed6 newLong, 
+                    UFixed6 newShort, 
+                    Fixed6 collateral,
+                    bool handleWrap
+                ) = _readPosition(input, ptr);
 
-                (UFixed6 newMaker, UFixed6 longDelta, UFixed6 shortDelta)
-                    = _readAbsolutePosition(market, makerDelta, longDelta, shortDelta);
-
-                _update(msg.sender, newMaker, newLong, newShort, collateralDelta);
+                _update(market, newMaker, newLong, newShort, collateral, handleWrap);
             } else if (action == PerennialAction.PLACE_ORDER) {
                 address market = _readAndCacheAddress(input, ptr);
+                IKeeperManager.Order memory order = _readOrder(input, ptr);
 
-                IKeeperManager.Order memory order; 
-                (order.isLong, order.isLimit) = _readLimitAndLong(input, ptr);
-                order.maxFee = _readFixed6(input, ptr);
-                order.execPrice = _readFixed6(input, ptr);
-                order.size = _readUFixed6(input, ptr);
-
-                _placeOrder(msg.sender, market, order);
+                _placeOrder(market, order);
             } else if (action == PerennialAction.CANCEL_ORDER) {
                 address market = _readAndCacheAddress(input, ptr);
                 uint256 nonce = _readUint256(input, ptr);
 
-                keeper.cancelOrder(msg.sender, market, nonce);
+                _cancelOrder(market, nonce);
             } else if (action == PerennialAction.EXEC_ORDER) {
                 address account = _readAndCacheAddress(input, ptr);
                 address market = _readAndCacheAddress(input, ptr);
@@ -68,25 +79,19 @@ contract MultiInvokerRollup is IMultiInvokerRollup, MultiInvoker {
         }
     }
 
-    function _readAbolutePosition(
-        address market, 
-        Fixed6 makerDelta, 
-        Fixed6 longDelta, 
-        Fixed6 shortDelta
-    ) private view 
-      returns (UFixed6 newMaker, UFixed6 newLong, UFixed6 newShort) {
-        Position memory position = 
-            IMarket(market).pendingPositions(
-                msg.sender, 
-                IMarket(market).locals(msg.sender).currentId
-            );
+    /**
+     * @notice Unchecked sets address in cache
+     * @param value Address to add to cache
+     */
+    function _cacheAddress(address value) private {
+        uint256 index = addressCache.length;
+        addressCache.push(value);
+        addressLookup[value] = index;
 
-        newMaker = UFixed6Lib.from(Fixed6Lib.from(position.maker).add(makerDelta));
-        newLong = UFixed6Lib.from(Fixed6Lib.from(position.long).add(longDelta));
-        newShort = UFixed6Lib.from(Fixed6Lib.from(position.short).add(shortDelta));
+        emit AddressAddedToCache(value, index);
     }
 
-    function _readAndCacheAddress(bytes calldata input, PTR memory ptr) private returns (address addr) {
+    function _readAndCacheAddress(bytes calldata input, PTR memory ptr) private returns (address result) {
         uint8 len = _readUint8(input, ptr);
 
         // user is new to registry, add next 20 bytes as address to registry and return address
@@ -114,19 +119,47 @@ contract MultiInvokerRollup is IMultiInvokerRollup, MultiInvoker {
         if (result == address(0)) revert MultiInvokerRollupAddressIndexOutOfBoundsError();
     }
 
-    /**
-     * @notice Unchecked sets address in cache
-     * @param value Address to add to cache
-     */
-    function _cacheAddress(address value) private {
-        uint256 index = addressCache.length;
-        addressCache.push(value);
-        addressLookup[value] = index;
+    // @todo should this just be included in the action branch like v1 to prevent complex _readFN -> simple _readFN hirearchies like v1?
+    // if so, would make this "_readAbsolutePosition" to convert deltas to new position amounts
+    function _readPosition(bytes calldata input, PTR memory ptr)
+    private returns (
+        address market,
+        UFixed6 newMaker, 
+        UFixed6 newLong, 
+        UFixed6 newShort,
+        Fixed6 collateral,
+        bool handleWrap
+    ) {
+        market = _readAndCacheAddress(input, ptr);
+        Fixed6 makerDelta = _readFixed6(input, ptr);
+        Fixed6 longDelta = _readFixed6(input, ptr);
+        Fixed6 shortDelta = _readFixed6(input, ptr);
+        collateral = _readFixed6(input, ptr);
+        handleWrap = _readBool(input, ptr);
 
-        emit AddressAddedToCache(value, index);
+        Position memory position = 
+            IMarket(market).pendingPositions(
+                msg.sender, 
+                IMarket(market).locals(msg.sender).currentId
+            );
+
+        newMaker = UFixed6Lib.from(Fixed6Lib.from(position.maker).add(makerDelta));
+        newLong = UFixed6Lib.from(Fixed6Lib.from(position.long).add(longDelta));
+        newShort = UFixed6Lib.from(Fixed6Lib.from(position.short).add(shortDelta));
     }
 
+    /**
+     * @notice Helper function to get bool from calldata
+     * @param input Full calldata payload
+     * @param ptr Current index of input to start decoding
+     * @return result The decoded bool
+     */
+    function _readBool(bytes calldata input, PTR memory ptr) private pure returns (bool result) {
+        uint8 dir = _readUint8(input, ptr);
+        result = dir > 0;
+    }
 
+    // @todo should this just be included in the action branch like v1 to prevent complex _readFN -> simple _readFN hirearchies like v1?
     function _readOrder(bytes calldata input, PTR memory ptr) private pure returns (IKeeperManager.Order memory order) {
         (order.isLong, order.isLimit) = _readLimitAndLong(input, ptr);
         order.maxFee = _readFixed6(input, ptr);
@@ -155,7 +188,7 @@ contract MultiInvokerRollup is IMultiInvokerRollup, MultiInvoker {
     }
 
     function _readFixed6(bytes calldata input, PTR memory ptr) private pure returns (Fixed6 result) {
-        result = Fixed6.wrap(_readUint256(input, ptr));
+        result = Fixed6Lib.from(int256(_readUint256(input, ptr)));
     }
 
     /**

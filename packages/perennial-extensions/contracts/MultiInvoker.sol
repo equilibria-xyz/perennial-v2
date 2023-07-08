@@ -98,7 +98,7 @@ contract MultiInvoker is IMultiInvoker, KeeperManager {
                 (address market, IKeeperManager.Order memory order)
                     = abi.decode(invocation.args, (address, IKeeperManager.Order));
 
-                _placeOrder(msg.sender, market, order);
+                _placeOrder(market, order);
             } else if (invocation.action == PerennialAction.CANCEL_ORDER) {
                 (address market, uint256 _orderNonce) = abi.decode(invocation.args, (address, uint256));
 
