@@ -114,46 +114,24 @@ contract Market is IMarket, Instance {
         emit RewardUpdated(newReward);
     }
 
-    function claimProtocolFee() external {
+    function claimFee() external {
         Global memory newGlobal = _global.read();
 
-        address receiver = address(IMarketFactory(address(factory())).treasury());
-        token.push(receiver, UFixed18Lib.from(newGlobal.protocolFee));
-        emit FeeClaimed(receiver, newGlobal.protocolFee);
+        if (_claimFee(address(factory()), newGlobal.protocolFee)) newGlobal.protocolFee = UFixed6Lib.ZERO;
+        if (_claimFee(address(IMarketFactory(address(factory())).oracleFactory()), newGlobal.oracleFee))
+            newGlobal.oracleFee = UFixed6Lib.ZERO;
+        if (_claimFee(coordinator, newGlobal.riskFee)) newGlobal.riskFee = UFixed6Lib.ZERO;
+        if (_claimFee(beneficiary, newGlobal.donation)) newGlobal.donation = UFixed6Lib.ZERO;
 
-        newGlobal.protocolFee = UFixed6Lib.ZERO;
         _global.store(newGlobal);
     }
 
-    function claimOracleFee() external {
-        Global memory newGlobal = _global.read();
+    function _claimFee(address receiver, UFixed6 fee) private returns (bool) {
+        if (msg.sender != receiver) return false;
 
-        address receiver = address(IMarketFactory(address(factory())).oracleFactory());
-        token.push(receiver, UFixed18Lib.from(newGlobal.oracleFee));
-        emit FeeClaimed(receiver, newGlobal.oracleFee);
-
-        newGlobal.oracleFee = UFixed6Lib.ZERO;
-        _global.store(newGlobal);
-    }
-
-    function claimRiskFee() external onlyCoordinator {
-        Global memory newGlobal = _global.read();
-
-        token.push(coordinator, UFixed18Lib.from(newGlobal.riskFee));
-        emit FeeClaimed(coordinator, newGlobal.riskFee);
-
-        newGlobal.riskFee = UFixed6Lib.ZERO;
-        _global.store(newGlobal);
-    }
-
-    function claimDonation() external {
-        Global memory newGlobal = _global.read();
-
-        token.push(beneficiary, UFixed18Lib.from(newGlobal.donation));
-        emit FeeClaimed(beneficiary, newGlobal.donation);
-
-        newGlobal.donation = UFixed6Lib.ZERO;
-        _global.store(newGlobal);
+        token.push(receiver, UFixed18Lib.from(fee));
+        emit FeeClaimed(receiver, fee);
+        return true;
     }
 
     function claimReward() external {
@@ -279,9 +257,6 @@ contract Market is IMarket, Instance {
         context.local = _locals[account].read();
         context.accountPendingPosition = _pendingPositions[account][context.local.currentId].read();
         context.accountPosition = _positions[account].read();
-
-        _endGas(context);
-        _startGas(context, "_loadContext (oracle): %s");
 
         // oracle
         (context.latestVersion, context.currentTimestamp) = _oracleVersion();

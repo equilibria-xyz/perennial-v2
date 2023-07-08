@@ -10631,7 +10631,7 @@ describe('Market', () => {
       // TODO (coverage hint): payoff market
     })
 
-    describe('#claimFee', async () => {
+    describe.only('#claimFee', async () => {
       beforeEach(async () => {
         factory.treasury.returns(protocolTreasury.address)
 
