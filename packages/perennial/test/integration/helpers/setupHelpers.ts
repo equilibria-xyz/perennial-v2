@@ -194,7 +194,6 @@ export async function createMarket(
     name: name ?? 'Squeeth',
     symbol: symbol ?? 'SQTH',
     token: dsu.address,
-    reward: rewardToken.address,
     oracle: (oracleOverride ?? oracle).address,
     payoff: (payoff ?? instanceVars.payoff).address,
   }
@@ -236,6 +235,7 @@ export async function createMarket(
   const market = Market__factory.connect(marketAddress, owner)
   await market.updateParameter(marketParameter)
   await market.updateBeneficiary(beneficiaryB.address)
+  await market.updateReward(rewardToken.address)
 
   return market
 }

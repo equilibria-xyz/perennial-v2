@@ -16,7 +16,7 @@ struct RiskParameter {
     UFixed6 makerFee;
     UFixed6 makerImpactFee;
     UFixed6 makerLimit;
-    UFixed6 makerRewardRate;
+    UFixed6 makerRewardRate; // TODO: move to protocol parameter
     UFixed6 longRewardRate;
     UFixed6 shortRewardRate;
     UJumpRateUtilizationCurve6 utilizationCurve;

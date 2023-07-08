@@ -238,7 +238,6 @@ describe('Market', () => {
       name: 'Squeeth',
       symbol: 'SQTH',
       token: dsu.address,
-      reward: reward.address,
       oracle: oracle.address,
       payoff: constants.AddressZero,
     }
@@ -285,7 +284,6 @@ describe('Market', () => {
 
       expect(await market.factory()).to.equal(factory.address)
       expect(await market.token()).to.equal(dsu.address)
-      expect(await market.reward()).to.equal(reward.address)
       expect(await market.name()).to.equal(marketDefinition.name)
       expect(await market.symbol()).to.equal(marketDefinition.symbol)
       expect(await market.oracle()).to.equal(marketDefinition.oracle)
@@ -329,9 +327,7 @@ describe('Market', () => {
 
   describe('#updateReward', async () => {
     beforeEach(async () => {
-      const marketDefinitionNoReward = { ...marketDefinition }
-      marketDefinitionNoReward.reward = constants.AddressZero
-      await market.connect(factorySigner).initialize(marketDefinitionNoReward, riskParameter)
+      await market.connect(factorySigner).initialize(marketDefinition, riskParameter)
     })
 
     it('updates the reward', async () => {
@@ -361,6 +357,7 @@ describe('Market', () => {
     beforeEach(async () => {
       await market.connect(factorySigner).initialize(marketDefinition, riskParameter)
       await market.connect(owner).updateParameter(marketParameter)
+      await market.connect(owner).updateReward(reward.address)
     })
 
     describe('#updateParameter', async () => {

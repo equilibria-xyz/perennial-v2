@@ -70,7 +70,6 @@ contract Market is IMarket, Instance {
         name = definition_.name;
         symbol = definition_.symbol;
         token = definition_.token;
-        reward = definition_.reward;
         oracle = definition_.oracle;
         payoff = definition_.payoff;
         _updateRiskParameter(riskParameter_);
@@ -104,6 +103,7 @@ contract Market is IMarket, Instance {
     function updateParameter(MarketParameter memory newParameter) external onlyOwner {
         if (newParameter.oracleFee.add(newParameter.riskFee).gt(UFixed6Lib.ONE))
             revert MarketInvalidParameterError();
+        // TODO: if reward not set don't allow reward rate to be non-zero
 
         _parameter.store(newParameter);
         emit ParameterUpdated(newParameter);

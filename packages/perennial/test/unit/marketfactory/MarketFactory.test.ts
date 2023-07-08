@@ -29,7 +29,6 @@ describe('MarketFactory', () => {
   let oracleFactory: FakeContract<IOracleFactory>
   let oracle: FakeContract<IOracleProvider>
   let dsu: FakeContract<IERC20Metadata>
-  let reward: FakeContract<IERC20Metadata>
 
   let factory: MarketFactory
   let marketImpl: Market
@@ -39,7 +38,6 @@ describe('MarketFactory', () => {
     oracleFactory = await smock.fake<IOracleFactory>('IOracleFactory')
     oracle = await smock.fake<IOracleProvider>('IOracleProvider')
     dsu = await smock.fake<IERC20Metadata>('IERC20Metadata')
-    reward = await smock.fake<IERC20Metadata>('IERC20Metadata')
     payoffFactory = await smock.fake<IPayoffFactory>('IPayoffFactory')
     payoffProvider = await smock.fake<IPayoffProvider>('IPayoffProvider')
     marketImpl = await new Market__factory(owner).deploy()
@@ -80,7 +78,6 @@ describe('MarketFactory', () => {
         name: 'Squeeth',
         symbol: 'SQTH',
         token: dsu.address,
-        reward: reward.address,
         oracle: oracle.address,
         payoff: payoffProvider.address,
       }
@@ -130,7 +127,6 @@ describe('MarketFactory', () => {
         name: 'Squeeth',
         symbol: 'SQTH',
         token: dsu.address,
-        reward: reward.address,
         oracle: oracle.address,
         payoff: constants.AddressZero,
       }
@@ -179,7 +175,6 @@ describe('MarketFactory', () => {
         name: 'Squeeth',
         symbol: 'SQTH',
         token: dsu.address,
-        reward: reward.address,
         oracle: oracle.address,
         payoff: payoffProvider.address,
       }
@@ -226,7 +221,6 @@ describe('MarketFactory', () => {
         name: 'Squeeth',
         symbol: 'SQTH',
         token: dsu.address,
-        reward: reward.address,
         oracle: oracle.address,
         payoff: payoffProvider.address,
       }
@@ -273,7 +267,6 @@ describe('MarketFactory', () => {
         name: 'Squeeth',
         symbol: 'SQTH',
         token: dsu.address,
-        reward: reward.address,
         oracle: oracle.address,
         payoff: payoffProvider.address,
       }

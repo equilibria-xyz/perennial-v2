@@ -16,10 +16,9 @@ import "../types/Position.sol";
 
 interface IMarket is IInstance {
     struct MarketDefinition {
-        string name;
-        string symbol;
+        string name; // TODO: move to oracle / payoff?
+        string symbol; // TODO: move to oracle / payoff?
         Token18 token;
-        Token18 reward;
         IOracleProvider oracle;
         IPayoffProvider payoff;
     }

@@ -62,8 +62,6 @@ contract MarketFactory is IMarketFactory, Factory {
         IMarket.MarketDefinition calldata definition,
         RiskParameter calldata riskParameter
     ) external onlyOwner returns (IMarket newMarket) {
-        // TODO: lock down or use more of definition?
-
         // verify payoff
         if (definition.payoff != IPayoffProvider(address(0)) && !payoffFactory.payoffs(definition.payoff))
             revert FactoryInvalidPayoffError();
