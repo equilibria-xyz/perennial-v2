@@ -14,7 +14,7 @@ struct Position {
     UFixed6 long;
     UFixed6 short;
     UFixed6 fee; // TODO (gas hint): unused in the non-pending instances
-    UFixed6 keeper; // TODO (gas hint): only used in global non-pending instances
+    UFixed6 keeper; // TODO (gas hint): unused in the non-pending instances
     Fixed6 collateral;
     Fixed6 delta;
 }
@@ -38,10 +38,11 @@ struct StoredPositionLocal {
     uint8 _direction;
     uint48 _position;
     uint48 _fee;
-    uint256 _keeper; // TODO: pack better
     int48 _collateral;
-
     int48 _delta;
+
+    // TODO: pack better
+    uint48 _keeper;
 }
 struct PositionStorageLocal { StoredPositionLocal value; }
 using PositionStorageLocalLib for PositionStorageLocal global;
@@ -291,9 +292,9 @@ library PositionStorageLocalLib {
             uint8(newValue.long.isZero() ? (newValue.short.isZero() ? 0 : 2) : 1),
             uint48(UFixed6.unwrap(newValue.magnitude())),
             uint48(UFixed6.unwrap(newValue.fee)),
-            uint48(UFixed6.unwrap(newValue.keeper)),
             int48(Fixed6.unwrap(newValue.collateral)),
-            int48(Fixed6.unwrap(newValue.delta))
+            int48(Fixed6.unwrap(newValue.delta)),
+            uint48(UFixed6.unwrap(newValue.keeper))
         );
     }
 }
