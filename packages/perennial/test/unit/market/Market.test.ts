@@ -234,7 +234,6 @@ describe('Market', () => {
       takerSkewFee: 0,
       takerImpactFee: 0,
       makerFee: 0,
-      makerSkewFee: 0,
       makerImpactFee: 0,
       makerLimit: parse6decimal('1000'),
       utilizationCurve: {
@@ -285,7 +284,6 @@ describe('Market', () => {
       expect(riskParameterResult.takerSkewFee).to.equal(riskParameter.takerSkewFee)
       expect(riskParameterResult.takerImpactFee).to.equal(riskParameter.takerImpactFee)
       expect(riskParameterResult.makerFee).to.equal(riskParameter.makerFee)
-      expect(riskParameterResult.makerSkewFee).to.equal(riskParameter.makerSkewFee)
       expect(riskParameterResult.makerImpactFee).to.equal(riskParameter.makerImpactFee)
       expect(riskParameterResult.makerLimit).to.equal(riskParameter.makerLimit)
       expect(riskParameterResult.utilizationCurve.minRate).to.equal(riskParameter.utilizationCurve.minRate)
@@ -387,14 +385,11 @@ describe('Market', () => {
       it('updates the parameters', async () => {
         const newRiskParameter = {
           maintenance: parse6decimal('0.4'),
-
           takerFee: parse6decimal('0.1'),
           takerSkewFee: parse6decimal('0.04'),
           takerImpactFee: parse6decimal('0.03'),
           makerFee: parse6decimal('0.05'),
-          makerSkewFee: parse6decimal('0.02'),
           makerImpactFee: parse6decimal('0.01'),
-
           makerLiquidity: parse6decimal('0.1'),
           makerLimit: parse6decimal('2000'),
           utilizationCurve: {
@@ -424,7 +419,6 @@ describe('Market', () => {
         expect(riskParameter.takerSkewFee).to.equal(newRiskParameter.takerSkewFee)
         expect(riskParameter.takerImpactFee).to.equal(newRiskParameter.takerImpactFee)
         expect(riskParameter.makerFee).to.equal(newRiskParameter.makerFee)
-        expect(riskParameter.makerSkewFee).to.equal(newRiskParameter.makerSkewFee)
         expect(riskParameter.makerImpactFee).to.equal(newRiskParameter.makerImpactFee)
         expect(riskParameter.makerLimit).to.equal(newRiskParameter.makerLimit)
         expect(riskParameter.utilizationCurve.minRate).to.equal(newRiskParameter.utilizationCurve.minRate)

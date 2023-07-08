@@ -207,7 +207,6 @@ export async function createMarket(
     takerSkewFee: 0,
     takerImpactFee: 0,
     makerFee: 0,
-    makerSkewFee: 0,
     makerImpactFee: 0,
     makerLiquidity: parse6decimal('0.2'),
     makerLimit: parse6decimal('1000'),

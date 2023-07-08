@@ -14,9 +14,8 @@ struct RiskParameter {
     UFixed6 takerSkewFee;
     UFixed6 takerImpactFee;
     UFixed6 makerFee;
-    UFixed6 makerSkewFee;
     UFixed6 makerImpactFee;
-    UFixed6 makerLimit; // TODO: zero is uncapped
+    UFixed6 makerLimit;
     UFixed6 makerRewardRate;
     UFixed6 longRewardRate;
     UFixed6 shortRewardRate;
@@ -45,8 +44,8 @@ struct StoredRiskParameter {
     uint32 shortRewardRate;                     // <= 2147.48 / s
     uint24 takerSkewFee;                        // <= 1677%
     uint24 takerImpactFee;                      // <= 1677%
-    uint24 makerSkewFee;                        // <= 1677% // TODO: do we need both for makers
     uint24 makerImpactFee;                      // <= 1677%
+    bytes3 __unallocated__;
 }
 struct RiskParameterStorage { StoredRiskParameter value; }
 using RiskParameterStorageLib for RiskParameterStorage global;
@@ -62,7 +61,6 @@ library RiskParameterStorageLib {
             UFixed6.wrap(uint256(value.takerSkewFee)),
             UFixed6.wrap(uint256(value.takerImpactFee)),
             UFixed6.wrap(uint256(value.makerFee)),
-            UFixed6.wrap(uint256(value.makerSkewFee)),
             UFixed6.wrap(uint256(value.makerImpactFee)),
             UFixed6.wrap(uint256(value.makerLimit)),
             UFixed6.wrap(uint256(value.makerRewardRate)),
@@ -88,7 +86,6 @@ library RiskParameterStorageLib {
         if (newValue.takerSkewFee.gt(UFixed6.wrap(type(uint24).max))) revert RiskParameterStorageInvalidError();
         if (newValue.takerImpactFee.gt(UFixed6.wrap(type(uint24).max))) revert RiskParameterStorageInvalidError();
         if (newValue.makerFee.gt(UFixed6.wrap(type(uint24).max))) revert RiskParameterStorageInvalidError();
-        if (newValue.makerSkewFee.gt(UFixed6.wrap(type(uint24).max))) revert RiskParameterStorageInvalidError();
         if (newValue.makerImpactFee.gt(UFixed6.wrap(type(uint24).max))) revert RiskParameterStorageInvalidError();
         if (newValue.makerLimit.gt(UFixed6.wrap(type(uint48).max))) revert RiskParameterStorageInvalidError();
         if (newValue.makerRewardRate.gt(UFixed6.wrap(type(uint32).max))) revert RiskParameterStorageInvalidError();
@@ -107,7 +104,6 @@ library RiskParameterStorageLib {
             takerSkewFee: uint24(UFixed6.unwrap(newValue.takerSkewFee)),
             takerImpactFee: uint24(UFixed6.unwrap(newValue.takerImpactFee)),
             makerFee: uint24(UFixed6.unwrap(newValue.makerFee)),
-            makerSkewFee: uint24(UFixed6.unwrap(newValue.makerSkewFee)),
             makerImpactFee: uint24(UFixed6.unwrap(newValue.makerImpactFee)),
             makerLimit: uint48(UFixed6.unwrap(newValue.makerLimit)),
             makerRewardRate: uint32(UFixed6.unwrap(newValue.makerRewardRate)),
@@ -119,7 +115,8 @@ library RiskParameterStorageLib {
             utilizationCurveTargetUtilization: uint24(UFixed6.unwrap(newValue.utilizationCurve.targetUtilization)),
             pControllerK: uint40(UFixed6.unwrap(newValue.pController.k)),
             pControllerMax: uint32(UFixed6.unwrap(newValue.pController.max)),
-            makerReceiveOnly: newValue.makerReceiveOnly
+            makerReceiveOnly: newValue.makerReceiveOnly,
+            __unallocated__: bytes3(0)
         });
     }
 }
