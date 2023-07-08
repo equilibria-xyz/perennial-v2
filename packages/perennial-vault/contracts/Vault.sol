@@ -196,8 +196,20 @@ contract Vault is IVault, Instance {
         Context memory context = _loadContext(account);
 
         _settle(context);
+        _checkpoint(context);
         _update(context, account, depositAssets, redeemShares, claimAssets);
         _saveContext(context, account);
+    }
+
+    function _checkpoint(Context memory context) private {
+        context.currentId = context.global.current;
+        if (_mappings[context.currentId].read().next(context.currentIds)) {
+            context.currentId++;
+            context.currentCheckpoint.initialize(context.global, asset.balanceOf());
+            _mappings[context.currentId].store(context.currentIds);
+        } else {
+            context.currentCheckpoint = _checkpoints[context.currentId].read();
+        }
     }
 
     function _update(
@@ -208,6 +220,7 @@ contract Vault is IVault, Instance {
         UFixed6 claimAssets
     ) private {
         // TODO: move to invariant
+        // invariant
         if (msg.sender != account && !IVaultFactory(address(factory())).operators(account, msg.sender))
             revert VaultNotOperatorError();
         if (!depositAssets.add(redeemShares).add(claimAssets).eq(depositAssets.max(redeemShares).max(claimAssets)))
@@ -219,31 +232,23 @@ contract Vault is IVault, Instance {
         // magic values
         if (claimAssets.eq(UFixed6Lib.MAX)) claimAssets = context.local.assets;
 
-        // update current id
-        uint256 currentId = context.global.current;
-        if (_mappings[currentId].read().next(context.currentIds)) {
-            currentId++;
-            _mappings[currentId].store(context.currentIds);
-        }
-        context.currentCheckpoint = _checkpoints[currentId].read();
-        context.currentCheckpoint.initialize(context.global, asset.balanceOf()); // TODO: is this supposed to be at the start or end?
-
+        // asses fees
         (UFixed6 settlementFeeAssets, UFixed6 settlementFeeShares) = _settlementFee(context);
         UFixed6 depositAmount = depositAssets.sub(settlementFeeAssets);
         UFixed6 redemptionAmount = redeemShares.sub(settlementFeeShares);
         UFixed6 claimAmount = _socialize(context, claimAssets).sub(settlementFeeAssets);
 
-        context.global.update(currentId, claimAssets, redeemShares, depositAmount, redemptionAmount);
-        context.local.update(currentId, claimAssets, redeemShares, depositAmount, redemptionAmount);
-
+        // update positions
+        context.global.update(context.currentId, claimAssets, redeemShares, depositAmount, redemptionAmount);
+        context.local.update(context.currentId, claimAssets, redeemShares, depositAmount, redemptionAmount);
         context.currentCheckpoint.update(depositAmount, redemptionAmount);
-        _checkpoints[currentId].store(context.currentCheckpoint);
 
+        // manage assets
         asset.pull(msg.sender, UFixed18Lib.from(depositAssets));
         _manage(context, claimAmount, true);
         asset.push(msg.sender, UFixed18Lib.from(claimAmount));
 
-        emit Update(msg.sender, account, currentId, depositAssets, redeemShares, claimAssets);
+        emit Update(msg.sender, account, context.currentId, depositAssets, redeemShares, claimAssets);
     }
 
     function _settleUnderlying() private {
@@ -280,13 +285,13 @@ contract Vault is IVault, Instance {
             context.latestCheckpoint = _checkpoints[newLatestId].read();
             (Fixed6 collateralAtId, UFixed6 feeAtId) = _collateralAtId(context, newLatestId);
             context.latestCheckpoint.complete(collateralAtId, feeAtId);
-            _checkpoints[newLatestId].store(context.latestCheckpoint);
             context.global.process(
                 newLatestId,
                 context.latestCheckpoint,
                 context.latestCheckpoint.deposit,
                 context.latestCheckpoint.redemption
             );
+            _checkpoints[newLatestId].store(context.latestCheckpoint);
         }
 
         // settle local position
@@ -447,6 +452,7 @@ contract Vault is IVault, Instance {
     function _saveContext(Context memory context, address account) private {
         _accounts[address(0)].store(context.global);
         _accounts[account].store(context.local);
+        _checkpoints[context.currentId].store(context.currentCheckpoint);
     }
 
     /**

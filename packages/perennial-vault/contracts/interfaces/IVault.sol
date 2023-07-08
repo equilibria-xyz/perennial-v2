@@ -18,6 +18,7 @@ interface IVault is IInstance {
         uint256 totalWeight;
 
         // markets
+        uint256 currentId;
         MarketContext[] markets;
         Mapping currentIds;
         Mapping latestIds;

@@ -11,7 +11,6 @@ struct Checkpoint {
     UFixed6 shares;
     Fixed6 assets;
     UFixed6 fee;
-    bool initialized; // TODO: what is this used for?
 }
 using CheckpointLib for Checkpoint global;
 struct StoredCheckpoint {
@@ -19,8 +18,7 @@ struct StoredCheckpoint {
     uint48 _redemption;
     uint48 _shares;
     int48 _assets;
-    uint40 _fee;
-    bool _initialized;
+    uint48 _fee;
 }
 struct CheckpointStorage { StoredCheckpoint value; }
 using CheckpointStorageLib for CheckpointStorage global;
@@ -31,9 +29,7 @@ using CheckpointStorageLib for CheckpointStorage global;
  */
 library CheckpointLib {
     function initialize(Checkpoint memory self, Account memory global, UFixed18 balance) internal pure {
-        if (self.initialized) return;
-        (self.initialized, self.shares, self.assets) = (
-            true,
+        (self.shares, self.assets) = (
             global.shares,
             Fixed6Lib.from(UFixed6Lib.from(balance)).sub(Fixed6Lib.from(global.deposit.add(global.assets)))
         );
@@ -105,8 +101,7 @@ library CheckpointStorageLib {
             UFixed6.wrap(uint256(storedValue._redemption)),
             UFixed6.wrap(uint256(storedValue._shares)),
             Fixed6.wrap(int256(storedValue._assets)),
-            UFixed6.wrap(uint256(storedValue._fee)),
-            storedValue._initialized
+            UFixed6.wrap(uint256(storedValue._fee))
         );
     }
 
@@ -123,8 +118,7 @@ library CheckpointStorageLib {
             uint48(UFixed6.unwrap(newValue.redemption)),
             uint48(UFixed6.unwrap(newValue.shares)),
             int48(Fixed6.unwrap(newValue.assets)),
-            uint40(UFixed6.unwrap(newValue.fee)),
-            newValue.initialized
+            uint48(UFixed6.unwrap(newValue.fee))
         );
     }
 }
