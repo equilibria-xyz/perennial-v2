@@ -99,4 +99,6 @@ interface IMarket is IInstance {
     function riskParameter() external view returns (RiskParameter memory);
     function updateParameter(MarketParameter memory newParameter) external;
     function updateRiskParameter(RiskParameter memory newRiskParameter) external;
+    function claimFee() external;
+    function claimReward() external;
 }

@@ -40,6 +40,10 @@ contract MarketFactory is IMarketFactory, Factory {
         __Factory__initialize();
     }
 
+    function parameter() public view returns (ProtocolParameter memory) {
+        return _parameter.read();
+    }
+
     function updateParameter(ProtocolParameter memory newParameter) public onlyOwner {
         _parameter.store(newParameter);
         emit ParameterUpdated(newParameter);
@@ -78,7 +82,7 @@ contract MarketFactory is IMarketFactory, Factory {
         emit MarketCreated(newMarket, definition, riskParameter);
     }
 
-    function parameter() public view returns (ProtocolParameter memory) {
-        return _parameter.read();
+    function fund(IMarket market) external {
+        market.claimFee();
     }
 }
