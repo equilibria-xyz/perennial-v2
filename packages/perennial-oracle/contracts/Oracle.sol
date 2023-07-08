@@ -21,39 +21,45 @@ contract Oracle is IOracle, Instance {
     }
 
     function request() external onlyAuthorized {
-        (OracleVersion memory latestVersion, uint256 currentTimestamp) =
-            oracles[uint256(global.current)].provider.status();
+        (OracleVersion memory latestVersion, uint256 currentTimestamp) = oracles[global.current].provider.status();
 
-        oracles[uint256(global.current)].provider.request();
-        oracles[uint256(global.current)].timestamp = uint96(currentTimestamp);
+        oracles[global.current].provider.request();
+        oracles[global.current].timestamp = uint96(currentTimestamp);
         _updateLatest(latestVersion);
     }
 
-    function status() external view returns (OracleVersion memory, uint256) {
-        return (latest(), current());
+    function status() external view returns (OracleVersion memory latestVersion, uint256 currentTimestamp) {
+        (latestVersion, currentTimestamp) = oracles[global.current].provider.status();
+        _handleLatest(latestVersion);
     }
 
     function latest() public view returns (OracleVersion memory latestVersion) {
-        OracleVersion memory currentOracleLatestVersion = oracles[uint256(global.current)].provider.latest();
+        latestVersion = oracles[global.current].provider.latest();
+        _handleLatest(latestVersion);
+    }
 
-        uint256 latestOracle = _latestStale(currentOracleLatestVersion) ? uint256(global.current) : uint256(global.latest);
-        latestVersion = oracles[latestOracle].provider.latest();
+    function _handleLatest(OracleVersion memory latestVersion) private view {
+        if (global.current == global.latest) return;
 
-        if (
-            latestOracle != uint256(global.current) &&
-            latestVersion.timestamp > uint256(oracles[latestOracle].timestamp)
-        ) return at(uint256(oracles[latestOracle].timestamp));
+        bool isLatestStale = _latestStale(latestVersion);
+        if (!isLatestStale) latestVersion = oracles[global.latest].provider.latest();
+
+        uint256 latestOracleTimestamp =
+            uint256(isLatestStale ? oracles[global.current].timestamp : oracles[global.latest].timestamp);
+
+        if (!isLatestStale && latestVersion.timestamp > latestOracleTimestamp)
+            latestVersion = at(latestOracleTimestamp);
     }
 
     function current() public view returns (uint256) {
-        return oracles[uint256(global.current)].provider.current();
+        return oracles[global.current].provider.current();
     }
 
     function at(uint256 timestamp) public view returns (OracleVersion memory atVersion) {
         if (timestamp == 0) return atVersion;
 
-        IOracleProvider provider = oracles[uint256(global.current)].provider;
-        for (uint256 i = uint256(global.current) - 1; i > 0; i--) {
+        IOracleProvider provider = oracles[global.current].provider;
+        for (uint256 i = global.current - 1; i > 0; i--) {
             if (timestamp > uint256(oracles[i].timestamp)) break;
             provider = oracles[i].provider;
         }
@@ -72,9 +78,11 @@ contract Oracle is IOracle, Instance {
 
     function _latestStale(OracleVersion memory currentOracleLatestVersion) private view returns (bool) {
         if (global.current == global.latest) return false;
-        uint256 latestTimestamp = uint256(global.latest) == 0 ? 0 : oracles[uint256(global.latest)].provider.latest().timestamp;
-        if (uint256(oracles[uint256(global.latest)].timestamp) > latestTimestamp) return false;
-        if (uint256(oracles[uint256(global.latest)].timestamp) >= currentOracleLatestVersion.timestamp) return false;
+
+        uint256 latestTimestamp = global.latest == 0 ? 0 : oracles[global.latest].provider.latest().timestamp;
+        if (uint256(oracles[global.latest].timestamp) > latestTimestamp) return false;
+        if (uint256(oracles[global.latest].timestamp) >= currentOracleLatestVersion.timestamp) return false;
+
         return true;
     }
 

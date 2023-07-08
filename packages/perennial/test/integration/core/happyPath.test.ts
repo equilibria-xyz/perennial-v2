@@ -1172,14 +1172,9 @@ describe('Happy Path', () => {
       closed: false,
     }
 
-    const market = await createMarket(
-      instanceVars,
-      'Squeeth',
-      'SQTH',
-      IOracleProvider__factory.connect(chainlink.oracle.address, owner),
-    )
-    await market.connect(owner).updateParameter(parameter)
-    await market.connect(owner).updateRiskParameter(riskParameter)
+    const market = await createMarket(instanceVars)
+    await market.updateParameter(parameter)
+    await market.updateRiskParameter(riskParameter)
 
     await dsu.connect(user).approve(market.address, COLLATERAL.mul(2).mul(1e12))
     await dsu.connect(userB).approve(market.address, COLLATERAL.mul(2).mul(1e12))

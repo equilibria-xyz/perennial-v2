@@ -89,6 +89,8 @@ export class ChainlinkContext {
     this.currentRoundId = this.initialRoundId
     this.latestRoundId = this.initialRoundId
 
+    this.oracle.at.reset()
+
     await this.next()
   }
 }

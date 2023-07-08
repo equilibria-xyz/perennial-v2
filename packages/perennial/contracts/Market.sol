@@ -280,6 +280,9 @@ contract Market is IMarket, Instance {
         context.accountPendingPosition = _pendingPositions[account][context.local.currentId].read();
         context.accountPosition = _positions[account].read();
 
+        _endGas(context);
+        _startGas(context, "_loadContext (oracle): %s");
+
         // oracle
         (context.latestVersion, context.currentTimestamp) = _oracleVersion();
         context.positionVersion = _oracleVersionAtPosition(context, context.position);
