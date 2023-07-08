@@ -46,7 +46,6 @@ export interface InstanceVars {
   userB: SignerWithAddress
   userC: SignerWithAddress
   userD: SignerWithAddress
-  treasuryA: SignerWithAddress
   beneficiaryB: SignerWithAddress
   proxyAdmin: ProxyAdmin
   oracleFactory: OracleFactory
@@ -63,7 +62,7 @@ export interface InstanceVars {
 }
 
 export async function deployProtocol(): Promise<InstanceVars> {
-  const [owner, pauser, user, userB, userC, userD, treasuryA, beneficiaryB] = await ethers.getSigners()
+  const [owner, pauser, user, userB, userC, userD, beneficiaryB] = await ethers.getSigners()
 
   const payoff = await IPayoffProvider__factory.connect((await new PowerTwo__factory(owner).deploy()).address, owner)
   const dsu = await IERC20Metadata__factory.connect((await deployments.get('DSU')).address, owner)
@@ -122,7 +121,6 @@ export async function deployProtocol(): Promise<InstanceVars> {
 
   // Params
   await marketFactory.updatePauser(pauser.address)
-  await marketFactory.updateTreasury(treasuryA.address)
   await marketFactory.updateParameter({
     protocolFee: parse6decimal('0.50'),
     liquidationFee: parse6decimal('0.50'),
@@ -156,7 +154,6 @@ export async function deployProtocol(): Promise<InstanceVars> {
     userB,
     userC,
     userD,
-    treasuryA,
     beneficiaryB,
     chainlink,
     payoff,

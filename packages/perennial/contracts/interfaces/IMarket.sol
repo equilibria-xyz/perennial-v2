@@ -44,6 +44,7 @@ interface IMarket is IInstance {
 
     event Updated(address indexed account, uint256 version, UFixed6 newMaker, UFixed6 newLong, UFixed6 newShort, Fixed6 collateral, bool protect);
     event BeneficiaryUpdated(address newBeneficiary);
+    event CoordinatorUpdated(address newCoordinator);
     event FeeClaimed(address indexed account, UFixed6 amount);
     event RewardClaimed(address indexed account, UFixed6 amount);
     event ParameterUpdated(MarketParameter newParameter);
@@ -81,6 +82,7 @@ interface IMarket is IInstance {
     function oracle() external view returns (IOracleProvider);
     function payoff() external view returns (IPayoffProvider);
     function beneficiary() external view returns (address);
+    function coordinator() external view returns (address);
     function at(uint256 version) external view returns (OracleVersion memory);
     function positions(address account) external view returns (Position memory);
     function pendingPositions(address account, uint256 id) external view returns (Position memory);
@@ -91,6 +93,7 @@ interface IMarket is IInstance {
     function global() external view returns (Global memory);
     function update(address account, UFixed6 newMaker, UFixed6 newLong, UFixed6 newShort, Fixed6 collateral, bool protect) external;
     function updateBeneficiary(address newBeneficiary) external;
+    function updateCoordinator(address newCoordinator) external;
     function updateReward(Token18 newReward) external;
     function parameter() external view returns (MarketParameter memory);
     function riskParameter() external view returns (RiskParameter memory);

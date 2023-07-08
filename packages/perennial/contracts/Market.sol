@@ -96,6 +96,11 @@ contract Market is IMarket, Instance {
         emit BeneficiaryUpdated(newBeneficiary);
     }
 
+    function updateCoordinator(address newCoordinator) external onlyOwner {
+        coordinator = newCoordinator;
+        emit CoordinatorUpdated(newCoordinator);
+    }
+
     function updateParameter(MarketParameter memory newParameter) external onlyOwner {
         if (newParameter.oracleFee.add(newParameter.riskFee).gt(UFixed6Lib.ONE))
             revert MarketInvalidParameterError();
@@ -477,11 +482,6 @@ contract Market is IMarket, Instance {
 
     modifier onlyCoordinator {
         if (msg.sender != coordinator && msg.sender != factory().owner()) revert MarketNotCoordinatorError();
-        _;
-    }
-
-    modifier onlyBeneficiary {
-        if (msg.sender != beneficiary && msg.sender != factory().owner()) revert MarketNotBeneficiaryError();
         _;
     }
 

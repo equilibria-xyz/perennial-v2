@@ -9,7 +9,7 @@ const config = defaultConfig({
           enabled: OPTIMIZER_ENABLED,
           runs: 1,
         },
-        viaIR: true,
+        viaIR: OPTIMIZER_ENABLED,
       },
     },
   },

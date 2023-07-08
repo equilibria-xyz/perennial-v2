@@ -56,7 +56,6 @@ describe('MarketFactory', () => {
       expect(await factory.payoffFactory()).to.equal(payoffFactory.address)
       expect(await factory.implementation()).to.equal(marketImpl.address)
       expect(await factory.owner()).to.equal(owner.address)
-      expect(await factory.treasury()).to.equal(owner.address)
       expect(await factory.pauser()).to.equal(constants.AddressZero)
 
       const parameter = await factory.parameter()
@@ -72,22 +71,6 @@ describe('MarketFactory', () => {
       await expect(factory.initialize())
         .to.be.revertedWithCustomError(factory, 'UInitializableAlreadyInitializedError')
         .withArgs(1)
-    })
-  })
-
-  describe('#updateTreasury', async () => {
-    it('updates the treasury', async () => {
-      await expect(factory.connect(owner).updateTreasury(treasury.address))
-        .to.emit(factory, 'TreasuryUpdated')
-        .withArgs(treasury.address)
-      expect(await factory.treasury()).to.equal(treasury.address)
-    })
-
-    it('reverts if not owner', async () => {
-      await expect(factory.connect(user).updateTreasury(treasury.address)).to.be.revertedWithCustomError(
-        factory,
-        'UOwnableNotOwnerError',
-      )
     })
   })
 

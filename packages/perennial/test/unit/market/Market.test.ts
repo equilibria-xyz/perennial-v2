@@ -191,7 +191,9 @@ describe('Market', () => {
   let userC: SignerWithAddress
   let liquidator: SignerWithAddress
   let operator: SignerWithAddress
+  let coordinator: SignerWithAddress
   let factorySigner: SignerWithAddress
+  let oracleFactorySigner: SignerWithAddress
   let factory: FakeContract<IMarketFactory>
   let oracle: FakeContract<IOracleProvider>
   let dsu: FakeContract<IERC20Metadata>
@@ -203,7 +205,18 @@ describe('Market', () => {
   let marketParameter: MarketParameterStruct
 
   beforeEach(async () => {
-    ;[protocolTreasury, owner, beneficiary, user, userB, userC, liquidator, operator] = await ethers.getSigners()
+    ;[
+      protocolTreasury,
+      owner,
+      beneficiary,
+      user,
+      userB,
+      userC,
+      liquidator,
+      operator,
+      coordinator,
+      oracleFactorySigner,
+    ] = await ethers.getSigners()
     oracle = await smock.fake<IOracleProvider>('IOracleProvider')
     dsu = await smock.fake<IERC20Metadata>('IERC20Metadata')
     reward = await smock.fake<IERC20Metadata>('IERC20Metadata')
@@ -219,6 +232,7 @@ describe('Market', () => {
       settlementFee: parse6decimal('0.00'),
       maxPendingIds: 5,
     })
+    factory.oracleFactory.returns(oracleFactorySigner.address)
 
     marketDefinition = {
       name: 'Squeeth',
@@ -10631,9 +10645,19 @@ describe('Market', () => {
       // TODO (coverage hint): payoff market
     })
 
-    describe.only('#claimFee', async () => {
+    describe('#claimFee', async () => {
+      const FEE = EXPECTED_FUNDING_FEE_1_5_123.add(EXPECTED_INTEREST_FEE_5_123).sub(5) // loss of precision
+      const PROTOCOL_FEE = FEE.div(2)
+      const MARKET_FEE = FEE.sub(PROTOCOL_FEE)
+      const ORACLE_FEE = MARKET_FEE.div(10)
+      const RISK_FEE = MARKET_FEE.div(5)
+      const DONATION = MARKET_FEE.sub(ORACLE_FEE).sub(RISK_FEE)
+
       beforeEach(async () => {
-        factory.treasury.returns(protocolTreasury.address)
+        const marketParameter = { ...(await market.parameter()) }
+        marketParameter.riskFee = parse6decimal('0.2')
+        marketParameter.oracleFee = parse6decimal('0.1')
+        await market.updateParameter(marketParameter)
 
         oracle.at.whenCalledWith(ORACLE_VERSION_0.timestamp).returns(ORACLE_VERSION_0)
 
@@ -10656,54 +10680,73 @@ describe('Market', () => {
         await settle(market, userB)
 
         await market.updateBeneficiary(beneficiary.address)
+        await market.updateCoordinator(coordinator.address)
       })
 
       it('claims fee (protocol)', async () => {
-        dsu.transfer
-          .whenCalledWith(
-            protocolTreasury.address,
-            EXPECTED_FUNDING_FEE_1_5_123.add(EXPECTED_INTEREST_FEE_5_123).div(2).sub(3).mul(1e12),
-          ) // loss of precision
-          .returns(true)
+        dsu.transfer.whenCalledWith(factory.address, PROTOCOL_FEE.mul(1e12)).returns(true)
 
-        await expect(market.connect(protocolTreasury).claimProtocolFee())
+        await expect(market.connect(factorySigner).claimFee())
           .to.emit(market, 'FeeClaimed')
-          .withArgs(
-            protocolTreasury.address,
-            EXPECTED_FUNDING_FEE_1_5_123.add(EXPECTED_INTEREST_FEE_5_123).div(2).sub(3),
-          )
+          .withArgs(factory.address, PROTOCOL_FEE)
 
         expect((await market.global()).protocolFee).to.equal(0)
-        expect((await market.global()).donation).to.equal(
-          EXPECTED_FUNDING_FEE_1_5_123.add(EXPECTED_INTEREST_FEE_5_123).div(2).sub(2),
-        ) // loss of precision
+        expect((await market.global()).oracleFee).to.equal(ORACLE_FEE)
+        expect((await market.global()).riskFee).to.equal(RISK_FEE)
+        expect((await market.global()).donation).to.equal(DONATION)
+      })
+
+      it('claims fee (oracle)', async () => {
+        dsu.transfer.whenCalledWith(oracleFactorySigner.address, ORACLE_FEE.mul(1e12)).returns(true)
+
+        await expect(market.connect(oracleFactorySigner).claimFee())
+          .to.emit(market, 'FeeClaimed')
+          .withArgs(oracleFactorySigner.address, ORACLE_FEE)
+
+        expect((await market.global()).protocolFee).to.equal(PROTOCOL_FEE)
+        expect((await market.global()).oracleFee).to.equal(0)
+        expect((await market.global()).riskFee).to.equal(RISK_FEE)
+        expect((await market.global()).donation).to.equal(DONATION)
+      })
+
+      it('claims fee (risk)', async () => {
+        dsu.transfer.whenCalledWith(coordinator.address, RISK_FEE.mul(1e12)).returns(true)
+
+        await expect(market.connect(coordinator).claimFee())
+          .to.emit(market, 'FeeClaimed')
+          .withArgs(coordinator.address, RISK_FEE)
+
+        expect((await market.global()).protocolFee).to.equal(PROTOCOL_FEE)
+        expect((await market.global()).oracleFee).to.equal(ORACLE_FEE)
+        expect((await market.global()).riskFee).to.equal(0)
+        expect((await market.global()).donation).to.equal(DONATION)
       })
 
       it('claims fee (donation)', async () => {
-        dsu.transfer
-          .whenCalledWith(
-            beneficiary.address,
-            EXPECTED_FUNDING_FEE_1_5_123.add(EXPECTED_INTEREST_FEE_5_123).div(2).sub(2).mul(1e12),
-          )
-          .returns(true)
+        dsu.transfer.whenCalledWith(beneficiary.address, DONATION.mul(1e12)).returns(true)
 
-        await expect(market.connect(beneficiary).claimDonation())
+        await expect(market.connect(beneficiary).claimFee())
           .to.emit(market, 'FeeClaimed')
-          .withArgs(beneficiary.address, EXPECTED_FUNDING_FEE_1_5_123.add(EXPECTED_INTEREST_FEE_5_123).div(2).sub(2))
+          .withArgs(beneficiary.address, DONATION)
 
-        expect((await market.global()).protocolFee).to.equal(
-          EXPECTED_FUNDING_FEE_1_5_123.add(EXPECTED_INTEREST_FEE_5_123).div(2).sub(3),
-        ) // loss of precision
+        expect((await market.global()).protocolFee).to.equal(PROTOCOL_FEE)
+        expect((await market.global()).oracleFee).to.equal(ORACLE_FEE)
+        expect((await market.global()).riskFee).to.equal(RISK_FEE)
         expect((await market.global()).donation).to.equal(0)
       })
 
-      // TODO: revert when not correct role or remove if consolidated
+      it('claims fee (none)', async () => {
+        await market.connect(user).claimFee()
+
+        expect((await market.global()).protocolFee).to.equal(PROTOCOL_FEE)
+        expect((await market.global()).oracleFee).to.equal(ORACLE_FEE)
+        expect((await market.global()).riskFee).to.equal(RISK_FEE)
+        expect((await market.global()).donation).to.equal(DONATION)
+      })
     })
 
     describe('#claimReward', async () => {
       beforeEach(async () => {
-        factory.treasury.returns(protocolTreasury.address)
-
         oracle.at.whenCalledWith(ORACLE_VERSION_0.timestamp).returns(ORACLE_VERSION_0)
 
         oracle.at.whenCalledWith(ORACLE_VERSION_1.timestamp).returns(ORACLE_VERSION_1)
