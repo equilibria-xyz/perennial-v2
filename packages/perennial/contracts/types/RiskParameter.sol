@@ -23,6 +23,9 @@ struct RiskParameter {
     PController6 pController;
     uint256 staleAfter;
     bool makerReceiveOnly;
+    // TODO: closeToSocializeMaker
+    // TODO: closeToSocializeTaker
+    // TODO: takerLimit
 }
 
 struct StoredRiskParameter {

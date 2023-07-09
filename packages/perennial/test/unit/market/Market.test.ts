@@ -10188,7 +10188,7 @@ describe('Market', () => {
           it('reverts if under collateral limit', async () => {
             dsu.transferFrom.whenCalledWith(user.address, market.address, utils.parseEther('1')).returns(true)
             await expect(
-              market.connect(user).update(user.address, 0, 0, 0, parse6decimal('1'), false),
+              market.connect(user).update(user.address, 1, 0, 0, parse6decimal('99'), false),
             ).to.be.revertedWithCustomError(market, 'MarketCollateralBelowLimitError')
           })
 

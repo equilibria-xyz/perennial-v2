@@ -383,19 +383,21 @@ contract Market is IMarket, Instance {
         Fixed6 collateral,
         bool protected
     ) private view {
-        // TODO: protected has too many rights -- should we require latest be undercollateralized? (how do minCollateral closes work then?)
-        // TODO(idea): xor protected and accountPosition.collateralized
-        // TODO(idea): if you include the collateral delta in the accountPosition collateralization check, it gives better guarentees
+        if (protected && (
+            !context.accountPendingPosition.magnitude().isZero() ||
+            context.accountPosition.collateralized(
+                context.latestVersion,
+                context.riskParameter,
+                context.local.collateral.sub(collateral)
+            ) ||
+            collateral.lt(Fixed6Lib.from(-1, _liquidationFee(context)))
+        )) { if (LOG_REVERTS) console.log("MarketInvalidProtectionError"); revert MarketInvalidProtectionError(); }
 
         if (
             msg.sender != account &&                                                                        // sender is operating on own account
             !IMarketFactory(address(factory())).operators(account, msg.sender) &&                           // sender is operating on own account
-            !(newOrder.isEmpty() && context.local.collateral.isZero() && collateral.gt(Fixed6Lib.ZERO)) &&  // sender is repaying shortfall for this account
-            !(
-                protected &&
-                collateral.gte(Fixed6Lib.from(-1, _liquidationFee(context))) &&
-                !_collateralized(context, context.accountPosition)
-            )                                                                                               // sender is liquidating this account
+            !protected &&                                                                                   // sender is liquidating this account
+            !(newOrder.isEmpty() && context.local.collateral.isZero() && collateral.gt(Fixed6Lib.ZERO))     // sender is repaying shortfall for this account
         ) { if (LOG_REVERTS) console.log("MarketOperatorNotAllowedError"); revert MarketOperatorNotAllowedError(); }
 
         if (context.currentTimestamp - context.latestVersion.timestamp >= context.riskParameter.staleAfter)
@@ -404,8 +406,27 @@ contract Market is IMarket, Instance {
         if (context.marketParameter.closed && newOrder.increasesPosition())
             { if (LOG_REVERTS) console.log("MarketClosedError"); revert MarketClosedError(); }
 
-        if (protected && (!context.accountPendingPosition.magnitude().isZero()))
-            { if (LOG_REVERTS) console.log("MarketMustCloseError"); revert MarketMustCloseError(); }
+        if (context.local.belowLimit(context.protocolParameter) && (!context.accountPendingPosition.magnitude().isZero()))
+            { if (LOG_REVERTS) console.log("MarketCollateralBelowLimitError"); revert MarketCollateralBelowLimitError(); }
+
+        if (context.pendingPosition.maker.gt(context.riskParameter.makerLimit))
+            { if (LOG_REVERTS) console.log("MarketMakerOverLimitError"); revert MarketMakerOverLimitError(); }
+
+        if (!context.accountPendingPosition.singleSided())
+            { if (LOG_REVERTS) console.log("MarketNotSingleSidedError"); revert MarketNotSingleSidedError(); }
+
+        if (!_collateralized(context, context.accountPendingPosition))
+        { if (LOG_REVERTS) console.log("MarketInsufficientCollateralizationError2"); revert MarketInsufficientCollateralizationError(); }
+
+        if (!protected && context.global.currentId > context.position.id + context.protocolParameter.maxPendingIds)
+            { if (LOG_REVERTS) console.log("MarketExceedsPendingIdLimitError"); revert MarketExceedsPendingIdLimitError(); }
+
+        if (!protected && !_collateralized(context, context.accountPosition))
+            { if (LOG_REVERTS) console.log("MarketInsufficientCollateralizationError1"); revert MarketInsufficientCollateralizationError(); }
+
+        for (uint256 id = context.accountPosition.id + 1; id < context.local.currentId; id++)
+            if (!protected && !_collateralized(context, _pendingPositions[account][id].read()))
+                { if (LOG_REVERTS) console.log("MarketInsufficientCollateralizationError3"); revert MarketInsufficientCollateralizationError(); }
 
         if (
             !protected &&
@@ -419,28 +440,6 @@ contract Market is IMarket, Instance {
             context.pendingPosition.socialized() &&
             newOrder.decreasesLiquidity()
         ) { if (LOG_REVERTS) console.log("MarketInsufficientLiquidityError"); revert MarketInsufficientLiquidityError(); }
-
-        if (context.pendingPosition.maker.gt(context.riskParameter.makerLimit))
-            { if (LOG_REVERTS) console.log("MarketMakerOverLimitError"); revert MarketMakerOverLimitError(); }
-
-        if (!context.accountPendingPosition.singleSided())
-            { if (LOG_REVERTS) console.log("MarketNotSingleSidedError"); revert MarketNotSingleSidedError(); }
-
-        if (!protected && context.global.currentId > context.position.id + context.protocolParameter.maxPendingIds)
-            { if (LOG_REVERTS) console.log("MarketExceedsPendingIdLimitError"); revert MarketExceedsPendingIdLimitError(); }
-
-        if (!protected && !_collateralized(context, context.accountPosition))
-            { if (LOG_REVERTS) console.log("MarketInsufficientCollateralizationError1"); revert MarketInsufficientCollateralizationError(); }
-
-        if (!_collateralized(context, context.accountPendingPosition))
-            { if (LOG_REVERTS) console.log("MarketInsufficientCollateralizationError2"); revert MarketInsufficientCollateralizationError(); }
-
-        for (uint256 id = context.accountPosition.id + 1; id < context.local.currentId; id++)
-            if (!protected && !_collateralized(context, _pendingPositions[account][id].read()))
-                { if (LOG_REVERTS) console.log("MarketInsufficientCollateralizationError3"); revert MarketInsufficientCollateralizationError(); }
-
-        if (!protected && context.local.belowLimit(context.protocolParameter))
-            { if (LOG_REVERTS) console.log("MarketCollateralBelowLimitError"); revert MarketCollateralBelowLimitError(); }
 
         if (!protected && collateral.lt(Fixed6Lib.ZERO) && context.local.collateral.lt(Fixed6Lib.ZERO))
             { if (LOG_REVERTS) console.log("MarketInsufficientCollateralError"); revert MarketInsufficientCollateralError(); }
