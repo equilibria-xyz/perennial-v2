@@ -5313,6 +5313,10 @@ describe('Market', () => {
               })
 
               it('opens the position and settles later', async () => {
+                const riskParameter = { ...(await market.riskParameter()) }
+                riskParameter.staleAfter = BigNumber.from(9600)
+                await market.connect(owner).updateRiskParameter(riskParameter)
+
                 await expect(market.connect(user).update(user.address, 0, 0, POSITION.div(2), COLLATERAL, false))
                   .to.emit(market, 'Updated')
                   .withArgs(user.address, ORACLE_VERSION_2.timestamp, 0, 0, POSITION.div(2), COLLATERAL, false)
@@ -10639,7 +10643,7 @@ describe('Market', () => {
             factory.operators.whenCalledWith(user.address, operator.address).returns(false)
             await expect(
               market.connect(operator).update(user.address, POSITION, 0, 0, COLLATERAL, false),
-            ).to.be.revertedWithCustomError(market, 'MarketOperatorNotAllowed')
+            ).to.be.revertedWithCustomError(market, 'MarketOperatorNotAllowedError')
           })
         })
       })
