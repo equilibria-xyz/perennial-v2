@@ -406,9 +406,6 @@ contract Market is IMarket, Instance {
         if (context.marketParameter.closed && newOrder.increasesPosition())
             { if (LOG_REVERTS) console.log("MarketClosedError"); revert MarketClosedError(); }
 
-        if (context.local.belowLimit(context.protocolParameter) && (!context.accountPendingPosition.magnitude().isZero()))
-            { if (LOG_REVERTS) console.log("MarketCollateralBelowLimitError"); revert MarketCollateralBelowLimitError(); }
-
         if (context.pendingPosition.maker.gt(context.riskParameter.makerLimit))
             { if (LOG_REVERTS) console.log("MarketMakerOverLimitError"); revert MarketMakerOverLimitError(); }
 
@@ -416,7 +413,7 @@ contract Market is IMarket, Instance {
             { if (LOG_REVERTS) console.log("MarketNotSingleSidedError"); revert MarketNotSingleSidedError(); }
 
         if (!_collateralized(context, context.accountPendingPosition))
-        { if (LOG_REVERTS) console.log("MarketInsufficientCollateralizationError2"); revert MarketInsufficientCollateralizationError(); }
+            { if (LOG_REVERTS) console.log("MarketInsufficientCollateralizationError2"); revert MarketInsufficientCollateralizationError(); }
 
         if (!protected && context.global.currentId > context.position.id + context.protocolParameter.maxPendingIds)
             { if (LOG_REVERTS) console.log("MarketExceedsPendingIdLimitError"); revert MarketExceedsPendingIdLimitError(); }

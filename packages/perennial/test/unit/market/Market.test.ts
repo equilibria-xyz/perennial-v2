@@ -229,7 +229,6 @@ describe('Market', () => {
       protocolFee: parse6decimal('0.50'),
       liquidationFee: parse6decimal('0.10'),
       maxLiquidationFee: parse6decimal('1000'),
-      minCollateral: parse6decimal('100'),
       settlementFee: parse6decimal('0.00'),
       maxPendingIds: 5,
     })
@@ -263,6 +262,7 @@ describe('Market', () => {
       makerRewardRate: parse6decimal('0.3'),
       longRewardRate: parse6decimal('0.2'),
       shortRewardRate: parse6decimal('0.1'),
+      minMaintenance: parse6decimal('100'),
       staleAfter: 7200,
       makerReceiveOnly: false,
     }
@@ -310,6 +310,7 @@ describe('Market', () => {
       expect(riskParameterResult.pController.max).to.equal(riskParameter.pController.max)
       expect(riskParameterResult.makerRewardRate).to.equal(riskParameter.makerRewardRate)
       expect(riskParameterResult.shortRewardRate).to.equal(riskParameter.shortRewardRate)
+      expect(riskParameterResult.minMaintenance).to.equal(riskParameter.minMaintenance)
       expect(riskParameterResult.staleAfter).to.equal(riskParameter.staleAfter)
       expect(riskParameterResult.makerReceiveOnly).to.equal(riskParameter.makerReceiveOnly)
 
@@ -419,6 +420,7 @@ describe('Market', () => {
           makerRewardRate: parse6decimal('0.1'),
           longRewardRate: parse6decimal('0.1'),
           shortRewardRate: parse6decimal('0.1'),
+          minMaintenance: parse6decimal('50'),
           staleAfter: 9600,
           makerReceiveOnly: true,
         }
@@ -446,6 +448,7 @@ describe('Market', () => {
         expect(riskParameter.pController.max).to.equal(newRiskParameter.pController.max)
         expect(riskParameter.makerRewardRate).to.equal(newRiskParameter.makerRewardRate)
         expect(riskParameter.shortRewardRate).to.equal(newRiskParameter.shortRewardRate)
+        expect(riskParameter.minMaintenance).to.equal(newRiskParameter.minMaintenance)
         expect(riskParameter.staleAfter).to.equal(newRiskParameter.staleAfter)
         expect(riskParameter.makerReceiveOnly).to.equal(newRiskParameter.makerReceiveOnly)
       })
@@ -4576,14 +4579,9 @@ describe('Market', () => {
               })
 
               it('with shortfall', async () => {
-                factory.parameter.returns({
-                  protocolFee: parse6decimal('0.50'),
-                  liquidationFee: parse6decimal('0.10'),
-                  maxLiquidationFee: parse6decimal('1000'),
-                  minCollateral: parse6decimal('50'),
-                  settlementFee: parse6decimal('0.00'),
-                  maxPendingIds: 5,
-                })
+                const riskParameter = { ...(await market.riskParameter()) }
+                riskParameter.minMaintenance = parse6decimal('50')
+                await market.connect(owner).updateRiskParameter(riskParameter)
 
                 oracle.at.whenCalledWith(ORACLE_VERSION_2.timestamp).returns(ORACLE_VERSION_2)
                 oracle.status.returns([ORACLE_VERSION_2, ORACLE_VERSION_3.timestamp])
@@ -7655,14 +7653,9 @@ describe('Market', () => {
               })
 
               it('with shortfall', async () => {
-                factory.parameter.returns({
-                  protocolFee: parse6decimal('0.50'),
-                  liquidationFee: parse6decimal('0.10'),
-                  maxLiquidationFee: parse6decimal('1000'),
-                  minCollateral: parse6decimal('50'),
-                  settlementFee: parse6decimal('0.00'),
-                  maxPendingIds: 5,
-                })
+                const riskParameter = { ...(await market.riskParameter()) }
+                riskParameter.minMaintenance = parse6decimal('50')
+                await market.connect(owner).updateRiskParameter(riskParameter)
 
                 oracle.at.whenCalledWith(ORACLE_VERSION_2.timestamp).returns(ORACLE_VERSION_2)
                 oracle.status.returns([ORACLE_VERSION_2, ORACLE_VERSION_3.timestamp])
@@ -10185,11 +10178,11 @@ describe('Market', () => {
             ).to.be.revertedWithCustomError(market, 'MarketMakerOverLimitError')
           })
 
-          it('reverts if under collateral limit', async () => {
+          it('reverts if under minimum maintenance', async () => {
             dsu.transferFrom.whenCalledWith(user.address, market.address, utils.parseEther('1')).returns(true)
             await expect(
               market.connect(user).update(user.address, 1, 0, 0, parse6decimal('99'), false),
-            ).to.be.revertedWithCustomError(market, 'MarketCollateralBelowLimitError')
+            ).to.be.revertedWithCustomError(market, 'MarketInsufficientCollateralizationError')
           })
 
           it('reverts if closed', async () => {
@@ -10382,14 +10375,9 @@ describe('Market', () => {
             await settle(market, user)
             await settle(market, userB)
 
-            factory.parameter.returns({
-              protocolFee: parse6decimal('0.50'),
-              liquidationFee: parse6decimal('0.10'),
-              maxLiquidationFee: parse6decimal('10'),
-              minCollateral: parse6decimal('100'),
-              settlementFee: parse6decimal('0.00'),
-              maxPendingIds: 5,
-            })
+            const protocolParameter = { ...(await factory.parameter()) }
+            protocolParameter.maxLiquidationFee = parse6decimal('10')
+            factory.parameter.returns(protocolParameter)
 
             const EXPECTED_PNL = parse6decimal('27').mul(5)
             const EXPECTED_LIQUIDATION_FEE = parse6decimal('10') // 22.5
