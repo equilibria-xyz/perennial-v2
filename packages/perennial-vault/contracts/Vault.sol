@@ -349,15 +349,46 @@ contract Vault is IVault, Instance {
     ) private pure returns (Target[] memory targets) {
         targets = new Target[](context.markets.length);
 
+        // first pass to set target collateral
         for (uint256 marketId; marketId < context.markets.length; marketId++) {
             UFixed6 marketCollateral = collateral.muldiv(context.markets[marketId].registration.weight, context.totalWeight);
-            if (marketCollateral.lt(context.minCollateral)) marketCollateral = UFixed6Lib.ZERO;
-
-            UFixed6 marketAssets = assets.muldiv(context.markets[marketId].registration.weight, context.totalWeight);
-            if (context.markets[marketId].closed || marketAssets.lt(context.minCollateral)) marketAssets = UFixed6Lib.ZERO;
-
             targets[marketId].collateral = Fixed6Lib.from(marketCollateral).sub(context.markets[marketId].collateral);
-            targets[marketId].position = marketAssets.mul(context.markets[marketId].registration.leverage).div(context.markets[marketId].price);
+        }
+
+        // TODO: if the whole vault loses collateral, there may not be any market with weight increasing
+
+        // scan through and resolve maintenance violations
+        UFixed6 excessCollateral; uint256 weightIncreasing;
+        for (uint256 marketId; marketId < context.markets.length; marketId++) {
+            UFixed6 marketMaintenance = _maintenance(context, marketId);
+
+            excessCollateral = excessCollateral
+                .add(marketMaintenance.sub(targets[marketId].collateral.min(marketMaintenance)));
+            targets[marketId].collateral = targets[marketId].collateral.max(marketMaintenance);
+
+            if (targets[marketId].collateral.sign() > 0)
+                weightIncreasing += context.markets[marketId].registration.weight;
+        }
+
+        // pass through to set positions based on adjusted collateral
+        for (uint256 marketId; marketId < context.markets.length; marketId++) {
+            UFixed6 marketAssets = assets.muldiv(context.markets[marketId].registration.weight, context.totalWeight);
+
+            if (targets[marketId].collateral.sign() > 0) {
+                UFixed6 excessCollateralMarket = excessCollateral
+                    .mulOut(context.markets[marketId].registration.weight)
+                    .divOut(weightIncreasing);
+
+                targets[marketId].collateral = targets[marketId].collateral.sub(excessCollateralMarket);
+                marketAssets = marketAssets.sub(excessCollateralMarket);
+            }
+
+            if (context.markets[marketId].closed || marketAssets.lt(context.markets[marketId].minMaintenance)) // TODO: add safety buffer
+                marketAssets = UFixed6Lib.ZERO;
+
+            targets[marketId].position = marketAssets
+                .mul(context.markets[marketId].registration.leverage)
+                .div(context.markets[marketId].price);
         }
     }
 
@@ -507,6 +538,18 @@ contract Vault is IVault, Instance {
                 .pendingPositions(address(this), mappingAtId.get(marketId));
             value = value.add(currentAccountPosition.collateral);
             fee = fee.add(currentAccountPosition.fee);
+        }
+    }
+
+    function _maintenance(Context memory context, uint256 marketId) public view returns (UFixed6 maintenance) {
+        // TODO: if these match it will skip the check
+        for (uint256 id = context.latestIds[marketId]; id < context.currentIds[marketId]; id++) {
+            Position memory accountPosition =
+                context.markets[marketId].registration.market.pendingPositions(address(this), id);
+            RiskParameter memory riskParameter;
+            riskParameter.maintenance = context.markets[marketId].maintenance;
+            UFixed6 maintenanceAtId = accountPosition.maintenance(context.markets[marketId].price, riskParameter);
+            maintenance = maintenance.max(maintenanceAtId);
         }
     }
 }
