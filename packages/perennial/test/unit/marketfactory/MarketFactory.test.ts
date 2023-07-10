@@ -22,8 +22,6 @@ const { ethers } = HRE
 describe('MarketFactory', () => {
   let user: SignerWithAddress
   let owner: SignerWithAddress
-  let treasury: SignerWithAddress
-  let pauser: SignerWithAddress
   let payoffFactory: FakeContract<IPayoffFactory>
   let payoffProvider: FakeContract<IPayoffProvider>
   let oracleFactory: FakeContract<IOracleFactory>
@@ -34,7 +32,7 @@ describe('MarketFactory', () => {
   let marketImpl: Market
 
   beforeEach(async () => {
-    ;[user, owner, treasury, pauser] = await ethers.getSigners()
+    ;[user, owner] = await ethers.getSigners()
     oracleFactory = await smock.fake<IOracleFactory>('IOracleFactory')
     oracle = await smock.fake<IOracleProvider>('IOracleProvider')
     dsu = await smock.fake<IERC20Metadata>('IERC20Metadata')
@@ -60,7 +58,6 @@ describe('MarketFactory', () => {
       expect(parameter.protocolFee).to.equal(0)
       expect(parameter.liquidationFee).to.equal(0)
       expect(parameter.maxLiquidationFee).to.equal(0)
-      expect(parameter.minCollateral).to.equal(0)
       expect(parameter.settlementFee).to.equal(0)
       expect(parameter.maxPendingIds).to.equal(0)
     })
@@ -106,6 +103,7 @@ describe('MarketFactory', () => {
         makerRewardRate: 0,
         longRewardRate: 0,
         shortRewardRate: 0,
+        minMaintenance: parse6decimal('100'),
         staleAfter: 7200,
         makerReceiveOnly: false,
       }
@@ -155,6 +153,7 @@ describe('MarketFactory', () => {
         makerRewardRate: 0,
         longRewardRate: 0,
         shortRewardRate: 0,
+        minMaintenance: parse6decimal('100'),
         staleAfter: 7200,
         makerReceiveOnly: false,
       }
@@ -203,6 +202,7 @@ describe('MarketFactory', () => {
         makerRewardRate: 0,
         longRewardRate: 0,
         shortRewardRate: 0,
+        minMaintenance: parse6decimal('100'),
         staleAfter: 7200,
         makerReceiveOnly: false,
       }
@@ -249,6 +249,7 @@ describe('MarketFactory', () => {
         makerRewardRate: 0,
         longRewardRate: 0,
         shortRewardRate: 0,
+        minMaintenance: parse6decimal('100'),
         staleAfter: 7200,
         makerReceiveOnly: false,
       }
@@ -295,6 +296,7 @@ describe('MarketFactory', () => {
         makerRewardRate: 0,
         longRewardRate: 0,
         shortRewardRate: 0,
+        minMaintenance: parse6decimal('100'),
         staleAfter: 7200,
         makerReceiveOnly: false,
       }
@@ -316,7 +318,6 @@ describe('MarketFactory', () => {
       protocolFee: parse6decimal('0.50'),
       liquidationFee: parse6decimal('0.50'),
       maxLiquidationFee: parse6decimal('1000'),
-      minCollateral: parse6decimal('500'),
       settlementFee: parse6decimal('0.50'),
       maxPendingIds: BigNumber.from(5),
     }
@@ -328,7 +329,6 @@ describe('MarketFactory', () => {
       expect(parameter.protocolFee).to.equal(newParameter.protocolFee)
       expect(parameter.liquidationFee).to.equal(newParameter.liquidationFee)
       expect(parameter.maxLiquidationFee).to.equal(newParameter.maxLiquidationFee)
-      expect(parameter.minCollateral).to.equal(newParameter.minCollateral)
       expect(parameter.settlementFee).to.equal(newParameter.settlementFee)
       expect(parameter.maxPendingIds).to.equal(newParameter.maxPendingIds)
     })

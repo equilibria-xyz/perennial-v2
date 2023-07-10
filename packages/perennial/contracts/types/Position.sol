@@ -176,10 +176,14 @@ library PositionLib {
 
     function maintenance(
         Position memory self,
-        OracleVersion memory currentOracleVersion,
+        OracleVersion memory latestVersion,
         RiskParameter memory riskParameter
     ) internal pure returns (UFixed6) {
-        return magnitude(self).mul(currentOracleVersion.price.abs()).mul(riskParameter.maintenance);
+        if (magnitude(self).isZero()) return UFixed6Lib.ZERO;
+        return magnitude(self)
+            .mul(latestVersion.price.abs())
+            .mul(riskParameter.maintenance)
+            .max(riskParameter.minMaintenance);
     }
 
     /// @dev shortfall is considered solvent for 0-position
@@ -200,7 +204,6 @@ library PositionLib {
         ProtocolParameter memory protocolParameter
     ) internal pure returns (UFixed6) {
         return maintenance(self, currentOracleVersion, riskParameter)
-            .max(protocolParameter.minCollateral)
             .mul(protocolParameter.liquidationFee)
             .min(protocolParameter.maxLiquidationFee);
     }

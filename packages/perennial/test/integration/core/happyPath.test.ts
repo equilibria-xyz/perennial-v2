@@ -75,6 +75,7 @@ describe('Happy Path', () => {
       makerRewardRate: 0,
       longRewardRate: 0,
       shortRewardRate: 0,
+      minMaintenance: parse6decimal('500'),
       staleAfter: 7200,
       makerReceiveOnly: false,
     }
@@ -1026,8 +1027,7 @@ describe('Happy Path', () => {
       makerRewardRate: incentizesOn ? parse6decimal('0.01') : 0,
       longRewardRate: incentizesOn ? parse6decimal('0.001') : 0,
       shortRewardRate: incentizesOn ? parse6decimal('0.001') : 0,
-      oracle: oracle.address,
-      payoff: payoff.address,
+      minMaintenance: parse6decimal('500'),
       staleAfter: 7200,
       makerReceiveOnly: false,
     }
@@ -1162,8 +1162,7 @@ describe('Happy Path', () => {
       makerRewardRate: incentizesOn ? parse6decimal('0.01') : 0,
       longRewardRate: incentizesOn ? parse6decimal('0.001') : 0,
       shortRewardRate: incentizesOn ? parse6decimal('0.001') : 0,
-      oracle: chainlink.oracle.address,
-      payoff: payoff.address,
+      minMaintenance: parse6decimal('500'),
       staleAfter: 7200,
       makerReceiveOnly: false,
     }

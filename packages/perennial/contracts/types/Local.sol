@@ -67,11 +67,6 @@ library LocalLib {
     function clearReward(Local memory self) internal pure {
         self.reward = UFixed6Lib.ZERO;
     }
-
-    function belowLimit(Local memory self, ProtocolParameter memory protocolParameter) internal pure returns (bool) {
-        return self.collateral.gt(Fixed6Lib.ZERO) &&
-            self.collateral.lt(Fixed6Lib.from(protocolParameter.minCollateral));
-    }
 }
 
 library LocalStorageLib { // TODO (gas hint): automate this storage format to save contract size
