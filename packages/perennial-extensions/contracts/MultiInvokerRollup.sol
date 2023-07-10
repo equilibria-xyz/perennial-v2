@@ -51,7 +51,6 @@ contract MultiInvokerRollup is IMultiInvokerRollup, MultiInvoker {
             PerennialAction action = PerennialAction(_readUint8(input, ptr));
             
             if (action == PerennialAction.UPDATE_POSITION) {
-                // new maker new long new short new collateral\
                 (
                     address market, 
                     UFixed6 newMaker,
@@ -64,7 +63,12 @@ contract MultiInvokerRollup is IMultiInvokerRollup, MultiInvoker {
                 _update(market, newMaker, newLong, newShort, collateral, handleWrap);
             } else if (action == PerennialAction.PLACE_ORDER) {
                 address market = _readAndCacheAddress(input, ptr);
-                IKeeperManager.Order memory order = _readOrder(input, ptr);
+
+                IKeeperManager.Order memory order;
+                (order.isLong, order.isLimit) = _readLimitAndLong(input, ptr);
+                order.maxFee = _readUFixed6(input, ptr);
+                order.execPrice = _readFixed6(input, ptr);
+                order.size = _readUFixed6(input, ptr);
 
                 _placeOrder(market, order);
             } else if (action == PerennialAction.CANCEL_ORDER) {
@@ -125,7 +129,7 @@ contract MultiInvokerRollup is IMultiInvokerRollup, MultiInvoker {
     // @todo should this just be included in the action branch like v1 to prevent complex _readFN -> simple _readFN hirearchies like v1?
     // if so, would make this "_readAbsolutePosition" to convert deltas to new position amounts
     function _readPosition(bytes calldata input, PTR memory ptr)
-    private returns (
+    private view returns (
         address market,
         UFixed6 newMaker, 
         UFixed6 newLong, 
@@ -146,6 +150,7 @@ contract MultiInvokerRollup is IMultiInvokerRollup, MultiInvoker {
                 IMarket(market).locals(msg.sender).currentId
             );
 
+        // @todo wrap instead of convert
         newMaker = UFixed6Lib.from(Fixed6Lib.from(position.maker).add(makerDelta));
         newLong = UFixed6Lib.from(Fixed6Lib.from(position.long).add(longDelta));
         newShort = UFixed6Lib.from(Fixed6Lib.from(position.short).add(shortDelta));
@@ -160,14 +165,6 @@ contract MultiInvokerRollup is IMultiInvokerRollup, MultiInvoker {
     function _readBool(bytes calldata input, PTR memory ptr) private pure returns (bool result) {
         uint8 dir = _readUint8(input, ptr);
         result = dir > 0;
-    }
-
-    // @todo should this just be included in the action branch like v1 to prevent complex _readFN -> simple _readFN hirearchies like v1?
-    function _readOrder(bytes calldata input, PTR memory ptr) private view returns (IKeeperManager.Order memory order) {
-        (order.isLong, order.isLimit) = _readLimitAndLong(input, ptr);
-        order.maxFee = _readFixed6(input, ptr);
-        order.execPrice = _readFixed6(input, ptr);
-        order.size = _readUFixed6(input, ptr);
     }
 
     /**
@@ -194,12 +191,10 @@ contract MultiInvokerRollup is IMultiInvokerRollup, MultiInvoker {
         ptr.pos += UINT8_LENGTH;
     }
 
-    // @todo dont parse6 data offchain, use `from`
     function _readUFixed6(bytes calldata input, PTR memory ptr) private pure returns (UFixed6 result) {
         result = UFixed6.wrap(_readUint256(input, ptr));
     }
 
-    // @todo dont parse6 data offchain, use `from`
     function _readFixed6(bytes calldata input, PTR memory ptr) private view returns (Fixed6 result) {
         result = Fixed6.wrap(_readInt256(input, ptr));
     }
@@ -280,16 +275,6 @@ contract MultiInvokerRollup is IMultiInvokerRollup, MultiInvoker {
      * @return result The resulting uint256
      */
     function _bytesToUint256(bytes calldata input, uint256 pos, uint256 len) private pure returns (uint256 result) {
-        assembly ("memory-safe") {
-            // 1) load the calldata into result starting at the ptr position
-            result := calldataload(add(input.offset, pos))
-            // 2) shifts the calldata such that only the next length of bytes specified by `len` populates the uint256 result
-            result := shr(mul(8, sub(UINT256_LENGTH, len)), result) 
-        }
-    }
-
-
-    function _bytesToInt256(bytes calldata input, uint256 pos, uint256 len) private pure returns (int256 result) {
         assembly ("memory-safe") {
             // 1) load the calldata into result starting at the ptr position
             result := calldataload(add(input.offset, pos))
