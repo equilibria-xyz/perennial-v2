@@ -25,11 +25,15 @@ import { parse6decimal } from '../../../../common/testutil/types'
 import { TransparentUpgradeableProxy__factory } from '@equilibria/perennial-v2/types/generated'
 import { IOracle, IOracle__factory, OracleFactory } from '@equilibria/perennial-v2-oracle/types/generated'
 
-const { config, ethers } = HRE
+const { ethers } = HRE
 use(smock.matchers)
 
 const STARTING_TIMESTAMP = BigNumber.from(1646456563)
 const LEGACY_ORACLE_DELAY = 3600
+const ETH_PRICE_FEE_ID = '0x0000000000000000000000000000000000000000000000000000000000000001'
+const BTC_PRICE_FEE_ID = '0x0000000000000000000000000000000000000000000000000000000000000002'
+
+// TODO: adding a market while position is pending to see if Mappings work correctly
 
 describe('Vault', () => {
   let vault: IVault
@@ -47,7 +51,6 @@ describe('Vault', () => {
   let liquidator: SignerWithAddress
   let leverage: BigNumber
   let maxCollateral: BigNumber
-  let premium: BigNumber
   let originalOraclePrice: BigNumber
   let oracle: FakeContract<IOracleProvider>
   let market: IMarket
@@ -118,12 +121,9 @@ describe('Vault', () => {
   }
 
   const fixture = async () => {
-    await time.reset(config)
-
     const instanceVars = await deployProtocol()
 
     const parameter = { ...(await instanceVars.marketFactory.parameter()) }
-    parameter.minCollateral = parse6decimal('50')
     parameter.maxLiquidationFee = parse6decimal('25000')
     await instanceVars.marketFactory.updateParameter(parameter)
 
@@ -136,6 +136,7 @@ describe('Vault', () => {
     await oracleFactory.connect(owner).register(vaultOracleFactory.address)
     await oracleFactory.connect(owner).authorize(factory.address)
 
+    oracle = await smock.fake<IOracleProvider>('IOracleProvider')
     const realVersion = {
       timestamp: STARTING_TIMESTAMP,
       price: BigNumber.from('2620237388'),
@@ -143,13 +144,13 @@ describe('Vault', () => {
     }
     originalOraclePrice = realVersion.price
 
-    oracle = await smock.fake<IOracleProvider>('IOracleProvider')
     oracle.status.returns([realVersion, realVersion.timestamp.add(LEGACY_ORACLE_DELAY)])
     oracle.request.returns()
     oracle.latest.returns(realVersion)
     oracle.current.returns(realVersion.timestamp.add(LEGACY_ORACLE_DELAY))
     oracle.at.whenCalledWith(realVersion.timestamp).returns(realVersion)
 
+    btcOracle = await smock.fake<IOracleProvider>('IOracleProvider')
     const btcRealVersion = {
       timestamp: STARTING_TIMESTAMP,
       price: BigNumber.from('38838362695'),
@@ -157,15 +158,23 @@ describe('Vault', () => {
     }
     btcOriginalOraclePrice = btcRealVersion.price
 
-    btcOracle = await smock.fake<IOracleProvider>('IOracleProvider')
     btcOracle.status.returns([btcRealVersion, btcRealVersion.timestamp.add(LEGACY_ORACLE_DELAY)])
     btcOracle.request.returns()
     btcOracle.latest.returns(btcRealVersion)
     btcOracle.current.returns(btcRealVersion.timestamp.add(LEGACY_ORACLE_DELAY))
     btcOracle.at.whenCalledWith(btcRealVersion.timestamp).returns(btcRealVersion)
 
-    const ETH_PRICE_FEE_ID = '0x0000000000000000000000000000000000000000000000000000000000000001'
-    const BTC_PRICE_FEE_ID = '0x0000000000000000000000000000000000000000000000000000000000000002'
+    vaultOracleFactory.instances.whenCalledWith(oracle.address).returns(true)
+    vaultOracleFactory.oracles.whenCalledWith(ETH_PRICE_FEE_ID).returns(oracle.address)
+    vaultOracleFactory.instances.whenCalledWith(btcOracle.address).returns(true)
+    vaultOracleFactory.oracles.whenCalledWith(BTC_PRICE_FEE_ID).returns(btcOracle.address)
+
+    const vaultFactoryProxy = await new TransparentUpgradeableProxy__factory(owner).deploy(
+      instanceVars.marketFactory.address, // dummy contract
+      instanceVars.proxyAdmin.address,
+      [],
+    )
+
     vaultOracleFactory.instances.whenCalledWith(oracle.address).returns(true)
     vaultOracleFactory.oracles.whenCalledWith(ETH_PRICE_FEE_ID).returns(oracle.address)
     vaultOracleFactory.instances.whenCalledWith(btcOracle.address).returns(true)
@@ -176,6 +185,10 @@ describe('Vault', () => {
       owner,
     )
     await instanceVars.oracleFactory.connect(owner).create(ETH_PRICE_FEE_ID, vaultOracleFactory.address)
+
+    leverage = parse6decimal('4.0')
+    maxCollateral = parse6decimal('500000')
+
     const btcRootOracle = IOracle__factory.connect(
       await instanceVars.oracleFactory.connect(owner).callStatic.create(BTC_PRICE_FEE_ID, vaultOracleFactory.address),
       owner,
@@ -191,6 +204,7 @@ describe('Vault', () => {
       oracle: rootOracle.address,
       payoff: constants.AddressZero,
       makerLimit: parse6decimal('1000'),
+      minMaintenance: parse6decimal('50'),
     })
     btcMarket = await deployProductOnMainnetFork({
       factory: instanceVars.marketFactory,
@@ -200,16 +214,8 @@ describe('Vault', () => {
       symbol: 'BTC',
       oracle: btcRootOracle.address,
       payoff: constants.AddressZero,
+      minMaintenance: parse6decimal('50'),
     })
-    leverage = parse6decimal('4.0')
-    maxCollateral = parse6decimal('500000')
-    premium = parse6decimal('0.10')
-
-    const vaultFactoryProxy = await new TransparentUpgradeableProxy__factory(owner).deploy(
-      instanceVars.marketFactory.address, // dummy contract
-      instanceVars.proxyAdmin.address,
-      [],
-    )
 
     const vaultImpl = await new Vault__factory(owner).deploy()
     const vaultFactoryImpl = await new VaultFactory__factory(owner).deploy(
@@ -227,17 +233,12 @@ describe('Vault', () => {
     await vaultFactory.create(instanceVars.dsu.address, market.address, 'Blue Chip', 'BC')
 
     await vault.register(btcMarket.address)
-    await vault.updateWeight(0, 4)
-    await vault.updateWeight(1, 1)
+    await vault.updateMarket(0, 4, leverage)
+    await vault.updateMarket(1, 1, leverage)
     await vault.updateParameter({
-      leverage: leverage,
       cap: maxCollateral,
-      premium: premium,
     })
-  }
 
-  beforeEach(async () => {
-    await loadFixture(fixture)
     asset = IERC20Metadata__factory.connect(await vault.asset(), owner)
     await Promise.all([
       asset.connect(liquidator).approve(vault.address, ethers.constants.MaxUint256),
@@ -271,6 +272,43 @@ describe('Vault', () => {
       .update(btcUser2.address, 0, parse6decimal('10'), 0, parse6decimal('100000'), false)
 
     vaultSigner = await impersonate.impersonateWithBalance(vault.address, ethers.utils.parseEther('10'))
+
+    return { instanceVars, vaultFactoryProxy, rootOracle }
+  }
+
+  beforeEach(async () => {
+    await loadFixture(fixture)
+
+    const realVersion = {
+      timestamp: STARTING_TIMESTAMP,
+      price: BigNumber.from('2620237388'),
+      valid: true,
+    }
+    originalOraclePrice = realVersion.price
+
+    oracle.status.returns([realVersion, realVersion.timestamp.add(LEGACY_ORACLE_DELAY)])
+    oracle.request.returns()
+    oracle.latest.returns(realVersion)
+    oracle.current.returns(realVersion.timestamp.add(LEGACY_ORACLE_DELAY))
+    oracle.at.whenCalledWith(realVersion.timestamp).returns(realVersion)
+
+    const btcRealVersion = {
+      timestamp: STARTING_TIMESTAMP,
+      price: BigNumber.from('38838362695'),
+      valid: true,
+    }
+    btcOriginalOraclePrice = btcRealVersion.price
+
+    btcOracle.status.returns([btcRealVersion, btcRealVersion.timestamp.add(LEGACY_ORACLE_DELAY)])
+    btcOracle.request.returns()
+    btcOracle.latest.returns(btcRealVersion)
+    btcOracle.current.returns(btcRealVersion.timestamp.add(LEGACY_ORACLE_DELAY))
+    btcOracle.at.whenCalledWith(btcRealVersion.timestamp).returns(btcRealVersion)
+
+    vaultOracleFactory.instances.whenCalledWith(oracle.address).returns(true)
+    vaultOracleFactory.oracles.whenCalledWith(ETH_PRICE_FEE_ID).returns(oracle.address)
+    vaultOracleFactory.instances.whenCalledWith(btcOracle.address).returns(true)
+    vaultOracleFactory.oracles.whenCalledWith(BTC_PRICE_FEE_ID).returns(btcOracle.address)
   })
 
   describe('#initialize', () => {
@@ -395,37 +433,19 @@ describe('Vault', () => {
   describe('#updateParameter', () => {
     it('updates correctly', async () => {
       const newParameter = {
-        leverage: parse6decimal('5'),
         cap: parse6decimal('1000000'),
-        premium: parse6decimal('0.20'),
       }
       await expect(vault.connect(owner).updateParameter(newParameter))
         .to.emit(vault, 'ParameterUpdated')
         .withArgs(newParameter)
 
       const parameter = await vault.parameter()
-      expect(parameter.leverage).to.deep.contain(newParameter.leverage)
       expect(parameter.cap).to.deep.contain(newParameter.cap)
-      expect(parameter.premium).to.deep.contain(newParameter.premium)
-    })
-
-    it('reverts when asset changes', async () => {
-      const newParameter = {
-        leverage: parse6decimal('5'),
-        cap: parse6decimal('1000000'),
-        premium: parse6decimal('0.20'),
-      }
-      await expect(vault.connect(owner).updateParameter(newParameter)).to.be.revertedWithCustomError(
-        vault,
-        'VaultParameterStorageImmutableError',
-      )
     })
 
     it('reverts when not owner', async () => {
       const newParameter = {
-        leverage: parse6decimal('5'),
         cap: parse6decimal('1000000'),
-        premium: parse6decimal('0.20'),
       }
       await expect(vault.connect(user).updateParameter(newParameter)).to.be.revertedWithCustomError(
         vault,
@@ -434,26 +454,33 @@ describe('Vault', () => {
     })
   })
 
-  describe('#updateWeight', () => {
+  describe('#updateMarket', () => {
     it('updates correctly', async () => {
-      await expect(vault.connect(owner).updateWeight(1, 2)).to.emit(vault, 'WeightUpdated').withArgs(1, 2)
+      await expect(vault.connect(owner).updateMarket(1, 2, parse6decimal('3')))
+        .to.emit(vault, 'MarketUpdated')
+        .withArgs(1, 2, parse6decimal('3'))
 
       expect((await vault.registrations(1)).weight).to.eq(2)
+      expect((await vault.registrations(1)).leverage).to.eq(parse6decimal('3'))
 
-      await expect(vault.connect(owner).updateWeight(1, 0)).to.emit(vault, 'WeightUpdated').withArgs(1, 0)
+      await expect(vault.connect(owner).updateMarket(1, 0, 0)).to.emit(vault, 'MarketUpdated').withArgs(1, 0, 0)
 
       expect((await vault.registrations(1)).weight).to.eq(0)
+      expect((await vault.registrations(1)).leverage).to.eq(0)
     })
 
     it('reverts when invalid marketId', async () => {
-      await expect(vault.connect(owner).updateWeight(2, 10)).to.be.revertedWithCustomError(
+      await expect(vault.connect(owner).updateMarket(2, 10, parse6decimal('1'))).to.be.revertedWithCustomError(
         vault,
         'VaultMarketDoesNotExistError',
       )
     })
 
     it('reverts when not owner', async () => {
-      await expect(vault.connect(user).updateWeight(1, 2)).to.be.revertedWithCustomError(vault, 'InstanceNotOwnerError')
+      await expect(vault.connect(user).updateMarket(2, 10, parse6decimal('1'))).to.be.revertedWithCustomError(
+        vault,
+        'InstanceNotOwnerError',
+      )
     })
   })
 
@@ -464,8 +491,8 @@ describe('Vault', () => {
 
       const smallDeposit = parse6decimal('10')
       await vault.connect(user).update(user.address, smallDeposit, 0, 0)
-      expect(await collateralInVault()).to.equal(0)
-      expect(await btcCollateralInVault()).to.equal(0)
+      expect(await collateralInVault()).to.equal(parse6decimal('8'))
+      expect(await btcCollateralInVault()).to.equal(parse6decimal('2'))
       expect((await vault.accounts(ethers.constants.AddressZero)).shares).to.equal(0)
       expect(await vault.totalAssets()).to.equal(0)
       await updateOracle()
@@ -782,23 +809,28 @@ describe('Vault', () => {
       await updateOracle()
       await vault.settle(user.address)
 
-      const originalTotalCollateral = await totalCollateralInVault()
+      // vault starts balanced
+      expect(await collateralInVault()).to.be.closeTo((await btcCollateralInVault()).mul(4), parse6decimal('1'))
 
-      expect(await collateralInVault()).to.be.closeTo((await btcCollateralInVault()).mul(4), 3)
-      await updateOracle(parse6decimal('1800'))
-      await settle(market, vaultSigner)
-
+      // price lowers, vault does one round of rebalancing but its maintenance's are still out-of-sync
+      await updateOracle(parse6decimal('2000'))
       await vault.connect(user).update(user.address, 0, 0, 0)
-      expect(await collateralInVault()).to.be.closeTo((await btcCollateralInVault()).mul(4), 3)
+      expect(await collateralInVault()).to.not.be.closeTo((await btcCollateralInVault()).mul(4), parse6decimal('1'))
 
+      // vault does another round of rebalancing and its maintenance's are now in-sync
+      await updateOracle(parse6decimal('2000'))
+      await vault.connect(user).update(user.address, 0, 0, 0)
+      expect(await collateralInVault()).to.be.closeTo((await btcCollateralInVault()).mul(4), parse6decimal('1'))
+
+      // price raises, vault does one round of rebalancing but its maintenance's are still out-of-sync
       await updateOracle(originalOraclePrice)
       await vault.connect(user).update(user.address, 0, 0, 0)
-      expect(await collateralInVault()).to.be.closeTo((await btcCollateralInVault()).mul(4), 3)
+      expect(await collateralInVault()).to.not.be.closeTo((await btcCollateralInVault()).mul(4), parse6decimal('1'))
 
-      // Since the price changed then went back to the original, the total collateral should have increased.
-      const fundingAmount = BigNumber.from('3581776')
-      expect(await totalCollateralInVault()).to.eq(originalTotalCollateral.add(fundingAmount.mul(1e12)))
-      expect(await vault.totalAssets()).to.eq(originalTotalCollateral.div(1e12).add(fundingAmount))
+      // vault does one round of rebalancing but it maintenance's are still out-of-sync
+      await updateOracle(originalOraclePrice)
+      await vault.connect(user).update(user.address, 0, 0, 0)
+      expect(await collateralInVault()).to.be.closeTo((await btcCollateralInVault()).mul(4), parse6decimal('1'))
     })
 
     it('rounds deposits correctly', async () => {
@@ -998,16 +1030,16 @@ describe('Vault', () => {
       expect(await position()).to.be.equal(collateralForRebalance.mul(leverage).mul(4).div(5).div(originalOraclePrice))
       expect(await btcPosition()).to.be.equal(collateralForRebalance.mul(leverage).div(5).div(btcOriginalOraclePrice))
 
-      const balanceOf2 = BigNumber.from('9949747788')
-      const totalAssets = BigNumber.from('10952225614')
-      expect((await vault.accounts(user.address)).shares).to.equal(parse6decimal('995.6'))
+      const balanceOf2 = BigNumber.from('9997751392')
+      const totalAssets = BigNumber.from('10996225614')
+      expect((await vault.accounts(user.address)).shares).to.equal(parse6decimal('1000'))
       expect((await vault.accounts(user2.address)).shares).to.equal(balanceOf2)
       expect(await vault.totalAssets()).to.equal(totalAssets)
       expect((await vault.accounts(ethers.constants.AddressZero)).shares).to.equal(
-        parse6decimal('995.6').add(balanceOf2),
+        parse6decimal('1000').add(balanceOf2),
       )
-      expect(await vault.convertToAssets(parse6decimal('995.6').add(balanceOf2))).to.equal(totalAssets)
-      expect(await vault.convertToShares(totalAssets)).to.equal(parse6decimal('995.6').add(balanceOf2))
+      expect(await vault.convertToAssets(parse6decimal('1000').add(balanceOf2))).to.equal(totalAssets)
+      expect(await vault.convertToShares(totalAssets)).to.equal(parse6decimal('1000').add(balanceOf2))
 
       await vault.connect(user).update(user.address, 0, (await vault.accounts(user.address)).shares, 0)
       await updateOracle()
@@ -1022,19 +1054,24 @@ describe('Vault', () => {
       expect(await btcPosition()).to.equal(0)
 
       // We should have redeemed all of our shares.
-      const unclaimed1 = BigNumber.from('992266617')
-      const unclaimed2 = BigNumber.from('9919195990')
-      const finalTotalAsset = BigNumber.from('43837347')
-      const finalTotalShares = BigNumber.from('43778890')
-      const dust = BigNumber.from('3982864')
-      expect(await totalCollateralInVault()).to.equal(unclaimed1.add(unclaimed2).add(dust).mul(1e12))
+      const currentFee = (await market.pendingPositions(vault.address, (await market.locals(vault.address)).currentId))
+        .fee
+      const btcCurrentFee = (
+        await btcMarket.pendingPositions(vault.address, (await btcMarket.locals(vault.address)).currentId)
+      ).fee
+
+      const unclaimed1 = BigNumber.from('992142699')
+      const unclaimed2 = BigNumber.from('9923301967')
+      const finalTotalAssets = BigNumber.from('39840038') // last position fee
+      expect(await totalCollateralInVault()).to.equal(unclaimed1.add(unclaimed2).mul(1e12))
       expect((await vault.accounts(user.address)).shares).to.equal(0)
       expect((await vault.accounts(user2.address)).shares).to.equal(0)
-      expect(await vault.totalAssets()).to.equal(finalTotalAsset)
-      expect(await vault.totalShares()).to.equal(finalTotalShares)
+      expect(currentFee.add(btcCurrentFee)).to.equal(finalTotalAssets)
+      expect(await vault.totalAssets()).to.equal(finalTotalAssets)
+      expect(await vault.totalShares()).to.equal(0)
       expect((await vault.accounts(ethers.constants.AddressZero)).shares).to.equal(0)
-      expect(await vault.convertToAssets(finalTotalShares)).to.equal(finalTotalAsset)
-      expect(await vault.convertToShares(finalTotalAsset)).to.equal(finalTotalShares)
+      expect(await vault.convertToAssets(parse6decimal('1'))).to.equal(parse6decimal('1'))
+      expect(await vault.convertToShares(parse6decimal('1'))).to.equal(parse6decimal('1'))
       expect((await vault.accounts(user.address)).assets).to.equal(unclaimed1)
       expect((await vault.accounts(user2.address)).assets).to.equal(unclaimed2)
       expect((await vault.accounts(ethers.constants.AddressZero)).assets).to.equal(unclaimed1.add(unclaimed2))
@@ -1042,9 +1079,9 @@ describe('Vault', () => {
       await vault.connect(user).update(user.address, 0, 0, ethers.constants.MaxUint256)
       await vault.connect(user2).update(user2.address, 0, 0, ethers.constants.MaxUint256)
 
-      expect(await totalCollateralInVault()).to.equal(dust.mul(1e12))
-      expect(await vault.totalAssets()).to.equal(finalTotalAsset)
-      expect(await vault.totalShares()).to.equal(finalTotalShares)
+      expect(await totalCollateralInVault()).to.equal(0)
+      expect(await vault.totalAssets()).to.equal(finalTotalAssets)
+      expect(await vault.totalShares()).to.equal(0)
       expect(await asset.balanceOf(user.address)).to.equal(
         parse6decimal('100000').add(unclaimed1).sub(parse6decimal('1000')).mul(1e12),
       )
@@ -1059,17 +1096,36 @@ describe('Vault', () => {
       await vault.connect(user).update(user.address, smallDeposit, 0, 0)
       await updateOracle()
       await vault.settle(user.address)
-      expect((await vault.accounts(user.address)).shares).to.equal(parse6decimal('995.6'))
-      expect(await vault.totalAssets()).to.equal(parse6decimal('995.6').add(dust))
-      expect((await vault.accounts(ethers.constants.AddressZero)).shares).to.equal(parse6decimal('995.6'))
-      expect(await vault.convertToAssets(parse6decimal('995.6'))).to.equal(parse6decimal('995.6').add(dust))
-      expect(await vault.convertToShares(parse6decimal('995.6').add(dust))).to.equal(parse6decimal('995.6'))
+      expect((await vault.accounts(user.address)).shares).to.equal(parse6decimal('1000'))
+      expect(await vault.totalAssets()).to.equal(parse6decimal('1000').add(0))
+      expect((await vault.accounts(ethers.constants.AddressZero)).shares).to.equal(parse6decimal('1000'))
+      expect(await vault.convertToAssets(parse6decimal('1000'))).to.equal(parse6decimal('1000').add(0))
+      expect(await vault.convertToShares(parse6decimal('1000').add(0))).to.equal(parse6decimal('1000'))
     })
 
     it('reverts when paused', async () => {
       await vaultFactory.connect(owner).pause()
       await expect(vault.settle(user.address)).to.revertedWithCustomError(vault, 'InstancePausedError')
       await expect(vault.update(user.address, 0, 0, 0)).to.revertedWithCustomError(vault, 'InstancePausedError')
+    })
+
+    it('reverts when not single sided', async () => {
+      await expect(vault.connect(user).update(user.address, 1, 1, 0)).to.revertedWithCustomError(
+        vault,
+        'VaultNotSingleSidedError',
+      )
+      await expect(vault.connect(user).update(user.address, 1, 0, 1)).to.revertedWithCustomError(
+        vault,
+        'VaultNotSingleSidedError',
+      )
+      await expect(vault.connect(user).update(user.address, 0, 1, 1)).to.revertedWithCustomError(
+        vault,
+        'VaultNotSingleSidedError',
+      )
+      await expect(vault.connect(user).update(user.address, 1, 1, 1)).to.revertedWithCustomError(
+        vault,
+        'VaultNotSingleSidedError',
+      )
     })
 
     context('liquidation', () => {
@@ -1100,9 +1156,9 @@ describe('Vault', () => {
           await vault.settle(user.address)
 
           const finalPosition = BigNumber.from('114518139')
-          const finalCollateral = BigNumber.from('75019219980')
-          const btcFinalPosition = BigNumber.from('1875404')
-          const btcFinalCollateral = BigNumber.from('18754044453')
+          const finalCollateral = BigNumber.from('81419219970')
+          const btcFinalPosition = BigNumber.from('1482485')
+          const btcFinalCollateral = BigNumber.from('12354044463')
           expect(await position()).to.equal(finalPosition)
           expect(await collateralInVault()).to.equal(finalCollateral)
           expect(await btcPosition()).to.equal(btcFinalPosition)
@@ -1135,9 +1191,9 @@ describe('Vault', () => {
           await vault.settle(user.address)
 
           const finalPosition = BigNumber.from('93640322')
-          const finalCollateral = BigNumber.from('61343010969')
-          const btcFinalPosition = BigNumber.from('1115272')
-          const btcFinalCollateral = BigNumber.from('15334992200')
+          const finalCollateral = BigNumber.from('67743010959')
+          const btcFinalPosition = BigNumber.from('779781')
+          const btcFinalCollateral = BigNumber.from('8934992210')
           expect(await position()).to.equal(finalPosition)
           expect(await collateralInVault()).to.equal(finalCollateral)
           expect(await btcPosition()).to.equal(btcFinalPosition)
@@ -1182,9 +1238,9 @@ describe('Vault', () => {
           await vault.settle(user.address)
 
           const finalPosition = BigNumber.from('109544798')
-          const finalCollateral = BigNumber.from('71763427706')
-          const btcFinalPosition = BigNumber.from('2391944')
-          const btcFinalCollateral = BigNumber.from('17939586080')
+          const finalCollateral = BigNumber.from('78163427696')
+          const btcFinalPosition = BigNumber.from('1846333')
+          const btcFinalCollateral = BigNumber.from('11539586090')
           expect(await position()).to.equal(finalPosition)
           expect(await collateralInVault()).to.equal(finalCollateral)
           expect(await btcPosition()).to.equal(btcFinalPosition)
@@ -1217,9 +1273,9 @@ describe('Vault', () => {
           await vault.settle(user.address)
 
           const finalPosition = BigNumber.from('109670541')
-          const finalCollateral = BigNumber.from('71845796674')
-          const btcFinalPosition = BigNumber.from('2394690')
-          const btcFinalCollateral = BigNumber.from('17960178322')
+          const finalCollateral = BigNumber.from('78245796664')
+          const btcFinalPosition = BigNumber.from('1849628')
+          const btcFinalCollateral = BigNumber.from('11560178332')
           expect(await position()).to.equal(finalPosition)
           expect(await collateralInVault()).to.equal(finalCollateral)
           expect(await btcPosition()).to.equal(btcFinalPosition)
@@ -1249,8 +1305,6 @@ describe('Vault', () => {
 
         // 4. Settle the vault to recover and rebalance
         await updateOracle() // let take settle at high price
-        // TODO: this can be used to verify the resolution to the rebalance revert bricking issue
-        await updateOracle(parse6decimal('1500'), parse6decimal('5000')) // lower prices to allow rebalance
         await vault.connect(user).update(user.address, 0, 0, 0)
 
         await updateOracle()
@@ -1258,9 +1312,9 @@ describe('Vault', () => {
 
         // 5. Vault should no longer have enough collateral to cover claims, pro-rata claim should be enabled
         const finalPosition = BigNumber.from('0')
-        const finalCollateral = BigNumber.from('11444440342')
+        const finalCollateral = BigNumber.from('4700653858')
         const btcFinalPosition = BigNumber.from('0')
-        const btcFinalCollateral = BigNumber.from('2861163275')
+        const btcFinalCollateral = BigNumber.from('2775492943')
         const finalUnclaimed = BigNumber.from('80001128624')
         const vaultFinalCollateral = await asset.balanceOf(vault.address)
         expect(await position()).to.equal(finalPosition)
@@ -1310,9 +1364,9 @@ describe('Vault', () => {
 
         // 5. Vault should no longer have enough collateral to cover claims, pro-rata claim should be enabled
         const finalPosition = BigNumber.from('0')
-        const finalCollateral = BigNumber.from('-133568940066')
+        const finalCollateral = BigNumber.from('-133568939868')
         const btcFinalPosition = BigNumber.from('411963') // small position because vault is net negative and won't rebalance
-        const btcFinalCollateral = BigNumber.from('20000833511')
+        const btcFinalCollateral = BigNumber.from('20000833313')
         const finalUnclaimed = BigNumber.from('80001128624')
         expect(await position()).to.equal(finalPosition)
         expect(await collateralInVault()).to.equal(finalCollateral)

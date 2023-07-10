@@ -14,7 +14,7 @@ struct Position {
     UFixed6 long;
     UFixed6 short;
     UFixed6 fee; // TODO (gas hint): unused in the non-pending instances
-    UFixed6 keeper; // TODO (gas hint): only used in global non-pending instances
+    UFixed6 keeper; // TODO (gas hint): unused in the non-pending instances
     Fixed6 collateral;
     Fixed6 delta;
 }
@@ -38,10 +38,11 @@ struct StoredPositionLocal {
     uint8 _direction;
     uint48 _position;
     uint48 _fee;
-    uint256 _keeper; // TODO: pack better
     int48 _collateral;
-
     int48 _delta;
+
+    // TODO: pack better
+    uint48 _keeper;
 }
 struct PositionStorageLocal { StoredPositionLocal value; }
 using PositionStorageLocalLib for PositionStorageLocal global;
@@ -175,10 +176,14 @@ library PositionLib {
 
     function maintenance(
         Position memory self,
-        OracleVersion memory currentOracleVersion,
+        OracleVersion memory latestVersion,
         RiskParameter memory riskParameter
     ) internal pure returns (UFixed6) {
-        return magnitude(self).mul(currentOracleVersion.price.abs()).mul(riskParameter.maintenance);
+        if (magnitude(self).isZero()) return UFixed6Lib.ZERO;
+        return magnitude(self)
+            .mul(latestVersion.price.abs())
+            .mul(riskParameter.maintenance)
+            .max(riskParameter.minMaintenance);
     }
 
     /// @dev shortfall is considered solvent for 0-position
@@ -199,7 +204,6 @@ library PositionLib {
         ProtocolParameter memory protocolParameter
     ) internal pure returns (UFixed6) {
         return maintenance(self, currentOracleVersion, riskParameter)
-            .max(protocolParameter.minCollateral)
             .mul(protocolParameter.liquidationFee)
             .min(protocolParameter.maxLiquidationFee);
     }
@@ -291,9 +295,9 @@ library PositionStorageLocalLib {
             uint8(newValue.long.isZero() ? (newValue.short.isZero() ? 0 : 2) : 1),
             uint48(UFixed6.unwrap(newValue.magnitude())),
             uint48(UFixed6.unwrap(newValue.fee)),
-            uint48(UFixed6.unwrap(newValue.keeper)),
             int48(Fixed6.unwrap(newValue.collateral)),
-            int48(Fixed6.unwrap(newValue.delta))
+            int48(Fixed6.unwrap(newValue.delta)),
+            uint48(UFixed6.unwrap(newValue.keeper))
         );
     }
 }

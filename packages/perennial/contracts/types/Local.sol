@@ -47,7 +47,7 @@ library LocalLib {
         UFixed6 rewardAmount = toVersion.makerReward.accumulated(fromVersion.makerReward, fromPosition.maker)
             .add(toVersion.longReward.accumulated(fromVersion.longReward, fromPosition.long))
             .add(toVersion.shortReward.accumulated(fromVersion.shortReward, fromPosition.short));
-        Fixed6 feeAmount = Fixed6Lib.from(toPosition.fee);
+        Fixed6 feeAmount = Fixed6Lib.from(toPosition.fee.add(toPosition.keeper));
 
         self.collateral = self.collateral.add(collateralAmount).sub(feeAmount);
         self.reward = self.reward.add(rewardAmount);
@@ -66,11 +66,6 @@ library LocalLib {
 
     function clearReward(Local memory self) internal pure {
         self.reward = UFixed6Lib.ZERO;
-    }
-
-    function belowLimit(Local memory self, ProtocolParameter memory protocolParameter) internal pure returns (bool) {
-        return self.collateral.gt(Fixed6Lib.ZERO) &&
-            self.collateral.lt(Fixed6Lib.from(protocolParameter.minCollateral));
     }
 }
 

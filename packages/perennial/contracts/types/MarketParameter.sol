@@ -12,7 +12,7 @@ struct MarketParameter {
     UFixed6 fundingFee;
     UFixed6 interestFee;
     UFixed6 positionFee;
-    UFixed6 oracleFee;
+    UFixed6 oracleFee; // TODO: move to oracle?
     UFixed6 riskFee;
     bool closed;
 }

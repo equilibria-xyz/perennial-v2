@@ -103,7 +103,7 @@ export default function defaultConfig({
           settings: {
             optimizer: {
               enabled: OPTIMIZER_ENABLED,
-              runs: 1,
+              runs: 10000,
             },
             outputSelection: OPTIMIZER_ENABLED
               ? {}

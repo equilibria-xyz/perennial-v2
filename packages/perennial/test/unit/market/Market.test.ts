@@ -12,6 +12,7 @@ import HRE from 'hardhat'
 //TODO (coverage hint): makerReceiveOnly coverage
 //TODO (coverage hint): settlementFee/oracleFee/riskFee coverage
 //TODO (coverage hint): magic values
+//TODO (coverage hint): stale oracle
 
 import { impersonate } from '../../../../common/testutil'
 
@@ -191,7 +192,9 @@ describe('Market', () => {
   let userC: SignerWithAddress
   let liquidator: SignerWithAddress
   let operator: SignerWithAddress
+  let coordinator: SignerWithAddress
   let factorySigner: SignerWithAddress
+  let oracleFactorySigner: SignerWithAddress
   let factory: FakeContract<IMarketFactory>
   let oracle: FakeContract<IOracleProvider>
   let dsu: FakeContract<IERC20Metadata>
@@ -203,7 +206,18 @@ describe('Market', () => {
   let marketParameter: MarketParameterStruct
 
   beforeEach(async () => {
-    ;[protocolTreasury, owner, beneficiary, user, userB, userC, liquidator, operator] = await ethers.getSigners()
+    ;[
+      protocolTreasury,
+      owner,
+      beneficiary,
+      user,
+      userB,
+      userC,
+      liquidator,
+      operator,
+      coordinator,
+      oracleFactorySigner,
+    ] = await ethers.getSigners()
     oracle = await smock.fake<IOracleProvider>('IOracleProvider')
     dsu = await smock.fake<IERC20Metadata>('IERC20Metadata')
     reward = await smock.fake<IERC20Metadata>('IERC20Metadata')
@@ -215,16 +229,15 @@ describe('Market', () => {
       protocolFee: parse6decimal('0.50'),
       liquidationFee: parse6decimal('0.10'),
       maxLiquidationFee: parse6decimal('1000'),
-      minCollateral: parse6decimal('100'),
       settlementFee: parse6decimal('0.00'),
       maxPendingIds: 5,
     })
+    factory.oracleFactory.returns(oracleFactorySigner.address)
 
     marketDefinition = {
       name: 'Squeeth',
       symbol: 'SQTH',
       token: dsu.address,
-      reward: reward.address,
       oracle: oracle.address,
       payoff: constants.AddressZero,
     }
@@ -234,7 +247,6 @@ describe('Market', () => {
       takerSkewFee: 0,
       takerImpactFee: 0,
       makerFee: 0,
-      makerSkewFee: 0,
       makerImpactFee: 0,
       makerLimit: parse6decimal('1000'),
       utilizationCurve: {
@@ -250,6 +262,8 @@ describe('Market', () => {
       makerRewardRate: parse6decimal('0.3'),
       longRewardRate: parse6decimal('0.2'),
       shortRewardRate: parse6decimal('0.1'),
+      minMaintenance: parse6decimal('100'),
+      staleAfter: 7200,
       makerReceiveOnly: false,
     }
     marketParameter = {
@@ -272,7 +286,6 @@ describe('Market', () => {
 
       expect(await market.factory()).to.equal(factory.address)
       expect(await market.token()).to.equal(dsu.address)
-      expect(await market.reward()).to.equal(reward.address)
       expect(await market.name()).to.equal(marketDefinition.name)
       expect(await market.symbol()).to.equal(marketDefinition.symbol)
       expect(await market.oracle()).to.equal(marketDefinition.oracle)
@@ -285,7 +298,6 @@ describe('Market', () => {
       expect(riskParameterResult.takerSkewFee).to.equal(riskParameter.takerSkewFee)
       expect(riskParameterResult.takerImpactFee).to.equal(riskParameter.takerImpactFee)
       expect(riskParameterResult.makerFee).to.equal(riskParameter.makerFee)
-      expect(riskParameterResult.makerSkewFee).to.equal(riskParameter.makerSkewFee)
       expect(riskParameterResult.makerImpactFee).to.equal(riskParameter.makerImpactFee)
       expect(riskParameterResult.makerLimit).to.equal(riskParameter.makerLimit)
       expect(riskParameterResult.utilizationCurve.minRate).to.equal(riskParameter.utilizationCurve.minRate)
@@ -298,6 +310,8 @@ describe('Market', () => {
       expect(riskParameterResult.pController.max).to.equal(riskParameter.pController.max)
       expect(riskParameterResult.makerRewardRate).to.equal(riskParameter.makerRewardRate)
       expect(riskParameterResult.shortRewardRate).to.equal(riskParameter.shortRewardRate)
+      expect(riskParameterResult.minMaintenance).to.equal(riskParameter.minMaintenance)
+      expect(riskParameterResult.staleAfter).to.equal(riskParameter.staleAfter)
       expect(riskParameterResult.makerReceiveOnly).to.equal(riskParameter.makerReceiveOnly)
 
       const marketParameterResult = await market.parameter()
@@ -317,9 +331,7 @@ describe('Market', () => {
 
   describe('#updateReward', async () => {
     beforeEach(async () => {
-      const marketDefinitionNoReward = { ...marketDefinition }
-      marketDefinitionNoReward.reward = constants.AddressZero
-      await market.connect(factorySigner).initialize(marketDefinitionNoReward, riskParameter)
+      await market.connect(factorySigner).initialize(marketDefinition, riskParameter)
     })
 
     it('updates the reward', async () => {
@@ -349,6 +361,7 @@ describe('Market', () => {
     beforeEach(async () => {
       await market.connect(factorySigner).initialize(marketDefinition, riskParameter)
       await market.connect(owner).updateParameter(marketParameter)
+      await market.connect(owner).updateReward(reward.address)
     })
 
     describe('#updateParameter', async () => {
@@ -387,14 +400,11 @@ describe('Market', () => {
       it('updates the parameters', async () => {
         const newRiskParameter = {
           maintenance: parse6decimal('0.4'),
-
           takerFee: parse6decimal('0.1'),
           takerSkewFee: parse6decimal('0.04'),
           takerImpactFee: parse6decimal('0.03'),
           makerFee: parse6decimal('0.05'),
-          makerSkewFee: parse6decimal('0.02'),
           makerImpactFee: parse6decimal('0.01'),
-
           makerLiquidity: parse6decimal('0.1'),
           makerLimit: parse6decimal('2000'),
           utilizationCurve: {
@@ -410,6 +420,8 @@ describe('Market', () => {
           makerRewardRate: parse6decimal('0.1'),
           longRewardRate: parse6decimal('0.1'),
           shortRewardRate: parse6decimal('0.1'),
+          minMaintenance: parse6decimal('50'),
+          staleAfter: 9600,
           makerReceiveOnly: true,
         }
 
@@ -424,7 +436,6 @@ describe('Market', () => {
         expect(riskParameter.takerSkewFee).to.equal(newRiskParameter.takerSkewFee)
         expect(riskParameter.takerImpactFee).to.equal(newRiskParameter.takerImpactFee)
         expect(riskParameter.makerFee).to.equal(newRiskParameter.makerFee)
-        expect(riskParameter.makerSkewFee).to.equal(newRiskParameter.makerSkewFee)
         expect(riskParameter.makerImpactFee).to.equal(newRiskParameter.makerImpactFee)
         expect(riskParameter.makerLimit).to.equal(newRiskParameter.makerLimit)
         expect(riskParameter.utilizationCurve.minRate).to.equal(newRiskParameter.utilizationCurve.minRate)
@@ -437,6 +448,8 @@ describe('Market', () => {
         expect(riskParameter.pController.max).to.equal(newRiskParameter.pController.max)
         expect(riskParameter.makerRewardRate).to.equal(newRiskParameter.makerRewardRate)
         expect(riskParameter.shortRewardRate).to.equal(newRiskParameter.shortRewardRate)
+        expect(riskParameter.minMaintenance).to.equal(newRiskParameter.minMaintenance)
+        expect(riskParameter.staleAfter).to.equal(newRiskParameter.staleAfter)
         expect(riskParameter.makerReceiveOnly).to.equal(newRiskParameter.makerReceiveOnly)
       })
 
@@ -4566,14 +4579,9 @@ describe('Market', () => {
               })
 
               it('with shortfall', async () => {
-                factory.parameter.returns({
-                  protocolFee: parse6decimal('0.50'),
-                  liquidationFee: parse6decimal('0.10'),
-                  maxLiquidationFee: parse6decimal('1000'),
-                  minCollateral: parse6decimal('50'),
-                  settlementFee: parse6decimal('0.00'),
-                  maxPendingIds: 5,
-                })
+                const riskParameter = { ...(await market.riskParameter()) }
+                riskParameter.minMaintenance = parse6decimal('50')
+                await market.connect(owner).updateRiskParameter(riskParameter)
 
                 oracle.at.whenCalledWith(ORACLE_VERSION_2.timestamp).returns(ORACLE_VERSION_2)
                 oracle.status.returns([ORACLE_VERSION_2, ORACLE_VERSION_3.timestamp])
@@ -5303,6 +5311,10 @@ describe('Market', () => {
               })
 
               it('opens the position and settles later', async () => {
+                const riskParameter = { ...(await market.riskParameter()) }
+                riskParameter.staleAfter = BigNumber.from(9600)
+                await market.connect(owner).updateRiskParameter(riskParameter)
+
                 await expect(market.connect(user).update(user.address, 0, 0, POSITION.div(2), COLLATERAL, false))
                   .to.emit(market, 'Updated')
                   .withArgs(user.address, ORACLE_VERSION_2.timestamp, 0, 0, POSITION.div(2), COLLATERAL, false)
@@ -7641,14 +7653,9 @@ describe('Market', () => {
               })
 
               it('with shortfall', async () => {
-                factory.parameter.returns({
-                  protocolFee: parse6decimal('0.50'),
-                  liquidationFee: parse6decimal('0.10'),
-                  maxLiquidationFee: parse6decimal('1000'),
-                  minCollateral: parse6decimal('50'),
-                  settlementFee: parse6decimal('0.00'),
-                  maxPendingIds: 5,
-                })
+                const riskParameter = { ...(await market.riskParameter()) }
+                riskParameter.minMaintenance = parse6decimal('50')
+                await market.connect(owner).updateRiskParameter(riskParameter)
 
                 oracle.at.whenCalledWith(ORACLE_VERSION_2.timestamp).returns(ORACLE_VERSION_2)
                 oracle.status.returns([ORACLE_VERSION_2, ORACLE_VERSION_3.timestamp])
@@ -10171,11 +10178,11 @@ describe('Market', () => {
             ).to.be.revertedWithCustomError(market, 'MarketMakerOverLimitError')
           })
 
-          it('reverts if under collateral limit', async () => {
+          it('reverts if under minimum maintenance', async () => {
             dsu.transferFrom.whenCalledWith(user.address, market.address, utils.parseEther('1')).returns(true)
             await expect(
-              market.connect(user).update(user.address, 0, 0, 0, parse6decimal('1'), false),
-            ).to.be.revertedWithCustomError(market, 'MarketCollateralBelowLimitError')
+              market.connect(user).update(user.address, 1, 0, 0, parse6decimal('99'), false),
+            ).to.be.revertedWithCustomError(market, 'MarketInsufficientCollateralizationError')
           })
 
           it('reverts if closed', async () => {
@@ -10368,14 +10375,9 @@ describe('Market', () => {
             await settle(market, user)
             await settle(market, userB)
 
-            factory.parameter.returns({
-              protocolFee: parse6decimal('0.50'),
-              liquidationFee: parse6decimal('0.10'),
-              maxLiquidationFee: parse6decimal('10'),
-              minCollateral: parse6decimal('100'),
-              settlementFee: parse6decimal('0.00'),
-              maxPendingIds: 5,
-            })
+            const protocolParameter = { ...(await factory.parameter()) }
+            protocolParameter.maxLiquidationFee = parse6decimal('10')
+            factory.parameter.returns(protocolParameter)
 
             const EXPECTED_PNL = parse6decimal('27').mul(5)
             const EXPECTED_LIQUIDATION_FEE = parse6decimal('10') // 22.5
@@ -10629,7 +10631,7 @@ describe('Market', () => {
             factory.operators.whenCalledWith(user.address, operator.address).returns(false)
             await expect(
               market.connect(operator).update(user.address, POSITION, 0, 0, COLLATERAL, false),
-            ).to.be.revertedWithCustomError(market, 'MarketOperatorNotAllowed')
+            ).to.be.revertedWithCustomError(market, 'MarketOperatorNotAllowedError')
           })
         })
       })
@@ -10638,8 +10640,18 @@ describe('Market', () => {
     })
 
     describe('#claimFee', async () => {
+      const FEE = EXPECTED_FUNDING_FEE_1_5_123.add(EXPECTED_INTEREST_FEE_5_123).sub(5) // loss of precision
+      const PROTOCOL_FEE = FEE.div(2)
+      const MARKET_FEE = FEE.sub(PROTOCOL_FEE)
+      const ORACLE_FEE = MARKET_FEE.div(10)
+      const RISK_FEE = MARKET_FEE.div(5)
+      const DONATION = MARKET_FEE.sub(ORACLE_FEE).sub(RISK_FEE)
+
       beforeEach(async () => {
-        factory.treasury.returns(protocolTreasury.address)
+        const marketParameter = { ...(await market.parameter()) }
+        marketParameter.riskFee = parse6decimal('0.2')
+        marketParameter.oracleFee = parse6decimal('0.1')
+        await market.updateParameter(marketParameter)
 
         oracle.at.whenCalledWith(ORACLE_VERSION_0.timestamp).returns(ORACLE_VERSION_0)
 
@@ -10662,54 +10674,73 @@ describe('Market', () => {
         await settle(market, userB)
 
         await market.updateBeneficiary(beneficiary.address)
+        await market.updateCoordinator(coordinator.address)
       })
 
       it('claims fee (protocol)', async () => {
-        dsu.transfer
-          .whenCalledWith(
-            protocolTreasury.address,
-            EXPECTED_FUNDING_FEE_1_5_123.add(EXPECTED_INTEREST_FEE_5_123).div(2).sub(3).mul(1e12),
-          ) // loss of precision
-          .returns(true)
+        dsu.transfer.whenCalledWith(factory.address, PROTOCOL_FEE.mul(1e12)).returns(true)
 
-        await expect(market.connect(protocolTreasury).claimProtocolFee())
+        await expect(market.connect(factorySigner).claimFee())
           .to.emit(market, 'FeeClaimed')
-          .withArgs(
-            protocolTreasury.address,
-            EXPECTED_FUNDING_FEE_1_5_123.add(EXPECTED_INTEREST_FEE_5_123).div(2).sub(3),
-          )
+          .withArgs(factory.address, PROTOCOL_FEE)
 
         expect((await market.global()).protocolFee).to.equal(0)
-        expect((await market.global()).donation).to.equal(
-          EXPECTED_FUNDING_FEE_1_5_123.add(EXPECTED_INTEREST_FEE_5_123).div(2).sub(2),
-        ) // loss of precision
+        expect((await market.global()).oracleFee).to.equal(ORACLE_FEE)
+        expect((await market.global()).riskFee).to.equal(RISK_FEE)
+        expect((await market.global()).donation).to.equal(DONATION)
+      })
+
+      it('claims fee (oracle)', async () => {
+        dsu.transfer.whenCalledWith(oracleFactorySigner.address, ORACLE_FEE.mul(1e12)).returns(true)
+
+        await expect(market.connect(oracleFactorySigner).claimFee())
+          .to.emit(market, 'FeeClaimed')
+          .withArgs(oracleFactorySigner.address, ORACLE_FEE)
+
+        expect((await market.global()).protocolFee).to.equal(PROTOCOL_FEE)
+        expect((await market.global()).oracleFee).to.equal(0)
+        expect((await market.global()).riskFee).to.equal(RISK_FEE)
+        expect((await market.global()).donation).to.equal(DONATION)
+      })
+
+      it('claims fee (risk)', async () => {
+        dsu.transfer.whenCalledWith(coordinator.address, RISK_FEE.mul(1e12)).returns(true)
+
+        await expect(market.connect(coordinator).claimFee())
+          .to.emit(market, 'FeeClaimed')
+          .withArgs(coordinator.address, RISK_FEE)
+
+        expect((await market.global()).protocolFee).to.equal(PROTOCOL_FEE)
+        expect((await market.global()).oracleFee).to.equal(ORACLE_FEE)
+        expect((await market.global()).riskFee).to.equal(0)
+        expect((await market.global()).donation).to.equal(DONATION)
       })
 
       it('claims fee (donation)', async () => {
-        dsu.transfer
-          .whenCalledWith(
-            beneficiary.address,
-            EXPECTED_FUNDING_FEE_1_5_123.add(EXPECTED_INTEREST_FEE_5_123).div(2).sub(2).mul(1e12),
-          )
-          .returns(true)
+        dsu.transfer.whenCalledWith(beneficiary.address, DONATION.mul(1e12)).returns(true)
 
-        await expect(market.connect(beneficiary).claimDonation())
+        await expect(market.connect(beneficiary).claimFee())
           .to.emit(market, 'FeeClaimed')
-          .withArgs(beneficiary.address, EXPECTED_FUNDING_FEE_1_5_123.add(EXPECTED_INTEREST_FEE_5_123).div(2).sub(2))
+          .withArgs(beneficiary.address, DONATION)
 
-        expect((await market.global()).protocolFee).to.equal(
-          EXPECTED_FUNDING_FEE_1_5_123.add(EXPECTED_INTEREST_FEE_5_123).div(2).sub(3),
-        ) // loss of precision
+        expect((await market.global()).protocolFee).to.equal(PROTOCOL_FEE)
+        expect((await market.global()).oracleFee).to.equal(ORACLE_FEE)
+        expect((await market.global()).riskFee).to.equal(RISK_FEE)
         expect((await market.global()).donation).to.equal(0)
       })
 
-      // TODO: revert when not correct role or remove if consolidated
+      it('claims fee (none)', async () => {
+        await market.connect(user).claimFee()
+
+        expect((await market.global()).protocolFee).to.equal(PROTOCOL_FEE)
+        expect((await market.global()).oracleFee).to.equal(ORACLE_FEE)
+        expect((await market.global()).riskFee).to.equal(RISK_FEE)
+        expect((await market.global()).donation).to.equal(DONATION)
+      })
     })
 
     describe('#claimReward', async () => {
       beforeEach(async () => {
-        factory.treasury.returns(protocolTreasury.address)
-
         oracle.at.whenCalledWith(ORACLE_VERSION_0.timestamp).returns(ORACLE_VERSION_0)
 
         oracle.at.whenCalledWith(ORACLE_VERSION_1.timestamp).returns(ORACLE_VERSION_1)

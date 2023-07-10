@@ -35,19 +35,19 @@ library MappingLib {
         return self._ids.length;
     }
 
-    /// @dev positionId of zero will return a zero state in the underlying (TODO verify)
+    /// @dev positionId of zero will return a zero state in the underlying
     function get(Mapping memory self, uint256 index) internal pure returns (uint256 id) {
         if (index < self._ids.length) id = self._ids[index];
     }
 
     function ready(Mapping memory self, Mapping memory latestMapping) internal pure returns (bool) {
-        for (uint256 id; id < self._ids.length; id++) // TODO: safe on additional market?
+        for (uint256 id; id < latestMapping._ids.length; id++)
             if (get(self, id) > get(latestMapping, id)) return false;
         return true;
     }
 
     function next(Mapping memory self, Mapping memory currentMapping) internal pure returns (bool) {
-        for (uint256 id; id < currentMapping._ids.length; id++) // TODO: safe on additional market?
+        for (uint256 id; id < currentMapping._ids.length; id++)
             if (get(currentMapping, id) > get(self, id)) return true;
         return false;
     }

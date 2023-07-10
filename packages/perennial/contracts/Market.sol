@@ -70,7 +70,6 @@ contract Market is IMarket, Instance {
         name = definition_.name;
         symbol = definition_.symbol;
         token = definition_.token;
-        reward = definition_.reward;
         oracle = definition_.oracle;
         payoff = definition_.payoff;
         _updateRiskParameter(riskParameter_);
@@ -96,9 +95,15 @@ contract Market is IMarket, Instance {
         emit BeneficiaryUpdated(newBeneficiary);
     }
 
+    function updateCoordinator(address newCoordinator) external onlyOwner {
+        coordinator = newCoordinator;
+        emit CoordinatorUpdated(newCoordinator);
+    }
+
     function updateParameter(MarketParameter memory newParameter) external onlyOwner {
         if (newParameter.oracleFee.add(newParameter.riskFee).gt(UFixed6Lib.ONE))
             revert MarketInvalidParameterError();
+        // TODO: if reward not set don't allow reward rate to be non-zero
 
         _parameter.store(newParameter);
         emit ParameterUpdated(newParameter);
@@ -114,46 +119,24 @@ contract Market is IMarket, Instance {
         emit RewardUpdated(newReward);
     }
 
-    function claimProtocolFee() external {
+    function claimFee() external {
         Global memory newGlobal = _global.read();
 
-        address receiver = address(IMarketFactory(address(factory())).treasury());
-        token.push(receiver, UFixed18Lib.from(newGlobal.protocolFee));
-        emit FeeClaimed(receiver, newGlobal.protocolFee);
+        if (_claimFee(address(factory()), newGlobal.protocolFee)) newGlobal.protocolFee = UFixed6Lib.ZERO;
+        if (_claimFee(address(IMarketFactory(address(factory())).oracleFactory()), newGlobal.oracleFee))
+            newGlobal.oracleFee = UFixed6Lib.ZERO;
+        if (_claimFee(coordinator, newGlobal.riskFee)) newGlobal.riskFee = UFixed6Lib.ZERO;
+        if (_claimFee(beneficiary, newGlobal.donation)) newGlobal.donation = UFixed6Lib.ZERO;
 
-        newGlobal.protocolFee = UFixed6Lib.ZERO;
         _global.store(newGlobal);
     }
 
-    function claimOracleFee() external {
-        Global memory newGlobal = _global.read();
+    function _claimFee(address receiver, UFixed6 fee) private returns (bool) {
+        if (msg.sender != receiver) return false;
 
-        address receiver = address(IMarketFactory(address(factory())).oracleFactory());
-        token.push(receiver, UFixed18Lib.from(newGlobal.oracleFee));
-        emit FeeClaimed(receiver, newGlobal.oracleFee);
-
-        newGlobal.oracleFee = UFixed6Lib.ZERO;
-        _global.store(newGlobal);
-    }
-
-    function claimRiskFee() external onlyCoordinator {
-        Global memory newGlobal = _global.read();
-
-        token.push(coordinator, UFixed18Lib.from(newGlobal.riskFee));
-        emit FeeClaimed(coordinator, newGlobal.riskFee);
-
-        newGlobal.riskFee = UFixed6Lib.ZERO;
-        _global.store(newGlobal);
-    }
-
-    function claimDonation() external {
-        Global memory newGlobal = _global.read();
-
-        token.push(beneficiary, UFixed18Lib.from(newGlobal.donation));
-        emit FeeClaimed(beneficiary, newGlobal.donation);
-
-        newGlobal.donation = UFixed6Lib.ZERO;
-        _global.store(newGlobal);
+        token.push(receiver, UFixed18Lib.from(fee));
+        emit FeeClaimed(receiver, fee);
+        return true;
     }
 
     function claimReward() external {
@@ -400,26 +383,47 @@ contract Market is IMarket, Instance {
         Fixed6 collateral,
         bool protected
     ) private view {
-        // TODO: protected has too many rights -- should we require latest be undercollateralized? (how do minCollateral closes work then?)
-        // TODO(idea): xor protected and accountPosition.collateralized
-        // TODO(idea): if you include the collateral delta in the accountPosition collateralization check, it gives better guarentees
+        if (protected && (
+            !context.accountPendingPosition.magnitude().isZero() ||
+            context.accountPosition.collateralized(
+                context.latestVersion,
+                context.riskParameter,
+                context.local.collateral.sub(collateral)
+            ) ||
+            collateral.lt(Fixed6Lib.from(-1, _liquidationFee(context)))
+        )) { if (LOG_REVERTS) console.log("MarketInvalidProtectionError"); revert MarketInvalidProtectionError(); }
 
         if (
             msg.sender != account &&                                                                        // sender is operating on own account
             !IMarketFactory(address(factory())).operators(account, msg.sender) &&                           // sender is operating on own account
-            !(newOrder.isEmpty() && context.local.collateral.isZero() && collateral.gt(Fixed6Lib.ZERO)) &&  // sender is repaying shortfall for this account
-            !(
-                protected &&
-                collateral.gte(Fixed6Lib.from(-1, _liquidationFee(context))) &&
-                !_collateralized(context, context.accountPosition)
-            )                                                                                               // sender is liquidating this account
-        ) { if (LOG_REVERTS) console.log("MarketOperatorNotAllowed"); revert MarketOperatorNotAllowed(); }
+            !protected &&                                                                                   // sender is liquidating this account
+            !(newOrder.isEmpty() && context.local.collateral.isZero() && collateral.gt(Fixed6Lib.ZERO))     // sender is repaying shortfall for this account
+        ) { if (LOG_REVERTS) console.log("MarketOperatorNotAllowedError"); revert MarketOperatorNotAllowedError(); }
+
+        if (context.currentTimestamp - context.latestVersion.timestamp >= context.riskParameter.staleAfter)
+            { if (LOG_REVERTS) console.log("MarketStalePriceError"); revert MarketStalePriceError(); }
 
         if (context.marketParameter.closed && newOrder.increasesPosition())
             { if (LOG_REVERTS) console.log("MarketClosedError"); revert MarketClosedError(); }
 
-        if (protected && (!context.accountPendingPosition.magnitude().isZero()))
-            { if (LOG_REVERTS) console.log("MarketMustCloseError"); revert MarketMustCloseError(); }
+        if (context.pendingPosition.maker.gt(context.riskParameter.makerLimit))
+            { if (LOG_REVERTS) console.log("MarketMakerOverLimitError"); revert MarketMakerOverLimitError(); }
+
+        if (!context.accountPendingPosition.singleSided())
+            { if (LOG_REVERTS) console.log("MarketNotSingleSidedError"); revert MarketNotSingleSidedError(); }
+
+        if (!_collateralized(context, context.accountPendingPosition))
+            { if (LOG_REVERTS) console.log("MarketInsufficientCollateralizationError2"); revert MarketInsufficientCollateralizationError(); }
+
+        if (!protected && context.global.currentId > context.position.id + context.protocolParameter.maxPendingIds)
+            { if (LOG_REVERTS) console.log("MarketExceedsPendingIdLimitError"); revert MarketExceedsPendingIdLimitError(); }
+
+        if (!protected && !_collateralized(context, context.accountPosition))
+            { if (LOG_REVERTS) console.log("MarketInsufficientCollateralizationError1"); revert MarketInsufficientCollateralizationError(); }
+
+        for (uint256 id = context.accountPosition.id + 1; id < context.local.currentId; id++)
+            if (!protected && !_collateralized(context, _pendingPositions[account][id].read()))
+                { if (LOG_REVERTS) console.log("MarketInsufficientCollateralizationError3"); revert MarketInsufficientCollateralizationError(); }
 
         if (
             !protected &&
@@ -433,28 +437,6 @@ contract Market is IMarket, Instance {
             context.pendingPosition.socialized() &&
             newOrder.decreasesLiquidity()
         ) { if (LOG_REVERTS) console.log("MarketInsufficientLiquidityError"); revert MarketInsufficientLiquidityError(); }
-
-        if (context.pendingPosition.maker.gt(context.riskParameter.makerLimit))
-            { if (LOG_REVERTS) console.log("MarketMakerOverLimitError"); revert MarketMakerOverLimitError(); }
-
-        if (!context.accountPendingPosition.singleSided())
-            { if (LOG_REVERTS) console.log("MarketNotSingleSidedError"); revert MarketNotSingleSidedError(); }
-
-        if (!protected && context.global.currentId > context.position.id + context.protocolParameter.maxPendingIds)
-            { if (LOG_REVERTS) console.log("MarketExceedsPendingIdLimitError"); revert MarketExceedsPendingIdLimitError(); }
-
-        if (!protected && !_collateralized(context, context.accountPosition))
-            { if (LOG_REVERTS) console.log("MarketInsufficientCollateralizationError1"); revert MarketInsufficientCollateralizationError(); }
-
-        if (!_collateralized(context, context.accountPendingPosition))
-            { if (LOG_REVERTS) console.log("MarketInsufficientCollateralizationError2"); revert MarketInsufficientCollateralizationError(); }
-
-        for (uint256 id = context.accountPosition.id + 1; id < context.local.currentId; id++)
-            if (!protected && !_collateralized(context, _pendingPositions[account][id].read()))
-                { if (LOG_REVERTS) console.log("MarketInsufficientCollateralizationError3"); revert MarketInsufficientCollateralizationError(); }
-
-        if (!protected && context.local.belowLimit(context.protocolParameter))
-            { if (LOG_REVERTS) console.log("MarketCollateralBelowLimitError"); revert MarketCollateralBelowLimitError(); }
 
         if (!protected && collateral.lt(Fixed6Lib.ZERO) && context.local.collateral.lt(Fixed6Lib.ZERO))
             { if (LOG_REVERTS) console.log("MarketInsufficientCollateralError"); revert MarketInsufficientCollateralError(); }
@@ -499,11 +481,6 @@ contract Market is IMarket, Instance {
 
     modifier onlyCoordinator {
         if (msg.sender != coordinator && msg.sender != factory().owner()) revert MarketNotCoordinatorError();
-        _;
-    }
-
-    modifier onlyBeneficiary {
-        if (msg.sender != beneficiary && msg.sender != factory().owner()) revert MarketNotBeneficiaryError();
         _;
     }
 

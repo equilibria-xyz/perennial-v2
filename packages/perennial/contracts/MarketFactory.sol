@@ -18,9 +18,6 @@ contract MarketFactory is IMarketFactory, Factory {
 
     ProtocolParameterStorage private _parameter;
 
-    /// @dev Protocol pauser address. address(0) defaults to owner(0)
-    address private _treasury;
-
     mapping(address => mapping(address => bool)) public operators;
 
     mapping(IOracleProvider => mapping(IPayoffProvider => IMarket)) public markets;
@@ -43,19 +40,13 @@ contract MarketFactory is IMarketFactory, Factory {
         __Factory__initialize();
     }
 
+    function parameter() public view returns (ProtocolParameter memory) {
+        return _parameter.read();
+    }
+
     function updateParameter(ProtocolParameter memory newParameter) public onlyOwner {
         _parameter.store(newParameter);
         emit ParameterUpdated(newParameter);
-    }
-
-    /**
-     * @notice Updates the treasury of an existing coordinator
-     * @dev Must be called by the current owner. Defaults to the coordinator `owner` if set to address(0)
-     * @param newTreasury New treasury address
-     */
-    function updateTreasury(address newTreasury) external onlyOwner {
-        _treasury = newTreasury;
-        emit TreasuryUpdated(newTreasury);
     }
 
     function updateOperator(address operator, bool newEnabled) external {
@@ -71,8 +62,6 @@ contract MarketFactory is IMarketFactory, Factory {
         IMarket.MarketDefinition calldata definition,
         RiskParameter calldata riskParameter
     ) external onlyOwner returns (IMarket newMarket) {
-        // TODO: lock down or use more of definition?
-
         // verify payoff
         if (definition.payoff != IPayoffProvider(address(0)) && !payoffFactory.payoffs(definition.payoff))
             revert FactoryInvalidPayoffError();
@@ -91,11 +80,7 @@ contract MarketFactory is IMarketFactory, Factory {
         emit MarketCreated(newMarket, definition, riskParameter);
     }
 
-    function parameter() public view returns (ProtocolParameter memory) {
-        return _parameter.read();
-    }
-
-    function treasury() external view returns (address) {
-        return _treasury == address(0) ? owner() : _treasury;
+    function fund(IMarket market) external {
+        market.claimFee();
     }
 }

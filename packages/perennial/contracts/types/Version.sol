@@ -58,7 +58,7 @@ library VersionLib {
         OracleVersion memory toOracleVersion,
         MarketParameter memory marketParameter,
         RiskParameter memory riskParameter
-    ) internal view returns (UFixed6 fee) {
+    ) internal pure returns (UFixed6 fee) {
         if (marketParameter.closed) return UFixed6Lib.ZERO;
 
         // accumulate position
@@ -117,7 +117,7 @@ library VersionLib {
         OracleVersion memory toOracleVersion,
         MarketParameter memory marketParameter,
         RiskParameter memory riskParameter
-    ) private view returns (UFixed6 fundingFee) {
+    ) private pure returns (UFixed6 fundingFee) {
         // Compute long-short funding rate
         Fixed6 funding = global.pAccumulator.accumulate(
             riskParameter.pController,
@@ -172,7 +172,7 @@ library VersionLib {
         OracleVersion memory toOracleVersion,
         MarketParameter memory marketParameter,
         RiskParameter memory riskParameter
-    ) private view returns (UFixed6 interestFee) {
+    ) private pure returns (UFixed6 interestFee) {
         UFixed6 notional = position.long.add(position.short).min(position.maker).mul(fromOracleVersion.price.abs());
 
         // Compute maker interest

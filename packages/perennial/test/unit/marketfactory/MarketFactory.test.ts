@@ -22,24 +22,20 @@ const { ethers } = HRE
 describe('MarketFactory', () => {
   let user: SignerWithAddress
   let owner: SignerWithAddress
-  let treasury: SignerWithAddress
-  let pauser: SignerWithAddress
   let payoffFactory: FakeContract<IPayoffFactory>
   let payoffProvider: FakeContract<IPayoffProvider>
   let oracleFactory: FakeContract<IOracleFactory>
   let oracle: FakeContract<IOracleProvider>
   let dsu: FakeContract<IERC20Metadata>
-  let reward: FakeContract<IERC20Metadata>
 
   let factory: MarketFactory
   let marketImpl: Market
 
   beforeEach(async () => {
-    ;[user, owner, treasury, pauser] = await ethers.getSigners()
+    ;[user, owner] = await ethers.getSigners()
     oracleFactory = await smock.fake<IOracleFactory>('IOracleFactory')
     oracle = await smock.fake<IOracleProvider>('IOracleProvider')
     dsu = await smock.fake<IERC20Metadata>('IERC20Metadata')
-    reward = await smock.fake<IERC20Metadata>('IERC20Metadata')
     payoffFactory = await smock.fake<IPayoffFactory>('IPayoffFactory')
     payoffProvider = await smock.fake<IPayoffProvider>('IPayoffProvider')
     marketImpl = await new Market__factory(owner).deploy()
@@ -56,14 +52,12 @@ describe('MarketFactory', () => {
       expect(await factory.payoffFactory()).to.equal(payoffFactory.address)
       expect(await factory.implementation()).to.equal(marketImpl.address)
       expect(await factory.owner()).to.equal(owner.address)
-      expect(await factory.treasury()).to.equal(owner.address)
       expect(await factory.pauser()).to.equal(constants.AddressZero)
 
       const parameter = await factory.parameter()
       expect(parameter.protocolFee).to.equal(0)
       expect(parameter.liquidationFee).to.equal(0)
       expect(parameter.maxLiquidationFee).to.equal(0)
-      expect(parameter.minCollateral).to.equal(0)
       expect(parameter.settlementFee).to.equal(0)
       expect(parameter.maxPendingIds).to.equal(0)
     })
@@ -75,29 +69,12 @@ describe('MarketFactory', () => {
     })
   })
 
-  describe('#updateTreasury', async () => {
-    it('updates the treasury', async () => {
-      await expect(factory.connect(owner).updateTreasury(treasury.address))
-        .to.emit(factory, 'TreasuryUpdated')
-        .withArgs(treasury.address)
-      expect(await factory.treasury()).to.equal(treasury.address)
-    })
-
-    it('reverts if not owner', async () => {
-      await expect(factory.connect(user).updateTreasury(treasury.address)).to.be.revertedWithCustomError(
-        factory,
-        'UOwnableNotOwnerError',
-      )
-    })
-  })
-
   describe('#create', async () => {
     it('creates the market', async () => {
       const marketDefinition = {
         name: 'Squeeth',
         symbol: 'SQTH',
         token: dsu.address,
-        reward: reward.address,
         oracle: oracle.address,
         payoff: payoffProvider.address,
       }
@@ -109,7 +86,6 @@ describe('MarketFactory', () => {
         takerSkewFee: 0,
         takerImpactFee: 0,
         makerFee: 0,
-        makerSkewFee: 0,
         makerImpactFee: 0,
         positionFee: 0,
         makerLiquidity: parse6decimal('0.2'),
@@ -127,8 +103,9 @@ describe('MarketFactory', () => {
         makerRewardRate: 0,
         longRewardRate: 0,
         shortRewardRate: 0,
+        minMaintenance: parse6decimal('100'),
+        staleAfter: 7200,
         makerReceiveOnly: false,
-        closed: false,
       }
 
       oracleFactory.instances.whenCalledWith(oracle.address).returns(true)
@@ -148,7 +125,6 @@ describe('MarketFactory', () => {
         name: 'Squeeth',
         symbol: 'SQTH',
         token: dsu.address,
-        reward: reward.address,
         oracle: oracle.address,
         payoff: constants.AddressZero,
       }
@@ -160,7 +136,6 @@ describe('MarketFactory', () => {
         takerSkewFee: 0,
         takerImpactFee: 0,
         makerFee: 0,
-        makerSkewFee: 0,
         makerImpactFee: 0,
         positionFee: 0,
         makerLiquidity: parse6decimal('0.2'),
@@ -178,8 +153,9 @@ describe('MarketFactory', () => {
         makerRewardRate: 0,
         longRewardRate: 0,
         shortRewardRate: 0,
+        minMaintenance: parse6decimal('100'),
+        staleAfter: 7200,
         makerReceiveOnly: false,
-        closed: false,
       }
 
       oracleFactory.instances.whenCalledWith(oracle.address).returns(true)
@@ -198,7 +174,6 @@ describe('MarketFactory', () => {
         name: 'Squeeth',
         symbol: 'SQTH',
         token: dsu.address,
-        reward: reward.address,
         oracle: oracle.address,
         payoff: payoffProvider.address,
       }
@@ -210,7 +185,6 @@ describe('MarketFactory', () => {
         takerSkewFee: 0,
         takerImpactFee: 0,
         makerFee: 0,
-        makerSkewFee: 0,
         makerImpactFee: 0,
         positionFee: 0,
         makerLiquidity: parse6decimal('0.2'),
@@ -228,8 +202,9 @@ describe('MarketFactory', () => {
         makerRewardRate: 0,
         longRewardRate: 0,
         shortRewardRate: 0,
+        minMaintenance: parse6decimal('100'),
+        staleAfter: 7200,
         makerReceiveOnly: false,
-        closed: false,
       }
 
       oracleFactory.instances.whenCalledWith(oracle.address).returns(true)
@@ -246,7 +221,6 @@ describe('MarketFactory', () => {
         name: 'Squeeth',
         symbol: 'SQTH',
         token: dsu.address,
-        reward: reward.address,
         oracle: oracle.address,
         payoff: payoffProvider.address,
       }
@@ -258,7 +232,6 @@ describe('MarketFactory', () => {
         takerSkewFee: 0,
         takerImpactFee: 0,
         makerFee: 0,
-        makerSkewFee: 0,
         makerImpactFee: 0,
         positionFee: 0,
         makerLiquidity: parse6decimal('0.2'),
@@ -276,8 +249,9 @@ describe('MarketFactory', () => {
         makerRewardRate: 0,
         longRewardRate: 0,
         shortRewardRate: 0,
+        minMaintenance: parse6decimal('100'),
+        staleAfter: 7200,
         makerReceiveOnly: false,
-        closed: false,
       }
 
       oracleFactory.instances.whenCalledWith(oracle.address).returns(false)
@@ -294,7 +268,6 @@ describe('MarketFactory', () => {
         name: 'Squeeth',
         symbol: 'SQTH',
         token: dsu.address,
-        reward: reward.address,
         oracle: oracle.address,
         payoff: payoffProvider.address,
       }
@@ -306,7 +279,6 @@ describe('MarketFactory', () => {
         takerSkewFee: 0,
         takerImpactFee: 0,
         makerFee: 0,
-        makerSkewFee: 0,
         makerImpactFee: 0,
         positionFee: 0,
         makerLiquidity: parse6decimal('0.2'),
@@ -324,8 +296,9 @@ describe('MarketFactory', () => {
         makerRewardRate: 0,
         longRewardRate: 0,
         shortRewardRate: 0,
+        minMaintenance: parse6decimal('100'),
+        staleAfter: 7200,
         makerReceiveOnly: false,
-        closed: false,
       }
 
       oracleFactory.instances.whenCalledWith(oracle.address).returns(true)
@@ -345,7 +318,6 @@ describe('MarketFactory', () => {
       protocolFee: parse6decimal('0.50'),
       liquidationFee: parse6decimal('0.50'),
       maxLiquidationFee: parse6decimal('1000'),
-      minCollateral: parse6decimal('500'),
       settlementFee: parse6decimal('0.50'),
       maxPendingIds: BigNumber.from(5),
     }
@@ -357,7 +329,6 @@ describe('MarketFactory', () => {
       expect(parameter.protocolFee).to.equal(newParameter.protocolFee)
       expect(parameter.liquidationFee).to.equal(newParameter.liquidationFee)
       expect(parameter.maxLiquidationFee).to.equal(newParameter.maxLiquidationFee)
-      expect(parameter.minCollateral).to.equal(newParameter.minCollateral)
       expect(parameter.settlementFee).to.equal(newParameter.settlementFee)
       expect(parameter.maxPendingIds).to.equal(newParameter.maxPendingIds)
     })

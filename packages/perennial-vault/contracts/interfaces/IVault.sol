@@ -13,13 +13,13 @@ import "../types/Registration.sol";
 interface IVault is IInstance {
     struct Context {
         // parameters
-        UFixed6 makerFee;
         UFixed6 settlementFee;
         UFixed6 minCollateral;
-        uint256 minWeight;
         uint256 totalWeight;
 
         // markets
+        uint256 currentId;
+        Registration[] registrations;
         MarketContext[] markets;
         Mapping currentIds;
         Mapping latestIds;
@@ -34,7 +34,6 @@ interface IVault is IInstance {
 
     struct MarketContext {
         // parameter
-        Registration registration;
         bool closed;
         UFixed6 makerLimit;
 
@@ -59,7 +58,7 @@ interface IVault is IInstance {
     }
 
     event MarketRegistered(uint256 indexed marketId, IMarket market);
-    event WeightUpdated(uint256 indexed marketId, uint256 newWeight);
+    event MarketUpdated(uint256 indexed marketId, uint256 newWeight, UFixed6 newLeverage);
     event ParameterUpdated(VaultParameter newParameter);
     event Update(address indexed sender, address indexed account, uint256 version, UFixed6 depositAssets, UFixed6 redeemShares, UFixed6 claimAssets);
 
@@ -71,6 +70,7 @@ interface IVault is IInstance {
     error VaultNotMarketError();
     error VaultIncorrectAssetError();
     error VaultNotOperatorError();
+    error VaultNotSingleSidedError();
 
     error AccountStorageInvalidError();
     error CheckpointStorageInvalidError();
@@ -92,6 +92,6 @@ interface IVault is IInstance {
     function registrations(uint256 marketId) external view returns (Registration memory);
     function accounts(address account) external view returns (Account memory);
     function register(IMarket market) external;
-    function updateWeight(uint256 marketId, uint256 newWeight) external;
+    function updateMarket(uint256 marketId, uint256 newWeight, UFixed6 newLeverage) external;
     function updateParameter(VaultParameter memory newParameter) external;
 }

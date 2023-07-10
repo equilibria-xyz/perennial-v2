@@ -5,6 +5,7 @@ import { BigNumber } from 'ethers'
 import { InstanceVars, deployProtocol, createMarket, settle } from '../helpers/setupHelpers'
 import { Market } from '../../../types/generated'
 import { parse6decimal } from '../../../../common/testutil/types'
+import { loadFixture } from '@nomicfoundation/hardhat-network-helpers'
 
 export const TIMESTAMP_3 = 1631114005
 
@@ -12,7 +13,8 @@ describe('Closed Market', () => {
   let instanceVars: InstanceVars
 
   beforeEach(async () => {
-    instanceVars = await deployProtocol()
+    instanceVars = await loadFixture(deployProtocol)
+    instanceVars.chainlink.reset()
   })
 
   it('closes the market', async () => {

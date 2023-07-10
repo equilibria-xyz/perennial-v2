@@ -1,6 +1,18 @@
-import defaultConfig from '../common/hardhat.default.config'
+import defaultConfig, { OPTIMIZER_ENABLED, SOLIDITY_VERSION } from '../common/hardhat.default.config'
 
 const config = defaultConfig({
+  solidityOverrides: {
+    'contracts/Market.sol': {
+      version: SOLIDITY_VERSION,
+      settings: {
+        optimizer: {
+          enabled: OPTIMIZER_ENABLED,
+          runs: 1,
+        },
+        viaIR: OPTIMIZER_ENABLED,
+      },
+    },
+  },
   dependencyPaths: [
     '@openzeppelin/contracts/proxy/transparent/ProxyAdmin.sol',
     '@openzeppelin/contracts/proxy/transparent/TransparentUpgradeableProxy.sol',

@@ -2,7 +2,7 @@ import { SignerWithAddress } from '@nomiclabs/hardhat-ethers/signers'
 import HRE from 'hardhat'
 import { utils } from 'ethers'
 
-import { time, impersonate } from '../../../../common/testutil'
+import { impersonate } from '../../../../common/testutil'
 import {
   IERC20Metadata,
   Market,
@@ -31,7 +31,7 @@ import { ChainlinkContext } from './chainlinkHelpers'
 import { parse6decimal } from '../../../../common/testutil/types'
 import { buildChainlinkRoundId } from '@equilibria/perennial-v2-oracle/util/buildChainlinkRoundId'
 import { CHAINLINK_CUSTOM_CURRENCIES } from '@equilibria/perennial-v2-oracle/util/constants'
-const { config, deployments, ethers } = HRE
+const { deployments, ethers } = HRE
 
 export const INITIAL_PHASE_ID = 1
 export const INITIAL_AGGREGATOR_ROUND_ID = 10000
@@ -46,7 +46,6 @@ export interface InstanceVars {
   userB: SignerWithAddress
   userC: SignerWithAddress
   userD: SignerWithAddress
-  treasuryA: SignerWithAddress
   beneficiaryB: SignerWithAddress
   proxyAdmin: ProxyAdmin
   oracleFactory: OracleFactory
@@ -63,8 +62,7 @@ export interface InstanceVars {
 }
 
 export async function deployProtocol(): Promise<InstanceVars> {
-  await time.reset(config)
-  const [owner, pauser, user, userB, userC, userD, treasuryA, beneficiaryB] = await ethers.getSigners()
+  const [owner, pauser, user, userB, userC, userD, beneficiaryB] = await ethers.getSigners()
 
   const payoff = await IPayoffProvider__factory.connect((await new PowerTwo__factory(owner).deploy()).address, owner)
   const dsu = await IERC20Metadata__factory.connect((await deployments.get('DSU')).address, owner)
@@ -123,12 +121,10 @@ export async function deployProtocol(): Promise<InstanceVars> {
 
   // Params
   await marketFactory.updatePauser(pauser.address)
-  await marketFactory.updateTreasury(treasuryA.address)
   await marketFactory.updateParameter({
     protocolFee: parse6decimal('0.50'),
     liquidationFee: parse6decimal('0.50'),
     maxLiquidationFee: parse6decimal('1000'),
-    minCollateral: parse6decimal('500'),
     settlementFee: parse6decimal('0.00'),
     maxPendingIds: 8,
   })
@@ -157,7 +153,6 @@ export async function deployProtocol(): Promise<InstanceVars> {
     userB,
     userC,
     userD,
-    treasuryA,
     beneficiaryB,
     chainlink,
     payoff,
@@ -198,7 +193,6 @@ export async function createMarket(
     name: name ?? 'Squeeth',
     symbol: symbol ?? 'SQTH',
     token: dsu.address,
-    reward: rewardToken.address,
     oracle: (oracleOverride ?? oracle).address,
     payoff: (payoff ?? instanceVars.payoff).address,
   }
@@ -208,7 +202,6 @@ export async function createMarket(
     takerSkewFee: 0,
     takerImpactFee: 0,
     makerFee: 0,
-    makerSkewFee: 0,
     makerImpactFee: 0,
     makerLiquidity: parse6decimal('0.2'),
     makerLimit: parse6decimal('1000'),
@@ -225,6 +218,8 @@ export async function createMarket(
     makerRewardRate: 0,
     longRewardRate: 0,
     shortRewardRate: 0,
+    minMaintenance: parse6decimal('500'),
+    staleAfter: 7200,
     makerReceiveOnly: false,
   }
   const marketParameter = {
@@ -241,6 +236,7 @@ export async function createMarket(
   const market = Market__factory.connect(marketAddress, owner)
   await market.updateParameter(marketParameter)
   await market.updateBeneficiary(beneficiaryB.address)
+  await market.updateReward(rewardToken.address)
 
   return market
 }

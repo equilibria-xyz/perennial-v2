@@ -29,7 +29,6 @@ export async function deployProductOnMainnetFork({
   fundingFee,
   interestFee,
   makerFee,
-  makerSkewFee,
   makerImpactFee,
   takerFee,
   takerSkewFee,
@@ -37,6 +36,8 @@ export async function deployProductOnMainnetFork({
   positionFee,
   makerLimit,
   utilizationCurve,
+  minMaintenance,
+  staleAfter,
 }: DeployProductParams): Promise<IMarket> {
   const riskParameter: RiskParameterStruct = {
     maintenance: maintenance ?? parse6decimal('0.10'),
@@ -44,7 +45,6 @@ export async function deployProductOnMainnetFork({
     takerSkewFee: takerSkewFee ?? parse6decimal('0.0'),
     takerImpactFee: takerImpactFee ?? parse6decimal('0.0'),
     makerFee: makerFee ?? parse6decimal('0.0'),
-    makerSkewFee: makerSkewFee ?? parse6decimal('0.0'),
     makerImpactFee: makerImpactFee ?? parse6decimal('0.0'),
     makerLimit: makerLimit ?? parse6decimal('100'),
     makerRewardRate: 0,
@@ -60,6 +60,8 @@ export async function deployProductOnMainnetFork({
       k: parse6decimal('40000'),
       max: parse6decimal('1.20'),
     },
+    minMaintenance: minMaintenance ?? parse6decimal('100'),
+    staleAfter: staleAfter ?? 7200,
     makerReceiveOnly: false,
   }
   const marketParameter: MarketParameterStruct = {

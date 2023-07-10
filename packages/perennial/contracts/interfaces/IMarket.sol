@@ -16,10 +16,9 @@ import "../types/Position.sol";
 
 interface IMarket is IInstance {
     struct MarketDefinition {
-        string name;
-        string symbol;
+        string name; // TODO: move to oracle / payoff?
+        string symbol; // TODO: move to oracle / payoff?
         Token18 token;
-        Token18 reward;
         IOracleProvider oracle;
         IPayoffProvider payoff;
     }
@@ -44,6 +43,7 @@ interface IMarket is IInstance {
 
     event Updated(address indexed account, uint256 version, UFixed6 newMaker, UFixed6 newLong, UFixed6 newShort, Fixed6 collateral, bool protect);
     event BeneficiaryUpdated(address newBeneficiary);
+    event CoordinatorUpdated(address newCoordinator);
     event FeeClaimed(address indexed account, UFixed6 amount);
     event RewardClaimed(address indexed account, UFixed6 amount);
     event ParameterUpdated(MarketParameter newParameter);
@@ -57,14 +57,15 @@ interface IMarket is IInstance {
     error MarketMakerOverLimitError();
     error MarketClosedError();
     error MarketCollateralBelowLimitError();
-    error MarketOperatorNotAllowed();
+    error MarketOperatorNotAllowedError();
     error MarketNotSingleSidedError();
     error MarketExceedsPendingIdLimitError();
     error MarketRewardAlreadySetError();
     error MarketInvalidParameterError();
     error MarketNotCoordinatorError();
     error MarketNotBeneficiaryError();
-    error MarketMustCloseError();
+    error MarketInvalidProtectionError();
+    error MarketStalePriceError();
 
     error GlobalStorageInvalidError();
     error LocalStorageInvalidError();
@@ -81,6 +82,7 @@ interface IMarket is IInstance {
     function oracle() external view returns (IOracleProvider);
     function payoff() external view returns (IPayoffProvider);
     function beneficiary() external view returns (address);
+    function coordinator() external view returns (address);
     function at(uint256 version) external view returns (OracleVersion memory);
     function positions(address account) external view returns (Position memory);
     function pendingPositions(address account, uint256 id) external view returns (Position memory);
@@ -91,9 +93,12 @@ interface IMarket is IInstance {
     function global() external view returns (Global memory);
     function update(address account, UFixed6 newMaker, UFixed6 newLong, UFixed6 newShort, Fixed6 collateral, bool protect) external;
     function updateBeneficiary(address newBeneficiary) external;
+    function updateCoordinator(address newCoordinator) external;
     function updateReward(Token18 newReward) external;
     function parameter() external view returns (MarketParameter memory);
     function riskParameter() external view returns (RiskParameter memory);
     function updateParameter(MarketParameter memory newParameter) external;
     function updateRiskParameter(RiskParameter memory newRiskParameter) external;
+    function claimFee() external;
+    function claimReward() external;
 }

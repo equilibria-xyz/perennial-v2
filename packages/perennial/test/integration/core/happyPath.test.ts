@@ -17,13 +17,15 @@ import {
   expectVersionEq,
   parse6decimal,
 } from '../../../../common/testutil/types'
-import { IOracleProvider__factory, Market__factory } from '../../../types/generated'
+import { Market__factory } from '../../../types/generated'
 import { CHAINLINK_CUSTOM_CURRENCIES } from '@equilibria/perennial-v2-oracle/util/constants'
 import { buildChainlinkRoundId } from '@equilibria/perennial-v2-oracle/util/buildChainlinkRoundId'
+import { loadFixture } from '@nomicfoundation/hardhat-network-helpers'
 import { ChainlinkContext } from '../helpers/chainlinkHelpers'
 
-//TODO (coverage hint): invalid version test
+//TODO (coverage hint): invalid version
 //TODO (coverage hint): short tests
+//TODO (coverage hint): stale oracle
 
 export const TIMESTAMP_0 = 1631112429
 export const TIMESTAMP_1 = 1631112904
@@ -36,7 +38,8 @@ describe('Happy Path', () => {
   let instanceVars: InstanceVars
 
   beforeEach(async () => {
-    instanceVars = await deployProtocol()
+    instanceVars = await loadFixture(deployProtocol)
+    await instanceVars.chainlink.reset()
   })
 
   it('creates a market', async () => {
@@ -56,7 +59,6 @@ describe('Happy Path', () => {
       takerSkewFee: 0,
       takerImpactFee: 0,
       makerFee: 0,
-      makerSkewFee: 0,
       makerImpactFee: 0,
       makerLiquidity: parse6decimal('0.2'),
       makerLimit: parse6decimal('1'),
@@ -73,6 +75,8 @@ describe('Happy Path', () => {
       makerRewardRate: 0,
       longRewardRate: 0,
       shortRewardRate: 0,
+      minMaintenance: parse6decimal('500'),
+      staleAfter: 7200,
       makerReceiveOnly: false,
     }
     const parameter = {
@@ -609,7 +613,7 @@ describe('Happy Path', () => {
 
     expectLocalEq(await market.locals(userB.address), {
       currentId: 2,
-      collateral: COLLATERAL.add(BigNumber.from('1249393')),
+      collateral: COLLATERAL.add(BigNumber.from('1249392')),
       reward: 0,
       protection: 0,
     })
@@ -737,7 +741,7 @@ describe('Happy Path', () => {
     })
     expectLocalEq(await market.locals(userB.address), {
       currentId: 2,
-      collateral: COLLATERAL.add(BigNumber.from('1249393')),
+      collateral: COLLATERAL.add(BigNumber.from('1249392')),
       reward: 0,
       protection: 0,
     })
@@ -1007,7 +1011,6 @@ describe('Happy Path', () => {
       takerSkewFee: positionFeesOn ? parse6decimal('0.0006') : 0,
       takerImpactFee: positionFeesOn ? parse6decimal('0.0004') : 0,
       makerFee: positionFeesOn ? parse6decimal('0.0005') : 0,
-      makerSkewFee: positionFeesOn ? parse6decimal('0.0003') : 0,
       makerImpactFee: positionFeesOn ? parse6decimal('0.0002') : 0,
       makerLiquidity: parse6decimal('0.2'),
       makerLimit: parse6decimal('1'),
@@ -1024,8 +1027,8 @@ describe('Happy Path', () => {
       makerRewardRate: incentizesOn ? parse6decimal('0.01') : 0,
       longRewardRate: incentizesOn ? parse6decimal('0.001') : 0,
       shortRewardRate: incentizesOn ? parse6decimal('0.001') : 0,
-      oracle: oracle.address,
-      payoff: payoff.address,
+      minMaintenance: parse6decimal('500'),
+      staleAfter: 7200,
       makerReceiveOnly: false,
     }
     const parameter = {
@@ -1111,7 +1114,7 @@ describe('Happy Path', () => {
     })
     expectVersionEq(await market.versions(TIMESTAMP_4), {
       makerValue: { _value: '-357187161823' },
-      longValue: { _value: '362067596968' },
+      longValue: { _value: '362067566665' },
       shortValue: { _value: 0 },
       makerReward: { _value: '606836363635' },
       longReward: { _value: '60683636363' },
@@ -1143,7 +1146,6 @@ describe('Happy Path', () => {
       takerSkewFee: positionFeesOn ? parse6decimal('0.0006') : 0,
       takerImpactFee: positionFeesOn ? parse6decimal('0.0004') : 0,
       makerFee: positionFeesOn ? parse6decimal('0.0005') : 0,
-      makerSkewFee: positionFeesOn ? parse6decimal('0.0003') : 0,
       makerImpactFee: positionFeesOn ? parse6decimal('0.0002') : 0,
       makerLiquidity: parse6decimal('0.2'),
       makerLimit: parse6decimal('1'),
@@ -1160,8 +1162,8 @@ describe('Happy Path', () => {
       makerRewardRate: incentizesOn ? parse6decimal('0.01') : 0,
       longRewardRate: incentizesOn ? parse6decimal('0.001') : 0,
       shortRewardRate: incentizesOn ? parse6decimal('0.001') : 0,
-      oracle: chainlink.oracle.address,
-      payoff: payoff.address,
+      minMaintenance: parse6decimal('500'),
+      staleAfter: 7200,
       makerReceiveOnly: false,
     }
     const parameter = {
@@ -1173,14 +1175,9 @@ describe('Happy Path', () => {
       closed: false,
     }
 
-    const market = await createMarket(
-      instanceVars,
-      'Squeeth',
-      'SQTH',
-      IOracleProvider__factory.connect(chainlink.oracle.address, owner),
-    )
-    await market.connect(owner).updateParameter(parameter)
-    await market.connect(owner).updateRiskParameter(riskParameter)
+    const market = await createMarket(instanceVars)
+    await market.updateParameter(parameter)
+    await market.updateRiskParameter(riskParameter)
 
     await dsu.connect(user).approve(market.address, COLLATERAL.mul(2).mul(1e12))
     await dsu.connect(userB).approve(market.address, COLLATERAL.mul(2).mul(1e12))
