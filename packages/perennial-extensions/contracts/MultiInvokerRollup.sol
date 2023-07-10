@@ -3,6 +3,7 @@ pragma solidity ^0.8.13;
 // solhint-disable, no-global-import
 import "./interfaces/IMultiInvokerRollup.sol";
 import "./MultiInvoker.sol";
+import "hardhat/console.sol";
 
 // solhint-disable, no-inline-assembly
 contract MultiInvokerRollup is IMultiInvokerRollup, MultiInvoker {
@@ -21,6 +22,8 @@ contract MultiInvokerRollup is IMultiInvokerRollup, MultiInvoker {
 
     /// @dev Index lookup of above array for constructing calldata
     mapping(address => uint256) public addressLookup;
+
+    // @todo add magic byte to prevent the very very rare chance arbitrary calldata doesnt call the fallback
 
     constructor(
         Token6 usdc_,
@@ -160,7 +163,7 @@ contract MultiInvokerRollup is IMultiInvokerRollup, MultiInvoker {
     }
 
     // @todo should this just be included in the action branch like v1 to prevent complex _readFN -> simple _readFN hirearchies like v1?
-    function _readOrder(bytes calldata input, PTR memory ptr) private pure returns (IKeeperManager.Order memory order) {
+    function _readOrder(bytes calldata input, PTR memory ptr) private view returns (IKeeperManager.Order memory order) {
         (order.isLong, order.isLimit) = _readLimitAndLong(input, ptr);
         order.maxFee = _readFixed6(input, ptr);
         order.execPrice = _readFixed6(input, ptr);
@@ -178,17 +181,27 @@ contract MultiInvokerRollup is IMultiInvokerRollup, MultiInvoker {
         ptr.pos += UINT8_LENGTH;
     }
 
+    function _readIsNegative(bytes calldata input, PTR memory ptr) private pure returns (bool) {
+        uint8 sign = _readUint8(input, ptr);
+
+        if(sign == 1) return true;
+        if(sign == 0) return false;
+        revert ("int must have sign"); // @todo custom error
+    }
+
     function _readLimitAndLong(bytes calldata input, PTR memory ptr) private pure returns (bool isLong, bool isLimit) {
         (isLong, isLimit) = _bytesToLimitAndLong(input, ptr.pos);
         ptr.pos += UINT8_LENGTH;
     }
 
+    // @todo dont parse6 data offchain, use `from`
     function _readUFixed6(bytes calldata input, PTR memory ptr) private pure returns (UFixed6 result) {
         result = UFixed6.wrap(_readUint256(input, ptr));
     }
 
-    function _readFixed6(bytes calldata input, PTR memory ptr) private pure returns (Fixed6 result) {
-        result = Fixed6Lib.from(int256(_readUint256(input, ptr)));
+    // @todo dont parse6 data offchain, use `from`
+    function _readFixed6(bytes calldata input, PTR memory ptr) private view returns (Fixed6 result) {
+        result = Fixed6.wrap(_readInt256(input, ptr));
     }
 
     /**
@@ -205,6 +218,19 @@ contract MultiInvokerRollup is IMultiInvokerRollup, MultiInvoker {
         ptr.pos += len;
     }
 
+    function _readInt256(bytes calldata input, PTR memory ptr) private view returns (int256 result) {
+        uint8 len = _readUint8(input, ptr);
+        if(len > UINT256_LENGTH) revert MultiInvokerRollupInvalidUint256LengthError(); // @todo for int256?
+
+        if (len > 0) {
+            bool neg = _readIsNegative(input, ptr);
+ 
+            result = int256(_bytesToUint256(input, ptr.pos, len));
+            if(neg) result = result * -1;
+        }
+
+        ptr.pos += len;
+    }
 
     /**
      * @notice Implementation of GNSPS' standard BytesLib.sol
@@ -222,7 +248,7 @@ contract MultiInvokerRollup is IMultiInvokerRollup, MultiInvoker {
 
     /**
      * @notice Extracts 2 bools from uint8 values 0(FF), 1(FT), 2(TF), 3(TT)
-     * @dev @todo this is actually easier to read than masking which requires conversions and bitmasks
+     * @dev @todo this is actually easier to read than masking
      */
     function _bytesToLimitAndLong(bytes calldata input, uint256 pos) private pure returns (bool isLong, bool isLimit) {
         assembly {
@@ -254,7 +280,17 @@ contract MultiInvokerRollup is IMultiInvokerRollup, MultiInvoker {
      * @return result The resulting uint256
      */
     function _bytesToUint256(bytes calldata input, uint256 pos, uint256 len) private pure returns (uint256 result) {
-        assembly {
+        assembly ("memory-safe") {
+            // 1) load the calldata into result starting at the ptr position
+            result := calldataload(add(input.offset, pos))
+            // 2) shifts the calldata such that only the next length of bytes specified by `len` populates the uint256 result
+            result := shr(mul(8, sub(UINT256_LENGTH, len)), result) 
+        }
+    }
+
+
+    function _bytesToInt256(bytes calldata input, uint256 pos, uint256 len) private pure returns (int256 result) {
+        assembly ("memory-safe") {
             // 1) load the calldata into result starting at the ptr position
             result := calldataload(add(input.offset, pos))
             // 2) shifts the calldata such that only the next length of bytes specified by `len` populates the uint256 result

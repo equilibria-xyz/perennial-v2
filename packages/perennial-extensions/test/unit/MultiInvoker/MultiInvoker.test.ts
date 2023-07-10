@@ -90,24 +90,6 @@ describe('MultiInvoker', () => {
       valid: true,
     }
 
-    // const marketParam: MarketParameterStruct = {
-    //   fundingFee: '0',
-    //   interestFee: '0',
-    //   positionFee: '0',
-    //   oracleFee: '0',
-    //   riskFee: '0',
-    //   closed: false,
-    // }
-
-    // const marketDefinition: IMarket.MarketDefinitionStruct = {
-    //   name: 'Squeeth',
-    //   symbol: 'SQTH',
-    //   token: dsu.address,
-    //   reward: reward.address,
-    //   oracle: oracle.address,
-    //   payoff: payoff.address,
-    // }
-
     oracle.latest.returns(oracleVersion)
     market.oracle.returns(oracle.address)
 

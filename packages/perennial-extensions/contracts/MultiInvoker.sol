@@ -9,7 +9,7 @@ import { IBatcher } from "@equilibria/emptyset-batcher/interfaces/IBatcher.sol";
 import { IEmptySetReserve } from "@equilibria/emptyset-batcher/interfaces/IEmptySetReserve.sol";
 import { IInstance } from "@equilibria/root-v2/contracts/IInstance.sol";
 
-// import "hardhat/console.sol";
+import "hardhat/console.sol";
 
 import {
     IMultiInvoker,
