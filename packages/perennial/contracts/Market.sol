@@ -13,7 +13,7 @@ import "hardhat/console.sol";
  */
 contract Market is IMarket, Instance {
     bool private constant GAS_PROFILE = false;
-    bool private constant LOG_REVERTS = false;
+    bool private constant LOG_REVERTS = true;
 
     /// @dev The name of the market
     string public name;

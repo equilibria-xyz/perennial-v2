@@ -19,6 +19,7 @@ interface IVault is IInstance {
 
         // markets
         uint256 currentId;
+        Registration[] registrations;
         MarketContext[] markets;
         Mapping currentIds;
         Mapping latestIds;
@@ -33,7 +34,6 @@ interface IVault is IInstance {
 
     struct MarketContext {
         // parameter
-        Registration registration;
         bool closed;
         UFixed6 makerLimit;
 
