@@ -194,8 +194,7 @@ contract MultiInvoker is IMultiInvoker, KeeperManager {
             market,
             order.maxFee,
             startGas,
-            position);
-        
+            position);  
     }
 
     /**
@@ -213,10 +212,13 @@ contract MultiInvoker is IMultiInvoker, KeeperManager {
         uint256 startGas,
         Position memory position
     ) internal {
-
+        console.log("execute");
         Fixed6 ethPrice = ethPrice();
+
         Fixed6 gasUsed = Fixed6Lib.from(UFixed6.wrap(startGas - gasleft()));
         Fixed6 chargeFee = gasUsed.add(gasUsed.mul(keeperPremium).div(Fixed6.wrap(100))).add(GAS_BUFFER);
+
+        
 
         chargeFee = chargeFee.mul(Fixed6Lib.NEG_ONE).mul(ethPrice);
         if(chargeFee.gt(maxFee)) revert MultiInvokerMaxFeeExceededError();

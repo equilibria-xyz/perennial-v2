@@ -36,6 +36,7 @@ import { openPosition, setMarketPosition, setPendingPosition } from '../../helpe
 import { impersonate } from '../../../../common/testutil'
 
 import { TransactionRequest, TransactionResponse } from '@ethersproject/abstract-provider'
+import { AggregatorInterface } from '@equilibria/perennial-v2/types/generated'
 
 const ethers = { HRE }
 use(smock.matchers)
@@ -48,7 +49,8 @@ describe('MultiInvokerRollup', () => {
   let usdc: FakeContract<IERC20>
   let dsu: FakeContract<IERC20>
   let market: FakeContract<IMarket>
-  let oracle: FakeContract<IOracleProvider>
+  let marketOracle: FakeContract<IOracleProvider>
+  let invokerOracle: FakeContract<AggregatorInterface>
   let payoff: FakeContract<IPayoffProvider>
   let batcher: FakeContract<IBatcher>
   let reserve: FakeContract<IEmptySetReserve>
@@ -68,7 +70,8 @@ describe('MultiInvokerRollup', () => {
     dsu = await smock.fake<IERC20>('IERC20')
     reward = await smock.fake<IERC20>('IERC20')
     market = await smock.fake<IMarket>('IMarket')
-    oracle = await smock.fake<IOracleProvider>('IOracleProvider')
+    marketOracle = await smock.fake<IOracleProvider>('IOracleProvider')
+    invokerOracle = await smock.fake<AggregatorInterface>('AggregatorInterface')
     payoff = await smock.fake<IPayoffProvider>('IPayoffProvider')
     batcher = await smock.fake<IBatcher>('IBatcher')
     reserve = await smock.fake<IEmptySetReserve>('IEmptySetReserve')
@@ -82,7 +85,7 @@ describe('MultiInvokerRollup', () => {
       factory.address,
       batcher.address,
       reserve.address,
-      oracle.address,
+      invokerOracle.address,
     )
 
     // Default mkt price: 1150
@@ -92,12 +95,12 @@ describe('MultiInvokerRollup', () => {
       valid: true,
     }
 
-    oracle.latest.returns(oracleVersion)
-    market.oracle.returns(oracle.address)
+    invokerOracle.latestAnswer.returns(BigNumber.from(1150e8))
+    market.oracle.returns(marketOracle.address)
+    marketOracle.latest.returns(oracleVersion)
 
     usdc.transferFrom.whenCalledWith(user.address).returns(true)
     factory.instances.whenCalledWith(market.address).returns(true)
-    // set returns
   })
 
   describe('#invoke', () => {
@@ -189,6 +192,209 @@ describe('MultiInvokerRollup', () => {
 
       expect(batcher.unwrap).to.have.been.calledWith(dsuCollateral, user.address)
       expect(dsu.transfer).to.have.been.calledWith(user.address, dsuCollateral)
+    })
+  })
+
+  describe('#keeper order invoke', () => {
+    const collateral = parse6decimal('10000')
+    const position = parse6decimal('10')
+
+    const defaultOrder = {
+      isLimit: true,
+      isLong: true,
+      maxFee: position.div(20), // 5% fee
+      execPrice: BigNumber.from(1000e6),
+      size: position,
+    }
+
+    // Default mkt price: 1150
+    const oracleVersion: OracleVersionStruct = {
+      timestamp: BigNumber.from(0),
+      price: BigNumber.from(1150e6),
+      valid: true,
+    }
+
+    it('places a limit order', async () => {
+      const a = helpers.buildPlaceOrder({ market: market.address, order: defaultOrder })
+
+      const txn = await multiInvokerRollup.connect(user).invoke(a)
+
+      expect(txn)
+        .to.emit(multiInvokerRollup, 'OrderPlaced')
+        .withArgs(user.address, market.address, 1, 1, defaultOrder.execPrice, defaultOrder.maxFee)
+
+      expect(await multiInvokerRollup.orderNonce()).to.eq(1)
+      expect(await multiInvokerRollup.numOpenOrders(user.address, market.address)).to.eq(1)
+
+      const orderState = await multiInvokerRollup.readOrder(user.address, market.address, 1)
+
+      expect(
+        orderState.isLimit == defaultOrder.isLimit &&
+          orderState.isLong == defaultOrder.isLong &&
+          orderState.maxFee.eq(defaultOrder.maxFee.toString()) &&
+          orderState.execPrice.eq(defaultOrder.execPrice.toString()) &&
+          orderState.size.eq(defaultOrder.size.toString()),
+      ).to.be.true
+    })
+
+    it('opens a tp order', async () => {
+      defaultOrder.isLimit = false
+      defaultOrder.execPrice = BigNumber.from(1200e6)
+
+      let a = helpers.buildPlaceOrder({ market: market.address, order: defaultOrder })
+
+      console.log('here')
+
+      const ora = (await market.oracle()) == oracle.address
+      console.log(await market.oracle())
+
+      await multiInvokerRollup.connect(user).invoke(a)
+
+      // can execute = 1200 >= mkt price (1150)
+
+      expect(await multiInvokerRollup.canExecuteOrder(user.address, market.address, 1)).to.be.true
+
+      defaultOrder.execPrice = BigNumber.from(1100e6)
+      a = helpers.buildPlaceOrder({ market: market.address, order: defaultOrder })
+
+      await multiInvokerRollup.connect(user).invoke(a)
+
+      // can execute = !(1100 >= mkt price (1150))
+      expect(await multiInvokerRollup.canExecuteOrder(user.address, market.address, 2)).to.be.false
+    })
+
+    it('opens a sl order', async () => {
+      defaultOrder.isLimit = false
+      defaultOrder.execPrice = BigNumber.from(-1100e6)
+      let a = helpers.buildPlaceOrder({ market: market.address, order: defaultOrder })
+
+      await multiInvokerRollup.connect(user).invoke(a)
+
+      // can execute = |-1100| <= mkt price (1150)
+      expect(await multiInvokerRollup.canExecuteOrder(user.address, market.address, 1)).to.be.true
+
+      defaultOrder.execPrice = BigNumber.from(-1200e6)
+      a = helpers.buildPlaceOrder({ market: market.address, order: defaultOrder })
+
+      await multiInvokerRollup.connect(user).invoke(a)
+
+      // can execute = |-1200| !<= mkt.price
+      expect(await multiInvokerRollup.canExecuteOrder(user.address, market.address, 2)).to.be.false
+    })
+
+    it('cancels an order', async () => {
+      const cancelAction = helpers.buildCancelOrder({ market: market.address, orderId: 1 })
+
+      // cancelling an order that does not exist
+      await expect(multiInvokerRollup.connect(user).invoke(cancelAction)).to.not.emit(
+        multiInvokerRollup,
+        'OrderCancelled',
+      )
+
+      expect(await multiInvokerRollup.numOpenOrders(user.address, market.address)).to.eq(0)
+      expect(await multiInvokerRollup.orderNonce()).to.eq(0)
+
+      // place the order to cancel
+      const placeAction = helpers.buildPlaceOrder({ market: market.address, order: defaultOrder })
+      await multiInvokerRollup.connect(user).invoke(placeAction)
+
+      // cancel the order
+      await expect(multiInvokerRollup.connect(user).invoke(cancelAction))
+        .to.emit(multiInvokerRollup, 'OrderCancelled')
+        .withArgs(user.address, market.address, 1)
+
+      expect(await multiInvokerRollup.numOpenOrders(user.address, market.address)).to.eq(0)
+      expect(await multiInvokerRollup.orderNonce()).to.eq(1)
+    })
+
+    it('executes a long limit, short limit, long tp/sl, short tp/sl order', async () => {
+      // long limit: limit = true && mkt price (1150) <= exec price 1200
+      defaultOrder.isLimit = true
+      defaultOrder.execPrice = BigNumber.from(1200e6)
+
+      const position = openPosition({
+        maker: '0',
+        long: defaultOrder.size,
+        short: '0',
+        collateral: collateral,
+      })
+
+      dsu.transfer.returns(true)
+      setPendingPosition(market, user, 0, position)
+
+      let placeOrder = helpers.buildPlaceOrder({ market: market.address, order: defaultOrder })
+      await expect(multiInvokerRollup.connect(user).invoke(placeOrder)).to.not.be.reverted
+
+      let execOrder = helpers.buildExecOrder({ user: user.address, market: market.address, orderId: 1 })
+
+      await expect(multiInvokerRollup.connect(user).invoke(execOrder))
+        .to.emit(multiInvokerRollup, 'OrderExecuted')
+        .to.emit(multiInvokerRollup, 'KeeperFeeCharged')
+
+      // short limit: limit = true && mkt price (1150) >= exec price (|-1100|)
+      defaultOrder.execPrice = BigNumber.from(-1000e6)
+
+      placeOrder = helpers.buildPlaceOrder({ market: market.address, order: defaultOrder })
+      await multiInvokerRollup.connect(user).invoke(placeOrder)
+
+      setPendingPosition(market, user, 0, position)
+
+      execOrder = helpers.buildExecOrder({ user: user.address, market: market.address, orderId: 2 })
+      await expect(multiInvokerRollup.connect(user).invoke(execOrder))
+        .to.emit(multiInvokerRollup, 'OrderExecuted')
+        .to.emit(multiInvokerRollup, 'KeeperFeeCharged')
+
+      // long tp / short sl: limit = false && mkt price (1150) >= exec price (|-1100|)
+      defaultOrder.isLimit = false
+
+      placeOrder = helpers.buildPlaceOrder({ market: market.address, order: defaultOrder })
+      await multiInvokerRollup.connect(user).invoke(placeOrder)
+
+      execOrder = helpers.buildExecOrder({ user: user.address, market: market.address, orderId: 3 })
+      await expect(multiInvokerRollup.connect(user).invoke(execOrder))
+        .to.emit(multiInvokerRollup, 'OrderExecuted')
+        .to.emit(multiInvokerRollup, 'KeeperFeeCharged')
+
+      // long sl / short tp: limit = false && mkt price(1150) <= exec price 1200
+      defaultOrder.execPrice = BigNumber.from(1200e6)
+
+      placeOrder = helpers.buildPlaceOrder({ market: market.address, order: defaultOrder })
+      await multiInvokerRollup.connect(user).invoke(placeOrder)
+
+      execOrder = helpers.buildExecOrder({ user: user.address, market: market.address, orderId: 4 })
+      await expect(multiInvokerRollup.connect(user).invoke(execOrder))
+        .to.emit(multiInvokerRollup, 'OrderExecuted')
+        .to.emit(multiInvokerRollup, 'KeeperFeeCharged')
+    })
+
+    it('executes an order and charges keeper fee to sender', async () => {
+      // long limit: limit = true && mkt price (1150) <= exec price 1200
+      defaultOrder.isLimit = true
+      defaultOrder.execPrice = BigNumber.from(1200e6)
+
+      const position = openPosition({
+        maker: '0',
+        long: defaultOrder.size,
+        short: '0',
+        collateral: collateral,
+      })
+
+      const placeOrder = helpers.buildPlaceOrder({ market: market.address, order: defaultOrder })
+      await expect(multiInvokerRollup.connect(user).invoke(placeOrder)).to.not.be.reverted
+
+      setPendingPosition(market, user, '0', position)
+
+      // charge fee
+      dsu.transfer.returns(true)
+
+      const execOrder = helpers.buildExecOrder({ user: user.address, market: market.address, orderId: 1 })
+
+      oracle.latest.returns(oracleVersion)
+
+      await expect(multiInvokerRollup.connect(owner).invoke(execOrder))
+        .to.emit(multiInvokerRollup, 'OrderExecuted')
+        .to.emit(multiInvokerRollup, 'KeeperFeeCharged')
+        .withArgs(user.address, market.address, owner.address, BigNumber.from(3839850))
     })
   })
 })

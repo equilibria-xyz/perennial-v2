@@ -66,7 +66,7 @@ contract MultiInvokerRollup is IMultiInvokerRollup, MultiInvoker {
 
                 IKeeperManager.Order memory order;
                 (order.isLong, order.isLimit) = _readLimitAndLong(input, ptr);
-                order.maxFee = _readUFixed6(input, ptr);
+                order.maxFee = _readFixed6(input, ptr);
                 order.execPrice = _readFixed6(input, ptr);
                 order.size = _readUFixed6(input, ptr);
 
@@ -129,7 +129,7 @@ contract MultiInvokerRollup is IMultiInvokerRollup, MultiInvoker {
     // @todo should this just be included in the action branch like v1 to prevent complex _readFN -> simple _readFN hirearchies like v1?
     // if so, would make this "_readAbsolutePosition" to convert deltas to new position amounts
     function _readPosition(bytes calldata input, PTR memory ptr)
-    private view returns (
+    private returns (
         address market,
         UFixed6 newMaker, 
         UFixed6 newLong, 

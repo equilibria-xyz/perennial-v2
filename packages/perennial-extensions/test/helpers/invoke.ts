@@ -203,7 +203,7 @@ export const buildPlaceOrderRollup = ({
     encodeBool(handleWrap) +
     RollupActions.PLACE_ORDER +
     encodeLimitLong(order.isLimit, order.isLong) +
-    encodeUint(order.maxFee) +
+    encodeInt(order.maxFee) +
     encodeInt(order.execPrice) +
     encodeUint(order.size)
   )
@@ -293,6 +293,8 @@ export const encodeUint = (uint?: BigNumberish) => {
   return toHex((uint._hex.length - 2) / 2) + toHex(uint._hex)
 }
 
+// The evm is two's-compliment, but we're really passing a uint + a flag if its negative
+// to take less calldata space, and casting it to an int, * sign on chain
 export const encodeInt = (int?: BigNumberish) => {
   if (!int) return '00'
   int = BigNumber.from(int)
