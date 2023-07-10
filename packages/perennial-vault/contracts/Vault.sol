@@ -328,12 +328,6 @@ contract Vault is IVault, Instance {
         );
 
         for (uint256 marketId; marketId < context.markets.length; marketId++)
-            console.log(
-                "context.markets[marketId].collateral",
-                uint256(Fixed6.unwrap(context.markets[marketId].collateral))
-            );
-
-        for (uint256 marketId; marketId < context.markets.length; marketId++)
             if (targets[marketId].collateral.lt(Fixed6Lib.ZERO))
                 _update(context.registrations[marketId], targets[marketId]);
         for (uint256 marketId; marketId < context.markets.length; marketId++)

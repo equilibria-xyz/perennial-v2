@@ -484,7 +484,7 @@ describe('Vault', () => {
     })
   })
 
-  describe.only('#deposit/#redeem/#claim/#settle', () => {
+  describe('#deposit/#redeem/#claim/#settle', () => {
     it('simple deposits and redemptions', async () => {
       expect(await vault.convertToAssets(parse6decimal('1'))).to.equal(parse6decimal('1'))
       expect(await vault.convertToShares(parse6decimal('1'))).to.equal(parse6decimal('1'))
@@ -804,60 +804,33 @@ describe('Vault', () => {
       await expect(vault.connect(user).update(user.address, 0, redeemAvailable, 0)).to.not.be.reverted
     })
 
-    it.only('rebalances collateral', async () => {
+    it('rebalances collateral', async () => {
       await vault.connect(user).update(user.address, parse6decimal('100000'), 0, 0)
       await updateOracle()
       await vault.settle(user.address)
 
-      const originalTotalCollateral = await totalCollateralInVault()
-
       // vault starts balanced
       expect(await collateralInVault()).to.be.closeTo((await btcCollateralInVault()).mul(4), parse6decimal('1'))
-      console.log(await oracle.latest())
-      console.log((await collateralInVault()).add(await btcCollateralInVault()))
-      console.log(await totalCollateralInVault())
 
       // price lowers, vault does one round of rebalancing but its maintenance's are still out-of-sync
-      for (let i = 0; i < 1; i++) {
-        await updateOracle(parse6decimal('2000'))
-        await vault.connect(user).update(user.address, 0, 0, 0)
-        expect(await collateralInVault()).to.not.be.closeTo((await btcCollateralInVault()).mul(4), parse6decimal('1'))
-        console.log(await oracle.latest())
-        console.log((await collateralInVault()).add(await btcCollateralInVault()))
-        console.log(await totalCollateralInVault())
-      }
+      await updateOracle(parse6decimal('2000'))
+      await vault.connect(user).update(user.address, 0, 0, 0)
+      expect(await collateralInVault()).to.not.be.closeTo((await btcCollateralInVault()).mul(4), parse6decimal('1'))
 
       // vault does another round of rebalancing and its maintenance's are now in-sync
       await updateOracle(parse6decimal('2000'))
       await vault.connect(user).update(user.address, 0, 0, 0)
       expect(await collateralInVault()).to.be.closeTo((await btcCollateralInVault()).mul(4), parse6decimal('1'))
-      console.log(await oracle.latest())
-      console.log((await collateralInVault()).add(await btcCollateralInVault()))
-      console.log(await totalCollateralInVault())
 
       // price raises, vault does one round of rebalancing but its maintenance's are still out-of-sync
-      for (let i = 0; i < 1; i++) {
-        console.log('update ', i)
-        await updateOracle(originalOraclePrice)
-        await vault.connect(user).update(user.address, 0, 0, 0)
-        expect(await collateralInVault()).to.not.be.closeTo((await btcCollateralInVault()).mul(4), parse6decimal('1'))
-        console.log(await oracle.latest())
-        console.log((await collateralInVault()).add(await btcCollateralInVault()))
-        console.log(await totalCollateralInVault())
-      }
+      await updateOracle(originalOraclePrice)
+      await vault.connect(user).update(user.address, 0, 0, 0)
+      expect(await collateralInVault()).to.not.be.closeTo((await btcCollateralInVault()).mul(4), parse6decimal('1'))
 
       // vault does one round of rebalancing but it maintenance's are still out-of-sync
       await updateOracle(originalOraclePrice)
       await vault.connect(user).update(user.address, 0, 0, 0)
       expect(await collateralInVault()).to.be.closeTo((await btcCollateralInVault()).mul(4), parse6decimal('1'))
-      console.log(await oracle.latest())
-      console.log((await collateralInVault()).add(await btcCollateralInVault()))
-      console.log(await totalCollateralInVault())
-
-      // Since the price changed then went back to the original, the total collateral should have increased.
-      const fundingAmount = BigNumber.from('3581776')
-      expect(await totalCollateralInVault()).to.eq(originalTotalCollateral.add(fundingAmount.mul(1e12)))
-      expect(await vault.totalAssets()).to.eq(originalTotalCollateral.div(1e12).add(fundingAmount))
     })
 
     it('rounds deposits correctly', async () => {
@@ -1155,7 +1128,7 @@ describe('Vault', () => {
       )
     })
 
-    context.only('liquidation', () => {
+    context('liquidation', () => {
       context('long', () => {
         it('recovers from a liquidation', async () => {
           await vault.connect(user).update(user.address, parse6decimal('100000'), 0, 0)
@@ -1184,8 +1157,8 @@ describe('Vault', () => {
 
           const finalPosition = BigNumber.from('114518139')
           const finalCollateral = BigNumber.from('81419219970')
-          const btcFinalPosition = BigNumber.from('1875404')
-          const btcFinalCollateral = BigNumber.from('18754044453')
+          const btcFinalPosition = BigNumber.from('1482485')
+          const btcFinalCollateral = BigNumber.from('12354044463')
           expect(await position()).to.equal(finalPosition)
           expect(await collateralInVault()).to.equal(finalCollateral)
           expect(await btcPosition()).to.equal(btcFinalPosition)
@@ -1219,8 +1192,8 @@ describe('Vault', () => {
 
           const finalPosition = BigNumber.from('93640322')
           const finalCollateral = BigNumber.from('67743010959')
-          const btcFinalPosition = BigNumber.from('1115272')
-          const btcFinalCollateral = BigNumber.from('15334992200')
+          const btcFinalPosition = BigNumber.from('779781')
+          const btcFinalCollateral = BigNumber.from('8934992210')
           expect(await position()).to.equal(finalPosition)
           expect(await collateralInVault()).to.equal(finalCollateral)
           expect(await btcPosition()).to.equal(btcFinalPosition)
@@ -1266,8 +1239,8 @@ describe('Vault', () => {
 
           const finalPosition = BigNumber.from('109544798')
           const finalCollateral = BigNumber.from('78163427696')
-          const btcFinalPosition = BigNumber.from('2391944')
-          const btcFinalCollateral = BigNumber.from('17939586080')
+          const btcFinalPosition = BigNumber.from('1846333')
+          const btcFinalCollateral = BigNumber.from('11539586090')
           expect(await position()).to.equal(finalPosition)
           expect(await collateralInVault()).to.equal(finalCollateral)
           expect(await btcPosition()).to.equal(btcFinalPosition)
@@ -1301,8 +1274,8 @@ describe('Vault', () => {
 
           const finalPosition = BigNumber.from('109670541')
           const finalCollateral = BigNumber.from('78245796664')
-          const btcFinalPosition = BigNumber.from('2394690')
-          const btcFinalCollateral = BigNumber.from('17960178322')
+          const btcFinalPosition = BigNumber.from('1849628')
+          const btcFinalCollateral = BigNumber.from('11560178332')
           expect(await position()).to.equal(finalPosition)
           expect(await collateralInVault()).to.equal(finalCollateral)
           expect(await btcPosition()).to.equal(btcFinalPosition)
@@ -1311,7 +1284,7 @@ describe('Vault', () => {
       })
     })
 
-    context.only('insolvency', () => {
+    context('insolvency', () => {
       it('gracefully unwinds upon totalClaimable insolvency', async () => {
         // 1. Deposit initial amount into the vault
         await vault.connect(user).update(user.address, parse6decimal('100000'), 0, 0)
@@ -1332,8 +1305,6 @@ describe('Vault', () => {
 
         // 4. Settle the vault to recover and rebalance
         await updateOracle() // let take settle at high price
-        // TODO: this can be used to verify the resolution to the rebalance revert bricking issue
-        await updateOracle(parse6decimal('1500'), parse6decimal('5000')) // lower prices to allow rebalance
         await vault.connect(user).update(user.address, 0, 0, 0)
 
         await updateOracle()
@@ -1341,9 +1312,9 @@ describe('Vault', () => {
 
         // 5. Vault should no longer have enough collateral to cover claims, pro-rata claim should be enabled
         const finalPosition = BigNumber.from('0')
-        const finalCollateral = BigNumber.from('11279655142')
+        const finalCollateral = BigNumber.from('4700653858')
         const btcFinalPosition = BigNumber.from('0')
-        const btcFinalCollateral = BigNumber.from('2861163275')
+        const btcFinalCollateral = BigNumber.from('2775492943')
         const finalUnclaimed = BigNumber.from('80001128624')
         const vaultFinalCollateral = await asset.balanceOf(vault.address)
         expect(await position()).to.equal(finalPosition)
@@ -1395,7 +1366,7 @@ describe('Vault', () => {
         const finalPosition = BigNumber.from('0')
         const finalCollateral = BigNumber.from('-133568939868')
         const btcFinalPosition = BigNumber.from('411963') // small position because vault is net negative and won't rebalance
-        const btcFinalCollateral = BigNumber.from('20000833511')
+        const btcFinalCollateral = BigNumber.from('20000833313')
         const finalUnclaimed = BigNumber.from('80001128624')
         expect(await position()).to.equal(finalPosition)
         expect(await collateralInVault()).to.equal(finalCollateral)

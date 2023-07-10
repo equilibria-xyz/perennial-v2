@@ -2,10 +2,9 @@
 pragma solidity ^0.8.13;
 
 import "../types/Registration.sol";
-import "hardhat/console.sol";
 
 library StrategyLib {
-    UFixed6 private constant LEVERAGE_BUFFER = UFixed6.wrap(1.2e6);
+    UFixed6 private constant LEVERAGE_BUFFER = UFixed6.wrap(1.2e6); // TODO: param?
 
     struct MarketContext {
         MarketParameter marketParameter;
@@ -37,27 +36,17 @@ library StrategyLib {
         for (uint256 marketId; marketId < registrations.length; marketId++) {
             UFixed6 marketCollateral = contexts[marketId].maintenance
                 .add(collateral.sub(totalMaintenance).muldiv(registrations[marketId].weight, totalWeight));
-            console.log("marketCollateral", UFixed6.unwrap(marketCollateral));
 
             UFixed6 marketAssets = assets
                 .muldiv(registrations[marketId].weight, totalWeight)
                 .min(marketCollateral.mul(LEVERAGE_BUFFER));
-            console.log("marketAssets", UFixed6.unwrap(marketAssets));
 
             if (
                 contexts[marketId].marketParameter.closed ||
                 marketAssets.lt(contexts[marketId].riskParameter.minMaintenance)
             ) marketAssets = UFixed6Lib.ZERO;
-            console.log("marketAssets (zeroing)", UFixed6.unwrap(marketAssets));
 
             (UFixed6 minPosition, UFixed6 maxPosition) = _positionLimit(contexts[marketId]);
-            console.log("minPosition", UFixed6.unwrap(minPosition));
-            console.log("maxPosition", UFixed6.unwrap(maxPosition));
-
-            console.log("leverage", UFixed6.unwrap(registrations[marketId].leverage));
-            console.log("price", UFixed6.unwrap(contexts[marketId].oracleVersion.price.abs()));
-            console.log("position", UFixed6.unwrap(marketAssets
-                .muldiv(registrations[marketId].leverage, contexts[marketId].oracleVersion.price.abs())));
 
             (targets[marketId].collateral, targets[marketId].position) = (
                 Fixed6Lib.from(marketCollateral).sub(contexts[marketId].local.collateral),
@@ -66,10 +55,6 @@ library StrategyLib {
                     .min(maxPosition)
                     .max(minPosition)
             );
-
-            if (targets[marketId].collateral.sign() > 0) console.log("targets[marketId].collateral", uint256(Fixed6.unwrap(targets[marketId].collateral)));
-            else console.log("targets[marketId].collateral", uint256(-Fixed6.unwrap(targets[marketId].collateral)));
-            console.log("targets[marketId].position", UFixed6.unwrap(targets[marketId].position));
         }
     }
 
