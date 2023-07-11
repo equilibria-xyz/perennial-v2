@@ -1068,7 +1068,7 @@ describe('Happy Path', () => {
     expectLocalEq(await market.locals(user.address), {
       currentId: 3,
       collateral: '985775856',
-      reward: '24669998',
+      reward: incentizesOn ? '24669998' : 0,
       protection: 0,
     })
     expectPositionEq(await market.pendingPositions(user.address, 3), {
@@ -1116,8 +1116,8 @@ describe('Happy Path', () => {
       makerValue: { _value: '-357187161823' },
       longValue: { _value: '362067566665' },
       shortValue: { _value: 0 },
-      makerReward: { _value: '606836363635' },
-      longReward: { _value: '60683636363' },
+      makerReward: { _value: incentizesOn ? '606836363635' : 0 },
+      longReward: { _value: incentizesOn ? '60683636363' : 0 },
       shortReward: { _value: 0 },
     })
   })

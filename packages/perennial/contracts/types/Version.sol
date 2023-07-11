@@ -11,23 +11,23 @@ import "./Position.sol";
 
 /// @dev Version type
 struct Version {
+    bool valid;
     Accumulator6 makerValue;
     Accumulator6 longValue;
     Accumulator6 shortValue;
     UAccumulator6 makerReward;
     UAccumulator6 longReward;
     UAccumulator6 shortReward;
-    bool valid;
 }
 using VersionLib for Version global;
-struct StoredVersion { // TODO (gas hint): w/ careful overflow enablement we can collapse this to a single slot
-    int80 _makerValue;
-    int88 _longValue;
-    int88 _shortValue;
-    uint80 _makerReward;
+struct StoredVersion {
+    bool _valid;
+    int88 _makerValue;
+    int80 _longValue;
+    int80 _shortValue;
+    uint88 _makerReward;
     uint80 _longReward;
     uint80 _shortReward;
-    bool _valid;
     bytes1 __unallocated__;
 }
 struct VersionStorage { StoredVersion value; }
@@ -248,35 +248,35 @@ library VersionStorageLib {
     function read(VersionStorage storage self) internal view returns (Version memory) {
         StoredVersion memory storedValue = self.value;
         return Version(
+            storedValue._valid,
             Accumulator6(Fixed6.wrap(int256(storedValue._makerValue))),
             Accumulator6(Fixed6.wrap(int256(storedValue._longValue))),
             Accumulator6(Fixed6.wrap(int256(storedValue._shortValue))),
             UAccumulator6(UFixed6.wrap(uint256(storedValue._makerReward))),
             UAccumulator6(UFixed6.wrap(uint256(storedValue._longReward))),
-            UAccumulator6(UFixed6.wrap(uint256(storedValue._shortReward))),
-            storedValue._valid
+            UAccumulator6(UFixed6.wrap(uint256(storedValue._shortReward)))
         );
     }
 
     function store(VersionStorage storage self, Version memory newValue) internal {
-        if (newValue.makerValue._value.gt(Fixed6.wrap(type(int80).max))) revert VersionStorageInvalidError();
-        if (newValue.makerValue._value.lt(Fixed6.wrap(type(int80).min))) revert VersionStorageInvalidError();
-        if (newValue.longValue._value.gt(Fixed6.wrap(type(int88).max))) revert VersionStorageInvalidError();
-        if (newValue.longValue._value.lt(Fixed6.wrap(type(int88).min))) revert VersionStorageInvalidError();
-        if (newValue.shortValue._value.gt(Fixed6.wrap(type(int88).max))) revert VersionStorageInvalidError();
-        if (newValue.shortValue._value.lt(Fixed6.wrap(type(int88).min))) revert VersionStorageInvalidError();
-        if (newValue.makerReward._value.gt(UFixed6.wrap(type(uint80).max))) revert VersionStorageInvalidError();
-        if (newValue.longReward._value.gt(UFixed6.wrap(type(uint88).max))) revert VersionStorageInvalidError();
-        if (newValue.shortReward._value.gt(UFixed6.wrap(type(uint88).max))) revert VersionStorageInvalidError();
+        if (newValue.makerValue._value.gt(Fixed6.wrap(type(int88).max))) revert VersionStorageInvalidError();
+        if (newValue.makerValue._value.lt(Fixed6.wrap(type(int88).min))) revert VersionStorageInvalidError();
+        if (newValue.longValue._value.gt(Fixed6.wrap(type(int80).max))) revert VersionStorageInvalidError();
+        if (newValue.longValue._value.lt(Fixed6.wrap(type(int80).min))) revert VersionStorageInvalidError();
+        if (newValue.shortValue._value.gt(Fixed6.wrap(type(int80).max))) revert VersionStorageInvalidError();
+        if (newValue.shortValue._value.lt(Fixed6.wrap(type(int80).min))) revert VersionStorageInvalidError();
+        if (newValue.makerReward._value.gt(UFixed6.wrap(type(uint88).max))) revert VersionStorageInvalidError();
+        if (newValue.longReward._value.gt(UFixed6.wrap(type(uint80).max))) revert VersionStorageInvalidError();
+        if (newValue.shortReward._value.gt(UFixed6.wrap(type(uint80).max))) revert VersionStorageInvalidError();
 
         self.value = StoredVersion(
-            int80(Fixed6.unwrap(newValue.makerValue._value)),
-            int88(Fixed6.unwrap(newValue.longValue._value)),
-            int88(Fixed6.unwrap(newValue.shortValue._value)),
-            uint80(UFixed6.unwrap(newValue.makerReward._value)),
+            true, // only valid versions get stored
+            int88(Fixed6.unwrap(newValue.makerValue._value)),
+            int80(Fixed6.unwrap(newValue.longValue._value)),
+            int80(Fixed6.unwrap(newValue.shortValue._value)),
+            uint88(UFixed6.unwrap(newValue.makerReward._value)),
             uint80(UFixed6.unwrap(newValue.longReward._value)),
             uint80(UFixed6.unwrap(newValue.shortReward._value)),
-            true, // only valid versions get stored
             bytes1(0)
         );
     }

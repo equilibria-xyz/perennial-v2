@@ -14,7 +14,6 @@ interface IVault is IInstance {
     struct Context {
         // parameters
         UFixed6 settlementFee;
-        UFixed6 minCollateral;
         uint256 totalWeight;
 
         // markets
@@ -33,10 +32,6 @@ interface IVault is IInstance {
     }
 
     struct MarketContext {
-        // parameter
-        bool closed;
-        UFixed6 makerLimit;
-
         // latest global
         UFixed6 price;
 
@@ -44,11 +39,7 @@ interface IVault is IInstance {
         UFixed6 currentPosition;
         UFixed6 currentNet;
 
-        // latest local
-        UFixed6 latestPositionAccount;
-
         // current local
-        UFixed6 currentPositionAccount;
         Fixed6 collateral;
     }
 

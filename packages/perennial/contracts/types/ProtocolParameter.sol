@@ -15,7 +15,7 @@ struct StoredProtocolParameter {
     uint24 _protocolFee;        // <= 1677%
     uint24 _liquidationFee;     // <= 1677%
     uint48 _maxLiquidationFee;  // <= 281mn
-    uint24 _settlementFee;             // <= 1677%
+    uint24 _settlementFee;      // <= 1677%
     uint8 _maxPendingIds;       // <= 255
 
     bytes16 __unallocated__;
