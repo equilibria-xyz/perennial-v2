@@ -7,7 +7,7 @@ import "@equilibria/root/number/types/UFixed6.sol";
 struct ProtocolParameter {
     UFixed6 protocolFee;
     UFixed6 liquidationFee; // TODO: move to risk
-    UFixed6 maxLiquidationFee; // TODO: move to risk
+    UFixed6 maxLiquidationFee; // TODO: move to risk, add min
     UFixed6 settlementFee; // TODO: move to oracle
     uint256 maxPendingIds;
 }
