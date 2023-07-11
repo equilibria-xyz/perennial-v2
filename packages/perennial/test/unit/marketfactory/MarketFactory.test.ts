@@ -56,8 +56,6 @@ describe('MarketFactory', () => {
 
       const parameter = await factory.parameter()
       expect(parameter.protocolFee).to.equal(0)
-      expect(parameter.liquidationFee).to.equal(0)
-      expect(parameter.maxLiquidationFee).to.equal(0)
       expect(parameter.settlementFee).to.equal(0)
       expect(parameter.maxPendingIds).to.equal(0)
     })
@@ -90,6 +88,9 @@ describe('MarketFactory', () => {
         positionFee: 0,
         makerLiquidity: parse6decimal('0.2'),
         makerLimit: parse6decimal('1000'),
+        liquidationFee: parse6decimal('0.50'),
+        minLiquidationFee: parse6decimal('0'),
+        maxLiquidationFee: parse6decimal('1000'),
         utilizationCurve: {
           minRate: parse6decimal('0.10'),
           maxRate: parse6decimal('0.10'),
@@ -137,6 +138,9 @@ describe('MarketFactory', () => {
         positionFee: 0,
         makerLiquidity: parse6decimal('0.2'),
         makerLimit: parse6decimal('1000'),
+        liquidationFee: parse6decimal('0.50'),
+        minLiquidationFee: parse6decimal('0'),
+        maxLiquidationFee: parse6decimal('1000'),
         utilizationCurve: {
           minRate: parse6decimal('0.10'),
           maxRate: parse6decimal('0.10'),
@@ -183,6 +187,9 @@ describe('MarketFactory', () => {
         positionFee: 0,
         makerLiquidity: parse6decimal('0.2'),
         makerLimit: parse6decimal('1000'),
+        liquidationFee: parse6decimal('0.50'),
+        minLiquidationFee: parse6decimal('0'),
+        maxLiquidationFee: parse6decimal('1000'),
         utilizationCurve: {
           minRate: parse6decimal('0.10'),
           maxRate: parse6decimal('0.10'),
@@ -227,6 +234,9 @@ describe('MarketFactory', () => {
         positionFee: 0,
         makerLiquidity: parse6decimal('0.2'),
         makerLimit: parse6decimal('1000'),
+        liquidationFee: parse6decimal('0.50'),
+        minLiquidationFee: parse6decimal('0'),
+        maxLiquidationFee: parse6decimal('1000'),
         utilizationCurve: {
           minRate: parse6decimal('0.10'),
           maxRate: parse6decimal('0.10'),
@@ -271,6 +281,9 @@ describe('MarketFactory', () => {
         positionFee: 0,
         makerLiquidity: parse6decimal('0.2'),
         makerLimit: parse6decimal('1000'),
+        liquidationFee: parse6decimal('0.50'),
+        minLiquidationFee: parse6decimal('0'),
+        maxLiquidationFee: parse6decimal('1000'),
         utilizationCurve: {
           minRate: parse6decimal('0.10'),
           maxRate: parse6decimal('0.10'),
@@ -301,8 +314,6 @@ describe('MarketFactory', () => {
   describe('#updateParameter', async () => {
     const newParameter = {
       protocolFee: parse6decimal('0.50'),
-      liquidationFee: parse6decimal('0.50'),
-      maxLiquidationFee: parse6decimal('1000'),
       settlementFee: parse6decimal('0.50'),
       maxPendingIds: BigNumber.from(5),
     }
@@ -312,8 +323,6 @@ describe('MarketFactory', () => {
 
       const parameter = await factory.parameter()
       expect(parameter.protocolFee).to.equal(newParameter.protocolFee)
-      expect(parameter.liquidationFee).to.equal(newParameter.liquidationFee)
-      expect(parameter.maxLiquidationFee).to.equal(newParameter.maxLiquidationFee)
       expect(parameter.settlementFee).to.equal(newParameter.settlementFee)
       expect(parameter.maxPendingIds).to.equal(newParameter.maxPendingIds)
     })

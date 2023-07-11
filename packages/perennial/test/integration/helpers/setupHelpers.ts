@@ -123,8 +123,6 @@ export async function deployProtocol(): Promise<InstanceVars> {
   await marketFactory.updatePauser(pauser.address)
   await marketFactory.updateParameter({
     protocolFee: parse6decimal('0.50'),
-    liquidationFee: parse6decimal('0.50'),
-    maxLiquidationFee: parse6decimal('1000'),
     settlementFee: parse6decimal('0.00'),
     maxPendingIds: 8,
   })
@@ -205,6 +203,9 @@ export async function createMarket(
     makerImpactFee: 0,
     makerLiquidity: parse6decimal('0.2'),
     makerLimit: parse6decimal('1000'),
+    liquidationFee: parse6decimal('0.50'),
+    minLiquidationFee: parse6decimal('0'),
+    maxLiquidationFee: parse6decimal('1000'),
     utilizationCurve: {
       minRate: 0,
       maxRate: parse6decimal('5.00'),

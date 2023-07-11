@@ -62,6 +62,9 @@ describe('Happy Path', () => {
       makerImpactFee: 0,
       makerLiquidity: parse6decimal('0.2'),
       makerLimit: parse6decimal('1'),
+      liquidationFee: parse6decimal('0.50'),
+      minLiquidationFee: parse6decimal('0'),
+      maxLiquidationFee: parse6decimal('1000'),
       utilizationCurve: {
         minRate: 0,
         maxRate: parse6decimal('5.00'),
@@ -1014,6 +1017,9 @@ describe('Happy Path', () => {
       makerImpactFee: positionFeesOn ? parse6decimal('0.0002') : 0,
       makerLiquidity: parse6decimal('0.2'),
       makerLimit: parse6decimal('1'),
+      liquidationFee: parse6decimal('0.50'),
+      minLiquidationFee: parse6decimal('0'),
+      maxLiquidationFee: parse6decimal('1000'),
       utilizationCurve: {
         minRate: 0,
         maxRate: parse6decimal('5.00'),
@@ -1149,6 +1155,9 @@ describe('Happy Path', () => {
       makerImpactFee: positionFeesOn ? parse6decimal('0.0002') : 0,
       makerLiquidity: parse6decimal('0.2'),
       makerLimit: parse6decimal('1'),
+      liquidationFee: parse6decimal('0.50'),
+      minLiquidationFee: parse6decimal('0'),
+      maxLiquidationFee: parse6decimal('1000'),
       utilizationCurve: {
         minRate: 0,
         maxRate: parse6decimal('5.00'),

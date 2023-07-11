@@ -444,7 +444,7 @@ contract Market is IMarket, Instance {
 
     function _liquidationFee(CurrentContext memory context) private view returns (UFixed6) {
         return context.accountPosition
-            .liquidationFee(context.latestVersion, context.riskParameter, context.protocolParameter)
+            .liquidationFee(context.latestVersion, context.riskParameter)
             .min(UFixed6Lib.from(token.balanceOf()));
     }
 

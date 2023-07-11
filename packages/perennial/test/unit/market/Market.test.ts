@@ -227,8 +227,6 @@ describe('Market', () => {
     factory.owner.returns(owner.address)
     factory.parameter.returns({
       protocolFee: parse6decimal('0.50'),
-      liquidationFee: parse6decimal('0.10'),
-      maxLiquidationFee: parse6decimal('1000'),
       settlementFee: parse6decimal('0.00'),
       maxPendingIds: 5,
     })
@@ -249,6 +247,9 @@ describe('Market', () => {
       makerFee: 0,
       makerImpactFee: 0,
       makerLimit: parse6decimal('1000'),
+      liquidationFee: parse6decimal('0.50'),
+      minLiquidationFee: parse6decimal('0'),
+      maxLiquidationFee: parse6decimal('1000'),
       utilizationCurve: {
         minRate: parse6decimal('0.0'),
         maxRate: parse6decimal('1.00'),
@@ -300,6 +301,9 @@ describe('Market', () => {
       expect(riskParameterResult.makerFee).to.equal(riskParameter.makerFee)
       expect(riskParameterResult.makerImpactFee).to.equal(riskParameter.makerImpactFee)
       expect(riskParameterResult.makerLimit).to.equal(riskParameter.makerLimit)
+      expect(riskParameterResult.liquidationFee).to.equal(riskParameter.liquidationFee)
+      expect(riskParameterResult.minLiquidationFee).to.equal(riskParameter.minLiquidationFee)
+      expect(riskParameterResult.maxLiquidationFee).to.equal(riskParameter.maxLiquidationFee)
       expect(riskParameterResult.utilizationCurve.minRate).to.equal(riskParameter.utilizationCurve.minRate)
       expect(riskParameterResult.utilizationCurve.targetRate).to.equal(riskParameter.utilizationCurve.targetRate)
       expect(riskParameterResult.utilizationCurve.maxRate).to.equal(riskParameter.utilizationCurve.maxRate)
@@ -414,6 +418,9 @@ describe('Market', () => {
           makerImpactFee: parse6decimal('0.01'),
           makerLiquidity: parse6decimal('0.1'),
           makerLimit: parse6decimal('2000'),
+          liquidationFee: parse6decimal('0.75'),
+          minLiquidationFee: parse6decimal('10'),
+          maxLiquidationFee: parse6decimal('200'),
           utilizationCurve: {
             minRate: parse6decimal('0.20'),
             maxRate: parse6decimal('0.20'),
@@ -442,6 +449,9 @@ describe('Market', () => {
         expect(riskParameter.makerFee).to.equal(newRiskParameter.makerFee)
         expect(riskParameter.makerImpactFee).to.equal(newRiskParameter.makerImpactFee)
         expect(riskParameter.makerLimit).to.equal(newRiskParameter.makerLimit)
+        expect(riskParameter.liquidationFee).to.equal(newRiskParameter.liquidationFee)
+        expect(riskParameter.minLiquidationFee).to.equal(newRiskParameter.minLiquidationFee)
+        expect(riskParameter.maxLiquidationFee).to.equal(newRiskParameter.maxLiquidationFee)
         expect(riskParameter.utilizationCurve.minRate).to.equal(newRiskParameter.utilizationCurve.minRate)
         expect(riskParameter.utilizationCurve.targetRate).to.equal(newRiskParameter.utilizationCurve.targetRate)
         expect(riskParameter.utilizationCurve.maxRate).to.equal(newRiskParameter.utilizationCurve.maxRate)
@@ -10377,9 +10387,9 @@ describe('Market', () => {
             await settle(market, user)
             await settle(market, userB)
 
-            const protocolParameter = { ...(await factory.parameter()) }
-            protocolParameter.maxLiquidationFee = parse6decimal('10')
-            factory.parameter.returns(protocolParameter)
+            const riskParameter = { ...(await market.riskParameter()) }
+            riskParameter.maxLiquidationFee = parse6decimal('10')
+            await market.connect(owner).updateRiskParameter(riskParameter)
 
             const EXPECTED_PNL = parse6decimal('27').mul(5)
             const EXPECTED_LIQUIDATION_FEE = parse6decimal('10') // 22.5

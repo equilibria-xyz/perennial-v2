@@ -37,6 +37,9 @@ export async function deployProductOnMainnetFork({
   makerLimit,
   utilizationCurve,
   minMaintenance,
+  liquidationFee,
+  minLiquidationFee,
+  maxLiquidationFee,
   staleAfter,
 }: DeployProductParams): Promise<IMarket> {
   const riskParameter: RiskParameterStruct = {
@@ -47,9 +50,9 @@ export async function deployProductOnMainnetFork({
     makerFee: makerFee ?? parse6decimal('0.0'),
     makerImpactFee: makerImpactFee ?? parse6decimal('0.0'),
     makerLimit: makerLimit ?? parse6decimal('100'),
-    makerRewardRate: 0,
-    longRewardRate: 0,
-    shortRewardRate: 0,
+    liquidationFee: liquidationFee ?? parse6decimal('0.50'),
+    minLiquidationFee: minLiquidationFee ?? parse6decimal('0'),
+    maxLiquidationFee: maxLiquidationFee ?? parse6decimal('1000'),
     utilizationCurve: utilizationCurve ?? {
       minRate: parse6decimal('0.02'),
       maxRate: parse6decimal('0.80'),
@@ -70,13 +73,15 @@ export async function deployProductOnMainnetFork({
     positionFee: positionFee ?? parse6decimal('0.0'),
     riskFee: 0,
     oracleFee: 0,
+    makerRewardRate: 0,
+    longRewardRate: 0,
+    shortRewardRate: 0,
     closed: false,
   }
   const marketDefinition: IMarket.MarketDefinitionStruct = {
     name: name,
     symbol: symbol,
     token: token.address,
-    reward: constants.AddressZero,
     oracle: oracle ?? constants.AddressZero,
     payoff: payoff ?? constants.AddressZero,
   }

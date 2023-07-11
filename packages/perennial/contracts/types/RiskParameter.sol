@@ -16,6 +16,9 @@ struct RiskParameter {
     UFixed6 makerFee;
     UFixed6 makerImpactFee;
     UFixed6 makerLimit;
+    UFixed6 liquidationFee;
+    UFixed6 minLiquidationFee;
+    UFixed6 maxLiquidationFee;
     UJumpRateUtilizationCurve6 utilizationCurve;
     PController6 pController;
     UFixed6 minMaintenance;
@@ -47,6 +50,11 @@ struct StoredRiskParameter {
     uint48 minMaintenance;                      // <= 281m
     uint24 staleAfter;                          // <= 16m s
     bytes6 __unallocated__;
+
+    /* slot 3 */
+    uint24 liquidationFee;                      // <= 1677%
+    uint48 minLiquidationFee;                   // <= 281mn
+    uint48 maxLiquidationFee;                   // <= 281mn
 }
 struct RiskParameterStorage { StoredRiskParameter value; }
 using RiskParameterStorageLib for RiskParameterStorage global;
@@ -64,6 +72,9 @@ library RiskParameterStorageLib {
             UFixed6.wrap(uint256(value.makerFee)),
             UFixed6.wrap(uint256(value.makerImpactFee)),
             UFixed6.wrap(uint256(value.makerLimit)),
+            UFixed6.wrap(uint256(value.liquidationFee)),
+            UFixed6.wrap(uint256(value.minLiquidationFee)),
+            UFixed6.wrap(uint256(value.maxLiquidationFee)),
             UJumpRateUtilizationCurve6(
                 UFixed6.wrap(uint256(value.utilizationCurveMinRate)),
                 UFixed6.wrap(uint256(value.utilizationCurveMaxRate)),
@@ -88,6 +99,9 @@ library RiskParameterStorageLib {
         if (newValue.makerFee.gt(UFixed6.wrap(type(uint24).max))) revert RiskParameterStorageInvalidError();
         if (newValue.makerImpactFee.gt(UFixed6.wrap(type(uint24).max))) revert RiskParameterStorageInvalidError();
         if (newValue.makerLimit.gt(UFixed6.wrap(type(uint48).max))) revert RiskParameterStorageInvalidError();
+        if (newValue.liquidationFee.gt(UFixed6.wrap(type(uint24).max))) revert RiskParameterStorageInvalidError();
+        if (newValue.minLiquidationFee.gt(UFixed6.wrap(type(uint48).max))) revert RiskParameterStorageInvalidError();
+        if (newValue.maxLiquidationFee.gt(UFixed6.wrap(type(uint48).max))) revert RiskParameterStorageInvalidError();
         if (newValue.utilizationCurve.minRate.gt(UFixed6.wrap(type(uint32).max))) revert RiskParameterStorageInvalidError();
         if (newValue.utilizationCurve.maxRate.gt(UFixed6.wrap(type(uint32).max))) revert RiskParameterStorageInvalidError();
         if (newValue.utilizationCurve.targetRate.gt(UFixed6.wrap(type(uint32).max))) revert RiskParameterStorageInvalidError();
@@ -105,6 +119,9 @@ library RiskParameterStorageLib {
             makerFee: uint24(UFixed6.unwrap(newValue.makerFee)),
             makerImpactFee: uint24(UFixed6.unwrap(newValue.makerImpactFee)),
             makerLimit: uint48(UFixed6.unwrap(newValue.makerLimit)),
+            liquidationFee: uint24(UFixed6.unwrap(newValue.liquidationFee)),
+            minLiquidationFee: uint48(UFixed6.unwrap(newValue.minLiquidationFee)),
+            maxLiquidationFee: uint48(UFixed6.unwrap(newValue.maxLiquidationFee)),
             utilizationCurveMinRate: uint32(UFixed6.unwrap(newValue.utilizationCurve.minRate)),
             utilizationCurveMaxRate: uint32(UFixed6.unwrap(newValue.utilizationCurve.maxRate)),
             utilizationCurveTargetRate: uint32(UFixed6.unwrap(newValue.utilizationCurve.targetRate)),

@@ -2,7 +2,6 @@
 pragma solidity ^0.8.13;
 
 import "@equilibria/perennial-v2-oracle/contracts/types/OracleVersion.sol";
-import "./ProtocolParameter.sol";
 import "./RiskParameter.sol";
 import "./Order.sol";
 
@@ -200,12 +199,12 @@ library PositionLib {
     function liquidationFee(
         Position memory self,
         OracleVersion memory currentOracleVersion,
-        RiskParameter memory riskParameter,
-        ProtocolParameter memory protocolParameter
+        RiskParameter memory riskParameter
     ) internal pure returns (UFixed6) {
         return maintenance(self, currentOracleVersion, riskParameter)
-            .mul(protocolParameter.liquidationFee)
-            .min(protocolParameter.maxLiquidationFee);
+            .mul(riskParameter.liquidationFee)
+            .min(riskParameter.maxLiquidationFee)
+            .max(riskParameter.minLiquidationFee);
     }
 
     function sub(Position memory self, Position memory position) internal pure returns (Order memory newOrder) {
