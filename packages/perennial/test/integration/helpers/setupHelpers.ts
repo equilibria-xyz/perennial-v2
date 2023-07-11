@@ -215,9 +215,6 @@ export async function createMarket(
       k: parse6decimal('40000'),
       max: parse6decimal('1.20'),
     },
-    makerRewardRate: 0,
-    longRewardRate: 0,
-    shortRewardRate: 0,
     minMaintenance: parse6decimal('500'),
     staleAfter: 7200,
     makerReceiveOnly: false,
@@ -228,6 +225,9 @@ export async function createMarket(
     oracleFee: 0,
     riskFee: 0,
     positionFee: 0,
+    makerRewardRate: 0,
+    longRewardRate: 0,
+    shortRewardRate: 0,
     closed: false,
   }
   const marketAddress = await marketFactory.callStatic.create(definition, riskParameter)

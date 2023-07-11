@@ -259,9 +259,6 @@ describe('Market', () => {
         k: parse6decimal('40000'),
         max: parse6decimal('1.20'),
       },
-      makerRewardRate: parse6decimal('0.3'),
-      longRewardRate: parse6decimal('0.2'),
-      shortRewardRate: parse6decimal('0.1'),
       minMaintenance: parse6decimal('100'),
       staleAfter: 7200,
       makerReceiveOnly: false,
@@ -272,6 +269,9 @@ describe('Market', () => {
       oracleFee: 0,
       riskFee: 0,
       positionFee: 0,
+      makerRewardRate: parse6decimal('0.3'),
+      longRewardRate: parse6decimal('0.2'),
+      shortRewardRate: parse6decimal('0.1'),
       closed: false,
     }
     market = await new Market__factory(owner).deploy()
@@ -308,8 +308,6 @@ describe('Market', () => {
       )
       expect(riskParameterResult.pController.k).to.equal(riskParameter.pController.k)
       expect(riskParameterResult.pController.max).to.equal(riskParameter.pController.max)
-      expect(riskParameterResult.makerRewardRate).to.equal(riskParameter.makerRewardRate)
-      expect(riskParameterResult.shortRewardRate).to.equal(riskParameter.shortRewardRate)
       expect(riskParameterResult.minMaintenance).to.equal(riskParameter.minMaintenance)
       expect(riskParameterResult.staleAfter).to.equal(riskParameter.staleAfter)
       expect(riskParameterResult.makerReceiveOnly).to.equal(riskParameter.makerReceiveOnly)
@@ -318,6 +316,9 @@ describe('Market', () => {
       expect(marketParameterResult.fundingFee).to.equal(0)
       expect(marketParameterResult.interestFee).to.equal(0)
       expect(marketParameterResult.positionFee).to.equal(0)
+      expect(marketParameterResult.makerRewardRate).to.equal(0)
+      expect(marketParameterResult.longRewardRate).to.equal(0)
+      expect(marketParameterResult.shortRewardRate).to.equal(0)
       expect(marketParameterResult.closed).to.equal(false)
     })
 
@@ -372,6 +373,9 @@ describe('Market', () => {
           positionFee: parse6decimal('0.1'),
           oracleFee: parse6decimal('0.4'),
           riskFee: parse6decimal('0.5'),
+          makerRewardRate: parse6decimal('0.6'),
+          longRewardRate: parse6decimal('0.7'),
+          shortRewardRate: parse6decimal('0.8'),
           closed: true,
         }
 
@@ -385,6 +389,9 @@ describe('Market', () => {
         expect(marketParameter.positionFee).to.equal(newMarketParameter.positionFee)
         expect(marketParameter.oracleFee).to.equal(newMarketParameter.oracleFee)
         expect(marketParameter.riskFee).to.equal(newMarketParameter.riskFee)
+        expect(marketParameter.makerRewardRate).to.equal(newMarketParameter.makerRewardRate)
+        expect(marketParameter.longRewardRate).to.equal(newMarketParameter.longRewardRate)
+        expect(marketParameter.shortRewardRate).to.equal(newMarketParameter.shortRewardRate)
         expect(marketParameter.closed).to.equal(newMarketParameter.closed)
       })
 
@@ -417,9 +424,6 @@ describe('Market', () => {
             k: parse6decimal('40000'),
             max: parse6decimal('1.20'),
           },
-          makerRewardRate: parse6decimal('0.1'),
-          longRewardRate: parse6decimal('0.1'),
-          shortRewardRate: parse6decimal('0.1'),
           minMaintenance: parse6decimal('50'),
           staleAfter: 9600,
           makerReceiveOnly: true,
@@ -446,8 +450,6 @@ describe('Market', () => {
         )
         expect(riskParameter.pController.k).to.equal(newRiskParameter.pController.k)
         expect(riskParameter.pController.max).to.equal(newRiskParameter.pController.max)
-        expect(riskParameter.makerRewardRate).to.equal(newRiskParameter.makerRewardRate)
-        expect(riskParameter.shortRewardRate).to.equal(newRiskParameter.shortRewardRate)
         expect(riskParameter.minMaintenance).to.equal(newRiskParameter.minMaintenance)
         expect(riskParameter.staleAfter).to.equal(newRiskParameter.staleAfter)
         expect(riskParameter.makerReceiveOnly).to.equal(newRiskParameter.makerReceiveOnly)

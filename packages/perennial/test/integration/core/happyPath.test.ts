@@ -72,9 +72,6 @@ describe('Happy Path', () => {
         k: parse6decimal('40000'),
         max: parse6decimal('1.20'),
       },
-      makerRewardRate: 0,
-      longRewardRate: 0,
-      shortRewardRate: 0,
       minMaintenance: parse6decimal('500'),
       staleAfter: 7200,
       makerReceiveOnly: false,
@@ -85,6 +82,9 @@ describe('Happy Path', () => {
       oracleFee: 0,
       riskFee: 0,
       positionFee: 0,
+      makerRewardRate: 0,
+      longRewardRate: 0,
+      shortRewardRate: 0,
       closed: true,
     }
     const marketAddress = await marketFactory.callStatic.create(definition, riskParameter)
@@ -1024,9 +1024,6 @@ describe('Happy Path', () => {
         k: parse6decimal('40000'),
         max: parse6decimal('1.20'),
       },
-      makerRewardRate: incentizesOn ? parse6decimal('0.01') : 0,
-      longRewardRate: incentizesOn ? parse6decimal('0.001') : 0,
-      shortRewardRate: incentizesOn ? parse6decimal('0.001') : 0,
       minMaintenance: parse6decimal('500'),
       staleAfter: 7200,
       makerReceiveOnly: false,
@@ -1037,6 +1034,9 @@ describe('Happy Path', () => {
       oracleFee: 0,
       riskFee: 0,
       positionFee: positionFeesOn ? parse6decimal('0.1') : 0,
+      makerRewardRate: incentizesOn ? parse6decimal('0.01') : 0,
+      longRewardRate: incentizesOn ? parse6decimal('0.001') : 0,
+      shortRewardRate: incentizesOn ? parse6decimal('0.001') : 0,
       closed: false,
     }
 
@@ -1159,9 +1159,6 @@ describe('Happy Path', () => {
         k: parse6decimal('40000'),
         max: parse6decimal('1.20'),
       },
-      makerRewardRate: incentizesOn ? parse6decimal('0.01') : 0,
-      longRewardRate: incentizesOn ? parse6decimal('0.001') : 0,
-      shortRewardRate: incentizesOn ? parse6decimal('0.001') : 0,
       minMaintenance: parse6decimal('500'),
       staleAfter: 7200,
       makerReceiveOnly: false,
@@ -1172,6 +1169,9 @@ describe('Happy Path', () => {
       oracleFee: 0,
       riskFee: 0,
       positionFee: positionFeesOn ? parse6decimal('0.1') : 0,
+      makerRewardRate: incentizesOn ? parse6decimal('0.01') : 0,
+      longRewardRate: incentizesOn ? parse6decimal('0.001') : 0,
+      shortRewardRate: incentizesOn ? parse6decimal('0.001') : 0,
       closed: false,
     }
 

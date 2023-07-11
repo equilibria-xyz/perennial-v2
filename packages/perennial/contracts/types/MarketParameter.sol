@@ -14,6 +14,9 @@ struct MarketParameter {
     UFixed6 positionFee;
     UFixed6 oracleFee; // TODO: move to oracle?
     UFixed6 riskFee;
+    UFixed6 makerRewardRate;
+    UFixed6 longRewardRate;
+    UFixed6 shortRewardRate;
     bool closed;
 }
 
@@ -23,8 +26,11 @@ struct StoredMarketParameter {
     uint24 positionFee;         // <= 1677%
     uint24 oracleFee;           // <= 1677%
     uint24 riskFee;             // <= 1677%
+    uint32 makerRewardRate;     // <= 2147.48 / s
+    uint32 longRewardRate;      // <= 2147.48 / s
+    uint32 shortRewardRate;     // <= 2147.48 / s
     bool closed;
-    bytes16 __unallocated__;
+    bytes4 __unallocated__;
 }
 struct MarketParameterStorage { StoredMarketParameter value; }
 using MarketParameterStorageLib for MarketParameterStorage global;
@@ -40,6 +46,9 @@ library MarketParameterStorageLib {
             UFixed6.wrap(uint256(value.positionFee)),
             UFixed6.wrap(uint256(value.oracleFee)),
             UFixed6.wrap(uint256(value.riskFee)),
+            UFixed6.wrap(uint256(value.makerRewardRate)),
+            UFixed6.wrap(uint256(value.longRewardRate)),
+            UFixed6.wrap(uint256(value.shortRewardRate)),
             value.closed
         );
     }
@@ -50,6 +59,9 @@ library MarketParameterStorageLib {
         if (newValue.positionFee.gt(UFixed6.wrap(type(uint24).max))) revert MarketParameterStorageInvalidError();
         if (newValue.oracleFee.gt(UFixed6.wrap(type(uint24).max))) revert MarketParameterStorageInvalidError();
         if (newValue.riskFee.gt(UFixed6.wrap(type(uint24).max))) revert MarketParameterStorageInvalidError();
+        if (newValue.makerRewardRate.gt(UFixed6.wrap(type(uint32).max))) revert MarketParameterStorageInvalidError();
+        if (newValue.longRewardRate.gt(UFixed6.wrap(type(uint32).max))) revert MarketParameterStorageInvalidError();
+        if (newValue.shortRewardRate.gt(UFixed6.wrap(type(uint32).max))) revert MarketParameterStorageInvalidError();
 
         self.value = StoredMarketParameter(
             uint24(UFixed6.unwrap(newValue.fundingFee)),
@@ -57,8 +69,11 @@ library MarketParameterStorageLib {
             uint24(UFixed6.unwrap(newValue.positionFee)),
             uint24(UFixed6.unwrap(newValue.oracleFee)),
             uint24(UFixed6.unwrap(newValue.riskFee)),
+            uint32(UFixed6.unwrap(newValue.makerRewardRate)),
+            uint32(UFixed6.unwrap(newValue.longRewardRate)),
+            uint32(UFixed6.unwrap(newValue.shortRewardRate)),
             newValue.closed,
-            bytes13(0)
+            bytes4(0)
         );
     }
 }

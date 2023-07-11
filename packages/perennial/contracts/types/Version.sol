@@ -74,7 +74,7 @@ library VersionLib {
         _accumulatePNL(self, fromPosition, fromOracleVersion, toOracleVersion);
 
         // accumulate reward
-        _accumulateReward(self, fromPosition, fromOracleVersion, toOracleVersion, riskParameter);
+        _accumulateReward(self, fromPosition, fromOracleVersion, toOracleVersion, marketParameter);
 
         return positionFee.add(fundingFee).add(interestFee);
     }
@@ -229,16 +229,16 @@ library VersionLib {
         Position memory position,
         OracleVersion memory fromOracleVersion,
         OracleVersion memory toOracleVersion,
-        RiskParameter memory riskParameter
+        MarketParameter memory marketParameter
     ) private pure {
         UFixed6 elapsed = UFixed6Lib.from(toOracleVersion.timestamp - fromOracleVersion.timestamp);
 
         if (!position.maker.isZero())
-            self.makerReward.increment(elapsed.mul(riskParameter.makerRewardRate), position.maker);
+            self.makerReward.increment(elapsed.mul(marketParameter.makerRewardRate), position.maker);
         if (!position.long.isZero())
-            self.longReward.increment(elapsed.mul(riskParameter.longRewardRate), position.long);
+            self.longReward.increment(elapsed.mul(marketParameter.longRewardRate), position.long);
         if (!position.short.isZero())
-            self.shortReward.increment(elapsed.mul(riskParameter.shortRewardRate), position.short);
+            self.shortReward.increment(elapsed.mul(marketParameter.shortRewardRate), position.short);
     }
 }
 
