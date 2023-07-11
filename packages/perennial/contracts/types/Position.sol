@@ -88,7 +88,7 @@ library PositionLib {
 
     /// @dev update the current global position
     function update(Position memory self, uint256 currentId, uint256 currentTimestamp, Order memory order) internal pure {
-        Fixed6 latestSkew = skew(self);
+        (Fixed6 latestSkew, UFixed6 latestEfficiency) = (skew(self), efficiency(self));
 
         if (self.id == currentId) self.fee = UFixed6Lib.ZERO;
         (self.id, self.timestamp, self.maker, self.long, self.short) = (
@@ -99,9 +99,10 @@ library PositionLib {
             UFixed6Lib.from(Fixed6Lib.from(self.short).add(order.short))
         );
 
-        (order.skew, order.impact) = (
+        (order.skew, order.impact, order.efficiency) = (
             skew(self).sub(latestSkew).abs(),
-            Fixed6Lib.from(skew(self).abs()).sub(Fixed6Lib.from(latestSkew.abs()))
+            Fixed6Lib.from(skew(self).abs()).sub(Fixed6Lib.from(latestSkew.abs())),
+            Fixed6Lib.from(efficiency(self)).sub(Fixed6Lib.from(latestEfficiency))
         );
     }
 
@@ -163,6 +164,10 @@ library PositionLib {
 
     function takerSocialized(Position memory self) internal pure returns (UFixed6) {
         return major(self).min(minor(self).add(self.maker));
+    }
+
+    function efficiency(Position memory self) internal pure returns (UFixed6) {
+        return self.maker.unsafeDiv(major(self)).min(UFixed6Lib.ONE);
     }
 
     function socialized(Position memory self) internal pure returns (bool) {

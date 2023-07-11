@@ -66,6 +66,7 @@ interface IMarket is IInstance {
     error MarketNotBeneficiaryError();
     error MarketInvalidProtectionError();
     error MarketStalePriceError();
+    error MarketEfficiencyUnderLimitError();
 
     error GlobalStorageInvalidError();
     error LocalStorageInvalidError();

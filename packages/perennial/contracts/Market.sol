@@ -434,6 +434,13 @@ contract Market is IMarket, Instance {
         if (
             !protected &&
             !context.marketParameter.closed &&
+            newOrder.efficiency.lt(Fixed6Lib.ZERO) &&
+            context.pendingPosition.efficiency().lt(context.riskParameter.efficiencyLimit)
+        ) { if (LOG_REVERTS) console.log("MarketEfficiencyUnderLimitError"); revert MarketEfficiencyUnderLimitError(); }
+
+        if (
+            !protected &&
+            !context.marketParameter.closed &&
             context.pendingPosition.socialized() &&
             newOrder.decreasesLiquidity()
         ) { if (LOG_REVERTS) console.log("MarketInsufficientLiquidityError"); revert MarketInsufficientLiquidityError(); }

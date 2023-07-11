@@ -247,6 +247,7 @@ describe('Market', () => {
       makerFee: 0,
       makerImpactFee: 0,
       makerLimit: parse6decimal('1000'),
+      efficiencyLimit: parse6decimal('0.2'),
       liquidationFee: parse6decimal('0.50'),
       minLiquidationFee: parse6decimal('0'),
       maxLiquidationFee: parse6decimal('1000'),
@@ -301,6 +302,7 @@ describe('Market', () => {
       expect(riskParameterResult.makerFee).to.equal(riskParameter.makerFee)
       expect(riskParameterResult.makerImpactFee).to.equal(riskParameter.makerImpactFee)
       expect(riskParameterResult.makerLimit).to.equal(riskParameter.makerLimit)
+      expect(riskParameterResult.efficiencyLimit).to.equal(riskParameter.efficiencyLimit)
       expect(riskParameterResult.liquidationFee).to.equal(riskParameter.liquidationFee)
       expect(riskParameterResult.minLiquidationFee).to.equal(riskParameter.minLiquidationFee)
       expect(riskParameterResult.maxLiquidationFee).to.equal(riskParameter.maxLiquidationFee)
@@ -416,8 +418,8 @@ describe('Market', () => {
           takerImpactFee: parse6decimal('0.03'),
           makerFee: parse6decimal('0.05'),
           makerImpactFee: parse6decimal('0.01'),
-          makerLiquidity: parse6decimal('0.1'),
           makerLimit: parse6decimal('2000'),
+          efficiencyLimit: parse6decimal('0.2'),
           liquidationFee: parse6decimal('0.75'),
           minLiquidationFee: parse6decimal('10'),
           maxLiquidationFee: parse6decimal('200'),
@@ -449,6 +451,7 @@ describe('Market', () => {
         expect(riskParameter.makerFee).to.equal(newRiskParameter.makerFee)
         expect(riskParameter.makerImpactFee).to.equal(newRiskParameter.makerImpactFee)
         expect(riskParameter.makerLimit).to.equal(newRiskParameter.makerLimit)
+        expect(riskParameter.efficiencyLimit).to.equal(newRiskParameter.efficiencyLimit)
         expect(riskParameter.liquidationFee).to.equal(newRiskParameter.liquidationFee)
         expect(riskParameter.minLiquidationFee).to.equal(newRiskParameter.minLiquidationFee)
         expect(riskParameter.maxLiquidationFee).to.equal(newRiskParameter.maxLiquidationFee)
@@ -10190,6 +10193,23 @@ describe('Market', () => {
             ).to.be.revertedWithCustomError(market, 'MarketMakerOverLimitError')
           })
 
+          it('reverts if under efficiency limit', async () => {
+            const riskParameter = { ...(await market.riskParameter()) }
+            riskParameter.efficiencyLimit = parse6decimal('0.6')
+            await market.updateRiskParameter(riskParameter)
+
+            dsu.transferFrom.whenCalledWith(user.address, market.address, COLLATERAL.mul(1e12)).returns(true)
+            await market.connect(user).update(user.address, POSITION.div(2), 0, 0, COLLATERAL, false)
+            dsu.transferFrom.whenCalledWith(userB.address, market.address, COLLATERAL.mul(1e12)).returns(true)
+            await market.connect(userB).update(userB.address, 0, POSITION.div(2), 0, COLLATERAL, false)
+            dsu.transferFrom.whenCalledWith(userC.address, market.address, COLLATERAL.mul(1e12)).returns(true)
+            await market.connect(userC).update(userC.address, 0, 0, POSITION.div(2), COLLATERAL, false)
+
+            await expect(
+              market.connect(userB).update(userB.address, 0, POSITION, 0, 0, false),
+            ).to.be.revertedWithCustomError(market, 'MarketEfficiencyUnderLimitError')
+          })
+
           it('reverts if under minimum maintenance', async () => {
             dsu.transferFrom.whenCalledWith(user.address, market.address, utils.parseEther('1')).returns(true)
             await expect(
@@ -10207,8 +10227,11 @@ describe('Market', () => {
           })
 
           it('reverts if taker > maker', async () => {
+            dsu.transferFrom.whenCalledWith(user.address, market.address, COLLATERAL.mul(1e12)).returns(true)
+            await market.connect(user).update(user.address, POSITION, 0, 0, COLLATERAL, false)
+
             await expect(
-              market.connect(user).update(user.address, 0, POSITION.mul(4), 0, COLLATERAL, false),
+              market.connect(userB).update(userB.address, 0, POSITION.add(1), 0, COLLATERAL, false),
             ).to.be.revertedWithCustomError(market, `MarketInsufficientLiquidityError`)
           })
 

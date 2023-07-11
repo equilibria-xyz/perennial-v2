@@ -60,8 +60,8 @@ describe('Happy Path', () => {
       takerImpactFee: 0,
       makerFee: 0,
       makerImpactFee: 0,
-      makerLiquidity: parse6decimal('0.2'),
       makerLimit: parse6decimal('1'),
+      efficiencyLimit: parse6decimal('0.2'),
       liquidationFee: parse6decimal('0.50'),
       minLiquidationFee: parse6decimal('0'),
       maxLiquidationFee: parse6decimal('1000'),
@@ -778,7 +778,7 @@ describe('Happy Path', () => {
 
     await expect(
       market.connect(userB).update(userB.address, 0, POSITION_B, 0, COLLATERAL, false),
-    ).to.be.revertedWithCustomError(market, 'MarketInsufficientLiquidityError')
+    ).to.be.revertedWithCustomError(market, 'MarketEfficiencyUnderLimitError')
     await market.connect(user).update(user.address, POSITION, 0, 0, COLLATERAL, false)
     await market.connect(userB).update(userB.address, 0, POSITION_B, 0, COLLATERAL, false)
 
@@ -856,7 +856,7 @@ describe('Happy Path', () => {
 
     await expect(
       market.connect(userB).update(userB.address, 0, POSITION_B, 0, COLLATERAL, false),
-    ).to.be.revertedWithCustomError(market, 'MarketInsufficientLiquidityError')
+    ).to.be.revertedWithCustomError(market, 'MarketEfficiencyUnderLimitError')
     await market.connect(user).update(user.address, POSITION, 0, 0, COLLATERAL, false)
     await market.connect(userB).update(userB.address, 0, POSITION_B, 0, COLLATERAL, false)
     await market.connect(userB).update(userB.address, POSITION_B.div(2), 0, 0, 0, false)
@@ -1015,8 +1015,8 @@ describe('Happy Path', () => {
       takerImpactFee: positionFeesOn ? parse6decimal('0.0004') : 0,
       makerFee: positionFeesOn ? parse6decimal('0.0005') : 0,
       makerImpactFee: positionFeesOn ? parse6decimal('0.0002') : 0,
-      makerLiquidity: parse6decimal('0.2'),
       makerLimit: parse6decimal('1'),
+      efficiencyLimit: parse6decimal('0.2'),
       liquidationFee: parse6decimal('0.50'),
       minLiquidationFee: parse6decimal('0'),
       maxLiquidationFee: parse6decimal('1000'),
@@ -1153,8 +1153,8 @@ describe('Happy Path', () => {
       takerImpactFee: positionFeesOn ? parse6decimal('0.0004') : 0,
       makerFee: positionFeesOn ? parse6decimal('0.0005') : 0,
       makerImpactFee: positionFeesOn ? parse6decimal('0.0002') : 0,
-      makerLiquidity: parse6decimal('0.2'),
       makerLimit: parse6decimal('1'),
+      efficiencyLimit: parse6decimal('0.2'),
       liquidationFee: parse6decimal('0.50'),
       minLiquidationFee: parse6decimal('0'),
       maxLiquidationFee: parse6decimal('1000'),

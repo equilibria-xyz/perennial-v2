@@ -12,6 +12,7 @@ struct Order {
     Fixed6 short;
     UFixed6 skew;
     Fixed6 impact;
+    Fixed6 efficiency;
     UFixed6 fee;
     UFixed6 keeper;
 }
