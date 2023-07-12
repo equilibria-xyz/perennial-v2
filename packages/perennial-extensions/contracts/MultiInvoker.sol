@@ -1,8 +1,7 @@
 // SPDX-License-Identifier: Apache-2.0
 pragma solidity ^0.8.13;
-pragma abicoder v2;
 
-import {AggregatorInterface} from "@chainlink/contracts/src/v0.8/interfaces/AggregatorInterface.sol";
+import { AggregatorV3Interface } from "@chainlink/contracts/src/v0.8/interfaces/AggregatorV3Interface.sol";
 import { IMarketFactory } from "@equilibria/perennial-v2/contracts/interfaces/IMarketFactory.sol";
 import { IMarket } from "@equilibria/perennial-v2/contracts/interfaces/IMarket.sol";
 import { IBatcher } from "@equilibria/emptyset-batcher/interfaces/IBatcher.sol";
@@ -28,8 +27,12 @@ import {
 import {IKeeperManager} from "./interfaces/IKeeperManager.sol";
 
 import {KeeperManager} from "./KeeperManager.sol";
+import "@equilibria/root-v2/contracts/UKept.sol";
 
-contract MultiInvoker is IMultiInvoker, KeeperManager {
+contract MultiInvoker is IMultiInvoker, KeeperManager, UKept {
+
+    /// @dev Gas buffer estimating remaining execution gas to include in fee to cover further instructions
+    uint256 constant GAS_BUFFER = 100000; // solhint-disable-line var-name-mixedcase
 
     /// @dev USDC stablecoin address
     Token6 public immutable USDC; // solhint-disable-line var-name-mixedcase
@@ -43,33 +46,29 @@ contract MultiInvoker is IMultiInvoker, KeeperManager {
     /// @dev Batcher address
     IBatcher public immutable batcher;
 
-    /// @dev Perennial oracle for eth price
-    AggregatorInterface public ethOracle;
-
     /// @dev Reserve address
     IEmptySetReserve public immutable reserve;
 
-    /// @dev premium to charge accounts on top of gas cost for keeper executions
-    Fixed6 public keeperPremium;
-
-    /// @dev Gas buffer estimating remaining execution gas to include in fee to cover further instructions 
-    Fixed6 immutable GAS_BUFFER = Fixed6Lib.from(UFixed6.wrap(100000)); // solhint-disable-line var-name-mixedcase
+    /// @dev multiplier to charge accounts on top of gas cost for keeper executions
+    UFixed6 public keeperMultiplier;
 
     constructor(
         Token6 usdc_,
         Token18 dsu_,
         IMarketFactory factory_,
         IBatcher batcher_,
-        IEmptySetReserve reserve_,
-        AggregatorInterface ethOracle_
+        IEmptySetReserve reserve_
     ) {
         USDC = usdc_;
         DSU = dsu_;
         factory = factory_;
         batcher = batcher_;
-        ethOracle = ethOracle_;
         reserve = reserve_;
-        keeperPremium = Fixed6.wrap(8);
+        keeperMultiplier = UFixed6.wrap(1.2e6); // TODO ???
+    }
+
+    function initialize(AggregatorV3Interface ethOracle_) external initializer(1) {
+        __UKept__initialize(ethOracle_, DSU);
     }
 
     /// @notice approves a market deployed by the factory to spend DSU
@@ -157,10 +156,11 @@ contract MultiInvoker is IMultiInvoker, KeeperManager {
      * @param market Market to execute order for
      * @param _orderNonce Id of open order to index
      */
-    function _executeOrderInvoker(address account, address market, uint256 _orderNonce) internal {
-        // @todo move this up to beginning of execute action?
-        uint256 startGas = gasleft();
-
+    function _executeOrderInvoker(
+        address account,
+        address market,
+        uint256 _orderNonce
+    ) internal keep(UFixed18Lib.from(keeperMultiplier), GAS_BUFFER, abi.encode(account, market, _orderNonce)) {
         Position memory position = 
             IMarket(market).pendingPositions(
                 account, 
@@ -188,60 +188,24 @@ contract MultiInvoker is IMultiInvoker, KeeperManager {
             false);
 
         _executeOrder(account, market, _orderNonce);
-
-        _handleExecFee(
-            account,
-            market,
-            order.maxFee,
-            startGas,
-            position);
-        
     }
 
-    /**
-     * @notice Helper function to charge execution fee for orders
-     * @param account Account being executed to withdraw fee amount of collateral from
-     * @param market Market to pull collateral from
-     * @param maxFee Maximum fee specified by `account` when their order is opened
-     * @param startGas Initial remaining execution gas for tx
-     * @param position `account`'s position to preserve M/L/S of when pulling collateral
-     */
-    function _handleExecFee(
-        address account,
-        address market,
-        Fixed6 maxFee,
-        uint256 startGas,
-        Position memory position
-    ) internal {
-
-        Fixed6 ethPrice = ethPrice();
-        Fixed6 gasUsed = Fixed6Lib.from(UFixed6.wrap(startGas - gasleft()));
-        Fixed6 chargeFee = gasUsed.add(gasUsed.mul(keeperPremium).div(Fixed6.wrap(100))).add(GAS_BUFFER);
-
-        chargeFee = chargeFee.mul(Fixed6Lib.NEG_ONE).mul(ethPrice);
-        if(chargeFee.gt(maxFee)) revert MultiInvokerMaxFeeExceededError();
+    function _raiseKeeperFee(UFixed18 keeperFee, bytes memory data) internal override {
+        (address account, address market, uint256 orderNonce) = abi.decode(data, (address, address, uint256));
+        if(keeperFee.gt(UFixed18Lib.from(_readOrder(account, market, orderNonce).maxFee)))
+            revert MultiInvokerMaxFeeExceededError();
 
         IMarket(market).update(
             account,
-            position.maker,
-            position.long,
-            position.short,
-            chargeFee,
+            UFixed6Lib.MAX,
+            UFixed6Lib.MAX,
+            UFixed6Lib.MAX,
+            Fixed6Lib.from(Fixed18Lib.from(-1, keeperFee)),
             false);
-
-        _withdraw(msg.sender, chargeFee.abs(), false);
-
-        emit KeeperFeeCharged(account, market, msg.sender, chargeFee.abs());
     }
 
-    // @todo make internal, source price elsewhere for testing
-    function ethPrice() public view returns (Fixed6) {
-        int256 answer = ethOracle.latestAnswer();
-        unchecked { answer = answer / 100; }
-        return Fixed6.wrap(answer);
-    }
 
-    
+
     /// @notice Helper fn to max approve DSU for usage in a market deployed by the factory
     /// @param market Market to approve
     function _approve(address market) internal {

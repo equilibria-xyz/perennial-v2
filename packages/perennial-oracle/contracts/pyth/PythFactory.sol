@@ -38,10 +38,10 @@ contract PythFactory is IPythFactory, Factory {
         callers[factory] = true;
     }
 
-    function create(bytes32 id) external onlyOwner returns (IPythOracle newOracle) {
+    function create(bytes32 id, AggregatorV3Interface ethChainlinkFeed, Token18 keeperToken) external onlyOwner returns (IPythOracle newOracle) {
         // TODO: checks for validity?
 
-        newOracle = IPythOracle(address(_create(abi.encodeCall(IPythOracle.initialize, (id)))));
+        newOracle = IPythOracle(address(_create(abi.encodeCall(IPythOracle.initialize, (id, ethChainlinkFeed, keeperToken)))));
         oracles[id] = newOracle;
 
         emit OracleCreated(newOracle, id);

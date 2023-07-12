@@ -11,6 +11,6 @@ interface IPythFactory is IOracleProviderFactory, IFactory {
     error PythFactoryNotInstanceError();
 
     function initialize(IOracleFactory oracleFactory, Token18 incentive) external;
-    function create(bytes32 id) external returns (IPythOracle oracle);
+    function create(bytes32 id, AggregatorV3Interface ethChainlinkFeed, Token18 keeperToken) external returns (IPythOracle oracle);
     function claim(UFixed6 amount) external;
 }
