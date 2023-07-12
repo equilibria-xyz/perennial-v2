@@ -343,7 +343,7 @@ contract Market is IMarket, Instance {
         if (!oracleVersion.valid) newPosition.invalidate(context.position); // TODO: combine this with sync logic?
 
         (uint256 fromTimestamp, uint256 fromId) = (context.position.timestamp, context.position.id);
-        (AccumulationValues memory accumulationValues, UFixed6 accumulatedFee) = version.accumulate(
+        (VersionAccumulationResult memory accumulationResult, UFixed6 accumulatedFee) = version.accumulate(
             context.global,
             context.position,
             newPosition,
@@ -368,7 +368,7 @@ contract Market is IMarket, Instance {
             fromTimestamp,
             newPosition.timestamp,
             fromId,
-            accumulationValues
+            accumulationResult
         );
     }
 
@@ -377,7 +377,7 @@ contract Market is IMarket, Instance {
         if (!version.valid) newPosition.invalidate(context.accountPosition);
 
         (uint256 fromTimestamp, uint256 fromId) = (context.accountPosition.timestamp, context.accountPosition.id);
-        LocalAccumulationValues memory accumulationValues = context.local.accumulate(
+        LocalAccumulationResult memory accumulationResult = context.local.accumulate(
             context.accountPosition,
             newPosition,
             _versions[context.accountPosition.timestamp].read(),
@@ -391,7 +391,7 @@ contract Market is IMarket, Instance {
             fromTimestamp,
             newPosition.timestamp,
             fromId,
-            accumulationValues
+            accumulationResult
         );
     }
 

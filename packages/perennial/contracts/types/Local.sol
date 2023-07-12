@@ -21,7 +21,7 @@ struct StoredLocal {
 struct LocalStorage { uint256 value; }
 using LocalStorageLib for LocalStorage global;
 
-struct LocalAccumulationValues {
+struct LocalAccumulationResult {
     Fixed6 collateralAmount;
     UFixed6 rewardAmount;
     UFixed6 positionFee;
@@ -47,7 +47,7 @@ library LocalLib {
         Position memory toPosition,
         Version memory fromVersion,
         Version memory toVersion
-    ) internal pure returns (LocalAccumulationValues memory values) {
+    ) internal pure returns (LocalAccumulationResult memory values) {
         values.collateralAmount = toVersion.makerValue.accumulated(fromVersion.makerValue, fromPosition.maker)
             .add(toVersion.longValue.accumulated(fromVersion.longValue, fromPosition.long))
             .add(toVersion.shortValue.accumulated(fromVersion.shortValue, fromPosition.short));

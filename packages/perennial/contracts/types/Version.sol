@@ -34,9 +34,9 @@ struct VersionStorage { StoredVersion value; }
 using VersionStorageLib for VersionStorage global;
 
 /// @dev Individual accumulation values
-struct AccumulationValues {
-    UFixed6 positionMaker;
-    UFixed6 positionFee;
+struct VersionAccumulationResult {
+    UFixed6 positionFeeMaker;
+    UFixed6 positionFeeFee;
 
     Fixed6 fundingMaker;
     Fixed6 fundingLong;
@@ -84,11 +84,11 @@ library VersionLib {
         OracleVersion memory toOracleVersion,
         MarketParameter memory marketParameter,
         RiskParameter memory riskParameter
-    ) internal pure returns (AccumulationValues memory values, UFixed6 totalFee) {
+    ) internal pure returns (VersionAccumulationResult memory values, UFixed6 totalFee) {
         if (marketParameter.closed) return (values, UFixed6Lib.ZERO);
 
         // accumulate position
-        (values.positionMaker, values.positionFee) = _accumulatePositionFee(self, fromPosition, toPosition, marketParameter);
+        (values.positionFeeMaker, values.positionFeeFee) = _accumulatePositionFee(self, fromPosition, toPosition, marketParameter);
 
         // accumulate funding
         _FundingValues memory fundingValues = _accumulateFunding(self, global, fromPosition, fromOracleVersion, toOracleVersion, marketParameter, riskParameter);
@@ -103,7 +103,7 @@ library VersionLib {
         // accumulate reward
         (values.rewardMaker, values.rewardLong, values.rewardShort) = _accumulateReward(self, fromPosition, fromOracleVersion, toOracleVersion, marketParameter);
 
-        return (values, values.positionFee.add(values.fundingFee).add(values.interestFee));
+        return (values, values.positionFeeFee.add(values.fundingFee).add(values.interestFee));
     }
 
     /**
@@ -112,22 +112,22 @@ library VersionLib {
      *      calculate the user's fee total. In the event that settlement is occurring over multiple oracle versions
      *      (i.e. from a -> b -> c) it is safe to use the latestOracleVersion because in the a -> b case, a is always
      *      b - 1, and in the b -> c case the `PrePosition` is always empty so this is skipped.
-     * @return positionMaker The total position fee accumulated
-     * @return positionFee The position fee that is retained by the protocol and product
+     * @return positionFeeMaker The total position fee accumulated
+     * @return positionFeeFee The position fee that is retained by the protocol and product
      */
     function _accumulatePositionFee(
         Version memory self,
         Position memory fromPosition,
         Position memory toPosition,
         MarketParameter memory marketParameter
-    ) private pure returns (UFixed6 positionMaker, UFixed6 positionFee) {
+    ) private pure returns (UFixed6 positionFeeMaker, UFixed6 positionFeeFee) {
         // If there are no makers to distribute the taker's position fee to, give it to the protocol
         if (fromPosition.maker.isZero()) return (UFixed6Lib.ZERO, toPosition.fee);
 
-        positionFee = marketParameter.positionFee.mul(toPosition.fee);
-        positionMaker = toPosition.fee.sub(positionFee);
+        positionFeeFee = marketParameter.positionFee.mul(toPosition.fee);
+        positionFeeMaker = toPosition.fee.sub(positionFeeFee);
 
-        self.makerValue.increment(Fixed6Lib.from(positionMaker), fromPosition.maker);
+        self.makerValue.increment(Fixed6Lib.from(positionFeeMaker), fromPosition.maker);
     }
 
     // Internal struct to bypass stack depth limit
@@ -272,19 +272,16 @@ library VersionLib {
         MarketParameter memory marketParameter
     ) private pure returns (UFixed6 rewardMaker, UFixed6 rewardLong, UFixed6 rewardShort){
         UFixed6 elapsed = UFixed6Lib.from(toOracleVersion.timestamp - fromOracleVersion.timestamp);
+        rewardMaker = elapsed.mul(marketParameter.makerRewardRate);
+        rewardLong = elapsed.mul(marketParameter.longRewardRate);
+        rewardShort = elapsed.mul(marketParameter.shortRewardRate);
 
-        if (!position.maker.isZero()) {
-            rewardMaker = elapsed.mul(marketParameter.makerRewardRate);
+        if (!position.maker.isZero())
             self.makerReward.increment(rewardMaker, position.maker);
-        }
-        if (!position.long.isZero()) {
-            rewardLong = elapsed.mul(marketParameter.longRewardRate);
+        if (!position.long.isZero())
             self.longReward.increment(rewardLong, position.long);
-        }
-        if (!position.short.isZero()) {
-            rewardShort = elapsed.mul(marketParameter.shortRewardRate);
+        if (!position.short.isZero())
             self.shortReward.increment(rewardShort, position.short);
-        }
     }
 }
 

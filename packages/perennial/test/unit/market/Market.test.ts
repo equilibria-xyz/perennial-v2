@@ -34,9 +34,9 @@ const COLLATERAL = parse6decimal('10000')
 const TIMESTAMP = 1636401093
 const PRICE = parse6decimal('123')
 
-const DEFAULT_ACCUMULATION_VALUES = {
-  positionMaker: 0,
-  positionFee: 0,
+const DEFAULT_VERSION_ACCUMULATION_RESULT = {
+  positionFeeMaker: 0,
+  positionFeeFee: 0,
   fundingMaker: 0,
   fundingLong: 0,
   fundingShort: 0,
@@ -53,7 +53,7 @@ const DEFAULT_ACCUMULATION_VALUES = {
   rewardShort: 0,
 }
 
-const DEFAULT_LOCAL_ACCUMULATION_VALUES = {
+const DEFAULT_LOCAL_ACCUMULATION_RESULT = {
   collateralAmount: 0,
   rewardAmount: 0,
   positionFee: 0,
@@ -832,9 +832,9 @@ describe('Market', () => {
             it('opens the position and settles', async () => {
               await expect(market.connect(user).update(user.address, POSITION, 0, 0, COLLATERAL, false))
                 .to.emit(market, 'PositionProcessed')
-                .withArgs(0, ORACLE_VERSION_1.timestamp, 0, DEFAULT_ACCUMULATION_VALUES)
+                .withArgs(0, ORACLE_VERSION_1.timestamp, 0, DEFAULT_VERSION_ACCUMULATION_RESULT)
                 .to.emit(market, 'AccountPositionProcessed')
-                .withArgs(user.address, 0, ORACLE_VERSION_1.timestamp, 0, DEFAULT_LOCAL_ACCUMULATION_VALUES)
+                .withArgs(user.address, 0, ORACLE_VERSION_1.timestamp, 0, DEFAULT_LOCAL_ACCUMULATION_RESULT)
                 .to.emit(market, 'Updated')
                 .withArgs(user.address, ORACLE_VERSION_2.timestamp, POSITION, 0, 0, COLLATERAL, false)
 
@@ -844,14 +844,19 @@ describe('Market', () => {
 
               await expect(await settle(market, user))
                 .to.emit(market, 'PositionProcessed')
-                .withArgs(ORACLE_VERSION_1.timestamp, ORACLE_VERSION_2.timestamp, 0, DEFAULT_ACCUMULATION_VALUES)
+                .withArgs(
+                  ORACLE_VERSION_1.timestamp,
+                  ORACLE_VERSION_2.timestamp,
+                  0,
+                  DEFAULT_VERSION_ACCUMULATION_RESULT,
+                )
                 .to.emit(market, 'AccountPositionProcessed')
                 .withArgs(
                   user.address,
                   ORACLE_VERSION_1.timestamp,
                   ORACLE_VERSION_2.timestamp,
                   0,
-                  DEFAULT_LOCAL_ACCUMULATION_VALUES,
+                  DEFAULT_LOCAL_ACCUMULATION_RESULT,
                 )
 
               expectLocalEq(await market.locals(user.address), {
@@ -3602,7 +3607,7 @@ describe('Market', () => {
               await expect(settle(market, user))
                 .to.emit(market, 'PositionProcessed')
                 .withArgs(ORACLE_VERSION_2.timestamp, oracleVersionLowerPrice.timestamp, 1, {
-                  ...DEFAULT_ACCUMULATION_VALUES,
+                  ...DEFAULT_VERSION_ACCUMULATION_RESULT,
                   fundingMaker: EXPECTED_FUNDING_WITHOUT_FEE_1_5_123.add(EXPECTED_FUNDING_PRECISION_LOSS.mul(2).div(5)),
                   fundingLong: EXPECTED_FUNDING_WITH_FEE_1_5_123.mul(-1).add(
                     EXPECTED_FUNDING_PRECISION_LOSS.mul(3).div(5),
@@ -3618,7 +3623,7 @@ describe('Market', () => {
                 })
                 .to.emit(market, 'AccountPositionProcessed')
                 .withArgs(user.address, ORACLE_VERSION_2.timestamp, oracleVersionLowerPrice.timestamp, 1, {
-                  ...DEFAULT_LOCAL_ACCUMULATION_VALUES,
+                  ...DEFAULT_LOCAL_ACCUMULATION_RESULT,
                   collateralAmount: EXPECTED_PNL.mul(-1)
                     .sub(EXPECTED_FUNDING_WITH_FEE_1_5_123)
                     .sub(EXPECTED_INTEREST_5_123),
@@ -3628,7 +3633,7 @@ describe('Market', () => {
               await expect(settle(market, userB))
                 .to.emit(market, 'AccountPositionProcessed')
                 .withArgs(userB.address, ORACLE_VERSION_2.timestamp, oracleVersionLowerPrice.timestamp, 1, {
-                  ...DEFAULT_LOCAL_ACCUMULATION_VALUES,
+                  ...DEFAULT_LOCAL_ACCUMULATION_RESULT,
                   collateralAmount: EXPECTED_PNL.add(EXPECTED_FUNDING_WITHOUT_FEE_1_5_123)
                     .add(EXPECTED_INTEREST_WITHOUT_FEE_5_123)
                     .sub(8),
@@ -3742,7 +3747,7 @@ describe('Market', () => {
               await expect(settle(market, user))
                 .to.emit(market, 'PositionProcessed')
                 .withArgs(ORACLE_VERSION_2.timestamp, oracleVersionHigherPrice.timestamp, 1, {
-                  ...DEFAULT_ACCUMULATION_VALUES,
+                  ...DEFAULT_VERSION_ACCUMULATION_RESULT,
                   fundingMaker: EXPECTED_FUNDING_WITHOUT_FEE_1_5_123.add(EXPECTED_FUNDING_PRECISION_LOSS.mul(2).div(5)),
                   fundingLong: EXPECTED_FUNDING_WITH_FEE_1_5_123.mul(-1).add(
                     EXPECTED_FUNDING_PRECISION_LOSS.mul(3).div(5),
@@ -3758,7 +3763,7 @@ describe('Market', () => {
                 })
                 .to.emit(market, 'AccountPositionProcessed')
                 .withArgs(user.address, ORACLE_VERSION_2.timestamp, oracleVersionHigherPrice.timestamp, 1, {
-                  ...DEFAULT_LOCAL_ACCUMULATION_VALUES,
+                  ...DEFAULT_LOCAL_ACCUMULATION_RESULT,
                   collateralAmount: EXPECTED_PNL.mul(-1)
                     .sub(EXPECTED_FUNDING_WITH_FEE_1_5_123)
                     .sub(EXPECTED_INTEREST_5_123),
@@ -3768,7 +3773,7 @@ describe('Market', () => {
               await expect(settle(market, userB))
                 .to.emit(market, 'AccountPositionProcessed')
                 .withArgs(userB.address, ORACLE_VERSION_2.timestamp, oracleVersionHigherPrice.timestamp, 1, {
-                  ...DEFAULT_LOCAL_ACCUMULATION_VALUES,
+                  ...DEFAULT_LOCAL_ACCUMULATION_RESULT,
                   collateralAmount: EXPECTED_PNL.add(EXPECTED_FUNDING_WITHOUT_FEE_1_5_123)
                     .add(EXPECTED_INTEREST_WITHOUT_FEE_5_123)
                     .sub(8),
@@ -6753,7 +6758,7 @@ describe('Market', () => {
               await expect(settle(market, user))
                 .to.emit(market, 'PositionProcessed')
                 .withArgs(ORACLE_VERSION_2.timestamp, oracleVersionLowerPrice.timestamp, 1, {
-                  ...DEFAULT_ACCUMULATION_VALUES,
+                  ...DEFAULT_VERSION_ACCUMULATION_RESULT,
                   fundingMaker: EXPECTED_FUNDING_WITHOUT_FEE_1_5_123.add(EXPECTED_FUNDING_PRECISION_LOSS.mul(1).div(5)),
                   fundingShort: EXPECTED_FUNDING_WITH_FEE_1_5_123.mul(-1).add(
                     EXPECTED_FUNDING_PRECISION_LOSS.mul(4).div(5),
@@ -6769,7 +6774,7 @@ describe('Market', () => {
                 })
                 .to.emit(market, 'AccountPositionProcessed')
                 .withArgs(user.address, ORACLE_VERSION_2.timestamp, oracleVersionLowerPrice.timestamp, 1, {
-                  ...DEFAULT_LOCAL_ACCUMULATION_VALUES,
+                  ...DEFAULT_LOCAL_ACCUMULATION_RESULT,
                   collateralAmount: EXPECTED_PNL.mul(-1)
                     .sub(EXPECTED_FUNDING_WITH_FEE_1_5_123)
                     .sub(EXPECTED_INTEREST_5_123),
@@ -6779,7 +6784,7 @@ describe('Market', () => {
               await expect(settle(market, userB))
                 .to.emit(market, 'AccountPositionProcessed')
                 .withArgs(userB.address, ORACLE_VERSION_2.timestamp, oracleVersionLowerPrice.timestamp, 1, {
-                  ...DEFAULT_LOCAL_ACCUMULATION_VALUES,
+                  ...DEFAULT_LOCAL_ACCUMULATION_RESULT,
                   collateralAmount: EXPECTED_PNL.add(EXPECTED_FUNDING_WITHOUT_FEE_1_5_123)
                     .add(EXPECTED_INTEREST_WITHOUT_FEE_5_123)
                     .sub(8),
@@ -6894,7 +6899,7 @@ describe('Market', () => {
               await expect(settle(market, user))
                 .to.emit(market, 'PositionProcessed')
                 .withArgs(ORACLE_VERSION_2.timestamp, oracleVersionHigherPrice.timestamp, 1, {
-                  ...DEFAULT_ACCUMULATION_VALUES,
+                  ...DEFAULT_VERSION_ACCUMULATION_RESULT,
                   fundingMaker: EXPECTED_FUNDING_WITHOUT_FEE_1_5_123.add(EXPECTED_FUNDING_PRECISION_LOSS.mul(1).div(5)),
                   fundingShort: EXPECTED_FUNDING_WITH_FEE_1_5_123.mul(-1).add(
                     EXPECTED_FUNDING_PRECISION_LOSS.mul(4).div(5),
@@ -6910,7 +6915,7 @@ describe('Market', () => {
                 })
                 .to.emit(market, 'AccountPositionProcessed')
                 .withArgs(user.address, ORACLE_VERSION_2.timestamp, oracleVersionHigherPrice.timestamp, 1, {
-                  ...DEFAULT_LOCAL_ACCUMULATION_VALUES,
+                  ...DEFAULT_LOCAL_ACCUMULATION_RESULT,
                   collateralAmount: EXPECTED_PNL.mul(-1)
                     .sub(EXPECTED_FUNDING_WITH_FEE_1_5_123)
                     .sub(EXPECTED_INTEREST_5_123),
@@ -6920,7 +6925,7 @@ describe('Market', () => {
               await expect(settle(market, userB))
                 .to.emit(market, 'AccountPositionProcessed')
                 .withArgs(userB.address, ORACLE_VERSION_2.timestamp, oracleVersionHigherPrice.timestamp, 1, {
-                  ...DEFAULT_LOCAL_ACCUMULATION_VALUES,
+                  ...DEFAULT_LOCAL_ACCUMULATION_RESULT,
                   collateralAmount: EXPECTED_PNL.add(EXPECTED_FUNDING_WITHOUT_FEE_1_5_123)
                     .add(EXPECTED_INTEREST_WITHOUT_FEE_5_123)
                     .sub(8),
