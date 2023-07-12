@@ -77,7 +77,6 @@ contract MarketFactory is IMarketFactory, Factory {
         newMarket = IMarket(address(_create(abi.encodeCall(IMarket.initialize, (definition, riskParameter)))));
         markets[definition.oracle][definition.payoff] = newMarket;
 
-        emit NewMarket(newMarket);
         emit MarketCreated(newMarket, definition, riskParameter);
     }
 

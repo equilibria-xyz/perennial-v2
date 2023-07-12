@@ -10,10 +10,6 @@ import "./IMarket.sol";
 interface IMarketFactory is IFactory {
     event ParameterUpdated(ProtocolParameter newParameter);
     event OperatorUpdated(address indexed account, address indexed operator, bool newEnabled);
-    /// @dev Emitted when a new market is created
-    /// @notice We have both a NewMarket and MarketCreated event for stability of the topic0
-    event NewMarket(IMarket indexed market);
-    /// @dev Emitted when a new market is created, contains the market definition and risk parameter
     event MarketCreated(IMarket indexed market, IMarket.MarketDefinition definition, RiskParameter riskParameter);
 
     error FactoryInvalidPayoffError();
