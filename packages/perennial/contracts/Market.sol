@@ -115,6 +115,7 @@ contract Market is IMarket, Instance {
 
     function updateReward(Token18 newReward) public onlyOwner {
         if (!reward.eq(Token18Lib.ZERO)) revert MarketRewardAlreadySetError();
+        if (newReward.eq(token)) revert MarketInvalidRewardError();
         reward = newReward;
         emit RewardUpdated(newReward);
     }

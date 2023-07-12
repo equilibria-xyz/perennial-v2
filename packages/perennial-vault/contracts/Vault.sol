@@ -157,6 +157,13 @@ contract Vault is IVault, Instance {
         emit ParameterUpdated(newParameter);
     }
 
+    function claimReward() external onlyOwner {
+        for (uint256 marketId; marketId < totalMarkets; marketId++) {
+            _registrations[marketId].read().market.claimReward();
+            _registrations[marketId].read().market.reward().push(factory().owner());
+        }
+    }
+
     /**
      * @notice Syncs `account`'s state up to current
      * @dev Also rebalances the collateral and position of the vault without a deposit or withdraw

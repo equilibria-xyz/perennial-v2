@@ -61,6 +61,7 @@ interface IMarket is IInstance {
     error MarketNotSingleSidedError();
     error MarketExceedsPendingIdLimitError();
     error MarketRewardAlreadySetError();
+    error MarketInvalidRewardError();
     error MarketInvalidParameterError();
     error MarketNotCoordinatorError();
     error MarketNotBeneficiaryError();

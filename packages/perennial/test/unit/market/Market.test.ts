@@ -358,8 +358,15 @@ describe('Market', () => {
       )
     })
 
+    it('reverts if equal to asset', async () => {
+      await expect(market.connect(owner).updateReward(dsu.address)).to.be.revertedWithCustomError(
+        market,
+        'MarketInvalidRewardError',
+      )
+    })
+
     it('reverts if not owner', async () => {
-      await expect(market.connect(user).updateReward(beneficiary.address)).to.be.revertedWithCustomError(
+      await expect(market.connect(user).updateReward(reward.address)).to.be.revertedWithCustomError(
         market,
         'InstanceNotOwnerError',
       )
