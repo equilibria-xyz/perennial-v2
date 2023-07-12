@@ -47,6 +47,7 @@ contract MultiInvokerRollup is IMultiInvokerRollup, MultiInvoker {
     }
 
     function decodeFallbackAndInvoke(bytes calldata input, PTR memory ptr) internal {
+        console.log("here");
         while (ptr.pos < input.length) {
             PerennialAction action = PerennialAction(_readUint8(input, ptr));
             
@@ -178,6 +179,20 @@ contract MultiInvokerRollup is IMultiInvokerRollup, MultiInvoker {
         ptr.pos += UINT8_LENGTH;
     }
 
+    function _readLengthAndSign(bytes calldata input, PTR memory ptr) private view returns (uint8 length, bool negative) {
+        length = _readUint8(input, ptr);
+
+        console.log("decode");
+        console.logUint(length);
+        // the next length of bytes will be converted to a uint then int
+        // we pack the sign in with the length by adding 32 (0010 0000)
+        // to leave room for a proposterously large encoded int of +/- type(int256).max
+        if (length > 31) {
+            length -= 32;
+            negative = true;
+        }
+    }
+
     function _readIsNegative(bytes calldata input, PTR memory ptr) private pure returns (bool) {
         uint8 sign = _readUint8(input, ptr);
 
@@ -214,16 +229,11 @@ contract MultiInvokerRollup is IMultiInvokerRollup, MultiInvoker {
     }
 
     function _readInt256(bytes calldata input, PTR memory ptr) private view returns (int256 result) {
-        uint8 len = _readUint8(input, ptr);
+        (uint8 len, bool negative) = _readLengthAndSign(input, ptr);
         if(len > UINT256_LENGTH) revert MultiInvokerRollupInvalidUint256LengthError(); // @todo for int256?
 
-        if (len > 0) {
-            bool neg = _readIsNegative(input, ptr);
- 
-            result = int256(_bytesToUint256(input, ptr.pos, len));
-            if(neg) result = result * -1;
-        }
-
+        result = int256(_bytesToUint256(input, ptr.pos, len));
+        if(negative) result = -1 * result;
         ptr.pos += len;
     }
 
@@ -257,8 +267,8 @@ contract MultiInvokerRollup is IMultiInvokerRollup, MultiInvoker {
     }
 
     /**
+      * @notice Unchecked force of 20 bytes into address
      * @dev This is called in decodeAccount and decodeProduct which both only pass 20 byte slices
-     * @notice Unchecked force of 20 bytes into address
      * @param input The 20 bytes to be converted to address
      * @return result Address representation of `input`
     */

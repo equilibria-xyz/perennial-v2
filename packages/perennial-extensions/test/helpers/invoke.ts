@@ -300,13 +300,15 @@ export const encodeInt = (int?: BigNumberish) => {
   int = BigNumber.from(int)
   if (int.eq(0)) return '00'
 
-  let pre = '00'
+  let length = 0
+  // convert to uint and pack sign as 0010 0000 in length byte
   if (int.isNegative()) {
-    pre = '01'
-    int = int.mul('-1')
+    length += 32
+    int = int.mul('-0x1')
   }
-
-  return toHex((int._hex.length - 2) / 2) + pre + toHex(int._hex)
+  length += (int._hex.length - 2) / 2
+  console.log(length)
+  return toHex(length) + toHex(int._hex)
 }
 
 export const encodeBool = (bool: boolean | undefined) => {
@@ -336,6 +338,7 @@ module.exports = {
   buildUpdateMarket,
   buildCancelOrderRollup,
   buildExecOrderRollup,
+  buildPlaceOrderRollup,
   buildUpdateMarketRollup,
 }
 

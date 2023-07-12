@@ -404,7 +404,7 @@ describe('MultiInvoker', () => {
 
       const execOrder = helpers.buildExecOrder({ user: user.address, market: market.address, orderId: 1 })
 
-      oracle.latest.returns(oracleVersion)
+      // oracle.latest.returns(oracleVersion)
 
       await expect(multiInvoker.connect(owner).invoke(execOrder))
         .to.emit(multiInvoker, 'OrderExecuted')

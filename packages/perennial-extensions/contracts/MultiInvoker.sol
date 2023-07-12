@@ -212,7 +212,6 @@ contract MultiInvoker is IMultiInvoker, KeeperManager {
         uint256 startGas,
         Position memory position
     ) internal {
-        console.log("execute");
         Fixed6 ethPrice = ethPrice();
 
         Fixed6 gasUsed = Fixed6Lib.from(UFixed6.wrap(startGas - gasleft()));
