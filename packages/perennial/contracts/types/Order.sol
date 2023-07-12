@@ -44,7 +44,15 @@ library OrderLib {
     }
 
     function increasesPosition(Order memory self) internal pure returns (bool) {
-        return self.maker.gt(Fixed6Lib.ZERO) || self.long.gt(Fixed6Lib.ZERO) || self.short.gt(Fixed6Lib.ZERO);
+        return increasesMaker(self) || increasesTaker(self);
+    }
+
+    function increasesMaker(Order memory self) internal pure returns (bool) {
+        return self.maker.gt(Fixed6Lib.ZERO);
+    }
+
+    function increasesTaker(Order memory self) internal pure returns (bool) {
+        return self.long.gt(Fixed6Lib.ZERO) || self.short.gt(Fixed6Lib.ZERO);
     }
 
     function decreasesLiquidity(Order memory self) internal pure returns (bool) {

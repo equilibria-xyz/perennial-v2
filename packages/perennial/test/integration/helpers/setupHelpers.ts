@@ -229,6 +229,8 @@ export async function createMarket(
     makerRewardRate: 0,
     longRewardRate: 0,
     shortRewardRate: 0,
+    makerCloseAlways: false,
+    takerCloseAlways: false,
     closed: false,
   }
   const marketAddress = await marketFactory.callStatic.create(definition, riskParameter)

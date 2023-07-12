@@ -274,6 +274,8 @@ describe('Market', () => {
       makerRewardRate: parse6decimal('0.3'),
       longRewardRate: parse6decimal('0.2'),
       shortRewardRate: parse6decimal('0.1'),
+      makerCloseAlways: false,
+      takerCloseAlways: false,
       closed: false,
     }
     market = await new Market__factory(owner).deploy()
@@ -382,6 +384,8 @@ describe('Market', () => {
           makerRewardRate: parse6decimal('0.6'),
           longRewardRate: parse6decimal('0.7'),
           shortRewardRate: parse6decimal('0.8'),
+          makerCloseAlways: true,
+          takerCloseAlways: true,
           closed: true,
         }
 

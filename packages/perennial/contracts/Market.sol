@@ -434,6 +434,8 @@ contract Market is IMarket, Instance {
         if (
             !protected &&
             !context.marketParameter.closed &&
+            (!context.marketParameter.makerCloseAlways || newOrder.increasesMaker()) &&
+            (!context.marketParameter.takerCloseAlways || newOrder.increasesTaker()) &&
             newOrder.efficiency.lt(Fixed6Lib.ZERO) &&
             context.pendingPosition.efficiency().lt(context.riskParameter.efficiencyLimit)
         ) { if (LOG_REVERTS) console.log("MarketEfficiencyUnderLimitError"); revert MarketEfficiencyUnderLimitError(); }

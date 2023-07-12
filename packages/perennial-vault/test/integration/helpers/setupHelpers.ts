@@ -78,6 +78,8 @@ export async function deployProductOnMainnetFork({
     makerRewardRate: 0,
     longRewardRate: 0,
     shortRewardRate: 0,
+    makerCloseAlways: false,
+    takerCloseAlways: false,
     closed: false,
   }
   const marketDefinition: IMarket.MarketDefinitionStruct = {

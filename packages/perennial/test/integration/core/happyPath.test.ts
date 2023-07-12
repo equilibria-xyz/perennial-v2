@@ -88,7 +88,9 @@ describe('Happy Path', () => {
       makerRewardRate: 0,
       longRewardRate: 0,
       shortRewardRate: 0,
-      closed: true,
+      makerCloseAlways: false,
+      takerCloseAlways: false,
+      closed: false,
     }
     const marketAddress = await marketFactory.callStatic.create(definition, riskParameter)
     await expect(marketFactory.create(definition, riskParameter)).to.emit(marketFactory, 'MarketCreated')
@@ -1043,6 +1045,8 @@ describe('Happy Path', () => {
       makerRewardRate: incentizesOn ? parse6decimal('0.01') : 0,
       longRewardRate: incentizesOn ? parse6decimal('0.001') : 0,
       shortRewardRate: incentizesOn ? parse6decimal('0.001') : 0,
+      makerCloseAlways: false,
+      takerCloseAlways: false,
       closed: false,
     }
 
@@ -1181,6 +1185,8 @@ describe('Happy Path', () => {
       makerRewardRate: incentizesOn ? parse6decimal('0.01') : 0,
       longRewardRate: incentizesOn ? parse6decimal('0.001') : 0,
       shortRewardRate: incentizesOn ? parse6decimal('0.001') : 0,
+      makerCloseAlways: false,
+      takerCloseAlways: false,
       closed: false,
     }
 

@@ -17,6 +17,8 @@ struct MarketParameter {
     UFixed6 makerRewardRate;
     UFixed6 longRewardRate;
     UFixed6 shortRewardRate;
+    bool takerCloseAlways;
+    bool makerCloseAlways;
     bool closed;
 }
 
@@ -29,8 +31,10 @@ struct StoredMarketParameter {
     uint32 makerRewardRate;     // <= 2147.48 / s
     uint32 longRewardRate;      // <= 2147.48 / s
     uint32 shortRewardRate;     // <= 2147.48 / s
+    bool takerCloseAlways;
+    bool makerCloseAlways;
     bool closed;
-    bytes4 __unallocated__;
+    bytes2 __unallocated__;
 }
 struct MarketParameterStorage { StoredMarketParameter value; }
 using MarketParameterStorageLib for MarketParameterStorage global;
@@ -49,6 +53,8 @@ library MarketParameterStorageLib {
             UFixed6.wrap(uint256(value.makerRewardRate)),
             UFixed6.wrap(uint256(value.longRewardRate)),
             UFixed6.wrap(uint256(value.shortRewardRate)),
+            value.takerCloseAlways,
+            value.makerCloseAlways,
             value.closed
         );
     }
@@ -72,8 +78,10 @@ library MarketParameterStorageLib {
             uint32(UFixed6.unwrap(newValue.makerRewardRate)),
             uint32(UFixed6.unwrap(newValue.longRewardRate)),
             uint32(UFixed6.unwrap(newValue.shortRewardRate)),
+            newValue.takerCloseAlways,
+            newValue.makerCloseAlways,
             newValue.closed,
-            bytes4(0)
+            bytes2(0)
         );
     }
 }
