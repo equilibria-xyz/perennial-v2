@@ -10,18 +10,19 @@ import "./IKept.sol";
 // TODO: move in premium?
 
 abstract contract UKept is IKept, UInitializable {
-    AddressStorage private constant _ethUsdOracleFeed = AddressStorage.wrap(keccak256("equilibria.root.UKept.ethUsdOracleFeed"));
-    function ethUsdOracleFeed() public view returns (AggregatorV3Interface) { return AggregatorV3Interface(_ethUsdOracleFeed.read()); }
+    /// @dev The legacy Chainlink feed that is used to convert price ETH relative to the keeper token
+    AddressStorage private constant _ethTokenOracleFeed = AddressStorage.wrap(keccak256("equilibria.root.UKept.ethTokenOracleFeed"));
+    function ethTokenOracleFeed() public view returns (AggregatorV3Interface) { return AggregatorV3Interface(_ethTokenOracleFeed.read()); }
 
-    /// @dev The pending owner address
+    /// @dev The token that the keeper is paid in
     Token18Storage private constant _keeperToken = Token18Storage.wrap(keccak256("equilibria.root.UKept.keeperToken"));
     function keeperToken() public view returns (Token18) { return _keeperToken.read(); }
 
     function __UKept__initialize(
-        AggregatorV3Interface ethUsdOracleFeed_,
+        AggregatorV3Interface ethTokenOracleFeed_,
         Token18 keeperToken_
     ) internal onlyInitializer {
-        _ethUsdOracleFeed.store(address(ethUsdOracleFeed_));
+        _ethTokenOracleFeed.store(address(ethTokenOracleFeed_));
         _keeperToken.store(keeperToken_);
     }
 
@@ -47,7 +48,7 @@ abstract contract UKept is IKept, UInitializable {
     }
 
     function _etherPrice() private view returns (UFixed18) {
-        (, int256 answer, , ,) = ethUsdOracleFeed().latestRoundData();
+        (, int256 answer, , ,) = _ethTokenOracleFeed().latestRoundData();
         return UFixed18Lib.from(Fixed18Lib.ratio(answer, 1e8)); // chainlink eth-usd feed uses 8 decimals
     }
 }
