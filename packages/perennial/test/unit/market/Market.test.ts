@@ -6,8 +6,6 @@ import HRE from 'hardhat'
 
 //TODO (coverage hint): invalid version test
 //TODO (coverage hint): multi-version test w/ collateral change
-//TODO (coverage hint): makerFee coverage
-//TODO (coverage hint): skew/impactFee coverage
 //TODO (coverage hint): makerReceiveOnly coverage
 //TODO (coverage hint): makerCloseAlways / takerCloseAlways coverage
 //TODO (coverage hint): settlementFee/oracleFee/riskFee coverage
@@ -1347,6 +1345,80 @@ describe('Market', () => {
                 shortReward: { _value: 0 },
               })
             })
+
+            it('opens the position and settles later with fee', async () => {
+              const riskParameter = { ...(await market.riskParameter()) }
+              riskParameter.makerFee = parse6decimal('0.005')
+              riskParameter.makerImpactFee = parse6decimal('0.0025')
+              await market.updateRiskParameter(riskParameter)
+
+              const MAKER_FEE = parse6decimal('6.15') // position * (0.005) * price
+
+              await expect(market.connect(user).update(user.address, POSITION, 0, 0, COLLATERAL, false))
+                .to.emit(market, 'Updated')
+                .withArgs(user.address, ORACLE_VERSION_2.timestamp, POSITION, 0, 0, COLLATERAL, false)
+
+              oracle.at.whenCalledWith(ORACLE_VERSION_2.timestamp).returns(ORACLE_VERSION_2)
+              oracle.at.whenCalledWith(ORACLE_VERSION_3.timestamp).returns(ORACLE_VERSION_3)
+              oracle.status.returns([ORACLE_VERSION_3, ORACLE_VERSION_4.timestamp])
+              oracle.request.returns()
+
+              await settle(market, user)
+
+              expectLocalEq(await market.locals(user.address), {
+                currentId: 2,
+                collateral: COLLATERAL.sub(MAKER_FEE),
+                reward: EXPECTED_REWARD.mul(3),
+                protection: 0,
+              })
+              expectPositionEq(await market.positions(user.address), {
+                id: 1,
+                timestamp: ORACLE_VERSION_3.timestamp,
+                maker: POSITION,
+                long: 0,
+                short: 0,
+                fee: 0,
+              })
+              expectPositionEq(await market.pendingPositions(user.address, 2), {
+                id: 2,
+                timestamp: ORACLE_VERSION_4.timestamp,
+                maker: POSITION,
+                long: 0,
+                short: 0,
+                fee: 0,
+              })
+              expectGlobalEq(await market.global(), {
+                currentId: 2,
+                protocolFee: MAKER_FEE.div(2),
+                oracleFee: 0,
+                riskFee: 0,
+                donation: MAKER_FEE.div(2),
+              })
+              expectPositionEq(await market.position(), {
+                id: 1,
+                timestamp: ORACLE_VERSION_3.timestamp,
+                maker: POSITION,
+                long: 0,
+                short: 0,
+                fee: 0,
+              })
+              expectPositionEq(await market.pendingPosition(2), {
+                id: 2,
+                timestamp: ORACLE_VERSION_4.timestamp,
+                maker: POSITION,
+                long: 0,
+                short: 0,
+                fee: 0,
+              })
+              expectVersionEq(await market.versions(ORACLE_VERSION_3.timestamp), {
+                makerValue: { _value: 0 },
+                longValue: { _value: 0 },
+                shortValue: { _value: 0 },
+                makerReward: { _value: EXPECTED_REWARD.mul(3).div(10) },
+                longReward: { _value: 0 },
+                shortReward: { _value: 0 },
+              })
+            })
           })
 
           context('close', async () => {
@@ -1945,6 +2017,81 @@ describe('Market', () => {
                   shortReward: { _value: 0 },
                 })
               })
+
+              it('closes the position and settles later with fee', async () => {
+                const riskParameter = { ...(await market.riskParameter()) }
+                riskParameter.makerFee = parse6decimal('0.005')
+                riskParameter.makerImpactFee = parse6decimal('0.0025')
+                await market.updateRiskParameter(riskParameter)
+
+                const MAKER_FEE = parse6decimal('6.15') // position * (0.005) * price
+
+                await expect(market.connect(user).update(user.address, 0, 0, 0, 0, false))
+                  .to.emit(market, 'Updated')
+                  .withArgs(user.address, ORACLE_VERSION_3.timestamp, 0, 0, 0, 0, false)
+
+                oracle.at.whenCalledWith(ORACLE_VERSION_3.timestamp).returns(ORACLE_VERSION_3)
+
+                oracle.at.whenCalledWith(ORACLE_VERSION_4.timestamp).returns(ORACLE_VERSION_4)
+                oracle.status.returns([ORACLE_VERSION_4, ORACLE_VERSION_5.timestamp])
+                oracle.request.returns()
+
+                await settle(market, user)
+
+                expectLocalEq(await market.locals(user.address), {
+                  currentId: 3,
+                  collateral: COLLATERAL.add(MAKER_FEE).sub(MAKER_FEE),
+                  reward: EXPECTED_REWARD.mul(3),
+                  protection: 0,
+                })
+                expectPositionEq(await market.positions(user.address), {
+                  id: 2,
+                  timestamp: ORACLE_VERSION_4.timestamp,
+                  maker: 0,
+                  long: 0,
+                  short: 0,
+                  fee: 0,
+                })
+                expectPositionEq(await market.pendingPositions(user.address, 3), {
+                  id: 3,
+                  timestamp: ORACLE_VERSION_5.timestamp,
+                  maker: 0,
+                  long: 0,
+                  short: 0,
+                  fee: 0,
+                })
+                expectGlobalEq(await market.global(), {
+                  currentId: 3,
+                  protocolFee: 0,
+                  oracleFee: 0,
+                  riskFee: 0,
+                  donation: 0,
+                })
+                expectPositionEq(await market.position(), {
+                  id: 2,
+                  timestamp: ORACLE_VERSION_4.timestamp,
+                  maker: 0,
+                  long: 0,
+                  short: 0,
+                  fee: 0,
+                })
+                expectPositionEq(await market.pendingPosition(3), {
+                  id: 3,
+                  timestamp: ORACLE_VERSION_5.timestamp,
+                  maker: 0,
+                  long: 0,
+                  short: 0,
+                  fee: 0,
+                })
+                expectVersionEq(await market.versions(ORACLE_VERSION_4.timestamp), {
+                  makerValue: { _value: MAKER_FEE.div(10) },
+                  longValue: { _value: 0 },
+                  shortValue: { _value: 0 },
+                  makerReward: { _value: EXPECTED_REWARD.mul(3).div(10) },
+                  longReward: { _value: 0 },
+                  shortReward: { _value: 0 },
+                })
+              })
             })
           })
         })
@@ -2480,9 +2627,11 @@ describe('Market', () => {
               it('opens the position and settles later with fee', async () => {
                 const riskParameter = { ...(await market.riskParameter()) }
                 riskParameter.takerFee = parse6decimal('0.01')
+                riskParameter.takerImpactFee = parse6decimal('0.004')
+                riskParameter.takerSkewFee = parse6decimal('0.002')
                 await market.updateRiskParameter(riskParameter)
 
-                const TAKER_FEE = parse6decimal('6.15') // position * taker fee * price
+                const TAKER_FEE = parse6decimal('9.84') // position * (0.01 + 0.004 + 0.002) * price
 
                 await expect(market.connect(user).update(user.address, 0, POSITION.div(2), 0, COLLATERAL, false))
                   .to.emit(market, 'Updated')
@@ -2592,9 +2741,11 @@ describe('Market', () => {
 
                 const riskParameter = { ...(await market.riskParameter()) }
                 riskParameter.takerFee = parse6decimal('0.01')
+                riskParameter.takerImpactFee = parse6decimal('0.004')
+                riskParameter.takerSkewFee = parse6decimal('0.002')
                 await market.updateRiskParameter(riskParameter)
 
-                const TAKER_FEE = parse6decimal('6.15') // position * taker fee * price
+                const TAKER_FEE = parse6decimal('9.84') // position * (0.01 + 0.004 + 0.002) * price
 
                 await expect(market.connect(user).update(user.address, 0, POSITION.div(2), 0, COLLATERAL, false))
                   .to.emit(market, 'Updated')
@@ -3475,9 +3626,11 @@ describe('Market', () => {
                 it('closes the position and settles later with fee', async () => {
                   const riskParameter = { ...(await market.riskParameter()) }
                   riskParameter.takerFee = parse6decimal('0.01')
+                  riskParameter.takerImpactFee = parse6decimal('0.004')
+                  riskParameter.takerSkewFee = parse6decimal('0.002')
                   await market.updateRiskParameter(riskParameter)
 
-                  const TAKER_FEE = parse6decimal('6.15') // position * taker fee * price
+                  const TAKER_FEE = parse6decimal('4.92') // position * (0.01 - 0.004 + 0.002) * price
 
                   await expect(market.connect(user).update(user.address, 0, 0, 0, 0, false))
                     .to.emit(market, 'Updated')
@@ -5626,9 +5779,11 @@ describe('Market', () => {
               it('opens the position and settles later with fee', async () => {
                 const riskParameter = { ...(await market.riskParameter()) }
                 riskParameter.takerFee = parse6decimal('0.01')
+                riskParameter.takerImpactFee = parse6decimal('0.004')
+                riskParameter.takerSkewFee = parse6decimal('0.002')
                 await market.updateRiskParameter(riskParameter)
 
-                const TAKER_FEE = parse6decimal('6.15') // position * taker fee * price
+                const TAKER_FEE = parse6decimal('9.84') // position * (0.01 + 0.004 + 0.002) * price
 
                 dsu.transferFrom
                   .whenCalledWith(user.address, market.address, COLLATERAL.add(TAKER_FEE).mul(1e12))
@@ -5741,9 +5896,11 @@ describe('Market', () => {
 
                 const riskParameter = { ...(await market.riskParameter()) }
                 riskParameter.takerFee = parse6decimal('0.01')
+                riskParameter.takerImpactFee = parse6decimal('0.004')
+                riskParameter.takerSkewFee = parse6decimal('0.002')
                 await market.updateRiskParameter(riskParameter)
 
-                const TAKER_FEE = parse6decimal('6.15') // position * taker fee * price
+                const TAKER_FEE = parse6decimal('9.84') // position * (0.01 + 0.004 + 0.002) * price
 
                 dsu.transferFrom
                   .whenCalledWith(user.address, market.address, COLLATERAL.add(TAKER_FEE).mul(1e12))
@@ -6625,9 +6782,11 @@ describe('Market', () => {
                 it('closes the position and settles later with fee', async () => {
                   const riskParameter = { ...(await market.riskParameter()) }
                   riskParameter.takerFee = parse6decimal('0.01')
+                  riskParameter.takerImpactFee = parse6decimal('0.004')
+                  riskParameter.takerSkewFee = parse6decimal('0.002')
                   await market.updateRiskParameter(riskParameter)
 
-                  const TAKER_FEE = parse6decimal('6.15') // position * taker fee * price
+                  const TAKER_FEE = parse6decimal('4.92') // position * (0.01 - 0.004 + 0.002) * price
 
                   dsu.transferFrom.whenCalledWith(user.address, market.address, TAKER_FEE.mul(1e12)).returns(true)
                   await expect(market.connect(user).update(user.address, 0, 0, 0, 0, false))
