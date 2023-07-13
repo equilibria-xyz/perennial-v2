@@ -1,6 +1,6 @@
 import { SignerWithAddress } from '@nomiclabs/hardhat-ethers/signers'
 import HRE from 'hardhat'
-import { utils } from 'ethers'
+import { utils, ContractTransaction } from 'ethers'
 
 import { impersonate } from '../../../../common/testutil'
 import {
@@ -31,6 +31,7 @@ import { ChainlinkContext } from './chainlinkHelpers'
 import { parse6decimal } from '../../../../common/testutil/types'
 import { buildChainlinkRoundId } from '@equilibria/perennial-v2-oracle/util/buildChainlinkRoundId'
 import { CHAINLINK_CUSTOM_CURRENCIES } from '@equilibria/perennial-v2-oracle/util/constants'
+import { MarketParameterStruct, RiskParameterStruct } from '../../../types/generated/contracts/Market'
 const { deployments, ethers } = HRE
 
 export const INITIAL_PHASE_ID = 1
@@ -64,9 +65,9 @@ export interface InstanceVars {
 export async function deployProtocol(): Promise<InstanceVars> {
   const [owner, pauser, user, userB, userC, userD, beneficiaryB] = await ethers.getSigners()
 
-  const payoff = await IPayoffProvider__factory.connect((await new PowerTwo__factory(owner).deploy()).address, owner)
-  const dsu = await IERC20Metadata__factory.connect((await deployments.get('DSU')).address, owner)
-  const usdc = await IERC20Metadata__factory.connect((await deployments.get('USDC')).address, owner)
+  const payoff = IPayoffProvider__factory.connect((await new PowerTwo__factory(owner).deploy()).address, owner)
+  const dsu = IERC20Metadata__factory.connect((await deployments.get('DSU')).address, owner)
+  const usdc = IERC20Metadata__factory.connect((await deployments.get('USDC')).address, owner)
 
   // Deploy external deps
   const initialRoundId = buildChainlinkRoundId(INITIAL_PHASE_ID, INITIAL_AGGREGATOR_ROUND_ID)
@@ -88,7 +89,7 @@ export async function deployProtocol(): Promise<InstanceVars> {
     proxyAdmin.address,
     [],
   )
-  const oracleFactory = await new OracleFactory__factory(owner).attach(oracleFactoryProxy.address)
+  const oracleFactory = new OracleFactory__factory(owner).attach(oracleFactoryProxy.address)
 
   const payoffFactoryImpl = await new PayoffFactory__factory(owner).deploy()
   const payoffFactoryProxy = await new TransparentUpgradeableProxy__factory(owner).deploy(
@@ -96,7 +97,7 @@ export async function deployProtocol(): Promise<InstanceVars> {
     proxyAdmin.address,
     [],
   )
-  const payoffFactory = await new PayoffFactory__factory(owner).attach(payoffFactoryProxy.address)
+  const payoffFactory = new PayoffFactory__factory(owner).attach(payoffFactoryProxy.address)
 
   const marketImpl = await new Market__factory(owner).deploy()
 
@@ -112,7 +113,7 @@ export async function deployProtocol(): Promise<InstanceVars> {
     [],
   )
 
-  const marketFactory = await new MarketFactory__factory(owner).attach(factoryProxy.address)
+  const marketFactory = new MarketFactory__factory(owner).attach(factoryProxy.address)
 
   // Init
   await oracleFactory.connect(owner).initialize(dsu.address)
@@ -189,6 +190,8 @@ export async function createMarket(
   symbol?: string,
   oracleOverride?: IOracleProvider,
   payoff?: IPayoffProvider,
+  riskParamOverrides?: Partial<RiskParameterStruct>,
+  marketParamOverrides?: Partial<MarketParameterStruct>,
 ): Promise<Market> {
   const { owner, marketFactory, beneficiaryB, oracle, rewardToken, dsu } = instanceVars
 
@@ -224,6 +227,7 @@ export async function createMarket(
     minMaintenance: parse6decimal('500'),
     staleAfter: 7200,
     makerReceiveOnly: false,
+    ...riskParamOverrides,
   }
   const marketParameter = {
     fundingFee: parse6decimal('0.1'),
@@ -238,6 +242,7 @@ export async function createMarket(
     makerCloseAlways: false,
     takerCloseAlways: false,
     closed: false,
+    ...marketParamOverrides,
   }
   const marketAddress = await marketFactory.callStatic.create(definition, riskParameter)
   await marketFactory.create(definition, riskParameter)
@@ -250,10 +255,10 @@ export async function createMarket(
   return market
 }
 
-export async function settle(market: IMarket, account: SignerWithAddress): Promise<void> {
+export async function settle(market: IMarket, account: SignerWithAddress): Promise<ContractTransaction> {
   const local = await market.locals(account.address)
   const currentPosition = await market.pendingPositions(account.address, local.currentId)
-  await market
+  return market
     .connect(account)
     .update(account.address, currentPosition.maker, currentPosition.long, currentPosition.short, 0, false)
 }
