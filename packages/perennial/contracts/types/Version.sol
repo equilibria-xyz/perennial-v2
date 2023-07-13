@@ -272,16 +272,19 @@ library VersionLib {
         MarketParameter memory marketParameter
     ) private pure returns (UFixed6 rewardMaker, UFixed6 rewardLong, UFixed6 rewardShort){
         UFixed6 elapsed = UFixed6Lib.from(toOracleVersion.timestamp - fromOracleVersion.timestamp);
-        rewardMaker = elapsed.mul(marketParameter.makerRewardRate);
-        rewardLong = elapsed.mul(marketParameter.longRewardRate);
-        rewardShort = elapsed.mul(marketParameter.shortRewardRate);
 
-        if (!position.maker.isZero())
+        if (!position.maker.isZero()) {
+            rewardMaker = elapsed.mul(marketParameter.makerRewardRate);
             self.makerReward.increment(rewardMaker, position.maker);
-        if (!position.long.isZero())
+        }
+        if (!position.long.isZero()) {
+            rewardLong = elapsed.mul(marketParameter.longRewardRate);
             self.longReward.increment(rewardLong, position.long);
-        if (!position.short.isZero())
+        }
+        if (!position.short.isZero()) {
+            rewardShort = elapsed.mul(marketParameter.shortRewardRate);
             self.shortReward.increment(rewardShort, position.short);
+        }
     }
 }
 

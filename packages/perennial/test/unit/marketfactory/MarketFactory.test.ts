@@ -110,7 +110,7 @@ describe('MarketFactory', () => {
 
       const marketAddress = await factory.callStatic.create(marketDefinition, marketParameter)
       await expect(factory.connect(owner).create(marketDefinition, marketParameter))
-        .to.emit(factory, 'NewMarket')
+        .to.emit(factory, 'InstanceCreated')
         .withArgs(marketAddress)
         .to.emit(factory, 'MarketCreated')
         .withArgs(marketAddress, marketDefinition, marketParameter)
@@ -158,7 +158,7 @@ describe('MarketFactory', () => {
 
       const marketAddress = await factory.callStatic.create(marketDefinition, marketParameter)
       await expect(factory.connect(owner).create(marketDefinition, marketParameter))
-        .to.emit(factory, 'NewMarket')
+        .to.emit(factory, 'InstanceCreated')
         .withArgs(marketAddress)
         .to.emit(factory, 'MarketCreated')
         .withArgs(marketAddress, marketDefinition, marketParameter)
