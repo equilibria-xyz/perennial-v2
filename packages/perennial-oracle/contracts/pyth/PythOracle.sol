@@ -1,11 +1,10 @@
 // SPDX-License-Identifier: Apache-2.0
 pragma solidity 0.8.19;
 
-import "@chainlink/contracts/src/v0.8/interfaces/AggregatorV3Interface.sol";
-import "@equilibria/root-v2/contracts/Instance.sol";
-import "@equilibria/root/token/types/Token18.sol";
 import "@openzeppelin/contracts/utils/math/SafeCast.sol";
 import "@pythnetwork/pyth-sdk-solidity/AbstractPyth.sol";
+import "@equilibria/root-v2/contracts/Instance.sol";
+import "@equilibria/root-v2/contracts/UKept.sol";
 import "../interfaces/IPythFactory.sol";
 
 // TODO: do we need to mod timestamp to batch versions?
@@ -17,7 +16,7 @@ import "../interfaces/IPythFactory.sol";
  *      PythOracle instance if their payoff functions are based on the same underlying oracle.
  *      This implementation only supports non-negative prices.
  */
-contract PythOracle is IPythOracle, Instance {
+contract PythOracle is IPythOracle, Instance, UKept {
     /// @dev A Pyth update must come at least this long after a version to be valid
     uint256 constant private MIN_VALID_TIME_AFTER_VERSION = 12 seconds;
 
@@ -27,16 +26,11 @@ contract PythOracle is IPythOracle, Instance {
     /// @dev After this amount of time has passed for a version without being committed, the version can be invalidated.
     uint256 constant private GRACE_PERIOD = 1 minutes;
 
-    UFixed18 constant private KEEPER_REWARD_PREMIUM = UFixed18.wrap(0.5e18);
+    UFixed18 constant private KEEPER_REWARD_PREMIUM = UFixed18.wrap(1.5e18);
+    uint256 constant private KEEPER_BUFFER = 80_000;
 
     /// @dev Pyth contract
     AbstractPyth public immutable pyth;
-
-    /// @dev Chainlink price feed for rewarding keeper in DSU
-    AggregatorV3Interface private immutable chainlinkFeed;
-
-    /// @dev Keepers are incentivized in the DSU token
-    Token18 public immutable incentive;
 
     /// @dev Pyth price feed id
     bytes32 public id;
@@ -63,21 +57,20 @@ contract PythOracle is IPythOracle, Instance {
     /**
      * @notice Initializes the immutable contract state
      * @param pyth_ Pyth contract
-     * @param chainlinkFeed_ Chainlink price feed for rewarding keeper in DSU
-     * @param dsu_ Token to pay the keeper reward in
      */
-    constructor(AbstractPyth pyth_, AggregatorV3Interface chainlinkFeed_, Token18 dsu_) {
+    constructor(AbstractPyth pyth_) {
         pyth = pyth_;
-        chainlinkFeed = chainlinkFeed_;
-        incentive = dsu_;
     }
 
     /**
      * @notice Initializes the contract state
      * @param id_ price ID for Pyth price feed
+     * @param chainlinkFeed_ Chainlink price feed for rewarding keeper in DSU
+     * @param dsu_ Token to pay the keeper reward in
      */
-    function initialize(bytes32 id_) external initializer(1) {
+    function initialize(bytes32 id_, AggregatorV3Interface chainlinkFeed_, Token18 dsu_) external initializer(1) {
         __Instance__initialize();
+        __UKept__initialize(chainlinkFeed_, dsu_);
 
         if (!pyth.priceFeedExists(id_)) revert PythOracleInvalidPriceIdError(id_);
 
@@ -139,7 +132,7 @@ contract PythOracle is IPythOracle, Instance {
     function commit(uint256 versionIndex, bytes calldata updateData)
         external
         payable
-        incentivize8(chainlinkFeed, incentive, KEEPER_REWARD_PREMIUM)
+        keep(KEEPER_REWARD_PREMIUM, KEEPER_BUFFER, "")
     {
         // This check isn't necessary since the caller would not be able to produce a valid updateData
         // with an update time corresponding to a null version, but reverting with a specific error is
@@ -213,6 +206,10 @@ contract PythOracle is IPythOracle, Instance {
         _prices[oracleVersion] = Fixed6Lib.from(price.price)
             .mul(Fixed6Lib.from(SafeCast.toInt256(10 ** SafeCast.toUint256(price.expo > 0 ? price.expo : -price.expo))));
         _publishTimes[oracleVersion] = price.publishTime;
+    }
+
+    function _raiseKeeperFee(UFixed18 keeperFee, bytes memory) internal override {
+        IPythFactory(address(factory())).claim(UFixed6Lib.from(keeperFee, true));
     }
 
     modifier incentivize8(AggregatorV3Interface oracle, Token18 token, UFixed18 premium) {

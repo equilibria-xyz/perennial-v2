@@ -66,13 +66,13 @@ describe('PythOracle', () => {
     await oracleFactory.initialize(dsu.address)
     await oracleFactory.updateMaxClaim(parse6decimal('10'))
 
-    const pythOracleImpl = await new PythOracle__factory(owner).deploy(
-      PYTH_ADDRESS,
+    const pythOracleImpl = await new PythOracle__factory(owner).deploy(PYTH_ADDRESS)
+    pythOracleFactory = await new PythFactory__factory(owner).deploy(
+      pythOracleImpl.address,
       CHAINLINK_ETH_USD_FEED,
       dsu.address,
     )
-    pythOracleFactory = await new PythFactory__factory(owner).deploy(pythOracleImpl.address)
-    await pythOracleFactory.initialize(oracleFactory.address, dsu.address)
+    await pythOracleFactory.initialize(oracleFactory.address)
     await oracleFactory.register(pythOracleFactory.address)
     await pythOracleFactory.authorize(oracleFactory.address)
 
@@ -97,8 +97,8 @@ describe('PythOracle', () => {
   describe('#initialize', async () => {
     it('only initializes with a valid priceId', async () => {
       const invalidPriceId = '0xff61491a931112ddf1bd8147cd1b641375f79f5825126d665480874634fd0acd'
-      const oracle = await new PythOracle__factory(owner).deploy(PYTH_ADDRESS, CHAINLINK_ETH_USD_FEED, dsu.address)
-      await expect(oracle.initialize(invalidPriceId))
+      const oracle = await new PythOracle__factory(owner).deploy(PYTH_ADDRESS)
+      await expect(oracle.initialize(invalidPriceId, CHAINLINK_ETH_USD_FEED, dsu.address))
         .to.be.revertedWithCustomError(oracle, 'PythOracleInvalidPriceIdError')
         .withArgs(invalidPriceId)
     })
