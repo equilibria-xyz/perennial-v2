@@ -4,7 +4,6 @@ import { SignerWithAddress } from '@nomiclabs/hardhat-ethers/signers'
 import { expect, use } from 'chai'
 import HRE from 'hardhat'
 
-//TODO (coverage hint): maxPendingId test
 //TODO (coverage hint): invalid version test
 //TODO (coverage hint): multi-version test w/ collateral change
 //TODO (coverage hint): makerFee coverage
@@ -12,8 +11,6 @@ import HRE from 'hardhat'
 //TODO (coverage hint): makerReceiveOnly coverage
 //TODO (coverage hint): makerCloseAlways / takerCloseAlways coverage
 //TODO (coverage hint): settlementFee/oracleFee/riskFee coverage
-//TODO (coverage hint): magic values
-//TODO (coverage hint): stale oracle
 //TODO (coverage hint): parameter invariants
 
 import { impersonate } from '../../../../common/testutil'
@@ -10478,6 +10475,57 @@ describe('Market', () => {
             await expect(
               market.connect(userB).update(userB.address, 0, POSITION, 0, 0, false),
             ).to.be.revertedWithCustomError(market, 'MarketEfficiencyUnderLimitError')
+          })
+
+          it('reverts if too many pending orders', async () => {
+            const protocolParameter = { ...(await factory.parameter()) }
+            protocolParameter.maxPendingIds = BigNumber.from(3)
+            factory.parameter.returns(protocolParameter)
+
+            oracle.at.whenCalledWith(ORACLE_VERSION_1.timestamp).returns(ORACLE_VERSION_1)
+            oracle.status.returns([ORACLE_VERSION_1, ORACLE_VERSION_2.timestamp])
+            oracle.request.returns()
+
+            dsu.transferFrom.whenCalledWith(user.address, market.address, COLLATERAL.mul(1e12)).returns(true)
+            await market.connect(user).update(user.address, POSITION.div(2), 0, 0, COLLATERAL, false)
+
+            oracle.status.returns([ORACLE_VERSION_1, ORACLE_VERSION_2.timestamp + 1])
+            oracle.request.returns()
+
+            await market.connect(user).update(user.address, POSITION.add(1), 0, 0, 0, false)
+
+            oracle.status.returns([ORACLE_VERSION_1, ORACLE_VERSION_2.timestamp + 2])
+            oracle.request.returns()
+
+            await market.connect(user).update(user.address, POSITION.add(2), 0, 0, 0, false)
+
+            oracle.status.returns([ORACLE_VERSION_1, ORACLE_VERSION_2.timestamp + 3])
+            oracle.request.returns()
+
+            await expect(
+              market.connect(user).update(user.address, POSITION.add(3), 0, 0, 0, false),
+            ).to.be.revertedWithCustomError(market, 'MarketExceedsPendingIdLimitError')
+          })
+
+          it('reverts if price is stale', async () => {
+            const riskParameter = { ...(await market.riskParameter()) }
+            riskParameter.staleAfter = 7200
+            await market.connect(owner).updateRiskParameter(riskParameter)
+
+            oracle.at.whenCalledWith(ORACLE_VERSION_1.timestamp).returns(ORACLE_VERSION_1)
+            oracle.status.returns([ORACLE_VERSION_1, ORACLE_VERSION_3.timestamp - 1])
+            oracle.request.returns()
+
+            dsu.transferFrom.whenCalledWith(user.address, market.address, COLLATERAL.mul(1e12)).returns(true)
+            await market.connect(user).update(user.address, POSITION, 0, 0, COLLATERAL, false)
+
+            oracle.at.whenCalledWith(ORACLE_VERSION_1.timestamp).returns(ORACLE_VERSION_1)
+            oracle.status.returns([ORACLE_VERSION_1, ORACLE_VERSION_3.timestamp])
+            oracle.request.returns()
+
+            await expect(
+              market.connect(user).update(user.address, POSITION, 0, 0, 0, false),
+            ).to.be.revertedWithCustomError(market, 'MarketStalePriceError')
           })
 
           it('reverts if under minimum maintenance', async () => {
