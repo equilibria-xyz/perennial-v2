@@ -4,6 +4,7 @@ pragma solidity 0.8.19;
 import "@equilibria/root-v2/contracts/Instance.sol";
 import "./interfaces/IOracle.sol";
 import "./interfaces/IOracleProviderFactory.sol";
+import "hardhat/console.sol";
 
 contract Oracle is IOracle, Instance {
     mapping(uint256 => Checkpoint) public oracles;
@@ -30,25 +31,25 @@ contract Oracle is IOracle, Instance {
 
     function status() external view returns (OracleVersion memory latestVersion, uint256 currentTimestamp) {
         (latestVersion, currentTimestamp) = oracles[global.current].provider.status();
-        _handleLatest(latestVersion);
+        latestVersion = _handleLatest(latestVersion);
     }
 
-    function latest() public view returns (OracleVersion memory latestVersion) {
-        latestVersion = oracles[global.current].provider.latest();
-        _handleLatest(latestVersion);
+    function latest() public view returns (OracleVersion memory) {
+        return _handleLatest(oracles[global.current].provider.latest());
     }
 
-    function _handleLatest(OracleVersion memory latestVersion) private view {
-        if (global.current == global.latest) return;
+    function _handleLatest(
+        OracleVersion memory currentOracleLatestVersion
+    ) private view returns (OracleVersion memory latestVersion) {
+        if (global.current == global.latest) return currentOracleLatestVersion;
 
-        bool isLatestStale = _latestStale(latestVersion);
-        if (!isLatestStale) latestVersion = oracles[global.latest].provider.latest();
+        bool isLatestStale = _latestStale(currentOracleLatestVersion);
+        latestVersion = isLatestStale ? currentOracleLatestVersion : oracles[global.latest].provider.latest();
 
         uint256 latestOracleTimestamp =
             uint256(isLatestStale ? oracles[global.current].timestamp : oracles[global.latest].timestamp);
-
         if (!isLatestStale && latestVersion.timestamp > latestOracleTimestamp)
-            latestVersion = at(latestOracleTimestamp);
+            return at(latestOracleTimestamp);
     }
 
     function current() public view returns (uint256) {
@@ -57,7 +58,6 @@ contract Oracle is IOracle, Instance {
 
     function at(uint256 timestamp) public view returns (OracleVersion memory atVersion) {
         if (timestamp == 0) return atVersion;
-
         IOracleProvider provider = oracles[global.current].provider;
         for (uint256 i = global.current - 1; i > 0; i--) {
             if (timestamp > uint256(oracles[i].timestamp)) break;
