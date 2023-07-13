@@ -7,7 +7,6 @@ import "./IKept.sol";
 
 // TODO: actually read decimals for eth oracle
 // TODO: 18 or 6? token or ufixed?
-// TODO: move in premium?
 
 abstract contract UKept is IKept, UInitializable {
     /// @dev The legacy Chainlink feed that is used to convert price ETH relative to the keeper token
@@ -48,7 +47,7 @@ abstract contract UKept is IKept, UInitializable {
     }
 
     function _etherPrice() private view returns (UFixed18) {
-        (, int256 answer, , ,) = _ethTokenOracleFeed().latestRoundData();
+        (, int256 answer, , ,) = ethTokenOracleFeed().latestRoundData();
         return UFixed18Lib.from(Fixed18Lib.ratio(answer, 1e8)); // chainlink eth-usd feed uses 8 decimals
     }
 }

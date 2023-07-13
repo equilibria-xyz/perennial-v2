@@ -9,6 +9,6 @@ import "@equilibria/root/token/types/Token18.sol";
 interface IKept is IInitializable {
     event KeeperCall(address indexed sender, uint256 gasUsed, UFixed18 multiplier, uint256 buffer, UFixed18 keeperFee);
 
-    function ethUsdOracleFeed() external view returns (AggregatorV3Interface);
+    function ethTokenOracleFeed() external view returns (AggregatorV3Interface);
     function keeperToken() external view returns (Token18);
 }
