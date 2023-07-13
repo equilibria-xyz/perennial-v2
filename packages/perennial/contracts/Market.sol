@@ -351,7 +351,7 @@ contract Market is IMarket, Instance {
                 .ready(context.latestVersion)
         ) {
             Fixed6 previousDelta = _pendingPositions[account][context.accountPosition.id].read().delta;
-            _processPositionAccount(context, nextPosition);
+            _processPositionAccount(context, account, nextPosition);
             nextPosition.collateral = context.local.collateral
                 .sub(context.accountPendingPosition.delta.sub(previousDelta)) // deposits happen after snapshot point
                 .add(Fixed6Lib.from(nextPosition.fee));                       // position fee happens after snapshot point
@@ -378,7 +378,7 @@ contract Market is IMarket, Instance {
             nextPosition.timestamp = context.latestVersion.timestamp;
             nextPosition.fee = UFixed6Lib.ZERO;
             nextPosition.keeper = UFixed6Lib.ZERO;
-            _processPositionAccount(context, nextPosition);
+            _processPositionAccount(context, account, nextPosition);
         }
 
         _endGas(context);
@@ -389,7 +389,8 @@ contract Market is IMarket, Instance {
         OracleVersion memory oracleVersion = _oracleVersionAtPosition(context, newPosition); // TODO: seems weird some logic is in here
         if (!oracleVersion.valid) newPosition.invalidate(context.position); // TODO: combine this with sync logic?
 
-        UFixed6 accumulatedFee = version.accumulate(
+        (uint256 fromTimestamp, uint256 fromId) = (context.position.timestamp, context.position.id);
+        (VersionAccumulationResult memory accumulationResult, UFixed6 accumulatedFee) = version.accumulate(
             context.global,
             context.position,
             newPosition,
@@ -408,19 +409,37 @@ contract Market is IMarket, Instance {
         );
         context.positionVersion = oracleVersion;
         _versions[newPosition.timestamp].store(version);
+
+        // events
+        emit PositionProcessed(
+            fromTimestamp,
+            newPosition.timestamp,
+            fromId,
+            accumulationResult
+        );
     }
 
-    function _processPositionAccount(CurrentContext memory context, Position memory newPosition) private view {
+    function _processPositionAccount(CurrentContext memory context, address account, Position memory newPosition) private {
         Version memory version = _versions[newPosition.timestamp].read();
         if (!version.valid) newPosition.invalidate(context.accountPosition);
 
-        context.local.accumulate(
+        (uint256 fromTimestamp, uint256 fromId) = (context.accountPosition.timestamp, context.accountPosition.id);
+        LocalAccumulationResult memory accumulationResult = context.local.accumulate(
             context.accountPosition,
             newPosition,
             _versions[context.accountPosition.timestamp].read(),
             version
         );
         context.accountPosition.update(newPosition);
+
+        // events
+        emit AccountPositionProcessed(
+            account,
+            fromTimestamp,
+            newPosition.timestamp,
+            fromId,
+            accumulationResult
+        );
     }
 
     function _invariant(
