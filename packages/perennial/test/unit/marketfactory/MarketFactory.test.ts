@@ -56,8 +56,13 @@ describe('MarketFactory', () => {
 
       const parameter = await factory.parameter()
       expect(parameter.protocolFee).to.equal(0)
-      expect(parameter.settlementFee).to.equal(0)
       expect(parameter.maxPendingIds).to.equal(0)
+      expect(parameter.maxFee).to.equal(0)
+      expect(parameter.maxFeeAbsolute).to.equal(0)
+      expect(parameter.maxCut).to.equal(0)
+      expect(parameter.maxRate).to.equal(0)
+      expect(parameter.minMaintenance).to.equal(0)
+      expect(parameter.minEfficiency).to.equal(0)
     })
 
     it('reverts if already initialized', async () => {
@@ -313,18 +318,28 @@ describe('MarketFactory', () => {
 
   describe('#updateParameter', async () => {
     const newParameter = {
-      protocolFee: parse6decimal('0.50'),
-      settlementFee: parse6decimal('0.50'),
       maxPendingIds: BigNumber.from(5),
+      protocolFee: parse6decimal('0.50'),
+      maxFee: parse6decimal('0.01'),
+      maxFeeAbsolute: parse6decimal('1000'),
+      maxCut: parse6decimal('0.50'),
+      maxRate: parse6decimal('10.00'),
+      minMaintenance: parse6decimal('0.01'),
+      minEfficiency: parse6decimal('0.1'),
     }
 
     it('updates the parameters', async () => {
       await expect(factory.updateParameter(newParameter)).to.emit(factory, 'ParameterUpdated').withArgs(newParameter)
 
       const parameter = await factory.parameter()
-      expect(parameter.protocolFee).to.equal(newParameter.protocolFee)
-      expect(parameter.settlementFee).to.equal(newParameter.settlementFee)
       expect(parameter.maxPendingIds).to.equal(newParameter.maxPendingIds)
+      expect(parameter.protocolFee).to.equal(newParameter.protocolFee)
+      expect(parameter.maxFee).to.equal(newParameter.maxFee)
+      expect(parameter.maxFeeAbsolute).to.equal(newParameter.maxFeeAbsolute)
+      expect(parameter.maxCut).to.equal(newParameter.maxCut)
+      expect(parameter.maxRate).to.equal(newParameter.maxRate)
+      expect(parameter.minMaintenance).to.equal(newParameter.minMaintenance)
+      expect(parameter.minEfficiency).to.equal(newParameter.minEfficiency)
     })
 
     it('reverts if not owner', async () => {

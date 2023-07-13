@@ -10,9 +10,11 @@ import HRE from 'hardhat'
 //TODO (coverage hint): makerFee coverage
 //TODO (coverage hint): skew/impactFee coverage
 //TODO (coverage hint): makerReceiveOnly coverage
+//TODO (coverage hint): makerCloseAlways / takerCloseAlways coverage
 //TODO (coverage hint): settlementFee/oracleFee/riskFee coverage
 //TODO (coverage hint): magic values
 //TODO (coverage hint): stale oracle
+//TODO (coverage hint): parameter invariants
 
 import { impersonate } from '../../../../common/testutil'
 
@@ -233,9 +235,14 @@ describe('Market', () => {
     factorySigner = await impersonate.impersonateWithBalance(factory.address, utils.parseEther('10'))
     factory.owner.returns(owner.address)
     factory.parameter.returns({
-      protocolFee: parse6decimal('0.50'),
-      settlementFee: parse6decimal('0.00'),
       maxPendingIds: 5,
+      protocolFee: parse6decimal('0.50'),
+      maxFee: parse6decimal('0.01'),
+      maxFeeAbsolute: parse6decimal('1000'),
+      maxCut: parse6decimal('0.50'),
+      maxRate: parse6decimal('10.00'),
+      minMaintenance: parse6decimal('0.01'),
+      minEfficiency: parse6decimal('0.1'),
     })
     factory.oracleFactory.returns(oracleFactorySigner.address)
 
@@ -278,6 +285,7 @@ describe('Market', () => {
       oracleFee: 0,
       riskFee: 0,
       positionFee: 0,
+      settlementFee: 0,
       makerRewardRate: parse6decimal('0.3'),
       longRewardRate: parse6decimal('0.2'),
       shortRewardRate: parse6decimal('0.1'),
@@ -331,6 +339,9 @@ describe('Market', () => {
       expect(marketParameterResult.fundingFee).to.equal(0)
       expect(marketParameterResult.interestFee).to.equal(0)
       expect(marketParameterResult.positionFee).to.equal(0)
+      expect(marketParameterResult.oracleFee).to.equal(0)
+      expect(marketParameterResult.riskFee).to.equal(0)
+      expect(marketParameterResult.settlementFee).to.equal(0)
       expect(marketParameterResult.makerRewardRate).to.equal(0)
       expect(marketParameterResult.longRewardRate).to.equal(0)
       expect(marketParameterResult.shortRewardRate).to.equal(0)
@@ -390,8 +401,8 @@ describe('Market', () => {
 
     it('returns the correct price without payoff', async () => {
       await market.connect(factorySigner).initialize(marketDefinition, riskParameter)
-      await market.connect(owner).updateParameter(marketParameter)
       await market.connect(owner).updateReward(reward.address)
+      await market.connect(owner).updateParameter(marketParameter)
 
       const at0 = await market.at(ORACLE_VERSION_0.timestamp)
       expect(at0.timestamp).to.equal(ORACLE_VERSION_0.timestamp)
@@ -416,8 +427,8 @@ describe('Market', () => {
       marketDefinition.payoff = payoff.address
 
       await market.connect(factorySigner).initialize(marketDefinition, riskParameter)
-      await market.connect(owner).updateParameter(marketParameter)
       await market.connect(owner).updateReward(reward.address)
+      await market.connect(owner).updateParameter(marketParameter)
 
       const at0 = await market.at(ORACLE_VERSION_0.timestamp)
       expect(at0.timestamp).to.equal(ORACLE_VERSION_0.timestamp)
@@ -441,21 +452,22 @@ describe('Market', () => {
   context('already initialized', async () => {
     beforeEach(async () => {
       await market.connect(factorySigner).initialize(marketDefinition, riskParameter)
-      await market.connect(owner).updateParameter(marketParameter)
       await market.connect(owner).updateReward(reward.address)
+      await market.connect(owner).updateParameter(marketParameter)
     })
 
     describe('#updateParameter', async () => {
       it('updates the parameters', async () => {
         const newMarketParameter = {
-          fundingFee: parse6decimal('0.3'),
-          interestFee: parse6decimal('0.2'),
-          positionFee: parse6decimal('0.1'),
-          oracleFee: parse6decimal('0.4'),
-          riskFee: parse6decimal('0.5'),
-          makerRewardRate: parse6decimal('0.6'),
-          longRewardRate: parse6decimal('0.7'),
-          shortRewardRate: parse6decimal('0.8'),
+          fundingFee: parse6decimal('0.03'),
+          interestFee: parse6decimal('0.02'),
+          positionFee: parse6decimal('0.01'),
+          oracleFee: parse6decimal('0.04'),
+          riskFee: parse6decimal('0.05'),
+          settlementFee: parse6decimal('0.09'),
+          makerRewardRate: parse6decimal('0.06'),
+          longRewardRate: parse6decimal('0.07'),
+          shortRewardRate: parse6decimal('0.08'),
           makerCloseAlways: true,
           takerCloseAlways: true,
           closed: true,
@@ -471,6 +483,7 @@ describe('Market', () => {
         expect(marketParameter.positionFee).to.equal(newMarketParameter.positionFee)
         expect(marketParameter.oracleFee).to.equal(newMarketParameter.oracleFee)
         expect(marketParameter.riskFee).to.equal(newMarketParameter.riskFee)
+        expect(marketParameter.settlementFee).to.equal(newMarketParameter.settlementFee)
         expect(marketParameter.makerRewardRate).to.equal(newMarketParameter.makerRewardRate)
         expect(marketParameter.longRewardRate).to.equal(newMarketParameter.longRewardRate)
         expect(marketParameter.shortRewardRate).to.equal(newMarketParameter.shortRewardRate)
@@ -489,14 +502,14 @@ describe('Market', () => {
       it('updates the parameters', async () => {
         const newRiskParameter = {
           maintenance: parse6decimal('0.4'),
-          takerFee: parse6decimal('0.1'),
-          takerSkewFee: parse6decimal('0.04'),
-          takerImpactFee: parse6decimal('0.03'),
-          makerFee: parse6decimal('0.05'),
-          makerImpactFee: parse6decimal('0.01'),
+          takerFee: parse6decimal('0.01'),
+          takerSkewFee: parse6decimal('0.004'),
+          takerImpactFee: parse6decimal('0.003'),
+          makerFee: parse6decimal('0.005'),
+          makerImpactFee: parse6decimal('0.001'),
           makerLimit: parse6decimal('2000'),
           efficiencyLimit: parse6decimal('0.2'),
-          liquidationFee: parse6decimal('0.75'),
+          liquidationFee: parse6decimal('0.25'),
           minLiquidationFee: parse6decimal('10'),
           maxLiquidationFee: parse6decimal('200'),
           utilizationCurve: {

@@ -2,8 +2,8 @@
 pragma solidity ^0.8.13;
 
 import "@equilibria/perennial-v2-oracle/contracts/types/OracleVersion.sol";
-import "./ProtocolParameter.sol";
 import "./RiskParameter.sol";
+import "./MarketParameter.sol";
 
 /// @dev Order type
 struct Order {
@@ -26,7 +26,7 @@ library OrderLib {
     function registerFee(
         Order memory self,
         OracleVersion memory latestVersion,
-        ProtocolParameter memory protocolParameter,
+        MarketParameter memory marketParameter,
         RiskParameter memory riskParameter
     ) internal pure {
         Fixed6 makerFee = Fixed6Lib.from(riskParameter.makerFee)
@@ -40,7 +40,7 @@ library OrderLib {
         self.fee = self.maker.abs().mul(latestVersion.price.abs()).mul(UFixed6Lib.from(makerFee))
             .add(self.long.abs().add(self.short.abs()).mul(latestVersion.price.abs()).mul(UFixed6Lib.from(takerFee)));
 
-        self.keeper = isEmpty(self) ? UFixed6Lib.ZERO : protocolParameter.settlementFee;
+        self.keeper = isEmpty(self) ? UFixed6Lib.ZERO : marketParameter.settlementFee;
     }
 
     function increasesPosition(Order memory self) internal pure returns (bool) {

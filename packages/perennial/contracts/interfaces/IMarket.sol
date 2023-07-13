@@ -62,12 +62,13 @@ interface IMarket is IInstance {
     error MarketExceedsPendingIdLimitError();
     error MarketRewardAlreadySetError();
     error MarketInvalidRewardError();
-    error MarketInvalidParameterError();
     error MarketNotCoordinatorError();
     error MarketNotBeneficiaryError();
     error MarketInvalidProtectionError();
     error MarketStalePriceError();
     error MarketEfficiencyUnderLimitError();
+    error MarketInvalidMarketParameterError(uint256 code);
+    error MarketInvalidRiskParameterError(uint256 code);
 
     error GlobalStorageInvalidError();
     error LocalStorageInvalidError();
