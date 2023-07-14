@@ -13,7 +13,10 @@ const config = defaultConfig({
   //         },
   //     },
   // },
-  dependencyPaths: ['@equilibria/perennial-v2/contracts/Market.sol'],
+  dependencyPaths: [
+    '@equilibria/perennial-v2/contracts/Market.sol',
+    '@equilibria/perennial-v2-oracle/contracts/interfaces/IPythOracle.sol',
+  ],
 })
 
 export default config

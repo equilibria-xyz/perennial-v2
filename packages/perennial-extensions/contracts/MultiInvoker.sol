@@ -2,29 +2,16 @@
 pragma solidity ^0.8.13;
 pragma abicoder v2;
 
-import {AggregatorInterface} from "@chainlink/contracts/src/v0.8/interfaces/AggregatorInterface.sol";
+import { AggregatorInterface } from "@chainlink/contracts/src/v0.8/interfaces/AggregatorInterface.sol";
 import { IMarketFactory } from "@equilibria/perennial-v2/contracts/interfaces/IMarketFactory.sol";
-import { IMarket } from "@equilibria/perennial-v2/contracts/interfaces/IMarket.sol";
 import { IBatcher } from "@equilibria/emptyset-batcher/interfaces/IBatcher.sol";
 import { IEmptySetReserve } from "@equilibria/emptyset-batcher/interfaces/IEmptySetReserve.sol";
 import { IInstance } from "@equilibria/root-v2/contracts/IInstance.sol";
+import { IPythOracle } from "@equilibria/perennial-v2-oracle/contracts/interfaces/IPythOracle.sol";
 
 // import "hardhat/console.sol";
 
-import {
-    IMultiInvoker,
-    IMarket, 
-    Position,
-    Local,
-    UFixed18Lib,
-    UFixed18,
-    UFixed6,
-    UFixed6Lib,
-    Fixed6,
-    Fixed6Lib,
-    Token6,
-    Token18
-} from "./interfaces/IMultiInvoker.sol";
+import "./interfaces/IMultiInvoker.sol";
 import {IKeeperManager} from "./interfaces/IKeeperManager.sol";
 
 import {KeeperManager} from "./KeeperManager.sol";
@@ -108,6 +95,16 @@ contract MultiInvoker is IMultiInvoker, KeeperManager {
                     abi.decode(invocation.args, (address, address, uint256));
 
                 _executeOrderInvoker(account, market, _orderNonce);
+            } else if (invocation.action == PerennialAction.COMMIT_PRICE) {
+                (address oracleProvider, uint256 version, bytes memory data) = 
+                    abi.decode(invocation.args, (address, uint256, bytes));
+                
+                IPythOracle(oracleProvider).commit(version, data);
+            } else if (invocation.action == PerennialAction.LIQUIDATE) {
+                (address market, address account) = 
+                    abi.decode(invocation.args, (address, address));
+                
+                _liquidate(IMarket(market), account);
             } else if (invocation.action == PerennialAction.APPROVE_MARKET) {
                 (address market) =
                     abi.decode(invocation.args, (address));
@@ -149,6 +146,17 @@ contract MultiInvoker is IMultiInvoker, KeeperManager {
         if(collateralDelta.sign() == -1) {
             _withdraw(msg.sender, collateralDelta.abs(), handleWrap);
         }
+    }
+
+    function _liquidate(IMarket market, address account) internal {
+        // sync and settle
+        market.update(account, UFixed6Lib.MAX, UFixed6Lib.MAX, UFixed6Lib.MAX, Fixed6Lib.ZERO, false);
+
+        market.update(
+            account, 
+            UFixed6Lib.MAX, UFixed6Lib.MAX, UFixed6Lib.MAX, 
+            Fixed6Lib.from(-1, _liquidationFee(market, account)), 
+            true);
     }
 
     /**
@@ -309,5 +317,26 @@ contract MultiInvoker is IMultiInvoker, KeeperManager {
             // Unwrap the DSU into USDC and return to the receiver
             batcher.unwrap(amount, receiver);
         }
+    }
+
+    function _liquidationFee(IMarket market, address account) internal view returns (UFixed6) {
+
+        Position memory position = market.positions(account);
+        RiskParameter memory parameter = market.riskParameter();
+        OracleVersion memory latestVersion = _oracleVersion(market);
+
+        return position
+            .liquidationFee(latestVersion, parameter)
+            .min(UFixed6Lib.from(market.token().balanceOf(address(market)))); // @todo do we need this? it will just fail otherwise
+    }
+
+    function _oracleVersion(IMarket market) private view returns (OracleVersion memory latestVersion) {
+        (latestVersion, ) = market.oracle().status();
+        _transform(latestVersion, market);
+    }
+
+    function _transform(OracleVersion memory oracleVersion, IMarket market) private view {
+        IPayoffProvider payoff = market.payoff();
+        if (address(payoff) != address(0)) oracleVersion.price = payoff.payoff(oracleVersion.price);
     }
 }
