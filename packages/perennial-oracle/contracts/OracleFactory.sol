@@ -32,10 +32,12 @@ contract OracleFactory is IOracleFactory, Factory {
 
     function register(IOracleProviderFactory factory) external onlyOwner {
         factories[factory] = true;
+        emit FactoryRegistered(factory);
     }
 
-    function authorize(IFactory factory) external onlyOwner {
-        callers[factory] = true;
+    function authorize(IFactory caller) external onlyOwner {
+        callers[caller] = true;
+        emit CallerAuthorized(caller);
     }
 
     function create(bytes32 id, IOracleProviderFactory factory) external onlyOwner returns (IOracle newOracle) {

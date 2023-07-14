@@ -10,7 +10,7 @@ import "./IOracleFactory.sol";
 interface IPythFactory is IOracleProviderFactory, IFactory {
     error PythFactoryNotInstanceError();
 
-    function initialize(IOracleFactory oracleFactory, Token18 incentive) external;
+    function initialize(IOracleFactory oracleFactory) external;
     function create(bytes32 id) external returns (IPythOracle oracle);
     function claim(UFixed6 amount) external;
 }

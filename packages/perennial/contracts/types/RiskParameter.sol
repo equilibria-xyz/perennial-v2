@@ -25,9 +25,6 @@ struct RiskParameter {
     UFixed6 minMaintenance;
     uint256 staleAfter;
     bool makerReceiveOnly;
-    // TODO: closeToSocializeMaker
-    // TODO: closeToSocializeTaker
-    // TODO: efficiencyLimit
 }
 
 struct StoredRiskParameter {

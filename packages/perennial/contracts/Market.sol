@@ -72,7 +72,7 @@ contract Market is IMarket, Instance {
         token = definition_.token;
         oracle = definition_.oracle;
         payoff = definition_.payoff;
-        _updateRiskParameter(riskParameter_);
+        _updateRiskParameter(riskParameter_); // TODO: don't set or use version with invariant
     }
 
     function update(
@@ -101,20 +101,66 @@ contract Market is IMarket, Instance {
     }
 
     function updateParameter(MarketParameter memory newParameter) external onlyOwner {
+        ProtocolParameter memory protocolParameter = IMarketFactory(address(factory())).parameter();
+
+        if (newParameter.fundingFee.gt(protocolParameter.maxCut)) revert MarketInvalidMarketParameterError(1);
+        if (newParameter.interestFee.gt(protocolParameter.maxCut)) revert MarketInvalidMarketParameterError(2);
+        if (newParameter.positionFee.gt(protocolParameter.maxCut)) revert MarketInvalidMarketParameterError(3);
+        if (newParameter.riskFee.gt(UFixed6Lib.ONE)) revert MarketInvalidMarketParameterError(4);
+        if (newParameter.oracleFee.gt(UFixed6Lib.ONE)) revert MarketInvalidMarketParameterError(5);
+        if (newParameter.settlementFee.gt(protocolParameter.maxFeeAbsolute))
+            revert MarketInvalidMarketParameterError(6);
         if (newParameter.oracleFee.add(newParameter.riskFee).gt(UFixed6Lib.ONE))
-            revert MarketInvalidParameterError();
-        // TODO: if reward not set don't allow reward rate to be non-zero
+            revert MarketInvalidMarketParameterError(7);
+        if (reward.isZero() && (
+                !newParameter.makerRewardRate.isZero() ||
+                !newParameter.longRewardRate.isZero() ||
+                !newParameter.shortRewardRate.isZero()
+        )) revert MarketInvalidMarketParameterError(8);
 
         _parameter.store(newParameter);
         emit ParameterUpdated(newParameter);
     }
 
     function updateRiskParameter(RiskParameter memory newRiskParameter) external onlyCoordinator {
+        ProtocolParameter memory protocolParameter = IMarketFactory(address(factory())).parameter();
+
+        if (newRiskParameter.maintenance.lt(protocolParameter.minMaintenance))
+            revert MarketInvalidRiskParameterError(1);
+        if (newRiskParameter.takerFee.gt(protocolParameter.maxFee)) revert MarketInvalidRiskParameterError(2);
+        if (newRiskParameter.takerSkewFee.gt(protocolParameter.maxFee)) revert MarketInvalidRiskParameterError(3);
+        if (newRiskParameter.takerImpactFee.gt(protocolParameter.maxFee)) revert MarketInvalidRiskParameterError(4);
+        if (newRiskParameter.makerFee.gt(protocolParameter.maxFee)) revert MarketInvalidRiskParameterError(5);
+        if (newRiskParameter.makerImpactFee.gt(protocolParameter.maxFee)) revert MarketInvalidRiskParameterError(6);
+        if (newRiskParameter.efficiencyLimit.lt(protocolParameter.minEfficiency))
+            revert MarketInvalidRiskParameterError(7);
+        if (newRiskParameter.liquidationFee.gt(protocolParameter.maxCut)) revert MarketInvalidRiskParameterError(8);
+        if (newRiskParameter.minLiquidationFee.gt(protocolParameter.maxFeeAbsolute))
+            revert MarketInvalidRiskParameterError(9);
+        if (newRiskParameter.maxLiquidationFee.gt(protocolParameter.maxFeeAbsolute))
+            revert MarketInvalidRiskParameterError(10);
+        if (newRiskParameter.utilizationCurve.minRate.gt(protocolParameter.maxRate))
+            revert MarketInvalidRiskParameterError(11);
+        if (newRiskParameter.utilizationCurve.maxRate.gt(protocolParameter.maxRate))
+            revert MarketInvalidRiskParameterError(12);
+        if (newRiskParameter.utilizationCurve.targetRate.gt(protocolParameter.maxRate))
+            revert MarketInvalidRiskParameterError(13);
+        if (newRiskParameter.utilizationCurve.targetUtilization.gt(UFixed6Lib.ONE))
+            revert MarketInvalidRiskParameterError(14);
+        if (newRiskParameter.pController.max.gt(protocolParameter.maxRate))
+            revert MarketInvalidRiskParameterError(15);
+        if (
+            newRiskParameter.minMaintenance.gt(protocolParameter.maxFeeAbsolute) ||
+            newRiskParameter.minMaintenance.lt(newRiskParameter.minLiquidationFee)
+        ) revert MarketInvalidRiskParameterError(16);
+
         _updateRiskParameter(newRiskParameter);
     }
 
     function updateReward(Token18 newReward) public onlyOwner {
         if (!reward.eq(Token18Lib.ZERO)) revert MarketRewardAlreadySetError();
+        if (newReward.eq(token)) revert MarketInvalidRewardError();
+
         reward = newReward;
         emit RewardUpdated(newReward);
     }
@@ -214,7 +260,7 @@ contract Market is IMarket, Instance {
         context.pendingPosition.update(context.global.currentId, context.currentTimestamp, newOrder);
 
         // update fee
-        newOrder.registerFee(context.latestVersion, context.protocolParameter, context.riskParameter);
+        newOrder.registerFee(context.latestVersion, context.marketParameter, context.riskParameter);
         context.accountPendingPosition.registerFee(newOrder);
         context.pendingPosition.registerFee(newOrder);
 
@@ -301,10 +347,11 @@ contract Market is IMarket, Instance {
 
         while (
             context.local.currentId != context.accountPosition.id &&
-            (nextPosition = _pendingPositions[account][context.accountPosition.id + 1].read()).ready(context.latestVersion)
+            (nextPosition = _pendingPositions[account][context.accountPosition.id + 1].read())
+                .ready(context.latestVersion)
         ) {
             Fixed6 previousDelta = _pendingPositions[account][context.accountPosition.id].read().delta;
-            _processPositionAccount(context, nextPosition);
+            _processPositionAccount(context, account, nextPosition);
             nextPosition.collateral = context.local.collateral
                 .sub(context.accountPendingPosition.delta.sub(previousDelta)) // deposits happen after snapshot point
                 .add(Fixed6Lib.from(nextPosition.fee));                       // position fee happens after snapshot point
@@ -331,7 +378,7 @@ contract Market is IMarket, Instance {
             nextPosition.timestamp = context.latestVersion.timestamp;
             nextPosition.fee = UFixed6Lib.ZERO;
             nextPosition.keeper = UFixed6Lib.ZERO;
-            _processPositionAccount(context, nextPosition);
+            _processPositionAccount(context, account, nextPosition);
         }
 
         _endGas(context);
@@ -342,7 +389,8 @@ contract Market is IMarket, Instance {
         OracleVersion memory oracleVersion = _oracleVersionAtPosition(context, newPosition); // TODO: seems weird some logic is in here
         if (!oracleVersion.valid) newPosition.invalidate(context.position); // TODO: combine this with sync logic?
 
-        UFixed6 accumulatedFee = version.accumulate(
+        (uint256 fromTimestamp, uint256 fromId) = (context.position.timestamp, context.position.id);
+        (VersionAccumulationResult memory accumulationResult, UFixed6 accumulatedFee) = version.accumulate(
             context.global,
             context.position,
             newPosition,
@@ -361,19 +409,37 @@ contract Market is IMarket, Instance {
         );
         context.positionVersion = oracleVersion;
         _versions[newPosition.timestamp].store(version);
+
+        // events
+        emit PositionProcessed(
+            fromTimestamp,
+            newPosition.timestamp,
+            fromId,
+            accumulationResult
+        );
     }
 
-    function _processPositionAccount(CurrentContext memory context, Position memory newPosition) private view {
+    function _processPositionAccount(CurrentContext memory context, address account, Position memory newPosition) private {
         Version memory version = _versions[newPosition.timestamp].read();
         if (!version.valid) newPosition.invalidate(context.accountPosition);
 
-        context.local.accumulate(
+        (uint256 fromTimestamp, uint256 fromId) = (context.accountPosition.timestamp, context.accountPosition.id);
+        LocalAccumulationResult memory accumulationResult = context.local.accumulate(
             context.accountPosition,
             newPosition,
             _versions[context.accountPosition.timestamp].read(),
             version
         );
         context.accountPosition.update(newPosition);
+
+        // events
+        emit AccountPositionProcessed(
+            account,
+            fromTimestamp,
+            newPosition.timestamp,
+            fromId,
+            accumulationResult
+        );
     }
 
     function _invariant(
@@ -434,6 +500,8 @@ contract Market is IMarket, Instance {
         if (
             !protected &&
             !context.marketParameter.closed &&
+            (!context.marketParameter.makerCloseAlways || newOrder.increasesMaker()) &&
+            (!context.marketParameter.takerCloseAlways || newOrder.increasesTaker()) &&
             newOrder.efficiency.lt(Fixed6Lib.ZERO) &&
             context.pendingPosition.efficiency().lt(context.riskParameter.efficiencyLimit)
         ) { if (LOG_REVERTS) console.log("MarketEfficiencyUnderLimitError"); revert MarketEfficiencyUnderLimitError(); }

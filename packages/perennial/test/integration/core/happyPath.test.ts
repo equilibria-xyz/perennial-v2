@@ -85,10 +85,13 @@ describe('Happy Path', () => {
       oracleFee: 0,
       riskFee: 0,
       positionFee: 0,
+      settlementFee: 0,
       makerRewardRate: 0,
       longRewardRate: 0,
       shortRewardRate: 0,
-      closed: true,
+      makerCloseAlways: false,
+      takerCloseAlways: false,
+      closed: false,
     }
     const marketAddress = await marketFactory.callStatic.create(definition, riskParameter)
     await expect(marketFactory.create(definition, riskParameter)).to.emit(marketFactory, 'MarketCreated')
@@ -1039,10 +1042,13 @@ describe('Happy Path', () => {
       interestFee: parse6decimal('0.1'),
       oracleFee: 0,
       riskFee: 0,
+      settlementFee: 0,
       positionFee: positionFeesOn ? parse6decimal('0.1') : 0,
       makerRewardRate: incentizesOn ? parse6decimal('0.01') : 0,
       longRewardRate: incentizesOn ? parse6decimal('0.001') : 0,
       shortRewardRate: incentizesOn ? parse6decimal('0.001') : 0,
+      makerCloseAlways: false,
+      takerCloseAlways: false,
       closed: false,
     }
 
@@ -1128,6 +1134,7 @@ describe('Happy Path', () => {
     })
   })
 
+  // uncheck skip to see gas results
   it.skip('multi-delayed update w/ collateral (gas)', async () => {
     const positionFeesOn = true
     const incentizesOn = true
@@ -1177,10 +1184,13 @@ describe('Happy Path', () => {
       interestFee: parse6decimal('0.1'),
       oracleFee: 0,
       riskFee: 0,
+      settlementFee: 0,
       positionFee: positionFeesOn ? parse6decimal('0.1') : 0,
       makerRewardRate: incentizesOn ? parse6decimal('0.01') : 0,
       longRewardRate: incentizesOn ? parse6decimal('0.001') : 0,
       shortRewardRate: incentizesOn ? parse6decimal('0.001') : 0,
+      makerCloseAlways: false,
+      takerCloseAlways: false,
       closed: false,
     }
 

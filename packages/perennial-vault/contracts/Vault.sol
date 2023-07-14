@@ -157,6 +157,13 @@ contract Vault is IVault, Instance {
         emit ParameterUpdated(newParameter);
     }
 
+    function claimReward() external onlyOwner {
+        for (uint256 marketId; marketId < totalMarkets; marketId++) {
+            _registrations[marketId].read().market.claimReward();
+            _registrations[marketId].read().market.reward().push(factory().owner());
+        }
+    }
+
     /**
      * @notice Syncs `account`'s state up to current
      * @dev Also rebalances the collateral and position of the vault without a deposit or withdraw
@@ -373,9 +380,6 @@ contract Vault is IVault, Instance {
     function _loadContext(address account) private view returns (Context memory context) {
         context.parameter = _parameter.read();
 
-        ProtocolParameter memory protocolParameter = IVaultFactory(address(factory())).marketFactory().parameter();
-        context.settlementFee = protocolParameter.settlementFee;
-
         context.currentIds.initialize(totalMarkets);
         context.latestIds.initialize(totalMarkets);
         context.registrations = new Registration[](totalMarkets);
@@ -384,7 +388,9 @@ contract Vault is IVault, Instance {
         for (uint256 marketId; marketId < totalMarkets; marketId++) {
             // parameter
             Registration memory registration = _registrations[marketId].read();
+            MarketParameter memory marketParameter = registration.market.parameter();
             context.registrations[marketId] = registration;
+            context.settlementFee = context.settlementFee.add(marketParameter.settlementFee);
 
             // global
             Global memory global = registration.market.global();

@@ -75,9 +75,12 @@ export async function deployProductOnMainnetFork({
     positionFee: positionFee ?? parse6decimal('0.0'),
     riskFee: 0,
     oracleFee: 0,
+    settlementFee: 0,
     makerRewardRate: 0,
     longRewardRate: 0,
     shortRewardRate: 0,
+    makerCloseAlways: false,
+    takerCloseAlways: false,
     closed: false,
   }
   const marketDefinition: IMarket.MarketDefinitionStruct = {
@@ -87,6 +90,10 @@ export async function deployProductOnMainnetFork({
     oracle: oracle ?? constants.AddressZero,
     payoff: payoff ?? constants.AddressZero,
   }
+
+  const protocolParameter = { ...(await factory.parameter()) }
+  protocolParameter.maxFeeAbsolute = parse6decimal('25000')
+  await factory.connect(owner).updateParameter(protocolParameter)
 
   const productAddress = await factory.connect(owner).callStatic.create(marketDefinition, riskParameter)
   await factory.connect(owner).create(marketDefinition, riskParameter)

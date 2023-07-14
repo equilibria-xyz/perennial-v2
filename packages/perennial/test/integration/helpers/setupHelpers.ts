@@ -123,8 +123,13 @@ export async function deployProtocol(): Promise<InstanceVars> {
   await marketFactory.updatePauser(pauser.address)
   await marketFactory.updateParameter({
     protocolFee: parse6decimal('0.50'),
-    settlementFee: parse6decimal('0.00'),
     maxPendingIds: 8,
+    maxFee: parse6decimal('0.01'),
+    maxFeeAbsolute: parse6decimal('1000'),
+    maxCut: parse6decimal('0.50'),
+    maxRate: parse6decimal('10.00'),
+    minMaintenance: parse6decimal('0.01'),
+    minEfficiency: parse6decimal('0.1'),
   })
   await payoffFactory.connect(owner).register(payoff.address)
   await oracleFactory.connect(owner).register(chainlink.oracleFactory.address)
@@ -229,15 +234,18 @@ export async function createMarket(
     makerRewardRate: 0,
     longRewardRate: 0,
     shortRewardRate: 0,
+    settlementFee: 0,
+    makerCloseAlways: false,
+    takerCloseAlways: false,
     closed: false,
   }
   const marketAddress = await marketFactory.callStatic.create(definition, riskParameter)
   await marketFactory.create(definition, riskParameter)
 
   const market = Market__factory.connect(marketAddress, owner)
-  await market.updateParameter(marketParameter)
   await market.updateBeneficiary(beneficiaryB.address)
   await market.updateReward(rewardToken.address)
+  await market.updateParameter(marketParameter)
 
   return market
 }

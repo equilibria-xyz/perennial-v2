@@ -8,6 +8,8 @@ import "./IOracle.sol";
 
 interface IOracleFactory is IOracleProviderFactory, IFactory {
     event MaxClaimUpdated(UFixed6 newMaxClaim);
+    event FactoryRegistered(IOracleProviderFactory factory);
+    event CallerAuthorized(IFactory caller);
 
     error OracleFactoryInvalidIdError();
     error OracleFactoryAlreadyCreatedError();

@@ -12,7 +12,7 @@ interface IKeeperManager {
         // slot 1
         bool isLimit; // true/false = increase/decrease order size of market position upon execution
         bool isLong;  // true/false = change long/short size of market position upon execution
-        Fixed6 maxFee; // @todo optimization: set as % with some precision
+        UFixed6 maxFee; // @todo optimization: set as % with some precision
 
         // slot 2&3
         Fixed6 execPrice; // execute order when mkt price >= (-) execPrice or mkt price <= (+) execPrice
@@ -47,7 +47,7 @@ interface IKeeperManager {
         uint256 orderNonce,
         uint256 openOrders,
         Fixed6 execPrice,
-        Fixed6 maxFee);    
+        UFixed6 maxFee);
 
     event OrderExecuted(
         address indexed account,
