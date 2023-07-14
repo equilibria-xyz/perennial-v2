@@ -36,7 +36,7 @@ import { openPosition, setMarketPosition, setPendingPosition } from '../../helpe
 import { impersonate } from '../../../../common/testutil'
 
 import { TransactionRequest, TransactionResponse } from '@ethersproject/abstract-provider'
-import { AggregatorV3Interface } from '@equilibria/perennial-v2/types/generated'
+import { AggregatorV3Interface } from '@equilibria/perennial-v2/types/generated/@chainlink/contracts/src/v0.8/interfaces'
 
 const ethers = { HRE }
 use(smock.matchers)
@@ -198,19 +198,6 @@ describe('MultiInvokerRollup', () => {
     const position = parse6decimal('10')
     const dsuCollateral = collateral.mul(1e12)
 
-    const fixture = async () => {
-      dsu.transferFrom.whenCalledWith(user.address, multiInvokerRollup.address, dsuCollateral).returns(true)
-      dsu.transfer.whenCalledWith(user.address, dsuCollateral).returns(true)
-      usdc.transferFrom.whenCalledWith(user.address, multiInvokerRollup.address, collateral).returns(true)
-      usdc.transfer.whenCalledWith(user.address, collateral).returns(true)
-
-      market.update.returns(true)
-    }
-
-    beforeEach(async () => {
-      await loadFixture(fixture)
-    })
-
     const defaultOrder = {
       isLimit: true,
       isLong: true,
@@ -218,6 +205,30 @@ describe('MultiInvokerRollup', () => {
       execPrice: BigNumber.from(1000e6),
       size: position,
     }
+
+    const aggRoundData = {
+      roundId: 0,
+      answer: BigNumber.from(1150e8),
+      startedAt: 0,
+      updatedAt: 0,
+      answeredInRound: 0,
+    }
+
+    const fixture = async () => {
+      invokerOracle.latestRoundData.returns(aggRoundData)
+
+      dsu.transferFrom.whenCalledWith(user.address, multiInvokerRollup.address, dsuCollateral).returns(true)
+      dsu.transfer.whenCalledWith(user.address, dsuCollateral).returns(true)
+      usdc.transferFrom.whenCalledWith(user.address, multiInvokerRollup.address, collateral).returns(true)
+      usdc.transfer.whenCalledWith(user.address, collateral).returns(true)
+
+      market.update.returns(true)
+      // dsu.transfer.returns(true)
+    }
+
+    beforeEach(async () => {
+      await loadFixture(fixture)
+    })
 
     it('places a limit order', async () => {
       const a = helpers.buildPlaceOrderRollup({ market: market.address, collateral: collateral, order: defaultOrder })
@@ -322,7 +333,6 @@ describe('MultiInvokerRollup', () => {
       await expect(sendTx(user, multiInvokerRollup, placeOrder)).to.not.be.reverted
 
       let execOrder = helpers.buildExecOrderRollup({ user: user.address, market: market.address, orderId: 1 })
-
       await expect(sendTx(user, multiInvokerRollup, execOrder)).to.emit(multiInvokerRollup, 'OrderExecuted')
 
       // short limit: limit = true && mkt price (1150) >= exec price (|-1100|)
@@ -340,10 +350,11 @@ describe('MultiInvokerRollup', () => {
       // long tp / short sl: limit = false && mkt price (1150) >= exec price (|-1100|)
       defaultOrder.isLimit = false
 
+      position.long = 0
+      position.short = defaultOrder.size
+
       placeOrder = helpers.buildPlaceOrderRollup({ market: market.address, order: defaultOrder })
-      //await expect(
-      await sendTx(user, multiInvokerRollup, placeOrder)
-      //).to.not.be.reverted
+      await expect(sendTx(user, multiInvokerRollup, placeOrder)).to.not.be.reverted
 
       execOrder = helpers.buildExecOrderRollup({ user: user.address, market: market.address, orderId: 3 })
       await expect(sendTx(user, multiInvokerRollup, execOrder)).to.emit(multiInvokerRollup, 'OrderExecuted')
@@ -354,8 +365,9 @@ describe('MultiInvokerRollup', () => {
       placeOrder = helpers.buildPlaceOrderRollup({ market: market.address, order: defaultOrder })
       await expect(sendTx(user, multiInvokerRollup, placeOrder)).to.not.be.reverted
 
+      console.log(await multiInvokerRollup.orderNonce())
       execOrder = helpers.buildExecOrderRollup({ user: user.address, market: market.address, orderId: 4 })
-      await expect(sendTx(user, multiInvokerRollup, placeOrder)).to.emit(multiInvokerRollup, 'OrderExecuted')
+      await expect(sendTx(user, multiInvokerRollup, execOrder)).to.emit(multiInvokerRollup, 'OrderExecuted')
     })
 
     // it('executes an order and charges keeper fee to sender', async () => {

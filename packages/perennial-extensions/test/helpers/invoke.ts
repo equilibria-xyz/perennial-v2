@@ -320,7 +320,7 @@ export const encodeInt = (int?: BigNumberish) => {
     int = int.mul('-0x1')
   }
   length += (int._hex.length - 2) / 2
-  console.log(length)
+
   return toHex(length) + toHex(int._hex)
 }
 

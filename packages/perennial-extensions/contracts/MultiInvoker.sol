@@ -146,7 +146,12 @@ contract MultiInvoker is IMultiInvoker, KeeperManager, UKept {
         address account,
         address market,
         uint256 _orderNonce
-    ) internal keep(UFixed18Lib.from(keeperMultiplier), GAS_BUFFER, abi.encode(account, market, _orderNonce)) {
+    ) internal keep (
+        UFixed18Lib.from(keeperMultiplier), 
+        GAS_BUFFER, 
+        abi.encode(market, account, _readOrder(account, market, _orderNonce).maxFee)
+    ) {
+        
         Position memory position = 
             IMarket(market).pendingPositions(
                 account, 
@@ -177,8 +182,10 @@ contract MultiInvoker is IMultiInvoker, KeeperManager, UKept {
     }
 
     function _raiseKeeperFee(UFixed18 keeperFee, bytes memory data) internal override {
-        (address account, address market, uint256 orderNonce) = abi.decode(data, (address, address, uint256));
-        if(keeperFee.gt(UFixed18Lib.from(_readOrder(account, market, orderNonce).maxFee)))
+        
+        // @todo market, account or account, market for consistency?
+        (address market, address account, UFixed6 maxFee) = abi.decode(data, (address, address, UFixed6));
+        if(keeperFee.gt(UFixed18Lib.from(maxFee)))
             revert MultiInvokerMaxFeeExceededError();
 
         IMarket(market).update(

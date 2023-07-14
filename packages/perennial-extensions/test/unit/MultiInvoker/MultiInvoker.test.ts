@@ -232,6 +232,7 @@ describe('MultiInvoker', () => {
       keeper: 0,
       delta: 0,
     }
+
     const fixture = async () => {
       // await loadFixture(multiInvokerFixture)
 

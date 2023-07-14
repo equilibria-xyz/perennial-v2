@@ -58,18 +58,16 @@ contract MultiInvokerRollup is IMultiInvokerRollup, MultiInvoker {
                     bool handleWrap
                 ) = _readPosition(input, ptr);
 
+                
                 _update(market, newMaker, newLong, newShort, collateral, handleWrap);
             } else if (action == PerennialAction.PLACE_ORDER) {
                 address market = _readAndCacheAddress(input, ptr);
-                
+
                 IKeeperManager.Order memory order;
                 (order.isLong, order.isLimit) = _readLongAndLimit(input, ptr);
                 order.maxFee = _readUFixed6(input, ptr);
                 order.execPrice = _readFixed6(input, ptr);
                 order.size = _readUFixed6(input, ptr);
-
-                
-                console.log(order.isLong, order.isLimit);
 
                 _placeOrder(market, order);
             } else if (action == PerennialAction.CANCEL_ORDER) {
@@ -82,7 +80,7 @@ contract MultiInvokerRollup is IMultiInvokerRollup, MultiInvoker {
                 address market = _readAndCacheAddress(input, ptr);
                 uint256 nonce = _readUint256(input, ptr);
 
-                _executeOrder(account, market, nonce);
+                _executeOrderInvoker(account, market, nonce);
             }
         }
     }
@@ -150,6 +148,7 @@ contract MultiInvokerRollup is IMultiInvokerRollup, MultiInvoker {
             newLong = UFixed6Lib.MAX;
             newShort = UFixed6Lib.MAX;
         } else {
+            
             Position memory position = 
                 IMarket(market).pendingPositions(
                     msg.sender, 
@@ -167,12 +166,6 @@ contract MultiInvokerRollup is IMultiInvokerRollup, MultiInvoker {
                 UFixed6Lib.MAX :
                 UFixed6Lib.from(Fixed6Lib.from(position.short).add(shortDelta));
         }
-
-        // console.log("new maker, long, short");
-        // console.logUint(UFixed6.unwrap(newMaker));
-        // console.logUint(UFixed6.unwrap(newLong));
-        // console.logUint(UFixed6.unwrap(newShort));
-        // console.logInt(Fixed6.unwrap(collateral));
     }
 
     /**
@@ -270,27 +263,24 @@ contract MultiInvokerRollup is IMultiInvokerRollup, MultiInvoker {
      * @notice Extracts 2 bools from uint8 values 0(FF), 1(FT), 2(TF), 3(TT)
      * @dev @todo this is actually easier to read than masking
      */
-    function _bytesToLongAndLimit(bytes calldata input, uint256 pos) private view returns (bool isLong, bool isLimit) {
-        bytes32 temp;
+    function _bytesToLongAndLimit(bytes calldata input, uint256 pos) private pure returns (bool isLong, bool isLimit) {
         assembly {
             // 1) load calldata into temp starting at ptr position
-            temp := shr(248, calldataload(add(input.offset, pos)))
+            let temp := shr(248, calldataload(add(input.offset, pos)))
             // 2) get isLong (0010)
             isLong := gt(temp, 0x01)
             // 3) get isLimit (0001)
             isLimit := and(gt(temp, 0x0), gt(mod(temp, 0x02), 0x0))
         }
-
-        console.logBytes32(temp);
     }
 
     /**
-      * @notice Unchecked force of 20 bytes into address
+     * @notice Unchecked force of 20 bytes into address
      * @dev This is called in decodeAccount and decodeProduct which both only pass 20 byte slices
      * @param input The 20 bytes to be converted to address
      * @return result Address representation of `input`
     */
-    function _bytesToAddress(bytes memory input) private pure returns (address result) {
+    function _bytesToAddress(bytes memory input) private pure returns (address result) { // @todo do not memorize input
         assembly {
             result := mload(add(input, ADDRESS_LENGTH))
         }
