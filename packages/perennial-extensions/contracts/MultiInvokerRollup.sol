@@ -30,15 +30,13 @@ contract MultiInvokerRollup is IMultiInvokerRollup, MultiInvoker {
         Token18 dsu_,
         IMarketFactory factory_,
         IBatcher batcher_,
-        IEmptySetReserve reserve_,
-        AggregatorInterface ethOracle_
+        IEmptySetReserve reserve_
     ) MultiInvoker (
         usdc_,
         dsu_,
         factory_,
         batcher_,
-        reserve_,
-        ethOracle_) {} // solhint-disable-line no-empty-blocks
+        reserve_) {} // solhint-disable-line no-empty-blocks
     
     fallback(bytes calldata input) external returns(bytes memory) { // solhint-disable-line payable-fallback
         PTR memory ptr;
@@ -67,7 +65,7 @@ contract MultiInvokerRollup is IMultiInvokerRollup, MultiInvoker {
 
                 IKeeperManager.Order memory order;
                 (order.isLong, order.isLimit) = _readLimitAndLong(input, ptr);
-                order.maxFee = _readFixed6(input, ptr);
+                order.maxFee = _readUFixed6(input, ptr);
                 order.execPrice = _readFixed6(input, ptr);
                 order.size = _readUFixed6(input, ptr);
 
@@ -145,16 +143,28 @@ contract MultiInvokerRollup is IMultiInvokerRollup, MultiInvoker {
         collateral = _readFixed6(input, ptr);
         handleWrap = _readBool(input, ptr);
 
-        Position memory position = 
-            IMarket(market).pendingPositions(
-                msg.sender, 
-                IMarket(market).locals(msg.sender).currentId
-            );
+        if (makerDelta.isZero() && longDelta.isZero() && shortDelta.isZero()) {
+            newMaker = UFixed6Lib.MAX;
+            newLong = UFixed6Lib.MAX;
+            newShort = UFixed6Lib.MAX;
+        } else {
+            Position memory position = 
+                IMarket(market).pendingPositions(
+                    msg.sender, 
+                    IMarket(market).locals(msg.sender).currentId
+                );
 
-        // @todo wrap instead of convert
-        newMaker = UFixed6Lib.from(Fixed6Lib.from(position.maker).add(makerDelta));
-        newLong = UFixed6Lib.from(Fixed6Lib.from(position.long).add(longDelta));
-        newShort = UFixed6Lib.from(Fixed6Lib.from(position.short).add(shortDelta));
+            // @todo wrap instead of convert ?
+            newMaker = makerDelta.isZero() ? 
+                UFixed6Lib.MAX :
+                UFixed6Lib.from(Fixed6Lib.from(position.maker).add(makerDelta));
+            newLong = longDelta.isZero() ? 
+                UFixed6Lib.MAX : 
+                UFixed6Lib.from(Fixed6Lib.from(position.long).add(longDelta));
+            newShort = shortDelta.isZero() ? 
+                UFixed6Lib.MAX :
+                UFixed6Lib.from(Fixed6Lib.from(position.short).add(shortDelta));
+        }
     }
 
     /**
