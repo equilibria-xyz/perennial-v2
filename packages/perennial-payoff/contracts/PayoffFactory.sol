@@ -15,5 +15,6 @@ contract PayoffFactory is IPayoffFactory, Factory {
 
     function register(IPayoffProvider payoff) external onlyOwner {
         payoffs[payoff] = true;
+        emit PayoffRegistered(payoff);
     }
 }
