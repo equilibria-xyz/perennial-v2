@@ -46,7 +46,7 @@ contract KeeperManager is IKeeperManager {
 
         uint256 _orderNonce = ++orderNonce;
        //  ++orderNonce;
-        allOpenOrders[msg.sender][market][orderNonce] = order;
+        allOpenOrders[msg.sender][market][_orderNonce] = order;
 
         ++numOpenOrders[msg.sender][market];
 

@@ -1,6 +1,8 @@
 import { BigNumber, BigNumberish, utils } from 'ethers'
 import { IMultiInvoker, MultiInvoker } from '../../types/generated'
 
+export const MAX_INT = BigNumber.from('115792089237316195423570985008687907853269984665640564039457584007913129639935')
+
 export type OrderStruct = {
   isLong?: boolean
   isLimit?: boolean
@@ -123,6 +125,11 @@ export const buildPlaceOrder = ({
     short = !order.isLong ? order.size : '0'
   }
 
+  if (order.isLimit) {
+    long = '0'
+    short = '0'
+  }
+
   return [
     {
       action: 1,
@@ -193,6 +200,11 @@ export const buildPlaceOrderRollup = ({
     short = !order.isLong ? order.size : '0'
   }
 
+  if (order.isLimit) {
+    long = '0'
+    short = '0'
+  }
+
   return (
     RollupActions.UPDATE_POSITION +
     encodeAddressOrCacheIndex(marketIndex, market) +
@@ -202,7 +214,8 @@ export const buildPlaceOrderRollup = ({
     encodeInt(collateral) +
     encodeBool(handleWrap) +
     RollupActions.PLACE_ORDER +
-    encodeLimitLong(order.isLimit, order.isLong) +
+    encodeAddressOrCacheIndex(marketIndex, market) +
+    encodeLongLimit(order.isLong, order.isLimit) +
     encodeInt(order.maxFee) +
     encodeInt(order.execPrice) +
     encodeUint(order.size)
@@ -316,12 +329,12 @@ export const encodeBool = (bool: boolean | undefined) => {
   return '01'
 }
 
-export const encodeLimitLong = (isLimit: boolean | undefined, isLong: boolean | undefined) => {
+export const encodeLongLimit = (isLong: boolean | undefined, isLimit: boolean | undefined) => {
   if (isLimit && isLong) {
     return '11'
   } else if (!isLimit && !isLong) {
     return '00'
-  } else if (isLimit) {
+  } else if (isLong) {
     return '10'
   }
   return '01'
@@ -332,6 +345,7 @@ function toHex(input: BigNumberish): string {
 }
 
 module.exports = {
+  MAX_INT,
   buildCancelOrder,
   buildExecOrder,
   buildPlaceOrder,

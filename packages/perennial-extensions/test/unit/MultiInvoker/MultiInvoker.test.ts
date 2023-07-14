@@ -16,7 +16,7 @@ import {
   KeeperManager,
   IMarketFactory,
   Market__factory,
-  AggregatorInterface,
+  AggregatorV3Interface,
 } from '../../../types/generated'
 import { loadFixture } from '@nomicfoundation/hardhat-network-helpers'
 import * as helpers from '../../helpers/invoke'
@@ -48,7 +48,7 @@ describe('MultiInvoker', () => {
   let dsu: FakeContract<IERC20>
   let market: FakeContract<IMarket>
   let marketOracle: FakeContract<IOracleProvider>
-  let invokerOracle: FakeContract<AggregatorInterface>
+  let invokerOracle: FakeContract<AggregatorV3Interface>
   let payoff: FakeContract<IPayoffProvider>
   let batcher: FakeContract<IBatcher>
   let reserve: FakeContract<IEmptySetReserve>
@@ -69,7 +69,7 @@ describe('MultiInvoker', () => {
     reward = await smock.fake<IERC20>('IERC20')
     market = await smock.fake<IMarket>('IMarket')
     marketOracle = await smock.fake<IOracleProvider>('IOracleProvider')
-    invokerOracle = await smock.fake<AggregatorInterface>('AggregatorInterface')
+    invokerOracle = await smock.fake<AggregatorV3Interface>('AggregatorV3Interface')
     payoff = await smock.fake<IPayoffProvider>('IPayoffProvider')
     batcher = await smock.fake<IBatcher>('IBatcher')
     reserve = await smock.fake<IEmptySetReserve>('IEmptySetReserve')
@@ -83,7 +83,6 @@ describe('MultiInvoker', () => {
       factory.address,
       batcher.address,
       reserve.address,
-      invokerOracle.address,
     )
 
     // Default mkt price: 1150
@@ -93,12 +92,21 @@ describe('MultiInvoker', () => {
       valid: true,
     }
 
-    invokerOracle.latestAnswer.returns(BigNumber.from(1150e8))
+    const aggRoundData = {
+      roundId: 0,
+      answer: BigNumber.from(1150e8),
+      updatedAt: 0,
+      answeredInRound: 0,
+    }
+
+    invokerOracle.latestRoundData.returns(aggRoundData)
     market.oracle.returns(marketOracle.address)
     marketOracle.latest.returns(oracleVersion)
 
     usdc.transferFrom.whenCalledWith(user.address).returns(true)
     factory.instances.whenCalledWith(market.address).returns(true)
+
+    await multiInvoker.initialize(invokerOracle.address)
   })
 
   describe('#invoke', () => {
@@ -320,7 +328,7 @@ describe('MultiInvoker', () => {
       expect(await multiInvoker.orderNonce()).to.eq(1)
     })
 
-    it('TEST executes a long limit, short limit, long tp/sl, short tp/sl order', async () => {
+    it('executes a long limit, short limit, long tp/sl, short tp/sl order', async () => {
       // long limit: limit = true && mkt price (1150) <= exec price 1200
       defaultOrder.isLimit = true
       defaultOrder.execPrice = BigNumber.from(1200e6)
@@ -341,7 +349,6 @@ describe('MultiInvoker', () => {
       let execOrder = helpers.buildExecOrder({ user: user.address, market: market.address, orderId: 1 })
 
       await multiInvoker.connect(user).invoke(execOrder)
-      console.log('HERE')
       // await expect(multiInvoker.connect(user).invoke(execOrder))
       //   .to.emit(multiInvoker, 'OrderExecuted')
       //   .to.emit(multiInvoker, 'KeeperFeeCharged')

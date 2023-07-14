@@ -10,29 +10,15 @@ import { IInstance } from "@equilibria/root-v2/contracts/IInstance.sol";
 
 import "hardhat/console.sol";
 
-import {
-    IMultiInvoker,
-    IMarket, 
-    Position,
-    Local,
-    UFixed18Lib,
-    UFixed18,
-    UFixed6,
-    UFixed6Lib,
-    Fixed6,
-    Fixed6Lib,
-    Token6,
-    Token18
-} from "./interfaces/IMultiInvoker.sol";
-import {IKeeperManager} from "./interfaces/IKeeperManager.sol";
+import "./interfaces/IMultiInvoker.sol";
 
-import {KeeperManager} from "./KeeperManager.sol";
+import "./KeeperManager.sol";
 import "@equilibria/root-v2/contracts/UKept.sol";
 
 contract MultiInvoker is IMultiInvoker, KeeperManager, UKept {
 
     /// @dev Gas buffer estimating remaining execution gas to include in fee to cover further instructions
-    uint256 constant GAS_BUFFER = 100000; // solhint-disable-line var-name-mixedcase
+    uint256 public constant GAS_BUFFER = 100000; // solhint-disable-line var-name-mixedcase
 
     /// @dev USDC stablecoin address
     Token6 public immutable USDC; // solhint-disable-line var-name-mixedcase
@@ -203,8 +189,6 @@ contract MultiInvoker is IMultiInvoker, KeeperManager, UKept {
             Fixed6Lib.from(Fixed18Lib.from(-1, keeperFee)),
             false);
     }
-
-
 
     /// @notice Helper fn to max approve DSU for usage in a market deployed by the factory
     /// @param market Market to approve

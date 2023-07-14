@@ -45,7 +45,6 @@ contract MultiInvokerRollup is IMultiInvokerRollup, MultiInvoker {
     }
 
     function decodeFallbackAndInvoke(bytes calldata input, PTR memory ptr) internal {
-        console.log("here");
         while (ptr.pos < input.length) {
             PerennialAction action = PerennialAction(_readUint8(input, ptr));
             
@@ -62,12 +61,15 @@ contract MultiInvokerRollup is IMultiInvokerRollup, MultiInvoker {
                 _update(market, newMaker, newLong, newShort, collateral, handleWrap);
             } else if (action == PerennialAction.PLACE_ORDER) {
                 address market = _readAndCacheAddress(input, ptr);
-
+                
                 IKeeperManager.Order memory order;
-                (order.isLong, order.isLimit) = _readLimitAndLong(input, ptr);
+                (order.isLong, order.isLimit) = _readLongAndLimit(input, ptr);
                 order.maxFee = _readUFixed6(input, ptr);
                 order.execPrice = _readFixed6(input, ptr);
                 order.size = _readUFixed6(input, ptr);
+
+                
+                console.log(order.isLong, order.isLimit);
 
                 _placeOrder(market, order);
             } else if (action == PerennialAction.CANCEL_ORDER) {
@@ -165,6 +167,12 @@ contract MultiInvokerRollup is IMultiInvokerRollup, MultiInvoker {
                 UFixed6Lib.MAX :
                 UFixed6Lib.from(Fixed6Lib.from(position.short).add(shortDelta));
         }
+
+        // console.log("new maker, long, short");
+        // console.logUint(UFixed6.unwrap(newMaker));
+        // console.logUint(UFixed6.unwrap(newLong));
+        // console.logUint(UFixed6.unwrap(newShort));
+        // console.logInt(Fixed6.unwrap(collateral));
     }
 
     /**
@@ -192,11 +200,8 @@ contract MultiInvokerRollup is IMultiInvokerRollup, MultiInvoker {
     function _readLengthAndSign(bytes calldata input, PTR memory ptr) private view returns (uint8 length, bool negative) {
         length = _readUint8(input, ptr);
 
-        console.log("decode");
-        console.logUint(length);
         // the next length of bytes will be converted to a uint then int
         // we pack the sign in with the length by adding 32 (0010 0000)
-        // to leave room for a proposterously large encoded int of +/- type(int256).max
         if (length > 31) {
             length -= 32;
             negative = true;
@@ -211,8 +216,8 @@ contract MultiInvokerRollup is IMultiInvokerRollup, MultiInvoker {
         revert ("int must have sign"); // @todo custom error
     }
 
-    function _readLimitAndLong(bytes calldata input, PTR memory ptr) private pure returns (bool isLong, bool isLimit) {
-        (isLong, isLimit) = _bytesToLimitAndLong(input, ptr.pos);
+    function _readLongAndLimit(bytes calldata input, PTR memory ptr) private view returns (bool isLong, bool isLimit) {
+        (isLong, isLimit) = _bytesToLongAndLimit(input, ptr.pos);
         ptr.pos += UINT8_LENGTH;
     }
 
@@ -265,15 +270,18 @@ contract MultiInvokerRollup is IMultiInvokerRollup, MultiInvoker {
      * @notice Extracts 2 bools from uint8 values 0(FF), 1(FT), 2(TF), 3(TT)
      * @dev @todo this is actually easier to read than masking
      */
-    function _bytesToLimitAndLong(bytes calldata input, uint256 pos) private pure returns (bool isLong, bool isLimit) {
+    function _bytesToLongAndLimit(bytes calldata input, uint256 pos) private view returns (bool isLong, bool isLimit) {
+        bytes32 temp;
         assembly {
             // 1) load calldata into temp starting at ptr position
-            let temp := shr(248, calldataload(add(input.offset, pos)))
+            temp := shr(248, calldataload(add(input.offset, pos)))
             // 2) get isLong (0010)
-            isLong := and(temp, 0x02)
-            // 3) get isShort (0001)
-            isLimit := and(temp, 0x01)
+            isLong := gt(temp, 0x01)
+            // 3) get isLimit (0001)
+            isLimit := and(gt(temp, 0x0), gt(mod(temp, 0x02), 0x0))
         }
+
+        console.logBytes32(temp);
     }
 
     /**
