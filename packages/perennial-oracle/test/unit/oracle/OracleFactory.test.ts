@@ -1,6 +1,6 @@
 import { smock, FakeContract } from '@defi-wonderland/smock'
 import { SignerWithAddress } from '@nomiclabs/hardhat-ethers/signers'
-import { expect } from 'chai'
+import { expect, use } from 'chai'
 import HRE from 'hardhat'
 
 import {
@@ -14,8 +14,10 @@ import {
   IFactory,
 } from '../../../types/generated'
 import { constants } from 'ethers'
-
+import { parse6decimal } from '../../../../common/testutil/types'
+import { impersonate } from '../../../../common/testutil'
 const { ethers } = HRE
+use(smock.matchers)
 
 const PYTH_ETH_USD_PRICE_FEED = '0xff61491a931112ddf1bd8147cd1b641375f79f5825126d665480874634fd0ace'
 
@@ -26,6 +28,7 @@ describe('OracleFactory', () => {
   let marketFactory: FakeContract<IFactory>
   let subOracleFactory: FakeContract<IOracleProviderFactory>
   let subOracle: FakeContract<IOracleProvider>
+  let subOracleFactorySigner: SignerWithAddress
 
   let factory: OracleFactory
   let oracleImpl: Oracle
@@ -38,6 +41,10 @@ describe('OracleFactory', () => {
     dsu = await smock.fake<IERC20Metadata>('IERC20Metadata')
     oracleImpl = await new Oracle__factory(owner).deploy()
     factory = await new OracleFactory__factory(owner).deploy(oracleImpl.address)
+    subOracleFactorySigner = await impersonate.impersonateWithBalance(
+      subOracleFactory.address,
+      ethers.utils.parseEther('1000'),
+    )
     await factory.initialize(dsu.address)
   })
 
@@ -134,6 +141,52 @@ describe('OracleFactory', () => {
       await expect(factory.connect(user).authorize(marketFactory.address)).to.be.revertedWithCustomError(
         factory,
         'UOwnableNotOwnerError',
+      )
+    })
+  })
+
+  describe('#updateMaxClaim', async () => {
+    it('updates max claim', async () => {
+      await expect(factory.updateMaxClaim(parse6decimal('11')))
+        .to.emit(factory, 'MaxClaimUpdated')
+        .withArgs(parse6decimal('11'))
+
+      expect(await factory.maxClaim()).to.equal(parse6decimal('11'))
+    })
+
+    it('reverts if not owner', async () => {
+      await expect(factory.connect(user).updateMaxClaim(parse6decimal('11'))).to.be.revertedWithCustomError(
+        factory,
+        'UOwnableNotOwnerError',
+      )
+    })
+  })
+
+  describe('#claim', async () => {
+    beforeEach(async () => {
+      await factory.connect(owner).register(subOracleFactory.address)
+      await factory.updateMaxClaim(parse6decimal('10'))
+    })
+
+    it('claims the assets', async () => {
+      dsu.transfer.whenCalledWith(subOracleFactorySigner.address, parse6decimal('10').mul(1e12)).returns(true)
+
+      await factory.connect(subOracleFactorySigner).claim(parse6decimal('10'))
+
+      expect(dsu.transfer).to.have.been.calledWith(subOracleFactorySigner.address, parse6decimal('10').mul(1e12))
+    })
+
+    it('reverts if above max claim', async () => {
+      await expect(factory.connect(user).claim(parse6decimal('11'))).to.be.revertedWithCustomError(
+        factory,
+        'OracleFactoryClaimTooLargeError',
+      )
+    })
+
+    it('reverts if not instance', async () => {
+      await expect(factory.connect(user).claim(parse6decimal('10'))).to.be.revertedWithCustomError(
+        factory,
+        'OracleFactoryNotRegisteredError',
       )
     })
   })
