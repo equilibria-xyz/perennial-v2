@@ -151,11 +151,15 @@ contract MultiInvoker is IMultiInvoker, KeeperManager, UKept {
         // sync and settle
         market.update(account, UFixed6Lib.MAX, UFixed6Lib.MAX, UFixed6Lib.MAX, Fixed6Lib.ZERO, false);
 
+        UFixed6 liquidationFee = _liquidationFee(market, account);
+
         market.update(
             account, 
             UFixed6Lib.MAX, UFixed6Lib.MAX, UFixed6Lib.MAX, 
-            Fixed6Lib.from(-1, _liquidationFee(market, account)), 
+            Fixed6Lib.from(-1, liquidationFee), 
             true);
+        
+        _withdraw(msg.sender, liquidationFee, false);
     }
 
     /**
