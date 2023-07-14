@@ -8016,7 +8016,7 @@ describe('Market', () => {
                   protocolFee: totalFee.div(2).sub(1), // loss of precision
                   oracleFee: totalFee.div(2).div(10).sub(1), // loss of precision
                   riskFee: totalFee.div(2).div(10).sub(1), // loss of precision
-                  donation: totalFee.div(2).mul(8).div(10).add(1), // loss of precision
+                  donation: totalFee.div(2).mul(8).div(10).add(4), // loss of precision
                 })
                 expectPositionEq(await market.position(), {
                   id: 4,
