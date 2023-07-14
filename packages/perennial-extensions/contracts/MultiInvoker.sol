@@ -203,8 +203,8 @@ contract MultiInvoker is IMultiInvoker, KeeperManager, UKept {
     }
 
     function _raiseKeeperFee(UFixed18 keeperFee, bytes memory data) internal override {
-        (address account, address market, uint256 orderNonce) = abi.decode(data, (address, address, uint256));
-        if(keeperFee.gt(UFixed18Lib.from(_readOrder(account, market, orderNonce).maxFee)))
+        (address account, address market, uint256 orderNonce_) = abi.decode(data, (address, address, uint256));
+        if(keeperFee.gt(UFixed18Lib.from(_readOrder(account, market, orderNonce_).maxFee)))
             revert MultiInvokerMaxFeeExceededError();
 
         IMarket(market).update(
