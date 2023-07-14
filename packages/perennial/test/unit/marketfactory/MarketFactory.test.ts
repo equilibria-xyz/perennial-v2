@@ -354,5 +354,21 @@ describe('MarketFactory', () => {
     })
   })
 
-  //TODO (coveragehint): operator
+  describe('#updateOperator', async () => {
+    it('updates the operator status', async () => {
+      await expect(factory.connect(user).updateOperator(owner.address, true))
+        .to.emit(factory, 'OperatorUpdated')
+        .withArgs(user.address, owner.address, true)
+
+      expect(await factory.operators(user.address, owner.address)).to.equal(true)
+
+      await expect(factory.connect(user).updateOperator(owner.address, false))
+        .to.emit(factory, 'OperatorUpdated')
+        .withArgs(user.address, owner.address, false)
+
+      expect(await factory.operators(user.address, owner.address)).to.equal(false)
+    })
+  })
+
+  //TODO (coveragehint): fund
 })
