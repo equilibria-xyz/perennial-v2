@@ -106,17 +106,15 @@ contract Market is IMarket, Instance {
         if (newParameter.fundingFee.gt(protocolParameter.maxCut)) revert MarketInvalidMarketParameterError(1);
         if (newParameter.interestFee.gt(protocolParameter.maxCut)) revert MarketInvalidMarketParameterError(2);
         if (newParameter.positionFee.gt(protocolParameter.maxCut)) revert MarketInvalidMarketParameterError(3);
-        if (newParameter.riskFee.gt(UFixed6Lib.ONE)) revert MarketInvalidMarketParameterError(4);
-        if (newParameter.oracleFee.gt(UFixed6Lib.ONE)) revert MarketInvalidMarketParameterError(5);
         if (newParameter.settlementFee.gt(protocolParameter.maxFeeAbsolute))
-            revert MarketInvalidMarketParameterError(6);
+            revert MarketInvalidMarketParameterError(4);
         if (newParameter.oracleFee.add(newParameter.riskFee).gt(UFixed6Lib.ONE))
-            revert MarketInvalidMarketParameterError(7);
+            revert MarketInvalidMarketParameterError(5);
         if (reward.isZero() && (
                 !newParameter.makerRewardRate.isZero() ||
                 !newParameter.longRewardRate.isZero() ||
                 !newParameter.shortRewardRate.isZero()
-        )) revert MarketInvalidMarketParameterError(8);
+        )) revert MarketInvalidMarketParameterError(6);
 
         _parameter.store(newParameter);
         emit ParameterUpdated(newParameter);

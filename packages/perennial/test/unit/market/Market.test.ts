@@ -9,7 +9,6 @@ import HRE from 'hardhat'
 //TODO (coverage hint): makerReceiveOnly coverage
 //TODO (coverage hint): makerCloseAlways / takerCloseAlways coverage
 //TODO (coverage hint): settlementFee coverage
-//TODO (coverage hint): parameter invariants
 
 import { impersonate } from '../../../../common/testutil'
 
@@ -478,41 +477,189 @@ describe('Market', () => {
     })
 
     describe('#updateParameter', async () => {
-      it('updates the parameters', async () => {
-        const newMarketParameter = {
-          fundingFee: parse6decimal('0.03'),
-          interestFee: parse6decimal('0.02'),
-          positionFee: parse6decimal('0.01'),
-          oracleFee: parse6decimal('0.04'),
-          riskFee: parse6decimal('0.05'),
-          settlementFee: parse6decimal('0.09'),
-          makerRewardRate: parse6decimal('0.06'),
-          longRewardRate: parse6decimal('0.07'),
-          shortRewardRate: parse6decimal('0.08'),
-          makerCloseAlways: true,
-          takerCloseAlways: true,
-          closed: true,
-        }
+      const defaultMarketParameter = {
+        fundingFee: parse6decimal('0.03'),
+        interestFee: parse6decimal('0.02'),
+        positionFee: parse6decimal('0.01'),
+        oracleFee: parse6decimal('0.04'),
+        riskFee: parse6decimal('0.05'),
+        settlementFee: parse6decimal('0.09'),
+        makerRewardRate: parse6decimal('0.06'),
+        longRewardRate: parse6decimal('0.07'),
+        shortRewardRate: parse6decimal('0.08'),
+        makerCloseAlways: true,
+        takerCloseAlways: true,
+        closed: true,
+      }
 
-        await expect(market.connect(owner).updateParameter(newMarketParameter))
+      it('updates the parameters', async () => {
+        await expect(market.connect(owner).updateParameter(defaultMarketParameter))
           .to.emit(market, 'ParameterUpdated')
-          .withArgs(newMarketParameter)
+          .withArgs(defaultMarketParameter)
 
         const marketParameter = await market.parameter()
-        expect(marketParameter.fundingFee).to.equal(newMarketParameter.fundingFee)
-        expect(marketParameter.interestFee).to.equal(newMarketParameter.interestFee)
-        expect(marketParameter.positionFee).to.equal(newMarketParameter.positionFee)
-        expect(marketParameter.oracleFee).to.equal(newMarketParameter.oracleFee)
-        expect(marketParameter.riskFee).to.equal(newMarketParameter.riskFee)
-        expect(marketParameter.settlementFee).to.equal(newMarketParameter.settlementFee)
-        expect(marketParameter.makerRewardRate).to.equal(newMarketParameter.makerRewardRate)
-        expect(marketParameter.longRewardRate).to.equal(newMarketParameter.longRewardRate)
-        expect(marketParameter.shortRewardRate).to.equal(newMarketParameter.shortRewardRate)
-        expect(marketParameter.closed).to.equal(newMarketParameter.closed)
+        expect(marketParameter.fundingFee).to.equal(defaultMarketParameter.fundingFee)
+        expect(marketParameter.interestFee).to.equal(defaultMarketParameter.interestFee)
+        expect(marketParameter.positionFee).to.equal(defaultMarketParameter.positionFee)
+        expect(marketParameter.oracleFee).to.equal(defaultMarketParameter.oracleFee)
+        expect(marketParameter.riskFee).to.equal(defaultMarketParameter.riskFee)
+        expect(marketParameter.settlementFee).to.equal(defaultMarketParameter.settlementFee)
+        expect(marketParameter.makerRewardRate).to.equal(defaultMarketParameter.makerRewardRate)
+        expect(marketParameter.longRewardRate).to.equal(defaultMarketParameter.longRewardRate)
+        expect(marketParameter.shortRewardRate).to.equal(defaultMarketParameter.shortRewardRate)
+        expect(marketParameter.closed).to.equal(defaultMarketParameter.closed)
       })
 
-      it('reverts if not owner', async () => {
+      context('updates the absolute fee parameters', async () => {
+        it('updates the parameters (success)', async () => {
+          const protocolParameter = await factory.parameter()
+          const newMarketParameter = {
+            ...defaultMarketParameter,
+            settlementFee: protocolParameter.maxFeeAbsolute,
+          }
+          await expect(market.connect(owner).updateParameter(newMarketParameter)).to.emit(market, 'ParameterUpdated')
+        })
+
+        it('settlementFee -> fail', async () => {
+          const protocolParameter = await factory.parameter()
+          const newMarketParameter = {
+            ...defaultMarketParameter,
+            settlementFee: protocolParameter.maxFeeAbsolute.add(1),
+          }
+          await expect(market.connect(owner).updateParameter(newMarketParameter))
+            .to.revertedWithCustomError(market, 'MarketInvalidMarketParameterError')
+            .withArgs(4)
+        })
+      })
+
+      context('updates the cut parameters', async () => {
+        it('updates the parameters (success)', async () => {
+          const protocolParameter = await factory.parameter()
+          const newMarketParameter = {
+            ...defaultMarketParameter,
+            fundingFee: protocolParameter.maxCut,
+            interestFee: protocolParameter.maxCut,
+            positionFee: protocolParameter.maxCut,
+          }
+          await expect(market.connect(owner).updateParameter(newMarketParameter)).to.emit(market, 'ParameterUpdated')
+        })
+
+        it('fundingFee -> fail', async () => {
+          const protocolParameter = await factory.parameter()
+          const newMarketParameter = {
+            ...defaultMarketParameter,
+            fundingFee: protocolParameter.maxCut.add(1),
+          }
+          await expect(market.connect(owner).updateParameter(newMarketParameter))
+            .to.revertedWithCustomError(market, 'MarketInvalidMarketParameterError')
+            .withArgs(1)
+        })
+
+        it('interestFee -> fail', async () => {
+          const protocolParameter = await factory.parameter()
+          const newMarketParameter = {
+            ...defaultMarketParameter,
+            interestFee: protocolParameter.maxCut.add(1),
+          }
+          await expect(market.connect(owner).updateParameter(newMarketParameter))
+            .to.revertedWithCustomError(market, 'MarketInvalidMarketParameterError')
+            .withArgs(2)
+        })
+
+        it('positionFee -> fail', async () => {
+          const protocolParameter = await factory.parameter()
+          const newMarketParameter = {
+            ...defaultMarketParameter,
+            positionFee: protocolParameter.maxCut.add(1),
+          }
+          await expect(market.connect(owner).updateParameter(newMarketParameter))
+            .to.revertedWithCustomError(market, 'MarketInvalidMarketParameterError')
+            .withArgs(3)
+        })
+      })
+
+      context('updates the oracleFee / riskFee parameters', async () => {
+        it('updates the parameters (success)', async () => {
+          const newMarketParameter = {
+            ...defaultMarketParameter,
+            oracleFee: parse6decimal('0.5'),
+            riskFee: parse6decimal('0.5'),
+          }
+          await expect(market.connect(owner).updateParameter(newMarketParameter)).to.emit(market, 'ParameterUpdated')
+        })
+
+        it('oracleFee / riskFee -> fail', async () => {
+          const newMarketParameter = {
+            ...defaultMarketParameter,
+            oracleFee: parse6decimal('0.5'),
+            riskFee: parse6decimal('0.5').add(1),
+          }
+          await expect(market.connect(owner).updateParameter(newMarketParameter))
+            .to.revertedWithCustomError(market, 'MarketInvalidMarketParameterError')
+            .withArgs(5)
+        })
+      })
+
+      it('updates the reward parameters', async () => {
+        it('updates the parameters (success)', async () => {
+          await market.updateReward(reward.address)
+
+          const newMarketParameter = {
+            ...defaultMarketParameter,
+            makerRewardRate: parse6decimal('0.1'),
+            longRewardRate: parse6decimal('0.2'),
+            shortRewardRate: parse6decimal('0.3'),
+          }
+          await expect(market.connect(owner).updateParameter(newMarketParameter)).to.emit(market, 'ParameterUpdated')
+        })
+
+        it('makerRewardRate -> fail', async () => {
+          const newMarketParameter = {
+            ...defaultMarketParameter,
+            makerRewardRate: parse6decimal('0.1'),
+            longRewardRate: parse6decimal('0.0'),
+            shortRewardRate: parse6decimal('0.0'),
+          }
+          await expect(market.connect(owner).updateParameter(newMarketParameter))
+            .to.revertedWithCustomError(market, 'MarketInvalidMarketParameterError')
+            .withArgs(6)
+        })
+
+        it('longRewardRate -> fail', async () => {
+          const newMarketParameter = {
+            ...defaultMarketParameter,
+            makerRewardRate: parse6decimal('0.0'),
+            longRewardRate: parse6decimal('0.2'),
+            shortRewardRate: parse6decimal('0.0'),
+          }
+          await expect(market.connect(owner).updateParameter(newMarketParameter))
+            .to.revertedWithCustomError(market, 'MarketInvalidMarketParameterError')
+            .withArgs(6)
+        })
+
+        it('shortRewardRate -> fail', async () => {
+          const newMarketParameter = {
+            ...defaultMarketParameter,
+            makerRewardRate: parse6decimal('0.0'),
+            longRewardRate: parse6decimal('0.0'),
+            shortRewardRate: parse6decimal('0.3'),
+          }
+          await expect(market.connect(owner).updateParameter(newMarketParameter))
+            .to.revertedWithCustomError(market, 'MarketInvalidMarketParameterError')
+            .withArgs(6)
+        })
+      })
+
+      it('reverts if not owner (user)', async () => {
         await expect(market.connect(user).updateParameter(marketParameter)).to.be.revertedWithCustomError(
+          market,
+          'InstanceNotOwnerError',
+        )
+      })
+
+      it('reverts if not owner (coordinator)', async () => {
+        await market.connect(owner).updateCoordinator(coordinator.address)
+        await expect(market.connect(coordinator).updateParameter(marketParameter)).to.be.revertedWithCustomError(
           market,
           'InstanceNotOwnerError',
         )
@@ -520,65 +667,437 @@ describe('Market', () => {
     })
 
     describe('#updateRiskParameter', async () => {
-      it('updates the parameters', async () => {
-        const newRiskParameter = {
-          maintenance: parse6decimal('0.4'),
-          takerFee: parse6decimal('0.01'),
-          takerSkewFee: parse6decimal('0.004'),
-          takerImpactFee: parse6decimal('0.003'),
-          makerFee: parse6decimal('0.005'),
-          makerImpactFee: parse6decimal('0.001'),
-          makerLimit: parse6decimal('2000'),
-          efficiencyLimit: parse6decimal('0.2'),
-          liquidationFee: parse6decimal('0.25'),
-          minLiquidationFee: parse6decimal('10'),
-          maxLiquidationFee: parse6decimal('200'),
-          utilizationCurve: {
-            minRate: parse6decimal('0.20'),
-            maxRate: parse6decimal('0.20'),
-            targetRate: parse6decimal('0.20'),
-            targetUtilization: parse6decimal('0.75'),
-          },
-          pController: {
-            k: parse6decimal('40000'),
-            max: parse6decimal('1.20'),
-          },
-          minMaintenance: parse6decimal('50'),
-          staleAfter: 9600,
-          makerReceiveOnly: true,
-        }
+      const defaultRiskParameter = {
+        maintenance: parse6decimal('0.4'),
+        takerFee: parse6decimal('0.01'),
+        takerSkewFee: parse6decimal('0.004'),
+        takerImpactFee: parse6decimal('0.003'),
+        makerFee: parse6decimal('0.005'),
+        makerImpactFee: parse6decimal('0.001'),
+        makerLimit: parse6decimal('2000'),
+        efficiencyLimit: parse6decimal('0.2'),
+        liquidationFee: parse6decimal('0.25'),
+        minLiquidationFee: parse6decimal('10'),
+        maxLiquidationFee: parse6decimal('200'),
+        utilizationCurve: {
+          minRate: parse6decimal('0.20'),
+          maxRate: parse6decimal('0.20'),
+          targetRate: parse6decimal('0.20'),
+          targetUtilization: parse6decimal('0.75'),
+        },
+        pController: {
+          k: parse6decimal('40000'),
+          max: parse6decimal('1.20'),
+        },
+        minMaintenance: parse6decimal('50'),
+        staleAfter: 9600,
+        makerReceiveOnly: true,
+      }
 
-        await expect(market.connect(owner).updateRiskParameter(newRiskParameter)).to.emit(
+      it('updates the parameters (owner)', async () => {
+        await expect(market.connect(owner).updateRiskParameter(defaultRiskParameter)).to.emit(
           market,
           'RiskParameterUpdated',
         )
 
         const riskParameter = await market.riskParameter()
-        expect(riskParameter.maintenance).to.equal(newRiskParameter.maintenance)
-        expect(riskParameter.takerFee).to.equal(newRiskParameter.takerFee)
-        expect(riskParameter.takerSkewFee).to.equal(newRiskParameter.takerSkewFee)
-        expect(riskParameter.takerImpactFee).to.equal(newRiskParameter.takerImpactFee)
-        expect(riskParameter.makerFee).to.equal(newRiskParameter.makerFee)
-        expect(riskParameter.makerImpactFee).to.equal(newRiskParameter.makerImpactFee)
-        expect(riskParameter.makerLimit).to.equal(newRiskParameter.makerLimit)
-        expect(riskParameter.efficiencyLimit).to.equal(newRiskParameter.efficiencyLimit)
-        expect(riskParameter.liquidationFee).to.equal(newRiskParameter.liquidationFee)
-        expect(riskParameter.minLiquidationFee).to.equal(newRiskParameter.minLiquidationFee)
-        expect(riskParameter.maxLiquidationFee).to.equal(newRiskParameter.maxLiquidationFee)
-        expect(riskParameter.utilizationCurve.minRate).to.equal(newRiskParameter.utilizationCurve.minRate)
-        expect(riskParameter.utilizationCurve.targetRate).to.equal(newRiskParameter.utilizationCurve.targetRate)
-        expect(riskParameter.utilizationCurve.maxRate).to.equal(newRiskParameter.utilizationCurve.maxRate)
+        expect(riskParameter.maintenance).to.equal(defaultRiskParameter.maintenance)
+        expect(riskParameter.takerFee).to.equal(defaultRiskParameter.takerFee)
+        expect(riskParameter.takerSkewFee).to.equal(defaultRiskParameter.takerSkewFee)
+        expect(riskParameter.takerImpactFee).to.equal(defaultRiskParameter.takerImpactFee)
+        expect(riskParameter.makerFee).to.equal(defaultRiskParameter.makerFee)
+        expect(riskParameter.makerImpactFee).to.equal(defaultRiskParameter.makerImpactFee)
+        expect(riskParameter.makerLimit).to.equal(defaultRiskParameter.makerLimit)
+        expect(riskParameter.efficiencyLimit).to.equal(defaultRiskParameter.efficiencyLimit)
+        expect(riskParameter.liquidationFee).to.equal(defaultRiskParameter.liquidationFee)
+        expect(riskParameter.minLiquidationFee).to.equal(defaultRiskParameter.minLiquidationFee)
+        expect(riskParameter.maxLiquidationFee).to.equal(defaultRiskParameter.maxLiquidationFee)
+        expect(riskParameter.utilizationCurve.minRate).to.equal(defaultRiskParameter.utilizationCurve.minRate)
+        expect(riskParameter.utilizationCurve.targetRate).to.equal(defaultRiskParameter.utilizationCurve.targetRate)
+        expect(riskParameter.utilizationCurve.maxRate).to.equal(defaultRiskParameter.utilizationCurve.maxRate)
         expect(riskParameter.utilizationCurve.targetUtilization).to.equal(
-          newRiskParameter.utilizationCurve.targetUtilization,
+          defaultRiskParameter.utilizationCurve.targetUtilization,
         )
-        expect(riskParameter.pController.k).to.equal(newRiskParameter.pController.k)
-        expect(riskParameter.pController.max).to.equal(newRiskParameter.pController.max)
-        expect(riskParameter.minMaintenance).to.equal(newRiskParameter.minMaintenance)
-        expect(riskParameter.staleAfter).to.equal(newRiskParameter.staleAfter)
-        expect(riskParameter.makerReceiveOnly).to.equal(newRiskParameter.makerReceiveOnly)
+        expect(riskParameter.pController.k).to.equal(defaultRiskParameter.pController.k)
+        expect(riskParameter.pController.max).to.equal(defaultRiskParameter.pController.max)
+        expect(riskParameter.minMaintenance).to.equal(defaultRiskParameter.minMaintenance)
+        expect(riskParameter.staleAfter).to.equal(defaultRiskParameter.staleAfter)
+        expect(riskParameter.makerReceiveOnly).to.equal(defaultRiskParameter.makerReceiveOnly)
       })
 
-      it('reverts if not owner', async () => {
+      it('updates the parameters (coordinator)', async () => {
+        await market.connect(owner).updateCoordinator(coordinator.address)
+        await expect(market.connect(coordinator).updateRiskParameter(defaultRiskParameter)).to.emit(
+          market,
+          'RiskParameterUpdated',
+        )
+
+        const riskParameter = await market.riskParameter()
+        expect(riskParameter.maintenance).to.equal(defaultRiskParameter.maintenance)
+        expect(riskParameter.takerFee).to.equal(defaultRiskParameter.takerFee)
+        expect(riskParameter.takerSkewFee).to.equal(defaultRiskParameter.takerSkewFee)
+        expect(riskParameter.takerImpactFee).to.equal(defaultRiskParameter.takerImpactFee)
+        expect(riskParameter.makerFee).to.equal(defaultRiskParameter.makerFee)
+        expect(riskParameter.makerImpactFee).to.equal(defaultRiskParameter.makerImpactFee)
+        expect(riskParameter.makerLimit).to.equal(defaultRiskParameter.makerLimit)
+        expect(riskParameter.efficiencyLimit).to.equal(defaultRiskParameter.efficiencyLimit)
+        expect(riskParameter.liquidationFee).to.equal(defaultRiskParameter.liquidationFee)
+        expect(riskParameter.minLiquidationFee).to.equal(defaultRiskParameter.minLiquidationFee)
+        expect(riskParameter.maxLiquidationFee).to.equal(defaultRiskParameter.maxLiquidationFee)
+        expect(riskParameter.utilizationCurve.minRate).to.equal(defaultRiskParameter.utilizationCurve.minRate)
+        expect(riskParameter.utilizationCurve.targetRate).to.equal(defaultRiskParameter.utilizationCurve.targetRate)
+        expect(riskParameter.utilizationCurve.maxRate).to.equal(defaultRiskParameter.utilizationCurve.maxRate)
+        expect(riskParameter.utilizationCurve.targetUtilization).to.equal(
+          defaultRiskParameter.utilizationCurve.targetUtilization,
+        )
+        expect(riskParameter.pController.k).to.equal(defaultRiskParameter.pController.k)
+        expect(riskParameter.pController.max).to.equal(defaultRiskParameter.pController.max)
+        expect(riskParameter.minMaintenance).to.equal(defaultRiskParameter.minMaintenance)
+        expect(riskParameter.staleAfter).to.equal(defaultRiskParameter.staleAfter)
+        expect(riskParameter.makerReceiveOnly).to.equal(defaultRiskParameter.makerReceiveOnly)
+      })
+
+      context('updates the fee parameters', async () => {
+        it('updates the parameters (success)', async () => {
+          const protocolParameter = await factory.parameter()
+          const newRiskParameter = {
+            ...defaultRiskParameter,
+            takerFee: protocolParameter.maxFee,
+            takerSkewFee: protocolParameter.maxFee,
+            takerImpactFee: protocolParameter.maxFee,
+            makerFee: protocolParameter.maxFee,
+            makerImpactFee: protocolParameter.maxFee,
+          }
+          await expect(market.connect(owner).updateRiskParameter(newRiskParameter)).to.emit(
+            market,
+            'RiskParameterUpdated',
+          )
+        })
+
+        it('takerFee -> fail', async () => {
+          const protocolParameter = await factory.parameter()
+          const newRiskParameter = {
+            ...defaultRiskParameter,
+            takerFee: protocolParameter.maxFee.add(1),
+          }
+          await expect(market.connect(owner).updateRiskParameter(newRiskParameter))
+            .to.revertedWithCustomError(market, 'MarketInvalidRiskParameterError')
+            .withArgs(2)
+        })
+
+        it('takerSkewFee -> fail', async () => {
+          const protocolParameter = await factory.parameter()
+          const newRiskParameter = {
+            ...defaultRiskParameter,
+            takerSkewFee: protocolParameter.maxFee.add(1),
+          }
+          await expect(market.connect(owner).updateRiskParameter(newRiskParameter))
+            .to.revertedWithCustomError(market, 'MarketInvalidRiskParameterError')
+            .withArgs(3)
+        })
+
+        it('takerImpactFee -> fail', async () => {
+          const protocolParameter = await factory.parameter()
+          const newRiskParameter = {
+            ...defaultRiskParameter,
+            takerImpactFee: protocolParameter.maxFee.add(1),
+          }
+          await expect(market.connect(owner).updateRiskParameter(newRiskParameter))
+            .to.revertedWithCustomError(market, 'MarketInvalidRiskParameterError')
+            .withArgs(4)
+        })
+
+        it('makerFee -> fail', async () => {
+          const protocolParameter = await factory.parameter()
+          const newRiskParameter = {
+            ...defaultRiskParameter,
+            makerFee: protocolParameter.maxFee.add(1),
+          }
+          await expect(market.connect(owner).updateRiskParameter(newRiskParameter))
+            .to.revertedWithCustomError(market, 'MarketInvalidRiskParameterError')
+            .withArgs(5)
+        })
+
+        it('makerImpactFee -> fail', async () => {
+          const protocolParameter = await factory.parameter()
+          const newRiskParameter = {
+            ...defaultRiskParameter,
+            makerImpactFee: protocolParameter.maxFee.add(1),
+          }
+          await expect(market.connect(owner).updateRiskParameter(newRiskParameter))
+            .to.revertedWithCustomError(market, 'MarketInvalidRiskParameterError')
+            .withArgs(6)
+        })
+      })
+
+      context('updates the absolute fee parameters', async () => {
+        it('updates the parameters (success)', async () => {
+          const protocolParameter = await factory.parameter()
+          const newRiskParameter = {
+            ...defaultRiskParameter,
+            minLiquidationFee: protocolParameter.maxFeeAbsolute,
+            maxLiquidationFee: protocolParameter.maxFeeAbsolute,
+            minMaintenance: protocolParameter.maxFeeAbsolute,
+          }
+          await expect(market.connect(owner).updateRiskParameter(newRiskParameter)).to.emit(
+            market,
+            'RiskParameterUpdated',
+          )
+        })
+
+        it('minLiquidationFee -> fail', async () => {
+          const protocolParameter = await factory.parameter()
+          const newRiskParameter = {
+            ...defaultRiskParameter,
+            minLiquidationFee: protocolParameter.maxFeeAbsolute.add(1),
+          }
+          await expect(market.connect(owner).updateRiskParameter(newRiskParameter))
+            .to.revertedWithCustomError(market, 'MarketInvalidRiskParameterError')
+            .withArgs(9)
+        })
+
+        it('maxLiquidationFee -> fail', async () => {
+          const protocolParameter = await factory.parameter()
+          const newRiskParameter = {
+            ...defaultRiskParameter,
+            maxLiquidationFee: protocolParameter.maxFeeAbsolute.add(1),
+          }
+          await expect(market.connect(owner).updateRiskParameter(newRiskParameter))
+            .to.revertedWithCustomError(market, 'MarketInvalidRiskParameterError')
+            .withArgs(10)
+        })
+
+        it('minMaintenance -> fail', async () => {
+          const protocolParameter = await factory.parameter()
+          const newRiskParameter = {
+            ...defaultRiskParameter,
+            minMaintenance: protocolParameter.maxFeeAbsolute.add(1),
+          }
+          await expect(market.connect(owner).updateRiskParameter(newRiskParameter))
+            .to.revertedWithCustomError(market, 'MarketInvalidRiskParameterError')
+            .withArgs(16)
+        })
+      })
+
+      context('updates the cut parameters', async () => {
+        it('updates the parameters (success)', async () => {
+          const protocolParameter = await factory.parameter()
+          const newRiskParameter = {
+            ...defaultRiskParameter,
+            liquidationFee: protocolParameter.maxCut,
+          }
+          await expect(market.connect(owner).updateRiskParameter(newRiskParameter)).to.emit(
+            market,
+            'RiskParameterUpdated',
+          )
+        })
+
+        it('liquidationFee -> fail', async () => {
+          const protocolParameter = await factory.parameter()
+          const newRiskParameter = {
+            ...defaultRiskParameter,
+            liquidationFee: protocolParameter.maxCut.add(1),
+          }
+          await expect(market.connect(owner).updateRiskParameter(newRiskParameter))
+            .to.revertedWithCustomError(market, 'MarketInvalidRiskParameterError')
+            .withArgs(8)
+        })
+      })
+
+      context('updates the rate parameters', async () => {
+        it('updates the parameters (success)', async () => {
+          const protocolParameter = await factory.parameter()
+          const newRiskParameter = {
+            ...defaultRiskParameter,
+            utilizationCurve: {
+              ...defaultRiskParameter.utilizationCurve,
+              minRate: protocolParameter.maxRate,
+              maxRate: protocolParameter.maxRate,
+              targetRate: protocolParameter.maxRate,
+            },
+            pController: {
+              ...defaultRiskParameter.pController,
+              max: protocolParameter.maxRate,
+            },
+          }
+          await expect(market.connect(owner).updateRiskParameter(newRiskParameter)).to.emit(
+            market,
+            'RiskParameterUpdated',
+          )
+        })
+
+        it('utilizationCurve.minRate -> fail', async () => {
+          const protocolParameter = await factory.parameter()
+          const newRiskParameter = {
+            ...defaultRiskParameter,
+            utilizationCurve: {
+              ...defaultRiskParameter.utilizationCurve,
+              minRate: protocolParameter.maxRate.add(1),
+            },
+          }
+          await expect(market.connect(owner).updateRiskParameter(newRiskParameter))
+            .to.revertedWithCustomError(market, 'MarketInvalidRiskParameterError')
+            .withArgs(11)
+        })
+
+        it('utilizationCurve.maxRate -> fail', async () => {
+          const protocolParameter = await factory.parameter()
+          const newRiskParameter = {
+            ...defaultRiskParameter,
+            utilizationCurve: {
+              ...defaultRiskParameter.utilizationCurve,
+              maxRate: protocolParameter.maxRate.add(1),
+            },
+          }
+          await expect(market.connect(owner).updateRiskParameter(newRiskParameter))
+            .to.revertedWithCustomError(market, 'MarketInvalidRiskParameterError')
+            .withArgs(12)
+        })
+
+        it('utilizationCurve.targetRate -> fail', async () => {
+          const protocolParameter = await factory.parameter()
+          const newRiskParameter = {
+            ...defaultRiskParameter,
+            utilizationCurve: {
+              ...defaultRiskParameter.utilizationCurve,
+              targetRate: protocolParameter.maxRate.add(1),
+            },
+          }
+          await expect(market.connect(owner).updateRiskParameter(newRiskParameter))
+            .to.revertedWithCustomError(market, 'MarketInvalidRiskParameterError')
+            .withArgs(13)
+        })
+
+        it('pController.max -> fail', async () => {
+          const protocolParameter = await factory.parameter()
+          const newRiskParameter = {
+            ...defaultRiskParameter,
+            pController: {
+              ...defaultRiskParameter.pController,
+              max: protocolParameter.maxRate.add(1),
+            },
+          }
+          await expect(market.connect(owner).updateRiskParameter(newRiskParameter))
+            .to.revertedWithCustomError(market, 'MarketInvalidRiskParameterError')
+            .withArgs(15)
+        })
+      })
+
+      context('updates the maintenance parameters', async () => {
+        it('updates the parameters (success)', async () => {
+          const protocolParameter = await factory.parameter()
+          const newRiskParameter = {
+            ...defaultRiskParameter,
+            maintenance: protocolParameter.minMaintenance,
+          }
+          await expect(market.connect(owner).updateRiskParameter(newRiskParameter)).to.emit(
+            market,
+            'RiskParameterUpdated',
+          )
+        })
+
+        it('maintenance -> fail', async () => {
+          const protocolParameter = await factory.parameter()
+          const newRiskParameter = {
+            ...defaultRiskParameter,
+            maintenance: protocolParameter.minMaintenance.sub(1),
+          }
+          await expect(market.connect(owner).updateRiskParameter(newRiskParameter))
+            .to.revertedWithCustomError(market, 'MarketInvalidRiskParameterError')
+            .withArgs(1)
+        })
+      })
+
+      context('updates the efficiency parameters', async () => {
+        it('updates the parameters (success)', async () => {
+          const protocolParameter = await factory.parameter()
+          const newRiskParameter = {
+            ...defaultRiskParameter,
+            efficiencyLimit: protocolParameter.minEfficiency,
+          }
+          await expect(market.connect(owner).updateRiskParameter(newRiskParameter)).to.emit(
+            market,
+            'RiskParameterUpdated',
+          )
+        })
+
+        it('efficiencyLimit -> fail', async () => {
+          const protocolParameter = await factory.parameter()
+          const newRiskParameter = {
+            ...defaultRiskParameter,
+            efficiencyLimit: protocolParameter.minEfficiency.sub(1),
+          }
+          await expect(market.connect(owner).updateRiskParameter(newRiskParameter))
+            .to.revertedWithCustomError(market, 'MarketInvalidRiskParameterError')
+            .withArgs(7)
+        })
+      })
+
+      context('updates the unit parameters', async () => {
+        it('updates the parameters (success)', async () => {
+          const newRiskParameter = {
+            ...defaultRiskParameter,
+            utilizationCurve: {
+              ...defaultRiskParameter.utilizationCurve,
+              targetUtilization: parse6decimal('1'),
+            },
+          }
+          await expect(market.connect(owner).updateRiskParameter(newRiskParameter)).to.emit(
+            market,
+            'RiskParameterUpdated',
+          )
+        })
+
+        it('utilizationCurve.targetUtilization -> fail', async () => {
+          const newRiskParameter = {
+            ...defaultRiskParameter,
+            utilizationCurve: {
+              ...defaultRiskParameter.utilizationCurve,
+              targetUtilization: parse6decimal('1').add(1),
+            },
+          }
+          await expect(market.connect(owner).updateRiskParameter(newRiskParameter))
+            .to.revertedWithCustomError(market, 'MarketInvalidRiskParameterError')
+            .withArgs(14)
+        })
+      })
+
+      context('updates the minMaintenance / minLiquidationFee parameters', async () => {
+        it('updates the parameters (success)', async () => {
+          const newRiskParameter = {
+            ...defaultRiskParameter,
+            minMaintenance: parse6decimal('100'),
+            minLiquidationFee: parse6decimal('100'),
+          }
+          await expect(market.connect(owner).updateRiskParameter(newRiskParameter)).to.emit(
+            market,
+            'RiskParameterUpdated',
+          )
+
+          const newRiskParameter2 = {
+            ...defaultRiskParameter,
+            minMaintenance: parse6decimal('101'),
+            minLiquidationFee: parse6decimal('100'),
+          }
+          await expect(market.connect(owner).updateRiskParameter(newRiskParameter2)).to.emit(
+            market,
+            'RiskParameterUpdated',
+          )
+        })
+
+        it('minMaintenance / minLiquidationFee -> fail', async () => {
+          const newRiskParameter = {
+            ...defaultRiskParameter,
+            minMaintenance: parse6decimal('99'),
+            minLiquidationFee: parse6decimal('100'),
+          }
+          await expect(market.connect(owner).updateRiskParameter(newRiskParameter))
+            .to.revertedWithCustomError(market, 'MarketInvalidRiskParameterError')
+            .withArgs(16)
+        })
+      })
+
+      it('reverts if not owner or coordinator', async () => {
         await expect(market.connect(user).updateParameter(marketParameter)).to.be.revertedWithCustomError(
           market,
           'InstanceNotOwnerError',
