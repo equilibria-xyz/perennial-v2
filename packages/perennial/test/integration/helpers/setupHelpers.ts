@@ -123,10 +123,13 @@ export async function deployProtocol(): Promise<InstanceVars> {
   await marketFactory.updatePauser(pauser.address)
   await marketFactory.updateParameter({
     protocolFee: parse6decimal('0.50'),
-    liquidationFee: parse6decimal('0.50'),
-    maxLiquidationFee: parse6decimal('1000'),
-    settlementFee: parse6decimal('0.00'),
     maxPendingIds: 8,
+    maxFee: parse6decimal('0.01'),
+    maxFeeAbsolute: parse6decimal('1000'),
+    maxCut: parse6decimal('0.50'),
+    maxRate: parse6decimal('10.00'),
+    minMaintenance: parse6decimal('0.01'),
+    minEfficiency: parse6decimal('0.1'),
   })
   await payoffFactory.connect(owner).register(payoff.address)
   await oracleFactory.connect(owner).register(chainlink.oracleFactory.address)
@@ -203,8 +206,11 @@ export async function createMarket(
     takerImpactFee: 0,
     makerFee: 0,
     makerImpactFee: 0,
-    makerLiquidity: parse6decimal('0.2'),
     makerLimit: parse6decimal('1000'),
+    efficiencyLimit: parse6decimal('0.2'),
+    liquidationFee: parse6decimal('0.50'),
+    minLiquidationFee: parse6decimal('0'),
+    maxLiquidationFee: parse6decimal('1000'),
     utilizationCurve: {
       minRate: 0,
       maxRate: parse6decimal('5.00'),
@@ -215,9 +221,6 @@ export async function createMarket(
       k: parse6decimal('40000'),
       max: parse6decimal('1.20'),
     },
-    makerRewardRate: 0,
-    longRewardRate: 0,
-    shortRewardRate: 0,
     minMaintenance: parse6decimal('500'),
     staleAfter: 7200,
     makerReceiveOnly: false,
@@ -228,15 +231,21 @@ export async function createMarket(
     oracleFee: 0,
     riskFee: 0,
     positionFee: 0,
+    makerRewardRate: 0,
+    longRewardRate: 0,
+    shortRewardRate: 0,
+    settlementFee: 0,
+    makerCloseAlways: false,
+    takerCloseAlways: false,
     closed: false,
   }
   const marketAddress = await marketFactory.callStatic.create(definition, riskParameter)
   await marketFactory.create(definition, riskParameter)
 
   const market = Market__factory.connect(marketAddress, owner)
-  await market.updateParameter(marketParameter)
   await market.updateBeneficiary(beneficiaryB.address)
   await market.updateReward(rewardToken.address)
+  await market.updateParameter(marketParameter)
 
   return market
 }

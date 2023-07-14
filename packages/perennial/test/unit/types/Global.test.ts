@@ -4,11 +4,44 @@ import { expect, use } from 'chai'
 import HRE from 'hardhat'
 
 import { GlobalTester, GlobalTester__factory } from '../../../types/generated'
-import { BigNumber } from 'ethers'
+import { BigNumber, BigNumberish } from 'ethers'
 import { parse6decimal } from '../../../../common/testutil/types'
+import { MarketParameterStruct } from '../../../types/generated/contracts/Market'
+import { ProtocolParameterStruct } from '../../../types/generated/contracts/MarketFactory'
 
 const { ethers } = HRE
 use(smock.matchers)
+
+function generateMarketParameter(oracleFee: BigNumberish, riskFee: BigNumberish): MarketParameterStruct {
+  return {
+    fundingFee: 0,
+    interestFee: 0,
+    oracleFee,
+    positionFee: 0,
+    settlementFee: 0,
+    makerRewardRate: 0,
+    longRewardRate: 0,
+    shortRewardRate: 0,
+    riskFee,
+    closed: false,
+    makerCloseAlways: false,
+    takerCloseAlways: false,
+  }
+}
+
+function generateProtocolParameter(protocolFee: BigNumberish): ProtocolParameterStruct {
+  return {
+    maxPendingIds: 0,
+    protocolFee,
+    maxFee: 0,
+    maxFeeAbsolute: 0,
+    maxCut: 0,
+    maxRate: 0,
+    minMaintenance: 0,
+    minEfficiency: 0,
+  }
+}
+
 describe('Global', () => {
   let owner: SignerWithAddress
 
@@ -448,26 +481,7 @@ describe('Global', () => {
   describe('#incrementFees', async () => {
     context('zero keeper', async () => {
       it('no fees', async () => {
-        await global.incrementFees(
-          123,
-          0,
-          {
-            closed: false,
-            fundingFee: 0,
-            interestFee: 0,
-            oracleFee: 0,
-            positionFee: 0,
-            riskFee: 0,
-          },
-          {
-            liquidationFee: 0,
-            maxLiquidationFee: 0,
-            maxPendingIds: 0,
-            minCollateral: 0,
-            protocolFee: 0,
-            settlementFee: 0,
-          },
-        )
+        await global.incrementFees(123, 0, generateMarketParameter(0, 0), generateProtocolParameter(0))
 
         const value = await global.read()
         expect(value.donation).to.equal(123)
@@ -477,22 +491,8 @@ describe('Global', () => {
         await global.incrementFees(
           123,
           0,
-          {
-            closed: false,
-            fundingFee: 0,
-            interestFee: 0,
-            oracleFee: 0,
-            positionFee: 0,
-            riskFee: 0,
-          },
-          {
-            liquidationFee: 0,
-            maxLiquidationFee: 0,
-            maxPendingIds: 0,
-            minCollateral: 0,
-            protocolFee: parse6decimal('0.1'),
-            settlementFee: 0,
-          },
+          generateMarketParameter(0, 0),
+          generateProtocolParameter(parse6decimal('0.1')),
         )
 
         const value = await global.read()
@@ -504,22 +504,8 @@ describe('Global', () => {
         await global.incrementFees(
           123,
           0,
-          {
-            closed: false,
-            fundingFee: 0,
-            interestFee: 0,
-            oracleFee: 0,
-            positionFee: 0,
-            riskFee: parse6decimal('0.1'),
-          },
-          {
-            liquidationFee: 0,
-            maxLiquidationFee: 0,
-            maxPendingIds: 0,
-            minCollateral: 0,
-            protocolFee: 0,
-            settlementFee: 0,
-          },
+          generateMarketParameter(0, parse6decimal('0.1')),
+          generateProtocolParameter(0),
         )
 
         const value = await global.read()
@@ -531,22 +517,8 @@ describe('Global', () => {
         await global.incrementFees(
           123,
           0,
-          {
-            closed: false,
-            fundingFee: 0,
-            interestFee: 0,
-            oracleFee: parse6decimal('0.1'),
-            positionFee: 0,
-            riskFee: 0,
-          },
-          {
-            liquidationFee: 0,
-            maxLiquidationFee: 0,
-            maxPendingIds: 0,
-            minCollateral: 0,
-            protocolFee: 0,
-            settlementFee: 0,
-          },
+          generateMarketParameter(parse6decimal('0.1'), 0),
+          generateProtocolParameter(0),
         )
 
         const value = await global.read()
@@ -558,22 +530,8 @@ describe('Global', () => {
         await global.incrementFees(
           123,
           0,
-          {
-            closed: false,
-            fundingFee: 0,
-            interestFee: 0,
-            oracleFee: parse6decimal('0.1'),
-            positionFee: 0,
-            riskFee: parse6decimal('0.3'),
-          },
-          {
-            liquidationFee: 0,
-            maxLiquidationFee: 0,
-            maxPendingIds: 0,
-            minCollateral: 0,
-            protocolFee: 0,
-            settlementFee: 0,
-          },
+          generateMarketParameter(parse6decimal('0.1'), parse6decimal('0.3')),
+          generateProtocolParameter(0),
         )
 
         const value = await global.read()
@@ -586,22 +544,8 @@ describe('Global', () => {
         await global.incrementFees(
           123,
           0,
-          {
-            closed: false,
-            fundingFee: 0,
-            interestFee: 0,
-            oracleFee: parse6decimal('0.1'),
-            positionFee: 0,
-            riskFee: parse6decimal('0.9'),
-          },
-          {
-            liquidationFee: 0,
-            maxLiquidationFee: 0,
-            maxPendingIds: 0,
-            minCollateral: 0,
-            protocolFee: 0,
-            settlementFee: 0,
-          },
+          generateMarketParameter(parse6decimal('0.1'), parse6decimal('0.9')),
+          generateProtocolParameter(0),
         )
 
         const value = await global.read()
@@ -615,22 +559,8 @@ describe('Global', () => {
           global.incrementFees(
             123,
             0,
-            {
-              closed: false,
-              fundingFee: 0,
-              interestFee: 0,
-              oracleFee: parse6decimal('0.1'),
-              positionFee: 0,
-              riskFee: parse6decimal('1.0'),
-            },
-            {
-              liquidationFee: 0,
-              maxLiquidationFee: 0,
-              maxPendingIds: 0,
-              minCollateral: 0,
-              protocolFee: 0,
-              settlementFee: 0,
-            },
+            generateMarketParameter(parse6decimal('0.1'), parse6decimal('1.0')),
+            generateProtocolParameter(0),
           ),
         ).revertedWithPanic(0x11)
       })
@@ -639,22 +569,8 @@ describe('Global', () => {
         await global.incrementFees(
           123,
           0,
-          {
-            closed: false,
-            fundingFee: 0,
-            interestFee: 0,
-            oracleFee: 0,
-            positionFee: 0,
-            riskFee: parse6decimal('0.1'),
-          },
-          {
-            liquidationFee: 0,
-            maxLiquidationFee: 0,
-            maxPendingIds: 0,
-            minCollateral: 0,
-            protocolFee: parse6decimal('0.2'),
-            settlementFee: 0,
-          },
+          generateMarketParameter(0, parse6decimal('0.1')),
+          generateProtocolParameter(parse6decimal('0.2')),
         )
 
         const value = await global.read()
@@ -667,22 +583,8 @@ describe('Global', () => {
         await global.incrementFees(
           123,
           0,
-          {
-            closed: false,
-            fundingFee: 0,
-            interestFee: 0,
-            oracleFee: 0,
-            positionFee: 0,
-            riskFee: parse6decimal('0.1'),
-          },
-          {
-            liquidationFee: 0,
-            maxLiquidationFee: 0,
-            maxPendingIds: 0,
-            minCollateral: 0,
-            protocolFee: parse6decimal('1.0'),
-            settlementFee: 0,
-          },
+          generateMarketParameter(0, parse6decimal('0.1')),
+          generateProtocolParameter(parse6decimal('1.0')),
         )
 
         const value = await global.read()
@@ -695,22 +597,8 @@ describe('Global', () => {
         await global.incrementFees(
           123,
           0,
-          {
-            closed: false,
-            fundingFee: 0,
-            interestFee: 0,
-            oracleFee: 0,
-            positionFee: 0,
-            riskFee: parse6decimal('1.0'),
-          },
-          {
-            liquidationFee: 0,
-            maxLiquidationFee: 0,
-            maxPendingIds: 0,
-            minCollateral: 0,
-            protocolFee: parse6decimal('0.2'),
-            settlementFee: 0,
-          },
+          generateMarketParameter(0, parse6decimal('1.0')),
+          generateProtocolParameter(parse6decimal('0.2')),
         )
 
         const value = await global.read()
@@ -724,22 +612,8 @@ describe('Global', () => {
           global.incrementFees(
             123,
             0,
-            {
-              closed: false,
-              fundingFee: 0,
-              interestFee: 0,
-              oracleFee: 0,
-              positionFee: 0,
-              riskFee: parse6decimal('0.1'),
-            },
-            {
-              liquidationFee: 0,
-              maxLiquidationFee: 0,
-              maxPendingIds: 0,
-              minCollateral: 0,
-              protocolFee: parse6decimal('1.1'),
-              settlementFee: 0,
-            },
+            generateMarketParameter(0, parse6decimal('0.1')),
+            generateProtocolParameter(parse6decimal('1.1')),
           ),
         ).revertedWithPanic(0x11)
       })
@@ -749,22 +623,8 @@ describe('Global', () => {
           global.incrementFees(
             123,
             0,
-            {
-              closed: false,
-              fundingFee: 0,
-              interestFee: 0,
-              oracleFee: 0,
-              positionFee: 0,
-              riskFee: parse6decimal('1.1'),
-            },
-            {
-              liquidationFee: 0,
-              maxLiquidationFee: 0,
-              maxPendingIds: 0,
-              minCollateral: 0,
-              protocolFee: parse6decimal('0.2'),
-              settlementFee: 0,
-            },
+            generateMarketParameter(0, parse6decimal('1.1')),
+            generateProtocolParameter(parse6decimal('0.2')),
           ),
         ).revertedWithPanic(0x11)
       })
@@ -773,22 +633,8 @@ describe('Global', () => {
         await global.incrementFees(
           123,
           0,
-          {
-            closed: false,
-            fundingFee: 0,
-            interestFee: 0,
-            oracleFee: parse6decimal('0.1'),
-            positionFee: 0,
-            riskFee: 0,
-          },
-          {
-            liquidationFee: 0,
-            maxLiquidationFee: 0,
-            maxPendingIds: 0,
-            minCollateral: 0,
-            protocolFee: parse6decimal('0.2'),
-            settlementFee: 0,
-          },
+          generateMarketParameter(parse6decimal('0.1'), 0),
+          generateProtocolParameter(parse6decimal('0.2')),
         )
 
         const value = await global.read()
@@ -801,22 +647,8 @@ describe('Global', () => {
         await global.incrementFees(
           123,
           0,
-          {
-            closed: false,
-            fundingFee: 0,
-            interestFee: 0,
-            oracleFee: parse6decimal('0.1'),
-            positionFee: 0,
-            riskFee: 0,
-          },
-          {
-            liquidationFee: 0,
-            maxLiquidationFee: 0,
-            maxPendingIds: 0,
-            minCollateral: 0,
-            protocolFee: parse6decimal('1.0'),
-            settlementFee: 0,
-          },
+          generateMarketParameter(parse6decimal('0.1'), 0),
+          generateProtocolParameter(parse6decimal('1.0')),
         )
 
         const value = await global.read()
@@ -829,22 +661,8 @@ describe('Global', () => {
         await global.incrementFees(
           123,
           0,
-          {
-            closed: false,
-            fundingFee: 0,
-            interestFee: 0,
-            oracleFee: parse6decimal('1.0'),
-            positionFee: 0,
-            riskFee: 0,
-          },
-          {
-            liquidationFee: 0,
-            maxLiquidationFee: 0,
-            maxPendingIds: 0,
-            minCollateral: 0,
-            protocolFee: parse6decimal('0.2'),
-            settlementFee: 0,
-          },
+          generateMarketParameter(parse6decimal('1.0'), 0),
+          generateProtocolParameter(parse6decimal('0.2')),
         )
 
         const value = await global.read()
@@ -858,22 +676,8 @@ describe('Global', () => {
           global.incrementFees(
             123,
             0,
-            {
-              closed: false,
-              fundingFee: 0,
-              interestFee: 0,
-              oracleFee: parse6decimal('0.1'),
-              positionFee: 0,
-              riskFee: 0,
-            },
-            {
-              liquidationFee: 0,
-              maxLiquidationFee: 0,
-              maxPendingIds: 0,
-              minCollateral: 0,
-              protocolFee: parse6decimal('1.1'),
-              settlementFee: 0,
-            },
+            generateMarketParameter(parse6decimal('0.1'), 0),
+            generateProtocolParameter(parse6decimal('1.1')),
           ),
         ).revertedWithPanic(0x11)
       })
@@ -883,22 +687,8 @@ describe('Global', () => {
           global.incrementFees(
             123,
             0,
-            {
-              closed: false,
-              fundingFee: 0,
-              interestFee: 0,
-              oracleFee: parse6decimal('1.1'),
-              positionFee: 0,
-              riskFee: 0,
-            },
-            {
-              liquidationFee: 0,
-              maxLiquidationFee: 0,
-              maxPendingIds: 0,
-              minCollateral: 0,
-              protocolFee: parse6decimal('0.2'),
-              settlementFee: 0,
-            },
+            generateMarketParameter(parse6decimal('1.1'), 0),
+            generateProtocolParameter(parse6decimal('0.2')),
           ),
         ).revertedWithPanic(0x11)
       })
@@ -907,22 +697,8 @@ describe('Global', () => {
         await global.incrementFees(
           123,
           0,
-          {
-            closed: false,
-            fundingFee: 0,
-            interestFee: 0,
-            oracleFee: parse6decimal('0.1'),
-            positionFee: 0,
-            riskFee: parse6decimal('0.3'),
-          },
-          {
-            liquidationFee: 0,
-            maxLiquidationFee: 0,
-            maxPendingIds: 0,
-            minCollateral: 0,
-            protocolFee: parse6decimal('0.2'),
-            settlementFee: 0,
-          },
+          generateMarketParameter(parse6decimal('0.1'), parse6decimal('0.3')),
+          generateProtocolParameter(parse6decimal('0.2')),
         )
 
         const value = await global.read()
@@ -936,22 +712,8 @@ describe('Global', () => {
         await global.incrementFees(
           123,
           0,
-          {
-            closed: false,
-            fundingFee: 0,
-            interestFee: 0,
-            oracleFee: parse6decimal('0.1'),
-            positionFee: 0,
-            riskFee: parse6decimal('0.3'),
-          },
-          {
-            liquidationFee: 0,
-            maxLiquidationFee: 0,
-            maxPendingIds: 0,
-            minCollateral: 0,
-            protocolFee: parse6decimal('1.0'),
-            settlementFee: 0,
-          },
+          generateMarketParameter(parse6decimal('0.1'), parse6decimal('0.3')),
+          generateProtocolParameter(parse6decimal('1.0')),
         )
 
         const value = await global.read()
@@ -965,22 +727,8 @@ describe('Global', () => {
         await global.incrementFees(
           123,
           0,
-          {
-            closed: false,
-            fundingFee: 0,
-            interestFee: 0,
-            oracleFee: parse6decimal('0.1'),
-            positionFee: 0,
-            riskFee: parse6decimal('0.9'),
-          },
-          {
-            liquidationFee: 0,
-            maxLiquidationFee: 0,
-            maxPendingIds: 0,
-            minCollateral: 0,
-            protocolFee: parse6decimal('0.2'),
-            settlementFee: 0,
-          },
+          generateMarketParameter(parse6decimal('0.1'), parse6decimal('0.9')),
+          generateProtocolParameter(parse6decimal('0.2')),
         )
 
         const value = await global.read()
@@ -995,22 +743,8 @@ describe('Global', () => {
           global.incrementFees(
             123,
             0,
-            {
-              closed: false,
-              fundingFee: 0,
-              interestFee: 0,
-              oracleFee: parse6decimal('0.1'),
-              positionFee: 0,
-              riskFee: parse6decimal('0.3'),
-            },
-            {
-              liquidationFee: 0,
-              maxLiquidationFee: 0,
-              maxPendingIds: 0,
-              minCollateral: 0,
-              protocolFee: parse6decimal('1.1'),
-              settlementFee: 0,
-            },
+            generateMarketParameter(parse6decimal('0.1'), parse6decimal('0.3')),
+            generateProtocolParameter(parse6decimal('1.1')),
           ),
         ).revertedWithPanic(0x11)
       })
@@ -1020,22 +754,8 @@ describe('Global', () => {
           global.incrementFees(
             123,
             0,
-            {
-              closed: false,
-              fundingFee: 0,
-              interestFee: 0,
-              oracleFee: parse6decimal('0.1'),
-              positionFee: 0,
-              riskFee: parse6decimal('1.0'),
-            },
-            {
-              liquidationFee: 0,
-              maxLiquidationFee: 0,
-              maxPendingIds: 0,
-              minCollateral: 0,
-              protocolFee: parse6decimal('0.2'),
-              settlementFee: 0,
-            },
+            generateMarketParameter(parse6decimal('0.1'), parse6decimal('1.0')),
+            generateProtocolParameter(parse6decimal('0.2')),
           ),
         ).revertedWithPanic(0x11)
       })

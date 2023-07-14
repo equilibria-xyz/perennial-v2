@@ -35,8 +35,12 @@ export async function deployProductOnMainnetFork({
   takerImpactFee,
   positionFee,
   makerLimit,
+  efficiencyLimit,
   utilizationCurve,
   minMaintenance,
+  liquidationFee,
+  minLiquidationFee,
+  maxLiquidationFee,
   staleAfter,
 }: DeployProductParams): Promise<IMarket> {
   const riskParameter: RiskParameterStruct = {
@@ -47,9 +51,10 @@ export async function deployProductOnMainnetFork({
     makerFee: makerFee ?? parse6decimal('0.0'),
     makerImpactFee: makerImpactFee ?? parse6decimal('0.0'),
     makerLimit: makerLimit ?? parse6decimal('100'),
-    makerRewardRate: 0,
-    longRewardRate: 0,
-    shortRewardRate: 0,
+    efficiencyLimit: efficiencyLimit ?? parse6decimal('0.2'),
+    liquidationFee: liquidationFee ?? parse6decimal('0.50'),
+    minLiquidationFee: minLiquidationFee ?? parse6decimal('0'),
+    maxLiquidationFee: maxLiquidationFee ?? parse6decimal('1000'),
     utilizationCurve: utilizationCurve ?? {
       minRate: parse6decimal('0.02'),
       maxRate: parse6decimal('0.80'),
@@ -70,16 +75,25 @@ export async function deployProductOnMainnetFork({
     positionFee: positionFee ?? parse6decimal('0.0'),
     riskFee: 0,
     oracleFee: 0,
+    settlementFee: 0,
+    makerRewardRate: 0,
+    longRewardRate: 0,
+    shortRewardRate: 0,
+    makerCloseAlways: false,
+    takerCloseAlways: false,
     closed: false,
   }
   const marketDefinition: IMarket.MarketDefinitionStruct = {
     name: name,
     symbol: symbol,
     token: token.address,
-    reward: constants.AddressZero,
     oracle: oracle ?? constants.AddressZero,
     payoff: payoff ?? constants.AddressZero,
   }
+
+  const protocolParameter = { ...(await factory.parameter()) }
+  protocolParameter.maxFeeAbsolute = parse6decimal('25000')
+  await factory.connect(owner).updateParameter(protocolParameter)
 
   const productAddress = await factory.connect(owner).callStatic.create(marketDefinition, riskParameter)
   await factory.connect(owner).create(marketDefinition, riskParameter)

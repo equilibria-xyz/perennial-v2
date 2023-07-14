@@ -4,19 +4,23 @@ import { SignerWithAddress } from '@nomiclabs/hardhat-ethers/signers'
 import { expect, use } from 'chai'
 import HRE from 'hardhat'
 
-//TODO (coverage hint): maxPendingId test
 //TODO (coverage hint): invalid version test
 //TODO (coverage hint): multi-version test w/ collateral change
-//TODO (coverage hint): makerFee coverage
-//TODO (coverage hint): skew/impactFee coverage
 //TODO (coverage hint): makerReceiveOnly coverage
+//TODO (coverage hint): makerCloseAlways / takerCloseAlways coverage
 //TODO (coverage hint): settlementFee/oracleFee/riskFee coverage
-//TODO (coverage hint): magic values
-//TODO (coverage hint): stale oracle
+//TODO (coverage hint): parameter invariants
 
 import { impersonate } from '../../../../common/testutil'
 
-import { Market, Market__factory, IOracleProvider, IERC20Metadata, IMarketFactory } from '../../../types/generated'
+import {
+  Market,
+  Market__factory,
+  IOracleProvider,
+  IERC20Metadata,
+  IMarketFactory,
+  PowerTwo__factory,
+} from '../../../types/generated'
 import {
   expectGlobalEq,
   expectLocalEq,
@@ -34,8 +38,34 @@ const COLLATERAL = parse6decimal('10000')
 const TIMESTAMP = 1636401093
 const PRICE = parse6decimal('123')
 
+const DEFAULT_VERSION_ACCUMULATION_RESULT = {
+  positionFeeMaker: 0,
+  positionFeeFee: 0,
+  fundingMaker: 0,
+  fundingLong: 0,
+  fundingShort: 0,
+  fundingFee: 0,
+  interestMaker: 0,
+  interestLong: 0,
+  interestShort: 0,
+  interestFee: 0,
+  pnlMaker: 0,
+  pnlLong: 0,
+  pnlShort: 0,
+  rewardMaker: 0,
+  rewardLong: 0,
+  rewardShort: 0,
+}
+
+const DEFAULT_LOCAL_ACCUMULATION_RESULT = {
+  collateralAmount: 0,
+  rewardAmount: 0,
+  positionFee: 0,
+  keeper: 0,
+}
+
 const ORACLE_VERSION_0 = {
-  price: 0,
+  price: BigNumber.from(0),
   timestamp: 0,
   valid: false,
 }
@@ -83,7 +113,7 @@ const EXPECTED_REWARD = parse6decimal('0.1').mul(3600)
 // funding = (rate_0 + rate_1) / 2 * elapsed * taker * price / time_in_years
 // (0 + (0 + 3600 * 1.00 / 40000)) / 2 * 3600 * 5 * 123 / (86400 * 365) = 3160
 const EXPECTED_FUNDING_1_5_123 = BigNumber.from(3160)
-const EXPECTED_FUNDING_FEE_1_5_123 = BigNumber.from(320) // (3157 + 157) = 3316 / 5 -> 664 * 5 -> 3320
+const EXPECTED_FUNDING_FEE_1_5_123 = BigNumber.from(320) // (3159 + 157) = 3316 / 5 -> 664 * 5 -> 3320
 const EXPECTED_FUNDING_WITH_FEE_1_5_123 = EXPECTED_FUNDING_1_5_123.add(EXPECTED_FUNDING_FEE_1_5_123.div(2))
 const EXPECTED_FUNDING_WITHOUT_FEE_1_5_123 = EXPECTED_FUNDING_1_5_123.sub(EXPECTED_FUNDING_FEE_1_5_123.div(2))
 
@@ -178,7 +208,7 @@ const EXPECTED_INTEREST_WITHOUT_FEE_25_123 = EXPECTED_INTEREST_25_123.sub(EXPECT
 async function settle(market: Market, account: SignerWithAddress) {
   const local = await market.locals(account.address)
   const currentPosition = await market.pendingPositions(account.address, local.currentId)
-  await market
+  return await market
     .connect(account)
     .update(account.address, currentPosition.maker, currentPosition.long, currentPosition.short, 0, false)
 }
@@ -226,11 +256,14 @@ describe('Market', () => {
     factorySigner = await impersonate.impersonateWithBalance(factory.address, utils.parseEther('10'))
     factory.owner.returns(owner.address)
     factory.parameter.returns({
-      protocolFee: parse6decimal('0.50'),
-      liquidationFee: parse6decimal('0.10'),
-      maxLiquidationFee: parse6decimal('1000'),
-      settlementFee: parse6decimal('0.00'),
       maxPendingIds: 5,
+      protocolFee: parse6decimal('0.50'),
+      maxFee: parse6decimal('0.01'),
+      maxFeeAbsolute: parse6decimal('1000'),
+      maxCut: parse6decimal('0.50'),
+      maxRate: parse6decimal('10.00'),
+      minMaintenance: parse6decimal('0.01'),
+      minEfficiency: parse6decimal('0.1'),
     })
     factory.oracleFactory.returns(oracleFactorySigner.address)
 
@@ -249,6 +282,10 @@ describe('Market', () => {
       makerFee: 0,
       makerImpactFee: 0,
       makerLimit: parse6decimal('1000'),
+      efficiencyLimit: parse6decimal('0.2'),
+      liquidationFee: parse6decimal('0.50'),
+      minLiquidationFee: parse6decimal('0'),
+      maxLiquidationFee: parse6decimal('1000'),
       utilizationCurve: {
         minRate: parse6decimal('0.0'),
         maxRate: parse6decimal('1.00'),
@@ -259,9 +296,6 @@ describe('Market', () => {
         k: parse6decimal('40000'),
         max: parse6decimal('1.20'),
       },
-      makerRewardRate: parse6decimal('0.3'),
-      longRewardRate: parse6decimal('0.2'),
-      shortRewardRate: parse6decimal('0.1'),
       minMaintenance: parse6decimal('100'),
       staleAfter: 7200,
       makerReceiveOnly: false,
@@ -272,6 +306,12 @@ describe('Market', () => {
       oracleFee: 0,
       riskFee: 0,
       positionFee: 0,
+      settlementFee: 0,
+      makerRewardRate: parse6decimal('0.3'),
+      longRewardRate: parse6decimal('0.2'),
+      shortRewardRate: parse6decimal('0.1'),
+      makerCloseAlways: false,
+      takerCloseAlways: false,
       closed: false,
     }
     market = await new Market__factory(owner).deploy()
@@ -300,6 +340,10 @@ describe('Market', () => {
       expect(riskParameterResult.makerFee).to.equal(riskParameter.makerFee)
       expect(riskParameterResult.makerImpactFee).to.equal(riskParameter.makerImpactFee)
       expect(riskParameterResult.makerLimit).to.equal(riskParameter.makerLimit)
+      expect(riskParameterResult.efficiencyLimit).to.equal(riskParameter.efficiencyLimit)
+      expect(riskParameterResult.liquidationFee).to.equal(riskParameter.liquidationFee)
+      expect(riskParameterResult.minLiquidationFee).to.equal(riskParameter.minLiquidationFee)
+      expect(riskParameterResult.maxLiquidationFee).to.equal(riskParameter.maxLiquidationFee)
       expect(riskParameterResult.utilizationCurve.minRate).to.equal(riskParameter.utilizationCurve.minRate)
       expect(riskParameterResult.utilizationCurve.targetRate).to.equal(riskParameter.utilizationCurve.targetRate)
       expect(riskParameterResult.utilizationCurve.maxRate).to.equal(riskParameter.utilizationCurve.maxRate)
@@ -308,8 +352,6 @@ describe('Market', () => {
       )
       expect(riskParameterResult.pController.k).to.equal(riskParameter.pController.k)
       expect(riskParameterResult.pController.max).to.equal(riskParameter.pController.max)
-      expect(riskParameterResult.makerRewardRate).to.equal(riskParameter.makerRewardRate)
-      expect(riskParameterResult.shortRewardRate).to.equal(riskParameter.shortRewardRate)
       expect(riskParameterResult.minMaintenance).to.equal(riskParameter.minMaintenance)
       expect(riskParameterResult.staleAfter).to.equal(riskParameter.staleAfter)
       expect(riskParameterResult.makerReceiveOnly).to.equal(riskParameter.makerReceiveOnly)
@@ -318,6 +360,12 @@ describe('Market', () => {
       expect(marketParameterResult.fundingFee).to.equal(0)
       expect(marketParameterResult.interestFee).to.equal(0)
       expect(marketParameterResult.positionFee).to.equal(0)
+      expect(marketParameterResult.oracleFee).to.equal(0)
+      expect(marketParameterResult.riskFee).to.equal(0)
+      expect(marketParameterResult.settlementFee).to.equal(0)
+      expect(marketParameterResult.makerRewardRate).to.equal(0)
+      expect(marketParameterResult.longRewardRate).to.equal(0)
+      expect(marketParameterResult.shortRewardRate).to.equal(0)
       expect(marketParameterResult.closed).to.equal(false)
     })
 
@@ -349,29 +397,100 @@ describe('Market', () => {
       )
     })
 
+    it('reverts if equal to asset', async () => {
+      await expect(market.connect(owner).updateReward(dsu.address)).to.be.revertedWithCustomError(
+        market,
+        'MarketInvalidRewardError',
+      )
+    })
+
     it('reverts if not owner', async () => {
-      await expect(market.connect(user).updateReward(beneficiary.address)).to.be.revertedWithCustomError(
+      await expect(market.connect(user).updateReward(reward.address)).to.be.revertedWithCustomError(
         market,
         'InstanceNotOwnerError',
       )
     })
   })
 
+  describe('#at', async () => {
+    beforeEach(async () => {
+      oracle.at.whenCalledWith(ORACLE_VERSION_0.timestamp).returns(ORACLE_VERSION_0)
+      oracle.at.whenCalledWith(ORACLE_VERSION_1.timestamp).returns(ORACLE_VERSION_1)
+      oracle.at.whenCalledWith(ORACLE_VERSION_2.timestamp).returns(ORACLE_VERSION_2)
+      oracle.at.whenCalledWith(ORACLE_VERSION_3.timestamp).returns(ORACLE_VERSION_3)
+    })
+
+    it('returns the correct price without payoff', async () => {
+      await market.connect(factorySigner).initialize(marketDefinition, riskParameter)
+      await market.connect(owner).updateReward(reward.address)
+      await market.connect(owner).updateParameter(marketParameter)
+
+      const at0 = await market.at(ORACLE_VERSION_0.timestamp)
+      expect(at0.timestamp).to.equal(ORACLE_VERSION_0.timestamp)
+      expect(at0.price).to.equal(ORACLE_VERSION_0.price)
+      expect(at0.valid).to.equal(ORACLE_VERSION_0.valid)
+      const at1 = await market.at(ORACLE_VERSION_1.timestamp)
+      expect(at1.timestamp).to.equal(ORACLE_VERSION_1.timestamp)
+      expect(at1.price).to.equal(ORACLE_VERSION_1.price)
+      expect(at1.valid).to.equal(ORACLE_VERSION_1.valid)
+      const at2 = await market.at(ORACLE_VERSION_2.timestamp)
+      expect(at2.timestamp).to.equal(ORACLE_VERSION_2.timestamp)
+      expect(at2.price).to.equal(ORACLE_VERSION_2.price)
+      expect(at2.valid).to.equal(ORACLE_VERSION_2.valid)
+      const at3 = await market.at(ORACLE_VERSION_3.timestamp)
+      expect(at3.timestamp).to.equal(ORACLE_VERSION_3.timestamp)
+      expect(at3.price).to.equal(ORACLE_VERSION_3.price)
+      expect(at3.valid).to.equal(ORACLE_VERSION_3.valid)
+    })
+
+    it('returns the correct price without payoff', async () => {
+      const payoff = await new PowerTwo__factory(owner).deploy()
+      marketDefinition.payoff = payoff.address
+
+      await market.connect(factorySigner).initialize(marketDefinition, riskParameter)
+      await market.connect(owner).updateReward(reward.address)
+      await market.connect(owner).updateParameter(marketParameter)
+
+      const at0 = await market.at(ORACLE_VERSION_0.timestamp)
+      expect(at0.timestamp).to.equal(ORACLE_VERSION_0.timestamp)
+      expect(at0.price).to.equal(ORACLE_VERSION_0.price.pow(2).div(1e6))
+      expect(at0.valid).to.equal(ORACLE_VERSION_0.valid)
+      const at1 = await market.at(ORACLE_VERSION_1.timestamp)
+      expect(at1.timestamp).to.equal(ORACLE_VERSION_1.timestamp)
+      expect(at1.price).to.equal(ORACLE_VERSION_1.price.pow(2).div(1e6))
+      expect(at1.valid).to.equal(ORACLE_VERSION_1.valid)
+      const at2 = await market.at(ORACLE_VERSION_2.timestamp)
+      expect(at2.timestamp).to.equal(ORACLE_VERSION_2.timestamp)
+      expect(at2.price).to.equal(ORACLE_VERSION_2.price.pow(2).div(1e6))
+      expect(at2.valid).to.equal(ORACLE_VERSION_2.valid)
+      const at3 = await market.at(ORACLE_VERSION_3.timestamp)
+      expect(at3.timestamp).to.equal(ORACLE_VERSION_3.timestamp)
+      expect(at3.price).to.equal(ORACLE_VERSION_3.price.pow(2).div(1e6))
+      expect(at3.valid).to.equal(ORACLE_VERSION_3.valid)
+    })
+  })
+
   context('already initialized', async () => {
     beforeEach(async () => {
       await market.connect(factorySigner).initialize(marketDefinition, riskParameter)
-      await market.connect(owner).updateParameter(marketParameter)
       await market.connect(owner).updateReward(reward.address)
+      await market.connect(owner).updateParameter(marketParameter)
     })
 
     describe('#updateParameter', async () => {
       it('updates the parameters', async () => {
         const newMarketParameter = {
-          fundingFee: parse6decimal('0.3'),
-          interestFee: parse6decimal('0.2'),
-          positionFee: parse6decimal('0.1'),
-          oracleFee: parse6decimal('0.4'),
-          riskFee: parse6decimal('0.5'),
+          fundingFee: parse6decimal('0.03'),
+          interestFee: parse6decimal('0.02'),
+          positionFee: parse6decimal('0.01'),
+          oracleFee: parse6decimal('0.04'),
+          riskFee: parse6decimal('0.05'),
+          settlementFee: parse6decimal('0.09'),
+          makerRewardRate: parse6decimal('0.06'),
+          longRewardRate: parse6decimal('0.07'),
+          shortRewardRate: parse6decimal('0.08'),
+          makerCloseAlways: true,
+          takerCloseAlways: true,
           closed: true,
         }
 
@@ -385,6 +504,10 @@ describe('Market', () => {
         expect(marketParameter.positionFee).to.equal(newMarketParameter.positionFee)
         expect(marketParameter.oracleFee).to.equal(newMarketParameter.oracleFee)
         expect(marketParameter.riskFee).to.equal(newMarketParameter.riskFee)
+        expect(marketParameter.settlementFee).to.equal(newMarketParameter.settlementFee)
+        expect(marketParameter.makerRewardRate).to.equal(newMarketParameter.makerRewardRate)
+        expect(marketParameter.longRewardRate).to.equal(newMarketParameter.longRewardRate)
+        expect(marketParameter.shortRewardRate).to.equal(newMarketParameter.shortRewardRate)
         expect(marketParameter.closed).to.equal(newMarketParameter.closed)
       })
 
@@ -400,13 +523,16 @@ describe('Market', () => {
       it('updates the parameters', async () => {
         const newRiskParameter = {
           maintenance: parse6decimal('0.4'),
-          takerFee: parse6decimal('0.1'),
-          takerSkewFee: parse6decimal('0.04'),
-          takerImpactFee: parse6decimal('0.03'),
-          makerFee: parse6decimal('0.05'),
-          makerImpactFee: parse6decimal('0.01'),
-          makerLiquidity: parse6decimal('0.1'),
+          takerFee: parse6decimal('0.01'),
+          takerSkewFee: parse6decimal('0.004'),
+          takerImpactFee: parse6decimal('0.003'),
+          makerFee: parse6decimal('0.005'),
+          makerImpactFee: parse6decimal('0.001'),
           makerLimit: parse6decimal('2000'),
+          efficiencyLimit: parse6decimal('0.2'),
+          liquidationFee: parse6decimal('0.25'),
+          minLiquidationFee: parse6decimal('10'),
+          maxLiquidationFee: parse6decimal('200'),
           utilizationCurve: {
             minRate: parse6decimal('0.20'),
             maxRate: parse6decimal('0.20'),
@@ -417,9 +543,6 @@ describe('Market', () => {
             k: parse6decimal('40000'),
             max: parse6decimal('1.20'),
           },
-          makerRewardRate: parse6decimal('0.1'),
-          longRewardRate: parse6decimal('0.1'),
-          shortRewardRate: parse6decimal('0.1'),
           minMaintenance: parse6decimal('50'),
           staleAfter: 9600,
           makerReceiveOnly: true,
@@ -438,6 +561,10 @@ describe('Market', () => {
         expect(riskParameter.makerFee).to.equal(newRiskParameter.makerFee)
         expect(riskParameter.makerImpactFee).to.equal(newRiskParameter.makerImpactFee)
         expect(riskParameter.makerLimit).to.equal(newRiskParameter.makerLimit)
+        expect(riskParameter.efficiencyLimit).to.equal(newRiskParameter.efficiencyLimit)
+        expect(riskParameter.liquidationFee).to.equal(newRiskParameter.liquidationFee)
+        expect(riskParameter.minLiquidationFee).to.equal(newRiskParameter.minLiquidationFee)
+        expect(riskParameter.maxLiquidationFee).to.equal(newRiskParameter.maxLiquidationFee)
         expect(riskParameter.utilizationCurve.minRate).to.equal(newRiskParameter.utilizationCurve.minRate)
         expect(riskParameter.utilizationCurve.targetRate).to.equal(newRiskParameter.utilizationCurve.targetRate)
         expect(riskParameter.utilizationCurve.maxRate).to.equal(newRiskParameter.utilizationCurve.maxRate)
@@ -446,8 +573,6 @@ describe('Market', () => {
         )
         expect(riskParameter.pController.k).to.equal(newRiskParameter.pController.k)
         expect(riskParameter.pController.max).to.equal(newRiskParameter.pController.max)
-        expect(riskParameter.makerRewardRate).to.equal(newRiskParameter.makerRewardRate)
-        expect(riskParameter.shortRewardRate).to.equal(newRiskParameter.shortRewardRate)
         expect(riskParameter.minMaintenance).to.equal(newRiskParameter.minMaintenance)
         expect(riskParameter.staleAfter).to.equal(newRiskParameter.staleAfter)
         expect(riskParameter.makerReceiveOnly).to.equal(newRiskParameter.makerReceiveOnly)
@@ -477,7 +602,7 @@ describe('Market', () => {
       })
     })
 
-    describe('#update / #settle', async () => {
+    describe('#update', async () => {
       describe('passthrough market', async () => {
         beforeEach(async () => {
           oracle.at.whenCalledWith(ORACLE_VERSION_0.timestamp).returns(ORACLE_VERSION_0)
@@ -803,6 +928,10 @@ describe('Market', () => {
 
             it('opens the position and settles', async () => {
               await expect(market.connect(user).update(user.address, POSITION, 0, 0, COLLATERAL, false))
+                .to.emit(market, 'PositionProcessed')
+                .withArgs(0, ORACLE_VERSION_1.timestamp, 0, DEFAULT_VERSION_ACCUMULATION_RESULT)
+                .to.emit(market, 'AccountPositionProcessed')
+                .withArgs(user.address, 0, ORACLE_VERSION_1.timestamp, 0, DEFAULT_LOCAL_ACCUMULATION_RESULT)
                 .to.emit(market, 'Updated')
                 .withArgs(user.address, ORACLE_VERSION_2.timestamp, POSITION, 0, 0, COLLATERAL, false)
 
@@ -810,7 +939,22 @@ describe('Market', () => {
               oracle.status.returns([ORACLE_VERSION_2, ORACLE_VERSION_3.timestamp])
               oracle.request.returns()
 
-              await settle(market, user)
+              await expect(await settle(market, user))
+                .to.emit(market, 'PositionProcessed')
+                .withArgs(
+                  ORACLE_VERSION_1.timestamp,
+                  ORACLE_VERSION_2.timestamp,
+                  0,
+                  DEFAULT_VERSION_ACCUMULATION_RESULT,
+                )
+                .to.emit(market, 'AccountPositionProcessed')
+                .withArgs(
+                  user.address,
+                  ORACLE_VERSION_1.timestamp,
+                  ORACLE_VERSION_2.timestamp,
+                  0,
+                  DEFAULT_LOCAL_ACCUMULATION_RESULT,
+                )
 
               expectLocalEq(await market.locals(user.address), {
                 currentId: 2,
@@ -1175,6 +1319,80 @@ describe('Market', () => {
                 oracleFee: 0,
                 riskFee: 0,
                 donation: 0,
+              })
+              expectPositionEq(await market.position(), {
+                id: 1,
+                timestamp: ORACLE_VERSION_3.timestamp,
+                maker: POSITION,
+                long: 0,
+                short: 0,
+                fee: 0,
+              })
+              expectPositionEq(await market.pendingPosition(2), {
+                id: 2,
+                timestamp: ORACLE_VERSION_4.timestamp,
+                maker: POSITION,
+                long: 0,
+                short: 0,
+                fee: 0,
+              })
+              expectVersionEq(await market.versions(ORACLE_VERSION_3.timestamp), {
+                makerValue: { _value: 0 },
+                longValue: { _value: 0 },
+                shortValue: { _value: 0 },
+                makerReward: { _value: EXPECTED_REWARD.mul(3).div(10) },
+                longReward: { _value: 0 },
+                shortReward: { _value: 0 },
+              })
+            })
+
+            it('opens the position and settles later with fee', async () => {
+              const riskParameter = { ...(await market.riskParameter()) }
+              riskParameter.makerFee = parse6decimal('0.005')
+              riskParameter.makerImpactFee = parse6decimal('0.0025')
+              await market.updateRiskParameter(riskParameter)
+
+              const MAKER_FEE = parse6decimal('6.15') // position * (0.005) * price
+
+              await expect(market.connect(user).update(user.address, POSITION, 0, 0, COLLATERAL, false))
+                .to.emit(market, 'Updated')
+                .withArgs(user.address, ORACLE_VERSION_2.timestamp, POSITION, 0, 0, COLLATERAL, false)
+
+              oracle.at.whenCalledWith(ORACLE_VERSION_2.timestamp).returns(ORACLE_VERSION_2)
+              oracle.at.whenCalledWith(ORACLE_VERSION_3.timestamp).returns(ORACLE_VERSION_3)
+              oracle.status.returns([ORACLE_VERSION_3, ORACLE_VERSION_4.timestamp])
+              oracle.request.returns()
+
+              await settle(market, user)
+
+              expectLocalEq(await market.locals(user.address), {
+                currentId: 2,
+                collateral: COLLATERAL.sub(MAKER_FEE),
+                reward: EXPECTED_REWARD.mul(3),
+                protection: 0,
+              })
+              expectPositionEq(await market.positions(user.address), {
+                id: 1,
+                timestamp: ORACLE_VERSION_3.timestamp,
+                maker: POSITION,
+                long: 0,
+                short: 0,
+                fee: 0,
+              })
+              expectPositionEq(await market.pendingPositions(user.address, 2), {
+                id: 2,
+                timestamp: ORACLE_VERSION_4.timestamp,
+                maker: POSITION,
+                long: 0,
+                short: 0,
+                fee: 0,
+              })
+              expectGlobalEq(await market.global(), {
+                currentId: 2,
+                protocolFee: MAKER_FEE.div(2),
+                oracleFee: 0,
+                riskFee: 0,
+                donation: MAKER_FEE.div(2),
               })
               expectPositionEq(await market.position(), {
                 id: 1,
@@ -1799,6 +2017,81 @@ describe('Market', () => {
                   shortReward: { _value: 0 },
                 })
               })
+
+              it('closes the position and settles later with fee', async () => {
+                const riskParameter = { ...(await market.riskParameter()) }
+                riskParameter.makerFee = parse6decimal('0.005')
+                riskParameter.makerImpactFee = parse6decimal('0.0025')
+                await market.updateRiskParameter(riskParameter)
+
+                const MAKER_FEE = parse6decimal('6.15') // position * (0.005) * price
+
+                await expect(market.connect(user).update(user.address, 0, 0, 0, 0, false))
+                  .to.emit(market, 'Updated')
+                  .withArgs(user.address, ORACLE_VERSION_3.timestamp, 0, 0, 0, 0, false)
+
+                oracle.at.whenCalledWith(ORACLE_VERSION_3.timestamp).returns(ORACLE_VERSION_3)
+
+                oracle.at.whenCalledWith(ORACLE_VERSION_4.timestamp).returns(ORACLE_VERSION_4)
+                oracle.status.returns([ORACLE_VERSION_4, ORACLE_VERSION_5.timestamp])
+                oracle.request.returns()
+
+                await settle(market, user)
+
+                expectLocalEq(await market.locals(user.address), {
+                  currentId: 3,
+                  collateral: COLLATERAL.add(MAKER_FEE).sub(MAKER_FEE),
+                  reward: EXPECTED_REWARD.mul(3),
+                  protection: 0,
+                })
+                expectPositionEq(await market.positions(user.address), {
+                  id: 2,
+                  timestamp: ORACLE_VERSION_4.timestamp,
+                  maker: 0,
+                  long: 0,
+                  short: 0,
+                  fee: 0,
+                })
+                expectPositionEq(await market.pendingPositions(user.address, 3), {
+                  id: 3,
+                  timestamp: ORACLE_VERSION_5.timestamp,
+                  maker: 0,
+                  long: 0,
+                  short: 0,
+                  fee: 0,
+                })
+                expectGlobalEq(await market.global(), {
+                  currentId: 3,
+                  protocolFee: 0,
+                  oracleFee: 0,
+                  riskFee: 0,
+                  donation: 0,
+                })
+                expectPositionEq(await market.position(), {
+                  id: 2,
+                  timestamp: ORACLE_VERSION_4.timestamp,
+                  maker: 0,
+                  long: 0,
+                  short: 0,
+                  fee: 0,
+                })
+                expectPositionEq(await market.pendingPosition(3), {
+                  id: 3,
+                  timestamp: ORACLE_VERSION_5.timestamp,
+                  maker: 0,
+                  long: 0,
+                  short: 0,
+                  fee: 0,
+                })
+                expectVersionEq(await market.versions(ORACLE_VERSION_4.timestamp), {
+                  makerValue: { _value: MAKER_FEE.div(10) },
+                  longValue: { _value: 0 },
+                  shortValue: { _value: 0 },
+                  makerReward: { _value: EXPECTED_REWARD.mul(3).div(10) },
+                  longReward: { _value: 0 },
+                  shortReward: { _value: 0 },
+                })
+              })
             })
           })
         })
@@ -2334,9 +2627,11 @@ describe('Market', () => {
               it('opens the position and settles later with fee', async () => {
                 const riskParameter = { ...(await market.riskParameter()) }
                 riskParameter.takerFee = parse6decimal('0.01')
+                riskParameter.takerImpactFee = parse6decimal('0.004')
+                riskParameter.takerSkewFee = parse6decimal('0.002')
                 await market.updateRiskParameter(riskParameter)
 
-                const TAKER_FEE = parse6decimal('6.15') // position * taker fee * price
+                const TAKER_FEE = parse6decimal('9.84') // position * (0.01 + 0.004 + 0.002) * price
 
                 await expect(market.connect(user).update(user.address, 0, POSITION.div(2), 0, COLLATERAL, false))
                   .to.emit(market, 'Updated')
@@ -2446,9 +2741,11 @@ describe('Market', () => {
 
                 const riskParameter = { ...(await market.riskParameter()) }
                 riskParameter.takerFee = parse6decimal('0.01')
+                riskParameter.takerImpactFee = parse6decimal('0.004')
+                riskParameter.takerSkewFee = parse6decimal('0.002')
                 await market.updateRiskParameter(riskParameter)
 
-                const TAKER_FEE = parse6decimal('6.15') // position * taker fee * price
+                const TAKER_FEE = parse6decimal('9.84') // position * (0.01 + 0.004 + 0.002) * price
 
                 await expect(market.connect(user).update(user.address, 0, POSITION.div(2), 0, COLLATERAL, false))
                   .to.emit(market, 'Updated')
@@ -3329,9 +3626,11 @@ describe('Market', () => {
                 it('closes the position and settles later with fee', async () => {
                   const riskParameter = { ...(await market.riskParameter()) }
                   riskParameter.takerFee = parse6decimal('0.01')
+                  riskParameter.takerImpactFee = parse6decimal('0.004')
+                  riskParameter.takerSkewFee = parse6decimal('0.002')
                   await market.updateRiskParameter(riskParameter)
 
-                  const TAKER_FEE = parse6decimal('6.15') // position * taker fee * price
+                  const TAKER_FEE = parse6decimal('4.92') // position * (0.01 - 0.004 + 0.002) * price
 
                   await expect(market.connect(user).update(user.address, 0, 0, 0, 0, false))
                     .to.emit(market, 'Updated')
@@ -3546,6 +3845,7 @@ describe('Market', () => {
               dsu.balanceOf.whenCalledWith(market.address).returns(COLLATERAL.mul(1e12).mul(2))
 
               const EXPECTED_PNL = parse6decimal('2').mul(5) // maker pnl
+              const EXPECTED_FUNDING_PRECISION_LOSS = BigNumber.from('5') // total funding precision loss due to accumulation division and multiplication
 
               const oracleVersionLowerPrice = {
                 price: parse6decimal('121'),
@@ -3556,8 +3856,41 @@ describe('Market', () => {
               oracle.status.returns([oracleVersionLowerPrice, ORACLE_VERSION_4.timestamp])
               oracle.request.returns()
 
-              await settle(market, user)
-              await settle(market, userB)
+              await expect(settle(market, user))
+                .to.emit(market, 'PositionProcessed')
+                .withArgs(ORACLE_VERSION_2.timestamp, oracleVersionLowerPrice.timestamp, 1, {
+                  ...DEFAULT_VERSION_ACCUMULATION_RESULT,
+                  fundingMaker: EXPECTED_FUNDING_WITHOUT_FEE_1_5_123.add(EXPECTED_FUNDING_PRECISION_LOSS.mul(2).div(5)),
+                  fundingLong: EXPECTED_FUNDING_WITH_FEE_1_5_123.mul(-1).add(
+                    EXPECTED_FUNDING_PRECISION_LOSS.mul(3).div(5),
+                  ),
+                  fundingFee: EXPECTED_FUNDING_FEE_1_5_123.sub(EXPECTED_FUNDING_PRECISION_LOSS),
+                  interestMaker: EXPECTED_INTEREST_WITHOUT_FEE_5_123,
+                  interestLong: EXPECTED_INTEREST_5_123.mul(-1),
+                  interestFee: EXPECTED_INTEREST_FEE_5_123,
+                  pnlMaker: EXPECTED_PNL,
+                  pnlLong: EXPECTED_PNL.mul(-1),
+                  rewardMaker: EXPECTED_REWARD.mul(3),
+                  rewardLong: EXPECTED_REWARD.mul(2),
+                })
+                .to.emit(market, 'AccountPositionProcessed')
+                .withArgs(user.address, ORACLE_VERSION_2.timestamp, oracleVersionLowerPrice.timestamp, 1, {
+                  ...DEFAULT_LOCAL_ACCUMULATION_RESULT,
+                  collateralAmount: EXPECTED_PNL.mul(-1)
+                    .sub(EXPECTED_FUNDING_WITH_FEE_1_5_123)
+                    .sub(EXPECTED_INTEREST_5_123),
+                  rewardAmount: EXPECTED_REWARD.mul(2),
+                })
+
+              await expect(settle(market, userB))
+                .to.emit(market, 'AccountPositionProcessed')
+                .withArgs(userB.address, ORACLE_VERSION_2.timestamp, oracleVersionLowerPrice.timestamp, 1, {
+                  ...DEFAULT_LOCAL_ACCUMULATION_RESULT,
+                  collateralAmount: EXPECTED_PNL.add(EXPECTED_FUNDING_WITHOUT_FEE_1_5_123)
+                    .add(EXPECTED_INTEREST_WITHOUT_FEE_5_123)
+                    .sub(8),
+                  rewardAmount: EXPECTED_REWARD.mul(3),
+                })
 
               expectLocalEq(await market.locals(user.address), {
                 currentId: 3,
@@ -3652,6 +3985,7 @@ describe('Market', () => {
 
             it('higher price same rate settle', async () => {
               const EXPECTED_PNL = parse6decimal('-2').mul(5) // maker pnl
+              const EXPECTED_FUNDING_PRECISION_LOSS = BigNumber.from('5') // total funding precision loss due to accumulation division and multiplication
 
               const oracleVersionHigherPrice = {
                 price: parse6decimal('125'),
@@ -3662,8 +3996,41 @@ describe('Market', () => {
               oracle.status.returns([oracleVersionHigherPrice, ORACLE_VERSION_4.timestamp])
               oracle.request.returns()
 
-              await settle(market, user)
-              await settle(market, userB)
+              await expect(settle(market, user))
+                .to.emit(market, 'PositionProcessed')
+                .withArgs(ORACLE_VERSION_2.timestamp, oracleVersionHigherPrice.timestamp, 1, {
+                  ...DEFAULT_VERSION_ACCUMULATION_RESULT,
+                  fundingMaker: EXPECTED_FUNDING_WITHOUT_FEE_1_5_123.add(EXPECTED_FUNDING_PRECISION_LOSS.mul(2).div(5)),
+                  fundingLong: EXPECTED_FUNDING_WITH_FEE_1_5_123.mul(-1).add(
+                    EXPECTED_FUNDING_PRECISION_LOSS.mul(3).div(5),
+                  ),
+                  fundingFee: EXPECTED_FUNDING_FEE_1_5_123.sub(EXPECTED_FUNDING_PRECISION_LOSS),
+                  interestMaker: EXPECTED_INTEREST_WITHOUT_FEE_5_123,
+                  interestLong: EXPECTED_INTEREST_5_123.mul(-1),
+                  interestFee: EXPECTED_INTEREST_FEE_5_123,
+                  pnlMaker: EXPECTED_PNL,
+                  pnlLong: EXPECTED_PNL.mul(-1),
+                  rewardMaker: EXPECTED_REWARD.mul(3),
+                  rewardLong: EXPECTED_REWARD.mul(2),
+                })
+                .to.emit(market, 'AccountPositionProcessed')
+                .withArgs(user.address, ORACLE_VERSION_2.timestamp, oracleVersionHigherPrice.timestamp, 1, {
+                  ...DEFAULT_LOCAL_ACCUMULATION_RESULT,
+                  collateralAmount: EXPECTED_PNL.mul(-1)
+                    .sub(EXPECTED_FUNDING_WITH_FEE_1_5_123)
+                    .sub(EXPECTED_INTEREST_5_123),
+                  rewardAmount: EXPECTED_REWARD.mul(2),
+                })
+
+              await expect(settle(market, userB))
+                .to.emit(market, 'AccountPositionProcessed')
+                .withArgs(userB.address, ORACLE_VERSION_2.timestamp, oracleVersionHigherPrice.timestamp, 1, {
+                  ...DEFAULT_LOCAL_ACCUMULATION_RESULT,
+                  collateralAmount: EXPECTED_PNL.add(EXPECTED_FUNDING_WITHOUT_FEE_1_5_123)
+                    .add(EXPECTED_INTEREST_WITHOUT_FEE_5_123)
+                    .sub(8),
+                  rewardAmount: EXPECTED_REWARD.mul(3),
+                })
 
               expectLocalEq(await market.locals(user.address), {
                 currentId: 3,
@@ -5412,9 +5779,11 @@ describe('Market', () => {
               it('opens the position and settles later with fee', async () => {
                 const riskParameter = { ...(await market.riskParameter()) }
                 riskParameter.takerFee = parse6decimal('0.01')
+                riskParameter.takerImpactFee = parse6decimal('0.004')
+                riskParameter.takerSkewFee = parse6decimal('0.002')
                 await market.updateRiskParameter(riskParameter)
 
-                const TAKER_FEE = parse6decimal('6.15') // position * taker fee * price
+                const TAKER_FEE = parse6decimal('9.84') // position * (0.01 + 0.004 + 0.002) * price
 
                 dsu.transferFrom
                   .whenCalledWith(user.address, market.address, COLLATERAL.add(TAKER_FEE).mul(1e12))
@@ -5527,9 +5896,11 @@ describe('Market', () => {
 
                 const riskParameter = { ...(await market.riskParameter()) }
                 riskParameter.takerFee = parse6decimal('0.01')
+                riskParameter.takerImpactFee = parse6decimal('0.004')
+                riskParameter.takerSkewFee = parse6decimal('0.002')
                 await market.updateRiskParameter(riskParameter)
 
-                const TAKER_FEE = parse6decimal('6.15') // position * taker fee * price
+                const TAKER_FEE = parse6decimal('9.84') // position * (0.01 + 0.004 + 0.002) * price
 
                 dsu.transferFrom
                   .whenCalledWith(user.address, market.address, COLLATERAL.add(TAKER_FEE).mul(1e12))
@@ -6411,9 +6782,11 @@ describe('Market', () => {
                 it('closes the position and settles later with fee', async () => {
                   const riskParameter = { ...(await market.riskParameter()) }
                   riskParameter.takerFee = parse6decimal('0.01')
+                  riskParameter.takerImpactFee = parse6decimal('0.004')
+                  riskParameter.takerSkewFee = parse6decimal('0.002')
                   await market.updateRiskParameter(riskParameter)
 
-                  const TAKER_FEE = parse6decimal('6.15') // position * taker fee * price
+                  const TAKER_FEE = parse6decimal('4.92') // position * (0.01 - 0.004 + 0.002) * price
 
                   dsu.transferFrom.whenCalledWith(user.address, market.address, TAKER_FEE.mul(1e12)).returns(true)
                   await expect(market.connect(user).update(user.address, 0, 0, 0, 0, false))
@@ -6629,6 +7002,7 @@ describe('Market', () => {
               dsu.balanceOf.whenCalledWith(market.address).returns(COLLATERAL.mul(1e12).mul(2))
 
               const EXPECTED_PNL = parse6decimal('-2').mul(5) // maker pnl
+              const EXPECTED_FUNDING_PRECISION_LOSS = BigNumber.from('5') // total funding precision loss due to accumulation division and multiplication
 
               const oracleVersionLowerPrice = {
                 price: parse6decimal('121'),
@@ -6639,8 +7013,41 @@ describe('Market', () => {
               oracle.status.returns([oracleVersionLowerPrice, ORACLE_VERSION_4.timestamp])
               oracle.request.returns()
 
-              await settle(market, user)
-              await settle(market, userB)
+              await expect(settle(market, user))
+                .to.emit(market, 'PositionProcessed')
+                .withArgs(ORACLE_VERSION_2.timestamp, oracleVersionLowerPrice.timestamp, 1, {
+                  ...DEFAULT_VERSION_ACCUMULATION_RESULT,
+                  fundingMaker: EXPECTED_FUNDING_WITHOUT_FEE_1_5_123.add(EXPECTED_FUNDING_PRECISION_LOSS.mul(1).div(5)),
+                  fundingShort: EXPECTED_FUNDING_WITH_FEE_1_5_123.mul(-1).add(
+                    EXPECTED_FUNDING_PRECISION_LOSS.mul(4).div(5),
+                  ),
+                  fundingFee: EXPECTED_FUNDING_FEE_1_5_123.sub(EXPECTED_FUNDING_PRECISION_LOSS),
+                  interestMaker: EXPECTED_INTEREST_WITHOUT_FEE_5_123,
+                  interestShort: EXPECTED_INTEREST_5_123.mul(-1),
+                  interestFee: EXPECTED_INTEREST_FEE_5_123,
+                  pnlMaker: EXPECTED_PNL,
+                  pnlShort: EXPECTED_PNL.mul(-1),
+                  rewardMaker: EXPECTED_REWARD.mul(3),
+                  rewardShort: EXPECTED_REWARD,
+                })
+                .to.emit(market, 'AccountPositionProcessed')
+                .withArgs(user.address, ORACLE_VERSION_2.timestamp, oracleVersionLowerPrice.timestamp, 1, {
+                  ...DEFAULT_LOCAL_ACCUMULATION_RESULT,
+                  collateralAmount: EXPECTED_PNL.mul(-1)
+                    .sub(EXPECTED_FUNDING_WITH_FEE_1_5_123)
+                    .sub(EXPECTED_INTEREST_5_123),
+                  rewardAmount: EXPECTED_REWARD,
+                })
+
+              await expect(settle(market, userB))
+                .to.emit(market, 'AccountPositionProcessed')
+                .withArgs(userB.address, ORACLE_VERSION_2.timestamp, oracleVersionLowerPrice.timestamp, 1, {
+                  ...DEFAULT_LOCAL_ACCUMULATION_RESULT,
+                  collateralAmount: EXPECTED_PNL.add(EXPECTED_FUNDING_WITHOUT_FEE_1_5_123)
+                    .add(EXPECTED_INTEREST_WITHOUT_FEE_5_123)
+                    .sub(8),
+                  rewardAmount: EXPECTED_REWARD.mul(3),
+                })
 
               expectLocalEq(await market.locals(user.address), {
                 currentId: 3,
@@ -6736,6 +7143,7 @@ describe('Market', () => {
 
             it('higher price same rate settle', async () => {
               const EXPECTED_PNL = parse6decimal('2').mul(5) // maker pnl
+              const EXPECTED_FUNDING_PRECISION_LOSS = BigNumber.from('5') // total funding precision loss due to accumulation division and multiplication
 
               const oracleVersionHigherPrice = {
                 price: parse6decimal('125'),
@@ -6746,8 +7154,41 @@ describe('Market', () => {
               oracle.status.returns([oracleVersionHigherPrice, ORACLE_VERSION_4.timestamp])
               oracle.request.returns()
 
-              await settle(market, user)
-              await settle(market, userB)
+              await expect(settle(market, user))
+                .to.emit(market, 'PositionProcessed')
+                .withArgs(ORACLE_VERSION_2.timestamp, oracleVersionHigherPrice.timestamp, 1, {
+                  ...DEFAULT_VERSION_ACCUMULATION_RESULT,
+                  fundingMaker: EXPECTED_FUNDING_WITHOUT_FEE_1_5_123.add(EXPECTED_FUNDING_PRECISION_LOSS.mul(1).div(5)),
+                  fundingShort: EXPECTED_FUNDING_WITH_FEE_1_5_123.mul(-1).add(
+                    EXPECTED_FUNDING_PRECISION_LOSS.mul(4).div(5),
+                  ),
+                  fundingFee: EXPECTED_FUNDING_FEE_1_5_123.sub(EXPECTED_FUNDING_PRECISION_LOSS),
+                  interestMaker: EXPECTED_INTEREST_WITHOUT_FEE_5_123,
+                  interestShort: EXPECTED_INTEREST_5_123.mul(-1),
+                  interestFee: EXPECTED_INTEREST_FEE_5_123,
+                  pnlMaker: EXPECTED_PNL,
+                  pnlShort: EXPECTED_PNL.mul(-1),
+                  rewardMaker: EXPECTED_REWARD.mul(3),
+                  rewardShort: EXPECTED_REWARD,
+                })
+                .to.emit(market, 'AccountPositionProcessed')
+                .withArgs(user.address, ORACLE_VERSION_2.timestamp, oracleVersionHigherPrice.timestamp, 1, {
+                  ...DEFAULT_LOCAL_ACCUMULATION_RESULT,
+                  collateralAmount: EXPECTED_PNL.mul(-1)
+                    .sub(EXPECTED_FUNDING_WITH_FEE_1_5_123)
+                    .sub(EXPECTED_INTEREST_5_123),
+                  rewardAmount: EXPECTED_REWARD,
+                })
+
+              await expect(settle(market, userB))
+                .to.emit(market, 'AccountPositionProcessed')
+                .withArgs(userB.address, ORACLE_VERSION_2.timestamp, oracleVersionHigherPrice.timestamp, 1, {
+                  ...DEFAULT_LOCAL_ACCUMULATION_RESULT,
+                  collateralAmount: EXPECTED_PNL.add(EXPECTED_FUNDING_WITHOUT_FEE_1_5_123)
+                    .add(EXPECTED_INTEREST_WITHOUT_FEE_5_123)
+                    .sub(8),
+                  rewardAmount: EXPECTED_REWARD.mul(3),
+                })
 
               expectLocalEq(await market.locals(user.address), {
                 currentId: 3,
@@ -10178,6 +10619,74 @@ describe('Market', () => {
             ).to.be.revertedWithCustomError(market, 'MarketMakerOverLimitError')
           })
 
+          it('reverts if under efficiency limit', async () => {
+            const riskParameter = { ...(await market.riskParameter()) }
+            riskParameter.efficiencyLimit = parse6decimal('0.6')
+            await market.updateRiskParameter(riskParameter)
+
+            dsu.transferFrom.whenCalledWith(user.address, market.address, COLLATERAL.mul(1e12)).returns(true)
+            await market.connect(user).update(user.address, POSITION.div(2), 0, 0, COLLATERAL, false)
+            dsu.transferFrom.whenCalledWith(userB.address, market.address, COLLATERAL.mul(1e12)).returns(true)
+            await market.connect(userB).update(userB.address, 0, POSITION.div(2), 0, COLLATERAL, false)
+            dsu.transferFrom.whenCalledWith(userC.address, market.address, COLLATERAL.mul(1e12)).returns(true)
+            await market.connect(userC).update(userC.address, 0, 0, POSITION.div(2), COLLATERAL, false)
+
+            await expect(
+              market.connect(userB).update(userB.address, 0, POSITION, 0, 0, false),
+            ).to.be.revertedWithCustomError(market, 'MarketEfficiencyUnderLimitError')
+          })
+
+          it('reverts if too many pending orders', async () => {
+            const protocolParameter = { ...(await factory.parameter()) }
+            protocolParameter.maxPendingIds = BigNumber.from(3)
+            factory.parameter.returns(protocolParameter)
+
+            oracle.at.whenCalledWith(ORACLE_VERSION_1.timestamp).returns(ORACLE_VERSION_1)
+            oracle.status.returns([ORACLE_VERSION_1, ORACLE_VERSION_2.timestamp])
+            oracle.request.returns()
+
+            dsu.transferFrom.whenCalledWith(user.address, market.address, COLLATERAL.mul(1e12)).returns(true)
+            await market.connect(user).update(user.address, POSITION.div(2), 0, 0, COLLATERAL, false)
+
+            oracle.status.returns([ORACLE_VERSION_1, ORACLE_VERSION_2.timestamp + 1])
+            oracle.request.returns()
+
+            await market.connect(user).update(user.address, POSITION.add(1), 0, 0, 0, false)
+
+            oracle.status.returns([ORACLE_VERSION_1, ORACLE_VERSION_2.timestamp + 2])
+            oracle.request.returns()
+
+            await market.connect(user).update(user.address, POSITION.add(2), 0, 0, 0, false)
+
+            oracle.status.returns([ORACLE_VERSION_1, ORACLE_VERSION_2.timestamp + 3])
+            oracle.request.returns()
+
+            await expect(
+              market.connect(user).update(user.address, POSITION.add(3), 0, 0, 0, false),
+            ).to.be.revertedWithCustomError(market, 'MarketExceedsPendingIdLimitError')
+          })
+
+          it('reverts if price is stale', async () => {
+            const riskParameter = { ...(await market.riskParameter()) }
+            riskParameter.staleAfter = 7200
+            await market.connect(owner).updateRiskParameter(riskParameter)
+
+            oracle.at.whenCalledWith(ORACLE_VERSION_1.timestamp).returns(ORACLE_VERSION_1)
+            oracle.status.returns([ORACLE_VERSION_1, ORACLE_VERSION_3.timestamp - 1])
+            oracle.request.returns()
+
+            dsu.transferFrom.whenCalledWith(user.address, market.address, COLLATERAL.mul(1e12)).returns(true)
+            await market.connect(user).update(user.address, POSITION, 0, 0, COLLATERAL, false)
+
+            oracle.at.whenCalledWith(ORACLE_VERSION_1.timestamp).returns(ORACLE_VERSION_1)
+            oracle.status.returns([ORACLE_VERSION_1, ORACLE_VERSION_3.timestamp])
+            oracle.request.returns()
+
+            await expect(
+              market.connect(user).update(user.address, POSITION, 0, 0, 0, false),
+            ).to.be.revertedWithCustomError(market, 'MarketStalePriceError')
+          })
+
           it('reverts if under minimum maintenance', async () => {
             dsu.transferFrom.whenCalledWith(user.address, market.address, utils.parseEther('1')).returns(true)
             await expect(
@@ -10195,8 +10704,11 @@ describe('Market', () => {
           })
 
           it('reverts if taker > maker', async () => {
+            dsu.transferFrom.whenCalledWith(user.address, market.address, COLLATERAL.mul(1e12)).returns(true)
+            await market.connect(user).update(user.address, POSITION, 0, 0, COLLATERAL, false)
+
             await expect(
-              market.connect(user).update(user.address, 0, POSITION.mul(4), 0, COLLATERAL, false),
+              market.connect(userB).update(userB.address, 0, POSITION.add(1), 0, COLLATERAL, false),
             ).to.be.revertedWithCustomError(market, `MarketInsufficientLiquidityError`)
           })
 
@@ -10375,9 +10887,9 @@ describe('Market', () => {
             await settle(market, user)
             await settle(market, userB)
 
-            const protocolParameter = { ...(await factory.parameter()) }
-            protocolParameter.maxLiquidationFee = parse6decimal('10')
-            factory.parameter.returns(protocolParameter)
+            const riskParameter = { ...(await market.riskParameter()) }
+            riskParameter.maxLiquidationFee = parse6decimal('10')
+            await market.connect(owner).updateRiskParameter(riskParameter)
 
             const EXPECTED_PNL = parse6decimal('27').mul(5)
             const EXPECTED_LIQUIDATION_FEE = parse6decimal('10') // 22.5
@@ -10632,6 +11144,195 @@ describe('Market', () => {
             await expect(
               market.connect(operator).update(user.address, POSITION, 0, 0, COLLATERAL, false),
             ).to.be.revertedWithCustomError(market, 'MarketOperatorNotAllowedError')
+          })
+        })
+
+        context('magic values', async () => {
+          beforeEach(async () => {
+            dsu.transferFrom.whenCalledWith(user.address, market.address, COLLATERAL.mul(1e12)).returns(true)
+            dsu.transferFrom.whenCalledWith(userB.address, market.address, COLLATERAL.mul(1e12)).returns(true)
+            dsu.transferFrom.whenCalledWith(userC.address, market.address, COLLATERAL.mul(1e12)).returns(true)
+          })
+
+          it('withdraws all collateral on MIN', async () => {
+            await market.connect(userB).update(userB.address, POSITION, 0, 0, COLLATERAL, false)
+            await market.connect(user).update(user.address, 0, POSITION.div(2), 0, COLLATERAL, false)
+
+            oracle.at.whenCalledWith(ORACLE_VERSION_2.timestamp).returns(ORACLE_VERSION_2)
+            oracle.status.returns([ORACLE_VERSION_2, ORACLE_VERSION_3.timestamp])
+            oracle.request.returns()
+
+            await market.connect(user).update(user.address, 0, 0, 0, 0, false)
+            await market.connect(userB).update(userB.address, 0, 0, 0, 0, false)
+
+            oracle.at.whenCalledWith(ORACLE_VERSION_3.timestamp).returns(ORACLE_VERSION_3)
+            oracle.status.returns([ORACLE_VERSION_3, ORACLE_VERSION_4.timestamp])
+            oracle.request.returns()
+
+            await settle(market, user)
+            await settle(market, userB)
+
+            expectLocalEq(await market.locals(user.address), {
+              currentId: 3,
+              collateral: COLLATERAL.sub(EXPECTED_FUNDING_WITH_FEE_1_5_123).sub(EXPECTED_INTEREST_5_123),
+              reward: EXPECTED_REWARD.mul(2),
+              protection: 0,
+            })
+            expectLocalEq(await market.locals(userB.address), {
+              currentId: 3,
+              collateral: COLLATERAL.add(EXPECTED_FUNDING_WITHOUT_FEE_1_5_123)
+                .add(EXPECTED_INTEREST_WITHOUT_FEE_5_123)
+                .sub(8), // loss of precision
+              reward: EXPECTED_REWARD.mul(3),
+              protection: 0,
+            })
+
+            dsu.transfer
+              .whenCalledWith(
+                user.address,
+                COLLATERAL.sub(EXPECTED_FUNDING_WITH_FEE_1_5_123).sub(EXPECTED_INTEREST_5_123).mul(1e12),
+              )
+              .returns(true)
+            dsu.transfer
+              .whenCalledWith(
+                userB.address,
+                COLLATERAL.add(EXPECTED_FUNDING_WITHOUT_FEE_1_5_123)
+                  .add(EXPECTED_INTEREST_WITHOUT_FEE_5_123)
+                  .sub(8)
+                  .mul(1e12),
+              )
+              .returns(true)
+            await market.connect(user).update(user.address, 0, 0, 0, ethers.constants.MinInt256, false)
+            await market.connect(userB).update(userB.address, 0, 0, 0, ethers.constants.MinInt256, false)
+
+            expectLocalEq(await market.locals(user.address), {
+              currentId: 3, // TODO: why do these not increase?
+              collateral: 0,
+              reward: EXPECTED_REWARD.mul(2),
+              protection: 0,
+            })
+            expectLocalEq(await market.locals(userB.address), {
+              currentId: 3,
+              collateral: 0,
+              reward: EXPECTED_REWARD.mul(3),
+              protection: 0,
+            })
+          })
+
+          it('keeps same position on MAX', async () => {
+            await market.connect(userB).update(userB.address, POSITION, 0, 0, COLLATERAL, false)
+            await market.connect(user).update(user.address, 0, POSITION.div(2), 0, COLLATERAL, false)
+            await market.connect(userC).update(userC.address, 0, 0, POSITION.div(2), COLLATERAL, false)
+
+            expectPositionEq(await market.pendingPositions(user.address, 1), {
+              id: 1,
+              timestamp: ORACLE_VERSION_2.timestamp,
+              maker: 0,
+              long: POSITION.div(2),
+              short: 0,
+              fee: 0,
+            })
+            expectPositionEq(await market.pendingPositions(userB.address, 1), {
+              id: 1,
+              timestamp: ORACLE_VERSION_2.timestamp,
+              maker: POSITION,
+              long: 0,
+              short: 0,
+              fee: 0,
+            })
+            expectPositionEq(await market.pendingPositions(userC.address, 1), {
+              id: 1,
+              timestamp: ORACLE_VERSION_2.timestamp,
+              maker: 0,
+              long: 0,
+              short: POSITION.div(2),
+              fee: 0,
+            })
+
+            await market.connect(user).update(user.address, 0, ethers.constants.MaxUint256, 0, 0, false)
+            await market.connect(userB).update(userB.address, ethers.constants.MaxUint256, 0, 0, 0, false)
+            await market.connect(userC).update(userC.address, 0, 0, ethers.constants.MaxUint256, 0, false)
+
+            expectPositionEq(await market.pendingPositions(user.address, 1), {
+              id: 1,
+              timestamp: ORACLE_VERSION_2.timestamp,
+              maker: 0,
+              long: POSITION.div(2),
+              short: 0,
+              fee: 0,
+            })
+            expectPositionEq(await market.pendingPositions(userB.address, 1), {
+              id: 1,
+              timestamp: ORACLE_VERSION_2.timestamp,
+              maker: POSITION,
+              long: 0,
+              short: 0,
+              fee: 0,
+            })
+            expectPositionEq(await market.pendingPositions(userC.address, 1), {
+              id: 1,
+              timestamp: ORACLE_VERSION_2.timestamp,
+              maker: 0,
+              long: 0,
+              short: POSITION.div(2),
+              fee: 0,
+            })
+
+            await market
+              .connect(user)
+              .update(
+                user.address,
+                ethers.constants.MaxUint256,
+                ethers.constants.MaxUint256,
+                ethers.constants.MaxUint256,
+                0,
+                false,
+              )
+            await market
+              .connect(userB)
+              .update(
+                userB.address,
+                ethers.constants.MaxUint256,
+                ethers.constants.MaxUint256,
+                ethers.constants.MaxUint256,
+                0,
+                false,
+              )
+            await market
+              .connect(userC)
+              .update(
+                userC.address,
+                ethers.constants.MaxUint256,
+                ethers.constants.MaxUint256,
+                ethers.constants.MaxUint256,
+                0,
+                false,
+              )
+
+            expectPositionEq(await market.pendingPositions(user.address, 1), {
+              id: 1,
+              timestamp: ORACLE_VERSION_2.timestamp,
+              maker: 0,
+              long: POSITION.div(2),
+              short: 0,
+              fee: 0,
+            })
+            expectPositionEq(await market.pendingPositions(userB.address, 1), {
+              id: 1,
+              timestamp: ORACLE_VERSION_2.timestamp,
+              maker: POSITION,
+              long: 0,
+              short: 0,
+              fee: 0,
+            })
+            expectPositionEq(await market.pendingPositions(userC.address, 1), {
+              id: 1,
+              timestamp: ORACLE_VERSION_2.timestamp,
+              maker: 0,
+              long: 0,
+              short: POSITION.div(2),
+              fee: 0,
+            })
           })
         })
       })

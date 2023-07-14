@@ -14,6 +14,12 @@ struct MarketParameter {
     UFixed6 positionFee;
     UFixed6 oracleFee; // TODO: move to oracle?
     UFixed6 riskFee;
+    UFixed6 settlementFee;
+    UFixed6 makerRewardRate;
+    UFixed6 longRewardRate;
+    UFixed6 shortRewardRate;
+    bool takerCloseAlways;
+    bool makerCloseAlways;
     bool closed;
 }
 
@@ -23,8 +29,11 @@ struct StoredMarketParameter {
     uint24 positionFee;         // <= 1677%
     uint24 oracleFee;           // <= 1677%
     uint24 riskFee;             // <= 1677%
-    bool closed;
-    bytes16 __unallocated__;
+    uint32 settlementFee;       // <= 4294 // TODO: ??
+    uint32 makerRewardRate;     // <= 2147.48 / s
+    uint32 longRewardRate;      // <= 2147.48 / s
+    uint32 shortRewardRate;     // <= 2147.48 / s
+    uint8 flags;
 }
 struct MarketParameterStorage { StoredMarketParameter value; }
 using MarketParameterStorageLib for MarketParameterStorage global;
@@ -34,13 +43,23 @@ library MarketParameterStorageLib {
 
     function read(MarketParameterStorage storage self) internal view returns (MarketParameter memory) {
         StoredMarketParameter memory value = self.value;
+
+        (bool takerCloseAlways, bool makerCloseAlways, bool closed) =
+            (value.flags & 0x01 == 0x01, value.flags & 0x02 == 0x02, value.flags & 0x04 == 0x04);
+
         return MarketParameter(
             UFixed6.wrap(uint256(value.fundingFee)),
             UFixed6.wrap(uint256(value.interestFee)),
             UFixed6.wrap(uint256(value.positionFee)),
             UFixed6.wrap(uint256(value.oracleFee)),
             UFixed6.wrap(uint256(value.riskFee)),
-            value.closed
+            UFixed6.wrap(uint256(value.settlementFee)),
+            UFixed6.wrap(uint256(value.makerRewardRate)),
+            UFixed6.wrap(uint256(value.longRewardRate)),
+            UFixed6.wrap(uint256(value.shortRewardRate)),
+            takerCloseAlways,
+            makerCloseAlways,
+            closed
         );
     }
 
@@ -50,6 +69,14 @@ library MarketParameterStorageLib {
         if (newValue.positionFee.gt(UFixed6.wrap(type(uint24).max))) revert MarketParameterStorageInvalidError();
         if (newValue.oracleFee.gt(UFixed6.wrap(type(uint24).max))) revert MarketParameterStorageInvalidError();
         if (newValue.riskFee.gt(UFixed6.wrap(type(uint24).max))) revert MarketParameterStorageInvalidError();
+        if (newValue.settlementFee.gt(UFixed6.wrap(type(uint32).max))) revert MarketParameterStorageInvalidError();
+        if (newValue.makerRewardRate.gt(UFixed6.wrap(type(uint32).max))) revert MarketParameterStorageInvalidError();
+        if (newValue.longRewardRate.gt(UFixed6.wrap(type(uint32).max))) revert MarketParameterStorageInvalidError();
+        if (newValue.shortRewardRate.gt(UFixed6.wrap(type(uint32).max))) revert MarketParameterStorageInvalidError();
+
+        uint8 flags = (newValue.takerCloseAlways ? 0x01 : 0x00) |
+            (newValue.makerCloseAlways ? 0x02 : 0x00) |
+            (newValue.closed ? 0x04 : 0x00);
 
         self.value = StoredMarketParameter(
             uint24(UFixed6.unwrap(newValue.fundingFee)),
@@ -57,8 +84,11 @@ library MarketParameterStorageLib {
             uint24(UFixed6.unwrap(newValue.positionFee)),
             uint24(UFixed6.unwrap(newValue.oracleFee)),
             uint24(UFixed6.unwrap(newValue.riskFee)),
-            newValue.closed,
-            bytes13(0)
+            uint32(UFixed6.unwrap(newValue.settlementFee)),
+            uint32(UFixed6.unwrap(newValue.makerRewardRate)),
+            uint32(UFixed6.unwrap(newValue.longRewardRate)),
+            uint32(UFixed6.unwrap(newValue.shortRewardRate)),
+            flags
         );
     }
 }

@@ -56,10 +56,13 @@ describe('MarketFactory', () => {
 
       const parameter = await factory.parameter()
       expect(parameter.protocolFee).to.equal(0)
-      expect(parameter.liquidationFee).to.equal(0)
-      expect(parameter.maxLiquidationFee).to.equal(0)
-      expect(parameter.settlementFee).to.equal(0)
       expect(parameter.maxPendingIds).to.equal(0)
+      expect(parameter.maxFee).to.equal(0)
+      expect(parameter.maxFeeAbsolute).to.equal(0)
+      expect(parameter.maxCut).to.equal(0)
+      expect(parameter.maxRate).to.equal(0)
+      expect(parameter.minMaintenance).to.equal(0)
+      expect(parameter.minEfficiency).to.equal(0)
     })
 
     it('reverts if already initialized', async () => {
@@ -88,8 +91,11 @@ describe('MarketFactory', () => {
         makerFee: 0,
         makerImpactFee: 0,
         positionFee: 0,
-        makerLiquidity: parse6decimal('0.2'),
         makerLimit: parse6decimal('1000'),
+        efficiencyLimit: parse6decimal('0.2'),
+        liquidationFee: parse6decimal('0.50'),
+        minLiquidationFee: parse6decimal('0'),
+        maxLiquidationFee: parse6decimal('1000'),
         utilizationCurve: {
           minRate: parse6decimal('0.10'),
           maxRate: parse6decimal('0.10'),
@@ -100,9 +106,6 @@ describe('MarketFactory', () => {
           k: parse6decimal('40000'),
           max: parse6decimal('1.20'),
         },
-        makerRewardRate: 0,
-        longRewardRate: 0,
-        shortRewardRate: 0,
         minMaintenance: parse6decimal('100'),
         staleAfter: 7200,
         makerReceiveOnly: false,
@@ -113,6 +116,8 @@ describe('MarketFactory', () => {
 
       const marketAddress = await factory.callStatic.create(marketDefinition, marketParameter)
       await expect(factory.connect(owner).create(marketDefinition, marketParameter))
+        .to.emit(factory, 'InstanceCreated')
+        .withArgs(marketAddress)
         .to.emit(factory, 'MarketCreated')
         .withArgs(marketAddress, marketDefinition, marketParameter)
 
@@ -138,8 +143,11 @@ describe('MarketFactory', () => {
         makerFee: 0,
         makerImpactFee: 0,
         positionFee: 0,
-        makerLiquidity: parse6decimal('0.2'),
         makerLimit: parse6decimal('1000'),
+        efficiencyLimit: parse6decimal('0.2'),
+        liquidationFee: parse6decimal('0.50'),
+        minLiquidationFee: parse6decimal('0'),
+        maxLiquidationFee: parse6decimal('1000'),
         utilizationCurve: {
           minRate: parse6decimal('0.10'),
           maxRate: parse6decimal('0.10'),
@@ -150,9 +158,6 @@ describe('MarketFactory', () => {
           k: parse6decimal('40000'),
           max: parse6decimal('1.20'),
         },
-        makerRewardRate: 0,
-        longRewardRate: 0,
-        shortRewardRate: 0,
         minMaintenance: parse6decimal('100'),
         staleAfter: 7200,
         makerReceiveOnly: false,
@@ -162,6 +167,8 @@ describe('MarketFactory', () => {
 
       const marketAddress = await factory.callStatic.create(marketDefinition, marketParameter)
       await expect(factory.connect(owner).create(marketDefinition, marketParameter))
+        .to.emit(factory, 'InstanceCreated')
+        .withArgs(marketAddress)
         .to.emit(factory, 'MarketCreated')
         .withArgs(marketAddress, marketDefinition, marketParameter)
 
@@ -187,8 +194,11 @@ describe('MarketFactory', () => {
         makerFee: 0,
         makerImpactFee: 0,
         positionFee: 0,
-        makerLiquidity: parse6decimal('0.2'),
         makerLimit: parse6decimal('1000'),
+        efficiencyLimit: parse6decimal('0.2'),
+        liquidationFee: parse6decimal('0.50'),
+        minLiquidationFee: parse6decimal('0'),
+        maxLiquidationFee: parse6decimal('1000'),
         utilizationCurve: {
           minRate: parse6decimal('0.10'),
           maxRate: parse6decimal('0.10'),
@@ -199,9 +209,6 @@ describe('MarketFactory', () => {
           k: parse6decimal('40000'),
           max: parse6decimal('1.20'),
         },
-        makerRewardRate: 0,
-        longRewardRate: 0,
-        shortRewardRate: 0,
         minMaintenance: parse6decimal('100'),
         staleAfter: 7200,
         makerReceiveOnly: false,
@@ -234,8 +241,11 @@ describe('MarketFactory', () => {
         makerFee: 0,
         makerImpactFee: 0,
         positionFee: 0,
-        makerLiquidity: parse6decimal('0.2'),
         makerLimit: parse6decimal('1000'),
+        efficiencyLimit: parse6decimal('0.2'),
+        liquidationFee: parse6decimal('0.50'),
+        minLiquidationFee: parse6decimal('0'),
+        maxLiquidationFee: parse6decimal('1000'),
         utilizationCurve: {
           minRate: parse6decimal('0.10'),
           maxRate: parse6decimal('0.10'),
@@ -246,9 +256,6 @@ describe('MarketFactory', () => {
           k: parse6decimal('40000'),
           max: parse6decimal('1.20'),
         },
-        makerRewardRate: 0,
-        longRewardRate: 0,
-        shortRewardRate: 0,
         minMaintenance: parse6decimal('100'),
         staleAfter: 7200,
         makerReceiveOnly: false,
@@ -281,8 +288,11 @@ describe('MarketFactory', () => {
         makerFee: 0,
         makerImpactFee: 0,
         positionFee: 0,
-        makerLiquidity: parse6decimal('0.2'),
         makerLimit: parse6decimal('1000'),
+        efficiencyLimit: parse6decimal('0.2'),
+        liquidationFee: parse6decimal('0.50'),
+        minLiquidationFee: parse6decimal('0'),
+        maxLiquidationFee: parse6decimal('1000'),
         utilizationCurve: {
           minRate: parse6decimal('0.10'),
           maxRate: parse6decimal('0.10'),
@@ -293,9 +303,6 @@ describe('MarketFactory', () => {
           k: parse6decimal('40000'),
           max: parse6decimal('1.20'),
         },
-        makerRewardRate: 0,
-        longRewardRate: 0,
-        shortRewardRate: 0,
         minMaintenance: parse6decimal('100'),
         staleAfter: 7200,
         makerReceiveOnly: false,
@@ -315,22 +322,28 @@ describe('MarketFactory', () => {
 
   describe('#updateParameter', async () => {
     const newParameter = {
-      protocolFee: parse6decimal('0.50'),
-      liquidationFee: parse6decimal('0.50'),
-      maxLiquidationFee: parse6decimal('1000'),
-      settlementFee: parse6decimal('0.50'),
       maxPendingIds: BigNumber.from(5),
+      protocolFee: parse6decimal('0.50'),
+      maxFee: parse6decimal('0.01'),
+      maxFeeAbsolute: parse6decimal('1000'),
+      maxCut: parse6decimal('0.50'),
+      maxRate: parse6decimal('10.00'),
+      minMaintenance: parse6decimal('0.01'),
+      minEfficiency: parse6decimal('0.1'),
     }
 
     it('updates the parameters', async () => {
       await expect(factory.updateParameter(newParameter)).to.emit(factory, 'ParameterUpdated').withArgs(newParameter)
 
       const parameter = await factory.parameter()
-      expect(parameter.protocolFee).to.equal(newParameter.protocolFee)
-      expect(parameter.liquidationFee).to.equal(newParameter.liquidationFee)
-      expect(parameter.maxLiquidationFee).to.equal(newParameter.maxLiquidationFee)
-      expect(parameter.settlementFee).to.equal(newParameter.settlementFee)
       expect(parameter.maxPendingIds).to.equal(newParameter.maxPendingIds)
+      expect(parameter.protocolFee).to.equal(newParameter.protocolFee)
+      expect(parameter.maxFee).to.equal(newParameter.maxFee)
+      expect(parameter.maxFeeAbsolute).to.equal(newParameter.maxFeeAbsolute)
+      expect(parameter.maxCut).to.equal(newParameter.maxCut)
+      expect(parameter.maxRate).to.equal(newParameter.maxRate)
+      expect(parameter.minMaintenance).to.equal(newParameter.minMaintenance)
+      expect(parameter.minEfficiency).to.equal(newParameter.minEfficiency)
     })
 
     it('reverts if not owner', async () => {

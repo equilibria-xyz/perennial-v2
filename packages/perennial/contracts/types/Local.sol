@@ -21,6 +21,13 @@ struct StoredLocal {
 struct LocalStorage { uint256 value; }
 using LocalStorageLib for LocalStorage global;
 
+struct LocalAccumulationResult {
+    Fixed6 collateralAmount;
+    UFixed6 rewardAmount;
+    UFixed6 positionFee;
+    UFixed6 keeper;
+}
+
 /**
  * @title LocalLib
  * @notice Library
@@ -40,17 +47,19 @@ library LocalLib {
         Position memory toPosition,
         Version memory fromVersion,
         Version memory toVersion
-    ) internal pure {
-        Fixed6 collateralAmount = toVersion.makerValue.accumulated(fromVersion.makerValue, fromPosition.maker)
+    ) internal pure returns (LocalAccumulationResult memory values) {
+        values.collateralAmount = toVersion.makerValue.accumulated(fromVersion.makerValue, fromPosition.maker)
             .add(toVersion.longValue.accumulated(fromVersion.longValue, fromPosition.long))
             .add(toVersion.shortValue.accumulated(fromVersion.shortValue, fromPosition.short));
-        UFixed6 rewardAmount = toVersion.makerReward.accumulated(fromVersion.makerReward, fromPosition.maker)
+        values.rewardAmount = toVersion.makerReward.accumulated(fromVersion.makerReward, fromPosition.maker)
             .add(toVersion.longReward.accumulated(fromVersion.longReward, fromPosition.long))
             .add(toVersion.shortReward.accumulated(fromVersion.shortReward, fromPosition.short));
-        Fixed6 feeAmount = Fixed6Lib.from(toPosition.fee.add(toPosition.keeper));
+        values.positionFee = toPosition.fee;
+        values.keeper = toPosition.keeper;
 
-        self.collateral = self.collateral.add(collateralAmount).sub(feeAmount);
-        self.reward = self.reward.add(rewardAmount);
+        Fixed6 feeAmount = Fixed6Lib.from(values.positionFee.add(values.keeper));
+        self.collateral = self.collateral.add(values.collateralAmount).sub(feeAmount);
+        self.reward = self.reward.add(values.rewardAmount);
     }
 
     function protect(

@@ -60,8 +60,11 @@ describe('Happy Path', () => {
       takerImpactFee: 0,
       makerFee: 0,
       makerImpactFee: 0,
-      makerLiquidity: parse6decimal('0.2'),
       makerLimit: parse6decimal('1'),
+      efficiencyLimit: parse6decimal('0.2'),
+      liquidationFee: parse6decimal('0.50'),
+      minLiquidationFee: parse6decimal('0'),
+      maxLiquidationFee: parse6decimal('1000'),
       utilizationCurve: {
         minRate: 0,
         maxRate: parse6decimal('5.00'),
@@ -72,9 +75,6 @@ describe('Happy Path', () => {
         k: parse6decimal('40000'),
         max: parse6decimal('1.20'),
       },
-      makerRewardRate: 0,
-      longRewardRate: 0,
-      shortRewardRate: 0,
       minMaintenance: parse6decimal('500'),
       staleAfter: 7200,
       makerReceiveOnly: false,
@@ -85,7 +85,13 @@ describe('Happy Path', () => {
       oracleFee: 0,
       riskFee: 0,
       positionFee: 0,
-      closed: true,
+      settlementFee: 0,
+      makerRewardRate: 0,
+      longRewardRate: 0,
+      shortRewardRate: 0,
+      makerCloseAlways: false,
+      takerCloseAlways: false,
+      closed: false,
     }
     const marketAddress = await marketFactory.callStatic.create(definition, riskParameter)
     await expect(marketFactory.create(definition, riskParameter)).to.emit(marketFactory, 'MarketCreated')
@@ -775,7 +781,7 @@ describe('Happy Path', () => {
 
     await expect(
       market.connect(userB).update(userB.address, 0, POSITION_B, 0, COLLATERAL, false),
-    ).to.be.revertedWithCustomError(market, 'MarketInsufficientLiquidityError')
+    ).to.be.revertedWithCustomError(market, 'MarketEfficiencyUnderLimitError')
     await market.connect(user).update(user.address, POSITION, 0, 0, COLLATERAL, false)
     await market.connect(userB).update(userB.address, 0, POSITION_B, 0, COLLATERAL, false)
 
@@ -853,7 +859,7 @@ describe('Happy Path', () => {
 
     await expect(
       market.connect(userB).update(userB.address, 0, POSITION_B, 0, COLLATERAL, false),
-    ).to.be.revertedWithCustomError(market, 'MarketInsufficientLiquidityError')
+    ).to.be.revertedWithCustomError(market, 'MarketEfficiencyUnderLimitError')
     await market.connect(user).update(user.address, POSITION, 0, 0, COLLATERAL, false)
     await market.connect(userB).update(userB.address, 0, POSITION_B, 0, COLLATERAL, false)
     await market.connect(userB).update(userB.address, POSITION_B.div(2), 0, 0, 0, false)
@@ -1012,8 +1018,11 @@ describe('Happy Path', () => {
       takerImpactFee: positionFeesOn ? parse6decimal('0.0004') : 0,
       makerFee: positionFeesOn ? parse6decimal('0.0005') : 0,
       makerImpactFee: positionFeesOn ? parse6decimal('0.0002') : 0,
-      makerLiquidity: parse6decimal('0.2'),
       makerLimit: parse6decimal('1'),
+      efficiencyLimit: parse6decimal('0.2'),
+      liquidationFee: parse6decimal('0.50'),
+      minLiquidationFee: parse6decimal('0'),
+      maxLiquidationFee: parse6decimal('1000'),
       utilizationCurve: {
         minRate: 0,
         maxRate: parse6decimal('5.00'),
@@ -1024,9 +1033,6 @@ describe('Happy Path', () => {
         k: parse6decimal('40000'),
         max: parse6decimal('1.20'),
       },
-      makerRewardRate: incentizesOn ? parse6decimal('0.01') : 0,
-      longRewardRate: incentizesOn ? parse6decimal('0.001') : 0,
-      shortRewardRate: incentizesOn ? parse6decimal('0.001') : 0,
       minMaintenance: parse6decimal('500'),
       staleAfter: 7200,
       makerReceiveOnly: false,
@@ -1036,7 +1042,13 @@ describe('Happy Path', () => {
       interestFee: parse6decimal('0.1'),
       oracleFee: 0,
       riskFee: 0,
+      settlementFee: 0,
       positionFee: positionFeesOn ? parse6decimal('0.1') : 0,
+      makerRewardRate: incentizesOn ? parse6decimal('0.01') : 0,
+      longRewardRate: incentizesOn ? parse6decimal('0.001') : 0,
+      shortRewardRate: incentizesOn ? parse6decimal('0.001') : 0,
+      makerCloseAlways: false,
+      takerCloseAlways: false,
       closed: false,
     }
 
@@ -1068,7 +1080,7 @@ describe('Happy Path', () => {
     expectLocalEq(await market.locals(user.address), {
       currentId: 3,
       collateral: '985775856',
-      reward: '24669998',
+      reward: incentizesOn ? '24669998' : 0,
       protection: 0,
     })
     expectPositionEq(await market.pendingPositions(user.address, 3), {
@@ -1116,12 +1128,13 @@ describe('Happy Path', () => {
       makerValue: { _value: '-357187161823' },
       longValue: { _value: '362067566665' },
       shortValue: { _value: 0 },
-      makerReward: { _value: '606836363635' },
-      longReward: { _value: '60683636363' },
+      makerReward: { _value: incentizesOn ? '606836363635' : 0 },
+      longReward: { _value: incentizesOn ? '60683636363' : 0 },
       shortReward: { _value: 0 },
     })
   })
 
+  // uncheck skip to see gas results
   it.skip('multi-delayed update w/ collateral (gas)', async () => {
     const positionFeesOn = true
     const incentizesOn = true
@@ -1147,8 +1160,11 @@ describe('Happy Path', () => {
       takerImpactFee: positionFeesOn ? parse6decimal('0.0004') : 0,
       makerFee: positionFeesOn ? parse6decimal('0.0005') : 0,
       makerImpactFee: positionFeesOn ? parse6decimal('0.0002') : 0,
-      makerLiquidity: parse6decimal('0.2'),
       makerLimit: parse6decimal('1'),
+      efficiencyLimit: parse6decimal('0.2'),
+      liquidationFee: parse6decimal('0.50'),
+      minLiquidationFee: parse6decimal('0'),
+      maxLiquidationFee: parse6decimal('1000'),
       utilizationCurve: {
         minRate: 0,
         maxRate: parse6decimal('5.00'),
@@ -1159,9 +1175,6 @@ describe('Happy Path', () => {
         k: parse6decimal('40000'),
         max: parse6decimal('1.20'),
       },
-      makerRewardRate: incentizesOn ? parse6decimal('0.01') : 0,
-      longRewardRate: incentizesOn ? parse6decimal('0.001') : 0,
-      shortRewardRate: incentizesOn ? parse6decimal('0.001') : 0,
       minMaintenance: parse6decimal('500'),
       staleAfter: 7200,
       makerReceiveOnly: false,
@@ -1171,7 +1184,13 @@ describe('Happy Path', () => {
       interestFee: parse6decimal('0.1'),
       oracleFee: 0,
       riskFee: 0,
+      settlementFee: 0,
       positionFee: positionFeesOn ? parse6decimal('0.1') : 0,
+      makerRewardRate: incentizesOn ? parse6decimal('0.01') : 0,
+      longRewardRate: incentizesOn ? parse6decimal('0.001') : 0,
+      shortRewardRate: incentizesOn ? parse6decimal('0.001') : 0,
+      makerCloseAlways: false,
+      takerCloseAlways: false,
       closed: false,
     }
 

@@ -123,10 +123,6 @@ describe('Vault', () => {
   const fixture = async () => {
     const instanceVars = await deployProtocol()
 
-    const parameter = { ...(await instanceVars.marketFactory.parameter()) }
-    parameter.maxLiquidationFee = parse6decimal('25000')
-    await instanceVars.marketFactory.updateParameter(parameter)
-
     let pauser
     ;[owner, pauser, user, user2, btcUser1, btcUser2, liquidator, perennialUser] = await ethers.getSigners()
     factory = instanceVars.marketFactory
@@ -205,6 +201,7 @@ describe('Vault', () => {
       payoff: constants.AddressZero,
       makerLimit: parse6decimal('1000'),
       minMaintenance: parse6decimal('50'),
+      maxLiquidationFee: parse6decimal('25000'),
     })
     btcMarket = await deployProductOnMainnetFork({
       factory: instanceVars.marketFactory,
@@ -215,6 +212,7 @@ describe('Vault', () => {
       oracle: btcRootOracle.address,
       payoff: constants.AddressZero,
       minMaintenance: parse6decimal('50'),
+      maxLiquidationFee: parse6decimal('25000'),
     })
 
     const vaultImpl = await new Vault__factory(owner).deploy()
