@@ -112,15 +112,6 @@ const EXPECTED_FUNDING_FEE_1_5_123 = BigNumber.from(320) // (3159 + 157) = 3316 
 const EXPECTED_FUNDING_WITH_FEE_1_5_123 = EXPECTED_FUNDING_1_5_123.add(EXPECTED_FUNDING_FEE_1_5_123.div(2))
 const EXPECTED_FUNDING_WITHOUT_FEE_1_5_123 = EXPECTED_FUNDING_1_5_123.sub(EXPECTED_FUNDING_FEE_1_5_123.div(2))
 
-// rate_0 = 0
-// rate_1 = rate_0 + (elapsed * skew / k)
-// funding = (rate_0 + rate_1) / 2 * elapsed * taker * price / time_in_years
-// (0.09 + (0.09 + 3600 * 1.00 / 40000)) / 2 * 3600 * 5 * 123 / (86400 * 365) = 3160
-const EXPECTED_FUNDING_2_5_123 = BigNumber.from(9480)
-const EXPECTED_FUNDING_FEE_2_5_123 = BigNumber.from(940) // (9477 + 473) = 9950 / 5 -> 664 * 5 -> 9950
-const EXPECTED_FUNDING_WITH_FEE_2_5_123 = EXPECTED_FUNDING_2_5_123.add(EXPECTED_FUNDING_FEE_2_5_123.div(2))
-const EXPECTED_FUNDING_WITHOUT_FEE_2_5_123 = EXPECTED_FUNDING_2_5_123.sub(EXPECTED_FUNDING_FEE_2_5_123.div(2))
-
 // rate_0 = 0.09
 // rate_1 = rate_0 + (elapsed * skew / k)
 // funding = (rate_0 + rate_1) / 2 * elapsed * taker * price / time_in_years

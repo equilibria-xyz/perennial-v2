@@ -138,10 +138,6 @@ library PositionLib {
         return self.long.min(self.short);
     }
 
-    function net(Position memory self) internal pure returns (UFixed6) {
-        return Fixed6Lib.from(self.long).sub(Fixed6Lib.from(self.short)).abs();
-    }
-
     function skew(Position memory self) internal pure returns (Fixed6) {
         return major(self).isZero() ?
             Fixed6Lib.ZERO :
@@ -208,14 +204,6 @@ library PositionLib {
             .mul(riskParameter.liquidationFee)
             .min(riskParameter.maxLiquidationFee)
             .max(riskParameter.minLiquidationFee);
-    }
-
-    function sub(Position memory self, Position memory position) internal pure returns (Order memory newOrder) {
-        (newOrder.maker, newOrder.long, newOrder.short) = (
-            Fixed6Lib.from(self.maker).sub(Fixed6Lib.from(position.maker)),
-            Fixed6Lib.from(self.long).sub(Fixed6Lib.from(position.long)),
-            Fixed6Lib.from(self.short).sub(Fixed6Lib.from(position.short))
-        );
     }
 }
 

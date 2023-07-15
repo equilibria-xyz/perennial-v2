@@ -12,6 +12,7 @@ import {
   IOracleProviderFactory,
   IOracleProvider,
   IFactory,
+  IInstance,
 } from '../../../types/generated'
 import { constants } from 'ethers'
 import { parse6decimal } from '../../../../common/testutil/types'
@@ -109,6 +110,12 @@ describe('OracleFactory', () => {
         factory.connect(owner).create(PYTH_ETH_USD_PRICE_FEED, subOracleFactory.address),
       ).to.revertedWithCustomError(factory, 'OracleFactoryInvalidIdError')
     })
+
+    it('reverts if not owner', async () => {
+      await expect(
+        factory.connect(user).create(PYTH_ETH_USD_PRICE_FEED, subOracleFactory.address),
+      ).to.revertedWithCustomError(factory, 'UOwnableNotOwnerError')
+    })
   })
 
   describe('#register', async () => {
@@ -188,6 +195,39 @@ describe('OracleFactory', () => {
         factory,
         'OracleFactoryNotRegisteredError',
       )
+    })
+  })
+
+  describe('#authorized', async () => {
+    let subFactory: FakeContract<IFactory>
+    let subInstance: FakeContract<IInstance>
+
+    beforeEach(async () => {
+      subFactory = await smock.fake<IFactory>('IFactory')
+      subInstance = await smock.fake<IInstance>('IInstance')
+    })
+
+    it('true if instance', async () => {
+      await factory.connect(owner).authorize(subFactory.address)
+      subFactory.instances.whenCalledWith(subInstance.address).returns(true)
+      subInstance.factory.returns(subFactory.address)
+
+      expect(await factory.authorized(subInstance.address)).to.be.true
+    })
+
+    it('false if not registered', async () => {
+      subFactory.instances.whenCalledWith(subInstance.address).returns(true)
+      subInstance.factory.returns(subFactory.address)
+
+      expect(await factory.authorized(subInstance.address)).to.be.false
+    })
+
+    it('false if not instance', async () => {
+      await factory.connect(owner).authorize(subFactory.address)
+      subFactory.instances.whenCalledWith(subInstance.address).returns(false)
+      subInstance.factory.returns(subFactory.address)
+
+      expect(await factory.authorized(subInstance.address)).to.be.false
     })
   })
 })
