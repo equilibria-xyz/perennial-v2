@@ -83,9 +83,8 @@ contract Market is IMarket, Instance {
         Fixed6 collateral,
         bool protect
     ) external whenNotPaused {
-        CurrentContext memory context = _loadContext(account);
+        Context memory context = _loadContext(account);
         _settle(context, account);
-        _sync(context, account);
         _update(context, account, newMaker, newLong, newShort, collateral, protect);
         _saveContext(context, account);
     }
@@ -234,7 +233,7 @@ contract Market is IMarket, Instance {
     }
 
     function _update(
-        CurrentContext memory context,
+        Context memory context,
         address account,
         UFixed6 newMaker,
         UFixed6 newLong,
@@ -244,36 +243,50 @@ contract Market is IMarket, Instance {
     ) private {
         _startGas(context, "_update before-update-after: %s");
 
+        // read
+        context.currentPosition.global = context.global.currentId == context.latestPosition.global.id ?
+            _position.read() :
+            _pendingPosition[context.global.currentId].read();
+        context.currentPosition.local = context.local.currentId == context.latestPosition.local.id ?
+            _positions[account].read() :
+            _pendingPositions[account][context.local.currentId].read();
+
         // magic values
         if (collateral.eq(Fixed6Lib.MIN)) collateral = context.local.collateral.mul(Fixed6Lib.NEG_ONE);
-        if (newMaker.eq(UFixed6Lib.MAX)) newMaker = context.accountPendingPosition.maker;
-        if (newLong.eq(UFixed6Lib.MAX)) newLong = context.accountPendingPosition.long;
-        if (newShort.eq(UFixed6Lib.MAX)) newShort = context.accountPendingPosition.short;
+        if (newMaker.eq(UFixed6Lib.MAX)) newMaker = context.currentPosition.local.maker;
+        if (newLong.eq(UFixed6Lib.MAX)) newLong = context.currentPosition.local.long;
+        if (newShort.eq(UFixed6Lib.MAX)) newShort = context.currentPosition.local.short;
 
         // update position
-        if (context.currentTimestamp > context.accountPendingPosition.timestamp) context.local.currentId++;
-        Order memory newOrder = context.accountPendingPosition
+        if (context.currentTimestamp > context.currentPosition.local.timestamp) context.local.currentId++;
+        Order memory newOrder = context.currentPosition.local
             .update(context.local.currentId, context.currentTimestamp, newMaker, newLong, newShort);
-        if (context.currentTimestamp > context.pendingPosition.timestamp) context.global.currentId++;
-        context.pendingPosition.update(context.global.currentId, context.currentTimestamp, newOrder);
+        if (context.currentTimestamp > context.currentPosition.global.timestamp) context.global.currentId++;
+        context.currentPosition.global.update(context.global.currentId, context.currentTimestamp, newOrder);
 
         // update fee
         newOrder.registerFee(context.latestVersion, context.marketParameter, context.riskParameter);
-        context.accountPendingPosition.registerFee(newOrder);
-        context.pendingPosition.registerFee(newOrder);
+        context.currentPosition.local.registerFee(newOrder);
+        context.currentPosition.global.registerFee(newOrder);
 
         // update collateral
         context.local.update(collateral);
-        context.accountPendingPosition.update(collateral);
+        context.currentPosition.local.update(collateral);
 
         // protect account
-        bool protected = context.local.protect(context.accountPosition, context.currentTimestamp, protect);
+        bool protected = context.local.protect(context.latestPosition.local, context.currentTimestamp, protect);
 
         // request version
         if (!newOrder.isEmpty()) oracle.request();
 
         // after
         _invariant(context, account, newOrder, collateral, protected);
+
+        // store
+        if (context.global.currentId > context.latestPosition.global.id) // don't re-store if already settled
+            _pendingPosition[context.global.currentId].store(context.currentPosition.global);
+        if (context.local.currentId > context.latestPosition.local.id) // don't re-store if already settled
+            _pendingPositions[account][context.local.currentId].store(context.currentPosition.local);
 
         _endGas(context);
 
@@ -289,7 +302,7 @@ contract Market is IMarket, Instance {
         _endGas(context);
     }
 
-    function _loadContext(address account) private view returns (CurrentContext memory context) {
+    function _loadContext(address account) private view returns (Context memory context) {
         _startGas(context, "_loadContext: %s");
 
         // parameters
@@ -297,107 +310,103 @@ contract Market is IMarket, Instance {
         context.marketParameter = _parameter.read();
         context.riskParameter = _riskParameter.read();
 
-        // global
+        // state
         context.global = _global.read();
-        context.pendingPosition = _pendingPosition[context.global.currentId].read();
-        context.position = _position.read();
-
-        // account
         context.local = _locals[account].read();
-        context.accountPendingPosition = _pendingPositions[account][context.local.currentId].read();
-        context.accountPosition = _positions[account].read();
 
         // oracle
         (context.latestVersion, context.currentTimestamp) = _oracleVersion();
-        context.positionVersion = _oracleVersionAtPosition(context, context.position);
+        context.positionVersion = _oracleVersionAtPosition(context, _position.read()); // TODO: remove this
 
         // after
         _endGas(context);
     }
 
-    function _saveContext(CurrentContext memory context, address account) private {
+    function _saveContext(Context memory context, address account) private {
         _startGas(context, "_saveContext: %s");
 
-        // global
         _global.store(context.global);
-        if (context.global.currentId > context.position.id)
-            _pendingPosition[context.global.currentId].store(context.pendingPosition);
-        _position.store(context.position);
-
-        // account
         _locals[account].store(context.local);
-        if (context.local.currentId > context.accountPosition.id)
-            _pendingPositions[account][context.local.currentId].store(context.accountPendingPosition);
-        _positions[account].store(context.accountPosition);
 
         _endGas(context);
     }
 
-    function _settle(CurrentContext memory context, address account) private {
+    function _settle(Context memory context, address account) private {
         _startGas(context, "_settle: %s");
+
+        context.latestPosition.global = _position.read();
+        context.latestPosition.local = _positions[account].read();
 
         Position memory nextPosition;
 
+        // settle
         while (
-            context.global.currentId != context.position.id &&
-            (nextPosition = _pendingPosition[context.position.id + 1].read()).ready(context.latestVersion)
+            context.global.currentId != context.latestPosition.global.id &&
+            (nextPosition = _pendingPosition[context.latestPosition.global.id + 1].read()).ready(context.latestVersion)
         ) _processPosition(context, nextPosition);
 
         while (
-            context.local.currentId != context.accountPosition.id &&
-            (nextPosition = _pendingPositions[account][context.accountPosition.id + 1].read())
+            context.local.currentId != context.latestPosition.local.id &&
+            (nextPosition = _pendingPositions[account][context.latestPosition.local.id + 1].read())
                 .ready(context.latestVersion)
         ) {
-            Fixed6 previousDelta = _pendingPositions[account][context.accountPosition.id].read().delta;
+            Fixed6 previousDelta = _pendingPositions[account][context.latestPosition.local.id].read().delta; // TODO: cleanup
+
             _processPositionAccount(context, account, nextPosition);
-            nextPosition.collateral = context.local.collateral
-                .sub(context.accountPendingPosition.delta.sub(previousDelta)) // deposits happen after snapshot point
+
+            Position memory latestAccountPosition = _pendingPositions[account][context.latestPosition.local.id].read(); // TODO: cleanup
+            latestAccountPosition.collateral = context.local.collateral
+                .sub(context.currentPosition.local.delta.sub(previousDelta))  // deposits happen after snapshot point
                 .add(Fixed6Lib.from(nextPosition.fee));                       // position fee happens after snapshot point
-            _pendingPositions[account][nextPosition.id].store(nextPosition);
+            _pendingPositions[account][latestAccountPosition.id].store(latestAccountPosition);
         }
 
         _endGas(context);
-    }
 
-    function _sync(CurrentContext memory context, address account) private {
         _startGas(context, "_sync: %s");
 
-        Position memory nextPosition;
-
-        if (context.latestVersion.timestamp > context.position.timestamp) {
-            nextPosition = _pendingPosition[context.position.id].read();
+        // sync
+        if (context.latestVersion.timestamp > context.latestPosition.global.timestamp) {
+            nextPosition = _pendingPosition[context.latestPosition.global.id].read();
             nextPosition.timestamp = context.latestVersion.timestamp;
             nextPosition.fee = UFixed6Lib.ZERO;
             nextPosition.keeper = UFixed6Lib.ZERO;
             _processPosition(context, nextPosition);
         }
-        if (context.latestVersion.timestamp > context.accountPosition.timestamp) {
-            nextPosition = _pendingPositions[account][context.accountPosition.id].read();
+
+        if (context.latestVersion.timestamp > context.latestPosition.local.timestamp) {
+            nextPosition = _pendingPositions[account][context.latestPosition.local.id].read();
             nextPosition.timestamp = context.latestVersion.timestamp;
             nextPosition.fee = UFixed6Lib.ZERO;
             nextPosition.keeper = UFixed6Lib.ZERO;
             _processPositionAccount(context, account, nextPosition);
         }
 
+        _position.store(context.latestPosition.global);
+        _positions[account].store(context.latestPosition.local);
+
         _endGas(context);
     }
 
-    function _processPosition(CurrentContext memory context, Position memory newPosition) private {
-        Version memory version = _versions[context.position.timestamp].read();
+    function _processPosition(
+        Context memory context,
+        Position memory newPosition
+    ) private {
+        Version memory version = _versions[context.latestPosition.global.timestamp].read();
         OracleVersion memory oracleVersion = _oracleVersionAtPosition(context, newPosition); // TODO: seems weird some logic is in here
-        if (!oracleVersion.valid) newPosition.invalidate(context.position); // TODO: combine this with sync logic?
+        if (!oracleVersion.valid) newPosition.invalidate(context.latestPosition.global); // TODO: combine this with sync logic?
 
-        (uint256 fromTimestamp, uint256 fromId) = (context.position.timestamp, context.position.id);
+        (uint256 fromTimestamp, uint256 fromId) = (context.latestPosition.global.timestamp, context.latestPosition.global.id);
         (VersionAccumulationResult memory accumulationResult, UFixed6 accumulatedFee) = version.accumulate(
             context.global,
-            context.position,
+            context.latestPosition.global,
             newPosition,
-            context.positionVersion,
+            context.positionVersion, // TODO: ??
             oracleVersion,
             context.marketParameter,
             context.riskParameter
         );
-        context.position.update(newPosition);
+        context.latestPosition.global.update(newPosition);
         context.global.update(oracleVersion.price);
         context.global.incrementFees(
             accumulatedFee,
@@ -417,18 +426,18 @@ contract Market is IMarket, Instance {
         );
     }
 
-    function _processPositionAccount(CurrentContext memory context, address account, Position memory newPosition) private {
+    function _processPositionAccount(Context memory context, address account, Position memory newPosition) private {
         Version memory version = _versions[newPosition.timestamp].read();
-        if (!version.valid) newPosition.invalidate(context.accountPosition);
+        if (!version.valid) newPosition.invalidate(context.latestPosition.local);
 
-        (uint256 fromTimestamp, uint256 fromId) = (context.accountPosition.timestamp, context.accountPosition.id);
+        (uint256 fromTimestamp, uint256 fromId) = (context.latestPosition.local.timestamp, context.latestPosition.local.id);
         LocalAccumulationResult memory accumulationResult = context.local.accumulate(
-            context.accountPosition,
+            context.latestPosition.local,
             newPosition,
-            _versions[context.accountPosition.timestamp].read(),
+            _versions[context.latestPosition.local.timestamp].read(),
             version
         );
-        context.accountPosition.update(newPosition);
+        context.latestPosition.local.update(newPosition);
 
         // events
         emit AccountPositionProcessed(
@@ -441,15 +450,15 @@ contract Market is IMarket, Instance {
     }
 
     function _invariant(
-        CurrentContext memory context,
+        Context memory context,
         address account,
         Order memory newOrder,
         Fixed6 collateral,
         bool protected
     ) private view {
         if (protected && (
-            !context.accountPendingPosition.magnitude().isZero() ||
-            context.accountPosition.collateralized(
+            !context.currentPosition.local.magnitude().isZero() ||
+            context.latestPosition.local.collateralized(
                 context.latestVersion,
                 context.riskParameter,
                 context.local.collateral.sub(collateral)
@@ -470,28 +479,28 @@ contract Market is IMarket, Instance {
         if (context.marketParameter.closed && newOrder.increasesPosition())
             { if (LOG_REVERTS) console.log("MarketClosedError"); revert MarketClosedError(); }
 
-        if (context.pendingPosition.maker.gt(context.riskParameter.makerLimit))
+        if (context.currentPosition.global.maker.gt(context.riskParameter.makerLimit))
             { if (LOG_REVERTS) console.log("MarketMakerOverLimitError"); revert MarketMakerOverLimitError(); }
 
-        if (!context.accountPendingPosition.singleSided())
+        if (!context.currentPosition.local.singleSided())
             { if (LOG_REVERTS) console.log("MarketNotSingleSidedError"); revert MarketNotSingleSidedError(); }
 
-        if (!_collateralized(context, context.accountPendingPosition))
+        if (!_collateralized(context, context.currentPosition.local))
             { if (LOG_REVERTS) console.log("MarketInsufficientCollateralizationError2"); revert MarketInsufficientCollateralizationError(); }
 
-        if (!protected && context.global.currentId > context.position.id + context.protocolParameter.maxPendingIds)
+        if (!protected && context.global.currentId > context.latestPosition.global.id + context.protocolParameter.maxPendingIds)
             { if (LOG_REVERTS) console.log("MarketExceedsPendingIdLimitError"); revert MarketExceedsPendingIdLimitError(); }
 
-        if (!protected && !_collateralized(context, context.accountPosition))
+        if (!protected && !_collateralized(context, context.latestPosition.local))
             { if (LOG_REVERTS) console.log("MarketInsufficientCollateralizationError1"); revert MarketInsufficientCollateralizationError(); }
 
-        for (uint256 id = context.accountPosition.id + 1; id < context.local.currentId; id++)
+        for (uint256 id = context.latestPosition.local.id + 1; id < context.local.currentId; id++)
             if (!protected && !_collateralized(context, _pendingPositions[account][id].read()))
                 { if (LOG_REVERTS) console.log("MarketInsufficientCollateralizationError3"); revert MarketInsufficientCollateralizationError(); }
 
         if (
             !protected &&
-            (context.local.protection > context.accountPosition.timestamp) &&
+            (context.local.protection > context.latestPosition.local.timestamp) &&
             !newOrder.isEmpty()
         ) { if (LOG_REVERTS) console.log("MarketProtectedError"); revert MarketProtectedError(); }
 
@@ -501,13 +510,13 @@ contract Market is IMarket, Instance {
             (!context.marketParameter.makerCloseAlways || newOrder.increasesMaker()) &&
             (!context.marketParameter.takerCloseAlways || newOrder.increasesTaker()) &&
             newOrder.efficiency.lt(Fixed6Lib.ZERO) &&
-            context.pendingPosition.efficiency().lt(context.riskParameter.efficiencyLimit)
+            context.currentPosition.global.efficiency().lt(context.riskParameter.efficiencyLimit)
         ) { if (LOG_REVERTS) console.log("MarketEfficiencyUnderLimitError"); revert MarketEfficiencyUnderLimitError(); }
 
         if (
             !protected &&
             !context.marketParameter.closed &&
-            context.pendingPosition.socialized() &&
+            context.currentPosition.global.socialized() &&
             newOrder.decreasesLiquidity()
         ) { if (LOG_REVERTS) console.log("MarketInsufficientLiquidityError"); revert MarketInsufficientLiquidityError(); }
 
@@ -515,13 +524,13 @@ contract Market is IMarket, Instance {
             { if (LOG_REVERTS) console.log("MarketInsufficientCollateralError"); revert MarketInsufficientCollateralError(); }
     }
 
-    function _liquidationFee(CurrentContext memory context) private view returns (UFixed6) {
-        return context.accountPosition
+    function _liquidationFee(Context memory context) private view returns (UFixed6) {
+        return context.latestPosition.local
             .liquidationFee(context.latestVersion, context.riskParameter)
             .min(UFixed6Lib.from(token.balanceOf()));
     }
 
-    function _collateralized(CurrentContext memory context, Position memory active) private pure returns (bool) {
+    function _collateralized(Context memory context, Position memory active) private pure returns (bool) {
         return active.collateralized(context.latestVersion, context.riskParameter, context.local.collateral);
     }
 
@@ -541,7 +550,7 @@ contract Market is IMarket, Instance {
     }
 
     function _oracleVersionAtPosition(
-        CurrentContext memory context,
+        Context memory context,
         Position memory toPosition
     ) private view returns (OracleVersion memory oracleVersion) {
         oracleVersion = _oracleVersionAt(toPosition.timestamp);
@@ -558,13 +567,13 @@ contract Market is IMarket, Instance {
     }
 
     // Debug
-    function _startGas(CurrentContext memory context, string memory message) private view {
+    function _startGas(Context memory context, string memory message) private view {
         if (!GAS_PROFILE) return;
         context.gasCounterMessage = message;
         context.gasCounter = gasleft();
     }
 
-    function _endGas(CurrentContext memory context) private view {
+    function _endGas(Context memory context) private view {
         if (!GAS_PROFILE) return;
         uint256 endGas = gasleft();
         console.log(context.gasCounterMessage,  context.gasCounter - endGas);

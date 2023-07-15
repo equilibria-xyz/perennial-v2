@@ -49,6 +49,8 @@ export function expectPositionEq(a: Position, b: Position): void {
   expect(a.maker).to.equal(b.maker, 'Position:Maker')
   expect(a.long).to.equal(b.long, 'Position:Long')
   expect(a.short).to.equal(b.short, 'Position:Short')
+  expect(a.fee).to.equal(b.short, 'Position:Fee')
+  // TODO: keeper
 }
 
 export function expectGlobalEq(a: Global, b: Global): void {
@@ -65,6 +67,7 @@ export function expectLocalEq(a: Local, b: Local): void {
   expect(a.collateral).to.equal(b.collateral, 'Local:Collateral')
   expect(a.reward).to.equal(b.reward, 'Local:Reward')
   expect(a.protection).to.equal(b.protection, 'Local:Protection')
+  // TODO: ?
 }
 
 export function expectVersionEq(a: Version, b: Version): void {
@@ -74,6 +77,7 @@ export function expectVersionEq(a: Version, b: Version): void {
   expect(a.makerReward._value).to.equal(b.makerReward._value, 'Version:MakerReward')
   expect(a.longReward._value).to.equal(b.longReward._value, 'Version:LongReward')
   expect(a.shortReward._value).to.equal(b.shortReward._value, 'Version:ShortReward')
+  // TODO: valid
 }
 
 export function parse6decimal(amount: string): BigNumber {

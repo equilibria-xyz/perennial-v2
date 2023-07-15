@@ -81,7 +81,7 @@ library PositionLib {
             Fixed6Lib.from(newShort).sub(Fixed6Lib.from(self.short))
         );
 
-        if (self.id == currentId) self.fee = UFixed6Lib.ZERO;
+        if (self.id != currentId) self.fee = UFixed6Lib.ZERO;
         (self.id, self.timestamp, self.maker, self.long, self.short) =
             (currentId, currentTimestamp, newMaker, newLong, newShort);
     }
@@ -90,7 +90,7 @@ library PositionLib {
     function update(Position memory self, uint256 currentId, uint256 currentTimestamp, Order memory order) internal pure {
         (Fixed6 latestSkew, UFixed6 latestEfficiency) = (skew(self), efficiency(self));
 
-        if (self.id == currentId) self.fee = UFixed6Lib.ZERO;
+        if (self.id != currentId) self.fee = UFixed6Lib.ZERO;
         (self.id, self.timestamp, self.maker, self.long, self.short) = (
             currentId,
             currentTimestamp,
@@ -113,8 +113,7 @@ library PositionLib {
 
     /// @dev update the current global position when version is invalid
     function invalidate(Position memory self, Position memory latestPosition) internal pure {
-        (self.id, self.maker, self.long, self.short, self.fee, self.keeper) = (
-            latestPosition.id,
+        (self.maker, self.long, self.short, self.fee, self.keeper) = (
             latestPosition.maker,
             latestPosition.long,
             latestPosition.short,

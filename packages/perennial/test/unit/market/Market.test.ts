@@ -376,41 +376,6 @@ describe('Market', () => {
     })
   })
 
-  describe('#updateReward', async () => {
-    beforeEach(async () => {
-      await market.connect(factorySigner).initialize(marketDefinition, riskParameter)
-    })
-
-    it('updates the reward', async () => {
-      await expect(market.connect(owner).updateReward(reward.address))
-        .to.emit(market, 'RewardUpdated')
-        .withArgs(reward.address)
-      expect(await market.reward()).to.equal(reward.address)
-    })
-
-    it('reverts if already set', async () => {
-      await market.connect(owner).updateReward(reward.address)
-      await expect(market.connect(owner).updateReward(dsu.address)).to.be.revertedWithCustomError(
-        market,
-        'MarketRewardAlreadySetError',
-      )
-    })
-
-    it('reverts if equal to asset', async () => {
-      await expect(market.connect(owner).updateReward(dsu.address)).to.be.revertedWithCustomError(
-        market,
-        'MarketInvalidRewardError',
-      )
-    })
-
-    it('reverts if not owner', async () => {
-      await expect(market.connect(user).updateReward(reward.address)).to.be.revertedWithCustomError(
-        market,
-        'InstanceNotOwnerError',
-      )
-    })
-  })
-
   describe('#at', async () => {
     beforeEach(async () => {
       oracle.at.whenCalledWith(ORACLE_VERSION_0.timestamp).returns(ORACLE_VERSION_0)
@@ -472,8 +437,37 @@ describe('Market', () => {
   context('already initialized', async () => {
     beforeEach(async () => {
       await market.connect(factorySigner).initialize(marketDefinition, riskParameter)
-      await market.connect(owner).updateReward(reward.address)
-      await market.connect(owner).updateParameter(marketParameter)
+    })
+
+    describe('#updateReward', async () => {
+      it('updates the reward', async () => {
+        await expect(market.connect(owner).updateReward(reward.address))
+          .to.emit(market, 'RewardUpdated')
+          .withArgs(reward.address)
+        expect(await market.reward()).to.equal(reward.address)
+      })
+
+      it('reverts if already set', async () => {
+        await market.connect(owner).updateReward(reward.address)
+        await expect(market.connect(owner).updateReward(dsu.address)).to.be.revertedWithCustomError(
+          market,
+          'MarketRewardAlreadySetError',
+        )
+      })
+
+      it('reverts if equal to asset', async () => {
+        await expect(market.connect(owner).updateReward(dsu.address)).to.be.revertedWithCustomError(
+          market,
+          'MarketInvalidRewardError',
+        )
+      })
+
+      it('reverts if not owner', async () => {
+        await expect(market.connect(user).updateReward(reward.address)).to.be.revertedWithCustomError(
+          market,
+          'InstanceNotOwnerError',
+        )
+      })
     })
 
     describe('#updateParameter', async () => {
@@ -493,6 +487,8 @@ describe('Market', () => {
       }
 
       it('updates the parameters', async () => {
+        await market.connect(owner).updateReward(reward.address)
+
         await expect(market.connect(owner).updateParameter(defaultMarketParameter))
           .to.emit(market, 'ParameterUpdated')
           .withArgs(defaultMarketParameter)
@@ -511,6 +507,10 @@ describe('Market', () => {
       })
 
       context('updates the absolute fee parameters', async () => {
+        beforeEach(async () => {
+          await market.connect(owner).updateReward(reward.address)
+        })
+
         it('updates the parameters (success)', async () => {
           const protocolParameter = await factory.parameter()
           const newMarketParameter = {
@@ -533,6 +533,10 @@ describe('Market', () => {
       })
 
       context('updates the cut parameters', async () => {
+        beforeEach(async () => {
+          await market.connect(owner).updateReward(reward.address)
+        })
+
         it('updates the parameters (success)', async () => {
           const protocolParameter = await factory.parameter()
           const newMarketParameter = {
@@ -579,6 +583,10 @@ describe('Market', () => {
       })
 
       context('updates the oracleFee / riskFee parameters', async () => {
+        beforeEach(async () => {
+          await market.connect(owner).updateReward(reward.address)
+        })
+
         it('updates the parameters (success)', async () => {
           const newMarketParameter = {
             ...defaultMarketParameter,
@@ -600,7 +608,7 @@ describe('Market', () => {
         })
       })
 
-      it('updates the reward parameters', async () => {
+      context('updates the reward parameters', async () => {
         it('updates the parameters (success)', async () => {
           await market.updateReward(reward.address)
 
@@ -1098,9 +1106,9 @@ describe('Market', () => {
       })
 
       it('reverts if not owner or coordinator', async () => {
-        await expect(market.connect(user).updateParameter(marketParameter)).to.be.revertedWithCustomError(
+        await expect(market.connect(user).updateRiskParameter(defaultRiskParameter)).to.be.revertedWithCustomError(
           market,
-          'InstanceNotOwnerError',
+          'MarketNotCoordinatorError',
         )
       })
     })
@@ -1122,6 +1130,11 @@ describe('Market', () => {
     })
 
     describe('#update', async () => {
+      beforeEach(async () => {
+        await market.connect(owner).updateReward(reward.address)
+        await market.connect(owner).updateParameter(marketParameter)
+      })
+
       describe('passthrough market', async () => {
         beforeEach(async () => {
           oracle.at.whenCalledWith(ORACLE_VERSION_0.timestamp).returns(ORACLE_VERSION_0)
@@ -11587,6 +11600,166 @@ describe('Market', () => {
               shortReward: { _value: EXPECTED_REWARD.div(5).mul(2) },
             })
           })
+        })
+
+        context('invalid oracle version', async () => {
+          beforeEach(async () => {
+            dsu.transferFrom.whenCalledWith(user.address, market.address, COLLATERAL.mul(1e12)).returns(true)
+            dsu.transferFrom.whenCalledWith(userB.address, market.address, COLLATERAL.mul(1e12)).returns(true)
+            await market.connect(userB).update(userB.address, POSITION, 0, 0, COLLATERAL, false)
+          })
+
+          it('settles the position w/o change', async () => {
+            oracle.at.whenCalledWith(ORACLE_VERSION_2.timestamp).returns(ORACLE_VERSION_2)
+            oracle.status.returns([ORACLE_VERSION_2, ORACLE_VERSION_3.timestamp])
+            oracle.request.returns()
+
+            await settle(market, user)
+
+            const riskParameter = { ...(await market.riskParameter()) }
+            riskParameter.takerFee = parse6decimal('0.01')
+            riskParameter.takerImpactFee = parse6decimal('0.004')
+            riskParameter.takerSkewFee = parse6decimal('0.002')
+            await market.updateRiskParameter(riskParameter)
+
+            const TAKER_FEE = parse6decimal('9.84') // position * (0.01 + 0.004 + 0.002) * price
+            const TAKER_FEE_FEE = TAKER_FEE.div(10)
+            const TAKER_FEE_WITHOUT_FEE = TAKER_FEE.sub(TAKER_FEE_FEE)
+
+            await expect(market.connect(user).update(user.address, 0, POSITION.div(2), 0, COLLATERAL, false))
+              .to.emit(market, 'Updated')
+              .withArgs(user.address, ORACLE_VERSION_3.timestamp, 0, POSITION.div(2), 0, COLLATERAL, false)
+
+            expectPositionEq(await market.pendingPositions(user.address, 1), {
+              id: 1,
+              timestamp: ORACLE_VERSION_3.timestamp,
+              maker: 0,
+              long: POSITION.div(2),
+              short: 0,
+              fee: TAKER_FEE,
+            })
+
+            oracle.at.whenCalledWith(ORACLE_VERSION_3.timestamp).returns({ ...ORACLE_VERSION_3, valid: false })
+            oracle.status.returns([{ ...ORACLE_VERSION_3, valid: false }, ORACLE_VERSION_4.timestamp])
+            oracle.request.returns()
+
+            await settle(market, user)
+            await settle(market, userB)
+
+            expectLocalEq(await market.locals(user.address), {
+              currentId: 2,
+              collateral: COLLATERAL,
+              reward: 0,
+              protection: 0,
+            })
+            expectPositionEq(await market.positions(user.address), {
+              id: 1,
+              timestamp: ORACLE_VERSION_3.timestamp,
+              maker: 0,
+              long: 0,
+              short: 0,
+              fee: 0,
+            })
+            expectPositionEq(await market.pendingPositions(user.address, 1), {
+              id: 1,
+              timestamp: ORACLE_VERSION_3.timestamp,
+              maker: 0,
+              long: POSITION.div(2),
+              short: 0,
+              fee: TAKER_FEE,
+            })
+            expectPositionEq(await market.pendingPositions(user.address, 2), {
+              id: 2,
+              timestamp: ORACLE_VERSION_4.timestamp,
+              maker: 0,
+              long: POSITION.div(2),
+              short: 0,
+              fee: TAKER_FEE,
+            })
+            expectLocalEq(await market.locals(userB.address), {
+              currentId: 2,
+              collateral: COLLATERAL,
+              reward: EXPECTED_REWARD.mul(3),
+              protection: 0,
+            })
+            expectPositionEq(await market.positions(userB.address), {
+              id: 1,
+              timestamp: ORACLE_VERSION_3.timestamp,
+              maker: POSITION,
+              long: 0,
+              short: 0,
+              fee: 0,
+            })
+            expectPositionEq(await market.pendingPositions(userB.address, 1), {
+              id: 1,
+              timestamp: ORACLE_VERSION_2.timestamp,
+              maker: POSITION,
+              long: 0,
+              short: 0,
+              fee: 0,
+            })
+            expectPositionEq(await market.pendingPositions(userB.address, 2), {
+              id: 2,
+              timestamp: ORACLE_VERSION_4.timestamp,
+              maker: POSITION,
+              long: 0,
+              short: 0,
+              fee: 0,
+            })
+            expectGlobalEq(await market.global(), {
+              currentId: 3,
+              protocolFee: 0,
+              oracleFee: 0,
+              riskFee: 0,
+              donation: 0,
+            })
+            expectPositionEq(await market.position(), {
+              id: 2,
+              timestamp: ORACLE_VERSION_3.timestamp,
+              maker: POSITION,
+              long: 0,
+              short: 0,
+              fee: 0,
+            })
+            expectPositionEq(await market.pendingPosition(2), {
+              id: 2,
+              timestamp: ORACLE_VERSION_3.timestamp,
+              maker: POSITION,
+              long: POSITION.div(2),
+              short: 0,
+              fee: TAKER_FEE,
+            })
+            expectPositionEq(await market.pendingPosition(3), {
+              id: 3,
+              timestamp: ORACLE_VERSION_4.timestamp,
+              maker: POSITION,
+              long: POSITION.div(2),
+              short: 0,
+              fee: TAKER_FEE,
+            })
+            expectVersionEq(await market.versions(ORACLE_VERSION_2.timestamp), {
+              makerValue: { _value: 0 },
+              longValue: { _value: 0 },
+              shortValue: { _value: 0 },
+              makerReward: { _value: 0 },
+              longReward: { _value: 0 },
+              shortReward: { _value: 0 },
+            })
+            expectVersionEq(await market.versions(ORACLE_VERSION_3.timestamp), {
+              makerValue: { _value: 0 },
+              longValue: { _value: 0 },
+              shortValue: { _value: 0 },
+              makerReward: { _value: EXPECTED_REWARD.mul(3).div(10) },
+              longReward: { _value: 0 },
+              shortReward: { _value: 0 },
+            })
+          })
+
+          // TODO: valid position after
+
+          // TODO: invalid position after
+
+          // TODO: invalid then valid position at once
         })
 
         context('operator', async () => {
