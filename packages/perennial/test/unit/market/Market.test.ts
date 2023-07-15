@@ -12528,10 +12528,12 @@ describe('Market', () => {
       const DONATION = MARKET_FEE.sub(ORACLE_FEE).sub(RISK_FEE)
 
       beforeEach(async () => {
-        const marketParameter = { ...(await market.parameter()) }
-        marketParameter.riskFee = parse6decimal('0.2')
-        marketParameter.oracleFee = parse6decimal('0.1')
-        await market.updateParameter(marketParameter)
+        await market.connect(owner).updateReward(reward.address)
+        await market.updateParameter({
+          ...marketParameter,
+          riskFee: parse6decimal('0.2'),
+          oracleFee: parse6decimal('0.1'),
+        })
 
         oracle.at.whenCalledWith(ORACLE_VERSION_0.timestamp).returns(ORACLE_VERSION_0)
 
@@ -12621,6 +12623,9 @@ describe('Market', () => {
 
     describe('#claimReward', async () => {
       beforeEach(async () => {
+        await market.connect(owner).updateReward(reward.address)
+        await market.connect(owner).updateParameter(marketParameter)
+
         oracle.at.whenCalledWith(ORACLE_VERSION_0.timestamp).returns(ORACLE_VERSION_0)
 
         oracle.at.whenCalledWith(ORACLE_VERSION_1.timestamp).returns(ORACLE_VERSION_1)
