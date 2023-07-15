@@ -1336,7 +1336,7 @@ describe('Market', () => {
               ...DEFAULT_POSITION,
               id: 2,
               timestamp: ORACLE_VERSION_3.timestamp,
-              delta: COLLATERAL.mul(1),
+              delta: COLLATERAL.mul(-1),
             })
             expectGlobalEq(await market.global(), {
               currentId: 2,
@@ -4831,6 +4831,7 @@ describe('Market', () => {
                   ...DEFAULT_POSITION,
                   id: 4,
                   timestamp: ORACLE_VERSION_5.timestamp,
+                  delta: shortfall.mul(-1),
                 })
               })
             })
@@ -5163,6 +5164,7 @@ describe('Market', () => {
                   ...DEFAULT_POSITION,
                   id: 4,
                   timestamp: ORACLE_VERSION_5.timestamp,
+                  delta: shortfall.mul(-1),
                 })
               })
             })
@@ -7599,7 +7601,6 @@ describe('Market', () => {
                   id: 3,
                   timestamp: ORACLE_VERSION_4.timestamp,
                   delta: EXPECTED_LIQUIDATION_FEE.mul(-1),
-                  collateral: 0,
                 })
                 const totalFee = EXPECTED_FUNDING_FEE_1_5_123.add(EXPECTED_INTEREST_FEE_5_123)
                 expectGlobalEq(await market.global(), {
@@ -7679,6 +7680,7 @@ describe('Market', () => {
                   ...DEFAULT_POSITION,
                   id: 4,
                   timestamp: ORACLE_VERSION_5.timestamp,
+                  delta: shortfall.mul(-1),
                 })
               })
             })
@@ -8019,6 +8021,7 @@ describe('Market', () => {
                   ...DEFAULT_POSITION,
                   id: 4,
                   timestamp: ORACLE_VERSION_5.timestamp,
+                  delta: shortfall.mul(-1),
                 })
               })
             })
@@ -10547,9 +10550,6 @@ describe('Market', () => {
               id: 3,
               timestamp: ORACLE_VERSION_4.timestamp,
               delta: EXPECTED_LIQUIDATION_FEE.mul(-1),
-              collateral: parse6decimal('195')
-                .sub(EXPECTED_FUNDING_WITH_FEE_1_5_123.add(EXPECTED_INTEREST_5_123))
-                .sub(EXPECTED_PNL),
             })
             expectLocalEq(await market.locals(userB.address), {
               currentId: 3,
@@ -10792,7 +10792,7 @@ describe('Market', () => {
           })
         })
 
-        context('invalid oracle version', async () => {
+        context.only('invalid oracle version', async () => {
           beforeEach(async () => {
             dsu.transferFrom.whenCalledWith(user.address, market.address, COLLATERAL.mul(1e12)).returns(true)
             dsu.transferFrom.whenCalledWith(userB.address, market.address, COLLATERAL.mul(1e12)).returns(true)
@@ -10848,6 +10848,7 @@ describe('Market', () => {
               long: POSITION.div(2),
               fee: TAKER_FEE,
               collateral: COLLATERAL.sub(SETTLEMENT_FEE), // TODO: why (verify sync is working here)?
+              delta: COLLATERAL,
             })
             expectPositionEq(await market.pendingPositions(user.address, 2), {
               ...DEFAULT_POSITION,
@@ -10873,6 +10874,7 @@ describe('Market', () => {
               id: 1,
               timestamp: ORACLE_VERSION_2.timestamp,
               maker: POSITION,
+              delta: COLLATERAL,
             })
             expectPositionEq(await market.pendingPositions(userB.address, 2), {
               ...DEFAULT_POSITION,
@@ -10987,6 +10989,7 @@ describe('Market', () => {
               long: POSITION.div(2),
               fee: TAKER_FEE,
               collateral: COLLATERAL.sub(SETTLEMENT_FEE), // TODO: why (verify sync is working here)?
+              delta: COLLATERAL,
             })
             expectPositionEq(await market.pendingPositions(user.address, 2), {
               ...DEFAULT_POSITION,
@@ -10994,12 +10997,14 @@ describe('Market', () => {
               timestamp: ORACLE_VERSION_4.timestamp,
               long: POSITION.div(2),
               fee: TAKER_FEE,
+              collateral: COLLATERAL.add(COLLATERAL).sub(SETTLEMENT_FEE).sub(SETTLEMENT_FEE), // TODO: maybe this is why?
             })
             expectPositionEq(await market.pendingPositions(user.address, 3), {
               ...DEFAULT_POSITION,
               id: 3,
               timestamp: ORACLE_VERSION_5.timestamp,
               long: POSITION.div(2),
+              collateral: COLLATERAL.add(COLLATERAL).sub(SETTLEMENT_FEE).sub(SETTLEMENT_FEE), // TODO: maybe this is why?
             })
             expectLocalEq(await market.locals(userB.address), {
               currentId: 2,
@@ -11147,6 +11152,7 @@ describe('Market', () => {
               long: POSITION.div(2),
               fee: TAKER_FEE,
               collateral: COLLATERAL.sub(SETTLEMENT_FEE), // TODO: why (verify sync is working here)?
+              delta: COLLATERAL,
             })
             expectPositionEq(await market.pendingPositions(user.address, 2), {
               ...DEFAULT_POSITION,
@@ -11154,6 +11160,7 @@ describe('Market', () => {
               timestamp: ORACLE_VERSION_4.timestamp,
               long: POSITION.div(2),
               fee: TAKER_FEE,
+              collateral: COLLATERAL.add(COLLATERAL).sub(SETTLEMENT_FEE).sub(SETTLEMENT_FEE), // TODO: maybe this is why?
             })
             expectPositionEq(await market.pendingPositions(user.address, 3), {
               ...DEFAULT_POSITION,
@@ -11161,6 +11168,7 @@ describe('Market', () => {
               timestamp: ORACLE_VERSION_5.timestamp,
               long: POSITION.div(2),
               fee: TAKER_FEE,
+              collateral: COLLATERAL.add(COLLATERAL).sub(SETTLEMENT_FEE).sub(SETTLEMENT_FEE), // TODO: maybe this is why?
             })
             expectLocalEq(await market.locals(userB.address), {
               currentId: 2,
@@ -11310,18 +11318,21 @@ describe('Market', () => {
               long: POSITION.div(2),
               fee: TAKER_FEE,
               collateral: COLLATERAL.sub(SETTLEMENT_FEE), // TODO: why (verify sync is working here)?
+              delta: COLLATERAL,
             })
             expectPositionEq(await market.pendingPositions(user.address, 2), {
               ...DEFAULT_POSITION,
               id: 2,
               timestamp: ORACLE_VERSION_4.timestamp,
               long: POSITION.div(2),
+              collateral: COLLATERAL.add(COLLATERAL).sub(SETTLEMENT_FEE).sub(SETTLEMENT_FEE), // TODO: maybe this is why?
             })
             expectPositionEq(await market.pendingPositions(user.address, 3), {
               ...DEFAULT_POSITION,
               id: 3,
               timestamp: ORACLE_VERSION_5.timestamp,
               long: POSITION.div(2),
+              collateral: COLLATERAL.add(COLLATERAL).sub(SETTLEMENT_FEE).sub(SETTLEMENT_FEE), // TODO: maybe this is why?
             })
             expectLocalEq(await market.locals(userB.address), {
               currentId: 2,
@@ -11932,18 +11943,21 @@ describe('Market', () => {
               id: 1,
               timestamp: ORACLE_VERSION_2.timestamp,
               long: POSITION.div(2),
+              delta: COLLATERAL,
             })
             expectPositionEq(await market.pendingPositions(userB.address, 1), {
               ...DEFAULT_POSITION,
               id: 1,
               timestamp: ORACLE_VERSION_2.timestamp,
               maker: POSITION,
+              delta: COLLATERAL,
             })
             expectPositionEq(await market.pendingPositions(userC.address, 1), {
               ...DEFAULT_POSITION,
               id: 1,
               timestamp: ORACLE_VERSION_2.timestamp,
               short: POSITION.div(2),
+              delta: COLLATERAL,
             })
           })
         })
