@@ -291,18 +291,17 @@ contract MultiInvoker is IMultiInvoker, KeeperManager, UKept {
 
         Position memory position = market.positions(account);
         RiskParameter memory parameter = market.riskParameter();
-        OracleVersion memory latestVersion = _oracleVersion(market);
+        OracleVersion memory latestVersion = market.at(position.timestamp);
 
         return position
             .liquidationFee(latestVersion, parameter)
-            .min(UFixed6Lib.from(market.token().balanceOf(address(market)))); // @todo do we need this? it will just fail otherwise
+            .min(UFixed6Lib.from(market.token().balanceOf(address(market))));
     }
 
-    function _oracleVersion(IMarket market) private view returns (OracleVersion memory latestVersion) {
-        (latestVersion, ) = market.oracle().status();
-        _transform(latestVersion, market);
+    function _t(OracleVersion memory latestVersion) internal {
+        latestVersion.price = latestVersion.valid ? 
+            
     }
-
     function _transform(OracleVersion memory oracleVersion, IMarket market) private view {
         IPayoffProvider payoff = market.payoff();
         if (address(payoff) != address(0)) oracleVersion.price = payoff.payoff(oracleVersion.price);
