@@ -22,6 +22,7 @@ import {
   expectPositionEq,
   expectVersionEq,
   parse6decimal,
+  Position,
 } from '../../../../common/testutil/types'
 import { IMarket, MarketParameterStruct, RiskParameterStruct } from '../../../types/generated/contracts/Market'
 
@@ -57,6 +58,17 @@ const DEFAULT_LOCAL_ACCUMULATION_RESULT = {
   rewardAmount: 0,
   positionFee: 0,
   keeper: 0,
+}
+
+const DEFAULT_POSITION: Position = {
+  id: 0,
+  timestamp: 0,
+  long: 0,
+  maker: 0,
+  short: 0,
+  fee: 0,
+  collateral: 0,
+  delta: 0,
 }
 
 const ORACLE_VERSION_0 = {
@@ -1157,7 +1169,7 @@ describe('Market', () => {
         })
 
         context('no position', async () => {
-          it('deposits and withdraws (immediately)', async () => {
+          it.only('deposits and withdraws (immediately)', async () => {
             dsu.transferFrom.whenCalledWith(user.address, market.address, COLLATERAL.mul(1e12)).returns(true)
             await expect(market.connect(user).update(user.address, 0, 0, 0, COLLATERAL, false))
               .to.emit(market, 'Updated')
@@ -1170,20 +1182,14 @@ describe('Market', () => {
               protection: 0,
             })
             expectPositionEq(await market.positions(user.address), {
-              id: 0,
+              ...DEFAULT_POSITION,
               timestamp: ORACLE_VERSION_1.timestamp,
-              maker: 0,
-              long: 0,
-              short: 0,
-              fee: 0,
             })
             expectPositionEq(await market.pendingPositions(user.address, 1), {
+              ...DEFAULT_POSITION,
               id: 1,
               timestamp: ORACLE_VERSION_2.timestamp,
-              maker: 0,
-              long: 0,
-              short: 0,
-              fee: 0,
+              delta: COLLATERAL,
             })
             expectGlobalEq(await market.global(), {
               currentId: 1,
@@ -1193,20 +1199,13 @@ describe('Market', () => {
               donation: 0,
             })
             expectPositionEq(await market.position(), {
-              id: 0,
+              ...DEFAULT_POSITION,
               timestamp: ORACLE_VERSION_1.timestamp,
-              maker: 0,
-              long: 0,
-              short: 0,
-              fee: 0,
             })
             expectPositionEq(await market.pendingPosition(1), {
+              ...DEFAULT_POSITION,
               id: 1,
               timestamp: ORACLE_VERSION_2.timestamp,
-              maker: 0,
-              long: 0,
-              short: 0,
-              fee: 0,
             })
             expectVersionEq(await market.versions(ORACLE_VERSION_1.timestamp), {
               makerValue: { _value: 0 },
@@ -1229,20 +1228,13 @@ describe('Market', () => {
               protection: 0,
             })
             expectPositionEq(await market.positions(user.address), {
-              id: 0,
+              ...DEFAULT_POSITION,
               timestamp: ORACLE_VERSION_1.timestamp,
-              maker: 0,
-              long: 0,
-              short: 0,
-              fee: 0,
             })
             expectPositionEq(await market.pendingPositions(user.address, 1), {
+              ...DEFAULT_POSITION,
               id: 1,
               timestamp: ORACLE_VERSION_2.timestamp,
-              maker: 0,
-              long: 0,
-              short: 0,
-              fee: 0,
             })
             expectGlobalEq(await market.global(), {
               currentId: 1,
@@ -1252,20 +1244,13 @@ describe('Market', () => {
               donation: 0,
             })
             expectPositionEq(await market.position(), {
-              id: 0,
+              ...DEFAULT_POSITION,
               timestamp: ORACLE_VERSION_1.timestamp,
-              maker: 0,
-              long: 0,
-              short: 0,
-              fee: 0,
             })
             expectPositionEq(await market.pendingPosition(1), {
+              ...DEFAULT_POSITION,
               id: 1,
               timestamp: ORACLE_VERSION_2.timestamp,
-              maker: 0,
-              long: 0,
-              short: 0,
-              fee: 0,
             })
             expectVersionEq(await market.versions(ORACLE_VERSION_1.timestamp), {
               makerValue: { _value: 0 },
@@ -1290,20 +1275,13 @@ describe('Market', () => {
               protection: 0,
             })
             expectPositionEq(await market.positions(user.address), {
-              id: 0,
+              ...DEFAULT_POSITION,
               timestamp: ORACLE_VERSION_1.timestamp,
-              maker: 0,
-              long: 0,
-              short: 0,
-              fee: 0,
             })
             expectPositionEq(await market.pendingPositions(user.address, 1), {
+              ...DEFAULT_POSITION,
               id: 1,
               timestamp: ORACLE_VERSION_2.timestamp,
-              maker: 0,
-              long: 0,
-              short: 0,
-              fee: 0,
             })
             expectGlobalEq(await market.global(), {
               currentId: 1,
@@ -1313,20 +1291,14 @@ describe('Market', () => {
               donation: 0,
             })
             expectPositionEq(await market.position(), {
+              ...DEFAULT_POSITION,
               id: 0,
               timestamp: ORACLE_VERSION_1.timestamp,
-              maker: 0,
-              long: 0,
-              short: 0,
-              fee: 0,
             })
             expectPositionEq(await market.pendingPosition(1), {
+              ...DEFAULT_POSITION,
               id: 1,
               timestamp: ORACLE_VERSION_2.timestamp,
-              maker: 0,
-              long: 0,
-              short: 0,
-              fee: 0,
             })
             expectVersionEq(await market.versions(ORACLE_VERSION_1.timestamp), {
               makerValue: { _value: 0 },
@@ -1355,20 +1327,14 @@ describe('Market', () => {
               protection: 0,
             })
             expectPositionEq(await market.positions(user.address), {
+              ...DEFAULT_POSITION,
               id: 1,
               timestamp: ORACLE_VERSION_2.timestamp,
-              maker: 0,
-              long: 0,
-              short: 0,
-              fee: 0,
             })
             expectPositionEq(await market.pendingPositions(user.address, 2), {
+              ...DEFAULT_POSITION,
               id: 2,
               timestamp: ORACLE_VERSION_3.timestamp,
-              maker: 0,
-              long: 0,
-              short: 0,
-              fee: 0,
             })
             expectGlobalEq(await market.global(), {
               currentId: 2,
@@ -1378,20 +1344,14 @@ describe('Market', () => {
               donation: 0,
             })
             expectPositionEq(await market.position(), {
+              ...DEFAULT_POSITION,
               id: 1,
               timestamp: ORACLE_VERSION_2.timestamp,
-              maker: 0,
-              long: 0,
-              short: 0,
-              fee: 0,
             })
             expectPositionEq(await market.pendingPosition(2), {
+              ...DEFAULT_POSITION,
               id: 2,
               timestamp: ORACLE_VERSION_3.timestamp,
-              maker: 0,
-              long: 0,
-              short: 0,
-              fee: 0,
             })
             expectVersionEq(await market.versions(ORACLE_VERSION_2.timestamp), {
               makerValue: { _value: 0 },
@@ -1422,20 +1382,14 @@ describe('Market', () => {
                 protection: 0,
               })
               expectPositionEq(await market.positions(user.address), {
-                id: 0,
+                ...DEFAULT_POSITION,
                 timestamp: ORACLE_VERSION_1.timestamp,
-                maker: 0,
-                long: 0,
-                short: 0,
-                fee: 0,
               })
               expectPositionEq(await market.pendingPositions(user.address, 1), {
+                ...DEFAULT_POSITION,
                 id: 1,
                 timestamp: ORACLE_VERSION_2.timestamp,
                 maker: POSITION,
-                long: 0,
-                short: 0,
-                fee: 0,
               })
               expectGlobalEq(await market.global(), {
                 currentId: 1,
@@ -1445,20 +1399,14 @@ describe('Market', () => {
                 donation: 0,
               })
               expectPositionEq(await market.position(), {
-                id: 0,
+                ...DEFAULT_POSITION,
                 timestamp: ORACLE_VERSION_1.timestamp,
-                maker: 0,
-                long: 0,
-                short: 0,
-                fee: 0,
               })
               expectPositionEq(await market.pendingPosition(1), {
+                ...DEFAULT_POSITION,
                 id: 1,
                 timestamp: ORACLE_VERSION_2.timestamp,
                 maker: POSITION,
-                long: 0,
-                short: 0,
-                fee: 0,
               })
               expectVersionEq(await market.versions(ORACLE_VERSION_1.timestamp), {
                 makerValue: { _value: 0 },
@@ -1507,20 +1455,16 @@ describe('Market', () => {
                 protection: 0,
               })
               expectPositionEq(await market.positions(user.address), {
+                ...DEFAULT_POSITION,
                 id: 1,
                 timestamp: ORACLE_VERSION_2.timestamp,
                 maker: POSITION,
-                long: 0,
-                short: 0,
-                fee: 0,
               })
               expectPositionEq(await market.pendingPositions(user.address, 2), {
+                ...DEFAULT_POSITION,
                 id: 2,
                 timestamp: ORACLE_VERSION_3.timestamp,
                 maker: POSITION,
-                long: 0,
-                short: 0,
-                fee: 0,
               })
               expectGlobalEq(await market.global(), {
                 currentId: 2,
@@ -1530,20 +1474,16 @@ describe('Market', () => {
                 donation: 0,
               })
               expectPositionEq(await market.position(), {
+                ...DEFAULT_POSITION,
                 id: 1,
                 timestamp: ORACLE_VERSION_2.timestamp,
                 maker: POSITION,
-                long: 0,
-                short: 0,
-                fee: 0,
               })
               expectPositionEq(await market.pendingPosition(2), {
+                ...DEFAULT_POSITION,
                 id: 2,
                 timestamp: ORACLE_VERSION_3.timestamp,
                 maker: POSITION,
-                long: 0,
-                short: 0,
-                fee: 0,
               })
               expectVersionEq(await market.versions(ORACLE_VERSION_2.timestamp), {
                 makerValue: { _value: 0 },
@@ -1569,20 +1509,14 @@ describe('Market', () => {
                 protection: 0,
               })
               expectPositionEq(await market.positions(user.address), {
-                id: 0,
+                ...DEFAULT_POSITION,
                 timestamp: ORACLE_VERSION_1.timestamp,
-                maker: 0,
-                long: 0,
-                short: 0,
-                fee: 0,
               })
               expectPositionEq(await market.pendingPositions(user.address, 1), {
+                ...DEFAULT_POSITION,
                 id: 1,
                 timestamp: ORACLE_VERSION_2.timestamp,
                 maker: POSITION.mul(2),
-                long: 0,
-                short: 0,
-                fee: 0,
               })
               expectGlobalEq(await market.global(), {
                 currentId: 1,
@@ -1592,20 +1526,14 @@ describe('Market', () => {
                 donation: 0,
               })
               expectPositionEq(await market.position(), {
-                id: 0,
+                ...DEFAULT_POSITION,
                 timestamp: ORACLE_VERSION_1.timestamp,
-                maker: 0,
-                long: 0,
-                short: 0,
-                fee: 0,
               })
               expectPositionEq(await market.pendingPosition(1), {
+                ...DEFAULT_POSITION,
                 id: 1,
                 timestamp: ORACLE_VERSION_2.timestamp,
                 maker: POSITION.mul(2),
-                long: 0,
-                short: 0,
-                fee: 0,
               })
               expectVersionEq(await market.versions(ORACLE_VERSION_1.timestamp), {
                 makerValue: { _value: 0 },
@@ -1637,20 +1565,16 @@ describe('Market', () => {
                 protection: 0,
               })
               expectPositionEq(await market.positions(user.address), {
+                ...DEFAULT_POSITION,
                 id: 1,
                 timestamp: ORACLE_VERSION_2.timestamp,
                 maker: POSITION.mul(2),
-                long: 0,
-                short: 0,
-                fee: 0,
               })
               expectPositionEq(await market.pendingPositions(user.address, 2), {
+                ...DEFAULT_POSITION,
                 id: 2,
                 timestamp: ORACLE_VERSION_3.timestamp,
                 maker: POSITION.mul(2),
-                long: 0,
-                short: 0,
-                fee: 0,
               })
               expectGlobalEq(await market.global(), {
                 currentId: 2,
@@ -1660,20 +1584,16 @@ describe('Market', () => {
                 donation: 0,
               })
               expectPositionEq(await market.position(), {
+                ...DEFAULT_POSITION,
                 id: 1,
                 timestamp: ORACLE_VERSION_2.timestamp,
                 maker: POSITION.mul(2),
-                long: 0,
-                short: 0,
-                fee: 0,
               })
               expectPositionEq(await market.pendingPosition(2), {
+                ...DEFAULT_POSITION,
                 id: 2,
                 timestamp: ORACLE_VERSION_3.timestamp,
                 maker: POSITION.mul(2),
-                long: 0,
-                short: 0,
-                fee: 0,
               })
               expectVersionEq(await market.versions(ORACLE_VERSION_2.timestamp), {
                 makerValue: { _value: 0 },
@@ -1703,20 +1623,16 @@ describe('Market', () => {
                 protection: 0,
               })
               expectPositionEq(await market.positions(user.address), {
+                ...DEFAULT_POSITION,
                 id: 1,
                 timestamp: ORACLE_VERSION_2.timestamp,
                 maker: POSITION,
-                long: 0,
-                short: 0,
-                fee: 0,
               })
               expectPositionEq(await market.pendingPositions(user.address, 2), {
+                ...DEFAULT_POSITION,
                 id: 2,
                 timestamp: ORACLE_VERSION_3.timestamp,
                 maker: POSITION.mul(2),
-                long: 0,
-                short: 0,
-                fee: 0,
               })
               expectGlobalEq(await market.global(), {
                 currentId: 2,
@@ -1726,20 +1642,16 @@ describe('Market', () => {
                 donation: 0,
               })
               expectPositionEq(await market.position(), {
+                ...DEFAULT_POSITION,
                 id: 1,
                 timestamp: ORACLE_VERSION_2.timestamp,
                 maker: POSITION,
-                long: 0,
-                short: 0,
-                fee: 0,
               })
               expectPositionEq(await market.pendingPosition(2), {
+                ...DEFAULT_POSITION,
                 id: 2,
                 timestamp: ORACLE_VERSION_3.timestamp,
                 maker: POSITION.mul(2),
-                long: 0,
-                short: 0,
-                fee: 0,
               })
               expectVersionEq(await market.versions(ORACLE_VERSION_2.timestamp), {
                 makerValue: { _value: 0 },
@@ -1775,20 +1687,16 @@ describe('Market', () => {
                 protection: 0,
               })
               expectPositionEq(await market.positions(user.address), {
+                ...DEFAULT_POSITION,
                 id: 2,
                 timestamp: ORACLE_VERSION_3.timestamp,
                 maker: POSITION.mul(2),
-                long: 0,
-                short: 0,
-                fee: 0,
               })
               expectPositionEq(await market.pendingPositions(user.address, 3), {
+                ...DEFAULT_POSITION,
                 id: 3,
                 timestamp: ORACLE_VERSION_4.timestamp,
                 maker: POSITION.mul(2),
-                long: 0,
-                short: 0,
-                fee: 0,
               })
               expectGlobalEq(await market.global(), {
                 currentId: 3,
@@ -1798,6 +1706,7 @@ describe('Market', () => {
                 donation: 0,
               })
               expectPositionEq(await market.position(), {
+                ...DEFAULT_POSITION,
                 id: 2,
                 timestamp: ORACLE_VERSION_3.timestamp,
                 maker: POSITION.mul(2),
@@ -1806,12 +1715,10 @@ describe('Market', () => {
                 fee: 0,
               })
               expectPositionEq(await market.pendingPosition(3), {
+                ...DEFAULT_POSITION,
                 id: 3,
                 timestamp: ORACLE_VERSION_4.timestamp,
                 maker: POSITION.mul(2),
-                long: 0,
-                short: 0,
-                fee: 0,
               })
               expectVersionEq(await market.versions(ORACLE_VERSION_3.timestamp), {
                 makerValue: { _value: 0 },
@@ -1842,20 +1749,16 @@ describe('Market', () => {
                 protection: 0,
               })
               expectPositionEq(await market.positions(user.address), {
+                ...DEFAULT_POSITION,
                 id: 1,
                 timestamp: ORACLE_VERSION_3.timestamp,
                 maker: POSITION,
-                long: 0,
-                short: 0,
-                fee: 0,
               })
               expectPositionEq(await market.pendingPositions(user.address, 2), {
+                ...DEFAULT_POSITION,
                 id: 2,
                 timestamp: ORACLE_VERSION_4.timestamp,
                 maker: POSITION,
-                long: 0,
-                short: 0,
-                fee: 0,
               })
               expectGlobalEq(await market.global(), {
                 currentId: 2,
@@ -1865,20 +1768,16 @@ describe('Market', () => {
                 donation: 0,
               })
               expectPositionEq(await market.position(), {
+                ...DEFAULT_POSITION,
                 id: 1,
                 timestamp: ORACLE_VERSION_3.timestamp,
                 maker: POSITION,
-                long: 0,
-                short: 0,
-                fee: 0,
               })
               expectPositionEq(await market.pendingPosition(2), {
+                ...DEFAULT_POSITION,
                 id: 2,
                 timestamp: ORACLE_VERSION_4.timestamp,
                 maker: POSITION,
-                long: 0,
-                short: 0,
-                fee: 0,
               })
               expectVersionEq(await market.versions(ORACLE_VERSION_3.timestamp), {
                 makerValue: { _value: 0 },
@@ -1921,20 +1820,16 @@ describe('Market', () => {
                 protection: 0,
               })
               expectPositionEq(await market.positions(user.address), {
+                ...DEFAULT_POSITION,
                 id: 1,
                 timestamp: ORACLE_VERSION_3.timestamp,
                 maker: POSITION,
-                long: 0,
-                short: 0,
-                fee: 0,
               })
               expectPositionEq(await market.pendingPositions(user.address, 2), {
+                ...DEFAULT_POSITION,
                 id: 2,
                 timestamp: ORACLE_VERSION_4.timestamp,
                 maker: POSITION,
-                long: 0,
-                short: 0,
-                fee: 0,
               })
               expectGlobalEq(await market.global(), {
                 currentId: 2,
@@ -1944,20 +1839,16 @@ describe('Market', () => {
                 donation: MAKER_FEE.div(2).mul(8).div(10),
               })
               expectPositionEq(await market.position(), {
+                ...DEFAULT_POSITION,
                 id: 1,
                 timestamp: ORACLE_VERSION_3.timestamp,
                 maker: POSITION,
-                long: 0,
-                short: 0,
-                fee: 0,
               })
               expectPositionEq(await market.pendingPosition(2), {
+                ...DEFAULT_POSITION,
                 id: 2,
                 timestamp: ORACLE_VERSION_4.timestamp,
                 maker: POSITION,
-                long: 0,
-                short: 0,
-                fee: 0,
               })
               expectVersionEq(await market.versions(ORACLE_VERSION_3.timestamp), {
                 makerValue: { _value: 0 },
@@ -1988,20 +1879,13 @@ describe('Market', () => {
                 protection: 0,
               })
               expectPositionEq(await market.positions(user.address), {
-                id: 0,
+                ...DEFAULT_POSITION,
                 timestamp: ORACLE_VERSION_1.timestamp,
-                maker: 0,
-                long: 0,
-                short: 0,
-                fee: 0,
               })
               expectPositionEq(await market.pendingPositions(user.address, 1), {
+                ...DEFAULT_POSITION,
                 id: 1,
                 timestamp: ORACLE_VERSION_2.timestamp,
-                maker: 0,
-                long: 0,
-                short: 0,
-                fee: 0,
               })
               expectGlobalEq(await market.global(), {
                 currentId: 1,
@@ -2011,20 +1895,13 @@ describe('Market', () => {
                 donation: 0,
               })
               expectPositionEq(await market.position(), {
-                id: 0,
+                ...DEFAULT_POSITION,
                 timestamp: ORACLE_VERSION_1.timestamp,
-                maker: 0,
-                long: 0,
-                short: 0,
-                fee: 0,
               })
               expectPositionEq(await market.pendingPosition(1), {
+                ...DEFAULT_POSITION,
                 id: 1,
                 timestamp: ORACLE_VERSION_2.timestamp,
-                maker: 0,
-                long: 0,
-                short: 0,
-                fee: 0,
               })
               expectVersionEq(await market.versions(ORACLE_VERSION_1.timestamp), {
                 makerValue: { _value: 0 },
@@ -2048,20 +1925,14 @@ describe('Market', () => {
                 protection: 0,
               })
               expectPositionEq(await market.positions(user.address), {
-                id: 0,
+                ...DEFAULT_POSITION,
                 timestamp: ORACLE_VERSION_1.timestamp,
-                maker: 0,
-                long: 0,
-                short: 0,
-                fee: 0,
               })
               expectPositionEq(await market.pendingPositions(user.address, 1), {
+                ...DEFAULT_POSITION,
                 id: 1,
                 timestamp: ORACLE_VERSION_2.timestamp,
                 maker: POSITION.div(2),
-                long: 0,
-                short: 0,
-                fee: 0,
               })
               expectGlobalEq(await market.global(), {
                 currentId: 1,
@@ -2071,20 +1942,14 @@ describe('Market', () => {
                 donation: 0,
               })
               expectPositionEq(await market.position(), {
-                id: 0,
+                ...DEFAULT_POSITION,
                 timestamp: ORACLE_VERSION_1.timestamp,
-                maker: 0,
-                long: 0,
-                short: 0,
-                fee: 0,
               })
               expectPositionEq(await market.pendingPosition(1), {
+                ...DEFAULT_POSITION,
                 id: 1,
                 timestamp: ORACLE_VERSION_2.timestamp,
                 maker: POSITION.div(2),
-                long: 0,
-                short: 0,
-                fee: 0,
               })
               expectVersionEq(await market.versions(ORACLE_VERSION_1.timestamp), {
                 makerValue: { _value: 0 },
@@ -2117,20 +1982,15 @@ describe('Market', () => {
                   protection: 0,
                 })
                 expectPositionEq(await market.positions(user.address), {
+                  ...DEFAULT_POSITION,
                   id: 1,
                   timestamp: ORACLE_VERSION_2.timestamp,
                   maker: POSITION,
-                  long: 0,
-                  short: 0,
-                  fee: 0,
                 })
                 expectPositionEq(await market.pendingPositions(user.address, 2), {
+                  ...DEFAULT_POSITION,
                   id: 2,
                   timestamp: ORACLE_VERSION_3.timestamp,
-                  maker: 0,
-                  long: 0,
-                  short: 0,
-                  fee: 0,
                 })
                 expectGlobalEq(await market.global(), {
                   currentId: 2,
@@ -2140,20 +2000,15 @@ describe('Market', () => {
                   donation: 0,
                 })
                 expectPositionEq(await market.position(), {
+                  ...DEFAULT_POSITION,
                   id: 1,
                   timestamp: ORACLE_VERSION_2.timestamp,
                   maker: POSITION,
-                  long: 0,
-                  short: 0,
-                  fee: 0,
                 })
                 expectPositionEq(await market.pendingPosition(2), {
+                  ...DEFAULT_POSITION,
                   id: 2,
                   timestamp: ORACLE_VERSION_3.timestamp,
-                  maker: 0,
-                  long: 0,
-                  short: 0,
-                  fee: 0,
                 })
                 expectVersionEq(await market.versions(ORACLE_VERSION_2.timestamp), {
                   makerValue: { _value: 0 },
@@ -2183,20 +2038,14 @@ describe('Market', () => {
                   protection: 0,
                 })
                 expectPositionEq(await market.positions(user.address), {
+                  ...DEFAULT_POSITION,
                   id: 2,
                   timestamp: ORACLE_VERSION_3.timestamp,
-                  maker: 0,
-                  long: 0,
-                  short: 0,
-                  fee: 0,
                 })
                 expectPositionEq(await market.pendingPositions(user.address, 3), {
+                  ...DEFAULT_POSITION,
                   id: 3,
                   timestamp: ORACLE_VERSION_4.timestamp,
-                  maker: 0,
-                  long: 0,
-                  short: 0,
-                  fee: 0,
                 })
                 expectGlobalEq(await market.global(), {
                   currentId: 3,
@@ -2206,20 +2055,14 @@ describe('Market', () => {
                   donation: 0,
                 })
                 expectPositionEq(await market.position(), {
+                  ...DEFAULT_POSITION,
                   id: 2,
                   timestamp: ORACLE_VERSION_3.timestamp,
-                  maker: 0,
-                  long: 0,
-                  short: 0,
-                  fee: 0,
                 })
                 expectPositionEq(await market.pendingPosition(3), {
+                  ...DEFAULT_POSITION,
                   id: 3,
                   timestamp: ORACLE_VERSION_4.timestamp,
-                  maker: 0,
-                  long: 0,
-                  short: 0,
-                  fee: 0,
                 })
                 expectVersionEq(await market.versions(ORACLE_VERSION_3.timestamp), {
                   makerValue: { _value: 0 },
@@ -2245,20 +2088,15 @@ describe('Market', () => {
                   protection: 0,
                 })
                 expectPositionEq(await market.positions(user.address), {
+                  ...DEFAULT_POSITION,
                   id: 1,
                   timestamp: ORACLE_VERSION_2.timestamp,
                   maker: POSITION,
-                  long: 0,
-                  short: 0,
-                  fee: 0,
                 })
                 expectPositionEq(await market.pendingPositions(user.address, 2), {
+                  ...DEFAULT_POSITION,
                   id: 2,
                   timestamp: ORACLE_VERSION_3.timestamp,
-                  maker: 0,
-                  long: 0,
-                  short: 0,
-                  fee: 0,
                 })
                 expectGlobalEq(await market.global(), {
                   currentId: 2,
@@ -2268,20 +2106,15 @@ describe('Market', () => {
                   donation: 0,
                 })
                 expectPositionEq(await market.position(), {
+                  ...DEFAULT_POSITION,
                   id: 1,
                   timestamp: ORACLE_VERSION_2.timestamp,
                   maker: POSITION,
-                  long: 0,
-                  short: 0,
-                  fee: 0,
                 })
                 expectPositionEq(await market.pendingPosition(2), {
+                  ...DEFAULT_POSITION,
                   id: 2,
                   timestamp: ORACLE_VERSION_3.timestamp,
-                  maker: 0,
-                  long: 0,
-                  short: 0,
-                  fee: 0,
                 })
                 expectVersionEq(await market.versions(ORACLE_VERSION_2.timestamp), {
                   makerValue: { _value: 0 },
@@ -2313,20 +2146,14 @@ describe('Market', () => {
                   protection: 0,
                 })
                 expectPositionEq(await market.positions(user.address), {
+                  ...DEFAULT_POSITION,
                   id: 2,
                   timestamp: ORACLE_VERSION_3.timestamp,
-                  maker: 0,
-                  long: 0,
-                  short: 0,
-                  fee: 0,
                 })
                 expectPositionEq(await market.pendingPositions(user.address, 3), {
+                  ...DEFAULT_POSITION,
                   id: 3,
                   timestamp: ORACLE_VERSION_4.timestamp,
-                  maker: 0,
-                  long: 0,
-                  short: 0,
-                  fee: 0,
                 })
                 expectGlobalEq(await market.global(), {
                   currentId: 3,
@@ -2336,20 +2163,14 @@ describe('Market', () => {
                   donation: 0,
                 })
                 expectPositionEq(await market.position(), {
+                  ...DEFAULT_POSITION,
                   id: 2,
                   timestamp: ORACLE_VERSION_3.timestamp,
-                  maker: 0,
-                  long: 0,
-                  short: 0,
-                  fee: 0,
                 })
                 expectPositionEq(await market.pendingPosition(3), {
+                  ...DEFAULT_POSITION,
                   id: 3,
                   timestamp: ORACLE_VERSION_4.timestamp,
-                  maker: 0,
-                  long: 0,
-                  short: 0,
-                  fee: 0,
                 })
                 expectVersionEq(await market.versions(ORACLE_VERSION_3.timestamp), {
                   makerValue: { _value: 0 },
@@ -2379,20 +2200,15 @@ describe('Market', () => {
                   protection: 0,
                 })
                 expectPositionEq(await market.positions(user.address), {
+                  ...DEFAULT_POSITION,
                   id: 2,
                   timestamp: ORACLE_VERSION_3.timestamp,
                   maker: POSITION.div(2),
-                  long: 0,
-                  short: 0,
-                  fee: 0,
                 })
                 expectPositionEq(await market.pendingPositions(user.address, 3), {
+                  ...DEFAULT_POSITION,
                   id: 3,
                   timestamp: ORACLE_VERSION_4.timestamp,
-                  maker: 0,
-                  long: 0,
-                  short: 0,
-                  fee: 0,
                 })
                 expectGlobalEq(await market.global(), {
                   currentId: 3,
@@ -2402,20 +2218,15 @@ describe('Market', () => {
                   donation: 0,
                 })
                 expectPositionEq(await market.position(), {
+                  ...DEFAULT_POSITION,
                   id: 2,
                   timestamp: ORACLE_VERSION_3.timestamp,
                   maker: POSITION.div(2),
-                  long: 0,
-                  short: 0,
-                  fee: 0,
                 })
                 expectPositionEq(await market.pendingPosition(3), {
+                  ...DEFAULT_POSITION,
                   id: 3,
                   timestamp: ORACLE_VERSION_4.timestamp,
-                  maker: 0,
-                  long: 0,
-                  short: 0,
-                  fee: 0,
                 })
                 expectVersionEq(await market.versions(ORACLE_VERSION_3.timestamp), {
                   makerValue: { _value: 0 },
@@ -2451,20 +2262,14 @@ describe('Market', () => {
                   protection: 0,
                 })
                 expectPositionEq(await market.positions(user.address), {
+                  ...DEFAULT_POSITION,
                   id: 3,
                   timestamp: ORACLE_VERSION_4.timestamp,
-                  maker: 0,
-                  long: 0,
-                  short: 0,
-                  fee: 0,
                 })
                 expectPositionEq(await market.pendingPositions(user.address, 4), {
+                  ...DEFAULT_POSITION,
                   id: 4,
                   timestamp: ORACLE_VERSION_5.timestamp,
-                  maker: 0,
-                  long: 0,
-                  short: 0,
-                  fee: 0,
                 })
                 expectGlobalEq(await market.global(), {
                   currentId: 4,
@@ -2474,20 +2279,14 @@ describe('Market', () => {
                   donation: 0,
                 })
                 expectPositionEq(await market.position(), {
+                  ...DEFAULT_POSITION,
                   id: 3,
                   timestamp: ORACLE_VERSION_4.timestamp,
-                  maker: 0,
-                  long: 0,
-                  short: 0,
-                  fee: 0,
                 })
                 expectPositionEq(await market.pendingPosition(4), {
+                  ...DEFAULT_POSITION,
                   id: 4,
                   timestamp: ORACLE_VERSION_5.timestamp,
-                  maker: 0,
-                  long: 0,
-                  short: 0,
-                  fee: 0,
                 })
                 expectVersionEq(await market.versions(ORACLE_VERSION_4.timestamp), {
                   makerValue: { _value: 0 },
@@ -2519,20 +2318,14 @@ describe('Market', () => {
                   protection: 0,
                 })
                 expectPositionEq(await market.positions(user.address), {
+                  ...DEFAULT_POSITION,
                   id: 2,
                   timestamp: ORACLE_VERSION_4.timestamp,
-                  maker: 0,
-                  long: 0,
-                  short: 0,
-                  fee: 0,
                 })
                 expectPositionEq(await market.pendingPositions(user.address, 3), {
+                  ...DEFAULT_POSITION,
                   id: 3,
                   timestamp: ORACLE_VERSION_5.timestamp,
-                  maker: 0,
-                  long: 0,
-                  short: 0,
-                  fee: 0,
                 })
                 expectGlobalEq(await market.global(), {
                   currentId: 3,
@@ -2542,20 +2335,14 @@ describe('Market', () => {
                   donation: 0,
                 })
                 expectPositionEq(await market.position(), {
+                  ...DEFAULT_POSITION,
                   id: 2,
                   timestamp: ORACLE_VERSION_4.timestamp,
-                  maker: 0,
-                  long: 0,
-                  short: 0,
-                  fee: 0,
                 })
                 expectPositionEq(await market.pendingPosition(3), {
+                  ...DEFAULT_POSITION,
                   id: 3,
                   timestamp: ORACLE_VERSION_5.timestamp,
-                  maker: 0,
-                  long: 0,
-                  short: 0,
-                  fee: 0,
                 })
                 expectVersionEq(await market.versions(ORACLE_VERSION_4.timestamp), {
                   makerValue: { _value: 0 },
@@ -2601,20 +2388,14 @@ describe('Market', () => {
                   protection: 0,
                 })
                 expectPositionEq(await market.positions(user.address), {
+                  ...DEFAULT_POSITION,
                   id: 2,
                   timestamp: ORACLE_VERSION_4.timestamp,
-                  maker: 0,
-                  long: 0,
-                  short: 0,
-                  fee: 0,
                 })
                 expectPositionEq(await market.pendingPositions(user.address, 3), {
+                  ...DEFAULT_POSITION,
                   id: 3,
                   timestamp: ORACLE_VERSION_5.timestamp,
-                  maker: 0,
-                  long: 0,
-                  short: 0,
-                  fee: 0,
                 })
                 expectGlobalEq(await market.global(), {
                   currentId: 3,
@@ -2624,20 +2405,14 @@ describe('Market', () => {
                   donation: MAKER_FEE_FEE.div(2).mul(8).div(10),
                 })
                 expectPositionEq(await market.position(), {
+                  ...DEFAULT_POSITION,
                   id: 2,
                   timestamp: ORACLE_VERSION_4.timestamp,
-                  maker: 0,
-                  long: 0,
-                  short: 0,
-                  fee: 0,
                 })
                 expectPositionEq(await market.pendingPosition(3), {
+                  ...DEFAULT_POSITION,
                   id: 3,
                   timestamp: ORACLE_VERSION_5.timestamp,
-                  maker: 0,
-                  long: 0,
-                  short: 0,
-                  fee: 0,
                 })
                 expectVersionEq(await market.versions(ORACLE_VERSION_4.timestamp), {
                   makerValue: { _value: MAKER_FEE_WITHOUT_FEE.div(10) },
@@ -2676,20 +2451,14 @@ describe('Market', () => {
                   protection: 0,
                 })
                 expectPositionEq(await market.positions(user.address), {
-                  id: 0,
+                  ...DEFAULT_POSITION,
                   timestamp: ORACLE_VERSION_1.timestamp,
-                  maker: 0,
-                  long: 0,
-                  short: 0,
-                  fee: 0,
                 })
                 expectPositionEq(await market.pendingPositions(user.address, 1), {
+                  ...DEFAULT_POSITION,
                   id: 1,
                   timestamp: ORACLE_VERSION_2.timestamp,
-                  maker: 0,
                   long: POSITION,
-                  short: 0,
-                  fee: 0,
                 })
                 expectGlobalEq(await market.global(), {
                   currentId: 1,
@@ -2699,20 +2468,15 @@ describe('Market', () => {
                   donation: 0,
                 })
                 expectPositionEq(await market.position(), {
-                  id: 0,
+                  ...DEFAULT_POSITION,
                   timestamp: ORACLE_VERSION_1.timestamp,
-                  maker: 0,
-                  long: 0,
-                  short: 0,
-                  fee: 0,
                 })
                 expectPositionEq(await market.pendingPosition(1), {
+                  ...DEFAULT_POSITION,
                   id: 1,
                   timestamp: ORACLE_VERSION_2.timestamp,
                   maker: POSITION,
                   long: POSITION,
-                  short: 0,
-                  fee: 0,
                 })
                 expectVersionEq(await market.versions(ORACLE_VERSION_1.timestamp), {
                   makerValue: { _value: 0 },
@@ -2742,20 +2506,16 @@ describe('Market', () => {
                   protection: 0,
                 })
                 expectPositionEq(await market.positions(user.address), {
+                  ...DEFAULT_POSITION,
                   id: 1,
                   timestamp: ORACLE_VERSION_2.timestamp,
-                  maker: 0,
                   long: POSITION,
-                  short: 0,
-                  fee: 0,
                 })
                 expectPositionEq(await market.pendingPositions(user.address, 2), {
+                  ...DEFAULT_POSITION,
                   id: 2,
                   timestamp: ORACLE_VERSION_3.timestamp,
-                  maker: 0,
                   long: POSITION,
-                  short: 0,
-                  fee: 0,
                 })
                 expectGlobalEq(await market.global(), {
                   currentId: 2,
@@ -2765,20 +2525,18 @@ describe('Market', () => {
                   donation: 0,
                 })
                 expectPositionEq(await market.position(), {
+                  ...DEFAULT_POSITION,
                   id: 1,
                   timestamp: ORACLE_VERSION_2.timestamp,
                   maker: POSITION,
                   long: POSITION,
-                  short: 0,
-                  fee: 0,
                 })
                 expectPositionEq(await market.pendingPosition(2), {
+                  ...DEFAULT_POSITION,
                   id: 2,
                   timestamp: ORACLE_VERSION_3.timestamp,
                   maker: POSITION,
                   long: POSITION,
-                  short: 0,
-                  fee: 0,
                 })
                 expectVersionEq(await market.versions(ORACLE_VERSION_2.timestamp), {
                   makerValue: { _value: 0 },
@@ -2804,20 +2562,14 @@ describe('Market', () => {
                   protection: 0,
                 })
                 expectPositionEq(await market.positions(user.address), {
-                  id: 0,
+                  ...DEFAULT_POSITION,
                   timestamp: ORACLE_VERSION_1.timestamp,
-                  maker: 0,
-                  long: 0,
-                  short: 0,
-                  fee: 0,
                 })
                 expectPositionEq(await market.pendingPositions(user.address, 1), {
+                  ...DEFAULT_POSITION,
                   id: 1,
                   timestamp: ORACLE_VERSION_2.timestamp,
-                  maker: 0,
                   long: POSITION,
-                  short: 0,
-                  fee: 0,
                 })
                 expectGlobalEq(await market.global(), {
                   currentId: 1,
@@ -2827,20 +2579,15 @@ describe('Market', () => {
                   donation: 0,
                 })
                 expectPositionEq(await market.position(), {
-                  id: 0,
+                  ...DEFAULT_POSITION,
                   timestamp: ORACLE_VERSION_1.timestamp,
-                  maker: 0,
-                  long: 0,
-                  short: 0,
-                  fee: 0,
                 })
                 expectPositionEq(await market.pendingPosition(1), {
+                  ...DEFAULT_POSITION,
                   id: 1,
                   timestamp: ORACLE_VERSION_2.timestamp,
                   maker: POSITION,
                   long: POSITION,
-                  short: 0,
-                  fee: 0,
                 })
                 expectVersionEq(await market.versions(ORACLE_VERSION_2.timestamp), {
                   makerValue: { _value: 0 },
@@ -2872,20 +2619,16 @@ describe('Market', () => {
                   protection: 0,
                 })
                 expectPositionEq(await market.positions(user.address), {
+                  ...DEFAULT_POSITION,
                   id: 1,
                   timestamp: ORACLE_VERSION_2.timestamp,
-                  maker: 0,
                   long: POSITION,
-                  short: 0,
-                  fee: 0,
                 })
                 expectPositionEq(await market.pendingPositions(user.address, 2), {
+                  ...DEFAULT_POSITION,
                   id: 2,
                   timestamp: ORACLE_VERSION_3.timestamp,
-                  maker: 0,
                   long: POSITION,
-                  short: 0,
-                  fee: 0,
                 })
                 expectGlobalEq(await market.global(), {
                   currentId: 2,
@@ -2895,20 +2638,18 @@ describe('Market', () => {
                   donation: 0,
                 })
                 expectPositionEq(await market.position(), {
+                  ...DEFAULT_POSITION,
                   id: 1,
                   timestamp: ORACLE_VERSION_2.timestamp,
                   maker: POSITION,
                   long: POSITION,
-                  short: 0,
-                  fee: 0,
                 })
                 expectPositionEq(await market.pendingPosition(2), {
+                  ...DEFAULT_POSITION,
                   id: 2,
                   timestamp: ORACLE_VERSION_3.timestamp,
                   maker: POSITION,
                   long: POSITION,
-                  short: 0,
-                  fee: 0,
                 })
                 expectVersionEq(await market.versions(ORACLE_VERSION_2.timestamp), {
                   makerValue: { _value: 0 },
@@ -2938,20 +2679,16 @@ describe('Market', () => {
                   protection: 0,
                 })
                 expectPositionEq(await market.positions(user.address), {
+                  ...DEFAULT_POSITION,
                   id: 1,
                   timestamp: ORACLE_VERSION_2.timestamp,
-                  maker: 0,
                   long: POSITION.div(2),
-                  short: 0,
-                  fee: 0,
                 })
                 expectPositionEq(await market.pendingPositions(user.address, 2), {
+                  ...DEFAULT_POSITION,
                   id: 2,
                   timestamp: ORACLE_VERSION_3.timestamp,
-                  maker: 0,
                   long: POSITION,
-                  short: 0,
-                  fee: 0,
                 })
                 expectGlobalEq(await market.global(), {
                   currentId: 2,
@@ -2961,20 +2698,18 @@ describe('Market', () => {
                   donation: 0,
                 })
                 expectPositionEq(await market.position(), {
+                  ...DEFAULT_POSITION,
                   id: 1,
                   timestamp: ORACLE_VERSION_2.timestamp,
                   maker: POSITION,
                   long: POSITION.div(2),
-                  short: 0,
-                  fee: 0,
                 })
                 expectPositionEq(await market.pendingPosition(2), {
+                  ...DEFAULT_POSITION,
                   id: 2,
                   timestamp: ORACLE_VERSION_3.timestamp,
                   maker: POSITION,
                   long: POSITION,
-                  short: 0,
-                  fee: 0,
                 })
                 expectVersionEq(await market.versions(ORACLE_VERSION_2.timestamp), {
                   makerValue: { _value: 0 },
@@ -3011,20 +2746,16 @@ describe('Market', () => {
                   protection: 0,
                 })
                 expectPositionEq(await market.positions(user.address), {
+                  ...DEFAULT_POSITION,
                   id: 2,
                   timestamp: ORACLE_VERSION_3.timestamp,
-                  maker: 0,
                   long: POSITION,
-                  short: 0,
-                  fee: 0,
                 })
                 expectPositionEq(await market.pendingPositions(user.address, 3), {
+                  ...DEFAULT_POSITION,
                   id: 3,
                   timestamp: ORACLE_VERSION_4.timestamp,
-                  maker: 0,
                   long: POSITION,
-                  short: 0,
-                  fee: 0,
                 })
                 expectLocalEq(await market.locals(userB.address), {
                   currentId: 2,
@@ -3035,20 +2766,16 @@ describe('Market', () => {
                   protection: 0,
                 })
                 expectPositionEq(await market.positions(userB.address), {
+                  ...DEFAULT_POSITION,
                   id: 1,
                   timestamp: ORACLE_VERSION_3.timestamp,
                   maker: POSITION,
-                  long: 0,
-                  short: 0,
-                  fee: 0,
                 })
                 expectPositionEq(await market.pendingPositions(userB.address, 2), {
+                  ...DEFAULT_POSITION,
                   id: 2,
                   timestamp: ORACLE_VERSION_4.timestamp,
                   maker: POSITION,
-                  long: 0,
-                  short: 0,
-                  fee: 0,
                 })
                 const totalFee = EXPECTED_FUNDING_FEE_1_5_123.add(EXPECTED_INTEREST_FEE_5_123)
                 expectGlobalEq(await market.global(), {
@@ -3059,20 +2786,18 @@ describe('Market', () => {
                   donation: totalFee.div(2).mul(8).div(10).add(1), // loss of precision
                 })
                 expectPositionEq(await market.position(), {
+                  ...DEFAULT_POSITION,
                   id: 2,
                   timestamp: ORACLE_VERSION_3.timestamp,
                   maker: POSITION,
                   long: POSITION,
-                  short: 0,
-                  fee: 0,
                 })
                 expectPositionEq(await market.pendingPosition(3), {
+                  ...DEFAULT_POSITION,
                   id: 3,
                   timestamp: ORACLE_VERSION_4.timestamp,
                   maker: POSITION,
                   long: POSITION,
-                  short: 0,
-                  fee: 0,
                 })
                 expectVersionEq(await market.versions(ORACLE_VERSION_3.timestamp), {
                   makerValue: {
@@ -3107,20 +2832,16 @@ describe('Market', () => {
                   protection: 0,
                 })
                 expectPositionEq(await market.positions(user.address), {
+                  ...DEFAULT_POSITION,
                   id: 1,
                   timestamp: ORACLE_VERSION_3.timestamp,
-                  maker: 0,
                   long: POSITION.div(2),
-                  short: 0,
-                  fee: 0,
                 })
                 expectPositionEq(await market.pendingPositions(user.address, 2), {
+                  ...DEFAULT_POSITION,
                   id: 2,
                   timestamp: ORACLE_VERSION_4.timestamp,
-                  maker: 0,
                   long: POSITION.div(2),
-                  short: 0,
-                  fee: 0,
                 })
                 expectLocalEq(await market.locals(userB.address), {
                   currentId: 2,
@@ -3131,20 +2852,16 @@ describe('Market', () => {
                   protection: 0,
                 })
                 expectPositionEq(await market.positions(userB.address), {
+                  ...DEFAULT_POSITION,
                   id: 1,
                   timestamp: ORACLE_VERSION_3.timestamp,
                   maker: POSITION,
-                  long: 0,
-                  short: 0,
-                  fee: 0,
                 })
                 expectPositionEq(await market.pendingPositions(userB.address, 2), {
+                  ...DEFAULT_POSITION,
                   id: 2,
                   timestamp: ORACLE_VERSION_4.timestamp,
                   maker: POSITION,
-                  long: 0,
-                  short: 0,
-                  fee: 0,
                 })
                 const totalFee = EXPECTED_FUNDING_FEE_1_5_123.add(EXPECTED_INTEREST_FEE_5_123)
                 expectGlobalEq(await market.global(), {
@@ -3155,20 +2872,18 @@ describe('Market', () => {
                   donation: totalFee.div(2).mul(8).div(10).add(1), // loss of precision
                 })
                 expectPositionEq(await market.position(), {
+                  ...DEFAULT_POSITION,
                   id: 1,
                   timestamp: ORACLE_VERSION_3.timestamp,
                   maker: POSITION,
                   long: POSITION.div(2),
-                  short: 0,
-                  fee: 0,
                 })
                 expectPositionEq(await market.pendingPosition(2), {
+                  ...DEFAULT_POSITION,
                   id: 2,
                   timestamp: ORACLE_VERSION_4.timestamp,
                   maker: POSITION,
                   long: POSITION.div(2),
-                  short: 0,
-                  fee: 0,
                 })
                 expectVersionEq(await market.versions(ORACLE_VERSION_3.timestamp), {
                   makerValue: {
@@ -3219,20 +2934,16 @@ describe('Market', () => {
                   protection: 0,
                 })
                 expectPositionEq(await market.positions(user.address), {
+                  ...DEFAULT_POSITION,
                   id: 1,
                   timestamp: ORACLE_VERSION_3.timestamp,
-                  maker: 0,
                   long: POSITION.div(2),
-                  short: 0,
-                  fee: 0,
                 })
                 expectPositionEq(await market.pendingPositions(user.address, 2), {
+                  ...DEFAULT_POSITION,
                   id: 2,
                   timestamp: ORACLE_VERSION_4.timestamp,
-                  maker: 0,
                   long: POSITION.div(2),
-                  short: 0,
-                  fee: 0,
                 })
                 expectLocalEq(await market.locals(userB.address), {
                   currentId: 2,
@@ -3243,20 +2954,16 @@ describe('Market', () => {
                   protection: 0,
                 })
                 expectPositionEq(await market.positions(userB.address), {
+                  ...DEFAULT_POSITION,
                   id: 1,
                   timestamp: ORACLE_VERSION_3.timestamp,
                   maker: POSITION,
-                  long: 0,
-                  short: 0,
-                  fee: 0,
                 })
                 expectPositionEq(await market.pendingPositions(userB.address, 2), {
+                  ...DEFAULT_POSITION,
                   id: 2,
                   timestamp: ORACLE_VERSION_4.timestamp,
                   maker: POSITION,
-                  long: 0,
-                  short: 0,
-                  fee: 0,
                 })
                 const totalFee = EXPECTED_FUNDING_FEE_1_5_123.add(EXPECTED_INTEREST_FEE_5_123).add(TAKER_FEE)
                 expectGlobalEq(await market.global(), {
@@ -3267,20 +2974,18 @@ describe('Market', () => {
                   donation: totalFee.div(2).mul(8).div(10).add(1), // loss of precision
                 })
                 expectPositionEq(await market.position(), {
+                  ...DEFAULT_POSITION,
                   id: 1,
                   timestamp: ORACLE_VERSION_3.timestamp,
                   maker: POSITION,
                   long: POSITION.div(2),
-                  short: 0,
-                  fee: 0,
                 })
                 expectPositionEq(await market.pendingPosition(2), {
+                  ...DEFAULT_POSITION,
                   id: 2,
                   timestamp: ORACLE_VERSION_4.timestamp,
                   maker: POSITION,
                   long: POSITION.div(2),
-                  short: 0,
-                  fee: 0,
                 })
                 expectVersionEq(await market.versions(ORACLE_VERSION_3.timestamp), {
                   makerValue: {
@@ -3339,20 +3044,18 @@ describe('Market', () => {
                   protection: 0,
                 })
                 expectPositionEq(await market.positions(user.address), {
+                  ...DEFAULT_POSITION,
                   id: 1,
                   timestamp: ORACLE_VERSION_4.timestamp,
                   maker: 0,
                   long: POSITION.div(2),
-                  short: 0,
-                  fee: 0,
                 })
                 expectPositionEq(await market.pendingPositions(user.address, 2), {
+                  ...DEFAULT_POSITION,
                   id: 2,
                   timestamp: ORACLE_VERSION_5.timestamp,
                   maker: 0,
                   long: POSITION.div(2),
-                  short: 0,
-                  fee: 0,
                 })
                 expectLocalEq(await market.locals(userB.address), {
                   currentId: 2,
@@ -3364,20 +3067,16 @@ describe('Market', () => {
                   protection: 0,
                 })
                 expectPositionEq(await market.positions(userB.address), {
+                  ...DEFAULT_POSITION,
                   id: 1,
                   timestamp: ORACLE_VERSION_4.timestamp,
                   maker: POSITION,
-                  long: 0,
-                  short: 0,
-                  fee: 0,
                 })
                 expectPositionEq(await market.pendingPositions(userB.address, 2), {
+                  ...DEFAULT_POSITION,
                   id: 2,
                   timestamp: ORACLE_VERSION_5.timestamp,
                   maker: POSITION,
-                  long: 0,
-                  short: 0,
-                  fee: 0,
                 })
                 const totalFee = EXPECTED_FUNDING_FEE_1_5_123.add(EXPECTED_INTEREST_FEE_5_123).add(TAKER_FEE_FEE)
                 expectGlobalEq(await market.global(), {
@@ -3388,20 +3087,18 @@ describe('Market', () => {
                   donation: totalFee.div(2).mul(8).div(10).add(1), // loss of precision
                 })
                 expectPositionEq(await market.position(), {
+                  ...DEFAULT_POSITION,
                   id: 2,
                   timestamp: ORACLE_VERSION_4.timestamp,
                   maker: POSITION,
                   long: POSITION.div(2),
-                  short: 0,
-                  fee: 0,
                 })
                 expectPositionEq(await market.pendingPosition(3), {
+                  ...DEFAULT_POSITION,
                   id: 3,
                   timestamp: ORACLE_VERSION_5.timestamp,
                   maker: POSITION,
                   long: POSITION.div(2),
-                  short: 0,
-                  fee: 0,
                 })
                 expectVersionEq(await market.versions(ORACLE_VERSION_4.timestamp), {
                   makerValue: {
@@ -3437,20 +3134,14 @@ describe('Market', () => {
                   protection: 0,
                 })
                 expectPositionEq(await market.positions(user.address), {
-                  id: 0,
+                  ...DEFAULT_POSITION,
                   timestamp: ORACLE_VERSION_1.timestamp,
-                  maker: 0,
-                  long: 0,
-                  short: 0,
-                  fee: 0,
                 })
                 expectPositionEq(await market.pendingPositions(user.address, 1), {
+                  ...DEFAULT_POSITION,
                   id: 1,
                   timestamp: ORACLE_VERSION_2.timestamp,
-                  maker: 0,
                   long: POSITION.div(4),
-                  short: 0,
-                  fee: 0,
                 })
                 expectGlobalEq(await market.global(), {
                   currentId: 1,
@@ -3460,20 +3151,15 @@ describe('Market', () => {
                   donation: 0,
                 })
                 expectPositionEq(await market.position(), {
-                  id: 0,
+                  ...DEFAULT_POSITION,
                   timestamp: ORACLE_VERSION_1.timestamp,
-                  maker: 0,
-                  long: 0,
-                  short: 0,
-                  fee: 0,
                 })
                 expectPositionEq(await market.pendingPosition(1), {
+                  ...DEFAULT_POSITION,
                   id: 1,
                   timestamp: ORACLE_VERSION_2.timestamp,
                   maker: POSITION,
                   long: POSITION.div(4),
-                  short: 0,
-                  fee: 0,
                 })
                 expectVersionEq(await market.versions(ORACLE_VERSION_1.timestamp), {
                   makerValue: { _value: 0 },
@@ -3497,20 +3183,13 @@ describe('Market', () => {
                   protection: 0,
                 })
                 expectPositionEq(await market.positions(user.address), {
-                  id: 0,
+                  ...DEFAULT_POSITION,
                   timestamp: ORACLE_VERSION_1.timestamp,
-                  maker: 0,
-                  long: 0,
-                  short: 0,
-                  fee: 0,
                 })
                 expectPositionEq(await market.pendingPositions(user.address, 1), {
+                  ...DEFAULT_POSITION,
                   id: 1,
                   timestamp: ORACLE_VERSION_2.timestamp,
-                  maker: 0,
-                  long: 0,
-                  short: 0,
-                  fee: 0,
                 })
                 expectGlobalEq(await market.global(), {
                   currentId: 1,
@@ -3520,20 +3199,14 @@ describe('Market', () => {
                   donation: 0,
                 })
                 expectPositionEq(await market.position(), {
-                  id: 0,
+                  ...DEFAULT_POSITION,
                   timestamp: ORACLE_VERSION_1.timestamp,
-                  maker: 0,
-                  long: 0,
-                  short: 0,
-                  fee: 0,
                 })
                 expectPositionEq(await market.pendingPosition(1), {
+                  ...DEFAULT_POSITION,
                   id: 1,
                   timestamp: ORACLE_VERSION_2.timestamp,
                   maker: POSITION,
-                  long: 0,
-                  short: 0,
-                  fee: 0,
                 })
                 expectVersionEq(await market.versions(ORACLE_VERSION_1.timestamp), {
                   makerValue: { _value: 0 },
@@ -3566,20 +3239,15 @@ describe('Market', () => {
                     protection: 0,
                   })
                   expectPositionEq(await market.positions(user.address), {
+                    ...DEFAULT_POSITION,
                     id: 1,
                     timestamp: ORACLE_VERSION_2.timestamp,
-                    maker: 0,
                     long: POSITION.div(2),
-                    short: 0,
-                    fee: 0,
                   })
                   expectPositionEq(await market.pendingPositions(user.address, 2), {
+                    ...DEFAULT_POSITION,
                     id: 2,
                     timestamp: ORACLE_VERSION_3.timestamp,
-                    maker: 0,
-                    long: 0,
-                    short: 0,
-                    fee: 0,
                   })
                   expectGlobalEq(await market.global(), {
                     currentId: 2,
@@ -3589,20 +3257,17 @@ describe('Market', () => {
                     donation: 0,
                   })
                   expectPositionEq(await market.position(), {
+                    ...DEFAULT_POSITION,
                     id: 1,
                     timestamp: ORACLE_VERSION_2.timestamp,
                     maker: POSITION,
                     long: POSITION.div(2),
-                    short: 0,
-                    fee: 0,
                   })
                   expectPositionEq(await market.pendingPosition(2), {
+                    ...DEFAULT_POSITION,
                     id: 2,
                     timestamp: ORACLE_VERSION_3.timestamp,
                     maker: POSITION,
-                    long: 0,
-                    short: 0,
-                    fee: 0,
                   })
                   expectVersionEq(await market.versions(ORACLE_VERSION_2.timestamp), {
                     makerValue: { _value: 0 },
@@ -3633,20 +3298,14 @@ describe('Market', () => {
                     protection: 0,
                   })
                   expectPositionEq(await market.positions(user.address), {
+                    ...DEFAULT_POSITION,
                     id: 2,
                     timestamp: ORACLE_VERSION_3.timestamp,
-                    maker: 0,
-                    long: 0,
-                    short: 0,
-                    fee: 0,
                   })
                   expectPositionEq(await market.pendingPositions(user.address, 3), {
+                    ...DEFAULT_POSITION,
                     id: 3,
                     timestamp: ORACLE_VERSION_4.timestamp,
-                    maker: 0,
-                    long: 0,
-                    short: 0,
-                    fee: 0,
                   })
                   expectLocalEq(await market.locals(userB.address), {
                     currentId: 2,
@@ -3657,20 +3316,16 @@ describe('Market', () => {
                     protection: 0,
                   })
                   expectPositionEq(await market.positions(userB.address), {
+                    ...DEFAULT_POSITION,
                     id: 1,
                     timestamp: ORACLE_VERSION_3.timestamp,
                     maker: POSITION,
-                    long: 0,
-                    short: 0,
-                    fee: 0,
                   })
                   expectPositionEq(await market.pendingPositions(userB.address, 2), {
+                    ...DEFAULT_POSITION,
                     id: 2,
                     timestamp: ORACLE_VERSION_4.timestamp,
                     maker: POSITION,
-                    long: 0,
-                    short: 0,
-                    fee: 0,
                   })
                   const totalFee = EXPECTED_FUNDING_FEE_1_5_123.add(EXPECTED_INTEREST_FEE_5_123)
                   expectGlobalEq(await market.global(), {
@@ -3681,20 +3336,16 @@ describe('Market', () => {
                     donation: totalFee.div(2).mul(8).div(10).add(1), // loss of precision
                   })
                   expectPositionEq(await market.position(), {
+                    ...DEFAULT_POSITION,
                     id: 2,
                     timestamp: ORACLE_VERSION_3.timestamp,
                     maker: POSITION,
-                    long: 0,
-                    short: 0,
-                    fee: 0,
                   })
                   expectPositionEq(await market.pendingPosition(3), {
+                    ...DEFAULT_POSITION,
                     id: 3,
                     timestamp: ORACLE_VERSION_4.timestamp,
                     maker: POSITION,
-                    long: 0,
-                    short: 0,
-                    fee: 0,
                   })
                   expectVersionEq(await market.versions(ORACLE_VERSION_3.timestamp), {
                     makerValue: {
@@ -3724,20 +3375,15 @@ describe('Market', () => {
                     protection: 0,
                   })
                   expectPositionEq(await market.positions(user.address), {
+                    ...DEFAULT_POSITION,
                     id: 1,
                     timestamp: ORACLE_VERSION_2.timestamp,
-                    maker: 0,
                     long: POSITION.div(2),
-                    short: 0,
-                    fee: 0,
                   })
                   expectPositionEq(await market.pendingPositions(user.address, 2), {
+                    ...DEFAULT_POSITION,
                     id: 2,
                     timestamp: ORACLE_VERSION_3.timestamp,
-                    maker: 0,
-                    long: 0,
-                    short: 0,
-                    fee: 0,
                   })
                   expectGlobalEq(await market.global(), {
                     currentId: 2,
@@ -3747,20 +3393,17 @@ describe('Market', () => {
                     donation: 0,
                   })
                   expectPositionEq(await market.position(), {
+                    ...DEFAULT_POSITION,
                     id: 1,
                     timestamp: ORACLE_VERSION_2.timestamp,
                     maker: POSITION,
                     long: POSITION.div(2),
-                    short: 0,
-                    fee: 0,
                   })
                   expectPositionEq(await market.pendingPosition(2), {
+                    ...DEFAULT_POSITION,
                     id: 2,
                     timestamp: ORACLE_VERSION_3.timestamp,
                     maker: POSITION,
-                    long: 0,
-                    short: 0,
-                    fee: 0,
                   })
                   expectVersionEq(await market.versions(ORACLE_VERSION_2.timestamp), {
                     makerValue: { _value: 0 },
@@ -3793,20 +3436,14 @@ describe('Market', () => {
                     protection: 0,
                   })
                   expectPositionEq(await market.positions(user.address), {
+                    ...DEFAULT_POSITION,
                     id: 2,
                     timestamp: ORACLE_VERSION_3.timestamp,
-                    maker: 0,
-                    long: 0,
-                    short: 0,
-                    fee: 0,
                   })
                   expectPositionEq(await market.pendingPositions(user.address, 3), {
+                    ...DEFAULT_POSITION,
                     id: 3,
                     timestamp: ORACLE_VERSION_4.timestamp,
-                    maker: 0,
-                    long: 0,
-                    short: 0,
-                    fee: 0,
                   })
                   expectLocalEq(await market.locals(userB.address), {
                     currentId: 2,
@@ -3817,20 +3454,16 @@ describe('Market', () => {
                     protection: 0,
                   })
                   expectPositionEq(await market.positions(userB.address), {
+                    ...DEFAULT_POSITION,
                     id: 1,
                     timestamp: ORACLE_VERSION_3.timestamp,
                     maker: POSITION,
-                    long: 0,
-                    short: 0,
-                    fee: 0,
                   })
                   expectPositionEq(await market.pendingPositions(userB.address, 2), {
+                    ...DEFAULT_POSITION,
                     id: 2,
                     timestamp: ORACLE_VERSION_4.timestamp,
                     maker: POSITION,
-                    long: 0,
-                    short: 0,
-                    fee: 0,
                   })
                   const totalFee = EXPECTED_FUNDING_FEE_1_5_123.add(EXPECTED_INTEREST_FEE_5_123)
                   expectGlobalEq(await market.global(), {
@@ -3841,20 +3474,16 @@ describe('Market', () => {
                     donation: totalFee.div(2).mul(8).div(10).add(1), // loss of precision
                   })
                   expectPositionEq(await market.position(), {
+                    ...DEFAULT_POSITION,
                     id: 2,
                     timestamp: ORACLE_VERSION_3.timestamp,
                     maker: POSITION,
-                    long: 0,
-                    short: 0,
-                    fee: 0,
                   })
                   expectPositionEq(await market.pendingPosition(3), {
+                    ...DEFAULT_POSITION,
                     id: 3,
                     timestamp: ORACLE_VERSION_4.timestamp,
                     maker: POSITION,
-                    long: 0,
-                    short: 0,
-                    fee: 0,
                   })
                   expectVersionEq(await market.versions(ORACLE_VERSION_3.timestamp), {
                     makerValue: {
@@ -3891,20 +3520,14 @@ describe('Market', () => {
                     protection: 0,
                   })
                   expectPositionEq(await market.positions(user.address), {
+                    ...DEFAULT_POSITION,
                     id: 2,
                     timestamp: ORACLE_VERSION_3.timestamp,
-                    maker: 0,
                     long: POSITION.div(4),
-                    short: 0,
-                    fee: 0,
                   })
                   expectPositionEq(await market.pendingPositions(user.address, 3), {
-                    id: 3,
+                    ...DEFAULT_POSITION,
                     timestamp: ORACLE_VERSION_4.timestamp,
-                    maker: 0,
-                    long: 0,
-                    short: 0,
-                    fee: 0,
                   })
                   expectLocalEq(await market.locals(userB.address), {
                     currentId: 2,
@@ -3915,20 +3538,16 @@ describe('Market', () => {
                     protection: 0,
                   })
                   expectPositionEq(await market.positions(userB.address), {
+                    ...DEFAULT_POSITION,
                     id: 1,
                     timestamp: ORACLE_VERSION_3.timestamp,
                     maker: POSITION,
-                    long: 0,
-                    short: 0,
-                    fee: 0,
                   })
                   expectPositionEq(await market.pendingPositions(userB.address, 2), {
+                    ...DEFAULT_POSITION,
                     id: 2,
                     timestamp: ORACLE_VERSION_4.timestamp,
                     maker: POSITION,
-                    long: 0,
-                    short: 0,
-                    fee: 0,
                   })
                   const totalFee = EXPECTED_FUNDING_FEE_1_5_123.add(EXPECTED_INTEREST_FEE_5_123)
                   expectGlobalEq(await market.global(), {
@@ -3939,20 +3558,17 @@ describe('Market', () => {
                     donation: totalFee.div(2).mul(8).div(10).add(1), // loss of precision
                   })
                   expectPositionEq(await market.position(), {
+                    ...DEFAULT_POSITION,
                     id: 2,
                     timestamp: ORACLE_VERSION_3.timestamp,
                     maker: POSITION,
                     long: POSITION.div(4),
-                    short: 0,
-                    fee: 0,
                   })
                   expectPositionEq(await market.pendingPosition(3), {
+                    ...DEFAULT_POSITION,
                     id: 3,
                     timestamp: ORACLE_VERSION_4.timestamp,
                     maker: POSITION,
-                    long: 0,
-                    short: 0,
-                    fee: 0,
                   })
                   expectVersionEq(await market.versions(ORACLE_VERSION_3.timestamp), {
                     makerValue: {
@@ -3996,20 +3612,14 @@ describe('Market', () => {
                     protection: 0,
                   })
                   expectPositionEq(await market.positions(user.address), {
+                    ...DEFAULT_POSITION,
                     id: 3,
                     timestamp: ORACLE_VERSION_4.timestamp,
-                    maker: 0,
-                    long: 0,
-                    short: 0,
-                    fee: 0,
                   })
                   expectPositionEq(await market.pendingPositions(user.address, 4), {
+                    ...DEFAULT_POSITION,
                     id: 4,
                     timestamp: ORACLE_VERSION_5.timestamp,
-                    maker: 0,
-                    long: 0,
-                    short: 0,
-                    fee: 0,
                   })
                   expectLocalEq(await market.locals(userB.address), {
                     currentId: 2,
@@ -4022,20 +3632,16 @@ describe('Market', () => {
                     protection: 0,
                   })
                   expectPositionEq(await market.positions(userB.address), {
+                    ...DEFAULT_POSITION,
                     id: 1,
                     timestamp: ORACLE_VERSION_4.timestamp,
                     maker: POSITION,
-                    long: 0,
-                    short: 0,
-                    fee: 0,
                   })
                   expectPositionEq(await market.pendingPositions(userB.address, 2), {
+                    ...DEFAULT_POSITION,
                     id: 2,
                     timestamp: ORACLE_VERSION_5.timestamp,
                     maker: POSITION,
-                    long: 0,
-                    short: 0,
-                    fee: 0,
                   })
                   const totalFee = EXPECTED_FUNDING_FEE_1_5_123.add(EXPECTED_FUNDING_FEE_2_25_123)
                     .add(EXPECTED_INTEREST_FEE_5_123)
@@ -4048,20 +3654,16 @@ describe('Market', () => {
                     donation: totalFee.div(2).mul(8).div(10).add(3), // loss of precision
                   })
                   expectPositionEq(await market.position(), {
+                    ...DEFAULT_POSITION,
                     id: 3,
                     timestamp: ORACLE_VERSION_4.timestamp,
                     maker: POSITION,
-                    long: 0,
-                    short: 0,
-                    fee: 0,
                   })
                   expectPositionEq(await market.pendingPosition(4), {
+                    ...DEFAULT_POSITION,
                     id: 4,
                     timestamp: ORACLE_VERSION_5.timestamp,
                     maker: POSITION,
-                    long: 0,
-                    short: 0,
-                    fee: 0,
                   })
                   expectVersionEq(await market.versions(ORACLE_VERSION_3.timestamp), {
                     makerValue: {
@@ -4117,20 +3719,14 @@ describe('Market', () => {
                     protection: 0,
                   })
                   expectPositionEq(await market.positions(user.address), {
+                    ...DEFAULT_POSITION,
                     id: 2,
                     timestamp: ORACLE_VERSION_4.timestamp,
-                    maker: 0,
-                    long: 0,
-                    short: 0,
-                    fee: 0,
                   })
                   expectPositionEq(await market.pendingPositions(user.address, 3), {
+                    ...DEFAULT_POSITION,
                     id: 3,
                     timestamp: ORACLE_VERSION_5.timestamp,
-                    maker: 0,
-                    long: 0,
-                    short: 0,
-                    fee: 0,
                   })
                   expectLocalEq(await market.locals(userB.address), {
                     currentId: 2,
@@ -4141,20 +3737,16 @@ describe('Market', () => {
                     protection: 0,
                   })
                   expectPositionEq(await market.positions(userB.address), {
+                    ...DEFAULT_POSITION,
                     id: 1,
                     timestamp: ORACLE_VERSION_4.timestamp,
                     maker: POSITION,
-                    long: 0,
-                    short: 0,
-                    fee: 0,
                   })
                   expectPositionEq(await market.pendingPositions(userB.address, 2), {
+                    ...DEFAULT_POSITION,
                     id: 2,
                     timestamp: ORACLE_VERSION_5.timestamp,
                     maker: POSITION,
-                    long: 0,
-                    short: 0,
-                    fee: 0,
                   })
                   const totalFee = EXPECTED_FUNDING_FEE_1_5_123.add(EXPECTED_INTEREST_FEE_5_123)
                   expectGlobalEq(await market.global(), {
@@ -4165,20 +3757,16 @@ describe('Market', () => {
                     donation: totalFee.div(2).mul(8).div(10).add(1), // loss of precision
                   })
                   expectPositionEq(await market.position(), {
+                    ...DEFAULT_POSITION,
                     id: 2,
                     timestamp: ORACLE_VERSION_4.timestamp,
                     maker: POSITION,
-                    long: 0,
-                    short: 0,
-                    fee: 0,
                   })
                   expectPositionEq(await market.pendingPosition(3), {
+                    ...DEFAULT_POSITION,
                     id: 3,
                     timestamp: ORACLE_VERSION_5.timestamp,
                     maker: POSITION,
-                    long: 0,
-                    short: 0,
-                    fee: 0,
                   })
                   expectVersionEq(await market.versions(ORACLE_VERSION_4.timestamp), {
                     makerValue: {
@@ -4233,20 +3821,14 @@ describe('Market', () => {
                     protection: 0,
                   })
                   expectPositionEq(await market.positions(user.address), {
+                    ...DEFAULT_POSITION,
                     id: 2,
                     timestamp: ORACLE_VERSION_4.timestamp,
-                    maker: 0,
-                    long: 0,
-                    short: 0,
-                    fee: 0,
                   })
                   expectPositionEq(await market.pendingPositions(user.address, 3), {
+                    ...DEFAULT_POSITION,
                     id: 3,
                     timestamp: ORACLE_VERSION_5.timestamp,
-                    maker: 0,
-                    long: 0,
-                    short: 0,
-                    fee: 0,
                   })
                   expectLocalEq(await market.locals(userB.address), {
                     currentId: 2,
@@ -4258,20 +3840,16 @@ describe('Market', () => {
                     protection: 0,
                   })
                   expectPositionEq(await market.positions(userB.address), {
+                    ...DEFAULT_POSITION,
                     id: 1,
                     timestamp: ORACLE_VERSION_4.timestamp,
                     maker: POSITION,
-                    long: 0,
-                    short: 0,
-                    fee: 0,
                   })
                   expectPositionEq(await market.pendingPositions(userB.address, 2), {
+                    ...DEFAULT_POSITION,
                     id: 2,
                     timestamp: ORACLE_VERSION_5.timestamp,
                     maker: POSITION,
-                    long: 0,
-                    short: 0,
-                    fee: 0,
                   })
                   const totalFee = EXPECTED_FUNDING_FEE_1_5_123.add(EXPECTED_INTEREST_FEE_5_123).add(TAKER_FEE_FEE)
                   expectGlobalEq(await market.global(), {
@@ -4282,20 +3860,16 @@ describe('Market', () => {
                     donation: totalFee.div(2).mul(8).div(10).add(1), // loss of precision
                   })
                   expectPositionEq(await market.position(), {
+                    ...DEFAULT_POSITION,
                     id: 2,
                     timestamp: ORACLE_VERSION_4.timestamp,
                     maker: POSITION,
-                    long: 0,
-                    short: 0,
-                    fee: 0,
                   })
                   expectPositionEq(await market.pendingPosition(3), {
+                    ...DEFAULT_POSITION,
                     id: 3,
                     timestamp: ORACLE_VERSION_5.timestamp,
                     maker: POSITION,
-                    long: 0,
-                    short: 0,
-                    fee: 0,
                   })
                   expectVersionEq(await market.versions(ORACLE_VERSION_4.timestamp), {
                     makerValue: {
@@ -4351,20 +3925,16 @@ describe('Market', () => {
                 protection: 0,
               })
               expectPositionEq(await market.positions(user.address), {
+                ...DEFAULT_POSITION,
                 id: 1,
                 timestamp: ORACLE_VERSION_2.timestamp,
-                maker: 0,
                 long: POSITION.div(2),
-                short: 0,
-                fee: 0,
               })
               expectPositionEq(await market.pendingPositions(user.address, 2), {
+                ...DEFAULT_POSITION,
                 id: 2,
                 timestamp: ORACLE_VERSION_3.timestamp,
-                maker: 0,
                 long: POSITION.div(2),
-                short: 0,
-                fee: 0,
               })
               expectLocalEq(await market.locals(userB.address), {
                 currentId: 2,
@@ -4373,20 +3943,16 @@ describe('Market', () => {
                 protection: 0,
               })
               expectPositionEq(await market.positions(userB.address), {
+                ...DEFAULT_POSITION,
                 id: 1,
                 timestamp: ORACLE_VERSION_2.timestamp,
                 maker: POSITION,
-                long: 0,
-                short: 0,
-                fee: 0,
               })
               expectPositionEq(await market.pendingPositions(userB.address, 2), {
+                ...DEFAULT_POSITION,
                 id: 2,
                 timestamp: ORACLE_VERSION_3.timestamp,
                 maker: POSITION,
-                long: 0,
-                short: 0,
-                fee: 0,
               })
               expectGlobalEq(await market.global(), {
                 currentId: 2,
@@ -4396,20 +3962,18 @@ describe('Market', () => {
                 donation: 0,
               })
               expectPositionEq(await market.position(), {
+                ...DEFAULT_POSITION,
                 id: 1,
                 timestamp: ORACLE_VERSION_2.timestamp,
                 maker: POSITION,
                 long: POSITION.div(2),
-                short: 0,
-                fee: 0,
               })
               expectPositionEq(await market.pendingPosition(2), {
+                ...DEFAULT_POSITION,
                 id: 2,
                 timestamp: ORACLE_VERSION_3.timestamp,
                 maker: POSITION,
                 long: POSITION.div(2),
-                short: 0,
-                fee: 0,
               })
               expectVersionEq(await market.versions(ORACLE_VERSION_3.timestamp), {
                 makerValue: { _value: 0 },
@@ -4481,20 +4045,16 @@ describe('Market', () => {
                 protection: 0,
               })
               expectPositionEq(await market.positions(user.address), {
+                ...DEFAULT_POSITION,
                 id: 2,
                 timestamp: ORACLE_VERSION_3.timestamp,
-                maker: 0,
                 long: POSITION.div(2),
-                short: 0,
-                fee: 0,
               })
               expectPositionEq(await market.pendingPositions(user.address, 3), {
+                ...DEFAULT_POSITION,
                 id: 3,
                 timestamp: ORACLE_VERSION_4.timestamp,
-                maker: 0,
                 long: POSITION.div(2),
-                short: 0,
-                fee: 0,
               })
               expectLocalEq(await market.locals(userB.address), {
                 currentId: 3,
@@ -4506,20 +4066,16 @@ describe('Market', () => {
                 protection: 0,
               })
               expectPositionEq(await market.positions(userB.address), {
+                ...DEFAULT_POSITION,
                 id: 2,
                 timestamp: ORACLE_VERSION_3.timestamp,
                 maker: POSITION,
-                long: 0,
-                short: 0,
-                fee: 0,
               })
               expectPositionEq(await market.pendingPositions(userB.address, 3), {
+                ...DEFAULT_POSITION,
                 id: 3,
                 timestamp: ORACLE_VERSION_4.timestamp,
                 maker: POSITION,
-                long: 0,
-                short: 0,
-                fee: 0,
               })
               const totalFee = EXPECTED_FUNDING_FEE_1_5_123.add(EXPECTED_INTEREST_FEE_5_123)
               expectGlobalEq(await market.global(), {
@@ -4530,20 +4086,18 @@ describe('Market', () => {
                 donation: totalFee.div(2).mul(8).div(10).add(1), // loss of precision
               })
               expectPositionEq(await market.position(), {
+                ...DEFAULT_POSITION,
                 id: 2,
                 timestamp: ORACLE_VERSION_3.timestamp,
                 maker: POSITION,
                 long: POSITION.div(2),
-                short: 0,
-                fee: 0,
               })
               expectPositionEq(await market.pendingPosition(3), {
+                ...DEFAULT_POSITION,
                 id: 3,
                 timestamp: ORACLE_VERSION_4.timestamp,
                 maker: POSITION,
                 long: POSITION.div(2),
-                short: 0,
-                fee: 0,
               })
               expectVersionEq(await market.versions(ORACLE_VERSION_3.timestamp), {
                 makerValue: {
@@ -4622,20 +4176,16 @@ describe('Market', () => {
                 protection: 0,
               })
               expectPositionEq(await market.positions(user.address), {
+                ...DEFAULT_POSITION,
                 id: 2,
                 timestamp: ORACLE_VERSION_3.timestamp,
-                maker: 0,
                 long: POSITION.div(2),
-                short: 0,
-                fee: 0,
               })
               expectPositionEq(await market.pendingPositions(user.address, 3), {
+                ...DEFAULT_POSITION,
                 id: 3,
                 timestamp: ORACLE_VERSION_4.timestamp,
-                maker: 0,
                 long: POSITION.div(2),
-                short: 0,
-                fee: 0,
               })
               expectLocalEq(await market.locals(userB.address), {
                 currentId: 3,
@@ -4647,20 +4197,16 @@ describe('Market', () => {
                 protection: 0,
               })
               expectPositionEq(await market.positions(userB.address), {
+                ...DEFAULT_POSITION,
                 id: 2,
                 timestamp: ORACLE_VERSION_3.timestamp,
                 maker: POSITION,
-                long: 0,
-                short: 0,
-                fee: 0,
               })
               expectPositionEq(await market.pendingPositions(userB.address, 3), {
+                ...DEFAULT_POSITION,
                 id: 3,
                 timestamp: ORACLE_VERSION_4.timestamp,
                 maker: POSITION,
-                long: 0,
-                short: 0,
-                fee: 0,
               })
               const totalFee = EXPECTED_FUNDING_FEE_1_5_123.add(EXPECTED_INTEREST_FEE_5_123)
               expectGlobalEq(await market.global(), {
@@ -4671,20 +4217,18 @@ describe('Market', () => {
                 donation: totalFee.div(2).mul(8).div(10).add(1), // loss of precision
               })
               expectPositionEq(await market.position(), {
+                ...DEFAULT_POSITION,
                 id: 2,
                 timestamp: ORACLE_VERSION_3.timestamp,
                 maker: POSITION,
                 long: POSITION.div(2),
-                short: 0,
-                fee: 0,
               })
               expectPositionEq(await market.pendingPosition(3), {
+                ...DEFAULT_POSITION,
                 id: 3,
                 timestamp: ORACLE_VERSION_4.timestamp,
                 maker: POSITION,
                 long: POSITION.div(2),
-                short: 0,
-                fee: 0,
               })
               expectVersionEq(await market.versions(ORACLE_VERSION_3.timestamp), {
                 makerValue: {
@@ -4776,20 +4320,16 @@ describe('Market', () => {
                   protection: 0,
                 })
                 expectPositionEq(await market.positions(user.address), {
+                  ...DEFAULT_POSITION,
                   id: 4,
                   timestamp: ORACLE_VERSION_5.timestamp,
-                  maker: 0,
                   long: POSITION.div(2),
-                  short: 0,
-                  fee: 0,
                 })
                 expectPositionEq(await market.pendingPositions(user.address, 5), {
+                  ...DEFAULT_POSITION,
                   id: 5,
                   timestamp: ORACLE_VERSION_6.timestamp,
-                  maker: 0,
                   long: POSITION.div(2),
-                  short: 0,
-                  fee: 0,
                 })
                 expectLocalEq(await market.locals(userB.address), {
                   currentId: 5,
@@ -4804,20 +4344,14 @@ describe('Market', () => {
                   protection: ORACLE_VERSION_4.timestamp,
                 })
                 expectPositionEq(await market.positions(userB.address), {
+                  ...DEFAULT_POSITION,
                   id: 4,
                   timestamp: ORACLE_VERSION_5.timestamp,
-                  maker: 0,
-                  long: 0,
-                  short: 0,
-                  fee: 0,
                 })
                 expectPositionEq(await market.pendingPositions(userB.address, 5), {
+                  ...DEFAULT_POSITION,
                   id: 5,
                   timestamp: ORACLE_VERSION_6.timestamp,
-                  maker: 0,
-                  long: 0,
-                  short: 0,
-                  fee: 0,
                 })
                 const totalFee = EXPECTED_FUNDING_FEE_1_5_123.add(EXPECTED_INTEREST_FEE_5_123)
                   .add(EXPECTED_FUNDING_FEE_2_5_150)
@@ -4830,20 +4364,16 @@ describe('Market', () => {
                   donation: totalFee.div(2).mul(8).div(10).add(4), // loss of precision
                 })
                 expectPositionEq(await market.position(), {
+                  ...DEFAULT_POSITION,
                   id: 4,
                   timestamp: ORACLE_VERSION_5.timestamp,
-                  maker: 0,
                   long: POSITION.div(2),
-                  short: 0,
-                  fee: 0,
                 })
                 expectPositionEq(await market.pendingPosition(5), {
+                  ...DEFAULT_POSITION,
                   id: 5,
                   timestamp: ORACLE_VERSION_6.timestamp,
-                  maker: 0,
                   long: POSITION.div(2),
-                  short: 0,
-                  fee: 0,
                 })
                 expectVersionEq(await market.versions(ORACLE_VERSION_3.timestamp), {
                   makerValue: {
@@ -4991,20 +4521,16 @@ describe('Market', () => {
                   protection: 0,
                 })
                 expectPositionEq(await market.positions(user.address), {
+                  ...DEFAULT_POSITION,
                   id: 4,
                   timestamp: ORACLE_VERSION_5.timestamp,
-                  maker: 0,
                   long: POSITION.div(2),
-                  short: 0,
-                  fee: 0,
                 })
                 expectPositionEq(await market.pendingPositions(user.address, 5), {
+                  ...DEFAULT_POSITION,
                   id: 5,
                   timestamp: ORACLE_VERSION_6.timestamp,
-                  maker: 0,
                   long: POSITION.div(2),
-                  short: 0,
-                  fee: 0,
                 })
                 expectLocalEq(await market.locals(userB.address), {
                   currentId: 5,
@@ -5017,20 +4543,14 @@ describe('Market', () => {
                   protection: ORACLE_VERSION_4.timestamp,
                 })
                 expectPositionEq(await market.positions(userB.address), {
+                  ...DEFAULT_POSITION,
                   id: 4,
                   timestamp: ORACLE_VERSION_5.timestamp,
-                  maker: 0,
-                  long: 0,
-                  short: 0,
-                  fee: 0,
                 })
                 expectPositionEq(await market.pendingPositions(userB.address, 5), {
+                  ...DEFAULT_POSITION,
                   id: 5,
                   timestamp: ORACLE_VERSION_6.timestamp,
-                  maker: 0,
-                  long: 0,
-                  short: 0,
-                  fee: 0,
                 })
                 expectLocalEq(await market.locals(userC.address), {
                   currentId: 5,
@@ -5045,20 +4565,16 @@ describe('Market', () => {
                   protection: 0,
                 })
                 expectPositionEq(await market.positions(userC.address), {
+                  ...DEFAULT_POSITION,
                   id: 4,
                   timestamp: ORACLE_VERSION_5.timestamp,
                   maker: POSITION.div(4),
-                  long: 0,
-                  short: 0,
-                  fee: 0,
                 })
                 expectPositionEq(await market.pendingPositions(userC.address, 5), {
+                  ...DEFAULT_POSITION,
                   id: 5,
                   timestamp: ORACLE_VERSION_6.timestamp,
                   maker: POSITION.div(4),
-                  long: 0,
-                  short: 0,
-                  fee: 0,
                 })
                 const totalFee = EXPECTED_FUNDING_FEE_1_5_123.add(EXPECTED_INTEREST_FEE_1)
                   .add(EXPECTED_FUNDING_FEE_2_5_150.add(EXPECTED_INTEREST_FEE_2))
@@ -5071,20 +4587,18 @@ describe('Market', () => {
                   donation: totalFee.div(2).mul(8).div(10).add(2), // loss of precision
                 })
                 expectPositionEq(await market.position(), {
+                  ...DEFAULT_POSITION,
                   id: 4,
                   timestamp: ORACLE_VERSION_5.timestamp,
                   maker: POSITION.div(4),
                   long: POSITION.div(2),
-                  short: 0,
-                  fee: 0,
                 })
                 expectPositionEq(await market.pendingPosition(5), {
+                  ...DEFAULT_POSITION,
                   id: 5,
                   timestamp: ORACLE_VERSION_6.timestamp,
                   maker: POSITION.div(4),
                   long: POSITION.div(2),
-                  short: 0,
-                  fee: 0,
                 })
                 expectVersionEq(await market.versions(ORACLE_VERSION_3.timestamp), {
                   makerValue: {
@@ -5192,20 +4706,16 @@ describe('Market', () => {
                   protection: 0,
                 })
                 expectPositionEq(await market.positions(user.address), {
+                  ...DEFAULT_POSITION,
                   id: 2,
                   timestamp: ORACLE_VERSION_3.timestamp,
-                  maker: 0,
                   long: POSITION.div(2),
-                  short: 0,
-                  fee: 0,
                 })
                 expectPositionEq(await market.pendingPositions(user.address, 3), {
+                  ...DEFAULT_POSITION,
                   id: 3,
                   timestamp: ORACLE_VERSION_4.timestamp,
-                  maker: 0,
                   long: POSITION.div(2),
-                  short: 0,
-                  fee: 0,
                 })
                 expectLocalEq(await market.locals(userB.address), {
                   currentId: 3,
@@ -5219,20 +4729,15 @@ describe('Market', () => {
                   protection: ORACLE_VERSION_4.timestamp,
                 })
                 expectPositionEq(await market.positions(userB.address), {
+                  ...DEFAULT_POSITION,
                   id: 2,
                   timestamp: ORACLE_VERSION_3.timestamp,
                   maker: POSITION,
-                  long: 0,
-                  short: 0,
-                  fee: 0,
                 })
                 expectPositionEq(await market.pendingPositions(userB.address, 3), {
+                  ...DEFAULT_POSITION,
                   id: 3,
                   timestamp: ORACLE_VERSION_4.timestamp,
-                  maker: 0,
-                  long: 0,
-                  short: 0,
-                  fee: 0,
                 })
                 const totalFee = EXPECTED_FUNDING_FEE_1_5_123.add(EXPECTED_INTEREST_FEE_5_123)
                 expectGlobalEq(await market.global(), {
@@ -5243,20 +4748,17 @@ describe('Market', () => {
                   donation: totalFee.div(2).mul(8).div(10).add(1), // loss of precision
                 })
                 expectPositionEq(await market.position(), {
+                  ...DEFAULT_POSITION,
                   id: 2,
                   timestamp: ORACLE_VERSION_3.timestamp,
                   maker: POSITION,
                   long: POSITION.div(2),
-                  short: 0,
-                  fee: 0,
                 })
                 expectPositionEq(await market.pendingPosition(3), {
+                  ...DEFAULT_POSITION,
                   id: 3,
                   timestamp: ORACLE_VERSION_4.timestamp,
-                  maker: 0,
                   long: POSITION.div(2),
-                  short: 0,
-                  fee: 0,
                 })
                 expectVersionEq(await market.versions(ORACLE_VERSION_3.timestamp), {
                   makerValue: {
@@ -5309,20 +4811,14 @@ describe('Market', () => {
                   protection: ORACLE_VERSION_4.timestamp,
                 })
                 expectPositionEq(await market.positions(userB.address), {
+                  ...DEFAULT_POSITION,
                   id: 3,
                   timestamp: ORACLE_VERSION_4.timestamp,
-                  maker: 0,
-                  long: 0,
-                  short: 0,
-                  fee: 0,
                 })
                 expectPositionEq(await market.pendingPositions(userB.address, 4), {
+                  ...DEFAULT_POSITION,
                   id: 4,
                   timestamp: ORACLE_VERSION_5.timestamp,
-                  maker: 0,
-                  long: 0,
-                  short: 0,
-                  fee: 0,
                 })
               })
             })
@@ -5394,20 +4890,14 @@ describe('Market', () => {
                   protection: ORACLE_VERSION_4.timestamp,
                 })
                 expectPositionEq(await market.positions(user.address), {
+                  ...DEFAULT_POSITION,
                   id: 4,
                   timestamp: ORACLE_VERSION_5.timestamp,
-                  maker: 0,
-                  long: 0,
-                  short: 0,
-                  fee: 0,
                 })
                 expectPositionEq(await market.pendingPositions(user.address, 5), {
+                  ...DEFAULT_POSITION,
                   id: 5,
                   timestamp: ORACLE_VERSION_6.timestamp,
-                  maker: 0,
-                  long: 0,
-                  short: 0,
-                  fee: 0,
                 })
                 expectLocalEq(await market.locals(userB.address), {
                   currentId: 5,
@@ -5420,20 +4910,16 @@ describe('Market', () => {
                   protection: 0,
                 })
                 expectPositionEq(await market.positions(userB.address), {
+                  ...DEFAULT_POSITION,
                   id: 4,
                   timestamp: ORACLE_VERSION_5.timestamp,
                   maker: POSITION,
-                  long: 0,
-                  short: 0,
-                  fee: 0,
                 })
                 expectPositionEq(await market.pendingPositions(userB.address, 5), {
+                  ...DEFAULT_POSITION,
                   id: 5,
                   timestamp: ORACLE_VERSION_6.timestamp,
                   maker: POSITION,
-                  long: 0,
-                  short: 0,
-                  fee: 0,
                 })
                 const totalFee = EXPECTED_FUNDING_FEE_1_5_123.add(EXPECTED_INTEREST_FEE_5_123).add(
                   EXPECTED_FUNDING_FEE_2_5_96.add(EXPECTED_INTEREST_FEE_5_96),
@@ -5446,20 +4932,16 @@ describe('Market', () => {
                   donation: totalFee.div(2).mul(8).div(10),
                 })
                 expectPositionEq(await market.position(), {
+                  ...DEFAULT_POSITION,
                   id: 4,
                   timestamp: ORACLE_VERSION_5.timestamp,
                   maker: POSITION,
-                  long: 0,
-                  short: 0,
-                  fee: 0,
                 })
                 expectPositionEq(await market.pendingPosition(5), {
+                  ...DEFAULT_POSITION,
                   id: 5,
                   timestamp: ORACLE_VERSION_6.timestamp,
                   maker: POSITION,
-                  long: 0,
-                  short: 0,
-                  fee: 0,
                 })
                 expectVersionEq(await market.versions(ORACLE_VERSION_3.timestamp), {
                   makerValue: {
@@ -5560,20 +5042,15 @@ describe('Market', () => {
                   protection: ORACLE_VERSION_4.timestamp,
                 })
                 expectPositionEq(await market.positions(user.address), {
+                  ...DEFAULT_POSITION,
                   id: 2,
                   timestamp: ORACLE_VERSION_3.timestamp,
-                  maker: 0,
                   long: POSITION.div(2),
-                  short: 0,
-                  fee: 0,
                 })
                 expectPositionEq(await market.pendingPositions(user.address, 3), {
+                  ...DEFAULT_POSITION,
                   id: 3,
                   timestamp: ORACLE_VERSION_4.timestamp,
-                  maker: 0,
-                  long: 0,
-                  short: 0,
-                  fee: 0,
                 })
                 expectLocalEq(await market.locals(userB.address), {
                   currentId: 3,
@@ -5586,20 +5063,16 @@ describe('Market', () => {
                   protection: 0,
                 })
                 expectPositionEq(await market.positions(userB.address), {
+                  ...DEFAULT_POSITION,
                   id: 2,
                   timestamp: ORACLE_VERSION_3.timestamp,
                   maker: POSITION,
-                  long: 0,
-                  short: 0,
-                  fee: 0,
                 })
                 expectPositionEq(await market.pendingPositions(userB.address, 3), {
+                  ...DEFAULT_POSITION,
                   id: 3,
                   timestamp: ORACLE_VERSION_4.timestamp,
                   maker: POSITION,
-                  long: 0,
-                  short: 0,
-                  fee: 0,
                 })
                 const totalFee = EXPECTED_FUNDING_FEE_1_5_123.add(EXPECTED_INTEREST_FEE_5_123)
                 expectGlobalEq(await market.global(), {
@@ -5610,20 +5083,17 @@ describe('Market', () => {
                   donation: totalFee.div(2).mul(8).div(10).add(1), // loss of precision
                 })
                 expectPositionEq(await market.position(), {
+                  ...DEFAULT_POSITION,
                   id: 2,
                   timestamp: ORACLE_VERSION_3.timestamp,
                   maker: POSITION,
                   long: POSITION.div(2),
-                  short: 0,
-                  fee: 0,
                 })
                 expectPositionEq(await market.pendingPosition(3), {
+                  ...DEFAULT_POSITION,
                   id: 3,
                   timestamp: ORACLE_VERSION_4.timestamp,
                   maker: POSITION,
-                  long: 0,
-                  short: 0,
-                  fee: 0,
                 })
                 expectVersionEq(await market.versions(ORACLE_VERSION_3.timestamp), {
                   makerValue: {
@@ -5672,20 +5142,14 @@ describe('Market', () => {
                   protection: ORACLE_VERSION_4.timestamp,
                 })
                 expectPositionEq(await market.positions(user.address), {
+                  ...DEFAULT_POSITION,
                   id: 3,
                   timestamp: ORACLE_VERSION_4.timestamp,
-                  maker: 0,
-                  long: 0,
-                  short: 0,
-                  fee: 0,
                 })
                 expectPositionEq(await market.pendingPositions(user.address, 4), {
+                  ...DEFAULT_POSITION,
                   id: 4,
                   timestamp: ORACLE_VERSION_5.timestamp,
-                  maker: 0,
-                  long: 0,
-                  short: 0,
-                  fee: 0,
                 })
               })
             })
@@ -5736,20 +5200,16 @@ describe('Market', () => {
                 protection: 0,
               })
               expectPositionEq(await market.positions(user.address), {
+                ...DEFAULT_POSITION,
                 id: 2,
                 timestamp: ORACLE_VERSION_4.timestamp,
                 maker: POSITION,
-                long: 0,
-                short: 0,
-                fee: 0,
               })
               expectPositionEq(await market.pendingPositions(user.address, 3), {
+                ...DEFAULT_POSITION,
                 id: 3,
                 timestamp: ORACLE_VERSION_5.timestamp,
                 maker: POSITION,
-                long: 0,
-                short: 0,
-                fee: 0,
               })
               expectLocalEq(await market.locals(userB.address), {
                 currentId: 3,
@@ -5758,20 +5218,16 @@ describe('Market', () => {
                 protection: 0,
               })
               expectPositionEq(await market.positions(userB.address), {
+                ...DEFAULT_POSITION,
                 id: 2,
                 timestamp: ORACLE_VERSION_4.timestamp,
-                maker: 0,
                 long: POSITION.div(2),
-                short: 0,
-                fee: 0,
               })
               expectPositionEq(await market.pendingPositions(userB.address, 3), {
+                ...DEFAULT_POSITION,
                 id: 3,
                 timestamp: ORACLE_VERSION_5.timestamp,
-                maker: 0,
                 long: POSITION.div(2),
-                short: 0,
-                fee: 0,
               })
               expectGlobalEq(await market.global(), {
                 currentId: 3,
@@ -5781,20 +5237,18 @@ describe('Market', () => {
                 donation: 0,
               })
               expectPositionEq(await market.position(), {
+                ...DEFAULT_POSITION,
                 id: 2,
                 timestamp: ORACLE_VERSION_4.timestamp,
                 maker: POSITION,
                 long: POSITION.div(2),
-                short: 0,
-                fee: 0,
               })
               expectPositionEq(await market.pendingPosition(3), {
+                ...DEFAULT_POSITION,
                 id: 3,
                 timestamp: ORACLE_VERSION_5.timestamp,
                 maker: POSITION,
                 long: POSITION.div(2),
-                short: 0,
-                fee: 0,
               })
               expectVersionEq(await market.versions(ORACLE_VERSION_3.timestamp), {
                 makerValue: { _value: 0 },
@@ -5840,20 +5294,14 @@ describe('Market', () => {
                   protection: 0,
                 })
                 expectPositionEq(await market.positions(user.address), {
-                  id: 0,
+                  ...DEFAULT_POSITION,
                   timestamp: ORACLE_VERSION_1.timestamp,
-                  maker: 0,
-                  long: 0,
-                  short: 0,
-                  fee: 0,
                 })
                 expectPositionEq(await market.pendingPositions(user.address, 1), {
+                  ...DEFAULT_POSITION,
                   id: 1,
                   timestamp: ORACLE_VERSION_2.timestamp,
-                  maker: 0,
-                  long: 0,
                   short: POSITION,
-                  fee: 0,
                 })
                 expectGlobalEq(await market.global(), {
                   currentId: 1,
@@ -5863,20 +5311,15 @@ describe('Market', () => {
                   donation: 0,
                 })
                 expectPositionEq(await market.position(), {
-                  id: 0,
+                  ...DEFAULT_POSITION,
                   timestamp: ORACLE_VERSION_1.timestamp,
-                  maker: 0,
-                  long: 0,
-                  short: 0,
-                  fee: 0,
                 })
                 expectPositionEq(await market.pendingPosition(1), {
+                  ...DEFAULT_POSITION,
                   id: 1,
                   timestamp: ORACLE_VERSION_2.timestamp,
                   maker: POSITION,
-                  long: 0,
                   short: POSITION,
-                  fee: 0,
                 })
                 expectVersionEq(await market.versions(ORACLE_VERSION_1.timestamp), {
                   makerValue: { _value: 0 },
@@ -5906,20 +5349,16 @@ describe('Market', () => {
                   protection: 0,
                 })
                 expectPositionEq(await market.positions(user.address), {
+                  ...DEFAULT_POSITION,
                   id: 1,
                   timestamp: ORACLE_VERSION_2.timestamp,
-                  maker: 0,
-                  long: 0,
                   short: POSITION,
-                  fee: 0,
                 })
                 expectPositionEq(await market.pendingPositions(user.address, 2), {
+                  ...DEFAULT_POSITION,
                   id: 2,
                   timestamp: ORACLE_VERSION_3.timestamp,
-                  maker: 0,
-                  long: 0,
                   short: POSITION,
-                  fee: 0,
                 })
                 expectGlobalEq(await market.global(), {
                   currentId: 2,
@@ -5929,20 +5368,18 @@ describe('Market', () => {
                   donation: 0,
                 })
                 expectPositionEq(await market.position(), {
+                  ...DEFAULT_POSITION,
                   id: 1,
                   timestamp: ORACLE_VERSION_2.timestamp,
                   maker: POSITION,
-                  long: 0,
                   short: POSITION,
-                  fee: 0,
                 })
                 expectPositionEq(await market.pendingPosition(2), {
+                  ...DEFAULT_POSITION,
                   id: 2,
                   timestamp: ORACLE_VERSION_3.timestamp,
                   maker: POSITION,
-                  long: 0,
                   short: POSITION,
-                  fee: 0,
                 })
                 expectVersionEq(await market.versions(ORACLE_VERSION_2.timestamp), {
                   makerValue: { _value: 0 },
@@ -5968,20 +5405,14 @@ describe('Market', () => {
                   protection: 0,
                 })
                 expectPositionEq(await market.positions(user.address), {
-                  id: 0,
+                  ...DEFAULT_POSITION,
                   timestamp: ORACLE_VERSION_1.timestamp,
-                  maker: 0,
-                  long: 0,
-                  short: 0,
-                  fee: 0,
                 })
                 expectPositionEq(await market.pendingPositions(user.address, 1), {
+                  ...DEFAULT_POSITION,
                   id: 1,
                   timestamp: ORACLE_VERSION_2.timestamp,
-                  maker: 0,
-                  long: 0,
                   short: POSITION,
-                  fee: 0,
                 })
                 expectGlobalEq(await market.global(), {
                   currentId: 1,
@@ -5991,20 +5422,15 @@ describe('Market', () => {
                   donation: 0,
                 })
                 expectPositionEq(await market.position(), {
-                  id: 0,
+                  ...DEFAULT_POSITION,
                   timestamp: ORACLE_VERSION_1.timestamp,
-                  maker: 0,
-                  long: 0,
-                  short: 0,
-                  fee: 0,
                 })
                 expectPositionEq(await market.pendingPosition(1), {
+                  ...DEFAULT_POSITION,
                   id: 1,
                   timestamp: ORACLE_VERSION_2.timestamp,
                   maker: POSITION,
-                  long: 0,
                   short: POSITION,
-                  fee: 0,
                 })
                 expectVersionEq(await market.versions(ORACLE_VERSION_2.timestamp), {
                   makerValue: { _value: 0 },
@@ -6036,20 +5462,16 @@ describe('Market', () => {
                   protection: 0,
                 })
                 expectPositionEq(await market.positions(user.address), {
+                  ...DEFAULT_POSITION,
                   id: 1,
                   timestamp: ORACLE_VERSION_2.timestamp,
-                  maker: 0,
-                  long: 0,
                   short: POSITION,
-                  fee: 0,
                 })
                 expectPositionEq(await market.pendingPositions(user.address, 2), {
+                  ...DEFAULT_POSITION,
                   id: 2,
                   timestamp: ORACLE_VERSION_3.timestamp,
-                  maker: 0,
-                  long: 0,
                   short: POSITION,
-                  fee: 0,
                 })
                 expectGlobalEq(await market.global(), {
                   currentId: 2,
@@ -6059,20 +5481,18 @@ describe('Market', () => {
                   donation: 0,
                 })
                 expectPositionEq(await market.position(), {
+                  ...DEFAULT_POSITION,
                   id: 1,
                   timestamp: ORACLE_VERSION_2.timestamp,
                   maker: POSITION,
-                  long: 0,
                   short: POSITION,
-                  fee: 0,
                 })
                 expectPositionEq(await market.pendingPosition(2), {
+                  ...DEFAULT_POSITION,
                   id: 2,
                   timestamp: ORACLE_VERSION_3.timestamp,
                   maker: POSITION,
-                  long: 0,
                   short: POSITION,
-                  fee: 0,
                 })
                 expectVersionEq(await market.versions(ORACLE_VERSION_2.timestamp), {
                   makerValue: { _value: 0 },
@@ -6102,20 +5522,16 @@ describe('Market', () => {
                   protection: 0,
                 })
                 expectPositionEq(await market.positions(user.address), {
+                  ...DEFAULT_POSITION,
                   id: 1,
                   timestamp: ORACLE_VERSION_2.timestamp,
-                  maker: 0,
-                  long: 0,
                   short: POSITION.div(2),
-                  fee: 0,
                 })
                 expectPositionEq(await market.pendingPositions(user.address, 2), {
+                  ...DEFAULT_POSITION,
                   id: 2,
                   timestamp: ORACLE_VERSION_3.timestamp,
-                  maker: 0,
-                  long: 0,
                   short: POSITION,
-                  fee: 0,
                 })
                 expectGlobalEq(await market.global(), {
                   currentId: 2,
@@ -6125,20 +5541,18 @@ describe('Market', () => {
                   donation: 0,
                 })
                 expectPositionEq(await market.position(), {
+                  ...DEFAULT_POSITION,
                   id: 1,
                   timestamp: ORACLE_VERSION_2.timestamp,
                   maker: POSITION,
-                  long: 0,
                   short: POSITION.div(2),
-                  fee: 0,
                 })
                 expectPositionEq(await market.pendingPosition(2), {
+                  ...DEFAULT_POSITION,
                   id: 2,
                   timestamp: ORACLE_VERSION_3.timestamp,
                   maker: POSITION,
-                  long: 0,
                   short: POSITION,
-                  fee: 0,
                 })
                 expectVersionEq(await market.versions(ORACLE_VERSION_2.timestamp), {
                   makerValue: { _value: 0 },
@@ -6175,20 +5589,16 @@ describe('Market', () => {
                   protection: 0,
                 })
                 expectPositionEq(await market.positions(user.address), {
+                  ...DEFAULT_POSITION,
                   id: 2,
                   timestamp: ORACLE_VERSION_3.timestamp,
-                  maker: 0,
-                  long: 0,
                   short: POSITION,
-                  fee: 0,
                 })
                 expectPositionEq(await market.pendingPositions(user.address, 3), {
+                  ...DEFAULT_POSITION,
                   id: 3,
                   timestamp: ORACLE_VERSION_4.timestamp,
-                  maker: 0,
-                  long: 0,
                   short: POSITION,
-                  fee: 0,
                 })
                 expectLocalEq(await market.locals(userB.address), {
                   currentId: 2,
@@ -6199,20 +5609,16 @@ describe('Market', () => {
                   protection: 0,
                 })
                 expectPositionEq(await market.positions(userB.address), {
+                  ...DEFAULT_POSITION,
                   id: 1,
                   timestamp: ORACLE_VERSION_3.timestamp,
                   maker: POSITION,
-                  long: 0,
-                  short: 0,
-                  fee: 0,
                 })
                 expectPositionEq(await market.pendingPositions(userB.address, 2), {
+                  ...DEFAULT_POSITION,
                   id: 2,
                   timestamp: ORACLE_VERSION_4.timestamp,
                   maker: POSITION,
-                  long: 0,
-                  short: 0,
-                  fee: 0,
                 })
                 const totalFee = EXPECTED_FUNDING_FEE_1_5_123.add(EXPECTED_INTEREST_FEE_5_123)
                 expectGlobalEq(await market.global(), {
@@ -6223,20 +5629,18 @@ describe('Market', () => {
                   donation: totalFee.div(2).mul(8).div(10).add(1), // loss of precision
                 })
                 expectPositionEq(await market.position(), {
+                  ...DEFAULT_POSITION,
                   id: 2,
                   timestamp: ORACLE_VERSION_3.timestamp,
                   maker: POSITION,
-                  long: 0,
                   short: POSITION,
-                  fee: 0,
                 })
                 expectPositionEq(await market.pendingPosition(3), {
+                  ...DEFAULT_POSITION,
                   id: 3,
                   timestamp: ORACLE_VERSION_4.timestamp,
                   maker: POSITION,
-                  long: 0,
                   short: POSITION,
-                  fee: 0,
                 })
                 expectVersionEq(await market.versions(ORACLE_VERSION_3.timestamp), {
                   makerValue: {
@@ -6275,20 +5679,16 @@ describe('Market', () => {
                   protection: 0,
                 })
                 expectPositionEq(await market.positions(user.address), {
+                  ...DEFAULT_POSITION,
                   id: 1,
                   timestamp: ORACLE_VERSION_3.timestamp,
-                  maker: 0,
-                  long: 0,
                   short: POSITION.div(2),
-                  fee: 0,
                 })
                 expectPositionEq(await market.pendingPositions(user.address, 2), {
+                  ...DEFAULT_POSITION,
                   id: 2,
                   timestamp: ORACLE_VERSION_5.timestamp,
-                  maker: 0,
-                  long: 0,
                   short: POSITION.div(2),
-                  fee: 0,
                 })
                 expectLocalEq(await market.locals(userB.address), {
                   currentId: 2,
@@ -6299,20 +5699,16 @@ describe('Market', () => {
                   protection: 0,
                 })
                 expectPositionEq(await market.positions(userB.address), {
+                  ...DEFAULT_POSITION,
                   id: 1,
                   timestamp: ORACLE_VERSION_3.timestamp,
                   maker: POSITION,
-                  long: 0,
-                  short: 0,
-                  fee: 0,
                 })
                 expectPositionEq(await market.pendingPositions(userB.address, 2), {
+                  ...DEFAULT_POSITION,
                   id: 2,
                   timestamp: ORACLE_VERSION_5.timestamp,
                   maker: POSITION,
-                  long: 0,
-                  short: 0,
-                  fee: 0,
                 })
                 const totalFee = EXPECTED_FUNDING_FEE_1_5_123.add(EXPECTED_INTEREST_FEE_5_123)
                 expectGlobalEq(await market.global(), {
@@ -6323,20 +5719,18 @@ describe('Market', () => {
                   donation: totalFee.div(2).mul(8).div(10).add(1), // loss of precision
                 })
                 expectPositionEq(await market.position(), {
+                  ...DEFAULT_POSITION,
                   id: 1,
                   timestamp: ORACLE_VERSION_3.timestamp,
                   maker: POSITION,
-                  long: 0,
                   short: POSITION.div(2),
-                  fee: 0,
                 })
                 expectPositionEq(await market.pendingPosition(2), {
+                  ...DEFAULT_POSITION,
                   id: 2,
                   timestamp: ORACLE_VERSION_5.timestamp,
                   maker: POSITION,
-                  long: 0,
                   short: POSITION.div(2),
-                  fee: 0,
                 })
                 expectVersionEq(await market.versions(ORACLE_VERSION_3.timestamp), {
                   makerValue: {
@@ -6392,20 +5786,16 @@ describe('Market', () => {
                   protection: 0,
                 })
                 expectPositionEq(await market.positions(user.address), {
+                  ...DEFAULT_POSITION,
                   id: 1,
                   timestamp: ORACLE_VERSION_3.timestamp,
-                  maker: 0,
-                  long: 0,
                   short: POSITION.div(2),
-                  fee: 0,
                 })
                 expectPositionEq(await market.pendingPositions(user.address, 2), {
+                  ...DEFAULT_POSITION,
                   id: 2,
                   timestamp: ORACLE_VERSION_4.timestamp,
-                  maker: 0,
-                  long: 0,
                   short: POSITION.div(2),
-                  fee: 0,
                 })
                 expectLocalEq(await market.locals(userB.address), {
                   currentId: 2,
@@ -6416,20 +5806,16 @@ describe('Market', () => {
                   protection: 0,
                 })
                 expectPositionEq(await market.positions(userB.address), {
+                  ...DEFAULT_POSITION,
                   id: 1,
                   timestamp: ORACLE_VERSION_3.timestamp,
                   maker: POSITION,
-                  long: 0,
-                  short: 0,
-                  fee: 0,
                 })
                 expectPositionEq(await market.pendingPositions(userB.address, 2), {
+                  ...DEFAULT_POSITION,
                   id: 2,
                   timestamp: ORACLE_VERSION_4.timestamp,
                   maker: POSITION,
-                  long: 0,
-                  short: 0,
-                  fee: 0,
                 })
                 const totalFee = EXPECTED_FUNDING_FEE_1_5_123.add(EXPECTED_INTEREST_FEE_5_123).add(TAKER_FEE)
                 expectGlobalEq(await market.global(), {
@@ -6440,20 +5826,18 @@ describe('Market', () => {
                   donation: totalFee.div(2).mul(8).div(10).add(1), // loss of precision
                 })
                 expectPositionEq(await market.position(), {
+                  ...DEFAULT_POSITION,
                   id: 1,
                   timestamp: ORACLE_VERSION_3.timestamp,
                   maker: POSITION,
-                  long: 0,
                   short: POSITION.div(2),
-                  fee: 0,
                 })
                 expectPositionEq(await market.pendingPosition(2), {
+                  ...DEFAULT_POSITION,
                   id: 2,
                   timestamp: ORACLE_VERSION_4.timestamp,
                   maker: POSITION,
-                  long: 0,
                   short: POSITION.div(2),
-                  fee: 0,
                 })
                 expectVersionEq(await market.versions(ORACLE_VERSION_3.timestamp), {
                   makerValue: {
@@ -6515,20 +5899,16 @@ describe('Market', () => {
                   protection: 0,
                 })
                 expectPositionEq(await market.positions(user.address), {
+                  ...DEFAULT_POSITION,
                   id: 1,
                   timestamp: ORACLE_VERSION_4.timestamp,
-                  maker: 0,
-                  long: 0,
                   short: POSITION.div(2),
-                  fee: 0,
                 })
                 expectPositionEq(await market.pendingPositions(user.address, 2), {
+                  ...DEFAULT_POSITION,
                   id: 2,
                   timestamp: ORACLE_VERSION_5.timestamp,
-                  maker: 0,
-                  long: 0,
                   short: POSITION.div(2),
-                  fee: 0,
                 })
                 expectLocalEq(await market.locals(userB.address), {
                   currentId: 2,
@@ -6541,20 +5921,16 @@ describe('Market', () => {
                   protection: 0,
                 })
                 expectPositionEq(await market.positions(userB.address), {
+                  ...DEFAULT_POSITION,
                   id: 1,
                   timestamp: ORACLE_VERSION_4.timestamp,
                   maker: POSITION,
-                  long: 0,
-                  short: 0,
-                  fee: 0,
                 })
                 expectPositionEq(await market.pendingPositions(userB.address, 2), {
+                  ...DEFAULT_POSITION,
                   id: 2,
                   timestamp: ORACLE_VERSION_5.timestamp,
                   maker: POSITION,
-                  long: 0,
-                  short: 0,
-                  fee: 0,
                 })
                 const totalFee = EXPECTED_FUNDING_FEE_1_5_123.add(EXPECTED_INTEREST_FEE_5_123).add(TAKER_FEE_FEE)
                 expectGlobalEq(await market.global(), {
@@ -6565,20 +5941,18 @@ describe('Market', () => {
                   donation: totalFee.div(2).mul(8).div(10).add(1), // loss of precision
                 })
                 expectPositionEq(await market.position(), {
+                  ...DEFAULT_POSITION,
                   id: 2,
                   timestamp: ORACLE_VERSION_4.timestamp,
                   maker: POSITION,
-                  long: 0,
                   short: POSITION.div(2),
-                  fee: 0,
                 })
                 expectPositionEq(await market.pendingPosition(3), {
+                  ...DEFAULT_POSITION,
                   id: 3,
                   timestamp: ORACLE_VERSION_5.timestamp,
                   maker: POSITION,
-                  long: 0,
                   short: POSITION.div(2),
-                  fee: 0,
                 })
                 expectVersionEq(await market.versions(ORACLE_VERSION_4.timestamp), {
                   makerValue: {
@@ -6614,20 +5988,14 @@ describe('Market', () => {
                   protection: 0,
                 })
                 expectPositionEq(await market.positions(user.address), {
-                  id: 0,
+                  ...DEFAULT_POSITION,
                   timestamp: ORACLE_VERSION_1.timestamp,
-                  maker: 0,
-                  long: 0,
-                  short: 0,
-                  fee: 0,
                 })
                 expectPositionEq(await market.pendingPositions(user.address, 1), {
+                  ...DEFAULT_POSITION,
                   id: 1,
                   timestamp: ORACLE_VERSION_2.timestamp,
-                  maker: 0,
-                  long: 0,
                   short: POSITION.div(4),
-                  fee: 0,
                 })
                 expectGlobalEq(await market.global(), {
                   currentId: 1,
@@ -6637,20 +6005,16 @@ describe('Market', () => {
                   donation: 0,
                 })
                 expectPositionEq(await market.position(), {
+                  ...DEFAULT_POSITION,
                   id: 0,
                   timestamp: ORACLE_VERSION_1.timestamp,
-                  maker: 0,
-                  long: 0,
-                  short: 0,
-                  fee: 0,
                 })
                 expectPositionEq(await market.pendingPosition(1), {
+                  ...DEFAULT_POSITION,
                   id: 1,
                   timestamp: ORACLE_VERSION_2.timestamp,
                   maker: POSITION,
-                  long: 0,
                   short: POSITION.div(4),
-                  fee: 0,
                 })
                 expectVersionEq(await market.versions(ORACLE_VERSION_1.timestamp), {
                   makerValue: { _value: 0 },
@@ -6674,20 +6038,13 @@ describe('Market', () => {
                   protection: 0,
                 })
                 expectPositionEq(await market.positions(user.address), {
-                  id: 0,
+                  ...DEFAULT_POSITION,
                   timestamp: ORACLE_VERSION_1.timestamp,
-                  maker: 0,
-                  long: 0,
-                  short: 0,
-                  fee: 0,
                 })
                 expectPositionEq(await market.pendingPositions(user.address, 1), {
+                  ...DEFAULT_POSITION,
                   id: 1,
                   timestamp: ORACLE_VERSION_2.timestamp,
-                  maker: 0,
-                  long: 0,
-                  short: 0,
-                  fee: 0,
                 })
                 expectGlobalEq(await market.global(), {
                   currentId: 1,
@@ -6697,20 +6054,15 @@ describe('Market', () => {
                   donation: 0,
                 })
                 expectPositionEq(await market.position(), {
+                  ...DEFAULT_POSITION,
                   id: 0,
                   timestamp: ORACLE_VERSION_1.timestamp,
-                  maker: 0,
-                  long: 0,
-                  short: 0,
-                  fee: 0,
                 })
                 expectPositionEq(await market.pendingPosition(1), {
+                  ...DEFAULT_POSITION,
                   id: 1,
                   timestamp: ORACLE_VERSION_2.timestamp,
                   maker: POSITION,
-                  long: 0,
-                  short: 0,
-                  fee: 0,
                 })
                 expectVersionEq(await market.versions(ORACLE_VERSION_1.timestamp), {
                   makerValue: { _value: 0 },
@@ -6743,20 +6095,15 @@ describe('Market', () => {
                     protection: 0,
                   })
                   expectPositionEq(await market.positions(user.address), {
+                    ...DEFAULT_POSITION,
                     id: 1,
                     timestamp: ORACLE_VERSION_2.timestamp,
-                    maker: 0,
-                    long: 0,
                     short: POSITION.div(2),
-                    fee: 0,
                   })
                   expectPositionEq(await market.pendingPositions(user.address, 2), {
+                    ...DEFAULT_POSITION,
                     id: 2,
                     timestamp: ORACLE_VERSION_3.timestamp,
-                    maker: 0,
-                    long: 0,
-                    short: 0,
-                    fee: 0,
                   })
                   expectGlobalEq(await market.global(), {
                     currentId: 2,
@@ -6766,20 +6113,17 @@ describe('Market', () => {
                     donation: 0,
                   })
                   expectPositionEq(await market.position(), {
+                    ...DEFAULT_POSITION,
                     id: 1,
                     timestamp: ORACLE_VERSION_2.timestamp,
                     maker: POSITION,
-                    long: 0,
                     short: POSITION.div(2),
-                    fee: 0,
                   })
                   expectPositionEq(await market.pendingPosition(2), {
+                    ...DEFAULT_POSITION,
                     id: 2,
                     timestamp: ORACLE_VERSION_3.timestamp,
                     maker: POSITION,
-                    long: 0,
-                    short: 0,
-                    fee: 0,
                   })
                   expectVersionEq(await market.versions(ORACLE_VERSION_2.timestamp), {
                     makerValue: { _value: 0 },
@@ -6810,20 +6154,14 @@ describe('Market', () => {
                     protection: 0,
                   })
                   expectPositionEq(await market.positions(user.address), {
+                    ...DEFAULT_POSITION,
                     id: 2,
                     timestamp: ORACLE_VERSION_3.timestamp,
-                    maker: 0,
-                    long: 0,
-                    short: 0,
-                    fee: 0,
                   })
                   expectPositionEq(await market.pendingPositions(user.address, 3), {
+                    ...DEFAULT_POSITION,
                     id: 3,
                     timestamp: ORACLE_VERSION_4.timestamp,
-                    maker: 0,
-                    long: 0,
-                    short: 0,
-                    fee: 0,
                   })
                   expectLocalEq(await market.locals(userB.address), {
                     currentId: 2,
@@ -6834,20 +6172,16 @@ describe('Market', () => {
                     protection: 0,
                   })
                   expectPositionEq(await market.positions(userB.address), {
+                    ...DEFAULT_POSITION,
                     id: 1,
                     timestamp: ORACLE_VERSION_3.timestamp,
                     maker: POSITION,
-                    long: 0,
-                    short: 0,
-                    fee: 0,
                   })
                   expectPositionEq(await market.pendingPositions(userB.address, 2), {
+                    ...DEFAULT_POSITION,
                     id: 2,
                     timestamp: ORACLE_VERSION_4.timestamp,
                     maker: POSITION,
-                    long: 0,
-                    short: 0,
-                    fee: 0,
                   })
                   const totalFee = EXPECTED_FUNDING_FEE_1_5_123.add(EXPECTED_INTEREST_FEE_5_123)
                   expectGlobalEq(await market.global(), {
@@ -6858,20 +6192,16 @@ describe('Market', () => {
                     donation: totalFee.div(2).mul(8).div(10).add(1), // loss of precision
                   })
                   expectPositionEq(await market.position(), {
+                    ...DEFAULT_POSITION,
                     id: 2,
                     timestamp: ORACLE_VERSION_3.timestamp,
                     maker: POSITION,
-                    long: 0,
-                    short: 0,
-                    fee: 0,
                   })
                   expectPositionEq(await market.pendingPosition(3), {
+                    ...DEFAULT_POSITION,
                     id: 3,
                     timestamp: ORACLE_VERSION_4.timestamp,
                     maker: POSITION,
-                    long: 0,
-                    short: 0,
-                    fee: 0,
                   })
                   expectVersionEq(await market.versions(ORACLE_VERSION_3.timestamp), {
                     makerValue: {
@@ -6901,20 +6231,15 @@ describe('Market', () => {
                     protection: 0,
                   })
                   expectPositionEq(await market.positions(user.address), {
+                    ...DEFAULT_POSITION,
                     id: 1,
                     timestamp: ORACLE_VERSION_2.timestamp,
-                    maker: 0,
-                    long: 0,
                     short: POSITION.div(2),
-                    fee: 0,
                   })
                   expectPositionEq(await market.pendingPositions(user.address, 2), {
+                    ...DEFAULT_POSITION,
                     id: 2,
                     timestamp: ORACLE_VERSION_3.timestamp,
-                    maker: 0,
-                    long: 0,
-                    short: 0,
-                    fee: 0,
                   })
                   expectGlobalEq(await market.global(), {
                     currentId: 2,
@@ -6924,20 +6249,17 @@ describe('Market', () => {
                     donation: 0,
                   })
                   expectPositionEq(await market.position(), {
+                    ...DEFAULT_POSITION,
                     id: 1,
                     timestamp: ORACLE_VERSION_2.timestamp,
                     maker: POSITION,
-                    long: 0,
                     short: POSITION.div(2),
-                    fee: 0,
                   })
                   expectPositionEq(await market.pendingPosition(2), {
+                    ...DEFAULT_POSITION,
                     id: 2,
                     timestamp: ORACLE_VERSION_3.timestamp,
                     maker: POSITION,
-                    long: 0,
-                    short: 0,
-                    fee: 0,
                   })
                   expectVersionEq(await market.versions(ORACLE_VERSION_2.timestamp), {
                     makerValue: { _value: 0 },
@@ -6970,20 +6292,14 @@ describe('Market', () => {
                     protection: 0,
                   })
                   expectPositionEq(await market.positions(user.address), {
+                    ...DEFAULT_POSITION,
                     id: 2,
                     timestamp: ORACLE_VERSION_3.timestamp,
-                    maker: 0,
-                    long: 0,
-                    short: 0,
-                    fee: 0,
                   })
                   expectPositionEq(await market.pendingPositions(user.address, 3), {
+                    ...DEFAULT_POSITION,
                     id: 3,
                     timestamp: ORACLE_VERSION_4.timestamp,
-                    maker: 0,
-                    long: 0,
-                    short: 0,
-                    fee: 0,
                   })
                   expectLocalEq(await market.locals(userB.address), {
                     currentId: 2,
@@ -6994,20 +6310,16 @@ describe('Market', () => {
                     protection: 0,
                   })
                   expectPositionEq(await market.positions(userB.address), {
+                    ...DEFAULT_POSITION,
                     id: 1,
                     timestamp: ORACLE_VERSION_3.timestamp,
                     maker: POSITION,
-                    long: 0,
-                    short: 0,
-                    fee: 0,
                   })
                   expectPositionEq(await market.pendingPositions(userB.address, 2), {
+                    ...DEFAULT_POSITION,
                     id: 2,
                     timestamp: ORACLE_VERSION_4.timestamp,
                     maker: POSITION,
-                    long: 0,
-                    short: 0,
-                    fee: 0,
                   })
                   const totalFee = EXPECTED_FUNDING_FEE_1_5_123.add(EXPECTED_INTEREST_FEE_5_123)
                   expectGlobalEq(await market.global(), {
@@ -7018,20 +6330,16 @@ describe('Market', () => {
                     donation: totalFee.div(2).mul(8).div(10).add(1), // loss of precision
                   })
                   expectPositionEq(await market.position(), {
+                    ...DEFAULT_POSITION,
                     id: 2,
                     timestamp: ORACLE_VERSION_3.timestamp,
                     maker: POSITION,
-                    long: 0,
-                    short: 0,
-                    fee: 0,
                   })
                   expectPositionEq(await market.pendingPosition(3), {
+                    ...DEFAULT_POSITION,
                     id: 3,
                     timestamp: ORACLE_VERSION_4.timestamp,
                     maker: POSITION,
-                    long: 0,
-                    short: 0,
-                    fee: 0,
                   })
                   expectVersionEq(await market.versions(ORACLE_VERSION_3.timestamp), {
                     makerValue: {
@@ -7067,20 +6375,15 @@ describe('Market', () => {
                     protection: 0,
                   })
                   expectPositionEq(await market.positions(user.address), {
+                    ...DEFAULT_POSITION,
                     id: 2,
                     timestamp: ORACLE_VERSION_3.timestamp,
-                    maker: 0,
-                    long: 0,
                     short: POSITION.div(4),
-                    fee: 0,
                   })
                   expectPositionEq(await market.pendingPositions(user.address, 3), {
+                    ...DEFAULT_POSITION,
                     id: 3,
                     timestamp: ORACLE_VERSION_4.timestamp,
-                    maker: 0,
-                    long: 0,
-                    short: 0,
-                    fee: 0,
                   })
                   expectLocalEq(await market.locals(userB.address), {
                     currentId: 2,
@@ -7091,20 +6394,16 @@ describe('Market', () => {
                     protection: 0,
                   })
                   expectPositionEq(await market.positions(userB.address), {
+                    ...DEFAULT_POSITION,
                     id: 1,
                     timestamp: ORACLE_VERSION_3.timestamp,
                     maker: POSITION,
-                    long: 0,
-                    short: 0,
-                    fee: 0,
                   })
                   expectPositionEq(await market.pendingPositions(userB.address, 2), {
+                    ...DEFAULT_POSITION,
                     id: 2,
                     timestamp: ORACLE_VERSION_4.timestamp,
                     maker: POSITION,
-                    long: 0,
-                    short: 0,
-                    fee: 0,
                   })
                   const totalFee = EXPECTED_FUNDING_FEE_1_5_123.add(EXPECTED_INTEREST_FEE_5_123)
                   expectGlobalEq(await market.global(), {
@@ -7115,20 +6414,17 @@ describe('Market', () => {
                     donation: totalFee.div(2).mul(8).div(10).add(1), // loss of precision
                   })
                   expectPositionEq(await market.position(), {
+                    ...DEFAULT_POSITION,
                     id: 2,
                     timestamp: ORACLE_VERSION_3.timestamp,
                     maker: POSITION,
-                    long: 0,
                     short: POSITION.div(4),
-                    fee: 0,
                   })
                   expectPositionEq(await market.pendingPosition(3), {
+                    ...DEFAULT_POSITION,
                     id: 3,
                     timestamp: ORACLE_VERSION_4.timestamp,
                     maker: POSITION,
-                    long: 0,
-                    short: 0,
-                    fee: 0,
                   })
                   expectVersionEq(await market.versions(ORACLE_VERSION_3.timestamp), {
                     makerValue: {
@@ -7172,20 +6468,14 @@ describe('Market', () => {
                     protection: 0,
                   })
                   expectPositionEq(await market.positions(user.address), {
+                    ...DEFAULT_POSITION,
                     id: 3,
                     timestamp: ORACLE_VERSION_4.timestamp,
-                    maker: 0,
-                    long: 0,
-                    short: 0,
-                    fee: 0,
                   })
                   expectPositionEq(await market.pendingPositions(user.address, 4), {
+                    ...DEFAULT_POSITION,
                     id: 4,
                     timestamp: ORACLE_VERSION_5.timestamp,
-                    maker: 0,
-                    long: 0,
-                    short: 0,
-                    fee: 0,
                   })
                   expectLocalEq(await market.locals(userB.address), {
                     currentId: 2,
@@ -7198,20 +6488,16 @@ describe('Market', () => {
                     protection: 0,
                   })
                   expectPositionEq(await market.positions(userB.address), {
+                    ...DEFAULT_POSITION,
                     id: 1,
                     timestamp: ORACLE_VERSION_4.timestamp,
                     maker: POSITION,
-                    long: 0,
-                    short: 0,
-                    fee: 0,
                   })
                   expectPositionEq(await market.pendingPositions(userB.address, 2), {
+                    ...DEFAULT_POSITION,
                     id: 2,
                     timestamp: ORACLE_VERSION_5.timestamp,
                     maker: POSITION,
-                    long: 0,
-                    short: 0,
-                    fee: 0,
                   })
                   const totalFee = EXPECTED_FUNDING_FEE_1_5_123.add(EXPECTED_FUNDING_FEE_2_25_123)
                     .add(EXPECTED_INTEREST_FEE_5_123)
@@ -7224,20 +6510,16 @@ describe('Market', () => {
                     donation: totalFee.div(2).mul(8).div(10).add(3), // loss of precision
                   })
                   expectPositionEq(await market.position(), {
+                    ...DEFAULT_POSITION,
                     id: 3,
                     timestamp: ORACLE_VERSION_4.timestamp,
                     maker: POSITION,
-                    long: 0,
-                    short: 0,
-                    fee: 0,
                   })
                   expectPositionEq(await market.pendingPosition(4), {
+                    ...DEFAULT_POSITION,
                     id: 4,
                     timestamp: ORACLE_VERSION_5.timestamp,
                     maker: POSITION,
-                    long: 0,
-                    short: 0,
-                    fee: 0,
                   })
                   expectVersionEq(await market.versions(ORACLE_VERSION_3.timestamp), {
                     makerValue: {
@@ -7293,20 +6575,14 @@ describe('Market', () => {
                     protection: 0,
                   })
                   expectPositionEq(await market.positions(user.address), {
+                    ...DEFAULT_POSITION,
                     id: 2,
                     timestamp: ORACLE_VERSION_4.timestamp,
-                    maker: 0,
-                    long: 0,
-                    short: 0,
-                    fee: 0,
                   })
                   expectPositionEq(await market.pendingPositions(user.address, 3), {
+                    ...DEFAULT_POSITION,
                     id: 3,
                     timestamp: ORACLE_VERSION_5.timestamp,
-                    maker: 0,
-                    long: 0,
-                    short: 0,
-                    fee: 0,
                   })
                   expectLocalEq(await market.locals(userB.address), {
                     currentId: 2,
@@ -7317,20 +6593,16 @@ describe('Market', () => {
                     protection: 0,
                   })
                   expectPositionEq(await market.positions(userB.address), {
+                    ...DEFAULT_POSITION,
                     id: 1,
                     timestamp: ORACLE_VERSION_4.timestamp,
                     maker: POSITION,
-                    long: 0,
-                    short: 0,
-                    fee: 0,
                   })
                   expectPositionEq(await market.pendingPositions(userB.address, 2), {
+                    ...DEFAULT_POSITION,
                     id: 2,
                     timestamp: ORACLE_VERSION_5.timestamp,
                     maker: POSITION,
-                    long: 0,
-                    short: 0,
-                    fee: 0,
                   })
                   const totalFee = EXPECTED_FUNDING_FEE_1_5_123.add(EXPECTED_INTEREST_FEE_5_123)
                   expectGlobalEq(await market.global(), {
@@ -7341,20 +6613,16 @@ describe('Market', () => {
                     donation: totalFee.div(2).mul(8).div(10).add(1), // loss of precision
                   })
                   expectPositionEq(await market.position(), {
+                    ...DEFAULT_POSITION,
                     id: 2,
                     timestamp: ORACLE_VERSION_4.timestamp,
                     maker: POSITION,
-                    long: 0,
-                    short: 0,
-                    fee: 0,
                   })
                   expectPositionEq(await market.pendingPosition(3), {
+                    ...DEFAULT_POSITION,
                     id: 3,
                     timestamp: ORACLE_VERSION_5.timestamp,
                     maker: POSITION,
-                    long: 0,
-                    short: 0,
-                    fee: 0,
                   })
                   expectVersionEq(await market.versions(ORACLE_VERSION_4.timestamp), {
                     makerValue: {
@@ -7410,20 +6678,14 @@ describe('Market', () => {
                     protection: 0,
                   })
                   expectPositionEq(await market.positions(user.address), {
+                    ...DEFAULT_POSITION,
                     id: 2,
                     timestamp: ORACLE_VERSION_4.timestamp,
-                    maker: 0,
-                    long: 0,
-                    short: 0,
-                    fee: 0,
                   })
                   expectPositionEq(await market.pendingPositions(user.address, 3), {
+                    ...DEFAULT_POSITION,
                     id: 3,
                     timestamp: ORACLE_VERSION_5.timestamp,
-                    maker: 0,
-                    long: 0,
-                    short: 0,
-                    fee: 0,
                   })
                   expectLocalEq(await market.locals(userB.address), {
                     currentId: 2,
@@ -7435,20 +6697,16 @@ describe('Market', () => {
                     protection: 0,
                   })
                   expectPositionEq(await market.positions(userB.address), {
+                    ...DEFAULT_POSITION,
                     id: 1,
                     timestamp: ORACLE_VERSION_4.timestamp,
                     maker: POSITION,
-                    long: 0,
-                    short: 0,
-                    fee: 0,
                   })
                   expectPositionEq(await market.pendingPositions(userB.address, 2), {
+                    ...DEFAULT_POSITION,
                     id: 2,
                     timestamp: ORACLE_VERSION_5.timestamp,
                     maker: POSITION,
-                    long: 0,
-                    short: 0,
-                    fee: 0,
                   })
                   const totalFee = EXPECTED_FUNDING_FEE_1_5_123.add(EXPECTED_INTEREST_FEE_5_123).add(TAKER_FEE_FEE)
                   expectGlobalEq(await market.global(), {
@@ -7459,20 +6717,16 @@ describe('Market', () => {
                     donation: totalFee.div(2).mul(8).div(10).add(1), // loss of precision
                   })
                   expectPositionEq(await market.position(), {
+                    ...DEFAULT_POSITION,
                     id: 2,
                     timestamp: ORACLE_VERSION_4.timestamp,
                     maker: POSITION,
-                    long: 0,
-                    short: 0,
-                    fee: 0,
                   })
                   expectPositionEq(await market.pendingPosition(3), {
+                    ...DEFAULT_POSITION,
                     id: 3,
                     timestamp: ORACLE_VERSION_5.timestamp,
                     maker: POSITION,
-                    long: 0,
-                    short: 0,
-                    fee: 0,
                   })
                   expectVersionEq(await market.versions(ORACLE_VERSION_4.timestamp), {
                     makerValue: {
@@ -7528,20 +6782,16 @@ describe('Market', () => {
                 protection: 0,
               })
               expectPositionEq(await market.positions(user.address), {
+                ...DEFAULT_POSITION,
                 id: 1,
                 timestamp: ORACLE_VERSION_2.timestamp,
-                maker: 0,
-                long: 0,
                 short: POSITION.div(2),
-                fee: 0,
               })
               expectPositionEq(await market.pendingPositions(user.address, 2), {
+                ...DEFAULT_POSITION,
                 id: 2,
                 timestamp: ORACLE_VERSION_3.timestamp,
-                maker: 0,
-                long: 0,
                 short: POSITION.div(2),
-                fee: 0,
               })
               expectLocalEq(await market.locals(userB.address), {
                 currentId: 2,
@@ -7550,20 +6800,16 @@ describe('Market', () => {
                 protection: 0,
               })
               expectPositionEq(await market.positions(userB.address), {
+                ...DEFAULT_POSITION,
                 id: 1,
                 timestamp: ORACLE_VERSION_2.timestamp,
                 maker: POSITION,
-                long: 0,
-                short: 0,
-                fee: 0,
               })
               expectPositionEq(await market.pendingPositions(userB.address, 2), {
+                ...DEFAULT_POSITION,
                 id: 2,
                 timestamp: ORACLE_VERSION_3.timestamp,
                 maker: POSITION,
-                long: 0,
-                short: 0,
-                fee: 0,
               })
               expectGlobalEq(await market.global(), {
                 currentId: 2,
@@ -7573,20 +6819,18 @@ describe('Market', () => {
                 donation: 0,
               })
               expectPositionEq(await market.position(), {
+                ...DEFAULT_POSITION,
                 id: 1,
                 timestamp: ORACLE_VERSION_2.timestamp,
                 maker: POSITION,
-                long: 0,
                 short: POSITION.div(2),
-                fee: 0,
               })
               expectPositionEq(await market.pendingPosition(2), {
+                ...DEFAULT_POSITION,
                 id: 2,
                 timestamp: ORACLE_VERSION_3.timestamp,
                 maker: POSITION,
-                long: 0,
                 short: POSITION.div(2),
-                fee: 0,
               })
               expectVersionEq(await market.versions(ORACLE_VERSION_3.timestamp), {
                 makerValue: { _value: 0 },
@@ -7658,20 +6902,16 @@ describe('Market', () => {
                 protection: 0,
               })
               expectPositionEq(await market.positions(user.address), {
+                ...DEFAULT_POSITION,
                 id: 2,
                 timestamp: ORACLE_VERSION_3.timestamp,
-                maker: 0,
-                long: 0,
                 short: POSITION.div(2),
-                fee: 0,
               })
               expectPositionEq(await market.pendingPositions(user.address, 3), {
+                ...DEFAULT_POSITION,
                 id: 3,
                 timestamp: ORACLE_VERSION_4.timestamp,
-                maker: 0,
-                long: 0,
                 short: POSITION.div(2),
-                fee: 0,
               })
               expectLocalEq(await market.locals(userB.address), {
                 currentId: 3,
@@ -7683,20 +6923,16 @@ describe('Market', () => {
                 protection: 0,
               })
               expectPositionEq(await market.positions(userB.address), {
+                ...DEFAULT_POSITION,
                 id: 2,
                 timestamp: ORACLE_VERSION_3.timestamp,
                 maker: POSITION,
-                long: 0,
-                short: 0,
-                fee: 0,
               })
               expectPositionEq(await market.pendingPositions(userB.address, 3), {
+                ...DEFAULT_POSITION,
                 id: 3,
                 timestamp: ORACLE_VERSION_4.timestamp,
                 maker: POSITION,
-                long: 0,
-                short: 0,
-                fee: 0,
               })
               const totalFee = EXPECTED_FUNDING_FEE_1_5_123.add(EXPECTED_INTEREST_FEE_5_123)
               expectGlobalEq(await market.global(), {
@@ -7707,20 +6943,18 @@ describe('Market', () => {
                 donation: totalFee.div(2).mul(8).div(10).add(1), // loss of precision
               })
               expectPositionEq(await market.position(), {
+                ...DEFAULT_POSITION,
                 id: 2,
                 timestamp: ORACLE_VERSION_3.timestamp,
                 maker: POSITION,
-                long: 0,
                 short: POSITION.div(2),
-                fee: 0,
               })
               expectPositionEq(await market.pendingPosition(3), {
+                ...DEFAULT_POSITION,
                 id: 3,
                 timestamp: ORACLE_VERSION_4.timestamp,
                 maker: POSITION,
-                long: 0,
                 short: POSITION.div(2),
-                fee: 0,
               })
               expectVersionEq(await market.versions(ORACLE_VERSION_3.timestamp), {
                 makerValue: {
@@ -7800,20 +7034,16 @@ describe('Market', () => {
                 protection: 0,
               })
               expectPositionEq(await market.positions(user.address), {
+                ...DEFAULT_POSITION,
                 id: 2,
                 timestamp: ORACLE_VERSION_3.timestamp,
-                maker: 0,
-                long: 0,
                 short: POSITION.div(2),
-                fee: 0,
               })
               expectPositionEq(await market.pendingPositions(user.address, 3), {
+                ...DEFAULT_POSITION,
                 id: 3,
                 timestamp: ORACLE_VERSION_4.timestamp,
-                maker: 0,
-                long: 0,
                 short: POSITION.div(2),
-                fee: 0,
               })
               expectLocalEq(await market.locals(userB.address), {
                 currentId: 3,
@@ -7825,20 +7055,16 @@ describe('Market', () => {
                 protection: 0,
               })
               expectPositionEq(await market.positions(userB.address), {
+                ...DEFAULT_POSITION,
                 id: 2,
                 timestamp: ORACLE_VERSION_3.timestamp,
                 maker: POSITION,
-                long: 0,
-                short: 0,
-                fee: 0,
               })
               expectPositionEq(await market.pendingPositions(userB.address, 3), {
+                ...DEFAULT_POSITION,
                 id: 3,
                 timestamp: ORACLE_VERSION_4.timestamp,
                 maker: POSITION,
-                long: 0,
-                short: 0,
-                fee: 0,
               })
               const totalFee = EXPECTED_FUNDING_FEE_1_5_123.add(EXPECTED_INTEREST_FEE_5_123)
               expectGlobalEq(await market.global(), {
@@ -7849,20 +7075,18 @@ describe('Market', () => {
                 donation: totalFee.div(2).mul(8).div(10).add(1), // loss of precision
               })
               expectPositionEq(await market.position(), {
+                ...DEFAULT_POSITION,
                 id: 2,
                 timestamp: ORACLE_VERSION_3.timestamp,
                 maker: POSITION,
-                long: 0,
                 short: POSITION.div(2),
-                fee: 0,
               })
               expectPositionEq(await market.pendingPosition(3), {
+                ...DEFAULT_POSITION,
                 id: 3,
                 timestamp: ORACLE_VERSION_4.timestamp,
                 maker: POSITION,
-                long: 0,
                 short: POSITION.div(2),
-                fee: 0,
               })
               expectVersionEq(await market.versions(ORACLE_VERSION_3.timestamp), {
                 makerValue: {
@@ -7951,20 +7175,16 @@ describe('Market', () => {
                   protection: 0,
                 })
                 expectPositionEq(await market.positions(user.address), {
+                  ...DEFAULT_POSITION,
                   id: 4,
                   timestamp: ORACLE_VERSION_5.timestamp,
-                  maker: 0,
-                  long: 0,
                   short: POSITION.div(2),
-                  fee: 0,
                 })
                 expectPositionEq(await market.pendingPositions(user.address, 5), {
+                  ...DEFAULT_POSITION,
                   id: 5,
                   timestamp: ORACLE_VERSION_6.timestamp,
-                  maker: 0,
-                  long: 0,
                   short: POSITION.div(2),
-                  fee: 0,
                 })
                 expectLocalEq(await market.locals(userB.address), {
                   currentId: 5,
@@ -7977,20 +7197,14 @@ describe('Market', () => {
                   protection: ORACLE_VERSION_4.timestamp,
                 })
                 expectPositionEq(await market.positions(userB.address), {
+                  ...DEFAULT_POSITION,
                   id: 4,
                   timestamp: ORACLE_VERSION_5.timestamp,
-                  maker: 0,
-                  long: 0,
-                  short: 0,
-                  fee: 0,
                 })
                 expectPositionEq(await market.pendingPositions(userB.address, 5), {
+                  ...DEFAULT_POSITION,
                   id: 5,
                   timestamp: ORACLE_VERSION_6.timestamp,
-                  maker: 0,
-                  long: 0,
-                  short: 0,
-                  fee: 0,
                 })
                 const totalFee = EXPECTED_FUNDING_FEE_1_5_123.add(EXPECTED_INTEREST_FEE_5_123).add(
                   EXPECTED_FUNDING_FEE_2_5_96.add(EXPECTED_INTEREST_FEE_5_96),
@@ -8003,20 +7217,16 @@ describe('Market', () => {
                   donation: totalFee.div(2).mul(8).div(10),
                 })
                 expectPositionEq(await market.position(), {
+                  ...DEFAULT_POSITION,
                   id: 4,
                   timestamp: ORACLE_VERSION_5.timestamp,
-                  maker: 0,
-                  long: 0,
                   short: POSITION.div(2),
-                  fee: 0,
                 })
                 expectPositionEq(await market.pendingPosition(5), {
+                  ...DEFAULT_POSITION,
                   id: 5,
                   timestamp: ORACLE_VERSION_6.timestamp,
-                  maker: 0,
-                  long: 0,
                   short: POSITION.div(2),
-                  fee: 0,
                 })
                 expectVersionEq(await market.versions(ORACLE_VERSION_3.timestamp), {
                   makerValue: {
@@ -8157,20 +7367,16 @@ describe('Market', () => {
                   protection: 0,
                 })
                 expectPositionEq(await market.positions(user.address), {
+                  ...DEFAULT_POSITION,
                   id: 4,
                   timestamp: ORACLE_VERSION_5.timestamp,
-                  maker: 0,
-                  long: 0,
                   short: POSITION.div(2),
-                  fee: 0,
                 })
                 expectPositionEq(await market.pendingPositions(user.address, 5), {
+                  ...DEFAULT_POSITION,
                   id: 5,
                   timestamp: ORACLE_VERSION_6.timestamp,
-                  maker: 0,
-                  long: 0,
                   short: POSITION.div(2),
-                  fee: 0,
                 })
                 expectLocalEq(await market.locals(userB.address), {
                   currentId: 5,
@@ -8183,20 +7389,14 @@ describe('Market', () => {
                   protection: ORACLE_VERSION_4.timestamp,
                 })
                 expectPositionEq(await market.positions(userB.address), {
+                  ...DEFAULT_POSITION,
                   id: 4,
                   timestamp: ORACLE_VERSION_5.timestamp,
-                  maker: 0,
-                  long: 0,
-                  short: 0,
-                  fee: 0,
                 })
                 expectPositionEq(await market.pendingPositions(userB.address, 5), {
+                  ...DEFAULT_POSITION,
                   id: 5,
                   timestamp: ORACLE_VERSION_6.timestamp,
-                  maker: 0,
-                  long: 0,
-                  short: 0,
-                  fee: 0,
                 })
                 expectLocalEq(await market.locals(userC.address), {
                   currentId: 5,
@@ -8211,20 +7411,16 @@ describe('Market', () => {
                   protection: 0,
                 })
                 expectPositionEq(await market.positions(userC.address), {
+                  ...DEFAULT_POSITION,
                   id: 4,
                   timestamp: ORACLE_VERSION_5.timestamp,
                   maker: POSITION.div(4),
-                  long: 0,
-                  short: 0,
-                  fee: 0,
                 })
                 expectPositionEq(await market.pendingPositions(userC.address, 5), {
+                  ...DEFAULT_POSITION,
                   id: 5,
                   timestamp: ORACLE_VERSION_6.timestamp,
                   maker: POSITION.div(4),
-                  long: 0,
-                  short: 0,
-                  fee: 0,
                 })
                 const totalFee = EXPECTED_FUNDING_FEE_1_5_123.add(EXPECTED_INTEREST_FEE_1)
                   .add(EXPECTED_FUNDING_FEE_2_5_96.add(EXPECTED_INTEREST_FEE_2))
@@ -8237,20 +7433,18 @@ describe('Market', () => {
                   donation: totalFee.div(2).mul(8).div(10).add(1), // loss of precision
                 })
                 expectPositionEq(await market.position(), {
+                  ...DEFAULT_POSITION,
                   id: 4,
                   timestamp: ORACLE_VERSION_5.timestamp,
                   maker: POSITION.div(4),
-                  long: 0,
                   short: POSITION.div(2),
-                  fee: 0,
                 })
                 expectPositionEq(await market.pendingPosition(5), {
+                  ...DEFAULT_POSITION,
                   id: 5,
                   timestamp: ORACLE_VERSION_6.timestamp,
                   maker: POSITION.div(4),
-                  long: 0,
                   short: POSITION.div(2),
-                  fee: 0,
                 })
                 expectVersionEq(await market.versions(ORACLE_VERSION_3.timestamp), {
                   makerValue: {
@@ -8356,20 +7550,16 @@ describe('Market', () => {
                   protection: 0,
                 })
                 expectPositionEq(await market.positions(user.address), {
+                  ...DEFAULT_POSITION,
                   id: 2,
                   timestamp: ORACLE_VERSION_3.timestamp,
-                  maker: 0,
-                  long: 0,
                   short: POSITION.div(2),
-                  fee: 0,
                 })
                 expectPositionEq(await market.pendingPositions(user.address, 3), {
+                  ...DEFAULT_POSITION,
                   id: 3,
                   timestamp: ORACLE_VERSION_4.timestamp,
-                  maker: 0,
-                  long: 0,
                   short: POSITION.div(2),
-                  fee: 0,
                 })
                 expectLocalEq(await market.locals(userB.address), {
                   currentId: 3,
@@ -8382,20 +7572,15 @@ describe('Market', () => {
                   protection: ORACLE_VERSION_4.timestamp,
                 })
                 expectPositionEq(await market.positions(userB.address), {
+                  ...DEFAULT_POSITION,
                   id: 2,
                   timestamp: ORACLE_VERSION_3.timestamp,
                   maker: POSITION,
-                  long: 0,
-                  short: 0,
-                  fee: 0,
                 })
                 expectPositionEq(await market.pendingPositions(userB.address, 3), {
+                  ...DEFAULT_POSITION,
                   id: 3,
                   timestamp: ORACLE_VERSION_4.timestamp,
-                  maker: 0,
-                  long: 0,
-                  short: 0,
-                  fee: 0,
                 })
                 const totalFee = EXPECTED_FUNDING_FEE_1_5_123.add(EXPECTED_INTEREST_FEE_5_123)
                 expectGlobalEq(await market.global(), {
@@ -8406,20 +7591,17 @@ describe('Market', () => {
                   donation: totalFee.div(2).mul(8).div(10).add(1), // loss of precision
                 })
                 expectPositionEq(await market.position(), {
+                  ...DEFAULT_POSITION,
                   id: 2,
                   timestamp: ORACLE_VERSION_3.timestamp,
                   maker: POSITION,
-                  long: 0,
                   short: POSITION.div(2),
-                  fee: 0,
                 })
                 expectPositionEq(await market.pendingPosition(3), {
+                  ...DEFAULT_POSITION,
                   id: 3,
                   timestamp: ORACLE_VERSION_4.timestamp,
-                  maker: 0,
-                  long: 0,
                   short: POSITION.div(2),
-                  fee: 0,
                 })
                 expectVersionEq(await market.versions(ORACLE_VERSION_3.timestamp), {
                   makerValue: {
@@ -8470,20 +7652,14 @@ describe('Market', () => {
                   protection: ORACLE_VERSION_4.timestamp,
                 })
                 expectPositionEq(await market.positions(userB.address), {
+                  ...DEFAULT_POSITION,
                   id: 3,
                   timestamp: ORACLE_VERSION_4.timestamp,
-                  maker: 0,
-                  long: 0,
-                  short: 0,
-                  fee: 0,
                 })
                 expectPositionEq(await market.pendingPositions(userB.address, 4), {
+                  ...DEFAULT_POSITION,
                   id: 4,
                   timestamp: ORACLE_VERSION_5.timestamp,
-                  maker: 0,
-                  long: 0,
-                  short: 0,
-                  fee: 0,
                 })
               })
             })
@@ -8557,20 +7733,14 @@ describe('Market', () => {
                   protection: ORACLE_VERSION_4.timestamp,
                 })
                 expectPositionEq(await market.positions(user.address), {
+                  ...DEFAULT_POSITION,
                   id: 4,
                   timestamp: ORACLE_VERSION_5.timestamp,
-                  maker: 0,
-                  long: 0,
-                  short: 0,
-                  fee: 0,
                 })
                 expectPositionEq(await market.pendingPositions(user.address, 5), {
+                  ...DEFAULT_POSITION,
                   id: 5,
                   timestamp: ORACLE_VERSION_6.timestamp,
-                  maker: 0,
-                  long: 0,
-                  short: 0,
-                  fee: 0,
                 })
                 expectLocalEq(await market.locals(userB.address), {
                   currentId: 5,
@@ -8583,20 +7753,16 @@ describe('Market', () => {
                   protection: 0,
                 })
                 expectPositionEq(await market.positions(userB.address), {
+                  ...DEFAULT_POSITION,
                   id: 4,
                   timestamp: ORACLE_VERSION_5.timestamp,
                   maker: POSITION,
-                  long: 0,
-                  short: 0,
-                  fee: 0,
                 })
                 expectPositionEq(await market.pendingPositions(userB.address, 5), {
+                  ...DEFAULT_POSITION,
                   id: 5,
                   timestamp: ORACLE_VERSION_6.timestamp,
                   maker: POSITION,
-                  long: 0,
-                  short: 0,
-                  fee: 0,
                 })
                 const totalFee = EXPECTED_FUNDING_FEE_1_5_123.add(EXPECTED_INTEREST_FEE_5_123)
                   .add(EXPECTED_FUNDING_FEE_2_5_150)
@@ -8609,20 +7775,16 @@ describe('Market', () => {
                   donation: totalFee.div(2).mul(8).div(10).add(4), // loss of precision
                 })
                 expectPositionEq(await market.position(), {
+                  ...DEFAULT_POSITION,
                   id: 4,
                   timestamp: ORACLE_VERSION_5.timestamp,
                   maker: POSITION,
-                  long: 0,
-                  short: 0,
-                  fee: 0,
                 })
                 expectPositionEq(await market.pendingPosition(5), {
+                  ...DEFAULT_POSITION,
                   id: 5,
                   timestamp: ORACLE_VERSION_6.timestamp,
                   maker: POSITION,
-                  long: 0,
-                  short: 0,
-                  fee: 0,
                 })
                 expectVersionEq(await market.versions(ORACLE_VERSION_3.timestamp), {
                   makerValue: {
@@ -8728,20 +7890,15 @@ describe('Market', () => {
                   protection: ORACLE_VERSION_4.timestamp,
                 })
                 expectPositionEq(await market.positions(user.address), {
+                  ...DEFAULT_POSITION,
                   id: 2,
                   timestamp: ORACLE_VERSION_3.timestamp,
-                  maker: 0,
-                  long: 0,
                   short: POSITION.div(2),
-                  fee: 0,
                 })
                 expectPositionEq(await market.pendingPositions(user.address, 3), {
+                  ...DEFAULT_POSITION,
                   id: 3,
                   timestamp: ORACLE_VERSION_4.timestamp,
-                  maker: 0,
-                  long: 0,
-                  short: 0,
-                  fee: 0,
                 })
                 expectLocalEq(await market.locals(userB.address), {
                   currentId: 3,
@@ -8753,20 +7910,16 @@ describe('Market', () => {
                   protection: 0,
                 })
                 expectPositionEq(await market.positions(userB.address), {
+                  ...DEFAULT_POSITION,
                   id: 2,
                   timestamp: ORACLE_VERSION_3.timestamp,
                   maker: POSITION,
-                  long: 0,
-                  short: 0,
-                  fee: 0,
                 })
                 expectPositionEq(await market.pendingPositions(userB.address, 3), {
+                  ...DEFAULT_POSITION,
                   id: 3,
                   timestamp: ORACLE_VERSION_4.timestamp,
                   maker: POSITION,
-                  long: 0,
-                  short: 0,
-                  fee: 0,
                 })
                 const totalFee = EXPECTED_FUNDING_FEE_1_5_123.add(EXPECTED_INTEREST_FEE_5_123)
                 expectGlobalEq(await market.global(), {
@@ -8777,20 +7930,17 @@ describe('Market', () => {
                   donation: totalFee.div(2).mul(8).div(10).add(1), // loss of precision
                 })
                 expectPositionEq(await market.position(), {
+                  ...DEFAULT_POSITION,
                   id: 2,
                   timestamp: ORACLE_VERSION_3.timestamp,
                   maker: POSITION,
-                  long: 0,
                   short: POSITION.div(2),
-                  fee: 0,
                 })
                 expectPositionEq(await market.pendingPosition(3), {
+                  ...DEFAULT_POSITION,
                   id: 3,
                   timestamp: ORACLE_VERSION_4.timestamp,
                   maker: POSITION,
-                  long: 0,
-                  short: 0,
-                  fee: 0,
                 })
                 expectVersionEq(await market.versions(ORACLE_VERSION_3.timestamp), {
                   makerValue: {
@@ -8841,20 +7991,14 @@ describe('Market', () => {
                   protection: ORACLE_VERSION_4.timestamp,
                 })
                 expectPositionEq(await market.positions(user.address), {
+                  ...DEFAULT_POSITION,
                   id: 3,
                   timestamp: ORACLE_VERSION_4.timestamp,
-                  maker: 0,
-                  long: 0,
-                  short: 0,
-                  fee: 0,
                 })
                 expectPositionEq(await market.pendingPositions(user.address, 4), {
+                  ...DEFAULT_POSITION,
                   id: 4,
                   timestamp: ORACLE_VERSION_5.timestamp,
-                  maker: 0,
-                  long: 0,
-                  short: 0,
-                  fee: 0,
                 })
               })
             })
@@ -8905,20 +8049,16 @@ describe('Market', () => {
                 protection: 0,
               })
               expectPositionEq(await market.positions(user.address), {
+                ...DEFAULT_POSITION,
                 id: 2,
                 timestamp: ORACLE_VERSION_4.timestamp,
                 maker: POSITION,
-                long: 0,
-                short: 0,
-                fee: 0,
               })
               expectPositionEq(await market.pendingPositions(user.address, 3), {
+                ...DEFAULT_POSITION,
                 id: 3,
                 timestamp: ORACLE_VERSION_5.timestamp,
                 maker: POSITION,
-                long: 0,
-                short: 0,
-                fee: 0,
               })
               expectLocalEq(await market.locals(userB.address), {
                 currentId: 3,
@@ -8927,20 +8067,16 @@ describe('Market', () => {
                 protection: 0,
               })
               expectPositionEq(await market.positions(userB.address), {
+                ...DEFAULT_POSITION,
                 id: 2,
                 timestamp: ORACLE_VERSION_4.timestamp,
-                maker: 0,
-                long: 0,
                 short: POSITION.div(2),
-                fee: 0,
               })
               expectPositionEq(await market.pendingPositions(userB.address, 3), {
+                ...DEFAULT_POSITION,
                 id: 3,
                 timestamp: ORACLE_VERSION_5.timestamp,
-                maker: 0,
-                long: 0,
                 short: POSITION.div(2),
-                fee: 0,
               })
               expectGlobalEq(await market.global(), {
                 currentId: 3,
@@ -8950,20 +8086,18 @@ describe('Market', () => {
                 donation: 0,
               })
               expectPositionEq(await market.position(), {
+                ...DEFAULT_POSITION,
                 id: 2,
                 timestamp: ORACLE_VERSION_4.timestamp,
                 maker: POSITION,
-                long: 0,
                 short: POSITION.div(2),
-                fee: 0,
               })
               expectPositionEq(await market.pendingPosition(3), {
+                ...DEFAULT_POSITION,
                 id: 3,
                 timestamp: ORACLE_VERSION_5.timestamp,
                 maker: POSITION,
-                long: 0,
                 short: POSITION.div(2),
-                fee: 0,
               })
               expectVersionEq(await market.versions(ORACLE_VERSION_3.timestamp), {
                 makerValue: { _value: 0 },
@@ -11383,20 +10517,15 @@ describe('Market', () => {
               protection: ORACLE_VERSION_4.timestamp,
             })
             expectPositionEq(await market.positions(user.address), {
+              ...DEFAULT_POSITION,
               id: 2,
               timestamp: ORACLE_VERSION_3.timestamp,
-              maker: 0,
               long: POSITION.div(2),
-              short: 0,
-              fee: 0,
             })
             expectPositionEq(await market.pendingPositions(user.address, 3), {
+              ...DEFAULT_POSITION,
               id: 3,
               timestamp: ORACLE_VERSION_4.timestamp,
-              maker: 0,
-              long: 0,
-              short: 0,
-              fee: 0,
             })
             expectLocalEq(await market.locals(userB.address), {
               currentId: 3,
@@ -11407,20 +10536,16 @@ describe('Market', () => {
               protection: 0,
             })
             expectPositionEq(await market.positions(userB.address), {
+              ...DEFAULT_POSITION,
               id: 2,
               timestamp: ORACLE_VERSION_3.timestamp,
               maker: POSITION,
-              long: 0,
-              short: 0,
-              fee: 0,
             })
             expectPositionEq(await market.pendingPositions(userB.address, 3), {
+              ...DEFAULT_POSITION,
               id: 3,
               timestamp: ORACLE_VERSION_4.timestamp,
               maker: POSITION,
-              long: 0,
-              short: 0,
-              fee: 0,
             })
             const totalFee = EXPECTED_FUNDING_FEE_1_5_123.add(EXPECTED_INTEREST_FEE_5_123)
             expectGlobalEq(await market.global(), {
@@ -11431,20 +10556,17 @@ describe('Market', () => {
               donation: totalFee.div(2).mul(8).div(10).add(1), // loss of precision
             })
             expectPositionEq(await market.position(), {
+              ...DEFAULT_POSITION,
               id: 2,
               timestamp: ORACLE_VERSION_3.timestamp,
               maker: POSITION,
               long: POSITION.div(2),
-              short: 0,
-              fee: 0,
             })
             expectPositionEq(await market.pendingPosition(3), {
+              ...DEFAULT_POSITION,
               id: 3,
               timestamp: ORACLE_VERSION_4.timestamp,
               maker: POSITION,
-              long: 0,
-              short: 0,
-              fee: 0,
             })
             expectVersionEq(await market.versions(ORACLE_VERSION_3.timestamp), {
               makerValue: {
@@ -11536,20 +10658,14 @@ describe('Market', () => {
               protection: ORACLE_VERSION_4.timestamp,
             })
             expectPositionEq(await market.positions(user.address), {
+              ...DEFAULT_POSITION,
               id: 4,
               timestamp: ORACLE_VERSION_5.timestamp,
-              maker: 0,
-              long: 0,
-              short: 0,
-              fee: 0,
             })
             expectPositionEq(await market.pendingPositions(user.address, 5), {
+              ...DEFAULT_POSITION,
               id: 5,
               timestamp: ORACLE_VERSION_6.timestamp,
-              maker: 0,
-              long: 0,
-              short: 0,
-              fee: 0,
             })
             expectLocalEq(await market.locals(userB.address), {
               currentId: 5,
@@ -11562,20 +10678,16 @@ describe('Market', () => {
               protection: 0,
             })
             expectPositionEq(await market.positions(userB.address), {
+              ...DEFAULT_POSITION,
               id: 4,
               timestamp: ORACLE_VERSION_5.timestamp,
               maker: POSITION,
-              long: 0,
-              short: 0,
-              fee: 0,
             })
             expectPositionEq(await market.pendingPositions(userB.address, 5), {
+              ...DEFAULT_POSITION,
               id: 5,
               timestamp: ORACLE_VERSION_6.timestamp,
               maker: POSITION,
-              long: 0,
-              short: 0,
-              fee: 0,
             })
             const totalFee = EXPECTED_FUNDING_FEE_1_5_123.add(EXPECTED_INTEREST_FEE_5_123)
               .add(EXPECTED_FUNDING_FEE_2_5_150)
@@ -11588,20 +10700,16 @@ describe('Market', () => {
               donation: totalFee.div(2).mul(8).div(10).add(4), // loss of precision
             })
             expectPositionEq(await market.position(), {
+              ...DEFAULT_POSITION,
               id: 4,
               timestamp: ORACLE_VERSION_5.timestamp,
               maker: POSITION,
-              long: 0,
-              short: 0,
-              fee: 0,
             })
             expectPositionEq(await market.pendingPosition(5), {
+              ...DEFAULT_POSITION,
               id: 5,
               timestamp: ORACLE_VERSION_6.timestamp,
               maker: POSITION,
-              long: 0,
-              short: 0,
-              fee: 0,
             })
             expectVersionEq(await market.versions(ORACLE_VERSION_3.timestamp), {
               makerValue: {
@@ -11705,27 +10813,22 @@ describe('Market', () => {
               protection: 0,
             })
             expectPositionEq(await market.positions(user.address), {
+              ...DEFAULT_POSITION,
               id: 1,
               timestamp: ORACLE_VERSION_3.timestamp,
-              maker: 0,
-              long: 0,
-              short: 0,
-              fee: 0,
             })
             expectPositionEq(await market.pendingPositions(user.address, 1), {
+              ...DEFAULT_POSITION,
               id: 1,
               timestamp: ORACLE_VERSION_3.timestamp,
-              maker: 0,
               long: POSITION.div(2),
-              short: 0,
               fee: TAKER_FEE,
             })
             expectPositionEq(await market.pendingPositions(user.address, 2), {
+              ...DEFAULT_POSITION,
               id: 2,
               timestamp: ORACLE_VERSION_4.timestamp,
-              maker: 0,
               long: POSITION.div(2),
-              short: 0,
               fee: TAKER_FEE,
             })
             expectLocalEq(await market.locals(userB.address), {
@@ -11735,28 +10838,22 @@ describe('Market', () => {
               protection: 0,
             })
             expectPositionEq(await market.positions(userB.address), {
+              ...DEFAULT_POSITION,
               id: 1,
               timestamp: ORACLE_VERSION_3.timestamp,
               maker: POSITION,
-              long: 0,
-              short: 0,
-              fee: 0,
             })
             expectPositionEq(await market.pendingPositions(userB.address, 1), {
+              ...DEFAULT_POSITION,
               id: 1,
               timestamp: ORACLE_VERSION_2.timestamp,
               maker: POSITION,
-              long: 0,
-              short: 0,
-              fee: 0,
             })
             expectPositionEq(await market.pendingPositions(userB.address, 2), {
+              ...DEFAULT_POSITION,
               id: 2,
               timestamp: ORACLE_VERSION_4.timestamp,
               maker: POSITION,
-              long: 0,
-              short: 0,
-              fee: 0,
             })
             expectGlobalEq(await market.global(), {
               currentId: 3,
@@ -11766,27 +10863,25 @@ describe('Market', () => {
               donation: 0,
             })
             expectPositionEq(await market.position(), {
+              ...DEFAULT_POSITION,
               id: 2,
               timestamp: ORACLE_VERSION_3.timestamp,
               maker: POSITION,
-              long: 0,
-              short: 0,
-              fee: 0,
             })
             expectPositionEq(await market.pendingPosition(2), {
+              ...DEFAULT_POSITION,
               id: 2,
               timestamp: ORACLE_VERSION_3.timestamp,
               maker: POSITION,
               long: POSITION.div(2),
-              short: 0,
               fee: TAKER_FEE,
             })
             expectPositionEq(await market.pendingPosition(3), {
+              ...DEFAULT_POSITION,
               id: 3,
               timestamp: ORACLE_VERSION_4.timestamp,
               maker: POSITION,
               long: POSITION.div(2),
-              short: 0,
               fee: TAKER_FEE,
             })
             expectVersionEq(await market.versions(ORACLE_VERSION_2.timestamp), {
@@ -11855,36 +10950,30 @@ describe('Market', () => {
               protection: 0,
             })
             expectPositionEq(await market.positions(user.address), {
+              ...DEFAULT_POSITION,
               id: 2,
               timestamp: ORACLE_VERSION_4.timestamp,
-              maker: 0,
               long: POSITION.div(2),
-              short: 0,
-              fee: 0,
             })
             expectPositionEq(await market.pendingPositions(user.address, 1), {
+              ...DEFAULT_POSITION,
               id: 1,
               timestamp: ORACLE_VERSION_3.timestamp,
-              maker: 0,
               long: POSITION.div(2),
-              short: 0,
               fee: TAKER_FEE,
             })
             expectPositionEq(await market.pendingPositions(user.address, 2), {
+              ...DEFAULT_POSITION,
               id: 2,
               timestamp: ORACLE_VERSION_4.timestamp,
-              maker: 0,
               long: POSITION.div(2),
-              short: 0,
               fee: TAKER_FEE,
             })
             expectPositionEq(await market.pendingPositions(user.address, 3), {
+              ...DEFAULT_POSITION,
               id: 3,
               timestamp: ORACLE_VERSION_5.timestamp,
-              maker: 0,
               long: POSITION.div(2),
-              short: 0,
-              fee: 0,
             })
             expectLocalEq(await market.locals(userB.address), {
               currentId: 2,
@@ -11893,28 +10982,22 @@ describe('Market', () => {
               protection: 0,
             })
             expectPositionEq(await market.positions(userB.address), {
+              ...DEFAULT_POSITION,
               id: 1,
               timestamp: ORACLE_VERSION_4.timestamp,
               maker: POSITION,
-              long: 0,
-              short: 0,
-              fee: 0,
             })
             expectPositionEq(await market.pendingPositions(userB.address, 1), {
+              ...DEFAULT_POSITION,
               id: 1,
               timestamp: ORACLE_VERSION_2.timestamp,
               maker: POSITION,
-              long: 0,
-              short: 0,
-              fee: 0,
             })
             expectPositionEq(await market.pendingPositions(userB.address, 2), {
+              ...DEFAULT_POSITION,
               id: 2,
               timestamp: ORACLE_VERSION_5.timestamp,
               maker: POSITION,
-              long: 0,
-              short: 0,
-              fee: 0,
             })
             expectGlobalEq(await market.global(), {
               currentId: 4,
@@ -11924,36 +11007,34 @@ describe('Market', () => {
               donation: TAKER_FEE_FEE.div(2).mul(8).div(10),
             })
             expectPositionEq(await market.position(), {
+              ...DEFAULT_POSITION,
               id: 3,
               timestamp: ORACLE_VERSION_4.timestamp,
               maker: POSITION,
               long: POSITION.div(2),
-              short: 0,
-              fee: 0,
             })
             expectPositionEq(await market.pendingPosition(2), {
+              ...DEFAULT_POSITION,
               id: 2,
               timestamp: ORACLE_VERSION_3.timestamp,
               maker: POSITION,
               long: POSITION.div(2),
-              short: 0,
               fee: TAKER_FEE,
             })
             expectPositionEq(await market.pendingPosition(3), {
+              ...DEFAULT_POSITION,
               id: 3,
               timestamp: ORACLE_VERSION_4.timestamp,
               maker: POSITION,
               long: POSITION.div(2),
-              short: 0,
               fee: TAKER_FEE,
             })
             expectPositionEq(await market.pendingPosition(4), {
+              ...DEFAULT_POSITION,
               id: 4,
               timestamp: ORACLE_VERSION_5.timestamp,
               maker: POSITION,
               long: POSITION.div(2),
-              short: 0,
-              fee: 0,
             })
             expectVersionEq(await market.versions(ORACLE_VERSION_2.timestamp), {
               makerValue: { _value: 0 },
@@ -12029,35 +11110,29 @@ describe('Market', () => {
               protection: 0,
             })
             expectPositionEq(await market.positions(user.address), {
+              ...DEFAULT_POSITION,
               id: 2,
               timestamp: ORACLE_VERSION_4.timestamp,
-              maker: 0,
-              long: 0,
-              short: 0,
-              fee: 0,
             })
             expectPositionEq(await market.pendingPositions(user.address, 1), {
+              ...DEFAULT_POSITION,
               id: 1,
               timestamp: ORACLE_VERSION_3.timestamp,
-              maker: 0,
               long: POSITION.div(2),
-              short: 0,
               fee: TAKER_FEE,
             })
             expectPositionEq(await market.pendingPositions(user.address, 2), {
+              ...DEFAULT_POSITION,
               id: 2,
               timestamp: ORACLE_VERSION_4.timestamp,
-              maker: 0,
               long: POSITION.div(2),
-              short: 0,
               fee: TAKER_FEE,
             })
             expectPositionEq(await market.pendingPositions(user.address, 3), {
+              ...DEFAULT_POSITION,
               id: 3,
               timestamp: ORACLE_VERSION_5.timestamp,
-              maker: 0,
               long: POSITION.div(2),
-              short: 0,
               fee: TAKER_FEE,
             })
             expectLocalEq(await market.locals(userB.address), {
@@ -12067,28 +11142,22 @@ describe('Market', () => {
               protection: 0,
             })
             expectPositionEq(await market.positions(userB.address), {
+              ...DEFAULT_POSITION,
               id: 1,
               timestamp: ORACLE_VERSION_4.timestamp,
               maker: POSITION,
-              long: 0,
-              short: 0,
-              fee: 0,
             })
             expectPositionEq(await market.pendingPositions(userB.address, 1), {
+              ...DEFAULT_POSITION,
               id: 1,
               timestamp: ORACLE_VERSION_2.timestamp,
               maker: POSITION,
-              long: 0,
-              short: 0,
-              fee: 0,
             })
             expectPositionEq(await market.pendingPositions(userB.address, 2), {
+              ...DEFAULT_POSITION,
               id: 2,
               timestamp: ORACLE_VERSION_5.timestamp,
               maker: POSITION,
-              long: 0,
-              short: 0,
-              fee: 0,
             })
             expectGlobalEq(await market.global(), {
               currentId: 4,
@@ -12098,35 +11167,33 @@ describe('Market', () => {
               donation: 0,
             })
             expectPositionEq(await market.position(), {
+              ...DEFAULT_POSITION,
               id: 3,
               timestamp: ORACLE_VERSION_4.timestamp,
               maker: POSITION,
-              long: 0,
-              short: 0,
-              fee: 0,
             })
             expectPositionEq(await market.pendingPosition(2), {
+              ...DEFAULT_POSITION,
               id: 2,
               timestamp: ORACLE_VERSION_3.timestamp,
               maker: POSITION,
               long: POSITION.div(2),
-              short: 0,
               fee: TAKER_FEE,
             })
             expectPositionEq(await market.pendingPosition(3), {
+              ...DEFAULT_POSITION,
               id: 3,
               timestamp: ORACLE_VERSION_4.timestamp,
               maker: POSITION,
               long: POSITION.div(2),
-              short: 0,
               fee: TAKER_FEE,
             })
             expectPositionEq(await market.pendingPosition(4), {
+              ...DEFAULT_POSITION,
               id: 4,
               timestamp: ORACLE_VERSION_5.timestamp,
               maker: POSITION,
               long: POSITION.div(2),
-              short: 0,
               fee: TAKER_FEE,
             })
             expectVersionEq(await market.versions(ORACLE_VERSION_2.timestamp), {
@@ -12204,36 +11271,29 @@ describe('Market', () => {
               protection: 0,
             })
             expectPositionEq(await market.positions(user.address), {
+              ...DEFAULT_POSITION,
               id: 2,
               timestamp: ORACLE_VERSION_4.timestamp,
-              maker: 0,
               long: POSITION.div(2),
-              short: 0,
-              fee: 0,
             })
             expectPositionEq(await market.pendingPositions(user.address, 1), {
+              ...DEFAULT_POSITION,
               id: 1,
               timestamp: ORACLE_VERSION_3.timestamp,
-              maker: 0,
               long: POSITION.div(2),
-              short: 0,
               fee: TAKER_FEE,
             })
             expectPositionEq(await market.pendingPositions(user.address, 2), {
+              ...DEFAULT_POSITION,
               id: 2,
               timestamp: ORACLE_VERSION_4.timestamp,
-              maker: 0,
               long: POSITION.div(2),
-              short: 0,
-              fee: 0,
             })
             expectPositionEq(await market.pendingPositions(user.address, 3), {
+              ...DEFAULT_POSITION,
               id: 3,
               timestamp: ORACLE_VERSION_5.timestamp,
-              maker: 0,
               long: POSITION.div(2),
-              short: 0,
-              fee: 0,
             })
             expectLocalEq(await market.locals(userB.address), {
               currentId: 2,
@@ -12242,28 +11302,22 @@ describe('Market', () => {
               protection: 0,
             })
             expectPositionEq(await market.positions(userB.address), {
+              ...DEFAULT_POSITION,
               id: 1,
               timestamp: ORACLE_VERSION_4.timestamp,
               maker: POSITION,
-              long: 0,
-              short: 0,
-              fee: 0,
             })
             expectPositionEq(await market.pendingPositions(userB.address, 1), {
+              ...DEFAULT_POSITION,
               id: 1,
               timestamp: ORACLE_VERSION_2.timestamp,
               maker: POSITION,
-              long: 0,
-              short: 0,
-              fee: 0,
             })
             expectPositionEq(await market.pendingPositions(userB.address, 2), {
+              ...DEFAULT_POSITION,
               id: 2,
               timestamp: ORACLE_VERSION_5.timestamp,
               maker: POSITION,
-              long: 0,
-              short: 0,
-              fee: 0,
             })
             expectGlobalEq(await market.global(), {
               currentId: 4,
@@ -12273,14 +11327,14 @@ describe('Market', () => {
               donation: 0,
             })
             expectPositionEq(await market.position(), {
+              ...DEFAULT_POSITION,
               id: 3,
               timestamp: ORACLE_VERSION_4.timestamp,
               maker: POSITION,
               long: POSITION.div(2),
-              short: 0,
-              fee: 0,
             })
             expectPositionEq(await market.pendingPosition(2), {
+              ...DEFAULT_POSITION,
               id: 2,
               timestamp: ORACLE_VERSION_3.timestamp,
               maker: POSITION,
@@ -12289,20 +11343,18 @@ describe('Market', () => {
               fee: TAKER_FEE,
             })
             expectPositionEq(await market.pendingPosition(3), {
+              ...DEFAULT_POSITION,
               id: 3,
               timestamp: ORACLE_VERSION_4.timestamp,
               maker: POSITION,
               long: POSITION.div(2),
-              short: 0,
-              fee: 0,
             })
             expectPositionEq(await market.pendingPosition(4), {
+              ...DEFAULT_POSITION,
               id: 4,
               timestamp: ORACLE_VERSION_5.timestamp,
               maker: POSITION,
               long: POSITION.div(2),
-              short: 0,
-              fee: 0,
             })
             expectVersionEq(await market.versions(ORACLE_VERSION_2.timestamp), {
               makerValue: { _value: 0 },
@@ -12365,20 +11417,16 @@ describe('Market', () => {
               protection: 0,
             })
             expectPositionEq(await market.positions(user.address), {
+              ...DEFAULT_POSITION,
               id: 2,
               timestamp: ORACLE_VERSION_4.timestamp,
-              maker: 0,
-              long: 0,
               short: POSITION.div(2),
-              fee: 0,
             })
             expectPositionEq(await market.pendingPositions(user.address, 3), {
+              ...DEFAULT_POSITION,
               id: 3,
               timestamp: ORACLE_VERSION_5.timestamp,
-              maker: 0,
-              long: 0,
               short: POSITION.div(2),
-              fee: 0,
             })
             expectLocalEq(await market.locals(userB.address), {
               currentId: 2,
@@ -12391,20 +11439,16 @@ describe('Market', () => {
               protection: 0,
             })
             expectPositionEq(await market.positions(userB.address), {
+              ...DEFAULT_POSITION,
               id: 1,
               timestamp: ORACLE_VERSION_4.timestamp,
               maker: POSITION,
-              long: 0,
-              short: 0,
-              fee: 0,
             })
             expectPositionEq(await market.pendingPositions(userB.address, 2), {
+              ...DEFAULT_POSITION,
               id: 2,
               timestamp: ORACLE_VERSION_5.timestamp,
               maker: POSITION,
-              long: 0,
-              short: 0,
-              fee: 0,
             })
             const totalFee = EXPECTED_FUNDING_FEE_1_5_123.add(EXPECTED_INTEREST_FEE_5_123)
               .add(EXPECTED_FUNDING_FEE_1_5_123)
@@ -12417,20 +11461,18 @@ describe('Market', () => {
               donation: totalFee.div(2).mul(8).div(10).add(1), // loss of precision
             })
             expectPositionEq(await market.position(), {
+              ...DEFAULT_POSITION,
               id: 2,
               timestamp: ORACLE_VERSION_4.timestamp,
               maker: POSITION,
-              long: 0,
               short: POSITION.div(2),
-              fee: 0,
             })
             expectPositionEq(await market.pendingPosition(3), {
+              ...DEFAULT_POSITION,
               id: 3,
               timestamp: ORACLE_VERSION_5.timestamp,
               maker: POSITION,
-              long: 0,
               short: POSITION.div(2),
-              fee: 0,
             })
             expectVersionEq(await market.versions(ORACLE_VERSION_4.timestamp), {
               makerValue: {
@@ -12482,20 +11524,16 @@ describe('Market', () => {
               protection: 0,
             })
             expectPositionEq(await market.positions(user.address), {
+              ...DEFAULT_POSITION,
               id: 2,
               timestamp: ORACLE_VERSION_4.timestamp,
-              maker: 0,
-              long: 0,
               short: POSITION.div(2),
-              fee: 0,
             })
             expectPositionEq(await market.pendingPositions(user.address, 3), {
+              ...DEFAULT_POSITION,
               id: 3,
               timestamp: ORACLE_VERSION_5.timestamp,
-              maker: 0,
-              long: 0,
               short: POSITION.div(2),
-              fee: 0,
             })
             expectLocalEq(await market.locals(userB.address), {
               currentId: 2,
@@ -12508,20 +11546,16 @@ describe('Market', () => {
               protection: 0,
             })
             expectPositionEq(await market.positions(userB.address), {
+              ...DEFAULT_POSITION,
               id: 1,
               timestamp: ORACLE_VERSION_4.timestamp,
               maker: POSITION,
-              long: 0,
-              short: 0,
-              fee: 0,
             })
             expectPositionEq(await market.pendingPositions(userB.address, 2), {
+              ...DEFAULT_POSITION,
               id: 2,
               timestamp: ORACLE_VERSION_5.timestamp,
               maker: POSITION,
-              long: 0,
-              short: 0,
-              fee: 0,
             })
             const totalFee = EXPECTED_FUNDING_FEE_1_5_123.add(EXPECTED_INTEREST_FEE_5_123)
               .add(EXPECTED_FUNDING_FEE_1_5_123)
@@ -12534,20 +11568,18 @@ describe('Market', () => {
               donation: totalFee.div(2).mul(8).div(10).add(1), // loss of precision
             })
             expectPositionEq(await market.position(), {
+              ...DEFAULT_POSITION,
               id: 2,
               timestamp: ORACLE_VERSION_4.timestamp,
               maker: POSITION,
-              long: 0,
               short: POSITION.div(2),
-              fee: 0,
             })
             expectPositionEq(await market.pendingPosition(3), {
+              ...DEFAULT_POSITION,
               id: 3,
               timestamp: ORACLE_VERSION_5.timestamp,
               maker: POSITION,
-              long: 0,
               short: POSITION.div(2),
-              fee: 0,
             })
             expectVersionEq(await market.versions(ORACLE_VERSION_4.timestamp), {
               makerValue: {
@@ -12665,20 +11697,14 @@ describe('Market', () => {
               protection: 0,
             })
             expectPositionEq(await market.positions(user.address), {
-              id: 0,
+              ...DEFAULT_POSITION,
               timestamp: ORACLE_VERSION_1.timestamp,
-              maker: 0,
-              long: 0,
-              short: 0,
-              fee: 0,
             })
             expectPositionEq(await market.pendingPositions(user.address, 1), {
+              ...DEFAULT_POSITION,
               id: 1,
               timestamp: ORACLE_VERSION_2.timestamp,
               maker: POSITION,
-              long: 0,
-              short: 0,
-              fee: 0,
             })
             expectGlobalEq(await market.global(), {
               currentId: 1,
@@ -12688,20 +11714,15 @@ describe('Market', () => {
               donation: 0,
             })
             expectPositionEq(await market.position(), {
+              ...DEFAULT_POSITION,
               id: 0,
               timestamp: ORACLE_VERSION_1.timestamp,
-              maker: 0,
-              long: 0,
-              short: 0,
-              fee: 0,
             })
             expectPositionEq(await market.pendingPosition(1), {
+              ...DEFAULT_POSITION,
               id: 1,
               timestamp: ORACLE_VERSION_2.timestamp,
               maker: POSITION,
-              long: 0,
-              short: 0,
-              fee: 0,
             })
             expectVersionEq(await market.versions(ORACLE_VERSION_1.timestamp), {
               makerValue: { _value: 0 },
@@ -12799,28 +11820,22 @@ describe('Market', () => {
             await market.connect(userC).update(userC.address, 0, 0, POSITION.div(2), COLLATERAL, false)
 
             expectPositionEq(await market.pendingPositions(user.address, 1), {
+              ...DEFAULT_POSITION,
               id: 1,
               timestamp: ORACLE_VERSION_2.timestamp,
-              maker: 0,
               long: POSITION.div(2),
-              short: 0,
-              fee: 0,
             })
             expectPositionEq(await market.pendingPositions(userB.address, 1), {
+              ...DEFAULT_POSITION,
               id: 1,
               timestamp: ORACLE_VERSION_2.timestamp,
               maker: POSITION,
-              long: 0,
-              short: 0,
-              fee: 0,
             })
             expectPositionEq(await market.pendingPositions(userC.address, 1), {
+              ...DEFAULT_POSITION,
               id: 1,
               timestamp: ORACLE_VERSION_2.timestamp,
-              maker: 0,
-              long: 0,
               short: POSITION.div(2),
-              fee: 0,
             })
 
             await market.connect(user).update(user.address, 0, ethers.constants.MaxUint256, 0, 0, false)
@@ -12828,28 +11843,22 @@ describe('Market', () => {
             await market.connect(userC).update(userC.address, 0, 0, ethers.constants.MaxUint256, 0, false)
 
             expectPositionEq(await market.pendingPositions(user.address, 1), {
+              ...DEFAULT_POSITION,
               id: 1,
               timestamp: ORACLE_VERSION_2.timestamp,
-              maker: 0,
               long: POSITION.div(2),
-              short: 0,
-              fee: 0,
             })
             expectPositionEq(await market.pendingPositions(userB.address, 1), {
+              ...DEFAULT_POSITION,
               id: 1,
               timestamp: ORACLE_VERSION_2.timestamp,
               maker: POSITION,
-              long: 0,
-              short: 0,
-              fee: 0,
             })
             expectPositionEq(await market.pendingPositions(userC.address, 1), {
+              ...DEFAULT_POSITION,
               id: 1,
               timestamp: ORACLE_VERSION_2.timestamp,
-              maker: 0,
-              long: 0,
               short: POSITION.div(2),
-              fee: 0,
             })
 
             await market
@@ -12884,28 +11893,22 @@ describe('Market', () => {
               )
 
             expectPositionEq(await market.pendingPositions(user.address, 1), {
+              ...DEFAULT_POSITION,
               id: 1,
               timestamp: ORACLE_VERSION_2.timestamp,
-              maker: 0,
               long: POSITION.div(2),
-              short: 0,
-              fee: 0,
             })
             expectPositionEq(await market.pendingPositions(userB.address, 1), {
+              ...DEFAULT_POSITION,
               id: 1,
               timestamp: ORACLE_VERSION_2.timestamp,
               maker: POSITION,
-              long: 0,
-              short: 0,
-              fee: 0,
             })
             expectPositionEq(await market.pendingPositions(userC.address, 1), {
+              ...DEFAULT_POSITION,
               id: 1,
               timestamp: ORACLE_VERSION_2.timestamp,
-              maker: 0,
-              long: 0,
               short: POSITION.div(2),
-              fee: 0,
             })
           })
         })
