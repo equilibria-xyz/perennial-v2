@@ -56,7 +56,7 @@ library OrderLib {
     }
 
     function decreasesLiquidity(Order memory self) internal pure returns (bool) {
-        return self.maker.lt(Fixed6Lib.ZERO) || self.long.gt(Fixed6Lib.ZERO) || self.short.gt(Fixed6Lib.ZERO);
+        return self.maker.lt(Fixed6Lib.ZERO) || self.impact.gt(Fixed6Lib.ZERO);
     }
 
     function isEmpty(Order memory self) internal pure returns (bool) {

@@ -516,6 +516,8 @@ contract Market is IMarket, Instance {
         if (
             !protected &&
             !context.marketParameter.closed &&
+            (!context.marketParameter.makerCloseAlways || newOrder.increasesMaker()) &&
+            (!context.marketParameter.takerCloseAlways || newOrder.increasesTaker()) &&
             context.currentPosition.global.socialized() &&
             newOrder.decreasesLiquidity()
         ) { if (LOG_REVERTS) console.log("MarketInsufficientLiquidityError"); revert MarketInsufficientLiquidityError(); }

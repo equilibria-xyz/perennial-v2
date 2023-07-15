@@ -5,7 +5,6 @@ import { expect, use } from 'chai'
 import HRE from 'hardhat'
 
 //TODO (coverage hint): multi-version test w/ collateral change
-//TODO (coverage hint): makerCloseAlways / takerCloseAlways coverage
 
 import { impersonate } from '../../../../common/testutil'
 
@@ -12576,6 +12575,83 @@ describe('Market', () => {
               makerReward: { _value: EXPECTED_REWARD.mul(3).mul(2).div(10) },
               longReward: { _value: EXPECTED_REWARD.mul(2).div(5) },
               shortReward: { _value: EXPECTED_REWARD.div(5) },
+            })
+          })
+        })
+
+        context('always close mode', async () => {
+          beforeEach(async () => {
+            dsu.transferFrom.whenCalledWith(user.address, market.address, COLLATERAL.mul(1e12)).returns(true)
+            dsu.transferFrom.whenCalledWith(userB.address, market.address, COLLATERAL.mul(1e12)).returns(true)
+            dsu.transferFrom.whenCalledWith(userC.address, market.address, COLLATERAL.mul(1e12)).returns(true)
+          })
+
+          context('closing long', async () => {
+            beforeEach(async () => {
+              await market.connect(userB).update(userB.address, POSITION, 0, 0, COLLATERAL, false)
+              await market.connect(user).update(user.address, 0, POSITION, 0, COLLATERAL, false)
+              await market.connect(userC).update(userC.address, 0, 0, POSITION.mul(2), COLLATERAL, false)
+            })
+
+            it('allows closing when takerCloseAlways', async () => {
+              const marketParameter = { ...(await market.parameter()) }
+              marketParameter.takerCloseAlways = true
+              await market.updateParameter(marketParameter)
+
+              await expect(market.connect(user).update(user.address, 0, 0, 0, 0, false)).to.not.be.reverted
+            })
+
+            it('disallows closing when not takerCloseAlways', async () => {
+              await expect(market.connect(user).update(user.address, 0, 0, 0, 0, false)).to.revertedWithCustomError(
+                market,
+                'MarketInsufficientLiquidityError',
+              )
+            })
+          })
+
+          context('closing short', async () => {
+            beforeEach(async () => {
+              await market.connect(userB).update(userB.address, POSITION, 0, 0, COLLATERAL, false)
+              await market.connect(user).update(user.address, 0, 0, POSITION, COLLATERAL, false)
+              await market.connect(userC).update(userC.address, 0, POSITION.mul(2), 0, COLLATERAL, false)
+            })
+
+            it('allows closing when takerCloseAlways', async () => {
+              const marketParameter = { ...(await market.parameter()) }
+              marketParameter.takerCloseAlways = true
+              await market.updateParameter(marketParameter)
+
+              await expect(market.connect(user).update(user.address, 0, 0, 0, 0, false)).to.not.be.reverted
+            })
+
+            it('disallows closing when not takerCloseAlways', async () => {
+              await expect(market.connect(user).update(user.address, 0, 0, 0, 0, false)).to.revertedWithCustomError(
+                market,
+                'MarketInsufficientLiquidityError',
+              )
+            })
+          })
+
+          context('closing maker', async () => {
+            beforeEach(async () => {
+              await market.connect(userB).update(userB.address, POSITION, 0, 0, COLLATERAL, false)
+              await market.connect(user).update(user.address, 0, 0, POSITION, COLLATERAL, false)
+              await market.connect(userC).update(userC.address, 0, POSITION.mul(2), 0, COLLATERAL, false)
+            })
+
+            it('allows closing when makerCloseAlways', async () => {
+              const marketParameter = { ...(await market.parameter()) }
+              marketParameter.makerCloseAlways = true
+              await market.updateParameter(marketParameter)
+
+              await expect(market.connect(userB).update(userB.address, 0, 0, 0, 0, false)).to.not.be.reverted
+            })
+
+            it('disallows closing when not makerCloseAlways', async () => {
+              await expect(market.connect(userB).update(userB.address, 0, 0, 0, 0, false)).to.revertedWithCustomError(
+                market,
+                'MarketEfficiencyUnderLimitError',
+              )
             })
           })
         })
