@@ -469,6 +469,22 @@ describe('Market', () => {
       })
     })
 
+    describe('#updateCoordinator', async () => {
+      it('updates the coordinator', async () => {
+        await expect(market.connect(owner).updateCoordinator(coordinator.address))
+          .to.emit(market, 'CoordinatorUpdated')
+          .withArgs(coordinator.address)
+        expect(await market.coordinator()).to.equal(coordinator.address)
+      })
+
+      it('reverts if not owner', async () => {
+        await expect(market.connect(user).updateCoordinator(coordinator.address)).to.be.revertedWithCustomError(
+          market,
+          'InstanceNotOwnerError',
+        )
+      })
+    })
+
     describe('#updateParameter', async () => {
       const defaultMarketParameter = {
         fundingFee: parse6decimal('0.03'),
