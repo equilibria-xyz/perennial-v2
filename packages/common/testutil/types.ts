@@ -49,7 +49,7 @@ export function expectPositionEq(a: Position, b: Position): void {
   expect(a.maker).to.equal(b.maker, 'Position:Maker')
   expect(a.long).to.equal(b.long, 'Position:Long')
   expect(a.short).to.equal(b.short, 'Position:Short')
-  expect(a.fee).to.equal(b.short, 'Position:Fee')
+  expect(a.fee).to.equal(b.fee, 'Position:Fee')
   // TODO: keeper
 }
 
