@@ -6,8 +6,8 @@ import "../interfaces/IPayoffProvider.sol";
 
 contract KiloPowerHalf is IPayoffProvider {
     uint256 private constant BASE = 1e6;
-    Fixed6 private constant MULTIPLICAND = Fixed6.wrap(1e9);
+    UFixed6 private constant MULTIPLICAND = UFixed6.wrap(1e9);
     function payoff(Fixed6 price) external pure override returns (Fixed6) {
-        return Fixed6Lib.from(UFixed6.wrap(Math.sqrt(UFixed6.unwrap(price.abs()) * BASE))).mul(MULTIPLICAND);
+        return Fixed6Lib.from(UFixed6.wrap(Math.sqrt(UFixed6.unwrap(price.abs().mul(MULTIPLICAND).mul(MULTIPLICAND)) * BASE)));
     }
 }

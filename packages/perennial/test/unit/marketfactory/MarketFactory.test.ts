@@ -13,6 +13,7 @@ import {
   IPayoffProvider,
   IPayoffFactory,
   IOracleFactory,
+  IMarket,
 } from '../../../types/generated'
 import { parse6decimal } from '../../../../common/testutil/types'
 import { BigNumber, constants } from 'ethers'
@@ -318,6 +319,53 @@ describe('MarketFactory', () => {
         'FactoryAlreadyRegisteredError',
       )
     })
+
+    it('reverts when not owner', async () => {
+      const marketDefinition = {
+        name: 'Squeeth',
+        symbol: 'SQTH',
+        token: dsu.address,
+        oracle: oracle.address,
+        payoff: payoffProvider.address,
+      }
+      const marketParameter = {
+        maintenance: parse6decimal('0.3'),
+        fundingFee: parse6decimal('0.1'),
+        interestFee: parse6decimal('0.1'),
+        takerFee: 0,
+        takerSkewFee: 0,
+        takerImpactFee: 0,
+        makerFee: 0,
+        makerImpactFee: 0,
+        positionFee: 0,
+        makerLimit: parse6decimal('1000'),
+        efficiencyLimit: parse6decimal('0.2'),
+        liquidationFee: parse6decimal('0.50'),
+        minLiquidationFee: parse6decimal('0'),
+        maxLiquidationFee: parse6decimal('1000'),
+        utilizationCurve: {
+          minRate: parse6decimal('0.10'),
+          maxRate: parse6decimal('0.10'),
+          targetRate: parse6decimal('0.10'),
+          targetUtilization: parse6decimal('1'),
+        },
+        pController: {
+          k: parse6decimal('40000'),
+          max: parse6decimal('1.20'),
+        },
+        minMaintenance: parse6decimal('100'),
+        staleAfter: 7200,
+        makerReceiveOnly: false,
+      }
+
+      oracleFactory.instances.whenCalledWith(oracle.address).returns(true)
+      payoffFactory.payoffs.whenCalledWith(payoffProvider.address).returns(true)
+
+      await expect(factory.connect(user).create(marketDefinition, marketParameter)).to.revertedWithCustomError(
+        factory,
+        'UOwnableNotOwnerError',
+      )
+    })
   })
 
   describe('#updateParameter', async () => {
@@ -354,5 +402,82 @@ describe('MarketFactory', () => {
     })
   })
 
-  //TODO (coveragehint): operator
+  describe('#updateOperator', async () => {
+    it('updates the operator status', async () => {
+      await expect(factory.connect(user).updateOperator(owner.address, true))
+        .to.emit(factory, 'OperatorUpdated')
+        .withArgs(user.address, owner.address, true)
+
+      expect(await factory.operators(user.address, owner.address)).to.equal(true)
+
+      await expect(factory.connect(user).updateOperator(owner.address, false))
+        .to.emit(factory, 'OperatorUpdated')
+        .withArgs(user.address, owner.address, false)
+
+      expect(await factory.operators(user.address, owner.address)).to.equal(false)
+    })
+  })
+
+  describe('#fund', async () => {
+    let marketAddress: string
+    let fakeMarket: FakeContract<IMarket>
+
+    beforeEach(async () => {
+      const marketDefinition = {
+        name: 'Squeeth',
+        symbol: 'SQTH',
+        token: dsu.address,
+        oracle: oracle.address,
+        payoff: constants.AddressZero,
+      }
+      const marketParameter = {
+        maintenance: parse6decimal('0.3'),
+        fundingFee: parse6decimal('0.1'),
+        interestFee: parse6decimal('0.1'),
+        takerFee: 0,
+        takerSkewFee: 0,
+        takerImpactFee: 0,
+        makerFee: 0,
+        makerImpactFee: 0,
+        positionFee: 0,
+        makerLimit: parse6decimal('1000'),
+        efficiencyLimit: parse6decimal('0.2'),
+        liquidationFee: parse6decimal('0.50'),
+        minLiquidationFee: parse6decimal('0'),
+        maxLiquidationFee: parse6decimal('1000'),
+        utilizationCurve: {
+          minRate: parse6decimal('0.10'),
+          maxRate: parse6decimal('0.10'),
+          targetRate: parse6decimal('0.10'),
+          targetUtilization: parse6decimal('1'),
+        },
+        pController: {
+          k: parse6decimal('40000'),
+          max: parse6decimal('1.20'),
+        },
+        minMaintenance: parse6decimal('100'),
+        staleAfter: 7200,
+        makerReceiveOnly: false,
+      }
+
+      oracleFactory.instances.whenCalledWith(oracle.address).returns(true)
+
+      marketAddress = await factory.callStatic.create(marketDefinition, marketParameter)
+      await factory.connect(owner).create(marketDefinition, marketParameter)
+      fakeMarket = await smock.fake<IMarket>('IMarket', { address: marketAddress })
+    })
+
+    it('claims its fees', async () => {
+      await factory.connect(user).fund(marketAddress)
+
+      expect(fakeMarket.claimFee).to.have.been.called
+    })
+
+    it('reverts if not an instance', async () => {
+      await expect(factory.connect(user).fund(user.address)).to.be.revertedWithCustomError(
+        factory,
+        'FactoryNotInstanceError',
+      )
+    })
+  })
 })

@@ -18,7 +18,7 @@ struct MarketParameter {
     UFixed6 makerRewardRate;
     UFixed6 longRewardRate;
     UFixed6 shortRewardRate;
-    bool takerCloseAlways;
+    bool takerCloseAlways; // TODO: move to risk?
     bool makerCloseAlways;
     bool closed;
 }

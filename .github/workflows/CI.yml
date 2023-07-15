@@ -293,3 +293,69 @@ jobs:
           github-token: ${{ secrets.GITHUB_TOKEN }}
           delete-old-comments: true
         if: ${{ github.event_name == 'pull_request' && env.PARSER_BROKEN != 'true' }}
+
+  # [EXTENSIONS]
+  extensions-unit-test:
+    name: '[EXTENSIONS] Unit Tests w/ Coverage'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/setup-node@v3
+        with:
+          node-version: ${{ matrix.node }}
+      - uses: actions/checkout@v3
+      - uses: actions/cache@v3
+        id: cache
+        with:
+          path: |
+            node_modules
+          key: ${{ runner.os }}-node-${{ matrix.node }}-${{ hashFiles('yarn.lock') }}
+      - name: Install
+        run: yarn --frozen-lockfile
+      - name: Compile
+        run: yarn workspace @equilibria/perennial-v2-extensions run compile
+      - name: Run tests
+        env:
+          MOCHA_REPORTER: dot
+        run: |
+          yarn workspace @equilibria/perennial-v2-extensions run ${{ env.PARSER_BROKEN != 'true' && 'coverage' || 'test' }}
+      - name: '[EXTENSIONS] Unit Test Code Coverage Report'
+        uses: romeovs/lcov-reporter-action@v0.3.1
+        with:
+          title: '[EXTENSIONS] Unit Test Coverage Report'
+          lcov-file: ./packages/perennial-extensions/coverage/lcov.info
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          delete-old-comments: true
+        if: ${{ github.event_name == 'pull_request' && env.PARSER_BROKEN != 'true' }}
+  extensions-integration-test:  
+    name: '[EXTENSIONS] Integration Tests w/ Coverage'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/setup-node@v3
+        with:
+          node-version: ${{ matrix.node }}
+      - uses: actions/checkout@v3
+      - uses: actions/cache@v3
+        id: cache
+        with:
+          path: |
+            node_modules
+          key: ${{ runner.os }}-node-${{ matrix.node }}-${{ hashFiles('yarn.lock') }}
+      - name: Install
+        run: yarn --frozen-lockfile
+      - name: Compile
+        run: yarn workspace @equilibria/perennial-v2-extensions run compile
+      - name: Run tests
+        env:
+          MOCHA_REPORTER: dot
+          MAINNET_NODE_URL: ${{ secrets.MAINNET_NODE_URL }}
+        run: |
+          yarn workspace @equilibria/perennial-v2-extensions run ${{ env.PARSER_BROKEN != 'true' && 'coverage:integration' || 'test:integration' }}
+      - name: '[EXTENSIONS] Integration Test Code Coverage Report'
+        uses: romeovs/lcov-reporter-action@v0.3.1
+        with:
+          title: '[EXTENSIONS] Integration Test Coverage Report'
+          lcov-file: ./packages/perennial-extensions/coverage/lcov.info
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          delete-old-comments: true
+        if: ${{ github.event_name == 'pull_request' && env.PARSER_BROKEN != 'true' }}
+  

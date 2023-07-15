@@ -15,6 +15,7 @@ export function setPendingPosition(
   currentId: BigNumberish,
   position: PositionStruct,
 ) {
+  market.locals.whenCalledWith(user).returns(currentId)
   market.pendingPositions.whenCalledWith(user.address, currentId).returns(position)
 }
 
@@ -40,6 +41,7 @@ export const openPosition = ({
     fee: '0',
     collateral: collateral ? collateral : '0',
     delta: '0',
+    keeper: '0',
   }
 
   return position

@@ -8,18 +8,17 @@ import { IEmptySetReserve } from "@equilibria/emptyset-batcher/interfaces/IEmpty
 import { IInstance } from "@equilibria/root-v2/contracts/IInstance.sol";
 import { IPythOracle } from "@equilibria/perennial-v2-oracle/contracts/interfaces/IPythOracle.sol";
 
-// import "hardhat/console.sol";
+import "hardhat/console.sol";
 
 import "./interfaces/IMultiInvoker.sol";
-import {IKeeperManager} from "./interfaces/IKeeperManager.sol";
 
-import {KeeperManager} from "./KeeperManager.sol";
+import "./KeeperManager.sol";
 import "@equilibria/root-v2/contracts/UKept.sol";
 
 contract MultiInvoker is IMultiInvoker, KeeperManager, UKept {
 
     /// @dev Gas buffer estimating remaining execution gas to include in fee to cover further instructions
-    uint256 constant GAS_BUFFER = 100000; // solhint-disable-line var-name-mixedcase
+    uint256 public constant GAS_BUFFER = 100000; // solhint-disable-line var-name-mixedcase
 
     /// @dev USDC stablecoin address
     Token6 public immutable USDC; // solhint-disable-line var-name-mixedcase
@@ -84,7 +83,7 @@ contract MultiInvoker is IMultiInvoker, KeeperManager, UKept {
                 (address market, IKeeperManager.Order memory order)
                     = abi.decode(invocation.args, (address, IKeeperManager.Order));
 
-                _placeOrder(msg.sender, market, order);
+                _placeOrder(market, order);
             } else if (invocation.action == PerennialAction.CANCEL_ORDER) {
                 (address market, uint256 _orderNonce) = abi.decode(invocation.args, (address, uint256));
 
@@ -172,7 +171,12 @@ contract MultiInvoker is IMultiInvoker, KeeperManager, UKept {
         address account,
         address market,
         uint256 _orderNonce
-    ) internal keep(UFixed18Lib.from(keeperMultiplier), GAS_BUFFER, abi.encode(account, market, _orderNonce)) {
+    ) internal keep (
+        UFixed18Lib.from(keeperMultiplier), 
+        GAS_BUFFER, 
+        abi.encode(market, account, _readOrder(account, market, _orderNonce).maxFee)
+    ) {
+        
         Position memory position = 
             IMarket(market).pendingPositions(
                 account, 
@@ -203,8 +207,10 @@ contract MultiInvoker is IMultiInvoker, KeeperManager, UKept {
     }
 
     function _raiseKeeperFee(UFixed18 keeperFee, bytes memory data) internal override {
-        (address account, address market, uint256 orderNonce_) = abi.decode(data, (address, address, uint256));
-        if(keeperFee.gt(UFixed18Lib.from(_readOrder(account, market, orderNonce_).maxFee)))
+        
+        // @todo market, account or account, market for consistency?
+        (address market, address account, UFixed6 maxFee) = abi.decode(data, (address, address, UFixed6));
+        if(keeperFee.gt(UFixed18Lib.from(maxFee)))
             revert MultiInvokerMaxFeeExceededError();
 
         IMarket(market).update(
@@ -215,8 +221,6 @@ contract MultiInvoker is IMultiInvoker, KeeperManager, UKept {
             Fixed6Lib.from(Fixed18Lib.from(-1, keeperFee)),
             false);
     }
-
-
 
     /// @notice Helper fn to max approve DSU for usage in a market deployed by the factory
     /// @param market Market to approve

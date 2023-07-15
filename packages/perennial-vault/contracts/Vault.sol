@@ -398,11 +398,12 @@ contract Vault is IVault, Instance {
             Position memory latestPosition = registration.market.position();
             OracleVersion memory latestOracleVersion = registration.market.at(latestPosition.timestamp);
 
-            context.markets[marketId].price = latestOracleVersion.valid ?
+            context.markets[marketId].price = latestOracleVersion.valid ? // TODO: clean all this up
                 latestOracleVersion.price.abs() :
                 global.latestPrice.abs();
             context.markets[marketId].currentPosition = currentPosition.maker;
-            context.markets[marketId].currentNet = currentPosition.net();
+            context.markets[marketId].currentNet =
+                Fixed6Lib.from(currentPosition.long).sub(Fixed6Lib.from(currentPosition.short)).abs();
             context.totalWeight += registration.weight;
 
             // local

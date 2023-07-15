@@ -29,7 +29,7 @@ library PController6Lib {
         newValueCapped = Fixed6Lib.from(newValue.sign(), self.max.min(newValue.abs()));
 
         (UFixed6 distance, Fixed6 range) = (UFixed6Lib.from(toTimestamp - fromTimestamp), newValue.sub(value));
-        UFixed6 buffer = newValue.sub(Fixed6Lib.from(range.sign(), self.max)).abs();
+        UFixed6 buffer = value.sub(Fixed6Lib.from(range.sign(), self.max)).abs();
         interceptTimestamp = range.isZero() ?
             UFixed6Lib.MAX :
             UFixed6Lib.from(fromTimestamp).add(distance.muldiv(buffer, range.abs()));

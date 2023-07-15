@@ -103,6 +103,9 @@ library VersionLib {
         // accumulate reward
         (values.rewardMaker, values.rewardLong, values.rewardShort) = _accumulateReward(self, fromPosition, fromOracleVersion, toOracleVersion, marketParameter);
 
+        // record validity
+        self.valid = toOracleVersion.valid;
+
         return (values, values.positionFeeFee.add(values.fundingFee).add(values.interestFee));
     }
 
@@ -270,7 +273,7 @@ library VersionLib {
         OracleVersion memory fromOracleVersion,
         OracleVersion memory toOracleVersion,
         MarketParameter memory marketParameter
-    ) private pure returns (UFixed6 rewardMaker, UFixed6 rewardLong, UFixed6 rewardShort){
+    ) private pure returns (UFixed6 rewardMaker, UFixed6 rewardLong, UFixed6 rewardShort) {
         UFixed6 elapsed = UFixed6Lib.from(toOracleVersion.timestamp - fromOracleVersion.timestamp);
 
         if (!position.maker.isZero()) {
@@ -316,7 +319,7 @@ library VersionStorageLib {
         if (newValue.shortReward._value.gt(UFixed6.wrap(type(uint80).max))) revert VersionStorageInvalidError();
 
         self.value = StoredVersion(
-            true, // only valid versions get stored
+            newValue.valid,
             int88(Fixed6.unwrap(newValue.makerValue._value)),
             int80(Fixed6.unwrap(newValue.longValue._value)),
             int80(Fixed6.unwrap(newValue.shortValue._value)),

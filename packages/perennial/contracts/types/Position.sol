@@ -81,7 +81,7 @@ library PositionLib {
             Fixed6Lib.from(newShort).sub(Fixed6Lib.from(self.short))
         );
 
-        if (self.id == currentId) self.fee = UFixed6Lib.ZERO;
+        if (self.id != currentId) self.fee = UFixed6Lib.ZERO;
         (self.id, self.timestamp, self.maker, self.long, self.short) =
             (currentId, currentTimestamp, newMaker, newLong, newShort);
     }
@@ -90,7 +90,7 @@ library PositionLib {
     function update(Position memory self, uint256 currentId, uint256 currentTimestamp, Order memory order) internal pure {
         (Fixed6 latestSkew, UFixed6 latestEfficiency) = (skew(self), efficiency(self));
 
-        if (self.id == currentId) self.fee = UFixed6Lib.ZERO;
+        if (self.id != currentId) self.fee = UFixed6Lib.ZERO;
         (self.id, self.timestamp, self.maker, self.long, self.short) = (
             currentId,
             currentTimestamp,
@@ -111,14 +111,12 @@ library PositionLib {
         self.delta = self.delta.add(collateralAmount);
     }
 
-    /// @dev update the current global position when version is invalid
+    /// @dev uses the latest position and zeroes out the fee (leaving only the keeper fee)
     function invalidate(Position memory self, Position memory latestPosition) internal pure {
-        (self.id, self.maker, self.long, self.short, self.fee, self.keeper) = (
-            latestPosition.id,
+        (self.maker, self.long, self.short, self.fee) = (
             latestPosition.maker,
             latestPosition.long,
             latestPosition.short,
-            UFixed6Lib.ZERO,
             UFixed6Lib.ZERO
         );
     }
@@ -138,10 +136,6 @@ library PositionLib {
 
     function minor(Position memory self) internal pure returns (UFixed6) {
         return self.long.min(self.short);
-    }
-
-    function net(Position memory self) internal pure returns (UFixed6) {
-        return Fixed6Lib.from(self.long).sub(Fixed6Lib.from(self.short)).abs();
     }
 
     function skew(Position memory self) internal pure returns (Fixed6) {
@@ -210,14 +204,6 @@ library PositionLib {
             .mul(riskParameter.liquidationFee)
             .min(riskParameter.maxLiquidationFee)
             .max(riskParameter.minLiquidationFee);
-    }
-
-    function sub(Position memory self, Position memory position) internal pure returns (Order memory newOrder) {
-        (newOrder.maker, newOrder.long, newOrder.short) = (
-            Fixed6Lib.from(self.maker).sub(Fixed6Lib.from(position.maker)),
-            Fixed6Lib.from(self.long).sub(Fixed6Lib.from(position.long)),
-            Fixed6Lib.from(self.short).sub(Fixed6Lib.from(position.short))
-        );
     }
 }
 

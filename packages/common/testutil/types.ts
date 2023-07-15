@@ -44,36 +44,40 @@ export interface Fee {
 }
 
 export function expectPositionEq(a: Position, b: Position): void {
-  expect(a.id).to.equal(b.id)
-  expect(a.timestamp).to.equal(b.timestamp)
-  expect(a.maker).to.equal(b.maker)
-  expect(a.long).to.equal(b.long)
-  expect(a.short).to.equal(b.short)
+  expect(a.id).to.equal(b.id, 'Position:Id')
+  expect(a.timestamp).to.equal(b.timestamp, 'Position:Timestamp')
+  expect(a.maker).to.equal(b.maker, 'Position:Maker')
+  expect(a.long).to.equal(b.long, 'Position:Long')
+  expect(a.short).to.equal(b.short, 'Position:Short')
+  expect(a.fee).to.equal(b.fee, 'Position:Fee')
+  // TODO: keeper
 }
 
 export function expectGlobalEq(a: Global, b: Global): void {
-  expect(a.currentId).to.equal(b.currentId)
-  expect(a.protocolFee).to.equal(b.protocolFee)
-  expect(a.oracleFee).to.equal(b.oracleFee)
-  expect(a.riskFee).to.equal(b.riskFee)
-  expect(a.donation).to.equal(b.donation)
+  expect(a.currentId).to.equal(b.currentId, 'Global:CurrentId')
+  expect(a.protocolFee).to.equal(b.protocolFee, 'Global:ProtocolFee')
+  expect(a.oracleFee).to.equal(b.oracleFee, 'Global:OracleFee')
+  expect(a.riskFee).to.equal(b.riskFee, 'Global:RiskFee')
+  expect(a.donation).to.equal(b.donation, 'Global:Donation')
   // TODO: add pAccumulator state
 }
 
 export function expectLocalEq(a: Local, b: Local): void {
-  expect(a.currentId).to.equal(b.currentId)
-  expect(a.collateral).to.equal(b.collateral)
-  expect(a.reward).to.equal(b.reward)
-  expect(a.protection).to.equal(b.protection)
+  expect(a.currentId).to.equal(b.currentId, 'Local:Currentid')
+  expect(a.collateral).to.equal(b.collateral, 'Local:Collateral')
+  expect(a.reward).to.equal(b.reward, 'Local:Reward')
+  expect(a.protection).to.equal(b.protection, 'Local:Protection')
+  // TODO: ?
 }
 
 export function expectVersionEq(a: Version, b: Version): void {
-  expect(a.makerValue._value).to.equal(b.makerValue._value)
-  expect(a.longValue._value).to.equal(b.longValue._value)
-  expect(a.shortValue._value).to.equal(b.shortValue._value)
-  expect(a.makerReward._value).to.equal(b.makerReward._value)
-  expect(a.longReward._value).to.equal(b.longReward._value)
-  expect(a.shortReward._value).to.equal(b.shortReward._value)
+  expect(a.makerValue._value).to.equal(b.makerValue._value, 'Version:MakerValue')
+  expect(a.longValue._value).to.equal(b.longValue._value, 'Version:LongValue')
+  expect(a.shortValue._value).to.equal(b.shortValue._value, 'Version:ShortValue')
+  expect(a.makerReward._value).to.equal(b.makerReward._value, 'Version:MakerReward')
+  expect(a.longReward._value).to.equal(b.longReward._value, 'Version:LongReward')
+  expect(a.shortReward._value).to.equal(b.shortReward._value, 'Version:ShortReward')
+  // TODO: valid
 }
 
 export function parse6decimal(amount: string): BigNumber {

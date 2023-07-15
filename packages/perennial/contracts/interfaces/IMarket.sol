@@ -23,22 +23,25 @@ interface IMarket is IInstance {
         IPayoffProvider payoff;
     }
 
-    struct CurrentContext {
+    struct Context {
         ProtocolParameter protocolParameter;
         MarketParameter marketParameter;
         RiskParameter riskParameter;
         uint256 currentTimestamp;
         OracleVersion latestVersion;
         OracleVersion positionVersion;
-        Position pendingPosition;
-        Position position;
         Global global;
         Local local;
-        Position accountPosition;
-        Position accountPendingPosition;
+        PositionContext currentPosition;
+        PositionContext latestPosition;
 
         uint256 gasCounter;
         string gasCounterMessage;
+    }
+
+    struct PositionContext {
+        Position global;
+        Position local;
     }
 
     event Updated(address indexed account, uint256 version, UFixed6 newMaker, UFixed6 newLong, UFixed6 newShort, Fixed6 collateral, bool protect);
