@@ -81,6 +81,7 @@ contract MarketFactory is IMarketFactory, Factory {
     }
 
     function fund(IMarket market) external {
+        if (!instances(IInstance(address(market)))) revert FactoryNotInstanceError();
         market.claimFee();
     }
 }
