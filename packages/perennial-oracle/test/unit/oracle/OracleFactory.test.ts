@@ -13,6 +13,7 @@ import {
   IOracleProvider,
   IFactory,
   IInstance,
+  IOracle,
 } from '../../../types/generated'
 import { constants } from 'ethers'
 import { parse6decimal } from '../../../../common/testutil/types'
@@ -28,7 +29,9 @@ describe('OracleFactory', () => {
   let dsu: FakeContract<IERC20Metadata>
   let marketFactory: FakeContract<IFactory>
   let subOracleFactory: FakeContract<IOracleProviderFactory>
+  let subOracleFactory2: FakeContract<IOracleProviderFactory>
   let subOracle: FakeContract<IOracleProvider>
+  let subOracle2: FakeContract<IOracleProvider>
   let subOracleFactorySigner: SignerWithAddress
 
   let factory: OracleFactory
@@ -38,7 +41,9 @@ describe('OracleFactory', () => {
     ;[user, owner] = await ethers.getSigners()
     marketFactory = await smock.fake<IFactory>('IFactory')
     subOracleFactory = await smock.fake<IOracleProviderFactory>('IOracleProviderFactory')
+    subOracleFactory2 = await smock.fake<IOracleProviderFactory>('IOracleProviderFactory')
     subOracle = await smock.fake<IOracleProvider>('IOracleProvider')
+    subOracle2 = await smock.fake<IOracleProvider>('IOracleProvider')
     dsu = await smock.fake<IERC20Metadata>('IERC20Metadata')
     oracleImpl = await new Oracle__factory(owner).deploy()
     factory = await new OracleFactory__factory(owner).deploy(oracleImpl.address)
@@ -115,6 +120,65 @@ describe('OracleFactory', () => {
       await expect(
         factory.connect(user).create(PYTH_ETH_USD_PRICE_FEED, subOracleFactory.address),
       ).to.revertedWithCustomError(factory, 'UOwnableNotOwnerError')
+    })
+  })
+
+  describe('#update', async () => {
+    beforeEach(async () => {
+      await factory.connect(owner).register(subOracleFactory.address)
+      subOracleFactory.oracles.whenCalledWith(PYTH_ETH_USD_PRICE_FEED).returns(subOracle.address)
+    })
+
+    it('update the factory', async () => {
+      await factory.connect(owner).register(subOracleFactory2.address)
+
+      const oracleAddress = await factory.callStatic.create(PYTH_ETH_USD_PRICE_FEED, subOracleFactory.address)
+      await factory.connect(owner).create(PYTH_ETH_USD_PRICE_FEED, subOracleFactory.address)
+      const oracle = Oracle__factory.connect(oracleAddress, owner)
+      const mockOracle = await smock.fake<IOracle>('IOracle', { address: oracle.address })
+      mockOracle.update.whenCalledWith(subOracle2.address).returns()
+
+      subOracleFactory2.oracles.whenCalledWith(PYTH_ETH_USD_PRICE_FEED).returns(subOracle2.address)
+
+      await factory.connect(owner).update(PYTH_ETH_USD_PRICE_FEED, subOracleFactory2.address)
+
+      expect(mockOracle.update).to.be.calledWith(subOracle2.address)
+    })
+
+    it('reverts factory not registered', async () => {
+      await expect(
+        factory.connect(owner).update(PYTH_ETH_USD_PRICE_FEED, subOracleFactory2.address),
+      ).to.be.revertedWithCustomError(factory, 'OracleFactoryNotRegisteredError')
+    })
+
+    it('reverts oracle not created', async () => {
+      await factory.connect(owner).register(subOracleFactory2.address)
+
+      await expect(
+        factory.connect(owner).update(PYTH_ETH_USD_PRICE_FEED, subOracleFactory2.address),
+      ).to.be.revertedWithCustomError(factory, 'OracleFactoryNotCreatedError')
+    })
+
+    it('reverts oracle not instance', async () => {
+      await factory.connect(owner).register(subOracleFactory2.address)
+
+      const oracleAddress = await factory.callStatic.create(PYTH_ETH_USD_PRICE_FEED, subOracleFactory.address)
+      await factory.connect(owner).create(PYTH_ETH_USD_PRICE_FEED, subOracleFactory.address)
+      const oracle = Oracle__factory.connect(oracleAddress, owner)
+      const mockOracle = await smock.fake<IOracle>('IOracle', { address: oracle.address })
+      mockOracle.update.whenCalledWith(subOracle2.address).returns()
+
+      subOracleFactory2.oracles.whenCalledWith(PYTH_ETH_USD_PRICE_FEED).returns(ethers.constants.AddressZero)
+
+      await expect(
+        factory.connect(owner).update(PYTH_ETH_USD_PRICE_FEED, subOracleFactory2.address),
+      ).to.be.revertedWithCustomError(factory, 'OracleFactoryInvalidIdError')
+    })
+
+    it('reverts if not owner', async () => {
+      await expect(
+        factory.connect(user).update(PYTH_ETH_USD_PRICE_FEED, subOracleFactory2.address),
+      ).to.be.revertedWithCustomError(factory, 'UOwnableNotOwnerError')
     })
   })
 
