@@ -36,27 +36,25 @@ contract KeeperManager is IKeeperManager {
         return canFill;
     }
 
-    /// @notice Places order on behalf of `account` from the invoker
-    /// @param account Account to place order for
+    /// @notice Places order on behalf of msg.sender from the invoker
     /// @param market Market to place order in
     /// @param order Order state to place
     function _placeOrder(
-        address account,
         address market,
         Order memory order
     ) internal {
 
         uint256 _orderNonce = ++orderNonce;
        //  ++orderNonce;
-        allOpenOrders[account][market][orderNonce] = order;
+        allOpenOrders[msg.sender][market][_orderNonce] = order;
 
-        ++numOpenOrders[account][market];
+        ++numOpenOrders[msg.sender][market];
 
-        uint256 _openOrders = numOpenOrders[account][market];
+        uint256 _openOrders = numOpenOrders[msg.sender][market];
         if(_openOrders > MAX_OPEN_ORDERS) revert KeeperManagerMaxOpenOrdersError();
 
         emit OrderPlaced(
-            account,
+            msg.sender,
             market,
             _orderNonce,
             _openOrders,
