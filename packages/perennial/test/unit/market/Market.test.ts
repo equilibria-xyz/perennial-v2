@@ -7,7 +7,6 @@ import HRE from 'hardhat'
 //TODO (coverage hint): multi-version test w/ collateral change
 //TODO (coverage hint): makerReceiveOnly coverage
 //TODO (coverage hint): makerCloseAlways / takerCloseAlways coverage
-//TODO (coverage hint): settlementFee coverage
 
 import { impersonate } from '../../../../common/testutil'
 
@@ -1899,7 +1898,12 @@ describe('Market', () => {
               riskParameter.makerImpactFee = parse6decimal('0.0025')
               await market.updateRiskParameter(riskParameter)
 
+              const marketParameter = { ...(await market.parameter()) }
+              marketParameter.settlementFee = parse6decimal('0.50')
+              await market.updateParameter(marketParameter)
+
               const MAKER_FEE = parse6decimal('6.15') // position * (0.005) * price
+              const SETTLEMENT_FEE = parse6decimal('0.50')
 
               await expect(market.connect(user).update(user.address, POSITION, 0, 0, COLLATERAL, false))
                 .to.emit(market, 'Updated')
@@ -1914,7 +1918,7 @@ describe('Market', () => {
 
               expectLocalEq(await market.locals(user.address), {
                 currentId: 2,
-                collateral: COLLATERAL.sub(MAKER_FEE),
+                collateral: COLLATERAL.sub(MAKER_FEE).sub(SETTLEMENT_FEE),
                 reward: EXPECTED_REWARD.mul(3),
                 protection: 0,
               })
@@ -1937,7 +1941,7 @@ describe('Market', () => {
               expectGlobalEq(await market.global(), {
                 currentId: 2,
                 protocolFee: MAKER_FEE.div(2),
-                oracleFee: MAKER_FEE.div(2).div(10),
+                oracleFee: MAKER_FEE.div(2).div(10).add(SETTLEMENT_FEE),
                 riskFee: MAKER_FEE.div(2).div(10),
                 donation: MAKER_FEE.div(2).mul(8).div(10),
               })
@@ -2571,9 +2575,14 @@ describe('Market', () => {
                 riskParameter.makerImpactFee = parse6decimal('0.0025')
                 await market.updateRiskParameter(riskParameter)
 
+                const marketParameter = { ...(await market.parameter()) }
+                marketParameter.settlementFee = parse6decimal('0.50')
+                await market.updateParameter(marketParameter)
+
                 const MAKER_FEE = parse6decimal('6.15') // position * (0.005) * price
                 const MAKER_FEE_FEE = MAKER_FEE.div(10)
                 const MAKER_FEE_WITHOUT_FEE = MAKER_FEE.sub(MAKER_FEE_FEE)
+                const SETTLEMENT_FEE = parse6decimal('0.50')
 
                 await expect(market.connect(user).update(user.address, 0, 0, 0, 0, false))
                   .to.emit(market, 'Updated')
@@ -2589,7 +2598,7 @@ describe('Market', () => {
 
                 expectLocalEq(await market.locals(user.address), {
                   currentId: 3,
-                  collateral: COLLATERAL.sub(MAKER_FEE).add(MAKER_FEE_WITHOUT_FEE),
+                  collateral: COLLATERAL.sub(MAKER_FEE).add(MAKER_FEE_WITHOUT_FEE).sub(SETTLEMENT_FEE),
                   reward: EXPECTED_REWARD.mul(3),
                   protection: 0,
                 })
@@ -2612,7 +2621,7 @@ describe('Market', () => {
                 expectGlobalEq(await market.global(), {
                   currentId: 3,
                   protocolFee: MAKER_FEE_FEE.div(2),
-                  oracleFee: MAKER_FEE_FEE.div(2).div(10),
+                  oracleFee: MAKER_FEE_FEE.div(2).div(10).add(SETTLEMENT_FEE),
                   riskFee: MAKER_FEE_FEE.div(2).div(10),
                   donation: MAKER_FEE_FEE.div(2).mul(8).div(10),
                 })
@@ -3182,7 +3191,12 @@ describe('Market', () => {
                 riskParameter.takerSkewFee = parse6decimal('0.002')
                 await market.updateRiskParameter(riskParameter)
 
+                const marketParameter = { ...(await market.parameter()) }
+                marketParameter.settlementFee = parse6decimal('0.50')
+                await market.updateParameter(marketParameter)
+
                 const TAKER_FEE = parse6decimal('9.84') // position * (0.01 + 0.004 + 0.002) * price
+                const SETTLEMENT_FEE = parse6decimal('0.50')
 
                 await expect(market.connect(user).update(user.address, 0, POSITION.div(2), 0, COLLATERAL, false))
                   .to.emit(market, 'Updated')
@@ -3201,7 +3215,8 @@ describe('Market', () => {
                   currentId: 2,
                   collateral: COLLATERAL.sub(EXPECTED_FUNDING_WITH_FEE_1_5_123)
                     .sub(EXPECTED_INTEREST_5_123)
-                    .sub(TAKER_FEE),
+                    .sub(TAKER_FEE)
+                    .sub(SETTLEMENT_FEE),
                   reward: EXPECTED_REWARD.mul(2),
                   protection: 0,
                 })
@@ -3249,7 +3264,7 @@ describe('Market', () => {
                 expectGlobalEq(await market.global(), {
                   currentId: 2,
                   protocolFee: totalFee.div(2).sub(3), // loss of precision
-                  oracleFee: totalFee.div(2).div(10).sub(1), // loss of precision
+                  oracleFee: totalFee.div(2).div(10).sub(1).add(SETTLEMENT_FEE), // loss of precision
                   riskFee: totalFee.div(2).div(10).sub(1), // loss of precision
                   donation: totalFee.div(2).mul(8).div(10).add(1), // loss of precision
                 })
@@ -3294,9 +3309,14 @@ describe('Market', () => {
                 riskParameter.takerSkewFee = parse6decimal('0.002')
                 await market.updateRiskParameter(riskParameter)
 
+                const marketParameter = { ...(await market.parameter()) }
+                marketParameter.settlementFee = parse6decimal('0.50')
+                await market.updateParameter(marketParameter)
+
                 const TAKER_FEE = parse6decimal('9.84') // position * (0.01 + 0.004 + 0.002) * price
                 const TAKER_FEE_FEE = TAKER_FEE.div(10)
                 const TAKER_FEE_WITHOUT_FEE = TAKER_FEE.sub(TAKER_FEE_FEE)
+                const SETTLEMENT_FEE = parse6decimal('0.50')
 
                 await expect(market.connect(user).update(user.address, 0, POSITION.div(2), 0, COLLATERAL, false))
                   .to.emit(market, 'Updated')
@@ -3315,7 +3335,8 @@ describe('Market', () => {
                   currentId: 2,
                   collateral: COLLATERAL.sub(EXPECTED_FUNDING_WITH_FEE_1_5_123)
                     .sub(EXPECTED_INTEREST_5_123)
-                    .sub(TAKER_FEE),
+                    .sub(TAKER_FEE)
+                    .sub(SETTLEMENT_FEE),
                   reward: EXPECTED_REWARD.mul(2),
                   protection: 0,
                 })
@@ -3364,7 +3385,7 @@ describe('Market', () => {
                 expectGlobalEq(await market.global(), {
                   currentId: 3,
                   protocolFee: totalFee.div(2).sub(3), // loss of precision
-                  oracleFee: totalFee.div(2).div(10).sub(1), // loss of precision
+                  oracleFee: totalFee.div(2).div(10).sub(1).add(SETTLEMENT_FEE), // loss of precision
                   riskFee: totalFee.div(2).div(10).sub(1), // loss of precision
                   donation: totalFee.div(2).mul(8).div(10).add(1), // loss of precision
                 })
@@ -4182,9 +4203,14 @@ describe('Market', () => {
                   riskParameter.takerSkewFee = parse6decimal('0.002')
                   await market.updateRiskParameter(riskParameter)
 
+                  const marketParameter = { ...(await market.parameter()) }
+                  marketParameter.settlementFee = parse6decimal('0.50')
+                  await market.updateParameter(marketParameter)
+
                   const TAKER_FEE = parse6decimal('4.92') // position * (0.01 - 0.004 + 0.002) * price
                   const TAKER_FEE_FEE = TAKER_FEE.div(10)
                   const TAKER_FEE_WITHOUT_FEE = TAKER_FEE.sub(TAKER_FEE_FEE)
+                  const SETTLEMENT_FEE = parse6decimal('0.50')
 
                   await expect(market.connect(user).update(user.address, 0, 0, 0, 0, false))
                     .to.emit(market, 'Updated')
@@ -4203,7 +4229,8 @@ describe('Market', () => {
                     currentId: 3,
                     collateral: COLLATERAL.sub(EXPECTED_FUNDING_WITH_FEE_1_5_123)
                       .sub(EXPECTED_INTEREST_5_123)
-                      .sub(TAKER_FEE),
+                      .sub(TAKER_FEE)
+                      .sub(SETTLEMENT_FEE),
                     reward: EXPECTED_REWARD.mul(2),
                     protection: 0,
                   })
@@ -4252,7 +4279,7 @@ describe('Market', () => {
                   expectGlobalEq(await market.global(), {
                     currentId: 3,
                     protocolFee: totalFee.div(2).sub(3), // loss of precision
-                    oracleFee: totalFee.div(2).div(10).sub(1), // loss of precision
+                    oracleFee: totalFee.div(2).div(10).sub(1).add(SETTLEMENT_FEE), // loss of precision
                     riskFee: totalFee.div(2).div(10).sub(1), // loss of precision
                     donation: totalFee.div(2).mul(8).div(10).add(1), // loss of precision
                   })
@@ -6332,9 +6359,14 @@ describe('Market', () => {
                 riskParameter.takerSkewFee = parse6decimal('0.002')
                 await market.updateRiskParameter(riskParameter)
 
+                const marketParameter = { ...(await market.parameter()) }
+                marketParameter.settlementFee = parse6decimal('0.50')
+                await market.updateParameter(marketParameter)
+
                 const TAKER_FEE = parse6decimal('9.84') // position * (0.01 + 0.004 + 0.002) * price
                 const TAKER_FEE_FEE = TAKER_FEE.div(10)
                 const TAKER_FEE_WITHOUT_FEE = TAKER_FEE.sub(TAKER_FEE_FEE)
+                const SETTLEMENT_FEE = parse6decimal('0.50')
 
                 dsu.transferFrom
                   .whenCalledWith(user.address, market.address, COLLATERAL.add(TAKER_FEE).mul(1e12))
@@ -6356,7 +6388,8 @@ describe('Market', () => {
                   currentId: 2,
                   collateral: COLLATERAL.sub(EXPECTED_FUNDING_WITH_FEE_1_5_123)
                     .sub(EXPECTED_INTEREST_5_123)
-                    .sub(TAKER_FEE),
+                    .sub(TAKER_FEE)
+                    .sub(SETTLEMENT_FEE),
                   reward: EXPECTED_REWARD,
                   protection: 0,
                 })
@@ -6404,7 +6437,7 @@ describe('Market', () => {
                 expectGlobalEq(await market.global(), {
                   currentId: 2,
                   protocolFee: totalFee.div(2).sub(3), // loss of precision
-                  oracleFee: totalFee.div(2).div(10).sub(1), // loss of precision
+                  oracleFee: totalFee.div(2).div(10).sub(1).add(SETTLEMENT_FEE), // loss of precision
                   riskFee: totalFee.div(2).div(10).sub(1), // loss of precision
                   donation: totalFee.div(2).mul(8).div(10).add(1), // loss of precision
                 })
@@ -6449,9 +6482,14 @@ describe('Market', () => {
                 riskParameter.takerSkewFee = parse6decimal('0.002')
                 await market.updateRiskParameter(riskParameter)
 
+                const marketParameter = { ...(await market.parameter()) }
+                marketParameter.settlementFee = parse6decimal('0.50')
+                await market.updateParameter(marketParameter)
+
                 const TAKER_FEE = parse6decimal('9.84') // position * (0.01 + 0.004 + 0.002) * price
                 const TAKER_FEE_FEE = TAKER_FEE.div(10)
                 const TAKER_FEE_WITHOUT_FEE = TAKER_FEE.sub(TAKER_FEE_FEE)
+                const SETTLEMENT_FEE = parse6decimal('0.50')
 
                 dsu.transferFrom
                   .whenCalledWith(user.address, market.address, COLLATERAL.add(TAKER_FEE).mul(1e12))
@@ -6473,7 +6511,8 @@ describe('Market', () => {
                   currentId: 2,
                   collateral: COLLATERAL.sub(EXPECTED_FUNDING_WITH_FEE_1_5_123)
                     .sub(EXPECTED_INTEREST_5_123)
-                    .sub(TAKER_FEE),
+                    .sub(TAKER_FEE)
+                    .sub(SETTLEMENT_FEE),
                   reward: EXPECTED_REWARD,
                   protection: 0,
                 })
@@ -6523,7 +6562,7 @@ describe('Market', () => {
                 expectGlobalEq(await market.global(), {
                   currentId: 3,
                   protocolFee: totalFee.div(2).sub(3), // loss of precision
-                  oracleFee: totalFee.div(2).div(10).sub(1), // loss of precision
+                  oracleFee: totalFee.div(2).div(10).sub(1).add(SETTLEMENT_FEE), // loss of precision
                   riskFee: totalFee.div(2).div(10).sub(1), // loss of precision
                   donation: totalFee.div(2).mul(8).div(10).add(1), // loss of precision
                 })
@@ -7340,9 +7379,14 @@ describe('Market', () => {
                   riskParameter.takerSkewFee = parse6decimal('0.002')
                   await market.updateRiskParameter(riskParameter)
 
+                  const marketParameter = { ...(await market.parameter()) }
+                  marketParameter.settlementFee = parse6decimal('0.50')
+                  await market.updateParameter(marketParameter)
+
                   const TAKER_FEE = parse6decimal('4.92') // position * (0.01 - 0.004 + 0.002) * price
                   const TAKER_FEE_FEE = TAKER_FEE.div(10)
                   const TAKER_FEE_WITHOUT_FEE = TAKER_FEE.sub(TAKER_FEE_FEE)
+                  const SETTLEMENT_FEE = parse6decimal('0.50')
 
                   dsu.transferFrom.whenCalledWith(user.address, market.address, TAKER_FEE.mul(1e12)).returns(true)
                   await expect(market.connect(user).update(user.address, 0, 0, 0, 0, false))
@@ -7362,7 +7406,8 @@ describe('Market', () => {
                     currentId: 3,
                     collateral: COLLATERAL.sub(EXPECTED_FUNDING_WITH_FEE_1_5_123)
                       .sub(EXPECTED_INTEREST_5_123)
-                      .sub(TAKER_FEE),
+                      .sub(TAKER_FEE)
+                      .sub(SETTLEMENT_FEE),
                     reward: EXPECTED_REWARD,
                     protection: 0,
                   })
@@ -7411,7 +7456,7 @@ describe('Market', () => {
                   expectGlobalEq(await market.global(), {
                     currentId: 3,
                     protocolFee: totalFee.div(2).sub(3), // loss of precision
-                    oracleFee: totalFee.div(2).div(10).sub(1), // loss of precision
+                    oracleFee: totalFee.div(2).div(10).sub(1).add(SETTLEMENT_FEE), // loss of precision
                     riskFee: totalFee.div(2).div(10).sub(1), // loss of precision
                     donation: totalFee.div(2).mul(8).div(10).add(1), // loss of precision
                   })
@@ -11637,7 +11682,12 @@ describe('Market', () => {
             riskParameter.takerSkewFee = parse6decimal('0.002')
             await market.updateRiskParameter(riskParameter)
 
+            const marketParameter = { ...(await market.parameter()) }
+            marketParameter.settlementFee = parse6decimal('0.50')
+            await market.updateParameter(marketParameter)
+
             const TAKER_FEE = parse6decimal('9.84') // position * (0.01 + 0.004 + 0.002) * price
+            const SETTLEMENT_FEE = parse6decimal('0.50')
 
             await expect(market.connect(user).update(user.address, 0, POSITION.div(2), 0, COLLATERAL, false))
               .to.emit(market, 'Updated')
@@ -11652,7 +11702,7 @@ describe('Market', () => {
 
             expectLocalEq(await market.locals(user.address), {
               currentId: 2,
-              collateral: COLLATERAL,
+              collateral: COLLATERAL.sub(SETTLEMENT_FEE),
               reward: 0,
               protection: 0,
             })
@@ -11713,7 +11763,7 @@ describe('Market', () => {
             expectGlobalEq(await market.global(), {
               currentId: 3,
               protocolFee: 0,
-              oracleFee: 0,
+              oracleFee: SETTLEMENT_FEE,
               riskFee: 0,
               donation: 0,
             })
@@ -11772,9 +11822,14 @@ describe('Market', () => {
             riskParameter.takerSkewFee = parse6decimal('0.002')
             await market.updateRiskParameter(riskParameter)
 
+            const marketParameter = { ...(await market.parameter()) }
+            marketParameter.settlementFee = parse6decimal('0.50')
+            await market.updateParameter(marketParameter)
+
             const TAKER_FEE = parse6decimal('9.84') // position * (0.01 + 0.004 + 0.002) * price
             const TAKER_FEE_FEE = TAKER_FEE.div(10)
             const TAKER_FEE_WITHOUT_FEE = TAKER_FEE.sub(TAKER_FEE_FEE)
+            const SETTLEMENT_FEE = parse6decimal('0.50')
 
             await expect(market.connect(user).update(user.address, 0, POSITION.div(2), 0, COLLATERAL, false))
               .to.emit(market, 'Updated')
@@ -11797,7 +11852,7 @@ describe('Market', () => {
 
             expectLocalEq(await market.locals(user.address), {
               currentId: 3,
-              collateral: COLLATERAL.sub(TAKER_FEE),
+              collateral: COLLATERAL.sub(TAKER_FEE).sub(SETTLEMENT_FEE.mul(2)),
               reward: 0,
               protection: 0,
             })
@@ -11866,7 +11921,7 @@ describe('Market', () => {
             expectGlobalEq(await market.global(), {
               currentId: 4,
               protocolFee: TAKER_FEE_FEE.div(2),
-              oracleFee: TAKER_FEE_FEE.div(2).div(10),
+              oracleFee: TAKER_FEE_FEE.div(2).div(10).add(SETTLEMENT_FEE.mul(2)),
               riskFee: TAKER_FEE_FEE.div(2).div(10),
               donation: TAKER_FEE_FEE.div(2).mul(8).div(10),
             })
@@ -11941,9 +11996,14 @@ describe('Market', () => {
             riskParameter.takerSkewFee = parse6decimal('0.002')
             await market.updateRiskParameter(riskParameter)
 
+            const marketParameter = { ...(await market.parameter()) }
+            marketParameter.settlementFee = parse6decimal('0.50')
+            await market.updateParameter(marketParameter)
+
             const TAKER_FEE = parse6decimal('9.84') // position * (0.01 + 0.004 + 0.002) * price
             const TAKER_FEE_FEE = TAKER_FEE.div(10)
             const TAKER_FEE_WITHOUT_FEE = TAKER_FEE.sub(TAKER_FEE_FEE)
+            const SETTLEMENT_FEE = parse6decimal('0.50')
 
             await expect(market.connect(user).update(user.address, 0, POSITION.div(2), 0, COLLATERAL, false))
               .to.emit(market, 'Updated')
@@ -11966,7 +12026,7 @@ describe('Market', () => {
 
             expectLocalEq(await market.locals(user.address), {
               currentId: 3,
-              collateral: COLLATERAL,
+              collateral: COLLATERAL.sub(SETTLEMENT_FEE.mul(2)),
               reward: 0,
               protection: 0,
             })
@@ -12035,7 +12095,7 @@ describe('Market', () => {
             expectGlobalEq(await market.global(), {
               currentId: 4,
               protocolFee: 0,
-              oracleFee: 0,
+              oracleFee: SETTLEMENT_FEE.mul(2),
               riskFee: 0,
               donation: 0,
             })
@@ -12111,9 +12171,14 @@ describe('Market', () => {
             riskParameter.staleAfter = BigNumber.from(9600)
             await market.updateRiskParameter(riskParameter)
 
+            const marketParameter = { ...(await market.parameter()) }
+            marketParameter.settlementFee = parse6decimal('0.50')
+            await market.updateParameter(marketParameter)
+
             const TAKER_FEE = parse6decimal('9.84') // position * (0.01 + 0.004 + 0.002) * price
             const TAKER_FEE_FEE = TAKER_FEE.div(10)
             const TAKER_FEE_WITHOUT_FEE = TAKER_FEE.sub(TAKER_FEE_FEE)
+            const SETTLEMENT_FEE = parse6decimal('0.50')
 
             await expect(market.connect(user).update(user.address, 0, POSITION.div(2), 0, COLLATERAL, false))
               .to.emit(market, 'Updated')
@@ -12136,7 +12201,7 @@ describe('Market', () => {
 
             expectLocalEq(await market.locals(user.address), {
               currentId: 3,
-              collateral: COLLATERAL, // does not charge fee if both were pending at once
+              collateral: COLLATERAL.sub(SETTLEMENT_FEE.mul(2)), // does not charge fee if both were pending at once
               reward: 0,
               protection: 0,
             })
@@ -12205,7 +12270,7 @@ describe('Market', () => {
             expectGlobalEq(await market.global(), {
               currentId: 4,
               protocolFee: 0,
-              oracleFee: 0,
+              oracleFee: SETTLEMENT_FEE.mul(2),
               riskFee: 0,
               donation: 0,
             })

@@ -111,13 +111,12 @@ library PositionLib {
         self.delta = self.delta.add(collateralAmount);
     }
 
-    /// @dev update the current global position when version is invalid
+    /// @dev uses the latest position and zeroes out the fee (leaving only the keeper fee)
     function invalidate(Position memory self, Position memory latestPosition) internal pure {
-        (self.maker, self.long, self.short, self.fee, self.keeper) = (
+        (self.maker, self.long, self.short, self.fee) = (
             latestPosition.maker,
             latestPosition.long,
             latestPosition.short,
-            UFixed6Lib.ZERO,
             UFixed6Lib.ZERO
         );
     }
