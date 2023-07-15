@@ -3,7 +3,7 @@ pragma solidity ^0.8.13;
 // solhint-disable, no-global-import
 import "./interfaces/IMultiInvokerRollup.sol";
 import "./MultiInvoker.sol";
-import "hardhat/console.sol";
+// import "hardhat/console.sol";
 
 // solhint-disable, no-inline-assembly
 contract MultiInvokerRollup is IMultiInvokerRollup, MultiInvoker {
@@ -58,7 +58,6 @@ contract MultiInvokerRollup is IMultiInvokerRollup, MultiInvoker {
                     bool handleWrap
                 ) = _readPosition(input, ptr);
 
-                
                 _update(market, newMaker, newLong, newShort, collateral, handleWrap);
             } else if (action == PerennialAction.PLACE_ORDER) {
                 address market = _readAndCacheAddress(input, ptr);

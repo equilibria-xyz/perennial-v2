@@ -365,7 +365,6 @@ describe('MultiInvokerRollup', () => {
       placeOrder = helpers.buildPlaceOrderRollup({ market: market.address, order: defaultOrder })
       await expect(sendTx(user, multiInvokerRollup, placeOrder)).to.not.be.reverted
 
-      console.log(await multiInvokerRollup.orderNonce())
       execOrder = helpers.buildExecOrderRollup({ user: user.address, market: market.address, orderId: 4 })
       await expect(sendTx(user, multiInvokerRollup, execOrder)).to.emit(multiInvokerRollup, 'OrderExecuted')
     })
