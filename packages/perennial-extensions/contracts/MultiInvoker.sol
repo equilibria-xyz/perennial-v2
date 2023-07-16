@@ -306,12 +306,7 @@ contract MultiInvoker is IMultiInvoker, KeeperManager, UKept {
         latestVersion = market.at(position.timestamp);
 
         latestVersion.price = latestVersion.valid ? 
-            latestVersion.price: 
+            latestVersion.price : 
             market.global().latestPrice;
-    }
-
-    function _transform(OracleVersion memory oracleVersion, IMarket market) private {
-        IPayoffProvider payoff = market.payoff();
-        if (address(payoff) != address(0)) oracleVersion.price = payoff.payoff(oracleVersion.price);
     }
 }
