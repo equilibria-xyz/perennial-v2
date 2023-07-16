@@ -232,6 +232,18 @@ contract Market is IMarket, Instance {
         return _oracleVersionAt(timestamp);
     }
 
+    function _loadCurrentPositionContext(
+        Context memory context,
+        address account
+    ) private returns (PositionContext memory positionContext) {
+        positionContext.global = _pendingPosition[context.global.currentId].read();
+        positionContext.local = _pendingPositions[account][context.local.currentId].read();
+        if (context.global.currentId == context.latestPosition.global.id)
+            positionContext.global.invalidate(context.latestPosition.global);
+        if (context.local.currentId == context.latestPosition.local.id)
+            positionContext.local.invalidate(context.latestPosition.local);
+    }
+
     function _update(
         Context memory context,
         address account,
@@ -244,12 +256,7 @@ contract Market is IMarket, Instance {
         _startGas(context, "_update before-update-after: %s");
 
         // read
-        context.currentPosition.global = context.global.currentId == context.latestPosition.global.id ?
-            _position.read() :
-            _pendingPosition[context.global.currentId].read();
-        context.currentPosition.local = context.local.currentId == context.latestPosition.local.id ?
-            _positions[account].read() :
-            _pendingPositions[account][context.local.currentId].read();
+        context.currentPosition = _loadCurrentPositionContext(context, account);
 
         // magic values
         if (collateral.eq(Fixed6Lib.MIN)) collateral = context.local.collateral.mul(Fixed6Lib.NEG_ONE);
@@ -350,15 +357,9 @@ contract Market is IMarket, Instance {
             (nextPosition = _pendingPositions[account][context.latestPosition.local.id + 1].read())
                 .ready(context.latestVersion)
         ) {
-            Fixed6 previousDelta = _pendingPositions[account][context.latestPosition.local.id].read().delta; // TODO: cleanup
-
+            Fixed6 previousDelta = _pendingPositions[account][context.latestPosition.local.id].read().delta;
             _processPositionAccount(context, account, nextPosition);
-
-            Position memory latestAccountPosition = _pendingPositions[account][context.latestPosition.local.id].read(); // TODO: cleanup
-            latestAccountPosition.collateral = context.local.collateral
-                .sub(context.currentPosition.local.delta.sub(previousDelta))  // deposits happen after snapshot point
-                .add(Fixed6Lib.from(nextPosition.fee));                       // position fee happens after snapshot point
-            _pendingPositions[account][latestAccountPosition.id].store(latestAccountPosition);
+            _checkpointCollateral(context, account, previousDelta, nextPosition);
         }
 
         _endGas(context);
@@ -386,6 +387,28 @@ contract Market is IMarket, Instance {
         _positions[account].store(context.latestPosition.local);
 
         _endGas(context);
+    }
+
+    // TODO: cleanup
+    function _checkpointCollateral(
+        Context memory context,
+        address account,
+        Fixed6 previousDelta,
+        Position memory nextPosition
+    ) private {
+        Position memory latestAccountPosition = _pendingPositions[account][context.latestPosition.local.id].read();
+        Position memory currentAccountPosition = _pendingPositions[account][context.local.currentId].read();
+        latestAccountPosition.collateral = context.local.collateral
+            .sub(currentAccountPosition.delta.sub(previousDelta))         // deposits happen after snapshot point
+            .add(Fixed6Lib.from(nextPosition.fee));                       // position fee happens after snapshot point
+        console.log("context.local.collateral", uint256(Fixed6.unwrap(context.local.collateral)));
+        console.log("currentAccountPosition.local.timestamp", currentAccountPosition.timestamp);
+        console.log("currentAccountPosition.local.long", UFixed6.unwrap(currentAccountPosition.long));
+        console.log("currentAccountPosition.local.delta", uint256(Fixed6.unwrap(currentAccountPosition.delta)));
+        console.log("previousDelta", uint256(Fixed6.unwrap(previousDelta)));
+        console.log("nextPosition.fee", UFixed6.unwrap(nextPosition.fee));
+        console.log("latestAccountPosition.collateral", uint256(Fixed6.unwrap(latestAccountPosition.collateral)));
+        _pendingPositions[account][latestAccountPosition.id].store(latestAccountPosition);
     }
 
     function _processPosition(

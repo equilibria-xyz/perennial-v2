@@ -10792,7 +10792,7 @@ describe('Market', () => {
           })
         })
 
-        context.only('invalid oracle version', async () => {
+        context('invalid oracle version', async () => {
           beforeEach(async () => {
             dsu.transferFrom.whenCalledWith(user.address, market.address, COLLATERAL.mul(1e12)).returns(true)
             dsu.transferFrom.whenCalledWith(userB.address, market.address, COLLATERAL.mul(1e12)).returns(true)
@@ -10929,7 +10929,7 @@ describe('Market', () => {
             })
           })
 
-          it('settles valid version after', async () => {
+          it.only('settles valid version after', async () => {
             oracle.at.whenCalledWith(ORACLE_VERSION_2.timestamp).returns(ORACLE_VERSION_2)
             oracle.status.returns([ORACLE_VERSION_2, ORACLE_VERSION_3.timestamp])
             oracle.request.returns()
@@ -11004,7 +11004,6 @@ describe('Market', () => {
               id: 3,
               timestamp: ORACLE_VERSION_5.timestamp,
               long: POSITION.div(2),
-              collateral: COLLATERAL.add(COLLATERAL).sub(SETTLEMENT_FEE).sub(SETTLEMENT_FEE), // TODO: maybe this is why?
             })
             expectLocalEq(await market.locals(userB.address), {
               currentId: 2,
