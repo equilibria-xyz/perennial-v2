@@ -291,22 +291,26 @@ contract MultiInvoker is IMultiInvoker, KeeperManager, UKept {
         }
     }
 
-    function _liquidationFee(IMarket market, address account) internal view returns (UFixed6) {
+    function _liquidationFee(IMarket market, address account) internal returns (UFixed6) {
 
         Position memory position = market.positions(account);
         RiskParameter memory parameter = market.riskParameter();
-        OracleVersion memory latestVersion = market.at(position.timestamp);
+        OracleVersion memory latestVersion = _latestVersionPrice(market, position);
 
         return position
             .liquidationFee(latestVersion, parameter)
             .min(UFixed6Lib.from(market.token().balanceOf(address(market))));
     }
 
-    function _t(OracleVersion memory latestVersion) internal {
+    function _latestVersionPrice(IMarket market, Position memory position) internal returns (OracleVersion memory latestVersion) {
+        latestVersion = market.at(position.timestamp);
+
         latestVersion.price = latestVersion.valid ? 
-            
+            latestVersion.price: 
+            market.global().latestPrice;
     }
-    function _transform(OracleVersion memory oracleVersion, IMarket market) private view {
+
+    function _transform(OracleVersion memory oracleVersion, IMarket market) private {
         IPayoffProvider payoff = market.payoff();
         if (address(payoff) != address(0)) oracleVersion.price = payoff.payoff(oracleVersion.price);
     }
