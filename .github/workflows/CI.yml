@@ -247,7 +247,7 @@ jobs:
       - name: Install
         run: yarn --frozen-lockfile
       - name: Compile
-        run: yarn workspace @equilibria/perennial-v2-vault run compile
+        run: yarn workspace @equilibria/perennial-v2-vault run compile && yarn workspace @equilibria/perennial-v2 run compile
       - name: Run tests
         env:
           MOCHA_REPORTER: dot
@@ -296,7 +296,7 @@ jobs:
 
   # [EXTENSIONS]
   extensions-unit-test:
-    name: '[EXTENSIONS] Unit Tests w/ Coverage'
+    name: '[Extensions] Unit Tests w/ Coverage'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/setup-node@v3
@@ -327,7 +327,7 @@ jobs:
           delete-old-comments: true
         if: ${{ github.event_name == 'pull_request' && env.PARSER_BROKEN != 'true' }}
   extensions-integration-test:
-    name: '[EXTENSIONS] Integration Tests w/ Coverage'
+    name: '[Extensions] Integration Tests w/ Coverage'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/setup-node@v3
