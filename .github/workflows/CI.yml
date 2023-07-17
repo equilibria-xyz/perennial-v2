@@ -318,15 +318,15 @@ jobs:
           MOCHA_REPORTER: dot
         run: |
           yarn workspace @equilibria/perennial-v2-extensions run ${{ env.PARSER_BROKEN != 'true' && 'coverage' || 'test' }}
-      - name: '[EXTENSIONS] Unit Test Code Coverage Report'
+      - name: '[Extensions] Unit Test Code Coverage Report'
         uses: romeovs/lcov-reporter-action@v0.3.1
         with:
-          title: '[EXTENSIONS] Unit Test Coverage Report'
+          title: '[Extensions] Unit Test Coverage Report'
           lcov-file: ./packages/perennial-extensions/coverage/lcov.info
           github-token: ${{ secrets.GITHUB_TOKEN }}
           delete-old-comments: true
         if: ${{ github.event_name == 'pull_request' && env.PARSER_BROKEN != 'true' }}
-  extensions-integration-test:  
+  extensions-integration-test:
     name: '[EXTENSIONS] Integration Tests w/ Coverage'
     runs-on: ubuntu-latest
     steps:
@@ -350,12 +350,11 @@ jobs:
           MAINNET_NODE_URL: ${{ secrets.MAINNET_NODE_URL }}
         run: |
           yarn workspace @equilibria/perennial-v2-extensions run ${{ env.PARSER_BROKEN != 'true' && 'coverage:integration' || 'test:integration' }}
-      - name: '[EXTENSIONS] Integration Test Code Coverage Report'
+      - name: '[Extensions] Integration Test Code Coverage Report'
         uses: romeovs/lcov-reporter-action@v0.3.1
         with:
-          title: '[EXTENSIONS] Integration Test Coverage Report'
+          title: '[Extensions] Integration Test Coverage Report'
           lcov-file: ./packages/perennial-extensions/coverage/lcov.info
           github-token: ${{ secrets.GITHUB_TOKEN }}
           delete-old-comments: true
         if: ${{ github.event_name == 'pull_request' && env.PARSER_BROKEN != 'true' }}
-  

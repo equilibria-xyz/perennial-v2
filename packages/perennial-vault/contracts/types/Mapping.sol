@@ -79,6 +79,8 @@ library MappingStorageLib {
             storedEntries[i / 7]._ids[i % 7] = uint32(newValue._ids[i]);
         }
 
-        self.value = StoredMapping(storedEntries);
+        for (uint256 i; i < storedEntries.length; i++) {
+            self.value.entries[i] = storedEntries[i];
+        }
     }
 }
