@@ -477,6 +477,17 @@ contract Market is IMarket, Instance {
         context.positionVersion = oracleVersion;
         _versions[newPosition.timestamp].store(version);
 
+        console.log("accumulationResult.positionFeeFee", UFixed6.unwrap(accumulationResult.positionFeeFee));
+        console.log("accumulationResult.positionFeeMaker", UFixed6.unwrap(accumulationResult.positionFeeMaker));
+        console.log("accumulationResult.fundingFee", UFixed6.unwrap(accumulationResult.fundingFee));
+        console.log("-accumulationResult.fundingLong", uint256(-Fixed6.unwrap(accumulationResult.fundingLong)));
+        console.log("-accumulationResult.fundingShort", uint256(-Fixed6.unwrap(accumulationResult.fundingShort)));
+        console.log("accumulationResult.interestFee", UFixed6.unwrap(accumulationResult.interestFee));
+        console.log("-accumulationResult.interestLong", uint256(-Fixed6.unwrap(accumulationResult.interestLong)));
+        console.log("-accumulationResult.interestShort", uint256(-Fixed6.unwrap(accumulationResult.interestShort)));
+        console.log("accumulationResult.pnlLong", uint256(Fixed6.unwrap(accumulationResult.pnlLong)));
+        console.log("accumulationResult.pnlShort", uint256(Fixed6.unwrap(accumulationResult.pnlLong)));
+
         // events
         emit PositionProcessed(
             fromTimestamp,
