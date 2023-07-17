@@ -50,7 +50,7 @@ describe('Oracle', () => {
   })
 
   describe('#initializer', async () => {
-    it('sets initial oracle', async () => {
+    beforeEach(async () => {
       mockVersion(
         underlying0,
         {
@@ -60,6 +60,9 @@ describe('Oracle', () => {
         },
         1687229905,
       )
+    })
+
+    it('sets initial oracle', async () => {
       await expect(oracle.connect(oracleFactorySigner).initialize(underlying0.address))
         .to.emit(oracle, 'OracleUpdated')
         .withArgs(underlying0.address)
@@ -69,6 +72,14 @@ describe('Oracle', () => {
       expect((await oracle.global()).latest).to.equal(1)
       expect((await oracle.oracles(1)).provider).to.equal(underlying0.address)
       expect((await oracle.oracles(1)).timestamp).to.equal(1687229905)
+    })
+
+    it('reverts if already initialized', async () => {
+      await oracle.connect(oracleFactorySigner).initialize(underlying0.address)
+
+      await expect(oracle.connect(oracleFactorySigner).initialize(underlying0.address))
+        .to.be.revertedWithCustomError(oracle, 'UInitializableAlreadyInitializedError')
+        .withArgs(1)
     })
   })
 
@@ -121,6 +132,10 @@ describe('Oracle', () => {
           },
           1687231005,
         )
+        const [latestVersionDirect, currentTimestampDirect] = [
+          await oracle.connect(caller).latest(),
+          await oracle.connect(caller).current(),
+        ]
         const [latestVersion, currentTimestamp] = await oracle.connect(caller).status()
         await oracle.connect(caller).request()
 
@@ -134,6 +149,17 @@ describe('Oracle', () => {
         expect((await oracle.oracles(1)).timestamp).to.equal(1687229905)
         expect((await oracle.oracles(2)).provider).to.equal(underlying1.address)
         expect((await oracle.oracles(2)).timestamp).to.equal(1687231005)
+        expect(latestVersionDirect).to.deep.equal(latestVersion)
+        expect(currentTimestampDirect).to.deep.equal(currentTimestamp)
+      })
+
+      it('reverts when oracle out of sync', async () => {
+        const underlying2 = await smock.fake<IOracleProvider>('IOracleProvider')
+
+        await expect(oracle.connect(owner).update(underlying2.address)).to.revertedWithCustomError(
+          oracle,
+          'OracleOutOfSyncError',
+        )
       })
     })
 
@@ -205,6 +231,10 @@ describe('Oracle', () => {
           },
           1687231005,
         )
+        const [latestVersionDirect, currentTimestampDirect] = [
+          await oracle.connect(caller).latest(),
+          await oracle.connect(caller).current(),
+        ]
         const [latestVersion, currentTimestamp] = await oracle.connect(caller).status()
         await oracle.connect(caller).request()
 
@@ -218,6 +248,8 @@ describe('Oracle', () => {
         expect((await oracle.oracles(1)).timestamp).to.equal(1687230905)
         expect((await oracle.oracles(2)).provider).to.equal(underlying1.address)
         expect((await oracle.oracles(2)).timestamp).to.equal(1687231005)
+        expect(latestVersionDirect).to.deep.equal(latestVersion)
+        expect(currentTimestampDirect).to.deep.equal(currentTimestamp)
       })
 
       it('syncs another version equal to latest', async () => {
@@ -239,6 +271,10 @@ describe('Oracle', () => {
           },
           1687231005,
         )
+        const [latestVersionDirect, currentTimestampDirect] = [
+          await oracle.connect(caller).latest(),
+          await oracle.connect(caller).current(),
+        ]
         const [latestVersion, currentTimestamp] = await oracle.connect(caller).status()
         await oracle.connect(caller).request()
 
@@ -252,6 +288,8 @@ describe('Oracle', () => {
         expect((await oracle.oracles(1)).timestamp).to.equal(1687230905)
         expect((await oracle.oracles(2)).provider).to.equal(underlying1.address)
         expect((await oracle.oracles(2)).timestamp).to.equal(1687231005)
+        expect(latestVersionDirect).to.deep.equal(latestVersion)
+        expect(currentTimestampDirect).to.deep.equal(currentTimestamp)
       })
 
       it('syncs another version after latest before current', async () => {
@@ -278,6 +316,10 @@ describe('Oracle', () => {
           },
           1687231005,
         )
+        const [latestVersionDirect, currentTimestampDirect] = [
+          await oracle.connect(caller).latest(),
+          await oracle.connect(caller).current(),
+        ]
         const [latestVersion, currentTimestamp] = await oracle.connect(caller).status()
         await oracle.connect(caller).request()
 
@@ -291,6 +333,8 @@ describe('Oracle', () => {
         expect((await oracle.oracles(1)).timestamp).to.equal(1687230905)
         expect((await oracle.oracles(2)).provider).to.equal(underlying1.address)
         expect((await oracle.oracles(2)).timestamp).to.equal(1687231005)
+        expect(latestVersionDirect).to.deep.equal(latestVersion)
+        expect(currentTimestampDirect).to.deep.equal(currentTimestamp)
       })
 
       it('syncs another version after latest after current', async () => {
@@ -312,6 +356,10 @@ describe('Oracle', () => {
           },
           1687231005,
         )
+        const [latestVersionDirect, currentTimestampDirect] = [
+          await oracle.connect(caller).latest(),
+          await oracle.connect(caller).current(),
+        ]
         const [latestVersion, currentTimestamp] = await oracle.connect(caller).status()
         await oracle.connect(caller).request()
 
@@ -325,6 +373,59 @@ describe('Oracle', () => {
         expect((await oracle.oracles(1)).timestamp).to.equal(1687230905)
         expect((await oracle.oracles(2)).provider).to.equal(underlying1.address)
         expect((await oracle.oracles(2)).timestamp).to.equal(1687231005)
+        expect(latestVersionDirect).to.deep.equal(latestVersion)
+        expect(currentTimestampDirect).to.deep.equal(currentTimestamp)
+      })
+
+      it('syncs another version after all up-to-date', async () => {
+        mockVersion(
+          underlying0,
+          {
+            timestamp: 1687230955,
+            price: parse6decimal('1008'),
+            valid: true,
+          },
+          1687231005,
+        )
+        mockVersion(
+          underlying1,
+          {
+            timestamp: 1687230955,
+            price: parse6decimal('1007'),
+            valid: true,
+          },
+          1687231005,
+        )
+        await oracle.connect(caller).request()
+
+        mockVersion(
+          underlying1,
+          {
+            timestamp: 1687235000,
+            price: parse6decimal('1015'),
+            valid: true,
+          },
+          1687235080,
+        )
+        const [latestVersionDirect, currentTimestampDirect] = [
+          await oracle.connect(caller).latest(),
+          await oracle.connect(caller).current(),
+        ]
+        const [latestVersion, currentTimestamp] = await oracle.connect(caller).status()
+        await oracle.connect(caller).request()
+
+        expect(latestVersion.timestamp).to.equal(1687235000)
+        expect(latestVersion.price).to.equal(parse6decimal('1015'))
+        expect(latestVersion.valid).to.equal(true)
+        expect(currentTimestamp).to.equal(1687235080)
+        expect((await oracle.global()).current).to.equal(2)
+        expect((await oracle.global()).latest).to.equal(2)
+        expect((await oracle.oracles(1)).provider).to.equal(underlying0.address)
+        expect((await oracle.oracles(1)).timestamp).to.equal(1687230905)
+        expect((await oracle.oracles(2)).provider).to.equal(underlying1.address)
+        expect((await oracle.oracles(2)).timestamp).to.equal(1687235080)
+        expect(latestVersionDirect).to.deep.equal(latestVersion)
+        expect(currentTimestampDirect).to.deep.equal(currentTimestamp)
       })
 
       it('properly triages at', async () => {
@@ -382,6 +483,27 @@ describe('Oracle', () => {
       await expect(oracle.connect(user).update(underlying1.address))
         .to.revertedWithCustomError(oracle, 'InstanceNotOwnerError')
         .withArgs(user.address)
+    })
+  })
+
+  describe('#request', async () => {
+    beforeEach(async () => {
+      mockVersion(
+        underlying0,
+        {
+          timestamp: 1687229000,
+          price: parse6decimal('999'),
+          valid: true,
+        },
+        1687229905,
+      )
+      await oracle.connect(oracleFactorySigner).initialize(underlying0.address)
+    })
+
+    it('reverts when not the authorized', async () => {
+      oracleFactory.authorized.whenCalledWith(user.address).returns(false)
+
+      await expect(oracle.connect(user).request()).to.revertedWithCustomError(oracle, 'OracleProviderUnauthorizedError')
     })
   })
 })

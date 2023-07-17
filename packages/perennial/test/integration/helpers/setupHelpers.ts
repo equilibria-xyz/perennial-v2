@@ -34,9 +34,6 @@ import { CHAINLINK_CUSTOM_CURRENCIES } from '@equilibria/perennial-v2-oracle/uti
 import { MarketParameterStruct, RiskParameterStruct } from '../../../types/generated/contracts/Market'
 const { deployments, ethers } = HRE
 
-export const INITIAL_PHASE_ID = 1
-export const INITIAL_AGGREGATOR_ROUND_ID = 10000
-export const INITIAL_VERSION = 2472 // registry's phase 1 starts at aggregatorRoundID 7528
 export const USDC_HOLDER = '0x0A59649758aa4d66E25f08Dd01271e891fe52199'
 const DSU_MINTER = '0xD05aCe63789cCb35B9cE71d01e4d632a0486Da4B'
 
@@ -62,21 +59,16 @@ export interface InstanceVars {
   rewardToken: ERC20PresetMinterPauser
 }
 
-export async function deployProtocol(): Promise<InstanceVars> {
+export async function deployProtocol(chainlinkContext?: ChainlinkContext): Promise<InstanceVars> {
   const [owner, pauser, user, userB, userC, userD, beneficiaryB] = await ethers.getSigners()
 
   const payoff = IPayoffProvider__factory.connect((await new PowerTwo__factory(owner).deploy()).address, owner)
   const dsu = IERC20Metadata__factory.connect((await deployments.get('DSU')).address, owner)
   const usdc = IERC20Metadata__factory.connect((await deployments.get('USDC')).address, owner)
 
-  // Deploy external deps
-  const initialRoundId = buildChainlinkRoundId(INITIAL_PHASE_ID, INITIAL_AGGREGATOR_ROUND_ID)
-  const chainlink = await new ChainlinkContext(
-    CHAINLINK_CUSTOM_CURRENCIES.ETH,
-    CHAINLINK_CUSTOM_CURRENCIES.USD,
-    initialRoundId,
-    1,
-  ).init()
+  const chainlink =
+    chainlinkContext ??
+    (await new ChainlinkContext(CHAINLINK_CUSTOM_CURRENCIES.ETH, CHAINLINK_CUSTOM_CURRENCIES.USD, 1).init())
 
   // Deploy protocol contracts
   const proxyAdmin = await new ProxyAdmin__factory(owner).deploy()

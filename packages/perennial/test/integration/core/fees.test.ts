@@ -4,6 +4,7 @@ import { BigNumber } from 'ethers'
 
 import { InstanceVars, deployProtocol, createMarket, settle } from '../helpers/setupHelpers'
 import {
+  DEFAULT_POSITION,
   expectGlobalEq,
   expectLocalEq,
   expectPositionEq,
@@ -101,20 +102,17 @@ describe('Fees', () => {
         protection: 0,
       })
       expectPositionEq(await market.pendingPositions(user.address, 2), {
+        ...DEFAULT_POSITION,
         id: 2,
         timestamp: TIMESTAMP_2,
         maker: POSITION,
-        long: 0,
-        short: 0,
-        fee: 0,
+        delta: COLLATERAL,
       })
       expectPositionEq(await market.positions(user.address), {
+        ...DEFAULT_POSITION,
         id: 1,
         timestamp: TIMESTAMP_1,
         maker: POSITION,
-        long: 0,
-        short: 0,
-        fee: 0,
       })
 
       // Check global post-settlement state
@@ -130,20 +128,16 @@ describe('Fees', () => {
         donation: expectedDonation,
       })
       expectPositionEq(await market.pendingPosition(2), {
+        ...DEFAULT_POSITION,
         id: 2,
         timestamp: TIMESTAMP_2,
         maker: POSITION,
-        long: 0,
-        short: 0,
-        fee: 0,
       })
       expectPositionEq(await market.position(), {
+        ...DEFAULT_POSITION,
         id: 1,
         timestamp: TIMESTAMP_1,
         maker: POSITION,
-        long: 0,
-        short: 0,
-        fee: 0,
       })
     })
 
@@ -184,20 +178,15 @@ describe('Fees', () => {
         protection: 0,
       })
       expectPositionEq(await market.pendingPositions(user.address, 3), {
+        ...DEFAULT_POSITION,
         id: 3,
         timestamp: TIMESTAMP_3,
-        maker: 0,
-        long: 0,
-        short: 0,
-        fee: 0,
+        delta: COLLATERAL,
       })
       expectPositionEq(await market.positions(user.address), {
+        ...DEFAULT_POSITION,
         id: 2,
         timestamp: TIMESTAMP_2,
-        maker: 0,
-        long: 0,
-        short: 0,
-        fee: 0,
       })
 
       // Check global post-settlement state. Existing makers so protocol only gets 50% of fees
@@ -213,20 +202,14 @@ describe('Fees', () => {
         donation: expectedDonation,
       })
       expectPositionEq(await market.pendingPosition(3), {
+        ...DEFAULT_POSITION,
         id: 3,
         timestamp: TIMESTAMP_3,
-        maker: 0,
-        long: 0,
-        short: 0,
-        fee: 0,
       })
       expectPositionEq(await market.position(), {
+        ...DEFAULT_POSITION,
         id: 2,
         timestamp: TIMESTAMP_2,
-        maker: 0,
-        long: 0,
-        short: 0,
-        fee: 0,
       })
     })
 
@@ -271,20 +254,18 @@ describe('Fees', () => {
         donation: expectedDonation,
       })
       expectPositionEq(await market.pendingPosition(2), {
+        ...DEFAULT_POSITION,
         id: 2,
         timestamp: TIMESTAMP_2,
         maker: MAKER_POSITION,
         long: LONG_POSITION,
-        short: 0,
-        fee: 0,
       })
       expectPositionEq(await market.position(), {
+        ...DEFAULT_POSITION,
         id: 1,
         timestamp: TIMESTAMP_1,
         maker: MAKER_POSITION,
         long: LONG_POSITION,
-        short: 0,
-        fee: 0,
       })
 
       // Long State
@@ -295,20 +276,17 @@ describe('Fees', () => {
         protection: 0,
       })
       expectPositionEq(await market.pendingPositions(userB.address, 2), {
+        ...DEFAULT_POSITION,
         id: 2,
         timestamp: TIMESTAMP_2,
-        maker: 0,
         long: LONG_POSITION,
-        short: 0,
-        fee: 0,
+        delta: COLLATERAL,
       })
       expectPositionEq(await market.positions(userB.address), {
+        ...DEFAULT_POSITION,
         id: 1,
         timestamp: TIMESTAMP_1,
-        maker: 0,
         long: LONG_POSITION,
-        short: 0,
-        fee: 0,
       })
     })
 
@@ -358,20 +336,18 @@ describe('Fees', () => {
         donation: expectedDonation,
       })
       expectPositionEq(await market.pendingPosition(3), {
+        ...DEFAULT_POSITION,
         id: 3,
         timestamp: TIMESTAMP_3,
         maker: MAKER_POSITION,
         long: LONG_POSITION,
-        short: 0,
-        fee: 0,
       })
       expectPositionEq(await market.position(), {
+        ...DEFAULT_POSITION,
         id: 2,
         timestamp: TIMESTAMP_2,
         maker: MAKER_POSITION,
         long: LONG_POSITION,
-        short: 0,
-        fee: 0,
       })
 
       // Long State
@@ -382,20 +358,17 @@ describe('Fees', () => {
         protection: 0,
       })
       expectPositionEq(await market.pendingPositions(userB.address, 2), {
+        ...DEFAULT_POSITION,
         id: 2,
         timestamp: TIMESTAMP_3,
-        maker: 0,
         long: LONG_POSITION,
-        short: 0,
-        fee: 0,
+        delta: COLLATERAL,
       })
       expectPositionEq(await market.positions(userB.address), {
+        ...DEFAULT_POSITION,
         id: 1,
         timestamp: TIMESTAMP_2,
-        maker: 0,
         long: LONG_POSITION,
-        short: 0,
-        fee: 0,
       })
 
       const txMaker = await settle(market, user)
@@ -414,20 +387,17 @@ describe('Fees', () => {
         protection: 0,
       })
       expectPositionEq(await market.pendingPositions(user.address, 3), {
+        ...DEFAULT_POSITION,
         id: 3,
         timestamp: TIMESTAMP_3,
         maker: MAKER_POSITION,
-        long: 0,
-        short: 0,
-        fee: 0,
+        delta: COLLATERAL,
       })
       expectPositionEq(await market.positions(user.address), {
+        ...DEFAULT_POSITION,
         id: 2,
         timestamp: TIMESTAMP_2,
         maker: MAKER_POSITION,
-        long: 0,
-        short: 0,
-        fee: 0,
       })
     })
 
@@ -496,20 +466,16 @@ describe('Fees', () => {
         donation: expectedDonation,
       })
       expectPositionEq(await market.pendingPosition(3), {
+        ...DEFAULT_POSITION,
         id: 3,
         timestamp: TIMESTAMP_3,
         maker: MAKER_POSITION,
-        long: 0,
-        short: 0,
-        fee: 0,
       })
       expectPositionEq(await market.position(), {
+        ...DEFAULT_POSITION,
         id: 2,
         timestamp: TIMESTAMP_2,
         maker: MAKER_POSITION,
-        long: 0,
-        short: 0,
-        fee: 0,
       })
 
       // Long State
@@ -520,20 +486,15 @@ describe('Fees', () => {
         protection: 0,
       })
       expectPositionEq(await market.pendingPositions(userB.address, 3), {
+        ...DEFAULT_POSITION,
         id: 3,
         timestamp: TIMESTAMP_3,
-        maker: 0,
-        long: 0,
-        short: 0,
-        fee: 0,
+        delta: COLLATERAL,
       })
       expectPositionEq(await market.positions(userB.address), {
+        ...DEFAULT_POSITION,
         id: 2,
         timestamp: TIMESTAMP_2,
-        maker: 0,
-        long: 0,
-        short: 0,
-        fee: 0,
       })
 
       const txMaker = await settle(market, user)
@@ -552,20 +513,17 @@ describe('Fees', () => {
         protection: 0,
       })
       expectPositionEq(await market.pendingPositions(user.address, 3), {
+        ...DEFAULT_POSITION,
         id: 3,
         timestamp: TIMESTAMP_3,
         maker: MAKER_POSITION,
-        long: 0,
-        short: 0,
-        fee: 0,
+        delta: COLLATERAL,
       })
       expectPositionEq(await market.positions(user.address), {
+        ...DEFAULT_POSITION,
         id: 2,
         timestamp: TIMESTAMP_2,
         maker: MAKER_POSITION,
-        long: 0,
-        short: 0,
-        fee: 0,
       })
     })
 
@@ -610,20 +568,18 @@ describe('Fees', () => {
         donation: expectedDonation,
       })
       expectPositionEq(await market.pendingPosition(2), {
+        ...DEFAULT_POSITION,
         id: 2,
         timestamp: TIMESTAMP_2,
         maker: MAKER_POSITION,
-        long: 0,
         short: SHORT_POSITION,
-        fee: 0,
       })
       expectPositionEq(await market.position(), {
+        ...DEFAULT_POSITION,
         id: 1,
         timestamp: TIMESTAMP_1,
         maker: MAKER_POSITION,
-        long: 0,
         short: SHORT_POSITION,
-        fee: 0,
       })
 
       // Long State
@@ -634,20 +590,17 @@ describe('Fees', () => {
         protection: 0,
       })
       expectPositionEq(await market.pendingPositions(userB.address, 2), {
+        ...DEFAULT_POSITION,
         id: 2,
         timestamp: TIMESTAMP_2,
-        maker: 0,
-        long: 0,
         short: SHORT_POSITION,
-        fee: 0,
+        delta: COLLATERAL,
       })
       expectPositionEq(await market.positions(userB.address), {
+        ...DEFAULT_POSITION,
         id: 1,
         timestamp: TIMESTAMP_1,
-        maker: 0,
-        long: 0,
         short: SHORT_POSITION,
-        fee: 0,
       })
     })
 
@@ -697,20 +650,18 @@ describe('Fees', () => {
         donation: expectedDonation,
       })
       expectPositionEq(await market.pendingPosition(3), {
+        ...DEFAULT_POSITION,
         id: 3,
         timestamp: TIMESTAMP_3,
         maker: MAKER_POSITION,
-        long: 0,
         short: SHORT_POSITION,
-        fee: 0,
       })
       expectPositionEq(await market.position(), {
+        ...DEFAULT_POSITION,
         id: 2,
         timestamp: TIMESTAMP_2,
         maker: MAKER_POSITION,
-        long: 0,
         short: SHORT_POSITION,
-        fee: 0,
       })
 
       // Long State
@@ -721,20 +672,17 @@ describe('Fees', () => {
         protection: 0,
       })
       expectPositionEq(await market.pendingPositions(userB.address, 2), {
+        ...DEFAULT_POSITION,
         id: 2,
         timestamp: TIMESTAMP_3,
-        maker: 0,
-        long: 0,
         short: SHORT_POSITION,
-        fee: 0,
+        delta: COLLATERAL,
       })
       expectPositionEq(await market.positions(userB.address), {
+        ...DEFAULT_POSITION,
         id: 1,
         timestamp: TIMESTAMP_2,
-        maker: 0,
-        long: 0,
         short: SHORT_POSITION,
-        fee: 0,
       })
 
       const txMaker = await settle(market, user)
@@ -753,20 +701,17 @@ describe('Fees', () => {
         protection: 0,
       })
       expectPositionEq(await market.pendingPositions(user.address, 3), {
+        ...DEFAULT_POSITION,
         id: 3,
         timestamp: TIMESTAMP_3,
         maker: MAKER_POSITION,
-        long: 0,
-        short: 0,
-        fee: 0,
+        delta: COLLATERAL,
       })
       expectPositionEq(await market.positions(user.address), {
+        ...DEFAULT_POSITION,
         id: 2,
         timestamp: TIMESTAMP_2,
         maker: MAKER_POSITION,
-        long: 0,
-        short: 0,
-        fee: 0,
       })
     })
 
@@ -835,20 +780,16 @@ describe('Fees', () => {
         donation: expectedDonation,
       })
       expectPositionEq(await market.pendingPosition(3), {
+        ...DEFAULT_POSITION,
         id: 3,
         timestamp: TIMESTAMP_3,
         maker: MAKER_POSITION,
-        long: 0,
-        short: 0,
-        fee: 0,
       })
       expectPositionEq(await market.position(), {
+        ...DEFAULT_POSITION,
         id: 2,
         timestamp: TIMESTAMP_2,
         maker: MAKER_POSITION,
-        long: 0,
-        short: 0,
-        fee: 0,
       })
 
       // Long State
@@ -859,20 +800,15 @@ describe('Fees', () => {
         protection: 0,
       })
       expectPositionEq(await market.pendingPositions(userB.address, 3), {
+        ...DEFAULT_POSITION,
         id: 3,
         timestamp: TIMESTAMP_3,
-        maker: 0,
-        long: 0,
-        short: 0,
-        fee: 0,
+        delta: COLLATERAL,
       })
       expectPositionEq(await market.positions(userB.address), {
+        ...DEFAULT_POSITION,
         id: 2,
         timestamp: TIMESTAMP_2,
-        maker: 0,
-        long: 0,
-        short: 0,
-        fee: 0,
       })
 
       const txMaker = await settle(market, user)
@@ -891,20 +827,17 @@ describe('Fees', () => {
         protection: 0,
       })
       expectPositionEq(await market.pendingPositions(user.address, 3), {
+        ...DEFAULT_POSITION,
         id: 3,
         timestamp: TIMESTAMP_3,
         maker: MAKER_POSITION,
-        long: 0,
-        short: 0,
-        fee: 0,
+        delta: COLLATERAL,
       })
       expectPositionEq(await market.positions(user.address), {
+        ...DEFAULT_POSITION,
         id: 2,
         timestamp: TIMESTAMP_2,
         maker: MAKER_POSITION,
-        long: 0,
-        short: 0,
-        fee: 0,
       })
     })
 

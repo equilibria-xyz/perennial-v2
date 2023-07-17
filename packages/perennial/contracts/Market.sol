@@ -6,11 +6,9 @@ import "./interfaces/IMarket.sol";
 import "./interfaces/IMarketFactory.sol";
 import "hardhat/console.sol";
 
-/**
- * @title Market
- * @notice Manages logic and state for a single market market.
- * @dev Cloned by the Factory contract to launch new market markets.
- */
+/// @title Market
+/// @notice Manages logic and state for a single market.
+/// @dev Cloned by the Factory contract to launch new markets.
 contract Market is IMarket, Instance {
     bool private constant GAS_PROFILE = false;
     bool private constant LOG_REVERTS = false;
@@ -21,14 +19,16 @@ contract Market is IMarket, Instance {
     /// @dev The symbol of the market
     string public symbol;
 
-    /// @dev ERC20 stablecoin for collateral
+    /// @dev The underlying token that the market settles in
     Token18 public token;
 
-    /// @dev ERC20 token for reward
+    /// @dev The token that incentive rewards are paid in
     Token18 public reward;
 
+    /// @dev The oracle that provides the market price
     IOracleProvider public oracle;
 
+    /// @dev The payoff function over the underlying oracle
     IPayoffProvider public payoff;
 
     /// @dev Beneficiary of the market, receives donations
@@ -37,30 +37,36 @@ contract Market is IMarket, Instance {
     /// @dev Risk coordinator of the market
     address public coordinator;
 
+    /// @dev Risk parameters of the market
     RiskParameterStorage private _riskParameter;
 
+    /// @dev Parameters of the market
     MarketParameterStorage private _parameter;
 
-    /// @dev Protocol and market fees collected, but not yet claimed
+    /// @dev Current global state of the market
     GlobalStorage private _global;
 
+    /// @dev Current global position of the market
     PositionStorageGlobal private _position;
 
+    /// @dev The global pending versions for each id
     mapping(uint256 => PositionStorageGlobal) private _pendingPosition;
 
-    /// @dev The individual state for each account
+    /// @dev Current local state of each account
     mapping(address => LocalStorage) private _locals;
 
+    /// @dev Current local position of each account
     mapping(address => PositionStorageLocal) private _positions;
 
+    /// @dev The local pending versions for each id for each account
     mapping(address => mapping(uint256 => PositionStorageLocal)) private _pendingPositions;
 
-    /// @dev Mapping of the historical version data
+    /// @dev The historical version accumulator data for each accessed version
     mapping(uint256 => VersionStorage) private _versions;
 
-    /**
-     * @notice Initializes the contract state
-     */
+    /// @notice Initializes the contract state
+    /// @param definition_ The market definition
+    /// @param riskParameter_ The initial set of risk parameters
     function initialize(
         IMarket.MarketDefinition calldata definition_,
         RiskParameter calldata riskParameter_
@@ -75,6 +81,13 @@ contract Market is IMarket, Instance {
         _updateRiskParameter(riskParameter_); // TODO: don't set or use version with invariant
     }
 
+    /// @notice Updates the account's position and collateral
+    /// @param account The account to operate on
+    /// @param newMaker The new maker position for the account
+    /// @param newMaker The new long position for the account
+    /// @param newMaker The new short position for the account
+    /// @param collateral The collateral amount to add or remove from the account
+    /// @param protect Whether to put the account into a protected status for liquidations
     function update(
         address account,
         UFixed6 newMaker,
@@ -89,16 +102,22 @@ contract Market is IMarket, Instance {
         _saveContext(context, account);
     }
 
+    /// @notice Updates the beneficiary of the market
+    /// @param newBeneficiary The new beneficiary address
     function updateBeneficiary(address newBeneficiary) external onlyOwner {
         beneficiary = newBeneficiary;
         emit BeneficiaryUpdated(newBeneficiary);
     }
 
+    /// @notice Updates the coordinator of the market
+    /// @param newCoordinator The new coordinator address
     function updateCoordinator(address newCoordinator) external onlyOwner {
         coordinator = newCoordinator;
         emit CoordinatorUpdated(newCoordinator);
     }
 
+    /// @notice Updates the parameter set of the market
+    /// @param newParameter The new parameter set
     function updateParameter(MarketParameter memory newParameter) external onlyOwner {
         ProtocolParameter memory protocolParameter = IMarketFactory(address(factory())).parameter();
 
@@ -119,6 +138,8 @@ contract Market is IMarket, Instance {
         emit ParameterUpdated(newParameter);
     }
 
+    /// @notice Updates the risk parameter set of the market
+    /// @param newRiskParameter The new risk parameter set
     function updateRiskParameter(RiskParameter memory newRiskParameter) external onlyCoordinator {
         ProtocolParameter memory protocolParameter = IMarketFactory(address(factory())).parameter();
 
@@ -154,6 +175,8 @@ contract Market is IMarket, Instance {
         _updateRiskParameter(newRiskParameter);
     }
 
+    /// @notice Updates the reward token of the market
+    /// @param newReward The new reward token
     function updateReward(Token18 newReward) public onlyOwner {
         if (!reward.eq(Token18Lib.ZERO)) revert MarketRewardAlreadySetError();
         if (newReward.eq(token)) revert MarketInvalidRewardError();
@@ -162,6 +185,8 @@ contract Market is IMarket, Instance {
         emit RewardUpdated(newReward);
     }
 
+    /// @notice Claims any available fee that the sender has accrued
+    /// @dev Applicable fees include: protocol, oracle, risk, and donation
     function claimFee() external {
         Global memory newGlobal = _global.read();
 
@@ -174,6 +199,9 @@ contract Market is IMarket, Instance {
         _global.store(newGlobal);
     }
 
+    /// @notice Helper function to handle a singular fee claim
+    /// @param receiver The address to receive the fee
+    /// @param fee The amount of the fee to claim
     function _claimFee(address receiver, UFixed6 fee) private returns (bool) {
         if (msg.sender != receiver) return false;
 
@@ -182,6 +210,7 @@ contract Market is IMarket, Instance {
         return true;
     }
 
+    /// @notice Claims any available reward that the sender has accrued
     function claimReward() external {
         Local memory newLocal = _locals[msg.sender].read();
 
@@ -192,44 +221,73 @@ contract Market is IMarket, Instance {
         _locals[msg.sender].store(newLocal);
     }
 
+    /// @notice Returns the current parameter set
     function parameter() external view returns (MarketParameter memory) {
         return _parameter.read();
     }
 
+    /// @notice Returns the current risk parameter set
     function riskParameter() external view returns (RiskParameter memory) {
         return _riskParameter.read();
     }
 
+    /// @notice Returns the current global position
     function position() external view returns (Position memory) {
         return _position.read();
     }
 
+    /// @notice Returns the current local position for the account
+    /// @param account The account to query
     function positions(address account) external view returns (Position memory) {
         return _positions[account].read();
     }
 
+    /// @notice Returns the current global state
     function global() external view returns (Global memory) {
         return _global.read();
     }
 
-    function versions(uint256 oracleVersion) external view returns (Version memory) {
-        return _versions[oracleVersion].read();
+    /// @notice Returns the historical version snapshot at the given timestamp
+    /// @param timestamp The timestamp to query
+    function versions(uint256 timestamp) external view returns (Version memory) {
+        return _versions[timestamp].read();
     }
 
+    /// @notice Returns the local state for the given account
+    /// @param account The account to query
     function locals(address account) external view returns (Local memory) {
         return _locals[account].read();
     }
 
+    /// @notice Returns the global pending position for the given id
+    /// @param id The id to query
     function pendingPosition(uint256 id) external view returns (Position memory) {
         return _pendingPosition[id].read();
     }
 
+    /// @notice Returns the local pending position for the given account and id
+    /// @param account The account to query
+    /// @param id The id to query
     function pendingPositions(address account, uint256 id) external view returns (Position memory) {
         return _pendingPositions[account][id].read();
     }
 
+    /// @notice Returns the oracle version at the given timestamp
+    /// @param timestamp The timestamp to query
     function at(uint256 timestamp) public view returns (OracleVersion memory) {
         return _oracleVersionAt(timestamp);
+    }
+
+    function _loadCurrentPositionContext(
+        Context memory context,
+        address account
+    ) private returns (PositionContext memory positionContext) {
+        positionContext.global = _pendingPosition[context.global.currentId].read();
+        positionContext.local = _pendingPositions[account][context.local.currentId].read();
+        if (context.global.currentId == context.latestPosition.global.id)
+            positionContext.global.invalidate(context.latestPosition.global);
+        if (context.local.currentId == context.latestPosition.local.id)
+            positionContext.local.invalidate(context.latestPosition.local);
     }
 
     function _update(
@@ -244,12 +302,7 @@ contract Market is IMarket, Instance {
         _startGas(context, "_update before-update-after: %s");
 
         // read
-        context.currentPosition.global = context.global.currentId == context.latestPosition.global.id ?
-            _position.read() :
-            _pendingPosition[context.global.currentId].read();
-        context.currentPosition.local = context.local.currentId == context.latestPosition.local.id ?
-            _positions[account].read() :
-            _pendingPositions[account][context.local.currentId].read();
+        context.currentPosition = _loadCurrentPositionContext(context, account);
 
         // magic values
         if (collateral.eq(Fixed6Lib.MIN)) collateral = context.local.collateral.mul(Fixed6Lib.NEG_ONE);
@@ -350,15 +403,9 @@ contract Market is IMarket, Instance {
             (nextPosition = _pendingPositions[account][context.latestPosition.local.id + 1].read())
                 .ready(context.latestVersion)
         ) {
-            Fixed6 previousDelta = _pendingPositions[account][context.latestPosition.local.id].read().delta; // TODO: cleanup
-
+            Fixed6 previousDelta = _pendingPositions[account][context.latestPosition.local.id].read().delta;
             _processPositionAccount(context, account, nextPosition);
-
-            Position memory latestAccountPosition = _pendingPositions[account][context.latestPosition.local.id].read(); // TODO: cleanup
-            latestAccountPosition.collateral = context.local.collateral
-                .sub(context.currentPosition.local.delta.sub(previousDelta))  // deposits happen after snapshot point
-                .add(Fixed6Lib.from(nextPosition.fee));                       // position fee happens after snapshot point
-            _pendingPositions[account][latestAccountPosition.id].store(latestAccountPosition);
+            _checkpointCollateral(context, account, previousDelta, nextPosition);
         }
 
         _endGas(context);
@@ -388,10 +435,23 @@ contract Market is IMarket, Instance {
         _endGas(context);
     }
 
-    function _processPosition(
+    // TODO: cleanup
+    function _checkpointCollateral(
         Context memory context,
-        Position memory newPosition
+        address account,
+        Fixed6 previousDelta,
+        Position memory nextPosition
     ) private {
+        Position memory latestAccountPosition = _pendingPositions[account][context.latestPosition.local.id].read();
+        Position memory currentAccountPosition = _pendingPositions[account][context.local.currentId].read();
+        latestAccountPosition.collateral = context.local.collateral
+            .sub(currentAccountPosition.delta.sub(previousDelta))         // deposits happen after snapshot point
+            .add(Fixed6Lib.from(nextPosition.fee))                        // position fee happens after snapshot point
+            .add(Fixed6Lib.from(nextPosition.keeper));                    // keeper fee happens after snapshot point
+        _pendingPositions[account][latestAccountPosition.id].store(latestAccountPosition);
+    }
+
+    function _processPosition(Context memory context, Position memory newPosition) private {
         Version memory version = _versions[context.latestPosition.global.timestamp].read();
         OracleVersion memory oracleVersion = _oracleVersionAtPosition(context, newPosition); // TODO: seems weird some logic is in here
         if (!oracleVersion.valid) newPosition.invalidate(context.latestPosition.global); // TODO: combine this with sync logic?

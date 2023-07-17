@@ -12,6 +12,8 @@ export interface Position {
   long: BigNumberish
   short: BigNumberish
   fee: BigNumberish
+  collateral: BigNumberish
+  delta: BigNumberish
 }
 
 export interface Global {
@@ -50,6 +52,8 @@ export function expectPositionEq(a: Position, b: Position): void {
   expect(a.long).to.equal(b.long, 'Position:Long')
   expect(a.short).to.equal(b.short, 'Position:Short')
   expect(a.fee).to.equal(b.fee, 'Position:Fee')
+  expect(a.collateral).to.equal(b.collateral, 'Position:Collateral')
+  expect(a.delta).to.equal(b.delta, 'Position:Delta')
   // TODO: keeper
 }
 
@@ -106,4 +110,15 @@ export class Big6Math {
   public static div(a: BigNumber, b: BigNumber): BigNumber {
     return a.mul(this.BASE).div(b)
   }
+}
+
+export const DEFAULT_POSITION: Position = {
+  id: 0,
+  timestamp: 0,
+  long: 0,
+  maker: 0,
+  short: 0,
+  fee: 0,
+  collateral: 0,
+  delta: 0,
 }
