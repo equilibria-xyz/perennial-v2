@@ -451,10 +451,7 @@ contract Market is IMarket, Instance {
         _pendingPositions[account][latestAccountPosition.id].store(latestAccountPosition);
     }
 
-    function _processPosition(
-        Context memory context,
-        Position memory newPosition
-    ) private {
+    function _processPosition(Context memory context, Position memory newPosition) private {
         Version memory version = _versions[context.latestPosition.global.timestamp].read();
         OracleVersion memory oracleVersion = _oracleVersionAtPosition(context, newPosition); // TODO: seems weird some logic is in here
         if (!oracleVersion.valid) newPosition.invalidate(context.latestPosition.global); // TODO: combine this with sync logic?
