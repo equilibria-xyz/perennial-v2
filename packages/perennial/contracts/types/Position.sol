@@ -81,10 +81,7 @@ library PositionLib {
             Fixed6Lib.from(newShort).sub(Fixed6Lib.from(self.short))
         );
 
-        if (self.id != currentId) {
-            self.fee = UFixed6Lib.ZERO;
-            self.keeper = UFixed6Lib.ZERO;
-        }
+        if (self.id != currentId) _prepare(self);
         (self.id, self.timestamp, self.maker, self.long, self.short) =
             (currentId, currentTimestamp, newMaker, newLong, newShort);
     }
@@ -93,10 +90,7 @@ library PositionLib {
     function update(Position memory self, uint256 currentId, uint256 currentTimestamp, Order memory order) internal pure {
         (Fixed6 latestSkew, UFixed6 latestEfficiency) = (skew(self), efficiency(self));
 
-        if (self.id != currentId) {
-            self.fee = UFixed6Lib.ZERO;
-            self.keeper = UFixed6Lib.ZERO;
-        }
+        if (self.id != currentId) _prepare(self);
         (self.id, self.timestamp, self.maker, self.long, self.short) = (
             currentId,
             currentTimestamp,
@@ -110,6 +104,13 @@ library PositionLib {
             Fixed6Lib.from(skew(self).abs()).sub(Fixed6Lib.from(latestSkew.abs())),
             Fixed6Lib.from(efficiency(self)).sub(Fixed6Lib.from(latestEfficiency))
         );
+    }
+
+    /// @dev prepare the position for the following id
+    function _prepare(Position memory self) private pure {
+        self.fee = UFixed6Lib.ZERO;
+        self.keeper = UFixed6Lib.ZERO;
+        self.collateral = Fixed6Lib.ZERO;
     }
 
     /// @dev update the collateral delta of the local position
