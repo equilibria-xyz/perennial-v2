@@ -13,7 +13,7 @@
   "scripts": {
     "build": "yarn compile && tsc -p tsconfig.build.json",
     "compile": "hardhat compile",
-    "deploy": "hardhat deploy",
+    "deploy": "OPTIMIZER_ENABLED=true hardhat deploy",
     "verify": "hardhat etherscan-verify --sleep --solc-input",
     "gasReport": "OPTIMIZER_ENABLED=true REPORT_GAS=true yarn test:integration",
     "test": "hardhat test test/unit/**/*",
