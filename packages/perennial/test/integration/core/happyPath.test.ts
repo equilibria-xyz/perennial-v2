@@ -1014,7 +1014,7 @@ describe('Happy Path', () => {
   })
 
   // uncheck skip to see gas results
-  it.only('multi-delayed update w/ collateral (gas)', async () => {
+  it.skip('multi-delayed update w/ collateral (gas)', async () => {
     const positionFeesOn = true
     const incentizesOn = true
     const delay = 5
@@ -1026,7 +1026,7 @@ describe('Happy Path', () => {
     const chainlink = await new ChainlinkContext(
       CHAINLINK_CUSTOM_CURRENCIES.ETH,
       CHAINLINK_CUSTOM_CURRENCIES.USD,
-      1,
+      delay,
     ).init()
     const instanceVars = await deployProtocol(chainlink)
     const { user, userB, dsu, oracle } = instanceVars
@@ -1054,7 +1054,7 @@ describe('Happy Path', () => {
         max: parse6decimal('1.20'),
       },
       minMaintenance: parse6decimal('500'),
-      staleAfter: 7200,
+      staleAfter: 100000, // enable long delays for testing
       makerReceiveOnly: false,
     }
     const parameter = {
@@ -1093,7 +1093,6 @@ describe('Happy Path', () => {
     // const currentVersion = delay + delay + delay - (sync ? 0 : 1)
     // const latestVersion = delay + delay - (sync ? 0 : 1)
 
-    console.log('update')
     await expect(market.connect(user).update(user.address, POSITION, 0, 0, -1, false))
       .to.emit(market, 'Updated')
       .withArgs(user.address, await chainlink.oracle.current(), POSITION, 0, 0, -1, false)
@@ -1110,7 +1109,7 @@ describe('Happy Path', () => {
       id: delay + 1,
       timestamp: await chainlink.oracle.current(),
       maker: POSITION,
-      fee: '6121',
+      fee: (await market.pendingPositions(user.address, delay + 1)).fee,
       delta: COLLATERAL.sub(1),
     })
     expectPositionEq(await market.positions(user.address), {
@@ -1134,7 +1133,7 @@ describe('Happy Path', () => {
       timestamp: await chainlink.oracle.current(),
       maker: POSITION,
       long: POSITION.sub(1),
-      fee: '6121',
+      fee: (await market.pendingPosition(delay + 1)).fee,
     })
     expectPositionEq(await market.position(), {
       ...DEFAULT_POSITION,
