@@ -52,7 +52,7 @@ jobs:
       - name: Install
         run: yarn --frozen-lockfile
       - name: Compile
-        run: yarn workspace @equilibria/perennial-v2 run compile
+        run: yarn workspaces run compile # compile all packages
       - name: Run tests
         env:
           MOCHA_REPORTER: dot
@@ -83,7 +83,7 @@ jobs:
       - name: Install
         run: yarn --frozen-lockfile
       - name: Compile
-        run: yarn workspace @equilibria/perennial-v2 run compile
+        run: yarn workspaces run compile # compile all packages
       - name: Run tests
         env:
           MOCHA_REPORTER: dot
@@ -117,7 +117,7 @@ jobs:
       - name: Install
         run: yarn --frozen-lockfile
       - name: Compile
-        run: yarn workspace @equilibria/perennial-v2-oracle run compile
+        run: yarn workspaces run compile # compile all packages
       - name: Run tests
         env:
           MOCHA_REPORTER: dot
@@ -148,7 +148,7 @@ jobs:
       - name: Install
         run: yarn --frozen-lockfile
       - name: Compile
-        run: yarn workspace @equilibria/perennial-v2-oracle run compile
+        run: yarn workspaces run compile # compile all packages
       - name: Run tests
         env:
           MOCHA_REPORTER: dot
@@ -182,7 +182,7 @@ jobs:
       - name: Install
         run: yarn --frozen-lockfile
       - name: Compile
-        run: yarn workspace @equilibria/perennial-v2-payoff run compile
+        run: yarn workspaces run compile # compile all packages
       - name: Run tests
         env:
           MOCHA_REPORTER: dot
@@ -213,7 +213,7 @@ jobs:
       - name: Install
         run: yarn --frozen-lockfile
       - name: Compile
-        run: yarn workspace @equilibria/perennial-v2-payoff run compile
+        run: yarn workspaces run compile # compile all packages
       - name: Run tests
         env:
           MOCHA_REPORTER: dot
@@ -247,7 +247,7 @@ jobs:
       - name: Install
         run: yarn --frozen-lockfile
       - name: Compile
-        run: yarn workspace @equilibria/perennial-v2-vault run compile && yarn workspace @equilibria/perennial-v2 run compile
+        run: yarn workspaces run compile # compile all packages
       - name: Run tests
         env:
           MOCHA_REPORTER: dot
@@ -278,7 +278,7 @@ jobs:
       - name: Install
         run: yarn --frozen-lockfile
       - name: Compile
-        run: yarn workspace @equilibria/perennial-v2-vault run compile
+        run: yarn workspaces run compile # compile all packages
       - name: Run tests
         env:
           MOCHA_REPORTER: dot
@@ -312,7 +312,7 @@ jobs:
       - name: Install
         run: yarn --frozen-lockfile
       - name: Compile
-        run: yarn workspace @equilibria/perennial-v2-extensions run compile
+        run: yarn workspaces run compile # compile all packages
       - name: Run tests
         env:
           MOCHA_REPORTER: dot
@@ -343,7 +343,7 @@ jobs:
       - name: Install
         run: yarn --frozen-lockfile
       - name: Compile
-        run: yarn workspace @equilibria/perennial-v2-extensions run compile
+        run: yarn workspaces run compile # compile all packages
       - name: Run tests
         env:
           MOCHA_REPORTER: dot
