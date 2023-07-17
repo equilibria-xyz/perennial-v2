@@ -8,8 +8,12 @@ import {
   IOracleProvider,
   IOracleFactory,
 } from '../../../types/generated'
+import { buildChainlinkRoundId } from '@equilibria/perennial-v2-oracle/util/buildChainlinkRoundId'
 
 const { ethers, deployments } = HRE
+
+export const INITIAL_PHASE_ID = 1
+export const INITIAL_AGGREGATOR_ROUND_ID = 10000
 
 export class ChainlinkContext {
   private feedRegistryExternal!: FeedRegistryInterface
@@ -25,7 +29,8 @@ export class ChainlinkContext {
   public oracleFactory!: FakeContract<IOracleFactory>
   public oracle!: FakeContract<IOracleProvider>
 
-  constructor(base: string, quote: string, initialRoundId: BigNumber, delay: number) {
+  constructor(base: string, quote: string, delay: number) {
+    const initialRoundId = buildChainlinkRoundId(INITIAL_PHASE_ID, INITIAL_AGGREGATOR_ROUND_ID)
     this.base = base
     this.quote = quote
     this.id = ethers.utils.keccak256(ethers.utils.defaultAbiCoder.encode(['string', 'string'], [base, quote]))

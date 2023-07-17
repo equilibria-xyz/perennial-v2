@@ -953,6 +953,7 @@ describe('Happy Path', () => {
     await chainlink.next()
     await chainlink.next()
 
+    console.log('update')
     await expect(market.connect(user).update(user.address, POSITION, 0, 0, -1, false)) // 4 -> 5
       .to.emit(market, 'Updated')
       .withArgs(user.address, TIMESTAMP_5, POSITION, 0, 0, -1, false)
@@ -1013,7 +1014,7 @@ describe('Happy Path', () => {
   })
 
   // uncheck skip to see gas results
-  it('multi-delayed update w/ collateral (gas)', async () => {
+  it.only('multi-delayed update w/ collateral (gas)', async () => {
     const positionFeesOn = true
     const incentizesOn = true
     const delay = 5
@@ -1021,15 +1022,14 @@ describe('Happy Path', () => {
 
     const POSITION = parse6decimal('0.0001')
     const COLLATERAL = parse6decimal('1000')
-    const { owner, user, userB, dsu, payoff } = instanceVars
 
-    const initialRoundId = buildChainlinkRoundId(INITIAL_PHASE_ID, INITIAL_AGGREGATOR_ROUND_ID)
     const chainlink = await new ChainlinkContext(
       CHAINLINK_CUSTOM_CURRENCIES.ETH,
       CHAINLINK_CUSTOM_CURRENCIES.USD,
-      initialRoundId,
-      delay,
+      1,
     ).init()
+    const instanceVars = await deployProtocol(chainlink)
+    const { user, userB, dsu, oracle } = instanceVars
 
     const riskParameter = {
       maintenance: parse6decimal('0.3'),
@@ -1084,18 +1084,16 @@ describe('Happy Path', () => {
       await market.connect(userB).update(userB.address, 0, POSITION.sub(delay - i), 0, i == 0 ? COLLATERAL : 0, false)
 
       await chainlink.next()
-      console.log(await chainlink.oracle.current())
     }
 
     // ensure all pending can settle
     for (let i = 0; i < delay - 1; i++) await chainlink.next()
-    console.log(await chainlink.oracle.current())
     if (sync) await chainlink.next()
-    console.log(await chainlink.oracle.current())
 
     // const currentVersion = delay + delay + delay - (sync ? 0 : 1)
     // const latestVersion = delay + delay - (sync ? 0 : 1)
 
+    console.log('update')
     await expect(market.connect(user).update(user.address, POSITION, 0, 0, -1, false))
       .to.emit(market, 'Updated')
       .withArgs(user.address, await chainlink.oracle.current(), POSITION, 0, 0, -1, false)
@@ -1112,6 +1110,8 @@ describe('Happy Path', () => {
       id: delay + 1,
       timestamp: await chainlink.oracle.current(),
       maker: POSITION,
+      fee: '6121',
+      delta: COLLATERAL.sub(1),
     })
     expectPositionEq(await market.positions(user.address), {
       ...DEFAULT_POSITION,
@@ -1134,6 +1134,7 @@ describe('Happy Path', () => {
       timestamp: await chainlink.oracle.current(),
       maker: POSITION,
       long: POSITION.sub(1),
+      fee: '6121',
     })
     expectPositionEq(await market.position(), {
       ...DEFAULT_POSITION,

@@ -455,6 +455,8 @@ contract Market is IMarket, Instance {
         Context memory context,
         Position memory newPosition
     ) private {
+        console.log("processing position", newPosition.timestamp);
+
         Version memory version = _versions[context.latestPosition.global.timestamp].read();
         OracleVersion memory oracleVersion = _oracleVersionAtPosition(context, newPosition); // TODO: seems weird some logic is in here
         if (!oracleVersion.valid) newPosition.invalidate(context.latestPosition.global); // TODO: combine this with sync logic?
