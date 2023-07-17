@@ -111,3 +111,14 @@ export class Big6Math {
     return a.mul(this.BASE).div(b)
   }
 }
+
+export const DEFAULT_POSITION: Position = {
+  id: 0,
+  timestamp: 0,
+  long: 0,
+  maker: 0,
+  short: 0,
+  fee: 0,
+  collateral: 0,
+  delta: 0,
+}

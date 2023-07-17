@@ -15,6 +15,7 @@ import {
   PowerTwo__factory,
 } from '../../../types/generated'
 import {
+  DEFAULT_POSITION,
   expectGlobalEq,
   expectLocalEq,
   expectPositionEq,
@@ -56,17 +57,6 @@ const DEFAULT_LOCAL_ACCUMULATION_RESULT = {
   rewardAmount: 0,
   positionFee: 0,
   keeper: 0,
-}
-
-const DEFAULT_POSITION: Position = {
-  id: 0,
-  timestamp: 0,
-  long: 0,
-  maker: 0,
-  short: 0,
-  fee: 0,
-  collateral: 0,
-  delta: 0,
 }
 
 const ORACLE_VERSION_0 = {

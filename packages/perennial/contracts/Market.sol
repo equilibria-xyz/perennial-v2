@@ -199,6 +199,9 @@ contract Market is IMarket, Instance {
         _global.store(newGlobal);
     }
 
+    /// @notice Helper function to handle a singular fee claim
+    /// @param receiver The address to receive the fee
+    /// @param fee The amount of the fee to claim
     function _claimFee(address receiver, UFixed6 fee) private returns (bool) {
         if (msg.sender != receiver) return false;
 
@@ -207,6 +210,7 @@ contract Market is IMarket, Instance {
         return true;
     }
 
+    /// @notice Claims any available reward that the sender has accrued
     function claimReward() external {
         Local memory newLocal = _locals[msg.sender].read();
 
@@ -217,42 +221,59 @@ contract Market is IMarket, Instance {
         _locals[msg.sender].store(newLocal);
     }
 
+    /// @notice Returns the current parameter set
     function parameter() external view returns (MarketParameter memory) {
         return _parameter.read();
     }
 
+    /// @notice Returns the current risk parameter set
     function riskParameter() external view returns (RiskParameter memory) {
         return _riskParameter.read();
     }
 
+    /// @notice Returns the current global position
     function position() external view returns (Position memory) {
         return _position.read();
     }
 
+    /// @notice Returns the current local position for the account
+    /// @param account The account to query
     function positions(address account) external view returns (Position memory) {
         return _positions[account].read();
     }
 
+    /// @notice Returns the current global state
     function global() external view returns (Global memory) {
         return _global.read();
     }
 
-    function versions(uint256 oracleVersion) external view returns (Version memory) {
-        return _versions[oracleVersion].read();
+    /// @notice Returns the historical version snapshot at the given timestamp
+    /// @param timestamp The timestamp to query
+    function versions(uint256 timestamp) external view returns (Version memory) {
+        return _versions[timestamp].read();
     }
 
+    /// @notice Returns the local state for the given account
+    /// @param account The account to query
     function locals(address account) external view returns (Local memory) {
         return _locals[account].read();
     }
 
+    /// @notice Returns the global pending position for the given id
+    /// @param id The id to query
     function pendingPosition(uint256 id) external view returns (Position memory) {
         return _pendingPosition[id].read();
     }
 
+    /// @notice Returns the local pending position for the given account and id
+    /// @param account The account to query
+    /// @param id The id to query
     function pendingPositions(address account, uint256 id) external view returns (Position memory) {
         return _pendingPositions[account][id].read();
     }
 
+    /// @notice Returns the oracle version at the given timestamp
+    /// @param timestamp The timestamp to query
     function at(uint256 timestamp) public view returns (OracleVersion memory) {
         return _oracleVersionAt(timestamp);
     }

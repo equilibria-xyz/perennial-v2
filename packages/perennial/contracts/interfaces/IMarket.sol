@@ -95,7 +95,7 @@ interface IMarket is IInstance {
     function positions(address account) external view returns (Position memory);
     function pendingPositions(address account, uint256 id) external view returns (Position memory);
     function locals(address account) external view returns (Local memory);
-    function versions(uint256 oracleVersion) external view returns (Version memory);
+    function versions(uint256 timestamp) external view returns (Version memory);
     function pendingPosition(uint256 id) external view returns (Position memory);
     function position() external view returns (Position memory);
     function global() external view returns (Global memory);
