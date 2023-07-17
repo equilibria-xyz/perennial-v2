@@ -50,11 +50,10 @@ library CheckpointLib {
      * @return Amount of shares for the given assets at basis
      */
     function toShares(Checkpoint memory self, UFixed6 assets) internal pure returns (UFixed6) {
-        return self.shares.isZero() ?
-            assets :  // vault is fresh, use par value
-            self.assets.lte(Fixed6Lib.ZERO) ?
-                assets :  // vault is insolvent, default to par value
-                _toShares(self, assets);
+        if (self.shares.isZero()) return assets;  // vault is fresh, use par value
+
+        // if vault is insolvent, default to par value
+        return  self.assets.lte(Fixed6Lib.ZERO) ? assets : _toShares(self, assets);
     }
 
     /**

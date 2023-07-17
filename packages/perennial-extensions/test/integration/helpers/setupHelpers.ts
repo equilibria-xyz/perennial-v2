@@ -19,6 +19,7 @@ import {
   IEmptySetReserve__factory,
   Market,
   Market__factory,
+  PowerTwo__factory,
 } from '../../../types/generated'
 
 // v2 core types
@@ -38,7 +39,6 @@ import { ChainlinkContext } from '@equilibria/perennial-v2/test/integration/help
 import { parse6decimal } from '../../../../common/testutil/types'
 import { buildChainlinkRoundId } from '@equilibria/perennial-v2-oracle/util/buildChainlinkRoundId'
 import { CHAINLINK_CUSTOM_CURRENCIES } from '@equilibria/perennial-v2-oracle/util/constants'
-import { Squared__factory } from '@equilibria/perennial-v2-payoff/types/generated'
 import { currentBlockTimestamp } from '../../../../common/testutil/time'
 // import { ProtocolParameterStruct } from '@equilibria/perennial-v2/types/generated/contracts/Factory'
 const { config, deployments, ethers } = HRE
@@ -97,7 +97,7 @@ export async function deployProtocol(): Promise<InstanceVars> {
     CHAINLINK_REGISTRY,
   ).init()
 
-  const payoff = await IPayoffProvider__factory.connect((await new Squared__factory(owner).deploy()).address, owner)
+  const payoff = await IPayoffProvider__factory.connect((await new PowerTwo__factory(owner).deploy()).address, owner)
   const dsu = await IERC20Metadata__factory.connect(DSU, owner)
   const usdc = await IERC20Metadata__factory.connect(USDC, owner)
   const batcher = await IBatcher__factory.connect(BATCHER, owner)
