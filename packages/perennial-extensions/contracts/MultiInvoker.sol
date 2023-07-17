@@ -154,7 +154,7 @@ contract MultiInvoker is IMultiInvoker, KeeperManager, UKept {
 
         market.update(
             account, 
-            UFixed6Lib.MAX, UFixed6Lib.MAX, UFixed6Lib.MAX, 
+            UFixed6Lib.ZERO, UFixed6Lib.ZERO, UFixed6Lib.ZERO, 
             Fixed6Lib.from(-1, liquidationFee), 
             true);
         
