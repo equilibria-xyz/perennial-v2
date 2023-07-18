@@ -542,7 +542,7 @@ describe('Market', () => {
           }
           await expect(market.connect(owner).updateParameter(newMarketParameter))
             .to.revertedWithCustomError(market, 'MarketInvalidMarketParameterError')
-            .withArgs(4)
+            .withArgs(2)
         })
       })
 
@@ -570,7 +570,7 @@ describe('Market', () => {
           }
           await expect(market.connect(owner).updateParameter(newMarketParameter))
             .to.revertedWithCustomError(market, 'MarketInvalidMarketParameterError')
-            .withArgs(1)
+            .withArgs(3)
         })
 
         it('interestFee -> fail', async () => {
@@ -581,7 +581,7 @@ describe('Market', () => {
           }
           await expect(market.connect(owner).updateParameter(newMarketParameter))
             .to.revertedWithCustomError(market, 'MarketInvalidMarketParameterError')
-            .withArgs(2)
+            .withArgs(3)
         })
 
         it('positionFee -> fail', async () => {
@@ -618,7 +618,7 @@ describe('Market', () => {
           }
           await expect(market.connect(owner).updateParameter(newMarketParameter))
             .to.revertedWithCustomError(market, 'MarketInvalidMarketParameterError')
-            .withArgs(5)
+            .withArgs(8)
         })
       })
 
@@ -644,7 +644,7 @@ describe('Market', () => {
           }
           await expect(market.connect(owner).updateParameter(newMarketParameter))
             .to.revertedWithCustomError(market, 'MarketInvalidMarketParameterError')
-            .withArgs(6)
+            .withArgs(9)
         })
 
         it('longRewardRate -> fail', async () => {
@@ -656,7 +656,7 @@ describe('Market', () => {
           }
           await expect(market.connect(owner).updateParameter(newMarketParameter))
             .to.revertedWithCustomError(market, 'MarketInvalidMarketParameterError')
-            .withArgs(6)
+            .withArgs(9)
         })
 
         it('shortRewardRate -> fail', async () => {
@@ -668,7 +668,7 @@ describe('Market', () => {
           }
           await expect(market.connect(owner).updateParameter(newMarketParameter))
             .to.revertedWithCustomError(market, 'MarketInvalidMarketParameterError')
-            .withArgs(6)
+            .withArgs(9)
         })
       })
 
@@ -806,7 +806,7 @@ describe('Market', () => {
           }
           await expect(market.connect(owner).updateRiskParameter(newRiskParameter))
             .to.revertedWithCustomError(market, 'MarketInvalidRiskParameterError')
-            .withArgs(2)
+            .withArgs(1)
         })
 
         it('takerSkewFee -> fail', async () => {
@@ -817,7 +817,7 @@ describe('Market', () => {
           }
           await expect(market.connect(owner).updateRiskParameter(newRiskParameter))
             .to.revertedWithCustomError(market, 'MarketInvalidRiskParameterError')
-            .withArgs(3)
+            .withArgs(1)
         })
 
         it('takerImpactFee -> fail', async () => {
@@ -828,7 +828,7 @@ describe('Market', () => {
           }
           await expect(market.connect(owner).updateRiskParameter(newRiskParameter))
             .to.revertedWithCustomError(market, 'MarketInvalidRiskParameterError')
-            .withArgs(4)
+            .withArgs(1)
         })
 
         it('makerFee -> fail', async () => {
@@ -839,7 +839,7 @@ describe('Market', () => {
           }
           await expect(market.connect(owner).updateRiskParameter(newRiskParameter))
             .to.revertedWithCustomError(market, 'MarketInvalidRiskParameterError')
-            .withArgs(5)
+            .withArgs(1)
         })
 
         it('makerImpactFee -> fail', async () => {
@@ -850,7 +850,7 @@ describe('Market', () => {
           }
           await expect(market.connect(owner).updateRiskParameter(newRiskParameter))
             .to.revertedWithCustomError(market, 'MarketInvalidRiskParameterError')
-            .withArgs(6)
+            .withArgs(1)
         })
       })
 
@@ -877,7 +877,7 @@ describe('Market', () => {
           }
           await expect(market.connect(owner).updateRiskParameter(newRiskParameter))
             .to.revertedWithCustomError(market, 'MarketInvalidRiskParameterError')
-            .withArgs(9)
+            .withArgs(2)
         })
 
         it('maxLiquidationFee -> fail', async () => {
@@ -888,7 +888,7 @@ describe('Market', () => {
           }
           await expect(market.connect(owner).updateRiskParameter(newRiskParameter))
             .to.revertedWithCustomError(market, 'MarketInvalidRiskParameterError')
-            .withArgs(10)
+            .withArgs(2)
         })
 
         it('minMaintenance -> fail', async () => {
@@ -899,7 +899,7 @@ describe('Market', () => {
           }
           await expect(market.connect(owner).updateRiskParameter(newRiskParameter))
             .to.revertedWithCustomError(market, 'MarketInvalidRiskParameterError')
-            .withArgs(16)
+            .withArgs(2)
         })
       })
 
@@ -924,7 +924,7 @@ describe('Market', () => {
           }
           await expect(market.connect(owner).updateRiskParameter(newRiskParameter))
             .to.revertedWithCustomError(market, 'MarketInvalidRiskParameterError')
-            .withArgs(8)
+            .withArgs(3)
         })
       })
 
@@ -961,7 +961,7 @@ describe('Market', () => {
           }
           await expect(market.connect(owner).updateRiskParameter(newRiskParameter))
             .to.revertedWithCustomError(market, 'MarketInvalidRiskParameterError')
-            .withArgs(11)
+            .withArgs(4)
         })
 
         it('utilizationCurve.maxRate -> fail', async () => {
@@ -975,7 +975,7 @@ describe('Market', () => {
           }
           await expect(market.connect(owner).updateRiskParameter(newRiskParameter))
             .to.revertedWithCustomError(market, 'MarketInvalidRiskParameterError')
-            .withArgs(12)
+            .withArgs(4)
         })
 
         it('utilizationCurve.targetRate -> fail', async () => {
@@ -989,7 +989,7 @@ describe('Market', () => {
           }
           await expect(market.connect(owner).updateRiskParameter(newRiskParameter))
             .to.revertedWithCustomError(market, 'MarketInvalidRiskParameterError')
-            .withArgs(13)
+            .withArgs(4)
         })
 
         it('pController.max -> fail', async () => {
@@ -1003,7 +1003,7 @@ describe('Market', () => {
           }
           await expect(market.connect(owner).updateRiskParameter(newRiskParameter))
             .to.revertedWithCustomError(market, 'MarketInvalidRiskParameterError')
-            .withArgs(15)
+            .withArgs(4)
         })
       })
 
@@ -1028,7 +1028,7 @@ describe('Market', () => {
           }
           await expect(market.connect(owner).updateRiskParameter(newRiskParameter))
             .to.revertedWithCustomError(market, 'MarketInvalidRiskParameterError')
-            .withArgs(1)
+            .withArgs(5)
         })
       })
 
@@ -1053,7 +1053,7 @@ describe('Market', () => {
           }
           await expect(market.connect(owner).updateRiskParameter(newRiskParameter))
             .to.revertedWithCustomError(market, 'MarketInvalidRiskParameterError')
-            .withArgs(7)
+            .withArgs(6)
         })
       })
 
@@ -1082,7 +1082,7 @@ describe('Market', () => {
           }
           await expect(market.connect(owner).updateRiskParameter(newRiskParameter))
             .to.revertedWithCustomError(market, 'MarketInvalidRiskParameterError')
-            .withArgs(14)
+            .withArgs(7)
         })
       })
 
@@ -1117,7 +1117,7 @@ describe('Market', () => {
           }
           await expect(market.connect(owner).updateRiskParameter(newRiskParameter))
             .to.revertedWithCustomError(market, 'MarketInvalidRiskParameterError')
-            .withArgs(16)
+            .withArgs(8)
         })
       })
 

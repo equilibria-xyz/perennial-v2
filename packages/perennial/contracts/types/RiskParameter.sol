@@ -6,6 +6,7 @@ import "@equilibria/perennial-v2-oracle/contracts/interfaces/IOracleProvider.sol
 import "@equilibria/root/number/types/UFixed6.sol";
 import "@equilibria/root/curve/types/UJumpRateUtilizationCurve6.sol";
 import "@equilibria/root-v2/contracts/PController6.sol";
+import "./ProtocolParameter.sol";
 
 /// @dev RiskParameter type
 struct RiskParameter {
@@ -27,7 +28,7 @@ struct RiskParameter {
     uint256 staleAfter;
     bool makerReceiveOnly;
 }
-
+using RiskParameterLib for RiskParameter global;
 struct StoredRiskParameter {
     /* slot 1 */
     uint48 makerLimit;                          // <= 281m
@@ -58,6 +59,37 @@ struct StoredRiskParameter {
 }
 struct RiskParameterStorage { StoredRiskParameter value; }
 using RiskParameterStorageLib for RiskParameterStorage global;
+
+library RiskParameterLib {
+    error MarketInvalidRiskParameterError(uint256 code);
+
+    function validate(RiskParameter memory self, ProtocolParameter memory protocolParameter) internal pure {
+        if (
+            self.takerFee.max(self.takerSkewFee).max(self.takerImpactFee).max(self.makerFee).max(self.makerImpactFee)
+            .gt(protocolParameter.maxFee)
+        ) revert MarketInvalidRiskParameterError(1);
+
+        if (
+            self.minLiquidationFee.max(self.maxLiquidationFee).max(self.minMaintenance)
+            .gt(protocolParameter.maxFeeAbsolute)
+        ) revert MarketInvalidRiskParameterError(2);
+
+        if (self.liquidationFee.gt(protocolParameter.maxCut)) revert MarketInvalidRiskParameterError(3);
+
+        if (
+            self.utilizationCurve.minRate.max(self.utilizationCurve.maxRate).max(self.utilizationCurve.targetRate).max(self.pController.max)
+            .gt(protocolParameter.maxRate)
+        ) revert MarketInvalidRiskParameterError(4);
+
+        if (self.maintenance.lt(protocolParameter.minMaintenance)) revert MarketInvalidRiskParameterError(5);
+
+        if (self.efficiencyLimit.lt(protocolParameter.minEfficiency)) revert MarketInvalidRiskParameterError(6);
+
+        if (self.utilizationCurve.targetUtilization.gt(UFixed6Lib.ONE)) revert MarketInvalidRiskParameterError(7);
+
+        if (self.minMaintenance.lt(self.minLiquidationFee)) revert MarketInvalidRiskParameterError(8);
+    }
+}
 
 library RiskParameterStorageLib {
     error RiskParameterStorageInvalidError();
