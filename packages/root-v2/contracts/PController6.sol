@@ -23,15 +23,21 @@ library PController6Lib {
         Fixed6 skew,
         uint256 fromTimestamp,
         uint256 toTimestamp
-    ) internal pure returns (Fixed6 newValue, Fixed6 newValueCapped, UFixed6 interceptTimestamp) {
-        newValue = value.add(Fixed6Lib.from(int256(toTimestamp - fromTimestamp)).mul(skew).div(Fixed6Lib.from(self.k)));
+    ) internal pure returns (Fixed6 newValue, UFixed6 interceptTimestamp) {
+        Fixed6 newValueUncapped = value.add(
+            Fixed6Lib.from(int256(toTimestamp - fromTimestamp))
+                .mul(skew)
+                .div(Fixed6Lib.from(self.k))
+        );
 
-        newValueCapped = Fixed6Lib.from(newValue.sign(), self.max.min(newValue.abs()));
+        newValue = Fixed6Lib.from(newValueUncapped.sign(), self.max.min(newValueUncapped.abs()));
 
-        (UFixed6 distance, Fixed6 range) = (UFixed6Lib.from(toTimestamp - fromTimestamp), newValue.sub(value));
-        UFixed6 buffer = value.sub(Fixed6Lib.from(range.sign(), self.max)).abs();
+        (UFixed6 distance, Fixed6 range) = (UFixed6Lib.from(toTimestamp - fromTimestamp), newValueUncapped.sub(value));
+        UFixed6 buffer = value.abs().gt(self.max) ?
+            UFixed6Lib.ZERO :
+            Fixed6Lib.from(range.sign(), self.max).sub(value).abs();
         interceptTimestamp = range.isZero() ?
-            UFixed6Lib.MAX :
-            UFixed6Lib.from(fromTimestamp).add(distance.muldiv(buffer, range.abs()));
+            UFixed6Lib.from(toTimestamp) :
+            UFixed6Lib.from(fromTimestamp).add(distance.muldiv(buffer, range.abs())).min(UFixed6Lib.from(toTimestamp));
     }
 }

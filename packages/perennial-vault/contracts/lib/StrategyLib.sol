@@ -21,6 +21,14 @@ library StrategyLib {
         UFixed6 position;
     }
 
+    /// @dev Internal struct to avoid stack to deep error
+    struct _AllocateLocals {
+        UFixed6 marketCollateral;
+        UFixed6 marketAssets;
+        UFixed6 minPosition;
+        UFixed6 maxPosition;
+    }
+
     function allocate(
         Registration[] memory registrations,
         UFixed6 collateral,
@@ -34,26 +42,27 @@ library StrategyLib {
 
         targets = new MarketTarget[](registrations.length);
         for (uint256 marketId; marketId < registrations.length; marketId++) {
-            UFixed6 marketCollateral = contexts[marketId].maintenance
+            _AllocateLocals memory _locals;
+            _locals.marketCollateral = contexts[marketId].maintenance
                 .add(collateral.sub(totalMaintenance).muldiv(registrations[marketId].weight, totalWeight));
 
-            UFixed6 marketAssets = assets
+            _locals.marketAssets = assets
                 .muldiv(registrations[marketId].weight, totalWeight)
-                .min(marketCollateral.mul(LEVERAGE_BUFFER));
+                .min(_locals.marketCollateral.mul(LEVERAGE_BUFFER));
 
             if (
                 contexts[marketId].marketParameter.closed ||
-                marketAssets.lt(contexts[marketId].riskParameter.minMaintenance)
-            ) marketAssets = UFixed6Lib.ZERO;
+                _locals.marketAssets.lt(contexts[marketId].riskParameter.minMaintenance)
+            ) _locals.marketAssets = UFixed6Lib.ZERO;
 
-            (UFixed6 minPosition, UFixed6 maxPosition) = _positionLimit(contexts[marketId]);
+            (_locals.minPosition, _locals.maxPosition) = _positionLimit(contexts[marketId]);
 
             (targets[marketId].collateral, targets[marketId].position) = (
-                Fixed6Lib.from(marketCollateral).sub(contexts[marketId].local.collateral),
-                marketAssets
+                Fixed6Lib.from(_locals.marketCollateral).sub(contexts[marketId].local.collateral),
+                _locals.marketAssets
                     .muldiv(registrations[marketId].leverage, contexts[marketId].oracleVersion.price.abs())
-                    .min(maxPosition)
-                    .max(minPosition)
+                    .min(_locals.maxPosition)
+                    .max(_locals.minPosition)
             );
         }
     }
@@ -91,12 +100,8 @@ library StrategyLib {
             // minimum position size before crossing the net position
             context.currentAccountPosition.maker.sub(
                 context.currentPosition.maker
-                    .sub(
-                        Fixed6Lib.from(context.currentPosition.long) // TODO: cleanup
-                            .sub(Fixed6Lib.from(context.currentPosition.short))
-                            .abs()
-                            .min(context.currentPosition.maker)
-                    ).min(context.currentAccountPosition.maker)
+                    .sub(context.currentPosition.net().min(context.currentPosition.maker))
+                    .min(context.currentAccountPosition.maker)
             ),
             // maximum position size before crossing the maker limit
             context.currentAccountPosition.maker.add(

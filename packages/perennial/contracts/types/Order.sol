@@ -12,9 +12,11 @@ struct Order {
     Fixed6 short;
     UFixed6 skew;
     Fixed6 impact;
+    Fixed6 utilization;
     Fixed6 efficiency;
     UFixed6 fee;
     UFixed6 keeper;
+    Fixed6 net;
 }
 using OrderLib for Order global;
 
@@ -30,7 +32,7 @@ library OrderLib {
         RiskParameter memory riskParameter
     ) internal pure {
         Fixed6 makerFee = Fixed6Lib.from(riskParameter.makerFee)
-            .add(Fixed6Lib.from(riskParameter.makerImpactFee).mul(self.impact))
+            .add(Fixed6Lib.from(riskParameter.makerImpactFee).mul(self.utilization))
             .max(Fixed6Lib.ZERO);
         Fixed6 takerFee = Fixed6Lib.from(riskParameter.takerFee)
             .add(Fixed6Lib.from(riskParameter.takerSkewFee.mul(self.skew)))
@@ -44,11 +46,7 @@ library OrderLib {
     }
 
     function increasesPosition(Order memory self) internal pure returns (bool) {
-        return increasesMaker(self) || increasesTaker(self);
-    }
-
-    function increasesMaker(Order memory self) internal pure returns (bool) {
-        return self.maker.gt(Fixed6Lib.ZERO);
+        return self.maker.gt(Fixed6Lib.ZERO) || increasesTaker(self);
     }
 
     function increasesTaker(Order memory self) internal pure returns (bool) {
@@ -56,7 +54,16 @@ library OrderLib {
     }
 
     function decreasesLiquidity(Order memory self) internal pure returns (bool) {
-        return self.maker.lt(Fixed6Lib.ZERO) || self.impact.gt(Fixed6Lib.ZERO);
+        return self.maker.lt(self.net);
+    }
+
+    function liquidityCheckApplicable(
+        Order memory self,
+        MarketParameter memory marketParameter
+    ) internal pure returns (bool) {
+        return !marketParameter.closed &&
+            !marketParameter.makerCloseAlways &&
+            (!marketParameter.takerCloseAlways || increasesTaker(self));
     }
 
     function isEmpty(Order memory self) internal pure returns (bool) {

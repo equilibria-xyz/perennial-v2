@@ -88,20 +88,38 @@ library VersionLib {
         if (marketParameter.closed) return (values, UFixed6Lib.ZERO);
 
         // accumulate position
-        (values.positionFeeMaker, values.positionFeeFee) = _accumulatePositionFee(self, fromPosition, toPosition, marketParameter);
+        (values.positionFeeMaker, values.positionFeeFee) =
+            _accumulatePositionFee(self, fromPosition, toPosition, marketParameter);
 
         // accumulate funding
-        _FundingValues memory fundingValues = _accumulateFunding(self, global, fromPosition, fromOracleVersion, toOracleVersion, marketParameter, riskParameter);
-        (values.fundingMaker, values.fundingLong, values.fundingShort, values.fundingFee) = (fundingValues.fundingMaker, fundingValues.fundingLong, fundingValues.fundingShort, fundingValues.fundingFee);
+        _FundingValues memory fundingValues = _accumulateFunding(
+            self,
+            global,
+            fromPosition,
+            toPosition,
+            fromOracleVersion,
+            toOracleVersion,
+            marketParameter,
+            riskParameter
+        );
+        (values.fundingMaker, values.fundingLong, values.fundingShort, values.fundingFee) = (
+            fundingValues.fundingMaker,
+            fundingValues.fundingLong,
+            fundingValues.fundingShort,
+            fundingValues.fundingFee
+        );
 
         // accumulate interest
-        (values.interestMaker, values.interestLong, values.interestShort, values.interestFee) = _accumulateInterest(self, fromPosition, fromOracleVersion, toOracleVersion, marketParameter, riskParameter);
+        (values.interestMaker,values.interestLong, values.interestShort, values.interestFee) =
+            _accumulateInterest(self, fromPosition, fromOracleVersion, toOracleVersion, marketParameter, riskParameter);
 
         // accumulate P&L
-        (values.pnlMaker, values.pnlLong, values.pnlShort) = _accumulatePNL(self, fromPosition, fromOracleVersion, toOracleVersion);
+        (values.pnlMaker, values.pnlLong, values.pnlShort) =
+            _accumulatePNL(self, fromPosition, fromOracleVersion, toOracleVersion);
 
         // accumulate reward
-        (values.rewardMaker, values.rewardLong, values.rewardShort) = _accumulateReward(self, fromPosition, fromOracleVersion, toOracleVersion, marketParameter);
+        (values.rewardMaker, values.rewardLong, values.rewardShort) =
+            _accumulateReward(self, fromPosition, fromOracleVersion, toOracleVersion, marketParameter);
 
         // record validity
         self.valid = toOracleVersion.valid;
@@ -151,7 +169,8 @@ library VersionLib {
     function _accumulateFunding(
         Version memory self,
         Global memory global,
-        Position memory position,
+        Position memory fromPosition,
+        Position memory toPosition,
         OracleVersion memory fromOracleVersion,
         OracleVersion memory toOracleVersion,
         MarketParameter memory marketParameter,
@@ -160,14 +179,14 @@ library VersionLib {
         // Compute long-short funding rate
         Fixed6 funding = global.pAccumulator.accumulate(
             riskParameter.pController,
-            position.skew(),
+            toPosition.skew(),
             fromOracleVersion.timestamp,
             toOracleVersion.timestamp,
-            position.takerSocialized().mul(fromOracleVersion.price.abs())
+            fromPosition.takerSocialized().mul(fromOracleVersion.price.abs())
         );
 
         // Handle maker receive-only status
-        if (riskParameter.makerReceiveOnly && funding.sign() != position.skew().sign())
+        if (riskParameter.makerReceiveOnly && funding.sign() != fromPosition.skew().sign())
             funding = funding.mul(Fixed6Lib.NEG_ONE);
 
         // Initialize long and short funding
@@ -178,22 +197,24 @@ library VersionLib {
         Fixed6 fundingSpread = Fixed6Lib.from(fundingValues.fundingFee).div(Fixed6Lib.from(2));
 
         // Adjust funding with spread
-        (fundingValues.fundingLong, fundingValues.fundingShort) =
-            (fundingValues.fundingLong.sub(Fixed6Lib.from(fundingValues.fundingFee)).add(fundingSpread), fundingValues.fundingShort.sub(fundingSpread));
+        (fundingValues.fundingLong, fundingValues.fundingShort) = (
+            fundingValues.fundingLong.sub(Fixed6Lib.from(fundingValues.fundingFee)).add(fundingSpread),
+            fundingValues.fundingShort.sub(fundingSpread)
+        );
 
         // Redirect net portion of minor's side to maker
-        if (position.long.gt(position.short)) {
-            fundingValues.fundingMaker = fundingValues.fundingShort.mul(Fixed6Lib.from(position.skew().abs()));
+        if (fromPosition.long.gt(fromPosition.short)) {
+            fundingValues.fundingMaker = fundingValues.fundingShort.mul(Fixed6Lib.from(fromPosition.skew().abs()));
             fundingValues.fundingShort = fundingValues.fundingShort.sub(fundingValues.fundingMaker);
         }
-        if (position.short.gt(position.long)) {
-            fundingValues.fundingMaker = fundingValues.fundingLong.mul(Fixed6Lib.from(position.skew().abs()));
+        if (fromPosition.short.gt(fromPosition.long)) {
+            fundingValues.fundingMaker = fundingValues.fundingLong.mul(Fixed6Lib.from(fromPosition.skew().abs()));
             fundingValues.fundingLong = fundingValues.fundingLong.sub(fundingValues.fundingMaker);
         }
 
-        self.makerValue.increment(fundingValues.fundingMaker, position.maker);
-        self.longValue.increment(fundingValues.fundingLong, position.long);
-        self.shortValue.increment(fundingValues.fundingShort, position.short);
+        self.makerValue.increment(fundingValues.fundingMaker, fromPosition.maker);
+        self.longValue.increment(fundingValues.fundingLong, fromPosition.long);
+        self.shortValue.increment(fundingValues.fundingShort, fromPosition.short);
     }
 
     /**

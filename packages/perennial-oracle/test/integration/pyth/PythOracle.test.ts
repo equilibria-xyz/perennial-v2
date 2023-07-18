@@ -262,7 +262,7 @@ describe('PythOracle', () => {
       await pythOracle.connect(user).commit(0, VAA, {
         value: 1,
       })
-      await time.increase(159)
+      await time.increaseTo(1686199133)
       await pythOracle.connect(oracleSigner).request()
       const secondRequestedVersion = await currentBlockTimestamp()
       const nonRequestedOracleVersion = STARTING_TIME + 60

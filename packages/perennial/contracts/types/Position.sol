@@ -81,16 +81,22 @@ library PositionLib {
             Fixed6Lib.from(newShort).sub(Fixed6Lib.from(self.short))
         );
 
-        if (self.id != currentId) self.fee = UFixed6Lib.ZERO;
+        if (self.id != currentId) _prepare(self);
         (self.id, self.timestamp, self.maker, self.long, self.short) =
             (currentId, currentTimestamp, newMaker, newLong, newShort);
     }
 
     /// @dev update the current global position
     function update(Position memory self, uint256 currentId, uint256 currentTimestamp, Order memory order) internal pure {
-        (Fixed6 latestSkew, UFixed6 latestEfficiency) = (skew(self), efficiency(self));
+        // load the computed attributes of the latest position
+        Fixed6 latestSkew = skew(self);
+        (order.net, order.efficiency, order.utilization) =
+            (Fixed6Lib.from(net(self)), Fixed6Lib.from(efficiency(self)), Fixed6Lib.from(utilization(self)));
 
-        if (self.id != currentId) self.fee = UFixed6Lib.ZERO;
+        // if the id is fresh, reset the position's applicable attributes
+        if (self.id != currentId) _prepare(self);
+
+        // update the position's attributes
         (self.id, self.timestamp, self.maker, self.long, self.short) = (
             currentId,
             currentTimestamp,
@@ -99,11 +105,21 @@ library PositionLib {
             UFixed6Lib.from(Fixed6Lib.from(self.short).add(order.short))
         );
 
-        (order.skew, order.impact, order.efficiency) = (
+        // update the order's delta attributes with the positions updated attributes
+        (order.net, order.skew, order.impact, order.efficiency, order.utilization) = (
+            Fixed6Lib.from(net(self)).sub(order.net),
             skew(self).sub(latestSkew).abs(),
             Fixed6Lib.from(skew(self).abs()).sub(Fixed6Lib.from(latestSkew.abs())),
-            Fixed6Lib.from(efficiency(self)).sub(Fixed6Lib.from(latestEfficiency))
+            Fixed6Lib.from(efficiency(self)).sub(order.efficiency),
+            Fixed6Lib.from(utilization(self)).sub(order.utilization)
         );
+    }
+
+    /// @dev prepare the position for the following id
+    function _prepare(Position memory self) private pure {
+        self.fee = UFixed6Lib.ZERO;
+        self.keeper = UFixed6Lib.ZERO;
+        self.collateral = Fixed6Lib.ZERO;
     }
 
     /// @dev update the collateral delta of the local position
@@ -138,6 +154,10 @@ library PositionLib {
         return self.long.min(self.short);
     }
 
+    function net(Position memory self) internal pure returns (UFixed6) {
+        return Fixed6Lib.from(self.long).sub(Fixed6Lib.from(self.short)).abs();
+    }
+
     function skew(Position memory self) internal pure returns (Fixed6) {
         return major(self).isZero() ?
             Fixed6Lib.ZERO :
@@ -145,7 +165,7 @@ library PositionLib {
     }
 
     function utilization(Position memory self) internal pure returns (UFixed6) {
-        return major(self).unsafeDiv(self.maker.add(minor(self)));
+        return major(self).unsafeDiv(self.maker.add(minor(self))).min(UFixed6Lib.ONE);
     }
 
     function longSocialized(Position memory self) internal pure returns (UFixed6) {

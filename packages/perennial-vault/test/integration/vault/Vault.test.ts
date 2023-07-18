@@ -1052,10 +1052,11 @@ describe('Vault', () => {
       expect(await btcPosition()).to.equal(0)
 
       // We should have redeemed all of our shares.
-      const currentFee = (await market.pendingPositions(vault.address, (await market.locals(vault.address)).currentId))
-        .fee
+      const currentFee = (
+        await market.pendingPositions(vault.address, (await market.locals(vault.address)).currentId.sub(1))
+      ).fee
       const btcCurrentFee = (
-        await btcMarket.pendingPositions(vault.address, (await btcMarket.locals(vault.address)).currentId)
+        await btcMarket.pendingPositions(vault.address, (await btcMarket.locals(vault.address)).currentId.sub(1))
       ).fee
 
       const unclaimed1 = BigNumber.from('992142699')

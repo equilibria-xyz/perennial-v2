@@ -127,7 +127,7 @@ contract MultiInvokerRollup is IMultiInvokerRollup, MultiInvoker {
         if (result == address(0)) revert MultiInvokerRollupAddressIndexOutOfBoundsError();
     }
 
-    // @todo should this just be included in the action branch like v1 to prevent complex _readFN -> simple _readFN hirearchies like v1?
+    // @todo should this just be included in the action branch like v1 to prevent complex _readFN -> simple _readFN hierarchies like v1?
     // if so, would make this "_readAbsolutePosition" to convert deltas to new position amounts
     function _readPosition(bytes calldata input, PTR memory ptr)
     private returns (
@@ -192,7 +192,7 @@ contract MultiInvokerRollup is IMultiInvokerRollup, MultiInvoker {
         ptr.pos += UINT8_LENGTH;
     }
 
-    function _readLengthAndSign(bytes calldata input, PTR memory ptr) private view returns (uint8 length, bool negative) {
+    function _readLengthAndSign(bytes calldata input, PTR memory ptr) private pure returns (uint8 length, bool negative) {
         length = _readUint8(input, ptr);
 
         // the next length of bytes will be converted to a uint then int
@@ -211,7 +211,7 @@ contract MultiInvokerRollup is IMultiInvokerRollup, MultiInvoker {
         revert ("int must have sign"); // @todo custom error
     }
 
-    function _readLongAndLimit(bytes calldata input, PTR memory ptr) private view returns (bool isLong, bool isLimit) {
+    function _readLongAndLimit(bytes calldata input, PTR memory ptr) private pure returns (bool isLong, bool isLimit) {
         (isLong, isLimit) = _bytesToLongAndLimit(input, ptr.pos);
         ptr.pos += UINT8_LENGTH;
     }
@@ -220,7 +220,7 @@ contract MultiInvokerRollup is IMultiInvokerRollup, MultiInvoker {
         result = UFixed6.wrap(_readUint256(input, ptr));
     }
 
-    function _readFixed6(bytes calldata input, PTR memory ptr) private view returns (Fixed6 result) {
+    function _readFixed6(bytes calldata input, PTR memory ptr) private pure returns (Fixed6 result) {
         result = Fixed6.wrap(_readInt256(input, ptr));
     }
 
@@ -238,7 +238,7 @@ contract MultiInvokerRollup is IMultiInvokerRollup, MultiInvoker {
         ptr.pos += len;
     }
 
-    function _readInt256(bytes calldata input, PTR memory ptr) private view returns (int256 result) {
+    function _readInt256(bytes calldata input, PTR memory ptr) private pure returns (int256 result) {
         (uint8 len, bool negative) = _readLengthAndSign(input, ptr);
         if(len > UINT256_LENGTH) revert MultiInvokerRollupInvalidUint256LengthError(); // @todo for int256?
 
