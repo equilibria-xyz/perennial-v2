@@ -100,12 +100,8 @@ library StrategyLib {
             // minimum position size before crossing the net position
             context.currentAccountPosition.maker.sub(
                 context.currentPosition.maker
-                    .sub(
-                        Fixed6Lib.from(context.currentPosition.long) // TODO: cleanup
-                            .sub(Fixed6Lib.from(context.currentPosition.short))
-                            .abs()
-                            .min(context.currentPosition.maker)
-                    ).min(context.currentAccountPosition.maker)
+                    .sub(context.currentPosition.net().min(context.currentPosition.maker))
+                    .min(context.currentAccountPosition.maker)
             ),
             // maximum position size before crossing the maker limit
             context.currentAccountPosition.maker.add(

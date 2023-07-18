@@ -88,7 +88,7 @@ library PositionLib {
 
     /// @dev update the current global position
     function update(Position memory self, uint256 currentId, uint256 currentTimestamp, Order memory order) internal pure {
-        (Fixed6 latestSkew, UFixed6 latestEfficiency) = (skew(self), efficiency(self));
+        (UFixed6 latestNet, Fixed6 latestSkew, UFixed6 latestEfficiency) = (net(self), skew(self), efficiency(self));
 
         if (self.id != currentId) _prepare(self);
         (self.id, self.timestamp, self.maker, self.long, self.short) = (
@@ -99,7 +99,8 @@ library PositionLib {
             UFixed6Lib.from(Fixed6Lib.from(self.short).add(order.short))
         );
 
-        (order.skew, order.impact, order.efficiency) = (
+        (order.net, order.skew, order.impact, order.efficiency) = (
+            Fixed6Lib.from(net(self)).sub(Fixed6Lib.from(latestNet)),
             skew(self).sub(latestSkew).abs(),
             Fixed6Lib.from(skew(self).abs()).sub(Fixed6Lib.from(latestSkew.abs())),
             Fixed6Lib.from(efficiency(self)).sub(Fixed6Lib.from(latestEfficiency))
@@ -143,6 +144,10 @@ library PositionLib {
 
     function minor(Position memory self) internal pure returns (UFixed6) {
         return self.long.min(self.short);
+    }
+
+    function net(Position memory self) internal pure returns (UFixed6) {
+        return Fixed6Lib.from(self.long).sub(Fixed6Lib.from(self.short)).abs();
     }
 
     function skew(Position memory self) internal pure returns (Fixed6) {

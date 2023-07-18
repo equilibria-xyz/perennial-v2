@@ -15,6 +15,7 @@ struct Order {
     Fixed6 efficiency;
     UFixed6 fee;
     UFixed6 keeper;
+    Fixed6 net;
 }
 using OrderLib for Order global;
 
@@ -44,11 +45,7 @@ library OrderLib {
     }
 
     function increasesPosition(Order memory self) internal pure returns (bool) {
-        return increasesMaker(self) || increasesTaker(self);
-    }
-
-    function increasesMaker(Order memory self) internal pure returns (bool) {
-        return self.maker.gt(Fixed6Lib.ZERO);
+        return self.maker.gt(Fixed6Lib.ZERO) || increasesTaker(self);
     }
 
     function increasesTaker(Order memory self) internal pure returns (bool) {
@@ -56,7 +53,7 @@ library OrderLib {
     }
 
     function decreasesLiquidity(Order memory self) internal pure returns (bool) {
-        return self.maker.lt(Fixed6Lib.ZERO) || self.impact.gt(Fixed6Lib.ZERO);
+        return self.maker.lt(self.net);
     }
 
     function isEmpty(Order memory self) internal pure returns (bool) {

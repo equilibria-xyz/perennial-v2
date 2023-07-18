@@ -336,10 +336,8 @@ contract Market is IMarket, Instance {
         _invariant(context, account, newOrder, collateral, protected);
 
         // store
-        if (context.global.currentId > context.latestPosition.global.id) // don't re-store if already settled
-            _pendingPosition[context.global.currentId].store(context.currentPosition.global);
-        if (context.local.currentId > context.latestPosition.local.id) // don't re-store if already settled
-            _pendingPositions[account][context.local.currentId].store(context.currentPosition.local);
+        _pendingPosition[context.global.currentId].store(context.currentPosition.global);
+        _pendingPositions[account][context.local.currentId].store(context.currentPosition.local);
 
         _endGas(context);
 
@@ -548,8 +546,10 @@ contract Market is IMarket, Instance {
         if (!_collateralized(context, context.currentPosition.local))
             { if (LOG_REVERTS) console.log("MarketInsufficientCollateralizationError2"); revert MarketInsufficientCollateralizationError(); }
 
-        if (!protected && context.global.currentId > context.latestPosition.global.id + context.protocolParameter.maxPendingIds)
-            { if (LOG_REVERTS) console.log("MarketExceedsPendingIdLimitError"); revert MarketExceedsPendingIdLimitError(); }
+        if (
+            !protected &&
+            context.global.currentId > context.latestPosition.global.id + context.protocolParameter.maxPendingIds
+        ) { if (LOG_REVERTS) console.log("MarketExceedsPendingIdLimitError"); revert MarketExceedsPendingIdLimitError(); }
 
         if (!protected && !_collateralized(context, context.latestPosition.local))
             { if (LOG_REVERTS) console.log("MarketInsufficientCollateralizationError1"); revert MarketInsufficientCollateralizationError(); }
@@ -567,7 +567,7 @@ contract Market is IMarket, Instance {
         if (
             !protected &&
             !context.marketParameter.closed &&
-            (!context.marketParameter.makerCloseAlways || newOrder.increasesMaker()) &&
+            (!context.marketParameter.makerCloseAlways) &&
             (!context.marketParameter.takerCloseAlways || newOrder.increasesTaker()) &&
             newOrder.efficiency.lt(Fixed6Lib.ZERO) &&
             context.currentPosition.global.efficiency().lt(context.riskParameter.efficiencyLimit)
@@ -576,7 +576,7 @@ contract Market is IMarket, Instance {
         if (
             !protected &&
             !context.marketParameter.closed &&
-            (!context.marketParameter.makerCloseAlways || newOrder.increasesMaker()) &&
+            (!context.marketParameter.makerCloseAlways) &&
             (!context.marketParameter.takerCloseAlways || newOrder.increasesTaker()) &&
             context.currentPosition.global.socialized() &&
             newOrder.decreasesLiquidity()
