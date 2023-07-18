@@ -8,10 +8,7 @@ import { IEmptySetReserve } from "@equilibria/emptyset-batcher/interfaces/IEmpty
 import { IInstance } from "@equilibria/root-v2/contracts/IInstance.sol";
 import { IPythOracle } from "@equilibria/perennial-v2-oracle/contracts/interfaces/IPythOracle.sol";
 
-import "hardhat/console.sol";
-
 import "./interfaces/IMultiInvoker.sol";
-
 import "./KeeperManager.sol";
 import "@equilibria/root-v2/contracts/UKept.sol";
 
@@ -85,14 +82,14 @@ contract MultiInvoker is IMultiInvoker, KeeperManager, UKept {
 
                 _placeOrder(market, order);
             } else if (invocation.action == PerennialAction.CANCEL_ORDER) {
-                (address market, uint256 _orderNonce) = abi.decode(invocation.args, (address, uint256));
+                (address market, uint256 nonce) = abi.decode(invocation.args, (address, uint256));
 
-                _cancelOrder(market, _orderNonce);
+                _cancelOrder(market, nonce);
             } else if (invocation.action == PerennialAction.EXEC_ORDER) {
-                (address account, address market, uint256 _orderNonce) =
+                (address account, address market, uint256 nonce) =
                     abi.decode(invocation.args, (address, address, uint256));
 
-                _executeOrderInvoker(account, market, _orderNonce);
+                _executeOrderInvoker(account, market, nonce);
             } else if (invocation.action == PerennialAction.COMMIT_PRICE) {
                 (address oracleProvider, uint256 version, bytes memory data) =
                     abi.decode(invocation.args, (address, uint256, bytes));
@@ -126,37 +123,32 @@ contract MultiInvoker is IMultiInvoker, KeeperManager, UKept {
         UFixed6 newShort,
         Fixed6 collateralDelta,
         bool handleWrap
-    ) internal returns (Position memory position) {
+    ) internal {
         // collateral is transferred from this address to the market, transfer from msg.sender to here
-        if(collateralDelta.sign() == 1) {
-            _deposit(collateralDelta.abs(), handleWrap);
-        }
+        if (collateralDelta.sign() == 1) _deposit(collateralDelta.abs(), handleWrap);
 
-        IMarket(market).update(
-            msg.sender,
-            newMaker,
-            newLong,
-            newShort,
-            collateralDelta,
-            false);
+        IMarket(market).update(msg.sender, newMaker, newLong, newShort, collateralDelta, false);
 
         // collateral is transferred from the market to this address, transfer to msg.sender from here
-        if(collateralDelta.sign() == -1) {
-            _withdraw(msg.sender, collateralDelta.abs(), handleWrap);
-        }
+        if (collateralDelta.sign() == -1) _withdraw(msg.sender, collateralDelta.abs(), handleWrap);
     }
 
     function _liquidate(IMarket market, address account) internal {
         // sync and settle
+        // TODO: I checked and this doesn't currently work -- will revert on update if position is undercollateralized
+        // TODO: we'll have to do something else here, or change the invariant
         market.update(account, UFixed6Lib.MAX, UFixed6Lib.MAX, UFixed6Lib.MAX, Fixed6Lib.ZERO, false);
 
         UFixed6 liquidationFee = _liquidationFee(market, account);
 
         market.update(
             account,
-            UFixed6Lib.ZERO, UFixed6Lib.ZERO, UFixed6Lib.ZERO,
+            UFixed6Lib.ZERO,
+            UFixed6Lib.ZERO,
+            UFixed6Lib.ZERO,
             Fixed6Lib.from(-1, liquidationFee),
-            true);
+            true
+        );
 
         _withdraw(msg.sender, liquidationFee, false);
     }
@@ -165,36 +157,18 @@ contract MultiInvoker is IMultiInvoker, KeeperManager, UKept {
      * @notice executes an `account's` open order for a `market` and pays a fee to `msg.sender`
      * @param account Account to execute order of
      * @param market Market to execute order for
-     * @param _orderNonce Id of open order to index
+     * @param nonce Id of open order to index
      */
     function _executeOrderInvoker(
         address account,
         address market,
-        uint256 _orderNonce
-    ) internal keep (
-        UFixed18Lib.from(keeperMultiplier),
-        GAS_BUFFER,
-        abi.encode(market, account, _readOrder(account, market, _orderNonce).maxFee)
-    ) {
+        uint256 nonce
+    ) internal keep(UFixed18Lib.from(keeperMultiplier), GAS_BUFFER, abi.encode(account, market, nonce)) {
+        Position memory position = IMarket(market).pendingPositions(account, IMarket(market).locals(account).currentId);
+        IKeeperManager.Order memory order = orders(account, market, nonce);
 
-        Position memory position =
-            IMarket(market).pendingPositions(
-                account,
-                IMarket(market).locals(account).currentId
-            );
-
-        IKeeperManager.Order memory order = _readOrder(account, market, _orderNonce);
-
-        if (order.isLong) {
-            position.long = order.isLimit ?
-                position.long.add(order.size) :
-                position.long.sub(order.size);
-        } else {
-            position.short = order.isLimit ?
-                position.short.add(order.size) :
-                position.short.sub(order.size);
-        }
-
+        if (order.isLong) position.long = order.isLimit ? position.long.add(order.size) : position.long.sub(order.size);
+        else position.short = order.isLimit ? position.short.add(order.size) : position.short.sub(order.size);
 
         IMarket(market).update(
             account,
@@ -202,16 +176,16 @@ contract MultiInvoker is IMultiInvoker, KeeperManager, UKept {
             position.long,
             position.short,
             Fixed6Lib.ZERO,
-            false);
+            false
+        );
 
-        _executeOrder(account, market, _orderNonce);
+        // TODO: yeah, this is confusing to follow with the rest of the logic in a separate file
+        _executeOrder(account, market, nonce);
     }
 
     function _raiseKeeperFee(UFixed18 keeperFee, bytes memory data) internal override {
-
-        // @todo market, account or account, market for consistency?
-        (address market, address account, UFixed6 maxFee) = abi.decode(data, (address, address, UFixed6));
-        if(keeperFee.gt(UFixed18Lib.from(maxFee)))
+        (address account, address market, uint256 nonce) = abi.decode(data, (address, address, uint256));
+        if (keeperFee.gt(UFixed18Lib.from(orders(account, market, nonce).maxFee)))
             revert MultiInvokerMaxFeeExceededError();
 
         IMarket(market).update(
@@ -220,14 +194,14 @@ contract MultiInvoker is IMultiInvoker, KeeperManager, UKept {
             UFixed6Lib.MAX,
             UFixed6Lib.MAX,
             Fixed6Lib.from(Fixed18Lib.from(-1, keeperFee)),
-            false);
+            false
+        );
     }
 
     /// @notice Helper fn to max approve DSU for usage in a market deployed by the factory
     /// @param market Market to approve
     function _approve(address market) internal {
-        if(!factory.instances(IInstance(market)))
-            revert MultiInvokerInvalidMarketApprovalError();
+        if(!factory.instances(IInstance(market))) revert MultiInvokerInvalidMarketApprovalError();
         DSU.approve(address(market));
     }
 
@@ -252,7 +226,7 @@ contract MultiInvoker is IMultiInvoker, KeeperManager, UKept {
      * @param handleUnwrap flag to unwrap DSU to USDC
      */
     function _withdraw(address account, UFixed6 collateralDelta, bool handleUnwrap) internal {
-        if(handleUnwrap) {
+        if (handleUnwrap) {
             DSU.push(account, UFixed18Lib.from(collateralDelta));
             _handleUnwrap(account, UFixed18Lib.from(collateralDelta));
         } else {
@@ -292,8 +266,10 @@ contract MultiInvoker is IMultiInvoker, KeeperManager, UKept {
         }
     }
 
-    function _liquidationFee(IMarket market, address account) internal returns (UFixed6) {
-
+    // TODO: would be cool if we could figure out a way to "fake-settle" just to get the latest position
+    // TODO: could use the oracle + market pending position, but also need to take into account invalid versions
+    // TODO: if we get that we don't need to solve the invariant issue above
+    function _liquidationFee(IMarket market, address account) internal view returns (UFixed6) {
         Position memory position = market.positions(account);
         RiskParameter memory parameter = market.riskParameter();
         OracleVersion memory latestVersion = _latestVersionPrice(market, position);
@@ -303,7 +279,10 @@ contract MultiInvoker is IMultiInvoker, KeeperManager, UKept {
             .min(UFixed6Lib.from(market.token().balanceOf(address(market))));
     }
 
-    function _latestVersionPrice(IMarket market, Position memory position) internal returns (OracleVersion memory latestVersion) {
+    function _latestVersionPrice(
+        IMarket market,
+        Position memory position
+    ) internal view returns (OracleVersion memory latestVersion) {
         latestVersion = market.at(position.timestamp);
 
         latestVersion.price = latestVersion.valid ?

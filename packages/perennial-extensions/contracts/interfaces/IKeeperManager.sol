@@ -1,13 +1,17 @@
+// SPDX-License-Identifier: Apache-2.0
 pragma solidity ^0.8.13;
 
 import { IMarket, Position, MarketParameter } from "@equilibria/perennial-v2/contracts/interfaces/IMarket.sol";
 import { UFixed6, UFixed6Lib } from "@equilibria/root/number/types/UFixed6.sol";
 import { Fixed6, Fixed6Lib } from "@equilibria/root/number/types/Fixed6.sol";
 
+// TODO: add methods
 interface IKeeperManager {
 
     // (-) exec price -> execute order when market price >= exec price 
     // (+) exec price -> execure order when market price <= exec price
+
+    // TODO: you can pack this in a single slot -- make a type for it w/ a storage lib
     struct Order {
         // slot 1
         bool isLimit; // true/false = increase/decrease order size of market position upon execution
@@ -31,31 +35,8 @@ interface IKeeperManager {
     error KeeperManagerMaxOpenOrdersError();
     error KeeperManagerOrderAlreadyCancelledError();
 
-    event OrderOpened(
-        address indexed account, 
-        address indexed market, 
-        uint256 index, 
-        uint256 orderNonce, 
-        bool isLimit,
-        UFixed6 takeProfit,
-        UFixed6 stopLoss,
-        uint8 fee);
-    
-    event OrderPlaced(
-        address indexed account, 
-        address indexed market,
-        uint256 orderNonce,
-        uint256 openOrders,
-        Fixed6 execPrice,
-        UFixed6 maxFee);
-
-    event OrderExecuted(
-        address indexed account,
-        address indexed market,
-        uint256 nonce,
-        UFixed6 marketPrice,
-        Fixed6 execPrice);
-
-
+    event OrderOpened(address indexed account, address indexed market, uint256 index, uint256 orderNonce, bool isLimit, UFixed6 takeProfit, UFixed6 stopLoss, uint8 fee);
+    event OrderPlaced(address indexed account, address indexed market, uint256 indexed nonce, Order order);
+    event OrderExecuted(address indexed account, address indexed market, uint256 nonce, UFixed6 marketPrice);
     event OrderCancelled(address indexed account, address indexed market, uint256 orderNonce);
 }
