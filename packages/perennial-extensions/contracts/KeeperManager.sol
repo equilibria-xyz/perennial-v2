@@ -82,9 +82,9 @@ contract KeeperManager is IKeeperManager {
             nonce);
     }
 
-    /// @notice executes an open order for an account 
-    /// @param account Accoubnt to execute order for 
-    /// @param market Market to execute order in @todo do we need this bc of nonce? 
+    /// @notice executes an open order for an account
+    /// @param account Accoubnt to execute order for
+    /// @param market Market to execute order in @todo do we need this bc of nonce?
     /// @param nonce UID of order
     function _executeOrder(
         address account,

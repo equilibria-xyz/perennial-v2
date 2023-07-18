@@ -25,19 +25,22 @@ contract MultiInvokerRollup is IMultiInvokerRollup, MultiInvoker {
 
     // @todo add magic byte to prevent the very very rare chance arbitrary calldata doesnt call the fallback
 
-    constructor(
+     constructor(
         Token6 usdc_,
         Token18 dsu_,
-        IMarketFactory factory_,
+        IFactory marketFactory_,
+        IFactory vaultFactory_,
         IBatcher batcher_,
         IEmptySetReserve reserve_
-    ) MultiInvoker (
+    ) MultiInvoker(
         usdc_,
         dsu_,
-        factory_,
+        marketFactory_,
+        vaultFactory_,
         batcher_,
-        reserve_) {} // solhint-disable-line no-empty-blocks
-    
+        reserve_
+    ) {}
+
     fallback(bytes calldata input) external returns(bytes memory) { // solhint-disable-line payable-fallback
         PTR memory ptr;
         decodeFallbackAndInvoke(input, ptr);
@@ -47,13 +50,13 @@ contract MultiInvokerRollup is IMultiInvokerRollup, MultiInvoker {
     function decodeFallbackAndInvoke(bytes calldata input, PTR memory ptr) internal {
         while (ptr.pos < input.length) {
             PerennialAction action = PerennialAction(_readUint8(input, ptr));
-            
+
             if (action == PerennialAction.UPDATE_POSITION) {
                 (
-                    address market, 
+                    address market,
                     UFixed6 newMaker,
-                    UFixed6 newLong, 
-                    UFixed6 newShort, 
+                    UFixed6 newLong,
+                    UFixed6 newShort,
                     Fixed6 collateral,
                     bool handleWrap
                 ) = _readPosition(input, ptr);
@@ -111,7 +114,7 @@ contract MultiInvokerRollup is IMultiInvokerRollup, MultiInvoker {
 
             result = _lookupAddress(idx);
         }
-    } 
+    }
 
     /**
      * @notice Checked gets the address in cache mapped to the cache index
@@ -129,8 +132,8 @@ contract MultiInvokerRollup is IMultiInvokerRollup, MultiInvoker {
     function _readPosition(bytes calldata input, PTR memory ptr)
     private returns (
         address market,
-        UFixed6 newMaker, 
-        UFixed6 newLong, 
+        UFixed6 newMaker,
+        UFixed6 newLong,
         UFixed6 newShort,
         Fixed6 collateral,
         bool handleWrap
@@ -147,21 +150,21 @@ contract MultiInvokerRollup is IMultiInvokerRollup, MultiInvoker {
             newLong = UFixed6Lib.MAX;
             newShort = UFixed6Lib.MAX;
         } else {
-            
-            Position memory position = 
+
+            Position memory position =
                 IMarket(market).pendingPositions(
-                    msg.sender, 
+                    msg.sender,
                     IMarket(market).locals(msg.sender).currentId
                 );
 
             // @todo wrap instead of convert ?
-            newMaker = makerDelta.isZero() ? 
+            newMaker = makerDelta.isZero() ?
                 UFixed6Lib.MAX :
                 UFixed6Lib.from(Fixed6Lib.from(position.maker).add(makerDelta));
-            newLong = longDelta.isZero() ? 
-                UFixed6Lib.MAX : 
+            newLong = longDelta.isZero() ?
+                UFixed6Lib.MAX :
                 UFixed6Lib.from(Fixed6Lib.from(position.long).add(longDelta));
-            newShort = shortDelta.isZero() ? 
+            newShort = shortDelta.isZero() ?
                 UFixed6Lib.MAX :
                 UFixed6Lib.from(Fixed6Lib.from(position.short).add(shortDelta));
         }
@@ -251,7 +254,7 @@ contract MultiInvokerRollup is IMultiInvokerRollup, MultiInvoker {
      */
     function _bytesToUint8(bytes calldata input, uint256 pos) private pure returns (uint8 result) {
         assembly {
-            // 1) load calldata into temp starting at ptr position 
+            // 1) load calldata into temp starting at ptr position
             let temp := calldataload(add(input.offset, pos))
             // 2) shifts the calldata such that only the first byte is stored in result
             result := shr(mul(8, sub(UINT256_LENGTH, UINT8_LENGTH)), temp)
@@ -296,7 +299,7 @@ contract MultiInvokerRollup is IMultiInvokerRollup, MultiInvoker {
             // 1) load the calldata into result starting at the ptr position
             result := calldataload(add(input.offset, pos))
             // 2) shifts the calldata such that only the next length of bytes specified by `len` populates the uint256 result
-            result := shr(mul(8, sub(UINT256_LENGTH, len)), result) 
+            result := shr(mul(8, sub(UINT256_LENGTH, len)), result)
         }
     }
 }

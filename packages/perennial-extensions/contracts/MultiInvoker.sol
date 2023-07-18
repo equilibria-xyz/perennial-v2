@@ -2,11 +2,14 @@
 pragma solidity ^0.8.13;
 
 import { AggregatorV3Interface } from "@chainlink/contracts/src/v0.8/interfaces/AggregatorV3Interface.sol";
-import { IMarketFactory } from "@equilibria/perennial-v2/contracts/interfaces/IMarketFactory.sol";
+import { IFactory } from "@equilibria/root-v2/contracts/IFactory.sol";
 import { IBatcher } from "@equilibria/emptyset-batcher/interfaces/IBatcher.sol";
 import { IEmptySetReserve } from "@equilibria/emptyset-batcher/interfaces/IEmptySetReserve.sol";
 import { IInstance } from "@equilibria/root-v2/contracts/IInstance.sol";
 import { IPythOracle } from "@equilibria/perennial-v2-oracle/contracts/interfaces/IPythOracle.sol";
+
+// @todo cleanup imports between here and imultiinvoker
+import { IVault } from "@equilibria/perennial-v2-vault/contracts/interfaces/IVault.sol";
 
 import "hardhat/console.sol";
 
@@ -27,7 +30,9 @@ contract MultiInvoker is IMultiInvoker, KeeperManager, UKept {
     Token18 public immutable DSU; // solhint-disable-line var-name-mixedcase
 
     /// @dev Protocol factory to validate market approvals
-    IMarketFactory public immutable factory;
+    IFactory public immutable marketFactory;
+
+    IFactory public immutable vaultFactory;
 
     /// @dev Batcher address
     IBatcher public immutable batcher;
@@ -41,13 +46,15 @@ contract MultiInvoker is IMultiInvoker, KeeperManager, UKept {
     constructor(
         Token6 usdc_,
         Token18 dsu_,
-        IMarketFactory factory_,
+        IFactory marketFactory_,
+        IFactory vaultFactory_,
         IBatcher batcher_,
         IEmptySetReserve reserve_
     ) {
         USDC = usdc_;
         DSU = dsu_;
-        factory = factory_;
+        marketFactory = marketFactory_;
+        vaultFactory = vaultFactory_;
         batcher = batcher_;
         reserve = reserve_;
         keeperMultiplier = UFixed6.wrap(1.2e6); // TODO ???
@@ -57,6 +64,7 @@ contract MultiInvoker is IMultiInvoker, KeeperManager, UKept {
         __UKept__initialize(ethOracle_, DSU);
     }
 
+    // @todo not needed
     /// @notice approves a market deployed by the factory to spend DSU
     /// @param market Market to approve max DSU spending
     function approve(address market) external { _approve(market); }
@@ -68,6 +76,7 @@ contract MultiInvoker is IMultiInvoker, KeeperManager, UKept {
         for(uint i = 0; i < invocations.length; ++i) {
             Invocation memory invocation = invocations[i];
 
+            // @todo consistent ordering of market and account
             if (invocation.action == PerennialAction.UPDATE_POSITION) {
                 (
                     address market,
@@ -94,19 +103,23 @@ contract MultiInvoker is IMultiInvoker, KeeperManager, UKept {
 
                 _executeOrderInvoker(account, market, _orderNonce);
             } else if (invocation.action == PerennialAction.COMMIT_PRICE) {
-                (address oracleProvider, uint256 version, bytes memory data) = 
+                (address oracleProvider, uint256 version, bytes memory data) =
                     abi.decode(invocation.args, (address, uint256, bytes));
-                
+
                 IPythOracle(oracleProvider).commit(version, data);
             } else if (invocation.action == PerennialAction.LIQUIDATE) {
-                (address market, address account) = 
+                (address market, address account) =
                     abi.decode(invocation.args, (address, address));
-                
+
                 _liquidate(IMarket(market), account);
-            } else if (invocation.action == PerennialAction.APPROVE_MARKET) {
-                (address market) =
+            } else if (invocation.action == PerennialAction.VAULT_UPDATE) {
+                (address vault, UFixed6 depositAssets, UFixed6 redeemShares, UFixed6 claimAssets, bool wrap)
+                    = abi.decode(invocation.args, (address, UFixed6, UFixed6, UFixed6, bool));
+
+            } else if (invocation.action == PerennialAction.APPROVE_MARKET) { // @todo rename here and in tests
+                (address target) =
                     abi.decode(invocation.args, (address));
-                _approve(market);
+                _approve(target);
             }
         }
     }
@@ -146,6 +159,19 @@ contract MultiInvoker is IMultiInvoker, KeeperManager, UKept {
         }
     }
 
+    function _vaultUpdate(address vault, UFixed6 depositAssets, UFixed6 redeemShares, UFixed6 claimAssets, bool wrap) internal {
+
+        if (!depositAssets.isZero()) {
+            _depositTo(vault, depositAssets, wrap);
+        }
+
+        IVault(vault).update(msg.sender, depositAssets, redeemShares, claimAssets);
+
+        if (!claimAssets.isZero()) {
+            _withdraw(msg.sender, claimAssets, wrap);
+        }
+    }
+
     function _liquidate(IMarket market, address account) internal {
         // sync and settle
         market.update(account, UFixed6Lib.MAX, UFixed6Lib.MAX, UFixed6Lib.MAX, Fixed6Lib.ZERO, false);
@@ -153,11 +179,11 @@ contract MultiInvoker is IMultiInvoker, KeeperManager, UKept {
         UFixed6 liquidationFee = _liquidationFee(market, account);
 
         market.update(
-            account, 
-            UFixed6Lib.ZERO, UFixed6Lib.ZERO, UFixed6Lib.ZERO, 
-            Fixed6Lib.from(-1, liquidationFee), 
+            account,
+            UFixed6Lib.ZERO, UFixed6Lib.ZERO, UFixed6Lib.ZERO,
+            Fixed6Lib.from(-1, liquidationFee),
             true);
-        
+
         _withdraw(msg.sender, liquidationFee, false);
     }
 
@@ -172,14 +198,14 @@ contract MultiInvoker is IMultiInvoker, KeeperManager, UKept {
         address market,
         uint256 _orderNonce
     ) internal keep (
-        UFixed18Lib.from(keeperMultiplier), 
-        GAS_BUFFER, 
+        UFixed18Lib.from(keeperMultiplier),
+        GAS_BUFFER,
         abi.encode(market, account, _readOrder(account, market, _orderNonce).maxFee)
     ) {
-        
-        Position memory position = 
+
+        Position memory position =
             IMarket(market).pendingPositions(
-                account, 
+                account,
                 IMarket(market).locals(account).currentId
             );
 
@@ -207,7 +233,7 @@ contract MultiInvoker is IMultiInvoker, KeeperManager, UKept {
     }
 
     function _raiseKeeperFee(UFixed18 keeperFee, bytes memory data) internal override {
-        
+
         // @todo market, account or account, market for consistency?
         (address market, address account, UFixed6 maxFee) = abi.decode(data, (address, address, UFixed6));
         if(keeperFee.gt(UFixed18Lib.from(maxFee)))
@@ -222,28 +248,41 @@ contract MultiInvoker is IMultiInvoker, KeeperManager, UKept {
             false);
     }
 
+    // @todo rename?
     /// @notice Helper fn to max approve DSU for usage in a market deployed by the factory
-    /// @param market Market to approve
-    function _approve(address market) internal {
-        if(!factory.instances(IInstance(market))) 
-            revert MultiInvokerInvalidMarketApprovalError();
-        DSU.approve(address(market));
+    /// @param target Target market or vault to approve
+    function _approve(address target) internal {
+        if (
+            !marketFactory.instances(IInstance(target)) &&
+            !vaultFactory.instances(IInstance(target))
+        ) revert MultiInvokerInvalidApprovalError();
+
+        DSU.approve(address(target));
     }
 
     /**
      * @notice Pull DSU or wrap and deposit USDC from msg.sender to this address for market usage
      * @param collateralDelta Amount to transfer
-     * @param handleWrap Flag to wrap USDC to DSU 
+     * @param handleWrap Flag to wrap USDC to DSU
      */
     function _deposit(UFixed6 collateralDelta, bool handleWrap) internal {
         if(handleWrap) {
             USDC.pull(msg.sender, UFixed18Lib.from(collateralDelta), true);
             _handleWrap(address(this), UFixed18Lib.from(collateralDelta));
         } else {
-            DSU.pull(msg.sender, UFixed18Lib.from(collateralDelta)); // @todo change to 1e6?
+            DSU.pull(msg.sender, UFixed18Lib.from(collateralDelta));
         }
     }
 
+    // @todo add address(this) and general pullTo to _deposit instead?
+    function _depositTo(address to, UFixed6 collateralDelta, bool handleWrap) internal {
+        if(handleWrap) {
+            USDC.pullTo(msg.sender, to, UFixed18Lib.from(collateralDelta), true);
+            _handleWrap(address(this), UFixed18Lib.from(collateralDelta));
+        } else {
+            DSU.pullTo(msg.sender, to, UFixed18Lib.from(collateralDelta));
+        }
+    }
     /**
      * @notice Push DSU or unwrap DSU to push USDC from this address to `account`
      * @param account Account to push DSU or USDC to
@@ -305,8 +344,8 @@ contract MultiInvoker is IMultiInvoker, KeeperManager, UKept {
     function _latestVersionPrice(IMarket market, Position memory position) internal returns (OracleVersion memory latestVersion) {
         latestVersion = market.at(position.timestamp);
 
-        latestVersion.price = latestVersion.valid ? 
-            latestVersion.price : 
+        latestVersion.price = latestVersion.valid ?
+            latestVersion.price :
             market.global().latestPrice;
     }
 }
