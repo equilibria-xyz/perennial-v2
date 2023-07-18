@@ -30,8 +30,8 @@ const RISK_PARAMS = {
   takerFee: parse6decimal('0.05'),
   takerSkewFee: parse6decimal('0.06'),
   takerImpactFee: parse6decimal('0.07'),
-  makerFee: parse6decimal('0.08'),
-  makerImpactFee: parse6decimal('0.09'),
+  makerFee: parse6decimal('0.09'),
+  makerImpactFee: parse6decimal('0.08'),
   utilizationCurve: {
     minRate: 0,
     maxRate: 0,
@@ -90,7 +90,7 @@ describe('Fees', () => {
       const accountProcessEvent: AccountPositionProcessedEventObject = (await tx.wait()).events?.find(
         e => e.event === 'AccountPositionProcessed',
       )?.args as unknown as AccountPositionProcessedEventObject
-      const expectedMakerFee = BigNumber.from('91106380') // = 3374.655169**2 * 0.0001 * 0.08
+      const expectedMakerFee = BigNumber.from('11388297') // = 3374.655169**2 * 0.0001 * (0.09 - 0.08)
 
       expect(accountProcessEvent?.accumulationResult.positionFee).to.equal(expectedMakerFee)
 
@@ -116,10 +116,10 @@ describe('Fees', () => {
       })
 
       // Check global post-settlement state
-      const expectedProtocolFee = BigNumber.from('45553190') // = 91106380 * 1 * 0.5 (no existing makers to all fees go to protocol/market)
-      const expectedOracleFee = BigNumber.from('13665957') // = (91106380 - 45553190) * 0.3
-      const expectedRiskFee = BigNumber.from('18221276') // = (91106380 - 45553190) * 0.4
-      const expectedDonation = BigNumber.from('13665957') // = 91106380 - 45553190 - 13665957 - 18221276
+      const expectedProtocolFee = BigNumber.from('5694148') // = 11388297 * 1 * 0.5 (no existing makers to all fees go to protocol/market)
+      const expectedOracleFee = BigNumber.from('1708244') // = (11388297 - 5694148) * 0.3
+      const expectedRiskFee = BigNumber.from('2277659') // = (11388297 - 5694148) * 0.4
+      const expectedDonation = BigNumber.from('1708246') // = 11388297 - 5694148 - 1708244 - 2277659
       expectGlobalEq(await market.global(), {
         currentId: 2,
         protocolFee: expectedProtocolFee,
@@ -166,7 +166,7 @@ describe('Fees', () => {
       const accountProcessEvent: AccountPositionProcessedEventObject = (await tx.wait()).events?.find(
         e => e.event === 'AccountPositionProcessed',
       )?.args as unknown as AccountPositionProcessedEventObject
-      const expectedMakerFee = BigNumber.from('91106380') // = 3374.655169**2 * 0.0001 * 0.08
+      const expectedMakerFee = BigNumber.from('193601057') // = 3374.655169**2 * 0.0001 * (0.09 + 0.08)
 
       expect(accountProcessEvent?.accumulationResult.positionFee).to.equal(expectedMakerFee)
 
@@ -190,10 +190,10 @@ describe('Fees', () => {
       })
 
       // Check global post-settlement state. Existing makers so protocol only gets 50% of fees
-      const expectedProtocolFee = BigNumber.from('22776595') // = 91106380/2 * 0.5
-      const expectedOracleFee = BigNumber.from('6832978') // = (91106380/2 - 22776595) * 0.3
-      const expectedRiskFee = BigNumber.from('9110638') // = (91106380/2 - 22776595) * 0.4
-      const expectedDonation = BigNumber.from('6832979') // = 91106380/2 - 22776595 - 6832978 - 9110638
+      const expectedProtocolFee = BigNumber.from('48400264') // = 193601057/2 * 0.5
+      const expectedOracleFee = BigNumber.from('14520079') // = (193601057/2 - 48400264) * 0.3
+      const expectedRiskFee = BigNumber.from('19360105') // = (193601057/2 - 48400264) * 0.4
+      const expectedDonation = BigNumber.from('14520080') // = 193601057/2 - 48400264 - 14520079 - 19360105
       expectGlobalEq(await market.global(), {
         currentId: 3,
         protocolFee: expectedProtocolFee,

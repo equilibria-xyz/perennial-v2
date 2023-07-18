@@ -26,18 +26,26 @@ library PAccumulator6Lib {
         uint256 toTimestamp,
         UFixed6 notional
     ) internal pure returns (Fixed6 accumulated) {
-        (Fixed6 newValue, Fixed6 newValueCapped, UFixed6 interceptTimestamp) =
+        (Fixed6 newValue, UFixed6 interceptTimestamp) =
             controller.compute(self._value, skew, fromTimestamp, toTimestamp);
-        interceptTimestamp = interceptTimestamp.min(UFixed6Lib.from(toTimestamp));
 
         // within max
-        accumulated = _accumulate(self._value.add(newValue), UFixed6Lib.from(fromTimestamp), interceptTimestamp, notional)
-            .div(Fixed6Lib.from(2));
+        accumulated = _accumulate(
+            self._value.add(newValue),
+            UFixed6Lib.from(fromTimestamp),
+            interceptTimestamp,
+            notional
+        ).div(Fixed6Lib.from(2));
 
         // outside of max
-        accumulated = _accumulate(newValueCapped, interceptTimestamp, UFixed6Lib.from(toTimestamp), notional).add(accumulated);
+        accumulated = _accumulate(
+            newValue,
+            interceptTimestamp,
+            UFixed6Lib.from(toTimestamp),
+            notional
+        ).add(accumulated);
 
-        self._value = newValueCapped;
+        self._value = newValue;
         self._skew = skew;
     }
 

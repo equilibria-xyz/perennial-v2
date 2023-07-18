@@ -961,7 +961,7 @@ describe('Happy Path', () => {
     // Check user is in the correct state
     expectLocalEq(await market.locals(user.address), {
       currentId: 3,
-      collateral: '986051772',
+      collateral: '986128264',
       reward: incentizesOn ? '24669998' : 0,
       protection: 0,
     })
@@ -970,7 +970,7 @@ describe('Happy Path', () => {
       id: 3,
       timestamp: TIMESTAMP_5,
       maker: POSITION,
-      fee: '293656',
+      fee: '234925',
       delta: COLLATERAL.sub(1),
     })
     expectPositionEq(await market.positions(user.address), {
@@ -983,10 +983,10 @@ describe('Happy Path', () => {
     // Check global state
     expectGlobalEq(await market.global(), {
       currentId: 3,
-      protocolFee: '494077',
+      protocolFee: '455831',
       riskFee: 0,
       oracleFee: 0,
-      donation: '494079',
+      donation: '455833',
     })
     expectPositionEq(await market.pendingPosition(3), {
       ...DEFAULT_POSITION,
@@ -994,7 +994,7 @@ describe('Happy Path', () => {
       timestamp: TIMESTAMP_5,
       maker: POSITION,
       long: POSITION.div(2),
-      fee: '293656',
+      fee: '234925',
     })
     expectPositionEq(await market.position(), {
       ...DEFAULT_POSITION,
@@ -1004,7 +1004,7 @@ describe('Happy Path', () => {
       long: POSITION.div(2),
     })
     expectVersionEq(await market.versions(TIMESTAMP_4), {
-      makerValue: { _value: '-354520192126' },
+      makerValue: { _value: '-354882919398' },
       longValue: { _value: '362067566665' },
       shortValue: { _value: 0 },
       makerReward: { _value: incentizesOn ? '606836363635' : 0 },

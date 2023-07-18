@@ -1788,7 +1788,7 @@ describe('Market', () => {
             marketParameter.settlementFee = parse6decimal('0.50')
             await market.updateParameter(marketParameter)
 
-            const MAKER_FEE = parse6decimal('6.15') // position * (0.005) * price
+            const MAKER_FEE = parse6decimal('3.075') // position * (0.005 - 0.0025) * price
             const SETTLEMENT_FEE = parse6decimal('0.50')
 
             await expect(market.connect(user).update(user.address, POSITION, 0, 0, COLLATERAL, false))
@@ -2363,7 +2363,7 @@ describe('Market', () => {
               marketParameter.settlementFee = parse6decimal('0.50')
               await market.updateParameter(marketParameter)
 
-              const MAKER_FEE = parse6decimal('6.15') // position * (0.005) * price
+              const MAKER_FEE = parse6decimal('9.225') // position * (0.005 + 0.0025) * price
               const MAKER_FEE_FEE = MAKER_FEE.div(10)
               const MAKER_FEE_WITHOUT_FEE = MAKER_FEE.sub(MAKER_FEE_FEE)
               const SETTLEMENT_FEE = parse6decimal('0.50')

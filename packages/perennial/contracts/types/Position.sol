@@ -88,9 +88,15 @@ library PositionLib {
 
     /// @dev update the current global position
     function update(Position memory self, uint256 currentId, uint256 currentTimestamp, Order memory order) internal pure {
-        (UFixed6 latestNet, Fixed6 latestSkew, UFixed6 latestEfficiency) = (net(self), skew(self), efficiency(self));
+        // load the computed attributes of the latest position
+        Fixed6 latestSkew = skew(self);
+        (order.net, order.efficiency, order.utilization) =
+            (Fixed6Lib.from(net(self)), Fixed6Lib.from(efficiency(self)), Fixed6Lib.from(utilization(self)));
 
+        // if the id is fresh, reset the position's applicable attributes
         if (self.id != currentId) _prepare(self);
+
+        // update the position's attributes
         (self.id, self.timestamp, self.maker, self.long, self.short) = (
             currentId,
             currentTimestamp,
@@ -99,11 +105,13 @@ library PositionLib {
             UFixed6Lib.from(Fixed6Lib.from(self.short).add(order.short))
         );
 
-        (order.net, order.skew, order.impact, order.efficiency) = (
-            Fixed6Lib.from(net(self)).sub(Fixed6Lib.from(latestNet)),
+        // update the order's delta attributes with the positions updated attributes
+        (order.net, order.skew, order.impact, order.efficiency, order.utilization) = (
+            Fixed6Lib.from(net(self)).sub(order.net),
             skew(self).sub(latestSkew).abs(),
             Fixed6Lib.from(skew(self).abs()).sub(Fixed6Lib.from(latestSkew.abs())),
-            Fixed6Lib.from(efficiency(self)).sub(Fixed6Lib.from(latestEfficiency))
+            Fixed6Lib.from(efficiency(self)).sub(order.efficiency),
+            Fixed6Lib.from(utilization(self)).sub(order.utilization)
         );
     }
 
@@ -157,7 +165,7 @@ library PositionLib {
     }
 
     function utilization(Position memory self) internal pure returns (UFixed6) {
-        return major(self).unsafeDiv(self.maker.add(minor(self)));
+        return major(self).unsafeDiv(self.maker.add(minor(self))).min(UFixed6Lib.ONE);
     }
 
     function longSocialized(Position memory self) internal pure returns (UFixed6) {

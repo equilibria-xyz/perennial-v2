@@ -12,6 +12,7 @@ struct Order {
     Fixed6 short;
     UFixed6 skew;
     Fixed6 impact;
+    Fixed6 utilization;
     Fixed6 efficiency;
     UFixed6 fee;
     UFixed6 keeper;
@@ -31,7 +32,7 @@ library OrderLib {
         RiskParameter memory riskParameter
     ) internal pure {
         Fixed6 makerFee = Fixed6Lib.from(riskParameter.makerFee)
-            .add(Fixed6Lib.from(riskParameter.makerImpactFee).mul(self.impact))
+            .add(Fixed6Lib.from(riskParameter.makerImpactFee).mul(self.utilization))
             .max(Fixed6Lib.ZERO);
         Fixed6 takerFee = Fixed6Lib.from(riskParameter.takerFee)
             .add(Fixed6Lib.from(riskParameter.takerSkewFee.mul(self.skew)))
