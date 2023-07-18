@@ -27,7 +27,7 @@ library PAccumulator6Lib {
         UFixed6 notional
     ) internal pure returns (Fixed6 accumulated) {
         (Fixed6 newValue, UFixed6 interceptTimestamp) =
-            controller.compute(self._value, skew, fromTimestamp, toTimestamp);
+            controller.compute(self._value, self._skew, fromTimestamp, toTimestamp);
 
         // within max
         accumulated = _accumulate(

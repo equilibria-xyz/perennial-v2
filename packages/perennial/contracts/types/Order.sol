@@ -57,6 +57,15 @@ library OrderLib {
         return self.maker.lt(self.net);
     }
 
+    function liquidityCheckApplicable(
+        Order memory self,
+        MarketParameter memory marketParameter
+    ) internal pure returns (bool) {
+        return !marketParameter.closed &&
+            !marketParameter.makerCloseAlways &&
+            (!marketParameter.takerCloseAlways || increasesTaker(self));
+    }
+
     function isEmpty(Order memory self) internal pure returns (bool) {
         return self.maker.add(self.long).add(self.short).isZero();
     }

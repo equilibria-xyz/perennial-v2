@@ -281,7 +281,7 @@ contract Market is IMarket, Instance {
     function _loadCurrentPositionContext(
         Context memory context,
         address account
-    ) private returns (PositionContext memory positionContext) {
+    ) private view returns (PositionContext memory positionContext) {
         positionContext.global = _pendingPosition[context.global.currentId].read();
         positionContext.local = _pendingPositions[account][context.local.currentId].read();
         if (context.global.currentId == context.latestPosition.global.id)
@@ -566,18 +566,14 @@ contract Market is IMarket, Instance {
 
         if (
             !protected &&
-            !context.marketParameter.closed &&
-            (!context.marketParameter.makerCloseAlways) &&
-            (!context.marketParameter.takerCloseAlways || newOrder.increasesTaker()) &&
+            newOrder.liquidityCheckApplicable(context.marketParameter) &&
             newOrder.efficiency.lt(Fixed6Lib.ZERO) &&
             context.currentPosition.global.efficiency().lt(context.riskParameter.efficiencyLimit)
         ) { if (LOG_REVERTS) console.log("MarketEfficiencyUnderLimitError"); revert MarketEfficiencyUnderLimitError(); }
 
         if (
             !protected &&
-            !context.marketParameter.closed &&
-            (!context.marketParameter.makerCloseAlways) &&
-            (!context.marketParameter.takerCloseAlways || newOrder.increasesTaker()) &&
+            newOrder.liquidityCheckApplicable(context.marketParameter) &&
             context.currentPosition.global.socialized() &&
             newOrder.decreasesLiquidity()
         ) { if (LOG_REVERTS) console.log("MarketInsufficientLiquidityError"); revert MarketInsufficientLiquidityError(); }

@@ -1255,8 +1255,8 @@ describe('Fees', () => {
         e => e.event === 'PositionProcessed',
       )?.args as unknown as PositionProcessedEventObject
 
-      const expectedFunding = BigNumber.from('1215')
-      const expectedFundingFee = BigNumber.from('115') // = 1215 * .1 - 6 (due to precision loss)
+      const expectedFunding = BigNumber.from('819')
+      const expectedFundingFee = BigNumber.from('78') // = 819 * .1 - 3 (due to precision loss)
       expect(accountProcessEvent.accumulationResult.collateralAmount).to.equal(expectedFunding.mul(-1))
       expect(positionProcessEvent.accumulationResult.fundingFee).to.equal(expectedFundingFee)
       expect(
@@ -1284,8 +1284,8 @@ describe('Fees', () => {
         e => e.event === 'PositionProcessed',
       )?.args as unknown as PositionProcessedEventObject
 
-      const expectedFunding = BigNumber.from('1214')
-      const expectedFundingFee = BigNumber.from('115') // = 1214 * .1 - 6 (due to precision loss)
+      const expectedFunding = BigNumber.from('819')
+      const expectedFundingFee = BigNumber.from('78') // = // = 819 * .1 - 3 (due to precision loss)
       expect(accountProcessEvent.accumulationResult.collateralAmount).to.equal(expectedFunding.mul(-1))
       expect(positionProcessEvent.accumulationResult.fundingFee).to.equal(expectedFundingFee)
       expect(

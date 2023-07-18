@@ -21,7 +21,6 @@ import {
   expectPositionEq,
   expectVersionEq,
   parse6decimal,
-  Position,
 } from '../../../../common/testutil/types'
 import { IMarket, MarketParameterStruct, RiskParameterStruct } from '../../../types/generated/contracts/Market'
 import { MilliPowerTwo__factory } from '@equilibria/perennial-v2-payoff/types/generated'
