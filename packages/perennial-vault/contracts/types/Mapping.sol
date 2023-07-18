@@ -15,7 +15,7 @@ struct StoredMappingEntry {
 struct StoredMapping {
     StoredMappingEntry[] entries;
 }
-struct MappingStorage { StoredMapping value; }
+struct MappingStorage { StoredMapping value; } // TODO(gas-hint): using mapping will save 1 slot store due to length
 using MappingStorageLib for MappingStorage global;
 
 /**
@@ -69,6 +69,8 @@ library MappingStorageLib {
     }
 
     function store(MappingStorage storage self, Mapping memory newValue) internal {
+        if (self.value.entries.length > 0) revert MappingStorageInvalidError();
+
         StoredMappingEntry[] memory storedEntries = new StoredMappingEntry[](Math.ceilDiv(newValue._ids.length, 7));
 
         for (uint256 i; i < newValue._ids.length; i++) {
@@ -80,7 +82,7 @@ library MappingStorageLib {
         }
 
         for (uint256 i; i < storedEntries.length; i++) {
-            self.value.entries[i] = storedEntries[i];
+            self.value.entries.push(storedEntries[i]);
         }
     }
 }
