@@ -23,6 +23,7 @@ struct RiskParameter {
     UJumpRateUtilizationCurve6 utilizationCurve;
     PController6 pController;
     UFixed6 minMaintenance;
+    UFixed6 virtualTaker;
     uint256 staleAfter;
     bool makerReceiveOnly;
 }
@@ -47,7 +48,7 @@ struct StoredRiskParameter {
     uint24 makerImpactFee;                      // <= 1677%
     uint48 minMaintenance;                      // <= 281m
     uint24 staleAfter;                          // <= 16m s
-    bytes6 __unallocated__;
+    uint48 virtualTaker;                        // <= 281mn
 
     /* slot 3 */
     uint24 liquidationFee;                      // <= 1677%
@@ -86,6 +87,7 @@ library RiskParameterStorageLib {
                 UFixed6.wrap(uint256(value.pControllerMax))
             ),
             UFixed6.wrap(uint256(value.minMaintenance)),
+            UFixed6.wrap(uint256(value.virtualTaker)),
             uint256(value.staleAfter),
             value.makerReceiveOnly
         );
@@ -110,6 +112,7 @@ library RiskParameterStorageLib {
         if (newValue.pController.k.gt(UFixed6.wrap(type(uint40).max))) revert RiskParameterStorageInvalidError();
         if (newValue.pController.max.gt(UFixed6.wrap(type(uint32).max))) revert RiskParameterStorageInvalidError();
         if (newValue.minMaintenance.gt(UFixed6.wrap(type(uint48).max))) revert RiskParameterStorageInvalidError();
+        if (newValue.virtualTaker.gt(UFixed6.wrap(type(uint48).max))) revert RiskParameterStorageInvalidError();
         if (newValue.staleAfter > uint256(type(uint24).max)) revert RiskParameterStorageInvalidError();
 
         self.value = StoredRiskParameter({
@@ -131,9 +134,9 @@ library RiskParameterStorageLib {
             pControllerK: uint40(UFixed6.unwrap(newValue.pController.k)),
             pControllerMax: uint32(UFixed6.unwrap(newValue.pController.max)),
             minMaintenance: uint48(UFixed6.unwrap(newValue.minMaintenance)),
+            virtualTaker: uint48(UFixed6.unwrap(newValue.virtualTaker)),
             staleAfter: uint24(newValue.staleAfter),
-            makerReceiveOnly: newValue.makerReceiveOnly,
-            __unallocated__: bytes6(0)
+            makerReceiveOnly: newValue.makerReceiveOnly
         });
     }
 }

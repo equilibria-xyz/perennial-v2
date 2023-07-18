@@ -8,7 +8,6 @@ import {
   expectGlobalEq,
   expectLocalEq,
   expectPositionEq,
-  expectVersionEq,
   parse6decimal,
 } from '../../../../common/testutil/types'
 import { Market } from '../../../types/generated'

@@ -315,7 +315,8 @@ contract Market is IMarket, Instance {
         Order memory newOrder = context.currentPosition.local
             .update(context.local.currentId, context.currentTimestamp, newMaker, newLong, newShort);
         if (context.currentTimestamp > context.currentPosition.global.timestamp) context.global.currentId++;
-        context.currentPosition.global.update(context.global.currentId, context.currentTimestamp, newOrder);
+        context.currentPosition.global
+            .update(context.global.currentId, context.currentTimestamp, newOrder, context.riskParameter);
 
         // update fee
         newOrder.registerFee(context.latestVersion, context.marketParameter, context.riskParameter);

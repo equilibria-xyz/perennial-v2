@@ -179,7 +179,7 @@ library VersionLib {
         // Compute long-short funding rate
         Fixed6 funding = global.pAccumulator.accumulate(
             riskParameter.pController,
-            toPosition.skew(),
+            toPosition.virtualSkew(riskParameter),
             fromOracleVersion.timestamp,
             toOracleVersion.timestamp,
             fromPosition.takerSocialized().mul(fromOracleVersion.price.abs())

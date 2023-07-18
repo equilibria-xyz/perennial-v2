@@ -87,9 +87,15 @@ library PositionLib {
     }
 
     /// @dev update the current global position
-    function update(Position memory self, uint256 currentId, uint256 currentTimestamp, Order memory order) internal pure {
+    function update(
+        Position memory self,
+        uint256 currentId,
+        uint256 currentTimestamp,
+        Order memory order,
+        RiskParameter memory riskParameter
+    ) internal pure {
         // load the computed attributes of the latest position
-        Fixed6 latestSkew = skew(self);
+        Fixed6 latestSkew = virtualSkew(self, riskParameter);
         (order.net, order.efficiency, order.utilization) =
             (Fixed6Lib.from(net(self)), Fixed6Lib.from(efficiency(self)), Fixed6Lib.from(utilization(self)));
 
@@ -105,11 +111,12 @@ library PositionLib {
             UFixed6Lib.from(Fixed6Lib.from(self.short).add(order.short))
         );
 
+        // TODO(cleanup): move to order
         // update the order's delta attributes with the positions updated attributes
         (order.net, order.skew, order.impact, order.efficiency, order.utilization) = (
             Fixed6Lib.from(net(self)).sub(order.net),
-            skew(self).sub(latestSkew).abs(),
-            Fixed6Lib.from(skew(self).abs()).sub(Fixed6Lib.from(latestSkew.abs())),
+            virtualSkew(self, riskParameter).sub(latestSkew).abs(),
+            Fixed6Lib.from(virtualSkew(self, riskParameter).abs()).sub(Fixed6Lib.from(latestSkew.abs())),
             Fixed6Lib.from(efficiency(self)).sub(order.efficiency),
             Fixed6Lib.from(utilization(self)).sub(order.utilization)
         );
@@ -159,9 +166,19 @@ library PositionLib {
     }
 
     function skew(Position memory self) internal pure returns (Fixed6) {
+        return _skew(self, UFixed6Lib.ZERO);
+    }
+
+    function virtualSkew(Position memory self, RiskParameter memory riskParameter) internal pure returns (Fixed6) {
+        return _skew(self, riskParameter.virtualTaker);
+    }
+
+    function _skew(Position memory self, UFixed6 virtualTaker) internal pure returns (Fixed6) {
         return major(self).isZero() ?
             Fixed6Lib.ZERO :
-            Fixed6Lib.from(self.long).sub(Fixed6Lib.from(self.short)).div(Fixed6Lib.from(major(self)));
+            Fixed6Lib.from(self.long)
+                .sub(Fixed6Lib.from(self.short))
+                .div(Fixed6Lib.from(major(self).add(virtualTaker)));
     }
 
     function utilization(Position memory self) internal pure returns (UFixed6) {
