@@ -10,6 +10,34 @@ import { RiskParameterStruct } from '../../../types/generated/contracts/Market'
 const { ethers } = HRE
 use(smock.matchers)
 
+export const VALID_RISK_PARAMETER: RiskParameterStruct = {
+  maintenance: 1,
+  takerFee: 2,
+  takerSkewFee: 3,
+  takerImpactFee: 4,
+  makerFee: 5,
+  makerImpactFee: 6,
+  makerLimit: 7,
+  efficiencyLimit: 8,
+  liquidationFee: 9,
+  minLiquidationFee: 10,
+  maxLiquidationFee: 11,
+  utilizationCurve: {
+    minRate: 1,
+    maxRate: 2,
+    targetRate: 3,
+    targetUtilization: 4,
+  },
+  pController: {
+    k: 1,
+    max: 2,
+  },
+  minMaintenance: 12,
+  staleAfter: 13,
+  makerReceiveOnly: false,
+  virtualTaker: 14,
+}
+
 describe('RiskParameter', () => {
   let owner: SignerWithAddress
 
@@ -22,33 +50,6 @@ describe('RiskParameter', () => {
   })
 
   describe('#store', () => {
-    const VALID_RISK_PARAMETER: RiskParameterStruct = {
-      maintenance: 1,
-      takerFee: 2,
-      takerSkewFee: 3,
-      takerImpactFee: 4,
-      makerFee: 5,
-      makerImpactFee: 6,
-      makerLimit: 7,
-      efficiencyLimit: 8,
-      liquidationFee: 9,
-      minLiquidationFee: 10,
-      maxLiquidationFee: 11,
-      utilizationCurve: {
-        minRate: 1,
-        maxRate: 2,
-        targetRate: 3,
-        targetUtilization: 4,
-      },
-      pController: {
-        k: 1,
-        max: 2,
-      },
-      minMaintenance: 12,
-      staleAfter: 13,
-      makerReceiveOnly: false,
-    }
-
     it('stores a new value', async () => {
       await riskParameter.store(VALID_RISK_PARAMETER)
 
@@ -73,6 +74,7 @@ describe('RiskParameter', () => {
       expect(value.minMaintenance).to.equal(12)
       expect(value.staleAfter).to.equal(13)
       expect(value.makerReceiveOnly).to.equal(false)
+      expect(value.virtualTaker).to.equal(14)
     })
 
     describe('.makerLimit', () => {
@@ -432,6 +434,27 @@ describe('RiskParameter', () => {
           riskParameter.store({
             ...VALID_RISK_PARAMETER,
             staleAfter: BigNumber.from(2).pow(STORAGE_SIZE),
+          }),
+        ).to.be.revertedWithCustomError(riskParameter, 'RiskParameterStorageInvalidError')
+      })
+    })
+
+    describe('.virtualTaker', () => {
+      const STORAGE_SIZE = 48
+      it('saves if in range', async () => {
+        await riskParameter.store({
+          ...VALID_RISK_PARAMETER,
+          virtualTaker: BigNumber.from(2).pow(STORAGE_SIZE).sub(1),
+        })
+        const value = await riskParameter.read()
+        expect(value.virtualTaker).to.equal(BigNumber.from(2).pow(STORAGE_SIZE).sub(1))
+      })
+
+      it('reverts if out of range', async () => {
+        await expect(
+          riskParameter.store({
+            ...VALID_RISK_PARAMETER,
+            virtualTaker: BigNumber.from(2).pow(STORAGE_SIZE),
           }),
         ).to.be.revertedWithCustomError(riskParameter, 'RiskParameterStorageInvalidError')
       })
