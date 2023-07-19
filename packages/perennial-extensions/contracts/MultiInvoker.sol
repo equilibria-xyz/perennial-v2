@@ -121,6 +121,9 @@ contract MultiInvoker is IMultiInvoker, KeeperManager, UKept {
                 (address target) =
                     abi.decode(invocation.args, (address));
                 _approve(target);
+            } else if (invocation.action == PerennialActions.CHARGE_FEE) {
+                // TODO: add charge fee logic
+                // i think the only way to do this with the deposit / withdraw being in update action is to include it in that action
             }
         }
     }
