@@ -23,14 +23,14 @@ export const VALID_RISK_PARAMETER: RiskParameterStruct = {
   minLiquidationFee: 10,
   maxLiquidationFee: 11,
   utilizationCurve: {
-    minRate: 1,
-    maxRate: 2,
-    targetRate: 3,
-    targetUtilization: 4,
+    minRate: 101,
+    maxRate: 102,
+    targetRate: 103,
+    targetUtilization: 104,
   },
   pController: {
-    k: 1,
-    max: 2,
+    k: 201,
+    max: 202,
   },
   minMaintenance: 12,
   staleAfter: 13,
@@ -65,12 +65,12 @@ describe('RiskParameter', () => {
       expect(value.liquidationFee).to.equal(9)
       expect(value.minLiquidationFee).to.equal(10)
       expect(value.maxLiquidationFee).to.equal(11)
-      expect(value.utilizationCurve.minRate).to.equal(1)
-      expect(value.utilizationCurve.maxRate).to.equal(2)
-      expect(value.utilizationCurve.targetRate).to.equal(3)
-      expect(value.utilizationCurve.targetUtilization).to.equal(4)
-      expect(value.pController.k).to.equal(1)
-      expect(value.pController.max).to.equal(2)
+      expect(value.utilizationCurve.minRate).to.equal(101)
+      expect(value.utilizationCurve.maxRate).to.equal(102)
+      expect(value.utilizationCurve.targetRate).to.equal(103)
+      expect(value.utilizationCurve.targetUtilization).to.equal(104)
+      expect(value.pController.k).to.equal(201)
+      expect(value.pController.max).to.equal(202)
       expect(value.minMaintenance).to.equal(12)
       expect(value.staleAfter).to.equal(13)
       expect(value.makerReceiveOnly).to.equal(false)
