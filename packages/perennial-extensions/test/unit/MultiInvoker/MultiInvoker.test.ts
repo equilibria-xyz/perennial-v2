@@ -37,7 +37,7 @@ import { PositionStruct } from '../../../types/generated/@equilibria/perennial-v
 import { Local, parse6decimal } from '../../../../common/testutil/types'
 import { openPosition, setMarketPosition, setPendingPosition } from '../../helpers/types'
 import { impersonate } from '../../../../common/testutil'
-import { anyValue } from '@nomicfoundation/hardhat-chai-matchers/withArgs'
+import { anyUint, anyValue } from '@nomicfoundation/hardhat-chai-matchers/withArgs'
 
 const ethers = { HRE }
 use(smock.matchers)
@@ -112,8 +112,7 @@ describe('MultiInvoker', () => {
     marketFactory.instances.whenCalledWith(market.address).returns(true)
     vaultFactory.instances.whenCalledWith(vault.address).returns(true)
 
-    // approval
-    dsu.approve.whenCalledWith(multiInvoker.address, market.address || vault.address).returns(true)
+    dsu.approve.whenCalledWith(market.address || vault.address).returns(true)
 
     await multiInvoker.initialize(invokerOracle.address)
   })
@@ -252,9 +251,25 @@ describe('MultiInvoker', () => {
       expect(dsu.transfer).to.have.been.calledWith(user.address, dsuCollateral)
     })
 
-    // it('approves market', async () => {
+    it('approves market and vault', async () => {
+      // approve address not deployed from either factory fails
+      let a: Actions = [{ action: 8, args: utils.defaultAbiCoder.encode(['address'], [user.address]) }]
 
-    // })
+      await expect(multiInvoker.connect(owner).invoke(a)).to.have.been.revertedWithCustomError(
+        multiInvoker,
+        'MultiInvokerInvalidApprovalError',
+      )
+
+      // approve market succeeds
+      a = [{ action: 8, args: utils.defaultAbiCoder.encode(['address'], [market.address]) }]
+      await expect(multiInvoker.connect(user).invoke(a)).to.not.be.reverted
+      expect(dsu.approve).to.have.been.calledWith(market.address, helpers.MAX_INT)
+
+      // approve vault succeeds
+      a = [{ action: 8, args: utils.defaultAbiCoder.encode(['address'], [vault.address]) }]
+      await expect(multiInvoker.connect(user).invoke(a)).to.not.be.reverted
+      expect(dsu.approve).to.have.been.calledWith(vault.address, helpers.MAX_INT)
+    })
 
     // it('charges interface fee', async () => {
 
