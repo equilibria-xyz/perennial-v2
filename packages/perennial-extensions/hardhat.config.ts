@@ -5,6 +5,7 @@ const config = defaultConfig({
     '@equilibria/perennial-v2/contracts/Market.sol',
     '@equilibria/perennial-v2-oracle/contracts/interfaces/IPythOracle.sol',
     '@equilibria/perennial-v2-payoff/contracts/payoff/PowerTwo.sol',
+    '@equilibria/root-v2/contracts/UKept.sol',
   ],
 })
 
