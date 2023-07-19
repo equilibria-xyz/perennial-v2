@@ -287,7 +287,7 @@ describe('MultiInvoker', () => {
     const collateral = parse6decimal('10000')
     const position = parse6decimal('10')
 
-    const defaultOrder = {
+    let defaultOrder = {
       isLong: true,
       maxFee: position.div(20), // 5% fee
       execPrice: BigNumber.from(1000e6),
@@ -319,6 +319,12 @@ describe('MultiInvoker', () => {
     }
 
     beforeEach(async () => {
+      defaultOrder = {
+        isLong: true,
+        maxFee: position.div(20), // 5% fee
+        execPrice: BigNumber.from(1000e6),
+        size: position,
+      }
       await loadFixture(fixture)
     })
 
@@ -343,7 +349,7 @@ describe('MultiInvoker', () => {
       ).to.be.true
     })
 
-    it('opens a tp order', async () => {
+    it('places a tp order', async () => {
       defaultOrder.execPrice = BigNumber.from(1200e6)
 
       let a = helpers.buildPlaceOrder({ market: market.address, order: defaultOrder, triggerType: 'TP' })
@@ -361,7 +367,7 @@ describe('MultiInvoker', () => {
       expect(await multiInvoker.canExecuteOrder(user.address, market.address, 2)).to.be.true
     })
 
-    it('opens a sl order', async () => {
+    it('places a sl order', async () => {
       // order cannot be stopped
       defaultOrder.execPrice = BigNumber.from(1100e6) // default mkt price: 1150
       let a = helpers.buildPlaceOrder({ market: market.address, order: defaultOrder, triggerType: 'SL' })
@@ -461,6 +467,32 @@ describe('MultiInvoker', () => {
         .to.emit(multiInvoker, 'OrderExecuted')
         .to.emit(multiInvoker, 'KeeperCall')
     })
+
+    // // market price exec price
+    // it('executes a long limit order', async () => {
+
+    // })
+
+    // it('executes a short tp order', async () => {
+
+    // })
+
+    // it('executes a long sl order', async () => {
+
+    // })
+
+    // // market price > exec price
+    // it('executes a long tp order', async () => {
+
+    // })
+
+    // it('executes a short limit order', async () => {
+
+    // })
+
+    // it('execues a short sl order', async () => {
+
+    // })
 
     it('executes an order and charges keeper fee to sender', async () => {
       // long limit: limit = true && mkt price (1150) <= exec price 1200
