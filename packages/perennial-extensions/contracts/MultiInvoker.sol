@@ -114,7 +114,7 @@ contract MultiInvoker is IMultiInvoker, KeeperManager, UKept {
                 (address oracleProvider, uint256 version, bytes memory data) =
                     abi.decode(invocation.args, (address, uint256, bytes));
 
-                IPythOracle(oracleProvider).commit(version, data);
+                IPythOracle(oracleProvider).commit(version, msg.sender, data);
             } else if (invocation.action == PerennialAction.LIQUIDATE) {
                 (IMarket market, address account) =
                     abi.decode(invocation.args, (IMarket, address));
