@@ -19,6 +19,7 @@ interface IMultiInvoker {
     enum PerennialAction {
         NO_OP,
         UPDATE_POSITION,
+        UPDATE_VAULT,
         PLACE_ORDER,
         CANCEL_ORDER,
         EXEC_ORDER,

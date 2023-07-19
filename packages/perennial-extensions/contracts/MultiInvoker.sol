@@ -90,6 +90,11 @@ contract MultiInvoker is IMultiInvoker, KeeperManager, UKept {
                 ) = abi.decode(invocation.args, (IMarket, UFixed6, UFixed6, UFixed6, Fixed6, bool));
 
                 _update(market, makerDelta, longDelta, shortDelta, collateralDelta, handleWrap);
+            } else if (invocation.action == PerennialAction.UPDATE_VAULT) {
+                (IVault vault, UFixed6 depositAssets, UFixed6 redeemShares, UFixed6 claimAssets, bool wrap)
+                    = abi.decode(invocation.args, (IVault, UFixed6, UFixed6, UFixed6, bool));
+
+                _vaultUpdate(vault, depositAssets, redeemShares, claimAssets, wrap);
             } else if (invocation.action == PerennialAction.PLACE_ORDER) {
                 (IMarket market, IKeeperManager.Order memory order)
                     = abi.decode(invocation.args, (IMarket, IKeeperManager.Order));
@@ -116,11 +121,6 @@ contract MultiInvoker is IMultiInvoker, KeeperManager, UKept {
                     abi.decode(invocation.args, (IMarket, address));
 
                 _liquidate(IMarket(market), account);
-            } else if (invocation.action == PerennialAction.VAULT_UPDATE) {
-                (IVault vault, UFixed6 depositAssets, UFixed6 redeemShares, UFixed6 claimAssets, bool wrap)
-                    = abi.decode(invocation.args, (IVault, UFixed6, UFixed6, UFixed6, bool));
-
-                _vaultUpdate(vault, depositAssets, redeemShares, claimAssets, wrap);
             } else if (invocation.action == PerennialAction.APPROVE_MARKET) { //TODO: rename here and in tests
                 (address target) =
                     abi.decode(invocation.args, (address));
