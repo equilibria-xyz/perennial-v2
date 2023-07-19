@@ -2,7 +2,10 @@
 pragma solidity ^0.8.13;
 
 import { AggregatorV3Interface } from "@chainlink/contracts/src/v0.8/interfaces/AggregatorV3Interface.sol";
-import { IFactory } from "@equilibria/root-v2/contracts/IFactory.sol";
+// import { IFactory } from "@equilibria/root-v2/contracts/IFactory.sol";
+// TODO: @kevin import both market and vault factory to prevent mixup in constructor when deploying right?
+import { IMarketFactory } from "@equilibria/perennial-v2/contracts/interfaces/IMarketFactory.sol";
+import { IVaultFactory } from "@equilibria/perennial-v2-vault/contracts/interfaces/IVaultFactory.sol";
 import { IBatcher } from "@equilibria/emptyset-batcher/interfaces/IBatcher.sol";
 import { IEmptySetReserve } from "@equilibria/emptyset-batcher/interfaces/IEmptySetReserve.sol";
 import { IInstance } from "@equilibria/root-v2/contracts/IInstance.sol";
@@ -29,9 +32,9 @@ contract MultiInvoker is IMultiInvoker, KeeperManager, UKept {
     Token18 public immutable DSU; // solhint-disable-line var-name-mixedcase
 
     /// @dev Protocol factory to validate market approvals
-    IFactory public immutable marketFactory;
+    IMarketFactory public immutable marketFactory;
 
-    IFactory public immutable vaultFactory;
+    IVaultFactory public immutable vaultFactory;
 
     /// @dev Batcher address
     IBatcher public immutable batcher;
@@ -45,8 +48,8 @@ contract MultiInvoker is IMultiInvoker, KeeperManager, UKept {
     constructor(
         Token6 usdc_,
         Token18 dsu_,
-        IFactory marketFactory_,
-        IFactory vaultFactory_,
+        IMarketFactory marketFactory_,
+        IVaultFactory vaultFactory_,
         IBatcher batcher_,
         IEmptySetReserve reserve_
     ) {
@@ -65,8 +68,8 @@ contract MultiInvoker is IMultiInvoker, KeeperManager, UKept {
 
     // @todo not needed
     /// @notice approves a market deployed by the factory to spend DSU
-    /// @param market Market to approve max DSU spending
-    function approve(address market) external { _approve(market); }
+    /// @param target Market or Vault to approve max DSU spending
+    function approve(address target) external { _approve(target); }
 
     /// @notice entry to perform invocations
     /// @param invocations List of actions to execute in order
@@ -121,7 +124,7 @@ contract MultiInvoker is IMultiInvoker, KeeperManager, UKept {
                 (address target) =
                     abi.decode(invocation.args, (address));
                 _approve(target);
-            } else if (invocation.action == PerennialActions.CHARGE_FEE) {
+            } else if (invocation.action == PerennialAction.CHARGE_FEE) {
                 // TODO: add charge fee logic
                 // i think the only way to do this with the deposit / withdraw being in update action is to include it in that action
             }
@@ -236,13 +239,13 @@ contract MultiInvoker is IMultiInvoker, KeeperManager, UKept {
 
     // TODO: rename?
     /// @notice Helper fn to max approve DSU for usage in a market deployed by the factory
-    /// @param market Market to approve
-    function _approve(address market) internal {
+    /// @param target Market or Vault to approve
+    function _approve(address target) internal {
         if(
-            !marketFactory.instances(IInstance(market)) &&
-            !vaultFactory.instances(IInstance(market))
+            !marketFactory.instances(IInstance(target)) &&
+            !vaultFactory.instances(IInstance(target))
         ) revert MultiInvokerInvalidApprovalError();
-        DSU.approve(address(market));
+        DSU.approve(target);
     }
 
     /**
