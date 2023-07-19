@@ -18,7 +18,7 @@ import { OrderStruct } from '../../../types/generated/contracts/test/PositionTes
 const { ethers } = HRE
 use(smock.matchers)
 
-const VALID_ORACLE_VERSION: OracleVersionStruct = {
+export const VALID_ORACLE_VERSION: OracleVersionStruct = {
   timestamp: 12345,
   price: parse6decimal('100'),
   valid: true,

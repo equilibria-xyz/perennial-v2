@@ -10,6 +10,21 @@ import { MarketParameterStruct } from '../../../types/generated/contracts/Market
 const { ethers } = HRE
 use(smock.matchers)
 
+export const VALID_MARKET_PARAMETER: MarketParameterStruct = {
+  fundingFee: 1,
+  interestFee: 2,
+  positionFee: 3,
+  oracleFee: 4,
+  riskFee: 5,
+  settlementFee: 6,
+  makerRewardRate: 7,
+  longRewardRate: 8,
+  shortRewardRate: 9,
+  takerCloseAlways: false,
+  makerCloseAlways: false,
+  closed: false,
+}
+
 describe('MarketParameter', () => {
   let owner: SignerWithAddress
 
@@ -22,20 +37,6 @@ describe('MarketParameter', () => {
   })
 
   describe('#store', () => {
-    const VALID_MARKET_PARAMETER: MarketParameterStruct = {
-      fundingFee: 1,
-      interestFee: 2,
-      positionFee: 3,
-      oracleFee: 4,
-      riskFee: 5,
-      settlementFee: 6,
-      makerRewardRate: 7,
-      longRewardRate: 8,
-      shortRewardRate: 9,
-      takerCloseAlways: false,
-      makerCloseAlways: false,
-      closed: false,
-    }
     it('stores a new value', async () => {
       await marketParameter.store(VALID_MARKET_PARAMETER)
 
