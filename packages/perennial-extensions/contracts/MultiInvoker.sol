@@ -100,6 +100,7 @@ contract MultiInvoker is IMultiInvoker, KeeperManager, UKept {
 
                 _cancelOrder(msg.sender, market, nonce);
             } else if (invocation.action == PerennialAction.EXEC_ORDER) {
+
                 (address account, IMarket market, uint256 nonce) =
                     abi.decode(invocation.args, (address, IMarket, uint256));
 
@@ -125,8 +126,10 @@ contract MultiInvoker is IMultiInvoker, KeeperManager, UKept {
                     abi.decode(invocation.args, (address));
                 _approve(target);
             } else if (invocation.action == PerennialAction.CHARGE_FEE) {
-                // TODO: add charge fee logic
-                // i think the only way to do this with the deposit / withdraw being in update action is to include it in that action
+                (address to, UFixed18 amount) =
+                    abi.decode(invocation.args, (address, UFixed18));
+
+                USDC.pullTo(msg.sender, to, amount);
             }
         }
     }
@@ -237,6 +240,7 @@ contract MultiInvoker is IMultiInvoker, KeeperManager, UKept {
         );
     }
 
+
     // TODO: rename?
     /// @notice Helper fn to max approve DSU for usage in a market deployed by the factory
     /// @param target Market or Vault to approve
@@ -263,6 +267,7 @@ contract MultiInvoker is IMultiInvoker, KeeperManager, UKept {
         }
     }
 
+    // TODO: take UFixed18 as arg
     /**
      * @notice Push DSU or unwrap DSU to push USDC from this address to `account`
      * @param account Account to push DSU or USDC to

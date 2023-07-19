@@ -4,6 +4,8 @@ pragma solidity ^0.8.13;
 import {IKeeperManager, IMarket, MarketParameter, UFixed6, UFixed6Lib} from "./interfaces/IKeeperManager.sol";
 import { Fixed6 } from "@equilibria/root/number/types/Fixed6.sol";
 
+import "hardhat/console.sol";
+
 // TODO: if this gets small enough let's roll it into the MultiInvoker file
 // TODO: I think a lot of this could be moved into the Order type lib
 contract KeeperManager is IKeeperManager {
