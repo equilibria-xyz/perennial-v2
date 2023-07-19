@@ -78,48 +78,46 @@ contract MultiInvoker is IMultiInvoker, KeeperManager, UKept {
             // @todo consistent ordering of market and account
             if (invocation.action == PerennialAction.UPDATE_POSITION) {
                 (
-                    address market,
+                    IMarket market,
                     UFixed6 makerDelta,
                     UFixed6 longDelta,
                     UFixed6 shortDelta,
                     Fixed6 collateralDelta,
                     bool handleWrap
-                ) = abi.decode(invocation.args, (address, UFixed6, UFixed6, UFixed6, Fixed6, bool));
+                ) = abi.decode(invocation.args, (IMarket, UFixed6, UFixed6, UFixed6, Fixed6, bool));
 
                 _update(market, makerDelta, longDelta, shortDelta, collateralDelta, handleWrap);
             } else if (invocation.action == PerennialAction.PLACE_ORDER) {
-                (address market, IKeeperManager.Order memory order)
-                    = abi.decode(invocation.args, (address, IKeeperManager.Order));
+                (IMarket market, IKeeperManager.Order memory order)
+                    = abi.decode(invocation.args, (IMarket, IKeeperManager.Order));
 
-                _placeOrder(market, order);
+                _placeOrder(msg.sender, market, order);
             } else if (invocation.action == PerennialAction.CANCEL_ORDER) {
-                (address market, uint256 nonce) = abi.decode(invocation.args, (address, uint256));
+                (IMarket market, uint256 nonce) = abi.decode(invocation.args, (IMarket, uint256));
 
-                _cancelOrder(market, nonce);
+                _cancelOrder(msg.sender, market, nonce);
             } else if (invocation.action == PerennialAction.EXEC_ORDER) {
-                (address account, address market, uint256 nonce) =
-                    abi.decode(invocation.args, (address, address, uint256));
+                (address account, IMarket market, uint256 nonce) =
+                    abi.decode(invocation.args, (address, IMarket, uint256));
 
                 _executeOrderInvoker(account, market, nonce);
             } else if (invocation.action == PerennialAction.COMMIT_PRICE) {
-                (address oracleProvider, uint256 version, bytes memory data) =
                 (address oracleProvider, uint256 version, bytes memory data) =
                     abi.decode(invocation.args, (address, uint256, bytes));
 
 
                 IPythOracle(oracleProvider).commit(version, data);
             } else if (invocation.action == PerennialAction.LIQUIDATE) {
-                (address market, address account) =
-                (address market, address account) =
-                    abi.decode(invocation.args, (address, address));
-
+                (IMarket market, address account) =
+                    abi.decode(invocation.args, (IMarket, address));
 
                 _liquidate(IMarket(market), account);
             } else if (invocation.action == PerennialAction.VAULT_UPDATE) {
-                (address vault, UFixed6 depositAssets, UFixed6 redeemShares, UFixed6 claimAssets, bool wrap)
-                    = abi.decode(invocation.args, (address, UFixed6, UFixed6, UFixed6, bool));
+                (IVault vault, UFixed6 depositAssets, UFixed6 redeemShares, UFixed6 claimAssets, bool wrap)
+                    = abi.decode(invocation.args, (IVault, UFixed6, UFixed6, UFixed6, bool));
 
-            } else if (invocation.action == PerennialAction.APPROVE_MARKET) { // @todo rename here and in tests
+                _vaultUpdate(vault, depositAssets, redeemShares, claimAssets, wrap);
+            } else if (invocation.action == PerennialAction.APPROVE_MARKET) { //TODO: rename here and in tests
                 (address target) =
                     abi.decode(invocation.args, (address));
                 _approve(target);
@@ -136,7 +134,7 @@ contract MultiInvoker is IMultiInvoker, KeeperManager, UKept {
      * @param collateralDelta Net change in collateral for msg.sender in `market`
      */
     function _update(
-        address market,
+        IMarket market,
         UFixed6 newMaker,
         UFixed6 newLong,
         UFixed6 newShort,
@@ -146,32 +144,19 @@ contract MultiInvoker is IMultiInvoker, KeeperManager, UKept {
         // collateral is transferred from this address to the market, transfer from msg.sender to here
         if (collateralDelta.sign() == 1) _deposit(collateralDelta.abs(), handleWrap);
 
-        IMarket(market).update(msg.sender, newMaker, newLong, newShort, collateralDelta, false);
+        market.update(msg.sender, newMaker, newLong, newShort, collateralDelta, false);
 
         // collateral is transferred from the market to this address, transfer to msg.sender from here
         if (collateralDelta.sign() == -1) _withdraw(msg.sender, collateralDelta.abs(), handleWrap);
     }
 
-    function _vaultUpdate(address vault, UFixed6 depositAssets, UFixed6 redeemShares, UFixed6 claimAssets, bool wrap) internal {
+    function _vaultUpdate(IVault vault, UFixed6 depositAssets, UFixed6 redeemShares, UFixed6 claimAssets, bool wrap) internal {
 
         if (!depositAssets.isZero()) {
-            _depositTo(vault, depositAssets, wrap);
+            _deposit(depositAssets, wrap);
         }
 
-        IVault(vault).update(msg.sender, depositAssets, redeemShares, claimAssets);
-
-        if (!claimAssets.isZero()) {
-            _withdraw(msg.sender, claimAssets, wrap);
-        }
-    }
-
-    function _vaultUpdate(address vault, UFixed6 depositAssets, UFixed6 redeemShares, UFixed6 claimAssets, bool wrap) internal {
-
-        if (!depositAssets.isZero()) {
-            _depositTo(vault, depositAssets, wrap);
-        }
-
-        IVault(vault).update(msg.sender, depositAssets, redeemShares, claimAssets);
+        vault.update(msg.sender, depositAssets, redeemShares, claimAssets);
 
         if (!claimAssets.isZero()) {
             _withdraw(msg.sender, claimAssets, wrap);
@@ -203,20 +188,20 @@ contract MultiInvoker is IMultiInvoker, KeeperManager, UKept {
      */
     function _executeOrderInvoker(
         address account,
-        address market,
+        IMarket market,
         uint256 nonce
     ) internal keep (
         UFixed18Lib.from(keeperMultiplier),
         GAS_BUFFER,
-        abi.encode(market, account, orders(account, market, _orderNonce).maxFee)
+        abi.encode(market, account, orders(account, market, nonce).maxFee)
     ) {
-        Position memory position = IMarket(market).pendingPositions(account, IMarket(market).locals(account).currentId);
+        Position memory position = market.pendingPositions(account, IMarket(market).locals(account).currentId);
         IKeeperManager.Order memory order = orders(account, market, nonce);
 
-        if (order.isLong) position.long = order.isLimit ? position.long.add(order.size) : position.long.sub(order.size);
-        else position.short = order.isLimit ? position.short.add(order.size) : position.short.sub(order.size);
+        if(order.isLong) UFixed6Lib.from(Fixed6Lib.from(position.long).add(order.size));
+        else UFixed6Lib.from(Fixed6Lib.from(position.short).add(order.size));
 
-        IMarket(market).update(
+        market.update(
             account,
             position.maker,
             position.long,
@@ -226,7 +211,7 @@ contract MultiInvoker is IMultiInvoker, KeeperManager, UKept {
         );
 
         // TODO: yeah, this is confusing to follow with the rest of the logic in a separate file
-        _executeOrder(account, market, nonce);
+        _executeOrder(account, market, nonce, position.id);
     }
 
     function _raiseKeeperFee(UFixed18 keeperFee, bytes memory data) internal override {
@@ -246,12 +231,14 @@ contract MultiInvoker is IMultiInvoker, KeeperManager, UKept {
         );
     }
 
-    // @todo rename?
+    // TODO: rename?
     /// @notice Helper fn to max approve DSU for usage in a market deployed by the factory
     /// @param market Market to approve
     function _approve(address market) internal {
-        if(!factory.instances(IInstance(market)))
-            revert MultiInvokerInvalidMarketApprovalError();
+        if(
+            !marketFactory.instances(IInstance(market)) &&
+            !vaultFactory.instances(IInstance(market))
+        ) revert MultiInvokerInvalidApprovalError();
         DSU.approve(address(market));
     }
 
@@ -270,15 +257,6 @@ contract MultiInvoker is IMultiInvoker, KeeperManager, UKept {
         }
     }
 
-    // @todo add address(this) and general pullTo to _deposit instead?
-    function _depositTo(address to, UFixed6 collateralDelta, bool handleWrap) internal {
-        if(handleWrap) {
-            USDC.pullTo(msg.sender, to, UFixed18Lib.from(collateralDelta), true);
-            _handleWrap(address(this), UFixed18Lib.from(collateralDelta));
-        } else {
-            DSU.pullTo(msg.sender, to, UFixed18Lib.from(collateralDelta));
-        }
-    }
     /**
      * @notice Push DSU or unwrap DSU to push USDC from this address to `account`
      * @param account Account to push DSU or USDC to

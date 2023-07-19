@@ -9,6 +9,7 @@ import { Fixed6 } from "@equilibria/root/number/types/Fixed6.sol";
 contract KeeperManager is IKeeperManager {
     /// @dev Maximum number of open orders an account may have per market
     // TODO: perhaps make UOwnable and have this be a param
+    // TODO: maybe get rid of this
     uint256 private constant MAX_OPEN_ORDERS = 10;
 
     /// @dev UID for an order
@@ -25,13 +26,13 @@ contract KeeperManager is IKeeperManager {
     /// @param market Market to get open order in
     /// @param nonce UID of order
     function orders(address account, IMarket market, uint256 nonce) public view returns (Order memory) {
-        return _orders[account][market][nonce]; // TODO: put the getter here for your storage type
+        return _orders[account][market][nonce]; // TODO: storage lib getter
     }
 
     function canExecuteOrder(address account, IMarket market, uint256 nonce) external view returns (bool canFill) {
-        Order memory order = _orders[account][market][nonce];
+        Order memory order = orders(account, market, nonce); // TODO: storage lib getter
         if(order.execPrice.isZero()) return false;
-        (, canFill) = _canFillOrder(order, market);
+        return _canFillOrder(order, market);
     }
 
     /// @notice Places order on behalf of msg.sender from the invoker
@@ -46,11 +47,9 @@ contract KeeperManager is IKeeperManager {
 
     /// @notice Cancels an open order for msg.sender
     /// @param account Account to cancel order for
-    /// @param market Market order is open in @todo do we need this because of nonce?
+    /// @param market Market order is open in
     /// @param nonce UID of order
     function _cancelOrder(address account, IMarket market, uint256 nonce) internal {
-        // @kevin doesnt save any gas for edge cases in retrospect just uses more for normal cancellations
-        if (_orders[account][market][nonce].execPrice.isZero()) return; // TODO: why?
         delete _orders[account][market][nonce];
         --openOrders[account][market];
         emit OrderCancelled(account, market, nonce);
@@ -63,45 +62,35 @@ contract KeeperManager is IKeeperManager {
     function _executeOrder(
         address account,
         IMarket market,
-        uint256 nonce
+        uint256 nonce,
+        uint256 positionId
     ) internal {
         Order memory order = _orders[account][market][nonce];
 
         if(order.execPrice.isZero()) revert KeeperManagerOrderAlreadyCancelledError();
 
-        (UFixed6 price, bool canFill) = _canFillOrder(order, market);
+        bool canFill = _canFillOrder(order, market);
         if(!canFill) revert KeeperManagerBadCloseError();
 
         --openOrders[account][market];
         delete _orders[account][market][nonce]; //TODO: storage lib here
 
-        emit OrderExecuted(account, market, nonce,
-            price // TODO: this isn't the settlement price so it might not be useful
-            // TODO: I think a better thing to track would be the position id of the placed update
-        );
+        emit OrderExecuted(account, market, nonce, positionId);
     }
 
+    function _canFillOrder(Order memory order, IMarket market) internal view returns (bool canFill) {
+        Fixed6 price = _getMarketPrice(market);
 
-    /// @notice Helper function to determine fill eligibility of order
-    /// @param order Order to check
-    /// @param market Market to get price of
-    /// @return price Exec price of order for event context
-    /// @return canFill Can fill the order
-    function _canFillOrder(Order memory order, IMarket market) internal view returns (UFixed6 price, bool canFill) {
-        price = _getMarketPrice(market);
-
-        // TODO: can condense this to a single comparison of the sign of order.execPrice and price.sub(order.execPrice)
-        canFill = order.execPrice.sign() == 1 ? price.lte(order.execPrice.abs()) : price.gte(order.execPrice.abs());
+        canFill = order.priceBelow ? price.lte(order.execPrice) : price.gte(order.execPrice);
     }
 
     /// @notice Helper function to get price of `market`
     /// @param market Market to get price of
     /// @return price 6-decimal price of market
-    function _getMarketPrice(IMarket market) internal view returns (UFixed6 price) {
+    function _getMarketPrice(IMarket market) internal view returns (Fixed6 price) {
         // @kevin is this depending on payoff? i guess on the ui it would be flipped and sign made positive?
         // TODO: how are you encoding execution price? prices can actually be negative in the core protocol
         // TODO: need to override with the market's latestPrice, latest can actually be invalid with a totally wrong price
-        price = UFixed6Lib.from(market.oracle().latest().price);
+        price = market.oracle().latest().price;
     }
-
 }
