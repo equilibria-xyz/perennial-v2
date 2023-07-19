@@ -38,12 +38,14 @@ export type Actions = IMultiInvoker.InvocationStruct[]
 
 export const buildUpdateMarket = ({
   market,
+  maker,
   long,
   short,
   collateral,
   handleWrap,
 }: {
   market: string
+  maker?: BigNumberish
   long?: BigNumberish
   short?: BigNumberish
   collateral?: BigNumberish
@@ -56,7 +58,7 @@ export const buildUpdateMarket = ({
         ['address', 'int256', 'int256', 'int256', 'int256', 'bool'],
         [
           market,
-          '0',
+          maker ? maker : '0',
           long ? long : '0',
           short ? short : '0',
           collateral ? collateral : '0',
@@ -157,7 +159,7 @@ export const buildPlaceOrder = ({
       ),
     },
     {
-      action: 2,
+      action: 3,
       args: utils.defaultAbiCoder.encode(
         ['address', 'tuple(bool,bool,uint256,int256,int256)'],
         [
@@ -215,6 +217,14 @@ export const buildUpdateVault = (vaultUpdate: VaultUpdate): Actions => {
   ]
 }
 
+export const buildLiquidateUser = ({ user, market }: { market: string; user: string }): Actions => {
+  return [
+    {
+      action: 7,
+      args: utils.defaultAbiCoder.encode(['address', 'address'], [market, user]),
+    },
+  ]
+}
 export const buildPlaceOrderRollup = ({
   marketIndex,
   market,
@@ -277,7 +287,7 @@ export const buildPlaceOrderRollup = ({
 export const buildCancelOrder = ({ market, orderId }: { market: string; orderId: BigNumberish }): Actions => {
   return [
     {
-      action: 3,
+      action: 4,
       args: utils.defaultAbiCoder.encode(['address', 'uint256'], [market, orderId]),
     },
   ]
@@ -402,6 +412,7 @@ module.exports = {
   buildExecOrder,
   buildPlaceOrder,
   buildUpdateMarket,
+  buildLiquidateUser,
   buildUpdateVault,
   buildCancelOrderRollup,
   buildExecOrderRollup,

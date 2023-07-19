@@ -1,6 +1,6 @@
 import { SignerWithAddress } from '@nomiclabs/hardhat-ethers/signers'
 import HRE from 'hardhat'
-import { utils } from 'ethers'
+import { utils, ContractTransaction } from 'ethers'
 
 import { time, impersonate } from '../../../../common/testutil'
 
@@ -20,6 +20,7 @@ import {
   Market,
   Market__factory,
   PowerTwo__factory,
+  IMarket,
 } from '../../../types/generated'
 
 // v2 core types
@@ -34,12 +35,28 @@ import {
   IOracleProvider__factory,
 } from '@equilibria/perennial-v2/types/generated'
 
+import { VaultFactory__factory, Vault__factory } from '../../../../perennial-vault/types/generated/factories/contracts'
+
 import { ChainlinkContext } from '@equilibria/perennial-v2/test/integration/helpers/chainlinkHelpers'
 
 import { parse6decimal } from '../../../../common/testutil/types'
 import { buildChainlinkRoundId } from '@equilibria/perennial-v2-oracle/util/buildChainlinkRoundId'
 import { CHAINLINK_CUSTOM_CURRENCIES } from '@equilibria/perennial-v2-oracle/util/constants'
 import { currentBlockTimestamp } from '../../../../common/testutil/time'
+import { OracleFactory } from '@equilibria/perennial-v2/types/generated/@equilibria/perennial-v2-oracle/contracts'
+import { PayoffFactory } from '@equilibria/perennial-v2/types/generated/@equilibria/perennial-v2-payoff/contracts'
+import { MarketFactory } from '@equilibria/perennial-v2/types/generated/contracts'
+import {
+  OracleFactory__factory,
+  Oracle__factory,
+} from '@equilibria/perennial-v2/types/generated/factories/@equilibria/perennial-v2-oracle/contracts'
+import { PayoffFactory__factory } from '@equilibria/perennial-v2/types/generated/factories/@equilibria/perennial-v2-payoff/contracts'
+import { MarketFactory__factory } from '@equilibria/perennial-v2/types/generated/factories/contracts'
+import { IOracle__factory } from '@equilibria/perennial-v2/types/generated/factories/@equilibria/perennial-v2-oracle/contracts/interfaces'
+import {
+  MarketParameterStruct,
+  RiskParameterStruct,
+} from '../../../types/generated/@equilibria/perennial-v2/contracts/Market'
 // import { ProtocolParameterStruct } from '@equilibria/perennial-v2/types/generated/contracts/Factory'
 const { config, deployments, ethers } = HRE
 
@@ -67,48 +84,61 @@ export interface InstanceVars {
   userB: SignerWithAddress
   userC: SignerWithAddress
   userD: SignerWithAddress
-  treasuryA: SignerWithAddress
-  treasuryB: SignerWithAddress
+  beneficiaryB: SignerWithAddress
   proxyAdmin: ProxyAdmin
-  factory: Factory
+  oracleFactory: OracleFactory
+  payoffFactory: PayoffFactory
+  marketFactory: MarketFactory
   payoff: IPayoffProvider
   dsu: IERC20Metadata
   usdc: IERC20Metadata
-  batcher: IBatcher
-  reserve: IEmptySetReserve
   usdcHolder: SignerWithAddress
   chainlink: ChainlinkContext
+  oracle: IOracleProvider
   marketImpl: Market
   rewardToken: ERC20PresetMinterPauser
   multiInvoker: MultiInvoker
 }
 
-export async function deployProtocol(): Promise<InstanceVars> {
-  await time.reset(config)
-  const [owner, pauser, user, userB, userC, userD, treasuryA, treasuryB] = await ethers.getSigners()
+export async function deployProtocol(chainlinkContext?: ChainlinkContext): Promise<InstanceVars> {
+  const [owner, pauser, user, userB, userC, userD, beneficiaryB] = await ethers.getSigners()
 
-  // Deploy external deps
-  const initialRoundId = buildChainlinkRoundId(INITIAL_PHASE_ID, INITIAL_AGGREGATOR_ROUND_ID)
-  const chainlink = await new ChainlinkContext(
-    CHAINLINK_CUSTOM_CURRENCIES.ETH,
-    CHAINLINK_CUSTOM_CURRENCIES.USD,
-    initialRoundId,
-    1,
-    CHAINLINK_REGISTRY,
-  ).init()
+  const payoff = IPayoffProvider__factory.connect((await new PowerTwo__factory(owner).deploy()).address, owner)
+  const dsu = IERC20Metadata__factory.connect(DSU, owner)
+  const usdc = IERC20Metadata__factory.connect(USDC, owner)
 
-  const payoff = await IPayoffProvider__factory.connect((await new PowerTwo__factory(owner).deploy()).address, owner)
-  const dsu = await IERC20Metadata__factory.connect(DSU, owner)
-  const usdc = await IERC20Metadata__factory.connect(USDC, owner)
-  const batcher = await IBatcher__factory.connect(BATCHER, owner)
-  const reserve = await IEmptySetReserve__factory.connect(DSU_MINTER, owner)
-  const oracle = await IOracleProvider__factory.connect(ETH_ORACLE, owner)
+  const chainlink =
+    chainlinkContext ??
+    (await new ChainlinkContext(CHAINLINK_CUSTOM_CURRENCIES.ETH, CHAINLINK_CUSTOM_CURRENCIES.USD, 1).init())
+
   // Deploy protocol contracts
   const proxyAdmin = await new ProxyAdmin__factory(owner).deploy()
 
+  const oracleImpl = await new Oracle__factory(owner).deploy()
+
+  const oracleFactoryImpl = await new OracleFactory__factory(owner).deploy(oracleImpl.address)
+  const oracleFactoryProxy = await new TransparentUpgradeableProxy__factory(owner).deploy(
+    oracleFactoryImpl.address,
+    proxyAdmin.address,
+    [],
+  )
+  const oracleFactory = new OracleFactory__factory(owner).attach(oracleFactoryProxy.address)
+
+  const payoffFactoryImpl = await new PayoffFactory__factory(owner).deploy()
+  const payoffFactoryProxy = await new TransparentUpgradeableProxy__factory(owner).deploy(
+    payoffFactoryImpl.address,
+    proxyAdmin.address,
+    [],
+  )
+  const payoffFactory = new PayoffFactory__factory(owner).attach(payoffFactoryProxy.address)
+
   const marketImpl = await new Market__factory(owner).deploy()
 
-  const factoryImpl = await new Factory__factory(owner).deploy(marketImpl.address)
+  const factoryImpl = await new MarketFactory__factory(owner).deploy(
+    oracleFactory.address,
+    payoffFactory.address,
+    marketImpl.address,
+  )
 
   const factoryProxy = await new TransparentUpgradeableProxy__factory(owner).deploy(
     factoryImpl.address,
@@ -116,23 +146,42 @@ export async function deployProtocol(): Promise<InstanceVars> {
     [],
   )
 
-  const factory: Factory = await new Factory__factory(owner).attach(factoryProxy.address)
+  const marketFactory = new MarketFactory__factory(owner).attach(factoryProxy.address)
+
+  const vaultImpl = await new Vault__factory(owner).deploy()
+  const vaultFactoryImpl = await new VaultFactory__factory(owner).deploy(marketFactory.address, vaultImpl.address)
+
+  // const vaultFactoryProxy = await new TransparentUpgradeableProxy__factory(owner).deploy(
+  //   vaultFactoryImpl,
+  //   proxyAdmin.address,
+  //   [],
+  // )
 
   // Init
-  await factory.initialize()
+  await oracleFactory.connect(owner).initialize(dsu.address)
+  await payoffFactory.connect(owner).initialize()
+  await marketFactory.connect(owner).initialize()
 
   // Params
-  await factory.updatePauser(pauser.address)
-  await factory.updateTreasury(treasuryA.address)
-  await factory.updateParameter({
+  await marketFactory.updatePauser(pauser.address)
+  await marketFactory.updateParameter({
     protocolFee: parse6decimal('0.50'),
-    minFundingFee: '0',
-    liquidationFee: parse6decimal('0.50'),
-    minCollateral: parse6decimal('500'),
-    minSpread: '0',
     maxPendingIds: 8,
-    paused: false,
+    maxFee: parse6decimal('0.01'),
+    maxFeeAbsolute: parse6decimal('1000'),
+    maxCut: parse6decimal('0.50'),
+    maxRate: parse6decimal('10.00'),
+    minMaintenance: parse6decimal('0.01'),
+    minEfficiency: parse6decimal('0.1'),
   })
+  await payoffFactory.connect(owner).register(payoff.address)
+  await oracleFactory.connect(owner).register(chainlink.oracleFactory.address)
+  await oracleFactory.connect(owner).authorize(marketFactory.address)
+  const oracle = IOracle__factory.connect(
+    await oracleFactory.connect(owner).callStatic.create(chainlink.id, chainlink.oracleFactory.address),
+    owner,
+  )
+  await oracleFactory.connect(owner).create(chainlink.id, chainlink.oracleFactory.address)
 
   // Set state
   await fundWallet(dsu, user)
@@ -146,11 +195,17 @@ export async function deployProtocol(): Promise<InstanceVars> {
   const multiInvoker = await new MultiInvoker__factory(owner).deploy(
     usdc.address,
     dsu.address,
-    factory.address,
+    marketFactory.address,
+    vaultFactoryImpl.address, // todo factory?
     BATCHER,
     DSU_MINTER,
-    ETH_ORACLE,
   )
+
+  await marketFactory.connect(user).updateOperator(multiInvoker.address, true)
+  await marketFactory.connect(userB).updateOperator(multiInvoker.address, true)
+  await vaultFactoryImpl.initialize()
+  // await vaultImpl.initialize(dsu.address, marketImpl.address, "eth vault", "ev")
+  await multiInvoker.initialize(ETH_ORACLE)
 
   return {
     owner,
@@ -159,17 +214,17 @@ export async function deployProtocol(): Promise<InstanceVars> {
     userB,
     userC,
     userD,
-    treasuryA,
-    treasuryB,
+    beneficiaryB,
+    proxyAdmin,
+    oracleFactory,
+    payoffFactory,
+    marketFactory,
     chainlink,
     payoff,
     dsu,
     usdc,
-    batcher,
-    reserve,
     usdcHolder,
-    proxyAdmin,
-    factory,
+    oracle,
     marketImpl,
     rewardToken,
     multiInvoker,
@@ -191,27 +246,32 @@ export async function createMarket(
   instanceVars: InstanceVars,
   name?: string,
   symbol?: string,
-  oracle?: IOracleProvider,
+  oracleOverride?: IOracleProvider,
   payoff?: IPayoffProvider,
+  riskParamOverrides?: Partial<RiskParameterStruct>,
+  marketParamOverrides?: Partial<MarketParameterStruct>,
 ): Promise<Market> {
-  const { owner, factory, treasuryB, chainlink, rewardToken, dsu } = instanceVars
+  const { owner, marketFactory, beneficiaryB, oracle, rewardToken, dsu } = instanceVars
 
   const definition = {
-    name: name ?? 'ethereum',
-    symbol: symbol ?? 'ETH',
+    name: name ?? 'Squeeth',
+    symbol: symbol ?? 'SQTH',
     token: dsu.address,
-    reward: rewardToken.address,
+    oracle: (oracleOverride ?? oracle).address,
+    payoff: (payoff ?? instanceVars.payoff).address,
   }
-  const parameter = {
+  const riskParameter = {
     maintenance: parse6decimal('0.3'),
-    fundingFee: parse6decimal('0.1'),
-    interestFee: parse6decimal('0.1'),
     takerFee: 0,
+    takerSkewFee: 0,
+    takerImpactFee: 0,
     makerFee: 0,
-    positionFee: 0,
-    makerLiquidity: parse6decimal('0.2'),
+    makerImpactFee: 0,
     makerLimit: parse6decimal('1000'),
-    closed: false,
+    efficiencyLimit: parse6decimal('0.2'),
+    liquidationFee: parse6decimal('0.50'),
+    minLiquidationFee: parse6decimal('0'),
+    maxLiquidationFee: parse6decimal('1000'),
     utilizationCurve: {
       minRate: 0,
       maxRate: parse6decimal('5.00'),
@@ -219,23 +279,44 @@ export async function createMarket(
       targetUtilization: parse6decimal('0.80'),
     },
     pController: {
-      value: 0,
-      _k: parse6decimal('40000'),
-      _skew: 0,
-      _max: parse6decimal('1.20'),
+      k: parse6decimal('40000'),
+      max: parse6decimal('1.20'),
     },
+    minMaintenance: parse6decimal('500'),
+    staleAfter: 7200,
+    makerReceiveOnly: false,
+    ...riskParamOverrides,
+  }
+  const marketParameter = {
+    fundingFee: parse6decimal('0.1'),
+    interestFee: parse6decimal('0.1'),
+    oracleFee: 0,
+    riskFee: 0,
+    positionFee: 0,
     makerRewardRate: 0,
     longRewardRate: 0,
     shortRewardRate: 0,
-    oracle: (oracle ?? chainlink.oracle).address,
-    payoff: (payoff ?? instanceVars.payoff).address,
+    settlementFee: 0,
+    makerCloseAlways: false,
+    takerCloseAlways: false,
+    closed: false,
+    ...marketParamOverrides,
   }
-  const marketAddress = await factory.callStatic.createMarket(definition, parameter)
-  await factory.createMarket(definition, parameter)
+  const marketAddress = await marketFactory.callStatic.create(definition, riskParameter)
+  await marketFactory.create(definition, riskParameter)
 
   const market = Market__factory.connect(marketAddress, owner)
-  await market.acceptOwner()
-  await market.updateTreasury(treasuryB.address)
+  await market.updateBeneficiary(beneficiaryB.address)
+  await market.updateReward(rewardToken.address)
+  await market.updateParameter(marketParameter)
 
   return market
+}
+
+export async function settle(market: IMarket, account: SignerWithAddress): Promise<ContractTransaction> {
+  const local = await market.locals(account.address)
+  const currentPosition = await market.pendingPositions(account.address, local.currentId)
+  return market
+    .connect(account)
+    .update(account.address, currentPosition.maker, currentPosition.long, currentPosition.short, 0, false)
 }
