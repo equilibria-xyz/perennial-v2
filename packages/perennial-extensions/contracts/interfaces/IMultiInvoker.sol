@@ -27,17 +27,7 @@ interface IMultiInvoker {
         LIQUIDATE,
         APPROVE_MARKET,
         VAULT_UPDATE, // @todo change tuple order in tests
-        CLAIM,
-        WRAP,
-        UNWRAP,
-        WRAP_AND_UPDATE,
-        UPDATE_AND_UNWRAP,
-        VAULT_DEPOSIT,
-        VAULT_REDEEM,
-        VAULT_CLAIM,
-        VAULT_WRAP_AND_DEPOSIT,
-        CHARGE_FEE,
-        UPDATE_ORDER
+        CHARGE_FEE
     }
 
     struct KeeperOrder {
