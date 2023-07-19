@@ -271,9 +271,16 @@ describe('MultiInvoker', () => {
       expect(dsu.approve).to.have.been.calledWith(vault.address, helpers.MAX_INT)
     })
 
-    // it('charges interface fee', async () => {
+    it('charges interface fee', async () => {
+      usdc.transferFrom.whenCalledWith(user.address, owner.address, collateral).returns(true)
 
-    // })
+      const c: Actions = [
+        { action: 10, args: utils.defaultAbiCoder.encode(['address', 'uint256'], [owner.address, dsuCollateral]) },
+      ]
+      await expect(multiInvoker.connect(user).invoke(c)).to.not.be.reverted
+
+      expect(usdc.transferFrom).to.have.been.calledWith(user.address, owner.address, collateral)
+    })
   })
 
   describe('#keeper order invoke', () => {
