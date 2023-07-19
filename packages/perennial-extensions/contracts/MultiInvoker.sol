@@ -336,8 +336,6 @@ contract MultiInvoker is IMultiInvoker, KeeperManager, UKept {
 
         latestVersion.price = latestVersion.valid ?
             latestVersion.price :
-        latestVersion.price = latestVersion.valid ?
-            latestVersion.price :
             market.global().latestPrice;
     }
 }
