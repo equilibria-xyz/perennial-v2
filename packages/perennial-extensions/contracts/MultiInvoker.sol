@@ -114,7 +114,6 @@ contract MultiInvoker is IMultiInvoker, KeeperManager, UKept {
                 (address oracleProvider, uint256 version, bytes memory data) =
                     abi.decode(invocation.args, (address, uint256, bytes));
 
-
                 IPythOracle(oracleProvider).commit(version, data);
             } else if (invocation.action == PerennialAction.LIQUIDATE) {
                 (IMarket market, address account) =
@@ -202,6 +201,7 @@ contract MultiInvoker is IMultiInvoker, KeeperManager, UKept {
     ) internal keep (
         UFixed18Lib.from(keeperMultiplier),
         GAS_BUFFER,
+        msg.sender,
         abi.encode(market, account, orders(account, market, nonce).maxFee)
     ) {
         Position memory position = market.pendingPositions(account, IMarket(market).locals(account).currentId);

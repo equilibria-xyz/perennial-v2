@@ -27,7 +27,7 @@ abstract contract UKept is IKept, UInitializable {
 
     function _raiseKeeperFee(UFixed18 amount, bytes memory data) internal virtual { }
 
-    modifier keep(UFixed18 multiplier, uint256 buffer, bytes memory data) {
+    modifier keep(UFixed18 multiplier, uint256 buffer, address feeReceiver, bytes memory data) {
         uint256 startGas = gasleft();
 
         _;
@@ -41,9 +41,9 @@ abstract contract UKept is IKept, UInitializable {
 
         _raiseKeeperFee(keeperFee, data);
 
-        keeperToken().push(msg.sender, keeperFee);
+        keeperToken().push(feeReceiver, keeperFee);
 
-        emit KeeperCall(msg.sender, gasUsed, multiplier, buffer, keeperFee);
+        emit KeeperCall(feeReceiver, gasUsed, multiplier, buffer, keeperFee);
     }
 
     function _etherPrice() private view returns (UFixed18) {
