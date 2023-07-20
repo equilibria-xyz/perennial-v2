@@ -224,20 +224,19 @@ library PositionLib {
     /// @dev shortfall is considered solvent for 0-position
     function collateralized(
         Position memory self,
-        OracleVersion memory currentOracleVersion,
+        OracleVersion memory latestVersion,
         RiskParameter memory riskParameter,
         Fixed6 collateral
     ) internal pure returns (bool) {
-        return collateral.max(Fixed6Lib.ZERO)
-            .gte(Fixed6Lib.from(maintenance(self, currentOracleVersion, riskParameter)));
+        return collateral.max(Fixed6Lib.ZERO).gte(Fixed6Lib.from(maintenance(self, latestVersion, riskParameter)));
     }
 
     function liquidationFee(
         Position memory self,
-        OracleVersion memory currentOracleVersion,
+        OracleVersion memory latestVersion,
         RiskParameter memory riskParameter
     ) internal pure returns (UFixed6) {
-        return maintenance(self, currentOracleVersion, riskParameter)
+        return maintenance(self, latestVersion, riskParameter)
             .mul(riskParameter.liquidationFee)
             .min(riskParameter.maxLiquidationFee)
             .max(riskParameter.minLiquidationFee);

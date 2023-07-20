@@ -172,20 +172,18 @@ contract MultiInvoker is IMultiInvoker, KeeperManager, UKept {
     }
 
     function _liquidate(IMarket market, address account) internal {
-        // sync and settle
-        // TODO: I checked and this doesn't currently work -- will revert on update if position is undercollateralized
-        // TODO: we'll have to do something else here, or change the invariant
-        market.update(account, UFixed6Lib.MAX, UFixed6Lib.MAX, UFixed6Lib.MAX, Fixed6Lib.ZERO, false);
-
         UFixed6 liquidationFee = _liquidationFee(market, account);
 
         market.update(
             account,
-            UFixed6Lib.ZERO, UFixed6Lib.ZERO, UFixed6Lib.ZERO,
+            UFixed6Lib.ZERO,
+            UFixed6Lib.ZERO,
+            UFixed6Lib.ZERO,
             Fixed6Lib.from(-1, liquidationFee),
-            true);
+            true
+        );
 
-        _withdraw(msg.sender, liquidationFee, false);
+        _withdraw(msg.sender, liquidationFee, false); // TODO: returns DSI?
     }
 
     /**
@@ -202,7 +200,7 @@ contract MultiInvoker is IMultiInvoker, KeeperManager, UKept {
         UFixed18Lib.from(keeperMultiplier),
         GAS_BUFFER,
         msg.sender,
-        abi.encode(market, account, orders(account, market, nonce).maxFee)
+        abi.encode(account, market, orders(account, market, nonce).maxFee)
     ) {
         Position memory position = market.pendingPositions(account, IMarket(market).locals(account).currentId);
         IKeeperManager.Order memory order = orders(account, market, nonce);
@@ -224,9 +222,7 @@ contract MultiInvoker is IMultiInvoker, KeeperManager, UKept {
     }
 
     function _raiseKeeperFee(UFixed18 keeperFee, bytes memory data) internal override {
-
-        // @todo market, account or account, market for consistency?
-        (address market, address account, UFixed6 maxFee) = abi.decode(data, (address, address, UFixed6));
+        (address account, address market, UFixed6 maxFee) = abi.decode(data, (address, address, UFixed6));
         if(keeperFee.gt(UFixed18Lib.from(maxFee)))
             revert MultiInvokerMaxFeeExceededError();
 
@@ -276,8 +272,8 @@ contract MultiInvoker is IMultiInvoker, KeeperManager, UKept {
      */
     function _withdraw(address account, UFixed6 collateralDelta, bool handleUnwrap) internal {
         if (handleUnwrap) {
-            DSU.push(account, UFixed18Lib.from(collateralDelta));
             _handleUnwrap(account, UFixed18Lib.from(collateralDelta));
+            USDC.push(account, UFixed18Lib.from(collateralDelta));
         } else {
             DSU.push(account, UFixed18Lib.from(collateralDelta)); // // @todo change to 1e6?
         }
@@ -315,27 +311,34 @@ contract MultiInvoker is IMultiInvoker, KeeperManager, UKept {
         }
     }
 
-    // TODO: would be cool if we could figure out a way to "fake-settle" just to get the latest position
-    // TODO: could use the oracle + market pending position, but also need to take into account invalid versions
-    // TODO: if we get that we don't need to solve the invariant issue above
     function _liquidationFee(IMarket market, address account) internal view returns (UFixed6) {
-        Position memory position = market.positions(account);
-        RiskParameter memory parameter = market.riskParameter();
-        OracleVersion memory latestVersion = _latestVersionPrice(market, position);
+        RiskParameter memory riskParameter = market.riskParameter();
+        (Position memory latestPosition, OracleVersion memory latestVersion) = _latest(market, account);
 
-        return position
-            .liquidationFee(latestVersion, parameter)
+        return latestPosition
+            .liquidationFee(latestVersion, riskParameter)
             .min(UFixed6Lib.from(market.token().balanceOf(address(market))));
     }
 
-    function _latestVersionPrice(
+    function _latest(
         IMarket market,
-        Position memory position
-    ) internal view returns (OracleVersion memory latestVersion) {
-        latestVersion = market.at(position.timestamp);
+        address account
+    ) internal view returns (Position memory latestPosition, OracleVersion memory latestVersion) {
+        // load latest settled position and price
+        uint256 latestTimestamp = market.oracle().latest().timestamp;
+        latestPosition = market.positions(account);
+        latestVersion = OracleVersion(latestPosition.timestamp, market.global().latestPrice, true);
 
-        latestVersion.price = latestVersion.valid ?
-            latestVersion.price :
-            market.global().latestPrice;
+        // scan pending position for any ready-to-be-settled positions
+        for (uint256 id = market.positions(account).id; id <= market.locals(account).currentId; id++) {
+            Position memory pendingPosition = market.pendingPositions(account, id);
+            OracleVersion memory oracleVersion = market.at(pendingPosition.timestamp);
+
+            // if versions are valid, update latest
+            if (latestTimestamp >= pendingPosition.timestamp && oracleVersion.valid) {
+                latestPosition = pendingPosition;
+                latestVersion = oracleVersion;
+            }
+        }
     }
 }
