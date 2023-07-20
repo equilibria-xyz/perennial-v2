@@ -313,19 +313,19 @@ library PositionStorageLocalLib {
 }
 
 library PositionStorageLib {
-    error PositionStorageLocalInvalidError();
+    error PositionStorageInvalidError();
 
     function validate(Position memory newValue) internal pure {
-        if (newValue.id > type(uint24).max) revert PositionStorageLocalInvalidError();
-        if (newValue.timestamp > type(uint32).max) revert PositionStorageLocalInvalidError();
-        if (newValue.maker.gt(UFixed6.wrap(type(uint48).max))) revert PositionStorageLocalInvalidError();
-        if (newValue.long.gt(UFixed6.wrap(type(uint48).max))) revert PositionStorageLocalInvalidError();
-        if (newValue.short.gt(UFixed6.wrap(type(uint48).max))) revert PositionStorageLocalInvalidError();
-        if (newValue.fee.gt(UFixed6.wrap(type(uint48).max))) revert PositionStorageLocalInvalidError();
-        if (newValue.keeper.gt(UFixed6.wrap(type(uint48).max))) revert PositionStorageLocalInvalidError();
-        if (newValue.collateral.gt(Fixed6.wrap(type(int48).max))) revert PositionStorageLocalInvalidError();
-        if (newValue.collateral.lt(Fixed6.wrap(type(int48).min))) revert PositionStorageLocalInvalidError();
-        if (newValue.delta.gt(Fixed6.wrap(type(int48).max))) revert PositionStorageLocalInvalidError();
-        if (newValue.delta.lt(Fixed6.wrap(type(int48).min))) revert PositionStorageLocalInvalidError();
+        if (newValue.id > type(uint24).max) revert PositionStorageInvalidError();
+        if (newValue.timestamp > type(uint32).max) revert PositionStorageInvalidError();
+        if (newValue.maker.gt(UFixed6.wrap(type(uint48).max))) revert PositionStorageInvalidError();
+        if (newValue.long.gt(UFixed6.wrap(type(uint48).max))) revert PositionStorageInvalidError();
+        if (newValue.short.gt(UFixed6.wrap(type(uint48).max))) revert PositionStorageInvalidError();
+        if (newValue.fee.gt(UFixed6.wrap(type(uint48).max))) revert PositionStorageInvalidError();
+        if (newValue.keeper.gt(UFixed6.wrap(type(uint48).max))) revert PositionStorageInvalidError();
+        if (newValue.collateral.gt(Fixed6.wrap(type(int48).max))) revert PositionStorageInvalidError();
+        if (newValue.collateral.lt(Fixed6.wrap(type(int48).min))) revert PositionStorageInvalidError();
+        if (newValue.delta.gt(Fixed6.wrap(type(int48).max))) revert PositionStorageInvalidError();
+        if (newValue.delta.lt(Fixed6.wrap(type(int48).min))) revert PositionStorageInvalidError();
     }
 }

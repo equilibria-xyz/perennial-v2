@@ -37,7 +37,7 @@ const VALID_ORDER: OrderStruct = {
   net: 7, // unused
 }
 
-describe('Position', () => {
+describe.only('Position', () => {
   let owner: SignerWithAddress
 
   describe('global position', () => {
@@ -78,7 +78,7 @@ describe('Position', () => {
       })
 
       describe('.id', async () => {
-        const STORAGE_SIZE = 32
+        const STORAGE_SIZE = 24
         it('saves if in range', async () => {
           await position.store({
             ...VALID_GLOBAL_POSITION,
@@ -94,7 +94,7 @@ describe('Position', () => {
               ...VALID_GLOBAL_POSITION,
               id: BigNumber.from(2).pow(STORAGE_SIZE),
             }),
-          ).to.be.revertedWithCustomError(position, 'PositionStorageGlobalInvalidError')
+          ).to.be.revertedWithCustomError(position, 'PositionStorageInvalidError')
         })
       })
 
@@ -115,7 +115,7 @@ describe('Position', () => {
               ...VALID_GLOBAL_POSITION,
               timestamp: BigNumber.from(2).pow(STORAGE_SIZE),
             }),
-          ).to.be.revertedWithCustomError(position, 'PositionStorageGlobalInvalidError')
+          ).to.be.revertedWithCustomError(position, 'PositionStorageInvalidError')
         })
       })
 
@@ -136,7 +136,7 @@ describe('Position', () => {
               ...VALID_GLOBAL_POSITION,
               maker: BigNumber.from(2).pow(STORAGE_SIZE),
             }),
-          ).to.be.revertedWithCustomError(position, 'PositionStorageGlobalInvalidError')
+          ).to.be.revertedWithCustomError(position, 'PositionStorageInvalidError')
         })
       })
 
@@ -157,7 +157,7 @@ describe('Position', () => {
               ...VALID_GLOBAL_POSITION,
               long: BigNumber.from(2).pow(STORAGE_SIZE),
             }),
-          ).to.be.revertedWithCustomError(position, 'PositionStorageGlobalInvalidError')
+          ).to.be.revertedWithCustomError(position, 'PositionStorageInvalidError')
         })
       })
 
@@ -178,7 +178,7 @@ describe('Position', () => {
               ...VALID_GLOBAL_POSITION,
               short: BigNumber.from(2).pow(STORAGE_SIZE),
             }),
-          ).to.be.revertedWithCustomError(position, 'PositionStorageGlobalInvalidError')
+          ).to.be.revertedWithCustomError(position, 'PositionStorageInvalidError')
         })
       })
 
@@ -199,7 +199,7 @@ describe('Position', () => {
               ...VALID_GLOBAL_POSITION,
               fee: BigNumber.from(2).pow(STORAGE_SIZE),
             }),
-          ).to.be.revertedWithCustomError(position, 'PositionStorageGlobalInvalidError')
+          ).to.be.revertedWithCustomError(position, 'PositionStorageInvalidError')
         })
       })
 
@@ -220,7 +220,7 @@ describe('Position', () => {
               ...VALID_GLOBAL_POSITION,
               keeper: BigNumber.from(2).pow(STORAGE_SIZE),
             }),
-          ).to.be.revertedWithCustomError(position, 'PositionStorageGlobalInvalidError')
+          ).to.be.revertedWithCustomError(position, 'PositionStorageInvalidError')
         })
       })
     })
@@ -925,7 +925,7 @@ describe('Position', () => {
               ...VALID_LOCAL_POSITION,
               id: BigNumber.from(2).pow(STORAGE_SIZE),
             }),
-          ).to.be.revertedWithCustomError(position, 'PositionStorageLocalInvalidError')
+          ).to.be.revertedWithCustomError(position, 'PositionStorageInvalidError')
         })
       })
 
@@ -946,7 +946,7 @@ describe('Position', () => {
               ...VALID_LOCAL_POSITION,
               timestamp: BigNumber.from(2).pow(STORAGE_SIZE),
             }),
-          ).to.be.revertedWithCustomError(position, 'PositionStorageLocalInvalidError')
+          ).to.be.revertedWithCustomError(position, 'PositionStorageInvalidError')
         })
       })
 
@@ -967,7 +967,7 @@ describe('Position', () => {
               ...VALID_LOCAL_POSITION,
               maker: BigNumber.from(2).pow(STORAGE_SIZE),
             }),
-          ).to.be.revertedWithCustomError(position, 'PositionStorageLocalInvalidError')
+          ).to.be.revertedWithCustomError(position, 'PositionStorageInvalidError')
         })
       })
 
@@ -988,7 +988,7 @@ describe('Position', () => {
               ...VALID_LOCAL_POSITION,
               long: BigNumber.from(2).pow(STORAGE_SIZE),
             }),
-          ).to.be.revertedWithCustomError(position, 'PositionStorageLocalInvalidError')
+          ).to.be.revertedWithCustomError(position, 'PositionStorageInvalidError')
         })
       })
 
@@ -1009,7 +1009,7 @@ describe('Position', () => {
               ...VALID_LOCAL_POSITION,
               short: BigNumber.from(2).pow(STORAGE_SIZE),
             }),
-          ).to.be.revertedWithCustomError(position, 'PositionStorageLocalInvalidError')
+          ).to.be.revertedWithCustomError(position, 'PositionStorageInvalidError')
         })
       })
 
@@ -1030,7 +1030,7 @@ describe('Position', () => {
               ...VALID_LOCAL_POSITION,
               fee: BigNumber.from(2).pow(STORAGE_SIZE),
             }),
-          ).to.be.revertedWithCustomError(position, 'PositionStorageLocalInvalidError')
+          ).to.be.revertedWithCustomError(position, 'PositionStorageInvalidError')
         })
       })
 
@@ -1051,7 +1051,7 @@ describe('Position', () => {
               ...VALID_LOCAL_POSITION,
               keeper: BigNumber.from(2).pow(STORAGE_SIZE),
             }),
-          ).to.be.revertedWithCustomError(position, 'PositionStorageLocalInvalidError')
+          ).to.be.revertedWithCustomError(position, 'PositionStorageInvalidError')
         })
       })
 
@@ -1081,7 +1081,7 @@ describe('Position', () => {
               ...VALID_LOCAL_POSITION,
               collateral: BigNumber.from(2).pow(STORAGE_SIZE),
             }),
-          ).to.be.revertedWithCustomError(position, 'PositionStorageLocalInvalidError')
+          ).to.be.revertedWithCustomError(position, 'PositionStorageInvalidError')
         })
 
         it('reverts if collateral out of range (below)', async () => {
@@ -1090,7 +1090,7 @@ describe('Position', () => {
               ...VALID_LOCAL_POSITION,
               collateral: BigNumber.from(2).pow(STORAGE_SIZE).add(1).mul(-1),
             }),
-          ).to.be.revertedWithCustomError(position, 'PositionStorageLocalInvalidError')
+          ).to.be.revertedWithCustomError(position, 'PositionStorageInvalidError')
         })
       })
 
@@ -1120,7 +1120,7 @@ describe('Position', () => {
               ...VALID_LOCAL_POSITION,
               delta: BigNumber.from(2).pow(STORAGE_SIZE),
             }),
-          ).to.be.revertedWithCustomError(position, 'PositionStorageLocalInvalidError')
+          ).to.be.revertedWithCustomError(position, 'PositionStorageInvalidError')
         })
 
         it('reverts if delta out of range (below)', async () => {
@@ -1129,7 +1129,7 @@ describe('Position', () => {
               ...VALID_LOCAL_POSITION,
               delta: BigNumber.from(2).pow(STORAGE_SIZE).add(1).mul(-1),
             }),
-          ).to.be.revertedWithCustomError(position, 'PositionStorageLocalInvalidError')
+          ).to.be.revertedWithCustomError(position, 'PositionStorageInvalidError')
         })
       })
     })

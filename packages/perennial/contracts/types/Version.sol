@@ -25,10 +25,9 @@ struct StoredVersion {
     int88 _makerValue;
     int80 _longValue;
     int80 _shortValue;
-    uint88 _makerReward;
-    uint80 _longReward;
-    uint80 _shortReward;
-    bytes1 __unallocated__;
+    uint80 _makerReward;
+    uint88 _longReward;
+    uint88 _shortReward;
 }
 struct VersionStorage { StoredVersion value; }
 using VersionStorageLib for VersionStorage global;
@@ -335,19 +334,18 @@ library VersionStorageLib {
         if (newValue.longValue._value.lt(Fixed6.wrap(type(int80).min))) revert VersionStorageInvalidError();
         if (newValue.shortValue._value.gt(Fixed6.wrap(type(int80).max))) revert VersionStorageInvalidError();
         if (newValue.shortValue._value.lt(Fixed6.wrap(type(int80).min))) revert VersionStorageInvalidError();
-        if (newValue.makerReward._value.gt(UFixed6.wrap(type(uint88).max))) revert VersionStorageInvalidError();
-        if (newValue.longReward._value.gt(UFixed6.wrap(type(uint80).max))) revert VersionStorageInvalidError();
-        if (newValue.shortReward._value.gt(UFixed6.wrap(type(uint80).max))) revert VersionStorageInvalidError();
+        if (newValue.makerReward._value.gt(UFixed6.wrap(type(uint80).max))) revert VersionStorageInvalidError();
+        if (newValue.longReward._value.gt(UFixed6.wrap(type(uint88).max))) revert VersionStorageInvalidError();
+        if (newValue.shortReward._value.gt(UFixed6.wrap(type(uint88).max))) revert VersionStorageInvalidError();
 
         self.value = StoredVersion(
             newValue.valid,
             int88(Fixed6.unwrap(newValue.makerValue._value)),
             int80(Fixed6.unwrap(newValue.longValue._value)),
             int80(Fixed6.unwrap(newValue.shortValue._value)),
-            uint88(UFixed6.unwrap(newValue.makerReward._value)),
-            uint80(UFixed6.unwrap(newValue.longReward._value)),
-            uint80(UFixed6.unwrap(newValue.shortReward._value)),
-            bytes1(0)
+            uint80(UFixed6.unwrap(newValue.makerReward._value)),
+            uint88(UFixed6.unwrap(newValue.longReward._value)),
+            uint88(UFixed6.unwrap(newValue.shortReward._value))
         );
     }
 }
