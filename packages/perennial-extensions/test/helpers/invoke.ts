@@ -5,7 +5,7 @@ export const MAX_INT = BigNumber.from('11579208923731619542357098500868790785326
 
 export type OrderStruct = {
   isLong?: boolean
-  isLimit?: boolean
+  priceBelow?: boolean
   maxFee: BigNumberish
   execPrice?: BigNumberish
   size?: BigNumberish
@@ -26,21 +26,26 @@ export type OrderStruct = {
 
 enum RollupActions {
   UPDATE_POSITION = '01',
-  PLACE_ORDER = '02',
-  CANCEL_ORDER = '03',
-  EXEC_ORDER = '04',
+  UPDATE_VAULT = '02',
+  PLACE_ORDER = '03',
+  CANCEL_ORDER = '04',
+  EXEC_ORDER = '05',
 }
+
+export type TriggerType = 'LM' | 'TP' | 'SL'
 
 export type Actions = IMultiInvoker.InvocationStruct[]
 
 export const buildUpdateMarket = ({
   market,
+  maker,
   long,
   short,
   collateral,
   handleWrap,
 }: {
   market: string
+  maker?: BigNumberish
   long?: BigNumberish
   short?: BigNumberish
   collateral?: BigNumberish
@@ -53,7 +58,7 @@ export const buildUpdateMarket = ({
         ['address', 'int256', 'int256', 'int256', 'int256', 'bool'],
         [
           market,
-          '0',
+          maker ? maker : '0',
           long ? long : '0',
           short ? short : '0',
           collateral ? collateral : '0',
@@ -95,6 +100,7 @@ export const buildPlaceOrder = ({
   market,
   long,
   short,
+  triggerType,
   collateral,
   handleWrap,
   order,
@@ -102,10 +108,16 @@ export const buildPlaceOrder = ({
   market: string
   long?: BigNumberish
   short?: BigNumberish
+  triggerType?: TriggerType
   collateral?: BigNumberish
   handleWrap?: boolean
   order: OrderStruct
 }): Actions => {
+  if (!triggerType) triggerType = 'LM'
+
+  order = triggerDirection(order, triggerType)
+  order.size = BigNumber.from(order.size)
+
   if (long && short) {
     if (BigNumber.from(long).gt(short)) {
       order.isLong = true
@@ -121,20 +133,21 @@ export const buildPlaceOrder = ({
     order.isLong = false
     order.size = short
   } else {
-    long = order.isLong ? order.size : '0'
-    short = !order.isLong ? order.size : '0'
+    long = order.isLong ? order.size.abs() : '0'
+    short = order.isLong ? order.size.abs() : '0'
   }
 
-  if (order.isLimit) {
-    long = '0'
-    short = '0'
+  // dont open position if limit order
+  if (triggerType === 'LM') {
+    long = BigNumber.from(0)
+    short = BigNumber.from(0)
   }
 
   return [
     {
       action: 1,
       args: utils.defaultAbiCoder.encode(
-        ['address', 'int256', 'int256', 'int256', 'int256', 'bool'],
+        ['address', 'uint256', 'uint256', 'uint256', 'int256', 'bool'],
         [
           market,
           '0',
@@ -146,15 +159,15 @@ export const buildPlaceOrder = ({
       ),
     },
     {
-      action: 2,
+      action: 3,
       args: utils.defaultAbiCoder.encode(
-        ['address', 'tuple(bool,bool,int256,int256,uint256)'],
+        ['address', 'tuple(bool,bool,uint256,int256,int256)'],
         [
           market,
           [
-            order.isLimit ? order.isLimit : false,
             order.isLong ? order.isLong : false,
-            order.maxFee,
+            order.priceBelow,
+            order.maxFee ? order.maxFee : '0',
             order.execPrice ? order.execPrice : '0',
             order.size ? order.size : '0',
           ],
@@ -164,6 +177,54 @@ export const buildPlaceOrder = ({
   ]
 }
 
+function triggerDirection(order: OrderStruct, triggerType: TriggerType) {
+  order.size = BigNumber.from(order.size)
+
+  order.size = triggerType === 'LM' ? order.size.mul(-1) : order.size
+
+  if ((order.isLong && (triggerType === 'LM' || triggerType === 'SL')) || (!order.isLong && triggerType === 'TP')) {
+    order.priceBelow = true
+  } else {
+    order.priceBelow = false
+  }
+
+  return order
+}
+
+export type VaultUpdate = {
+  vault: string
+  depositAssets?: BigNumberish
+  redeemShares?: BigNumberish
+  claimAssets?: BigNumberish
+  wrap?: boolean
+}
+
+export const buildUpdateVault = (vaultUpdate: VaultUpdate): Actions => {
+  return [
+    {
+      action: 2,
+      args: utils.defaultAbiCoder.encode(
+        ['address', 'uint256', 'uint256', 'uint256', 'bool'],
+        [
+          vaultUpdate.vault,
+          vaultUpdate.depositAssets ? vaultUpdate.depositAssets : '0',
+          vaultUpdate.redeemShares ? vaultUpdate.redeemShares : '0',
+          vaultUpdate.claimAssets ? vaultUpdate.claimAssets : '0',
+          vaultUpdate.wrap ? true : false,
+        ],
+      ),
+    },
+  ]
+}
+
+export const buildLiquidateUser = ({ user, market }: { market: string; user: string }): Actions => {
+  return [
+    {
+      action: 7,
+      args: utils.defaultAbiCoder.encode(['address', 'address'], [market, user]),
+    },
+  ]
+}
 export const buildPlaceOrderRollup = ({
   marketIndex,
   market,
@@ -200,10 +261,11 @@ export const buildPlaceOrderRollup = ({
     short = !order.isLong ? order.size : '0'
   }
 
-  if (order.isLimit) {
-    long = '0'
-    short = '0'
-  }
+  // limit
+  // if () {
+  //   long = '0'
+  //   short = '0'
+  // }
 
   return (
     RollupActions.UPDATE_POSITION +
@@ -225,7 +287,7 @@ export const buildPlaceOrderRollup = ({
 export const buildCancelOrder = ({ market, orderId }: { market: string; orderId: BigNumberish }): Actions => {
   return [
     {
-      action: 3,
+      action: 4,
       args: utils.defaultAbiCoder.encode(['address', 'uint256'], [market, orderId]),
     },
   ]
@@ -350,157 +412,10 @@ module.exports = {
   buildExecOrder,
   buildPlaceOrder,
   buildUpdateMarket,
+  buildLiquidateUser,
+  buildUpdateVault,
   buildCancelOrderRollup,
   buildExecOrderRollup,
   buildPlaceOrderRollup,
   buildUpdateMarketRollup,
 }
-
-// @todo froentend helper to net orders into a single market update
-export const buildNetOrder = {}
-
-// export const buildMultiAction = ({
-//     action,
-//     user,
-//     market,
-//     maker,
-//     long,
-//     short,
-//     collateral,
-//     handleWrap,
-//     orderId,
-//     isLong,
-//     isLimit,
-//     maxFee,
-//     execPrice,
-//     size
-// }: {
-//     action: MultiAction
-//     user?: string
-//     market?: string
-//     maker?: BigNumberish
-//     long?: BigNumberish
-//     short?: BigNumberish
-//     collateral?: BigNumberish
-//     handleWrap?: boolean
-//     orderId?: BigNumberish
-//     isLong?: boolean
-//     isLimit?: boolean
-//     maxFee?: BigNumberish
-//     execPrice?: BigNumberish
-//     size?: BigNumberish
-// }): Actions | undefined => {
-
-//     switch (action) {
-//         case 'UPDATE_POSITION':
-//             return buildInvokerActions({
-//                 user: '',
-//                 market: market!,
-//                 maker: maker!,
-//                 long: long!,
-//                 short: short!,
-//                 collateral: collateral!,
-//                 handleWrap: handleWrap!,
-//                 orderId: '0',
-//                 isLong: false,
-//                 isLimit: false,
-//                 maxFee: '0',
-//                 execPrice: '0',
-//                 size: '0'
-//             }).UPDATE_POSITION
-//         case 'PLACE_ORDER':
-//             return buildInvokerActions({
-//                 user: '',
-//                 market: market!,
-//                 maker: maker == undefined ? '0' : maker,
-//                 long: long == undefined ? '0' : long,
-//                 short: short == undefined ? '0' : short,
-//                 collateral: collateral == undefined ? '0' : collateral,
-//                 handleWrap: handleWrap!,
-//                 orderId: '',
-//                 isLong: isLong == undefined ? false : isLong,
-//                 isLimit: isLimit!,
-//                 maxFee: maxFee!,
-//                 execPrice: execPrice!,
-//                 size: size!
-//             }).PLACE_ORDER
-//         case 'UPDATE_ORDER':
-//             return undefined
-//         case 'CANCEL_ORDER':
-//             return undefined
-//         case 'CLOSE_ORDER':
-//             return undefined
-//     }
-//     return undefined
-
-// }
-
-// export const buildInvokerActions = ({
-//     user,
-//     market,
-//     maker,
-//     long,
-//     short,
-//     collateral,
-//     handleWrap,
-//     orderId,
-//     isLong,
-//     isLimit,
-//     maxFee,
-//     execPrice,
-//     size
-// }: {
-//     user: string
-//     market: string
-//     maker: BigNumberish
-//     long: BigNumberish
-//     short: BigNumberish
-//     collateral: BigNumberish
-//     handleWrap: boolean
-//     orderId: BigNumberish
-//     isLong: boolean
-//     isLimit: boolean
-//     maxFee: BigNumberish
-//     execPrice: BigNumberish
-//     size: BigNumberish
-// }): { [action in MultiAction]: Actions } => {
-//     return {
-//         UPDATE_POSITION: [{
-//                 action: 1,
-//                 args: utils.defaultAbiCoder.encode(
-//                     ['address', 'Fixed6', 'Fixed6', 'Fixed6', 'Fixed6', 'boolean'],
-//                     [market, maker, long, short, collateral, handleWrap])
-//         }],
-//         PLACE_ORDER: [
-//             {
-//                 action: 1,
-//                 args: utils.defaultAbiCoder.encode(
-//                     ['address', 'Fixed6', 'Fixed6', 'Fixed6', 'Fixed6', 'boolean'],
-//                     [market, maker, long, short, collateral, handleWrap])
-//             },
-//             {
-//                 action: 2,
-//                 args: utils.defaultAbiCoder.encode(
-//                     ['address', 'tuple[bool,bool,uint256,uint256,uint256]'],
-//                     [market, [isLimit,isLong,maxFee,execPrice,size]]
-//                 )
-//             }
-//         ],
-//         CLOSE_ORDER: [
-//         ],
-//         UPDATE_ORDER: [],
-//         CANCEL_ORDER: []
-
-//         // struct Order {
-//         //     // slot 1
-//         //     bool isLimit; // true/false = increase/decrease order size of market position upon execution
-//         //     bool isLong;  // true/false = change long/short size of market position upon execution
-//         //     Fixed6 maxFee; // @todo optimization: set as % with some precision
-
-//         //     // slot 2&3
-//         //     Fixed6 execPrice; // execute order when mkt price >= (-) execPrice or mkt price <= (+) execPrice
-//         //     UFixed6 size;     // notional (?) magnitude of order on market position @todo add sign to replace isLong
-//         // }
-
-//     }
-// }

@@ -129,10 +129,10 @@ contract PythOracle is IPythOracle, Instance, UKept {
      * @param versionIndex The index of the version to commit
      * @param updateData The update data to commit
      */
-    function commit(uint256 versionIndex, bytes calldata updateData)
+    function commit(uint256 versionIndex, address feeReceiver, bytes calldata updateData)
         external
         payable
-        keep(KEEPER_REWARD_PREMIUM, KEEPER_BUFFER, "")
+        keep(KEEPER_REWARD_PREMIUM, KEEPER_BUFFER, feeReceiver, "")
     {
         // This check isn't necessary since the caller would not be able to produce a valid updateData
         // with an update time corresponding to a null version, but reverting with a specific error is

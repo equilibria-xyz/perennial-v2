@@ -1,297 +1,301 @@
-pragma solidity ^0.8.13;
+// pragma solidity ^0.8.13;
 
-// solhint-disable, no-global-import
-import "./interfaces/IMultiInvokerRollup.sol";
-import "./MultiInvoker.sol";
-// import "hardhat/console.sol";
+// // solhint-disable, no-global-import
+// import "./interfaces/IMultiInvokerRollup.sol";
+// import "./MultiInvoker.sol";
+// // import "hardhat/console.sol";
 
-// solhint-disable, no-inline-assembly
-contract MultiInvokerRollup is IMultiInvokerRollup, MultiInvoker {
+// // solhint-disable, no-inline-assembly
+// contract MultiInvokerRollup is IMultiInvokerRollup, MultiInvoker {
 
-    /// @dev Number of bytes in a uint256 type
-    uint256 private constant UINT256_LENGTH = 32;
+//     /// @dev Number of bytes in a uint256 type
+//     uint256 private constant UINT256_LENGTH = 32;
 
-    /// @dev Number of bytes in a address type
-    uint256 private constant ADDRESS_LENGTH = 20;
+//     /// @dev Number of bytes in a address type
+//     uint256 private constant ADDRESS_LENGTH = 20;
 
-    /// @dev Number of bytes in a uint8 type
-    uint256 private constant UINT8_LENGTH = 1;
+//     /// @dev Number of bytes in a uint8 type
+//     uint256 private constant UINT8_LENGTH = 1;
 
-    /// @dev Array of all stored addresses (users, products, vaults, etc) for calldata packing
-    address[] public addressCache;
+//     /// @dev Array of all stored addresses (users, products, vaults, etc) for calldata packing
+//     address[] public addressCache;
 
-    /// @dev Index lookup of above array for constructing calldata
-    mapping(address => uint256) public addressLookup;
+//     /// @dev Index lookup of above array for constructing calldata
+//     mapping(address => uint256) public addressLookup;
 
-    // @todo add magic byte to prevent the very very rare chance arbitrary calldata doesnt call the fallback
+//     // @todo add magic byte to prevent the very very rare chance arbitrary calldata doesnt call the fallback
 
-    constructor(
-        Token6 usdc_,
-        Token18 dsu_,
-        IMarketFactory factory_,
-        IBatcher batcher_,
-        IEmptySetReserve reserve_
-    ) MultiInvoker (usdc_, dsu_, factory_, batcher_, reserve_) { } // solhint-disable-line no-empty-blocks
-    
-    fallback(bytes calldata input) external returns(bytes memory) { // solhint-disable-line payable-fallback
-        PTR memory ptr;
-        decodeFallbackAndInvoke(input, ptr);
-        return bytes("");
-    }
+//      constructor(
+//         Token6 usdc_,
+//         Token18 dsu_,
+//         IFactory marketFactory_,
+//         IFactory vaultFactory_,
+//         IBatcher batcher_,
+//         IEmptySetReserve reserve_
+//     ) MultiInvoker(
+//         usdc_,
+//         dsu_,
+//         marketFactory_,
+//         vaultFactory_,
+//         batcher_,
+//         reserve_
+//     ) {}
 
-    function decodeFallbackAndInvoke(bytes calldata input, PTR memory ptr) internal {
-        while (ptr.pos < input.length) {
-            PerennialAction action = PerennialAction(_readUint8(input, ptr));
-            
-            if (action == PerennialAction.UPDATE_POSITION) {
-                (
-                    address market, 
-                    UFixed6 newMaker,
-                    UFixed6 newLong, 
-                    UFixed6 newShort, 
-                    Fixed6 collateral,
-                    bool handleWrap
-                ) = _readPosition(input, ptr);
+//     fallback(bytes calldata input) external returns(bytes memory) { // solhint-disable-line payable-fallback
+//         PTR memory ptr;
+//         decodeFallbackAndInvoke(input, ptr);
+//         return bytes("");
+//     }
 
-                _update(market, newMaker, newLong, newShort, collateral, handleWrap);
-            } else if (action == PerennialAction.PLACE_ORDER) {
-                address market = _readAndCacheAddress(input, ptr);
+//     function decodeFallbackAndInvoke(bytes calldata input, PTR memory ptr) internal {
+//         while (ptr.pos < input.length) {
+//             PerennialAction action = PerennialAction(_readUint8(input, ptr));
 
-                IKeeperManager.Order memory order;
-                (order.isLong, order.isLimit) = _readLongAndLimit(input, ptr);
-                order.maxFee = _readUFixed6(input, ptr);
-                order.execPrice = _readFixed6(input, ptr);
-                order.size = _readUFixed6(input, ptr);
+//             if (action == PerennialAction.UPDATE_POSITION) {
+//                 (
+//                     IMarket market,
+//                     UFixed6 newMaker,
+//                     UFixed6 newLong,
+//                     UFixed6 newShort,
+//                     Fixed6 collateral,
+//                     bool handleWrap
+//                 ) = _readPosition(input, ptr);
 
-                _placeOrder(market, order);
-            } else if (action == PerennialAction.CANCEL_ORDER) {
-                address market = _readAndCacheAddress(input, ptr);
-                uint256 nonce = _readUint256(input, ptr);
+//                 _update(market, newMaker, newLong, newShort, collateral, handleWrap);
+//             } else if (action == PerennialAction.PLACE_ORDER) {
+//                 IMarket market = IMarket(_readAndCacheAddress(input, ptr));
 
-                _cancelOrder(market, nonce);
-            } else if (action == PerennialAction.EXEC_ORDER) {
-                address account = _readAndCacheAddress(input, ptr);
-                address market = _readAndCacheAddress(input, ptr);
-                uint256 nonce = _readUint256(input, ptr);
+//                 IKeeperManager.Order memory order;
+//                 (order.isLong, order.isLimit) = _readLongAndLimit(input, ptr);
+//                 order.maxFee = _readUFixed6(input, ptr);
+//                 order.execPrice = _readFixed6(input, ptr);
+//                 order.size = _readUFixed6(input, ptr);
 
-                _executeOrderInvoker(account, market, nonce);
-            }
-        }
-    }
+//                 _placeOrder(msg.sender, market, order);
+//             } else if (action == PerennialAction.CANCEL_ORDER) {
+//                 IMarket market = IMarket(_readAndCacheAddress(input, ptr));
+//                 uint256 nonce = _readUint256(input, ptr);
 
-    /**
-     * @notice Unchecked sets address in cache
-     * @param value Address to add to cache
-     */
-    function _cacheAddress(address value) private {
-        uint256 index = addressCache.length;
-        addressCache.push(value);
-        addressLookup[value] = index;
+//                 _cancelOrder(msg.sender, market, nonce);
+//             } else if (action == PerennialAction.EXEC_ORDER) {
+//                 address account = _readAndCacheAddress(input, ptr);
+//                 IMarket market = IMarket(_readAndCacheAddress(input, ptr));
+//                 uint256 nonce = _readUint256(input, ptr);
 
-        emit AddressAddedToCache(value, index);
-    }
+//                 _executeOrderInvoker(account, market, nonce);
+//             }
+//         }
+//     }
 
-    function _readAndCacheAddress(bytes calldata input, PTR memory ptr) private returns (address result) {
-        uint8 len = _readUint8(input, ptr);
+//     /**
+//      * @notice Unchecked sets address in cache
+//      * @param value Address to add to cache
+//      */
+//     function _cacheAddress(address value) private {
+//         uint256 index = addressCache.length;
+//         addressCache.push(value);
+//         addressLookup[value] = index;
 
-        // user is new to registry, add next 20 bytes as address to registry and return address
-        if (len == 0) {
-            result = _bytesToAddress(input[ptr.pos:ptr.pos + ADDRESS_LENGTH]);
-            ptr.pos += ADDRESS_LENGTH;
+//         emit AddressAddedToCache(value, index);
+//     }
 
-            _cacheAddress(result);
-        } else {
-            uint256 idx = _bytesToUint256(input, ptr.pos, len);
-            ptr.pos += len;
+//     function _readAndCacheAddress(bytes calldata input, PTR memory ptr) private returns (address result) {
+//         uint8 len = _readUint8(input, ptr);
 
-            result = _lookupAddress(idx);
-        }
-    } 
+//         // user is new to registry, add next 20 bytes as address to registry and return address
+//         if (len == 0) {
+//             result = _bytesToAddress(input[ptr.pos:ptr.pos + ADDRESS_LENGTH]);
+//             ptr.pos += ADDRESS_LENGTH;
 
-    /**
-     * @notice Checked gets the address in cache mapped to the cache index
-     * @dev There is an issue with the calldata if a txn uses cache before caching address
-     * @param index The cache index
-     * @return result Address stored at cache index
-     */
-    function _lookupAddress(uint256 index) private view returns (address result) {
-        result = addressCache[index];
-        if (result == address(0)) revert MultiInvokerRollupAddressIndexOutOfBoundsError();
-    }
+//             _cacheAddress(result);
+//         } else {
+//             uint256 idx = _bytesToUint256(input, ptr.pos, len);
+//             ptr.pos += len;
 
-    // @todo should this just be included in the action branch like v1 to prevent complex _readFN -> simple _readFN hierarchies like v1?
-    // if so, would make this "_readAbsolutePosition" to convert deltas to new position amounts
-    function _readPosition(bytes calldata input, PTR memory ptr)
-    private returns (
-        address market,
-        UFixed6 newMaker, 
-        UFixed6 newLong, 
-        UFixed6 newShort,
-        Fixed6 collateral,
-        bool handleWrap
-    ) {
-        market = _readAndCacheAddress(input, ptr);
-        Fixed6 makerDelta = _readFixed6(input, ptr);
-        Fixed6 longDelta = _readFixed6(input, ptr);
-        Fixed6 shortDelta = _readFixed6(input, ptr);
-        collateral = _readFixed6(input, ptr);
-        handleWrap = _readBool(input, ptr);
+//             result = _lookupAddress(idx);
+//         }
+//     }
 
-        if (makerDelta.isZero() && longDelta.isZero() && shortDelta.isZero()) {
-            newMaker = UFixed6Lib.MAX;
-            newLong = UFixed6Lib.MAX;
-            newShort = UFixed6Lib.MAX;
-        } else {
-            
-            Position memory position = 
-                IMarket(market).pendingPositions(
-                    msg.sender, 
-                    IMarket(market).locals(msg.sender).currentId
-                );
+//     /**
+//      * @notice Checked gets the address in cache mapped to the cache index
+//      * @dev There is an issue with the calldata if a txn uses cache before caching address
+//      * @param index The cache index
+//      * @return result Address stored at cache index
+//      */
+//     function _lookupAddress(uint256 index) private view returns (address result) {
+//         result = addressCache[index];
+//         if (result == address(0)) revert MultiInvokerRollupAddressIndexOutOfBoundsError();
+//     }
 
-            // @todo wrap instead of convert ?
-            newMaker = makerDelta.isZero() ? 
-                UFixed6Lib.MAX :
-                UFixed6Lib.from(Fixed6Lib.from(position.maker).add(makerDelta));
-            newLong = longDelta.isZero() ? 
-                UFixed6Lib.MAX : 
-                UFixed6Lib.from(Fixed6Lib.from(position.long).add(longDelta));
-            newShort = shortDelta.isZero() ? 
-                UFixed6Lib.MAX :
-                UFixed6Lib.from(Fixed6Lib.from(position.short).add(shortDelta));
-        }
-    }
+//     // @todo should this just be included in the action branch like v1 to prevent complex _readFN -> simple _readFN hierarchies like v1?
+//     // if so, would make this "_readAbsolutePosition" to convert deltas to new position amounts
+//     function _readPosition(bytes calldata input, PTR memory ptr)
+//     private returns (
+//         IMarket market,
+//         UFixed6 newMaker,
+//         UFixed6 newLong,
+//         UFixed6 newShort,
+//         Fixed6 collateral,
+//         bool handleWrap
+//     ) {
+//         market = IMarket(_readAndCacheAddress(input, ptr));
+//         Fixed6 makerDelta = _readFixed6(input, ptr);
+//         Fixed6 longDelta = _readFixed6(input, ptr);
+//         Fixed6 shortDelta = _readFixed6(input, ptr);
+//         collateral = _readFixed6(input, ptr);
+//         handleWrap = _readBool(input, ptr);
 
-    /**
-     * @notice Helper function to get bool from calldata
-     * @param input Full calldata payload
-     * @param ptr Current index of input to start decoding
-     * @return result The decoded bool
-     */
-    function _readBool(bytes calldata input, PTR memory ptr) private pure returns (bool result) {
-        uint8 dir = _readUint8(input, ptr);
-        result = dir > 0;
-    }
+//         if (makerDelta.isZero() && longDelta.isZero() && shortDelta.isZero()) {
+//             newMaker = UFixed6Lib.MAX;
+//             newLong = UFixed6Lib.MAX;
+//             newShort = UFixed6Lib.MAX;
+//         } else {
 
-    /**
-     * @notice Helper function to get uint8 length from calldata
-     * @param input Full calldata payload
-     * @param ptr Current index of input to start decoding
-     * @return result The decoded uint8 length
-     */
-    function _readUint8(bytes calldata input, PTR memory ptr) private pure returns (uint8 result) {
-        result = _bytesToUint8(input, ptr.pos);
-        ptr.pos += UINT8_LENGTH;
-    }
+//             Position memory position =market.pendingPositions(msg.sender,market.locals(msg.sender).currentId);
 
-    function _readLengthAndSign(bytes calldata input, PTR memory ptr) private pure returns (uint8 length, bool negative) {
-        length = _readUint8(input, ptr);
+//             // @todo wrap instead of convert ?
+//             newMaker = makerDelta.isZero() ?
+//                 UFixed6Lib.MAX :
+//                 UFixed6Lib.from(Fixed6Lib.from(position.maker).add(makerDelta));
+//             newLong = longDelta.isZero() ?
+//                 UFixed6Lib.MAX :
+//                 UFixed6Lib.from(Fixed6Lib.from(position.long).add(longDelta));
+//             newShort = shortDelta.isZero() ?
+//                 UFixed6Lib.MAX :
+//                 UFixed6Lib.from(Fixed6Lib.from(position.short).add(shortDelta));
+//         }
+//     }
 
-        // the next length of bytes will be converted to a uint then int
-        // we pack the sign in with the length by adding 32 (0010 0000)
-        if (length > 31) {
-            length -= 32;
-            negative = true;
-        }
-    }
+//     /**
+//      * @notice Helper function to get bool from calldata
+//      * @param input Full calldata payload
+//      * @param ptr Current index of input to start decoding
+//      * @return result The decoded bool
+//      */
+//     function _readBool(bytes calldata input, PTR memory ptr) private pure returns (bool result) {
+//         uint8 dir = _readUint8(input, ptr);
+//         result = dir > 0;
+//     }
 
-    function _readIsNegative(bytes calldata input, PTR memory ptr) private pure returns (bool) {
-        uint8 sign = _readUint8(input, ptr);
+//     /**
+//      * @notice Helper function to get uint8 length from calldata
+//      * @param input Full calldata payload
+//      * @param ptr Current index of input to start decoding
+//      * @return result The decoded uint8 length
+//      */
+//     function _readUint8(bytes calldata input, PTR memory ptr) private pure returns (uint8 result) {
+//         result = _bytesToUint8(input, ptr.pos);
+//         ptr.pos += UINT8_LENGTH;
+//     }
 
-        if(sign == 1) return true;
-        if(sign == 0) return false;
-        revert ("int must have sign"); // @todo custom error
-    }
+//     function _readLengthAndSign(bytes calldata input, PTR memory ptr) private pure returns (uint8 length, bool negative) {
+//         length = _readUint8(input, ptr);
 
-    function _readLongAndLimit(bytes calldata input, PTR memory ptr) private pure returns (bool isLong, bool isLimit) {
-        (isLong, isLimit) = _bytesToLongAndLimit(input, ptr.pos);
-        ptr.pos += UINT8_LENGTH;
-    }
+//         // the next length of bytes will be converted to a uint then int
+//         // we pack the sign in with the length by adding 32 (0010 0000)
+//         if (length > 31) {
+//             length -= 32;
+//             negative = true;
+//         }
+//     }
 
-    function _readUFixed6(bytes calldata input, PTR memory ptr) private pure returns (UFixed6 result) {
-        result = UFixed6.wrap(_readUint256(input, ptr));
-    }
+//     function _readIsNegative(bytes calldata input, PTR memory ptr) private pure returns (bool) {
+//         uint8 sign = _readUint8(input, ptr);
 
-    function _readFixed6(bytes calldata input, PTR memory ptr) private pure returns (Fixed6 result) {
-        result = Fixed6.wrap(_readInt256(input, ptr));
-    }
+//         if(sign == 1) return true;
+//         if(sign == 0) return false;
+//         revert ("int must have sign"); // @todo custom error
+//     }
 
-    /**
-     * @notice Helper function to get uint256 from calldata
-     * @param input Full calldata payload
-     * @param ptr Current index of input to start decoding
-     * @return result The decoded uint256
-     */
-    function _readUint256(bytes calldata input, PTR memory ptr) private pure returns (uint256 result) {
-        uint8 len = _readUint8(input, ptr);
-        if (len > UINT256_LENGTH) revert MultiInvokerRollupInvalidUint256LengthError();
+//     function _readLongAndLimit(bytes calldata input, PTR memory ptr) private pure returns (bool isLong, bool isLimit) {
+//         (isLong, isLimit) = _bytesToLongAndLimit(input, ptr.pos);
+//         ptr.pos += UINT8_LENGTH;
+//     }
 
-        result = _bytesToUint256(input, ptr.pos, len);
-        ptr.pos += len;
-    }
+//     function _readUFixed6(bytes calldata input, PTR memory ptr) private pure returns (UFixed6 result) {
+//         result = UFixed6.wrap(_readUint256(input, ptr));
+//     }
 
-    function _readInt256(bytes calldata input, PTR memory ptr) private pure returns (int256 result) {
-        (uint8 len, bool negative) = _readLengthAndSign(input, ptr);
-        if(len > UINT256_LENGTH) revert MultiInvokerRollupInvalidUint256LengthError(); // @todo for int256?
+//     function _readFixed6(bytes calldata input, PTR memory ptr) private pure returns (Fixed6 result) {
+//         result = Fixed6.wrap(_readInt256(input, ptr));
+//     }
 
-        result = int256(_bytesToUint256(input, ptr.pos, len));
-        if(negative) result = -1 * result;
-        ptr.pos += len;
-    }
+//     /**
+//      * @notice Helper function to get uint256 from calldata
+//      * @param input Full calldata payload
+//      * @param ptr Current index of input to start decoding
+//      * @return result The decoded uint256
+//      */
+//     function _readUint256(bytes calldata input, PTR memory ptr) private pure returns (uint256 result) {
+//         uint8 len = _readUint8(input, ptr);
+//         if (len > UINT256_LENGTH) revert MultiInvokerRollupInvalidUint256LengthError();
 
-    /**
-     * @notice Implementation of GNSPS' standard BytesLib.sol
-     * @param input 1 byte slice to convert to uint8 to decode lengths
-     * @return result The uint8 representation of input
-     */
-    function _bytesToUint8(bytes calldata input, uint256 pos) private pure returns (uint8 result) {
-        assembly {
-            // 1) load calldata into temp starting at ptr position 
-            let temp := calldataload(add(input.offset, pos))
-            // 2) shifts the calldata such that only the first byte is stored in result
-            result := shr(mul(8, sub(UINT256_LENGTH, UINT8_LENGTH)), temp)
-        }
-    }
+//         result = _bytesToUint256(input, ptr.pos, len);
+//         ptr.pos += len;
+//     }
 
-    /**
-     * @notice Extracts 2 bools from uint8 values 0(FF), 1(FT), 2(TF), 3(TT)
-     * @dev @todo this is actually easier to read than masking
-     */
-    function _bytesToLongAndLimit(bytes calldata input, uint256 pos) private pure returns (bool isLong, bool isLimit) {
-        assembly {
-            // 1) load calldata into temp starting at ptr position
-            let temp := shr(248, calldataload(add(input.offset, pos)))
-            // 2) get isLong (0010)
-            isLong := gt(temp, 0x01)
-            // 3) get isLimit (0001)
-            isLimit := and(gt(temp, 0x0), gt(mod(temp, 0x02), 0x0))
-        }
-    }
+//     function _readInt256(bytes calldata input, PTR memory ptr) private pure returns (int256 result) {
+//         (uint8 len, bool negative) = _readLengthAndSign(input, ptr);
+//         if(len > UINT256_LENGTH) revert MultiInvokerRollupInvalidUint256LengthError(); // @todo for int256?
 
-    /**
-     * @notice Unchecked force of 20 bytes into address
-     * @dev This is called in decodeAccount and decodeProduct which both only pass 20 byte slices
-     * @param input The 20 bytes to be converted to address
-     * @return result Address representation of `input`
-    */
-    function _bytesToAddress(bytes memory input) private pure returns (address result) { // @todo do not memorize input
-        assembly {
-            result := mload(add(input, ADDRESS_LENGTH))
-        }
-    }
+//         result = int256(_bytesToUint256(input, ptr.pos, len));
+//         if(negative) result = -1 * result;
+//         ptr.pos += len;
+//     }
 
-    /**
-     * @notice Unchecked loads arbitrarily-sized bytes into a uint
-     * @dev Bytes length enforced as < max word size
-     * @param input The bytes to convert to uint256
-     * @return result The resulting uint256
-     */
-    function _bytesToUint256(bytes calldata input, uint256 pos, uint256 len) private pure returns (uint256 result) {
-        assembly ("memory-safe") {
-            // 1) load the calldata into result starting at the ptr position
-            result := calldataload(add(input.offset, pos))
-            // 2) shifts the calldata such that only the next length of bytes specified by `len` populates the uint256 result
-            result := shr(mul(8, sub(UINT256_LENGTH, len)), result) 
-        }
-    }
-}
+//     /**
+//      * @notice Implementation of GNSPS' standard BytesLib.sol
+//      * @param input 1 byte slice to convert to uint8 to decode lengths
+//      * @return result The uint8 representation of input
+//      */
+//     function _bytesToUint8(bytes calldata input, uint256 pos) private pure returns (uint8 result) {
+//         assembly {
+//             // 1) load calldata into temp starting at ptr position
+//             let temp := calldataload(add(input.offset, pos))
+//             // 2) shifts the calldata such that only the first byte is stored in result
+//             result := shr(mul(8, sub(UINT256_LENGTH, UINT8_LENGTH)), temp)
+//         }
+//     }
+
+//     /**
+//      * @notice Extracts 2 bools from uint8 values 0(FF), 1(FT), 2(TF), 3(TT)
+//      * @dev @todo this is actually easier to read than masking
+//      */
+//     function _bytesToLongAndLimit(bytes calldata input, uint256 pos) private pure returns (bool isLong, bool isLimit) {
+//         assembly {
+//             // 1) load calldata into temp starting at ptr position
+//             let temp := shr(248, calldataload(add(input.offset, pos)))
+//             // 2) get isLong (0010)
+//             isLong := gt(temp, 0x01)
+//             // 3) get isLimit (0001)
+//             isLimit := and(gt(temp, 0x0), gt(mod(temp, 0x02), 0x0))
+//         }
+//     }
+
+//     /**
+//      * @notice Unchecked force of 20 bytes into address
+//      * @dev This is called in decodeAccount and decodeProduct which both only pass 20 byte slices
+//      * @param input The 20 bytes to be converted to address
+//      * @return result Address representation of `input`
+//     */
+//     function _bytesToAddress(bytes memory input) private pure returns (address result) { // @todo do not memorize input
+//         assembly {
+//             result := mload(add(input, ADDRESS_LENGTH))
+//         }
+//     }
+
+//     /**
+//      * @notice Unchecked loads arbitrarily-sized bytes into a uint
+//      * @dev Bytes length enforced as < max word size
+//      * @param input The bytes to convert to uint256
+//      * @return result The resulting uint256
+//      */
+//     function _bytesToUint256(bytes calldata input, uint256 pos, uint256 len) private pure returns (uint256 result) {
+//         assembly ("memory-safe") {
+//             // 1) load the calldata into result starting at the ptr position
+//             result := calldataload(add(input.offset, pos))
+//             // 2) shifts the calldata such that only the next length of bytes specified by `len` populates the uint256 result
+//             result := shr(mul(8, sub(UINT256_LENGTH, len)), result)
+//         }
+//     }
+// }

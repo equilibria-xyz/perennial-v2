@@ -1,12 +1,12 @@
 // SPDX-License-Identifier: Apache-2.0
 pragma solidity ^0.8.13;
-import { 
-    IMarket, 
+import {
+    IMarket,
     IPayoffProvider,
-    Position, 
-    Local, 
-    UFixed18Lib, 
-    UFixed18, 
+    Position,
+    Local,
+    UFixed18Lib,
+    UFixed18,
     OracleVersion,
     RiskParameter
 } from "@equilibria/perennial-v2/contracts/interfaces/IMarket.sol";
@@ -19,25 +19,17 @@ interface IMultiInvoker {
     enum PerennialAction {
         NO_OP,
         UPDATE_POSITION,
+        UPDATE_VAULT,
         PLACE_ORDER,
         CANCEL_ORDER,
         EXEC_ORDER,
         COMMIT_PRICE,
         LIQUIDATE,
         APPROVE_MARKET,
-        CLAIM,
-        WRAP,
-        UNWRAP,
-        WRAP_AND_UPDATE,
-        UPDATE_AND_UNWRAP,
-        VAULT_DEPOSIT,
-        VAULT_REDEEM,
-        VAULT_CLAIM,
-        VAULT_WRAP_AND_DEPOSIT,
-        CHARGE_FEE,
-        UPDATE_ORDER
+        VAULT_UPDATE, // @todo change tuple order in tests
+        CHARGE_FEE
     }
-    
+
     struct KeeperOrder {
         UFixed6 limitPrice;
         UFixed6 takeProfit;
@@ -50,14 +42,14 @@ interface IMultiInvoker {
         PerennialAction action;
         bytes args;
     }
-    
+
     event KeeperFeeCharged(address indexed account, address indexed market, address indexed to, UFixed6 fee);
 
     error MultiInvokerBadSenderError();
     error MultiInvokerOrderMustBeSingleSidedError();
     error MultiInvokerMaxFeeExceededError();
-    error MultiInvokerInvalidMarketApprovalError();
-    
+    error MultiInvokerInvalidApprovalError();
+
     function invoke(Invocation[] calldata invocations) external;
 
 }
