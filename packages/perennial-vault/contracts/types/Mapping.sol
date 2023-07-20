@@ -23,8 +23,8 @@ using MappingStorageLib for MappingStorage global;
  * @notice
  */
 library MappingLib {
-    function initialize(Mapping memory self, uint256 length) internal pure {
-        self._ids = new uint256[](length);
+    function initialize(Mapping memory self, uint256 initialLength) internal pure {
+        self._ids = new uint256[](initialLength);
     }
 
     function update(Mapping memory self, uint256 index, uint256 id) internal pure {

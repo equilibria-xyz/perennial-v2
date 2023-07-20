@@ -87,12 +87,14 @@ contract Vault is IVault, Instance {
         Checkpoint memory checkpoint = _checkpoints[_accounts[address(0)].read().latest].read();
         return checkpoint.assets
             .add(Fixed6Lib.from(checkpoint.deposit))
-            .sub(Fixed6Lib.from(checkpoint.toAssets(checkpoint.redemption)));
+            .sub(Fixed6Lib.from(checkpoint.toAssetsGlobal(checkpoint.redemption)));
     }
 
     function totalShares() public view returns (UFixed6) {
         Checkpoint memory checkpoint = _checkpoints[_accounts[address(0)].read().latest].read();
-        return checkpoint.shares.sub(checkpoint.redemption).add(checkpoint.toShares(checkpoint.deposit));
+        return checkpoint.shares
+            .add(checkpoint.toSharesGlobal(checkpoint.deposit))
+            .sub(checkpoint.redemption);
     }
 
     /**
@@ -174,19 +176,8 @@ contract Vault is IVault, Instance {
         Context memory context = _loadContext(account);
 
         _settle(context);
-        _manage(context, UFixed6Lib.ZERO, false); // TODO: support non-zero claim
+        _manage(context, UFixed6Lib.ZERO, false);
         _saveContext(context, account);
-    }
-
-    function _settlementFee(Context memory context) private pure returns (UFixed6 assets, UFixed6 shares) {
-        assets = context.settlementFee;
-        shares = context.latestCheckpoint.toShares(assets);
-    }
-
-    function _socialize(Context memory context, UFixed6 claimAssets) private view returns (UFixed6) {
-        if (context.global.assets.isZero()) return UFixed6Lib.ZERO;
-        UFixed6 totalCollateral = UFixed6Lib.from(_collateral(context).max(Fixed6Lib.ZERO));
-        return claimAssets.muldiv(totalCollateral.min(context.global.assets), context.global.assets);
     }
 
     /// @notice Updates `account`, depositing `depositAssets` assets, redeeming `redeemShares` shares, and claiming `claimAssets` assets
@@ -227,7 +218,6 @@ contract Vault is IVault, Instance {
         UFixed6 redeemShares,
         UFixed6 claimAssets
     ) private {
-        // TODO: move to invariant
         // invariant
         if (msg.sender != account && !IVaultFactory(address(factory())).operators(account, msg.sender))
             revert VaultNotOperatorError();
@@ -240,16 +230,13 @@ contract Vault is IVault, Instance {
         // magic values
         if (claimAssets.eq(UFixed6Lib.MAX)) claimAssets = context.local.assets;
 
-        // asses fees
-        (UFixed6 settlementFeeAssets, UFixed6 settlementFeeShares) = _settlementFee(context);
-        UFixed6 depositAmount = depositAssets.sub(settlementFeeAssets);
-        UFixed6 redemptionAmount = redeemShares.sub(settlementFeeShares);
-        UFixed6 claimAmount = _socialize(context, claimAssets).sub(settlementFeeAssets);
+        // asses socialization and settlement fee
+        UFixed6 claimAmount = _socialize(context, depositAssets, redeemShares, claimAssets);
 
         // update positions
-        context.global.update(context.currentId, claimAssets, redeemShares, depositAmount, redemptionAmount);
-        context.local.update(context.currentId, claimAssets, redeemShares, depositAmount, redemptionAmount);
-        context.currentCheckpoint.update(depositAmount, redemptionAmount);
+        context.global.update(context.currentId, claimAssets, redeemShares, depositAssets, redeemShares);
+        context.local.update(context.currentId, claimAssets, redeemShares, depositAssets, redeemShares);
+        context.currentCheckpoint.update(depositAssets, redeemShares);
 
         // manage assets
         asset.pull(msg.sender, UFixed18Lib.from(depositAssets));
@@ -257,6 +244,18 @@ contract Vault is IVault, Instance {
         asset.push(msg.sender, UFixed18Lib.from(claimAmount));
 
         emit Update(msg.sender, account, context.currentId, depositAssets, redeemShares, claimAssets);
+    }
+
+    function _socialize(
+        Context memory context,
+        UFixed6 depositAssets,
+        UFixed6 redeemShares,
+        UFixed6 claimAssets
+    ) private view returns (UFixed6 claimAmount) {
+        if (context.global.assets.isZero()) return UFixed6Lib.ZERO;
+        UFixed6 totalCollateral = UFixed6Lib.from(_collateral(context).max(Fixed6Lib.ZERO));
+        claimAmount = claimAssets.muldiv(totalCollateral.min(context.global.assets), context.global.assets);
+        if (depositAssets.isZero() && redeemShares.isZero()) claimAmount = claimAmount.sub(context.settlementFee);
     }
 
     function _settleUnderlying() private {
@@ -291,9 +290,10 @@ contract Vault is IVault, Instance {
         ) {
             uint256 newLatestId = context.global.latest + 1;
             context.latestCheckpoint = _checkpoints[newLatestId].read();
-            (Fixed6 collateralAtId, UFixed6 feeAtId) = _collateralAtId(context, newLatestId);
-            context.latestCheckpoint.complete(collateralAtId, feeAtId);
-            context.global.process(
+            (Fixed6 collateralAtId, UFixed6 feeAtId, UFixed6 keeperAtId) = _collateralAtId(context, newLatestId);
+            context.latestCheckpoint.complete(collateralAtId, feeAtId, keeperAtId);
+
+            context.global.processGlobal(
                 newLatestId,
                 context.latestCheckpoint,
                 context.latestCheckpoint.deposit,
@@ -309,7 +309,7 @@ contract Vault is IVault, Instance {
         ) {
             uint256 newLatestId = context.local.current;
             Checkpoint memory checkpoint = _checkpoints[newLatestId].read();
-            context.local.process(
+            context.local.processLocal(
                 newLatestId,
                 checkpoint,
                 context.local.deposit,
@@ -326,7 +326,7 @@ contract Vault is IVault, Instance {
     function _manage(Context memory context, UFixed6 withdrawAmount, bool rebalance) private {
         (Fixed6 collateral, UFixed6 assets) = _treasury(context, withdrawAmount);
 
-        if (!rebalance || collateral.lt(Fixed6Lib.ZERO)) return; // TODO: support withdrawing w/o rebalance
+        if (!rebalance || collateral.lt(Fixed6Lib.ZERO)) return;
 
         StrategyLib.MarketTarget[] memory targets = StrategyLib.allocate(
             context.registrations,
@@ -361,6 +361,7 @@ contract Vault is IVault, Instance {
      * @notice Adjusts the position on `market` to `targetPosition`
      * @param target The new state to target
      */
+    // TODO: change name
     function _update(Registration memory registration, StrategyLib.MarketTarget memory target) private {
         registration.market.update(
             address(this),
@@ -451,10 +452,10 @@ contract Vault is IVault, Instance {
 
             UFixed6 collateral = marketContext.currentPosition
                 .sub(marketContext.currentNet.min(marketContext.currentPosition))   // available maker
-                .muldiv(marketContext.price, registration.leverage)   // available collateral
-                .muldiv(context.totalWeight, registration.weight);    // collateral in market
+                .muldiv(marketContext.price, registration.leverage)                 // available collateral
+                .muldiv(context.totalWeight, registration.weight);                  // collateral in market
 
-            redemptionAmount = redemptionAmount.min(context.latestCheckpoint.toShares(collateral));
+            redemptionAmount = redemptionAmount.min(context.latestCheckpoint.toSharesLocal(collateral));
         }
     }
 
@@ -468,16 +469,14 @@ contract Vault is IVault, Instance {
             value = value.add(context.markets[marketId].collateral);
     }
 
-    //// @dev context -- context.markets.length
-    //// @dev context -- context.markets[marketId].registration
-    // TODO: combine with Checkpoint.complete after we have registration list
-    function _collateralAtId(Context memory context, uint256 id) public view returns (Fixed6 value, UFixed6 fee) {
+    function _collateralAtId(Context memory context, uint256 id) public view returns (Fixed6 value, UFixed6 fee, UFixed6 keeper) {
         Mapping memory mappingAtId = _mappings[id].read();
         for (uint256 marketId; marketId < mappingAtId.length(); marketId++) {
             Position memory currentAccountPosition = context.registrations[marketId].market
                 .pendingPositions(address(this), mappingAtId.get(marketId));
             value = value.add(currentAccountPosition.collateral);
             fee = fee.add(currentAccountPosition.fee);
+            keeper = keeper.add(currentAccountPosition.keeper);
         }
     }
 }

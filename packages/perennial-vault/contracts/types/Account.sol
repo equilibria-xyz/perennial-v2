@@ -30,7 +30,7 @@ using AccountStorageLib for AccountStorage global;
  * @notice
  */
 library AccountLib {
-    function process(
+    function processGlobal(
         Account memory self,
         uint256 latestId,
         Checkpoint memory checkpoint,
@@ -38,7 +38,25 @@ library AccountLib {
         UFixed6 redemption
     ) internal pure {
         self.latest = latestId;
-        (self.assets, self.shares) = (self.assets.add(checkpoint.toAssets(redemption)), self.shares.add(checkpoint.toShares(deposit)));
+        (self.assets, self.shares) = (
+            self.assets.add(checkpoint.toAssetsGlobal(redemption)),
+            self.shares.add(checkpoint.toSharesGlobal(deposit))
+        );
+        (self.deposit, self.redemption) = (self.deposit.sub(deposit), self.redemption.sub(redemption));
+    }
+
+    function processLocal(
+        Account memory self,
+        uint256 latestId,
+        Checkpoint memory checkpoint,
+        UFixed6 deposit,
+        UFixed6 redemption
+    ) internal pure {
+        self.latest = latestId;
+        (self.assets, self.shares) = (
+            self.assets.add(checkpoint.toAssetsLocal(redemption)),
+            self.shares.add(checkpoint.toSharesLocal(deposit))
+        );
         (self.deposit, self.redemption) = (self.deposit.sub(deposit), self.redemption.sub(redemption));
     }
 
