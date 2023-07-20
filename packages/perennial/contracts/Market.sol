@@ -230,6 +230,9 @@ contract Market is IMarket, Instance {
         return _oracleVersionAt(timestamp);
     }
 
+    /// @notice Loads the current position context for the given account
+    /// @param context The context to load to
+    /// @param account The account to query
     function _loadCurrentPositionContext(
         Context memory context,
         address account
@@ -242,6 +245,14 @@ contract Market is IMarket, Instance {
             positionContext.local.invalidate(context.latestPosition.local);
     }
 
+    /// @notice Updates the current position
+    /// @param context The context to use
+    /// @param account The account to update
+    /// @param newMaker The new maker position size
+    /// @param newLong The new long position size
+    /// @param newShort The new short position size
+    /// @param collateral The change in collateral
+    /// @param protect Whether to protect the position for liquidation
     function _update(
         Context memory context,
         address account,
@@ -326,6 +337,9 @@ contract Market is IMarket, Instance {
         _endGas(context);
     }
 
+    /// @notice Stores the given context
+    /// @param context The context to store
+    /// @param account The account to store for
     function _saveContext(Context memory context, address account) private {
         _startGas(context, "_saveContext: %s");
 
@@ -335,6 +349,9 @@ contract Market is IMarket, Instance {
         _endGas(context);
     }
 
+    /// @notice Settles the account position up to the latest version
+    /// @param context The context to use
+    /// @param account The account to settle
     function _settle(Context memory context, address account) private {
         _startGas(context, "_settle: %s");
 
@@ -347,7 +364,7 @@ contract Market is IMarket, Instance {
         while (
             context.global.currentId != context.latestPosition.global.id &&
             (nextPosition = _pendingPosition[context.latestPosition.global.id + 1].read()).ready(context.latestVersion)
-        ) _processPosition(context, nextPosition);
+        ) _processPositionGlobal(context, nextPosition);
 
         while (
             context.local.currentId != context.latestPosition.local.id &&
@@ -355,7 +372,7 @@ contract Market is IMarket, Instance {
                 .ready(context.latestVersion)
         ) {
             Fixed6 previousDelta = _pendingPositions[account][context.latestPosition.local.id].read().delta;
-            _processPositionAccount(context, account, nextPosition);
+            _processPositionLocal(context, account, nextPosition);
             _checkpointCollateral(context, account, previousDelta, nextPosition);
         }
 
@@ -367,13 +384,13 @@ contract Market is IMarket, Instance {
         if (context.latestVersion.timestamp > context.latestPosition.global.timestamp) {
             nextPosition = _pendingPosition[context.latestPosition.global.id].read();
             nextPosition.sync(context.latestVersion);
-            _processPosition(context, nextPosition);
+            _processPositionGlobal(context, nextPosition);
         }
 
         if (context.latestVersion.timestamp > context.latestPosition.local.timestamp) {
             nextPosition = _pendingPositions[account][context.latestPosition.local.id].read();
             nextPosition.sync(context.latestVersion);
-            _processPositionAccount(context, account, nextPosition);
+            _processPositionLocal(context, account, nextPosition);
         }
 
         _position.store(context.latestPosition.global);
@@ -382,7 +399,11 @@ contract Market is IMarket, Instance {
         _endGas(context);
     }
 
-    // TODO: cleanup
+    /// @notice Places a collateral checkpoint for the account on the given pending position
+    /// @param context The context to use
+    /// @param account The account to checkpoint for
+    /// @param previousDelta The previous pending position's delta value
+    /// @param nextPosition The next pending position
     function _checkpointCollateral(
         Context memory context,
         address account,
@@ -398,7 +419,10 @@ contract Market is IMarket, Instance {
         _pendingPositions[account][latestAccountPosition.id].store(latestAccountPosition);
     }
 
-    function _processPosition(Context memory context, Position memory newPosition) private {
+    /// @notice Processes the given global pending position into the latest position
+    /// @param context The context to use
+    /// @param newPosition The pending position to process
+    function _processPositionGlobal(Context memory context, Position memory newPosition) private {
         Version memory version = _versions[context.latestPosition.global.timestamp].read();
         OracleVersion memory oracleVersion = _oracleVersionAtPosition(context, newPosition); // TODO: seems weird some logic is in here
         if (!oracleVersion.valid) newPosition.invalidate(context.latestPosition.global);
@@ -433,7 +457,10 @@ contract Market is IMarket, Instance {
         );
     }
 
-    function _processPositionAccount(Context memory context, address account, Position memory newPosition) private {
+    /// @notice Processes the given local pending position into the latest position
+    /// @param context The context to use
+    /// @param newPosition The pending position to process
+    function _processPositionLocal(Context memory context, address account, Position memory newPosition) private {
         Version memory version = _versions[newPosition.timestamp].read();
         if (!version.valid) newPosition.invalidate(context.latestPosition.local);
 
@@ -456,6 +483,12 @@ contract Market is IMarket, Instance {
         );
     }
 
+    /// @notice Verifies the invariant of the market
+    /// @param context The context to use
+    /// @param account The account to verify the invariant for
+    /// @param newOrder The order to verify the invariant for
+    /// @param collateral The collateral change to verify the invariant for
+    /// @param protected Whether the new position is protected
     function _invariant(
         Context memory context,
         address account,
@@ -531,26 +564,44 @@ contract Market is IMarket, Instance {
             { if (LOG_REVERTS) console.log("MarketInsufficientCollateralError"); revert MarketInsufficientCollateralError(); }
     }
 
+    /// @notice Computes the liquidation fee for the current latest local position
+    /// @param context The context to use
+    /// @return The liquidation fee
     function _liquidationFee(Context memory context) private view returns (UFixed6) {
         return context.latestPosition.local
             .liquidationFee(context.latestVersion, context.riskParameter)
             .min(UFixed6Lib.from(token.balanceOf()));
     }
 
+    /// @notice Computes whether a position is collateralized
+    /// @param context The context to use
+    /// @param active The position to check
+    /// @return Whether the position is collateralized
     function _collateralized(Context memory context, Position memory active) private pure returns (bool) {
         return active.collateralized(context.latestVersion, context.riskParameter, context.local.collateral);
     }
 
+    /// @notice Computes the current oracle status with the market's payoff
+    /// @return latestVersion The latest oracle version with payoff applied
+    /// @return currentTimestamp The current oracle timestamp
     function _oracleVersion() private view returns (OracleVersion memory latestVersion, uint256 currentTimestamp) {
         (latestVersion, currentTimestamp) = oracle.status();
         _transform(latestVersion);
     }
 
+    /// @notice Computes the latest oracle version at a given timestamp with the market's payoff
+    /// @param timestamp The timestamp to use
+    /// @return oracleVersion The oracle version at the given timestamp with payoff applied
     function _oracleVersionAt(uint256 timestamp) private view returns (OracleVersion memory oracleVersion) {
         oracleVersion = oracle.at(timestamp);
         _transform(oracleVersion);
     }
 
+    /// @notice Computes the latest oracle version at a given position with the market's payoff
+    /// @dev applies the latest valid price when the version at position is invalid
+    /// @param context The context to use
+    /// @param toPosition The position to use
+    /// @return oracleVersion The oracle version at the given position
     function _oracleVersionAtPosition(
         Context memory context,
         Position memory toPosition
@@ -559,10 +610,13 @@ contract Market is IMarket, Instance {
         if (!oracleVersion.valid) oracleVersion.price = context.global.latestPrice;
     }
 
+    /// @notice Applies the market's payoff to an oracle version
+    /// @param oracleVersion The oracle version to transform
     function _transform(OracleVersion memory oracleVersion) private view {
         if (address(payoff) != address(0)) oracleVersion.price = payoff.payoff(oracleVersion.price);
     }
 
+    /// @notice Only the coordinator or the owner can call
     modifier onlyCoordinator {
         if (msg.sender != coordinator && msg.sender != factory().owner()) revert MarketNotCoordinatorError();
         _;
