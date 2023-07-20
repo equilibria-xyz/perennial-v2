@@ -227,10 +227,10 @@ describe('Vault', () => {
     await vaultFactory.initialize()
 
     vault = IVault__factory.connect(
-      await vaultFactory.callStatic.create(instanceVars.dsu.address, market.address, 'Blue Chip', 'BC'),
+      await vaultFactory.callStatic.create(instanceVars.dsu.address, market.address, 'Blue Chip'),
       owner,
     )
-    await vaultFactory.create(instanceVars.dsu.address, market.address, 'Blue Chip', 'BC')
+    await vaultFactory.create(instanceVars.dsu.address, market.address, 'Blue Chip')
 
     await vault.register(btcMarket.address)
     await vault.updateMarket(0, 4, leverage)
@@ -313,7 +313,7 @@ describe('Vault', () => {
 
   describe('#initialize', () => {
     it('cant re-initialize', async () => {
-      await expect(vault.initialize(asset.address, market.address, 'Blue Chip', 'BC'))
+      await expect(vault.initialize(asset.address, market.address, 'Blue Chip'))
         .to.revertedWithCustomError(vault, 'UInitializableAlreadyInitializedError')
         .withArgs(1)
     })

@@ -12,36 +12,30 @@ import "./types/VaultParameter.sol";
 import "./interfaces/IVault.sol";
 import "./lib/StrategyLib.sol";
 
-/**
- * @title Vault
- * @notice ERC4626 vault that manages a 50-50 position between long-short markets of the same payoff on Perennial.
- * @dev Vault deploys and rebalances collateral between the corresponding long and short markets, while attempting to
- *      maintain `targetLeverage` with its open positions at any given time. Deposits are only gated in so much as to cap
- *      the maximum amount of assets in the vault. The long and short markets are expected to have the same oracle and
- *      opposing payoff functions.
- *
- *      The vault has a "delayed mint" mechanism for shares on deposit. After depositing to the vault, a user must wait
- *      until the next settlement of the underlying products in order for shares to be reflected in the getters.
- *      The shares will be fully reflected in contract state when the next settlement occurs on the vault itself.
- *      Similarly, when redeeming shares, underlying assets are not claimable until a settlement occurs.
- *      Each state changing interaction triggers the `settle` flywheel in order to bring the vault to the
- *      desired state.
- *      In the event that there is not a settlement for a long period of time, keepers can call the `sync` method to
- *      force settlement and rebalancing. This is most useful to prevent vault liquidation due to PnL changes
- *      causing the vault to be in an unhealthy state (far away from target leverage)
- *
- */
+/// @title Vault
+/// @notice Deploys underlying capital by weight in maker positions across registered markets
+/// @dev Vault deploys and rebalances collateral between the registered markets, while attempting to
+///      maintain `targetLeverage` with its open maker positions at any given time. Deposits are only gated in so much
+///      as to cap the maximum amount of assets in the vault.
+///
+///      All registered markets are expected to be on the same "clock", i.e. their oracle.current() is always equal.
+///
+///      The vault has a "delayed settlement" mechanism. After depositing to or redeeming from the vault, a user must
+///      wait until the next settlement of all underlying markets in order for vault settlement to be available.
 contract Vault is IVault, Instance {
+    /// @dev The vault's name
     string private _name;
 
-    string private _symbol;
-
+    /// @dev The underlying asset
     Token18 public asset;
 
+    /// @dev The vault parameter set
     VaultParameterStorage private _parameter;
 
+    /// @dev The total number of registered markets
     uint256 public totalMarkets;
 
+    /// @dev Per-market registration state variables
     mapping(uint256 => RegistrationStorage) private _registrations;
 
     /// @dev Per-account accounting state variables
@@ -53,36 +47,50 @@ contract Vault is IVault, Instance {
     /// @dev Per-id id-mapping state variables
     mapping(uint256 => MappingStorage) private _mappings;
 
+    /// @notice Initializes the vault
+    /// @param asset_ The underlying asset
+    /// @param initialMarket The initial market to register
+    /// @param name_ The vault's name
     function initialize(
         Token18 asset_,
         IMarket initialMarket,
-        string calldata name_,
-        string calldata symbol_
+        string calldata name_
     ) external initializer(1) {
         __Instance__initialize();
 
         asset = asset_;
         _name = name_;
-        _symbol = symbol_;
         _register(initialMarket);
     }
 
+    /// @notice Returns the vault parameter set
+    /// @return The vault parameter set
     function parameter() external view returns (VaultParameter memory) {
         return _parameter.read();
     }
 
+    /// @notice Returns the registration for a given market
+    /// @param marketId The market id
+    /// @return The registration for the given market
     function registrations(uint256 marketId) external view returns (Registration memory) {
         return _registrations[marketId].read();
     }
 
+    /// @notice Returns the account state for a account
+    /// @param account The account to query
+    /// @return The account state for the given account
     function accounts(address account) external view returns (Account memory) {
         return _accounts[account].read();
     }
 
+    /// @notice Returns the name of the vault
+    /// @return The name of the vault
     function name() external view returns (string memory) {
         return string(abi.encodePacked("Perennial V2 Vault: ", _name));
     }
 
+    /// @notice Returns the total number of underlying assets at the last checkpoint
+    /// @return The total number of underlying assets at the last checkpoint
     function totalAssets() public view returns (Fixed6) {
         Checkpoint memory checkpoint = _checkpoints[_accounts[address(0)].read().latest].read();
         return checkpoint.assets
@@ -90,6 +98,8 @@ contract Vault is IVault, Instance {
             .sub(Fixed6Lib.from(checkpoint.toAssetsGlobal(checkpoint.redemption)));
     }
 
+    /// @notice Returns the total number of shares at the last checkpoint
+    /// @return The total number of shares at the last checkpoint
     function totalShares() public view returns (UFixed6) {
         Checkpoint memory checkpoint = _checkpoints[_accounts[address(0)].read().latest].read();
         return checkpoint.shares
@@ -97,28 +107,26 @@ contract Vault is IVault, Instance {
             .sub(checkpoint.redemption);
     }
 
-    /**
-     * @notice Converts a given amount of assets to shares
-     * @param assets Number of assets to convert to shares
-     * @return Amount of shares for the given assets
-     */
+    /// @notice Converts a given amount of assets to shares
+    /// @param assets Number of assets to convert to shares
+    /// @return Amount of shares for the given assets
     function convertToShares(UFixed6 assets) external view returns (UFixed6) {
         (UFixed6 _totalAssets, UFixed6 _totalShares) =
             (UFixed6Lib.from(totalAssets().max(Fixed6Lib.ZERO)), totalShares());
         return _totalShares.isZero() ? assets : assets.muldiv(_totalShares, _totalAssets);
     }
 
-    /**
-     * @notice Converts a given amount of shares to assets
-     * @param shares Number of shares to convert to assets
-     * @return Amount of assets for the given shares
-     */
+    /// @notice Converts a given amount of shares to assets
+    /// @param shares Number of shares to convert to assets
+    /// @return Amount of assets for the given shares
     function convertToAssets(UFixed6 shares) external view returns (UFixed6) {
         (UFixed6 _totalAssets, UFixed6 _totalShares) =
             (UFixed6Lib.from(totalAssets().max(Fixed6Lib.ZERO)), totalShares());
         return _totalShares.isZero() ? shares : shares.muldiv(_totalAssets, _totalShares);
     }
 
+    /// @notice Registers a new market
+    /// @param market The market to register
     function register(IMarket market) external onlyOwner {
         settle(address(0));
 
@@ -129,6 +137,8 @@ contract Vault is IVault, Instance {
         _register(market);
     }
 
+    /// @notice Handles the registration for a new market
+    /// @param market The market to register
     function _register(IMarket market) private {
         if (!IVaultFactory(address(factory())).marketFactory().instances(market)) revert VaultNotMarketError();
         if (!market.token().eq(asset)) revert VaultIncorrectAssetError();
@@ -140,6 +150,10 @@ contract Vault is IVault, Instance {
         emit MarketRegistered(newMarketId, market);
     }
 
+    /// @notice Updates the registration parameters for a given market
+    /// @param marketId The market id
+    /// @param newWeight The new weight
+    /// @param newLeverage The new leverage
     function updateMarket(uint256 marketId, uint256 newWeight, UFixed6 newLeverage) external onlyOwner {
         settle(address(0));
 
@@ -152,6 +166,8 @@ contract Vault is IVault, Instance {
         emit MarketUpdated(marketId, newWeight, newLeverage);
     }
 
+    /// @notice Updates the vault parameter set
+    /// @param newParameter The new vault parameter set
     function updateParameter(VaultParameter memory newParameter) external onlyOwner {
         settle(address(0));
 
@@ -159,6 +175,8 @@ contract Vault is IVault, Instance {
         emit ParameterUpdated(newParameter);
     }
 
+    /// @notice Claims the accrued rewards for each registered market
+    /// @dev Callable by owner in case vault accrues rewards, since it is not able to disperse them itself
     function claimReward() external onlyOwner {
         for (uint256 marketId; marketId < totalMarkets; marketId++) {
             _registrations[marketId].read().market.claimReward();
@@ -166,11 +184,9 @@ contract Vault is IVault, Instance {
         }
     }
 
-    /**
-     * @notice Syncs `account`'s state up to current
-     * @dev Also rebalances the collateral and position of the vault without a deposit or withdraw
-     * @param account The account that should be synced
-     */
+    /// @notice Syncs `account`'s state up to current
+    /// @dev Also rebalances the collateral and position of the vault without a deposit or withdraw
+    /// @param account The account that should be synced
     function settle(address account) public whenNotPaused {
         _settleUnderlying();
         Context memory context = _loadContext(account);
@@ -200,6 +216,8 @@ contract Vault is IVault, Instance {
         _saveContext(context, account);
     }
 
+    /// @notice loads or initializes the current checkpoint
+    /// @param context The context to use
     function _checkpoint(Context memory context) private {
         context.currentId = context.global.current;
         if (_mappings[context.currentId].read().next(context.currentIds)) {
@@ -211,6 +229,12 @@ contract Vault is IVault, Instance {
         }
     }
 
+    /// @notice Handles updating the account's position
+    /// @param context The context to use
+    /// @param account The account to operate on
+    /// @param depositAssets The amount of assets to deposit
+    /// @param redeemShares The amount of shares to redeem
+    /// @param claimAssets The amount of assets to claim
     function _update(
         Context memory context,
         address account,
@@ -246,6 +270,11 @@ contract Vault is IVault, Instance {
         emit Update(msg.sender, account, context.currentId, depositAssets, redeemShares, claimAssets);
     }
 
+    /// @notice Returns the claim amount after socialization and settlement fee
+    /// @param context The context to use
+    /// @param depositAssets The amount of assets to deposit
+    /// @param redeemShares The amount of shares to redeem
+    /// @param claimAssets The amount of assets to claim
     function _socialize(
         Context memory context,
         UFixed6 depositAssets,
@@ -258,6 +287,7 @@ contract Vault is IVault, Instance {
         if (depositAssets.isZero() && redeemShares.isZero()) claimAmount = claimAmount.sub(context.settlementFee);
     }
 
+    /// @notice Handles settling the vault's underlying markets
     function _settleUnderlying() private {
         for (uint256 marketId; marketId < totalMarkets; marketId++)
             _registrations[marketId].read().market.update(
@@ -270,18 +300,9 @@ contract Vault is IVault, Instance {
             );
     }
 
-    /**
-     * @notice Hook that is called before every stateful operation
-     * @dev Settles the vault's account on both the long and short product, along with any global or user-specific deposits/redemptions
-     * @param account The account that called the operation, or 0 if called by a keeper.
-     * @return context The current epoch contexts for each market
-     */
-    /// @dev context -- context.global
-    /// @dev context -- context.local
-    /// @dev context -- context.currentCheckpoint
-    /// @dev context -- context.parameter
-    /// @dev context -- context.markets.length
-    /// @dev context -- context.markets[marketId].registration.market
+    /// @notice Handles settling the vault state
+    /// @dev Run before every stateful operation to settle up the latest global state of the vault
+    /// @param context The context to use
     function _settle(Context memory context) private {
         // settle global positions
         while (
@@ -318,11 +339,9 @@ contract Vault is IVault, Instance {
         }
     }
 
-    /**
-     * @notice Manages the internal collateral and position strategy of the vault
-     * @param withdrawAmount The amount of assets that need to be withdrawn from the markets into the vault
-     * @param rebalance Whether to rebalance the vault's position
-     */
+    /// @notice Manages the internal collateral and position strategy of the vault
+    /// @param withdrawAmount The amount of assets that need to be withdrawn from the markets into the vault
+    /// @param rebalance Whether to rebalance the vault's position
     function _manage(Context memory context, UFixed6 withdrawAmount, bool rebalance) private {
         (Fixed6 collateral, UFixed6 assets) = _treasury(context, withdrawAmount);
 
@@ -336,12 +355,15 @@ contract Vault is IVault, Instance {
 
         for (uint256 marketId; marketId < context.markets.length; marketId++)
             if (targets[marketId].collateral.lt(Fixed6Lib.ZERO))
-                _update(context.registrations[marketId], targets[marketId]);
+                _retarget(context.registrations[marketId], targets[marketId]);
         for (uint256 marketId; marketId < context.markets.length; marketId++)
             if (targets[marketId].collateral.gte(Fixed6Lib.ZERO))
-                _update(context.registrations[marketId], targets[marketId]);
+                _retarget(context.registrations[marketId], targets[marketId]);
     }
 
+    /// @notice Returns the amount of collateral and assets in the vault
+    /// @param context The context to use
+    /// @param withdrawAmount The amount of assets that need to be withdrawn from the markets into the vault
     function _treasury(Context memory context, UFixed6 withdrawAmount) private view returns (Fixed6 collateral, UFixed6 assets) {
         collateral = _collateral(context).sub(Fixed6Lib.from(withdrawAmount));
 
@@ -357,12 +379,9 @@ contract Vault is IVault, Instance {
             .add(context.global.deposit);
     }
 
-    /**
-     * @notice Adjusts the position on `market` to `targetPosition`
-     * @param target The new state to target
-     */
-    // TODO: change name
-    function _update(Registration memory registration, StrategyLib.MarketTarget memory target) private {
+    /// @notice Adjusts the position on `market` to `targetPosition`
+    /// @param target The new state to target
+    function _retarget(Registration memory registration, StrategyLib.MarketTarget memory target) private {
         registration.market.update(
             address(this),
             target.position,
@@ -373,11 +392,9 @@ contract Vault is IVault, Instance {
         );
     }
 
-    /**
-     * @notice Loads the context for the given `account`
-     * @param account Account to load the context for
-     * @return context Epoch context
-     */
+    /// @notice Loads the context for the given `account`
+    /// @param account Account to load the context for
+    /// @return context The context
     function _loadContext(address account) private view returns (Context memory context) {
         context.parameter = _parameter.read();
 
@@ -420,28 +437,28 @@ contract Vault is IVault, Instance {
         context.latestCheckpoint = _checkpoints[context.global.latest].read();
     }
 
+    /// @notice Saves the context into storage
+    /// @param context Context to use
+    /// @param account Account to save the context for
     function _saveContext(Context memory context, address account) private {
         _accounts[address(0)].store(context.global);
         _accounts[account].store(context.local);
         _checkpoints[context.currentId].store(context.currentCheckpoint);
     }
 
-    /**
-     * @notice The maximum available deposit amount at the given epoch
-     * @param context Epoch context to use in calculation
-     * @return Maximum available deposit amount at epoch
-     */
+    /// @notice The maximum available deposit amount
+    /// @param context Context to use in calculation
+    /// @return Maximum available deposit amount
     function _maxDeposit(Context memory context) private view returns (UFixed6) {
         if (context.latestCheckpoint.unhealthy()) return UFixed6Lib.ZERO;
         UFixed6 collateral = UFixed6Lib.from(totalAssets().max(Fixed6Lib.ZERO)).add(context.global.deposit);
         return context.global.assets.add(context.parameter.cap.sub(collateral.min(context.parameter.cap)));
     }
 
-    /**
-     * @notice The maximum available redeemable amount at the given epoch for `account`
-     * @param context Epoch context to use in calculation
-     * @return redemptionAmount Maximum available redeemable amount at epoch
-     */
+
+    /// @notice The maximum available redemption amount for `account`
+    /// @param context Context to use
+    /// @return redemptionAmount Maximum available redemption amount
     function _maxRedeem(Context memory context) private pure returns (UFixed6 redemptionAmount) {
         if (context.latestCheckpoint.unhealthy()) return UFixed6Lib.ZERO;
 
@@ -459,16 +476,20 @@ contract Vault is IVault, Instance {
         }
     }
 
-    /**
-     * @notice Returns the real amount of collateral in the vault
-     * @return value The real amount of collateral in the vault
-     **/
+    /// @notice Returns the real amount of collateral in the vault
+    /// @return value The real amount of collateral in the vault
     function _collateral(Context memory context) public view returns (Fixed6 value) {
         value = Fixed6Lib.from(UFixed6Lib.from(asset.balanceOf()));
         for (uint256 marketId; marketId < context.markets.length; marketId++)
             value = value.add(context.markets[marketId].collateral);
     }
 
+    /// @notice Returns the collateral and fee information for the vault at position
+    /// @param context Context to use
+    /// @param id Position to use
+    /// @return value The snapshotted amount of collateral in the vault
+    /// @return fee The snapshotted amount of fee in that position
+    /// @return keeper The snapshotted amount of keeper in that position
     function _collateralAtId(Context memory context, uint256 id) public view returns (Fixed6 value, UFixed6 fee, UFixed6 keeper) {
         Mapping memory mappingAtId = _mappings[id].read();
         for (uint256 marketId; marketId < mappingAtId.length(); marketId++) {

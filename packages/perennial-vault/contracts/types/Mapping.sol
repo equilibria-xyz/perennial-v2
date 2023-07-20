@@ -5,6 +5,7 @@ import "@equilibria/root/number/types/UFixed6.sol";
 
 /// @dev Mapping type
 struct Mapping {
+    /// @dev The underlying ids for the mapping
     uint256[] _ids;
 }
 using MappingLib for Mapping global;
@@ -19,33 +20,57 @@ struct MappingStorage { StoredMapping value; } // TODO(gas-hint): using mapping 
 using MappingStorageLib for MappingStorage global;
 
 /**
- * @title MappingLib
- * @notice
+ * @title Mapping
+ * @notice Holds a optimized list of ids for a mapping
  */
 library MappingLib {
+    /// @notice Initializes the mapping with a specified length
+    /// @param self The mapping to initialize
+    /// @param initialLength The initial length of the mapping
     function initialize(Mapping memory self, uint256 initialLength) internal pure {
         self._ids = new uint256[](initialLength);
     }
 
+    /// @notice Updates the index of the mapping with a new id
+    /// @param self The mapping to update
+    /// @param index The index to update
+    /// @param id The new id
     function update(Mapping memory self, uint256 index, uint256 id) internal pure {
         self._ids[index] = id;
     }
 
+    /// @notice Returns the length of the mapping
+    /// @param self The mapping to query
+    /// @return The length of the mapping
     function length(Mapping memory self) internal pure returns (uint256) {
         return self._ids.length;
     }
 
-    /// @dev positionId of zero will return a zero state in the underlying
+    /// @notice Returns the id at the specified index
+    /// @dev A market positionId of zero will return a zero state in the underlying
+    /// @param self The mapping to query
+    /// @param index The index to query
+    /// @return id The id at the specified index
     function get(Mapping memory self, uint256 index) internal pure returns (uint256 id) {
         if (index < self._ids.length) id = self._ids[index];
     }
 
+    /// @notice Returns whether the latest mapping is ready to be settled based on this mapping
+    /// @dev The latest mapping is ready to be settled when all ids in this mapping are greater than the latest mapping
+    /// @param self The mapping to query
+    /// @param latestMapping The latest mapping
+    /// @return Whether the mapping is ready to be settled
     function ready(Mapping memory self, Mapping memory latestMapping) internal pure returns (bool) {
         for (uint256 id; id < latestMapping._ids.length; id++)
             if (get(self, id) > get(latestMapping, id)) return false;
         return true;
     }
 
+    /// @notice Returns whether the mapping is ready to be advanced based on the current mapping
+    /// @dev The mapping is ready to be advanced when any ids in the current mapping are greater than this mapping
+    /// @param self The mapping to query
+    /// @param currentMapping The current mapping
+    /// @return Whether the mapping is ready to be advanced
     function next(Mapping memory self, Mapping memory currentMapping) internal pure returns (bool) {
         for (uint256 id; id < currentMapping._ids.length; id++)
             if (get(currentMapping, id) > get(self, id)) return true;

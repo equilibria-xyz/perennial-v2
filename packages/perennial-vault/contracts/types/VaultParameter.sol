@@ -5,6 +5,7 @@ import "@equilibria/root/number/types/UFixed6.sol";
 
 /// @dev VaultParameter type
 struct VaultParameter {
+    /// @dev The collateral cap of the vault
     UFixed6 cap;
 }
 struct StoredVaultParameter {

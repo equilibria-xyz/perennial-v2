@@ -14,5 +14,5 @@ interface IVaultFactory is IFactory {
     function initialize() external;
     function operators(address account, address operator) external view returns (bool);
     function updateOperator(address operator, bool newEnabled) external;
-    function create(Token18 asset, IMarket initialMarket, string calldata name, string calldata symbol) external returns (IVault);
+    function create(Token18 asset, IMarket initialMarket, string calldata name) external returns (IVault);
 }

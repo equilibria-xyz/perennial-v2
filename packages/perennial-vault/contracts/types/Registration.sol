@@ -6,8 +6,13 @@ import "@equilibria/root/number/types/UFixed6.sol";
 
 /// @dev Registration type
 struct Registration {
+    /// @dev The underlying market
     IMarket market;
+
+    /// @dev The weight of the market
     uint256 weight;
+
+    /// @dev The leverage of the market
     UFixed6 leverage;
 }
 struct StoredRegistration {
