@@ -13,4 +13,8 @@ contract RiskParameterTester {
     function store(RiskParameter memory newRiskParameter) external {
         return riskParameter.store(newRiskParameter);
     }
+
+    function validate(ProtocolParameter memory protocolParameter) public view {
+        riskParameter.read().validate(protocolParameter);
+    }
 }

@@ -87,7 +87,7 @@ library VersionLib {
     ) internal pure returns (VersionAccumulationResult memory values, UFixed6 totalFee) {
         if (marketParameter.closed) return (values, UFixed6Lib.ZERO);
 
-        // accumulate position
+        // accumulate position fee
         (values.positionFeeMaker, values.positionFeeFee) =
             _accumulatePositionFee(self, fromPosition, toPosition, marketParameter);
 

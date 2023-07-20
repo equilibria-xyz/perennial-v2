@@ -6,6 +6,8 @@ import HRE from 'hardhat'
 import { RiskParameterTester, RiskParameterTester__factory } from '../../../types/generated'
 import { BigNumber } from 'ethers'
 import { RiskParameterStruct } from '../../../types/generated/contracts/Market'
+import { parse6decimal } from '../../../../common/testutil/types'
+import { ProtocolParameterStruct } from '../../../types/generated/contracts/MarketFactory'
 
 const { ethers } = HRE
 use(smock.matchers)
@@ -36,6 +38,17 @@ export const VALID_RISK_PARAMETER: RiskParameterStruct = {
   staleAfter: 13,
   makerReceiveOnly: false,
   virtualTaker: 14,
+}
+
+const PROTOCOL_PARAMETER: ProtocolParameterStruct = {
+  maxPendingIds: parse6decimal('1000'),
+  protocolFee: 0,
+  maxFee: parse6decimal('1'),
+  maxFeeAbsolute: parse6decimal('99999'),
+  maxCut: parse6decimal('1'),
+  maxRate: parse6decimal('1'),
+  minMaintenance: 0,
+  minEfficiency: 0,
 }
 
 describe('RiskParameter', () => {
@@ -542,6 +555,338 @@ describe('RiskParameter', () => {
           }),
         ).to.be.revertedWithCustomError(riskParameter, 'RiskParameterStorageInvalidError')
       })
+    })
+  })
+
+  describe('#validate', () => {
+    context('non-0 protocolParameter.maxFee', () => {
+      describe('.takerFee', () => {
+        it('reverts if invalid', async () => {
+          await riskParameter.store({
+            ...VALID_RISK_PARAMETER,
+            takerFee: parse6decimal('0.1'),
+          })
+
+          await expect(
+            riskParameter.validate({
+              ...PROTOCOL_PARAMETER,
+              maxFee: parse6decimal('0.01'),
+            }),
+          )
+            .to.be.revertedWithCustomError(riskParameter, 'MarketInvalidRiskParameterError')
+            .withArgs(1)
+        })
+      })
+
+      describe('.takerSkewFee', () => {
+        it('reverts if invalid', async () => {
+          await riskParameter.store({
+            ...VALID_RISK_PARAMETER,
+            takerSkewFee: parse6decimal('0.1'),
+          })
+
+          await expect(
+            riskParameter.validate({
+              ...PROTOCOL_PARAMETER,
+              maxFee: parse6decimal('0.01'),
+            }),
+          )
+            .to.be.revertedWithCustomError(riskParameter, 'MarketInvalidRiskParameterError')
+            .withArgs(1)
+        })
+      })
+
+      describe('.takerImpactFee', () => {
+        it('reverts if invalid', async () => {
+          await riskParameter.store({
+            ...VALID_RISK_PARAMETER,
+            takerImpactFee: parse6decimal('0.1'),
+          })
+
+          await expect(
+            riskParameter.validate({
+              ...PROTOCOL_PARAMETER,
+              maxFee: parse6decimal('0.01'),
+            }),
+          )
+            .to.be.revertedWithCustomError(riskParameter, 'MarketInvalidRiskParameterError')
+            .withArgs(1)
+        })
+      })
+
+      describe('.makerFee', () => {
+        it('reverts if invalid', async () => {
+          await riskParameter.store({
+            ...VALID_RISK_PARAMETER,
+            makerFee: parse6decimal('0.1'),
+          })
+
+          await expect(
+            riskParameter.validate({
+              ...PROTOCOL_PARAMETER,
+              maxFee: parse6decimal('0.01'),
+            }),
+          )
+            .to.be.revertedWithCustomError(riskParameter, 'MarketInvalidRiskParameterError')
+            .withArgs(1)
+        })
+      })
+
+      describe('.makerImpactFee', () => {
+        it('reverts if invalid', async () => {
+          await riskParameter.store({
+            ...VALID_RISK_PARAMETER,
+            makerImpactFee: parse6decimal('0.1'),
+          })
+
+          await expect(
+            riskParameter.validate({
+              ...PROTOCOL_PARAMETER,
+              maxFee: parse6decimal('0.01'),
+            }),
+          )
+            .to.be.revertedWithCustomError(riskParameter, 'MarketInvalidRiskParameterError')
+            .withArgs(1)
+        })
+      })
+    })
+
+    context('non-0 protocolParameter.maxFeeAbsolute', () => {
+      describe('.minLiquidationFee', () => {
+        it('reverts if invalid', async () => {
+          await riskParameter.store({
+            ...VALID_RISK_PARAMETER,
+            minLiquidationFee: parse6decimal('100'),
+          })
+
+          await expect(
+            riskParameter.validate({
+              ...PROTOCOL_PARAMETER,
+              maxFeeAbsolute: parse6decimal('1'),
+            }),
+          )
+            .to.be.revertedWithCustomError(riskParameter, 'MarketInvalidRiskParameterError')
+            .withArgs(2)
+        })
+      })
+
+      describe('.maxLiquidationFee', () => {
+        it('reverts if invalid', async () => {
+          await riskParameter.store({
+            ...VALID_RISK_PARAMETER,
+            maxLiquidationFee: parse6decimal('100'),
+          })
+
+          await expect(
+            riskParameter.validate({
+              ...PROTOCOL_PARAMETER,
+              maxFeeAbsolute: parse6decimal('1'),
+            }),
+          )
+            .to.be.revertedWithCustomError(riskParameter, 'MarketInvalidRiskParameterError')
+            .withArgs(2)
+        })
+      })
+
+      describe('.minMaintenance', () => {
+        it('reverts if invalid', async () => {
+          await riskParameter.store({
+            ...VALID_RISK_PARAMETER,
+            minMaintenance: parse6decimal('100'),
+          })
+
+          await expect(
+            riskParameter.validate({
+              ...PROTOCOL_PARAMETER,
+              maxFeeAbsolute: parse6decimal('1'),
+            }),
+          )
+            .to.be.revertedWithCustomError(riskParameter, 'MarketInvalidRiskParameterError')
+            .withArgs(2)
+        })
+      })
+    })
+
+    context('non-0 protocolParameter.maxCut', () => {
+      describe('.liquidationFee', () => {
+        it('reverts if invalid', async () => {
+          await riskParameter.store({
+            ...VALID_RISK_PARAMETER,
+            liquidationFee: parse6decimal('0.2'),
+          })
+
+          await expect(
+            riskParameter.validate({
+              ...PROTOCOL_PARAMETER,
+              maxCut: parse6decimal('0.1'),
+            }),
+          )
+            .to.be.revertedWithCustomError(riskParameter, 'MarketInvalidRiskParameterError')
+            .withArgs(3)
+        })
+      })
+    })
+
+    context('non-0 protocolParameter.maxRate', () => {
+      describe('.utilizationCurve_minRate', () => {
+        it('reverts if invalid', async () => {
+          await riskParameter.store({
+            ...VALID_RISK_PARAMETER,
+            utilizationCurve: {
+              ...VALID_RISK_PARAMETER.utilizationCurve,
+              minRate: parse6decimal('0.2'),
+            },
+          })
+
+          await expect(
+            riskParameter.validate({
+              ...PROTOCOL_PARAMETER,
+              maxRate: parse6decimal('0.01'),
+            }),
+          )
+            .to.be.revertedWithCustomError(riskParameter, 'MarketInvalidRiskParameterError')
+            .withArgs(4)
+        })
+      })
+
+      describe('.utilizationCurve_maxRate', () => {
+        it('reverts if invalid', async () => {
+          await riskParameter.store({
+            ...VALID_RISK_PARAMETER,
+            utilizationCurve: {
+              ...VALID_RISK_PARAMETER.utilizationCurve,
+              maxRate: parse6decimal('0.2'),
+            },
+          })
+
+          await expect(
+            riskParameter.validate({
+              ...PROTOCOL_PARAMETER,
+              maxRate: parse6decimal('0.01'),
+            }),
+          )
+            .to.be.revertedWithCustomError(riskParameter, 'MarketInvalidRiskParameterError')
+            .withArgs(4)
+        })
+      })
+
+      describe('.utilizationCurve_targetRate', () => {
+        it('reverts if invalid', async () => {
+          await riskParameter.store({
+            ...VALID_RISK_PARAMETER,
+            utilizationCurve: {
+              ...VALID_RISK_PARAMETER.utilizationCurve,
+              targetRate: parse6decimal('0.2'),
+            },
+          })
+
+          await expect(
+            riskParameter.validate({
+              ...PROTOCOL_PARAMETER,
+              maxRate: parse6decimal('0.01'),
+            }),
+          )
+            .to.be.revertedWithCustomError(riskParameter, 'MarketInvalidRiskParameterError')
+            .withArgs(4)
+        })
+      })
+
+      describe('.pController_max', () => {
+        it('reverts if invalid', async () => {
+          await riskParameter.store({
+            ...VALID_RISK_PARAMETER,
+            pController: {
+              ...VALID_RISK_PARAMETER.pController,
+              max: parse6decimal('0.2'),
+            },
+          })
+
+          await expect(
+            riskParameter.validate({
+              ...PROTOCOL_PARAMETER,
+              maxRate: parse6decimal('0.01'),
+            }),
+          )
+            .to.be.revertedWithCustomError(riskParameter, 'MarketInvalidRiskParameterError')
+            .withArgs(4)
+        })
+      })
+    })
+
+    context('non-0 protocolParameter.minMaintenance', () => {
+      describe('.maintenance', () => {
+        it('reverts if invalid', async () => {
+          await riskParameter.store({
+            ...VALID_RISK_PARAMETER,
+            maintenance: parse6decimal('0.1'),
+          })
+
+          await expect(
+            riskParameter.validate({
+              ...PROTOCOL_PARAMETER,
+              minMaintenance: parse6decimal('0.2'),
+            }),
+          )
+            .to.be.revertedWithCustomError(riskParameter, 'MarketInvalidRiskParameterError')
+            .withArgs(5)
+        })
+      })
+    })
+
+    context('non-0 protocolParameter.minEfficiency', () => {
+      describe('.efficiencyLimit', () => {
+        it('reverts if invalid', async () => {
+          await riskParameter.store({
+            ...VALID_RISK_PARAMETER,
+            efficiencyLimit: parse6decimal('0.1'),
+          })
+
+          await expect(
+            riskParameter.validate({
+              ...PROTOCOL_PARAMETER,
+              minEfficiency: parse6decimal('0.2'),
+            }),
+          )
+            .to.be.revertedWithCustomError(riskParameter, 'MarketInvalidRiskParameterError')
+            .withArgs(6)
+        })
+      })
+    })
+
+    describe('.utilizationCurve_targetUtilization', () => {
+      it('reverts if invalid', async () => {
+        await riskParameter.store({
+          ...VALID_RISK_PARAMETER,
+          utilizationCurve: {
+            ...VALID_RISK_PARAMETER.utilizationCurve,
+            targetUtilization: parse6decimal('1.01'),
+          },
+        })
+
+        await expect(riskParameter.validate(PROTOCOL_PARAMETER))
+          .to.be.revertedWithCustomError(riskParameter, 'MarketInvalidRiskParameterError')
+          .withArgs(7)
+      })
+    })
+
+    describe('.minMaintenance and minLiquidationFee', () => {
+      it('reverts if invalid', async () => {
+        await riskParameter.store({
+          ...VALID_RISK_PARAMETER,
+          minMaintenance: parse6decimal('0.1'),
+          minLiquidationFee: parse6decimal('0.2'),
+        })
+
+        await expect(riskParameter.validate(PROTOCOL_PARAMETER))
+          .to.be.revertedWithCustomError(riskParameter, 'MarketInvalidRiskParameterError')
+          .withArgs(8)
+      })
+    })
+
+    it('allows a valid risk parameter', async () => {
+      await riskParameter.store(VALID_RISK_PARAMETER)
+
+      await expect(riskParameter.validate(PROTOCOL_PARAMETER)).to.not.be.reverted
     })
   })
 })

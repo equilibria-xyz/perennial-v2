@@ -13,4 +13,8 @@ contract MarketParameterTester {
     function store(MarketParameter memory newMarketParameter) external {
         return marketParameter.store(newMarketParameter);
     }
+
+    function validate(ProtocolParameter memory protocolParameter, Token18 reward) public view {
+        marketParameter.read().validate(protocolParameter, reward);
+    }
 }
