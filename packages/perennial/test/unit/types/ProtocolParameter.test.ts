@@ -10,6 +10,17 @@ import { ProtocolParameterStruct } from '../../../types/generated/contracts/Mark
 const { ethers } = HRE
 use(smock.matchers)
 
+export const VALID_PROTOCOL_PARAMETER: ProtocolParameterStruct = {
+  maxPendingIds: 1,
+  protocolFee: 2,
+  maxFee: 3,
+  maxFeeAbsolute: 4,
+  maxCut: 5,
+  maxRate: 6,
+  minMaintenance: 7,
+  minEfficiency: 8,
+}
+
 describe('ProtocolParameter', () => {
   let owner: SignerWithAddress
 
@@ -22,16 +33,6 @@ describe('ProtocolParameter', () => {
   })
 
   describe('#store', () => {
-    const VALID_PROTOCOL_PARAMETER: ProtocolParameterStruct = {
-      maxPendingIds: 1,
-      protocolFee: 2,
-      maxFee: 3,
-      maxFeeAbsolute: 4,
-      maxCut: 5,
-      maxRate: 6,
-      minMaintenance: 7,
-      minEfficiency: 8,
-    }
     it('stores a new value', async () => {
       await protocolParameter.store(VALID_PROTOCOL_PARAMETER)
 
