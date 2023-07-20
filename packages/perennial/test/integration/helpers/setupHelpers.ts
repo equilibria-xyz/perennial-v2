@@ -26,6 +26,10 @@ import {
   OracleFactory,
   PayoffFactory,
   IOracle__factory,
+  MarketParameterLib__factory,
+  MarketParameterStorageLib__factory,
+  RiskParameterLib__factory,
+  RiskParameterStorageLib__factory,
 } from '../../../types/generated'
 import { ChainlinkContext } from './chainlinkHelpers'
 import { parse6decimal } from '../../../../common/testutil/types'
@@ -62,6 +66,13 @@ export interface InstanceVars {
 export async function deployProtocol(chainlinkContext?: ChainlinkContext): Promise<InstanceVars> {
   const [owner, pauser, user, userB, userC, userD, beneficiaryB] = await ethers.getSigners()
 
+  const [marketLib, makerStorageLib, riskLib, riskStorageLib] = await Promise.all([
+    await new MarketParameterLib__factory(owner).deploy(),
+    await new MarketParameterStorageLib__factory(owner).deploy(),
+    await new RiskParameterLib__factory(owner).deploy(),
+    await new RiskParameterStorageLib__factory(owner).deploy(),
+  ])
+
   const payoff = IPayoffProvider__factory.connect((await new PowerTwo__factory(owner).deploy()).address, owner)
   const dsu = IERC20Metadata__factory.connect((await deployments.get('DSU')).address, owner)
   const usdc = IERC20Metadata__factory.connect((await deployments.get('USDC')).address, owner)
@@ -91,7 +102,15 @@ export async function deployProtocol(chainlinkContext?: ChainlinkContext): Promi
   )
   const payoffFactory = new PayoffFactory__factory(owner).attach(payoffFactoryProxy.address)
 
-  const marketImpl = await new Market__factory(owner).deploy()
+  const marketImpl = await new Market__factory(
+    {
+      'contracts/types/MarketParameter.sol:MarketParameterLib': marketLib.address,
+      'contracts/types/MarketParameter.sol:MarketParameterStorageLib': makerStorageLib.address,
+      'contracts/types/RiskParameter.sol:RiskParameterLib': riskLib.address,
+      'contracts/types/RiskParameter.sol:RiskParameterStorageLib': riskStorageLib.address,
+    },
+    owner,
+  ).deploy()
 
   const factoryImpl = await new MarketFactory__factory(owner).deploy(
     oracleFactory.address,

@@ -47,7 +47,7 @@ library MarketParameterLib {
         MarketParameter memory self,
         ProtocolParameter memory protocolParameter,
         Token18 reward
-    ) internal pure {
+    ) external pure {
         if (self.settlementFee.gt(protocolParameter.maxFeeAbsolute)) revert MarketInvalidMarketParameterError(2);
 
         if (self.fundingFee.max(self.interestFee).max(self.positionFee).gt(protocolParameter.maxCut))
@@ -65,7 +65,7 @@ library MarketParameterLib {
 library MarketParameterStorageLib {
     error MarketParameterStorageInvalidError();
 
-    function read(MarketParameterStorage storage self) internal view returns (MarketParameter memory) {
+    function read(MarketParameterStorage storage self) external view returns (MarketParameter memory) {
         StoredMarketParameter memory value = self.value;
 
         (bool takerCloseAlways, bool makerCloseAlways, bool closed) =
@@ -87,7 +87,7 @@ library MarketParameterStorageLib {
         );
     }
 
-    function store(MarketParameterStorage storage self, MarketParameter memory newValue) internal {
+    function store(MarketParameterStorage storage self, MarketParameter memory newValue) external {
         if (newValue.fundingFee.gt(UFixed6.wrap(type(uint24).max))) revert MarketParameterStorageInvalidError();
         if (newValue.interestFee.gt(UFixed6.wrap(type(uint24).max))) revert MarketParameterStorageInvalidError();
         if (newValue.positionFee.gt(UFixed6.wrap(type(uint24).max))) revert MarketParameterStorageInvalidError();

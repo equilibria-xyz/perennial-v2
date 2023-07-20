@@ -130,6 +130,8 @@ export default function defaultConfig({
     gasReporter: {
       currency: 'USD',
       enabled: process.env.REPORT_GAS ? true : false,
+      coinmarketcap: process.env.COINMARKETCAP_API_KEY,
+      gasPriceApi: `https://api.arbiscan.io/api?module=proxy&action=eth_gasPrice&apikey=${process.env.ETHERSCAN_API_KEY_ARBITRUM}`,
     },
     typechain: {
       outDir: 'types/generated',

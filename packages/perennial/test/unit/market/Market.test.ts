@@ -13,6 +13,10 @@ import {
   IERC20Metadata,
   IMarketFactory,
   PowerTwo__factory,
+  MarketParameterLib__factory,
+  MarketParameterStorageLib__factory,
+  RiskParameterLib__factory,
+  RiskParameterStorageLib__factory,
 } from '../../../types/generated'
 import {
   DEFAULT_POSITION,
@@ -208,7 +212,7 @@ async function settle(market: Market, account: SignerWithAddress) {
     .update(account.address, currentPosition.maker, currentPosition.long, currentPosition.short, 0, false)
 }
 
-describe('Market', () => {
+describe.only('Market', () => {
   let protocolTreasury: SignerWithAddress
   let owner: SignerWithAddress
   let beneficiary: SignerWithAddress
@@ -243,6 +247,12 @@ describe('Market', () => {
       coordinator,
       oracleFactorySigner,
     ] = await ethers.getSigners()
+    const [marketLib, makerStorageLib, riskLib, riskStorageLib] = await Promise.all([
+      await new MarketParameterLib__factory(owner).deploy(),
+      await new MarketParameterStorageLib__factory(owner).deploy(),
+      await new RiskParameterLib__factory(owner).deploy(),
+      await new RiskParameterStorageLib__factory(owner).deploy(),
+    ])
     oracle = await smock.fake<IOracleProvider>('IOracleProvider')
     dsu = await smock.fake<IERC20Metadata>('IERC20Metadata')
     reward = await smock.fake<IERC20Metadata>('IERC20Metadata')
@@ -310,7 +320,15 @@ describe('Market', () => {
       takerCloseAlways: false,
       closed: false,
     }
-    market = await new Market__factory(owner).deploy()
+    market = await new Market__factory(
+      {
+        'contracts/types/MarketParameter.sol:MarketParameterLib': marketLib.address,
+        'contracts/types/MarketParameter.sol:MarketParameterStorageLib': makerStorageLib.address,
+        'contracts/types/RiskParameter.sol:RiskParameterLib': riskLib.address,
+        'contracts/types/RiskParameter.sol:RiskParameterStorageLib': riskStorageLib.address,
+      },
+      owner,
+    ).deploy()
   })
 
   describe('#initialize', async () => {

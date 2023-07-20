@@ -63,7 +63,7 @@ using RiskParameterStorageLib for RiskParameterStorage global;
 library RiskParameterLib {
     error MarketInvalidRiskParameterError(uint256 code);
 
-    function validate(RiskParameter memory self, ProtocolParameter memory protocolParameter) internal pure {
+    function validate(RiskParameter memory self, ProtocolParameter memory protocolParameter) external pure {
         if (
             self.takerFee.max(self.takerSkewFee).max(self.takerImpactFee).max(self.makerFee).max(self.makerImpactFee)
             .gt(protocolParameter.maxFee)
@@ -94,7 +94,7 @@ library RiskParameterLib {
 library RiskParameterStorageLib {
     error RiskParameterStorageInvalidError();
 
-    function read(RiskParameterStorage storage self) internal view returns (RiskParameter memory) {
+    function read(RiskParameterStorage storage self) external view returns (RiskParameter memory) {
         StoredRiskParameter memory value = self.value;
         return RiskParameter(
             UFixed6.wrap(uint256(value.maintenance)),
@@ -125,7 +125,7 @@ library RiskParameterStorageLib {
         );
     }
 
-    function store(RiskParameterStorage storage self, RiskParameter memory newValue) internal {
+    function store(RiskParameterStorage storage self, RiskParameter memory newValue) external {
         if (newValue.maintenance.gt(UFixed6.wrap(type(uint24).max))) revert RiskParameterStorageInvalidError();
         if (newValue.takerFee.gt(UFixed6.wrap(type(uint24).max))) revert RiskParameterStorageInvalidError();
         if (newValue.takerSkewFee.gt(UFixed6.wrap(type(uint24).max))) revert RiskParameterStorageInvalidError();

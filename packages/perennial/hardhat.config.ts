@@ -8,6 +8,15 @@ const config = defaultConfig({
         optimizer: {
           enabled: OPTIMIZER_ENABLED,
           runs: 1,
+          details: OPTIMIZER_ENABLED
+            ? {
+                yulDetails: {
+                  // We checked with the Compound team to confirm that this should be safe to use to other projects
+                  optimizerSteps:
+                    'dhfoDgvulfnTUtnIf [xa[r]scLM cCTUtTOntnfDIul Lcul Vcul [j] Tpeul xa[rul] xa[r]cL gvif CTUca[r]LsTOtfDnca[r]Iulc] jmul[jul] VcTOcul jmul',
+                },
+              }
+            : {},
         },
         viaIR: OPTIMIZER_ENABLED,
       },
