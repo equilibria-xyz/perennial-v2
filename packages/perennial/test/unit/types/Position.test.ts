@@ -804,6 +804,19 @@ describe('Position', () => {
         })
       })
 
+      describe('#sync', () => {
+        it('sets the position to latestPosition and zeroes fee', async () => {
+          await position.store({ ...VALID_GLOBAL_POSITION, fee: 100, keeper: 10 })
+
+          await position.sync(VALID_ORACLE_VERSION)
+          const value = await position.read()
+
+          expect(value.timestamp).to.equal(12345)
+          expect(value.fee).to.equal(0)
+          expect(value.keeper).to.equal(0)
+        })
+      })
+
       describe('#registerFee', () => {
         it('updates the fees', async () => {
           await position.store({ ...VALID_GLOBAL_POSITION, fee: 50, keeper: 10 })
