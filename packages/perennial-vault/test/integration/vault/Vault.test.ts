@@ -1502,5 +1502,117 @@ describe('Vault', () => {
         expect(await asset.balanceOf(user.address)).to.equal(initialBalanceOf)
       })
     })
+
+    context('deleverage market', () => {
+      beforeEach(async () => {
+        // Seed vault with deposits
+        const deposit0 = parse6decimal('1000')
+        await vault.connect(user).update(user.address, deposit0, 0, 0)
+        await updateOracle()
+        await vault.settle(user.address)
+
+        const deposit1 = parse6decimal('10000')
+        await vault.connect(user2).update(user2.address, deposit1, 0, 0)
+        await updateOracle()
+        await vault.settle(user2.address)
+      })
+
+      it('handles setting leverage to 0', async () => {
+        expect(await position()).to.be.equal(
+          parse6decimal('11000').mul(leverage).mul(4).div(5).div(originalOraclePrice),
+        )
+        expect(await btcPosition()).to.be.equal(parse6decimal('11000').mul(leverage).div(5).div(btcOriginalOraclePrice))
+
+        // Deleverage the ETH market
+        await vault.updateMarket(0, 4, 0)
+
+        await vault.connect(user).update(user.address, 0, 0, 0)
+        await updateOracle()
+
+        const currentId = (await market.locals(vault.address)).currentId
+        const pendingPosition = await market.pendingPositions(vault.address, currentId)
+        expect(pendingPosition.maker).to.equal(0)
+
+        await vault.connect(user).update(user.address, 0, 0, 0)
+        await updateOracle()
+
+        expect(await position()).to.be.equal(0)
+      })
+    })
+
+    context('close market', () => {
+      beforeEach(async () => {
+        // Seed vault with deposits
+        const deposit0 = parse6decimal('1000')
+        await vault.connect(user).update(user.address, deposit0, 0, 0)
+        await updateOracle()
+        await vault.settle(user.address)
+
+        const deposit1 = parse6decimal('10000')
+        await vault.connect(user2).update(user2.address, deposit1, 0, 0)
+        await updateOracle()
+        await vault.settle(user2.address)
+      })
+
+      it('handles setting weight to 0', async () => {
+        expect(await position()).to.be.equal(
+          parse6decimal('11000').mul(leverage).mul(4).div(5).div(originalOraclePrice),
+        )
+        expect(await btcPosition()).to.be.equal(parse6decimal('11000').mul(leverage).div(5).div(btcOriginalOraclePrice))
+
+        // Close the ETH market
+        await vault.updateMarket(0, 0, leverage)
+
+        await vault.connect(user).update(user.address, 0, 0, 0)
+        await updateOracle()
+
+        const currentId = (await market.locals(vault.address)).currentId
+        const pendingPosition = await market.pendingPositions(vault.address, currentId)
+        expect(pendingPosition.maker).to.equal(0)
+
+        await vault.connect(user).update(user.address, 0, 0, 0)
+        await updateOracle()
+
+        expect(await position()).to.be.equal(0)
+      })
+    })
+
+    context('add market', () => {
+      beforeEach(async () => {
+        // set ETH market to 0
+        await vault.updateMarket(0, 0, 0)
+
+        // Seed vault with deposits
+        const deposit0 = parse6decimal('1000')
+        await vault.connect(user).update(user.address, deposit0, 0, 0)
+        await updateOracle()
+        await vault.settle(user.address)
+
+        const deposit1 = parse6decimal('10000')
+        await vault.connect(user2).update(user2.address, deposit1, 0, 0)
+        await updateOracle()
+        await vault.settle(user2.address)
+      })
+
+      it('handles re-setting weight to non-0', async () => {
+        expect(await position()).to.be.equal(0)
+        expect(await btcPosition()).to.be.equal(parse6decimal('11000').mul(leverage).div(btcOriginalOraclePrice))
+
+        // Open the ETH market
+        await vault.updateMarket(0, 9, leverage)
+
+        await vault.connect(user).update(user.address, 0, 0, 0)
+        await updateOracle()
+
+        const currentId = (await market.locals(vault.address)).currentId
+        const pendingPosition = await market.pendingPositions(vault.address, currentId)
+        expect(pendingPosition.maker).to.be.greaterThan(0)
+
+        await vault.connect(user).update(user.address, 0, 0, 0)
+        await updateOracle()
+
+        expect(await position()).to.be.greaterThan(0)
+      })
+    })
   })
 })
