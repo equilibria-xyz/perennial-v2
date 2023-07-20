@@ -10,22 +10,55 @@ import "./ProtocolParameter.sol";
 
 /// @dev RiskParameter type
 struct RiskParameter {
+    /// @dev The minimum amount of collateral that must be maintained as a percentage of notional
     UFixed6 maintenance;
+
+    /// @dev The percentage fee on the notional that is charged when a long or short position is open or closed
     UFixed6 takerFee;
+
+    /// @dev The additional percentage that is added scaled by the change in skew
     UFixed6 takerSkewFee;
+
+    /// @dev The additional percentage that is added scaled by the change in impact
     UFixed6 takerImpactFee;
+
+    /// @dev The percentage fee on the notional that is charged when a maker position is open or closed
     UFixed6 makerFee;
+
+    /// @dev The additional percentage that is added scaled by the change in utilization
     UFixed6 makerImpactFee;
+
+    /// @dev The maximum amount of maker positions that opened
     UFixed6 makerLimit;
+
+    /// @dev The minimum limit of the efficiency metric
     UFixed6 efficiencyLimit;
+
+    /// @dev The percentage fee on the notional that is charged when a position is liquidated
     UFixed6 liquidationFee;
+
+    /// @dev The minimum fixed amount that is charged when a position is liquidated
     UFixed6 minLiquidationFee;
+
+    /// @dev The maximum fixed amount that is charged when a position is liquidated
     UFixed6 maxLiquidationFee;
+
+    /// @dev The utilization curve that is used to compute maker interest
     UJumpRateUtilizationCurve6 utilizationCurve;
+
+    /// @dev The p controller that is used to compute long-short funding
     PController6 pController;
+
+    /// @dev The minimum fixed amount that is required for maintenance
     UFixed6 minMaintenance;
+
+    /// @dev A virtual amount that is added to long and short for the purposes of skew calculation
     UFixed6 virtualTaker;
+
+    /// @dev The maximum amount of time since the latest oracle version that update may still be called
     uint256 staleAfter;
+
+    /// @dev Whether or not the maker should always receive positive funding
     bool makerReceiveOnly;
 }
 struct StoredRiskParameter {

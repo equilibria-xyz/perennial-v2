@@ -7,14 +7,31 @@ import "./Order.sol";
 
 /// @dev Order type
 struct Position {
+    /// @dev The position id (only used for non-pending positions)
     uint256 id; // TODO (gas hint): unused in the pending instances
+
+    /// @dev The timestamp of the position
     uint256 timestamp;
+
+    /// @dev The maker position size
     UFixed6 maker;
+
+    /// @dev The long position size
     UFixed6 long;
+
+    /// @dev The short position size
     UFixed6 short;
+
+    /// @dev The fee for the position (only used for pending positions)
     UFixed6 fee; // TODO (gas hint): unused in the non-pending instances
+
+    /// @dev The fixed settlement fee for the position (only used for pending positions)
     UFixed6 keeper; // TODO (gas hint): unused in the non-pending instances
+
+    /// @dev The collateral at the time of the position settlement (only used for pending positions)
     Fixed6 collateral;
+
+    /// @dev The change in collateral during this position (only used for pending positions)
     Fixed6 delta;
 }
 using PositionLib for Position global;
@@ -46,16 +63,20 @@ struct StoredPositionLocal {
 struct PositionStorageLocal { StoredPositionLocal value; }
 using PositionStorageLocalLib for PositionStorageLocal global;
 
-/**
- * @title PositionLib
- * @notice Library
- */
+/// @title Position
+/// @notice Holds the state for a position
 library PositionLib {
+    /// @notice Returns whether the position is ready to be settled
+    /// @param self The position object to check
+    /// @param latestVersion The latest oracle version
+    /// @return Whether the position is ready to be settled
     function ready(Position memory self, OracleVersion memory latestVersion) internal pure returns (bool) {
         return latestVersion.timestamp >= self.timestamp;
     }
 
-    /// @dev update the latest position
+    /// @notice Replaces the position with the new latest position
+    /// @param self The position object to update
+    /// @param newPosition The new latest position
     function update(Position memory self, Position memory newPosition) internal pure {
         (self.id, self.timestamp, self.maker, self.long, self.short) = (
             newPosition.id,
@@ -66,7 +87,14 @@ library PositionLib {
         );
     }
 
-    /// @dev update the current local position
+    /// @notice Updates the current local position with a new order
+    /// @param self The position object to update
+    /// @param currentId The current position id
+    /// @param currentTimestamp The current timestamp
+    /// @param newMaker The new maker position
+    /// @param newLong The new long position
+    /// @param newShort The new short position
+    /// @return newOrder The new order
     function update(
         Position memory self,
         uint256 currentId,
@@ -86,7 +114,12 @@ library PositionLib {
             (currentId, currentTimestamp, newMaker, newLong, newShort);
     }
 
-    /// @dev update the current global position
+    /// @notice Updates the current global position with a new order
+    /// @param self The position object to update
+    /// @param currentId The current position id
+    /// @param currentTimestamp The current timestamp
+    /// @param order The new order
+    /// @param riskParameter The current risk parameter
     function update(
         Position memory self,
         uint256 currentId,
@@ -122,19 +155,25 @@ library PositionLib {
         );
     }
 
-    /// @dev prepare the position for the following id
+    /// @notice prepares the position for the next id
+    /// @param self The position object to update
     function _prepare(Position memory self) private pure {
         self.fee = UFixed6Lib.ZERO;
         self.keeper = UFixed6Lib.ZERO;
         self.collateral = Fixed6Lib.ZERO;
     }
 
-    /// @dev update the collateral delta of the local position
+    /// @notice Updates the collateral delta of the position
+    /// @param self The position object to update
+    /// @param collateralAmount The amount of collateral change that occurred
     function update(Position memory self, Fixed6 collateralAmount) internal pure {
         self.delta = self.delta.add(collateralAmount);
     }
 
-    /// @dev uses the latest position and zeroes out the fee (leaving only the keeper fee)
+    /// @notice Processes an invalidation of the position
+    /// @dev Replaces the maker, long, and short positions with the latest valid version's
+    /// @param self The position object to update
+    /// @param latestPosition The latest valid position
     function invalidate(Position memory self, Position memory latestPosition) internal pure {
         (self.maker, self.long, self.short, self.fee) = (
             latestPosition.maker,
@@ -144,39 +183,71 @@ library PositionLib {
         );
     }
 
+    /// @notice Processes a sync of the position
+    /// @dev Moves the timestamp forward to the latest version's timestamp, while resetting the fee and keeper
+    /// @param self The position object to update
+    /// @param latestVersion The latest oracle version
     function sync(Position memory self, OracleVersion memory latestVersion) internal pure {
         (self.timestamp, self.fee, self.keeper) = (latestVersion.timestamp, UFixed6Lib.ZERO, UFixed6Lib.ZERO);
     }
 
+    /// @notice Registers the fees from a new order
+    /// @param self The position object to update
+    /// @param order The new order
     function registerFee(Position memory self, Order memory order) internal pure {
         self.fee = self.fee.add(order.fee);
         self.keeper = self.keeper.add(order.keeper);
     }
 
+    /// @notice Returns the maximum position size
+    /// @param self The position object to check
+    /// @return The maximum position size
     function magnitude(Position memory self) internal pure returns (UFixed6) {
         return self.long.max(self.short).max(self.maker);
     }
 
+    /// @notice Returns the maximum taker position size
+    /// @param self The position object to check
+    /// @return The maximum taker position size
     function major(Position memory self) internal pure returns (UFixed6) {
         return self.long.max(self.short);
     }
 
+    /// @notice Returns the minimum maker position size
+    /// @param self The position object to check
+    /// @return The minimum maker position size
     function minor(Position memory self) internal pure returns (UFixed6) {
         return self.long.min(self.short);
     }
 
+    /// @notice Returns the difference between the long and short positions
+    /// @param self The position object to check
+    /// @return The difference between the long and short positions
     function net(Position memory self) internal pure returns (UFixed6) {
         return Fixed6Lib.from(self.long).sub(Fixed6Lib.from(self.short)).abs();
     }
 
+    /// @notice Returns the skew of the position
+    /// @dev skew = (long - short) / max(long, short)
+    /// @param self The position object to check
+    /// @return The skew of the position
     function skew(Position memory self) internal pure returns (Fixed6) {
         return _skew(self, UFixed6Lib.ZERO);
     }
 
+    /// @notice Returns the skew of the position taking into account the virtual taker
+    /// @dev virtual skew = (long - short) / (max(long, short) + virtualTaker)
+    /// @param self The position object to check
+    /// @param riskParameter The current risk parameter
+    /// @return The virtual skew of the position
     function virtualSkew(Position memory self, RiskParameter memory riskParameter) internal pure returns (Fixed6) {
         return _skew(self, riskParameter.virtualTaker);
     }
 
+    /// @notice Helper function to return the skew of the position with an optional virtual taker
+    /// @param self The position object to check
+    /// @param virtualTaker The virtual taker to use in the calculation
+    /// @return The virtual skew of the position
     function _skew(Position memory self, UFixed6 virtualTaker) internal pure returns (Fixed6) {
         return major(self).isZero() ?
             Fixed6Lib.ZERO :
@@ -185,34 +256,62 @@ library PositionLib {
                 .div(Fixed6Lib.from(major(self).add(virtualTaker)));
     }
 
+    /// @notice Returns the utilization of the position
+    /// @dev utilization = major / (maker + minor)
+    /// @param self The position object to check
+    /// @return The utilization of the position
     function utilization(Position memory self) internal pure returns (UFixed6) {
         return major(self).unsafeDiv(self.maker.add(minor(self))).min(UFixed6Lib.ONE);
     }
 
+    /// @notice Returns the long position with socialization taken into account
+    /// @param self The position object to check
+    /// @return The long position with socialization taken into account
     function longSocialized(Position memory self) internal pure returns (UFixed6) {
         return self.maker.add(self.short).min(self.long);
     }
 
+    /// @notice Returns the short position with socialization taken into account
+    /// @param self The position object to check
+    /// @return The short position with socialization taken into account
     function shortSocialized(Position memory self) internal pure returns (UFixed6) {
         return self.maker.add(self.long).min(self.short);
     }
 
+    /// @notice Returns the major position with socialization taken into account
+    /// @param self The position object to check
+    /// @return The major position with socialization taken into account
     function takerSocialized(Position memory self) internal pure returns (UFixed6) {
         return major(self).min(minor(self).add(self.maker));
     }
 
+    /// @notice Returns the efficiency of the position
+    /// @dev efficiency = maker / major
+    /// @param self The position object to check
+    /// @return The efficiency of the position
     function efficiency(Position memory self) internal pure returns (UFixed6) {
         return self.maker.unsafeDiv(major(self)).min(UFixed6Lib.ONE);
     }
 
+    /// @notice Returns the whether the position is socialized
+    /// @param self The position object to check
+    /// @return Whether the position is socialized
     function socialized(Position memory self) internal pure returns (bool) {
         return self.maker.add(self.short).lt(self.long) || self.maker.add(self.long).lt(self.short);
     }
 
+    /// @notice Returns the whether the position is single-sided
+    /// @param self The position object to check
+    /// @return Whether the position is single-sided
     function singleSided(Position memory self) internal pure returns (bool) {
         return magnitude(self).eq(self.maker.add(self.long).add(self.short));
     }
 
+    /// @notice Returns the maintenance requirement of the position
+    /// @param self The position object to check
+    /// @param latestVersion The latest oracle version
+    /// @param riskParameter The current risk parameter
+    /// @return The maintenance requirement of the position
     function maintenance(
         Position memory self,
         OracleVersion memory latestVersion,
@@ -225,7 +324,13 @@ library PositionLib {
             .max(riskParameter.minMaintenance);
     }
 
+    /// @notice Returns the whether the position is collateralized
     /// @dev shortfall is considered solvent for 0-position
+    /// @param self The position object to check
+    /// @param latestVersion The latest oracle version
+    /// @param riskParameter The current risk parameter
+    /// @param collateral The current account's collateral
+    /// @return Whether the position is collateralized
     function collateralized(
         Position memory self,
         OracleVersion memory latestVersion,
@@ -235,6 +340,11 @@ library PositionLib {
         return collateral.max(Fixed6Lib.ZERO).gte(Fixed6Lib.from(maintenance(self, latestVersion, riskParameter)));
     }
 
+    /// @notice Returns the liquidation fee of the position
+    /// @param self The position object to check
+    /// @param latestVersion The latest oracle version
+    /// @param riskParameter The current risk parameter
+    /// @return The liquidation fee of the position
     function liquidationFee(
         Position memory self,
         OracleVersion memory latestVersion,

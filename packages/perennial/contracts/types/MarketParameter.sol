@@ -11,17 +11,40 @@ import "./ProtocolParameter.sol";
 
 /// @dev MarketParameter type
 struct MarketParameter {
+    /// @dev The fee that is taken out of funding
     UFixed6 fundingFee;
+
+    /// @dev The fee that is taken out of interest
     UFixed6 interestFee;
+
+    /// @dev The fee that is taken out of maker and taker fees
     UFixed6 positionFee;
+
+    /// @dev The share of the collected fees that is paid to the oracle
     UFixed6 oracleFee; // TODO: move to oracle?
+
+    /// @dev The share of the collected fees that is paid to the risk coordinator
     UFixed6 riskFee;
+
+    /// @dev The fixed fee that is charge whenever an oracle request occurs
     UFixed6 settlementFee;
+
+    /// @dev The rate at which the makers receives rewards (share / sec)
     UFixed6 makerRewardRate;
+
+    /// @dev The rate at which the longs receives rewards (share / sec)
     UFixed6 longRewardRate;
+
+    /// @dev The rate at which the shorts receives rewards (share / sec)
     UFixed6 shortRewardRate;
+
+    /// @dev Whether longs and shorts can always close even when they'd put the market into socialization
     bool takerCloseAlways; // TODO: move to risk?
+
+    /// @dev Whether makers can always close even when they'd put the market into socialization
     bool makerCloseAlways;
+
+    /// @dev Whether the market is in close-only mode
     bool closed;
 }
 struct StoredMarketParameter {

@@ -6,9 +6,16 @@ import "./Position.sol";
 
 /// @dev Local type
 struct Local {
+    /// @dev The current position id
     uint256 currentId;
+
+    /// @dev The collateral balance
     Fixed6 collateral;
+
+    /// @dev The reward balance
     UFixed6 reward;
+
+    /// @dev The protection status
     uint256 protection;
 }
 using LocalLib for Local global;
@@ -28,19 +35,23 @@ struct LocalAccumulationResult {
     UFixed6 keeper;
 }
 
-/**
- * @title LocalLib
- * @notice Library
- */
+/// @title Local
+/// @notice Holds the local account state
 library LocalLib {
+    /// @notice Updates the collateral with the new collateral change
+    /// @param self The Local object to update
+    /// @param collateral The amount to update the collateral by
     function update(Local memory self, Fixed6 collateral) internal pure {
         self.collateral = self.collateral.add(collateral);
     }
 
-    /**
-     * @notice Settled the account's position to oracle version `toOracleVersion`
-     * @param self The struct to operate on
-     */
+    /// @notice Settled the local from its latest position to next position
+    /// @param self The Local object to update
+    /// @param fromPosition The previous latest position
+    /// @param toPosition The next latest position
+    /// @param fromVersion The previous latest version
+    /// @param toVersion The next latest version
+    /// @return values The accumulation result
     function accumulate(
         Local memory self,
         Position memory fromPosition,
@@ -62,6 +73,12 @@ library LocalLib {
         self.reward = self.reward.add(values.rewardAmount);
     }
 
+    /// @notice Updates the local to put it into a protected state for liquidation
+    /// @param self The Local object to update
+    /// @param latestPosition The latest position
+    /// @param currentTimestamp The current timestamp
+    /// @param tryProtect Whether to try to protect the local
+    /// @return Whether the local was protected
     function protect(
         Local memory self,
         Position memory latestPosition,
@@ -73,6 +90,8 @@ library LocalLib {
         return true;
     }
 
+    /// @notice Clears the local's reward value
+    /// @param self The Local object to update
     function clearReward(Local memory self) internal pure {
         self.reward = UFixed6Lib.ZERO;
     }
