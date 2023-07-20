@@ -11,7 +11,6 @@ import "./types/Mapping.sol";
 import "./types/VaultParameter.sol";
 import "./interfaces/IVault.sol";
 import "./lib/StrategyLib.sol";
-import "hardhat/console.sol";
 
 /**
  * @title Vault
@@ -293,14 +292,6 @@ contract Vault is IVault, Instance {
             context.latestCheckpoint = _checkpoints[newLatestId].read();
             (Fixed6 collateralAtId, UFixed6 feeAtId, UFixed6 keeperAtId) = _collateralAtId(context, newLatestId);
             context.latestCheckpoint.complete(collateralAtId, feeAtId, keeperAtId);
-
-            console.log("context.latestCheckpoint.assets", uint256(Fixed6.unwrap(context.latestCheckpoint.assets)));
-            console.log("context.latestCheckpoint.shares", UFixed6.unwrap(context.latestCheckpoint.shares));
-            console.log("context.latestCheckpoint.feeAtId", UFixed6.unwrap(feeAtId));
-            console.log("context.latestCheckpoint.keeperAtId", UFixed6.unwrap(keeperAtId));
-
-            console.log("context.latestCheckpoint.deposit", UFixed6.unwrap(context.latestCheckpoint.deposit));
-            console.log("context.latestCheckpoint.redemption", UFixed6.unwrap(context.latestCheckpoint.redemption));
 
             context.global.processGlobal(
                 newLatestId,
