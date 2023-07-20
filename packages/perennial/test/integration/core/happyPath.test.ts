@@ -2,14 +2,7 @@ import { expect } from 'chai'
 import 'hardhat'
 import { BigNumber } from 'ethers'
 
-import {
-  InstanceVars,
-  deployProtocol,
-  createMarket,
-  INITIAL_PHASE_ID,
-  INITIAL_AGGREGATOR_ROUND_ID,
-  settle,
-} from '../helpers/setupHelpers'
+import { InstanceVars, deployProtocol, createMarket, settle } from '../helpers/setupHelpers'
 import {
   DEFAULT_POSITION,
   expectGlobalEq,
@@ -20,7 +13,6 @@ import {
 } from '../../../../common/testutil/types'
 import { Market__factory } from '../../../types/generated'
 import { CHAINLINK_CUSTOM_CURRENCIES } from '@equilibria/perennial-v2-oracle/util/constants'
-import { buildChainlinkRoundId } from '@equilibria/perennial-v2-oracle/util/buildChainlinkRoundId'
 import { loadFixture } from '@nomicfoundation/hardhat-network-helpers'
 import { ChainlinkContext } from '../helpers/chainlinkHelpers'
 
@@ -77,6 +69,7 @@ describe('Happy Path', () => {
         max: parse6decimal('1.20'),
       },
       minMaintenance: parse6decimal('500'),
+      virtualTaker: parse6decimal('10000'),
       staleAfter: 7200,
       makerReceiveOnly: false,
     }
@@ -915,6 +908,7 @@ describe('Happy Path', () => {
         max: parse6decimal('1.20'),
       },
       minMaintenance: parse6decimal('500'),
+      virtualTaker: parse6decimal('10000'),
       staleAfter: 7200,
       makerReceiveOnly: false,
     }
@@ -961,7 +955,7 @@ describe('Happy Path', () => {
     // Check user is in the correct state
     expectLocalEq(await market.locals(user.address), {
       currentId: 3,
-      collateral: '986128264',
+      collateral: '986127025',
       reward: incentizesOn ? '24669998' : 0,
       protection: 0,
     })
@@ -983,10 +977,10 @@ describe('Happy Path', () => {
     // Check global state
     expectGlobalEq(await market.global(), {
       currentId: 3,
-      protocolFee: '455831',
+      protocolFee: '267859',
       riskFee: 0,
       oracleFee: 0,
-      donation: '455833',
+      donation: '267862',
     })
     expectPositionEq(await market.pendingPosition(3), {
       ...DEFAULT_POSITION,
@@ -1004,8 +998,8 @@ describe('Happy Path', () => {
       long: POSITION.div(2),
     })
     expectVersionEq(await market.versions(TIMESTAMP_4), {
-      makerValue: { _value: '-354882919398' },
-      longValue: { _value: '362067566665' },
+      makerValue: { _value: '-354909471518' },
+      longValue: { _value: '362096873938' },
       shortValue: { _value: 0 },
       makerReward: { _value: incentizesOn ? '606836363635' : 0 },
       longReward: { _value: incentizesOn ? '60683636363' : 0 },
@@ -1054,6 +1048,7 @@ describe('Happy Path', () => {
         max: parse6decimal('1.20'),
       },
       minMaintenance: parse6decimal('500'),
+      virtualTaker: parse6decimal('10000'),
       staleAfter: 100000, // enable long delays for testing
       makerReceiveOnly: false,
     }

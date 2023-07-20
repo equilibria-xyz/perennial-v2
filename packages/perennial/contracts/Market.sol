@@ -119,21 +119,7 @@ contract Market is IMarket, Instance {
     /// @notice Updates the parameter set of the market
     /// @param newParameter The new parameter set
     function updateParameter(MarketParameter memory newParameter) external onlyOwner {
-        ProtocolParameter memory protocolParameter = IMarketFactory(address(factory())).parameter();
-
-        if (newParameter.fundingFee.gt(protocolParameter.maxCut)) revert MarketInvalidMarketParameterError(1);
-        if (newParameter.interestFee.gt(protocolParameter.maxCut)) revert MarketInvalidMarketParameterError(2);
-        if (newParameter.positionFee.gt(protocolParameter.maxCut)) revert MarketInvalidMarketParameterError(3);
-        if (newParameter.settlementFee.gt(protocolParameter.maxFeeAbsolute))
-            revert MarketInvalidMarketParameterError(4);
-        if (newParameter.oracleFee.add(newParameter.riskFee).gt(UFixed6Lib.ONE))
-            revert MarketInvalidMarketParameterError(5);
-        if (reward.isZero() && (
-                !newParameter.makerRewardRate.isZero() ||
-                !newParameter.longRewardRate.isZero() ||
-                !newParameter.shortRewardRate.isZero()
-        )) revert MarketInvalidMarketParameterError(6);
-
+        newParameter.validate(IMarketFactory(address(factory())).parameter(), reward);
         _parameter.store(newParameter);
         emit ParameterUpdated(newParameter);
     }
@@ -141,38 +127,8 @@ contract Market is IMarket, Instance {
     /// @notice Updates the risk parameter set of the market
     /// @param newRiskParameter The new risk parameter set
     function updateRiskParameter(RiskParameter memory newRiskParameter) external onlyCoordinator {
-        ProtocolParameter memory protocolParameter = IMarketFactory(address(factory())).parameter();
-
-        if (newRiskParameter.maintenance.lt(protocolParameter.minMaintenance))
-            revert MarketInvalidRiskParameterError(1);
-        if (newRiskParameter.takerFee.gt(protocolParameter.maxFee)) revert MarketInvalidRiskParameterError(2);
-        if (newRiskParameter.takerSkewFee.gt(protocolParameter.maxFee)) revert MarketInvalidRiskParameterError(3);
-        if (newRiskParameter.takerImpactFee.gt(protocolParameter.maxFee)) revert MarketInvalidRiskParameterError(4);
-        if (newRiskParameter.makerFee.gt(protocolParameter.maxFee)) revert MarketInvalidRiskParameterError(5);
-        if (newRiskParameter.makerImpactFee.gt(protocolParameter.maxFee)) revert MarketInvalidRiskParameterError(6);
-        if (newRiskParameter.efficiencyLimit.lt(protocolParameter.minEfficiency))
-            revert MarketInvalidRiskParameterError(7);
-        if (newRiskParameter.liquidationFee.gt(protocolParameter.maxCut)) revert MarketInvalidRiskParameterError(8);
-        if (newRiskParameter.minLiquidationFee.gt(protocolParameter.maxFeeAbsolute))
-            revert MarketInvalidRiskParameterError(9);
-        if (newRiskParameter.maxLiquidationFee.gt(protocolParameter.maxFeeAbsolute))
-            revert MarketInvalidRiskParameterError(10);
-        if (newRiskParameter.utilizationCurve.minRate.gt(protocolParameter.maxRate))
-            revert MarketInvalidRiskParameterError(11);
-        if (newRiskParameter.utilizationCurve.maxRate.gt(protocolParameter.maxRate))
-            revert MarketInvalidRiskParameterError(12);
-        if (newRiskParameter.utilizationCurve.targetRate.gt(protocolParameter.maxRate))
-            revert MarketInvalidRiskParameterError(13);
-        if (newRiskParameter.utilizationCurve.targetUtilization.gt(UFixed6Lib.ONE))
-            revert MarketInvalidRiskParameterError(14);
-        if (newRiskParameter.pController.max.gt(protocolParameter.maxRate))
-            revert MarketInvalidRiskParameterError(15);
-        if (
-            newRiskParameter.minMaintenance.gt(protocolParameter.maxFeeAbsolute) ||
-            newRiskParameter.minMaintenance.lt(newRiskParameter.minLiquidationFee)
-        ) revert MarketInvalidRiskParameterError(16);
-
-        _updateRiskParameter(newRiskParameter);
+        newRiskParameter.validate(IMarketFactory(address(factory())).parameter());
+        _updateRiskParameter(newRiskParameter); // TODO: unpack
     }
 
     /// @notice Updates the reward token of the market
@@ -315,7 +271,8 @@ contract Market is IMarket, Instance {
         Order memory newOrder = context.currentPosition.local
             .update(context.local.currentId, context.currentTimestamp, newMaker, newLong, newShort);
         if (context.currentTimestamp > context.currentPosition.global.timestamp) context.global.currentId++;
-        context.currentPosition.global.update(context.global.currentId, context.currentTimestamp, newOrder);
+        context.currentPosition.global
+            .update(context.global.currentId, context.currentTimestamp, newOrder, context.riskParameter);
 
         // update fee
         newOrder.registerFee(context.latestVersion, context.marketParameter, context.riskParameter);

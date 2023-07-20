@@ -373,8 +373,91 @@ describe('PythOracle', () => {
   })
 
   describe('#current', async () => {
-    it('returns the current version accepting new orders', async () => {
+    it('returns the current timestamp', async () => {
       expect(await pythOracle.connect(user).current()).to.equal(await currentBlockTimestamp())
+    })
+
+    it('returns the current timestamp w/ granularity == 0', async () => {
+      await expect(pythOracleFactory.connect(owner).updateGranularity(0)).to.be.revertedWithCustomError(
+        pythOracleFactory,
+        'PythFactoryInvalidGranularityError',
+      )
+    })
+
+    it('returns the current timestamp w/ granularity > MAX', async () => {
+      await expect(pythOracleFactory.connect(owner).updateGranularity(3601)).to.be.revertedWithCustomError(
+        pythOracleFactory,
+        'PythFactoryInvalidGranularityError',
+      )
+      await expect(pythOracleFactory.connect(owner).updateGranularity(3600)).to.be.not.reverted
+    })
+
+    it('returns the current timestamp w/ fresh granularity > 1', async () => {
+      await pythOracleFactory.connect(owner).updateGranularity(10)
+
+      const granularity = await pythOracleFactory.granularity()
+      expect(granularity.latestGranularity).to.equal(1)
+      expect(granularity.currentGranularity).to.equal(10)
+      expect(granularity.effectiveAfter).to.equal(await currentBlockTimestamp())
+
+      expect(await pythOracle.connect(user).current()).to.equal(await currentBlockTimestamp())
+    })
+
+    it('returns the current timestamp w/ settled granularity > 1', async () => {
+      const granularity = await pythOracleFactory.granularity()
+      expect(granularity.latestGranularity).to.equal(0)
+      expect(granularity.currentGranularity).to.equal(1)
+      expect(granularity.effectiveAfter).to.equal(0)
+
+      await pythOracleFactory.connect(owner).updateGranularity(10)
+
+      const granularity2 = await pythOracleFactory.granularity()
+      expect(granularity2.latestGranularity).to.equal(1)
+      expect(granularity2.currentGranularity).to.equal(10)
+      expect(granularity2.effectiveAfter).to.equal(await currentBlockTimestamp())
+
+      await time.increase(1)
+
+      expect(await pythOracle.connect(user).current()).to.equal(Math.ceil((await currentBlockTimestamp()) / 10) * 10)
+    })
+
+    it('returns the current timestamp w/ fresh + fresh granularity > 1', async () => {
+      await pythOracleFactory.connect(owner).updateGranularity(10)
+      // hardhat automatically moves 1 second ahead so we have to do this twice
+      await pythOracleFactory.connect(owner).updateGranularity(100)
+      await expect(pythOracleFactory.connect(owner).updateGranularity(1000)).to.be.revertedWithCustomError(
+        pythOracleFactory,
+        'PythFactoryInvalidGranularityError',
+      )
+    })
+
+    it('returns the current timestamp w/ settled + fresh granularity > 1', async () => {
+      await pythOracleFactory.connect(owner).updateGranularity(10)
+      await time.increase(1)
+
+      await pythOracleFactory.connect(owner).updateGranularity(100)
+      const granularity = await pythOracleFactory.granularity()
+      expect(granularity.latestGranularity).to.equal(10)
+      expect(granularity.currentGranularity).to.equal(100)
+      expect(granularity.effectiveAfter).to.equal(Math.ceil((await currentBlockTimestamp()) / 10) * 10)
+
+      expect(await pythOracle.connect(user).current()).to.equal(Math.ceil((await currentBlockTimestamp()) / 10) * 10)
+    })
+
+    it('returns the current timestamp w/ settled + settled granularity > 1', async () => {
+      await pythOracleFactory.connect(owner).updateGranularity(10)
+      await time.increase(1)
+
+      await pythOracleFactory.connect(owner).updateGranularity(100)
+      const granularity = await pythOracleFactory.granularity()
+      expect(granularity.latestGranularity).to.equal(10)
+      expect(granularity.currentGranularity).to.equal(100)
+      expect(granularity.effectiveAfter).to.equal(Math.ceil((await currentBlockTimestamp()) / 10) * 10)
+
+      const previousCurrent = Math.ceil((await currentBlockTimestamp()) / 10) * 10
+      await time.increase(previousCurrent - (await currentBlockTimestamp()) + 1)
+
+      expect(await pythOracle.connect(user).current()).to.equal(Math.ceil((await currentBlockTimestamp()) / 100) * 100)
     })
   })
 

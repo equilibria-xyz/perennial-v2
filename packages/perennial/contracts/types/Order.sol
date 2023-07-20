@@ -67,6 +67,6 @@ library OrderLib {
     }
 
     function isEmpty(Order memory self) internal pure returns (bool) {
-        return self.maker.add(self.long).add(self.short).isZero();
+        return self.maker.abs().add(self.long.abs()).add(self.short.abs()).isZero();
     }
 }

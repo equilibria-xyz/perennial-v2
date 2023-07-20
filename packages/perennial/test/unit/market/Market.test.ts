@@ -292,6 +292,7 @@ describe('Market', () => {
         max: parse6decimal('1.20'),
       },
       minMaintenance: parse6decimal('100'),
+      virtualTaker: parse6decimal('0'),
       staleAfter: 7200,
       makerReceiveOnly: false,
     }
@@ -348,6 +349,7 @@ describe('Market', () => {
       expect(riskParameterResult.pController.k).to.equal(riskParameter.pController.k)
       expect(riskParameterResult.pController.max).to.equal(riskParameter.pController.max)
       expect(riskParameterResult.minMaintenance).to.equal(riskParameter.minMaintenance)
+      expect(riskParameterResult.virtualTaker).to.equal(riskParameter.virtualTaker)
       expect(riskParameterResult.staleAfter).to.equal(riskParameter.staleAfter)
       expect(riskParameterResult.makerReceiveOnly).to.equal(riskParameter.makerReceiveOnly)
 
@@ -540,7 +542,7 @@ describe('Market', () => {
           }
           await expect(market.connect(owner).updateParameter(newMarketParameter))
             .to.revertedWithCustomError(market, 'MarketInvalidMarketParameterError')
-            .withArgs(4)
+            .withArgs(2)
         })
       })
 
@@ -568,7 +570,7 @@ describe('Market', () => {
           }
           await expect(market.connect(owner).updateParameter(newMarketParameter))
             .to.revertedWithCustomError(market, 'MarketInvalidMarketParameterError')
-            .withArgs(1)
+            .withArgs(3)
         })
 
         it('interestFee -> fail', async () => {
@@ -579,7 +581,7 @@ describe('Market', () => {
           }
           await expect(market.connect(owner).updateParameter(newMarketParameter))
             .to.revertedWithCustomError(market, 'MarketInvalidMarketParameterError')
-            .withArgs(2)
+            .withArgs(3)
         })
 
         it('positionFee -> fail', async () => {
@@ -616,7 +618,7 @@ describe('Market', () => {
           }
           await expect(market.connect(owner).updateParameter(newMarketParameter))
             .to.revertedWithCustomError(market, 'MarketInvalidMarketParameterError')
-            .withArgs(5)
+            .withArgs(8)
         })
       })
 
@@ -642,7 +644,7 @@ describe('Market', () => {
           }
           await expect(market.connect(owner).updateParameter(newMarketParameter))
             .to.revertedWithCustomError(market, 'MarketInvalidMarketParameterError')
-            .withArgs(6)
+            .withArgs(9)
         })
 
         it('longRewardRate -> fail', async () => {
@@ -654,7 +656,7 @@ describe('Market', () => {
           }
           await expect(market.connect(owner).updateParameter(newMarketParameter))
             .to.revertedWithCustomError(market, 'MarketInvalidMarketParameterError')
-            .withArgs(6)
+            .withArgs(9)
         })
 
         it('shortRewardRate -> fail', async () => {
@@ -666,7 +668,7 @@ describe('Market', () => {
           }
           await expect(market.connect(owner).updateParameter(newMarketParameter))
             .to.revertedWithCustomError(market, 'MarketInvalidMarketParameterError')
-            .withArgs(6)
+            .withArgs(9)
         })
       })
 
@@ -710,6 +712,7 @@ describe('Market', () => {
           max: parse6decimal('1.20'),
         },
         minMaintenance: parse6decimal('50'),
+        virtualTaker: parse6decimal('100000'),
         staleAfter: 9600,
         makerReceiveOnly: true,
       }
@@ -741,6 +744,7 @@ describe('Market', () => {
         expect(riskParameter.pController.k).to.equal(defaultRiskParameter.pController.k)
         expect(riskParameter.pController.max).to.equal(defaultRiskParameter.pController.max)
         expect(riskParameter.minMaintenance).to.equal(defaultRiskParameter.minMaintenance)
+        expect(riskParameter.virtualTaker).to.equal(defaultRiskParameter.virtualTaker)
         expect(riskParameter.staleAfter).to.equal(defaultRiskParameter.staleAfter)
         expect(riskParameter.makerReceiveOnly).to.equal(defaultRiskParameter.makerReceiveOnly)
       })
@@ -802,7 +806,7 @@ describe('Market', () => {
           }
           await expect(market.connect(owner).updateRiskParameter(newRiskParameter))
             .to.revertedWithCustomError(market, 'MarketInvalidRiskParameterError')
-            .withArgs(2)
+            .withArgs(1)
         })
 
         it('takerSkewFee -> fail', async () => {
@@ -813,7 +817,7 @@ describe('Market', () => {
           }
           await expect(market.connect(owner).updateRiskParameter(newRiskParameter))
             .to.revertedWithCustomError(market, 'MarketInvalidRiskParameterError')
-            .withArgs(3)
+            .withArgs(1)
         })
 
         it('takerImpactFee -> fail', async () => {
@@ -824,7 +828,7 @@ describe('Market', () => {
           }
           await expect(market.connect(owner).updateRiskParameter(newRiskParameter))
             .to.revertedWithCustomError(market, 'MarketInvalidRiskParameterError')
-            .withArgs(4)
+            .withArgs(1)
         })
 
         it('makerFee -> fail', async () => {
@@ -835,7 +839,7 @@ describe('Market', () => {
           }
           await expect(market.connect(owner).updateRiskParameter(newRiskParameter))
             .to.revertedWithCustomError(market, 'MarketInvalidRiskParameterError')
-            .withArgs(5)
+            .withArgs(1)
         })
 
         it('makerImpactFee -> fail', async () => {
@@ -846,7 +850,7 @@ describe('Market', () => {
           }
           await expect(market.connect(owner).updateRiskParameter(newRiskParameter))
             .to.revertedWithCustomError(market, 'MarketInvalidRiskParameterError')
-            .withArgs(6)
+            .withArgs(1)
         })
       })
 
@@ -873,7 +877,7 @@ describe('Market', () => {
           }
           await expect(market.connect(owner).updateRiskParameter(newRiskParameter))
             .to.revertedWithCustomError(market, 'MarketInvalidRiskParameterError')
-            .withArgs(9)
+            .withArgs(2)
         })
 
         it('maxLiquidationFee -> fail', async () => {
@@ -884,7 +888,7 @@ describe('Market', () => {
           }
           await expect(market.connect(owner).updateRiskParameter(newRiskParameter))
             .to.revertedWithCustomError(market, 'MarketInvalidRiskParameterError')
-            .withArgs(10)
+            .withArgs(2)
         })
 
         it('minMaintenance -> fail', async () => {
@@ -895,7 +899,7 @@ describe('Market', () => {
           }
           await expect(market.connect(owner).updateRiskParameter(newRiskParameter))
             .to.revertedWithCustomError(market, 'MarketInvalidRiskParameterError')
-            .withArgs(16)
+            .withArgs(2)
         })
       })
 
@@ -920,7 +924,7 @@ describe('Market', () => {
           }
           await expect(market.connect(owner).updateRiskParameter(newRiskParameter))
             .to.revertedWithCustomError(market, 'MarketInvalidRiskParameterError')
-            .withArgs(8)
+            .withArgs(3)
         })
       })
 
@@ -957,7 +961,7 @@ describe('Market', () => {
           }
           await expect(market.connect(owner).updateRiskParameter(newRiskParameter))
             .to.revertedWithCustomError(market, 'MarketInvalidRiskParameterError')
-            .withArgs(11)
+            .withArgs(4)
         })
 
         it('utilizationCurve.maxRate -> fail', async () => {
@@ -971,7 +975,7 @@ describe('Market', () => {
           }
           await expect(market.connect(owner).updateRiskParameter(newRiskParameter))
             .to.revertedWithCustomError(market, 'MarketInvalidRiskParameterError')
-            .withArgs(12)
+            .withArgs(4)
         })
 
         it('utilizationCurve.targetRate -> fail', async () => {
@@ -985,7 +989,7 @@ describe('Market', () => {
           }
           await expect(market.connect(owner).updateRiskParameter(newRiskParameter))
             .to.revertedWithCustomError(market, 'MarketInvalidRiskParameterError')
-            .withArgs(13)
+            .withArgs(4)
         })
 
         it('pController.max -> fail', async () => {
@@ -999,7 +1003,7 @@ describe('Market', () => {
           }
           await expect(market.connect(owner).updateRiskParameter(newRiskParameter))
             .to.revertedWithCustomError(market, 'MarketInvalidRiskParameterError')
-            .withArgs(15)
+            .withArgs(4)
         })
       })
 
@@ -1024,7 +1028,7 @@ describe('Market', () => {
           }
           await expect(market.connect(owner).updateRiskParameter(newRiskParameter))
             .to.revertedWithCustomError(market, 'MarketInvalidRiskParameterError')
-            .withArgs(1)
+            .withArgs(5)
         })
       })
 
@@ -1049,7 +1053,7 @@ describe('Market', () => {
           }
           await expect(market.connect(owner).updateRiskParameter(newRiskParameter))
             .to.revertedWithCustomError(market, 'MarketInvalidRiskParameterError')
-            .withArgs(7)
+            .withArgs(6)
         })
       })
 
@@ -1078,7 +1082,7 @@ describe('Market', () => {
           }
           await expect(market.connect(owner).updateRiskParameter(newRiskParameter))
             .to.revertedWithCustomError(market, 'MarketInvalidRiskParameterError')
-            .withArgs(14)
+            .withArgs(7)
         })
       })
 
@@ -1113,7 +1117,7 @@ describe('Market', () => {
           }
           await expect(market.connect(owner).updateRiskParameter(newRiskParameter))
             .to.revertedWithCustomError(market, 'MarketInvalidRiskParameterError')
-            .withArgs(16)
+            .withArgs(8)
         })
       })
 
@@ -12411,6 +12415,223 @@ describe('Market', () => {
                   .add(EXPECTED_INTEREST_5_123_P2)
                   .div(5)
                   .mul(-1),
+              },
+              makerReward: { _value: EXPECTED_REWARD.mul(3).div(10) },
+              longReward: { _value: 0 },
+              shortReward: { _value: EXPECTED_REWARD.div(5) },
+            })
+          })
+        })
+      })
+
+      context('virtual skew', async () => {
+        // rate_0 = 0
+        // rate_1 = rate_0 + (elapsed * skew / k)
+        // funding = (rate_0 + rate_1) / 2 * elapsed * taker * price / time_in_years
+        // (0 + (0 + 3600 * 0.333333 / 40000)) / 2 * 3600 * 5 * 123 / (86400 * 365) = 1053
+        const EXPECTED_FUNDING_1_5_123_V = BigNumber.from(1055)
+        const EXPECTED_FUNDING_FEE_1_5_123_V = BigNumber.from(105)
+        const EXPECTED_FUNDING_WITH_FEE_1_5_123_V = EXPECTED_FUNDING_1_5_123_V.add(55)
+        const EXPECTED_FUNDING_WITHOUT_FEE_1_5_123_V = EXPECTED_FUNDING_1_5_123_V.sub(50)
+
+        beforeEach(async () => {
+          const riskParameter = { ...(await market.riskParameter()) }
+          riskParameter.virtualTaker = POSITION
+          await market.connect(owner).updateRiskParameter(riskParameter)
+
+          dsu.transferFrom.whenCalledWith(user.address, market.address, COLLATERAL.mul(1e12)).returns(true)
+        })
+
+        context('long', async () => {
+          beforeEach(async () => {
+            dsu.transferFrom.whenCalledWith(userB.address, market.address, COLLATERAL.mul(1e12)).returns(true)
+            await market.connect(userB).update(userB.address, POSITION, 0, 0, COLLATERAL, false)
+            await market.connect(user).update(user.address, 0, POSITION.div(2), 0, COLLATERAL, false)
+
+            oracle.at.whenCalledWith(ORACLE_VERSION_2.timestamp).returns(ORACLE_VERSION_2)
+            oracle.status.returns([ORACLE_VERSION_2, ORACLE_VERSION_3.timestamp])
+            oracle.request.returns()
+
+            await settle(market, user)
+            await settle(market, userB)
+          })
+
+          it('correctly dampens the finding rate increase', async () => {
+            oracle.at.whenCalledWith(ORACLE_VERSION_3.timestamp).returns(ORACLE_VERSION_3)
+            oracle.status.returns([ORACLE_VERSION_3, ORACLE_VERSION_4.timestamp])
+            oracle.request.returns()
+
+            await settle(market, user)
+            await settle(market, userB)
+
+            expectLocalEq(await market.locals(user.address), {
+              currentId: 3,
+              collateral: COLLATERAL.sub(EXPECTED_FUNDING_WITH_FEE_1_5_123_V).sub(EXPECTED_INTEREST_5_123),
+              reward: EXPECTED_REWARD.mul(2),
+              protection: 0,
+            })
+            expectPositionEq(await market.positions(user.address), {
+              ...DEFAULT_POSITION,
+              id: 2,
+              timestamp: ORACLE_VERSION_3.timestamp,
+              long: POSITION.div(2),
+            })
+            expectPositionEq(await market.pendingPositions(user.address, 3), {
+              ...DEFAULT_POSITION,
+              id: 3,
+              timestamp: ORACLE_VERSION_4.timestamp,
+              long: POSITION.div(2),
+              delta: COLLATERAL,
+            })
+            expectLocalEq(await market.locals(userB.address), {
+              currentId: 3,
+              collateral: COLLATERAL.add(EXPECTED_FUNDING_WITHOUT_FEE_1_5_123_V)
+                .add(EXPECTED_INTEREST_WITHOUT_FEE_5_123)
+                .sub(13), // loss of precision
+              reward: EXPECTED_REWARD.mul(3),
+              protection: 0,
+            })
+            expectPositionEq(await market.positions(userB.address), {
+              ...DEFAULT_POSITION,
+              id: 2,
+              timestamp: ORACLE_VERSION_3.timestamp,
+              maker: POSITION,
+            })
+            expectPositionEq(await market.pendingPositions(userB.address, 3), {
+              ...DEFAULT_POSITION,
+              id: 3,
+              timestamp: ORACLE_VERSION_4.timestamp,
+              maker: POSITION,
+              delta: COLLATERAL,
+            })
+            const totalFee = EXPECTED_FUNDING_FEE_1_5_123_V.add(EXPECTED_INTEREST_FEE_5_123)
+            expectGlobalEq(await market.global(), {
+              currentId: 3,
+              protocolFee: totalFee.div(2),
+              oracleFee: totalFee.div(2).div(10),
+              riskFee: totalFee.div(2).div(10),
+              donation: totalFee.div(2).mul(8).div(10).add(2), // loss of precision
+            })
+            expectPositionEq(await market.position(), {
+              ...DEFAULT_POSITION,
+              id: 2,
+              timestamp: ORACLE_VERSION_3.timestamp,
+              maker: POSITION,
+              long: POSITION.div(2),
+            })
+            expectPositionEq(await market.pendingPosition(3), {
+              ...DEFAULT_POSITION,
+              id: 3,
+              timestamp: ORACLE_VERSION_4.timestamp,
+              maker: POSITION,
+              long: POSITION.div(2),
+            })
+            expectVersionEq(await market.versions(ORACLE_VERSION_3.timestamp), {
+              makerValue: {
+                _value: EXPECTED_FUNDING_WITHOUT_FEE_1_5_123_V.add(EXPECTED_INTEREST_WITHOUT_FEE_5_123).div(10).sub(1), // loss of precision
+              },
+              longValue: {
+                _value: EXPECTED_FUNDING_WITH_FEE_1_5_123_V.add(EXPECTED_INTEREST_5_123).div(5).mul(-1),
+              },
+              shortValue: { _value: 0 },
+              makerReward: { _value: EXPECTED_REWARD.mul(3).div(10) },
+              longReward: { _value: EXPECTED_REWARD.mul(2).div(5) },
+              shortReward: { _value: 0 },
+            })
+          })
+        })
+
+        context('short', async () => {
+          beforeEach(async () => {
+            dsu.transferFrom.whenCalledWith(userB.address, market.address, COLLATERAL.mul(1e12)).returns(true)
+            await market.connect(userB).update(userB.address, POSITION, 0, 0, COLLATERAL, false)
+            await market.connect(user).update(user.address, 0, 0, POSITION.div(2), COLLATERAL, false)
+
+            oracle.at.whenCalledWith(ORACLE_VERSION_2.timestamp).returns(ORACLE_VERSION_2)
+            oracle.status.returns([ORACLE_VERSION_2, ORACLE_VERSION_3.timestamp])
+            oracle.request.returns()
+
+            await settle(market, user)
+            await settle(market, userB)
+          })
+
+          it('correctly dampens the finding rate decrease', async () => {
+            oracle.at.whenCalledWith(ORACLE_VERSION_3.timestamp).returns(ORACLE_VERSION_3)
+            oracle.status.returns([ORACLE_VERSION_3, ORACLE_VERSION_4.timestamp])
+            oracle.request.returns()
+
+            await settle(market, user)
+            await settle(market, userB)
+
+            expectLocalEq(await market.locals(user.address), {
+              currentId: 3,
+              collateral: COLLATERAL.sub(EXPECTED_FUNDING_WITH_FEE_1_5_123_V).sub(EXPECTED_INTEREST_5_123).add(5), // excess fundingFee taken from long
+              reward: EXPECTED_REWARD,
+              protection: 0,
+            })
+            expectPositionEq(await market.positions(user.address), {
+              ...DEFAULT_POSITION,
+              id: 2,
+              timestamp: ORACLE_VERSION_3.timestamp,
+              short: POSITION.div(2),
+            })
+            expectPositionEq(await market.pendingPositions(user.address, 3), {
+              ...DEFAULT_POSITION,
+              id: 3,
+              timestamp: ORACLE_VERSION_4.timestamp,
+              short: POSITION.div(2),
+              delta: COLLATERAL,
+            })
+            expectLocalEq(await market.locals(userB.address), {
+              currentId: 3,
+              collateral: COLLATERAL.add(EXPECTED_FUNDING_WITHOUT_FEE_1_5_123_V)
+                .add(EXPECTED_INTEREST_WITHOUT_FEE_5_123)
+                .sub(13), // loss of precision
+              reward: EXPECTED_REWARD.mul(3),
+              protection: 0,
+            })
+            expectPositionEq(await market.positions(userB.address), {
+              ...DEFAULT_POSITION,
+              id: 2,
+              timestamp: ORACLE_VERSION_3.timestamp,
+              maker: POSITION,
+            })
+            expectPositionEq(await market.pendingPositions(userB.address, 3), {
+              ...DEFAULT_POSITION,
+              id: 3,
+              timestamp: ORACLE_VERSION_4.timestamp,
+              maker: POSITION,
+              delta: COLLATERAL,
+            })
+            const totalFee = EXPECTED_FUNDING_FEE_1_5_123_V.add(EXPECTED_INTEREST_FEE_5_123)
+            expectGlobalEq(await market.global(), {
+              currentId: 3,
+              protocolFee: totalFee.div(2),
+              oracleFee: totalFee.div(2).div(10),
+              riskFee: totalFee.div(2).div(10),
+              donation: totalFee.div(2).mul(8).div(10).add(2), // loss of precision
+            })
+            expectPositionEq(await market.position(), {
+              ...DEFAULT_POSITION,
+              id: 2,
+              timestamp: ORACLE_VERSION_3.timestamp,
+              maker: POSITION,
+              short: POSITION.div(2),
+            })
+            expectPositionEq(await market.pendingPosition(3), {
+              ...DEFAULT_POSITION,
+              id: 3,
+              timestamp: ORACLE_VERSION_4.timestamp,
+              maker: POSITION,
+              short: POSITION.div(2),
+            })
+            expectVersionEq(await market.versions(ORACLE_VERSION_3.timestamp), {
+              makerValue: {
+                _value: EXPECTED_FUNDING_WITHOUT_FEE_1_5_123_V.add(EXPECTED_INTEREST_WITHOUT_FEE_5_123).div(10).sub(1), // loss of precision
+              },
+              longValue: { _value: 0 },
+              shortValue: {
+                _value: EXPECTED_FUNDING_WITH_FEE_1_5_123_V.add(EXPECTED_INTEREST_5_123).div(5).mul(-1).add(1), // loss of precision (fundingFee)
               },
               makerReward: { _value: EXPECTED_REWARD.mul(3).div(10) },
               longReward: { _value: 0 },

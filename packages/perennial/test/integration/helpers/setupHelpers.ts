@@ -217,6 +217,7 @@ export async function createMarket(
       max: parse6decimal('1.20'),
     },
     minMaintenance: parse6decimal('500'),
+    virtualTaker: 0,
     staleAfter: 7200,
     makerReceiveOnly: false,
     ...riskParamOverrides,

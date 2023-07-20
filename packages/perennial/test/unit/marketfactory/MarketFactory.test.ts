@@ -108,6 +108,7 @@ describe('MarketFactory', () => {
           max: parse6decimal('1.20'),
         },
         minMaintenance: parse6decimal('100'),
+        virtualTaker: parse6decimal('0'),
         staleAfter: 7200,
         makerReceiveOnly: false,
       }
@@ -160,6 +161,7 @@ describe('MarketFactory', () => {
           max: parse6decimal('1.20'),
         },
         minMaintenance: parse6decimal('100'),
+        virtualTaker: parse6decimal('0'),
         staleAfter: 7200,
         makerReceiveOnly: false,
       }
@@ -211,6 +213,7 @@ describe('MarketFactory', () => {
           max: parse6decimal('1.20'),
         },
         minMaintenance: parse6decimal('100'),
+        virtualTaker: parse6decimal('0'),
         staleAfter: 7200,
         makerReceiveOnly: false,
       }
@@ -258,6 +261,7 @@ describe('MarketFactory', () => {
           max: parse6decimal('1.20'),
         },
         minMaintenance: parse6decimal('100'),
+        virtualTaker: parse6decimal('0'),
         staleAfter: 7200,
         makerReceiveOnly: false,
       }
@@ -305,6 +309,7 @@ describe('MarketFactory', () => {
           max: parse6decimal('1.20'),
         },
         minMaintenance: parse6decimal('100'),
+        virtualTaker: parse6decimal('0'),
         staleAfter: 7200,
         makerReceiveOnly: false,
       }
@@ -354,6 +359,7 @@ describe('MarketFactory', () => {
           max: parse6decimal('1.20'),
         },
         minMaintenance: parse6decimal('100'),
+        virtualTaker: parse6decimal('0'),
         staleAfter: 7200,
         makerReceiveOnly: false,
       }
@@ -456,6 +462,7 @@ describe('MarketFactory', () => {
           max: parse6decimal('1.20'),
         },
         minMaintenance: parse6decimal('100'),
+        virtualTaker: parse6decimal('0'),
         staleAfter: 7200,
         makerReceiveOnly: false,
       }

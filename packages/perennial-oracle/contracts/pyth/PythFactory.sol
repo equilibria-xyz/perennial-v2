@@ -14,6 +14,8 @@ import "../interfaces/IOracleFactory.sol";
  * @dev
  */
 contract PythFactory is IPythFactory, Factory {
+    uint256 public constant MAX_GRANULARITY = 1 hours;
+
     AggregatorV3Interface public immutable ethTokenChainlinkFeed;
     Token18 public immutable keeperToken;
 
@@ -21,6 +23,8 @@ contract PythFactory is IPythFactory, Factory {
 
     mapping(IFactory => bool) public callers;
     mapping(bytes32 => IOracleProvider) public oracles;
+
+    Granularity private _granularity;
 
     /**
      * @notice Initializes the immutable contract state
@@ -40,6 +44,7 @@ contract PythFactory is IPythFactory, Factory {
         __UOwnable__initialize();
 
         oracleFactory = oracleFactory_;
+        _granularity = Granularity(0, 1, 0);
     }
 
     function authorize(IFactory factory) external onlyOwner {
@@ -54,6 +59,32 @@ contract PythFactory is IPythFactory, Factory {
         oracles[id] = newOracle;
 
         emit OracleCreated(newOracle, id);
+    }
+
+    function current() public view returns (uint256) {
+        uint256 effectiveGranularity = block.timestamp <= uint256(_granularity.effectiveAfter) ?
+            uint256(_granularity.latestGranularity) :
+            uint256(_granularity.currentGranularity);
+
+        return Math.ceilDiv(block.timestamp, effectiveGranularity) * effectiveGranularity;
+    }
+
+    function granularity() external view returns (Granularity memory) {
+        return _granularity;
+    }
+
+    function updateGranularity(uint256 newGranularity) external onlyOwner {
+        uint256 _current = current();
+        if (newGranularity == 0) revert PythFactoryInvalidGranularityError();
+        if (_current <= uint256(_granularity.effectiveAfter)) revert PythFactoryInvalidGranularityError();
+        if (newGranularity > MAX_GRANULARITY) revert PythFactoryInvalidGranularityError();
+
+        _granularity = Granularity(
+            _granularity.currentGranularity,
+            uint64(newGranularity),
+            uint128(_current)
+        );
+        emit GranularityUpdated(newGranularity, _current);
     }
 
     function claim(UFixed6 amount) external onlyInstance {

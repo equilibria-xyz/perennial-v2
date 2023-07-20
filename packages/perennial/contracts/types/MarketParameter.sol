@@ -3,9 +3,11 @@ pragma solidity ^0.8.13;
 
 import "@equilibria/perennial-v2-payoff/contracts/interfaces/IPayoffProvider.sol";
 import "@equilibria/perennial-v2-oracle/contracts/interfaces/IOracleProvider.sol";
+import "@equilibria/root/token/types/Token18.sol";
 import "@equilibria/root/number/types/UFixed6.sol";
 import "@equilibria/root/curve/types/UJumpRateUtilizationCurve6.sol";
 import "@equilibria/root-v2/contracts/PController6.sol";
+import "./ProtocolParameter.sol";
 
 /// @dev MarketParameter type
 struct MarketParameter {
@@ -22,7 +24,7 @@ struct MarketParameter {
     bool makerCloseAlways;
     bool closed;
 }
-
+using MarketParameterLib for MarketParameter global;
 struct StoredMarketParameter {
     uint24 fundingFee;          // <= 1677%
     uint24 interestFee;         // <= 1677%
@@ -37,6 +39,28 @@ struct StoredMarketParameter {
 }
 struct MarketParameterStorage { StoredMarketParameter value; }
 using MarketParameterStorageLib for MarketParameterStorage global;
+
+library MarketParameterLib {
+    error MarketInvalidMarketParameterError(uint256 code);
+
+    function validate(
+        MarketParameter memory self,
+        ProtocolParameter memory protocolParameter,
+        Token18 reward
+    ) internal pure {
+        if (self.settlementFee.gt(protocolParameter.maxFeeAbsolute)) revert MarketInvalidMarketParameterError(2);
+
+        if (self.fundingFee.max(self.interestFee).max(self.positionFee).gt(protocolParameter.maxCut))
+            revert MarketInvalidMarketParameterError(3);
+
+        if (self.oracleFee.add(self.riskFee).gt(UFixed6Lib.ONE)) revert MarketInvalidMarketParameterError(8);
+
+        if (
+            reward.isZero() &&
+            (!self.makerRewardRate.isZero() || !self.longRewardRate.isZero() || !self.shortRewardRate.isZero())
+        ) revert MarketInvalidMarketParameterError(9);
+    }
+}
 
 library MarketParameterStorageLib {
     error MarketParameterStorageInvalidError();

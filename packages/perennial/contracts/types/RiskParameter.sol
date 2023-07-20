@@ -6,6 +6,7 @@ import "@equilibria/perennial-v2-oracle/contracts/interfaces/IOracleProvider.sol
 import "@equilibria/root/number/types/UFixed6.sol";
 import "@equilibria/root/curve/types/UJumpRateUtilizationCurve6.sol";
 import "@equilibria/root-v2/contracts/PController6.sol";
+import "./ProtocolParameter.sol";
 
 /// @dev RiskParameter type
 struct RiskParameter {
@@ -23,10 +24,11 @@ struct RiskParameter {
     UJumpRateUtilizationCurve6 utilizationCurve;
     PController6 pController;
     UFixed6 minMaintenance;
+    UFixed6 virtualTaker;
     uint256 staleAfter;
     bool makerReceiveOnly;
 }
-
+using RiskParameterLib for RiskParameter global;
 struct StoredRiskParameter {
     /* slot 1 */
     uint48 makerLimit;                          // <= 281m
@@ -47,7 +49,7 @@ struct StoredRiskParameter {
     uint24 makerImpactFee;                      // <= 1677%
     uint48 minMaintenance;                      // <= 281m
     uint24 staleAfter;                          // <= 16m s
-    bytes6 __unallocated__;
+    uint48 virtualTaker;                        // <= 281mn
 
     /* slot 3 */
     uint24 liquidationFee;                      // <= 1677%
@@ -57,6 +59,37 @@ struct StoredRiskParameter {
 }
 struct RiskParameterStorage { StoredRiskParameter value; }
 using RiskParameterStorageLib for RiskParameterStorage global;
+
+library RiskParameterLib {
+    error MarketInvalidRiskParameterError(uint256 code);
+
+    function validate(RiskParameter memory self, ProtocolParameter memory protocolParameter) internal pure {
+        if (
+            self.takerFee.max(self.takerSkewFee).max(self.takerImpactFee).max(self.makerFee).max(self.makerImpactFee)
+            .gt(protocolParameter.maxFee)
+        ) revert MarketInvalidRiskParameterError(1);
+
+        if (
+            self.minLiquidationFee.max(self.maxLiquidationFee).max(self.minMaintenance)
+            .gt(protocolParameter.maxFeeAbsolute)
+        ) revert MarketInvalidRiskParameterError(2);
+
+        if (self.liquidationFee.gt(protocolParameter.maxCut)) revert MarketInvalidRiskParameterError(3);
+
+        if (
+            self.utilizationCurve.minRate.max(self.utilizationCurve.maxRate).max(self.utilizationCurve.targetRate).max(self.pController.max)
+            .gt(protocolParameter.maxRate)
+        ) revert MarketInvalidRiskParameterError(4);
+
+        if (self.maintenance.lt(protocolParameter.minMaintenance)) revert MarketInvalidRiskParameterError(5);
+
+        if (self.efficiencyLimit.lt(protocolParameter.minEfficiency)) revert MarketInvalidRiskParameterError(6);
+
+        if (self.utilizationCurve.targetUtilization.gt(UFixed6Lib.ONE)) revert MarketInvalidRiskParameterError(7);
+
+        if (self.minMaintenance.lt(self.minLiquidationFee)) revert MarketInvalidRiskParameterError(8);
+    }
+}
 
 library RiskParameterStorageLib {
     error RiskParameterStorageInvalidError();
@@ -86,6 +119,7 @@ library RiskParameterStorageLib {
                 UFixed6.wrap(uint256(value.pControllerMax))
             ),
             UFixed6.wrap(uint256(value.minMaintenance)),
+            UFixed6.wrap(uint256(value.virtualTaker)),
             uint256(value.staleAfter),
             value.makerReceiveOnly
         );
@@ -106,10 +140,11 @@ library RiskParameterStorageLib {
         if (newValue.utilizationCurve.minRate.gt(UFixed6.wrap(type(uint32).max))) revert RiskParameterStorageInvalidError();
         if (newValue.utilizationCurve.maxRate.gt(UFixed6.wrap(type(uint32).max))) revert RiskParameterStorageInvalidError();
         if (newValue.utilizationCurve.targetRate.gt(UFixed6.wrap(type(uint32).max))) revert RiskParameterStorageInvalidError();
-        if (newValue.utilizationCurve.targetUtilization.gt(UFixed6.wrap(type(uint32).max))) revert RiskParameterStorageInvalidError();
+        if (newValue.utilizationCurve.targetUtilization.gt(UFixed6.wrap(type(uint24).max))) revert RiskParameterStorageInvalidError();
         if (newValue.pController.k.gt(UFixed6.wrap(type(uint40).max))) revert RiskParameterStorageInvalidError();
         if (newValue.pController.max.gt(UFixed6.wrap(type(uint32).max))) revert RiskParameterStorageInvalidError();
         if (newValue.minMaintenance.gt(UFixed6.wrap(type(uint48).max))) revert RiskParameterStorageInvalidError();
+        if (newValue.virtualTaker.gt(UFixed6.wrap(type(uint48).max))) revert RiskParameterStorageInvalidError();
         if (newValue.staleAfter > uint256(type(uint24).max)) revert RiskParameterStorageInvalidError();
 
         self.value = StoredRiskParameter({
@@ -131,9 +166,9 @@ library RiskParameterStorageLib {
             pControllerK: uint40(UFixed6.unwrap(newValue.pController.k)),
             pControllerMax: uint32(UFixed6.unwrap(newValue.pController.max)),
             minMaintenance: uint48(UFixed6.unwrap(newValue.minMaintenance)),
+            virtualTaker: uint48(UFixed6.unwrap(newValue.virtualTaker)),
             staleAfter: uint24(newValue.staleAfter),
-            makerReceiveOnly: newValue.makerReceiveOnly,
-            __unallocated__: bytes6(0)
+            makerReceiveOnly: newValue.makerReceiveOnly
         });
     }
 }

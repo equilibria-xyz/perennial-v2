@@ -110,7 +110,7 @@ contract PythOracle is IPythOracle, Instance, UKept {
      * @return Current oracle version
      */
     function current() public view returns (uint256) {
-        return block.timestamp;
+        return IPythFactory(address(factory())).current();
     }
 
     /**
@@ -210,22 +210,6 @@ contract PythOracle is IPythOracle, Instance, UKept {
 
     function _raiseKeeperFee(UFixed18 keeperFee, bytes memory) internal override {
         IPythFactory(address(factory())).claim(UFixed6Lib.from(keeperFee, true));
-    }
-
-    modifier incentivize8(AggregatorV3Interface oracle, Token18 token, UFixed18 premium) {
-        uint256 startGas = gasleft();
-
-        _;
-
-        (, int256 price, , , ) = oracle.latestRoundData();
-        UFixed6 amount = UFixed6Lib.from( // TODO: correct to round this to nearest 1e6?
-            UFixed18.wrap(block.basefee * (startGas - gasleft()))
-                .mul(UFixed18Lib.ONE.add(premium))
-                .mul(UFixed18Lib.ratio(SafeCast.toUint256(price), 1e8))
-        );
-
-        IPythFactory(address(factory())).claim(amount);
-        token.push(msg.sender, UFixed18Lib.from(amount));
     }
 
     modifier onlyAuthorized {
