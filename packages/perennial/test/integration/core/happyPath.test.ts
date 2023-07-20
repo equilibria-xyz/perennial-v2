@@ -87,9 +87,10 @@ describe('Happy Path', () => {
       takerCloseAlways: false,
       closed: false,
     }
-    const marketAddress = await marketFactory.callStatic.create(definition, riskParameter)
-    await expect(marketFactory.create(definition, riskParameter)).to.emit(marketFactory, 'MarketCreated')
+    const marketAddress = await marketFactory.callStatic.create(definition)
+    await expect(marketFactory.create(definition)).to.emit(marketFactory, 'MarketCreated')
     const market = Market__factory.connect(marketAddress, owner)
+    await market.connect(owner).updateRiskParameter(riskParameter)
     await market.connect(owner).updateParameter(parameter)
     await market.connect(owner).updateBeneficiary(beneficiaryB.address)
   })

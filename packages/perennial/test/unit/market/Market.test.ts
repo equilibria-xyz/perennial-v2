@@ -315,10 +315,7 @@ describe('Market', () => {
 
   describe('#initialize', async () => {
     it('initialize with the correct variables set', async () => {
-      await expect(market.connect(factorySigner).initialize(marketDefinition, riskParameter)).to.emit(
-        market,
-        'RiskParameterUpdated',
-      )
+      await market.connect(factorySigner).initialize(marketDefinition)
 
       expect(await market.factory()).to.equal(factory.address)
       expect(await market.token()).to.equal(dsu.address)
@@ -328,30 +325,27 @@ describe('Market', () => {
       expect(await market.payoff()).to.equal(marketDefinition.payoff)
 
       const riskParameterResult = await market.riskParameter()
-      expect(riskParameterResult.maintenance).to.equal(riskParameter.maintenance)
-
-      expect(riskParameterResult.takerFee).to.equal(riskParameter.takerFee)
-      expect(riskParameterResult.takerSkewFee).to.equal(riskParameter.takerSkewFee)
-      expect(riskParameterResult.takerImpactFee).to.equal(riskParameter.takerImpactFee)
-      expect(riskParameterResult.makerFee).to.equal(riskParameter.makerFee)
-      expect(riskParameterResult.makerImpactFee).to.equal(riskParameter.makerImpactFee)
-      expect(riskParameterResult.makerLimit).to.equal(riskParameter.makerLimit)
-      expect(riskParameterResult.efficiencyLimit).to.equal(riskParameter.efficiencyLimit)
-      expect(riskParameterResult.liquidationFee).to.equal(riskParameter.liquidationFee)
-      expect(riskParameterResult.minLiquidationFee).to.equal(riskParameter.minLiquidationFee)
-      expect(riskParameterResult.maxLiquidationFee).to.equal(riskParameter.maxLiquidationFee)
-      expect(riskParameterResult.utilizationCurve.minRate).to.equal(riskParameter.utilizationCurve.minRate)
-      expect(riskParameterResult.utilizationCurve.targetRate).to.equal(riskParameter.utilizationCurve.targetRate)
-      expect(riskParameterResult.utilizationCurve.maxRate).to.equal(riskParameter.utilizationCurve.maxRate)
-      expect(riskParameterResult.utilizationCurve.targetUtilization).to.equal(
-        riskParameter.utilizationCurve.targetUtilization,
-      )
-      expect(riskParameterResult.pController.k).to.equal(riskParameter.pController.k)
-      expect(riskParameterResult.pController.max).to.equal(riskParameter.pController.max)
-      expect(riskParameterResult.minMaintenance).to.equal(riskParameter.minMaintenance)
-      expect(riskParameterResult.virtualTaker).to.equal(riskParameter.virtualTaker)
-      expect(riskParameterResult.staleAfter).to.equal(riskParameter.staleAfter)
-      expect(riskParameterResult.makerReceiveOnly).to.equal(riskParameter.makerReceiveOnly)
+      expect(riskParameterResult.maintenance).to.equal(0)
+      expect(riskParameterResult.takerFee).to.equal(0)
+      expect(riskParameterResult.takerSkewFee).to.equal(0)
+      expect(riskParameterResult.takerImpactFee).to.equal(0)
+      expect(riskParameterResult.makerFee).to.equal(0)
+      expect(riskParameterResult.makerImpactFee).to.equal(0)
+      expect(riskParameterResult.makerLimit).to.equal(0)
+      expect(riskParameterResult.efficiencyLimit).to.equal(0)
+      expect(riskParameterResult.liquidationFee).to.equal(0)
+      expect(riskParameterResult.minLiquidationFee).to.equal(0)
+      expect(riskParameterResult.maxLiquidationFee).to.equal(0)
+      expect(riskParameterResult.utilizationCurve.minRate).to.equal(0)
+      expect(riskParameterResult.utilizationCurve.targetRate).to.equal(0)
+      expect(riskParameterResult.utilizationCurve.maxRate).to.equal(0)
+      expect(riskParameterResult.utilizationCurve.targetUtilization).to.equal(0)
+      expect(riskParameterResult.pController.k).to.equal(0)
+      expect(riskParameterResult.pController.max).to.equal(0)
+      expect(riskParameterResult.minMaintenance).to.equal(0)
+      expect(riskParameterResult.virtualTaker).to.equal(0)
+      expect(riskParameterResult.staleAfter).to.equal(0)
+      expect(riskParameterResult.makerReceiveOnly).to.equal(false)
 
       const marketParameterResult = await market.parameter()
       expect(marketParameterResult.fundingFee).to.equal(0)
@@ -367,8 +361,8 @@ describe('Market', () => {
     })
 
     it('reverts if already initialized', async () => {
-      await market.initialize(marketDefinition, riskParameter)
-      await expect(market.initialize(marketDefinition, riskParameter))
+      await market.initialize(marketDefinition)
+      await expect(market.initialize(marketDefinition))
         .to.be.revertedWithCustomError(market, 'UInitializableAlreadyInitializedError')
         .withArgs(1)
     })
@@ -383,7 +377,8 @@ describe('Market', () => {
     })
 
     it('returns the correct price without payoff', async () => {
-      await market.connect(factorySigner).initialize(marketDefinition, riskParameter)
+      await market.connect(factorySigner).initialize(marketDefinition)
+      await market.connect(owner).updateRiskParameter(riskParameter)
       await market.connect(owner).updateReward(reward.address)
       await market.connect(owner).updateParameter(marketParameter)
 
@@ -409,7 +404,8 @@ describe('Market', () => {
       const payoff = await new PowerTwo__factory(owner).deploy()
       marketDefinition.payoff = payoff.address
 
-      await market.connect(factorySigner).initialize(marketDefinition, riskParameter)
+      await market.connect(factorySigner).initialize(marketDefinition)
+      await market.connect(owner).updateRiskParameter(riskParameter)
       await market.connect(owner).updateReward(reward.address)
       await market.connect(owner).updateParameter(marketParameter)
 
@@ -434,7 +430,8 @@ describe('Market', () => {
 
   context('already initialized', async () => {
     beforeEach(async () => {
-      await market.connect(factorySigner).initialize(marketDefinition, riskParameter)
+      await market.connect(factorySigner).initialize(marketDefinition)
+      await market.connect(owner).updateRiskParameter(riskParameter)
     })
 
     describe('#updateReward', async () => {
@@ -12186,7 +12183,8 @@ describe('Market', () => {
           marketPayoff = await new Market__factory(owner).deploy()
           const payoff = await new MilliPowerTwo__factory(owner).deploy()
           marketDefinition.payoff = payoff.address
-          await marketPayoff.connect(factorySigner).initialize(marketDefinition, riskParameter)
+          await marketPayoff.connect(factorySigner).initialize(marketDefinition)
+          await marketPayoff.connect(owner).updateRiskParameter(riskParameter)
           await marketPayoff.connect(owner).updateReward(reward.address)
           await marketPayoff.connect(owner).updateParameter(marketParameter)
 

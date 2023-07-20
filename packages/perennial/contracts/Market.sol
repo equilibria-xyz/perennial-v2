@@ -66,11 +66,7 @@ contract Market is IMarket, Instance {
 
     /// @notice Initializes the contract state
     /// @param definition_ The market definition
-    /// @param riskParameter_ The initial set of risk parameters
-    function initialize(
-        IMarket.MarketDefinition calldata definition_,
-        RiskParameter calldata riskParameter_
-    ) external initializer(1) {
+    function initialize(IMarket.MarketDefinition calldata definition_) external initializer(1) {
         __Instance__initialize();
 
         name = definition_.name;
@@ -78,7 +74,6 @@ contract Market is IMarket, Instance {
         token = definition_.token;
         oracle = definition_.oracle;
         payoff = definition_.payoff;
-        _updateRiskParameter(riskParameter_); // TODO: don't set or use version with invariant
     }
 
     /// @notice Updates the account's position and collateral
@@ -128,7 +123,8 @@ contract Market is IMarket, Instance {
     /// @param newRiskParameter The new risk parameter set
     function updateRiskParameter(RiskParameter memory newRiskParameter) external onlyCoordinator {
         newRiskParameter.validate(IMarketFactory(address(factory())).parameter());
-        _updateRiskParameter(newRiskParameter); // TODO: unpack
+        _riskParameter.store(newRiskParameter);
+        emit RiskParameterUpdated(newRiskParameter);
     }
 
     /// @notice Updates the reward token of the market
@@ -547,11 +543,6 @@ contract Market is IMarket, Instance {
 
     function _collateralized(Context memory context, Position memory active) private pure returns (bool) {
         return active.collateralized(context.latestVersion, context.riskParameter, context.local.collateral);
-    }
-
-    function _updateRiskParameter(RiskParameter memory newRiskParameter) private {
-        _riskParameter.store(newRiskParameter);
-        emit RiskParameterUpdated(newRiskParameter);
     }
 
     function _oracleVersion() private view returns (OracleVersion memory latestVersion, uint256 currentTimestamp) {

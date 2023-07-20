@@ -237,10 +237,11 @@ export async function createMarket(
     closed: false,
     ...marketParamOverrides,
   }
-  const marketAddress = await marketFactory.callStatic.create(definition, riskParameter)
-  await marketFactory.create(definition, riskParameter)
+  const marketAddress = await marketFactory.callStatic.create(definition)
+  await marketFactory.create(definition)
 
   const market = Market__factory.connect(marketAddress, owner)
+  await market.updateRiskParameter(riskParameter)
   await market.updateBeneficiary(beneficiaryB.address)
   await market.updateReward(rewardToken.address)
   await market.updateParameter(marketParameter)

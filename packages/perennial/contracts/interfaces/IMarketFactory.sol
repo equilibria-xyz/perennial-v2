@@ -10,7 +10,7 @@ import "./IMarket.sol";
 interface IMarketFactory is IFactory {
     event ParameterUpdated(ProtocolParameter newParameter);
     event OperatorUpdated(address indexed account, address indexed operator, bool newEnabled);
-    event MarketCreated(IMarket indexed market, IMarket.MarketDefinition definition, RiskParameter riskParameter);
+    event MarketCreated(IMarket indexed market, IMarket.MarketDefinition definition);
 
     error FactoryInvalidPayoffError();
     error FactoryInvalidOracleError();
@@ -26,6 +26,6 @@ interface IMarketFactory is IFactory {
     function initialize() external;
     function updateParameter(ProtocolParameter memory newParameter) external;
     function updateOperator(address operator, bool newEnabled) external;
-    function create(IMarket.MarketDefinition calldata definition, RiskParameter calldata riskParameter) external returns (IMarket);
+    function create(IMarket.MarketDefinition calldata definition) external returns (IMarket);
     function fund(IMarket market) external;
 }

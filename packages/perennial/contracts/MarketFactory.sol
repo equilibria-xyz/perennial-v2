@@ -58,10 +58,7 @@ contract MarketFactory is IMarketFactory, Factory {
      * @notice Creates a new market market with `provider`
      * @return newMarket New market contract address
      */
-    function create(
-        IMarket.MarketDefinition calldata definition,
-        RiskParameter calldata riskParameter
-    ) external onlyOwner returns (IMarket newMarket) {
+    function create(IMarket.MarketDefinition calldata definition) external onlyOwner returns (IMarket newMarket) {
         // verify payoff
         if (definition.payoff != IPayoffProvider(address(0)) && !payoffFactory.payoffs(definition.payoff))
             revert FactoryInvalidPayoffError();
@@ -74,10 +71,10 @@ contract MarketFactory is IMarketFactory, Factory {
             revert FactoryAlreadyRegisteredError();
 
         // create and register market
-        newMarket = IMarket(address(_create(abi.encodeCall(IMarket.initialize, (definition, riskParameter)))));
+        newMarket = IMarket(address(_create(abi.encodeCall(IMarket.initialize, (definition)))));
         markets[definition.oracle][definition.payoff] = newMarket;
 
-        emit MarketCreated(newMarket, definition, riskParameter);
+        emit MarketCreated(newMarket, definition);
     }
 
     function fund(IMarket market) external {

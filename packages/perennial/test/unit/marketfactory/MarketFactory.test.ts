@@ -116,12 +116,12 @@ describe('MarketFactory', () => {
       oracleFactory.instances.whenCalledWith(oracle.address).returns(true)
       payoffFactory.payoffs.whenCalledWith(payoffProvider.address).returns(true)
 
-      const marketAddress = await factory.callStatic.create(marketDefinition, marketParameter)
-      await expect(factory.connect(owner).create(marketDefinition, marketParameter))
+      const marketAddress = await factory.callStatic.create(marketDefinition)
+      await expect(factory.connect(owner).create(marketDefinition))
         .to.emit(factory, 'InstanceCreated')
         .withArgs(marketAddress)
         .to.emit(factory, 'MarketCreated')
-        .withArgs(marketAddress, marketDefinition, marketParameter)
+        .withArgs(marketAddress, marketDefinition)
 
       const market = Market__factory.connect(marketAddress, owner)
       expect(await market.factory()).to.equal(factory.address)
@@ -135,45 +135,15 @@ describe('MarketFactory', () => {
         oracle: oracle.address,
         payoff: constants.AddressZero,
       }
-      const marketParameter = {
-        maintenance: parse6decimal('0.3'),
-        fundingFee: parse6decimal('0.1'),
-        interestFee: parse6decimal('0.1'),
-        takerFee: 0,
-        takerSkewFee: 0,
-        takerImpactFee: 0,
-        makerFee: 0,
-        makerImpactFee: 0,
-        positionFee: 0,
-        makerLimit: parse6decimal('1000'),
-        efficiencyLimit: parse6decimal('0.2'),
-        liquidationFee: parse6decimal('0.50'),
-        minLiquidationFee: parse6decimal('0'),
-        maxLiquidationFee: parse6decimal('1000'),
-        utilizationCurve: {
-          minRate: parse6decimal('0.10'),
-          maxRate: parse6decimal('0.10'),
-          targetRate: parse6decimal('0.10'),
-          targetUtilization: parse6decimal('1'),
-        },
-        pController: {
-          k: parse6decimal('40000'),
-          max: parse6decimal('1.20'),
-        },
-        minMaintenance: parse6decimal('100'),
-        virtualTaker: parse6decimal('0'),
-        staleAfter: 7200,
-        makerReceiveOnly: false,
-      }
 
       oracleFactory.instances.whenCalledWith(oracle.address).returns(true)
 
-      const marketAddress = await factory.callStatic.create(marketDefinition, marketParameter)
-      await expect(factory.connect(owner).create(marketDefinition, marketParameter))
+      const marketAddress = await factory.callStatic.create(marketDefinition)
+      await expect(factory.connect(owner).create(marketDefinition))
         .to.emit(factory, 'InstanceCreated')
         .withArgs(marketAddress)
         .to.emit(factory, 'MarketCreated')
-        .withArgs(marketAddress, marketDefinition, marketParameter)
+        .withArgs(marketAddress, marketDefinition)
 
       const market = Market__factory.connect(marketAddress, owner)
       expect(await market.factory()).to.equal(factory.address)
@@ -187,41 +157,11 @@ describe('MarketFactory', () => {
         oracle: oracle.address,
         payoff: payoffProvider.address,
       }
-      const marketParameter = {
-        maintenance: parse6decimal('0.3'),
-        fundingFee: parse6decimal('0.1'),
-        interestFee: parse6decimal('0.1'),
-        takerFee: 0,
-        takerSkewFee: 0,
-        takerImpactFee: 0,
-        makerFee: 0,
-        makerImpactFee: 0,
-        positionFee: 0,
-        makerLimit: parse6decimal('1000'),
-        efficiencyLimit: parse6decimal('0.2'),
-        liquidationFee: parse6decimal('0.50'),
-        minLiquidationFee: parse6decimal('0'),
-        maxLiquidationFee: parse6decimal('1000'),
-        utilizationCurve: {
-          minRate: parse6decimal('0.10'),
-          maxRate: parse6decimal('0.10'),
-          targetRate: parse6decimal('0.10'),
-          targetUtilization: parse6decimal('1'),
-        },
-        pController: {
-          k: parse6decimal('40000'),
-          max: parse6decimal('1.20'),
-        },
-        minMaintenance: parse6decimal('100'),
-        virtualTaker: parse6decimal('0'),
-        staleAfter: 7200,
-        makerReceiveOnly: false,
-      }
 
       oracleFactory.instances.whenCalledWith(oracle.address).returns(true)
       payoffFactory.payoffs.whenCalledWith(payoffProvider.address).returns(false)
 
-      await expect(factory.connect(owner).create(marketDefinition, marketParameter)).to.revertedWithCustomError(
+      await expect(factory.connect(owner).create(marketDefinition)).to.revertedWithCustomError(
         factory,
         'FactoryInvalidPayoffError',
       )
@@ -269,7 +209,7 @@ describe('MarketFactory', () => {
       oracleFactory.instances.whenCalledWith(oracle.address).returns(false)
       payoffFactory.payoffs.whenCalledWith(payoffProvider.address).returns(true)
 
-      await expect(factory.connect(owner).create(marketDefinition, marketParameter)).to.revertedWithCustomError(
+      await expect(factory.connect(owner).create(marketDefinition)).to.revertedWithCustomError(
         factory,
         'FactoryInvalidOracleError',
       )
@@ -317,9 +257,9 @@ describe('MarketFactory', () => {
       oracleFactory.instances.whenCalledWith(oracle.address).returns(true)
       payoffFactory.payoffs.whenCalledWith(payoffProvider.address).returns(true)
 
-      await factory.connect(owner).create(marketDefinition, marketParameter)
+      await factory.connect(owner).create(marketDefinition)
 
-      await expect(factory.connect(owner).create(marketDefinition, marketParameter)).to.revertedWithCustomError(
+      await expect(factory.connect(owner).create(marketDefinition)).to.revertedWithCustomError(
         factory,
         'FactoryAlreadyRegisteredError',
       )
@@ -367,7 +307,7 @@ describe('MarketFactory', () => {
       oracleFactory.instances.whenCalledWith(oracle.address).returns(true)
       payoffFactory.payoffs.whenCalledWith(payoffProvider.address).returns(true)
 
-      await expect(factory.connect(user).create(marketDefinition, marketParameter)).to.revertedWithCustomError(
+      await expect(factory.connect(user).create(marketDefinition)).to.revertedWithCustomError(
         factory,
         'UOwnableNotOwnerError',
       )
@@ -436,41 +376,11 @@ describe('MarketFactory', () => {
         oracle: oracle.address,
         payoff: constants.AddressZero,
       }
-      const marketParameter = {
-        maintenance: parse6decimal('0.3'),
-        fundingFee: parse6decimal('0.1'),
-        interestFee: parse6decimal('0.1'),
-        takerFee: 0,
-        takerSkewFee: 0,
-        takerImpactFee: 0,
-        makerFee: 0,
-        makerImpactFee: 0,
-        positionFee: 0,
-        makerLimit: parse6decimal('1000'),
-        efficiencyLimit: parse6decimal('0.2'),
-        liquidationFee: parse6decimal('0.50'),
-        minLiquidationFee: parse6decimal('0'),
-        maxLiquidationFee: parse6decimal('1000'),
-        utilizationCurve: {
-          minRate: parse6decimal('0.10'),
-          maxRate: parse6decimal('0.10'),
-          targetRate: parse6decimal('0.10'),
-          targetUtilization: parse6decimal('1'),
-        },
-        pController: {
-          k: parse6decimal('40000'),
-          max: parse6decimal('1.20'),
-        },
-        minMaintenance: parse6decimal('100'),
-        virtualTaker: parse6decimal('0'),
-        staleAfter: 7200,
-        makerReceiveOnly: false,
-      }
 
       oracleFactory.instances.whenCalledWith(oracle.address).returns(true)
 
-      marketAddress = await factory.callStatic.create(marketDefinition, marketParameter)
-      await factory.connect(owner).create(marketDefinition, marketParameter)
+      marketAddress = await factory.callStatic.create(marketDefinition)
+      await factory.connect(owner).create(marketDefinition)
       fakeMarket = await smock.fake<IMarket>('IMarket', { address: marketAddress })
     })
 

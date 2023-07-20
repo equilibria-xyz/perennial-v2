@@ -82,7 +82,7 @@ interface IMarket is IInstance {
     error RiskParameterStorageInvalidError();
     error VersionStorageInvalidError();
 
-    function initialize(MarketDefinition calldata definition_, RiskParameter calldata parameter_) external;
+    function initialize(MarketDefinition calldata definition_) external;
     function name() external view returns (string memory);
     function symbol() external view returns (string memory);
     function token() external view returns (Token18);
