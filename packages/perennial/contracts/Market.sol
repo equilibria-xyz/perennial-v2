@@ -366,17 +366,13 @@ contract Market is IMarket, Instance {
         // sync
         if (context.latestVersion.timestamp > context.latestPosition.global.timestamp) {
             nextPosition = _pendingPosition[context.latestPosition.global.id].read();
-            nextPosition.timestamp = context.latestVersion.timestamp;
-            nextPosition.fee = UFixed6Lib.ZERO;
-            nextPosition.keeper = UFixed6Lib.ZERO;
+            nextPosition.sync(context.latestVersion);
             _processPosition(context, nextPosition);
         }
 
         if (context.latestVersion.timestamp > context.latestPosition.local.timestamp) {
             nextPosition = _pendingPositions[account][context.latestPosition.local.id].read();
-            nextPosition.timestamp = context.latestVersion.timestamp;
-            nextPosition.fee = UFixed6Lib.ZERO;
-            nextPosition.keeper = UFixed6Lib.ZERO;
+            nextPosition.sync(context.latestVersion);
             _processPositionAccount(context, account, nextPosition);
         }
 
