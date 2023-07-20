@@ -8,6 +8,15 @@ const config = defaultConfig({
         optimizer: {
           enabled: OPTIMIZER_ENABLED,
           runs: 1,
+          details: OPTIMIZER_ENABLED
+            ? {
+                yulDetails: {
+                  optimizerSteps:
+                    // 'dhfoDgvulfnTUtnIf [xa[r]scLM cCTUtTOntnfDIul Lcul Vcul [j] Tpeul xa[rul] xa[r]cL gvif CTUca[r]LsTOtfDnca[r]Iulc] jmul[jul] VcTOcul jmul', // Compound Steps (confirmed safe)
+                    'dhfoDgvulfnTUtnIf[xa[r]EscLMcCTUtTOntnfDIulLculVcul [j]Tpeulxa[rul]xa[r]cLgvifCTUca[r]LSsTOtfDnca[r]Iulc]jmul[jul] VcTOcul jmul', // Seaport Steps (unconfirmed)
+                },
+              }
+            : {},
         },
         viaIR: OPTIMIZER_ENABLED,
       },
