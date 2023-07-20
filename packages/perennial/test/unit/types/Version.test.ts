@@ -405,6 +405,24 @@ describe('Version', () => {
           expect(value.valid).to.be.true
         })
       })
+
+      context('market closed, currently invalid, toOracleVersion.valid = true', () => {
+        it('marks the version as valid', async () => {
+          await version.store({ ...VALID_VERSION, valid: false })
+          await version.accumulate(
+            GLOBAL,
+            FROM_POSITION,
+            TO_POSITION,
+            ORACLE_VERSION_1,
+            ORACLE_VERSION_2,
+            { ...VALID_MARKET_PARAMETER, closed: true },
+            VALID_RISK_PARAMETER,
+          )
+
+          const value = await version.read()
+          expect(value.valid).to.be.true
+        })
+      })
     })
 
     describe('position fee accumulation', () => {
