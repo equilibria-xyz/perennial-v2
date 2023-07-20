@@ -31,7 +31,7 @@ const PROTOCOL_PARAMETER: ProtocolParameterStruct = {
   maxPendingIds: parse6decimal('1000'),
   protocolFee: 0,
   maxFee: parse6decimal('1'),
-  maxFeeAbsolute: parse6decimal('99999'),
+  maxFeeAbsolute: BigNumber.from(2).pow(48).sub(1),
   maxCut: parse6decimal('1'),
   maxRate: parse6decimal('1'),
   minMaintenance: 0,
@@ -255,13 +255,13 @@ describe('MarketParameter', () => {
         await marketParameter.validateAndStore(
           {
             ...VALID_MARKET_PARAMETER,
-            settlementFee: parse6decimal('99999'),
+            settlementFee: BigNumber.from(2).pow(48).sub(1),
           },
           PROTOCOL_PARAMETER,
           marketParameter.address,
         )
         const value = await marketParameter.read()
-        expect(value.settlementFee).to.equal(parse6decimal('99999'))
+        expect(value.settlementFee).to.equal(BigNumber.from(2).pow(48).sub(1))
       })
 
       it('reverts if out of range', async () => {
@@ -269,7 +269,7 @@ describe('MarketParameter', () => {
           marketParameter.validateAndStore(
             {
               ...VALID_MARKET_PARAMETER,
-              settlementFee: parse6decimal('99999').add(1),
+              settlementFee: BigNumber.from(2).pow(48),
             },
             PROTOCOL_PARAMETER,
             marketParameter.address,
