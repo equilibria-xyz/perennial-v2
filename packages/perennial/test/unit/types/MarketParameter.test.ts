@@ -51,7 +51,7 @@ describe('MarketParameter', () => {
 
   describe('#store', () => {
     it('stores a new value', async () => {
-      await marketParameter.store(VALID_MARKET_PARAMETER)
+      await marketParameter.validateAndStore(VALID_MARKET_PARAMETER, PROTOCOL_PARAMETER, marketParameter.address)
 
       const value = await marketParameter.read()
       expect(value.fundingFee).to.equal(1)
@@ -69,127 +69,211 @@ describe('MarketParameter', () => {
     })
 
     context('.fundingFee', async () => {
-      const STORAGE_SIZE = 24
       it('saves if in range', async () => {
-        await marketParameter.store({
-          ...VALID_MARKET_PARAMETER,
-          fundingFee: BigNumber.from(2).pow(STORAGE_SIZE).sub(1),
-        })
+        await marketParameter.validateAndStore(
+          {
+            ...VALID_MARKET_PARAMETER,
+            fundingFee: parse6decimal('1'),
+          },
+          PROTOCOL_PARAMETER,
+          marketParameter.address,
+        )
         const value = await marketParameter.read()
-        expect(value.fundingFee).to.equal(BigNumber.from(2).pow(STORAGE_SIZE).sub(1))
+        expect(value.fundingFee).to.equal(parse6decimal('1'))
       })
 
-      it('reverts if out of range', async () => {
+      it('reverts if invalid', async () => {
         await expect(
-          marketParameter.store({
-            ...VALID_MARKET_PARAMETER,
-            fundingFee: BigNumber.from(2).pow(STORAGE_SIZE),
-          }),
+          marketParameter.validateAndStore(
+            {
+              ...VALID_MARKET_PARAMETER,
+              fundingFee: parse6decimal('0.1'),
+            },
+            {
+              ...PROTOCOL_PARAMETER,
+              maxCut: parse6decimal('0.01'),
+            },
+            marketParameter.address,
+          ),
         ).to.be.revertedWithCustomError(marketParameter, 'MarketParameterStorageInvalidError')
       })
     })
 
     context('.interestFee', async () => {
-      const STORAGE_SIZE = 24
       it('saves if in range', async () => {
-        await marketParameter.store({
-          ...VALID_MARKET_PARAMETER,
-          interestFee: BigNumber.from(2).pow(STORAGE_SIZE).sub(1),
-        })
+        await marketParameter.validateAndStore(
+          {
+            ...VALID_MARKET_PARAMETER,
+            interestFee: parse6decimal('1'),
+          },
+          PROTOCOL_PARAMETER,
+          marketParameter.address,
+        )
         const value = await marketParameter.read()
-        expect(value.interestFee).to.equal(BigNumber.from(2).pow(STORAGE_SIZE).sub(1))
+        expect(value.interestFee).to.equal(parse6decimal('1'))
       })
 
-      it('reverts if out of range', async () => {
+      it('reverts if invalid', async () => {
         await expect(
-          marketParameter.store({
-            ...VALID_MARKET_PARAMETER,
-            interestFee: BigNumber.from(2).pow(STORAGE_SIZE),
-          }),
+          marketParameter.validateAndStore(
+            {
+              ...VALID_MARKET_PARAMETER,
+              interestFee: parse6decimal('0.1'),
+            },
+            {
+              ...PROTOCOL_PARAMETER,
+              maxCut: parse6decimal('0.01'),
+            },
+            marketParameter.address,
+          ),
         ).to.be.revertedWithCustomError(marketParameter, 'MarketParameterStorageInvalidError')
       })
     })
 
     context('.positionFee', async () => {
-      const STORAGE_SIZE = 24
       it('saves if in range', async () => {
-        await marketParameter.store({
-          ...VALID_MARKET_PARAMETER,
-          positionFee: BigNumber.from(2).pow(STORAGE_SIZE).sub(1),
-        })
+        await marketParameter.validateAndStore(
+          {
+            ...VALID_MARKET_PARAMETER,
+            positionFee: parse6decimal('1'),
+          },
+          PROTOCOL_PARAMETER,
+          marketParameter.address,
+        )
         const value = await marketParameter.read()
-        expect(value.positionFee).to.equal(BigNumber.from(2).pow(STORAGE_SIZE).sub(1))
+        expect(value.positionFee).to.equal(parse6decimal('1'))
       })
 
-      it('reverts if out of range', async () => {
+      it('reverts if invalid', async () => {
         await expect(
-          marketParameter.store({
-            ...VALID_MARKET_PARAMETER,
-            positionFee: BigNumber.from(2).pow(STORAGE_SIZE),
-          }),
+          marketParameter.validateAndStore(
+            {
+              ...VALID_MARKET_PARAMETER,
+              positionFee: parse6decimal('0.1'),
+            },
+            {
+              ...PROTOCOL_PARAMETER,
+              maxCut: parse6decimal('0.01'),
+            },
+            marketParameter.address,
+          ),
         ).to.be.revertedWithCustomError(marketParameter, 'MarketParameterStorageInvalidError')
       })
     })
 
     context('.oracleFee', async () => {
-      const STORAGE_SIZE = 24
       it('saves if in range', async () => {
-        await marketParameter.store({
-          ...VALID_MARKET_PARAMETER,
-          oracleFee: BigNumber.from(2).pow(STORAGE_SIZE).sub(1),
-        })
+        await marketParameter.validateAndStore(
+          {
+            ...VALID_MARKET_PARAMETER,
+            oracleFee: parse6decimal('1'),
+            riskFee: 0,
+          },
+          PROTOCOL_PARAMETER,
+          marketParameter.address,
+        )
         const value = await marketParameter.read()
-        expect(value.oracleFee).to.equal(BigNumber.from(2).pow(STORAGE_SIZE).sub(1))
+        expect(value.oracleFee).to.equal(parse6decimal('1'))
       })
 
       it('reverts if out of range', async () => {
         await expect(
-          marketParameter.store({
-            ...VALID_MARKET_PARAMETER,
-            oracleFee: BigNumber.from(2).pow(STORAGE_SIZE),
-          }),
+          marketParameter.validateAndStore(
+            {
+              ...VALID_MARKET_PARAMETER,
+              oracleFee: parse6decimal('1').add(1),
+            },
+            PROTOCOL_PARAMETER,
+            marketParameter.address,
+          ),
         ).to.be.revertedWithCustomError(marketParameter, 'MarketParameterStorageInvalidError')
       })
     })
 
     context('.riskFee', async () => {
-      const STORAGE_SIZE = 24
       it('saves if in range', async () => {
-        await marketParameter.store({
-          ...VALID_MARKET_PARAMETER,
-          riskFee: BigNumber.from(2).pow(STORAGE_SIZE).sub(1),
-        })
+        await marketParameter.validateAndStore(
+          {
+            ...VALID_MARKET_PARAMETER,
+            oracleFee: 0,
+            riskFee: parse6decimal('1'),
+          },
+          PROTOCOL_PARAMETER,
+          marketParameter.address,
+        )
         const value = await marketParameter.read()
-        expect(value.riskFee).to.equal(BigNumber.from(2).pow(STORAGE_SIZE).sub(1))
+        expect(value.riskFee).to.equal(parse6decimal('1'))
       })
 
       it('reverts if out of range', async () => {
         await expect(
-          marketParameter.store({
+          marketParameter.validateAndStore(
+            {
+              ...VALID_MARKET_PARAMETER,
+              riskFee: parse6decimal('1').add(1),
+            },
+            PROTOCOL_PARAMETER,
+            marketParameter.address,
+          ),
+        ).to.be.revertedWithCustomError(marketParameter, 'MarketParameterStorageInvalidError')
+      })
+    })
+
+    context('.oracleFee + .riskFee', () => {
+      it('saves if in range (oracleFee + riskFee < 1', async () => {
+        await marketParameter.validateAndStore(
+          {
             ...VALID_MARKET_PARAMETER,
-            riskFee: BigNumber.from(2).pow(STORAGE_SIZE),
-          }),
+            oracleFee: parse6decimal('0.75'),
+            riskFee: parse6decimal('0.25'),
+          },
+          PROTOCOL_PARAMETER,
+          marketParameter.address,
+        )
+        const value = await marketParameter.read()
+        expect(value.oracleFee).to.equal(parse6decimal('0.75'))
+        expect(value.riskFee).to.equal(parse6decimal('0.25'))
+      })
+
+      it('reverts if out of range', async () => {
+        await expect(
+          marketParameter.validateAndStore(
+            {
+              ...VALID_MARKET_PARAMETER,
+              oracleFee: parse6decimal('0.75'),
+              riskFee: parse6decimal('0.25').add(1),
+            },
+            PROTOCOL_PARAMETER,
+            marketParameter.address,
+          ),
         ).to.be.revertedWithCustomError(marketParameter, 'MarketParameterStorageInvalidError')
       })
     })
 
     context('.settlementFee', async () => {
-      const STORAGE_SIZE = 32
       it('saves if in range', async () => {
-        await marketParameter.store({
-          ...VALID_MARKET_PARAMETER,
-          settlementFee: BigNumber.from(2).pow(STORAGE_SIZE).sub(1),
-        })
+        await marketParameter.validateAndStore(
+          {
+            ...VALID_MARKET_PARAMETER,
+            settlementFee: parse6decimal('99999'),
+          },
+          PROTOCOL_PARAMETER,
+          marketParameter.address,
+        )
         const value = await marketParameter.read()
-        expect(value.settlementFee).to.equal(BigNumber.from(2).pow(STORAGE_SIZE).sub(1))
+        expect(value.settlementFee).to.equal(parse6decimal('99999'))
       })
 
       it('reverts if out of range', async () => {
         await expect(
-          marketParameter.store({
-            ...VALID_MARKET_PARAMETER,
-            settlementFee: BigNumber.from(2).pow(STORAGE_SIZE),
-          }),
+          marketParameter.validateAndStore(
+            {
+              ...VALID_MARKET_PARAMETER,
+              settlementFee: parse6decimal('99999').add(1),
+            },
+            PROTOCOL_PARAMETER,
+            marketParameter.address,
+          ),
         ).to.be.revertedWithCustomError(marketParameter, 'MarketParameterStorageInvalidError')
       })
     })
@@ -197,249 +281,189 @@ describe('MarketParameter', () => {
     context('.makerRewardRate', async () => {
       const STORAGE_SIZE = 32
       it('saves if in range', async () => {
-        await marketParameter.store({
-          ...VALID_MARKET_PARAMETER,
-          makerRewardRate: BigNumber.from(2).pow(STORAGE_SIZE).sub(1),
-        })
+        await marketParameter.validateAndStore(
+          {
+            ...VALID_MARKET_PARAMETER,
+            makerRewardRate: BigNumber.from(2).pow(STORAGE_SIZE).sub(1),
+          },
+          PROTOCOL_PARAMETER,
+          marketParameter.address,
+        )
         const value = await marketParameter.read()
         expect(value.makerRewardRate).to.equal(BigNumber.from(2).pow(STORAGE_SIZE).sub(1))
       })
 
       it('reverts if out of range', async () => {
         await expect(
-          marketParameter.store({
-            ...VALID_MARKET_PARAMETER,
-            makerRewardRate: BigNumber.from(2).pow(STORAGE_SIZE),
-          }),
+          marketParameter.validateAndStore(
+            {
+              ...VALID_MARKET_PARAMETER,
+              makerRewardRate: BigNumber.from(2).pow(STORAGE_SIZE),
+            },
+            PROTOCOL_PARAMETER,
+            marketParameter.address,
+          ),
         ).to.be.revertedWithCustomError(marketParameter, 'MarketParameterStorageInvalidError')
+      })
+
+      context('reward address is zero', () => {
+        context('.makerRewardRate > 0', () => {
+          it('reverts', async () => {
+            await expect(
+              marketParameter.validateAndStore(
+                {
+                  ...VALID_MARKET_PARAMETER,
+                  makerRewardRate: parse6decimal('0.1'),
+                },
+                PROTOCOL_PARAMETER,
+                constants.AddressZero,
+              ),
+            ).to.be.revertedWithCustomError(marketParameter, 'MarketParameterStorageInvalidError')
+          })
+        })
       })
     })
 
     context('.longRewardRate', async () => {
       const STORAGE_SIZE = 32
       it('saves if in range', async () => {
-        await marketParameter.store({
-          ...VALID_MARKET_PARAMETER,
-          longRewardRate: BigNumber.from(2).pow(STORAGE_SIZE).sub(1),
-        })
+        await marketParameter.validateAndStore(
+          {
+            ...VALID_MARKET_PARAMETER,
+            makerRewardRate: 0,
+            longRewardRate: BigNumber.from(2).pow(STORAGE_SIZE).sub(1),
+          },
+          PROTOCOL_PARAMETER,
+          marketParameter.address,
+        )
         const value = await marketParameter.read()
         expect(value.longRewardRate).to.equal(BigNumber.from(2).pow(STORAGE_SIZE).sub(1))
       })
 
       it('reverts if out of range', async () => {
         await expect(
-          marketParameter.store({
-            ...VALID_MARKET_PARAMETER,
-            longRewardRate: BigNumber.from(2).pow(STORAGE_SIZE),
-          }),
+          marketParameter.validateAndStore(
+            {
+              ...VALID_MARKET_PARAMETER,
+              makerRewardRate: 0,
+              longRewardRate: BigNumber.from(2).pow(STORAGE_SIZE),
+            },
+            PROTOCOL_PARAMETER,
+            marketParameter.address,
+          ),
         ).to.be.revertedWithCustomError(marketParameter, 'MarketParameterStorageInvalidError')
+      })
+
+      context('reward address is zero', () => {
+        context('.longRewardRate > 0', () => {
+          it('reverts', async () => {
+            await expect(
+              marketParameter.validateAndStore(
+                {
+                  ...VALID_MARKET_PARAMETER,
+                  makerRewardRate: 0,
+                  longRewardRate: parse6decimal('0.1'),
+                },
+                PROTOCOL_PARAMETER,
+                constants.AddressZero,
+              ),
+            ).to.be.revertedWithCustomError(marketParameter, 'MarketParameterStorageInvalidError')
+          })
+        })
       })
     })
 
     context('.shortRewardRate', async () => {
       const STORAGE_SIZE = 32
       it('saves if in range', async () => {
-        await marketParameter.store({
-          ...VALID_MARKET_PARAMETER,
-          shortRewardRate: BigNumber.from(2).pow(STORAGE_SIZE).sub(1),
-        })
+        await marketParameter.validateAndStore(
+          {
+            ...VALID_MARKET_PARAMETER,
+            makerRewardRate: 0,
+            longRewardRate: 0,
+            shortRewardRate: BigNumber.from(2).pow(STORAGE_SIZE).sub(1),
+          },
+          PROTOCOL_PARAMETER,
+          marketParameter.address,
+        )
         const value = await marketParameter.read()
         expect(value.shortRewardRate).to.equal(BigNumber.from(2).pow(STORAGE_SIZE).sub(1))
       })
 
       it('reverts if out of range', async () => {
         await expect(
-          marketParameter.store({
-            ...VALID_MARKET_PARAMETER,
-            shortRewardRate: BigNumber.from(2).pow(STORAGE_SIZE),
-          }),
+          marketParameter.validateAndStore(
+            {
+              ...VALID_MARKET_PARAMETER,
+              makerRewardRate: 0,
+              longRewardRate: 0,
+              shortRewardRate: BigNumber.from(2).pow(STORAGE_SIZE),
+            },
+            PROTOCOL_PARAMETER,
+            marketParameter.address,
+          ),
         ).to.be.revertedWithCustomError(marketParameter, 'MarketParameterStorageInvalidError')
+      })
+
+      context('reward address is zero', () => {
+        context('.shortRewardRate > 0', () => {
+          it('reverts', async () => {
+            await expect(
+              marketParameter.validateAndStore(
+                {
+                  ...VALID_MARKET_PARAMETER,
+                  makerRewardRate: 0,
+                  longRewardRate: 0,
+                  shortRewardRate: parse6decimal('0.1'),
+                },
+                PROTOCOL_PARAMETER,
+                constants.AddressZero,
+              ),
+            ).to.be.revertedWithCustomError(marketParameter, 'MarketParameterStorageInvalidError')
+          })
+        })
       })
     })
 
     context('.flags', async () => {
       it('saves takerCloseAlways', async () => {
-        await marketParameter.store({
-          ...VALID_MARKET_PARAMETER,
-          takerCloseAlways: true,
-        })
+        await marketParameter.validateAndStore(
+          {
+            ...VALID_MARKET_PARAMETER,
+            takerCloseAlways: true,
+          },
+          PROTOCOL_PARAMETER,
+          marketParameter.address,
+        )
         const value = await marketParameter.read()
         expect(value.takerCloseAlways).to.equal(true)
       })
 
       it('saves makerCloseAlways', async () => {
-        await marketParameter.store({
-          ...VALID_MARKET_PARAMETER,
-          makerCloseAlways: true,
-        })
+        await marketParameter.validateAndStore(
+          {
+            ...VALID_MARKET_PARAMETER,
+            makerCloseAlways: true,
+          },
+          PROTOCOL_PARAMETER,
+          marketParameter.address,
+        )
         const value = await marketParameter.read()
         expect(value.makerCloseAlways).to.equal(true)
       })
 
       it('saves closed', async () => {
-        await marketParameter.store({
-          ...VALID_MARKET_PARAMETER,
-          closed: true,
-        })
+        await marketParameter.validateAndStore(
+          {
+            ...VALID_MARKET_PARAMETER,
+            closed: true,
+          },
+          PROTOCOL_PARAMETER,
+          marketParameter.address,
+        )
         const value = await marketParameter.read()
         expect(value.closed).to.equal(true)
       })
-    })
-  })
-
-  describe('#validate', () => {
-    context('non-0 protocolParameter.maxFeeAbsolute', () => {
-      describe('.settlementFee', () => {
-        it('reverts if invalid', async () => {
-          await marketParameter.store({
-            ...VALID_MARKET_PARAMETER,
-            settlementFee: parse6decimal('100'),
-          })
-
-          await expect(
-            marketParameter.validate(
-              {
-                ...PROTOCOL_PARAMETER,
-                maxFeeAbsolute: parse6decimal('1'),
-              },
-              marketParameter.address,
-            ),
-          )
-            .to.be.revertedWithCustomError(marketParameter, 'MarketInvalidMarketParameterError')
-            .withArgs(2)
-        })
-      })
-    })
-
-    context('non-0 protocolParameter.maxCut', () => {
-      describe('.fundingFee', () => {
-        it('reverts if invalid', async () => {
-          await marketParameter.store({
-            ...VALID_MARKET_PARAMETER,
-            fundingFee: parse6decimal('0.1'),
-          })
-
-          await expect(
-            marketParameter.validate(
-              {
-                ...PROTOCOL_PARAMETER,
-                maxCut: parse6decimal('0.01'),
-              },
-              marketParameter.address,
-            ),
-          )
-            .to.be.revertedWithCustomError(marketParameter, 'MarketInvalidMarketParameterError')
-            .withArgs(3)
-        })
-      })
-
-      describe('.interestFee', () => {
-        it('reverts if invalid', async () => {
-          await marketParameter.store({
-            ...VALID_MARKET_PARAMETER,
-            interestFee: parse6decimal('0.1'),
-          })
-
-          await expect(
-            marketParameter.validate(
-              {
-                ...PROTOCOL_PARAMETER,
-                maxCut: parse6decimal('0.01'),
-              },
-              marketParameter.address,
-            ),
-          )
-            .to.be.revertedWithCustomError(marketParameter, 'MarketInvalidMarketParameterError')
-            .withArgs(3)
-        })
-      })
-
-      describe('.positionFee', () => {
-        it('reverts if invalid', async () => {
-          await marketParameter.store({
-            ...VALID_MARKET_PARAMETER,
-            positionFee: parse6decimal('0.1'),
-          })
-
-          await expect(
-            marketParameter.validate(
-              {
-                ...PROTOCOL_PARAMETER,
-                maxCut: parse6decimal('0.01'),
-              },
-              marketParameter.address,
-            ),
-          )
-            .to.be.revertedWithCustomError(marketParameter, 'MarketInvalidMarketParameterError')
-            .withArgs(3)
-        })
-      })
-    })
-
-    describe('.oracleFee + .riskFee', () => {
-      it('reverts if invalid', async () => {
-        await marketParameter.store({
-          ...VALID_MARKET_PARAMETER,
-          oracleFee: parse6decimal('0.9'),
-          riskFee: parse6decimal('0.101'),
-        })
-
-        await expect(marketParameter.validate(PROTOCOL_PARAMETER, marketParameter.address))
-          .to.be.revertedWithCustomError(marketParameter, 'MarketInvalidMarketParameterError')
-          .withArgs(8)
-      })
-    })
-
-    describe('.reward address', () => {
-      context('is zero', () => {
-        context('.makerRewardRate > 0', () => {
-          it('reverts', async () => {
-            await marketParameter.store({
-              ...VALID_MARKET_PARAMETER,
-              makerRewardRate: parse6decimal('0.1'),
-            })
-
-            await expect(marketParameter.validate(PROTOCOL_PARAMETER, constants.AddressZero))
-              .to.be.revertedWithCustomError(marketParameter, 'MarketInvalidMarketParameterError')
-              .withArgs(9)
-          })
-        })
-
-        context('.longRewardRate > 0', () => {
-          it('reverts', async () => {
-            await marketParameter.store({
-              ...VALID_MARKET_PARAMETER,
-              makerRewardRate: 0,
-              longRewardRate: parse6decimal('0.1'),
-            })
-
-            await expect(marketParameter.validate(PROTOCOL_PARAMETER, constants.AddressZero))
-              .to.be.revertedWithCustomError(marketParameter, 'MarketInvalidMarketParameterError')
-              .withArgs(9)
-          })
-        })
-
-        context('.shortRewardRate > 0', () => {
-          it('reverts', async () => {
-            await marketParameter.store({
-              ...VALID_MARKET_PARAMETER,
-              makerRewardRate: 0,
-              longRewardRate: 0,
-              shortRewardRate: parse6decimal('0.1'),
-            })
-
-            await expect(marketParameter.validate(PROTOCOL_PARAMETER, constants.AddressZero))
-              .to.be.revertedWithCustomError(marketParameter, 'MarketInvalidMarketParameterError')
-              .withArgs(9)
-          })
-        })
-      })
-    })
-
-    it('allows a valid market parameter', async () => {
-      await marketParameter.store(VALID_MARKET_PARAMETER)
-
-      await expect(marketParameter.validate(PROTOCOL_PARAMETER, marketParameter.address)).to.not.be.reverted
     })
   })
 })
