@@ -95,6 +95,9 @@ library VersionLib {
         MarketParameter memory marketParameter,
         RiskParameter memory riskParameter
     ) internal pure returns (VersionAccumulationResult memory values, UFixed6 totalFee) {
+        // record validity
+        self.valid = toOracleVersion.valid;
+
         if (marketParameter.closed) return (values, UFixed6Lib.ZERO);
 
         // accumulate position fee
@@ -130,9 +133,6 @@ library VersionLib {
         // accumulate reward
         (values.rewardMaker, values.rewardLong, values.rewardShort) =
             _accumulateReward(self, fromPosition, fromOracleVersion, toOracleVersion, marketParameter);
-
-        // record validity
-        self.valid = toOracleVersion.valid;
 
         return (values, values.positionFeeFee.add(values.fundingFee).add(values.interestFee));
     }
