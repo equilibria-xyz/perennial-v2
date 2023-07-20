@@ -37,7 +37,7 @@ const VALID_ORDER: OrderStruct = {
   net: 7, // unused
 }
 
-describe.only('Position', () => {
+describe('Position', () => {
   let owner: SignerWithAddress
 
   describe('global position', () => {

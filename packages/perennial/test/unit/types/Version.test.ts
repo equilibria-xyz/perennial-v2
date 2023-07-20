@@ -266,7 +266,7 @@ describe('Version', () => {
     })
 
     describe('.makerReward', async () => {
-      const STORAGE_SIZE = 88
+      const STORAGE_SIZE = 80
       it('saves if in range', async () => {
         await version.store({
           ...VALID_VERSION,
@@ -287,7 +287,7 @@ describe('Version', () => {
     })
 
     describe('.longReward', async () => {
-      const STORAGE_SIZE = 80
+      const STORAGE_SIZE = 88
       it('saves if in range', async () => {
         await version.store({
           ...VALID_VERSION,
@@ -308,7 +308,7 @@ describe('Version', () => {
     })
 
     describe('.shortReward', async () => {
-      const STORAGE_SIZE = 80
+      const STORAGE_SIZE = 88
       it('saves if in range', async () => {
         await version.store({
           ...VALID_VERSION,
