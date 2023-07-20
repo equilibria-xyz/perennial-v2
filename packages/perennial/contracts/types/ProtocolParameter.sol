@@ -23,8 +23,6 @@ struct StoredProtocolParameter {
     uint32 _maxRate;            // <= 429496%
     uint24 _minMaintenance;     // <= 1677%
     uint24 _minEfficiency;      // <= 1677%
-
-    bytes6 __unallocated__;
 }
 struct ProtocolParameterStorage { StoredProtocolParameter value; }
 using ProtocolParameterStorageLib for ProtocolParameterStorage global;
@@ -64,8 +62,7 @@ library ProtocolParameterStorageLib {
             uint24(UFixed6.unwrap(newValue.maxCut)),
             uint32(UFixed6.unwrap(newValue.maxRate)),
             uint24(UFixed6.unwrap(newValue.minMaintenance)),
-            uint24(UFixed6.unwrap(newValue.minEfficiency)),
-            bytes6(0)
+            uint24(UFixed6.unwrap(newValue.minEfficiency))
         );
     }
 }

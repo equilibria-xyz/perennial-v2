@@ -54,6 +54,12 @@ abstract contract PositionTester {
         store(_position);
     }
 
+    function sync(OracleVersion memory latestVersion) external {
+        Position memory _position = read();
+        _position.sync(latestVersion);
+        store(_position);
+    }
+
     function registerFee(Order memory order) external {
         Position memory _position = read();
         _position.registerFee(order);

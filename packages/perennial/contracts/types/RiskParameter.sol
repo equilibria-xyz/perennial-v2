@@ -28,7 +28,6 @@ struct RiskParameter {
     uint256 staleAfter;
     bool makerReceiveOnly;
 }
-using RiskParameterLib for RiskParameter global;
 struct StoredRiskParameter {
     /* slot 1 */
     uint48 makerLimit;                          // <= 281m
@@ -60,39 +59,9 @@ struct StoredRiskParameter {
 struct RiskParameterStorage { StoredRiskParameter value; }
 using RiskParameterStorageLib for RiskParameterStorage global;
 
-library RiskParameterLib {
-    error MarketInvalidRiskParameterError(uint256 code);
-
-    function validate(RiskParameter memory self, ProtocolParameter memory protocolParameter) internal pure {
-        if (
-            self.takerFee.max(self.takerSkewFee).max(self.takerImpactFee).max(self.makerFee).max(self.makerImpactFee)
-            .gt(protocolParameter.maxFee)
-        ) revert MarketInvalidRiskParameterError(1);
-
-        if (
-            self.minLiquidationFee.max(self.maxLiquidationFee).max(self.minMaintenance)
-            .gt(protocolParameter.maxFeeAbsolute)
-        ) revert MarketInvalidRiskParameterError(2);
-
-        if (self.liquidationFee.gt(protocolParameter.maxCut)) revert MarketInvalidRiskParameterError(3);
-
-        if (
-            self.utilizationCurve.minRate.max(self.utilizationCurve.maxRate).max(self.utilizationCurve.targetRate).max(self.pController.max)
-            .gt(protocolParameter.maxRate)
-        ) revert MarketInvalidRiskParameterError(4);
-
-        if (self.maintenance.lt(protocolParameter.minMaintenance)) revert MarketInvalidRiskParameterError(5);
-
-        if (self.efficiencyLimit.lt(protocolParameter.minEfficiency)) revert MarketInvalidRiskParameterError(6);
-
-        if (self.utilizationCurve.targetUtilization.gt(UFixed6Lib.ONE)) revert MarketInvalidRiskParameterError(7);
-
-        if (self.minMaintenance.lt(self.minLiquidationFee)) revert MarketInvalidRiskParameterError(8);
-    }
-}
-
 library RiskParameterStorageLib {
     error RiskParameterStorageInvalidError();
+
 
     function read(RiskParameterStorage storage self) internal view returns (RiskParameter memory) {
         StoredRiskParameter memory value = self.value;
@@ -125,25 +94,42 @@ library RiskParameterStorageLib {
         );
     }
 
-    function store(RiskParameterStorage storage self, RiskParameter memory newValue) internal {
-        if (newValue.maintenance.gt(UFixed6.wrap(type(uint24).max))) revert RiskParameterStorageInvalidError();
-        if (newValue.takerFee.gt(UFixed6.wrap(type(uint24).max))) revert RiskParameterStorageInvalidError();
-        if (newValue.takerSkewFee.gt(UFixed6.wrap(type(uint24).max))) revert RiskParameterStorageInvalidError();
-        if (newValue.takerImpactFee.gt(UFixed6.wrap(type(uint24).max))) revert RiskParameterStorageInvalidError();
-        if (newValue.makerFee.gt(UFixed6.wrap(type(uint24).max))) revert RiskParameterStorageInvalidError();
-        if (newValue.makerImpactFee.gt(UFixed6.wrap(type(uint24).max))) revert RiskParameterStorageInvalidError();
+    function validate(RiskParameter memory self, ProtocolParameter memory protocolParameter) internal pure {
+        if (
+            self.takerFee.max(self.takerSkewFee).max(self.takerImpactFee).max(self.makerFee).max(self.makerImpactFee)
+            .gt(protocolParameter.maxFee)
+        ) revert RiskParameterStorageInvalidError();
+
+        if (
+            self.minLiquidationFee.max(self.maxLiquidationFee).max(self.minMaintenance)
+            .gt(protocolParameter.maxFeeAbsolute)
+        ) revert RiskParameterStorageInvalidError();
+
+        if (self.liquidationFee.gt(protocolParameter.maxCut)) revert RiskParameterStorageInvalidError();
+
+        if (
+            self.utilizationCurve.minRate.max(self.utilizationCurve.maxRate).max(self.utilizationCurve.targetRate).max(self.pController.max)
+            .gt(protocolParameter.maxRate)
+        ) revert RiskParameterStorageInvalidError();
+
+        if (self.maintenance.lt(protocolParameter.minMaintenance)) revert RiskParameterStorageInvalidError();
+
+        if (self.efficiencyLimit.lt(protocolParameter.minEfficiency)) revert RiskParameterStorageInvalidError();
+
+        if (self.utilizationCurve.targetUtilization.gt(UFixed6Lib.ONE)) revert RiskParameterStorageInvalidError();
+
+        if (self.minMaintenance.lt(self.minLiquidationFee)) revert RiskParameterStorageInvalidError();
+    }
+
+    function validateAndStore(
+        RiskParameterStorage storage self,
+        RiskParameter memory newValue,
+        ProtocolParameter memory protocolParameter
+    ) internal {
+        validate(newValue, protocolParameter);
+
         if (newValue.makerLimit.gt(UFixed6.wrap(type(uint48).max))) revert RiskParameterStorageInvalidError();
-        if (newValue.efficiencyLimit.gt(UFixed6.wrap(type(uint24).max))) revert RiskParameterStorageInvalidError();
-        if (newValue.liquidationFee.gt(UFixed6.wrap(type(uint24).max))) revert RiskParameterStorageInvalidError();
-        if (newValue.minLiquidationFee.gt(UFixed6.wrap(type(uint48).max))) revert RiskParameterStorageInvalidError();
-        if (newValue.maxLiquidationFee.gt(UFixed6.wrap(type(uint48).max))) revert RiskParameterStorageInvalidError();
-        if (newValue.utilizationCurve.minRate.gt(UFixed6.wrap(type(uint32).max))) revert RiskParameterStorageInvalidError();
-        if (newValue.utilizationCurve.maxRate.gt(UFixed6.wrap(type(uint32).max))) revert RiskParameterStorageInvalidError();
-        if (newValue.utilizationCurve.targetRate.gt(UFixed6.wrap(type(uint32).max))) revert RiskParameterStorageInvalidError();
-        if (newValue.utilizationCurve.targetUtilization.gt(UFixed6.wrap(type(uint24).max))) revert RiskParameterStorageInvalidError();
         if (newValue.pController.k.gt(UFixed6.wrap(type(uint40).max))) revert RiskParameterStorageInvalidError();
-        if (newValue.pController.max.gt(UFixed6.wrap(type(uint32).max))) revert RiskParameterStorageInvalidError();
-        if (newValue.minMaintenance.gt(UFixed6.wrap(type(uint48).max))) revert RiskParameterStorageInvalidError();
         if (newValue.virtualTaker.gt(UFixed6.wrap(type(uint48).max))) revert RiskParameterStorageInvalidError();
         if (newValue.staleAfter > uint256(type(uint24).max)) revert RiskParameterStorageInvalidError();
 
