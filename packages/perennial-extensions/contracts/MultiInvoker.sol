@@ -10,6 +10,7 @@ import { IBatcher } from "@equilibria/emptyset-batcher/interfaces/IBatcher.sol";
 import { IEmptySetReserve } from "@equilibria/emptyset-batcher/interfaces/IEmptySetReserve.sol";
 import { IInstance } from "@equilibria/root-v2/contracts/IInstance.sol";
 import { IPythOracle } from "@equilibria/perennial-v2-oracle/contracts/interfaces/IPythOracle.sol";
+import { TriggerOrderStorage } from "./types/TriggerOrder.sol";
 
 // @todo cleanup imports between here and imultiinvoker
 import { IVault } from "@equilibria/perennial-v2-vault/contracts/interfaces/IVault.sol";
@@ -17,10 +18,9 @@ import { IVault } from "@equilibria/perennial-v2-vault/contracts/interfaces/IVau
 import "hardhat/console.sol";
 
 import "./interfaces/IMultiInvoker.sol";
-import "./KeeperManager.sol";
 import "@equilibria/root-v2/contracts/UKept.sol";
 
-contract MultiInvoker is IMultiInvoker, KeeperManager, UKept {
+contract MultiInvoker is IMultiInvoker, UKept {
 
     /// @dev Gas buffer estimating remaining execution gas to include in fee to cover further instructions
     uint256 public constant GAS_BUFFER = 100000; // solhint-disable-line var-name-mixedcase
@@ -45,6 +45,12 @@ contract MultiInvoker is IMultiInvoker, KeeperManager, UKept {
     /// @dev multiplier to charge accounts on top of gas cost for keeper executions
     UFixed6 public keeperMultiplier;
 
+    /// @dev UID for an order
+    uint256 public latestNonce;
+
+    /// @dev State for the order data
+    mapping(address => mapping(IMarket => mapping(uint256 => TriggerOrderStorage))) public _orders;
+
     constructor(
         Token6 usdc_,
         Token18 dsu_,
@@ -64,6 +70,20 @@ contract MultiInvoker is IMultiInvoker, KeeperManager, UKept {
 
     function initialize(AggregatorV3Interface ethOracle_) external initializer(1) {
         __UKept__initialize(ethOracle_, DSU);
+    }
+
+    /// @notice View function to get order state
+    /// @param account Account to get open oder of
+    /// @param market Market to get open order in
+    /// @param nonce UID of order
+    function orders(address account, IMarket market, uint256 nonce) public view returns (TriggerOrder memory) {
+        return _orders[account][market][nonce].read();
+    }
+
+    function canExecuteOrder(address account, IMarket market, uint256 nonce) public view returns (bool canFill) {
+        TriggerOrder memory order = orders(account, market, nonce);
+        if (order.fee.isZero()) return false;
+        return order.fillable(_getMarketPrice(market));
     }
 
     // @todo not needed
@@ -96,8 +116,8 @@ contract MultiInvoker is IMultiInvoker, KeeperManager, UKept {
 
                 _vaultUpdate(vault, depositAssets, redeemShares, claimAssets, wrap);
             } else if (invocation.action == PerennialAction.PLACE_ORDER) {
-                (IMarket market, IKeeperManager.Order memory order)
-                    = abi.decode(invocation.args, (IMarket, IKeeperManager.Order));
+                (IMarket market, TriggerOrder memory order)
+                    = abi.decode(invocation.args, (IMarket, TriggerOrder));
 
                 _placeOrder(msg.sender, market, order);
             } else if (invocation.action == PerennialAction.CANCEL_ORDER) {
@@ -109,7 +129,7 @@ contract MultiInvoker is IMultiInvoker, KeeperManager, UKept {
                 (address account, IMarket market, uint256 nonce) =
                     abi.decode(invocation.args, (address, IMarket, uint256));
 
-                _executeOrderInvoker(account, market, nonce);
+                _executeOrder(account, market, nonce);
             } else if (invocation.action == PerennialAction.COMMIT_PRICE) {
                 (address oracleProvider, uint256 version, bytes memory data) =
                     abi.decode(invocation.args, (address, uint256, bytes));
@@ -159,7 +179,6 @@ contract MultiInvoker is IMultiInvoker, KeeperManager, UKept {
     }
 
     function _vaultUpdate(IVault vault, UFixed6 depositAssets, UFixed6 redeemShares, UFixed6 claimAssets, bool wrap) internal {
-
         if (!depositAssets.isZero()) {
             _deposit(depositAssets, wrap);
         }
@@ -185,57 +204,6 @@ contract MultiInvoker is IMultiInvoker, KeeperManager, UKept {
 
         _withdraw(msg.sender, liquidationFee, false); // TODO: returns DSI?
     }
-
-    /**
-     * @notice executes an `account's` open order for a `market` and pays a fee to `msg.sender`
-     * @param account Account to execute order of
-     * @param market Market to execute order for
-     * @param nonce Id of open order to index
-     */
-    function _executeOrderInvoker(
-        address account,
-        IMarket market,
-        uint256 nonce
-    ) internal keep (
-        UFixed18Lib.from(keeperMultiplier),
-        GAS_BUFFER,
-        msg.sender,
-        abi.encode(account, market, orders(account, market, nonce).maxFee)
-    ) {
-        Position memory position = market.pendingPositions(account, IMarket(market).locals(account).currentId);
-        IKeeperManager.Order memory order = orders(account, market, nonce);
-
-        if(order.isLong) UFixed6Lib.from(Fixed6Lib.from(position.long).add(order.size));
-        else UFixed6Lib.from(Fixed6Lib.from(position.short).add(order.size));
-
-        market.update(
-            account,
-            position.maker,
-            position.long,
-            position.short,
-            Fixed6Lib.ZERO,
-            false
-        );
-
-        // TODO: yeah, this is confusing to follow with the rest of the logic in a separate file
-        _executeOrder(account, market, nonce, position.id);
-    }
-
-    function _raiseKeeperFee(UFixed18 keeperFee, bytes memory data) internal override {
-        (address account, address market, UFixed6 maxFee) = abi.decode(data, (address, address, UFixed6));
-        if(keeperFee.gt(UFixed18Lib.from(maxFee)))
-            revert MultiInvokerMaxFeeExceededError();
-
-        IMarket(market).update(
-            account,
-            UFixed6Lib.MAX,
-            UFixed6Lib.MAX,
-            UFixed6Lib.MAX,
-            Fixed6Lib.from(Fixed18Lib.from(-1, keeperFee)),
-            false
-        );
-    }
-
 
     // TODO: rename?
     /// @notice Helper fn to max approve DSU for usage in a market deployed by the factory
@@ -340,5 +308,84 @@ contract MultiInvoker is IMultiInvoker, KeeperManager, UKept {
                 latestVersion = oracleVersion;
             }
         }
+    }
+
+    /**
+     * @notice executes an `account's` open order for a `market` and pays a fee to `msg.sender`
+     * @param account Account to execute order of
+     * @param market Market to execute order for
+     * @param nonce Id of open order to index
+     */
+    function _executeOrder(
+        address account,
+        IMarket market,
+        uint256 nonce
+    ) internal keep (
+        UFixed18Lib.from(keeperMultiplier),
+        GAS_BUFFER,
+        msg.sender,
+        abi.encode(account, market, orders(account, market, nonce).fee)
+    ) {
+        if (!canExecuteOrder(account, market, nonce)) revert MultiInvokerCantExecuteError();
+
+        Position memory currentPosition = market.pendingPositions(account, IMarket(market).locals(account).currentId);
+        orders(account, market, nonce).execute(currentPosition);
+
+        market.update(
+            account,
+            currentPosition.maker,
+            currentPosition.long,
+            currentPosition.short,
+            Fixed6Lib.ZERO,
+            false
+        );
+
+        delete _orders[account][market][nonce];
+        emit OrderExecuted(account, market, nonce, market.locals(account).currentId);
+    }
+
+    function _raiseKeeperFee(UFixed18 keeperFee, bytes memory data) internal override {
+        (address account, address market, UFixed6 fee) = abi.decode(data, (address, address, UFixed6));
+        if (keeperFee.gt(UFixed18Lib.from(fee))) revert MultiInvokerMaxFeeExceededError();
+
+        IMarket(market).update(
+            account,
+            UFixed6Lib.MAX,
+            UFixed6Lib.MAX,
+            UFixed6Lib.MAX,
+            Fixed6Lib.from(Fixed18Lib.from(-1, keeperFee)),
+            false
+        );
+    }
+
+    /// @notice Places order on behalf of msg.sender from the invoker
+    /// @param account Account to place order for
+    /// @param market Market to place order in
+    /// @param order Order state to place
+    function _placeOrder(address account, IMarket market, TriggerOrder memory order) internal {
+        if (order.fee.isZero()) revert MultiInvokerInvalidOrderError();
+        if (order.comparison < -2 || order.comparison > 2) revert MultiInvokerInvalidOrderError();
+        if (order.side == 0 || order.side > 2) revert MultiInvokerInvalidOrderError();
+
+        _orders[account][market][++latestNonce].store(order);
+        emit OrderPlaced(account, market, latestNonce, order);
+    }
+
+    /// @notice Cancels an open order for msg.sender
+    /// @param account Account to cancel order for
+    /// @param market Market order is open in
+    /// @param nonce UID of order
+    function _cancelOrder(address account, IMarket market, uint256 nonce) internal {
+        delete _orders[account][market][nonce];
+        emit OrderCancelled(account, market, nonce);
+    }
+
+    /// @notice Helper function to get price of `market`
+    /// @param market Market to get price of
+    /// @return price 6-decimal price of market
+    function _getMarketPrice(IMarket market) internal view returns (Fixed6 price) {
+        // TODO: can't use an oracle price directly because each market has a different payoff function
+        // TODO: need to grab the price like we do elsewhere (possibly use the type of virtual settle we do for liquidation)
+        price = market.oracle().latest().price;
     }
 }

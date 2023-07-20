@@ -9,4 +9,6 @@ typechain-types
 cache
 artifacts
 
-types
+# typechain generated
+types/generated
+deployments/localhost
