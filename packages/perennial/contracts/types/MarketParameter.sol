@@ -24,7 +24,6 @@ struct MarketParameter {
     bool makerCloseAlways;
     bool closed;
 }
-using MarketParameterLib for MarketParameter global;
 struct StoredMarketParameter {
     uint24 fundingFee;          // <= 1677%
     uint24 interestFee;         // <= 1677%
@@ -39,28 +38,6 @@ struct StoredMarketParameter {
 }
 struct MarketParameterStorage { StoredMarketParameter value; }
 using MarketParameterStorageLib for MarketParameterStorage global;
-
-library MarketParameterLib {
-    error MarketInvalidMarketParameterError(uint256 code);
-
-    function validate(
-        MarketParameter memory self,
-        ProtocolParameter memory protocolParameter,
-        Token18 reward
-    ) internal pure {
-        if (self.settlementFee.gt(protocolParameter.maxFeeAbsolute)) revert MarketInvalidMarketParameterError(2);
-
-        if (self.fundingFee.max(self.interestFee).max(self.positionFee).gt(protocolParameter.maxCut))
-            revert MarketInvalidMarketParameterError(3);
-
-        if (self.oracleFee.add(self.riskFee).gt(UFixed6Lib.ONE)) revert MarketInvalidMarketParameterError(8);
-
-        if (
-            reward.isZero() &&
-            (!self.makerRewardRate.isZero() || !self.longRewardRate.isZero() || !self.shortRewardRate.isZero())
-        ) revert MarketInvalidMarketParameterError(9);
-    }
-}
 
 library MarketParameterStorageLib {
     error MarketParameterStorageInvalidError();
@@ -87,13 +64,32 @@ library MarketParameterStorageLib {
         );
     }
 
-    function store(MarketParameterStorage storage self, MarketParameter memory newValue) internal {
-        if (newValue.fundingFee.gt(UFixed6.wrap(type(uint24).max))) revert MarketParameterStorageInvalidError();
-        if (newValue.interestFee.gt(UFixed6.wrap(type(uint24).max))) revert MarketParameterStorageInvalidError();
-        if (newValue.positionFee.gt(UFixed6.wrap(type(uint24).max))) revert MarketParameterStorageInvalidError();
-        if (newValue.oracleFee.gt(UFixed6.wrap(type(uint24).max))) revert MarketParameterStorageInvalidError();
-        if (newValue.riskFee.gt(UFixed6.wrap(type(uint24).max))) revert MarketParameterStorageInvalidError();
-        if (newValue.settlementFee.gt(UFixed6.wrap(type(uint32).max))) revert MarketParameterStorageInvalidError();
+    function validate(
+        MarketParameter memory self,
+        ProtocolParameter memory protocolParameter,
+        Token18 reward
+    ) internal pure {
+        if (self.settlementFee.gt(protocolParameter.maxFeeAbsolute)) revert MarketParameterStorageInvalidError();
+
+        if (self.fundingFee.max(self.interestFee).max(self.positionFee).gt(protocolParameter.maxCut))
+            revert MarketParameterStorageInvalidError();
+
+        if (self.oracleFee.add(self.riskFee).gt(UFixed6Lib.ONE)) revert MarketParameterStorageInvalidError();
+
+        if (
+            reward.isZero() &&
+            (!self.makerRewardRate.isZero() || !self.longRewardRate.isZero() || !self.shortRewardRate.isZero())
+        ) revert MarketParameterStorageInvalidError();
+    }
+
+    function validateAndStore(
+        MarketParameterStorage storage self,
+        MarketParameter memory newValue,
+        ProtocolParameter memory protocolParameter,
+        Token18 reward
+    ) internal {
+        validate(newValue, protocolParameter, reward);
+
         if (newValue.makerRewardRate.gt(UFixed6.wrap(type(uint32).max))) revert MarketParameterStorageInvalidError();
         if (newValue.longRewardRate.gt(UFixed6.wrap(type(uint32).max))) revert MarketParameterStorageInvalidError();
         if (newValue.shortRewardRate.gt(UFixed6.wrap(type(uint32).max))) revert MarketParameterStorageInvalidError();

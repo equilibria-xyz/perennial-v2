@@ -114,16 +114,14 @@ contract Market is IMarket, Instance {
     /// @notice Updates the parameter set of the market
     /// @param newParameter The new parameter set
     function updateParameter(MarketParameter memory newParameter) external onlyOwner {
-        newParameter.validate(IMarketFactory(address(factory())).parameter(), reward);
-        _parameter.store(newParameter);
+        _parameter.validateAndStore(newParameter, IMarketFactory(address(factory())).parameter(), reward);
         emit ParameterUpdated(newParameter);
     }
 
     /// @notice Updates the risk parameter set of the market
     /// @param newRiskParameter The new risk parameter set
     function updateRiskParameter(RiskParameter memory newRiskParameter) external onlyCoordinator {
-        newRiskParameter.validate(IMarketFactory(address(factory())).parameter());
-        _riskParameter.store(newRiskParameter);
+        _riskParameter.validateAndStore(newRiskParameter, IMarketFactory(address(factory())).parameter());
         emit RiskParameterUpdated(newRiskParameter);
     }
 
