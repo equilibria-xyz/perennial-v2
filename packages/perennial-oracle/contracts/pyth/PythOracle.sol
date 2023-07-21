@@ -37,14 +37,14 @@ contract PythOracle is IPythOracle, Instance, Kept {
     /// @dev List of all requested oracle versions
     uint256[] public versionList;
 
+    /// @dev Index in `versionList` of the next version a keeper should commit
+    uint256 public nextVersionIndexToCommit;
+
     /// @dev Mapping from oracle version to oracle version data
     mapping(uint256 => Fixed6) private _prices;
 
     /// @dev Mapping from oracle version to when its VAA was published to Pyth
     mapping(uint256 => uint256) private _publishTimes;
-
-    /// @dev Index in `versionList` of the next version a keeper should commit
-    uint256 private _nextVersionIndexToCommit;
 
     /// @dev The time when the last committed update was published to Pyth
     uint256 private _lastCommittedPublishTime;
@@ -110,20 +110,27 @@ contract PythOracle is IPythOracle, Instance, Kept {
         return OracleVersion(timestamp, price, !price.isZero());
     }
 
+    /// @notice Returns the next oracle version to commit
+    /// @return version The next oracle version to commit
+    function nextVersionToCommit() external view returns (uint256 version) {
+        if (versionList.length == 0) return 0;
+        return versionList[nextVersionIndexToCommit];
+    }
+
     /// @notice Commits the price represented by `updateData` to the next version that needs to be committed
     /// @dev Will revert if there is an earlier versionIndex that could be committed with `updateData`
     /// @param versionIndex The index of the version to commit
     /// @param updateData The update data to commit
-    function commit(uint256 versionIndex, bytes calldata updateData)
-        external
+    function commitRequested(uint256 versionIndex, bytes calldata updateData)
+        public
         payable
         keep(KEEPER_REWARD_PREMIUM, KEEPER_BUFFER, "")
     {
         // This check isn't necessary since the caller would not be able to produce a valid updateData
         // with an update time corresponding to a null version, but reverting with a specific error is
         // clearer.
-        if (_nextVersionIndexToCommit >= versionList.length) revert PythOracleNoNewVersionToCommitError();
-        if (versionIndex < _nextVersionIndexToCommit) revert PythOracleVersionIndexTooLowError();
+        if (nextVersionIndexToCommit >= versionList.length) revert PythOracleNoNewVersionToCommitError();
+        if (versionIndex < nextVersionIndexToCommit) revert PythOracleVersionIndexTooLowError();
 
         uint256 versionToCommit = versionList[versionIndex];
         PythStructs.Price memory pythPrice = _validateAndGetPrice(versionToCommit, updateData);
@@ -132,7 +139,7 @@ contract PythOracle is IPythOracle, Instance, Kept {
         _lastCommittedPublishTime = pythPrice.publishTime;
 
         // Ensure that the keeper is committing the earliest possible version
-        if (versionIndex > _nextVersionIndexToCommit) {
+        if (versionIndex > nextVersionIndexToCommit) {
             uint256 previousVersion = versionList[versionIndex - 1];
             // We can only skip the previous version if the grace period has expired
             if (block.timestamp <= previousVersion + GRACE_PERIOD) revert PythOracleGracePeriodHasNotExpiredError();
@@ -145,21 +152,24 @@ contract PythOracle is IPythOracle, Instance, Kept {
         }
 
         _recordPrice(versionToCommit, pythPrice);
-        _nextVersionIndexToCommit = versionIndex + 1;
+        nextVersionIndexToCommit = versionIndex + 1;
         _latestVersion = versionToCommit;
     }
 
     /// @notice Commits the price to a non-requested version
-    /// @dev This commit function does not pay out a keeper reward
+    /// @dev This commit function may pay out a keeper reward if the commited version is valid
+    ///      for the next requested version to commit.
     /// @param oracleVersion The oracle version to commit
     /// @param updateData The update data to commit
-    function commitNonRequested(uint256 oracleVersion, bytes calldata updateData) external payable {
-        PythStructs.Price memory pythPrice = _validateAndGetPrice(oracleVersion, updateData);
-
+    function commit(uint256 oracleVersion, bytes calldata updateData) external payable {
         // Must be before the next requested version to commit, if it exists
-        // Otherwise, the keeper should just commit the next request version to commit
-        if (versionList.length > _nextVersionIndexToCommit && oracleVersion >= versionList[_nextVersionIndexToCommit])
-            revert PythOracleNonRequestedTooRecentError();
+        // Otherwise, try to commit it as the next request version to commit
+        if (versionList.length > nextVersionIndexToCommit && oracleVersion >= versionList[nextVersionIndexToCommit]) {
+            commitRequested(nextVersionIndexToCommit, updateData);
+            return;
+        }
+
+        PythStructs.Price memory pythPrice = _validateAndGetPrice(oracleVersion, updateData);
 
         // Oracle version must be more recent than those of the most recently committed version
         if (oracleVersion <= _latestVersion) revert PythOracleVersionTooOldError();

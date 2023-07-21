@@ -104,13 +104,13 @@ describe('PythOracle', () => {
     })
   })
 
-  describe('#commit', async () => {
+  describe('#commitRequested', async () => {
     it('commits successfully and incentivizes the keeper', async () => {
       const originalDSUBalance = await dsu.callStatic.balanceOf(user.address)
       await pythOracle.connect(oracleSigner).request(user.address)
       // Base fee isn't working properly in coverage, so we need to set it manually
       await ethers.provider.send('hardhat_setNextBlockBaseFeePerGas', ['0x1000'])
-      await pythOracle.connect(user).commit(0, VAA, {
+      await pythOracle.connect(user).commitRequested(0, VAA, {
         value: 1,
         gasPrice: 10000,
       })
@@ -125,12 +125,12 @@ describe('PythOracle', () => {
       await pythOracle.connect(oracleSigner).request(user.address)
       await pythOracle.connect(oracleSigner).request(user.address)
 
-      await pythOracle.connect(user).commit(0, OTHER_VAA, {
+      await pythOracle.connect(user).commitRequested(0, OTHER_VAA, {
         value: 1,
       })
 
       await expect(
-        pythOracle.connect(user).commit(1, VAA, {
+        pythOracle.connect(user).commitRequested(1, VAA, {
           value: 1,
         }),
       ).to.revertedWithCustomError(pythOracle, 'PythOracleNonIncreasingPublishTimes')
@@ -138,17 +138,17 @@ describe('PythOracle', () => {
 
     it('fails to commit if update fee is not provided', async () => {
       await pythOracle.connect(oracleSigner).request(user.address)
-      await expect(pythOracle.connect(user).commit(0, VAA)).to.revertedWithoutReason()
+      await expect(pythOracle.connect(user).commitRequested(0, VAA)).to.revertedWithoutReason()
     })
 
     it('does not commit a version that has already been committed', async () => {
       await pythOracle.connect(oracleSigner).request(user.address)
-      await pythOracle.connect(user).commit(0, VAA, {
+      await pythOracle.connect(user).commitRequested(0, VAA, {
         value: 1,
       })
       await pythOracle.connect(oracleSigner).request(user.address)
       await expect(
-        pythOracle.connect(user).commit(0, VAA, {
+        pythOracle.connect(user).commitRequested(0, VAA, {
           value: 1,
         }),
       ).to.revertedWithCustomError(pythOracle, 'PythOracleVersionIndexTooLowError')
@@ -156,7 +156,7 @@ describe('PythOracle', () => {
 
     it('cannot commit if no version has been requested', async () => {
       await expect(
-        pythOracle.connect(user).commit(0, VAA, {
+        pythOracle.connect(user).commitRequested(0, VAA, {
           value: 1,
         }),
       ).to.revertedWithCustomError(pythOracle, 'PythOracleNoNewVersionToCommitError')
@@ -165,7 +165,7 @@ describe('PythOracle', () => {
     it('rejects invalid update data', async () => {
       await pythOracle.connect(oracleSigner).request(user.address)
       await expect(
-        pythOracle.connect(user).commit(0, '0x00', {
+        pythOracle.connect(user).commitRequested(0, '0x00', {
           value: 1,
         }),
       ).to.reverted
@@ -175,7 +175,7 @@ describe('PythOracle', () => {
       await pythOracle.connect(oracleSigner).request(user.address)
       await pythOracle.connect(oracleSigner).request(user.address)
       await expect(
-        pythOracle.connect(user).commit(1, VAA, {
+        pythOracle.connect(user).commitRequested(1, VAA, {
           value: 1,
         }),
       ).to.revertedWithCustomError(pythOracle, 'PythOracleGracePeriodHasNotExpiredError')
@@ -186,7 +186,7 @@ describe('PythOracle', () => {
       await pythOracle.connect(oracleSigner).request(user.address)
       await time.increase(100)
       await expect(
-        pythOracle.connect(user).commit(1, VAA, {
+        pythOracle.connect(user).commitRequested(1, VAA, {
           value: 1,
         }),
       ).to.revertedWithCustomError(pythOracle, 'PythOracleUpdateValidForPreviousVersionError')
@@ -196,7 +196,7 @@ describe('PythOracle', () => {
       await pythOracle.connect(oracleSigner).request(user.address)
       await time.increase(59)
       await pythOracle.connect(oracleSigner).request(user.address)
-      await pythOracle.connect(user).commit(1, VAA_AFTER_EXPIRATION, {
+      await pythOracle.connect(user).commitRequested(1, VAA_AFTER_EXPIRATION, {
         value: 1,
       })
     })
@@ -205,22 +205,22 @@ describe('PythOracle', () => {
       await pythOracle.connect(oracleSigner).request(user.address)
       await time.increase(59)
       await pythOracle.connect(oracleSigner).request(user.address)
-      await pythOracle.connect(user).commit(1, VAA_AFTER_EXPIRATION, {
+      await pythOracle.connect(user).commitRequested(1, VAA_AFTER_EXPIRATION, {
         value: 1,
       })
       await pythOracle.connect(oracleSigner).request(user.address)
       await expect(
-        pythOracle.connect(user).commit(0, VAA, {
+        pythOracle.connect(user).commitRequested(0, VAA, {
           value: 1,
         }),
       ).to.revertedWithCustomError(pythOracle, 'PythOracleVersionIndexTooLowError')
     })
   })
 
-  describe('#commitNonRequested', async () => {
-    it('can commit if there are no requested or committed versions, does not incentivize keeper, updates latest', async () => {
+  describe('#commit', async () => {
+    it('commits unincentivized if there are no requested or committed versions, does not incentivize keeper, updates latest', async () => {
       const originalDSUBalance = await dsu.callStatic.balanceOf(user.address)
-      await pythOracle.connect(user).commitNonRequested(STARTING_TIME, VAA, {
+      await pythOracle.connect(user).commit(STARTING_TIME, VAA, {
         value: 1,
       })
       const version = await pythOracle.connect(user).at(STARTING_TIME)
@@ -236,13 +236,13 @@ describe('PythOracle', () => {
     })
 
     it('fails to commit if update fee is not provided', async () => {
-      await expect(pythOracle.connect(user).commitNonRequested(STARTING_TIME, VAA)).to.revertedWithoutReason()
+      await expect(pythOracle.connect(user).commit(STARTING_TIME, VAA)).to.revertedWithoutReason()
     })
 
     it('can commit if there are requested versions but no committed versions', async () => {
       await time.increase(30)
       await pythOracle.connect(oracleSigner).request(user.address)
-      await pythOracle.connect(user).commitNonRequested(STARTING_TIME, VAA, {
+      await pythOracle.connect(user).commit(STARTING_TIME, VAA, {
         value: 1,
       })
     })
@@ -252,7 +252,7 @@ describe('PythOracle', () => {
       await pythOracle.connect(user).commit(0, VAA, {
         value: 1,
       })
-      await pythOracle.connect(user).commitNonRequested(STARTING_TIME + 60, VAA_AFTER_EXPIRATION, {
+      await pythOracle.connect(user).commit(STARTING_TIME + 60, VAA_AFTER_EXPIRATION, {
         value: 1,
       })
     })
@@ -266,7 +266,7 @@ describe('PythOracle', () => {
       await pythOracle.connect(oracleSigner).request(user.address)
       const secondRequestedVersion = await currentBlockTimestamp()
       const nonRequestedOracleVersion = STARTING_TIME + 60
-      await pythOracle.connect(user).commitNonRequested(nonRequestedOracleVersion, VAA_AFTER_EXPIRATION, {
+      await pythOracle.connect(user).commit(nonRequestedOracleVersion, VAA_AFTER_EXPIRATION, {
         value: 1,
       })
       expect((await pythOracle.connect(user).latest()).timestamp).to.equal(nonRequestedOracleVersion)
@@ -279,7 +279,7 @@ describe('PythOracle', () => {
 
     it('cannot commit invalid VAAs for the oracle version', async () => {
       await expect(
-        pythOracle.connect(user).commitNonRequested(STARTING_TIME - 60, VAA, {
+        pythOracle.connect(user).commit(STARTING_TIME - 60, VAA, {
           value: 1,
         }),
       ).to.reverted
@@ -293,37 +293,42 @@ describe('PythOracle', () => {
       })
 
       await expect(
-        pythOracle.connect(user).commitNonRequested(STARTING_TIME, VAA, {
+        pythOracle.connect(user).commit(STARTING_TIME, VAA, {
           value: 1,
         }),
       ).to.revertedWithCustomError(pythOracle, 'PythOracleVersionTooOldError')
     })
 
-    it('must be before the next requested version to commit', async () => {
+    it('tries to commitRequested if more recent than the next requested version to commit', async () => {
+      const originalDSUBalance = await dsu.callStatic.balanceOf(user.address)
       await pythOracle.connect(oracleSigner).request(user.address)
+      // Base fee isn't working properly in coverage, so we need to set it manually
+      await ethers.provider.send('hardhat_setNextBlockBaseFeePerGas', ['0x1000'])
+      await pythOracle.connect(user).commit(STARTING_TIME, VAA, {
+        value: 1,
+      })
+      const newDSUBalance = await dsu.callStatic.balanceOf(user.address)
 
-      // Even though the oracle version is before the requested version, the VAA is not
-      await expect(
-        pythOracle.connect(user).commitNonRequested(STARTING_TIME, VAA, { value: 1 }),
-      ).to.revertedWithCustomError(pythOracle, 'PythOracleNonRequestedTooRecentError')
+      // TODO: Test that this number is correct.
+      expect(newDSUBalance.sub(originalDSUBalance)).to.be.greaterThan(0)
     })
 
     it('can commit multiple non-requested versions, as long as they are in order', async () => {
-      await pythOracle.connect(user).commitNonRequested(STARTING_TIME, VAA, {
+      await pythOracle.connect(user).commit(STARTING_TIME, VAA, {
         value: 1,
       })
-      await pythOracle.connect(user).commitNonRequested(STARTING_TIME + 60, VAA_AFTER_EXPIRATION, {
+      await pythOracle.connect(user).commit(STARTING_TIME + 60, VAA_AFTER_EXPIRATION, {
         value: 1,
       })
     })
 
     it('fails to commit non-requested version out of order', async () => {
-      await pythOracle.connect(user).commitNonRequested(STARTING_TIME + 60, VAA_AFTER_EXPIRATION, {
+      await pythOracle.connect(user).commit(STARTING_TIME + 60, VAA_AFTER_EXPIRATION, {
         value: 1,
       })
 
       await expect(
-        pythOracle.connect(user).commitNonRequested(STARTING_TIME, VAA, {
+        pythOracle.connect(user).commit(STARTING_TIME, VAA, {
           value: 1,
         }),
       ).to.revertedWithCustomError(pythOracle, 'PythOracleVersionTooOldError')
@@ -333,7 +338,7 @@ describe('PythOracle', () => {
   describe('#status', async () => {
     it('returns the correct versions', async () => {
       await pythOracle.connect(oracleSigner).request(user.address)
-      await pythOracle.connect(user).commit(0, VAA, {
+      await pythOracle.connect(user).commitRequested(0, VAA, {
         value: 1,
       })
       const [latestVersion, currentVersion] = await pythOracle.status()
@@ -356,7 +361,7 @@ describe('PythOracle', () => {
   describe('#latest', async () => {
     it('returns the latest version', async () => {
       await pythOracle.connect(oracleSigner).request(user.address)
-      await pythOracle.connect(user).commit(0, VAA, {
+      await pythOracle.connect(user).commitRequested(0, VAA, {
         value: 1,
       })
       const latestVersion = await pythOracle.connect(user).latest()
@@ -464,7 +469,7 @@ describe('PythOracle', () => {
   describe('#atVersion', async () => {
     it('returns the correct version', async () => {
       await pythOracle.connect(oracleSigner).request(user.address)
-      await pythOracle.connect(user).commit(0, VAA, {
+      await pythOracle.connect(user).commitRequested(0, VAA, {
         value: 1,
       })
       const version = await pythOracle.connect(user).at(STARTING_TIME)
@@ -481,6 +486,51 @@ describe('PythOracle', () => {
       await pythOracle.connect(oracleSigner).request(user.address)
       const version = await pythOracle.connect(user).at(STARTING_TIME)
       expect(version.valid).to.be.false
+    })
+  })
+
+  describe('#nextVersionIndexToCommit', async () => {
+    context('no requested version', () => {
+      it('returns 0', async () => {
+        expect(await pythOracle.nextVersionIndexToCommit()).to.equal(0)
+      })
+    })
+
+    context('multiple requested versions', () => {
+      it('returns the next index', async () => {
+        await pythOracle.connect(oracleSigner).request(user.address)
+        await pythOracle.connect(user).commitRequested(0, VAA, {
+          value: 1,
+        })
+        await pythOracle.connect(oracleSigner).request(user.address)
+        await time.increase(1)
+        await pythOracle.connect(oracleSigner).request(user.address)
+
+        expect(await pythOracle.nextVersionIndexToCommit()).to.equal(1)
+      })
+    })
+  })
+
+  describe('#nextVersionToCommit', async () => {
+    context('no requested version', () => {
+      it('returns 0', async () => {
+        expect(await pythOracle.nextVersionToCommit()).to.equal(0)
+      })
+    })
+
+    context('multiple requested versions', () => {
+      it('returns the next version', async () => {
+        await pythOracle.connect(oracleSigner).request(user.address)
+        await pythOracle.connect(user).commitRequested(0, VAA, {
+          value: 1,
+        })
+        await time.increaseTo(1686198985)
+        await pythOracle.connect(oracleSigner).request(user.address)
+        await time.increaseTo(1686198990)
+        await pythOracle.connect(oracleSigner).request(user.address)
+
+        expect(await pythOracle.nextVersionToCommit()).to.equal(1686198986)
+      })
     })
   })
 })
