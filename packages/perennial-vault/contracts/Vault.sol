@@ -466,6 +466,8 @@ contract Vault is IVault, Instance {
         for (uint256 marketId; marketId < context.markets.length; marketId++) {
             MarketContext memory marketContext = context.markets[marketId];
             Registration memory registration = context.registrations[marketId];
+            // If market has 0 weight or leverage, skip
+            if (registration.weight == 0 || registration.leverage.isZero()) continue;
 
             UFixed6 collateral = marketContext.currentPosition
                 .sub(marketContext.currentNet.min(marketContext.currentPosition))   // available maker
