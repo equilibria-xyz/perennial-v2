@@ -266,7 +266,7 @@ describe('Version', () => {
     })
 
     describe('.makerReward', async () => {
-      const STORAGE_SIZE = 88
+      const STORAGE_SIZE = 80
       it('saves if in range', async () => {
         await version.store({
           ...VALID_VERSION,
@@ -287,7 +287,7 @@ describe('Version', () => {
     })
 
     describe('.longReward', async () => {
-      const STORAGE_SIZE = 80
+      const STORAGE_SIZE = 88
       it('saves if in range', async () => {
         await version.store({
           ...VALID_VERSION,
@@ -308,7 +308,7 @@ describe('Version', () => {
     })
 
     describe('.shortReward', async () => {
-      const STORAGE_SIZE = 80
+      const STORAGE_SIZE = 88
       it('saves if in range', async () => {
         await version.store({
           ...VALID_VERSION,
@@ -398,6 +398,24 @@ describe('Version', () => {
             ORACLE_VERSION_1,
             ORACLE_VERSION_2,
             VALID_MARKET_PARAMETER,
+            VALID_RISK_PARAMETER,
+          )
+
+          const value = await version.read()
+          expect(value.valid).to.be.true
+        })
+      })
+
+      context('market closed, currently invalid, toOracleVersion.valid = true', () => {
+        it('marks the version as valid', async () => {
+          await version.store({ ...VALID_VERSION, valid: false })
+          await version.accumulate(
+            GLOBAL,
+            FROM_POSITION,
+            TO_POSITION,
+            ORACLE_VERSION_1,
+            ORACLE_VERSION_2,
+            { ...VALID_MARKET_PARAMETER, closed: true },
             VALID_RISK_PARAMETER,
           )
 

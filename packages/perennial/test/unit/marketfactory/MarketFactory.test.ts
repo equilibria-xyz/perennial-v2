@@ -11,12 +11,12 @@ import {
   IOracleProvider,
   IERC20Metadata,
   IPayoffProvider,
-  IPayoffFactory,
-  IOracleFactory,
   IMarket,
 } from '../../../types/generated'
 import { parse6decimal } from '../../../../common/testutil/types'
 import { BigNumber, constants } from 'ethers'
+import { IPayoffFactory } from '@equilibria/perennial-v2-payoff/types/generated'
+import { IOracleFactory } from '@equilibria/perennial-v2-oracle/types/generated'
 
 const { ethers } = HRE
 
@@ -76,49 +76,17 @@ describe('MarketFactory', () => {
   describe('#create', async () => {
     it('creates the market', async () => {
       const marketDefinition = {
-        name: 'Squeeth',
-        symbol: 'SQTH',
         token: dsu.address,
         oracle: oracle.address,
         payoff: payoffProvider.address,
       }
-      const marketParameter = {
-        maintenance: parse6decimal('0.3'),
-        fundingFee: parse6decimal('0.1'),
-        interestFee: parse6decimal('0.1'),
-        takerFee: 0,
-        takerSkewFee: 0,
-        takerImpactFee: 0,
-        makerFee: 0,
-        makerImpactFee: 0,
-        positionFee: 0,
-        makerLimit: parse6decimal('1000'),
-        efficiencyLimit: parse6decimal('0.2'),
-        liquidationFee: parse6decimal('0.50'),
-        minLiquidationFee: parse6decimal('0'),
-        maxLiquidationFee: parse6decimal('1000'),
-        utilizationCurve: {
-          minRate: parse6decimal('0.10'),
-          maxRate: parse6decimal('0.10'),
-          targetRate: parse6decimal('0.10'),
-          targetUtilization: parse6decimal('1'),
-        },
-        pController: {
-          k: parse6decimal('40000'),
-          max: parse6decimal('1.20'),
-        },
-        minMaintenance: parse6decimal('100'),
-        virtualTaker: parse6decimal('0'),
-        staleAfter: 7200,
-        makerReceiveOnly: false,
-      }
 
       oracleFactory.instances.whenCalledWith(oracle.address).returns(true)
-      payoffFactory.payoffs.whenCalledWith(payoffProvider.address).returns(true)
+      payoffFactory.instances.whenCalledWith(payoffProvider.address).returns(true)
 
       const marketAddress = await factory.callStatic.create(marketDefinition)
       await expect(factory.connect(owner).create(marketDefinition))
-        .to.emit(factory, 'InstanceCreated')
+        .to.emit(factory, 'InstanceRegistered')
         .withArgs(marketAddress)
         .to.emit(factory, 'MarketCreated')
         .withArgs(marketAddress, marketDefinition)
@@ -129,8 +97,6 @@ describe('MarketFactory', () => {
 
     it('creates the market w/ zero payoff', async () => {
       const marketDefinition = {
-        name: 'Squeeth',
-        symbol: 'SQTH',
         token: dsu.address,
         oracle: oracle.address,
         payoff: constants.AddressZero,
@@ -140,7 +106,7 @@ describe('MarketFactory', () => {
 
       const marketAddress = await factory.callStatic.create(marketDefinition)
       await expect(factory.connect(owner).create(marketDefinition))
-        .to.emit(factory, 'InstanceCreated')
+        .to.emit(factory, 'InstanceRegistered')
         .withArgs(marketAddress)
         .to.emit(factory, 'MarketCreated')
         .withArgs(marketAddress, marketDefinition)
@@ -151,15 +117,13 @@ describe('MarketFactory', () => {
 
     it('reverts when invalid payoff', async () => {
       const marketDefinition = {
-        name: 'Squeeth',
-        symbol: 'SQTH',
         token: dsu.address,
         oracle: oracle.address,
         payoff: payoffProvider.address,
       }
 
       oracleFactory.instances.whenCalledWith(oracle.address).returns(true)
-      payoffFactory.payoffs.whenCalledWith(payoffProvider.address).returns(false)
+      payoffFactory.instances.whenCalledWith(payoffProvider.address).returns(false)
 
       await expect(factory.connect(owner).create(marketDefinition)).to.revertedWithCustomError(
         factory,
@@ -169,45 +133,13 @@ describe('MarketFactory', () => {
 
     it('reverts when invalid oracle', async () => {
       const marketDefinition = {
-        name: 'Squeeth',
-        symbol: 'SQTH',
         token: dsu.address,
         oracle: oracle.address,
         payoff: payoffProvider.address,
       }
-      const marketParameter = {
-        maintenance: parse6decimal('0.3'),
-        fundingFee: parse6decimal('0.1'),
-        interestFee: parse6decimal('0.1'),
-        takerFee: 0,
-        takerSkewFee: 0,
-        takerImpactFee: 0,
-        makerFee: 0,
-        makerImpactFee: 0,
-        positionFee: 0,
-        makerLimit: parse6decimal('1000'),
-        efficiencyLimit: parse6decimal('0.2'),
-        liquidationFee: parse6decimal('0.50'),
-        minLiquidationFee: parse6decimal('0'),
-        maxLiquidationFee: parse6decimal('1000'),
-        utilizationCurve: {
-          minRate: parse6decimal('0.10'),
-          maxRate: parse6decimal('0.10'),
-          targetRate: parse6decimal('0.10'),
-          targetUtilization: parse6decimal('1'),
-        },
-        pController: {
-          k: parse6decimal('40000'),
-          max: parse6decimal('1.20'),
-        },
-        minMaintenance: parse6decimal('100'),
-        virtualTaker: parse6decimal('0'),
-        staleAfter: 7200,
-        makerReceiveOnly: false,
-      }
 
       oracleFactory.instances.whenCalledWith(oracle.address).returns(false)
-      payoffFactory.payoffs.whenCalledWith(payoffProvider.address).returns(true)
+      payoffFactory.instances.whenCalledWith(payoffProvider.address).returns(true)
 
       await expect(factory.connect(owner).create(marketDefinition)).to.revertedWithCustomError(
         factory,
@@ -217,45 +149,13 @@ describe('MarketFactory', () => {
 
     it('reverts when already registered', async () => {
       const marketDefinition = {
-        name: 'Squeeth',
-        symbol: 'SQTH',
         token: dsu.address,
         oracle: oracle.address,
         payoff: payoffProvider.address,
       }
-      const marketParameter = {
-        maintenance: parse6decimal('0.3'),
-        fundingFee: parse6decimal('0.1'),
-        interestFee: parse6decimal('0.1'),
-        takerFee: 0,
-        takerSkewFee: 0,
-        takerImpactFee: 0,
-        makerFee: 0,
-        makerImpactFee: 0,
-        positionFee: 0,
-        makerLimit: parse6decimal('1000'),
-        efficiencyLimit: parse6decimal('0.2'),
-        liquidationFee: parse6decimal('0.50'),
-        minLiquidationFee: parse6decimal('0'),
-        maxLiquidationFee: parse6decimal('1000'),
-        utilizationCurve: {
-          minRate: parse6decimal('0.10'),
-          maxRate: parse6decimal('0.10'),
-          targetRate: parse6decimal('0.10'),
-          targetUtilization: parse6decimal('1'),
-        },
-        pController: {
-          k: parse6decimal('40000'),
-          max: parse6decimal('1.20'),
-        },
-        minMaintenance: parse6decimal('100'),
-        virtualTaker: parse6decimal('0'),
-        staleAfter: 7200,
-        makerReceiveOnly: false,
-      }
 
       oracleFactory.instances.whenCalledWith(oracle.address).returns(true)
-      payoffFactory.payoffs.whenCalledWith(payoffProvider.address).returns(true)
+      payoffFactory.instances.whenCalledWith(payoffProvider.address).returns(true)
 
       await factory.connect(owner).create(marketDefinition)
 
@@ -267,45 +167,13 @@ describe('MarketFactory', () => {
 
     it('reverts when not owner', async () => {
       const marketDefinition = {
-        name: 'Squeeth',
-        symbol: 'SQTH',
         token: dsu.address,
         oracle: oracle.address,
         payoff: payoffProvider.address,
       }
-      const marketParameter = {
-        maintenance: parse6decimal('0.3'),
-        fundingFee: parse6decimal('0.1'),
-        interestFee: parse6decimal('0.1'),
-        takerFee: 0,
-        takerSkewFee: 0,
-        takerImpactFee: 0,
-        makerFee: 0,
-        makerImpactFee: 0,
-        positionFee: 0,
-        makerLimit: parse6decimal('1000'),
-        efficiencyLimit: parse6decimal('0.2'),
-        liquidationFee: parse6decimal('0.50'),
-        minLiquidationFee: parse6decimal('0'),
-        maxLiquidationFee: parse6decimal('1000'),
-        utilizationCurve: {
-          minRate: parse6decimal('0.10'),
-          maxRate: parse6decimal('0.10'),
-          targetRate: parse6decimal('0.10'),
-          targetUtilization: parse6decimal('1'),
-        },
-        pController: {
-          k: parse6decimal('40000'),
-          max: parse6decimal('1.20'),
-        },
-        minMaintenance: parse6decimal('100'),
-        virtualTaker: parse6decimal('0'),
-        staleAfter: 7200,
-        makerReceiveOnly: false,
-      }
 
       oracleFactory.instances.whenCalledWith(oracle.address).returns(true)
-      payoffFactory.payoffs.whenCalledWith(payoffProvider.address).returns(true)
+      payoffFactory.instances.whenCalledWith(payoffProvider.address).returns(true)
 
       await expect(factory.connect(user).create(marketDefinition)).to.revertedWithCustomError(
         factory,
@@ -370,8 +238,6 @@ describe('MarketFactory', () => {
 
     beforeEach(async () => {
       const marketDefinition = {
-        name: 'Squeeth',
-        symbol: 'SQTH',
         token: dsu.address,
         oracle: oracle.address,
         payoff: constants.AddressZero,

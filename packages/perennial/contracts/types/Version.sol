@@ -11,12 +11,25 @@ import "./Position.sol";
 
 /// @dev Version type
 struct Version {
+    /// @dev whether this version had a valid oracle price
     bool valid;
+
+    /// @dev The maker accumulator value
     Accumulator6 makerValue;
+
+    /// @dev The long accumulator value
     Accumulator6 longValue;
+
+    /// @dev The short accumulator value
     Accumulator6 shortValue;
+
+    /// @dev The maker reward accumulator value
     UAccumulator6 makerReward;
+
+    /// @dev The long reward accumulator value
     UAccumulator6 longReward;
+
+    /// @dev The short reward accumulator value
     UAccumulator6 shortReward;
 }
 using VersionLib for Version global;
@@ -25,10 +38,9 @@ struct StoredVersion {
     int88 _makerValue;
     int80 _longValue;
     int80 _shortValue;
-    uint88 _makerReward;
-    uint80 _longReward;
-    uint80 _shortReward;
-    bytes1 __unallocated__;
+    uint80 _makerReward;
+    uint88 _longReward;
+    uint88 _shortReward;
 }
 struct VersionStorage { StoredVersion value; }
 using VersionStorageLib for VersionStorage global;
@@ -57,24 +69,22 @@ struct VersionAccumulationResult {
     UFixed6 rewardShort;
 }
 
-/**
- * @title VersionLib
- * @notice Library that manages global versioned accumulator state.
- * @dev Manages two accumulators: value and reward. The value accumulator measures the change in position value
- *      over time. The reward accumulator measures the change in liquidity ownership over time (for tracking
- *      incentivization rewards).
- *
- *      Both accumulators are stamped for historical lookup anytime there is a global settlement, which services
- *      the delayed-position accounting. It is not guaranteed that every version will have a value stamped, but
- *      only versions when a settlement occurred are needed for this historical computation.
- */
+///@title Version
+/// @notice Library that manages global versioned accumulator state.
+/// @dev Manages two accumulators: value and reward. The value accumulator measures the change in position value
+///      over time, while the reward accumulator measures the change in position ownership over time.
 library VersionLib {
-    /**
-     * @notice Accumulates the global state for the period from `fromVersion` to `toOracleVersion`
-     * @param self The struct to operate on
-     * @return values The accumulated values
-     * @return totalFee The total fee
-     */
+    /// @notice Accumulates the global state for the period from `fromVersion` to `toOracleVersion`
+    /// @param self The Version object to update
+    /// @param global The global state
+    /// @param fromPosition The previous latest position
+    /// @param toPosition The next latest position
+    /// @param fromOracleVersion The previous latest oracle version
+    /// @param toOracleVersion The next latest oracle version
+    /// @param marketParameter The market parameter
+    /// @param riskParameter The risk parameter
+    /// @return values The accumulation result
+    /// @return totalFee The total fee accumulated
     function accumulate(
         Version memory self,
         Global memory global,
@@ -85,6 +95,9 @@ library VersionLib {
         MarketParameter memory marketParameter,
         RiskParameter memory riskParameter
     ) internal pure returns (VersionAccumulationResult memory values, UFixed6 totalFee) {
+        // record validity
+        self.valid = toOracleVersion.valid;
+
         if (marketParameter.closed) return (values, UFixed6Lib.ZERO);
 
         // accumulate position fee
@@ -121,21 +134,16 @@ library VersionLib {
         (values.rewardMaker, values.rewardLong, values.rewardShort) =
             _accumulateReward(self, fromPosition, fromOracleVersion, toOracleVersion, marketParameter);
 
-        // record validity
-        self.valid = toOracleVersion.valid;
-
         return (values, values.positionFeeFee.add(values.fundingFee).add(values.interestFee));
     }
 
-    /**
-     * @notice Globally accumulates position fees since last oracle update
-     * @dev Position fees are calculated based on the price at `latestOracleVersion` as that is the price used to
-     *      calculate the user's fee total. In the event that settlement is occurring over multiple oracle versions
-     *      (i.e. from a -> b -> c) it is safe to use the latestOracleVersion because in the a -> b case, a is always
-     *      b - 1, and in the b -> c case the `PrePosition` is always empty so this is skipped.
-     * @return positionFeeMaker The total position fee accumulated
-     * @return positionFeeFee The position fee that is retained by the protocol and product
-     */
+    /// @notice Globally accumulates position fees since last oracle update
+    /// @param self The Version object to update
+    /// @param fromPosition The previous latest position
+    /// @param toPosition The next latest position
+    /// @param marketParameter The market parameter
+    /// @return positionFeeMaker The maker's position fee
+    /// @return positionFeeFee The protocol's position fee
     function _accumulatePositionFee(
         Version memory self,
         Position memory fromPosition,
@@ -151,7 +159,7 @@ library VersionLib {
         self.makerValue.increment(Fixed6Lib.from(positionFeeMaker), fromPosition.maker);
     }
 
-    // Internal struct to bypass stack depth limit
+    /// @dev Internal struct to bypass stack depth limit
     struct _FundingValues {
         Fixed6 fundingMaker;
         Fixed6 fundingLong;
@@ -159,13 +167,16 @@ library VersionLib {
         UFixed6 fundingFee;
     }
 
-    /**
-     * @notice Globally accumulates all funding since last oracle update
-     * @dev If an oracle version is skipped due to no positions, funding will continue to be
-     *      pegged to the price of the last snapshotted oracleVersion until a new one is accumulated.
-     *      This is an acceptable approximation.
-     * @return fundingValues The funding values accumulated
-     */
+    /// @notice Globally accumulates all long-short funding since last oracle update
+    /// @param self The Version object to update
+    /// @param global The global state
+    /// @param fromPosition The previous latest position
+    /// @param toPosition The next latest position
+    /// @param fromOracleVersion The previous latest oracle version
+    /// @param toOracleVersion The next latest oracle version
+    /// @param marketParameter The market parameter
+    /// @param riskParameter The risk parameter
+    /// @return fundingValues The funding values accumulated
     function _accumulateFunding(
         Version memory self,
         Global memory global,
@@ -217,16 +228,17 @@ library VersionLib {
         self.shortValue.increment(fundingValues.fundingShort, fromPosition.short);
     }
 
-    /**
-     * @notice Globally accumulates all interest since last oracle update
-     * @dev If an oracle version is skipped due to no positions, funding will continue to be
-     *      pegged to the price of the last snapshotted oracleVersion until a new one is accumulated.
-     *      This is an acceptable approximation.
-     * @return interestMaker The total interest accrued by makers
-     * @return interestLong The total interest accrued by longs
-     * @return interestShort The total interest accrued by shorts
-     * @return interestFee The total fee accrued from interest accumulation
-     */
+    /// @notice Globally accumulates all maker interest since last oracle update
+    /// @param self The Version object to update
+    /// @param position The previous latest position
+    /// @param fromOracleVersion The previous latest oracle version
+    /// @param toOracleVersion The next latest oracle version
+    /// @param marketParameter The market parameter
+    /// @param riskParameter The risk parameter
+    /// @return interestMaker The total interest accrued by makers
+    /// @return interestLong The total interest accrued by longs
+    /// @return interestShort The total interest accrued by shorts
+    /// @return interestFee The total fee accrued from interest accumulation
     function _accumulateInterest(
         Version memory self,
         Position memory position,
@@ -264,9 +276,14 @@ library VersionLib {
         self.shortValue.increment(interestShort, position.short);
     }
 
-    /**
-     * @notice Globally accumulates position P&L since last oracle update
-     */
+    /// @notice Globally accumulates position profit & loss since last oracle update
+    /// @param self The Version object to update
+    /// @param position The previous latest position
+    /// @param fromOracleVersion The previous latest oracle version
+    /// @param toOracleVersion The next latest oracle version
+    /// @return pnlMaker The total pnl accrued by makers
+    /// @return pnlLong The total pnl accrued by longs
+    /// @return pnlShort The total pnl accrued by shorts
     function _accumulatePNL(
         Version memory self,
         Position memory position,
@@ -284,10 +301,15 @@ library VersionLib {
         self.makerValue.increment(pnlMaker, position.maker);
     }
 
-    /**
-     * @notice Globally accumulates position's reward since last oracle update
-     * @dev This is used to compute incentivization rewards based on market participation
-     */
+    /// @notice Globally accumulates position's reward share since last oracle update
+    /// @param self The Version object to update
+    /// @param position The previous latest position
+    /// @param fromOracleVersion The previous latest oracle version
+    /// @param toOracleVersion The next latest oracle version
+    /// @param marketParameter The market parameter
+    /// @return rewardMaker The total reward accrued by makers
+    /// @return rewardLong The total reward accrued by longs
+    /// @return rewardShort The total reward accrued by shorts
     function _accumulateReward(
         Version memory self,
         Position memory position,
@@ -335,19 +357,18 @@ library VersionStorageLib {
         if (newValue.longValue._value.lt(Fixed6.wrap(type(int80).min))) revert VersionStorageInvalidError();
         if (newValue.shortValue._value.gt(Fixed6.wrap(type(int80).max))) revert VersionStorageInvalidError();
         if (newValue.shortValue._value.lt(Fixed6.wrap(type(int80).min))) revert VersionStorageInvalidError();
-        if (newValue.makerReward._value.gt(UFixed6.wrap(type(uint88).max))) revert VersionStorageInvalidError();
-        if (newValue.longReward._value.gt(UFixed6.wrap(type(uint80).max))) revert VersionStorageInvalidError();
-        if (newValue.shortReward._value.gt(UFixed6.wrap(type(uint80).max))) revert VersionStorageInvalidError();
+        if (newValue.makerReward._value.gt(UFixed6.wrap(type(uint80).max))) revert VersionStorageInvalidError();
+        if (newValue.longReward._value.gt(UFixed6.wrap(type(uint88).max))) revert VersionStorageInvalidError();
+        if (newValue.shortReward._value.gt(UFixed6.wrap(type(uint88).max))) revert VersionStorageInvalidError();
 
         self.value = StoredVersion(
             newValue.valid,
             int88(Fixed6.unwrap(newValue.makerValue._value)),
             int80(Fixed6.unwrap(newValue.longValue._value)),
             int80(Fixed6.unwrap(newValue.shortValue._value)),
-            uint88(UFixed6.unwrap(newValue.makerReward._value)),
-            uint80(UFixed6.unwrap(newValue.longReward._value)),
-            uint80(UFixed6.unwrap(newValue.shortReward._value)),
-            bytes1(0)
+            uint80(UFixed6.unwrap(newValue.makerReward._value)),
+            uint88(UFixed6.unwrap(newValue.longReward._value)),
+            uint88(UFixed6.unwrap(newValue.shortReward._value))
         );
     }
 }

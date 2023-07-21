@@ -3,22 +3,9 @@ import { SignerWithAddress } from '@nomiclabs/hardhat-ethers/signers'
 import { expect } from 'chai'
 import HRE from 'hardhat'
 
-import {
-  IERC20Metadata,
-  PayoffFactory,
-  Oracle,
-  Oracle__factory,
-  PayoffFactory__factory,
-  IOracleProviderFactory,
-  IOracleProvider,
-  IFactory,
-  IPayoffFactory,
-} from '../../../types/generated'
-import { constants } from 'ethers'
+import { PayoffFactory, PayoffFactory__factory, IPayoffFactory } from '../../../types/generated'
 
 const { ethers } = HRE
-
-const PYTH_ETH_USD_PRICE_FEED = '0xff61491a931112ddf1bd8147cd1b641375f79f5825126d665480874634fd0ace'
 
 describe('PayoffFactory', () => {
   let user: SignerWithAddress
@@ -48,9 +35,9 @@ describe('PayoffFactory', () => {
 
   describe('#register', async () => {
     it('registers the payoff', async () => {
-      await expect(factory.register(payoff.address)).to.emit(factory, 'PayoffRegistered').withArgs(payoff.address)
+      await expect(factory.register(payoff.address)).to.emit(factory, 'InstanceRegistered').withArgs(payoff.address)
 
-      expect(await factory.payoffs(payoff.address)).to.equal(true)
+      expect(await factory.instances(payoff.address)).to.equal(true)
     })
 
     it('reverts if not owner', async () => {

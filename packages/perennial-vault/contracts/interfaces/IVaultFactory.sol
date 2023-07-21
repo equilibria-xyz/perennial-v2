@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: Apache-2.0
 pragma solidity ^0.8.13;
 
-import "@equilibria/root-v2/contracts/IFactory.sol";
+import "@equilibria/root/attribute/interfaces/IFactory.sol";
 import "@equilibria/perennial-v2/contracts/interfaces/IMarketFactory.sol";
 import "./IVault.sol";
 
@@ -14,5 +14,5 @@ interface IVaultFactory is IFactory {
     function initialize() external;
     function operators(address account, address operator) external view returns (bool);
     function updateOperator(address operator, bool newEnabled) external;
-    function create(Token18 asset, IMarket initialMarket, string calldata name, string calldata symbol) external returns (IVault);
+    function create(Token18 asset, IMarket initialMarket, string calldata name) external returns (IVault);
 }

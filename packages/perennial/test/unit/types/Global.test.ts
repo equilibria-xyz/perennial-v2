@@ -761,7 +761,290 @@ describe('Global', () => {
       })
     })
 
-    // TODO: keeper
+    context('non-zero keeper', async () => {
+      it('no fees', async () => {
+        await global.incrementFees(123, 456, generateMarketParameter(0, 0), generateProtocolParameter(0))
+
+        const value = await global.read()
+        expect(value.donation).to.equal(123)
+      })
+
+      it('protocol fee', async () => {
+        await global.incrementFees(
+          123,
+          456,
+          generateMarketParameter(0, 0),
+          generateProtocolParameter(parse6decimal('0.1')),
+        )
+
+        const value = await global.read()
+        expect(value.protocolFee).to.equal(12)
+        expect(value.donation).to.equal(111)
+      })
+
+      it('risk fee', async () => {
+        await global.incrementFees(
+          123,
+          456,
+          generateMarketParameter(0, parse6decimal('0.1')),
+          generateProtocolParameter(0),
+        )
+
+        const value = await global.read()
+        expect(value.riskFee).to.equal(12)
+        expect(value.donation).to.equal(111)
+      })
+
+      it('oracle fee', async () => {
+        await global.incrementFees(
+          123,
+          456,
+          generateMarketParameter(parse6decimal('0.1'), 0),
+          generateProtocolParameter(0),
+        )
+
+        const value = await global.read()
+        expect(value.oracleFee).to.equal(468)
+        expect(value.donation).to.equal(111)
+      })
+
+      it('oracle / risk fee', async () => {
+        await global.incrementFees(
+          123,
+          456,
+          generateMarketParameter(parse6decimal('0.1'), parse6decimal('0.3')),
+          generateProtocolParameter(0),
+        )
+
+        const value = await global.read()
+        expect(value.oracleFee).to.equal(468)
+        expect(value.riskFee).to.equal(36)
+        expect(value.donation).to.equal(75)
+      })
+
+      it('oracle / risk fee zero donation', async () => {
+        await global.incrementFees(
+          123,
+          456,
+          generateMarketParameter(parse6decimal('0.1'), parse6decimal('0.9')),
+          generateProtocolParameter(0),
+        )
+
+        const value = await global.read()
+        expect(value.oracleFee).to.equal(468)
+        expect(value.riskFee).to.equal(110)
+        expect(value.donation).to.equal(1) // due to rounding
+      })
+
+      it('oracle / risk fee over', async () => {
+        await expect(
+          global.incrementFees(
+            123,
+            456,
+            generateMarketParameter(parse6decimal('0.1'), parse6decimal('1.0')),
+            generateProtocolParameter(0),
+          ),
+        ).revertedWithPanic(0x11)
+      })
+
+      it('protocol / risk fee', async () => {
+        await global.incrementFees(
+          123,
+          456,
+          generateMarketParameter(0, parse6decimal('0.1')),
+          generateProtocolParameter(parse6decimal('0.2')),
+        )
+
+        const value = await global.read()
+        expect(value.protocolFee).to.equal(24)
+        expect(value.riskFee).to.equal(9)
+        expect(value.donation).to.equal(90)
+        expect(value.oracleFee).to.equal(456)
+      })
+
+      it('protocol / risk fee zero marketFee', async () => {
+        await global.incrementFees(
+          123,
+          456,
+          generateMarketParameter(0, parse6decimal('0.1')),
+          generateProtocolParameter(parse6decimal('1.0')),
+        )
+
+        const value = await global.read()
+        expect(value.protocolFee).to.equal(123)
+        expect(value.riskFee).to.equal(0)
+        expect(value.donation).to.equal(0)
+        expect(value.oracleFee).to.equal(456)
+      })
+
+      it('protocol / risk fee zero donation', async () => {
+        await global.incrementFees(
+          123,
+          456,
+          generateMarketParameter(0, parse6decimal('1.0')),
+          generateProtocolParameter(parse6decimal('0.2')),
+        )
+
+        const value = await global.read()
+        expect(value.protocolFee).to.equal(24)
+        expect(value.riskFee).to.equal(99)
+        expect(value.donation).to.equal(0)
+        expect(value.oracleFee).to.equal(456)
+      })
+
+      it('protocol / risk fee protocol over', async () => {
+        await expect(
+          global.incrementFees(
+            123,
+            456,
+            generateMarketParameter(0, parse6decimal('0.1')),
+            generateProtocolParameter(parse6decimal('1.1')),
+          ),
+        ).revertedWithPanic(0x11)
+      })
+
+      it('protocol / risk fee oracle over', async () => {
+        await expect(
+          global.incrementFees(
+            123,
+            456,
+            generateMarketParameter(0, parse6decimal('1.1')),
+            generateProtocolParameter(parse6decimal('0.2')),
+          ),
+        ).revertedWithPanic(0x11)
+      })
+
+      it('protocol / oracle fee', async () => {
+        await global.incrementFees(
+          123,
+          456,
+          generateMarketParameter(parse6decimal('0.1'), 0),
+          generateProtocolParameter(parse6decimal('0.2')),
+        )
+
+        const value = await global.read()
+        expect(value.protocolFee).to.equal(24)
+        expect(value.oracleFee).to.equal(465)
+        expect(value.donation).to.equal(90)
+      })
+
+      it('protocol / oracle fee zero marketFee', async () => {
+        await global.incrementFees(
+          123,
+          456,
+          generateMarketParameter(parse6decimal('0.1'), 0),
+          generateProtocolParameter(parse6decimal('1.0')),
+        )
+
+        const value = await global.read()
+        expect(value.protocolFee).to.equal(123)
+        expect(value.oracleFee).to.equal(456)
+        expect(value.donation).to.equal(0)
+      })
+
+      it('protocol / oracle fee zero donation', async () => {
+        await global.incrementFees(
+          123,
+          456,
+          generateMarketParameter(parse6decimal('1.0'), 0),
+          generateProtocolParameter(parse6decimal('0.2')),
+        )
+
+        const value = await global.read()
+        expect(value.protocolFee).to.equal(24)
+        expect(value.oracleFee).to.equal(555)
+        expect(value.donation).to.equal(0)
+      })
+
+      it('protocol / oracle fee protocol over', async () => {
+        await expect(
+          global.incrementFees(
+            123,
+            0,
+            generateMarketParameter(parse6decimal('0.1'), 0),
+            generateProtocolParameter(parse6decimal('1.1')),
+          ),
+        ).revertedWithPanic(0x11)
+      })
+
+      it('protocol / oracle fee oracle over', async () => {
+        await expect(
+          global.incrementFees(
+            123,
+            456,
+            generateMarketParameter(parse6decimal('1.1'), 0),
+            generateProtocolParameter(parse6decimal('0.2')),
+          ),
+        ).revertedWithPanic(0x11)
+      })
+
+      it('protocol / oracle / risk fee', async () => {
+        await global.incrementFees(
+          123,
+          456,
+          generateMarketParameter(parse6decimal('0.1'), parse6decimal('0.3')),
+          generateProtocolParameter(parse6decimal('0.2')),
+        )
+
+        const value = await global.read()
+        expect(value.protocolFee).to.equal(24)
+        expect(value.oracleFee).to.equal(465)
+        expect(value.riskFee).to.equal(29)
+        expect(value.donation).to.equal(61)
+      })
+
+      it('protocol / oracle / risk fee zero marketFee', async () => {
+        await global.incrementFees(
+          123,
+          456,
+          generateMarketParameter(parse6decimal('0.1'), parse6decimal('0.3')),
+          generateProtocolParameter(parse6decimal('1.0')),
+        )
+
+        const value = await global.read()
+        expect(value.protocolFee).to.equal(123)
+        expect(value.oracleFee).to.equal(456)
+        expect(value.riskFee).to.equal(0)
+        expect(value.donation).to.equal(0)
+      })
+
+      it('protocol / oracle / risk fee zero donation', async () => {
+        await global.incrementFees(
+          123,
+          456,
+          generateMarketParameter(parse6decimal('0.1'), parse6decimal('0.9')),
+          generateProtocolParameter(parse6decimal('0.2')),
+        )
+
+        const value = await global.read()
+        expect(value.protocolFee).to.equal(24)
+        expect(value.oracleFee).to.equal(465)
+        expect(value.riskFee).to.equal(89)
+        expect(value.donation).to.equal(1) // due to rounding
+      })
+
+      it('protocol / oracle / risk fee protocol over', async () => {
+        await expect(
+          global.incrementFees(
+            123,
+            456,
+            generateMarketParameter(parse6decimal('0.1'), parse6decimal('0.3')),
+            generateProtocolParameter(parse6decimal('1.1')),
+          ),
+        ).revertedWithPanic(0x11)
+      })
+
+      it('protocol / oracle / risk fee oracle over', async () => {
+        await expect(
+          global.incrementFees(
+            123,
+            456,
+            generateMarketParameter(parse6decimal('0.1'), parse6decimal('1.0')),
+            generateProtocolParameter(parse6decimal('0.2')),
+          ),
+        ).revertedWithPanic(0x11)
+      })
+    })
   })
 
   describe('#update', async () => {

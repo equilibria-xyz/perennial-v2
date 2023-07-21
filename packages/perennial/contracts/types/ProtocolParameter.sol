@@ -5,13 +5,28 @@ import "@equilibria/root/number/types/UFixed6.sol";
 
 /// @dev ProtocolParameter type
 struct ProtocolParameter {
+    /// @dev Maximum number of pending positions ids before the market will pause to catch up
     uint256 maxPendingIds;
+
+    /// @dev The share of the market fees that are retained by the protocol before being distributed
     UFixed6 protocolFee;
+
+    /// @dev The maximum for market fee parameters
     UFixed6 maxFee;
+
+    /// @dev The maximum for market absolute fee parameters
     UFixed6 maxFeeAbsolute;
+
+    /// @dev The maximum for market cut parameters
     UFixed6 maxCut;
+
+    /// @dev The maximum for market rate parameters
     UFixed6 maxRate;
+
+    /// @dev The minimum for market maintenance parameters
     UFixed6 minMaintenance;
+
+    /// @dev The minimum for market efficiency parameters
     UFixed6 minEfficiency;
 }
 struct StoredProtocolParameter {
@@ -23,8 +38,6 @@ struct StoredProtocolParameter {
     uint32 _maxRate;            // <= 429496%
     uint24 _minMaintenance;     // <= 1677%
     uint24 _minEfficiency;      // <= 1677%
-
-    bytes6 __unallocated__;
 }
 struct ProtocolParameterStorage { StoredProtocolParameter value; }
 using ProtocolParameterStorageLib for ProtocolParameterStorage global;
@@ -64,8 +77,7 @@ library ProtocolParameterStorageLib {
             uint24(UFixed6.unwrap(newValue.maxCut)),
             uint32(UFixed6.unwrap(newValue.maxRate)),
             uint24(UFixed6.unwrap(newValue.minMaintenance)),
-            uint24(UFixed6.unwrap(newValue.minEfficiency)),
-            bytes6(0)
+            uint24(UFixed6.unwrap(newValue.minEfficiency))
         );
     }
 }

@@ -6,9 +6,16 @@ import "./Position.sol";
 
 /// @dev Local type
 struct Local {
+    /// @dev The current position id
     uint256 currentId;
+
+    /// @dev The collateral balance
     Fixed6 collateral;
+
+    /// @dev The reward balance
     UFixed6 reward;
+
+    /// @dev The protection status
     uint256 protection;
 }
 using LocalLib for Local global;
@@ -18,7 +25,7 @@ struct StoredLocal {
     uint64 _reward;
     uint64 _protection;
 }
-struct LocalStorage { uint256 value; }
+struct LocalStorage { StoredLocal value; }
 using LocalStorageLib for LocalStorage global;
 
 struct LocalAccumulationResult {
@@ -28,19 +35,23 @@ struct LocalAccumulationResult {
     UFixed6 keeper;
 }
 
-/**
- * @title LocalLib
- * @notice Library
- */
+/// @title Local
+/// @notice Holds the local account state
 library LocalLib {
+    /// @notice Updates the collateral with the new collateral change
+    /// @param self The Local object to update
+    /// @param collateral The amount to update the collateral by
     function update(Local memory self, Fixed6 collateral) internal pure {
         self.collateral = self.collateral.add(collateral);
     }
 
-    /**
-     * @notice Settled the account's position to oracle version `toOracleVersion`
-     * @param self The struct to operate on
-     */
+    /// @notice Settled the local from its latest position to next position
+    /// @param self The Local object to update
+    /// @param fromPosition The previous latest position
+    /// @param toPosition The next latest position
+    /// @param fromVersion The previous latest version
+    /// @param toVersion The next latest version
+    /// @return values The accumulation result
     function accumulate(
         Local memory self,
         Position memory fromPosition,
@@ -62,6 +73,12 @@ library LocalLib {
         self.reward = self.reward.add(values.rewardAmount);
     }
 
+    /// @notice Updates the local to put it into a protected state for liquidation
+    /// @param self The Local object to update
+    /// @param latestPosition The latest position
+    /// @param currentTimestamp The current timestamp
+    /// @param tryProtect Whether to try to protect the local
+    /// @return Whether the local was protected
     function protect(
         Local memory self,
         Position memory latestPosition,
@@ -73,21 +90,23 @@ library LocalLib {
         return true;
     }
 
+    /// @notice Clears the local's reward value
+    /// @param self The Local object to update
     function clearReward(Local memory self) internal pure {
         self.reward = UFixed6Lib.ZERO;
     }
 }
 
-library LocalStorageLib { // TODO (gas hint): automate this storage format to save contract size
+library LocalStorageLib {
     error LocalStorageInvalidError();
 
     function read(LocalStorage storage self) internal view returns (Local memory) {
-        uint256 value = self.value;
+        StoredLocal memory storedValue = self.value;
         return Local(
-            uint256(value << 192) >> 192,
-            Fixed6.wrap(int256(value << 128) >> 192),
-            UFixed6.wrap(uint256(value << 64) >> 192),
-            uint256(value) >> 192
+            uint256(storedValue._currentId),
+            Fixed6.wrap(int256(storedValue._collateral)),
+            UFixed6.wrap(uint256(storedValue._reward)),
+            uint256(storedValue._protection)
         );
     }
 
@@ -98,13 +117,11 @@ library LocalStorageLib { // TODO (gas hint): automate this storage format to sa
         if (newValue.reward.gt(UFixed6.wrap(type(uint64).max))) revert LocalStorageInvalidError();
         if (newValue.protection > uint256(type(uint64).max)) revert LocalStorageInvalidError();
 
-        uint256 encoded =
-            uint256(newValue.currentId << 192) >> 192 |
-            uint256(Fixed6.unwrap(newValue.collateral) << 192) >> 128 |
-            uint256(UFixed6.unwrap(newValue.reward) << 192) >> 64 |
-            uint256(newValue.protection << 192);
-        assembly {
-            sstore(self.slot, encoded)
-        }
+        self.value = StoredLocal(
+            uint64(newValue.currentId),
+            int64(Fixed6.unwrap(newValue.collateral)),
+            uint64(UFixed6.unwrap(newValue.reward)),
+            uint64(newValue.protection)
+        );
     }
 }

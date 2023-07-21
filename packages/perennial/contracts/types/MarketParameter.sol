@@ -1,30 +1,52 @@
 // SPDX-License-Identifier: Apache-2.0
 pragma solidity ^0.8.13;
 
-import "@equilibria/perennial-v2-payoff/contracts/interfaces/IPayoffProvider.sol";
-import "@equilibria/perennial-v2-oracle/contracts/interfaces/IOracleProvider.sol";
 import "@equilibria/root/token/types/Token18.sol";
 import "@equilibria/root/number/types/UFixed6.sol";
-import "@equilibria/root/curve/types/UJumpRateUtilizationCurve6.sol";
-import "@equilibria/root-v2/contracts/PController6.sol";
+import "@equilibria/root/utilization/types/UJumpRateUtilizationCurve6.sol";
+import "@equilibria/root/pid/types/PController6.sol";
+import "../interfaces/IOracleProvider.sol";
+import "../interfaces/IPayoffProvider.sol";
 import "./ProtocolParameter.sol";
 
 /// @dev MarketParameter type
 struct MarketParameter {
+    /// @dev The fee that is taken out of funding
     UFixed6 fundingFee;
+
+    /// @dev The fee that is taken out of interest
     UFixed6 interestFee;
+
+    /// @dev The fee that is taken out of maker and taker fees
     UFixed6 positionFee;
+
+    /// @dev The share of the collected fees that is paid to the oracle
     UFixed6 oracleFee; // TODO: move to oracle?
+
+    /// @dev The share of the collected fees that is paid to the risk coordinator
     UFixed6 riskFee;
+
+    /// @dev The fixed fee that is charge whenever an oracle request occurs
     UFixed6 settlementFee;
+
+    /// @dev The rate at which the makers receives rewards (share / sec)
     UFixed6 makerRewardRate;
+
+    /// @dev The rate at which the longs receives rewards (share / sec)
     UFixed6 longRewardRate;
+
+    /// @dev The rate at which the shorts receives rewards (share / sec)
     UFixed6 shortRewardRate;
+
+    /// @dev Whether longs and shorts can always close even when they'd put the market into socialization
     bool takerCloseAlways; // TODO: move to risk?
+
+    /// @dev Whether makers can always close even when they'd put the market into socialization
     bool makerCloseAlways;
+
+    /// @dev Whether the market is in close-only mode
     bool closed;
 }
-using MarketParameterLib for MarketParameter global;
 struct StoredMarketParameter {
     uint24 fundingFee;          // <= 1677%
     uint24 interestFee;         // <= 1677%
@@ -39,28 +61,6 @@ struct StoredMarketParameter {
 }
 struct MarketParameterStorage { StoredMarketParameter value; }
 using MarketParameterStorageLib for MarketParameterStorage global;
-
-library MarketParameterLib {
-    error MarketInvalidMarketParameterError(uint256 code);
-
-    function validate(
-        MarketParameter memory self,
-        ProtocolParameter memory protocolParameter,
-        Token18 reward
-    ) internal pure {
-        if (self.settlementFee.gt(protocolParameter.maxFeeAbsolute)) revert MarketInvalidMarketParameterError(2);
-
-        if (self.fundingFee.max(self.interestFee).max(self.positionFee).gt(protocolParameter.maxCut))
-            revert MarketInvalidMarketParameterError(3);
-
-        if (self.oracleFee.add(self.riskFee).gt(UFixed6Lib.ONE)) revert MarketInvalidMarketParameterError(8);
-
-        if (
-            reward.isZero() &&
-            (!self.makerRewardRate.isZero() || !self.longRewardRate.isZero() || !self.shortRewardRate.isZero())
-        ) revert MarketInvalidMarketParameterError(9);
-    }
-}
 
 library MarketParameterStorageLib {
     error MarketParameterStorageInvalidError();
@@ -87,13 +87,32 @@ library MarketParameterStorageLib {
         );
     }
 
-    function store(MarketParameterStorage storage self, MarketParameter memory newValue) internal {
-        if (newValue.fundingFee.gt(UFixed6.wrap(type(uint24).max))) revert MarketParameterStorageInvalidError();
-        if (newValue.interestFee.gt(UFixed6.wrap(type(uint24).max))) revert MarketParameterStorageInvalidError();
-        if (newValue.positionFee.gt(UFixed6.wrap(type(uint24).max))) revert MarketParameterStorageInvalidError();
-        if (newValue.oracleFee.gt(UFixed6.wrap(type(uint24).max))) revert MarketParameterStorageInvalidError();
-        if (newValue.riskFee.gt(UFixed6.wrap(type(uint24).max))) revert MarketParameterStorageInvalidError();
-        if (newValue.settlementFee.gt(UFixed6.wrap(type(uint32).max))) revert MarketParameterStorageInvalidError();
+    function validate(
+        MarketParameter memory self,
+        ProtocolParameter memory protocolParameter,
+        Token18 reward
+    ) internal pure {
+        if (self.settlementFee.gt(protocolParameter.maxFeeAbsolute)) revert MarketParameterStorageInvalidError();
+
+        if (self.fundingFee.max(self.interestFee).max(self.positionFee).gt(protocolParameter.maxCut))
+            revert MarketParameterStorageInvalidError();
+
+        if (self.oracleFee.add(self.riskFee).gt(UFixed6Lib.ONE)) revert MarketParameterStorageInvalidError();
+
+        if (
+            reward.isZero() &&
+            (!self.makerRewardRate.isZero() || !self.longRewardRate.isZero() || !self.shortRewardRate.isZero())
+        ) revert MarketParameterStorageInvalidError();
+    }
+
+    function validateAndStore(
+        MarketParameterStorage storage self,
+        MarketParameter memory newValue,
+        ProtocolParameter memory protocolParameter,
+        Token18 reward
+    ) internal {
+        validate(newValue, protocolParameter, reward);
+
         if (newValue.makerRewardRate.gt(UFixed6.wrap(type(uint32).max))) revert MarketParameterStorageInvalidError();
         if (newValue.longRewardRate.gt(UFixed6.wrap(type(uint32).max))) revert MarketParameterStorageInvalidError();
         if (newValue.shortRewardRate.gt(UFixed6.wrap(type(uint32).max))) revert MarketParameterStorageInvalidError();

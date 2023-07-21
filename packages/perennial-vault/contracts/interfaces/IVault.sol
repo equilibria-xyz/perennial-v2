@@ -1,7 +1,7 @@
 //SPDX-License-Identifier: Apache-2.0
 pragma solidity ^0.8.13;
 
-import "@equilibria/root-v2/contracts/IInstance.sol";
+import "@equilibria/root/attribute/interfaces/IInstance.sol";
 import "@equilibria/perennial-v2/contracts/interfaces/IMarket.sol";
 import "@equilibria/root/number/types/UFixed6.sol";
 import "../types/Account.sol";
@@ -62,6 +62,7 @@ interface IVault is IInstance {
     error VaultIncorrectAssetError();
     error VaultNotOperatorError();
     error VaultNotSingleSidedError();
+    error VaultInsufficientMinimumError();
 
     error AccountStorageInvalidError();
     error CheckpointStorageInvalidError();
@@ -69,7 +70,7 @@ interface IVault is IInstance {
     error RegistrationStorageInvalidError();
     error VaultParameterStorageInvalidError();
 
-    function initialize(Token18 asset, IMarket market, string calldata name_, string calldata symbol_) external;
+    function initialize(Token18 asset, IMarket market, string calldata name_) external;
     function name() external view returns (string memory);
     function settle(address account) external;
     function update(address account, UFixed6 depositAssets, UFixed6 redeemShares, UFixed6 claimAssets) external;

@@ -6,11 +6,22 @@ import "./Checkpoint.sol";
 
 /// @dev Account type
 struct Account {
+    /// @dev The current position id
     uint256 current;
+
+    /// @dev The latest position id
     uint256 latest;
+
+    /// @dev The total shares
     UFixed6 shares;
+
+    /// @dev The total assets
     UFixed6 assets;
+
+    /// @dev The amount of pending deposits
     UFixed6 deposit;
+
+    /// @dev The amount of pending redemptions
     UFixed6 redemption;
 }
 using AccountLib for Account global;
@@ -25,11 +36,16 @@ struct StoredAccount {
 struct AccountStorage { StoredAccount value; }
 using AccountStorageLib for AccountStorage global;
 
-/**
- * @title AccountLib
- * @notice
- */
+
+/// @title Account
+/// @notice Holds the state for the account type
 library AccountLib {
+    /// @notice Processes the position in a global context
+    /// @param self The account to update
+    /// @param latestId The latest position id
+    /// @param checkpoint The checkpoint to process
+    /// @param deposit The amount of pending deposits
+    /// @param redemption The amount of pending redemptions
     function processGlobal(
         Account memory self,
         uint256 latestId,
@@ -45,6 +61,12 @@ library AccountLib {
         (self.deposit, self.redemption) = (self.deposit.sub(deposit), self.redemption.sub(redemption));
     }
 
+    /// @notice Processes the position in a local context
+    /// @param self The account to update
+    /// @param latestId The latest position id
+    /// @param checkpoint The checkpoint to process
+    /// @param deposit The amount of pending deposits to clear
+    /// @param redemption The amount of pending redemptions to clear
     function processLocal(
         Account memory self,
         uint256 latestId,
@@ -60,6 +82,13 @@ library AccountLib {
         (self.deposit, self.redemption) = (self.deposit.sub(deposit), self.redemption.sub(redemption));
     }
 
+    /// @notice Updates the account with a new order
+    /// @param self The account to update
+    /// @param currentId The current position id
+    /// @param assets The amount of assets to deduct
+    /// @param shares The amount of shares to deduct
+    /// @param deposit The amount of pending deposits
+    /// @param redemption The amount of pending redemptions
     function update(
         Account memory self,
         uint256 currentId,

@@ -3,21 +3,44 @@ pragma solidity ^0.8.13;
 
 import "../types/Registration.sol";
 
+/// @title Strategy
+/// @notice Logic for vault capital allocation
+/// @dev - Deploys collateral first to satisfy the maintenance of each market, then deploys the rest by weight.
+///      - Positions are then targeted based on the amount of collateral that ends up deployed to each market.
 library StrategyLib {
-    UFixed6 private constant LEVERAGE_BUFFER = UFixed6.wrap(1.2e6); // TODO: param?
+    /// @dev The maximum multiplier that is allowed for leverage
+    UFixed6 private constant LEVERAGE_BUFFER = UFixed6.wrap(1.2e6);
 
+    /// @dev The context of an underlying market
     struct MarketContext {
+        /// @dev The market parameter set
         MarketParameter marketParameter;
+
+        /// @dev The risk parameter set
         RiskParameter riskParameter;
+
+        /// @dev The local state of the vault
         Local local;
+
+        /// @dev The vault's current account position
         Position currentAccountPosition;
+
+        /// @dev The current global position
         Position currentPosition;
+
+        /// @dev The latest oracle version
         OracleVersion oracleVersion;
+
+        /// @dev The maintenance requirement of the vault
         UFixed6 maintenance;
     }
 
+    /// @dev The target allocation for a market
     struct MarketTarget {
+        /// @dev The amount of change in collateral
         Fixed6 collateral;
+
+        /// @dev The new position
         UFixed6 position;
     }
 
@@ -29,6 +52,10 @@ library StrategyLib {
         UFixed6 maxPosition;
     }
 
+    /// @notice Compute the target allocation for each market
+    /// @param registrations The registrations of the markets
+    /// @param collateral The amount of collateral to allocate
+    /// @param assets The amount of collateral that is eligible for positions
     function allocate(
         Registration[] memory registrations,
         UFixed6 collateral,
@@ -67,6 +94,9 @@ library StrategyLib {
         }
     }
 
+    /// @notice Load the context of a market
+    /// @param registration The registration of the market
+    /// @return context The context of the market
     function _loadContext(Registration memory registration) private view returns (MarketContext memory context) {
         context.marketParameter = registration.market.parameter();
         context.riskParameter = registration.market.riskParameter();
@@ -85,6 +115,11 @@ library StrategyLib {
                 .max(context.maintenance);
     }
 
+    /// @notice Aggregate the context of all markets
+    /// @param registrations The registrations of the markets
+    /// @param contexts The contexts of the markets
+    /// @return totalWeight The total weight of all markets
+    /// @return totalMaintenance The total maintenance of all markets
     function _aggregate(
         Registration[] memory registrations,
         MarketContext[] memory contexts
@@ -95,6 +130,10 @@ library StrategyLib {
         }
     }
 
+    /// @notice Compute the position limit of a market
+    /// @param context The context of the market
+    /// @return The minimum position size before crossing the net position
+    /// @return The maximum position size before crossing the maker limit
     function _positionLimit(MarketContext memory context) private pure returns (UFixed6, UFixed6) {
         return (
             // minimum position size before crossing the net position

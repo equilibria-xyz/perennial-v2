@@ -1,18 +1,31 @@
 // SPDX-License-Identifier: Apache-2.0
 pragma solidity ^0.8.13;
 
-import "@equilibria/root-v2/contracts/PAccumulator6.sol";
+import "@equilibria/root/pid/types/PAccumulator6.sol";
 import "./ProtocolParameter.sol";
 import "./MarketParameter.sol";
 
 /// @dev Global type
 struct Global {
+    /// @dev The current position ID
     uint256 currentId;
+
+    /// @dev The accrued protocol fee
     UFixed6 protocolFee;
+
+    /// @dev The accrued oracle fee
     UFixed6 oracleFee;
+
+    /// @dev The accrued risk fee
     UFixed6 riskFee;
+
+    /// @dev The accrued donation
     UFixed6 donation;
+
+    /// @dev The current PAccumulator state
     PAccumulator6 pAccumulator;
+
+    /// @dev The latest valid price
     Fixed6 latestPrice;
 }
 using GlobalLib for Global global;
@@ -32,11 +45,15 @@ struct StoredGlobal { // TODO: pack better
 struct GlobalStorage { StoredGlobal value; }
 using GlobalStorageLib for GlobalStorage global;
 
-/**
- * @title GlobalLib
- * @notice
- */
+/// @title Global
+/// @notice Holds the global market state
 library GlobalLib {
+    /// @notice Increments the fees by `amount` using current parameters
+    /// @param self The Global object to update
+    /// @param amount The amount to increment fees by
+    /// @param keeper The amount to increment the keeper fee by
+    /// @param marketParameter The current market parameters
+    /// @param protocolParameter The current protocol parameters
     function incrementFees(
         Global memory self,
         UFixed6 amount,
@@ -57,6 +74,9 @@ library GlobalLib {
         self.donation = self.donation.add(donationAmount);
     }
 
+    /// @notice Updates the latest valid price
+    /// @param self The Global object to update
+    /// @param latestPrice The new latest valid price
     function update(Global memory self, Fixed6 latestPrice) internal pure {
         self.latestPrice = latestPrice;
     }

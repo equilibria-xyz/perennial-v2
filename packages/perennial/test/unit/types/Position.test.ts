@@ -78,7 +78,7 @@ describe('Position', () => {
       })
 
       describe('.id', async () => {
-        const STORAGE_SIZE = 32
+        const STORAGE_SIZE = 24
         it('saves if in range', async () => {
           await position.store({
             ...VALID_GLOBAL_POSITION,
@@ -94,7 +94,7 @@ describe('Position', () => {
               ...VALID_GLOBAL_POSITION,
               id: BigNumber.from(2).pow(STORAGE_SIZE),
             }),
-          ).to.be.revertedWithCustomError(position, 'PositionStorageGlobalInvalidError')
+          ).to.be.revertedWithCustomError(position, 'PositionStorageInvalidError')
         })
       })
 
@@ -115,7 +115,7 @@ describe('Position', () => {
               ...VALID_GLOBAL_POSITION,
               timestamp: BigNumber.from(2).pow(STORAGE_SIZE),
             }),
-          ).to.be.revertedWithCustomError(position, 'PositionStorageGlobalInvalidError')
+          ).to.be.revertedWithCustomError(position, 'PositionStorageInvalidError')
         })
       })
 
@@ -136,7 +136,7 @@ describe('Position', () => {
               ...VALID_GLOBAL_POSITION,
               maker: BigNumber.from(2).pow(STORAGE_SIZE),
             }),
-          ).to.be.revertedWithCustomError(position, 'PositionStorageGlobalInvalidError')
+          ).to.be.revertedWithCustomError(position, 'PositionStorageInvalidError')
         })
       })
 
@@ -157,7 +157,7 @@ describe('Position', () => {
               ...VALID_GLOBAL_POSITION,
               long: BigNumber.from(2).pow(STORAGE_SIZE),
             }),
-          ).to.be.revertedWithCustomError(position, 'PositionStorageGlobalInvalidError')
+          ).to.be.revertedWithCustomError(position, 'PositionStorageInvalidError')
         })
       })
 
@@ -178,7 +178,7 @@ describe('Position', () => {
               ...VALID_GLOBAL_POSITION,
               short: BigNumber.from(2).pow(STORAGE_SIZE),
             }),
-          ).to.be.revertedWithCustomError(position, 'PositionStorageGlobalInvalidError')
+          ).to.be.revertedWithCustomError(position, 'PositionStorageInvalidError')
         })
       })
 
@@ -199,7 +199,7 @@ describe('Position', () => {
               ...VALID_GLOBAL_POSITION,
               fee: BigNumber.from(2).pow(STORAGE_SIZE),
             }),
-          ).to.be.revertedWithCustomError(position, 'PositionStorageGlobalInvalidError')
+          ).to.be.revertedWithCustomError(position, 'PositionStorageInvalidError')
         })
       })
 
@@ -220,7 +220,7 @@ describe('Position', () => {
               ...VALID_GLOBAL_POSITION,
               keeper: BigNumber.from(2).pow(STORAGE_SIZE),
             }),
-          ).to.be.revertedWithCustomError(position, 'PositionStorageGlobalInvalidError')
+          ).to.be.revertedWithCustomError(position, 'PositionStorageInvalidError')
         })
       })
     })
@@ -743,11 +743,11 @@ describe('Position', () => {
           const latestEfficiency = await position.efficiency()
 
           const updatedOrder = await position.callStatic[
-            'update(uint256,uint256,(int256,int256,int256,uint256,int256,int256,int256,uint256,uint256,int256),(uint256,uint256,uint256,uint256,uint256,uint256,uint256,uint256,uint256,uint256,uint256,(uint256,uint256,uint256,uint256),(uint256,uint256),uint256,uint256,uint256,bool))'
+            'update(uint256,uint256,(int256,int256,int256,int256,uint256,int256,int256,int256,uint256,uint256),(uint256,uint256,uint256,uint256,uint256,uint256,uint256,uint256,uint256,uint256,uint256,(uint256,uint256,uint256,uint256),(uint256,uint256),uint256,uint256,uint256,bool))'
           ](20, 123456, VALID_ORDER, VALID_RISK_PARAMETER)
 
           await position[
-            'update(uint256,uint256,(int256,int256,int256,uint256,int256,int256,int256,uint256,uint256,int256),(uint256,uint256,uint256,uint256,uint256,uint256,uint256,uint256,uint256,uint256,uint256,(uint256,uint256,uint256,uint256),(uint256,uint256),uint256,uint256,uint256,bool))'
+            'update(uint256,uint256,(int256,int256,int256,int256,uint256,int256,int256,int256,uint256,uint256),(uint256,uint256,uint256,uint256,uint256,uint256,uint256,uint256,uint256,uint256,uint256,(uint256,uint256,uint256,uint256),(uint256,uint256),uint256,uint256,uint256,bool))'
           ](20, 123456, VALID_ORDER, VALID_RISK_PARAMETER)
 
           const value = await position.read()
@@ -773,7 +773,7 @@ describe('Position', () => {
             await position.store({ ...VALID_GLOBAL_POSITION, fee: 50, keeper: 60 })
 
             await position[
-              'update(uint256,uint256,(int256,int256,int256,uint256,int256,int256,int256,uint256,uint256,int256),(uint256,uint256,uint256,uint256,uint256,uint256,uint256,uint256,uint256,uint256,uint256,(uint256,uint256,uint256,uint256),(uint256,uint256),uint256,uint256,uint256,bool))'
+              'update(uint256,uint256,(int256,int256,int256,int256,uint256,int256,int256,int256,uint256,uint256),(uint256,uint256,uint256,uint256,uint256,uint256,uint256,uint256,uint256,uint256,uint256,(uint256,uint256,uint256,uint256),(uint256,uint256),uint256,uint256,uint256,bool))'
             ](VALID_GLOBAL_POSITION.id, 123456, VALID_ORDER, VALID_RISK_PARAMETER)
 
             const value = await position.read()
@@ -801,6 +801,19 @@ describe('Position', () => {
           expect(value.long).to.equal(60)
           expect(value.short).to.equal(70)
           expect(value.fee).to.equal(0)
+        })
+      })
+
+      describe('#sync', () => {
+        it('sets the position to latestPosition and zeroes fee', async () => {
+          await position.store({ ...VALID_GLOBAL_POSITION, fee: 100, keeper: 10 })
+
+          await position.sync(VALID_ORACLE_VERSION)
+          const value = await position.read()
+
+          expect(value.timestamp).to.equal(12345)
+          expect(value.fee).to.equal(0)
+          expect(value.keeper).to.equal(0)
         })
       })
 
@@ -925,7 +938,7 @@ describe('Position', () => {
               ...VALID_LOCAL_POSITION,
               id: BigNumber.from(2).pow(STORAGE_SIZE),
             }),
-          ).to.be.revertedWithCustomError(position, 'PositionStorageLocalInvalidError')
+          ).to.be.revertedWithCustomError(position, 'PositionStorageInvalidError')
         })
       })
 
@@ -946,7 +959,7 @@ describe('Position', () => {
               ...VALID_LOCAL_POSITION,
               timestamp: BigNumber.from(2).pow(STORAGE_SIZE),
             }),
-          ).to.be.revertedWithCustomError(position, 'PositionStorageLocalInvalidError')
+          ).to.be.revertedWithCustomError(position, 'PositionStorageInvalidError')
         })
       })
 
@@ -967,7 +980,7 @@ describe('Position', () => {
               ...VALID_LOCAL_POSITION,
               maker: BigNumber.from(2).pow(STORAGE_SIZE),
             }),
-          ).to.be.revertedWithCustomError(position, 'PositionStorageLocalInvalidError')
+          ).to.be.revertedWithCustomError(position, 'PositionStorageInvalidError')
         })
       })
 
@@ -988,7 +1001,7 @@ describe('Position', () => {
               ...VALID_LOCAL_POSITION,
               long: BigNumber.from(2).pow(STORAGE_SIZE),
             }),
-          ).to.be.revertedWithCustomError(position, 'PositionStorageLocalInvalidError')
+          ).to.be.revertedWithCustomError(position, 'PositionStorageInvalidError')
         })
       })
 
@@ -1009,7 +1022,7 @@ describe('Position', () => {
               ...VALID_LOCAL_POSITION,
               short: BigNumber.from(2).pow(STORAGE_SIZE),
             }),
-          ).to.be.revertedWithCustomError(position, 'PositionStorageLocalInvalidError')
+          ).to.be.revertedWithCustomError(position, 'PositionStorageInvalidError')
         })
       })
 
@@ -1030,7 +1043,7 @@ describe('Position', () => {
               ...VALID_LOCAL_POSITION,
               fee: BigNumber.from(2).pow(STORAGE_SIZE),
             }),
-          ).to.be.revertedWithCustomError(position, 'PositionStorageLocalInvalidError')
+          ).to.be.revertedWithCustomError(position, 'PositionStorageInvalidError')
         })
       })
 
@@ -1051,7 +1064,7 @@ describe('Position', () => {
               ...VALID_LOCAL_POSITION,
               keeper: BigNumber.from(2).pow(STORAGE_SIZE),
             }),
-          ).to.be.revertedWithCustomError(position, 'PositionStorageLocalInvalidError')
+          ).to.be.revertedWithCustomError(position, 'PositionStorageInvalidError')
         })
       })
 
@@ -1081,7 +1094,7 @@ describe('Position', () => {
               ...VALID_LOCAL_POSITION,
               collateral: BigNumber.from(2).pow(STORAGE_SIZE),
             }),
-          ).to.be.revertedWithCustomError(position, 'PositionStorageLocalInvalidError')
+          ).to.be.revertedWithCustomError(position, 'PositionStorageInvalidError')
         })
 
         it('reverts if collateral out of range (below)', async () => {
@@ -1090,7 +1103,7 @@ describe('Position', () => {
               ...VALID_LOCAL_POSITION,
               collateral: BigNumber.from(2).pow(STORAGE_SIZE).add(1).mul(-1),
             }),
-          ).to.be.revertedWithCustomError(position, 'PositionStorageLocalInvalidError')
+          ).to.be.revertedWithCustomError(position, 'PositionStorageInvalidError')
         })
       })
 
@@ -1120,7 +1133,7 @@ describe('Position', () => {
               ...VALID_LOCAL_POSITION,
               delta: BigNumber.from(2).pow(STORAGE_SIZE),
             }),
-          ).to.be.revertedWithCustomError(position, 'PositionStorageLocalInvalidError')
+          ).to.be.revertedWithCustomError(position, 'PositionStorageInvalidError')
         })
 
         it('reverts if delta out of range (below)', async () => {
@@ -1129,7 +1142,7 @@ describe('Position', () => {
               ...VALID_LOCAL_POSITION,
               delta: BigNumber.from(2).pow(STORAGE_SIZE).add(1).mul(-1),
             }),
-          ).to.be.revertedWithCustomError(position, 'PositionStorageLocalInvalidError')
+          ).to.be.revertedWithCustomError(position, 'PositionStorageInvalidError')
         })
       })
     })

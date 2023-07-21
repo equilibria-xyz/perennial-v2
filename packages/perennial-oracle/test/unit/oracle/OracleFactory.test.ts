@@ -14,6 +14,7 @@ import {
   IFactory,
   IInstance,
   IOracle,
+  IMarket,
 } from '../../../types/generated'
 import { constants } from 'ethers'
 import { parse6decimal } from '../../../../common/testutil/types'
@@ -78,7 +79,7 @@ describe('OracleFactory', () => {
 
       const oracleAddress = await factory.callStatic.create(PYTH_ETH_USD_PRICE_FEED, subOracleFactory.address)
       await expect(factory.connect(owner).create(PYTH_ETH_USD_PRICE_FEED, subOracleFactory.address))
-        .to.emit(factory, 'InstanceCreated')
+        .to.emit(factory, 'InstanceRegistered')
         .withArgs(oracleAddress)
         .to.emit(factory, 'OracleCreated')
         .withArgs(oracleAddress, PYTH_ETH_USD_PRICE_FEED)
@@ -292,6 +293,37 @@ describe('OracleFactory', () => {
       subInstance.factory.returns(subFactory.address)
 
       expect(await factory.authorized(subInstance.address)).to.be.false
+    })
+  })
+
+  describe('#fund', () => {
+    let fakeMarket: FakeContract<IMarket>
+
+    beforeEach(async () => {
+      fakeMarket = await smock.fake<IMarket>('IMarket')
+      await factory.connect(owner).register(subOracleFactory.address)
+
+      subOracleFactory.oracles.whenCalledWith(PYTH_ETH_USD_PRICE_FEED).returns(subOracle.address)
+
+      const oracleAddress = await factory.callStatic.create(PYTH_ETH_USD_PRICE_FEED, subOracleFactory.address)
+      await factory.connect(owner).create(PYTH_ETH_USD_PRICE_FEED, subOracleFactory.address)
+
+      fakeMarket.oracle.returns(oracleAddress)
+    })
+
+    it('claims its fees', async () => {
+      await factory.connect(user).fund(fakeMarket.address)
+
+      expect(fakeMarket.claimFee).to.have.been.called
+    })
+
+    it('reverts if not an instance', async () => {
+      fakeMarket.oracle.reset()
+      fakeMarket.oracle.returns(user.address)
+      await expect(factory.connect(user).fund(fakeMarket.address)).to.be.revertedWithCustomError(
+        factory,
+        'FactoryNotInstanceError',
+      )
     })
   })
 })
