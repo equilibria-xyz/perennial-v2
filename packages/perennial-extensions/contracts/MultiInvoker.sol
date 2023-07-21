@@ -296,7 +296,10 @@ contract MultiInvoker is IMultiInvoker, Kept {
         // scan pending position for any ready-to-be-settled positions
         for (uint256 id = market.positions(account).id; id <= market.locals(account).currentId; id++) {
             Position memory pendingPosition = market.pendingPositions(account, id);
-            OracleVersion memory oracleVersion = market.at(pendingPosition.timestamp);
+            OracleVersion memory oracleVersion = market.oracle().at(pendingPosition.timestamp);
+
+            IPayoffProvider payoff = market.payoff();
+            if (address(payoff) != address(0)) oracleVersion.price = payoff.payoff(oracleVersion.price);
 
             // if versions are valid, update latest
             if (latestTimestamp >= pendingPosition.timestamp && oracleVersion.valid) {

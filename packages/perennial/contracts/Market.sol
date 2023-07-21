@@ -214,12 +214,6 @@ contract Market is IMarket, Instance {
         return _pendingPositions[account][id].read();
     }
 
-    /// @notice Returns the oracle version at the given timestamp
-    /// @param timestamp The timestamp to query
-    function at(uint256 timestamp) public view returns (OracleVersion memory) {
-        return _oracleVersionAt(timestamp);
-    }
-
     /// @notice Loads the current position context for the given account
     /// @param context The context to load to
     /// @param account The account to query
