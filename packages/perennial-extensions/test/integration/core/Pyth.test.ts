@@ -8,28 +8,20 @@ import { currentBlockTimestamp } from '../../../../common/testutil/time'
 import {
   IERC20Metadata,
   IERC20Metadata__factory,
+  MultiInvoker,
   PythFactory,
   PythFactory__factory,
   PythOracle,
   PythOracle__factory,
-  //   Oracle,
-  //   Oracle__factory,
-  //   OracleFactory,
-  //   OracleFactory__factory,
-  //   PythFactory,
-  //   PythFactory__factory,
-  //   PythOracle,
-  //   PythOracle__factory,
-} from '../../../types/generated'
-import { parse6decimal } from '../../../../common/testutil/types'
-import {
-  OracleFactory__factory,
-  Oracle__factory,
-} from '@equilibria/perennial-v2/types/generated/factories/@equilibria/perennial-v2-oracle/contracts'
-import {
   Oracle,
+  Oracle__factory,
   OracleFactory,
-} from '@equilibria/perennial-v2/types/generated/@equilibria/perennial-v2-oracle/contracts'
+  OracleFactory__factory,
+} from '../../../types/generated'
+
+import { parse6decimal } from '../../../../common/testutil/types'
+
+import { InstanceVars, createInvoker, deployProtocol } from '../helpers/setupHelpers'
 
 const { config, ethers } = HRE
 
@@ -58,6 +50,7 @@ const VAA_WAY_AFTER_EXPIRATION =
   '0x01000000030d00759894dd446d5bbb720d73f32fea0c728cfecc474369fd46de94c1ee3d4f6a326eafdaa907c8b4c2fd027d7047af501103f513d9ed7cbde0a404516c7fa866c80001a2c0276919ba58edea3f3f395fbeaac7a8c3e0a8688f9e5d5c925396b503e90b4e652bd85e8672878a0960ff65515226651f12ad49721a0665f0bb2e5c28fb0c0102dde9e7d36aaef1a7528bed0f95f7d52d6ca33169afee85604669115454b90bbf36eb6de59decdcc4517cdb849efaef0626c83b318efbdf34b5373fd9e2a7c7f6000479d697d129cd515036eb19dfc17e08dd6628073204f5177042636682f9c268350abb39ee46dd119dd3dca48324f43bd72e8be84afa6ccde91c5d7d76ef7dd56e010ac6c6d3d4d7ed37747282478a628a7208e45aa609323ee54af0ab974755e3bdcc1e0fc45de741a3f629591a8f465e99de5b0670943bb1e74e7661d668fae491a5010b13f2c4cd06b86ad65495ab9b16b1ba8605a4a30207ab65a36a7e207f576983c50b3a06351c4acacac5d0b6c6491a575bc265ce4f58cd882fa2df4e1179730830000cfb174a0ce4426bff92f9b98387ec915f2f799ede09e75ccf916ddfa2e6b9da162fdc215ee99b02885468c23a36e66e2ce4265d222e0435cdc464239406021605010dc6e6437bd2395449d08890ee69b20451ae2b8b9ef33d5589c031d00164a824aa749dc420f1d7404441c79be128bf5cab830404b6efa2210d1a823a18479bf342000eeebc6b5b1ae0d9bec0b78e629b8548bcc37ec455bb99f6d2d312c37bbccc043716860daa6c998614ca9d67a3a6336b5da352d7dfd4b99a44034df0e4c8d90bd7000f363aa0eaa28bf27f5e7faab756500a57fb5a2b2eceea02b574586d12b73504fc035f863a497d8a3ed23e2383ca05272df7f1dd01989fc0113b9aef9eeef371990010ad23fcf0262170cb429491de2d34e2591733eee440d4067657e233a5c83dcf647d1b8c9bccd06bde731bad3726957d067422ff327f71cab36402e8f677268cf100119f33cd0d885b9ae579753c8c24b2f2a322053588c1e0b081eaa51341f7bda7df252330808b0d3a042da1a4cc45a6627cf61127cc153dfd47f7197cf97ef52c7f0112ac663714bf20c6d0dcbd53f7cb816b3dd3d730301605a0e710241c663e0023933b64337001cb6faad9c1f7b368af993a7004dace776de4400c2e27dfd33cb83f0064815b6a00000000001af8cd23c2ab91237730770bbea08d61005cdda0984348f3f6eecb559638c0bba0000000001b8420db0150325748000300010001020005009d04028fba493a357ecde648d51375a445ce1cb9681da1ea11e562b53522a5d3877f981f906d7cfe93f618804f1de89e0199ead306edc022d3230b3e8305f391b00000002aa2158047000000000df3561dfffffff80000002a9d293958000000000f470500010000000a0000000c0000000064815b6a0000000064815b6a0000000064815b690000002aa2063e07000000000e02985d0000000064815b69e6c020c1a15366b779a8c870e065023657c88c82b82d58a9fe856896a4034b0415ecddd26d49e1a8f1de9376ebebc03916ede873447c1255d2d5891b92ce57170000002c59e152a00000000009c186cafffffff80000002c56052dc8000000000a631ce80100000007000000080000000064815b6a0000000064815b6a0000000064815b690000002c59e152a00000000009c186ca0000000064815b69c67940be40e0cc7ffaa1acb08ee3fab30955a197da1ec297ab133d4d43d86ee6ff61491a931112ddf1bd8147cd1b641375f79f5825126d665480874634fd0ace0000002ac802c09000000000060e60dbfffffff80000002ac4d3008800000000045ee4460100000018000000200000000064815b6a0000000064815b6a0000000064815b690000002ac802c09000000000060e60db0000000064815b698d7c0971128e8a4764e757dedb32243ed799571706af3a68ab6a75479ea524ff846ae1bdb6300b817cee5fdee2a6da192775030db5615b94a465f53bd40850b50000002abfdc1ce0000000001a634b48fffffff80000002abc79db28000000001abdd5ca01000000090000000a0000000064815b6a0000000064815b6a0000000064815b690000002abfdc1ce0000000001a634b480000000064815b69543b71a4c292744d3fcf814a2ccda6f7c00f283d457f83aa73c41e9defae034ba0255134973f4fdf2f8f7808354274a3b1ebc6ee438be898d045e8b56ba1fe1300000000000000000000000000000000fffffff8000000000000000000000000000000000000000000000000080000000064815b6a0000000064815b690000000000000000000000000000000000000000000000000000000000000000'
 
 describe('PythOracle', () => {
+  let instanceVars: InstanceVars
   let owner: SignerWithAddress
   let user: SignerWithAddress
   let oracle: Oracle
@@ -66,8 +59,10 @@ describe('PythOracle', () => {
   let oracleFactory: OracleFactory
   let dsu: IERC20Metadata
   let oracleSigner: SignerWithAddress
+  let multiInvoker: MultiInvoker
 
   beforeEach(async () => {
+    instanceVars = await deployProtocol()
     await time.reset(config)
     ;[owner, user] = await ethers.getSigners()
 
@@ -97,6 +92,7 @@ describe('PythOracle', () => {
       await oracleFactory.callStatic.create(PYTH_ETH_USD_PRICE_FEED, pythOracleFactory.address),
       owner,
     )
+
     await oracleFactory.create(PYTH_ETH_USD_PRICE_FEED, pythOracleFactory.address)
 
     oracleSigner = await impersonateWithBalance(oracle.address, utils.parseEther('10'))
@@ -105,12 +101,32 @@ describe('PythOracle', () => {
     await dsu.connect(dsuHolder).transfer(oracleFactory.address, utils.parseEther('100000'))
 
     await time.increaseTo(STARTING_TIME - 1)
+
+    multiInvoker = await createInvoker(instanceVars)
+
     // block.timestamp of the next call will be STARTING_TIME (1686198973)
   })
 
-  //   describe('#commit', async () => {
-  //     it('commits pyth versions and collects fee', async () => {
+  describe('#commit', async () => {
+    it('commits pyth versions and collects fee', async () => {
+      const originalDSUBalance = await dsu.callStatic.balanceOf(user.address)
+      await pythOracle.connect(oracleSigner).request()
 
-  //     })
-  //   })
+      // Base fee isn't working properly in coverage, so we need to set it manually
+      await expect(
+        multiInvoker.invoke([
+          {
+            action: 6,
+            args: utils.defaultAbiCoder.encode(['address', 'uint256', 'bytes'], [pythOracle.address, 0, VAA]),
+          },
+        ]),
+      ).to.not.be.reverted
+      await ethers.provider.send('hardhat_setNextBlockBaseFeePerGas', ['0x1000'])
+
+      const newDSUBalance = await dsu.callStatic.balanceOf(user.address)
+
+      // TODO: Test that this number is correct.
+      expect(newDSUBalance.sub(originalDSUBalance)).to.be.greaterThan(0)
+    })
+  })
 })
