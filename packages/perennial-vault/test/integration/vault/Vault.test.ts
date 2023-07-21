@@ -1212,6 +1212,26 @@ describe('Vault', () => {
       expect(await vault.convertToShares(parse6decimal('1004').add(0))).to.equal(parse6decimal('1000'))
     })
 
+    it('reverts when below settlement fee', async () => {
+      const settlementFee = parse6decimal('1.00')
+      const marketParameter = { ...(await market.parameter()) }
+      marketParameter.settlementFee = settlementFee
+      await market.connect(owner).updateParameter(marketParameter)
+      const btcMarketParameter = { ...(await btcMarket.parameter()) }
+      btcMarketParameter.settlementFee = settlementFee
+      await btcMarket.connect(owner).updateParameter(btcMarketParameter)
+
+      await expect(vault.connect(user).update(user.address, parse6decimal('0.50'), 0, 0)).to.revertedWithCustomError(
+        vault,
+        'VaultInsufficientMinimumError',
+      )
+      await expect(vault.connect(user).update(user.address, 0, parse6decimal('0.50'), 0)).to.revertedWithCustomError(
+        vault,
+        'VaultInsufficientMinimumError',
+      )
+      await expect(vault.connect(user).update(user.address, 0, 0, parse6decimal('0.50'))).to.revertedWithPanic('0x11')
+    })
+
     it('reverts when paused', async () => {
       await vaultFactory.connect(owner).pause()
       await expect(vault.settle(user.address)).to.revertedWithCustomError(vault, 'InstancePausedError')

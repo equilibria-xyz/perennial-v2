@@ -247,8 +247,15 @@ contract Vault is IVault, Instance {
             revert VaultNotOperatorError();
         if (!depositAssets.add(redeemShares).add(claimAssets).eq(depositAssets.max(redeemShares).max(claimAssets)))
             revert VaultNotSingleSidedError();
-        if (depositAssets.gt(_maxDeposit(context))) revert VaultDepositLimitExceededError();
-        if (redeemShares.gt(_maxRedeem(context))) revert VaultRedemptionLimitExceededError();
+        if (depositAssets.gt(_maxDeposit(context)))
+            revert VaultDepositLimitExceededError();
+        if (redeemShares.gt(_maxRedeem(context)))
+            revert VaultRedemptionLimitExceededError();
+        if (!depositAssets.isZero() && depositAssets.lt(context.settlementFee))
+            revert VaultInsufficientMinimumError();
+        if (!redeemShares.isZero() && context.latestCheckpoint.toAssets(redeemShares, context.settlementFee).isZero())
+            revert VaultInsufficientMinimumError();
+
         if (context.local.current != context.local.latest) revert VaultExistingOrderError();
 
         // magic values
@@ -284,6 +291,7 @@ contract Vault is IVault, Instance {
         if (context.global.assets.isZero()) return UFixed6Lib.ZERO;
         UFixed6 totalCollateral = UFixed6Lib.from(_collateral(context).max(Fixed6Lib.ZERO));
         claimAmount = claimAssets.muldiv(totalCollateral.min(context.global.assets), context.global.assets);
+
         if (depositAssets.isZero() && redeemShares.isZero()) claimAmount = claimAmount.sub(context.settlementFee);
     }
 
@@ -472,7 +480,7 @@ contract Vault is IVault, Instance {
                 .muldiv(marketContext.price, registration.leverage)                 // available collateral
                 .muldiv(context.totalWeight, registration.weight);                  // collateral in market
 
-            redemptionAmount = redemptionAmount.min(context.latestCheckpoint.toSharesLocal(collateral));
+            redemptionAmount = redemptionAmount.min(context.latestCheckpoint.toShares(collateral, UFixed6Lib.ZERO));
         }
     }
 

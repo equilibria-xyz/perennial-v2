@@ -77,7 +77,7 @@ library CheckpointLib {
         self.fee = fee;
         self.keeper = keeper;
     }
-    
+
     /// @notice Converts a given amount of assets to shares at checkpoint in the global context
     /// @param assets Number of assets to convert to shares
     /// @return Amount of shares for the given assets at checkpoint
@@ -94,7 +94,7 @@ library CheckpointLib {
     /// @return Amount of assets for the given shares at checkpoint
     function toAssetsGlobal(Checkpoint memory self, UFixed6 shares) internal pure returns (UFixed6) {
         // vault is fresh, use par value
-        return self.shares.isZero() ? shares : _withoutKeeperGlobal(self, _toAssets(self, shares));
+        return _withoutKeeperGlobal(self, self.shares.isZero() ? shares : _toAssets(self, shares));
     }
 
 
@@ -114,7 +114,30 @@ library CheckpointLib {
     /// @return Amount of assets for the given shares at checkpoint
     function toAssetsLocal(Checkpoint memory self, UFixed6 shares) internal pure returns (UFixed6) {
         // vault is fresh, use par value
-        return self.shares.isZero() ? shares : _withoutKeeperGlobal(self, _toAssets(self, shares));
+        return _withoutKeeperLocal(self, self.shares.isZero() ? shares : _toAssets(self, shares));
+    }
+
+    /// @notice Converts a given amount of assets to shares at checkpoint in the global context
+    /// @dev Dev used in limit calculations when a non-historical keeper fee must be used
+    /// @param assets Number of assets to convert to shares
+    /// @param keeper Custom keeper fee
+    /// @return Amount of shares for the given assets at checkpoint
+    function toShares(Checkpoint memory self, UFixed6 assets, UFixed6 keeper) internal pure returns (UFixed6) {
+        // vault is fresh, use par value
+        if (self.shares.isZero()) return assets;
+
+        // if vault is insolvent, default to par value
+        return  self.assets.lte(Fixed6Lib.ZERO) ? assets : _toShares(self, _withoutKeeper(assets, keeper));
+    }
+
+    /// @notice Converts a given amount of shares to assets with checkpoint in the global context
+    /// @dev Dev used in limit calculations when a non-historical keeper fee must be used
+    /// @param shares Number of shares to convert to shares
+    /// @param keeper Custom keeper fee
+    /// @return Amount of assets for the given shares at checkpoint
+    function toAssets(Checkpoint memory self, UFixed6 shares, UFixed6 keeper) internal pure returns (UFixed6) {
+        // vault is fresh, use par value
+        return _withoutKeeper(self.shares.isZero() ? shares : _toAssets(self, shares), keeper);
     }
 
     /// @notice Converts a given amount of assets to shares at checkpoint
@@ -150,7 +173,7 @@ library CheckpointLib {
     /// @param amount The amount to apply the fee to
     /// @return The amount with the settlement fee
     function _withoutKeeperGlobal(Checkpoint memory self, UFixed6 amount) private pure returns (UFixed6) {
-        return amount.sub(self.keeper.min(amount));
+        return _withoutKeeper(amount, self.keeper);
     }
 
     /// @notice Applies the fixed settlement fee to a given amount in the local context
@@ -159,7 +182,15 @@ library CheckpointLib {
     /// @return The amount with the settlement fee
     function _withoutKeeperLocal(Checkpoint memory self, UFixed6 amount) private pure returns (UFixed6) {
         UFixed6 keeperPer = self.count == 0 ? UFixed6Lib.ZERO : self.keeper.div(UFixed6Lib.from(self.count));
-        return amount.sub(keeperPer.min(amount));
+        return _withoutKeeper(amount, keeperPer);
+    }
+
+    /// @notice Applies the fixed settlement fee to a given amount in the local context
+    /// @param amount The amount to apply the fee to
+    /// @param keeper The amount of settlement fee to deduct
+    /// @return The amount with the settlement fee
+    function _withoutKeeper(UFixed6 amount, UFixed6 keeper) private pure returns (UFixed6) {
+        return amount.sub(keeper.min(amount));
     }
 
     /// @notice Returns if the checkpoint is healthy
