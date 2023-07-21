@@ -9,10 +9,6 @@ import { buildLiquidateUser, buildUpdateMarket } from '../../helpers/invoke'
 
 export const TIMESTAMP_2 = 1631113819
 
-// TODO(coverage-hint): user under minMaintenance
-// TODO(coverage-hint): liquidationFee under minLiquidationFee
-// TODO(coverage-hint): liquidationFee above maxLiquidationFee
-
 describe('Liquidate', () => {
   let instanceVars: InstanceVars
 

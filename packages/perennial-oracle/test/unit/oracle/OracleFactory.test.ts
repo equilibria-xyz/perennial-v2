@@ -78,7 +78,7 @@ describe('OracleFactory', () => {
 
       const oracleAddress = await factory.callStatic.create(PYTH_ETH_USD_PRICE_FEED, subOracleFactory.address)
       await expect(factory.connect(owner).create(PYTH_ETH_USD_PRICE_FEED, subOracleFactory.address))
-        .to.emit(factory, 'InstanceCreated')
+        .to.emit(factory, 'InstanceRegistered')
         .withArgs(oracleAddress)
         .to.emit(factory, 'OracleCreated')
         .withArgs(oracleAddress, PYTH_ETH_USD_PRICE_FEED)

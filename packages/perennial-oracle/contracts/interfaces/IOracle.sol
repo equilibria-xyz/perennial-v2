@@ -10,13 +10,21 @@ interface IOracle is IOracleProvider, IInstance {
 
     event OracleUpdated(IOracleProvider newProvider);
 
-    struct Checkpoint { // TODO: naming
+    /// @dev The state for a single epoch
+    struct Epoch {
+        /// @dev The oracle provider for this epoch
         IOracleProvider provider;
-        uint96 timestamp; /// @dev The last timestamp that this oracle provider is valid
+
+        /// @dev The last timestamp that this oracle provider is valid
+        uint96 timestamp;
     }
 
+    /// @dev The global state for oracle
     struct Global {
+        /// @dev The current epoch
         uint128 current;
+
+        /// @dev The latest epoch
         uint128 latest;
     }
 

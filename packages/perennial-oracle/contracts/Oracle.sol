@@ -10,7 +10,7 @@ import "./interfaces/IOracleProviderFactory.sol";
 /// @dev Manages swapping between different underlying oracle provider interfaces over time.
 contract Oracle is IOracle, Instance {
     /// @notice A historical mapping of underlying oracle providers
-    mapping(uint256 => Checkpoint) public oracles;
+    mapping(uint256 => Epoch) public oracles;
 
     /// @notice The global state of the oracle
     Global public global;
@@ -74,7 +74,7 @@ contract Oracle is IOracle, Instance {
     /// @param newProvider The new oracle provider
     function _updateCurrent(IOracleProvider newProvider) private {
         if (global.current != global.latest) revert OracleOutOfSyncError();
-        oracles[uint256(++global.current)] = Checkpoint(newProvider, uint96(newProvider.current()));
+        oracles[uint256(++global.current)] = Epoch(newProvider, uint96(newProvider.current()));
         emit OracleUpdated(newProvider);
     }
 
@@ -97,7 +97,7 @@ contract Oracle is IOracle, Instance {
         latestVersion = isLatestStale ? currentOracleLatestVersion : oracles[global.latest].provider.latest();
 
         uint256 latestOracleTimestamp =
-                            uint256(isLatestStale ? oracles[global.current].timestamp : oracles[global.latest].timestamp);
+            uint256(isLatestStale ? oracles[global.current].timestamp : oracles[global.latest].timestamp);
         if (!isLatestStale && latestVersion.timestamp > latestOracleTimestamp)
             return at(latestOracleTimestamp);
     }
