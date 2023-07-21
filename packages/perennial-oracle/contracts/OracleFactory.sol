@@ -3,7 +3,7 @@ pragma solidity 0.8.19;
 
 import "@equilibria/root/token/types/Token18.sol";
 import "@equilibria/root-v2/contracts/Factory.sol";
-import "./interfaces/IOracleProviderFactory.sol";
+import "@equilibria/perennial-v2/contracts/interfaces/IOracleProviderFactory.sol";
 import "./interfaces/IOracleFactory.sol";
 
 /// @title OracleFactory
@@ -104,5 +104,12 @@ contract OracleFactory is IOracleFactory, Factory {
         IFactory callerFactory = callerInstance.factory();
         if (!callerFactory.instances(callerInstance)) return false;
         return callers[callerFactory];
+    }
+
+    // @notice Claims the oracle's fee from the given market
+    /// @param market The market to claim from
+    function fund(IMarket market) external {
+        if (!instances(IInstance(address(market.oracle())))) revert FactoryNotInstanceError();
+        market.claimFee();
     }
 }

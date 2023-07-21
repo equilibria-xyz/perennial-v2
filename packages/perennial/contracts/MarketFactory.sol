@@ -2,8 +2,8 @@
 pragma solidity 0.8.19;
 
 import "@equilibria/root-v2/contracts/Factory.sol";
-import "@equilibria/perennial-v2-payoff/contracts/interfaces/IPayoffProvider.sol";
-import "@equilibria/perennial-v2-oracle/contracts/interfaces/IOracleProvider.sol";
+import "./interfaces/IPayoffProvider.sol";
+import "./interfaces/IOracleProvider.sol";
 import "./interfaces/IMarketFactory.sol";
 
 /// @title MarketFactory

@@ -3,7 +3,7 @@ pragma solidity ^0.8.13;
 
 import "@equilibria/root-v2/contracts/IInstance.sol";
 import "@equilibria/root-v2/contracts/IKept.sol";
-import "./IOracleProvider.sol";
+import "@equilibria/perennial-v2/contracts/interfaces/IOracleProvider.sol";
 
 interface IPythOracle is IOracleProvider, IInstance, IKept {
     error PythOracleInvalidPriceIdError(bytes32 id);

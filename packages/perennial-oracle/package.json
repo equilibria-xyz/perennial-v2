@@ -32,5 +32,7 @@
   },
   "author": "",
   "license": "APACHE-2.0",
-  "dependencies": {}
+  "dependencies": {
+    "@equilibria/perennial-v2": "1.0.0"
+  }
 }

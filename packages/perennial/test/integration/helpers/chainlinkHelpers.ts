@@ -2,13 +2,9 @@ import HRE from 'hardhat'
 import { BigNumber } from 'ethers'
 import { smock, FakeContract } from '@defi-wonderland/smock'
 
-import {
-  FeedRegistryInterface__factory,
-  FeedRegistryInterface,
-  IOracleProvider,
-  IOracleFactory,
-} from '../../../types/generated'
+import { FeedRegistryInterface__factory, FeedRegistryInterface, IOracleProvider } from '../../../types/generated'
 import { buildChainlinkRoundId } from '@equilibria/perennial-v2-oracle/util/buildChainlinkRoundId'
+import { IOracleFactory, IOracleFactory__factory } from '@equilibria/perennial-v2-oracle/types/generated'
 
 const { ethers, deployments } = HRE
 
@@ -48,7 +44,7 @@ export class ChainlinkContext {
       owner,
     )
     this.oracle = await smock.fake<IOracleProvider>('IOracleProvider')
-    this.oracleFactory = await smock.fake<IOracleFactory>('IOracleFactory')
+    this.oracleFactory = await smock.fake<IOracleFactory>(IOracleFactory__factory)
     this.decimals = await this.feedRegistryExternal.decimals(this.base, this.quote)
 
     this.oracleFactory.instances.whenCalledWith(this.oracle.address).returns(true)
