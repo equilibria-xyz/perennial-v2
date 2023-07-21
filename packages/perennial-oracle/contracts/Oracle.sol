@@ -31,10 +31,11 @@ contract Oracle is IOracle, Instance {
     }
 
     /// @notice Requests a new version at the current timestamp
-    function request() external onlyAuthorized {
+    /// @param account Original sender to optionally use for callbacks
+    function request(address account) external onlyAuthorized {
         (OracleVersion memory latestVersion, uint256 currentTimestamp) = oracles[global.current].provider.status();
 
-        oracles[global.current].provider.request();
+        oracles[global.current].provider.request(account);
         oracles[global.current].timestamp = uint96(currentTimestamp);
         _updateLatest(latestVersion);
     }

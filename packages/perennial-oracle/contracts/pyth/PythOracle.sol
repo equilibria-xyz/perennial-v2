@@ -73,7 +73,8 @@ contract PythOracle is IPythOracle, Instance, UKept {
     }
 
     /// @notice Records a request for a new oracle version
-    function request() external onlyAuthorized {
+    /// @dev Original sender to optionally use for callbacks
+    function request(address) external onlyAuthorized {
         if (versionList.length == 0 || versionList[versionList.length - 1] != block.timestamp) {
             versionList.push(block.timestamp);
         }

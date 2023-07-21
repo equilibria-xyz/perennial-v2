@@ -284,7 +284,7 @@ contract Market is IMarket, Instance {
         bool protected = context.local.protect(context.latestPosition.local, context.currentTimestamp, protect);
 
         // request version
-        if (!newOrder.isEmpty()) oracle.request();
+        if (!newOrder.isEmpty()) oracle.request(account);
 
         // after
         _invariant(context, account, newOrder, collateral, protected);
