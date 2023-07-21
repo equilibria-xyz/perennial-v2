@@ -30,6 +30,12 @@ import {
   VaultFactory,
   VaultFactory__factory,
   Vault__factory,
+  OracleFactory,
+  Oracle__factory,
+  OracleFactory__factory,
+  IOracle__factory,
+  PayoffFactory__factory,
+  PayoffFactory,
 } from '../../../types/generated'
 
 // v2 core types
@@ -50,22 +56,14 @@ import { parse6decimal } from '../../../../common/testutil/types'
 import { buildChainlinkRoundId } from '@equilibria/perennial-v2-oracle/util/buildChainlinkRoundId'
 import { CHAINLINK_CUSTOM_CURRENCIES } from '@equilibria/perennial-v2-oracle/util/constants'
 import { currentBlockTimestamp } from '../../../../common/testutil/time'
-import { OracleFactory } from '@equilibria/perennial-v2/types/generated/@equilibria/perennial-v2-oracle/contracts'
-import { PayoffFactory } from '@equilibria/perennial-v2/types/generated/@equilibria/perennial-v2-payoff/contracts'
-import { MarketFactory } from '@equilibria/perennial-v2/types/generated/contracts'
-import {
-  OracleFactory__factory,
-  Oracle__factory,
-} from '@equilibria/perennial-v2/types/generated/factories/@equilibria/perennial-v2-oracle/contracts'
 
-//import {} from '@equilibria/perennial-v2-vault/types/generated'
-import { PayoffFactory__factory } from '@equilibria/perennial-v2/types/generated/factories/@equilibria/perennial-v2-payoff/contracts'
-import { MarketFactory__factory } from '@equilibria/perennial-v2/types/generated/factories/contracts'
-import { IOracle__factory } from '@equilibria/perennial-v2/types/generated/factories/@equilibria/perennial-v2-oracle/contracts/interfaces'
+import { MarketFactory } from '@equilibria/perennial-v2/types/generated/contracts'
+
 import {
   MarketParameterStruct,
   RiskParameterStruct,
 } from '../../../types/generated/@equilibria/perennial-v2/contracts/Market'
+import { MarketFactory__factory } from '@equilibria/perennial-v2/types/generated'
 
 const { config, deployments, ethers } = HRE
 
@@ -331,11 +329,11 @@ export async function createVault(
   await vaultFactory.initialize()
 
   const vault = IVault__factory.connect(
-    await vaultFactory.callStatic.create(instanceVars.dsu.address, market.address, 'Blue Chip', 'BC'),
+    await vaultFactory.callStatic.create(instanceVars.dsu.address, market.address, 'Blue Chip'),
     instanceVars.owner,
   )
 
-  await vaultFactory.create(instanceVars.dsu.address, market.address, 'Blue Chip', 'BC')
+  await vaultFactory.create(instanceVars.dsu.address, market.address, 'Blue Chip')
 
   //await vault.connect(instanceVars.owner).register(market.address)
 
@@ -357,11 +355,12 @@ export async function createInvoker(instanceVars: InstanceVars, vaultFactory?: V
     vaultFactory ? vaultFactory.address : ethers.utils.hexZeroPad('0x', 20), // todo factory?
     BATCHER,
     DSU_MINTER,
+    parse6decimal('1.5'),
   )
 
   await instanceVars.marketFactory.connect(user).updateOperator(multiInvoker.address, true)
   await instanceVars.marketFactory.connect(userB).updateOperator(multiInvoker.address, true)
-  await multiInvoker.initialize(ETH_ORACLE)
+  await multiInvoker.initialize(chainlink.oracle.address)
 
   return multiInvoker
 }

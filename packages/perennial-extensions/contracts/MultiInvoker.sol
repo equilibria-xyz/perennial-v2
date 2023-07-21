@@ -96,6 +96,7 @@ contract MultiInvoker is IMultiInvoker, Kept {
         if (order.fee.isZero()) return false;
         console.logInt(Fixed6.unwrap(order.price));
         console.logInt(Fixed6.unwrap(_getMarketPrice(market, account)));
+        console.logInt(Fixed6.unwrap(market.oracle().latest().price));
         return order.fillable(_getMarketPrice(market, account));
     }
 

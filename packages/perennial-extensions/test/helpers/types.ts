@@ -57,7 +57,6 @@ export const openTriggerOrder = ({
 
   if (BigNumber.from(size).isNegative()) throw Error('size must be positive')
 
-  console.log(feePct)
   return {
     side: side ? (side === 'L' ? 1 : 2) : 1,
     comparison: 0,

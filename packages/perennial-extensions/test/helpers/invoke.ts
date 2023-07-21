@@ -112,7 +112,7 @@ export const buildPlaceOrder = ({
   long?: BigNumberish
   short?: BigNumberish
   triggerType?: TriggerType
-  collateral?: BigNumberish
+  collateral: BigNumberish
   handleWrap?: boolean
   order: TriggerOrderStruct
   comparisonOverride?: number
@@ -142,8 +142,9 @@ export const buildPlaceOrder = ({
     short = order.side === 2 ? order.delta.abs() : '0'
   }
 
-  order.fee = BigNumber.from(collateral!).div(BigNumber.from(order.delta).abs()).mul(order.fee)
-  console.log(order.fee, collateral)
+  // TODO: this is disgusting
+  order.fee = BigNumber.from(collateral).div(BigNumber.from(order.delta).abs()).mul(order.fee)
+  // console.log(order.fee, collateral)
   order = triggerDirection(order, triggerType, comparisonOverride)
   order.side = sideOverride || sideOverride === 0 ? sideOverride : order.side
 

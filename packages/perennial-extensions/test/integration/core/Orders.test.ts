@@ -135,7 +135,12 @@ describe('Orders', () => {
     const { user, userB, dsu, chainlink } = instanceVars
 
     const trigger = openTriggerOrder({ size: userPosition, price: marketPrice.div(2), feePct: 50 })
-    const placeOrder = buildPlaceOrder({ market: market.address, order: trigger, triggerType: 'LM' })
+    const placeOrder = buildPlaceOrder({
+      market: market.address,
+      order: trigger,
+      collateral: collateral,
+      triggerType: 'LM',
+    })
 
     // await expect(multiInvoker.connect(user).invoke(placeOrder)).to.not.be.reverted
     // expect(await multiInvoker.canExecuteOrder(user.address, market.address, 1)).to.be.false
@@ -160,7 +165,12 @@ describe('Orders', () => {
       side: 'S',
       trigger: 'LM',
     })
-    const placeOrder = buildPlaceOrder({ market: market.address, order: trigger, triggerType: 'LM' })
+    const placeOrder = buildPlaceOrder({
+      market: market.address,
+      order: trigger,
+      collateral: collateral,
+      triggerType: 'LM',
+    })
 
     await expect(multiInvoker.connect(user).invoke(placeOrder)).to.not.be.reverted
     expect(await multiInvoker.canExecuteOrder(user.address, market.address, 1)).to.be.false
@@ -182,7 +192,7 @@ describe('Orders', () => {
 
     const trigger = openTriggerOrder({
       size: userPosition,
-      price: payoff(marketPrice.add(1)),
+      price: payoff(marketPrice.add(10)),
       feePct: 50,
       trigger: 'TP',
     })
@@ -196,12 +206,42 @@ describe('Orders', () => {
     await expect(multiInvoker.connect(user).invoke(placeOrder)).to.not.be.reverted
     expect(await multiInvoker.canExecuteOrder(user.address, market.address, 1)).to.be.false
 
-    await chainlink.nextWithPriceModification(marketPrice => marketPrice.add(2))
+    await chainlink.nextWithPriceModification(marketPrice => marketPrice.add(11))
     await settle(market, user)
 
     const execute = buildExecOrder({ user: user.address, market: market.address, orderId: 1 })
     expect(await multiInvoker.connect(user).invoke(execute))
-      .to.not.be.reverted.to.emit(multiInvoker, 'OrderExecuted')
+      .to.emit(multiInvoker, 'OrderExecuted')
+      .withArgs(user.address, market.address, 1, anyValue)
+      .to.emit(multiInvoker, 'KeeperCall')
+  })
+
+  it('executes a short tp order', async () => {
+    const { user, userB, dsu, chainlink } = instanceVars
+
+    const trigger = openTriggerOrder({
+      size: userPosition,
+      price: payoff(marketPrice.sub(10)),
+      feePct: 50,
+      trigger: 'TP',
+      side: 'S',
+    })
+    const placeOrder = buildPlaceOrder({
+      market: market.address,
+      order: trigger,
+      collateral: collateral,
+      triggerType: 'TP',
+    })
+
+    await expect(multiInvoker.connect(user).invoke(placeOrder)).to.not.be.reverted
+    expect(await multiInvoker.canExecuteOrder(user.address, market.address, 1)).to.be.false
+
+    await chainlink.nextWithPriceModification(marketPrice => marketPrice.sub(20))
+    await settle(market, user)
+
+    const execute = buildExecOrder({ user: user.address, market: market.address, orderId: 1 })
+    expect(await multiInvoker.connect(user).invoke(execute))
+      .to.emit(multiInvoker, 'OrderExecuted')
       .withArgs(user.address, market.address, 1, anyValue)
       .to.emit(multiInvoker, 'KeeperCall')
   })

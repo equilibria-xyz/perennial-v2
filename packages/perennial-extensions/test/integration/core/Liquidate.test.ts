@@ -48,7 +48,7 @@ describe('Liquidate', () => {
 
     expect((await market.locals(user.address)).collateral).to.equal('317221012')
     expect(await dsu.balanceOf(market.address)).to.equal(utils.parseEther('317.221012'))
-    expect(await dsu.balanceOf(userB.address)).to.equal(utils.parseEther('200000682.778988')) // Original 200000000 + fee
+    expect(await usdc.balanceOf(userB.address)).to.equal(parse6decimal('200000682.778988')) // Original 200000000 + fee
 
     await chainlink.next()
     await market.connect(user).update(user.address, 0, 0, 0, constants.MinInt256, false) // withdraw everything
