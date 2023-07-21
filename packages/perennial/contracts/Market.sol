@@ -315,7 +315,7 @@ contract Market is IMarket, Instance {
 
         // oracle
         (context.latestVersion, context.currentTimestamp) = _oracleVersion();
-        context.positionVersion = _oracleVersionAtPosition(context, _position.read()); // TODO: remove this
+        context.positionVersion = _oracleVersionAtPosition(context, _position.read());
 
         // after
         _endGas(context);
@@ -408,7 +408,7 @@ contract Market is IMarket, Instance {
     /// @param newPosition The pending position to process
     function _processPositionGlobal(Context memory context, Position memory newPosition) private {
         Version memory version = _versions[context.latestPosition.global.timestamp].read();
-        OracleVersion memory oracleVersion = _oracleVersionAtPosition(context, newPosition); // TODO: seems weird some logic is in here
+        OracleVersion memory oracleVersion = _oracleVersionAtPosition(context, newPosition);
         if (!oracleVersion.valid) newPosition.invalidate(context.latestPosition.global);
 
         (uint256 fromTimestamp, uint256 fromId) = (context.latestPosition.global.timestamp, context.latestPosition.global.id);
@@ -416,7 +416,7 @@ contract Market is IMarket, Instance {
             context.global,
             context.latestPosition.global,
             newPosition,
-            context.positionVersion, // TODO: ??
+            context.positionVersion,
             oracleVersion,
             context.marketParameter,
             context.riskParameter
