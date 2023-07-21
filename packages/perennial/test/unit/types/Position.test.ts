@@ -743,11 +743,11 @@ describe('Position', () => {
           const latestEfficiency = await position.efficiency()
 
           const updatedOrder = await position.callStatic[
-            'update(uint256,uint256,(int256,int256,int256,uint256,int256,int256,int256,uint256,uint256,int256),(uint256,uint256,uint256,uint256,uint256,uint256,uint256,uint256,uint256,uint256,uint256,(uint256,uint256,uint256,uint256),(uint256,uint256),uint256,uint256,uint256,bool))'
+            'update(uint256,uint256,(int256,int256,int256,int256,uint256,int256,int256,int256,uint256,uint256),(uint256,uint256,uint256,uint256,uint256,uint256,uint256,uint256,uint256,uint256,uint256,(uint256,uint256,uint256,uint256),(uint256,uint256),uint256,uint256,uint256,bool))'
           ](20, 123456, VALID_ORDER, VALID_RISK_PARAMETER)
 
           await position[
-            'update(uint256,uint256,(int256,int256,int256,uint256,int256,int256,int256,uint256,uint256,int256),(uint256,uint256,uint256,uint256,uint256,uint256,uint256,uint256,uint256,uint256,uint256,(uint256,uint256,uint256,uint256),(uint256,uint256),uint256,uint256,uint256,bool))'
+            'update(uint256,uint256,(int256,int256,int256,int256,uint256,int256,int256,int256,uint256,uint256),(uint256,uint256,uint256,uint256,uint256,uint256,uint256,uint256,uint256,uint256,uint256,(uint256,uint256,uint256,uint256),(uint256,uint256),uint256,uint256,uint256,bool))'
           ](20, 123456, VALID_ORDER, VALID_RISK_PARAMETER)
 
           const value = await position.read()
@@ -773,7 +773,7 @@ describe('Position', () => {
             await position.store({ ...VALID_GLOBAL_POSITION, fee: 50, keeper: 60 })
 
             await position[
-              'update(uint256,uint256,(int256,int256,int256,uint256,int256,int256,int256,uint256,uint256,int256),(uint256,uint256,uint256,uint256,uint256,uint256,uint256,uint256,uint256,uint256,uint256,(uint256,uint256,uint256,uint256),(uint256,uint256),uint256,uint256,uint256,bool))'
+              'update(uint256,uint256,(int256,int256,int256,int256,uint256,int256,int256,int256,uint256,uint256),(uint256,uint256,uint256,uint256,uint256,uint256,uint256,uint256,uint256,uint256,uint256,(uint256,uint256,uint256,uint256),(uint256,uint256),uint256,uint256,uint256,bool))'
             ](VALID_GLOBAL_POSITION.id, 123456, VALID_ORDER, VALID_RISK_PARAMETER)
 
             const value = await position.read()

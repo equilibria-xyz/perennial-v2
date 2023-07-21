@@ -2,8 +2,7 @@
 pragma solidity 0.8.19;
 
 import "@equilibria/root-v2/contracts/Factory.sol";
-import "@equilibria/perennial-v2-payoff/contracts/interfaces/IPayoffFactory.sol";
-import "@equilibria/perennial-v2-oracle/contracts/interfaces/IOracleFactory.sol";
+import "@equilibria/perennial-v2-payoff/contracts/interfaces/IPayoffProvider.sol";
 import "@equilibria/perennial-v2-oracle/contracts/interfaces/IOracleProvider.sol";
 import "./interfaces/IMarketFactory.sol";
 
@@ -14,7 +13,7 @@ contract MarketFactory is IMarketFactory, Factory {
     IFactory public immutable oracleFactory;
 
     /// @dev The payoff factory
-    IPayoffFactory public immutable payoffFactory; // TODO(cleanup): can we make this IFactory?
+    IFactory public immutable payoffFactory;
 
     /// @dev The global protocol parameters
     ProtocolParameterStorage private _parameter;
@@ -29,11 +28,7 @@ contract MarketFactory is IMarketFactory, Factory {
     /// @param oracleFactory_ The oracle factory
     /// @param payoffFactory_ The payoff factory
     /// @param implementation_ The initial market implementation contract
-    constructor(
-        IOracleFactory oracleFactory_,
-        IPayoffFactory payoffFactory_,
-        address implementation_
-    ) Factory(implementation_) {
+    constructor(IFactory oracleFactory_, IFactory payoffFactory_, address implementation_) Factory(implementation_) {
         oracleFactory = oracleFactory_;
         payoffFactory = payoffFactory_;
     }
@@ -68,8 +63,10 @@ contract MarketFactory is IMarketFactory, Factory {
     /// @return newMarket New market contract address
     function create(IMarket.MarketDefinition calldata definition) external onlyOwner returns (IMarket newMarket) {
         // verify payoff
-        if (definition.payoff != IPayoffProvider(address(0)) && !payoffFactory.payoffs(definition.payoff))
-            revert FactoryInvalidPayoffError();
+        if (
+            definition.payoff != IPayoffProvider(address(0)) &&
+            !payoffFactory.instances(IInstance(address(definition.payoff)))
+        ) revert FactoryInvalidPayoffError();
 
         // verify oracle
         if (!oracleFactory.instances(IInstance(address(definition.oracle)))) revert FactoryInvalidOracleError();

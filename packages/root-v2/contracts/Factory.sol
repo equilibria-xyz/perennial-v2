@@ -29,8 +29,12 @@ abstract contract Factory is IFactory, UOwnable, UPausable {
 
     function _create(bytes memory data) internal returns (IInstance newInstance) {
         newInstance = IInstance(address(new BeaconProxy(address(this), data)));
+        _register(newInstance);
+    }
+
+    function _register(IInstance newInstance) internal {
         _instances()[newInstance] = true;
-        emit InstanceCreated(newInstance);
+        emit InstanceRegistered(newInstance);
     }
 
     function _instances() private pure returns (mapping(IInstance => bool) storage r) {
