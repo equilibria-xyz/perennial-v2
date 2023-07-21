@@ -105,4 +105,11 @@ contract OracleFactory is IOracleFactory, Factory {
         if (!callerFactory.instances(callerInstance)) return false;
         return callers[callerFactory];
     }
+
+    // @notice Claims the oracle's fee from the given market
+    /// @param market The market to claim from
+    function fund(IMarket market) external {
+        if (!instances(IInstance(address(market.oracle())))) revert FactoryNotInstanceError();
+        market.claimFee();
+    }
 }
