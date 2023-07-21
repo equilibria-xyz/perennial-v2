@@ -32,9 +32,6 @@ interface IMarket is IInstance {
         Local local;
         PositionContext currentPosition;
         PositionContext latestPosition;
-
-        uint256 gasCounter;
-        string gasCounterMessage;
     }
 
     struct PositionContext {
