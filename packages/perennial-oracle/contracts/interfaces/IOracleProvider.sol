@@ -9,7 +9,6 @@ import "../types/OracleVersion.sol";
 ///           versions may be posted for the purpose of expedient liquidations
 ///       - Versions are allowed to "fail" and will be marked as .valid = false
 ///       - Versions must be committed in order, i.e. all requested versions prior to latestVersion must be available
-///       - The latest version must always be a "valid" version, invalid versions will not update latest // TODO: evaluating this
 ///       - Non-requested versions may be committed, but will not receive a keeper reward
 ///         - This is useful for immediately liquidating an account with a valid off-chain price in between orders
 ///         - Satisfying the above constraints, only versions more recent than the latest version may be committed

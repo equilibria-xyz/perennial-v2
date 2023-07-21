@@ -9,7 +9,7 @@ import "../types/Registration.sol";
 ///      - Positions are then targeted based on the amount of collateral that ends up deployed to each market.
 library StrategyLib {
     /// @dev The maximum multiplier that is allowed for leverage
-    UFixed6 private constant LEVERAGE_BUFFER = UFixed6.wrap(1.2e6); // TODO: param?
+    UFixed6 private constant LEVERAGE_BUFFER = UFixed6.wrap(1.2e6);
 
     /// @dev The context of an underlying market
     struct MarketContext {

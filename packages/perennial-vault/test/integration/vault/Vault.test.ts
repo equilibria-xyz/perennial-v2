@@ -33,10 +33,6 @@ const LEGACY_ORACLE_DELAY = 3600
 const ETH_PRICE_FEE_ID = '0x0000000000000000000000000000000000000000000000000000000000000001'
 const BTC_PRICE_FEE_ID = '0x0000000000000000000000000000000000000000000000000000000000000002'
 
-// TODO(coverage-hint): invalid version test (for global latest price)
-// TODO(coverage-hint: claimReward
-// TODO(coverage-hint: VaultExistingOrderError
-
 describe('Vault', () => {
   let vault: IVault
   let asset: IERC20Metadata
