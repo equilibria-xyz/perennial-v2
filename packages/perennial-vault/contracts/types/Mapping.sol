@@ -14,7 +14,7 @@ struct StoredMappingEntry {
     uint32[7] _ids;
 }
 struct StoredMapping {
-    StoredMappingEntry[] entries;
+    mapping(uint256 => StoredMappingEntry) entries;
 }
 struct MappingStorage { StoredMapping value; } // TODO(gas-hint): using mapping will save 1 slot store due to length
 using MappingStorageLib for MappingStorage global;
@@ -82,32 +82,29 @@ library MappingStorageLib {
     error MappingStorageInvalidError();
 
     function read(MappingStorage storage self) internal view returns (Mapping memory) {
-        StoredMapping memory storedValue = self.value;
-
-        uint256 length = storedValue.entries.length == 0 ? 0 : uint256(storedValue.entries[0]._length);
+        uint256 length = uint256(self.value.entries[0]._length);
         uint256[] memory entries = new uint256[](length);
 
         for (uint256 i; i < length; i++)
-            entries[i] = uint256(storedValue.entries[i / 7]._ids[i % 7]);
+            entries[i] = uint256(self.value.entries[i / 7]._ids[i % 7]);
 
         return Mapping(entries);
     }
 
     function store(MappingStorage storage self, Mapping memory newValue) internal {
-        if (self.value.entries.length > 0) revert MappingStorageInvalidError();
+        if (self.value.entries[0]._length > 0) revert MappingStorageInvalidError();
 
         StoredMappingEntry[] memory storedEntries = new StoredMappingEntry[](Math.ceilDiv(newValue._ids.length, 7));
 
         for (uint256 i; i < newValue._ids.length; i++) {
             if (newValue._ids[i] > uint256(type(uint32).max)) revert MappingStorageInvalidError();
-            if (newValue._ids.length > uint256(type(uint32).max)) revert MappingStorageInvalidError();
 
             storedEntries[i / 7]._length = uint32(newValue._ids.length);
             storedEntries[i / 7]._ids[i % 7] = uint32(newValue._ids[i]);
         }
 
         for (uint256 i; i < storedEntries.length; i++) {
-            self.value.entries.push(storedEntries[i]);
+            self.value.entries[i] = storedEntries[i];
         }
     }
 }
