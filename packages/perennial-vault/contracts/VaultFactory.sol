@@ -38,10 +38,7 @@ contract VaultFactory is IVaultFactory, Factory {
         IMarket initialMarket,
         string calldata name
     ) external onlyOwner returns (IVault newVault) {
-        // TODO: validation?
-
         newVault = IVault(address(_create(abi.encodeCall(IVault.initialize, (asset, initialMarket, name)))));
-
         emit VaultCreated(newVault, asset, initialMarket);
     }
 

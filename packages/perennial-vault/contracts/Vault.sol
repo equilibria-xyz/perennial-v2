@@ -373,8 +373,6 @@ contract Vault is IVault, Instance {
         assets = UFixed6Lib.from(collateral.sub(liabilities).max(Fixed6Lib.ZERO))
             // approximate assets up for redemption
             .mul(context.global.shares.unsafeDiv(context.global.shares.add(context.global.redemption)))
-            // add buffer to approximation to account for price changes
-            // TODO
             // deploy assets up for deposit
             .add(context.global.deposit);
     }
@@ -416,7 +414,7 @@ contract Vault is IVault, Instance {
             Position memory latestPosition = registration.market.position();
             OracleVersion memory latestOracleVersion = registration.market.at(latestPosition.timestamp);
 
-            context.markets[marketId].price = latestOracleVersion.valid ? // TODO: clean all this up
+            context.markets[marketId].price = latestOracleVersion.valid ?
                 latestOracleVersion.price.abs() :
                 global.latestPrice.abs();
             context.markets[marketId].currentPosition = currentPosition.maker;

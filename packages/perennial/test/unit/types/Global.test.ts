@@ -760,8 +760,6 @@ describe('Global', () => {
         ).revertedWithPanic(0x11)
       })
     })
-
-    // TODO: keeper
   })
 
   describe('#update', async () => {
