@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: Apache-2.0
 pragma solidity ^0.8.13;
 
-import "@equilibria/root-v2/contracts/Factory.sol";
+import "@equilibria/root/attribute/Factory.sol";
 import "./interfaces/IPayoffFactory.sol";
 
 /// @title PayoffFactory

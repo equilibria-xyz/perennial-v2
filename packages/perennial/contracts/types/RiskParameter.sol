@@ -2,8 +2,8 @@
 pragma solidity ^0.8.13;
 
 import "@equilibria/root/number/types/UFixed6.sol";
-import "@equilibria/root/curve/types/UJumpRateUtilizationCurve6.sol";
-import "@equilibria/root-v2/contracts/PController6.sol";
+import "@equilibria/root/utilization/types/UJumpRateUtilizationCurve6.sol";
+import "@equilibria/root/pid/types/PController6.sol";
 import "../interfaces/IOracleProvider.sol";
 import "../interfaces/IPayoffProvider.sol";
 import "./ProtocolParameter.sol";

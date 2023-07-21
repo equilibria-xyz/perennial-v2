@@ -29,8 +29,7 @@
   "author": "",
   "license": "Apache-2.0",
   "dependencies": {
-    "@chainlink/contracts": "0.3.1",
-    "@equilibria/root-v2": "1.0.0"
+    "@chainlink/contracts": "0.3.1"
   },
   "devDependencies": {
     "@ethersproject/abstract-provider": "^5",

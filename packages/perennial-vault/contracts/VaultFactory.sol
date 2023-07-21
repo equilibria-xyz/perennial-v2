@@ -1,9 +1,9 @@
 // SPDX-License-Identifier: Apache-2.0
 pragma solidity 0.8.19;
 
-import "@equilibria/root/control/unstructured/UOwnable.sol";
-import "@equilibria/root-v2/contracts/Factory.sol";
-import "@equilibria/root-v2/contracts/UPausable.sol";
+import "@equilibria/root/attribute/Ownable.sol";
+import "@equilibria/root/attribute/Factory.sol";
+import "@equilibria/root/attribute/Pausable.sol";
 import "./interfaces/IVaultFactory.sol";
 
 

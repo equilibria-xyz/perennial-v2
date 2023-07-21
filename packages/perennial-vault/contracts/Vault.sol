@@ -1,7 +1,7 @@
 //SPDX-License-Identifier: Apache-2.0
 pragma solidity 0.8.19;
 
-import "@equilibria/root-v2/contracts/Instance.sol";
+import "@equilibria/root/attribute/Instance.sol";
 import "@openzeppelin/contracts/utils/math/Math.sol";
 import "./interfaces/IVaultFactory.sol";
 import "./types/Account.sol";

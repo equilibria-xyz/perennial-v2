@@ -3,8 +3,8 @@ pragma solidity 0.8.19;
 
 import "@openzeppelin/contracts/utils/math/SafeCast.sol";
 import "@pythnetwork/pyth-sdk-solidity/AbstractPyth.sol";
-import "@equilibria/root-v2/contracts/Instance.sol";
-import "@equilibria/root-v2/contracts/UKept.sol";
+import "@equilibria/root/attribute/Instance.sol";
+import "@equilibria/root/attribute/Kept.sol";
 import "../interfaces/IPythFactory.sol";
 
 /// @title PythOracle
@@ -12,7 +12,7 @@ import "../interfaces/IPythFactory.sol";
 /// @dev One instance per Pyth price feed should be deployed. Multiple products may use the same
 ///      PythOracle instance if their payoff functions are based on the same underlying oracle.
 ///      This implementation only supports non-negative prices.
-contract PythOracle is IPythOracle, Instance, UKept {
+contract PythOracle is IPythOracle, Instance, Kept {
     /// @dev A Pyth update must come at least this long after a version to be valid
     uint256 constant private MIN_VALID_TIME_AFTER_VERSION = 12 seconds;
 
@@ -114,10 +114,10 @@ contract PythOracle is IPythOracle, Instance, UKept {
     /// @dev Will revert if there is an earlier versionIndex that could be committed with `updateData`
     /// @param versionIndex The index of the version to commit
     /// @param updateData The update data to commit
-    function commit(uint256 versionIndex, address feeReceiver, bytes calldata updateData)
+    function commit(uint256 versionIndex, bytes calldata updateData)
         external
         payable
-        keep(KEEPER_REWARD_PREMIUM, KEEPER_BUFFER, feeReceiver, "")
+        keep(KEEPER_REWARD_PREMIUM, KEEPER_BUFFER, "")
     {
         // This check isn't necessary since the caller would not be able to produce a valid updateData
         // with an update time corresponding to a null version, but reverting with a specific error is

@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: Apache-2.0
 pragma solidity 0.8.19;
 
-import "@equilibria/root-v2/contracts/Factory.sol";
+import "@equilibria/root/attribute/Factory.sol";
 import "./interfaces/IPayoffProvider.sol";
 import "./interfaces/IOracleProvider.sol";
 import "./interfaces/IMarketFactory.sol";

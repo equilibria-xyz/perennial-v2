@@ -2,7 +2,7 @@
 pragma solidity 0.8.19;
 
 import "@equilibria/root/token/types/Token18.sol";
-import "@equilibria/root-v2/contracts/Factory.sol";
+import "@equilibria/root/attribute/Factory.sol";
 import "@equilibria/perennial-v2/contracts/interfaces/IOracleProviderFactory.sol";
 import "./interfaces/IOracleFactory.sol";
 

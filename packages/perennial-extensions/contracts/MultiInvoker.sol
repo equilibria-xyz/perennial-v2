@@ -8,7 +8,7 @@ import { IMarketFactory } from "@equilibria/perennial-v2/contracts/interfaces/IM
 import { IVaultFactory } from "@equilibria/perennial-v2-vault/contracts/interfaces/IVaultFactory.sol";
 import { IBatcher } from "@equilibria/emptyset-batcher/interfaces/IBatcher.sol";
 import { IEmptySetReserve } from "@equilibria/emptyset-batcher/interfaces/IEmptySetReserve.sol";
-import { IInstance } from "@equilibria/root-v2/contracts/IInstance.sol";
+import { IInstance } from "@equilibria/root/attribute/interfaces/IInstance.sol";
 import { IPythOracle } from "@equilibria/perennial-v2-oracle/contracts/interfaces/IPythOracle.sol";
 import { TriggerOrderStorage } from "./types/TriggerOrder.sol";
 
@@ -18,9 +18,9 @@ import { IVault } from "@equilibria/perennial-v2-vault/contracts/interfaces/IVau
 import "hardhat/console.sol";
 
 import "./interfaces/IMultiInvoker.sol";
-import "@equilibria/root-v2/contracts/UKept.sol";
+import "@equilibria/root/attribute/Kept.sol";
 
-contract MultiInvoker is IMultiInvoker, UKept {
+contract MultiInvoker is IMultiInvoker, Kept {
 
     /// @dev Gas buffer estimating remaining execution gas to include in fee to cover further instructions
     uint256 public constant GAS_BUFFER = 100000; // solhint-disable-line var-name-mixedcase
@@ -134,7 +134,7 @@ contract MultiInvoker is IMultiInvoker, UKept {
                 (address oracleProvider, uint256 version, bytes memory data) =
                     abi.decode(invocation.args, (address, uint256, bytes));
 
-                IPythOracle(oracleProvider).commit(version, msg.sender, data);
+                IPythOracle(oracleProvider).commit(version, data);
             } else if (invocation.action == PerennialAction.LIQUIDATE) {
                 (IMarket market, address account) =
                     abi.decode(invocation.args, (IMarket, address));
@@ -145,8 +145,8 @@ contract MultiInvoker is IMultiInvoker, UKept {
                     abi.decode(invocation.args, (address));
                 _approve(target);
             } else if (invocation.action == PerennialAction.CHARGE_FEE) {
-                (address to, UFixed18 amount) =
-                    abi.decode(invocation.args, (address, UFixed18));
+                (address to, UFixed6 amount) =
+                    abi.decode(invocation.args, (address, UFixed6));
 
                 USDC.pullTo(msg.sender, to, amount);
             }
@@ -218,35 +218,34 @@ contract MultiInvoker is IMultiInvoker, UKept {
 
     /**
      * @notice Pull DSU or wrap and deposit USDC from msg.sender to this address for market usage
-     * @param collateralDelta Amount to transfer
-     * @param handleWrap Flag to wrap USDC to DSU
+     * @param amount Amount to transfer
      * @param handleWrap Flag to wrap USDC to DSU
      */
-    function _deposit(UFixed6 collateralDelta, bool handleWrap) internal {
+    function _deposit(UFixed6 amount, bool handleWrap) internal {
         if(handleWrap) {
-            USDC.pull(msg.sender, UFixed18Lib.from(collateralDelta), true);
-            _handleWrap(address(this), UFixed18Lib.from(collateralDelta));
+            USDC.pull(msg.sender, amount);
+            _handleWrap(address(this), UFixed18Lib.from(amount));
         } else {
-            DSU.pull(msg.sender, UFixed18Lib.from(collateralDelta));
+            DSU.pull(msg.sender, UFixed18Lib.from(amount));
         }
     }
 
-    // TODO: take UFixed18 as arg
     /**
      * @notice Push DSU or unwrap DSU to push USDC from this address to `account`
      * @param account Account to push DSU or USDC to
-     * @param collateralDelta Amount to transfer
+     * @param amount Amount to transfer
      * @param handleUnwrap flag to unwrap DSU to USDC
      */
-    function _withdraw(address account, UFixed6 collateralDelta, bool handleUnwrap) internal {
+    function _withdraw(address account, UFixed6 amount, bool handleUnwrap) internal {
         if (handleUnwrap) {
-            _handleUnwrap(account, UFixed18Lib.from(collateralDelta));
-            USDC.push(account, UFixed18Lib.from(collateralDelta));
+            _handleUnwrap(account, UFixed18Lib.from(amount));
+            USDC.push(account, amount);
         } else {
-            DSU.push(account, UFixed18Lib.from(collateralDelta)); // // @todo change to 1e6?
+            DSU.push(account, UFixed18Lib.from(amount));
         }
     }
 
+    // TODO: fix the receiver on these
     /**
      * @notice Helper function to wrap `amount` USDC from `msg.sender` into DSU using the batcher or reserve
      * @param receiver Address to receive the DSU
@@ -270,9 +269,9 @@ contract MultiInvoker is IMultiInvoker, UKept {
      */
     function _handleUnwrap(address receiver, UFixed18 amount) internal {
         // If the batcher is 0 or doesn't have enough for this unwrap, go directly to the reserve
-        if (address(batcher) == address(0) || amount.gt(USDC.balanceOf(address(batcher)))) {
+        if (address(batcher) == address(0) || amount.gt(UFixed18Lib.from(USDC.balanceOf(address(batcher))))) {
             reserve.redeem(amount);
-            if (receiver != address(this)) USDC.push(receiver, amount);
+            if (receiver != address(this)) USDC.push(receiver, UFixed6Lib.from(amount));
         } else {
             // Unwrap the DSU into USDC and return to the receiver
             batcher.unwrap(amount, receiver);
@@ -323,7 +322,6 @@ contract MultiInvoker is IMultiInvoker, UKept {
     ) internal keep (
         UFixed18Lib.from(keeperMultiplier),
         GAS_BUFFER,
-        msg.sender,
         abi.encode(account, market, orders(account, market, nonce).fee)
     ) {
         if (!canExecuteOrder(account, market, nonce)) revert MultiInvokerCantExecuteError();
