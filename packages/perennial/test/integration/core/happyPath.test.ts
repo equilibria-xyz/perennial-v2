@@ -16,10 +16,6 @@ import { CHAINLINK_CUSTOM_CURRENCIES } from '@equilibria/perennial-v2-oracle/uti
 import { loadFixture } from '@nomicfoundation/hardhat-network-helpers'
 import { ChainlinkContext } from '../helpers/chainlinkHelpers'
 
-//TODO (coverage hint): invalid version
-//TODO (coverage hint): short tests
-//TODO (coverage hint): stale oracle
-
 export const TIMESTAMP_0 = 1631112429
 export const TIMESTAMP_1 = 1631112904
 export const TIMESTAMP_2 = 1631113819
