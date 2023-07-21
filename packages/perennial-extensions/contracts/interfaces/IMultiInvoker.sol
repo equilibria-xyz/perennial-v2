@@ -27,7 +27,7 @@ interface IMultiInvoker {
         EXEC_ORDER,
         COMMIT_PRICE,
         LIQUIDATE,
-        APPROVE_MARKET,
+        APPROVE,
         VAULT_UPDATE, // @todo change tuple order in tests
         CHARGE_FEE
     }

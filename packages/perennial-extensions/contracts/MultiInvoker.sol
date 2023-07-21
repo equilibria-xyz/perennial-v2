@@ -2,26 +2,19 @@
 pragma solidity ^0.8.13;
 
 import { AggregatorV3Interface } from "@chainlink/contracts/src/v0.8/interfaces/AggregatorV3Interface.sol";
-// import { IFactory } from "@equilibria/root-v2/contracts/IFactory.sol";
-// TODO: @kevin import both market and vault factory to prevent mixup in constructor when deploying right?
-import { IMarketFactory } from "@equilibria/perennial-v2/contracts/interfaces/IMarketFactory.sol";
-import { IVaultFactory } from "@equilibria/perennial-v2-vault/contracts/interfaces/IVaultFactory.sol";
-import { IBatcher } from "@equilibria/emptyset-batcher/interfaces/IBatcher.sol";
 import { IEmptySetReserve } from "@equilibria/emptyset-batcher/interfaces/IEmptySetReserve.sol";
+import { IFactory } from "@equilibria/root/attribute/interfaces/IFactory.sol";
+import { IBatcher } from "@equilibria/emptyset-batcher/interfaces/IBatcher.sol";
 import { IInstance } from "@equilibria/root/attribute/interfaces/IInstance.sol";
 import { IPythOracle } from "@equilibria/perennial-v2-oracle/contracts/interfaces/IPythOracle.sol";
-import { TriggerOrderStorage } from "./types/TriggerOrder.sol";
-
-// @todo cleanup imports between here and imultiinvoker
 import { IVault } from "@equilibria/perennial-v2-vault/contracts/interfaces/IVault.sol";
-
-import "hardhat/console.sol";
-
 import "./interfaces/IMultiInvoker.sol";
+import "./types/TriggerOrder.sol";
 import "@equilibria/root/attribute/Kept.sol";
 
+/// @title MultiInvoker
+/// @notice Extension to handle batched calls to the Perennial protocol
 contract MultiInvoker is IMultiInvoker, Kept {
-
     /// @dev Gas buffer estimating remaining execution gas to include in fee to cover further instructions
     uint256 public constant GAS_BUFFER = 100000; // solhint-disable-line var-name-mixedcase
 
@@ -32,9 +25,9 @@ contract MultiInvoker is IMultiInvoker, Kept {
     Token18 public immutable DSU; // solhint-disable-line var-name-mixedcase
 
     /// @dev Protocol factory to validate market approvals
-    IMarketFactory public immutable marketFactory;
+    IFactory public immutable marketFactory;
 
-    IVaultFactory public immutable vaultFactory;
+    IFactory public immutable vaultFactory;
 
     /// @dev Batcher address
     IBatcher public immutable batcher;
@@ -43,7 +36,7 @@ contract MultiInvoker is IMultiInvoker, Kept {
     IEmptySetReserve public immutable reserve;
 
     /// @dev multiplier to charge accounts on top of gas cost for keeper executions
-    UFixed6 public keeperMultiplier;
+    UFixed6 public immutable keeperMultiplier;
 
     /// @dev UID for an order
     uint256 public latestNonce;
@@ -51,13 +44,22 @@ contract MultiInvoker is IMultiInvoker, Kept {
     /// @dev State for the order data
     mapping(address => mapping(IMarket => mapping(uint256 => TriggerOrderStorage))) public _orders;
 
+    /// @notice Constructs the MultiInvoker contract
+    /// @param usdc_ USDC stablecoin address
+    /// @param dsu_ DSU address
+    /// @param marketFactory_ Protocol factory to validate market approvals
+    /// @param vaultFactory_ Protocol factory to validate vault approvals
+    /// @param batcher_ Batcher address
+    /// @param reserve_ Reserve address
+    /// @param keeperMultiplier_ multiplier to charge accounts on top of gas cost for keeper executions
     constructor(
         Token6 usdc_,
         Token18 dsu_,
-        IMarketFactory marketFactory_,
-        IVaultFactory vaultFactory_,
+        IFactory marketFactory_,
+        IFactory vaultFactory_,
         IBatcher batcher_,
-        IEmptySetReserve reserve_
+        IEmptySetReserve reserve_,
+        UFixed6 keeperMultiplier_
     ) {
         USDC = usdc_;
         DSU = dsu_;
@@ -65,9 +67,11 @@ contract MultiInvoker is IMultiInvoker, Kept {
         vaultFactory = vaultFactory_;
         batcher = batcher_;
         reserve = reserve_;
-        keeperMultiplier = UFixed6.wrap(1.2e6); // TODO ???
+        keeperMultiplier = keeperMultiplier_;
     }
 
+    /// @notice Initialize the contract
+    /// @param ethOracle_ Chainlink ETH/USD oracle address
     function initialize(AggregatorV3Interface ethOracle_) external initializer(1) {
         __UKept__initialize(ethOracle_, DSU);
     }
@@ -80,44 +84,41 @@ contract MultiInvoker is IMultiInvoker, Kept {
         return _orders[account][market][nonce].read();
     }
 
-    function canExecuteOrder(address account, IMarket market, uint256 nonce) public view returns (bool canFill) {
+    /// @notice Returns whether an order can be executed
+    /// @param account Account to get open oder of
+    /// @param market Market to get open order in
+    /// @param nonce UID of order
+    /// @return canFill Whether the order can be executed
+    function canExecuteOrder(address account, IMarket market, uint256 nonce) public view returns (bool) {
         TriggerOrder memory order = orders(account, market, nonce);
         if (order.fee.isZero()) return false;
         return order.fillable(_getMarketPrice(market));
     }
 
-    // @todo not needed
-    /// @notice approves a market deployed by the factory to spend DSU
-    /// @param target Market or Vault to approve max DSU spending
-    function approve(address target) external { _approve(target); }
-
     /// @notice entry to perform invocations
     /// @param invocations List of actions to execute in order
     function invoke(Invocation[] calldata invocations) external {
-
         for(uint i = 0; i < invocations.length; ++i) {
             Invocation memory invocation = invocations[i];
 
-            // @todo consistent ordering of market and account
             if (invocation.action == PerennialAction.UPDATE_POSITION) {
                 (
                     IMarket market,
-                    UFixed6 makerDelta,
-                    UFixed6 longDelta,
-                    UFixed6 shortDelta,
-                    Fixed6 collateralDelta,
-                    bool handleWrap
+                    UFixed6 newMaker,
+                    UFixed6 newLong,
+                    UFixed6 newShort,
+                    Fixed6 collateral,
+                    bool wrap
                 ) = abi.decode(invocation.args, (IMarket, UFixed6, UFixed6, UFixed6, Fixed6, bool));
 
-                _update(market, makerDelta, longDelta, shortDelta, collateralDelta, handleWrap);
+                _update(market, newMaker, newLong, newShort, collateral, wrap);
             } else if (invocation.action == PerennialAction.UPDATE_VAULT) {
                 (IVault vault, UFixed6 depositAssets, UFixed6 redeemShares, UFixed6 claimAssets, bool wrap)
                     = abi.decode(invocation.args, (IVault, UFixed6, UFixed6, UFixed6, bool));
 
                 _vaultUpdate(vault, depositAssets, redeemShares, claimAssets, wrap);
             } else if (invocation.action == PerennialAction.PLACE_ORDER) {
-                (IMarket market, TriggerOrder memory order)
-                    = abi.decode(invocation.args, (IMarket, TriggerOrder));
+                (IMarket market, TriggerOrder memory order) = abi.decode(invocation.args, (IMarket, TriggerOrder));
 
                 _placeOrder(msg.sender, market, order);
             } else if (invocation.action == PerennialAction.CANCEL_ORDER) {
@@ -125,7 +126,6 @@ contract MultiInvoker is IMultiInvoker, Kept {
 
                 _cancelOrder(msg.sender, market, nonce);
             } else if (invocation.action == PerennialAction.EXEC_ORDER) {
-
                 (address account, IMarket market, uint256 nonce) =
                     abi.decode(invocation.args, (address, IMarket, uint256));
 
@@ -136,49 +136,51 @@ contract MultiInvoker is IMultiInvoker, Kept {
 
                 IPythOracle(oracleProvider).commit(version, data);
             } else if (invocation.action == PerennialAction.LIQUIDATE) {
-                (IMarket market, address account) =
-                    abi.decode(invocation.args, (IMarket, address));
+                (IMarket market, address account) = abi.decode(invocation.args, (IMarket, address));
 
                 _liquidate(IMarket(market), account);
-            } else if (invocation.action == PerennialAction.APPROVE_MARKET) { //TODO: rename here and in tests
-                (address target) =
-                    abi.decode(invocation.args, (address));
+            } else if (invocation.action == PerennialAction.APPROVE) {
+                (address target) = abi.decode(invocation.args, (address));
+
                 _approve(target);
             } else if (invocation.action == PerennialAction.CHARGE_FEE) {
-                (address to, UFixed6 amount) =
-                    abi.decode(invocation.args, (address, UFixed6));
+                (address to, UFixed6 amount) = abi.decode(invocation.args, (address, UFixed6));
 
                 USDC.pullTo(msg.sender, to, amount);
             }
         }
     }
 
-    /**
-     * @notice Updates market on behalf of msg.sender
-     * @param market Address of market up update
-     * @param newMaker New maker position for msg.sender in `market`
-     * @param newLong New long position for msg.sender in `market`
-     * @param newShort New short position for msg.sender in `market`
-     * @param collateralDelta Net change in collateral for msg.sender in `market`
-     */
+    /// @notice Updates market on behalf of msg.sender
+    /// @param market Address of market up update
+    /// @param newMaker New maker position for msg.sender in `market`
+    /// @param newLong New long position for msg.sender in `market`
+    /// @param newShort New short position for msg.sender in `market`
+    /// @param collateralDelta Net change in collateral for msg.sender in `market`
     function _update(
         IMarket market,
         UFixed6 newMaker,
         UFixed6 newLong,
         UFixed6 newShort,
         Fixed6 collateralDelta,
-        bool handleWrap
+        bool wrap
     ) internal {
         // collateral is transferred from this address to the market, transfer from msg.sender to here
-        if (collateralDelta.sign() == 1) _deposit(collateralDelta.abs(), handleWrap);
+        if (collateralDelta.sign() == 1) _deposit(collateralDelta.abs(), wrap);
 
         market.update(msg.sender, newMaker, newLong, newShort, collateralDelta, false);
 
         // collateral is transferred from the market to this address, transfer to msg.sender from here
-        if (collateralDelta.sign() == -1) _withdraw(msg.sender, collateralDelta.abs(), handleWrap);
+        if (collateralDelta.sign() == -1) _withdraw(msg.sender, collateralDelta.abs(), wrap);
     }
 
-    function _vaultUpdate(IVault vault, UFixed6 depositAssets, UFixed6 redeemShares, UFixed6 claimAssets, bool wrap) internal {
+    function _vaultUpdate(
+        IVault vault,
+        UFixed6 depositAssets,
+        UFixed6 redeemShares,
+        UFixed6 claimAssets,
+        bool wrap
+    ) internal {
         if (!depositAssets.isZero()) {
             _deposit(depositAssets, wrap);
         }
@@ -202,29 +204,26 @@ contract MultiInvoker is IMultiInvoker, Kept {
             true
         );
 
-        _withdraw(msg.sender, liquidationFee, false); // TODO: returns DSI?
+        _withdraw(msg.sender, liquidationFee, true);
     }
 
-    // TODO: rename?
-    /// @notice Helper fn to max approve DSU for usage in a market deployed by the factory
+    /// @notice Helper to max approve DSU for usage in a market or vault deployed by the registered factories
     /// @param target Market or Vault to approve
     function _approve(address target) internal {
-        if(
-            !marketFactory.instances(IInstance(target)) &&
-            !vaultFactory.instances(IInstance(target))
-        ) revert MultiInvokerInvalidApprovalError();
+        if(!marketFactory.instances(IInstance(target)) && !vaultFactory.instances(IInstance(target)))
+            revert MultiInvokerInvalidApprovalError();
         DSU.approve(target);
     }
 
     /**
      * @notice Pull DSU or wrap and deposit USDC from msg.sender to this address for market usage
      * @param amount Amount to transfer
-     * @param handleWrap Flag to wrap USDC to DSU
+     * @param wrap Flag to wrap USDC to DSU
      */
-    function _deposit(UFixed6 amount, bool handleWrap) internal {
-        if(handleWrap) {
+    function _deposit(UFixed6 amount, bool wrap) internal {
+        if (wrap) {
             USDC.pull(msg.sender, amount);
-            _handleWrap(address(this), UFixed18Lib.from(amount));
+            _wrap(address(this), UFixed18Lib.from(amount));
         } else {
             DSU.pull(msg.sender, UFixed18Lib.from(amount));
         }
@@ -234,24 +233,22 @@ contract MultiInvoker is IMultiInvoker, Kept {
      * @notice Push DSU or unwrap DSU to push USDC from this address to `account`
      * @param account Account to push DSU or USDC to
      * @param amount Amount to transfer
-     * @param handleUnwrap flag to unwrap DSU to USDC
+     * @param wrap flag to unwrap DSU to USDC
      */
-    function _withdraw(address account, UFixed6 amount, bool handleUnwrap) internal {
-        if (handleUnwrap) {
+    function _withdraw(address account, UFixed6 amount, bool wrap) internal {
+        if (wrap) {
             _handleUnwrap(account, UFixed18Lib.from(amount));
-            USDC.push(account, amount);
         } else {
             DSU.push(account, UFixed18Lib.from(amount));
         }
     }
 
-    // TODO: fix the receiver on these
     /**
      * @notice Helper function to wrap `amount` USDC from `msg.sender` into DSU using the batcher or reserve
      * @param receiver Address to receive the DSU
      * @param amount Amount of USDC to wrap
      */
-    function _handleWrap(address receiver, UFixed18 amount) internal {
+    function _wrap(address receiver, UFixed18 amount) internal {
         // If the batcher is 0 or  doesn't have enough for this wrap, go directly to the reserve
         if (address(batcher) == address(0) || amount.gt(DSU.balanceOf(address(batcher)))) {
             reserve.mint(amount);
