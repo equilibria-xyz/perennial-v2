@@ -2,8 +2,6 @@
 pragma solidity ^0.8.13;
 
 import "@equilibria/root-v2/contracts/IFactory.sol";
-import "@equilibria/perennial-v2-payoff/contracts/interfaces/IPayoffFactory.sol";
-import "@equilibria/perennial-v2-oracle/contracts/interfaces/IOracleFactory.sol";
 import "../types/ProtocolParameter.sol";
 import "./IMarket.sol";
 
@@ -19,7 +17,7 @@ interface IMarketFactory is IFactory {
     error ProtocolParameterStorageInvalidError();
 
     function oracleFactory() external view returns (IFactory);
-    function payoffFactory() external view returns (IPayoffFactory);
+    function payoffFactory() external view returns (IFactory);
     function parameter() external view returns (ProtocolParameter memory);
     function operators(address account, address operator) external view returns (bool);
     function markets(IOracleProvider oracle, IPayoffProvider payoff) external view returns (IMarket);
