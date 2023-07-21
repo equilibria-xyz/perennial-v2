@@ -6,14 +6,7 @@ import HRE from 'hardhat'
 
 import { impersonate } from '../../../../common/testutil'
 
-import {
-  Market,
-  Market__factory,
-  IOracleProvider,
-  IERC20Metadata,
-  IMarketFactory,
-  PowerTwo__factory,
-} from '../../../types/generated'
+import { Market, Market__factory, IOracleProvider, IERC20Metadata, IMarketFactory } from '../../../types/generated'
 import {
   DEFAULT_POSITION,
   expectGlobalEq,
@@ -23,7 +16,7 @@ import {
   parse6decimal,
 } from '../../../../common/testutil/types'
 import { IMarket, MarketParameterStruct, RiskParameterStruct } from '../../../types/generated/contracts/Market'
-import { MilliPowerTwo__factory } from '@equilibria/perennial-v2-payoff/types/generated'
+import { MilliPowerTwo__factory, PowerTwo__factory } from '@equilibria/perennial-v2-payoff/types/generated'
 
 const { ethers } = HRE
 use(smock.matchers)
@@ -7826,8 +7819,7 @@ describe('Market', () => {
         })
 
         it('reverts if price is stale', async () => {
-          const riskParameter = { ...(await market.riskParameter()) }
-          riskParameter.staleAfter = 7200
+          const riskParameter = { ...(await market.riskParameter()), staleAfter: BigNumber.from(7200) }
           await market.connect(owner).updateRiskParameter(riskParameter)
 
           oracle.at.whenCalledWith(ORACLE_VERSION_1.timestamp).returns(ORACLE_VERSION_1)

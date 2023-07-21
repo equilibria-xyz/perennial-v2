@@ -11,12 +11,12 @@ import {
   IOracleProvider,
   IERC20Metadata,
   IPayoffProvider,
-  IPayoffFactory,
-  IOracleFactory,
   IMarket,
 } from '../../../types/generated'
 import { parse6decimal } from '../../../../common/testutil/types'
 import { BigNumber, constants } from 'ethers'
+import { IPayoffFactory } from '@equilibria/perennial-v2-payoff/types/generated'
+import { IOracleFactory } from '@equilibria/perennial-v2-oracle/types/generated'
 
 const { ethers } = HRE
 

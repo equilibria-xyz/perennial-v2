@@ -2,8 +2,8 @@
 pragma solidity 0.8.19;
 
 import "@equilibria/root-v2/contracts/Instance.sol";
+import "@equilibria/perennial-v2/contracts/interfaces/IOracleProviderFactory.sol";
 import "./interfaces/IOracle.sol";
-import "./interfaces/IOracleProviderFactory.sol";
 
 /// @title Oracle
 /// @notice The top-level oracle contract that implements an oracle provider interface.
