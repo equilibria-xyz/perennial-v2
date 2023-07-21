@@ -88,7 +88,7 @@ contract MultiInvoker is IMultiInvoker, UKept {
 
     /// @notice entry to perform invocations
     /// @param invocations List of actions to execute in order
-    function invoke(Invocation[] calldata invocations) external {
+    function invoke(Invocation[] calldata invocations) external payable {
 
         for(uint i = 0; i < invocations.length; ++i) {
             Invocation memory invocation = invocations[i];
@@ -128,7 +128,7 @@ contract MultiInvoker is IMultiInvoker, UKept {
                 (address oracleProvider, uint256 version, bytes memory data) =
                     abi.decode(invocation.args, (address, uint256, bytes));
 
-                IPythOracle(oracleProvider).commit(version, msg.sender, data);
+                IPythOracle(oracleProvider).commitNonRequested{value: msg.value}(version, data);
             } else if (invocation.action == PerennialAction.LIQUIDATE) {
                 (IMarket market, address account) =
                     abi.decode(invocation.args, (IMarket, address));

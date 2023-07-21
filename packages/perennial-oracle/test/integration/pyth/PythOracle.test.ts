@@ -56,7 +56,7 @@ describe('PythOracle', () => {
   let oracleSigner: SignerWithAddress
 
   beforeEach(async () => {
-    await time.reset(config)
+    await time.reset()
     ;[owner, user] = await ethers.getSigners()
 
     dsu = IERC20Metadata__factory.connect(DSU_ADDRESS, owner)

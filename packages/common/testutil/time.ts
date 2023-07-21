@@ -1,7 +1,7 @@
 import '@nomiclabs/hardhat-ethers'
 import HRE from 'hardhat'
-import { HardhatConfig } from 'hardhat/types'
-const { ethers } = HRE
+import { reset as hhReset } from '@nomicfoundation/hardhat-network-helpers'
+const { ethers, config } = HRE
 
 export async function currentBlockTimestamp(): Promise<number> {
   const blockNumber = await ethers.provider.getBlockNumber()
@@ -33,13 +33,8 @@ export async function increaseTo(timestamp: number): Promise<void> {
     console.log('[WARNING] increaseTo failed to reach timestamp (%s vs %s)', timestamp, newTimestamp)
 }
 
-export async function reset(config: HardhatConfig): Promise<void> {
-  await ethers.provider.send('hardhat_reset', [
-    {
-      forking: {
-        jsonRpcUrl: config.networks?.hardhat?.forking?.url,
-        blockNumber: config.networks?.hardhat?.forking?.blockNumber,
-      },
-    },
-  ])
+export async function reset(blockNumber?: number): Promise<void> {
+  const url = config.networks.hardhat.forking?.url
+  const bn = blockNumber || config.networks.hardhat.forking?.blockNumber
+  await hhReset(url, bn)
 }
