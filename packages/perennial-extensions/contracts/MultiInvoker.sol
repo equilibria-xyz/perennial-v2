@@ -83,6 +83,8 @@ contract MultiInvoker is IMultiInvoker, UKept {
     function canExecuteOrder(address account, IMarket market, uint256 nonce) public view returns (bool canFill) {
         TriggerOrder memory order = orders(account, market, nonce);
         if (order.fee.isZero()) return false;
+        console.logInt(Fixed6.unwrap(order.price));
+        console.logInt(Fixed6.unwrap(_getMarketPrice(market, account)));
         return order.fillable(_getMarketPrice(market, account));
     }
 
@@ -324,6 +326,8 @@ contract MultiInvoker is IMultiInvoker, UKept {
 
         Position memory currentPosition = market.pendingPositions(account, market.locals(account).currentId);
         orders(account, market, nonce).execute(currentPosition);
+
+        console.logUint(UFixed6.unwrap(currentPosition.long));
 
         market.update(
             account,

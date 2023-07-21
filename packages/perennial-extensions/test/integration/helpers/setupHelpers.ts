@@ -313,10 +313,6 @@ export async function createVault(
   maxCollateral?: BigNumber,
 ): Promise<[IVault, VaultFactory]> {
   const [, , user, user2, btcUser1, btcUser2, liquidator, perennialUser] = await ethers.getSigners()
-  console.log('HERE')
-  //let vault: IVault
-  //let vaultFactory: IVaultFactory
-  //let market: Market = await createMarket(instanceVars)
 
   const vaultFactoryProxy = await new TransparentUpgradeableProxy__factory(instanceVars.owner).deploy(
     instanceVars.marketFactory.address, // dummy contract
@@ -352,7 +348,7 @@ export async function createVault(
 }
 
 export async function createInvoker(instanceVars: InstanceVars, vaultFactory?: VaultFactory): Promise<MultiInvoker> {
-  const { owner, user, userB } = instanceVars
+  const { owner, user, userB, chainlink } = instanceVars
 
   const multiInvoker = await new MultiInvoker__factory(owner).deploy(
     USDC,

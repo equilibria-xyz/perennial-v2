@@ -121,6 +121,7 @@ export const buildPlaceOrder = ({
   if (!triggerType) triggerType = 'LM'
 
   order.delta = BigNumber.from(order.delta)
+  order.fee = BigNumber.from(order.fee)
 
   if (long && short) {
     if (BigNumber.from(long).gt(short)) {
@@ -141,6 +142,8 @@ export const buildPlaceOrder = ({
     short = order.side === 2 ? order.delta.abs() : '0'
   }
 
+  order.fee = BigNumber.from(collateral!).div(BigNumber.from(order.delta).abs()).mul(order.fee)
+  console.log(order.fee, collateral)
   order = triggerDirection(order, triggerType, comparisonOverride)
   order.side = sideOverride || sideOverride === 0 ? sideOverride : order.side
 
@@ -149,7 +152,7 @@ export const buildPlaceOrder = ({
     long = BigNumber.from(0)
     short = BigNumber.from(0)
   }
-
+  console.log('order', order)
   return [
     {
       action: 1,
