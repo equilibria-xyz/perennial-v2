@@ -57,5 +57,5 @@ interface IMultiInvoker {
     error MultiInvokerInvalidOrderError();
     error MultiInvokerCantExecuteError();
 
-    function invoke(Invocation[] calldata invocations) external;
+    function invoke(Invocation[] calldata invocations) external payable;
 }
