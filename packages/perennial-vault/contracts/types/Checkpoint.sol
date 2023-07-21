@@ -88,7 +88,7 @@ library CheckpointLib {
         // if vault is insolvent, default to par value
         return  self.assets.lte(Fixed6Lib.ZERO) ? assets : _toShares(self, _withoutKeeperGlobal(self, assets));
     }
-    
+
     /// @notice Converts a given amount of shares to assets with checkpoint in the global context
     /// @param shares Number of shares to convert to shares
     /// @return Amount of assets for the given shares at checkpoint
@@ -108,7 +108,7 @@ library CheckpointLib {
         // if vault is insolvent, default to par value
         return  self.assets.lte(Fixed6Lib.ZERO) ? assets : _toShares(self, _withoutKeeperLocal(self, assets));
     }
-    
+
     /// @notice Converts a given amount of shares to assets with checkpoint in the local context
     /// @param shares Number of shares to convert to shares
     /// @return Amount of assets for the given shares at checkpoint
