@@ -16,8 +16,6 @@ import "../types/Position.sol";
 
 interface IMarket is IInstance {
     struct MarketDefinition {
-        string name; // TODO: move to oracle / payoff?
-        string symbol; // TODO: move to oracle / payoff?
         Token18 token;
         IOracleProvider oracle;
         IPayoffProvider payoff;
@@ -83,8 +81,6 @@ interface IMarket is IInstance {
     error VersionStorageInvalidError();
 
     function initialize(MarketDefinition calldata definition_) external;
-    function name() external view returns (string memory);
-    function symbol() external view returns (string memory);
     function token() external view returns (Token18);
     function reward() external view returns (Token18);
     function oracle() external view returns (IOracleProvider);

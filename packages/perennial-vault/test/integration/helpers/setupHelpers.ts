@@ -20,8 +20,6 @@ export interface DeployProductParams
 export async function deployProductOnMainnetFork({
   token,
   factory,
-  name,
-  symbol,
   oracle,
   payoff,
   owner,
@@ -85,8 +83,6 @@ export async function deployProductOnMainnetFork({
     closed: false,
   }
   const marketDefinition: IMarket.MarketDefinitionStruct = {
-    name: name,
-    symbol: symbol,
     token: token.address,
     oracle: oracle ?? constants.AddressZero,
     payoff: payoff ?? constants.AddressZero,

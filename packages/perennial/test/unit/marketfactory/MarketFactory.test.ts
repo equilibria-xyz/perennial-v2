@@ -76,8 +76,6 @@ describe('MarketFactory', () => {
   describe('#create', async () => {
     it('creates the market', async () => {
       const marketDefinition = {
-        name: 'Squeeth',
-        symbol: 'SQTH',
         token: dsu.address,
         oracle: oracle.address,
         payoff: payoffProvider.address,
@@ -99,8 +97,6 @@ describe('MarketFactory', () => {
 
     it('creates the market w/ zero payoff', async () => {
       const marketDefinition = {
-        name: 'Squeeth',
-        symbol: 'SQTH',
         token: dsu.address,
         oracle: oracle.address,
         payoff: constants.AddressZero,
@@ -121,8 +117,6 @@ describe('MarketFactory', () => {
 
     it('reverts when invalid payoff', async () => {
       const marketDefinition = {
-        name: 'Squeeth',
-        symbol: 'SQTH',
         token: dsu.address,
         oracle: oracle.address,
         payoff: payoffProvider.address,
@@ -139,8 +133,6 @@ describe('MarketFactory', () => {
 
     it('reverts when invalid oracle', async () => {
       const marketDefinition = {
-        name: 'Squeeth',
-        symbol: 'SQTH',
         token: dsu.address,
         oracle: oracle.address,
         payoff: payoffProvider.address,
@@ -157,8 +149,6 @@ describe('MarketFactory', () => {
 
     it('reverts when already registered', async () => {
       const marketDefinition = {
-        name: 'Squeeth',
-        symbol: 'SQTH',
         token: dsu.address,
         oracle: oracle.address,
         payoff: payoffProvider.address,
@@ -177,8 +167,6 @@ describe('MarketFactory', () => {
 
     it('reverts when not owner', async () => {
       const marketDefinition = {
-        name: 'Squeeth',
-        symbol: 'SQTH',
         token: dsu.address,
         oracle: oracle.address,
         payoff: payoffProvider.address,
@@ -250,8 +238,6 @@ describe('MarketFactory', () => {
 
     beforeEach(async () => {
       const marketDefinition = {
-        name: 'Squeeth',
-        symbol: 'SQTH',
         token: dsu.address,
         oracle: oracle.address,
         payoff: constants.AddressZero,

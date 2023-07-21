@@ -13,12 +13,6 @@ contract Market is IMarket, Instance {
     bool private constant GAS_PROFILE = false;
     bool private constant LOG_REVERTS = false;
 
-    /// @dev The name of the market
-    string public name;
-
-    /// @dev The symbol of the market
-    string public symbol;
-
     /// @dev The underlying token that the market settles in
     Token18 public token;
 
@@ -69,8 +63,6 @@ contract Market is IMarket, Instance {
     function initialize(IMarket.MarketDefinition calldata definition_) external initializer(1) {
         __Instance__initialize();
 
-        name = definition_.name;
-        symbol = definition_.symbol;
         token = definition_.token;
         oracle = definition_.oracle;
         payoff = definition_.payoff;

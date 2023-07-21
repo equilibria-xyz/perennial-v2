@@ -263,8 +263,6 @@ describe('Market', () => {
     factory.oracleFactory.returns(oracleFactorySigner.address)
 
     marketDefinition = {
-      name: 'Squeeth',
-      symbol: 'SQTH',
       token: dsu.address,
       oracle: oracle.address,
       payoff: constants.AddressZero,
@@ -319,8 +317,6 @@ describe('Market', () => {
 
       expect(await market.factory()).to.equal(factory.address)
       expect(await market.token()).to.equal(dsu.address)
-      expect(await market.name()).to.equal(marketDefinition.name)
-      expect(await market.symbol()).to.equal(marketDefinition.symbol)
       expect(await market.oracle()).to.equal(marketDefinition.oracle)
       expect(await market.payoff()).to.equal(marketDefinition.payoff)
 

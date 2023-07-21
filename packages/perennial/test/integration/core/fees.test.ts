@@ -68,7 +68,7 @@ describe('Fees', () => {
   beforeEach(async () => {
     instanceVars = await loadFixture(fixture)
     await instanceVars.chainlink.reset()
-    market = await createMarket(instanceVars, undefined, undefined, undefined, undefined, RISK_PARAMS, MARKET_PARAMS)
+    market = await createMarket(instanceVars, undefined, undefined, RISK_PARAMS, MARKET_PARAMS)
   })
 
   describe('position fees', () => {

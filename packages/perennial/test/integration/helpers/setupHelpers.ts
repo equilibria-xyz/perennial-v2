@@ -29,7 +29,6 @@ import {
 } from '../../../types/generated'
 import { ChainlinkContext } from './chainlinkHelpers'
 import { parse6decimal } from '../../../../common/testutil/types'
-import { buildChainlinkRoundId } from '@equilibria/perennial-v2-oracle/util/buildChainlinkRoundId'
 import { CHAINLINK_CUSTOM_CURRENCIES } from '@equilibria/perennial-v2-oracle/util/constants'
 import { MarketParameterStruct, RiskParameterStruct } from '../../../types/generated/contracts/Market'
 const { deployments, ethers } = HRE
@@ -178,8 +177,6 @@ export async function fundWallet(dsu: IERC20Metadata, wallet: SignerWithAddress)
 
 export async function createMarket(
   instanceVars: InstanceVars,
-  name?: string,
-  symbol?: string,
   oracleOverride?: IOracleProvider,
   payoff?: IPayoffProvider,
   riskParamOverrides?: Partial<RiskParameterStruct>,
@@ -188,8 +185,6 @@ export async function createMarket(
   const { owner, marketFactory, beneficiaryB, oracle, rewardToken, dsu } = instanceVars
 
   const definition = {
-    name: name ?? 'Squeeth',
-    symbol: symbol ?? 'SQTH',
     token: dsu.address,
     oracle: (oracleOverride ?? oracle).address,
     payoff: (payoff ?? instanceVars.payoff).address,
