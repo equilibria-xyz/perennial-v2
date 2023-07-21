@@ -105,6 +105,8 @@ export const buildPlaceOrder = ({
   collateral,
   handleWrap,
   order,
+  comparisonOverride,
+  sideOverride,
 }: {
   market: string
   long?: BigNumberish
@@ -113,6 +115,8 @@ export const buildPlaceOrder = ({
   collateral?: BigNumberish
   handleWrap?: boolean
   order: TriggerOrderStruct
+  comparisonOverride?: number
+  sideOverride?: number
 }): Actions => {
   if (!triggerType) triggerType = 'LM'
 
@@ -137,7 +141,8 @@ export const buildPlaceOrder = ({
     short = order.side === 2 ? order.delta.abs() : '0'
   }
 
-  order = triggerDirection(order, triggerType)
+  order = triggerDirection(order, triggerType, comparisonOverride)
+  order.side = sideOverride || sideOverride === 0 ? sideOverride : order.side
 
   // dont open position if limit order
   if (triggerType === 'LM') {
@@ -179,12 +184,14 @@ export const buildPlaceOrder = ({
   ]
 }
 
-function triggerDirection(order: TriggerOrderStruct, triggerType: TriggerType) {
+function triggerDirection(order: TriggerOrderStruct, triggerType: TriggerType, comparisonOverride?: number) {
   order.delta = BigNumber.from(order.delta)
 
   order.delta = delta(order.delta, triggerType)
 
-  if (
+  if (comparisonOverride && comparisonOverride !== 0) {
+    order.comparison = comparisonOverride
+  } else if (
     (order.side === 1 && (triggerType === 'LM' || triggerType === 'SL')) ||
     (order.side === 2 && triggerType === 'TP')
   ) {

@@ -47,18 +47,21 @@ export const openTriggerOrder = ({
   price: BigNumberish
   side?: Dir
   trigger?: TriggerType
-  feePct?: number
+  feePct?: BigNumberish
 }): TriggerOrderStruct => {
-  if (feePct) {
-    if (feePct > 100 || feePct <= 0) throw Error('Specified fee pct must be 100 >= <= 0')
+  if (feePct === undefined) {
+    feePct = BigNumber.from(size).div(20)
+  } else {
+    if (BigNumber.from(feePct).gt(100)) throw Error('Specified fee pct too large')
   }
 
   if (BigNumber.from(size).isNegative()) throw Error('size must be positive')
 
+  console.log(feePct)
   return {
     side: side ? (side === 'L' ? 1 : 2) : 1,
     comparison: 0,
-    fee: feePct ? BigNumber.from(size).mul(feePct).div(100) : BigNumber.from(size).div(20),
+    fee: feePct,
     price: price,
     delta: !trigger || trigger == 'LM' ? size : BigNumber.from(size).mul(-1),
   }

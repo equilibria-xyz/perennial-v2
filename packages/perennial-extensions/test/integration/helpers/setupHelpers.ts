@@ -1,6 +1,6 @@
 import { SignerWithAddress } from '@nomiclabs/hardhat-ethers/signers'
 import HRE from 'hardhat'
-import { utils, ContractTransaction } from 'ethers'
+import { BigNumber, utils, ContractTransaction } from 'ethers'
 
 import { time, impersonate } from '../../../../common/testutil'
 
@@ -21,6 +21,15 @@ import {
   Market__factory,
   PowerTwo__factory,
   IMarket,
+  IMarket__factory,
+  IVault,
+  IVaultFactory,
+  IVaultFactory__factory,
+  IVault__factory,
+  Vault,
+  VaultFactory,
+  VaultFactory__factory,
+  Vault__factory,
 } from '../../../types/generated'
 
 // v2 core types
@@ -35,8 +44,6 @@ import {
   IOracleProvider__factory,
 } from '@equilibria/perennial-v2/types/generated'
 
-import { VaultFactory__factory, Vault__factory } from '../../../../perennial-vault/types/generated/factories/contracts'
-
 import { ChainlinkContext } from '@equilibria/perennial-v2/test/integration/helpers/chainlinkHelpers'
 
 import { parse6decimal } from '../../../../common/testutil/types'
@@ -50,6 +57,8 @@ import {
   OracleFactory__factory,
   Oracle__factory,
 } from '@equilibria/perennial-v2/types/generated/factories/@equilibria/perennial-v2-oracle/contracts'
+
+//import {} from '@equilibria/perennial-v2-vault/types/generated'
 import { PayoffFactory__factory } from '@equilibria/perennial-v2/types/generated/factories/@equilibria/perennial-v2-payoff/contracts'
 import { MarketFactory__factory } from '@equilibria/perennial-v2/types/generated/factories/contracts'
 import { IOracle__factory } from '@equilibria/perennial-v2/types/generated/factories/@equilibria/perennial-v2-oracle/contracts/interfaces'
@@ -57,7 +66,7 @@ import {
   MarketParameterStruct,
   RiskParameterStruct,
 } from '../../../types/generated/@equilibria/perennial-v2/contracts/Market'
-// import { ProtocolParameterStruct } from '@equilibria/perennial-v2/types/generated/contracts/Factory'
+
 const { config, deployments, ethers } = HRE
 
 export const INITIAL_PHASE_ID = 1
@@ -97,7 +106,6 @@ export interface InstanceVars {
   oracle: IOracleProvider
   marketImpl: Market
   rewardToken: ERC20PresetMinterPauser
-  multiInvoker: MultiInvoker
 }
 
 export async function deployProtocol(chainlinkContext?: ChainlinkContext): Promise<InstanceVars> {
@@ -148,15 +156,6 @@ export async function deployProtocol(chainlinkContext?: ChainlinkContext): Promi
 
   const marketFactory = new MarketFactory__factory(owner).attach(factoryProxy.address)
 
-  const vaultImpl = await new Vault__factory(owner).deploy()
-  const vaultFactoryImpl = await new VaultFactory__factory(owner).deploy(marketFactory.address, vaultImpl.address)
-
-  // const vaultFactoryProxy = await new TransparentUpgradeableProxy__factory(owner).deploy(
-  //   vaultFactoryImpl,
-  //   proxyAdmin.address,
-  //   [],
-  // )
-
   // Init
   await oracleFactory.connect(owner).initialize(dsu.address)
   await payoffFactory.connect(owner).initialize()
@@ -192,21 +191,6 @@ export async function deployProtocol(chainlinkContext?: ChainlinkContext): Promi
 
   const rewardToken = await new ERC20PresetMinterPauser__factory(owner).deploy('Incentive Token', 'ITKN')
 
-  const multiInvoker = await new MultiInvoker__factory(owner).deploy(
-    usdc.address,
-    dsu.address,
-    marketFactory.address,
-    vaultFactoryImpl.address, // todo factory?
-    BATCHER,
-    DSU_MINTER,
-  )
-
-  await marketFactory.connect(user).updateOperator(multiInvoker.address, true)
-  await marketFactory.connect(userB).updateOperator(multiInvoker.address, true)
-  await vaultFactoryImpl.initialize()
-  // await vaultImpl.initialize(dsu.address, marketImpl.address, "eth vault", "ev")
-  await multiInvoker.initialize(ETH_ORACLE)
-
   return {
     owner,
     pauser,
@@ -227,7 +211,6 @@ export async function deployProtocol(chainlinkContext?: ChainlinkContext): Promi
     oracle,
     marketImpl,
     rewardToken,
-    multiInvoker,
   }
 }
 
@@ -283,6 +266,7 @@ export async function createMarket(
       max: parse6decimal('1.20'),
     },
     minMaintenance: parse6decimal('500'),
+    virtualTaker: 0,
     staleAfter: 7200,
     makerReceiveOnly: false,
     ...riskParamOverrides,
@@ -302,10 +286,11 @@ export async function createMarket(
     closed: false,
     ...marketParamOverrides,
   }
-  const marketAddress = await marketFactory.callStatic.create(definition, riskParameter)
-  await marketFactory.create(definition, riskParameter)
+  const marketAddress = await marketFactory.callStatic.create(definition)
+  await marketFactory.create(definition)
 
   const market = Market__factory.connect(marketAddress, owner)
+  await market.updateRiskParameter(riskParameter)
   await market.updateBeneficiary(beneficiaryB.address)
   await market.updateReward(rewardToken.address)
   await market.updateParameter(marketParameter)
@@ -319,4 +304,68 @@ export async function settle(market: IMarket, account: SignerWithAddress): Promi
   return market
     .connect(account)
     .update(account.address, currentPosition.maker, currentPosition.long, currentPosition.short, 0, false)
+}
+
+export async function createVault(
+  instanceVars: InstanceVars,
+  market: Market,
+  leverage?: BigNumber,
+  maxCollateral?: BigNumber,
+): Promise<[IVault, VaultFactory]> {
+  const [, , user, user2, btcUser1, btcUser2, liquidator, perennialUser] = await ethers.getSigners()
+  console.log('HERE')
+  //let vault: IVault
+  //let vaultFactory: IVaultFactory
+  //let market: Market = await createMarket(instanceVars)
+
+  const vaultFactoryProxy = await new TransparentUpgradeableProxy__factory(instanceVars.owner).deploy(
+    instanceVars.marketFactory.address, // dummy contract
+    instanceVars.proxyAdmin.address,
+    [],
+  )
+
+  const vaultImpl = await new Vault__factory(instanceVars.owner).deploy()
+  const vaultFactoryImpl = await new VaultFactory__factory(instanceVars.owner).deploy(
+    instanceVars.marketFactory.address,
+    vaultImpl.address,
+  )
+
+  await instanceVars.proxyAdmin.upgrade(vaultFactoryProxy.address, vaultFactoryImpl.address)
+  const vaultFactory = IVaultFactory__factory.connect(vaultFactoryProxy.address, instanceVars.owner)
+  await vaultFactory.initialize()
+
+  const vault = IVault__factory.connect(
+    await vaultFactory.callStatic.create(instanceVars.dsu.address, market.address, 'Blue Chip', 'BC'),
+    instanceVars.owner,
+  )
+
+  await vaultFactory.create(instanceVars.dsu.address, market.address, 'Blue Chip', 'BC')
+
+  //await vault.connect(instanceVars.owner).register(market.address)
+
+  await vault.updateMarket(0, 4, leverage ? leverage : parse6decimal('4.0'))
+  await vault.updateParameter({
+    cap: maxCollateral ? maxCollateral : parse6decimal('500000'),
+  })
+
+  return [vault, vaultFactory]
+}
+
+export async function createInvoker(instanceVars: InstanceVars, vaultFactory?: VaultFactory): Promise<MultiInvoker> {
+  const { owner, user, userB } = instanceVars
+
+  const multiInvoker = await new MultiInvoker__factory(owner).deploy(
+    USDC,
+    DSU,
+    instanceVars.marketFactory.address,
+    vaultFactory ? vaultFactory.address : ethers.utils.hexZeroPad('0x', 20), // todo factory?
+    BATCHER,
+    DSU_MINTER,
+  )
+
+  await instanceVars.marketFactory.connect(user).updateOperator(multiInvoker.address, true)
+  await instanceVars.marketFactory.connect(userB).updateOperator(multiInvoker.address, true)
+  await multiInvoker.initialize(ETH_ORACLE)
+
+  return multiInvoker
 }
