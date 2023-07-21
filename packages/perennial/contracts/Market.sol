@@ -486,12 +486,15 @@ contract Market is IMarket, Instance {
         Fixed6 collateral,
         bool protected
     ) private view {
+        // load all pending state
+        (Position[] memory pendingPositions, Fixed6 collateralAfterFees) = _loadPendingPositions(context, account);
+
         if (protected && (
             !context.currentPosition.local.magnitude().isZero() ||
             context.latestPosition.local.collateralized(
                 context.latestVersion,
                 context.riskParameter,
-                context.local.collateral.sub(collateral)
+                collateralAfterFees.sub(collateral)
             ) ||
             collateral.lt(Fixed6Lib.from(-1, _liquidationFee(context)))
         )) { if (LOG_REVERTS) console.log("MarketInvalidProtectionError"); revert MarketInvalidProtectionError(); }
@@ -500,7 +503,7 @@ contract Market is IMarket, Instance {
             msg.sender != account &&                                                                        // sender is operating on own account
             !IMarketFactory(address(factory())).operators(account, msg.sender) &&                           // sender is operating on own account
             !protected &&                                                                                   // sender is liquidating this account
-            !(newOrder.isEmpty() && context.local.collateral.isZero() && collateral.gt(Fixed6Lib.ZERO))     // sender is repaying shortfall for this account
+            !(newOrder.isEmpty() && collateralAfterFees.isZero() && collateral.gt(Fixed6Lib.ZERO))     // sender is repaying shortfall for this account
         ) { if (LOG_REVERTS) console.log("MarketOperatorNotAllowedError"); revert MarketOperatorNotAllowedError(); }
 
         if (context.currentTimestamp - context.latestVersion.timestamp >= context.riskParameter.staleAfter)
@@ -515,9 +518,6 @@ contract Market is IMarket, Instance {
         if (!context.currentPosition.local.singleSided())
             { if (LOG_REVERTS) console.log("MarketNotSingleSidedError"); revert MarketNotSingleSidedError(); }
 
-        if (!_collateralized(context, context.currentPosition.local))
-            { if (LOG_REVERTS) console.log("MarketInsufficientCollateralizationError2"); revert MarketInsufficientCollateralizationError(); }
-
         if (
             !protected &&
             context.global.currentId > context.latestPosition.global.id + context.protocolParameter.maxPendingIds
@@ -526,8 +526,8 @@ contract Market is IMarket, Instance {
         if (!protected && !_collateralized(context, context.latestPosition.local))
             { if (LOG_REVERTS) console.log("MarketInsufficientCollateralizationError1"); revert MarketInsufficientCollateralizationError(); }
 
-        for (uint256 id = context.latestPosition.local.id + 1; id < context.local.currentId; id++)
-            if (!protected && !_collateralized(context, _pendingPositions[account][id].read()))
+        for (uint256 i; i < pendingPositions.length; i++)
+            if (!protected && !_collateralized(context, pendingPositions[i]))
                 { if (LOG_REVERTS) console.log("MarketInsufficientCollateralizationError3"); revert MarketInsufficientCollateralizationError(); }
 
         if (
@@ -550,8 +550,30 @@ contract Market is IMarket, Instance {
             newOrder.decreasesLiquidity()
         ) { if (LOG_REVERTS) console.log("MarketInsufficientLiquidityError"); revert MarketInsufficientLiquidityError(); }
 
-        if (!protected && collateral.lt(Fixed6Lib.ZERO) && context.local.collateral.lt(Fixed6Lib.ZERO))
+        if (!protected && collateral.lt(Fixed6Lib.ZERO) && collateralAfterFees.lt(Fixed6Lib.ZERO))
             { if (LOG_REVERTS) console.log("MarketInsufficientCollateralError"); revert MarketInsufficientCollateralError(); }
+    }
+
+    /// @notice Loads data about all pending positions for the invariant check
+    /// @param context The context to use
+    /// @param account The account to load the pending positions for
+    /// @return pendingPositions All pending positions for the account
+    /// @return collateralAfterFees The account's collateral after fees
+    function _loadPendingPositions(
+        Context memory context,
+        address account
+    ) private view returns (Position[] memory pendingPositions, Fixed6 collateralAfterFees) {
+        collateralAfterFees = context.local.collateral;
+        pendingPositions = new Position[](
+            context.local.currentId - Math.min(context.latestPosition.local.id, context.local.currentId)
+        );
+        for (uint256 i; i < pendingPositions.length - 1; i++) {
+            pendingPositions[i] = _pendingPositions[account][context.latestPosition.local.id + 1 + i].read();
+            collateralAfterFees = collateralAfterFees
+                .sub(Fixed6Lib.from(pendingPositions[i].fee))
+                .sub(Fixed6Lib.from(pendingPositions[i].keeper));
+        }
+        pendingPositions[pendingPositions.length - 1] = context.currentPosition.local; // current local position hasn't been stored yet
     }
 
     /// @notice Computes the liquidation fee for the current latest local position
