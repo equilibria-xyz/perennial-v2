@@ -12,6 +12,8 @@ import "./interfaces/IMultiInvoker.sol";
 import "./types/TriggerOrder.sol";
 import "@equilibria/root/attribute/Kept.sol";
 
+import "hardhat/console.sol";
+
 /// @title MultiInvoker
 /// @notice Extension to handle batched calls to the Perennial protocol
 contract MultiInvoker is IMultiInvoker, Kept {
@@ -352,7 +354,7 @@ contract MultiInvoker is IMultiInvoker, Kept {
             UFixed6Lib.MAX,
             UFixed6Lib.MAX,
             UFixed6Lib.MAX,
-            Fixed6Lib.from(Fixed18Lib.from(-1, keeperFee)),
+            Fixed6Lib.from(Fixed18Lib.from(-1, keeperFee), true),
             false
         );
     }
