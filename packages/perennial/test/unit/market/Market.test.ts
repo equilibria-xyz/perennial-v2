@@ -7713,7 +7713,7 @@ describe('Market', () => {
       })
 
       context('invariant violations', async () => {
-        it.only('reverts if can liquidate', async () => {
+        it('reverts if can liquidate', async () => {
           dsu.transferFrom.whenCalledWith(user.address, market.address, utils.parseEther('500')).returns(true)
           await expect(
             market.connect(user).update(user.address, parse6decimal('1000'), 0, 0, parse6decimal('500'), false),

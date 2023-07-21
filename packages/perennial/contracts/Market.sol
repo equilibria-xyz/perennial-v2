@@ -523,12 +523,16 @@ contract Market is IMarket, Instance {
             context.global.currentId > context.latestPosition.global.id + context.protocolParameter.maxPendingIds
         ) { if (LOG_REVERTS) console.log("MarketExceedsPendingIdLimitError"); revert MarketExceedsPendingIdLimitError(); }
 
-        if (!protected && !_collateralized(context, context.latestPosition.local))
-            { if (LOG_REVERTS) console.log("MarketInsufficientCollateralizationError1"); revert MarketInsufficientCollateralizationError(); }
+        if (
+            !protected &&
+            !context.latestPosition.local.collateralized(context.latestVersion, context.riskParameter, collateralAfterFees)
+        ) { if (LOG_REVERTS) console.log("MarketInsufficientCollateralizationError1"); revert MarketInsufficientCollateralizationError(); }
 
         for (uint256 i; i < pendingPositions.length; i++)
-            if (!protected && !_collateralized(context, pendingPositions[i]))
-                { if (LOG_REVERTS) console.log("MarketInsufficientCollateralizationError3"); revert MarketInsufficientCollateralizationError(); }
+            if (
+                !protected &&
+                !pendingPositions[i].collateralized(context.latestVersion, context.riskParameter, collateralAfterFees)
+            ) { if (LOG_REVERTS) console.log("MarketInsufficientCollateralizationError3"); revert MarketInsufficientCollateralizationError(); }
 
         if (
             !protected &&
@@ -583,14 +587,6 @@ contract Market is IMarket, Instance {
         return context.latestPosition.local
             .liquidationFee(context.latestVersion, context.riskParameter)
             .min(UFixed6Lib.from(token.balanceOf()));
-    }
-
-    /// @notice Computes whether a position is collateralized
-    /// @param context The context to use
-    /// @param active The position to check
-    /// @return Whether the position is collateralized
-    function _collateralized(Context memory context, Position memory active) private pure returns (bool) {
-        return active.collateralized(context.latestVersion, context.riskParameter, context.local.collateral);
     }
 
     /// @notice Computes the current oracle status with the market's payoff
