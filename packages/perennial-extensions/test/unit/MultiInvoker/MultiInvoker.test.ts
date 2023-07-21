@@ -35,9 +35,16 @@ import {
 import { PositionStruct } from '../../../types/generated/@equilibria/perennial-v2/contracts/interfaces/IMarket'
 
 import { Local, parse6decimal } from '../../../../common/testutil/types'
-import { openPosition, setMarketPosition, setPendingPosition } from '../../helpers/types'
+import {
+  openPosition,
+  openTriggerOrder,
+  setGlobalPrice,
+  setMarketPosition,
+  setPendingPosition,
+} from '../../helpers/types'
 import { impersonate } from '../../../../common/testutil'
 import { anyUint, anyValue } from '@nomicfoundation/hardhat-chai-matchers/withArgs'
+import { TriggerOrderStruct } from '../../../types/generated/contracts/MultiInvoker'
 
 const ethers = { HRE }
 use(smock.matchers)
@@ -100,6 +107,7 @@ describe('MultiInvoker', () => {
     const aggRoundData = {
       roundId: 0,
       answer: BigNumber.from(1150e8),
+      startedAt: 0,
       updatedAt: 0,
       answeredInRound: 0,
     }
@@ -187,13 +195,11 @@ describe('MultiInvoker', () => {
       dsu.balanceOf.whenCalledWith(multiInvoker.address).returns(dsuCollateral)
       dsu.transfer.whenCalledWith(user.address, dsuCollateral).returns(true)
       dsu.transferFrom.whenCalledWith(multiInvoker.address, batcher.address).returns(true)
+      usdc.balanceOf.whenCalledWith(batcher.address).returns(collateral)
 
-      usdc.balanceOf.whenCalledWith(batcher.address).returns(dsuCollateral)
-
-      await expect(multiInvoker.connect(user).invoke(a)).to.not.be.reverted
+      await expect(await multiInvoker.connect(user).invoke(a)).to.not.be.reverted
 
       expect(batcher.unwrap).to.have.been.calledWith(dsuCollateral, user.address)
-      expect(dsu.transfer).to.have.been.calledWith(user.address, dsuCollateral)
     })
 
     it('deposits assets to vault', async () => {
@@ -248,7 +254,6 @@ describe('MultiInvoker', () => {
 
       expect(reserve.redeem).to.have.been.calledWith(dsuCollateral)
       expect(vault.update).to.have.been.calledWith(user.address, '0', '0', vaultUpdate.claimAssets)
-      expect(dsu.transfer).to.have.been.calledWith(user.address, dsuCollateral)
     })
 
     it('approves market and vault', async () => {
@@ -287,12 +292,11 @@ describe('MultiInvoker', () => {
     const collateral = parse6decimal('10000')
     const position = parse6decimal('10')
 
-    let defaultOrder = {
-      isLong: true,
-      maxFee: position.div(20), // 5% fee
-      execPrice: BigNumber.from(1000e6),
+    const defaultOrder: TriggerOrderStruct = openTriggerOrder({
       size: position,
-    }
+      price: BigNumber.from(11150e6),
+      trigger: 'LM',
+    })
 
     const defaultLocal: Local = {
       currentId: 1,
@@ -319,12 +323,7 @@ describe('MultiInvoker', () => {
     }
 
     beforeEach(async () => {
-      defaultOrder = {
-        isLong: true,
-        maxFee: position.div(20), // 5% fee
-        execPrice: BigNumber.from(1000e6),
-        size: position,
-      }
+      setGlobalPrice(market, BigNumber.from(1150e6))
       await loadFixture(fixture)
     })
 
@@ -334,34 +333,32 @@ describe('MultiInvoker', () => {
 
       expect(txn)
         .to.emit(multiInvoker, 'OrderPlaced')
-        .withArgs(user.address, market.address, 1, 1, defaultOrder.execPrice, defaultOrder.maxFee)
+        .withArgs(user.address, market.address, 1, 1, defaultOrder.price, defaultOrder.fee)
 
       expect(await multiInvoker.latestNonce()).to.eq(1)
-      expect(await multiInvoker.openOrders(user.address, market.address)).to.eq(1)
 
       const orderState = await multiInvoker.orders(user.address, market.address, 1)
 
       expect(
-        orderState.isLong == defaultOrder.isLong &&
-          orderState.maxFee.eq(defaultOrder.maxFee.toString()) &&
-          orderState.execPrice.eq(defaultOrder.execPrice.toString()) &&
-          orderState.size.eq(defaultOrder.size.toString()),
+        orderState.side == defaultOrder.side &&
+          orderState.fee.eq(defaultOrder.fee.toString()) &&
+          orderState.price.eq(defaultOrder.price.toString()) &&
+          orderState.delta.eq(defaultOrder.delta.toString()),
       ).to.be.true
     })
 
     it('places a tp order', async () => {
-      defaultOrder.execPrice = BigNumber.from(1200e6)
-
-      let a = helpers.buildPlaceOrder({ market: market.address, order: defaultOrder, triggerType: 'TP' })
-      await multiInvoker.connect(user).invoke(a)
+      const triggerOrder = openTriggerOrder({ size: position, price: BigNumber.from(1100e6), side: 'S' })
+      let a = helpers.buildPlaceOrder({ market: market.address, order: triggerOrder, triggerType: 'TP' })
+      await expect(multiInvoker.connect(user).invoke(a)).to.not.be.reverted
 
       // mkt price >= trigger price (false)
       expect(await multiInvoker.canExecuteOrder(user.address, market.address, 1)).to.be.false
 
-      defaultOrder.isLong = false
+      defaultOrder.side = 2
       a = helpers.buildPlaceOrder({ market: market.address, order: defaultOrder, triggerType: 'TP' })
 
-      await multiInvoker.connect(user).invoke(a)
+      expect(await multiInvoker.connect(user).invoke(a)).to.not.be.reverted
 
       // mkt price <= trigger price (true)
       expect(await multiInvoker.canExecuteOrder(user.address, market.address, 2)).to.be.true
@@ -369,27 +366,23 @@ describe('MultiInvoker', () => {
 
     it('places a sl order', async () => {
       // order cannot be stopped
-      defaultOrder.execPrice = BigNumber.from(1100e6) // default mkt price: 1150
-      let a = helpers.buildPlaceOrder({ market: market.address, order: defaultOrder, triggerType: 'SL' })
+      let trigger = openTriggerOrder({ size: position, price: BigNumber.from(1200e6), side: 'S' })
+      let a = helpers.buildPlaceOrder({ market: market.address, order: trigger, triggerType: 'SL' })
+      setMarketPosition(market, user, defaultPosition)
+
       await expect(multiInvoker.connect(user).invoke(a)).to.not.be.reverted
 
       expect(await multiInvoker.canExecuteOrder(user.address, market.address, 1)).to.be.false
 
       // order can be stopped
-      defaultOrder.execPrice = BigNumber.from(1200e6)
-      a = helpers.buildPlaceOrder({ market: market.address, order: defaultOrder, triggerType: 'SL' })
+      trigger = openTriggerOrder({ size: position, price: BigNumber.from(1100e6), side: 'S' })
+      a = helpers.buildPlaceOrder({ market: market.address, order: trigger, triggerType: 'SL' })
       await expect(multiInvoker.connect(user).invoke(a)).to.not.be.reverted
 
       expect(await multiInvoker.canExecuteOrder(user.address, market.address, 2)).to.be.true
     })
 
     it('cancels an order', async () => {
-      const cancelAction = helpers.buildCancelOrder({ market: market.address, orderId: 1 })
-
-      // cancelling an order that does not exist
-      await expect(multiInvoker.connect(user).invoke(cancelAction)).to.be.revertedWithPanic()
-
-      expect(await multiInvoker.openOrders(user.address, market.address)).to.eq(0)
       expect(await multiInvoker.latestNonce()).to.eq(0)
 
       // place the order to cancel
@@ -397,129 +390,114 @@ describe('MultiInvoker', () => {
       await expect(multiInvoker.connect(user).invoke(placeAction)).to.not.be.reverted
 
       // cancel the order
+      const cancelAction = helpers.buildCancelOrder({ market: market.address, orderId: 1 })
       await expect(multiInvoker.connect(user).invoke(cancelAction))
         .to.emit(multiInvoker, 'OrderCancelled')
         .withArgs(user.address, market.address, 1)
 
-      expect(await multiInvoker.openOrders(user.address, market.address)).to.eq(0)
       expect(await multiInvoker.latestNonce()).to.eq(1)
     })
 
-    it('executes a long limit, short limit, long tp/sl, short tp/sl order', async () => {
-      const position = openPosition({
-        maker: '0',
-        long: defaultOrder.size,
-        short: '0',
-        collateral: collateral,
+    describe('#trigger orders', async () => {
+      const fixture = async () => {
+        dsu.transfer.returns(true)
+        setGlobalPrice(market, BigNumber.from(1150e6))
+      }
+
+      beforeEach(async () => {
+        await loadFixture(fixture)
       })
 
-      dsu.transfer.returns(true)
-      setPendingPosition(market, user, 0, position)
+      it('executes a long limit order', async () => {
+        // long limit: mkt price <= exec price
+        defaultOrder.price = BigNumber.from(1200e6)
+        const trigger = openTriggerOrder({ size: position, price: BigNumber.from(1200e6) })
+        const pending = openPosition({ long: BigNumber.from(trigger.delta), collateral: collateral })
+        setPendingPosition(market, user, 0, pending)
 
-      // -------------------------------------------- //
-      // long limit: mkt price <= exec price
-      defaultOrder.execPrice = BigNumber.from(1200e6)
+        const placeOrder = helpers.buildPlaceOrder({ market: market.address, order: trigger, triggerType: 'LM' })
+        await expect(multiInvoker.connect(user).invoke(placeOrder)).to.not.be.reverted
 
-      let placeOrder = helpers.buildPlaceOrder({ market: market.address, order: defaultOrder, triggerType: 'LM' })
-      await expect(multiInvoker.connect(user).invoke(placeOrder)).to.not.be.reverted
-
-      let execOrder = helpers.buildExecOrder({ user: user.address, market: market.address, orderId: 1 })
-      await expect(multiInvoker.connect(user).invoke(execOrder))
-        .to.emit(multiInvoker, 'OrderExecuted')
-        .to.emit(multiInvoker, 'KeeperCall')
-
-      // -------------------------------------------- //
-      // short limit: mkt price >= exec price
-      defaultOrder.execPrice = BigNumber.from(1000e6)
-      defaultOrder.isLong = false
-
-      placeOrder = helpers.buildPlaceOrder({ market: market.address, order: defaultOrder, triggerType: 'LM' })
-      await multiInvoker.connect(user).invoke(placeOrder)
-
-      setPendingPosition(market, user, 0, position)
-
-      execOrder = helpers.buildExecOrder({ user: user.address, market: market.address, orderId: 2 })
-
-      await expect(multiInvoker.connect(user).invoke(execOrder))
-        .to.emit(multiInvoker, 'OrderExecuted')
-        .to.emit(multiInvoker, 'KeeperCall')
-
-      // -------------------------------------------- //
-      // long tp / short sl: mkt price >= exec price
-      placeOrder = helpers.buildPlaceOrder({ market: market.address, order: defaultOrder, triggerType: 'SL' })
-      await multiInvoker.connect(user).invoke(placeOrder)
-
-      execOrder = helpers.buildExecOrder({ user: user.address, market: market.address, orderId: 3 })
-      await expect(multiInvoker.connect(user).invoke(execOrder))
-        .to.emit(multiInvoker, 'OrderExecuted')
-        .to.emit(multiInvoker, 'KeeperCall')
-
-      // -------------------------------------------- //
-      // long sl / short tp:
-      defaultOrder.isLong = true
-      defaultOrder.execPrice = BigNumber.from(1200e6)
-
-      placeOrder = helpers.buildPlaceOrder({ market: market.address, order: defaultOrder, triggerType: 'SL' })
-      await multiInvoker.connect(user).invoke(placeOrder)
-
-      execOrder = helpers.buildExecOrder({ user: user.address, market: market.address, orderId: 4 })
-      await expect(multiInvoker.connect(user).invoke(execOrder))
-        .to.emit(multiInvoker, 'OrderExecuted')
-        .to.emit(multiInvoker, 'KeeperCall')
-    })
-
-    // // market price exec price
-    // it('executes a long limit order', async () => {
-
-    // })
-
-    // it('executes a short tp order', async () => {
-
-    // })
-
-    // it('executes a long sl order', async () => {
-
-    // })
-
-    // // market price > exec price
-    // it('executes a long tp order', async () => {
-
-    // })
-
-    // it('executes a short limit order', async () => {
-
-    // })
-
-    // it('execues a short sl order', async () => {
-
-    // })
-
-    it('executes an order and charges keeper fee to sender', async () => {
-      // long limit: limit = true && mkt price (1150) <= exec price 1200
-      defaultOrder.execPrice = BigNumber.from(1200e6)
-
-      const position = openPosition({
-        maker: '0',
-        long: defaultOrder.size,
-        short: '0',
-        collateral: collateral,
+        const execOrder = helpers.buildExecOrder({ user: user.address, market: market.address, orderId: 1 })
+        await expect(multiInvoker.connect(user).invoke(execOrder))
+          .to.emit(multiInvoker, 'OrderExecuted')
+          .to.emit(multiInvoker, 'KeeperCall')
       })
 
-      const placeOrder = helpers.buildPlaceOrder({ market: market.address, order: defaultOrder })
-      await expect(multiInvoker.connect(user).invoke(placeOrder)).to.not.be.reverted
+      it('executes a short limit order', async () => {
+        // set short position in market
+        const triggerOrder = openTriggerOrder({ size: position, price: BigNumber.from(1000e6), side: 'S', trigger: 'LM' })
+        const pending = openPosition({ short: BigNumber.from(triggerOrder.delta).abs(), collateral: collateral })
+        setPendingPosition(market, user, 0, pending)
 
-      setPendingPosition(market, user, '0', position)
+        // short limit: mkt price >= exec price
+        const placeOrder = helpers.buildPlaceOrder({ market: market.address, order: triggerOrder, triggerType: 'LM' })
+        await multiInvoker.connect(user).invoke(placeOrder)
 
-      // charge fee
-      dsu.transfer.returns(true)
+        const execOrder = helpers.buildExecOrder({ user: user.address, market: market.address, orderId: 1 })
 
-      const execOrder = helpers.buildExecOrder({ user: user.address, market: market.address, orderId: 1 })
+        await expect(multiInvoker.connect(user).invoke(execOrder))
+          .to.emit(multiInvoker, 'OrderExecuted')
+          .to.emit(multiInvoker, 'KeeperCall')
+      })
 
-      // buffer: 100000
-      await expect(multiInvoker.connect(owner).invoke(execOrder))
-        .to.emit(multiInvoker, 'OrderExecuted')
-        .to.emit(multiInvoker, 'KeeperCall')
-        .withArgs(owner.address, BigNumber.from(3839850), anyValue, anyValue, anyValue)
+      it('execues a short sl order', async () => {
+        // set short position in market
+        const triggerOrder = openTriggerOrder({ size: position, price: BigNumber.from(1100e6), side: 'S', trigger: 'SL' })
+        const pending = openPosition({ short: BigNumber.from(triggerOrder.delta).abs(), collateral: collateral })
+        setPendingPosition(market, user, 0, pending)
+
+        const placeOrder = helpers.buildPlaceOrder({ market: market.address, order: triggerOrder, triggerType: 'SL' })
+        await multiInvoker.connect(user).invoke(placeOrder)
+
+        const execOrder = helpers.buildExecOrder({ user: user.address, market: market.address, orderId: 1 })
+        await expect(multiInvoker.connect(user).invoke(execOrder))
+          .to.emit(multiInvoker, 'OrderExecuted')
+          .to.emit(multiInvoker, 'KeeperCall')
+      })
+
+      it('executes a long sl order', async () => {
+        const triggerOrder = openTriggerOrder({ size: position, price: BigNumber.from(1200e6), side: 'L', trigger: 'SL' })
+        const pending = openPosition({ long: BigNumber.from(triggerOrder.delta).abs(), collateral: collateral })
+        setPendingPosition(market, user, '0', pending)
+
+        const placeOrder = helpers.buildPlaceOrder({ market: market.address, order: triggerOrder, triggerType: 'SL' })
+        await multiInvoker.connect(user).invoke(placeOrder)
+
+        const execOrder = helpers.buildExecOrder({ user: user.address, market: market.address, orderId: 1 })
+        await expect(await multiInvoker.connect(user).invoke(execOrder))
+          .to.emit(multiInvoker, 'OrderExecuted')
+          .to.emit(multiInvoker, 'KeeperCall')
+      })
+
+      // // market price > exec price
+      // it('executes a long tp order', async () => {
+
+      // })
+
+      // it('executes a short limit order', async () => {
+
+      // })
+
+      it('executes an order and charges keeper fee to sender', async () => {
+        // long limit: limit = true && mkt price (1150) <= exec price 1200
+        const trigger = openTriggerOrder({ size: position, price: BigNumber.from(1200e6) })
+        const pending = openPosition({ long: BigNumber.from(trigger.delta).abs(), collateral: collateral })
+        setPendingPosition(market, user, '0', pending)
+
+        const placeOrder = helpers.buildPlaceOrder({ market: market.address, order: trigger, triggerType: 'LM' })
+        await expect(multiInvoker.connect(user).invoke(placeOrder)).to.not.be.reverted
+
+        // charge fee
+        dsu.transfer.returns(true)
+        const execOrder = helpers.buildExecOrder({ user: user.address, market: market.address, orderId: 1 })
+
+        // buffer: 100000
+        await expect(multiInvoker.connect(owner).invoke(execOrder))
+          .to.emit(multiInvoker, 'OrderExecuted')
+          .to.emit(multiInvoker, 'KeeperCall')
+          .withArgs(owner.address, BigNumber.from(3839850), anyValue, anyValue, anyValue)
+      })
     })
   })
 })

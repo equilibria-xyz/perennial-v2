@@ -83,7 +83,7 @@ contract MultiInvoker is IMultiInvoker, UKept {
     function canExecuteOrder(address account, IMarket market, uint256 nonce) public view returns (bool canFill) {
         TriggerOrder memory order = orders(account, market, nonce);
         if (order.fee.isZero()) return false;
-        return order.fillable(_getMarketPrice(market));
+        return order.fillable(_getMarketPrice(market, account));
     }
 
     // @todo not needed
@@ -125,7 +125,6 @@ contract MultiInvoker is IMultiInvoker, UKept {
 
                 _cancelOrder(msg.sender, market, nonce);
             } else if (invocation.action == PerennialAction.EXEC_ORDER) {
-
                 (address account, IMarket market, uint256 nonce) =
                     abi.decode(invocation.args, (address, IMarket, uint256));
 
@@ -202,7 +201,7 @@ contract MultiInvoker is IMultiInvoker, UKept {
             true
         );
 
-        _withdraw(msg.sender, liquidationFee, false); // TODO: returns DSI?
+        _withdraw(msg.sender, liquidationFee, false);
     }
 
     // TODO: rename?
@@ -232,6 +231,7 @@ contract MultiInvoker is IMultiInvoker, UKept {
     }
 
     // TODO: take UFixed18 as arg
+    // TODO: rename collateralDelta to something more generic
     /**
      * @notice Push DSU or unwrap DSU to push USDC from this address to `account`
      * @param account Account to push DSU or USDC to
@@ -241,7 +241,6 @@ contract MultiInvoker is IMultiInvoker, UKept {
     function _withdraw(address account, UFixed6 collateralDelta, bool handleUnwrap) internal {
         if (handleUnwrap) {
             _handleUnwrap(account, UFixed18Lib.from(collateralDelta));
-            USDC.push(account, UFixed18Lib.from(collateralDelta));
         } else {
             DSU.push(account, UFixed18Lib.from(collateralDelta)); // // @todo change to 1e6?
         }
@@ -272,7 +271,7 @@ contract MultiInvoker is IMultiInvoker, UKept {
         // If the batcher is 0 or doesn't have enough for this unwrap, go directly to the reserve
         if (address(batcher) == address(0) || amount.gt(USDC.balanceOf(address(batcher)))) {
             reserve.redeem(amount);
-            if (receiver != address(this)) USDC.push(receiver, amount);
+            if (receiver != address(this)) {  USDC.push(receiver, amount); }
         } else {
             // Unwrap the DSU into USDC and return to the receiver
             batcher.unwrap(amount, receiver);
@@ -328,7 +327,7 @@ contract MultiInvoker is IMultiInvoker, UKept {
     ) {
         if (!canExecuteOrder(account, market, nonce)) revert MultiInvokerCantExecuteError();
 
-        Position memory currentPosition = market.pendingPositions(account, IMarket(market).locals(account).currentId);
+        Position memory currentPosition = market.pendingPositions(account, market.locals(account).currentId);
         orders(account, market, nonce).execute(currentPosition);
 
         market.update(
@@ -383,9 +382,8 @@ contract MultiInvoker is IMultiInvoker, UKept {
     /// @notice Helper function to get price of `market`
     /// @param market Market to get price of
     /// @return price 6-decimal price of market
-    function _getMarketPrice(IMarket market) internal view returns (Fixed6 price) {
-        // TODO: can't use an oracle price directly because each market has a different payoff function
-        // TODO: need to grab the price like we do elsewhere (possibly use the type of virtual settle we do for liquidation)
-        price = market.oracle().latest().price;
+    function _getMarketPrice(IMarket market, address account) internal view returns (Fixed6 price) {
+        (, OracleVersion memory latestVersion) = _latest(market, account);
+        return latestVersion.price;
     }
 }

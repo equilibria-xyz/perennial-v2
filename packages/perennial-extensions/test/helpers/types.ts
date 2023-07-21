@@ -4,9 +4,15 @@ import { expectPositionEq } from '../../../common/testutil/types'
 import { IMarket, PositionStruct } from '../../types/generated/@equilibria/perennial-v2/contracts/interfaces/IMarket'
 import { FakeContract } from '@defi-wonderland/smock'
 import { SignerWithAddress } from '@nomiclabs/hardhat-ethers/signers'
+import { GlobalStruct, PAccumulator6Struct } from '@equilibria/perennial-v2/types/generated/contracts/Market'
+import { TriggerOrderStruct } from '../../types/generated/contracts/MultiInvoker'
 
 export function setMarketPosition(market: FakeContract<IMarket>, user: SignerWithAddress, position: PositionStruct) {
   market.positions.whenCalledWith(user.address).returns(position)
+}
+
+export function setGlobalPrice(market: FakeContract<IMarket>, price: BigNumberish) {
+  market.global.returns(['0', '0', '0', '0', '0', ['0', '0'], price])
 }
 
 export function setPendingPosition(
@@ -15,8 +21,47 @@ export function setPendingPosition(
   currentId: BigNumberish,
   position: PositionStruct,
 ) {
+  market.locals.reset()
+  market.pendingPosition.reset()
   market.locals.whenCalledWith(user).returns(currentId)
   market.pendingPositions.whenCalledWith(user.address, currentId).returns(position)
+}
+
+export type Dir = 'L' | 'S'
+export type TriggerType = 'LM' | 'TP' | 'SL'
+export type TriggerOrder = {
+  side: number
+  fee: BigNumberish
+  price: BigNumberish
+  delta: BigNumberish
+}
+
+export const openTriggerOrder = ({
+  size,
+  price,
+  side,
+  trigger,
+  feePct,
+}: {
+  size: BigNumberish
+  price: BigNumberish
+  side?: Dir
+  trigger?: TriggerType
+  feePct?: number
+}): TriggerOrderStruct => {
+  if (feePct) {
+    if (feePct > 100 || feePct <= 0) throw Error('Specified fee pct must be 100 >= <= 0')
+  }
+
+  if (BigNumber.from(size).isNegative()) throw Error('size must be positive')
+
+  return {
+    side: side ? (side === 'L' ? 1 : 2) : 1,
+    comparison: 0,
+    fee: feePct ? BigNumber.from(size).mul(feePct).div(100) : BigNumber.from(size).div(20),
+    price: price,
+    delta: !trigger || trigger == 'LM' ? size : BigNumber.from(size).mul(-1),
+  }
 }
 
 export const openPosition = ({
@@ -74,6 +119,8 @@ export const changePosition = ({
 module.exports = {
   setMarketPosition,
   setPendingPosition,
+  setGlobalPrice,
+  openTriggerOrder,
   openPosition,
   changePosition,
 }
