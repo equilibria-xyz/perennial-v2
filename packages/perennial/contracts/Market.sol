@@ -487,7 +487,7 @@ contract Market is IMarket, Instance {
         bool protected
     ) private view {
         // load all pending state
-        (Position[] memory pendingPositions, Fixed6 collateralAfterFees) = _loadPendingPositions(context, account);
+        (Position[] memory pendingLocalPositions, Fixed6 collateralAfterFees) = _loadPendingPositions(context, account);
 
         if (protected && (
             !context.currentPosition.local.magnitude().isZero() ||
@@ -528,10 +528,10 @@ contract Market is IMarket, Instance {
             !context.latestPosition.local.collateralized(context.latestVersion, context.riskParameter, collateralAfterFees)
         ) { if (LOG_REVERTS) console.log("MarketInsufficientCollateralizationError1"); revert MarketInsufficientCollateralizationError(); }
 
-        for (uint256 i; i < pendingPositions.length; i++)
+        for (uint256 i; i < pendingLocalPositions.length; i++)
             if (
                 !protected &&
-                !pendingPositions[i].collateralized(context.latestVersion, context.riskParameter, collateralAfterFees)
+                !pendingLocalPositions[i].collateralized(context.latestVersion, context.riskParameter, collateralAfterFees)
             ) { if (LOG_REVERTS) console.log("MarketInsufficientCollateralizationError3"); revert MarketInsufficientCollateralizationError(); }
 
         if (
@@ -561,23 +561,23 @@ contract Market is IMarket, Instance {
     /// @notice Loads data about all pending positions for the invariant check
     /// @param context The context to use
     /// @param account The account to load the pending positions for
-    /// @return pendingPositions All pending positions for the account
+    /// @return pendingLocalPositions All pending positions for the account
     /// @return collateralAfterFees The account's collateral after fees
     function _loadPendingPositions(
         Context memory context,
         address account
-    ) private view returns (Position[] memory pendingPositions, Fixed6 collateralAfterFees) {
+    ) private view returns (Position[] memory pendingLocalPositions, Fixed6 collateralAfterFees) {
         collateralAfterFees = context.local.collateral;
-        pendingPositions = new Position[](
+        pendingLocalPositions = new Position[](
             context.local.currentId - Math.min(context.latestPosition.local.id, context.local.currentId)
         );
-        for (uint256 i; i < pendingPositions.length - 1; i++) {
-            pendingPositions[i] = _pendingPositions[account][context.latestPosition.local.id + 1 + i].read();
+        for (uint256 i; i < pendingLocalPositions.length - 1; i++) {
+            pendingLocalPositions[i] = _pendingPositions[account][context.latestPosition.local.id + 1 + i].read();
             collateralAfterFees = collateralAfterFees
-                .sub(Fixed6Lib.from(pendingPositions[i].fee))
-                .sub(Fixed6Lib.from(pendingPositions[i].keeper));
+                .sub(Fixed6Lib.from(pendingLocalPositions[i].fee))
+                .sub(Fixed6Lib.from(pendingLocalPositions[i].keeper));
         }
-        pendingPositions[pendingPositions.length - 1] = context.currentPosition.local; // current local position hasn't been stored yet
+        pendingLocalPositions[pendingLocalPositions.length - 1] = context.currentPosition.local; // current local position hasn't been stored yet
     }
 
     /// @notice Computes the liquidation fee for the current latest local position
