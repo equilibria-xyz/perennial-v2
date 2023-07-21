@@ -86,11 +86,6 @@ contract MultiInvoker is IMultiInvoker, UKept {
         return order.fillable(_getMarketPrice(market, account));
     }
 
-    // @todo not needed
-    /// @notice approves a market deployed by the factory to spend DSU
-    /// @param target Market or Vault to approve max DSU spending
-    function approve(address target) external { _approve(target); }
-
     /// @notice entry to perform invocations
     /// @param invocations List of actions to execute in order
     function invoke(Invocation[] calldata invocations) external {
