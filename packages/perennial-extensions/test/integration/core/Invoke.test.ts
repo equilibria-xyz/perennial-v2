@@ -140,6 +140,7 @@ describe('Invoke', () => {
 
       expect(await dsu.balanceOf(market.address)).to.eq(usdcDeposit.mul(1e12))
     })
+
     it('withdraws from market and unwraps DSU to USDC', async () => {
       const { user, dsu, usdc } = instanceVars
 
@@ -210,14 +211,12 @@ describe('Invoke', () => {
       await usdc.connect(user).approve(mulitInvoker.address, collateral)
 
       await expect(
-        mulitInvoker
-          .connect(user)
-          .invoke([
-            {
-              action: 10,
-              args: ethers.utils.defaultAbiCoder.encode(['address', 'uint256'], [userB.address, collateral]),
-            },
-          ]),
+        mulitInvoker.connect(user).invoke([
+          {
+            action: 10,
+            args: ethers.utils.defaultAbiCoder.encode(['address', 'uint256'], [userB.address, collateral]),
+          },
+        ]),
       )
         .to.emit(usdc, 'Transfer')
         .withArgs(user.address, userB.address, collateral)
