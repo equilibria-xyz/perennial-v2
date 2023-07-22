@@ -8,8 +8,6 @@ export interface DeployProductParams
   extends Partial<Omit<RiskParameterStruct & MarketParameterStruct, 'payoffDefinition'>> {
   factory: IMarketFactory
   token: IERC20Metadata
-  name: string
-  symbol: string
   oracle: string
   payoff: string
   owner: SignerWithAddress
@@ -68,13 +66,15 @@ export async function deployProductOnMainnetFork({
     staleAfter: staleAfter ?? 7200,
     makerReceiveOnly: false,
   }
-  const marketParameter: MarketParameterStruct = {
+  const marketParameter = {
     fundingFee: fundingFee ?? parse6decimal('0.00'),
     interestFee: interestFee ?? parse6decimal('0.00'),
     positionFee: positionFee ?? parse6decimal('0.0'),
     riskFee: 0,
     oracleFee: 0,
     settlementFee: 0,
+    maxPendingGlobal: 8,
+    maxPendingLocal: 5,
     makerRewardRate: 0,
     longRewardRate: 0,
     shortRewardRate: 0,
@@ -97,7 +97,8 @@ export async function deployProductOnMainnetFork({
 
   const market = IMarket__factory.connect(productAddress, owner)
   await market.connect(owner).updateRiskParameter(riskParameter)
+  console.log(2)
   await market.connect(owner).updateParameter(marketParameter)
-
+  console.log(2)
   return market
 }
