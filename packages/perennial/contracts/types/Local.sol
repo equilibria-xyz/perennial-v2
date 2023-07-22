@@ -103,10 +103,10 @@ library LocalStorageLib {
     function read(LocalStorage storage self) internal view returns (Local memory) {
         uint256 value = self.value;
         return Local(
-            uint256(value << 192) >> 192,
-            Fixed6.wrap(int256(value << 128) >> 192),
-            UFixed6.wrap(uint256(value << 64) >> 192),
-            uint256(value) >> 192
+            uint256(value << (256 - 64)) >> (256 - 64),
+            Fixed6.wrap(int256(value << (256 - 64 - 64)) >> (256 - 64)),
+            UFixed6.wrap(uint256(value << (256 - 64 - 64 - 64)) >> (256 - 64)),
+            (uint256(value) << (256 - 64 - 64 - 64 - 64)) >> (256 - 64)
         );
     }
 
@@ -118,10 +118,10 @@ library LocalStorageLib {
         if (newValue.protection > uint256(type(uint64).max)) revert LocalStorageInvalidError();
 
         uint256 encoded =
-            uint256(newValue.currentId << 192) >> 192 |
-            uint256(Fixed6.unwrap(newValue.collateral) << 192) >> 128 |
-            uint256(UFixed6.unwrap(newValue.reward) << 192) >> 64 |
-            uint256(newValue.protection << 192);
+            uint256(newValue.currentId << (256 - 64)) >> (256 - 64) |
+            uint256(Fixed6.unwrap(newValue.collateral) << (256 - 64)) >> (256 - 64 - 64) |
+            uint256(UFixed6.unwrap(newValue.reward) << (256 - 64)) >> (256 - 64 - 64 - 64) |
+            uint256(newValue.protection << (256 - 64)) >> (256 - 64 - 64 - 64 - 64);
         assembly {
             sstore(self.slot, encoded)
         }
