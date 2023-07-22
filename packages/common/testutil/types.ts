@@ -6,7 +6,6 @@ export interface Accumulator {
 }
 
 export interface Position {
-  id: BigNumberish
   timestamp: BigNumberish
   maker: BigNumberish
   long: BigNumberish
@@ -18,6 +17,7 @@ export interface Position {
 
 export interface Global {
   currentId: BigNumberish
+  latestId: BigNumberish
   protocolFee: BigNumberish
   oracleFee: BigNumberish
   riskFee: BigNumberish
@@ -26,6 +26,7 @@ export interface Global {
 
 export interface Local {
   currentId: BigNumberish
+  latestId: BigNumberish
   collateral: BigNumberish
   reward: BigNumberish
   protection: BigNumberish
@@ -46,7 +47,6 @@ export interface Fee {
 }
 
 export function expectPositionEq(a: Position, b: Position): void {
-  expect(a.id).to.equal(b.id, 'Position:Id')
   expect(a.timestamp).to.equal(b.timestamp, 'Position:Timestamp')
   expect(a.maker).to.equal(b.maker, 'Position:Maker')
   expect(a.long).to.equal(b.long, 'Position:Long')
@@ -58,6 +58,7 @@ export function expectPositionEq(a: Position, b: Position): void {
 
 export function expectGlobalEq(a: Global, b: Global): void {
   expect(a.currentId).to.equal(b.currentId, 'Global:CurrentId')
+  expect(a.latestId).to.equal(b.currentId, 'Global:LatestId')
   expect(a.protocolFee).to.equal(b.protocolFee, 'Global:ProtocolFee')
   expect(a.oracleFee).to.equal(b.oracleFee, 'Global:OracleFee')
   expect(a.riskFee).to.equal(b.riskFee, 'Global:RiskFee')
@@ -66,6 +67,7 @@ export function expectGlobalEq(a: Global, b: Global): void {
 
 export function expectLocalEq(a: Local, b: Local): void {
   expect(a.currentId).to.equal(b.currentId, 'Local:Currentid')
+  expect(a.latestId).to.equal(b.latestId, 'Local:LatestId')
   expect(a.collateral).to.equal(b.collateral, 'Local:Collateral')
   expect(a.reward).to.equal(b.reward, 'Local:Reward')
   expect(a.protection).to.equal(b.protection, 'Local:Protection')
@@ -109,7 +111,6 @@ export class Big6Math {
 }
 
 export const DEFAULT_POSITION: Position = {
-  id: 0,
   timestamp: 0,
   long: 0,
   maker: 0,
