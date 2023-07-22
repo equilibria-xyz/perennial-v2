@@ -1,6 +1,6 @@
 import { SignerWithAddress } from '@nomiclabs/hardhat-ethers/signers'
 import HRE from 'hardhat'
-import { BigNumber, utils, ContractTransaction } from 'ethers'
+import { BigNumber, utils, ContractTransaction, constants } from 'ethers'
 
 import { time, impersonate } from '../../../../common/testutil'
 
@@ -64,6 +64,9 @@ import {
   RiskParameterStruct,
 } from '../../../types/generated/@equilibria/perennial-v2/contracts/Market'
 import { MarketFactory__factory } from '@equilibria/perennial-v2/types/generated'
+import { FakeContract, smock } from '@defi-wonderland/smock'
+import { IOracleFactory } from '@equilibria/perennial-v2-vault/types/generated'
+import { deployProductOnMainnetFork } from '@equilibria/perennial-v2-vault/test/integration/helpers/setupHelpers'
 
 const { config, deployments, ethers } = HRE
 
@@ -82,7 +85,8 @@ export const CHAINLINK_REGISTRY = '0x47Fb2585D2C56Fe188D0E6ec628a38b74fCeeeDf'
 export const DSU = '0x605D26FBd5be761089281d5cec2Ce86eeA667109'
 export const USDC = '0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48'
 const DSU_MINTER = '0xD05aCe63789cCb35B9cE71d01e4d632a0486Da4B'
-const ZERO_ADDR = '0x0000000000000000000000000000000000000000'
+
+const LEGACY_ORACLE_DELAY = 3600
 
 export interface InstanceVars {
   owner: SignerWithAddress
@@ -214,7 +218,6 @@ export async function deployProtocol(chainlinkContext?: ChainlinkContext): Promi
 
 export async function fundWallet(dsu: IERC20Metadata, usdc: IERC20Metadata, wallet: SignerWithAddress) {
   const usdcHolder = await impersonate.impersonateWithBalance(USDC_HOLDER, utils.parseEther('10'))
-  const dsuMinter = await impersonate.impersonateWithBalance(DSU_MINTER, utils.parseEther('10'))
   const dsuIface = new utils.Interface(['function mint(uint256)'])
   await usdc.connect(usdcHolder).approve(RESERVE, BigNumber.from('2000000000000'))
   await usdcHolder.sendTransaction({
@@ -313,43 +316,145 @@ export async function settle(market: IMarket, account: SignerWithAddress): Promi
 
 export async function createVault(
   instanceVars: InstanceVars,
-  market: Market,
   leverage?: BigNumber,
   maxCollateral?: BigNumber,
-): Promise<[IVault, VaultFactory]> {
-  const [, , user, user2, btcUser1, btcUser2, liquidator, perennialUser] = await ethers.getSigners()
+): Promise<[IVault, VaultFactory, FakeContract<IOracleProvider>, FakeContract<IOracleProvider>]> {
+  const STARTING_TIMESTAMP = BigNumber.from(1646456563)
+  const ETH_PRICE_FEE_ID = '0x0000000000000000000000000000000000000000000000000000000000000001'
+  const BTC_PRICE_FEE_ID = '0x0000000000000000000000000000000000000000000000000000000000000002'
 
-  const vaultFactoryProxy = await new TransparentUpgradeableProxy__factory(instanceVars.owner).deploy(
+  const [owner, , user, user2, btcUser1, btcUser2, liquidator, perennialUser] = await ethers.getSigners()
+  const marketFactory = instanceVars.marketFactory
+  const oracleFactory = instanceVars.oracleFactory
+
+  const vaultOracleFactory = await smock.fake<IOracleFactory>('IOracleFactory')
+  await oracleFactory.connect(owner).register(vaultOracleFactory.address)
+  await oracleFactory.connect(owner).authorize(marketFactory.address)
+
+  const ethSubOracle = await smock.fake<IOracleProvider>('IOracleProvider')
+  const ethRealVersion = {
+    timestamp: STARTING_TIMESTAMP,
+    price: BigNumber.from('2620237388'),
+    valid: true,
+  }
+
+  ethSubOracle.status.returns([ethRealVersion, ethRealVersion.timestamp.add(LEGACY_ORACLE_DELAY)])
+  ethSubOracle.request.returns()
+  ethSubOracle.latest.returns(ethRealVersion)
+  ethSubOracle.current.returns(ethRealVersion.timestamp.add(LEGACY_ORACLE_DELAY))
+  ethSubOracle.at.whenCalledWith(ethRealVersion.timestamp).returns(ethRealVersion)
+
+  const btcSubOracle = await smock.fake<IOracleProvider>('IOracleProvider')
+  const btcRealVersion = {
+    timestamp: STARTING_TIMESTAMP,
+    price: BigNumber.from('38838362695'),
+    valid: true,
+  }
+
+  btcSubOracle.status.returns([btcRealVersion, btcRealVersion.timestamp.add(LEGACY_ORACLE_DELAY)])
+  btcSubOracle.request.returns()
+  btcSubOracle.latest.returns(btcRealVersion)
+  btcSubOracle.current.returns(btcRealVersion.timestamp.add(LEGACY_ORACLE_DELAY))
+  btcSubOracle.at.whenCalledWith(btcRealVersion.timestamp).returns(btcRealVersion)
+
+  vaultOracleFactory.instances.whenCalledWith(ethSubOracle.address).returns(true)
+  vaultOracleFactory.oracles.whenCalledWith(ETH_PRICE_FEE_ID).returns(ethSubOracle.address)
+  vaultOracleFactory.instances.whenCalledWith(btcSubOracle.address).returns(true)
+  vaultOracleFactory.oracles.whenCalledWith(BTC_PRICE_FEE_ID).returns(btcSubOracle.address)
+
+  const vaultFactoryProxy = await new TransparentUpgradeableProxy__factory(owner).deploy(
     instanceVars.marketFactory.address, // dummy contract
     instanceVars.proxyAdmin.address,
     [],
   )
 
-  const vaultImpl = await new Vault__factory(instanceVars.owner).deploy()
-  const vaultFactoryImpl = await new VaultFactory__factory(instanceVars.owner).deploy(
+  vaultOracleFactory.instances.whenCalledWith(ethSubOracle.address).returns(true)
+  vaultOracleFactory.oracles.whenCalledWith(ETH_PRICE_FEE_ID).returns(ethSubOracle.address)
+  vaultOracleFactory.instances.whenCalledWith(btcSubOracle.address).returns(true)
+  vaultOracleFactory.oracles.whenCalledWith(BTC_PRICE_FEE_ID).returns(btcSubOracle.address)
+
+  const ethOracle = IOracle__factory.connect(
+    await instanceVars.oracleFactory.connect(owner).callStatic.create(ETH_PRICE_FEE_ID, vaultOracleFactory.address),
+    owner,
+  )
+  await instanceVars.oracleFactory.connect(owner).create(ETH_PRICE_FEE_ID, vaultOracleFactory.address)
+
+  const btcOracle = IOracle__factory.connect(
+    await instanceVars.oracleFactory.connect(owner).callStatic.create(BTC_PRICE_FEE_ID, vaultOracleFactory.address),
+    owner,
+  )
+  await instanceVars.oracleFactory.connect(owner).create(BTC_PRICE_FEE_ID, vaultOracleFactory.address)
+
+  const ethMarket = await deployProductOnMainnetFork({
+    factory: instanceVars.marketFactory,
+    token: instanceVars.dsu,
+    owner: owner,
+    oracle: ethOracle.address,
+    payoff: constants.AddressZero,
+    makerLimit: parse6decimal('1000'),
+    minMaintenance: parse6decimal('50'),
+    maxLiquidationFee: parse6decimal('25000'),
+  })
+  const btcMarket = await deployProductOnMainnetFork({
+    factory: instanceVars.marketFactory,
+    token: instanceVars.dsu,
+    owner: owner,
+    oracle: btcOracle.address,
+    payoff: constants.AddressZero,
+    minMaintenance: parse6decimal('50'),
+    maxLiquidationFee: parse6decimal('25000'),
+  })
+
+  const vaultImpl = await new Vault__factory(owner).deploy()
+  const vaultFactoryImpl = await new VaultFactory__factory(owner).deploy(
     instanceVars.marketFactory.address,
     vaultImpl.address,
   )
-
   await instanceVars.proxyAdmin.upgrade(vaultFactoryProxy.address, vaultFactoryImpl.address)
-  const vaultFactory = IVaultFactory__factory.connect(vaultFactoryProxy.address, instanceVars.owner)
+  const vaultFactory = IVaultFactory__factory.connect(vaultFactoryProxy.address, owner)
   await vaultFactory.initialize()
-
   const vault = IVault__factory.connect(
-    await vaultFactory.callStatic.create(instanceVars.dsu.address, market.address, 'Blue Chip'),
-    instanceVars.owner,
+    await vaultFactory.callStatic.create(instanceVars.dsu.address, ethMarket.address, 'Blue Chip'),
+    owner,
   )
+  await vaultFactory.create(instanceVars.dsu.address, ethMarket.address, 'Blue Chip')
 
-  await vaultFactory.create(instanceVars.dsu.address, market.address, 'Blue Chip')
-
-  //await vault.connect(instanceVars.owner).register(market.address)
-
-  await vault.updateMarket(0, 4, leverage ? leverage : parse6decimal('4.0'))
+  await vault.register(btcMarket.address)
+  await vault.updateMarket(0, 4, leverage ?? parse6decimal('4.0'))
+  await vault.updateMarket(1, 1, leverage ?? parse6decimal('4.0'))
   await vault.updateParameter({
-    cap: maxCollateral ? maxCollateral : parse6decimal('500000'),
+    cap: maxCollateral ?? parse6decimal('500000'),
   })
 
-  return [vault, vaultFactory]
+  const usdc = IERC20Metadata__factory.connect(USDC, owner)
+  const asset = IERC20Metadata__factory.connect(await vault.asset(), owner)
+
+  await asset.connect(liquidator).approve(vault.address, ethers.constants.MaxUint256)
+  await asset.connect(perennialUser).approve(vault.address, ethers.constants.MaxUint256)
+  await fundWallet(asset, usdc, liquidator)
+  await fundWallet(asset, usdc, perennialUser)
+  await fundWallet(asset, usdc, perennialUser)
+  await fundWallet(asset, usdc, perennialUser)
+  await fundWallet(asset, usdc, perennialUser)
+  await fundWallet(asset, usdc, perennialUser)
+  await fundWallet(asset, usdc, perennialUser)
+  await fundWallet(asset, usdc, perennialUser)
+  await asset.connect(user).approve(vault.address, ethers.constants.MaxUint256)
+  await asset.connect(user2).approve(vault.address, ethers.constants.MaxUint256)
+  await asset.connect(btcUser1).approve(vault.address, ethers.constants.MaxUint256)
+  await asset.connect(btcUser2).approve(vault.address, ethers.constants.MaxUint256)
+  await asset.connect(user).approve(ethMarket.address, ethers.constants.MaxUint256)
+  await asset.connect(user2).approve(ethMarket.address, ethers.constants.MaxUint256)
+  await asset.connect(btcUser1).approve(btcMarket.address, ethers.constants.MaxUint256)
+  await asset.connect(btcUser2).approve(btcMarket.address, ethers.constants.MaxUint256)
+
+  // Seed markets with some activity
+  await ethMarket.connect(user).update(user.address, parse6decimal('100'), 0, 0, parse6decimal('100000'), false)
+  await ethMarket.connect(user2).update(user2.address, 0, parse6decimal('50'), 0, parse6decimal('100000'), false)
+  await btcMarket.connect(btcUser1).update(btcUser1.address, parse6decimal('20'), 0, 0, parse6decimal('100000'), false)
+  await btcMarket.connect(btcUser2).update(btcUser2.address, 0, parse6decimal('10'), 0, parse6decimal('100000'), false)
+
+  return [vault, vaultFactory, ethSubOracle, btcSubOracle]
 }
 
 export async function createInvoker(instanceVars: InstanceVars, vaultFactory?: VaultFactory): Promise<MultiInvoker> {
