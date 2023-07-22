@@ -159,7 +159,7 @@ contract Market is IMarket, Instance {
         reward.push(msg.sender, UFixed18Lib.from(newLocal.reward));
         emit RewardClaimed(msg.sender, newLocal.reward);
 
-        newLocal.clearReward();
+        newLocal.reward = UFixed6Lib.ZERO;
         _locals[msg.sender].store(newLocal);
     }
 
@@ -545,7 +545,7 @@ contract Market is IMarket, Instance {
             !protected &&
             newOrder.liquidityCheckApplicable(context.marketParameter) &&
             context.currentPosition.global.socialized() &&
-            newOrder.decreasesLiquidity()
+            newOrder.maker.lt(newOrder.net)
         ) { if (LOG_REVERTS) console.log("MarketInsufficientLiquidityError"); revert MarketInsufficientLiquidityError(); }
 
         if (!protected && collateral.lt(Fixed6Lib.ZERO) && collateralAfterFees.lt(Fixed6Lib.ZERO))

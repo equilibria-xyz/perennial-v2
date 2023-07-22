@@ -89,12 +89,6 @@ library LocalLib {
         self.protection = currentTimestamp;
         return true;
     }
-
-    /// @notice Clears the local's reward value
-    /// @param self The Local object to update
-    function clearReward(Local memory self) internal pure {
-        self.reward = UFixed6Lib.ZERO;
-    }
 }
 
 library LocalStorageLib {
