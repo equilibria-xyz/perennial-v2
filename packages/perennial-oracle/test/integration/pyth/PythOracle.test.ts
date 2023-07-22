@@ -249,7 +249,7 @@ describe('PythOracle', () => {
 
     it('can commit if there are committed versions but no requested versions', async () => {
       await pythOracle.connect(oracleSigner).request(user.address)
-      await pythOracle.connect(user).commit(0, VAA, {
+      await pythOracle.connect(user).commit(STARTING_TIME, VAA, {
         value: 1,
       })
       await pythOracle.connect(user).commit(STARTING_TIME + 60, VAA_AFTER_EXPIRATION, {
@@ -259,9 +259,7 @@ describe('PythOracle', () => {
 
     it('can commit if there are committed versions and requested versions', async () => {
       await pythOracle.connect(oracleSigner).request(user.address)
-      await pythOracle.connect(user).commit(0, VAA, {
-        value: 1,
-      })
+      await pythOracle.connect(user).commit(STARTING_TIME, VAA, { value: 1 })
       await time.increaseTo(1686199133)
       await pythOracle.connect(oracleSigner).request(user.address)
       const secondRequestedVersion = await currentBlockTimestamp()
@@ -271,7 +269,7 @@ describe('PythOracle', () => {
       })
       expect((await pythOracle.connect(user).latest()).timestamp).to.equal(nonRequestedOracleVersion)
 
-      await pythOracle.connect(user).commit(1, VAA_WAY_AFTER_EXPIRATION, {
+      await pythOracle.connect(user).commit(secondRequestedVersion, VAA_WAY_AFTER_EXPIRATION, {
         value: 1,
       })
       expect((await pythOracle.connect(user).latest()).timestamp).to.equal(secondRequestedVersion)
@@ -288,7 +286,7 @@ describe('PythOracle', () => {
     it('must be more recent than the most recently committed version', async () => {
       await time.increase(60)
       await pythOracle.connect(oracleSigner).request(user.address)
-      await pythOracle.connect(user).commit(0, VAA_AFTER_EXPIRATION, {
+      await pythOracle.connect(user).commit(STARTING_TIME + 60, VAA_AFTER_EXPIRATION, {
         value: 1,
       })
 
@@ -514,6 +512,17 @@ describe('PythOracle', () => {
   describe('#nextVersionToCommit', async () => {
     context('no requested version', () => {
       it('returns 0', async () => {
+        expect(await pythOracle.nextVersionToCommit()).to.equal(0)
+      })
+    })
+
+    context('no next version to commit', () => {
+      it('returns 0', async () => {
+        await pythOracle.connect(oracleSigner).request(user.address)
+        await pythOracle.connect(user).commitRequested(0, VAA, {
+          value: 1,
+        })
+
         expect(await pythOracle.nextVersionToCommit()).to.equal(0)
       })
     })

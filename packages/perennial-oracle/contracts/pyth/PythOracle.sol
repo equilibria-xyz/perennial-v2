@@ -113,7 +113,7 @@ contract PythOracle is IPythOracle, Instance, Kept {
     /// @notice Returns the next oracle version to commit
     /// @return version The next oracle version to commit
     function nextVersionToCommit() external view returns (uint256 version) {
-        if (versionList.length == 0) return 0;
+        if (versionList.length == 0 || nextVersionIndexToCommit >= versionList.length) return 0;
         return versionList[nextVersionIndexToCommit];
     }
 
