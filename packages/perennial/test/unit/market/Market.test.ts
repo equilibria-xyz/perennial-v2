@@ -357,66 +357,6 @@ describe('Market', () => {
     })
   })
 
-  describe('#at', async () => {
-    beforeEach(async () => {
-      oracle.at.whenCalledWith(ORACLE_VERSION_0.timestamp).returns(ORACLE_VERSION_0)
-      oracle.at.whenCalledWith(ORACLE_VERSION_1.timestamp).returns(ORACLE_VERSION_1)
-      oracle.at.whenCalledWith(ORACLE_VERSION_2.timestamp).returns(ORACLE_VERSION_2)
-      oracle.at.whenCalledWith(ORACLE_VERSION_3.timestamp).returns(ORACLE_VERSION_3)
-    })
-
-    it('returns the correct price without payoff', async () => {
-      await market.connect(factorySigner).initialize(marketDefinition)
-      await market.connect(owner).updateRiskParameter(riskParameter)
-      await market.connect(owner).updateReward(reward.address)
-      await market.connect(owner).updateParameter(marketParameter)
-
-      const at0 = await market.at(ORACLE_VERSION_0.timestamp)
-      expect(at0.timestamp).to.equal(ORACLE_VERSION_0.timestamp)
-      expect(at0.price).to.equal(ORACLE_VERSION_0.price)
-      expect(at0.valid).to.equal(ORACLE_VERSION_0.valid)
-      const at1 = await market.at(ORACLE_VERSION_1.timestamp)
-      expect(at1.timestamp).to.equal(ORACLE_VERSION_1.timestamp)
-      expect(at1.price).to.equal(ORACLE_VERSION_1.price)
-      expect(at1.valid).to.equal(ORACLE_VERSION_1.valid)
-      const at2 = await market.at(ORACLE_VERSION_2.timestamp)
-      expect(at2.timestamp).to.equal(ORACLE_VERSION_2.timestamp)
-      expect(at2.price).to.equal(ORACLE_VERSION_2.price)
-      expect(at2.valid).to.equal(ORACLE_VERSION_2.valid)
-      const at3 = await market.at(ORACLE_VERSION_3.timestamp)
-      expect(at3.timestamp).to.equal(ORACLE_VERSION_3.timestamp)
-      expect(at3.price).to.equal(ORACLE_VERSION_3.price)
-      expect(at3.valid).to.equal(ORACLE_VERSION_3.valid)
-    })
-
-    it('returns the correct price without payoff', async () => {
-      const payoff = await new PowerTwo__factory(owner).deploy()
-      marketDefinition.payoff = payoff.address
-
-      await market.connect(factorySigner).initialize(marketDefinition)
-      await market.connect(owner).updateRiskParameter(riskParameter)
-      await market.connect(owner).updateReward(reward.address)
-      await market.connect(owner).updateParameter(marketParameter)
-
-      const at0 = await market.at(ORACLE_VERSION_0.timestamp)
-      expect(at0.timestamp).to.equal(ORACLE_VERSION_0.timestamp)
-      expect(at0.price).to.equal(ORACLE_VERSION_0.price.pow(2).div(1e6))
-      expect(at0.valid).to.equal(ORACLE_VERSION_0.valid)
-      const at1 = await market.at(ORACLE_VERSION_1.timestamp)
-      expect(at1.timestamp).to.equal(ORACLE_VERSION_1.timestamp)
-      expect(at1.price).to.equal(ORACLE_VERSION_1.price.pow(2).div(1e6))
-      expect(at1.valid).to.equal(ORACLE_VERSION_1.valid)
-      const at2 = await market.at(ORACLE_VERSION_2.timestamp)
-      expect(at2.timestamp).to.equal(ORACLE_VERSION_2.timestamp)
-      expect(at2.price).to.equal(ORACLE_VERSION_2.price.pow(2).div(1e6))
-      expect(at2.valid).to.equal(ORACLE_VERSION_2.valid)
-      const at3 = await market.at(ORACLE_VERSION_3.timestamp)
-      expect(at3.timestamp).to.equal(ORACLE_VERSION_3.timestamp)
-      expect(at3.price).to.equal(ORACLE_VERSION_3.price.pow(2).div(1e6))
-      expect(at3.valid).to.equal(ORACLE_VERSION_3.valid)
-    })
-  })
-
   context('already initialized', async () => {
     beforeEach(async () => {
       await market.connect(factorySigner).initialize(marketDefinition)

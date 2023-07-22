@@ -18,6 +18,10 @@ interface IPythOracle is IOracleProvider, IInstance, IKept {
     error PythOracleNonRequestedTooRecentError();
 
     function initialize(bytes32 id_, AggregatorV3Interface chainlinkFeed_, Token18 dsu_) external;
-    function commit(uint256 versionIndex, bytes calldata updateData) external payable;
-    function commitNonRequested(uint256 oracleVersion, bytes calldata updateData) external payable;
+    function commitRequested(uint256 versionIndex, bytes calldata updateData) external payable;
+    function commit(uint256 oracleVersion, bytes calldata updateData) external payable;
+
+    function versionList(uint256 versionIndex) external view returns (uint256);
+    function nextVersionIndexToCommit() external view returns (uint256);
+    function nextVersionToCommit() external view returns (uint256);
 }

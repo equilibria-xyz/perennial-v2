@@ -140,7 +140,10 @@ contract MultiInvoker is IMultiInvoker, Kept {
                 (address oracleProvider, uint256 version, bytes memory data) =
                     abi.decode(invocation.args, (address, uint256, bytes));
 
-                IPythOracle(oracleProvider).commitNonRequested{value: msg.value}(version, data);
+                UFixed18 balanceBefore = DSU.balanceOf(address(this));
+                IPythOracle(oracleProvider).commit{value: msg.value}(version, data);
+                // Push incentive fee (if any)
+                DSU.push(msg.sender, DSU.balanceOf(address(this)).sub(balanceBefore));
             } else if (invocation.action == PerennialAction.LIQUIDATE) {
                 (IMarket market, address account) = abi.decode(invocation.args, (IMarket, address));
 
@@ -302,7 +305,10 @@ contract MultiInvoker is IMultiInvoker, Kept {
         // scan pending position for any ready-to-be-settled positions
         for (uint256 id = market.positions(account).id; id <= market.locals(account).currentId; id++) {
             Position memory pendingPosition = market.pendingPositions(account, id);
-            OracleVersion memory oracleVersion = market.at(pendingPosition.timestamp);
+            OracleVersion memory oracleVersion = market.oracle().at(pendingPosition.timestamp);
+
+            IPayoffProvider payoff = market.payoff();
+            if (address(payoff) != address(0)) oracleVersion.price = payoff.payoff(oracleVersion.price);
 
             // if versions are valid, update latest
             if (latestTimestamp >= pendingPosition.timestamp && oracleVersion.valid) {

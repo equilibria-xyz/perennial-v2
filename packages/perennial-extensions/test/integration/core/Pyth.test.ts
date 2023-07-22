@@ -7,6 +7,8 @@ import { impersonateWithBalance } from '../../../../common/testutil/impersonate'
 import {
   IERC20Metadata,
   MultiInvoker,
+  Oracle,
+  OracleFactory,
   Oracle__factory,
   PythFactory,
   PythFactory__factory,
@@ -15,7 +17,7 @@ import {
 } from '../../../types/generated'
 
 import { InstanceVars, createInvoker, deployProtocol } from '../helpers/setupHelpers'
-import { Oracle, OracleFactory, Oracle__factory } from '@equilibria/perennial-v2/types/generated'
+import { parse6decimal } from '../../../../common/testutil/types'
 
 const { ethers } = HRE
 
@@ -48,6 +50,7 @@ describe('PythOracle', () => {
     instanceVars = await deployProtocol()
     ;({ dsu, oracleFactory, owner, user } = instanceVars)
 
+    await oracleFactory.updateMaxClaim(parse6decimal('10'))
     const pythOracleImpl = await new PythOracle__factory(owner).deploy(PYTH_ADDRESS)
     pythOracleFactory = await new PythFactory__factory(owner).deploy(
       pythOracleImpl.address,
@@ -73,11 +76,14 @@ describe('PythOracle', () => {
     await dsu.connect(dsuHolder).transfer(oracleFactory.address, utils.parseEther('100000'))
 
     multiInvoker = await createInvoker(instanceVars)
+    await time.increaseTo(STARTING_TIME - 1)
+    // block.timestamp of the next call will be STARTING_TIME (1686198973)
   })
 
   describe('PerennialAction.COMMIT_PRICE', async () => {
-    it('commits a non-requested pyth version', async () => {
-      await pythOracle.connect(oracleSigner).request()
+    it('commits a requested pyth version', async () => {
+      const originalDSUBalance = await dsu.callStatic.balanceOf(user.address)
+      await pythOracle.connect(oracleSigner).request(user.address)
 
       // Base fee isn't working properly in coverage, so we need to set it manually
       await ethers.provider.send('hardhat_setNextBlockBaseFeePerGas', ['0x1000'])
@@ -98,6 +104,34 @@ describe('PythOracle', () => {
       )
 
       expect((await pythOracle.callStatic.latest()).timestamp).to.equal(STARTING_TIME)
+      const newDSUBalance = await dsu.callStatic.balanceOf(user.address)
+      expect(newDSUBalance.sub(originalDSUBalance)).to.be.greaterThan(0)
+    })
+
+    it('commits a non-requested pyth version', async () => {
+      const originalDSUBalance = await dsu.callStatic.balanceOf(user.address)
+
+      // Base fee isn't working properly in coverage, so we need to set it manually
+      await ethers.provider.send('hardhat_setNextBlockBaseFeePerGas', ['0x1000'])
+      await multiInvoker.connect(user).invoke(
+        [
+          {
+            action: 6,
+            args: utils.defaultAbiCoder.encode(
+              ['address', 'uint256', 'bytes'],
+              [pythOracle.address, STARTING_TIME, VAA],
+            ),
+          },
+        ],
+        {
+          value: 1,
+          gasPrice: 10000,
+        },
+      )
+
+      expect((await pythOracle.callStatic.latest()).timestamp).to.equal(STARTING_TIME)
+      const newDSUBalance = await dsu.callStatic.balanceOf(user.address)
+      expect(newDSUBalance.sub(originalDSUBalance)).to.equal(0)
     })
   })
 })

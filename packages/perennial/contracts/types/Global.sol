@@ -42,7 +42,7 @@ struct StoredGlobal { // TODO: pack better
     int24 _pAccumulatorSkew;
     int64 _latestPrice;
 }
-struct GlobalStorage { StoredGlobal value; }
+struct GlobalStorage { uint256 slot0; uint256 slot1; }
 using GlobalStorageLib for GlobalStorage global;
 
 /// @title Global
@@ -86,18 +86,18 @@ library GlobalStorageLib {
     error GlobalStorageInvalidError();
 
     function read(GlobalStorage storage self) internal view returns (Global memory) {
-        StoredGlobal memory storedValue = self.value;
+        (uint256 slot0, uint256 slot1) = (self.slot0, self.slot1);
         return Global(
-            uint256(storedValue._currentId),
-            UFixed6.wrap(uint256(storedValue._protocolFee)),
-            UFixed6.wrap(uint256(storedValue._oracleFee)),
-            UFixed6.wrap(uint256(storedValue._riskFee)),
-            UFixed6.wrap(uint256(storedValue._donation)),
+            uint256(slot0 << (256 - 32)) >> (256 - 32),
+            UFixed6.wrap(uint256(slot0 << (256 - 32 - 48)) >> (256 - 48)),
+            UFixed6.wrap(uint256(slot0 << (256 - 32 - 48 - 48)) >> (256 - 48)),
+            UFixed6.wrap(uint256(slot0 << (256 - 32 - 48 - 48 - 48)) >> (256 - 48)),
+            UFixed6.wrap(uint256(slot0 << (256 - 32 - 48 - 48 - 48 - 48)) >> (256 - 48)),
             PAccumulator6(
-                Fixed6.wrap(int256(storedValue._pAccumulatorValue)),
-                Fixed6.wrap(int256(storedValue._pAccumulatorSkew))
+                Fixed6.wrap(int256(slot0 << (256 - 32 - 48 - 48 - 48 - 48 - 32)) >> (256 - 32)),
+                Fixed6.wrap(int256(slot1 << (256 - 24)) >> (256 - 24))
             ),
-            Fixed6.wrap(int256(storedValue._latestPrice))
+            Fixed6.wrap(int256(slot1 << (256 - 24 - 64)) >> (256 - 64))
         );
     }
 
@@ -114,15 +114,20 @@ library GlobalStorageLib {
         if (newValue.latestPrice.gt(Fixed6.wrap(type(int64).max))) revert GlobalStorageInvalidError();
         if (newValue.latestPrice.lt(Fixed6.wrap(type(int64).min))) revert GlobalStorageInvalidError();
 
-        self.value = StoredGlobal(
-            uint32(newValue.currentId),
-            uint48(UFixed6.unwrap(newValue.protocolFee)),
-            uint48(UFixed6.unwrap(newValue.oracleFee)),
-            uint48(UFixed6.unwrap(newValue.riskFee)),
-            uint48(UFixed6.unwrap(newValue.donation)),
-            int32(Fixed6.unwrap(newValue.pAccumulator._value)),
-            int24(Fixed6.unwrap(newValue.pAccumulator._skew)),
-            int64(Fixed6.unwrap(newValue.latestPrice))
-        );
+        uint256 encoded0 =
+            uint256(newValue.currentId << (256 - 32)) >> (256 - 32) |
+            uint256(UFixed6.unwrap(newValue.protocolFee) << (256 - 48)) >> (256 - 32 - 48) |
+            uint256(UFixed6.unwrap(newValue.oracleFee) << (256 - 48)) >> (256 - 32 - 48 - 48) |
+            uint256(UFixed6.unwrap(newValue.riskFee) << (256 - 48)) >> (256 - 32 - 48 - 48 - 48) |
+            uint256(UFixed6.unwrap(newValue.donation) << (256 - 48)) >> (256 - 32 - 48 - 48 - 48 - 48) |
+            uint256(Fixed6.unwrap(newValue.pAccumulator._value) << (256 - 32)) >> (256 - 32 - 48 - 48 - 48 - 48 - 32);
+        uint256 encoded1 =
+            uint256(Fixed6.unwrap(newValue.pAccumulator._skew) << (256 - 24)) >> (256 - 24) |
+            uint256(Fixed6.unwrap(newValue.latestPrice) << (256 - 64)) >> (256 - 24 - 64);
+
+        assembly {
+            sstore(self.slot, encoded0)
+            sstore(add(self.slot, 1), encoded1)
+        }
     }
 }
