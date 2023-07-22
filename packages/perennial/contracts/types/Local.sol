@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: Apache-2.0
 pragma solidity ^0.8.13;
 
+import "@equilibria/root/number/types/Fixed6.sol";
 import "./Version.sol";
 import "./Position.sol";
 
@@ -8,6 +9,9 @@ import "./Position.sol";
 struct Local {
     /// @dev The current position id
     uint256 currentId;
+
+    /// @dev The latest position id
+    uint256 latestId;
 
     /// @dev The collateral balance
     Fixed6 collateral;
@@ -48,6 +52,7 @@ library LocalLib {
     /// @return values The accumulation result
     function accumulate(
         Local memory self,
+        uint256 latestId,
         Position memory fromPosition,
         Position memory toPosition,
         Version memory fromVersion,
@@ -65,6 +70,7 @@ library LocalLib {
         Fixed6 feeAmount = Fixed6Lib.from(values.positionFee.add(values.keeper));
         self.collateral = self.collateral.add(values.collateralAmount).sub(feeAmount);
         self.reward = self.reward.add(values.rewardAmount);
+        self.latestId = latestId;
     }
 
     /// @notice Updates the local to put it into a protected state for liquidation
@@ -95,7 +101,8 @@ library LocalLib {
 ///
 ///     struct StoredLocal {
 ///         /* slot 0 */
-///         uint64 currentId;
+///         uint32 currentId;
+///         uint32 latestId;
 ///         int64 collateral;
 ///         uint64 reward;
 ///         uint64 protection;
@@ -107,25 +114,28 @@ library LocalStorageLib {
     function read(LocalStorage storage self) internal view returns (Local memory) {
         uint256 slot0 = self.slot0;
         return Local(
-            uint256(slot0 << (256 - 64)) >> (256 - 64),
-            Fixed6.wrap(int256(slot0 << (256 - 64 - 64)) >> (256 - 64)),
-            UFixed6.wrap(uint256(slot0 << (256 - 64 - 64 - 64)) >> (256 - 64)),
-            (uint256(slot0) << (256 - 64 - 64 - 64 - 64)) >> (256 - 64)
+            uint256(slot0 << (256 - 32)) >> (256 - 32),
+            uint256(slot0 << (256 - 32 - 32)) >> (256 - 32),
+            Fixed6.wrap(int256(slot0 << (256 - 32 - 32 - 64)) >> (256 - 64)),
+            UFixed6.wrap(uint256(slot0 << (256 - 32 - 32 - 64 - 64)) >> (256 - 64)),
+            (uint256(slot0) << (256 - 32 - 32 - 64 - 64 - 64)) >> (256 - 64)
         );
     }
 
     function store(LocalStorage storage self, Local memory newValue) internal {
-        if (newValue.currentId > uint256(type(uint64).max)) revert LocalStorageInvalidError();
+        if (newValue.currentId > uint256(type(uint32).max)) revert LocalStorageInvalidError();
+        if (newValue.latestId > uint256(type(uint32).max)) revert LocalStorageInvalidError();
         if (newValue.collateral.gt(Fixed6.wrap(type(int64).max))) revert LocalStorageInvalidError();
         if (newValue.collateral.lt(Fixed6.wrap(type(int64).min))) revert LocalStorageInvalidError();
         if (newValue.reward.gt(UFixed6.wrap(type(uint64).max))) revert LocalStorageInvalidError();
         if (newValue.protection > uint256(type(uint64).max)) revert LocalStorageInvalidError();
 
         uint256 encoded =
-            uint256(newValue.currentId << (256 - 64)) >> (256 - 64) |
-            uint256(Fixed6.unwrap(newValue.collateral) << (256 - 64)) >> (256 - 64 - 64) |
-            uint256(UFixed6.unwrap(newValue.reward) << (256 - 64)) >> (256 - 64 - 64 - 64) |
-            uint256(newValue.protection << (256 - 64)) >> (256 - 64 - 64 - 64 - 64);
+            uint256(newValue.currentId << (256 - 32)) >> (256 - 32) |
+            uint256(newValue.latestId << (256 - 32)) >> (256 - 32 - 32) |
+            uint256(Fixed6.unwrap(newValue.collateral) << (256 - 64)) >> (256 - 32 - 32 - 64) |
+            uint256(UFixed6.unwrap(newValue.reward) << (256 - 64)) >> (256 - 32 - 32 - 64 - 64) |
+            uint256(newValue.protection << (256 - 64)) >> (256 - 32 - 32 - 64 - 64 - 64);
         assembly {
             sstore(self.slot, encoded)
         }

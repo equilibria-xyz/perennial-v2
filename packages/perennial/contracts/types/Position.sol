@@ -4,12 +4,11 @@ pragma solidity ^0.8.13;
 import "./OracleVersion.sol";
 import "./RiskParameter.sol";
 import "./Order.sol";
+import "./Global.sol";
+import "./Local.sol";
 
 /// @dev Order type
 struct Position {
-    /// @dev The position id (only used for non-pending positions)
-    uint256 id; // TODO (gas hint): unused in the pending instances
-
     /// @dev The timestamp of the position
     uint256 timestamp;
 
@@ -35,32 +34,9 @@ struct Position {
     Fixed6 delta;
 }
 using PositionLib for Position global;
-struct StoredPositionGlobal {
-    uint32 _id;
-    uint32 _timestamp;
-    uint48 _maker;
-    uint48 _long;
-    uint48 _short;
-    uint48 _fee;
-
-    //TODO: pack better
-    uint48 _keeper;
-}
-struct PositionStorageGlobal { StoredPositionGlobal value; }
+struct PositionStorageGlobal { uint256 slot0; uint256 slot1; }
 using PositionStorageGlobalLib for PositionStorageGlobal global;
-struct StoredPositionLocal {
-    uint24 _id;
-    uint32 _timestamp;
-    uint8 _direction;
-    uint48 _position;
-    uint48 _fee;
-    int48 _collateral;
-    int48 _delta;
-
-    // TODO: pack better
-    uint48 _keeper;
-}
-struct PositionStorageLocal { StoredPositionLocal value; }
+struct PositionStorageLocal { uint256 slot0; uint256 slot1; }
 using PositionStorageLocalLib for PositionStorageLocal global;
 
 /// @title Position
@@ -78,8 +54,7 @@ library PositionLib {
     /// @param self The position object to update
     /// @param newPosition The new latest position
     function update(Position memory self, Position memory newPosition) internal pure {
-        (self.id, self.timestamp, self.maker, self.long, self.short) = (
-            newPosition.id,
+        (self.timestamp, self.maker, self.long, self.short) = (
             newPosition.timestamp,
             newPosition.maker,
             newPosition.long,
@@ -89,7 +64,6 @@ library PositionLib {
 
     /// @notice Updates the current local position with a new order
     /// @param self The position object to update
-    /// @param currentId The current position id
     /// @param currentTimestamp The current timestamp
     /// @param newMaker The new maker position
     /// @param newLong The new long position
@@ -97,7 +71,6 @@ library PositionLib {
     /// @return newOrder The new order
     function update(
         Position memory self,
-        uint256 currentId,
         uint256 currentTimestamp,
         UFixed6 newMaker,
         UFixed6 newLong,
@@ -109,20 +82,17 @@ library PositionLib {
             Fixed6Lib.from(newShort).sub(Fixed6Lib.from(self.short))
         );
 
-        if (self.id != currentId) _prepare(self);
-        (self.id, self.timestamp, self.maker, self.long, self.short) =
-            (currentId, currentTimestamp, newMaker, newLong, newShort);
+        (self.timestamp, self.maker, self.long, self.short) =
+            (currentTimestamp, newMaker, newLong, newShort);
     }
 
     /// @notice Updates the current global position with a new order
     /// @param self The position object to update
-    /// @param currentId The current position id
     /// @param currentTimestamp The current timestamp
     /// @param order The new order
     /// @param riskParameter The current risk parameter
     function update(
         Position memory self,
-        uint256 currentId,
         uint256 currentTimestamp,
         Order memory order,
         RiskParameter memory riskParameter
@@ -132,12 +102,8 @@ library PositionLib {
         (order.net, order.efficiency, order.utilization) =
             (Fixed6Lib.from(net(self)), Fixed6Lib.from(efficiency(self)), Fixed6Lib.from(utilization(self)));
 
-        // if the id is fresh, reset the position's applicable attributes
-        if (self.id != currentId) _prepare(self);
-
         // update the position's attributes
-        (self.id, self.timestamp, self.maker, self.long, self.short) = (
-            currentId,
+        (self.timestamp, self.maker, self.long, self.short) = (
             currentTimestamp,
             UFixed6Lib.from(Fixed6Lib.from(self.maker).add(order.maker)),
             UFixed6Lib.from(Fixed6Lib.from(self.long).add(order.long)),
@@ -157,7 +123,7 @@ library PositionLib {
 
     /// @notice prepares the position for the next id
     /// @param self The position object to update
-    function _prepare(Position memory self) private pure {
+    function prepare(Position memory self) internal pure {
         self.fee = UFixed6Lib.ZERO;
         self.keeper = UFixed6Lib.ZERO;
         self.collateral = Fixed6Lib.ZERO;
@@ -357,18 +323,30 @@ library PositionLib {
     }
 }
 
+/// @dev Manually encodes and decodes the global Position struct into storage.
+///
+///     struct StoredPositionGlobal {
+///         /* slot 0 */
+///         uint32 timestamp;
+///         uint64 maker;
+///         uint64 long;
+///         uint64 short;
+///
+///         /* slot 1 */
+///         uint64 fee;
+///         uint64 keeper;
+///     }
+///
 library PositionStorageGlobalLib {
     function read(PositionStorageGlobal storage self) internal view returns (Position memory) {
-        StoredPositionGlobal memory storedValue = self.value;
-
+        (uint256 slot0, uint256 slot1) = (self.slot0, self.slot1);
         return Position(
-            uint256(storedValue._id),
-            uint256(storedValue._timestamp),
-            UFixed6.wrap(uint256(storedValue._maker)),
-            UFixed6.wrap(uint256(storedValue._long)),
-            UFixed6.wrap(uint256(storedValue._short)),
-            UFixed6.wrap(uint256(storedValue._fee)),
-            UFixed6.wrap(uint256(storedValue._keeper)),
+            uint256(slot0 << (256 - 32)) >> (256 - 32),
+            UFixed6.wrap(uint256(slot0 << (256 - 32 - 64)) >> (256 - 64)),
+            UFixed6.wrap(uint256(slot0 << (256 - 32 - 64 - 64)) >> (256 - 64)),
+            UFixed6.wrap(uint256(slot0 << (256 - 32 - 64 - 64 - 64)) >> (256 - 64)),
+            UFixed6.wrap(uint256(slot1 << (256 - 64)) >> (256 - 64)),
+            UFixed6.wrap(uint256(slot1 << (256 - 64 - 64)) >> (256 - 64)),
             Fixed6Lib.ZERO,
             Fixed6Lib.ZERO
         );
@@ -377,48 +355,75 @@ library PositionStorageGlobalLib {
     function store(PositionStorageGlobal storage self, Position memory newValue) internal {
         PositionStorageLib.validate(newValue);
 
-        self.value = StoredPositionGlobal(
-            uint32(newValue.id),
-            uint32(newValue.timestamp),
-            uint48(UFixed6.unwrap(newValue.maker)),
-            uint48(UFixed6.unwrap(newValue.long)),
-            uint48(UFixed6.unwrap(newValue.short)),
-            uint48(UFixed6.unwrap(newValue.fee)),
-            uint48(UFixed6.unwrap(newValue.keeper))
-        );
+        uint256 encoded0 =
+            uint256(newValue.timestamp << (256 - 32)) >> (256 - 32) |
+            uint256(UFixed6.unwrap(newValue.maker) << (256 - 64)) >> (256 - 32 - 64) |
+            uint256(UFixed6.unwrap(newValue.long) << (256 - 64)) >> (256 - 32 - 64 - 64) |
+            uint256(UFixed6.unwrap(newValue.short) << (256 - 64)) >> (256 - 32 - 64 - 64 - 64);
+        uint256 encoded1 =
+            uint256(UFixed6.unwrap(newValue.fee) << (256 - 64)) >> (256 - 64) |
+            uint256(UFixed6.unwrap(newValue.keeper) << (256 - 64)) >> (256 - 64 - 64);
+
+        assembly {
+            sstore(self.slot, encoded0)
+            sstore(add(self.slot, 1), encoded1)
+        }
     }
 }
 
+/// @dev Manually encodes and decodes the local Position struct into storage.
+///
+///     struct StoredPositionLocal {
+///         /* slot 0 */
+///         uint32 timestamp;
+///         uint8 direction;
+///         uint64 magnitude;
+///         int64 collateral;
+///         int64 delta;
+///
+///         /* slot 1 */
+///         uint64 fee;
+///         uint64 keeper;
+///     }
+///
 library PositionStorageLocalLib {
     function read(PositionStorageLocal storage self) internal view returns (Position memory) {
-        StoredPositionLocal memory storedValue = self.value;
+        (uint256 slot0, uint256 slot1) = (self.slot0, self.slot1);
+
+        uint256 direction = uint256(slot0 << (256 - 32 - 8)) >> (256 - 8);
+        UFixed6 magnitude = UFixed6.wrap(uint256(slot0 << (256 - 32 - 8 - 64)) >> (256 - 64));
 
         return Position(
-            uint256(storedValue._id),
-            uint256(storedValue._timestamp),
-            UFixed6.wrap(uint256((storedValue._direction == 0) ? storedValue._position : 0)),
-            UFixed6.wrap(uint256((storedValue._direction == 1) ? storedValue._position : 0)),
-            UFixed6.wrap(uint256((storedValue._direction == 2) ? storedValue._position : 0)),
-            UFixed6.wrap(uint256(storedValue._fee)),
-            UFixed6.wrap(uint256(storedValue._keeper)),
-            Fixed6.wrap(int256(storedValue._collateral)),
-            Fixed6.wrap(int256(storedValue._delta))
+            uint256(slot0 << (256 - 32)) >> (256 - 32),
+            direction == 0 ? magnitude : UFixed6Lib.ZERO,
+            direction == 1 ? magnitude : UFixed6Lib.ZERO,
+            direction == 2 ? magnitude : UFixed6Lib.ZERO,
+            UFixed6.wrap(uint256(slot1 << (256 - 64)) >> (256 - 64)),
+            UFixed6.wrap(uint256(slot1 << (256 - 64 - 64)) >> (256 - 64)),
+            Fixed6.wrap(int256(slot0 << (256 - 32 - 8 - 64 - 64)) >> (256 - 64)),
+            Fixed6.wrap(int256(slot0 << (256 - 32 - 8 - 64 - 64 - 64)) >> (256 - 64))
         );
     }
 
     function store(PositionStorageLocal storage self, Position memory newValue) internal {
         PositionStorageLib.validate(newValue);
 
-        self.value = StoredPositionLocal(
-            uint24(newValue.id),
-            uint32(newValue.timestamp),
-            uint8(newValue.long.isZero() ? (newValue.short.isZero() ? 0 : 2) : 1),
-            uint48(UFixed6.unwrap(newValue.magnitude())),
-            uint48(UFixed6.unwrap(newValue.fee)),
-            int48(Fixed6.unwrap(newValue.collateral)),
-            int48(Fixed6.unwrap(newValue.delta)),
-            uint48(UFixed6.unwrap(newValue.keeper))
-        );
+        uint256 direction = newValue.long.isZero() ? (newValue.short.isZero() ? 0 : 2) : 1;
+
+        uint256 encoded0 =
+            uint256(newValue.timestamp << (256 - 32)) >> (256 - 32) |
+            uint256(direction << (256 - 8)) >> (256 - 32 - 8) |
+            uint256(UFixed6.unwrap(newValue.magnitude()) << (256 - 64)) >> (256 - 32 - 8 - 64) |
+            uint256(Fixed6.unwrap(newValue.collateral) << (256 - 64)) >> (256 - 32 - 8 - 64 - 64) |
+            uint256(Fixed6.unwrap(newValue.delta) << (256 - 64)) >> (256 - 32 - 8 - 64 - 64 - 64);
+        uint256 encoded1 =
+            uint256(UFixed6.unwrap(newValue.fee) << (256 - 64)) >> (256 - 64) |
+            uint256(UFixed6.unwrap(newValue.keeper) << (256 - 64)) >> (256 - 64 - 64);
+
+        assembly {
+            sstore(self.slot, encoded0)
+            sstore(add(self.slot, 1), encoded1)
+        }
     }
 }
 
@@ -426,16 +431,15 @@ library PositionStorageLib {
     error PositionStorageInvalidError();
 
     function validate(Position memory newValue) internal pure {
-        if (newValue.id > type(uint24).max) revert PositionStorageInvalidError();
         if (newValue.timestamp > type(uint32).max) revert PositionStorageInvalidError();
-        if (newValue.maker.gt(UFixed6.wrap(type(uint48).max))) revert PositionStorageInvalidError();
-        if (newValue.long.gt(UFixed6.wrap(type(uint48).max))) revert PositionStorageInvalidError();
-        if (newValue.short.gt(UFixed6.wrap(type(uint48).max))) revert PositionStorageInvalidError();
-        if (newValue.fee.gt(UFixed6.wrap(type(uint48).max))) revert PositionStorageInvalidError();
-        if (newValue.keeper.gt(UFixed6.wrap(type(uint48).max))) revert PositionStorageInvalidError();
-        if (newValue.collateral.gt(Fixed6.wrap(type(int48).max))) revert PositionStorageInvalidError();
-        if (newValue.collateral.lt(Fixed6.wrap(type(int48).min))) revert PositionStorageInvalidError();
-        if (newValue.delta.gt(Fixed6.wrap(type(int48).max))) revert PositionStorageInvalidError();
-        if (newValue.delta.lt(Fixed6.wrap(type(int48).min))) revert PositionStorageInvalidError();
+        if (newValue.maker.gt(UFixed6.wrap(type(uint64).max))) revert PositionStorageInvalidError();
+        if (newValue.long.gt(UFixed6.wrap(type(uint64).max))) revert PositionStorageInvalidError();
+        if (newValue.short.gt(UFixed6.wrap(type(uint64).max))) revert PositionStorageInvalidError();
+        if (newValue.fee.gt(UFixed6.wrap(type(uint64).max))) revert PositionStorageInvalidError();
+        if (newValue.keeper.gt(UFixed6.wrap(type(uint64).max))) revert PositionStorageInvalidError();
+        if (newValue.collateral.gt(Fixed6.wrap(type(int64).max))) revert PositionStorageInvalidError();
+        if (newValue.collateral.lt(Fixed6.wrap(type(int64).min))) revert PositionStorageInvalidError();
+        if (newValue.delta.gt(Fixed6.wrap(type(int64).max))) revert PositionStorageInvalidError();
+        if (newValue.delta.lt(Fixed6.wrap(type(int64).min))) revert PositionStorageInvalidError();
     }
 }

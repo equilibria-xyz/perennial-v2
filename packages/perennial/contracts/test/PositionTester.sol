@@ -19,25 +19,23 @@ abstract contract PositionTester {
     }
 
     function update(
-        uint256 currentId,
         uint256 currentTimestamp,
         UFixed6 newMaker,
         UFixed6 newLong,
         UFixed6 newShort
     ) external returns (Order memory newOrder) {
         Position memory _position = read();
-        newOrder = _position.update(currentId, currentTimestamp, newMaker, newLong, newShort);
+        newOrder = _position.update(currentTimestamp, newMaker, newLong, newShort);
         store(_position);
     }
 
     function update(
-        uint256 currentId,
         uint256 currentTimestamp,
         Order memory order,
         RiskParameter memory riskParameter
     ) external returns (Order memory updatedOrder) {
         Position memory _position = read();
-        _position.update(currentId, currentTimestamp, order, riskParameter);
+        _position.update(currentTimestamp, order, riskParameter);
         store(_position);
         return order;
     }
@@ -45,6 +43,12 @@ abstract contract PositionTester {
     function update(Fixed6 collateralAmount) external {
         Position memory _position = read();
         _position.update(collateralAmount);
+        store(_position);
+    }
+
+    function prepare() external {
+        Position memory _position = read();
+        _position.prepare();
         store(_position);
     }
 
