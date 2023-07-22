@@ -2,6 +2,7 @@
 pragma solidity 0.8.19;
 
 import "@equilibria/root/attribute/Instance.sol";
+import "@equilibria/root/attribute/ReentrancyGuard.sol";
 import "./interfaces/IMarket.sol";
 import "./interfaces/IMarketFactory.sol";
 import "hardhat/console.sol";
@@ -9,7 +10,7 @@ import "hardhat/console.sol";
 /// @title Market
 /// @notice Manages logic and state for a single market.
 /// @dev Cloned by the Factory contract to launch new markets.
-contract Market is IMarket, Instance {
+contract Market is IMarket, Instance, ReentrancyGuard {
     /// @dev The underlying token that the market settles in
     Token18 public token;
 
@@ -59,6 +60,7 @@ contract Market is IMarket, Instance {
     /// @param definition_ The market definition
     function initialize(IMarket.MarketDefinition calldata definition_) external initializer(1) {
         __Instance__initialize();
+        __UReentrancyGuard__initialize();
 
         token = definition_.token;
         oracle = definition_.oracle;
@@ -79,7 +81,7 @@ contract Market is IMarket, Instance {
         UFixed6 newShort,
         Fixed6 collateral,
         bool protect
-    ) external whenNotPaused {
+    ) external nonReentrant whenNotPaused {
         Context memory context = _loadContext(account);
         _settle(context, account);
         _update(context, account, newMaker, newLong, newShort, collateral, protect);
@@ -486,7 +488,8 @@ contract Market is IMarket, Instance {
         ) revert MarketOperatorNotAllowedError();
 
         if (
-            context.global.currentId > context.latestPosition.global.id + context.protocolParameter.maxPendingIds
+            context.global.currentId > context.latestPosition.global.id + context.marketParameter.maxPendingGlobal ||
+            context.local.currentId > context.latestPosition.local.id + context.marketParameter.maxPendingLocal
         ) revert MarketExceedsPendingIdLimitError();
 
         if (
