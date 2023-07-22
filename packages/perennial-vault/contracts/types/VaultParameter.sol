@@ -9,8 +9,9 @@ struct VaultParameter {
     UFixed6 cap;
 }
 struct StoredVaultParameter {
-    uint64 _cap;
-    bytes24 __unallocated__;
+    /* slot 0 */
+    uint64 cap;
+    bytes24 __unallocated0__;
 }
 struct VaultParameterStorage { StoredVaultParameter value; }
 using VaultParameterStorageLib for VaultParameterStorage global;
@@ -22,7 +23,7 @@ library VaultParameterStorageLib {
         StoredVaultParameter memory storedValue = self.value;
 
         return VaultParameter(
-            UFixed6.wrap(uint256(storedValue._cap))
+            UFixed6.wrap(uint256(storedValue.cap))
         );
     }
 
@@ -31,7 +32,7 @@ library VaultParameterStorageLib {
 
         self.value = StoredVaultParameter(
             uint64(UFixed6.unwrap(newValue.cap)),
-            bytes20(0)
+            bytes24(0)
         );
     }
 }

@@ -27,15 +27,15 @@ struct Account {
 using AccountLib for Account global;
 struct StoredAccount {
     /* slot 0 */
-    uint32 current;
-    uint32 latest;
+    uint32 current;         // <= 4.29b
+    uint32 latest;          // <= 4.29b
     bytes24 __unallocated0__;
 
     /* slot 1 */
-    uint64 shares;
-    uint64 assets;
-    uint64 deposit;
-    uint64 redemption;
+    uint64 shares;          // <= 18.44t
+    uint64 assets;          // <= 18.44t
+    uint64 deposit;         // <= 18.44t
+    uint64 redemption;      // <= 18.44t
 }
 struct AccountStorage { StoredAccount value; }
 using AccountStorageLib for AccountStorage global;

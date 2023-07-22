@@ -30,15 +30,15 @@ struct Checkpoint {
 using CheckpointLib for Checkpoint global;
 struct StoredCheckpoint {
     /* slot 0 */
-    uint64 deposit;
-    uint64 redemption;
-    uint64 shares;
-    int64 assets;
+    uint64 deposit;         // <= 18.44t
+    uint64 redemption;      // <= 18.44t
+    uint64 shares;          // <= 18.44t
+    int64 assets;           // <= 9.22t
 
     /* slot 1 */
-    uint64 fee;
-    uint64 keeper;
-    uint32 count;
+    uint64 fee;             // <= 18.44t
+    uint64 keeper;          // <= 18.44t
+    uint32 count;           // <= 4.29b
     bytes12 __unallocated1__;
 }
 struct CheckpointStorage { StoredCheckpoint value; }

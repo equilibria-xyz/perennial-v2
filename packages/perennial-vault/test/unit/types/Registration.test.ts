@@ -39,7 +39,7 @@ describe('Registration', () => {
     })
 
     describe('.weight', () => {
-      const STORAGE_SIZE = 64
+      const STORAGE_SIZE = 32
       it('saves if in range', async () => {
         await registration.store({ ...VALID_REGISTRATION, weight: BigNumber.from(2).pow(STORAGE_SIZE).sub(1) })
 
