@@ -1,24 +1,12 @@
-# Solidity Template
+# Perennial V2 Oracle
 
-Uses
-
-- [Hardhat](https://github.com/nomiclabs/hardhat): compile and run the smart contracts on a local development network
-- [TypeChain](https://github.com/ethereum-ts/TypeChain): generate TypeScript types for smart contracts
-- [Ethers](https://github.com/ethers-io/ethers.js/): Ethereum library and wallet implementation
-- [Waffle](https://github.com/EthWorks/Waffle): tooling for writing comprehensive smart contract tests
-- [Solhint](https://github.com/protofire/solhint): Solidity linter
-- [Prettier Plugin Solidity](https://github.com/prettier-solidity/prettier-plugin-solidity): code formatter
-
-This is a GitHub template, which means you can reuse it as many times as you want. You can do that by clicking the "Use this
-template" button at the top of the page.
+Oracle systems for the Perennial V2 Protocol
 
 ## Usage
 
 ### Pre Requisites
 
-This repo works best with Node.js v16.x.x, this is preconfigured for users of [asdf](https://asdf-vm.com/).
-
-Before running any command, make sure to install dependencies:
+Before running any command, make sure to install dependencies. Run this in the root workspace as well to capture package patches:
 
 ```sh
 $ yarn
@@ -42,13 +30,14 @@ Run the Mocha tests:
 $ yarn test
 ```
 
-To run tests against a Mainnet fork, set your `ALCHEMY_KEY` in `.env` and run
+To run tests against a Mainnet fork, set your `MAINNET_NODE_URL` in the root `.env` and run
 
 ```sh
-$ yarn test-integration
+$ yarn test:integration
 ```
 
 ### Gas Report
+
 To get a gas report based on unit test calls:
 
 ```sh
@@ -61,7 +50,7 @@ $ yarn gasReport
 npx hardhat run --network rinkeby ./scripts/deploy.ts
 ```
 
-### Validate a contract with etherscan (requires API key)
+### Validate a contract with etherscan (requires API ke)
 
 ```
 npx hardhat verify --network <network> <DEPLOYED_CONTRACT_ADDRESS> "Constructor argument 1"
@@ -69,6 +58,5 @@ npx hardhat verify --network <network> <DEPLOYED_CONTRACT_ADDRESS> "Constructor 
 
 ### Added plugins
 
-- Contract Sizer [hardhat-contract-sizer](https://github.com/ItsNickBarry/hardhat-contract-sizer)
 - Gas reporter [hardhat-gas-reporter](https://hardhat.org/plugins/hardhat-gas-reporter.html)
 - Etherscan [hardhat-etherscan](https://hardhat.org/plugins/nomiclabs-hardhat-etherscan.html)

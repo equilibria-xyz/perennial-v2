@@ -79,6 +79,12 @@ library OrderLib {
         return self.long.gt(Fixed6Lib.ZERO) || self.short.gt(Fixed6Lib.ZERO);
     }
 
+    /// @notice Returns whether the order decreases the liquidity of the market
+    /// @return Whether the order decreases the liquidity of the market
+    function decreasesLiquidity(Order memory self) internal pure returns (bool) {
+        return self.maker.lt(self.net);
+    }
+
     /// @notice Returns whether the order is applicable for liquidity checks
     /// @param self The Order object to check
     /// @param marketParameter The market parameter

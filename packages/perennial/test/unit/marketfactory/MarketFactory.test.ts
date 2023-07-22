@@ -12,20 +12,19 @@ import {
   IERC20Metadata,
   IPayoffProvider,
   IMarket,
+  IFactory,
 } from '../../../types/generated'
 import { parse6decimal } from '../../../../common/testutil/types'
-import { BigNumber, constants } from 'ethers'
-import { IPayoffFactory } from '@equilibria/perennial-v2-payoff/types/generated'
-import { IOracleFactory } from '@equilibria/perennial-v2-oracle/types/generated'
+import { constants } from 'ethers'
 
 const { ethers } = HRE
 
 describe('MarketFactory', () => {
   let user: SignerWithAddress
   let owner: SignerWithAddress
-  let payoffFactory: FakeContract<IPayoffFactory>
+  let payoffFactory: FakeContract<IFactory>
   let payoffProvider: FakeContract<IPayoffProvider>
-  let oracleFactory: FakeContract<IOracleFactory>
+  let oracleFactory: FakeContract<IFactory>
   let oracle: FakeContract<IOracleProvider>
   let dsu: FakeContract<IERC20Metadata>
 
@@ -34,10 +33,10 @@ describe('MarketFactory', () => {
 
   beforeEach(async () => {
     ;[user, owner] = await ethers.getSigners()
-    oracleFactory = await smock.fake<IOracleFactory>('IOracleFactory')
+    oracleFactory = await smock.fake<IFactory>('IFactory')
     oracle = await smock.fake<IOracleProvider>('IOracleProvider')
     dsu = await smock.fake<IERC20Metadata>('IERC20Metadata')
-    payoffFactory = await smock.fake<IPayoffFactory>('IPayoffFactory')
+    payoffFactory = await smock.fake<IFactory>('IFactory')
     payoffProvider = await smock.fake<IPayoffProvider>('IPayoffProvider')
     marketImpl = await new Market__factory(owner).deploy()
     factory = await new MarketFactory__factory(owner).deploy(
@@ -57,7 +56,6 @@ describe('MarketFactory', () => {
 
       const parameter = await factory.parameter()
       expect(parameter.protocolFee).to.equal(0)
-      expect(parameter.maxPendingIds).to.equal(0)
       expect(parameter.maxFee).to.equal(0)
       expect(parameter.maxFeeAbsolute).to.equal(0)
       expect(parameter.maxCut).to.equal(0)
@@ -184,7 +182,6 @@ describe('MarketFactory', () => {
 
   describe('#updateParameter', async () => {
     const newParameter = {
-      maxPendingIds: BigNumber.from(5),
       protocolFee: parse6decimal('0.50'),
       maxFee: parse6decimal('0.01'),
       maxFeeAbsolute: parse6decimal('1000'),
@@ -198,7 +195,6 @@ describe('MarketFactory', () => {
       await expect(factory.updateParameter(newParameter)).to.emit(factory, 'ParameterUpdated').withArgs(newParameter)
 
       const parameter = await factory.parameter()
-      expect(parameter.maxPendingIds).to.equal(newParameter.maxPendingIds)
       expect(parameter.protocolFee).to.equal(newParameter.protocolFee)
       expect(parameter.maxFee).to.equal(newParameter.maxFee)
       expect(parameter.maxFeeAbsolute).to.equal(newParameter.maxFeeAbsolute)

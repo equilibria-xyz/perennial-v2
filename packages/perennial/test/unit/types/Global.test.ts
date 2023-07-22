@@ -19,6 +19,8 @@ function generateMarketParameter(oracleFee: BigNumberish, riskFee: BigNumberish)
     oracleFee,
     positionFee: 0,
     settlementFee: 0,
+    maxPendingGlobal: 0,
+    maxPendingLocal: 0,
     makerRewardRate: 0,
     longRewardRate: 0,
     shortRewardRate: 0,
@@ -31,7 +33,6 @@ function generateMarketParameter(oracleFee: BigNumberish, riskFee: BigNumberish)
 
 function generateProtocolParameter(protocolFee: BigNumberish): ProtocolParameterStruct {
   return {
-    maxPendingIds: 0,
     protocolFee,
     maxFee: 0,
     maxFeeAbsolute: 0,
@@ -57,6 +58,7 @@ describe('Global', () => {
     it('stores a new value', async () => {
       await global.store({
         currentId: 1,
+        latestId: 10,
         protocolFee: 2,
         oracleFee: 3,
         riskFee: 4,
@@ -70,6 +72,7 @@ describe('Global', () => {
 
       const value = await global.read()
       expect(value.currentId).to.equal(1)
+      expect(value.latestId).to.equal(10)
       expect(value.protocolFee).to.equal(2)
       expect(value.oracleFee).to.equal(3)
       expect(value.riskFee).to.equal(4)
@@ -84,6 +87,7 @@ describe('Global', () => {
       it('saves if in range', async () => {
         await global.store({
           currentId: BigNumber.from(2).pow(STORAGE_SIZE).sub(1),
+          latestId: 0,
           protocolFee: 0,
           oracleFee: 0,
           riskFee: 0,
@@ -102,6 +106,46 @@ describe('Global', () => {
         await expect(
           global.store({
             currentId: BigNumber.from(2).pow(STORAGE_SIZE),
+            latestId: 0,
+            protocolFee: 0,
+            oracleFee: 0,
+            riskFee: 0,
+            donation: 0,
+            pAccumulator: {
+              _value: 0,
+              _skew: 0,
+            },
+            latestPrice: 0,
+          }),
+        ).to.be.revertedWithCustomError(global, 'GlobalStorageInvalidError')
+      })
+    })
+
+    context('.latestId', async () => {
+      const STORAGE_SIZE = 32
+      it('saves if in range', async () => {
+        await global.store({
+          currentId: 0,
+          latestId: BigNumber.from(2).pow(STORAGE_SIZE).sub(1),
+          protocolFee: 0,
+          oracleFee: 0,
+          riskFee: 0,
+          donation: 0,
+          pAccumulator: {
+            _value: 0,
+            _skew: 0,
+          },
+          latestPrice: 0,
+        })
+        const value = await global.read()
+        expect(value.latestId).to.equal(BigNumber.from(2).pow(STORAGE_SIZE).sub(1))
+      })
+
+      it('reverts if currentId out of range', async () => {
+        await expect(
+          global.store({
+            currentId: 0,
+            latestId: BigNumber.from(2).pow(STORAGE_SIZE),
             protocolFee: 0,
             oracleFee: 0,
             riskFee: 0,
@@ -121,6 +165,7 @@ describe('Global', () => {
       it('saves if in range', async () => {
         await global.store({
           currentId: 0,
+          latestId: 0,
           protocolFee: BigNumber.from(2).pow(STORAGE_SIZE).sub(1),
           oracleFee: 0,
           riskFee: 0,
@@ -139,6 +184,7 @@ describe('Global', () => {
         await expect(
           global.store({
             currentId: 0,
+            latestId: 0,
             protocolFee: BigNumber.from(2).pow(STORAGE_SIZE),
             oracleFee: 0,
             riskFee: 0,
@@ -158,6 +204,7 @@ describe('Global', () => {
       it('saves if in range', async () => {
         await global.store({
           currentId: 0,
+          latestId: 0,
           protocolFee: 0,
           oracleFee: BigNumber.from(2).pow(STORAGE_SIZE).sub(1),
           riskFee: 0,
@@ -176,6 +223,7 @@ describe('Global', () => {
         await expect(
           global.store({
             currentId: 0,
+            latestId: 0,
             protocolFee: 0,
             oracleFee: BigNumber.from(2).pow(STORAGE_SIZE),
             riskFee: 0,
@@ -195,6 +243,7 @@ describe('Global', () => {
       it('saves if in range', async () => {
         await global.store({
           currentId: 0,
+          latestId: 0,
           protocolFee: 0,
           oracleFee: 0,
           riskFee: BigNumber.from(2).pow(STORAGE_SIZE).sub(1),
@@ -213,6 +262,7 @@ describe('Global', () => {
         await expect(
           global.store({
             currentId: 0,
+            latestId: 0,
             protocolFee: 0,
             oracleFee: 0,
             riskFee: BigNumber.from(2).pow(STORAGE_SIZE),
@@ -232,6 +282,7 @@ describe('Global', () => {
       it('saves if in range', async () => {
         await global.store({
           currentId: 0,
+          latestId: 0,
           protocolFee: 0,
           oracleFee: 0,
           riskFee: 0,
@@ -250,6 +301,7 @@ describe('Global', () => {
         await expect(
           global.store({
             currentId: 0,
+            latestId: 0,
             protocolFee: 0,
             oracleFee: 0,
             riskFee: 0,
@@ -269,6 +321,7 @@ describe('Global', () => {
       it('saves if in range (above)', async () => {
         await global.store({
           currentId: 0,
+          latestId: 0,
           protocolFee: 0,
           oracleFee: 0,
           riskFee: 0,
@@ -286,6 +339,7 @@ describe('Global', () => {
       it('saves if in range (below)', async () => {
         await global.store({
           currentId: 0,
+          latestId: 0,
           protocolFee: 0,
           oracleFee: 0,
           riskFee: 0,
@@ -304,6 +358,7 @@ describe('Global', () => {
         await expect(
           global.store({
             currentId: 0,
+            latestId: 0,
             protocolFee: 0,
             oracleFee: 0,
             riskFee: 0,
@@ -321,6 +376,7 @@ describe('Global', () => {
         await expect(
           global.store({
             currentId: 0,
+            latestId: 0,
             protocolFee: 0,
             oracleFee: 0,
             riskFee: 0,
@@ -340,6 +396,7 @@ describe('Global', () => {
       it('saves if in range (above)', async () => {
         await global.store({
           currentId: 0,
+          latestId: 0,
           protocolFee: 0,
           oracleFee: 0,
           riskFee: 0,
@@ -357,6 +414,7 @@ describe('Global', () => {
       it('saves if in range (below)', async () => {
         await global.store({
           currentId: 0,
+          latestId: 0,
           protocolFee: 0,
           oracleFee: 0,
           riskFee: 0,
@@ -375,6 +433,7 @@ describe('Global', () => {
         await expect(
           global.store({
             currentId: 0,
+            latestId: 0,
             protocolFee: 0,
             oracleFee: 0,
             riskFee: 0,
@@ -392,6 +451,7 @@ describe('Global', () => {
         await expect(
           global.store({
             currentId: 0,
+            latestId: 0,
             protocolFee: 0,
             oracleFee: 0,
             riskFee: 0,
@@ -411,6 +471,7 @@ describe('Global', () => {
       it('saves if in range (above)', async () => {
         await global.store({
           currentId: 0,
+          latestId: 0,
           protocolFee: 0,
           oracleFee: 0,
           riskFee: 0,
@@ -428,6 +489,7 @@ describe('Global', () => {
       it('saves if in range (below)', async () => {
         await global.store({
           currentId: 0,
+          latestId: 0,
           protocolFee: 0,
           oracleFee: 0,
           riskFee: 0,
@@ -446,6 +508,7 @@ describe('Global', () => {
         await expect(
           global.store({
             currentId: 0,
+            latestId: 0,
             protocolFee: 0,
             oracleFee: 0,
             riskFee: 0,
@@ -463,6 +526,7 @@ describe('Global', () => {
         await expect(
           global.store({
             currentId: 0,
+            latestId: 0,
             protocolFee: 0,
             oracleFee: 0,
             riskFee: 0,
@@ -1049,13 +1113,16 @@ describe('Global', () => {
 
   describe('#update', async () => {
     it('updates the latestPrice', async () => {
-      await global.update(123)
+      await global.update(12, 123)
+      expect((await global.read()).latestId).to.equal(12)
       expect((await global.read()).latestPrice).to.equal(123)
 
-      await global.update(456)
+      await global.update(23, 456)
+      expect((await global.read()).latestId).to.equal(23)
       expect((await global.read()).latestPrice).to.equal(456)
 
-      await global.update(0)
+      await global.update(34, 0)
+      expect((await global.read()).latestId).to.equal(34)
       expect((await global.read()).latestPrice).to.equal(0)
     })
   })

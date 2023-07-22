@@ -21,13 +21,14 @@ contract LocalTester {
     }
 
     function accumulate(
+        uint256 latestId,
         Position memory fromPosition,
         Position memory toPosition,
         Version memory fromVersion,
         Version memory toVersion
     ) external returns (LocalAccumulationResult memory values) {
         Local memory newLocal = local.read();
-        values = newLocal.accumulate(fromPosition, toPosition, fromVersion, toVersion);
+        values = newLocal.accumulate(latestId, fromPosition, toPosition, fromVersion, toVersion);
         local.store(newLocal);
     }
 

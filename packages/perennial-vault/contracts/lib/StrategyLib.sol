@@ -103,13 +103,12 @@ library StrategyLib {
         context.local = registration.market.locals(address(this));
         context.currentAccountPosition = registration.market.pendingPositions(address(this), context.local.currentId);
 
-        Position memory latestAccountPosition = registration.market.positions(address(this));
         Global memory global = registration.market.global();
 
         context.latestPrice = global.latestPrice.abs();
         context.currentPosition = registration.market.pendingPosition(global.currentId);
 
-        for (uint256 id = latestAccountPosition.id; id < context.local.currentId; id++)
+        for (uint256 id = context.local.latestId; id < context.local.currentId; id++)
             context.maintenance = registration.market.pendingPositions(address(this), id)
                 .maintenance(OracleVersion(0, global.latestPrice, true), context.riskParameter)
                 .max(context.maintenance);
