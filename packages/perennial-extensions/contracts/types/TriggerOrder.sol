@@ -13,11 +13,13 @@ struct TriggerOrder {
 }
 using TriggerOrderLib for TriggerOrder global;
 struct StoredTriggerOrder {
-    uint8 _side;
-    int8 _comparison;
-    uint64 _fee;
-    int64 _price;
-    int64 _delta;
+    /* slot 0 */
+    uint8 side;
+    int8 comparison;
+    uint64 fee;
+    int64 price;
+    int64 delta;
+    bytes6 __unallocated0__;
 }
 struct TriggerOrderStorage { StoredTriggerOrder value; }
 using TriggerOrderStorageLib for TriggerOrderStorage global;
@@ -50,11 +52,11 @@ library TriggerOrderStorageLib {
     function read(TriggerOrderStorage storage self) internal view returns (TriggerOrder memory) {
         StoredTriggerOrder memory storedValue = self.value;
         return TriggerOrder(
-            uint8(storedValue._side),
-            int8(storedValue._comparison),
-            UFixed6.wrap(uint256(storedValue._fee)),
-            Fixed6.wrap(int256(storedValue._price)),
-            Fixed6.wrap(int256(storedValue._delta))
+            uint8(storedValue.side),
+            int8(storedValue.comparison),
+            UFixed6.wrap(uint256(storedValue.fee)),
+            Fixed6.wrap(int256(storedValue.price)),
+            Fixed6.wrap(int256(storedValue.delta))
         );
     }
 
@@ -73,7 +75,8 @@ library TriggerOrderStorageLib {
             int8(newValue.comparison),
             uint64(UFixed6.unwrap(newValue.fee)),
             int64(Fixed6.unwrap(newValue.price)),
-            int64(Fixed6.unwrap(newValue.delta))
+            int64(Fixed6.unwrap(newValue.delta)),
+            bytes6(0)
         );
     }
 }
