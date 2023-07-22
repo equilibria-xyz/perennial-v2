@@ -5,9 +5,6 @@ import "@equilibria/root/number/types/UFixed6.sol";
 
 /// @dev ProtocolParameter type
 struct ProtocolParameter {
-    /// @dev Maximum number of pending positions ids before the market will pause to catch up
-    uint256 maxPendingIds;
-
     /// @dev The share of the market fees that are retained by the protocol before being distributed
     UFixed6 protocolFee;
 
@@ -30,7 +27,6 @@ struct ProtocolParameter {
     UFixed6 minEfficiency;
 }
 struct StoredProtocolParameter {
-    uint8 _maxPendingIds;       // <= 255
     uint24 _protocolFee;        // <= 1677%
     uint24 _maxFee;             // <= 1677%
     uint48 _maxFeeAbsolute;     // <= 281m
@@ -48,7 +44,6 @@ library ProtocolParameterStorageLib {
     function read(ProtocolParameterStorage storage self) internal view returns (ProtocolParameter memory) {
         StoredProtocolParameter memory value = self.value;
         return ProtocolParameter(
-            uint256(value._maxPendingIds),
             UFixed6.wrap(uint256(value._protocolFee)),
             UFixed6.wrap(uint256(value._maxFee)),
             UFixed6.wrap(uint256(value._maxFeeAbsolute)),
@@ -60,7 +55,6 @@ library ProtocolParameterStorageLib {
     }
 
     function store(ProtocolParameterStorage storage self, ProtocolParameter memory newValue) internal {
-        if (newValue.maxPendingIds > uint256(type(uint8).max)) revert ProtocolParameterStorageInvalidError();
         if (newValue.protocolFee.gt(UFixed6.wrap(type(uint24).max))) revert ProtocolParameterStorageInvalidError();
         if (newValue.maxFee.gt(UFixed6.wrap(type(uint24).max))) revert ProtocolParameterStorageInvalidError();
         if (newValue.maxFeeAbsolute.gt(UFixed6.wrap(type(uint48).max))) revert ProtocolParameterStorageInvalidError();
@@ -70,7 +64,6 @@ library ProtocolParameterStorageLib {
         if (newValue.minEfficiency.gt(UFixed6.wrap(type(uint24).max))) revert ProtocolParameterStorageInvalidError();
 
         self.value = StoredProtocolParameter(
-            uint8(newValue.maxPendingIds),
             uint24(UFixed6.unwrap(newValue.protocolFee)),
             uint24(UFixed6.unwrap(newValue.maxFee)),
             uint48(UFixed6.unwrap(newValue.maxFeeAbsolute)),

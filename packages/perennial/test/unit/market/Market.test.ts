@@ -293,6 +293,8 @@ describe('Market', () => {
       oracleFee: parse6decimal('0.1'),
       riskFee: parse6decimal('0.1'),
       positionFee: parse6decimal('0.1'),
+      maxPendingGlobal: 5,
+      maxPendingLocal: 3,
       settlementFee: 0,
       makerRewardRate: parse6decimal('0.3'),
       longRewardRate: parse6decimal('0.2'),
@@ -342,6 +344,8 @@ describe('Market', () => {
       expect(marketParameterResult.positionFee).to.equal(0)
       expect(marketParameterResult.oracleFee).to.equal(0)
       expect(marketParameterResult.riskFee).to.equal(0)
+      expect(marketParameterResult.maxPendingGlobal).to.equal(0)
+      expect(marketParameterResult.maxPendingLocal).to.equal(0)
       expect(marketParameterResult.settlementFee).to.equal(0)
       expect(marketParameterResult.makerRewardRate).to.equal(0)
       expect(marketParameterResult.longRewardRate).to.equal(0)
@@ -417,6 +421,8 @@ describe('Market', () => {
         positionFee: parse6decimal('0.01'),
         oracleFee: parse6decimal('0.04'),
         riskFee: parse6decimal('0.05'),
+        maxPendingGlobal: 5,
+        maxPendingLocal: 3,
         settlementFee: parse6decimal('0.09'),
         makerRewardRate: parse6decimal('0.06'),
         longRewardRate: parse6decimal('0.07'),
@@ -439,6 +445,8 @@ describe('Market', () => {
         expect(marketParameter.positionFee).to.equal(defaultMarketParameter.positionFee)
         expect(marketParameter.oracleFee).to.equal(defaultMarketParameter.oracleFee)
         expect(marketParameter.riskFee).to.equal(defaultMarketParameter.riskFee)
+        expect(marketParameter.maxPendingGlobal).to.equal(defaultMarketParameter.maxPendingGlobal)
+        expect(marketParameter.maxPendingLocal).to.equal(defaultMarketParameter.maxPendingLocal)
         expect(marketParameter.settlementFee).to.equal(defaultMarketParameter.settlementFee)
         expect(marketParameter.makerRewardRate).to.equal(defaultMarketParameter.makerRewardRate)
         expect(marketParameter.longRewardRate).to.equal(defaultMarketParameter.longRewardRate)
@@ -7686,10 +7694,42 @@ describe('Market', () => {
           ).to.be.revertedWithCustomError(market, 'MarketEfficiencyUnderLimitError')
         })
 
-        it('reverts if too many pending orders', async () => {
-          const protocolParameter = { ...(await factory.parameter()) }
-          protocolParameter.maxPendingIds = BigNumber.from(3)
-          factory.parameter.returns(protocolParameter)
+        it('reverts if too many pending orders (global)', async () => {
+          const marketParameter = { ...(await market.parameter()) }
+          marketParameter.maxPendingGlobal = BigNumber.from(3)
+          await market.updateParameter(marketParameter)
+
+          oracle.at.whenCalledWith(ORACLE_VERSION_1.timestamp).returns(ORACLE_VERSION_1)
+          oracle.status.returns([ORACLE_VERSION_1, ORACLE_VERSION_2.timestamp])
+          oracle.request.returns()
+
+          dsu.transferFrom.whenCalledWith(user.address, market.address, COLLATERAL.mul(1e12)).returns(true)
+          await market.connect(user).update(user.address, POSITION.div(2), 0, 0, COLLATERAL, false)
+
+          oracle.status.returns([ORACLE_VERSION_1, ORACLE_VERSION_2.timestamp + 1])
+          oracle.request.returns()
+
+          dsu.transferFrom.whenCalledWith(userB.address, market.address, COLLATERAL.mul(1e12)).returns(true)
+          await market.connect(userB).update(userB.address, POSITION.add(1), 0, 0, COLLATERAL, false)
+
+          oracle.status.returns([ORACLE_VERSION_1, ORACLE_VERSION_2.timestamp + 2])
+          oracle.request.returns()
+
+          dsu.transferFrom.whenCalledWith(userC.address, market.address, COLLATERAL.mul(1e12)).returns(true)
+          await market.connect(userC).update(userC.address, POSITION.add(2), 0, 0, COLLATERAL, false)
+
+          oracle.status.returns([ORACLE_VERSION_1, ORACLE_VERSION_2.timestamp + 3])
+          oracle.request.returns()
+
+          await expect(
+            market.connect(user).update(user.address, POSITION.add(3), 0, 0, 0, false),
+          ).to.be.revertedWithCustomError(market, 'MarketExceedsPendingIdLimitError')
+        })
+
+        it('reverts if too many pending orders (local)', async () => {
+          const marketParameter = { ...(await market.parameter()) }
+          marketParameter.maxPendingLocal = BigNumber.from(3)
+          await market.updateParameter(marketParameter)
 
           oracle.at.whenCalledWith(ORACLE_VERSION_1.timestamp).returns(ORACLE_VERSION_1)
           oracle.status.returns([ORACLE_VERSION_1, ORACLE_VERSION_2.timestamp])

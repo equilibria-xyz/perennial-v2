@@ -19,6 +19,8 @@ function generateMarketParameter(oracleFee: BigNumberish, riskFee: BigNumberish)
     oracleFee,
     positionFee: 0,
     settlementFee: 0,
+    maxPendingGlobal: 0,
+    maxPendingLocal: 0,
     makerRewardRate: 0,
     longRewardRate: 0,
     shortRewardRate: 0,
@@ -31,7 +33,6 @@ function generateMarketParameter(oracleFee: BigNumberish, riskFee: BigNumberish)
 
 function generateProtocolParameter(protocolFee: BigNumberish): ProtocolParameterStruct {
   return {
-    maxPendingIds: 0,
     protocolFee,
     maxFee: 0,
     maxFeeAbsolute: 0,

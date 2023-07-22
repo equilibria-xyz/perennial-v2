@@ -75,6 +75,8 @@ export async function deployProductOnMainnetFork({
     riskFee: 0,
     oracleFee: 0,
     settlementFee: 0,
+    maxPendingGlobal: 8,
+    maxPendingLocal: 8,
     makerRewardRate: 0,
     longRewardRate: 0,
     shortRewardRate: 0,

@@ -41,7 +41,6 @@ export const VALID_RISK_PARAMETER: RiskParameterStruct = {
 }
 
 const PROTOCOL_PARAMETER: ProtocolParameterStruct = {
-  maxPendingIds: parse6decimal('1000'),
   protocolFee: 0,
   maxFee: parse6decimal('1'),
   maxFeeAbsolute: BigNumber.from(2).pow(48).sub(1),

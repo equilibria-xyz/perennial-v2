@@ -119,7 +119,6 @@ export async function deployProtocol(chainlinkContext?: ChainlinkContext): Promi
   await marketFactory.updatePauser(pauser.address)
   await marketFactory.updateParameter({
     protocolFee: parse6decimal('0.50'),
-    maxPendingIds: 8,
     maxFee: parse6decimal('0.01'),
     maxFeeAbsolute: parse6decimal('1000'),
     maxCut: parse6decimal('0.50'),
@@ -227,6 +226,8 @@ export async function createMarket(
     oracleFee: 0,
     riskFee: 0,
     positionFee: 0,
+    maxPendingGlobal: 8,
+    maxPendingLocal: 8,
     makerRewardRate: 0,
     longRewardRate: 0,
     shortRewardRate: 0,

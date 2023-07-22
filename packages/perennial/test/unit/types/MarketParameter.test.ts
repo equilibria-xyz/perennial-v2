@@ -18,17 +18,18 @@ export const VALID_MARKET_PARAMETER: MarketParameterStruct = {
   positionFee: 3,
   oracleFee: 4,
   riskFee: 5,
-  settlementFee: 6,
+  maxPendingGlobal: 10,
+  maxPendingLocal: 11,
   makerRewardRate: 7,
   longRewardRate: 8,
   shortRewardRate: 9,
+  settlementFee: 6,
   takerCloseAlways: false,
   makerCloseAlways: false,
   closed: false,
 }
 
 const PROTOCOL_PARAMETER: ProtocolParameterStruct = {
-  maxPendingIds: parse6decimal('1000'),
   protocolFee: 0,
   maxFee: parse6decimal('1'),
   maxFeeAbsolute: BigNumber.from(2).pow(48).sub(1),
@@ -59,10 +60,12 @@ describe('MarketParameter', () => {
       expect(value.positionFee).to.equal(3)
       expect(value.oracleFee).to.equal(4)
       expect(value.riskFee).to.equal(5)
-      expect(value.settlementFee).to.equal(6)
+      expect(value.maxPendingGlobal).to.equal(10)
+      expect(value.maxPendingLocal).to.equal(11)
       expect(value.makerRewardRate).to.equal(7)
       expect(value.longRewardRate).to.equal(8)
       expect(value.shortRewardRate).to.equal(9)
+      expect(value.settlementFee).to.equal(6)
       expect(value.takerCloseAlways).to.equal(false)
       expect(value.makerCloseAlways).to.equal(false)
       expect(value.closed).to.equal(false)
@@ -242,6 +245,62 @@ describe('MarketParameter', () => {
               ...VALID_MARKET_PARAMETER,
               oracleFee: parse6decimal('0.75'),
               riskFee: parse6decimal('0.25').add(1),
+            },
+            PROTOCOL_PARAMETER,
+            marketParameter.address,
+          ),
+        ).to.be.revertedWithCustomError(marketParameter, 'MarketParameterStorageInvalidError')
+      })
+    })
+
+    context('.maxPendingGlobal', async () => {
+      it('saves if in range', async () => {
+        await marketParameter.validateAndStore(
+          {
+            ...VALID_MARKET_PARAMETER,
+            maxPendingGlobal: BigNumber.from(2).pow(16).sub(1),
+          },
+          PROTOCOL_PARAMETER,
+          marketParameter.address,
+        )
+        const value = await marketParameter.read()
+        expect(value.maxPendingGlobal).to.equal(BigNumber.from(2).pow(16).sub(1))
+      })
+
+      it('reverts if out of range', async () => {
+        await expect(
+          marketParameter.validateAndStore(
+            {
+              ...VALID_MARKET_PARAMETER,
+              maxPendingGlobal: BigNumber.from(2).pow(16),
+            },
+            PROTOCOL_PARAMETER,
+            marketParameter.address,
+          ),
+        ).to.be.revertedWithCustomError(marketParameter, 'MarketParameterStorageInvalidError')
+      })
+    })
+
+    context('.maxPendingLocal', async () => {
+      it('saves if in range', async () => {
+        await marketParameter.validateAndStore(
+          {
+            ...VALID_MARKET_PARAMETER,
+            maxPendingLocal: BigNumber.from(2).pow(16).sub(1),
+          },
+          PROTOCOL_PARAMETER,
+          marketParameter.address,
+        )
+        const value = await marketParameter.read()
+        expect(value.maxPendingLocal).to.equal(BigNumber.from(2).pow(16).sub(1))
+      })
+
+      it('reverts if out of range', async () => {
+        await expect(
+          marketParameter.validateAndStore(
+            {
+              ...VALID_MARKET_PARAMETER,
+              maxPendingLocal: BigNumber.from(2).pow(16),
             },
             PROTOCOL_PARAMETER,
             marketParameter.address,
