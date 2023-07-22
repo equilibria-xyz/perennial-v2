@@ -493,13 +493,6 @@ contract Market is IMarket, Instance {
             collateral.lt(Fixed6Lib.from(-1, _liquidationFee(context)))
         )) { if (LOG_REVERTS) console.log("MarketInvalidProtectionError"); revert MarketInvalidProtectionError(); }
 
-        if (
-            msg.sender != account &&                                                                        // sender is operating on own account
-            !IMarketFactory(address(factory())).operators(account, msg.sender) &&                           // sender is operating on own account
-            !protected &&                                                                                   // sender is liquidating this account
-            !(newOrder.isEmpty() && collateralAfterFees.isZero() && collateral.gt(Fixed6Lib.ZERO))     // sender is repaying shortfall for this account
-        ) { if (LOG_REVERTS) console.log("MarketOperatorNotAllowedError"); revert MarketOperatorNotAllowedError(); }
-
         if (context.currentTimestamp - context.latestVersion.timestamp >= context.riskParameter.staleAfter)
             { if (LOG_REVERTS) console.log("MarketStalePriceError"); revert MarketStalePriceError(); }
 
@@ -512,43 +505,45 @@ contract Market is IMarket, Instance {
         if (!context.currentPosition.local.singleSided())
             { if (LOG_REVERTS) console.log("MarketNotSingleSidedError"); revert MarketNotSingleSidedError(); }
 
+        if (protected) return; // The following invariants do not apply to protected position updates (liquidations)
+
         if (
-            !protected &&
+            msg.sender != account &&                                                                        // sender is operating on own account
+            !IMarketFactory(address(factory())).operators(account, msg.sender) &&                           // sender is operating on own account
+            !(newOrder.isEmpty() && collateralAfterFees.isZero() && collateral.gt(Fixed6Lib.ZERO))     // sender is repaying shortfall for this account
+        ) { if (LOG_REVERTS) console.log("MarketOperatorNotAllowedError"); revert MarketOperatorNotAllowedError(); }
+
+        if (
             context.global.currentId > context.latestPosition.global.id + context.protocolParameter.maxPendingIds
         ) { if (LOG_REVERTS) console.log("MarketExceedsPendingIdLimitError"); revert MarketExceedsPendingIdLimitError(); }
 
         if (
-            !protected &&
             !context.latestPosition.local.collateralized(context.latestVersion, context.riskParameter, collateralAfterFees)
         ) { if (LOG_REVERTS) console.log("MarketInsufficientCollateralizationError1"); revert MarketInsufficientCollateralizationError(); }
 
         for (uint256 i; i < pendingLocalPositions.length; i++)
             if (
-                !protected &&
                 !pendingLocalPositions[i].collateralized(context.latestVersion, context.riskParameter, collateralAfterFees)
             ) { if (LOG_REVERTS) console.log("MarketInsufficientCollateralizationError3"); revert MarketInsufficientCollateralizationError(); }
 
         if (
-            !protected &&
             (context.local.protection > context.latestPosition.local.timestamp) &&
             !newOrder.isEmpty()
         ) { if (LOG_REVERTS) console.log("MarketProtectedError"); revert MarketProtectedError(); }
 
         if (
-            !protected &&
             newOrder.liquidityCheckApplicable(context.marketParameter) &&
             newOrder.efficiency.lt(Fixed6Lib.ZERO) &&
             context.currentPosition.global.efficiency().lt(context.riskParameter.efficiencyLimit)
         ) { if (LOG_REVERTS) console.log("MarketEfficiencyUnderLimitError"); revert MarketEfficiencyUnderLimitError(); }
 
         if (
-            !protected &&
             newOrder.liquidityCheckApplicable(context.marketParameter) &&
             context.currentPosition.global.socialized() &&
             newOrder.maker.lt(newOrder.net)
         ) { if (LOG_REVERTS) console.log("MarketInsufficientLiquidityError"); revert MarketInsufficientLiquidityError(); }
 
-        if (!protected && collateral.lt(Fixed6Lib.ZERO) && collateralAfterFees.lt(Fixed6Lib.ZERO))
+        if (collateral.lt(Fixed6Lib.ZERO) && collateralAfterFees.lt(Fixed6Lib.ZERO))
             { if (LOG_REVERTS) console.log("MarketInsufficientCollateralError"); revert MarketInsufficientCollateralError(); }
     }
 
