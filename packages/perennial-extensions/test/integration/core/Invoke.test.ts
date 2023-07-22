@@ -34,7 +34,11 @@ describe('Invoke', () => {
 
       await expect(
         mulitInvoker.connect(user).invoke(buildUpdateMarket({ market: market.address, collateral: collateral })),
-      ).to.not.be.reverted
+      )
+        .to.emit(dsu, 'Transfer')
+        .withArgs(user.address, mulitInvoker.address, dsuCollateral)
+        .to.emit(dsu, 'Transfer')
+        .withArgs(mulitInvoker.address, market.address, dsuCollateral)
 
       expect(await dsu.balanceOf(market.address)).to.eq(dsuCollateral)
 
