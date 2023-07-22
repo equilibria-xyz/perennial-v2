@@ -1,4 +1,4 @@
-# Perennial Protocol
+# Perennial V2 Protocol
 
 Perpetual synthetics protocol.
 
@@ -6,7 +6,7 @@ Perpetual synthetics protocol.
 
 ### Pre Requisites
 
-Before running any command, make sure to install dependencies:
+Before running any command, make sure to install dependencies. Run this in the root workspace as well to capture package patches:
 
 ```sh
 $ yarn
@@ -30,10 +30,10 @@ Run the Mocha tests:
 $ yarn test
 ```
 
-To run tests against a Mainnet fork, set your `ALCHEMY_KEY` in `.env` and run
+To run tests against a Mainnet fork, set your `MAINNET_NODE_URL` in the root `.env` and run
 
 ```sh
-$ yarn test-integration
+$ yarn test:integration
 ```
 
 ### Gas Report
