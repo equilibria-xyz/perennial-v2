@@ -101,11 +101,11 @@ library LocalLib {
 ///
 ///     struct StoredLocal {
 ///         /* slot 0 */
-///         uint32 currentId;
-///         uint32 latestId;
-///         int64 collateral;
-///         uint64 reward;
-///         uint64 protection;
+///         uint32 currentId;   // <= 4.29b
+///         uint32 latestId;    // <= 4.29b
+///         int64 collateral;   // <= 9.22t
+///         uint64 reward;      // <= 18.44t
+///         uint64 protection;  // <= 18.44t
 ///     }
 ///
 library LocalStorageLib {

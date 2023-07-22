@@ -77,17 +77,17 @@ library GlobalLib {
 ///
 ///     struct StoredGlobal {
 ///         /* slot 0 */
-///         uint32 currentId;
-///         uint32 latestId;
-///         uint48 protocolFee;
-///         uint48 oracleFee;
-///         uint48 riskFee;
-///         uint48 donation;
+///         uint32 currentId;           // <= 4.29b
+///         uint32 latestId;            // <= 4.29b
+///         uint48 protocolFee;         // <= 281m
+///         uint48 oracleFee;           // <= 281m
+///         uint48 riskFee;             // <= 281m
+///         uint48 donation;            // <= 281m
 ///
 ///         /* slot 1 */
-///         int32 pAccumulator.value;
-///         int24 pAccumulator.skew;
-///         int64 latestPrice;
+///         int32 pAccumulator.value;   // <= 214000%
+///         int24 pAccumulator.skew;    // <= 838%
+///         int64 latestPrice;          // <= 9.22t
 ///     }
 ///
 library GlobalStorageLib {

@@ -310,17 +310,18 @@ describe('MarketParameter', () => {
     })
 
     context('.settlementFee', async () => {
+      const STORAGE_SIZE = 48
       it('saves if in range', async () => {
         await marketParameter.validateAndStore(
           {
             ...VALID_MARKET_PARAMETER,
-            settlementFee: BigNumber.from(2).pow(48).sub(1),
+            settlementFee: BigNumber.from(2).pow(STORAGE_SIZE).sub(1),
           },
           PROTOCOL_PARAMETER,
           marketParameter.address,
         )
         const value = await marketParameter.read()
-        expect(value.settlementFee).to.equal(BigNumber.from(2).pow(48).sub(1))
+        expect(value.settlementFee).to.equal(BigNumber.from(2).pow(STORAGE_SIZE).sub(1))
       })
 
       it('reverts if out of range', async () => {
@@ -328,7 +329,7 @@ describe('MarketParameter', () => {
           marketParameter.validateAndStore(
             {
               ...VALID_MARKET_PARAMETER,
-              settlementFee: BigNumber.from(2).pow(48),
+              settlementFee: BigNumber.from(2).pow(STORAGE_SIZE),
             },
             PROTOCOL_PARAMETER,
             marketParameter.address,
@@ -338,7 +339,7 @@ describe('MarketParameter', () => {
     })
 
     context('.makerRewardRate', async () => {
-      const STORAGE_SIZE = 32
+      const STORAGE_SIZE = 40
       it('saves if in range', async () => {
         await marketParameter.validateAndStore(
           {
@@ -384,7 +385,7 @@ describe('MarketParameter', () => {
     })
 
     context('.longRewardRate', async () => {
-      const STORAGE_SIZE = 32
+      const STORAGE_SIZE = 40
       it('saves if in range', async () => {
         await marketParameter.validateAndStore(
           {
@@ -433,7 +434,7 @@ describe('MarketParameter', () => {
     })
 
     context('.shortRewardRate', async () => {
-      const STORAGE_SIZE = 32
+      const STORAGE_SIZE = 40
       it('saves if in range', async () => {
         await marketParameter.validateAndStore(
           {
