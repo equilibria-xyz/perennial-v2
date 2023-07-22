@@ -330,14 +330,14 @@ library VersionLib {
 ///     struct StoredVersion {
 ///         /* slot 0 */
 ///         bool valid;
-///         int88 makerValue;
-///         int80 longValue;
-///         int80 shortValue;
+///         int64 makerValue;
+///         int64 longValue;
+///         int64 shortValue;
 ///
 ///         /* slot 1 */
-///         uint80 makerReward;
-///         uint88 longReward;
-///         uint88 shortReward;
+///         uint64 makerReward;
+///         uint64 longReward;
+///         uint64 shortReward;
 ///     }
 ///
 library VersionStorageLib {
@@ -347,35 +347,35 @@ library VersionStorageLib {
         (uint256 slot0, uint256 slot1) = (self.slot0, self.slot1);
         return Version(
             (uint256(slot0 << (256 - 8)) >> (256 - 8)) != 0,
-            Accumulator6(Fixed6.wrap(int256(slot0 << (256 - 8 - 88)) >> (256 - 88))),
-            Accumulator6(Fixed6.wrap(int256(slot0 << (256 - 8 - 88 - 80)) >> (256 - 80))),
-            Accumulator6(Fixed6.wrap(int256(slot0 << (256 - 8 - 88 - 80 - 80)) >> (256 - 80))),
-            UAccumulator6(UFixed6.wrap(uint256(slot1 << (256 - 80)) >> (256 - 80))),
-            UAccumulator6(UFixed6.wrap(uint256(slot1 << (256 - 80 - 88)) >> (256 - 88))),
-            UAccumulator6(UFixed6.wrap(uint256(slot1 << (256 - 80 - 88 - 88)) >> (256 - 88)))
+            Accumulator6(Fixed6.wrap(int256(slot0 << (256 - 8 - 64)) >> (256 - 64))),
+            Accumulator6(Fixed6.wrap(int256(slot0 << (256 - 8 - 64 - 64)) >> (256 - 64))),
+            Accumulator6(Fixed6.wrap(int256(slot0 << (256 - 8 - 64 - 64 - 64)) >> (256 - 64))),
+            UAccumulator6(UFixed6.wrap(uint256(slot1 << (256 - 64)) >> (256 - 64))),
+            UAccumulator6(UFixed6.wrap(uint256(slot1 << (256 - 64 - 64)) >> (256 - 64))),
+            UAccumulator6(UFixed6.wrap(uint256(slot1 << (256 - 64 - 64 - 64)) >> (256 - 64)))
         );
     }
 
     function store(VersionStorage storage self, Version memory newValue) internal {
-        if (newValue.makerValue._value.gt(Fixed6.wrap(type(int88).max))) revert VersionStorageInvalidError();
-        if (newValue.makerValue._value.lt(Fixed6.wrap(type(int88).min))) revert VersionStorageInvalidError();
-        if (newValue.longValue._value.gt(Fixed6.wrap(type(int80).max))) revert VersionStorageInvalidError();
-        if (newValue.longValue._value.lt(Fixed6.wrap(type(int80).min))) revert VersionStorageInvalidError();
-        if (newValue.shortValue._value.gt(Fixed6.wrap(type(int80).max))) revert VersionStorageInvalidError();
-        if (newValue.shortValue._value.lt(Fixed6.wrap(type(int80).min))) revert VersionStorageInvalidError();
-        if (newValue.makerReward._value.gt(UFixed6.wrap(type(uint80).max))) revert VersionStorageInvalidError();
-        if (newValue.longReward._value.gt(UFixed6.wrap(type(uint88).max))) revert VersionStorageInvalidError();
-        if (newValue.shortReward._value.gt(UFixed6.wrap(type(uint88).max))) revert VersionStorageInvalidError();
+        if (newValue.makerValue._value.gt(Fixed6.wrap(type(int64).max))) revert VersionStorageInvalidError();
+        if (newValue.makerValue._value.lt(Fixed6.wrap(type(int64).min))) revert VersionStorageInvalidError();
+        if (newValue.longValue._value.gt(Fixed6.wrap(type(int64).max))) revert VersionStorageInvalidError();
+        if (newValue.longValue._value.lt(Fixed6.wrap(type(int64).min))) revert VersionStorageInvalidError();
+        if (newValue.shortValue._value.gt(Fixed6.wrap(type(int64).max))) revert VersionStorageInvalidError();
+        if (newValue.shortValue._value.lt(Fixed6.wrap(type(int64).min))) revert VersionStorageInvalidError();
+        if (newValue.makerReward._value.gt(UFixed6.wrap(type(uint64).max))) revert VersionStorageInvalidError();
+        if (newValue.longReward._value.gt(UFixed6.wrap(type(uint64).max))) revert VersionStorageInvalidError();
+        if (newValue.shortReward._value.gt(UFixed6.wrap(type(uint64).max))) revert VersionStorageInvalidError();
 
         uint256 encoded0 =
             uint256((newValue.valid ? uint256(1) : uint256(0)) << (256 - 8)) >> (256 - 8) |
-            uint256(Fixed6.unwrap(newValue.makerValue._value) << (256 - 88)) >> (256 - 8 - 88) |
-            uint256(Fixed6.unwrap(newValue.longValue._value) << (256 - 80)) >> (256 - 8 - 88 - 80) |
-            uint256(Fixed6.unwrap(newValue.shortValue._value) << (256 - 80)) >> (256 - 8 - 88 - 80 - 80);
+            uint256(Fixed6.unwrap(newValue.makerValue._value) << (256 - 64)) >> (256 - 8 - 64) |
+            uint256(Fixed6.unwrap(newValue.longValue._value) << (256 - 64)) >> (256 - 8 - 64 - 64) |
+            uint256(Fixed6.unwrap(newValue.shortValue._value) << (256 - 64)) >> (256 - 8 - 64 - 64 - 64);
         uint256 encoded1 =
-            uint256(UFixed6.unwrap(newValue.makerReward._value) << (256 - 80)) >> (256 - 80) |
-            uint256(UFixed6.unwrap(newValue.longReward._value) << (256 - 88)) >> (256 - 80 - 88) |
-            uint256(UFixed6.unwrap(newValue.shortReward._value) << (256 - 88)) >> (256 - 80 - 88 - 88);
+            uint256(UFixed6.unwrap(newValue.makerReward._value) << (256 - 64)) >> (256 - 64) |
+            uint256(UFixed6.unwrap(newValue.longReward._value) << (256 - 64)) >> (256 - 64 - 64) |
+            uint256(UFixed6.unwrap(newValue.shortReward._value) << (256 - 64)) >> (256 - 64 - 64 - 64);
 
         assembly {
             sstore(self.slot, encoded0)
