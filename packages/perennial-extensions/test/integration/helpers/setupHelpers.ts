@@ -242,8 +242,6 @@ export async function createMarket(
   const { owner, marketFactory, beneficiaryB, oracle, rewardToken, dsu } = instanceVars
 
   const definition = {
-    name: name ?? 'Squeeth',
-    symbol: symbol ?? 'SQTH',
     token: dsu.address,
     oracle: (oracleOverride ?? oracle).address,
     payoff: (payoff ?? instanceVars.payoff).address,
@@ -282,6 +280,8 @@ export async function createMarket(
     oracleFee: 0,
     riskFee: 0,
     positionFee: 0,
+    maxPendingGlobal: 8,
+    maxPendingLocal: 8,
     makerRewardRate: 0,
     longRewardRate: 0,
     shortRewardRate: 0,

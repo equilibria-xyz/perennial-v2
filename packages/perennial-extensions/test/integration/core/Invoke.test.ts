@@ -28,7 +28,7 @@ const LEGACY_ORACLE_DELAY = 3600
 
 describe('Invoke', () => {
   let instanceVars: InstanceVars
-  let mulitInvoker: MultiInvoker
+  let multiInvoker: MultiInvoker
   let market: Market
   let vaultFactory: IVaultFactory
   let vault: IVault
@@ -85,8 +85,8 @@ describe('Invoke', () => {
       [],
     )
 
-    vaultOracleFactory.instances.whenCalledWith(btcSubOracle.address).returns(true)
-    vaultOracleFactory.oracles.whenCalledWith(ETH_PRICE_FEE_ID).returns(btcSubOracle.address)
+    vaultOracleFactory.instances.whenCalledWith(ethSubOracle.address).returns(true)
+    vaultOracleFactory.oracles.whenCalledWith(ETH_PRICE_FEE_ID).returns(ethSubOracle.address)
     vaultOracleFactory.instances.whenCalledWith(btcSubOracle.address).returns(true)
     vaultOracleFactory.oracles.whenCalledWith(BTC_PRICE_FEE_ID).returns(btcSubOracle.address)
 
@@ -102,7 +102,6 @@ describe('Invoke', () => {
     )
     await instanceVars.oracleFactory.connect(owner).create(BTC_PRICE_FEE_ID, vaultOracleFactory.address)
 
-    console.log(1)
     const ethMarket = await deployProductOnMainnetFork({
       factory: instanceVars.marketFactory,
       token: instanceVars.dsu,
@@ -113,7 +112,6 @@ describe('Invoke', () => {
       minMaintenance: parse6decimal('50'),
       maxLiquidationFee: parse6decimal('25000'),
     })
-    console.log(1)
     const btcMarket = await deployProductOnMainnetFork({
       factory: instanceVars.marketFactory,
       token: instanceVars.dsu,
@@ -123,7 +121,6 @@ describe('Invoke', () => {
       minMaintenance: parse6decimal('50'),
       maxLiquidationFee: parse6decimal('25000'),
     })
-    console.log(1)
 
     const vaultImpl = await new Vault__factory(owner).deploy()
     const vaultFactoryImpl = await new VaultFactory__factory(owner).deploy(
@@ -133,7 +130,6 @@ describe('Invoke', () => {
     await instanceVars.proxyAdmin.upgrade(vaultFactoryProxy.address, vaultFactoryImpl.address)
     vaultFactory = IVaultFactory__factory.connect(vaultFactoryProxy.address, owner)
     await vaultFactory.initialize()
-
     vault = IVault__factory.connect(
       await vaultFactory.callStatic.create(instanceVars.dsu.address, ethMarket.address, 'Blue Chip'),
       owner,
@@ -170,8 +166,8 @@ describe('Invoke', () => {
     ])
 
     // Seed markets with some activity
-    await ethMarket.connect(user).update(user.address, parse6decimal('200'), 0, 0, parse6decimal('100000'), false)
-    await ethMarket.connect(user2).update(user2.address, 0, parse6decimal('100'), 0, parse6decimal('100000'), false)
+    await ethMarket.connect(user).update(user.address, parse6decimal('100'), 0, 0, parse6decimal('100000'), false)
+    await ethMarket.connect(user2).update(user2.address, 0, parse6decimal('50'), 0, parse6decimal('100000'), false)
     await btcMarket
       .connect(btcUser1)
       .update(btcUser1.address, parse6decimal('20'), 0, 0, parse6decimal('100000'), false)
@@ -224,10 +220,10 @@ describe('Invoke', () => {
     instanceVars = await loadFixture(deployProtocol)
     await deployVault(instanceVars)
     market = await createMarket(instanceVars)
-    mulitInvoker = await createInvoker(instanceVars, vaultFactory)
+    multiInvoker = await createInvoker(instanceVars, vaultFactory)
   })
 
-  describe.only('#happy path', async () => {
+  describe('#happy path', async () => {
     const collateral = parse6decimal('1000')
     const dsuCollateral = collateral.mul(1e12)
 
@@ -236,16 +232,16 @@ describe('Invoke', () => {
 
       const userBalanceBefore = await dsu.balanceOf(user.address)
 
-      await dsu.connect(user).approve(mulitInvoker.address, dsuCollateral)
-      await expect(mulitInvoker.connect(user).invoke(buildApproveTarget(market.address))).to.not.be.reverted
+      await dsu.connect(user).approve(multiInvoker.address, dsuCollateral)
+      await expect(multiInvoker.connect(user).invoke(buildApproveTarget(market.address))).to.not.be.reverted
 
       await expect(
-        mulitInvoker.connect(user).invoke(buildUpdateMarket({ market: market.address, collateral: collateral })),
+        multiInvoker.connect(user).invoke(buildUpdateMarket({ market: market.address, collateral: collateral })),
       )
         .to.emit(dsu, 'Transfer')
-        .withArgs(user.address, mulitInvoker.address, dsuCollateral)
+        .withArgs(user.address, multiInvoker.address, dsuCollateral)
         .to.emit(dsu, 'Transfer')
-        .withArgs(mulitInvoker.address, market.address, dsuCollateral)
+        .withArgs(multiInvoker.address, market.address, dsuCollateral)
 
       expect(await dsu.balanceOf(market.address)).to.eq(dsuCollateral)
 
@@ -259,17 +255,17 @@ describe('Invoke', () => {
       const userInitialBalance = await dsu.balanceOf(user.address)
 
       // deposit into market
-      await dsu.connect(user).approve(mulitInvoker.address, dsuCollateral)
-      await expect(mulitInvoker.connect(user).invoke(buildApproveTarget(market.address))).to.not.be.reverted
+      await dsu.connect(user).approve(multiInvoker.address, dsuCollateral)
+      await expect(multiInvoker.connect(user).invoke(buildApproveTarget(market.address))).to.not.be.reverted
 
       await expect(
-        mulitInvoker.connect(user).invoke(buildUpdateMarket({ market: market.address, collateral: collateral })),
+        multiInvoker.connect(user).invoke(buildUpdateMarket({ market: market.address, collateral: collateral })),
       ).to.not.be.reverted
 
       const userBalanceBefore = await dsu.balanceOf(user.address)
 
       await expect(
-        mulitInvoker
+        multiInvoker
           .connect(user)
           .invoke(buildUpdateMarket({ market: market.address, collateral: collateral.mul(-1) })),
       ).to.not.be.reverted
@@ -285,11 +281,11 @@ describe('Invoke', () => {
 
       const userBalanceBefore = await usdc.balanceOf(user.address)
 
-      await usdc.connect(user).approve(mulitInvoker.address, collateral)
-      await expect(mulitInvoker.connect(user).invoke(buildApproveTarget(market.address))).to.not.be.reverted
+      await usdc.connect(user).approve(multiInvoker.address, collateral)
+      await expect(multiInvoker.connect(user).invoke(buildApproveTarget(market.address))).to.not.be.reverted
 
       await expect(
-        mulitInvoker
+        multiInvoker
           .connect(user)
           .invoke(buildUpdateMarket({ market: market.address, collateral: collateral, handleWrap: true })),
       ).to.not.be.reverted
@@ -308,35 +304,34 @@ describe('Invoke', () => {
 
       const userUSDCBalanceBefore = await usdc.balanceOf(user.address)
 
-      await dsu.connect(user).approve(mulitInvoker.address, dsuCollateral)
-      await mulitInvoker.connect(user).invoke(buildApproveTarget(market.address))
+      await dsu.connect(user).approve(multiInvoker.address, dsuCollateral)
+      await multiInvoker.connect(user).invoke(buildApproveTarget(market.address))
 
       await expect(
-        mulitInvoker.connect(user).invoke(buildUpdateMarket({ market: market.address, collateral: collateral })),
+        multiInvoker.connect(user).invoke(buildUpdateMarket({ market: market.address, collateral: collateral })),
       ).to.not.be.reverted
 
-      console.log('withdrawing')
       await expect(
-        mulitInvoker
+        multiInvoker
           .connect(user)
           .invoke(buildUpdateMarket({ market: market.address, collateral: collateral.mul(-1), handleWrap: true })),
       ).to.not.be.reverted
       expect(await usdc.balanceOf(user.address)).to.eq(userUSDCBalanceBefore.add(collateral))
     })
 
-    it('deposits into vault', async () => {
+    it('deposits / redeems / claims from vault', async () => {
       const { user, dsu } = instanceVars
 
       const userBalanceBefore = await dsu.balanceOf(user.address)
+      await dsu.connect(user).approve(multiInvoker.address, dsuCollateral)
+      await expect(multiInvoker.connect(user).invoke(buildApproveTarget(vault.address))).to.not.be.reverted
 
-      await dsu.connect(user).approve(mulitInvoker.address, dsuCollateral)
-      await expect(mulitInvoker.connect(user).invoke(buildApproveTarget(market.address))).to.not.be.reverted
-
+      // deposit into vault
       await expect(
-        mulitInvoker.connect(user).invoke(
+        multiInvoker.connect(user).invoke(
           buildUpdateVault({
             vault: vault.address,
-            depositAssets: dsuCollateral,
+            depositAssets: collateral,
             redeemShares: 0,
             claimAssets: 0,
             wrap: false,
@@ -344,15 +339,62 @@ describe('Invoke', () => {
         ),
       )
         .to.emit(dsu, 'Transfer')
-        .withArgs(user.address, mulitInvoker.address, dsuCollateral)
+        .withArgs(user.address, multiInvoker.address, dsuCollateral)
         .to.emit(dsu, 'Transfer')
-        .withArgs(mulitInvoker.address, vault.address, dsuCollateral)
+        .withArgs(multiInvoker.address, vault.address, dsuCollateral)
 
-      expect(await dsu.balanceOf(vault.address)).to.eq(dsuCollateral)
+      expect((await vault.accounts(user.address)).deposit).to.eq(collateral)
+      expect((await vault.accounts(user.address)).redemption).to.eq(0)
+      expect((await vault.accounts(user.address)).assets).to.eq(0)
+      expect((await vault.accounts(user.address)).shares).to.eq(0)
+
+      await updateVaultOracle()
+      await vault.settle(user.address)
+
+      // redeem from vault
+      await multiInvoker.connect(user).invoke(
+        buildUpdateVault({
+          vault: vault.address,
+          depositAssets: 0,
+          redeemShares: ethers.constants.MaxUint256,
+          claimAssets: 0,
+          wrap: false,
+        }),
+      )
+
+      expect((await vault.accounts(user.address)).deposit).to.eq(0)
+      expect((await vault.accounts(user.address)).redemption).to.eq(collateral)
+      expect((await vault.accounts(user.address)).assets).to.eq(0)
+      expect((await vault.accounts(user.address)).shares).to.eq(0)
+
+      await updateVaultOracle()
+      await vault.settle(user.address)
+
+      const funding = BigNumber.from('23084')
+      // claim from vault
+      await expect(
+        multiInvoker.connect(user).invoke(
+          buildUpdateVault({
+            vault: vault.address,
+            depositAssets: 0,
+            redeemShares: 0,
+            claimAssets: ethers.constants.MaxUint256,
+            wrap: false,
+          }),
+        ),
+      )
+        .to.emit(dsu, 'Transfer')
+        .withArgs(multiInvoker.address, user.address, dsuCollateral.add(funding.mul(1e12)))
+        .to.emit(dsu, 'Transfer')
+        .withArgs(vault.address, multiInvoker.address, dsuCollateral.add(funding.mul(1e12)))
+
+      expect((await vault.accounts(user.address)).deposit).to.eq(0)
+      expect((await vault.accounts(user.address)).redemption).to.eq(0)
+      expect((await vault.accounts(user.address)).assets).to.eq(0)
+      expect((await vault.accounts(user.address)).shares).to.eq(0)
 
       const userBalanceAfter = await dsu.balanceOf(user.address)
-      expect(userBalanceBefore.sub(userBalanceAfter)).to.eq(dsuCollateral)
-      expect((await vault.accounts(user.address)).deposit).to.eq(dsuCollateral)
+      expect(userBalanceAfter.sub(userBalanceBefore)).to.eq(funding.mul(1e12))
     })
 
     // it('withdraws from market and unwraps DSU to USDC using batcher blah blah', async () => {
@@ -363,10 +405,10 @@ describe('Invoke', () => {
     it('approves a market to spend invokers DSU', async () => {
       const { user, dsu } = instanceVars
 
-      await dsu.connect(user).approve(mulitInvoker.address, dsuCollateral)
+      await dsu.connect(user).approve(multiInvoker.address, dsuCollateral)
 
       await expect(
-        mulitInvoker.connect(user).invoke(buildUpdateMarket({ market: market.address, collateral: collateral })),
+        multiInvoker.connect(user).invoke(buildUpdateMarket({ market: market.address, collateral: collateral })),
       ).to.be.revertedWith('Dollar: transfer amount exceeds allowance')
     })
 

@@ -110,7 +110,6 @@ contract MultiInvoker is IMultiInvoker, Kept {
     /// @notice entry to perform invocations
     /// @param invocations List of actions to execute in order
     function invoke(Invocation[] calldata invocations) external payable {
-
         for(uint i = 0; i < invocations.length; ++i) {
             Invocation memory invocation = invocations[i];
 
@@ -147,10 +146,7 @@ contract MultiInvoker is IMultiInvoker, Kept {
                 (address oracleProvider, uint256 version, bytes memory data) =
                     abi.decode(invocation.args, (address, uint256, bytes));
 
-                UFixed18 balanceBefore = DSU.balanceOf(address(this));
-                IPythOracle(oracleProvider).commit{value: msg.value}(version, data);
-                // Push incentive fee (if any)
-                DSU.push(msg.sender, DSU.balanceOf(address(this)).sub(balanceBefore));
+                _commitPrice(oracleProvider, version, data);
             } else if (invocation.action == PerennialAction.LIQUIDATE) {
                 (IMarket market, address account) = abi.decode(invocation.args, (IMarket, address));
 
@@ -201,10 +197,17 @@ contract MultiInvoker is IMultiInvoker, Kept {
             _deposit(depositAssets, wrap);
         }
 
+        UFixed18 balanceBefore = DSU.balanceOf();
+
         vault.update(msg.sender, depositAssets, redeemShares, claimAssets);
 
-        if (!claimAssets.isZero()) {
-            _withdraw(msg.sender, claimAssets, wrap);
+        // handle socialization, settlement fees, and magic values
+        UFixed6 claimAmount = claimAssets.isZero() ?
+            UFixed6Lib.ZERO :
+            UFixed6Lib.from(DSU.balanceOf().sub(balanceBefore));
+
+        if (!claimAmount.isZero()) {
+            _withdraw(msg.sender, claimAmount, wrap);
         }
     }
 
@@ -289,6 +292,15 @@ contract MultiInvoker is IMultiInvoker, Kept {
             // Unwrap the DSU into USDC and return to the receiver
             batcher.unwrap(amount, receiver);
         }
+    }
+
+    function _commitPrice(address oracleProvider, uint256 version, bytes memory data) internal{
+        UFixed18 balanceBefore = DSU.balanceOf();
+
+        IPythOracle(oracleProvider).commit{value: msg.value}(version, data);
+
+        // Return through keeper reward if any
+        DSU.push(msg.sender, DSU.balanceOf().sub(balanceBefore));
     }
 
     function _liquidationFee(IMarket market, address account) internal view returns (UFixed6) {
