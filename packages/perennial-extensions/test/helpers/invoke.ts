@@ -153,7 +153,7 @@ export const buildPlaceOrder = ({
     long = BigNumber.from(0)
     short = BigNumber.from(0)
   }
-  console.log('order', order)
+  // console.log('order', order)
   return [
     {
       action: 1,
@@ -247,6 +247,15 @@ export const buildLiquidateUser = ({ user, market }: { market: string; user: str
     {
       action: 7,
       args: utils.defaultAbiCoder.encode(['address', 'address'], [market, user]),
+    },
+  ]
+}
+
+export const buildApproveTarget = (target: string): Actions => {
+  return [
+    {
+      action: 8,
+      args: utils.defaultAbiCoder.encode(['address'], [target]),
     },
   ]
 }
@@ -442,6 +451,7 @@ module.exports = {
   buildUpdateVault,
   buildCancelOrderRollup,
   buildExecOrderRollup,
+  buildApproveTarget,
   //buildPlaceOrderRollup,
   buildUpdateMarketRollup,
 }

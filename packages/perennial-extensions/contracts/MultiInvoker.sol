@@ -94,9 +94,9 @@ contract MultiInvoker is IMultiInvoker, Kept {
     function canExecuteOrder(address account, IMarket market, uint256 nonce) public view returns (bool) {
         TriggerOrder memory order = orders(account, market, nonce);
         if (order.fee.isZero()) return false;
-        console.logInt(Fixed6.unwrap(order.price));
-        console.logInt(Fixed6.unwrap(_getMarketPrice(market, account)));
-        console.logInt(Fixed6.unwrap(market.oracle().latest().price));
+        // console.logInt(Fixed6.unwrap(order.price));
+        // console.logInt(Fixed6.unwrap(_getMarketPrice(market, account)));
+        // console.logInt(Fixed6.unwrap(market.oracle().latest().price));
         return order.fillable(_getMarketPrice(market, account));
     }
 
@@ -243,7 +243,7 @@ contract MultiInvoker is IMultiInvoker, Kept {
      */
     function _withdraw(address account, UFixed6 amount, bool wrap) internal {
         if (wrap) {
-            _handleUnwrap(account, UFixed18Lib.from(amount));
+            _unwrap(account, UFixed18Lib.from(amount));
         } else {
             DSU.push(account, UFixed18Lib.from(amount));
         }
@@ -270,7 +270,7 @@ contract MultiInvoker is IMultiInvoker, Kept {
      * @param receiver Address to receive the USDC
      * @param amount Amount of DSU to unwrap
      */
-    function _handleUnwrap(address receiver, UFixed18 amount) internal {
+    function _unwrap(address receiver, UFixed18 amount) internal {
         // If the batcher is 0 or doesn't have enough for this unwrap, go directly to the reserve
         if (address(batcher) == address(0) || amount.gt(UFixed18Lib.from(USDC.balanceOf(address(batcher))))) {
             reserve.redeem(amount);
@@ -332,8 +332,6 @@ contract MultiInvoker is IMultiInvoker, Kept {
         Position memory currentPosition = market.pendingPositions(account, market.locals(account).currentId);
         orders(account, market, nonce).execute(currentPosition);
 
-        console.logUint(UFixed6.unwrap(currentPosition.long));
-
         market.update(
             account,
             currentPosition.maker,
@@ -359,6 +357,7 @@ contract MultiInvoker is IMultiInvoker, Kept {
             Fixed6Lib.from(Fixed18Lib.from(-1, keeperFee), true),
             false
         );
+
     }
 
     /// @notice Places order on behalf of msg.sender from the invoker
