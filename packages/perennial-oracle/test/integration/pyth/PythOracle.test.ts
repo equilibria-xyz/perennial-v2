@@ -18,6 +18,7 @@ import {
   PythOracle__factory,
 } from '../../../types/generated'
 import { parse6decimal } from '../../../../common/testutil/types'
+import { BigNumber } from '@ethersproject/bignumber'
 
 const { config, ethers } = HRE
 
@@ -109,15 +110,15 @@ describe('PythOracle', () => {
       const originalDSUBalance = await dsu.callStatic.balanceOf(user.address)
       await pythOracle.connect(oracleSigner).request(user.address)
       // Base fee isn't working properly in coverage, so we need to set it manually
-      await ethers.provider.send('hardhat_setNextBlockBaseFeePerGas', ['0x1000'])
+      await ethers.provider.send('hardhat_setNextBlockBaseFeePerGas', ['0x5F5E100'])
       await pythOracle.connect(user).commitRequested(0, VAA, {
         value: 1,
-        gasPrice: 10000,
+        maxFeePerGas: 100000000,
       })
       const newDSUBalance = await dsu.callStatic.balanceOf(user.address)
 
-      // TODO: Test that this number is correct.
-      expect(newDSUBalance.sub(originalDSUBalance)).to.be.greaterThan(0)
+      const keeperFee = ethers.utils.parseEther('0.102576628468781911')
+      expect(newDSUBalance.sub(originalDSUBalance)).to.be.equal(keeperFee)
     })
 
     it('does not allow committing versions with out of order VAA publish times', async () => {
@@ -301,15 +302,15 @@ describe('PythOracle', () => {
       const originalDSUBalance = await dsu.callStatic.balanceOf(user.address)
       await pythOracle.connect(oracleSigner).request(user.address)
       // Base fee isn't working properly in coverage, so we need to set it manually
-      await ethers.provider.send('hardhat_setNextBlockBaseFeePerGas', ['0x1000'])
+      await ethers.provider.send('hardhat_setNextBlockBaseFeePerGas', ['0x5F5E100'])
       await pythOracle.connect(user).commit(STARTING_TIME, VAA, {
         value: 1,
-        gasPrice: 10000,
+        gasPrice: 100000000,
       })
       const newDSUBalance = await dsu.callStatic.balanceOf(user.address)
 
-      // TODO: Test that this number is correct.
-      expect(newDSUBalance.sub(originalDSUBalance)).to.be.greaterThan(0)
+      const keeperFee = ethers.utils.parseEther('0.100925505951830911')
+      expect(newDSUBalance.sub(originalDSUBalance)).to.be.equal(keeperFee)
     })
 
     it('can commit multiple non-requested versions, as long as they are in order', async () => {

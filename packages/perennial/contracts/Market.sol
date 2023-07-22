@@ -446,7 +446,7 @@ contract Market is IMarket, Instance, ReentrancyGuard {
         emit PositionProcessed(
             fromTimestamp,
             newPosition.timestamp,
-            fromId, // TODO: arjun, should this be newPositionId?
+            fromId,
             accumulationResult
         );
     }
@@ -480,7 +480,7 @@ contract Market is IMarket, Instance, ReentrancyGuard {
             account,
             fromTimestamp,
             newPosition.timestamp,
-            fromId, // TODO: arjun, should this be newPositionId?
+            fromId,
             accumulationResult
         );
     }

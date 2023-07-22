@@ -22,10 +22,10 @@ struct Position {
     UFixed6 short;
 
     /// @dev The fee for the position (only used for pending positions)
-    UFixed6 fee; // TODO (gas hint): unused in the non-pending instances
+    UFixed6 fee;
 
     /// @dev The fixed settlement fee for the position (only used for pending positions)
-    UFixed6 keeper; // TODO (gas hint): unused in the non-pending instances
+    UFixed6 keeper;
 
     /// @dev The collateral at the time of the position settlement (only used for pending positions)
     Fixed6 collateral;
@@ -110,7 +110,6 @@ library PositionLib {
             UFixed6Lib.from(Fixed6Lib.from(self.short).add(order.short))
         );
 
-        // TODO(cleanup): move to order
         // update the order's delta attributes with the positions updated attributes
         (order.net, order.skew, order.impact, order.efficiency, order.utilization) = (
             Fixed6Lib.from(net(self)).sub(order.net),
