@@ -159,7 +159,6 @@ library MarketParameterStorageLib {
             uint256(UFixed6.unwrap(newValue.longRewardRate) << (256 - 40)) >> (256 - 40 - 40) |
             uint256(UFixed6.unwrap(newValue.shortRewardRate) << (256 - 40)) >> (256 - 40 - 40 - 40);
 
-
         assembly {
             sstore(self.slot, encoded0)
             sstore(add(self.slot, 1), encoded1)

@@ -27,6 +27,7 @@ struct ProtocolParameter {
     UFixed6 minEfficiency;
 }
 struct StoredProtocolParameter {
+    /* slot 0 */
     uint24 protocolFee;        // <= 1677%
     uint24 maxFee;             // <= 1677%
     uint48 maxFeeAbsolute;     // <= 281m
