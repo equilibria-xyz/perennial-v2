@@ -559,7 +559,7 @@ contract Market is IMarket, Instance, ReentrancyGuard {
         if (
             newOrder.liquidityCheckApplicable(context.marketParameter) &&
             context.currentPosition.global.socialized() &&
-            newOrder.maker.lt(newOrder.net)
+            newOrder.decreasesLiquidity()
         ) { if (LOG_REVERTS) console.log("MarketInsufficientLiquidityError"); revert MarketInsufficientLiquidityError(); }
 
         if (collateral.lt(Fixed6Lib.ZERO) && collateralAfterFees.lt(Fixed6Lib.ZERO))
