@@ -76,7 +76,7 @@ export const USDC_HOLDER = '0x0A59649758aa4d66E25f08Dd01271e891fe52199'
 
 // @todo fix external deployment deps
 export const BATCHER = '0x0B663CeaCEF01f2f88EB7451C70Aa069f19dB997'
-// export const RESERVE = '0xD05aCe63789cCb35B9cE71d01e4d632a0486Da4B'
+export const RESERVE = '0xD05aCe63789cCb35B9cE71d01e4d632a0486Da4B'
 export const ETH_ORACLE = '0x5f4eC3Df9cbd43714FE2740f5E3616155c5b8419' // chainlink eth oracle
 export const CHAINLINK_REGISTRY = '0x47Fb2585D2C56Fe188D0E6ec628a38b74fCeeeDf'
 export const DSU = '0x605D26FBd5be761089281d5cec2Ce86eeA667109'
@@ -181,11 +181,12 @@ export async function deployProtocol(chainlinkContext?: ChainlinkContext): Promi
   await oracleFactory.connect(owner).create(chainlink.id, chainlink.oracleFactory.address)
 
   // Set state
-  await fundWallet(dsu, user)
-  await fundWallet(dsu, userB)
-  await fundWallet(dsu, userC)
-  await fundWallet(dsu, userD)
+  await fundWallet(dsu, usdc, user)
+  await fundWallet(dsu, usdc, userB)
+  await fundWallet(dsu, usdc, userC)
+  await fundWallet(dsu, usdc, userD)
   const usdcHolder = await impersonate.impersonateWithBalance(USDC_HOLDER, utils.parseEther('10'))
+  await fundWalletUSDC(usdc, user)
 
   const rewardToken = await new ERC20PresetMinterPauser__factory(owner).deploy('Incentive Token', 'ITKN')
 
@@ -212,15 +213,22 @@ export async function deployProtocol(chainlinkContext?: ChainlinkContext): Promi
   }
 }
 
-export async function fundWallet(dsu: IERC20Metadata, wallet: SignerWithAddress) {
+export async function fundWallet(dsu: IERC20Metadata, usdc: IERC20Metadata, wallet: SignerWithAddress) {
+  const usdcHolder = await impersonate.impersonateWithBalance(USDC_HOLDER, utils.parseEther('10'))
   const dsuMinter = await impersonate.impersonateWithBalance(DSU_MINTER, utils.parseEther('10'))
   const dsuIface = new utils.Interface(['function mint(uint256)'])
-  await dsuMinter.sendTransaction({
-    to: dsu.address,
+  await usdc.connect(usdcHolder).approve(RESERVE, BigNumber.from('2000000000000'))
+  await usdcHolder.sendTransaction({
+    to: RESERVE,
     value: 0,
-    data: dsuIface.encodeFunctionData('mint', [utils.parseEther('200000000')]),
+    data: dsuIface.encodeFunctionData('mint', [utils.parseEther('2000000')]),
   })
-  await dsu.connect(dsuMinter).transfer(wallet.address, utils.parseEther('200000000'))
+  await dsu.connect(usdcHolder).transfer(wallet.address, utils.parseEther('2000000'))
+}
+
+export async function fundWalletUSDC(usdc: IERC20Metadata, wallet: SignerWithAddress) {
+  const usdcHolder = await impersonate.impersonateWithBalance(USDC_HOLDER, utils.parseEther('10'))
+  await usdc.connect(usdcHolder).transfer(wallet.address, BigNumber.from('1000000000'))
 }
 
 export async function createMarket(

@@ -12,7 +12,6 @@ import "./interfaces/IMultiInvoker.sol";
 import "./types/TriggerOrder.sol";
 import "@equilibria/root/attribute/Kept.sol";
 
-import "hardhat/console.sol";
 
 /// @title MultiInvoker
 /// @notice Extension to handle batched calls to the Perennial protocol
@@ -76,6 +75,14 @@ contract MultiInvoker is IMultiInvoker, Kept {
     /// @param ethOracle_ Chainlink ETH/USD oracle address
     function initialize(AggregatorV3Interface ethOracle_) external initializer(1) {
         __UKept__initialize(ethOracle_, DSU);
+
+        if (address(batcher) != address(0)) {
+            DSU.approve(address(batcher));
+            USDC.approve(address(batcher));
+        }
+
+        DSU.approve(address(reserve));
+        USDC.approve(address(reserve));
     }
 
     /// @notice View function to get order state

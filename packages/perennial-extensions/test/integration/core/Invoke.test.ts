@@ -78,7 +78,7 @@ describe('Invoke', () => {
 
       const userBalanceBefore = await usdc.balanceOf(user.address)
 
-      await usdc.connect(user).approve(market.address, collateral)
+      await usdc.connect(user).approve(mulitInvoker.address, collateral)
       await expect(mulitInvoker.connect(user).invoke(buildApproveTarget(market.address))).to.not.be.reverted
 
       await expect(
@@ -108,12 +108,12 @@ describe('Invoke', () => {
         mulitInvoker.connect(user).invoke(buildUpdateMarket({ market: market.address, collateral: collateral })),
       ).to.not.be.reverted
 
+      console.log('withdrawing')
       await expect(
         mulitInvoker
           .connect(user)
           .invoke(buildUpdateMarket({ market: market.address, collateral: collateral.mul(-1), handleWrap: true })),
       ).to.not.be.reverted
-
       expect(await usdc.balanceOf(user.address)).to.eq(userUSDCBalanceBefore.add(collateral))
     })
 
