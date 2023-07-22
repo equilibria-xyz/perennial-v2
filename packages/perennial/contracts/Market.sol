@@ -2,6 +2,7 @@
 pragma solidity 0.8.19;
 
 import "@equilibria/root/attribute/Instance.sol";
+import "@equilibria/root/attribute/ReentrancyGuard.sol";
 import "./interfaces/IMarket.sol";
 import "./interfaces/IMarketFactory.sol";
 import "hardhat/console.sol";
@@ -9,7 +10,7 @@ import "hardhat/console.sol";
 /// @title Market
 /// @notice Manages logic and state for a single market.
 /// @dev Cloned by the Factory contract to launch new markets.
-contract Market is IMarket, Instance {
+contract Market is IMarket, Instance, ReentrancyGuard {
     bool private constant GAS_PROFILE = false;
     bool private constant LOG_REVERTS = false;
 
@@ -62,6 +63,7 @@ contract Market is IMarket, Instance {
     /// @param definition_ The market definition
     function initialize(IMarket.MarketDefinition calldata definition_) external initializer(1) {
         __Instance__initialize();
+        __UReentrancyGuard__initialize();
 
         token = definition_.token;
         oracle = definition_.oracle;
@@ -82,7 +84,7 @@ contract Market is IMarket, Instance {
         UFixed6 newShort,
         Fixed6 collateral,
         bool protect
-    ) external whenNotPaused {
+    ) external nonReentrant whenNotPaused {
         Context memory context = _loadContext(account);
         _settle(context, account);
         _update(context, account, newMaker, newLong, newShort, collateral, protect);
