@@ -29,19 +29,6 @@ struct Global {
     Fixed6 latestPrice;
 }
 using GlobalLib for Global global;
-struct StoredGlobal { // TODO: pack better
-    /* slot 1 */
-    uint32 _currentId;
-    uint48 _protocolFee;
-    uint48 _oracleFee;
-    uint48 _riskFee;
-    uint48 _donation;
-    int32 _pAccumulatorValue;
-
-    /* slot 2 */
-    int24 _pAccumulatorSkew;
-    int64 _latestPrice;
-}
 struct GlobalStorage { uint256 slot0; uint256 slot1; }
 using GlobalStorageLib for GlobalStorage global;
 
@@ -82,6 +69,22 @@ library GlobalLib {
     }
 }
 
+/// @dev Manually encodes and decodes the Global struct into storage.
+///
+///     struct StoredGlobal {
+///         /* slot 0 */
+///         uint32 currentId;
+///         uint48 protocolFee;
+///         uint48 oracleFee;
+///         uint48 riskFee;
+///         uint48 donation;
+///         int32 pAccumulator.value;
+///
+///         /* slot 1 */
+///         int24 pAccumulator.skew;
+///         int64 latestPrice;
+///     }
+///
 library GlobalStorageLib {
     error GlobalStorageInvalidError();
 

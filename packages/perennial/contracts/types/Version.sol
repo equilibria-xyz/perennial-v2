@@ -33,15 +33,6 @@ struct Version {
     UAccumulator6 shortReward;
 }
 using VersionLib for Version global;
-struct StoredVersion {
-    bool _valid;
-    int88 _makerValue;
-    int80 _longValue;
-    int80 _shortValue;
-    uint80 _makerReward;
-    uint88 _longReward;
-    uint88 _shortReward;
-}
 struct VersionStorage { uint256 slot0; uint256 slot1; }
 using VersionStorageLib for VersionStorage global;
 
@@ -334,8 +325,21 @@ library VersionLib {
     }
 }
 
-import "hardhat/console.sol";
-
+/// @dev Manually encodes and decodes the Version struct into storage.
+///
+///     struct StoredVersion {
+///         /* slot 0 */
+///         bool valid;
+///         int88 makerValue;
+///         int80 longValue;
+///         int80 shortValue;
+///
+///         /* slot 1 */
+///         uint80 makerReward;
+///         uint88 longReward;
+///         uint88 shortReward;
+///     }
+///
 library VersionStorageLib {
     error VersionStorageInvalidError();
 
