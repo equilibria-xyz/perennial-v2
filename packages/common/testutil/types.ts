@@ -58,7 +58,7 @@ export function expectPositionEq(a: Position, b: Position): void {
 
 export function expectGlobalEq(a: Global, b: Global): void {
   expect(a.currentId).to.equal(b.currentId, 'Global:CurrentId')
-  expect(a.latestId).to.equal(b.currentId, 'Global:LatestId')
+  expect(a.latestId).to.equal(b.latestId, 'Global:LatestId')
   expect(a.protocolFee).to.equal(b.protocolFee, 'Global:ProtocolFee')
   expect(a.oracleFee).to.equal(b.oracleFee, 'Global:OracleFee')
   expect(a.riskFee).to.equal(b.riskFee, 'Global:RiskFee')
