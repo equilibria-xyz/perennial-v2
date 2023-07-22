@@ -5,35 +5,29 @@ import "./Version.sol";
 import "./Position.sol";
 
 /// @dev Local type
-    struct Local {
-        /// @dev The current position id
-        uint256 currentId;
+struct Local {
+    /// @dev The current position id
+    uint256 currentId;
 
-        /// @dev The collateral balance
-        Fixed6 collateral;
+    /// @dev The collateral balance
+    Fixed6 collateral;
 
-        /// @dev The reward balance
-        UFixed6 reward;
+    /// @dev The reward balance
+    UFixed6 reward;
 
-        /// @dev The protection status
-        uint256 protection;
-    }
-    using LocalLib for Local global;
-    struct StoredLocal {
-        uint64 _currentId;
-        int64 _collateral;
-        uint64 _reward;
-        uint64 _protection;
-    }
-    struct LocalStorage { uint256 slot0; }
-    using LocalStorageLib for LocalStorage global;
+    /// @dev The protection status
+    uint256 protection;
+}
+using LocalLib for Local global;
+struct LocalStorage { uint256 slot0; }
+using LocalStorageLib for LocalStorage global;
 
-    struct LocalAccumulationResult {
-        Fixed6 collateralAmount;
-        UFixed6 rewardAmount;
-        UFixed6 positionFee;
-        UFixed6 keeper;
-    }
+struct LocalAccumulationResult {
+    Fixed6 collateralAmount;
+    UFixed6 rewardAmount;
+    UFixed6 positionFee;
+    UFixed6 keeper;
+}
 
 /// @title Local
 /// @notice Holds the local account state
@@ -97,6 +91,16 @@ library LocalLib {
     }
 }
 
+/// @dev Manually encodes and decodes the Local struct into storage.
+///
+///     struct StoredLocal {
+///         /* slot 0 */
+///         uint64 currentId;
+///         int64 collateral;
+///         uint64 reward;
+///         uint64 protection;
+///     }
+///
 library LocalStorageLib {
     error LocalStorageInvalidError();
 

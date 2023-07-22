@@ -53,26 +53,29 @@ struct MarketParameter {
     /// @dev Whether the market is in close-only mode
     bool closed;
 }
-struct StoredMarketParameter {
-    // slot 1
-    uint24 fundingFee;          // <= 1677%
-    uint24 interestFee;         // <= 1677%
-    uint24 positionFee;         // <= 1677%
-    uint24 oracleFee;           // <= 1677%
-    uint24 riskFee;             // <= 1677%
-    uint16 maxPendingGlobal;    // <= 65k
-    uint16 maxPendingLocal;     // <= 65k
-    uint32 makerRewardRate;     // <= 2147.48 / s
-    uint32 longRewardRate;      // <= 2147.48 / s
-    uint32 shortRewardRate;     // <= 2147.48 / s
-    uint8 flags;
-
-    // slot 2
-    uint48 settlementFee;       // <= 281m
-}
 struct MarketParameterStorage { uint256 slot0; uint256 slot1; }
 using MarketParameterStorageLib for MarketParameterStorage global;
 
+/// @dev Manually encodes and decodes the MarketParameter struct into storage.
+///
+///    struct StoredMarketParameter {
+///        /* slot 0 */
+///        uint24 fundingFee;          // <= 1677%
+///        uint24 interestFee;         // <= 1677%
+///        uint24 positionFee;         // <= 1677%
+///        uint24 oracleFee;           // <= 1677%
+///        uint24 riskFee;             // <= 1677%
+///        uint16 maxPendingGlobal;    // <= 65k
+///        uint16 maxPendingLocal;     // <= 65k
+///        uint32 makerRewardRate;     // <= 2147.48 / s
+///        uint32 longRewardRate;      // <= 2147.48 / s
+///        uint32 shortRewardRate;     // <= 2147.48 / s
+///        uint8 flags;
+///
+///        /* slot 1 */
+///        uint48 settlementFee;       // <= 281m
+///    }
+///
 library MarketParameterStorageLib {
     error MarketParameterStorageInvalidError();
 
