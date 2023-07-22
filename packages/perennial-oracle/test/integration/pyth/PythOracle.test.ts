@@ -304,6 +304,7 @@ describe('PythOracle', () => {
       await ethers.provider.send('hardhat_setNextBlockBaseFeePerGas', ['0x1000'])
       await pythOracle.connect(user).commit(STARTING_TIME, VAA, {
         value: 1,
+        gasPrice: 10000,
       })
       const newDSUBalance = await dsu.callStatic.balanceOf(user.address)
 
