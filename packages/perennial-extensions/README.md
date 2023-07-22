@@ -1,13 +1,62 @@
-# Sample Hardhat Project
+# Perennial V2 Extensions
 
-This project demonstrates a basic Hardhat use case. It comes with a sample contract, a test for that contract, and a script that deploys that contract.
+Extension systems for the Perennial V2 Protocol
 
-Try running some of the following tasks:
+## Usage
 
-```shell
-npx hardhat help
-npx hardhat test
-REPORT_GAS=true npx hardhat test
-npx hardhat node
-npx hardhat run scripts/deploy.ts
+### Pre Requisites
+
+Before running any command, make sure to install dependencies. Run this in the root workspace as well to capture package patches:
+
+```sh
+$ yarn
 ```
+
+### Compile
+
+Compile the smart contracts with Hardhat:
+
+```sh
+$ yarn compile
+```
+
+This also generates the Typechain types
+
+### Test
+
+Run the Mocha tests:
+
+```sh
+$ yarn test
+```
+
+To run tests against a Mainnet fork, set your `MAINNET_NODE_URL` in the root `.env` and run
+
+```sh
+$ yarn test:integration
+```
+
+### Gas Report
+
+To get a gas report based on unit test calls:
+
+```sh
+$ yarn gasReport
+```
+
+### Deploy contract to netowrk (requires Mnemonic and infura API key)
+
+```
+npx hardhat run --network rinkeby ./scripts/deploy.ts
+```
+
+### Validate a contract with etherscan (requires API ke)
+
+```
+npx hardhat verify --network <network> <DEPLOYED_CONTRACT_ADDRESS> "Constructor argument 1"
+```
+
+### Added plugins
+
+- Gas reporter [hardhat-gas-reporter](https://hardhat.org/plugins/hardhat-gas-reporter.html)
+- Etherscan [hardhat-etherscan](https://hardhat.org/plugins/nomiclabs-hardhat-etherscan.html)
