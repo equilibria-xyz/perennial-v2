@@ -14,11 +14,11 @@ struct TriggerOrder {
 using TriggerOrderLib for TriggerOrder global;
 struct StoredTriggerOrder {
     /* slot 0 */
-    uint8 side;
-    int8 comparison;
-    uint64 fee;
-    int64 price;
-    int64 delta;
+    uint8 side;         // 0 = maker, 1 = long, 2 = short
+    int8 comparison;    // -2 = lt, -1 = lte, 0 = eq, 1 = gte, 2 = gt
+    uint64 fee;         // <= 18.44tb
+    int64 price;        // <= 9.22t
+    int64 delta;        // <= 9.22t
     bytes6 __unallocated0__;
 }
 struct TriggerOrderStorage { StoredTriggerOrder value; }
