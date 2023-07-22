@@ -117,7 +117,7 @@ describe('RiskParameter', () => {
     })
 
     describe('.pController_k', () => {
-      const STORAGE_SIZE = 40
+      const STORAGE_SIZE = 48
       it('saves if in range', async () => {
         await riskParameter.validateAndStore(
           {
@@ -546,7 +546,7 @@ describe('RiskParameter', () => {
     })
 
     describe('.virtualTaker', () => {
-      const STORAGE_SIZE = 48
+      const STORAGE_SIZE = 64
       it('saves if in range', async () => {
         await riskParameter.validateAndStore(
           {

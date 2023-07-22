@@ -17,10 +17,11 @@ import {
   createInvoker,
   createMarket,
   deployProtocol,
-  createVault,
   fundWallet,
   fundWalletUSDC,
+  createVault,
 } from '../helpers/setupHelpers'
+
 import { buildApproveTarget, buildUpdateMarket, buildUpdateVault } from '../../helpers/invoke'
 import { parse6decimal } from '../../../../common/testutil/types'
 import { expect, use } from 'chai'

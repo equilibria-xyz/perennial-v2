@@ -2,6 +2,7 @@
 pragma solidity ^0.8.13;
 
 import "@equilibria/root/number/types/Fixed6.sol";
+import "@equilibria/root/number/types/Fixed6.sol";
 import "./Version.sol";
 import "./Position.sol";
 
@@ -105,7 +106,7 @@ library LocalLib {
 ///         uint32 latestId;    // <= 4.29b
 ///         int64 collateral;   // <= 9.22t
 ///         uint64 reward;      // <= 18.44t
-///         uint64 protection;  // <= 18.44t
+///         uint32 protection;  // <= 4.29b
 ///     }
 ///
 library LocalStorageLib {
@@ -118,7 +119,7 @@ library LocalStorageLib {
             uint256(slot0 << (256 - 32 - 32)) >> (256 - 32),
             Fixed6.wrap(int256(slot0 << (256 - 32 - 32 - 64)) >> (256 - 64)),
             UFixed6.wrap(uint256(slot0 << (256 - 32 - 32 - 64 - 64)) >> (256 - 64)),
-            (uint256(slot0) << (256 - 32 - 32 - 64 - 64 - 64)) >> (256 - 64)
+            (uint256(slot0) << (256 - 32 - 32 - 64 - 64 - 32)) >> (256 - 32)
         );
     }
 
@@ -128,14 +129,14 @@ library LocalStorageLib {
         if (newValue.collateral.gt(Fixed6.wrap(type(int64).max))) revert LocalStorageInvalidError();
         if (newValue.collateral.lt(Fixed6.wrap(type(int64).min))) revert LocalStorageInvalidError();
         if (newValue.reward.gt(UFixed6.wrap(type(uint64).max))) revert LocalStorageInvalidError();
-        if (newValue.protection > uint256(type(uint64).max)) revert LocalStorageInvalidError();
+        if (newValue.protection > uint256(type(uint32).max)) revert LocalStorageInvalidError();
 
         uint256 encoded =
             uint256(newValue.currentId << (256 - 32)) >> (256 - 32) |
             uint256(newValue.latestId << (256 - 32)) >> (256 - 32 - 32) |
             uint256(Fixed6.unwrap(newValue.collateral) << (256 - 64)) >> (256 - 32 - 32 - 64) |
             uint256(UFixed6.unwrap(newValue.reward) << (256 - 64)) >> (256 - 32 - 32 - 64 - 64) |
-            uint256(newValue.protection << (256 - 64)) >> (256 - 32 - 32 - 64 - 64 - 64);
+            uint256(newValue.protection << (256 - 32)) >> (256 - 32 - 32 - 64 - 64 - 32);
         assembly {
             sstore(self.slot, encoded)
         }

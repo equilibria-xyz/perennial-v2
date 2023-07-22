@@ -62,32 +62,35 @@ struct RiskParameter {
     bool makerReceiveOnly;
 }
 struct StoredRiskParameter {
-    /* slot 1 */
-    uint48 makerLimit;                          // <= 281m
-    uint40 pControllerK;                        // <= 1.1m
-    uint32 utilizationCurveMinRate;             // <= 214748%
-    uint32 utilizationCurveMaxRate;             // <= 214748%
-    uint24 utilizationCurveTargetUtilization;   // <= 1677%
-    uint24 takerFee;                            // <= 1677%
-    uint24 makerFee;                            // <= 1677%
+    /* slot 0 */
     uint24 maintenance;                         // <= 1677%
-    bool makerReceiveOnly;
-
-    /* slot 2 */
-    uint32 utilizationCurveTargetRate;          // <= 214748%
-    uint32 pControllerMax;                      // <= 214748%
+    uint24 takerFee;                            // <= 1677%
     uint24 takerSkewFee;                        // <= 1677%
     uint24 takerImpactFee;                      // <= 1677%
+    uint24 makerFee;                            // <= 1677%
     uint24 makerImpactFee;                      // <= 1677%
-    uint48 minMaintenance;                      // <= 281m
-    uint24 staleAfter;                          // <= 16m s
-    uint48 virtualTaker;                        // <= 281mn
+    uint48 makerLimit;                          // <= 281m
+    uint24 efficiencyLimit;                     // <= 1677%
+    bytes5 __unallocated0__;
 
-    /* slot 3 */
+    /* slot 1 */
     uint24 liquidationFee;                      // <= 1677%
     uint48 minLiquidationFee;                   // <= 281mn
     uint48 maxLiquidationFee;                   // <= 281mn
-    uint24 efficiencyLimit;                     // <= 1677%
+    uint32 utilizationCurveMinRate;             // <= 214748%
+    uint32 utilizationCurveMaxRate;             // <= 214748%
+    uint32 utilizationCurveTargetRate;          // <= 214748%
+    uint24 utilizationCurveTargetUtilization;   // <= 1677%
+    bytes2 __unallocated1__;
+
+    /* slot 2 */
+    uint48 pControllerK;                        // <= 281m
+    uint32 pControllerMax;                      // <= 214748%
+    uint48 minMaintenance;                      // <= 281m
+    uint64 virtualTaker;                        // <= 18.44t
+    uint24 staleAfter;                          // <= 16m s
+    bool makerReceiveOnly;
+    bytes4 __unallocated2__;
 }
 struct RiskParameterStorage { StoredRiskParameter value; }
 using RiskParameterStorageLib for RiskParameterStorage global;
@@ -162,32 +165,37 @@ library RiskParameterStorageLib {
         validate(newValue, protocolParameter);
 
         if (newValue.makerLimit.gt(UFixed6.wrap(type(uint48).max))) revert RiskParameterStorageInvalidError();
-        if (newValue.pController.k.gt(UFixed6.wrap(type(uint40).max))) revert RiskParameterStorageInvalidError();
-        if (newValue.virtualTaker.gt(UFixed6.wrap(type(uint48).max))) revert RiskParameterStorageInvalidError();
+        if (newValue.pController.k.gt(UFixed6.wrap(type(uint48).max))) revert RiskParameterStorageInvalidError();
+        if (newValue.virtualTaker.gt(UFixed6.wrap(type(uint64).max))) revert RiskParameterStorageInvalidError();
         if (newValue.staleAfter > uint256(type(uint24).max)) revert RiskParameterStorageInvalidError();
 
-        self.value = StoredRiskParameter({
-            maintenance: uint24(UFixed6.unwrap(newValue.maintenance)),
-            takerFee: uint24(UFixed6.unwrap(newValue.takerFee)),
-            takerSkewFee: uint24(UFixed6.unwrap(newValue.takerSkewFee)),
-            takerImpactFee: uint24(UFixed6.unwrap(newValue.takerImpactFee)),
-            makerFee: uint24(UFixed6.unwrap(newValue.makerFee)),
-            makerImpactFee: uint24(UFixed6.unwrap(newValue.makerImpactFee)),
-            makerLimit: uint48(UFixed6.unwrap(newValue.makerLimit)),
-            efficiencyLimit: uint24(UFixed6.unwrap(newValue.efficiencyLimit)),
-            liquidationFee: uint24(UFixed6.unwrap(newValue.liquidationFee)),
-            minLiquidationFee: uint48(UFixed6.unwrap(newValue.minLiquidationFee)),
-            maxLiquidationFee: uint48(UFixed6.unwrap(newValue.maxLiquidationFee)),
-            utilizationCurveMinRate: uint32(UFixed6.unwrap(newValue.utilizationCurve.minRate)),
-            utilizationCurveMaxRate: uint32(UFixed6.unwrap(newValue.utilizationCurve.maxRate)),
-            utilizationCurveTargetRate: uint32(UFixed6.unwrap(newValue.utilizationCurve.targetRate)),
-            utilizationCurveTargetUtilization: uint24(UFixed6.unwrap(newValue.utilizationCurve.targetUtilization)),
-            pControllerK: uint40(UFixed6.unwrap(newValue.pController.k)),
-            pControllerMax: uint32(UFixed6.unwrap(newValue.pController.max)),
-            minMaintenance: uint48(UFixed6.unwrap(newValue.minMaintenance)),
-            virtualTaker: uint48(UFixed6.unwrap(newValue.virtualTaker)),
-            staleAfter: uint24(newValue.staleAfter),
-            makerReceiveOnly: newValue.makerReceiveOnly
-        });
+        self.value = StoredRiskParameter(
+            uint24(UFixed6.unwrap(newValue.maintenance)),
+            uint24(UFixed6.unwrap(newValue.takerFee)),
+            uint24(UFixed6.unwrap(newValue.takerSkewFee)),
+            uint24(UFixed6.unwrap(newValue.takerImpactFee)),
+            uint24(UFixed6.unwrap(newValue.makerFee)),
+            uint24(UFixed6.unwrap(newValue.makerImpactFee)),
+            uint48(UFixed6.unwrap(newValue.makerLimit)),
+            uint24(UFixed6.unwrap(newValue.efficiencyLimit)),
+            bytes5(0),
+
+            uint24(UFixed6.unwrap(newValue.liquidationFee)),
+            uint48(UFixed6.unwrap(newValue.minLiquidationFee)),
+            uint48(UFixed6.unwrap(newValue.maxLiquidationFee)),
+            uint32(UFixed6.unwrap(newValue.utilizationCurve.minRate)),
+            uint32(UFixed6.unwrap(newValue.utilizationCurve.maxRate)),
+            uint32(UFixed6.unwrap(newValue.utilizationCurve.targetRate)),
+            uint24(UFixed6.unwrap(newValue.utilizationCurve.targetUtilization)),
+            bytes2(0),
+
+            uint48(UFixed6.unwrap(newValue.pController.k)),
+            uint32(UFixed6.unwrap(newValue.pController.max)),
+            uint48(UFixed6.unwrap(newValue.minMaintenance)),
+            uint64(UFixed6.unwrap(newValue.virtualTaker)),
+            uint24(newValue.staleAfter),
+            newValue.makerReceiveOnly,
+            bytes4(0)
+        );
     }
 }
