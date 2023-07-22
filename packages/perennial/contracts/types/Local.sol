@@ -25,7 +25,7 @@ import "./Position.sol";
         uint64 _reward;
         uint64 _protection;
     }
-    struct LocalStorage { uint256 value; }
+    struct LocalStorage { uint256 slot0; }
     using LocalStorageLib for LocalStorage global;
 
     struct LocalAccumulationResult {
@@ -101,12 +101,12 @@ library LocalStorageLib {
     error LocalStorageInvalidError();
 
     function read(LocalStorage storage self) internal view returns (Local memory) {
-        uint256 value = self.value;
+        uint256 slot0 = self.slot0;
         return Local(
-            uint256(value << (256 - 64)) >> (256 - 64),
-            Fixed6.wrap(int256(value << (256 - 64 - 64)) >> (256 - 64)),
-            UFixed6.wrap(uint256(value << (256 - 64 - 64 - 64)) >> (256 - 64)),
-            (uint256(value) << (256 - 64 - 64 - 64 - 64)) >> (256 - 64)
+            uint256(slot0 << (256 - 64)) >> (256 - 64),
+            Fixed6.wrap(int256(slot0 << (256 - 64 - 64)) >> (256 - 64)),
+            UFixed6.wrap(uint256(slot0 << (256 - 64 - 64 - 64)) >> (256 - 64)),
+            (uint256(slot0) << (256 - 64 - 64 - 64 - 64)) >> (256 - 64)
         );
     }
 
