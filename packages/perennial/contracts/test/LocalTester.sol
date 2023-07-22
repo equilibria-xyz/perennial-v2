@@ -40,10 +40,4 @@ contract LocalTester {
         protection = newLocal.protect(latestPosition, currentTimestamp, tryProtect);
         local.store(newLocal);
     }
-
-    function clearReward() external {
-        Local memory newLocal = local.read();
-        newLocal.clearReward();
-        local.store(newLocal);
-    }
 }

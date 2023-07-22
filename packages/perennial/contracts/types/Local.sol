@@ -5,35 +5,35 @@ import "./Version.sol";
 import "./Position.sol";
 
 /// @dev Local type
-struct Local {
-    /// @dev The current position id
-    uint256 currentId;
+    struct Local {
+        /// @dev The current position id
+        uint256 currentId;
 
-    /// @dev The collateral balance
-    Fixed6 collateral;
+        /// @dev The collateral balance
+        Fixed6 collateral;
 
-    /// @dev The reward balance
-    UFixed6 reward;
+        /// @dev The reward balance
+        UFixed6 reward;
 
-    /// @dev The protection status
-    uint256 protection;
-}
-using LocalLib for Local global;
-struct StoredLocal {
-    uint64 _currentId;
-    int64 _collateral;
-    uint64 _reward;
-    uint64 _protection;
-}
-struct LocalStorage { StoredLocal value; }
-using LocalStorageLib for LocalStorage global;
+        /// @dev The protection status
+        uint256 protection;
+    }
+    using LocalLib for Local global;
+    struct StoredLocal {
+        uint64 _currentId;
+        int64 _collateral;
+        uint64 _reward;
+        uint64 _protection;
+    }
+    struct LocalStorage { uint256 value; }
+    using LocalStorageLib for LocalStorage global;
 
-struct LocalAccumulationResult {
-    Fixed6 collateralAmount;
-    UFixed6 rewardAmount;
-    UFixed6 positionFee;
-    UFixed6 keeper;
-}
+    struct LocalAccumulationResult {
+        Fixed6 collateralAmount;
+        UFixed6 rewardAmount;
+        UFixed6 positionFee;
+        UFixed6 keeper;
+    }
 
 /// @title Local
 /// @notice Holds the local account state
@@ -101,12 +101,12 @@ library LocalStorageLib {
     error LocalStorageInvalidError();
 
     function read(LocalStorage storage self) internal view returns (Local memory) {
-        StoredLocal memory storedValue = self.value;
+        uint256 value = self.value;
         return Local(
-            uint256(storedValue._currentId),
-            Fixed6.wrap(int256(storedValue._collateral)),
-            UFixed6.wrap(uint256(storedValue._reward)),
-            uint256(storedValue._protection)
+            uint256(value << (256 - 64)) >> (256 - 64),
+            Fixed6.wrap(int256(value << (256 - 64 - 64)) >> (256 - 64)),
+            UFixed6.wrap(uint256(value << (256 - 64 - 64 - 64)) >> (256 - 64)),
+            (uint256(value) << (256 - 64 - 64 - 64 - 64)) >> (256 - 64)
         );
     }
 
@@ -117,11 +117,13 @@ library LocalStorageLib {
         if (newValue.reward.gt(UFixed6.wrap(type(uint64).max))) revert LocalStorageInvalidError();
         if (newValue.protection > uint256(type(uint64).max)) revert LocalStorageInvalidError();
 
-        self.value = StoredLocal(
-            uint64(newValue.currentId),
-            int64(Fixed6.unwrap(newValue.collateral)),
-            uint64(UFixed6.unwrap(newValue.reward)),
-            uint64(newValue.protection)
-        );
+        uint256 encoded =
+            uint256(newValue.currentId << (256 - 64)) >> (256 - 64) |
+            uint256(Fixed6.unwrap(newValue.collateral) << (256 - 64)) >> (256 - 64 - 64) |
+            uint256(UFixed6.unwrap(newValue.reward) << (256 - 64)) >> (256 - 64 - 64 - 64) |
+            uint256(newValue.protection << (256 - 64)) >> (256 - 64 - 64 - 64 - 64);
+        assembly {
+            sstore(self.slot, encoded)
+        }
     }
 }

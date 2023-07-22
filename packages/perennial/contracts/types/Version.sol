@@ -42,7 +42,7 @@ struct StoredVersion {
     uint88 _longReward;
     uint88 _shortReward;
 }
-struct VersionStorage { StoredVersion value; }
+struct VersionStorage { uint256 slot0; uint256 slot1; }
 using VersionStorageLib for VersionStorage global;
 
 /// @dev Individual accumulation values
@@ -334,19 +334,21 @@ library VersionLib {
     }
 }
 
+import "hardhat/console.sol";
+
 library VersionStorageLib {
     error VersionStorageInvalidError();
 
     function read(VersionStorage storage self) internal view returns (Version memory) {
-        StoredVersion memory storedValue = self.value;
+        (uint256 slot0, uint256 slot1) = (self.slot0, self.slot1);
         return Version(
-            storedValue._valid,
-            Accumulator6(Fixed6.wrap(int256(storedValue._makerValue))),
-            Accumulator6(Fixed6.wrap(int256(storedValue._longValue))),
-            Accumulator6(Fixed6.wrap(int256(storedValue._shortValue))),
-            UAccumulator6(UFixed6.wrap(uint256(storedValue._makerReward))),
-            UAccumulator6(UFixed6.wrap(uint256(storedValue._longReward))),
-            UAccumulator6(UFixed6.wrap(uint256(storedValue._shortReward)))
+            (uint256(slot0 << (256 - 8)) >> (256 - 8)) != 0,
+            Accumulator6(Fixed6.wrap(int256(slot0 << (256 - 8 - 88)) >> (256 - 88))),
+            Accumulator6(Fixed6.wrap(int256(slot0 << (256 - 8 - 88 - 80)) >> (256 - 80))),
+            Accumulator6(Fixed6.wrap(int256(slot0 << (256 - 8 - 88 - 80 - 80)) >> (256 - 80))),
+            UAccumulator6(UFixed6.wrap(uint256(slot1 << (256 - 80)) >> (256 - 80))),
+            UAccumulator6(UFixed6.wrap(uint256(slot1 << (256 - 80 - 88)) >> (256 - 88))),
+            UAccumulator6(UFixed6.wrap(uint256(slot1 << (256 - 80 - 88 - 88)) >> (256 - 88)))
         );
     }
 
@@ -361,14 +363,19 @@ library VersionStorageLib {
         if (newValue.longReward._value.gt(UFixed6.wrap(type(uint88).max))) revert VersionStorageInvalidError();
         if (newValue.shortReward._value.gt(UFixed6.wrap(type(uint88).max))) revert VersionStorageInvalidError();
 
-        self.value = StoredVersion(
-            newValue.valid,
-            int88(Fixed6.unwrap(newValue.makerValue._value)),
-            int80(Fixed6.unwrap(newValue.longValue._value)),
-            int80(Fixed6.unwrap(newValue.shortValue._value)),
-            uint80(UFixed6.unwrap(newValue.makerReward._value)),
-            uint88(UFixed6.unwrap(newValue.longReward._value)),
-            uint88(UFixed6.unwrap(newValue.shortReward._value))
-        );
+        uint256 encoded0 =
+            uint256((newValue.valid ? uint256(1) : uint256(0)) << (256 - 8)) >> (256 - 8) |
+            uint256(Fixed6.unwrap(newValue.makerValue._value) << (256 - 88)) >> (256 - 8 - 88) |
+            uint256(Fixed6.unwrap(newValue.longValue._value) << (256 - 80)) >> (256 - 8 - 88 - 80) |
+            uint256(Fixed6.unwrap(newValue.shortValue._value) << (256 - 80)) >> (256 - 8 - 88 - 80 - 80);
+        uint256 encoded1 =
+            uint256(UFixed6.unwrap(newValue.makerReward._value) << (256 - 80)) >> (256 - 80) |
+            uint256(UFixed6.unwrap(newValue.longReward._value) << (256 - 88)) >> (256 - 80 - 88) |
+            uint256(UFixed6.unwrap(newValue.shortReward._value) << (256 - 88)) >> (256 - 80 - 88 - 88);
+
+        assembly {
+            sstore(self.slot, encoded0)
+            sstore(add(self.slot, 1), encoded1)
+        }
     }
 }
