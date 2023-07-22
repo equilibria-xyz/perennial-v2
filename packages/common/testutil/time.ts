@@ -1,4 +1,5 @@
 import '@nomiclabs/hardhat-ethers'
+import { mine, mineUpTo, time } from '@nomicfoundation/hardhat-network-helpers'
 import HRE from 'hardhat'
 import { HardhatConfig } from 'hardhat/types'
 const { ethers } = HRE
@@ -10,24 +11,25 @@ export async function currentBlockTimestamp(): Promise<number> {
 }
 
 export async function advanceBlock(): Promise<void> {
-  await ethers.provider.send('evm_mine', [])
+  await mine()
 }
 
 export async function advanceBlockTo(block: number): Promise<void> {
-  while ((await ethers.provider.getBlockNumber()) < block) {
-    await ethers.provider.send('evm_mine', [])
-  }
+  await mineUpTo(block)
 }
 
 export async function increase(duration: number): Promise<void> {
-  await ethers.provider.send('evm_increaseTime', [duration])
-  await advanceBlock()
+  await time.increase(duration)
 }
 
 export async function increaseTo(timestamp: number): Promise<void> {
   const currentTimestamp = await currentBlockTimestamp()
-  await ethers.provider.send('evm_increaseTime', [timestamp - currentTimestamp])
-  await advanceBlock()
+  if (timestamp < currentTimestamp) {
+    await ethers.provider.send('evm_increaseTime', [timestamp - currentTimestamp])
+    await advanceBlock()
+  } else {
+    await time.increaseTo(timestamp)
+  }
   const newTimestamp = await currentBlockTimestamp()
   if (timestamp != newTimestamp)
     console.log('[WARNING] increaseTo failed to reach timestamp (%s vs %s)', timestamp, newTimestamp)
