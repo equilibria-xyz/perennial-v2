@@ -144,7 +144,7 @@ describe('Local', () => {
     })
 
     context('.protection', async () => {
-      const STORAGE_SIZE = 64
+      const STORAGE_SIZE = 32
       it('saves if in range', async () => {
         await local.store({
           ...VALID_STORED_VALUE,
