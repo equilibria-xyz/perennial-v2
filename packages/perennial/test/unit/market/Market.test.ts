@@ -624,6 +624,7 @@ describe.skip('Market', () => {
           })
           expectGlobalEq(await market.global(), {
             currentId: 1,
+            latestId: 0,
             protocolFee: 0,
             oracleFee: 0,
             riskFee: 0,
@@ -668,6 +669,7 @@ describe.skip('Market', () => {
           })
           expectGlobalEq(await market.global(), {
             currentId: 1,
+            latestId: 0,
             protocolFee: 0,
             oracleFee: 0,
             riskFee: 0,
@@ -715,6 +717,7 @@ describe.skip('Market', () => {
           })
           expectGlobalEq(await market.global(), {
             currentId: 1,
+            latestId: 0,
             protocolFee: 0,
             oracleFee: 0,
             riskFee: 0,
@@ -750,13 +753,13 @@ describe.skip('Market', () => {
 
           expectLocalEq(await market.locals(user.address), {
             currentId: 2,
+            latestId: 1,
             collateral: 0,
             reward: 0,
             protection: 0,
           })
           expectPositionEq(await market.positions(user.address), {
             ...DEFAULT_POSITION,
-            id: 1,
             timestamp: ORACLE_VERSION_2.timestamp,
           })
           expectPositionEq(await market.pendingPositions(user.address, 2), {
@@ -765,6 +768,7 @@ describe.skip('Market', () => {
           })
           expectGlobalEq(await market.global(), {
             currentId: 2,
+            latestId: 1,
             protocolFee: 0,
             oracleFee: 0,
             riskFee: 0,
@@ -772,7 +776,6 @@ describe.skip('Market', () => {
           })
           expectPositionEq(await market.position(), {
             ...DEFAULT_POSITION,
-            id: 1,
             timestamp: ORACLE_VERSION_2.timestamp,
           })
           expectPositionEq(await market.pendingPosition(2), {
@@ -820,6 +823,7 @@ describe.skip('Market', () => {
             })
             expectGlobalEq(await market.global(), {
               currentId: 1,
+              latestId: 0,
               protocolFee: 0,
               oracleFee: 0,
               riskFee: 0,
@@ -1457,7 +1461,6 @@ describe.skip('Market', () => {
               })
               expectPositionEq(await market.positions(user.address), {
                 ...DEFAULT_POSITION,
-                id: 2,
                 timestamp: ORACLE_VERSION_3.timestamp,
               })
               expectPositionEq(await market.pendingPositions(user.address, 3), {
@@ -1475,7 +1478,6 @@ describe.skip('Market', () => {
               })
               expectPositionEq(await market.position(), {
                 ...DEFAULT_POSITION,
-                id: 2,
                 timestamp: ORACLE_VERSION_3.timestamp,
               })
               expectPositionEq(await market.pendingPosition(3), {
@@ -1508,7 +1510,6 @@ describe.skip('Market', () => {
               })
               expectPositionEq(await market.positions(user.address), {
                 ...DEFAULT_POSITION,
-                id: 1,
                 timestamp: ORACLE_VERSION_2.timestamp,
                 maker: POSITION,
               })
@@ -1527,7 +1528,6 @@ describe.skip('Market', () => {
               })
               expectPositionEq(await market.position(), {
                 ...DEFAULT_POSITION,
-                id: 1,
                 timestamp: ORACLE_VERSION_2.timestamp,
                 maker: POSITION,
               })
@@ -1567,7 +1567,6 @@ describe.skip('Market', () => {
               })
               expectPositionEq(await market.positions(user.address), {
                 ...DEFAULT_POSITION,
-                id: 2,
                 timestamp: ORACLE_VERSION_3.timestamp,
               })
               expectPositionEq(await market.pendingPositions(user.address, 3), {
@@ -1585,7 +1584,6 @@ describe.skip('Market', () => {
               })
               expectPositionEq(await market.position(), {
                 ...DEFAULT_POSITION,
-                id: 2,
                 timestamp: ORACLE_VERSION_3.timestamp,
               })
               expectPositionEq(await market.pendingPosition(3), {
@@ -1622,7 +1620,6 @@ describe.skip('Market', () => {
               })
               expectPositionEq(await market.positions(user.address), {
                 ...DEFAULT_POSITION,
-                id: 2,
                 timestamp: ORACLE_VERSION_3.timestamp,
                 maker: POSITION.div(2),
               })
@@ -1641,7 +1638,6 @@ describe.skip('Market', () => {
               })
               expectPositionEq(await market.position(), {
                 ...DEFAULT_POSITION,
-                id: 2,
                 timestamp: ORACLE_VERSION_3.timestamp,
                 maker: POSITION.div(2),
               })
@@ -1685,7 +1681,6 @@ describe.skip('Market', () => {
               })
               expectPositionEq(await market.positions(user.address), {
                 ...DEFAULT_POSITION,
-                id: 3,
                 timestamp: ORACLE_VERSION_4.timestamp,
               })
               expectPositionEq(await market.pendingPositions(user.address, 4), {
@@ -1703,7 +1698,6 @@ describe.skip('Market', () => {
               })
               expectPositionEq(await market.position(), {
                 ...DEFAULT_POSITION,
-                id: 3,
                 timestamp: ORACLE_VERSION_4.timestamp,
               })
               expectPositionEq(await market.pendingPosition(4), {
@@ -1742,7 +1736,6 @@ describe.skip('Market', () => {
               })
               expectPositionEq(await market.positions(user.address), {
                 ...DEFAULT_POSITION,
-                id: 2,
                 timestamp: ORACLE_VERSION_4.timestamp,
               })
               expectPositionEq(await market.pendingPositions(user.address, 3), {
@@ -1760,7 +1753,6 @@ describe.skip('Market', () => {
               })
               expectPositionEq(await market.position(), {
                 ...DEFAULT_POSITION,
-                id: 2,
                 timestamp: ORACLE_VERSION_4.timestamp,
               })
               expectPositionEq(await market.pendingPosition(3), {
@@ -1813,7 +1805,6 @@ describe.skip('Market', () => {
               })
               expectPositionEq(await market.positions(user.address), {
                 ...DEFAULT_POSITION,
-                id: 2,
                 timestamp: ORACLE_VERSION_4.timestamp,
               })
               expectPositionEq(await market.pendingPositions(user.address, 3), {
@@ -1831,7 +1822,6 @@ describe.skip('Market', () => {
               })
               expectPositionEq(await market.position(), {
                 ...DEFAULT_POSITION,
-                id: 2,
                 timestamp: ORACLE_VERSION_4.timestamp,
               })
               expectPositionEq(await market.pendingPosition(3), {
@@ -1933,7 +1923,6 @@ describe.skip('Market', () => {
               })
               expectPositionEq(await market.positions(user.address), {
                 ...DEFAULT_POSITION,
-                id: 1,
                 timestamp: ORACLE_VERSION_2.timestamp,
                 long: POSITION,
               })
@@ -1953,7 +1942,6 @@ describe.skip('Market', () => {
               })
               expectPositionEq(await market.position(), {
                 ...DEFAULT_POSITION,
-                id: 1,
                 timestamp: ORACLE_VERSION_2.timestamp,
                 maker: POSITION,
                 long: POSITION,
@@ -2048,7 +2036,6 @@ describe.skip('Market', () => {
               })
               expectPositionEq(await market.positions(user.address), {
                 ...DEFAULT_POSITION,
-                id: 1,
                 timestamp: ORACLE_VERSION_2.timestamp,
                 long: POSITION,
               })
@@ -2068,7 +2055,6 @@ describe.skip('Market', () => {
               })
               expectPositionEq(await market.position(), {
                 ...DEFAULT_POSITION,
-                id: 1,
                 timestamp: ORACLE_VERSION_2.timestamp,
                 maker: POSITION,
                 long: POSITION,
@@ -2109,7 +2095,6 @@ describe.skip('Market', () => {
               })
               expectPositionEq(await market.positions(user.address), {
                 ...DEFAULT_POSITION,
-                id: 1,
                 timestamp: ORACLE_VERSION_2.timestamp,
                 long: POSITION.div(2),
               })
@@ -2129,7 +2114,6 @@ describe.skip('Market', () => {
               })
               expectPositionEq(await market.position(), {
                 ...DEFAULT_POSITION,
-                id: 1,
                 timestamp: ORACLE_VERSION_2.timestamp,
                 maker: POSITION,
                 long: POSITION.div(2),
@@ -2177,7 +2161,6 @@ describe.skip('Market', () => {
               })
               expectPositionEq(await market.positions(user.address), {
                 ...DEFAULT_POSITION,
-                id: 2,
                 timestamp: ORACLE_VERSION_3.timestamp,
                 long: POSITION,
               })
@@ -2198,7 +2181,6 @@ describe.skip('Market', () => {
               })
               expectPositionEq(await market.positions(userB.address), {
                 ...DEFAULT_POSITION,
-                id: 1,
                 timestamp: ORACLE_VERSION_3.timestamp,
                 maker: POSITION,
               })
@@ -2219,7 +2201,6 @@ describe.skip('Market', () => {
               })
               expectPositionEq(await market.position(), {
                 ...DEFAULT_POSITION,
-                id: 2,
                 timestamp: ORACLE_VERSION_3.timestamp,
                 maker: POSITION,
                 long: POSITION,
@@ -2265,7 +2246,6 @@ describe.skip('Market', () => {
               })
               expectPositionEq(await market.positions(user.address), {
                 ...DEFAULT_POSITION,
-                id: 1,
                 timestamp: ORACLE_VERSION_3.timestamp,
                 long: POSITION.div(2),
               })
@@ -2286,7 +2266,6 @@ describe.skip('Market', () => {
               })
               expectPositionEq(await market.positions(userB.address), {
                 ...DEFAULT_POSITION,
-                id: 1,
                 timestamp: ORACLE_VERSION_3.timestamp,
                 maker: POSITION,
               })
@@ -2307,7 +2286,6 @@ describe.skip('Market', () => {
               })
               expectPositionEq(await market.position(), {
                 ...DEFAULT_POSITION,
-                id: 1,
                 timestamp: ORACLE_VERSION_3.timestamp,
                 maker: POSITION,
                 long: POSITION.div(2),
@@ -2369,7 +2347,6 @@ describe.skip('Market', () => {
               })
               expectPositionEq(await market.positions(user.address), {
                 ...DEFAULT_POSITION,
-                id: 1,
                 timestamp: ORACLE_VERSION_3.timestamp,
                 long: POSITION.div(2),
               })
@@ -2390,7 +2367,6 @@ describe.skip('Market', () => {
               })
               expectPositionEq(await market.positions(userB.address), {
                 ...DEFAULT_POSITION,
-                id: 1,
                 timestamp: ORACLE_VERSION_3.timestamp,
                 maker: POSITION,
               })
@@ -2411,7 +2387,6 @@ describe.skip('Market', () => {
               })
               expectPositionEq(await market.position(), {
                 ...DEFAULT_POSITION,
-                id: 1,
                 timestamp: ORACLE_VERSION_3.timestamp,
                 maker: POSITION,
                 long: POSITION.div(2),
@@ -2481,7 +2456,6 @@ describe.skip('Market', () => {
               })
               expectPositionEq(await market.positions(user.address), {
                 ...DEFAULT_POSITION,
-                id: 1,
                 timestamp: ORACLE_VERSION_4.timestamp,
                 maker: 0,
                 long: POSITION.div(2),
@@ -2505,7 +2479,6 @@ describe.skip('Market', () => {
               })
               expectPositionEq(await market.positions(userB.address), {
                 ...DEFAULT_POSITION,
-                id: 1,
                 timestamp: ORACLE_VERSION_4.timestamp,
                 maker: POSITION,
               })
@@ -2526,7 +2499,6 @@ describe.skip('Market', () => {
               })
               expectPositionEq(await market.position(), {
                 ...DEFAULT_POSITION,
-                id: 2,
                 timestamp: ORACLE_VERSION_4.timestamp,
                 maker: POSITION,
                 long: POSITION.div(2),
@@ -2680,7 +2652,6 @@ describe.skip('Market', () => {
                 })
                 expectPositionEq(await market.positions(user.address), {
                   ...DEFAULT_POSITION,
-                  id: 1,
                   timestamp: ORACLE_VERSION_2.timestamp,
                   long: POSITION.div(2),
                 })
@@ -2699,7 +2670,6 @@ describe.skip('Market', () => {
                 })
                 expectPositionEq(await market.position(), {
                   ...DEFAULT_POSITION,
-                  id: 1,
                   timestamp: ORACLE_VERSION_2.timestamp,
                   maker: POSITION,
                   long: POSITION.div(2),
@@ -2740,7 +2710,6 @@ describe.skip('Market', () => {
                 })
                 expectPositionEq(await market.positions(user.address), {
                   ...DEFAULT_POSITION,
-                  id: 2,
                   timestamp: ORACLE_VERSION_3.timestamp,
                 })
                 expectPositionEq(await market.pendingPositions(user.address, 3), {
@@ -2759,7 +2728,6 @@ describe.skip('Market', () => {
                 })
                 expectPositionEq(await market.positions(userB.address), {
                   ...DEFAULT_POSITION,
-                  id: 1,
                   timestamp: ORACLE_VERSION_3.timestamp,
                   maker: POSITION,
                 })
@@ -2780,7 +2748,6 @@ describe.skip('Market', () => {
                 })
                 expectPositionEq(await market.position(), {
                   ...DEFAULT_POSITION,
-                  id: 2,
                   timestamp: ORACLE_VERSION_3.timestamp,
                   maker: POSITION,
                 })
@@ -2819,7 +2786,6 @@ describe.skip('Market', () => {
                 })
                 expectPositionEq(await market.positions(user.address), {
                   ...DEFAULT_POSITION,
-                  id: 1,
                   timestamp: ORACLE_VERSION_2.timestamp,
                   long: POSITION.div(2),
                 })
@@ -2838,14 +2804,12 @@ describe.skip('Market', () => {
                 })
                 expectPositionEq(await market.position(), {
                   ...DEFAULT_POSITION,
-                  id: 1,
                   timestamp: ORACLE_VERSION_2.timestamp,
                   maker: POSITION,
                   long: POSITION.div(2),
                 })
                 expectPositionEq(await market.pendingPosition(2), {
                   ...DEFAULT_POSITION,
-                  id: 2,
                   timestamp: ORACLE_VERSION_3.timestamp,
                   maker: POSITION,
                 })
@@ -2882,12 +2846,10 @@ describe.skip('Market', () => {
                 })
                 expectPositionEq(await market.positions(user.address), {
                   ...DEFAULT_POSITION,
-                  id: 2,
                   timestamp: ORACLE_VERSION_3.timestamp,
                 })
                 expectPositionEq(await market.pendingPositions(user.address, 3), {
                   ...DEFAULT_POSITION,
-                  id: 3,
                   timestamp: ORACLE_VERSION_4.timestamp,
                   delta: COLLATERAL,
                 })
@@ -2902,13 +2864,11 @@ describe.skip('Market', () => {
                 })
                 expectPositionEq(await market.positions(userB.address), {
                   ...DEFAULT_POSITION,
-                  id: 1,
                   timestamp: ORACLE_VERSION_3.timestamp,
                   maker: POSITION,
                 })
                 expectPositionEq(await market.pendingPositions(userB.address, 2), {
                   ...DEFAULT_POSITION,
-                  id: 2,
                   timestamp: ORACLE_VERSION_4.timestamp,
                   maker: POSITION,
                   delta: COLLATERAL,
@@ -2924,13 +2884,11 @@ describe.skip('Market', () => {
                 })
                 expectPositionEq(await market.position(), {
                   ...DEFAULT_POSITION,
-                  id: 2,
                   timestamp: ORACLE_VERSION_3.timestamp,
                   maker: POSITION,
                 })
                 expectPositionEq(await market.pendingPosition(3), {
                   ...DEFAULT_POSITION,
-                  id: 3,
                   timestamp: ORACLE_VERSION_4.timestamp,
                   maker: POSITION,
                 })
@@ -2971,13 +2929,11 @@ describe.skip('Market', () => {
                 })
                 expectPositionEq(await market.positions(user.address), {
                   ...DEFAULT_POSITION,
-                  id: 2,
                   timestamp: ORACLE_VERSION_3.timestamp,
                   long: POSITION.div(4),
                 })
                 expectPositionEq(await market.pendingPositions(user.address, 3), {
                   ...DEFAULT_POSITION,
-                  id: 3,
                   timestamp: ORACLE_VERSION_4.timestamp,
                   delta: COLLATERAL,
                 })
@@ -2992,13 +2948,11 @@ describe.skip('Market', () => {
                 })
                 expectPositionEq(await market.positions(userB.address), {
                   ...DEFAULT_POSITION,
-                  id: 1,
                   timestamp: ORACLE_VERSION_3.timestamp,
                   maker: POSITION,
                 })
                 expectPositionEq(await market.pendingPositions(userB.address, 2), {
                   ...DEFAULT_POSITION,
-                  id: 2,
                   timestamp: ORACLE_VERSION_4.timestamp,
                   maker: POSITION,
                   delta: COLLATERAL,
@@ -3014,14 +2968,12 @@ describe.skip('Market', () => {
                 })
                 expectPositionEq(await market.position(), {
                   ...DEFAULT_POSITION,
-                  id: 2,
                   timestamp: ORACLE_VERSION_3.timestamp,
                   maker: POSITION,
                   long: POSITION.div(4),
                 })
                 expectPositionEq(await market.pendingPosition(3), {
                   ...DEFAULT_POSITION,
-                  id: 3,
                   timestamp: ORACLE_VERSION_4.timestamp,
                   maker: POSITION,
                 })
@@ -3069,12 +3021,10 @@ describe.skip('Market', () => {
                 })
                 expectPositionEq(await market.positions(user.address), {
                   ...DEFAULT_POSITION,
-                  id: 3,
                   timestamp: ORACLE_VERSION_4.timestamp,
                 })
                 expectPositionEq(await market.pendingPositions(user.address, 4), {
                   ...DEFAULT_POSITION,
-                  id: 4,
                   timestamp: ORACLE_VERSION_5.timestamp,
                   delta: COLLATERAL,
                 })
@@ -3091,13 +3041,11 @@ describe.skip('Market', () => {
                 })
                 expectPositionEq(await market.positions(userB.address), {
                   ...DEFAULT_POSITION,
-                  id: 1,
                   timestamp: ORACLE_VERSION_4.timestamp,
                   maker: POSITION,
                 })
                 expectPositionEq(await market.pendingPositions(userB.address, 2), {
                   ...DEFAULT_POSITION,
-                  id: 2,
                   timestamp: ORACLE_VERSION_5.timestamp,
                   maker: POSITION,
                   delta: COLLATERAL,
@@ -3115,13 +3063,11 @@ describe.skip('Market', () => {
                 })
                 expectPositionEq(await market.position(), {
                   ...DEFAULT_POSITION,
-                  id: 3,
                   timestamp: ORACLE_VERSION_4.timestamp,
                   maker: POSITION,
                 })
                 expectPositionEq(await market.pendingPosition(4), {
                   ...DEFAULT_POSITION,
-                  id: 4,
                   timestamp: ORACLE_VERSION_5.timestamp,
                   maker: POSITION,
                 })
@@ -3181,12 +3127,10 @@ describe.skip('Market', () => {
                 })
                 expectPositionEq(await market.positions(user.address), {
                   ...DEFAULT_POSITION,
-                  id: 2,
                   timestamp: ORACLE_VERSION_4.timestamp,
                 })
                 expectPositionEq(await market.pendingPositions(user.address, 3), {
                   ...DEFAULT_POSITION,
-                  id: 3,
                   timestamp: ORACLE_VERSION_5.timestamp,
                   delta: COLLATERAL,
                 })
@@ -3201,13 +3145,11 @@ describe.skip('Market', () => {
                 })
                 expectPositionEq(await market.positions(userB.address), {
                   ...DEFAULT_POSITION,
-                  id: 1,
                   timestamp: ORACLE_VERSION_4.timestamp,
                   maker: POSITION,
                 })
                 expectPositionEq(await market.pendingPositions(userB.address, 2), {
                   ...DEFAULT_POSITION,
-                  id: 2,
                   timestamp: ORACLE_VERSION_5.timestamp,
                   maker: POSITION,
                   delta: COLLATERAL,
@@ -3223,13 +3165,11 @@ describe.skip('Market', () => {
                 })
                 expectPositionEq(await market.position(), {
                   ...DEFAULT_POSITION,
-                  id: 2,
                   timestamp: ORACLE_VERSION_4.timestamp,
                   maker: POSITION,
                 })
                 expectPositionEq(await market.pendingPosition(3), {
                   ...DEFAULT_POSITION,
-                  id: 3,
                   timestamp: ORACLE_VERSION_5.timestamp,
                   maker: POSITION,
                 })
@@ -3288,12 +3228,10 @@ describe.skip('Market', () => {
                 })
                 expectPositionEq(await market.positions(user.address), {
                   ...DEFAULT_POSITION,
-                  id: 2,
                   timestamp: ORACLE_VERSION_4.timestamp,
                 })
                 expectPositionEq(await market.pendingPositions(user.address, 3), {
                   ...DEFAULT_POSITION,
-                  id: 3,
                   timestamp: ORACLE_VERSION_5.timestamp,
                   delta: COLLATERAL,
                 })
@@ -3309,13 +3247,11 @@ describe.skip('Market', () => {
                 })
                 expectPositionEq(await market.positions(userB.address), {
                   ...DEFAULT_POSITION,
-                  id: 1,
                   timestamp: ORACLE_VERSION_4.timestamp,
                   maker: POSITION,
                 })
                 expectPositionEq(await market.pendingPositions(userB.address, 2), {
                   ...DEFAULT_POSITION,
-                  id: 2,
                   timestamp: ORACLE_VERSION_5.timestamp,
                   maker: POSITION,
                   delta: COLLATERAL,
@@ -3331,13 +3267,11 @@ describe.skip('Market', () => {
                 })
                 expectPositionEq(await market.position(), {
                   ...DEFAULT_POSITION,
-                  id: 2,
                   timestamp: ORACLE_VERSION_4.timestamp,
                   maker: POSITION,
                 })
                 expectPositionEq(await market.pendingPosition(3), {
                   ...DEFAULT_POSITION,
-                  id: 3,
                   timestamp: ORACLE_VERSION_5.timestamp,
                   maker: POSITION,
                 })
@@ -3397,13 +3331,11 @@ describe.skip('Market', () => {
             })
             expectPositionEq(await market.positions(user.address), {
               ...DEFAULT_POSITION,
-              id: 1,
               timestamp: ORACLE_VERSION_2.timestamp,
               long: POSITION.div(2),
             })
             expectPositionEq(await market.pendingPositions(user.address, 2), {
               ...DEFAULT_POSITION,
-              id: 2,
               timestamp: ORACLE_VERSION_3.timestamp,
               long: POSITION.div(2),
               delta: COLLATERAL,
@@ -3417,13 +3349,11 @@ describe.skip('Market', () => {
             })
             expectPositionEq(await market.positions(userB.address), {
               ...DEFAULT_POSITION,
-              id: 1,
               timestamp: ORACLE_VERSION_2.timestamp,
               maker: POSITION,
             })
             expectPositionEq(await market.pendingPositions(userB.address, 2), {
               ...DEFAULT_POSITION,
-              id: 2,
               timestamp: ORACLE_VERSION_3.timestamp,
               maker: POSITION,
               delta: COLLATERAL,
@@ -3438,14 +3368,12 @@ describe.skip('Market', () => {
             })
             expectPositionEq(await market.position(), {
               ...DEFAULT_POSITION,
-              id: 1,
               timestamp: ORACLE_VERSION_2.timestamp,
               maker: POSITION,
               long: POSITION.div(2),
             })
             expectPositionEq(await market.pendingPosition(2), {
               ...DEFAULT_POSITION,
-              id: 2,
               timestamp: ORACLE_VERSION_3.timestamp,
               maker: POSITION,
               long: POSITION.div(2),
@@ -3522,13 +3450,11 @@ describe.skip('Market', () => {
             })
             expectPositionEq(await market.positions(user.address), {
               ...DEFAULT_POSITION,
-              id: 2,
               timestamp: ORACLE_VERSION_3.timestamp,
               long: POSITION.div(2),
             })
             expectPositionEq(await market.pendingPositions(user.address, 3), {
               ...DEFAULT_POSITION,
-              id: 3,
               timestamp: ORACLE_VERSION_4.timestamp,
               long: POSITION.div(2),
               delta: COLLATERAL,
@@ -3545,13 +3471,11 @@ describe.skip('Market', () => {
             })
             expectPositionEq(await market.positions(userB.address), {
               ...DEFAULT_POSITION,
-              id: 2,
               timestamp: ORACLE_VERSION_3.timestamp,
               maker: POSITION,
             })
             expectPositionEq(await market.pendingPositions(userB.address, 3), {
               ...DEFAULT_POSITION,
-              id: 3,
               timestamp: ORACLE_VERSION_4.timestamp,
               maker: POSITION,
               delta: COLLATERAL,
@@ -3567,14 +3491,12 @@ describe.skip('Market', () => {
             })
             expectPositionEq(await market.position(), {
               ...DEFAULT_POSITION,
-              id: 2,
               timestamp: ORACLE_VERSION_3.timestamp,
               maker: POSITION,
               long: POSITION.div(2),
             })
             expectPositionEq(await market.pendingPosition(3), {
               ...DEFAULT_POSITION,
-              id: 3,
               timestamp: ORACLE_VERSION_4.timestamp,
               maker: POSITION,
               long: POSITION.div(2),
@@ -3655,13 +3577,11 @@ describe.skip('Market', () => {
             })
             expectPositionEq(await market.positions(user.address), {
               ...DEFAULT_POSITION,
-              id: 2,
               timestamp: ORACLE_VERSION_3.timestamp,
               long: POSITION.div(2),
             })
             expectPositionEq(await market.pendingPositions(user.address, 3), {
               ...DEFAULT_POSITION,
-              id: 3,
               timestamp: ORACLE_VERSION_4.timestamp,
               long: POSITION.div(2),
               delta: COLLATERAL,
@@ -3678,13 +3598,11 @@ describe.skip('Market', () => {
             })
             expectPositionEq(await market.positions(userB.address), {
               ...DEFAULT_POSITION,
-              id: 2,
               timestamp: ORACLE_VERSION_3.timestamp,
               maker: POSITION,
             })
             expectPositionEq(await market.pendingPositions(userB.address, 3), {
               ...DEFAULT_POSITION,
-              id: 3,
               timestamp: ORACLE_VERSION_4.timestamp,
               maker: POSITION,
               delta: COLLATERAL,
@@ -3700,14 +3618,12 @@ describe.skip('Market', () => {
             })
             expectPositionEq(await market.position(), {
               ...DEFAULT_POSITION,
-              id: 2,
               timestamp: ORACLE_VERSION_3.timestamp,
               maker: POSITION,
               long: POSITION.div(2),
             })
             expectPositionEq(await market.pendingPosition(3), {
               ...DEFAULT_POSITION,
-              id: 3,
               timestamp: ORACLE_VERSION_4.timestamp,
               maker: POSITION,
               long: POSITION.div(2),
@@ -3801,7 +3717,6 @@ describe.skip('Market', () => {
               })
               expectPositionEq(await market.positions(user.address), {
                 ...DEFAULT_POSITION,
-                id: 4,
                 timestamp: ORACLE_VERSION_5.timestamp,
                 long: POSITION.div(2),
               })
@@ -3826,7 +3741,6 @@ describe.skip('Market', () => {
               })
               expectPositionEq(await market.positions(userB.address), {
                 ...DEFAULT_POSITION,
-                id: 4,
                 timestamp: ORACLE_VERSION_5.timestamp,
               })
               expectPositionEq(await market.pendingPositions(userB.address, 5), {
@@ -3847,7 +3761,6 @@ describe.skip('Market', () => {
               })
               expectPositionEq(await market.position(), {
                 ...DEFAULT_POSITION,
-                id: 4,
                 timestamp: ORACLE_VERSION_5.timestamp,
                 long: POSITION.div(2),
               })
@@ -4004,7 +3917,6 @@ describe.skip('Market', () => {
               })
               expectPositionEq(await market.positions(user.address), {
                 ...DEFAULT_POSITION,
-                id: 4,
                 timestamp: ORACLE_VERSION_5.timestamp,
                 long: POSITION.div(2),
               })
@@ -4027,7 +3939,6 @@ describe.skip('Market', () => {
               })
               expectPositionEq(await market.positions(userB.address), {
                 ...DEFAULT_POSITION,
-                id: 4,
                 timestamp: ORACLE_VERSION_5.timestamp,
               })
               expectPositionEq(await market.pendingPositions(userB.address, 5), {
@@ -4050,7 +3961,6 @@ describe.skip('Market', () => {
               })
               expectPositionEq(await market.positions(userC.address), {
                 ...DEFAULT_POSITION,
-                id: 4,
                 timestamp: ORACLE_VERSION_5.timestamp,
                 maker: POSITION.div(4),
               })
@@ -4073,7 +3983,6 @@ describe.skip('Market', () => {
               })
               expectPositionEq(await market.position(), {
                 ...DEFAULT_POSITION,
-                id: 4,
                 timestamp: ORACLE_VERSION_5.timestamp,
                 maker: POSITION.div(4),
                 long: POSITION.div(2),
@@ -4192,7 +4101,6 @@ describe.skip('Market', () => {
               })
               expectPositionEq(await market.positions(user.address), {
                 ...DEFAULT_POSITION,
-                id: 2,
                 timestamp: ORACLE_VERSION_3.timestamp,
                 long: POSITION.div(2),
               })
@@ -4216,7 +4124,6 @@ describe.skip('Market', () => {
               })
               expectPositionEq(await market.positions(userB.address), {
                 ...DEFAULT_POSITION,
-                id: 2,
                 timestamp: ORACLE_VERSION_3.timestamp,
                 maker: POSITION,
               })
@@ -4236,7 +4143,6 @@ describe.skip('Market', () => {
               })
               expectPositionEq(await market.position(), {
                 ...DEFAULT_POSITION,
-                id: 2,
                 timestamp: ORACLE_VERSION_3.timestamp,
                 maker: POSITION,
                 long: POSITION.div(2),
@@ -4299,7 +4205,6 @@ describe.skip('Market', () => {
               })
               expectPositionEq(await market.positions(userB.address), {
                 ...DEFAULT_POSITION,
-                id: 3,
                 timestamp: ORACLE_VERSION_4.timestamp,
               })
               expectPositionEq(await market.pendingPositions(userB.address, 4), {
@@ -4379,7 +4284,6 @@ describe.skip('Market', () => {
               })
               expectPositionEq(await market.positions(user.address), {
                 ...DEFAULT_POSITION,
-                id: 4,
                 timestamp: ORACLE_VERSION_5.timestamp,
               })
               expectPositionEq(await market.pendingPositions(user.address, 5), {
@@ -4400,7 +4304,6 @@ describe.skip('Market', () => {
               })
               expectPositionEq(await market.positions(userB.address), {
                 ...DEFAULT_POSITION,
-                id: 4,
                 timestamp: ORACLE_VERSION_5.timestamp,
                 maker: POSITION,
               })
@@ -4423,7 +4326,6 @@ describe.skip('Market', () => {
               })
               expectPositionEq(await market.position(), {
                 ...DEFAULT_POSITION,
-                id: 4,
                 timestamp: ORACLE_VERSION_5.timestamp,
                 maker: POSITION,
               })
@@ -4533,7 +4435,6 @@ describe.skip('Market', () => {
               })
               expectPositionEq(await market.positions(user.address), {
                 ...DEFAULT_POSITION,
-                id: 2,
                 timestamp: ORACLE_VERSION_3.timestamp,
                 long: POSITION.div(2),
               })
@@ -4555,7 +4456,6 @@ describe.skip('Market', () => {
               })
               expectPositionEq(await market.positions(userB.address), {
                 ...DEFAULT_POSITION,
-                id: 2,
                 timestamp: ORACLE_VERSION_3.timestamp,
                 maker: POSITION,
               })
@@ -4576,7 +4476,6 @@ describe.skip('Market', () => {
               })
               expectPositionEq(await market.position(), {
                 ...DEFAULT_POSITION,
-                id: 2,
                 timestamp: ORACLE_VERSION_3.timestamp,
                 maker: POSITION,
                 long: POSITION.div(2),
@@ -4635,7 +4534,6 @@ describe.skip('Market', () => {
               })
               expectPositionEq(await market.positions(user.address), {
                 ...DEFAULT_POSITION,
-                id: 3,
                 timestamp: ORACLE_VERSION_4.timestamp,
               })
               expectPositionEq(await market.pendingPositions(user.address, 4), {
@@ -4694,13 +4592,11 @@ describe.skip('Market', () => {
             })
             expectPositionEq(await market.positions(user.address), {
               ...DEFAULT_POSITION,
-              id: 2,
               timestamp: ORACLE_VERSION_4.timestamp,
               maker: POSITION,
             })
             expectPositionEq(await market.pendingPositions(user.address, 3), {
               ...DEFAULT_POSITION,
-              id: 3,
               timestamp: ORACLE_VERSION_5.timestamp,
               maker: POSITION,
               delta: COLLATERAL,
@@ -4714,13 +4610,11 @@ describe.skip('Market', () => {
             })
             expectPositionEq(await market.positions(userB.address), {
               ...DEFAULT_POSITION,
-              id: 2,
               timestamp: ORACLE_VERSION_4.timestamp,
               long: POSITION.div(2),
             })
             expectPositionEq(await market.pendingPositions(userB.address, 3), {
               ...DEFAULT_POSITION,
-              id: 3,
               timestamp: ORACLE_VERSION_5.timestamp,
               long: POSITION.div(2),
               delta: COLLATERAL,
@@ -4735,14 +4629,12 @@ describe.skip('Market', () => {
             })
             expectPositionEq(await market.position(), {
               ...DEFAULT_POSITION,
-              id: 2,
               timestamp: ORACLE_VERSION_4.timestamp,
               maker: POSITION,
               long: POSITION.div(2),
             })
             expectPositionEq(await market.pendingPosition(3), {
               ...DEFAULT_POSITION,
-              id: 3,
               timestamp: ORACLE_VERSION_5.timestamp,
               maker: POSITION,
               long: POSITION.div(2),
@@ -4849,7 +4741,6 @@ describe.skip('Market', () => {
               })
               expectPositionEq(await market.positions(user.address), {
                 ...DEFAULT_POSITION,
-                id: 1,
                 timestamp: ORACLE_VERSION_2.timestamp,
                 short: POSITION,
               })
@@ -4869,7 +4760,6 @@ describe.skip('Market', () => {
               })
               expectPositionEq(await market.position(), {
                 ...DEFAULT_POSITION,
-                id: 1,
                 timestamp: ORACLE_VERSION_2.timestamp,
                 maker: POSITION,
                 short: POSITION,
@@ -4964,7 +4854,6 @@ describe.skip('Market', () => {
               })
               expectPositionEq(await market.positions(user.address), {
                 ...DEFAULT_POSITION,
-                id: 1,
                 timestamp: ORACLE_VERSION_2.timestamp,
                 short: POSITION,
               })
@@ -4984,7 +4873,6 @@ describe.skip('Market', () => {
               })
               expectPositionEq(await market.position(), {
                 ...DEFAULT_POSITION,
-                id: 1,
                 timestamp: ORACLE_VERSION_2.timestamp,
                 maker: POSITION,
                 short: POSITION,
@@ -5025,7 +4913,6 @@ describe.skip('Market', () => {
               })
               expectPositionEq(await market.positions(user.address), {
                 ...DEFAULT_POSITION,
-                id: 1,
                 timestamp: ORACLE_VERSION_2.timestamp,
                 short: POSITION.div(2),
               })
@@ -5045,7 +4932,6 @@ describe.skip('Market', () => {
               })
               expectPositionEq(await market.position(), {
                 ...DEFAULT_POSITION,
-                id: 1,
                 timestamp: ORACLE_VERSION_2.timestamp,
                 maker: POSITION,
                 short: POSITION.div(2),
@@ -5093,7 +4979,6 @@ describe.skip('Market', () => {
               })
               expectPositionEq(await market.positions(user.address), {
                 ...DEFAULT_POSITION,
-                id: 2,
                 timestamp: ORACLE_VERSION_3.timestamp,
                 short: POSITION,
               })
@@ -5114,7 +4999,6 @@ describe.skip('Market', () => {
               })
               expectPositionEq(await market.positions(userB.address), {
                 ...DEFAULT_POSITION,
-                id: 1,
                 timestamp: ORACLE_VERSION_3.timestamp,
                 maker: POSITION,
               })
@@ -5135,7 +5019,6 @@ describe.skip('Market', () => {
               })
               expectPositionEq(await market.position(), {
                 ...DEFAULT_POSITION,
-                id: 2,
                 timestamp: ORACLE_VERSION_3.timestamp,
                 maker: POSITION,
                 short: POSITION,
@@ -5185,7 +5068,6 @@ describe.skip('Market', () => {
               })
               expectPositionEq(await market.positions(user.address), {
                 ...DEFAULT_POSITION,
-                id: 1,
                 timestamp: ORACLE_VERSION_3.timestamp,
                 short: POSITION.div(2),
               })
@@ -5206,7 +5088,6 @@ describe.skip('Market', () => {
               })
               expectPositionEq(await market.positions(userB.address), {
                 ...DEFAULT_POSITION,
-                id: 1,
                 timestamp: ORACLE_VERSION_3.timestamp,
                 maker: POSITION,
               })
@@ -5227,7 +5108,6 @@ describe.skip('Market', () => {
               })
               expectPositionEq(await market.position(), {
                 ...DEFAULT_POSITION,
-                id: 1,
                 timestamp: ORACLE_VERSION_3.timestamp,
                 maker: POSITION,
                 short: POSITION.div(2),
@@ -5294,7 +5174,6 @@ describe.skip('Market', () => {
               })
               expectPositionEq(await market.positions(user.address), {
                 ...DEFAULT_POSITION,
-                id: 1,
                 timestamp: ORACLE_VERSION_3.timestamp,
                 short: POSITION.div(2),
               })
@@ -5315,7 +5194,6 @@ describe.skip('Market', () => {
               })
               expectPositionEq(await market.positions(userB.address), {
                 ...DEFAULT_POSITION,
-                id: 1,
                 timestamp: ORACLE_VERSION_3.timestamp,
                 maker: POSITION,
               })
@@ -5336,7 +5214,6 @@ describe.skip('Market', () => {
               })
               expectPositionEq(await market.position(), {
                 ...DEFAULT_POSITION,
-                id: 1,
                 timestamp: ORACLE_VERSION_3.timestamp,
                 maker: POSITION,
                 short: POSITION.div(2),
@@ -5409,7 +5286,6 @@ describe.skip('Market', () => {
               })
               expectPositionEq(await market.positions(user.address), {
                 ...DEFAULT_POSITION,
-                id: 1,
                 timestamp: ORACLE_VERSION_4.timestamp,
                 short: POSITION.div(2),
               })
@@ -5432,7 +5308,6 @@ describe.skip('Market', () => {
               })
               expectPositionEq(await market.positions(userB.address), {
                 ...DEFAULT_POSITION,
-                id: 1,
                 timestamp: ORACLE_VERSION_4.timestamp,
                 maker: POSITION,
               })
@@ -5453,7 +5328,6 @@ describe.skip('Market', () => {
               })
               expectPositionEq(await market.position(), {
                 ...DEFAULT_POSITION,
-                id: 2,
                 timestamp: ORACLE_VERSION_4.timestamp,
                 maker: POSITION,
                 short: POSITION.div(2),
@@ -5607,13 +5481,11 @@ describe.skip('Market', () => {
                 })
                 expectPositionEq(await market.positions(user.address), {
                   ...DEFAULT_POSITION,
-                  id: 1,
                   timestamp: ORACLE_VERSION_2.timestamp,
                   short: POSITION.div(2),
                 })
                 expectPositionEq(await market.pendingPositions(user.address, 2), {
                   ...DEFAULT_POSITION,
-                  id: 2,
                   timestamp: ORACLE_VERSION_3.timestamp,
                   delta: COLLATERAL,
                 })
@@ -5627,14 +5499,12 @@ describe.skip('Market', () => {
                 })
                 expectPositionEq(await market.position(), {
                   ...DEFAULT_POSITION,
-                  id: 1,
                   timestamp: ORACLE_VERSION_2.timestamp,
                   maker: POSITION,
                   short: POSITION.div(2),
                 })
                 expectPositionEq(await market.pendingPosition(2), {
                   ...DEFAULT_POSITION,
-                  id: 2,
                   timestamp: ORACLE_VERSION_3.timestamp,
                   maker: POSITION,
                 })
@@ -5669,12 +5539,10 @@ describe.skip('Market', () => {
                 })
                 expectPositionEq(await market.positions(user.address), {
                   ...DEFAULT_POSITION,
-                  id: 2,
                   timestamp: ORACLE_VERSION_3.timestamp,
                 })
                 expectPositionEq(await market.pendingPositions(user.address, 3), {
                   ...DEFAULT_POSITION,
-                  id: 3,
                   timestamp: ORACLE_VERSION_4.timestamp,
                   delta: COLLATERAL,
                 })
@@ -5689,13 +5557,11 @@ describe.skip('Market', () => {
                 })
                 expectPositionEq(await market.positions(userB.address), {
                   ...DEFAULT_POSITION,
-                  id: 1,
                   timestamp: ORACLE_VERSION_3.timestamp,
                   maker: POSITION,
                 })
                 expectPositionEq(await market.pendingPositions(userB.address, 2), {
                   ...DEFAULT_POSITION,
-                  id: 2,
                   timestamp: ORACLE_VERSION_4.timestamp,
                   maker: POSITION,
                   delta: COLLATERAL,
@@ -5711,13 +5577,11 @@ describe.skip('Market', () => {
                 })
                 expectPositionEq(await market.position(), {
                   ...DEFAULT_POSITION,
-                  id: 2,
                   timestamp: ORACLE_VERSION_3.timestamp,
                   maker: POSITION,
                 })
                 expectPositionEq(await market.pendingPosition(3), {
                   ...DEFAULT_POSITION,
-                  id: 3,
                   timestamp: ORACLE_VERSION_4.timestamp,
                   maker: POSITION,
                 })
@@ -5751,13 +5615,11 @@ describe.skip('Market', () => {
                 })
                 expectPositionEq(await market.positions(user.address), {
                   ...DEFAULT_POSITION,
-                  id: 1,
                   timestamp: ORACLE_VERSION_2.timestamp,
                   short: POSITION.div(2),
                 })
                 expectPositionEq(await market.pendingPositions(user.address, 2), {
                   ...DEFAULT_POSITION,
-                  id: 2,
                   timestamp: ORACLE_VERSION_3.timestamp,
                   delta: COLLATERAL,
                 })
@@ -5771,14 +5633,12 @@ describe.skip('Market', () => {
                 })
                 expectPositionEq(await market.position(), {
                   ...DEFAULT_POSITION,
-                  id: 1,
                   timestamp: ORACLE_VERSION_2.timestamp,
                   maker: POSITION,
                   short: POSITION.div(2),
                 })
                 expectPositionEq(await market.pendingPosition(2), {
                   ...DEFAULT_POSITION,
-                  id: 2,
                   timestamp: ORACLE_VERSION_3.timestamp,
                   maker: POSITION,
                 })
@@ -5815,12 +5675,10 @@ describe.skip('Market', () => {
                 })
                 expectPositionEq(await market.positions(user.address), {
                   ...DEFAULT_POSITION,
-                  id: 2,
                   timestamp: ORACLE_VERSION_3.timestamp,
                 })
                 expectPositionEq(await market.pendingPositions(user.address, 3), {
                   ...DEFAULT_POSITION,
-                  id: 3,
                   timestamp: ORACLE_VERSION_4.timestamp,
                   delta: COLLATERAL,
                 })
@@ -5835,13 +5693,11 @@ describe.skip('Market', () => {
                 })
                 expectPositionEq(await market.positions(userB.address), {
                   ...DEFAULT_POSITION,
-                  id: 1,
                   timestamp: ORACLE_VERSION_3.timestamp,
                   maker: POSITION,
                 })
                 expectPositionEq(await market.pendingPositions(userB.address, 2), {
                   ...DEFAULT_POSITION,
-                  id: 2,
                   timestamp: ORACLE_VERSION_4.timestamp,
                   maker: POSITION,
                   delta: COLLATERAL,
@@ -5857,13 +5713,11 @@ describe.skip('Market', () => {
                 })
                 expectPositionEq(await market.position(), {
                   ...DEFAULT_POSITION,
-                  id: 2,
                   timestamp: ORACLE_VERSION_3.timestamp,
                   maker: POSITION,
                 })
                 expectPositionEq(await market.pendingPosition(3), {
                   ...DEFAULT_POSITION,
-                  id: 3,
                   timestamp: ORACLE_VERSION_4.timestamp,
                   maker: POSITION,
                 })
@@ -5903,13 +5757,11 @@ describe.skip('Market', () => {
                 })
                 expectPositionEq(await market.positions(user.address), {
                   ...DEFAULT_POSITION,
-                  id: 2,
                   timestamp: ORACLE_VERSION_3.timestamp,
                   short: POSITION.div(4),
                 })
                 expectPositionEq(await market.pendingPositions(user.address, 3), {
                   ...DEFAULT_POSITION,
-                  id: 3,
                   timestamp: ORACLE_VERSION_4.timestamp,
                   delta: COLLATERAL,
                 })
@@ -5924,13 +5776,11 @@ describe.skip('Market', () => {
                 })
                 expectPositionEq(await market.positions(userB.address), {
                   ...DEFAULT_POSITION,
-                  id: 1,
                   timestamp: ORACLE_VERSION_3.timestamp,
                   maker: POSITION,
                 })
                 expectPositionEq(await market.pendingPositions(userB.address, 2), {
                   ...DEFAULT_POSITION,
-                  id: 2,
                   timestamp: ORACLE_VERSION_4.timestamp,
                   maker: POSITION,
                   delta: COLLATERAL,
@@ -5946,14 +5796,12 @@ describe.skip('Market', () => {
                 })
                 expectPositionEq(await market.position(), {
                   ...DEFAULT_POSITION,
-                  id: 2,
                   timestamp: ORACLE_VERSION_3.timestamp,
                   maker: POSITION,
                   short: POSITION.div(4),
                 })
                 expectPositionEq(await market.pendingPosition(3), {
                   ...DEFAULT_POSITION,
-                  id: 3,
                   timestamp: ORACLE_VERSION_4.timestamp,
                   maker: POSITION,
                 })
@@ -6001,12 +5849,10 @@ describe.skip('Market', () => {
                 })
                 expectPositionEq(await market.positions(user.address), {
                   ...DEFAULT_POSITION,
-                  id: 3,
                   timestamp: ORACLE_VERSION_4.timestamp,
                 })
                 expectPositionEq(await market.pendingPositions(user.address, 4), {
                   ...DEFAULT_POSITION,
-                  id: 4,
                   timestamp: ORACLE_VERSION_5.timestamp,
                   delta: COLLATERAL,
                 })
@@ -6023,13 +5869,11 @@ describe.skip('Market', () => {
                 })
                 expectPositionEq(await market.positions(userB.address), {
                   ...DEFAULT_POSITION,
-                  id: 1,
                   timestamp: ORACLE_VERSION_4.timestamp,
                   maker: POSITION,
                 })
                 expectPositionEq(await market.pendingPositions(userB.address, 2), {
                   ...DEFAULT_POSITION,
-                  id: 2,
                   timestamp: ORACLE_VERSION_5.timestamp,
                   maker: POSITION,
                   delta: COLLATERAL,
@@ -6047,13 +5891,11 @@ describe.skip('Market', () => {
                 })
                 expectPositionEq(await market.position(), {
                   ...DEFAULT_POSITION,
-                  id: 3,
                   timestamp: ORACLE_VERSION_4.timestamp,
                   maker: POSITION,
                 })
                 expectPositionEq(await market.pendingPosition(4), {
                   ...DEFAULT_POSITION,
-                  id: 4,
                   timestamp: ORACLE_VERSION_5.timestamp,
                   maker: POSITION,
                 })
@@ -6113,12 +5955,10 @@ describe.skip('Market', () => {
                 })
                 expectPositionEq(await market.positions(user.address), {
                   ...DEFAULT_POSITION,
-                  id: 2,
                   timestamp: ORACLE_VERSION_4.timestamp,
                 })
                 expectPositionEq(await market.pendingPositions(user.address, 3), {
                   ...DEFAULT_POSITION,
-                  id: 3,
                   timestamp: ORACLE_VERSION_5.timestamp,
                   delta: COLLATERAL,
                 })
@@ -6133,13 +5973,11 @@ describe.skip('Market', () => {
                 })
                 expectPositionEq(await market.positions(userB.address), {
                   ...DEFAULT_POSITION,
-                  id: 1,
                   timestamp: ORACLE_VERSION_4.timestamp,
                   maker: POSITION,
                 })
                 expectPositionEq(await market.pendingPositions(userB.address, 2), {
                   ...DEFAULT_POSITION,
-                  id: 2,
                   timestamp: ORACLE_VERSION_5.timestamp,
                   maker: POSITION,
                   delta: COLLATERAL,
@@ -6155,13 +5993,11 @@ describe.skip('Market', () => {
                 })
                 expectPositionEq(await market.position(), {
                   ...DEFAULT_POSITION,
-                  id: 2,
                   timestamp: ORACLE_VERSION_4.timestamp,
                   maker: POSITION,
                 })
                 expectPositionEq(await market.pendingPosition(3), {
                   ...DEFAULT_POSITION,
-                  id: 3,
                   timestamp: ORACLE_VERSION_5.timestamp,
                   maker: POSITION,
                 })
@@ -6221,12 +6057,10 @@ describe.skip('Market', () => {
                 })
                 expectPositionEq(await market.positions(user.address), {
                   ...DEFAULT_POSITION,
-                  id: 2,
                   timestamp: ORACLE_VERSION_4.timestamp,
                 })
                 expectPositionEq(await market.pendingPositions(user.address, 3), {
                   ...DEFAULT_POSITION,
-                  id: 3,
                   timestamp: ORACLE_VERSION_5.timestamp,
                   delta: COLLATERAL,
                 })
@@ -6242,13 +6076,11 @@ describe.skip('Market', () => {
                 })
                 expectPositionEq(await market.positions(userB.address), {
                   ...DEFAULT_POSITION,
-                  id: 1,
                   timestamp: ORACLE_VERSION_4.timestamp,
                   maker: POSITION,
                 })
                 expectPositionEq(await market.pendingPositions(userB.address, 2), {
                   ...DEFAULT_POSITION,
-                  id: 2,
                   timestamp: ORACLE_VERSION_5.timestamp,
                   maker: POSITION,
                   delta: COLLATERAL,
@@ -6264,13 +6096,11 @@ describe.skip('Market', () => {
                 })
                 expectPositionEq(await market.position(), {
                   ...DEFAULT_POSITION,
-                  id: 2,
                   timestamp: ORACLE_VERSION_4.timestamp,
                   maker: POSITION,
                 })
                 expectPositionEq(await market.pendingPosition(3), {
                   ...DEFAULT_POSITION,
-                  id: 3,
                   timestamp: ORACLE_VERSION_5.timestamp,
                   maker: POSITION,
                 })
@@ -6330,13 +6160,11 @@ describe.skip('Market', () => {
             })
             expectPositionEq(await market.positions(user.address), {
               ...DEFAULT_POSITION,
-              id: 1,
               timestamp: ORACLE_VERSION_2.timestamp,
               short: POSITION.div(2),
             })
             expectPositionEq(await market.pendingPositions(user.address, 2), {
               ...DEFAULT_POSITION,
-              id: 2,
               timestamp: ORACLE_VERSION_3.timestamp,
               short: POSITION.div(2),
               delta: COLLATERAL,
@@ -6350,13 +6178,11 @@ describe.skip('Market', () => {
             })
             expectPositionEq(await market.positions(userB.address), {
               ...DEFAULT_POSITION,
-              id: 1,
               timestamp: ORACLE_VERSION_2.timestamp,
               maker: POSITION,
             })
             expectPositionEq(await market.pendingPositions(userB.address, 2), {
               ...DEFAULT_POSITION,
-              id: 2,
               timestamp: ORACLE_VERSION_3.timestamp,
               maker: POSITION,
               delta: COLLATERAL,
@@ -6371,14 +6197,12 @@ describe.skip('Market', () => {
             })
             expectPositionEq(await market.position(), {
               ...DEFAULT_POSITION,
-              id: 1,
               timestamp: ORACLE_VERSION_2.timestamp,
               maker: POSITION,
               short: POSITION.div(2),
             })
             expectPositionEq(await market.pendingPosition(2), {
               ...DEFAULT_POSITION,
-              id: 2,
               timestamp: ORACLE_VERSION_3.timestamp,
               maker: POSITION,
               short: POSITION.div(2),
@@ -6455,13 +6279,11 @@ describe.skip('Market', () => {
             })
             expectPositionEq(await market.positions(user.address), {
               ...DEFAULT_POSITION,
-              id: 2,
               timestamp: ORACLE_VERSION_3.timestamp,
               short: POSITION.div(2),
             })
             expectPositionEq(await market.pendingPositions(user.address, 3), {
               ...DEFAULT_POSITION,
-              id: 3,
               timestamp: ORACLE_VERSION_4.timestamp,
               short: POSITION.div(2),
               delta: COLLATERAL,
@@ -6478,13 +6300,11 @@ describe.skip('Market', () => {
             })
             expectPositionEq(await market.positions(userB.address), {
               ...DEFAULT_POSITION,
-              id: 2,
               timestamp: ORACLE_VERSION_3.timestamp,
               maker: POSITION,
             })
             expectPositionEq(await market.pendingPositions(userB.address, 3), {
               ...DEFAULT_POSITION,
-              id: 3,
               timestamp: ORACLE_VERSION_4.timestamp,
               maker: POSITION,
               delta: COLLATERAL,
@@ -6500,14 +6320,12 @@ describe.skip('Market', () => {
             })
             expectPositionEq(await market.position(), {
               ...DEFAULT_POSITION,
-              id: 2,
               timestamp: ORACLE_VERSION_3.timestamp,
               maker: POSITION,
               short: POSITION.div(2),
             })
             expectPositionEq(await market.pendingPosition(3), {
               ...DEFAULT_POSITION,
-              id: 3,
               timestamp: ORACLE_VERSION_4.timestamp,
               maker: POSITION,
               short: POSITION.div(2),
@@ -6589,13 +6407,11 @@ describe.skip('Market', () => {
             })
             expectPositionEq(await market.positions(user.address), {
               ...DEFAULT_POSITION,
-              id: 2,
               timestamp: ORACLE_VERSION_3.timestamp,
               short: POSITION.div(2),
             })
             expectPositionEq(await market.pendingPositions(user.address, 3), {
               ...DEFAULT_POSITION,
-              id: 3,
               timestamp: ORACLE_VERSION_4.timestamp,
               short: POSITION.div(2),
               delta: COLLATERAL,
@@ -6612,13 +6428,11 @@ describe.skip('Market', () => {
             })
             expectPositionEq(await market.positions(userB.address), {
               ...DEFAULT_POSITION,
-              id: 2,
               timestamp: ORACLE_VERSION_3.timestamp,
               maker: POSITION,
             })
             expectPositionEq(await market.pendingPositions(userB.address, 3), {
               ...DEFAULT_POSITION,
-              id: 3,
               timestamp: ORACLE_VERSION_4.timestamp,
               maker: POSITION,
               delta: COLLATERAL,
@@ -6634,14 +6448,12 @@ describe.skip('Market', () => {
             })
             expectPositionEq(await market.position(), {
               ...DEFAULT_POSITION,
-              id: 2,
               timestamp: ORACLE_VERSION_3.timestamp,
               maker: POSITION,
               short: POSITION.div(2),
             })
             expectPositionEq(await market.pendingPosition(3), {
               ...DEFAULT_POSITION,
-              id: 3,
               timestamp: ORACLE_VERSION_4.timestamp,
               maker: POSITION,
               short: POSITION.div(2),
@@ -6732,7 +6544,6 @@ describe.skip('Market', () => {
               })
               expectPositionEq(await market.positions(user.address), {
                 ...DEFAULT_POSITION,
-                id: 4,
                 timestamp: ORACLE_VERSION_5.timestamp,
                 short: POSITION.div(2),
               })
@@ -6755,7 +6566,6 @@ describe.skip('Market', () => {
               })
               expectPositionEq(await market.positions(userB.address), {
                 ...DEFAULT_POSITION,
-                id: 4,
                 timestamp: ORACLE_VERSION_5.timestamp,
               })
               expectPositionEq(await market.pendingPositions(userB.address, 5), {
@@ -6776,7 +6586,6 @@ describe.skip('Market', () => {
               })
               expectPositionEq(await market.position(), {
                 ...DEFAULT_POSITION,
-                id: 4,
                 timestamp: ORACLE_VERSION_5.timestamp,
                 short: POSITION.div(2),
               })
@@ -6926,7 +6735,6 @@ describe.skip('Market', () => {
               })
               expectPositionEq(await market.positions(user.address), {
                 ...DEFAULT_POSITION,
-                id: 4,
                 timestamp: ORACLE_VERSION_5.timestamp,
                 short: POSITION.div(2),
               })
@@ -6949,7 +6757,6 @@ describe.skip('Market', () => {
               })
               expectPositionEq(await market.positions(userB.address), {
                 ...DEFAULT_POSITION,
-                id: 4,
                 timestamp: ORACLE_VERSION_5.timestamp,
               })
               expectPositionEq(await market.pendingPositions(userB.address, 5), {
@@ -6972,7 +6779,6 @@ describe.skip('Market', () => {
               })
               expectPositionEq(await market.positions(userC.address), {
                 ...DEFAULT_POSITION,
-                id: 4,
                 timestamp: ORACLE_VERSION_5.timestamp,
                 maker: POSITION.div(4),
               })
@@ -6995,7 +6801,6 @@ describe.skip('Market', () => {
               })
               expectPositionEq(await market.position(), {
                 ...DEFAULT_POSITION,
-                id: 4,
                 timestamp: ORACLE_VERSION_5.timestamp,
                 maker: POSITION.div(4),
                 short: POSITION.div(2),
@@ -7112,7 +6917,6 @@ describe.skip('Market', () => {
               })
               expectPositionEq(await market.positions(user.address), {
                 ...DEFAULT_POSITION,
-                id: 2,
                 timestamp: ORACLE_VERSION_3.timestamp,
                 short: POSITION.div(2),
               })
@@ -7135,7 +6939,6 @@ describe.skip('Market', () => {
               })
               expectPositionEq(await market.positions(userB.address), {
                 ...DEFAULT_POSITION,
-                id: 2,
                 timestamp: ORACLE_VERSION_3.timestamp,
                 maker: POSITION,
               })
@@ -7155,7 +6958,6 @@ describe.skip('Market', () => {
               })
               expectPositionEq(await market.position(), {
                 ...DEFAULT_POSITION,
-                id: 2,
                 timestamp: ORACLE_VERSION_3.timestamp,
                 maker: POSITION,
                 short: POSITION.div(2),
@@ -7216,7 +7018,6 @@ describe.skip('Market', () => {
               })
               expectPositionEq(await market.positions(userB.address), {
                 ...DEFAULT_POSITION,
-                id: 3,
                 timestamp: ORACLE_VERSION_4.timestamp,
               })
               expectPositionEq(await market.pendingPositions(userB.address, 4), {
@@ -7298,7 +7099,6 @@ describe.skip('Market', () => {
               })
               expectPositionEq(await market.positions(user.address), {
                 ...DEFAULT_POSITION,
-                id: 4,
                 timestamp: ORACLE_VERSION_5.timestamp,
               })
               expectPositionEq(await market.pendingPositions(user.address, 5), {
@@ -7319,7 +7119,6 @@ describe.skip('Market', () => {
               })
               expectPositionEq(await market.positions(userB.address), {
                 ...DEFAULT_POSITION,
-                id: 4,
                 timestamp: ORACLE_VERSION_5.timestamp,
                 maker: POSITION,
               })
@@ -7342,7 +7141,6 @@ describe.skip('Market', () => {
               })
               expectPositionEq(await market.position(), {
                 ...DEFAULT_POSITION,
-                id: 4,
                 timestamp: ORACLE_VERSION_5.timestamp,
                 maker: POSITION,
               })
@@ -7457,7 +7255,6 @@ describe.skip('Market', () => {
               })
               expectPositionEq(await market.positions(user.address), {
                 ...DEFAULT_POSITION,
-                id: 2,
                 timestamp: ORACLE_VERSION_3.timestamp,
                 short: POSITION.div(2),
               })
@@ -7478,7 +7275,6 @@ describe.skip('Market', () => {
               })
               expectPositionEq(await market.positions(userB.address), {
                 ...DEFAULT_POSITION,
-                id: 2,
                 timestamp: ORACLE_VERSION_3.timestamp,
                 maker: POSITION,
               })
@@ -7499,7 +7295,6 @@ describe.skip('Market', () => {
               })
               expectPositionEq(await market.position(), {
                 ...DEFAULT_POSITION,
-                id: 2,
                 timestamp: ORACLE_VERSION_3.timestamp,
                 maker: POSITION,
                 short: POSITION.div(2),
@@ -7560,7 +7355,6 @@ describe.skip('Market', () => {
               })
               expectPositionEq(await market.positions(user.address), {
                 ...DEFAULT_POSITION,
-                id: 3,
                 timestamp: ORACLE_VERSION_4.timestamp,
               })
               expectPositionEq(await market.pendingPositions(user.address, 4), {
@@ -7619,13 +7413,11 @@ describe.skip('Market', () => {
             })
             expectPositionEq(await market.positions(user.address), {
               ...DEFAULT_POSITION,
-              id: 2,
               timestamp: ORACLE_VERSION_4.timestamp,
               maker: POSITION,
             })
             expectPositionEq(await market.pendingPositions(user.address, 3), {
               ...DEFAULT_POSITION,
-              id: 3,
               timestamp: ORACLE_VERSION_5.timestamp,
               maker: POSITION,
               delta: COLLATERAL,
@@ -7639,13 +7431,11 @@ describe.skip('Market', () => {
             })
             expectPositionEq(await market.positions(userB.address), {
               ...DEFAULT_POSITION,
-              id: 2,
               timestamp: ORACLE_VERSION_4.timestamp,
               short: POSITION.div(2),
             })
             expectPositionEq(await market.pendingPositions(userB.address, 3), {
               ...DEFAULT_POSITION,
-              id: 3,
               timestamp: ORACLE_VERSION_5.timestamp,
               short: POSITION.div(2),
               delta: COLLATERAL,
@@ -7660,14 +7450,12 @@ describe.skip('Market', () => {
             })
             expectPositionEq(await market.position(), {
               ...DEFAULT_POSITION,
-              id: 2,
               timestamp: ORACLE_VERSION_4.timestamp,
               maker: POSITION,
               short: POSITION.div(2),
             })
             expectPositionEq(await market.pendingPosition(3), {
               ...DEFAULT_POSITION,
-              id: 3,
               timestamp: ORACLE_VERSION_5.timestamp,
               maker: POSITION,
               short: POSITION.div(2),
@@ -8116,13 +7904,11 @@ describe.skip('Market', () => {
           })
           expectPositionEq(await market.positions(user.address), {
             ...DEFAULT_POSITION,
-            id: 2,
             timestamp: ORACLE_VERSION_3.timestamp,
             long: POSITION.div(2),
           })
           expectPositionEq(await market.pendingPositions(user.address, 3), {
             ...DEFAULT_POSITION,
-            id: 3,
             timestamp: ORACLE_VERSION_4.timestamp,
             delta: parse6decimal('195').sub(EXPECTED_LIQUIDATION_FEE),
           })
@@ -8137,13 +7923,11 @@ describe.skip('Market', () => {
           })
           expectPositionEq(await market.positions(userB.address), {
             ...DEFAULT_POSITION,
-            id: 2,
             timestamp: ORACLE_VERSION_3.timestamp,
             maker: POSITION,
           })
           expectPositionEq(await market.pendingPositions(userB.address, 3), {
             ...DEFAULT_POSITION,
-            id: 3,
             timestamp: ORACLE_VERSION_4.timestamp,
             maker: POSITION,
             delta: COLLATERAL,
@@ -8159,14 +7943,12 @@ describe.skip('Market', () => {
           })
           expectPositionEq(await market.position(), {
             ...DEFAULT_POSITION,
-            id: 2,
             timestamp: ORACLE_VERSION_3.timestamp,
             maker: POSITION,
             long: POSITION.div(2),
           })
           expectPositionEq(await market.pendingPosition(3), {
             ...DEFAULT_POSITION,
-            id: 3,
             timestamp: ORACLE_VERSION_4.timestamp,
             maker: POSITION,
           })
@@ -8260,12 +8042,10 @@ describe.skip('Market', () => {
           })
           expectPositionEq(await market.positions(user.address), {
             ...DEFAULT_POSITION,
-            id: 4,
             timestamp: ORACLE_VERSION_5.timestamp,
           })
           expectPositionEq(await market.pendingPositions(user.address, 5), {
             ...DEFAULT_POSITION,
-            id: 5,
             timestamp: ORACLE_VERSION_6.timestamp,
             delta: parse6decimal('195').sub(EXPECTED_LIQUIDATION_FEE),
           })
@@ -8282,13 +8062,11 @@ describe.skip('Market', () => {
           })
           expectPositionEq(await market.positions(userB.address), {
             ...DEFAULT_POSITION,
-            id: 4,
             timestamp: ORACLE_VERSION_5.timestamp,
             maker: POSITION,
           })
           expectPositionEq(await market.pendingPositions(userB.address, 5), {
             ...DEFAULT_POSITION,
-            id: 5,
             timestamp: ORACLE_VERSION_6.timestamp,
             maker: POSITION,
             delta: COLLATERAL,
@@ -8306,13 +8084,11 @@ describe.skip('Market', () => {
           })
           expectPositionEq(await market.position(), {
             ...DEFAULT_POSITION,
-            id: 4,
             timestamp: ORACLE_VERSION_5.timestamp,
             maker: POSITION,
           })
           expectPositionEq(await market.pendingPosition(5), {
             ...DEFAULT_POSITION,
-            id: 5,
             timestamp: ORACLE_VERSION_6.timestamp,
             maker: POSITION,
           })
@@ -8420,12 +8196,10 @@ describe.skip('Market', () => {
           })
           expectPositionEq(await market.positions(user.address), {
             ...DEFAULT_POSITION,
-            id: 1,
             timestamp: ORACLE_VERSION_3.timestamp,
           })
           expectPositionEq(await market.pendingPositions(user.address, 1), {
             ...DEFAULT_POSITION,
-            id: 1,
             timestamp: ORACLE_VERSION_3.timestamp,
             long: POSITION.div(2),
             fee: TAKER_FEE,
@@ -8433,7 +8207,6 @@ describe.skip('Market', () => {
           })
           expectPositionEq(await market.pendingPositions(user.address, 2), {
             ...DEFAULT_POSITION,
-            id: 2,
             timestamp: ORACLE_VERSION_4.timestamp,
             long: POSITION.div(2),
             fee: TAKER_FEE,
@@ -8448,20 +8221,17 @@ describe.skip('Market', () => {
           })
           expectPositionEq(await market.positions(userB.address), {
             ...DEFAULT_POSITION,
-            id: 1,
             timestamp: ORACLE_VERSION_3.timestamp,
             maker: POSITION,
           })
           expectPositionEq(await market.pendingPositions(userB.address, 1), {
             ...DEFAULT_POSITION,
-            id: 1,
             timestamp: ORACLE_VERSION_2.timestamp,
             maker: POSITION,
             delta: COLLATERAL,
           })
           expectPositionEq(await market.pendingPositions(userB.address, 2), {
             ...DEFAULT_POSITION,
-            id: 2,
             timestamp: ORACLE_VERSION_4.timestamp,
             maker: POSITION,
             delta: COLLATERAL,
@@ -8476,13 +8246,11 @@ describe.skip('Market', () => {
           })
           expectPositionEq(await market.position(), {
             ...DEFAULT_POSITION,
-            id: 2,
             timestamp: ORACLE_VERSION_3.timestamp,
             maker: POSITION,
           })
           expectPositionEq(await market.pendingPosition(2), {
             ...DEFAULT_POSITION,
-            id: 2,
             timestamp: ORACLE_VERSION_3.timestamp,
             maker: POSITION,
             long: POSITION.div(2),
@@ -8490,7 +8258,6 @@ describe.skip('Market', () => {
           })
           expectPositionEq(await market.pendingPosition(3), {
             ...DEFAULT_POSITION,
-            id: 3,
             timestamp: ORACLE_VERSION_4.timestamp,
             maker: POSITION,
             long: POSITION.div(2),
@@ -8564,13 +8331,11 @@ describe.skip('Market', () => {
           })
           expectPositionEq(await market.positions(user.address), {
             ...DEFAULT_POSITION,
-            id: 2,
             timestamp: ORACLE_VERSION_4.timestamp,
             long: POSITION.div(2),
           })
           expectPositionEq(await market.pendingPositions(user.address, 1), {
             ...DEFAULT_POSITION,
-            id: 1,
             timestamp: ORACLE_VERSION_3.timestamp,
             long: POSITION.div(2),
             fee: TAKER_FEE,
@@ -8578,7 +8343,6 @@ describe.skip('Market', () => {
           })
           expectPositionEq(await market.pendingPositions(user.address, 2), {
             ...DEFAULT_POSITION,
-            id: 2,
             timestamp: ORACLE_VERSION_4.timestamp,
             long: POSITION.div(2),
             fee: TAKER_FEE,
@@ -8587,7 +8351,6 @@ describe.skip('Market', () => {
           })
           expectPositionEq(await market.pendingPositions(user.address, 3), {
             ...DEFAULT_POSITION,
-            id: 3,
             timestamp: ORACLE_VERSION_5.timestamp,
             long: POSITION.div(2),
             delta: COLLATERAL,
@@ -8601,20 +8364,17 @@ describe.skip('Market', () => {
           })
           expectPositionEq(await market.positions(userB.address), {
             ...DEFAULT_POSITION,
-            id: 1,
             timestamp: ORACLE_VERSION_4.timestamp,
             maker: POSITION,
           })
           expectPositionEq(await market.pendingPositions(userB.address, 1), {
             ...DEFAULT_POSITION,
-            id: 1,
             timestamp: ORACLE_VERSION_2.timestamp,
             maker: POSITION,
             delta: COLLATERAL,
           })
           expectPositionEq(await market.pendingPositions(userB.address, 2), {
             ...DEFAULT_POSITION,
-            id: 2,
             timestamp: ORACLE_VERSION_5.timestamp,
             maker: POSITION,
             delta: COLLATERAL,
@@ -8629,14 +8389,12 @@ describe.skip('Market', () => {
           })
           expectPositionEq(await market.position(), {
             ...DEFAULT_POSITION,
-            id: 3,
             timestamp: ORACLE_VERSION_4.timestamp,
             maker: POSITION,
             long: POSITION.div(2),
           })
           expectPositionEq(await market.pendingPosition(2), {
             ...DEFAULT_POSITION,
-            id: 2,
             timestamp: ORACLE_VERSION_3.timestamp,
             maker: POSITION,
             long: POSITION.div(2),
@@ -8644,7 +8402,6 @@ describe.skip('Market', () => {
           })
           expectPositionEq(await market.pendingPosition(3), {
             ...DEFAULT_POSITION,
-            id: 3,
             timestamp: ORACLE_VERSION_4.timestamp,
             maker: POSITION,
             long: POSITION.div(2),
@@ -8652,7 +8409,6 @@ describe.skip('Market', () => {
           })
           expectPositionEq(await market.pendingPosition(4), {
             ...DEFAULT_POSITION,
-            id: 4,
             timestamp: ORACLE_VERSION_5.timestamp,
             maker: POSITION,
             long: POSITION.div(2),
@@ -8733,12 +8489,10 @@ describe.skip('Market', () => {
           })
           expectPositionEq(await market.positions(user.address), {
             ...DEFAULT_POSITION,
-            id: 2,
             timestamp: ORACLE_VERSION_4.timestamp,
           })
           expectPositionEq(await market.pendingPositions(user.address, 1), {
             ...DEFAULT_POSITION,
-            id: 1,
             timestamp: ORACLE_VERSION_3.timestamp,
             long: POSITION.div(2),
             fee: TAKER_FEE,
@@ -8746,7 +8500,6 @@ describe.skip('Market', () => {
           })
           expectPositionEq(await market.pendingPositions(user.address, 2), {
             ...DEFAULT_POSITION,
-            id: 2,
             timestamp: ORACLE_VERSION_4.timestamp,
             long: POSITION.div(2),
             fee: TAKER_FEE,
@@ -8755,7 +8508,6 @@ describe.skip('Market', () => {
           })
           expectPositionEq(await market.pendingPositions(user.address, 3), {
             ...DEFAULT_POSITION,
-            id: 3,
             timestamp: ORACLE_VERSION_5.timestamp,
             long: POSITION.div(2),
             fee: TAKER_FEE,
@@ -8770,20 +8522,17 @@ describe.skip('Market', () => {
           })
           expectPositionEq(await market.positions(userB.address), {
             ...DEFAULT_POSITION,
-            id: 1,
             timestamp: ORACLE_VERSION_4.timestamp,
             maker: POSITION,
           })
           expectPositionEq(await market.pendingPositions(userB.address, 1), {
             ...DEFAULT_POSITION,
-            id: 1,
             timestamp: ORACLE_VERSION_2.timestamp,
             maker: POSITION,
             delta: COLLATERAL,
           })
           expectPositionEq(await market.pendingPositions(userB.address, 2), {
             ...DEFAULT_POSITION,
-            id: 2,
             timestamp: ORACLE_VERSION_5.timestamp,
             maker: POSITION,
             delta: COLLATERAL,
@@ -8798,13 +8547,11 @@ describe.skip('Market', () => {
           })
           expectPositionEq(await market.position(), {
             ...DEFAULT_POSITION,
-            id: 3,
             timestamp: ORACLE_VERSION_4.timestamp,
             maker: POSITION,
           })
           expectPositionEq(await market.pendingPosition(2), {
             ...DEFAULT_POSITION,
-            id: 2,
             timestamp: ORACLE_VERSION_3.timestamp,
             maker: POSITION,
             long: POSITION.div(2),
@@ -8812,7 +8559,6 @@ describe.skip('Market', () => {
           })
           expectPositionEq(await market.pendingPosition(3), {
             ...DEFAULT_POSITION,
-            id: 3,
             timestamp: ORACLE_VERSION_4.timestamp,
             maker: POSITION,
             long: POSITION.div(2),
@@ -8820,7 +8566,6 @@ describe.skip('Market', () => {
           })
           expectPositionEq(await market.pendingPosition(4), {
             ...DEFAULT_POSITION,
-            id: 4,
             timestamp: ORACLE_VERSION_5.timestamp,
             maker: POSITION,
             long: POSITION.div(2),
@@ -8903,13 +8648,11 @@ describe.skip('Market', () => {
           })
           expectPositionEq(await market.positions(user.address), {
             ...DEFAULT_POSITION,
-            id: 2,
             timestamp: ORACLE_VERSION_4.timestamp,
             long: POSITION.div(2),
           })
           expectPositionEq(await market.pendingPositions(user.address, 1), {
             ...DEFAULT_POSITION,
-            id: 1,
             timestamp: ORACLE_VERSION_3.timestamp,
             long: POSITION.div(2),
             fee: TAKER_FEE,
@@ -8917,7 +8660,6 @@ describe.skip('Market', () => {
           })
           expectPositionEq(await market.pendingPositions(user.address, 2), {
             ...DEFAULT_POSITION,
-            id: 2,
             timestamp: ORACLE_VERSION_4.timestamp,
             long: POSITION.div(2),
             collateral: COLLATERAL.sub(SETTLEMENT_FEE),
@@ -8925,7 +8667,6 @@ describe.skip('Market', () => {
           })
           expectPositionEq(await market.pendingPositions(user.address, 3), {
             ...DEFAULT_POSITION,
-            id: 3,
             timestamp: ORACLE_VERSION_5.timestamp,
             long: POSITION.div(2),
             delta: COLLATERAL,
@@ -8939,20 +8680,17 @@ describe.skip('Market', () => {
           })
           expectPositionEq(await market.positions(userB.address), {
             ...DEFAULT_POSITION,
-            id: 1,
             timestamp: ORACLE_VERSION_4.timestamp,
             maker: POSITION,
           })
           expectPositionEq(await market.pendingPositions(userB.address, 1), {
             ...DEFAULT_POSITION,
-            id: 1,
             timestamp: ORACLE_VERSION_2.timestamp,
             maker: POSITION,
             delta: COLLATERAL,
           })
           expectPositionEq(await market.pendingPositions(userB.address, 2), {
             ...DEFAULT_POSITION,
-            id: 2,
             timestamp: ORACLE_VERSION_5.timestamp,
             maker: POSITION,
             delta: COLLATERAL,
@@ -8967,14 +8705,12 @@ describe.skip('Market', () => {
           })
           expectPositionEq(await market.position(), {
             ...DEFAULT_POSITION,
-            id: 3,
             timestamp: ORACLE_VERSION_4.timestamp,
             maker: POSITION,
             long: POSITION.div(2),
           })
           expectPositionEq(await market.pendingPosition(2), {
             ...DEFAULT_POSITION,
-            id: 2,
             timestamp: ORACLE_VERSION_3.timestamp,
             maker: POSITION,
             long: POSITION.div(2),
@@ -8983,14 +8719,12 @@ describe.skip('Market', () => {
           })
           expectPositionEq(await market.pendingPosition(3), {
             ...DEFAULT_POSITION,
-            id: 3,
             timestamp: ORACLE_VERSION_4.timestamp,
             maker: POSITION,
             long: POSITION.div(2),
           })
           expectPositionEq(await market.pendingPosition(4), {
             ...DEFAULT_POSITION,
-            id: 4,
             timestamp: ORACLE_VERSION_5.timestamp,
             maker: POSITION,
             long: POSITION.div(2),
@@ -9058,13 +8792,11 @@ describe.skip('Market', () => {
           })
           expectPositionEq(await market.positions(user.address), {
             ...DEFAULT_POSITION,
-            id: 2,
             timestamp: ORACLE_VERSION_4.timestamp,
             short: POSITION.div(2),
           })
           expectPositionEq(await market.pendingPositions(user.address, 3), {
             ...DEFAULT_POSITION,
-            id: 3,
             timestamp: ORACLE_VERSION_5.timestamp,
             short: POSITION.div(2),
             delta: COLLATERAL,
@@ -9082,13 +8814,11 @@ describe.skip('Market', () => {
           })
           expectPositionEq(await market.positions(userB.address), {
             ...DEFAULT_POSITION,
-            id: 1,
             timestamp: ORACLE_VERSION_4.timestamp,
             maker: POSITION,
           })
           expectPositionEq(await market.pendingPositions(userB.address, 2), {
             ...DEFAULT_POSITION,
-            id: 2,
             timestamp: ORACLE_VERSION_5.timestamp,
             maker: POSITION,
             delta: COLLATERAL,
@@ -9106,14 +8836,12 @@ describe.skip('Market', () => {
           })
           expectPositionEq(await market.position(), {
             ...DEFAULT_POSITION,
-            id: 2,
             timestamp: ORACLE_VERSION_4.timestamp,
             maker: POSITION,
             short: POSITION.div(2),
           })
           expectPositionEq(await market.pendingPosition(3), {
             ...DEFAULT_POSITION,
-            id: 3,
             timestamp: ORACLE_VERSION_5.timestamp,
             maker: POSITION,
             short: POSITION.div(2),
@@ -9170,13 +8898,11 @@ describe.skip('Market', () => {
           })
           expectPositionEq(await market.positions(user.address), {
             ...DEFAULT_POSITION,
-            id: 2,
             timestamp: ORACLE_VERSION_4.timestamp,
             short: POSITION.div(2),
           })
           expectPositionEq(await market.pendingPositions(user.address, 3), {
             ...DEFAULT_POSITION,
-            id: 3,
             timestamp: ORACLE_VERSION_5.timestamp,
             short: POSITION.div(2),
             delta: COLLATERAL,
@@ -9194,13 +8920,11 @@ describe.skip('Market', () => {
           })
           expectPositionEq(await market.positions(userB.address), {
             ...DEFAULT_POSITION,
-            id: 1,
             timestamp: ORACLE_VERSION_4.timestamp,
             maker: POSITION,
           })
           expectPositionEq(await market.pendingPositions(userB.address, 2), {
             ...DEFAULT_POSITION,
-            id: 2,
             timestamp: ORACLE_VERSION_5.timestamp,
             maker: POSITION,
             delta: COLLATERAL,
@@ -9218,14 +8942,12 @@ describe.skip('Market', () => {
           })
           expectPositionEq(await market.position(), {
             ...DEFAULT_POSITION,
-            id: 2,
             timestamp: ORACLE_VERSION_4.timestamp,
             maker: POSITION,
             short: POSITION.div(2),
           })
           expectPositionEq(await market.pendingPosition(3), {
             ...DEFAULT_POSITION,
-            id: 3,
             timestamp: ORACLE_VERSION_5.timestamp,
             maker: POSITION,
             short: POSITION.div(2),
@@ -9275,7 +8997,6 @@ describe.skip('Market', () => {
           })
           expectPositionEq(await market.pendingPositions(user.address, 1), {
             ...DEFAULT_POSITION,
-            id: 1,
             timestamp: ORACLE_VERSION_2.timestamp,
             maker: POSITION,
             delta: COLLATERAL,
@@ -9294,7 +9015,6 @@ describe.skip('Market', () => {
           })
           expectPositionEq(await market.pendingPosition(1), {
             ...DEFAULT_POSITION,
-            id: 1,
             timestamp: ORACLE_VERSION_2.timestamp,
             maker: POSITION,
           })
@@ -9399,21 +9119,18 @@ describe.skip('Market', () => {
 
           expectPositionEq(await market.pendingPositions(user.address, 1), {
             ...DEFAULT_POSITION,
-            id: 1,
             timestamp: ORACLE_VERSION_2.timestamp,
             long: POSITION.div(2),
             delta: COLLATERAL,
           })
           expectPositionEq(await market.pendingPositions(userB.address, 1), {
             ...DEFAULT_POSITION,
-            id: 1,
             timestamp: ORACLE_VERSION_2.timestamp,
             maker: POSITION,
             delta: COLLATERAL,
           })
           expectPositionEq(await market.pendingPositions(userC.address, 1), {
             ...DEFAULT_POSITION,
-            id: 1,
             timestamp: ORACLE_VERSION_2.timestamp,
             short: POSITION.div(2),
             delta: COLLATERAL,
@@ -9425,21 +9142,18 @@ describe.skip('Market', () => {
 
           expectPositionEq(await market.pendingPositions(user.address, 1), {
             ...DEFAULT_POSITION,
-            id: 1,
             timestamp: ORACLE_VERSION_2.timestamp,
             long: POSITION.div(2),
             delta: COLLATERAL,
           })
           expectPositionEq(await market.pendingPositions(userB.address, 1), {
             ...DEFAULT_POSITION,
-            id: 1,
             timestamp: ORACLE_VERSION_2.timestamp,
             maker: POSITION,
             delta: COLLATERAL,
           })
           expectPositionEq(await market.pendingPositions(userC.address, 1), {
             ...DEFAULT_POSITION,
-            id: 1,
             timestamp: ORACLE_VERSION_2.timestamp,
             short: POSITION.div(2),
             delta: COLLATERAL,
@@ -9478,21 +9192,18 @@ describe.skip('Market', () => {
 
           expectPositionEq(await market.pendingPositions(user.address, 1), {
             ...DEFAULT_POSITION,
-            id: 1,
             timestamp: ORACLE_VERSION_2.timestamp,
             long: POSITION.div(2),
             delta: COLLATERAL,
           })
           expectPositionEq(await market.pendingPositions(userB.address, 1), {
             ...DEFAULT_POSITION,
-            id: 1,
             timestamp: ORACLE_VERSION_2.timestamp,
             maker: POSITION,
             delta: COLLATERAL,
           })
           expectPositionEq(await market.pendingPositions(userC.address, 1), {
             ...DEFAULT_POSITION,
-            id: 1,
             timestamp: ORACLE_VERSION_2.timestamp,
             short: POSITION.div(2),
             delta: COLLATERAL,
@@ -9574,13 +9285,11 @@ describe.skip('Market', () => {
             })
             expectPositionEq(await marketPayoff.positions(user.address), {
               ...DEFAULT_POSITION,
-              id: 2,
               timestamp: ORACLE_VERSION_3.timestamp,
               long: POSITION.div(2),
             })
             expectPositionEq(await marketPayoff.pendingPositions(user.address, 3), {
               ...DEFAULT_POSITION,
-              id: 3,
               timestamp: ORACLE_VERSION_4.timestamp,
               long: POSITION.div(2),
               delta: COLLATERAL,
@@ -9597,13 +9306,11 @@ describe.skip('Market', () => {
             })
             expectPositionEq(await marketPayoff.positions(userB.address), {
               ...DEFAULT_POSITION,
-              id: 2,
               timestamp: ORACLE_VERSION_3.timestamp,
               maker: POSITION,
             })
             expectPositionEq(await marketPayoff.pendingPositions(userB.address, 3), {
               ...DEFAULT_POSITION,
-              id: 3,
               timestamp: ORACLE_VERSION_4.timestamp,
               maker: POSITION,
               delta: COLLATERAL,
@@ -9619,14 +9326,12 @@ describe.skip('Market', () => {
             })
             expectPositionEq(await marketPayoff.position(), {
               ...DEFAULT_POSITION,
-              id: 2,
               timestamp: ORACLE_VERSION_3.timestamp,
               maker: POSITION,
               long: POSITION.div(2),
             })
             expectPositionEq(await marketPayoff.pendingPosition(3), {
               ...DEFAULT_POSITION,
-              id: 3,
               timestamp: ORACLE_VERSION_4.timestamp,
               maker: POSITION,
               long: POSITION.div(2),
@@ -9692,13 +9397,11 @@ describe.skip('Market', () => {
             })
             expectPositionEq(await marketPayoff.positions(user.address), {
               ...DEFAULT_POSITION,
-              id: 2,
               timestamp: ORACLE_VERSION_3.timestamp,
               short: POSITION.div(2),
             })
             expectPositionEq(await marketPayoff.pendingPositions(user.address, 3), {
               ...DEFAULT_POSITION,
-              id: 3,
               timestamp: ORACLE_VERSION_4.timestamp,
               short: POSITION.div(2),
               delta: COLLATERAL,
@@ -9715,13 +9418,11 @@ describe.skip('Market', () => {
             })
             expectPositionEq(await marketPayoff.positions(userB.address), {
               ...DEFAULT_POSITION,
-              id: 2,
               timestamp: ORACLE_VERSION_3.timestamp,
               maker: POSITION,
             })
             expectPositionEq(await marketPayoff.pendingPositions(userB.address, 3), {
               ...DEFAULT_POSITION,
-              id: 3,
               timestamp: ORACLE_VERSION_4.timestamp,
               maker: POSITION,
               delta: COLLATERAL,
@@ -9737,14 +9438,12 @@ describe.skip('Market', () => {
             })
             expectPositionEq(await marketPayoff.position(), {
               ...DEFAULT_POSITION,
-              id: 2,
               timestamp: ORACLE_VERSION_3.timestamp,
               maker: POSITION,
               short: POSITION.div(2),
             })
             expectPositionEq(await marketPayoff.pendingPosition(3), {
               ...DEFAULT_POSITION,
-              id: 3,
               timestamp: ORACLE_VERSION_4.timestamp,
               maker: POSITION,
               short: POSITION.div(2),
@@ -9820,13 +9519,11 @@ describe.skip('Market', () => {
             })
             expectPositionEq(await market.positions(user.address), {
               ...DEFAULT_POSITION,
-              id: 2,
               timestamp: ORACLE_VERSION_3.timestamp,
               long: POSITION.div(2),
             })
             expectPositionEq(await market.pendingPositions(user.address, 3), {
               ...DEFAULT_POSITION,
-              id: 3,
               timestamp: ORACLE_VERSION_4.timestamp,
               long: POSITION.div(2),
               delta: COLLATERAL,
@@ -9842,13 +9539,11 @@ describe.skip('Market', () => {
             })
             expectPositionEq(await market.positions(userB.address), {
               ...DEFAULT_POSITION,
-              id: 2,
               timestamp: ORACLE_VERSION_3.timestamp,
               maker: POSITION,
             })
             expectPositionEq(await market.pendingPositions(userB.address, 3), {
               ...DEFAULT_POSITION,
-              id: 3,
               timestamp: ORACLE_VERSION_4.timestamp,
               maker: POSITION,
               delta: COLLATERAL,
@@ -9864,14 +9559,12 @@ describe.skip('Market', () => {
             })
             expectPositionEq(await market.position(), {
               ...DEFAULT_POSITION,
-              id: 2,
               timestamp: ORACLE_VERSION_3.timestamp,
               maker: POSITION,
               long: POSITION.div(2),
             })
             expectPositionEq(await market.pendingPosition(3), {
               ...DEFAULT_POSITION,
-              id: 3,
               timestamp: ORACLE_VERSION_4.timestamp,
               maker: POSITION,
               long: POSITION.div(2),
@@ -9922,13 +9615,11 @@ describe.skip('Market', () => {
             })
             expectPositionEq(await market.positions(user.address), {
               ...DEFAULT_POSITION,
-              id: 2,
               timestamp: ORACLE_VERSION_3.timestamp,
               short: POSITION.div(2),
             })
             expectPositionEq(await market.pendingPositions(user.address, 3), {
               ...DEFAULT_POSITION,
-              id: 3,
               timestamp: ORACLE_VERSION_4.timestamp,
               short: POSITION.div(2),
               delta: COLLATERAL,
@@ -9944,13 +9635,11 @@ describe.skip('Market', () => {
             })
             expectPositionEq(await market.positions(userB.address), {
               ...DEFAULT_POSITION,
-              id: 2,
               timestamp: ORACLE_VERSION_3.timestamp,
               maker: POSITION,
             })
             expectPositionEq(await market.pendingPositions(userB.address, 3), {
               ...DEFAULT_POSITION,
-              id: 3,
               timestamp: ORACLE_VERSION_4.timestamp,
               maker: POSITION,
               delta: COLLATERAL,
@@ -9966,14 +9655,12 @@ describe.skip('Market', () => {
             })
             expectPositionEq(await market.position(), {
               ...DEFAULT_POSITION,
-              id: 2,
               timestamp: ORACLE_VERSION_3.timestamp,
               maker: POSITION,
               short: POSITION.div(2),
             })
             expectPositionEq(await market.pendingPosition(3), {
               ...DEFAULT_POSITION,
-              id: 3,
               timestamp: ORACLE_VERSION_4.timestamp,
               maker: POSITION,
               short: POSITION.div(2),
