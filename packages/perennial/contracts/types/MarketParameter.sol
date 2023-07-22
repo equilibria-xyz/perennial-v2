@@ -59,28 +59,29 @@ struct StoredMarketParameter {
     uint32 shortRewardRate;     // <= 2147.48 / s
     uint8 flags;
 }
-struct MarketParameterStorage { StoredMarketParameter value; }
+struct MarketParameterStorage { uint256 slot0; }
 using MarketParameterStorageLib for MarketParameterStorage global;
 
 library MarketParameterStorageLib {
     error MarketParameterStorageInvalidError();
 
     function read(MarketParameterStorage storage self) internal view returns (MarketParameter memory) {
-        StoredMarketParameter memory value = self.value;
+        uint256 slot0 = self.slot0;
 
+        uint256 flags = uint256(slot0) >> (256 - 8);
         (bool takerCloseAlways, bool makerCloseAlways, bool closed) =
-            (value.flags & 0x01 == 0x01, value.flags & 0x02 == 0x02, value.flags & 0x04 == 0x04);
+            (flags & 0x01 == 0x01, flags & 0x02 == 0x02, flags & 0x04 == 0x04);
 
         return MarketParameter(
-            UFixed6.wrap(uint256(value.fundingFee)),
-            UFixed6.wrap(uint256(value.interestFee)),
-            UFixed6.wrap(uint256(value.positionFee)),
-            UFixed6.wrap(uint256(value.oracleFee)),
-            UFixed6.wrap(uint256(value.riskFee)),
-            UFixed6.wrap(uint256(value.settlementFee)),
-            UFixed6.wrap(uint256(value.makerRewardRate)),
-            UFixed6.wrap(uint256(value.longRewardRate)),
-            UFixed6.wrap(uint256(value.shortRewardRate)),
+            UFixed6.wrap(uint256(slot0 << (256 - 24)) >> (256 - 24)),
+            UFixed6.wrap(uint256(slot0 << (256 - 24 - 24)) >> (256 - 24)),
+            UFixed6.wrap(uint256(slot0 << (256 - 24 - 24 - 24)) >> (256 - 24)),
+            UFixed6.wrap(uint256(slot0 << (256 - 24 - 24 - 24 - 24)) >> (256 - 24)),
+            UFixed6.wrap(uint256(slot0 << (256 - 24 - 24 - 24 - 24 - 24)) >> (256 - 24)),
+            UFixed6.wrap(uint256(slot0 << (256 - 24 - 24 - 24 - 24 - 24 - 32)) >> (256 - 32)),
+            UFixed6.wrap(uint256(slot0 << (256 - 24 - 24 - 24 - 24 - 24 - 32 - 32)) >> (256 - 32)),
+            UFixed6.wrap(uint256(slot0 << (256 - 24 - 24 - 24 - 24 - 24 - 32 - 32 - 32)) >> (256 - 32)),
+            UFixed6.wrap(uint256(slot0 << (256 - 24 - 24 - 24 - 24 - 24 - 32 - 32 - 32 - 32)) >> (256 - 32)),
             takerCloseAlways,
             makerCloseAlways,
             closed
@@ -117,21 +118,24 @@ library MarketParameterStorageLib {
         if (newValue.longRewardRate.gt(UFixed6.wrap(type(uint32).max))) revert MarketParameterStorageInvalidError();
         if (newValue.shortRewardRate.gt(UFixed6.wrap(type(uint32).max))) revert MarketParameterStorageInvalidError();
 
-        uint8 flags = (newValue.takerCloseAlways ? 0x01 : 0x00) |
+        uint256 flags = (newValue.takerCloseAlways ? 0x01 : 0x00) |
             (newValue.makerCloseAlways ? 0x02 : 0x00) |
             (newValue.closed ? 0x04 : 0x00);
 
-        self.value = StoredMarketParameter(
-            uint24(UFixed6.unwrap(newValue.fundingFee)),
-            uint24(UFixed6.unwrap(newValue.interestFee)),
-            uint24(UFixed6.unwrap(newValue.positionFee)),
-            uint24(UFixed6.unwrap(newValue.oracleFee)),
-            uint24(UFixed6.unwrap(newValue.riskFee)),
-            uint32(UFixed6.unwrap(newValue.settlementFee)),
-            uint32(UFixed6.unwrap(newValue.makerRewardRate)),
-            uint32(UFixed6.unwrap(newValue.longRewardRate)),
-            uint32(UFixed6.unwrap(newValue.shortRewardRate)),
-            flags
-        );
+        uint256 encoded0 =
+            uint256(UFixed6.unwrap(newValue.fundingFee) << (256 - 24)) >> (256 - 24) |
+            uint256(UFixed6.unwrap(newValue.interestFee) << (256 - 24)) >> (256 - 24 - 24) |
+            uint256(UFixed6.unwrap(newValue.positionFee) << (256 - 24)) >> (256 - 24 - 24 - 24) |
+            uint256(UFixed6.unwrap(newValue.oracleFee) << (256 - 24)) >> (256 - 24 - 24 - 24 - 24) |
+            uint256(UFixed6.unwrap(newValue.riskFee) << (256 - 24)) >> (256 - 24 - 24 - 24 - 24 - 24) |
+            uint256(UFixed6.unwrap(newValue.settlementFee) << (256 - 32)) >> (256 - 24 - 24 - 24 - 24 - 24 - 32) |
+            uint256(UFixed6.unwrap(newValue.makerRewardRate) << (256 - 32)) >> (256 - 24 - 24 - 24 - 24 - 24 - 32 - 32) |
+            uint256(UFixed6.unwrap(newValue.longRewardRate) << (256 - 32)) >> (256 - 24 - 24 - 24 - 24 - 24 - 32 - 32 - 32) |
+            uint256(UFixed6.unwrap(newValue.shortRewardRate) << (256 - 32)) >> (256 - 24 - 24 - 24 - 24 - 24 - 32 - 32 - 32 - 32) |
+            uint256(flags << (256 - 8)) >> (256 - 24 - 24 - 24 - 24 - 24 - 32 - 32 - 32 - 32 - 8);
+
+        assembly {
+            sstore(self.slot, encoded0)
+        }
     }
 }
