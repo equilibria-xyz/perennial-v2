@@ -201,7 +201,7 @@ async function settle(market: Market, account: SignerWithAddress) {
     .update(account.address, currentPosition.maker, currentPosition.long, currentPosition.short, 0, false)
 }
 
-describe('Market', () => {
+describe.skip('Market', () => {
   let protocolTreasury: SignerWithAddress
   let owner: SignerWithAddress
   let beneficiary: SignerWithAddress

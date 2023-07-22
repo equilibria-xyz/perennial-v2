@@ -42,6 +42,7 @@ const EMPTY_VERSION: VersionStruct = {
 
 const GLOBAL: GlobalStruct = {
   currentId: 1,
+  latestId: 8,
   protocolFee: 2,
   oracleFee: 3,
   riskFee: 4,
@@ -54,7 +55,6 @@ const GLOBAL: GlobalStruct = {
 }
 
 const FROM_POSITION: PositionStruct = {
-  id: 1,
   timestamp: 2,
   maker: 3,
   long: 4,
@@ -66,7 +66,6 @@ const FROM_POSITION: PositionStruct = {
 }
 
 const TO_POSITION: PositionStruct = {
-  id: 10,
   timestamp: 20,
   maker: 30,
   long: 40,
