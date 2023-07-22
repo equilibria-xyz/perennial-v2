@@ -514,7 +514,8 @@ contract Market is IMarket, Instance {
         ) { if (LOG_REVERTS) console.log("MarketOperatorNotAllowedError"); revert MarketOperatorNotAllowedError(); }
 
         if (
-            context.global.currentId > context.latestPosition.global.id + context.protocolParameter.maxPendingIds
+            context.global.currentId > context.latestPosition.global.id + context.marketParameter.maxPendingGlobal ||
+            context.local.currentId > context.latestPosition.local.id + context.marketParameter.maxPendingLocal
         ) { if (LOG_REVERTS) console.log("MarketExceedsPendingIdLimitError"); revert MarketExceedsPendingIdLimitError(); }
 
         if (
