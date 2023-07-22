@@ -23,10 +23,6 @@ contract OrderTester {
         return order.increasesTaker();
     }
 
-    function decreasesLiquidity(Order memory order) public pure returns (bool) {
-        return order.decreasesLiquidity();
-    }
-
     function liquidityCheckApplicable(
         Order memory order,
         MarketParameter memory marketParameter

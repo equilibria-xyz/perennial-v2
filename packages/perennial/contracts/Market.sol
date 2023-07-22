@@ -156,7 +156,7 @@ contract Market is IMarket, Instance {
         reward.push(msg.sender, UFixed18Lib.from(newLocal.reward));
         emit RewardClaimed(msg.sender, newLocal.reward);
 
-        newLocal.clearReward();
+        newLocal.reward = UFixed6Lib.ZERO;
         _locals[msg.sender].store(newLocal);
     }
 
@@ -209,12 +209,6 @@ contract Market is IMarket, Instance {
     /// @param id The id to query
     function pendingPositions(address account, uint256 id) external view returns (Position memory) {
         return _pendingPositions[account][id].read();
-    }
-
-    /// @notice Returns the oracle version at the given timestamp
-    /// @param timestamp The timestamp to query
-    function at(uint256 timestamp) public view returns (OracleVersion memory) {
-        return _oracleVersionAt(timestamp);
     }
 
     /// @notice Loads the current position context for the given account
@@ -308,7 +302,7 @@ contract Market is IMarket, Instance {
 
         // oracle
         (context.latestVersion, context.currentTimestamp) = _oracleVersion();
-        context.positionVersion = _oracleVersionAtPosition(context, _position.read()); // TODO: remove this
+        context.positionVersion = _oracleVersionAtPosition(context, _position.read());
     }
 
     /// @notice Stores the given context
@@ -386,7 +380,7 @@ contract Market is IMarket, Instance {
     /// @param newPosition The pending position to process
     function _processPositionGlobal(Context memory context, Position memory newPosition) private {
         Version memory version = _versions[context.latestPosition.global.timestamp].read();
-        OracleVersion memory oracleVersion = _oracleVersionAtPosition(context, newPosition); // TODO: seems weird some logic is in here
+        OracleVersion memory oracleVersion = _oracleVersionAtPosition(context, newPosition);
         if (!oracleVersion.valid) newPosition.invalidate(context.latestPosition.global);
 
         (uint256 fromTimestamp, uint256 fromId) = (context.latestPosition.global.timestamp, context.latestPosition.global.id);
@@ -394,7 +388,7 @@ contract Market is IMarket, Instance {
             context.global,
             context.latestPosition.global,
             newPosition,
-            context.positionVersion, // TODO: ??
+            context.positionVersion,
             oracleVersion,
             context.marketParameter,
             context.riskParameter
@@ -471,13 +465,6 @@ contract Market is IMarket, Instance {
             collateral.lt(Fixed6Lib.from(-1, _liquidationFee(context)))
         )) revert MarketInvalidProtectionError();
 
-        if (
-            msg.sender != account &&                                                                        // sender is operating on own account
-            !IMarketFactory(address(factory())).operators(account, msg.sender) &&                           // sender is operating on own account
-            !protected &&                                                                                   // sender is liquidating this account
-            !(newOrder.isEmpty() && collateralAfterFees.isZero() && collateral.gt(Fixed6Lib.ZERO))     // sender is repaying shortfall for this account
-        ) revert MarketOperatorNotAllowedError();
-
         if (context.currentTimestamp - context.latestVersion.timestamp >= context.riskParameter.staleAfter)
             revert MarketStalePriceError();
 
@@ -490,43 +477,45 @@ contract Market is IMarket, Instance {
         if (!context.currentPosition.local.singleSided())
             revert MarketNotSingleSidedError();
 
+        if (protected) return; // The following invariants do not apply to protected position updates (liquidations)
+
         if (
-            !protected &&
+            msg.sender != account &&                                                                        // sender is operating on own account
+            !IMarketFactory(address(factory())).operators(account, msg.sender) &&                           // sender is operating on own account
+            !(newOrder.isEmpty() && collateralAfterFees.isZero() && collateral.gt(Fixed6Lib.ZERO))     // sender is repaying shortfall for this account
+        ) revert MarketOperatorNotAllowedError();
+
+        if (
             context.global.currentId > context.latestPosition.global.id + context.protocolParameter.maxPendingIds
         ) revert MarketExceedsPendingIdLimitError();
 
         if (
-            !protected &&
             !context.latestPosition.local.collateralized(context.latestVersion, context.riskParameter, collateralAfterFees)
         ) revert MarketInsufficientCollateralizationError();
 
         for (uint256 i; i < pendingLocalPositions.length; i++)
             if (
-                !protected &&
                 !pendingLocalPositions[i].collateralized(context.latestVersion, context.riskParameter, collateralAfterFees)
             ) revert MarketInsufficientCollateralizationError();
 
         if (
-            !protected &&
             (context.local.protection > context.latestPosition.local.timestamp) &&
             !newOrder.isEmpty()
         ) revert MarketProtectedError();
 
         if (
-            !protected &&
             newOrder.liquidityCheckApplicable(context.marketParameter) &&
             newOrder.efficiency.lt(Fixed6Lib.ZERO) &&
             context.currentPosition.global.efficiency().lt(context.riskParameter.efficiencyLimit)
         ) revert MarketEfficiencyUnderLimitError();
 
         if (
-            !protected &&
             newOrder.liquidityCheckApplicable(context.marketParameter) &&
             context.currentPosition.global.socialized() &&
-            newOrder.decreasesLiquidity()
+            newOrder.maker.lt(newOrder.net)
         ) revert MarketInsufficientLiquidityError();
 
-        if (!protected && collateral.lt(Fixed6Lib.ZERO) && collateralAfterFees.lt(Fixed6Lib.ZERO))
+        if (collateral.lt(Fixed6Lib.ZERO) && collateralAfterFees.lt(Fixed6Lib.ZERO))
             revert MarketInsufficientCollateralError();
     }
 

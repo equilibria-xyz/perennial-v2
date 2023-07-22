@@ -33,7 +33,7 @@ interface IVault is IInstance {
 
     struct MarketContext {
         // latest global
-        UFixed6 price;
+        UFixed6 latestPrice;
 
         // current global
         UFixed6 currentPosition;

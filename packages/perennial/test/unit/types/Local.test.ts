@@ -452,20 +452,4 @@ describe('Local', () => {
       })
     })
   })
-
-  describe('#clearReward', () => {
-    it('sets the reward to 0', async () => {
-      await local.store({
-        currentId: 0,
-        collateral: 0,
-        reward: 100,
-        protection: 0,
-      })
-
-      await local.clearReward()
-
-      const value = await local.read()
-      expect(value.reward).to.equal(0)
-    })
-  })
 })

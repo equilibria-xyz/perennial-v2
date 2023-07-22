@@ -28,8 +28,8 @@ library StrategyLib {
         /// @dev The current global position
         Position currentPosition;
 
-        /// @dev The latest oracle version
-        OracleVersion oracleVersion;
+        /// @dev The latest valid price
+        UFixed6 latestPrice;
 
         /// @dev The maintenance requirement of the vault
         UFixed6 maintenance;
@@ -87,7 +87,7 @@ library StrategyLib {
             (targets[marketId].collateral, targets[marketId].position) = (
                 Fixed6Lib.from(_locals.marketCollateral).sub(contexts[marketId].local.collateral),
                 _locals.marketAssets
-                    .muldiv(registrations[marketId].leverage, contexts[marketId].oracleVersion.price.abs())
+                    .muldiv(registrations[marketId].leverage, contexts[marketId].latestPrice)
                     .min(_locals.maxPosition)
                     .max(_locals.minPosition)
             );
@@ -105,13 +105,13 @@ library StrategyLib {
 
         Position memory latestAccountPosition = registration.market.positions(address(this));
         Global memory global = registration.market.global();
-        context.oracleVersion = registration.market.at(latestAccountPosition.timestamp);
+
+        context.latestPrice = global.latestPrice.abs();
         context.currentPosition = registration.market.pendingPosition(global.currentId);
-        if (!context.oracleVersion.valid) context.oracleVersion.price = global.latestPrice;
 
         for (uint256 id = latestAccountPosition.id; id < context.local.currentId; id++)
             context.maintenance = registration.market.pendingPositions(address(this), id)
-                .maintenance(context.oracleVersion, context.riskParameter)
+                .maintenance(OracleVersion(0, global.latestPrice, true), context.riskParameter)
                 .max(context.maintenance);
     }
 

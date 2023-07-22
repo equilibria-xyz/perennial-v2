@@ -420,11 +420,8 @@ contract Vault is IVault, Instance {
             Global memory global = registration.market.global();
             Position memory currentPosition = registration.market.pendingPosition(global.currentId);
             Position memory latestPosition = registration.market.position();
-            OracleVersion memory latestOracleVersion = registration.market.at(latestPosition.timestamp);
 
-            context.markets[marketId].price = latestOracleVersion.valid ?
-                latestOracleVersion.price.abs() :
-                global.latestPrice.abs();
+            context.markets[marketId].latestPrice = global.latestPrice.abs();
             context.markets[marketId].currentPosition = currentPosition.maker;
             context.markets[marketId].currentNet = currentPosition.net();
             context.totalWeight += registration.weight;
@@ -477,7 +474,7 @@ contract Vault is IVault, Instance {
 
             UFixed6 collateral = marketContext.currentPosition
                 .sub(marketContext.currentNet.min(marketContext.currentPosition))   // available maker
-                .muldiv(marketContext.price, registration.leverage)                 // available collateral
+                .muldiv(marketContext.latestPrice, registration.leverage)           // available collateral
                 .muldiv(context.totalWeight, registration.weight);                  // collateral in market
 
             redemptionAmount = redemptionAmount.min(context.latestCheckpoint.toShares(collateral, UFixed6Lib.ZERO));
