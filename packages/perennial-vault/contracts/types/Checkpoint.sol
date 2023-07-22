@@ -21,23 +21,25 @@ struct Checkpoint {
     /// @dev The total fee at the checkpoint
     UFixed6 fee;
 
-    /// @dev The number of deposits and redemptions during the checkpoint
-    uint256 count;
-
     /// @dev The total settlement fee at the checkpoint
     UFixed6 keeper;
+
+    /// @dev The number of deposits and redemptions during the checkpoint
+    uint256 count;
 }
 using CheckpointLib for Checkpoint global;
 struct StoredCheckpoint {
-    uint48 _deposit;
-    uint48 _redemption;
-    uint48 _shares;
-    int48 _assets;
-    uint48 _fee;
-    uint16 _count;
+    /* slot 0 */
+    uint64 deposit;
+    uint64 redemption;
+    uint64 shares;
+    int64 assets;
 
-    // TODO: pack better
-    uint48 _keeper;
+    /* slot 1 */
+    uint64 fee;
+    uint64 keeper;
+    uint32 count;
+    bytes12 __unallocated1__;
 }
 struct CheckpointStorage { StoredCheckpoint value; }
 using CheckpointStorageLib for CheckpointStorage global;
@@ -208,34 +210,36 @@ library CheckpointStorageLib {
     function read(CheckpointStorage storage self) internal view returns (Checkpoint memory) {
         StoredCheckpoint memory storedValue = self.value;
         return Checkpoint(
-            UFixed6.wrap(uint256(storedValue._deposit)),
-            UFixed6.wrap(uint256(storedValue._redemption)),
-            UFixed6.wrap(uint256(storedValue._shares)),
-            Fixed6.wrap(int256(storedValue._assets)),
-            UFixed6.wrap(uint256(storedValue._fee)),
-            uint256(storedValue._count),
-            UFixed6.wrap(uint256(storedValue._keeper))
+            UFixed6.wrap(uint256(storedValue.deposit)),
+            UFixed6.wrap(uint256(storedValue.redemption)),
+            UFixed6.wrap(uint256(storedValue.shares)),
+            Fixed6.wrap(int256(storedValue.assets)),
+            UFixed6.wrap(uint256(storedValue.fee)),
+            UFixed6.wrap(uint256(storedValue.keeper)),
+            uint256(storedValue.count)
         );
     }
 
     function store(CheckpointStorage storage self, Checkpoint memory newValue) internal {
-        if (newValue.deposit.gt(UFixed6.wrap(type(uint48).max))) revert CheckpointStorageInvalidError();
-        if (newValue.redemption.gt(UFixed6.wrap(type(uint48).max))) revert CheckpointStorageInvalidError();
-        if (newValue.shares.gt(UFixed6.wrap(type(uint48).max))) revert CheckpointStorageInvalidError();
-        if (newValue.assets.gt(Fixed6.wrap(type(int48).max))) revert CheckpointStorageInvalidError();
-        if (newValue.assets.lt(Fixed6.wrap(type(int48).min))) revert CheckpointStorageInvalidError();
-        if (newValue.fee.gt(UFixed6.wrap(type(uint48).max))) revert CheckpointStorageInvalidError();
-        if (newValue.count > uint256(type(uint16).max)) revert CheckpointStorageInvalidError();
-        if (newValue.keeper.gt(UFixed6.wrap(type(uint48).max))) revert CheckpointStorageInvalidError();
+        if (newValue.deposit.gt(UFixed6.wrap(type(uint64).max))) revert CheckpointStorageInvalidError();
+        if (newValue.redemption.gt(UFixed6.wrap(type(uint64).max))) revert CheckpointStorageInvalidError();
+        if (newValue.shares.gt(UFixed6.wrap(type(uint64).max))) revert CheckpointStorageInvalidError();
+        if (newValue.assets.gt(Fixed6.wrap(type(int64).max))) revert CheckpointStorageInvalidError();
+        if (newValue.assets.lt(Fixed6.wrap(type(int64).min))) revert CheckpointStorageInvalidError();
+        if (newValue.fee.gt(UFixed6.wrap(type(uint64).max))) revert CheckpointStorageInvalidError();
+        if (newValue.count > uint256(type(uint32).max)) revert CheckpointStorageInvalidError();
+        if (newValue.keeper.gt(UFixed6.wrap(type(uint64).max))) revert CheckpointStorageInvalidError();
 
         self.value = StoredCheckpoint(
-            uint48(UFixed6.unwrap(newValue.deposit)),
-            uint48(UFixed6.unwrap(newValue.redemption)),
-            uint48(UFixed6.unwrap(newValue.shares)),
-            int48(Fixed6.unwrap(newValue.assets)),
-            uint48(UFixed6.unwrap(newValue.fee)),
-            uint16(newValue.count),
-            uint48(UFixed6.unwrap(newValue.keeper))
+            uint64(UFixed6.unwrap(newValue.deposit)),
+            uint64(UFixed6.unwrap(newValue.redemption)),
+            uint64(UFixed6.unwrap(newValue.shares)),
+            int64(Fixed6.unwrap(newValue.assets)),
+
+            uint64(UFixed6.unwrap(newValue.fee)),
+            uint64(UFixed6.unwrap(newValue.keeper)),
+            uint32(newValue.count),
+            bytes12(0)
         );
     }
 }

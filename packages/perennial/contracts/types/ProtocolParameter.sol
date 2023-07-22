@@ -27,13 +27,13 @@ struct ProtocolParameter {
     UFixed6 minEfficiency;
 }
 struct StoredProtocolParameter {
-    uint24 _protocolFee;        // <= 1677%
-    uint24 _maxFee;             // <= 1677%
-    uint48 _maxFeeAbsolute;     // <= 281m
-    uint24 _maxCut;             // <= 1677%
-    uint32 _maxRate;            // <= 429496%
-    uint24 _minMaintenance;     // <= 1677%
-    uint24 _minEfficiency;      // <= 1677%
+    uint24 protocolFee;        // <= 1677%
+    uint24 maxFee;             // <= 1677%
+    uint48 maxFeeAbsolute;     // <= 281m
+    uint24 maxCut;             // <= 1677%
+    uint32 maxRate;            // <= 429496%
+    uint24 minMaintenance;     // <= 1677%
+    uint24 minEfficiency;      // <= 1677%
 }
 struct ProtocolParameterStorage { StoredProtocolParameter value; }
 using ProtocolParameterStorageLib for ProtocolParameterStorage global;
@@ -44,13 +44,13 @@ library ProtocolParameterStorageLib {
     function read(ProtocolParameterStorage storage self) internal view returns (ProtocolParameter memory) {
         StoredProtocolParameter memory value = self.value;
         return ProtocolParameter(
-            UFixed6.wrap(uint256(value._protocolFee)),
-            UFixed6.wrap(uint256(value._maxFee)),
-            UFixed6.wrap(uint256(value._maxFeeAbsolute)),
-            UFixed6.wrap(uint256(value._maxCut)),
-            UFixed6.wrap(uint256(value._maxRate)),
-            UFixed6.wrap(uint256(value._minMaintenance)),
-            UFixed6.wrap(uint256(value._minEfficiency))
+            UFixed6.wrap(uint256(value.protocolFee)),
+            UFixed6.wrap(uint256(value.maxFee)),
+            UFixed6.wrap(uint256(value.maxFeeAbsolute)),
+            UFixed6.wrap(uint256(value.maxCut)),
+            UFixed6.wrap(uint256(value.maxRate)),
+            UFixed6.wrap(uint256(value.minMaintenance)),
+            UFixed6.wrap(uint256(value.minEfficiency))
         );
     }
 

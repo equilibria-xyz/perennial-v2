@@ -71,7 +71,7 @@ struct StoredRiskParameter {
     uint24 makerImpactFee;                      // <= 1677%
     uint48 makerLimit;                          // <= 281m
     uint24 efficiencyLimit;                     // <= 1677%
-    // 5 more
+    bytes5 __unallocated0__;
 
     /* slot 1 */
     uint24 liquidationFee;                      // <= 1677%
@@ -81,7 +81,7 @@ struct StoredRiskParameter {
     uint32 utilizationCurveMaxRate;             // <= 214748%
     uint32 utilizationCurveTargetRate;          // <= 214748%
     uint24 utilizationCurveTargetUtilization;   // <= 1677%
-    // 2 more
+    bytes2 __unallocated1__;
 
     /* slot 2 */
     uint48 pControllerK;                        // <= 281m
@@ -90,7 +90,7 @@ struct StoredRiskParameter {
     uint64 virtualTaker;                        // <= 18.44t
     uint24 staleAfter;                          // <= 16m s
     bool makerReceiveOnly;
-    // 4 more
+    bytes4 __unallocated2__;
 }
 struct RiskParameterStorage { StoredRiskParameter value; }
 using RiskParameterStorageLib for RiskParameterStorage global;
@@ -178,6 +178,7 @@ library RiskParameterStorageLib {
             uint24(UFixed6.unwrap(newValue.makerImpactFee)),
             uint48(UFixed6.unwrap(newValue.makerLimit)),
             uint24(UFixed6.unwrap(newValue.efficiencyLimit)),
+            bytes5(0),
 
             uint24(UFixed6.unwrap(newValue.liquidationFee)),
             uint48(UFixed6.unwrap(newValue.minLiquidationFee)),
@@ -186,13 +187,15 @@ library RiskParameterStorageLib {
             uint32(UFixed6.unwrap(newValue.utilizationCurve.maxRate)),
             uint32(UFixed6.unwrap(newValue.utilizationCurve.targetRate)),
             uint24(UFixed6.unwrap(newValue.utilizationCurve.targetUtilization)),
+            bytes2(0),
 
             uint48(UFixed6.unwrap(newValue.pController.k)),
             uint32(UFixed6.unwrap(newValue.pController.max)),
             uint48(UFixed6.unwrap(newValue.minMaintenance)),
             uint64(UFixed6.unwrap(newValue.virtualTaker)),
             uint24(newValue.staleAfter),
-            newValue.makerReceiveOnly
+            newValue.makerReceiveOnly,
+            bytes4(0)
         );
     }
 }
