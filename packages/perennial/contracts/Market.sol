@@ -377,7 +377,7 @@ contract Market is IMarket, Instance, ReentrancyGuard {
         if (context.latestVersion.timestamp > context.latestPosition.global.timestamp) {
             nextPosition = _pendingPosition[context.global.latestId].read();
             nextPosition.sync(context.latestVersion);
-            _processPositionGlobal(context, context.local.latestId, nextPosition);
+            _processPositionGlobal(context, context.global.latestId, nextPosition);
         }
 
         if (context.latestVersion.timestamp > context.latestPosition.local.timestamp) {
