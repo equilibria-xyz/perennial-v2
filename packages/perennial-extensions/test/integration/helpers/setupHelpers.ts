@@ -213,22 +213,32 @@ export async function deployProtocol(chainlinkContext?: ChainlinkContext): Promi
   }
 }
 
-export async function fundWallet(dsu: IERC20Metadata, usdc: IERC20Metadata, wallet: SignerWithAddress) {
+export async function fundWallet(
+  dsu: IERC20Metadata,
+  usdc: IERC20Metadata,
+  wallet: SignerWithAddress,
+  amountOverride?: BigNumber,
+) {
   const usdcHolder = await impersonate.impersonateWithBalance(USDC_HOLDER, utils.parseEther('10'))
   const dsuMinter = await impersonate.impersonateWithBalance(DSU_MINTER, utils.parseEther('10'))
   const dsuIface = new utils.Interface(['function mint(uint256)'])
-  await usdc.connect(usdcHolder).approve(RESERVE, BigNumber.from('2000000000000'))
+  await usdc
+    .connect(usdcHolder)
+    .approve(RESERVE, amountOverride ? amountOverride.div(1e12) : BigNumber.from('2000000000000'))
   await usdcHolder.sendTransaction({
     to: RESERVE,
     value: 0,
-    data: dsuIface.encodeFunctionData('mint', [utils.parseEther('2000000')]),
+    data: dsuIface.encodeFunctionData('mint', [amountOverride ? amountOverride : utils.parseEther('2000000')]),
   })
-  await dsu.connect(usdcHolder).transfer(wallet.address, utils.parseEther('2000000'))
+  console.log('HERE')
+  await dsu.connect(usdcHolder).transfer(wallet.address, amountOverride ? amountOverride : utils.parseEther('2000000'))
 }
 
-export async function fundWalletUSDC(usdc: IERC20Metadata, wallet: SignerWithAddress) {
+export async function fundWalletUSDC(usdc: IERC20Metadata, wallet: SignerWithAddress, amountOverride?: BigNumber) {
   const usdcHolder = await impersonate.impersonateWithBalance(USDC_HOLDER, utils.parseEther('10'))
-  await usdc.connect(usdcHolder).transfer(wallet.address, BigNumber.from('1000000000'))
+  await usdc
+    .connect(usdcHolder)
+    .transfer(wallet.address, amountOverride ? amountOverride : BigNumber.from('1000000000'))
 }
 
 export async function createMarket(
