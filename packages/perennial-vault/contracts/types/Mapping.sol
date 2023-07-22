@@ -16,7 +16,7 @@ struct StoredMappingEntry {
 struct StoredMapping {
     mapping(uint256 => StoredMappingEntry) entries;
 }
-struct MappingStorage { StoredMapping value; } // TODO(gas-hint): using mapping will save 1 slot store due to length
+struct MappingStorage { StoredMapping value; }
 using MappingStorageLib for MappingStorage global;
 
 /**
