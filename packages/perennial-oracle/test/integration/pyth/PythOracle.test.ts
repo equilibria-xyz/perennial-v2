@@ -356,7 +356,23 @@ describe('PythOracle', () => {
     })
   })
 
-  // TODO: tests for #request
+  describe('#request', async () => {
+    it('can request a version', async () => {
+      // No requested versions
+      await expect(pythOracle.callStatic.versionList(0)).to.be.reverted
+      await pythOracle.connect(oracleSigner).request(user.address)
+      // Now there is exactly one requested version
+      expect(await pythOracle.callStatic.versionList(0)).to.equal(STARTING_TIME)
+      await expect(pythOracle.callStatic.versionList(1)).to.be.reverted
+    })
+
+    it('does not allow unauthorized users to request', async () => {
+      await expect(pythOracle.connect(user.address).request(user.address)).to.be.revertedWithCustomError(
+        pythOracle,
+        'OracleProviderUnauthorizedError',
+      )
+    })
+  })
 
   describe('#latest', async () => {
     it('returns the latest version', async () => {
