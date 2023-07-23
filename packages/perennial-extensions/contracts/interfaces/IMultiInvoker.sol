@@ -17,7 +17,6 @@ import { Token18 } from "@equilibria/root/token/types/Token18.sol";
 import { TriggerOrder } from "../types/TriggerOrder.sol";
 
 interface IMultiInvoker {
-
     enum PerennialAction {
         NO_OP,
         UPDATE_POSITION,
@@ -28,7 +27,6 @@ interface IMultiInvoker {
         COMMIT_PRICE,
         LIQUIDATE,
         APPROVE,
-        VAULT_UPDATE, // @todo change tuple order in tests
         CHARGE_FEE
     }
 
@@ -50,4 +48,12 @@ interface IMultiInvoker {
     error MultiInvokerCantExecuteError();
 
     function invoke(Invocation[] calldata invocations) external payable;
+    function marketFactory() external view returns (IFactory);
+    function vaultFactory() external view returns (IFactory);
+    function batcher() external view returns (IBatcher);
+    function reserve() external view returns (IEmptySetReserve);
+    function keeperMultiplier() external view returns (UFixed6);
+    function latestNonce() external view returns (uint256);
+    function orders(address account, IMarket market, uint256 nonce) external view returns (TriggerOrder memory);
+    function canExecuteOrder(address account, IMarket market, uint256 nonce) external view returns (bool);
 }

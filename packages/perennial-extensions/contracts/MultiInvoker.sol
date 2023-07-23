@@ -28,6 +28,7 @@ contract MultiInvoker is IMultiInvoker, Kept {
     /// @dev Protocol factory to validate market approvals
     IFactory public immutable marketFactory;
 
+    /// @dev Vault factory to validate vault approvals
     IFactory public immutable vaultFactory;
 
     /// @dev Batcher address
@@ -43,7 +44,7 @@ contract MultiInvoker is IMultiInvoker, Kept {
     uint256 public latestNonce;
 
     /// @dev State for the order data
-    mapping(address => mapping(IMarket => mapping(uint256 => TriggerOrderStorage))) public _orders;
+    mapping(address => mapping(IMarket => mapping(uint256 => TriggerOrderStorage))) private _orders;
 
     /// @notice Constructs the MultiInvoker contract
     /// @param usdc_ USDC stablecoin address
@@ -183,6 +184,12 @@ contract MultiInvoker is IMultiInvoker, Kept {
         if (collateralDelta.sign() == -1) _withdraw(msg.sender, collateralDelta.abs(), wrap);
     }
 
+    /// @notice Update vault on behalf of msg.sender
+    /// @param vault Address of vault to update
+    /// @param depositAssets Amount of assets to deposit into vault
+    /// @param redeemShares Amount of shares to redeem from vault
+    /// @param claimAssets Amount of assets to claim from vault
+    /// @param wrap Whether to wrap assets before depositing
     function _vaultUpdate(
         IVault vault,
         UFixed6 depositAssets,
@@ -208,6 +215,9 @@ contract MultiInvoker is IMultiInvoker, Kept {
         }
     }
 
+    /// @notice Liquidates an account for a specific market
+    /// @param market Market to liquidate account in
+    /// @param address Address of market to liquidate
     function _liquidate(IMarket market, address account) internal {
         UFixed6 liquidationFee = _liquidationFee(market, account);
 
@@ -231,11 +241,9 @@ contract MultiInvoker is IMultiInvoker, Kept {
         DSU.approve(target);
     }
 
-    /**
-     * @notice Pull DSU or wrap and deposit USDC from msg.sender to this address for market usage
-     * @param amount Amount to transfer
-     * @param wrap Flag to wrap USDC to DSU
-     */
+    /// @notice Pull DSU or wrap and deposit USDC from msg.sender to this address for market usage
+    /// @param amount Amount to transfer
+    /// @param wrap Flag to wrap USDC to DSU
     function _deposit(UFixed6 amount, bool wrap) internal {
         if (wrap) {
             USDC.pull(msg.sender, amount);
@@ -245,12 +253,10 @@ contract MultiInvoker is IMultiInvoker, Kept {
         }
     }
 
-    /**
-     * @notice Push DSU or unwrap DSU to push USDC from this address to `account`
-     * @param account Account to push DSU or USDC to
-     * @param amount Amount to transfer
-     * @param wrap flag to unwrap DSU to USDC
-     */
+    /// @notice Push DSU or unwrap DSU to push USDC from this address to `account`
+    /// @param account Account to push DSU or USDC to
+    /// @param amount Amount to transfer
+    /// @param wrap flag to unwrap DSU to USDC
     function _withdraw(address account, UFixed6 amount, bool wrap) internal {
         if (wrap) {
             _unwrap(account, UFixed18Lib.from(amount));
@@ -259,11 +265,9 @@ contract MultiInvoker is IMultiInvoker, Kept {
         }
     }
 
-    /**
-     * @notice Helper function to wrap `amount` USDC from `msg.sender` into DSU using the batcher or reserve
-     * @param receiver Address to receive the DSU
-     * @param amount Amount of USDC to wrap
-     */
+    /// @notice Helper function to wrap `amount` USDC from `msg.sender` into DSU using the batcher or reserve
+    /// @param receiver Address to receive the DSU
+    /// @param amount Amount of USDC to wrap
     function _wrap(address receiver, UFixed18 amount) internal {
         // If the batcher is 0 or  doesn't have enough for this wrap, go directly to the reserve
         if (address(batcher) == address(0) || amount.gt(DSU.balanceOf(address(batcher)))) {
@@ -275,11 +279,9 @@ contract MultiInvoker is IMultiInvoker, Kept {
         }
     }
 
-    /**
-     * @notice Helper function to unwrap `amount` DSU into USDC and send to `receiver`
-     * @param receiver Address to receive the USDC
-     * @param amount Amount of DSU to unwrap
-     */
+    /// @notice Helper function to unwrap `amount` DSU into USDC and send to `receiver`
+    /// @param receiver Address to receive the USDC
+    /// @param amount Amount of DSU to unwrap
     function _unwrap(address receiver, UFixed18 amount) internal {
         // If the batcher is 0 or doesn't have enough for this unwrap, go directly to the reserve
         if (address(batcher) == address(0) || amount.gt(UFixed18Lib.from(USDC.balanceOf(address(batcher))))) {
@@ -291,7 +293,11 @@ contract MultiInvoker is IMultiInvoker, Kept {
         }
     }
 
-    function _commitPrice(address oracleProvider, uint256 version, bytes memory data) internal{
+    /// @notice Helper function to commit a price to an oracle
+    /// @param oracleProvider Address of oracle provider
+    /// @param version Version of oracle to commit to
+    /// @param data Data to commit to oracle
+    function _commitPrice(address oracleProvider, uint256 version, bytes memory data) internal {
         UFixed18 balanceBefore = DSU.balanceOf();
 
         IPythOracle(oracleProvider).commit{value: msg.value}(version, data);
@@ -300,6 +306,10 @@ contract MultiInvoker is IMultiInvoker, Kept {
         DSU.push(msg.sender, DSU.balanceOf().sub(balanceBefore));
     }
 
+    /// @notice Helper function to compute the liquidation fee for an account
+    /// @param market Market to compute liquidation fee for
+    /// @param account Account to compute liquidation fee for
+    /// @return liquidationFee Liquidation fee for the account
     function _liquidationFee(IMarket market, address account) internal view returns (UFixed6) {
         RiskParameter memory riskParameter = market.riskParameter();
         (Position memory latestPosition, OracleVersion memory latestVersion) = _latest(market, account);
@@ -309,6 +319,11 @@ contract MultiInvoker is IMultiInvoker, Kept {
             .min(UFixed6Lib.from(market.token().balanceOf(address(market))));
     }
 
+    /// @notice Helper function to compute the latest position and oracle version without a settlement
+    /// @param market Market to compute latest position and oracle version for
+    /// @param account Account to compute latest position and oracle version for
+    /// @return latestPosition Latest position for the account
+    /// @return latestVersion Latest oracle version for the account
     function _latest(
         IMarket market,
         address account
@@ -368,6 +383,9 @@ contract MultiInvoker is IMultiInvoker, Kept {
         emit OrderExecuted(account, market, nonce, market.locals(account).currentId);
     }
 
+    /// @notice Helper function to raise keeper fee
+    /// @param keeperFee Keeper fee to raise
+    /// @param data Data to raise keeper fee with
     function _raiseKeeperFee(UFixed18 keeperFee, bytes memory data) internal override {
         (address account, address market, UFixed6 fee) = abi.decode(data, (address, address, UFixed6));
         if (keeperFee.gt(UFixed18Lib.from(fee))) revert MultiInvokerMaxFeeExceededError();
@@ -389,8 +407,8 @@ contract MultiInvoker is IMultiInvoker, Kept {
     /// @param order Order state to place
     function _placeOrder(address account, IMarket market, TriggerOrder memory order) internal {
         if (order.fee.isZero()) revert MultiInvokerInvalidOrderError();
-        if (order.comparison < -2 || order.comparison > 2) revert MultiInvokerInvalidOrderError();
-        if (order.side == 0 || order.side > 2) revert MultiInvokerInvalidOrderError();
+        if (order.comparison != -2 || order.comparison != 2) revert MultiInvokerInvalidOrderError();
+        if (order.side != 1 || order.side != 2) revert MultiInvokerInvalidOrderError();
 
         _orders[account][market][++latestNonce].store(order);
         emit OrderPlaced(account, market, latestNonce, order);

@@ -20,7 +20,7 @@ export function setMarketLocal(market: FakeContract<IMarket>, user: SignerWithAd
 }
 
 export function setGlobalPrice(market: FakeContract<IMarket>, price: BigNumberish) {
-  market.global.returns(['0', '0', '0', '0', '0', ['0', '0'], price])
+  market.global.returns(['0', '0', '0', '0', '0', '0', ['0', '0'], price])
 }
 
 export function setPendingPosition(
