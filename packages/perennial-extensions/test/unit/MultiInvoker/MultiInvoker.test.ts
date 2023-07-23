@@ -612,7 +612,7 @@ describe('MultiInvoker', () => {
 
         // buffer: 100000
         await ethers.HRE.ethers.provider.send('hardhat_setNextBlockBaseFeePerGas', ['0x5F5E100'])
-        await expect(multiInvoker.connect(owner).invoke(execOrder))
+        await expect(multiInvoker.connect(owner).invoke(execOrder, { maxFeePerGas: 100000000 }))
           .to.emit(multiInvoker, 'OrderExecuted')
           .to.emit(multiInvoker, 'KeeperCall')
           .withArgs(owner.address, BigNumber.from(40826), anyValue, anyValue, BigNumber.from('18072986000000000'))
