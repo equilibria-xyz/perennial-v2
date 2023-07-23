@@ -251,8 +251,8 @@ describe('MultiInvoker', () => {
       const v = helpers.buildUpdateVault(vaultUpdate)
 
       dsu.balanceOf.returnsAtCall(0, 0)
-      await expect(multiInvoker.connect(user).invoke(v)).to.not.be.reverted
       dsu.balanceOf.returnsAtCall(1, dsuCollateral)
+      await expect(multiInvoker.connect(user).invoke(v)).to.not.be.reverted
 
       expect(reserve.redeem).to.have.been.calledWith(dsuCollateral)
       expect(vault.update).to.have.been.calledWith(user.address, '0', '0', vaultUpdate.claimAssets)
