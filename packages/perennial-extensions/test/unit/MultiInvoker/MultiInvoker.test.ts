@@ -281,7 +281,7 @@ describe('MultiInvoker', () => {
       usdc.transferFrom.returns(true)
 
       const c: Actions = [
-        { action: 10, args: utils.defaultAbiCoder.encode(['address', 'uint256'], [owner.address, dsuCollateral]) },
+        { action: 10, args: utils.defaultAbiCoder.encode(['address', 'uint256'], [owner.address, collateral]) },
       ]
       await expect(multiInvoker.connect(user).invoke(c)).to.not.be.reverted
 
