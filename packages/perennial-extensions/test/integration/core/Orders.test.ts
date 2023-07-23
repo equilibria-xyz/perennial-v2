@@ -25,7 +25,6 @@ import { Vault, VaultFactory } from '@equilibria/perennial-v2-vault/types/genera
 import { ethers } from 'hardhat'
 import { openTriggerOrder, setGlobalPrice } from '../../helpers/types'
 import { buildCancelOrder, buildExecOrder, buildPlaceOrder } from '../../helpers/invoke'
-import { chainlink } from '@equilibria/perennial-v2/types/generated'
 import { loadFixture } from '@nomicfoundation/hardhat-network-helpers'
 
 describe('Orders', () => {

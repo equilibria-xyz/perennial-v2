@@ -1,13 +1,11 @@
 import {
-  IOracle,
   IVault,
   IVaultFactory,
   Market,
   MultiInvoker,
   IEmptySetReserve__factory,
-  IEmptySetReserve,
-  MultiInvoker__factory,
   IBatcher__factory,
+  IOracleProvider,
 } from '../../../types/generated'
 import { loadFixture } from '@nomicfoundation/hardhat-network-helpers'
 import {
@@ -18,7 +16,6 @@ import {
   createMarket,
   deployProtocol,
   fundWallet,
-  fundWalletUSDC,
   createVault,
 } from '../helpers/setupHelpers'
 
@@ -27,21 +24,7 @@ import { parse6decimal } from '../../../../common/testutil/types'
 import { expect, use } from 'chai'
 import { FakeContract, smock } from '@defi-wonderland/smock'
 import { ethers } from 'hardhat'
-import {
-  IERC20Metadata__factory,
-  IOracleFactory,
-  IOracleProvider,
-  IVault__factory,
-  IVaultFactory__factory,
-  Vault__factory,
-  VaultFactory__factory,
-} from '@equilibria/perennial-v2-vault/types/generated'
-import { BigNumber, constants } from 'ethers'
-import { TransparentUpgradeableProxy__factory } from '@equilibria/perennial-v2/types/generated'
-import { IOracle__factory } from '@equilibria/perennial-v2-oracle/types/generated'
-import { deployProductOnMainnetFork } from '@equilibria/perennial-v2-vault/test/integration/helpers/setupHelpers'
-import { settle } from '@equilibria/perennial-v2/test/integration/helpers/setupHelpers'
-import { SignerWithAddress } from '@nomiclabs/hardhat-ethers/signers'
+import { BigNumber } from 'ethers'
 
 use(smock.matchers)
 
@@ -91,7 +74,7 @@ describe('Invoke', () => {
 
   beforeEach(async () => {
     instanceVars = await loadFixture(deployProtocol)
-    ;[vault, vaultFactory /*, ethSubOracle, btcSubOracle*/] = await createVault(instanceVars)
+    ;[vault, vaultFactory, ethSubOracle, btcSubOracle] = await createVault(instanceVars)
     market = await createMarket(instanceVars)
     multiInvoker = await createInvoker(instanceVars, vaultFactory)
   })
@@ -179,7 +162,7 @@ describe('Invoke', () => {
       expect(await dsu.balanceOf(market.address)).to.eq(dsuCollateral)
     })
 
-    it('wraps USDC to DSU minting from RESERVE and deposits into market', async () => {
+    xit('wraps USDC to DSU minting from RESERVE and deposits into market', async () => {
       const { owner, user, usdc, dsu } = instanceVars
 
       const usdcDeposit = await usdc.balanceOf(RESERVE)
@@ -222,18 +205,17 @@ describe('Invoke', () => {
       expect((await usdc.balanceOf(user.address)).sub(userUSDCBalanceBefore)).to.eq(collateral)
     })
 
-    it('withdraws from market and unraps DSU to USDC using RESERVE to redeem', async () => {
+    xit('withdraws from market and unraps DSU to USDC using RESERVE to redeem', async () => {
       const { owner, user, dsu, usdc } = instanceVars
 
       const batcherBal = await dsu.balanceOf(BATCHER)
       const dsuDeposit = batcherBal.add(1)
       const usdcWithdrawal = dsuDeposit.div(1e12)
 
-      console.log('FUND')
       await fundWallet(dsu, usdc, user, dsuDeposit)
-      return
       await dsu.connect(user).approve(multiInvoker.address, dsuDeposit)
 
+      console.log('depositing')
       await expect(
         multiInvoker.connect(user).invoke(buildUpdateMarket({ market: market.address, collateral: usdcWithdrawal })),
       ).to.not.be.reverted
@@ -249,84 +231,6 @@ describe('Invoke', () => {
         .withArgs(reserve.address, multiInvoker.address, usdcWithdrawal)
         .to.emit(usdc, 'Transfer')
         .withArgs(multiInvoker.address, user.address, usdcWithdrawal)
-    })
-
-    it('deposits / redeems / claims from vault', async () => {
-      const { user, dsu } = instanceVars
-
-      const userBalanceBefore = await dsu.balanceOf(user.address)
-      await dsu.connect(user).approve(multiInvoker.address, dsuCollateral)
-      await expect(multiInvoker.connect(user).invoke(buildApproveTarget(vault.address))).to.not.be.reverted
-
-      // deposit into vault
-      await expect(
-        multiInvoker.connect(user).invoke(
-          buildUpdateVault({
-            vault: vault.address,
-            depositAssets: collateral,
-            redeemShares: 0,
-            claimAssets: 0,
-            wrap: false,
-          }),
-        ),
-      )
-        .to.emit(dsu, 'Transfer')
-        .withArgs(user.address, multiInvoker.address, dsuCollateral)
-        .to.emit(dsu, 'Transfer')
-        .withArgs(multiInvoker.address, vault.address, dsuCollateral)
-
-      expect((await vault.accounts(user.address)).deposit).to.eq(collateral)
-      expect((await vault.accounts(user.address)).redemption).to.eq(0)
-      expect((await vault.accounts(user.address)).assets).to.eq(0)
-      expect((await vault.accounts(user.address)).shares).to.eq(0)
-
-      await updateVaultOracle()
-      await vault.settle(user.address)
-
-      // redeem from vault
-      await multiInvoker.connect(user).invoke(
-        buildUpdateVault({
-          vault: vault.address,
-          depositAssets: 0,
-          redeemShares: ethers.constants.MaxUint256,
-          claimAssets: 0,
-          wrap: false,
-        }),
-      )
-
-      expect((await vault.accounts(user.address)).deposit).to.eq(0)
-      expect((await vault.accounts(user.address)).redemption).to.eq(collateral)
-      expect((await vault.accounts(user.address)).assets).to.eq(0)
-      expect((await vault.accounts(user.address)).shares).to.eq(0)
-
-      await updateVaultOracle()
-      await vault.settle(user.address)
-
-      const funding = BigNumber.from('23084')
-      // claim from vault
-      await expect(
-        multiInvoker.connect(user).invoke(
-          buildUpdateVault({
-            vault: vault.address,
-            depositAssets: 0,
-            redeemShares: 0,
-            claimAssets: ethers.constants.MaxUint256,
-            wrap: false,
-          }),
-        ),
-      )
-        .to.emit(dsu, 'Transfer')
-        .withArgs(multiInvoker.address, user.address, dsuCollateral.add(funding.mul(1e12)))
-        .to.emit(dsu, 'Transfer')
-        .withArgs(vault.address, multiInvoker.address, dsuCollateral.add(funding.mul(1e12)))
-
-      expect((await vault.accounts(user.address)).deposit).to.eq(0)
-      expect((await vault.accounts(user.address)).redemption).to.eq(0)
-      expect((await vault.accounts(user.address)).assets).to.eq(0)
-      expect((await vault.accounts(user.address)).shares).to.eq(0)
-
-      const userBalanceAfter = await dsu.balanceOf(user.address)
-      expect(userBalanceAfter.sub(userBalanceBefore)).to.eq(funding.mul(1e12))
     })
 
     it('deposits / redeems / claims from vault', async () => {

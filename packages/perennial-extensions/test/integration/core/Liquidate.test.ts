@@ -34,10 +34,10 @@ describe('Liquidate', () => {
     await multiInvoker
       .connect(user)
       .invoke(buildUpdateMarket({ market: market.address, maker: POSITION, collateral: COLLATERAL }))
-    console.log('LIQ')
     // Settle the market with a new oracle version
     await chainlink.nextWithPriceModification(price => price.mul(2))
 
+    const userBUSDCBalance = await usdc.balanceOf(userB.address)
     await expect(multiInvoker.connect(userB).invoke(buildLiquidateUser({ market: market.address, user: user.address })))
       .to.emit(market, 'Updated')
       .withArgs(user.address, TIMESTAMP_2, 0, 0, 0, '-682778988', true)
@@ -48,7 +48,7 @@ describe('Liquidate', () => {
 
     expect((await market.locals(user.address)).collateral).to.equal('317221012')
     expect(await dsu.balanceOf(market.address)).to.equal(utils.parseEther('317.221012'))
-    expect(await usdc.balanceOf(userB.address)).to.equal(parse6decimal('200000682.778988')) // Original 200000000 + fee
+    expect((await usdc.balanceOf(userB.address)).sub(userBUSDCBalance)).to.equal(parse6decimal('682.778988')) // Original 200000000 + fee
 
     await chainlink.next()
     await market.connect(user).update(user.address, 0, 0, 0, constants.MinInt256, false) // withdraw everything
