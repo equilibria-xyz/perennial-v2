@@ -199,9 +199,9 @@ function triggerDirection(order: TriggerOrderStruct, triggerType: TriggerType, c
     (order.side === 1 && (triggerType === 'LM' || triggerType === 'SL')) ||
     (order.side === 2 && triggerType === 'TP')
   ) {
-    order.comparison = -1
+    order.comparison = -2
   } else {
-    order.comparison = 1
+    order.comparison = 2
   }
 
   return order
