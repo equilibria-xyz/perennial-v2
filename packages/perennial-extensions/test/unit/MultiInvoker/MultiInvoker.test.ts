@@ -351,13 +351,14 @@ describe('MultiInvoker', () => {
     })
 
     it('places a tp order', async () => {
-      const trigger = openTriggerOrder({ size: position, price: BigNumber.from(1100e6), side: 'S', trigger: 'TP' })
+      let trigger = openTriggerOrder({ size: position, price: BigNumber.from(1100e6), side: 'S', trigger: 'TP' })
       let a = buildPlaceOrder({ market: market.address, collateral: collateral, order: trigger, triggerType: 'TP' })
       await expect(multiInvoker.connect(user).invoke(a)).to.not.be.reverted
 
       // mkt price >= trigger price (false)
       expect(await multiInvoker.canExecuteOrder(user.address, market.address, 1)).to.be.false
 
+      trigger = openTriggerOrder({ size: position, price: BigNumber.from(1200e6), side: 'S', trigger: 'TP' })
       a = buildPlaceOrder({ market: market.address, collateral: collateral, order: trigger, triggerType: 'TP' })
 
       expect(await multiInvoker.connect(user).invoke(a)).to.not.be.reverted
