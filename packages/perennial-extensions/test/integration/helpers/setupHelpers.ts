@@ -232,7 +232,6 @@ export async function fundWallet(
     value: 0,
     data: dsuIface.encodeFunctionData('mint', [amountOverride ? amountOverride : utils.parseEther('2000000')]),
   })
-  console.log('HERE')
   await dsu.connect(usdcHolder).transfer(wallet.address, amountOverride ? amountOverride : utils.parseEther('2000000'))
 }
 
