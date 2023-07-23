@@ -331,7 +331,7 @@ describe('Invoke', () => {
       await expect(
         multiInvoker.connect(user).invoke([
           {
-            action: 10,
+            action: 9,
             args: ethers.utils.defaultAbiCoder.encode(['address', 'uint256'], [userB.address, collateral]),
           },
         ]),
