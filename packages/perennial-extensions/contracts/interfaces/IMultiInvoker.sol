@@ -32,14 +32,6 @@ interface IMultiInvoker {
         CHARGE_FEE
     }
 
-    struct KeeperOrder {
-        UFixed6 limitPrice;
-        UFixed6 takeProfit;
-        UFixed6 stopLoss;
-        bool isLong;
-        uint8 maxFee;
-    }
-
     struct Invocation {
         PerennialAction action;
         bytes args;
@@ -57,5 +49,5 @@ interface IMultiInvoker {
     error MultiInvokerInvalidOrderError();
     error MultiInvokerCantExecuteError();
 
-    function invoke(Invocation[] calldata invocations) external;
+    function invoke(Invocation[] calldata invocations) external payable;
 }

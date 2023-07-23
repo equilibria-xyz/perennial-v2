@@ -242,6 +242,10 @@ contract Vault is IVault, Instance {
         UFixed6 redeemShares,
         UFixed6 claimAssets
     ) private {
+        // magic values
+        if (claimAssets.eq(UFixed6Lib.MAX)) claimAssets = context.local.assets;
+        if (redeemShares.eq(UFixed6Lib.MAX)) redeemShares = context.local.shares;
+
         // invariant
         if (msg.sender != account && !IVaultFactory(address(factory())).operators(account, msg.sender))
             revert VaultNotOperatorError();
@@ -257,9 +261,6 @@ contract Vault is IVault, Instance {
             revert VaultInsufficientMinimumError();
 
         if (context.local.current != context.local.latest) revert VaultExistingOrderError();
-
-        // magic values
-        if (claimAssets.eq(UFixed6Lib.MAX)) claimAssets = context.local.assets;
 
         // asses socialization and settlement fee
         UFixed6 claimAmount = _socialize(context, depositAssets, redeemShares, claimAssets);

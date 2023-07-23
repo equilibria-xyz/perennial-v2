@@ -2,6 +2,7 @@
 pragma solidity ^0.8.13;
 
 import "@equilibria/root/number/types/Fixed6.sol";
+import "@equilibria/root/number/types/Fixed6.sol";
 import "./Version.sol";
 import "./Position.sol";
 

@@ -12,6 +12,7 @@ import "./interfaces/IMultiInvoker.sol";
 import "./types/TriggerOrder.sol";
 import "@equilibria/root/attribute/Kept.sol";
 
+
 /// @title MultiInvoker
 /// @notice Extension to handle batched calls to the Perennial protocol
 contract MultiInvoker is IMultiInvoker, Kept {
@@ -74,6 +75,14 @@ contract MultiInvoker is IMultiInvoker, Kept {
     /// @param ethOracle_ Chainlink ETH/USD oracle address
     function initialize(AggregatorV3Interface ethOracle_) external initializer(1) {
         __UKept__initialize(ethOracle_, DSU);
+
+        if (address(batcher) != address(0)) {
+            DSU.approve(address(batcher));
+            USDC.approve(address(batcher));
+        }
+
+        DSU.approve(address(reserve));
+        USDC.approve(address(reserve));
     }
 
     /// @notice View function to get order state
@@ -92,12 +101,12 @@ contract MultiInvoker is IMultiInvoker, Kept {
     function canExecuteOrder(address account, IMarket market, uint256 nonce) public view returns (bool) {
         TriggerOrder memory order = orders(account, market, nonce);
         if (order.fee.isZero()) return false;
-        return order.fillable(_getMarketPrice(market));
+        return order.fillable(_getMarketPrice(market, account));
     }
 
     /// @notice entry to perform invocations
     /// @param invocations List of actions to execute in order
-    function invoke(Invocation[] calldata invocations) external {
+    function invoke(Invocation[] calldata invocations) external payable {
         for(uint i = 0; i < invocations.length; ++i) {
             Invocation memory invocation = invocations[i];
 
@@ -134,7 +143,7 @@ contract MultiInvoker is IMultiInvoker, Kept {
                 (address oracleProvider, uint256 version, bytes memory data) =
                     abi.decode(invocation.args, (address, uint256, bytes));
 
-                IPythOracle(oracleProvider).commit(version, data);
+                _commitPrice(oracleProvider, version, data);
             } else if (invocation.action == PerennialAction.LIQUIDATE) {
                 (IMarket market, address account) = abi.decode(invocation.args, (IMarket, address));
 
@@ -185,10 +194,17 @@ contract MultiInvoker is IMultiInvoker, Kept {
             _deposit(depositAssets, wrap);
         }
 
+        UFixed18 balanceBefore = DSU.balanceOf();
+
         vault.update(msg.sender, depositAssets, redeemShares, claimAssets);
 
-        if (!claimAssets.isZero()) {
-            _withdraw(msg.sender, claimAssets, wrap);
+        // handle socialization, settlement fees, and magic values
+        UFixed6 claimAmount = claimAssets.isZero() ?
+            UFixed6Lib.ZERO :
+            UFixed6Lib.from(DSU.balanceOf().sub(balanceBefore));
+
+        if (!claimAmount.isZero()) {
+            _withdraw(msg.sender, claimAmount, wrap);
         }
     }
 
@@ -237,7 +253,7 @@ contract MultiInvoker is IMultiInvoker, Kept {
      */
     function _withdraw(address account, UFixed6 amount, bool wrap) internal {
         if (wrap) {
-            _handleUnwrap(account, UFixed18Lib.from(amount));
+            _unwrap(account, UFixed18Lib.from(amount));
         } else {
             DSU.push(account, UFixed18Lib.from(amount));
         }
@@ -264,7 +280,7 @@ contract MultiInvoker is IMultiInvoker, Kept {
      * @param receiver Address to receive the USDC
      * @param amount Amount of DSU to unwrap
      */
-    function _handleUnwrap(address receiver, UFixed18 amount) internal {
+    function _unwrap(address receiver, UFixed18 amount) internal {
         // If the batcher is 0 or doesn't have enough for this unwrap, go directly to the reserve
         if (address(batcher) == address(0) || amount.gt(UFixed18Lib.from(USDC.balanceOf(address(batcher))))) {
             reserve.redeem(amount);
@@ -273,6 +289,15 @@ contract MultiInvoker is IMultiInvoker, Kept {
             // Unwrap the DSU into USDC and return to the receiver
             batcher.unwrap(amount, receiver);
         }
+    }
+
+    function _commitPrice(address oracleProvider, uint256 version, bytes memory data) internal{
+        UFixed18 balanceBefore = DSU.balanceOf();
+
+        IPythOracle(oracleProvider).commit{value: msg.value}(version, data);
+
+        // Return through keeper reward if any
+        DSU.push(msg.sender, DSU.balanceOf().sub(balanceBefore));
     }
 
     function _liquidationFee(IMarket market, address account) internal view returns (UFixed6) {
@@ -327,7 +352,7 @@ contract MultiInvoker is IMultiInvoker, Kept {
     ) {
         if (!canExecuteOrder(account, market, nonce)) revert MultiInvokerCantExecuteError();
 
-        Position memory currentPosition = market.pendingPositions(account, IMarket(market).locals(account).currentId);
+        Position memory currentPosition = market.pendingPositions(account, market.locals(account).currentId);
         orders(account, market, nonce).execute(currentPosition);
 
         market.update(
@@ -352,9 +377,10 @@ contract MultiInvoker is IMultiInvoker, Kept {
             UFixed6Lib.MAX,
             UFixed6Lib.MAX,
             UFixed6Lib.MAX,
-            Fixed6Lib.from(Fixed18Lib.from(-1, keeperFee)),
+            Fixed6Lib.from(Fixed18Lib.from(-1, keeperFee), true),
             false
         );
+
     }
 
     /// @notice Places order on behalf of msg.sender from the invoker
@@ -382,9 +408,8 @@ contract MultiInvoker is IMultiInvoker, Kept {
     /// @notice Helper function to get price of `market`
     /// @param market Market to get price of
     /// @return price 6-decimal price of market
-    function _getMarketPrice(IMarket market) internal view returns (Fixed6 price) {
-        // TODO: can't use an oracle price directly because each market has a different payoff function
-        // TODO: need to grab the price like we do elsewhere (possibly use the type of virtual settle we do for liquidation)
-        price = market.oracle().latest().price;
+    function _getMarketPrice(IMarket market, address account) internal view returns (Fixed6 price) {
+        (, OracleVersion memory latestVersion) = _latest(market, account);
+        return latestVersion.price;
     }
 }

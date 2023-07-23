@@ -1,14 +1,15 @@
 import { BigNumber, BigNumberish, utils } from 'ethers'
 import { IMultiInvoker, MultiInvoker } from '../../types/generated'
+import { TriggerOrderStruct } from '../../types/generated/contracts/MultiInvoker'
 
 export const MAX_INT = BigNumber.from('115792089237316195423570985008687907853269984665640564039457584007913129639935')
 
 export type OrderStruct = {
-  isLong?: boolean
-  priceBelow?: boolean
-  maxFee: BigNumberish
-  execPrice?: BigNumberish
-  size?: BigNumberish
+  side?: number
+  comparisson?: number
+  fee: BigNumberish
+  price?: BigNumberish
+  delta?: BigNumberish
 }
 
 // export type RawAction =
@@ -55,7 +56,7 @@ export const buildUpdateMarket = ({
     {
       action: 1,
       args: utils.defaultAbiCoder.encode(
-        ['address', 'int256', 'int256', 'int256', 'int256', 'bool'],
+        ['address', 'uint256', 'uint256', 'uint256', 'int256', 'bool'],
         [
           market,
           maker ? maker : '0',
@@ -104,45 +105,55 @@ export const buildPlaceOrder = ({
   collateral,
   handleWrap,
   order,
+  comparisonOverride,
+  sideOverride,
 }: {
   market: string
   long?: BigNumberish
   short?: BigNumberish
   triggerType?: TriggerType
-  collateral?: BigNumberish
+  collateral: BigNumberish
   handleWrap?: boolean
-  order: OrderStruct
+  order: TriggerOrderStruct
+  comparisonOverride?: number
+  sideOverride?: number
 }): Actions => {
   if (!triggerType) triggerType = 'LM'
 
-  order = triggerDirection(order, triggerType)
-  order.size = BigNumber.from(order.size)
+  order.delta = BigNumber.from(order.delta)
+  order.fee = BigNumber.from(order.fee)
 
   if (long && short) {
     if (BigNumber.from(long).gt(short)) {
-      order.isLong = true
-      order.size = BigNumber.from(long).sub(short)
+      order.side = 1
+      order.delta = BigNumber.from(long).sub(short)
     } else {
-      order.isLong = false
-      order.size = BigNumber.from(short).sub(long)
+      order.side = 2
+      order.delta = BigNumber.from(short).sub(long)
     }
   } else if (long) {
-    order.isLong = true
-    order.size = long
+    order.side = 1
+    order.delta = long
   } else if (short) {
-    order.isLong = false
-    order.size = short
+    order.side = 2
+    order.delta = short
   } else {
-    long = order.isLong ? order.size.abs() : '0'
-    short = order.isLong ? order.size.abs() : '0'
+    long = order.side === 1 ? order.delta.abs() : '0'
+    short = order.side === 2 ? order.delta.abs() : '0'
   }
+
+  // TODO: this is disgusting
+  order.fee = BigNumber.from(collateral).div(BigNumber.from(order.delta).abs()).mul(order.fee)
+  // console.log(order.fee, collateral)
+  order = triggerDirection(order, triggerType, comparisonOverride)
+  order.side = sideOverride || sideOverride === 0 ? sideOverride : order.side
 
   // dont open position if limit order
   if (triggerType === 'LM') {
     long = BigNumber.from(0)
     short = BigNumber.from(0)
   }
-
+  // console.log('order', order)
   return [
     {
       action: 1,
@@ -161,15 +172,15 @@ export const buildPlaceOrder = ({
     {
       action: 3,
       args: utils.defaultAbiCoder.encode(
-        ['address', 'tuple(bool,bool,uint256,int256,int256)'],
+        ['address', 'tuple(uint8,int8,uint256,int256,int256)'],
         [
           market,
           [
-            order.isLong ? order.isLong : false,
-            order.priceBelow,
-            order.maxFee ? order.maxFee : '0',
-            order.execPrice ? order.execPrice : '0',
-            order.size ? order.size : '0',
+            order.side, // default long side
+            order.comparison,
+            order.fee ? order.fee : '0',
+            order.price ? order.price : '0',
+            order.delta ? order.delta : '0',
           ],
         ],
       ),
@@ -177,18 +188,32 @@ export const buildPlaceOrder = ({
   ]
 }
 
-function triggerDirection(order: OrderStruct, triggerType: TriggerType) {
-  order.size = BigNumber.from(order.size)
+function triggerDirection(order: TriggerOrderStruct, triggerType: TriggerType, comparisonOverride?: number) {
+  order.delta = BigNumber.from(order.delta)
 
-  order.size = triggerType === 'LM' ? order.size.mul(-1) : order.size
+  order.delta = delta(order.delta, triggerType)
 
-  if ((order.isLong && (triggerType === 'LM' || triggerType === 'SL')) || (!order.isLong && triggerType === 'TP')) {
-    order.priceBelow = true
+  if (comparisonOverride && comparisonOverride !== 0) {
+    order.comparison = comparisonOverride
+  } else if (
+    (order.side === 1 && (triggerType === 'LM' || triggerType === 'SL')) ||
+    (order.side === 2 && triggerType === 'TP')
+  ) {
+    order.comparison = -1
   } else {
-    order.priceBelow = false
+    order.comparison = 1
   }
 
   return order
+}
+
+function delta(num: BigNumber, trigger: TriggerType) {
+  if (trigger === 'LM') {
+    if (num.isNegative()) return num.mul(-1)
+    return num
+  }
+  if (num.isNegative()) return num
+  return num.mul(-1)
 }
 
 export type VaultUpdate = {
@@ -225,64 +250,74 @@ export const buildLiquidateUser = ({ user, market }: { market: string; user: str
     },
   ]
 }
-export const buildPlaceOrderRollup = ({
-  marketIndex,
-  market,
-  long,
-  short,
-  collateral,
-  handleWrap,
-  order,
-}: {
-  marketIndex?: BigNumber
-  market?: string
-  long?: BigNumberish
-  short?: BigNumberish
-  collateral?: BigNumberish
-  handleWrap?: boolean
-  order: OrderStruct
-}): string => {
-  if (long && short) {
-    if (BigNumber.from(long).gt(short)) {
-      order.isLong = true
-      order.size = BigNumber.from(long).sub(short)
-    } else {
-      order.isLong = false
-      order.size = BigNumber.from(short).sub(long)
-    }
-  } else if (long) {
-    order.isLong = true
-    order.size = long
-  } else if (short) {
-    order.isLong = false
-    order.size = short
-  } else {
-    long = order.isLong ? order.size : '0'
-    short = !order.isLong ? order.size : '0'
-  }
 
-  // limit
-  // if () {
-  //   long = '0'
-  //   short = '0'
-  // }
-
-  return (
-    RollupActions.UPDATE_POSITION +
-    encodeAddressOrCacheIndex(marketIndex, market) +
-    encodeUint('0') + // orders are never on maker side
-    encodeInt(long) +
-    encodeInt(short) +
-    encodeInt(collateral) +
-    encodeBool(handleWrap) +
-    RollupActions.PLACE_ORDER +
-    encodeAddressOrCacheIndex(marketIndex, market) +
-    encodeLongLimit(order.isLong, order.isLimit) +
-    encodeInt(order.maxFee) +
-    encodeInt(order.execPrice) +
-    encodeUint(order.size)
-  )
+export const buildApproveTarget = (target: string): Actions => {
+  return [
+    {
+      action: 8,
+      args: utils.defaultAbiCoder.encode(['address'], [target]),
+    },
+  ]
 }
+
+// export const buildPlaceOrderRollup = ({
+//   marketIndex,
+//   market,
+//   long,
+//   short,
+//   collateral,
+//   handleWrap,
+//   order,
+// }: {
+//   marketIndex?: BigNumber
+//   market?: string
+//   long?: BigNumberish
+//   short?: BigNumberish
+//   collateral?: BigNumberish
+//   handleWrap?: boolean
+//   order: OrderStruct
+// }): string => {
+//   if (long && short) {
+//     if (BigNumber.from(long).gt(short)) {
+//       order.isLong = true
+//       order.size = BigNumber.from(long).sub(short)
+//     } else {
+//       order.isLong = false
+//       order.size = BigNumber.from(short).sub(long)
+//     }
+//   } else if (long) {
+//     order.isLong = true
+//     order.size = long
+//   } else if (short) {
+//     order.isLong = false
+//     order.size = short
+//   } else {
+//     long = order.isLong ? order.size : '0'
+//     short = !order.isLong ? order.size : '0'
+//   }
+
+//   // limit
+//   // if () {
+//   //   long = '0'
+//   //   short = '0'
+//   // }
+
+//   return (
+//     RollupActions.UPDATE_POSITION +
+//     encodeAddressOrCacheIndex(marketIndex, market) +
+//     encodeUint('0') + // orders are never on maker side
+//     encodeInt(long) +
+//     encodeInt(short) +
+//     encodeInt(collateral) +
+//     encodeBool(handleWrap) +
+//     RollupActions.PLACE_ORDER +
+//     encodeAddressOrCacheIndex(marketIndex, market) +
+//     encodeLongLimit(order.isLong, order.isLimit) +
+//     encodeInt(order.maxFee) +
+//     encodeInt(order.execPrice) +
+//     encodeUint(order.size)
+//   )
+// }
 
 export const buildCancelOrder = ({ market, orderId }: { market: string; orderId: BigNumberish }): Actions => {
   return [
@@ -316,7 +351,7 @@ export const buildExecOrder = ({
 }): Actions => {
   return [
     {
-      action: 4,
+      action: 5,
       args: utils.defaultAbiCoder.encode(['address', 'address', 'uint256'], [user, market, orderId]),
     },
   ]
@@ -416,6 +451,7 @@ module.exports = {
   buildUpdateVault,
   buildCancelOrderRollup,
   buildExecOrderRollup,
-  buildPlaceOrderRollup,
+  buildApproveTarget,
+  //buildPlaceOrderRollup,
   buildUpdateMarketRollup,
 }
