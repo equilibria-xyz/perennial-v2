@@ -11,9 +11,6 @@ import "hardhat/console.sol";
 /// @notice Manages logic and state for a single market.
 /// @dev Cloned by the Factory contract to launch new markets.
 contract Market is IMarket, Instance, ReentrancyGuard {
-    bool private constant GAS_PROFILE = false;
-    bool private constant LOG_REVERTS = false;
-
     /// @dev The underlying token that the market settles in
     Token18 public token;
 
@@ -248,8 +245,6 @@ contract Market is IMarket, Instance, ReentrancyGuard {
         Fixed6 collateral,
         bool protect
     ) private {
-        _startGas(context, "_update before-update-after: %s");
-
         // read
         context.currentPosition = _loadCurrentPositionContext(context, account);
 
@@ -296,23 +291,15 @@ contract Market is IMarket, Instance, ReentrancyGuard {
         _pendingPosition[context.global.currentId].store(context.currentPosition.global);
         _pendingPositions[account][context.local.currentId].store(context.currentPosition.local);
 
-        _endGas(context);
-
-        _startGas(context, "_update fund-events: %s");
-
         // fund
         if (collateral.sign() == 1) token.pull(msg.sender, UFixed18Lib.from(collateral.abs()));
         if (collateral.sign() == -1) token.push(msg.sender, UFixed18Lib.from(collateral.abs()));
 
         // events
         emit Updated(account, context.currentTimestamp, newMaker, newLong, newShort, collateral, protect);
-
-        _endGas(context);
     }
 
     function _loadContext(address account) private view returns (Context memory context) {
-        _startGas(context, "_loadContext: %s");
-
         // parameters
         context.protocolParameter = IMarketFactory(address(factory())).parameter();
         context.marketParameter = _parameter.read();
@@ -325,29 +312,20 @@ contract Market is IMarket, Instance, ReentrancyGuard {
         // oracle
         (context.latestVersion, context.currentTimestamp) = _oracleVersion();
         context.positionVersion = _oracleVersionAtPosition(context, _position.read());
-
-        // after
-        _endGas(context);
     }
 
     /// @notice Stores the given context
     /// @param context The context to store
     /// @param account The account to store for
     function _saveContext(Context memory context, address account) private {
-        _startGas(context, "_saveContext: %s");
-
         _global.store(context.global);
         _locals[account].store(context.local);
-
-        _endGas(context);
     }
 
     /// @notice Settles the account position up to the latest version
     /// @param context The context to use
     /// @param account The account to settle
     function _settle(Context memory context, address account) private {
-        _startGas(context, "_settle: %s");
-
         context.latestPosition.global = _position.read();
         context.latestPosition.local = _positions[account].read();
 
@@ -369,10 +347,6 @@ contract Market is IMarket, Instance, ReentrancyGuard {
             _checkpointCollateral(context, account, previousDelta, nextPosition);
         }
 
-        _endGas(context);
-
-        _startGas(context, "_sync: %s");
-
         // sync
         if (context.latestVersion.timestamp > context.latestPosition.global.timestamp) {
             nextPosition = _pendingPosition[context.global.latestId].read();
@@ -388,8 +362,6 @@ contract Market is IMarket, Instance, ReentrancyGuard {
 
         _position.store(context.latestPosition.global);
         _positions[account].store(context.latestPosition.local);
-
-        _endGas(context);
     }
 
     /// @notice Places a collateral checkpoint for the account on the given pending position
@@ -509,19 +481,19 @@ contract Market is IMarket, Instance, ReentrancyGuard {
                 collateralAfterFees.sub(collateral)
             ) ||
             collateral.lt(Fixed6Lib.from(-1, _liquidationFee(context)))
-        )) { if (LOG_REVERTS) console.log("MarketInvalidProtectionError"); revert MarketInvalidProtectionError(); }
+        )) revert MarketInvalidProtectionError();
 
         if (context.currentTimestamp - context.latestVersion.timestamp >= context.riskParameter.staleAfter)
-            { if (LOG_REVERTS) console.log("MarketStalePriceError"); revert MarketStalePriceError(); }
+            revert MarketStalePriceError();
 
         if (context.marketParameter.closed && newOrder.increasesPosition())
-            { if (LOG_REVERTS) console.log("MarketClosedError"); revert MarketClosedError(); }
+            revert MarketClosedError();
 
         if (context.currentPosition.global.maker.gt(context.riskParameter.makerLimit))
-            { if (LOG_REVERTS) console.log("MarketMakerOverLimitError"); revert MarketMakerOverLimitError(); }
+            revert MarketMakerOverLimitError();
 
         if (!context.currentPosition.local.singleSided())
-            { if (LOG_REVERTS) console.log("MarketNotSingleSidedError"); revert MarketNotSingleSidedError(); }
+            revert MarketNotSingleSidedError();
 
         if (protected) return; // The following invariants do not apply to protected position updates (liquidations)
 
@@ -529,41 +501,41 @@ contract Market is IMarket, Instance, ReentrancyGuard {
             msg.sender != account &&                                                                        // sender is operating on own account
             !IMarketFactory(address(factory())).operators(account, msg.sender) &&                           // sender is operating on own account
             !(newOrder.isEmpty() && collateralAfterFees.isZero() && collateral.gt(Fixed6Lib.ZERO))     // sender is repaying shortfall for this account
-        ) { if (LOG_REVERTS) console.log("MarketOperatorNotAllowedError"); revert MarketOperatorNotAllowedError(); }
+        ) revert MarketOperatorNotAllowedError();
 
         if (
             context.global.currentId > context.global.latestId + context.marketParameter.maxPendingGlobal ||
             context.local.currentId > context.local.latestId + context.marketParameter.maxPendingLocal
-        ) { if (LOG_REVERTS) console.log("MarketExceedsPendingIdLimitError"); revert MarketExceedsPendingIdLimitError(); }
+        ) revert MarketExceedsPendingIdLimitError();
 
         if (
             !context.latestPosition.local.collateralized(context.latestVersion, context.riskParameter, collateralAfterFees)
-        ) { if (LOG_REVERTS) console.log("MarketInsufficientCollateralizationError1"); revert MarketInsufficientCollateralizationError(); }
+        ) revert MarketInsufficientCollateralizationError();
 
         for (uint256 i; i < pendingLocalPositions.length; i++)
             if (
                 !pendingLocalPositions[i].collateralized(context.latestVersion, context.riskParameter, collateralAfterFees)
-            ) { if (LOG_REVERTS) console.log("MarketInsufficientCollateralizationError3"); revert MarketInsufficientCollateralizationError(); }
+            ) revert MarketInsufficientCollateralizationError();
 
         if (
             (context.local.protection > context.latestPosition.local.timestamp) &&
             !newOrder.isEmpty()
-        ) { if (LOG_REVERTS) console.log("MarketProtectedError"); revert MarketProtectedError(); }
+        ) revert MarketProtectedError();
 
         if (
             newOrder.liquidityCheckApplicable(context.marketParameter) &&
             newOrder.efficiency.lt(Fixed6Lib.ZERO) &&
             context.currentPosition.global.efficiency().lt(context.riskParameter.efficiencyLimit)
-        ) { if (LOG_REVERTS) console.log("MarketEfficiencyUnderLimitError"); revert MarketEfficiencyUnderLimitError(); }
+        ) revert MarketEfficiencyUnderLimitError();
 
         if (
             newOrder.liquidityCheckApplicable(context.marketParameter) &&
             context.currentPosition.global.socialized() &&
             newOrder.decreasesLiquidity()
-        ) { if (LOG_REVERTS) console.log("MarketInsufficientLiquidityError"); revert MarketInsufficientLiquidityError(); }
+        ) revert MarketInsufficientLiquidityError();
 
         if (collateral.lt(Fixed6Lib.ZERO) && collateralAfterFees.lt(Fixed6Lib.ZERO))
-            { if (LOG_REVERTS) console.log("MarketInsufficientCollateralError"); revert MarketInsufficientCollateralError(); }
+            revert MarketInsufficientCollateralError();
     }
 
     /// @notice Loads data about all pending positions for the invariant check
@@ -636,18 +608,5 @@ contract Market is IMarket, Instance, ReentrancyGuard {
     modifier onlyCoordinator {
         if (msg.sender != coordinator && msg.sender != factory().owner()) revert MarketNotCoordinatorError();
         _;
-    }
-
-    // Debug
-    function _startGas(Context memory context, string memory message) private view {
-        if (!GAS_PROFILE) return;
-        context.gasCounterMessage = message;
-        context.gasCounter = gasleft();
-    }
-
-    function _endGas(Context memory context) private view {
-        if (!GAS_PROFILE) return;
-        uint256 endGas = gasleft();
-        console.log(context.gasCounterMessage,  context.gasCounter - endGas);
     }
 }
