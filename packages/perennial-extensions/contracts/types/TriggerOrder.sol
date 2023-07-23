@@ -31,9 +31,6 @@ using TriggerOrderStorageLib for TriggerOrderStorage global;
 library TriggerOrderLib {
     function fillable(TriggerOrder memory self, Fixed6 latestPrice) internal pure returns (bool) {
         if (self.comparison == 2) return latestPrice.gt(self.price);
-        if (self.comparison == 1) return latestPrice.gte(self.price);
-        if (self.comparison == 0) return latestPrice.eq(self.price);
-        if (self.comparison == -1) return latestPrice.lte(self.price);
         if (self.comparison == -2) return latestPrice.lt(self.price);
         return false;
     }
