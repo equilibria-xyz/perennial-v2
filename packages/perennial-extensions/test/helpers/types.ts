@@ -1,14 +1,8 @@
-import { BigNumber, BigNumberish, utils, constants } from 'ethers'
-import { expect } from 'chai'
-import { expectPositionEq } from '../../../common/testutil/types'
+import { BigNumber, BigNumberish } from 'ethers'
 import { IMarket, PositionStruct } from '../../types/generated/@equilibria/perennial-v2/contracts/interfaces/IMarket'
 import { FakeContract } from '@defi-wonderland/smock'
 import { SignerWithAddress } from '@nomiclabs/hardhat-ethers/signers'
-import {
-  GlobalStruct,
-  LocalStruct,
-  PAccumulator6Struct,
-} from '@equilibria/perennial-v2/types/generated/contracts/Market'
+import { LocalStruct } from '@equilibria/perennial-v2/types/generated/contracts/Market'
 import { TriggerOrderStruct } from '../../types/generated/contracts/MultiInvoker'
 
 export function setMarketPosition(market: FakeContract<IMarket>, user: SignerWithAddress, position: PositionStruct) {

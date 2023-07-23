@@ -166,7 +166,6 @@ describe('Invoke', () => {
       const { owner, user, usdc, dsu } = instanceVars
 
       const usdcDeposit = await usdc.balanceOf(RESERVE)
-      const batcherBal = await dsu.balanceOf(BATCHER)
 
       await usdc.connect(user).approve(multiInvoker.address, usdcDeposit)
 
@@ -215,7 +214,6 @@ describe('Invoke', () => {
       await fundWallet(dsu, usdc, user, dsuDeposit)
       await dsu.connect(user).approve(multiInvoker.address, dsuDeposit)
 
-      console.log('depositing')
       await expect(
         multiInvoker.connect(user).invoke(buildUpdateMarket({ market: market.address, collateral: usdcWithdrawal })),
       ).to.not.be.reverted
