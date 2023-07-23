@@ -2,37 +2,26 @@ import { FakeContract, smock } from '@defi-wonderland/smock'
 import { SignerWithAddress } from '@nomiclabs/hardhat-ethers/signers'
 import { expect, use } from 'chai'
 import HRE from 'hardhat'
-import { BigNumber, BigNumberish, constants, utils } from 'ethers'
+import { BigNumber, constants, utils } from 'ethers'
 
 import {
-  IMultiInvoker,
   MultiInvoker,
   MultiInvoker__factory,
   IMarket,
   IBatcher,
   IEmptySetReserve,
   IERC20,
-  IPayoffProvider,
   IMarketFactory,
-  Market__factory,
   AggregatorV3Interface,
   IVaultFactory,
   IVault,
-  TriggerOrderStorageTest__factory,
+  IOracleProvider,
 } from '../../../types/generated'
+import { OracleVersionStruct } from '@equilibria/perennial-v2-oracle/types/generated/contracts/Oracle'
+import { PositionStruct } from '@equilibria/perennial-v2/types/generated/contracts/Market'
 import { loadFixture } from '@nomicfoundation/hardhat-network-helpers'
 import * as helpers from '../../helpers/invoke'
 import { buildPlaceOrder, type Actions } from '../../helpers/invoke'
-
-import {
-  IOracleProvider,
-  OracleVersionStruct,
-} from '../../../types/generated/@equilibria/perennial-v2-oracle/contracts/IOracleProvider'
-import {
-  MarketParameterStruct,
-  PController6Struct,
-} from '../../../types/generated/@equilibria/perennial-v2/contracts/interfaces/IMarket'
-import { PositionStruct } from '../../../types/generated/@equilibria/perennial-v2/contracts/interfaces/IMarket'
 
 import { Local, parse6decimal } from '../../../../common/testutil/types'
 import {
@@ -43,13 +32,10 @@ import {
   setPendingPosition,
 } from '../../helpers/types'
 import { impersonate } from '../../../../common/testutil'
-import { anyUint, anyValue } from '@nomicfoundation/hardhat-chai-matchers/withArgs'
-import { TriggerOrderStruct } from '../../../types/generated/contracts/MultiInvoker'
+import { anyValue } from '@nomicfoundation/hardhat-chai-matchers/withArgs'
 
 const ethers = { HRE }
 use(smock.matchers)
-
-const ZERO = BigNumber.from(0)
 
 describe('MultiInvoker', () => {
   let owner: SignerWithAddress
@@ -192,7 +178,7 @@ describe('MultiInvoker', () => {
     it('withdraws and unwraps collateral', async () => {
       const a = helpers.buildUpdateMarket({ market: market.address, collateral: collateral.mul(-1), handleWrap: true })
 
-      // simualte market update withdrawing collateral
+      // simulate market update withdrawing collateral
       dsu.balanceOf.whenCalledWith(multiInvoker.address).returns(dsuCollateral)
       dsu.transfer.whenCalledWith(user.address, dsuCollateral).returns(true)
       dsu.transferFrom.whenCalledWith(multiInvoker.address, batcher.address).returns(true)
