@@ -1053,8 +1053,6 @@ describe('Version', () => {
             expect(value.shortValue._value).to.equal(parse6decimal('-2'))
           })
         })
-
-        // todo: socialized?
       })
 
       context('negative price change', () => {
@@ -1192,8 +1190,6 @@ describe('Version', () => {
             expect(value.shortValue._value).to.equal(parse6decimal('2'))
           })
         })
-
-        // todo: socialized?
       })
     })
 

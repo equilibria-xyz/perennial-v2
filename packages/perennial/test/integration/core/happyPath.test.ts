@@ -939,7 +939,6 @@ describe('Happy Path', () => {
     await chainlink.next()
     await chainlink.next()
 
-    console.log('update')
     await expect(market.connect(user).update(user.address, POSITION, 0, 0, -1, false)) // 4 -> 5
       .to.emit(market, 'Updated')
       .withArgs(user.address, TIMESTAMP_5, POSITION, 0, 0, -1, false)
