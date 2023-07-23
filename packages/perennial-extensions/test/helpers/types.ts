@@ -4,11 +4,19 @@ import { expectPositionEq } from '../../../common/testutil/types'
 import { IMarket, PositionStruct } from '../../types/generated/@equilibria/perennial-v2/contracts/interfaces/IMarket'
 import { FakeContract } from '@defi-wonderland/smock'
 import { SignerWithAddress } from '@nomiclabs/hardhat-ethers/signers'
-import { GlobalStruct, PAccumulator6Struct } from '@equilibria/perennial-v2/types/generated/contracts/Market'
+import {
+  GlobalStruct,
+  LocalStruct,
+  PAccumulator6Struct,
+} from '@equilibria/perennial-v2/types/generated/contracts/Market'
 import { TriggerOrderStruct } from '../../types/generated/contracts/MultiInvoker'
 
 export function setMarketPosition(market: FakeContract<IMarket>, user: SignerWithAddress, position: PositionStruct) {
   market.positions.whenCalledWith(user.address).returns(position)
+}
+
+export function setMarketLocal(market: FakeContract<IMarket>, user: SignerWithAddress, local: LocalStruct) {
+  market.locals.whenCalledWith(user.address).returns(local)
 }
 
 export function setGlobalPrice(market: FakeContract<IMarket>, price: BigNumberish) {
@@ -80,7 +88,6 @@ export const openPosition = ({
   timestamp?: BigNumberish
 }): PositionStruct => {
   const position: PositionStruct = {
-    id: '0',
     timestamp: timestamp ? timestamp : '0',
     maker: maker ? maker : '0',
     long: long ? long : '0',

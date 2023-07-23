@@ -91,7 +91,7 @@ describe('Invoke', () => {
 
   beforeEach(async () => {
     instanceVars = await loadFixture(deployProtocol)
-    ;[vault, vaultFactory, ethSubOracle, btcSubOracle] = await createVault(instanceVars)
+    ;[vault, vaultFactory /*, ethSubOracle, btcSubOracle*/] = await createVault(instanceVars)
     market = await createMarket(instanceVars)
     multiInvoker = await createInvoker(instanceVars, vaultFactory)
   })
@@ -182,10 +182,9 @@ describe('Invoke', () => {
     it('wraps USDC to DSU minting from RESERVE and deposits into market', async () => {
       const { owner, user, usdc, dsu } = instanceVars
 
+      const usdcDeposit = await usdc.balanceOf(RESERVE)
       const batcherBal = await dsu.balanceOf(BATCHER)
-      const usdcDeposit = batcherBal.div(1e12).add(1)
 
-      await fundWalletUSDC(usdc, user, usdcDeposit)
       await usdc.connect(user).approve(multiInvoker.address, usdcDeposit)
 
       const reserve = IEmptySetReserve__factory.connect(RESERVE, owner)
@@ -197,7 +196,7 @@ describe('Invoke', () => {
           .invoke(buildUpdateMarket({ market: market.address, collateral: usdcDeposit, handleWrap: true })),
       ).to.emit(reserve, 'Mint')
 
-      expect(await dsu.balanceOf(market.address)).to.eq(usdcDeposit.mul(1e12))
+      expect(await dsu.balanceOf(user.address)).to.eq(usdcDeposit.mul(1e12))
     })
 
     it('withdraws from market and unwraps DSU to USDC', async () => {
