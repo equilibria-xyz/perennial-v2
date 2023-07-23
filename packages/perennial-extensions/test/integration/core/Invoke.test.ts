@@ -162,25 +162,6 @@ describe('Invoke', () => {
       expect(await dsu.balanceOf(market.address)).to.eq(dsuCollateral)
     })
 
-    xit('wraps USDC to DSU minting from RESERVE and deposits into market', async () => {
-      const { owner, user, usdc, dsu } = instanceVars
-
-      const usdcDeposit = await usdc.balanceOf(RESERVE)
-
-      await usdc.connect(user).approve(multiInvoker.address, usdcDeposit)
-
-      const reserve = IEmptySetReserve__factory.connect(RESERVE, owner)
-
-      await multiInvoker.connect(user).invoke(buildApproveTarget(market.address))
-      await expect(
-        multiInvoker
-          .connect(user)
-          .invoke(buildUpdateMarket({ market: market.address, collateral: usdcDeposit, handleWrap: true })),
-      ).to.emit(reserve, 'Mint')
-
-      expect(await dsu.balanceOf(user.address)).to.eq(usdcDeposit.mul(1e12))
-    })
-
     it('withdraws from market and unwraps DSU to USDC', async () => {
       const { user, dsu, usdc } = instanceVars
 
@@ -202,33 +183,6 @@ describe('Invoke', () => {
         .withArgs(market.address, multiInvoker.address, dsuCollateral)
 
       expect((await usdc.balanceOf(user.address)).sub(userUSDCBalanceBefore)).to.eq(collateral)
-    })
-
-    xit('withdraws from market and unraps DSU to USDC using RESERVE to redeem', async () => {
-      const { owner, user, dsu, usdc } = instanceVars
-
-      const batcherBal = await dsu.balanceOf(BATCHER)
-      const dsuDeposit = batcherBal.add(1)
-      const usdcWithdrawal = dsuDeposit.div(1e12)
-
-      await fundWallet(dsu, usdc, user, dsuDeposit)
-      await dsu.connect(user).approve(multiInvoker.address, dsuDeposit)
-
-      await expect(
-        multiInvoker.connect(user).invoke(buildUpdateMarket({ market: market.address, collateral: usdcWithdrawal })),
-      ).to.not.be.reverted
-
-      const reserve = IEmptySetReserve__factory.connect(RESERVE, owner)
-      await expect(
-        multiInvoker
-          .connect(user)
-          .invoke(buildUpdateMarket({ market: market.address, collateral: usdcWithdrawal.mul(-1), handleWrap: true })),
-      )
-        .to.emit(reserve, 'Redeem')
-        .to.emit(usdc, 'Transfer')
-        .withArgs(reserve.address, multiInvoker.address, usdcWithdrawal)
-        .to.emit(usdc, 'Transfer')
-        .withArgs(multiInvoker.address, user.address, usdcWithdrawal)
     })
 
     it('deposits / redeems / claims from vault', async () => {
