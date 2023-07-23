@@ -5,7 +5,6 @@ import "@equilibria/root/attribute/Instance.sol";
 import "@equilibria/root/attribute/ReentrancyGuard.sol";
 import "./interfaces/IMarket.sol";
 import "./interfaces/IMarketFactory.sol";
-import "hardhat/console.sol";
 
 /// @title Market
 /// @notice Manages logic and state for a single market.
