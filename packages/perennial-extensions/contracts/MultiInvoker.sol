@@ -101,9 +101,6 @@ contract MultiInvoker is IMultiInvoker, Kept {
     function canExecuteOrder(address account, IMarket market, uint256 nonce) public view returns (bool) {
         TriggerOrder memory order = orders(account, market, nonce);
         if (order.fee.isZero()) return false;
-        // console.logInt(Fixed6.unwrap(order.price));
-        // console.logInt(Fixed6.unwrap(_getMarketPrice(market, account)));
-        // console.logInt(Fixed6.unwrap(market.oracle().latest().price));
         return order.fillable(_getMarketPrice(market, account));
     }
 
