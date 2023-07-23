@@ -133,7 +133,7 @@ describe('Orders', () => {
   it('executes a long limit order', async () => {
     const { user, userB, dsu, chainlink } = instanceVars
 
-    const trigger = openTriggerOrder({ size: userPosition, price: marketPrice.sub(10), feePct: 50 })
+    const trigger = openTriggerOrder({ size: userPosition, price: payoff(marketPrice.sub(10)), feePct: 50 })
     const placeOrder = buildPlaceOrder({
       market: market.address,
       order: trigger,
