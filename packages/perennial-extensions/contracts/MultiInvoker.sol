@@ -407,8 +407,8 @@ contract MultiInvoker is IMultiInvoker, Kept {
     /// @param order Order state to place
     function _placeOrder(address account, IMarket market, TriggerOrder memory order) internal {
         if (order.fee.isZero()) revert MultiInvokerInvalidOrderError();
-        if (order.comparison != -2 || order.comparison != 2) revert MultiInvokerInvalidOrderError();
-        if (order.side != 1 || order.side != 2) revert MultiInvokerInvalidOrderError();
+        if (order.comparison != -2 && order.comparison != 2) revert MultiInvokerInvalidOrderError();
+        if (order.side != 1 && order.side != 2) revert MultiInvokerInvalidOrderError();
 
         _orders[account][market][++latestNonce].store(order);
         emit OrderPlaced(account, market, latestNonce, order);
