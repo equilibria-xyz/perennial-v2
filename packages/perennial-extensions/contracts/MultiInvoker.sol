@@ -166,22 +166,22 @@ contract MultiInvoker is IMultiInvoker, Kept {
     /// @param newMaker New maker position for msg.sender in `market`
     /// @param newLong New long position for msg.sender in `market`
     /// @param newShort New short position for msg.sender in `market`
-    /// @param collateralDelta Net change in collateral for msg.sender in `market`
+    /// @param collateral Net change in collateral for msg.sender in `market`
     function _update(
         IMarket market,
         UFixed6 newMaker,
         UFixed6 newLong,
         UFixed6 newShort,
-        Fixed6 collateralDelta,
+        Fixed6 collateral,
         bool wrap
     ) internal {
         // collateral is transferred from this address to the market, transfer from msg.sender to here
-        if (collateralDelta.sign() == 1) _deposit(collateralDelta.abs(), wrap);
+        if (collateral.sign() == 1) _deposit(collateral.abs(), wrap);
 
-        market.update(msg.sender, newMaker, newLong, newShort, collateralDelta, false);
+        market.update(msg.sender, newMaker, newLong, newShort, collateral, false);
 
         // collateral is transferred from the market to this address, transfer to msg.sender from here
-        if (collateralDelta.sign() == -1) _withdraw(msg.sender, collateralDelta.abs(), wrap);
+        if (collateral.sign() == -1) _withdraw(msg.sender, collateral.abs(), wrap);
     }
 
     /// @notice Update vault on behalf of msg.sender
