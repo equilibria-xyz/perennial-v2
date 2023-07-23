@@ -60,7 +60,6 @@ const { ethers } = HRE
 
 export const USDC_HOLDER = '0x0A59649758aa4d66E25f08Dd01271e891fe52199'
 
-// @todo fix external deployment deps
 export const BATCHER = '0x0B663CeaCEF01f2f88EB7451C70Aa069f19dB997'
 export const RESERVE = '0xD05aCe63789cCb35B9cE71d01e4d632a0486Da4B'
 export const ETH_ORACLE = '0x5f4eC3Df9cbd43714FE2740f5E3616155c5b8419' // chainlink eth oracle
@@ -449,13 +448,13 @@ export async function createVault(
 }
 
 export async function createInvoker(instanceVars: InstanceVars, vaultFactory?: VaultFactory): Promise<MultiInvoker> {
-  const { owner, user, userB, chainlink } = instanceVars
+  const { owner, user, userB } = instanceVars
 
   const multiInvoker = await new MultiInvoker__factory(owner).deploy(
     USDC,
     DSU,
     instanceVars.marketFactory.address,
-    vaultFactory ? vaultFactory.address : ethers.utils.hexZeroPad('0x', 20), // todo factory?
+    vaultFactory ? vaultFactory.address : ethers.utils.hexZeroPad('0x', 20),
     BATCHER,
     DSU_MINTER,
     parse6decimal('1.5'),
