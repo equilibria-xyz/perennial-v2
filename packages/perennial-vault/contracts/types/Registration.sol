@@ -16,9 +16,11 @@ struct Registration {
     UFixed6 leverage;
 }
 struct StoredRegistration {
-    address _market;
-    uint64 _weight;
-    uint32 _leverage;
+    /* slot 0 */
+    address market;
+    uint32 weight;          // <= 4.29b
+    uint32 leverage;        // <= 4290x
+    bytes4 __unallocated0__;
 }
 struct RegistrationStorage { StoredRegistration value; }
 using RegistrationStorageLib for RegistrationStorage global;
@@ -29,20 +31,21 @@ library RegistrationStorageLib {
     function read(RegistrationStorage storage self) internal view returns (Registration memory) {
         StoredRegistration memory storedValue = self.value;
         return Registration(
-            IMarket(storedValue._market),
-            uint256(storedValue._weight),
-            UFixed6.wrap(uint256(storedValue._leverage))
+            IMarket(storedValue.market),
+            uint256(storedValue.weight),
+            UFixed6.wrap(uint256(storedValue.leverage))
         );
     }
 
     function store(RegistrationStorage storage self, Registration memory newValue) internal {
-        if (newValue.weight > uint256(type(uint64).max)) revert RegistrationStorageInvalidError();
+        if (newValue.weight > uint256(type(uint32).max)) revert RegistrationStorageInvalidError();
         if (newValue.leverage.gt(UFixed6.wrap(type(uint32).max))) revert RegistrationStorageInvalidError();
 
         self.value = StoredRegistration(
             address(newValue.market),
-            uint64(newValue.weight),
-            uint32(UFixed6.unwrap(newValue.leverage))
+            uint32(newValue.weight),
+            uint32(UFixed6.unwrap(newValue.leverage)),
+            bytes4(0)
         );
     }
 }

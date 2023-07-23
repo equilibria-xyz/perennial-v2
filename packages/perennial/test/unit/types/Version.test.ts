@@ -42,6 +42,7 @@ const EMPTY_VERSION: VersionStruct = {
 
 const GLOBAL: GlobalStruct = {
   currentId: 1,
+  latestId: 8,
   protocolFee: 2,
   oracleFee: 3,
   riskFee: 4,
@@ -54,7 +55,6 @@ const GLOBAL: GlobalStruct = {
 }
 
 const FROM_POSITION: PositionStruct = {
-  id: 1,
   timestamp: 2,
   maker: 3,
   long: 4,
@@ -66,7 +66,6 @@ const FROM_POSITION: PositionStruct = {
 }
 
 const TO_POSITION: PositionStruct = {
-  id: 10,
   timestamp: 20,
   maker: 30,
   long: 40,
@@ -149,7 +148,7 @@ describe('Version', () => {
     })
 
     describe('.makerValue', async () => {
-      const STORAGE_SIZE = 87
+      const STORAGE_SIZE = 63
       it('saves if in range (above)', async () => {
         await version.store({
           ...VALID_VERSION,
@@ -188,7 +187,7 @@ describe('Version', () => {
     })
 
     describe('.longValue', async () => {
-      const STORAGE_SIZE = 79
+      const STORAGE_SIZE = 63
       it('saves if in range (above)', async () => {
         await version.store({
           ...VALID_VERSION,
@@ -227,7 +226,7 @@ describe('Version', () => {
     })
 
     describe('.shortValue', async () => {
-      const STORAGE_SIZE = 79
+      const STORAGE_SIZE = 63
       it('saves if in range (above)', async () => {
         await version.store({
           ...VALID_VERSION,
@@ -266,7 +265,7 @@ describe('Version', () => {
     })
 
     describe('.makerReward', async () => {
-      const STORAGE_SIZE = 80
+      const STORAGE_SIZE = 64
       it('saves if in range', async () => {
         await version.store({
           ...VALID_VERSION,
@@ -287,7 +286,7 @@ describe('Version', () => {
     })
 
     describe('.longReward', async () => {
-      const STORAGE_SIZE = 88
+      const STORAGE_SIZE = 64
       it('saves if in range', async () => {
         await version.store({
           ...VALID_VERSION,
@@ -308,7 +307,7 @@ describe('Version', () => {
     })
 
     describe('.shortReward', async () => {
-      const STORAGE_SIZE = 88
+      const STORAGE_SIZE = 64
       it('saves if in range', async () => {
         await version.store({
           ...VALID_VERSION,
@@ -1054,8 +1053,6 @@ describe('Version', () => {
             expect(value.shortValue._value).to.equal(parse6decimal('-2'))
           })
         })
-
-        // todo: socialized?
       })
 
       context('negative price change', () => {
@@ -1193,8 +1190,6 @@ describe('Version', () => {
             expect(value.shortValue._value).to.equal(parse6decimal('2'))
           })
         })
-
-        // todo: socialized?
       })
     })
 

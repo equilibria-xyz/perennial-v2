@@ -13,11 +13,13 @@ struct TriggerOrder {
 }
 using TriggerOrderLib for TriggerOrder global;
 struct StoredTriggerOrder {
-    uint8 _side;
-    int8 _comparison;
-    uint64 _fee;
-    int64 _price;
-    int64 _delta;
+    /* slot 0 */
+    uint8 side;         // 0 = maker, 1 = long, 2 = short
+    int8 comparison;    // -2 = lt, -1 = lte, 0 = eq, 1 = gte, 2 = gt
+    uint64 fee;         // <= 18.44tb
+    int64 price;        // <= 9.22t
+    int64 delta;        // <= 9.22t
+    bytes6 __unallocated0__;
 }
 struct TriggerOrderStorage { StoredTriggerOrder value; }
 using TriggerOrderStorageLib for TriggerOrderStorage global;
@@ -29,9 +31,6 @@ using TriggerOrderStorageLib for TriggerOrderStorage global;
 library TriggerOrderLib {
     function fillable(TriggerOrder memory self, Fixed6 latestPrice) internal pure returns (bool) {
         if (self.comparison == 2) return latestPrice.gt(self.price);
-        if (self.comparison == 1) return latestPrice.gte(self.price);
-        if (self.comparison == 0) return latestPrice.eq(self.price);
-        if (self.comparison == -1) return latestPrice.lte(self.price);
         if (self.comparison == -2) return latestPrice.lt(self.price);
         return false;
     }
@@ -50,11 +49,11 @@ library TriggerOrderStorageLib {
     function read(TriggerOrderStorage storage self) internal view returns (TriggerOrder memory) {
         StoredTriggerOrder memory storedValue = self.value;
         return TriggerOrder(
-            uint8(storedValue._side),
-            int8(storedValue._comparison),
-            UFixed6.wrap(uint256(storedValue._fee)),
-            Fixed6.wrap(int256(storedValue._price)),
-            Fixed6.wrap(int256(storedValue._delta))
+            uint8(storedValue.side),
+            int8(storedValue.comparison),
+            UFixed6.wrap(uint256(storedValue.fee)),
+            Fixed6.wrap(int256(storedValue.price)),
+            Fixed6.wrap(int256(storedValue.delta))
         );
     }
 
@@ -73,7 +72,8 @@ library TriggerOrderStorageLib {
             int8(newValue.comparison),
             uint64(UFixed6.unwrap(newValue.fee)),
             int64(Fixed6.unwrap(newValue.price)),
-            int64(Fixed6.unwrap(newValue.delta))
+            int64(Fixed6.unwrap(newValue.delta)),
+            bytes6(0)
         );
     }
 }

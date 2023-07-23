@@ -242,6 +242,10 @@ contract Vault is IVault, Instance {
         UFixed6 redeemShares,
         UFixed6 claimAssets
     ) private {
+        // magic values
+        if (claimAssets.eq(UFixed6Lib.MAX)) claimAssets = context.local.assets;
+        if (redeemShares.eq(UFixed6Lib.MAX)) redeemShares = context.local.shares;
+
         // invariant
         if (msg.sender != account && !IVaultFactory(address(factory())).operators(account, msg.sender))
             revert VaultNotOperatorError();
@@ -257,9 +261,6 @@ contract Vault is IVault, Instance {
             revert VaultInsufficientMinimumError();
 
         if (context.local.current != context.local.latest) revert VaultExistingOrderError();
-
-        // magic values
-        if (claimAssets.eq(UFixed6Lib.MAX)) claimAssets = context.local.assets;
 
         // asses socialization and settlement fee
         UFixed6 claimAmount = _socialize(context, depositAssets, redeemShares, claimAssets);
@@ -419,7 +420,6 @@ contract Vault is IVault, Instance {
             // global
             Global memory global = registration.market.global();
             Position memory currentPosition = registration.market.pendingPosition(global.currentId);
-            Position memory latestPosition = registration.market.position();
 
             context.markets[marketId].latestPrice = global.latestPrice.abs();
             context.markets[marketId].currentPosition = currentPosition.maker;
@@ -431,7 +431,7 @@ contract Vault is IVault, Instance {
             context.markets[marketId].collateral = local.collateral;
 
             // ids
-            context.latestIds.update(marketId, latestPosition.id);
+            context.latestIds.update(marketId, local.latestId);
             context.currentIds.update(marketId, local.currentId);
         }
 

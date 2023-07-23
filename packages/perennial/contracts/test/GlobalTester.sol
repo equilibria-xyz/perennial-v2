@@ -25,9 +25,9 @@ contract GlobalTester {
         global.store(newGlobal);
     }
 
-    function update(Fixed6 latestPrice) external {
+    function update(uint256 latestId, Fixed6 latestPrice) external {
         Global memory newGlobal = global.read();
-        newGlobal.update(latestPrice);
+        newGlobal.update(latestId, latestPrice);
         global.store(newGlobal);
     }
 }

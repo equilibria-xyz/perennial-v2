@@ -98,7 +98,7 @@ describe('Account', () => {
     })
 
     describe('.shares', () => {
-      const STORAGE_SIZE = 48
+      const STORAGE_SIZE = 64
       it('saves if in range', async () => {
         await account.store({
           ...VALID_ACCOUNT,
@@ -119,7 +119,7 @@ describe('Account', () => {
     })
 
     describe('.assets', () => {
-      const STORAGE_SIZE = 48
+      const STORAGE_SIZE = 64
       it('saves if in range', async () => {
         await account.store({
           ...VALID_ACCOUNT,
@@ -140,7 +140,7 @@ describe('Account', () => {
     })
 
     describe('.deposit', () => {
-      const STORAGE_SIZE = 48
+      const STORAGE_SIZE = 64
       it('saves if in range', async () => {
         await account.store({
           ...VALID_ACCOUNT,
@@ -161,7 +161,7 @@ describe('Account', () => {
     })
 
     describe('.redemption', () => {
-      const STORAGE_SIZE = 48
+      const STORAGE_SIZE = 64
       it('saves if in range', async () => {
         await account.store({
           ...VALID_ACCOUNT,

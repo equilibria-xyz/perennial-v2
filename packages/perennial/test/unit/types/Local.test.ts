@@ -25,6 +25,7 @@ describe('Local', () => {
   describe('#store', () => {
     const VALID_STORED_VALUE: LocalStruct = {
       currentId: 1,
+      latestId: 5,
       collateral: 2,
       reward: 3,
       protection: 4,
@@ -34,13 +35,14 @@ describe('Local', () => {
 
       const value = await local.read()
       expect(value.currentId).to.equal(1)
+      expect(value.latestId).to.equal(5)
       expect(value.collateral).to.equal(2)
       expect(value.reward).to.equal(3)
       expect(value.protection).to.equal(4)
     })
 
     context('.currentId', async () => {
-      const STORAGE_SIZE = 64
+      const STORAGE_SIZE = 32
       it('saves if in range', async () => {
         await local.store({
           ...VALID_STORED_VALUE,
@@ -55,6 +57,27 @@ describe('Local', () => {
           local.store({
             ...VALID_STORED_VALUE,
             currentId: BigNumber.from(2).pow(STORAGE_SIZE),
+          }),
+        ).to.be.revertedWithCustomError(local, 'LocalStorageInvalidError')
+      })
+    })
+
+    context('.latestId', async () => {
+      const STORAGE_SIZE = 32
+      it('saves if in range', async () => {
+        await local.store({
+          ...VALID_STORED_VALUE,
+          latestId: BigNumber.from(2).pow(STORAGE_SIZE).sub(1),
+        })
+        const value = await local.read()
+        expect(value.latestId).to.equal(BigNumber.from(2).pow(STORAGE_SIZE).sub(1))
+      })
+
+      it('reverts if currentId out of range', async () => {
+        await expect(
+          local.store({
+            ...VALID_STORED_VALUE,
+            latestId: BigNumber.from(2).pow(STORAGE_SIZE),
           }),
         ).to.be.revertedWithCustomError(local, 'LocalStorageInvalidError')
       })
@@ -121,7 +144,7 @@ describe('Local', () => {
     })
 
     context('.protection', async () => {
-      const STORAGE_SIZE = 64
+      const STORAGE_SIZE = 32
       it('saves if in range', async () => {
         await local.store({
           ...VALID_STORED_VALUE,
@@ -146,6 +169,7 @@ describe('Local', () => {
     it('adds collateral (increase)', async () => {
       await local.store({
         currentId: 0,
+        latestId: 0,
         collateral: 0,
         reward: 0,
         protection: 0,
@@ -160,6 +184,7 @@ describe('Local', () => {
     it('adds collateral (decrease)', async () => {
       await local.store({
         currentId: 0,
+        latestId: 0,
         collateral: 0,
         reward: 0,
         protection: 0,
@@ -174,7 +199,6 @@ describe('Local', () => {
 
   describe('#accumulate', () => {
     const FROM_POSITION: PositionStruct = {
-      id: 0, // unused
       timestamp: 0, // unused
       maker: parse6decimal('987'),
       long: parse6decimal('654'),
@@ -186,7 +210,6 @@ describe('Local', () => {
     }
 
     const TO_POSITION: PositionStruct = {
-      id: 0, // unused
       timestamp: 0, // unused
       maker: 0, // unused
       long: 0, // unused
@@ -221,6 +244,7 @@ describe('Local', () => {
       beforeEach(async () => {
         await local.store({
           currentId: 1,
+          latestId: 0,
           collateral: 0,
           reward: 0,
           protection: 0,
@@ -228,8 +252,8 @@ describe('Local', () => {
       })
 
       it('accumulates values (increase)', async () => {
-        const values = await local.callStatic.accumulate(FROM_POSITION, TO_POSITION, FROM_VERSION, TO_VERSION)
-        await local.accumulate(FROM_POSITION, TO_POSITION, FROM_VERSION, TO_VERSION)
+        const values = await local.callStatic.accumulate(1, FROM_POSITION, TO_POSITION, FROM_VERSION, TO_VERSION)
+        await local.accumulate(1, FROM_POSITION, TO_POSITION, FROM_VERSION, TO_VERSION)
 
         const value = await local.read()
 
@@ -244,6 +268,7 @@ describe('Local', () => {
         expect(values.keeper).to.equal(expectedKeeper)
 
         expect(value.currentId).to.equal(1)
+        expect(value.latestId).to.equal(1)
         expect(value.collateral).to.equal(expectedCollateral.sub(expectedPositionFee.add(expectedKeeper)))
         expect(value.reward).to.equal(expectedReward)
         expect(value.protection).to.equal(0)
@@ -256,8 +281,8 @@ describe('Local', () => {
           longValue: { _value: BigNumber.from(TO_VERSION.longValue._value).mul(-1) },
           shortValue: { _value: BigNumber.from(TO_VERSION.shortValue._value).mul(-1) },
         }
-        const values = await local.callStatic.accumulate(FROM_POSITION, TO_POSITION, FROM_VERSION, TO_VERSION_NEG)
-        await local.accumulate(FROM_POSITION, TO_POSITION, FROM_VERSION, TO_VERSION_NEG)
+        const values = await local.callStatic.accumulate(1, FROM_POSITION, TO_POSITION, FROM_VERSION, TO_VERSION_NEG)
+        await local.accumulate(1, FROM_POSITION, TO_POSITION, FROM_VERSION, TO_VERSION_NEG)
 
         const value = await local.read()
 
@@ -272,19 +297,23 @@ describe('Local', () => {
         expect(values.keeper).to.equal(expectedKeeper)
 
         expect(value.currentId).to.equal(1)
+        expect(value.latestId).to.equal(1)
         expect(value.collateral).to.equal(expectedCollateral.sub(expectedPositionFee.add(expectedKeeper)))
         expect(value.reward).to.equal(expectedReward)
         expect(value.protection).to.equal(0)
       })
 
       it('reverts on negative rewards', async () => {
-        await expect(local.accumulate(FROM_POSITION, TO_POSITION, TO_VERSION, FROM_VERSION)).to.be.revertedWithPanic(17)
+        await expect(local.accumulate(1, FROM_POSITION, TO_POSITION, TO_VERSION, FROM_VERSION)).to.be.revertedWithPanic(
+          17,
+        )
       })
     })
 
     context('non-zero initial values', () => {
       const INITIAL_VALUES = {
         currentId: 12,
+        latestId: 10,
         collateral: parse6decimal('10'),
         reward: parse6decimal('20'),
         protection: parse6decimal('34'),
@@ -294,8 +323,8 @@ describe('Local', () => {
       })
 
       it('accumulates values (increase)', async () => {
-        const values = await local.callStatic.accumulate(FROM_POSITION, TO_POSITION, FROM_VERSION, TO_VERSION)
-        await local.accumulate(FROM_POSITION, TO_POSITION, FROM_VERSION, TO_VERSION)
+        const values = await local.callStatic.accumulate(11, FROM_POSITION, TO_POSITION, FROM_VERSION, TO_VERSION)
+        await local.accumulate(11, FROM_POSITION, TO_POSITION, FROM_VERSION, TO_VERSION)
 
         const value = await local.read()
 
@@ -310,6 +339,7 @@ describe('Local', () => {
         expect(values.keeper).to.equal(expectedKeeper)
 
         expect(value.currentId).to.equal(INITIAL_VALUES.currentId)
+        expect(value.latestId).to.equal(11)
         expect(value.collateral).to.equal(
           expectedCollateral.add(INITIAL_VALUES.collateral).sub(expectedPositionFee.add(expectedKeeper)),
         )
@@ -324,8 +354,8 @@ describe('Local', () => {
           longValue: { _value: BigNumber.from(TO_VERSION.longValue._value).mul(-1) },
           shortValue: { _value: BigNumber.from(TO_VERSION.shortValue._value).mul(-1) },
         }
-        const values = await local.callStatic.accumulate(FROM_POSITION, TO_POSITION, FROM_VERSION, TO_VERSION_NEG)
-        await local.accumulate(FROM_POSITION, TO_POSITION, FROM_VERSION, TO_VERSION_NEG)
+        const values = await local.callStatic.accumulate(11, FROM_POSITION, TO_POSITION, FROM_VERSION, TO_VERSION_NEG)
+        await local.accumulate(11, FROM_POSITION, TO_POSITION, FROM_VERSION, TO_VERSION_NEG)
 
         const value = await local.read()
 
@@ -340,6 +370,7 @@ describe('Local', () => {
         expect(values.keeper).to.equal(expectedKeeper)
 
         expect(value.currentId).to.equal(INITIAL_VALUES.currentId)
+        expect(value.latestId).to.equal(11)
         expect(value.collateral).to.equal(
           expectedCollateral.add(INITIAL_VALUES.collateral).sub(expectedPositionFee.add(expectedKeeper)),
         )
@@ -348,14 +379,15 @@ describe('Local', () => {
       })
 
       it('reverts on negative rewards', async () => {
-        await expect(local.accumulate(FROM_POSITION, TO_POSITION, TO_VERSION, FROM_VERSION)).to.be.revertedWithPanic(17)
+        await expect(
+          local.accumulate(11, FROM_POSITION, TO_POSITION, TO_VERSION, FROM_VERSION),
+        ).to.be.revertedWithPanic(17)
       })
     })
   })
 
   describe('#protect', () => {
     const LATEST_POSITION: PositionStruct = {
-      id: 0, // unused
       timestamp: BigNumber.from('123456'),
       maker: 0, // unused
       long: 0, // unused
@@ -370,6 +402,7 @@ describe('Local', () => {
       it("doesn't protect", async () => {
         await local.store({
           currentId: 0,
+          latestId: 0,
           collateral: 0,
           reward: 0,
           protection: 0,
@@ -389,6 +422,7 @@ describe('Local', () => {
         it('protects', async () => {
           await local.store({
             currentId: 0,
+            latestId: 0,
             collateral: 0,
             reward: 0,
             protection: 0,
@@ -411,6 +445,7 @@ describe('Local', () => {
         it('protects', async () => {
           await local.store({
             currentId: 0,
+            latestId: 0,
             collateral: 0,
             reward: 0,
             protection: BigNumber.from(LATEST_POSITION.timestamp),
@@ -433,6 +468,7 @@ describe('Local', () => {
         it("doesn't protect", async () => {
           await local.store({
             currentId: 0,
+            latestId: 0,
             collateral: 0,
             reward: 0,
             protection: BigNumber.from(LATEST_POSITION.timestamp).add(1),

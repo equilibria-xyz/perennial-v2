@@ -96,20 +96,19 @@ describe('Fees', () => {
       // check user state
       expectLocalEq(await market.locals(user.address), {
         currentId: 2,
+        latestId: 1,
         collateral: COLLATERAL.sub(expectedMakerFee),
         reward: 0,
         protection: 0,
       })
       expectPositionEq(await market.pendingPositions(user.address, 2), {
         ...DEFAULT_POSITION,
-        id: 2,
         timestamp: TIMESTAMP_2,
         maker: POSITION,
         delta: COLLATERAL,
       })
       expectPositionEq(await market.positions(user.address), {
         ...DEFAULT_POSITION,
-        id: 1,
         timestamp: TIMESTAMP_1,
         maker: POSITION,
       })
@@ -121,6 +120,7 @@ describe('Fees', () => {
       const expectedDonation = BigNumber.from('1708246') // = 11388297 - 5694148 - 1708244 - 2277659
       expectGlobalEq(await market.global(), {
         currentId: 2,
+        latestId: 1,
         protocolFee: expectedProtocolFee,
         riskFee: expectedRiskFee,
         oracleFee: expectedOracleFee,
@@ -128,13 +128,11 @@ describe('Fees', () => {
       })
       expectPositionEq(await market.pendingPosition(2), {
         ...DEFAULT_POSITION,
-        id: 2,
         timestamp: TIMESTAMP_2,
         maker: POSITION,
       })
       expectPositionEq(await market.position(), {
         ...DEFAULT_POSITION,
-        id: 1,
         timestamp: TIMESTAMP_1,
         maker: POSITION,
       })
@@ -172,19 +170,18 @@ describe('Fees', () => {
       // check user state
       expectLocalEq(await market.locals(user.address), {
         currentId: 3,
+        latestId: 2,
         collateral: COLLATERAL.sub(expectedMakerFee.div(2)), // Maker gets part of their fee refunded since they were an exisiting maker
         reward: 0,
         protection: 0,
       })
       expectPositionEq(await market.pendingPositions(user.address, 3), {
         ...DEFAULT_POSITION,
-        id: 3,
         timestamp: TIMESTAMP_3,
         delta: COLLATERAL,
       })
       expectPositionEq(await market.positions(user.address), {
         ...DEFAULT_POSITION,
-        id: 2,
         timestamp: TIMESTAMP_2,
       })
 
@@ -195,6 +192,7 @@ describe('Fees', () => {
       const expectedDonation = BigNumber.from('14520080') // = 193601057/2 - 48400264 - 14520079 - 19360105
       expectGlobalEq(await market.global(), {
         currentId: 3,
+        latestId: 2,
         protocolFee: expectedProtocolFee,
         riskFee: expectedRiskFee,
         oracleFee: expectedOracleFee,
@@ -202,12 +200,10 @@ describe('Fees', () => {
       })
       expectPositionEq(await market.pendingPosition(3), {
         ...DEFAULT_POSITION,
-        id: 3,
         timestamp: TIMESTAMP_3,
       })
       expectPositionEq(await market.position(), {
         ...DEFAULT_POSITION,
-        id: 2,
         timestamp: TIMESTAMP_2,
       })
     })
@@ -247,6 +243,7 @@ describe('Fees', () => {
       // Global State
       expectGlobalEq(await market.global(), {
         currentId: 2,
+        latestId: 1,
         protocolFee: expectedProtocolFee,
         riskFee: expectedRiskFee,
         oracleFee: expectedOracleFee,
@@ -254,14 +251,12 @@ describe('Fees', () => {
       })
       expectPositionEq(await market.pendingPosition(2), {
         ...DEFAULT_POSITION,
-        id: 2,
         timestamp: TIMESTAMP_2,
         maker: MAKER_POSITION,
         long: LONG_POSITION,
       })
       expectPositionEq(await market.position(), {
         ...DEFAULT_POSITION,
-        id: 1,
         timestamp: TIMESTAMP_1,
         maker: MAKER_POSITION,
         long: LONG_POSITION,
@@ -270,20 +265,19 @@ describe('Fees', () => {
       // Long State
       expectLocalEq(await market.locals(userB.address), {
         currentId: 2,
+        latestId: 1,
         collateral: COLLATERAL.sub(expectedPositionFee),
         reward: 0,
         protection: 0,
       })
       expectPositionEq(await market.pendingPositions(userB.address, 2), {
         ...DEFAULT_POSITION,
-        id: 2,
         timestamp: TIMESTAMP_2,
         long: LONG_POSITION,
         delta: COLLATERAL,
       })
       expectPositionEq(await market.positions(userB.address), {
         ...DEFAULT_POSITION,
-        id: 1,
         timestamp: TIMESTAMP_1,
         long: LONG_POSITION,
       })
@@ -329,6 +323,7 @@ describe('Fees', () => {
       // Global State
       expectGlobalEq(await market.global(), {
         currentId: 3,
+        latestId: 2,
         protocolFee: expectedProtocolFee,
         riskFee: expectedRiskFee,
         oracleFee: expectedOracleFee,
@@ -336,14 +331,12 @@ describe('Fees', () => {
       })
       expectPositionEq(await market.pendingPosition(3), {
         ...DEFAULT_POSITION,
-        id: 3,
         timestamp: TIMESTAMP_3,
         maker: MAKER_POSITION,
         long: LONG_POSITION,
       })
       expectPositionEq(await market.position(), {
         ...DEFAULT_POSITION,
-        id: 2,
         timestamp: TIMESTAMP_2,
         maker: MAKER_POSITION,
         long: LONG_POSITION,
@@ -352,20 +345,19 @@ describe('Fees', () => {
       // Long State
       expectLocalEq(await market.locals(userB.address), {
         currentId: 2,
+        latestId: 1,
         collateral: COLLATERAL.sub(expectedPositionFee),
         reward: 0,
         protection: 0,
       })
       expectPositionEq(await market.pendingPositions(userB.address, 2), {
         ...DEFAULT_POSITION,
-        id: 2,
         timestamp: TIMESTAMP_3,
         long: LONG_POSITION,
         delta: COLLATERAL,
       })
       expectPositionEq(await market.positions(userB.address), {
         ...DEFAULT_POSITION,
-        id: 1,
         timestamp: TIMESTAMP_2,
         long: LONG_POSITION,
       })
@@ -381,20 +373,19 @@ describe('Fees', () => {
       // Maker State
       expectLocalEq(await market.locals(user.address), {
         currentId: 3,
+        latestId: 2,
         collateral: COLLATERAL.add(expectedMakerFee),
         reward: 0,
         protection: 0,
       })
       expectPositionEq(await market.pendingPositions(user.address, 3), {
         ...DEFAULT_POSITION,
-        id: 3,
         timestamp: TIMESTAMP_3,
         maker: MAKER_POSITION,
         delta: COLLATERAL,
       })
       expectPositionEq(await market.positions(user.address), {
         ...DEFAULT_POSITION,
-        id: 2,
         timestamp: TIMESTAMP_2,
         maker: MAKER_POSITION,
       })
@@ -459,6 +450,7 @@ describe('Fees', () => {
       // Global State
       expectGlobalEq(await market.global(), {
         currentId: 3,
+        latestId: 2,
         protocolFee: expectedProtocolFee,
         riskFee: expectedRiskFee,
         oracleFee: expectedOracleFee,
@@ -466,13 +458,11 @@ describe('Fees', () => {
       })
       expectPositionEq(await market.pendingPosition(3), {
         ...DEFAULT_POSITION,
-        id: 3,
         timestamp: TIMESTAMP_3,
         maker: MAKER_POSITION,
       })
       expectPositionEq(await market.position(), {
         ...DEFAULT_POSITION,
-        id: 2,
         timestamp: TIMESTAMP_2,
         maker: MAKER_POSITION,
       })
@@ -480,19 +470,18 @@ describe('Fees', () => {
       // Long State
       expectLocalEq(await market.locals(userB.address), {
         currentId: 3,
+        latestId: 2,
         collateral: COLLATERAL.sub(expectedPositionFee),
         reward: 0,
         protection: 0,
       })
       expectPositionEq(await market.pendingPositions(userB.address, 3), {
         ...DEFAULT_POSITION,
-        id: 3,
         timestamp: TIMESTAMP_3,
         delta: COLLATERAL,
       })
       expectPositionEq(await market.positions(userB.address), {
         ...DEFAULT_POSITION,
-        id: 2,
         timestamp: TIMESTAMP_2,
       })
 
@@ -507,20 +496,19 @@ describe('Fees', () => {
       // Maker State
       expectLocalEq(await market.locals(user.address), {
         currentId: 3,
+        latestId: 2,
         collateral: COLLATERAL.add(expectedMakerFee),
         reward: 0,
         protection: 0,
       })
       expectPositionEq(await market.pendingPositions(user.address, 3), {
         ...DEFAULT_POSITION,
-        id: 3,
         timestamp: TIMESTAMP_3,
         maker: MAKER_POSITION,
         delta: COLLATERAL,
       })
       expectPositionEq(await market.positions(user.address), {
         ...DEFAULT_POSITION,
-        id: 2,
         timestamp: TIMESTAMP_2,
         maker: MAKER_POSITION,
       })
@@ -561,6 +549,7 @@ describe('Fees', () => {
       // Global State
       expectGlobalEq(await market.global(), {
         currentId: 2,
+        latestId: 1,
         protocolFee: expectedProtocolFee,
         riskFee: expectedRiskFee,
         oracleFee: expectedOracleFee,
@@ -568,14 +557,12 @@ describe('Fees', () => {
       })
       expectPositionEq(await market.pendingPosition(2), {
         ...DEFAULT_POSITION,
-        id: 2,
         timestamp: TIMESTAMP_2,
         maker: MAKER_POSITION,
         short: SHORT_POSITION,
       })
       expectPositionEq(await market.position(), {
         ...DEFAULT_POSITION,
-        id: 1,
         timestamp: TIMESTAMP_1,
         maker: MAKER_POSITION,
         short: SHORT_POSITION,
@@ -584,20 +571,19 @@ describe('Fees', () => {
       // Long State
       expectLocalEq(await market.locals(userB.address), {
         currentId: 2,
+        latestId: 1,
         collateral: COLLATERAL.sub(expectedPositionFee),
         reward: 0,
         protection: 0,
       })
       expectPositionEq(await market.pendingPositions(userB.address, 2), {
         ...DEFAULT_POSITION,
-        id: 2,
         timestamp: TIMESTAMP_2,
         short: SHORT_POSITION,
         delta: COLLATERAL,
       })
       expectPositionEq(await market.positions(userB.address), {
         ...DEFAULT_POSITION,
-        id: 1,
         timestamp: TIMESTAMP_1,
         short: SHORT_POSITION,
       })
@@ -643,6 +629,7 @@ describe('Fees', () => {
       // Global State
       expectGlobalEq(await market.global(), {
         currentId: 3,
+        latestId: 2,
         protocolFee: expectedProtocolFee,
         riskFee: expectedRiskFee,
         oracleFee: expectedOracleFee,
@@ -650,14 +637,12 @@ describe('Fees', () => {
       })
       expectPositionEq(await market.pendingPosition(3), {
         ...DEFAULT_POSITION,
-        id: 3,
         timestamp: TIMESTAMP_3,
         maker: MAKER_POSITION,
         short: SHORT_POSITION,
       })
       expectPositionEq(await market.position(), {
         ...DEFAULT_POSITION,
-        id: 2,
         timestamp: TIMESTAMP_2,
         maker: MAKER_POSITION,
         short: SHORT_POSITION,
@@ -666,20 +651,19 @@ describe('Fees', () => {
       // Long State
       expectLocalEq(await market.locals(userB.address), {
         currentId: 2,
+        latestId: 1,
         collateral: COLLATERAL.sub(expectedPositionFee),
         reward: 0,
         protection: 0,
       })
       expectPositionEq(await market.pendingPositions(userB.address, 2), {
         ...DEFAULT_POSITION,
-        id: 2,
         timestamp: TIMESTAMP_3,
         short: SHORT_POSITION,
         delta: COLLATERAL,
       })
       expectPositionEq(await market.positions(userB.address), {
         ...DEFAULT_POSITION,
-        id: 1,
         timestamp: TIMESTAMP_2,
         short: SHORT_POSITION,
       })
@@ -695,20 +679,19 @@ describe('Fees', () => {
       // Maker State
       expectLocalEq(await market.locals(user.address), {
         currentId: 3,
+        latestId: 2,
         collateral: COLLATERAL.add(expectedMakerFee),
         reward: 0,
         protection: 0,
       })
       expectPositionEq(await market.pendingPositions(user.address, 3), {
         ...DEFAULT_POSITION,
-        id: 3,
         timestamp: TIMESTAMP_3,
         maker: MAKER_POSITION,
         delta: COLLATERAL,
       })
       expectPositionEq(await market.positions(user.address), {
         ...DEFAULT_POSITION,
-        id: 2,
         timestamp: TIMESTAMP_2,
         maker: MAKER_POSITION,
       })
@@ -773,6 +756,7 @@ describe('Fees', () => {
       // Global State
       expectGlobalEq(await market.global(), {
         currentId: 3,
+        latestId: 2,
         protocolFee: expectedProtocolFee,
         riskFee: expectedRiskFee,
         oracleFee: expectedOracleFee,
@@ -780,13 +764,11 @@ describe('Fees', () => {
       })
       expectPositionEq(await market.pendingPosition(3), {
         ...DEFAULT_POSITION,
-        id: 3,
         timestamp: TIMESTAMP_3,
         maker: MAKER_POSITION,
       })
       expectPositionEq(await market.position(), {
         ...DEFAULT_POSITION,
-        id: 2,
         timestamp: TIMESTAMP_2,
         maker: MAKER_POSITION,
       })
@@ -794,19 +776,18 @@ describe('Fees', () => {
       // Long State
       expectLocalEq(await market.locals(userB.address), {
         currentId: 3,
+        latestId: 2,
         collateral: COLLATERAL.sub(expectedPositionFee),
         reward: 0,
         protection: 0,
       })
       expectPositionEq(await market.pendingPositions(userB.address, 3), {
         ...DEFAULT_POSITION,
-        id: 3,
         timestamp: TIMESTAMP_3,
         delta: COLLATERAL,
       })
       expectPositionEq(await market.positions(userB.address), {
         ...DEFAULT_POSITION,
-        id: 2,
         timestamp: TIMESTAMP_2,
       })
 
@@ -821,20 +802,19 @@ describe('Fees', () => {
       // Maker State
       expectLocalEq(await market.locals(user.address), {
         currentId: 3,
+        latestId: 2,
         collateral: COLLATERAL.add(expectedMakerFee),
         reward: 0,
         protection: 0,
       })
       expectPositionEq(await market.pendingPositions(user.address, 3), {
         ...DEFAULT_POSITION,
-        id: 3,
         timestamp: TIMESTAMP_3,
         maker: MAKER_POSITION,
         delta: COLLATERAL,
       })
       expectPositionEq(await market.positions(user.address), {
         ...DEFAULT_POSITION,
-        id: 2,
         timestamp: TIMESTAMP_2,
         maker: MAKER_POSITION,
       })
@@ -1073,6 +1053,7 @@ describe('Fees', () => {
 
         expectGlobalEq(await market.global(), {
           currentId: 3,
+          latestId: 2,
           protocolFee: 0,
           riskFee: 0,
           oracleFee: expectedSettlementFee,
@@ -1102,6 +1083,7 @@ describe('Fees', () => {
 
         expectGlobalEq(await market.global(), {
           currentId: 3,
+          latestId: 2,
           protocolFee: 0,
           riskFee: 0,
           oracleFee: expectedSettlementFee.mul(2),

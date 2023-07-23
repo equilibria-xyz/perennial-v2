@@ -26,12 +26,16 @@ struct Account {
 }
 using AccountLib for Account global;
 struct StoredAccount {
-    uint32 _current;
-    uint32 _latest;
-    uint48 _shares;
-    uint48 _assets;
-    uint48 _deposit;
-    uint48 _redemption;
+    /* slot 0 */
+    uint32 current;         // <= 4.29b
+    uint32 latest;          // <= 4.29b
+    bytes24 __unallocated0__;
+
+    /* slot 1 */
+    uint64 shares;          // <= 18.44t
+    uint64 assets;          // <= 18.44t
+    uint64 deposit;         // <= 18.44t
+    uint64 redemption;      // <= 18.44t
 }
 struct AccountStorage { StoredAccount value; }
 using AccountStorageLib for AccountStorage global;
@@ -109,30 +113,32 @@ library AccountStorageLib {
     function read(AccountStorage storage self) internal view returns (Account memory) {
         StoredAccount memory storedValue = self.value;
         return Account(
-            uint256(storedValue._current),
-            uint256(storedValue._latest),
-            UFixed6.wrap(uint256(storedValue._shares)),
-            UFixed6.wrap(uint256(storedValue._assets)),
-            UFixed6.wrap(uint256(storedValue._deposit)),
-            UFixed6.wrap(uint256(storedValue._redemption))
+            uint256(storedValue.current),
+            uint256(storedValue.latest),
+            UFixed6.wrap(uint256(storedValue.shares)),
+            UFixed6.wrap(uint256(storedValue.assets)),
+            UFixed6.wrap(uint256(storedValue.deposit)),
+            UFixed6.wrap(uint256(storedValue.redemption))
         );
     }
 
     function store(AccountStorage storage self, Account memory newValue) internal {
         if (newValue.current > uint256(type(uint32).max)) revert AccountStorageInvalidError();
         if (newValue.latest > uint256(type(uint32).max)) revert AccountStorageInvalidError();
-        if (newValue.shares.gt(UFixed6.wrap(type(uint48).max))) revert AccountStorageInvalidError();
-        if (newValue.assets.gt(UFixed6.wrap(type(uint48).max))) revert AccountStorageInvalidError();
-        if (newValue.deposit.gt(UFixed6.wrap(type(uint48).max))) revert AccountStorageInvalidError();
-        if (newValue.redemption.gt(UFixed6.wrap(type(uint48).max))) revert AccountStorageInvalidError();
+        if (newValue.shares.gt(UFixed6.wrap(type(uint64).max))) revert AccountStorageInvalidError();
+        if (newValue.assets.gt(UFixed6.wrap(type(uint64).max))) revert AccountStorageInvalidError();
+        if (newValue.deposit.gt(UFixed6.wrap(type(uint64).max))) revert AccountStorageInvalidError();
+        if (newValue.redemption.gt(UFixed6.wrap(type(uint64).max))) revert AccountStorageInvalidError();
 
         self.value = StoredAccount(
             uint32(newValue.current),
             uint32(newValue.latest),
-            uint48(UFixed6.unwrap(newValue.shares)),
-            uint48(UFixed6.unwrap(newValue.assets)),
-            uint48(UFixed6.unwrap(newValue.deposit)),
-            uint48(UFixed6.unwrap(newValue.redemption))
+            bytes24(0),
+
+            uint64(UFixed6.unwrap(newValue.shares)),
+            uint64(UFixed6.unwrap(newValue.assets)),
+            uint64(UFixed6.unwrap(newValue.deposit)),
+            uint64(UFixed6.unwrap(newValue.redemption))
         );
     }
 }

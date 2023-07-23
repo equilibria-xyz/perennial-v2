@@ -44,7 +44,6 @@ describe('Position', () => {
     let position: PositionGlobalTester
 
     const VALID_GLOBAL_POSITION: PositionStruct = {
-      id: 1,
       timestamp: 2,
       maker: 3,
       long: 4,
@@ -66,7 +65,6 @@ describe('Position', () => {
         await position.store(VALID_GLOBAL_POSITION)
 
         const value = await position.read()
-        expect(value.id).to.equal(1)
         expect(value.timestamp).to.equal(2)
         expect(value.maker).to.equal(3)
         expect(value.long).to.equal(4)
@@ -75,27 +73,6 @@ describe('Position', () => {
         expect(value.keeper).to.equal(7)
         expect(value.collateral).to.equal(0)
         expect(value.delta).to.equal(0)
-      })
-
-      describe('.id', async () => {
-        const STORAGE_SIZE = 24
-        it('saves if in range', async () => {
-          await position.store({
-            ...VALID_GLOBAL_POSITION,
-            id: BigNumber.from(2).pow(STORAGE_SIZE).sub(1),
-          })
-          const value = await position.read()
-          expect(value.id).to.equal(BigNumber.from(2).pow(STORAGE_SIZE).sub(1))
-        })
-
-        it('reverts if id out of range', async () => {
-          await expect(
-            position.store({
-              ...VALID_GLOBAL_POSITION,
-              id: BigNumber.from(2).pow(STORAGE_SIZE),
-            }),
-          ).to.be.revertedWithCustomError(position, 'PositionStorageInvalidError')
-        })
       })
 
       describe('.timestamp', async () => {
@@ -120,7 +97,7 @@ describe('Position', () => {
       })
 
       describe('.maker', async () => {
-        const STORAGE_SIZE = 48
+        const STORAGE_SIZE = 64
         it('saves if in range', async () => {
           await position.store({
             ...VALID_GLOBAL_POSITION,
@@ -141,7 +118,7 @@ describe('Position', () => {
       })
 
       describe('.long', async () => {
-        const STORAGE_SIZE = 48
+        const STORAGE_SIZE = 64
         it('saves if in range', async () => {
           await position.store({
             ...VALID_GLOBAL_POSITION,
@@ -162,7 +139,7 @@ describe('Position', () => {
       })
 
       describe('.short', async () => {
-        const STORAGE_SIZE = 48
+        const STORAGE_SIZE = 64
         it('saves if in range', async () => {
           await position.store({
             ...VALID_GLOBAL_POSITION,
@@ -183,7 +160,7 @@ describe('Position', () => {
       })
 
       describe('.fee', async () => {
-        const STORAGE_SIZE = 48
+        const STORAGE_SIZE = 64
         it('saves if in range', async () => {
           await position.store({
             ...VALID_GLOBAL_POSITION,
@@ -204,7 +181,7 @@ describe('Position', () => {
       })
 
       describe('.keeper', async () => {
-        const STORAGE_SIZE = 48
+        const STORAGE_SIZE = 64
         it('saves if in range', async () => {
           await position.store({
             ...VALID_GLOBAL_POSITION,
@@ -705,8 +682,7 @@ describe('Position', () => {
         it('updates the position to the new position', async () => {
           await position.store(VALID_GLOBAL_POSITION)
 
-          await position['update((uint256,uint256,uint256,uint256,uint256,uint256,uint256,int256,int256))']({
-            id: 10,
+          await position['update((uint256,uint256,uint256,uint256,uint256,uint256,int256,int256))']({
             timestamp: 20,
             maker: 30,
             long: 40,
@@ -718,7 +694,6 @@ describe('Position', () => {
           })
 
           const value = await position.read()
-          expect(value.id).to.equal(10)
           expect(value.timestamp).to.equal(20)
           expect(value.maker).to.equal(30)
           expect(value.long).to.equal(40)
@@ -743,20 +718,19 @@ describe('Position', () => {
           const latestEfficiency = await position.efficiency()
 
           const updatedOrder = await position.callStatic[
-            'update(uint256,uint256,(int256,int256,int256,int256,uint256,int256,int256,int256,uint256,uint256),(uint256,uint256,uint256,uint256,uint256,uint256,uint256,uint256,uint256,uint256,uint256,(uint256,uint256,uint256,uint256),(uint256,uint256),uint256,uint256,uint256,bool))'
-          ](20, 123456, VALID_ORDER, VALID_RISK_PARAMETER)
+            'update(uint256,(int256,int256,int256,int256,uint256,int256,int256,int256,uint256,uint256),(uint256,uint256,uint256,uint256,uint256,uint256,uint256,uint256,uint256,uint256,uint256,(uint256,uint256,uint256,uint256),(uint256,uint256),uint256,uint256,uint256,bool))'
+          ](123456, VALID_ORDER, VALID_RISK_PARAMETER)
 
           await position[
-            'update(uint256,uint256,(int256,int256,int256,int256,uint256,int256,int256,int256,uint256,uint256),(uint256,uint256,uint256,uint256,uint256,uint256,uint256,uint256,uint256,uint256,uint256,(uint256,uint256,uint256,uint256),(uint256,uint256),uint256,uint256,uint256,bool))'
-          ](20, 123456, VALID_ORDER, VALID_RISK_PARAMETER)
+            'update(uint256,(int256,int256,int256,int256,uint256,int256,int256,int256,uint256,uint256),(uint256,uint256,uint256,uint256,uint256,uint256,uint256,uint256,uint256,uint256,uint256,(uint256,uint256,uint256,uint256),(uint256,uint256),uint256,uint256,uint256,bool))'
+          ](123456, VALID_ORDER, VALID_RISK_PARAMETER)
 
           const value = await position.read()
-          expect(value.id).to.equal(20)
           expect(value.timestamp).to.equal(123456)
           expect(value.maker).to.equal(parse6decimal('41'))
           expect(value.long).to.equal(parse6decimal('13'))
           expect(value.short).to.equal(parse6decimal('15'))
-          expect(value.fee).to.equal(0)
+          expect(value.fee).to.equal(parse6decimal('100'))
 
           const skew = await position.skew()
           const efficiency = await position.efficiency()
@@ -773,8 +747,8 @@ describe('Position', () => {
             await position.store({ ...VALID_GLOBAL_POSITION, fee: 50, keeper: 60 })
 
             await position[
-              'update(uint256,uint256,(int256,int256,int256,int256,uint256,int256,int256,int256,uint256,uint256),(uint256,uint256,uint256,uint256,uint256,uint256,uint256,uint256,uint256,uint256,uint256,(uint256,uint256,uint256,uint256),(uint256,uint256),uint256,uint256,uint256,bool))'
-            ](VALID_GLOBAL_POSITION.id, 123456, VALID_ORDER, VALID_RISK_PARAMETER)
+              'update(uint256,(int256,int256,int256,int256,uint256,int256,int256,int256,uint256,uint256),(uint256,uint256,uint256,uint256,uint256,uint256,uint256,uint256,uint256,uint256,uint256,(uint256,uint256,uint256,uint256),(uint256,uint256),uint256,uint256,uint256,bool))'
+            ](123456, VALID_ORDER, VALID_RISK_PARAMETER)
 
             const value = await position.read()
             expect(value.fee).to.equal(50)
@@ -835,7 +809,6 @@ describe('Position', () => {
     let position: PositionLocalTester
 
     const VALID_LOCAL_POSITION: PositionStruct = {
-      id: 1,
       timestamp: 2,
       maker: 0, // only max(maker, long, short) is stored
       long: 0,
@@ -858,7 +831,6 @@ describe('Position', () => {
           await position.store(VALID_LOCAL_POSITION)
 
           const value = await position.read()
-          expect(value.id).to.equal(1)
           expect(value.timestamp).to.equal(2)
           expect(value.maker).to.equal(0)
           expect(value.long).to.equal(0)
@@ -875,7 +847,6 @@ describe('Position', () => {
           await position.store({ ...VALID_LOCAL_POSITION, maker: 100 })
 
           const value = await position.read()
-          expect(value.id).to.equal(1)
           expect(value.timestamp).to.equal(2)
           expect(value.maker).to.equal(100)
           expect(value.long).to.equal(0)
@@ -892,7 +863,6 @@ describe('Position', () => {
           await position.store({ ...VALID_LOCAL_POSITION, long: 100 })
 
           const value = await position.read()
-          expect(value.id).to.equal(1)
           expect(value.timestamp).to.equal(2)
           expect(value.maker).to.equal(0)
           expect(value.long).to.equal(100)
@@ -909,7 +879,6 @@ describe('Position', () => {
           await position.store({ ...VALID_LOCAL_POSITION, short: 100 })
 
           const value = await position.read()
-          expect(value.id).to.equal(1)
           expect(value.timestamp).to.equal(2)
           expect(value.maker).to.equal(0)
           expect(value.long).to.equal(0)
@@ -918,27 +887,6 @@ describe('Position', () => {
           expect(value.keeper).to.equal(4)
           expect(value.collateral).to.equal(5)
           expect(value.delta).to.equal(6)
-        })
-      })
-
-      describe('.id', async () => {
-        const STORAGE_SIZE = 24
-        it('saves if in range', async () => {
-          await position.store({
-            ...VALID_LOCAL_POSITION,
-            id: BigNumber.from(2).pow(STORAGE_SIZE).sub(1),
-          })
-          const value = await position.read()
-          expect(value.id).to.equal(BigNumber.from(2).pow(STORAGE_SIZE).sub(1))
-        })
-
-        it('reverts if id out of range', async () => {
-          await expect(
-            position.store({
-              ...VALID_LOCAL_POSITION,
-              id: BigNumber.from(2).pow(STORAGE_SIZE),
-            }),
-          ).to.be.revertedWithCustomError(position, 'PositionStorageInvalidError')
         })
       })
 
@@ -964,7 +912,7 @@ describe('Position', () => {
       })
 
       describe('.maker', async () => {
-        const STORAGE_SIZE = 48
+        const STORAGE_SIZE = 64
         it('saves if in range', async () => {
           await position.store({
             ...VALID_LOCAL_POSITION,
@@ -985,7 +933,7 @@ describe('Position', () => {
       })
 
       describe('.long', async () => {
-        const STORAGE_SIZE = 48
+        const STORAGE_SIZE = 64
         it('saves if in range', async () => {
           await position.store({
             ...VALID_LOCAL_POSITION,
@@ -1006,7 +954,7 @@ describe('Position', () => {
       })
 
       describe('.short', async () => {
-        const STORAGE_SIZE = 48
+        const STORAGE_SIZE = 64
         it('saves if in range', async () => {
           await position.store({
             ...VALID_LOCAL_POSITION,
@@ -1027,7 +975,7 @@ describe('Position', () => {
       })
 
       describe('.fee', async () => {
-        const STORAGE_SIZE = 48
+        const STORAGE_SIZE = 64
         it('saves if in range', async () => {
           await position.store({
             ...VALID_LOCAL_POSITION,
@@ -1048,7 +996,7 @@ describe('Position', () => {
       })
 
       describe('.keeper', async () => {
-        const STORAGE_SIZE = 48
+        const STORAGE_SIZE = 64
         it('saves if in range', async () => {
           await position.store({
             ...VALID_LOCAL_POSITION,
@@ -1069,7 +1017,7 @@ describe('Position', () => {
       })
 
       describe('.collateral', async () => {
-        const STORAGE_SIZE = 47
+        const STORAGE_SIZE = 63
         it('saves if in range (above)', async () => {
           await position.store({
             ...VALID_LOCAL_POSITION,
@@ -1108,7 +1056,7 @@ describe('Position', () => {
       })
 
       describe('.delta', async () => {
-        const STORAGE_SIZE = 47
+        const STORAGE_SIZE = 63
         it('saves if in range (above)', async () => {
           await position.store({
             ...VALID_LOCAL_POSITION,
@@ -1349,8 +1297,7 @@ describe('Position', () => {
         it('updates the position to the new position', async () => {
           await position.store(VALID_LOCAL_POSITION)
 
-          await position['update((uint256,uint256,uint256,uint256,uint256,uint256,uint256,int256,int256))']({
-            id: 10,
+          await position['update((uint256,uint256,uint256,uint256,uint256,uint256,int256,int256))']({
             timestamp: 20,
             maker: 0, // only max is stored
             long: 0, // only max is stored
@@ -1362,7 +1309,6 @@ describe('Position', () => {
           })
 
           const value = await position.read()
-          expect(value.id).to.equal(10)
           expect(value.timestamp).to.equal(20)
           expect(value.maker).to.equal(0)
           expect(value.long).to.equal(0)
@@ -1379,28 +1325,19 @@ describe('Position', () => {
           it('updates the position and returns the newOrder', async () => {
             await position.store(VALID_LOCAL_POSITION)
 
-            const newOrder = await position.callStatic['update(uint256,uint256,uint256,uint256,uint256)'](
-              10,
-              20,
-              30,
-              0,
-              0,
-            )
-            await position['update(uint256,uint256,uint256,uint256,uint256)'](10, 20, 30, 0, 0)
+            const newOrder = await position.callStatic['update(uint256,uint256,uint256,uint256)'](20, 30, 0, 0)
+            await position['update(uint256,uint256,uint256,uint256)'](20, 30, 0, 0)
 
             const value = await position.read()
 
-            expect(value.id).to.equal(10)
             expect(value.timestamp).to.equal(20)
             expect(value.maker).to.equal(30)
             expect(value.long).to.equal(0)
             expect(value.short).to.equal(0)
-            expect(value.fee).to.equal(0)
-            expect(value.fee).to.equal(0)
-            expect(value.keeper).to.equal(0)
-            expect(value.collateral).to.equal(0)
-            expect(value.keeper).to.equal(0)
-            expect(value.collateral).to.equal(0)
+            expect(value.fee).to.equal(VALID_LOCAL_POSITION.fee)
+            expect(value.keeper).to.equal(VALID_LOCAL_POSITION.keeper)
+            expect(value.collateral).to.equal(VALID_LOCAL_POSITION.collateral)
+            expect(value.delta).to.equal(VALID_LOCAL_POSITION.delta)
 
             expect(newOrder.maker).to.equal(30)
             expect(newOrder.long).to.equal(0)
@@ -1412,25 +1349,19 @@ describe('Position', () => {
           it('updates the position and returns the newOrder', async () => {
             await position.store({ ...VALID_LOCAL_POSITION, maker: 50 })
 
-            const newOrder = await position.callStatic['update(uint256,uint256,uint256,uint256,uint256)'](
-              10,
-              20,
-              30,
-              0,
-              0,
-            )
-            await position['update(uint256,uint256,uint256,uint256,uint256)'](10, 20, 30, 0, 0)
+            const newOrder = await position.callStatic['update(uint256,uint256,uint256,uint256)'](20, 30, 0, 0)
+            await position['update(uint256,uint256,uint256,uint256)'](20, 30, 0, 0)
 
             const value = await position.read()
 
-            expect(value.id).to.equal(10)
             expect(value.timestamp).to.equal(20)
             expect(value.maker).to.equal(30)
             expect(value.long).to.equal(0)
             expect(value.short).to.equal(0)
-            expect(value.fee).to.equal(0)
-            expect(value.keeper).to.equal(0)
-            expect(value.collateral).to.equal(0)
+            expect(value.fee).to.equal(VALID_LOCAL_POSITION.fee)
+            expect(value.keeper).to.equal(VALID_LOCAL_POSITION.keeper)
+            expect(value.collateral).to.equal(VALID_LOCAL_POSITION.collateral)
+            expect(value.delta).to.equal(VALID_LOCAL_POSITION.delta)
 
             expect(newOrder.maker).to.equal(-20)
             expect(newOrder.long).to.equal(0)
@@ -1442,26 +1373,19 @@ describe('Position', () => {
           it('updates the position and returns the newOrder', async () => {
             await position.store(VALID_LOCAL_POSITION)
 
-            const newOrder = await position.callStatic['update(uint256,uint256,uint256,uint256,uint256)'](
-              10,
-              20,
-              0,
-              30,
-              0,
-            )
-            await position['update(uint256,uint256,uint256,uint256,uint256)'](10, 20, 0, 30, 0)
+            const newOrder = await position.callStatic['update(uint256,uint256,uint256,uint256)'](20, 0, 30, 0)
+            await position['update(uint256,uint256,uint256,uint256)'](20, 0, 30, 0)
 
             const value = await position.read()
 
-            expect(value.id).to.equal(10)
             expect(value.timestamp).to.equal(20)
             expect(value.maker).to.equal(0)
             expect(value.long).to.equal(30)
             expect(value.short).to.equal(0)
-            expect(value.fee).to.equal(0)
-            expect(value.fee).to.equal(0)
-            expect(value.keeper).to.equal(0)
-            expect(value.collateral).to.equal(0)
+            expect(value.fee).to.equal(VALID_LOCAL_POSITION.fee)
+            expect(value.keeper).to.equal(VALID_LOCAL_POSITION.keeper)
+            expect(value.collateral).to.equal(VALID_LOCAL_POSITION.collateral)
+            expect(value.delta).to.equal(VALID_LOCAL_POSITION.delta)
 
             expect(newOrder.maker).to.equal(0)
             expect(newOrder.long).to.equal(30)
@@ -1473,26 +1397,19 @@ describe('Position', () => {
           it('updates the position and returns the newOrder', async () => {
             await position.store({ ...VALID_LOCAL_POSITION, long: 50 })
 
-            const newOrder = await position.callStatic['update(uint256,uint256,uint256,uint256,uint256)'](
-              10,
-              20,
-              0,
-              30,
-              0,
-            )
-            await position['update(uint256,uint256,uint256,uint256,uint256)'](10, 20, 0, 30, 0)
+            const newOrder = await position.callStatic['update(uint256,uint256,uint256,uint256)'](20, 0, 30, 0)
+            await position['update(uint256,uint256,uint256,uint256)'](20, 0, 30, 0)
 
             const value = await position.read()
 
-            expect(value.id).to.equal(10)
             expect(value.timestamp).to.equal(20)
             expect(value.maker).to.equal(0)
             expect(value.long).to.equal(30)
             expect(value.short).to.equal(0)
-            expect(value.fee).to.equal(0)
-            expect(value.fee).to.equal(0)
-            expect(value.keeper).to.equal(0)
-            expect(value.collateral).to.equal(0)
+            expect(value.fee).to.equal(VALID_LOCAL_POSITION.fee)
+            expect(value.keeper).to.equal(VALID_LOCAL_POSITION.keeper)
+            expect(value.collateral).to.equal(VALID_LOCAL_POSITION.collateral)
+            expect(value.delta).to.equal(VALID_LOCAL_POSITION.delta)
 
             expect(newOrder.maker).to.equal(0)
             expect(newOrder.long).to.equal(-20)
@@ -1504,26 +1421,19 @@ describe('Position', () => {
           it('updates the position and returns the newOrder', async () => {
             await position.store(VALID_LOCAL_POSITION)
 
-            const newOrder = await position.callStatic['update(uint256,uint256,uint256,uint256,uint256)'](
-              10,
-              20,
-              0,
-              0,
-              30,
-            )
-            await position['update(uint256,uint256,uint256,uint256,uint256)'](10, 20, 0, 0, 30)
+            const newOrder = await position.callStatic['update(uint256,uint256,uint256,uint256)'](20, 0, 0, 30)
+            await position['update(uint256,uint256,uint256,uint256)'](20, 0, 0, 30)
 
             const value = await position.read()
 
-            expect(value.id).to.equal(10)
             expect(value.timestamp).to.equal(20)
             expect(value.maker).to.equal(0)
             expect(value.long).to.equal(0)
             expect(value.short).to.equal(30)
-            expect(value.fee).to.equal(0)
-            expect(value.fee).to.equal(0)
-            expect(value.keeper).to.equal(0)
-            expect(value.collateral).to.equal(0)
+            expect(value.fee).to.equal(VALID_LOCAL_POSITION.fee)
+            expect(value.keeper).to.equal(VALID_LOCAL_POSITION.keeper)
+            expect(value.collateral).to.equal(VALID_LOCAL_POSITION.collateral)
+            expect(value.delta).to.equal(VALID_LOCAL_POSITION.delta)
 
             expect(newOrder.maker).to.equal(0)
             expect(newOrder.long).to.equal(0)
@@ -1535,26 +1445,19 @@ describe('Position', () => {
           it('updates the position and returns the newOrder', async () => {
             await position.store({ ...VALID_LOCAL_POSITION, short: 50 })
 
-            const newOrder = await position.callStatic['update(uint256,uint256,uint256,uint256,uint256)'](
-              10,
-              20,
-              0,
-              0,
-              30,
-            )
-            await position['update(uint256,uint256,uint256,uint256,uint256)'](10, 20, 0, 0, 30)
+            const newOrder = await position.callStatic['update(uint256,uint256,uint256,uint256)'](20, 0, 0, 30)
+            await position['update(uint256,uint256,uint256,uint256)'](20, 0, 0, 30)
 
             const value = await position.read()
 
-            expect(value.id).to.equal(10)
             expect(value.timestamp).to.equal(20)
             expect(value.maker).to.equal(0)
             expect(value.long).to.equal(0)
             expect(value.short).to.equal(30)
-            expect(value.fee).to.equal(0)
-            expect(value.fee).to.equal(0)
-            expect(value.keeper).to.equal(0)
-            expect(value.collateral).to.equal(0)
+            expect(value.fee).to.equal(VALID_LOCAL_POSITION.fee)
+            expect(value.keeper).to.equal(VALID_LOCAL_POSITION.keeper)
+            expect(value.collateral).to.equal(VALID_LOCAL_POSITION.collateral)
+            expect(value.delta).to.equal(VALID_LOCAL_POSITION.delta)
 
             expect(newOrder.maker).to.equal(0)
             expect(newOrder.long).to.equal(0)
@@ -1566,7 +1469,7 @@ describe('Position', () => {
           it("doesn't clear fee, keeper, or collateral", async () => {
             await position.store({ ...VALID_LOCAL_POSITION, fee: 50, keeper: 60, collateral: 70 })
 
-            await position['update(uint256,uint256,uint256,uint256,uint256)'](VALID_LOCAL_POSITION.id, 20, 30, 0, 0)
+            await position['update(uint256,uint256,uint256,uint256)'](20, 30, 0, 0)
 
             const value = await position.read()
             expect(value.fee).to.equal(50)

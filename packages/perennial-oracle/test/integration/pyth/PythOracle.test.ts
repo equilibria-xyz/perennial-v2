@@ -56,7 +56,7 @@ describe('PythOracle', () => {
   let oracleSigner: SignerWithAddress
 
   beforeEach(async () => {
-    await time.reset(config)
+    await time.reset()
     ;[owner, user] = await ethers.getSigners()
 
     dsu = IERC20Metadata__factory.connect(DSU_ADDRESS, owner)
@@ -109,15 +109,17 @@ describe('PythOracle', () => {
       const originalDSUBalance = await dsu.callStatic.balanceOf(user.address)
       await pythOracle.connect(oracleSigner).request(user.address)
       // Base fee isn't working properly in coverage, so we need to set it manually
-      await ethers.provider.send('hardhat_setNextBlockBaseFeePerGas', ['0x1000'])
+      await ethers.provider.send('hardhat_setNextBlockBaseFeePerGas', ['0x5F5E100'])
       await pythOracle.connect(user).commitRequested(0, VAA, {
         value: 1,
-        gasPrice: 10000,
+        maxFeePerGas: 100000000,
       })
       const newDSUBalance = await dsu.callStatic.balanceOf(user.address)
 
-      // TODO: Test that this number is correct.
-      expect(newDSUBalance.sub(originalDSUBalance)).to.be.greaterThan(0)
+      expect(newDSUBalance.sub(originalDSUBalance)).to.be.within(
+        ethers.utils.parseEther('0.10'),
+        utils.parseEther('0.11'),
+      )
     })
 
     it('does not allow committing versions with out of order VAA publish times', async () => {
@@ -301,15 +303,17 @@ describe('PythOracle', () => {
       const originalDSUBalance = await dsu.callStatic.balanceOf(user.address)
       await pythOracle.connect(oracleSigner).request(user.address)
       // Base fee isn't working properly in coverage, so we need to set it manually
-      await ethers.provider.send('hardhat_setNextBlockBaseFeePerGas', ['0x1000'])
+      await ethers.provider.send('hardhat_setNextBlockBaseFeePerGas', ['0x5F5E100'])
       await pythOracle.connect(user).commit(STARTING_TIME, VAA, {
         value: 1,
-        gasPrice: 10000,
+        gasPrice: 100000000,
       })
       const newDSUBalance = await dsu.callStatic.balanceOf(user.address)
 
-      // TODO: Test that this number is correct.
-      expect(newDSUBalance.sub(originalDSUBalance)).to.be.greaterThan(0)
+      expect(newDSUBalance.sub(originalDSUBalance)).to.be.within(
+        ethers.utils.parseEther('0.10'),
+        ethers.utils.parseEther('0.11'),
+      )
     })
 
     it('can commit multiple non-requested versions, as long as they are in order', async () => {
@@ -355,7 +359,20 @@ describe('PythOracle', () => {
     })
   })
 
-  // TODO: tests for #request
+  describe('#request', async () => {
+    it('can request a version', async () => {
+      // No requested versions
+      await expect(pythOracle.callStatic.versionList(0)).to.be.reverted
+      await pythOracle.connect(oracleSigner).request(user.address)
+      // Now there is exactly one requested version
+      expect(await pythOracle.callStatic.versionList(0)).to.equal(STARTING_TIME)
+      await expect(pythOracle.callStatic.versionList(1)).to.be.reverted
+    })
+
+    it('does not allow unauthorized users to request', async () => {
+      await expect(pythOracle.connect(user).request(user.address)).to.be.reverted
+    })
+  })
 
   describe('#latest', async () => {
     it('returns the latest version', async () => {

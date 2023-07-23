@@ -49,7 +49,7 @@ describe('Checkpoint', () => {
     })
 
     describe('.deposit', async () => {
-      const STORAGE_SIZE = 48
+      const STORAGE_SIZE = 64
       it('saves if in range', async () => {
         await checkpoint.store({
           ...VALID_CHECKPOINT,
@@ -70,7 +70,7 @@ describe('Checkpoint', () => {
     })
 
     describe('.redemption', async () => {
-      const STORAGE_SIZE = 48
+      const STORAGE_SIZE = 64
       it('saves if in range', async () => {
         await checkpoint.store({
           ...VALID_CHECKPOINT,
@@ -91,7 +91,7 @@ describe('Checkpoint', () => {
     })
 
     describe('.shares', async () => {
-      const STORAGE_SIZE = 48
+      const STORAGE_SIZE = 64
       it('saves if in range', async () => {
         await checkpoint.store({
           ...VALID_CHECKPOINT,
@@ -112,7 +112,7 @@ describe('Checkpoint', () => {
     })
 
     describe('.assets', async () => {
-      const STORAGE_SIZE = 47
+      const STORAGE_SIZE = 63
       it('saves if in range (above)', async () => {
         await checkpoint.store({
           ...VALID_CHECKPOINT,
@@ -151,7 +151,7 @@ describe('Checkpoint', () => {
     })
 
     describe('.fee', async () => {
-      const STORAGE_SIZE = 48
+      const STORAGE_SIZE = 64
       it('saves if in range', async () => {
         await checkpoint.store({
           ...VALID_CHECKPOINT,
@@ -172,7 +172,7 @@ describe('Checkpoint', () => {
     })
 
     describe('.count', async () => {
-      const STORAGE_SIZE = 16
+      const STORAGE_SIZE = 32
       it('saves if in range', async () => {
         await checkpoint.store({
           ...VALID_CHECKPOINT,
@@ -193,7 +193,7 @@ describe('Checkpoint', () => {
     })
 
     describe('.keeper', async () => {
-      const STORAGE_SIZE = 48
+      const STORAGE_SIZE = 64
       it('saves if in range', async () => {
         await checkpoint.store({
           ...VALID_CHECKPOINT,

@@ -108,13 +108,13 @@ describe('Happy Path', () => {
     // Check user is in the correct state
     expectLocalEq(await market.locals(user.address), {
       currentId: 1,
+      latestId: 0,
       collateral: COLLATERAL,
       reward: 0,
       protection: 0,
     })
     expectPositionEq(await market.pendingPositions(user.address, 1), {
       ...DEFAULT_POSITION,
-      id: 1,
       timestamp: TIMESTAMP_1,
       maker: POSITION,
       delta: COLLATERAL,
@@ -127,6 +127,7 @@ describe('Happy Path', () => {
     // Check global state
     expectGlobalEq(await market.global(), {
       currentId: 1,
+      latestId: 0,
       protocolFee: 0,
       riskFee: 0,
       oracleFee: 0,
@@ -134,13 +135,11 @@ describe('Happy Path', () => {
     })
     expectPositionEq(await market.pendingPosition(1), {
       ...DEFAULT_POSITION,
-      id: 1,
       timestamp: TIMESTAMP_1,
       maker: POSITION,
     })
     expectPositionEq(await market.position(), {
       ...DEFAULT_POSITION,
-      id: 0,
       timestamp: TIMESTAMP_0,
     })
     expectVersionEq(await market.versions(TIMESTAMP_0), {
@@ -159,20 +158,19 @@ describe('Happy Path', () => {
     // check user state
     expectLocalEq(await market.locals(user.address), {
       currentId: 2,
+      latestId: 1,
       collateral: COLLATERAL,
       reward: 0,
       protection: 0,
     })
     expectPositionEq(await market.pendingPositions(user.address, 2), {
       ...DEFAULT_POSITION,
-      id: 2,
       timestamp: TIMESTAMP_2,
       maker: POSITION,
       delta: COLLATERAL,
     })
     expectPositionEq(await market.positions(user.address), {
       ...DEFAULT_POSITION,
-      id: 1,
       timestamp: TIMESTAMP_1,
       maker: POSITION,
     })
@@ -180,6 +178,7 @@ describe('Happy Path', () => {
     // Check global post-settlement state
     expectGlobalEq(await market.global(), {
       currentId: 2,
+      latestId: 1,
       protocolFee: 0,
       riskFee: 0,
       oracleFee: 0,
@@ -187,13 +186,11 @@ describe('Happy Path', () => {
     })
     expectPositionEq(await market.pendingPosition(2), {
       ...DEFAULT_POSITION,
-      id: 2,
       timestamp: TIMESTAMP_2,
       maker: POSITION,
     })
     expectPositionEq(await market.position(), {
       ...DEFAULT_POSITION,
-      id: 1,
       timestamp: TIMESTAMP_1,
       maker: POSITION,
     })
@@ -215,13 +212,13 @@ describe('Happy Path', () => {
     // Check user is in the correct state
     expectLocalEq(await market.locals(user.address), {
       currentId: 1,
+      latestId: 0,
       collateral: COLLATERAL,
       reward: 0,
       protection: 0,
     })
     expectPositionEq(await market.pendingPositions(user.address, 1), {
       ...DEFAULT_POSITION,
-      id: 1,
       timestamp: TIMESTAMP_1,
       maker: POSITION,
       delta: COLLATERAL,
@@ -234,6 +231,7 @@ describe('Happy Path', () => {
     // Check global state
     expectGlobalEq(await market.global(), {
       currentId: 1,
+      latestId: 0,
       protocolFee: 0,
       riskFee: 0,
       oracleFee: 0,
@@ -241,7 +239,6 @@ describe('Happy Path', () => {
     })
     expectPositionEq(await market.pendingPosition(1), {
       ...DEFAULT_POSITION,
-      id: 1,
       timestamp: TIMESTAMP_1,
       maker: POSITION,
     })
@@ -265,20 +262,19 @@ describe('Happy Path', () => {
     // check user state
     expectLocalEq(await market.locals(user.address), {
       currentId: 2,
+      latestId: 1,
       collateral: COLLATERAL,
       reward: 0,
       protection: 0,
     })
     expectPositionEq(await market.pendingPositions(user.address, 2), {
       ...DEFAULT_POSITION,
-      id: 2,
       timestamp: TIMESTAMP_2,
       maker: POSITION,
       delta: COLLATERAL,
     })
     expectPositionEq(await market.positions(user.address), {
       ...DEFAULT_POSITION,
-      id: 1,
       timestamp: TIMESTAMP_1,
       maker: POSITION,
     })
@@ -286,6 +282,7 @@ describe('Happy Path', () => {
     // Check global post-settlement state
     expectGlobalEq(await market.global(), {
       currentId: 2,
+      latestId: 1,
       protocolFee: 0,
       riskFee: 0,
       oracleFee: 0,
@@ -293,13 +290,11 @@ describe('Happy Path', () => {
     })
     expectPositionEq(await market.pendingPosition(2), {
       ...DEFAULT_POSITION,
-      id: 2,
       timestamp: TIMESTAMP_2,
       maker: POSITION,
     })
     expectPositionEq(await market.position(), {
       ...DEFAULT_POSITION,
-      id: 1,
       timestamp: TIMESTAMP_1,
       maker: POSITION,
     })
@@ -321,13 +316,13 @@ describe('Happy Path', () => {
     // User state
     expectLocalEq(await market.locals(user.address), {
       currentId: 1,
+      latestId: 0,
       collateral: COLLATERAL,
       reward: 0,
       protection: 0,
     })
     expectPositionEq(await market.pendingPositions(user.address, 1), {
       ...DEFAULT_POSITION,
-      id: 1,
       timestamp: TIMESTAMP_1,
       delta: COLLATERAL,
     })
@@ -339,6 +334,7 @@ describe('Happy Path', () => {
     // Global State
     expectGlobalEq(await market.global(), {
       currentId: 1,
+      latestId: 0,
       protocolFee: 0,
       riskFee: 0,
       oracleFee: 0,
@@ -346,7 +342,6 @@ describe('Happy Path', () => {
     })
     expectPositionEq(await market.pendingPosition(1), {
       ...DEFAULT_POSITION,
-      id: 1,
       timestamp: TIMESTAMP_1,
     })
     expectPositionEq(await market.position(), {
@@ -381,13 +376,13 @@ describe('Happy Path', () => {
     // User state
     expectLocalEq(await market.locals(user.address), {
       currentId: 1,
+      latestId: 0,
       collateral: COLLATERAL,
       reward: 0,
       protection: 0,
     })
     expectPositionEq(await market.pendingPositions(user.address, 1), {
       ...DEFAULT_POSITION,
-      id: 1,
       timestamp: TIMESTAMP_1,
       delta: COLLATERAL,
     })
@@ -399,6 +394,7 @@ describe('Happy Path', () => {
     // Global State
     expectGlobalEq(await market.global(), {
       currentId: 1,
+      latestId: 0,
       protocolFee: 0,
       riskFee: 0,
       oracleFee: 0,
@@ -406,7 +402,6 @@ describe('Happy Path', () => {
     })
     expectPositionEq(await market.pendingPosition(1), {
       ...DEFAULT_POSITION,
-      id: 1,
       timestamp: TIMESTAMP_1,
     })
     expectPositionEq(await market.position(), {
@@ -441,13 +436,13 @@ describe('Happy Path', () => {
     // User State
     expectLocalEq(await market.locals(user.address), {
       currentId: 1,
+      latestId: 0,
       collateral: COLLATERAL,
       reward: 0,
       protection: 0,
     })
     expectPositionEq(await market.pendingPositions(user.address, 1), {
       ...DEFAULT_POSITION,
-      id: 1,
       timestamp: TIMESTAMP_1,
       maker: POSITION,
       delta: COLLATERAL,
@@ -459,13 +454,13 @@ describe('Happy Path', () => {
 
     expectLocalEq(await market.locals(userB.address), {
       currentId: 1,
+      latestId: 0,
       collateral: COLLATERAL,
       reward: 0,
       protection: 0,
     })
     expectPositionEq(await market.pendingPositions(userB.address, 1), {
       ...DEFAULT_POSITION,
-      id: 1,
       timestamp: TIMESTAMP_1,
       long: POSITION_B,
       delta: COLLATERAL,
@@ -478,6 +473,7 @@ describe('Happy Path', () => {
     // Global State
     expectGlobalEq(await market.global(), {
       currentId: 1,
+      latestId: 0,
       protocolFee: 0,
       riskFee: 0,
       oracleFee: 0,
@@ -485,7 +481,6 @@ describe('Happy Path', () => {
     })
     expectPositionEq(await market.pendingPosition(1), {
       ...DEFAULT_POSITION,
-      id: 1,
       timestamp: TIMESTAMP_1,
       maker: POSITION,
       long: POSITION_B,
@@ -512,6 +507,7 @@ describe('Happy Path', () => {
 
     expectGlobalEq(await market.global(), {
       currentId: 2,
+      latestId: 1,
       protocolFee: '18',
       riskFee: 0,
       oracleFee: 0,
@@ -519,14 +515,12 @@ describe('Happy Path', () => {
     })
     expectPositionEq(await market.pendingPosition(2), {
       ...DEFAULT_POSITION,
-      id: 2,
       timestamp: TIMESTAMP_3,
       maker: POSITION,
       long: POSITION_B,
     })
     expectPositionEq(await market.position(), {
       ...DEFAULT_POSITION,
-      id: 1,
       timestamp: TIMESTAMP_2,
       maker: POSITION,
       long: POSITION_B,
@@ -534,20 +528,19 @@ describe('Happy Path', () => {
 
     expectLocalEq(await market.locals(userB.address), {
       currentId: 2,
+      latestId: 1,
       collateral: COLLATERAL.add(BigNumber.from('1249392')),
       reward: 0,
       protection: 0,
     })
     expectPositionEq(await market.pendingPositions(userB.address, 2), {
       ...DEFAULT_POSITION,
-      id: 2,
       timestamp: TIMESTAMP_3,
       long: POSITION_B,
       delta: COLLATERAL,
     })
     expectPositionEq(await market.positions(userB.address), {
       ...DEFAULT_POSITION,
-      id: 1,
       timestamp: TIMESTAMP_2,
       long: POSITION_B,
     })
@@ -573,13 +566,13 @@ describe('Happy Path', () => {
     // User State
     expectLocalEq(await market.locals(userB.address), {
       currentId: 1,
+      latestId: 0,
       collateral: COLLATERAL,
       reward: 0,
       protection: 0,
     })
     expectPositionEq(await market.pendingPositions(userB.address, 1), {
       ...DEFAULT_POSITION,
-      id: 1,
       timestamp: TIMESTAMP_1,
       long: POSITION_B,
       delta: COLLATERAL,
@@ -592,6 +585,7 @@ describe('Happy Path', () => {
     // Global State
     expectGlobalEq(await market.global(), {
       currentId: 1,
+      latestId: 0,
       protocolFee: 0,
       riskFee: 0,
       oracleFee: 0,
@@ -599,7 +593,6 @@ describe('Happy Path', () => {
     })
     expectPositionEq(await market.pendingPosition(1), {
       ...DEFAULT_POSITION,
-      id: 1,
       timestamp: TIMESTAMP_1,
       maker: POSITION,
       long: POSITION_B,
@@ -626,6 +619,7 @@ describe('Happy Path', () => {
 
     expectGlobalEq(await market.global(), {
       currentId: 2,
+      latestId: 1,
       protocolFee: '18',
       riskFee: 0,
       oracleFee: 0,
@@ -633,34 +627,31 @@ describe('Happy Path', () => {
     })
     expectPositionEq(await market.pendingPosition(2), {
       ...DEFAULT_POSITION,
-      id: 2,
       timestamp: TIMESTAMP_3,
       maker: POSITION,
       long: POSITION_B,
     })
     expectPositionEq(await market.position(), {
       ...DEFAULT_POSITION,
-      id: 1,
       timestamp: TIMESTAMP_2,
       maker: POSITION,
       long: POSITION_B,
     })
     expectLocalEq(await market.locals(userB.address), {
       currentId: 2,
+      latestId: 1,
       collateral: COLLATERAL.add(BigNumber.from('1249392')),
       reward: 0,
       protection: 0,
     })
     expectPositionEq(await market.pendingPositions(userB.address, 2), {
       ...DEFAULT_POSITION,
-      id: 2,
       timestamp: TIMESTAMP_3,
       long: POSITION_B,
       delta: COLLATERAL,
     })
     expectPositionEq(await market.positions(userB.address), {
       ...DEFAULT_POSITION,
-      id: 1,
       timestamp: TIMESTAMP_2,
       long: POSITION_B,
     })
@@ -689,13 +680,13 @@ describe('Happy Path', () => {
     // User State
     expectLocalEq(await market.locals(userB.address), {
       currentId: 1,
+      latestId: 0,
       collateral: COLLATERAL,
       reward: 0,
       protection: 0,
     })
     expectPositionEq(await market.pendingPositions(userB.address, 1), {
       ...DEFAULT_POSITION,
-      id: 1,
       timestamp: TIMESTAMP_1,
       delta: COLLATERAL,
     })
@@ -707,6 +698,7 @@ describe('Happy Path', () => {
     // Global State
     expectGlobalEq(await market.global(), {
       currentId: 1,
+      latestId: 0,
       protocolFee: 0,
       riskFee: 0,
       oracleFee: 0,
@@ -714,7 +706,6 @@ describe('Happy Path', () => {
     })
     expectPositionEq(await market.pendingPosition(1), {
       ...DEFAULT_POSITION,
-      id: 1,
       timestamp: TIMESTAMP_1,
       maker: POSITION,
     })
@@ -756,13 +747,13 @@ describe('Happy Path', () => {
     // User State
     expectLocalEq(await market.locals(userB.address), {
       currentId: 1,
+      latestId: 0,
       collateral: COLLATERAL,
       reward: 0,
       protection: 0,
     })
     expectPositionEq(await market.pendingPositions(userB.address, 1), {
       ...DEFAULT_POSITION,
-      id: 1,
       timestamp: TIMESTAMP_1,
       delta: COLLATERAL,
     })
@@ -774,6 +765,7 @@ describe('Happy Path', () => {
     // Global State
     expectGlobalEq(await market.global(), {
       currentId: 1,
+      latestId: 0,
       protocolFee: 0,
       riskFee: 0,
       oracleFee: 0,
@@ -781,7 +773,6 @@ describe('Happy Path', () => {
     })
     expectPositionEq(await market.pendingPosition(1), {
       ...DEFAULT_POSITION,
-      id: 1,
       timestamp: TIMESTAMP_1,
       maker: POSITION,
     })
@@ -948,7 +939,6 @@ describe('Happy Path', () => {
     await chainlink.next()
     await chainlink.next()
 
-    console.log('update')
     await expect(market.connect(user).update(user.address, POSITION, 0, 0, -1, false)) // 4 -> 5
       .to.emit(market, 'Updated')
       .withArgs(user.address, TIMESTAMP_5, POSITION, 0, 0, -1, false)
@@ -956,13 +946,13 @@ describe('Happy Path', () => {
     // Check user is in the correct state
     expectLocalEq(await market.locals(user.address), {
       currentId: 3,
+      latestId: 2,
       collateral: '986127025',
       reward: incentizesOn ? '24669998' : 0,
       protection: 0,
     })
     expectPositionEq(await market.pendingPositions(user.address, 3), {
       ...DEFAULT_POSITION,
-      id: 3,
       timestamp: TIMESTAMP_5,
       maker: POSITION,
       fee: '234925',
@@ -970,7 +960,6 @@ describe('Happy Path', () => {
     })
     expectPositionEq(await market.positions(user.address), {
       ...DEFAULT_POSITION,
-      id: 2,
       timestamp: TIMESTAMP_4,
       maker: POSITION.div(2),
     })
@@ -978,6 +967,7 @@ describe('Happy Path', () => {
     // Check global state
     expectGlobalEq(await market.global(), {
       currentId: 3,
+      latestId: 2,
       protocolFee: '267859',
       riskFee: 0,
       oracleFee: 0,
@@ -985,7 +975,6 @@ describe('Happy Path', () => {
     })
     expectPositionEq(await market.pendingPosition(3), {
       ...DEFAULT_POSITION,
-      id: 3,
       timestamp: TIMESTAMP_5,
       maker: POSITION,
       long: POSITION.div(2),
@@ -993,7 +982,6 @@ describe('Happy Path', () => {
     })
     expectPositionEq(await market.position(), {
       ...DEFAULT_POSITION,
-      id: 2,
       timestamp: TIMESTAMP_4,
       maker: POSITION.div(2),
       long: POSITION.div(2),
@@ -1098,13 +1086,13 @@ describe('Happy Path', () => {
     // Check user is in the correct state
     expectLocalEq(await market.locals(user.address), {
       currentId: delay + 1,
+      latestId: delay,
       collateral: (await market.locals(user.address)).collateral,
       reward: (await market.locals(user.address)).reward,
       protection: 0,
     })
     expectPositionEq(await market.pendingPositions(user.address, delay + 1), {
       ...DEFAULT_POSITION,
-      id: delay + 1,
       timestamp: await chainlink.oracle.current(),
       maker: POSITION,
       fee: (await market.pendingPositions(user.address, delay + 1)).fee,
@@ -1112,7 +1100,6 @@ describe('Happy Path', () => {
     })
     expectPositionEq(await market.positions(user.address), {
       ...DEFAULT_POSITION,
-      id: delay,
       timestamp: (await chainlink.oracle.latest()).timestamp,
       maker: POSITION.sub(1),
     })
@@ -1120,6 +1107,7 @@ describe('Happy Path', () => {
     // Check global state
     expectGlobalEq(await market.global(), {
       currentId: delay + 1,
+      latestId: delay,
       protocolFee: (await market.global()).protocolFee,
       riskFee: (await market.global()).riskFee,
       oracleFee: (await market.global()).oracleFee,
@@ -1127,7 +1115,6 @@ describe('Happy Path', () => {
     })
     expectPositionEq(await market.pendingPosition(delay + 1), {
       ...DEFAULT_POSITION,
-      id: delay + 1,
       timestamp: await chainlink.oracle.current(),
       maker: POSITION,
       long: POSITION.sub(1),
@@ -1135,7 +1122,6 @@ describe('Happy Path', () => {
     })
     expectPositionEq(await market.position(), {
       ...DEFAULT_POSITION,
-      id: delay,
       timestamp: (await chainlink.oracle.latest()).timestamp,
       maker: POSITION.sub(1),
       long: POSITION.sub(1),
