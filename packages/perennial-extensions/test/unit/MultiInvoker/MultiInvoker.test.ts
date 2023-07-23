@@ -250,7 +250,9 @@ describe('MultiInvoker', () => {
       vaultUpdate.wrap = true
       const v = helpers.buildUpdateVault(vaultUpdate)
 
+      dsu.balanceOf.returnsAtCall(0, 0)
       await expect(multiInvoker.connect(user).invoke(v)).to.not.be.reverted
+      dsu.balanceOf.returnsAtCall(1, dsuCollateral)
 
       expect(reserve.redeem).to.have.been.calledWith(dsuCollateral)
       expect(vault.update).to.have.been.calledWith(user.address, '0', '0', vaultUpdate.claimAssets)
@@ -277,11 +279,10 @@ describe('MultiInvoker', () => {
     })
 
     it('charges interface fee', async () => {
-      //usdc.transfer.returns(true)
       usdc.transferFrom.returns(true)
 
       const c: Actions = [
-        { action: 10, args: utils.defaultAbiCoder.encode(['address', 'uint256'], [owner.address, collateral]) },
+        { action: 9, args: utils.defaultAbiCoder.encode(['address', 'uint256'], [owner.address, collateral]) },
       ]
       await expect(multiInvoker.connect(user).invoke(c)).to.not.be.reverted
 
@@ -350,7 +351,7 @@ describe('MultiInvoker', () => {
     })
 
     it('places a tp order', async () => {
-      const trigger = openTriggerOrder({ size: position, price: BigNumber.from(1100e6), side: 'S' })
+      const trigger = openTriggerOrder({ size: position, price: BigNumber.from(1100e6), side: 'S', trigger: 'TP' })
       let a = buildPlaceOrder({ market: market.address, collateral: collateral, order: trigger, triggerType: 'TP' })
       await expect(multiInvoker.connect(user).invoke(a)).to.not.be.reverted
 
@@ -589,15 +590,6 @@ describe('MultiInvoker', () => {
           .to.emit(multiInvoker, 'OrderExecuted')
           .to.emit(multiInvoker, 'KeeperCall')
       })
-
-      // // market price > exec price
-      // it('executes a long tp order', async () => {
-
-      // })
-
-      // it('executes a short limit order', async () => {
-
-      // })
 
       it('executes an order and charges keeper fee to sender', async () => {
         // long limit: limit = true && mkt price (1150) <= exec price 1200
