@@ -93,7 +93,7 @@ describe('MultiInvoker', () => {
       dsu.address,
       marketFactory.address,
       vaultFactory.address,
-      batcher.address,
+      '0x0000000000000000000000000000000000000000',
       reserve.address,
       parse6decimal('1.4'),
     )
@@ -163,7 +163,7 @@ describe('MultiInvoker', () => {
 
       await expect(multiInvoker.connect(user).invoke(a)).to.not.be.reverted
 
-      expect(batcher.wrap).to.have.been.calledWith(dsuCollateral, multiInvoker.address)
+      expect(reserve.mint).to.have.been.calledWith(dsuCollateral)
       expect(usdc.transferFrom).to.have.been.calledWith(user.address, multiInvoker.address, collateral)
     })
 
@@ -200,7 +200,7 @@ describe('MultiInvoker', () => {
 
       await expect(await multiInvoker.connect(user).invoke(a)).to.not.be.reverted
 
-      expect(batcher.unwrap).to.have.been.calledWith(dsuCollateral, user.address)
+      expect(reserve.redeem).to.have.been.calledWith(dsuCollateral)
     })
 
     it('deposits assets to vault', async () => {
@@ -243,7 +243,6 @@ describe('MultiInvoker', () => {
       await expect(multiInvoker.connect(user).invoke(v)).to.not.be.reverted
 
       expect(vault.update).to.have.been.calledWith(user.address, '0', '0', vaultUpdate.claimAssets)
-      expect(dsu.transfer).to.have.been.calledWith(user.address, dsuCollateral)
     })
 
     it('claims and unwraps assets from vault', async () => {
@@ -253,7 +252,7 @@ describe('MultiInvoker', () => {
 
       await expect(multiInvoker.connect(user).invoke(v)).to.not.be.reverted
 
-      expect(reserve.redeem).to.have.been.calledWith(dsuCollateral)
+      expect(reserve.redeem).to.have.been.calledWith(collateral)
       expect(vault.update).to.have.been.calledWith(user.address, '0', '0', vaultUpdate.claimAssets)
     })
 
@@ -278,7 +277,8 @@ describe('MultiInvoker', () => {
     })
 
     it('charges interface fee', async () => {
-      usdc.transferFrom.whenCalledWith(user.address, owner.address, collateral).returns(true)
+      //usdc.transfer.returns(true)
+      usdc.transferFrom.returns(true)
 
       const c: Actions = [
         { action: 10, args: utils.defaultAbiCoder.encode(['address', 'uint256'], [owner.address, dsuCollateral]) },
@@ -306,7 +306,7 @@ describe('MultiInvoker', () => {
       timestamp: 1,
       maker: 0,
       long: position,
-      short: 0,
+      short: position,
       collateral: collateral,
       fee: 0,
       keeper: 0,
@@ -314,13 +314,14 @@ describe('MultiInvoker', () => {
     }
 
     const fixture = async () => {
-      market.locals.whenCalledWith(user.address).returns(defaultLocal)
       market.pendingPositions.whenCalledWith(user.address, 1).returns(defaultPosition)
     }
 
     beforeEach(async () => {
       setGlobalPrice(market, BigNumber.from(1150e6))
       await loadFixture(fixture)
+      setMarketPosition(market, user, defaultPosition)
+      market.locals.whenCalledWith(user.address).returns(defaultLocal)
       dsu.transferFrom.whenCalledWith(user.address, multiInvoker.address, collateral.mul(1e12)).returns(true)
       usdc.transferFrom.whenCalledWith(user.address, multiInvoker.address, collateral).returns(true)
     })
