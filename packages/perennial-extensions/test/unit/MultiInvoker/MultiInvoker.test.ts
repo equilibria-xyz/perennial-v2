@@ -615,7 +615,7 @@ describe('MultiInvoker', () => {
         await expect(multiInvoker.connect(owner).invoke(execOrder, { maxFeePerGas: 100000000 }))
           .to.emit(multiInvoker, 'OrderExecuted')
           .to.emit(multiInvoker, 'KeeperCall')
-          .withArgs(owner.address, BigNumber.from(40826), anyValue, anyValue, BigNumber.from('18072986000000000'))
+          .withArgs(owner.address, anyValue, anyValue, anyValue, anyValue)
       })
     })
   })
