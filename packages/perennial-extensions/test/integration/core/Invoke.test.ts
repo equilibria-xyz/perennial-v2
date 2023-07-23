@@ -166,7 +166,6 @@ describe('Invoke', () => {
       const { owner, user, usdc, dsu } = instanceVars
 
       const usdcDeposit = await usdc.balanceOf(RESERVE)
-      const batcherBal = await dsu.balanceOf(BATCHER)
 
       await usdc.connect(user).approve(multiInvoker.address, usdcDeposit)
 

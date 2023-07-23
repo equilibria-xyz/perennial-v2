@@ -2,7 +2,7 @@ import { SignerWithAddress } from '@nomiclabs/hardhat-ethers/signers'
 import HRE from 'hardhat'
 import { BigNumber, utils, ContractTransaction, constants } from 'ethers'
 
-import { time, impersonate } from '../../../../common/testutil'
+import { impersonate } from '../../../../common/testutil'
 
 // extensions types
 import {
@@ -13,20 +13,13 @@ import {
   IOracleProvider,
   MultiInvoker,
   MultiInvoker__factory,
-  IBatcher,
-  IBatcher__factory,
-  IEmptySetReserve,
-  IEmptySetReserve__factory,
   Market,
   Market__factory,
   PowerTwo__factory,
   IMarket,
-  IMarket__factory,
   IVault,
-  IVaultFactory,
   IVaultFactory__factory,
   IVault__factory,
-  Vault,
   VaultFactory,
   VaultFactory__factory,
   Vault__factory,
@@ -40,22 +33,17 @@ import {
 
 // v2 core types
 import {
-  Factory,
-  Factory__factory,
   ERC20PresetMinterPauser,
   ERC20PresetMinterPauser__factory,
   ProxyAdmin,
   ProxyAdmin__factory,
   TransparentUpgradeableProxy__factory,
-  IOracleProvider__factory,
 } from '@equilibria/perennial-v2/types/generated'
 
 import { ChainlinkContext } from '@equilibria/perennial-v2/test/integration/helpers/chainlinkHelpers'
 
 import { parse6decimal } from '../../../../common/testutil/types'
-import { buildChainlinkRoundId } from '@equilibria/perennial-v2-oracle/util/buildChainlinkRoundId'
 import { CHAINLINK_CUSTOM_CURRENCIES } from '@equilibria/perennial-v2-oracle/util/constants'
-import { currentBlockTimestamp } from '../../../../common/testutil/time'
 
 import { MarketFactory } from '@equilibria/perennial-v2/types/generated/contracts'
 
@@ -68,20 +56,14 @@ import { FakeContract, smock } from '@defi-wonderland/smock'
 import { IOracleFactory } from '@equilibria/perennial-v2-vault/types/generated'
 import { deployProductOnMainnetFork } from '@equilibria/perennial-v2-vault/test/integration/helpers/setupHelpers'
 
-const { config, deployments, ethers } = HRE
+const { ethers } = HRE
 
-export const INITIAL_PHASE_ID = 1
-export const INITIAL_AGGREGATOR_ROUND_ID = 10000
-export const INITIAL_VERSION = 2472 // registry's phase 1 starts at aggregatorRoundID 7528
-
-export const DSU_HOLDER = '0x0B663CeaCEF01f2f88EB7451C70Aa069f19dB997'
 export const USDC_HOLDER = '0x0A59649758aa4d66E25f08Dd01271e891fe52199'
 
 // @todo fix external deployment deps
 export const BATCHER = '0x0B663CeaCEF01f2f88EB7451C70Aa069f19dB997'
 export const RESERVE = '0xD05aCe63789cCb35B9cE71d01e4d632a0486Da4B'
 export const ETH_ORACLE = '0x5f4eC3Df9cbd43714FE2740f5E3616155c5b8419' // chainlink eth oracle
-export const CHAINLINK_REGISTRY = '0x47Fb2585D2C56Fe188D0E6ec628a38b74fCeeeDf'
 export const DSU = '0x605D26FBd5be761089281d5cec2Ce86eeA667109'
 export const USDC = '0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48'
 const DSU_MINTER = '0xD05aCe63789cCb35B9cE71d01e4d632a0486Da4B'
