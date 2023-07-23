@@ -217,7 +217,7 @@ contract MultiInvoker is IMultiInvoker, Kept {
 
     /// @notice Liquidates an account for a specific market
     /// @param market Market to liquidate account in
-    /// @param address Address of market to liquidate
+    /// @param account Address of market to liquidate
     function _liquidate(IMarket market, address account) internal {
         UFixed6 liquidationFee = _liquidationFee(market, account);
 
