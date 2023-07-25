@@ -6,7 +6,7 @@ export const solidityOverrides = {
     settings: {
       optimizer: {
         enabled: OPTIMIZER_ENABLED,
-        runs: 10000, // TODO: find max value that keeps contracts under size
+        runs: 27999,
       },
       viaIR: OPTIMIZER_ENABLED,
     },
