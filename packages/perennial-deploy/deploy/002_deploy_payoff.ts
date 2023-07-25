@@ -52,7 +52,7 @@ const func: DeployFunction = async function (hre: HardhatRuntimeEnvironment) {
   })
   const payoffFactory = new PayoffFactory__factory(deployerSigner).attach((await get('PayoffFactory')).address)
 
-  // Deploy Instances
+  // Deploy and register payoffs
   for (const payoffName of PAYOFFS) {
     const payoff = await deploy(payoffName, {
       from: deployer,
@@ -67,6 +67,7 @@ const func: DeployFunction = async function (hre: HardhatRuntimeEnvironment) {
     }
   }
 
+  // Transfer pending ownership
   if ((await payoffFactory.owner()).toLowerCase() !== (await get('TimelockController')).address.toLowerCase()) {
     process.stdout.write('Setting owner to timelock...')
     await payoffFactory.updatePendingOwner((await get('TimelockController')).address)

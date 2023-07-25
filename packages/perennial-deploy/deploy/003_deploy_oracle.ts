@@ -94,7 +94,7 @@ const func: DeployFunction = async function (hre: HardhatRuntimeEnvironment) {
   // Authorize Oracle Factory
   await pythFactory.authorize(oracleFactory.address)
 
-  // Create Instances
+  // Create oracles
   for (const id of ORACLE_IDS) {
     if ((await pythFactory.oracles(id)).toLowerCase() === ethers.constants.AddressZero.toLowerCase()) {
       process.stdout.write(`Creating pyth oracle ${id}...`)
