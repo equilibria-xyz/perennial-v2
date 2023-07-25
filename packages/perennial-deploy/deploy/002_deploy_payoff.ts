@@ -60,18 +60,18 @@ const func: DeployFunction = async function (hre: HardhatRuntimeEnvironment) {
       log: true,
       autoMine: true,
     })
-    await payoffFactory.register(payoff.address)
+    if (!(await payoffFactory.instances(payoff.address))) {
+      process.stdout.write(`Registering payoff ${payoffName}...`)
+      await payoffFactory.register(payoff.address)
+      process.stdout.write('complete\n')
+    }
   }
 
-  // TODO: ownership
-
-  // const DSU = new TestnetDSU__factory(deployerSigner).attach((await get('TestnetDSU')).address)
-  // const reserveAddress = (await get('TestnetReserve')).address
-  // if ((await DSU.minter()).toLowerCase() !== reserveAddress) {
-  //   process.stdout.write('Setting minter to reserve...')
-  //   await (await DSU.updateMinter(reserveAddress)).wait(2)
-  //   process.stdout.write('complete\n')
-  // }
+  if ((await payoffFactory.owner()).toLowerCase() !== (await get('TimelockController')).address.toLowerCase()) {
+    process.stdout.write('Setting owner to timelock...')
+    await payoffFactory.updatePendingOwner((await get('TimelockController')).address)
+    process.stdout.write('complete\n')
+  }
 }
 
 export default func
