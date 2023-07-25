@@ -26,6 +26,7 @@ const config = defaultConfig({
     '@equilibria/perennial-v2/contracts/MarketFactory.sol',
     '@equilibria/perennial-v2-vault/contracts/Vault.sol',
     '@equilibria/perennial-v2-vault/contracts/VaultFactory.sol',
+    '@equilibria/perennial-v2-extensions/contracts/MultiInvoker.sol',
   ],
 })
 
