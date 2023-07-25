@@ -150,9 +150,10 @@ export default function defaultConfig({
           },
         },
       ],
+      overrides: solidityOverrides,
     },
     dependencyCompiler: {
-      paths: [],
+      paths: dependencyPaths,
     },
     namedAccounts: {
       deployer: 0,

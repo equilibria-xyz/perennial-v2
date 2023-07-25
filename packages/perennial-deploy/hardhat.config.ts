@@ -2,6 +2,7 @@ import defaultConfig from '../common/hardhat.default.config'
 
 const config = defaultConfig({
   dependencyPaths: [
+    '@openzeppelin/contracts/governance/TimelockController.sol',
     '@openzeppelin/contracts/proxy/transparent/ProxyAdmin.sol',
     '@equilibria/perennial-v2-payoff/contracts/PayoffFactory.sol',
     '@equilibria/perennial-v2-payoff/contracts/payoff/Giga.sol',
