@@ -1,14 +1,18 @@
 import { HardhatRuntimeEnvironment } from 'hardhat/types'
 import { DeployFunction } from 'hardhat-deploy/types'
-import { PythFactory__factory } from '@equilibria/perennial-v2-oracle/types/generated'
 import { ProxyAdmin__factory } from '../types/generated'
 import { SignerWithAddress } from '@nomiclabs/hardhat-ethers/signers'
+import { isMainnet } from '../../common/testutil/network'
 
 const func: DeployFunction = async function (hre: HardhatRuntimeEnvironment) {
   const { deployments, getNamedAccounts, ethers } = hre
-  const { deploy, get } = deployments
+  const { deploy, get, getNetworkName } = deployments
   const { deployer } = await getNamedAccounts()
   const deployerSigner: SignerWithAddress = await ethers.getSigner(deployer)
+
+  // If mainnet, use timelock as owner
+  const owner = isMainnet(getNetworkName()) ? (await get('TimelockController')).address : deployer
+  if (owner === deployer) console.log('[WARNING] Testnet detected, timelock will not be set as owner')
 
   // Deploy ProxyAdmin
   await deploy('ProxyAdmin', {
@@ -20,9 +24,9 @@ const func: DeployFunction = async function (hre: HardhatRuntimeEnvironment) {
   const proxyAdmin = new ProxyAdmin__factory(deployerSigner).attach((await get('ProxyAdmin')).address)
 
   // Transfer ownership
-  if ((await proxyAdmin.owner()).toLowerCase() !== (await get('TimelockController')).address.toLowerCase()) {
-    process.stdout.write('Setting owner to timelock...')
-    await proxyAdmin.transferOwnership((await get('TimelockController')).address)
+  if ((await proxyAdmin.owner()).toLowerCase() !== owner.toLowerCase()) {
+    process.stdout.write('Setting owner...')
+    await (await proxyAdmin.transferOwnership(owner)).wait()
     process.stdout.write('complete\n')
   }
 }

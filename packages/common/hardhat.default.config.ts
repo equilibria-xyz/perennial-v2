@@ -2,56 +2,88 @@ import { config as dotenvConfig } from 'dotenv'
 import { resolve } from 'path'
 dotenvConfig({ path: resolve(__dirname, '../../.env') })
 
-import { HardhatUserConfig, SolcUserConfig } from 'hardhat/types'
-import { NetworkUserConfig } from 'hardhat/types'
+import { HardhatUserConfig, NetworkUserConfig, SolcUserConfig } from 'hardhat/types'
 
-import '@nomicfoundation/hardhat-toolbox'
+import '@typechain/hardhat'
+import '@nomiclabs/hardhat-ethers'
+import '@nomicfoundation/hardhat-chai-matchers'
+import '@nomiclabs/hardhat-etherscan'
+import 'solidity-coverage'
+import 'hardhat-gas-reporter'
 import 'hardhat-contract-sizer'
 import 'hardhat-deploy'
 import 'hardhat-dependency-compiler'
-import 'solidity-coverage'
-import { getChainId } from './testutil/network'
-
-import { ethers } from 'ethers'
-ethers.utils.Logger.setLogLevel(ethers.utils.Logger.levels.ERROR) // turn off duplicate definition warnings
+import { getChainId, isArbitrum, isBase, isOptimism, SupportedChain } from './testutil/network'
 
 export const SOLIDITY_VERSION = '0.8.19'
-const PRIVATE_KEY_MAINNET = process.env.PRIVATE_KEY || ''
+
+const PRIVATE_KEY_MAINNET = process.env.PRIVATE_KEY_MAINNET || ''
 const PRIVATE_KEY_TESTNET = process.env.PRIVATE_KEY_TESTNET || ''
-const ETHERSCAN_API_KEY = process.env.ETHERSCAN_API_KEY || ''
+
+const ETHERSCAN_API_KEY_MAINNET = process.env.ETHERSCAN_API_KEY_MAINNET || ''
+const ETHERSCAN_API_KEY_OPTIMISM = process.env.ETHERSCAN_API_KEY_OPTIMISM || ''
+const ETHERSCAN_API_KEY_ARBITRUM = process.env.ETHERSCAN_API_KEY_ARBITRUM || ''
+const ETHERSCAN_API_KEY_BASE = process.env.ETHERSCAN_API_KEY_BASE || ''
+
 const MAINNET_NODE_URL = process.env.MAINNET_NODE_URL || ''
-const ROPSTEN_NODE_URL = process.env.ROPSTEN_NODE_URL || ''
-const KOVAN_NODE_URL = process.env.KOVAN_NODE_URL || ''
+const OPTIMISM_NODE_URL = process.env.OPTIMISM_NODE_URL || ''
+const ARBITRUM_NODE_URL = process.env.ARBITRUM_NODE_URL || ''
+const BASE_NODE_URL = process.env.BASE_NODE_URL || ''
 const GOERLI_NODE_URL = process.env.GOERLI_NODE_URL || ''
+const OPTIMISM_GOERLI_NODE_URL = process.env.OPTIMISM_GOERLI_NODE_URL || ''
+const ARBITRUM_GOERLI_NODE_URL = process.env.ARBITRUM_GOERLI_NODE_URL || ''
+const BASE_GOERLI_NODE_URL = process.env.BASE_GOERLI_NODE_URL || ''
+
 const FORK_ENABLED = process.env.FORK_ENABLED === 'true' || false
 const FORK_NETWORK = process.env.FORK_NETWORK || 'mainnet'
 const FORK_BLOCK_NUMBER = process.env.FORK_BLOCK_NUMBER ? parseInt(process.env.FORK_BLOCK_NUMBER) : undefined
+
 const NODE_INTERVAL_MINING = process.env.NODE_INTERVAL_MINING ? parseInt(process.env.NODE_INTERVAL_MINING) : undefined
+
 const MOCHA_PARALLEL = process.env.MOCHA_PARALLEL === 'true' || false
 const MOCHA_REPORTER = process.env.MOCHA_REPORTER || 'spec'
+
 export const OPTIMIZER_ENABLED = process.env.OPTIMIZER_ENABLED === 'true' || false
 
-function getUrl(networkName: string): string {
+function getUrl(networkName: SupportedChain): string {
   switch (networkName) {
     case 'mainnet':
-    case 'mainnet-fork':
       return MAINNET_NODE_URL
-    case 'ropsten':
-      return ROPSTEN_NODE_URL
-    case 'kovan':
-      return KOVAN_NODE_URL
+    case 'arbitrum':
+      return ARBITRUM_NODE_URL
+    case 'optimism':
+      return OPTIMISM_NODE_URL
+    case 'base':
+      return BASE_NODE_URL
     case 'goerli':
       return GOERLI_NODE_URL
+    case 'optimismGoerli':
+      return OPTIMISM_GOERLI_NODE_URL
+    case 'arbitrumGoerli':
+      return ARBITRUM_GOERLI_NODE_URL
+    case 'baseGoerli':
+      return BASE_GOERLI_NODE_URL
     default:
       return ''
   }
 }
 
-function createNetworkConfig(network: string): NetworkUserConfig {
+function getEtherscanApiConfig(networkName: SupportedChain): { apiKey: string; apiUrl?: string } {
+  if (isOptimism(networkName)) return { apiKey: ETHERSCAN_API_KEY_OPTIMISM }
+  if (isArbitrum(networkName)) return { apiKey: ETHERSCAN_API_KEY_ARBITRUM }
+  if (isBase(networkName)) return { apiKey: ETHERSCAN_API_KEY_BASE }
+
+  return { apiKey: ETHERSCAN_API_KEY_MAINNET }
+}
+
+function createNetworkConfig(network: SupportedChain): NetworkUserConfig {
   const cfg = {
     accounts: PRIVATE_KEY_TESTNET ? [PRIVATE_KEY_TESTNET] : [],
     chainId: getChainId(network),
     url: getUrl(network),
+    verify: {
+      etherscan: getEtherscanApiConfig(network),
+    },
   }
 
   if (network === 'mainnet') {
@@ -78,7 +110,7 @@ export default function defaultConfig({
     networks: {
       hardhat: {
         forking: {
-          url: getUrl(FORK_NETWORK),
+          url: getUrl(FORK_NETWORK as SupportedChain),
           enabled: FORK_ENABLED,
           blockNumber: FORK_BLOCK_NUMBER,
         },
@@ -91,10 +123,13 @@ export default function defaultConfig({
           : undefined,
       },
       goerli: createNetworkConfig('goerli'),
-      kovan: createNetworkConfig('kovan'),
-      rinkeby: createNetworkConfig('rinkeby'),
-      ropsten: createNetworkConfig('ropsten'),
+      arbitrumGoerli: createNetworkConfig('arbitrumGoerli'),
+      optimismGoerli: createNetworkConfig('optimismGoerli'),
+      baseGoerli: createNetworkConfig('baseGoerli'),
       mainnet: createNetworkConfig('mainnet'),
+      arbitrum: createNetworkConfig('arbitrum'),
+      optimism: createNetworkConfig('optimism'),
+      base: createNetworkConfig('base'),
     },
     solidity: {
       compilers: [
@@ -103,32 +138,40 @@ export default function defaultConfig({
           settings: {
             optimizer: {
               enabled: OPTIMIZER_ENABLED,
-              runs: 10000,
+              runs: 1000000, // Max allowed by Etherscan verify
             },
             outputSelection: OPTIMIZER_ENABLED
               ? {}
               : {
                   '*': {
-                    '*': ['storageLayout'],
+                    '*': ['storageLayout'], // This is needed by Smock for mocking functions
                   },
                 },
-            viaIR: OPTIMIZER_ENABLED,
           },
         },
       ],
-      overrides: solidityOverrides,
     },
     dependencyCompiler: {
-      paths: dependencyPaths || [],
+      paths: [],
     },
     namedAccounts: {
       deployer: 0,
     },
     etherscan: {
-      apiKey: ETHERSCAN_API_KEY,
+      apiKey: {
+        mainnet: getEtherscanApiConfig('mainnet').apiKey,
+        optimisticEthereum: getEtherscanApiConfig('optimism').apiKey,
+        arbitrumOne: getEtherscanApiConfig('arbitrum').apiKey,
+        base: getEtherscanApiConfig('base').apiKey,
+        goerli: getEtherscanApiConfig('goerli').apiKey,
+        optimisticGoerli: getEtherscanApiConfig('optimismGoerli').apiKey,
+        arbitrumGoerli: getEtherscanApiConfig('arbitrumGoerli').apiKey,
+        baseGoerli: getEtherscanApiConfig('baseGoerli').apiKey,
+      },
     },
     gasReporter: {
       currency: 'USD',
+      gasPrice: 100,
       enabled: process.env.REPORT_GAS ? true : false,
     },
     typechain: {
@@ -139,7 +182,7 @@ export default function defaultConfig({
       parallel: MOCHA_PARALLEL,
       reporter: MOCHA_REPORTER,
       slow: 1000,
-      timeout: 240000,
+      timeout: 180000,
     },
     contractSizer: {
       alphaSort: true,
@@ -152,7 +195,13 @@ export default function defaultConfig({
       deployments: {
         kovan: ['external/deployments/kovan', ...(externalDeployments?.kovan || [])],
         goerli: ['external/deployments/goerli', ...(externalDeployments?.goerli || [])],
+        arbitrumGoerli: ['external/deployments/arbitrumGoerli', ...(externalDeployments?.arbitrumGoerli || [])],
+        optimismGoerli: ['external/deployments/optimismGoerli', ...(externalDeployments?.optimismGoerli || [])],
+        baseGoerli: ['external/deployments/baseGoerli', ...(externalDeployments?.baseGoerli || [])],
         mainnet: ['external/deployments/mainnet', ...(externalDeployments?.mainnet || [])],
+        arbitrum: ['external/deployments/arbitrum', ...(externalDeployments?.arbitrum || [])],
+        optimism: ['external/deployments/optimism', ...(externalDeployments?.optimism || [])],
+        base: ['external/deployments/base', ...(externalDeployments?.base || [])],
         hardhat: [FORK_ENABLED ? `external/deployments/${FORK_NETWORK}` : '', ...(externalDeployments?.hardhat || [])],
         localhost: [
           FORK_ENABLED ? `external/deployments/${FORK_NETWORK}` : '',

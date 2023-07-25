@@ -3,15 +3,22 @@ import { DeployFunction } from 'hardhat-deploy/types'
 import { SignerWithAddress } from '@nomiclabs/hardhat-ethers/signers'
 import { ProxyAdmin__factory } from '@equilibria/perennial-v2/types/generated'
 import { OracleFactory__factory, PythFactory__factory } from '@equilibria/perennial-v2-oracle/types/generated'
+import { forkNetwork, isFork, isMainnet } from '../../common/testutil/network'
 
-const ORACLE_IDS = [
-  '0xff61491a931112ddf1bd8147cd1b641375f79f5825126d665480874634fd0ace', // ETH
-  '0xe62df6c8b4a85fe1a67db44dc12de5db330f7ac66b72dc658afedf0f4a415b43', // BTC
-]
+export const ORACLE_IDS: { [key: string]: { [asset: string]: string } } = {
+  mainnet: {
+    eth: '0xff61491a931112ddf1bd8147cd1b641375f79f5825126d665480874634fd0ace', // ETH
+    btc: '0xe62df6c8b4a85fe1a67db44dc12de5db330f7ac66b72dc658afedf0f4a415b43', // BTC
+  },
+  arbitrumGoerli: {
+    eth: '0xca80ba6dc32e08d06f1aa886011eed1d77c77be9eb761cc10d72b7d0a2fd57a6', // ETH
+    btc: '0xf9c0172ba10dfa4d19088d94f5bf61d3b54d5bd7483a322a982e1373ee8ea31b', // BTC
+  },
+}
 
 const func: DeployFunction = async function (hre: HardhatRuntimeEnvironment) {
   const { deployments, getNamedAccounts, ethers } = hre
-  const { deploy, get } = deployments
+  const { deploy, get, getNetworkName } = deployments
   const { deployer } = await getNamedAccounts()
   const deployerSigner: SignerWithAddress = await ethers.getSigner(deployer)
 
@@ -89,34 +96,40 @@ const func: DeployFunction = async function (hre: HardhatRuntimeEnvironment) {
   const pythFactory = new PythFactory__factory(deployerSigner).attach((await get('PythFactory')).address)
 
   // Register Pyth Factory
-  await oracleFactory.register(pythFactory.address)
+  await (await oracleFactory.register(pythFactory.address)).wait()
 
   // Authorize Oracle Factory
-  await pythFactory.authorize(oracleFactory.address)
+  await (await pythFactory.authorize(oracleFactory.address)).wait()
 
   // Create oracles
-  for (const id of ORACLE_IDS) {
+  const oracleIDs = isFork() ? ORACLE_IDS[forkNetwork()] : ORACLE_IDS[getNetworkName()]
+  if (!oracleIDs) throw new Error('No oracle IDs for network')
+  for (const id of Object.values(oracleIDs)) {
     if ((await pythFactory.oracles(id)).toLowerCase() === ethers.constants.AddressZero.toLowerCase()) {
       process.stdout.write(`Creating pyth oracle ${id}...`)
-      await pythFactory.create(id)
+      await (await pythFactory.create(id)).wait()
       process.stdout.write('complete\n')
     }
     if ((await oracleFactory.oracles(id)).toLowerCase() === ethers.constants.AddressZero.toLowerCase()) {
       process.stdout.write(`Creating oracle ${id}...`)
-      oracleFactory.create(id, pythFactory.address)
+      await (await oracleFactory.create(id, pythFactory.address)).wait()
       process.stdout.write('complete\n')
     }
   }
 
+  // If mainnet, use timelock as owner
+  const owner = isMainnet(getNetworkName()) ? (await get('TimelockController')).address : deployer
+  if (owner === deployer) console.log('[WARNING] Testnet detected, timelock will not be set as owner')
+
   // Transfer pending ownership
-  if ((await oracleFactory.owner()).toLowerCase() !== (await get('TimelockController')).address.toLowerCase()) {
-    process.stdout.write('Setting owner to timelock...')
-    await oracleFactory.updatePendingOwner((await get('TimelockController')).address)
+  if ((await oracleFactory.owner()).toLowerCase() !== owner.toLowerCase()) {
+    process.stdout.write('Setting owner...')
+    await (await oracleFactory.updatePendingOwner(owner)).wait()
     process.stdout.write('complete\n')
   }
-  if ((await pythFactory.owner()).toLowerCase() !== (await get('TimelockController')).address.toLowerCase()) {
-    process.stdout.write('Setting owner to timelock...')
-    await pythFactory.updatePendingOwner((await get('TimelockController')).address)
+  if ((await pythFactory.owner()).toLowerCase() !== owner.toLowerCase()) {
+    process.stdout.write('Setting owner...')
+    await (await pythFactory.updatePendingOwner(owner)).wait()
     process.stdout.write('complete\n')
   }
 }

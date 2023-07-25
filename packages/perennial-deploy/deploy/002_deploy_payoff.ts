@@ -3,6 +3,7 @@ import { DeployFunction } from 'hardhat-deploy/types'
 import { PayoffFactory__factory } from '../types/generated'
 import { SignerWithAddress } from '@nomiclabs/hardhat-ethers/signers'
 import { ProxyAdmin__factory } from '@equilibria/perennial-v2/types/generated'
+import { isMainnet } from '../../common/testutil/network'
 
 const PAYOFFS = [
   'Giga',
@@ -23,7 +24,7 @@ const PAYOFFS = [
 
 const func: DeployFunction = async function (hre: HardhatRuntimeEnvironment) {
   const { deployments, getNamedAccounts, ethers } = hre
-  const { deploy, get } = deployments
+  const { deploy, get, getNetworkName } = deployments
   const { deployer } = await getNamedAccounts()
   const deployerSigner: SignerWithAddress = await ethers.getSigner(deployer)
 
@@ -62,15 +63,19 @@ const func: DeployFunction = async function (hre: HardhatRuntimeEnvironment) {
     })
     if (!(await payoffFactory.instances(payoff.address))) {
       process.stdout.write(`Registering payoff ${payoffName}...`)
-      await payoffFactory.register(payoff.address)
+      await (await payoffFactory.register(payoff.address)).wait()
       process.stdout.write('complete\n')
     }
   }
 
+  // If mainnet, use timelock as owner
+  const owner = isMainnet(getNetworkName()) ? (await get('TimelockController')).address : deployer
+  if (owner === deployer) console.log('[WARNING] Testnet detected, timelock will not be set as owner')
+
   // Transfer pending ownership
-  if ((await payoffFactory.owner()).toLowerCase() !== (await get('TimelockController')).address.toLowerCase()) {
-    process.stdout.write('Setting owner to timelock...')
-    await payoffFactory.updatePendingOwner((await get('TimelockController')).address)
+  if ((await payoffFactory.owner()).toLowerCase() !== owner.toLowerCase()) {
+    process.stdout.write('Setting owner...')
+    await (await payoffFactory.updatePendingOwner(owner)).wait()
     process.stdout.write('complete\n')
   }
 }

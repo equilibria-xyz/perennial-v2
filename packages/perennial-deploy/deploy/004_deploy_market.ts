@@ -2,18 +2,28 @@ import { HardhatRuntimeEnvironment } from 'hardhat/types'
 import { DeployFunction } from 'hardhat-deploy/types'
 import { SignerWithAddress } from '@nomiclabs/hardhat-ethers/signers'
 import { MarketFactory__factory, OracleFactory__factory, ProxyAdmin__factory } from '../types/generated'
+import { forkNetwork, isFork, isMainnet, isTestnet } from '../../common/testutil/network'
+import { ORACLE_IDS } from './003_deploy_oracle'
 
-const MARKETS = [
-  ['0xff61491a931112ddf1bd8147cd1b641375f79f5825126d665480874634fd0ace', ''], // ETH / None
-  ['0xe62df6c8b4a85fe1a67db44dc12de5db330f7ac66b72dc658afedf0f4a415b43', ''], // BTC / None
-  ['0xff61491a931112ddf1bd8147cd1b641375f79f5825126d665480874634fd0ace', 'MilliPowerTwo'], // ETH / MilliPowerTwo
-]
+const MARKETS: { [key: string]: string[][] } = {
+  mainnet: [
+    [ORACLE_IDS.mainnet.eth, ''], // ETH / None
+    [ORACLE_IDS.mainnet.btc, ''], // BTC / None
+    [ORACLE_IDS.mainnet.eth, 'MilliPowerTwo'], // ETH / MilliPowerTwo
+  ],
+  arbitrumGoerli: [
+    [ORACLE_IDS.arbitrumGoerli.eth, ''], // ETH / None
+    [ORACLE_IDS.arbitrumGoerli.btc, ''], // BTC / None
+    [ORACLE_IDS.arbitrumGoerli.eth, 'MilliPowerTwo'], // ETH / MilliPowerTwo
+  ],
+}
 
 const func: DeployFunction = async function (hre: HardhatRuntimeEnvironment) {
   const { deployments, getNamedAccounts, ethers } = hre
-  const { deploy, get } = deployments
+  const { deploy, get, getNetworkName } = deployments
   const { deployer } = await getNamedAccounts()
   const deployerSigner: SignerWithAddress = await ethers.getSigner(deployer)
+  const deployMarkets = isTestnet(getNetworkName())
 
   const proxyAdmin = new ProxyAdmin__factory(deployerSigner).attach((await get('ProxyAdmin')).address)
 
@@ -52,35 +62,45 @@ const func: DeployFunction = async function (hre: HardhatRuntimeEnvironment) {
   const oracleFactory = new OracleFactory__factory(deployerSigner).attach((await get('OracleFactory')).address)
 
   // Create markets
-  for (const marketDefinition of MARKETS) {
-    const oracleAddress = await oracleFactory.oracles(marketDefinition[0])
-    const payoffAddress =
-      marketDefinition[1] === '' ? ethers.constants.AddressZero : (await get(marketDefinition[1])).address
+  if (deployMarkets) {
+    const markets = isFork() ? MARKETS[forkNetwork()] : MARKETS[getNetworkName()]
+    console.log('Deploying Markets...')
+    for (const marketDefinition of Object.values(markets)) {
+      const oracleAddress = await oracleFactory.oracles(marketDefinition[0])
+      const payoffAddress =
+        marketDefinition[1] === '' ? ethers.constants.AddressZero : (await get(marketDefinition[1])).address
 
-    if (
-      (await marketFactory.markets(oracleAddress, payoffAddress)).toLowerCase() ===
-      ethers.constants.AddressZero.toLowerCase()
-    ) {
-      process.stdout.write(`Creating market with oracle ${marketDefinition[0]} and payoff ${marketDefinition[1]}...`)
-      await marketFactory.create({
-        token: (await get('DSU')).address,
-        oracle: oracleAddress,
-        payoff: payoffAddress,
-      })
+      if (
+        (await marketFactory.markets(oracleAddress, payoffAddress)).toLowerCase() ===
+        ethers.constants.AddressZero.toLowerCase()
+      ) {
+        process.stdout.write(`Creating market with oracle ${marketDefinition[0]} and payoff ${marketDefinition[1]}...`)
+        await (
+          await marketFactory.create({
+            token: (await get('DSU')).address,
+            oracle: oracleAddress,
+            payoff: payoffAddress,
+          })
+        ).wait()
 
-      // TODO: setup market and risk parameter
+        // TODO: setup market and risk parameter
 
-      process.stdout.write('complete\n')
+        process.stdout.write('complete\n')
+      }
     }
   }
 
   // Authorize markets
-  await oracleFactory.authorize(marketFactory.address)
+  await (await oracleFactory.authorize(marketFactory.address)).wait()
+
+  // If mainnet, use timelock as owner
+  const owner = isMainnet(getNetworkName()) ? (await get('TimelockController')).address : deployer
+  if (owner === deployer) console.log('[WARNING] Testnet detected, timelock will not be set as owner')
 
   // Transfer pending ownership
-  if ((await marketFactory.owner()).toLowerCase() !== (await get('TimelockController')).address.toLowerCase()) {
-    process.stdout.write('Setting owner to timelock...')
-    await marketFactory.updatePendingOwner((await get('TimelockController')).address)
+  if ((await marketFactory.owner()).toLowerCase() !== owner.toLowerCase()) {
+    process.stdout.write('Setting owner...')
+    await (await marketFactory.updatePendingOwner(owner)).wait()
     process.stdout.write('complete\n')
   }
 }
