@@ -58,6 +58,7 @@ import { deployProductOnMainnetFork } from '@equilibria/perennial-v2-vault/test/
 
 const { ethers } = HRE
 
+export const ZERO_ADDR = ethers.utils.hexZeroPad('0x', 20)
 export const USDC_HOLDER = '0x0A59649758aa4d66E25f08Dd01271e891fe52199'
 
 export const BATCHER = '0x0B663CeaCEF01f2f88EB7451C70Aa069f19dB997'
@@ -205,9 +206,7 @@ export async function fundWallet(
 ) {
   const usdcHolder = await impersonate.impersonateWithBalance(USDC_HOLDER, utils.parseEther('10'))
   const dsuIface = new utils.Interface(['function mint(uint256)'])
-  await usdc
-    .connect(usdcHolder)
-    .approve(RESERVE, amountOverride ? amountOverride.div(1e12) : BigNumber.from('2000000000000'))
+  await usdc.connect(usdcHolder).approve(RESERVE, amountOverride ? amountOverride : BigNumber.from('2000000000000'))
   await usdcHolder.sendTransaction({
     to: RESERVE,
     value: 0,
@@ -447,15 +446,19 @@ export async function createVault(
   return [vault, vaultFactory, ethSubOracle, btcSubOracle]
 }
 
-export async function createInvoker(instanceVars: InstanceVars, vaultFactory?: VaultFactory): Promise<MultiInvoker> {
+export async function createInvoker(
+  instanceVars: InstanceVars,
+  vaultFactory?: VaultFactory,
+  noBatcher?: boolean,
+): Promise<MultiInvoker> {
   const { owner, user, userB } = instanceVars
 
   const multiInvoker = await new MultiInvoker__factory(owner).deploy(
     USDC,
     DSU,
     instanceVars.marketFactory.address,
-    vaultFactory ? vaultFactory.address : ethers.utils.hexZeroPad('0x', 20),
-    BATCHER,
+    vaultFactory ? vaultFactory.address : ZERO_ADDR,
+    noBatcher === true ? ZERO_ADDR : BATCHER,
     DSU_MINTER,
     parse6decimal('1.5'),
   )
