@@ -6,7 +6,6 @@ import {
   ProxyAdmin__factory,
   MarketFactory__factory,
   OracleFactory__factory,
-  Vault__factory,
 } from '../types/generated'
 
 const MARKETS = [
