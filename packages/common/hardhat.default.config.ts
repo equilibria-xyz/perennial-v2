@@ -147,6 +147,7 @@ export default function defaultConfig({
                     '*': ['storageLayout'], // This is needed by Smock for mocking functions
                   },
                 },
+            viaIR: OPTIMIZER_ENABLED,
           },
         },
       ],
