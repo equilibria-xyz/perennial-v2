@@ -24,6 +24,8 @@ const config = defaultConfig({
     '@equilibria/perennial-v2-oracle/contracts/pyth/PythFactory.sol',
     '@equilibria/perennial-v2/contracts/Market.sol',
     '@equilibria/perennial-v2/contracts/MarketFactory.sol',
+    '@equilibria/perennial-v2-vault/contracts/Vault.sol',
+    '@equilibria/perennial-v2-vault/contracts/VaultFactory.sol',
   ],
 })
 

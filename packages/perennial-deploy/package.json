@@ -1,7 +1,7 @@
 {
-  "name": "@equilibria/perennial-v2-vault",
+  "name": "@equilibria/perennial-v2-deploy",
   "version": "1.0.0",
-  "description": "Perennial V2 Vault",
+  "description": "Perennial V2 Deployment Tooling",
   "files": [
     "contracts",
     "artifacts/contracts",

@@ -67,9 +67,15 @@ const func: DeployFunction = async function (hre: HardhatRuntimeEnvironment) {
         oracle: oracleAddress,
         payoff: payoffAddress,
       })
+
+      // TODO: setup market and risk parameter
+
       process.stdout.write('complete\n')
     }
   }
+
+  // Authorize markets
+  await oracleFactory.authorize(marketFactory.address)
 
   // Transfer pending ownership
   if ((await marketFactory.owner()).toLowerCase() !== (await get('TimelockController')).address.toLowerCase()) {
