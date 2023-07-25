@@ -153,7 +153,7 @@ export default function defaultConfig({
       overrides: solidityOverrides,
     },
     dependencyCompiler: {
-      paths: dependencyPaths,
+      paths: dependencyPaths || [],
     },
     namedAccounts: {
       deployer: 0,
@@ -183,7 +183,7 @@ export default function defaultConfig({
       parallel: MOCHA_PARALLEL,
       reporter: MOCHA_REPORTER,
       slow: 1000,
-      timeout: 180000,
+      timeout: 240000,
     },
     contractSizer: {
       alphaSort: true,
