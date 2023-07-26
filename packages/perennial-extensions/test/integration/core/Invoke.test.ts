@@ -82,6 +82,11 @@ describe('Invoke', () => {
     multiInvoker = await createInvoker(instanceVars, vaultFactory)
   })
 
+  it('constructs correctly', async () => {
+    const { dsu, usdc } = instanceVars
+    expect(await multiInvoker.batcher()).to.eq(BATCHER)
+  })
+
   describe('#happy path', async () => {
     const collateral = parse6decimal('1000')
     const dsuCollateral = collateral.mul(1e12)
@@ -219,24 +224,34 @@ describe('Invoke', () => {
     })
 
     it('withdraws from market and unwraps DSU to USDC using BATCHER', async () => {
-      const { user, dsu, usdc } = instanceVars
+      const { owner, user, userB, dsu, usdc } = instanceVars
 
+      const batcher = IBatcher__factory.connect(BATCHER, owner)
       const userUSDCBalanceBefore = await usdc.balanceOf(user.address)
 
+      await fundWalletUSDC(usdc, userB)
+      await usdc.connect(userB).transfer(BATCHER, collateral)
+
+      await fundWalletUSDC(usdc, user)
+      await usdc.connect(user).approve(multiInvoker.address, collateral)
       await dsu.connect(user).approve(multiInvoker.address, dsuCollateral)
       await multiInvoker.connect(user).invoke(buildApproveTarget(market.address))
 
       await expect(
-        multiInvoker.connect(user).invoke(buildUpdateMarket({ market: market.address, collateral: collateral })),
+        multiInvoker
+          .connect(user)
+          .invoke(buildUpdateMarket({ market: market.address, collateral: collateral, handleWrap: true })),
       ).to.not.be.reverted
 
       await expect(
-        multiInvoker
+        await multiInvoker
           .connect(user)
           .invoke(buildUpdateMarket({ market: market.address, collateral: collateral.mul(-1), handleWrap: true })),
       )
         .to.emit(dsu, 'Transfer')
         .withArgs(market.address, multiInvoker.address, dsuCollateral)
+        .to.emit(batcher, 'Unwrap')
+        .withArgs(user.address, dsuCollateral)
 
       expect((await usdc.balanceOf(user.address)).sub(userUSDCBalanceBefore)).to.eq(collateral)
     })
@@ -254,15 +269,13 @@ describe('Invoke', () => {
       await multiInvoker.invoke(buildApproveTarget(market.address))
 
       await expect(
-        multiInvoker
-          .connect(userB)
-          .invoke(
-            buildUpdateMarket({
-              market: market.address,
-              collateral: collateral.sub(parse6decimal('1')),
-              handleWrap: true,
-            }),
-          ),
+        multiInvoker.connect(userB).invoke(
+          buildUpdateMarket({
+            market: market.address,
+            collateral: collateral.sub(parse6decimal('1')),
+            handleWrap: true,
+          }),
+        ),
       ).to.emit(batcher, 'Wrap')
 
       expect(await usdc.balanceOf(BATCHER)).to.eq(collateral.sub(parse6decimal('1')))
