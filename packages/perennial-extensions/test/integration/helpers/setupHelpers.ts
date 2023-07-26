@@ -210,9 +210,13 @@ export async function fundWallet(
   await usdcHolder.sendTransaction({
     to: RESERVE,
     value: 0,
-    data: dsuIface.encodeFunctionData('mint', [amountOverride ? amountOverride : utils.parseEther('2000000')]),
+    data: dsuIface.encodeFunctionData('mint', [
+      amountOverride ? amountOverride.mul(1e12) : utils.parseEther('2000000'),
+    ]),
   })
-  await dsu.connect(usdcHolder).transfer(wallet.address, amountOverride ? amountOverride : utils.parseEther('2000000'))
+  await dsu
+    .connect(usdcHolder)
+    .transfer(wallet.address, amountOverride ? amountOverride.mul(1e12) : utils.parseEther('2000000'))
 }
 
 export async function fundWalletUSDC(usdc: IERC20Metadata, wallet: SignerWithAddress, amountOverride?: BigNumber) {
