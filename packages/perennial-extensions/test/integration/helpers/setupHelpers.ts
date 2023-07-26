@@ -61,7 +61,7 @@ const { ethers } = HRE
 export const ZERO_ADDR = ethers.utils.hexZeroPad('0x', 20)
 export const USDC_HOLDER = '0x0A59649758aa4d66E25f08Dd01271e891fe52199'
 
-export const BATCHER = '0x0B663CeaCEF01f2f88EB7451C70Aa069f19dB997'
+export const BATCHER = '0xAEf566ca7E84d1E736f999765a804687f39D9094'
 export const RESERVE = '0xD05aCe63789cCb35B9cE71d01e4d632a0486Da4B'
 export const ETH_ORACLE = '0x5f4eC3Df9cbd43714FE2740f5E3616155c5b8419' // chainlink eth oracle
 export const DSU = '0x605D26FBd5be761089281d5cec2Ce86eeA667109'
