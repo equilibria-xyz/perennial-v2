@@ -103,6 +103,29 @@ describe('Orders', () => {
     expect(await multiInvoker.latestNonce()).to.eq(1)
   })
 
+  it('cannot execute an order that does not exist', async () => {
+    const { user, userB } = instanceVars
+
+    await expect(
+      multiInvoker.connect(userB).invoke(buildExecOrder({ user: user.address, market: market.address, orderId: 0 })),
+    ).to.be.revertedWithCustomError(multiInvoker, 'MultiInvokerCantExecuteError()')
+
+    const trigger = openTriggerOrder({ size: position, price: 0 })
+    await expect(
+      multiInvoker
+        .connect(user)
+        .invoke(buildPlaceOrder({ market: market.address, collateral: collateral, order: trigger })),
+    ).to.not.be.reverted
+
+    await expect(multiInvoker.connect(user).invoke(buildCancelOrder({ market: market.address, orderId: 1 }))).to.emit(
+      multiInvoker,
+      'OrderCancelled',
+    )
+
+    await expect(
+      multiInvoker.connect(userB).invoke(buildExecOrder({ user: user.address, market: market.address, orderId: 1 })),
+    ).to.be.revertedWithCustomError(multiInvoker, 'MultiInvokerCantExecuteError()')
+  })
   it('executes a long limit order', async () => {
     const { user, userB, dsu, chainlink } = instanceVars
 

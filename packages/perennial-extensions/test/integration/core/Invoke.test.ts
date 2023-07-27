@@ -83,8 +83,17 @@ describe('Invoke', () => {
   })
 
   it('constructs correctly', async () => {
-    const { dsu, usdc } = instanceVars
     expect(await multiInvoker.batcher()).to.eq(BATCHER)
+  })
+
+  it('reverts on bad target approval', async () => {
+    const { user, userB } = instanceVars
+    multiInvoker = await createInvoker(instanceVars, vaultFactory)
+
+    await expect(multiInvoker.connect(user).invoke(buildApproveTarget(userB.address))).to.be.revertedWithCustomError(
+      multiInvoker,
+      'MultiInvokerInvalidApprovalError',
+    )
   })
 
   describe('#happy path', async () => {
@@ -307,7 +316,7 @@ describe('Invoke', () => {
     })
 
     it('withdraws from market and unwraps DSU to USDC using RESERVE if BATCHER address == 0', async () => {
-      const { owner, user, usdc, dsu } = instanceVars
+      const { owner, user, dsu } = instanceVars
 
       const reserve = IEmptySetReserve__factory.connect(RESERVE, owner)
       // deploy multiinvoker with batcher == 0 address
