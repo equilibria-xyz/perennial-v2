@@ -113,7 +113,7 @@ describe('Orders', () => {
     await expect(multiInvoker.connect(user).invoke(placeOrder)).to.not.be.reverted
     expect(await multiInvoker.canExecuteOrder(user.address, market.address, 1)).to.be.false
 
-    await chainlink.nextWithPriceModification(marketPrice2 => marketPrice.sub(11))
+    await chainlink.nextWithPriceModification(() => marketPrice.sub(11))
     await settle(market, user)
 
     const execute = buildExecOrder({ user: user.address, market: market.address, orderId: 1 })
@@ -143,7 +143,7 @@ describe('Orders', () => {
     await expect(multiInvoker.connect(user).invoke(placeOrder)).to.not.be.reverted
     expect(await multiInvoker.canExecuteOrder(user.address, market.address, 1)).to.be.false
 
-    await chainlink.nextWithPriceModification(marketPrice2 => marketPrice.add(11))
+    await chainlink.nextWithPriceModification(() => marketPrice.add(11))
     await settle(market, user)
 
     const execute = buildExecOrder({ user: user.address, market: market.address, orderId: 1 })
@@ -172,7 +172,7 @@ describe('Orders', () => {
     await expect(multiInvoker.connect(user).invoke(placeOrder)).to.not.be.reverted
     expect(await multiInvoker.canExecuteOrder(user.address, market.address, 1)).to.be.false
 
-    await chainlink.nextWithPriceModification(marketPrice2 => marketPrice.add(11))
+    await chainlink.nextWithPriceModification(() => marketPrice.add(11))
     await settle(market, user)
 
     const execute = buildExecOrder({ user: user.address, market: market.address, orderId: 1 })
@@ -202,7 +202,7 @@ describe('Orders', () => {
     await expect(multiInvoker.connect(user).invoke(placeOrder)).to.not.be.reverted
     expect(await multiInvoker.canExecuteOrder(user.address, market.address, 1)).to.be.false
 
-    await chainlink.nextWithPriceModification(marketPrice2 => marketPrice.sub(11))
+    await chainlink.nextWithPriceModification(() => marketPrice.sub(11))
     await settle(market, user)
 
     const execute = buildExecOrder({ user: user.address, market: market.address, orderId: 1 })
@@ -232,7 +232,7 @@ describe('Orders', () => {
     await expect(multiInvoker.connect(user).invoke(placeOrder)).to.not.be.reverted
     expect(await multiInvoker.canExecuteOrder(user.address, market.address, 1)).to.be.false
 
-    await chainlink.nextWithPriceModification(marketPrice2 => marketPrice.sub(11))
+    await chainlink.nextWithPriceModification(() => marketPrice.sub(11))
     await settle(market, user)
 
     const execute = buildExecOrder({ user: user.address, market: market.address, orderId: 1 })
@@ -262,7 +262,7 @@ describe('Orders', () => {
     await expect(multiInvoker.connect(user).invoke(placeOrder)).to.not.be.reverted
     expect(await multiInvoker.canExecuteOrder(user.address, market.address, 1)).to.be.false
 
-    await chainlink.nextWithPriceModification(marketPrice2 => marketPrice.add(11))
+    await chainlink.nextWithPriceModification(() => marketPrice.add(11))
     await settle(market, user)
 
     const execute = buildExecOrder({ user: user.address, market: market.address, orderId: 1 })
