@@ -203,7 +203,7 @@ export async function fundWallet(
   usdc: IERC20Metadata,
   wallet: SignerWithAddress,
   amountOverride?: BigNumber,
-) {
+): Promise<void> {
   const usdcHolder = await impersonate.impersonateWithBalance(USDC_HOLDER, utils.parseEther('10'))
   const dsuIface = new utils.Interface(['function mint(uint256)'])
   await usdc.connect(usdcHolder).approve(RESERVE, amountOverride ? amountOverride : BigNumber.from('2000000000000'))
@@ -219,7 +219,11 @@ export async function fundWallet(
     .transfer(wallet.address, amountOverride ? amountOverride.mul(1e12) : utils.parseEther('2000000'))
 }
 
-export async function fundWalletUSDC(usdc: IERC20Metadata, wallet: SignerWithAddress, amountOverride?: BigNumber) {
+export async function fundWalletUSDC(
+  usdc: IERC20Metadata,
+  wallet: SignerWithAddress,
+  amountOverride?: BigNumber,
+): Promise<void> {
   const usdcHolder = await impersonate.impersonateWithBalance(USDC_HOLDER, utils.parseEther('10'))
   await usdc
     .connect(usdcHolder)

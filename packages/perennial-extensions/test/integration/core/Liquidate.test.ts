@@ -2,7 +2,7 @@ import { expect } from 'chai'
 import 'hardhat'
 import { constants, utils } from 'ethers'
 
-import { InstanceVars, deployProtocol, createMarket, settle, createInvoker } from '../helpers/setupHelpers'
+import { InstanceVars, deployProtocol, createMarket, createInvoker } from '../helpers/setupHelpers'
 import { parse6decimal } from '../../../../common/testutil/types'
 import { loadFixture } from '@nomicfoundation/hardhat-network-helpers'
 import { buildLiquidateUser, buildUpdateMarket } from '../../helpers/invoke'
@@ -20,7 +20,7 @@ describe('Liquidate', () => {
   it('liquidates a user', async () => {
     const POSITION = parse6decimal('0.0001')
     const COLLATERAL = parse6decimal('1000')
-    const { user, userB, dsu, usdc, chainlink, marketFactory } = instanceVars
+    const { user, userB, dsu, usdc, chainlink } = instanceVars
 
     const multiInvoker = await createInvoker(instanceVars)
     const market = await createMarket(instanceVars)
