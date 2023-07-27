@@ -15,8 +15,8 @@ type TriggerOrderStruct = {
 
 // const MAX_UINT8 = BigNumber.from('255')
 // const MIN_MAX_INT8 = BigNumber.from('127')
-// const MAX_UINT64 = BigNumber.from('18446744073709551615')
-// const MIN_MAX_UINT64 = BigNumber.from('9223372036854775807')
+const MAX_UINT64 = BigNumber.from('18446744073709551615')
+const MIN_MAX_UINT64 = BigNumber.from('9223372036854775807')
 
 describe('Trigger order lib', () => {
   let triggerTester: TriggerOrderTester
@@ -43,44 +43,45 @@ describe('Trigger order lib', () => {
     expect(retreivedOrder.delta).to.eq(defaultOrder.delta)
   })
 
-  // it('Writes an invalid trigger order', async () => {
-  //     let testOrder = defaultOrder
+  it('Writes an invalid trigger order', async () => {
+    let testOrder = defaultOrder
 
-  //     testOrder.side= MAX_UINT8.add(1)
-  //     await assertStoreFail(testOrder, triggerTester)
-  //     testOrder = defaultOrder
+    //     testOrder.side= MAX_UINT8.add(1)
+    //     await assertStoreFail(testOrder, triggerTester)
+    //     testOrder = defaultOrder
 
-  //     testOrder.comparison = MIN_MAX_INT8.add(1)
-  //     await assertStoreFail(testOrder, triggerTester)
-  //     testOrder = defaultOrder
+    //     testOrder.comparison = MIN_MAX_INT8.add(1)
+    //     await assertStoreFail(testOrder, triggerTester)
+    //     testOrder = defaultOrder
 
-  //     testOrder.comparison = MIN_MAX_INT8.add(1).mul(-1)
-  //     await assertStoreFail(testOrder, triggerTester)
-  //     testOrder = defaultOrder
+    //     testOrder.comparison = MIN_MAX_INT8.add(1).mul(-1)
+    //     await assertStoreFail(testOrder, triggerTester)
+    //     testOrder = defaultOrder
 
-  //     testOrder.fee = MAX_UINT64.add(1)
-  //     await assertStoreFail(testOrder, triggerTester)
-  //     testOrder = defaultOrder
+    testOrder.fee = MAX_UINT64.add(1)
+    await assertStoreFail(testOrder, triggerTester)
+    testOrder = defaultOrder
 
-  //     testOrder.price = MIN_MAX_UINT64.add(1)
-  //     await assertStoreFail(testOrder, triggerTester)
-  //     testOrder = defaultOrder
+    testOrder.price = MIN_MAX_UINT64.add(1)
+    await assertStoreFail(testOrder, triggerTester)
+    testOrder = defaultOrder
 
-  //     testOrder.price= MIN_MAX_UINT64.add(1).mul(-1)
-  //     await assertStoreFail(testOrder, triggerTester)
-  //     testOrder = defaultOrder
+    testOrder.price = MIN_MAX_UINT64.add(1).mul(-1)
+    await assertStoreFail(testOrder, triggerTester)
+    testOrder = defaultOrder
 
-  //     testOrder.delta = MIN_MAX_UINT64.add(1)
-  //     await assertStoreFail(testOrder, triggerTester)
-  //     testOrder = defaultOrder
+    testOrder.delta = MIN_MAX_UINT64.add(1)
+    await assertStoreFail(testOrder, triggerTester)
+    testOrder = defaultOrder
 
-  //     testOrder.delta = MIN_MAX_UINT64.add(1).mul(-1)
-  //     await assertStoreFail(testOrder, triggerTester)
-
-  // })
+    testOrder.delta = MIN_MAX_UINT64.add(1).mul(-1)
+    await assertStoreFail(testOrder, triggerTester)
+  })
 })
 
-// async function assertStoreFail(testOrder: TriggerOrderStruct, tester: TriggerOrderTester) {
-//     await expect(tester.storeTriggerOrder(testOrder))
-//         .to.be.revertedWithCustomError(tester, 'TriggerOrderStorageInvalidError')
-// }
+async function assertStoreFail(testOrder: TriggerOrderStruct, tester: TriggerOrderTester) {
+  await expect(tester.storeTriggerOrder(testOrder)).to.be.revertedWithCustomError(
+    tester,
+    'TriggerOrderStorageInvalidError',
+  )
+}

@@ -59,6 +59,7 @@ export const openTriggerOrder = ({
     feePct = BigNumber.from(size).div(20)
   } else {
     if (BigNumber.from(feePct).gt(100)) throw Error('Specified fee pct too large')
+    feePct = BigNumber.from(feePct).mul(size).div(100)
   }
 
   if (BigNumber.from(size).isNegative()) throw Error('size must be positive')

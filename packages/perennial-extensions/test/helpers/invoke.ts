@@ -59,6 +59,7 @@ export const buildPlaceOrder = ({
   order,
   comparisonOverride,
   sideOverride,
+  feeAsPositionPercentOverride,
 }: {
   market: string
   long?: BigNumberish
@@ -69,12 +70,13 @@ export const buildPlaceOrder = ({
   order: TriggerOrderStruct
   comparisonOverride?: number
   sideOverride?: number
+  feeAsPositionPercentOverride?: boolean
 }): Actions => {
   if (!triggerType) triggerType = 'LM'
-
   order.delta = BigNumber.from(order.delta)
   order.fee = BigNumber.from(order.fee)
 
+  console.log('order size args', order.delta)
   if (long && short) {
     if (BigNumber.from(long).gt(short)) {
       order.side = 1
@@ -94,7 +96,10 @@ export const buildPlaceOrder = ({
     short = order.side === 2 ? order.delta.abs() : '0'
   }
 
-  order.fee = BigNumber.from(collateral).div(BigNumber.from(order.delta).abs()).mul(order.fee)
+  if (!feeAsPositionPercentOverride) {
+    order.fee = BigNumber.from(collateral).div(BigNumber.from(order.delta).abs()).mul(order.fee)
+  }
+
   order = triggerDirection(order, triggerType, comparisonOverride)
   order.side = sideOverride || sideOverride === 0 ? sideOverride : order.side
 
@@ -103,19 +108,40 @@ export const buildPlaceOrder = ({
     long = BigNumber.from(0)
     short = BigNumber.from(0)
   }
+
+  return _buildPlaceOrder({
+    market: market,
+    long: long,
+    short: short,
+    collateral: collateral,
+    handleWrap: handleWrap,
+    t: order,
+  })
+}
+
+export const _buildPlaceOrder = ({
+  market,
+  maker,
+  long,
+  short,
+  collateral,
+  handleWrap,
+  t,
+}: {
+  market: string
+  maker?: BigNumberish
+  long?: BigNumberish
+  short?: BigNumberish
+  collateral?: BigNumberish
+  handleWrap?: boolean
+  t: TriggerOrderStruct
+}): Actions => {
   return [
     {
       action: 1,
       args: utils.defaultAbiCoder.encode(
         ['address', 'uint256', 'uint256', 'uint256', 'int256', 'bool'],
-        [
-          market,
-          '0',
-          long ? long : '0',
-          short ? short : '0',
-          collateral ? collateral : '0',
-          handleWrap ? handleWrap : false,
-        ],
+        [market, maker ?? '0', long ?? '0', short ?? '0', collateral ?? '0', handleWrap ?? false],
       ),
     },
     {
@@ -125,11 +151,11 @@ export const buildPlaceOrder = ({
         [
           market,
           [
-            order.side, // default long side
-            order.comparison,
-            order.fee ? order.fee : '0',
-            order.price ? order.price : '0',
-            order.delta ? order.delta : '0',
+            t.side, // default long side
+            t.comparison,
+            t.fee ?? '0',
+            t.price ?? '0',
+            t.delta ?? '0',
           ],
         ],
       ),
@@ -240,6 +266,7 @@ module.exports = {
   buildCancelOrder,
   buildExecOrder,
   buildPlaceOrder,
+  _buildPlaceOrder,
   buildUpdateMarket,
   buildLiquidateUser,
   buildUpdateVault,
