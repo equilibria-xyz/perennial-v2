@@ -227,7 +227,7 @@ describe('PythOracle', () => {
       })
       const version = await pythOracle.connect(user).at(STARTING_TIME)
       expect(version.valid).to.be.true
-      expect(version.price).to.equal('18381670317700000000000000')
+      expect(version.price).to.equal('1838167031')
 
       // Didn't incentivize keeper
       const newDSUBalance = await dsu.callStatic.balanceOf(user.address)
@@ -346,7 +346,7 @@ describe('PythOracle', () => {
       })
       const [latestVersion, currentVersion] = await pythOracle.status()
       expect(latestVersion.valid).to.be.true
-      expect(latestVersion.price).to.equal('18381670317700000000000000')
+      expect(latestVersion.price).to.equal('1838167031')
       expect(currentVersion).to.equal(await currentBlockTimestamp())
     })
 
@@ -382,7 +382,7 @@ describe('PythOracle', () => {
       })
       const latestVersion = await pythOracle.connect(user).latest()
       expect(latestVersion.valid).to.be.true
-      expect(latestVersion.price).to.equal('18381670317700000000000000')
+      expect(latestVersion.price).to.equal('1838167031')
     })
 
     it('returns empty version if no version has ever been committed', async () => {
@@ -490,7 +490,7 @@ describe('PythOracle', () => {
       })
       const version = await pythOracle.connect(user).at(STARTING_TIME)
       expect(version.valid).to.be.true
-      expect(version.price).to.equal('18381670317700000000000000')
+      expect(version.price).to.equal('1838167031')
     })
 
     it('returns invalid version if that version was not requested', async () => {
