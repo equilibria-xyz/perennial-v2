@@ -17,10 +17,8 @@ describe('Orders', () => {
   let collateral: BigNumberish
   let position: BigNumber
   let userPosition: BigNumber
-  let maxFee: BigNumber
   let market: Market
   let marketPrice: BigNumber
-  let ethPrice: BigNumber
   let multiInvoker: MultiInvoker
 
   beforeEach(async () => {
@@ -36,8 +34,6 @@ describe('Orders', () => {
     collateral = parse6decimal('100000')
     position = parse6decimal('.01')
     userPosition = parse6decimal('.001')
-    maxFee = collateral
-    ethPrice = BigNumber.from(1150e6)
 
     // deposit maker up to maker limit (UFixed6)
     await dsu.connect(userB).approve(market.address, dsuCollateral)
@@ -56,7 +52,7 @@ describe('Orders', () => {
   })
 
   it('places a limit order', async () => {
-    const { user, dsu, usdc } = instanceVars
+    const { user, dsu } = instanceVars
 
     await dsu.connect(user).approve(multiInvoker.address, dsuCollateral)
     const triggerOrder = openTriggerOrder({
@@ -78,7 +74,7 @@ describe('Orders', () => {
   })
 
   it('cancels an order', async () => {
-    const { user, userB, dsu } = instanceVars
+    const { user, userB } = instanceVars
 
     const triggerOrder = openTriggerOrder({
       size: userPosition,
@@ -104,7 +100,7 @@ describe('Orders', () => {
   })
 
   it('executes a long limit order', async () => {
-    const { user, userB, dsu, chainlink } = instanceVars
+    const { user, chainlink } = instanceVars
 
     const trigger = openTriggerOrder({ size: userPosition, price: payoff(marketPrice.sub(10)), feePct: 50 })
     const placeOrder = buildPlaceOrder({
@@ -128,7 +124,7 @@ describe('Orders', () => {
   })
 
   it('executes a short limit order', async () => {
-    const { user, userB, dsu, chainlink } = instanceVars
+    const { user, chainlink } = instanceVars
 
     const trigger = openTriggerOrder({
       size: userPosition,
@@ -158,7 +154,7 @@ describe('Orders', () => {
   })
 
   it('executes a long tp order', async () => {
-    const { user, userB, dsu, chainlink } = instanceVars
+    const { user, chainlink } = instanceVars
 
     const trigger = openTriggerOrder({
       size: userPosition,

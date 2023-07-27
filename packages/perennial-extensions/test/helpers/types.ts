@@ -5,15 +5,19 @@ import { SignerWithAddress } from '@nomiclabs/hardhat-ethers/signers'
 import { LocalStruct } from '@equilibria/perennial-v2/types/generated/contracts/Market'
 import { TriggerOrderStruct } from '../../types/generated/contracts/MultiInvoker'
 
-export function setMarketPosition(market: FakeContract<IMarket>, user: SignerWithAddress, position: PositionStruct) {
+export function setMarketPosition(
+  market: FakeContract<IMarket>,
+  user: SignerWithAddress,
+  position: PositionStruct,
+): void {
   market.positions.whenCalledWith(user.address).returns(position)
 }
 
-export function setMarketLocal(market: FakeContract<IMarket>, user: SignerWithAddress, local: LocalStruct) {
+export function setMarketLocal(market: FakeContract<IMarket>, user: SignerWithAddress, local: LocalStruct): void {
   market.locals.whenCalledWith(user.address).returns(local)
 }
 
-export function setGlobalPrice(market: FakeContract<IMarket>, price: BigNumberish) {
+export function setGlobalPrice(market: FakeContract<IMarket>, price: BigNumberish): void {
   market.global.returns(['0', '0', '0', '0', '0', '0', ['0', '0'], price])
 }
 
@@ -22,7 +26,7 @@ export function setPendingPosition(
   user: SignerWithAddress,
   currentId: BigNumberish,
   position: PositionStruct,
-) {
+): void {
   market.locals.reset()
   market.pendingPosition.reset()
   market.locals.whenCalledWith(user).returns(currentId)

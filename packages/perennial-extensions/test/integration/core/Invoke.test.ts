@@ -83,7 +83,6 @@ describe('Invoke', () => {
   })
 
   it('constructs correctly', async () => {
-    const { dsu, usdc } = instanceVars
     expect(await multiInvoker.batcher()).to.eq(BATCHER)
   })
 
@@ -204,7 +203,7 @@ describe('Invoke', () => {
     })
 
     it('wraps USDC to DSU and deposits into market using RESERVE if BATCHER address == 0', async () => {
-      const { owner, user, usdc, dsu } = instanceVars
+      const { owner, user, usdc } = instanceVars
 
       const reserve = IEmptySetReserve__factory.connect(RESERVE, owner)
       // deploy multiinvoker with batcher == 0 address
@@ -260,7 +259,6 @@ describe('Invoke', () => {
       const { owner, user, userB, usdc, dsu } = instanceVars
 
       const reserve = IEmptySetReserve__factory.connect(RESERVE, owner)
-      const batcher = IBatcher__factory.connect(BATCHER, owner)
 
       // userB uses collateral - 1 from batcher wrap
       const drainBatcherByFixed6 = (await usdc.balanceOf(BATCHER)).sub(collateral).add(1)
@@ -307,7 +305,7 @@ describe('Invoke', () => {
     })
 
     it('withdraws from market and unwraps DSU to USDC using RESERVE if BATCHER address == 0', async () => {
-      const { owner, user, usdc, dsu } = instanceVars
+      const { owner, user, dsu } = instanceVars
 
       const reserve = IEmptySetReserve__factory.connect(RESERVE, owner)
       // deploy multiinvoker with batcher == 0 address

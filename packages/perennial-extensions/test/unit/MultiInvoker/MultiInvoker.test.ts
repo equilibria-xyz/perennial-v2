@@ -31,7 +31,7 @@ import {
   setMarketPosition,
   setPendingPosition,
 } from '../../helpers/types'
-import { impersonate } from '../../../../common/testutil'
+
 import { anyValue } from '@nomicfoundation/hardhat-chai-matchers/withArgs'
 
 const ethers = { HRE }
@@ -48,10 +48,8 @@ describe('MultiInvoker', () => {
   let invokerOracle: FakeContract<AggregatorV3Interface>
   let batcher: FakeContract<IBatcher>
   let reserve: FakeContract<IEmptySetReserve>
-  let reward: FakeContract<IERC20>
   let marketFactory: FakeContract<IMarketFactory>
   let vaultFactory: FakeContract<IVaultFactory>
-  let factorySigner: SignerWithAddress
   let multiInvoker: MultiInvoker
 
   const multiInvokerFixture = async () => {
@@ -63,7 +61,6 @@ describe('MultiInvoker', () => {
 
     usdc = await smock.fake<IERC20>('IERC20')
     dsu = await smock.fake<IERC20>('IERC20')
-    reward = await smock.fake<IERC20>('IERC20')
     market = await smock.fake<IMarket>('IMarket')
     vault = await smock.fake<IVault>('IVault')
     marketOracle = await smock.fake<IOracleProvider>('IOracleProvider')
@@ -72,7 +69,6 @@ describe('MultiInvoker', () => {
     reserve = await smock.fake<IEmptySetReserve>('IEmptySetReserve')
     marketFactory = await smock.fake<IMarketFactory>('IMarketFactory')
     vaultFactory = await smock.fake<IVaultFactory>('IVaultFactory')
-    factorySigner = await impersonate.impersonateWithBalance(marketFactory.address, utils.parseEther('10'))
 
     multiInvoker = await new MultiInvoker__factory(owner).deploy(
       usdc.address,
