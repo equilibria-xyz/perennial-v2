@@ -104,7 +104,7 @@ describe('Orders', () => {
 
     await expect(
       multiInvoker.connect(userB).invoke(buildExecOrder({ user: user.address, market: market.address, orderId: 0 })),
-    ).to.be.revertedWithCustomError(multiInvoker, 'MultiInvokerCantExecuteError()')
+    ).to.be.revertedWithCustomError(multiInvoker, 'MultiInvokerCantExecuteError')
 
     const trigger = openTriggerOrder({ size: position, price: 0 })
     await expect(
@@ -120,7 +120,7 @@ describe('Orders', () => {
 
     await expect(
       multiInvoker.connect(userB).invoke(buildExecOrder({ user: user.address, market: market.address, orderId: 1 })),
-    ).to.be.revertedWithCustomError(multiInvoker, 'MultiInvokerCantExecuteError()')
+    ).to.be.revertedWithCustomError(multiInvoker, 'MultiInvokerCantExecuteError')
   })
   it('executes a long limit order', async () => {
     const { user, chainlink } = instanceVars
