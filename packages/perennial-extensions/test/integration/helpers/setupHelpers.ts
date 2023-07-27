@@ -466,7 +466,7 @@ export async function createInvoker(
     DSU,
     instanceVars.marketFactory.address,
     vaultFactory ? vaultFactory.address : ZERO_ADDR,
-    noBatcher === true ? ZERO_ADDR : BATCHER,
+    noBatcher ? ZERO_ADDR : BATCHER,
     DSU_MINTER,
     parse6decimal('1.5'),
   )
