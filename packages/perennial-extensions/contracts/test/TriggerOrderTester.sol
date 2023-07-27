@@ -6,7 +6,7 @@ contract TriggerOrderTester {
     using TriggerOrderLib for TriggerOrder;
     using TriggerOrderStorageLib for TriggerOrderStorage;
 
-    TriggerOrderStorage order;
+    TriggerOrderStorage public order;
 
     function storeTriggerOrder(TriggerOrder memory newOrder) public {
         order.store(newOrder);

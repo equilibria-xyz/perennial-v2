@@ -1,5 +1,5 @@
 // import * as generated from "../../../types/generated"
-import { BigNumberish, BigNumber, constants, utils } from 'ethers'
+import { BigNumberish, BigNumber } from 'ethers'
 import { parse6decimal } from '../../../../common/testutil/types'
 import { TriggerOrderTester, TriggerOrderTester__factory } from '../../../types/generated'
 import HRE from 'hardhat'
