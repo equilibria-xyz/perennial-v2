@@ -32,8 +32,6 @@
     "@equilibria/perennial-v2-payoff": "1.0.0"
   },
   "devDependencies": {
-    "@ethersproject/abstract-provider": "^5",
-    "@ethersproject/abstract-signer": "^5",
-    "lodash": "^4.17.15"
+    "@ethersproject/abstract-provider": "^5"
   }
 }

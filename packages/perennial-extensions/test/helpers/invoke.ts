@@ -76,7 +76,6 @@ export const buildPlaceOrder = ({
   order.delta = BigNumber.from(order.delta)
   order.fee = BigNumber.from(order.fee)
 
-  console.log('order size args', order.delta)
   if (long && short) {
     if (BigNumber.from(long).gt(short)) {
       order.side = 1

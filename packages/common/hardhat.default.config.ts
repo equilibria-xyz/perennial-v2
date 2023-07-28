@@ -14,6 +14,9 @@ import 'hardhat-contract-sizer'
 import 'hardhat-deploy'
 import 'hardhat-dependency-compiler'
 import { getChainId, isArbitrum, isBase, isOptimism, SupportedChain } from './testutil/network'
+import { ethers } from 'ethers'
+
+ethers.utils.Logger.setLogLevel(ethers.utils.Logger.levels.ERROR) // turn off duplicate definition warnings
 
 export const SOLIDITY_VERSION = '0.8.19'
 
