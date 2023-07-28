@@ -12,6 +12,7 @@ import { _buildPlaceOrder, buildCancelOrder, buildExecOrder, buildPlaceOrder } f
 import { loadFixture } from '@nomicfoundation/hardhat-network-helpers'
 import { TriggerOrderStruct } from '../../../types/generated/contracts/MultiInvoker'
 import { SignerWithAddress } from '@nomiclabs/hardhat-ethers/signers'
+import { ethers } from 'hardhat'
 
 const MAX_UINT64 = BigNumber.from('18446744073709551615')
 const MIN_MAX_UINT64 = BigNumber.from('9223372036854775807')
@@ -388,6 +389,7 @@ describe('Orders', () => {
       await chainlink.nextWithPriceModification(() => marketPrice.add(11))
       await settle(market, user)
 
+      await ethers.provider.send('hardhat_setNextBlockBaseFeePerGas', ['0x1000000'])
       const execute = buildExecOrder({ user: user.address, market: market.address, orderId: 1 })
       await expect(multiInvoker.connect(user).invoke(execute)).to.be.revertedWithCustomError(
         multiInvoker,
