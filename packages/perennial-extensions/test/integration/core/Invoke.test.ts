@@ -19,6 +19,8 @@ import {
   createVault,
   fundWalletUSDC,
   ZERO_ADDR,
+  DSU,
+  ETH_ORACLE,
 } from '../helpers/setupHelpers'
 
 import { buildApproveTarget, buildUpdateMarket, buildUpdateVault } from '../../helpers/invoke'
@@ -83,7 +85,29 @@ describe('Invoke', () => {
   })
 
   it('constructs correctly', async () => {
+    const { usdc, dsu } = instanceVars
     expect(await multiInvoker.batcher()).to.eq(BATCHER)
+    expect(await multiInvoker.reserve()).to.eq(RESERVE)
+    expect(await multiInvoker.USDC()).to.eq(usdc.address)
+    expect(await multiInvoker.DSU()).to.eq(dsu.address)
+    expect(await multiInvoker.latestNonce()).to.eq(0)
+  })
+
+  it('initializes correctly', async () => {
+    const { owner, dsu, usdc } = instanceVars
+
+    expect(await multiInvoker.keeperToken()).to.eq(DSU)
+    expect(await multiInvoker.ethTokenOracleFeed()).to.eq(ETH_ORACLE)
+
+    expect(await dsu.allowance(multiInvoker.address, BATCHER)).to.eq(ethers.constants.MaxUint256)
+    expect(await dsu.allowance(multiInvoker.address, BATCHER)).to.eq(ethers.constants.MaxUint256)
+    expect(await usdc.allowance(multiInvoker.address, RESERVE)).to.eq(ethers.constants.MaxUint256)
+    expect(await usdc.allowance(multiInvoker.address, RESERVE)).to.eq(ethers.constants.MaxUint256)
+
+    await expect(multiInvoker.connect(owner).initialize(ETH_ORACLE)).to.be.revertedWithCustomError(
+      multiInvoker,
+      'UInitializableAlreadyInitializedError',
+    )
   })
 
   it('reverts on bad target approval', async () => {
