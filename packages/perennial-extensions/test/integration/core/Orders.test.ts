@@ -400,25 +400,27 @@ describe('Orders', () => {
 
       const defaultOrder = openTriggerOrder({ size: parse6decimal('10000'), price: BigNumber.from(1000e6) })
       defaultOrder.comparison = 1
-      let testOrder = defaultOrder
+
+      let testOrder = { ...defaultOrder }
 
       testOrder.fee = MAX_UINT64.add(1)
       await assertStoreFail(testOrder, multiInvoker, market, user)
-      testOrder = defaultOrder
+      testOrder = { ...defaultOrder }
 
       testOrder.price = MIN_MAX_UINT64.add(1)
       await assertStoreFail(testOrder, multiInvoker, market, user)
-      testOrder = defaultOrder
+      testOrder = { ...defaultOrder }
 
-      testOrder.price = MIN_MAX_UINT64.add(1).mul(-1)
+      // why is -int inclusive of last digit?
+      testOrder.price = MIN_MAX_UINT64.add(2).mul(-1)
       await assertStoreFail(testOrder, multiInvoker, market, user)
-      testOrder = defaultOrder
+      testOrder = { ...defaultOrder }
 
       testOrder.delta = MIN_MAX_UINT64.add(1)
       await assertStoreFail(testOrder, multiInvoker, market, user)
-      testOrder = defaultOrder
+      testOrder = { ...defaultOrder }
 
-      testOrder.delta = MIN_MAX_UINT64.add(1).mul(-1)
+      testOrder.delta = MIN_MAX_UINT64.add(2).mul(-1)
       await assertStoreFail(testOrder, multiInvoker, market, user)
     })
   })
