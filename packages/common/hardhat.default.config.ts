@@ -15,6 +15,7 @@ import 'hardhat-deploy'
 import 'hardhat-dependency-compiler'
 import { getChainId, isArbitrum, isBase, isOptimism, SupportedChain } from './testutil/network'
 import { utils } from 'ethers'
+utils.Logger.setLogLevel(utils.Logger.levels.ERROR) // turn off duplicate definition warnings
 
 export const SOLIDITY_VERSION = '0.8.19'
 
@@ -117,7 +118,7 @@ export default function defaultConfig({
         },
         accounts: PRIVATE_KEY_TESTNET
           ? [{ privateKey: PRIVATE_KEY_TESTNET, balance: utils.parseEther('10').toString() }]
-          : [],
+          : undefined,
         chainId: getChainId('hardhat'),
         allowUnlimitedContractSize: true,
         mining: NODE_INTERVAL_MINING
