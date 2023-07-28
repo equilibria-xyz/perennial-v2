@@ -58,9 +58,10 @@ import { deployProductOnMainnetFork } from '@equilibria/perennial-v2-vault/test/
 
 const { ethers } = HRE
 
+export const ZERO_ADDR = ethers.utils.hexZeroPad('0x', 20)
 export const USDC_HOLDER = '0x0A59649758aa4d66E25f08Dd01271e891fe52199'
 
-export const BATCHER = '0x0B663CeaCEF01f2f88EB7451C70Aa069f19dB997'
+export const BATCHER = '0xAEf566ca7E84d1E736f999765a804687f39D9094'
 export const RESERVE = '0xD05aCe63789cCb35B9cE71d01e4d632a0486Da4B'
 export const ETH_ORACLE = '0x5f4eC3Df9cbd43714FE2740f5E3616155c5b8419' // chainlink eth oracle
 export const DSU = '0x605D26FBd5be761089281d5cec2Ce86eeA667109'
@@ -202,21 +203,27 @@ export async function fundWallet(
   usdc: IERC20Metadata,
   wallet: SignerWithAddress,
   amountOverride?: BigNumber,
-) {
+): Promise<void> {
   const usdcHolder = await impersonate.impersonateWithBalance(USDC_HOLDER, utils.parseEther('10'))
   const dsuIface = new utils.Interface(['function mint(uint256)'])
-  await usdc
-    .connect(usdcHolder)
-    .approve(RESERVE, amountOverride ? amountOverride.div(1e12) : BigNumber.from('2000000000000'))
+  await usdc.connect(usdcHolder).approve(RESERVE, amountOverride ? amountOverride : BigNumber.from('2000000000000'))
   await usdcHolder.sendTransaction({
     to: RESERVE,
     value: 0,
-    data: dsuIface.encodeFunctionData('mint', [amountOverride ? amountOverride : utils.parseEther('2000000')]),
+    data: dsuIface.encodeFunctionData('mint', [
+      amountOverride ? amountOverride.mul(1e12) : utils.parseEther('2000000'),
+    ]),
   })
-  await dsu.connect(usdcHolder).transfer(wallet.address, amountOverride ? amountOverride : utils.parseEther('2000000'))
+  await dsu
+    .connect(usdcHolder)
+    .transfer(wallet.address, amountOverride ? amountOverride.mul(1e12) : utils.parseEther('2000000'))
 }
 
-export async function fundWalletUSDC(usdc: IERC20Metadata, wallet: SignerWithAddress, amountOverride?: BigNumber) {
+export async function fundWalletUSDC(
+  usdc: IERC20Metadata,
+  wallet: SignerWithAddress,
+  amountOverride?: BigNumber,
+): Promise<void> {
   const usdcHolder = await impersonate.impersonateWithBalance(USDC_HOLDER, utils.parseEther('10'))
   await usdc
     .connect(usdcHolder)
@@ -447,15 +454,19 @@ export async function createVault(
   return [vault, vaultFactory, ethSubOracle, btcSubOracle]
 }
 
-export async function createInvoker(instanceVars: InstanceVars, vaultFactory?: VaultFactory): Promise<MultiInvoker> {
+export async function createInvoker(
+  instanceVars: InstanceVars,
+  vaultFactory?: VaultFactory,
+  noBatcher?: boolean,
+): Promise<MultiInvoker> {
   const { owner, user, userB } = instanceVars
 
   const multiInvoker = await new MultiInvoker__factory(owner).deploy(
     USDC,
     DSU,
     instanceVars.marketFactory.address,
-    vaultFactory ? vaultFactory.address : ethers.utils.hexZeroPad('0x', 20),
-    BATCHER,
+    vaultFactory ? vaultFactory.address : ZERO_ADDR,
+    noBatcher ? ZERO_ADDR : BATCHER,
     DSU_MINTER,
     parse6decimal('1.5'),
   )
