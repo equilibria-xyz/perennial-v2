@@ -199,8 +199,10 @@ contract PythOracle is IPythOracle, Instance, Kept {
     /// @param oracleVersion The oracle version to record the price at
     /// @param price The price to record
     function _recordPrice(uint256 oracleVersion, PythStructs.Price memory price) private {
-        _prices[oracleVersion] = Fixed6Lib.from(price.price)
-            .mul(Fixed6Lib.from(SafeCast.toInt256(10 ** SafeCast.toUint256(price.expo > 0 ? price.expo : -price.expo))));
+        int256 expo6Decimal = 6 + price.expo;
+        _prices[oracleVersion] = (expo6Decimal < 0) ?
+            Fixed6.wrap(price.price).div(Fixed6Lib.from(UFixed6Lib.from(10 ** uint256(-expo6Decimal)))) :
+            Fixed6.wrap(price.price).mul(Fixed6Lib.from(UFixed6Lib.from(10 ** uint256(expo6Decimal))));
         _publishTimes[oracleVersion] = price.publishTime;
     }
 
