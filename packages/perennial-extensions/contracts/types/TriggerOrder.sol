@@ -19,7 +19,7 @@ struct StoredTriggerOrder {
     uint64 fee;         // <= 18.44tb
     int64 price;        // <= 9.22t
     int64 delta;        // <= 9.22t
-    bytes6 __unallocated0__; // TODO: lint
+    bytes6 __unallocated0__;
 }
 struct TriggerOrderStorage { StoredTriggerOrder value; }
 using TriggerOrderStorageLib for TriggerOrderStorage global;
