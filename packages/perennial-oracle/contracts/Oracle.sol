@@ -108,9 +108,9 @@ contract Oracle is IOracle, Instance {
     /// @return Whether the latest oracle is ready to be updated
     function _latestStale(OracleVersion memory currentOracleLatestVersion) private view returns (bool) {
         if (global.current == global.latest) return false;
+        if (global.latest == 0) return true;
 
-        uint256 latestTimestamp = global.latest == 0 ? 0 : oracles[global.latest].provider.latest().timestamp;
-        if (uint256(oracles[global.latest].timestamp) > latestTimestamp) return false;
+        if (uint256(oracles[global.latest].timestamp) > oracles[global.latest].provider.latest().timestamp) return false;
         if (uint256(oracles[global.latest].timestamp) >= currentOracleLatestVersion.timestamp) return false;
 
         return true;
