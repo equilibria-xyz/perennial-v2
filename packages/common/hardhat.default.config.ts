@@ -11,8 +11,8 @@ import 'hardhat-dependency-compiler'
 import 'solidity-coverage'
 import { getChainId, isArbitrum, isBase, isOptimism, SupportedChain } from './testutil/network'
 
-import { ethers } from 'ethers'
-ethers.utils.Logger.setLogLevel(ethers.utils.Logger.levels.ERROR) // turn off duplicate definition warnings
+import { utils } from 'ethers'
+utils.Logger.setLogLevel(utils.Logger.levels.ERROR) // turn off duplicate definition warnings
 
 export const SOLIDITY_VERSION = '0.8.19'
 
@@ -114,7 +114,7 @@ export default function defaultConfig({
           blockNumber: FORK_BLOCK_NUMBER,
         },
         accounts: PRIVATE_KEY_TESTNET
-          ? [{ privateKey: PRIVATE_KEY_TESTNET, balance: ethers.utils.parseEther('10').toString() }]
+          ? [{ privateKey: PRIVATE_KEY_TESTNET, balance: utils.parseEther('10').toString() }]
           : undefined,
         chainId: getChainId('hardhat'),
         allowUnlimitedContractSize: true,
