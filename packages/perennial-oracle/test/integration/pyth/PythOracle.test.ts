@@ -369,6 +369,19 @@ describe('PythOracle', () => {
       await expect(pythOracle.callStatic.versionList(1)).to.be.reverted
     })
 
+    it('can request a version w/ granularity', async () => {
+      await pythOracleFactory.updateGranularity(10)
+
+      // No requested versions
+      await expect(pythOracle.callStatic.versionList(0)).to.be.reverted
+      await pythOracle.connect(oracleSigner).request(user.address)
+      const currentTimestamp = await pythOracleFactory.current()
+
+      // Now there is exactly one requested version
+      expect(await pythOracle.callStatic.versionList(0)).to.equal(currentTimestamp)
+      await expect(pythOracle.callStatic.versionList(1)).to.be.reverted
+    })
+
     it('does not allow unauthorized users to request', async () => {
       await expect(pythOracle.connect(user).request(user.address)).to.be.reverted
     })
