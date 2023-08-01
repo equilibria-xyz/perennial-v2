@@ -18,6 +18,7 @@ import {
 
 import { InstanceVars, createInvoker, deployProtocol } from '../helpers/setupHelpers'
 import { parse6decimal } from '../../../../common/testutil/types'
+import { increase } from '../../../../common/testutil/time'
 
 const { ethers } = HRE
 
@@ -92,8 +93,8 @@ describe('PythOracle', () => {
           {
             action: 6,
             args: utils.defaultAbiCoder.encode(
-              ['address', 'uint256', 'bytes'],
-              [pythOracle.address, STARTING_TIME, VAA],
+              ['address', 'uint256', 'uint256', 'bytes'],
+              [pythOracle.address, 0, STARTING_TIME, VAA],
             ),
           },
         ],
@@ -109,6 +110,8 @@ describe('PythOracle', () => {
     })
 
     it('commits a non-requested pyth version', async () => {
+      await increase(1)
+
       const originalDSUBalance = await dsu.callStatic.balanceOf(user.address)
 
       // Base fee isn't working properly in coverage, so we need to set it manually
@@ -118,8 +121,8 @@ describe('PythOracle', () => {
           {
             action: 6,
             args: utils.defaultAbiCoder.encode(
-              ['address', 'uint256', 'bytes'],
-              [pythOracle.address, STARTING_TIME, VAA],
+              ['address', 'uint256', 'uint256', 'bytes'],
+              [pythOracle.address, 0, STARTING_TIME, VAA],
             ),
           },
         ],
