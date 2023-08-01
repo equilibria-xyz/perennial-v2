@@ -4,16 +4,13 @@ dotenvConfig({ path: resolve(__dirname, '../../.env') })
 
 import { HardhatUserConfig, NetworkUserConfig, SolcUserConfig } from 'hardhat/types'
 
-import '@typechain/hardhat'
-import '@nomiclabs/hardhat-ethers'
-import '@nomicfoundation/hardhat-chai-matchers'
-import '@nomiclabs/hardhat-etherscan'
-import 'solidity-coverage'
-import 'hardhat-gas-reporter'
+import '@nomicfoundation/hardhat-toolbox'
 import 'hardhat-contract-sizer'
 import 'hardhat-deploy'
 import 'hardhat-dependency-compiler'
+import 'solidity-coverage'
 import { getChainId, isArbitrum, isBase, isOptimism, SupportedChain } from './testutil/network'
+
 import { utils } from 'ethers'
 utils.Logger.setLogLevel(utils.Logger.levels.ERROR) // turn off duplicate definition warnings
 
