@@ -778,6 +778,24 @@ describe('Position', () => {
         })
       })
 
+      describe('#prepare', () => {
+        it('resets the fees and collateral to zero', async () => {
+          await position.store({
+            ...VALID_GLOBAL_POSITION,
+            fee: 50,
+            keeper: 60,
+            collateral: 70,
+          })
+
+          await position.prepare()
+          const value = await position.read()
+
+          expect(value.fee).to.equal(0)
+          expect(value.keeper).to.equal(0)
+          expect(value.collateral).to.equal(0)
+        })
+      })
+
       describe('#sync', () => {
         it('sets the position to latestPosition and zeroes fee', async () => {
           await position.store({ ...VALID_GLOBAL_POSITION, fee: 100, keeper: 10 })
