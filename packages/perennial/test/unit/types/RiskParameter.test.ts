@@ -90,7 +90,7 @@ describe('RiskParameter', () => {
     })
 
     describe('.makerLimit', () => {
-      const STORAGE_SIZE = 48
+      const STORAGE_SIZE = 64
       it('saves if in range', async () => {
         await riskParameter.validateAndStore(
           {
