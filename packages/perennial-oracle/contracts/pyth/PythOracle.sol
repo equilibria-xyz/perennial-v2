@@ -157,22 +157,34 @@ contract PythOracle is IPythOracle, Instance, Kept {
     }
 
     /// @notice Commits the price to a non-requested version
-    /// @dev This commit function may pay out a keeper reward if the commited version is valid
-    ///      for the next requested version to commit.
+    /// @dev This commit function may pay out a keeper reward if the committed version is valid
+    ///      for the next requested version to commit. A proper `versionIndex` must be supplied in case we are
+    ///      ahead of an invalidated requested version and need to verify that the provided version is valid.
+    /// @param versionIndex The next committable index, taking into account any passed invalid requested versions
     /// @param oracleVersion The oracle version to commit
     /// @param updateData The update data to commit
-    function commit(uint256 oracleVersion, bytes calldata updateData) external payable {
+    function commit(uint256 versionIndex, uint256 oracleVersion, bytes calldata updateData) external payable {
         // Must be before the next requested version to commit, if it exists
         // Otherwise, try to commit it as the next request version to commit
-        if (versionList.length > nextVersionIndexToCommit && oracleVersion >= versionList[nextVersionIndexToCommit]) {
-            commitRequested(nextVersionIndexToCommit, updateData);
+        if (
+            versionList.length > versionIndex &&                // must be a requested version
+            versionIndex >= nextVersionIndexToCommit &&         // must be the next (or later) requested version
+            oracleVersion == versionList[versionIndex]          // must be the corresponding timestamp
+        ) {
+            commitRequested(versionIndex, updateData);
             return;
         }
 
         PythStructs.Price memory pythPrice = _validateAndGetPrice(oracleVersion, updateData);
 
-        // Oracle version must be more recent than those of the most recently committed version
-        if (oracleVersion <= _latestVersion) revert PythOracleVersionTooOldError();
+        // Oracle version must be more recent than that of the most recently committed version
+        uint256 minVersion = _latestVersion;
+        uint256 maxVersion = versionList.length > versionIndex ? versionList[versionIndex] : current();
+
+        if (versionIndex < nextVersionIndexToCommit) revert PythOracleVersionIndexTooLowError();
+        if (versionIndex > nextVersionIndexToCommit && block.timestamp <= versionList[versionIndex - 1] + GRACE_PERIOD)
+            revert PythOracleGracePeriodHasNotExpiredError();
+        if (oracleVersion <= minVersion || oracleVersion >= maxVersion) revert PythOracleVersionOutsideRangeError();
 
         _recordPrice(oracleVersion, pythPrice);
         _latestVersion = oracleVersion;

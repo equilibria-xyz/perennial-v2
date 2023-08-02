@@ -141,10 +141,10 @@ contract MultiInvoker is IMultiInvoker, Kept {
 
                 _executeOrder(account, market, nonce);
             } else if (invocation.action == PerennialAction.COMMIT_PRICE) {
-                (address oracleProvider, uint256 version, bytes memory data) =
-                    abi.decode(invocation.args, (address, uint256, bytes));
+                (address oracleProvider, uint256 index, uint256 version, bytes memory data) =
+                    abi.decode(invocation.args, (address, uint256, uint256, bytes));
 
-                _commitPrice(oracleProvider, version, data);
+                _commitPrice(oracleProvider, index, version, data);
             } else if (invocation.action == PerennialAction.LIQUIDATE) {
                 (IMarket market, address account) = abi.decode(invocation.args, (IMarket, address));
 
@@ -297,10 +297,10 @@ contract MultiInvoker is IMultiInvoker, Kept {
     /// @param oracleProvider Address of oracle provider
     /// @param version Version of oracle to commit to
     /// @param data Data to commit to oracle
-    function _commitPrice(address oracleProvider, uint256 version, bytes memory data) internal {
+    function _commitPrice(address oracleProvider, uint256 index, uint256 version, bytes memory data) internal {
         UFixed18 balanceBefore = DSU.balanceOf();
 
-        IPythOracle(oracleProvider).commit{value: msg.value}(version, data);
+        IPythOracle(oracleProvider).commit{value: msg.value}(index, version, data);
 
         // Return through keeper reward if any
         DSU.push(msg.sender, DSU.balanceOf().sub(balanceBefore));
