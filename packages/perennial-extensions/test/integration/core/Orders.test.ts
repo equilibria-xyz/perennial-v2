@@ -368,7 +368,6 @@ describe('Orders', () => {
     it('exceeds max trigger fee on execution', async () => {
       const { user, chainlink } = instanceVars
 
-      console.log(userPosition)
       const trigger = openTriggerOrder({
         size: userPosition,
         price: payoff(marketPrice.add(10)),
