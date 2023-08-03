@@ -109,6 +109,14 @@ describe('PythOracle', () => {
         .to.emit(oracle, 'Initialized')
         .withArgs(1)
     })
+
+    it('reverts if already initialized', async () => {
+      const oracle = await new PythOracle__factory(owner).deploy(PYTH_ADDRESS)
+      await oracle.initialize(PYTH_ETH_USD_PRICE_FEED, CHAINLINK_ETH_USD_FEED, dsu.address)
+      await expect(oracle.initialize(PYTH_ETH_USD_PRICE_FEED, CHAINLINK_ETH_USD_FEED, dsu.address))
+        .to.be.revertedWithCustomError(oracle, 'UInitializableAlreadyInitializedError')
+        .withArgs(1)
+    })
   })
 
   describe('constants', async () => {
