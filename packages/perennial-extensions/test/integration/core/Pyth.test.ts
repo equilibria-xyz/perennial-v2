@@ -93,8 +93,8 @@ describe('PythOracle', () => {
           {
             action: 6,
             args: utils.defaultAbiCoder.encode(
-              ['address', 'uint256', 'uint256', 'bytes'],
-              [pythOracle.address, 0, STARTING_TIME, VAA],
+              ['address', 'uint256', 'uint256', 'uint256', 'bytes', 'bool'],
+              [pythOracle.address, 1, 0, STARTING_TIME, VAA, true],
             ),
           },
         ],
@@ -121,8 +121,8 @@ describe('PythOracle', () => {
           {
             action: 6,
             args: utils.defaultAbiCoder.encode(
-              ['address', 'uint256', 'uint256', 'bytes'],
-              [pythOracle.address, 0, STARTING_TIME, VAA],
+              ['address', 'uint256', 'uint256', 'uint256', 'bytes', 'bool'],
+              [pythOracle.address, 1, 0, STARTING_TIME, VAA, true],
             ),
           },
         ],
@@ -135,6 +135,82 @@ describe('PythOracle', () => {
       expect((await pythOracle.callStatic.latest()).timestamp).to.equal(STARTING_TIME)
       const newDSUBalance = await dsu.callStatic.balanceOf(user.address)
       expect(newDSUBalance.sub(originalDSUBalance)).to.equal(0)
+    })
+
+    it('only passes through value specified', async () => {
+      await increase(1)
+
+      // Base fee isn't working properly in coverage, so we need to set it manually
+      await ethers.provider.send('hardhat_setNextBlockBaseFeePerGas', ['0x1000'])
+      await expect(
+        multiInvoker.connect(user).invoke(
+          [
+            {
+              action: 6,
+              args: utils.defaultAbiCoder.encode(
+                ['address', 'uint256', 'uint256', 'uint256', 'bytes', 'bool'],
+                [pythOracle.address, 0, 0, STARTING_TIME, VAA, true],
+              ),
+            },
+          ],
+          {
+            value: 1,
+            gasPrice: 10000,
+          },
+        ),
+      ).to.be.revertedWithoutReason
+    })
+
+    it('commits a non-requested pyth version w/o revert on failure', async () => {
+      await increase(1)
+
+      const originalDSUBalance = await dsu.callStatic.balanceOf(user.address)
+
+      // Base fee isn't working properly in coverage, so we need to set it manually
+      await ethers.provider.send('hardhat_setNextBlockBaseFeePerGas', ['0x1000'])
+      await multiInvoker.connect(user).invoke(
+        [
+          {
+            action: 6,
+            args: utils.defaultAbiCoder.encode(
+              ['address', 'uint256', 'uint256', 'uint256', 'bytes', 'bool'],
+              [pythOracle.address, 1, 0, STARTING_TIME, VAA, false],
+            ),
+          },
+        ],
+        {
+          value: 1,
+          gasPrice: 10000,
+        },
+      )
+
+      expect((await pythOracle.callStatic.latest()).timestamp).to.equal(STARTING_TIME)
+      const newDSUBalance = await dsu.callStatic.balanceOf(user.address)
+      expect(newDSUBalance.sub(originalDSUBalance)).to.equal(0)
+    })
+
+    it('doesnt revert on commit failure w/o revert on failure', async () => {
+      await increase(1)
+
+      // Base fee isn't working properly in coverage, so we need to set it manually
+      await ethers.provider.send('hardhat_setNextBlockBaseFeePerGas', ['0x1000'])
+      await expect(
+        multiInvoker.connect(user).invoke(
+          [
+            {
+              action: 6,
+              args: utils.defaultAbiCoder.encode(
+                ['address', 'uint256', 'uint256', 'uint256', 'bytes', 'bool'],
+                [pythOracle.address, 1, 0, STARTING_TIME + 60, VAA, false],
+              ),
+            },
+          ],
+          {
+            value: 1,
+            gasPrice: 10000,
+          },
+        ),
+      ).to.be.not.reverted
     })
   })
 })

@@ -141,10 +141,10 @@ contract MultiInvoker is IMultiInvoker, Kept {
 
                 _executeOrder(account, market, nonce);
             } else if (invocation.action == PerennialAction.COMMIT_PRICE) {
-                (address oracleProvider, uint256 index, uint256 version, bytes memory data) =
-                    abi.decode(invocation.args, (address, uint256, uint256, bytes));
+                (address oracleProvider, uint256 value, uint256 index, uint256 version, bytes memory data, bool revertOnFailure) =
+                    abi.decode(invocation.args, (address, uint256, uint256, uint256, bytes, bool));
 
-                _commitPrice(oracleProvider, index, version, data);
+                _commitPrice(oracleProvider, value, index, version, data, revertOnFailure);
             } else if (invocation.action == PerennialAction.LIQUIDATE) {
                 (IMarket market, address account) = abi.decode(invocation.args, (IMarket, address));
 
@@ -295,12 +295,26 @@ contract MultiInvoker is IMultiInvoker, Kept {
 
     /// @notice Helper function to commit a price to an oracle
     /// @param oracleProvider Address of oracle provider
+    /// @param value The ether value to pass on with the commit sub-call
     /// @param version Version of oracle to commit to
     /// @param data Data to commit to oracle
-    function _commitPrice(address oracleProvider, uint256 index, uint256 version, bytes memory data) internal {
+    /// @param revertOnFailure Whether to revert on sub-call failure
+    function _commitPrice(
+        address oracleProvider,
+        uint256 value,
+        uint256 index,
+        uint256 version,
+        bytes memory data,
+        bool revertOnFailure
+    ) internal {
         UFixed18 balanceBefore = DSU.balanceOf();
 
-        IPythOracle(oracleProvider).commit{value: msg.value}(index, version, data);
+        if (revertOnFailure) {
+            IPythOracle(oracleProvider).commit{value: value}(index, version, data);
+        } else {
+            try IPythOracle(oracleProvider).commit{value: value}(index, version, data) { }
+            catch { }
+        }
 
         // Return through keeper reward if any
         DSU.push(msg.sender, DSU.balanceOf().sub(balanceBefore));
