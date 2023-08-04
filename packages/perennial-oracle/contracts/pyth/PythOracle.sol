@@ -14,19 +14,19 @@ import "../interfaces/IPythFactory.sol";
 ///      This implementation only supports non-negative prices.
 contract PythOracle is IPythOracle, Instance, Kept {
     /// @dev A Pyth update must come at least this long after a version to be valid
-    uint256 constant private MIN_VALID_TIME_AFTER_VERSION = 12 seconds;
+    uint256 constant public MIN_VALID_TIME_AFTER_VERSION = 12 seconds;
 
     /// @dev A Pyth update must come at most this long after a version to be valid
-    uint256 constant private MAX_VALID_TIME_AFTER_VERSION = 15 seconds;
+    uint256 constant public MAX_VALID_TIME_AFTER_VERSION = 15 seconds;
 
     /// @dev After this amount of time has passed for a version without being committed, the version can be invalidated.
-    uint256 constant private GRACE_PERIOD = 1 minutes;
+    uint256 constant public GRACE_PERIOD = 1 minutes;
 
     /// @dev The multiplier for the keeper reward on top of cost
-    UFixed18 constant private KEEPER_REWARD_PREMIUM = UFixed18.wrap(1.5e18);
+    UFixed18 constant public KEEPER_REWARD_PREMIUM = UFixed18.wrap(1.5e18);
 
     /// @dev The fixed gas buffer that is added to the keeper reward
-    uint256 constant private KEEPER_BUFFER = 80_000;
+    uint256 constant public KEEPER_BUFFER = 80_000;
 
     /// @dev Pyth contract
     AbstractPyth public immutable pyth;
@@ -70,6 +70,10 @@ contract PythOracle is IPythOracle, Instance, Kept {
         if (!pyth.priceFeedExists(id_)) revert PythOracleInvalidPriceIdError(id_);
 
         id = id_;
+    }
+
+    function versionListLength() external view returns (uint256) {
+        return versionList.length;
     }
 
     /// @notice Records a request for a new oracle version

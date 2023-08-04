@@ -104,6 +104,28 @@ describe('PythOracle', () => {
     })
   })
 
+  describe('constants', async () => {
+    it('#MIN_VALID_TIME_AFTER_VERSION', async () => {
+      expect(await pythOracle.MIN_VALID_TIME_AFTER_VERSION()).to.equal(12)
+    })
+
+    it('#MAX_VALID_TIME_AFTER_VERSION', async () => {
+      expect(await pythOracle.MAX_VALID_TIME_AFTER_VERSION()).to.equal(15)
+    })
+
+    it('#GRACE_PERIOD', async () => {
+      expect(await pythOracle.GRACE_PERIOD()).to.equal(60)
+    })
+
+    it('#KEEPER_REWARD_PREMIUM', async () => {
+      expect(await pythOracle.KEEPER_REWARD_PREMIUM()).to.equal(utils.parseEther('1.5'))
+    })
+
+    it('#KEEPER_BUFFER', async () => {
+      expect(await pythOracle.KEEPER_BUFFER()).to.equal(80000)
+    })
+  })
+
   describe('#commitRequested', async () => {
     it('commits successfully and incentivizes the keeper', async () => {
       const originalDSUBalance = await dsu.callStatic.balanceOf(user.address)
@@ -420,24 +442,24 @@ describe('PythOracle', () => {
   describe('#request', async () => {
     it('can request a version', async () => {
       // No requested versions
-      await expect(pythOracle.callStatic.versionList(0)).to.be.reverted
+      expect(await pythOracle.versionListLength()).to.equal(0)
       await pythOracle.connect(oracleSigner).request(user.address)
       // Now there is exactly one requested version
-      expect(await pythOracle.callStatic.versionList(0)).to.equal(STARTING_TIME)
-      await expect(pythOracle.callStatic.versionList(1)).to.be.reverted
+      expect(await pythOracle.versionList(0)).to.equal(STARTING_TIME)
+      expect(await pythOracle.versionListLength()).to.equal(1)
     })
 
     it('can request a version w/ granularity', async () => {
       await pythOracleFactory.updateGranularity(10)
 
       // No requested versions
-      await expect(pythOracle.callStatic.versionList(0)).to.be.reverted
+      expect(await pythOracle.versionListLength()).to.equal(0)
       await pythOracle.connect(oracleSigner).request(user.address)
       const currentTimestamp = await pythOracleFactory.current()
 
       // Now there is exactly one requested version
-      expect(await pythOracle.callStatic.versionList(0)).to.equal(currentTimestamp)
-      await expect(pythOracle.callStatic.versionList(1)).to.be.reverted
+      expect(await pythOracle.versionList(0)).to.equal(currentTimestamp)
+      expect(await pythOracle.versionListLength()).to.equal(1)
     })
 
     it('does not allow unauthorized users to request', async () => {

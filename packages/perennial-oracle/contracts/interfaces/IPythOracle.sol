@@ -21,7 +21,13 @@ interface IPythOracle is IOracleProvider, IInstance, IKept {
     function commitRequested(uint256 versionIndex, bytes calldata updateData) external payable;
     function commit(uint256 versionIndex, uint256 oracleVersion, bytes calldata updateData) external payable;
 
+    function MIN_VALID_TIME_AFTER_VERSION() external view returns (uint256);
+    function MAX_VALID_TIME_AFTER_VERSION() external view returns (uint256);
+    function GRACE_PERIOD() external view returns (uint256);
+    function KEEPER_REWARD_PREMIUM() external view returns (UFixed18);
+    function KEEPER_BUFFER() external view returns (uint256);
     function versionList(uint256 versionIndex) external view returns (uint256);
+    function versionListLength() external view returns (uint256);
     function nextVersionIndexToCommit() external view returns (uint256);
     function nextVersionToCommit() external view returns (uint256);
 }
