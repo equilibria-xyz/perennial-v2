@@ -209,6 +209,16 @@ library PositionLib {
         return _skew(self, riskParameter.virtualTaker);
     }
 
+    /// @notice Returns the skew of the position taking into account position socialization
+    /// @dev Used to calculate the portion of the position that is covered by the maker
+    /// @param self The position object to check
+    /// @return The socialized skew of the position
+    function socializedSkew(Position memory self) internal pure returns (UFixed6) {
+        return takerSocialized(self).isZero() ?
+            UFixed6Lib.ZERO :
+            takerSocialized(self).sub(minor(self)).div(takerSocialized(self));
+    }
+
     /// @notice Helper function to return the skew of the position with an optional virtual taker
     /// @param self The position object to check
     /// @param virtualTaker The virtual taker to use in the calculation
