@@ -20,7 +20,7 @@ import {
 } from '../../../types/generated'
 import { parse6decimal } from '../../../../common/testutil/types'
 import { smock } from '@defi-wonderland/smock'
-import { IInstance } from '../../../types/generated/@equilibria/root-v2/contracts'
+import { IInstance } from '../../../types/generated/@equilibria/root/attribute/interfaces'
 
 const { ethers } = HRE
 
@@ -144,6 +144,7 @@ describe('PythOracle', () => {
   describe('#commitRequested', async () => {
     it('commits successfully and incentivizes the keeper', async () => {
       const originalDSUBalance = await dsu.callStatic.balanceOf(user.address)
+      const originalFactoryDSUBalance = await dsu.callStatic.balanceOf(oracleFactory.address)
       await pythOracle.connect(oracleSigner).request(user.address)
       // Base fee isn't working properly in coverage, so we need to set it manually
       await ethers.provider.send('hardhat_setNextBlockBaseFeePerGas', ['0x5F5E100'])
@@ -154,8 +155,13 @@ describe('PythOracle', () => {
         }),
       ).to.emit(pythOracle, 'KeeperCall')
       const newDSUBalance = await dsu.callStatic.balanceOf(user.address)
+      const newFactoryDSUBalance = await dsu.callStatic.balanceOf(oracleFactory.address)
 
       expect(newDSUBalance.sub(originalDSUBalance)).to.be.within(
+        ethers.utils.parseEther('0.10'),
+        utils.parseEther('0.11'),
+      )
+      expect(originalFactoryDSUBalance.sub(newFactoryDSUBalance)).to.be.within(
         ethers.utils.parseEther('0.10'),
         utils.parseEther('0.11'),
       )
@@ -378,6 +384,21 @@ describe('PythOracle', () => {
         ethers.utils.parseEther('0.10'),
         ethers.utils.parseEther('0.11'),
       )
+    })
+
+    it('does not commitRequested if oracleVersion is incorrect', async () => {
+      const originalDSUBalance = await dsu.callStatic.balanceOf(user.address)
+      await pythOracle.connect(oracleSigner).request(user.address)
+      // Base fee isn't working properly in coverage, so we need to set it manually
+      await ethers.provider.send('hardhat_setNextBlockBaseFeePerGas', ['0x5F5E100'])
+      await pythOracle.connect(user).commit(0, STARTING_TIME - 1, VAA, {
+        value: 1,
+        gasPrice: 100000000,
+      })
+      const newDSUBalance = await dsu.callStatic.balanceOf(user.address)
+
+      // Keeper isn't incentivized because we did not go through commitRequested
+      expect(newDSUBalance).to.equal(originalDSUBalance)
     })
 
     it('can commit multiple non-requested versions, as long as they are in order', async () => {
