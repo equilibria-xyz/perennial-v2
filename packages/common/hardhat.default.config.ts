@@ -113,9 +113,6 @@ export default function defaultConfig({
           enabled: FORK_ENABLED,
           blockNumber: FORK_BLOCK_NUMBER,
         },
-        accounts: PRIVATE_KEY_TESTNET
-          ? [{ privateKey: PRIVATE_KEY_TESTNET, balance: utils.parseEther('10').toString() }]
-          : undefined,
         chainId: getChainId('hardhat'),
         allowUnlimitedContractSize: true,
         mining: NODE_INTERVAL_MINING

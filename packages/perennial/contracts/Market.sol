@@ -418,6 +418,7 @@ contract Market is IMarket, Instance, ReentrancyGuard {
             fromTimestamp,
             newPosition.timestamp,
             fromId,
+            newPositionId,
             accumulationResult
         );
     }
@@ -452,6 +453,7 @@ contract Market is IMarket, Instance, ReentrancyGuard {
             fromTimestamp,
             newPosition.timestamp,
             fromId,
+            newPositionId,
             accumulationResult
         );
     }
