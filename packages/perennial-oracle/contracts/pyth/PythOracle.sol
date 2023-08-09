@@ -4,7 +4,7 @@ pragma solidity 0.8.19;
 import "@openzeppelin/contracts/utils/math/SafeCast.sol";
 import "@pythnetwork/pyth-sdk-solidity/AbstractPyth.sol";
 import "@equilibria/root/attribute/Instance.sol";
-import "@equilibria/root/attribute/Kept.sol";
+import "./Kept.sol";
 import "../interfaces/IPythFactory.sol";
 
 /// @title PythOracle
