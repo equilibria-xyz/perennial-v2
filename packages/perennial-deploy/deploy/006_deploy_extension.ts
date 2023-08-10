@@ -43,6 +43,8 @@ const func: DeployFunction = async function (hre: HardhatRuntimeEnvironment) {
     log: true,
     autoMine: true,
   })
+
+  // TODO approve markets
 }
 
 export default func
