@@ -78,11 +78,11 @@ contract PythOracle is IPythOracle, Instance, Kept {
 
     /// @notice Records a request for a new oracle version
     /// @dev Original sender to optionally use for callbacks
-    function request(address sender) external onlyAuthorized {
+    function request(address) external onlyAuthorized {
         uint256 currentTimestamp = current();
         if (versionList.length == 0 || versionList[versionList.length - 1] != currentTimestamp) {
             versionList.push(currentTimestamp);
-            emit OracleProviderVersionRequested(sender, currentTimestamp);
+            emit OracleProviderVersionRequested(currentTimestamp);
         }
     }
 

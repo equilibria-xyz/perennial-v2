@@ -449,7 +449,7 @@ describe('PythOracle', () => {
       expect(await pythOracle.versionListLength()).to.equal(0)
       await expect(pythOracle.connect(oracleSigner).request(user.address))
         .to.emit(pythOracle, 'OracleProviderVersionRequested')
-        .withArgs(user.address, '1686198973')
+        .withArgs('1686198973')
       // Now there is exactly one requested version
       expect(await pythOracle.versionList(0)).to.equal(STARTING_TIME)
       expect(await pythOracle.versionListLength()).to.equal(1)
