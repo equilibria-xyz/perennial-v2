@@ -10554,11 +10554,13 @@ describe.only('Market', () => {
           })
         })
 
-        context.skip('closed', async () => {
+        context('closed', async () => {
           beforeEach(async () => {
             await market.connect(user).update(user.address, POSITION, 0, 0, COLLATERAL, false)
             dsu.transferFrom.whenCalledWith(userB.address, market.address, COLLATERAL.mul(1e12)).returns(true)
             await market.connect(userB).update(userB.address, 0, POSITION.div(2), 0, COLLATERAL, false)
+            dsu.transferFrom.whenCalledWith(userC.address, market.address, COLLATERAL.mul(1e12)).returns(true)
+            await market.connect(userC).update(userC.address, 0, 0, POSITION, COLLATERAL, false)
 
             oracle.at.whenCalledWith(ORACLE_VERSION_2.timestamp).returns(ORACLE_VERSION_2)
             oracle.status.returns([ORACLE_VERSION_2, ORACLE_VERSION_3.timestamp])
@@ -10641,12 +10643,14 @@ describe.only('Market', () => {
               timestamp: ORACLE_VERSION_4.timestamp,
               maker: POSITION,
               long: POSITION.div(2),
+              short: POSITION,
             })
             expectPositionEq(await market.pendingPosition(3), {
               ...DEFAULT_POSITION,
               timestamp: ORACLE_VERSION_5.timestamp,
               maker: POSITION,
               long: POSITION.div(2),
+              short: POSITION,
             })
             expectVersionEq(await market.versions(ORACLE_VERSION_3.timestamp), {
               makerValue: { _value: 0 },
