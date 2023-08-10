@@ -132,10 +132,14 @@ describe('PythOracle', () => {
       await pythOracle.connect(oracleSigner).request(user.address)
       // Base fee isn't working properly in coverage, so we need to set it manually
       await ethers.provider.send('hardhat_setNextBlockBaseFeePerGas', ['0x5F5E100'])
-      await pythOracle.connect(user).commitRequested(0, VAA, {
-        value: 1,
-        maxFeePerGas: 100000000,
-      })
+      await expect(
+        pythOracle.connect(user).commitRequested(0, VAA, {
+          value: 1,
+          maxFeePerGas: 100000000,
+        }),
+      )
+        .to.emit(pythOracle, 'OracleProviderVersionFulfilled')
+        .withArgs('1686198973')
       const newDSUBalance = await dsu.callStatic.balanceOf(user.address)
 
       expect(newDSUBalance.sub(originalDSUBalance)).to.be.within(
@@ -443,7 +447,9 @@ describe('PythOracle', () => {
     it('can request a version', async () => {
       // No requested versions
       expect(await pythOracle.versionListLength()).to.equal(0)
-      await pythOracle.connect(oracleSigner).request(user.address)
+      await expect(pythOracle.connect(oracleSigner).request(user.address))
+        .to.emit(pythOracle, 'OracleProviderVersionRequested')
+        .withArgs('1686198973')
       // Now there is exactly one requested version
       expect(await pythOracle.versionList(0)).to.equal(STARTING_TIME)
       expect(await pythOracle.versionListLength()).to.equal(1)

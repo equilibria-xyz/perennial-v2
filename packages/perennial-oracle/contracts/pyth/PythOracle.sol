@@ -80,8 +80,10 @@ contract PythOracle is IPythOracle, Instance, Kept {
     /// @dev Original sender to optionally use for callbacks
     function request(address) external onlyAuthorized {
         uint256 currentTimestamp = current();
-        if (versionList.length == 0 || versionList[versionList.length - 1] != currentTimestamp)
+        if (versionList.length == 0 || versionList[versionList.length - 1] != currentTimestamp) {
             versionList.push(currentTimestamp);
+            emit OracleProviderVersionRequested(currentTimestamp);
+        }
     }
 
     /// @notice Returns the latest synced oracle version and the current oracle version
@@ -158,6 +160,8 @@ contract PythOracle is IPythOracle, Instance, Kept {
         _recordPrice(versionToCommit, pythPrice);
         nextVersionIndexToCommit = versionIndex + 1;
         _latestVersion = versionToCommit;
+
+        emit OracleProviderVersionFulfilled(versionToCommit);
     }
 
     /// @notice Commits the price to a non-requested version

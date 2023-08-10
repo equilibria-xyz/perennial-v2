@@ -17,6 +17,9 @@ import "../types/OracleVersion.sol";
 interface IOracleProvider {
     error OracleProviderUnauthorizedError();
 
+    event OracleProviderVersionRequested(uint256 indexed version);
+    event OracleProviderVersionFulfilled(uint256 indexed version);
+
     function request(address account) external;
     function status() external view returns (OracleVersion memory, uint256);
     function latest() external view returns (OracleVersion memory);
