@@ -9819,9 +9819,33 @@ describe.only('Market', () => {
               })
             })
 
-            it.skip('with partial socialization', async () => {
-              dsu.transferFrom.whenCalledWith(userC.address, market.address, COLLATERAL.mul(1e12)).returns(true)
-              await market.connect(userC).update(userC.address, POSITION.div(4), 0, 0, COLLATERAL, false)
+            it('with partial socialization', async () => {
+              // (0.258823 / 365 / 24 / 60 / 60 ) * 3600 * 12 * 123 = 43610
+              const EXPECTED_INTEREST_1 = BigNumber.from(43610)
+              const EXPECTED_INTEREST_FEE_1 = EXPECTED_INTEREST_1.div(10)
+              const EXPECTED_INTEREST_WITHOUT_FEE_1 = EXPECTED_INTEREST_1.sub(EXPECTED_INTEREST_FEE_1)
+
+              // (0.258823 / 365 / 24 / 60 / 60 ) * 3600 * 12 * 45 = 15960
+              const EXPECTED_INTEREST_2 = BigNumber.from(15960)
+              const EXPECTED_INTEREST_FEE_2 = EXPECTED_INTEREST_2.div(10)
+              const EXPECTED_INTEREST_WITHOUT_FEE_2 = EXPECTED_INTEREST_2.sub(EXPECTED_INTEREST_FEE_2)
+
+              // (1.00 / 365 / 24 / 60 / 60 ) * 3600 * 2 * 123 = 28090
+              const EXPECTED_INTEREST_3 = BigNumber.from(28090)
+              const EXPECTED_INTEREST_FEE_3 = EXPECTED_INTEREST_3.div(10)
+              const EXPECTED_INTEREST_WITHOUT_FEE_3 = EXPECTED_INTEREST_3.sub(EXPECTED_INTEREST_FEE_3)
+
+              // rate_0 = 0.09
+              // rate_1 = rate_0 + (elapsed * skew / k)
+              // funding = (rate_0 + rate_1) / 2 * elapsed * taker * price / time_in_years
+              // (0.09 + (0.09 + 3600 * 0.50 / 40000)) / 2 * 3600 * 7 * 123 / (86400 * 365) = 11060
+              const EXPECTED_FUNDING_3 = BigNumber.from(11060)
+              const EXPECTED_FUNDING_FEE_3 = BigNumber.from(1110)
+              const EXPECTED_FUNDING_WITH_FEE_3 = EXPECTED_FUNDING_3.add(EXPECTED_FUNDING_FEE_3.div(2))
+              const EXPECTED_FUNDING_WITHOUT_FEE_3 = EXPECTED_FUNDING_3.sub(EXPECTED_FUNDING_FEE_3.div(2))
+
+              dsu.transferFrom.whenCalledWith(liquidator.address, market.address, COLLATERAL.mul(1e12)).returns(true)
+              await market.connect(liquidator).update(liquidator.address, POSITION.div(5), 0, 0, COLLATERAL, false)
 
               oracle.at.whenCalledWith(ORACLE_VERSION_2.timestamp).returns(ORACLE_VERSION_2)
               oracle.status.returns([ORACLE_VERSION_2, ORACLE_VERSION_3.timestamp])
@@ -9829,13 +9853,13 @@ describe.only('Market', () => {
 
               await settle(market, user)
               await settle(market, userB)
-              await settle(market, userC)
+              await settle(market, liquidator)
 
-              const EXPECTED_PNL = parse6decimal('27').mul(5).div(2)
-              const EXPECTED_LIQUIDATION_FEE = parse6decimal('45')
+              const EXPECTED_PNL = parse6decimal('78').mul(5)
+              const EXPECTED_LIQUIDATION_FEE = parse6decimal('13.5')
 
               const oracleVersionHigherPrice = {
-                price: parse6decimal('150'),
+                price: parse6decimal('45'),
                 timestamp: TIMESTAMP + 7200,
                 valid: true,
               }
@@ -9844,7 +9868,7 @@ describe.only('Market', () => {
               oracle.request.returns()
 
               await settle(market, user)
-              await settle(market, userC)
+              await settle(market, liquidator)
               dsu.transfer.whenCalledWith(liquidator.address, EXPECTED_LIQUIDATION_FEE.mul(1e12)).returns(true)
               dsu.balanceOf.whenCalledWith(market.address).returns(COLLATERAL.mul(1e12))
               await expect(
@@ -9859,10 +9883,10 @@ describe.only('Market', () => {
 
               await settle(market, user)
               await settle(market, userB)
-              await settle(market, userC)
+              await settle(market, liquidator)
 
               const oracleVersionHigherPrice2 = {
-                price: parse6decimal('150'),
+                price: parse6decimal('45'),
                 timestamp: TIMESTAMP + 14400,
                 valid: true,
               }
@@ -9872,34 +9896,19 @@ describe.only('Market', () => {
 
               await settle(market, user)
               await settle(market, userB)
-              await settle(market, userC)
-
-              // (0.08 / 365 / 24 / 60 / 60 ) * 3600 * 5 * 123 = 5620
-              const EXPECTED_INTEREST_1 = BigNumber.from(5620)
-              const EXPECTED_INTEREST_FEE_1 = EXPECTED_INTEREST_1.div(10)
-              const EXPECTED_INTEREST_WITHOUT_FEE_1 = EXPECTED_INTEREST_1.sub(EXPECTED_INTEREST_FEE_1)
-
-              // (0.08 / 365 / 24 / 60 / 60 ) * 3600 * 5 * 150 = 6850
-              const EXPECTED_INTEREST_2 = BigNumber.from(6850)
-              const EXPECTED_INTEREST_FEE_2 = EXPECTED_INTEREST_2.div(10)
-              const EXPECTED_INTEREST_WITHOUT_FEE_2 = EXPECTED_INTEREST_2.sub(EXPECTED_INTEREST_FEE_2)
-
-              // (1.00 / 365 / 24 / 60 / 60 ) * 3600 * 5 * 123 * 0.5 = 35105
-              const EXPECTED_INTEREST_3 = BigNumber.from(35105)
-              const EXPECTED_INTEREST_FEE_3 = EXPECTED_INTEREST_3.div(10)
-              const EXPECTED_INTEREST_WITHOUT_FEE_3 = EXPECTED_INTEREST_3.sub(EXPECTED_INTEREST_FEE_3)
+              await settle(market, liquidator)
 
               expectLocalEq(await market.locals(user.address), {
                 currentId: 5,
                 latestId: 4,
-                collateral: COLLATERAL.sub(EXPECTED_FUNDING_WITH_FEE_1_5_123)
-                  .sub(EXPECTED_INTEREST_1)
-                  .sub(EXPECTED_FUNDING_WITH_FEE_2_5_150)
-                  .sub(EXPECTED_INTEREST_2)
-                  .sub(EXPECTED_FUNDING_WITH_FEE_3_25_123)
-                  .sub(EXPECTED_INTEREST_3)
-                  .add(EXPECTED_PNL)
-                  .sub(5), // loss of precision
+                collateral: COLLATERAL.add(EXPECTED_FUNDING_WITHOUT_FEE_1_10_123_ALL.div(2))
+                  .sub(EXPECTED_INTEREST_1.div(3))
+                  .add(EXPECTED_FUNDING_WITHOUT_FEE_2_10_45_ALL.div(2))
+                  .sub(EXPECTED_INTEREST_2.div(3))
+                  .add(EXPECTED_FUNDING_WITHOUT_FEE_3.mul(5).div(7))
+                  .sub(EXPECTED_INTEREST_3.div(3))
+                  .sub(EXPECTED_PNL)
+                  .sub(6), // loss of precision
                 reward: EXPECTED_REWARD.mul(2).mul(3),
                 protection: 0,
               })
@@ -9918,11 +9927,13 @@ describe.only('Market', () => {
                 currentId: 5,
                 latestId: 4,
                 collateral: parse6decimal('450')
-                  .add(EXPECTED_FUNDING_WITHOUT_FEE_1_5_123.add(EXPECTED_INTEREST_WITHOUT_FEE_1).mul(4).div(5))
-                  .add(EXPECTED_FUNDING_WITHOUT_FEE_2_5_150.add(EXPECTED_INTEREST_WITHOUT_FEE_2).mul(4).div(5))
+                  .add(EXPECTED_FUNDING_WITHOUT_FEE_1_10_123_ALL.mul(5).div(12))
+                  .add(EXPECTED_INTEREST_WITHOUT_FEE_1.mul(10).div(12))
+                  .add(EXPECTED_FUNDING_WITHOUT_FEE_2_10_45_ALL.mul(5).div(12))
+                  .add(EXPECTED_INTEREST_WITHOUT_FEE_2.mul(10).div(12))
                   .sub(EXPECTED_LIQUIDATION_FEE)
-                  .sub(16), // loss of precision
-                reward: EXPECTED_REWARD.mul(4).div(5).mul(3).mul(2),
+                  .sub(19), // loss of precision
+                reward: EXPECTED_REWARD.mul(3).mul(2).mul(10).div(12),
                 protection: ORACLE_VERSION_4.timestamp,
               })
               expectPositionEq(await market.positions(userB.address), {
@@ -9934,117 +9945,127 @@ describe.only('Market', () => {
                 timestamp: ORACLE_VERSION_6.timestamp,
                 delta: parse6decimal('450').sub(EXPECTED_LIQUIDATION_FEE),
               })
-              expectLocalEq(await market.locals(userC.address), {
-                currentId: 5,
-                latestId: 4,
-                collateral: COLLATERAL.add(
-                  EXPECTED_FUNDING_WITHOUT_FEE_1_5_123.add(EXPECTED_INTEREST_WITHOUT_FEE_1).div(5),
-                )
-                  .add(EXPECTED_FUNDING_WITHOUT_FEE_2_5_150.add(EXPECTED_INTEREST_WITHOUT_FEE_2).div(5))
-                  .add(EXPECTED_FUNDING_WITHOUT_FEE_3_25_123.add(EXPECTED_INTEREST_WITHOUT_FEE_3))
-                  .sub(EXPECTED_PNL)
-                  .sub(12), // loss of precision
-                reward: EXPECTED_REWARD.div(5).mul(3).mul(2).add(EXPECTED_REWARD.mul(3)),
-                protection: 0,
-              })
-              expectPositionEq(await market.positions(userC.address), {
-                ...DEFAULT_POSITION,
-                timestamp: ORACLE_VERSION_5.timestamp,
-                maker: POSITION.div(4),
-              })
-              expectPositionEq(await market.pendingPositions(userC.address, 5), {
-                ...DEFAULT_POSITION,
-                timestamp: ORACLE_VERSION_6.timestamp,
-                maker: POSITION.div(4),
-                delta: COLLATERAL,
-              })
-              const totalFee = EXPECTED_FUNDING_FEE_1_5_123.add(EXPECTED_INTEREST_FEE_1)
-                .add(EXPECTED_FUNDING_FEE_2_5_150.add(EXPECTED_INTEREST_FEE_2))
-                .add(EXPECTED_FUNDING_FEE_3_25_123.add(EXPECTED_INTEREST_FEE_3))
+              const totalFee = EXPECTED_FUNDING_FEE_1_10_123_ALL.add(EXPECTED_INTEREST_FEE_1)
+                .add(EXPECTED_FUNDING_FEE_2_10_45_ALL)
+                .add(EXPECTED_INTEREST_FEE_2)
+                .add(EXPECTED_FUNDING_FEE_3)
+                .add(EXPECTED_INTEREST_FEE_3)
               expectGlobalEq(await market.global(), {
                 currentId: 5,
                 latestId: 4,
-                protocolFee: totalFee.div(2).sub(2), // loss of precision
-                oracleFee: totalFee.div(2).div(10),
-                riskFee: totalFee.div(2).div(10),
-                donation: totalFee.div(2).mul(8).div(10).add(2), // loss of precision
+                protocolFee: totalFee.div(2).sub(10), // loss of precision
+                oracleFee: totalFee.div(2).div(10).sub(2), // loss of precision
+                riskFee: totalFee.div(2).div(10).sub(2), // loss of precision
+                donation: totalFee.div(2).mul(8).div(10).sub(2), // loss of precision
               })
               expectPositionEq(await market.position(), {
                 ...DEFAULT_POSITION,
                 timestamp: ORACLE_VERSION_5.timestamp,
-                maker: POSITION.div(4),
+                maker: POSITION.div(5),
                 long: POSITION.div(2),
+                short: POSITION,
               })
               expectPositionEq(await market.pendingPosition(5), {
                 ...DEFAULT_POSITION,
                 timestamp: ORACLE_VERSION_6.timestamp,
-                maker: POSITION.div(4),
+                maker: POSITION.div(5),
                 long: POSITION.div(2),
+                short: POSITION,
               })
               expectVersionEq(await market.versions(ORACLE_VERSION_3.timestamp), {
                 makerValue: {
-                  _value: EXPECTED_FUNDING_WITHOUT_FEE_1_5_123.add(EXPECTED_INTEREST_WITHOUT_FEE_1)
-                    .sub(EXPECTED_PNL.mul(2))
-                    .mul(2)
-                    .div(25)
+                  _value: EXPECTED_FUNDING_WITHOUT_FEE_1_10_123_ALL.div(2)
+                    .add(EXPECTED_INTEREST_WITHOUT_FEE_1)
+                    .sub(EXPECTED_PNL)
+                    .div(12)
                     .sub(1),
                 }, // loss of precision
                 longValue: {
-                  _value: EXPECTED_FUNDING_WITH_FEE_1_5_123.add(EXPECTED_INTEREST_1)
-                    .sub(EXPECTED_PNL.mul(2))
+                  _value: EXPECTED_FUNDING_WITHOUT_FEE_1_10_123_ALL.div(2)
+                    .sub(EXPECTED_INTEREST_1.div(3))
+                    .sub(EXPECTED_PNL)
                     .div(5)
+                    .sub(1), // loss of precision
+                },
+                shortValue: {
+                  _value: EXPECTED_FUNDING_WITH_FEE_1_10_123_ALL.add(EXPECTED_INTEREST_1.mul(2).div(3))
+                    .sub(EXPECTED_PNL.mul(2))
+                    .div(10)
                     .mul(-1),
                 },
-                shortValue: { _value: 0 },
-                makerReward: { _value: EXPECTED_REWARD.mul(3).mul(2).div(25) },
+                makerReward: { _value: EXPECTED_REWARD.mul(3).div(12) },
                 longReward: { _value: EXPECTED_REWARD.mul(2).div(5) },
-                shortReward: { _value: 0 },
+                shortReward: { _value: EXPECTED_REWARD.div(10) },
               })
               expectVersionEq(await market.versions(ORACLE_VERSION_4.timestamp), {
                 makerValue: {
-                  _value: EXPECTED_FUNDING_WITHOUT_FEE_1_5_123.add(EXPECTED_INTEREST_WITHOUT_FEE_1)
-                    .add(EXPECTED_FUNDING_WITHOUT_FEE_2_5_150.add(EXPECTED_INTEREST_WITHOUT_FEE_2))
-                    .mul(2)
-                    .div(25)
-                    .sub(1), // loss of precision
+                  _value: EXPECTED_FUNDING_WITHOUT_FEE_1_10_123_ALL.div(2)
+                    .add(EXPECTED_INTEREST_WITHOUT_FEE_1)
+                    .add(EXPECTED_FUNDING_WITHOUT_FEE_2_10_45_ALL.div(2))
+                    .add(EXPECTED_INTEREST_WITHOUT_FEE_2)
+                    .div(12)
+                    .sub(2), // loss of precision
                 },
                 longValue: {
-                  _value: EXPECTED_FUNDING_WITH_FEE_1_5_123.add(EXPECTED_INTEREST_1)
-                    .add(EXPECTED_FUNDING_WITH_FEE_2_5_150.add(EXPECTED_INTEREST_2))
+                  _value: EXPECTED_FUNDING_WITHOUT_FEE_1_10_123_ALL.div(2)
+                    .sub(EXPECTED_INTEREST_1.div(3))
+                    .add(EXPECTED_FUNDING_WITHOUT_FEE_2_10_45_ALL.div(2))
+                    .sub(EXPECTED_INTEREST_2.div(3))
                     .div(5)
+                    .sub(2), // loss of precision
+                },
+                shortValue: {
+                  _value: EXPECTED_FUNDING_WITH_FEE_1_10_123_ALL.add(EXPECTED_INTEREST_1.mul(2).div(3))
+                    .add(EXPECTED_FUNDING_WITH_FEE_2_10_45_ALL)
+                    .add(EXPECTED_INTEREST_2.mul(2).div(3))
+                    .div(10)
                     .mul(-1)
                     .sub(1), // loss of precision
                 },
-                shortValue: { _value: 0 },
-                makerReward: { _value: EXPECTED_REWARD.mul(3).mul(2).div(25).mul(2) },
-                longReward: { _value: EXPECTED_REWARD.mul(2).mul(2).div(5) },
-                shortReward: { _value: 0 },
+                makerReward: { _value: EXPECTED_REWARD.mul(3).div(12).mul(2) },
+                longReward: { _value: EXPECTED_REWARD.mul(2).div(5).mul(2) },
+                shortReward: { _value: EXPECTED_REWARD.div(10).mul(2) },
               })
               expectVersionEq(await market.versions(ORACLE_VERSION_5.timestamp), {
                 makerValue: {
-                  _value: EXPECTED_FUNDING_WITHOUT_FEE_1_5_123.add(EXPECTED_INTEREST_WITHOUT_FEE_1)
-                    .add(EXPECTED_FUNDING_WITHOUT_FEE_2_5_150.add(EXPECTED_INTEREST_WITHOUT_FEE_2))
-                    .mul(2)
-                    .div(25)
-                    .add(EXPECTED_FUNDING_WITHOUT_FEE_3_25_123.add(EXPECTED_INTEREST_WITHOUT_FEE_3).mul(2).div(5))
-                    .sub(EXPECTED_PNL.mul(2).div(5))
-                    .sub(4), // loss of precision
+                  _value: EXPECTED_FUNDING_WITHOUT_FEE_1_10_123_ALL.div(2)
+                    .add(EXPECTED_INTEREST_WITHOUT_FEE_1)
+                    .add(EXPECTED_FUNDING_WITHOUT_FEE_2_10_45_ALL.div(2))
+                    .add(EXPECTED_INTEREST_WITHOUT_FEE_2)
+                    .div(12)
+                    .add(
+                      EXPECTED_FUNDING_WITHOUT_FEE_3.mul(2)
+                        .div(7)
+                        .add(EXPECTED_INTEREST_WITHOUT_FEE_3)
+                        .sub(EXPECTED_PNL.mul(2).div(5))
+                        .div(2),
+                    )
+                    .sub(6), // loss of precision
                 },
                 longValue: {
-                  _value: EXPECTED_FUNDING_WITH_FEE_1_5_123.add(EXPECTED_INTEREST_1)
-                    .add(EXPECTED_FUNDING_WITH_FEE_2_5_150.add(EXPECTED_INTEREST_2))
-                    .add(EXPECTED_FUNDING_WITH_FEE_3_25_123.add(EXPECTED_INTEREST_3))
+                  _value: EXPECTED_FUNDING_WITHOUT_FEE_1_10_123_ALL.div(2)
+                    .sub(EXPECTED_INTEREST_1.div(3))
+                    .add(EXPECTED_FUNDING_WITHOUT_FEE_2_10_45_ALL.div(2))
+                    .sub(EXPECTED_INTEREST_2.div(3))
+                    .add(EXPECTED_FUNDING_WITHOUT_FEE_3.mul(5).div(7))
+                    .sub(EXPECTED_INTEREST_3.div(3))
                     .sub(EXPECTED_PNL)
                     .div(5)
-                    .mul(-1)
-                    .sub(1), // loss of precision
+                    .sub(2), // loss of precision
                 },
-                shortValue: { _value: 0 },
-                makerReward: {
-                  _value: EXPECTED_REWARD.mul(3).mul(2).div(25).mul(2).add(EXPECTED_REWARD.mul(3).mul(2).div(5)),
+                shortValue: {
+                  _value: EXPECTED_FUNDING_WITH_FEE_1_10_123_ALL.add(EXPECTED_INTEREST_1.mul(2).div(3))
+                    .add(EXPECTED_FUNDING_WITH_FEE_2_10_45_ALL)
+                    .add(EXPECTED_INTEREST_2.mul(2).div(3))
+                    .add(EXPECTED_FUNDING_WITH_FEE_3)
+                    .add(EXPECTED_INTEREST_3.mul(2).div(3))
+                    .sub(EXPECTED_PNL.mul(7).div(5))
+                    .div(10)
+                    .mul(-1),
                 },
-                longReward: { _value: EXPECTED_REWARD.mul(2).mul(3).div(5) },
-                shortReward: { _value: 0 },
+                makerReward: { _value: EXPECTED_REWARD.mul(3).div(12).mul(2).add(EXPECTED_REWARD.mul(3).div(2)) },
+                longReward: { _value: EXPECTED_REWARD.mul(2).div(5).mul(3) },
+                shortReward: { _value: EXPECTED_REWARD.div(10).mul(3) },
               })
             })
 

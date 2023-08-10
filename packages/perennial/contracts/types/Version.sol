@@ -88,6 +88,11 @@ library VersionLib {
     ) internal pure returns (VersionAccumulationResult memory values, UFixed6 totalFee) {
         // record validity
         self.valid = toOracleVersion.valid;
+<<<<<<< HEAD
+=======
+
+        if (marketParameter.closed) return (values, UFixed6Lib.ZERO);
+>>>>>>> 0d489d9 (partial socialization test)
 
         // accumulate position fee
         (values.positionFeeMaker, values.positionFeeFee) =
@@ -115,7 +120,7 @@ library VersionLib {
         );
 
         // accumulate interest
-        (values.interestMaker,values.interestLong, values.interestShort, values.interestFee) =
+        (values.interestMaker, values.interestLong, values.interestShort, values.interestFee) =
             _accumulateInterest(self, fromPosition, fromOracleVersion, toOracleVersion, marketParameter, riskParameter);
 
         // accumulate P&L
