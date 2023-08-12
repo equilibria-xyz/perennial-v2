@@ -6,6 +6,7 @@ import HRE from 'hardhat'
 import { ProtocolParameterTester, ProtocolParameterTester__factory } from '../../../types/generated'
 import { BigNumber } from 'ethers'
 import { ProtocolParameterStruct } from '../../../types/generated/contracts/MarketFactory'
+import { parse6decimal } from '../../../../common/testutil/types'
 
 const { ethers } = HRE
 use(smock.matchers)
@@ -110,21 +111,20 @@ describe('ProtocolParameter', () => {
     })
 
     context('.maxCut', async () => {
-      const STORAGE_SIZE = 24
       it('saves if in range', async () => {
         await protocolParameter.validateAndStore({
           ...VALID_PROTOCOL_PARAMETER,
-          maxCut: BigNumber.from(2).pow(STORAGE_SIZE).sub(1),
+          maxCut: parse6decimal('1'),
         })
         const value = await protocolParameter.read()
-        expect(value.maxCut).to.equal(BigNumber.from(2).pow(STORAGE_SIZE).sub(1))
+        expect(value.maxCut).to.equal(parse6decimal('1'))
       })
 
       it('reverts if out of range', async () => {
         await expect(
           protocolParameter.validateAndStore({
             ...VALID_PROTOCOL_PARAMETER,
-            maxCut: BigNumber.from(2).pow(STORAGE_SIZE),
+            maxCut: parse6decimal('1').add(1),
           }),
         ).to.be.revertedWithCustomError(protocolParameter, 'ProtocolParameterStorageInvalidError')
       })
