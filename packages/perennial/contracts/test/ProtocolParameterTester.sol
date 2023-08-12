@@ -10,7 +10,7 @@ contract ProtocolParameterTester {
         return protocolParameter.read();
     }
 
-    function store(ProtocolParameter memory newProtocolParameter) external {
-        return protocolParameter.store(newProtocolParameter);
+    function validateAndStore(ProtocolParameter memory newProtocolParameter) external {
+        return protocolParameter.validateAndStore(newProtocolParameter);
     }
 }

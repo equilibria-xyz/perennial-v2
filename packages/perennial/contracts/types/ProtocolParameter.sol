@@ -55,8 +55,13 @@ library ProtocolParameterStorageLib {
         );
     }
 
-    function store(ProtocolParameterStorage storage self, ProtocolParameter memory newValue) internal {
-        if (newValue.protocolFee.gt(UFixed6.wrap(type(uint24).max))) revert ProtocolParameterStorageInvalidError();
+    function validate(ProtocolParameter memory self) internal pure {
+        if (self.protocolFee.gt(self.maxCut)) revert ProtocolParameterStorageInvalidError();
+    }
+
+    function validateAndStore(ProtocolParameterStorage storage self, ProtocolParameter memory newValue) internal {
+        validate(newValue);
+
         if (newValue.maxFee.gt(UFixed6.wrap(type(uint24).max))) revert ProtocolParameterStorageInvalidError();
         if (newValue.maxFeeAbsolute.gt(UFixed6.wrap(type(uint48).max))) revert ProtocolParameterStorageInvalidError();
         if (newValue.maxCut.gt(UFixed6.wrap(type(uint24).max))) revert ProtocolParameterStorageInvalidError();
