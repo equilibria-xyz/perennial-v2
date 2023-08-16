@@ -75,7 +75,7 @@ describe('Vault', () => {
       valid: true,
     }
     oracle.status.returns([newVersion, newVersion.timestamp.add(LEGACY_ORACLE_DELAY)])
-    oracle.request.returns()
+    oracle.request.whenCalledWith(user.address).returns()
     oracle.latest.returns(newVersion)
     oracle.current.returns(newVersion.timestamp.add(LEGACY_ORACLE_DELAY))
     oracle.at.whenCalledWith(newVersion.timestamp).returns(newVersion)
@@ -89,7 +89,7 @@ describe('Vault', () => {
       valid: true,
     }
     btcOracle.status.returns([newVersion, newVersion.timestamp.add(LEGACY_ORACLE_DELAY)])
-    btcOracle.request.returns()
+    btcOracle.request.whenCalledWith(user.address).returns()
     btcOracle.latest.returns(newVersion)
     btcOracle.current.returns(newVersion.timestamp.add(LEGACY_ORACLE_DELAY))
     btcOracle.at.whenCalledWith(newVersion.timestamp).returns(newVersion)
@@ -139,7 +139,7 @@ describe('Vault', () => {
     originalOraclePrice = realVersion.price
 
     oracle.status.returns([realVersion, realVersion.timestamp.add(LEGACY_ORACLE_DELAY)])
-    oracle.request.returns()
+    oracle.request.whenCalledWith(user.address).returns()
     oracle.latest.returns(realVersion)
     oracle.current.returns(realVersion.timestamp.add(LEGACY_ORACLE_DELAY))
     oracle.at.whenCalledWith(realVersion.timestamp).returns(realVersion)
@@ -153,7 +153,7 @@ describe('Vault', () => {
     btcOriginalOraclePrice = btcRealVersion.price
 
     btcOracle.status.returns([btcRealVersion, btcRealVersion.timestamp.add(LEGACY_ORACLE_DELAY)])
-    btcOracle.request.returns()
+    btcOracle.request.whenCalledWith(user.address).returns()
     btcOracle.latest.returns(btcRealVersion)
     btcOracle.current.returns(btcRealVersion.timestamp.add(LEGACY_ORACLE_DELAY))
     btcOracle.at.whenCalledWith(btcRealVersion.timestamp).returns(btcRealVersion)
@@ -279,7 +279,7 @@ describe('Vault', () => {
     originalOraclePrice = realVersion.price
 
     oracle.status.returns([realVersion, realVersion.timestamp.add(LEGACY_ORACLE_DELAY)])
-    oracle.request.returns()
+    oracle.request.whenCalledWith(user.address).returns()
     oracle.latest.returns(realVersion)
     oracle.current.returns(realVersion.timestamp.add(LEGACY_ORACLE_DELAY))
     oracle.at.whenCalledWith(realVersion.timestamp).returns(realVersion)
@@ -292,7 +292,7 @@ describe('Vault', () => {
     btcOriginalOraclePrice = btcRealVersion.price
 
     btcOracle.status.returns([btcRealVersion, btcRealVersion.timestamp.add(LEGACY_ORACLE_DELAY)])
-    btcOracle.request.returns()
+    btcOracle.request.whenCalledWith(user.address).returns()
     btcOracle.latest.returns(btcRealVersion)
     btcOracle.current.returns(btcRealVersion.timestamp.add(LEGACY_ORACLE_DELAY))
     btcOracle.at.whenCalledWith(btcRealVersion.timestamp).returns(btcRealVersion)
