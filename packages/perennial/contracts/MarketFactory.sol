@@ -46,7 +46,7 @@ contract MarketFactory is IMarketFactory, Factory {
     /// @notice Updates the global protocol parameters
     /// @param newParameter The new protocol parameters
     function updateParameter(ProtocolParameter memory newParameter) public onlyOwner {
-        _parameter.store(newParameter);
+        _parameter.validateAndStore(newParameter);
         emit ParameterUpdated(newParameter);
     }
 
