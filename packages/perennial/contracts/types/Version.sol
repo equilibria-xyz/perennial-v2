@@ -88,11 +88,6 @@ library VersionLib {
     ) internal pure returns (VersionAccumulationResult memory values, UFixed6 totalFee) {
         // record validity
         self.valid = toOracleVersion.valid;
-<<<<<<< HEAD
-=======
-
-        if (marketParameter.closed) return (values, UFixed6Lib.ZERO);
->>>>>>> 0d489d9 (partial socialization test)
 
         // accumulate position fee
         (values.positionFeeMaker, values.positionFeeFee) =
