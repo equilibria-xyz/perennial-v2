@@ -89,11 +89,12 @@ library VersionLib {
         // record validity
         self.valid = toOracleVersion.valid;
 
-        if (marketParameter.closed) return (values, UFixed6Lib.ZERO);
-
         // accumulate position fee
         (values.positionFeeMaker, values.positionFeeFee) =
             _accumulatePositionFee(self, fromPosition, toPosition, marketParameter);
+
+        // if closed, don't accrue anything else
+        if (marketParameter.closed) return (values, values.positionFeeFee);
 
         // accumulate funding
         _FundingValues memory fundingValues = _accumulateFunding(
