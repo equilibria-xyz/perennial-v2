@@ -115,7 +115,7 @@ library VersionLib {
         );
 
         // accumulate interest
-        (values.interestMaker,values.interestLong, values.interestShort, values.interestFee) =
+        (values.interestMaker, values.interestLong, values.interestShort, values.interestFee) =
             _accumulateInterest(self, fromPosition, fromOracleVersion, toOracleVersion, marketParameter, riskParameter);
 
         // accumulate P&L
@@ -207,11 +207,11 @@ library VersionLib {
 
         // Redirect net portion of minor's side to maker
         if (fromPosition.long.gt(fromPosition.short)) {
-            fundingValues.fundingMaker = fundingValues.fundingShort.mul(Fixed6Lib.from(fromPosition.skew().abs()));
+            fundingValues.fundingMaker = fundingValues.fundingShort.mul(Fixed6Lib.from(fromPosition.socializedSkew()));
             fundingValues.fundingShort = fundingValues.fundingShort.sub(fundingValues.fundingMaker);
         }
         if (fromPosition.short.gt(fromPosition.long)) {
-            fundingValues.fundingMaker = fundingValues.fundingLong.mul(Fixed6Lib.from(fromPosition.skew().abs()));
+            fundingValues.fundingMaker = fundingValues.fundingLong.mul(Fixed6Lib.from(fromPosition.socializedSkew()));
             fundingValues.fundingLong = fundingValues.fundingLong.sub(fundingValues.fundingMaker);
         }
 

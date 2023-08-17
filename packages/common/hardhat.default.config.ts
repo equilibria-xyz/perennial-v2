@@ -8,7 +8,9 @@ import '@nomicfoundation/hardhat-toolbox'
 import 'hardhat-contract-sizer'
 import 'hardhat-deploy'
 import 'hardhat-dependency-compiler'
+import 'hardhat-tracer'
 import 'solidity-coverage'
+
 import { getChainId, isArbitrum, isBase, isOptimism, SupportedChain } from './testutil/network'
 
 import { utils } from 'ethers'
