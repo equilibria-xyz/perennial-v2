@@ -94,6 +94,15 @@ describe('PythOracle', () => {
     // block.timestamp of the next call will be STARTING_TIME (1686198973)
   })
 
+  describe('Factory', async () => {
+    it('cant recreate price id', async () => {
+      await expect(pythOracleFactory.create(PYTH_ETH_USD_PRICE_FEED)).to.be.revertedWithCustomError(
+        pythOracleFactory,
+        'PythFactoryAlreadyCreatedError',
+      )
+    })
+  })
+
   describe('#initialize', async () => {
     it('only initializes with a valid priceId', async () => {
       const invalidPriceId = '0xff61491a931112ddf1bd8147cd1b641375f79f5825126d665480874634fd0acd'
