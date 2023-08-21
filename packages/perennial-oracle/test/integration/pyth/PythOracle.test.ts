@@ -8,6 +8,7 @@ import { currentBlockTimestamp, increase } from '../../../../common/testutil/tim
 import {
   IERC20Metadata,
   IERC20Metadata__factory,
+  IFactory,
   Oracle,
   Oracle__factory,
   OracleFactory,
@@ -18,8 +19,10 @@ import {
   PythOracle__factory,
 } from '../../../types/generated'
 import { parse6decimal } from '../../../../common/testutil/types'
+import { smock } from '@defi-wonderland/smock'
+import { IInstance } from '../../../types/generated/@equilibria/root/attribute/interfaces'
 
-const { config, ethers } = HRE
+const { ethers } = HRE
 
 const PYTH_ADDRESS = '0x4305FB66699C3B2702D4d05CF36551390A4c69C6'
 const PYTH_ETH_USD_PRICE_FEED = '0xff61491a931112ddf1bd8147cd1b641375f79f5825126d665480874634fd0ace'
@@ -101,6 +104,18 @@ describe('PythOracle', () => {
       await expect(oracle.initialize(invalidPriceId, CHAINLINK_ETH_USD_FEED, dsu.address))
         .to.be.revertedWithCustomError(oracle, 'PythOracleInvalidPriceIdError')
         .withArgs(invalidPriceId)
+
+      await expect(oracle.initialize(PYTH_ETH_USD_PRICE_FEED, CHAINLINK_ETH_USD_FEED, dsu.address))
+        .to.emit(oracle, 'Initialized')
+        .withArgs(1)
+    })
+
+    it('reverts if already initialized', async () => {
+      const oracle = await new PythOracle__factory(owner).deploy(PYTH_ADDRESS)
+      await oracle.initialize(PYTH_ETH_USD_PRICE_FEED, CHAINLINK_ETH_USD_FEED, dsu.address)
+      await expect(oracle.initialize(PYTH_ETH_USD_PRICE_FEED, CHAINLINK_ETH_USD_FEED, dsu.address))
+        .to.be.revertedWithCustomError(oracle, 'UInitializableAlreadyInitializedError')
+        .withArgs(1)
     })
   })
 
@@ -129,6 +144,7 @@ describe('PythOracle', () => {
   describe('#commitRequested', async () => {
     it('commits successfully and incentivizes the keeper', async () => {
       const originalDSUBalance = await dsu.callStatic.balanceOf(user.address)
+      const originalFactoryDSUBalance = await dsu.callStatic.balanceOf(oracleFactory.address)
       await pythOracle.connect(oracleSigner).request(user.address)
       // Base fee isn't working properly in coverage, so we need to set it manually
       await ethers.provider.send('hardhat_setNextBlockBaseFeePerGas', ['0x5F5E100'])
@@ -141,8 +157,13 @@ describe('PythOracle', () => {
         .to.emit(pythOracle, 'OracleProviderVersionFulfilled')
         .withArgs('1686198973')
       const newDSUBalance = await dsu.callStatic.balanceOf(user.address)
+      const newFactoryDSUBalance = await dsu.callStatic.balanceOf(oracleFactory.address)
 
       expect(newDSUBalance.sub(originalDSUBalance)).to.be.within(
+        ethers.utils.parseEther('0.10'),
+        utils.parseEther('0.11'),
+      )
+      expect(originalFactoryDSUBalance.sub(newFactoryDSUBalance)).to.be.within(
         ethers.utils.parseEther('0.10'),
         utils.parseEther('0.11'),
       )
@@ -367,6 +388,21 @@ describe('PythOracle', () => {
       )
     })
 
+    it('does not commitRequested if oracleVersion is incorrect', async () => {
+      const originalDSUBalance = await dsu.callStatic.balanceOf(user.address)
+      await pythOracle.connect(oracleSigner).request(user.address)
+      // Base fee isn't working properly in coverage, so we need to set it manually
+      await ethers.provider.send('hardhat_setNextBlockBaseFeePerGas', ['0x5F5E100'])
+      await pythOracle.connect(user).commit(0, STARTING_TIME - 1, VAA, {
+        value: 1,
+        gasPrice: 100000000,
+      })
+      const newDSUBalance = await dsu.callStatic.balanceOf(user.address)
+
+      // Keeper isn't incentivized because we did not go through commitRequested
+      expect(newDSUBalance).to.equal(originalDSUBalance)
+    })
+
     it('can commit multiple non-requested versions, as long as they are in order', async () => {
       await time.increase(1)
       await pythOracle.connect(user).commit(0, STARTING_TIME, VAA, {
@@ -468,8 +504,31 @@ describe('PythOracle', () => {
       expect(await pythOracle.versionListLength()).to.equal(1)
     })
 
-    it('does not allow unauthorized users to request', async () => {
-      await expect(pythOracle.connect(user).request(user.address)).to.be.reverted
+    it('does not allow unauthorized instances to request', async () => {
+      const badInstance = await smock.fake<IInstance>('IInstance')
+      const badFactory = await smock.fake<IFactory>('IFactory')
+      badInstance.factory.returns(badFactory.address)
+      badFactory.instances.returns(true)
+      const badSigner = await impersonateWithBalance(badInstance.address, utils.parseEther('10'))
+
+      await expect(pythOracle.connect(badSigner).request(user.address)).to.be.revertedWithCustomError(
+        pythOracle,
+        'OracleProviderUnauthorizedError',
+      )
+    })
+
+    it('a version can only be requested once', async () => {
+      await ethers.provider.send('evm_setAutomine', [false])
+      await ethers.provider.send('evm_setIntervalMining', [0])
+
+      await pythOracle.connect(oracleSigner).request(user.address)
+      await pythOracle.connect(oracleSigner).request(user.address)
+
+      await ethers.provider.send('evm_mine', [])
+
+      const currentTimestamp = await pythOracleFactory.callStatic.current()
+      expect(await pythOracle.callStatic.versionList(0)).to.equal(currentTimestamp)
+      await expect(pythOracle.callStatic.versionList(1)).to.be.reverted
     })
   })
 
