@@ -132,6 +132,8 @@ const func: DeployFunction = async function (hre: HardhatRuntimeEnvironment) {
     await (await pythFactory.updatePendingOwner(owner)).wait()
     process.stdout.write('complete\n')
   }
+
+  // TODO update oracle max claim
 }
 
 export default func
