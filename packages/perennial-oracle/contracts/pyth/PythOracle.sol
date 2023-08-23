@@ -14,10 +14,10 @@ import "../interfaces/IPythFactory.sol";
 ///      This implementation only supports non-negative prices.
 contract PythOracle is IPythOracle, Instance, Kept {
     /// @dev A Pyth update must come at least this long after a version to be valid
-    uint256 constant public MIN_VALID_TIME_AFTER_VERSION = 12 seconds;
+    uint256 constant public MIN_VALID_TIME_AFTER_VERSION = 4 seconds;
 
     /// @dev A Pyth update must come at most this long after a version to be valid
-    uint256 constant public MAX_VALID_TIME_AFTER_VERSION = 15 seconds;
+    uint256 constant public MAX_VALID_TIME_AFTER_VERSION = 7 seconds;
 
     /// @dev After this amount of time has passed for a version without being committed, the version can be invalidated.
     uint256 constant public GRACE_PERIOD = 1 minutes;

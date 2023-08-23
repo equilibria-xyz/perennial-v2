@@ -130,11 +130,11 @@ describe('PythOracle', () => {
 
   describe('constants', async () => {
     it('#MIN_VALID_TIME_AFTER_VERSION', async () => {
-      expect(await pythOracle.MIN_VALID_TIME_AFTER_VERSION()).to.equal(12)
+      expect(await pythOracle.MIN_VALID_TIME_AFTER_VERSION()).to.equal(4)
     })
 
     it('#MAX_VALID_TIME_AFTER_VERSION', async () => {
-      expect(await pythOracle.MAX_VALID_TIME_AFTER_VERSION()).to.equal(15)
+      expect(await pythOracle.MAX_VALID_TIME_AFTER_VERSION()).to.equal(7)
     })
 
     it('#GRACE_PERIOD', async () => {
