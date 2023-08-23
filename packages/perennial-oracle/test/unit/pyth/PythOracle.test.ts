@@ -108,18 +108,23 @@ describe('PythOracle', () => {
   })
 
   it('parses Pyth exponents correctly', async () => {
+    const minDelay = await pythOracle.MIN_VALID_TIME_AFTER_VERSION()
     await pythOracle.connect(oracleSigner).request(user.address)
     await pythOracle
       .connect(user)
-      .commitRequested(0, getVaa(100000000000, 2, -8, (await pythOracle.callStatic.nextVersionToCommit()).add(13)), {
-        value: 1,
-      })
+      .commitRequested(
+        0,
+        getVaa(100000000000, 2, -8, (await pythOracle.callStatic.nextVersionToCommit()).add(minDelay)),
+        {
+          value: 1,
+        },
+      )
     expect((await pythOracle.callStatic.latest()).price).to.equal(ethers.utils.parseUnits('1000', 6))
 
     await pythOracle.connect(oracleSigner).request(user.address)
     await pythOracle
       .connect(user)
-      .commitRequested(1, getVaa(20000000, 2, -4, (await pythOracle.callStatic.nextVersionToCommit()).add(13)), {
+      .commitRequested(1, getVaa(20000000, 2, -4, (await pythOracle.callStatic.nextVersionToCommit()).add(minDelay)), {
         value: 1,
       })
     expect((await pythOracle.callStatic.latest()).price).to.equal(ethers.utils.parseUnits('2000', 6))
