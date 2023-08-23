@@ -30,6 +30,15 @@ struct Global {
 
     /// @dev The latest valid price
     Fixed6 latestPrice;
+
+    /// @dev The maker invalidation accumulator
+    Fixed6 latestInvalidationMaker;
+
+    /// @dev The long invalidation accumulator
+    Fixed6 latestInvalidationLong;
+
+    /// @dev The short invalidation accumulator
+    Fixed6 latestInvalidationShort;
 }
 using GlobalLib for Global global;
 struct GlobalStorage { uint256 slot0; uint256 slot1; }
@@ -110,6 +119,7 @@ library GlobalStorageLib {
         );
     }
 
+    // TODO: add invalidation accumulators
     function store(GlobalStorage storage self, Global memory newValue) internal {
         if (newValue.currentId > uint256(type(uint32).max)) revert GlobalStorageInvalidError();
         if (newValue.latestId > uint256(type(uint32).max)) revert GlobalStorageInvalidError();

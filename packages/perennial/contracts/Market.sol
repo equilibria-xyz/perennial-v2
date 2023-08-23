@@ -390,7 +390,11 @@ contract Market is IMarket, Instance, ReentrancyGuard {
     function _processPositionGlobal(Context memory context, uint256 newPositionId, Position memory newPosition) private {
         Version memory version = _versions[context.latestPosition.global.timestamp].read();
         OracleVersion memory oracleVersion = _oracleVersionAtPosition(context, newPosition);
-        if (!oracleVersion.valid) newPosition.invalidate(context.latestPosition.global);
+        if (!oracleVersion.valid) {
+            newPosition.invalidate(context.latestPosition.global); // TODO could maybe combine this with step 2
+            // TODO: update global invalidation accumulator
+        }
+        // TODO: update newPosition based on invalidation accumulator
 
         (uint256 fromTimestamp, uint256 fromId) = (context.latestPosition.global.timestamp, context.global.latestId);
         (VersionAccumulationResult memory accumulationResult, UFixed6 accumulatedFee) = version.accumulate(

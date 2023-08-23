@@ -32,6 +32,15 @@ struct Position {
 
     /// @dev The change in collateral during this position (only used for pending positions)
     Fixed6 delta;
+
+    /// @dev The value of the maker invalidation accumulator at the time of creation
+    Fixed6 invalidationMaker;
+
+    /// @dev The value of the maker invalidation accumulator at the time of creation
+    Fixed6 invalidationLong;
+
+    /// @dev The value of the short invalidation accumulator at the time of creation
+    Fixed6 invalidationShort;
 }
 using PositionLib for Position global;
 struct PositionStorageGlobal { uint256 slot0; uint256 slot1; }
@@ -396,6 +405,7 @@ library PositionStorageGlobalLib {
         );
     }
 
+    // TODO: add invalidation accumulators
     function store(PositionStorageGlobal storage self, Position memory newValue) internal {
         PositionStorageLib.validate(newValue);
 
