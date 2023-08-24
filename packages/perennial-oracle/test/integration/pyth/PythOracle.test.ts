@@ -727,4 +727,26 @@ describe('PythOracle', () => {
       })
     })
   })
+
+  describe('#publishTimes', async () => {
+    it('returns the publish time for a version', async () => {
+      await pythOracle.connect(oracleSigner).request(user.address)
+      await pythOracle.connect(user).commitRequested(0, VAA, {
+        value: 1,
+      })
+      const publishTime = await pythOracle.publishTimes('1686198981')
+      expect(publishTime).to.equal('1686198987')
+    })
+  })
+
+  describe('#lastCommittedPublishTime', async () => {
+    it('returns the last commit publish time', async () => {
+      await pythOracle.connect(oracleSigner).request(user.address)
+      await pythOracle.connect(user).commitRequested(0, VAA, {
+        value: 1,
+      })
+      const publishTime = await pythOracle.lastCommittedPublishTime()
+      expect(publishTime).to.equal('1686198987')
+    })
+  })
 })
