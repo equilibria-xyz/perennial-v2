@@ -194,6 +194,21 @@ describe('PythOracle', () => {
       ).to.revertedWithCustomError(pythOracle, 'PythOracleNonIncreasingPublishTimes')
     })
 
+    it('does not allow committing non-requested versions with out of order VAA publish times', async () => {
+      await time.increase(1)
+      await pythOracle.connect(oracleSigner).request(user.address)
+
+      await pythOracle.connect(user).commitRequested(0, OTHER_VAA, {
+        value: 1,
+      })
+
+      await expect(
+        pythOracle.connect(user).commit(1, await currentBlockTimestamp(), VAA, {
+          value: 1,
+        }),
+      ).to.revertedWithCustomError(pythOracle, 'PythOracleNonIncreasingPublishTimes')
+    })
+
     it('fails to commit if update fee is not provided', async () => {
       await pythOracle.connect(oracleSigner).request(user.address)
       await expect(pythOracle.connect(user).commitRequested(0, VAA)).to.revertedWithoutReason()
