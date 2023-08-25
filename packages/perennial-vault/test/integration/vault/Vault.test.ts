@@ -490,6 +490,13 @@ describe('Vault', () => {
       await updateOracle()
       await vault.settle(user.address)
 
+      const checkpoint1 = await vault.checkpoints(1)
+      expect(checkpoint1.deposit).to.equal(smallDeposit)
+      expect(checkpoint1.count).to.equal(1)
+      const mapping1 = await vault.mappings(1)
+      expect(mapping1._ids[0]).to.equal(1)
+      expect(mapping1._ids[1]).to.equal(1)
+
       // We're underneath the collateral minimum, so we shouldn't have opened any positions.
       expect(await position()).to.equal(0)
       expect(await btcPosition()).to.equal(0)
@@ -504,6 +511,14 @@ describe('Vault', () => {
       expect(await vault.convertToShares(parse6decimal('10'))).to.equal(parse6decimal('10'))
       await updateOracle()
       await vault.settle(user.address)
+      const checkpoint2 = await vault.checkpoints(2)
+      expect(checkpoint2.deposit).to.equal(largeDeposit)
+      expect(checkpoint2.assets).to.equal(smallDeposit)
+      expect(checkpoint2.shares).to.equal(smallDeposit)
+      expect(checkpoint2.count).to.equal(1)
+      const mapping2 = await vault.mappings(2)
+      expect(mapping2._ids[0]).to.equal(2)
+      expect(mapping2._ids[1]).to.equal(2)
 
       expect((await vault.accounts(user.address)).shares).to.equal(parse6decimal('10010'))
       expect((await vault.accounts(ethers.constants.AddressZero)).shares).to.equal(parse6decimal('10010'))

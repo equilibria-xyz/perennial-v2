@@ -44,10 +44,10 @@ contract PythOracle is IPythOracle, Instance, Kept {
     mapping(uint256 => Fixed6) private _prices;
 
     /// @dev Mapping from oracle version to when its VAA was published to Pyth
-    mapping(uint256 => uint256) private _publishTimes;
+    mapping(uint256 => uint256) public publishTimes;
 
     /// @dev The time when the last committed update was published to Pyth
-    uint256 private _lastCommittedPublishTime;
+    uint256 public lastCommittedPublishTime;
 
     /// @dev The oracle version that was most recently committed
     /// @dev We assume that we cannot commit an oracle version of 0, so `_latestVersion` being 0 means that no version has been committed yet
@@ -141,8 +141,8 @@ contract PythOracle is IPythOracle, Instance, Kept {
         uint256 versionToCommit = versionList[versionIndex];
         PythStructs.Price memory pythPrice = _validateAndGetPrice(versionToCommit, updateData);
 
-        if (pythPrice.publishTime <= _lastCommittedPublishTime) revert PythOracleNonIncreasingPublishTimes();
-        _lastCommittedPublishTime = pythPrice.publishTime;
+        if (pythPrice.publishTime <= lastCommittedPublishTime) revert PythOracleNonIncreasingPublishTimes();
+        lastCommittedPublishTime = pythPrice.publishTime;
 
         // Ensure that the keeper is committing the earliest possible version
         if (versionIndex > nextVersionIndexToCommit) {
@@ -223,7 +223,7 @@ contract PythOracle is IPythOracle, Instance, Kept {
         _prices[oracleVersion] = (expo6Decimal < 0) ?
             Fixed6.wrap(price.price).div(Fixed6Lib.from(UFixed6Lib.from(10 ** uint256(-expo6Decimal)))) :
             Fixed6.wrap(price.price).mul(Fixed6Lib.from(UFixed6Lib.from(10 ** uint256(expo6Decimal))));
-        _publishTimes[oracleVersion] = price.publishTime;
+        publishTimes[oracleVersion] = price.publishTime;
     }
 
     /// @notice Pulls funds from the factory to reward the keeper

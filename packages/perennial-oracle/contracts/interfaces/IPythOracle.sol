@@ -30,4 +30,6 @@ interface IPythOracle is IOracleProvider, IInstance, IKept {
     function versionListLength() external view returns (uint256);
     function nextVersionIndexToCommit() external view returns (uint256);
     function nextVersionToCommit() external view returns (uint256);
+    function publishTimes(uint256 version) external view returns (uint256);
+    function lastCommittedPublishTime() external view returns (uint256);
 }
