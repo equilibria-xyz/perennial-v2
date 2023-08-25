@@ -30,4 +30,10 @@ contract GlobalTester {
         newGlobal.update(latestId, latestPrice);
         global.store(newGlobal);
     }
+
+    function invalidate(Position memory latestPosition, Position memory newPosition) external {
+        Global memory newGlobal = global.read();
+        newGlobal.invalidate(latestPosition, newPosition);
+        global.store(newGlobal);
+    }
 }

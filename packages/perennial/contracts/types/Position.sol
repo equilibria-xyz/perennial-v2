@@ -499,8 +499,8 @@ library PositionStorageLib {
         if (newValue.maker.gt(UFixed6.wrap(type(uint64).max))) revert PositionStorageInvalidError();
         if (newValue.long.gt(UFixed6.wrap(type(uint64).max))) revert PositionStorageInvalidError();
         if (newValue.short.gt(UFixed6.wrap(type(uint64).max))) revert PositionStorageInvalidError();
-        if (newValue.fee.gt(UFixed6.wrap(type(uint64).max))) revert PositionStorageInvalidError();
-        if (newValue.keeper.gt(UFixed6.wrap(type(uint64).max))) revert PositionStorageInvalidError();
+        if (newValue.fee.gt(UFixed6.wrap(type(uint48).max))) revert PositionStorageInvalidError();
+        if (newValue.keeper.gt(UFixed6.wrap(type(uint48).max))) revert PositionStorageInvalidError();
         if (newValue.collateral.gt(Fixed6.wrap(type(int64).max))) revert PositionStorageInvalidError();
         if (newValue.collateral.lt(Fixed6.wrap(type(int64).min))) revert PositionStorageInvalidError();
         if (newValue.delta.gt(Fixed6.wrap(type(int64).max))) revert PositionStorageInvalidError();

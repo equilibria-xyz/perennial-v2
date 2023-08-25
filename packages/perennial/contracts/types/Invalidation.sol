@@ -26,8 +26,8 @@ library InvalidationLib {
         Position memory newPosition
     ) internal pure returns (Invalidation memory delta) {
         delta.maker = Fixed6Lib.from(latestPosition.maker).sub(Fixed6Lib.from(newPosition.maker));
-        delta.long = Fixed6Lib.from(latestPosition.long).add(Fixed6Lib.from(newPosition.long));
-        delta.short = Fixed6Lib.from(latestPosition.short).add(Fixed6Lib.from(newPosition.short));
+        delta.long = Fixed6Lib.from(latestPosition.long).sub(Fixed6Lib.from(newPosition.long));
+        delta.short = Fixed6Lib.from(latestPosition.short).sub(Fixed6Lib.from(newPosition.short));
     }
 
     // @notice Increments the invalidation accumulator by an invalidation delta

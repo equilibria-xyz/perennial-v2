@@ -32,6 +32,7 @@ struct Global {
     /// @dev The latest valid price
     Fixed6 latestPrice;
 
+    // TODO: use latest position instead?
     /// @dev The latest invalidation accumulator
     Invalidation latestInvalidation;
 }
