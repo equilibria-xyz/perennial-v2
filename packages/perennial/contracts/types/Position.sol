@@ -6,6 +6,7 @@ import "./RiskParameter.sol";
 import "./Order.sol";
 import "./Global.sol";
 import "./Local.sol";
+import "./Invalidation.sol";
 
 /// @dev Order type
 struct Position {
@@ -33,14 +34,8 @@ struct Position {
     /// @dev The change in collateral during this position (only used for pending positions)
     Fixed6 delta;
 
-    /// @dev The value of the maker invalidation accumulator at the time of creation
-    Fixed6 invalidationMaker;
-
-    /// @dev The value of the maker invalidation accumulator at the time of creation
-    Fixed6 invalidationLong;
-
-    /// @dev The value of the short invalidation accumulator at the time of creation
-    Fixed6 invalidationShort;
+    /// @dev The value of the invalidation accumulator at the time of creation
+    Invalidation invalidation;
 }
 using PositionLib for Position global;
 struct PositionStorageGlobal { uint256 slot0; uint256 slot1; }
@@ -100,11 +95,13 @@ library PositionLib {
     /// @param currentTimestamp The current timestamp
     /// @param order The new order
     /// @param riskParameter The current risk parameter
+    /// @param latestInvalidation The latest invalidation accumulator
     function update(
         Position memory self,
         uint256 currentTimestamp,
         Order memory order,
-        RiskParameter memory riskParameter
+        RiskParameter memory riskParameter,
+        Invalidation memory latestInvalidation
     ) internal pure {
         // load the computed attributes of the latest position
         Fixed6 latestSkew = virtualSkew(self, riskParameter);
@@ -112,11 +109,12 @@ library PositionLib {
             (Fixed6Lib.from(net(self)), Fixed6Lib.from(efficiency(self)), Fixed6Lib.from(utilization(self)));
 
         // update the position's attributes
-        (self.timestamp, self.maker, self.long, self.short) = (
+        (self.timestamp, self.maker, self.long, self.short, self.invalidation) = (
             currentTimestamp,
             UFixed6Lib.from(Fixed6Lib.from(self.maker).add(order.maker)),
             UFixed6Lib.from(Fixed6Lib.from(self.long).add(order.long)),
-            UFixed6Lib.from(Fixed6Lib.from(self.short).add(order.short))
+            UFixed6Lib.from(Fixed6Lib.from(self.short).add(order.short)),
+            latestInvalidation
         );
 
         // update the order's delta attributes with the positions updated attributes
@@ -144,7 +142,7 @@ library PositionLib {
         self.delta = self.delta.add(collateralAmount);
     }
 
-    /// @notice Processes an invalidation of the position
+    /// @notice Processes an invalidation of a local position
     /// @dev Replaces the maker, long, and short positions with the latest valid version's
     /// @param self The position object to update
     /// @param latestPosition The latest valid position
@@ -381,13 +379,16 @@ library PositionLib {
 ///     struct StoredPositionGlobal {
 ///         /* slot 0 */
 ///         uint32 timestamp;
-///         uint64 maker;
+///         uint48 fee;
+///         uint48 keeper;
 ///         uint64 long;
 ///         uint64 short;
 ///
 ///         /* slot 1 */
-///         uint64 fee;
-///         uint64 keeper;
+///         uint64 maker;
+///         int64 invalidation.maker;
+///         int64 invalidation.long;
+///         int64 invalidation.short;
 ///     }
 ///
 library PositionStorageGlobalLib {
@@ -395,28 +396,36 @@ library PositionStorageGlobalLib {
         (uint256 slot0, uint256 slot1) = (self.slot0, self.slot1);
         return Position(
             uint256(slot0 << (256 - 32)) >> (256 - 32),
-            UFixed6.wrap(uint256(slot0 << (256 - 32 - 64)) >> (256 - 64)),
-            UFixed6.wrap(uint256(slot0 << (256 - 32 - 64 - 64)) >> (256 - 64)),
-            UFixed6.wrap(uint256(slot0 << (256 - 32 - 64 - 64 - 64)) >> (256 - 64)),
             UFixed6.wrap(uint256(slot1 << (256 - 64)) >> (256 - 64)),
-            UFixed6.wrap(uint256(slot1 << (256 - 64 - 64)) >> (256 - 64)),
+            UFixed6.wrap(uint256(slot0 << (256 - 32 - 48 - 48 - 64)) >> (256 - 64)),
+            UFixed6.wrap(uint256(slot0 << (256 - 32 - 48 - 48 - 64 - 64)) >> (256 - 64)),
+            UFixed6.wrap(uint256(slot0 << (256 - 32 - 48)) >> (256 - 48)),
+            UFixed6.wrap(uint256(slot0 << (256 - 32 - 48 - 48)) >> (256 - 48)),
             Fixed6Lib.ZERO,
-            Fixed6Lib.ZERO
+            Fixed6Lib.ZERO,
+            Invalidation(
+                Fixed6.wrap(int256(slot1 << (256 - 64 - 64)) >> (256 - 64)),
+                Fixed6.wrap(int256(slot1 << (256 - 64 - 64 - 64)) >> (256 - 64)),
+                Fixed6.wrap(int256(slot1 << (256 - 64 - 64 - 64 - 64)) >> (256 - 64))
+            )
         );
     }
 
-    // TODO: add invalidation accumulators
     function store(PositionStorageGlobal storage self, Position memory newValue) internal {
         PositionStorageLib.validate(newValue);
 
         uint256 encoded0 =
             uint256(newValue.timestamp << (256 - 32)) >> (256 - 32) |
-            uint256(UFixed6.unwrap(newValue.maker) << (256 - 64)) >> (256 - 32 - 64) |
-            uint256(UFixed6.unwrap(newValue.long) << (256 - 64)) >> (256 - 32 - 64 - 64) |
-            uint256(UFixed6.unwrap(newValue.short) << (256 - 64)) >> (256 - 32 - 64 - 64 - 64);
+            uint256(UFixed6.unwrap(newValue.fee) << (256 - 48)) >> (256 - 32 - 48) |
+            uint256(UFixed6.unwrap(newValue.keeper) << (256 - 48)) >> (256 - 32 - 48 - 48) |
+            uint256(UFixed6.unwrap(newValue.long) << (256 - 64)) >> (256 - 32 - 48 - 48 - 64) |
+            uint256(UFixed6.unwrap(newValue.short) << (256 - 64)) >> (256 - 32 - 48 - 48 - 64 - 64);
         uint256 encoded1 =
-            uint256(UFixed6.unwrap(newValue.fee) << (256 - 64)) >> (256 - 64) |
-            uint256(UFixed6.unwrap(newValue.keeper) << (256 - 64)) >> (256 - 64 - 64);
+            uint256(UFixed6.unwrap(newValue.maker) << (256 - 64)) >> (256 - 64) |
+            uint256(Fixed6.unwrap(newValue.invalidation.maker) << (256 - 64)) >> (256 - 64 - 64) |
+            uint256(Fixed6.unwrap(newValue.invalidation.long) << (256 - 64)) >> (256 - 64 - 64 - 64) |
+            uint256(Fixed6.unwrap(newValue.invalidation.short) << (256 - 64)) >> (256 - 64 - 64 - 64 - 64);
+
 
         assembly {
             sstore(self.slot, encoded0)
@@ -436,8 +445,8 @@ library PositionStorageGlobalLib {
 ///         int64 delta;
 ///
 ///         /* slot 1 */
-///         uint64 fee;
-///         uint64 keeper;
+///         uint48 fee;
+///         uint48 keeper;
 ///     }
 ///
 library PositionStorageLocalLib {
@@ -452,10 +461,11 @@ library PositionStorageLocalLib {
             direction == 0 ? magnitude : UFixed6Lib.ZERO,
             direction == 1 ? magnitude : UFixed6Lib.ZERO,
             direction == 2 ? magnitude : UFixed6Lib.ZERO,
-            UFixed6.wrap(uint256(slot1 << (256 - 64)) >> (256 - 64)),
-            UFixed6.wrap(uint256(slot1 << (256 - 64 - 64)) >> (256 - 64)),
+            UFixed6.wrap(uint256(slot1 << (256 - 48)) >> (256 - 48)),
+            UFixed6.wrap(uint256(slot1 << (256 - 48 - 48)) >> (256 - 48)),
             Fixed6.wrap(int256(slot0 << (256 - 32 - 8 - 64 - 64)) >> (256 - 64)),
-            Fixed6.wrap(int256(slot0 << (256 - 32 - 8 - 64 - 64 - 64)) >> (256 - 64))
+            Fixed6.wrap(int256(slot0 << (256 - 32 - 8 - 64 - 64 - 64)) >> (256 - 64)),
+            Invalidation(Fixed6Lib.ZERO, Fixed6Lib.ZERO, Fixed6Lib.ZERO)
         );
     }
 
@@ -471,8 +481,8 @@ library PositionStorageLocalLib {
             uint256(Fixed6.unwrap(newValue.collateral) << (256 - 64)) >> (256 - 32 - 8 - 64 - 64) |
             uint256(Fixed6.unwrap(newValue.delta) << (256 - 64)) >> (256 - 32 - 8 - 64 - 64 - 64);
         uint256 encoded1 =
-            uint256(UFixed6.unwrap(newValue.fee) << (256 - 64)) >> (256 - 64) |
-            uint256(UFixed6.unwrap(newValue.keeper) << (256 - 64)) >> (256 - 64 - 64);
+            uint256(UFixed6.unwrap(newValue.fee) << (256 - 48)) >> (256 - 48) |
+            uint256(UFixed6.unwrap(newValue.keeper) << (256 - 48)) >> (256 - 48 - 48);
 
         assembly {
             sstore(self.slot, encoded0)
@@ -495,5 +505,11 @@ library PositionStorageLib {
         if (newValue.collateral.lt(Fixed6.wrap(type(int64).min))) revert PositionStorageInvalidError();
         if (newValue.delta.gt(Fixed6.wrap(type(int64).max))) revert PositionStorageInvalidError();
         if (newValue.delta.lt(Fixed6.wrap(type(int64).min))) revert PositionStorageInvalidError();
+        if (newValue.invalidation.maker.gt(Fixed6.wrap(type(int64).max))) revert PositionStorageInvalidError();
+        if (newValue.invalidation.maker.lt(Fixed6.wrap(type(int64).min))) revert PositionStorageInvalidError();
+        if (newValue.invalidation.long.gt(Fixed6.wrap(type(int64).max))) revert PositionStorageInvalidError();
+        if (newValue.invalidation.long.lt(Fixed6.wrap(type(int64).min))) revert PositionStorageInvalidError();
+        if (newValue.invalidation.short.gt(Fixed6.wrap(type(int64).max))) revert PositionStorageInvalidError();
+        if (newValue.invalidation.short.lt(Fixed6.wrap(type(int64).min))) revert PositionStorageInvalidError();
     }
 }

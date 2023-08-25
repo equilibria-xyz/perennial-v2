@@ -221,10 +221,6 @@ contract Market is IMarket, Instance, ReentrancyGuard {
     ) private view returns (PositionContext memory positionContext) {
         positionContext.global = _pendingPosition[context.global.currentId].read();
         positionContext.local = _pendingPositions[account][context.local.currentId].read();
-        if (context.global.currentId == context.global.latestId)
-            positionContext.global.invalidate(context.latestPosition.global);
-        if (context.local.currentId == context.local.latestId)
-            positionContext.local.invalidate(context.latestPosition.local);
     }
 
     /// @notice Updates the current position
@@ -266,7 +262,12 @@ contract Market is IMarket, Instance, ReentrancyGuard {
         // update position
         Order memory newOrder =
             context.currentPosition.local.update(context.currentTimestamp, newMaker, newLong, newShort);
-        context.currentPosition.global.update(context.currentTimestamp, newOrder, context.riskParameter);
+        context.currentPosition.global.update(
+            context.currentTimestamp,
+            newOrder,
+            context.riskParameter,
+            context.global.latestInvalidation
+        );
 
         // update fee
         newOrder.registerFee(context.latestVersion, context.marketParameter, context.riskParameter);
@@ -391,10 +392,10 @@ contract Market is IMarket, Instance, ReentrancyGuard {
         Version memory version = _versions[context.latestPosition.global.timestamp].read();
         OracleVersion memory oracleVersion = _oracleVersionAtPosition(context, newPosition);
         if (!oracleVersion.valid) {
-            newPosition.invalidate(context.latestPosition.global); // TODO could maybe combine this with step 2
-            // TODO: update global invalidation accumulator
+            context.global.invalidate(context.latestPosition.global, newPosition);
+            newPosition.fee = UFixed6Lib.ZERO;
         }
-        // TODO: update newPosition based on invalidation accumulator
+        context.global.latestInvalidation.sub(newPosition.invalidation).adjust(newPosition);
 
         (uint256 fromTimestamp, uint256 fromId) = (context.latestPosition.global.timestamp, context.global.latestId);
         (VersionAccumulationResult memory accumulationResult, UFixed6 accumulatedFee) = version.accumulate(

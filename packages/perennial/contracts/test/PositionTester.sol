@@ -32,10 +32,11 @@ abstract contract PositionTester {
     function update(
         uint256 currentTimestamp,
         Order memory order,
-        RiskParameter memory riskParameter
+        RiskParameter memory riskParameter,
+        Invalidation memory latestInvalidation
     ) external returns (Order memory updatedOrder) {
         Position memory _position = read();
-        _position.update(currentTimestamp, order, riskParameter);
+        _position.update(currentTimestamp, order, riskParameter, latestInvalidation);
         store(_position);
         return order;
     }
