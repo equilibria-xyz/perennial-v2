@@ -6,7 +6,7 @@ export const solidityOverrides = {
     settings: {
       optimizer: {
         enabled: OPTIMIZER_ENABLED,
-        runs: 27999,
+        runs: 17500,
       },
       viaIR: OPTIMIZER_ENABLED,
     },
