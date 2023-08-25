@@ -367,14 +367,14 @@ describe('PythOracle', () => {
     })
 
     it('must be more recent than the most recently committed version', async () => {
-      await time.increase(60)
+      await time.increase(2)
       await pythOracle.connect(oracleSigner).request(user.address)
-      await pythOracle.connect(user).commit(0, STARTING_TIME + 60, VAA_AFTER_EXPIRATION, {
+      await pythOracle.connect(user).commit(0, STARTING_TIME + 2, VAA, {
         value: 1,
       })
 
       await expect(
-        pythOracle.connect(user).commit(1, STARTING_TIME, VAA, {
+        pythOracle.connect(user).commit(1, STARTING_TIME + 1, OTHER_VAA, {
           value: 1,
         }),
       ).to.revertedWithCustomError(pythOracle, 'PythOracleVersionOutsideRangeError')
@@ -475,7 +475,7 @@ describe('PythOracle', () => {
       })
 
       await expect(
-        pythOracle.connect(user).commit(1, await currentBlockTimestamp(), VAA, {
+        pythOracle.connect(user).commit(1, STARTING_TIME + 2, VAA, {
           value: 1,
         }),
       ).to.revertedWithCustomError(pythOracle, 'PythOracleNonIncreasingPublishTimes')
