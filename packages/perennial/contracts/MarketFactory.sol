@@ -81,11 +81,4 @@ contract MarketFactory is IMarketFactory, Factory {
 
         emit MarketCreated(newMarket, definition);
     }
-
-    /// @notice Claims the protocol's fee from the given market
-    /// @param market The market to claim from
-    function fund(IMarket market) external {
-        if (!instances(IInstance(address(market)))) revert FactoryNotInstanceError();
-        market.claimFee();
-    }
 }

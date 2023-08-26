@@ -130,7 +130,7 @@ contract Market is IMarket, Instance, ReentrancyGuard {
     function claimFee() external {
         Global memory newGlobal = _global.read();
 
-        if (_claimFee(address(factory()), newGlobal.protocolFee)) newGlobal.protocolFee = UFixed6Lib.ZERO;
+        if (_claimFee(factory().owner(), newGlobal.protocolFee)) newGlobal.protocolFee = UFixed6Lib.ZERO;
         if (_claimFee(address(IMarketFactory(address(factory())).oracleFactory()), newGlobal.oracleFee))
             newGlobal.oracleFee = UFixed6Lib.ZERO;
         if (_claimFee(coordinator, newGlobal.riskFee)) newGlobal.riskFee = UFixed6Lib.ZERO;
@@ -139,13 +139,11 @@ contract Market is IMarket, Instance, ReentrancyGuard {
         _global.store(newGlobal);
     }
 
-    /// @notice Helper function to handle a singular fee claim. If the factory is claiming, sends the fee to the
-    /// factory owner.
+    /// @notice Helper function to handle a singular fee claim.
     /// @param receiver The address to receive the fee
     /// @param fee The amount of the fee to claim
     function _claimFee(address receiver, UFixed6 fee) private returns (bool) {
         if (msg.sender != receiver) return false;
-        if (msg.sender == address(factory())) receiver = factory().owner();
 
         token.push(receiver, UFixed18Lib.from(fee));
         emit FeeClaimed(receiver, fee);

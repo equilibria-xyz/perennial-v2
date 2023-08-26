@@ -13056,7 +13056,7 @@ describe('Market', () => {
       it('claims fee (protocol)', async () => {
         dsu.transfer.whenCalledWith(owner.address, PROTOCOL_FEE.mul(1e12)).returns(true)
 
-        await expect(market.connect(factorySigner).claimFee())
+        await expect(market.connect(owner).claimFee())
           .to.emit(market, 'FeeClaimed')
           .withArgs(owner.address, PROTOCOL_FEE)
 
