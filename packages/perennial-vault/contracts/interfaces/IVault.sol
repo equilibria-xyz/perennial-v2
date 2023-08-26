@@ -83,6 +83,8 @@ interface IVault is IInstance {
     function parameter() external view returns (VaultParameter memory);
     function registrations(uint256 marketId) external view returns (Registration memory);
     function accounts(address account) external view returns (Account memory);
+    function checkpoints(uint256 id) external view returns (Checkpoint memory);
+    function mappings(uint256 id) external view returns (Mapping memory);
     function register(IMarket market) external;
     function updateMarket(uint256 marketId, uint256 newWeight, UFixed6 newLeverage) external;
     function updateParameter(VaultParameter memory newParameter) external;

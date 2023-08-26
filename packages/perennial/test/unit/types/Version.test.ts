@@ -336,7 +336,7 @@ describe('Version', () => {
         const ret = await version.callStatic.accumulate(
           GLOBAL,
           FROM_POSITION,
-          TO_POSITION,
+          { ...TO_POSITION, fee: 0 },
           ORACLE_VERSION_1,
           ORACLE_VERSION_2,
           { ...VALID_MARKET_PARAMETER, closed: true },
@@ -345,7 +345,7 @@ describe('Version', () => {
         await version.accumulate(
           GLOBAL,
           FROM_POSITION,
-          TO_POSITION,
+          { ...TO_POSITION, fee: 0 },
           ORACLE_VERSION_1,
           ORACLE_VERSION_2,
           { ...VALID_MARKET_PARAMETER, closed: true },
@@ -365,6 +365,43 @@ describe('Version', () => {
         expect(ret.totalFee).to.equal(0)
         // All values should be 0 (default value)
         ret[0].forEach(v => expect(v).to.equal(0))
+      })
+
+      it('only accumulates fee', async () => {
+        await version.store(VALID_VERSION)
+
+        const ret = await version.callStatic.accumulate(
+          GLOBAL,
+          FROM_POSITION,
+          TO_POSITION,
+          ORACLE_VERSION_1,
+          ORACLE_VERSION_2,
+          { ...VALID_MARKET_PARAMETER, closed: true },
+          VALID_RISK_PARAMETER,
+        )
+        await version.accumulate(
+          GLOBAL,
+          FROM_POSITION,
+          TO_POSITION,
+          ORACLE_VERSION_1,
+          ORACLE_VERSION_2,
+          { ...VALID_MARKET_PARAMETER, closed: true },
+          VALID_RISK_PARAMETER,
+        )
+
+        const value = await version.read()
+
+        expect(value.valid).to.be.true
+        expect(value.makerValue._value).to.equal(parse6decimal('20').add(1))
+        expect(value.longValue._value).to.equal(2)
+        expect(value.shortValue._value).to.equal(3)
+        expect(value.makerReward._value).to.equal(4)
+        expect(value.longReward._value).to.equal(5)
+        expect(value.shortReward._value).to.equal(6)
+
+        expect(ret.totalFee).to.equal(0)
+        // All values should be 0 (default value)
+        expect(ret[0].positionFeeMaker).to.equal(60)
       })
     })
 

@@ -18,6 +18,7 @@ interface IPythFactory is IOracleProviderFactory, IFactory {
 
     error PythFactoryNotInstanceError();
     error PythFactoryInvalidGranularityError();
+    error PythFactoryAlreadyCreatedError();
 
     function initialize(IOracleFactory oracleFactory) external;
     function create(bytes32 id) external returns (IPythOracle oracle);

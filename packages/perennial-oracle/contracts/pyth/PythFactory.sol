@@ -58,6 +58,8 @@ contract PythFactory is IPythFactory, Factory {
     /// @param id The id of the oracle to create
     /// @return newOracle The newly created oracle instance
     function create(bytes32 id) external onlyOwner returns (IPythOracle newOracle) {
+        if (oracles[id] != IOracleProvider(address(0))) revert PythFactoryAlreadyCreatedError();
+
         newOracle = IPythOracle(address(
             _create(abi.encodeCall(IPythOracle.initialize, (id, ethTokenChainlinkFeed, keeperToken)))));
         oracles[id] = newOracle;

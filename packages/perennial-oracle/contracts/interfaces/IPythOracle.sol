@@ -14,14 +14,22 @@ interface IPythOracle is IOracleProvider, IInstance, IKept {
     error PythOracleNonIncreasingPublishTimes();
     error PythOracleFailedToCalculateRewardError();
     error PythOracleFailedToSendRewardError();
-    error PythOracleVersionTooOldError();
+    error PythOracleVersionOutsideRangeError();
     error PythOracleNonRequestedTooRecentError();
 
     function initialize(bytes32 id_, AggregatorV3Interface chainlinkFeed_, Token18 dsu_) external;
     function commitRequested(uint256 versionIndex, bytes calldata updateData) external payable;
-    function commit(uint256 oracleVersion, bytes calldata updateData) external payable;
+    function commit(uint256 versionIndex, uint256 oracleVersion, bytes calldata updateData) external payable;
 
+    function MIN_VALID_TIME_AFTER_VERSION() external view returns (uint256);
+    function MAX_VALID_TIME_AFTER_VERSION() external view returns (uint256);
+    function GRACE_PERIOD() external view returns (uint256);
+    function KEEPER_REWARD_PREMIUM() external view returns (UFixed18);
+    function KEEPER_BUFFER() external view returns (uint256);
     function versionList(uint256 versionIndex) external view returns (uint256);
+    function versionListLength() external view returns (uint256);
     function nextVersionIndexToCommit() external view returns (uint256);
     function nextVersionToCommit() external view returns (uint256);
+    function publishTimes(uint256 version) external view returns (uint256);
+    function lastCommittedPublishTime() external view returns (uint256);
 }

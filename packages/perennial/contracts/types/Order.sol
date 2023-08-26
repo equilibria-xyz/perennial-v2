@@ -60,10 +60,10 @@ library OrderLib {
             .add(Fixed6Lib.from(riskParameter.takerSkewFee.mul(self.skew)))
             .add(Fixed6Lib.from(riskParameter.takerImpactFee).mul(self.impact))
             .max(Fixed6Lib.ZERO);
-
-        self.fee = self.maker.abs().mul(latestVersion.price.abs()).mul(UFixed6Lib.from(makerFee))
+        UFixed6 fee = self.maker.abs().mul(latestVersion.price.abs()).mul(UFixed6Lib.from(makerFee))
             .add(self.long.abs().add(self.short.abs()).mul(latestVersion.price.abs()).mul(UFixed6Lib.from(takerFee)));
 
+        self.fee = marketParameter.closed ? UFixed6Lib.ZERO : fee;
         self.keeper = isEmpty(self) ? UFixed6Lib.ZERO : marketParameter.settlementFee;
     }
 

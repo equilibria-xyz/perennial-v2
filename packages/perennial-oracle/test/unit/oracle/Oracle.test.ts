@@ -46,7 +46,29 @@ describe('Oracle', () => {
   })
 
   describe('#initializer', async () => {
-    beforeEach(async () => {
+    it('sets initial oracle w/o initial version', async () => {
+      mockVersion(
+        underlying0,
+        {
+          timestamp: 0,
+          price: parse6decimal('0'),
+          valid: false,
+        },
+        0,
+      )
+
+      await expect(oracle.connect(oracleFactorySigner).initialize(underlying0.address))
+        .to.emit(oracle, 'OracleUpdated')
+        .withArgs(underlying0.address)
+
+      expect(await oracle.factory()).to.equal(oracleFactory.address)
+      expect((await oracle.global()).current).to.equal(1)
+      expect((await oracle.global()).latest).to.equal(1)
+      expect((await oracle.oracles(1)).provider).to.equal(underlying0.address)
+      expect((await oracle.oracles(1)).timestamp).to.equal(0)
+    })
+
+    it('sets initial oracle w/ initial version', async () => {
       mockVersion(
         underlying0,
         {
@@ -56,9 +78,7 @@ describe('Oracle', () => {
         },
         1687229905,
       )
-    })
 
-    it('sets initial oracle', async () => {
       await expect(oracle.connect(oracleFactorySigner).initialize(underlying0.address))
         .to.emit(oracle, 'OracleUpdated')
         .withArgs(underlying0.address)

@@ -83,6 +83,20 @@ contract Vault is IVault, Instance {
         return _accounts[account].read();
     }
 
+    /// @notice Returns the checkpoint for a given id
+    /// @param id The id to query
+    /// @return The checkpoint for the given id
+    function checkpoints(uint256 id) external view returns (Checkpoint memory) {
+        return _checkpoints[id].read();
+    }
+
+    /// @notice Returns the mapping for a given id
+    /// @param id The id to query
+    /// @return The mapping for the given id
+    function mappings(uint256 id) external view returns (Mapping memory) {
+        return _mappings[id].read();
+    }
+
     /// @notice Returns the name of the vault
     /// @return The name of the vault
     function name() external view returns (string memory) {

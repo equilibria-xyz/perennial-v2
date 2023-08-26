@@ -4,16 +4,15 @@ dotenvConfig({ path: resolve(__dirname, '../../.env') })
 
 import { HardhatUserConfig, NetworkUserConfig, SolcUserConfig } from 'hardhat/types'
 
-import '@typechain/hardhat'
-import '@nomiclabs/hardhat-ethers'
-import '@nomicfoundation/hardhat-chai-matchers'
-import '@nomiclabs/hardhat-etherscan'
-import 'solidity-coverage'
-import 'hardhat-gas-reporter'
+import '@nomicfoundation/hardhat-toolbox'
 import 'hardhat-contract-sizer'
 import 'hardhat-deploy'
 import 'hardhat-dependency-compiler'
+import 'hardhat-tracer'
+import 'solidity-coverage'
+
 import { getChainId, isArbitrum, isBase, isOptimism, SupportedChain } from './testutil/network'
+
 import { utils } from 'ethers'
 utils.Logger.setLogLevel(utils.Logger.levels.ERROR) // turn off duplicate definition warnings
 
@@ -116,9 +115,6 @@ export default function defaultConfig({
           enabled: FORK_ENABLED,
           blockNumber: FORK_BLOCK_NUMBER,
         },
-        accounts: PRIVATE_KEY_TESTNET
-          ? [{ privateKey: PRIVATE_KEY_TESTNET, balance: utils.parseEther('10').toString() }]
-          : undefined,
         chainId: getChainId('hardhat'),
         allowUnlimitedContractSize: true,
         mining: NODE_INTERVAL_MINING
@@ -189,7 +185,7 @@ export default function defaultConfig({
       parallel: MOCHA_PARALLEL,
       reporter: MOCHA_REPORTER,
       slow: 1000,
-      timeout: 240000,
+      timeout: 480000,
     },
     contractSizer: {
       alphaSort: true,
