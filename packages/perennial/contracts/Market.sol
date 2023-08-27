@@ -5,6 +5,7 @@ import "@equilibria/root/attribute/Instance.sol";
 import "@equilibria/root/attribute/ReentrancyGuard.sol";
 import "./interfaces/IMarket.sol";
 import "./interfaces/IMarketFactory.sol";
+import "hardhat/console.sol";
 
 /// @title Market
 /// @notice Manages logic and state for a single market.
@@ -219,8 +220,21 @@ contract Market is IMarket, Instance, ReentrancyGuard {
         Context memory context,
         address account
     ) private view returns (PositionContext memory positionContext) {
+        // read most recent pending position
         positionContext.global = _pendingPosition[context.global.currentId].read();
         positionContext.local = _pendingPositions[account][context.local.currentId].read();
+
+        // adjust global position based on change in invalidation since last position
+        context.global.latestInvalidation.sub(positionContext.global.invalidation).adjust(positionContext.global);
+
+        // save new invalidation accumulator value
+        positionContext.global.invalidation.maker = context.global.latestInvalidation.maker;
+        positionContext.global.invalidation.long = context.global.latestInvalidation.long;
+        positionContext.global.invalidation.short = context.global.latestInvalidation.short;
+
+        // adjust local position based on invalidation status of last position
+        if (context.local.currentId == context.local.latestId)
+            positionContext.local.invalidate(context.latestPosition.local);
     }
 
     /// @notice Updates the current position
@@ -395,7 +409,14 @@ contract Market is IMarket, Instance, ReentrancyGuard {
             context.global.invalidate(context.latestPosition.global, newPosition);
             newPosition.fee = UFixed6Lib.ZERO;
         }
+        console.log("newPositionId", newPositionId);
+        console.log("newPosition.maker", UFixed6.unwrap(newPosition.maker));
+        console.log("newPosition.long", UFixed6.unwrap(newPosition.long));
+        console.log("newPosition.short", UFixed6.unwrap(newPosition.short));
         context.global.latestInvalidation.sub(newPosition.invalidation).adjust(newPosition);
+        console.log("newPosition.maker (adjusted)", UFixed6.unwrap(newPosition.maker));
+        console.log("newPosition.long (adjusted)", UFixed6.unwrap(newPosition.long));
+        console.log("newPosition.short (adjusted)", UFixed6.unwrap(newPosition.short));
 
         (uint256 fromTimestamp, uint256 fromId) = (context.latestPosition.global.timestamp, context.global.latestId);
         (VersionAccumulationResult memory accumulationResult, UFixed6 accumulatedFee) = version.accumulate(

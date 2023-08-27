@@ -11588,14 +11588,14 @@ describe('Market', () => {
         })
       })
 
-      context('invalid oracle version', async () => {
+      context.only('invalid oracle version', async () => {
         beforeEach(async () => {
           dsu.transferFrom.whenCalledWith(user.address, market.address, COLLATERAL.mul(1e12)).returns(true)
           dsu.transferFrom.whenCalledWith(userB.address, market.address, COLLATERAL.mul(1e12)).returns(true)
           await market.connect(userB).update(userB.address, POSITION, 0, 0, COLLATERAL, false)
         })
 
-        it.only('settles the position w/o change', async () => {
+        it('settles the position w/o change', async () => {
           oracle.at.whenCalledWith(ORACLE_VERSION_2.timestamp).returns(ORACLE_VERSION_2)
           oracle.status.returns([ORACLE_VERSION_2, ORACLE_VERSION_3.timestamp])
           oracle.request.whenCalledWith(user.address).returns()
@@ -11720,7 +11720,7 @@ describe('Market', () => {
           })
         })
 
-        it.only('settles valid version after', async () => {
+        it('settles valid version after', async () => {
           oracle.at.whenCalledWith(ORACLE_VERSION_2.timestamp).returns(ORACLE_VERSION_2)
           oracle.status.returns([ORACLE_VERSION_2, ORACLE_VERSION_3.timestamp])
           oracle.request.whenCalledWith(user.address).returns()
@@ -11878,7 +11878,7 @@ describe('Market', () => {
           })
         })
 
-        it.only('settles invalid version after', async () => {
+        it('settles invalid version after', async () => {
           oracle.at.whenCalledWith(ORACLE_VERSION_2.timestamp).returns(ORACLE_VERSION_2)
           oracle.status.returns([ORACLE_VERSION_2, ORACLE_VERSION_3.timestamp])
           oracle.request.whenCalledWith(user.address).returns()
