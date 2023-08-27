@@ -46,11 +46,4 @@ library InvalidationLib {
         delta.long = self.long.sub(invalidation.long);
         delta.short = self.short.sub(invalidation.short);
     }
-
-    // @notice Adjusts a position by an invalidation delta
-    function adjust(Invalidation memory self, Position memory position) internal pure {
-        position.maker = UFixed6Lib.from(Fixed6Lib.from(position.maker).add(self.maker));
-        position.long = UFixed6Lib.from(Fixed6Lib.from(position.long).add(self.long));
-        position.short = UFixed6Lib.from(Fixed6Lib.from(position.short).add(self.short));
-    }
 }

@@ -4,7 +4,6 @@ pragma solidity ^0.8.13;
 import "@equilibria/root/pid/types/PAccumulator6.sol";
 import "./ProtocolParameter.sol";
 import "./MarketParameter.sol";
-import "./Position.sol";
 
 /// @dev Global type
 struct Global {
@@ -31,13 +30,9 @@ struct Global {
 
     /// @dev The latest valid price
     Fixed6 latestPrice;
-
-    // TODO: use latest position instead?
-    /// @dev The latest invalidation accumulator
-    Invalidation latestInvalidation;
 }
 using GlobalLib for Global global;
-struct GlobalStorage { uint256 slot0; uint256 slot1; uint256 slot2; }
+struct GlobalStorage { uint256 slot0; uint256 slot1; }
 using GlobalStorageLib for GlobalStorage global;
 
 /// @title Global
@@ -76,14 +71,6 @@ library GlobalLib {
         self.latestId = latestId;
         self.latestPrice = latestPrice;
     }
-
-    // @notice Updates the latest invalidation accumulator when an invalidation occurs
-    // @param self The Global object to update
-    // @param latestPosition The latest position
-    // @param newPosition The new position
-    function invalidate(Global memory self, Position memory latestPosition, Position memory newPosition) internal pure {
-        self.latestInvalidation.increment(InvalidationLib.from(latestPosition, newPosition));
-    }
 }
 
 /// @dev Manually encodes and decodes the Global struct into storage.
@@ -101,18 +88,13 @@ library GlobalLib {
 ///         int32 pAccumulator.value;   // <= 214000%
 ///         int24 pAccumulator.skew;    // <= 838%
 ///         int64 latestPrice;          // <= 9.22t
-///
-///         /* slot 2 */
-///         int64 invalidation.maker;   // <= 9.22t
-///         int64 invalidation.long;    // <= 9.22t
-///         int64 invalidation.short;   // <= 9.22t
 ///     }
 ///
 library GlobalStorageLib {
     error GlobalStorageInvalidError();
 
     function read(GlobalStorage storage self) internal view returns (Global memory) {
-        (uint256 slot0, uint256 slot1, uint256 slot2) = (self.slot0, self.slot1, self.slot2);
+        (uint256 slot0, uint256 slot1) = (self.slot0, self.slot1);
         return Global(
             uint256(slot0 << (256 - 32)) >> (256 - 32),
             uint256(slot0 << (256 - 32 - 32)) >> (256 - 32),
@@ -124,12 +106,7 @@ library GlobalStorageLib {
                 Fixed6.wrap(int256(slot1 << (256 - 32)) >> (256 - 32)),
                 Fixed6.wrap(int256(slot1 << (256 - 32 - 24)) >> (256 - 24))
             ),
-            Fixed6.wrap(int256(slot1 << (256 - 32 - 24 - 64)) >> (256 - 64)),
-            Invalidation(
-                Fixed6.wrap(int256(slot2 << (256 - 64)) >> (256 - 64)),
-                Fixed6.wrap(int256(slot2 << (256 - 64 - 64)) >> (256 - 64)),
-                Fixed6.wrap(int256(slot2 << (256 - 64 - 64 - 64)) >> (256 - 64))
-            )
+            Fixed6.wrap(int256(slot1 << (256 - 32 - 24 - 64)) >> (256 - 64))
         );
     }
 
@@ -146,12 +123,6 @@ library GlobalStorageLib {
         if (newValue.pAccumulator._skew.lt(Fixed6.wrap(type(int24).min))) revert GlobalStorageInvalidError();
         if (newValue.latestPrice.gt(Fixed6.wrap(type(int64).max))) revert GlobalStorageInvalidError();
         if (newValue.latestPrice.lt(Fixed6.wrap(type(int64).min))) revert GlobalStorageInvalidError();
-        if (newValue.latestInvalidation.maker.gt(Fixed6.wrap(type(int64).max))) revert GlobalStorageInvalidError();
-        if (newValue.latestInvalidation.maker.lt(Fixed6.wrap(type(int64).min))) revert GlobalStorageInvalidError();
-        if (newValue.latestInvalidation.long.gt(Fixed6.wrap(type(int64).max))) revert GlobalStorageInvalidError();
-        if (newValue.latestInvalidation.long.lt(Fixed6.wrap(type(int64).min))) revert GlobalStorageInvalidError();
-        if (newValue.latestInvalidation.short.gt(Fixed6.wrap(type(int64).max))) revert GlobalStorageInvalidError();
-        if (newValue.latestInvalidation.short.lt(Fixed6.wrap(type(int64).min))) revert GlobalStorageInvalidError();
 
         uint256 encoded0 =
             uint256(newValue.currentId << (256 - 32)) >> (256 - 32) |
@@ -166,15 +137,9 @@ library GlobalStorageLib {
             uint256(Fixed6.unwrap(newValue.pAccumulator._skew) << (256 - 24)) >> (256 - 32 - 24) |
             uint256(Fixed6.unwrap(newValue.latestPrice) << (256 - 64)) >> (256 - 32 - 24 - 64);
 
-        uint256 encoded2 =
-            uint256(Fixed6.unwrap(newValue.latestInvalidation.maker) << (256 - 64)) >> (256 - 64) |
-            uint256(Fixed6.unwrap(newValue.latestInvalidation.long) << (256 - 64)) >> (256 - 64 - 64) |
-            uint256(Fixed6.unwrap(newValue.latestInvalidation.short) << (256 - 64)) >> (256 - 64 - 64 - 64);
-
         assembly {
             sstore(self.slot, encoded0)
             sstore(add(self.slot, 1), encoded1)
-            sstore(add(self.slot, 2), encoded2)
         }
     }
 }

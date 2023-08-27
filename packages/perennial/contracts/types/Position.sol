@@ -86,8 +86,7 @@ library PositionLib {
             Fixed6Lib.from(newShort).sub(Fixed6Lib.from(self.short))
         );
 
-        (self.timestamp, self.maker, self.long, self.short) =
-            (currentTimestamp, newMaker, newLong, newShort);
+        (self.timestamp, self.maker, self.long, self.short) = (currentTimestamp, newMaker, newLong, newShort);
     }
 
     /// @notice Updates the current global position with a new order
@@ -142,16 +141,22 @@ library PositionLib {
         self.delta = self.delta.add(collateralAmount);
     }
 
-    /// @notice Processes an invalidation of a local position
-    /// @dev Replaces the maker, long, and short positions with the latest valid version's
+    /// @notice Processes an invalidation of a position
+    /// @dev Increments the invalidation accumulator by the new position's delta, and resets the fee
     /// @param self The position object to update
-    /// @param latestPosition The latest valid position
-    function invalidate(Position memory self, Position memory latestPosition) internal pure {
-        (self.maker, self.long, self.short, self.fee) = (
-            latestPosition.maker,
-            latestPosition.long,
-            latestPosition.short,
-            UFixed6Lib.ZERO
+    /// @param newPosition The latest valid position
+    function invalidate(Position memory self, Position memory newPosition) internal pure {
+        self.invalidation.increment(InvalidationLib.from(self, newPosition));
+        newPosition.fee = UFixed6Lib.ZERO;
+    }
+
+    // @notice Adjusts the position if any invalidations have occurred
+    function adjust(Position memory self, Position memory latestPosition) internal pure {
+        Invalidation memory invalidation = latestPosition.invalidation.sub(self.invalidation);
+        (self.maker, self.long, self.short) = (
+            UFixed6Lib.from(Fixed6Lib.from(self.maker).add(invalidation.maker)),
+            UFixed6Lib.from(Fixed6Lib.from(self.long).add(invalidation.long)),
+            UFixed6Lib.from(Fixed6Lib.from(self.short).add(invalidation.short))
         );
     }
 
@@ -439,33 +444,40 @@ library PositionStorageGlobalLib {
 ///     struct StoredPositionLocal {
 ///         /* slot 0 */
 ///         uint32 timestamp;
-///         uint8 direction;
-///         uint64 magnitude;
+///         uint48 fee;
+///         uint48 keeper;
 ///         int64 collateral;
 ///         int64 delta;
 ///
 ///         /* slot 1 */
-///         uint48 fee;
-///         uint48 keeper;
+///         uint2 direction;
+///         uint62 magnitude;
+///         int64 invalidation.maker;
+///         int64 invalidation.long;
+///         int64 invalidation.short;
 ///     }
 ///
 library PositionStorageLocalLib {
     function read(PositionStorageLocal storage self) internal view returns (Position memory) {
         (uint256 slot0, uint256 slot1) = (self.slot0, self.slot1);
 
-        uint256 direction = uint256(slot0 << (256 - 32 - 8)) >> (256 - 8);
-        UFixed6 magnitude = UFixed6.wrap(uint256(slot0 << (256 - 32 - 8 - 64)) >> (256 - 64));
+        uint256 direction = uint256(slot1 << (256 - 2)) >> (256 - 2);
+        UFixed6 magnitude = UFixed6.wrap(uint256(slot1 << (256 - 2 - 62)) >> (256 - 62));
 
         return Position(
             uint256(slot0 << (256 - 32)) >> (256 - 32),
             direction == 0 ? magnitude : UFixed6Lib.ZERO,
             direction == 1 ? magnitude : UFixed6Lib.ZERO,
             direction == 2 ? magnitude : UFixed6Lib.ZERO,
-            UFixed6.wrap(uint256(slot1 << (256 - 48)) >> (256 - 48)),
-            UFixed6.wrap(uint256(slot1 << (256 - 48 - 48)) >> (256 - 48)),
-            Fixed6.wrap(int256(slot0 << (256 - 32 - 8 - 64 - 64)) >> (256 - 64)),
-            Fixed6.wrap(int256(slot0 << (256 - 32 - 8 - 64 - 64 - 64)) >> (256 - 64)),
-            Invalidation(Fixed6Lib.ZERO, Fixed6Lib.ZERO, Fixed6Lib.ZERO)
+            UFixed6.wrap(uint256(slot0 << (256 - 32 - 48)) >> (256 - 48)),
+            UFixed6.wrap(uint256(slot0 << (256 - 32 - 48 - 48)) >> (256 - 48)),
+            Fixed6.wrap(int256(slot0 << (256 - 32 - 48 - 48 - 64)) >> (256 - 64)),
+            Fixed6.wrap(int256(slot0 << (256 - 32 - 48 - 48 - 64 - 64)) >> (256 - 64)),
+            Invalidation(
+                Fixed6.wrap(int256(slot1 << (256 - 2 - 62 - 64)) >> (256 - 64)),
+                Fixed6.wrap(int256(slot1 << (256 - 2 - 62 - 64 - 64)) >> (256 - 64)),
+                Fixed6.wrap(int256(slot1 << (256 - 2 - 62 - 64 - 64 - 64)) >> (256 - 64))
+            )
         );
     }
 
@@ -476,13 +488,16 @@ library PositionStorageLocalLib {
 
         uint256 encoded0 =
             uint256(newValue.timestamp << (256 - 32)) >> (256 - 32) |
-            uint256(direction << (256 - 8)) >> (256 - 32 - 8) |
-            uint256(UFixed6.unwrap(newValue.magnitude()) << (256 - 64)) >> (256 - 32 - 8 - 64) |
-            uint256(Fixed6.unwrap(newValue.collateral) << (256 - 64)) >> (256 - 32 - 8 - 64 - 64) |
-            uint256(Fixed6.unwrap(newValue.delta) << (256 - 64)) >> (256 - 32 - 8 - 64 - 64 - 64);
+            uint256(UFixed6.unwrap(newValue.fee) << (256 - 48)) >> (256 - 32 - 48) |
+            uint256(UFixed6.unwrap(newValue.keeper) << (256 - 48)) >> (256 - 32 - 48 - 48) |
+            uint256(Fixed6.unwrap(newValue.collateral) << (256 - 64)) >> (256 - 32 - 48 - 48 - 64) |
+            uint256(Fixed6.unwrap(newValue.delta) << (256 - 64)) >> (256 - 32 - 48 - 48 - 64 - 64);
         uint256 encoded1 =
-            uint256(UFixed6.unwrap(newValue.fee) << (256 - 48)) >> (256 - 48) |
-            uint256(UFixed6.unwrap(newValue.keeper) << (256 - 48)) >> (256 - 48 - 48);
+            uint256(direction << (256 - 2)) >> (256 - 2) |
+            uint256(UFixed6.unwrap(newValue.magnitude()) << (256 - 62)) >> (256 - 2 - 62) |
+            uint256(Fixed6.unwrap(newValue.invalidation.maker) << (256 - 64)) >> (256 - 2 - 62 - 64) |
+            uint256(Fixed6.unwrap(newValue.invalidation.long) << (256 - 64)) >> (256 - 2 - 62 - 64 - 64) |
+            uint256(Fixed6.unwrap(newValue.invalidation.short) << (256 - 64)) >> (256 - 2 - 62 - 64 - 64 - 64);
 
         assembly {
             sstore(self.slot, encoded0)

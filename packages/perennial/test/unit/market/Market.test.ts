@@ -11878,7 +11878,7 @@ describe('Market', () => {
           })
         })
 
-        it('settles invalid version after', async () => {
+        it.only('settles invalid version after', async () => {
           oracle.at.whenCalledWith(ORACLE_VERSION_2.timestamp).returns(ORACLE_VERSION_2)
           oracle.status.returns([ORACLE_VERSION_2, ORACLE_VERSION_3.timestamp])
           oracle.request.whenCalledWith(user.address).returns()

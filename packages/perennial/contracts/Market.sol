@@ -224,17 +224,17 @@ contract Market is IMarket, Instance, ReentrancyGuard {
         positionContext.global = _pendingPosition[context.global.currentId].read();
         positionContext.local = _pendingPositions[account][context.local.currentId].read();
 
-        // adjust global position based on change in invalidation since last position
-        context.global.latestInvalidation.sub(positionContext.global.invalidation).adjust(positionContext.global);
+        // adjust position based on change in invalidation since last position
+        positionContext.global.adjust(context.latestPosition.global);
+        positionContext.local.adjust(context.latestPosition.local);
 
         // save new invalidation accumulator value
-        positionContext.global.invalidation.maker = context.global.latestInvalidation.maker;
-        positionContext.global.invalidation.long = context.global.latestInvalidation.long;
-        positionContext.global.invalidation.short = context.global.latestInvalidation.short;
-
-        // adjust local position based on invalidation status of last position
-        if (context.local.currentId == context.local.latestId)
-            positionContext.local.invalidate(context.latestPosition.local);
+        positionContext.global.invalidation.maker = context.latestPosition.global.invalidation.maker;
+        positionContext.global.invalidation.long = context.latestPosition.global.invalidation.long;
+        positionContext.global.invalidation.short = context.latestPosition.global.invalidation.short;
+        positionContext.local.invalidation.maker = context.latestPosition.local.invalidation.maker;
+        positionContext.local.invalidation.long = context.latestPosition.local.invalidation.long;
+        positionContext.local.invalidation.short = context.latestPosition.local.invalidation.short;
     }
 
     /// @notice Updates the current position
@@ -280,7 +280,7 @@ contract Market is IMarket, Instance, ReentrancyGuard {
             context.currentTimestamp,
             newOrder,
             context.riskParameter,
-            context.global.latestInvalidation
+            context.latestPosition.global.invalidation
         );
 
         // update fee
@@ -405,18 +405,8 @@ contract Market is IMarket, Instance, ReentrancyGuard {
     function _processPositionGlobal(Context memory context, uint256 newPositionId, Position memory newPosition) private {
         Version memory version = _versions[context.latestPosition.global.timestamp].read();
         OracleVersion memory oracleVersion = _oracleVersionAtPosition(context, newPosition);
-        if (!oracleVersion.valid) {
-            context.global.invalidate(context.latestPosition.global, newPosition);
-            newPosition.fee = UFixed6Lib.ZERO;
-        }
-        console.log("newPositionId", newPositionId);
-        console.log("newPosition.maker", UFixed6.unwrap(newPosition.maker));
-        console.log("newPosition.long", UFixed6.unwrap(newPosition.long));
-        console.log("newPosition.short", UFixed6.unwrap(newPosition.short));
-        context.global.latestInvalidation.sub(newPosition.invalidation).adjust(newPosition);
-        console.log("newPosition.maker (adjusted)", UFixed6.unwrap(newPosition.maker));
-        console.log("newPosition.long (adjusted)", UFixed6.unwrap(newPosition.long));
-        console.log("newPosition.short (adjusted)", UFixed6.unwrap(newPosition.short));
+        if (!oracleVersion.valid) context.latestPosition.global.invalidate(newPosition);
+        newPosition.adjust(context.latestPosition.global);
 
         (uint256 fromTimestamp, uint256 fromId) = (context.latestPosition.global.timestamp, context.global.latestId);
         (VersionAccumulationResult memory accumulationResult, UFixed6 accumulatedFee) = version.accumulate(
@@ -462,6 +452,7 @@ contract Market is IMarket, Instance, ReentrancyGuard {
     ) private {
         Version memory version = _versions[newPosition.timestamp].read();
         if (!version.valid) newPosition.invalidate(context.latestPosition.local);
+        newPosition.adjust(context.latestPosition.local);
 
         (uint256 fromTimestamp, uint256 fromId) = (context.latestPosition.local.timestamp, context.local.latestId);
         LocalAccumulationResult memory accumulationResult = context.local.accumulate(
