@@ -175,6 +175,10 @@ contract MultiInvoker is IMultiInvoker, Kept {
         Fixed6 collateral,
         bool wrap
     ) internal {
+        // target market must be created from factory
+        if(!marketFactory.instances(IInstance(address(market))))
+            revert MultiInvokerInvalidTargetError();
+
         // collateral is transferred from this address to the market, transfer from msg.sender to here
         if (collateral.sign() == 1) _deposit(collateral.abs(), wrap);
 
@@ -197,6 +201,10 @@ contract MultiInvoker is IMultiInvoker, Kept {
         UFixed6 claimAssets,
         bool wrap
     ) internal {
+        // target vault must be created from factory
+        if(!vaultFactory.instances(IInstance(vault)))
+            revert MultiInvokerInvalidTargetError();
+
         if (!depositAssets.isZero()) {
             _deposit(depositAssets, wrap);
         }
