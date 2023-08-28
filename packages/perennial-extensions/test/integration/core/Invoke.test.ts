@@ -92,7 +92,7 @@ describe('Invoke', () => {
 
     await expect(multiInvoker.connect(user).invoke(buildApproveTarget(userB.address))).to.be.revertedWithCustomError(
       multiInvoker,
-      'MultiInvokerInvalidApprovalError',
+      'MultiInvokerInvalidInstanceError',
     )
   })
 
@@ -452,7 +452,7 @@ describe('Invoke', () => {
 
       await expect(
         multiInvoker.connect(user).invoke(buildUpdateMarket({ market: vault.address, collateral: collateral })),
-      ).to.be.revertedWithCustomError(multiInvoker, 'MultiInvokerInvalidTargetError')
+      ).to.be.revertedWithCustomError(multiInvoker, 'MultiInvokerInvalidInstanceError')
     })
 
     it('Only allows updates to factory created vaults', async () => {
@@ -460,7 +460,7 @@ describe('Invoke', () => {
 
       await expect(
         multiInvoker.connect(user).invoke(buildUpdateVault({ vault: market.address })),
-      ).to.be.revertedWithCustomError(multiInvoker, 'MultiInvokerInvalidTargetError')
+      ).to.be.revertedWithCustomError(multiInvoker, 'MultiInvokerInvalidInstanceError')
     })
   })
 })

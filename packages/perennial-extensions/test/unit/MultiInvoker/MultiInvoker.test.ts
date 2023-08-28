@@ -246,7 +246,7 @@ describe('MultiInvoker', () => {
 
       await expect(multiInvoker.connect(owner).invoke(a)).to.have.been.revertedWithCustomError(
         multiInvoker,
-        'MultiInvokerInvalidApprovalError',
+        'MultiInvokerInvalidInstanceError',
       )
 
       // approve market succeeds
