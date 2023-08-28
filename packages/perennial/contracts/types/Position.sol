@@ -287,13 +287,6 @@ library PositionLib {
         return self.maker.add(self.short).lt(self.long) || self.maker.add(self.long).lt(self.short);
     }
 
-    /// @notice Returns the whether the position is single-sided
-    /// @param self The position object to check
-    /// @return Whether the position is single-sided
-    function singleSided(Position memory self) internal pure returns (bool) {
-        return magnitude(self).eq(self.maker.add(self.long).add(self.short));
-    }
-
     /// @notice Returns the maintenance requirement of the position
     /// @param self The position object to check
     /// @param latestVersion The latest oracle version

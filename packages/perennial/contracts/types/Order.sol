@@ -4,6 +4,7 @@ pragma solidity ^0.8.13;
 import "./OracleVersion.sol";
 import "./RiskParameter.sol";
 import "./MarketParameter.sol";
+import "./Position.sol";
 
 /// @dev Order type
 struct Order {
@@ -83,6 +84,43 @@ library OrderLib {
     /// @return Whether the order decreases the liquidity of the market
     function decreasesLiquidity(Order memory self) internal pure returns (bool) {
         return self.maker.lt(self.net);
+    }
+
+    /// @notice Returns the whether the position is single-sided
+    /// @param self The position object to check
+    /// @param currentPosition The current position to check
+    /// @return Whether the position is single-sided
+    function singleSided(Order memory self, Position memory currentPosition) internal pure returns (bool) {
+        return (self.maker.isZero() && self.long.isZero() && currentPosition.maker.isZero() && currentPosition.long.isZero()) ||
+            (self.long.isZero() && self.short.isZero() && currentPosition.long.isZero() && currentPosition.short.isZero()) ||
+            (self.short.isZero() && self.maker.isZero() && currentPosition.short.isZero() && currentPosition.maker.isZero());
+    }
+
+    /// @notice Returns the whether the order fully closes the position
+    /// @dev If the current position is larger this will fully close the latest position, otherwise this will close the
+    ///      entire current position
+    /// @param self The order object to check
+    /// @param latestPosition The latest position to check
+    /// @param currentPosition The current position to check
+    /// @return Whether the order closes the position
+    function closes(
+        Order memory self,
+        Position memory latestPosition,
+        Position memory currentPosition
+    ) internal pure returns (bool) {
+        return (Fixed6Lib.from(latestPosition.maker.min(currentPosition.maker)).add(self.maker).isZero()) &&
+            (Fixed6Lib.from(latestPosition.long.min(currentPosition.long)).add(self.long).isZero()) &&
+            (Fixed6Lib.from(latestPosition.short.min(currentPosition.short)).add(self.short).isZero());
+    }
+
+    /// @notice Returns the whether the order over closes the latest position
+    /// @param self The order object to check
+    /// @param latestPosition The latest position to check
+    /// @return Whether the order over closes the position
+    function overCloses(Order memory self, Position memory latestPosition) internal pure returns (bool) {
+        return (Fixed6Lib.from(latestPosition.maker).add(self.maker).sign() == -1) ||
+            (Fixed6Lib.from(latestPosition.long).add(self.long).sign() == -1) ||
+            (Fixed6Lib.from(latestPosition.short).add(self.short).sign() == -1);
     }
 
     /// @notice Returns whether the order is applicable for liquidity checks

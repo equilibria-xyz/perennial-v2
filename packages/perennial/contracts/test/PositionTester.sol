@@ -119,10 +119,6 @@ abstract contract PositionTester {
         return read().socialized();
     }
 
-    function singleSided() external view returns (bool) {
-        return read().singleSided();
-    }
-
     function maintenance(
         OracleVersion memory latestVersion,
         RiskParameter memory riskParameter

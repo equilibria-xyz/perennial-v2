@@ -60,6 +60,7 @@ interface IMarket is IInstance {
     error MarketCollateralBelowLimitError();
     error MarketOperatorNotAllowedError();
     error MarketNotSingleSidedError();
+    error MarketOverCloseError();
     error MarketExceedsPendingIdLimitError();
     error MarketRewardAlreadySetError();
     error MarketInvalidRewardError();

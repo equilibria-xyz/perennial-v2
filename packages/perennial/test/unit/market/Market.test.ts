@@ -11588,7 +11588,7 @@ describe('Market', () => {
         })
       })
 
-      context.only('invalid oracle version', async () => {
+      context('invalid oracle version', async () => {
         beforeEach(async () => {
           dsu.transferFrom.whenCalledWith(user.address, market.address, COLLATERAL.mul(1e12)).returns(true)
           dsu.transferFrom.whenCalledWith(userB.address, market.address, COLLATERAL.mul(1e12)).returns(true)
@@ -11878,7 +11878,7 @@ describe('Market', () => {
           })
         })
 
-        it.only('settles invalid version after', async () => {
+        it('settles invalid version after', async () => {
           oracle.at.whenCalledWith(ORACLE_VERSION_2.timestamp).returns(ORACLE_VERSION_2)
           oracle.status.returns([ORACLE_VERSION_2, ORACLE_VERSION_3.timestamp])
           oracle.request.whenCalledWith(user.address).returns()
@@ -12036,7 +12036,7 @@ describe('Market', () => {
           })
         })
 
-        it.only('settles invalid then valid version at once', async () => {
+        it('settles invalid then valid version at once', async () => {
           oracle.at.whenCalledWith(ORACLE_VERSION_2.timestamp).returns(ORACLE_VERSION_2)
           oracle.status.returns([ORACLE_VERSION_2, ORACLE_VERSION_3.timestamp])
           oracle.request.whenCalledWith(user.address).returns()
@@ -12088,7 +12088,6 @@ describe('Market', () => {
           expectPositionEq(await market.positions(user.address), {
             ...DEFAULT_POSITION,
             timestamp: ORACLE_VERSION_4.timestamp,
-            long: POSITION.div(2),
           })
           expectPositionEq(await market.pendingPositions(user.address, 1), {
             ...DEFAULT_POSITION,
@@ -12108,6 +12107,7 @@ describe('Market', () => {
             ...DEFAULT_POSITION,
             timestamp: ORACLE_VERSION_5.timestamp,
             long: POSITION.div(2),
+            fee: TAKER_FEE,
             delta: COLLATERAL,
           })
           expectLocalEq(await market.locals(userB.address), {
@@ -12146,6 +12146,180 @@ describe('Market', () => {
             ...DEFAULT_POSITION,
             timestamp: ORACLE_VERSION_4.timestamp,
             maker: POSITION,
+          })
+          expectPositionEq(await market.pendingPosition(2), {
+            ...DEFAULT_POSITION,
+            timestamp: ORACLE_VERSION_3.timestamp,
+            maker: POSITION,
+            long: POSITION.div(2),
+            short: 0,
+            fee: TAKER_FEE,
+          })
+          expectPositionEq(await market.pendingPosition(3), {
+            ...DEFAULT_POSITION,
+            timestamp: ORACLE_VERSION_4.timestamp,
+            maker: POSITION,
+            long: POSITION.div(2),
+          })
+          expectPositionEq(await market.pendingPosition(4), {
+            ...DEFAULT_POSITION,
+            timestamp: ORACLE_VERSION_5.timestamp,
+            maker: POSITION,
+            long: POSITION.div(2),
+            fee: TAKER_FEE,
+          })
+          expectVersionEq(await market.versions(ORACLE_VERSION_2.timestamp), {
+            makerValue: { _value: 0 },
+            longValue: { _value: 0 },
+            shortValue: { _value: 0 },
+            makerReward: { _value: 0 },
+            longReward: { _value: 0 },
+            shortReward: { _value: 0 },
+          })
+          expectVersionEq(await market.versions(ORACLE_VERSION_3.timestamp), {
+            makerValue: { _value: 0 },
+            longValue: { _value: 0 },
+            shortValue: { _value: 0 },
+            makerReward: { _value: EXPECTED_REWARD.mul(3).div(10) },
+            longReward: { _value: 0 },
+            shortReward: { _value: 0 },
+          })
+          expectVersionEq(await market.versions(ORACLE_VERSION_4.timestamp), {
+            makerValue: { _value: 0 },
+            longValue: { _value: 0 },
+            shortValue: { _value: 0 },
+            makerReward: { _value: EXPECTED_REWARD.mul(3).mul(2).div(10) },
+            longReward: { _value: 0 },
+            shortReward: { _value: 0 },
+          })
+        })
+
+        it('settles invalid then valid version at once then valid', async () => {
+          oracle.at.whenCalledWith(ORACLE_VERSION_2.timestamp).returns(ORACLE_VERSION_2)
+          oracle.status.returns([ORACLE_VERSION_2, ORACLE_VERSION_3.timestamp])
+          oracle.request.whenCalledWith(user.address).returns()
+
+          await settle(market, user)
+
+          const riskParameter = { ...(await market.riskParameter()) }
+          riskParameter.takerFee = parse6decimal('0.01')
+          riskParameter.takerImpactFee = parse6decimal('0.004')
+          riskParameter.takerSkewFee = parse6decimal('0.002')
+          riskParameter.staleAfter = BigNumber.from(9600)
+          await market.updateRiskParameter(riskParameter)
+
+          const marketParameter = { ...(await market.parameter()) }
+          marketParameter.settlementFee = parse6decimal('0.50')
+          await market.updateParameter(marketParameter)
+
+          const TAKER_FEE = parse6decimal('9.84') // position * (0.01 + 0.004 + 0.002) * price
+          const TAKER_FEE_FEE = TAKER_FEE.div(10)
+          const TAKER_FEE_WITHOUT_FEE = TAKER_FEE.sub(TAKER_FEE_FEE)
+          const SETTLEMENT_FEE = parse6decimal('0.50')
+
+          await expect(market.connect(user).update(user.address, 0, POSITION.div(2), 0, COLLATERAL, false))
+            .to.emit(market, 'Updated')
+            .withArgs(user.address, ORACLE_VERSION_3.timestamp, 0, POSITION.div(2), 0, COLLATERAL, false)
+
+          oracle.status.returns([{ ...ORACLE_VERSION_2 }, ORACLE_VERSION_4.timestamp])
+          oracle.request.whenCalledWith(user.address).returns()
+
+          await expect(market.connect(user).update(user.address, 0, POSITION.div(2), 0, 0, false))
+            .to.emit(market, 'Updated')
+            .withArgs(user.address, ORACLE_VERSION_4.timestamp, 0, POSITION.div(2), 0, 0, false)
+
+          oracle.at.whenCalledWith(ORACLE_VERSION_3.timestamp).returns({ ...ORACLE_VERSION_3, valid: false })
+          oracle.at.whenCalledWith(ORACLE_VERSION_4.timestamp).returns({ ...ORACLE_VERSION_4 })
+          oracle.status.returns([{ ...ORACLE_VERSION_4 }, ORACLE_VERSION_5.timestamp])
+          oracle.request.whenCalledWith(user.address).returns()
+
+          await expect(market.connect(user).update(user.address, 0, POSITION.div(2), 0, 0, false))
+            .to.emit(market, 'Updated')
+            .withArgs(user.address, ORACLE_VERSION_5.timestamp, 0, POSITION.div(2), 0, 0, false)
+
+          oracle.at.whenCalledWith(ORACLE_VERSION_5.timestamp).returns({ ...ORACLE_VERSION_5 })
+          oracle.status.returns([{ ...ORACLE_VERSION_5 }, ORACLE_VERSION_6.timestamp])
+          oracle.request.whenCalledWith(user.address).returns()
+
+          await settle(market, user)
+          await settle(market, userB)
+
+          expectLocalEq(await market.locals(user.address), {
+            currentId: 4,
+            latestId: 3,
+            collateral: COLLATERAL.sub(SETTLEMENT_FEE.mul(2)).sub(TAKER_FEE),
+            reward: 0,
+            protection: 0,
+          })
+          expectPositionEq(await market.positions(user.address), {
+            ...DEFAULT_POSITION,
+            timestamp: ORACLE_VERSION_5.timestamp,
+            long: POSITION.div(2),
+          })
+          expectPositionEq(await market.pendingPositions(user.address, 1), {
+            ...DEFAULT_POSITION,
+            timestamp: ORACLE_VERSION_3.timestamp,
+            long: POSITION.div(2),
+            fee: TAKER_FEE,
+            delta: COLLATERAL,
+          })
+          expectPositionEq(await market.pendingPositions(user.address, 2), {
+            ...DEFAULT_POSITION,
+            timestamp: ORACLE_VERSION_4.timestamp,
+            long: POSITION.div(2),
+            collateral: COLLATERAL.sub(SETTLEMENT_FEE),
+            delta: COLLATERAL,
+          })
+          expectPositionEq(await market.pendingPositions(user.address, 3), {
+            ...DEFAULT_POSITION,
+            timestamp: ORACLE_VERSION_5.timestamp,
+            long: POSITION.div(2),
+            fee: TAKER_FEE,
+            collateral: COLLATERAL.sub(SETTLEMENT_FEE),
+            delta: COLLATERAL,
+          })
+          expectPositionEq(await market.pendingPositions(user.address, 4), {
+            ...DEFAULT_POSITION,
+            timestamp: ORACLE_VERSION_6.timestamp,
+            long: POSITION.div(2),
+            delta: COLLATERAL,
+          })
+          expectLocalEq(await market.locals(userB.address), {
+            currentId: 2,
+            latestId: 1,
+            collateral: COLLATERAL.add(TAKER_FEE_WITHOUT_FEE),
+            reward: EXPECTED_REWARD.mul(3).mul(3),
+            protection: 0,
+          })
+          expectPositionEq(await market.positions(userB.address), {
+            ...DEFAULT_POSITION,
+            timestamp: ORACLE_VERSION_5.timestamp,
+            maker: POSITION,
+          })
+          expectPositionEq(await market.pendingPositions(userB.address, 1), {
+            ...DEFAULT_POSITION,
+            timestamp: ORACLE_VERSION_2.timestamp,
+            maker: POSITION,
+            delta: COLLATERAL,
+          })
+          expectPositionEq(await market.pendingPositions(userB.address, 2), {
+            ...DEFAULT_POSITION,
+            timestamp: ORACLE_VERSION_6.timestamp,
+            maker: POSITION,
+            delta: COLLATERAL,
+          })
+          expectGlobalEq(await market.global(), {
+            currentId: 5,
+            latestId: 4,
+            protocolFee: TAKER_FEE_FEE.div(2),
+            oracleFee: TAKER_FEE_FEE.div(20).add(SETTLEMENT_FEE.mul(2)),
+            riskFee: TAKER_FEE_FEE.div(20),
+            donation: TAKER_FEE_FEE.mul(2).div(5),
+          })
+          expectPositionEq(await market.position(), {
+            ...DEFAULT_POSITION,
+            timestamp: ORACLE_VERSION_5.timestamp,
+            maker: POSITION,
             long: POSITION.div(2),
           })
           expectPositionEq(await market.pendingPosition(2), {
@@ -12165,6 +12339,13 @@ describe('Market', () => {
           expectPositionEq(await market.pendingPosition(4), {
             ...DEFAULT_POSITION,
             timestamp: ORACLE_VERSION_5.timestamp,
+            maker: POSITION,
+            long: POSITION.div(2),
+            fee: TAKER_FEE,
+          })
+          expectPositionEq(await market.pendingPosition(5), {
+            ...DEFAULT_POSITION,
+            timestamp: ORACLE_VERSION_6.timestamp,
             maker: POSITION,
             long: POSITION.div(2),
           })
@@ -12189,6 +12370,14 @@ describe('Market', () => {
             longValue: { _value: 0 },
             shortValue: { _value: 0 },
             makerReward: { _value: EXPECTED_REWARD.mul(3).mul(2).div(10) },
+            longReward: { _value: 0 },
+            shortReward: { _value: 0 },
+          })
+          expectVersionEq(await market.versions(ORACLE_VERSION_5.timestamp), {
+            makerValue: { _value: TAKER_FEE_WITHOUT_FEE.div(10) },
+            longValue: { _value: 0 },
+            shortValue: { _value: 0 },
+            makerReward: { _value: EXPECTED_REWARD.mul(3).mul(3).div(10) },
             longReward: { _value: 0 },
             shortReward: { _value: 0 },
           })
@@ -13121,7 +13310,7 @@ describe('Market', () => {
       })
 
       context('invalidation', async () => {
-        it.only('global-local desync', async () => {
+        it('global-local desync', async () => {
           const positionMaker = parse6decimal('2.000')
           const positionLong = parse6decimal('1.000')
           const collateral = parse6decimal('100')
@@ -13174,7 +13363,7 @@ describe('Market', () => {
           oracle.request.returns()
 
           // reset to 0
-          await market.connect(user).update(user.address, 0, 0, 0, 0, false)
+          await market.connect(user).update(user.address, 0, positionLong, 0, 0, false)
 
           // oracleVersion4 commited
           oracle.status.returns([oracleVersion4, oracleVersion4.timestamp + 100])

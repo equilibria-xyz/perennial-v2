@@ -451,7 +451,7 @@ contract Market is IMarket, Instance, ReentrancyGuard {
         Position memory newPosition
     ) private {
         Version memory version = _versions[newPosition.timestamp].read();
-        if (!version.valid) newPosition.invalidate(context.latestPosition.local);
+        if (!version.valid) context.latestPosition.local.invalidate(newPosition);
         newPosition.adjust(context.latestPosition.local);
 
         (uint256 fromTimestamp, uint256 fromId) = (context.latestPosition.local.timestamp, context.local.latestId);
@@ -492,7 +492,7 @@ contract Market is IMarket, Instance, ReentrancyGuard {
         (Position[] memory pendingLocalPositions, Fixed6 collateralAfterFees) = _loadPendingPositions(context, account);
 
         if (protected && (
-            !context.currentPosition.local.magnitude().isZero() ||
+            !newOrder.closes(context.latestPosition.local, context.currentPosition.local) ||
             context.latestPosition.local.maintained(
                 context.latestVersion,
                 context.riskParameter,
@@ -510,14 +510,17 @@ contract Market is IMarket, Instance, ReentrancyGuard {
         if (context.currentPosition.global.maker.gt(context.riskParameter.makerLimit))
             revert MarketMakerOverLimitError();
 
-        if (!context.currentPosition.local.singleSided())
+        if (!newOrder.singleSided(context.currentPosition.local))
             revert MarketNotSingleSidedError();
+
+        if (newOrder.overCloses(context.currentPosition.local))
+            revert MarketOverCloseError();
 
         if (protected) return; // The following invariants do not apply to protected position updates (liquidations)
 
         if (
-            msg.sender != account &&                                                                        // sender is operating on own account
-            !IMarketFactory(address(factory())).operators(account, msg.sender) &&                           // sender is operating on own account
+            msg.sender != account &&                                                                   // sender is operating on own account
+            !IMarketFactory(address(factory())).operators(account, msg.sender) &&                      // sender is operating on own account
             !(newOrder.isEmpty() && collateralAfterFees.isZero() && collateral.gt(Fixed6Lib.ZERO))     // sender is repaying shortfall for this account
         ) revert MarketOperatorNotAllowedError();
 
