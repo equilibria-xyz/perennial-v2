@@ -340,8 +340,6 @@ describe('Invoke', () => {
 
     it('withdraws total collateral amount if using collateral magic value', async () => {
       const { user, owner, usdc, dsu } = instanceVars
-
-      const reserve = IEmptySetReserve__factory.connect(RESERVE, owner)
       const batcher = IBatcher__factory.connect(BATCHER, owner)
 
       await usdc.connect(user).approve(multiInvoker.address, collateral)
