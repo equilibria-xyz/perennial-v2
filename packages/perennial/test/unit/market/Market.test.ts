@@ -13054,11 +13054,11 @@ describe('Market', () => {
       })
 
       it('claims fee (protocol)', async () => {
-        dsu.transfer.whenCalledWith(factory.address, PROTOCOL_FEE.mul(1e12)).returns(true)
+        dsu.transfer.whenCalledWith(owner.address, PROTOCOL_FEE.mul(1e12)).returns(true)
 
-        await expect(market.connect(factorySigner).claimFee())
+        await expect(market.connect(owner).claimFee())
           .to.emit(market, 'FeeClaimed')
-          .withArgs(factory.address, PROTOCOL_FEE)
+          .withArgs(owner.address, PROTOCOL_FEE)
 
         expect((await market.global()).protocolFee).to.equal(0)
         expect((await market.global()).oracleFee).to.equal(ORACLE_FEE)

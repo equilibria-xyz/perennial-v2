@@ -25,5 +25,4 @@ interface IMarketFactory is IFactory {
     function updateParameter(ProtocolParameter memory newParameter) external;
     function updateOperator(address operator, bool newEnabled) external;
     function create(IMarket.MarketDefinition calldata definition) external returns (IMarket);
-    function fund(IMarket market) external;
 }
