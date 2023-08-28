@@ -6,6 +6,7 @@ import {
   IEmptySetReserve__factory,
   IBatcher__factory,
   IOracleProvider,
+  IEmptySetReserve,
 } from '../../../types/generated'
 import { loadFixture } from '@nomicfoundation/hardhat-network-helpers'
 import {
@@ -30,6 +31,7 @@ import { FakeContract, smock } from '@defi-wonderland/smock'
 import { ethers } from 'hardhat'
 import { BigNumber } from 'ethers'
 import { anyValue } from '@nomicfoundation/hardhat-chai-matchers/withArgs'
+import { emptysetBatcher } from '../../../types/generated/@equilibria'
 
 use(smock.matchers)
 
@@ -469,6 +471,43 @@ describe('Invoke', () => {
         .withArgs(user.address, userB.address, collateral)
 
       expect((await usdc.balanceOf(userB.address)).sub(balanceBefore)).to.eq(collateral)
+    })
+
+    describe('#batcher 0 address', async () => {
+      let instanceVars: InstanceVars
+      let noBatcherInvoker: MultiInvoker
+      let market: Market
+      let reserve: IEmptySetReserve
+
+      beforeEach(async () => {
+        instanceVars = await loadFixture(deployProtocol)
+        ;[vault, vaultFactory, ethSubOracle, btcSubOracle] = await createVault(instanceVars)
+        market = await createMarket(instanceVars)
+        noBatcherInvoker = await createInvoker(instanceVars, vaultFactory, true)
+        reserve = IEmptySetReserve__factory.connect(RESERVE, instanceVars.owner)
+
+        await instanceVars.usdc.connect(instanceVars.user).approve(noBatcherInvoker.address, collateral)
+        await noBatcherInvoker.connect(instanceVars.user).invoke(buildApproveTarget(market.address))
+      })
+
+      it('Wraps USDC to DSU through RESERVE and unwraps DSU to USDC through RESERVE if BATCHER address == 0', async () => {
+        const { user } = instanceVars
+        await expect(
+          noBatcherInvoker
+            .connect(user)
+            .invoke(buildUpdateMarket({ market: market.address, collateral: collateral, handleWrap: true })),
+        )
+          .to.emit(reserve, 'Mint')
+          .withArgs(multiInvoker.address, dsuCollateral, anyValue)
+
+        await expect(
+          noBatcherInvoker
+            .connect(user)
+            .invoke(buildUpdateMarket({ market: market.address, collateral: collateral.mul(-1), handleWrap: true })),
+        )
+          .to.emit(reserve, 'Redeem')
+          .withArgs(multiInvoker.address, dsuCollateral, anyValue)
+      })
     })
   })
 })
