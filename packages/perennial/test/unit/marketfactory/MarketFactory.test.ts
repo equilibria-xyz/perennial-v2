@@ -227,36 +227,4 @@ describe('MarketFactory', () => {
       expect(await factory.operators(user.address, owner.address)).to.equal(false)
     })
   })
-
-  describe('#fund', async () => {
-    let marketAddress: string
-    let fakeMarket: FakeContract<IMarket>
-
-    beforeEach(async () => {
-      const marketDefinition = {
-        token: dsu.address,
-        oracle: oracle.address,
-        payoff: constants.AddressZero,
-      }
-
-      oracleFactory.instances.whenCalledWith(oracle.address).returns(true)
-
-      marketAddress = await factory.callStatic.create(marketDefinition)
-      await factory.connect(owner).create(marketDefinition)
-      fakeMarket = await smock.fake<IMarket>('IMarket', { address: marketAddress })
-    })
-
-    it('claims its fees', async () => {
-      await factory.connect(user).fund(marketAddress)
-
-      expect(fakeMarket.claimFee).to.have.been.called
-    })
-
-    it('reverts if not an instance', async () => {
-      await expect(factory.connect(user).fund(user.address)).to.be.revertedWithCustomError(
-        factory,
-        'FactoryNotInstanceError',
-      )
-    })
-  })
 })
