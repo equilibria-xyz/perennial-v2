@@ -21,7 +21,7 @@ import {
   ZERO_ADDR,
 } from '../helpers/setupHelpers'
 
-import { buildApproveTarget, buildUpdateMarket, buildUpdateVault } from '../../helpers/invoke'
+import { MIN_INT, buildApproveTarget, buildUpdateMarket, buildUpdateVault } from '../../helpers/invoke'
 import { parse6decimal } from '../../../../common/testutil/types'
 import { expect, use } from 'chai'
 import { FakeContract, smock } from '@defi-wonderland/smock'
@@ -336,6 +336,30 @@ describe('Invoke', () => {
       )
         .to.emit(reserve, 'Redeem')
         .withArgs(multiInvoker.address, dsuCollateral, anyValue)
+    })
+
+    it('withdraws total collateral amount if using collateral magic value', async () => {
+      const { user, owner, usdc, dsu } = instanceVars
+
+      const reserve = IEmptySetReserve__factory.connect(RESERVE, owner)
+      const batcher = IBatcher__factory.connect(BATCHER, owner)
+
+      await usdc.connect(user).approve(multiInvoker.address, collateral)
+      await multiInvoker.invoke(buildApproveTarget(market.address))
+      await dsu.connect(user).approve(multiInvoker.address, dsuCollateral)
+
+      await multiInvoker
+        .connect(user)
+        .invoke(buildUpdateMarket({ market: market.address, collateral: collateral, handleWrap: true }))
+      await expect(
+        multiInvoker
+          .connect(user)
+          .invoke(
+            buildUpdateMarket({ market: market.address, collateral: ethers.constants.MinInt256, handleWrap: true }),
+          ),
+      )
+        .to.emit(batcher, 'Unwrap')
+        .withArgs(user.address, dsuCollateral)
     })
 
     it('deposits / redeems / claims from vault', async () => {

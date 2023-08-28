@@ -167,6 +167,7 @@ contract MultiInvoker is IMultiInvoker, Kept {
     /// @param newLong New long position for msg.sender in `market`
     /// @param newShort New short position for msg.sender in `market`
     /// @param collateral Net change in collateral for msg.sender in `market`
+    /// @param wrap Weather to wrap/unwrap collateral on deposit/withdrawal
     function _update(
         IMarket market,
         UFixed6 newMaker,
@@ -179,13 +180,21 @@ contract MultiInvoker is IMultiInvoker, Kept {
         if(!marketFactory.instances(IInstance(address(market))))
             revert MultiInvokerInvalidTargetError();
 
+        UFixed18 balanceBefore;
         // collateral is transferred from this address to the market, transfer from msg.sender to here
-        if (collateral.sign() == 1) _deposit(collateral.abs(), wrap);
+        if (collateral.sign() == 1) { _deposit(collateral.abs(), wrap); }
+        else { balanceBefore = DSU.balanceOf();}
 
         market.update(msg.sender, newMaker, newLong, newShort, collateral, false);
 
+        Fixed6 withdrawAmount = collateral.sign() == 1 ?
+            Fixed6Lib.ZERO :
+            !collateral.eq(Fixed6Lib.MIN) ?
+                collateral :
+                Fixed6Lib.from(Fixed18Lib.from(DSU.balanceOf().sub(balanceBefore)));
+
         // collateral is transferred from the market to this address, transfer to msg.sender from here
-        if (collateral.sign() == -1) _withdraw(msg.sender, collateral.abs(), wrap);
+        if (!withdrawAmount.isZero()) _withdraw(msg.sender, withdrawAmount.abs(), wrap);
     }
 
     /// @notice Update vault on behalf of msg.sender

@@ -180,7 +180,7 @@ describe('MultiInvoker', () => {
       dsu.transferFrom.whenCalledWith(multiInvoker.address, batcher.address).returns(true)
       usdc.balanceOf.whenCalledWith(batcher.address).returns(collateral)
 
-      await expect(await multiInvoker.connect(user).invoke(a)).to.not.be.reverted
+      await expect(multiInvoker.connect(user).invoke(a)).to.not.be.reverted
 
       expect(reserve.redeem).to.have.been.calledWith(dsuCollateral)
     })
