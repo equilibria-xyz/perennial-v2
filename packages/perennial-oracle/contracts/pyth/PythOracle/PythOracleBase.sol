@@ -4,15 +4,19 @@ pragma solidity 0.8.19;
 import "@openzeppelin/contracts/utils/math/SafeCast.sol";
 import "@pythnetwork/pyth-sdk-solidity/AbstractPyth.sol";
 import "@equilibria/root/attribute/Instance.sol";
-import "@equilibria/root/attribute/Kept.sol";
-import "../interfaces/IPythFactory.sol";
+import "../../interfaces/IPythFactory.sol";
 
-/// @title PythOracle
+/// @dev PythStaticFee interface. This is not exposed in the AbstractPyth contract
+interface IPythStaticFee {
+    function singleUpdateFeeInWei() external view returns (uint);
+}
+
+/// @title PythOracleBase
 /// @notice Pyth implementation of the IOracle interface.
 /// @dev One instance per Pyth price feed should be deployed. Multiple products may use the same
 ///      PythOracle instance if their payoff functions are based on the same underlying oracle.
 ///      This implementation only supports non-negative prices.
-contract PythOracle is IPythOracle, Instance, Kept {
+abstract contract PythOracleBase is IPythOracle, Instance {
     /// @dev A Pyth update must come at least this long after a version to be valid
     uint256 constant public MIN_VALID_TIME_AFTER_VERSION = 4 seconds;
 
@@ -53,19 +57,16 @@ contract PythOracle is IPythOracle, Instance, Kept {
     /// @dev We assume that we cannot commit an oracle version of 0, so `_latestVersion` being 0 means that no version has been committed yet
     uint256 private _latestVersion;
 
-     /// @notice Initializes the immutable contract state
-     /// @param pyth_ Pyth contract
+    /// @notice Initializes the immutable contract state
+    /// @param pyth_ Pyth contract
     constructor(AbstractPyth pyth_) {
         pyth = pyth_;
     }
 
     /// @notice Initializes the contract state
     /// @param id_ price ID for Pyth price feed
-    /// @param chainlinkFeed_ Chainlink price feed for rewarding keeper in DSU
-    /// @param dsu_ Token to pay the keeper reward in
-    function initialize(bytes32 id_, AggregatorV3Interface chainlinkFeed_, Token18 dsu_) external initializer(1) {
+    function __PythOracleBase__initialize(bytes32 id_) internal onlyInitializer {
         __Instance__initialize();
-        __UKept__initialize(chainlinkFeed_, dsu_);
 
         if (!pyth.priceFeedExists(id_)) revert PythOracleInvalidPriceIdError(id_);
 
@@ -107,7 +108,6 @@ contract PythOracle is IPythOracle, Instance, Kept {
         return IPythFactory(address(factory())).current();
     }
 
-
     /// @notice Returns the oracle version at version `version`
     /// @param timestamp The timestamp of which to lookup
     /// @return oracleVersion Oracle version at version `version`
@@ -127,11 +127,7 @@ contract PythOracle is IPythOracle, Instance, Kept {
     /// @dev Will revert if there is an earlier versionIndex that could be committed with `updateData`
     /// @param versionIndex The index of the version to commit
     /// @param updateData The update data to commit
-    function commitRequested(uint256 versionIndex, bytes calldata updateData)
-        public
-        payable
-        keep(KEEPER_REWARD_PREMIUM, KEEPER_BUFFER, "")
-    {
+    function commitRequested(uint256 versionIndex, bytes calldata updateData) public virtual payable {
         // This check isn't necessary since the caller would not be able to produce a valid updateData
         // with an update time corresponding to a null version, but reverting with a specific error is
         // clearer.
@@ -212,7 +208,10 @@ contract PythOracle is IPythOracle, Instance, Kept {
         bytes32[] memory idList = new bytes32[](1);
         idList[0] = id;
 
-        return pyth.parsePriceFeedUpdates{value: pyth.getUpdateFee(updateDataList)}(
+        // Limit the value passed in the single update fee * number of updates to prevent packing the update data
+        // with extra updates to increase the keeper fee. When Pyth updates their fee calculations
+        // we will need to modify this to account for the new fee logic.
+        return pyth.parsePriceFeedUpdates{value: IPythStaticFee(address(pyth)).singleUpdateFeeInWei() * idList.length}(
             updateDataList,
             idList,
             SafeCast.toUint64(oracleVersion + MIN_VALID_TIME_AFTER_VERSION),
@@ -233,7 +232,7 @@ contract PythOracle is IPythOracle, Instance, Kept {
 
     /// @notice Pulls funds from the factory to reward the keeper
     /// @param keeperFee The keeper fee to pull
-    function _raiseKeeperFee(UFixed18 keeperFee, bytes memory) internal override {
+    function _claimAndSendKeeperFee(UFixed18 keeperFee) internal {
         IPythFactory(address(factory())).claim(UFixed6Lib.from(keeperFee, true));
     }
 

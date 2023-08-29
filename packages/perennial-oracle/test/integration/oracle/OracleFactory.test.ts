@@ -11,7 +11,7 @@ import {
   OracleFactory__factory,
   PythFactory,
   PythFactory__factory,
-  PythOracle__factory,
+  PythOracle_Arbitrum__factory,
 } from '../../../types/generated'
 import { parse6decimal } from '../../../../common/testutil/types'
 
@@ -39,7 +39,7 @@ describe('OracleFactory', () => {
     await oracleFactory.initialize(dsu.address)
     await oracleFactory.updateMaxClaim(parse6decimal('10'))
 
-    const pythOracleImpl = await new PythOracle__factory(owner).deploy(PYTH_ADDRESS)
+    const pythOracleImpl = await new PythOracle_Arbitrum__factory(owner).deploy(PYTH_ADDRESS)
     pythOracleFactory = await new PythFactory__factory(owner).deploy(
       pythOracleImpl.address,
       CHAINLINK_ETH_USD_FEED,
@@ -59,7 +59,7 @@ describe('OracleFactory', () => {
 
   describe('#update', async () => {
     it('can update the price id', async () => {
-      const pythOracleImpl2 = await new PythOracle__factory(owner).deploy(PYTH_ADDRESS)
+      const pythOracleImpl2 = await new PythOracle_Arbitrum__factory(owner).deploy(PYTH_ADDRESS)
       const pythOracleFactory2 = await new PythFactory__factory(owner).deploy(
         pythOracleImpl2.address,
         CHAINLINK_ETH_USD_FEED,
