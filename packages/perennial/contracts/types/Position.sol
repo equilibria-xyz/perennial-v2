@@ -412,6 +412,10 @@ library PositionStorageGlobalLib {
     function store(PositionStorageGlobal storage self, Position memory newValue) internal {
         PositionStorageLib.validate(newValue);
 
+        if (newValue.maker.gt(UFixed6.wrap(type(uint64).max))) revert PositionStorageLib.PositionStorageInvalidError();
+        if (newValue.long.gt(UFixed6.wrap(type(uint64).max))) revert PositionStorageLib.PositionStorageInvalidError();
+        if (newValue.short.gt(UFixed6.wrap(type(uint64).max))) revert PositionStorageLib.PositionStorageInvalidError();
+
         uint256 encoded0 =
             uint256(newValue.timestamp << (256 - 32)) >> (256 - 32) |
             uint256(UFixed6.unwrap(newValue.fee) << (256 - 48)) >> (256 - 32 - 48) |
@@ -477,6 +481,10 @@ library PositionStorageLocalLib {
     function store(PositionStorageLocal storage self, Position memory newValue) internal {
         PositionStorageLib.validate(newValue);
 
+        if (newValue.maker.gt(UFixed6.wrap(2 ** 62 - 1))) revert PositionStorageLib.PositionStorageInvalidError();
+        if (newValue.long.gt(UFixed6.wrap(2 ** 62 - 1))) revert PositionStorageLib.PositionStorageInvalidError();
+        if (newValue.short.gt(UFixed6.wrap(2 ** 62 - 1))) revert PositionStorageLib.PositionStorageInvalidError();
+
         uint256 direction = newValue.long.isZero() ? (newValue.short.isZero() ? 0 : 2) : 1;
 
         uint256 encoded0 =
@@ -504,9 +512,6 @@ library PositionStorageLib {
 
     function validate(Position memory newValue) internal pure {
         if (newValue.timestamp > type(uint32).max) revert PositionStorageInvalidError();
-        if (newValue.maker.gt(UFixed6.wrap(type(uint64).max))) revert PositionStorageInvalidError();
-        if (newValue.long.gt(UFixed6.wrap(type(uint64).max))) revert PositionStorageInvalidError();
-        if (newValue.short.gt(UFixed6.wrap(type(uint64).max))) revert PositionStorageInvalidError();
         if (newValue.fee.gt(UFixed6.wrap(type(uint48).max))) revert PositionStorageInvalidError();
         if (newValue.keeper.gt(UFixed6.wrap(type(uint48).max))) revert PositionStorageInvalidError();
         if (newValue.collateral.gt(Fixed6.wrap(type(int64).max))) revert PositionStorageInvalidError();

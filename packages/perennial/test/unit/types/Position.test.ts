@@ -39,6 +39,7 @@ const VALID_ORDER: OrderStruct = {
 
 // TODO: tests for new fields
 // TODO: run coverage
+// TODO: add overclose test
 
 describe('Position', () => {
   let owner: SignerWithAddress
@@ -636,56 +637,6 @@ describe('Position', () => {
           })
         })
       })
-
-      describe('#singleSided', () => {
-        context('only makers', () => {
-          it('returns true', async () => {
-            await position.store({
-              ...VALID_GLOBAL_POSITION,
-              long: 0,
-              short: 0,
-              maker: parse6decimal('2'),
-            })
-            expect(await position.singleSided()).to.equal(true)
-          })
-        })
-
-        context('only longs', () => {
-          it('returns true', async () => {
-            await position.store({
-              ...VALID_GLOBAL_POSITION,
-              long: parse6decimal('2'),
-              short: 0,
-              maker: 0,
-            })
-            expect(await position.singleSided()).to.equal(true)
-          })
-        })
-
-        context('only shorts', () => {
-          it('returns true', async () => {
-            await position.store({
-              ...VALID_GLOBAL_POSITION,
-              long: 0,
-              short: parse6decimal('2'),
-              maker: 0,
-            })
-            expect(await position.singleSided()).to.equal(true)
-          })
-        })
-
-        context('mix of positions', () => {
-          it('returns false', async () => {
-            await position.store({
-              ...VALID_GLOBAL_POSITION,
-              long: parse6decimal('1'),
-              short: parse6decimal('1'),
-              maker: parse6decimal('1'),
-            })
-            expect(await position.singleSided()).to.equal(false)
-          })
-        })
-      })
     })
 
     describe('update functions', () => {
@@ -791,7 +742,7 @@ describe('Position', () => {
 
       describe('#invalidate', () => {
         it('sets the position to latestPosition and zeroes fee', async () => {
-          const latestPosition = {
+          const newPosition = {
             ...VALID_GLOBAL_POSITION,
             maker: 50,
             long: 60,
@@ -800,13 +751,12 @@ describe('Position', () => {
 
           await position.store({ ...VALID_GLOBAL_POSITION, fee: 100 })
 
-          await position.invalidate(latestPosition)
+          await position.invalidate(newPosition)
           const value = await position.read()
 
-          expect(value.maker).to.equal(50)
-          expect(value.long).to.equal(60)
-          expect(value.short).to.equal(70)
-          expect(value.fee).to.equal(0)
+          expect(value.invalidation.maker).to.equal(-37)
+          expect(value.invalidation.long).to.equal(-45)
+          expect(value.invalidation.short).to.equal(-53)
         })
       })
 
@@ -868,9 +818,9 @@ describe('Position', () => {
       collateral: 5,
       delta: 6,
       invalidation: {
-        maker: 0, // unused
-        long: 0, // unused
-        short: 0, // unused
+        maker: 10,
+        long: 11,
+        short: 12,
       },
     }
 
@@ -967,7 +917,7 @@ describe('Position', () => {
       })
 
       describe('.maker', async () => {
-        const STORAGE_SIZE = 64
+        const STORAGE_SIZE = 62
         it('saves if in range', async () => {
           await position.store({
             ...VALID_LOCAL_POSITION,
@@ -988,7 +938,7 @@ describe('Position', () => {
       })
 
       describe('.long', async () => {
-        const STORAGE_SIZE = 64
+        const STORAGE_SIZE = 62
         it('saves if in range', async () => {
           await position.store({
             ...VALID_LOCAL_POSITION,
@@ -1009,7 +959,7 @@ describe('Position', () => {
       })
 
       describe('.short', async () => {
-        const STORAGE_SIZE = 64
+        const STORAGE_SIZE = 62
         it('saves if in range', async () => {
           await position.store({
             ...VALID_LOCAL_POSITION,
@@ -1459,9 +1409,9 @@ describe('Position', () => {
           expect(value.keeper).to.equal(4)
           expect(value.collateral).to.equal(5)
           expect(value.delta).to.equal(6)
-          expect(value.invalidation.maker).to.equal(0)
-          expect(value.invalidation.long).to.equal(0)
-          expect(value.invalidation.short).to.equal(0)
+          expect(value.invalidation.maker).to.equal(10)
+          expect(value.invalidation.long).to.equal(11)
+          expect(value.invalidation.short).to.equal(12)
         })
       })
 
@@ -1646,20 +1596,19 @@ describe('Position', () => {
 
       describe('#invalidate', () => {
         it('sets the position to latestPosition and zeroes fee', async () => {
-          const latestPosition = {
+          const newPosition = {
             ...VALID_LOCAL_POSITION,
             short: 70,
           }
 
           await position.store({ ...VALID_LOCAL_POSITION, fee: 100 })
 
-          await position.invalidate(latestPosition)
+          await position.invalidate(newPosition)
           const value = await position.read()
 
-          expect(value.maker).to.equal(0)
-          expect(value.long).to.equal(0)
-          expect(value.short).to.equal(70)
-          expect(value.fee).to.equal(0)
+          expect(value.invalidation.maker).to.equal(10)
+          expect(value.invalidation.long).to.equal(11)
+          expect(value.invalidation.short).to.equal(-58)
         })
       })
 

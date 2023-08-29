@@ -5,7 +5,6 @@ import "@equilibria/root/attribute/Instance.sol";
 import "@equilibria/root/attribute/ReentrancyGuard.sol";
 import "./interfaces/IMarket.sol";
 import "./interfaces/IMarketFactory.sol";
-import "hardhat/console.sol";
 
 /// @title Market
 /// @notice Manages logic and state for a single market.
@@ -258,6 +257,8 @@ contract Market is IMarket, Instance, ReentrancyGuard {
         context.currentPosition = _loadCurrentPositionContext(context, account);
 
         // magic values
+        // TODO: add magic number for close
+        // TODO: can you no-op the same version with this change
         if (collateral.eq(Fixed6Lib.MIN)) collateral = context.local.collateral.mul(Fixed6Lib.NEG_ONE);
         if (newMaker.eq(UFixed6Lib.MAX)) newMaker = context.currentPosition.local.maker;
         if (newLong.eq(UFixed6Lib.MAX)) newLong = context.currentPosition.local.long;
@@ -492,7 +493,7 @@ contract Market is IMarket, Instance, ReentrancyGuard {
         (Position[] memory pendingLocalPositions, Fixed6 collateralAfterFees) = _loadPendingPositions(context, account);
 
         if (protected && (
-            !newOrder.closes(context.latestPosition.local, context.currentPosition.local) ||
+            !(newOrder.closes(context.latestPosition.local) || context.currentPosition.local.magnitude().isZero()) ||
             context.latestPosition.local.maintained(
                 context.latestVersion,
                 context.riskParameter,
@@ -513,7 +514,8 @@ contract Market is IMarket, Instance, ReentrancyGuard {
         if (!newOrder.singleSided(context.currentPosition.local))
             revert MarketNotSingleSidedError();
 
-        if (newOrder.overCloses(context.currentPosition.local))
+        // TODO: add check in vault
+        if (newOrder.overCloses(context.latestPosition.local))
             revert MarketOverCloseError();
 
         if (protected) return; // The following invariants do not apply to protected position updates (liquidations)

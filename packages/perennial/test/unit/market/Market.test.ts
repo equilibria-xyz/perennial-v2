@@ -21,6 +21,8 @@ import { MilliPowerTwo__factory } from '@equilibria/perennial-v2-payoff/types/ge
 const { ethers } = HRE
 use(smock.matchers)
 
+// TODO: add overclose test
+
 const POSITION = parse6decimal('10.000')
 const COLLATERAL = parse6decimal('10000')
 const TIMESTAMP = 1636401093
@@ -12397,7 +12399,9 @@ describe('Market', () => {
           oracle.status.returns([ORACLE_VERSION_2, ORACLE_VERSION_3.timestamp])
           oracle.request.whenCalledWith(user.address).returns()
 
-          await market.connect(user).update(user.address, 0, 0, POSITION.div(2), 0, false)
+          dsu.transferFrom.whenCalledWith(userC.address, market.address, COLLATERAL.mul(1e12)).returns(true)
+          await market.connect(user).update(user.address, 0, 0, 0, 0, false)
+          await market.connect(userC).update(userC.address, 0, 0, POSITION.div(2), COLLATERAL, false)
 
           oracle.at.whenCalledWith(ORACLE_VERSION_3.timestamp).returns(ORACLE_VERSION_3)
 
@@ -12407,26 +12411,22 @@ describe('Market', () => {
 
           await settle(market, user)
           await settle(market, userB)
+          await settle(market, userC)
 
           expectLocalEq(await market.locals(user.address), {
             currentId: 3,
             latestId: 2,
-            collateral: COLLATERAL.sub(EXPECTED_FUNDING_WITH_FEE_1_5_123)
-              .sub(EXPECTED_INTEREST_5_123)
-              .add(EXPECTED_FUNDING_WITHOUT_FEE_1_5_123)
-              .sub(EXPECTED_INTEREST_5_123),
-            reward: EXPECTED_REWARD.mul(2).add(EXPECTED_REWARD),
+            collateral: COLLATERAL.sub(EXPECTED_FUNDING_WITH_FEE_1_5_123).sub(EXPECTED_INTEREST_5_123),
+            reward: EXPECTED_REWARD.mul(2),
             protection: 0,
           })
           expectPositionEq(await market.positions(user.address), {
             ...DEFAULT_POSITION,
             timestamp: ORACLE_VERSION_4.timestamp,
-            short: POSITION.div(2),
           })
           expectPositionEq(await market.pendingPositions(user.address, 3), {
             ...DEFAULT_POSITION,
             timestamp: ORACLE_VERSION_5.timestamp,
-            short: POSITION.div(2),
             delta: COLLATERAL,
           })
           expectLocalEq(await market.locals(userB.address), {
@@ -12449,6 +12449,24 @@ describe('Market', () => {
             ...DEFAULT_POSITION,
             timestamp: ORACLE_VERSION_5.timestamp,
             maker: POSITION,
+            delta: COLLATERAL,
+          })
+          expectLocalEq(await market.locals(userC.address), {
+            currentId: 2,
+            latestId: 1,
+            collateral: COLLATERAL.add(EXPECTED_FUNDING_WITHOUT_FEE_1_5_123).sub(EXPECTED_INTEREST_5_123),
+            reward: EXPECTED_REWARD,
+            protection: 0,
+          })
+          expectPositionEq(await market.positions(userC.address), {
+            ...DEFAULT_POSITION,
+            timestamp: ORACLE_VERSION_4.timestamp,
+            short: POSITION.div(2),
+          })
+          expectPositionEq(await market.pendingPositions(userC.address, 2), {
+            ...DEFAULT_POSITION,
+            timestamp: ORACLE_VERSION_5.timestamp,
+            short: POSITION.div(2),
             delta: COLLATERAL,
           })
           const totalFee = EXPECTED_FUNDING_FEE_1_5_123.add(EXPECTED_INTEREST_FEE_5_123)
@@ -12503,7 +12521,9 @@ describe('Market', () => {
           oracle.status.returns([ORACLE_VERSION_2, ORACLE_VERSION_3.timestamp])
           oracle.request.whenCalledWith(user.address).returns()
 
-          await market.connect(user).update(user.address, 0, 0, POSITION.div(2), 0, false)
+          dsu.transferFrom.whenCalledWith(userC.address, market.address, COLLATERAL.mul(1e12)).returns(true)
+          await market.connect(user).update(user.address, 0, 0, 0, 0, false)
+          await market.connect(userC).update(userC.address, 0, 0, POSITION.div(2), COLLATERAL, false)
 
           oracle.at.whenCalledWith(ORACLE_VERSION_3.timestamp).returns(ORACLE_VERSION_3)
 
@@ -12513,26 +12533,22 @@ describe('Market', () => {
 
           await settle(market, user)
           await settle(market, userB)
+          await settle(market, userC)
 
           expectLocalEq(await market.locals(user.address), {
             currentId: 3,
             latestId: 2,
-            collateral: COLLATERAL.sub(EXPECTED_FUNDING_WITH_FEE_1_5_123)
-              .sub(EXPECTED_INTEREST_5_123)
-              .sub(EXPECTED_FUNDING_WITH_FEE_1_5_123)
-              .sub(EXPECTED_INTEREST_5_123),
-            reward: EXPECTED_REWARD.mul(2).add(EXPECTED_REWARD),
+            collateral: COLLATERAL.sub(EXPECTED_FUNDING_WITH_FEE_1_5_123).sub(EXPECTED_INTEREST_5_123),
+            reward: EXPECTED_REWARD.mul(2),
             protection: 0,
           })
           expectPositionEq(await market.positions(user.address), {
             ...DEFAULT_POSITION,
             timestamp: ORACLE_VERSION_4.timestamp,
-            short: POSITION.div(2),
           })
           expectPositionEq(await market.pendingPositions(user.address, 3), {
             ...DEFAULT_POSITION,
             timestamp: ORACLE_VERSION_5.timestamp,
-            short: POSITION.div(2),
             delta: COLLATERAL,
           })
           expectLocalEq(await market.locals(userB.address), {
@@ -12555,6 +12571,24 @@ describe('Market', () => {
             ...DEFAULT_POSITION,
             timestamp: ORACLE_VERSION_5.timestamp,
             maker: POSITION,
+            delta: COLLATERAL,
+          })
+          expectLocalEq(await market.locals(userC.address), {
+            currentId: 2,
+            latestId: 1,
+            collateral: COLLATERAL.sub(EXPECTED_FUNDING_WITH_FEE_1_5_123).sub(EXPECTED_INTEREST_5_123),
+            reward: EXPECTED_REWARD,
+            protection: 0,
+          })
+          expectPositionEq(await market.positions(userC.address), {
+            ...DEFAULT_POSITION,
+            timestamp: ORACLE_VERSION_4.timestamp,
+            short: POSITION.div(2),
+          })
+          expectPositionEq(await market.pendingPositions(userC.address, 2), {
+            ...DEFAULT_POSITION,
+            timestamp: ORACLE_VERSION_5.timestamp,
+            short: POSITION.div(2),
             delta: COLLATERAL,
           })
           const totalFee = EXPECTED_FUNDING_FEE_1_5_123.add(EXPECTED_INTEREST_FEE_5_123)

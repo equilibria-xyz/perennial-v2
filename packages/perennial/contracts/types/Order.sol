@@ -101,16 +101,14 @@ library OrderLib {
     ///      entire current position
     /// @param self The order object to check
     /// @param latestPosition The latest position to check
-    /// @param currentPosition The current position to check
     /// @return Whether the order closes the position
     function closes(
         Order memory self,
-        Position memory latestPosition,
-        Position memory currentPosition
+        Position memory latestPosition
     ) internal pure returns (bool) {
-        return (Fixed6Lib.from(latestPosition.maker.min(currentPosition.maker)).add(self.maker).isZero()) &&
-            (Fixed6Lib.from(latestPosition.long.min(currentPosition.long)).add(self.long).isZero()) &&
-            (Fixed6Lib.from(latestPosition.short.min(currentPosition.short)).add(self.short).isZero());
+        return (Fixed6Lib.from(latestPosition.maker).add(self.maker).isZero()) &&
+            (Fixed6Lib.from(latestPosition.long).add(self.long).isZero()) &&
+            (Fixed6Lib.from(latestPosition.short).add(self.short).isZero());
     }
 
     /// @notice Returns the whether the order over closes the latest position
