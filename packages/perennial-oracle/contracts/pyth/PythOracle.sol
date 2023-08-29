@@ -141,6 +141,7 @@ contract PythOracle is IPythOracle, Instance, Kept {
         uint256 versionToCommit = versionList[versionIndex];
         PythStructs.Price memory pythPrice = _validateAndGetPrice(versionToCommit, updateData);
 
+        // Price must be more recent than that of the most recently committed version
         if (pythPrice.publishTime <= lastCommittedPublishTime) revert PythOracleNonIncreasingPublishTimes();
         lastCommittedPublishTime = pythPrice.publishTime;
 
@@ -184,6 +185,10 @@ contract PythOracle is IPythOracle, Instance, Kept {
         }
 
         PythStructs.Price memory pythPrice = _validateAndGetPrice(oracleVersion, updateData);
+
+        // Price must be more recent than that of the most recently committed version
+        if (pythPrice.publishTime <= lastCommittedPublishTime) revert PythOracleNonIncreasingPublishTimes();
+        lastCommittedPublishTime = pythPrice.publishTime;
 
         // Oracle version must be more recent than that of the most recently committed version
         uint256 minVersion = _latestVersion;

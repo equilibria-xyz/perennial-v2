@@ -367,14 +367,14 @@ describe('PythOracle', () => {
     })
 
     it('must be more recent than the most recently committed version', async () => {
-      await time.increase(60)
+      await time.increase(2)
       await pythOracle.connect(oracleSigner).request(user.address)
-      await pythOracle.connect(user).commit(0, STARTING_TIME + 60, VAA_AFTER_EXPIRATION, {
+      await pythOracle.connect(user).commit(0, STARTING_TIME + 2, VAA, {
         value: 1,
       })
 
       await expect(
-        pythOracle.connect(user).commit(1, STARTING_TIME, VAA, {
+        pythOracle.connect(user).commit(1, STARTING_TIME + 1, OTHER_VAA, {
           value: 1,
         }),
       ).to.revertedWithCustomError(pythOracle, 'PythOracleVersionOutsideRangeError')
@@ -453,17 +453,19 @@ describe('PythOracle', () => {
       ).to.be.revertedWithCustomError(pythOracle, 'PythOracleVersionOutsideRangeError')
     })
 
-    it('fails to commit non-requested version out of order', async () => {
-      await time.increase(61)
-      await pythOracle.connect(user).commit(0, STARTING_TIME + 60, VAA_AFTER_EXPIRATION, {
+    it('does not allow committing non-requested versions with out of order VAA publish times', async () => {
+      await time.increase(1)
+      await pythOracle.connect(oracleSigner).request(user.address)
+
+      await pythOracle.connect(user).commitRequested(0, OTHER_VAA, {
         value: 1,
       })
 
       await expect(
-        pythOracle.connect(user).commit(0, STARTING_TIME, VAA, {
+        pythOracle.connect(user).commit(1, STARTING_TIME + 2, VAA, {
           value: 1,
         }),
-      ).to.revertedWithCustomError(pythOracle, 'PythOracleVersionOutsideRangeError')
+      ).to.revertedWithCustomError(pythOracle, 'PythOracleNonIncreasingPublishTimes')
     })
   })
 
