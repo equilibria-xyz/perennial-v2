@@ -115,7 +115,7 @@ describe('Oracle', () => {
 
     context('updates the oracle w/o sync', async () => {
       beforeEach(async () => {
-        await expect(oracle.connect(owner).update(underlying1.address))
+        await expect(oracle.connect(oracleFactorySigner).update(underlying1.address))
           .to.emit(oracle, 'OracleUpdated')
           .withArgs(underlying1.address)
       })
@@ -172,7 +172,7 @@ describe('Oracle', () => {
       it('reverts when oracle out of sync', async () => {
         const underlying2 = await smock.fake<IOracleProvider>('IOracleProvider')
 
-        await expect(oracle.connect(owner).update(underlying2.address)).to.revertedWithCustomError(
+        await expect(oracle.connect(oracleFactorySigner).update(underlying2.address)).to.revertedWithCustomError(
           oracle,
           'OracleOutOfSyncError',
         )
@@ -200,7 +200,7 @@ describe('Oracle', () => {
           1687230905,
         )
         await oracle.connect(caller).request(user.address)
-        await expect(oracle.connect(owner).update(underlying1.address))
+        await expect(oracle.connect(oracleFactorySigner).update(underlying1.address))
           .to.emit(oracle, 'OracleUpdated')
           .withArgs(underlying1.address)
       })
@@ -496,9 +496,10 @@ describe('Oracle', () => {
     })
 
     it('reverts when not the owner', async () => {
-      await expect(oracle.connect(user).update(underlying1.address))
-        .to.revertedWithCustomError(oracle, 'InstanceNotOwnerError')
-        .withArgs(user.address)
+      await expect(oracle.connect(user).update(underlying1.address)).to.revertedWithCustomError(
+        oracle,
+        'OracleNotFactoryError',
+      )
     })
   })
 
