@@ -390,6 +390,24 @@ describe('MultiInvoker', () => {
     })
 
     describe('#reverts on', async () => {
+      it('reverts update, vaultUpdate, placeOrder on InvalidInstanceError', async () => {
+        await expect(
+          multiInvoker.connect(user).invoke(helpers.buildUpdateMarket({ market: vault.address })),
+        ).to.be.revertedWithCustomError(multiInvoker, 'MultiInvokerInvalidInstanceError')
+
+        await expect(
+          multiInvoker.connect(user).invoke(helpers.buildUpdateVault({ vault: market.address })),
+        ).to.be.revertedWithCustomError(multiInvoker, 'MultiInvokerInvalidInstanceError')
+
+        const trigger = openTriggerOrder({ size: collateral, price: 1100e6 })
+
+        await expect(
+          multiInvoker
+            .connect(user)
+            .invoke(buildPlaceOrder({ market: vault.address, collateral: collateral, order: trigger })),
+        ).to.be.revertedWithCustomError(multiInvoker, 'MultiInvokerInvalidInstanceError')
+      })
+
       it('reverts placeOrder on InvalidOrderError', async () => {
         // Case 0 fee
         let trigger = openTriggerOrder({ size: position, price: BigNumber.from(1100e6), feePct: 0 })

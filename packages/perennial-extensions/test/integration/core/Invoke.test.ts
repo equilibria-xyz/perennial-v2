@@ -24,7 +24,7 @@ import {
   ETH_ORACLE,
 } from '../helpers/setupHelpers'
 
-import { buildApproveTarget, buildUpdateMarket, buildUpdateVault } from '../../helpers/invoke'
+import { buildApproveTarget, buildPlaceOrder, buildUpdateMarket, buildUpdateVault } from '../../helpers/invoke'
 import { parse6decimal } from '../../../../common/testutil/types'
 import { expect, use } from 'chai'
 import { FakeContract, smock } from '@defi-wonderland/smock'
@@ -32,6 +32,7 @@ import { ethers } from 'hardhat'
 import { BigNumber } from 'ethers'
 import { anyValue } from '@nomicfoundation/hardhat-chai-matchers/withArgs'
 import { emptysetBatcher } from '../../../types/generated/@equilibria'
+import { openTriggerOrder } from '../../helpers/types'
 
 use(smock.matchers)
 
@@ -486,6 +487,25 @@ describe('Invoke', () => {
 
       await expect(
         multiInvoker.connect(user).invoke(buildUpdateVault({ vault: market.address })),
+      ).to.be.revertedWithCustomError(multiInvoker, 'MultiInvokerInvalidInstanceError')
+    })
+
+    it('Only allows liquidations to factory created markets', async () => {
+      const { user } = instanceVars
+
+      await expect(
+        multiInvoker.connect(user).invoke(buildUpdateMarket({ market: vault.address })),
+      ).to.be.revertedWithCustomError(multiInvoker, 'MultiInvokerInvalidInstanceError')
+    })
+
+    it('Fails to place an order in an address not created by MarketFactory', async () => {
+      const { user } = instanceVars
+
+      const trigger = openTriggerOrder({ size: collateral, price: 1100e6 })
+      await expect(
+        multiInvoker
+          .connect(user)
+          .invoke(buildPlaceOrder({ market: vault.address, collateral: collateral, order: trigger })),
       ).to.be.revertedWithCustomError(multiInvoker, 'MultiInvokerInvalidInstanceError')
     })
 
