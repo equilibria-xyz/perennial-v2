@@ -1227,6 +1227,46 @@ describe('Vault', () => {
       expect(await vault.convertToShares(parse6decimal('1004').add(0))).to.equal(parse6decimal('1000'))
     })
 
+    it('zero address settle w/ settlement fee', async () => {
+      const makerFee = parse6decimal('0.001')
+      const riskParameters = { ...(await market.riskParameter()) }
+      riskParameters.makerFee = makerFee
+      await market.updateRiskParameter(riskParameters)
+      const btcRiskParameters = { ...(await btcMarket.riskParameter()) }
+      btcRiskParameters.makerFee = makerFee
+      await btcMarket.updateRiskParameter(btcRiskParameters)
+
+      const settlementFee = parse6decimal('1.00')
+      const marketParameter = { ...(await market.parameter()) }
+      marketParameter.settlementFee = settlementFee
+      await market.connect(owner).updateParameter(marketParameter)
+      const btcMarketParameter = { ...(await btcMarket.parameter()) }
+      btcMarketParameter.settlementFee = settlementFee
+      await btcMarket.connect(owner).updateParameter(btcMarketParameter)
+
+      expect(await vault.convertToAssets(parse6decimal('1'))).to.equal(parse6decimal('1'))
+      expect(await vault.convertToShares(parse6decimal('1'))).to.equal(parse6decimal('1'))
+
+      const smallDeposit = parse6decimal('1000')
+      const largeDeposit = parse6decimal('10000')
+      await vault.connect(user).update(user.address, smallDeposit, 0, 0)
+      await vault.connect(user2).update(user2.address, largeDeposit, 0, 0)
+      await updateOracle()
+      await vault.settle(constants.AddressZero)
+      await vault.settle(user.address)
+      await vault.settle(user2.address)
+
+      await vault.connect(user).update(user.address, 0, constants.MaxUint256, 0)
+      await vault.connect(user2).update(user2.address, 0, constants.MaxUint256, 0)
+      await updateOracle()
+      await vault.settle(constants.AddressZero)
+      await vault.settle(user.address)
+      await vault.settle(user2.address)
+
+      const totalAssets = BigNumber.from('10906553351')
+      expect((await vault.accounts(constants.AddressZero)).assets).to.equal(totalAssets)
+    })
+
     it('reverts when below settlement fee', async () => {
       const settlementFee = parse6decimal('1.00')
       const marketParameter = { ...(await market.parameter()) }

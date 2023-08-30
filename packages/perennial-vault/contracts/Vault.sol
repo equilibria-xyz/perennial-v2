@@ -451,8 +451,8 @@ contract Vault is IVault, Instance {
             context.currentIds.update(marketId, local.currentId);
         }
 
-        context.global = _accounts[address(0)].read();
         if (account != address(0)) context.local = _accounts[account].read();
+        context.global = _accounts[address(0)].read();
         context.latestCheckpoint = _checkpoints[context.global.latest].read();
     }
 
@@ -460,8 +460,8 @@ contract Vault is IVault, Instance {
     /// @param context Context to use
     /// @param account Account to save the context for
     function _saveContext(Context memory context, address account) private {
-        _accounts[address(0)].store(context.global);
         if (account != address(0)) _accounts[account].store(context.local);
+        _accounts[address(0)].store(context.global);
         _checkpoints[context.currentId].store(context.currentCheckpoint);
     }
 
