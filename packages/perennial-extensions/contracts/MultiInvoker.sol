@@ -168,7 +168,7 @@ contract MultiInvoker is IMultiInvoker, Kept {
     /// @param newLong New long position for msg.sender in `market`
     /// @param newShort New short position for msg.sender in `market`
     /// @param collateral Net change in collateral for msg.sender in `market`
-    /// @param wrap Weather to wrap/unwrap collateral on deposit/withdrawal
+    /// @param wrap Wheather to wrap/unwrap collateral on deposit/withdrawal
     function _update(
         IMarket market,
         UFixed6 newMaker,
@@ -177,26 +177,27 @@ contract MultiInvoker is IMultiInvoker, Kept {
         Fixed6 collateral,
         bool wrap
     ) internal {
-
         Fixed18 balanceBefore;
         // collateral is transferred from this address to the market, transfer from msg.sender to here
         if (collateral.sign() == 1) _deposit(collateral.abs(), wrap);
         else balanceBefore = Fixed18Lib.from(DSU.balanceOf());
-           console.log("balance before: ");
-            console.logInt(Fixed6.unwrap(Fixed6Lib.from(balanceBefore)));
+
+        //console.log("balance before: ");
+        //console.logInt(Fixed6.unwrap(Fixed6Lib.from(balanceBefore)));
+
         market.update(msg.sender, newMaker, newLong, newShort, collateral, false);
 
         Fixed6 withdrawAmount = collateral.sign() == 1 ?
             Fixed6Lib.ZERO :
             Fixed6Lib.from(Fixed18Lib.from(DSU.balanceOf()).sub(balanceBefore));
 
-        if(!withdrawAmount.isZero()) {
-            console.log("withdraw amount: ");
-            console.logInt(Fixed6.unwrap(withdrawAmount));
+        // if(!withdrawAmount.isZero()) {
+        //     console.log("withdraw amount: ");
+        //     console.logInt(Fixed6.unwrap(withdrawAmount));
 
-            console.log("balance after: ");
-            console.logInt(Fixed6.unwrap(Fixed6Lib.from(Fixed18Lib.from(DSU.balanceOf()))));
-        }
+        //     console.log("balance after: ");
+        //     console.logInt(Fixed6.unwrap(Fixed6Lib.from(Fixed18Lib.from(DSU.balanceOf()))));
+        // }
 
         // collateral is transferred from the market to this address, transfer to msg.sender from here
         if (!withdrawAmount.isZero()) _withdraw(msg.sender, withdrawAmount.abs(), wrap);
@@ -215,10 +216,6 @@ contract MultiInvoker is IMultiInvoker, Kept {
         UFixed6 claimAssets,
         bool wrap
     ) internal {
-        // target vault must be created from factory
-        if(!vaultFactory.instances(IInstance(vault)))
-            revert MultiInvokerInvalidTargetError();
-
         if (!depositAssets.isZero()) {
             _deposit(depositAssets, wrap);
         }
