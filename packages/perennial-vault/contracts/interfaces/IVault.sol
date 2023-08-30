@@ -70,7 +70,7 @@ interface IVault is IInstance {
     error RegistrationStorageInvalidError();
     error VaultParameterStorageInvalidError();
 
-    function initialize(Token18 asset, IMarket market, string calldata name_) external;
+    function initialize(Token18 asset, IMarket initialMaker, UFixed6 initialAmount, string calldata name_) external;
     function name() external view returns (string memory);
     function settle(address account) external;
     function update(address account, UFixed6 depositAssets, UFixed6 redeemShares, UFixed6 claimAssets) external;

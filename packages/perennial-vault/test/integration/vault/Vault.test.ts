@@ -22,7 +22,12 @@ import {
 import { BigNumber, constants } from 'ethers'
 import { deployProtocol, fundWallet, settle } from '@equilibria/perennial-v2/test/integration/helpers/setupHelpers'
 import { parse6decimal } from '../../../../common/testutil/types'
-import { TransparentUpgradeableProxy__factory } from '@equilibria/perennial-v2/types/generated'
+import {
+  MarketFactory,
+  ProxyAdmin,
+  TransparentUpgradeableProxy,
+  TransparentUpgradeableProxy__factory,
+} from '@equilibria/perennial-v2/types/generated'
 import { IOracle, IOracle__factory, OracleFactory } from '@equilibria/perennial-v2-oracle/types/generated'
 
 const { ethers } = HRE
@@ -56,6 +61,8 @@ describe('Vault', () => {
   let btcOracle: FakeContract<IOracleProvider>
   let btcMarket: IMarket
   let vaultSigner: SignerWithAddress
+  let marketFactory: MarketFactory
+  let proxyAdmin: ProxyAdmin
 
   async function updateOracle(newPrice?: BigNumber, newPriceBtc?: BigNumber) {
     await _updateOracleEth(newPrice)
@@ -125,6 +132,8 @@ describe('Vault', () => {
     ;[owner, pauser, user, user2, btcUser1, btcUser2, liquidator, perennialUser] = await ethers.getSigners()
     factory = instanceVars.marketFactory
     oracleFactory = instanceVars.oracleFactory
+    marketFactory = instanceVars.marketFactory
+    proxyAdmin = instanceVars.proxyAdmin
 
     vaultOracleFactory = await smock.fake<IOracleFactory>('IOracleFactory')
     await oracleFactory.connect(owner).register(vaultOracleFactory.address)
@@ -213,6 +222,7 @@ describe('Vault', () => {
     const vaultFactoryImpl = await new VaultFactory__factory(owner).deploy(
       instanceVars.marketFactory.address,
       vaultImpl.address,
+      0,
     )
     await instanceVars.proxyAdmin.upgrade(vaultFactoryProxy.address, vaultFactoryImpl.address)
     vaultFactory = IVaultFactory__factory.connect(vaultFactoryProxy.address, owner)
@@ -305,7 +315,7 @@ describe('Vault', () => {
 
   describe('#initialize', () => {
     it('cant re-initialize', async () => {
-      await expect(vault.initialize(asset.address, market.address, 'Blue Chip'))
+      await expect(vault.initialize(asset.address, market.address, 0, 'Blue Chip'))
         .to.revertedWithCustomError(vault, 'UInitializableAlreadyInitializedError')
         .withArgs(1)
     })
@@ -490,10 +500,10 @@ describe('Vault', () => {
       await updateOracle()
       await vault.settle(user.address)
 
-      const checkpoint1 = await vault.checkpoints(1)
+      const checkpoint1 = await vault.checkpoints(2)
       expect(checkpoint1.deposit).to.equal(smallDeposit)
       expect(checkpoint1.count).to.equal(1)
-      const mapping1 = await vault.mappings(1)
+      const mapping1 = await vault.mappings(2)
       expect(mapping1._ids[0]).to.equal(1)
       expect(mapping1._ids[1]).to.equal(1)
 
@@ -511,12 +521,12 @@ describe('Vault', () => {
       expect(await vault.convertToShares(parse6decimal('10'))).to.equal(parse6decimal('10'))
       await updateOracle()
       await vault.settle(user.address)
-      const checkpoint2 = await vault.checkpoints(2)
+      const checkpoint2 = await vault.checkpoints(3)
       expect(checkpoint2.deposit).to.equal(largeDeposit)
       expect(checkpoint2.assets).to.equal(smallDeposit)
       expect(checkpoint2.shares).to.equal(smallDeposit)
       expect(checkpoint2.count).to.equal(1)
-      const mapping2 = await vault.mappings(2)
+      const mapping2 = await vault.mappings(3)
       expect(mapping2._ids[0]).to.equal(2)
       expect(mapping2._ids[1]).to.equal(2)
 
@@ -1225,6 +1235,39 @@ describe('Vault', () => {
       expect((await vault.accounts(ethers.constants.AddressZero)).shares).to.equal(parse6decimal('1000'))
       expect(await vault.convertToAssets(parse6decimal('1000'))).to.equal(parse6decimal('1004').add(0))
       expect(await vault.convertToShares(parse6decimal('1004').add(0))).to.equal(parse6decimal('1000'))
+    })
+
+    it('simple deposits and redemptions w/ factory initial amount', async () => {
+      // re-setup vault w/ initial amount
+      const vaultFactoryProxy2 = await new TransparentUpgradeableProxy__factory(owner).deploy(
+        marketFactory.address, // dummy contract
+        proxyAdmin.address,
+        [],
+      )
+      const vaultImpl = await new Vault__factory(owner).deploy()
+      const vaultFactoryImpl = await new VaultFactory__factory(owner).deploy(
+        marketFactory.address,
+        vaultImpl.address,
+        parse6decimal('1'),
+      )
+      await proxyAdmin.upgrade(vaultFactoryProxy2.address, vaultFactoryImpl.address)
+      const vaultFactory2 = IVaultFactory__factory.connect(vaultFactoryProxy2.address, owner)
+      await vaultFactory2.initialize()
+
+      await fundWallet(asset, owner)
+      await asset.approve(vaultFactory2.address, ethers.utils.parseEther('1'))
+      const vault2 = IVault__factory.connect(
+        await vaultFactory2.callStatic.create(asset.address, market.address, 'Blue Chip'),
+        owner,
+      )
+      await vaultFactory2.create(asset.address, market.address, 'Blue Chip')
+
+      await updateOracle()
+
+      await vault2.settle(vaultFactory2.address)
+
+      expect((await vault2.accounts(vaultFactory2.address)).assets).to.equal(0)
+      expect((await vault2.accounts(vaultFactory2.address)).shares).to.equal(parse6decimal('1'))
     })
 
     it('zero address settle w/ settlement fee', async () => {
