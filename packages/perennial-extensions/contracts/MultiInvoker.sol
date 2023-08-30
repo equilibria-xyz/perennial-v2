@@ -176,14 +176,11 @@ contract MultiInvoker is IMultiInvoker, Kept {
         Fixed6 collateral,
         bool wrap
     ) internal {
-        // target market must be created from factory
-        if(!marketFactory.instances(IInstance(address(market))))
-            revert MultiInvokerInvalidTargetError();
 
-        UFixed18 balanceBefore;
+        Fixed18 balanceBefore;
         // collateral is transferred from this address to the market, transfer from msg.sender to here
-        if (collateral.sign() == 1) { _deposit(collateral.abs(), wrap); }
-        else { balanceBefore = DSU.balanceOf();}
+        if (collateral.sign() == 1) _deposit(collateral.abs(), wrap);
+        else balanceBefore = Fixed18Lib.from(DSU.balanceOf());
 
         market.update(msg.sender, newMaker, newLong, newShort, collateral, false);
 
@@ -191,7 +188,7 @@ contract MultiInvoker is IMultiInvoker, Kept {
             Fixed6Lib.ZERO :
             !collateral.eq(Fixed6Lib.MIN) ?
                 collateral :
-                Fixed6Lib.from(Fixed18Lib.from(DSU.balanceOf().sub(balanceBefore)));
+                Fixed6Lib.from(Fixed18Lib.from(DSU.balanceOf()).sub(balanceBefore));
 
         // collateral is transferred from the market to this address, transfer to msg.sender from here
         if (!withdrawAmount.isZero()) _withdraw(msg.sender, withdrawAmount.abs(), wrap);
