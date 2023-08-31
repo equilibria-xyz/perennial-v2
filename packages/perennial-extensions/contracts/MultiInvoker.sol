@@ -72,20 +72,6 @@ contract MultiInvoker is IMultiInvoker, Kept {
         keeperMultiplier = keeperMultiplier_;
     }
 
-    /// @notice Target market must be created by MarketFactory
-    modifier isMarketInstance(IMarket market) {
-        _;
-        if(!marketFactory.instances(market))
-            revert MultiInvokerInvalidInstanceError();
-    }
-
-    /// @notice Target vault must be created by VaultFactory
-    modifier isVaultInstance(IVault vault) {
-        _;
-        if(!vaultFactory.instances(vault))
-            revert MultiInvokerInvalidInstanceError();
-    }
-
     /// @notice Initialize the contract
     /// @param ethOracle_ Chainlink ETH/USD oracle address
     function initialize(AggregatorV3Interface ethOracle_) external initializer(1) {
@@ -460,5 +446,19 @@ contract MultiInvoker is IMultiInvoker, Kept {
     function _getMarketPrice(IMarket market, address account) internal view returns (Fixed6 price) {
         (, OracleVersion memory latestVersion) = _latest(market, account);
         return latestVersion.price;
+    }
+
+    /// @notice Target market must be created by MarketFactory
+    modifier isMarketInstance(IMarket market) {
+        if(!marketFactory.instances(market))
+            revert MultiInvokerInvalidInstanceError();
+        _;
+    }
+
+    /// @notice Target vault must be created by VaultFactory
+    modifier isVaultInstance(IVault vault) {
+        if(!vaultFactory.instances(vault))
+            revert MultiInvokerInvalidInstanceError();
+            _;
     }
 }
