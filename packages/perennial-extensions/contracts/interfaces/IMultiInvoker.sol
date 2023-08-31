@@ -43,11 +43,17 @@ interface IMultiInvoker {
     event OrderExecuted(address indexed account, IMarket indexed market, uint256 nonce, uint256 positionId);
     event OrderCancelled(address indexed account, IMarket indexed market, uint256 nonce);
 
+    // sig: 0x217b1699
     error MultiInvokerBadSenderError();
+    // sig: 0x88d67968
     error MultiInvokerOrderMustBeSingleSidedError();
+    // sig: 0xbccd78e7
     error MultiInvokerMaxFeeExceededError();
+    // sig: 0x93e313b3 // TODO: this will change to invalid isntance error
     error MultiInvokerInvalidApprovalError();
+    // sig: 0xb6befb58
     error MultiInvokerInvalidOrderError();
+    // sig: 0x6f462962
     error MultiInvokerCantExecuteError();
 
     function invoke(Invocation[] calldata invocations) external payable;
