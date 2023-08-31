@@ -162,6 +162,36 @@ describe('MultiInvoker', () => {
       expect(dsu.transfer).to.not.have.been.called
     })
 
+    // it('withdraws collateral', async () => {
+    //   const a = helpers.buildUpdateMarket({ market: market.address, collateral: collateral.mul(-1) })
+
+    //   dsu.balanceOf.reset()
+    //   dsu.balanceOf.returnsAtCall(0, 0)
+    //   dsu.balanceOf.returnsAtCall(1, collateral)
+
+    //   await expect(multiInvoker.connect(user).invoke(a)).to.not.be.reverted
+
+    //   expect(dsu.transfer).to.have.been.calledWith(user.address, dsuCollateral)
+    //   expect(market.update).to.have.been.calledWith(user.address, '0', '0', '0', collateral.mul(-1), false)
+    // })
+
+    // it('withdraws and unwraps collateral', async () => {
+    //   const a = helpers.buildUpdateMarket({ market: market.address, collateral: collateral.mul(-1), handleWrap: true })
+
+    //   // simulate market update withdrawing collateral
+    //   dsu.transfer.whenCalledWith(user.address, dsuCollateral).returns(true)
+    //   dsu.transferFrom.whenCalledWith(multiInvoker.address, batcher.address).returns(true)
+    //   usdc.balanceOf.whenCalledWith(batcher.address).returns(collateral)
+
+    //   dsu.balanceOf.reset()
+    //   dsu.balanceOf.returnsAtCall(0, 0)
+    //   dsu.balanceOf.returnsAtCall(1, collateral)
+
+    //   await expect(await multiInvoker.connect(user).invoke(a)).to.not.be.reverted
+
+    //   expect(reserve.redeem).to.have.been.calledWith(dsuCollateral)
+    // })
+
     it('deposits assets to vault', async () => {
       vaultUpdate.depositAssets = collateral
       const v = helpers.buildUpdateVault(vaultUpdate)
@@ -217,15 +247,15 @@ describe('MultiInvoker', () => {
       expect(vault.update).to.have.been.calledWith(user.address, '0', '0', vaultUpdate.claimAssets)
     })
 
-    // TODO merge in other fix pr
+    // TODO: instance modifier in other pr
     // it('approves market and vault', async () => {
     //   // approve address not deployed from either factory fails
     //   let a: Actions = [{ action: 8, args: utils.defaultAbiCoder.encode(['address'], [user.address]) }]
 
-    //   await expect(multiInvoker.connect(owner).invoke(a)).to.have.been.revertedWithCustomError(
-    //     multiInvoker,
-    //     'MultiInvokerInvalidApprovalError',
-    //   )
+    //   // await expect(multiInvoker.connect(owner).invoke(a)).to.have.been.revertedWithCustomError(
+    //   //   multiInvoker,
+    //   //   'MultiInvokerInvalidInstanceError',
+    //   // )
 
     //   // approve market succeeds
     //   a = [{ action: 8, args: utils.defaultAbiCoder.encode(['address'], [market.address]) }]
@@ -368,6 +398,25 @@ describe('MultiInvoker', () => {
     })
 
     describe('#reverts on', async () => {
+      // TODO instance modfiier in other pr
+      // it('reverts update, vaultUpdate, placeOrder on InvalidInstanceError', async () => {
+      //   await expect(
+      //     multiInvoker.connect(user).invoke(helpers.buildUpdateMarket({ market: vault.address })),
+      //   ).to.be.revertedWithCustomError(multiInvoker, 'MultiInvokerInvalidInstanceError')
+
+      //   await expect(
+      //     multiInvoker.connect(user).invoke(helpers.buildUpdateVault({ vault: market.address })),
+      //   ).to.be.revertedWithCustomError(multiInvoker, 'MultiInvokerInvalidInstanceError')
+
+      //   const trigger = openTriggerOrder({ size: collateral, price: 1100e6 })
+
+      //   await expect(
+      //     multiInvoker
+      //       .connect(user)
+      //       .invoke(buildPlaceOrder({ market: vault.address, collateral: collateral, order: trigger })),
+      //   ).to.be.revertedWithCustomError(multiInvoker, 'MultiInvokerInvalidInstanceError')
+      // })
+
       it('reverts placeOrder on InvalidOrderError', async () => {
         // Case 0 fee
         let trigger = openTriggerOrder({ size: position, price: BigNumber.from(1100e6), feePct: 0 })
