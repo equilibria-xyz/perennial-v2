@@ -21,16 +21,16 @@ import { TriggerOrder } from "../types/TriggerOrder.sol";
 
 interface IMultiInvoker {
     enum PerennialAction {
-        NO_OP,
-        UPDATE_POSITION,
-        UPDATE_VAULT,
-        PLACE_ORDER,
-        CANCEL_ORDER,
-        EXEC_ORDER,
-        COMMIT_PRICE,
-        LIQUIDATE,
-        APPROVE,
-        CHARGE_FEE
+        NO_OP,           // 0
+        UPDATE_POSITION, // 1
+        UPDATE_VAULT,    // 2
+        PLACE_ORDER,     // 3
+        CANCEL_ORDER,    // 4
+        EXEC_ORDER,      // 5
+        COMMIT_PRICE,    // 6
+        LIQUIDATE,       // 7
+        APPROVE,         // 8
+        CHARGE_FEE       // 9
     }
 
     struct Invocation {
