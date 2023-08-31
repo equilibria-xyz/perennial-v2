@@ -559,6 +559,9 @@ contract Market is IMarket, Instance, ReentrancyGuard {
                 .sub(Fixed6Lib.from(pendingLocalPositions[i].keeper));
         }
         pendingLocalPositions[pendingLocalPositions.length - 1] = context.currentPosition.local; // current local position hasn't been stored yet
+        collateralAfterFees = collateralAfterFees
+            .sub(Fixed6Lib.from(context.currentPosition.local.fee))
+            .sub(Fixed6Lib.from(context.currentPosition.local.keeper));
     }
 
     /// @notice Computes the liquidation fee for the current latest local position
