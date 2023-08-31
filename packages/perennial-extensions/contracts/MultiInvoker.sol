@@ -175,7 +175,7 @@ contract MultiInvoker is IMultiInvoker, Kept {
         UFixed6 newShort,
         Fixed6 collateral,
         bool wrap
-    ) internal {
+    ) internal isMarketInstance(market) {
         Fixed18 balanceBefore =  Fixed18Lib.from(DSU.balanceOf());
         // collateral is transferred from this address to the market, transfer from msg.sender to here
         if (collateral.sign() == 1) _deposit(collateral.abs(), wrap);
@@ -199,7 +199,7 @@ contract MultiInvoker is IMultiInvoker, Kept {
         UFixed6 redeemShares,
         UFixed6 claimAssets,
         bool wrap
-    ) internal {
+    ) internal isVaultInstance(vault) {
         if (!depositAssets.isZero()) {
             _deposit(depositAssets, wrap);
         }
@@ -221,7 +221,7 @@ contract MultiInvoker is IMultiInvoker, Kept {
     /// @notice Liquidates an account for a specific market
     /// @param market Market to liquidate account in
     /// @param account Address of market to liquidate
-    function _liquidate(IMarket market, address account) internal {
+    function _liquidate(IMarket market, address account) internal isMarketInstance(market) {
         UFixed6 liquidationFee = _liquidationFee(market, account);
 
         market.update(
@@ -239,8 +239,11 @@ contract MultiInvoker is IMultiInvoker, Kept {
     /// @notice Helper to max approve DSU for usage in a market or vault deployed by the registered factories
     /// @param target Market or Vault to approve
     function _approve(address target) internal {
-        if(!marketFactory.instances(IInstance(target)) && !vaultFactory.instances(IInstance(target)))
-            revert MultiInvokerInvalidApprovalError();
+        if (
+            !marketFactory.instances(IInstance(target)) &&
+            !vaultFactory.instances(IInstance(target))
+        ) revert MultiInvokerInvalidInstanceError();
+
         DSU.approve(target);
     }
 
@@ -422,7 +425,7 @@ contract MultiInvoker is IMultiInvoker, Kept {
     /// @param account Account to place order for
     /// @param market Market to place order in
     /// @param order Order state to place
-    function _placeOrder(address account, IMarket market, TriggerOrder memory order) internal {
+    function _placeOrder(address account, IMarket market, TriggerOrder memory order) internal isMarketInstance(market) {
         if (order.fee.isZero()) revert MultiInvokerInvalidOrderError();
         if (order.comparison != -1 && order.comparison != 1) revert MultiInvokerInvalidOrderError();
         if (order.side != 1 && order.side != 2) revert MultiInvokerInvalidOrderError();
@@ -446,5 +449,19 @@ contract MultiInvoker is IMultiInvoker, Kept {
     function _getMarketPrice(IMarket market, address account) internal view returns (Fixed6 price) {
         (, OracleVersion memory latestVersion) = _latest(market, account);
         return latestVersion.price;
+    }
+
+    /// @notice Target market must be created by MarketFactory
+    modifier isMarketInstance(IMarket market) {
+        if(!marketFactory.instances(market))
+            revert MultiInvokerInvalidInstanceError();
+        _;
+    }
+
+    /// @notice Target vault must be created by VaultFactory
+    modifier isVaultInstance(IVault vault) {
+        if(!vaultFactory.instances(vault))
+            revert MultiInvokerInvalidInstanceError();
+            _;
     }
 }

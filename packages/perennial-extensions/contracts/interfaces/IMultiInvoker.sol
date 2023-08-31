@@ -46,8 +46,7 @@ interface IMultiInvoker {
     error MultiInvokerBadSenderError();
     error MultiInvokerOrderMustBeSingleSidedError();
     error MultiInvokerMaxFeeExceededError();
-    error MultiInvokerInvalidApprovalError();
-    error MultiInvokerInvalidTargetError();
+    error MultiInvokerInvalidInstanceError();
     error MultiInvokerInvalidOrderError();
     error MultiInvokerCantExecuteError();
 
