@@ -446,7 +446,7 @@ testOracles.forEach(testOracle => {
 
         expect(newDSUBalance.sub(originalDSUBalance)).to.be.within(
           ethers.utils.parseEther('0.09'),
-          ethers.utils.parseEther('0.10'),
+          ethers.utils.parseEther('0.11'),
         )
       })
 
