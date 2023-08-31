@@ -127,7 +127,6 @@ describe('MultiInvoker', () => {
     beforeEach(async () => {
       await loadFixture(fixture)
     })
-    // setMarketPosition(market, user, currentPosition)
 
     it('deposits collateral', async () => {
       const a = helpers.buildUpdateMarket({ market: market.address, collateral: collateral })
@@ -162,35 +161,35 @@ describe('MultiInvoker', () => {
       expect(dsu.transfer).to.not.have.been.called
     })
 
-    // it('withdraws collateral', async () => {
-    //   const a = helpers.buildUpdateMarket({ market: market.address, collateral: collateral.mul(-1) })
+    it('withdraws collateral', async () => {
+      const a = helpers.buildUpdateMarket({ market: market.address, collateral: collateral.mul(-1) })
 
-    //   dsu.balanceOf.reset()
-    //   dsu.balanceOf.returnsAtCall(0, 0)
-    //   dsu.balanceOf.returnsAtCall(1, collateral)
+      dsu.balanceOf.reset()
+      dsu.balanceOf.returnsAtCall(0, 0)
+      dsu.balanceOf.returnsAtCall(1, dsuCollateral)
 
-    //   await expect(multiInvoker.connect(user).invoke(a)).to.not.be.reverted
+      await expect(multiInvoker.connect(user).invoke(a)).to.not.be.reverted
 
-    //   expect(dsu.transfer).to.have.been.calledWith(user.address, dsuCollateral)
-    //   expect(market.update).to.have.been.calledWith(user.address, '0', '0', '0', collateral.mul(-1), false)
-    // })
+      expect(dsu.transfer).to.have.been.calledWith(user.address, dsuCollateral)
+      expect(market.update).to.have.been.calledWith(user.address, '0', '0', '0', collateral.mul(-1), false)
+    })
 
-    // it('withdraws and unwraps collateral', async () => {
-    //   const a = helpers.buildUpdateMarket({ market: market.address, collateral: collateral.mul(-1), handleWrap: true })
+    it('withdraws and unwraps collateral', async () => {
+      const a = helpers.buildUpdateMarket({ market: market.address, collateral: collateral.mul(-1), handleWrap: true })
 
-    //   // simulate market update withdrawing collateral
-    //   dsu.transfer.whenCalledWith(user.address, dsuCollateral).returns(true)
-    //   dsu.transferFrom.whenCalledWith(multiInvoker.address, batcher.address).returns(true)
-    //   usdc.balanceOf.whenCalledWith(batcher.address).returns(collateral)
+      // simulate market update withdrawing collateral
+      dsu.transfer.whenCalledWith(user.address, dsuCollateral).returns(true)
+      dsu.transferFrom.whenCalledWith(multiInvoker.address, batcher.address).returns(true)
+      usdc.balanceOf.whenCalledWith(batcher.address).returns(collateral)
 
-    //   dsu.balanceOf.reset()
-    //   dsu.balanceOf.returnsAtCall(0, 0)
-    //   dsu.balanceOf.returnsAtCall(1, collateral)
+      dsu.balanceOf.reset()
+      dsu.balanceOf.returnsAtCall(0, 0)
+      dsu.balanceOf.returnsAtCall(1, dsuCollateral)
 
-    //   await expect(await multiInvoker.connect(user).invoke(a)).to.not.be.reverted
+      await expect(await multiInvoker.connect(user).invoke(a)).to.not.be.reverted
 
-    //   expect(reserve.redeem).to.have.been.calledWith(dsuCollateral)
-    // })
+      expect(reserve.redeem).to.have.been.calledWith(dsuCollateral)
+    })
 
     it('deposits assets to vault', async () => {
       vaultUpdate.depositAssets = collateral
