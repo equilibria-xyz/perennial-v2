@@ -246,6 +246,26 @@ describe('MultiInvoker', () => {
       expect(vault.update).to.have.been.calledWith(user.address, '0', '0', vaultUpdate.claimAssets)
     })
 
+    it('approves market and vault', async () => {
+      // approve address not deployed from either factory fails
+      let a: Actions = [{ action: 8, args: utils.defaultAbiCoder.encode(['address'], [user.address]) }]
+
+      await expect(multiInvoker.connect(owner).invoke(a)).to.have.been.revertedWithCustomError(
+        multiInvoker,
+        'MultiInvokerInvalidApprovalError',
+      )
+
+      // approve market succeeds
+      a = [{ action: 8, args: utils.defaultAbiCoder.encode(['address'], [market.address]) }]
+      await expect(multiInvoker.connect(user).invoke(a)).to.not.be.reverted
+      expect(dsu.approve).to.have.been.calledWith(market.address, constants.MaxUint256)
+
+      // approve vault succeeds
+      a = [{ action: 8, args: utils.defaultAbiCoder.encode(['address'], [vault.address]) }]
+      await expect(multiInvoker.connect(user).invoke(a)).to.not.be.reverted
+      expect(dsu.approve).to.have.been.calledWith(vault.address, constants.MaxUint256)
+    })
+
     it('charges interface fee', async () => {
       usdc.transferFrom.returns(true)
 
