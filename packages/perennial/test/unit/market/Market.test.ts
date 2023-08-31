@@ -11001,6 +11001,104 @@ describe('Market', () => {
           ).to.be.revertedWithCustomError(market, `MarketInsufficientLiquidityError`)
         })
 
+        it('reverts when opening and closing immediately with settlementFee', async () => {
+          const marketParameter = { ...(await market.parameter()) }
+          marketParameter.settlementFee = parse6decimal('0.50')
+          await market.updateParameter(marketParameter)
+
+          const minMaintenanceAmount = parse6decimal('100')
+          const dustPosition = parse6decimal('0.000001')
+          dsu.transferFrom
+            .whenCalledWith(
+              user.address,
+              market.address,
+              minMaintenanceAmount.add(marketParameter.settlementFee).mul(1e12),
+            )
+            .returns(true)
+
+          await expect(
+            market.connect(user).update(user.address, dustPosition, 0, 0, minMaintenanceAmount, false),
+          ).to.be.revertedWithCustomError(market, 'MarketInsufficientCollateralizationError')
+
+          await expect(
+            market
+              .connect(user)
+              .update(user.address, dustPosition, 0, 0, minMaintenanceAmount.add(marketParameter.settlementFee), false),
+          )
+            .to.emit(market, 'Updated')
+            .withArgs(
+              user.address,
+              ORACLE_VERSION_2.timestamp,
+              dustPosition,
+              0,
+              0,
+              minMaintenanceAmount.add(marketParameter.settlementFee),
+              false,
+            )
+
+          expectLocalEq(await market.locals(user.address), {
+            currentId: 1,
+            latestId: 0,
+            collateral: minMaintenanceAmount.add(marketParameter.settlementFee),
+            reward: 0,
+            protection: 0,
+          })
+          expectPositionEq(await market.positions(user.address), {
+            ...DEFAULT_POSITION,
+            timestamp: ORACLE_VERSION_1.timestamp,
+          })
+          expectPositionEq(await market.pendingPositions(user.address, 1), {
+            ...DEFAULT_POSITION,
+            timestamp: ORACLE_VERSION_2.timestamp,
+            maker: dustPosition,
+            delta: minMaintenanceAmount.add(marketParameter.settlementFee),
+          })
+          expectGlobalEq(await market.global(), {
+            currentId: 1,
+            latestId: 0,
+            protocolFee: 0,
+            oracleFee: 0,
+            riskFee: 0,
+            donation: 0,
+          })
+          expectPositionEq(await market.position(), {
+            ...DEFAULT_POSITION,
+            timestamp: ORACLE_VERSION_1.timestamp,
+          })
+          expectPositionEq(await market.pendingPosition(1), {
+            ...DEFAULT_POSITION,
+            timestamp: ORACLE_VERSION_2.timestamp,
+            maker: dustPosition,
+          })
+          expectVersionEq(await market.versions(ORACLE_VERSION_1.timestamp), {
+            makerValue: { _value: 0 },
+            longValue: { _value: 0 },
+            shortValue: { _value: 0 },
+            makerReward: { _value: 0 },
+            longReward: { _value: 0 },
+            shortReward: { _value: 0 },
+          })
+
+          await expect(
+            market.connect(user).update(user.address, 0, 0, 0, minMaintenanceAmount.mul(-1), false),
+          ).to.be.revertedWithCustomError(market, 'MarketInsufficientCollateralError')
+
+          dsu.transfer
+            .whenCalledWith(user.address, minMaintenanceAmount.sub(marketParameter.settlementFee).mul(1e12))
+            .returns(true)
+          await market
+            .connect(user)
+            .update(user.address, 0, 0, 0, minMaintenanceAmount.sub(marketParameter.settlementFee).mul(-1), false)
+
+          expectLocalEq(await market.locals(user.address), {
+            currentId: 1,
+            latestId: 0,
+            collateral: parse6decimal('1'),
+            reward: 0,
+            protection: 0,
+          })
+        })
+
         context('in liquidation', async () => {
           const EXPECTED_LIQUIDATION_FEE = parse6decimal('225')
 
