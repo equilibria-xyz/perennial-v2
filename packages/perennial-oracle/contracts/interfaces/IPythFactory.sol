@@ -16,8 +16,11 @@ interface IPythFactory is IOracleProviderFactory, IFactory {
 
     event GranularityUpdated(uint256 newGranularity, uint256 effectiveAfter);
 
+    // sig: 0x3d225882
     error PythFactoryNotInstanceError();
+    // sig: 0xa7cc0264
     error PythFactoryInvalidGranularityError();
+    // sig: 0xf2f2ce54
     error PythFactoryAlreadyCreatedError();
 
     function initialize(IOracleFactory oracleFactory) external;

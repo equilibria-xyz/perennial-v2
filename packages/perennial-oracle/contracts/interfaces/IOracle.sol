@@ -5,8 +5,11 @@ import "@equilibria/root/attribute/interfaces/IInstance.sol";
 import "@equilibria/perennial-v2/contracts/interfaces/IOracleProvider.sol";
 
 interface IOracle is IOracleProvider, IInstance {
+    // sig: 0xb9d5b7c9
     error OracleNotFactoryError();
+    // sig: 0x8852e53b
     error OracleOutOfSyncError();
+    // sig: 0x0f7338e5
     error OracleOutOfOrderCommitError();
 
     event OracleUpdated(IOracleProvider newProvider);
