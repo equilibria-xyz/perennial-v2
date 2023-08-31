@@ -176,17 +176,13 @@ contract MultiInvoker is IMultiInvoker, Kept {
         Fixed6 collateral,
         bool wrap
     ) internal {
-        Fixed18 balanceBefore;
+        Fixed18 balanceBefore =  Fixed18Lib.from(DSU.balanceOf());
         // collateral is transferred from this address to the market, transfer from msg.sender to here
         if (collateral.sign() == 1) _deposit(collateral.abs(), wrap);
-        else balanceBefore = Fixed18Lib.from(DSU.balanceOf());
 
         market.update(msg.sender, newMaker, newLong, newShort, collateral, false);
 
-        Fixed6 withdrawAmount = collateral.sign() == 1 ?
-            Fixed6Lib.ZERO :
-            Fixed6Lib.from(Fixed18Lib.from(DSU.balanceOf()).sub(balanceBefore));
-
+        Fixed6 withdrawAmount = Fixed6Lib.from(Fixed18Lib.from(DSU.balanceOf()).sub(balanceBefore));
         // collateral is transferred from the market to this address, transfer to msg.sender from here
         if (!withdrawAmount.isZero()) _withdraw(msg.sender, withdrawAmount.abs(), wrap);
     }
