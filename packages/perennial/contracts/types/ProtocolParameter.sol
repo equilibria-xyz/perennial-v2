@@ -40,6 +40,7 @@ struct ProtocolParameterStorage { StoredProtocolParameter value; }
 using ProtocolParameterStorageLib for ProtocolParameterStorage global;
 
 library ProtocolParameterStorageLib {
+    // sig: 0x4dc1bc59
     error ProtocolParameterStorageInvalidError();
 
     function read(ProtocolParameterStorage storage self) internal view returns (ProtocolParameter memory) {

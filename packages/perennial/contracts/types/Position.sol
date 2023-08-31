@@ -437,6 +437,7 @@ library PositionStorageLocalLib {
 }
 
 library PositionStorageLib {
+    // sig: 0x52a8a97f
     error PositionStorageInvalidError();
 
     function validate(Position memory newValue) internal pure {

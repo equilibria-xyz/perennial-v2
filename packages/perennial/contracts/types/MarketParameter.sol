@@ -77,6 +77,7 @@ using MarketParameterStorageLib for MarketParameterStorage global;
 ///    }
 ///
 library MarketParameterStorageLib {
+    // sig: 0x7c53e926
     error MarketParameterStorageInvalidError();
 
     function read(MarketParameterStorage storage self) internal view returns (MarketParameter memory) {

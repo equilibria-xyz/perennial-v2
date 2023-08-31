@@ -342,6 +342,7 @@ library VersionLib {
 ///     }
 ///
 library VersionStorageLib {
+    // sig: 0xd2777e72
     error VersionStorageInvalidError();
 
     function read(VersionStorage storage self) internal view returns (Version memory) {
