@@ -182,22 +182,11 @@ contract MultiInvoker is IMultiInvoker, Kept {
         if (collateral.sign() == 1) _deposit(collateral.abs(), wrap);
         else balanceBefore = Fixed18Lib.from(DSU.balanceOf());
 
-        //console.log("balance before: ");
-        //console.logInt(Fixed6.unwrap(Fixed6Lib.from(balanceBefore)));
-
         market.update(msg.sender, newMaker, newLong, newShort, collateral, false);
 
         Fixed6 withdrawAmount = collateral.sign() == 1 ?
             Fixed6Lib.ZERO :
             Fixed6Lib.from(Fixed18Lib.from(DSU.balanceOf()).sub(balanceBefore));
-
-        // if(!withdrawAmount.isZero()) {
-        //     console.log("withdraw amount: ");
-        //     console.logInt(Fixed6.unwrap(withdrawAmount));
-
-        //     console.log("balance after: ");
-        //     console.logInt(Fixed6.unwrap(Fixed6Lib.from(Fixed18Lib.from(DSU.balanceOf()))));
-        // }
 
         // collateral is transferred from the market to this address, transfer to msg.sender from here
         if (!withdrawAmount.isZero()) _withdraw(msg.sender, withdrawAmount.abs(), wrap);

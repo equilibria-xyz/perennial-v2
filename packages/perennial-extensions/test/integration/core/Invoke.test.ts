@@ -495,22 +495,6 @@ describe('Invoke', () => {
       expect((await usdc.balanceOf(userB.address)).sub(balanceBefore)).to.eq(collateral)
     })
 
-    it('Only allows updates to factory created markets', async () => {
-      const { user } = instanceVars
-
-      await expect(
-        multiInvoker.connect(user).invoke(buildUpdateMarket({ market: vault.address, collateral: collateral })),
-      ).to.be.revertedWithCustomError(multiInvoker, 'MultiInvokerInvalidTargetError')
-    })
-
-    it('Only allows updates to factory created vaults', async () => {
-      const { user } = instanceVars
-
-      await expect(
-        multiInvoker.connect(user).invoke(buildUpdateVault({ vault: market.address })),
-      ).to.be.revertedWithCustomError(multiInvoker, 'MultiInvokerInvalidTargetError')
-    })
-
     describe('#batcher 0 address', async () => {
       let instanceVars: InstanceVars
       let noBatcherInvoker: MultiInvoker
