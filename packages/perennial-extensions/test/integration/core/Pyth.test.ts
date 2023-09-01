@@ -5,7 +5,6 @@ import HRE from 'hardhat'
 import { time } from '../../../../common/testutil'
 import { impersonateWithBalance } from '../../../../common/testutil/impersonate'
 import {
-  ArbGasInfo,
   IERC20Metadata,
   MultiInvoker,
   Oracle,
@@ -13,14 +12,13 @@ import {
   Oracle__factory,
   PythFactory,
   PythFactory__factory,
-  PythOracle_Arbitrum,
-  PythOracle_Arbitrum__factory,
+  PythOracle,
+  PythOracle__factory,
 } from '../../../types/generated'
 
 import { InstanceVars, createInvoker, deployProtocol } from '../helpers/setupHelpers'
 import { parse6decimal } from '../../../../common/testutil/types'
 import { increase } from '../../../../common/testutil/time'
-import { smock } from '@defi-wonderland/smock'
 
 const { ethers } = HRE
 
@@ -40,7 +38,7 @@ describe('PythOracle', () => {
   let owner: SignerWithAddress
   let user: SignerWithAddress
   let oracle: Oracle
-  let pythOracle: PythOracle_Arbitrum
+  let pythOracle: PythOracle
   let pythOracleFactory: PythFactory
   let oracleFactory: OracleFactory
   let dsu: IERC20Metadata
@@ -54,7 +52,7 @@ describe('PythOracle', () => {
     ;({ dsu, oracleFactory, owner, user } = instanceVars)
 
     await oracleFactory.updateMaxClaim(parse6decimal('10'))
-    const pythOracleImpl = await new PythOracle_Arbitrum__factory(owner).deploy(PYTH_ADDRESS)
+    const pythOracleImpl = await new PythOracle__factory(owner).deploy(PYTH_ADDRESS)
     pythOracleFactory = await new PythFactory__factory(owner).deploy(
       pythOracleImpl.address,
       CHAINLINK_ETH_USD_FEED,
@@ -64,10 +62,7 @@ describe('PythOracle', () => {
     await oracleFactory.register(pythOracleFactory.address)
     await pythOracleFactory.authorize(oracleFactory.address)
 
-    pythOracle = PythOracle_Arbitrum__factory.connect(
-      await pythOracleFactory.callStatic.create(PYTH_ETH_USD_PRICE_FEED),
-      owner,
-    )
+    pythOracle = PythOracle__factory.connect(await pythOracleFactory.callStatic.create(PYTH_ETH_USD_PRICE_FEED), owner)
     await pythOracleFactory.create(PYTH_ETH_USD_PRICE_FEED)
 
     oracle = Oracle__factory.connect(
@@ -82,11 +77,6 @@ describe('PythOracle', () => {
     await dsu.connect(dsuHolder).transfer(oracleFactory.address, utils.parseEther('100000'))
 
     multiInvoker = await createInvoker(instanceVars)
-
-    const gasInfo = await smock.fake<ArbGasInfo>('ArbGasInfo', {
-      address: '0x000000000000000000000000000000000000006C',
-    })
-    gasInfo.getL1BaseFeeEstimate.returns(0)
 
     await time.increaseTo(STARTING_TIME - 1)
     // block.timestamp of the next call will be STARTING_TIME

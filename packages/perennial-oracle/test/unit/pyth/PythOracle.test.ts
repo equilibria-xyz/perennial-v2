@@ -5,7 +5,6 @@ import HRE from 'hardhat'
 import {
   AbstractPyth,
   AggregatorV3Interface,
-  ArbGasInfo,
   IERC20Metadata,
   IPythStaticFee,
   Oracle,
@@ -14,8 +13,8 @@ import {
   OracleFactory__factory,
   PythFactory,
   PythFactory__factory,
-  PythOracle_Arbitrum,
-  PythOracle_Arbitrum__factory,
+  PythOracle,
+  PythOracle__factory,
 } from '../../../types/generated'
 import { FakeContract, smock } from '@defi-wonderland/smock'
 import { parse6decimal } from '../../../../common/testutil/types'
@@ -50,7 +49,7 @@ describe('PythOracle', () => {
   let pythUpdateFee: FakeContract<IPythStaticFee>
   let chainlinkFeed: FakeContract<AggregatorV3Interface>
   let oracle: Oracle
-  let pythOracle: PythOracle_Arbitrum
+  let pythOracle: PythOracle
   let pythOracleFactory: PythFactory
   let oracleFactory: OracleFactory
   let dsu: FakeContract<IERC20Metadata>
@@ -90,7 +89,7 @@ describe('PythOracle', () => {
     await oracleFactory.initialize(dsu.address)
     await oracleFactory.updateMaxClaim(parse6decimal('10'))
 
-    const pythOracleImpl = await new PythOracle_Arbitrum__factory(owner).deploy(pyth.address)
+    const pythOracleImpl = await new PythOracle__factory(owner).deploy(pyth.address)
     pythOracleFactory = await new PythFactory__factory(owner).deploy(
       pythOracleImpl.address,
       chainlinkFeed.address,
@@ -100,10 +99,7 @@ describe('PythOracle', () => {
     await oracleFactory.register(pythOracleFactory.address)
     await pythOracleFactory.authorize(oracleFactory.address)
 
-    pythOracle = PythOracle_Arbitrum__factory.connect(
-      await pythOracleFactory.callStatic.create(PYTH_ETH_USD_PRICE_FEED),
-      owner,
-    )
+    pythOracle = PythOracle__factory.connect(await pythOracleFactory.callStatic.create(PYTH_ETH_USD_PRICE_FEED), owner)
     await pythOracleFactory.create(PYTH_ETH_USD_PRICE_FEED)
 
     oracle = Oracle__factory.connect(
@@ -113,11 +109,6 @@ describe('PythOracle', () => {
     await oracleFactory.create(PYTH_ETH_USD_PRICE_FEED, pythOracleFactory.address)
 
     oracleSigner = await impersonateWithBalance(oracle.address, utils.parseEther('10'))
-
-    const gasInfo = await smock.fake<ArbGasInfo>('ArbGasInfo', {
-      address: '0x000000000000000000000000000000000000006C',
-    })
-    gasInfo.getL1BaseFeeEstimate.returns(0)
   })
 
   it('parses Pyth exponents correctly', async () => {
