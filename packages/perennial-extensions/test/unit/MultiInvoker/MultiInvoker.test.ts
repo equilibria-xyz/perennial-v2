@@ -272,7 +272,9 @@ describe('MultiInvoker', () => {
       const c: Actions = [
         { action: 9, args: utils.defaultAbiCoder.encode(['address', 'uint256'], [owner.address, collateral]) },
       ]
-      await expect(multiInvoker.connect(user).invoke(c)).to.not.be.reverted
+      await expect(multiInvoker.connect(user).invoke(c))
+        .to.emit(multiInvoker, 'FeeCharged')
+        .withArgs(user.address, owner.address, collateral)
 
       expect(usdc.transferFrom).to.have.been.calledWith(user.address, owner.address, collateral)
     })

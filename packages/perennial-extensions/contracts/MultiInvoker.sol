@@ -157,6 +157,7 @@ contract MultiInvoker is IMultiInvoker, Kept {
                 (address to, UFixed6 amount) = abi.decode(invocation.args, (address, UFixed6));
 
                 USDC.pullTo(msg.sender, to, amount);
+                emit FeeCharged(msg.sender, to, amount);
             }
         }
     }
