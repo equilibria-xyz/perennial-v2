@@ -205,7 +205,7 @@ contract Vault is IVault, Instance {
         _settleUnderlying();
         Context memory context = _loadContext(account);
 
-        _settle(context);
+        _settle(context, account);
         _manage(context, UFixed6Lib.ZERO, false);
         _saveContext(context, account);
     }
@@ -224,7 +224,7 @@ contract Vault is IVault, Instance {
         _settleUnderlying();
         Context memory context = _loadContext(account);
 
-        _settle(context);
+        _settle(context, account);
         _checkpoint(context);
         _update(context, account, depositAssets, redeemShares, claimAssets);
         _saveContext(context, account);
@@ -326,7 +326,7 @@ contract Vault is IVault, Instance {
     /// @notice Handles settling the vault state
     /// @dev Run before every stateful operation to settle up the latest global state of the vault
     /// @param context The context to use
-    function _settle(Context memory context) private {
+    function _settle(Context memory context, address account) private {
         // settle global positions
         while (
             context.global.current > context.global.latest &&
@@ -345,6 +345,8 @@ contract Vault is IVault, Instance {
             );
             _checkpoints[newLatestId].store(context.latestCheckpoint);
         }
+
+        if (account == address(0)) return;
 
         // settle local position
         if (
@@ -449,8 +451,8 @@ contract Vault is IVault, Instance {
             context.currentIds.update(marketId, local.currentId);
         }
 
+        if (account != address(0)) context.local = _accounts[account].read();
         context.global = _accounts[address(0)].read();
-        context.local = _accounts[account].read();
         context.latestCheckpoint = _checkpoints[context.global.latest].read();
     }
 
@@ -458,8 +460,8 @@ contract Vault is IVault, Instance {
     /// @param context Context to use
     /// @param account Account to save the context for
     function _saveContext(Context memory context, address account) private {
+        if (account != address(0)) _accounts[account].store(context.local);
         _accounts[address(0)].store(context.global);
-        _accounts[account].store(context.local);
         _checkpoints[context.currentId].store(context.currentCheckpoint);
     }
 

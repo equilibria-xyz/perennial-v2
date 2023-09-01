@@ -127,7 +127,6 @@ describe('MultiInvoker', () => {
     beforeEach(async () => {
       await loadFixture(fixture)
     })
-    // setMarketPosition(market, user, currentPosition)
 
     it('deposits collateral', async () => {
       const a = helpers.buildUpdateMarket({ market: market.address, collateral: collateral })
@@ -165,6 +164,10 @@ describe('MultiInvoker', () => {
     it('withdraws collateral', async () => {
       const a = helpers.buildUpdateMarket({ market: market.address, collateral: collateral.mul(-1) })
 
+      dsu.balanceOf.reset()
+      dsu.balanceOf.returnsAtCall(0, 0)
+      dsu.balanceOf.returnsAtCall(1, dsuCollateral)
+
       await expect(multiInvoker.connect(user).invoke(a)).to.not.be.reverted
 
       expect(dsu.transfer).to.have.been.calledWith(user.address, dsuCollateral)
@@ -175,10 +178,13 @@ describe('MultiInvoker', () => {
       const a = helpers.buildUpdateMarket({ market: market.address, collateral: collateral.mul(-1), handleWrap: true })
 
       // simulate market update withdrawing collateral
-      dsu.balanceOf.whenCalledWith(multiInvoker.address).returns(dsuCollateral)
       dsu.transfer.whenCalledWith(user.address, dsuCollateral).returns(true)
       dsu.transferFrom.whenCalledWith(multiInvoker.address, batcher.address).returns(true)
       usdc.balanceOf.whenCalledWith(batcher.address).returns(collateral)
+
+      dsu.balanceOf.reset()
+      dsu.balanceOf.returnsAtCall(0, 0)
+      dsu.balanceOf.returnsAtCall(1, dsuCollateral)
 
       await expect(await multiInvoker.connect(user).invoke(a)).to.not.be.reverted
 
@@ -246,18 +252,18 @@ describe('MultiInvoker', () => {
 
       await expect(multiInvoker.connect(owner).invoke(a)).to.have.been.revertedWithCustomError(
         multiInvoker,
-        'MultiInvokerInvalidApprovalError',
+        'MultiInvokerInvalidInstanceError',
       )
 
       // approve market succeeds
       a = [{ action: 8, args: utils.defaultAbiCoder.encode(['address'], [market.address]) }]
       await expect(multiInvoker.connect(user).invoke(a)).to.not.be.reverted
-      expect(dsu.approve).to.have.been.calledWith(market.address, helpers.MAX_INT)
+      expect(dsu.approve).to.have.been.calledWith(market.address, constants.MaxUint256)
 
       // approve vault succeeds
       a = [{ action: 8, args: utils.defaultAbiCoder.encode(['address'], [vault.address]) }]
       await expect(multiInvoker.connect(user).invoke(a)).to.not.be.reverted
-      expect(dsu.approve).to.have.been.calledWith(vault.address, helpers.MAX_INT)
+      expect(dsu.approve).to.have.been.calledWith(vault.address, constants.MaxUint256)
     })
 
     it('charges interface fee', async () => {
@@ -266,7 +272,9 @@ describe('MultiInvoker', () => {
       const c: Actions = [
         { action: 9, args: utils.defaultAbiCoder.encode(['address', 'uint256'], [owner.address, collateral]) },
       ]
-      await expect(multiInvoker.connect(user).invoke(c)).to.not.be.reverted
+      await expect(multiInvoker.connect(user).invoke(c))
+        .to.emit(multiInvoker, 'FeeCharged')
+        .withArgs(user.address, owner.address, collateral)
 
       expect(usdc.transferFrom).to.have.been.calledWith(user.address, owner.address, collateral)
     })
@@ -390,6 +398,24 @@ describe('MultiInvoker', () => {
     })
 
     describe('#reverts on', async () => {
+      it('reverts update, vaultUpdate, placeOrder on InvalidInstanceError', async () => {
+        await expect(
+          multiInvoker.connect(user).invoke(helpers.buildUpdateMarket({ market: vault.address })),
+        ).to.be.revertedWithCustomError(multiInvoker, 'MultiInvokerInvalidInstanceError')
+
+        await expect(
+          multiInvoker.connect(user).invoke(helpers.buildUpdateVault({ vault: market.address })),
+        ).to.be.revertedWithCustomError(multiInvoker, 'MultiInvokerInvalidInstanceError')
+
+        const trigger = openTriggerOrder({ size: collateral, price: 1100e6 })
+
+        await expect(
+          multiInvoker
+            .connect(user)
+            .invoke(buildPlaceOrder({ market: vault.address, collateral: collateral, order: trigger })),
+        ).to.be.revertedWithCustomError(multiInvoker, 'MultiInvokerInvalidInstanceError')
+      })
+
       it('reverts placeOrder on InvalidOrderError', async () => {
         // Case 0 fee
         let trigger = openTriggerOrder({ size: position, price: BigNumber.from(1100e6), feePct: 0 })
