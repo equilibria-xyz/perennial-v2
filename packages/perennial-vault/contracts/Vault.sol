@@ -54,7 +54,7 @@ contract Vault is IVault, Instance {
     function initialize(
         Token18 asset_,
         IMarket initialMarket,
-        UFixed6 initialAmount,
+        UFixed6 cap,
         string calldata name_
     ) external initializer(1) {
         __Instance__initialize();
@@ -63,7 +63,7 @@ contract Vault is IVault, Instance {
         _name = name_;
         _register(initialMarket);
         _updateMarket(0, 1, UFixed6Lib.ZERO);
-        _updateParameter(VaultParameter(initialAmount));
+        _updateParameter(VaultParameter(cap));
     }
 
     /// @notice Returns the vault parameter set
