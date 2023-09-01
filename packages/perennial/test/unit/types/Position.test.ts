@@ -718,11 +718,11 @@ describe('Position', () => {
           const latestEfficiency = await position.efficiency()
 
           const updatedOrder = await position.callStatic[
-            'update(uint256,(int256,int256,int256,int256,uint256,int256,int256,int256,uint256,uint256),(uint256,uint256,uint256,uint256,uint256,uint256,uint256,uint256,uint256,uint256,uint256,(uint256,uint256,uint256,uint256),(uint256,uint256),uint256,uint256,uint256,bool))'
+            'update(uint256,(int256,int256,int256,int256,uint256,int256,int256,int256,uint256,uint256),(uint256,uint256,uint256,uint256,uint256,uint256,uint256,uint256,uint256,uint256,uint256,uint256,(uint256,uint256,uint256,uint256),(uint256,uint256),uint256,uint256,uint256,uint256,bool))'
           ](123456, VALID_ORDER, VALID_RISK_PARAMETER)
 
           await position[
-            'update(uint256,(int256,int256,int256,int256,uint256,int256,int256,int256,uint256,uint256),(uint256,uint256,uint256,uint256,uint256,uint256,uint256,uint256,uint256,uint256,uint256,(uint256,uint256,uint256,uint256),(uint256,uint256),uint256,uint256,uint256,bool))'
+            'update(uint256,(int256,int256,int256,int256,uint256,int256,int256,int256,uint256,uint256),(uint256,uint256,uint256,uint256,uint256,uint256,uint256,uint256,uint256,uint256,uint256,uint256,(uint256,uint256,uint256,uint256),(uint256,uint256),uint256,uint256,uint256,uint256,bool))'
           ](123456, VALID_ORDER, VALID_RISK_PARAMETER)
 
           const value = await position.read()
@@ -747,7 +747,7 @@ describe('Position', () => {
             await position.store({ ...VALID_GLOBAL_POSITION, fee: 50, keeper: 60 })
 
             await position[
-              'update(uint256,(int256,int256,int256,int256,uint256,int256,int256,int256,uint256,uint256),(uint256,uint256,uint256,uint256,uint256,uint256,uint256,uint256,uint256,uint256,uint256,(uint256,uint256,uint256,uint256),(uint256,uint256),uint256,uint256,uint256,bool))'
+              'update(uint256,(int256,int256,int256,int256,uint256,int256,int256,int256,uint256,uint256),(uint256,uint256,uint256,uint256,uint256,uint256,uint256,uint256,uint256,uint256,uint256,uint256,(uint256,uint256,uint256,uint256),(uint256,uint256),uint256,uint256,uint256,uint256,bool))'
             ](123456, VALID_ORDER, VALID_RISK_PARAMETER)
 
             const value = await position.read()
@@ -1150,16 +1150,16 @@ describe('Position', () => {
         })
       })
 
-      describe('#collateralized', () => {
+      describe('#maintained', () => {
         context('0 position', () => {
           it('returns true', async () => {
-            expect(await position.collateralized(VALID_ORACLE_VERSION, VALID_RISK_PARAMETER, 0)).to.be.true
+            expect(await position.maintained(VALID_ORACLE_VERSION, VALID_RISK_PARAMETER, 0)).to.be.true
           })
 
           context('collateral is negative', () => {
             it('returns true', async () => {
-              expect(await position.collateralized(VALID_ORACLE_VERSION, VALID_RISK_PARAMETER, parse6decimal('-1'))).to
-                .be.true
+              expect(await position.maintained(VALID_ORACLE_VERSION, VALID_RISK_PARAMETER, parse6decimal('-1'))).to.be
+                .true
             })
           })
         })
@@ -1170,7 +1170,7 @@ describe('Position', () => {
               await position.store({ ...VALID_LOCAL_POSITION, maker: parse6decimal('6') })
 
               expect(
-                await position.collateralized(
+                await position.maintained(
                   { ...VALID_ORACLE_VERSION, price: parse6decimal('100') },
                   { ...VALID_RISK_PARAMETER, maintenance: parse6decimal('0.3') },
                   parse6decimal('181'),
@@ -1184,7 +1184,7 @@ describe('Position', () => {
               await position.store({ ...VALID_LOCAL_POSITION, maker: parse6decimal('6') })
 
               expect(
-                await position.collateralized(
+                await position.maintained(
                   { ...VALID_ORACLE_VERSION, price: parse6decimal('100') },
                   { ...VALID_RISK_PARAMETER, maintenance: parse6decimal('0.3') },
                   parse6decimal('180'),
@@ -1198,7 +1198,7 @@ describe('Position', () => {
               await position.store({ ...VALID_LOCAL_POSITION, maker: parse6decimal('6') })
 
               expect(
-                await position.collateralized(
+                await position.maintained(
                   { ...VALID_ORACLE_VERSION, price: parse6decimal('100') },
                   { ...VALID_RISK_PARAMETER, maintenance: parse6decimal('0.3') },
                   parse6decimal('179'),
@@ -1214,12 +1214,92 @@ describe('Position', () => {
                 await position.store({ ...VALID_LOCAL_POSITION, maker: parse6decimal('6') })
 
                 expect(
-                  await position.collateralized(
+                  await position.maintained(
                     { ...VALID_ORACLE_VERSION, price: parse6decimal('100') },
                     {
                       ...VALID_RISK_PARAMETER,
                       maintenance: parse6decimal('0.3'),
                       minMaintenance: parse6decimal('200'),
+                    },
+                    parse6decimal('199'),
+                  ),
+                ).to.be.false
+              })
+            },
+          )
+        })
+      })
+
+      describe('#margined', () => {
+        context('0 position', () => {
+          it('returns true', async () => {
+            expect(await position.margined(VALID_ORACLE_VERSION, VALID_RISK_PARAMETER, 0)).to.be.true
+          })
+
+          context('collateral is negative', () => {
+            it('returns true', async () => {
+              expect(await position.margined(VALID_ORACLE_VERSION, VALID_RISK_PARAMETER, parse6decimal('-1'))).to.be
+                .true
+            })
+          })
+        })
+
+        context('non-zero position', () => {
+          context('collateral > notional * riskParameter.maintenance', () => {
+            it('returns true', async () => {
+              await position.store({ ...VALID_LOCAL_POSITION, maker: parse6decimal('6') })
+
+              expect(
+                await position.margined(
+                  { ...VALID_ORACLE_VERSION, price: parse6decimal('100') },
+                  { ...VALID_RISK_PARAMETER, margin: parse6decimal('0.3') },
+                  parse6decimal('181'),
+                ),
+              ).to.be.true
+            })
+          })
+
+          context('collateral = notional * riskParameter.maintenance', () => {
+            it('returns true', async () => {
+              await position.store({ ...VALID_LOCAL_POSITION, maker: parse6decimal('6') })
+
+              expect(
+                await position.margined(
+                  { ...VALID_ORACLE_VERSION, price: parse6decimal('100') },
+                  { ...VALID_RISK_PARAMETER, margin: parse6decimal('0.3') },
+                  parse6decimal('180'),
+                ),
+              ).to.be.true
+            })
+          })
+
+          context('collateral < notional * riskParameter.maintenance', () => {
+            it('returns false', async () => {
+              await position.store({ ...VALID_LOCAL_POSITION, maker: parse6decimal('6') })
+
+              expect(
+                await position.margined(
+                  { ...VALID_ORACLE_VERSION, price: parse6decimal('100') },
+                  { ...VALID_RISK_PARAMETER, margin: parse6decimal('0.3') },
+                  parse6decimal('179'),
+                ),
+              ).to.be.false
+            })
+          })
+
+          context(
+            'collateral < riskParameter.minMaintenance and riskParameter.minMaintenance > notional * riskParameter.maintenance',
+            () => {
+              it('returns riskParameter.minMaintenance', async () => {
+                await position.store({ ...VALID_LOCAL_POSITION, maker: parse6decimal('6') })
+
+                expect(
+                  await position.margined(
+                    { ...VALID_ORACLE_VERSION, price: parse6decimal('100') },
+                    {
+                      ...VALID_RISK_PARAMETER,
+                      margin: parse6decimal('0.3'),
+                      minMargin: parse6decimal('200'),
                     },
                     parse6decimal('199'),
                   ),
