@@ -4,9 +4,8 @@ pragma solidity 0.8.19;
 import "@openzeppelin/contracts/utils/math/SafeCast.sol";
 import "@pythnetwork/pyth-sdk-solidity/AbstractPyth.sol";
 import "@equilibria/root/attribute/Instance.sol";
-// import "@equilibria/root/attribute/Kept.sol";
-import "../interfaces/IPythFactory.sol";
 import "@equilibria/root/attribute/Kept/Kept.sol";
+import "../interfaces/IPythFactory.sol";
 
 /// @title PythOracle
 /// @notice Pyth implementation of the IOracle interface.
