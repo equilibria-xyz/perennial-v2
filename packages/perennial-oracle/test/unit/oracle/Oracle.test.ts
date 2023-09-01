@@ -148,6 +148,10 @@ describe('Oracle', () => {
           },
           1687231005,
         )
+
+        underlying0.request.reset()
+        underlying1.request.reset()
+
         const [latestVersionDirect, currentTimestampDirect] = [
           await oracle.connect(caller).latest(),
           await oracle.connect(caller).current(),
@@ -167,6 +171,9 @@ describe('Oracle', () => {
         expect((await oracle.oracles(2)).timestamp).to.equal(1687231005)
         expect(latestVersionDirect).to.deep.equal(latestVersion)
         expect(currentTimestampDirect).to.deep.equal(currentTimestamp)
+
+        expect(underlying0.request).to.have.not.been.called
+        expect(underlying1.request).to.have.been.called
       })
 
       it('reverts when oracle out of sync', async () => {
@@ -228,6 +235,34 @@ describe('Oracle', () => {
         expect((await oracle.at(1687230905)).valid).to.equal(true)
       })
 
+      it('requests another before current has cleared', async () => {
+        underlying0.request.reset()
+        underlying1.request.reset()
+
+        const [latestVersionDirect, currentTimestampDirect] = [
+          await oracle.connect(caller).latest(),
+          await oracle.connect(caller).current(),
+        ]
+        const [latestVersion, currentTimestamp] = await oracle.connect(caller).status()
+        await oracle.connect(caller).request(user.address)
+
+        expect(latestVersion.timestamp).to.equal(1687230005)
+        expect(latestVersion.price).to.equal(parse6decimal('1001'))
+        expect(latestVersion.valid).to.equal(true)
+        expect(currentTimestamp).to.equal(1687230905)
+        expect((await oracle.global()).current).to.equal(2)
+        expect((await oracle.global()).latest).to.equal(1)
+        expect((await oracle.oracles(1)).provider).to.equal(underlying0.address)
+        expect((await oracle.oracles(1)).timestamp).to.equal(1687230905)
+        expect((await oracle.oracles(2)).provider).to.equal(underlying1.address)
+        expect((await oracle.oracles(2)).timestamp).to.equal(1687230905)
+        expect(latestVersionDirect).to.deep.equal(latestVersion)
+        expect(currentTimestampDirect).to.deep.equal(currentTimestamp)
+
+        expect(underlying0.request).to.have.been.called
+        expect(underlying1.request).to.have.not.been.called
+      })
+
       it('syncs another version with previous latest', async () => {
         mockVersion(
           underlying0,
@@ -247,6 +282,10 @@ describe('Oracle', () => {
           },
           1687231005,
         )
+
+        underlying0.request.reset()
+        underlying1.request.reset()
+
         const [latestVersionDirect, currentTimestampDirect] = [
           await oracle.connect(caller).latest(),
           await oracle.connect(caller).current(),
@@ -266,6 +305,9 @@ describe('Oracle', () => {
         expect((await oracle.oracles(2)).timestamp).to.equal(1687231005)
         expect(latestVersionDirect).to.deep.equal(latestVersion)
         expect(currentTimestampDirect).to.deep.equal(currentTimestamp)
+
+        expect(underlying0.request).to.have.not.been.called
+        expect(underlying1.request).to.have.been.called
       })
 
       it('syncs another version equal to latest', async () => {
@@ -287,6 +329,10 @@ describe('Oracle', () => {
           },
           1687231005,
         )
+
+        underlying0.request.reset()
+        underlying1.request.reset()
+
         const [latestVersionDirect, currentTimestampDirect] = [
           await oracle.connect(caller).latest(),
           await oracle.connect(caller).current(),
@@ -306,6 +352,9 @@ describe('Oracle', () => {
         expect((await oracle.oracles(2)).timestamp).to.equal(1687231005)
         expect(latestVersionDirect).to.deep.equal(latestVersion)
         expect(currentTimestampDirect).to.deep.equal(currentTimestamp)
+
+        expect(underlying0.request).to.have.not.been.called
+        expect(underlying1.request).to.have.been.called
       })
 
       it('syncs another version after latest before current', async () => {
@@ -332,6 +381,10 @@ describe('Oracle', () => {
           },
           1687231005,
         )
+
+        underlying0.request.reset()
+        underlying1.request.reset()
+
         const [latestVersionDirect, currentTimestampDirect] = [
           await oracle.connect(caller).latest(),
           await oracle.connect(caller).current(),
@@ -351,6 +404,9 @@ describe('Oracle', () => {
         expect((await oracle.oracles(2)).timestamp).to.equal(1687231005)
         expect(latestVersionDirect).to.deep.equal(latestVersion)
         expect(currentTimestampDirect).to.deep.equal(currentTimestamp)
+
+        expect(underlying0.request).to.have.not.been.called
+        expect(underlying1.request).to.have.been.called
       })
 
       it('syncs another version after latest after current', async () => {
@@ -372,6 +428,10 @@ describe('Oracle', () => {
           },
           1687231005,
         )
+
+        underlying0.request.reset()
+        underlying1.request.reset()
+
         const [latestVersionDirect, currentTimestampDirect] = [
           await oracle.connect(caller).latest(),
           await oracle.connect(caller).current(),
@@ -391,6 +451,9 @@ describe('Oracle', () => {
         expect((await oracle.oracles(2)).timestamp).to.equal(1687231005)
         expect(latestVersionDirect).to.deep.equal(latestVersion)
         expect(currentTimestampDirect).to.deep.equal(currentTimestamp)
+
+        expect(underlying0.request).to.have.not.been.called
+        expect(underlying1.request).to.have.been.called
       })
 
       it('syncs another version after all up-to-date', async () => {
@@ -423,6 +486,10 @@ describe('Oracle', () => {
           },
           1687235080,
         )
+
+        underlying0.request.reset()
+        underlying1.request.reset()
+
         const [latestVersionDirect, currentTimestampDirect] = [
           await oracle.connect(caller).latest(),
           await oracle.connect(caller).current(),
@@ -442,6 +509,9 @@ describe('Oracle', () => {
         expect((await oracle.oracles(2)).timestamp).to.equal(1687235080)
         expect(latestVersionDirect).to.deep.equal(latestVersion)
         expect(currentTimestampDirect).to.deep.equal(currentTimestamp)
+
+        expect(underlying0.request).to.have.not.been.called
+        expect(underlying1.request).to.have.been.called
       })
 
       it('properly triages at', async () => {
@@ -463,6 +533,10 @@ describe('Oracle', () => {
           },
           1687231005,
         )
+
+        underlying0.request.reset()
+        underlying1.request.reset()
+
         await oracle.connect(caller).request(user.address)
 
         expect((await oracle.at(0)).timestamp).to.equal(0)
@@ -492,6 +566,9 @@ describe('Oracle', () => {
         expect((await oracle.at(1687230906)).timestamp).to.equal(1687230906)
         expect((await oracle.at(1687230906)).price).to.equal(parse6decimal('1001'))
         expect((await oracle.at(1687230906)).valid).to.equal(true)
+
+        expect(underlying0.request).to.have.not.been.called
+        expect(underlying1.request).to.have.been.called
       })
     })
 
