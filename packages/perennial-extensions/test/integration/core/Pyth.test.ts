@@ -77,7 +77,6 @@ describe('PythOracle', () => {
     await dsu.connect(dsuHolder).transfer(oracleFactory.address, utils.parseEther('100000'))
 
     multiInvoker = await createInvoker(instanceVars)
-
     await time.increaseTo(STARTING_TIME - 1)
     // block.timestamp of the next call will be STARTING_TIME
   })
