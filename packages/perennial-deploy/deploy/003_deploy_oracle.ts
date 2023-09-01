@@ -3,7 +3,7 @@ import { DeployFunction } from 'hardhat-deploy/types'
 import { SignerWithAddress } from '@nomiclabs/hardhat-ethers/signers'
 import { ProxyAdmin__factory } from '@equilibria/perennial-v2/types/generated'
 import { OracleFactory__factory, PythFactory__factory } from '@equilibria/perennial-v2-oracle/types/generated'
-import { forkNetwork, isFork, isMainnet } from '../../common/testutil/network'
+import { forkNetwork, isArbitrum, isFork, isMainnet } from '../../common/testutil/network'
 
 export const ORACLE_IDS: { [key: string]: { [asset: string]: string } } = {
   mainnet: {
@@ -58,8 +58,9 @@ const func: DeployFunction = async function (hre: HardhatRuntimeEnvironment) {
   const oracleFactory = new OracleFactory__factory(deployerSigner).attach((await get('OracleFactory')).address)
 
   // Deploy Pyth Implementations
+  const pythOracleContract = isArbitrum(getNetworkName()) ? 'PythOracle_Arbitrum' : 'PythOracle_Optimism'
   await deploy('PythOracleImpl', {
-    contract: 'PythOracle',
+    contract: pythOracleContract,
     args: [(await get('Pyth')).address],
     from: deployer,
     skipIfAlreadyDeployed: true,

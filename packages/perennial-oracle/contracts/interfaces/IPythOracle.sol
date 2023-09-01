@@ -33,3 +33,8 @@ interface IPythOracle is IOracleProvider, IInstance, IKept {
     function publishTimes(uint256 version) external view returns (uint256);
     function lastCommittedPublishTime() external view returns (uint256);
 }
+
+/// @dev PythStaticFee interface, this is not exposed in the AbstractPyth contract
+interface IPythStaticFee {
+    function singleUpdateFeeInWei() external view returns (uint);
+}

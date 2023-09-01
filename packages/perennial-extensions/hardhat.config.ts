@@ -12,7 +12,7 @@ const config = defaultConfig({
     '@equilibria/perennial-v2-oracle/contracts/OracleFactory.sol',
     '@equilibria/perennial-v2-payoff/contracts/payoff/PowerTwo.sol',
     '@equilibria/perennial-v2-payoff/contracts/PayoffFactory.sol',
-    '@equilibria/root/attribute/Kept.sol',
+    '@equilibria/root/attribute/Kept/Kept.sol',
   ],
 })
 
