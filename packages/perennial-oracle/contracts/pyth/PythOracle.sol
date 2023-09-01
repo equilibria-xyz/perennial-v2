@@ -4,19 +4,16 @@ pragma solidity 0.8.19;
 import "@openzeppelin/contracts/utils/math/SafeCast.sol";
 import "@pythnetwork/pyth-sdk-solidity/AbstractPyth.sol";
 import "@equilibria/root/attribute/Instance.sol";
-import "../../interfaces/IPythFactory.sol";
+// import "@equilibria/root/attribute/Kept.sol";
+import "../interfaces/IPythFactory.sol";
+import "@equilibria/root/attribute/Kept/Kept.sol";
 
-/// @dev PythStaticFee interface. This is not exposed in the AbstractPyth contract
-interface IPythStaticFee {
-    function singleUpdateFeeInWei() external view returns (uint);
-}
-
-/// @title PythOracleBase
+/// @title PythOracle
 /// @notice Pyth implementation of the IOracle interface.
 /// @dev One instance per Pyth price feed should be deployed. Multiple products may use the same
 ///      PythOracle instance if their payoff functions are based on the same underlying oracle.
 ///      This implementation only supports non-negative prices.
-abstract contract PythOracleBase is IPythOracle, Instance {
+contract PythOracle is IPythOracle, Instance, Kept {
     /// @dev A Pyth update must come at least this long after a version to be valid
     uint256 constant public MIN_VALID_TIME_AFTER_VERSION = 4 seconds;
 
@@ -65,8 +62,11 @@ abstract contract PythOracleBase is IPythOracle, Instance {
 
     /// @notice Initializes the contract state
     /// @param id_ price ID for Pyth price feed
-    function __PythOracleBase__initialize(bytes32 id_) internal onlyInitializer {
+    /// @param chainlinkFeed_ Chainlink price feed for rewarding keeper in DSU
+    /// @param dsu_ Token to pay the keeper reward in
+    function initialize(bytes32 id_, AggregatorV3Interface chainlinkFeed_, Token18 dsu_) external initializer(1) {
         __Instance__initialize();
+        __UKept__initialize(chainlinkFeed_, dsu_);
 
         if (!pyth.priceFeedExists(id_)) revert PythOracleInvalidPriceIdError(id_);
 
@@ -127,7 +127,11 @@ abstract contract PythOracleBase is IPythOracle, Instance {
     /// @dev Will revert if there is an earlier versionIndex that could be committed with `updateData`
     /// @param versionIndex The index of the version to commit
     /// @param updateData The update data to commit
-    function commitRequested(uint256 versionIndex, bytes calldata updateData) public virtual payable {
+    function commitRequested(uint256 versionIndex, bytes calldata updateData)
+        public
+        payable
+        keep(KEEPER_REWARD_PREMIUM, KEEPER_BUFFER, updateData, "")
+    {
         // This check isn't necessary since the caller would not be able to produce a valid updateData
         // with an update time corresponding to a null version, but reverting with a specific error is
         // clearer.
@@ -232,7 +236,7 @@ abstract contract PythOracleBase is IPythOracle, Instance {
 
     /// @notice Pulls funds from the factory to reward the keeper
     /// @param keeperFee The keeper fee to pull
-    function _claimAndSendKeeperFee(UFixed18 keeperFee) internal {
+    function _raiseKeeperFee(UFixed18 keeperFee, bytes memory) internal virtual override {
         IPythFactory(address(factory())).claim(UFixed6Lib.from(keeperFee, true));
     }
 
