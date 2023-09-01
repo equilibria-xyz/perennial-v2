@@ -54,6 +54,7 @@ contract Vault is IVault, Instance {
     function initialize(
         Token18 asset_,
         IMarket initialMarket,
+        UFixed6 cap,
         string calldata name_
     ) external initializer(1) {
         __Instance__initialize();
@@ -61,6 +62,8 @@ contract Vault is IVault, Instance {
         asset = asset_;
         _name = name_;
         _register(initialMarket);
+        _updateMarket(0, 1, UFixed6Lib.ZERO);
+        _updateParameter(VaultParameter(cap));
     }
 
     /// @notice Returns the vault parameter set
@@ -164,13 +167,20 @@ contract Vault is IVault, Instance {
         emit MarketRegistered(newMarketId, market);
     }
 
-    /// @notice Updates the registration parameters for a given market
+    /// @notice Settles, then updates the registration parameters for a given market
     /// @param marketId The market id
     /// @param newWeight The new weight
     /// @param newLeverage The new leverage
     function updateMarket(uint256 marketId, uint256 newWeight, UFixed6 newLeverage) external onlyOwner {
         settle(address(0));
+        _updateMarket(marketId, newWeight, newLeverage);
+    }
 
+    /// @notice Updates the registration parameters for a given market
+    /// @param marketId The market id
+    /// @param newWeight The new weight
+    /// @param newLeverage The new leverage
+    function _updateMarket(uint256 marketId, uint256 newWeight, UFixed6 newLeverage) private {
         if (marketId >= totalMarkets) revert VaultMarketDoesNotExistError();
 
         Registration memory registration = _registrations[marketId].read();
@@ -180,11 +190,16 @@ contract Vault is IVault, Instance {
         emit MarketUpdated(marketId, newWeight, newLeverage);
     }
 
-    /// @notice Updates the vault parameter set
+    /// @notice Settles, then updates the vault parameter set
     /// @param newParameter The new vault parameter set
     function updateParameter(VaultParameter memory newParameter) external onlyOwner {
         settle(address(0));
+        _updateParameter(newParameter);
+    }
 
+    /// @notice Updates the vault parameter set
+    /// @param newParameter The new vault parameter set
+    function _updateParameter(VaultParameter memory newParameter) private {
         _parameter.store(newParameter);
         emit ParameterUpdated(newParameter);
     }
@@ -473,7 +488,6 @@ contract Vault is IVault, Instance {
         UFixed6 collateral = UFixed6Lib.from(totalAssets().max(Fixed6Lib.ZERO)).add(context.global.deposit);
         return context.global.assets.add(context.parameter.cap.sub(collateral.min(context.parameter.cap)));
     }
-
 
     /// @notice The maximum available redemption amount for `account`
     /// @param context Context to use
