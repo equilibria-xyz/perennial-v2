@@ -373,6 +373,7 @@ describe('Market', () => {
       payoff: constants.AddressZero,
     }
     riskParameter = {
+      margin: parse6decimal('0.3'),
       maintenance: parse6decimal('0.3'),
       takerFee: 0,
       takerSkewFee: 0,
@@ -394,6 +395,7 @@ describe('Market', () => {
         k: parse6decimal('40000'),
         max: parse6decimal('1.20'),
       },
+      minMargin: parse6decimal('100'),
       minMaintenance: parse6decimal('100'),
       virtualTaker: parse6decimal('0'),
       staleAfter: 7200,
@@ -428,6 +430,7 @@ describe('Market', () => {
       expect(await market.payoff()).to.equal(marketDefinition.payoff)
 
       const riskParameterResult = await market.riskParameter()
+      expect(riskParameterResult.margin).to.equal(0)
       expect(riskParameterResult.maintenance).to.equal(0)
       expect(riskParameterResult.takerFee).to.equal(0)
       expect(riskParameterResult.takerSkewFee).to.equal(0)
@@ -445,6 +448,7 @@ describe('Market', () => {
       expect(riskParameterResult.utilizationCurve.targetUtilization).to.equal(0)
       expect(riskParameterResult.pController.k).to.equal(0)
       expect(riskParameterResult.pController.max).to.equal(0)
+      expect(riskParameterResult.minMargin).to.equal(0)
       expect(riskParameterResult.minMaintenance).to.equal(0)
       expect(riskParameterResult.virtualTaker).to.equal(0)
       expect(riskParameterResult.staleAfter).to.equal(0)
@@ -584,6 +588,7 @@ describe('Market', () => {
 
     describe('#updateRiskParameter', async () => {
       const defaultRiskParameter = {
+        margin: parse6decimal('0.5'),
         maintenance: parse6decimal('0.4'),
         takerFee: parse6decimal('0.01'),
         takerSkewFee: parse6decimal('0.004'),
@@ -605,6 +610,7 @@ describe('Market', () => {
           k: parse6decimal('40000'),
           max: parse6decimal('1.20'),
         },
+        minMargin: parse6decimal('60'),
         minMaintenance: parse6decimal('50'),
         virtualTaker: parse6decimal('100000'),
         staleAfter: 9600,
@@ -618,6 +624,7 @@ describe('Market', () => {
         )
 
         const riskParameter = await market.riskParameter()
+        expect(riskParameter.margin).to.equal(defaultRiskParameter.margin)
         expect(riskParameter.maintenance).to.equal(defaultRiskParameter.maintenance)
         expect(riskParameter.takerFee).to.equal(defaultRiskParameter.takerFee)
         expect(riskParameter.takerSkewFee).to.equal(defaultRiskParameter.takerSkewFee)
@@ -637,6 +644,7 @@ describe('Market', () => {
         )
         expect(riskParameter.pController.k).to.equal(defaultRiskParameter.pController.k)
         expect(riskParameter.pController.max).to.equal(defaultRiskParameter.pController.max)
+        expect(riskParameter.minMargin).to.equal(defaultRiskParameter.minMargin)
         expect(riskParameter.minMaintenance).to.equal(defaultRiskParameter.minMaintenance)
         expect(riskParameter.virtualTaker).to.equal(defaultRiskParameter.virtualTaker)
         expect(riskParameter.staleAfter).to.equal(defaultRiskParameter.staleAfter)
@@ -651,6 +659,7 @@ describe('Market', () => {
         )
 
         const riskParameter = await market.riskParameter()
+        expect(riskParameter.margin).to.equal(defaultRiskParameter.margin)
         expect(riskParameter.maintenance).to.equal(defaultRiskParameter.maintenance)
         expect(riskParameter.takerFee).to.equal(defaultRiskParameter.takerFee)
         expect(riskParameter.takerSkewFee).to.equal(defaultRiskParameter.takerSkewFee)
@@ -670,6 +679,7 @@ describe('Market', () => {
         )
         expect(riskParameter.pController.k).to.equal(defaultRiskParameter.pController.k)
         expect(riskParameter.pController.max).to.equal(defaultRiskParameter.pController.max)
+        expect(riskParameter.minMargin).to.equal(defaultRiskParameter.minMargin)
         expect(riskParameter.minMaintenance).to.equal(defaultRiskParameter.minMaintenance)
         expect(riskParameter.staleAfter).to.equal(defaultRiskParameter.staleAfter)
         expect(riskParameter.makerReceiveOnly).to.equal(defaultRiskParameter.makerReceiveOnly)
