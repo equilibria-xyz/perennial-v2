@@ -40,6 +40,7 @@ export async function deployProductOnMainnetFork({
   staleAfter,
 }: DeployProductParams): Promise<IMarket> {
   const riskParameter: RiskParameterStruct = {
+    margin: maintenance ?? parse6decimal('0.10'),
     maintenance: maintenance ?? parse6decimal('0.10'),
     takerFee: takerFee ?? parse6decimal('0.0'),
     takerSkewFee: takerSkewFee ?? parse6decimal('0.0'),
@@ -61,6 +62,7 @@ export async function deployProductOnMainnetFork({
       k: parse6decimal('40000'),
       max: parse6decimal('1.20'),
     },
+    minMargin: minMaintenance ?? parse6decimal('100'),
     minMaintenance: minMaintenance ?? parse6decimal('100'),
     virtualTaker: 0,
     staleAfter: staleAfter ?? 7200,

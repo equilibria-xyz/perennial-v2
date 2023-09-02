@@ -7,7 +7,7 @@ import "../types/Registration.sol";
 
 /// @title Strategy
 /// @notice Logic for vault capital allocation
-/// @dev - Deploys collateral first to satisfy the maintenance of each market, then deploys the rest by weight.
+/// @dev - Deploys collateral first to satisfy the margin of each market, then deploys the rest by weight.
 ///      - Positions are then targeted based on the amount of collateral that ends up deployed to each market.
 library StrategyLib {
     /// @dev The maximum multiplier that is allowed for leverage
@@ -33,8 +33,8 @@ library StrategyLib {
         /// @dev The latest valid price
         UFixed6 latestPrice;
 
-        /// @dev The maintenance requirement of the vault
-        UFixed6 maintenance;
+        /// @dev The margin requirement of the vault
+        UFixed6 margin;
     }
 
     /// @dev The target allocation for a market
@@ -67,13 +67,13 @@ library StrategyLib {
         for (uint256 marketId; marketId < registrations.length; marketId++)
             contexts[marketId] = _loadContext(registrations[marketId]);
 
-        (uint256 totalWeight, UFixed6 totalMaintenance) = _aggregate(registrations, contexts);
+        (uint256 totalWeight, UFixed6 totalMargin) = _aggregate(registrations, contexts);
 
         targets = new MarketTarget[](registrations.length);
         for (uint256 marketId; marketId < registrations.length; marketId++) {
             _AllocateLocals memory _locals;
-            _locals.marketCollateral = contexts[marketId].maintenance
-                .add(collateral.sub(totalMaintenance).muldiv(registrations[marketId].weight, totalWeight));
+            _locals.marketCollateral = contexts[marketId].margin
+                .add(collateral.sub(totalMargin).muldiv(registrations[marketId].weight, totalWeight));
 
             _locals.marketAssets = assets
                 .muldiv(registrations[marketId].weight, totalWeight)
@@ -81,7 +81,7 @@ library StrategyLib {
 
             if (
                 contexts[marketId].marketParameter.closed ||
-                _locals.marketAssets.lt(contexts[marketId].riskParameter.minMaintenance)
+                _locals.marketAssets.lt(contexts[marketId].riskParameter.minMargin)
             ) _locals.marketAssets = UFixed6Lib.ZERO;
 
             (_locals.minPosition, _locals.maxPosition) = _positionLimit(contexts[marketId]);
@@ -111,23 +111,23 @@ library StrategyLib {
         context.currentPosition = registration.market.pendingPosition(global.currentId);
 
         for (uint256 id = context.local.latestId; id < context.local.currentId; id++)
-            context.maintenance = registration.market.pendingPositions(address(this), id)
-                .maintenance(OracleVersion(0, global.latestPrice, true), context.riskParameter)
-                .max(context.maintenance);
+            context.margin = registration.market.pendingPositions(address(this), id)
+                .margin(OracleVersion(0, global.latestPrice, true), context.riskParameter)
+                .max(context.margin);
     }
 
     /// @notice Aggregate the context of all markets
     /// @param registrations The registrations of the markets
     /// @param contexts The contexts of the markets
     /// @return totalWeight The total weight of all markets
-    /// @return totalMaintenance The total maintenance of all markets
+    /// @return totalMargin The total margin of all markets
     function _aggregate(
         Registration[] memory registrations,
         MarketContext[] memory contexts
-    ) private pure returns (uint256 totalWeight, UFixed6 totalMaintenance) {
+    ) private pure returns (uint256 totalWeight, UFixed6 totalMargin) {
         for (uint256 marketId; marketId < registrations.length; marketId++) {
             totalWeight += registrations[marketId].weight;
-            totalMaintenance = totalMaintenance.add(contexts[marketId].maintenance);
+            totalMargin = totalMargin.add(contexts[marketId].margin);
         }
     }
 
