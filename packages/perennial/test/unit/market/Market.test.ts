@@ -313,6 +313,8 @@ async function settle(market: Market, account: SignerWithAddress) {
     .update(account.address, currentPosition.maker, currentPosition.long, currentPosition.short, 0, false)
 }
 
+// TODO: test for margin
+
 describe('Market', () => {
   let protocolTreasury: SignerWithAddress
   let owner: SignerWithAddress
@@ -10826,7 +10828,7 @@ describe('Market', () => {
           dsu.transferFrom.whenCalledWith(user.address, market.address, utils.parseEther('500')).returns(true)
           await expect(
             market.connect(user).update(user.address, parse6decimal('1000'), 0, 0, parse6decimal('500'), false),
-          ).to.be.revertedWithCustomError(market, 'MarketInsufficientCollateralizationError')
+          ).to.be.revertedWithCustomError(market, 'MarketInsufficientMarginError')
         })
 
         it('reverts if paused', async () => {
@@ -10986,11 +10988,11 @@ describe('Market', () => {
           ).to.be.revertedWithCustomError(market, 'MarketStalePriceError')
         })
 
-        it('reverts if under minimum maintenance', async () => {
+        it('reverts if under minimum margin', async () => {
           dsu.transferFrom.whenCalledWith(user.address, market.address, utils.parseEther('1')).returns(true)
           await expect(
             market.connect(user).update(user.address, 1, 0, 0, parse6decimal('99'), false),
-          ).to.be.revertedWithCustomError(market, 'MarketInsufficientCollateralizationError')
+          ).to.be.revertedWithCustomError(market, 'MarketInsufficientMarginError')
         })
 
         it('reverts if closed', async () => {
@@ -11016,24 +11018,20 @@ describe('Market', () => {
           marketParameter.settlementFee = parse6decimal('0.50')
           await market.updateParameter(marketParameter)
 
-          const minMaintenanceAmount = parse6decimal('100')
+          const minMarginAmount = parse6decimal('100')
           const dustPosition = parse6decimal('0.000001')
           dsu.transferFrom
-            .whenCalledWith(
-              user.address,
-              market.address,
-              minMaintenanceAmount.add(marketParameter.settlementFee).mul(1e12),
-            )
+            .whenCalledWith(user.address, market.address, minMarginAmount.add(marketParameter.settlementFee).mul(1e12))
             .returns(true)
 
           await expect(
-            market.connect(user).update(user.address, dustPosition, 0, 0, minMaintenanceAmount, false),
-          ).to.be.revertedWithCustomError(market, 'MarketInsufficientCollateralizationError')
+            market.connect(user).update(user.address, dustPosition, 0, 0, minMarginAmount, false),
+          ).to.be.revertedWithCustomError(market, 'MarketInsufficientMarginError')
 
           await expect(
             market
               .connect(user)
-              .update(user.address, dustPosition, 0, 0, minMaintenanceAmount.add(marketParameter.settlementFee), false),
+              .update(user.address, dustPosition, 0, 0, minMarginAmount.add(marketParameter.settlementFee), false),
           )
             .to.emit(market, 'Updated')
             .withArgs(
@@ -11042,14 +11040,14 @@ describe('Market', () => {
               dustPosition,
               0,
               0,
-              minMaintenanceAmount.add(marketParameter.settlementFee),
+              minMarginAmount.add(marketParameter.settlementFee),
               false,
             )
 
           expectLocalEq(await market.locals(user.address), {
             currentId: 1,
             latestId: 0,
-            collateral: minMaintenanceAmount.add(marketParameter.settlementFee),
+            collateral: minMarginAmount.add(marketParameter.settlementFee),
             reward: 0,
             protection: 0,
           })
@@ -11061,7 +11059,7 @@ describe('Market', () => {
             ...DEFAULT_POSITION,
             timestamp: ORACLE_VERSION_2.timestamp,
             maker: dustPosition,
-            delta: minMaintenanceAmount.add(marketParameter.settlementFee),
+            delta: minMarginAmount.add(marketParameter.settlementFee),
           })
           expectGlobalEq(await market.global(), {
             currentId: 1,
@@ -11090,15 +11088,15 @@ describe('Market', () => {
           })
 
           await expect(
-            market.connect(user).update(user.address, 0, 0, 0, minMaintenanceAmount.mul(-1), false),
+            market.connect(user).update(user.address, 0, 0, 0, minMarginAmount.mul(-1), false),
           ).to.be.revertedWithCustomError(market, 'MarketInsufficientCollateralError')
 
           dsu.transfer
-            .whenCalledWith(user.address, minMaintenanceAmount.sub(marketParameter.settlementFee).mul(1e12))
+            .whenCalledWith(user.address, minMarginAmount.sub(marketParameter.settlementFee).mul(1e12))
             .returns(true)
           await market
             .connect(user)
-            .update(user.address, 0, 0, 0, minMaintenanceAmount.sub(marketParameter.settlementFee).mul(-1), false)
+            .update(user.address, 0, 0, 0, minMarginAmount.sub(marketParameter.settlementFee).mul(-1), false)
 
           expectLocalEq(await market.locals(user.address), {
             currentId: 1,
@@ -11136,7 +11134,7 @@ describe('Market', () => {
           it('it reverts if not protected', async () => {
             await expect(market.connect(userB).update(userB.address, 0, 0, 0, 0, false)).to.be.revertedWithCustomError(
               market,
-              'MarketInsufficientCollateralizationError',
+              'MarketInsufficientMaintenanceError',
             )
           })
 

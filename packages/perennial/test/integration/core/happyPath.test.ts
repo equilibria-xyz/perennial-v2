@@ -43,6 +43,7 @@ describe('Happy Path', () => {
       payoff: payoff.address,
     }
     const riskParameter = {
+      margin: parse6decimal('0.3'),
       maintenance: parse6decimal('0.3'),
       takerFee: 0,
       takerSkewFee: 0,
@@ -64,6 +65,7 @@ describe('Happy Path', () => {
         k: parse6decimal('40000'),
         max: parse6decimal('1.20'),
       },
+      minMargin: parse6decimal('500'),
       minMaintenance: parse6decimal('500'),
       virtualTaker: parse6decimal('10000'),
       staleAfter: 7200,
@@ -875,8 +877,8 @@ describe('Happy Path', () => {
     const { user, userB, dsu, chainlink, oracle, payoff } = instanceVars
 
     const riskParameter = {
+      margin: parse6decimal('0.3'),
       maintenance: parse6decimal('0.3'),
-
       takerFee: positionFeesOn ? parse6decimal('0.001') : 0,
       takerSkewFee: positionFeesOn ? parse6decimal('0.0006') : 0,
       takerImpactFee: positionFeesOn ? parse6decimal('0.0004') : 0,
@@ -897,6 +899,7 @@ describe('Happy Path', () => {
         k: parse6decimal('40000'),
         max: parse6decimal('1.20'),
       },
+      minMargin: parse6decimal('500'),
       minMaintenance: parse6decimal('500'),
       virtualTaker: parse6decimal('10000'),
       staleAfter: 7200,
@@ -1015,6 +1018,7 @@ describe('Happy Path', () => {
     const { user, userB, dsu, oracle } = instanceVars
 
     const riskParameter = {
+      margin: parse6decimal('0.3'),
       maintenance: parse6decimal('0.3'),
       takerFee: positionFeesOn ? parse6decimal('0.001') : 0,
       takerSkewFee: positionFeesOn ? parse6decimal('0.0006') : 0,
@@ -1036,6 +1040,7 @@ describe('Happy Path', () => {
         k: parse6decimal('40000'),
         max: parse6decimal('1.20'),
       },
+      minMargin: parse6decimal('500'),
       minMaintenance: parse6decimal('500'),
       virtualTaker: parse6decimal('10000'),
       staleAfter: 100000, // enable long delays for testing
