@@ -1418,100 +1418,11 @@ describe('Market', () => {
             await market.connect(user).update(user.address, POSITION, 0, 0, COLLATERAL, false)
           })
 
-          it('closes the position', async () => {
-            await expect(market.connect(user).update(user.address, 0, 0, 0, 0, false))
-              .to.emit(market, 'Updated')
-              .withArgs(user.address, ORACLE_VERSION_2.timestamp, 0, 0, 0, 0, false)
-
-            expectLocalEq(await market.locals(user.address), {
-              currentId: 1,
-              latestId: 0,
-              collateral: COLLATERAL,
-              reward: 0,
-              protection: 0,
-            })
-            expectPositionEq(await market.positions(user.address), {
-              ...DEFAULT_POSITION,
-              timestamp: ORACLE_VERSION_1.timestamp,
-            })
-            expectPositionEq(await market.pendingPositions(user.address, 1), {
-              ...DEFAULT_POSITION,
-              timestamp: ORACLE_VERSION_2.timestamp,
-              delta: COLLATERAL,
-            })
-            expectGlobalEq(await market.global(), {
-              currentId: 1,
-              latestId: 0,
-              protocolFee: 0,
-              oracleFee: 0,
-              riskFee: 0,
-              donation: 0,
-            })
-            expectPositionEq(await market.position(), {
-              ...DEFAULT_POSITION,
-              timestamp: ORACLE_VERSION_1.timestamp,
-            })
-            expectPositionEq(await market.pendingPosition(1), {
-              ...DEFAULT_POSITION,
-              timestamp: ORACLE_VERSION_2.timestamp,
-            })
-            expectVersionEq(await market.versions(ORACLE_VERSION_1.timestamp), {
-              makerValue: { _value: 0 },
-              longValue: { _value: 0 },
-              shortValue: { _value: 0 },
-              makerReward: { _value: 0 },
-              longReward: { _value: 0 },
-              shortReward: { _value: 0 },
-            })
-          })
-
-          it('closes the position partially', async () => {
-            await expect(market.connect(user).update(user.address, POSITION.div(2), 0, 0, 0, false))
-              .to.emit(market, 'Updated')
-              .withArgs(user.address, ORACLE_VERSION_2.timestamp, POSITION.div(2), 0, 0, 0, false)
-
-            expectLocalEq(await market.locals(user.address), {
-              currentId: 1,
-              latestId: 0,
-              collateral: COLLATERAL,
-              reward: 0,
-              protection: 0,
-            })
-            expectPositionEq(await market.positions(user.address), {
-              ...DEFAULT_POSITION,
-              timestamp: ORACLE_VERSION_1.timestamp,
-            })
-            expectPositionEq(await market.pendingPositions(user.address, 1), {
-              ...DEFAULT_POSITION,
-              timestamp: ORACLE_VERSION_2.timestamp,
-              maker: POSITION.div(2),
-              delta: COLLATERAL,
-            })
-            expectGlobalEq(await market.global(), {
-              currentId: 1,
-              latestId: 0,
-              protocolFee: 0,
-              oracleFee: 0,
-              riskFee: 0,
-              donation: 0,
-            })
-            expectPositionEq(await market.position(), {
-              ...DEFAULT_POSITION,
-              timestamp: ORACLE_VERSION_1.timestamp,
-            })
-            expectPositionEq(await market.pendingPosition(1), {
-              ...DEFAULT_POSITION,
-              timestamp: ORACLE_VERSION_2.timestamp,
-              maker: POSITION.div(2),
-            })
-            expectVersionEq(await market.versions(ORACLE_VERSION_1.timestamp), {
-              makerValue: { _value: 0 },
-              longValue: { _value: 0 },
-              shortValue: { _value: 0 },
-              makerReward: { _value: 0 },
-              longReward: { _value: 0 },
-              shortReward: { _value: 0 },
-            })
+          it('reverts on immediate close', async () => {
+            await expect(market.connect(user).update(user.address, 0, 0, 0, 0, false)).to.revertedWithCustomError(
+              market,
+              'MarketOverCloseError',
+            )
           })
 
           context('settles first', async () => {
@@ -2662,102 +2573,11 @@ describe('Market', () => {
               await market.connect(user).update(user.address, 0, POSITION.div(2), 0, COLLATERAL, false)
             })
 
-            it('closes the position partially', async () => {
-              await expect(market.connect(user).update(user.address, 0, POSITION.div(4), 0, 0, false))
-                .to.emit(market, 'Updated')
-                .withArgs(user.address, ORACLE_VERSION_2.timestamp, 0, POSITION.div(4), 0, 0, false)
-
-              expectLocalEq(await market.locals(user.address), {
-                currentId: 1,
-                latestId: 0,
-                collateral: COLLATERAL,
-                reward: 0,
-                protection: 0,
-              })
-              expectPositionEq(await market.positions(user.address), {
-                ...DEFAULT_POSITION,
-                timestamp: ORACLE_VERSION_1.timestamp,
-              })
-              expectPositionEq(await market.pendingPositions(user.address, 1), {
-                ...DEFAULT_POSITION,
-                timestamp: ORACLE_VERSION_2.timestamp,
-                long: POSITION.div(4),
-                delta: COLLATERAL,
-              })
-              expectGlobalEq(await market.global(), {
-                currentId: 1,
-                latestId: 0,
-                protocolFee: 0,
-                oracleFee: 0,
-                riskFee: 0,
-                donation: 0,
-              })
-              expectPositionEq(await market.position(), {
-                ...DEFAULT_POSITION,
-                timestamp: ORACLE_VERSION_1.timestamp,
-              })
-              expectPositionEq(await market.pendingPosition(1), {
-                ...DEFAULT_POSITION,
-                timestamp: ORACLE_VERSION_2.timestamp,
-                maker: POSITION,
-                long: POSITION.div(4),
-              })
-              expectVersionEq(await market.versions(ORACLE_VERSION_1.timestamp), {
-                makerValue: { _value: 0 },
-                longValue: { _value: 0 },
-                shortValue: { _value: 0 },
-                makerReward: { _value: 0 },
-                longReward: { _value: 0 },
-                shortReward: { _value: 0 },
-              })
-            })
-
-            it('closes the position', async () => {
-              await expect(market.connect(user).update(user.address, 0, 0, 0, 0, false))
-                .to.emit(market, 'Updated')
-                .withArgs(user.address, ORACLE_VERSION_2.timestamp, 0, 0, 0, 0, false)
-
-              expectLocalEq(await market.locals(user.address), {
-                currentId: 1,
-                latestId: 0,
-                collateral: COLLATERAL,
-                reward: 0,
-                protection: 0,
-              })
-              expectPositionEq(await market.positions(user.address), {
-                ...DEFAULT_POSITION,
-                timestamp: ORACLE_VERSION_1.timestamp,
-              })
-              expectPositionEq(await market.pendingPositions(user.address, 1), {
-                ...DEFAULT_POSITION,
-                timestamp: ORACLE_VERSION_2.timestamp,
-                delta: COLLATERAL,
-              })
-              expectGlobalEq(await market.global(), {
-                currentId: 1,
-                latestId: 0,
-                protocolFee: 0,
-                oracleFee: 0,
-                riskFee: 0,
-                donation: 0,
-              })
-              expectPositionEq(await market.position(), {
-                ...DEFAULT_POSITION,
-                timestamp: ORACLE_VERSION_1.timestamp,
-              })
-              expectPositionEq(await market.pendingPosition(1), {
-                ...DEFAULT_POSITION,
-                timestamp: ORACLE_VERSION_2.timestamp,
-                maker: POSITION,
-              })
-              expectVersionEq(await market.versions(ORACLE_VERSION_1.timestamp), {
-                makerValue: { _value: 0 },
-                longValue: { _value: 0 },
-                shortValue: { _value: 0 },
-                makerReward: { _value: 0 },
-                longReward: { _value: 0 },
-                shortReward: { _value: 0 },
-              })
+            it('reverts on immediate close', async () => {
+              await expect(market.connect(user).update(user.address, 0, 0, 0, 0, false)).to.revertedWithCustomError(
+                market,
+                'MarketOverCloseError',
+              )
             })
 
             context('settles first', async () => {
@@ -5491,102 +5311,11 @@ describe('Market', () => {
               await market.connect(user).update(user.address, 0, 0, POSITION.div(2), COLLATERAL, false)
             })
 
-            it('closes the position partially', async () => {
-              await expect(market.connect(user).update(user.address, 0, 0, POSITION.div(4), 0, false))
-                .to.emit(market, 'Updated')
-                .withArgs(user.address, ORACLE_VERSION_2.timestamp, 0, 0, POSITION.div(4), 0, false)
-
-              expectLocalEq(await market.locals(user.address), {
-                currentId: 1,
-                latestId: 0,
-                collateral: COLLATERAL,
-                reward: 0,
-                protection: 0,
-              })
-              expectPositionEq(await market.positions(user.address), {
-                ...DEFAULT_POSITION,
-                timestamp: ORACLE_VERSION_1.timestamp,
-              })
-              expectPositionEq(await market.pendingPositions(user.address, 1), {
-                ...DEFAULT_POSITION,
-                timestamp: ORACLE_VERSION_2.timestamp,
-                short: POSITION.div(4),
-                delta: COLLATERAL,
-              })
-              expectGlobalEq(await market.global(), {
-                currentId: 1,
-                latestId: 0,
-                protocolFee: 0,
-                oracleFee: 0,
-                riskFee: 0,
-                donation: 0,
-              })
-              expectPositionEq(await market.position(), {
-                ...DEFAULT_POSITION,
-                timestamp: ORACLE_VERSION_1.timestamp,
-              })
-              expectPositionEq(await market.pendingPosition(1), {
-                ...DEFAULT_POSITION,
-                timestamp: ORACLE_VERSION_2.timestamp,
-                maker: POSITION,
-                short: POSITION.div(4),
-              })
-              expectVersionEq(await market.versions(ORACLE_VERSION_1.timestamp), {
-                makerValue: { _value: 0 },
-                longValue: { _value: 0 },
-                shortValue: { _value: 0 },
-                makerReward: { _value: 0 },
-                longReward: { _value: 0 },
-                shortReward: { _value: 0 },
-              })
-            })
-
-            it('closes the position', async () => {
-              await expect(market.connect(user).update(user.address, 0, 0, 0, 0, false))
-                .to.emit(market, 'Updated')
-                .withArgs(user.address, ORACLE_VERSION_2.timestamp, 0, 0, 0, 0, false)
-
-              expectLocalEq(await market.locals(user.address), {
-                currentId: 1,
-                latestId: 0,
-                collateral: COLLATERAL,
-                reward: 0,
-                protection: 0,
-              })
-              expectPositionEq(await market.positions(user.address), {
-                ...DEFAULT_POSITION,
-                timestamp: ORACLE_VERSION_1.timestamp,
-              })
-              expectPositionEq(await market.pendingPositions(user.address, 1), {
-                ...DEFAULT_POSITION,
-                timestamp: ORACLE_VERSION_2.timestamp,
-                delta: COLLATERAL,
-              })
-              expectGlobalEq(await market.global(), {
-                currentId: 1,
-                latestId: 0,
-                protocolFee: 0,
-                oracleFee: 0,
-                riskFee: 0,
-                donation: 0,
-              })
-              expectPositionEq(await market.position(), {
-                ...DEFAULT_POSITION,
-                timestamp: ORACLE_VERSION_1.timestamp,
-              })
-              expectPositionEq(await market.pendingPosition(1), {
-                ...DEFAULT_POSITION,
-                timestamp: ORACLE_VERSION_2.timestamp,
-                maker: POSITION,
-              })
-              expectVersionEq(await market.versions(ORACLE_VERSION_1.timestamp), {
-                makerValue: { _value: 0 },
-                longValue: { _value: 0 },
-                shortValue: { _value: 0 },
-                makerReward: { _value: 0 },
-                longReward: { _value: 0 },
-                shortReward: { _value: 0 },
-              })
+            it('reverts on immediate close', async () => {
+              await expect(market.connect(user).update(user.address, 0, 0, 0, 0, false)).to.revertedWithCustomError(
+                market,
+                'MarketOverCloseError',
+              )
             })
 
             context('settles first', async () => {
@@ -8446,104 +8175,11 @@ describe('Market', () => {
               await market.connect(user).update(user.address, 0, POSITION.div(2), 0, COLLATERAL, false)
             })
 
-            it('closes the position partially', async () => {
-              await expect(market.connect(user).update(user.address, 0, POSITION.div(4), 0, 0, false))
-                .to.emit(market, 'Updated')
-                .withArgs(user.address, ORACLE_VERSION_2.timestamp, 0, POSITION.div(4), 0, 0, false)
-
-              expectLocalEq(await market.locals(user.address), {
-                currentId: 1,
-                latestId: 0,
-                collateral: COLLATERAL,
-                reward: 0,
-                protection: 0,
-              })
-              expectPositionEq(await market.positions(user.address), {
-                ...DEFAULT_POSITION,
-                timestamp: ORACLE_VERSION_1.timestamp,
-              })
-              expectPositionEq(await market.pendingPositions(user.address, 1), {
-                ...DEFAULT_POSITION,
-                timestamp: ORACLE_VERSION_2.timestamp,
-                long: POSITION.div(4),
-                delta: COLLATERAL,
-              })
-              expectGlobalEq(await market.global(), {
-                currentId: 1,
-                latestId: 0,
-                protocolFee: 0,
-                oracleFee: 0,
-                riskFee: 0,
-                donation: 0,
-              })
-              expectPositionEq(await market.position(), {
-                ...DEFAULT_POSITION,
-                timestamp: ORACLE_VERSION_1.timestamp,
-              })
-              expectPositionEq(await market.pendingPosition(1), {
-                ...DEFAULT_POSITION,
-                timestamp: ORACLE_VERSION_2.timestamp,
-                maker: POSITION,
-                long: POSITION.div(4),
-                short: POSITION,
-              })
-              expectVersionEq(await market.versions(ORACLE_VERSION_1.timestamp), {
-                makerValue: { _value: 0 },
-                longValue: { _value: 0 },
-                shortValue: { _value: 0 },
-                makerReward: { _value: 0 },
-                longReward: { _value: 0 },
-                shortReward: { _value: 0 },
-              })
-            })
-
-            it('closes the position', async () => {
-              await expect(market.connect(user).update(user.address, 0, 0, 0, 0, false))
-                .to.emit(market, 'Updated')
-                .withArgs(user.address, ORACLE_VERSION_2.timestamp, 0, 0, 0, 0, false)
-
-              expectLocalEq(await market.locals(user.address), {
-                currentId: 1,
-                latestId: 0,
-                collateral: COLLATERAL,
-                reward: 0,
-                protection: 0,
-              })
-              expectPositionEq(await market.positions(user.address), {
-                ...DEFAULT_POSITION,
-                timestamp: ORACLE_VERSION_1.timestamp,
-              })
-              expectPositionEq(await market.pendingPositions(user.address, 1), {
-                ...DEFAULT_POSITION,
-                timestamp: ORACLE_VERSION_2.timestamp,
-                delta: COLLATERAL,
-              })
-              expectGlobalEq(await market.global(), {
-                currentId: 1,
-                latestId: 0,
-                protocolFee: 0,
-                oracleFee: 0,
-                riskFee: 0,
-                donation: 0,
-              })
-              expectPositionEq(await market.position(), {
-                ...DEFAULT_POSITION,
-                timestamp: ORACLE_VERSION_1.timestamp,
-              })
-              expectPositionEq(await market.pendingPosition(1), {
-                ...DEFAULT_POSITION,
-                timestamp: ORACLE_VERSION_2.timestamp,
-                maker: POSITION,
-                short: POSITION,
-              })
-              expectVersionEq(await market.versions(ORACLE_VERSION_1.timestamp), {
-                makerValue: { _value: 0 },
-                longValue: { _value: 0 },
-                shortValue: { _value: 0 },
-                makerReward: { _value: 0 },
-                longReward: { _value: 0 },
-                shortReward: { _value: 0 },
-              })
+            it('reverts on immediate close', async () => {
+              await expect(market.connect(user).update(user.address, 0, 0, 0, 0, false)).to.revertedWithCustomError(
+                market,
+                'MarketOverCloseError',
+              )
             })
 
             context('settles first', async () => {
@@ -11175,6 +10811,11 @@ describe('Market', () => {
               await market.connect(userB).update(userB.address, POSITION, 0, 0, COLLATERAL, false)
               await market.connect(user).update(user.address, 0, POSITION, 0, COLLATERAL, false)
               await market.connect(userC).update(userC.address, 0, 0, POSITION.mul(2), COLLATERAL, false)
+
+              oracle.at.whenCalledWith(ORACLE_VERSION_2.timestamp).returns(ORACLE_VERSION_2)
+              oracle.status.returns([ORACLE_VERSION_2, ORACLE_VERSION_3.timestamp])
+              oracle.request.whenCalledWith(user.address).returns()
+              await settle(market, user)
             })
 
             it('allows closing when takerCloseAlways', async () => {
@@ -11226,6 +10867,11 @@ describe('Market', () => {
               await market.connect(userB).update(userB.address, POSITION, 0, 0, COLLATERAL, false)
               await market.connect(user).update(user.address, 0, 0, POSITION, COLLATERAL, false)
               await market.connect(userC).update(userC.address, 0, POSITION.mul(2), 0, COLLATERAL, false)
+
+              oracle.at.whenCalledWith(ORACLE_VERSION_2.timestamp).returns(ORACLE_VERSION_2)
+              oracle.status.returns([ORACLE_VERSION_2, ORACLE_VERSION_3.timestamp])
+              oracle.request.whenCalledWith(user.address).returns()
+              await settle(market, user)
             })
 
             it('allows closing when takerCloseAlways', async () => {
@@ -11277,6 +10923,11 @@ describe('Market', () => {
               await market.connect(userB).update(userB.address, POSITION, 0, 0, COLLATERAL, false)
               await market.connect(user).update(user.address, 0, 0, POSITION, COLLATERAL, false)
               await market.connect(userC).update(userC.address, 0, POSITION.mul(2), 0, COLLATERAL, false)
+
+              oracle.at.whenCalledWith(ORACLE_VERSION_2.timestamp).returns(ORACLE_VERSION_2)
+              oracle.status.returns([ORACLE_VERSION_2, ORACLE_VERSION_3.timestamp])
+              oracle.request.whenCalledWith(user.address).returns()
+              await settle(market, user)
             })
 
             it('allows closing when makerCloseAlways', async () => {
