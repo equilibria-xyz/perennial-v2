@@ -3,8 +3,6 @@ pragma solidity ^0.8.13;
 
 import "../types/Registration.sol";
 
-// TODO: incorporate margin
-
 /// @title Strategy
 /// @notice Logic for vault capital allocation
 /// @dev - Deploys collateral first to satisfy the margin of each market, then deploys the rest by weight.
