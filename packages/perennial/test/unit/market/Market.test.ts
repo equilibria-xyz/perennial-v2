@@ -313,8 +313,6 @@ async function settle(market: Market, account: SignerWithAddress) {
     .update(account.address, currentPosition.maker, currentPosition.long, currentPosition.short, 0, false)
 }
 
-// TODO: test for margin
-
 describe('Market', () => {
   let protocolTreasury: SignerWithAddress
   let owner: SignerWithAddress
