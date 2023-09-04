@@ -205,6 +205,7 @@ describe('Vault', () => {
       oracle: rootOracle.address,
       payoff: constants.AddressZero,
       makerLimit: parse6decimal('1000'),
+      minMargin: parse6decimal('50'),
       minMaintenance: parse6decimal('50'),
       maxLiquidationFee: parse6decimal('25000'),
     })
@@ -214,6 +215,7 @@ describe('Vault', () => {
       owner: owner,
       oracle: btcRootOracle.address,
       payoff: constants.AddressZero,
+      minMargin: parse6decimal('50'),
       minMaintenance: parse6decimal('50'),
       maxLiquidationFee: parse6decimal('25000'),
     })

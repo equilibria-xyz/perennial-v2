@@ -77,10 +77,10 @@ library StrategyLib {
                 .muldiv(registrations[marketId].weight, totalWeight)
                 .min(_locals.marketCollateral.mul(LEVERAGE_BUFFER));
 
-            if (
-                contexts[marketId].marketParameter.closed ||
-                _locals.marketAssets.lt(contexts[marketId].riskParameter.minMargin)
-            ) _locals.marketAssets = UFixed6Lib.ZERO;
+            UFixed6 minAssets = contexts[marketId].riskParameter.minMargin
+                .unsafeDiv(registrations[marketId].leverage.mul(contexts[marketId].riskParameter.maintenance));
+            if (contexts[marketId].marketParameter.closed || _locals.marketAssets.lt(minAssets))
+                _locals.marketAssets = UFixed6Lib.ZERO;
 
             (_locals.minPosition, _locals.maxPosition) = _positionLimit(contexts[marketId]);
 
