@@ -22,6 +22,7 @@ const { ethers } = HRE
 use(smock.matchers)
 
 // TODO: add overclose test
+// TODO: add double close overclose test
 
 const POSITION = parse6decimal('10.000')
 const COLLATERAL = parse6decimal('10000')

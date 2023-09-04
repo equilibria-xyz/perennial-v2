@@ -96,29 +96,22 @@ library OrderLib {
             (self.short.isZero() && self.maker.isZero() && currentPosition.short.isZero() && currentPosition.maker.isZero());
     }
 
-    /// @notice Returns the whether the order fully closes the position
-    /// @dev If the current position is larger this will fully close the latest position, otherwise this will close the
-    ///      entire current position
+    /// @notice Returns the whether the order close the full amount possible of the latest position
+    /// @dev Assumes the order is single sided
     /// @param self The order object to check
-    /// @param latestPosition The latest position to check
+    /// @param closableAmount The latest closable position size
     /// @return Whether the order closes the position
-    function closes(
-        Order memory self,
-        Position memory latestPosition
-    ) internal pure returns (bool) {
-        return (Fixed6Lib.from(latestPosition.maker).add(self.maker).isZero()) &&
-            (Fixed6Lib.from(latestPosition.long).add(self.long).isZero()) &&
-            (Fixed6Lib.from(latestPosition.short).add(self.short).isZero());
+    function closes(Order memory self, UFixed6 closableAmount) internal pure returns (bool) {
+        return Fixed6Lib.from(closableAmount).add(self.maker).add(self.long).add(self.short).isZero();
     }
 
     /// @notice Returns the whether the order over closes the latest position
+    /// @dev Assumes the order is single sided
     /// @param self The order object to check
-    /// @param latestPosition The latest position to check
+    /// @param closableAmount The latest closable position size
     /// @return Whether the order over closes the position
-    function overCloses(Order memory self, Position memory latestPosition) internal pure returns (bool) {
-        return (Fixed6Lib.from(latestPosition.maker).add(self.maker).sign() == -1) ||
-            (Fixed6Lib.from(latestPosition.long).add(self.long).sign() == -1) ||
-            (Fixed6Lib.from(latestPosition.short).add(self.short).sign() == -1);
+    function overCloses(Order memory self, UFixed6 closableAmount) internal pure returns (bool) {
+        return Fixed6Lib.from(closableAmount).add(self.maker).add(self.long).add(self.short).sign() == -1;
     }
 
     /// @notice Returns whether the order is applicable for liquidity checks

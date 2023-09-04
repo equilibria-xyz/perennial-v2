@@ -459,7 +459,11 @@ contract Vault is IVault, Instance {
 
             // local
             Local memory local = registration.market.locals(address(this));
+            Position memory latestAccountPosition = registration.market.positions(address(this));
+            Position memory currentAccountPosition = registration.market.positions(address(this));
             context.markets[marketId].collateral = local.collateral;
+            context.markets[marketId].latestAccountPosition = latestAccountPosition.maker;
+            context.markets[marketId].currentAccountPosition = currentAccountPosition.maker;
 
             // ids
             context.latestIds.update(marketId, local.latestId);
@@ -492,22 +496,39 @@ contract Vault is IVault, Instance {
     /// @notice The maximum available redemption amount for `account`
     /// @param context Context to use
     /// @return redemptionAmount Maximum available redemption amount
-    function _maxRedeem(Context memory context) private pure returns (UFixed6 redemptionAmount) {
+    function _maxRedeem(Context memory context) private view returns (UFixed6 redemptionAmount) {
         if (context.latestCheckpoint.unhealthy()) return UFixed6Lib.ZERO;
 
         redemptionAmount = UFixed6Lib.MAX;
         for (uint256 marketId; marketId < context.markets.length; marketId++) {
             MarketContext memory marketContext = context.markets[marketId];
             Registration memory registration = context.registrations[marketId];
-            // If market has 0 weight or leverage, skip
-            if (registration.weight == 0 || registration.leverage.isZero()) continue;
+            // If market has 0 weight, leverage, or position, skip
+            if (
+                registration.weight == 0 ||
+                registration.leverage.isZero() ||
+                (marketContext.latestAccountPosition.isZero() && marketContext.currentAccountPosition.isZero())
+            ) continue;
 
             UFixed6 collateral = marketContext.currentPosition
-                .sub(marketContext.currentNet.min(marketContext.currentPosition))   // available maker
-                .muldiv(marketContext.latestPrice, registration.leverage)           // available collateral
-                .muldiv(context.totalWeight, registration.weight);                  // collateral in market
+                .sub(marketContext.currentNet.min(marketContext.currentPosition))           // available maker
+                .min(_closablePosition(context, marketId).mul(StrategyLib.LEVERAGE_BUFFER)) // available closable
+                .muldiv(marketContext.latestPrice, registration.leverage)                   // available collateral
+                .muldiv(context.totalWeight, registration.weight);                          // collateral in market
 
             redemptionAmount = redemptionAmount.min(context.latestCheckpoint.toShares(collateral, UFixed6Lib.ZERO));
+        }
+    }
+
+    function _closablePosition(Context memory context, uint256 marketId) private view returns (UFixed6 closableAmount) {
+        closableAmount = context.markets[marketId].latestAccountPosition;
+        UFixed6 previousPosition = context.markets[marketId].latestAccountPosition;
+
+        for (uint256 id = context.latestIds.get(marketId) + 1; id < context.currentIds.get(marketId); id++) {
+            Position memory pendingPosition =
+                context.registrations[marketId].market.pendingPositions(address(this), id);
+            closableAmount = closableAmount.sub(pendingPosition.maker.sub(previousPosition.min(pendingPosition.maker)));
+            previousPosition = pendingPosition.maker;
         }
     }
 

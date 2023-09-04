@@ -490,10 +490,11 @@ contract Market is IMarket, Instance, ReentrancyGuard {
         bool protected
     ) private view {
         // load all pending state
-        (Position[] memory pendingLocalPositions, Fixed6 collateralAfterFees) = _loadPendingPositions(context, account);
+        (Position[] memory pendingLocalPositions, Fixed6 collateralAfterFees, UFixed6 closableAmount) =
+            _loadPendingPositions(context, account);
 
         if (protected && (
-            !(newOrder.closes(context.latestPosition.local) || context.currentPosition.local.magnitude().isZero()) ||
+            !(newOrder.closes(closableAmount) || context.currentPosition.local.magnitude().isZero()) ||
             context.latestPosition.local.maintained(
                 context.latestVersion,
                 context.riskParameter,
@@ -515,7 +516,7 @@ contract Market is IMarket, Instance, ReentrancyGuard {
             revert MarketNotSingleSidedError();
 
         // TODO: add check in vault
-        if (newOrder.overCloses(context.latestPosition.local))
+        if (newOrder.overCloses(closableAmount))
             revert MarketOverCloseError();
 
         if (protected) return; // The following invariants do not apply to protected position updates (liquidations)
@@ -574,16 +575,29 @@ contract Market is IMarket, Instance, ReentrancyGuard {
     function _loadPendingPositions(
         Context memory context,
         address account
-    ) private view returns (Position[] memory pendingLocalPositions, Fixed6 collateralAfterFees) {
+    ) private view returns (
+        Position[] memory pendingLocalPositions,
+        Fixed6 collateralAfterFees,
+        UFixed6 closableAmount
+    ) {
         collateralAfterFees = context.local.collateral;
+        closableAmount = context.latestPosition.local.magnitude();
         pendingLocalPositions = new Position[](
             context.local.currentId - Math.min(context.local.latestId, context.local.currentId)
         );
+
+        UFixed6 previousMagnitude = closableAmount;
         for (uint256 i; i < pendingLocalPositions.length - 1; i++) {
             pendingLocalPositions[i] = _pendingPositions[account][context.local.latestId + 1 + i].read();
+            pendingLocalPositions[i].adjust(context.latestPosition.local);
+
             collateralAfterFees = collateralAfterFees
                 .sub(Fixed6Lib.from(pendingLocalPositions[i].fee))
                 .sub(Fixed6Lib.from(pendingLocalPositions[i].keeper));
+            closableAmount = closableAmount.sub(
+                previousMagnitude.sub(pendingLocalPositions[i].magnitude().min(previousMagnitude))
+            );
+            previousMagnitude = pendingLocalPositions[i].magnitude();
         }
         pendingLocalPositions[pendingLocalPositions.length - 1] = context.currentPosition.local; // current local position hasn't been stored yet
         collateralAfterFees = collateralAfterFees

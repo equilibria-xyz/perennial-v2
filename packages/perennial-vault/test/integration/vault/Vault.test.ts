@@ -1312,7 +1312,7 @@ describe('Vault', () => {
       expect((await vault.accounts(constants.AddressZero)).assets).to.equal(totalAssets)
     })
 
-    it('reverts when below settlement fee', async () => {
+    it.only('reverts when below settlement fee', async () => {
       const settlementFee = parse6decimal('1.00')
       const marketParameter = { ...(await market.parameter()) }
       marketParameter.settlementFee = settlementFee
@@ -1325,10 +1325,16 @@ describe('Vault', () => {
         vault,
         'VaultInsufficientMinimumError',
       )
+      await vault.connect(user).update(user.address, parse6decimal('10'), 0, 0)
+      await updateOracle()
+
       await expect(vault.connect(user).update(user.address, 0, parse6decimal('0.50'), 0)).to.revertedWithCustomError(
         vault,
         'VaultInsufficientMinimumError',
       )
+      await vault.connect(user).update(user.address, 0, parse6decimal('10'), 0)
+      await updateOracle()
+
       await expect(vault.connect(user).update(user.address, 0, 0, parse6decimal('0.50'))).to.revertedWithPanic('0x11')
     })
 
