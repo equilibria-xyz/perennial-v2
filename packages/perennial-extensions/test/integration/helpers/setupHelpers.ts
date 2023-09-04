@@ -406,6 +406,7 @@ export async function createVault(
   const vaultFactoryImpl = await new VaultFactory__factory(owner).deploy(
     instanceVars.marketFactory.address,
     vaultImpl.address,
+    0,
   )
   await instanceVars.proxyAdmin.upgrade(vaultFactoryProxy.address, vaultFactoryImpl.address)
   const vaultFactory = IVaultFactory__factory.connect(vaultFactoryProxy.address, owner)
