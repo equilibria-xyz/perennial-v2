@@ -96,24 +96,6 @@ library OrderLib {
             (self.short.isZero() && self.maker.isZero() && currentPosition.short.isZero() && currentPosition.maker.isZero());
     }
 
-    /// @notice Returns the whether the order close the full amount possible of the latest position
-    /// @dev Assumes the order is single sided
-    /// @param self The order object to check
-    /// @param closableAmount The latest closable position size
-    /// @return Whether the order closes the position
-    function closes(Order memory self, UFixed6 closableAmount) internal pure returns (bool) {
-        return Fixed6Lib.from(closableAmount).add(self.maker).add(self.long).add(self.short).isZero();
-    }
-
-    /// @notice Returns the whether the order over closes the latest position
-    /// @dev Assumes the order is single sided
-    /// @param self The order object to check
-    /// @param closableAmount The latest closable position size
-    /// @return Whether the order over closes the position
-    function overCloses(Order memory self, UFixed6 closableAmount) internal pure returns (bool) {
-        return Fixed6Lib.from(closableAmount).add(self.maker).add(self.long).add(self.short).sign() == -1;
-    }
-
     /// @notice Returns whether the order is applicable for liquidity checks
     /// @param self The Order object to check
     /// @param marketParameter The market parameter
