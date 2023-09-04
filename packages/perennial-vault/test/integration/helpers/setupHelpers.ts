@@ -21,6 +21,7 @@ export async function deployProductOnMainnetFork({
   oracle,
   payoff,
   owner,
+  margin,
   maintenance,
   fundingFee,
   interestFee,
@@ -33,6 +34,7 @@ export async function deployProductOnMainnetFork({
   makerLimit,
   efficiencyLimit,
   utilizationCurve,
+  minMargin,
   minMaintenance,
   liquidationFee,
   minLiquidationFee,
@@ -40,7 +42,7 @@ export async function deployProductOnMainnetFork({
   staleAfter,
 }: DeployProductParams): Promise<IMarket> {
   const riskParameter: RiskParameterStruct = {
-    margin: maintenance ?? parse6decimal('0.10'),
+    margin: margin ?? parse6decimal('0.10'),
     maintenance: maintenance ?? parse6decimal('0.10'),
     takerFee: takerFee ?? parse6decimal('0.0'),
     takerSkewFee: takerSkewFee ?? parse6decimal('0.0'),
@@ -62,7 +64,7 @@ export async function deployProductOnMainnetFork({
       k: parse6decimal('40000'),
       max: parse6decimal('1.20'),
     },
-    minMargin: minMaintenance ?? parse6decimal('100'),
+    minMargin: minMargin ?? parse6decimal('100'),
     minMaintenance: minMaintenance ?? parse6decimal('100'),
     virtualTaker: 0,
     staleAfter: staleAfter ?? 7200,
@@ -100,5 +102,6 @@ export async function deployProductOnMainnetFork({
   const market = IMarket__factory.connect(productAddress, owner)
   await market.connect(owner).updateRiskParameter(riskParameter)
   await market.connect(owner).updateParameter(marketParameter)
+
   return market
 }
