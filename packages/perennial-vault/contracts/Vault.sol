@@ -520,16 +520,39 @@ contract Vault is IVault, Instance {
         }
     }
 
-    function _closablePosition(Context memory context, uint256 marketId) private view returns (UFixed6 closableAmount) {
-        closableAmount = context.markets[marketId].latestAccountPosition;
-        UFixed6 previousPosition = context.markets[marketId].latestAccountPosition;
+    // TODO: natspec
+    function _closablePosition(Context memory context, uint256 marketId) private view returns (UFixed6 closable) {
+        // latest position
+        Position memory latestPosition = context.registrations[marketId].market.positions(address(this));
+        UFixed6 previousMaker;
+        (previousMaker, closable) = _loadPosition(
+            latestPosition,
+            latestPosition,
+            previousMaker,
+            latestPosition.maker
+        );
 
-        for (uint256 id = context.latestIds.get(marketId) + 1; id < context.currentIds.get(marketId); id++) {
-            Position memory pendingPosition =
-                context.registrations[marketId].market.pendingPositions(address(this), id);
-            closableAmount = closableAmount.sub(pendingPosition.maker.sub(previousPosition.min(pendingPosition.maker)));
-            previousPosition = pendingPosition.maker;
+        // pending positions
+        for (uint256 id = context.latestIds.get(marketId) + 1; id <= context.currentIds.get(marketId); id++) {
+            (previousMaker, closable) = _loadPosition(
+                latestPosition,
+                context.registrations[marketId].market.pendingPositions(address(this), id),
+                previousMaker,
+                closable
+            );
         }
+    }
+
+    // TODO: natspec
+    function _loadPosition(
+        Position memory latestPosition,
+        Position memory position,
+        UFixed6 previousMaker,
+        UFixed6 previousClosable
+    ) private pure returns (UFixed6 nextMaker, UFixed6 nextClosable) {
+        position.adjust(latestPosition);
+        nextClosable = previousClosable.sub(previousMaker.sub(position.maker.min(previousMaker)));
+        nextMaker = position.maker;
     }
 
     /// @notice Returns the real amount of collateral in the vault

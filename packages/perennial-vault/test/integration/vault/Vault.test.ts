@@ -1312,7 +1312,7 @@ describe('Vault', () => {
       expect((await vault.accounts(constants.AddressZero)).assets).to.equal(totalAssets)
     })
 
-    it.only('reverts when below settlement fee', async () => {
+    it('reverts when below settlement fee', async () => {
       const settlementFee = parse6decimal('1.00')
       const marketParameter = { ...(await market.parameter()) }
       marketParameter.settlementFee = settlementFee

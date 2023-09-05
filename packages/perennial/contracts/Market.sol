@@ -589,6 +589,7 @@ contract Market is IMarket, Instance, ReentrancyGuard {
             pendingLocalPositions[i] = _pendingPositions[account][context.local.latestId + 1 + i].read();
             pendingLocalPositions[i].adjust(context.latestPosition.local);
 
+            // TODO: cleanup
             collateralAfterFees = collateralAfterFees
                 .sub(Fixed6Lib.from(pendingLocalPositions[i].fee))
                 .sub(Fixed6Lib.from(pendingLocalPositions[i].keeper));

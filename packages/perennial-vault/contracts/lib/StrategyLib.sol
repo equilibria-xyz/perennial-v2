@@ -32,10 +32,13 @@ library StrategyLib {
         Position currentPosition;
 
         /// @dev The latest valid price
-        UFixed6 latestPrice;
+        Fixed6 latestPrice;
 
         /// @dev The margin requirement of the vault
         UFixed6 margin;
+
+        /// @dev The current closable amount of the vault
+        UFixed6 closable;
     }
 
     /// @dev The target allocation for a market
@@ -90,7 +93,7 @@ library StrategyLib {
             (targets[marketId].collateral, targets[marketId].position) = (
                 Fixed6Lib.from(_locals.marketCollateral).sub(contexts[marketId].local.collateral),
                 _locals.marketAssets
-                    .muldiv(registrations[marketId].leverage, contexts[marketId].latestPrice)
+                    .muldiv(registrations[marketId].leverage, contexts[marketId].latestPrice.abs())
                     .min(_locals.maxPosition)
                     .max(_locals.minPosition)
             );
@@ -104,22 +107,43 @@ library StrategyLib {
         context.marketParameter = registration.market.parameter();
         context.riskParameter = registration.market.riskParameter();
         context.local = registration.market.locals(address(this));
-        context.currentAccountPosition = registration.market.pendingPositions(address(this), context.local.currentId);
-        context.latestAccountPosition = registration.market.positions(address(this));
-
         Global memory global = registration.market.global();
+        context.latestPrice = global.latestPrice;
 
-        context.latestPrice = global.latestPrice.abs();
-        context.currentPosition = registration.market.pendingPosition(global.currentId);
+        // latest position
+        UFixed6 previousClosable;
+        previousClosable = _loadPosition(
+            context,
+            context.latestAccountPosition = registration.market.positions(address(this)),
+            previousClosable
+        );
         context.closable = context.latestAccountPosition.maker;
 
-        for (uint256 id = context.local.latestId; id < context.local.currentId; id++) {
-            Position memory pendingPosition = registration.market.pendingPositions(address(this), id);
-            context.maintenance = pendingPosition
-                .margin(OracleVersion(0, global.latestPrice, true), context.riskParameter)
-                .max(context.margin);
-            context.closable = pendingPosition.maker.add(pendingPosition.taker);
-        }
+        // pending positions
+        for (uint256 id = context.local.latestId + 1; id <= context.local.currentId; id++)
+            previousClosable = _loadPosition(
+                context,
+                context.currentAccountPosition = registration.market.pendingPositions(address(this), id),
+                previousClosable
+            );
+
+        // current position
+        context.currentPosition = registration.market.pendingPosition(global.currentId);
+    }
+
+    // TODO: natspec
+    function _loadPosition(
+        MarketContext memory context,
+        Position memory position,
+        UFixed6 previousMaker
+    ) private pure returns (UFixed6 nextMaker) {
+        position.adjust(context.latestAccountPosition);
+
+        context.margin = position
+            .margin(OracleVersion(0, context.latestPrice, true), context.riskParameter)
+            .max(context.margin);
+        context.closable = context.closable.sub(previousMaker.sub(position.maker.min(previousMaker)));
+        nextMaker = position.maker;
     }
 
     /// @notice Aggregate the context of all markets
@@ -148,7 +172,7 @@ library StrategyLib {
                 context.currentPosition.maker
                     .sub(context.currentPosition.net().min(context.currentPosition.maker))
                     .min(context.currentAccountPosition.maker)
-                    .min(context.latestAccountPosition.maker)
+                    .min(context.closable)
             ),
             // maximum position size before crossing the maker limit
             context.currentAccountPosition.maker.add(
@@ -157,6 +181,4 @@ library StrategyLib {
             )
         );
     }
-
-    // TODO: add closeable amount
 }
