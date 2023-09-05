@@ -131,7 +131,11 @@ library StrategyLib {
         context.currentPosition = registration.market.pendingPosition(global.currentId);
     }
 
-    // TODO: natspec
+    /// @notice Loads one position for the context calculation
+    /// @param context The context of the market
+    /// @param position The position to load
+    /// @param previousMaker The previous maker position
+    /// @return nextMaker The next maker position
     function _loadPosition(
         MarketContext memory context,
         Position memory position,

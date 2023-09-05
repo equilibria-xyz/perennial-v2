@@ -59,6 +59,12 @@ abstract contract PositionTester {
         store(_position);
     }
 
+    function adjust(Position memory latestPosition) external {
+        Position memory _position = read();
+        _position.adjust(latestPosition);
+        store(_position);
+    }
+
     function sync(OracleVersion memory latestVersion) external {
         Position memory _position = read();
         _position.sync(latestVersion);

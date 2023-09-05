@@ -520,7 +520,10 @@ contract Vault is IVault, Instance {
         }
     }
 
-    // TODO: natspec
+    /// @notice Returns the closable position amount for `marketId`
+    /// @param context Context to use
+    /// @param marketId Market to use
+    /// @return closable The closable amount
     function _closablePosition(Context memory context, uint256 marketId) private view returns (UFixed6 closable) {
         // latest position
         Position memory latestPosition = context.registrations[marketId].market.positions(address(this));
@@ -543,7 +546,13 @@ contract Vault is IVault, Instance {
         }
     }
 
-    // TODO: natspec
+    /// @notice Loads one position for the closable position calculation
+    /// @param latestPosition The latest position
+    /// @param position The position to load
+    /// @param previousMaker The previous maker amount
+    /// @param previousClosable The previous closable amount
+    /// @return nextMaker The next maker amount
+    /// @return nextClosable The next closable amount
     function _loadPosition(
         Position memory latestPosition,
         Position memory position,

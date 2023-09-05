@@ -258,7 +258,6 @@ contract Market is IMarket, Instance, ReentrancyGuard {
 
         // magic values
         // TODO: add magic number for close
-        // TODO: can you no-op the same version with this change
         if (collateral.eq(Fixed6Lib.MIN)) collateral = context.local.collateral.mul(Fixed6Lib.NEG_ONE);
         if (newMaker.eq(UFixed6Lib.MAX)) newMaker = context.currentPosition.local.maker;
         if (newLong.eq(UFixed6Lib.MAX)) newLong = context.currentPosition.local.long;
@@ -588,8 +587,10 @@ contract Market is IMarket, Instance, ReentrancyGuard {
         for (uint256 i; i < pendingLocalPositions.length - 1; i++) {
             pendingLocalPositions[i] = _pendingPositions[account][context.local.latestId + 1 + i].read();
             pendingLocalPositions[i].adjust(context.latestPosition.local);
+        }
+        pendingLocalPositions[pendingLocalPositions.length - 1] = context.currentPosition.local; // current positions hasn't been stored yet
 
-            // TODO: cleanup
+        for (uint256 i; i < pendingLocalPositions.length; i++) {
             collateralAfterFees = collateralAfterFees
                 .sub(Fixed6Lib.from(pendingLocalPositions[i].fee))
                 .sub(Fixed6Lib.from(pendingLocalPositions[i].keeper));
@@ -598,16 +599,6 @@ contract Market is IMarket, Instance, ReentrancyGuard {
             );
             previousMagnitude = pendingLocalPositions[i].magnitude();
         }
-
-        // load current position information
-        pendingLocalPositions[pendingLocalPositions.length - 1] = context.currentPosition.local;
-        collateralAfterFees = collateralAfterFees
-            .sub(Fixed6Lib.from(pendingLocalPositions[pendingLocalPositions.length - 1].fee))
-            .sub(Fixed6Lib.from(pendingLocalPositions[pendingLocalPositions.length - 1].keeper));
-        closableAmount = closableAmount.sub(
-            previousMagnitude
-                .sub(pendingLocalPositions[pendingLocalPositions.length - 1].magnitude().min(previousMagnitude))
-        );
     }
 
     /// @notice Computes the liquidation fee for the current latest local position
