@@ -154,13 +154,6 @@ abstract contract PositionTester {
     ) external view returns (bool) {
         return read().margined(currentOracleVersion, riskParameter, collateral);
     }
-
-    function liquidationFee(
-        OracleVersion memory currentOracleVersion,
-        RiskParameter memory riskParameter
-    ) external view returns (UFixed6) {
-        return read().liquidationFee(currentOracleVersion, riskParameter);
-    }
 }
 
 contract PositionGlobalTester is PositionTester {

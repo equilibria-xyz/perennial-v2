@@ -38,6 +38,8 @@ use(smock.matchers)
 
 const LEGACY_ORACLE_DELAY = 3600
 
+// TODO: partial liquidation test
+
 describe('Invoke', () => {
   let instanceVars: InstanceVars
   let multiInvoker: MultiInvoker

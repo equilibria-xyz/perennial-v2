@@ -354,22 +354,6 @@ library PositionLib {
     ) internal pure returns (bool) {
         return collateral.max(Fixed6Lib.ZERO).gte(Fixed6Lib.from(margin(self, latestVersion, riskParameter)));
     }
-
-    /// @notice Returns the liquidation fee of the position
-    /// @param self The position object to check
-    /// @param latestVersion The latest oracle version
-    /// @param riskParameter The current risk parameter
-    /// @return The liquidation fee of the position
-    function liquidationFee(
-        Position memory self,
-        OracleVersion memory latestVersion,
-        RiskParameter memory riskParameter
-    ) internal pure returns (UFixed6) {
-        return maintenance(self, latestVersion, riskParameter)
-            .mul(riskParameter.liquidationFee)
-            .min(riskParameter.maxLiquidationFee)
-            .max(riskParameter.minLiquidationFee);
-    }
 }
 
 /// @dev Manually encodes and decodes the global Position struct into storage.

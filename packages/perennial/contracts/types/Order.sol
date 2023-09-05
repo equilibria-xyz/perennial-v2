@@ -109,6 +109,28 @@ library OrderLib {
             (!marketParameter.takerCloseAlways || increasesTaker(self));
     }
 
+    /// @notice Returns the liquidation fee of the position
+    /// @param self The position object to check
+    /// @param latestVersion The latest oracle version
+    /// @param riskParameter The current risk parameter
+    /// @return The liquidation fee of the position
+    function liquidationFee(
+        Order memory self,
+        OracleVersion memory latestVersion,
+        RiskParameter memory riskParameter
+    ) internal pure returns (UFixed6) {
+        UFixed6 magnitude = self.maker.abs().add(self.long.abs()).add(self.short.abs());
+        if (magnitude.isZero()) return UFixed6Lib.ZERO;
+
+        UFixed6 partialMaintenance = magnitude.mul(latestVersion.price.abs())
+            .mul(riskParameter.maintenance)
+            .max(riskParameter.minMaintenance);
+
+        return partialMaintenance.mul(riskParameter.liquidationFee)
+            .min(riskParameter.maxLiquidationFee)
+            .max(riskParameter.minLiquidationFee);
+    }
+
     /// @notice Returns whether the order has no position change
     /// @param self The Order object to check
     /// @return Whether the order has no position change

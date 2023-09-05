@@ -257,7 +257,6 @@ contract Market is IMarket, Instance, ReentrancyGuard {
         context.currentPosition = _loadCurrentPositionContext(context, account);
 
         // magic values
-        // TODO: add magic number for close
         if (collateral.eq(Fixed6Lib.MIN)) collateral = context.local.collateral.mul(Fixed6Lib.NEG_ONE);
         if (newMaker.eq(UFixed6Lib.MAX)) newMaker = context.currentPosition.local.maker;
         if (newLong.eq(UFixed6Lib.MAX)) newLong = context.currentPosition.local.long;
@@ -419,7 +418,7 @@ contract Market is IMarket, Instance, ReentrancyGuard {
             context.riskParameter
         );
         context.latestPosition.global.update(newPosition);
-        context.global.update(newPositionId, oracleVersion.price);
+        context.global.update(newPositionId, oracleVersion.valid ? oracleVersion.price : context.global.latestPrice);
         context.global.incrementFees(
             accumulatedFee,
             newPosition.keeper,
@@ -499,7 +498,7 @@ contract Market is IMarket, Instance, ReentrancyGuard {
                 context.riskParameter,
                 collateralAfterFees.sub(collateral)
             ) ||
-            collateral.lt(Fixed6Lib.from(-1, _liquidationFee(context))) // TODO: use order instead
+            collateral.lt(Fixed6Lib.from(-1, _liquidationFee(context, newOrder)))
         )) revert MarketInvalidProtectionError();
 
         if (context.currentTimestamp - context.latestVersion.timestamp >= context.riskParameter.staleAfter)
@@ -603,9 +602,10 @@ contract Market is IMarket, Instance, ReentrancyGuard {
 
     /// @notice Computes the liquidation fee for the current latest local position
     /// @param context The context to use
+    /// @param order The order to use
     /// @return The liquidation fee
-    function _liquidationFee(Context memory context) private view returns (UFixed6) {
-        return context.latestPosition.local
+    function _liquidationFee(Context memory context, Order memory order) private view returns (UFixed6) {
+        return order
             .liquidationFee(context.latestVersion, context.riskParameter)
             .min(UFixed6Lib.from(token.balanceOf()));
     }

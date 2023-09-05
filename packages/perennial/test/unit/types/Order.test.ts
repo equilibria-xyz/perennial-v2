@@ -13,6 +13,7 @@ import { VALID_RISK_PARAMETER } from './RiskParameter.test'
 const { ethers } = HRE
 use(smock.matchers)
 
+// TODO: liquidation fee test
 export const VALID_ORDER: OrderStruct = {
   maker: 0,
   long: 0,
