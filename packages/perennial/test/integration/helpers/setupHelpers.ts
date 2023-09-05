@@ -193,6 +193,7 @@ export async function createMarket(
     payoff: (payoff ?? instanceVars.payoff).address,
   }
   const riskParameter = {
+    margin: parse6decimal('0.3'),
     maintenance: parse6decimal('0.3'),
     takerFee: 0,
     takerSkewFee: 0,
@@ -214,6 +215,7 @@ export async function createMarket(
       k: parse6decimal('40000'),
       max: parse6decimal('1.20'),
     },
+    minMargin: parse6decimal('500'),
     minMaintenance: parse6decimal('500'),
     virtualTaker: 0,
     staleAfter: 7200,

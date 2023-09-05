@@ -51,7 +51,8 @@ interface IMarket is IInstance {
     event RewardUpdated(Token18 newReward);
 
     error MarketInsufficientLiquidityError();
-    error MarketInsufficientCollateralizationError();
+    error MarketInsufficientMarginError();
+    error MarketInsufficientMaintenanceError();
     error MarketInsufficientCollateralError();
     error MarketProtectedError();
     error MarketMakerOverLimitError();

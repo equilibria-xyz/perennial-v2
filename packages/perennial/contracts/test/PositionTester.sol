@@ -129,12 +129,27 @@ abstract contract PositionTester {
         return read().maintenance(latestVersion, riskParameter);
     }
 
-    function collateralized(
+    function margin(
+        OracleVersion memory latestVersion,
+        RiskParameter memory riskParameter
+    ) external view returns (UFixed6) {
+        return read().margin(latestVersion, riskParameter);
+    }
+
+    function maintained(
         OracleVersion memory currentOracleVersion,
         RiskParameter memory riskParameter,
         Fixed6 collateral
     ) external view returns (bool) {
-        return read().collateralized(currentOracleVersion, riskParameter, collateral);
+        return read().maintained(currentOracleVersion, riskParameter, collateral);
+    }
+
+    function margined(
+        OracleVersion memory currentOracleVersion,
+        RiskParameter memory riskParameter,
+        Fixed6 collateral
+    ) external view returns (bool) {
+        return read().margined(currentOracleVersion, riskParameter, collateral);
     }
 
     function liquidationFee(

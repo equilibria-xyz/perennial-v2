@@ -373,6 +373,7 @@ describe('Market', () => {
       payoff: constants.AddressZero,
     }
     riskParameter = {
+      margin: parse6decimal('0.35'),
       maintenance: parse6decimal('0.3'),
       takerFee: 0,
       takerSkewFee: 0,
@@ -394,6 +395,7 @@ describe('Market', () => {
         k: parse6decimal('40000'),
         max: parse6decimal('1.20'),
       },
+      minMargin: parse6decimal('120'),
       minMaintenance: parse6decimal('100'),
       virtualTaker: parse6decimal('0'),
       staleAfter: 7200,
@@ -428,6 +430,7 @@ describe('Market', () => {
       expect(await market.payoff()).to.equal(marketDefinition.payoff)
 
       const riskParameterResult = await market.riskParameter()
+      expect(riskParameterResult.margin).to.equal(0)
       expect(riskParameterResult.maintenance).to.equal(0)
       expect(riskParameterResult.takerFee).to.equal(0)
       expect(riskParameterResult.takerSkewFee).to.equal(0)
@@ -445,6 +448,7 @@ describe('Market', () => {
       expect(riskParameterResult.utilizationCurve.targetUtilization).to.equal(0)
       expect(riskParameterResult.pController.k).to.equal(0)
       expect(riskParameterResult.pController.max).to.equal(0)
+      expect(riskParameterResult.minMargin).to.equal(0)
       expect(riskParameterResult.minMaintenance).to.equal(0)
       expect(riskParameterResult.virtualTaker).to.equal(0)
       expect(riskParameterResult.staleAfter).to.equal(0)
@@ -584,6 +588,7 @@ describe('Market', () => {
 
     describe('#updateRiskParameter', async () => {
       const defaultRiskParameter = {
+        margin: parse6decimal('0.5'),
         maintenance: parse6decimal('0.4'),
         takerFee: parse6decimal('0.01'),
         takerSkewFee: parse6decimal('0.004'),
@@ -605,6 +610,7 @@ describe('Market', () => {
           k: parse6decimal('40000'),
           max: parse6decimal('1.20'),
         },
+        minMargin: parse6decimal('60'),
         minMaintenance: parse6decimal('50'),
         virtualTaker: parse6decimal('100000'),
         staleAfter: 9600,
@@ -618,6 +624,7 @@ describe('Market', () => {
         )
 
         const riskParameter = await market.riskParameter()
+        expect(riskParameter.margin).to.equal(defaultRiskParameter.margin)
         expect(riskParameter.maintenance).to.equal(defaultRiskParameter.maintenance)
         expect(riskParameter.takerFee).to.equal(defaultRiskParameter.takerFee)
         expect(riskParameter.takerSkewFee).to.equal(defaultRiskParameter.takerSkewFee)
@@ -637,6 +644,7 @@ describe('Market', () => {
         )
         expect(riskParameter.pController.k).to.equal(defaultRiskParameter.pController.k)
         expect(riskParameter.pController.max).to.equal(defaultRiskParameter.pController.max)
+        expect(riskParameter.minMargin).to.equal(defaultRiskParameter.minMargin)
         expect(riskParameter.minMaintenance).to.equal(defaultRiskParameter.minMaintenance)
         expect(riskParameter.virtualTaker).to.equal(defaultRiskParameter.virtualTaker)
         expect(riskParameter.staleAfter).to.equal(defaultRiskParameter.staleAfter)
@@ -651,6 +659,7 @@ describe('Market', () => {
         )
 
         const riskParameter = await market.riskParameter()
+        expect(riskParameter.margin).to.equal(defaultRiskParameter.margin)
         expect(riskParameter.maintenance).to.equal(defaultRiskParameter.maintenance)
         expect(riskParameter.takerFee).to.equal(defaultRiskParameter.takerFee)
         expect(riskParameter.takerSkewFee).to.equal(defaultRiskParameter.takerSkewFee)
@@ -670,6 +679,7 @@ describe('Market', () => {
         )
         expect(riskParameter.pController.k).to.equal(defaultRiskParameter.pController.k)
         expect(riskParameter.pController.max).to.equal(defaultRiskParameter.pController.max)
+        expect(riskParameter.minMargin).to.equal(defaultRiskParameter.minMargin)
         expect(riskParameter.minMaintenance).to.equal(defaultRiskParameter.minMaintenance)
         expect(riskParameter.staleAfter).to.equal(defaultRiskParameter.staleAfter)
         expect(riskParameter.makerReceiveOnly).to.equal(defaultRiskParameter.makerReceiveOnly)
@@ -4338,8 +4348,8 @@ describe('Market', () => {
             beforeEach(async () => {
               dsu.transferFrom.whenCalledWith(userB.address, market.address, COLLATERAL.mul(1e12)).returns(true)
               await market.connect(userB).update(userB.address, POSITION, 0, 0, COLLATERAL, false)
-              dsu.transferFrom.whenCalledWith(user.address, market.address, utils.parseEther('195')).returns(true)
-              await market.connect(user).update(user.address, 0, POSITION.div(2), 0, parse6decimal('195'), false)
+              dsu.transferFrom.whenCalledWith(user.address, market.address, utils.parseEther('216')).returns(true)
+              await market.connect(user).update(user.address, 0, POSITION.div(2), 0, parse6decimal('216'), false)
             })
 
             it('default', async () => {
@@ -4394,7 +4404,7 @@ describe('Market', () => {
               expectLocalEq(await market.locals(user.address), {
                 currentId: 5,
                 latestId: 4,
-                collateral: parse6decimal('195')
+                collateral: parse6decimal('216')
                   .sub(EXPECTED_FUNDING_WITH_FEE_1_5_123.add(EXPECTED_INTEREST_5_123))
                   .sub(EXPECTED_FUNDING_WITH_FEE_2_5_96.add(EXPECTED_INTEREST_5_96))
                   .sub(EXPECTED_LIQUIDATION_FEE),
@@ -4408,7 +4418,7 @@ describe('Market', () => {
               expectPositionEq(await market.pendingPositions(user.address, 5), {
                 ...DEFAULT_POSITION,
                 timestamp: ORACLE_VERSION_6.timestamp,
-                delta: parse6decimal('195').sub(EXPECTED_LIQUIDATION_FEE),
+                delta: parse6decimal('216').sub(EXPECTED_LIQUIDATION_FEE),
               })
               expectLocalEq(await market.locals(userB.address), {
                 currentId: 5,
@@ -4545,7 +4555,7 @@ describe('Market', () => {
               expectLocalEq(await market.locals(user.address), {
                 currentId: 3,
                 latestId: 2,
-                collateral: parse6decimal('195')
+                collateral: parse6decimal('216')
                   .sub(EXPECTED_FUNDING_WITH_FEE_1_5_123.add(EXPECTED_INTEREST_5_123))
                   .sub(EXPECTED_PNL)
                   .sub(EXPECTED_LIQUIDATION_FEE),
@@ -4560,7 +4570,7 @@ describe('Market', () => {
               expectPositionEq(await market.pendingPositions(user.address, 3), {
                 ...DEFAULT_POSITION,
                 timestamp: ORACLE_VERSION_4.timestamp,
-                delta: parse6decimal('195').sub(EXPECTED_LIQUIDATION_FEE),
+                delta: parse6decimal('216').sub(EXPECTED_LIQUIDATION_FEE),
               })
               expectLocalEq(await market.locals(userB.address), {
                 currentId: 3,
@@ -4631,7 +4641,7 @@ describe('Market', () => {
               oracle.status.returns([oracleVersionLowerPrice2, ORACLE_VERSION_5.timestamp])
               oracle.request.whenCalledWith(user.address).returns()
 
-              const shortfall = parse6decimal('195')
+              const shortfall = parse6decimal('216')
                 .sub(EXPECTED_FUNDING_WITH_FEE_1_5_123.add(EXPECTED_INTEREST_5_123))
                 .sub(EXPECTED_FUNDING_WITH_FEE_2_5_43.add(EXPECTED_INTEREST_5_43))
                 .sub(EXPECTED_LIQUIDATION_FEE)
@@ -4658,7 +4668,7 @@ describe('Market', () => {
               expectPositionEq(await market.pendingPositions(user.address, 4), {
                 ...DEFAULT_POSITION,
                 timestamp: ORACLE_VERSION_5.timestamp,
-                delta: parse6decimal('195').sub(EXPECTED_LIQUIDATION_FEE).add(shortfall.mul(-1)),
+                delta: parse6decimal('216').sub(EXPECTED_LIQUIDATION_FEE).add(shortfall.mul(-1)),
               })
             })
           })
@@ -6597,6 +6607,10 @@ describe('Market', () => {
         context('liquidation', async () => {
           context('maker', async () => {
             beforeEach(async () => {
+              const riskParameter = { ...(await market.riskParameter()) }
+              riskParameter.margin = parse6decimal('0.31')
+              await market.updateRiskParameter(riskParameter)
+
               dsu.transferFrom.whenCalledWith(userB.address, market.address, utils.parseEther('390')).returns(true)
               await market.connect(userB).update(userB.address, POSITION, 0, 0, parse6decimal('390'), false)
               dsu.transferFrom.whenCalledWith(user.address, market.address, COLLATERAL.mul(1e12)).returns(true)
@@ -7151,8 +7165,8 @@ describe('Market', () => {
             beforeEach(async () => {
               dsu.transferFrom.whenCalledWith(userB.address, market.address, COLLATERAL.mul(1e12)).returns(true)
               await market.connect(userB).update(userB.address, POSITION, 0, 0, COLLATERAL, false)
-              dsu.transferFrom.whenCalledWith(user.address, market.address, utils.parseEther('195')).returns(true)
-              await market.connect(user).update(user.address, 0, 0, POSITION.div(2), parse6decimal('195'), false)
+              dsu.transferFrom.whenCalledWith(user.address, market.address, utils.parseEther('216')).returns(true)
+              await market.connect(user).update(user.address, 0, 0, POSITION.div(2), parse6decimal('216'), false)
             })
 
             it('default', async () => {
@@ -7207,7 +7221,7 @@ describe('Market', () => {
               expectLocalEq(await market.locals(user.address), {
                 currentId: 5,
                 latestId: 4,
-                collateral: parse6decimal('195')
+                collateral: parse6decimal('216')
                   .sub(EXPECTED_FUNDING_WITH_FEE_1_5_123)
                   .sub(EXPECTED_INTEREST_5_123)
                   .sub(EXPECTED_FUNDING_WITH_FEE_2_5_150)
@@ -7223,7 +7237,7 @@ describe('Market', () => {
               expectPositionEq(await market.pendingPositions(user.address, 5), {
                 ...DEFAULT_POSITION,
                 timestamp: ORACLE_VERSION_6.timestamp,
-                delta: parse6decimal('195').sub(EXPECTED_LIQUIDATION_FEE),
+                delta: parse6decimal('216').sub(EXPECTED_LIQUIDATION_FEE),
               })
               expectLocalEq(await market.locals(userB.address), {
                 currentId: 5,
@@ -7364,7 +7378,7 @@ describe('Market', () => {
               expectLocalEq(await market.locals(user.address), {
                 currentId: 3,
                 latestId: 2,
-                collateral: parse6decimal('195')
+                collateral: parse6decimal('216')
                   .sub(EXPECTED_FUNDING_WITH_FEE_1_5_123)
                   .sub(EXPECTED_INTEREST_5_123)
                   .sub(EXPECTED_PNL)
@@ -7380,7 +7394,7 @@ describe('Market', () => {
               expectPositionEq(await market.pendingPositions(user.address, 3), {
                 ...DEFAULT_POSITION,
                 timestamp: ORACLE_VERSION_4.timestamp,
-                delta: parse6decimal('195').sub(EXPECTED_LIQUIDATION_FEE),
+                delta: parse6decimal('216').sub(EXPECTED_LIQUIDATION_FEE),
               })
               expectLocalEq(await market.locals(userB.address), {
                 currentId: 3,
@@ -7450,7 +7464,7 @@ describe('Market', () => {
               oracle.status.returns([oracleVersionHigherPrice2, ORACLE_VERSION_5.timestamp])
               oracle.request.whenCalledWith(user.address).returns()
 
-              const shortfall = parse6decimal('195')
+              const shortfall = parse6decimal('216')
                 .sub(EXPECTED_FUNDING_WITH_FEE_1_5_123)
                 .sub(EXPECTED_INTEREST_5_123)
                 .sub(EXPECTED_FUNDING_WITH_FEE_2_5_203)
@@ -7479,7 +7493,7 @@ describe('Market', () => {
               expectPositionEq(await market.pendingPositions(user.address, 4), {
                 ...DEFAULT_POSITION,
                 timestamp: ORACLE_VERSION_5.timestamp,
-                delta: parse6decimal('195').sub(EXPECTED_LIQUIDATION_FEE).add(shortfall.mul(-1)),
+                delta: parse6decimal('216').sub(EXPECTED_LIQUIDATION_FEE).add(shortfall.mul(-1)),
               })
             })
           })
@@ -10278,8 +10292,8 @@ describe('Market', () => {
               await market.connect(userB).update(userB.address, POSITION, 0, 0, COLLATERAL, false)
               dsu.transferFrom.whenCalledWith(userC.address, market.address, COLLATERAL.mul(1e12)).returns(true)
               await market.connect(userC).update(userC.address, 0, 0, POSITION, COLLATERAL, false)
-              dsu.transferFrom.whenCalledWith(user.address, market.address, utils.parseEther('195')).returns(true)
-              await market.connect(user).update(user.address, 0, POSITION.div(2), 0, parse6decimal('195'), false)
+              dsu.transferFrom.whenCalledWith(user.address, market.address, utils.parseEther('216')).returns(true)
+              await market.connect(user).update(user.address, 0, POSITION.div(2), 0, parse6decimal('216'), false)
             })
 
             it('default', async () => {
@@ -10349,7 +10363,7 @@ describe('Market', () => {
               expectLocalEq(await market.locals(user.address), {
                 currentId: 5,
                 latestId: 4,
-                collateral: parse6decimal('195')
+                collateral: parse6decimal('216')
                   .add(EXPECTED_FUNDING_WITHOUT_FEE_1_10_123_ALL.div(2))
                   .sub(EXPECTED_INTEREST_10_67_123_ALL.div(3))
                   .add(EXPECTED_FUNDING_WITHOUT_FEE_2_10_96_ALL.div(2))
@@ -10366,7 +10380,7 @@ describe('Market', () => {
               expectPositionEq(await market.pendingPositions(user.address, 5), {
                 ...DEFAULT_POSITION,
                 timestamp: ORACLE_VERSION_6.timestamp,
-                delta: parse6decimal('195').sub(EXPECTED_LIQUIDATION_FEE),
+                delta: parse6decimal('216').sub(EXPECTED_LIQUIDATION_FEE),
               })
               expectLocalEq(await market.locals(userB.address), {
                 currentId: 5,
@@ -10560,7 +10574,7 @@ describe('Market', () => {
               expectLocalEq(await market.locals(user.address), {
                 currentId: 3,
                 latestId: 2,
-                collateral: parse6decimal('195')
+                collateral: parse6decimal('216')
                   .add(EXPECTED_FUNDING_WITHOUT_FEE_1_10_123_ALL.div(2))
                   .sub(EXPECTED_INTEREST_10_67_123_ALL.div(3))
                   .sub(EXPECTED_PNL)
@@ -10577,7 +10591,7 @@ describe('Market', () => {
               expectPositionEq(await market.pendingPositions(user.address, 3), {
                 ...DEFAULT_POSITION,
                 timestamp: ORACLE_VERSION_4.timestamp,
-                delta: parse6decimal('195').sub(EXPECTED_LIQUIDATION_FEE),
+                delta: parse6decimal('216').sub(EXPECTED_LIQUIDATION_FEE),
               })
               expectLocalEq(await market.locals(userB.address), {
                 currentId: 3,
@@ -10657,7 +10671,7 @@ describe('Market', () => {
               oracle.status.returns([oracleVersionLowerPrice2, ORACLE_VERSION_5.timestamp])
               oracle.request.returns()
 
-              const shortfall = parse6decimal('195')
+              const shortfall = parse6decimal('216')
                 .add(EXPECTED_FUNDING_WITHOUT_FEE_1_10_123_ALL.div(2))
                 .sub(EXPECTED_INTEREST_10_67_123_ALL.div(3))
                 .add(EXPECTED_FUNDING_WITHOUT_FEE_2.div(2))
@@ -10687,7 +10701,7 @@ describe('Market', () => {
               expectPositionEq(await market.pendingPositions(user.address, 4), {
                 ...DEFAULT_POSITION,
                 timestamp: ORACLE_VERSION_5.timestamp,
-                delta: parse6decimal('195').sub(EXPECTED_LIQUIDATION_FEE).add(shortfall.mul(-1)),
+                delta: parse6decimal('216').sub(EXPECTED_LIQUIDATION_FEE).add(shortfall.mul(-1)),
               })
             })
           })
@@ -10812,11 +10826,11 @@ describe('Market', () => {
       })
 
       context('invariant violations', async () => {
-        it('reverts if can liquidate', async () => {
+        it('reverts if under margin', async () => {
           dsu.transferFrom.whenCalledWith(user.address, market.address, utils.parseEther('500')).returns(true)
           await expect(
             market.connect(user).update(user.address, parse6decimal('1000'), 0, 0, parse6decimal('500'), false),
-          ).to.be.revertedWithCustomError(market, 'MarketInsufficientCollateralizationError')
+          ).to.be.revertedWithCustomError(market, 'MarketInsufficientMarginError')
         })
 
         it('reverts if paused', async () => {
@@ -10976,11 +10990,11 @@ describe('Market', () => {
           ).to.be.revertedWithCustomError(market, 'MarketStalePriceError')
         })
 
-        it('reverts if under minimum maintenance', async () => {
+        it('reverts if under minimum margin', async () => {
           dsu.transferFrom.whenCalledWith(user.address, market.address, utils.parseEther('1')).returns(true)
           await expect(
             market.connect(user).update(user.address, 1, 0, 0, parse6decimal('99'), false),
-          ).to.be.revertedWithCustomError(market, 'MarketInsufficientCollateralizationError')
+          ).to.be.revertedWithCustomError(market, 'MarketInsufficientMarginError')
         })
 
         it('reverts if closed', async () => {
@@ -11006,24 +11020,20 @@ describe('Market', () => {
           marketParameter.settlementFee = parse6decimal('0.50')
           await market.updateParameter(marketParameter)
 
-          const minMaintenanceAmount = parse6decimal('100')
+          const minMarginAmount = (await market.riskParameter()).minMargin
           const dustPosition = parse6decimal('0.000001')
           dsu.transferFrom
-            .whenCalledWith(
-              user.address,
-              market.address,
-              minMaintenanceAmount.add(marketParameter.settlementFee).mul(1e12),
-            )
+            .whenCalledWith(user.address, market.address, minMarginAmount.add(marketParameter.settlementFee).mul(1e12))
             .returns(true)
 
           await expect(
-            market.connect(user).update(user.address, dustPosition, 0, 0, minMaintenanceAmount, false),
-          ).to.be.revertedWithCustomError(market, 'MarketInsufficientCollateralizationError')
+            market.connect(user).update(user.address, dustPosition, 0, 0, minMarginAmount, false),
+          ).to.be.revertedWithCustomError(market, 'MarketInsufficientMarginError')
 
           await expect(
             market
               .connect(user)
-              .update(user.address, dustPosition, 0, 0, minMaintenanceAmount.add(marketParameter.settlementFee), false),
+              .update(user.address, dustPosition, 0, 0, minMarginAmount.add(marketParameter.settlementFee), false),
           )
             .to.emit(market, 'Updated')
             .withArgs(
@@ -11032,14 +11042,14 @@ describe('Market', () => {
               dustPosition,
               0,
               0,
-              minMaintenanceAmount.add(marketParameter.settlementFee),
+              minMarginAmount.add(marketParameter.settlementFee),
               false,
             )
 
           expectLocalEq(await market.locals(user.address), {
             currentId: 1,
             latestId: 0,
-            collateral: minMaintenanceAmount.add(marketParameter.settlementFee),
+            collateral: minMarginAmount.add(marketParameter.settlementFee),
             reward: 0,
             protection: 0,
           })
@@ -11051,7 +11061,7 @@ describe('Market', () => {
             ...DEFAULT_POSITION,
             timestamp: ORACLE_VERSION_2.timestamp,
             maker: dustPosition,
-            delta: minMaintenanceAmount.add(marketParameter.settlementFee),
+            delta: minMarginAmount.add(marketParameter.settlementFee),
           })
           expectGlobalEq(await market.global(), {
             currentId: 1,
@@ -11080,15 +11090,15 @@ describe('Market', () => {
           })
 
           await expect(
-            market.connect(user).update(user.address, 0, 0, 0, minMaintenanceAmount.mul(-1), false),
+            market.connect(user).update(user.address, 0, 0, 0, minMarginAmount.mul(-1), false),
           ).to.be.revertedWithCustomError(market, 'MarketInsufficientCollateralError')
 
           dsu.transfer
-            .whenCalledWith(user.address, minMaintenanceAmount.sub(marketParameter.settlementFee).mul(1e12))
+            .whenCalledWith(user.address, minMarginAmount.sub(marketParameter.settlementFee).mul(1e12))
             .returns(true)
           await market
             .connect(user)
-            .update(user.address, 0, 0, 0, minMaintenanceAmount.sub(marketParameter.settlementFee).mul(-1), false)
+            .update(user.address, 0, 0, 0, minMarginAmount.sub(marketParameter.settlementFee).mul(-1), false)
 
           expectLocalEq(await market.locals(user.address), {
             currentId: 1,
@@ -11126,7 +11136,7 @@ describe('Market', () => {
           it('it reverts if not protected', async () => {
             await expect(market.connect(userB).update(userB.address, 0, 0, 0, 0, false)).to.be.revertedWithCustomError(
               market,
-              'MarketInsufficientCollateralizationError',
+              'MarketInsufficientMaintenanceError',
             )
           })
 
@@ -11289,8 +11299,8 @@ describe('Market', () => {
         beforeEach(async () => {
           dsu.transferFrom.whenCalledWith(userB.address, market.address, COLLATERAL.mul(1e12)).returns(true)
           await market.connect(userB).update(userB.address, POSITION, 0, 0, COLLATERAL, false)
-          dsu.transferFrom.whenCalledWith(user.address, market.address, utils.parseEther('195')).returns(true)
-          await market.connect(user).update(user.address, 0, POSITION.div(2), 0, parse6decimal('195'), false)
+          dsu.transferFrom.whenCalledWith(user.address, market.address, utils.parseEther('216')).returns(true)
+          await market.connect(user).update(user.address, 0, POSITION.div(2), 0, parse6decimal('216'), false)
         })
 
         it('properly charges liquidation fee', async () => {
@@ -11324,7 +11334,7 @@ describe('Market', () => {
           expectLocalEq(await market.locals(user.address), {
             currentId: 3,
             latestId: 2,
-            collateral: parse6decimal('195')
+            collateral: parse6decimal('216')
               .sub(EXPECTED_FUNDING_WITH_FEE_1_5_123.add(EXPECTED_INTEREST_5_123))
               .sub(EXPECTED_PNL)
               .sub(EXPECTED_LIQUIDATION_FEE),
@@ -11339,7 +11349,7 @@ describe('Market', () => {
           expectPositionEq(await market.pendingPositions(user.address, 3), {
             ...DEFAULT_POSITION,
             timestamp: ORACLE_VERSION_4.timestamp,
-            delta: parse6decimal('195').sub(EXPECTED_LIQUIDATION_FEE),
+            delta: parse6decimal('216').sub(EXPECTED_LIQUIDATION_FEE),
           })
           expectLocalEq(await market.locals(userB.address), {
             currentId: 3,
@@ -11402,8 +11412,8 @@ describe('Market', () => {
         beforeEach(async () => {
           dsu.transferFrom.whenCalledWith(userB.address, market.address, COLLATERAL.mul(1e12)).returns(true)
           await market.connect(userB).update(userB.address, POSITION, 0, 0, COLLATERAL, false)
-          dsu.transferFrom.whenCalledWith(user.address, market.address, utils.parseEther('195')).returns(true)
-          await market.connect(user).update(user.address, 0, 0, POSITION.div(2), parse6decimal('195'), false)
+          dsu.transferFrom.whenCalledWith(user.address, market.address, utils.parseEther('216')).returns(true)
+          await market.connect(user).update(user.address, 0, 0, POSITION.div(2), parse6decimal('216'), false)
         })
 
         it('default', async () => {
@@ -11460,7 +11470,7 @@ describe('Market', () => {
           expectLocalEq(await market.locals(user.address), {
             currentId: 5,
             latestId: 4,
-            collateral: parse6decimal('195')
+            collateral: parse6decimal('216')
               .sub(EXPECTED_FUNDING_WITH_FEE_1_5_123)
               .sub(EXPECTED_INTEREST_5_123)
               .sub(EXPECTED_FUNDING_WITH_FEE_2_5_150)
@@ -11476,7 +11486,7 @@ describe('Market', () => {
           expectPositionEq(await market.pendingPositions(user.address, 5), {
             ...DEFAULT_POSITION,
             timestamp: ORACLE_VERSION_6.timestamp,
-            delta: parse6decimal('195').sub(EXPECTED_LIQUIDATION_FEE),
+            delta: parse6decimal('216').sub(EXPECTED_LIQUIDATION_FEE),
           })
           expectLocalEq(await market.locals(userB.address), {
             currentId: 5,

@@ -292,27 +292,62 @@ library PositionLib {
         OracleVersion memory latestVersion,
         RiskParameter memory riskParameter
     ) internal pure returns (UFixed6) {
-        if (magnitude(self).isZero()) return UFixed6Lib.ZERO;
-        return magnitude(self)
-            .mul(latestVersion.price.abs())
-            .mul(riskParameter.maintenance)
-            .max(riskParameter.minMaintenance);
+        return _collateralRequirement(self, latestVersion, riskParameter.maintenance, riskParameter.minMaintenance);
     }
 
-    /// @notice Returns the whether the position is collateralized
+    /// @notice Returns the margin requirement of the position
+    /// @param self The position object to check
+    /// @param latestVersion The latest oracle version
+    /// @param riskParameter The current risk parameter
+    /// @return The margin requirement of the position
+    function margin(
+        Position memory self,
+        OracleVersion memory latestVersion,
+        RiskParameter memory riskParameter
+    ) internal pure returns (UFixed6) {
+        return _collateralRequirement(self, latestVersion, riskParameter.margin, riskParameter.minMargin);
+    }
+
+    function _collateralRequirement(
+        Position memory self,
+        OracleVersion memory latestVersion,
+        UFixed6 requirementRatio,
+        UFixed6 requirementFixed
+    ) private pure returns (UFixed6) {
+        if (magnitude(self).isZero()) return UFixed6Lib.ZERO;
+        return magnitude(self).mul(latestVersion.price.abs()).mul(requirementRatio).max(requirementFixed);
+    }
+
+    /// @notice Returns the whether the position is maintained
     /// @dev shortfall is considered solvent for 0-position
     /// @param self The position object to check
     /// @param latestVersion The latest oracle version
     /// @param riskParameter The current risk parameter
     /// @param collateral The current account's collateral
-    /// @return Whether the position is collateralized
-    function collateralized(
+    /// @return Whether the position is maintained
+    function maintained(
         Position memory self,
         OracleVersion memory latestVersion,
         RiskParameter memory riskParameter,
         Fixed6 collateral
     ) internal pure returns (bool) {
         return collateral.max(Fixed6Lib.ZERO).gte(Fixed6Lib.from(maintenance(self, latestVersion, riskParameter)));
+    }
+
+    /// @notice Returns the whether the position is margined
+    /// @dev shortfall is considered solvent for 0-position
+    /// @param self The position object to check
+    /// @param latestVersion The latest oracle version
+    /// @param riskParameter The current risk parameter
+    /// @param collateral The current account's collateral
+    /// @return Whether the position is margined
+    function margined(
+        Position memory self,
+        OracleVersion memory latestVersion,
+        RiskParameter memory riskParameter,
+        Fixed6 collateral
+    ) internal pure returns (bool) {
+        return collateral.max(Fixed6Lib.ZERO).gte(Fixed6Lib.from(margin(self, latestVersion, riskParameter)));
     }
 
     /// @notice Returns the liquidation fee of the position
