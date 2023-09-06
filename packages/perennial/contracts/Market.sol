@@ -373,6 +373,9 @@ contract Market is IMarket, Instance, ReentrancyGuard {
             _processPositionLocal(context, account, context.local.latestId, nextPosition);
         }
 
+        // overwrite latestPrice if invalid
+        context.latestVersion.price = context.global.latestPrice;
+
         _position.store(context.latestPosition.global);
         _positions[account].store(context.latestPosition.local);
     }

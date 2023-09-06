@@ -21,10 +21,8 @@ import { MilliPowerTwo__factory } from '@equilibria/perennial-v2-payoff/types/ge
 const { ethers } = HRE
 use(smock.matchers)
 
-// TODO: add overclose test
-// TODO: add double close overclose test
 // TODO: partial liquidation / order test
-// TODO: latest price + invalid price test
+// TODO: invalidation test with pnl
 
 const POSITION = parse6decimal('10.000')
 const COLLATERAL = parse6decimal('10000')
@@ -11097,6 +11095,70 @@ describe('Market', () => {
           })
         })
 
+        it('reverts when the position is over-closed', async () => {
+          const riskParameter = { ...(await market.riskParameter()) }
+          riskParameter.staleAfter = BigNumber.from(14400)
+          await market.updateRiskParameter(riskParameter)
+
+          dsu.transferFrom.whenCalledWith(user.address, market.address, COLLATERAL.mul(1e12)).returns(true)
+          dsu.transferFrom.whenCalledWith(userB.address, market.address, COLLATERAL.mul(1e12)).returns(true)
+          await market.connect(userB).update(userB.address, POSITION, 0, 0, COLLATERAL, false)
+          await market.connect(user).update(user.address, 0, POSITION.div(2), 0, COLLATERAL, false)
+
+          oracle.at.whenCalledWith(ORACLE_VERSION_2.timestamp).returns(ORACLE_VERSION_2)
+          oracle.status.returns([ORACLE_VERSION_2, ORACLE_VERSION_3.timestamp])
+          oracle.request.whenCalledWith(user.address).returns()
+
+          await settle(market, user)
+
+          // open to POSITION (POSITION / 2 settled)
+          await market.connect(user).update(user.address, 0, POSITION, 0, 0, false)
+
+          oracle.at.whenCalledWith(ORACLE_VERSION_2.timestamp).returns(ORACLE_VERSION_2)
+          oracle.status.returns([ORACLE_VERSION_2, ORACLE_VERSION_4.timestamp])
+          oracle.request.whenCalledWith(user.address).returns()
+
+          // can't close more than POSITION / 2
+          await expect(
+            market.connect(user).update(user.address, 0, POSITION.div(2).sub(1), 0, 0, false),
+          ).to.revertedWithPanic('0x11')
+
+          // close out as much as possible
+          await expect(market.connect(user).update(user.address, 0, POSITION.div(2), 0, 0, false))
+            .to.emit(market, 'Updated')
+            .withArgs(user.address, ORACLE_VERSION_4.timestamp, 0, POSITION.div(2), 0, 0, false)
+
+          oracle.at.whenCalledWith(ORACLE_VERSION_2.timestamp).returns(ORACLE_VERSION_2)
+          oracle.status.returns([ORACLE_VERSION_2, ORACLE_VERSION_5.timestamp])
+          oracle.request.whenCalledWith(user.address).returns()
+
+          // can't close any more
+          await expect(
+            market.connect(user).update(user.address, 0, POSITION.div(2).sub(1), 0, 0, false),
+          ).to.revertedWithPanic('0x11')
+
+          oracle.at.whenCalledWith(ORACLE_VERSION_3.timestamp).returns(ORACLE_VERSION_3)
+          oracle.status.returns([ORACLE_VERSION_3, ORACLE_VERSION_5.timestamp])
+          oracle.request.whenCalledWith(user.address).returns()
+
+          // can now close out rest
+          await expect(market.connect(user).update(user.address, 0, 0, 0, 0, false))
+            .to.emit(market, 'Updated')
+            .withArgs(user.address, ORACLE_VERSION_5.timestamp, 0, 0, 0, 0, false)
+
+          oracle.at.whenCalledWith(ORACLE_VERSION_4.timestamp).returns(ORACLE_VERSION_4)
+          oracle.at.whenCalledWith(ORACLE_VERSION_5.timestamp).returns(ORACLE_VERSION_5)
+          oracle.status.returns([ORACLE_VERSION_5, ORACLE_VERSION_6.timestamp])
+          oracle.request.whenCalledWith(user.address).returns()
+
+          await settle(market, user)
+
+          expectPositionEq(await market.positions(user.address), {
+            ...DEFAULT_POSITION,
+            timestamp: ORACLE_VERSION_5.timestamp,
+          })
+        })
+
         context('in liquidation', async () => {
           const EXPECTED_LIQUIDATION_FEE = parse6decimal('225')
 
@@ -11622,8 +11684,8 @@ describe('Market', () => {
             .to.emit(market, 'Updated')
             .withArgs(user.address, ORACLE_VERSION_3.timestamp, 0, POSITION.div(2), 0, COLLATERAL, false)
 
-          oracle.at.whenCalledWith(ORACLE_VERSION_3.timestamp).returns({ ...ORACLE_VERSION_3, valid: false })
-          oracle.status.returns([{ ...ORACLE_VERSION_3, valid: false }, ORACLE_VERSION_4.timestamp])
+          oracle.at.whenCalledWith(ORACLE_VERSION_3.timestamp).returns({ ...ORACLE_VERSION_3, price: 0, valid: false })
+          oracle.status.returns([{ ...ORACLE_VERSION_3, price: 0, valid: false }, ORACLE_VERSION_4.timestamp])
           oracle.request.whenCalledWith(user.address).returns()
 
           await settle(market, user)
@@ -11749,8 +11811,8 @@ describe('Market', () => {
             .to.emit(market, 'Updated')
             .withArgs(user.address, ORACLE_VERSION_3.timestamp, 0, POSITION.div(2), 0, COLLATERAL, false)
 
-          oracle.at.whenCalledWith(ORACLE_VERSION_3.timestamp).returns({ ...ORACLE_VERSION_3, valid: false })
-          oracle.status.returns([{ ...ORACLE_VERSION_3, valid: false }, ORACLE_VERSION_4.timestamp])
+          oracle.at.whenCalledWith(ORACLE_VERSION_3.timestamp).returns({ ...ORACLE_VERSION_3, price: 0, valid: false })
+          oracle.status.returns([{ ...ORACLE_VERSION_3, price: 0, valid: false }, ORACLE_VERSION_4.timestamp])
           oracle.request.whenCalledWith(user.address).returns()
 
           await expect(market.connect(user).update(user.address, 0, POSITION.div(2), 0, 0, false))
@@ -11907,16 +11969,16 @@ describe('Market', () => {
             .to.emit(market, 'Updated')
             .withArgs(user.address, ORACLE_VERSION_3.timestamp, 0, POSITION.div(2), 0, COLLATERAL, false)
 
-          oracle.at.whenCalledWith(ORACLE_VERSION_3.timestamp).returns({ ...ORACLE_VERSION_3, valid: false })
-          oracle.status.returns([{ ...ORACLE_VERSION_3, valid: false }, ORACLE_VERSION_4.timestamp])
+          oracle.at.whenCalledWith(ORACLE_VERSION_3.timestamp).returns({ ...ORACLE_VERSION_3, price: 0, valid: false })
+          oracle.status.returns([{ ...ORACLE_VERSION_3, price: 0, valid: false }, ORACLE_VERSION_4.timestamp])
           oracle.request.whenCalledWith(user.address).returns()
 
           await expect(market.connect(user).update(user.address, 0, POSITION.div(2), 0, 0, false))
             .to.emit(market, 'Updated')
             .withArgs(user.address, ORACLE_VERSION_4.timestamp, 0, POSITION.div(2), 0, 0, false)
 
-          oracle.at.whenCalledWith(ORACLE_VERSION_4.timestamp).returns({ ...ORACLE_VERSION_4, valid: false })
-          oracle.status.returns([{ ...ORACLE_VERSION_4, valid: false }, ORACLE_VERSION_5.timestamp])
+          oracle.at.whenCalledWith(ORACLE_VERSION_4.timestamp).returns({ ...ORACLE_VERSION_4, price: 0, valid: false })
+          oracle.status.returns([{ ...ORACLE_VERSION_4, price: 0, valid: false }, ORACLE_VERSION_5.timestamp])
           oracle.request.whenCalledWith(user.address).returns()
 
           await settle(market, user)
@@ -12073,7 +12135,7 @@ describe('Market', () => {
             .to.emit(market, 'Updated')
             .withArgs(user.address, ORACLE_VERSION_4.timestamp, 0, POSITION.div(2), 0, 0, false)
 
-          oracle.at.whenCalledWith(ORACLE_VERSION_3.timestamp).returns({ ...ORACLE_VERSION_3, valid: false })
+          oracle.at.whenCalledWith(ORACLE_VERSION_3.timestamp).returns({ ...ORACLE_VERSION_3, price: 0, valid: false })
           oracle.at.whenCalledWith(ORACLE_VERSION_4.timestamp).returns({ ...ORACLE_VERSION_4 })
           oracle.status.returns([{ ...ORACLE_VERSION_4 }, ORACLE_VERSION_5.timestamp])
           oracle.request.whenCalledWith(user.address).returns()
@@ -12231,7 +12293,7 @@ describe('Market', () => {
             .to.emit(market, 'Updated')
             .withArgs(user.address, ORACLE_VERSION_4.timestamp, 0, POSITION.div(2), 0, 0, false)
 
-          oracle.at.whenCalledWith(ORACLE_VERSION_3.timestamp).returns({ ...ORACLE_VERSION_3, valid: false })
+          oracle.at.whenCalledWith(ORACLE_VERSION_3.timestamp).returns({ ...ORACLE_VERSION_3, price: 0, valid: false })
           oracle.at.whenCalledWith(ORACLE_VERSION_4.timestamp).returns({ ...ORACLE_VERSION_4 })
           oracle.status.returns([{ ...ORACLE_VERSION_4 }, ORACLE_VERSION_5.timestamp])
           oracle.request.whenCalledWith(user.address).returns()
