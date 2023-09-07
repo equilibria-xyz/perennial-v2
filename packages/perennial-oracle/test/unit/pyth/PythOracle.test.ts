@@ -6,6 +6,7 @@ import {
   AbstractPyth,
   AggregatorV3Interface,
   IERC20Metadata,
+  IPythStaticFee,
   Oracle,
   Oracle__factory,
   OracleFactory,
@@ -45,6 +46,7 @@ describe('PythOracle', () => {
   let user: SignerWithAddress
 
   let pyth: FakeContract<AbstractPyth>
+  let pythUpdateFee: FakeContract<IPythStaticFee>
   let chainlinkFeed: FakeContract<AggregatorV3Interface>
   let oracle: Oracle
   let pythOracle: PythOracle
@@ -57,9 +59,11 @@ describe('PythOracle', () => {
     ;[owner, user] = await ethers.getSigners()
 
     pyth = await smock.fake<AbstractPyth>('AbstractPyth')
+    pythUpdateFee = await smock.fake<IPythStaticFee>('IPythStaticFee', { address: pyth.address })
     pyth.priceFeedExists.returns(true)
-    pyth.getUpdateFee.returns(1)
-    pyth.parsePriceFeedUpdates.returns(params => {
+    pythUpdateFee.singleUpdateFeeInWei.returns(1)
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    pyth.parsePriceFeedUpdates.returns((params: any) => {
       const decoded = JSON.parse(Buffer.from(params.updateData[0].substring(2), 'hex').toString('utf8'))
       const publishTime = BigNumber.from(decoded.price.publishTime)
       if (publishTime.lt(params.minPublishTime) || publishTime.gt(params.maxPublishTime)) {

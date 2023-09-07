@@ -247,6 +247,7 @@ export async function createMarket(
     payoff: (payoff ?? instanceVars.payoff).address,
   }
   const riskParameter = {
+    margin: parse6decimal('0.3'),
     maintenance: parse6decimal('0.3'),
     takerFee: 0,
     takerSkewFee: 0,
@@ -268,6 +269,7 @@ export async function createMarket(
       k: parse6decimal('40000'),
       max: parse6decimal('1.20'),
     },
+    minMargin: parse6decimal('500'),
     minMaintenance: parse6decimal('500'),
     virtualTaker: 0,
     staleAfter: 7200,
@@ -381,7 +383,6 @@ export async function createVault(
     owner,
   )
   await instanceVars.oracleFactory.connect(owner).create(BTC_PRICE_FEE_ID, vaultOracleFactory.address)
-
   const ethMarket = await deployProductOnMainnetFork({
     factory: instanceVars.marketFactory,
     token: instanceVars.dsu,
@@ -389,6 +390,7 @@ export async function createVault(
     oracle: ethOracle.address,
     payoff: constants.AddressZero,
     makerLimit: parse6decimal('1000'),
+    minMargin: parse6decimal('50'),
     minMaintenance: parse6decimal('50'),
     maxLiquidationFee: parse6decimal('25000'),
   })
@@ -398,14 +400,15 @@ export async function createVault(
     owner: owner,
     oracle: btcOracle.address,
     payoff: constants.AddressZero,
+    minMargin: parse6decimal('50'),
     minMaintenance: parse6decimal('50'),
     maxLiquidationFee: parse6decimal('25000'),
   })
-
   const vaultImpl = await new Vault__factory(owner).deploy()
   const vaultFactoryImpl = await new VaultFactory__factory(owner).deploy(
     instanceVars.marketFactory.address,
     vaultImpl.address,
+    0,
   )
   await instanceVars.proxyAdmin.upgrade(vaultFactoryProxy.address, vaultFactoryImpl.address)
   const vaultFactory = IVaultFactory__factory.connect(vaultFactoryProxy.address, owner)
@@ -422,7 +425,6 @@ export async function createVault(
   await vault.updateParameter({
     cap: maxCollateral ?? parse6decimal('500000'),
   })
-
   const usdc = IERC20Metadata__factory.connect(USDC, owner)
   const asset = IERC20Metadata__factory.connect(await vault.asset(), owner)
 

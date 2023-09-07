@@ -476,7 +476,7 @@ contract Market is IMarket, Instance, ReentrancyGuard {
 
         if (protected && (
             !context.currentPosition.local.magnitude().isZero() ||
-            context.latestPosition.local.collateralized(
+            context.latestPosition.local.maintained(
                 context.latestVersion,
                 context.riskParameter,
                 collateralAfterFees.sub(collateral)
@@ -510,13 +510,18 @@ contract Market is IMarket, Instance, ReentrancyGuard {
         ) revert MarketExceedsPendingIdLimitError();
 
         if (
-            !context.latestPosition.local.collateralized(context.latestVersion, context.riskParameter, collateralAfterFees)
-        ) revert MarketInsufficientCollateralizationError();
+            !context.latestPosition.local.maintained(context.latestVersion, context.riskParameter, collateralAfterFees)
+        ) revert MarketInsufficientMaintenanceError();
 
-        for (uint256 i; i < pendingLocalPositions.length; i++)
+        for (uint256 i; i < pendingLocalPositions.length - 1; i++)
             if (
-                !pendingLocalPositions[i].collateralized(context.latestVersion, context.riskParameter, collateralAfterFees)
-            ) revert MarketInsufficientCollateralizationError();
+                !pendingLocalPositions[i].maintained(context.latestVersion, context.riskParameter, collateralAfterFees)
+            ) revert MarketInsufficientMaintenanceError();
+
+        if (
+            !pendingLocalPositions[pendingLocalPositions.length - 1]
+                .margined(context.latestVersion, context.riskParameter, collateralAfterFees)
+        ) revert MarketInsufficientMarginError();
 
         if (
             (context.local.protection > context.latestPosition.local.timestamp) &&

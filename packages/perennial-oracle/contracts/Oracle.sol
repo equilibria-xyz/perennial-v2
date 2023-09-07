@@ -24,6 +24,7 @@ contract Oracle is IOracle, Instance {
     }
 
     /// @notice Updates the current oracle provider
+    /// @dev Both the current and new oracle provider must have the same current
     /// @param newProvider The new oracle provider
     function update(IOracleProvider newProvider) external {
         if (msg.sender != address(factory())) revert OracleNotFactoryError();
@@ -36,7 +37,10 @@ contract Oracle is IOracle, Instance {
     function request(address account) external onlyAuthorized {
         (OracleVersion memory latestVersion, uint256 currentTimestamp) = oracles[global.current].provider.status();
 
-        oracles[global.current].provider.request(account);
+        oracles[
+            (currentTimestamp > oracles[global.latest].timestamp) ? global.current : global.latest
+        ].provider.request(account);
+
         oracles[global.current].timestamp = uint96(currentTimestamp);
         _updateLatest(latestVersion);
     }
