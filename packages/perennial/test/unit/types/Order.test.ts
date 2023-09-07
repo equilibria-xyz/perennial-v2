@@ -14,7 +14,6 @@ import { PositionStruct } from '../../../types/generated/contracts/Market'
 const { ethers } = HRE
 use(smock.matchers)
 
-// TODO: liquidation fee test
 export const VALID_ORDER: OrderStruct = {
   maker: 0,
   long: 0,
@@ -44,7 +43,6 @@ const VALID_POSITION: PositionStruct = {
   },
 }
 
-// TODO: coverage
 describe('Order', () => {
   let owner: SignerWithAddress
 

@@ -17,6 +17,8 @@ struct Invalidation {
 }
 using InvalidationLib for Invalidation global;
 
+// TODO: natspec
+
 /// @title Invalidation
 /// @notice Holds the state for an account's update invalidation
 library InvalidationLib {
@@ -45,5 +47,10 @@ library InvalidationLib {
         delta.maker = self.maker.sub(invalidation.maker);
         delta.long = self.long.sub(invalidation.long);
         delta.short = self.short.sub(invalidation.short);
+    }
+
+    // @notice replaces the invalidation with a new invalidation
+    function update(Invalidation memory self, Invalidation memory newInvalidation) internal pure {
+        (self.maker, self.long, self.short) = (newInvalidation.maker, newInvalidation.long, newInvalidation.short);
     }
 }

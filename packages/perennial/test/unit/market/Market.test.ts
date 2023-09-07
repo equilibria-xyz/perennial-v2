@@ -21,8 +21,6 @@ import { MilliPowerTwo__factory } from '@equilibria/perennial-v2-payoff/types/ge
 const { ethers } = HRE
 use(smock.matchers)
 
-// TODO: invalidation test with pnl
-
 const POSITION = parse6decimal('10.000')
 const COLLATERAL = parse6decimal('10000')
 const TIMESTAMP = 1636401093
@@ -12535,6 +12533,91 @@ describe('Market', () => {
             shortValue: { _value: 0 },
             makerReward: { _value: EXPECTED_REWARD.mul(3).mul(3).div(10) },
             longReward: { _value: 0 },
+            shortReward: { _value: 0 },
+          })
+        })
+
+        it('settles invalid w/ exposure', async () => {
+          await expect(market.connect(user).update(user.address, 0, POSITION.div(2), 0, COLLATERAL, false))
+            .to.emit(market, 'Updated')
+            .withArgs(user.address, ORACLE_VERSION_2.timestamp, 0, POSITION.div(2), 0, COLLATERAL, false)
+
+          oracle.at.whenCalledWith(ORACLE_VERSION_2.timestamp).returns(ORACLE_VERSION_2)
+
+          oracle.at.whenCalledWith(ORACLE_VERSION_3.timestamp).returns({ ...ORACLE_VERSION_3, price: 0, valid: false })
+          oracle.status.returns([{ ...ORACLE_VERSION_3, price: 0, valid: false }, ORACLE_VERSION_4.timestamp])
+          oracle.request.whenCalledWith(user.address).returns()
+
+          await settle(market, user)
+          await settle(market, userB)
+
+          expectLocalEq(await market.locals(user.address), {
+            currentId: 2,
+            latestId: 1,
+            collateral: COLLATERAL.sub(EXPECTED_FUNDING_WITH_FEE_1_5_123).sub(EXPECTED_INTEREST_5_123),
+            reward: EXPECTED_REWARD.mul(2),
+            protection: 0,
+          })
+          expectPositionEq(await market.positions(user.address), {
+            ...DEFAULT_POSITION,
+            timestamp: ORACLE_VERSION_3.timestamp,
+            long: POSITION.div(2),
+          })
+          expectPositionEq(await market.pendingPositions(user.address, 2), {
+            ...DEFAULT_POSITION,
+            timestamp: ORACLE_VERSION_4.timestamp,
+            long: POSITION.div(2),
+            delta: COLLATERAL,
+          })
+          expectLocalEq(await market.locals(userB.address), {
+            currentId: 2,
+            latestId: 1,
+            collateral: COLLATERAL.add(EXPECTED_FUNDING_WITHOUT_FEE_1_5_123)
+              .add(EXPECTED_INTEREST_WITHOUT_FEE_5_123)
+              .sub(8), // loss of precision
+            reward: EXPECTED_REWARD.mul(3),
+            protection: 0,
+          })
+          expectPositionEq(await market.positions(userB.address), {
+            ...DEFAULT_POSITION,
+            timestamp: ORACLE_VERSION_3.timestamp,
+            maker: POSITION,
+          })
+          expectPositionEq(await market.pendingPositions(userB.address, 2), {
+            ...DEFAULT_POSITION,
+            timestamp: ORACLE_VERSION_4.timestamp,
+            maker: POSITION,
+            delta: COLLATERAL,
+          })
+          const totalFee = EXPECTED_FUNDING_FEE_1_5_123.add(EXPECTED_INTEREST_FEE_5_123)
+          expectGlobalEq(await market.global(), {
+            currentId: 2,
+            latestId: 1,
+            protocolFee: totalFee.div(2).sub(3), // loss of precision
+            oracleFee: totalFee.div(2).div(10).sub(1), // loss of precision
+            riskFee: totalFee.div(2).div(10).sub(1), // loss of precision
+            donation: totalFee.div(2).mul(8).div(10).add(1), // loss of precision
+          })
+          expectPositionEq(await market.position(), {
+            ...DEFAULT_POSITION,
+            timestamp: ORACLE_VERSION_3.timestamp,
+            maker: POSITION,
+            long: POSITION.div(2),
+          })
+          expectPositionEq(await market.pendingPosition(2), {
+            ...DEFAULT_POSITION,
+            timestamp: ORACLE_VERSION_4.timestamp,
+            maker: POSITION,
+            long: POSITION.div(2),
+          })
+          expectVersionEq(await market.versions(ORACLE_VERSION_3.timestamp), {
+            makerValue: {
+              _value: EXPECTED_FUNDING_WITHOUT_FEE_1_5_123.add(EXPECTED_INTEREST_WITHOUT_FEE_5_123).div(10),
+            },
+            longValue: { _value: EXPECTED_FUNDING_WITH_FEE_1_5_123.add(EXPECTED_INTEREST_5_123).div(5).mul(-1) },
+            shortValue: { _value: 0 },
+            makerReward: { _value: EXPECTED_REWARD.mul(3).div(10) },
+            longReward: { _value: EXPECTED_REWARD.mul(2).div(5) },
             shortReward: { _value: 0 },
           })
         })
