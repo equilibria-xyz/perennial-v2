@@ -224,10 +224,10 @@ contract Market is IMarket, Instance, ReentrancyGuard {
         positionContext.local = _pendingPositions[account][context.local.currentId].read();
 
         // adjust position based on change in invalidation since last position
-        positionContext.global.adjust(context.latestPosition.global);
+        positionContext.global.adjust(context.latestPosition.global); // TODO: if we're updating the current, does this double invalidate?
         positionContext.local.adjust(context.latestPosition.local);
 
-        // save new invalidation accumulator value
+        // save new invalidation accumulator value // TODO: pack
         positionContext.global.invalidation.maker = context.latestPosition.global.invalidation.maker;
         positionContext.global.invalidation.long = context.latestPosition.global.invalidation.long;
         positionContext.global.invalidation.short = context.latestPosition.global.invalidation.short;

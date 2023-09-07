@@ -21,7 +21,6 @@ import { MilliPowerTwo__factory } from '@equilibria/perennial-v2-payoff/types/ge
 const { ethers } = HRE
 use(smock.matchers)
 
-// TODO: partial liquidation / order test
 // TODO: invalidation test with pnl
 
 const POSITION = parse6decimal('10.000')
@@ -11649,6 +11648,98 @@ describe('Market', () => {
             makerReward: { _value: EXPECTED_REWARD.mul(3).div(10).mul(3) },
             longReward: { _value: 0 },
             shortReward: { _value: EXPECTED_REWARD.div(5).mul(2) },
+          })
+        })
+      })
+
+      context('liquidation w/ partial closed', async () => {
+        beforeEach(async () => {
+          const riskParameter = { ...(await market.riskParameter()) }
+          riskParameter.staleAfter = BigNumber.from(14400)
+          await market.updateRiskParameter(riskParameter)
+
+          dsu.transferFrom.whenCalledWith(userB.address, market.address, COLLATERAL.mul(1e12)).returns(true)
+          await market.connect(userB).update(userB.address, POSITION, 0, 0, COLLATERAL, false)
+          dsu.transferFrom.whenCalledWith(user.address, market.address, utils.parseEther('324')).returns(true)
+          await market.connect(user).update(user.address, 0, 0, POSITION.div(2), parse6decimal('324'), false)
+
+          oracle.at.whenCalledWith(ORACLE_VERSION_2.timestamp).returns(ORACLE_VERSION_2)
+          oracle.status.returns([ORACLE_VERSION_2, ORACLE_VERSION_4.timestamp])
+          oracle.request.whenCalledWith(user.address).returns()
+
+          await market.connect(user).update(user.address, 0, 0, POSITION.mul(3).div(4), 0, false)
+          await settle(market, userB)
+        })
+
+        it('default', async () => {
+          const EXPECTED_LIQUIDATION_FEE = parse6decimal('112.5') // 168.75
+
+          const oracleVersionLowerPrice = {
+            price: parse6decimal('150'),
+            timestamp: TIMESTAMP + 7200,
+            valid: true,
+          }
+          oracle.at.whenCalledWith(oracleVersionLowerPrice.timestamp).returns(oracleVersionLowerPrice)
+          oracle.status.returns([oracleVersionLowerPrice, ORACLE_VERSION_5.timestamp])
+          oracle.request.whenCalledWith(user.address).returns()
+
+          await settle(market, userB)
+          dsu.transfer.whenCalledWith(liquidator.address, EXPECTED_LIQUIDATION_FEE.mul(1e12)).returns(true)
+          dsu.balanceOf.whenCalledWith(market.address).returns(COLLATERAL.mul(1e12))
+
+          await expect(
+            market
+              .connect(liquidator)
+              .update(user.address, 0, 0, POSITION.div(4).sub(1), EXPECTED_LIQUIDATION_FEE.mul(-1), true),
+          ).to.revertedWithPanic('0x11')
+
+          dsu.transfer.whenCalledWith(liquidator.address, EXPECTED_LIQUIDATION_FEE.add(1).mul(1e12)).returns(true)
+          await expect(
+            market
+              .connect(liquidator)
+              .update(user.address, 0, 0, POSITION.div(4), EXPECTED_LIQUIDATION_FEE.mul(-1).sub(1), true),
+          ).to.revertedWithCustomError(market, 'MarketInvalidProtectionError')
+
+          await expect(
+            market
+              .connect(liquidator)
+              .update(user.address, 0, 0, POSITION.div(4), EXPECTED_LIQUIDATION_FEE.mul(-1), true),
+          )
+            .to.emit(market, 'Updated')
+            .withArgs(
+              user.address,
+              ORACLE_VERSION_5.timestamp,
+              0,
+              0,
+              POSITION.div(4),
+              EXPECTED_LIQUIDATION_FEE.mul(-1),
+              true,
+            )
+
+          oracle.at.whenCalledWith(ORACLE_VERSION_4.timestamp).returns(ORACLE_VERSION_4)
+          oracle.at.whenCalledWith(ORACLE_VERSION_5.timestamp).returns(ORACLE_VERSION_5)
+          oracle.status.returns([ORACLE_VERSION_5, ORACLE_VERSION_6.timestamp])
+          oracle.request.whenCalledWith(user.address).returns()
+
+          await settle(market, user)
+          await settle(market, userB)
+
+          const oracleVersionLowerPrice2 = {
+            price: parse6decimal('150'),
+            timestamp: TIMESTAMP + 14400,
+            valid: true,
+          }
+          oracle.at.whenCalledWith(oracleVersionLowerPrice2.timestamp).returns(oracleVersionLowerPrice2)
+          oracle.status.returns([oracleVersionLowerPrice2, oracleVersionLowerPrice2.timestamp + 3600])
+          oracle.request.whenCalledWith(user.address).returns()
+
+          await settle(market, user)
+          await settle(market, userB)
+
+          expectPositionEq(await market.positions(user.address), {
+            ...DEFAULT_POSITION,
+            timestamp: ORACLE_VERSION_5.timestamp,
+            short: POSITION.div(4),
           })
         })
       })
