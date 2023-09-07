@@ -17,29 +17,23 @@ struct Invalidation {
 }
 using InvalidationLib for Invalidation global;
 
-// TODO: natspec
-
 /// @title Invalidation
 /// @notice Holds the state for an account's update invalidation
 library InvalidationLib {
-    // @notice Returns the invalidation delta between two positions
-    function from(
-        Position memory latestPosition,
-        Position memory newPosition
-    ) internal pure returns (Invalidation memory delta) {
-        delta.maker = Fixed6Lib.from(latestPosition.maker).sub(Fixed6Lib.from(newPosition.maker));
-        delta.long = Fixed6Lib.from(latestPosition.long).sub(Fixed6Lib.from(newPosition.long));
-        delta.short = Fixed6Lib.from(latestPosition.short).sub(Fixed6Lib.from(newPosition.short));
+    /// @notice Increments the invalidation accumulator by an invalidation delta
+    /// @param self The invalidation object to update
+    /// @param latestPosition The latest position
+    /// @param newPosition The pending position
+    function increment(Invalidation memory self, Position memory latestPosition, Position memory newPosition) internal pure {
+        self.maker = self.maker.add(Fixed6Lib.from(latestPosition.maker).sub(Fixed6Lib.from(newPosition.maker)));
+        self.long = self.long.add(Fixed6Lib.from(latestPosition.long).sub(Fixed6Lib.from(newPosition.long)));
+        self.short = self.short.add(Fixed6Lib.from(latestPosition.short).sub(Fixed6Lib.from(newPosition.short)));
     }
 
-    // @notice Increments the invalidation accumulator by an invalidation delta
-    function increment(Invalidation memory self, Invalidation memory delta) internal pure {
-        self.maker = self.maker.add(delta.maker);
-        self.long = self.long.add(delta.long);
-        self.short = self.short.add(delta.short);
-    }
-
-    // @notice Returns the invalidation delta between two invalidation accumulators
+    /// @notice Returns the invalidation delta between two invalidation accumulators
+    /// @param self The starting invalidation object
+    /// @param invalidation The ending invalidation object
+    /// @return delta The invalidation delta
     function sub(
         Invalidation memory self,
         Invalidation memory invalidation
@@ -49,7 +43,9 @@ library InvalidationLib {
         delta.short = self.short.sub(invalidation.short);
     }
 
-    // @notice replaces the invalidation with a new invalidation
+    /// @notice Replaces the invalidation with a new invalidation
+    /// @param self The invalidation object to update
+    /// @param newInvalidation The new invalidation object
     function update(Invalidation memory self, Invalidation memory newInvalidation) internal pure {
         (self.maker, self.long, self.short) = (newInvalidation.maker, newInvalidation.long, newInvalidation.short);
     }

@@ -144,7 +144,7 @@ library PositionLib {
     /// @param self The position object to update
     /// @param newPosition The latest valid position
     function invalidate(Position memory self, Position memory newPosition) internal pure {
-        self.invalidation.increment(InvalidationLib.from(self, newPosition));
+        self.invalidation.increment(self, newPosition);
         newPosition.fee = UFixed6Lib.ZERO;
     }
 

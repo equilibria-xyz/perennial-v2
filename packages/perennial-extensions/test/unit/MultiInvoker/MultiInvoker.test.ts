@@ -302,6 +302,11 @@ describe('MultiInvoker', () => {
       fee: 0,
       keeper: 0,
       delta: 0,
+      invalidation: {
+        maker: 0,
+        long: 0,
+        short: 0,
+      },
     }
 
     const fixture = async () => {
