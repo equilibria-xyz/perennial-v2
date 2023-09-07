@@ -13584,7 +13584,7 @@ describe('Market', () => {
         it('global-local desync', async () => {
           const positionMaker = parse6decimal('2.000')
           const positionLong = parse6decimal('1.000')
-          const collateral = parse6decimal('100')
+          const collateral = parse6decimal('1000')
 
           const oracleVersion = {
             price: parse6decimal('100'),
