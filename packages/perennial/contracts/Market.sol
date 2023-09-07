@@ -271,12 +271,7 @@ contract Market is IMarket, Instance, ReentrancyGuard {
         // update position
         Order memory newOrder =
             context.currentPosition.local.update(context.currentTimestamp, newMaker, newLong, newShort);
-        context.currentPosition.global.update(
-            context.currentTimestamp,
-            newOrder,
-            context.riskParameter,
-            context.latestPosition.global.invalidation
-        );
+        context.currentPosition.global.update(context.currentTimestamp, newOrder, context.riskParameter);
 
         // update fee
         newOrder.registerFee(context.latestVersion, context.marketParameter, context.riskParameter);
@@ -417,7 +412,7 @@ contract Market is IMarket, Instance, ReentrancyGuard {
             context.riskParameter
         );
         context.latestPosition.global.update(newPosition);
-        context.global.update(newPositionId, oracleVersion.valid ? oracleVersion.price : context.global.latestPrice);
+        context.global.update(newPositionId, oracleVersion.price);
         context.global.incrementFees(
             accumulatedFee,
             newPosition.keeper,

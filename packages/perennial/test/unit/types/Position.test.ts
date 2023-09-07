@@ -681,19 +681,14 @@ describe('Position', () => {
           })
           const latestSkew = await position.skew()
           const latestEfficiency = await position.efficiency()
-          const latestInvalidation = {
-            maker: parse6decimal('111'),
-            long: parse6decimal('222'),
-            short: parse6decimal('333'),
-          }
 
           const updatedOrder = await position.callStatic[
-            'update(uint256,(int256,int256,int256,int256,uint256,int256,int256,int256,uint256,uint256),(uint256,uint256,uint256,uint256,uint256,uint256,uint256,uint256,uint256,uint256,uint256,uint256,(uint256,uint256,uint256,uint256),(uint256,uint256),uint256,uint256,uint256,uint256,bool),(int256,int256,int256))'
-          ](123456, VALID_ORDER, VALID_RISK_PARAMETER, latestInvalidation)
+            'update(uint256,(int256,int256,int256,int256,uint256,int256,int256,int256,uint256,uint256),(uint256,uint256,uint256,uint256,uint256,uint256,uint256,uint256,uint256,uint256,uint256,uint256,(uint256,uint256,uint256,uint256),(uint256,uint256),uint256,uint256,uint256,uint256,bool))'
+          ](123456, VALID_ORDER, VALID_RISK_PARAMETER)
 
           await position[
-            'update(uint256,(int256,int256,int256,int256,uint256,int256,int256,int256,uint256,uint256),(uint256,uint256,uint256,uint256,uint256,uint256,uint256,uint256,uint256,uint256,uint256,uint256,(uint256,uint256,uint256,uint256),(uint256,uint256),uint256,uint256,uint256,uint256,bool),(int256,int256,int256))'
-          ](123456, VALID_ORDER, VALID_RISK_PARAMETER, latestInvalidation)
+            'update(uint256,(int256,int256,int256,int256,uint256,int256,int256,int256,uint256,uint256),(uint256,uint256,uint256,uint256,uint256,uint256,uint256,uint256,uint256,uint256,uint256,uint256,(uint256,uint256,uint256,uint256),(uint256,uint256),uint256,uint256,uint256,uint256,bool))'
+          ](123456, VALID_ORDER, VALID_RISK_PARAMETER)
 
           const value = await position.read()
           expect(value.timestamp).to.equal(123456)
@@ -701,9 +696,6 @@ describe('Position', () => {
           expect(value.long).to.equal(parse6decimal('13'))
           expect(value.short).to.equal(parse6decimal('15'))
           expect(value.fee).to.equal(parse6decimal('100'))
-          expect(value.invalidation.maker).to.equal(latestInvalidation.maker)
-          expect(value.invalidation.long).to.equal(latestInvalidation.long)
-          expect(value.invalidation.short).to.equal(latestInvalidation.short)
 
           const skew = await position.skew()
           const efficiency = await position.efficiency()
@@ -719,15 +711,9 @@ describe('Position', () => {
           it("doesn't clear fee or keeper", async () => {
             await position.store({ ...VALID_GLOBAL_POSITION, fee: 50, keeper: 60 })
 
-            const latestInvalidation = {
-              maker: parse6decimal('111'),
-              long: parse6decimal('222'),
-              short: parse6decimal('333'),
-            }
-
             await position[
-              'update(uint256,(int256,int256,int256,int256,uint256,int256,int256,int256,uint256,uint256),(uint256,uint256,uint256,uint256,uint256,uint256,uint256,uint256,uint256,uint256,uint256,uint256,(uint256,uint256,uint256,uint256),(uint256,uint256),uint256,uint256,uint256,uint256,bool),(int256,int256,int256))'
-            ](123456, VALID_ORDER, VALID_RISK_PARAMETER, latestInvalidation)
+              'update(uint256,(int256,int256,int256,int256,uint256,int256,int256,int256,uint256,uint256),(uint256,uint256,uint256,uint256,uint256,uint256,uint256,uint256,uint256,uint256,uint256,uint256,(uint256,uint256,uint256,uint256),(uint256,uint256),uint256,uint256,uint256,uint256,bool))'
+            ](123456, VALID_ORDER, VALID_RISK_PARAMETER)
 
             const value = await position.read()
             expect(value.fee).to.equal(50)

@@ -86,7 +86,8 @@ library PositionLib {
             Fixed6Lib.from(newShort).sub(Fixed6Lib.from(self.short))
         );
 
-        (self.timestamp, self.maker, self.long, self.short) = (currentTimestamp, newMaker, newLong, newShort);
+        (self.timestamp, self.maker, self.long, self.short) =
+            (currentTimestamp, newMaker, newLong, newShort);
     }
 
     /// @notice Updates the current global position with a new order
@@ -94,13 +95,11 @@ library PositionLib {
     /// @param currentTimestamp The current timestamp
     /// @param order The new order
     /// @param riskParameter The current risk parameter
-    /// @param latestInvalidation The latest invalidation accumulator
     function update(
         Position memory self,
         uint256 currentTimestamp,
         Order memory order,
-        RiskParameter memory riskParameter,
-        Invalidation memory latestInvalidation
+        RiskParameter memory riskParameter
     ) internal pure {
         // load the computed attributes of the latest position
         Fixed6 latestSkew = virtualSkew(self, riskParameter);
@@ -108,12 +107,11 @@ library PositionLib {
             (Fixed6Lib.from(net(self)), Fixed6Lib.from(efficiency(self)), Fixed6Lib.from(utilization(self)));
 
         // update the position's attributes
-        (self.timestamp, self.maker, self.long, self.short, self.invalidation) = (
+        (self.timestamp, self.maker, self.long, self.short) = (
             currentTimestamp,
             UFixed6Lib.from(Fixed6Lib.from(self.maker).add(order.maker)),
             UFixed6Lib.from(Fixed6Lib.from(self.long).add(order.long)),
-            UFixed6Lib.from(Fixed6Lib.from(self.short).add(order.short)),
-            latestInvalidation
+            UFixed6Lib.from(Fixed6Lib.from(self.short).add(order.short))
         );
 
         // update the order's delta attributes with the positions updated attributes

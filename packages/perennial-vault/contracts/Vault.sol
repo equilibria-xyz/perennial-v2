@@ -460,7 +460,7 @@ contract Vault is IVault, Instance {
             // local
             Local memory local = registration.market.locals(address(this));
             Position memory latestAccountPosition = registration.market.positions(address(this));
-            Position memory currentAccountPosition = registration.market.positions(address(this));
+            Position memory currentAccountPosition = registration.market.pendingPositions(address(this), local.currentId);
             context.markets[marketId].collateral = local.collateral;
             context.markets[marketId].latestAccountPosition = latestAccountPosition.maker;
             context.markets[marketId].currentAccountPosition = currentAccountPosition.maker;
