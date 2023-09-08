@@ -504,7 +504,7 @@ contract Market is IMarket, Instance, ReentrancyGuard {
         if (context.currentPosition.global.maker.gt(context.riskParameter.makerLimit))
             revert MarketMakerOverLimitError();
 
-        if (!newOrder.singleSided(context.currentPosition.local))
+        if (!newOrder.singleSided(context.currentPosition.local) || !newOrder.singleSided(context.latestPosition.local))
             revert MarketNotSingleSidedError();
 
         if (protected) return; // The following invariants do not apply to protected position updates (liquidations)
