@@ -52,6 +52,11 @@ const GLOBAL: GlobalStruct = {
     _skew: 7,
   },
   latestPrice: 8,
+  latestInvalidation: {
+    maker: 10,
+    long: 11,
+    short: 12,
+  },
 }
 
 const FROM_POSITION: PositionStruct = {
@@ -63,6 +68,11 @@ const FROM_POSITION: PositionStruct = {
   keeper: 7,
   collateral: 8,
   delta: 9,
+  invalidation: {
+    maker: 10,
+    long: 11,
+    short: 12,
+  },
 }
 
 const TO_POSITION: PositionStruct = {
@@ -74,6 +84,11 @@ const TO_POSITION: PositionStruct = {
   keeper: 70,
   collateral: 80,
   delta: 90,
+  invalidation: {
+    maker: 10,
+    long: 11,
+    short: 12,
+  },
 }
 
 const TIMESTAMP = 1636401093

@@ -219,12 +219,17 @@ contract Market is IMarket, Instance, ReentrancyGuard {
         Context memory context,
         address account
     ) private view returns (PositionContext memory positionContext) {
+        // read most recent pending position
         positionContext.global = _pendingPosition[context.global.currentId].read();
         positionContext.local = _pendingPositions[account][context.local.currentId].read();
-        if (context.global.currentId == context.global.latestId)
-            positionContext.global.invalidate(context.latestPosition.global);
-        if (context.local.currentId == context.local.latestId)
-            positionContext.local.invalidate(context.latestPosition.local);
+
+        // adjust position based on change in invalidation since last position
+        positionContext.global.adjust(context.latestPosition.global);
+        positionContext.local.adjust(context.latestPosition.local);
+
+        // save new invalidation accumulator value
+        positionContext.global.invalidation.update(context.latestPosition.global.invalidation);
+        positionContext.local.invalidation.update(context.latestPosition.local.invalidation);
     }
 
     /// @notice Updates the current position
@@ -359,6 +364,9 @@ contract Market is IMarket, Instance, ReentrancyGuard {
             _processPositionLocal(context, account, context.local.latestId, nextPosition);
         }
 
+        // overwrite latestPrice if invalid
+        context.latestVersion.price = context.global.latestPrice;
+
         _position.store(context.latestPosition.global);
         _positions[account].store(context.latestPosition.local);
     }
@@ -390,7 +398,8 @@ contract Market is IMarket, Instance, ReentrancyGuard {
     function _processPositionGlobal(Context memory context, uint256 newPositionId, Position memory newPosition) private {
         Version memory version = _versions[context.latestPosition.global.timestamp].read();
         OracleVersion memory oracleVersion = _oracleVersionAtPosition(context, newPosition);
-        if (!oracleVersion.valid) newPosition.invalidate(context.latestPosition.global);
+        if (!oracleVersion.valid) context.latestPosition.global.invalidate(newPosition);
+        newPosition.adjust(context.latestPosition.global);
 
         (uint256 fromTimestamp, uint256 fromId) = (context.latestPosition.global.timestamp, context.global.latestId);
         (VersionAccumulationResult memory accumulationResult, UFixed6 accumulatedFee) = version.accumulate(
@@ -435,7 +444,8 @@ contract Market is IMarket, Instance, ReentrancyGuard {
         Position memory newPosition
     ) private {
         Version memory version = _versions[newPosition.timestamp].read();
-        if (!version.valid) newPosition.invalidate(context.latestPosition.local);
+        if (!version.valid) context.latestPosition.local.invalidate(newPosition);
+        newPosition.adjust(context.latestPosition.local);
 
         (uint256 fromTimestamp, uint256 fromId) = (context.latestPosition.local.timestamp, context.local.latestId);
         LocalAccumulationResult memory accumulationResult = context.local.accumulate(
@@ -472,16 +482,17 @@ contract Market is IMarket, Instance, ReentrancyGuard {
         bool protected
     ) private view {
         // load all pending state
-        (Position[] memory pendingLocalPositions, Fixed6 collateralAfterFees) = _loadPendingPositions(context, account);
+        (Position[] memory pendingLocalPositions, Fixed6 collateralAfterFees, UFixed6 closableAmount) =
+            _loadPendingPositions(context, account);
 
         if (protected && (
-            !context.currentPosition.local.magnitude().isZero() ||
+            !closableAmount.isZero() ||
             context.latestPosition.local.maintained(
                 context.latestVersion,
                 context.riskParameter,
                 collateralAfterFees.sub(collateral)
             ) ||
-            collateral.lt(Fixed6Lib.from(-1, _liquidationFee(context)))
+            collateral.lt(Fixed6Lib.from(-1, _liquidationFee(context, newOrder)))
         )) revert MarketInvalidProtectionError();
 
         if (context.currentTimestamp - context.latestVersion.timestamp >= context.riskParameter.staleAfter)
@@ -493,14 +504,14 @@ contract Market is IMarket, Instance, ReentrancyGuard {
         if (context.currentPosition.global.maker.gt(context.riskParameter.makerLimit))
             revert MarketMakerOverLimitError();
 
-        if (!context.currentPosition.local.singleSided())
+        if (!newOrder.singleSided(context.currentPosition.local))
             revert MarketNotSingleSidedError();
 
         if (protected) return; // The following invariants do not apply to protected position updates (liquidations)
 
         if (
-            msg.sender != account &&                                                                        // sender is operating on own account
-            !IMarketFactory(address(factory())).operators(account, msg.sender) &&                           // sender is operating on own account
+            msg.sender != account &&                                                                   // sender is operating on own account
+            !IMarketFactory(address(factory())).operators(account, msg.sender) &&                      // sender is operating on own account
             !(newOrder.isEmpty() && collateralAfterFees.isZero() && collateral.gt(Fixed6Lib.ZERO))     // sender is repaying shortfall for this account
         ) revert MarketOperatorNotAllowedError();
 
@@ -552,28 +563,43 @@ contract Market is IMarket, Instance, ReentrancyGuard {
     function _loadPendingPositions(
         Context memory context,
         address account
-    ) private view returns (Position[] memory pendingLocalPositions, Fixed6 collateralAfterFees) {
+    ) private view returns (
+        Position[] memory pendingLocalPositions,
+        Fixed6 collateralAfterFees,
+        UFixed6 closableAmount
+    ) {
+        // load latest position information
         collateralAfterFees = context.local.collateral;
+        closableAmount = context.latestPosition.local.magnitude();
         pendingLocalPositions = new Position[](
             context.local.currentId - Math.min(context.local.latestId, context.local.currentId)
         );
+        UFixed6 previousMagnitude = closableAmount;
+
+        // load pending position information
         for (uint256 i; i < pendingLocalPositions.length - 1; i++) {
             pendingLocalPositions[i] = _pendingPositions[account][context.local.latestId + 1 + i].read();
+            pendingLocalPositions[i].adjust(context.latestPosition.local);
+        }
+        pendingLocalPositions[pendingLocalPositions.length - 1] = context.currentPosition.local; // current positions hasn't been stored yet
+
+        for (uint256 i; i < pendingLocalPositions.length; i++) {
             collateralAfterFees = collateralAfterFees
                 .sub(Fixed6Lib.from(pendingLocalPositions[i].fee))
                 .sub(Fixed6Lib.from(pendingLocalPositions[i].keeper));
+            closableAmount = closableAmount.sub(
+                previousMagnitude.sub(pendingLocalPositions[i].magnitude().min(previousMagnitude))
+            );
+            previousMagnitude = pendingLocalPositions[i].magnitude();
         }
-        pendingLocalPositions[pendingLocalPositions.length - 1] = context.currentPosition.local; // current local position hasn't been stored yet
-        collateralAfterFees = collateralAfterFees
-            .sub(Fixed6Lib.from(context.currentPosition.local.fee))
-            .sub(Fixed6Lib.from(context.currentPosition.local.keeper));
     }
 
     /// @notice Computes the liquidation fee for the current latest local position
     /// @param context The context to use
+    /// @param order The order to use
     /// @return The liquidation fee
-    function _liquidationFee(Context memory context) private view returns (UFixed6) {
-        return context.latestPosition.local
+    function _liquidationFee(Context memory context, Order memory order) private view returns (UFixed6) {
+        return order
             .liquidationFee(context.latestVersion, context.riskParameter)
             .min(UFixed6Lib.from(token.balanceOf()));
     }

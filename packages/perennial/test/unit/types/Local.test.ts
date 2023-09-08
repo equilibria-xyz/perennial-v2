@@ -207,6 +207,11 @@ describe('Local', () => {
       keeper: 0, // unused
       collateral: 0, // unused
       delta: 0, // unused
+      invalidation: {
+        maker: 0, // unused
+        long: 0, // unused
+        short: 0, // unused
+      },
     }
 
     const TO_POSITION: PositionStruct = {
@@ -218,6 +223,11 @@ describe('Local', () => {
       keeper: parse6decimal('456'),
       collateral: 0, // unused
       delta: 0, // unused
+      invalidation: {
+        maker: 0, // unused
+        long: 0, // unused
+        short: 0, // unused
+      },
     }
 
     const FROM_VERSION: VersionStruct = {
@@ -396,6 +406,11 @@ describe('Local', () => {
       keeper: 0, // unused
       collateral: 0, // unused
       delta: 0, // unused
+      invalidation: {
+        maker: 0, // unused
+        long: 0, // unused
+        short: 0, // unused
+      },
     }
 
     context('tryProtect = false', () => {

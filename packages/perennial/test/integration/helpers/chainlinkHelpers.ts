@@ -16,7 +16,7 @@ export class ChainlinkContext {
   private initialRoundId: BigNumber
   private latestRoundId: BigNumber
   private currentRoundId: BigNumber
-  private delay: number
+  public delay: number
   private decimals!: number
   private readonly base: string
   private readonly quote: string

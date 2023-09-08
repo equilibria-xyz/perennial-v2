@@ -41,6 +41,8 @@ interface IVault is IInstance {
 
         // current local
         Fixed6 collateral;
+        UFixed6 latestAccountPosition;
+        UFixed6 currentAccountPosition;
     }
 
     struct Target {
