@@ -11191,7 +11191,7 @@ describe('Market', () => {
             await market.connect(liquidator).update(userB.address, 0, 0, 0, EXPECTED_LIQUIDATION_FEE.mul(-1), true)
 
             await expect(
-              market.connect(userB).update(userB.address, 0, POSITION, 0, COLLATERAL, false),
+              market.connect(userB).update(userB.address, POSITION, 0, 0, COLLATERAL, false),
             ).to.be.revertedWithCustomError(market, 'MarketProtectedError')
           })
 
@@ -13658,6 +13658,70 @@ describe('Market', () => {
 
           expect((await market.locals(user.address)).collateral).to.equal(collateralBefore)
           expect((await market.locals(userB.address)).collateral).to.equal(collateralBeforeB)
+        })
+      })
+
+      context('single sided', async () => {
+        beforeEach(async () => {
+          dsu.transferFrom.whenCalledWith(user.address, market.address, COLLATERAL.mul(1e12)).returns(true)
+          dsu.transferFrom.whenCalledWith(userB.address, market.address, COLLATERAL.mul(1e12)).returns(true)
+          dsu.transferFrom.whenCalledWith(userC.address, market.address, COLLATERAL.mul(1e12)).returns(true)
+        })
+
+        it('can switch current through reset', async () => {
+          await market.connect(userB).update(userB.address, POSITION, 0, 0, COLLATERAL, false)
+          await market.connect(user).update(user.address, 0, POSITION, 0, COLLATERAL, false)
+
+          // switch (before any latest) -> then reset
+          await expect(
+            market.connect(user).update(user.address, 0, 0, POSITION, 0, false),
+          ).to.be.revertedWithCustomError(market, 'MarketNotSingleSidedError')
+
+          // zero -> switch (before any latest)
+          await expect(market.connect(user).update(user.address, 0, 0, 0, 0, false)).to.not.be.reverted
+          await expect(market.connect(user).update(user.address, 0, 0, POSITION, 0, false)).to.not.be.reverted
+        })
+
+        it('cant switch current after latest settles', async () => {
+          await market.connect(userB).update(userB.address, POSITION, 0, 0, COLLATERAL, false)
+          await market.connect(user).update(user.address, 0, POSITION, 0, COLLATERAL, false)
+
+          oracle.at.whenCalledWith(ORACLE_VERSION_2.timestamp).returns(ORACLE_VERSION_2)
+          oracle.status.returns([ORACLE_VERSION_2, ORACLE_VERSION_3.timestamp])
+          oracle.request.whenCalledWith(user.address).returns()
+
+          await expect(
+            market.connect(user).update(user.address, 0, 0, POSITION, 0, false),
+          ).to.be.revertedWithCustomError(market, 'MarketNotSingleSidedError')
+
+          await market.connect(user).update(user.address, 0, 0, 0, 0, false)
+          await expect(
+            market.connect(user).update(user.address, 0, 0, POSITION, 0, false),
+          ).to.be.revertedWithCustomError(market, 'MarketNotSingleSidedError')
+        })
+
+        it('can switch current after reset settles', async () => {
+          await market.connect(userB).update(userB.address, POSITION, 0, 0, COLLATERAL, false)
+          await market.connect(user).update(user.address, 0, POSITION, 0, COLLATERAL, false)
+
+          oracle.at.whenCalledWith(ORACLE_VERSION_2.timestamp).returns(ORACLE_VERSION_2)
+          oracle.status.returns([ORACLE_VERSION_2, ORACLE_VERSION_3.timestamp])
+          oracle.request.whenCalledWith(user.address).returns()
+
+          await expect(
+            market.connect(user).update(user.address, 0, 0, POSITION, 0, false),
+          ).to.be.revertedWithCustomError(market, 'MarketNotSingleSidedError')
+
+          await market.connect(user).update(user.address, 0, 0, 0, 0, false)
+          await expect(
+            market.connect(user).update(user.address, 0, 0, POSITION, 0, false),
+          ).to.be.revertedWithCustomError(market, 'MarketNotSingleSidedError')
+
+          oracle.at.whenCalledWith(ORACLE_VERSION_3.timestamp).returns(ORACLE_VERSION_3)
+          oracle.status.returns([ORACLE_VERSION_3, ORACLE_VERSION_4.timestamp])
+          oracle.request.whenCalledWith(user.address).returns()
+
+          await expect(market.connect(user).update(user.address, 0, 0, POSITION, 0, false)).to.not.be.reverted
         })
       })
     })
