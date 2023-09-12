@@ -15,6 +15,7 @@ import "../types/OracleVersion.sol";
 ///       - Current must always be greater than Latest, never equal
 ///       - Request must register the same current version that was returned by Current within the same transaction
 interface IOracleProvider {
+    // sig: 0x652fafab
     error OracleProviderUnauthorizedError();
 
     event OracleProviderVersionRequested(uint256 indexed version);

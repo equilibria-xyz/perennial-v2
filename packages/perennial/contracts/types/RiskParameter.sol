@@ -101,6 +101,7 @@ using RiskParameterStorageLib for RiskParameterStorage global;
 //        bool makerReceiveOnly;
 //    }
 library RiskParameterStorageLib {
+    // sig: 0x7ecd083f
     error RiskParameterStorageInvalidError();
 
     function read(RiskParameterStorage storage self) internal view returns (RiskParameter memory) {

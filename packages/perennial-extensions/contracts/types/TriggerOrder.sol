@@ -44,6 +44,7 @@ library TriggerOrderLib {
 }
 
 library TriggerOrderStorageLib {
+    // sig: 0xf3469aa7
     error TriggerOrderStorageInvalidError();
 
     function read(TriggerOrderStorage storage self) internal view returns (TriggerOrder memory) {

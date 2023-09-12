@@ -6,15 +6,25 @@ import "@equilibria/root/attribute/interfaces/IKept.sol";
 import "@equilibria/perennial-v2/contracts/interfaces/IOracleProvider.sol";
 
 interface IPythOracle is IOracleProvider, IInstance, IKept {
+    // sig: 0xfd13d773
     error PythOracleInvalidPriceIdError(bytes32 id);
+    // sig: 0x2dd6680d
     error PythOracleNoNewVersionToCommitError();
+    // sig: 0xe28e1ef4
     error PythOracleVersionIndexTooLowError();
+    // sig: 0x7c423d41
     error PythOracleGracePeriodHasNotExpiredError();
+    // sig: 0x8260a7e8
     error PythOracleUpdateValidForPreviousVersionError();
+    // sig: 0xf0db44e4
     error PythOracleNonIncreasingPublishTimes();
+    // sig: 0xb9b9867d
     error PythOracleFailedToCalculateRewardError();
+    // sig: 0x95110cb6
     error PythOracleFailedToSendRewardError();
+    // sig: 0x9b4e67d3
     error PythOracleVersionOutsideRangeError();
+    // sig: 0xbe244fc8
     error PythOracleNonRequestedTooRecentError();
 
     function initialize(bytes32 id_, AggregatorV3Interface chainlinkFeed_, Token18 dsu_) external;

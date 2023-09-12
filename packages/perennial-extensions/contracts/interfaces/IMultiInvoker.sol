@@ -21,16 +21,16 @@ import { TriggerOrder } from "../types/TriggerOrder.sol";
 
 interface IMultiInvoker {
     enum PerennialAction {
-        NO_OP,
-        UPDATE_POSITION,
-        UPDATE_VAULT,
-        PLACE_ORDER,
-        CANCEL_ORDER,
-        EXEC_ORDER,
-        COMMIT_PRICE,
-        LIQUIDATE,
-        APPROVE,
-        CHARGE_FEE
+        NO_OP,           // 0
+        UPDATE_POSITION, // 1
+        UPDATE_VAULT,    // 2
+        PLACE_ORDER,     // 3
+        CANCEL_ORDER,    // 4
+        EXEC_ORDER,      // 5
+        COMMIT_PRICE,    // 6
+        LIQUIDATE,       // 7
+        APPROVE,         // 8
+        CHARGE_FEE       // 9
     }
 
     struct Invocation {
@@ -44,11 +44,17 @@ interface IMultiInvoker {
     event OrderCancelled(address indexed account, IMarket indexed market, uint256 nonce);
     event FeeCharged(address indexed account, address indexed to, UFixed6 amount);
 
+    // sig: 0x217b1699
     error MultiInvokerBadSenderError();
+    // sig: 0x88d67968
     error MultiInvokerOrderMustBeSingleSidedError();
+    // sig: 0xbccd78e7
     error MultiInvokerMaxFeeExceededError();
+    // sig: 0x47b7c1b0
     error MultiInvokerInvalidInstanceError();
+    // sig: 0xb6befb58
     error MultiInvokerInvalidOrderError();
+    // sig: 0x6f462962
     error MultiInvokerCantExecuteError();
 
     function invoke(Invocation[] calldata invocations) external payable;

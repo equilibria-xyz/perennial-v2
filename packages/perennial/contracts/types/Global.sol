@@ -91,6 +91,7 @@ library GlobalLib {
 ///     }
 ///
 library GlobalStorageLib {
+    // sig: 0x2142bc27
     error GlobalStorageInvalidError();
 
     function read(GlobalStorage storage self) internal view returns (Global memory) {

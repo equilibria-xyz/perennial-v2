@@ -110,6 +110,7 @@ library LocalLib {
 ///     }
 ///
 library LocalStorageLib {
+    // sig: 0xc83d08ec
     error LocalStorageInvalidError();
 
     function read(LocalStorage storage self) internal view returns (Local memory) {

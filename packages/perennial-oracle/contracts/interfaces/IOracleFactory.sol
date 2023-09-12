@@ -12,10 +12,15 @@ interface IOracleFactory is IOracleProviderFactory, IFactory {
     event FactoryRegistered(IOracleProviderFactory factory);
     event CallerAuthorized(IFactory caller);
 
+    // sig: 0xe7911099
     error OracleFactoryInvalidIdError();
+    // sig: 0xe232e366
     error OracleFactoryAlreadyCreatedError();
+    // sig: 0xbbfaa925
     error OracleFactoryNotRegisteredError();
+    // sig: 0xfeb0e18c
     error OracleFactoryNotCreatedError();
+    // sig: 0x4ddc5544
     error OracleFactoryClaimTooLargeError();
 
     function factories(IOracleProviderFactory factory) external view returns (bool);
