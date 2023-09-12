@@ -1325,10 +1325,16 @@ describe('Vault', () => {
         vault,
         'VaultInsufficientMinimumError',
       )
+      await vault.connect(user).update(user.address, parse6decimal('10'), 0, 0)
+      await updateOracle()
+
       await expect(vault.connect(user).update(user.address, 0, parse6decimal('0.50'), 0)).to.revertedWithCustomError(
         vault,
         'VaultInsufficientMinimumError',
       )
+      await vault.connect(user).update(user.address, 0, parse6decimal('10'), 0)
+      await updateOracle()
+
       await expect(vault.connect(user).update(user.address, 0, 0, parse6decimal('0.50'))).to.revertedWithPanic('0x11')
     })
 
@@ -1432,6 +1438,10 @@ describe('Vault', () => {
 
       context('short', () => {
         beforeEach(async () => {
+          await market.connect(user2).update(user2.address, 0, 0, 0, 0, false)
+          await btcMarket.connect(btcUser2).update(btcUser2.address, 0, 0, 0, 0, false)
+          await updateOracle()
+
           // get utilization closer to target in order to trigger pnl on price deviation
           await market.connect(user2).update(user2.address, 0, 0, parse6decimal('100'), parse6decimal('100000'), false)
           await btcMarket
@@ -1455,7 +1465,7 @@ describe('Vault', () => {
           const EXPECTED_LIQUIDATION_FEE = BigNumber.from('2059819000')
           await btcMarket.connect(user).update(vault.address, 0, 0, 0, EXPECTED_LIQUIDATION_FEE.mul(-1), true)
           expect((await btcMarket.locals(vault.address)).collateral).to.equal('350784004') // no shortfall
-          expect((await btcMarket.locals(vault.address)).protection).to.equal(STARTING_TIMESTAMP.add(3600 * 4))
+          expect((await btcMarket.locals(vault.address)).protection).to.equal(STARTING_TIMESTAMP.add(3600 * 5))
 
           // 3. Settle the liquidation.
           // We now be able to deposit.
@@ -1490,7 +1500,7 @@ describe('Vault', () => {
           const EXPECTED_LIQUIDATION_FEE = BigNumber.from('1956828050')
           await btcMarket.connect(user).update(vault.address, 0, 0, 0, EXPECTED_LIQUIDATION_FEE.mul(-1), true)
           expect((await btcMarket.locals(vault.address)).collateral).to.equal('-479967521') // shortfall
-          expect((await btcMarket.locals(vault.address)).protection).to.equal(STARTING_TIMESTAMP.add(3600 * 4))
+          expect((await btcMarket.locals(vault.address)).protection).to.equal(STARTING_TIMESTAMP.add(3600 * 5))
 
           // 3. Settle the liquidation.
           // We now be able to deposit.

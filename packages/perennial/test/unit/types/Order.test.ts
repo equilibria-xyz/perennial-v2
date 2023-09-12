@@ -9,6 +9,7 @@ import { OrderStruct } from '../../../types/generated/contracts/test/OrderTester
 import { VALID_ORACLE_VERSION } from './Position.test'
 import { VALID_MARKET_PARAMETER } from './MarketParameter.test'
 import { VALID_RISK_PARAMETER } from './RiskParameter.test'
+import { PositionStruct } from '../../../types/generated/contracts/Market'
 
 const { ethers } = HRE
 use(smock.matchers)
@@ -24,6 +25,22 @@ export const VALID_ORDER: OrderStruct = {
   keeper: 0,
   utilization: 0,
   net: 0,
+}
+
+const VALID_POSITION: PositionStruct = {
+  timestamp: 2,
+  maker: 0,
+  long: 0,
+  short: 0,
+  fee: 0,
+  keeper: 0,
+  collateral: 0,
+  delta: 0,
+  invalidation: {
+    maker: 0,
+    long: 0,
+    short: 0,
+  },
 }
 
 describe('Order', () => {
@@ -419,6 +436,173 @@ describe('Order', () => {
     })
   })
 
+  describe('#decreasesLiquidity', () => {
+    context('maker > net', () => {
+      it('returns false', async () => {
+        const result = await order.decreasesLiquidity({
+          ...VALID_ORDER,
+          maker: parse6decimal('-10'),
+          net: parse6decimal('-11'),
+        })
+
+        expect(result).to.be.false
+      })
+    })
+
+    context('maker < net', () => {
+      it('returns false', async () => {
+        const result = await order.decreasesLiquidity({
+          ...VALID_ORDER,
+          maker: parse6decimal('10'),
+          net: parse6decimal('11'),
+        })
+
+        expect(result).to.be.true
+      })
+    })
+
+    context('maker == net', () => {
+      it('returns false', async () => {
+        const result = await order.decreasesLiquidity({
+          ...VALID_ORDER,
+          maker: parse6decimal('10'),
+          net: parse6decimal('10'),
+        })
+
+        expect(result).to.be.false
+      })
+    })
+  })
+
+  describe('#singleSided', () => {
+    context('maker', () => {
+      it('maker + maker returns true', async () => {
+        expect(
+          await order.singleSided(
+            { ...VALID_ORDER, maker: parse6decimal('-10') },
+            { ...VALID_POSITION, maker: parse6decimal('10') },
+          ),
+        ).to.be.true
+      })
+
+      it('maker + long returns false', async () => {
+        expect(
+          await order.singleSided(
+            { ...VALID_ORDER, maker: parse6decimal('-10') },
+            { ...VALID_POSITION, long: parse6decimal('10') },
+          ),
+        ).to.be.false
+      })
+
+      it('maker + short returns false', async () => {
+        expect(
+          await order.singleSided(
+            { ...VALID_ORDER, maker: parse6decimal('-10') },
+            { ...VALID_POSITION, short: parse6decimal('10') },
+          ),
+        ).to.be.false
+      })
+    })
+
+    context('long', () => {
+      it('long + maker returns false', async () => {
+        expect(
+          await order.singleSided(
+            { ...VALID_ORDER, long: parse6decimal('-10') },
+            { ...VALID_POSITION, maker: parse6decimal('10') },
+          ),
+        ).to.be.false
+      })
+
+      it('long + long returns true', async () => {
+        expect(
+          await order.singleSided(
+            { ...VALID_ORDER, long: parse6decimal('-10') },
+            { ...VALID_POSITION, long: parse6decimal('10') },
+          ),
+        ).to.be.true
+      })
+
+      it('long + short returns false', async () => {
+        expect(
+          await order.singleSided(
+            { ...VALID_ORDER, long: parse6decimal('-10') },
+            { ...VALID_POSITION, short: parse6decimal('10') },
+          ),
+        ).to.be.false
+      })
+    })
+
+    context('short', () => {
+      it('short + maker returns false', async () => {
+        expect(
+          await order.singleSided(
+            { ...VALID_ORDER, short: parse6decimal('-10') },
+            { ...VALID_POSITION, maker: parse6decimal('10') },
+          ),
+        ).to.be.false
+      })
+
+      it('short + long returns false', async () => {
+        expect(
+          await order.singleSided(
+            { ...VALID_ORDER, short: parse6decimal('-10') },
+            { ...VALID_POSITION, long: parse6decimal('10') },
+          ),
+        ).to.be.false
+      })
+
+      it('short + short returns true', async () => {
+        expect(
+          await order.singleSided(
+            { ...VALID_ORDER, short: parse6decimal('-10') },
+            { ...VALID_POSITION, short: parse6decimal('10') },
+          ),
+        ).to.be.true
+      })
+    })
+
+    context('2 sides', () => {
+      it('maker + long returns false', async () => {
+        expect(
+          await order.singleSided(
+            { ...VALID_ORDER, maker: parse6decimal('-10'), long: parse6decimal('-10') },
+            { ...VALID_POSITION, maker: parse6decimal('10') },
+          ),
+        ).to.be.false
+      })
+
+      it('long + short returns false', async () => {
+        expect(
+          await order.singleSided(
+            { ...VALID_ORDER, long: parse6decimal('-10'), short: parse6decimal('-10') },
+            { ...VALID_POSITION, long: parse6decimal('10') },
+          ),
+        ).to.be.false
+      })
+
+      it('short + maker returns false', async () => {
+        expect(
+          await order.singleSided(
+            { ...VALID_ORDER, short: parse6decimal('-10'), maker: parse6decimal('-10') },
+            { ...VALID_POSITION, short: parse6decimal('10') },
+          ),
+        ).to.be.false
+      })
+    })
+
+    context('3 sides', () => {
+      it('maker + long returns false', async () => {
+        expect(
+          await order.singleSided(
+            { ...VALID_ORDER, maker: parse6decimal('-10'), long: parse6decimal('-10'), short: parse6decimal('-10') },
+            { ...VALID_POSITION, maker: parse6decimal('10') },
+          ),
+        ).to.be.false
+      })
+    })
+  })
+
   describe('#liquidityCheckApplicable', () => {
     context('market is closed', () => {
       it('returns false', async () => {
@@ -550,6 +734,98 @@ describe('Order', () => {
 
           expect(result).to.be.true
         })
+      })
+    })
+  })
+
+  describe('#liquidationFee', () => {
+    it('returns notional * riskParameter.maintenance * riskParameter.liquidationFee', async () => {
+      expect(
+        await order.liquidationFee(
+          { ...VALID_ORDER, maker: parse6decimal('-6') },
+          { ...VALID_ORACLE_VERSION, price: parse6decimal('100') },
+          {
+            ...VALID_RISK_PARAMETER,
+            maintenance: parse6decimal('0.3'),
+            liquidationFee: parse6decimal('0.1'),
+            maxLiquidationFee: parse6decimal('1000'),
+          },
+        ),
+      ).to.equal(parse6decimal('18'))
+    })
+
+    context('riskParameter.minMaintenance > notional * riskParameter.maintenance', () => {
+      it('returns riskParameter.minMaintenance * riskParameter.liquidationFee', async () => {
+        expect(
+          await order.liquidationFee(
+            { ...VALID_ORDER, maker: parse6decimal('-6') },
+            { ...VALID_ORACLE_VERSION, price: parse6decimal('100') },
+            {
+              ...VALID_RISK_PARAMETER,
+              maintenance: parse6decimal('0.3'),
+              minMaintenance: parse6decimal('200'),
+              liquidationFee: parse6decimal('0.1'),
+              maxLiquidationFee: parse6decimal('1000'),
+            },
+          ),
+        ).to.equal(parse6decimal('20'))
+      })
+    })
+
+    context(
+      'riskParameter.maxLiquidationFee < notional * riskParameter.maintenance * riskParameter.liquidationFee',
+      () => {
+        it('returns riskParameter.maxLiquidationFee', async () => {
+          expect(
+            await order.liquidationFee(
+              { ...VALID_ORDER, maker: parse6decimal('-6') },
+              { ...VALID_ORACLE_VERSION, price: parse6decimal('100') },
+              {
+                ...VALID_RISK_PARAMETER,
+                maintenance: parse6decimal('0.3'),
+                maxLiquidationFee: parse6decimal('5'),
+                liquidationFee: parse6decimal('0.1'),
+              },
+            ),
+          ).to.equal(parse6decimal('5'))
+        })
+      },
+    )
+
+    context(
+      'riskParameter.minLiquidationFee > notional * riskParameter.maintenance * riskParameter.liquidationFee',
+      () => {
+        it('returns riskParameter.minLiquidationFee', async () => {
+          expect(
+            await order.liquidationFee(
+              { ...VALID_ORDER, maker: parse6decimal('-6') },
+              { ...VALID_ORACLE_VERSION, price: parse6decimal('100') },
+              {
+                ...VALID_RISK_PARAMETER,
+                maintenance: parse6decimal('0.3'),
+                minLiquidationFee: parse6decimal('50'),
+                liquidationFee: parse6decimal('0.1'),
+              },
+            ),
+          ).to.equal(parse6decimal('50'))
+        })
+      },
+    )
+
+    context('empty order will return no fee', () => {
+      it('returns riskParameter.minLiquidationFee', async () => {
+        expect(
+          await order.liquidationFee(
+            { ...VALID_ORDER },
+            { ...VALID_ORACLE_VERSION, price: parse6decimal('100') },
+            {
+              ...VALID_RISK_PARAMETER,
+              maintenance: parse6decimal('0.3'),
+              minLiquidationFee: parse6decimal('50'),
+              liquidationFee: parse6decimal('0.1'),
+            },
+          ),
+        ).to.equal(parse6decimal('0'))
       })
     })
   })

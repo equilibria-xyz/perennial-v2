@@ -4,6 +4,7 @@ pragma solidity ^0.8.13;
 import "./OracleVersion.sol";
 import "./RiskParameter.sol";
 import "./MarketParameter.sol";
+import "./Position.sol";
 
 /// @dev Order type
 struct Order {
@@ -85,6 +86,16 @@ library OrderLib {
         return self.maker.lt(self.net);
     }
 
+    /// @notice Returns the whether the position is single-sided
+    /// @param self The position object to check
+    /// @param currentPosition The current position to check
+    /// @return Whether the position is single-sided
+    function singleSided(Order memory self, Position memory currentPosition) internal pure returns (bool) {
+        return (self.maker.isZero() && self.long.isZero() && currentPosition.maker.isZero() && currentPosition.long.isZero()) ||
+            (self.long.isZero() && self.short.isZero() && currentPosition.long.isZero() && currentPosition.short.isZero()) ||
+            (self.short.isZero() && self.maker.isZero() && currentPosition.short.isZero() && currentPosition.maker.isZero());
+    }
+
     /// @notice Returns whether the order is applicable for liquidity checks
     /// @param self The Order object to check
     /// @param marketParameter The market parameter
@@ -96,6 +107,28 @@ library OrderLib {
         return !marketParameter.closed &&
             !marketParameter.makerCloseAlways &&
             (!marketParameter.takerCloseAlways || increasesTaker(self));
+    }
+
+    /// @notice Returns the liquidation fee of the position
+    /// @param self The position object to check
+    /// @param latestVersion The latest oracle version
+    /// @param riskParameter The current risk parameter
+    /// @return The liquidation fee of the position
+    function liquidationFee(
+        Order memory self,
+        OracleVersion memory latestVersion,
+        RiskParameter memory riskParameter
+    ) internal pure returns (UFixed6) {
+        UFixed6 magnitude = self.maker.abs().add(self.long.abs()).add(self.short.abs());
+        if (magnitude.isZero()) return UFixed6Lib.ZERO;
+
+        UFixed6 partialMaintenance = magnitude.mul(latestVersion.price.abs())
+            .mul(riskParameter.maintenance)
+            .max(riskParameter.minMaintenance);
+
+        return partialMaintenance.mul(riskParameter.liquidationFee)
+            .min(riskParameter.maxLiquidationFee)
+            .max(riskParameter.minLiquidationFee);
     }
 
     /// @notice Returns whether the order has no position change

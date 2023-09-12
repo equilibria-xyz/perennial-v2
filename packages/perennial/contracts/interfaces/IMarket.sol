@@ -70,6 +70,8 @@ interface IMarket is IInstance {
     error MarketOperatorNotAllowedError();
     // sig: 0x8a68c1dc
     error MarketNotSingleSidedError();
+    // sig: 0x736f9fda
+    error MarketOverCloseError();
     // sig: 0x935bdc21
     error MarketExceedsPendingIdLimitError();
     // sig: 0x473b50fd

@@ -58,6 +58,12 @@ abstract contract PositionTester {
         store(_position);
     }
 
+    function adjust(Position memory latestPosition) external {
+        Position memory _position = read();
+        _position.adjust(latestPosition);
+        store(_position);
+    }
+
     function sync(OracleVersion memory latestVersion) external {
         Position memory _position = read();
         _position.sync(latestVersion);
@@ -118,10 +124,6 @@ abstract contract PositionTester {
         return read().socialized();
     }
 
-    function singleSided() external view returns (bool) {
-        return read().singleSided();
-    }
-
     function maintenance(
         OracleVersion memory latestVersion,
         RiskParameter memory riskParameter
@@ -150,13 +152,6 @@ abstract contract PositionTester {
         Fixed6 collateral
     ) external view returns (bool) {
         return read().margined(currentOracleVersion, riskParameter, collateral);
-    }
-
-    function liquidationFee(
-        OracleVersion memory currentOracleVersion,
-        RiskParameter memory riskParameter
-    ) external view returns (UFixed6) {
-        return read().liquidationFee(currentOracleVersion, riskParameter);
     }
 }
 

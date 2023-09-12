@@ -412,6 +412,7 @@ describe('RiskParameter', () => {
           ),
         ).to.be.revertedWithCustomError(riskParameter, 'RiskParameterStorageInvalidError')
       })
+
       it('reverts if invalid (above)', async () => {
         await expect(
           riskParameter.validateAndStore(
@@ -767,6 +768,7 @@ describe('RiskParameter', () => {
     })
 
     describe('.efficiencyLimit', () => {
+      const STORAGE_SIZE = 24
       it('saves if in range', async () => {
         await riskParameter.validateAndStore(
           {
@@ -779,12 +781,24 @@ describe('RiskParameter', () => {
         expect(value.efficiencyLimit).to.equal(2)
       })
 
-      it('reverts if invalid', async () => {
+      it('reverts if invalid (below)', async () => {
         await expect(
           riskParameter.validateAndStore(
             {
               ...VALID_RISK_PARAMETER,
               efficiencyLimit: 1,
+            },
+            PROTOCOL_PARAMETER,
+          ),
+        ).to.be.revertedWithCustomError(riskParameter, 'RiskParameterStorageInvalidError')
+      })
+
+      it('reverts if invalid (above)', async () => {
+        await expect(
+          riskParameter.validateAndStore(
+            {
+              ...VALID_RISK_PARAMETER,
+              efficiencyLimit: BigNumber.from(2).pow(STORAGE_SIZE),
             },
             PROTOCOL_PARAMETER,
           ),

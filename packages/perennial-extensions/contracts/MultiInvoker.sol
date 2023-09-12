@@ -102,7 +102,8 @@ contract MultiInvoker is IMultiInvoker, Kept {
     function canExecuteOrder(address account, IMarket market, uint256 nonce) public view returns (bool) {
         TriggerOrder memory order = orders(account, market, nonce);
         if (order.fee.isZero()) return false;
-        return order.fillable(_getMarketPrice(market, account));
+        (, Fixed6 latestPrice, ) = _latest(market, account);
+        return order.fillable(latestPrice);
     }
 
     /// @notice entry to perform invocations
@@ -223,13 +224,15 @@ contract MultiInvoker is IMultiInvoker, Kept {
     /// @param market Market to liquidate account in
     /// @param account Address of market to liquidate
     function _liquidate(IMarket market, address account) internal isMarketInstance(market) {
-        UFixed6 liquidationFee = _liquidationFee(market, account);
+        (UFixed6 liquidationFee, UFixed6 closable) = _liquidationFee(market, account);
+
+        Position memory currentPosition = market.pendingPositions(account, market.locals(account).currentId);
 
         market.update(
             account,
-            UFixed6Lib.ZERO,
-            UFixed6Lib.ZERO,
-            UFixed6Lib.ZERO,
+            currentPosition.maker.isZero() ? UFixed6Lib.ZERO : currentPosition.maker.sub(closable),
+            currentPosition.long.isZero() ? UFixed6Lib.ZERO : currentPosition.long.sub(closable),
+            currentPosition.short.isZero() ? UFixed6Lib.ZERO : currentPosition.short.sub(closable),
             Fixed6Lib.from(-1, liquidationFee),
             true
         );
@@ -331,42 +334,69 @@ contract MultiInvoker is IMultiInvoker, Kept {
     /// @param market Market to compute liquidation fee for
     /// @param account Account to compute liquidation fee for
     /// @return liquidationFee Liquidation fee for the account
-    function _liquidationFee(IMarket market, address account) internal view returns (UFixed6) {
+    /// @return closable The amount of the position that can be closed
+    function _liquidationFee(IMarket market, address account) internal view returns (UFixed6, UFixed6) {
+        // load information about liquidation
         RiskParameter memory riskParameter = market.riskParameter();
-        (Position memory latestPosition, OracleVersion memory latestVersion) = _latest(market, account);
+        (Position memory latestPosition, Fixed6 latestPrice, UFixed6 closableAmount) = _latest(market, account);
 
-        return latestPosition
-            .liquidationFee(latestVersion, riskParameter)
-            .min(UFixed6Lib.from(market.token().balanceOf(address(market))));
+        // create placeholder order for liquidation fee calculation (fee is charged the same on all sides)
+        Order memory placeholderOrder;
+        placeholderOrder.maker = Fixed6Lib.from(closableAmount);
+
+        return (
+            placeholderOrder
+                .liquidationFee(OracleVersion(latestPosition.timestamp, latestPrice, true), riskParameter)
+                .min(UFixed6Lib.from(market.token().balanceOf(address(market)))),
+            closableAmount
+        );
     }
 
     /// @notice Helper function to compute the latest position and oracle version without a settlement
     /// @param market Market to compute latest position and oracle version for
     /// @param account Account to compute latest position and oracle version for
     /// @return latestPosition Latest position for the account
-    /// @return latestVersion Latest oracle version for the account
+    /// @return latestPrice Latest oracle price for the account
+    /// @return closableAmount Amount of position that can be closed
     function _latest(
         IMarket market,
         address account
-    ) internal view returns (Position memory latestPosition, OracleVersion memory latestVersion) {
+    ) internal view returns (Position memory latestPosition, Fixed6 latestPrice, UFixed6 closableAmount) {
+        // load parameters from the market
+        IPayoffProvider payoff = market.payoff();
+
         // load latest settled position and price
         uint256 latestTimestamp = market.oracle().latest().timestamp;
         latestPosition = market.positions(account);
-        latestVersion = OracleVersion(latestPosition.timestamp, market.global().latestPrice, true);
+        latestPrice = market.global().latestPrice;
+        UFixed6 previousMagnitude = latestPosition.magnitude();
 
         // scan pending position for any ready-to-be-settled positions
         Local memory local = market.locals(account);
-        for (uint256 id = local.latestId; id <= local.currentId; id++) {
-            Position memory pendingPosition = market.pendingPositions(account, id);
-            OracleVersion memory oracleVersion = market.oracle().at(pendingPosition.timestamp);
+        for (uint256 id = local.latestId + 1; id <= local.currentId; id++) {
 
-            IPayoffProvider payoff = market.payoff();
+            // load pending position
+            Position memory pendingPosition = market.pendingPositions(account, id);
+            pendingPosition.adjust(latestPosition);
+
+            // load oracle version for that position
+            OracleVersion memory oracleVersion = market.oracle().at(pendingPosition.timestamp);
             if (address(payoff) != address(0)) oracleVersion.price = payoff.payoff(oracleVersion.price);
 
-            // if versions are valid, update latest
-            if (latestTimestamp >= pendingPosition.timestamp && oracleVersion.valid) {
-                latestPosition = pendingPosition;
-                latestVersion = oracleVersion;
+            // virtual settlement
+            if (pendingPosition.timestamp <= latestTimestamp) {
+                if (!oracleVersion.valid) latestPosition.invalidate(pendingPosition);
+                latestPosition.update(pendingPosition);
+                if (oracleVersion.valid) latestPrice = oracleVersion.price;
+
+                previousMagnitude = latestPosition.magnitude();
+                closableAmount = previousMagnitude;
+
+            // process pending positions
+            } else {
+                closableAmount = closableAmount
+                    .sub(previousMagnitude.sub(pendingPosition.magnitude().min(previousMagnitude)));
+                previousMagnitude = latestPosition.magnitude();
             }
         }
     }
@@ -443,14 +473,6 @@ contract MultiInvoker is IMultiInvoker, Kept {
     function _cancelOrder(address account, IMarket market, uint256 nonce) internal {
         delete _orders[account][market][nonce];
         emit OrderCancelled(account, market, nonce);
-    }
-
-    /// @notice Helper function to get price of `market`
-    /// @param market Market to get price of
-    /// @return price 6-decimal price of market
-    function _getMarketPrice(IMarket market, address account) internal view returns (Fixed6 price) {
-        (, OracleVersion memory latestVersion) = _latest(market, account);
-        return latestVersion.price;
     }
 
     /// @notice Target market must be created by MarketFactory

@@ -95,6 +95,11 @@ export const openPosition = ({
     collateral: collateral ? collateral : '0',
     delta: '0',
     keeper: '0',
+    invalidation: {
+      maker: 0,
+      long: 0,
+      short: 0,
+    },
   }
 
   return position

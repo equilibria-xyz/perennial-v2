@@ -303,7 +303,6 @@ describe('Orders', () => {
       ).to.be.revertedWithCustomError(multiInvoker, 'MultiInvokerCantExecuteError')
     })
 
-    // TODO: more deterministic fee calc
     it('fails to place order with 0 fee', async () => {
       const { user } = instanceVars
 

@@ -9,7 +9,7 @@ import "../types/Registration.sol";
 ///      - Positions are then targeted based on the amount of collateral that ends up deployed to each market.
 library StrategyLib {
     /// @dev The maximum multiplier that is allowed for leverage
-    UFixed6 private constant LEVERAGE_BUFFER = UFixed6.wrap(1.2e6);
+    UFixed6 public constant LEVERAGE_BUFFER = UFixed6.wrap(1.2e6);
 
     /// @dev The context of an underlying market
     struct MarketContext {
@@ -25,14 +25,20 @@ library StrategyLib {
         /// @dev The vault's current account position
         Position currentAccountPosition;
 
+        /// @dev The vault's latest account position
+        Position latestAccountPosition;
+
         /// @dev The current global position
         Position currentPosition;
 
         /// @dev The latest valid price
-        UFixed6 latestPrice;
+        Fixed6 latestPrice;
 
         /// @dev The margin requirement of the vault
         UFixed6 margin;
+
+        /// @dev The current closable amount of the vault
+        UFixed6 closable;
     }
 
     /// @dev The target allocation for a market
@@ -87,7 +93,7 @@ library StrategyLib {
             (targets[marketId].collateral, targets[marketId].position) = (
                 Fixed6Lib.from(_locals.marketCollateral).sub(contexts[marketId].local.collateral),
                 _locals.marketAssets
-                    .muldiv(registrations[marketId].leverage, contexts[marketId].latestPrice)
+                    .muldiv(registrations[marketId].leverage, contexts[marketId].latestPrice.abs())
                     .min(_locals.maxPosition)
                     .max(_locals.minPosition)
             );
@@ -101,17 +107,47 @@ library StrategyLib {
         context.marketParameter = registration.market.parameter();
         context.riskParameter = registration.market.riskParameter();
         context.local = registration.market.locals(address(this));
-        context.currentAccountPosition = registration.market.pendingPositions(address(this), context.local.currentId);
-
         Global memory global = registration.market.global();
+        context.latestPrice = global.latestPrice;
 
-        context.latestPrice = global.latestPrice.abs();
+        // latest position
+        UFixed6 previousClosable;
+        previousClosable = _loadPosition(
+            context,
+            context.latestAccountPosition = registration.market.positions(address(this)),
+            previousClosable
+        );
+        context.closable = context.latestAccountPosition.maker;
+
+        // pending positions
+        for (uint256 id = context.local.latestId + 1; id <= context.local.currentId; id++)
+            previousClosable = _loadPosition(
+                context,
+                context.currentAccountPosition = registration.market.pendingPositions(address(this), id),
+                previousClosable
+            );
+
+        // current position
         context.currentPosition = registration.market.pendingPosition(global.currentId);
+    }
 
-        for (uint256 id = context.local.latestId; id < context.local.currentId; id++)
-            context.margin = registration.market.pendingPositions(address(this), id)
-                .margin(OracleVersion(0, global.latestPrice, true), context.riskParameter)
-                .max(context.margin);
+    /// @notice Loads one position for the context calculation
+    /// @param context The context of the market
+    /// @param position The position to load
+    /// @param previousMaker The previous maker position
+    /// @return nextMaker The next maker position
+    function _loadPosition(
+        MarketContext memory context,
+        Position memory position,
+        UFixed6 previousMaker
+    ) private pure returns (UFixed6 nextMaker) {
+        position.adjust(context.latestAccountPosition);
+
+        context.margin = position
+            .margin(OracleVersion(0, context.latestPrice, true), context.riskParameter)
+            .max(context.margin);
+        context.closable = context.closable.sub(previousMaker.sub(position.maker.min(previousMaker)));
+        nextMaker = position.maker;
     }
 
     /// @notice Aggregate the context of all markets
@@ -140,6 +176,7 @@ library StrategyLib {
                 context.currentPosition.maker
                     .sub(context.currentPosition.net().min(context.currentPosition.maker))
                     .min(context.currentAccountPosition.maker)
+                    .min(context.closable)
             ),
             // maximum position size before crossing the maker limit
             context.currentAccountPosition.maker.add(

@@ -67,8 +67,11 @@ describe('Closed Market', () => {
     })
 
     it('allows insufficient liquidity for close positions', async () => {
-      const { user } = instanceVars
-      await expect(market.connect(user).update(user.address, 0, 0, 0, 0, false)).to.not.be.reverted
+      const { user, chainlink } = instanceVars
+
+      await chainlink.next()
+
+      await expect(await market.connect(user).update(user.address, 0, 0, 0, 0, false)).to.not.be.reverted
     })
   })
 
