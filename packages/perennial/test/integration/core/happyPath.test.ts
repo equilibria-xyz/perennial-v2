@@ -23,7 +23,7 @@ export const TIMESTAMP_3 = 1631114005
 export const TIMESTAMP_4 = 1631115371
 export const TIMESTAMP_5 = 1631118731
 
-describe.only('Happy Path', () => {
+describe('Happy Path', () => {
   let instanceVars: InstanceVars
 
   beforeEach(async () => {
