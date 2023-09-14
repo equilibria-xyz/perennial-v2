@@ -19,6 +19,8 @@ import {
   MarketFactory,
   IOracleProvider,
   IMarket,
+  MarketParameterStorageLib__factory,
+  RiskParameterStorageLib__factory,
 } from '../../../types/generated'
 import { ChainlinkContext } from './chainlinkHelpers'
 import { parse6decimal } from '../../../../common/testutil/types'
@@ -94,7 +96,17 @@ export async function deployProtocol(chainlinkContext?: ChainlinkContext): Promi
   )
   const payoffFactory = new PayoffFactory__factory(owner).attach(payoffFactoryProxy.address)
 
-  const marketImpl = await new Market__factory(owner).deploy()
+  const marketImpl = await new Market__factory(
+    {
+      'contracts/types/MarketParameter.sol:MarketParameterStorageLib': (
+        await new MarketParameterStorageLib__factory(owner).deploy()
+      ).address,
+      'contracts/types/RiskParameter.sol:RiskParameterStorageLib': (
+        await new RiskParameterStorageLib__factory(owner).deploy()
+      ).address,
+    },
+    owner,
+  ).deploy()
 
   const factoryImpl = await new MarketFactory__factory(owner).deploy(
     oracleFactory.address,
