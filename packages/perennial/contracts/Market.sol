@@ -300,7 +300,7 @@ contract Market is IMarket, Instance, ReentrancyGuard {
         if (collateral.sign() == -1) token.push(msg.sender, UFixed18Lib.from(collateral.abs()));
 
         // events
-        emit Updated(account, context.currentTimestamp, newMaker, newLong, newShort, collateral, protect);
+        emit Updated(msg.sender, account, context.currentTimestamp, newMaker, newLong, newShort, collateral, protect);
     }
 
     function _loadContext(address account) private view returns (Context memory context) {

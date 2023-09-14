@@ -52,7 +52,7 @@ describe('Liquidate', () => {
     const userBUSDCBalance = await usdc.balanceOf(userB.address)
     await expect(multiInvoker.connect(userB).invoke(buildLiquidateUser({ market: market.address, user: user.address })))
       .to.emit(market, 'Updated')
-      .withArgs(user.address, TIMESTAMP_2, 0, 0, 0, EXPECTED_LIQUIDATION_FEE.mul(-1), true)
+      .withArgs(userB.address, user.address, TIMESTAMP_2, 0, 0, 0, EXPECTED_LIQUIDATION_FEE.mul(-1), true)
 
     expect((await market.locals(user.address)).protection).to.eq(TIMESTAMP_2)
 
@@ -108,7 +108,7 @@ describe('Liquidate', () => {
     const userBUSDCBalance = await usdc.balanceOf(userB.address)
     await expect(multiInvoker.connect(userB).invoke(buildLiquidateUser({ market: market.address, user: user.address })))
       .to.emit(market, 'Updated')
-      .withArgs(user.address, TIMESTAMP_3, POSITION.div(2), 0, 0, EXPECTED_LIQUIDATION_FEE.mul(-1), true)
+      .withArgs(userB.address, user.address, TIMESTAMP_3, POSITION.div(2), 0, 0, EXPECTED_LIQUIDATION_FEE.mul(-1), true)
 
     expect((await market.locals(user.address)).protection).to.eq(TIMESTAMP_3)
 
@@ -125,7 +125,7 @@ describe('Liquidate', () => {
 
     await expect(multiInvoker.connect(userB).invoke(buildLiquidateUser({ market: market.address, user: user.address })))
       .to.emit(market, 'Updated')
-      .withArgs(user.address, TIMESTAMP_4, 0, 0, 0, EXPECTED_LIQUIDATION_FEE_2.mul(-1), true)
+      .withArgs(userB.address, user.address, TIMESTAMP_4, 0, 0, 0, EXPECTED_LIQUIDATION_FEE_2.mul(-1), true)
 
     await chainlink.next()
     await chainlink.next()

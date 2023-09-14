@@ -304,7 +304,7 @@ contract Vault is IVault, Instance {
         _manage(context, claimAmount, true);
         asset.push(msg.sender, UFixed18Lib.from(claimAmount));
 
-        emit Update(msg.sender, account, context.currentId, depositAssets, redeemShares, claimAssets);
+        emit Updated(msg.sender, account, context.currentId, depositAssets, redeemShares, claimAssets);
     }
 
     /// @notice Returns the claim amount after socialization and settlement fee
