@@ -4,6 +4,7 @@ import { expect, use } from 'chai'
 import HRE from 'hardhat'
 
 import {
+  RiskParameterStorageLib,
   RiskParameterStorageLib__factory,
   RiskParameterTester,
   RiskParameterTester__factory,
@@ -59,16 +60,16 @@ const PROTOCOL_PARAMETER: ProtocolParameterStruct = {
 describe('RiskParameter', () => {
   let owner: SignerWithAddress
 
+  let riskParameterStorage: RiskParameterStorageLib
   let riskParameter: RiskParameterTester
 
   beforeEach(async () => {
     ;[owner] = await ethers.getSigners()
 
+    riskParameterStorage = await new RiskParameterStorageLib__factory(owner).deploy()
     riskParameter = await new RiskParameterTester__factory(
       {
-        'contracts/types/RiskParameter.sol:RiskParameterStorageLib': (
-          await new RiskParameterStorageLib__factory(owner).deploy()
-        ).address,
+        'contracts/types/RiskParameter.sol:RiskParameterStorageLib': riskParameterStorage.address,
       },
       owner,
     ).deploy()

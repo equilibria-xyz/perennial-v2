@@ -4,6 +4,7 @@ import { expect, use } from 'chai'
 import HRE from 'hardhat'
 
 import {
+  MarketParameterStorageLib,
   MarketParameterStorageLib__factory,
   MarketParameterTester,
   MarketParameterTester__factory,
@@ -46,16 +47,16 @@ const PROTOCOL_PARAMETER: ProtocolParameterStruct = {
 describe('MarketParameter', () => {
   let owner: SignerWithAddress
 
+  let marketParameterStorage: MarketParameterStorageLib
   let marketParameter: MarketParameterTester
 
   beforeEach(async () => {
     ;[owner] = await ethers.getSigners()
 
+    marketParameterStorage = await new MarketParameterStorageLib__factory(owner).deploy()
     marketParameter = await new MarketParameterTester__factory(
       {
-        'contracts/types/MarketParameter.sol:MarketParameterStorageLib': (
-          await new MarketParameterStorageLib__factory(owner).deploy()
-        ).address,
+        'contracts/types/MarketParameter.sol:MarketParameterStorageLib': marketParameterStorage.address,
       },
       owner,
     ).deploy()
@@ -109,7 +110,7 @@ describe('MarketParameter', () => {
             },
             marketParameter.address,
           ),
-        ).to.be.revertedWithCustomError(marketParameter, 'MarketParameterStorageInvalidError')
+        ).to.be.revertedWithCustomError(marketParameterStorage, 'MarketParameterStorageInvalidError')
       })
     })
 
@@ -140,7 +141,7 @@ describe('MarketParameter', () => {
             },
             marketParameter.address,
           ),
-        ).to.be.revertedWithCustomError(marketParameter, 'MarketParameterStorageInvalidError')
+        ).to.be.revertedWithCustomError(marketParameterStorage, 'MarketParameterStorageInvalidError')
       })
     })
 
@@ -171,7 +172,7 @@ describe('MarketParameter', () => {
             },
             marketParameter.address,
           ),
-        ).to.be.revertedWithCustomError(marketParameter, 'MarketParameterStorageInvalidError')
+        ).to.be.revertedWithCustomError(marketParameterStorage, 'MarketParameterStorageInvalidError')
       })
     })
 
@@ -200,7 +201,7 @@ describe('MarketParameter', () => {
             PROTOCOL_PARAMETER,
             marketParameter.address,
           ),
-        ).to.be.revertedWithCustomError(marketParameter, 'MarketParameterStorageInvalidError')
+        ).to.be.revertedWithCustomError(marketParameterStorage, 'MarketParameterStorageInvalidError')
       })
     })
 
@@ -229,7 +230,7 @@ describe('MarketParameter', () => {
             PROTOCOL_PARAMETER,
             marketParameter.address,
           ),
-        ).to.be.revertedWithCustomError(marketParameter, 'MarketParameterStorageInvalidError')
+        ).to.be.revertedWithCustomError(marketParameterStorage, 'MarketParameterStorageInvalidError')
       })
     })
 
@@ -260,7 +261,7 @@ describe('MarketParameter', () => {
             PROTOCOL_PARAMETER,
             marketParameter.address,
           ),
-        ).to.be.revertedWithCustomError(marketParameter, 'MarketParameterStorageInvalidError')
+        ).to.be.revertedWithCustomError(marketParameterStorage, 'MarketParameterStorageInvalidError')
       })
     })
 
@@ -288,7 +289,7 @@ describe('MarketParameter', () => {
             PROTOCOL_PARAMETER,
             marketParameter.address,
           ),
-        ).to.be.revertedWithCustomError(marketParameter, 'MarketParameterStorageInvalidError')
+        ).to.be.revertedWithCustomError(marketParameterStorage, 'MarketParameterStorageInvalidError')
       })
     })
 
@@ -316,7 +317,7 @@ describe('MarketParameter', () => {
             PROTOCOL_PARAMETER,
             marketParameter.address,
           ),
-        ).to.be.revertedWithCustomError(marketParameter, 'MarketParameterStorageInvalidError')
+        ).to.be.revertedWithCustomError(marketParameterStorage, 'MarketParameterStorageInvalidError')
       })
     })
 
@@ -345,7 +346,7 @@ describe('MarketParameter', () => {
             PROTOCOL_PARAMETER,
             marketParameter.address,
           ),
-        ).to.be.revertedWithCustomError(marketParameter, 'MarketParameterStorageInvalidError')
+        ).to.be.revertedWithCustomError(marketParameterStorage, 'MarketParameterStorageInvalidError')
       })
     })
 
@@ -374,7 +375,7 @@ describe('MarketParameter', () => {
             PROTOCOL_PARAMETER,
             marketParameter.address,
           ),
-        ).to.be.revertedWithCustomError(marketParameter, 'MarketParameterStorageInvalidError')
+        ).to.be.revertedWithCustomError(marketParameterStorage, 'MarketParameterStorageInvalidError')
       })
 
       context('reward address is zero', () => {
@@ -389,7 +390,7 @@ describe('MarketParameter', () => {
                 PROTOCOL_PARAMETER,
                 constants.AddressZero,
               ),
-            ).to.be.revertedWithCustomError(marketParameter, 'MarketParameterStorageInvalidError')
+            ).to.be.revertedWithCustomError(marketParameterStorage, 'MarketParameterStorageInvalidError')
           })
         })
       })
@@ -422,7 +423,7 @@ describe('MarketParameter', () => {
             PROTOCOL_PARAMETER,
             marketParameter.address,
           ),
-        ).to.be.revertedWithCustomError(marketParameter, 'MarketParameterStorageInvalidError')
+        ).to.be.revertedWithCustomError(marketParameterStorage, 'MarketParameterStorageInvalidError')
       })
 
       context('reward address is zero', () => {
@@ -438,7 +439,7 @@ describe('MarketParameter', () => {
                 PROTOCOL_PARAMETER,
                 constants.AddressZero,
               ),
-            ).to.be.revertedWithCustomError(marketParameter, 'MarketParameterStorageInvalidError')
+            ).to.be.revertedWithCustomError(marketParameterStorage, 'MarketParameterStorageInvalidError')
           })
         })
       })
@@ -473,7 +474,7 @@ describe('MarketParameter', () => {
             PROTOCOL_PARAMETER,
             marketParameter.address,
           ),
-        ).to.be.revertedWithCustomError(marketParameter, 'MarketParameterStorageInvalidError')
+        ).to.be.revertedWithCustomError(marketParameterStorage, 'MarketParameterStorageInvalidError')
       })
 
       context('reward address is zero', () => {
@@ -490,7 +491,7 @@ describe('MarketParameter', () => {
                 PROTOCOL_PARAMETER,
                 constants.AddressZero,
               ),
-            ).to.be.revertedWithCustomError(marketParameter, 'MarketParameterStorageInvalidError')
+            ).to.be.revertedWithCustomError(marketParameterStorage, 'MarketParameterStorageInvalidError')
           })
         })
       })
