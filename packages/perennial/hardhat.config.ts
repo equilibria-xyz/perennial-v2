@@ -6,7 +6,7 @@ export const solidityOverrides = {
     settings: {
       optimizer: {
         enabled: OPTIMIZER_ENABLED,
-        runs: 150,
+        runs: 100,
         details: OPTIMIZER_ENABLED
           ? {
               yulDetails: {
