@@ -3,7 +3,11 @@ import { SignerWithAddress } from '@nomiclabs/hardhat-ethers/signers'
 import { expect, use } from 'chai'
 import HRE from 'hardhat'
 
-import { RiskParameterTester, RiskParameterTester__factory } from '../../../types/generated'
+import {
+  RiskParameterStorageLib__factory,
+  RiskParameterTester,
+  RiskParameterTester__factory,
+} from '../../../types/generated'
 import { BigNumber } from 'ethers'
 import { RiskParameterStruct } from '../../../types/generated/contracts/Market'
 import { parse6decimal } from '../../../../common/testutil/types'
@@ -60,7 +64,14 @@ describe('RiskParameter', () => {
   beforeEach(async () => {
     ;[owner] = await ethers.getSigners()
 
-    riskParameter = await new RiskParameterTester__factory(owner).deploy()
+    riskParameter = await new RiskParameterTester__factory(
+      {
+        'contracts/types/RiskParameter.sol:RiskParameterStorageLib': (
+          await new RiskParameterStorageLib__factory(owner).deploy()
+        ).address,
+      },
+      owner,
+    ).deploy()
   })
 
   describe('#store', () => {

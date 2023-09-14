@@ -3,7 +3,11 @@ import { SignerWithAddress } from '@nomiclabs/hardhat-ethers/signers'
 import { expect, use } from 'chai'
 import HRE from 'hardhat'
 
-import { MarketParameterTester, MarketParameterTester__factory } from '../../../types/generated'
+import {
+  MarketParameterStorageLib__factory,
+  MarketParameterTester,
+  MarketParameterTester__factory,
+} from '../../../types/generated'
 import { BigNumber, constants } from 'ethers'
 import { MarketParameterStruct } from '../../../types/generated/contracts/Market'
 import { ProtocolParameterStruct } from '../../../types/generated/contracts/MarketFactory'
@@ -47,7 +51,14 @@ describe('MarketParameter', () => {
   beforeEach(async () => {
     ;[owner] = await ethers.getSigners()
 
-    marketParameter = await new MarketParameterTester__factory(owner).deploy()
+    marketParameter = await new MarketParameterTester__factory(
+      {
+        'contracts/types/MarketParameter.sol:MarketParameterStorageLib': (
+          await new MarketParameterStorageLib__factory(owner).deploy()
+        ).address,
+      },
+      owner,
+    ).deploy()
   })
 
   describe('#store', () => {
