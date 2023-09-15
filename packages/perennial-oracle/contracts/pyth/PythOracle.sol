@@ -199,6 +199,7 @@ contract PythOracle is IPythOracle, Instance, Kept {
         if (oracleVersion <= minVersion || oracleVersion >= maxVersion) revert PythOracleVersionOutsideRangeError();
 
         _recordPrice(oracleVersion, pythPrice);
+        nextVersionIndexToCommit = versionIndex;
         _latestVersion = oracleVersion;
     }
 

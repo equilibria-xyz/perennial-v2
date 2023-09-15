@@ -497,7 +497,7 @@ testOracles.forEach(testOracle => {
           value: 1,
         })
         expect((await pythOracle.latest()).timestamp).to.equal(STARTING_TIME + 60)
-        expect(await pythOracle.nextVersionIndexToCommit()).to.equal(0)
+        expect(await pythOracle.nextVersionIndexToCommit()).to.equal(1)
 
         expect(
           pythOracle.connect(user).commit(0, STARTING_TIME, VAA, {
