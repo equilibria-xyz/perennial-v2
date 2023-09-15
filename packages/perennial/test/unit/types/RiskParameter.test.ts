@@ -128,7 +128,7 @@ describe('RiskParameter', () => {
             },
             PROTOCOL_PARAMETER,
           ),
-        ).to.be.revertedWithCustomError(riskParameter, 'RiskParameterStorageInvalidError')
+        ).to.be.revertedWithCustomError(riskParameterStorage, 'RiskParameterStorageInvalidError')
       })
     })
 
@@ -161,7 +161,7 @@ describe('RiskParameter', () => {
             },
             PROTOCOL_PARAMETER,
           ),
-        ).to.be.revertedWithCustomError(riskParameter, 'RiskParameterStorageInvalidError')
+        ).to.be.revertedWithCustomError(riskParameterStorage, 'RiskParameterStorageInvalidError')
       })
     })
 
@@ -193,7 +193,7 @@ describe('RiskParameter', () => {
             },
             PROTOCOL_PARAMETER,
           ),
-        ).to.be.revertedWithCustomError(riskParameter, 'RiskParameterStorageInvalidError')
+        ).to.be.revertedWithCustomError(riskParameterStorage, 'RiskParameterStorageInvalidError')
       })
     })
 
@@ -225,7 +225,7 @@ describe('RiskParameter', () => {
             },
             PROTOCOL_PARAMETER,
           ),
-        ).to.be.revertedWithCustomError(riskParameter, 'RiskParameterStorageInvalidError')
+        ).to.be.revertedWithCustomError(riskParameterStorage, 'RiskParameterStorageInvalidError')
       })
     })
 
@@ -257,7 +257,7 @@ describe('RiskParameter', () => {
             },
             PROTOCOL_PARAMETER,
           ),
-        ).to.be.revertedWithCustomError(riskParameter, 'RiskParameterStorageInvalidError')
+        ).to.be.revertedWithCustomError(riskParameterStorage, 'RiskParameterStorageInvalidError')
       })
     })
 
@@ -289,7 +289,7 @@ describe('RiskParameter', () => {
             },
             PROTOCOL_PARAMETER,
           ),
-        ).to.be.revertedWithCustomError(riskParameter, 'RiskParameterStorageInvalidError')
+        ).to.be.revertedWithCustomError(riskParameterStorage, 'RiskParameterStorageInvalidError')
       })
     })
 
@@ -315,7 +315,7 @@ describe('RiskParameter', () => {
             },
             PROTOCOL_PARAMETER,
           ),
-        ).to.be.revertedWithCustomError(riskParameter, 'RiskParameterStorageInvalidError')
+        ).to.be.revertedWithCustomError(riskParameterStorage, 'RiskParameterStorageInvalidError')
       })
     })
 
@@ -341,7 +341,7 @@ describe('RiskParameter', () => {
             },
             PROTOCOL_PARAMETER,
           ),
-        ).to.be.revertedWithCustomError(riskParameter, 'RiskParameterStorageInvalidError')
+        ).to.be.revertedWithCustomError(riskParameterStorage, 'RiskParameterStorageInvalidError')
       })
     })
 
@@ -368,7 +368,7 @@ describe('RiskParameter', () => {
             },
             PROTOCOL_PARAMETER,
           ),
-        ).to.be.revertedWithCustomError(riskParameter, 'RiskParameterStorageInvalidError')
+        ).to.be.revertedWithCustomError(riskParameterStorage, 'RiskParameterStorageInvalidError')
       })
 
       it('reverts if invalid (above)', async () => {
@@ -380,7 +380,7 @@ describe('RiskParameter', () => {
             },
             PROTOCOL_PARAMETER,
           ),
-        ).to.be.revertedWithCustomError(riskParameter, 'RiskParameterStorageInvalidError')
+        ).to.be.revertedWithCustomError(riskParameterStorage, 'RiskParameterStorageInvalidError')
       })
 
       it('reverts if invalid (maintenance)', async () => {
@@ -393,7 +393,7 @@ describe('RiskParameter', () => {
             },
             PROTOCOL_PARAMETER,
           ),
-        ).to.be.revertedWithCustomError(riskParameter, 'RiskParameterStorageInvalidError')
+        ).to.be.revertedWithCustomError(riskParameterStorage, 'RiskParameterStorageInvalidError')
       })
     })
 
@@ -422,7 +422,7 @@ describe('RiskParameter', () => {
             },
             PROTOCOL_PARAMETER,
           ),
-        ).to.be.revertedWithCustomError(riskParameter, 'RiskParameterStorageInvalidError')
+        ).to.be.revertedWithCustomError(riskParameterStorage, 'RiskParameterStorageInvalidError')
       })
 
       it('reverts if invalid (above)', async () => {
@@ -435,7 +435,7 @@ describe('RiskParameter', () => {
             },
             PROTOCOL_PARAMETER,
           ),
-        ).to.be.revertedWithCustomError(riskParameter, 'RiskParameterStorageInvalidError')
+        ).to.be.revertedWithCustomError(riskParameterStorage, 'RiskParameterStorageInvalidError')
       })
     })
 
@@ -481,7 +481,7 @@ describe('RiskParameter', () => {
             },
             PROTOCOL_PARAMETER,
           ),
-        ).to.be.revertedWithCustomError(riskParameter, 'RiskParameterStorageInvalidError')
+        ).to.be.revertedWithCustomError(riskParameterStorage, 'RiskParameterStorageInvalidError')
       })
     })
 
@@ -507,7 +507,7 @@ describe('RiskParameter', () => {
             },
             PROTOCOL_PARAMETER,
           ),
-        ).to.be.revertedWithCustomError(riskParameter, 'RiskParameterStorageInvalidError')
+        ).to.be.revertedWithCustomError(riskParameterStorage, 'RiskParameterStorageInvalidError')
       })
     })
 
@@ -533,7 +533,7 @@ describe('RiskParameter', () => {
             },
             PROTOCOL_PARAMETER,
           ),
-        ).to.be.revertedWithCustomError(riskParameter, 'RiskParameterStorageInvalidError')
+        ).to.be.revertedWithCustomError(riskParameterStorage, 'RiskParameterStorageInvalidError')
       })
     })
 
@@ -559,7 +559,7 @@ describe('RiskParameter', () => {
             },
             PROTOCOL_PARAMETER,
           ),
-        ).to.be.revertedWithCustomError(riskParameter, 'RiskParameterStorageInvalidError')
+        ).to.be.revertedWithCustomError(riskParameterStorage, 'RiskParameterStorageInvalidError')
       })
     })
 
@@ -585,7 +585,7 @@ describe('RiskParameter', () => {
             },
             PROTOCOL_PARAMETER,
           ),
-        ).to.be.revertedWithCustomError(riskParameter, 'RiskParameterStorageInvalidError')
+        ).to.be.revertedWithCustomError(riskParameterStorage, 'RiskParameterStorageInvalidError')
       })
 
       it('reverts if less than minLiquidationFee', async () => {
@@ -598,7 +598,7 @@ describe('RiskParameter', () => {
             },
             PROTOCOL_PARAMETER,
           ),
-        ).to.be.revertedWithCustomError(riskParameter, 'RiskParameterStorageInvalidError')
+        ).to.be.revertedWithCustomError(riskParameterStorage, 'RiskParameterStorageInvalidError')
       })
     })
 
@@ -626,7 +626,7 @@ describe('RiskParameter', () => {
             },
             PROTOCOL_PARAMETER,
           ),
-        ).to.be.revertedWithCustomError(riskParameter, 'RiskParameterStorageInvalidError')
+        ).to.be.revertedWithCustomError(riskParameterStorage, 'RiskParameterStorageInvalidError')
       })
 
       it('reverts if less than minLiquidationFee', async () => {
@@ -639,7 +639,7 @@ describe('RiskParameter', () => {
             },
             PROTOCOL_PARAMETER,
           ),
-        ).to.be.revertedWithCustomError(riskParameter, 'RiskParameterStorageInvalidError')
+        ).to.be.revertedWithCustomError(riskParameterStorage, 'RiskParameterStorageInvalidError')
       })
     })
 
@@ -666,7 +666,7 @@ describe('RiskParameter', () => {
             },
             PROTOCOL_PARAMETER,
           ),
-        ).to.be.revertedWithCustomError(riskParameter, 'RiskParameterStorageInvalidError')
+        ).to.be.revertedWithCustomError(riskParameterStorage, 'RiskParameterStorageInvalidError')
       })
     })
 
@@ -693,7 +693,7 @@ describe('RiskParameter', () => {
             },
             PROTOCOL_PARAMETER,
           ),
-        ).to.be.revertedWithCustomError(riskParameter, 'RiskParameterStorageInvalidError')
+        ).to.be.revertedWithCustomError(riskParameterStorage, 'RiskParameterStorageInvalidError')
       })
     })
 
@@ -719,7 +719,7 @@ describe('RiskParameter', () => {
             },
             PROTOCOL_PARAMETER,
           ),
-        ).to.be.revertedWithCustomError(riskParameter, 'RiskParameterStorageInvalidError')
+        ).to.be.revertedWithCustomError(riskParameterStorage, 'RiskParameterStorageInvalidError')
       })
     })
 
@@ -749,7 +749,7 @@ describe('RiskParameter', () => {
             },
             PROTOCOL_PARAMETER,
           ),
-        ).to.be.revertedWithCustomError(riskParameter, 'RiskParameterStorageInvalidError')
+        ).to.be.revertedWithCustomError(riskParameterStorage, 'RiskParameterStorageInvalidError')
       })
     })
 
@@ -775,7 +775,7 @@ describe('RiskParameter', () => {
             },
             PROTOCOL_PARAMETER,
           ),
-        ).to.be.revertedWithCustomError(riskParameter, 'RiskParameterStorageInvalidError')
+        ).to.be.revertedWithCustomError(riskParameterStorage, 'RiskParameterStorageInvalidError')
       })
     })
 
@@ -802,7 +802,7 @@ describe('RiskParameter', () => {
             },
             PROTOCOL_PARAMETER,
           ),
-        ).to.be.revertedWithCustomError(riskParameter, 'RiskParameterStorageInvalidError')
+        ).to.be.revertedWithCustomError(riskParameterStorage, 'RiskParameterStorageInvalidError')
       })
 
       it('reverts if invalid (above)', async () => {
@@ -814,7 +814,7 @@ describe('RiskParameter', () => {
             },
             PROTOCOL_PARAMETER,
           ),
-        ).to.be.revertedWithCustomError(riskParameter, 'RiskParameterStorageInvalidError')
+        ).to.be.revertedWithCustomError(riskParameterStorage, 'RiskParameterStorageInvalidError')
       })
     })
   })
