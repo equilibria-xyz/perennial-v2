@@ -30,7 +30,7 @@ describe('Liquidate', () => {
 
     await expect(market.connect(userB).update(user.address, 0, 0, 0, '-682778988', true)) // liquidate
       .to.emit(market, 'Updated')
-      .withArgs(user.address, TIMESTAMP_2, 0, 0, 0, '-682778988', true)
+      .withArgs(userB.address, user.address, TIMESTAMP_2, 0, 0, 0, '-682778988', true)
 
     expect((await market.locals(user.address)).protection).to.eq(TIMESTAMP_2)
 
@@ -59,7 +59,7 @@ describe('Liquidate', () => {
 
     await expect(market.connect(userB).update(user.address, 0, 0, 0, COLLATERAL.mul(-1), true)) // liquidate
       .to.emit(market, 'Updated')
-      .withArgs(user.address, TIMESTAMP_2, 0, 0, 0, COLLATERAL.mul(-1), true)
+      .withArgs(userB.address, user.address, TIMESTAMP_2, 0, 0, 0, COLLATERAL.mul(-1), true)
 
     expect((await market.locals(user.address)).protection).to.eq(TIMESTAMP_2)
 
@@ -144,7 +144,7 @@ describe('Liquidate', () => {
     const expectedLiquidationFee = BigNumber.from('682778988')
     await expect(market.connect(userB).update(user.address, 0, 0, 0, expectedLiquidationFee.mul(-1), true)) // liquidate
       .to.emit(market, 'Updated')
-      .withArgs(user.address, TIMESTAMP_2, 0, 0, 0, expectedLiquidationFee.mul(-1), true)
+      .withArgs(userB.address, user.address, TIMESTAMP_2, 0, 0, 0, expectedLiquidationFee.mul(-1), true)
 
     await chainlink.next()
     await settle(market, user)
@@ -197,5 +197,5 @@ describe('Liquidate', () => {
       .add((await market.global()).riskFee)
       .add((await market.global()).donation)
     expect(totalCollateral.add(totalFees)).to.be.lte(parse6decimal('22000').sub(expectedLiquidationFee))
-  }).timeout(120000)
+  })
 })
