@@ -80,7 +80,7 @@ library MarketParameterStorageLib {
     // sig: 0x7c53e926
     error MarketParameterStorageInvalidError();
 
-    function read(MarketParameterStorage storage self) internal view returns (MarketParameter memory) {
+    function read(MarketParameterStorage storage self) external view returns (MarketParameter memory) {
         (uint256 slot0, uint256 slot1) = (self.slot0, self.slot1);
 
         uint256 flags = uint256(slot0) >> (256 - 8);
@@ -109,7 +109,7 @@ library MarketParameterStorageLib {
         MarketParameter memory self,
         ProtocolParameter memory protocolParameter,
         Token18 reward
-    ) internal pure {
+    ) public pure {
         if (self.settlementFee.gt(protocolParameter.maxFeeAbsolute)) revert MarketParameterStorageInvalidError();
 
         if (self.fundingFee.max(self.interestFee).max(self.positionFee).gt(protocolParameter.maxCut))
@@ -128,7 +128,7 @@ library MarketParameterStorageLib {
         MarketParameter memory newValue,
         ProtocolParameter memory protocolParameter,
         Token18 reward
-    ) internal {
+    ) external {
         validate(newValue, protocolParameter, reward);
 
         if (newValue.maxPendingGlobal > uint256(type(uint16).max)) revert MarketParameterStorageInvalidError();

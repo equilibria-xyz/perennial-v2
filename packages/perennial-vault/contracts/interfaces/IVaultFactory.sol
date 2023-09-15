@@ -10,6 +10,7 @@ interface IVaultFactory is IFactory {
     event OperatorUpdated(address indexed account, address indexed operator, bool newEnabled);
     event VaultCreated(IVault indexed vault, Token18 indexed asset, IMarket initialMarket);
 
+    function initialAmount() external view returns (UFixed6);
     function marketFactory() external view returns (IMarketFactory);
     function initialize() external;
     function operators(address account, address operator) external view returns (bool);

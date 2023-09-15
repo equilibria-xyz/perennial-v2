@@ -6,7 +6,16 @@ export const solidityOverrides = {
     settings: {
       optimizer: {
         enabled: OPTIMIZER_ENABLED,
-        runs: 1,
+        runs: 150,
+        details: OPTIMIZER_ENABLED
+          ? {
+              yulDetails: {
+                optimizerSteps:
+                  // 'dhfoDgvulfnTUtnIf [xa[r]scLM cCTUtTOntnfDIul Lcul Vcul [j] Tpeul xa[rul] xa[r]cL gvif CTUca[r]LsTOtfDnca[r]Iulc] jmul[jul] VcTOcul jmul', // https://github.com/compound-finance/comet/blob/main/hardhat.config.ts#L176C11-L180C13
+                  'dhfoDgvulfnTUtnIf[xa[r]EscLMcCTUtTOntnfDIulLculVcul [j]Tpeulxa[rul]xa[r]cLgvifCTUca[r]LSsTOtfDnca[r]Iulc]jmul[jul] VcTOcul jmul', // https://github.com/ProjectOpenSea/seaport/blob/main/hardhat.config.ts#L60C10-L60C137
+              },
+            }
+          : {},
       },
       viaIR: OPTIMIZER_ENABLED,
     },

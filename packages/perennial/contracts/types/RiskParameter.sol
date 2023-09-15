@@ -104,7 +104,7 @@ library RiskParameterStorageLib {
     // sig: 0x7ecd083f
     error RiskParameterStorageInvalidError();
 
-    function read(RiskParameterStorage storage self) internal view returns (RiskParameter memory) {
+    function read(RiskParameterStorage storage self) external view returns (RiskParameter memory) {
         (uint256 slot0, uint256 slot1, uint256 slot2) = (self.slot0, self.slot1, self.slot2);
         return RiskParameter(
             UFixed6.wrap(uint256(       slot0 << (256 - 24)) >> (256 - 24)),
@@ -139,7 +139,7 @@ library RiskParameterStorageLib {
         );
     }
 
-    function validate(RiskParameter memory self, ProtocolParameter memory protocolParameter) internal pure {
+    function validate(RiskParameter memory self, ProtocolParameter memory protocolParameter) public pure {
         if (
             self.takerFee.max(self.takerSkewFee).max(self.takerImpactFee).max(self.makerFee).max(self.makerImpactFee)
             .gt(protocolParameter.maxFee)
@@ -174,7 +174,7 @@ library RiskParameterStorageLib {
         RiskParameterStorage storage self,
         RiskParameter memory newValue,
         ProtocolParameter memory protocolParameter
-    ) internal {
+    ) external {
         validate(newValue, protocolParameter);
 
         if (newValue.margin.gt(UFixed6.wrap(type(uint24).max))) revert RiskParameterStorageInvalidError();
