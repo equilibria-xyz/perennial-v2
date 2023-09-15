@@ -197,5 +197,5 @@ describe('Liquidate', () => {
       .add((await market.global()).riskFee)
       .add((await market.global()).donation)
     expect(totalCollateral.add(totalFees)).to.be.lte(parse6decimal('22000').sub(expectedLiquidationFee))
-  }).timeout(120000)
+  })
 })
