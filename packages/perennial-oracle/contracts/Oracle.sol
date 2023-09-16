@@ -28,6 +28,7 @@ contract Oracle is IOracle, Instance {
     /// @param newProvider The new oracle provider
     function update(IOracleProvider newProvider) external {
         if (msg.sender != address(factory())) revert OracleNotFactoryError();
+        // TODO: just check the latest here
         _updateCurrent(newProvider);
         _updateLatest(newProvider.latest());
     }
@@ -79,8 +80,18 @@ contract Oracle is IOracle, Instance {
     /// @notice Handles update the oracle to the new provider
     /// @param newProvider The new oracle provider
     function _updateCurrent(IOracleProvider newProvider) private {
+        // oracle must not already be updating
         if (global.current != global.latest) revert OracleOutOfSyncError();
-        oracles[uint256(++global.current)] = Epoch(newProvider, uint96(newProvider.current()));
+
+        // if the latest version of the underlying oracle is further ahead than its latest request update its timestamp
+        if (global.current != 0) {
+            OracleVersion memory latestVersion = oracles[global.current].provider.latest();
+            if (latestVersion.timestamp > oracles[global.current].timestamp)
+                oracles[global.current].timestamp = uint96(latestVersion.timestamp);
+        }
+        
+        // add the new oracle registration
+        oracles[++global.current] = Epoch(newProvider, uint96(newProvider.current()));
         emit OracleUpdated(newProvider);
     }
 
