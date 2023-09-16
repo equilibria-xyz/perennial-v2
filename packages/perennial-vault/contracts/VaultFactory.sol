@@ -46,12 +46,13 @@ contract VaultFactory is IVaultFactory, Factory {
         IMarket initialMarket,
         string calldata name
     ) external onlyOwner returns (IVault newVault) {
+        UFixed6 initialAmountWithFee = initialAmount.add(initialMarket.parameter().settlementFee);
+
         // create vault
         newVault = IVault(address(
-            _create(abi.encodeCall(IVault.initialize, (asset, initialMarket, initialAmount, name)))));
+            _create(abi.encodeCall(IVault.initialize, (asset, initialMarket, initialAmountWithFee, name)))));
 
         // deposit and lock initial amount of the underlying asset to prevent inflation attacks
-        UFixed6 initialAmountWithFee = initialAmount.add(initialMarket.parameter().settlementFee);
         asset.pull(msg.sender, UFixed18Lib.from(initialAmountWithFee));
         asset.approve(address(newVault), UFixed18Lib.from(initialAmountWithFee));
         newVault.update(address(this), initialAmountWithFee, UFixed6Lib.ZERO, UFixed6Lib.ZERO);

@@ -1272,6 +1272,48 @@ describe('Vault', () => {
       expect((await vault2.accounts(vaultFactory2.address)).shares).to.equal(parse6decimal('1'))
     })
 
+    it('simple deposits and redemptions w/ factory initial amount (with fees)', async () => {
+      const makerFee = parse6decimal('0.001')
+      const riskParameters = { ...(await market.riskParameter()) }
+      riskParameters.makerFee = makerFee
+      await market.updateRiskParameter(riskParameters)
+
+      const settlementFee = parse6decimal('1.00')
+      const marketParameter = { ...(await market.parameter()) }
+      marketParameter.settlementFee = settlementFee
+      await market.connect(owner).updateParameter(marketParameter)
+      // re-setup vault w/ initial amount
+      const vaultFactoryProxy2 = await new TransparentUpgradeableProxy__factory(owner).deploy(
+        marketFactory.address, // dummy contract
+        proxyAdmin.address,
+        [],
+      )
+      const vaultImpl = await new Vault__factory(owner).deploy()
+      const vaultFactoryImpl = await new VaultFactory__factory(owner).deploy(
+        marketFactory.address,
+        vaultImpl.address,
+        parse6decimal('1'),
+      )
+      await proxyAdmin.upgrade(vaultFactoryProxy2.address, vaultFactoryImpl.address)
+      const vaultFactory2 = IVaultFactory__factory.connect(vaultFactoryProxy2.address, owner)
+      await vaultFactory2.initialize()
+
+      await fundWallet(asset, owner)
+      await asset.approve(vaultFactory2.address, ethers.utils.parseEther('2'))
+      const vault2 = IVault__factory.connect(
+        await vaultFactory2.callStatic.create(asset.address, market.address, 'Blue Chip'),
+        owner,
+      )
+      await vaultFactory2.create(asset.address, market.address, 'Blue Chip')
+
+      await updateOracle()
+
+      await vault2.settle(vaultFactory2.address)
+
+      expect((await vault2.accounts(vaultFactory2.address)).assets).to.equal(0)
+      expect((await vault2.accounts(vaultFactory2.address)).shares).to.equal(parse6decimal('2'))
+    })
+
     it('zero address settle w/ settlement fee', async () => {
       const makerFee = parse6decimal('0.001')
       const riskParameters = { ...(await market.riskParameter()) }
