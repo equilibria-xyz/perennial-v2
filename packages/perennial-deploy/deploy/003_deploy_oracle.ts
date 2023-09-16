@@ -1,3 +1,4 @@
+import { utils } from 'ethers'
 import { HardhatRuntimeEnvironment } from 'hardhat/types'
 import { DeployFunction } from 'hardhat-deploy/types'
 import { SignerWithAddress } from '@nomiclabs/hardhat-ethers/signers'
@@ -19,6 +20,9 @@ export const ORACLE_IDS: { [key: string]: { [asset: string]: string } } = {
     matic: '0xd2c2c1f2bba8e0964f9589e060c2ee97f5e19057267ac3284caef3bd50bd2cb5', // Pyth: MATIC
   },
 }
+
+const DEFAULT_MAX_CLAIM_AMOUNT = utils.parseUnits('10', 6)
+const DEFAULT_GRANULARITY = 10
 
 const func: DeployFunction = async function (hre: HardhatRuntimeEnvironment) {
   const { deployments, getNamedAccounts, ethers } = hre
@@ -146,7 +150,19 @@ const func: DeployFunction = async function (hre: HardhatRuntimeEnvironment) {
     process.stdout.write('complete\n')
   }
 
-  // TODO update oracle max claim
+  // Update max claim
+  if ((await oracleFactory.maxClaim()).eq(0)) {
+    process.stdout.write('Setting max claim amount...')
+    await (await oracleFactory.updateMaxClaim(DEFAULT_MAX_CLAIM_AMOUNT)).wait()
+    process.stdout.write('complete\n')
+  }
+
+  // Update granularity
+  if ((await pythFactory.granularity()).effectiveAfter.eq(0)) {
+    process.stdout.write('Setting granularity...')
+    await (await pythFactory.updateGranularity(DEFAULT_GRANULARITY)).wait()
+    process.stdout.write('complete\n')
+  }
 }
 
 export default func
