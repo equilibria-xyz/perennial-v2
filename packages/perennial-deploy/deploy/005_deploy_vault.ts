@@ -42,7 +42,7 @@ const func: DeployFunction = async function (hre: HardhatRuntimeEnvironment) {
   const { deploy, get, save, getOrNull, getNetworkName } = deployments
   const { deployer } = await getNamedAccounts()
   const deployerSigner: SignerWithAddress = await ethers.getSigner(deployer)
-  const deployVaults = false // isTestnet(getNetworkName())
+  const deployVaults = isTestnet(getNetworkName())
 
   const dsu = IERC20__factory.connect((await get('DSU')).address, deployerSigner)
   const proxyAdmin = new ProxyAdmin__factory(deployerSigner).attach((await get('ProxyAdmin')).address)
