@@ -6,6 +6,7 @@ const config = defaultConfig({
   dependencyPaths: [
     '@openzeppelin/contracts/governance/TimelockController.sol',
     '@openzeppelin/contracts/proxy/transparent/ProxyAdmin.sol',
+    '@openzeppelin/contracts/interfaces/IERC20.sol',
     '@equilibria/perennial-v2-payoff/contracts/PayoffFactory.sol',
     '@equilibria/perennial-v2-payoff/contracts/payoff/Giga.sol',
     '@equilibria/perennial-v2-payoff/contracts/payoff/Kilo.sol',

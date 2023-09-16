@@ -1,3 +1,4 @@
+import { utils } from 'ethers'
 import { HardhatRuntimeEnvironment } from 'hardhat/types'
 import { DeployFunction } from 'hardhat-deploy/types'
 import { SignerWithAddress } from '@nomiclabs/hardhat-ethers/signers'
@@ -6,15 +7,22 @@ import { OracleFactory__factory, PythFactory__factory } from '@equilibria/perenn
 import { forkNetwork, isArbitrum, isFork, isMainnet } from '../../common/testutil/network'
 
 export const ORACLE_IDS: { [key: string]: { [asset: string]: string } } = {
-  mainnet: {
-    eth: '0xff61491a931112ddf1bd8147cd1b641375f79f5825126d665480874634fd0ace', // ETH
-    btc: '0xe62df6c8b4a85fe1a67db44dc12de5db330f7ac66b72dc658afedf0f4a415b43', // BTC
+  arbitrum: {
+    eth: '0xff61491a931112ddf1bd8147cd1b641375f79f5825126d665480874634fd0ace', // Pyth: ETH
+    btc: '0xe62df6c8b4a85fe1a67db44dc12de5db330f7ac66b72dc658afedf0f4a415b43', // Pyth: BTC
+    sol: '0xef0d8b6fda2ceba41da15d4095d1da392a0d2f8ed0c6c7bc0f4cfac8c280b56d', // Pyth: SOL
+    matic: '0x5de33a9112c2b700b8d30b8a3402c103578ccfa2765696471cc672bd5cf6ac52', // Pyth: MATIC
   },
   arbitrumGoerli: {
-    eth: '0xca80ba6dc32e08d06f1aa886011eed1d77c77be9eb761cc10d72b7d0a2fd57a6', // ETH
-    btc: '0xf9c0172ba10dfa4d19088d94f5bf61d3b54d5bd7483a322a982e1373ee8ea31b', // BTC
+    eth: '0xca80ba6dc32e08d06f1aa886011eed1d77c77be9eb761cc10d72b7d0a2fd57a6', // Pyth: ETH
+    btc: '0xf9c0172ba10dfa4d19088d94f5bf61d3b54d5bd7483a322a982e1373ee8ea31b', // Pyth: BTC
+    sol: '0xfe650f0367d4a7ef9815a593ea15d36593f0643aaaf0149bb04be67ab851decd', // Pyth: SOL
+    matic: '0xd2c2c1f2bba8e0964f9589e060c2ee97f5e19057267ac3284caef3bd50bd2cb5', // Pyth: MATIC
   },
 }
+
+const DEFAULT_MAX_CLAIM_AMOUNT = utils.parseUnits('10', 6)
+const DEFAULT_GRANULARITY = 10
 
 const func: DeployFunction = async function (hre: HardhatRuntimeEnvironment) {
   const { deployments, getNamedAccounts, ethers } = hre
@@ -97,10 +105,18 @@ const func: DeployFunction = async function (hre: HardhatRuntimeEnvironment) {
   const pythFactory = new PythFactory__factory(deployerSigner).attach((await get('PythFactory')).address)
 
   // Register Pyth Factory
-  await (await oracleFactory.register(pythFactory.address)).wait()
+  if (!(await oracleFactory.factories(pythFactory.address))) {
+    process.stdout.write('Registering pyth factory with oracle factory...')
+    await (await oracleFactory.register(pythFactory.address)).wait()
+    process.stdout.write('complete\n')
+  }
 
   // Authorize Oracle Factory
-  await (await pythFactory.authorize(oracleFactory.address)).wait()
+  if (!(await pythFactory.callers(oracleFactory.address))) {
+    process.stdout.write('Authorizing oracle factory to call pyth factory...')
+    await (await pythFactory.authorize(oracleFactory.address)).wait()
+    process.stdout.write('complete\n')
+  }
 
   // Create oracles
   const oracleIDs = isFork() ? ORACLE_IDS[forkNetwork()] : ORACLE_IDS[getNetworkName()]
@@ -134,7 +150,19 @@ const func: DeployFunction = async function (hre: HardhatRuntimeEnvironment) {
     process.stdout.write('complete\n')
   }
 
-  // TODO update oracle max claim
+  // Update max claim
+  if ((await oracleFactory.maxClaim()).eq(0)) {
+    process.stdout.write('Setting max claim amount...')
+    await (await oracleFactory.updateMaxClaim(DEFAULT_MAX_CLAIM_AMOUNT)).wait()
+    process.stdout.write('complete\n')
+  }
+
+  // Update granularity
+  if ((await pythFactory.granularity()).effectiveAfter.eq(0)) {
+    process.stdout.write('Setting granularity...')
+    await (await pythFactory.updateGranularity(DEFAULT_GRANULARITY)).wait()
+    process.stdout.write('complete\n')
+  }
 }
 
 export default func
