@@ -572,6 +572,66 @@ describe('Oracle', () => {
       })
     })
 
+    context('updates the oracle w/ non-requested latest', async () => {
+      beforeEach(async () => {
+        mockVersion(
+          underlying0,
+          {
+            timestamp: 1687230005,
+            price: parse6decimal('1001'),
+            valid: true,
+          },
+          1687230905,
+        )
+        await oracle.connect(caller).request(user.address)
+
+        mockVersion(
+          underlying0,
+          {
+            timestamp: 1687231005,
+            price: parse6decimal('1001'),
+            valid: true,
+          },
+          1687231905,
+        )
+        mockVersion(
+          underlying1,
+          {
+            timestamp: 1687230000,
+            price: parse6decimal('1000'),
+            valid: true,
+          },
+          1687231905,
+        )
+        await expect(oracle.connect(oracleFactorySigner).update(underlying1.address))
+          .to.emit(oracle, 'OracleUpdated')
+          .withArgs(underlying1.address)
+      })
+
+      it('updates the oracle without going back in time', async () => {
+        expect((await oracle.global()).current).to.equal(2)
+        expect((await oracle.global()).latest).to.equal(1)
+        expect((await oracle.oracles(1)).provider).to.equal(underlying0.address)
+        expect((await oracle.oracles(1)).timestamp).to.equal(1687231005)
+        expect((await oracle.oracles(2)).provider).to.equal(underlying1.address)
+        expect((await oracle.oracles(2)).timestamp).to.equal(1687231905)
+
+        underlying0.at.whenCalledWith(1687231005).returns({
+          timestamp: 1687231005,
+          price: parse6decimal('987'),
+          valid: true,
+        })
+        underlying1.at.whenCalledWith(1687231005).returns({
+          timestamp: 1687231005,
+          price: parse6decimal('988'),
+          valid: true,
+        })
+        expect((await oracle.at(1687231005)).timestamp).to.equal(1687231005)
+        expect((await oracle.at(1687231005)).price).to.equal(parse6decimal('987'))
+        expect((await oracle.at(1687231005)).valid).to.equal(true)
+      })
+    })
+
     it('reverts when not the owner', async () => {
       await expect(oracle.connect(user).update(underlying1.address)).to.revertedWithCustomError(
         oracle,
