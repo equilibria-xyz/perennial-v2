@@ -43,12 +43,6 @@ contract PythOracle is IPythOracle, Instance, Kept {
     /// @dev Mapping from oracle version to oracle version data
     mapping(uint256 => Fixed6) private _prices;
 
-    /// @dev Mapping from oracle version to when its VAA was published to Pyth
-    mapping(uint256 => uint256) public publishTimes;
-
-    /// @dev The time when the last committed update was published to Pyth
-    uint256 public lastCommittedPublishTime;
-
     /// @dev The oracle version that was most recently committed
     /// @dev We assume that we cannot commit an oracle version of 0, so `_latestVersion` being 0 means that no version has been committed yet
     uint256 private _latestVersion;
@@ -140,10 +134,6 @@ contract PythOracle is IPythOracle, Instance, Kept {
         uint256 versionToCommit = versionList[versionIndex];
         PythStructs.Price memory pythPrice = _validateAndGetPrice(versionToCommit, updateData);
 
-        // Price must be more recent than that of the most recently committed version
-        if (pythPrice.publishTime <= lastCommittedPublishTime) revert PythOracleNonIncreasingPublishTimes();
-        lastCommittedPublishTime = pythPrice.publishTime;
-
         // Ensure that the keeper is committing the earliest possible version
         if (versionIndex > nextVersionIndexToCommit) {
             uint256 previousVersion = versionList[versionIndex - 1];
@@ -157,9 +147,7 @@ contract PythOracle is IPythOracle, Instance, Kept {
             ) revert PythOracleUpdateValidForPreviousVersionError();
         }
 
-        _recordPrice(versionToCommit, pythPrice);
-        nextVersionIndexToCommit = versionIndex + 1;
-        _latestVersion = versionToCommit;
+        _recordPrice(versionIndex + 1, versionToCommit,  pythPrice);
 
         emit OracleProviderVersionFulfilled(versionToCommit);
     }
@@ -172,6 +160,8 @@ contract PythOracle is IPythOracle, Instance, Kept {
     /// @param oracleVersion The oracle version to commit
     /// @param updateData The update data to commit
     function commit(uint256 versionIndex, uint256 oracleVersion, bytes calldata updateData) external payable {
+        PythStructs.Price memory pythPrice = _validateAndGetPrice(oracleVersion, updateData);
+
         // Must be before the next requested version to commit, if it exists
         // Otherwise, try to commit it as the next request version to commit
         if (
@@ -179,15 +169,27 @@ contract PythOracle is IPythOracle, Instance, Kept {
             versionIndex >= nextVersionIndexToCommit &&         // must be the next (or later) requested version
             oracleVersion == versionList[versionIndex]          // must be the corresponding timestamp
         ) {
-            commitRequested(versionIndex, updateData);
+            // TODO: this is commitRequested()
+            if (nextVersionIndexToCommit >= versionList.length) revert PythOracleNoNewVersionToCommitError();
+            if (versionIndex < nextVersionIndexToCommit) revert PythOracleVersionIndexTooLowError();
+
+            // Ensure that the keeper is committing the earliest possible version
+            if (versionIndex > nextVersionIndexToCommit) {
+                uint256 previousVersion = versionList[versionIndex - 1];
+                // We can only skip the previous version if the grace period has expired
+                if (block.timestamp <= previousVersion + GRACE_PERIOD) revert PythOracleGracePeriodHasNotExpiredError();
+
+                // If the update is valid for the previous version, we can't skip the previous version
+                if (
+                    pythPrice.publishTime >= previousVersion + MIN_VALID_TIME_AFTER_VERSION &&
+                    pythPrice.publishTime <= previousVersion + MAX_VALID_TIME_AFTER_VERSION
+                ) revert PythOracleUpdateValidForPreviousVersionError();
+            }
+
+            _recordPrice(versionIndex + 1, oracleVersion,  pythPrice);
+
             return;
         }
-
-        PythStructs.Price memory pythPrice = _validateAndGetPrice(oracleVersion, updateData);
-
-        // Price must be more recent than that of the most recently committed version
-        if (pythPrice.publishTime <= lastCommittedPublishTime) revert PythOracleNonIncreasingPublishTimes();
-        lastCommittedPublishTime = pythPrice.publishTime;
 
         // Oracle version must be more recent than that of the most recently committed version
         uint256 minVersion = _latestVersion;
@@ -198,9 +200,7 @@ contract PythOracle is IPythOracle, Instance, Kept {
             revert PythOracleGracePeriodHasNotExpiredError();
         if (oracleVersion <= minVersion || oracleVersion >= maxVersion) revert PythOracleVersionOutsideRangeError();
 
-        _recordPrice(oracleVersion, pythPrice);
-        nextVersionIndexToCommit = versionIndex;
-        _latestVersion = oracleVersion;
+        _recordPrice(versionIndex, oracleVersion, pythPrice);
     }
 
     /// @notice Validates that update fees have been paid, and that the VAA represented by `updateData` is within `oracleVersion + MIN_VALID_TIME_AFTER_VERSION` and `oracleVersion + MAX_VALID_TIME_AFTER_VERSION`
@@ -224,14 +224,19 @@ contract PythOracle is IPythOracle, Instance, Kept {
     }
 
     /// @notice Records `price` as a Fixed6 at version `oracleVersion`
+    /// @param versionIndex The next version index after commitment
     /// @param oracleVersion The oracle version to record the price at
     /// @param price The price to record
-    function _recordPrice(uint256 oracleVersion, PythStructs.Price memory price) private {
+    function _recordPrice(uint256 versionIndex, uint256 oracleVersion, PythStructs.Price memory price) private {
         int256 expo6Decimal = 6 + price.expo;
         _prices[oracleVersion] = (expo6Decimal < 0) ?
             Fixed6.wrap(price.price).div(Fixed6Lib.from(UFixed6Lib.from(10 ** uint256(-expo6Decimal)))) :
             Fixed6.wrap(price.price).mul(Fixed6Lib.from(UFixed6Lib.from(10 ** uint256(expo6Decimal))));
-        publishTimes[oracleVersion] = price.publishTime;
+
+        nextVersionIndexToCommit = versionIndex;
+        _latestVersion = oracleVersion;
+
+        emit OracleProviderVersionFulfilled(oracleVersion);
     }
 
     /// @notice Pulls funds from the factory to reward the keeper
