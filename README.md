@@ -24,13 +24,13 @@ This also generates the Typechain types
 
 ### Test
 
-Run the Mocha unit tests for each package:
+Run the Mocha unit tests a specific package:
 
 ```sh
-$ yarn workspaces run test
+$ yarn workspace @equilibria/<package-name> run test
 ```
 
-To run unit tests for a specific package:
+For example, to run the tests for the core package:
 
 ```sh
 $ yarn workspace @equilibria/perennial-v2 run test
@@ -39,10 +39,10 @@ $ yarn workspace @equilibria/perennial-v2 run test
 To run tests against a Mainnet fork, set your `MAINNET_NODE_URL` in the root `.env` and run
 
 ```sh
-$ yarn workspaces run test:integration
+$ yarn workspace run @equilibria/<package-name> test:integration
 ```
 
-or
+For example, to run the integration tests for the core package:
 
 ```sh
 $ yarn workspace @equilibria/perennial-v2 run test:integration
