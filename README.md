@@ -1,4 +1,4 @@
-# Perennial V2 Vault
+# Perennial V2
 
 Monorepo for the Perennial V2 Protocol
 
@@ -23,6 +23,8 @@ $ yarn workspaces run compile
 This also generates the Typechain types
 
 ### Test
+
+Perennial has 5 logic packages: `perennial-v2`, `perennial-v2-extensions`, `perennial-v2-oracle`, `perennial-v2-payoff`, and `perennial-v2-vault`
 
 Run the Mocha unit tests a specific package:
 
