@@ -13890,6 +13890,59 @@ describe('Market', () => {
       })
 
       context('invalidation', async () => {
+        it('multiple invalidations in a row without settlement', async () => {
+          const positionMaker = parse6decimal('2.000')
+          const collateral = parse6decimal('1000')
+
+          const oracleVersion = {
+            price: parse6decimal('100'),
+            timestamp: TIMESTAMP,
+            valid: true,
+          }
+          oracle.at.whenCalledWith(oracleVersion.timestamp).returns(oracleVersion)
+          oracle.status.returns([oracleVersion, oracleVersion.timestamp + 100])
+          oracle.request.returns()
+
+          dsu.transferFrom.whenCalledWith(userB.address, market.address, collateral.mul(1e12)).returns(true)
+          await market.connect(userB).update(userB.address, positionMaker, 0, 0, collateral, false)
+
+          // Increase current version so multiple pending positions are unsettled
+          oracle.status.returns([oracleVersion, oracleVersion.timestamp + 200])
+          dsu.transferFrom.whenCalledWith(userB.address, market.address, collateral.mul(1e12)).returns(true)
+          await market.connect(userB).update(userB.address, positionMaker, 0, 0, collateral, false)
+
+          // Fulfill oracle version 2 (invalid)
+          const oracleVersion2 = {
+            price: parse6decimal('100'),
+            timestamp: TIMESTAMP + 100,
+            valid: false,
+          }
+          oracle.at.whenCalledWith(oracleVersion2.timestamp).returns(oracleVersion2)
+
+          // Fulfill oracle version 3 (invalid)
+          const oracleVersion3 = {
+            price: 0,
+            timestamp: TIMESTAMP + 200,
+            valid: false,
+          }
+          oracle.at.whenCalledWith(oracleVersion3.timestamp).returns(oracleVersion3)
+
+          // next oracle version is valid
+          const oracleVersion4 = {
+            price: parse6decimal('100'),
+            timestamp: TIMESTAMP + 300,
+            valid: true,
+          }
+          oracle.at.whenCalledWith(oracleVersion4.timestamp).returns(oracleVersion4)
+
+          // oracleVersion4 commited
+          oracle.status.returns([oracleVersion4, oracleVersion4.timestamp + 100])
+          oracle.request.returns()
+
+          // settle
+          await expect(market.connect(userB).update(userB.address, positionMaker, 0, 0, 0, false)).to.not.be.reverted
+        })
+
         it('global-local desync', async () => {
           const positionMaker = parse6decimal('2.000')
           const positionLong = parse6decimal('1.000')
