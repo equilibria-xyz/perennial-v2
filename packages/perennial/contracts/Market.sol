@@ -396,10 +396,11 @@ contract Market is IMarket, Instance, ReentrancyGuard {
     /// @param newPositionId The id of the pending position to process
     /// @param newPosition The pending position to process
     function _processPositionGlobal(Context memory context, uint256 newPositionId, Position memory newPosition) private {
+        newPosition.adjust(context.latestPosition.global);
         Version memory version = _versions[context.latestPosition.global.timestamp].read();
         OracleVersion memory oracleVersion = _oracleVersionAtPosition(context, newPosition);
+
         if (!oracleVersion.valid) context.latestPosition.global.invalidate(newPosition);
-        newPosition.adjust(context.latestPosition.global);
 
         (uint256 fromTimestamp, uint256 fromId) = (context.latestPosition.global.timestamp, context.global.latestId);
         (VersionAccumulationResult memory accumulationResult, UFixed6 accumulatedFee) = version.accumulate(
@@ -443,9 +444,9 @@ contract Market is IMarket, Instance, ReentrancyGuard {
         uint256 newPositionId,
         Position memory newPosition
     ) private {
+        newPosition.adjust(context.latestPosition.local);
         Version memory version = _versions[newPosition.timestamp].read();
         if (!version.valid) context.latestPosition.local.invalidate(newPosition);
-        newPosition.adjust(context.latestPosition.local);
 
         (uint256 fromTimestamp, uint256 fromId) = (context.latestPosition.local.timestamp, context.local.latestId);
         LocalAccumulationResult memory accumulationResult = context.local.accumulate(
