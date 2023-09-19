@@ -35,17 +35,19 @@ contract PythOracle is IPythOracle, Instance, Kept {
     bytes32 public id;
 
     /// @dev List of all requested oracle versions
-    uint256[] public versionList;
+    mapping(uint256 => uint256) public versions;
 
-    /// @dev Index in `versionList` of the next version a keeper should commit
-    uint256 public nextVersionIndexToCommit;
+    /// TODO
+    uint256 public latestVersion;
+
+    /// @dev Index in `versions` of the next version a keeper should commit
+    uint256 public currentIndex;
+
+    /// @dev Index in `versions` of the next version a keeper should commit
+    uint256 public latestIndex;
 
     /// @dev Mapping from oracle version to oracle version data
     mapping(uint256 => Fixed6) private _prices;
-
-    /// @dev The oracle version that was most recently committed
-    /// @dev We assume that we cannot commit an oracle version of 0, so `_latestVersion` being 0 means that no version has been committed yet
-    uint256 private _latestVersion;
 
     /// @notice Initializes the immutable contract state
     /// @param pyth_ Pyth contract
@@ -66,16 +68,12 @@ contract PythOracle is IPythOracle, Instance, Kept {
         id = id_;
     }
 
-    function versionListLength() external view returns (uint256) {
-        return versionList.length;
-    }
-
     /// @notice Records a request for a new oracle version
     /// @dev Original sender to optionally use for callbacks
     function request(address) external onlyAuthorized {
         uint256 currentTimestamp = current();
-        if (versionList.length == 0 || versionList[versionList.length - 1] != currentTimestamp) {
-            versionList.push(currentTimestamp);
+        if (currentIndex == 0 || versions[currentIndex] != currentTimestamp) {
+            versions[currentIndex++] = currentTimestamp;
             emit OracleProviderVersionRequested(currentTimestamp);
         }
     }
@@ -88,11 +86,10 @@ contract PythOracle is IPythOracle, Instance, Kept {
     }
 
     /// @notice Returns the latest synced oracle version
-    /// @return latestVersion Latest oracle version
-    function latest() public view returns (OracleVersion memory latestVersion) {
-        if (_latestVersion == 0) return latestVersion;
-
-        return latestVersion = OracleVersion(_latestVersion, _prices[_latestVersion], true);
+    /// @return latestOracleVersion Latest oracle version
+    function latest() public view returns (OracleVersion memory latestOracleVersion) {
+        if (latestVersion == 0) return latestOracleVersion;
+        latestOracleVersion = OracleVersion(latestVersion, _prices[latestVersion], true);
     }
 
     /// @notice Returns the current oracle version accepting new orders
@@ -109,104 +106,40 @@ contract PythOracle is IPythOracle, Instance, Kept {
         return OracleVersion(timestamp, price, !price.isZero());
     }
 
-    /// @notice Returns the next oracle version to commit
-    /// @return version The next oracle version to commit
-    function nextVersionToCommit() external view returns (uint256 version) {
-        if (versionList.length == 0 || nextVersionIndexToCommit >= versionList.length) return 0;
-        return versionList[nextVersionIndexToCommit];
-    }
-
-    /// @notice Commits the price represented by `updateData` to the next version that needs to be committed
-    /// @dev Will revert if there is an earlier versionIndex that could be committed with `updateData`
-    /// @param versionIndex The index of the version to commit
-    /// @param updateData The update data to commit
-    function commitRequested(uint256 versionIndex, bytes calldata updateData)
-        public
-        payable
-        keep(KEEPER_REWARD_PREMIUM, KEEPER_BUFFER, updateData, "")
-    {
-        // This check isn't necessary since the caller would not be able to produce a valid updateData
-        // with an update time corresponding to a null version, but reverting with a specific error is
-        // clearer.
-        if (nextVersionIndexToCommit >= versionList.length) revert PythOracleNoNewVersionToCommitError();
-        if (versionIndex < nextVersionIndexToCommit) revert PythOracleVersionIndexTooLowError();
-
-        uint256 versionToCommit = versionList[versionIndex];
-        PythStructs.Price memory pythPrice = _validateAndGetPrice(versionToCommit, updateData);
-
-        // Ensure that the keeper is committing the earliest possible version
-        if (versionIndex > nextVersionIndexToCommit) {
-            uint256 previousVersion = versionList[versionIndex - 1];
-            // We can only skip the previous version if the grace period has expired
-            if (block.timestamp <= previousVersion + GRACE_PERIOD) revert PythOracleGracePeriodHasNotExpiredError();
-
-            // If the update is valid for the previous version, we can't skip the previous version
-            if (
-                pythPrice.publishTime >= previousVersion + MIN_VALID_TIME_AFTER_VERSION &&
-                pythPrice.publishTime <= previousVersion + MAX_VALID_TIME_AFTER_VERSION
-            ) revert PythOracleUpdateValidForPreviousVersionError();
-        }
-
-        _recordPrice(versionIndex + 1, versionToCommit,  pythPrice);
-
-        emit OracleProviderVersionFulfilled(versionToCommit);
-    }
-
     /// @notice Commits the price to a non-requested version
     /// @dev This commit function may pay out a keeper reward if the committed version is valid
     ///      for the next requested version to commit. A proper `versionIndex` must be supplied in case we are
     ///      ahead of an invalidated requested version and need to verify that the provided version is valid.
-    /// @param versionIndex The next committable index, taking into account any passed invalid requested versions
-    /// @param oracleVersion The oracle version to commit
+    /// @param version The oracle version to commit
     /// @param updateData The update data to commit
-    function commit(uint256 versionIndex, uint256 oracleVersion, bytes calldata updateData) external payable {
-        PythStructs.Price memory pythPrice = _validateAndGetPrice(oracleVersion, updateData);
+    function commit(uint256 version, bytes calldata updateData) external payable {
+        Fixed6 price = _validateAndGetPrice(version, updateData);
 
-        // Must be before the next requested version to commit, if it exists
-        // Otherwise, try to commit it as the next request version to commit
-        if (
-            versionList.length > versionIndex &&                // must be a requested version
-            versionIndex >= nextVersionIndexToCommit &&         // must be the next (or later) requested version
-            oracleVersion == versionList[versionIndex]          // must be the corresponding timestamp
-        ) {
-            // TODO: this is commitRequested()
-            if (nextVersionIndexToCommit >= versionList.length) revert PythOracleNoNewVersionToCommitError();
-            if (versionIndex < nextVersionIndexToCommit) revert PythOracleVersionIndexTooLowError();
+        // requested
+        if (latestIndex < currentIndex && version == versions[latestIndex + 1]) {
+            // If past grace period, invalidate the version
+            _prices[version] = (block.timestamp > versions[latestIndex] + GRACE_PERIOD) ?
+                Fixed6Lib.ZERO :
+                _prices[version] = price;
+            latestIndex++;
 
-            // Ensure that the keeper is committing the earliest possible version
-            if (versionIndex > nextVersionIndexToCommit) {
-                uint256 previousVersion = versionList[versionIndex - 1];
-                // We can only skip the previous version if the grace period has expired
-                if (block.timestamp <= previousVersion + GRACE_PERIOD) revert PythOracleGracePeriodHasNotExpiredError();
+        // unrequested
+        } else {
+            // Oracle version must be between the latest and next indexes
+            uint256 minVersion = Math.max(latestIndex == 0 ? 0 : versions[latestIndex], latestVersion);
+            uint256 maxVersion = latestIndex == currentIndex ? type(uint256).max : versions[latestIndex + 1];
+            if (version <= minVersion || version >= maxVersion) revert PythOracleVersionOutsideRangeError();
 
-                // If the update is valid for the previous version, we can't skip the previous version
-                if (
-                    pythPrice.publishTime >= previousVersion + MIN_VALID_TIME_AFTER_VERSION &&
-                    pythPrice.publishTime <= previousVersion + MAX_VALID_TIME_AFTER_VERSION
-                ) revert PythOracleUpdateValidForPreviousVersionError();
-            }
-
-            _recordPrice(versionIndex + 1, oracleVersion,  pythPrice);
-
-            return;
+            _prices[version] = price;
         }
 
-        // Oracle version must be more recent than that of the most recently committed version
-        uint256 minVersion = _latestVersion;
-        uint256 maxVersion = versionList.length > versionIndex ? versionList[versionIndex] : current();
-
-        if (versionIndex < nextVersionIndexToCommit) revert PythOracleVersionIndexTooLowError();
-        if (versionIndex > nextVersionIndexToCommit && block.timestamp <= versionList[versionIndex - 1] + GRACE_PERIOD)
-            revert PythOracleGracePeriodHasNotExpiredError();
-        if (oracleVersion <= minVersion || oracleVersion >= maxVersion) revert PythOracleVersionOutsideRangeError();
-
-        _recordPrice(versionIndex, oracleVersion, pythPrice);
+        latestVersion = version;
     }
 
     /// @notice Validates that update fees have been paid, and that the VAA represented by `updateData` is within `oracleVersion + MIN_VALID_TIME_AFTER_VERSION` and `oracleVersion + MAX_VALID_TIME_AFTER_VERSION`
     /// @param oracleVersion The oracle version to validate against
     /// @param updateData The update data to validate
-    function _validateAndGetPrice(uint256 oracleVersion, bytes calldata updateData) private returns (PythStructs.Price memory price) {
+    function _validateAndGetPrice(uint256 oracleVersion, bytes calldata updateData) private returns (Fixed6 price) {
         bytes[] memory updateDataList = new bytes[](1);
         updateDataList[0] = updateData;
         bytes32[] memory idList = new bytes32[](1);
@@ -215,28 +148,19 @@ contract PythOracle is IPythOracle, Instance, Kept {
         // Limit the value passed in the single update fee * number of updates to prevent packing the update data
         // with extra updates to increase the keeper fee. When Pyth updates their fee calculations
         // we will need to modify this to account for the new fee logic.
-        return pyth.parsePriceFeedUpdates{value: IPythStaticFee(address(pyth)).singleUpdateFeeInWei() * idList.length}(
+        PythStructs.Price memory pythPrice = pyth.parsePriceFeedUpdates{
+            value: IPythStaticFee(address(pyth)).singleUpdateFeeInWei() * idList.length
+        }(
             updateDataList,
             idList,
             SafeCast.toUint64(oracleVersion + MIN_VALID_TIME_AFTER_VERSION),
             SafeCast.toUint64(oracleVersion + MAX_VALID_TIME_AFTER_VERSION)
         )[0].price;
-    }
 
-    /// @notice Records `price` as a Fixed6 at version `oracleVersion`
-    /// @param versionIndex The next version index after commitment
-    /// @param oracleVersion The oracle version to record the price at
-    /// @param price The price to record
-    function _recordPrice(uint256 versionIndex, uint256 oracleVersion, PythStructs.Price memory price) private {
-        int256 expo6Decimal = 6 + price.expo;
-        _prices[oracleVersion] = (expo6Decimal < 0) ?
-            Fixed6.wrap(price.price).div(Fixed6Lib.from(UFixed6Lib.from(10 ** uint256(-expo6Decimal)))) :
-            Fixed6.wrap(price.price).mul(Fixed6Lib.from(UFixed6Lib.from(10 ** uint256(expo6Decimal))));
-
-        nextVersionIndexToCommit = versionIndex;
-        _latestVersion = oracleVersion;
-
-        emit OracleProviderVersionFulfilled(oracleVersion);
+        int256 expo6Decimal = 6 + pythPrice.expo;
+        return (expo6Decimal < 0) ?
+            Fixed6.wrap(pythPrice.price).div(Fixed6Lib.from(UFixed6Lib.from(10 ** uint256(-expo6Decimal)))) :
+            Fixed6.wrap(pythPrice.price).mul(Fixed6Lib.from(UFixed6Lib.from(10 ** uint256(expo6Decimal))));
     }
 
     /// @notice Pulls funds from the factory to reward the keeper
