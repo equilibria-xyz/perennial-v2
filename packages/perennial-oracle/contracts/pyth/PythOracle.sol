@@ -72,10 +72,10 @@ contract PythOracle is IPythOracle, Instance, Kept {
     /// @dev Original sender to optionally use for callbacks
     function request(address) external onlyAuthorized {
         uint256 currentTimestamp = current();
-        if (currentIndex == 0 || versions[currentIndex] != currentTimestamp) {
-            versions[currentIndex++] = currentTimestamp;
-            emit OracleProviderVersionRequested(currentTimestamp);
-        }
+        if (versions[currentIndex] == currentTimestamp) return;
+
+        versions[++currentIndex] = currentTimestamp;
+        emit OracleProviderVersionRequested(currentTimestamp);
     }
 
     /// @notice Returns the latest synced oracle version and the current oracle version
@@ -88,8 +88,7 @@ contract PythOracle is IPythOracle, Instance, Kept {
     /// @notice Returns the latest synced oracle version
     /// @return latestOracleVersion Latest oracle version
     function latest() public view returns (OracleVersion memory latestOracleVersion) {
-        if (latestVersion == 0) return latestOracleVersion;
-        latestOracleVersion = OracleVersion(latestVersion, _prices[latestVersion], true);
+        return at(latestVersion);
     }
 
     /// @notice Returns the current oracle version accepting new orders
@@ -113,14 +112,12 @@ contract PythOracle is IPythOracle, Instance, Kept {
     /// @param version The oracle version to commit
     /// @param updateData The update data to commit
     function commit(uint256 version, bytes calldata updateData) external payable {
-        Fixed6 price = _validateAndGetPrice(version, updateData);
-
         // requested
         if (latestIndex < currentIndex && version == versions[latestIndex + 1]) {
             // If past grace period, invalidate the version
             _prices[version] = (block.timestamp > versions[latestIndex] + GRACE_PERIOD) ?
                 Fixed6Lib.ZERO :
-                _prices[version] = price;
+                _parsePrice(version, updateData);
             latestIndex++;
 
         // unrequested
@@ -130,7 +127,7 @@ contract PythOracle is IPythOracle, Instance, Kept {
             uint256 maxVersion = latestIndex == currentIndex ? type(uint256).max : versions[latestIndex + 1];
             if (version <= minVersion || version >= maxVersion) revert PythOracleVersionOutsideRangeError();
 
-            _prices[version] = price;
+            _prices[version] = _parsePrice(version, updateData);
         }
 
         latestVersion = version;
@@ -139,7 +136,7 @@ contract PythOracle is IPythOracle, Instance, Kept {
     /// @notice Validates that update fees have been paid, and that the VAA represented by `updateData` is within `oracleVersion + MIN_VALID_TIME_AFTER_VERSION` and `oracleVersion + MAX_VALID_TIME_AFTER_VERSION`
     /// @param oracleVersion The oracle version to validate against
     /// @param updateData The update data to validate
-    function _validateAndGetPrice(uint256 oracleVersion, bytes calldata updateData) private returns (Fixed6 price) {
+    function _parsePrice(uint256 oracleVersion, bytes calldata updateData) private returns (Fixed6 price) {
         bytes[] memory updateDataList = new bytes[](1);
         updateDataList[0] = updateData;
         bytes32[] memory idList = new bytes32[](1);
