@@ -37,16 +37,7 @@ contract PythOracle is IPythOracle, Instance, Kept {
     /// @dev List of all requested oracle versions
     mapping(uint256 => uint256) public versions;
 
-    // TODO: pack
-
-    /// @dev The latest committed oracle version
-    uint256 public latestVersion;
-
-    /// @dev Index in `versions` of the most recent version requested
-    uint256 public currentIndex;
-
-    /// @dev Index in `versions` of the latest version a keeper has committed
-    uint256 public latestIndex;
+    Global private _global;
 
     /// @dev Mapping from oracle version to oracle version data
     mapping(uint256 => Fixed6) private _prices;
@@ -70,13 +61,18 @@ contract PythOracle is IPythOracle, Instance, Kept {
         id = id_;
     }
 
+    // TODO
+    function latestVersion() external view returns (uint256) { return _global.latestVersion; }
+    function currentIndex() external view returns (uint256) { return _global.currentIndex; }
+    function latestIndex() external view returns (uint256) { return _global.latestIndex; }
+
     /// @notice Records a request for a new oracle version
     /// @dev Original sender to optionally use for callbacks
     function request(address) external onlyAuthorized {
         uint256 currentTimestamp = current();
-        if (versions[currentIndex] == currentTimestamp) return;
+        if (versions[_global.currentIndex] == currentTimestamp) return;
 
-        versions[++currentIndex] = currentTimestamp;
+        versions[++_global.currentIndex] = currentTimestamp;
         emit OracleProviderVersionRequested(currentTimestamp);
     }
 
@@ -90,7 +86,7 @@ contract PythOracle is IPythOracle, Instance, Kept {
     /// @notice Returns the latest synced oracle version
     /// @return Latest oracle version
     function latest() public view returns (OracleVersion memory) {
-        return at(latestVersion);
+        return at(_global.latestVersion);
     }
 
     /// @notice Returns the current oracle version accepting new orders
@@ -114,9 +110,9 @@ contract PythOracle is IPythOracle, Instance, Kept {
     /// @param version The oracle version to commit
     /// @param data The update data to commit
     function commit(uint256 version, bytes calldata data) external payable {
-        if (latestIndex < currentIndex && version == versions[latestIndex + 1]) _commitRequested(version, data);
+        if (_global.latestIndex < _global.currentIndex && version == versions[_global.latestIndex + 1]) _commitRequested(version, data);
         else _commitUnrequested(version, data);
-        latestVersion = version;
+        _global.latestVersion = uint64(version);
     }
 
     // TODO
@@ -124,18 +120,18 @@ contract PythOracle is IPythOracle, Instance, Kept {
         private
         keep(KEEPER_REWARD_PREMIUM, KEEPER_BUFFER, data, "")
     {
-        _prices[version] = (block.timestamp > versions[latestIndex + 1] + GRACE_PERIOD) ?
+        _prices[version] = (block.timestamp > versions[_global.latestIndex + 1] + GRACE_PERIOD) ?
             Fixed6Lib.ZERO : // TODO: verify that data is empty, or should it be (race condition)?
             _parsePrice(version, data);
-        latestIndex++;
+        _global.latestIndex++;
     }
 
     // TODO
     function _commitUnrequested(uint256 version, bytes calldata data) private {
         if (
-            version <= latestVersion ||
-            (latestIndex != 0 && version <= versions[latestIndex]) ||
-            (latestIndex != currentIndex && version >= versions[latestIndex + 1])
+            version <= _global.latestVersion ||
+            (_global.latestIndex != 0 && version <= versions[_global.latestIndex]) ||
+            (_global.latestIndex != _global.currentIndex && version >= versions[_global.latestIndex + 1])
         ) revert PythOracleVersionOutsideRangeError();
 
         _prices[version] = _parsePrice(version, data);

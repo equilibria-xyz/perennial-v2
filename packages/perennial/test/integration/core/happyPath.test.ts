@@ -1020,10 +1020,10 @@ describe('Happy Path', () => {
   })
 
   // uncheck skip to see gas results
-  it.skip('multi-delayed update w/ collateral (gas)', async () => {
+  it.only('multi-delayed update w/ collateral (gas)', async () => {
     const positionFeesOn = true
     const incentizesOn = true
-    const delay = 5
+    const delay = 0
     const sync = true
 
     const POSITION = parse6decimal('0.0001')
