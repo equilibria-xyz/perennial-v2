@@ -114,26 +114,31 @@ contract PythOracle is IPythOracle, Instance, Kept {
     /// @param version The oracle version to commit
     /// @param data The update data to commit
     function commit(uint256 version, bytes calldata data) external payable {
-        // requested
-        if (latestIndex < currentIndex && version == versions[latestIndex + 1]) {
-            // If past grace period, invalidate the version
-            _prices[version] = (block.timestamp > versions[latestIndex + 1] + GRACE_PERIOD) ?
-                Fixed6Lib.ZERO :
-                _parsePrice(version, data);
-            latestIndex++;
-
-        // unrequested
-        } else {
-            if (
-                version <= latestVersion ||
-                (latestIndex != 0 && version <= versions[latestIndex]) ||
-                (latestIndex != currentIndex && version >= versions[latestIndex + 1])
-            ) revert PythOracleVersionOutsideRangeError();
-
-            _prices[version] = _parsePrice(version, data);
-        }
-
+        if (latestIndex < currentIndex && version == versions[latestIndex + 1]) _commitRequested(version, data);
+        else _commitUnrequested(version, data);
         latestVersion = version;
+    }
+
+    // TODO
+    function _commitRequested(uint256 version, bytes calldata data)
+        private
+        keep(KEEPER_REWARD_PREMIUM, KEEPER_BUFFER, data, "")
+    {
+        _prices[version] = (block.timestamp > versions[latestIndex + 1] + GRACE_PERIOD) ?
+            Fixed6Lib.ZERO : // TODO: verify that data is empty, or should it be (race condition)?
+            _parsePrice(version, data);
+        latestIndex++;
+    }
+
+    // TODO
+    function _commitUnrequested(uint256 version, bytes calldata data) private {
+        if (
+            version <= latestVersion ||
+            (latestIndex != 0 && version <= versions[latestIndex]) ||
+            (latestIndex != currentIndex && version >= versions[latestIndex + 1])
+        ) revert PythOracleVersionOutsideRangeError();
+
+        _prices[version] = _parsePrice(version, data);
     }
 
     /// @notice Validates that update fees have been paid, and that the VAA represented by `data` is within `version + MIN_VALID_TIME_AFTER_VERSION` and `version + MAX_VALID_TIME_AFTER_VERSION`
