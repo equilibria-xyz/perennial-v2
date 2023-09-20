@@ -166,11 +166,11 @@ export default function defaultConfig({
         mainnet: getEtherscanApiConfig('mainnet').apiKey,
         optimisticEthereum: getEtherscanApiConfig('optimism').apiKey,
         arbitrumOne: getEtherscanApiConfig('arbitrum').apiKey,
-        base: getEtherscanApiConfig('base').apiKey,
+        // base: getEtherscanApiConfig('base').apiKey,
         goerli: getEtherscanApiConfig('goerli').apiKey,
         optimisticGoerli: getEtherscanApiConfig('optimismGoerli').apiKey,
         arbitrumGoerli: getEtherscanApiConfig('arbitrumGoerli').apiKey,
-        baseGoerli: getEtherscanApiConfig('baseGoerli').apiKey,
+        // baseGoerli: getEtherscanApiConfig('baseGoerli').apiKey,
       },
     },
     gasReporter: {
