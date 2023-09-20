@@ -12,7 +12,7 @@ interface IPythOracle is IOracleProvider, IInstance, IKept {
     error PythOracleVersionOutsideRangeError();
 
     function initialize(bytes32 id_, AggregatorV3Interface chainlinkFeed_, Token18 dsu_) external;
-    function commit(uint256 oracleVersion, bytes calldata updateData) external payable;
+    function commit(uint256 version, bytes calldata data) external payable;
 
     function MIN_VALID_TIME_AFTER_VERSION() external view returns (uint256);
     function MAX_VALID_TIME_AFTER_VERSION() external view returns (uint256);

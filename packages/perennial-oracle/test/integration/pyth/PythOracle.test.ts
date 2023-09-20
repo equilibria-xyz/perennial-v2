@@ -335,9 +335,9 @@ testOracles.forEach(testOracle => {
     })
 
     describe('#status', async () => {
-      it.skip('returns the correct versions', async () => {
+      it('returns the correct versions', async () => {
         await pythOracle.connect(oracleSigner).request(user.address)
-        await pythOracle.connect(user).commitRequested(0, VAA, {
+        await pythOracle.connect(user).commit(STARTING_TIME, VAA, {
           value: 1,
         })
         const [latestIndex, currentIndex] = await pythOracle.status()
@@ -409,14 +409,14 @@ testOracles.forEach(testOracle => {
     })
 
     describe('#latest', async () => {
-      it.skip('returns the latest version', async () => {
+      it('returns the latest version', async () => {
         await pythOracle.connect(oracleSigner).request(user.address)
-        await pythOracle.connect(user).commitRequested(0, VAA, {
+        await pythOracle.connect(user).commit(STARTING_TIME, VAA, {
           value: 1,
         })
-        const latestIndex = await pythOracle.connect(user).latest()
-        expect(latestIndex.valid).to.be.true
-        expect(latestIndex.price).to.equal('1838167031')
+        const latestValue = await pythOracle.connect(user).latest()
+        expect(latestValue.valid).to.be.true
+        expect(latestValue.price).to.equal('1838167031')
       })
 
       it('returns empty version if no version has ever been committed', async () => {
@@ -519,9 +519,9 @@ testOracles.forEach(testOracle => {
     })
 
     describe('#atVersion', async () => {
-      it.skip('returns the correct version', async () => {
+      it('returns the correct version', async () => {
         await pythOracle.connect(oracleSigner).request(user.address)
-        await pythOracle.connect(user).commitRequested(0, VAA, {
+        await pythOracle.connect(user).commit(STARTING_TIME, VAA, {
           value: 1,
         })
         const version = await pythOracle.connect(user).at(STARTING_TIME)
