@@ -37,13 +37,15 @@ contract PythOracle is IPythOracle, Instance, Kept {
     /// @dev List of all requested oracle versions
     mapping(uint256 => uint256) public versions;
 
-    /// TODO
+    // TODO: pack
+
+    /// @dev The latest committed oracle version
     uint256 public latestVersion;
 
-    /// @dev Index in `versions` of the next version a keeper should commit
+    /// @dev Index in `versions` of the most recent version requested
     uint256 public currentIndex;
 
-    /// @dev Index in `versions` of the next version a keeper should commit
+    /// @dev Index in `versions` of the latest version a keeper has committed
     uint256 public latestIndex;
 
     /// @dev Mapping from oracle version to oracle version data
@@ -86,8 +88,8 @@ contract PythOracle is IPythOracle, Instance, Kept {
     }
 
     /// @notice Returns the latest synced oracle version
-    /// @return latestOracleVersion Latest oracle version
-    function latest() public view returns (OracleVersion memory latestOracleVersion) {
+    /// @return Latest oracle version
+    function latest() public view returns (OracleVersion memory) {
         return at(latestVersion);
     }
 
@@ -101,8 +103,8 @@ contract PythOracle is IPythOracle, Instance, Kept {
     /// @param timestamp The timestamp of which to lookup
     /// @return oracleVersion Oracle version at version `version`
     function at(uint256 timestamp) public view returns (OracleVersion memory oracleVersion) {
-        Fixed6 price = _prices[timestamp];
-        return OracleVersion(timestamp, price, !price.isZero());
+        (oracleVersion.timestamp, oracleVersion.price) = (timestamp, _prices[timestamp]);
+        oracleVersion.valid = !oracleVersion.price.isZero();
     }
 
     /// @notice Commits the price to a non-requested version
@@ -110,54 +112,52 @@ contract PythOracle is IPythOracle, Instance, Kept {
     ///      for the next requested version to commit. A proper `versionIndex` must be supplied in case we are
     ///      ahead of an invalidated requested version and need to verify that the provided version is valid.
     /// @param version The oracle version to commit
-    /// @param updateData The update data to commit
-    function commit(uint256 version, bytes calldata updateData) external payable {
+    /// @param data The update data to commit
+    function commit(uint256 version, bytes calldata data) external payable {
         // requested
         if (latestIndex < currentIndex && version == versions[latestIndex + 1]) {
             // If past grace period, invalidate the version
-            _prices[version] = (block.timestamp > versions[latestIndex] + GRACE_PERIOD) ?
+            _prices[version] = (block.timestamp > versions[latestIndex + 1] + GRACE_PERIOD) ?
                 Fixed6Lib.ZERO :
-                _parsePrice(version, updateData);
+                _parsePrice(version, data);
             latestIndex++;
 
         // unrequested
         } else {
-            // Oracle version must be between the latest and next indexes
-            uint256 minVersion = Math.max(latestIndex == 0 ? 0 : versions[latestIndex], latestVersion);
-            uint256 maxVersion = latestIndex == currentIndex ? type(uint256).max : versions[latestIndex + 1];
-            if (version <= minVersion || version >= maxVersion) revert PythOracleVersionOutsideRangeError();
+            if (
+                version <= latestVersion ||
+                (latestIndex != 0 && version <= versions[latestIndex]) ||
+                (latestIndex != currentIndex && version >= versions[latestIndex + 1])
+            ) revert PythOracleVersionOutsideRangeError();
 
-            _prices[version] = _parsePrice(version, updateData);
+            _prices[version] = _parsePrice(version, data);
         }
 
         latestVersion = version;
     }
 
-    /// @notice Validates that update fees have been paid, and that the VAA represented by `updateData` is within `oracleVersion + MIN_VALID_TIME_AFTER_VERSION` and `oracleVersion + MAX_VALID_TIME_AFTER_VERSION`
-    /// @param oracleVersion The oracle version to validate against
-    /// @param updateData The update data to validate
-    function _parsePrice(uint256 oracleVersion, bytes calldata updateData) private returns (Fixed6 price) {
-        bytes[] memory updateDataList = new bytes[](1);
-        updateDataList[0] = updateData;
-        bytes32[] memory idList = new bytes32[](1);
-        idList[0] = id;
+    /// @notice Validates that update fees have been paid, and that the VAA represented by `data` is within `version + MIN_VALID_TIME_AFTER_VERSION` and `version + MAX_VALID_TIME_AFTER_VERSION`
+    /// @param version The oracle version to validate against
+    /// @param data The update data to validate
+    /// @return The parsed price if valid
+    function _parsePrice(uint256 version, bytes calldata data) private returns (Fixed6) {
+        bytes[] memory datas = new bytes[](1);
+        datas[0] = data;
+        bytes32[] memory ids = new bytes32[](1);
+        ids[0] = id;
 
-        // Limit the value passed in the single update fee * number of updates to prevent packing the update data
-        // with extra updates to increase the keeper fee. When Pyth updates their fee calculations
-        // we will need to modify this to account for the new fee logic.
-        PythStructs.Price memory pythPrice = pyth.parsePriceFeedUpdates{
-            value: IPythStaticFee(address(pyth)).singleUpdateFeeInWei() * idList.length
+        PythStructs.Price memory parsedPrice = pyth.parsePriceFeedUpdates{
+            value: IPythStaticFee(address(pyth)).singleUpdateFeeInWei()
         }(
-            updateDataList,
-            idList,
-            SafeCast.toUint64(oracleVersion + MIN_VALID_TIME_AFTER_VERSION),
-            SafeCast.toUint64(oracleVersion + MAX_VALID_TIME_AFTER_VERSION)
+            datas,
+            ids,
+            SafeCast.toUint64(version + MIN_VALID_TIME_AFTER_VERSION),
+            SafeCast.toUint64(version + MAX_VALID_TIME_AFTER_VERSION)
         )[0].price;
 
-        int256 expo6Decimal = 6 + pythPrice.expo;
-        return (expo6Decimal < 0) ?
-            Fixed6.wrap(pythPrice.price).div(Fixed6Lib.from(UFixed6Lib.from(10 ** uint256(-expo6Decimal)))) :
-            Fixed6.wrap(pythPrice.price).mul(Fixed6Lib.from(UFixed6Lib.from(10 ** uint256(expo6Decimal))));
+        (Fixed6 significand, int256 exponent) = (Fixed6.wrap(parsedPrice.price), parsedPrice.expo + 6);
+        Fixed6 base = Fixed6Lib.from(int256(10 ** SignedMath.abs(exponent)));
+        return exponent < 0 ? significand.div(base) : significand.mul(base);
     }
 
     /// @notice Pulls funds from the factory to reward the keeper
