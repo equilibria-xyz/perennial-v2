@@ -146,7 +146,7 @@ describe('Liquidate', () => {
     chainlink.delay = 1 // cleanup
   })
 
-  it('Can liquidate a user when the latest price moves up', async () => {
+  it('Can~t~ liquidate a user when the latest price moves up', async () => {
     const POSITION = parse6decimal('0.0001')
     const COLLATERAL = parse6decimal('1000')
     const { user, userB, dsu, chainlink } = instanceVars
