@@ -145,4 +145,36 @@ describe('Liquidate', () => {
 
     chainlink.delay = 1 // cleanup
   })
+
+  it('Can liquidate a user when the latest price moves up', async () => {
+    const POSITION = parse6decimal('0.0001')
+    const COLLATERAL = parse6decimal('1000')
+    const { user, userB, dsu, chainlink } = instanceVars
+
+    const multiInvoker = await createInvoker(instanceVars)
+    const market = await createMarket(instanceVars)
+
+    await chainlink.next()
+
+    // approve DSU transfers
+    await multiInvoker
+      .connect(user)
+      .invoke([{ action: 8, args: utils.defaultAbiCoder.encode(['address'], [market.address]) }])
+    await dsu.connect(user).approve(multiInvoker.address, COLLATERAL.mul(1e12))
+
+    // open position
+    await multiInvoker
+      .connect(user)
+      .invoke(buildUpdateMarket({ market: market.address, maker: POSITION, collateral: COLLATERAL }))
+
+    // get oracle version ahead of market so MultiInvoker _liquidationFee calc is too high
+    await chainlink.next()
+    await chainlink.next()
+    await chainlink.nextWithPriceModification(price => price.add(50))
+
+    // liquidate through invoker
+    await expect(
+      multiInvoker.connect(userB).invoke(buildLiquidateUser({ market: market.address, user: user.address })),
+    ).to.be.revertedWithCustomError(market, 'MarketInvalidProtectionError')
+  })
 })
