@@ -12,7 +12,6 @@ import "./interfaces/IMultiInvoker.sol";
 import "./types/TriggerOrder.sol";
 import "@equilibria/root/attribute/Kept/Kept.sol";
 
-
 /// @title MultiInvoker
 /// @notice Extension to handle batched calls to the Perennial protocol
 contract MultiInvoker is IMultiInvoker, Kept {
@@ -362,13 +361,15 @@ contract MultiInvoker is IMultiInvoker, Kept {
         IMarket market,
         address account
     ) internal view returns (Position memory latestPosition, Fixed6 latestPrice, UFixed6 closableAmount) {
-        // load parameters from the market
+        // load latest price
+        OracleVersion memory latestOracleVersion = market.oracle().latest();
+        latestPrice = latestOracleVersion.price;
         IPayoffProvider payoff = market.payoff();
+        if (address(payoff) != address(0)) latestPrice = payoff.payoff(latestPrice);
 
-        // load latest settled position and price
-        uint256 latestTimestamp = market.oracle().latest().timestamp;
+        // load latest settled position
+        uint256 latestTimestamp = latestOracleVersion.timestamp;
         latestPosition = market.positions(account);
-        latestPrice = market.global().latestPrice;
         UFixed6 previousMagnitude = latestPosition.magnitude();
 
         // scan pending position for any ready-to-be-settled positions
@@ -379,15 +380,10 @@ contract MultiInvoker is IMultiInvoker, Kept {
             Position memory pendingPosition = market.pendingPositions(account, id);
             pendingPosition.adjust(latestPosition);
 
-            // load oracle version for that position
-            OracleVersion memory oracleVersion = market.oracle().at(pendingPosition.timestamp);
-            if (address(payoff) != address(0)) oracleVersion.price = payoff.payoff(oracleVersion.price);
-
             // virtual settlement
             if (pendingPosition.timestamp <= latestTimestamp) {
-                if (!oracleVersion.valid) latestPosition.invalidate(pendingPosition);
+                if (!market.oracle().at(pendingPosition.timestamp).valid) latestPosition.invalidate(pendingPosition);
                 latestPosition.update(pendingPosition);
-                if (oracleVersion.valid) latestPrice = oracleVersion.price;
 
                 previousMagnitude = latestPosition.magnitude();
                 closableAmount = previousMagnitude;
