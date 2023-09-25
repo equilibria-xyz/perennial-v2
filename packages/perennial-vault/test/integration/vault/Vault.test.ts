@@ -1380,6 +1380,26 @@ describe('Vault', () => {
       await expect(vault.connect(user).update(user.address, 0, 0, parse6decimal('0.50'))).to.revertedWithPanic('0x11')
     })
 
+    it('inflate checkpoint count', async () => {
+      const settlementFee = parse6decimal('10.00')
+      const marketParameter = { ...(await market.parameter()) }
+      marketParameter.settlementFee = settlementFee
+      await market.connect(owner).updateParameter(marketParameter)
+      const btcMarketParameter = { ...(await btcMarket.parameter()) }
+      btcMarketParameter.settlementFee = settlementFee
+      await btcMarket.connect(owner).updateParameter(btcMarketParameter)
+
+      const deposit = parse6decimal('10000')
+      await vault.connect(user).update(user.address, deposit, 0, 0)
+      await updateOracle()
+      await vault.settle(user.address)
+
+      const deposit2 = parse6decimal('10000')
+      await vault.connect(user2).update(user2.address, deposit2, 0, 0)
+
+      await expect(vault.connect(btcUser1).update(btcUser1.address, 0, 0, 0)).to.revertedWithPanic('0x11')
+    })
+
     it('reverts when paused', async () => {
       await vaultFactory.connect(owner).pause()
       await expect(vault.settle(user.address)).to.revertedWithCustomError(vault, 'InstancePausedError')

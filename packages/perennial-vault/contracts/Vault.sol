@@ -318,9 +318,10 @@ contract Vault is IVault, Instance {
         UFixed6 redeemShares,
         UFixed6 claimAssets
     ) private view returns (UFixed6 claimAmount) {
-        if (context.global.assets.isZero()) return UFixed6Lib.ZERO;
         UFixed6 totalCollateral = UFixed6Lib.from(_collateral(context).max(Fixed6Lib.ZERO));
-        claimAmount = claimAssets.muldiv(totalCollateral.min(context.global.assets), context.global.assets);
+        claimAmount = context.global.assets.isZero() ?
+            UFixed6Lib.ZERO :
+            claimAssets.muldiv(totalCollateral.min(context.global.assets), context.global.assets);
 
         if (depositAssets.isZero() && redeemShares.isZero()) claimAmount = claimAmount.sub(context.settlementFee);
     }
