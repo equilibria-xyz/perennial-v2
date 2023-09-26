@@ -65,7 +65,7 @@ contract PythOracle is IPythOracle, Instance, Kept {
     /// @param dsu_ Token to pay the keeper reward in
     function initialize(bytes32 id_, AggregatorV3Interface chainlinkFeed_, Token18 dsu_) external initializer(1) {
         __Instance__initialize();
-        __UKept__initialize(chainlinkFeed_, dsu_);
+        __Kept__initialize(chainlinkFeed_, dsu_);
 
         if (!pyth.priceFeedExists(id_)) revert PythOracleInvalidPriceIdError(id_);
 
