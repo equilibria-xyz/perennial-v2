@@ -28,7 +28,7 @@ describe('PayoffFactory', () => {
 
     it('reverts if already initialized', async () => {
       await expect(factory.initialize())
-        .to.be.revertedWithCustomError(factory, 'UInitializableAlreadyInitializedError')
+        .to.be.revertedWithCustomError(factory, 'InitializableAlreadyInitializedError')
         .withArgs(1)
     })
   })
@@ -43,7 +43,7 @@ describe('PayoffFactory', () => {
     it('reverts if not owner', async () => {
       await expect(factory.connect(user).register(payoff.address)).to.be.revertedWithCustomError(
         factory,
-        'UOwnableNotOwnerError',
+        'OwnableNotOwnerError',
       )
     })
   })
