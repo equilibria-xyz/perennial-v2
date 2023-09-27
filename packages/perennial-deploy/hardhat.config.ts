@@ -1,6 +1,7 @@
 import defaultConfig from '../common/hardhat.default.config'
 import { solidityOverrides as coreOverrides } from '@equilibria/perennial-v2/hardhat.config'
 import { solidityOverrides as vaultOverrides } from '@equilibria/perennial-v2-vault/hardhat.config'
+import './tasks'
 
 const config = defaultConfig({
   dependencyPaths: [
