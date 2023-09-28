@@ -616,17 +616,20 @@ describe('Order', () => {
     })
 
     context('makerCloseAlways is true', () => {
-      it('returns false', async () => {
-        const result = await order.liquidityCheckApplicable(VALID_ORDER, {
-          ...VALID_MARKET_PARAMETER,
-          makerCloseAlways: true,
+      context('maker increase', () => {
+        it('returns true', async () => {
+          const result = await order.liquidityCheckApplicable(
+            { ...VALID_ORDER, maker: 10 },
+            {
+              ...VALID_MARKET_PARAMETER,
+              takerCloseAlways: true,
+            },
+          )
+
+          expect(result).to.be.true
         })
-
-        expect(result).to.be.false
       })
-    })
 
-    context('takerCloseAlways is true', () => {
       context('long increase', () => {
         it('returns true', async () => {
           const result = await order.liquidityCheckApplicable(
@@ -662,7 +665,118 @@ describe('Order', () => {
             takerCloseAlways: true,
           })
 
+          expect(result).to.be.true
+        })
+      })
+
+      context('maker decrease', () => {
+        it('returns false', async () => {
+          const result = await order.liquidityCheckApplicable(
+            { ...VALID_ORDER, maker: -10 },
+            {
+              ...VALID_MARKET_PARAMETER,
+              takerCloseAlways: true,
+            },
+          )
+
+          expect(result).to.be.true
+        })
+      })
+
+      context('long decrease', () => {
+        it('returns false', async () => {
+          const result = await order.liquidityCheckApplicable(
+            { ...VALID_ORDER, long: -10 },
+            {
+              ...VALID_MARKET_PARAMETER,
+              takerCloseAlways: true,
+            },
+          )
+
           expect(result).to.be.false
+        })
+      })
+
+      context('short decrease', () => {
+        it('returns false', async () => {
+          const result = await order.liquidityCheckApplicable(
+            { ...VALID_ORDER, short: -10 },
+            {
+              ...VALID_MARKET_PARAMETER,
+              takerCloseAlways: true,
+            },
+          )
+
+          expect(result).to.be.false
+        })
+      })
+    })
+
+    context('takerCloseAlways is true', () => {
+      context('maker increase', () => {
+        it('returns true', async () => {
+          const result = await order.liquidityCheckApplicable(
+            { ...VALID_ORDER, maker: 10 },
+            {
+              ...VALID_MARKET_PARAMETER,
+              takerCloseAlways: true,
+            },
+          )
+
+          expect(result).to.be.true
+        })
+      })
+
+      context('long increase', () => {
+        it('returns true', async () => {
+          const result = await order.liquidityCheckApplicable(
+            { ...VALID_ORDER, long: 10 },
+            {
+              ...VALID_MARKET_PARAMETER,
+              takerCloseAlways: true,
+            },
+          )
+
+          expect(result).to.be.true
+        })
+      })
+
+      context('short increase', () => {
+        it('returns true', async () => {
+          const result = await order.liquidityCheckApplicable(
+            { ...VALID_ORDER, short: 10 },
+            {
+              ...VALID_MARKET_PARAMETER,
+              takerCloseAlways: true,
+            },
+          )
+
+          expect(result).to.be.true
+        })
+      })
+
+      context('no increase', () => {
+        it('returns false', async () => {
+          const result = await order.liquidityCheckApplicable(VALID_ORDER, {
+            ...VALID_MARKET_PARAMETER,
+            takerCloseAlways: true,
+          })
+
+          expect(result).to.be.true
+        })
+      })
+
+      context('maker decrease', () => {
+        it('returns false', async () => {
+          const result = await order.liquidityCheckApplicable(
+            { ...VALID_ORDER, maker: -10 },
+            {
+              ...VALID_MARKET_PARAMETER,
+              takerCloseAlways: true,
+            },
+          )
+
+          expect(result).to.be.true
         })
       })
 
@@ -696,6 +810,20 @@ describe('Order', () => {
     })
 
     context('closed, makerCloseAlways, and takerCloseAlways are false', () => {
+      context('maker increase', () => {
+        it('returns true', async () => {
+          const result = await order.liquidityCheckApplicable(
+            { ...VALID_ORDER, maker: 10 },
+            {
+              ...VALID_MARKET_PARAMETER,
+              takerCloseAlways: true,
+            },
+          )
+
+          expect(result).to.be.true
+        })
+      })
+
       context('long increase', () => {
         it('returns true', async () => {
           const result = await order.liquidityCheckApplicable({ ...VALID_ORDER, long: 10 }, VALID_MARKET_PARAMETER)
@@ -715,6 +843,20 @@ describe('Order', () => {
       context('no increase', () => {
         it('returns true', async () => {
           const result = await order.liquidityCheckApplicable(VALID_ORDER, VALID_MARKET_PARAMETER)
+
+          expect(result).to.be.true
+        })
+      })
+
+      context('maker decrease', () => {
+        it('returns false', async () => {
+          const result = await order.liquidityCheckApplicable(
+            { ...VALID_ORDER, maker: -10 },
+            {
+              ...VALID_MARKET_PARAMETER,
+              takerCloseAlways: true,
+            },
+          )
 
           expect(result).to.be.true
         })
