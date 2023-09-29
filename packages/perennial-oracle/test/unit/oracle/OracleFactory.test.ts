@@ -64,7 +64,7 @@ describe('OracleFactory', () => {
 
     it('reverts if already initialized', async () => {
       await expect(factory.initialize(dsu.address))
-        .to.be.revertedWithCustomError(factory, 'UInitializableAlreadyInitializedError')
+        .to.be.revertedWithCustomError(factory, 'InitializableAlreadyInitializedError')
         .withArgs(1)
     })
   })
@@ -120,7 +120,7 @@ describe('OracleFactory', () => {
     it('reverts if not owner', async () => {
       await expect(
         factory.connect(user).create(PYTH_ETH_USD_PRICE_FEED, subOracleFactory.address),
-      ).to.revertedWithCustomError(factory, 'UOwnableNotOwnerError')
+      ).to.revertedWithCustomError(factory, 'OwnableNotOwnerError')
     })
   })
 
@@ -179,7 +179,7 @@ describe('OracleFactory', () => {
     it('reverts if not owner', async () => {
       await expect(
         factory.connect(user).update(PYTH_ETH_USD_PRICE_FEED, subOracleFactory2.address),
-      ).to.be.revertedWithCustomError(factory, 'UOwnableNotOwnerError')
+      ).to.be.revertedWithCustomError(factory, 'OwnableNotOwnerError')
     })
   })
 
@@ -195,7 +195,7 @@ describe('OracleFactory', () => {
     it('reverts if not owner', async () => {
       await expect(factory.connect(user).register(subOracleFactory.address)).to.be.revertedWithCustomError(
         factory,
-        'UOwnableNotOwnerError',
+        'OwnableNotOwnerError',
       )
     })
   })
@@ -212,7 +212,7 @@ describe('OracleFactory', () => {
     it('reverts if not owner', async () => {
       await expect(factory.connect(user).authorize(marketFactory.address)).to.be.revertedWithCustomError(
         factory,
-        'UOwnableNotOwnerError',
+        'OwnableNotOwnerError',
       )
     })
   })
@@ -229,7 +229,7 @@ describe('OracleFactory', () => {
     it('reverts if not owner', async () => {
       await expect(factory.connect(user).updateMaxClaim(parse6decimal('11'))).to.be.revertedWithCustomError(
         factory,
-        'UOwnableNotOwnerError',
+        'OwnableNotOwnerError',
       )
     })
   })

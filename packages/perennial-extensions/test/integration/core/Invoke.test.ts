@@ -109,7 +109,7 @@ describe('Invoke', () => {
 
     await expect(multiInvoker.connect(owner).initialize(ETH_ORACLE)).to.be.revertedWithCustomError(
       multiInvoker,
-      'UInitializableAlreadyInitializedError',
+      'InitializableAlreadyInitializedError',
     )
   })
 

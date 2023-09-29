@@ -59,7 +59,7 @@ contract Market is IMarket, Instance, ReentrancyGuard {
     /// @param definition_ The market definition
     function initialize(IMarket.MarketDefinition calldata definition_) external initializer(1) {
         __Instance__initialize();
-        __UReentrancyGuard__initialize();
+        __ReentrancyGuard__initialize();
 
         token = definition_.token;
         oracle = definition_.oracle;

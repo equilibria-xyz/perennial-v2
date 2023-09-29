@@ -42,7 +42,7 @@ contract PythFactory is IPythFactory, Factory {
     /// @notice Initializes the contract state
     /// @param oracleFactory_ The root oracle factory
     function initialize(IOracleFactory oracleFactory_) external initializer(1) {
-        __UOwnable__initialize();
+        __Factory__initialize();
 
         oracleFactory = oracleFactory_;
         _granularity = Granularity(0, 1, 0);

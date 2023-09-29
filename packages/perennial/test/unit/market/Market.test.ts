@@ -490,7 +490,7 @@ describe('Market', () => {
     it('reverts if already initialized', async () => {
       await market.initialize(marketDefinition)
       await expect(market.initialize(marketDefinition))
-        .to.be.revertedWithCustomError(market, 'UInitializableAlreadyInitializedError')
+        .to.be.revertedWithCustomError(market, 'InitializableAlreadyInitializedError')
         .withArgs(1)
     })
   })

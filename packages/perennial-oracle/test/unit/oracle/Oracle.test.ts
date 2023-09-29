@@ -94,7 +94,7 @@ describe('Oracle', () => {
       await oracle.connect(oracleFactorySigner).initialize(underlying0.address)
 
       await expect(oracle.connect(oracleFactorySigner).initialize(underlying0.address))
-        .to.be.revertedWithCustomError(oracle, 'UInitializableAlreadyInitializedError')
+        .to.be.revertedWithCustomError(oracle, 'InitializableAlreadyInitializedError')
         .withArgs(1)
     })
   })

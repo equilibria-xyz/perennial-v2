@@ -78,7 +78,7 @@ describe('MarketFactory', () => {
 
     it('reverts if already initialized', async () => {
       await expect(factory.initialize())
-        .to.be.revertedWithCustomError(factory, 'UInitializableAlreadyInitializedError')
+        .to.be.revertedWithCustomError(factory, 'InitializableAlreadyInitializedError')
         .withArgs(1)
     })
   })
@@ -187,7 +187,7 @@ describe('MarketFactory', () => {
 
       await expect(factory.connect(user).create(marketDefinition)).to.revertedWithCustomError(
         factory,
-        'UOwnableNotOwnerError',
+        'OwnableNotOwnerError',
       )
     })
   })
@@ -219,7 +219,7 @@ describe('MarketFactory', () => {
     it('reverts if not owner', async () => {
       await expect(factory.connect(user).updateParameter(newParameter)).to.be.revertedWithCustomError(
         factory,
-        'UOwnableNotOwnerError',
+        'OwnableNotOwnerError',
       )
     })
   })

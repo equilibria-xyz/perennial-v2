@@ -165,7 +165,7 @@ testOracles.forEach(testOracle => {
         const oracle = await new PythOracle_Arbitrum__factory(owner).deploy(PYTH_ADDRESS)
         await oracle.initialize(PYTH_ETH_USD_PRICE_FEED, CHAINLINK_ETH_USD_FEED, dsu.address)
         await expect(oracle.initialize(PYTH_ETH_USD_PRICE_FEED, CHAINLINK_ETH_USD_FEED, dsu.address))
-          .to.be.revertedWithCustomError(oracle, 'UInitializableAlreadyInitializedError')
+          .to.be.revertedWithCustomError(oracle, 'InitializableAlreadyInitializedError')
           .withArgs(1)
       })
     })
