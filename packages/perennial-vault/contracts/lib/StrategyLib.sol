@@ -128,7 +128,9 @@ library StrategyLib {
             );
 
         // current position
+        Position memory latestPosition = registration.market.position();
         context.currentPosition = registration.market.pendingPosition(global.currentId);
+        context.currentPosition.adjust(latestPosition);
     }
 
     /// @notice Loads one position for the context calculation

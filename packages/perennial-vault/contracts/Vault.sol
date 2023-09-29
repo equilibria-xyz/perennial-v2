@@ -450,7 +450,9 @@ contract Vault is IVault, Instance {
 
             // global
             Global memory global = registration.market.global();
+            Position memory latestPosition = registration.market.position();
             Position memory currentPosition = registration.market.pendingPosition(global.currentId);
+            currentPosition.adjust(latestPosition);
 
             context.markets[marketId].latestPrice = global.latestPrice.abs();
             context.markets[marketId].currentPosition = currentPosition.maker;
@@ -461,6 +463,8 @@ contract Vault is IVault, Instance {
             Local memory local = registration.market.locals(address(this));
             Position memory latestAccountPosition = registration.market.positions(address(this));
             Position memory currentAccountPosition = registration.market.pendingPositions(address(this), local.currentId);
+            currentAccountPosition.adjust(latestAccountPosition);
+
             context.markets[marketId].collateral = local.collateral;
             context.markets[marketId].latestAccountPosition = latestAccountPosition.maker;
             context.markets[marketId].currentAccountPosition = currentAccountPosition.maker;
