@@ -1,0 +1,221 @@
+import HRE from 'hardhat'
+import { expect } from 'chai'
+import {
+  MarketFactory,
+  MarketFactory__factory,
+  Market__factory,
+  OracleFactory__factory,
+} from '../../../../types/generated'
+import { utils } from 'ethers'
+import { SignerWithAddress } from '@nomiclabs/hardhat-ethers/signers'
+import { OracleFactory } from '@equilibria/perennial-v2-oracle/types/generated'
+
+const GAUNTLET_ADDRESS = '0x9B08824A87D79a65dD30Fc5c6B9e734A313E4235'
+
+describe('Verify Markets', () => {
+  let signer: SignerWithAddress
+  let marketFactory: MarketFactory
+  let oracleFactory: OracleFactory
+
+  beforeEach(async () => {
+    ;[signer] = await HRE.ethers.getSigners()
+    marketFactory = MarketFactory__factory.connect((await HRE.deployments.get('MarketFactory')).address, signer)
+    oracleFactory = OracleFactory__factory.connect((await HRE.deployments.get('OracleFactory')).address, signer)
+  })
+
+  it('Market: ETH', async () => {
+    const pythId = '0xff61491a931112ddf1bd8147cd1b641375f79f5825126d665480874634fd0ace'
+    const oracle = await oracleFactory.callStatic.oracles(pythId)
+    const ethMarket = Market__factory.connect(await marketFactory.callStatic.markets(oracle, ''), signer)
+
+    expect(await ethMarket.coordinator()).to.equal(GAUNTLET_ADDRESS)
+
+    const parameter = await ethMarket.callStatic.parameter()
+    expect(parameter.fundingFee).to.equal(utils.parseUnits('0.05', 6))
+    expect(parameter.interestFee).to.equal(utils.parseUnits('0.05', 6))
+    expect(parameter.positionFee).to.equal(utils.parseUnits('0.05', 6))
+    expect(parameter.oracleFee).to.equal(0)
+    expect(parameter.riskFee).to.equal(utils.parseUnits('1', 6))
+    expect(parameter.maxPendingGlobal).to.equal(12)
+    expect(parameter.maxPendingLocal).to.equal(6)
+    expect(parameter.makerRewardRate).to.equal(0)
+    expect(parameter.longRewardRate).to.equal(0)
+    expect(parameter.shortRewardRate).to.equal(0)
+    expect(parameter.settlementFee).to.equal(utils.parseUnits('1.50', 6))
+    expect(parameter.makerCloseAlways).to.be.false
+    expect(parameter.takerCloseAlways).to.be.true
+    expect(parameter.closed).to.be.false
+
+    const riskParameter = await ethMarket.callStatic.riskParameter()
+    expect(riskParameter.margin).to.equal(utils.parseUnits('0.0095', 6))
+    expect(riskParameter.maintenance).to.equal(utils.parseUnits('0.008', 6))
+    expect(riskParameter.takerFee).to.equal(utils.parseUnits('0.0002', 6))
+    expect(riskParameter.takerSkewFee).to.equal(utils.parseUnits('0.001', 6))
+    expect(riskParameter.takerImpactFee).to.equal(utils.parseUnits('0.001', 6))
+    expect(riskParameter.makerFee).to.equal(utils.parseUnits('0.0001', 6))
+    expect(riskParameter.makerImpactFee).to.equal(0)
+    expect(riskParameter.makerLimit).to.equal(utils.parseUnits('3008', 6)) // $5M
+    expect(riskParameter.efficiencyLimit).to.equal(utils.parseUnits('0.5', 6))
+    expect(riskParameter.liquidationFee).to.equal(utils.parseUnits('0.05', 6))
+    expect(riskParameter.minLiquidationFee).to.equal(utils.parseUnits('5', 6))
+    expect(riskParameter.maxLiquidationFee).to.equal(utils.parseUnits('25', 6))
+    expect(riskParameter.utilizationCurve.minRate).to.equal(0)
+    expect(riskParameter.utilizationCurve.maxRate).to.equal(utils.parseUnits('0.155', 6))
+    expect(riskParameter.utilizationCurve.targetRate).to.equal(utils.parseUnits('0.055', 6))
+    expect(riskParameter.utilizationCurve.targetUtilization).to.equal(utils.parseUnits('0.60', 6))
+    expect(riskParameter.pController.k).to.equal(utils.parseUnits('20000', 6))
+    expect(riskParameter.pController.max).to.equal(utils.parseUnits('2.5', 6))
+    expect(riskParameter.minMargin).to.equal(utils.parseUnits('10', 6))
+    expect(riskParameter.minMaintenance).to.equal(utils.parseUnits('10', 6))
+    expect(riskParameter.virtualTaker).to.equal(0)
+    expect(riskParameter.staleAfter).to.equal(60)
+    expect(riskParameter.makerReceiveOnly).to.be.false
+  })
+
+  it('Market: BTC', async () => {
+    const pythId = '0xe62df6c8b4a85fe1a67db44dc12de5db330f7ac66b72dc658afedf0f4a415b43'
+    const oracle = await oracleFactory.callStatic.oracles(pythId)
+    const btcMarket = Market__factory.connect(await marketFactory.callStatic.markets(oracle, ''), signer)
+
+    expect(await btcMarket.coordinator()).to.equal(GAUNTLET_ADDRESS)
+
+    const parameter = await btcMarket.callStatic.parameter()
+    expect(parameter.fundingFee).to.equal(utils.parseUnits('0.05', 6))
+    expect(parameter.interestFee).to.equal(utils.parseUnits('0.05', 6))
+    expect(parameter.positionFee).to.equal(utils.parseUnits('0.05', 6))
+    expect(parameter.oracleFee).to.equal(0)
+    expect(parameter.riskFee).to.equal(utils.parseUnits('1', 6))
+    expect(parameter.maxPendingGlobal).to.equal(12)
+    expect(parameter.maxPendingLocal).to.equal(6)
+    expect(parameter.makerRewardRate).to.equal(0)
+    expect(parameter.longRewardRate).to.equal(0)
+    expect(parameter.shortRewardRate).to.equal(0)
+    expect(parameter.settlementFee).to.equal(utils.parseUnits('1.50', 6))
+    expect(parameter.makerCloseAlways).to.be.false
+    expect(parameter.takerCloseAlways).to.be.true
+    expect(parameter.closed).to.be.false
+
+    const riskParameter = await btcMarket.callStatic.riskParameter()
+    expect(riskParameter.margin).to.equal(utils.parseUnits('0.0095', 6))
+    expect(riskParameter.maintenance).to.equal(utils.parseUnits('0.008', 6))
+    expect(riskParameter.takerFee).to.equal(utils.parseUnits('0.0002', 6))
+    expect(riskParameter.takerSkewFee).to.equal(utils.parseUnits('0.001', 6))
+    expect(riskParameter.takerImpactFee).to.equal(utils.parseUnits('0.001', 6))
+    expect(riskParameter.makerFee).to.equal(utils.parseUnits('0.0001', 6))
+    expect(riskParameter.makerImpactFee).to.equal(0)
+    expect(riskParameter.makerLimit).to.equal(utils.parseUnits('3008', 6)) // $5M
+    expect(riskParameter.efficiencyLimit).to.equal(utils.parseUnits('0.5', 6))
+    expect(riskParameter.liquidationFee).to.equal(utils.parseUnits('0.05', 6))
+    expect(riskParameter.minLiquidationFee).to.equal(utils.parseUnits('5', 6))
+    expect(riskParameter.maxLiquidationFee).to.equal(utils.parseUnits('25', 6))
+    expect(riskParameter.utilizationCurve.minRate).to.equal(0)
+    expect(riskParameter.utilizationCurve.maxRate).to.equal(utils.parseUnits('0.155', 6))
+    expect(riskParameter.utilizationCurve.targetRate).to.equal(utils.parseUnits('0.055', 6))
+    expect(riskParameter.utilizationCurve.targetUtilization).to.equal(utils.parseUnits('0.60', 6))
+    expect(riskParameter.pController.k).to.equal(utils.parseUnits('20000', 6))
+    expect(riskParameter.pController.max).to.equal(utils.parseUnits('2.5', 6))
+    expect(riskParameter.minMargin).to.equal(utils.parseUnits('10', 6))
+    expect(riskParameter.minMaintenance).to.equal(utils.parseUnits('10', 6))
+    expect(riskParameter.virtualTaker).to.equal(0)
+    expect(riskParameter.staleAfter).to.equal(60)
+    expect(riskParameter.makerReceiveOnly).to.be.false
+  })
+
+  it('Market: SOL', async () => {
+    const pythId = '0xef0d8b6fda2ceba41da15d4095d1da392a0d2f8ed0c6c7bc0f4cfac8c280b56d'
+    const oracle = await oracleFactory.callStatic.oracles(pythId)
+    const solMarket = Market__factory.connect(await marketFactory.callStatic.markets(oracle, ''), signer)
+
+    expect(await solMarket.coordinator()).to.equal(GAUNTLET_ADDRESS)
+
+    const parameter = await solMarket.callStatic.parameter()
+    expect(parameter.fundingFee).to.equal(utils.parseUnits('0.05', 6))
+    expect(parameter.interestFee).to.equal(utils.parseUnits('0.05', 6))
+    expect(parameter.positionFee).to.equal(utils.parseUnits('0.05', 6))
+    expect(parameter.oracleFee).to.equal(0)
+    expect(parameter.riskFee).to.equal(utils.parseUnits('1', 6))
+    expect(parameter.maxPendingGlobal).to.equal(12)
+    expect(parameter.maxPendingLocal).to.equal(6)
+    expect(parameter.makerRewardRate).to.equal(0)
+    expect(parameter.longRewardRate).to.equal(0)
+    expect(parameter.shortRewardRate).to.equal(0)
+    expect(parameter.settlementFee).to.equal(utils.parseUnits('1.50', 6))
+    expect(parameter.makerCloseAlways).to.be.false
+    expect(parameter.takerCloseAlways).to.be.true
+    expect(parameter.closed).to.be.false
+
+    const riskParameter = await solMarket.callStatic.riskParameter()
+    expect(riskParameter.margin).to.equal(utils.parseUnits('0.0195', 6))
+    expect(riskParameter.maintenance).to.equal(utils.parseUnits('0.016', 6))
+    expect(riskParameter.takerFee).to.equal(utils.parseUnits('0.0002', 6))
+    expect(riskParameter.takerSkewFee).to.equal(utils.parseUnits('0.001', 6))
+    expect(riskParameter.takerImpactFee).to.equal(utils.parseUnits('0.001', 6))
+    expect(riskParameter.makerFee).to.equal(utils.parseUnits('0.0001', 6))
+    expect(riskParameter.makerImpactFee).to.equal(0)
+    expect(riskParameter.makerLimit).to.equal(utils.parseUnits('3008', 6)) // $5M
+    expect(riskParameter.efficiencyLimit).to.equal(utils.parseUnits('0.5', 6))
+    expect(riskParameter.liquidationFee).to.equal(utils.parseUnits('0.05', 6))
+    expect(riskParameter.minLiquidationFee).to.equal(utils.parseUnits('5', 6))
+    expect(riskParameter.maxLiquidationFee).to.equal(utils.parseUnits('25', 6))
+    expect(riskParameter.utilizationCurve.minRate).to.equal(0)
+    expect(riskParameter.utilizationCurve.maxRate).to.equal(utils.parseUnits('0.155', 6))
+    expect(riskParameter.utilizationCurve.targetRate).to.equal(utils.parseUnits('0.055', 6))
+    expect(riskParameter.utilizationCurve.targetUtilization).to.equal(utils.parseUnits('0.60', 6))
+    expect(riskParameter.pController.k).to.equal(utils.parseUnits('20000', 6))
+    expect(riskParameter.pController.max).to.equal(utils.parseUnits('2.5', 6))
+    expect(riskParameter.minMargin).to.equal(utils.parseUnits('10', 6))
+    expect(riskParameter.minMaintenance).to.equal(utils.parseUnits('10', 6))
+    expect(riskParameter.virtualTaker).to.equal(0)
+    expect(riskParameter.staleAfter).to.equal(60)
+    expect(riskParameter.makerReceiveOnly).to.be.false
+  })
+
+  it('Market: MATIC', async () => {
+    const pythId = '0x5de33a9112c2b700b8d30b8a3402c103578ccfa2765696471cc672bd5cf6ac52'
+    const oracle = await oracleFactory.callStatic.oracles(pythId)
+    const maticMarket = Market__factory.connect(await marketFactory.callStatic.markets(oracle, ''), signer)
+
+    expect(await maticMarket.coordinator()).to.equal(GAUNTLET_ADDRESS)
+
+    const parameter = await maticMarket.callStatic.parameter()
+    expect(parameter.fundingFee).to.equal(utils.parseUnits('0.05', 6))
+    expect(parameter.interestFee).to.equal(utils.parseUnits('0.05', 6))
+    expect(parameter.positionFee).to.equal(utils.parseUnits('0.05', 6))
+    expect(parameter.oracleFee).to.equal(0)
+    expect(parameter.riskFee).to.equal(utils.parseUnits('1', 6))
+    expect(parameter.maxPendingGlobal).to.equal(12)
+    expect(parameter.maxPendingLocal).to.equal(6)
+    expect(parameter.makerRewardRate).to.equal(0)
+    expect(parameter.longRewardRate).to.equal(0)
+    expect(parameter.shortRewardRate).to.equal(0)
+    expect(parameter.settlementFee).to.equal(utils.parseUnits('1.50', 6))
+    expect(parameter.makerCloseAlways).to.be.false
+    expect(parameter.takerCloseAlways).to.be.true
+    expect(parameter.closed).to.be.false
+
+    const riskParameter = await maticMarket.callStatic.riskParameter()
+    expect(riskParameter.margin).to.equal(utils.parseUnits('0.0195', 6))
+    expect(riskParameter.maintenance).to.equal(utils.parseUnits('0.016', 6))
+    expect(riskParameter.takerFee).to.equal(utils.parseUnits('0.0002', 6))
+    expect(riskParameter.takerSkewFee).to.equal(utils.parseUnits('0.001', 6))
+    expect(riskParameter.takerImpactFee).to.equal(utils.parseUnits('0.001', 6))
+    expect(riskParameter.makerFee).to.equal(utils.parseUnits('0.0001', 6))
+    expect(riskParameter.makerImpactFee).to.equal(0)
+    expect(riskParameter.makerLimit).to.equal(utils.parseUnits('3008', 6)) // $5M
+    expect(riskParameter.efficiencyLimit).to.equal(utils.parseUnits('0.5', 6))
+    expect(riskParameter.liquidationFee).to.equal(utils.parseUnits('0.05', 6))
+    expect(riskParameter.minLiquidationFee).to.equal(utils.parseUnits('5', 6))
+    expect(riskParameter.maxLiquidationFee).to.equal(utils.parseUnits('25', 6))
+    expect(riskParameter.utilizationCurve.minRate).to.equal(0)
+    expect(riskParameter.utilizationCurve.maxRate).to.equal(utils.parseUnits('0.155', 6))
+    expect(riskParameter.utilizationCurve.targetRate).to.equal(utils.parseUnits('0.055', 6))
+    expect(riskParameter.utilizationCurve.targetUtilization).to.equal(utils.parseUnits('0.60', 6))
+    expect(riskParameter.pController.k).to.equal(utils.parseUnits('20000', 6))
+    expect(riskParameter.pController.max).to.equal(utils.parseUnits('2.5', 6))
+    expect(riskParameter.minMargin).to.equal(utils.parseUnits('10', 6))
+    expect(riskParameter.minMaintenance).to.equal(utils.parseUnits('10', 6))
+    expect(riskParameter.virtualTaker).to.equal(0)
+    expect(riskParameter.staleAfter).to.equal(60)
+    expect(riskParameter.makerReceiveOnly).to.be.false
+  })
+})

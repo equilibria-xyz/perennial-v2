@@ -9,3 +9,10 @@ export function getMultisigAddress(networkName: string): string | null {
   }
   return null
 }
+
+export function getLabsMultisig(networkName: string): string | null {
+  if (isMainnet(networkName)) {
+    if (isArbitrum(networkName)) return '0xcc2A6ef429b402f7d8D72D6AEcd6Dfd0D787AcfF'
+  }
+  return null
+}
