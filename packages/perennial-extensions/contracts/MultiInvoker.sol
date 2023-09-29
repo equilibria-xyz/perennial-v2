@@ -421,7 +421,10 @@ contract MultiInvoker is IMultiInvoker, Kept {
     ) {
         if (!canExecuteOrder(account, market, nonce)) revert MultiInvokerCantExecuteError();
 
+        (Position memory latestPosition, , ) = _latest(market, account);
         Position memory currentPosition = market.pendingPositions(account, market.locals(account).currentId);
+        currentPosition.adjust(latestPosition);
+
         orders(account, market, nonce).execute(currentPosition);
 
         market.update(
