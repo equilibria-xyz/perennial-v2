@@ -372,7 +372,8 @@ contract MultiInvoker is IMultiInvoker, Kept {
         // load latest settled position
         uint256 latestTimestamp = latestOracleVersion.timestamp;
         latestPosition = market.positions(account);
-        UFixed6 previousMagnitude = latestPosition.magnitude();
+        closableAmount = latestPosition.magnitude();
+        UFixed6 previousMagnitude = closableAmount;
 
         // scan pending position for any ready-to-be-settled positions
         Local memory local = market.locals(account);
