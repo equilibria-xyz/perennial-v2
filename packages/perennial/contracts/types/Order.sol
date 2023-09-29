@@ -71,13 +71,19 @@ library OrderLib {
     /// @notice Returns whether the order increases any of the account's positions
     /// @return Whether the order increases any of the account's positions
     function increasesPosition(Order memory self) internal pure returns (bool) {
-        return self.maker.gt(Fixed6Lib.ZERO) || increasesTaker(self);
+        return increasesMaker(self) || increasesTaker(self);
     }
 
     /// @notice Returns whether the order increases the account's long or short positions
     /// @return Whether the order increases the account's long or short positions
     function increasesTaker(Order memory self) internal pure returns (bool) {
         return self.long.gt(Fixed6Lib.ZERO) || self.short.gt(Fixed6Lib.ZERO);
+    }
+
+    /// @notice Returns whether the order increases the account's maker position
+    /// @return Whether the order increases the account's maker positions
+    function increasesMaker(Order memory self) internal pure returns (bool) {
+        return self.maker.gt(Fixed6Lib.ZERO);
     }
 
     /// @notice Returns whether the order decreases the liquidity of the market
@@ -105,8 +111,8 @@ library OrderLib {
         MarketParameter memory marketParameter
     ) internal pure returns (bool) {
         return !marketParameter.closed &&
-            !marketParameter.makerCloseAlways &&
-            (!marketParameter.takerCloseAlways || increasesTaker(self));
+            ((self.maker.isZero()) || !marketParameter.makerCloseAlways || increasesMaker(self)) &&
+            ((self.long.isZero() && self.short.isZero()) || !marketParameter.takerCloseAlways || increasesTaker(self));
     }
 
     /// @notice Returns the liquidation fee of the position
