@@ -145,4 +145,44 @@ describe('Liquidate', () => {
 
     chainlink.delay = 1 // cleanup
   })
+
+  it('Liquidate a user when price drops after in-state latest', async () => {
+    const POSITION = parse6decimal('0.0001')
+    const COLLATERAL = parse6decimal('1000')
+    const { user, userB, dsu, chainlink } = instanceVars
+
+    const multiInvoker = await createInvoker(instanceVars)
+    const market = await createMarket(instanceVars)
+
+    const protocolParameter = { ...(await instanceVars.marketFactory.parameter()) }
+    protocolParameter.maxFeeAbsolute = parse6decimal('1000000')
+    await instanceVars.marketFactory.updateParameter(protocolParameter)
+
+    const riskParameter = { ...(await market.riskParameter()) }
+    riskParameter.minMaintenance = parse6decimal('0')
+    riskParameter.maxLiquidationFee = parse6decimal('1000000')
+    await market.updateRiskParameter(riskParameter)
+
+    await chainlink.next()
+
+    // approve DSU transfers
+    await multiInvoker
+      .connect(user)
+      .invoke([{ action: 8, args: utils.defaultAbiCoder.encode(['address'], [market.address]) }])
+    await dsu.connect(user).approve(multiInvoker.address, COLLATERAL.mul(1e12))
+
+    // open position
+    await multiInvoker
+      .connect(user)
+      .invoke(buildUpdateMarket({ market: market.address, maker: POSITION, collateral: COLLATERAL }))
+
+    // get oracle version ahead of market so MultiInvoker _liquidationFee calc is too high
+    await chainlink.nextWithPriceModification(price => price.mul(2))
+    await chainlink.nextWithPriceModification(price => price.mul(2))
+    await chainlink.nextWithPriceModification(price => price.mul(2).sub(parse6decimal('100'))) // drop price before liquidation
+
+    // liquidate through invoker
+    await expect(multiInvoker.connect(userB).invoke(buildLiquidateUser({ market: market.address, user: user.address })))
+      .to.be.not.reverted
+  })
 })
