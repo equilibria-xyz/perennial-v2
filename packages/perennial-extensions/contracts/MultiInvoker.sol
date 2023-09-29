@@ -224,9 +224,10 @@ contract MultiInvoker is IMultiInvoker, Kept {
     /// @param market Market to liquidate account in
     /// @param account Address of market to liquidate
     function _liquidate(IMarket market, address account) internal isMarketInstance(market) {
-        (UFixed6 liquidationFee, UFixed6 closable) = _liquidationFee(market, account);
+        (Position memory latestPosition, UFixed6 liquidationFee, UFixed6 closable) = _liquidationFee(market, account);
 
         Position memory currentPosition = market.pendingPositions(account, market.locals(account).currentId);
+        currentPosition.adjust(latestPosition);
 
         market.update(
             account,
@@ -335,7 +336,7 @@ contract MultiInvoker is IMultiInvoker, Kept {
     /// @param account Account to compute liquidation fee for
     /// @return liquidationFee Liquidation fee for the account
     /// @return closable The amount of the position that can be closed
-    function _liquidationFee(IMarket market, address account) internal view returns (UFixed6, UFixed6) {
+    function _liquidationFee(IMarket market, address account) internal view returns (Position memory, UFixed6, UFixed6) {
         // load information about liquidation
         RiskParameter memory riskParameter = market.riskParameter();
         (Position memory latestPosition, Fixed6 latestPrice, UFixed6 closableAmount) = _latest(market, account);
@@ -345,6 +346,7 @@ contract MultiInvoker is IMultiInvoker, Kept {
         placeholderOrder.maker = Fixed6Lib.from(closableAmount);
 
         return (
+            latestPosition,
             placeholderOrder
                 .liquidationFee(OracleVersion(latestPosition.timestamp, latestPrice, true), riskParameter)
                 .min(UFixed6Lib.from(market.token().balanceOf(address(market)))),
