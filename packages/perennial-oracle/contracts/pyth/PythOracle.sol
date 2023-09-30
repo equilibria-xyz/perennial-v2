@@ -26,7 +26,7 @@ contract PythOracle is IPythOracle, Instance, Kept {
     UFixed18 constant public KEEPER_REWARD_PREMIUM = UFixed18.wrap(3e18);
 
     /// @dev The fixed gas buffer that is added to the keeper reward
-    uint256 constant public KEEPER_BUFFER = 100_000;
+    uint256 constant public KEEPER_BUFFER = 1_000_000;
 
     /// @dev Pyth contract
     AbstractPyth public immutable pyth;
