@@ -2,9 +2,8 @@ import { utils } from 'ethers'
 import { HardhatRuntimeEnvironment } from 'hardhat/types'
 import { DeployFunction } from 'hardhat-deploy/types'
 import { SignerWithAddress } from '@nomiclabs/hardhat-ethers/signers'
-import { ProxyAdmin__factory } from '@equilibria/perennial-v2/types/generated'
-import { OracleFactory__factory, PythFactory__factory } from '@equilibria/perennial-v2-oracle/types/generated'
 import { forkNetwork, isArbitrum, isFork, isMainnet } from '../../common/testutil/network'
+import { OracleFactory__factory, ProxyAdmin__factory, PythFactory__factory } from '../types/generated'
 
 export const ORACLE_IDS: { [key: string]: { [asset: string]: string } } = {
   arbitrum: {
@@ -21,7 +20,7 @@ export const ORACLE_IDS: { [key: string]: { [asset: string]: string } } = {
   },
 }
 
-const DEFAULT_MAX_CLAIM_AMOUNT = utils.parseUnits('10', 6)
+const DEFAULT_MAX_CLAIM_AMOUNT = utils.parseUnits('25', 6)
 const DEFAULT_GRANULARITY = 10
 
 const func: DeployFunction = async function (hre: HardhatRuntimeEnvironment) {
@@ -124,11 +123,15 @@ const func: DeployFunction = async function (hre: HardhatRuntimeEnvironment) {
   for (const id of Object.values(oracleIDs)) {
     if ((await pythFactory.oracles(id)).toLowerCase() === ethers.constants.AddressZero.toLowerCase()) {
       process.stdout.write(`Creating pyth oracle ${id}...`)
+      const address = await pythFactory.callStatic.create(id)
+      process.stdout.write(`deploying at ${address}...`)
       await (await pythFactory.create(id)).wait()
       process.stdout.write('complete\n')
     }
     if ((await oracleFactory.oracles(id)).toLowerCase() === ethers.constants.AddressZero.toLowerCase()) {
       process.stdout.write(`Creating oracle ${id}...`)
+      const address = await oracleFactory.callStatic.create(id, pythFactory.address)
+      process.stdout.write(`deploying at ${address}...`)
       await (await oracleFactory.create(id, pythFactory.address)).wait()
       process.stdout.write('complete\n')
     }

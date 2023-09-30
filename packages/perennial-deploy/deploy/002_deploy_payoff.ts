@@ -1,8 +1,7 @@
 import { HardhatRuntimeEnvironment } from 'hardhat/types'
 import { DeployFunction } from 'hardhat-deploy/types'
-import { PayoffFactory__factory } from '../types/generated'
+import { PayoffFactory__factory, ProxyAdmin__factory } from '../types/generated'
 import { SignerWithAddress } from '@nomiclabs/hardhat-ethers/signers'
-import { ProxyAdmin__factory } from '@equilibria/perennial-v2/types/generated'
 import { isMainnet } from '../../common/testutil/network'
 
 const PAYOFFS = [

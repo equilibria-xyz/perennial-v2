@@ -1,4 +1,4 @@
-import { BigNumber } from 'ethers'
+import { BigNumber, constants } from 'ethers'
 import { HardhatRuntimeEnvironment } from 'hardhat/types'
 import { DeployFunction } from 'hardhat-deploy/types'
 import { SignerWithAddress } from '@nomiclabs/hardhat-ethers/signers'
@@ -8,41 +8,44 @@ import {
   MarketFactory__factory,
   OracleFactory__factory,
   IERC20__factory,
+  Vault__factory,
 } from '../types/generated'
 import { ORACLE_IDS } from './003_deploy_oracle'
 import { forkNetwork, isFork, isMainnet, isTestnet } from '../../common/testutil/network'
+import { getLabsMultisig } from '../../common/testutil/constants'
 
 const VAULTS: { [key: string]: { [key: string]: string[][] } } = {
   arbitrum: {
-    BlueChipVault: [
+    AsterVault: [
       [ORACLE_IDS.arbitrum.eth, ''], // ETH / None
       [ORACLE_IDS.arbitrum.btc, ''], // BTC / None
     ],
-    L2Vault: [
+    BegoniaVault: [
       [ORACLE_IDS.arbitrum.sol, ''], // SOL / None
       [ORACLE_IDS.arbitrum.matic, ''], // MATIC / None
     ],
   },
   arbitrumGoerli: {
-    BlueChipVault: [
+    AsterVault: [
       [ORACLE_IDS.arbitrumGoerli.eth, ''], // ETH / None
       [ORACLE_IDS.arbitrumGoerli.btc, ''], // BTC / None
     ],
-    L2Vault: [
+    BegoniaVault: [
       [ORACLE_IDS.arbitrumGoerli.sol, ''], // SOL / None
       [ORACLE_IDS.arbitrumGoerli.matic, ''], // MATIC / None
     ],
   },
 }
 
-const INITIAL_AMOUNT = BigNumber.from('1000000') // 1 DSU
+const INITIAL_AMOUNT = BigNumber.from('5000000') // 5 DSU
 
 const func: DeployFunction = async function (hre: HardhatRuntimeEnvironment) {
   const { deployments, getNamedAccounts, ethers } = hre
   const { deploy, get, save, getOrNull, getNetworkName } = deployments
   const { deployer } = await getNamedAccounts()
+  const labsMultisig = getLabsMultisig(getNetworkName())
   const deployerSigner: SignerWithAddress = await ethers.getSigner(deployer)
-  const deployVaults = isTestnet(getNetworkName())
+  const deployVaults = true
 
   const dsu = IERC20__factory.connect((await get('DSU')).address, deployerSigner)
   const proxyAdmin = new ProxyAdmin__factory(deployerSigner).attach((await get('ProxyAdmin')).address)
@@ -82,74 +85,82 @@ const func: DeployFunction = async function (hre: HardhatRuntimeEnvironment) {
   const marketFactory = new MarketFactory__factory(deployerSigner).attach((await get('MarketFactory')).address)
   const oracleFactory = new OracleFactory__factory(deployerSigner).attach((await get('OracleFactory')).address)
 
+  if ((await vaultFactory.pauser()) === constants.AddressZero && !!labsMultisig) {
+    process.stdout.write('Updating protocol pauser...')
+    await vaultFactory.updatePauser(labsMultisig)
+    process.stdout.write('complete\n')
+  }
+
   // Create vault
   // TODO: in order to deploy vaults we need to commit new oracle versions first
   if (deployVaults) {
     const vaults = isFork() ? VAULTS[forkNetwork()] : VAULTS[getNetworkName()]
-    if ((await getOrNull('BlueChipVault')) == null) {
-      const markets = vaults.BlueChipVault
-      console.log('Creating Blue Chip vault...')
+    if ((await getOrNull('AsterVault')) == null) {
+      const markets = vaults.AsterVault
+      console.log('Creating Aster vault...')
       process.stdout.write('Setting initial amount approval...')
       await (await dsu.approve(vaultFactory.address, INITIAL_AMOUNT.mul(2).mul(1e12))).wait()
       process.stdout.write('done.\n')
       const oracleAddress0 = await oracleFactory.oracles(markets[0][0])
       const payoffAddress0 = markets[0][1] === '' ? ethers.constants.AddressZero : (await get(markets[0][1])).address
       const initialMarket0 = await marketFactory.markets(oracleAddress0, payoffAddress0)
-      const name = 'Blue Chip'
+      const name = 'Aster'
 
       const vaultAddress = await vaultFactory.callStatic.create(dsu.address, initialMarket0, name)
       const receipt = await (await vaultFactory.create(dsu.address, initialMarket0, name)).wait()
-      await save('BlueChipVault', {
+      await save('AsterVault', {
         ...(await get('VaultImpl')),
         address: vaultAddress,
         receipt,
       })
 
       // TODO: configure vault once market parameters are set
+      // cap: $5M
 
-      // process.stdout.write('configuring...')
-      // const vault = new Vault__factory(deployerSigner).attach(vaultAddress)
-      // const oracleAddress1 = await oracleFactory.oracles(MARKETS[1][0])
-      // const payoffAddress1 = MARKETS[1][1] === '' ? ethers.constants.AddressZero : (await get(MARKETS[1][1])).address
-      // const initialMarket1 = await marketFactory.markets(oracleAddress1, payoffAddress1)
-      // await vault.register(initialMarket1)
-      // await vault.updateMarket(0, 4, ethers.utils.parseUnits('2', 6))
-      // await vault.updateMarket(1, 1, ethers.utils.parseUnits('2', 6))
+      process.stdout.write('configuring...')
+      const vault = new Vault__factory(deployerSigner).attach(vaultAddress)
+      const oracleAddress1 = await oracleFactory.oracles(markets[1][0])
+      const payoffAddress1 = markets[1][1] === '' ? ethers.constants.AddressZero : (await get(markets[1][1])).address
+      const initialMarket1 = await marketFactory.markets(oracleAddress1, payoffAddress1)
+      await vault.register(initialMarket1)
+      await vault.updateMarket(0, 1, ethers.utils.parseUnits('1', 6))
+      await vault.updateMarket(1, 1, ethers.utils.parseUnits('1', 6))
 
-      console.log('Blue Chip Vault created')
+      console.log('Aster Vault created')
     }
 
-    if ((await getOrNull('L2Vault')) == null) {
-      const markets = vaults.L2Vault
-      console.log('Creating L2 Vault...')
+    if ((await getOrNull('BegoniaVault')) == null) {
+      const markets = vaults.BegoniaVault
+      console.log('Creating Begonia Vault...')
       process.stdout.write('Setting initial amount approval...')
       await (await dsu.approve(vaultFactory.address, INITIAL_AMOUNT.mul(2).mul(1e12))).wait()
       process.stdout.write('done.\n')
       const oracleAddress0 = await oracleFactory.oracles(markets[0][0])
       const payoffAddress0 = markets[0][1] === '' ? ethers.constants.AddressZero : (await get(markets[0][1])).address
       const initialMarket0 = await marketFactory.markets(oracleAddress0, payoffAddress0)
-      const name = 'L2'
+      const name = 'Begonia'
 
       const vaultAddress = await vaultFactory.callStatic.create(dsu.address, initialMarket0, name)
       const receipt = await (await vaultFactory.create(dsu.address, initialMarket0, name)).wait()
-      await save('L2Vault', {
+      await save('BegoniaVault', {
         ...(await get('VaultImpl')),
         address: vaultAddress,
         receipt,
       })
 
       // TODO: configure vault once market parameters are set
+      // cap: $2M
 
       // process.stdout.write('configuring...')
-      // const vault = new Vault__factory(deployerSigner).attach(vaultAddress)
-      // const oracleAddress1 = await oracleFactory.oracles(MARKETS[1][0])
-      // const payoffAddress1 = MARKETS[1][1] === '' ? ethers.constants.AddressZero : (await get(MARKETS[1][1])).address
-      // const initialMarket1 = await marketFactory.markets(oracleAddress1, payoffAddress1)
-      // await vault.register(initialMarket1)
-      // await vault.updateMarket(0, 4, ethers.utils.parseUnits('2', 6))
-      // await vault.updateMarket(1, 1, ethers.utils.parseUnits('2', 6))
+      const vault = new Vault__factory(deployerSigner).attach(vaultAddress)
+      const oracleAddress1 = await oracleFactory.oracles(markets[1][0])
+      const payoffAddress1 = markets[1][1] === '' ? ethers.constants.AddressZero : (await get(markets[1][1])).address
+      const initialMarket1 = await marketFactory.markets(oracleAddress1, payoffAddress1)
+      await vault.register(initialMarket1)
+      await vault.updateMarket(0, 1, ethers.utils.parseUnits('1', 6))
+      await vault.updateMarket(1, 1, ethers.utils.parseUnits('1', 6))
 
-      console.log('L2 Vault created')
+      console.log('Begonia Vault created')
     }
   }
 

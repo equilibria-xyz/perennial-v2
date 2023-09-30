@@ -17,16 +17,16 @@ contract PythOracle is IPythOracle, Instance, Kept {
     uint256 constant public MIN_VALID_TIME_AFTER_VERSION = 4 seconds;
 
     /// @dev A Pyth update must come at most this long after a version to be valid
-    uint256 constant public MAX_VALID_TIME_AFTER_VERSION = 7 seconds;
+    uint256 constant public MAX_VALID_TIME_AFTER_VERSION = 10 seconds;
 
     /// @dev After this amount of time has passed for a version without being committed, the version can be invalidated.
     uint256 constant public GRACE_PERIOD = 1 minutes;
 
     /// @dev The multiplier for the keeper reward on top of cost
-    UFixed18 constant public KEEPER_REWARD_PREMIUM = UFixed18.wrap(1.5e18);
+    UFixed18 constant public KEEPER_REWARD_PREMIUM = UFixed18.wrap(3e18);
 
     /// @dev The fixed gas buffer that is added to the keeper reward
-    uint256 constant public KEEPER_BUFFER = 80_000;
+    uint256 constant public KEEPER_BUFFER = 100_000;
 
     /// @dev Pyth contract
     AbstractPyth public immutable pyth;
