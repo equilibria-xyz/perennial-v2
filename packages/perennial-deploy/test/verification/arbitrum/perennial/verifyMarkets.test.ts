@@ -5,22 +5,54 @@ import {
   MarketFactory__factory,
   Market__factory,
   OracleFactory__factory,
+  ProxyAdmin,
+  ProxyAdmin__factory,
 } from '../../../../types/generated'
 import { utils } from 'ethers'
 import { SignerWithAddress } from '@nomiclabs/hardhat-ethers/signers'
 import { OracleFactory } from '@equilibria/perennial-v2-oracle/types/generated'
+import { getLabsMultisig } from '../../../../../common/testutil/constants'
 
 const GAUNTLET_ADDRESS = '0x9B08824A87D79a65dD30Fc5c6B9e734A313E4235'
 
 describe('Verify Markets', () => {
   let signer: SignerWithAddress
+  let proxyAdmin: ProxyAdmin
   let marketFactory: MarketFactory
   let oracleFactory: OracleFactory
+  let labsMultisig: string
 
   beforeEach(async () => {
     ;[signer] = await HRE.ethers.getSigners()
+    proxyAdmin = ProxyAdmin__factory.connect((await HRE.deployments.get('ProxyAdmin')).address, signer)
     marketFactory = MarketFactory__factory.connect((await HRE.deployments.get('MarketFactory')).address, signer)
     oracleFactory = OracleFactory__factory.connect((await HRE.deployments.get('OracleFactory')).address, signer)
+
+    if (!getLabsMultisig('arbitrum')) throw new Error('No Multisig Found')
+    labsMultisig = getLabsMultisig('arbitrum') as string
+  })
+
+  it('MarketFactory', async () => {
+    await expect(marketFactory.callStatic.initialize()).to.be.reverted
+    expect(await marketFactory.callStatic.owner()).to.equal((await HRE.deployments.get('TimelockController')).address)
+    expect(await marketFactory.callStatic.pauser()).to.equal(labsMultisig)
+    expect(await marketFactory.callStatic.implementation()).to.equal((await HRE.deployments.get('MarketImpl')).address)
+    expect(await proxyAdmin.callStatic.getProxyAdmin(marketFactory.address)).to.equal(proxyAdmin.address)
+    expect(await proxyAdmin.callStatic.getProxyImplementation(marketFactory.address)).to.equal(
+      (await HRE.deployments.get('MarketFactoryImpl')).address,
+    )
+  })
+
+  it('Protocol Parameters', async () => {
+    const param = await marketFactory.callStatic.parameter()
+    expect(await marketFactory.paused()).to.be.false
+    expect(param.protocolFee).to.equal(0)
+    expect(param.maxFee).to.equal(0)
+    expect(param.maxFeeAbsolute).to.equal(0)
+    expect(param.maxCut).to.equal(0)
+    expect(param.maxRate).to.equal(0)
+    expect(param.minMaintenance).to.equal(0)
+    expect(param.minEfficiency).to.equal(0)
   })
 
   it('Market: ETH', async () => {
@@ -103,7 +135,7 @@ describe('Verify Markets', () => {
     expect(riskParameter.takerImpactFee).to.equal(utils.parseUnits('0.001', 6))
     expect(riskParameter.makerFee).to.equal(utils.parseUnits('0.0001', 6))
     expect(riskParameter.makerImpactFee).to.equal(0)
-    expect(riskParameter.makerLimit).to.equal(utils.parseUnits('3008', 6)) // $5M
+    expect(riskParameter.makerLimit).to.equal(utils.parseUnits('185.76', 6)) // $5M
     expect(riskParameter.efficiencyLimit).to.equal(utils.parseUnits('0.5', 6))
     expect(riskParameter.liquidationFee).to.equal(utils.parseUnits('0.05', 6))
     expect(riskParameter.minLiquidationFee).to.equal(utils.parseUnits('5', 6))
@@ -152,7 +184,7 @@ describe('Verify Markets', () => {
     expect(riskParameter.takerImpactFee).to.equal(utils.parseUnits('0.001', 6))
     expect(riskParameter.makerFee).to.equal(utils.parseUnits('0.0001', 6))
     expect(riskParameter.makerImpactFee).to.equal(0)
-    expect(riskParameter.makerLimit).to.equal(utils.parseUnits('3008', 6)) // $5M
+    expect(riskParameter.makerLimit).to.equal(utils.parseUnits('98570.724', 6)) // $2M
     expect(riskParameter.efficiencyLimit).to.equal(utils.parseUnits('0.5', 6))
     expect(riskParameter.liquidationFee).to.equal(utils.parseUnits('0.05', 6))
     expect(riskParameter.minLiquidationFee).to.equal(utils.parseUnits('5', 6))
@@ -201,7 +233,7 @@ describe('Verify Markets', () => {
     expect(riskParameter.takerImpactFee).to.equal(utils.parseUnits('0.001', 6))
     expect(riskParameter.makerFee).to.equal(utils.parseUnits('0.0001', 6))
     expect(riskParameter.makerImpactFee).to.equal(0)
-    expect(riskParameter.makerLimit).to.equal(utils.parseUnits('3008', 6)) // $5M
+    expect(riskParameter.makerLimit).to.equal(utils.parseUnits('3794490.40', 6)) // $2M
     expect(riskParameter.efficiencyLimit).to.equal(utils.parseUnits('0.5', 6))
     expect(riskParameter.liquidationFee).to.equal(utils.parseUnits('0.05', 6))
     expect(riskParameter.minLiquidationFee).to.equal(utils.parseUnits('5', 6))

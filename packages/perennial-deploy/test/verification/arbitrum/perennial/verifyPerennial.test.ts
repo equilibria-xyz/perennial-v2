@@ -1,34 +1,26 @@
 import HRE from 'hardhat'
 import { expect } from 'chai'
 import {
-  MarketFactory,
-  MarketFactory__factory,
   ProxyAdmin,
   ProxyAdmin__factory,
   TimelockController,
   TimelockController__factory,
 } from '../../../../types/generated'
-import { getLabsMultisig, getMultisigAddress } from '../../../../../common/testutil/constants'
+import { getMultisigAddress } from '../../../../../common/testutil/constants'
 import ethers from 'ethers'
 
 describe('Verify Perennial', () => {
   let timelock: TimelockController
   let proxyAdmin: ProxyAdmin
-  let marketFactory: MarketFactory
   let multisig: string
-  let labsMultisig: string
 
   beforeEach(async () => {
     const { deployments, ethers } = HRE
     const [signer] = await ethers.getSigners()
     timelock = TimelockController__factory.connect((await deployments.get('TimelockController')).address, signer)
     proxyAdmin = ProxyAdmin__factory.connect((await deployments.get('ProxyAdmin')).address, signer)
-    marketFactory = MarketFactory__factory.connect((await deployments.get('MarketFactory')).address, signer)
     if (!getMultisigAddress('arbitrum')) throw new Error('No Multisig Found')
     multisig = getMultisigAddress('arbitrum') as string
-
-    if (!getLabsMultisig('arbitrum')) throw new Error('No Multisig Found')
-    labsMultisig = getLabsMultisig('arbitrum') as string
   })
 
   it('TimelockController', async () => {
@@ -77,28 +69,5 @@ describe('Verify Perennial', () => {
 
   it('ProxyAdmin', async () => {
     expect(await proxyAdmin.callStatic.owner()).to.equal(timelock.address)
-  })
-
-  it('MarketFactory', async () => {
-    await expect(marketFactory.callStatic.initialize()).to.be.reverted
-    expect(await marketFactory.callStatic.owner()).to.equal(timelock.address)
-    expect(await marketFactory.callStatic.pauser()).to.equal(labsMultisig)
-    expect(await marketFactory.callStatic.implementation()).to.equal((await HRE.deployments.get('MarketImpl')).address)
-    expect(await proxyAdmin.callStatic.getProxyAdmin(marketFactory.address)).to.equal(proxyAdmin.address)
-    expect(await proxyAdmin.callStatic.getProxyImplementation(marketFactory.address)).to.equal(
-      (await HRE.deployments.get('MarketFactoryImpl')).address,
-    )
-  })
-
-  it('Protocol Parameters', async () => {
-    const param = await marketFactory.callStatic.parameter()
-    expect(await marketFactory.paused()).to.be.false
-    expect(param.protocolFee).to.equal(0)
-    expect(param.maxFee).to.equal(0)
-    expect(param.maxFeeAbsolute).to.equal(0)
-    expect(param.maxCut).to.equal(0)
-    expect(param.maxRate).to.equal(0)
-    expect(param.minMaintenance).to.equal(0)
-    expect(param.minEfficiency).to.equal(0)
   })
 })

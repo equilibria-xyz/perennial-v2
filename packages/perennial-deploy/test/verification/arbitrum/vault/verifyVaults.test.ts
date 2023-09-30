@@ -73,10 +73,10 @@ describe('Verify Vault', () => {
 
     expect(!!address).to.be.true
 
-    const asterVault = Vault__factory.connect(address, signer)
-    expect((await asterVault.callStatic.parameter()).cap).to.equal(utils.parseUnits('2000000', 6))
+    const begoniaVault = Vault__factory.connect(address, signer)
+    expect((await begoniaVault.callStatic.parameter()).cap).to.equal(utils.parseUnits('2000000', 6))
 
-    const solRegistration = await asterVault.registrations(0)
+    const solRegistration = await begoniaVault.registrations(0)
     expect(solRegistration.market).to.equal(
       await marketFactory.markets(
         await oracleFactory.oracles('0xef0d8b6fda2ceba41da15d4095d1da392a0d2f8ed0c6c7bc0f4cfac8c280b56d'),
@@ -86,7 +86,7 @@ describe('Verify Vault', () => {
     expect(solRegistration.weight).to.equal(1)
     expect(solRegistration.leverage).to.equal(utils.parseUnits('1', 6))
 
-    const maticRegistration = await asterVault.registrations(0)
+    const maticRegistration = await begoniaVault.registrations(0)
     expect(maticRegistration.market).to.equal(
       await marketFactory.markets(
         await oracleFactory.oracles('0x5de33a9112c2b700b8d30b8a3402c103578ccfa2765696471cc672bd5cf6ac52'),
