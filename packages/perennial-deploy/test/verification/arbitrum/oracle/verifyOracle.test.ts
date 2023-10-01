@@ -44,6 +44,6 @@ describe('Verify Oracle', () => {
     expect(await pythFactory.callStatic.implementation()).to.equal(
       (await HRE.deployments.get('PythOracleImpl')).address,
     )
-    expect(await pythFactory.callStatic.granularity()).to.equal(10)
+    expect((await pythFactory.callStatic.granularity()).currentGranularity).to.equal(10)
   })
 })

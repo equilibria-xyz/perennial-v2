@@ -8,7 +8,7 @@ import {
   OracleFactory__factory,
   ProxyAdmin__factory,
 } from '../types/generated'
-import { forkNetwork, isFork, isMainnet, isTestnet } from '../../common/testutil/network'
+import { forkNetwork, isFork, isMainnet } from '../../common/testutil/network'
 import { ORACLE_IDS } from './003_deploy_oracle'
 import { getLabsMultisig } from '../../common/testutil/constants'
 
@@ -34,7 +34,7 @@ const DEFAULT_MARKET_PARAMETER = {
   makerRewardRate: 0,
   longRewardRate: 0,
   shortRewardRate: 0,
-  settlementFee: utils.parseUnits('0', 6), // probably $1.50
+  settlementFee: utils.parseUnits('1.5', 6),
   makerCloseAlways: false,
   takerCloseAlways: true,
   closed: false,
@@ -48,7 +48,7 @@ const DEFAULT_RISK_PARAMETERS = {
   takerImpactFee: utils.parseUnits('0.001', 6),
   makerFee: utils.parseUnits('0.0001', 6),
   makerImpactFee: 0,
-  makerLimit: utils.parseUnits('1', 6), // $5M BTC/ETH and $2.5 MATIC/SOL
+  makerLimit: utils.parseUnits('1', 6),
   efficiencyLimit: utils.parseUnits('0.5', 6),
   liquidationFee: utils.parseUnits('0.05', 6),
   minLiquidationFee: utils.parseUnits('5', 6),

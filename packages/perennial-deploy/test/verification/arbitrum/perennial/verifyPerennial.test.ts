@@ -7,7 +7,7 @@ import {
   TimelockController__factory,
 } from '../../../../types/generated'
 import { getMultisigAddress } from '../../../../../common/testutil/constants'
-import ethers from 'ethers'
+import { constants } from 'ethers'
 
 describe('Verify Perennial', () => {
   let timelock: TimelockController
@@ -60,11 +60,11 @@ describe('Verify Perennial', () => {
     expect(await timelock.callStatic.hasRole(TIMELOCK_ADMIN_ROLE, timelock.address)).to.be.true
 
     // Zero address (open role) should be able to execute
-    expect(await timelock.callStatic.hasRole(ADMIN_ROLE, ethers.constants.AddressZero)).to.be.false
-    expect(await timelock.callStatic.hasRole(PROPOSER_ROLE, ethers.constants.AddressZero)).to.be.false
-    expect(await timelock.callStatic.hasRole(EXECUTOR_ROLE, ethers.constants.AddressZero)).to.be.true
-    expect(await timelock.callStatic.hasRole(CANCELLER_ROLE, ethers.constants.AddressZero)).to.be.false
-    expect(await timelock.callStatic.hasRole(TIMELOCK_ADMIN_ROLE, ethers.constants.AddressZero)).to.be.false
+    expect(await timelock.callStatic.hasRole(ADMIN_ROLE, constants.AddressZero)).to.be.false
+    expect(await timelock.callStatic.hasRole(PROPOSER_ROLE, constants.AddressZero)).to.be.false
+    expect(await timelock.callStatic.hasRole(EXECUTOR_ROLE, constants.AddressZero)).to.be.true
+    expect(await timelock.callStatic.hasRole(CANCELLER_ROLE, constants.AddressZero)).to.be.false
+    expect(await timelock.callStatic.hasRole(TIMELOCK_ADMIN_ROLE, constants.AddressZero)).to.be.false
   })
 
   it('ProxyAdmin', async () => {

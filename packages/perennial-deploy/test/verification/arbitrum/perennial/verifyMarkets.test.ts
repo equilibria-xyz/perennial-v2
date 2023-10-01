@@ -8,7 +8,7 @@ import {
   ProxyAdmin,
   ProxyAdmin__factory,
 } from '../../../../types/generated'
-import { utils } from 'ethers'
+import { utils, constants } from 'ethers'
 import { SignerWithAddress } from '@nomiclabs/hardhat-ethers/signers'
 import { OracleFactory } from '@equilibria/perennial-v2-oracle/types/generated'
 import { getLabsMultisig } from '../../../../../common/testutil/constants'
@@ -47,20 +47,21 @@ describe('Verify Markets', () => {
     const param = await marketFactory.callStatic.parameter()
     expect(await marketFactory.paused()).to.be.false
     expect(param.protocolFee).to.equal(0)
-    expect(param.maxFee).to.equal(0)
-    expect(param.maxFeeAbsolute).to.equal(0)
-    expect(param.maxCut).to.equal(0)
-    expect(param.maxRate).to.equal(0)
-    expect(param.minMaintenance).to.equal(0)
-    expect(param.minEfficiency).to.equal(0)
+    expect(param.maxFee).to.equal(utils.parseUnits('0.002', 6))
+    expect(param.maxFeeAbsolute).to.equal(utils.parseUnits('50', 6))
+    expect(param.maxCut).to.equal(utils.parseUnits('0.1', 6))
+    expect(param.maxRate).to.equal(utils.parseUnits('5.00', 6))
+    expect(param.minMaintenance).to.equal(utils.parseUnits('0.004', 6))
+    expect(param.minEfficiency).to.equal(utils.parseUnits('0.25', 6))
   })
 
   it('Market: ETH', async () => {
     const pythId = '0xff61491a931112ddf1bd8147cd1b641375f79f5825126d665480874634fd0ace'
     const oracle = await oracleFactory.callStatic.oracles(pythId)
-    const ethMarket = Market__factory.connect(await marketFactory.callStatic.markets(oracle, ''), signer)
-
-    expect(await ethMarket.coordinator()).to.equal(GAUNTLET_ADDRESS)
+    const ethMarket = Market__factory.connect(
+      await marketFactory.callStatic.markets(oracle, constants.AddressZero),
+      signer,
+    )
 
     const parameter = await ethMarket.callStatic.parameter()
     expect(parameter.fundingFee).to.equal(utils.parseUnits('0.05', 6))
@@ -102,12 +103,17 @@ describe('Verify Markets', () => {
     expect(riskParameter.virtualTaker).to.equal(0)
     expect(riskParameter.staleAfter).to.equal(60)
     expect(riskParameter.makerReceiveOnly).to.be.false
+
+    expect(await ethMarket.coordinator()).to.equal(GAUNTLET_ADDRESS)
   })
 
   it('Market: BTC', async () => {
     const pythId = '0xe62df6c8b4a85fe1a67db44dc12de5db330f7ac66b72dc658afedf0f4a415b43'
     const oracle = await oracleFactory.callStatic.oracles(pythId)
-    const btcMarket = Market__factory.connect(await marketFactory.callStatic.markets(oracle, ''), signer)
+    const btcMarket = Market__factory.connect(
+      await marketFactory.callStatic.markets(oracle, constants.AddressZero),
+      signer,
+    )
 
     expect(await btcMarket.coordinator()).to.equal(GAUNTLET_ADDRESS)
 
@@ -156,7 +162,10 @@ describe('Verify Markets', () => {
   it('Market: SOL', async () => {
     const pythId = '0xef0d8b6fda2ceba41da15d4095d1da392a0d2f8ed0c6c7bc0f4cfac8c280b56d'
     const oracle = await oracleFactory.callStatic.oracles(pythId)
-    const solMarket = Market__factory.connect(await marketFactory.callStatic.markets(oracle, ''), signer)
+    const solMarket = Market__factory.connect(
+      await marketFactory.callStatic.markets(oracle, constants.AddressZero),
+      signer,
+    )
 
     expect(await solMarket.coordinator()).to.equal(GAUNTLET_ADDRESS)
 
@@ -205,7 +214,10 @@ describe('Verify Markets', () => {
   it('Market: MATIC', async () => {
     const pythId = '0x5de33a9112c2b700b8d30b8a3402c103578ccfa2765696471cc672bd5cf6ac52'
     const oracle = await oracleFactory.callStatic.oracles(pythId)
-    const maticMarket = Market__factory.connect(await marketFactory.callStatic.markets(oracle, ''), signer)
+    const maticMarket = Market__factory.connect(
+      await marketFactory.callStatic.markets(oracle, constants.AddressZero),
+      signer,
+    )
 
     expect(await maticMarket.coordinator()).to.equal(GAUNTLET_ADDRESS)
 
