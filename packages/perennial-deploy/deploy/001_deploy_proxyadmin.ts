@@ -25,7 +25,7 @@ const func: DeployFunction = async function (hre: HardhatRuntimeEnvironment) {
   }
 
   // If mainnet, use timelock as owner
-  const owner = isMainnet(getNetworkName()) ? deployer /* (await get('TimelockController')).address */ : deployer
+  const owner = isMainnet(getNetworkName()) ? (await get('TimelockController')).address : deployer
   if (owner === deployer) console.log('[WARNING] Testnet detected, timelock will not be set as owner')
 
   // Deploy ProxyAdmin
