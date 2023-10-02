@@ -57,7 +57,7 @@ describe('Verify Vault', () => {
     expect(ethRegistration.weight).to.equal(1)
     expect(ethRegistration.leverage).to.equal(utils.parseUnits('1', 6))
 
-    const btcRegistration = await asterVault.registrations(0)
+    const btcRegistration = await asterVault.registrations(1)
     expect(btcRegistration.market).to.equal(
       await marketFactory.markets(
         await oracleFactory.oracles('0xe62df6c8b4a85fe1a67db44dc12de5db330f7ac66b72dc658afedf0f4a415b43'),
@@ -86,7 +86,7 @@ describe('Verify Vault', () => {
     expect(solRegistration.weight).to.equal(1)
     expect(solRegistration.leverage).to.equal(utils.parseUnits('1', 6))
 
-    const maticRegistration = await begoniaVault.registrations(0)
+    const maticRegistration = await begoniaVault.registrations(1)
     expect(maticRegistration.market).to.equal(
       await marketFactory.markets(
         await oracleFactory.oracles('0x5de33a9112c2b700b8d30b8a3402c103578ccfa2765696471cc672bd5cf6ac52'),
