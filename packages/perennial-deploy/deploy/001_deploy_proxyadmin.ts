@@ -11,7 +11,7 @@ const func: DeployFunction = async function (hre: HardhatRuntimeEnvironment) {
   const { deployer } = await getNamedAccounts()
   const deployerSigner: SignerWithAddress = await ethers.getSigner(deployer)
 
-  const TIMELOCK_MIN_DELAY = isTestnet(getNetworkName()) ? 60 : 2 * 24 * 60 * 60 // 2 days
+  const TIMELOCK_MIN_DELAY = isTestnet(getNetworkName()) ? 60 : 60 // 60s
 
   if (isMainnet(getNetworkName())) {
     const multisigAddress = getMultisigAddress(getNetworkName())

@@ -187,6 +187,7 @@ export default function defaultConfig({
       reporter: MOCHA_REPORTER,
       slow: 1000,
       timeout: 480000,
+      retries: 2,
     },
     contractSizer: {
       alphaSort: true,

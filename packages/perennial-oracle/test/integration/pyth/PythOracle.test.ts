@@ -102,7 +102,7 @@ testOracles.forEach(testOracle => {
       const oracleImpl = await new Oracle__factory(owner).deploy()
       oracleFactory = await new OracleFactory__factory(owner).deploy(oracleImpl.address)
       await oracleFactory.initialize(dsu.address)
-      await oracleFactory.updateMaxClaim(parse6decimal('10'))
+      await oracleFactory.updateMaxClaim(parse6decimal('100'))
 
       const pythOracleImpl = await new testOracle.Oracle(owner).deploy(PYTH_ADDRESS)
       pythOracleFactory = await new PythFactory__factory(owner).deploy(
@@ -176,7 +176,7 @@ testOracles.forEach(testOracle => {
       })
 
       it('#MAX_VALID_TIME_AFTER_VERSION', async () => {
-        expect(await pythOracle.MAX_VALID_TIME_AFTER_VERSION()).to.equal(7)
+        expect(await pythOracle.MAX_VALID_TIME_AFTER_VERSION()).to.equal(10)
       })
 
       it('#GRACE_PERIOD', async () => {
@@ -184,11 +184,11 @@ testOracles.forEach(testOracle => {
       })
 
       it('#KEEPER_REWARD_PREMIUM', async () => {
-        expect(await pythOracle.KEEPER_REWARD_PREMIUM()).to.equal(utils.parseEther('1.5'))
+        expect(await pythOracle.KEEPER_REWARD_PREMIUM()).to.equal(utils.parseEther('3'))
       })
 
       it('#KEEPER_BUFFER', async () => {
-        expect(await pythOracle.KEEPER_BUFFER()).to.equal(80000)
+        expect(await pythOracle.KEEPER_BUFFER()).to.equal(1000000)
       })
     })
 
@@ -210,13 +210,10 @@ testOracles.forEach(testOracle => {
         const newDSUBalance = await dsu.callStatic.balanceOf(user.address)
         const newFactoryDSUBalance = await dsu.callStatic.balanceOf(oracleFactory.address)
 
-        expect(newDSUBalance.sub(originalDSUBalance)).to.be.within(
-          ethers.utils.parseEther('0.10'),
-          utils.parseEther('0.11'),
-        )
+        expect(newDSUBalance.sub(originalDSUBalance)).to.be.within(utils.parseEther('0.30'), utils.parseEther('0.40'))
         expect(originalFactoryDSUBalance.sub(newFactoryDSUBalance)).to.be.within(
-          ethers.utils.parseEther('0.10'),
-          utils.parseEther('0.11'),
+          utils.parseEther('0.30'),
+          utils.parseEther('0.40'),
         )
       })
 
@@ -448,10 +445,7 @@ testOracles.forEach(testOracle => {
         })
         const newDSUBalance = await dsu.callStatic.balanceOf(user.address)
 
-        expect(newDSUBalance.sub(originalDSUBalance)).to.be.within(
-          ethers.utils.parseEther('0.09'),
-          ethers.utils.parseEther('0.11'),
-        )
+        expect(newDSUBalance.sub(originalDSUBalance)).to.be.within(utils.parseEther('0.30'), utils.parseEther('0.40'))
       })
 
       it('does not commitRequested if oracleVersion is incorrect', async () => {

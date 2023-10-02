@@ -1,4 +1,4 @@
-import { utils } from 'ethers'
+import { utils, constants } from 'ethers'
 import { HardhatRuntimeEnvironment } from 'hardhat/types'
 import { DeployFunction } from 'hardhat-deploy/types'
 import { SignerWithAddress } from '@nomiclabs/hardhat-ethers/signers'
@@ -8,17 +8,19 @@ import {
   OracleFactory__factory,
   ProxyAdmin__factory,
 } from '../types/generated'
-import { forkNetwork, isFork, isMainnet, isTestnet } from '../../common/testutil/network'
+import { forkNetwork, isFork, isMainnet } from '../../common/testutil/network'
 import { ORACLE_IDS } from './003_deploy_oracle'
+import { getLabsMultisig } from '../../common/testutil/constants'
 
+// TODO: 2x what expected gauntlet values are
 const DEFAULT_PROTOCOL_PARAMETER = {
   protocolFee: 0,
-  maxFee: utils.parseUnits('0.1', 6),
-  maxFeeAbsolute: utils.parseUnits('1000', 6),
-  maxCut: utils.parseUnits('0.50', 6),
-  maxRate: utils.parseUnits('10.00', 6),
-  minMaintenance: utils.parseUnits('0.001', 6),
-  minEfficiency: utils.parseUnits('0.1', 6),
+  maxFee: utils.parseUnits('0.002', 6), // 0.2%
+  maxFeeAbsolute: utils.parseUnits('50', 6), // $50
+  maxCut: utils.parseUnits('0.1', 6), // 10%
+  maxRate: utils.parseUnits('5.00', 6), // 500%
+  minMaintenance: utils.parseUnits('0.004', 6), // 0.4%
+  minEfficiency: utils.parseUnits('0.25', 6), // 25%
 }
 
 const DEFAULT_MARKET_PARAMETER = {
@@ -27,30 +29,30 @@ const DEFAULT_MARKET_PARAMETER = {
   positionFee: utils.parseUnits('0.05', 6),
   oracleFee: 0,
   riskFee: utils.parseUnits('1', 6),
-  maxPendingGlobal: 5,
-  maxPendingLocal: 5,
+  maxPendingGlobal: 12,
+  maxPendingLocal: 6,
   makerRewardRate: 0,
   longRewardRate: 0,
   shortRewardRate: 0,
-  settlementFee: utils.parseUnits('1', 6),
+  settlementFee: utils.parseUnits('1.5', 6),
   makerCloseAlways: false,
-  takerCloseAlways: false,
+  takerCloseAlways: true,
   closed: false,
 }
 
 const DEFAULT_RISK_PARAMETERS = {
-  margin: utils.parseUnits('0.01', 6),
-  maintenance: utils.parseUnits('0.009', 6),
-  takerFee: utils.parseUnits('0.000025', 6),
+  margin: utils.parseUnits('0.0095', 6),
+  maintenance: utils.parseUnits('0.008', 6),
+  takerFee: utils.parseUnits('0.0002', 6),
   takerSkewFee: utils.parseUnits('0.001', 6),
-  takerImpactFee: utils.parseUnits('0.004', 6),
-  makerFee: 0,
-  makerImpactFee: utils.parseUnits('0.001', 6),
-  makerLimit: utils.parseUnits('10000000', 6),
-  efficiencyLimit: utils.parseUnits('0.2', 6),
+  takerImpactFee: utils.parseUnits('0.001', 6),
+  makerFee: utils.parseUnits('0.0001', 6),
+  makerImpactFee: 0,
+  makerLimit: utils.parseUnits('1', 6),
+  efficiencyLimit: utils.parseUnits('0.5', 6),
   liquidationFee: utils.parseUnits('0.05', 6),
-  minLiquidationFee: utils.parseUnits('0', 6),
-  maxLiquidationFee: utils.parseUnits('1000', 6),
+  minLiquidationFee: utils.parseUnits('5', 6),
+  maxLiquidationFee: utils.parseUnits('25', 6),
   utilizationCurve: {
     minRate: 0,
     maxRate: utils.parseUnits('0.155', 6),
@@ -58,13 +60,13 @@ const DEFAULT_RISK_PARAMETERS = {
     targetUtilization: utils.parseUnits('0.60', 6),
   },
   pController: {
-    k: utils.parseUnits('75000', 6),
-    max: utils.parseUnits('1.50', 6),
+    k: utils.parseUnits('20000', 6),
+    max: utils.parseUnits('2.50', 6),
   },
-  minMargin: utils.parseUnits('5', 6),
-  minMaintenance: utils.parseUnits('5', 6),
+  minMargin: utils.parseUnits('10', 6),
+  minMaintenance: utils.parseUnits('10', 6),
   virtualTaker: 0,
-  staleAfter: 30,
+  staleAfter: 7200,
   makerReceiveOnly: false,
 }
 
@@ -87,8 +89,9 @@ const func: DeployFunction = async function (hre: HardhatRuntimeEnvironment) {
   const { deployments, getNamedAccounts, ethers } = hre
   const { deploy, get, getNetworkName } = deployments
   const { deployer } = await getNamedAccounts()
+  const labsMultisig = getLabsMultisig(getNetworkName())
   const deployerSigner: SignerWithAddress = await ethers.getSigner(deployer)
-  const deployMarkets = isTestnet(getNetworkName())
+  const deployMarkets = true
 
   const proxyAdmin = new ProxyAdmin__factory(deployerSigner).attach((await get('ProxyAdmin')).address)
 
@@ -148,6 +151,12 @@ const func: DeployFunction = async function (hre: HardhatRuntimeEnvironment) {
     process.stdout.write('complete\n')
   }
 
+  if ((await marketFactory.pauser()) === constants.AddressZero && !!labsMultisig) {
+    process.stdout.write('Updating protocol pauser...')
+    await marketFactory.updatePauser(labsMultisig)
+    process.stdout.write('complete\n')
+  }
+
   // Create markets
   if (deployMarkets) {
     const markets = isFork() ? MARKETS[forkNetwork()] : MARKETS[getNetworkName()]
@@ -162,6 +171,12 @@ const func: DeployFunction = async function (hre: HardhatRuntimeEnvironment) {
         ethers.constants.AddressZero.toLowerCase()
       ) {
         process.stdout.write(`Creating market with oracle ${marketDefinition[0]} and payoff ${marketDefinition[1]}...`)
+        const marketAddress = await marketFactory.callStatic.create({
+          token: (await get('DSU')).address,
+          oracle: oracleAddress,
+          payoff: payoffAddress,
+        })
+        process.stdout.write(`deploying at ${marketAddress}...`)
         await (
           await marketFactory.create({
             token: (await get('DSU')).address,
