@@ -25,9 +25,9 @@ export default task('commit-price', 'Commits a price for the given price id')
     )
 
     const pyth = new EvmPriceServiceConnection(PYTH_ENDPOINT, { priceFeedRequestConfig: { binary: true } })
-    const [minValidTime, nextVersionIndexToCommit] = await Promise.all([
+    const [minValidTime, versionListLength] = await Promise.all([
       pythProvider.callStatic.MIN_VALID_TIME_AFTER_VERSION(),
-      pythProvider.callStatic.nextVersionIndexToCommit(),
+      pythProvider.callStatic.versionListLength(),
     ])
 
     const vaa = await getRecentVaa({
@@ -36,7 +36,7 @@ export default task('commit-price', 'Commits a price for the given price id')
     })
 
     console.log('Committing VAA')
-    const hash = await pythProvider.commit(nextVersionIndexToCommit, vaa[0].version, vaa[0].vaa, { value: 1n })
+    const { hash } = await pythProvider.commit(versionListLength, vaa[0].version, vaa[0].vaa, { value: 1n })
     console.log('VAA committed. Hash:', hash)
   })
 
