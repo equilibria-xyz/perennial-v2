@@ -2,7 +2,6 @@ import fetch from 'isomorphic-fetch'
 import '@nomiclabs/hardhat-ethers'
 import { task } from 'hardhat/config'
 import { HardhatRuntimeEnvironment, TaskArguments } from 'hardhat/types'
-import { Factory__factory, ProxyAdmin__factory } from '../types/generated'
 
 export default task('verify-proxies', 'Verifies proxies on Etherscan for the given network').setAction(
   async (args: TaskArguments, HRE: HardhatRuntimeEnvironment) => {
@@ -16,7 +15,7 @@ export default task('verify-proxies', 'Verifies proxies on Etherscan for the giv
     const proxyVerifyUrl = `${res.urls.apiURL}?module=contract&action=verifyproxycontract&apikey=${apiKey}`
     const proxyVerifyStatusUrl = `${res.urls.apiURL}?module=contract&action=checkproxyverification&apikey=${apiKey}"`
 
-    const proxyAdmin = ProxyAdmin__factory.connect((await get('ProxyAdmin')).address, ethers.provider)
+    const proxyAdmin = await ethers.getContractAt('ProxyAdmin', (await get('ProxyAdmin')).address)
     const allDeployments = await all()
     const proxies = await Promise.all(
       Object.entries(allDeployments)
@@ -30,7 +29,7 @@ export default task('verify-proxies', 'Verifies proxies on Etherscan for the giv
     const factories = proxies.filter(({ name }) => name.endsWith('Factory') && name !== 'PayoffFactory')
     const instances = await Promise.all(
       factories.map(async ({ name, deployment }) => {
-        const contract = Factory__factory.connect(deployment.address, ethers.provider)
+        const contract = await ethers.getContractAt('Factory', deployment.address)
         const impl = await contract.callStatic.implementation()
         const res = await contract.queryFilter(contract.filters.InstanceRegistered())
         return res.map(({ args }) => ({
