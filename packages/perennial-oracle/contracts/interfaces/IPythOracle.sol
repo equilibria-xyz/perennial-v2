@@ -21,9 +21,12 @@ interface IPythOracle is IOracleProvider, IInstance, IKept {
     error PythOracleInvalidPriceIdError(bytes32 id);
     // sig: 0x9b4e67d3
     error PythOracleVersionOutsideRangeError();
+    // sig: 0x877b27c9
+    error PythOracleInvalidDataError();
 
     function initialize(bytes32 id_, AggregatorV3Interface chainlinkFeed_, Token18 dsu_) external;
     function commit(uint256 version, bytes calldata data) external payable;
+    function next() external returns (uint256);
 
     function MIN_VALID_TIME_AFTER_VERSION() external view returns (uint256);
     function MAX_VALID_TIME_AFTER_VERSION() external view returns (uint256);
@@ -31,9 +34,7 @@ interface IPythOracle is IOracleProvider, IInstance, IKept {
     function KEEPER_REWARD_PREMIUM() external view returns (UFixed18);
     function KEEPER_BUFFER() external view returns (uint256);
     function versions(uint256 index) external view returns (uint256);
-    function latestVersion() external view returns (uint256);
-    function currentIndex() external view returns (uint256);
-    function latestIndex() external view returns (uint256);
+    function global() external view returns (Global memory);
 }
 
 /// @dev PythStaticFee interface, this is not exposed in the AbstractPyth contract

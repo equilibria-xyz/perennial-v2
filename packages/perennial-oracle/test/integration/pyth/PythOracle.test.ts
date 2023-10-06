@@ -304,7 +304,7 @@ testOracles.forEach(testOracle => {
 
       it('cant commit non-requested version until after an invalid has passed grace period', async () => {
         await pythOracle.connect(oracleSigner).request(user.address)
-        expect(await pythOracle.latestIndex()).to.equal(0)
+        expect((await pythOracle.global()).latestIndex).to.equal(0)
 
         await time.increase(59)
         await expect(
@@ -316,7 +316,7 @@ testOracles.forEach(testOracle => {
 
       it('can commit non-requested version after an invalid', async () => {
         await pythOracle.connect(oracleSigner).request(user.address)
-        expect(await pythOracle.latestIndex()).to.equal(0)
+        expect((await pythOracle.global()).latestIndex).to.equal(0)
 
         await time.increase(60)
         await pythOracle.connect(user).commit(STARTING_TIME, '0x')
@@ -324,7 +324,7 @@ testOracles.forEach(testOracle => {
           value: 1,
         })
         expect((await pythOracle.latest()).timestamp).to.equal(STARTING_TIME + 60)
-        expect(await pythOracle.latestIndex()).to.equal(1)
+        expect((await pythOracle.global()).latestIndex).to.equal(1)
 
         expect(
           pythOracle.connect(user).commit(STARTING_TIME, VAA, {
@@ -358,26 +358,26 @@ testOracles.forEach(testOracle => {
     describe('#request', async () => {
       it('can request a version', async () => {
         // No requested versions
-        expect(await pythOracle.currentIndex()).to.equal(0)
+        expect((await pythOracle.global()).currentIndex).to.equal(0)
         await expect(pythOracle.connect(oracleSigner).request(user.address))
           .to.emit(pythOracle, 'OracleProviderVersionRequested')
           .withArgs('1686198981')
         // Now there is exactly one requested version
         expect(await pythOracle.versions(1)).to.equal(STARTING_TIME)
-        expect(await pythOracle.currentIndex()).to.equal(1)
+        expect((await pythOracle.global()).currentIndex).to.equal(1)
       })
 
       it('can request a version w/ granularity', async () => {
         await pythOracleFactory.updateGranularity(10)
 
         // No requested versions
-        expect(await pythOracle.currentIndex()).to.equal(0)
+        expect((await pythOracle.global()).currentIndex).to.equal(0)
         await pythOracle.connect(oracleSigner).request(user.address)
         const currentTimestamp = await pythOracleFactory.current()
 
         // Now there is exactly one requested version
         expect(await pythOracle.versions(1)).to.equal(currentTimestamp)
-        expect(await pythOracle.currentIndex()).to.equal(1)
+        expect((await pythOracle.global()).currentIndex).to.equal(1)
       })
 
       it('does not allow unauthorized instances to request', async () => {

@@ -29,8 +29,6 @@ import { MilliPowerTwo__factory } from '@equilibria/perennial-v2-payoff/types/ge
 const { ethers } = HRE
 use(smock.matchers)
 
-// TODO: add tests for latest being invalid
-
 const POSITION = parse6decimal('10.000')
 const COLLATERAL = parse6decimal('10000')
 const TIMESTAMP = 1636401093

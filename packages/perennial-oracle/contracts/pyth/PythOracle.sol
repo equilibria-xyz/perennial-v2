@@ -61,10 +61,16 @@ contract PythOracle is IPythOracle, Instance, Kept {
         id = id_;
     }
 
-    // TODO
-    function latestVersion() external view returns (uint256) { return _global.latestVersion; }
-    function currentIndex() external view returns (uint256) { return _global.currentIndex; }
-    function latestIndex() external view returns (uint256) { return _global.latestIndex; }
+    /// @notice Returns the global state of the oracle
+    /// @return The global state of the oracle
+    function global() external view returns (Global memory) { return _global; }
+
+    /// @notice Returns the next requested oracle version
+    /// @dev Returns 0 if no next version is requested
+    /// @return The next requested oracle version
+    function next() public returns (uint256) {
+        return versions[_global.latestIndex + 1];
+    }
 
     /// @notice Records a request for a new oracle version
     /// @dev Original sender to optionally use for callbacks
@@ -110,30 +116,50 @@ contract PythOracle is IPythOracle, Instance, Kept {
     /// @param version The oracle version to commit
     /// @param data The update data to commit
     function commit(uint256 version, bytes calldata data) external payable {
-        if (_global.latestIndex < _global.currentIndex && version == versions[_global.latestIndex + 1]) _commitRequested(version, data);
+        if (version == 0) revert PythOracleVersionOutsideRangeError();
+        if (version == next()) _commitRequested(version, data);
         else _commitUnrequested(version, data);
         _global.latestVersion = uint64(version);
     }
 
-    // TODO
-    function _commitRequested(uint256 version, bytes calldata data)
-        private
-        keep(KEEPER_REWARD_PREMIUM, KEEPER_BUFFER, data, "")
-    {
-        _prices[version] = (block.timestamp > versions[_global.latestIndex + 1] + GRACE_PERIOD) ?
-            Fixed6Lib.ZERO : // TODO: verify that data is empty, or should it be (race condition)?
-            _parsePrice(version, data);
+    /// @notice Commits the price to a requested version
+    /// @dev This commit function will pay out a keeper reward if the committed version is valid
+    /// @param version The oracle version to commit
+    /// @param data The update data to commit
+    function _commitRequested(uint256 version, bytes calldata data) private {
+        if (block.timestamp > (next() + GRACE_PERIOD)) _commitInvalidRequested(version, data);
+        else _commitValidRequested(version, data);
         _global.latestIndex++;
     }
 
-    // TODO
-    function _commitUnrequested(uint256 version, bytes calldata data) private {
-        if (
-            version <= _global.latestVersion ||
-            (_global.latestIndex != 0 && version <= versions[_global.latestIndex]) ||
-            (_global.latestIndex != _global.currentIndex && version >= versions[_global.latestIndex + 1])
-        ) revert PythOracleVersionOutsideRangeError();
+    /// @notice Commits the price to a valid requested version
+    /// @dev The keeper reward will take into account the data cost
+    /// @param version The oracle version to commit
+    /// @param data The update data to commit
+    function _commitValidRequested(uint256 version, bytes calldata data)
+        private
+        keep(KEEPER_REWARD_PREMIUM, KEEPER_BUFFER, data, "")
+    {
+        _prices[version] = _parsePrice(version, data);
+    }
 
+    /// @notice Commits the price to am invalid requested version
+    /// @dev The keeper reward will not take into account the data cost
+    /// @param version The oracle version to commit
+    /// @param data The update data to commit
+    function _commitInvalidRequested(uint256 version, bytes calldata data)
+        private
+        keep(KEEPER_REWARD_PREMIUM, KEEPER_BUFFER, "", "")
+    {
+        _prices[version] = Fixed6Lib.ZERO;
+    }
+
+    /// @notice Commits the price to a non-requested version
+    /// @param version The oracle version to commit
+    /// @param data The update data to commit
+    function _commitUnrequested(uint256 version, bytes calldata data) private {
+        if (version <= _global.latestVersion || (next() != 0 && version >= next()))
+            revert PythOracleVersionOutsideRangeError();
         _prices[version] = _parsePrice(version, data);
     }
 
