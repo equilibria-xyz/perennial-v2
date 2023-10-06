@@ -53,6 +53,7 @@ export const buildUpdateMarket = ({
 
 export const buildPlaceOrder = ({
   market,
+  maker,
   long,
   short,
   triggerType,
@@ -64,6 +65,7 @@ export const buildPlaceOrder = ({
   feeAsPositionPercentOverride,
 }: {
   market: string
+  maker?: BigNumberish
   long?: BigNumberish
   short?: BigNumberish
   triggerType?: TriggerType
@@ -92,6 +94,9 @@ export const buildPlaceOrder = ({
   } else if (short) {
     order.side = 2
     order.delta = short
+  } else if (maker) {
+    order.side = 0
+    order.delta = maker
   } else {
     long = order.side === 1 ? order.delta.abs() : '0'
     short = order.side === 2 ? order.delta.abs() : '0'
