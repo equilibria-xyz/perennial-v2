@@ -498,7 +498,7 @@ contract Market is IMarket, Instance, ReentrancyGuard {
 
         if (
             !(context.currentPosition.local.magnitude().isZero() && context.latestPosition.local.magnitude().isZero()) &&
-            (newOrder.isEmpty() && collateral.gte(Fixed6Lib.ZERO)) &&
+            !(newOrder.isEmpty() && collateral.gte(Fixed6Lib.ZERO)) &&
             (context.currentTimestamp - context.latestVersion.timestamp >= context.riskParameter.staleAfter)
         ) revert MarketStalePriceError();
 
