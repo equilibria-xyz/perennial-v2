@@ -496,8 +496,11 @@ contract Market is IMarket, Instance, ReentrancyGuard {
             collateral.lt(Fixed6Lib.from(-1, _liquidationFee(context, newOrder)))
         )) revert MarketInvalidProtectionError();
 
-        if (context.currentTimestamp - context.latestVersion.timestamp >= context.riskParameter.staleAfter)
-            revert MarketStalePriceError();
+        if (
+            !(context.currentPosition.local.magnitude().isZero() && context.latestPosition.local.magnitude().isZero()) &&
+            (newOrder.isEmpty() && collateral.gte(Fixed6Lib.ZERO)) &&
+            (context.currentTimestamp - context.latestVersion.timestamp >= context.riskParameter.staleAfter)
+        ) revert MarketStalePriceError();
 
         if (context.marketParameter.closed && newOrder.increasesPosition())
             revert MarketClosedError();
