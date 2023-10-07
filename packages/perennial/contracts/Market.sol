@@ -514,9 +514,9 @@ contract Market is IMarket, Instance, ReentrancyGuard {
         if (protected) return; // The following invariants do not apply to protected position updates (liquidations)
 
         if (
-            msg.sender != account &&                                                                   // sender is operating on own account
-            !IMarketFactory(address(factory())).operators(account, msg.sender) &&                      // sender is operating on own account
-            !(newOrder.isEmpty() && collateralAfterFees.isZero() && collateral.gt(Fixed6Lib.ZERO))     // sender is repaying shortfall for this account
+            msg.sender != account &&                                                        // sender is operating on own account
+            !IMarketFactory(address(factory())).operators(account, msg.sender) &&           // sender is operator approved for account
+            !(newOrder.isEmpty() && collateral.gte(Fixed6Lib.ZERO))                         // sender is depositing zero or more into account, without position change
         ) revert MarketOperatorNotAllowedError();
 
         if (
