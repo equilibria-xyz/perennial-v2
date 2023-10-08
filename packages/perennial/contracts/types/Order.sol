@@ -116,6 +116,7 @@ library OrderLib {
     }
 
     /// @notice Returns the liquidation fee of the position
+    /// @dev Assumes the order must be single-sided
     /// @param self The position object to check
     /// @param latestVersion The latest oracle version
     /// @param riskParameter The current risk parameter
@@ -125,10 +126,10 @@ library OrderLib {
         OracleVersion memory latestVersion,
         RiskParameter memory riskParameter
     ) internal pure returns (UFixed6) {
-        UFixed6 magnitude = self.maker.abs().add(self.long.abs()).add(self.short.abs());
-        if (magnitude.isZero()) return UFixed6Lib.ZERO;
+        if (magnitude(self).isZero()) return UFixed6Lib.ZERO;
 
-        UFixed6 partialMaintenance = magnitude.mul(latestVersion.price.abs())
+        UFixed6 partialMaintenance = magnitude(self).abs()
+            .mul(latestVersion.price.abs())
             .mul(riskParameter.maintenance)
             .max(riskParameter.minMaintenance);
 
@@ -142,5 +143,13 @@ library OrderLib {
     /// @return Whether the order has no position change
     function isEmpty(Order memory self) internal pure returns (bool) {
         return self.maker.abs().add(self.long.abs()).add(self.short.abs()).isZero();
+    }
+
+    /// @notice Returns the amount of the non-zero side of the order
+    /// @dev Assumes the order must be single-sided
+    /// @param self The Order object to check
+    /// @return The magnitude of the order
+    function magnitude(Order memory self) internal pure returns (Fixed6) {
+        return self.maker.add(self.long).add(self.short);
     }
 }

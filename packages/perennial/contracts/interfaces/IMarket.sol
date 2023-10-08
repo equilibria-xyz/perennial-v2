@@ -32,6 +32,9 @@ interface IMarket is IInstance {
         Local local;
         PositionContext currentPosition;
         PositionContext latestPosition;
+        Position maxPendingPosition;
+        Fixed6 pendingCollateral;
+        UFixed6 closable;
     }
 
     struct PositionContext {
@@ -92,6 +95,8 @@ interface IMarket is IInstance {
     error MarketInvalidMarketParameterError(uint256 code);
     // sig: 0xc5f0e98a
     error MarketInvalidRiskParameterError(uint256 code);
+    // sig: TODO
+    error MarketOverClosedError();
 
     // sig: 0x2142bc27
     error GlobalStorageInvalidError();

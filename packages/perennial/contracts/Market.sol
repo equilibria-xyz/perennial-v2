@@ -232,6 +232,34 @@ contract Market is IMarket, Instance, ReentrancyGuard {
         positionContext.local.invalidation.update(context.latestPosition.local.invalidation);
     }
 
+    /// @notice Loads data about all pending positions for the invariant check
+    /// @param context The context to use
+    /// @param account The account to load the pending positions for
+    function _loadPendingPositions(Context memory context, address account) private view {
+        // load latest position information
+        context.pendingCollateral = context.local.collateral;
+        context.maxPendingPosition = context.latestPosition.local;
+        context.closable = context.maxPendingPosition.magnitude();
+        UFixed6 previousMagnitude = context.closable;
+
+        // load pending position information
+        for (uint256 id = context.local.latestId + 1; id < context.local.currentId; id++) {
+            Position memory pendingAccountPosition = _pendingPositions[account][id].read();
+            pendingAccountPosition.adjust(context.latestPosition.local);
+
+            context.pendingCollateral = context.pendingCollateral
+                .sub(Fixed6Lib.from(pendingAccountPosition.fee))
+                .sub(Fixed6Lib.from(pendingAccountPosition.keeper));
+
+            context.closable = context.closable
+                .sub(previousMagnitude.sub(pendingAccountPosition.magnitude().min(previousMagnitude)));
+            previousMagnitude = pendingAccountPosition.magnitude();
+
+            if (previousMagnitude.gt(context.maxPendingPosition.magnitude()))
+                context.maxPendingPosition.update(pendingAccountPosition);
+        }
+    }
+
     /// @notice Updates the current position
     /// @param context The context to use
     /// @param account The account to update
@@ -250,6 +278,7 @@ contract Market is IMarket, Instance, ReentrancyGuard {
         bool protect
     ) private {
         // read
+        _loadPendingPositions(context, account); // TODO: rename
         context.currentPosition = _loadCurrentPositionContext(context, account);
 
         // magic values
@@ -482,16 +511,15 @@ contract Market is IMarket, Instance, ReentrancyGuard {
         Fixed6 collateral,
         bool protected
     ) private view {
-        // load all pending state
-        (Position[] memory pendingLocalPositions, Fixed6 collateralAfterFees, UFixed6 closableAmount) =
-            _loadPendingPositions(context, account);
+        if (newOrder.magnitude().mul(Fixed6Lib.NEG_ONE).gt(Fixed6Lib.from(context.closable)))
+            revert MarketOverClosedError();
 
         if (protected && (
-            !closableAmount.isZero() ||
+            !Fixed6Lib.from(context.closable).add(newOrder.magnitude()).isZero() ||
             context.latestPosition.local.maintained(
                 context.latestVersion,
                 context.riskParameter,
-                collateralAfterFees.sub(collateral)
+                context.pendingCollateral.sub(collateral)
             ) ||
             collateral.lt(Fixed6Lib.from(-1, _liquidationFee(context, newOrder)))
         )) revert MarketInvalidProtectionError();
@@ -513,7 +541,7 @@ contract Market is IMarket, Instance, ReentrancyGuard {
         if (
             msg.sender != account &&                                                                   // sender is operating on own account
             !IMarketFactory(address(factory())).operators(account, msg.sender) &&                      // sender is operating on own account
-            !(newOrder.isEmpty() && collateralAfterFees.isZero() && collateral.gt(Fixed6Lib.ZERO))     // sender is repaying shortfall for this account
+            !(newOrder.isEmpty() && context.pendingCollateral.isZero() && collateral.gt(Fixed6Lib.ZERO))     // sender is repaying shortfall for this account
         ) revert MarketOperatorNotAllowedError();
 
         if (
@@ -522,17 +550,11 @@ contract Market is IMarket, Instance, ReentrancyGuard {
         ) revert MarketExceedsPendingIdLimitError();
 
         if (
-            !context.latestPosition.local.maintained(context.latestVersion, context.riskParameter, collateralAfterFees)
+            !context.maxPendingPosition.maintained(context.latestVersion, context.riskParameter, context.pendingCollateral)
         ) revert MarketInsufficientMaintenanceError();
 
-        for (uint256 i; i < pendingLocalPositions.length - 1; i++)
-            if (
-                !pendingLocalPositions[i].maintained(context.latestVersion, context.riskParameter, collateralAfterFees)
-            ) revert MarketInsufficientMaintenanceError();
-
         if (
-            !pendingLocalPositions[pendingLocalPositions.length - 1]
-                .margined(context.latestVersion, context.riskParameter, collateralAfterFees)
+            !context.currentPosition.local.margined(context.latestVersion, context.riskParameter, context.pendingCollateral)
         ) revert MarketInsufficientMarginError();
 
         if (
@@ -552,47 +574,8 @@ contract Market is IMarket, Instance, ReentrancyGuard {
             newOrder.decreasesLiquidity()
         ) revert MarketInsufficientLiquidityError();
 
-        if (collateral.lt(Fixed6Lib.ZERO) && collateralAfterFees.lt(Fixed6Lib.ZERO))
+        if (collateral.lt(Fixed6Lib.ZERO) && context.pendingCollateral.lt(Fixed6Lib.ZERO))
             revert MarketInsufficientCollateralError();
-    }
-
-    /// @notice Loads data about all pending positions for the invariant check
-    /// @param context The context to use
-    /// @param account The account to load the pending positions for
-    /// @return pendingLocalPositions All pending positions for the account
-    /// @return collateralAfterFees The account's collateral after fees
-    function _loadPendingPositions(
-        Context memory context,
-        address account
-    ) private view returns (
-        Position[] memory pendingLocalPositions,
-        Fixed6 collateralAfterFees,
-        UFixed6 closableAmount
-    ) {
-        // load latest position information
-        collateralAfterFees = context.local.collateral;
-        closableAmount = context.latestPosition.local.magnitude();
-        pendingLocalPositions = new Position[](
-            context.local.currentId - Math.min(context.local.latestId, context.local.currentId)
-        );
-        UFixed6 previousMagnitude = closableAmount;
-
-        // load pending position information
-        for (uint256 i; i < pendingLocalPositions.length - 1; i++) {
-            pendingLocalPositions[i] = _pendingPositions[account][context.local.latestId + 1 + i].read();
-            pendingLocalPositions[i].adjust(context.latestPosition.local);
-        }
-        pendingLocalPositions[pendingLocalPositions.length - 1] = context.currentPosition.local; // current positions hasn't been stored yet
-
-        for (uint256 i; i < pendingLocalPositions.length; i++) {
-            collateralAfterFees = collateralAfterFees
-                .sub(Fixed6Lib.from(pendingLocalPositions[i].fee))
-                .sub(Fixed6Lib.from(pendingLocalPositions[i].keeper));
-            closableAmount = closableAmount.sub(
-                previousMagnitude.sub(pendingLocalPositions[i].magnitude().min(previousMagnitude))
-            );
-            previousMagnitude = pendingLocalPositions[i].magnitude();
-        }
     }
 
     /// @notice Computes the liquidation fee for the current latest local position
