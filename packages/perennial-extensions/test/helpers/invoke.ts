@@ -5,6 +5,7 @@ import { ethers } from 'hardhat'
 
 export const MAX_INT = ethers.constants.MaxInt256
 export const MIN_INT = ethers.constants.MinInt256
+export const MAX_UINT = ethers.constants.MaxUint256
 
 export type OrderStruct = {
   side?: number
@@ -13,8 +14,6 @@ export type OrderStruct = {
   price?: BigNumberish
   delta?: BigNumberish
 }
-
-export type TriggerType = 'LM' | 'TP' | 'SL'
 
 export type Actions = IMultiInvoker.InvocationStruct[]
 
@@ -53,96 +52,27 @@ export const buildUpdateMarket = ({
 
 export const buildPlaceOrder = ({
   market,
-  long,
-  short,
-  triggerType,
-  collateral,
-  handleWrap,
-  order,
-  comparisonOverride,
-  sideOverride,
-  feeAsPositionPercentOverride,
-}: {
-  market: string
-  long?: BigNumberish
-  short?: BigNumberish
-  triggerType?: TriggerType
-  collateral: BigNumberish
-  handleWrap?: boolean
-  order: TriggerOrderStruct
-  comparisonOverride?: number
-  sideOverride?: number
-  feeAsPositionPercentOverride?: boolean
-}): Actions => {
-  if (!triggerType) triggerType = 'LM'
-  order.delta = BigNumber.from(order.delta)
-  order.fee = BigNumber.from(order.fee)
-
-  if (long && short) {
-    if (BigNumber.from(long).gt(short)) {
-      order.side = 1
-      order.delta = BigNumber.from(long).sub(short)
-    } else {
-      order.side = 2
-      order.delta = BigNumber.from(short).sub(long)
-    }
-  } else if (long) {
-    order.side = 1
-    order.delta = long
-  } else if (short) {
-    order.side = 2
-    order.delta = short
-  } else {
-    long = order.side === 1 ? order.delta.abs() : '0'
-    short = order.side === 2 ? order.delta.abs() : '0'
-  }
-
-  if (!feeAsPositionPercentOverride) {
-    order.fee = BigNumber.from(collateral).div(BigNumber.from(order.delta).abs()).mul(order.fee)
-  }
-
-  order = triggerDirection(order, triggerType, comparisonOverride)
-  order.side = sideOverride || sideOverride === 0 ? sideOverride : order.side
-
-  // dont open position if limit order
-  if (triggerType === 'LM') {
-    long = BigNumber.from(0)
-    short = BigNumber.from(0)
-  }
-
-  return _buildPlaceOrder({
-    market: market,
-    long: long,
-    short: short,
-    collateral: collateral,
-    handleWrap: handleWrap,
-    t: order,
-  })
-}
-
-export const _buildPlaceOrder = ({
-  market,
   maker,
   long,
   short,
   collateral,
   handleWrap,
-  t,
+  order,
 }: {
   market: string
   maker?: BigNumberish
   long?: BigNumberish
   short?: BigNumberish
-  collateral?: BigNumberish
+  collateral: BigNumberish
   handleWrap?: boolean
-  t: TriggerOrderStruct
+  order: TriggerOrderStruct
 }): Actions => {
   return [
     {
       action: 1,
       args: utils.defaultAbiCoder.encode(
         ['address', 'uint256', 'uint256', 'uint256', 'int256', 'bool'],
-        [market, maker ?? '0', long ?? '0', short ?? '0', collateral ?? '0', handleWrap ?? false],
+        [market, maker ?? MAX_UINT, long ?? MAX_UINT, short ?? MAX_UINT, collateral ?? '0', handleWrap ?? false],
       ),
     },
     {
@@ -152,44 +82,16 @@ export const _buildPlaceOrder = ({
         [
           market,
           [
-            t.side, // default long side
-            t.comparison,
-            t.fee ?? '0',
-            t.price ?? '0',
-            t.delta ?? '0',
+            order.side, // default long side
+            order.comparison,
+            order.fee,
+            order.price,
+            order.delta,
           ],
         ],
       ),
     },
   ]
-}
-
-function triggerDirection(order: TriggerOrderStruct, triggerType: TriggerType, comparisonOverride?: number) {
-  order.delta = BigNumber.from(order.delta)
-
-  order.delta = delta(order.delta, triggerType)
-
-  if (comparisonOverride && comparisonOverride !== 0) {
-    order.comparison = comparisonOverride
-  } else if (
-    (order.side === 1 && (triggerType === 'LM' || triggerType === 'SL')) ||
-    (order.side === 2 && triggerType === 'TP')
-  ) {
-    order.comparison = -1
-  } else {
-    order.comparison = 1
-  }
-
-  return order
-}
-
-function delta(num: BigNumber, trigger: TriggerType) {
-  if (trigger === 'LM') {
-    if (num.isNegative()) return num.mul(-1)
-    return num
-  }
-  if (num.isNegative()) return num
-  return num.mul(-1)
 }
 
 export type VaultUpdate = {
@@ -267,7 +169,6 @@ module.exports = {
   buildCancelOrder,
   buildExecOrder,
   buildPlaceOrder,
-  _buildPlaceOrder,
   buildUpdateMarket,
   buildLiquidateUser,
   buildUpdateVault,

@@ -33,8 +33,13 @@ export function setPendingPosition(
   market.pendingPositions.whenCalledWith(user.address, currentId).returns(position)
 }
 
-export type Dir = 'L' | 'S'
-export type TriggerType = 'LM' | 'TP' | 'SL'
+export type Dir = 'L' | 'S' | 'M'
+export type OrderType = 'LM' | 'TG'
+export enum Compare {
+  ABOVE_MARKET = -1,
+  BELOW_MARKET = 1,
+}
+
 export type TriggerOrder = {
   side: number
   fee: BigNumberish
@@ -46,30 +51,36 @@ export const openTriggerOrder = ({
   size,
   price,
   side,
-  trigger,
+  comparison,
+  orderType,
   feePct,
+  sideOverride,
+  comparisonOverride,
 }: {
   size: BigNumberish
   price: BigNumberish
-  side?: Dir
-  trigger?: TriggerType
+  side: Dir
+  comparison: Compare
+  orderType: OrderType
   feePct?: BigNumberish
+  sideOverride?: number
+  comparisonOverride?: number
 }): TriggerOrderStruct => {
   if (feePct === undefined) {
     feePct = BigNumber.from(size).div(20)
   } else {
-    if (BigNumber.from(feePct).gt(100)) throw Error('Specified fee pct too large')
     feePct = BigNumber.from(feePct).mul(size).div(100)
   }
 
-  if (BigNumber.from(size).isNegative()) throw Error('size must be positive')
-
+  let _side = side === 'M' ? 0 : side === 'L' ? 1 : 2
+  if (sideOverride) _side = sideOverride
+  if (comparisonOverride) comparison = comparisonOverride
   return {
-    side: side ? (side === 'L' ? 1 : 2) : 1,
-    comparison: 0,
+    side: _side,
+    comparison: comparison,
     fee: feePct,
     price: price,
-    delta: !trigger || trigger == 'LM' ? size : BigNumber.from(size).mul(-1),
+    delta: orderType === 'LM' ? size : BigNumber.from(size).mul(-1),
   }
 }
 
@@ -136,4 +147,5 @@ module.exports = {
   openTriggerOrder,
   openPosition,
   changePosition,
+  Compare,
 }
