@@ -117,6 +117,7 @@ export const buildPlaceOrder = ({
 
   return _buildPlaceOrder({
     market: market,
+    maker: maker,
     long: long,
     short: short,
     collateral: collateral,

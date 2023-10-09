@@ -44,7 +44,6 @@ describe('Orders', () => {
     // deposit maker up to maker limit (UFixed6)
     await dsu.connect(userB).approve(market.address, dsuCollateral)
 
-    console.log(position)
     await market.connect(userB).update(userB.address, position, 0, 0, collateral, false)
     await chainlink.next()
     settle(market, userB)
@@ -286,16 +285,17 @@ describe('Orders', () => {
       size: userPosition,
       price: payoff(marketPrice.add(10)),
       feePct: 100,
-      trigger: 'TP',
+      trigger: 'LM',
       side: 'M',
     })
     trigger.delta = BigNumber.from(trigger.delta).mul(-1)
-    console.log(trigger)
+
     const placeOrder = buildPlaceOrder({
       market: market.address,
+      maker: (await market.positions(userB.address)).maker,
       order: trigger,
       collateral: collateral,
-      triggerType: 'SL',
+      triggerType: 'LM',
     })
 
     await expect(multiInvoker.connect(userB).invoke(placeOrder)).to.not.be.reverted
@@ -304,8 +304,69 @@ describe('Orders', () => {
     await chainlink.nextWithPriceModification(() => marketPrice.add(11))
     await settle(market, userB)
 
-    console.log(await market.positions(userB.address))
-    console.log(await market.locals(userB.address))
+    const execute = buildExecOrder({ user: userB.address, market: market.address, orderId: 1 })
+    await expect(multiInvoker.connect(userB).invoke(execute))
+      .to.emit(multiInvoker, 'OrderExecuted')
+      .withArgs(userB.address, market.address, 1, anyValue)
+      .to.emit(multiInvoker, 'KeeperCall')
+  })
+
+  it('executes a maker above market price order', async () => {
+    const { userB, chainlink } = instanceVars
+    const trigger = openTriggerOrder({
+      size: userPosition,
+      price: payoff(marketPrice.sub(10)),
+      feePct: 100,
+      trigger: 'SL',
+      side: 'M',
+    })
+
+    const placeOrder = buildPlaceOrder({
+      market: market.address,
+      maker: (await market.positions(userB.address)).maker,
+      order: trigger,
+      collateral: collateral,
+      triggerType: 'SL',
+      comparisonOverride: -1,
+    })
+
+    await expect(multiInvoker.connect(userB).invoke(placeOrder)).to.not.be.reverted
+    expect(await multiInvoker.canExecuteOrder(userB.address, market.address, 1)).to.be.false
+
+    await chainlink.nextWithPriceModification(() => marketPrice.sub(11))
+    await settle(market, userB)
+
+    const execute = buildExecOrder({ user: userB.address, market: market.address, orderId: 1 })
+    await expect(multiInvoker.connect(userB).invoke(execute))
+      .to.emit(multiInvoker, 'OrderExecuted')
+      .withArgs(userB.address, market.address, 1, anyValue)
+      .to.emit(multiInvoker, 'KeeperCall')
+  })
+
+  it('executes a maker below price order', async () => {
+    const { userB, chainlink } = instanceVars
+    const trigger = openTriggerOrder({
+      size: userPosition,
+      price: payoff(marketPrice.add(10)),
+      feePct: 100,
+      trigger: 'TP',
+      side: 'M',
+    })
+
+    const placeOrder = buildPlaceOrder({
+      market: market.address,
+      maker: (await market.positions(userB.address)).maker,
+      order: trigger,
+      collateral: collateral,
+      triggerType: 'TP',
+      comparisonOverride: 1,
+    })
+
+    await expect(multiInvoker.connect(userB).invoke(placeOrder)).to.not.be.reverted
+    expect(await multiInvoker.canExecuteOrder(userB.address, market.address, 1)).to.be.false
+
+    await chainlink.nextWithPriceModification(() => marketPrice.add(11))
+    await settle(market, userB)
 
     const execute = buildExecOrder({ user: userB.address, market: market.address, orderId: 1 })
     await expect(multiInvoker.connect(userB).invoke(execute))
