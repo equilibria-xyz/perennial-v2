@@ -444,13 +444,13 @@ describe('Orders', () => {
       ).to.be.revertedWithCustomError(multiInvoker, 'MultiInvokerInvalidOrderError')
     })
 
-    it('fails to place order with side != 1 | 2', async () => {
+    it('fails to place order with side > 2', async () => {
       const { user } = instanceVars
 
       const trigger = openTriggerOrder({ size: userPosition, price: marketPrice, side: 'L' })
 
       trigger.comparison = -1
-      trigger.side = 0
+      trigger.side = 3
       await expect(
         multiInvoker.connect(user).invoke(_buildPlaceOrder({ market: market.address, t: trigger })),
       ).to.be.revertedWithCustomError(multiInvoker, 'MultiInvokerInvalidOrderError')
