@@ -474,7 +474,7 @@ describe('MultiInvoker', () => {
           collateral: collateral,
           long: BigNumber.from(trigger.delta).abs(),
           order: trigger,
-          sideOverride: 0,
+          sideOverride: 3,
         })
 
         await expect(multiInvoker.connect(user).invoke(placeOrder)).to.be.revertedWithCustomError(
