@@ -398,7 +398,6 @@ describe('Orders', () => {
       ).to.be.revertedWithCustomError(multiInvoker, 'MultiInvokerInvalidOrderError')
     })
 
-    // @TODO Maker order pr
     it('fails to place order with side != 1 | 2', async () => {
       const { user } = instanceVars
 
@@ -409,13 +408,6 @@ describe('Orders', () => {
         orderType: 'LM',
         price: marketPrice,
       })
-
-      trigger.side = 0
-      await expect(
-        multiInvoker
-          .connect(user)
-          .invoke(buildPlaceOrder({ market: market.address, order: trigger, collateral: collateral })),
-      ).to.be.revertedWithCustomError(multiInvoker, 'MultiInvokerInvalidOrderError')
 
       trigger.side = 3
       await expect(
