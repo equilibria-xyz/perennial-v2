@@ -1,7 +1,7 @@
 import { FakeContract, smock } from '@defi-wonderland/smock'
 import { SignerWithAddress } from '@nomiclabs/hardhat-ethers/signers'
 import { expect, use } from 'chai'
-import HRE from 'hardhat'
+import HRE, { companionNetworks } from 'hardhat'
 import { BigNumber, constants, utils } from 'ethers'
 
 import {
@@ -18,7 +18,6 @@ import {
   IOracleProvider,
 } from '../../../types/generated'
 import { OracleVersionStruct } from '@equilibria/perennial-v2-oracle/types/generated/contracts/Oracle'
-import { PositionStruct } from '@equilibria/perennial-v2/types/generated/contracts/Market'
 import { loadFixture } from '@nomicfoundation/hardhat-network-helpers'
 import * as helpers from '../../helpers/invoke'
 import { buildPlaceOrder, type Actions } from '../../helpers/invoke'
@@ -30,9 +29,11 @@ import {
   setGlobalPrice,
   setMarketPosition,
   setPendingPosition,
+  Compare,
 } from '../../helpers/types'
 
 import { anyValue } from '@nomicfoundation/hardhat-chai-matchers/withArgs'
+import { PositionStruct } from '@equilibria/perennial-v2/types/generated/contracts/Market'
 
 const ethers = { HRE }
 use(smock.matchers)
@@ -97,6 +98,7 @@ describe('MultiInvoker', () => {
 
     invokerOracle.latestRoundData.returns(aggRoundData)
     market.oracle.returns(marketOracle.address)
+    marketOracle.current.returns(0)
     marketOracle.latest.returns(oracleVersion)
 
     usdc.transferFrom.whenCalledWith(user.address).returns(true)
@@ -323,7 +325,13 @@ describe('MultiInvoker', () => {
     })
 
     it('places a limit order', async () => {
-      const trigger = openTriggerOrder({ size: position, price: price })
+      const trigger = openTriggerOrder({
+        size: position,
+        side: 'L',
+        orderType: 'LM',
+        comparison: Compare.ABOVE_MARKET,
+        price: price,
+      })
       const a = buildPlaceOrder({ market: market.address, collateral: collateral, order: trigger })
       const txn = await multiInvoker.connect(user).invoke(a)
 
@@ -346,15 +354,26 @@ describe('MultiInvoker', () => {
     })
 
     it('places a tp order', async () => {
-      let trigger = openTriggerOrder({ size: position, price: BigNumber.from(1100e6), side: 'S', trigger: 'TP' })
-      let a = buildPlaceOrder({ market: market.address, collateral: collateral, order: trigger, triggerType: 'TP' })
+      let trigger = openTriggerOrder({
+        size: position,
+        price: BigNumber.from(1100e6),
+        side: 'S',
+        orderType: 'TG',
+        comparison: Compare.ABOVE_MARKET,
+      })
+      let a = buildPlaceOrder({ market: market.address, short: position, collateral: collateral, order: trigger })
       await expect(multiInvoker.connect(user).invoke(a)).to.not.be.reverted
 
       // mkt price >= trigger price (false)
       expect(await multiInvoker.canExecuteOrder(user.address, market.address, 1)).to.be.false
-
-      trigger = openTriggerOrder({ size: position, price: BigNumber.from(1200e6), side: 'S', trigger: 'TP' })
-      a = buildPlaceOrder({ market: market.address, collateral: collateral, order: trigger, triggerType: 'TP' })
+      trigger = openTriggerOrder({
+        size: position,
+        price: BigNumber.from(1200e6),
+        side: 'L',
+        orderType: 'TG',
+        comparison: Compare.ABOVE_MARKET,
+      })
+      a = buildPlaceOrder({ market: market.address, short: position, collateral: collateral, order: trigger })
 
       expect(await multiInvoker.connect(user).invoke(a)).to.not.be.reverted
 
@@ -364,8 +383,14 @@ describe('MultiInvoker', () => {
 
     it('places a sl order', async () => {
       // order cannot be stopped
-      let trigger = openTriggerOrder({ size: position, price: BigNumber.from(1200e6), side: 'S' })
-      let a = buildPlaceOrder({ market: market.address, collateral: collateral, order: trigger, triggerType: 'SL' })
+      let trigger = openTriggerOrder({
+        size: position,
+        price: BigNumber.from(1200e6),
+        side: 'S',
+        orderType: 'TG',
+        comparison: Compare.BELOW_MARKET,
+      })
+      let a = buildPlaceOrder({ market: market.address, short: position, collateral: collateral, order: trigger })
       setMarketPosition(market, user, defaultPosition)
 
       await expect(multiInvoker.connect(user).invoke(a)).to.not.be.reverted
@@ -373,8 +398,14 @@ describe('MultiInvoker', () => {
       expect(await multiInvoker.canExecuteOrder(user.address, market.address, 1)).to.be.false
 
       // order can be stopped
-      trigger = openTriggerOrder({ size: position, price: BigNumber.from(1100e6), side: 'S' })
-      a = buildPlaceOrder({ market: market.address, collateral: collateral, order: trigger, triggerType: 'SL' })
+      trigger = openTriggerOrder({
+        size: position,
+        price: BigNumber.from(1100e6),
+        side: 'L',
+        orderType: 'TG',
+        comparison: Compare.BELOW_MARKET,
+      })
+      a = buildPlaceOrder({ market: market.address, short: position, collateral: collateral, order: trigger })
       await expect(multiInvoker.connect(user).invoke(a)).to.not.be.reverted
 
       expect(await multiInvoker.canExecuteOrder(user.address, market.address, 2)).to.be.true
@@ -384,13 +415,19 @@ describe('MultiInvoker', () => {
       expect(await multiInvoker.latestNonce()).to.eq(0)
 
       // place the order to cancel
-      const trigger = openTriggerOrder({ size: position, price: price })
+      const trigger = openTriggerOrder({
+        size: position,
+        price: price,
+        side: 'L',
+        orderType: 'LM',
+        comparison: Compare.ABOVE_MARKET,
+      })
       const placeAction = buildPlaceOrder({
         market: market.address,
         collateral: collateral,
         order: trigger,
-        triggerType: 'LM',
       })
+
       await expect(multiInvoker.connect(user).invoke(placeAction)).to.not.be.reverted
 
       // cancel the order
@@ -412,7 +449,13 @@ describe('MultiInvoker', () => {
           multiInvoker.connect(user).invoke(helpers.buildUpdateVault({ vault: market.address })),
         ).to.be.revertedWithCustomError(multiInvoker, 'MultiInvokerInvalidInstanceError')
 
-        const trigger = openTriggerOrder({ size: collateral, price: 1100e6 })
+        const trigger = openTriggerOrder({
+          size: collateral,
+          price: 1100e6,
+          side: 'L',
+          orderType: 'LM',
+          comparison: Compare.ABOVE_MARKET,
+        })
 
         await expect(
           multiInvoker
@@ -423,7 +466,15 @@ describe('MultiInvoker', () => {
 
       it('reverts placeOrder on InvalidOrderError', async () => {
         // Case 0 fee
-        let trigger = openTriggerOrder({ size: position, price: BigNumber.from(1100e6), feePct: 0 })
+        let trigger = openTriggerOrder({
+          size: position,
+          price: BigNumber.from(1100e6),
+          side: 'L',
+          orderType: 'LM',
+          comparison: Compare.ABOVE_MARKET,
+          feePct: 0,
+        })
+
         let placeOrder = buildPlaceOrder({
           market: market.address,
           collateral: collateral,
@@ -438,13 +489,20 @@ describe('MultiInvoker', () => {
 
         // -------------------------------------------------------------------------------------- //
         // case 2 < comparisson  || < -2
-        trigger = openTriggerOrder({ size: position, price: BigNumber.from(1100e6) })
+        trigger = openTriggerOrder({
+          size: position,
+          price: BigNumber.from(1100e6),
+          side: 'L',
+          orderType: 'LM',
+          comparison: Compare.ABOVE_MARKET,
+          comparisonOverride: -3,
+        })
+
         placeOrder = buildPlaceOrder({
           market: market.address,
           collateral: collateral,
           long: BigNumber.from(trigger.delta).abs(),
           order: trigger,
-          comparisonOverride: -3,
         })
 
         await expect(multiInvoker.connect(user).invoke(placeOrder)).to.be.revertedWithCustomError(
@@ -452,13 +510,20 @@ describe('MultiInvoker', () => {
           'MultiInvokerInvalidOrderError',
         )
 
-        trigger = openTriggerOrder({ size: position, price: BigNumber.from(1100e6) })
+        trigger = openTriggerOrder({
+          size: position,
+          price: BigNumber.from(1100e6),
+          side: 'L',
+          orderType: 'LM',
+          comparison: Compare.ABOVE_MARKET,
+          comparisonOverride: 3,
+        })
+
         placeOrder = buildPlaceOrder({
           market: market.address,
           collateral: collateral,
           long: BigNumber.from(trigger.delta).abs(),
           order: trigger,
-          comparisonOverride: 3,
         })
 
         await expect(multiInvoker.connect(user).invoke(placeOrder)).to.be.revertedWithCustomError(
@@ -467,28 +532,21 @@ describe('MultiInvoker', () => {
         )
 
         // -------------------------------------------------------------------------------------- //
-        // case side == 0 || side > 2
-        trigger = openTriggerOrder({ size: position, price: BigNumber.from(1100e6) })
-        placeOrder = buildPlaceOrder({
-          market: market.address,
-          collateral: collateral,
-          long: BigNumber.from(trigger.delta).abs(),
-          order: trigger,
-          sideOverride: 0,
+        // case side > 2
+        trigger = openTriggerOrder({
+          size: position,
+          price: BigNumber.from(1100e6),
+          orderType: 'LM',
+          comparison: Compare.ABOVE_MARKET,
+          side: 'L',
+          sideOverride: 3,
         })
 
-        await expect(multiInvoker.connect(user).invoke(placeOrder)).to.be.revertedWithCustomError(
-          multiInvoker,
-          'MultiInvokerInvalidOrderError',
-        )
-
-        trigger = openTriggerOrder({ size: position, price: BigNumber.from(1100e6) })
         placeOrder = buildPlaceOrder({
           market: market.address,
           collateral: collateral,
           long: BigNumber.from(trigger.delta).abs(),
           order: trigger,
-          sideOverride: 3,
         })
 
         await expect(multiInvoker.connect(user).invoke(placeOrder)).to.be.revertedWithCustomError(
@@ -511,16 +569,23 @@ describe('MultiInvoker', () => {
 
       it('executes a long limit order', async () => {
         // long limit: mkt price <= exec price
-        const trigger = openTriggerOrder({ size: position, price: BigNumber.from(1200e6) })
-        const pending = openPosition({ long: BigNumber.from(trigger.delta), collateral: collateral })
-        setPendingPosition(market, user, 0, pending)
+        const trigger = openTriggerOrder({
+          size: position,
+          price: BigNumber.from(1200e6),
+          side: 'L',
+          orderType: 'LM',
+          comparison: Compare.ABOVE_MARKET,
+        })
 
         const placeOrder = buildPlaceOrder({
           market: market.address,
           collateral: collateral,
           order: trigger,
-          triggerType: 'LM',
         })
+
+        const pending = openPosition({ long: BigNumber.from(trigger.delta), collateral: collateral })
+        setPendingPosition(market, user, 0, pending)
+
         await expect(multiInvoker.connect(user).invoke(placeOrder)).to.not.be.reverted
 
         const execOrder = helpers.buildExecOrder({ user: user.address, market: market.address, orderId: 1 })
@@ -535,18 +600,20 @@ describe('MultiInvoker', () => {
           size: position,
           price: BigNumber.from(1000e6),
           side: 'S',
-          trigger: 'LM',
+          orderType: 'LM',
+          comparison: Compare.BELOW_MARKET,
         })
-        const pending = openPosition({ short: BigNumber.from(triggerOrder.delta).abs(), collateral: collateral })
-        setPendingPosition(market, user, 0, pending)
 
         // short limit: mkt price >= exec price
         const placeOrder = buildPlaceOrder({
           market: market.address,
           collateral: collateral,
           order: triggerOrder,
-          triggerType: 'LM',
         })
+
+        const pending = openPosition({ short: BigNumber.from(triggerOrder.delta).abs(), collateral: collateral })
+        setPendingPosition(market, user, 0, pending)
+
         await multiInvoker.connect(user).invoke(placeOrder)
 
         const execOrder = helpers.buildExecOrder({ user: user.address, market: market.address, orderId: 1 })
@@ -562,17 +629,20 @@ describe('MultiInvoker', () => {
           size: position,
           price: BigNumber.from(1100e6),
           side: 'S',
-          trigger: 'SL',
+          orderType: 'TG',
+          comparison: Compare.BELOW_MARKET,
         })
-        const pending = openPosition({ short: BigNumber.from(triggerOrder.delta).abs(), collateral: collateral })
-        setPendingPosition(market, user, 0, pending)
 
         const placeOrder = buildPlaceOrder({
           market: market.address,
           collateral: collateral,
+          short: position,
           order: triggerOrder,
-          triggerType: 'SL',
         })
+
+        const pending = openPosition({ short: BigNumber.from(triggerOrder.delta).abs(), collateral: collateral })
+        setPendingPosition(market, user, 0, pending)
+
         await multiInvoker.connect(user).invoke(placeOrder)
 
         const execOrder = helpers.buildExecOrder({ user: user.address, market: market.address, orderId: 1 })
@@ -586,17 +656,20 @@ describe('MultiInvoker', () => {
           size: position,
           price: BigNumber.from(1200e6),
           side: 'L',
-          trigger: 'SL',
+          orderType: 'TG',
+          comparison: Compare.ABOVE_MARKET,
         })
-        const pending = openPosition({ long: BigNumber.from(triggerOrder.delta).abs(), collateral: collateral })
-        setPendingPosition(market, user, '0', pending)
 
         const placeOrder = buildPlaceOrder({
           market: market.address,
           collateral: collateral,
+          long: position,
           order: triggerOrder,
-          triggerType: 'SL',
         })
+
+        const pending = openPosition({ long: BigNumber.from(triggerOrder.delta).abs(), collateral: collateral })
+        setPendingPosition(market, user, '0', pending)
+
         await multiInvoker.connect(user).invoke(placeOrder)
 
         const execOrder = helpers.buildExecOrder({ user: user.address, market: market.address, orderId: 1 })
@@ -607,7 +680,13 @@ describe('MultiInvoker', () => {
 
       it('executes an order and charges keeper fee to sender', async () => {
         // long limit: limit = true && mkt price (1150) <= exec price 1200
-        const trigger = openTriggerOrder({ size: position, price: BigNumber.from(1200e6) })
+        const trigger = openTriggerOrder({
+          size: position,
+          price: BigNumber.from(1200e6),
+          side: 'L',
+          orderType: 'LM',
+          comparison: Compare.ABOVE_MARKET,
+        })
         const pending = openPosition({ long: BigNumber.from(trigger.delta).abs(), collateral: collateral })
         setPendingPosition(market, user, '0', pending)
 
@@ -615,8 +694,8 @@ describe('MultiInvoker', () => {
           market: market.address,
           collateral: collateral,
           order: trigger,
-          triggerType: 'LM',
         })
+
         await expect(multiInvoker.connect(user).invoke(placeOrder)).to.not.be.reverted
 
         // charge fee
