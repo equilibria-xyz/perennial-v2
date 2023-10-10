@@ -36,7 +36,7 @@ library TriggerOrderLib {
     }
 
     function execute(TriggerOrder memory self, Position memory currentPosition) internal pure {
-        if(self.side == 0)
+        if (self.side == 0)
             currentPosition.maker = UFixed6Lib.from(Fixed6Lib.from(currentPosition.maker).add(self.delta));
         if (self.side == 1)
             currentPosition.long = UFixed6Lib.from(Fixed6Lib.from(currentPosition.long).add(self.delta));
