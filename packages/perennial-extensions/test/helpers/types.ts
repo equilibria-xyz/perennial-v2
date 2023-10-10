@@ -33,8 +33,14 @@ export function setPendingPosition(
   market.pendingPositions.whenCalledWith(user.address, currentId).returns(position)
 }
 
-export type Dir = 'L' | 'S' | 'M'
 export type OrderType = 'LM' | 'TG'
+
+export enum Dir {
+  M = 0,
+  L = 1,
+  S = 2,
+}
+
 export enum Compare {
   ABOVE_MARKET = -1,
   BELOW_MARKET = 1,
@@ -54,17 +60,13 @@ export const openTriggerOrder = ({
   comparison,
   orderType,
   feePct,
-  sideOverride,
-  comparisonOverride,
 }: {
   size: BigNumberish
   price: BigNumberish
-  side: Dir
-  comparison: Compare
+  side: Dir | number
+  comparison: Compare | number
   orderType: OrderType
   feePct?: BigNumberish
-  sideOverride?: number
-  comparisonOverride?: number
 }): TriggerOrderStruct => {
   if (feePct === undefined) {
     feePct = BigNumber.from(size).div(20)
@@ -72,11 +74,8 @@ export const openTriggerOrder = ({
     feePct = BigNumber.from(feePct).mul(size).div(100)
   }
 
-  let _side = side === 'M' ? 0 : side === 'L' ? 1 : 2
-  if (sideOverride) _side = sideOverride
-  if (comparisonOverride) comparison = comparisonOverride
   return {
-    side: _side,
+    side: side,
     comparison: comparison,
     fee: feePct,
     price: price,
@@ -148,4 +147,5 @@ module.exports = {
   openPosition,
   changePosition,
   Compare,
+  Dir,
 }

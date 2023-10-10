@@ -7,7 +7,7 @@ import 'hardhat'
 import { expect } from 'chai'
 import { parse6decimal } from '../../../../common/testutil/types'
 import { Market, MultiInvoker } from '../../../types/generated'
-import { Compare, openTriggerOrder } from '../../helpers/types'
+import { Compare, Dir, openTriggerOrder } from '../../helpers/types'
 import { buildCancelOrder, buildExecOrder, buildPlaceOrder } from '../../helpers/invoke'
 import { loadFixture } from '@nomicfoundation/hardhat-network-helpers'
 import { TriggerOrderStruct } from '../../../types/generated/contracts/MultiInvoker'
@@ -63,7 +63,7 @@ describe('Orders', () => {
     await dsu.connect(user).approve(multiInvoker.address, dsuCollateral)
     const triggerOrder = openTriggerOrder({
       size: userPosition,
-      side: 'L',
+      side: Dir.L,
       orderType: 'LM',
       comparison: Compare.ABOVE_MARKET,
       price: BigNumber.from(1000e6),
@@ -87,7 +87,7 @@ describe('Orders', () => {
     const triggerOrder = openTriggerOrder({
       size: userPosition,
       price: BigNumber.from(1000e6),
-      side: 'L',
+      side: Dir.L,
       orderType: 'LM',
       comparison: Compare.ABOVE_MARKET,
       feePct: 50,
@@ -121,7 +121,7 @@ describe('Orders', () => {
     const trigger = openTriggerOrder({
       size: userPosition,
       price: payoff(marketPrice.sub(10)),
-      side: 'L',
+      side: Dir.L,
       orderType: 'LM',
       comparison: Compare.ABOVE_MARKET,
       feePct: 50,
@@ -153,7 +153,7 @@ describe('Orders', () => {
     const trigger = openTriggerOrder({
       size: userPosition,
       price: payoff(marketPrice.add(10)),
-      side: 'S',
+      side: Dir.S,
       orderType: 'LM',
       comparison: Compare.BELOW_MARKET,
       feePct: 50,
@@ -185,7 +185,7 @@ describe('Orders', () => {
     const trigger = openTriggerOrder({
       size: userPosition,
       price: payoff(marketPrice.add(10)),
-      side: 'L',
+      side: Dir.L,
       orderType: 'TG',
       comparison: Compare.BELOW_MARKET,
       feePct: 50,
@@ -218,7 +218,7 @@ describe('Orders', () => {
     const trigger = openTriggerOrder({
       size: userPosition,
       price: payoff(marketPrice.sub(11)),
-      side: 'S',
+      side: Dir.S,
       orderType: 'TG',
       comparison: Compare.ABOVE_MARKET,
       feePct: 50,
@@ -251,7 +251,7 @@ describe('Orders', () => {
     const trigger = openTriggerOrder({
       size: userPosition,
       price: payoff(marketPrice.sub(10)),
-      side: 'L',
+      side: Dir.L,
       orderType: 'TG',
       comparison: Compare.ABOVE_MARKET,
       feePct: 50,
@@ -284,7 +284,7 @@ describe('Orders', () => {
     const trigger = openTriggerOrder({
       size: userPosition,
       price: payoff(marketPrice.add(10)),
-      side: 'S',
+      side: Dir.S,
       orderType: 'TG',
       comparison: Compare.BELOW_MARKET,
       feePct: 50,
@@ -321,7 +321,7 @@ describe('Orders', () => {
       const trigger = openTriggerOrder({
         size: position,
         price: 0,
-        side: 'L',
+        side: Dir.L,
         orderType: 'LM',
         comparison: Compare.ABOVE_MARKET,
       })
@@ -347,7 +347,7 @@ describe('Orders', () => {
       const trigger = openTriggerOrder({
         size: userPosition,
         price: payoff(marketPrice.add(10)),
-        side: 'L',
+        side: Dir.L,
         orderType: 'LM',
         comparison: Compare.ABOVE_MARKET,
         feePct: 0,
@@ -370,7 +370,7 @@ describe('Orders', () => {
 
       const trigger = openTriggerOrder({
         size: userPosition,
-        side: 'L',
+        side: Dir.L,
         comparison: Compare.ABOVE_MARKET,
         orderType: 'LM',
         price: marketPrice,
@@ -403,7 +403,7 @@ describe('Orders', () => {
 
       const trigger = openTriggerOrder({
         size: userPosition,
-        side: 'L',
+        side: Dir.L,
         comparison: Compare.ABOVE_MARKET,
         orderType: 'LM',
         price: marketPrice,
@@ -423,7 +423,7 @@ describe('Orders', () => {
       const trigger = openTriggerOrder({
         size: userPosition,
         price: payoff(marketPrice.add(10)),
-        side: 'L',
+        side: Dir.L,
         orderType: 'LM',
         comparison: Compare.BELOW_MARKET,
         feePct: BigNumber.from('10'),
@@ -454,7 +454,7 @@ describe('Orders', () => {
 
       const defaultOrder = openTriggerOrder({
         size: parse6decimal('10000'),
-        side: 'L',
+        side: Dir.L,
         orderType: 'LM',
         comparison: Compare.ABOVE_MARKET,
         price: BigNumber.from(1000e6),

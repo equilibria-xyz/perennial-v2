@@ -30,6 +30,7 @@ import {
   setMarketPosition,
   setPendingPosition,
   Compare,
+  Dir,
 } from '../../helpers/types'
 
 import { anyValue } from '@nomicfoundation/hardhat-chai-matchers/withArgs'
@@ -327,7 +328,7 @@ describe('MultiInvoker', () => {
     it('places a limit order', async () => {
       const trigger = openTriggerOrder({
         size: position,
-        side: 'L',
+        side: Dir.L,
         orderType: 'LM',
         comparison: Compare.ABOVE_MARKET,
         price: price,
@@ -357,7 +358,7 @@ describe('MultiInvoker', () => {
       let trigger = openTriggerOrder({
         size: position,
         price: BigNumber.from(1100e6),
-        side: 'S',
+        side: Dir.S,
         orderType: 'TG',
         comparison: Compare.ABOVE_MARKET,
       })
@@ -369,7 +370,7 @@ describe('MultiInvoker', () => {
       trigger = openTriggerOrder({
         size: position,
         price: BigNumber.from(1200e6),
-        side: 'L',
+        side: Dir.L,
         orderType: 'TG',
         comparison: Compare.ABOVE_MARKET,
       })
@@ -386,7 +387,7 @@ describe('MultiInvoker', () => {
       let trigger = openTriggerOrder({
         size: position,
         price: BigNumber.from(1200e6),
-        side: 'S',
+        side: Dir.S,
         orderType: 'TG',
         comparison: Compare.BELOW_MARKET,
       })
@@ -401,7 +402,7 @@ describe('MultiInvoker', () => {
       trigger = openTriggerOrder({
         size: position,
         price: BigNumber.from(1100e6),
-        side: 'L',
+        side: Dir.L,
         orderType: 'TG',
         comparison: Compare.BELOW_MARKET,
       })
@@ -418,7 +419,7 @@ describe('MultiInvoker', () => {
       const trigger = openTriggerOrder({
         size: position,
         price: price,
-        side: 'L',
+        side: Dir.L,
         orderType: 'LM',
         comparison: Compare.ABOVE_MARKET,
       })
@@ -452,7 +453,7 @@ describe('MultiInvoker', () => {
         const trigger = openTriggerOrder({
           size: collateral,
           price: 1100e6,
-          side: 'L',
+          side: Dir.L,
           orderType: 'LM',
           comparison: Compare.ABOVE_MARKET,
         })
@@ -469,7 +470,7 @@ describe('MultiInvoker', () => {
         let trigger = openTriggerOrder({
           size: position,
           price: BigNumber.from(1100e6),
-          side: 'L',
+          side: Dir.L,
           orderType: 'LM',
           comparison: Compare.ABOVE_MARKET,
           feePct: 0,
@@ -492,10 +493,9 @@ describe('MultiInvoker', () => {
         trigger = openTriggerOrder({
           size: position,
           price: BigNumber.from(1100e6),
-          side: 'L',
+          side: Dir.L,
           orderType: 'LM',
-          comparison: Compare.ABOVE_MARKET,
-          comparisonOverride: -3,
+          comparison: -3,
         })
 
         placeOrder = buildPlaceOrder({
@@ -513,10 +513,9 @@ describe('MultiInvoker', () => {
         trigger = openTriggerOrder({
           size: position,
           price: BigNumber.from(1100e6),
-          side: 'L',
+          side: Dir.L,
           orderType: 'LM',
-          comparison: Compare.ABOVE_MARKET,
-          comparisonOverride: 3,
+          comparison: 3,
         })
 
         placeOrder = buildPlaceOrder({
@@ -538,8 +537,7 @@ describe('MultiInvoker', () => {
           price: BigNumber.from(1100e6),
           orderType: 'LM',
           comparison: Compare.ABOVE_MARKET,
-          side: 'L',
-          sideOverride: 3,
+          side: 3,
         })
 
         placeOrder = buildPlaceOrder({
@@ -572,7 +570,7 @@ describe('MultiInvoker', () => {
         const trigger = openTriggerOrder({
           size: position,
           price: BigNumber.from(1200e6),
-          side: 'L',
+          side: Dir.L,
           orderType: 'LM',
           comparison: Compare.ABOVE_MARKET,
         })
@@ -599,7 +597,7 @@ describe('MultiInvoker', () => {
         const triggerOrder = openTriggerOrder({
           size: position,
           price: BigNumber.from(1000e6),
-          side: 'S',
+          side: Dir.S,
           orderType: 'LM',
           comparison: Compare.BELOW_MARKET,
         })
@@ -628,7 +626,7 @@ describe('MultiInvoker', () => {
         const triggerOrder = openTriggerOrder({
           size: position,
           price: BigNumber.from(1100e6),
-          side: 'S',
+          side: Dir.S,
           orderType: 'TG',
           comparison: Compare.BELOW_MARKET,
         })
@@ -655,7 +653,7 @@ describe('MultiInvoker', () => {
         const triggerOrder = openTriggerOrder({
           size: position,
           price: BigNumber.from(1200e6),
-          side: 'L',
+          side: Dir.L,
           orderType: 'TG',
           comparison: Compare.ABOVE_MARKET,
         })
@@ -683,7 +681,7 @@ describe('MultiInvoker', () => {
         const trigger = openTriggerOrder({
           size: position,
           price: BigNumber.from(1200e6),
-          side: 'L',
+          side: Dir.L,
           orderType: 'LM',
           comparison: Compare.ABOVE_MARKET,
         })

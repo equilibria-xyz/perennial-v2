@@ -32,7 +32,7 @@ import { FakeContract, smock } from '@defi-wonderland/smock'
 import { ethers } from 'hardhat'
 import { BigNumber } from 'ethers'
 import { anyValue } from '@nomicfoundation/hardhat-chai-matchers/withArgs'
-import { Compare, openTriggerOrder } from '../../helpers/types'
+import { Compare, Dir, openTriggerOrder } from '../../helpers/types'
 
 use(smock.matchers)
 
@@ -526,7 +526,7 @@ describe('Invoke', () => {
       const trigger = openTriggerOrder({
         size: collateral,
         price: 1100e6,
-        side: 'L',
+        side: Dir.L,
         orderType: 'LM',
         comparison: Compare.ABOVE_MARKET,
       })
