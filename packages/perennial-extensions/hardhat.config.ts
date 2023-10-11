@@ -1,17 +1,4 @@
-import defaultConfig, { SOLIDITY_VERSION, OPTIMIZER_ENABLED } from '../common/hardhat.default.config'
-
-export const solidityOverrides = {
-  'contracts/MultiInvoker.sol': {
-    version: SOLIDITY_VERSION,
-    settings: {
-      optimizer: {
-        enabled: true,
-        runs: 1650,
-      },
-      viaIR: true,
-    },
-  },
-}
+import defaultConfig from '../common/hardhat.default.config'
 
 const config = defaultConfig({
   dependencyPaths: [

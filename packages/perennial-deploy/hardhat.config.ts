@@ -1,8 +1,6 @@
 import defaultConfig from '../common/hardhat.default.config'
 import { solidityOverrides as coreOverrides } from '@equilibria/perennial-v2/hardhat.config'
 import { solidityOverrides as vaultOverrides } from '@equilibria/perennial-v2-vault/hardhat.config'
-import { solidityOverrides as invokerOverrides } from '@equilibria/perennial-v2-extensions/hardhat.config'
-
 import './tasks'
 
 const config = defaultConfig({
@@ -42,9 +40,6 @@ const config = defaultConfig({
     },
     '@equilibria/perennial-v2-vault/contracts/Vault.sol': {
       ...vaultOverrides['contracts/Vault.sol'],
-    },
-    '@equilibria/perennial-v2-extensions/contracts/MultiInvoker.sol': {
-      ...invokerOverrides['contracts/MultiInvoker.sol'],
     },
   },
 })

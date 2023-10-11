@@ -419,7 +419,8 @@ contract MultiInvoker is IMultiInvoker, Kept {
         if (!canExecuteOrder(account, market, nonce)) revert MultiInvokerCantExecuteError();
 
         (Position memory latestPosition, , ) = _latest(market, account);
-        Position memory currentPosition = market.pendingPositions(account, market.locals(account).currentId);
+        uint256 currentId = market.locals(account).currentId;
+        Position memory currentPosition = market.pendingPositions(account, currentId);
         currentPosition.adjust(latestPosition);
 
         orders(account, market, nonce).execute(currentPosition);
@@ -433,7 +434,7 @@ contract MultiInvoker is IMultiInvoker, Kept {
                 false
         ) {
             delete _orders[account][market][nonce];
-            emit OrderExecuted(account, market, nonce, market.locals(account).currentId);
+            emit OrderExecuted(account, market, nonce, currentId);
         } catch (bytes memory reason) {
             if (revertOnFailure) revert(string(reason));
         }
