@@ -216,8 +216,51 @@ describe('PythOracle', () => {
         ),
       ).to.be.not.reverted
     })
+
     it('soft reverts a bad commit and returns the msg.value to sender on failure', async () => {
-      //
+      await increase(1)
+
+      // Base fee isn't working properly in coverage, so we need to set it manually
+      await ethers.provider.send('hardhat_setNextBlockBaseFeePerGas', ['0x1000'])
+      await expect(
+        multiInvoker.connect(user).invoke(
+          [
+            {
+              action: 6,
+              args: utils.defaultAbiCoder.encode(
+                ['address', 'uint256', 'uint256', 'uint256', 'bytes', 'bool'],
+                [pythOracle.address, 1, 0, STARTING_TIME + 60, FailingVAA, true],
+              ),
+            },
+          ],
+          {
+            value: 1,
+            gasPrice: 10000,
+          },
+        ),
+      ).to.be.reverted
+
+      const startingBalance = await user.getBalance()
+      // Base fee isn't working properly in coverage, so we need to set it manually
+      await ethers.provider.send('hardhat_setNextBlockBaseFeePerGas', ['0x1000'])
+      await expect(
+        multiInvoker.connect(user).invoke(
+          [
+            {
+              action: 6,
+              args: utils.defaultAbiCoder.encode(
+                ['address', 'uint256', 'uint256', 'uint256', 'bytes', 'bool'],
+                [pythOracle.address, 1, 0, STARTING_TIME + 60, FailingVAA, false],
+              ),
+            },
+          ],
+          {
+            value: 1,
+            gasPrice: 10000,
+          },
+        ),
+      ).to.not.be.reverted
+      expect(startingBalance).to.be.eq(await user.getBalance())
     })
   })
 })
