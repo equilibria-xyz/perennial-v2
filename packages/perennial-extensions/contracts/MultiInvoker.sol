@@ -154,9 +154,9 @@ contract MultiInvoker is IMultiInvoker, Kept {
 
                 _approve(target);
             } else if (invocation.action == PerennialAction.CHARGE_FEE) {
-                (address to, UFixed6 amount, bool handleWrap) = abi.decode(invocation.args, (address, UFixed6, bool));
+                (address to, UFixed6 amount, bool wrap) = abi.decode(invocation.args, (address, UFixed6, bool));
 
-                _chargeFee(to, amount, handleWrap);
+                _chargeFee(to, amount, wrap);
             }
         }
     }
@@ -250,15 +250,19 @@ contract MultiInvoker is IMultiInvoker, Kept {
         DSU.approve(target);
     }
 
-    function _chargeFee(address to, UFixed6 amount, bool handleWrap) internal {
-        if(handleWrap) {
-            _deposit(amount, handleWrap);
+    /// @notice Chargesa an interface fee to a receiver
+    /// @param to Address to receive the fee
+    /// @param amount Amount of USDC to transfer
+    /// @param wrap Flag to wrap USDC to DSU
+    function _chargeFee(address to, UFixed6 amount, bool wrap) internal {
+        if(wrap) {
+            _deposit(amount, wrap);
             DSU.push(to, UFixed18Lib.from(amount));
         } else {
             USDC.pullTo(msg.sender, to, amount);
         }
 
-        emit FeeCharged(msg.sender, to, amount, handleWrap);
+        emit FeeCharged(msg.sender, to, amount, wrap);
     }
 
     /// @notice Pull DSU or wrap and deposit USDC from msg.sender to this address for market usage
