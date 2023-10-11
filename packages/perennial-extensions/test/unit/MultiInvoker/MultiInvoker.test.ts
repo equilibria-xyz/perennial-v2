@@ -676,6 +676,55 @@ describe('MultiInvoker', () => {
           .to.emit(multiInvoker, 'KeeperCall')
       })
 
+      it('executes a maker limit order', async () => {
+        const triggerOrder = openTriggerOrder({
+          size: position,
+          price: BigNumber.from(1200e6),
+          side: Dir.M,
+          orderType: 'LM',
+          comparison: Compare.ABOVE_MARKET,
+        })
+
+        const placeOrder = buildPlaceOrder({
+          market: market.address,
+          collateral: collateral,
+          order: triggerOrder,
+        })
+
+        await multiInvoker.connect(user).invoke(placeOrder)
+
+        const execOrder = helpers.buildExecOrder({ user: user.address, market: market.address, orderId: 1 })
+        await expect(await multiInvoker.connect(user).invoke(execOrder))
+          .to.emit(multiInvoker, 'OrderExecuted')
+          .to.emit(multiInvoker, 'KeeperCall')
+      })
+
+      it('executes a maker trigger order', async () => {
+        const triggerOrder = openTriggerOrder({
+          size: position,
+          price: BigNumber.from(1100e6),
+          side: Dir.M,
+          orderType: 'TG',
+          comparison: Compare.BELOW_MARKET,
+        })
+
+        const placeOrder = buildPlaceOrder({
+          market: market.address,
+          collateral: collateral,
+          maker: position,
+          order: triggerOrder,
+        })
+
+        const pending = openPosition({ maker: BigNumber.from(triggerOrder.delta).abs(), collateral: collateral })
+        setPendingPosition(market, user, '0', pending)
+
+        await multiInvoker.connect(user).invoke(placeOrder)
+        const execOrder = helpers.buildExecOrder({ user: user.address, market: market.address, orderId: 1 })
+        await expect(await multiInvoker.connect(user).invoke(execOrder))
+          .to.emit(multiInvoker, 'OrderExecuted')
+          .to.emit(multiInvoker, 'KeeperCall')
+      })
+
       it('executes an order and charges keeper fee to sender', async () => {
         // long limit: limit = true && mkt price (1150) <= exec price 1200
         const trigger = openTriggerOrder({
