@@ -590,12 +590,12 @@ contract Market is IMarket, Instance, ReentrancyGuard {
         ) revert MarketExceedsPendingIdLimitError();
 
         if (
-            !context.maxPendingPosition.maintained(context.latestVersion, context.riskParameter, context.pendingCollateral)
-        ) revert MarketInsufficientMaintenanceError();
-
-        if (
             !context.currentPosition.local.margined(context.latestVersion, context.riskParameter, context.pendingCollateral)
         ) revert MarketInsufficientMarginError();
+
+        if (
+            !context.maxPendingPosition.maintained(context.latestVersion, context.riskParameter, context.pendingCollateral)
+        ) revert MarketInsufficientMaintenanceError();
 
         if (
             (context.local.protection > context.latestPosition.local.timestamp) &&
