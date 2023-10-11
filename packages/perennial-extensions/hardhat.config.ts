@@ -5,10 +5,10 @@ export const solidityOverrides = {
     version: SOLIDITY_VERSION,
     settings: {
       optimizer: {
-        enabled: OPTIMIZER_ENABLED,
+        enabled: true,
         runs: 1650,
       },
-      viaIR: OPTIMIZER_ENABLED,
+      viaIR: true,
     },
   },
 }
