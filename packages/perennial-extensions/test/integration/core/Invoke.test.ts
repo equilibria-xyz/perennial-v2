@@ -24,7 +24,13 @@ import {
   ETH_ORACLE,
 } from '../helpers/setupHelpers'
 
-import { buildApproveTarget, buildPlaceOrder, buildUpdateMarket, buildUpdateVault } from '../../helpers/invoke'
+import {
+  buildApproveTarget,
+  buildChargeFee,
+  buildPlaceOrder,
+  buildUpdateMarket,
+  buildUpdateVault,
+} from '../../helpers/invoke'
 
 import { parse6decimal } from '../../../../common/testutil/types'
 import { expect, use } from 'chai'
@@ -475,7 +481,7 @@ describe('Invoke', () => {
       ).to.be.revertedWith('Dollar: transfer amount exceeds allowance')
     })
 
-    it('charges fee to an interface', async () => {
+    it('charges an interface fee and pulls USDC to the receiver', async () => {
       const { user, userB, usdc } = instanceVars
 
       const balanceBefore = await usdc.balanceOf(userB.address)
@@ -483,17 +489,37 @@ describe('Invoke', () => {
       await usdc.connect(user).approve(multiInvoker.address, collateral)
 
       await expect(
-        multiInvoker.connect(user).invoke([
-          {
-            action: 9,
-            args: ethers.utils.defaultAbiCoder.encode(['address', 'uint256'], [userB.address, collateral]),
-          },
-        ]),
+        multiInvoker
+          .connect(user)
+          .invoke(buildChargeFee({ receiver: userB.address, amount: collateral, handleWrap: false })),
       )
         .to.emit(usdc, 'Transfer')
         .withArgs(user.address, userB.address, collateral)
+        .to.emit(multiInvoker, 'FeeCharged')
+        .withArgs(user.address, userB.address, collateral, false)
 
       expect((await usdc.balanceOf(userB.address)).sub(balanceBefore)).to.eq(collateral)
+    })
+
+    it('charges an interface fee and wraps USDC to DSU to the receiver', async () => {
+      const { user, userB, usdc, dsu } = instanceVars
+
+      const balanceBefore = await dsu.balanceOf(userB.address)
+      await usdc.connect(user).approve(multiInvoker.address, collateral)
+
+      await expect(
+        multiInvoker
+          .connect(user)
+          .invoke(buildChargeFee({ receiver: userB.address, amount: collateral, handleWrap: true })),
+      )
+        .to.emit(usdc, 'Transfer')
+        .withArgs(user.address, multiInvoker.address, collateral)
+        .to.emit(dsu, 'Transfer')
+        .withArgs(multiInvoker.address, userB.address, dsuCollateral)
+        .to.emit(multiInvoker, 'FeeCharged')
+        .withArgs(user.address, userB.address, collateral, true)
+
+      expect((await dsu.balanceOf(userB.address)).sub(balanceBefore)).to.eq(dsuCollateral)
     })
 
     it('Only allows updates to factory created markets', async () => {

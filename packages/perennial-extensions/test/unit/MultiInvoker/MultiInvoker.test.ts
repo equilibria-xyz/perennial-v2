@@ -266,17 +266,31 @@ describe('MultiInvoker', () => {
       expect(dsu.approve).to.have.been.calledWith(vault.address, constants.MaxUint256)
     })
 
-    it('charges interface fee', async () => {
+    it('charges an interface fee and pulls USDC to the receiver', async () => {
       usdc.transferFrom.returns(true)
 
-      const c: Actions = [
-        { action: 9, args: utils.defaultAbiCoder.encode(['address', 'uint256'], [owner.address, collateral]) },
-      ]
-      await expect(multiInvoker.connect(user).invoke(c))
+      await expect(
+        multiInvoker
+          .connect(user)
+          .invoke(helpers.buildChargeFee({ receiver: owner.address, amount: collateral, handleWrap: false })),
+      )
         .to.emit(multiInvoker, 'FeeCharged')
-        .withArgs(user.address, owner.address, collateral)
+        .withArgs(user.address, owner.address, collateral, false)
 
       expect(usdc.transferFrom).to.have.been.calledWith(user.address, owner.address, collateral)
+    })
+
+    it('charges an interface fee and wraps USDC to DSU to the receiver', async () => {
+      usdc.transferFrom.returns(true)
+      dsu.transfer.returns(true)
+
+      await expect(
+        multiInvoker
+          .connect(user)
+          .invoke(helpers.buildChargeFee({ receiver: owner.address, amount: collateral, handleWrap: true })),
+      )
+        .to.emit(multiInvoker, 'FeeCharged')
+        .withArgs(user.address, owner.address, collateral, true)
     })
   })
 
