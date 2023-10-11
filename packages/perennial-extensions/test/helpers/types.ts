@@ -33,7 +33,7 @@ export function setPendingPosition(
   market.pendingPositions.whenCalledWith(user.address, currentId).returns(position)
 }
 
-export type Dir = 'L' | 'S'
+export type Dir = 'L' | 'S' | 'M'
 export type TriggerType = 'LM' | 'TP' | 'SL'
 export type TriggerOrder = {
   side: number
@@ -65,7 +65,7 @@ export const openTriggerOrder = ({
   if (BigNumber.from(size).isNegative()) throw Error('size must be positive')
 
   return {
-    side: side ? (side === 'L' ? 1 : 2) : 1,
+    side: side ? (side === 'L' ? 1 : side === 'M' ? 0 : 2) : 1,
     comparison: 0,
     fee: feePct,
     price: price,
