@@ -8,7 +8,13 @@ import { expect } from 'chai'
 import { parse6decimal } from '../../../../common/testutil/types'
 import { Market, MultiInvoker } from '../../../types/generated'
 import { openTriggerOrder } from '../../helpers/types'
-import { _buildPlaceOrder, buildCancelOrder, buildExecOrder, buildPlaceOrder } from '../../helpers/invoke'
+import {
+  _buildPlaceOrder,
+  buildCancelOrder,
+  buildExecOrder,
+  buildPlaceOrder,
+  buildUpdateMarket,
+} from '../../helpers/invoke'
 import { loadFixture } from '@nomicfoundation/hardhat-network-helpers'
 import { TriggerOrderStruct } from '../../../types/generated/contracts/MultiInvoker'
 import { SignerWithAddress } from '@nomiclabs/hardhat-ethers/signers'
@@ -373,6 +379,50 @@ describe('Orders', () => {
       .to.emit(multiInvoker, 'OrderExecuted')
       .withArgs(userB.address, market.address, 1, anyValue)
       .to.emit(multiInvoker, 'KeeperCall')
+  })
+
+  it('soft reverts on failed execute order', async () => {
+    const { user, chainlink } = instanceVars
+
+    const trigger = openTriggerOrder({
+      size: userPosition,
+      price: payoff(marketPrice.add(10)),
+      feePct: 50,
+      trigger: 'LM',
+      side: 'S',
+    })
+    const placeOrder = buildPlaceOrder({
+      market: market.address,
+      order: trigger,
+      collateral: collateral,
+      triggerType: 'LM',
+      comparisonOverride: 1,
+    })
+
+    await multiInvoker.connect(user).invoke(placeOrder)
+    expect(await multiInvoker.canExecuteOrder(user.address, market.address, 1)).to.be.false
+
+    await chainlink.nextWithPriceModification(() => marketPrice.add(11))
+    await settle(market, user)
+
+    // make collateral insufficient to update market on order execution
+    await multiInvoker
+      .connect(user)
+      .invoke(
+        buildUpdateMarket({ market: market.address, collateral: BigNumber.from(collateral).mul(99).div(100).mul(-1) }),
+      )
+
+    await expect(
+      multiInvoker
+        .connect(user)
+        .invoke(buildExecOrder({ user: user.address, market: market.address, orderId: 1, revertOnFailure: true })),
+    ).to.be.reverted
+
+    await expect(
+      await multiInvoker
+        .connect(user)
+        .invoke(buildExecOrder({ user: user.address, market: market.address, orderId: 1, revertOnFailure: false })),
+    ).to.not.be.reverted
   })
 
   describe('Sad path :(', () => {
