@@ -219,40 +219,41 @@ contract Market is IMarket, Instance, ReentrancyGuard {
     /// @notice Loads the specified global pending position from state and adjusts it
     /// @param context The context to use
     /// @param id The position id to load
-    /// @return position The loaded and global adjusted position
+    /// @return newPendingPosition The loaded and global adjusted position
     function _loadPendingPositionGlobal(
         Context memory context,
         uint256 id
-    ) private view returns (Position memory position) {
-        position = _pendingPosition[id].read();
-        position.adjust(context.latestPosition.global);
+    ) private view returns (Position memory newPendingPosition) {
+        newPendingPosition = _pendingPosition[id].read();
+        newPendingPosition.adjust(context.latestPosition.global);
     }
 
     /// @notice Loads the specified local pending position from state and adjusts it
     /// @param context The context to use
     /// @param id The position id to load
-    /// @return position The loaded and local adjusted position
+    /// @return newPendingPosition The loaded and local adjusted position
     function _loadPendingPositionLocal(
         Context memory context,
         address account,
         uint256 id
-    ) private view returns (Position memory position) {
-        position = _pendingPositions[account][id].read();
-        position.adjust(context.latestPosition.local);
+    ) private view returns (Position memory newPendingPosition) {
+        newPendingPosition = _pendingPositions[account][id].read();
+        newPendingPosition.adjust(context.latestPosition.local);
     }
 
-    function _processPendingPosition(Context memory context, Position memory pendingPosition) private view {
+    // TODO
+    function _processPendingPosition(Context memory context, Position memory newPendingPosition) private pure {
         context.pendingCollateral = context.pendingCollateral
-            .sub(Fixed6Lib.from(pendingPosition.fee))
-            .sub(Fixed6Lib.from(pendingPosition.keeper));
+            .sub(Fixed6Lib.from(newPendingPosition.fee))
+            .sub(Fixed6Lib.from(newPendingPosition.keeper));
 
         context.closable = context.closable
             .sub(context.previousPendingMagnitude
-                .sub(pendingPosition.magnitude().min(context.previousPendingMagnitude)));
-        context.previousPendingMagnitude = pendingPosition.magnitude();
+                .sub(newPendingPosition.magnitude().min(context.previousPendingMagnitude)));
+        context.previousPendingMagnitude = newPendingPosition.magnitude();
 
         if (context.previousPendingMagnitude.gt(context.maxPendingPosition.magnitude()))
-            context.maxPendingPosition.update(pendingPosition);
+            context.maxPendingPosition.update(newPendingPosition);
     }
 
     /// @notice Loads the context for the update process
@@ -286,20 +287,22 @@ contract Market is IMarket, Instance, ReentrancyGuard {
             _processPendingPosition(context, _loadPendingPositionLocal(context, account, id));
     }
 
+    // TODO
     function _processCollateralMagicValue(
         Context memory context,
         Fixed6 collateral
-    ) private view returns (Fixed6) {
+    ) private pure returns (Fixed6) {
         if (collateral.eq(MAGIC_VALUE_WITHDRAW_ALL_COLLATERAL))
             return context.local.collateral.mul(Fixed6Lib.NEG_ONE);
         return collateral;
     }
 
+    // TODO
     function _processPositionMagicValue(
         Context memory context,
         UFixed6 currentPosition,
         UFixed6 newPosition
-    ) private view returns (UFixed6) {
+    ) private pure returns (UFixed6) {
         if (newPosition.eq(MAGIC_VALUE_UNCHANGED_POSITION))
             return currentPosition;
         if (newPosition.eq(MAGIC_VALUE_FULLY_CLOSED_POSITION) && !currentPosition.isZero())
@@ -372,6 +375,7 @@ contract Market is IMarket, Instance, ReentrancyGuard {
         emit Updated(msg.sender, account, context.currentTimestamp, newMaker, newLong, newShort, collateral, protect);
     }
 
+    // TODO
     function _loadContext(address account) private view returns (Context memory context) {
         // parameters
         context.protocolParameter = IMarketFactory(address(factory())).parameter();
