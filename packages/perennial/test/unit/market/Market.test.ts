@@ -11372,42 +11372,47 @@ describe('Market', () => {
           })
         })
 
-        it('reverts when the position is over-closed', async () => {
+        it.only('reverts when the position is over-closed', async () => {
           const riskParameter = { ...(await market.riskParameter()) }
           riskParameter.staleAfter = BigNumber.from(14400)
           await market.updateRiskParameter(riskParameter)
-
+          console.log('test1')
           dsu.transferFrom.whenCalledWith(user.address, market.address, COLLATERAL.mul(1e12)).returns(true)
           dsu.transferFrom.whenCalledWith(userB.address, market.address, COLLATERAL.mul(1e12)).returns(true)
           await market.connect(userB).update(userB.address, POSITION, 0, 0, COLLATERAL, false)
           await market.connect(user).update(user.address, 0, POSITION.div(2), 0, COLLATERAL, false)
-
+          console.log('test2')
           oracle.at.whenCalledWith(ORACLE_VERSION_2.timestamp).returns(ORACLE_VERSION_2)
           oracle.status.returns([ORACLE_VERSION_2, ORACLE_VERSION_3.timestamp])
           oracle.request.whenCalledWith(user.address).returns()
-
+          console.log('test3')
           await settle(market, user)
-
+          console.log('test4')
           // open to POSITION (POSITION / 2 settled)
           await market.connect(user).update(user.address, 0, POSITION, 0, 0, false)
-
+          console.log('test5')
           oracle.at.whenCalledWith(ORACLE_VERSION_2.timestamp).returns(ORACLE_VERSION_2)
           oracle.status.returns([ORACLE_VERSION_2, ORACLE_VERSION_4.timestamp])
           oracle.request.whenCalledWith(user.address).returns()
+
+          console.log('test6')
+          console.log('first revert')
 
           // can't close more than POSITION / 2
           await expect(
             market.connect(user).update(user.address, 0, POSITION.div(2).sub(1), 0, 0, false),
           ).to.revertedWithPanic('0x11')
-
+          console.log('test7')
           // close out as much as possible
           await expect(market.connect(user).update(user.address, 0, POSITION.div(2), 0, 0, false))
             .to.emit(market, 'Updated')
             .withArgs(user.address, user.address, ORACLE_VERSION_4.timestamp, 0, POSITION.div(2), 0, 0, false)
-
+          console.log('test8')
           oracle.at.whenCalledWith(ORACLE_VERSION_2.timestamp).returns(ORACLE_VERSION_2)
           oracle.status.returns([ORACLE_VERSION_2, ORACLE_VERSION_5.timestamp])
           oracle.request.whenCalledWith(user.address).returns()
+          console.log('test9')
+          console.log('second revert')
 
           // can't close any more
           await expect(

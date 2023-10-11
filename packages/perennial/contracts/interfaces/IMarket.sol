@@ -35,6 +35,7 @@ interface IMarket is IInstance {
         Position maxPendingPosition;
         Fixed6 pendingCollateral;
         UFixed6 closable;
+        UFixed6 previousPendingMagnitude;
     }
 
     struct PositionContext {

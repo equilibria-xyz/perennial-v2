@@ -5,8 +5,7 @@ import "@equilibria/root/attribute/Instance.sol";
 import "@equilibria/root/attribute/ReentrancyGuard.sol";
 import "./interfaces/IMarket.sol";
 import "./interfaces/IMarketFactory.sol";
-
-// TODO: code size
+import "hardhat/console.sol";
 
 /// @title Market
 /// @notice Manages logic and state for a single market.
@@ -218,7 +217,10 @@ contract Market is IMarket, Instance, ReentrancyGuard {
         return _pendingPositions[account][id].read();
     }
 
-    // TODO
+    /// @notice Loads the specified global pending position from state and adjusts it
+    /// @param context The context to use
+    /// @param id The position id to load
+    /// @return position The loaded and global adjusted position
     function _loadPendingPositionGlobal(
         Context memory context,
         uint256 id
@@ -227,7 +229,10 @@ contract Market is IMarket, Instance, ReentrancyGuard {
         position.adjust(context.latestPosition.global);
     }
 
-    // TODO
+    /// @notice Loads the specified local pending position from state and adjusts it
+    /// @param context The context to use
+    /// @param id The position id to load
+    /// @return position The loaded and local adjusted position
     function _loadPendingPositionLocal(
         Context memory context,
         address account,
@@ -237,47 +242,64 @@ contract Market is IMarket, Instance, ReentrancyGuard {
         position.adjust(context.latestPosition.local);
     }
 
-    /// @notice Loads the current position context for the given account
-    /// @param context The context to load to
-    /// @param account The account to query
-    function _loadCurrentPositionContext(
-        Context memory context,
-        address account
-    ) private view returns (PositionContext memory positionContext) {
-        // read most recent pending position
-        positionContext.global = _loadPendingPositionGlobal(context, context.global.currentId);
-        positionContext.local = _loadPendingPositionLocal(context, account, context.local.currentId);
+    function _processPendingPosition(Context memory context, Position memory pendingPosition) private view {
+        context.pendingCollateral = context.pendingCollateral
+            .sub(Fixed6Lib.from(pendingPosition.fee))
+            .sub(Fixed6Lib.from(pendingPosition.keeper));
 
-        // save new invalidation accumulator value
-        positionContext.global.invalidation.update(context.latestPosition.global.invalidation);
-        positionContext.local.invalidation.update(context.latestPosition.local.invalidation);
+        console.log("context.closable", UFixed6.unwrap(context.closable));
+        console.log("context.previousPendingMagnitude", UFixed6.unwrap(context.previousPendingMagnitude));
+        console.log("pendingPosition.magnitude()", UFixed6.unwrap(pendingPosition.magnitude()));
+
+        context.closable = context.closable
+            .sub(context.previousPendingMagnitude
+                .sub(pendingPosition.magnitude().min(context.previousPendingMagnitude)));
+        context.previousPendingMagnitude = pendingPosition.magnitude();
+
+        if (context.previousPendingMagnitude.gt(context.maxPendingPosition.magnitude()))
+            context.maxPendingPosition.update(pendingPosition);
     }
 
-    /// @notice Loads data about all pending positions for the invariant check
-    /// @param context The context to use
-    /// @param account The account to load the pending positions for
-    function _loadPendingPositions(Context memory context, address account) private view {
-        // load latest position information
+    /// @notice Loads the context for the update process
+    /// @param context The context to load to
+    /// @param account The account to query
+    function _loadUpdateContext(Context memory context, address account) private view {
+        // load latest position
         context.pendingCollateral = context.local.collateral;
         context.maxPendingPosition = context.latestPosition.local;
-        context.closable = context.maxPendingPosition.magnitude();
-        UFixed6 previousMagnitude = context.closable;
+        context.closable = context.latestPosition.local.magnitude();
+        context.previousPendingMagnitude = context.closable;
 
-        // load pending position information
-        for (uint256 id = context.local.latestId + 1; id < context.local.currentId; id++) {
-            Position memory position = _loadPendingPositionLocal(context, account, id);
+        // load pending positions
+        for (uint256 id = context.local.latestId + 1; id < context.local.currentId; id++)
+            _processPendingPosition(context, _loadPendingPositionLocal(context, account, id));
 
-            context.pendingCollateral = context.pendingCollateral
-                .sub(Fixed6Lib.from(position.fee))
-                .sub(Fixed6Lib.from(position.keeper));
+        // load current position
+        context.currentPosition.global = _loadPendingPositionGlobal(context, context.global.currentId);
+        context.currentPosition.global.invalidation.update(context.latestPosition.global.invalidation);
+        context.currentPosition.local = _loadPendingPositionLocal(context, account, context.local.currentId);
+        context.currentPosition.local.invalidation.update(context.latestPosition.local.invalidation);
+    }
 
-            context.closable = context.closable
-                .sub(previousMagnitude.sub(position.magnitude().min(previousMagnitude)));
-            previousMagnitude = position.magnitude();
+    function _processCollateralMagicValue(
+        Context memory context,
+        Fixed6 collateral
+    ) private view returns (Fixed6) {
+        if (collateral.eq(MAGIC_VALUE_WITHDRAW_ALL_COLLATERAL))
+            return context.local.collateral.mul(Fixed6Lib.NEG_ONE);
+        return collateral;
+    }
 
-            if (previousMagnitude.gt(context.maxPendingPosition.magnitude()))
-                context.maxPendingPosition.update(position);
-        }
+    function _processPositionMagicValue(
+        Context memory context,
+        UFixed6 currentPosition,
+        UFixed6 newPosition
+    ) private view returns (UFixed6) {
+        if (newPosition.eq(MAGIC_VALUE_UNCHANGED_POSITION))
+            return currentPosition;
+        if (newPosition.eq(MAGIC_VALUE_FULLY_CLOSED_POSITION) && !currentPosition.isZero())
+            return context.previousPendingMagnitude.sub(context.closable);
+        return newPosition;
     }
 
     /// @notice Updates the current position
@@ -297,25 +319,14 @@ contract Market is IMarket, Instance, ReentrancyGuard {
         Fixed6 collateral,
         bool protect
     ) private {
-        // read
-        _loadPendingPositions(context, account); // TODO: rename
-        context.currentPosition = _loadCurrentPositionContext(context, account);
+        // load
+        _loadUpdateContext(context, account);
 
         // magic values
-        if (collateral.eq(MAGIC_VALUE_WITHDRAW_ALL_COLLATERAL))
-            collateral = context.local.collateral.mul(Fixed6Lib.NEG_ONE);
-        if (newMaker.eq(MAGIC_VALUE_UNCHANGED_POSITION))
-            newMaker = context.currentPosition.local.maker;
-        if (newLong.eq(MAGIC_VALUE_UNCHANGED_POSITION))
-            newLong = context.currentPosition.local.long;
-        if (newShort.eq(MAGIC_VALUE_UNCHANGED_POSITION))
-            newShort = context.currentPosition.local.short;
-        if (newMaker.eq(MAGIC_VALUE_FULLY_CLOSED_POSITION) && !context.currentPosition.local.maker.isZero())
-            newMaker = context.currentPosition.local.maker.sub(context.closable);
-        if (newLong.eq(MAGIC_VALUE_FULLY_CLOSED_POSITION) && !context.currentPosition.local.long.isZero())
-            newLong = context.currentPosition.local.long.sub(context.closable);
-        if (newShort.eq(MAGIC_VALUE_FULLY_CLOSED_POSITION) && !context.currentPosition.local.short.isZero())
-            newShort = context.currentPosition.local.short.sub(context.closable);
+        collateral = _processCollateralMagicValue(context, collateral);
+        newMaker = _processPositionMagicValue(context, context.currentPosition.local.maker, newMaker);
+        newLong = _processPositionMagicValue(context, context.currentPosition.local.long, newLong);
+        newShort = _processPositionMagicValue(context, context.currentPosition.local.short, newShort);
 
         // advance to next id if applicable
         if (context.currentTimestamp > context.currentPosition.local.timestamp) {
@@ -340,6 +351,10 @@ contract Market is IMarket, Instance, ReentrancyGuard {
         // update collateral
         context.local.update(collateral);
         context.currentPosition.local.update(collateral);
+        context.pendingCollateral = context.pendingCollateral.add(collateral); // TODO: cleanup
+
+        // process current position
+        _processPendingPosition(context, context.currentPosition.local);
 
         // protect account
         bool protected = context.local.protect(context.latestPosition.local, context.currentTimestamp, protect);
@@ -406,7 +421,7 @@ contract Market is IMarket, Instance, ReentrancyGuard {
             (nextPosition = _loadPendingPositionLocal(context, account, context.local.latestId + 1))
                 .ready(context.latestVersion)
         ) {
-            Fixed6 previousDelta = _pendingPositions[account][context.local.latestId].read().delta; // TODO
+            Fixed6 previousDelta = _pendingPositions[account][context.local.latestId].read().delta;
             _processPositionLocal(context, account, context.local.latestId + 1, nextPosition);
             _checkpointCollateral(context, account, previousDelta, nextPosition);
         }
@@ -436,7 +451,7 @@ contract Market is IMarket, Instance, ReentrancyGuard {
     /// @param account The account to checkpoint for
     /// @param previousDelta The previous pending position's delta value
     /// @param nextPosition The next pending position
-    function _checkpointCollateral( // TODO?
+    function _checkpointCollateral(
         Context memory context,
         address account,
         Fixed6 previousDelta,
@@ -540,9 +555,6 @@ contract Market is IMarket, Instance, ReentrancyGuard {
         Fixed6 collateral,
         bool protected
     ) private view {
-        if (newOrder.magnitude().mul(Fixed6Lib.NEG_ONE).gt(Fixed6Lib.from(context.closable)))
-            revert MarketOverClosedError();
-
         if (protected && (
             !Fixed6Lib.from(context.closable).add(newOrder.magnitude()).isZero() ||
             context.latestPosition.local.maintained(
