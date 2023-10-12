@@ -497,9 +497,9 @@ contract Market is IMarket, Instance, ReentrancyGuard {
         )) revert MarketInvalidProtectionError();
 
         if (
-            !(context.currentPosition.local.magnitude().isZero() && context.latestPosition.local.magnitude().isZero()) &&
-            !(newOrder.isEmpty() && collateral.gte(Fixed6Lib.ZERO)) &&
-            (context.currentTimestamp - context.latestVersion.timestamp >= context.riskParameter.staleAfter)
+            !(context.currentPosition.local.magnitude().isZero() && context.latestPosition.local.magnitude().isZero()) &&   // sender has no position
+            !(newOrder.isEmpty() && collateral.gte(Fixed6Lib.ZERO)) &&                                                      // sender is depositing zero or more into account, without position change
+            (context.currentTimestamp - context.latestVersion.timestamp >= context.riskParameter.staleAfter)                // price is not stale
         ) revert MarketStalePriceError();
 
         if (context.marketParameter.closed && newOrder.increasesPosition())
