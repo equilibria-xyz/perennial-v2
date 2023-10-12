@@ -38,6 +38,12 @@ interface IMultiInvoker {
         bytes args;
     }
 
+    struct InterfaceFeeInfo {
+        UFixed6 amount;
+        bool wrap;
+        address to;
+    }
+
     event KeeperFeeCharged(address indexed account, address indexed market, address indexed to, UFixed6 fee);
     event OrderPlaced(address indexed account, IMarket indexed market, uint256 indexed nonce, TriggerOrder order);
     event OrderExecuted(address indexed account, IMarket indexed market, uint256 nonce, uint256 positionId);
@@ -56,6 +62,8 @@ interface IMultiInvoker {
     error MultiInvokerInvalidOrderError();
     // sig: 0x6f462962
     error MultiInvokerCantExecuteError();
+    // sig: 0x24f77194
+    error MultiInvokerMaxInterfaceFeeExceeded();
 
     function invoke(Invocation[] calldata invocations) external payable;
     function marketFactory() external view returns (IFactory);

@@ -14,6 +14,12 @@ export type OrderStruct = {
   delta?: BigNumberish
 }
 
+export type InterfaceFeeStruct = {
+  amount: BigNumberish
+  wrap: boolean
+  to: string
+}
+
 export type TriggerType = 'LM' | 'TP' | 'SL'
 
 export type Actions = IMultiInvoker.InvocationStruct[]
@@ -25,6 +31,7 @@ export const buildUpdateMarket = ({
   short,
   collateral,
   handleWrap,
+  feeStruct,
 }: {
   market: string
   maker?: BigNumberish
@@ -32,12 +39,13 @@ export const buildUpdateMarket = ({
   short?: BigNumberish
   collateral?: BigNumberish
   handleWrap?: boolean
+  feeStruct?: InterfaceFeeStruct
 }): Actions => {
   return [
     {
       action: 1,
       args: utils.defaultAbiCoder.encode(
-        ['address', 'uint256', 'uint256', 'uint256', 'int256', 'bool'],
+        ['address', 'uint256', 'uint256', 'uint256', 'int256', 'bool', 'tuple(uint256,bool,address)'],
         [
           market,
           maker ? maker : '0',
@@ -45,6 +53,11 @@ export const buildUpdateMarket = ({
           short ? short : '0',
           collateral ? collateral : '0',
           handleWrap ? handleWrap : false,
+          [
+            feeStruct ? feeStruct.amount : 0,
+            feeStruct ? feeStruct.wrap : false,
+            feeStruct ? feeStruct.to : '0x0000000000000000000000000000000000000000',
+          ],
         ],
       ),
     },
@@ -63,6 +76,7 @@ export const buildPlaceOrder = ({
   comparisonOverride,
   sideOverride,
   feeAsPositionPercentOverride,
+  interfaceFeeStruct,
 }: {
   market: string
   maker?: BigNumberish
@@ -75,6 +89,7 @@ export const buildPlaceOrder = ({
   comparisonOverride?: number
   sideOverride?: number
   feeAsPositionPercentOverride?: boolean
+  interfaceFeeStruct?: InterfaceFeeStruct
 }): Actions => {
   if (!triggerType) triggerType = 'LM'
   order.delta = BigNumber.from(order.delta)
@@ -123,6 +138,7 @@ export const buildPlaceOrder = ({
     collateral: collateral,
     handleWrap: handleWrap,
     t: order,
+    feeStruct: interfaceFeeStruct,
   })
 }
 
@@ -134,6 +150,7 @@ export const _buildPlaceOrder = ({
   collateral,
   handleWrap,
   t,
+  feeStruct,
 }: {
   market: string
   maker?: BigNumberish
@@ -142,13 +159,28 @@ export const _buildPlaceOrder = ({
   collateral?: BigNumberish
   handleWrap?: boolean
   t: TriggerOrderStruct
+  feeStruct?: InterfaceFeeStruct
 }): Actions => {
   return [
     {
       action: 1,
       args: utils.defaultAbiCoder.encode(
-        ['address', 'uint256', 'uint256', 'uint256', 'int256', 'bool'],
-        [market, maker ?? '0', long ?? '0', short ?? '0', collateral ?? '0', handleWrap ?? false],
+        ['address', 'uint256', 'uint256', 'uint256', 'int256', 'bool', 'tuple(uint256,bool,address)'],
+        [
+          market,
+          maker ?? '0',
+          long ?? '0',
+          short ?? '0',
+          collateral ?? '0',
+          handleWrap ?? false,
+          [
+            [
+              feeStruct ? feeStruct.amount : 0,
+              feeStruct ? feeStruct.wrap : false,
+              feeStruct ? feeStruct.to : '0x0000000000000000000000000000000000000000',
+            ],
+          ],
+        ],
       ),
     },
     {

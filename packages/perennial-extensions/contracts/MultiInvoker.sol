@@ -18,6 +18,11 @@ contract MultiInvoker is IMultiInvoker, Kept {
     /// @dev Gas buffer estimating remaining execution gas to include in fee to cover further instructions
     uint256 public constant GAS_BUFFER = 100000; // solhint-disable-line var-name-mixedcase
 
+    Fixed6 public constant PERCENT_BASE = Fixed6.wrap(100);
+
+    /// @dev The maximum percentage of collateral an interface can charge to update a position
+    Fixed6 public constant MAX_INTERFACE_FEE_PCT = Fixed6Lib.ONE;
+
     /// @dev USDC stablecoin address
     Token6 public immutable USDC; // solhint-disable-line var-name-mixedcase
 
@@ -113,15 +118,17 @@ contract MultiInvoker is IMultiInvoker, Kept {
 
             if (invocation.action == PerennialAction.UPDATE_POSITION) {
                 (
+                    // update data
                     IMarket market,
                     UFixed6 newMaker,
                     UFixed6 newLong,
                     UFixed6 newShort,
                     Fixed6 collateral,
-                    bool wrap
-                ) = abi.decode(invocation.args, (IMarket, UFixed6, UFixed6, UFixed6, Fixed6, bool));
+                    bool wrapUpdate,
+                    InterfaceFeeInfo memory feeInfo
+                ) = abi.decode(invocation.args, (IMarket, UFixed6, UFixed6, UFixed6, Fixed6, bool, InterfaceFeeInfo));
 
-                _update(market, newMaker, newLong, newShort, collateral, wrap);
+                _update(market, newMaker, newLong, newShort, collateral, wrapUpdate, feeInfo);
             } else if (invocation.action == PerennialAction.UPDATE_VAULT) {
                 (IVault vault, UFixed6 depositAssets, UFixed6 redeemShares, UFixed6 claimAssets, bool wrap)
                     = abi.decode(invocation.args, (IVault, UFixed6, UFixed6, UFixed6, bool));
@@ -153,10 +160,6 @@ contract MultiInvoker is IMultiInvoker, Kept {
                 (address target) = abi.decode(invocation.args, (address));
 
                 _approve(target);
-            } else if (invocation.action == PerennialAction.CHARGE_FEE) {
-                (address to, UFixed6 amount, bool wrap) = abi.decode(invocation.args, (address, UFixed6, bool));
-
-                _chargeFee(to, amount, wrap);
             }
         }
     }
@@ -174,8 +177,11 @@ contract MultiInvoker is IMultiInvoker, Kept {
         UFixed6 newLong,
         UFixed6 newShort,
         Fixed6 collateral,
-        bool wrap
+        bool wrap,
+        InterfaceFeeInfo memory feeInfo
     ) internal isMarketInstance(market) {
+        collateral = _chargeUpdateFee(feeInfo, collateral);
+
         Fixed18 balanceBefore =  Fixed18Lib.from(DSU.balanceOf());
         // collateral is transferred from this address to the market, transfer from msg.sender to here
         if (collateral.sign() == 1) _deposit(collateral.abs(), wrap);
@@ -250,11 +256,33 @@ contract MultiInvoker is IMultiInvoker, Kept {
         DSU.approve(target);
     }
 
+    /// @notice charges an interface fee on the collateral of an update
+    /// @param feeInfo Struct containing necessary info to charge interface fee
+    /// @param collateral Collateral to compare fee to and skim from
+    function _chargeUpdateFee(
+        InterfaceFeeInfo memory feeInfo,
+        Fixed6 collateral
+    ) internal returns (Fixed6 newCollateral) {
+        // If there's no fee, or the update decreases collateral, do nothing
+        if (feeInfo.amount.isZero() || collateral.lt(Fixed6Lib.ZERO)) return collateral;
+
+        if(Fixed6Lib.from(feeInfo.amount).mul(PERCENT_BASE).div(collateral).gt(MAX_INTERFACE_FEE_PCT))
+            revert MultiInvokerMaxInterfaceFeeExceeded();
+
+        newCollateral = collateral.sub(Fixed6Lib.from(feeInfo.amount));
+
+        _chargeFee(feeInfo.to, feeInfo.amount, feeInfo.wrap);
+    }
+
     /// @notice Charges an interface fee to a receiver
     /// @param to Address to receive the fee
     /// @param amount Amount of USDC to transfer
     /// @param wrap Flag to wrap USDC to DSU
-    function _chargeFee(address to, UFixed6 amount, bool wrap) internal {
+    function _chargeFee(
+        address to,
+        UFixed6 amount,
+        bool wrap
+    ) internal {
         if(wrap) {
             _deposit(amount, wrap);
             DSU.push(to, UFixed18Lib.from(amount));
@@ -504,4 +532,5 @@ contract MultiInvoker is IMultiInvoker, Kept {
             revert MultiInvokerInvalidInstanceError();
             _;
     }
+
 }
