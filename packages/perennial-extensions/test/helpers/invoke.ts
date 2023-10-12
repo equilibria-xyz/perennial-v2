@@ -1,4 +1,4 @@
-import { BigNumber, BigNumberish, utils } from 'ethers'
+import { BigNumberish, utils } from 'ethers'
 import { IMultiInvoker } from '../../types/generated'
 import { TriggerOrderStruct } from '../../types/generated/contracts/MultiInvoker'
 import { ethers } from 'hardhat'
@@ -110,10 +110,10 @@ export const buildUpdateVault = (vaultUpdate: VaultUpdate): Actions => {
         ['address', 'uint256', 'uint256', 'uint256', 'bool'],
         [
           vaultUpdate.vault,
-          vaultUpdate.depositAssets ? vaultUpdate.depositAssets : '0',
-          vaultUpdate.redeemShares ? vaultUpdate.redeemShares : '0',
-          vaultUpdate.claimAssets ? vaultUpdate.claimAssets : '0',
-          vaultUpdate.wrap ? true : false,
+          vaultUpdate.depositAssets ?? '0',
+          vaultUpdate.redeemShares ?? '0',
+          vaultUpdate.claimAssets ?? '0',
+          vaultUpdate.wrap ?? false,
         ],
       ),
     },
