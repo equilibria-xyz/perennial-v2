@@ -227,19 +227,28 @@ contract MultiInvoker is IMultiInvoker, Kept {
         Position memory currentPosition = market.pendingPositions(account, market.locals(account).currentId);
         currentPosition.adjust(latestPosition);
 
-        try market.update(
-            account,
-            currentPosition.maker.isZero() ? UFixed6Lib.ZERO : currentPosition.maker.sub(closable),
-            currentPosition.long.isZero() ? UFixed6Lib.ZERO : currentPosition.long.sub(closable),
-            currentPosition.short.isZero() ? UFixed6Lib.ZERO : currentPosition.short.sub(closable),
-            Fixed6Lib.from(-1, liquidationFee),
-            true
-        )   {
-            _withdraw(msg.sender, liquidationFee, true);
-        } catch (bytes memory reason) {
-            if (revertOnFailure) revert(string(reason));
+        if(revertOnFailure) {
+            market.update(
+                account,
+                currentPosition.maker.isZero() ? UFixed6Lib.ZERO : currentPosition.maker.sub(closable),
+                currentPosition.long.isZero() ? UFixed6Lib.ZERO : currentPosition.long.sub(closable),
+                currentPosition.short.isZero() ? UFixed6Lib.ZERO : currentPosition.short.sub(closable),
+                Fixed6Lib.from(-1, liquidationFee),
+                true
+            );
+        } else {
+            try market.update(
+                    account,
+                    currentPosition.maker.isZero() ? UFixed6Lib.ZERO : currentPosition.maker.sub(closable),
+                    currentPosition.long.isZero() ? UFixed6Lib.ZERO : currentPosition.long.sub(closable),
+                    currentPosition.short.isZero() ? UFixed6Lib.ZERO : currentPosition.short.sub(closable),
+                    Fixed6Lib.from(-1, liquidationFee),
+                    true
+            // solhint-disable-next-line
+            ) { } catch (bytes memory reason) { return; } // skip withdraw on failed update
         }
 
+        _withdraw(msg.sender, liquidationFee, true);
     }
 
     /// @notice Helper to max approve DSU for usage in a market or vault deployed by the registered factories
@@ -321,12 +330,18 @@ contract MultiInvoker is IMultiInvoker, Kept {
     ) internal {
         UFixed18 balanceBefore = DSU.balanceOf();
 
-        try IPythOracle(oracleProvider).commit{value: value}(index, version, data) {
-            // Return through keeper reward if any
-            DSU.push(msg.sender, DSU.balanceOf().sub(balanceBefore));
-        } catch (bytes memory reason) {
-            if (revertOnFailure) revert(string(reason));
+        if (revertOnFailure) {
+            IPythOracle(oracleProvider).commit{value: value}(index, version, data);
+        } else {
+            try IPythOracle(oracleProvider).commit{value: value}(index, version, data) { } // solhint-disable-line
+            catch {
+                // return pyth native fee and skip DSU push on failure
+                payable(msg.sender).transfer(msg.value);
+                return;
+            }
         }
+        // Return through keeper reward if any
+        DSU.push(msg.sender, DSU.balanceOf().sub(balanceBefore));
     }
 
     /// @notice Helper function to compute the liquidation fee for an account
@@ -425,19 +440,29 @@ contract MultiInvoker is IMultiInvoker, Kept {
 
         orders(account, market, nonce).execute(currentPosition);
 
-        try market.update(
+        if (revertOnFailure) {
+            market.update(
                 account,
                 currentPosition.maker,
                 currentPosition.long,
                 currentPosition.short,
                 Fixed6Lib.ZERO,
                 false
-        ) {
-            delete _orders[account][market][nonce];
-            emit OrderExecuted(account, market, nonce, currentId);
-        } catch (bytes memory reason) {
-            if (revertOnFailure) revert(string(reason));
+            );
+        } else {
+            try market.update(
+                account,
+                currentPosition.maker,
+                currentPosition.long,
+                currentPosition.short,
+                Fixed6Lib.ZERO,
+                false
+            // solhint-disable-next-line
+            ) { } catch (bytes memory reason) { return; } // skip order deletion on failed update
         }
+
+        delete _orders[account][market][nonce];
+        emit OrderExecuted(account, market, nonce, currentId);
     }
 
     /// @notice Helper function to raise keeper fee
