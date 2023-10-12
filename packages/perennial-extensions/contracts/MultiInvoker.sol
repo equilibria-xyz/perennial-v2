@@ -250,7 +250,7 @@ contract MultiInvoker is IMultiInvoker, Kept {
         DSU.approve(target);
     }
 
-    /// @notice Chargesa an interface fee to a receiver
+    /// @notice Charges an interface fee to a receiver
     /// @param to Address to receive the fee
     /// @param amount Amount of USDC to transfer
     /// @param wrap Flag to wrap USDC to DSU
