@@ -287,6 +287,32 @@ library PositionLib {
     }
 
     /// @notice Returns the maintenance requirement of the position
+    /// @param magnitude The position magnitude value to check
+    /// @param latestVersion The latest oracle version
+    /// @param riskParameter The current risk parameter
+    /// @return The maintenance requirement of the position
+    function maintenance(
+        UFixed6 magnitude,
+        OracleVersion memory latestVersion,
+        RiskParameter memory riskParameter
+    ) internal pure returns (UFixed6) {
+        return _collateralRequirement(magnitude, latestVersion, riskParameter.maintenance, riskParameter.minMaintenance);
+    }
+
+    /// @notice Returns the margin requirement of the position
+    /// @param magnitude The position magnitude value to check
+    /// @param latestVersion The latest oracle version
+    /// @param riskParameter The current risk parameter
+    /// @return The margin requirement of the position
+    function margin(
+        UFixed6 magnitude,
+        OracleVersion memory latestVersion,
+        RiskParameter memory riskParameter
+    ) internal pure returns (UFixed6) {
+        return _collateralRequirement(magnitude, latestVersion, riskParameter.margin, riskParameter.minMargin);
+    }
+
+    /// @notice Returns the maintenance requirement of the position
     /// @param self The position object to check
     /// @param latestVersion The latest oracle version
     /// @param riskParameter The current risk parameter
@@ -296,7 +322,7 @@ library PositionLib {
         OracleVersion memory latestVersion,
         RiskParameter memory riskParameter
     ) internal pure returns (UFixed6) {
-        return _collateralRequirement(self, latestVersion, riskParameter.maintenance, riskParameter.minMaintenance);
+        return maintenance(magnitude(self), latestVersion, riskParameter);
     }
 
     /// @notice Returns the margin requirement of the position
@@ -309,17 +335,50 @@ library PositionLib {
         OracleVersion memory latestVersion,
         RiskParameter memory riskParameter
     ) internal pure returns (UFixed6) {
-        return _collateralRequirement(self, latestVersion, riskParameter.margin, riskParameter.minMargin);
+        return margin(magnitude(self), latestVersion, riskParameter);
     }
 
+    // TODO
     function _collateralRequirement(
-        Position memory self,
+        UFixed6 magnitude,
         OracleVersion memory latestVersion,
         UFixed6 requirementRatio,
         UFixed6 requirementFixed
     ) private pure returns (UFixed6) {
-        if (magnitude(self).isZero()) return UFixed6Lib.ZERO;
-        return magnitude(self).mul(latestVersion.price.abs()).mul(requirementRatio).max(requirementFixed);
+        if (magnitude.isZero()) return UFixed6Lib.ZERO;
+        return magnitude.mul(latestVersion.price.abs()).mul(requirementRatio).max(requirementFixed);
+    }
+
+    /// @notice Returns the whether the position is maintained
+    /// @dev shortfall is considered solvent for 0-position
+    /// @param magnitude The position magnitude value to check
+    /// @param latestVersion The latest oracle version
+    /// @param riskParameter The current risk parameter
+    /// @param collateral The current account's collateral
+    /// @return Whether the position is maintained
+    function maintained(
+        UFixed6 magnitude,
+        OracleVersion memory latestVersion,
+        RiskParameter memory riskParameter,
+        Fixed6 collateral
+    ) internal pure returns (bool) {
+        return collateral.max(Fixed6Lib.ZERO).gte(Fixed6Lib.from(maintenance(magnitude, latestVersion, riskParameter)));
+    }
+
+    /// @notice Returns the whether the position is margined
+    /// @dev shortfall is considered solvent for 0-position
+    /// @param magnitude The position magnitude value to check
+    /// @param latestVersion The latest oracle version
+    /// @param riskParameter The current risk parameter
+    /// @param collateral The current account's collateral
+    /// @return Whether the position is margined
+    function margined(
+        UFixed6 magnitude,
+        OracleVersion memory latestVersion,
+        RiskParameter memory riskParameter,
+        Fixed6 collateral
+    ) internal pure returns (bool) {
+        return collateral.max(Fixed6Lib.ZERO).gte(Fixed6Lib.from(margin(magnitude, latestVersion, riskParameter)));
     }
 
     /// @notice Returns the whether the position is maintained
@@ -335,7 +394,7 @@ library PositionLib {
         RiskParameter memory riskParameter,
         Fixed6 collateral
     ) internal pure returns (bool) {
-        return collateral.max(Fixed6Lib.ZERO).gte(Fixed6Lib.from(maintenance(self, latestVersion, riskParameter)));
+        return maintained(magnitude(self), latestVersion, riskParameter, collateral);
     }
 
     /// @notice Returns the whether the position is margined
@@ -351,7 +410,7 @@ library PositionLib {
         RiskParameter memory riskParameter,
         Fixed6 collateral
     ) internal pure returns (bool) {
-        return collateral.max(Fixed6Lib.ZERO).gte(Fixed6Lib.from(margin(self, latestVersion, riskParameter)));
+        return margined(magnitude(self), latestVersion, riskParameter, collateral);
     }
 }
 

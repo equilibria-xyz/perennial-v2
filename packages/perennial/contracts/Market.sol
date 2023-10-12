@@ -241,7 +241,10 @@ contract Market is IMarket, Instance, ReentrancyGuard {
         newPendingPosition.adjust(context.latestPosition.local);
     }
 
-    // TODO
+    /// @notice Loads the context information of a pending position
+    /// @dev Must process pending position in order from latest + 1 to current (post update)
+    /// @param context The context to use
+    /// @param newPendingPosition The pending position to process
     function _processPendingPosition(Context memory context, Position memory newPendingPosition) private pure {
         context.pendingCollateral = context.pendingCollateral
             .sub(Fixed6Lib.from(newPendingPosition.fee))
@@ -252,8 +255,8 @@ contract Market is IMarket, Instance, ReentrancyGuard {
                 .sub(newPendingPosition.magnitude().min(context.previousPendingMagnitude)));
         context.previousPendingMagnitude = newPendingPosition.magnitude();
 
-        if (context.previousPendingMagnitude.gt(context.maxPendingPosition.magnitude()))
-            context.maxPendingPosition.update(newPendingPosition);
+        if (context.previousPendingMagnitude.gt(context.maxPendingMagnitude))
+            context.maxPendingMagnitude = newPendingPosition.magnitude();
     }
 
     /// @notice Loads the context for the update process
@@ -262,9 +265,8 @@ contract Market is IMarket, Instance, ReentrancyGuard {
     function _loadUpdateContext(Context memory context, address account) private view {
         // load latest position
         context.pendingCollateral = context.local.collateral;
-        context.maxPendingPosition = context.latestPosition.local;
-        context.closable = context.latestPosition.local.magnitude();
-        context.previousPendingMagnitude = context.closable;
+        context.maxPendingMagnitude = context.previousPendingMagnitude = context.closable =
+            context.latestPosition.local.magnitude();
 
         // load current position
         context.currentPosition.global = _loadPendingPositionGlobal(context, context.global.currentId);
@@ -287,17 +289,21 @@ contract Market is IMarket, Instance, ReentrancyGuard {
             _processPendingPosition(context, _loadPendingPositionLocal(context, account, id));
     }
 
-    // TODO
-    function _processCollateralMagicValue(
-        Context memory context,
-        Fixed6 collateral
-    ) private pure returns (Fixed6) {
+    /// @notice Modifies the collateral input per magic values
+    /// @param context The context to use
+    /// @param collateral The collateral to process
+    /// @return The resulting collateral value
+    function _processCollateralMagicValue(Context memory context, Fixed6 collateral) private pure returns (Fixed6) {
         if (collateral.eq(MAGIC_VALUE_WITHDRAW_ALL_COLLATERAL))
             return context.local.collateral.mul(Fixed6Lib.NEG_ONE);
         return collateral;
     }
 
-    // TODO
+    /// @notice Modifies the position input per magic values
+    /// @param context The context to use
+    /// @param currentPosition The current position prior to update
+    /// @param newPosition The position to process
+    /// @return The resulting position value
     function _processPositionMagicValue(
         Context memory context,
         UFixed6 currentPosition,
@@ -305,8 +311,8 @@ contract Market is IMarket, Instance, ReentrancyGuard {
     ) private pure returns (UFixed6) {
         if (newPosition.eq(MAGIC_VALUE_UNCHANGED_POSITION))
             return currentPosition;
-        if (newPosition.eq(MAGIC_VALUE_FULLY_CLOSED_POSITION) && !currentPosition.isZero())
-            return context.previousPendingMagnitude.sub(context.closable);
+        if (newPosition.eq(MAGIC_VALUE_FULLY_CLOSED_POSITION))
+            return context.previousPendingMagnitude.sub(context.closable.min(context.previousPendingMagnitude));
         return newPosition;
     }
 
@@ -375,7 +381,9 @@ contract Market is IMarket, Instance, ReentrancyGuard {
         emit Updated(msg.sender, account, context.currentTimestamp, newMaker, newLong, newShort, collateral, protect);
     }
 
-    // TODO
+    /// @notice Loads the context of the transaction
+    /// @param account The account to load the context of
+    /// @return context The loaded context
     function _loadContext(address account) private view returns (Context memory context) {
         // parameters
         context.protocolParameter = IMarketFactory(address(factory())).parameter();
@@ -594,7 +602,7 @@ contract Market is IMarket, Instance, ReentrancyGuard {
         ) revert MarketInsufficientMarginError();
 
         if (
-            !context.maxPendingPosition.maintained(context.latestVersion, context.riskParameter, context.pendingCollateral)
+            !PositionLib.maintained(context.maxPendingMagnitude, context.latestVersion, context.riskParameter, context.pendingCollateral)
         ) revert MarketInsufficientMaintenanceError();
 
         if (

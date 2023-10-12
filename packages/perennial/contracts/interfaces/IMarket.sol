@@ -32,10 +32,10 @@ interface IMarket is IInstance {
         Local local;
         PositionContext currentPosition;
         PositionContext latestPosition;
-        Position maxPendingPosition;
+        UFixed6 maxPendingMagnitude;
+        UFixed6 previousPendingMagnitude;
         Fixed6 pendingCollateral;
         UFixed6 closable;
-        UFixed6 previousPendingMagnitude;
     }
 
     struct PositionContext {
