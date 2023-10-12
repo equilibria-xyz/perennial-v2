@@ -13234,7 +13234,7 @@ describe('Market', () => {
         })
       })
 
-      context.only('magic values', async () => {
+      context('magic values', async () => {
         beforeEach(async () => {
           dsu.transferFrom.whenCalledWith(user.address, market.address, COLLATERAL.mul(1e12)).returns(true)
           dsu.transferFrom.whenCalledWith(userB.address, market.address, COLLATERAL.mul(1e12)).returns(true)
@@ -13650,7 +13650,7 @@ describe('Market', () => {
           })
         })
 
-        it.only('closes full position on MAX - 1 (pending)', async () => {
+        it('closes full position on MAX - 1 (pending)', async () => {
           const riskParameter = { ...(await market.riskParameter()) }
           riskParameter.staleAfter = BigNumber.from(14400)
           await market.updateRiskParameter(riskParameter)
@@ -13705,7 +13705,6 @@ describe('Market', () => {
             delta: COLLATERAL,
           })
 
-          console.log(1)
           await market
             .connect(user)
             .update(
@@ -13716,7 +13715,6 @@ describe('Market', () => {
               0,
               false,
             )
-          console.log(1)
           await market
             .connect(userC)
             .update(
@@ -13727,7 +13725,6 @@ describe('Market', () => {
               0,
               false,
             )
-          console.log(1)
           await market
             .connect(userB)
             .update(
@@ -13738,7 +13735,6 @@ describe('Market', () => {
               0,
               false,
             )
-          console.log(1)
 
           expectPositionEq(await market.pendingPositions(user.address, 2), {
             ...DEFAULT_POSITION,
@@ -13785,21 +13781,21 @@ describe('Market', () => {
           await market.connect(userC).update(userC.address, 0, 0, ethers.constants.MaxUint256.sub(1), 0, false)
           await market.connect(userB).update(userB.address, ethers.constants.MaxUint256.sub(1), 0, 0, 0, false)
 
-          expectPositionEq(await market.pendingPositions(user.address, 2), {
+          expectPositionEq(await market.pendingPositions(user.address, 3), {
             ...DEFAULT_POSITION,
-            timestamp: ORACLE_VERSION_3.timestamp,
+            timestamp: ORACLE_VERSION_4.timestamp,
             long: POSITION.div(2),
             delta: COLLATERAL,
           })
-          expectPositionEq(await market.pendingPositions(userB.address, 2), {
+          expectPositionEq(await market.pendingPositions(userB.address, 3), {
             ...DEFAULT_POSITION,
-            timestamp: ORACLE_VERSION_3.timestamp,
+            timestamp: ORACLE_VERSION_4.timestamp,
             maker: POSITION,
             delta: COLLATERAL,
           })
-          expectPositionEq(await market.pendingPositions(userC.address, 2), {
+          expectPositionEq(await market.pendingPositions(userC.address, 3), {
             ...DEFAULT_POSITION,
-            timestamp: ORACLE_VERSION_3.timestamp,
+            timestamp: ORACLE_VERSION_4.timestamp,
             short: POSITION.div(2),
             delta: COLLATERAL,
           })
@@ -13835,21 +13831,21 @@ describe('Market', () => {
               false,
             )
 
-          expectPositionEq(await market.pendingPositions(user.address, 2), {
+          expectPositionEq(await market.pendingPositions(user.address, 3), {
             ...DEFAULT_POSITION,
-            timestamp: ORACLE_VERSION_3.timestamp,
+            timestamp: ORACLE_VERSION_4.timestamp,
             long: POSITION.div(2),
             delta: COLLATERAL,
           })
-          expectPositionEq(await market.pendingPositions(userB.address, 2), {
+          expectPositionEq(await market.pendingPositions(userB.address, 3), {
             ...DEFAULT_POSITION,
-            timestamp: ORACLE_VERSION_3.timestamp,
+            timestamp: ORACLE_VERSION_4.timestamp,
             maker: POSITION,
             delta: COLLATERAL,
           })
-          expectPositionEq(await market.pendingPositions(userC.address, 2), {
+          expectPositionEq(await market.pendingPositions(userC.address, 3), {
             ...DEFAULT_POSITION,
-            timestamp: ORACLE_VERSION_3.timestamp,
+            timestamp: ORACLE_VERSION_4.timestamp,
             short: POSITION.div(2),
             delta: COLLATERAL,
           })

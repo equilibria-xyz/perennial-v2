@@ -311,8 +311,10 @@ contract Market is IMarket, Instance, ReentrancyGuard {
     ) private pure returns (UFixed6) {
         if (newPosition.eq(MAGIC_VALUE_UNCHANGED_POSITION))
             return currentPosition;
-        if (newPosition.eq(MAGIC_VALUE_FULLY_CLOSED_POSITION))
+        if (newPosition.eq(MAGIC_VALUE_FULLY_CLOSED_POSITION)) {
+            if (currentPosition.isZero()) return currentPosition;
             return context.previousPendingMagnitude.sub(context.closable.min(context.previousPendingMagnitude));
+        }
         return newPosition;
     }
 
