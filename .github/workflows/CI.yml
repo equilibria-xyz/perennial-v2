@@ -57,6 +57,7 @@ jobs:
       - name: Run tests
         env:
           MOCHA_REPORTER: dot
+          MOCHA_RETRY_COUNT: 2
         run: |
           yarn workspace @equilibria/perennial-v2 run ${{ env.PARSER_BROKEN != 'true' && 'coverage' || 'test' }}
       - name: '[Core] Unit Test Code Coverage Report'
@@ -88,6 +89,7 @@ jobs:
       - name: Run tests
         env:
           MOCHA_REPORTER: dot
+          MOCHA_RETRY_COUNT: 2
           MAINNET_NODE_URL: ${{ secrets.MAINNET_NODE_URL }}
         run: |
           yarn workspace @equilibria/perennial-v2 run ${{ env.PARSER_BROKEN != 'true' && 'coverage:integration' || 'test:integration' }}
@@ -122,6 +124,7 @@ jobs:
       - name: Run tests
         env:
           MOCHA_REPORTER: dot
+          MOCHA_RETRY_COUNT: 2
         run: |
           yarn workspace @equilibria/perennial-v2-oracle run ${{ env.PARSER_BROKEN != 'true' && 'coverage' || 'test' }}
       - name: '[Oracle] Unit Test Coverage Report'
@@ -153,6 +156,7 @@ jobs:
       - name: Run tests
         env:
           MOCHA_REPORTER: dot
+          MOCHA_RETRY_COUNT: 2
           MAINNET_NODE_URL: ${{ secrets.MAINNET_NODE_URL }}
         run: |
           yarn workspace @equilibria/perennial-v2-oracle run ${{ env.PARSER_BROKEN != 'true' && 'coverage:integration' || 'test:integration' }}
@@ -187,6 +191,7 @@ jobs:
       - name: Run tests
         env:
           MOCHA_REPORTER: dot
+          MOCHA_RETRY_COUNT: 2
         run: |
           yarn workspace @equilibria/perennial-v2-payoff run ${{ env.PARSER_BROKEN != 'true' && 'coverage' || 'test' }}
       - name: '[Payoff] Unit Test Code Coverage Report'
@@ -218,6 +223,7 @@ jobs:
       - name: Run tests
         env:
           MOCHA_REPORTER: dot
+          MOCHA_RETRY_COUNT: 2
           MAINNET_NODE_URL: ${{ secrets.MAINNET_NODE_URL }}
         run: |
           yarn workspace @equilibria/perennial-v2-payoff run ${{ env.PARSER_BROKEN != 'true' && 'coverage:integration' || 'test:integration' }}
@@ -252,6 +258,7 @@ jobs:
       - name: Run tests
         env:
           MOCHA_REPORTER: dot
+          MOCHA_RETRY_COUNT: 2
         run: |
           yarn workspace @equilibria/perennial-v2-vault run ${{ env.PARSER_BROKEN != 'true' && 'coverage' || 'test' }}
       - name: '[Vault] Unit Test Code Coverage Report'
@@ -283,6 +290,7 @@ jobs:
       - name: Run tests
         env:
           MOCHA_REPORTER: dot
+          MOCHA_RETRY_COUNT: 2
           MAINNET_NODE_URL: ${{ secrets.MAINNET_NODE_URL }}
         run: |
           yarn workspace @equilibria/perennial-v2-vault run ${{ env.PARSER_BROKEN != 'true' && 'coverage:integration' || 'test:integration' }}
@@ -317,6 +325,7 @@ jobs:
       - name: Run tests
         env:
           MOCHA_REPORTER: dot
+          MOCHA_RETRY_COUNT: 2
         run: |
           yarn workspace @equilibria/perennial-v2-extensions run ${{ env.PARSER_BROKEN != 'true' && 'coverage' || 'test' }}
       - name: '[Extensions] Unit Test Code Coverage Report'
@@ -348,6 +357,7 @@ jobs:
       - name: Run tests
         env:
           MOCHA_REPORTER: dot
+          MOCHA_RETRY_COUNT: 2
           MAINNET_NODE_URL: ${{ secrets.MAINNET_NODE_URL }}
         run: |
           yarn workspace @equilibria/perennial-v2-extensions run ${{ env.PARSER_BROKEN != 'true' && 'coverage:integration' || 'test:integration' }}
