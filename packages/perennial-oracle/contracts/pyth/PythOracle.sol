@@ -109,10 +109,11 @@ contract PythOracle is IPythOracle, Instance, Kept {
         oracleVersion.valid = !oracleVersion.price.isZero();
     }
 
-    /// @notice Commits the price to a non-requested version
-    /// @dev This commit function may pay out a keeper reward if the committed version is valid
-    ///      for the next requested version to commit. A proper `versionIndex` must be supplied in case we are
-    ///      ahead of an invalidated requested version and need to verify that the provided version is valid.
+    /// @notice Commits the price to specified version
+    /// @dev Accepts both requested and non-requested versions.
+    ///      Requested versions will pay out a keeper reward, non-requested versions will not.
+    ///      Accepts any publish time in the underlying price message, as long as it is within the validity window,
+    ///      which means its possible for publish times to be slightly out of order with respect to versions.
     /// @param version The oracle version to commit
     /// @param data The update data to commit
     function commit(uint256 version, bytes calldata data) external payable {
