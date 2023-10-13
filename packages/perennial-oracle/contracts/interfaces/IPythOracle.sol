@@ -2,10 +2,9 @@
 pragma solidity ^0.8.13;
 
 import "@equilibria/root/attribute/interfaces/IInstance.sol";
-import "@equilibria/root/attribute/interfaces/IKept.sol";
 import "@equilibria/perennial-v2/contracts/interfaces/IOracleProvider.sol";
 
-interface IPythOracle is IOracleProvider, IInstance, IKept {
+interface IPythOracle is IOracleProvider, IInstance {
     struct Global {
         /// @dev The latest committed oracle version
         uint64 latestVersion;
@@ -24,20 +23,11 @@ interface IPythOracle is IOracleProvider, IInstance, IKept {
     // sig: 0x877b27c9
     error PythOracleInvalidDataError();
 
-    function initialize(bytes32 id_, AggregatorV3Interface chainlinkFeed_, Token18 dsu_) external;
-    function commit(uint256 version, bytes calldata data) external payable;
+    function initialize(bytes32 id_) external;
+    function commit(uint256 version, Fixed6 price) external;
     function next() external returns (uint256);
 
-    function MIN_VALID_TIME_AFTER_VERSION() external view returns (uint256);
-    function MAX_VALID_TIME_AFTER_VERSION() external view returns (uint256);
     function GRACE_PERIOD() external view returns (uint256);
-    function KEEPER_REWARD_PREMIUM() external view returns (UFixed18);
-    function KEEPER_BUFFER() external view returns (uint256);
     function versions(uint256 index) external view returns (uint256);
     function global() external view returns (Global memory);
-}
-
-/// @dev PythStaticFee interface, this is not exposed in the AbstractPyth contract
-interface IPythStaticFee {
-    function singleUpdateFeeInWei() external view returns (uint);
 }
