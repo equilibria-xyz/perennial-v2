@@ -43,3 +43,8 @@ interface IPythFactory is IOracleProviderFactory, IFactory, IKept {
 interface IPythStaticFee {
     function singleUpdateFeeInWei() external view returns (uint);
 }
+
+/// @dev PythStaticFee interface, this is not exposed in the AbstractPyth contract
+interface IPythStaticFee {
+    function singleUpdateFeeInWei() external view returns (uint);
+}

@@ -8,6 +8,7 @@ import "@pythnetwork/pyth-sdk-solidity/AbstractPyth.sol";
 import "../interfaces/IPythFactory.sol";
 import "../interfaces/IOracleFactory.sol";
 
+
 /// @title PythFactory
 /// @notice Factory contract for creating and managing Pyth oracles
 contract PythFactory is IPythFactory, Factory, Kept {
@@ -30,7 +31,7 @@ contract PythFactory is IPythFactory, Factory, Kept {
     AbstractPyth public immutable pyth;
 
     /// @notice The root oracle factory
-    IOracleFactory public oracleFactory;
+    IOracleFactory public oracleFactory; // TODO: remove?
 
     /// @notice Mapping of which factory's instances are authorized to request from this factory's instances
     mapping(IFactory => bool) public callers;
