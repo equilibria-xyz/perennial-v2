@@ -18,11 +18,6 @@ contract MultiInvoker is IMultiInvoker, Kept {
     /// @dev Gas buffer estimating remaining execution gas to include in fee to cover further instructions
     uint256 public constant GAS_BUFFER = 100000; // solhint-disable-line var-name-mixedcase
 
-    Fixed6 public constant PERCENT_BASE = Fixed6.wrap(100);
-
-    /// @dev The maximum percentage of collateral an interface can charge to update a position
-    Fixed6 public constant MAX_INTERFACE_FEE_PCT = Fixed6Lib.ONE;
-
     /// @dev USDC stablecoin address
     Token6 public immutable USDC; // solhint-disable-line var-name-mixedcase
 
