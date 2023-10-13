@@ -97,8 +97,8 @@ describe('PythOracle', () => {
           {
             action: 6,
             args: utils.defaultAbiCoder.encode(
-              ['address', 'uint256', 'uint256', 'uint256', 'bytes', 'bool'],
-              [pythOracle.address, 1, 0, STARTING_TIME, VAA, true],
+              ['address', 'uint256', 'uint256', 'bytes', 'bool'],
+              [pythOracle.address, 1, STARTING_TIME, VAA, true],
             ),
           },
         ],
@@ -125,8 +125,8 @@ describe('PythOracle', () => {
           {
             action: 6,
             args: utils.defaultAbiCoder.encode(
-              ['address', 'uint256', 'uint256', 'uint256', 'bytes', 'bool'],
-              [pythOracle.address, 1, 0, STARTING_TIME, VAA, true],
+              ['address', 'uint256', 'uint256', 'bytes', 'bool'],
+              [pythOracle.address, 1, STARTING_TIME, VAA, true],
             ),
           },
         ],
@@ -152,8 +152,8 @@ describe('PythOracle', () => {
             {
               action: 6,
               args: utils.defaultAbiCoder.encode(
-                ['address', 'uint256', 'uint256', 'uint256', 'bytes', 'bool'],
-                [pythOracle.address, 0, 0, STARTING_TIME, VAA, true],
+                ['address', 'uint256', 'uint256', 'bytes', 'bool'],
+                [pythOracle.address, 0, STARTING_TIME, VAA, true],
               ),
             },
           ],
@@ -177,8 +177,8 @@ describe('PythOracle', () => {
           {
             action: 6,
             args: utils.defaultAbiCoder.encode(
-              ['address', 'uint256', 'uint256', 'uint256', 'bytes', 'bool'],
-              [pythOracle.address, 1, 0, STARTING_TIME, VAA, false],
+              ['address', 'uint256', 'uint256', 'bytes', 'bool'],
+              [pythOracle.address, 1, STARTING_TIME, VAA, false],
             ),
           },
         ],
@@ -204,8 +204,8 @@ describe('PythOracle', () => {
             {
               action: 6,
               args: utils.defaultAbiCoder.encode(
-                ['address', 'uint256', 'uint256', 'uint256', 'bytes', 'bool'],
-                [pythOracle.address, 1, 0, STARTING_TIME + 60, VAA, false],
+                ['address', 'uint256', 'uint256', 'bytes', 'bool'],
+                [pythOracle.address, 1, STARTING_TIME + 60, VAA, false],
               ),
             },
           ],
@@ -248,8 +248,8 @@ describe('PythOracle', () => {
           {
             action: 6,
             args: utils.defaultAbiCoder.encode(
-              ['address', 'uint256', 'uint256', 'uint256', 'bytes', 'bool'],
-              [pythOracle.address, 1, 0, STARTING_TIME + 60, FailingVAA, false],
+              ['address', 'uint256', 'uint256', 'bytes', 'bool'],
+              [pythOracle.address, 1, STARTING_TIME + 60, FailingVAA, false],
             ),
           },
         ],

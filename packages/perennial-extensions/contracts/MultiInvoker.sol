@@ -141,10 +141,10 @@ contract MultiInvoker is IMultiInvoker, Kept {
 
                 _executeOrder(account, market, nonce);
             } else if (invocation.action == PerennialAction.COMMIT_PRICE) {
-                (address oracleProvider, uint256 value, uint256 index, uint256 version, bytes memory data, bool revertOnFailure) =
-                    abi.decode(invocation.args, (address, uint256, uint256, uint256, bytes, bool));
+                (address oracleProvider, uint256 value, uint256 version, bytes memory data, bool revertOnFailure) =
+                    abi.decode(invocation.args, (address, uint256, uint256, bytes, bool));
 
-                _commitPrice(oracleProvider, value, index, version, data, revertOnFailure);
+                _commitPrice(oracleProvider, value, version, data, revertOnFailure);
             } else if (invocation.action == PerennialAction.LIQUIDATE) {
                 (IMarket market, address account) = abi.decode(invocation.args, (IMarket, address));
 
@@ -312,7 +312,6 @@ contract MultiInvoker is IMultiInvoker, Kept {
     function _commitPrice(
         address oracleProvider,
         uint256 value,
-        uint256 index,
         uint256 version,
         bytes memory data,
         bool revertOnFailure
@@ -320,9 +319,9 @@ contract MultiInvoker is IMultiInvoker, Kept {
         UFixed18 balanceBefore = DSU.balanceOf();
 
         if (revertOnFailure) {
-            IPythOracle(oracleProvider).commit{value: value}(index, version, data);
+            IPythOracle(oracleProvider).commit{value: value}(version, data);
         } else {
-            try IPythOracle(oracleProvider).commit{value: value}(index, version, data) { }
+            try IPythOracle(oracleProvider).commit{value: value}(version, data) { }
             catch {
                 // returns the pyth fee sent here on soft-revert
                 payable(msg.sender).transfer(value);
