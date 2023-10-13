@@ -8,7 +8,6 @@ import "@pythnetwork/pyth-sdk-solidity/AbstractPyth.sol";
 import "../interfaces/IPythFactory.sol";
 import "../interfaces/IOracleFactory.sol";
 
-
 /// @title PythFactory
 /// @notice Factory contract for creating and managing Pyth oracles
 contract PythFactory is IPythFactory, Factory, Kept {
