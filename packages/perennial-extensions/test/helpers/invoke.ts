@@ -49,10 +49,10 @@ export const buildUpdateMarket = ({
         ['address', 'uint256', 'uint256', 'uint256', 'int256', 'bool', 'tuple(uint256,bool,address)'],
         [
           market,
-          maker ? maker : MAX_UINT,
-          long ? long : MAX_UINT,
-          short ? short : MAX_UINT,
-          collateral ? collateral : MAX_UINT,
+          maker ? maker : '0',
+          long ? long : '0',
+          short ? short : '0',
+          collateral ? collateral : MIN_INT,
           handleWrap ? handleWrap : false,
           [
             feeStruct ? feeStruct.amount : 0,
