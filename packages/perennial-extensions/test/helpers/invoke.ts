@@ -5,6 +5,7 @@ import { ethers } from 'hardhat'
 
 export const MAX_INT = ethers.constants.MaxInt256
 export const MIN_INT = ethers.constants.MinInt256
+export const MAX_UINT = ethers.constants.MaxUint256
 
 export type OrderStruct = {
   side?: number
@@ -48,10 +49,10 @@ export const buildUpdateMarket = ({
         ['address', 'uint256', 'uint256', 'uint256', 'int256', 'bool', 'tuple(uint256,bool,address)'],
         [
           market,
-          maker ? maker : '0',
-          long ? long : '0',
-          short ? short : '0',
-          collateral ? collateral : '0',
+          maker ? maker : MAX_UINT,
+          long ? long : MAX_UINT,
+          short ? short : MAX_UINT,
+          collateral ? collateral : MAX_UINT,
           handleWrap ? handleWrap : false,
           [
             feeStruct ? feeStruct.amount : 0,
@@ -168,17 +169,15 @@ export const _buildPlaceOrder = ({
         ['address', 'uint256', 'uint256', 'uint256', 'int256', 'bool', 'tuple(uint256,bool,address)'],
         [
           market,
-          maker ?? '0',
-          long ?? '0',
-          short ?? '0',
-          collateral ?? '0',
+          maker ?? MAX_UINT,
+          long ?? MAX_UINT,
+          short ?? MAX_UINT,
+          collateral ?? MIN_INT,
           handleWrap ?? false,
           [
-            [
-              feeStruct ? feeStruct.amount : 0,
-              feeStruct ? feeStruct.wrap : false,
-              feeStruct ? feeStruct.to : '0x0000000000000000000000000000000000000000',
-            ],
+            feeStruct ? feeStruct.amount : 0,
+            feeStruct ? feeStruct.wrap : false,
+            feeStruct ? feeStruct.to : '0x0000000000000000000000000000000000000000',
           ],
         ],
       ),
@@ -246,9 +245,9 @@ export const buildUpdateVault = (vaultUpdate: VaultUpdate): Actions => {
         ['address', 'uint256', 'uint256', 'uint256', 'bool'],
         [
           vaultUpdate.vault,
-          vaultUpdate.depositAssets ? vaultUpdate.depositAssets : '0',
-          vaultUpdate.redeemShares ? vaultUpdate.redeemShares : '0',
-          vaultUpdate.claimAssets ? vaultUpdate.claimAssets : '0',
+          vaultUpdate.depositAssets ?? '0',
+          vaultUpdate.redeemShares ?? '0',
+          vaultUpdate.claimAssets ?? '0',
           vaultUpdate.wrap ? true : false,
         ],
       ),
@@ -300,32 +299,6 @@ export const buildExecOrder = ({
   ]
 }
 
-export const buildChargeFee = ({
-  receiver,
-  amount,
-  handleWrap,
-}: {
-  receiver: string
-  amount: BigNumberish
-  handleWrap: boolean
-}): Actions => {
-  return [
-    {
-      action: 9,
-      args: ethers.utils.defaultAbiCoder.encode(['address', 'uint256', 'bool'], [receiver, amount, handleWrap]),
-    },
-  ]
-}
-
-// await expect(
-//   multiInvoker.connect(user).invoke([
-//     {
-//       action: 9,
-//       args: ethers.utils.defaultAbiCoder.encode(['address', 'uint256'], [userB.address, collateral]),
-//     },
-//   ]),
-// )
-
 module.exports = {
   MAX_INT,
   buildCancelOrder,
@@ -336,5 +309,4 @@ module.exports = {
   buildLiquidateUser,
   buildUpdateVault,
   buildApproveTarget,
-  buildChargeFee,
 }

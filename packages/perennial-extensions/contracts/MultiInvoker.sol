@@ -180,17 +180,18 @@ contract MultiInvoker is IMultiInvoker, Kept {
         bool wrap,
         InterfaceFeeInfo memory feeInfo
     ) internal isMarketInstance(market) {
-        collateral = _chargeUpdateFee(feeInfo, collateral);
-
         Fixed18 balanceBefore =  Fixed18Lib.from(DSU.balanceOf());
         // collateral is transferred from this address to the market, transfer from msg.sender to here
         if (collateral.sign() == 1) _deposit(collateral.abs(), wrap);
 
         market.update(msg.sender, newMaker, newLong, newShort, collateral, false);
 
-        Fixed6 withdrawAmount = Fixed6Lib.from(Fixed18Lib.from(DSU.balanceOf()).sub(balanceBefore));
         // collateral is transferred from the market to this address, transfer to msg.sender from here
-        if (!withdrawAmount.isZero()) _withdraw(msg.sender, withdrawAmount.abs(), wrap);
+        Fixed6 withdrawAmount = Fixed6Lib.from(Fixed18Lib.from(DSU.balanceOf()).sub(balanceBefore));
+        if (!withdrawAmount.isZero()) _withdraw(msg.sender, withdrawAmount.abs().sub(feeInfo.amount), wrap);
+
+        // charges interface fee both after deposit and withdrawal logic
+        _chargeFee(feeInfo.to, feeInfo.amount, feeInfo.wrap, !withdrawAmount.isZero());
     }
 
     /// @notice Update vault on behalf of msg.sender
@@ -256,24 +257,6 @@ contract MultiInvoker is IMultiInvoker, Kept {
         DSU.approve(target);
     }
 
-    /// @notice charges an interface fee on the collateral of an update
-    /// @param feeInfo Struct containing necessary info to charge interface fee
-    /// @param collateral Collateral to compare fee to and skim from
-    function _chargeUpdateFee(
-        InterfaceFeeInfo memory feeInfo,
-        Fixed6 collateral
-    ) internal returns (Fixed6 newCollateral) {
-        // If there's no fee, or the update decreases collateral, do nothing
-        if (feeInfo.amount.isZero() || collateral.lt(Fixed6Lib.ZERO)) return collateral;
-
-        if(Fixed6Lib.from(feeInfo.amount).mul(PERCENT_BASE).div(collateral).gt(MAX_INTERFACE_FEE_PCT))
-            revert MultiInvokerMaxInterfaceFeeExceeded();
-
-        newCollateral = collateral.sub(Fixed6Lib.from(feeInfo.amount));
-
-        _chargeFee(feeInfo.to, feeInfo.amount, feeInfo.wrap);
-    }
-
     /// @notice Charges an interface fee to a receiver
     /// @param to Address to receive the fee
     /// @param amount Amount of USDC to transfer
@@ -281,13 +264,20 @@ contract MultiInvoker is IMultiInvoker, Kept {
     function _chargeFee(
         address to,
         UFixed6 amount,
-        bool wrap
+        bool wrap,
+        bool onWithdrawal
     ) internal {
-        if(wrap) {
-            _deposit(amount, wrap);
-            DSU.push(to, UFixed18Lib.from(amount));
+        if (amount.isZero()) return;
+
+        if (onWithdrawal) {
+            if (wrap) _unwrap(to, UFixed18Lib.from(amount));
+            else DSU.push(to, UFixed18Lib.from(amount));
         } else {
-            USDC.pullTo(msg.sender, to, amount);
+            if (!wrap) USDC.pullTo(msg.sender, to, amount);
+            else {
+                _deposit(amount, wrap);
+                DSU.push(to, UFixed18Lib.from(amount));
+            }
         }
 
         emit FeeCharged(msg.sender, to, amount, wrap);

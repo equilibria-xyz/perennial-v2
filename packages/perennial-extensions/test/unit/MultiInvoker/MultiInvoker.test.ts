@@ -270,27 +270,99 @@ describe('MultiInvoker', () => {
       usdc.transferFrom.returns(true)
 
       await expect(
-        multiInvoker
-          .connect(user)
-          .invoke(helpers.buildChargeFee({ receiver: owner.address, amount: collateral, handleWrap: false })),
+        multiInvoker.connect(user).invoke(
+          helpers.buildUpdateMarket({
+            market: market.address,
+            collateral: collateral,
+            handleWrap: false,
+            feeStruct: {
+              to: owner.address,
+              amount: collateral.div(10),
+              wrap: false,
+            },
+          }),
+        ),
       )
         .to.emit(multiInvoker, 'FeeCharged')
-        .withArgs(user.address, owner.address, collateral, false)
+        .withArgs(user.address, owner.address, collateral.div(10), false)
 
-      expect(usdc.transferFrom).to.have.been.calledWith(user.address, owner.address, collateral)
+      expect(usdc.transferFrom).to.have.been.calledWith(user.address, owner.address, collateral.div(10))
     })
 
-    it('charges an interface fee and wraps USDC to DSU to the receiver', async () => {
+    it('charges an interface fee on deposit and wraps USDC to DSU to the receiver', async () => {
+      usdc.transferFrom.returns(true)
+      dsu.transfer.returns(true)
+
+      await expect(
+        multiInvoker.connect(user).invoke(
+          helpers.buildUpdateMarket({
+            market: market.address,
+            collateral: collateral,
+            handleWrap: false,
+            feeStruct: {
+              to: owner.address,
+              amount: collateral.div(10),
+              wrap: true,
+            },
+          }),
+        ),
+      )
+        .to.emit(multiInvoker, 'FeeCharged')
+        .withArgs(user.address, owner.address, collateral.div(10), true)
+    })
+
+    it('charges a fee on withdrawal and pushes DSU to the receiver', async () => {
       usdc.transferFrom.returns(true)
       dsu.transfer.returns(true)
 
       await expect(
         multiInvoker
           .connect(user)
-          .invoke(helpers.buildChargeFee({ receiver: owner.address, amount: collateral, handleWrap: true })),
+          .invoke(helpers.buildUpdateMarket({ market: market.address, collateral: collateral })),
+      ).to.not.be.reverted
+
+      await expect(
+        multiInvoker.connect(user).invoke(
+          helpers.buildUpdateMarket({
+            market: market.address,
+            collateral: collateral,
+            feeStruct: {
+              to: owner.address,
+              amount: collateral.div(10),
+              wrap: false,
+            },
+          }),
+        ),
       )
         .to.emit(multiInvoker, 'FeeCharged')
-        .withArgs(user.address, owner.address, collateral, true)
+        .withArgs(user.address, owner.address, collateral.div(10), false)
+    })
+
+    it('charges a fee on withdrawal and pushes USDC to the receiver', async () => {
+      usdc.transferFrom.returns(true)
+      dsu.transfer.returns(true)
+
+      await expect(
+        multiInvoker
+          .connect(user)
+          .invoke(helpers.buildUpdateMarket({ market: market.address, collateral: collateral })),
+      ).to.not.be.reverted
+
+      await expect(
+        multiInvoker.connect(user).invoke(
+          helpers.buildUpdateMarket({
+            market: market.address,
+            collateral: collateral,
+            feeStruct: {
+              to: owner.address,
+              amount: collateral.div(10),
+              wrap: true,
+            },
+          }),
+        ),
+      )
+        .to.emit(multiInvoker, 'FeeCharged')
+        .withArgs(user.address, owner.address, collateral.div(10), true)
     })
   })
 
