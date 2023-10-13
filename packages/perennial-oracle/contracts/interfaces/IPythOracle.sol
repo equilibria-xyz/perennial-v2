@@ -24,7 +24,7 @@ interface IPythOracle is IOracleProvider, IInstance {
     error PythOracleInvalidDataError();
 
     function initialize(bytes32 id_) external;
-    function commit(uint256 version, Fixed6 price) external;
+    function commit(uint256 version, Fixed6 price) external returns (bool);
     function next() external returns (uint256);
 
     function GRACE_PERIOD() external view returns (uint256);

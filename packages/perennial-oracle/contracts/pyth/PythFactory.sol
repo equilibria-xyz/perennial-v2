@@ -8,7 +8,6 @@ import "@pythnetwork/pyth-sdk-solidity/AbstractPyth.sol";
 import "../interfaces/IPythFactory.sol";
 import "../interfaces/IOracleFactory.sol";
 
-
 /// @title PythFactory
 /// @notice Factory contract for creating and managing Pyth oracles
 contract PythFactory is IPythFactory, Factory, Kept {
@@ -102,15 +101,15 @@ contract PythFactory is IPythFactory, Factory, Kept {
     // TODO
     function commit(bytes32[] memory ids, uint256 version, bytes calldata data) external {
         Fixed6[] memory prices = _parsePrices(ids, version, data);
-        for (uint256 i; i < ids.length; i++) commit(ids[i], version, prices[i]);
+        for (uint256 i; i < ids.length; i++)
+            if (IPythOracle(address(oracles[ids[i]])).commit(version, prices[i]))
+                handleKeep(ids[i], version, prices[i]);
     }
 
-    function commit(bytes32 id, uint256 version, Fixed6 price)
+    function handleKeep(bytes32 id, uint256 version, Fixed6 price)
         private
-        keep(KEEPER_REWARD_PREMIUM, KEEPER_BUFFER, abi.encode(version, price), "") // TODO: only reward if requested?
-    {
-        IPythOracle(address(oracles[id])).commit(version, price);
-    }
+        keep(KEEPER_REWARD_PREMIUM, KEEPER_BUFFER, abi.encode(id, version, price), "")
+    { }
 
     /// @notice Pulls funds from the factory to reward the keeper
     /// @param keeperFee The keeper fee to pull
@@ -174,9 +173,6 @@ contract PythFactory is IPythFactory, Factory, Kept {
             SafeCast.toUint64(version + MIN_VALID_TIME_AFTER_VERSION),
             SafeCast.toUint64(version + MAX_VALID_TIME_AFTER_VERSION)
         );
-
-        // TODO: preserves order?
-        // TODO: same set of ids? no super/subset?
 
         for (uint256 i; i < parsedPrices.length; i++) {
             (Fixed6 significand, int256 exponent) =

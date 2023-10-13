@@ -98,12 +98,12 @@ contract PythOracle is IPythOracle, Instance {
     /// @dev Verification of price happens in the oracle's factory
     /// @param version The oracle version to commit
     /// @param price The price to commit
-    function commit(uint256 version, Fixed6 price) external {
+    /// @return requested Whether the commit was requested
+    function commit(uint256 version, Fixed6 price) external returns (bool requested) {
         if (msg.sender != address(factory())) revert OracleProviderUnauthorizedError(); // TODO: make modifier in root
 
         if (version == 0) revert PythOracleVersionOutsideRangeError();
-        if (version == next()) _commitRequested(version, price);
-        else _commitUnrequested(version, price);
+        requested = (version == next()) ? _commitRequested(version, price) : _commitUnrequested(version, price);
         _global.latestVersion = uint64(version);
     }
 
@@ -111,18 +111,22 @@ contract PythOracle is IPythOracle, Instance {
     /// @dev This commit function will pay out a keeper reward if the committed version is valid
     /// @param version The oracle version to commit
     /// @param price The price to commit
-    function _commitRequested(uint256 version, Fixed6 price) private {
+    /// @return Whether the commit was requested
+    function _commitRequested(uint256 version, Fixed6 price) private returns (bool) {
         _prices[version] = (block.timestamp > (next() + GRACE_PERIOD)) ? Fixed6Lib.ZERO: price;
         _global.latestIndex++;
+        return true;
     }
 
     /// @notice Commits the price to a non-requested version
     /// @param version The oracle version to commit
     /// @param price The price to commit
-    function _commitUnrequested(uint256 version, Fixed6 price) private {
+    /// @return Whether the commit was requested
+    function _commitUnrequested(uint256 version, Fixed6 price) private returns (bool) {
         if (version <= _global.latestVersion || (next() != 0 && version >= next()))
             revert PythOracleVersionOutsideRangeError();
         _prices[version] = price;
+        return false;
     }
 
     /// @dev Only allow authorized callers
