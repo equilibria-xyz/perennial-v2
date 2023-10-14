@@ -498,7 +498,7 @@ describe('Invoke', () => {
         ),
       )
         .to.emit(multiInvoker, 'FeeCharged')
-        .withArgs(user.address, owner.address, feeAmt, false)
+        .withArgs(user.address, owner.address, feeAmt, false, market.address)
 
       expect((await usdc.balanceOf(owner.address)).sub(balanceBefore)).to.eq(feeAmt)
     })
@@ -526,7 +526,7 @@ describe('Invoke', () => {
         ),
       )
         .to.emit(multiInvoker, 'FeeCharged')
-        .withArgs(user.address, owner.address, feeAmt, true)
+        .withArgs(user.address, owner.address, feeAmt, true, market.address)
 
       expect((await dsu.balanceOf(owner.address)).sub(balanceBefore)).to.eq(feeAmt.mul(1e12))
     })
@@ -558,7 +558,7 @@ describe('Invoke', () => {
         ),
       )
         .to.emit(multiInvoker, 'FeeCharged')
-        .withArgs(user.address, owner.address, feeAmt, true)
+        .withArgs(user.address, owner.address, feeAmt, true, market.address)
 
       expect((await usdc.balanceOf(owner.address)).sub(balanceBefore)).to.eq(feeAmt)
     })
@@ -590,7 +590,7 @@ describe('Invoke', () => {
         ),
       )
         .to.emit(multiInvoker, 'FeeCharged')
-        .withArgs(user.address, owner.address, feeAmt, false)
+        .withArgs(user.address, owner.address, feeAmt, false, market.address)
 
       expect((await dsu.balanceOf(owner.address)).sub(balanceBefore)).to.eq(feeAmt.mul(1e12))
     })

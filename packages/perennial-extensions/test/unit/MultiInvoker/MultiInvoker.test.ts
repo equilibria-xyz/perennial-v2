@@ -298,7 +298,7 @@ describe('MultiInvoker', () => {
         ),
       )
         .to.emit(multiInvoker, 'FeeCharged')
-        .withArgs(user.address, owner.address, collateral.div(10), false)
+        .withArgs(user.address, owner.address, collateral.div(10), false, market.address)
 
       expect(usdc.transferFrom).to.have.been.calledWith(user.address, owner.address, collateral.div(10))
     })
@@ -322,7 +322,7 @@ describe('MultiInvoker', () => {
         ),
       )
         .to.emit(multiInvoker, 'FeeCharged')
-        .withArgs(user.address, owner.address, collateral.div(10), true)
+        .withArgs(user.address, owner.address, collateral.div(10), true, market.address)
     })
 
     it('charges a fee on withdrawal and pushes DSU to the receiver', async () => {
@@ -349,7 +349,7 @@ describe('MultiInvoker', () => {
         ),
       )
         .to.emit(multiInvoker, 'FeeCharged')
-        .withArgs(user.address, owner.address, collateral.div(10), false)
+        .withArgs(user.address, owner.address, collateral.div(10), false, market.address)
     })
 
     it('charges a fee on withdrawal and pushes USDC to the receiver', async () => {
@@ -376,7 +376,7 @@ describe('MultiInvoker', () => {
         ),
       )
         .to.emit(multiInvoker, 'FeeCharged')
-        .withArgs(user.address, owner.address, collateral.div(10), true)
+        .withArgs(user.address, owner.address, collateral.div(10), true, market.address)
     })
   })
 

@@ -186,7 +186,7 @@ contract MultiInvoker is IMultiInvoker, Kept {
         if (!withdrawAmount.isZero()) _withdraw(msg.sender, withdrawAmount.abs().sub(feeInfo.amount), wrap);
 
         // charges interface fee both after deposit and withdrawal logic
-        _chargeFee(feeInfo.to, feeInfo.amount, feeInfo.wrap, !withdrawAmount.isZero());
+        _chargeFee(feeInfo.to, feeInfo.amount, feeInfo.wrap, !withdrawAmount.isZero(), market);
     }
 
     /// @notice Update vault on behalf of msg.sender
@@ -260,7 +260,8 @@ contract MultiInvoker is IMultiInvoker, Kept {
         address to,
         UFixed6 amount,
         bool wrap,
-        bool onWithdrawal
+        bool onWithdrawal,
+        IMarket market
     ) internal {
         if (amount.isZero()) return;
 
@@ -275,7 +276,7 @@ contract MultiInvoker is IMultiInvoker, Kept {
             }
         }
 
-        emit FeeCharged(msg.sender, to, amount, wrap);
+        emit FeeCharged(msg.sender, to, amount, wrap, market);
     }
 
     /// @notice Pull DSU or wrap and deposit USDC from msg.sender to this address for market usage
