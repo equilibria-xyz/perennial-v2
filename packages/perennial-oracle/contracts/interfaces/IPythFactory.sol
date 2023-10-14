@@ -23,6 +23,8 @@ interface IPythFactory is IOracleProviderFactory, IFactory, IKept {
     error PythFactoryInvalidGranularityError();
     // sig: 0xf2f2ce54
     error PythFactoryAlreadyCreatedError();
+    // sig: 0x22445848
+    error PythFactoryInvalidIdError();
 
     function MIN_VALID_TIME_AFTER_VERSION() external view returns (uint256);
     function MAX_VALID_TIME_AFTER_VERSION() external view returns (uint256);

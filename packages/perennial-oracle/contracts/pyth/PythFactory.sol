@@ -73,6 +73,7 @@ contract PythFactory is IPythFactory, Factory, Kept {
     /// @return newOracle The newly created oracle instance
     function create(bytes32 id) external onlyOwner returns (IPythOracle newOracle) {
         if (oracles[id] != IOracleProvider(address(0))) revert PythFactoryAlreadyCreatedError();
+        if (!pyth.priceFeedExists(id)) revert PythFactoryInvalidIdError();
 
         newOracle = IPythOracle(address(_create(abi.encodeCall(IPythOracle.initialize, (id)))));
         oracles[id] = newOracle;
@@ -96,9 +97,10 @@ contract PythFactory is IPythFactory, Factory, Kept {
     ///      Requested versions will pay out a keeper reward, non-requested versions will not.
     ///      Accepts any publish time in the underlying price message, as long as it is within the validity window,
     ///      which means its possible for publish times to be slightly out of order with respect to versions.
+    ///      Batched updates are supported by passing in a list of price feed ids along with a valid batch update data.
+    /// @param ids The list of price feed ids to commit
     /// @param version The oracle version to commit
     /// @param data The update data to commit
-    // TODO
     function commit(bytes32[] memory ids, uint256 version, bytes calldata data) external {
         Fixed6[] memory prices = _parsePrices(ids, version, data);
         for (uint256 i; i < ids.length; i++)
@@ -151,11 +153,11 @@ contract PythFactory is IPythFactory, Factory, Kept {
         return callers[callerFactory];
     }
 
-    /// @notice Validates that update fees have been paid, and that the VAA represented by `data` is within `version + MIN_VALID_TIME_AFTER_VERSION` and `version + MAX_VALID_TIME_AFTER_VERSION`
+    /// @notice Validates and parses the update data payload against the specified version
+    /// @param ids The list of price feed ids validate against
     /// @param version The oracle version to validate against
     /// @param data The update data to validate
-    /// @return prices The parsed price if valid
-    // TODO
+    /// @return prices The parsed price list if valid
     function _parsePrices(
         bytes32[] memory ids,
         uint256 version,

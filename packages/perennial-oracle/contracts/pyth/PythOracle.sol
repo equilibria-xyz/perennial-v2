@@ -40,9 +40,6 @@ contract PythOracle is IPythOracle, Instance {
     /// @param id_ price ID for Pyth price feed
     function initialize(bytes32 id_) external initializer(1) {
         __Instance__initialize();
-
-        if (!pyth.priceFeedExists(id_)) revert PythOracleInvalidPriceIdError(id_); // TODO: move to factory
-
         id = id_;
     }
 
