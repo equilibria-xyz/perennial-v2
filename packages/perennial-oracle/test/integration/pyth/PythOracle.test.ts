@@ -10,22 +10,18 @@ import {
   IERC20Metadata,
   IERC20Metadata__factory,
   IFactory,
-  OptGasInfo,
   Oracle,
   Oracle__factory,
   OracleFactory,
   OracleFactory__factory,
   PythFactory,
   PythFactory__factory,
-  PythOracle_Arbitrum,
-  PythOracle_Arbitrum__factory,
-  PythOracle_Optimism,
-  PythOracle_Optimism__factory,
+  PythOracle,
+  PythOracle__factory,
 } from '../../../types/generated'
 import { parse6decimal } from '../../../../common/testutil/types'
 import { smock } from '@defi-wonderland/smock'
 import { IInstance } from '../../../types/generated/@equilibria/root/attribute/interfaces'
-import { latest } from '@nomicfoundation/hardhat-network-helpers/dist/src/helpers/time'
 
 const { ethers } = HRE
 
@@ -61,25 +57,18 @@ const VAA_WAY_AFTER_EXPIRATION_2 =
 const VAA_WITH_MULTIPLE_UPDATES =
   '0x504e41550100000003b801000000030d00082c2243d3fa525d51bc3b3bbe2016c427e53753326e7223e21438b5411eb59103aba9fee9c4537113bfb38706ce0d1f1d10bbd5e7d947c78f7f7c883857bfa7000284f291f05f5652dde66ee6489787a61e282ff6c201e0ab9452f50b53e434f2ae2239700e071906d30ee4fe2b9e5958a1523b876bb672a19765b4ac53e580fb4501035734dd99903dd74d7bec4b47a3aa36ddfd78a8d06e974810e77f19fd9f9578d43d1fe71fe75dea33151a92e5987664e3654566ff9f24948d9b6d9eff32908df30004c16f14f7cf686e32381cc518f530a0030ef1d8f12428f9391ce743aae4de9cec5455fd42520c0c3850b6cf8c60f48738f79b2bd36621ea392ac83bc897f4c6ff010665531930c4684bc042461c1c8fdb36a6db67fdb19625cc83cc7d884da09b173d15c4605e122905f28298dfa2e5d8a3e2b565cdba851b1d228224b9bd52cf2fa500090ac3b0b7602d06f3afca318a65d343012cce4d56adb1c9a66853290dbb2e4b49389ec5d2dcf4b1ce4f8c6f57a883a1fa74ea6d4c58923e9fce3597afeed7671c000a1478cdd918941c9ee16a309373f00301c770134ee55f4def3fb120b4c7c935c445df29623127be0e10e5030f246e41ed682ba93c05209095b0b61ea7d47a0422010b3e5801e17768884398cb8ab6a1a42b4c7843068744d12e46f65682351d571d180c3a477af5126148c6291f3654c50cec1f7a73e9ef0a5d312a31b93f172c63d0000ebf74e1c3e5b490fdaddc24a78b24a248313a4dc878ae5b7b98512a5473c5c69809aa906f04a08b1e03f4cd706a9b0983201b6f095060337fc3ac638f3d356cac010f3ca2405569e08444a4a90dc5f616ad4476e8f71ce5a766a5083311baa676928d30f52624ae733326fbec70b6e8833373680624d152edc9c0080711db69db809f0010e7bf1f7359520372c48f6c7745853de313716eb4fc4bb134f9c3bd2b01c3f8ae6ed7c703ea7551521171c3768ecb91b49f0177762a5cf03ffb9f10d0050ea5ca011124ec81adb4688547fbc190f2673491159de676a8d348bd8f0fd2f715643fca093d01c944cd423eff20fa2a77b259b917e319e6822b8b4bd8e1f896af69d064b701123067c9eb31326b3021e70002cb0a222d943fa876a4ee1afa97ea55dbfdfebc341033e302857a4625419d2cb8bbeceea89489531daefb4d74c8b688fdb587468f0064ef590400000000001ae101faedac5851e32b9b23b5f9411a8c2bac4aae3ed4dd7b811dd1a72ea4aa71000000000085aae00141555756000000000005861808000027105453884a96124ee00a9e46bcfd854f58a139537902005500ff61491a931112ddf1bd8147cd1b641375f79f5825126d665480874634fd0ace00000027a3a9356000000000063c479bfffffff80000000064ef59020000000064ef590100000027ea4388b800000000059d66a809fd052ff1a1f0fd3638fc34ad246bc2b004ec0e67a8a1180177cf30b2c0bebbb1adfe8f7985d051d205a01e2504d9f0c06e7e7cb0cf24116098ca202ac5f6ade2e8f5a12ec006b16d46be1f0228b94d95485aa0e4df2967e9353738ab1ee8ac694f05c9f93090789120e39302b12a1330f05c8f71c0f5a883e79ce8949e3992bd353598ed5ff2f09be708bf76dd38f0da18fcb0f7ead4d1de56db6c0442b9488350275717d4ebee942ea448bc9f492c881aef590a005500e62df6c8b4a85fe1a67db44dc12de5db330f7ac66b72dc658afedf0f4a415b43000002775a71feff000000004d4744cdfffffff80000000064ef59020000000064ef59010000027c169ba7a0000000003d7557a009fb953b6bdba977da858e45c514b3b2f01a03ba7a3cca00578b83239a81c37f7a18474e8563d3c530fa371b7db694a82e6d9b8afe758ef024eae8bedac96c3218b1c3915d0914dfada4e50b43cfcc1c010e61ac7cc3f171452564d92964915c67c40cffae8b4613f97247c357de9270a7201ad298af334c7f77ae5a6c4556c660208f5f41b3ec8cbb1b9b7329dd38f0da18fcb0f7ead4d1de56db6c0442b9488350275717d4ebee942ea448bc9f492c881aef590a'
 
+// TODO: batch commit tests
+// TODO: coverage
+
 const testOracles = [
   {
-    name: 'PythOracle_Arbitrum',
-    Oracle: PythOracle_Arbitrum__factory,
+    name: 'PythOracle',
+    Oracle: PythOracle__factory,
     gasMock: async () => {
       const gasInfo = await smock.fake<ArbGasInfo>('ArbGasInfo', {
         address: '0x000000000000000000000000000000000000006C',
       })
       gasInfo.getL1BaseFeeEstimate.returns(0)
-    },
-  },
-  {
-    name: 'PythOracle_Optimism',
-    Oracle: PythOracle_Optimism__factory,
-    gasMock: async () => {
-      const gasInfo = await smock.fake<OptGasInfo>('OptGasInfo', {
-        address: '0x420000000000000000000000000000000000000F',
-      })
-      gasInfo.getL1Fee.returns(0)
     },
   },
 ]
@@ -89,7 +78,7 @@ testOracles.forEach(testOracle => {
     let owner: SignerWithAddress
     let user: SignerWithAddress
     let oracle: Oracle
-    let pythOracle: PythOracle_Arbitrum | PythOracle_Optimism
+    let pythOracle: PythOracle
     let pythOracleFactory: PythFactory
     let oracleFactory: OracleFactory
     let dsu: IERC20Metadata
@@ -105,13 +94,9 @@ testOracles.forEach(testOracle => {
       await oracleFactory.initialize(dsu.address)
       await oracleFactory.updateMaxClaim(parse6decimal('100'))
 
-      const pythOracleImpl = await new testOracle.Oracle(owner).deploy(PYTH_ADDRESS)
-      pythOracleFactory = await new PythFactory__factory(owner).deploy(
-        pythOracleImpl.address,
-        CHAINLINK_ETH_USD_FEED,
-        dsu.address,
-      )
-      await pythOracleFactory.initialize(oracleFactory.address)
+      const pythOracleImpl = await new testOracle.Oracle(owner).deploy()
+      pythOracleFactory = await new PythFactory__factory(owner).deploy(PYTH_ADDRESS, pythOracleImpl.address)
+      await pythOracleFactory.initialize(oracleFactory.address, CHAINLINK_ETH_USD_FEED, dsu.address)
       await oracleFactory.register(pythOracleFactory.address)
       await pythOracleFactory.authorize(oracleFactory.address)
 
@@ -151,21 +136,14 @@ testOracles.forEach(testOracle => {
 
     describe('#initialize', async () => {
       it('only initializes with a valid priceId', async () => {
-        const invalidPriceId = '0xff61491a931112ddf1bd8147cd1b641375f79f5825126d665480874634fd0acd'
-        const oracle = await new PythOracle_Arbitrum__factory(owner).deploy(PYTH_ADDRESS)
-        await expect(oracle.initialize(invalidPriceId, CHAINLINK_ETH_USD_FEED, dsu.address))
-          .to.be.revertedWithCustomError(oracle, 'PythOracleInvalidPriceIdError')
-          .withArgs(invalidPriceId)
-
-        await expect(oracle.initialize(PYTH_ETH_USD_PRICE_FEED, CHAINLINK_ETH_USD_FEED, dsu.address))
-          .to.emit(oracle, 'Initialized')
-          .withArgs(1)
+        const oracle = await new PythOracle__factory(owner).deploy()
+        await expect(oracle.initialize(PYTH_ETH_USD_PRICE_FEED)).to.emit(oracle, 'Initialized').withArgs(1)
       })
 
       it('reverts if already initialized', async () => {
-        const oracle = await new PythOracle_Arbitrum__factory(owner).deploy(PYTH_ADDRESS)
-        await oracle.initialize(PYTH_ETH_USD_PRICE_FEED, CHAINLINK_ETH_USD_FEED, dsu.address)
-        await expect(oracle.initialize(PYTH_ETH_USD_PRICE_FEED, CHAINLINK_ETH_USD_FEED, dsu.address))
+        const oracle = await new PythOracle__factory(owner).deploy()
+        await oracle.initialize(PYTH_ETH_USD_PRICE_FEED)
+        await expect(oracle.initialize(PYTH_ETH_USD_PRICE_FEED))
           .to.be.revertedWithCustomError(oracle, 'InitializableAlreadyInitializedError')
           .withArgs(1)
       })
@@ -173,11 +151,11 @@ testOracles.forEach(testOracle => {
 
     describe('constants', async () => {
       it('#MIN_VALID_TIME_AFTER_VERSION', async () => {
-        expect(await pythOracle.MIN_VALID_TIME_AFTER_VERSION()).to.equal(4)
+        expect(await pythOracleFactory.MIN_VALID_TIME_AFTER_VERSION()).to.equal(4)
       })
 
       it('#MAX_VALID_TIME_AFTER_VERSION', async () => {
-        expect(await pythOracle.MAX_VALID_TIME_AFTER_VERSION()).to.equal(10)
+        expect(await pythOracleFactory.MAX_VALID_TIME_AFTER_VERSION()).to.equal(10)
       })
 
       it('#GRACE_PERIOD', async () => {
@@ -185,11 +163,11 @@ testOracles.forEach(testOracle => {
       })
 
       it('#KEEPER_REWARD_PREMIUM', async () => {
-        expect(await pythOracle.KEEPER_REWARD_PREMIUM()).to.equal(utils.parseEther('3'))
+        expect(await pythOracleFactory.KEEPER_REWARD_PREMIUM()).to.equal(utils.parseEther('3'))
       })
 
       it('#KEEPER_BUFFER', async () => {
-        expect(await pythOracle.KEEPER_BUFFER()).to.equal(1000000)
+        expect(await pythOracleFactory.KEEPER_BUFFER()).to.equal(1000000)
       })
     })
 
@@ -197,7 +175,7 @@ testOracles.forEach(testOracle => {
       it('commits unincentivized if there are no requested or committed versions, does not incentivize keeper, updates latest', async () => {
         const originalDSUBalance = await dsu.callStatic.balanceOf(user.address)
         await increase(1)
-        await pythOracle.connect(user).commit(STARTING_TIME, VAA, {
+        await pythOracleFactory.connect(user).commit([PYTH_ETH_USD_PRICE_FEED], STARTING_TIME, VAA, {
           value: 1,
         })
         const version = await pythOracle.connect(user).at(STARTING_TIME)
@@ -213,50 +191,58 @@ testOracles.forEach(testOracle => {
 
       it('fails to commit if update fee is not provided', async () => {
         await increase(1)
-        await expect(pythOracle.connect(user).commit(STARTING_TIME, VAA)).to.revertedWithoutReason()
+        await expect(
+          pythOracleFactory.connect(user).commit([PYTH_ETH_USD_PRICE_FEED], STARTING_TIME, VAA),
+        ).to.revertedWithoutReason()
       })
 
       it('can commit if there are requested versions but no committed versions', async () => {
         await time.increase(30)
         await pythOracle.connect(oracleSigner).request(user.address)
-        await pythOracle.connect(user).commit(STARTING_TIME, VAA, {
+        await pythOracleFactory.connect(user).commit([PYTH_ETH_USD_PRICE_FEED], STARTING_TIME, VAA, {
           value: 1,
         })
       })
 
       it('can commit if there are committed versions but no requested versions', async () => {
         await pythOracle.connect(oracleSigner).request(user.address)
-        await pythOracle.connect(user).commit(STARTING_TIME, VAA, {
+        await pythOracleFactory.connect(user).commit([PYTH_ETH_USD_PRICE_FEED], STARTING_TIME, VAA, {
           value: 1,
         })
         await time.increase(60)
-        await pythOracle.connect(user).commit(STARTING_TIME + 60, VAA_AFTER_EXPIRATION, {
-          value: 1,
-        })
+        await pythOracleFactory
+          .connect(user)
+          .commit([PYTH_ETH_USD_PRICE_FEED], STARTING_TIME + 60, VAA_AFTER_EXPIRATION, {
+            value: 1,
+          })
       })
 
       it('can commit if there are committed versions and requested versions', async () => {
         await pythOracle.connect(oracleSigner).request(user.address)
         await time.increase(1)
-        await pythOracle.connect(user).commit(STARTING_TIME, VAA, { value: 1 })
+        await pythOracleFactory.connect(user).commit([PYTH_ETH_USD_PRICE_FEED], STARTING_TIME, VAA, { value: 1 })
         await time.increaseTo(1686199141)
         await pythOracle.connect(oracleSigner).request(user.address)
         const secondRequestedVersion = await currentBlockTimestamp()
         const nonRequestedOracleVersion = STARTING_TIME + 60
-        await pythOracle.connect(user).commit(nonRequestedOracleVersion, VAA_AFTER_EXPIRATION, {
-          value: 1,
-        })
+        await pythOracleFactory
+          .connect(user)
+          .commit([PYTH_ETH_USD_PRICE_FEED], nonRequestedOracleVersion, VAA_AFTER_EXPIRATION, {
+            value: 1,
+          })
         expect((await pythOracle.connect(user).latest()).timestamp).to.equal(nonRequestedOracleVersion)
 
-        await pythOracle.connect(user).commit(secondRequestedVersion, VAA_WAY_AFTER_EXPIRATION, {
-          value: 1,
-        })
+        await pythOracleFactory
+          .connect(user)
+          .commit([PYTH_ETH_USD_PRICE_FEED], secondRequestedVersion, VAA_WAY_AFTER_EXPIRATION, {
+            value: 1,
+          })
         expect((await pythOracle.connect(user).latest()).timestamp).to.equal(secondRequestedVersion)
       })
 
       it('cannot commit invalid VAAs for the oracle version', async () => {
         await expect(
-          pythOracle.connect(user).commit(STARTING_TIME - 60, VAA, {
+          pythOracleFactory.connect(user).commit([PYTH_ETH_USD_PRICE_FEED], STARTING_TIME - 60, VAA, {
             value: 1,
           }),
         ).to.reverted
@@ -265,12 +251,12 @@ testOracles.forEach(testOracle => {
       it('must be more recent than the most recently committed version', async () => {
         await time.increase(2)
         await pythOracle.connect(oracleSigner).request(user.address)
-        await pythOracle.connect(user).commit(STARTING_TIME + 2, VAA, {
+        await pythOracleFactory.connect(user).commit([PYTH_ETH_USD_PRICE_FEED], STARTING_TIME + 2, VAA, {
           value: 1,
         })
 
         await expect(
-          pythOracle.connect(user).commit(STARTING_TIME + 1, OTHER_VAA, {
+          pythOracleFactory.connect(user).commit([PYTH_ETH_USD_PRICE_FEED], STARTING_TIME + 1, OTHER_VAA, {
             value: 1,
           }),
         ).to.revertedWithCustomError(pythOracle, 'PythOracleVersionOutsideRangeError')
@@ -281,7 +267,7 @@ testOracles.forEach(testOracle => {
         await pythOracle.connect(oracleSigner).request(user.address)
         // Base fee isn't working properly in coverage, so we need to set it manually
         await ethers.provider.send('hardhat_setNextBlockBaseFeePerGas', ['0x5F5E100'])
-        await pythOracle.connect(user).commit(STARTING_TIME - 1, VAA, {
+        await pythOracleFactory.connect(user).commit([PYTH_ETH_USD_PRICE_FEED], STARTING_TIME - 1, VAA, {
           value: 1,
           gasPrice: 100000000,
         })
@@ -293,13 +279,15 @@ testOracles.forEach(testOracle => {
 
       it('can commit multiple non-requested versions, as long as they are in order', async () => {
         await time.increase(1)
-        await pythOracle.connect(user).commit(STARTING_TIME, VAA, {
+        await pythOracleFactory.connect(user).commit([PYTH_ETH_USD_PRICE_FEED], STARTING_TIME, VAA, {
           value: 1,
         })
         await time.increase(60)
-        await pythOracle.connect(user).commit(STARTING_TIME + 60, VAA_AFTER_EXPIRATION, {
-          value: 1,
-        })
+        await pythOracleFactory
+          .connect(user)
+          .commit([PYTH_ETH_USD_PRICE_FEED], STARTING_TIME + 60, VAA_AFTER_EXPIRATION, {
+            value: 1,
+          })
       })
 
       it('cant commit non-requested version until after an invalid has passed grace period', async () => {
@@ -308,7 +296,7 @@ testOracles.forEach(testOracle => {
 
         await time.increase(59)
         await expect(
-          pythOracle.connect(user).commit(STARTING_TIME + 60, VAA_AFTER_EXPIRATION, {
+          pythOracleFactory.connect(user).commit([PYTH_ETH_USD_PRICE_FEED], STARTING_TIME + 60, VAA_AFTER_EXPIRATION, {
             value: 1,
           }),
         ).to.be.reverted
@@ -319,15 +307,17 @@ testOracles.forEach(testOracle => {
         expect((await pythOracle.global()).latestIndex).to.equal(0)
 
         await time.increase(60)
-        await pythOracle.connect(user).commit(STARTING_TIME, '0x')
-        await pythOracle.connect(user).commit(STARTING_TIME + 60, VAA_AFTER_EXPIRATION, {
-          value: 1,
-        })
+        await pythOracleFactory.connect(user).commit([PYTH_ETH_USD_PRICE_FEED], STARTING_TIME, '0x')
+        await pythOracleFactory
+          .connect(user)
+          .commit([PYTH_ETH_USD_PRICE_FEED], STARTING_TIME + 60, VAA_AFTER_EXPIRATION, {
+            value: 1,
+          })
         expect((await pythOracle.latest()).timestamp).to.equal(STARTING_TIME + 60)
         expect((await pythOracle.global()).latestIndex).to.equal(1)
 
         expect(
-          pythOracle.connect(user).commit(STARTING_TIME, VAA, {
+          pythOracleFactory.connect(user).commit([PYTH_ETH_USD_PRICE_FEED], STARTING_TIME, VAA, {
             value: 1,
           }),
         ).to.be.revertedWithCustomError(pythOracle, 'PythOracleVersionOutsideRangeError')
@@ -337,7 +327,7 @@ testOracles.forEach(testOracle => {
     describe('#status', async () => {
       it('returns the correct versions', async () => {
         await pythOracle.connect(oracleSigner).request(user.address)
-        await pythOracle.connect(user).commit(STARTING_TIME, VAA, {
+        await pythOracleFactory.connect(user).commit([PYTH_ETH_USD_PRICE_FEED], STARTING_TIME, VAA, {
           value: 1,
         })
         const [latestIndex, currentIndex] = await pythOracle.status()
@@ -411,7 +401,7 @@ testOracles.forEach(testOracle => {
     describe('#latest', async () => {
       it('returns the latest version', async () => {
         await pythOracle.connect(oracleSigner).request(user.address)
-        await pythOracle.connect(user).commit(STARTING_TIME, VAA, {
+        await pythOracleFactory.connect(user).commit([PYTH_ETH_USD_PRICE_FEED], STARTING_TIME, VAA, {
           value: 1,
         })
         const latestValue = await pythOracle.connect(user).latest()
@@ -521,7 +511,7 @@ testOracles.forEach(testOracle => {
     describe('#atVersion', async () => {
       it('returns the correct version', async () => {
         await pythOracle.connect(oracleSigner).request(user.address)
-        await pythOracle.connect(user).commit(STARTING_TIME, VAA, {
+        await pythOracleFactory.connect(user).commit([PYTH_ETH_USD_PRICE_FEED], STARTING_TIME, VAA, {
           value: 1,
         })
         const version = await pythOracle.connect(user).at(STARTING_TIME)

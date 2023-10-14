@@ -30,7 +30,7 @@ contract PythFactory is IPythFactory, Factory, Kept {
     AbstractPyth public immutable pyth;
 
     /// @notice The root oracle factory
-    IOracleFactory public oracleFactory; // TODO: remove?
+    IOracleFactory public oracleFactory;
 
     /// @notice Mapping of which factory's instances are authorized to request from this factory's instances
     mapping(IFactory => bool) public callers;
@@ -101,7 +101,7 @@ contract PythFactory is IPythFactory, Factory, Kept {
     /// @param ids The list of price feed ids to commit
     /// @param version The oracle version to commit
     /// @param data The update data to commit
-    function commit(bytes32[] memory ids, uint256 version, bytes calldata data) external {
+    function commit(bytes32[] memory ids, uint256 version, bytes calldata data) external payable {
         Fixed6[] memory prices = _parsePrices(ids, version, data);
         for (uint256 i; i < ids.length; i++)
             if (IPythOracle(address(oracles[ids[i]])).commit(version, prices[i]))
@@ -118,7 +118,6 @@ contract PythFactory is IPythFactory, Factory, Kept {
     function _raiseKeeperFee(UFixed18 keeperFee, bytes memory) internal virtual override {
         UFixed6 amount = UFixed6Lib.from(keeperFee, true);
         oracleFactory.claim(amount);
-        keeperToken().push(msg.sender, UFixed18Lib.from(amount));
     }
 
     /// @notice Returns the granularity

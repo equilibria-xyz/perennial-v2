@@ -16,9 +16,6 @@ contract PythOracle is IPythOracle, Instance {
     /// @dev After this amount of time has passed for a version without being committed, the version can be invalidated.
     uint256 constant public GRACE_PERIOD = 1 minutes;
 
-    /// @dev Pyth contract
-    AbstractPyth public immutable pyth;
-
     /// @dev Pyth price feed id
     bytes32 public id;
 
@@ -29,12 +26,6 @@ contract PythOracle is IPythOracle, Instance {
 
     /// @dev Mapping from oracle version to oracle version data
     mapping(uint256 => Fixed6) private _prices;
-
-    /// @notice Initializes the immutable contract state
-    /// @param pyth_ Pyth contract
-    constructor(AbstractPyth pyth_) {
-        pyth = pyth_;
-    }
 
     /// @notice Initializes the contract state
     /// @param id_ price ID for Pyth price feed
