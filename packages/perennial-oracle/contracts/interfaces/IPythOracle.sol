@@ -18,9 +18,11 @@ interface IPythOracle is IOracleProvider, IInstance {
 
     // sig: 0x9b4e67d3
     error PythOracleVersionOutsideRangeError();
+    // sig: 0xcaf4caf3
+    error PythOracleInvalidPriceError();
 
     function initialize(bytes32 id_) external;
-    function commit(uint256 version, Fixed6 price) external returns (bool);
+    function commit(uint256 version, Fixed6 price, bool valid) external returns (bool);
     function next() external returns (uint256);
 
     function GRACE_PERIOD() external view returns (uint256);
