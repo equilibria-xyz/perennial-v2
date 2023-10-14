@@ -49,11 +49,11 @@ export const buildUpdateMarket = ({
         ['address', 'uint256', 'uint256', 'uint256', 'int256', 'bool', 'tuple(uint256,bool,address)'],
         [
           market,
-          maker ? maker : '0',
-          long ? long : '0',
-          short ? short : '0',
-          collateral ? collateral : MIN_INT,
-          handleWrap ? handleWrap : false,
+          maker ?? MAX_UINT,
+          long ?? MAX_UINT,
+          short ?? MAX_UINT,
+          collateral ?? MIN_INT,
+          handleWrap ?? false,
           [
             feeStruct ? feeStruct.amount : 0,
             feeStruct ? feeStruct.wrap : false,
@@ -301,6 +301,7 @@ export const buildExecOrder = ({
 
 module.exports = {
   MAX_INT,
+  MAX_UINT,
   buildCancelOrder,
   buildExecOrder,
   buildPlaceOrder,

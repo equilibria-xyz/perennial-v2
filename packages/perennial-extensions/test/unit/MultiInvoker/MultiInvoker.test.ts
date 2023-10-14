@@ -134,7 +134,14 @@ describe('MultiInvoker', () => {
       await expect(multiInvoker.connect(user).invoke(a)).to.not.be.reverted
 
       expect(dsu.transferFrom).to.have.been.calledWith(user.address, multiInvoker.address, collateral.mul(1e12))
-      expect(market.update).to.have.been.calledWith(user.address, '0', '0', '0', collateral, false)
+      expect(market.update).to.have.been.calledWith(
+        user.address,
+        helpers.MAX_UINT,
+        helpers.MAX_UINT,
+        helpers.MAX_UINT,
+        collateral,
+        false,
+      )
     })
 
     it('wraps and deposits collateral', async () => {
@@ -171,7 +178,14 @@ describe('MultiInvoker', () => {
       await expect(multiInvoker.connect(user).invoke(a)).to.not.be.reverted
 
       expect(dsu.transfer).to.have.been.calledWith(user.address, dsuCollateral)
-      expect(market.update).to.have.been.calledWith(user.address, '0', '0', '0', collateral.mul(-1), false)
+      expect(market.update).to.have.been.calledWith(
+        user.address,
+        helpers.MAX_UINT,
+        helpers.MAX_UINT,
+        helpers.MAX_UINT,
+        collateral.mul(-1),
+        false,
+      )
     })
 
     it('withdraws and unwraps collateral', async () => {
