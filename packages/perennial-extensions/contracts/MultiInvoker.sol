@@ -324,7 +324,7 @@ contract MultiInvoker is IMultiInvoker, Kept {
             try IPythOracle(oracleProvider).commit{value: value}(version, data) { }
             catch {
                 // returns the pyth fee sent here on soft-revert
-                payable(msg.sender).transfer(value);
+                payable(msg.sender).transfer(msg.value < value ? msg.value : value);
             }
         }
 
