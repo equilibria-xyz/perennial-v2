@@ -30,7 +30,7 @@ contract PythFactory is IPythFactory, Factory, Kept {
     AbstractPyth public immutable pyth;
 
     /// @notice The root oracle factory
-    IOracleFactory public oracleFactory; // TODO: remove?
+    IOracleFactory public oracleFactory;
 
     /// @notice Mapping of which factory's instances are authorized to request from this factory's instances
     mapping(IFactory => bool) public callers;
