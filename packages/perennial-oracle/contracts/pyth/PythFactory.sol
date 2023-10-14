@@ -173,9 +173,7 @@ contract PythFactory is IPythFactory, Factory, Kept {
         bytes[] memory datas = new bytes[](1);
         datas[0] = data;
 
-        PythStructs.PriceFeed[] memory parsedPrices = pyth.parsePriceFeedUpdates{
-            value: IPythStaticFee(address(pyth)).singleUpdateFeeInWei() * ids.length
-        }(
+        PythStructs.PriceFeed[] memory parsedPrices = pyth.parsePriceFeedUpdates{value: msg.value}(
             datas,
             ids,
             SafeCast.toUint64(version + MIN_VALID_TIME_AFTER_VERSION),
