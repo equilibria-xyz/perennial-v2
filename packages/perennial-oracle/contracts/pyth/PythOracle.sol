@@ -41,7 +41,7 @@ contract PythOracle is IPythOracle, Instance {
     /// @notice Returns the next requested oracle version
     /// @dev Returns 0 if no next version is requested
     /// @return The next requested oracle version
-    function next() public returns (uint256) {
+    function next() public view returns (uint256) {
         return versions[_global.latestIndex + 1];
     }
 
@@ -96,6 +96,7 @@ contract PythOracle is IPythOracle, Instance {
             _commitRequested(version, price, valid) :
             _commitUnrequested(version, price, valid);
         _global.latestVersion = uint64(version);
+        emit OracleProviderVersionFulfilled(version);
     }
 
     /// @notice Commits the price to a requested version

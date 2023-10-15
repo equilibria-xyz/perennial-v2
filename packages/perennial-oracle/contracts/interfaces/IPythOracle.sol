@@ -23,7 +23,7 @@ interface IPythOracle is IOracleProvider, IInstance {
 
     function initialize(bytes32 id_) external;
     function commit(uint256 version, Fixed6 price, bool valid) external returns (bool);
-    function next() external returns (uint256);
+    function next() external view returns (uint256);
 
     function GRACE_PERIOD() external view returns (uint256);
     function versions(uint256 index) external view returns (uint256);
