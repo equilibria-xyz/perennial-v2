@@ -102,13 +102,8 @@ contract PythFactory is IPythFactory, Factory, Kept {
     /// @param version The oracle version to commit
     /// @param data The update data to commit
     function commit(bytes32[] memory ids, uint256 version, bytes calldata data) external payable {
-        Fixed6[] memory prices = new Fixed6[](ids.length);
-        bool valid = false;
-
-        if (data.length != 0) {
-            prices = _parsePrices(ids, version, data);
-            valid = true;
-        }
+        bool valid = data.length != 0;
+        Fixed6[] memory prices = valid ? _parsePrices(ids, version, data) : new Fixed6[](ids.length);
 
         for (uint256 i; i < ids.length; i++)
             if (IPythOracle(address(oracles[ids[i]])).commit(version, prices[i], valid))
