@@ -244,7 +244,7 @@ testOracles.forEach(testOracle => {
           }),
         )
           .to.emit(pythOracle, 'OracleProviderVersionFulfilled')
-          .withArgs(STARTING_TIME)
+          .withArgs({ timestamp: STARTING_TIME, price: '1838167031', valid: true })
         const newDSUBalance = await dsu.callStatic.balanceOf(user.address)
         const newFactoryDSUBalance = await dsu.callStatic.balanceOf(oracleFactory.address)
 
@@ -339,15 +339,14 @@ testOracles.forEach(testOracle => {
 
       it('reverts if not called from factory', async () => {
         await expect(
-          pythOracle.connect(user).commit(STARTING_TIME, parse6decimal('1000'), true),
+          pythOracle.connect(user).commit({ timestamp: STARTING_TIME, price: parse6decimal('1000'), valid: true }),
         ).to.be.revertedWithCustomError(pythOracle, 'OracleProviderUnauthorizedError')
       })
 
       it('reverts if version is zero', async () => {
-        await expect(pythOracle.connect(factorySigner).commit(0, 0, false)).to.be.revertedWithCustomError(
-          pythOracle,
-          'PythOracleVersionOutsideRangeError',
-        )
+        await expect(
+          pythOracle.connect(factorySigner).commit({ timestamp: 0, price: 0, valid: false }),
+        ).to.be.revertedWithCustomError(pythOracle, 'PythOracleVersionOutsideRangeError')
       })
 
       it('can commit if there are requested versions but no committed versions', async () => {
