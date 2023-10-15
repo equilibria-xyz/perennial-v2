@@ -52,13 +52,9 @@ describe('PythOracle', () => {
     ;({ dsu, oracleFactory, owner, user } = instanceVars)
 
     await oracleFactory.updateMaxClaim(parse6decimal('10'))
-    const pythOracleImpl = await new PythOracle__factory(owner).deploy(PYTH_ADDRESS)
-    pythOracleFactory = await new PythFactory__factory(owner).deploy(
-      pythOracleImpl.address,
-      CHAINLINK_ETH_USD_FEED,
-      dsu.address,
-    )
-    await pythOracleFactory.initialize(oracleFactory.address)
+    const pythOracleImpl = await new PythOracle__factory(owner).deploy()
+    pythOracleFactory = await new PythFactory__factory(owner).deploy(PYTH_ADDRESS, pythOracleImpl.address)
+    await pythOracleFactory.initialize(oracleFactory.address, CHAINLINK_ETH_USD_FEED, dsu.address)
     await oracleFactory.register(pythOracleFactory.address)
     await pythOracleFactory.authorize(oracleFactory.address)
 
@@ -93,8 +89,8 @@ describe('PythOracle', () => {
           {
             action: 6,
             args: utils.defaultAbiCoder.encode(
-              ['address', 'uint256', 'uint256', 'bytes', 'bool'],
-              [pythOracle.address, 1, STARTING_TIME, VAA, true],
+              ['address', 'uint256', 'bytes32[]', 'uint256', 'bytes', 'bool'],
+              [pythOracleFactory.address, 1, [PYTH_ETH_USD_PRICE_FEED], STARTING_TIME, VAA, true],
             ),
           },
         ],
@@ -121,8 +117,8 @@ describe('PythOracle', () => {
           {
             action: 6,
             args: utils.defaultAbiCoder.encode(
-              ['address', 'uint256', 'uint256', 'bytes', 'bool'],
-              [pythOracle.address, 1, STARTING_TIME, VAA, true],
+              ['address', 'uint256', 'bytes32[]', 'uint256', 'bytes', 'bool'],
+              [pythOracleFactory.address, 1, [PYTH_ETH_USD_PRICE_FEED], STARTING_TIME, VAA, true],
             ),
           },
         ],
@@ -148,8 +144,8 @@ describe('PythOracle', () => {
             {
               action: 6,
               args: utils.defaultAbiCoder.encode(
-                ['address', 'uint256', 'uint256', 'bytes', 'bool'],
-                [pythOracle.address, 0, STARTING_TIME, VAA, true],
+                ['address', 'uint256', 'bytes32[]', 'uint256', 'bytes', 'bool'],
+                [pythOracleFactory.address, 0, [PYTH_ETH_USD_PRICE_FEED], STARTING_TIME, VAA, true],
               ),
             },
           ],
@@ -173,8 +169,8 @@ describe('PythOracle', () => {
           {
             action: 6,
             args: utils.defaultAbiCoder.encode(
-              ['address', 'uint256', 'uint256', 'bytes', 'bool'],
-              [pythOracle.address, 1, STARTING_TIME, VAA, false],
+              ['address', 'uint256', 'bytes32[]', 'uint256', 'bytes', 'bool'],
+              [pythOracleFactory.address, 1, [PYTH_ETH_USD_PRICE_FEED], STARTING_TIME, VAA, false],
             ),
           },
         ],
@@ -200,8 +196,8 @@ describe('PythOracle', () => {
             {
               action: 6,
               args: utils.defaultAbiCoder.encode(
-                ['address', 'uint256', 'uint256', 'bytes', 'bool'],
-                [pythOracle.address, 1, STARTING_TIME + 60, VAA, false],
+                ['address', 'uint256', 'bytes32[]', 'uint256', 'bytes', 'bool'],
+                [pythOracleFactory.address, 1, [PYTH_ETH_USD_PRICE_FEED], STARTING_TIME + 60, VAA, false],
               ),
             },
           ],

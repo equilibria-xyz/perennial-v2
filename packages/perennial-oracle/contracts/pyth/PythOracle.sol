@@ -85,30 +85,24 @@ contract PythOracle is IPythOracle, Instance {
     /// @notice Commits the price to specified version
     /// @dev Verification of price happens in the oracle's factory
     /// @param version The oracle version to commit
-    /// @param price The price to commit
-    /// @param valid Whether the price was validated
     /// @return requested Whether the commit was requested
-    function commit(uint256 version, Fixed6 price, bool valid) external returns (bool requested) {
+    function commit(OracleVersion memory version) external returns (bool requested) {
         if (msg.sender != address(factory())) revert OracleProviderUnauthorizedError(); // TODO: make modifier in root
 
-        if (version == 0) revert PythOracleVersionOutsideRangeError();
-        requested = (version == next()) ?
-            _commitRequested(version, price, valid) :
-            _commitUnrequested(version, price, valid);
-        _global.latestVersion = uint64(version);
+        if (version.timestamp == 0) revert PythOracleVersionOutsideRangeError();
+        requested = (version.timestamp == next()) ? _commitRequested(version) : _commitUnrequested(version);
+        _global.latestVersion = uint64(version.timestamp);
         emit OracleProviderVersionFulfilled(version);
     }
 
     /// @notice Commits the price to a requested version
     /// @dev This commit function will pay out a keeper reward if the committed version is valid
     /// @param version The oracle version to commit
-    /// @param price The price to commit
-    /// @param valid Whether the price was validated
     /// @return Whether the commit was requested
-    function _commitRequested(uint256 version, Fixed6 price, bool valid) private returns (bool) {
+    function _commitRequested(OracleVersion memory version) private returns (bool) {
         if (block.timestamp <= (next() + GRACE_PERIOD)) {
-            if (!valid) revert PythOracleInvalidPriceError();
-            _prices[version] = price;
+            if (!version.valid) revert PythOracleInvalidPriceError();
+            _prices[version.timestamp] = version.price;
         }
         _global.latestIndex++;
         return true;
@@ -116,14 +110,12 @@ contract PythOracle is IPythOracle, Instance {
 
     /// @notice Commits the price to a non-requested version
     /// @param version The oracle version to commit
-    /// @param price The price to commit
-    /// @param valid Whether the price was validated
     /// @return Whether the commit was requested
-    function _commitUnrequested(uint256 version, Fixed6 price, bool valid) private returns (bool) {
-        if (!valid) revert PythOracleInvalidPriceError();
-        if (version <= _global.latestVersion || (next() != 0 && version >= next()))
+    function _commitUnrequested(OracleVersion memory version) private returns (bool) {
+        if (!version.valid) revert PythOracleInvalidPriceError();
+        if (version.timestamp <= _global.latestVersion || (next() != 0 && version.timestamp >= next()))
             revert PythOracleVersionOutsideRangeError();
-        _prices[version] = price;
+        _prices[version.timestamp] = version.price;
         return false;
     }
 

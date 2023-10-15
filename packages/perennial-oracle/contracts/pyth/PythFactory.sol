@@ -106,7 +106,7 @@ contract PythFactory is IPythFactory, Factory, Kept {
         Fixed6[] memory prices = valid ? _parsePrices(ids, version, data) : new Fixed6[](ids.length);
 
         for (uint256 i; i < ids.length; i++)
-            if (IPythOracle(address(oracles[ids[i]])).commit(version, prices[i], valid))
+            if (IPythOracle(address(oracles[ids[i]])).commit(OracleVersion(version, prices[i], valid)))
                 handleKeep(ids[i], version, prices[i]);
     }
 

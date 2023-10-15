@@ -3,6 +3,7 @@ pragma solidity ^0.8.13;
 
 import "@equilibria/root/attribute/interfaces/IInstance.sol";
 import "@equilibria/perennial-v2/contracts/interfaces/IOracleProvider.sol";
+import "../Oracle.sol";
 
 interface IPythOracle is IOracleProvider, IInstance {
     struct Global {
@@ -22,7 +23,7 @@ interface IPythOracle is IOracleProvider, IInstance {
     error PythOracleInvalidPriceError();
 
     function initialize(bytes32 id_) external;
-    function commit(uint256 version, Fixed6 price, bool valid) external returns (bool);
+    function commit(OracleVersion memory version) external returns (bool);
     function next() external view returns (uint256);
 
     function GRACE_PERIOD() external view returns (uint256);

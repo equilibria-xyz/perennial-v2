@@ -36,6 +36,7 @@ interface IPythFactory is IOracleProviderFactory, IFactory, IKept {
     function current() external view returns (uint256);
     function granularity() external view returns (Granularity memory);
     function updateGranularity(uint256 newGranularity) external;
+    function commit(bytes32[] memory ids, uint256 version, bytes calldata data) external payable;
 }
 
 /// @dev PythStaticFee interface, this is not exposed in the AbstractPyth contract
