@@ -387,7 +387,7 @@ describe('Invoke', () => {
         .withArgs(user.address, dsuCollateral)
     })
 
-    it.only('deposits / redeems / claims from vault', async () => {
+    it('deposits / redeems / claims from vault', async () => {
       const { user, dsu } = instanceVars
 
       const userBalanceBefore = await dsu.balanceOf(user.address)

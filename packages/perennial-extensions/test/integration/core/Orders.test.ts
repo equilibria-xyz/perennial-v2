@@ -68,7 +68,6 @@ describe('Orders', () => {
       orderType: 'LM',
       comparison: Compare.ABOVE_MARKET,
       price: BigNumber.from(1000e6),
-      feePct: 50,
     })
     const placeOrder = buildPlaceOrder({ market: market.address, order: triggerOrder, collateral: collateral })
 
@@ -91,7 +90,6 @@ describe('Orders', () => {
       side: Dir.L,
       orderType: 'LM',
       comparison: Compare.ABOVE_MARKET,
-      feePct: 50,
     })
 
     const placeOrder = buildPlaceOrder({
@@ -125,7 +123,6 @@ describe('Orders', () => {
       side: Dir.L,
       orderType: 'LM',
       comparison: Compare.ABOVE_MARKET,
-      feePct: 50,
     })
 
     const placeOrder = buildPlaceOrder({
@@ -157,7 +154,6 @@ describe('Orders', () => {
       side: Dir.S,
       orderType: 'LM',
       comparison: Compare.BELOW_MARKET,
-      feePct: 50,
     })
 
     const placeOrder = buildPlaceOrder({
@@ -189,7 +185,6 @@ describe('Orders', () => {
       side: Dir.L,
       orderType: 'TG',
       comparison: Compare.BELOW_MARKET,
-      feePct: 50,
     })
 
     const placeOrder = buildPlaceOrder({
@@ -222,7 +217,6 @@ describe('Orders', () => {
       side: Dir.S,
       orderType: 'TG',
       comparison: Compare.ABOVE_MARKET,
-      feePct: 50,
     })
 
     const placeOrder = buildPlaceOrder({
@@ -255,7 +249,6 @@ describe('Orders', () => {
       side: Dir.L,
       orderType: 'TG',
       comparison: Compare.ABOVE_MARKET,
-      feePct: 50,
     })
 
     const placeOrder = buildPlaceOrder({
@@ -288,7 +281,6 @@ describe('Orders', () => {
       side: Dir.S,
       orderType: 'TG',
       comparison: Compare.BELOW_MARKET,
-      feePct: 50,
     })
     const placeOrder = buildPlaceOrder({
       market: market.address,
@@ -319,7 +311,6 @@ describe('Orders', () => {
       orderType: 'LM',
       side: Dir.M,
       comparison: Compare.BELOW_MARKET,
-      feePct: 100,
     })
 
     const placeOrder = buildPlaceOrder({
@@ -350,7 +341,6 @@ describe('Orders', () => {
       orderType: 'TG',
       side: Dir.M,
       comparison: Compare.ABOVE_MARKET,
-      feePct: 100,
     })
 
     const placeOrder = buildPlaceOrder({
@@ -382,7 +372,7 @@ describe('Orders', () => {
       orderType: 'TG',
       side: Dir.M,
       comparison: Compare.BELOW_MARKET,
-      feePct: 100,
+      fee: userPosition,
     })
 
     const placeOrder = buildPlaceOrder({
@@ -446,7 +436,7 @@ describe('Orders', () => {
         side: Dir.L,
         orderType: 'LM',
         comparison: Compare.ABOVE_MARKET,
-        feePct: 0,
+        fee: 0,
       })
 
       const placeOrder = buildPlaceOrder({
@@ -521,7 +511,7 @@ describe('Orders', () => {
         side: Dir.L,
         orderType: 'LM',
         comparison: Compare.BELOW_MARKET,
-        feePct: BigNumber.from('10'),
+        fee: 10,
       })
 
       const placeOrder = buildPlaceOrder({

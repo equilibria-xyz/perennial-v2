@@ -4,6 +4,7 @@ import { FakeContract } from '@defi-wonderland/smock'
 import { SignerWithAddress } from '@nomiclabs/hardhat-ethers/signers'
 import { LocalStruct } from '@equilibria/perennial-v2/types/generated/contracts/Market'
 import { TriggerOrderStruct } from '../../types/generated/contracts/MultiInvoker'
+import { parse6decimal } from '../../../common/testutil/types'
 
 export function setMarketPosition(
   market: FakeContract<IMarket>,
@@ -59,25 +60,19 @@ export const openTriggerOrder = ({
   side,
   comparison,
   orderType,
-  feePct,
+  fee,
 }: {
   size: BigNumberish
   price: BigNumberish
   side: Dir | number
   comparison: Compare | number
   orderType: OrderType
-  feePct?: BigNumberish
+  fee?: BigNumberish
 }): TriggerOrderStruct => {
-  if (feePct === undefined) {
-    feePct = BigNumber.from(size).div(20)
-  } else {
-    feePct = BigNumber.from(feePct).mul(size).div(100)
-  }
-
   return {
     side: side,
     comparison: comparison,
-    fee: feePct,
+    fee: fee ?? parse6decimal('10'),
     price: price,
     delta: orderType === 'LM' ? size : BigNumber.from(size).mul(-1),
   }

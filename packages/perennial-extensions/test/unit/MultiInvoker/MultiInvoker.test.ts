@@ -473,7 +473,7 @@ describe('MultiInvoker', () => {
           side: Dir.L,
           orderType: 'LM',
           comparison: Compare.ABOVE_MARKET,
-          feePct: 0,
+          fee: 0,
         })
 
         let placeOrder = buildPlaceOrder({
