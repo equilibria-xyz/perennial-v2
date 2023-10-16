@@ -1,4 +1,4 @@
-import { BigNumber, BigNumberish, utils } from 'ethers'
+import { BigNumberish, utils } from 'ethers'
 import { IMultiInvoker } from '../../types/generated'
 import { TriggerOrderStruct } from '../../types/generated/contracts/MultiInvoker'
 import { ethers } from 'hardhat'
@@ -20,8 +20,6 @@ export type InterfaceFeeStruct = {
   wrap: boolean
   to: string
 }
-
-export type TriggerType = 'LM' | 'TP' | 'SL'
 
 export type Actions = IMultiInvoker.InvocationStruct[]
 
@@ -70,97 +68,19 @@ export const buildPlaceOrder = ({
   maker,
   long,
   short,
-  triggerType,
   collateral,
   handleWrap,
   order,
-  comparisonOverride,
-  sideOverride,
-  feeAsPositionPercentOverride,
-  interfaceFeeStruct,
+  fee,
 }: {
   market: string
   maker?: BigNumberish
   long?: BigNumberish
   short?: BigNumberish
-  triggerType?: TriggerType
   collateral: BigNumberish
   handleWrap?: boolean
   order: TriggerOrderStruct
-  comparisonOverride?: number
-  sideOverride?: number
-  feeAsPositionPercentOverride?: boolean
-  interfaceFeeStruct?: InterfaceFeeStruct
-}): Actions => {
-  if (!triggerType) triggerType = 'LM'
-  order.delta = BigNumber.from(order.delta)
-  order.fee = BigNumber.from(order.fee)
-
-  if (long && short) {
-    if (BigNumber.from(long).gt(short)) {
-      order.side = 1
-      order.delta = BigNumber.from(long).sub(short)
-    } else {
-      order.side = 2
-      order.delta = BigNumber.from(short).sub(long)
-    }
-  } else if (long) {
-    order.side = 1
-    order.delta = long
-  } else if (short) {
-    order.side = 2
-    order.delta = short
-  } else if (maker) {
-    order.side = 0
-    order.delta = maker
-  } else {
-    long = order.side === 1 ? order.delta.abs() : '0'
-    short = order.side === 2 ? order.delta.abs() : '0'
-  }
-
-  if (!feeAsPositionPercentOverride) {
-    order.fee = BigNumber.from(collateral).div(BigNumber.from(order.delta).abs()).mul(order.fee)
-  }
-
-  order = triggerDirection(order, triggerType, comparisonOverride)
-  order.side = sideOverride || sideOverride === 0 ? sideOverride : order.side
-
-  // dont open position if limit order
-  if (triggerType === 'LM') {
-    long = BigNumber.from(0)
-    short = BigNumber.from(0)
-  }
-
-  return _buildPlaceOrder({
-    market: market,
-    maker: maker,
-    long: long,
-    short: short,
-    collateral: collateral,
-    handleWrap: handleWrap,
-    t: order,
-    feeStruct: interfaceFeeStruct,
-  })
-}
-
-export const _buildPlaceOrder = ({
-  market,
-  maker,
-  long,
-  short,
-  collateral,
-  handleWrap,
-  t,
-  feeStruct,
-}: {
-  market: string
-  maker?: BigNumberish
-  long?: BigNumberish
-  short?: BigNumberish
-  collateral?: BigNumberish
-  handleWrap?: boolean
-  t: TriggerOrderStruct
-  feeStruct?: InterfaceFeeStruct
+  fee?: InterfaceFeeStruct
 }): Actions => {
   return [
     {
@@ -174,11 +94,7 @@ export const _buildPlaceOrder = ({
           short ?? MAX_UINT,
           collateral ?? MIN_INT,
           handleWrap ?? false,
-          [
-            feeStruct ? feeStruct.amount : 0,
-            feeStruct ? feeStruct.wrap : false,
-            feeStruct ? feeStruct.to : '0x0000000000000000000000000000000000000000',
-          ],
+          [fee ? fee.amount : 0, fee ? fee.wrap : false, fee ? fee.to : '0x0000000000000000000000000000000000000000'],
         ],
       ),
     },
@@ -189,44 +105,16 @@ export const _buildPlaceOrder = ({
         [
           market,
           [
-            t.side, // default long side
-            t.comparison,
-            t.fee ?? '0',
-            t.price ?? '0',
-            t.delta ?? '0',
+            order.side, // default long side
+            order.comparison,
+            order.fee,
+            order.price,
+            order.delta,
           ],
         ],
       ),
     },
   ]
-}
-
-function triggerDirection(order: TriggerOrderStruct, triggerType: TriggerType, comparisonOverride?: number) {
-  order.delta = BigNumber.from(order.delta)
-
-  order.delta = delta(order.delta, triggerType)
-
-  if (comparisonOverride && comparisonOverride !== 0) {
-    order.comparison = comparisonOverride
-  } else if (
-    (order.side === 1 && (triggerType === 'LM' || triggerType === 'SL')) ||
-    (order.side === 2 && triggerType === 'TP')
-  ) {
-    order.comparison = -1
-  } else {
-    order.comparison = 1
-  }
-
-  return order
-}
-
-function delta(num: BigNumber, trigger: TriggerType) {
-  if (trigger === 'LM') {
-    if (num.isNegative()) return num.mul(-1)
-    return num
-  }
-  if (num.isNegative()) return num
-  return num.mul(-1)
 }
 
 export type VaultUpdate = {
@@ -248,7 +136,7 @@ export const buildUpdateVault = (vaultUpdate: VaultUpdate): Actions => {
           vaultUpdate.depositAssets ?? '0',
           vaultUpdate.redeemShares ?? '0',
           vaultUpdate.claimAssets ?? '0',
-          vaultUpdate.wrap ? true : false,
+          vaultUpdate.wrap ?? false,
         ],
       ),
     },
@@ -305,7 +193,6 @@ module.exports = {
   buildCancelOrder,
   buildExecOrder,
   buildPlaceOrder,
-  _buildPlaceOrder,
   buildUpdateMarket,
   buildLiquidateUser,
   buildUpdateVault,
