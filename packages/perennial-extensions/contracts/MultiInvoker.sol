@@ -244,7 +244,7 @@ contract MultiInvoker is IMultiInvoker, Kept {
                     currentPosition.short.isZero() ? UFixed6Lib.ZERO : currentPosition.short.sub(closable),
                     Fixed6Lib.from(-1, liquidationFee),
                     true
-            // solhint-disable-next-line
+            // solhint-disable-next-line no-empty-blocks
             ) { } catch (bytes memory reason) { return; } // skip withdraw on failed update
         }
 
@@ -335,8 +335,7 @@ contract MultiInvoker is IMultiInvoker, Kept {
         } else {
             try IPythOracle(oracleProvider).commit{value: value}(index, version, data) { } // solhint-disable-line
             catch {
-                // return pyth native fee and skip DSU push on failure
-                payable(msg.sender).transfer(msg.value);
+                // skip DSU push on failure
                 return;
             }
         }
@@ -457,7 +456,7 @@ contract MultiInvoker is IMultiInvoker, Kept {
                 currentPosition.short,
                 Fixed6Lib.ZERO,
                 false
-            // solhint-disable-next-line
+            // solhint-disable-next-line no-empty-blocks
             ) { } catch (bytes memory reason) { return; } // skip order deletion on failed update
         }
 
