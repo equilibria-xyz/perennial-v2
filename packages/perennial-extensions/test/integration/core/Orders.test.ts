@@ -1,5 +1,5 @@
 import { BigNumber, BigNumberish, utils } from 'ethers'
-import { InstanceVars, deployProtocol, createMarket, createInvoker, settle, createVault } from '../helpers/setupHelpers'
+import { InstanceVars, deployProtocol, createMarket, createInvoker, settle } from '../helpers/setupHelpers'
 import { anyValue } from '@nomicfoundation/hardhat-chai-matchers/withArgs'
 
 import 'hardhat'
@@ -7,8 +7,8 @@ import 'hardhat'
 import { expect } from 'chai'
 import { parse6decimal } from '../../../../common/testutil/types'
 import { Market, MultiInvoker } from '../../../types/generated'
-import { openTriggerOrder } from '../../helpers/types'
-import { _buildPlaceOrder, buildCancelOrder, buildExecOrder, buildPlaceOrder } from '../../helpers/invoke'
+import { Compare, Dir, openTriggerOrder } from '../../helpers/types'
+import { buildCancelOrder, buildExecOrder, buildPlaceOrder } from '../../helpers/invoke'
 import { loadFixture } from '@nomicfoundation/hardhat-network-helpers'
 import { TriggerOrderStruct } from '../../../types/generated/contracts/MultiInvoker'
 import { SignerWithAddress } from '@nomiclabs/hardhat-ethers/signers'
@@ -64,9 +64,10 @@ describe('Orders', () => {
     await dsu.connect(user).approve(multiInvoker.address, dsuCollateral)
     const triggerOrder = openTriggerOrder({
       size: userPosition,
+      side: Dir.L,
+      orderType: 'LM',
+      comparison: Compare.ABOVE_MARKET,
       price: BigNumber.from(1000e6),
-      trigger: 'LM',
-      feePct: 50,
     })
     const placeOrder = buildPlaceOrder({ market: market.address, order: triggerOrder, collateral: collateral })
 
@@ -86,10 +87,17 @@ describe('Orders', () => {
     const triggerOrder = openTriggerOrder({
       size: userPosition,
       price: BigNumber.from(1000e6),
-      trigger: 'LM',
-      feePct: 50,
+      side: Dir.L,
+      orderType: 'LM',
+      comparison: Compare.ABOVE_MARKET,
     })
-    const placeOrder = buildPlaceOrder({ market: market.address, order: triggerOrder, collateral: collateral })
+
+    const placeOrder = buildPlaceOrder({
+      market: market.address,
+      long: position,
+      order: triggerOrder,
+      collateral: collateral,
+    })
 
     await multiInvoker.connect(user).invoke(placeOrder)
     expect(await multiInvoker.latestNonce()).to.eq(1)
@@ -109,12 +117,18 @@ describe('Orders', () => {
   it('executes a long limit order', async () => {
     const { user, chainlink } = instanceVars
 
-    const trigger = openTriggerOrder({ size: userPosition, price: payoff(marketPrice.sub(10)), feePct: 50 })
+    const trigger = openTriggerOrder({
+      size: userPosition,
+      price: payoff(marketPrice.sub(10)),
+      side: Dir.L,
+      orderType: 'LM',
+      comparison: Compare.ABOVE_MARKET,
+    })
+
     const placeOrder = buildPlaceOrder({
       market: market.address,
       order: trigger,
       collateral: collateral,
-      triggerType: 'LM',
     })
 
     await expect(multiInvoker.connect(user).invoke(placeOrder)).to.not.be.reverted
@@ -123,6 +137,7 @@ describe('Orders', () => {
     await chainlink.nextWithPriceModification(() => marketPrice.sub(11))
     await settle(market, user)
 
+    await ethers.provider.send('hardhat_setNextBlockBaseFeePerGas', ['0x1'])
     const execute = buildExecOrder({ user: user.address, market: market.address, orderId: 1 })
     await expect(multiInvoker.connect(user).invoke(execute))
       .to.emit(multiInvoker, 'OrderExecuted')
@@ -136,15 +151,15 @@ describe('Orders', () => {
     const trigger = openTriggerOrder({
       size: userPosition,
       price: payoff(marketPrice.add(10)),
-      feePct: 50,
-      side: 'S',
-      trigger: 'LM',
+      side: Dir.S,
+      orderType: 'LM',
+      comparison: Compare.BELOW_MARKET,
     })
+
     const placeOrder = buildPlaceOrder({
       market: market.address,
       order: trigger,
       collateral: collateral,
-      triggerType: 'LM',
     })
 
     await expect(multiInvoker.connect(user).invoke(placeOrder)).to.not.be.reverted
@@ -153,6 +168,7 @@ describe('Orders', () => {
     await chainlink.nextWithPriceModification(() => marketPrice.add(11))
     await settle(market, user)
 
+    await ethers.provider.send('hardhat_setNextBlockBaseFeePerGas', ['0x1'])
     const execute = buildExecOrder({ user: user.address, market: market.address, orderId: 1 })
     await expect(multiInvoker.connect(user).invoke(execute))
       .to.emit(multiInvoker, 'OrderExecuted')
@@ -166,14 +182,16 @@ describe('Orders', () => {
     const trigger = openTriggerOrder({
       size: userPosition,
       price: payoff(marketPrice.add(10)),
-      feePct: 50,
-      trigger: 'TP',
+      side: Dir.L,
+      orderType: 'TG',
+      comparison: Compare.BELOW_MARKET,
     })
+
     const placeOrder = buildPlaceOrder({
       market: market.address,
       order: trigger,
+      long: position,
       collateral: collateral,
-      triggerType: 'TP',
     })
 
     await expect(multiInvoker.connect(user).invoke(placeOrder)).to.not.be.reverted
@@ -182,6 +200,7 @@ describe('Orders', () => {
     await chainlink.nextWithPriceModification(() => marketPrice.add(11))
     await settle(market, user)
 
+    await ethers.provider.send('hardhat_setNextBlockBaseFeePerGas', ['0x1'])
     const execute = buildExecOrder({ user: user.address, market: market.address, orderId: 1 })
     await expect(multiInvoker.connect(user).invoke(execute))
       .to.emit(multiInvoker, 'OrderExecuted')
@@ -195,15 +214,16 @@ describe('Orders', () => {
     const trigger = openTriggerOrder({
       size: userPosition,
       price: payoff(marketPrice.sub(11)),
-      feePct: 50,
-      trigger: 'TP',
-      side: 'S',
+      side: Dir.S,
+      orderType: 'TG',
+      comparison: Compare.ABOVE_MARKET,
     })
+
     const placeOrder = buildPlaceOrder({
       market: market.address,
       order: trigger,
+      short: position,
       collateral: collateral,
-      triggerType: 'TP',
     })
 
     await expect(multiInvoker.connect(user).invoke(placeOrder)).to.not.be.reverted
@@ -212,6 +232,7 @@ describe('Orders', () => {
     await chainlink.nextWithPriceModification(() => marketPrice.sub(11))
     await settle(market, user)
 
+    await ethers.provider.send('hardhat_setNextBlockBaseFeePerGas', ['0x1'])
     const execute = buildExecOrder({ user: user.address, market: market.address, orderId: 1 })
     await expect(multiInvoker.connect(user).invoke(execute))
       .to.emit(multiInvoker, 'OrderExecuted')
@@ -224,16 +245,17 @@ describe('Orders', () => {
 
     const trigger = openTriggerOrder({
       size: userPosition,
-      price: payoff(marketPrice.sub(11)),
-      feePct: 50,
-      trigger: 'SL',
-      side: 'L',
+      price: payoff(marketPrice.sub(10)),
+      side: Dir.L,
+      orderType: 'TG',
+      comparison: Compare.ABOVE_MARKET,
     })
+
     const placeOrder = buildPlaceOrder({
       market: market.address,
       order: trigger,
+      long: position,
       collateral: collateral,
-      triggerType: 'SL',
     })
 
     await expect(multiInvoker.connect(user).invoke(placeOrder)).to.not.be.reverted
@@ -242,6 +264,7 @@ describe('Orders', () => {
     await chainlink.nextWithPriceModification(() => marketPrice.sub(11))
     await settle(market, user)
 
+    await ethers.provider.send('hardhat_setNextBlockBaseFeePerGas', ['0x1'])
     const execute = buildExecOrder({ user: user.address, market: market.address, orderId: 1 })
     await expect(multiInvoker.connect(user).invoke(execute))
       .to.emit(multiInvoker, 'OrderExecuted')
@@ -255,15 +278,15 @@ describe('Orders', () => {
     const trigger = openTriggerOrder({
       size: userPosition,
       price: payoff(marketPrice.add(10)),
-      feePct: 50,
-      trigger: 'SL',
-      side: 'S',
+      side: Dir.S,
+      orderType: 'TG',
+      comparison: Compare.BELOW_MARKET,
     })
     const placeOrder = buildPlaceOrder({
       market: market.address,
       order: trigger,
+      short: position,
       collateral: collateral,
-      triggerType: 'SL',
     })
 
     await expect(multiInvoker.connect(user).invoke(placeOrder)).to.not.be.reverted
@@ -272,6 +295,7 @@ describe('Orders', () => {
     await chainlink.nextWithPriceModification(() => marketPrice.add(11))
     await settle(market, user)
 
+    await ethers.provider.send('hardhat_setNextBlockBaseFeePerGas', ['0x1'])
     const execute = buildExecOrder({ user: user.address, market: market.address, orderId: 1 })
     await expect(multiInvoker.connect(user).invoke(execute))
       .to.emit(multiInvoker, 'OrderExecuted')
@@ -284,18 +308,15 @@ describe('Orders', () => {
     const trigger = openTriggerOrder({
       size: userPosition,
       price: payoff(marketPrice.add(10)),
-      feePct: 100,
-      trigger: 'LM',
-      side: 'M',
+      orderType: 'LM',
+      side: Dir.M,
+      comparison: Compare.BELOW_MARKET,
     })
-    trigger.delta = BigNumber.from(trigger.delta).mul(-1)
 
     const placeOrder = buildPlaceOrder({
       market: market.address,
-      maker: (await market.positions(userB.address)).maker,
       order: trigger,
       collateral: collateral,
-      triggerType: 'LM',
     })
 
     await expect(multiInvoker.connect(userB).invoke(placeOrder)).to.not.be.reverted
@@ -303,6 +324,8 @@ describe('Orders', () => {
 
     await chainlink.nextWithPriceModification(() => marketPrice.add(11))
     await settle(market, userB)
+
+    await ethers.provider.send('hardhat_setNextBlockBaseFeePerGas', ['0x1'])
 
     const execute = buildExecOrder({ user: userB.address, market: market.address, orderId: 1 })
     await expect(multiInvoker.connect(userB).invoke(execute))
@@ -316,9 +339,9 @@ describe('Orders', () => {
     const trigger = openTriggerOrder({
       size: userPosition,
       price: payoff(marketPrice.sub(10)),
-      feePct: 100,
-      trigger: 'SL',
-      side: 'M',
+      orderType: 'TG',
+      side: Dir.M,
+      comparison: Compare.ABOVE_MARKET,
     })
 
     const placeOrder = buildPlaceOrder({
@@ -326,8 +349,6 @@ describe('Orders', () => {
       maker: (await market.positions(userB.address)).maker,
       order: trigger,
       collateral: collateral,
-      triggerType: 'SL',
-      comparisonOverride: -1,
     })
 
     await expect(multiInvoker.connect(userB).invoke(placeOrder)).to.not.be.reverted
@@ -336,6 +357,7 @@ describe('Orders', () => {
     await chainlink.nextWithPriceModification(() => marketPrice.sub(11))
     await settle(market, userB)
 
+    await ethers.provider.send('hardhat_setNextBlockBaseFeePerGas', ['0x1'])
     const execute = buildExecOrder({ user: userB.address, market: market.address, orderId: 1 })
     await expect(multiInvoker.connect(userB).invoke(execute))
       .to.emit(multiInvoker, 'OrderExecuted')
@@ -348,9 +370,10 @@ describe('Orders', () => {
     const trigger = openTriggerOrder({
       size: userPosition,
       price: payoff(marketPrice.add(10)),
-      feePct: 100,
-      trigger: 'TP',
-      side: 'M',
+      orderType: 'TG',
+      side: Dir.M,
+      comparison: Compare.BELOW_MARKET,
+      fee: userPosition,
     })
 
     const placeOrder = buildPlaceOrder({
@@ -358,8 +381,6 @@ describe('Orders', () => {
       maker: (await market.positions(userB.address)).maker,
       order: trigger,
       collateral: collateral,
-      triggerType: 'TP',
-      comparisonOverride: 1,
     })
 
     await expect(multiInvoker.connect(userB).invoke(placeOrder)).to.not.be.reverted
@@ -368,6 +389,7 @@ describe('Orders', () => {
     await chainlink.nextWithPriceModification(() => marketPrice.add(11))
     await settle(market, userB)
 
+    await ethers.provider.send('hardhat_setNextBlockBaseFeePerGas', ['0x1'])
     const execute = buildExecOrder({ user: userB.address, market: market.address, orderId: 1 })
     await expect(multiInvoker.connect(userB).invoke(execute))
       .to.emit(multiInvoker, 'OrderExecuted')
@@ -383,7 +405,13 @@ describe('Orders', () => {
         multiInvoker.connect(userB).invoke(buildExecOrder({ user: user.address, market: market.address, orderId: 0 })),
       ).to.be.revertedWithCustomError(multiInvoker, 'MultiInvokerCantExecuteError')
 
-      const trigger = openTriggerOrder({ size: position, price: 0 })
+      const trigger = openTriggerOrder({
+        size: position,
+        price: 0,
+        side: Dir.L,
+        orderType: 'LM',
+        comparison: Compare.ABOVE_MARKET,
+      })
       await expect(
         multiInvoker
           .connect(user)
@@ -406,15 +434,16 @@ describe('Orders', () => {
       const trigger = openTriggerOrder({
         size: userPosition,
         price: payoff(marketPrice.add(10)),
-        feePct: 0,
-        trigger: 'TP',
+        side: Dir.L,
+        orderType: 'LM',
+        comparison: Compare.ABOVE_MARKET,
+        fee: 0,
       })
 
       const placeOrder = buildPlaceOrder({
         market: market.address,
         order: trigger,
         collateral: collateral,
-        triggerType: 'TP',
       })
 
       await expect(multiInvoker.connect(user).invoke(placeOrder)).to.be.revertedWithCustomError(
@@ -426,38 +455,51 @@ describe('Orders', () => {
     it('fails to place order with comparison == 0 || > |1|', async () => {
       const { user } = instanceVars
 
-      const trigger = openTriggerOrder({ size: userPosition, price: marketPrice, side: 'L' })
+      const trigger = openTriggerOrder({
+        size: userPosition,
+        side: Dir.L,
+        comparison: Compare.ABOVE_MARKET,
+        orderType: 'LM',
+        price: marketPrice,
+      })
 
       trigger.comparison = 0
       await expect(
-        multiInvoker.connect(user).invoke(_buildPlaceOrder({ market: market.address, t: trigger })),
+        multiInvoker
+          .connect(user)
+          .invoke(buildPlaceOrder({ market: market.address, order: trigger, collateral: collateral })),
       ).to.be.revertedWithCustomError(multiInvoker, 'MultiInvokerInvalidOrderError')
 
       trigger.comparison = 2
       await expect(
-        multiInvoker.connect(user).invoke(_buildPlaceOrder({ market: market.address, t: trigger })),
+        multiInvoker
+          .connect(user)
+          .invoke(buildPlaceOrder({ market: market.address, order: trigger, collateral: collateral })),
       ).to.be.revertedWithCustomError(multiInvoker, 'MultiInvokerInvalidOrderError')
 
       trigger.comparison = -2
       await expect(
-        multiInvoker.connect(user).invoke(_buildPlaceOrder({ market: market.address, t: trigger })),
+        multiInvoker
+          .connect(user)
+          .invoke(buildPlaceOrder({ market: market.address, order: trigger, collateral: collateral })),
       ).to.be.revertedWithCustomError(multiInvoker, 'MultiInvokerInvalidOrderError')
     })
 
     it('fails to place order with side > 2', async () => {
       const { user } = instanceVars
 
-      const trigger = openTriggerOrder({ size: userPosition, price: marketPrice, side: 'L' })
+      const trigger = openTriggerOrder({
+        size: userPosition,
+        side: 3,
+        comparison: Compare.ABOVE_MARKET,
+        orderType: 'LM',
+        price: marketPrice,
+      })
 
-      trigger.comparison = -1
-      trigger.side = 3
       await expect(
-        multiInvoker.connect(user).invoke(_buildPlaceOrder({ market: market.address, t: trigger })),
-      ).to.be.revertedWithCustomError(multiInvoker, 'MultiInvokerInvalidOrderError')
-
-      trigger.side = 3
-      await expect(
-        multiInvoker.connect(user).invoke(_buildPlaceOrder({ market: market.address, t: trigger })),
+        multiInvoker
+          .connect(user)
+          .invoke(buildPlaceOrder({ market: market.address, order: trigger, collateral: collateral })),
       ).to.be.revertedWithCustomError(multiInvoker, 'MultiInvokerInvalidOrderError')
     })
 
@@ -467,15 +509,16 @@ describe('Orders', () => {
       const trigger = openTriggerOrder({
         size: userPosition,
         price: payoff(marketPrice.add(10)),
-        feePct: BigNumber.from('10'),
-        trigger: 'TP',
+        side: Dir.L,
+        orderType: 'LM',
+        comparison: Compare.BELOW_MARKET,
+        fee: 10,
       })
+
       const placeOrder = buildPlaceOrder({
         market: market.address,
         order: trigger,
         collateral: collateral,
-        triggerType: 'TP',
-        feeAsPositionPercentOverride: true,
       })
 
       await expect(multiInvoker.connect(user).invoke(placeOrder)).to.not.be.reverted
@@ -495,7 +538,14 @@ describe('Orders', () => {
     it('Fails to store TRIGGER values out of slot bounds', async () => {
       const { user } = instanceVars
 
-      const defaultOrder = openTriggerOrder({ size: parse6decimal('10000'), price: BigNumber.from(1000e6) })
+      const defaultOrder = openTriggerOrder({
+        size: parse6decimal('10000'),
+        side: Dir.L,
+        orderType: 'LM',
+        comparison: Compare.ABOVE_MARKET,
+        price: BigNumber.from(1000e6),
+      })
+
       defaultOrder.comparison = 1
 
       let testOrder = { ...defaultOrder }
@@ -508,7 +558,6 @@ describe('Orders', () => {
       await assertStoreFail(testOrder, multiInvoker, market, user)
       testOrder = { ...defaultOrder }
 
-      // why is -int inclusive of last digit?
       testOrder.price = MIN_MAX_UINT64.add(2).mul(-1)
       await assertStoreFail(testOrder, multiInvoker, market, user)
       testOrder = { ...defaultOrder }
@@ -530,7 +579,7 @@ async function assertStoreFail(
   user: SignerWithAddress,
 ) {
   await expect(
-    multiInvoker.connect(user).invoke(_buildPlaceOrder({ market: market.address, t: testOrder })),
+    multiInvoker.connect(user).invoke(buildPlaceOrder({ market: market.address, order: testOrder, collateral: 0 })),
   ).to.be.revertedWithCustomError(multiInvoker, 'TriggerOrderStorageInvalidError')
 }
 const payoff = (price: BigNumber) => {
