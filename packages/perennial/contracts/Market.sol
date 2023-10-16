@@ -496,8 +496,11 @@ contract Market is IMarket, Instance, ReentrancyGuard {
             collateral.lt(Fixed6Lib.from(-1, _liquidationFee(context, newOrder)))
         )) revert MarketInvalidProtectionError();
 
-        if (context.currentTimestamp - context.latestVersion.timestamp >= context.riskParameter.staleAfter)
-            revert MarketStalePriceError();
+        if (
+            !(context.currentPosition.local.magnitude().isZero() && context.latestPosition.local.magnitude().isZero()) &&   // sender has no position
+            !(newOrder.isEmpty() && collateral.gte(Fixed6Lib.ZERO)) &&                                                      // sender is depositing zero or more into account, without position change
+            (context.currentTimestamp - context.latestVersion.timestamp >= context.riskParameter.staleAfter)                // price is not stale
+        ) revert MarketStalePriceError();
 
         if (context.marketParameter.closed && newOrder.increasesPosition())
             revert MarketClosedError();
@@ -511,9 +514,9 @@ contract Market is IMarket, Instance, ReentrancyGuard {
         if (protected) return; // The following invariants do not apply to protected position updates (liquidations)
 
         if (
-            msg.sender != account &&                                                                   // sender is operating on own account
-            !IMarketFactory(address(factory())).operators(account, msg.sender) &&                      // sender is operating on own account
-            !(newOrder.isEmpty() && collateralAfterFees.isZero() && collateral.gt(Fixed6Lib.ZERO))     // sender is repaying shortfall for this account
+            msg.sender != account &&                                                        // sender is operating on own account
+            !IMarketFactory(address(factory())).operators(account, msg.sender) &&           // sender is operator approved for account
+            !(newOrder.isEmpty() && collateral.gte(Fixed6Lib.ZERO))                         // sender is depositing zero or more into account, without position change
         ) revert MarketOperatorNotAllowedError();
 
         if (

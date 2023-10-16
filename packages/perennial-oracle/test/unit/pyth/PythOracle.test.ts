@@ -116,9 +116,9 @@ describe('PythOracle', () => {
     await pythOracle.connect(oracleSigner).request(user.address)
     await pythOracle
       .connect(user)
-      .commitRequested(
-        0,
-        getVaa(100000000000, 2, -8, (await pythOracle.callStatic.nextVersionToCommit()).add(minDelay)),
+      .commit(
+        await pythOracle.callStatic.next(),
+        getVaa(100000000000, 2, -8, (await pythOracle.callStatic.next()).add(minDelay)),
         {
           value: 1,
         },
@@ -128,9 +128,13 @@ describe('PythOracle', () => {
     await pythOracle.connect(oracleSigner).request(user.address)
     await pythOracle
       .connect(user)
-      .commitRequested(1, getVaa(20000000, 2, -4, (await pythOracle.callStatic.nextVersionToCommit()).add(minDelay)), {
-        value: 1,
-      })
+      .commit(
+        await pythOracle.callStatic.next(),
+        getVaa(20000000, 2, -4, (await pythOracle.callStatic.next()).add(minDelay)),
+        {
+          value: 1,
+        },
+      )
     expect((await pythOracle.callStatic.latest()).price).to.equal(ethers.utils.parseUnits('2000', 6))
   })
 })

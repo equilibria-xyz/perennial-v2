@@ -44,6 +44,7 @@ const NODE_INTERVAL_MINING = process.env.NODE_INTERVAL_MINING ? parseInt(process
 
 const MOCHA_PARALLEL = process.env.MOCHA_PARALLEL === 'true' || false
 const MOCHA_REPORTER = process.env.MOCHA_REPORTER || 'spec'
+const MOCHA_RETRY_COUNT = process.env.MOCHA_RETRY_COUNT || 0
 
 export const OPTIMIZER_ENABLED = process.env.OPTIMIZER_ENABLED === 'true' || false
 
@@ -187,7 +188,7 @@ export default function defaultConfig({
       reporter: MOCHA_REPORTER,
       slow: 1000,
       timeout: 480000,
-      retries: 2,
+      retries: Number(MOCHA_RETRY_COUNT),
     },
     contractSizer: {
       alphaSort: true,

@@ -326,6 +326,7 @@ describe('Orders', () => {
     await settle(market, userB)
 
     await ethers.provider.send('hardhat_setNextBlockBaseFeePerGas', ['0x1'])
+
     const execute = buildExecOrder({ user: userB.address, market: market.address, orderId: 1 })
     await expect(multiInvoker.connect(userB).invoke(execute))
       .to.emit(multiInvoker, 'OrderExecuted')
