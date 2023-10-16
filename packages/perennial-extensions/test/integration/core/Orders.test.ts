@@ -1,5 +1,5 @@
 import { BigNumber, BigNumberish, utils } from 'ethers'
-import { InstanceVars, deployProtocol, createMarket, createInvoker, settle, createVault } from '../helpers/setupHelpers'
+import { InstanceVars, deployProtocol, createMarket, createInvoker, settle } from '../helpers/setupHelpers'
 import { anyValue } from '@nomicfoundation/hardhat-chai-matchers/withArgs'
 
 import 'hardhat'
@@ -37,7 +37,7 @@ describe('Orders', () => {
     instanceVars = await loadFixture(deployProtocol)
     await instanceVars.chainlink.reset()
 
-    const { user, userB, userC, dsu, chainlink } = instanceVars
+    const { user, userB, dsu, chainlink } = instanceVars
 
     market = await createMarket(instanceVars)
     multiInvoker = await createInvoker(instanceVars)
