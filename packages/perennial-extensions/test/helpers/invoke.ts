@@ -181,15 +181,6 @@ export const buildChargeFee = ({
   ]
 }
 
-// await expect(
-//   multiInvoker.connect(user).invoke([
-//     {
-//       action: 9,
-//       args: ethers.utils.defaultAbiCoder.encode(['address', 'uint256'], [userB.address, collateral]),
-//     },
-//   ]),
-// )
-
 module.exports = {
   MAX_INT,
   buildCancelOrder,
