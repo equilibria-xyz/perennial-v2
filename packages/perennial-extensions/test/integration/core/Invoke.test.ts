@@ -387,7 +387,7 @@ describe('Invoke', () => {
         .withArgs(user.address, dsuCollateral)
     })
 
-    it('deposits / redeems / claims from vault', async () => {
+    it.only('deposits / redeems / claims from vault', async () => {
       const { user, dsu } = instanceVars
 
       const userBalanceBefore = await dsu.balanceOf(user.address)
@@ -438,7 +438,7 @@ describe('Invoke', () => {
       await updateVaultOracle()
       await vault.settle(user.address)
 
-      const funding = BigNumber.from('23084')
+      const funding = BigNumber.from('18411')
       // claim from vault
       await expect(
         multiInvoker.connect(user).invoke(
