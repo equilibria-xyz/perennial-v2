@@ -227,7 +227,7 @@ contract MultiInvoker is IMultiInvoker, Kept {
         Position memory currentPosition = market.pendingPositions(account, market.locals(account).currentId);
         currentPosition.adjust(latestPosition);
 
-        if(revertOnFailure) {
+        if (revertOnFailure) {
             market.update(
                 account,
                 currentPosition.maker.isZero() ? UFixed6Lib.ZERO : currentPosition.maker.sub(closable),
@@ -507,14 +507,14 @@ contract MultiInvoker is IMultiInvoker, Kept {
 
     /// @notice Target market must be created by MarketFactory
     modifier isMarketInstance(IMarket market) {
-        if(!marketFactory.instances(market))
+        if (!marketFactory.instances(market))
             revert MultiInvokerInvalidInstanceError();
         _;
     }
 
     /// @notice Target vault must be created by VaultFactory
     modifier isVaultInstance(IVault vault) {
-        if(!vaultFactory.instances(vault))
+        if (!vaultFactory.instances(vault))
             revert MultiInvokerInvalidInstanceError();
             _;
     }
