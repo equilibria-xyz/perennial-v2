@@ -15,7 +15,7 @@ contract Reward is IReward, Ownable, ERC20 {
 
     mapping(IFactory => bool) public operators;
 
-    constructor(Token18 underlying_, UFixed18 exchangeRate_) ERC20("Perennial Reward Abstraction", "") {
+    constructor(Token18 underlying_, UFixed18 exchangeRate_) ERC20("Reward", "") {
         underlying = underlying_;
         exchangeRate = exchangeRate_;
     }
