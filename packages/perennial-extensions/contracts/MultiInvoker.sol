@@ -332,7 +332,7 @@ contract MultiInvoker is IMultiInvoker, Kept {
         if (revertOnFailure) {
             IPythOracle(oracleProvider).commit{value: value}(version, data);
         } else {
-            try IPythOracle(oracleProvider).commit{value: value}(index, version, data) { } // solhint-disable-line no-empty-blocks
+            try IPythOracle(oracleProvider).commit{value: value}(version, data) { } // solhint-disable-line no-empty-blocks
             catch {
                 // skip DSU push on failure
                 return;
