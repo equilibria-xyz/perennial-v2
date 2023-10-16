@@ -38,7 +38,7 @@ import { FakeContract, smock } from '@defi-wonderland/smock'
 import { ethers } from 'hardhat'
 import { BigNumber } from 'ethers'
 import { anyValue } from '@nomicfoundation/hardhat-chai-matchers/withArgs'
-import { openTriggerOrder } from '../../helpers/types'
+import { Compare, Dir, openTriggerOrder } from '../../helpers/types'
 
 use(smock.matchers)
 
@@ -444,7 +444,7 @@ describe('Invoke', () => {
       await updateVaultOracle()
       await vault.settle(user.address)
 
-      const funding = BigNumber.from('23084')
+      const funding = BigNumber.from('18411')
       // claim from vault
       await expect(
         multiInvoker.connect(user).invoke(
@@ -549,7 +549,13 @@ describe('Invoke', () => {
     it('Fails to place an order in an address not created by MarketFactory', async () => {
       const { user } = instanceVars
 
-      const trigger = openTriggerOrder({ size: collateral, price: 1100e6 })
+      const trigger = openTriggerOrder({
+        size: collateral,
+        price: 1100e6,
+        side: Dir.L,
+        orderType: 'LM',
+        comparison: Compare.ABOVE_MARKET,
+      })
       await expect(
         multiInvoker
           .connect(user)
