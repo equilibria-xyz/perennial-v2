@@ -321,7 +321,7 @@ contract MultiInvoker is IMultiInvoker, Kept {
         if (revertOnFailure) {
             IPythOracle(oracleProvider).commit{value: value}(version, data);
         } else {
-            try IPythOracle(oracleProvider).commit{value: value}(version, data) { }
+            try IPythOracle(oracleProvider).commit{value: value}(version, data) { } // solhint-disable-line no-empty-blocks
             catch {
                 // returns the pyth fee sent here and avoids DSU push on soft-revert
                 payable(msg.sender).transfer(Math.min(msg.value, value));
@@ -482,14 +482,14 @@ contract MultiInvoker is IMultiInvoker, Kept {
 
     /// @notice Target market must be created by MarketFactory
     modifier isMarketInstance(IMarket market) {
-        if(!marketFactory.instances(market))
+        if (!marketFactory.instances(market))
             revert MultiInvokerInvalidInstanceError();
         _;
     }
 
     /// @notice Target vault must be created by VaultFactory
     modifier isVaultInstance(IVault vault) {
-        if(!vaultFactory.instances(vault))
+        if (!vaultFactory.instances(vault))
             revert MultiInvokerInvalidInstanceError();
             _;
     }
