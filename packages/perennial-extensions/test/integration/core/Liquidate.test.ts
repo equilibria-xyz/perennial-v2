@@ -189,7 +189,7 @@ describe('Liquidate', () => {
   it('soft reverts on failed liquidation', async () => {
     const POSITION = parse6decimal('0.0001')
     const COLLATERAL = parse6decimal('1000')
-    const { user, userB, dsu } = instanceVars
+    const { user, userB, chainlink, dsu } = instanceVars
 
     const multiInvoker = await createInvoker(instanceVars)
     const market = await createMarket(instanceVars)
@@ -214,6 +214,16 @@ describe('Liquidate', () => {
       multiInvoker
         .connect(userB)
         .invoke(buildLiquidateUser({ market: market.address, user: user.address, revertOnFailure: false })),
+    ).to.not.be.reverted
+
+    // Settle the market with a new oracle version
+    await chainlink.nextWithPriceModification(price => price.mul(2))
+
+    // ensure liquidation can occur after soft revert
+    await expect(
+      multiInvoker
+        .connect(userB)
+        .invoke(buildLiquidateUser({ market: market.address, user: user.address, revertOnFailure: true })),
     ).to.not.be.reverted
   })
 })

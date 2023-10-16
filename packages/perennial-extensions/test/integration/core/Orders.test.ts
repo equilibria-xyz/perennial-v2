@@ -419,9 +419,19 @@ describe('Orders', () => {
     ).to.be.reverted
 
     await expect(
-      await multiInvoker
+      multiInvoker
         .connect(user)
         .invoke(buildExecOrder({ user: user.address, market: market.address, orderId: 1, revertOnFailure: false })),
+    ).to.not.be.reverted
+
+    // add collateral back
+    await multiInvoker.connect(user).invoke(buildUpdateMarket({ market: market.address, collateral: collateral }))
+
+    // soft-reverted order with collateral added back was not deleted, can be executed
+    await expect(
+      multiInvoker
+        .connect(user)
+        .invoke(buildExecOrder({ user: user.address, market: market.address, orderId: 1, revertOnFailure: true })),
     ).to.not.be.reverted
   })
 
