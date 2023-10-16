@@ -26,6 +26,7 @@ import {
   buildCancelOrder,
   buildExecOrder,
   VaultUpdate,
+  buildChargeFee,
   Actions,
 } from '../../helpers/invoke'
 
@@ -290,7 +291,7 @@ describe('MultiInvoker', () => {
       await expect(
         multiInvoker
           .connect(user)
-          .invoke(helpers.buildChargeFee({ receiver: owner.address, amount: collateral, handleWrap: false })),
+          .invoke(buildChargeFee({ receiver: owner.address, amount: collateral, handleWrap: false })),
       )
         .to.emit(multiInvoker, 'FeeCharged')
         .withArgs(user.address, owner.address, collateral, false)
@@ -305,7 +306,7 @@ describe('MultiInvoker', () => {
       await expect(
         multiInvoker
           .connect(user)
-          .invoke(helpers.buildChargeFee({ receiver: owner.address, amount: collateral, handleWrap: true })),
+          .invoke(buildChargeFee({ receiver: owner.address, amount: collateral, handleWrap: true })),
       )
         .to.emit(multiInvoker, 'FeeCharged')
         .withArgs(user.address, owner.address, collateral, true)
