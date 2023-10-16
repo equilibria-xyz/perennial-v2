@@ -461,7 +461,7 @@ contract MultiInvoker is IMultiInvoker, Kept {
     function _placeOrder(address account, IMarket market, TriggerOrder memory order) internal isMarketInstance(market) {
         if (order.fee.isZero()) revert MultiInvokerInvalidOrderError();
         if (order.comparison != -1 && order.comparison != 1) revert MultiInvokerInvalidOrderError();
-        if (order.side > 2) revert MultiInvokerInvalidOrderError();
+        if (order.side > 3) revert MultiInvokerInvalidOrderError();
 
         _orders[account][market][++latestNonce].store(order);
         emit OrderPlaced(account, market, latestNonce, order);
