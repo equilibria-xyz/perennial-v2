@@ -255,7 +255,7 @@ contract MultiInvoker is IMultiInvoker, Kept {
     /// @param amount Amount of USDC to transfer
     /// @param wrap Flag to wrap USDC to DSU
     function _chargeFee(address to, UFixed6 amount, bool wrap) internal {
-        if(wrap) {
+        if (wrap) {
             _deposit(amount, wrap);
             DSU.push(to, UFixed18Lib.from(amount));
         } else {
@@ -493,14 +493,14 @@ contract MultiInvoker is IMultiInvoker, Kept {
 
     /// @notice Target market must be created by MarketFactory
     modifier isMarketInstance(IMarket market) {
-        if(!marketFactory.instances(market))
+        if (!marketFactory.instances(market))
             revert MultiInvokerInvalidInstanceError();
         _;
     }
 
     /// @notice Target vault must be created by VaultFactory
     modifier isVaultInstance(IVault vault) {
-        if(!vaultFactory.instances(vault))
+        if (!vaultFactory.instances(vault))
             revert MultiInvokerInvalidInstanceError();
             _;
     }
