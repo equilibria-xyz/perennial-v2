@@ -492,13 +492,13 @@ describe('Invoke', () => {
             feeStruct: {
               to: owner.address,
               amount: feeAmt,
-              wrap: false,
+              wrap: true,
             },
           }),
         ),
       )
         .to.emit(multiInvoker, 'FeeCharged')
-        .withArgs(user.address, owner.address, feeAmt, false, market.address)
+        .withArgs(user.address, owner.address, feeAmt, true, market.address)
 
       expect((await usdc.balanceOf(owner.address)).sub(balanceBefore)).to.eq(feeAmt)
     })
@@ -520,13 +520,13 @@ describe('Invoke', () => {
             feeStruct: {
               to: owner.address,
               amount: feeAmt,
-              wrap: true,
+              wrap: false,
             },
           }),
         ),
       )
         .to.emit(multiInvoker, 'FeeCharged')
-        .withArgs(user.address, owner.address, feeAmt, true, market.address)
+        .withArgs(user.address, owner.address, feeAmt, false, market.address)
 
       expect((await dsu.balanceOf(owner.address)).sub(balanceBefore)).to.eq(feeAmt.mul(1e12))
     })
@@ -563,7 +563,7 @@ describe('Invoke', () => {
       expect((await usdc.balanceOf(owner.address)).sub(balanceBefore)).to.eq(feeAmt)
     })
 
-    it('charges a fee on withdrawal and pushes DSU to the receiver', async () => {
+    it('charges an interface fee on withdrawal and pushes DSU to the receiver', async () => {
       const { owner, user, usdc, dsu } = instanceVars
 
       const balanceBefore = await dsu.balanceOf(owner.address)

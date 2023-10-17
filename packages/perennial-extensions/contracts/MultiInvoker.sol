@@ -12,6 +12,8 @@ import "./interfaces/IMultiInvoker.sol";
 import "./types/TriggerOrder.sol";
 import "@equilibria/root/attribute/Kept/Kept.sol";
 
+import "hardhat/console.sol";
+
 /// @title MultiInvoker
 /// @notice Extension to handle batched calls to the Perennial protocol
 contract MultiInvoker is IMultiInvoker, Kept {
@@ -176,17 +178,22 @@ contract MultiInvoker is IMultiInvoker, Kept {
         InterfaceFeeInfo memory feeInfo
     ) internal isMarketInstance(market) {
         Fixed18 balanceBefore =  Fixed18Lib.from(DSU.balanceOf());
-        // collateral is transferred from this address to the market, transfer from msg.sender to here
-        if (collateral.sign() == 1) _deposit(collateral.abs(), wrap);
+
+        // collateral is transferred here as DSU then an optional interface fee is charged from it
+        if (collateral.sign() == 1) {
+            _deposit(collateral.abs(), wrap);
+            collateral = _chargeFee(market, collateral, feeInfo);
+        }
 
         market.update(msg.sender, newMaker, newLong, newShort, collateral, false);
 
-        // collateral is transferred from the market to this address, transfer to msg.sender from here
+        // collateral is transferred from the market to this address, an optional interface fee is charged from it,
+        // and the rest is sent to the msg.sender
         Fixed6 withdrawAmount = Fixed6Lib.from(Fixed18Lib.from(DSU.balanceOf()).sub(balanceBefore));
-        if (!withdrawAmount.isZero()) _withdraw(msg.sender, withdrawAmount.abs().sub(feeInfo.amount), wrap);
-
-        // charges interface fee both after deposit and withdrawal logic
-        _chargeFee(feeInfo.to, feeInfo.amount, feeInfo.wrap, !withdrawAmount.isZero(), market);
+        if (!withdrawAmount.isZero()) {
+            withdrawAmount = _chargeFee(market, withdrawAmount, feeInfo);
+            _withdraw(msg.sender, withdrawAmount.abs(), wrap);
+        }
     }
 
     /// @notice Update vault on behalf of msg.sender
@@ -252,30 +259,27 @@ contract MultiInvoker is IMultiInvoker, Kept {
         DSU.approve(target);
     }
 
-    /// @notice Charges an interface fee to a receiver
-    /// @param to Address to receive the fee
-    /// @param amount Amount of USDC to transfer
-    /// @param wrap Flag to wrap USDC to DSU
+    /// @notice Charges an interface fee from collateral in this address during an update to a receiver
+    /// @param market Market to emit in fee event for context
+    /// @param collateral Amount of DSU in Invoker to subtract fee from
+    /// @param feeInfo Information on fee (amount, wrap, to)
     function _chargeFee(
-        address to,
-        UFixed6 amount,
-        bool wrap,
-        bool onWithdrawal,
-        IMarket market
-    ) internal {
-        if (amount.isZero()) return;
+        IMarket market,
+        Fixed6 collateral,
+        InterfaceFeeInfo memory feeInfo
+    ) internal returns (Fixed6 newCollateral) {
+        bool wrap = feeInfo.wrap;
+        address to = feeInfo.to;
+        UFixed6 amount = feeInfo.amount;
 
-        if (onWithdrawal) {
-            if (wrap) _unwrap(to, UFixed18Lib.from(amount));
-            else DSU.push(to, UFixed18Lib.from(amount));
-        } else {
-            if (!wrap) USDC.pullTo(msg.sender, to, amount);
-            else {
-                _deposit(amount, wrap);
-                DSU.push(to, UFixed18Lib.from(amount));
-            }
-        }
+        // NO-OPs (0 fee or unchanged collateral via magic value)
+        if (amount.isZero() || collateral.eq(Fixed6Lib.MIN)) return collateral;
 
+        if (wrap) _unwrap(to, UFixed18Lib.from(amount));
+        else DSU.push(to, UFixed18Lib.from(amount));
+
+        // updates collateral to reflect fee for deposit / withdrawal
+        newCollateral = collateral.sub(Fixed6Lib.from(amount));
         emit FeeCharged(msg.sender, to, amount, wrap, market);
     }
 
