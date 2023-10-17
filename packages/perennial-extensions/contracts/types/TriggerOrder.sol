@@ -43,7 +43,7 @@ library TriggerOrderLib {
         if (self.side == 2)
             currentPosition.short = UFixed6Lib.from(Fixed6Lib.from(currentPosition.short).add(self.delta));
         if (self.side == 3)
-            currenPosition.collateral = UFixed6Lib.from(Fixed6Lib.from(currenPosition.collateral).add(self.delta));
+            currentPosition.collateral = Fixed6Lib.MIN;
     }
 }
 

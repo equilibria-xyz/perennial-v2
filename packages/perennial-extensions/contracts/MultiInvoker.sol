@@ -442,7 +442,7 @@ contract MultiInvoker is IMultiInvoker, Kept {
             currentPosition.maker,
             currentPosition.long,
             currentPosition.short,
-            Fixed6Lib.ZERO,
+            currentPosition.collateral,
             false
         );
 
