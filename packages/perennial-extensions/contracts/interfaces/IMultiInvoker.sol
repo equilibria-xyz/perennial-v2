@@ -47,7 +47,7 @@ interface IMultiInvoker {
     event OrderPlaced(address indexed account, IMarket indexed market, uint256 indexed nonce, TriggerOrder order);
     event OrderExecuted(address indexed account, IMarket indexed market, uint256 nonce, uint256 positionId);
     event OrderCancelled(address indexed account, IMarket indexed market, uint256 nonce);
-    event FeeCharged(address indexed account, address indexed to, UFixed6 amount, bool wrap, IMarket market);
+    event FeeCharged(address indexed account, IMarket indexed market, address indexed to, UFixed6 amount, bool wrap);
 
     // sig: 0x217b1699
     error MultiInvokerBadSenderError();

@@ -310,7 +310,7 @@ describe('MultiInvoker', () => {
         ),
       )
         .to.emit(multiInvoker, 'FeeCharged')
-        .withArgs(user.address, owner.address, collateral.div(10), false, market.address)
+        .withArgs(user.address, market.address, owner.address, collateral.div(10), false)
 
       expect(dsu.transfer).to.have.been.calledWith(owner.address, dsuCollateral.div(10))
     })
@@ -334,7 +334,7 @@ describe('MultiInvoker', () => {
         ),
       )
         .to.emit(multiInvoker, 'FeeCharged')
-        .withArgs(user.address, owner.address, collateral.div(10), true, market.address)
+        .withArgs(user.address, market.address, owner.address, collateral.div(10), true)
 
       expect(usdc.transfer).to.have.been.calledWith(owner.address, collateral.div(10))
     })
@@ -361,7 +361,7 @@ describe('MultiInvoker', () => {
         ),
       )
         .to.emit(multiInvoker, 'FeeCharged')
-        .withArgs(user.address, owner.address, collateral.div(10), false, market.address)
+        .withArgs(user.address, market.address, owner.address, collateral.div(10), false)
 
       expect(dsu.transfer).to.have.been.calledWith(owner.address, dsuCollateral.div(10))
     })
@@ -390,7 +390,7 @@ describe('MultiInvoker', () => {
         ),
       )
         .to.emit(multiInvoker, 'FeeCharged')
-        .withArgs(user.address, owner.address, collateral.div(10), true, market.address)
+        .withArgs(user.address, market.address, owner.address, collateral.div(10), true)
 
       expect(usdc.transfer).to.have.been.calledWith(owner.address, collateral.div(10))
     })

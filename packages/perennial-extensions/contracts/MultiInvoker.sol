@@ -278,7 +278,7 @@ contract MultiInvoker is IMultiInvoker, Kept {
 
         // updates collateral to reflect fee for deposit / withdrawal
         newCollateral = collateral.sub(Fixed6Lib.from(amount));
-        emit FeeCharged(msg.sender, to, amount, wrap, market);
+        emit FeeCharged(msg.sender, market, to, amount, wrap);
     }
 
     /// @notice Pull DSU or wrap and deposit USDC from msg.sender to this address for market usage
