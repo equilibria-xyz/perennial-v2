@@ -341,7 +341,6 @@ contract MultiInvoker is IMultiInvoker, Kept {
             try IPythOracle(oracleProvider).commit{value: value}(version, data) { } // solhint-disable-line no-empty-blocks
             catch {
                 // Avoids DSU push on soft-revert
-                // Eth balance of contract is returned to msg.sender at end of invoke
                 return;
             }
         }
