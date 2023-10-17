@@ -158,6 +158,9 @@ contract MultiInvoker is IMultiInvoker, Kept {
 
                 _chargeFee(to, amount, wrap);
             }
+
+            // Eth must not remain in this contract at rest
+            payable(msg.sender).transfer(address(this).balance);
         }
     }
 
@@ -335,8 +338,11 @@ contract MultiInvoker is IMultiInvoker, Kept {
         if (revertOnFailure) {
             IPythOracle(oracleProvider).commit{value: value}(version, data);
         } else {
-            try IPythOracle(oracleProvider).commit{value: value}(version, data) { }
-            catch { }
+            try IPythOracle(oracleProvider).commit{value: value}(version, data) { } // solhint-disable-line no-empty-blocks
+            catch {
+                // Avoids DSU push on soft-revert
+                return;
+            }
         }
 
         // Return through keeper reward if any
