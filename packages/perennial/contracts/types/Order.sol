@@ -126,7 +126,7 @@ library OrderLib {
         OracleVersion memory latestVersion,
         RiskParameter memory riskParameter
     ) internal pure returns (UFixed6) {
-        if (magnitude(self).isZero()) return UFixed6Lib.ZERO;
+        if (isEmpty(self)) return UFixed6Lib.ZERO;
 
         UFixed6 partialMaintenance = magnitude(self).abs()
             .mul(latestVersion.price.abs())
@@ -139,10 +139,11 @@ library OrderLib {
     }
 
     /// @notice Returns whether the order has no position change
+    /// @dev Assumes the order must be single-sided
     /// @param self The Order object to check
     /// @return Whether the order has no position change
     function isEmpty(Order memory self) internal pure returns (bool) {
-        return self.maker.abs().add(self.long.abs()).add(self.short.abs()).isZero();
+        return magnitude(self).isZero();
     }
 
     /// @notice Returns the amount of the non-zero side of the order
