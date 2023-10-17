@@ -107,9 +107,13 @@ contract PythFactory is IPythFactory, Factory, Kept {
 
         for (uint256 i; i < ids.length; i++)
             if (IPythOracle(address(oracles[ids[i]])).commit(OracleVersion(version, prices[i], valid)))
-                handleKeep(ids[i], version, prices[i]);
+                _handleKeep(ids[i], version, prices[i]);
     }
 
+    /// @notice Handles paying out one instance of a keeper reward for a requested version
+    /// @param id The id of the price feed
+    /// @param version The oracle version to commit
+    /// @param price The price of version to commit
     function _handleKeep(bytes32 id, uint256 version, Fixed6 price)
         private
         keep(KEEPER_REWARD_PREMIUM, KEEPER_BUFFER, abi.encode(id, version, price), "") // TODO: add calldata buffer
