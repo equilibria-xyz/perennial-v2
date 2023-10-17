@@ -106,9 +106,6 @@ contract MultiInvoker is IMultiInvoker, Kept {
     }
 
     /// @notice entry to perform invocations
-    /// @dev Price commits require eth to be sent as a fee.
-    /// Soft-reverted commits transfer the value of the commit back.
-    /// Do not include more than the sum of price commit eth values in msg.value
     /// @param invocations List of actions to execute in order
     function invoke(Invocation[] calldata invocations) external payable {
         for(uint i = 0; i < invocations.length; ++i) {
@@ -161,6 +158,9 @@ contract MultiInvoker is IMultiInvoker, Kept {
 
                 _chargeFee(to, amount, wrap);
             }
+
+            // Eth must not remain in this contract at rest
+            payable(msg.sender).transfer(address(this).balance);
         }
     }
 
@@ -340,9 +340,8 @@ contract MultiInvoker is IMultiInvoker, Kept {
         } else {
             try IPythOracle(oracleProvider).commit{value: value}(version, data) { } // solhint-disable-line no-empty-blocks
             catch {
-                // All the eth sent to this contract can be removed here.
-                // Returns the pyth fee sent here and avoids DSU push on soft-revert
-                payable(msg.sender).transfer(value);
+                // Avoids DSU push on soft-revert
+                // Eth balance of contract is returned to msg.sender at end of invoke
                 return;
             }
         }
