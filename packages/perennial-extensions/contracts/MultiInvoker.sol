@@ -329,15 +329,7 @@ contract MultiInvoker is IMultiInvoker, Kept {
     ) internal {
         UFixed18 balanceBefore = DSU.balanceOf();
 
-        if (revertOnFailure) {
-            IPythOracle(oracleProvider).commit{value: value}(version, data);
-        } else {
-            try IPythOracle(oracleProvider).commit{value: value}(version, data) { } // solhint-disable-line no-empty-blocks
-            catch {
-                // skip DSU push on failure
-                return;
-            }
-        }
+        IPythOracle(oracleProvider).commit{value: value}(version, data);
         // Return through keeper reward if any
         DSU.push(msg.sender, DSU.balanceOf().sub(balanceBefore));
     }
