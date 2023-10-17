@@ -270,8 +270,8 @@ contract MultiInvoker is IMultiInvoker, Kept {
         address to = feeInfo.to;
         UFixed6 amount = feeInfo.amount;
 
-        // NO-OPs (0 fee or unchanged collateral via magic value)
-        if (amount.isZero() || collateral.eq(Fixed6Lib.MIN)) return collateral;
+        // NO-OP (0 fee)
+        if (amount.isZero()) return collateral;
 
         if (wrap) _unwrap(to, UFixed18Lib.from(amount));
         else DSU.push(to, UFixed18Lib.from(amount));
