@@ -110,9 +110,9 @@ contract PythFactory is IPythFactory, Factory, Kept {
                 handleKeep(ids[i], version, prices[i]);
     }
 
-    function handleKeep(bytes32 id, uint256 version, Fixed6 price)
+    function _handleKeep(bytes32 id, uint256 version, Fixed6 price)
         private
-        keep(KEEPER_REWARD_PREMIUM, KEEPER_BUFFER, abi.encode(id, version, price), "")
+        keep(KEEPER_REWARD_PREMIUM, KEEPER_BUFFER, abi.encode(id, version, price), "") // TODO: add calldata buffer
     { }
 
     /// @notice Pulls funds from the factory to reward the keeper
