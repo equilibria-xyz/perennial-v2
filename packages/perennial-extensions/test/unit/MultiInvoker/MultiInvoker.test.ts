@@ -563,13 +563,13 @@ describe('MultiInvoker', () => {
         )
 
         // -------------------------------------------------------------------------------------- //
-        // case side > 2
+        // case side > 3
         trigger = openTriggerOrder({
           size: position,
           price: BigNumber.from(1100e6),
           orderType: 'LM',
           comparison: Compare.ABOVE_MARKET,
-          side: 3,
+          side: 4,
         })
 
         placeOrder = buildPlaceOrder({

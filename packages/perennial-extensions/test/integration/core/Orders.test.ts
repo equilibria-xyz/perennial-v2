@@ -484,12 +484,12 @@ describe('Orders', () => {
       ).to.be.revertedWithCustomError(multiInvoker, 'MultiInvokerInvalidOrderError')
     })
 
-    it('fails to place order with side > 2', async () => {
+    it('fails to place order with side > 3', async () => {
       const { user } = instanceVars
 
       const trigger = openTriggerOrder({
         size: userPosition,
-        side: 3,
+        side: 4,
         comparison: Compare.ABOVE_MARKET,
         orderType: 'LM',
         price: marketPrice,
