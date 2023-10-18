@@ -548,7 +548,7 @@ describe('Invoke', () => {
         multiInvoker.connect(user).invoke(
           buildUpdateMarket({
             market: market.address,
-            collateral: collateral.mul(-1),
+            collateral: collateral.sub(feeAmt).mul(-1),
             feeStruct: {
               to: owner.address,
               amount: feeAmt,
@@ -580,7 +580,7 @@ describe('Invoke', () => {
         multiInvoker.connect(user).invoke(
           buildUpdateMarket({
             market: market.address,
-            collateral: collateral.mul(-1),
+            collateral: collateral.sub(feeAmt).mul(-1),
             feeStruct: {
               to: owner.address,
               amount: feeAmt,

@@ -343,6 +343,8 @@ describe('MultiInvoker', () => {
       usdc.transferFrom.returns(true)
       dsu.transfer.returns(true)
 
+      const feeAmt = collateral.div(10)
+
       await expect(
         multiInvoker.connect(user).invoke(buildUpdateMarket({ market: market.address, collateral: collateral })),
       ).to.not.be.reverted
@@ -351,19 +353,19 @@ describe('MultiInvoker', () => {
         multiInvoker.connect(user).invoke(
           buildUpdateMarket({
             market: market.address,
-            collateral: collateral,
+            collateral: collateral.sub(feeAmt).mul(-1),
             feeStruct: {
               to: owner.address,
-              amount: collateral.div(10),
+              amount: feeAmt,
               wrap: false,
             },
           }),
         ),
       )
         .to.emit(multiInvoker, 'FeeCharged')
-        .withArgs(user.address, market.address, owner.address, collateral.div(10), false)
+        .withArgs(user.address, market.address, owner.address, feeAmt, false)
 
-      expect(dsu.transfer).to.have.been.calledWith(owner.address, dsuCollateral.div(10))
+      expect(dsu.transfer).to.have.been.calledWith(owner.address, feeAmt)
     })
 
     it('charges an interface fee on withdrawal, wraps DSU from colalteral to USDC, and pushes USDC to the receiver', async () => {
@@ -372,6 +374,8 @@ describe('MultiInvoker', () => {
       dsu.transfer.returns(true)
       usdc.transfer.returns(true)
 
+      const feeAmt = collateral.div(10)
+
       await expect(
         multiInvoker.connect(user).invoke(buildUpdateMarket({ market: market.address, collateral: collateral })),
       ).to.not.be.reverted
@@ -380,19 +384,19 @@ describe('MultiInvoker', () => {
         multiInvoker.connect(user).invoke(
           buildUpdateMarket({
             market: market.address,
-            collateral: collateral,
+            collateral: collateral.sub(feeAmt).mul(-1),
             feeStruct: {
               to: owner.address,
-              amount: collateral.div(10),
+              amount: feeAmt,
               wrap: true,
             },
           }),
         ),
       )
         .to.emit(multiInvoker, 'FeeCharged')
-        .withArgs(user.address, market.address, owner.address, collateral.div(10), true)
+        .withArgs(user.address, market.address, owner.address, feeAmt, true)
 
-      expect(usdc.transfer).to.have.been.calledWith(owner.address, collateral.div(10))
+      expect(usdc.transfer).to.have.been.calledWith(owner.address, feeAmt)
     })
   })
 
