@@ -365,7 +365,7 @@ describe('MultiInvoker', () => {
         .to.emit(multiInvoker, 'FeeCharged')
         .withArgs(user.address, market.address, owner.address, feeAmt, false)
 
-      expect(dsu.transfer).to.have.been.calledWith(owner.address, feeAmt)
+      expect(dsu.transfer).to.have.been.calledWith(owner.address, feeAmt.mul(1e12))
     })
 
     it('charges an interface fee on withdrawal, wraps DSU from colalteral to USDC, and pushes USDC to the receiver', async () => {
