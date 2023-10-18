@@ -239,7 +239,7 @@ contract MultiInvoker is IMultiInvoker, Kept {
         ) {
             _withdraw(msg.sender, liquidationFee, true);
         } catch (bytes memory reason) {
-            if(revertOnFailure) _revert(reason);
+            if (revertOnFailure) _revert(reason);
         }
     }
 
@@ -451,7 +451,7 @@ contract MultiInvoker is IMultiInvoker, Kept {
             delete _orders[account][market][nonce];
             emit OrderExecuted(account, market, nonce, currentId);
         } catch (bytes memory reason) {
-            if(revertOnFailure) _revert(reason);
+            if (revertOnFailure) _revert(reason);
         }
     }
 
