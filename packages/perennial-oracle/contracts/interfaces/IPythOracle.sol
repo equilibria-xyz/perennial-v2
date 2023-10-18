@@ -4,8 +4,12 @@ pragma solidity ^0.8.13;
 import "@equilibria/root/attribute/interfaces/IInstance.sol";
 import "@equilibria/perennial-v2/contracts/interfaces/IOracleProvider.sol";
 import "../Oracle.sol";
+import "../../../perennial/contracts/interfaces/IMarket.sol";
 
 interface IPythOracle is IOracleProvider, IInstance {
+    event CallbackRequested(IMarket indexed market, address indexed account, uint256 indexed version);
+    event CallbackFulfilled(IMarket indexed market, address indexed account, uint256 indexed version);
+
     struct Global {
         /// @dev The latest committed oracle version
         uint64 latestVersion;
@@ -21,9 +25,12 @@ interface IPythOracle is IOracleProvider, IInstance {
     error PythOracleVersionOutsideRangeError();
     // sig: 0xcaf4caf3
     error PythOracleInvalidPriceError();
+    //sig: 0xb5fe533f
+    error PythOracleInvalidCallbackError();
 
     function initialize(bytes32 id_) external;
     function commit(OracleVersion memory version) external returns (bool);
+    function settle(IMarket market, address account, uint256 version) external;
     function next() external view returns (uint256);
 
     function GRACE_PERIOD() external view returns (uint256);
