@@ -1,6 +1,6 @@
 import { expect } from 'chai'
 import 'hardhat'
-import { BigNumber, constants, utils } from 'ethers'
+import { constants, utils } from 'ethers'
 
 import { InstanceVars, deployProtocol, createMarket, createInvoker } from '../helpers/setupHelpers'
 import { parse6decimal } from '../../../../common/testutil/types'

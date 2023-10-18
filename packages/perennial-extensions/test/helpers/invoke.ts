@@ -177,6 +177,23 @@ export const buildExecOrder = ({
   ]
 }
 
+export const buildChargeFee = ({
+  receiver,
+  amount,
+  handleWrap,
+}: {
+  receiver: string
+  amount: BigNumberish
+  handleWrap: boolean
+}): Actions => {
+  return [
+    {
+      action: 9,
+      args: ethers.utils.defaultAbiCoder.encode(['address', 'uint256', 'bool'], [receiver, amount, handleWrap]),
+    },
+  ]
+}
+
 module.exports = {
   MAX_INT,
   MAX_UINT,
@@ -187,4 +204,5 @@ module.exports = {
   buildLiquidateUser,
   buildUpdateVault,
   buildApproveTarget,
+  buildChargeFee,
 }

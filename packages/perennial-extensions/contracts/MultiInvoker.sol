@@ -154,11 +154,13 @@ contract MultiInvoker is IMultiInvoker, Kept {
 
                 _approve(target);
             } else if (invocation.action == PerennialAction.CHARGE_FEE) {
-                (address to, UFixed6 amount) = abi.decode(invocation.args, (address, UFixed6));
+                (address to, UFixed6 amount, bool wrap) = abi.decode(invocation.args, (address, UFixed6, bool));
 
-                USDC.pullTo(msg.sender, to, amount);
-                emit FeeCharged(msg.sender, to, amount);
+                _chargeFee(to, amount, wrap);
             }
+
+            // Eth must not remain in this contract at rest
+            payable(msg.sender).transfer(address(this).balance);
         }
     }
 
@@ -252,6 +254,21 @@ contract MultiInvoker is IMultiInvoker, Kept {
         DSU.approve(target);
     }
 
+    /// @notice Charges an interface fee to a receiver
+    /// @param to Address to receive the fee
+    /// @param amount Amount of USDC to transfer
+    /// @param wrap Flag to wrap USDC to DSU
+    function _chargeFee(address to, UFixed6 amount, bool wrap) internal {
+        if (wrap) {
+            _deposit(amount, wrap);
+            DSU.push(to, UFixed18Lib.from(amount));
+        } else {
+            USDC.pullTo(msg.sender, to, amount);
+        }
+
+        emit FeeCharged(msg.sender, to, amount, wrap);
+    }
+
     /// @notice Pull DSU or wrap and deposit USDC from msg.sender to this address for market usage
     /// @param amount Amount to transfer
     /// @param wrap Flag to wrap USDC to DSU
@@ -319,7 +336,16 @@ contract MultiInvoker is IMultiInvoker, Kept {
     ) internal {
         UFixed18 balanceBefore = DSU.balanceOf();
 
-        IPythOracle(oracleProvider).commit{value: value}(version, data);
+        if (revertOnFailure) {
+            IPythOracle(oracleProvider).commit{value: value}(version, data);
+        } else {
+            try IPythOracle(oracleProvider).commit{value: value}(version, data) { } // solhint-disable-line no-empty-blocks
+            catch {
+                // Avoids DSU push on soft-revert
+                return;
+            }
+        }
+
         // Return through keeper reward if any
         DSU.push(msg.sender, DSU.balanceOf().sub(balanceBefore));
     }
