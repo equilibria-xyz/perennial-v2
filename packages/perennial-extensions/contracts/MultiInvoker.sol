@@ -336,18 +336,12 @@ contract MultiInvoker is IMultiInvoker, Kept {
     ) internal {
         UFixed18 balanceBefore = DSU.balanceOf();
 
-        if (revertOnFailure) {
-            IPythOracle(oracleProvider).commit{value: value}(version, data);
-        } else {
-            try IPythOracle(oracleProvider).commit{value: value}(version, data) { } // solhint-disable-line no-empty-blocks
-            catch {
-                // Avoids DSU push on soft-revert
-                return;
-            }
+        try IPythOracle(oracleProvider).commit{value: value}(version, data) {
+            // Return through keeper reward if any
+            DSU.push(msg.sender, DSU.balanceOf().sub(balanceBefore));
+        } catch (bytes memory reason) {
+            if (revertOnFailure) _revert(reason);
         }
-
-        // Return through keeper reward if any
-        DSU.push(msg.sender, DSU.balanceOf().sub(balanceBefore));
     }
 
     /// @notice Helper function to compute the liquidation fee for an account
