@@ -187,7 +187,7 @@ contract MultiInvoker is IMultiInvoker, Kept {
         // collateral is transferred from the market to this address, an optional interface fee is charged from it,
         // and the rest is sent to the msg.sender
         Fixed6 withdrawAmount = Fixed6Lib.from(Fixed18Lib.from(DSU.balanceOf()).sub(balanceBefore));
-        if (!withdrawAmount.isZero()) _withdraw(msg.sender, withdrawAmount.abs().sub(feeInfo.amount), wrap);
+        if (!withdrawAmount.isZero()) _withdraw(msg.sender, withdrawAmount.abs(), wrap);
 
         // charge interface fee from collateral
         _chargeFee(market, collateral, feeInfo);
@@ -272,29 +272,14 @@ contract MultiInvoker is IMultiInvoker, Kept {
         // NO-OP (0 interface fee)
         if (amount.isZero()) return;
 
-        console.log("AMOUNT");
-        console.log(UFixed6.unwrap(amount));
-
-        console.log("DSU BAL");
-        console.logUint(UFixed18.unwrap(DSU.balanceOf(address(this))));
-
-        if (collateral.gt(Fixed6Lib.ZERO)) {
-            console.log("HERE");
-            market.update(
-                msg.sender,
-                UFixed6Lib.MAX,
-                UFixed6Lib.MAX,
-                UFixed6Lib.MAX,
-                Fixed6Lib.from(feeInfo.amount).mul(Fixed6.wrap(-1)),
-                false
-            );
-        }
-
-        console.log("AMOUNT");
-        console.log(UFixed6.unwrap(amount));
-
-        console.log("DSU BAL");
-        console.logUint(UFixed18.unwrap(DSU.balanceOf(address(this))));
+        market.update(
+            msg.sender,
+            UFixed6Lib.MAX,
+            UFixed6Lib.MAX,
+            UFixed6Lib.MAX,
+            Fixed6Lib.from(-1, feeInfo.amount),
+            false
+        );
 
         if (wrap) _unwrap(to, UFixed18Lib.from(amount));
         else DSU.push(to, UFixed18Lib.from(amount));
