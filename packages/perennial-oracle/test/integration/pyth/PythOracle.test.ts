@@ -84,6 +84,10 @@ const testOracles = [
   },
 ]
 
+// TODO: fix tests for new interface
+// TODO: add settle tests
+// TODO: add global settlement checks for commit tests
+
 testOracles.forEach(testOracle => {
   describe(testOracle.name, () => {
     let owner: SignerWithAddress
