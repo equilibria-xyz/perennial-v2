@@ -42,6 +42,10 @@ library TriggerOrderLib {
             currentPosition.long = UFixed6Lib.from(Fixed6Lib.from(currentPosition.long).add(self.delta));
         if (self.side == 2)
             currentPosition.short = UFixed6Lib.from(Fixed6Lib.from(currentPosition.short).add(self.delta));
+        if (self.side == 3)
+            currentPosition.collateral = self.delta; // Collateral updates are already a delta
+        else
+            currentPosition.collateral = Fixed6Lib.ZERO;
     }
 }
 

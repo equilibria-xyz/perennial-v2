@@ -34,12 +34,11 @@ export function setPendingPosition(
   market.pendingPositions.whenCalledWith(user.address, currentId).returns(position)
 }
 
-export type OrderType = 'LM' | 'TG'
-
 export enum Dir {
   M = 0,
   L = 1,
   S = 2,
+  C = 3,
 }
 
 export enum Compare {
@@ -55,18 +54,16 @@ export type TriggerOrder = {
 }
 
 export const openTriggerOrder = ({
-  size,
+  delta,
   price,
   side,
   comparison,
-  orderType,
   fee,
 }: {
-  size: BigNumberish
+  delta: BigNumberish
   price: BigNumberish
   side: Dir | number
   comparison: Compare | number
-  orderType: OrderType
   fee?: BigNumberish
 }): TriggerOrderStruct => {
   return {
@@ -74,7 +71,7 @@ export const openTriggerOrder = ({
     comparison: comparison,
     fee: fee ?? parse6decimal('10'),
     price: price,
-    delta: orderType === 'LM' ? size : BigNumber.from(size).mul(-1),
+    delta: delta,
   }
 }
 

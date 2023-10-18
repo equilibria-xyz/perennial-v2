@@ -1,4 +1,4 @@
-import { BigNumber, BigNumberish, utils } from 'ethers'
+import { BigNumber, utils } from 'ethers'
 import { InstanceVars, deployProtocol, createMarket, createInvoker, settle } from '../helpers/setupHelpers'
 import { anyValue } from '@nomicfoundation/hardhat-chai-matchers/withArgs'
 
@@ -19,8 +19,8 @@ const MIN_MAX_UINT64 = BigNumber.from('9223372036854775807')
 
 describe('Orders', () => {
   let instanceVars: InstanceVars
-  let dsuCollateral: BigNumberish
-  let collateral: BigNumberish
+  let dsuCollateral: BigNumber
+  let collateral: BigNumber
   let position: BigNumber
   let userPosition: BigNumber
   let market: Market
@@ -63,9 +63,8 @@ describe('Orders', () => {
 
     await dsu.connect(user).approve(multiInvoker.address, dsuCollateral)
     const triggerOrder = openTriggerOrder({
-      size: userPosition,
+      delta: userPosition,
       side: Dir.L,
-      orderType: 'LM',
       comparison: Compare.ABOVE_MARKET,
       price: BigNumber.from(1000e6),
     })
@@ -85,10 +84,9 @@ describe('Orders', () => {
     const { user, userB } = instanceVars
 
     const triggerOrder = openTriggerOrder({
-      size: userPosition,
+      delta: userPosition,
       price: BigNumber.from(1000e6),
       side: Dir.L,
-      orderType: 'LM',
       comparison: Compare.ABOVE_MARKET,
     })
 
@@ -118,10 +116,9 @@ describe('Orders', () => {
     const { user, chainlink } = instanceVars
 
     const trigger = openTriggerOrder({
-      size: userPosition,
+      delta: userPosition,
       price: payoff(marketPrice.sub(10)),
       side: Dir.L,
-      orderType: 'LM',
       comparison: Compare.ABOVE_MARKET,
     })
 
@@ -149,10 +146,9 @@ describe('Orders', () => {
     const { user, chainlink } = instanceVars
 
     const trigger = openTriggerOrder({
-      size: userPosition,
+      delta: userPosition,
       price: payoff(marketPrice.add(10)),
       side: Dir.S,
-      orderType: 'LM',
       comparison: Compare.BELOW_MARKET,
     })
 
@@ -180,10 +176,9 @@ describe('Orders', () => {
     const { user, chainlink } = instanceVars
 
     const trigger = openTriggerOrder({
-      size: userPosition,
+      delta: userPosition.mul(-1),
       price: payoff(marketPrice.add(10)),
       side: Dir.L,
-      orderType: 'TG',
       comparison: Compare.BELOW_MARKET,
     })
 
@@ -212,10 +207,9 @@ describe('Orders', () => {
     const { user, chainlink } = instanceVars
 
     const trigger = openTriggerOrder({
-      size: userPosition,
+      delta: userPosition.mul(-1),
       price: payoff(marketPrice.sub(11)),
       side: Dir.S,
-      orderType: 'TG',
       comparison: Compare.ABOVE_MARKET,
     })
 
@@ -244,10 +238,9 @@ describe('Orders', () => {
     const { user, chainlink } = instanceVars
 
     const trigger = openTriggerOrder({
-      size: userPosition,
+      delta: userPosition.mul(-1),
       price: payoff(marketPrice.sub(10)),
       side: Dir.L,
-      orderType: 'TG',
       comparison: Compare.ABOVE_MARKET,
     })
 
@@ -276,10 +269,9 @@ describe('Orders', () => {
     const { user, chainlink } = instanceVars
 
     const trigger = openTriggerOrder({
-      size: userPosition,
+      delta: userPosition.mul(-1),
       price: payoff(marketPrice.add(10)),
       side: Dir.S,
-      orderType: 'TG',
       comparison: Compare.BELOW_MARKET,
     })
     const placeOrder = buildPlaceOrder({
@@ -306,9 +298,8 @@ describe('Orders', () => {
   it('executes a maker limit order', async () => {
     const { userB, chainlink } = instanceVars
     const trigger = openTriggerOrder({
-      size: userPosition,
+      delta: userPosition,
       price: payoff(marketPrice.add(10)),
-      orderType: 'LM',
       side: Dir.M,
       comparison: Compare.BELOW_MARKET,
     })
@@ -336,9 +327,8 @@ describe('Orders', () => {
   it('executes a maker above market price order', async () => {
     const { userB, chainlink } = instanceVars
     const trigger = openTriggerOrder({
-      size: userPosition,
+      delta: userPosition.mul(-1),
       price: payoff(marketPrice.sub(10)),
-      orderType: 'TG',
       side: Dir.M,
       comparison: Compare.ABOVE_MARKET,
     })
@@ -367,9 +357,8 @@ describe('Orders', () => {
   it('executes a maker below price order', async () => {
     const { userB, chainlink } = instanceVars
     const trigger = openTriggerOrder({
-      size: userPosition,
+      delta: userPosition.mul(-1),
       price: payoff(marketPrice.add(10)),
-      orderType: 'TG',
       side: Dir.M,
       comparison: Compare.BELOW_MARKET,
       fee: userPosition,
@@ -396,6 +385,39 @@ describe('Orders', () => {
       .to.emit(multiInvoker, 'KeeperCall')
   })
 
+  it('executes a withdrawal order', async () => {
+    const { userB, chainlink } = instanceVars
+    const trigger = openTriggerOrder({
+      delta: collateral.div(-4),
+      price: payoff(marketPrice.add(10)),
+      side: Dir.C,
+      comparison: Compare.BELOW_MARKET,
+      fee: userPosition,
+    })
+
+    const placeOrder = buildPlaceOrder({
+      market: market.address,
+      maker: (await market.positions(userB.address)).maker,
+      order: trigger,
+      collateral: collateral,
+    })
+
+    await expect(multiInvoker.connect(userB).invoke(placeOrder)).to.not.be.reverted
+    expect(await multiInvoker.canExecuteOrder(userB.address, market.address, 1)).to.be.false
+
+    await chainlink.nextWithPriceModification(() => marketPrice.add(11))
+    await settle(market, userB)
+
+    await ethers.provider.send('hardhat_setNextBlockBaseFeePerGas', ['0x1'])
+    const execute = buildExecOrder({ user: userB.address, market: market.address, orderId: 1 })
+    await expect(multiInvoker.connect(userB).invoke(execute))
+      .to.emit(multiInvoker, 'OrderExecuted')
+      .withArgs(userB.address, market.address, 1, anyValue)
+      .to.emit(multiInvoker, 'KeeperCall')
+      .to.emit(market, 'Updated')
+      .withArgs(multiInvoker.address, userB.address, anyValue, anyValue, anyValue, anyValue, collateral.div(-4), false)
+  })
+
   describe('Sad path :(', () => {
     it('fails to execute an order that does not exist', async () => {
       const { user, userB } = instanceVars
@@ -405,10 +427,9 @@ describe('Orders', () => {
       ).to.be.revertedWithCustomError(multiInvoker, 'MultiInvokerCantExecuteError')
 
       const trigger = openTriggerOrder({
-        size: position,
+        delta: position,
         price: 0,
         side: Dir.L,
-        orderType: 'LM',
         comparison: Compare.ABOVE_MARKET,
       })
       await expect(
@@ -431,10 +452,9 @@ describe('Orders', () => {
       const { user } = instanceVars
 
       const trigger = openTriggerOrder({
-        size: userPosition,
+        delta: userPosition,
         price: payoff(marketPrice.add(10)),
         side: Dir.L,
-        orderType: 'LM',
         comparison: Compare.ABOVE_MARKET,
         fee: 0,
       })
@@ -455,10 +475,9 @@ describe('Orders', () => {
       const { user } = instanceVars
 
       const trigger = openTriggerOrder({
-        size: userPosition,
+        delta: userPosition,
         side: Dir.L,
         comparison: Compare.ABOVE_MARKET,
-        orderType: 'LM',
         price: marketPrice,
       })
 
@@ -484,14 +503,30 @@ describe('Orders', () => {
       ).to.be.revertedWithCustomError(multiInvoker, 'MultiInvokerInvalidOrderError')
     })
 
-    it('fails to place order with side > 2', async () => {
+    it('fails to place order with side > 3', async () => {
       const { user } = instanceVars
 
       const trigger = openTriggerOrder({
-        size: userPosition,
+        delta: userPosition,
+        side: 4,
+        comparison: Compare.ABOVE_MARKET,
+        price: marketPrice,
+      })
+
+      await expect(
+        multiInvoker
+          .connect(user)
+          .invoke(buildPlaceOrder({ market: market.address, order: trigger, collateral: collateral })),
+      ).to.be.revertedWithCustomError(multiInvoker, 'MultiInvokerInvalidOrderError')
+    })
+
+    it.only('fails to place order with side = 3, delta >= 0', async () => {
+      const { user } = instanceVars
+
+      const trigger = openTriggerOrder({
+        delta: collateral,
         side: 3,
         comparison: Compare.ABOVE_MARKET,
-        orderType: 'LM',
         price: marketPrice,
       })
 
@@ -506,10 +541,9 @@ describe('Orders', () => {
       const { user, chainlink } = instanceVars
 
       const trigger = openTriggerOrder({
-        size: userPosition,
+        delta: userPosition,
         price: payoff(marketPrice.add(10)),
         side: Dir.L,
-        orderType: 'LM',
         comparison: Compare.BELOW_MARKET,
         fee: 10,
       })
@@ -538,9 +572,8 @@ describe('Orders', () => {
       const { user } = instanceVars
 
       const defaultOrder = openTriggerOrder({
-        size: parse6decimal('10000'),
+        delta: parse6decimal('10000'),
         side: Dir.L,
-        orderType: 'LM',
         comparison: Compare.ABOVE_MARKET,
         price: BigNumber.from(1000e6),
       })
