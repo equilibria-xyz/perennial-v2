@@ -12,6 +12,8 @@ import "./interfaces/IMultiInvoker.sol";
 import "./types/TriggerOrder.sol";
 import "@equilibria/root/attribute/Kept/Kept.sol";
 
+import "hardhat/console.sol";
+
 /// @title MultiInvoker
 /// @notice Extension to handle batched calls to the Perennial protocol
 contract MultiInvoker is IMultiInvoker, Kept {
@@ -178,20 +180,17 @@ contract MultiInvoker is IMultiInvoker, Kept {
         Fixed18 balanceBefore =  Fixed18Lib.from(DSU.balanceOf());
 
         // collateral is transferred here as DSU then an optional interface fee is charged from it
-        if (collateral.sign() == 1) {
-            _deposit(collateral.abs(), wrap);
-            collateral = _chargeFee(market, collateral, feeInfo);
-        }
+        if (collateral.sign() == 1) _deposit(collateral.abs(), wrap);
 
         market.update(msg.sender, newMaker, newLong, newShort, collateral, false);
 
         // collateral is transferred from the market to this address, an optional interface fee is charged from it,
         // and the rest is sent to the msg.sender
         Fixed6 withdrawAmount = Fixed6Lib.from(Fixed18Lib.from(DSU.balanceOf()).sub(balanceBefore));
-        if (!withdrawAmount.isZero()) {
-            withdrawAmount = _chargeFee(market, withdrawAmount, feeInfo);
-            _withdraw(msg.sender, withdrawAmount.abs(), wrap);
-        }
+        if (!withdrawAmount.isZero()) _withdraw(msg.sender, withdrawAmount.abs().sub(feeInfo.amount), wrap);
+
+        // charge interface fee from collateral
+        _chargeFee(market, collateral, feeInfo);
     }
 
     /// @notice Update vault on behalf of msg.sender
@@ -265,19 +264,41 @@ contract MultiInvoker is IMultiInvoker, Kept {
         IMarket market,
         Fixed6 collateral,
         InterfaceFeeInfo memory feeInfo
-    ) internal returns (Fixed6 newCollateral) {
+    ) internal {
         bool wrap = feeInfo.wrap;
         address to = feeInfo.to;
         UFixed6 amount = feeInfo.amount;
 
-        // NO-OP (0 fee)
-        if (amount.isZero()) return collateral;
+        // NO-OP (0 interface fee)
+        if (amount.isZero()) return;
+
+        console.log("AMOUNT");
+        console.log(UFixed6.unwrap(amount));
+
+        console.log("DSU BAL");
+        console.logUint(UFixed18.unwrap(DSU.balanceOf(address(this))));
+
+        if (collateral.gt(Fixed6Lib.ZERO)) {
+            console.log("HERE");
+            market.update(
+                msg.sender,
+                UFixed6Lib.MAX,
+                UFixed6Lib.MAX,
+                UFixed6Lib.MAX,
+                Fixed6Lib.from(feeInfo.amount).mul(Fixed6.wrap(-1)),
+                false
+            );
+        }
+
+        console.log("AMOUNT");
+        console.log(UFixed6.unwrap(amount));
+
+        console.log("DSU BAL");
+        console.logUint(UFixed18.unwrap(DSU.balanceOf(address(this))));
 
         if (wrap) _unwrap(to, UFixed18Lib.from(amount));
         else DSU.push(to, UFixed18Lib.from(amount));
 
-        // updates collateral to reflect fee for deposit / withdrawal
-        newCollateral = collateral.sub(Fixed6Lib.from(amount));
         emit FeeCharged(msg.sender, market, to, amount, wrap);
     }
 
