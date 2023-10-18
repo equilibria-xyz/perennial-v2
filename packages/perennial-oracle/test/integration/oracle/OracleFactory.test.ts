@@ -39,13 +39,9 @@ describe('OracleFactory', () => {
     await oracleFactory.initialize(dsu.address)
     await oracleFactory.updateMaxClaim(parse6decimal('10'))
 
-    const pythOracleImpl = await new PythOracle__factory(owner).deploy(PYTH_ADDRESS)
-    pythOracleFactory = await new PythFactory__factory(owner).deploy(
-      pythOracleImpl.address,
-      CHAINLINK_ETH_USD_FEED,
-      dsu.address,
-    )
-    await pythOracleFactory.initialize(oracleFactory.address)
+    const pythOracleImpl = await new PythOracle__factory(owner).deploy()
+    pythOracleFactory = await new PythFactory__factory(owner).deploy(PYTH_ADDRESS, pythOracleImpl.address)
+    await pythOracleFactory.initialize(oracleFactory.address, CHAINLINK_ETH_USD_FEED, dsu.address)
     await oracleFactory.register(pythOracleFactory.address)
     await pythOracleFactory.authorize(oracleFactory.address)
 
@@ -59,13 +55,9 @@ describe('OracleFactory', () => {
 
   describe('#update', async () => {
     it('can update the price id', async () => {
-      const pythOracleImpl2 = await new PythOracle__factory(owner).deploy(PYTH_ADDRESS)
-      const pythOracleFactory2 = await new PythFactory__factory(owner).deploy(
-        pythOracleImpl2.address,
-        CHAINLINK_ETH_USD_FEED,
-        dsu.address,
-      )
-      await pythOracleFactory2.initialize(oracleFactory.address)
+      const pythOracleImpl2 = await new PythOracle__factory(owner).deploy()
+      const pythOracleFactory2 = await new PythFactory__factory(owner).deploy(PYTH_ADDRESS, pythOracleImpl2.address)
+      await pythOracleFactory2.initialize(oracleFactory.address, CHAINLINK_ETH_USD_FEED, dsu.address)
       await oracleFactory.register(pythOracleFactory2.address)
 
       await pythOracleFactory2.connect(owner).authorize(oracleFactory.address)
