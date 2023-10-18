@@ -112,17 +112,14 @@ contract PythFactory is IPythFactory, Factory, Kept {
 
     /// @notice Performs a list of local settlement callbacks
     /// @dev Pays out a keeper incentive if all supplied local settlement callbacks succeed
-    ///      Each array must be the same length, each index is a separate callback entry
+    ///      Each array must be the same length, each index is a separate corresponding callback entry
     /// @param ids The list of price feed ids to settle
-    /// @param markets The list of markets to settle
-    /// @param accounts The list of accounts to settle
-    /// @param versions The list of versions to settle
-    function settle(bytes32[] memory ids, IMarket[] memory markets, address[] accounts, uint256[] versions)
+    /// @param callbacks The list of local settlement callbacks to process
+    function settle(bytes32[] memory ids, IPythOracle.SettlementCallback[] memory callbacks)
         external
-        keep(KEEPER_REWARD_PREMIUM, KEEPER_BUFFER, abi.encode(markets, accounts, versions), "") // TODO: add calldata buffer
+        keep(KEEPER_REWARD_PREMIUM, KEEPER_BUFFER, abi.encode(callbacks), "") // TODO: add calldata buffer
     {
-        for (uint256 i; i < markets.length; i++)
-            IPythOracle(address(oracles[ids[i]])).settle(markets[i], accounts[i], versions[i]);
+        for (uint256 i; i < callbacks.length; i++) IPythOracle(address(oracles[ids[i]])).settle(callbacks[i]);
     }
 
     /// @notice Handles paying out one instance of a keeper reward for a requested version

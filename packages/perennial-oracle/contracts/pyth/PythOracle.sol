@@ -7,7 +7,6 @@ import "@openzeppelin/contracts/utils/structs/EnumerableSet.sol";
 import "@equilibria/root/attribute/Instance.sol";
 import "@equilibria/root/attribute/Kept/Kept.sol";
 import "../interfaces/IPythFactory.sol";
-import "../../../perennial/contracts/interfaces/IMarket.sol";
 
 /// @title PythOracle
 /// @notice Pyth implementation of the IOracle interface.
@@ -15,6 +14,8 @@ import "../../../perennial/contracts/interfaces/IMarket.sol";
 ///      PythOracle instance if their payoff functions are based on the same underlying oracle.
 ///      This implementation only supports non-negative prices.
 contract PythOracle is IPythOracle, Instance, Kept {
+    using EnumerableSet for EnumerableSet.AddressSet;
+
     /// @dev After this amount of time has passed for a version without being committed, the version can be invalidated.
     uint256 constant public GRACE_PERIOD = 1 minutes;
 
@@ -55,13 +56,11 @@ contract PythOracle is IPythOracle, Instance, Kept {
     }
 
     /// @notice Registers a settlement callback for the account on the market for the version
-    /// @param market The market to register the callback for
-    /// @param account The account to register the callback for
-    /// @param version The version to register the callback for
-    function register(IMarket market, address account, uint256 version) external onlyAuthorized {
-        _globalCallbacks[version].add(address(market));
-        _localCallbacks[version][market].add(account);
-        emit CallbackRequested(market, account, version);
+    /// @param callback The local settlement callback to process
+    function register(SettlementCallback memory callback) external onlyAuthorized {
+        _globalCallbacks[callback.version].add(address(callback.market));
+        _localCallbacks[callback.version][callback.market].add(callback.account);
+        emit CallbackRequested(callback);
     }
 
     /// @notice Records a request for a new oracle version
@@ -112,25 +111,24 @@ contract PythOracle is IPythOracle, Instance, Kept {
         requested = (version.timestamp == next()) ? _commitRequested(version) : _commitUnrequested(version);
         _global.latestVersion = uint64(version.timestamp);
 
-        for (uint256 i; i < _globalCallbacks[version].size(); i++)
-            _settle(_globalCallbacks[version].at(i), address(0));
+        for (uint256 i; i < _globalCallbacks[version.timestamp].length(); i++)
+            _settle(IMarket(_globalCallbacks[version.timestamp].at(i)), address(0));
 
         emit OracleProviderVersionFulfilled(version);
     }
 
     /// @notice Performs an asynchronous local settlement callback
-    /// @dev Distribution of keeper incentive is consolidated in the Factory
-    /// @param market The market to settle
-    /// @param account The account to settle
-    /// @param version The version to settle
-    function settle(IMarket market, address account, uint256 version) external {
+    /// @dev Distribution of keeper incentive is consolidated in the oracle's factory
+    /// @param callback The local settlement callback to process
+    function settle(SettlementCallback memory callback) external {
         if (msg.sender != address(factory())) revert OracleProviderUnauthorizedError(); // TODO: make modifier in root
 
-        if (!_localCallbacks[version][market].contains(account)) revert PythOracleInvalidCallbackError();
-        _settle(market, account);
-        _localCallbacks[version][market].remove(account);
+        if (!_localCallbacks[callback.version][callback.market].contains(callback.account))
+            revert PythOracleInvalidCallbackError();
+        _settle(callback.market, callback.account);
+        _localCallbacks[callback.version][callback.market].remove(callback.account);
 
-        emit CallbackFulfilled(market, account, version);
+        emit CallbackFulfilled(callback);
     }
 
     /// @notice Commits the price to a requested version
@@ -161,7 +159,7 @@ contract PythOracle is IPythOracle, Instance, Kept {
     /// @param market The market to settle
     /// @param account The account to settle
     function _settle(IMarket market, address account) private {
-        market.update(account, UFixed6Lib.MAX, UFixed6Lib.MAX, UFixed6Lib.MAX, UFixed6Lib.ZERO, false);
+        market.update(account, UFixed6Lib.MAX, UFixed6Lib.MAX, UFixed6Lib.MAX, Fixed6Lib.ZERO, false);
     }
 
     /// @dev Only allow authorized callers
