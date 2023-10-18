@@ -31,32 +31,27 @@ import {
   PayoffFactory,
   RiskParameterStorageLib__factory,
   MarketParameterStorageLib__factory,
+  IOracleFactory,
 } from '../../../types/generated'
-
-// v2 core types
-import {
-  ERC20PresetMinterPauser,
-  ERC20PresetMinterPauser__factory,
-  ProxyAdmin,
-  ProxyAdmin__factory,
-  TransparentUpgradeableProxy__factory,
-} from '@equilibria/perennial-v2/types/generated'
-
 import { ChainlinkContext } from '@equilibria/perennial-v2/test/integration/helpers/chainlinkHelpers'
-
 import { parse6decimal } from '../../../../common/testutil/types'
 import { CHAINLINK_CUSTOM_CURRENCIES } from '@equilibria/perennial-v2-oracle/util/constants'
-
-import { MarketFactory } from '@equilibria/perennial-v2/types/generated/contracts'
-
 import {
   MarketParameterStruct,
   RiskParameterStruct,
 } from '../../../types/generated/@equilibria/perennial-v2/contracts/Market'
-import { MarketFactory__factory } from '@equilibria/perennial-v2/types/generated'
 import { FakeContract, smock } from '@defi-wonderland/smock'
-import { IOracleFactory } from '@equilibria/perennial-v2-vault/types/generated'
 import { deployProductOnMainnetFork } from '@equilibria/perennial-v2-vault/test/integration/helpers/setupHelpers'
+import {
+  ERC20PresetMinterPauser,
+  ERC20PresetMinterPauser__factory,
+  IMarketFactory__factory,
+  MarketFactory,
+  MarketFactory__factory,
+  ProxyAdmin,
+  ProxyAdmin__factory,
+  TransparentUpgradeableProxy__factory,
+} from '@equilibria/perennial-v2/types/generated'
 
 const { ethers } = HRE
 
@@ -304,10 +299,12 @@ export async function createMarket(
     closed: false,
     ...marketParamOverrides,
   }
+
   const marketAddress = await marketFactory.callStatic.create(definition)
   await marketFactory.create(definition)
 
   const market = Market__factory.connect(marketAddress, owner)
+
   await market.updateRiskParameter(riskParameter)
   await market.updateBeneficiary(beneficiaryB.address)
   await market.updateReward(rewardToken.address)
@@ -394,24 +391,24 @@ export async function createVault(
     owner,
   )
   await instanceVars.oracleFactory.connect(owner).create(BTC_PRICE_FEE_ID, vaultOracleFactory.address)
+
+  const _marketFactory = IMarketFactory__factory.connect(instanceVars.marketFactory.address, owner)
   const ethMarket = await deployProductOnMainnetFork({
-    factory: instanceVars.marketFactory,
+    factory: _marketFactory,
     token: instanceVars.dsu,
     owner: owner,
     oracle: ethOracle.address,
     payoff: constants.AddressZero,
     makerLimit: parse6decimal('1000'),
-    minMargin: parse6decimal('50'),
     minMaintenance: parse6decimal('50'),
     maxLiquidationFee: parse6decimal('25000'),
   })
   const btcMarket = await deployProductOnMainnetFork({
-    factory: instanceVars.marketFactory,
+    factory: _marketFactory,
     token: instanceVars.dsu,
     owner: owner,
     oracle: btcOracle.address,
     payoff: constants.AddressZero,
-    minMargin: parse6decimal('50'),
     minMaintenance: parse6decimal('50'),
     maxLiquidationFee: parse6decimal('25000'),
   })

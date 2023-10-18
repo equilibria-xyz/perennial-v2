@@ -13994,6 +13994,449 @@ describe('Market', () => {
             delta: COLLATERAL,
           })
         })
+
+        it('closes full position on MAX - 1 (unsettled)', async () => {
+          await market.connect(userB).update(userB.address, POSITION, 0, 0, COLLATERAL, false)
+          await market.connect(user).update(user.address, 0, POSITION.div(2), 0, COLLATERAL, false)
+          await market.connect(userC).update(userC.address, 0, 0, POSITION.div(2), COLLATERAL, false)
+
+          expectPositionEq(await market.pendingPositions(user.address, 1), {
+            ...DEFAULT_POSITION,
+            timestamp: ORACLE_VERSION_2.timestamp,
+            long: POSITION.div(2),
+            delta: COLLATERAL,
+          })
+          expectPositionEq(await market.pendingPositions(userB.address, 1), {
+            ...DEFAULT_POSITION,
+            timestamp: ORACLE_VERSION_2.timestamp,
+            maker: POSITION,
+            delta: COLLATERAL,
+          })
+          expectPositionEq(await market.pendingPositions(userC.address, 1), {
+            ...DEFAULT_POSITION,
+            timestamp: ORACLE_VERSION_2.timestamp,
+            short: POSITION.div(2),
+            delta: COLLATERAL,
+          })
+
+          await market.connect(user).update(user.address, 0, ethers.constants.MaxUint256.sub(1), 0, 0, false)
+          await market.connect(userC).update(userC.address, 0, 0, ethers.constants.MaxUint256.sub(1), 0, false)
+          await market.connect(userB).update(userB.address, ethers.constants.MaxUint256.sub(1), 0, 0, 0, false)
+
+          expectPositionEq(await market.pendingPositions(user.address, 1), {
+            ...DEFAULT_POSITION,
+            timestamp: ORACLE_VERSION_2.timestamp,
+            delta: COLLATERAL,
+          })
+          expectPositionEq(await market.pendingPositions(userB.address, 1), {
+            ...DEFAULT_POSITION,
+            timestamp: ORACLE_VERSION_2.timestamp,
+            delta: COLLATERAL,
+          })
+          expectPositionEq(await market.pendingPositions(userC.address, 1), {
+            ...DEFAULT_POSITION,
+            timestamp: ORACLE_VERSION_2.timestamp,
+            delta: COLLATERAL,
+          })
+
+          await market.connect(userB).update(userB.address, POSITION, 0, 0, 0, false)
+          await market.connect(user).update(user.address, 0, POSITION.div(2), 0, 0, false)
+          await market.connect(userC).update(userC.address, 0, 0, POSITION.div(2), 0, false)
+
+          expectPositionEq(await market.pendingPositions(user.address, 1), {
+            ...DEFAULT_POSITION,
+            timestamp: ORACLE_VERSION_2.timestamp,
+            long: POSITION.div(2),
+            delta: COLLATERAL,
+          })
+          expectPositionEq(await market.pendingPositions(userB.address, 1), {
+            ...DEFAULT_POSITION,
+            timestamp: ORACLE_VERSION_2.timestamp,
+            maker: POSITION,
+            delta: COLLATERAL,
+          })
+          expectPositionEq(await market.pendingPositions(userC.address, 1), {
+            ...DEFAULT_POSITION,
+            timestamp: ORACLE_VERSION_2.timestamp,
+            short: POSITION.div(2),
+            delta: COLLATERAL,
+          })
+
+          await market
+            .connect(user)
+            .update(
+              user.address,
+              ethers.constants.MaxUint256.sub(1),
+              ethers.constants.MaxUint256.sub(1),
+              ethers.constants.MaxUint256.sub(1),
+              0,
+              false,
+            )
+          await market
+            .connect(userC)
+            .update(
+              userC.address,
+              ethers.constants.MaxUint256.sub(1),
+              ethers.constants.MaxUint256.sub(1),
+              ethers.constants.MaxUint256.sub(1),
+              0,
+              false,
+            )
+          await market
+            .connect(userB)
+            .update(
+              userB.address,
+              ethers.constants.MaxUint256.sub(1),
+              ethers.constants.MaxUint256.sub(1),
+              ethers.constants.MaxUint256.sub(1),
+              0,
+              false,
+            )
+
+          expectPositionEq(await market.pendingPositions(user.address, 1), {
+            ...DEFAULT_POSITION,
+            timestamp: ORACLE_VERSION_2.timestamp,
+            delta: COLLATERAL,
+          })
+          expectPositionEq(await market.pendingPositions(userB.address, 1), {
+            ...DEFAULT_POSITION,
+            timestamp: ORACLE_VERSION_2.timestamp,
+            delta: COLLATERAL,
+          })
+          expectPositionEq(await market.pendingPositions(userC.address, 1), {
+            ...DEFAULT_POSITION,
+            timestamp: ORACLE_VERSION_2.timestamp,
+            delta: COLLATERAL,
+          })
+        })
+
+        it('closes full position on MAX - 1 (settled)', async () => {
+          await market.connect(userB).update(userB.address, POSITION, 0, 0, COLLATERAL, false)
+          await market.connect(user).update(user.address, 0, POSITION.div(2), 0, COLLATERAL, false)
+          await market.connect(userC).update(userC.address, 0, 0, POSITION.div(2), COLLATERAL, false)
+
+          expectPositionEq(await market.pendingPositions(user.address, 1), {
+            ...DEFAULT_POSITION,
+            timestamp: ORACLE_VERSION_2.timestamp,
+            long: POSITION.div(2),
+            delta: COLLATERAL,
+          })
+          expectPositionEq(await market.pendingPositions(userB.address, 1), {
+            ...DEFAULT_POSITION,
+            timestamp: ORACLE_VERSION_2.timestamp,
+            maker: POSITION,
+            delta: COLLATERAL,
+          })
+          expectPositionEq(await market.pendingPositions(userC.address, 1), {
+            ...DEFAULT_POSITION,
+            timestamp: ORACLE_VERSION_2.timestamp,
+            short: POSITION.div(2),
+            delta: COLLATERAL,
+          })
+
+          oracle.at.whenCalledWith(ORACLE_VERSION_2.timestamp).returns(ORACLE_VERSION_2)
+          oracle.status.returns([ORACLE_VERSION_2, ORACLE_VERSION_3.timestamp])
+          oracle.request.whenCalledWith(user.address).returns()
+
+          await market.connect(user).update(user.address, 0, ethers.constants.MaxUint256.sub(1), 0, 0, false)
+          await market.connect(userC).update(userC.address, 0, 0, ethers.constants.MaxUint256.sub(1), 0, false)
+          await market.connect(userB).update(userB.address, ethers.constants.MaxUint256.sub(1), 0, 0, 0, false)
+
+          expectPositionEq(await market.pendingPositions(user.address, 2), {
+            ...DEFAULT_POSITION,
+            timestamp: ORACLE_VERSION_3.timestamp,
+            delta: COLLATERAL,
+          })
+          expectPositionEq(await market.pendingPositions(userB.address, 2), {
+            ...DEFAULT_POSITION,
+            timestamp: ORACLE_VERSION_3.timestamp,
+            delta: COLLATERAL,
+          })
+          expectPositionEq(await market.pendingPositions(userC.address, 2), {
+            ...DEFAULT_POSITION,
+            timestamp: ORACLE_VERSION_3.timestamp,
+            delta: COLLATERAL,
+          })
+
+          oracle.at.whenCalledWith(ORACLE_VERSION_3.timestamp).returns(ORACLE_VERSION_3)
+          oracle.status.returns([ORACLE_VERSION_3, ORACLE_VERSION_4.timestamp])
+          oracle.request.whenCalledWith(user.address).returns()
+
+          await market.connect(userB).update(userB.address, POSITION, 0, 0, 0, false)
+          await market.connect(user).update(user.address, 0, POSITION.div(2), 0, 0, false)
+          await market.connect(userC).update(userC.address, 0, 0, POSITION.div(2), 0, false)
+
+          expectPositionEq(await market.pendingPositions(user.address, 3), {
+            ...DEFAULT_POSITION,
+            timestamp: ORACLE_VERSION_4.timestamp,
+            long: POSITION.div(2),
+            delta: COLLATERAL,
+          })
+          expectPositionEq(await market.pendingPositions(userB.address, 3), {
+            ...DEFAULT_POSITION,
+            timestamp: ORACLE_VERSION_4.timestamp,
+            maker: POSITION,
+            delta: COLLATERAL,
+          })
+          expectPositionEq(await market.pendingPositions(userC.address, 3), {
+            ...DEFAULT_POSITION,
+            timestamp: ORACLE_VERSION_4.timestamp,
+            short: POSITION.div(2),
+            delta: COLLATERAL,
+          })
+
+          oracle.at.whenCalledWith(ORACLE_VERSION_4.timestamp).returns(ORACLE_VERSION_4)
+          oracle.status.returns([ORACLE_VERSION_4, ORACLE_VERSION_5.timestamp])
+          oracle.request.whenCalledWith(user.address).returns()
+
+          await market
+            .connect(user)
+            .update(
+              user.address,
+              ethers.constants.MaxUint256.sub(1),
+              ethers.constants.MaxUint256.sub(1),
+              ethers.constants.MaxUint256.sub(1),
+              0,
+              false,
+            )
+          await market
+            .connect(userC)
+            .update(
+              userC.address,
+              ethers.constants.MaxUint256.sub(1),
+              ethers.constants.MaxUint256.sub(1),
+              ethers.constants.MaxUint256.sub(1),
+              0,
+              false,
+            )
+          await market
+            .connect(userB)
+            .update(
+              userB.address,
+              ethers.constants.MaxUint256.sub(1),
+              ethers.constants.MaxUint256.sub(1),
+              ethers.constants.MaxUint256.sub(1),
+              0,
+              false,
+            )
+
+          expectPositionEq(await market.pendingPositions(user.address, 4), {
+            ...DEFAULT_POSITION,
+            timestamp: ORACLE_VERSION_5.timestamp,
+            delta: COLLATERAL,
+          })
+          expectPositionEq(await market.pendingPositions(userB.address, 4), {
+            ...DEFAULT_POSITION,
+            timestamp: ORACLE_VERSION_5.timestamp,
+            delta: COLLATERAL,
+          })
+          expectPositionEq(await market.pendingPositions(userC.address, 4), {
+            ...DEFAULT_POSITION,
+            timestamp: ORACLE_VERSION_5.timestamp,
+            delta: COLLATERAL,
+          })
+        })
+
+        it('closes full position on MAX - 1 (pending)', async () => {
+          const riskParameter = { ...(await market.riskParameter()) }
+          riskParameter.staleAfter = BigNumber.from(14400)
+          await market.updateRiskParameter(riskParameter)
+
+          await market.connect(userB).update(userB.address, POSITION, 0, 0, COLLATERAL, false)
+          await market.connect(user).update(user.address, 0, POSITION.div(2), 0, COLLATERAL, false)
+          await market.connect(userC).update(userC.address, 0, 0, POSITION.div(2), COLLATERAL, false)
+
+          expectPositionEq(await market.pendingPositions(user.address, 1), {
+            ...DEFAULT_POSITION,
+            timestamp: ORACLE_VERSION_2.timestamp,
+            long: POSITION.div(2),
+            delta: COLLATERAL,
+          })
+          expectPositionEq(await market.pendingPositions(userB.address, 1), {
+            ...DEFAULT_POSITION,
+            timestamp: ORACLE_VERSION_2.timestamp,
+            maker: POSITION,
+            delta: COLLATERAL,
+          })
+          expectPositionEq(await market.pendingPositions(userC.address, 1), {
+            ...DEFAULT_POSITION,
+            timestamp: ORACLE_VERSION_2.timestamp,
+            short: POSITION.div(2),
+            delta: COLLATERAL,
+          })
+
+          oracle.at.whenCalledWith(ORACLE_VERSION_1.timestamp).returns(ORACLE_VERSION_1)
+          oracle.status.returns([ORACLE_VERSION_1, ORACLE_VERSION_3.timestamp])
+          oracle.request.whenCalledWith(user.address).returns()
+
+          await market.connect(user).update(user.address, 0, ethers.constants.MaxUint256.sub(1), 0, 0, false)
+          await market.connect(userC).update(userC.address, 0, 0, ethers.constants.MaxUint256.sub(1), 0, false)
+          await market.connect(userB).update(userB.address, ethers.constants.MaxUint256.sub(1), 0, 0, 0, false)
+
+          expectPositionEq(await market.pendingPositions(user.address, 2), {
+            ...DEFAULT_POSITION,
+            timestamp: ORACLE_VERSION_3.timestamp,
+            long: POSITION.div(2),
+            delta: COLLATERAL,
+          })
+          expectPositionEq(await market.pendingPositions(userB.address, 2), {
+            ...DEFAULT_POSITION,
+            timestamp: ORACLE_VERSION_3.timestamp,
+            maker: POSITION,
+            delta: COLLATERAL,
+          })
+          expectPositionEq(await market.pendingPositions(userC.address, 2), {
+            ...DEFAULT_POSITION,
+            timestamp: ORACLE_VERSION_3.timestamp,
+            short: POSITION.div(2),
+            delta: COLLATERAL,
+          })
+
+          await market
+            .connect(user)
+            .update(
+              user.address,
+              ethers.constants.MaxUint256.sub(1),
+              ethers.constants.MaxUint256.sub(1),
+              ethers.constants.MaxUint256.sub(1),
+              0,
+              false,
+            )
+          await market
+            .connect(userC)
+            .update(
+              userC.address,
+              ethers.constants.MaxUint256.sub(1),
+              ethers.constants.MaxUint256.sub(1),
+              ethers.constants.MaxUint256.sub(1),
+              0,
+              false,
+            )
+          await market
+            .connect(userB)
+            .update(
+              userB.address,
+              ethers.constants.MaxUint256.sub(1),
+              ethers.constants.MaxUint256.sub(1),
+              ethers.constants.MaxUint256.sub(1),
+              0,
+              false,
+            )
+
+          expectPositionEq(await market.pendingPositions(user.address, 2), {
+            ...DEFAULT_POSITION,
+            timestamp: ORACLE_VERSION_3.timestamp,
+            long: POSITION.div(2),
+            delta: COLLATERAL,
+          })
+          expectPositionEq(await market.pendingPositions(userB.address, 2), {
+            ...DEFAULT_POSITION,
+            timestamp: ORACLE_VERSION_3.timestamp,
+            maker: POSITION,
+            delta: COLLATERAL,
+          })
+          expectPositionEq(await market.pendingPositions(userC.address, 2), {
+            ...DEFAULT_POSITION,
+            timestamp: ORACLE_VERSION_3.timestamp,
+            short: POSITION.div(2),
+            delta: COLLATERAL,
+          })
+        })
+
+        it('closes partial position on MAX - 1', async () => {
+          const riskParameter = { ...(await market.riskParameter()) }
+          riskParameter.staleAfter = BigNumber.from(14400)
+          await market.updateRiskParameter(riskParameter)
+
+          await market.connect(userB).update(userB.address, POSITION, 0, 0, COLLATERAL, false)
+          await market.connect(user).update(user.address, 0, POSITION.div(2), 0, COLLATERAL, false)
+          await market.connect(userC).update(userC.address, 0, 0, POSITION.div(2), COLLATERAL, false)
+
+          oracle.at.whenCalledWith(ORACLE_VERSION_2.timestamp).returns(ORACLE_VERSION_2)
+          oracle.status.returns([ORACLE_VERSION_2, ORACLE_VERSION_3.timestamp])
+          oracle.request.whenCalledWith(user.address).returns()
+
+          await market.connect(userB).update(userB.address, POSITION.mul(2), 0, 0, 0, false)
+          await market.connect(user).update(user.address, 0, POSITION, 0, 0, false)
+          await market.connect(userC).update(userC.address, 0, 0, POSITION, 0, false)
+
+          oracle.at.whenCalledWith(ORACLE_VERSION_2.timestamp).returns(ORACLE_VERSION_2)
+          oracle.status.returns([ORACLE_VERSION_2, ORACLE_VERSION_4.timestamp])
+          oracle.request.whenCalledWith(user.address).returns()
+
+          await market.connect(user).update(user.address, 0, ethers.constants.MaxUint256.sub(1), 0, 0, false)
+          await market.connect(userC).update(userC.address, 0, 0, ethers.constants.MaxUint256.sub(1), 0, false)
+          await market.connect(userB).update(userB.address, ethers.constants.MaxUint256.sub(1), 0, 0, 0, false)
+
+          expectPositionEq(await market.pendingPositions(user.address, 3), {
+            ...DEFAULT_POSITION,
+            timestamp: ORACLE_VERSION_4.timestamp,
+            long: POSITION.div(2),
+            delta: COLLATERAL,
+          })
+          expectPositionEq(await market.pendingPositions(userB.address, 3), {
+            ...DEFAULT_POSITION,
+            timestamp: ORACLE_VERSION_4.timestamp,
+            maker: POSITION,
+            delta: COLLATERAL,
+          })
+          expectPositionEq(await market.pendingPositions(userC.address, 3), {
+            ...DEFAULT_POSITION,
+            timestamp: ORACLE_VERSION_4.timestamp,
+            short: POSITION.div(2),
+            delta: COLLATERAL,
+          })
+
+          await market
+            .connect(user)
+            .update(
+              user.address,
+              ethers.constants.MaxUint256.sub(1),
+              ethers.constants.MaxUint256.sub(1),
+              ethers.constants.MaxUint256.sub(1),
+              0,
+              false,
+            )
+          await market
+            .connect(userC)
+            .update(
+              userC.address,
+              ethers.constants.MaxUint256.sub(1),
+              ethers.constants.MaxUint256.sub(1),
+              ethers.constants.MaxUint256.sub(1),
+              0,
+              false,
+            )
+          await market
+            .connect(userB)
+            .update(
+              userB.address,
+              ethers.constants.MaxUint256.sub(1),
+              ethers.constants.MaxUint256.sub(1),
+              ethers.constants.MaxUint256.sub(1),
+              0,
+              false,
+            )
+
+          expectPositionEq(await market.pendingPositions(user.address, 3), {
+            ...DEFAULT_POSITION,
+            timestamp: ORACLE_VERSION_4.timestamp,
+            long: POSITION.div(2),
+            delta: COLLATERAL,
+          })
+          expectPositionEq(await market.pendingPositions(userB.address, 3), {
+            ...DEFAULT_POSITION,
+            timestamp: ORACLE_VERSION_4.timestamp,
+            maker: POSITION,
+            delta: COLLATERAL,
+          })
+          expectPositionEq(await market.pendingPositions(userC.address, 3), {
+            ...DEFAULT_POSITION,
+            timestamp: ORACLE_VERSION_4.timestamp,
+            short: POSITION.div(2),
+            delta: COLLATERAL,
+          })
+        })
       })
 
       context('payoff', async () => {
