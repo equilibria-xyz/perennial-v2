@@ -227,28 +227,18 @@ contract MultiInvoker is IMultiInvoker, Kept {
         Position memory currentPosition = market.pendingPositions(account, market.locals(account).currentId);
         currentPosition.adjust(latestPosition);
 
-        if (revertOnFailure) {
-            market.update(
+        try market.update(
                 account,
                 currentPosition.maker.isZero() ? UFixed6Lib.ZERO : currentPosition.maker.sub(closable),
                 currentPosition.long.isZero() ? UFixed6Lib.ZERO : currentPosition.long.sub(closable),
                 currentPosition.short.isZero() ? UFixed6Lib.ZERO : currentPosition.short.sub(closable),
                 Fixed6Lib.from(-1, liquidationFee),
                 true
-            );
-        } else {
-            try market.update(
-                    account,
-                    currentPosition.maker.isZero() ? UFixed6Lib.ZERO : currentPosition.maker.sub(closable),
-                    currentPosition.long.isZero() ? UFixed6Lib.ZERO : currentPosition.long.sub(closable),
-                    currentPosition.short.isZero() ? UFixed6Lib.ZERO : currentPosition.short.sub(closable),
-                    Fixed6Lib.from(-1, liquidationFee),
-                    true
-            // solhint-disable-next-line no-empty-blocks
-            ) { } catch (bytes memory reason) { return; } // skip withdraw on failed update
+        ) {
+            _withdraw(msg.sender, liquidationFee, true);
+        } catch (bytes memory reason) {
+            if(revertOnFailure) _revert(reason);
         }
-
-        _withdraw(msg.sender, liquidationFee, true);
     }
 
     /// @notice Helper to max approve DSU for usage in a market or vault deployed by the registered factories
@@ -430,29 +420,19 @@ contract MultiInvoker is IMultiInvoker, Kept {
 
         orders(account, market, nonce).execute(currentPosition);
 
-        if (revertOnFailure) {
-            market.update(
-                account,
-                currentPosition.maker,
-                currentPosition.long,
-                currentPosition.short,
-                Fixed6Lib.ZERO,
-                false
-            );
-        } else {
-            try market.update(
-                account,
-                currentPosition.maker,
-                currentPosition.long,
-                currentPosition.short,
-                Fixed6Lib.ZERO,
-                false
-            // solhint-disable-next-line no-empty-blocks
-            ) { } catch (bytes memory reason) { return; } // skip order deletion on failed update
+        try market.update(
+            account,
+            currentPosition.maker,
+            currentPosition.long,
+            currentPosition.short,
+            Fixed6Lib.ZERO,
+            false
+        ) {
+            delete _orders[account][market][nonce];
+            emit OrderExecuted(account, market, nonce, currentId);
+        } catch (bytes memory reason) {
+            if(revertOnFailure) _revert(reason);
         }
-
-        delete _orders[account][market][nonce];
-        emit OrderExecuted(account, market, nonce, currentId);
     }
 
     /// @notice Helper function to raise keeper fee
@@ -507,5 +487,21 @@ contract MultiInvoker is IMultiInvoker, Kept {
         if (!vaultFactory.instances(vault))
             revert MultiInvokerInvalidInstanceError();
             _;
+    }
+
+    /// @dev Reverts with returndata if present. Otherwise reverts with {FailedInnerCall}
+    /// Used in OpenZeppelin's Address.sol https://github.com/OpenZeppelin/openzeppelin-contracts/blob/18a76e7d1760ac3f9aee062756f7b299e77d75d7/contracts/utils/Address.sol#L146
+    function _revert(bytes memory returndata) private pure {
+        // Look for revert reason and bubble it up if present
+        if (returndata.length > 0) {
+            // The easiest way to bubble the revert reason is using memory via assembly
+            /// @solidity memory-safe-assembly
+            assembly {
+                let returndata_size := mload(returndata)
+                revert(add(32, returndata), returndata_size)
+            }
+        } else {
+            revert FailedInnerCall();
+        }
     }
 }

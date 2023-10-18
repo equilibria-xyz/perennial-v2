@@ -56,6 +56,8 @@ interface IMultiInvoker {
     error MultiInvokerInvalidOrderError();
     // sig: 0x6f462962
     error MultiInvokerCantExecuteError();
+    // sig: 0x1425ea42
+    error FailedInnerCall();
 
     function invoke(Invocation[] calldata invocations) external payable;
     function marketFactory() external view returns (IFactory);
