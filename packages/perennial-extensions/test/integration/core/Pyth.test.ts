@@ -224,8 +224,8 @@ describe('PythOracle', () => {
             {
               action: 6,
               args: utils.defaultAbiCoder.encode(
-                ['address', 'uint256', 'uint256', 'uint256', 'bytes', 'bool'],
-                [pythOracle.address, 1, 0, STARTING_TIME + 60, FailingVAA, true],
+                ['address', 'uint256', 'bytes32[]', 'uint256', 'uint256', 'bytes', 'bool'],
+                [pythOracleFactory.address, 1, [PYTH_ETH_USD_PRICE_FEED], 0, STARTING_TIME + 60, FailingVAA, true],
               ),
             },
           ],
@@ -244,8 +244,8 @@ describe('PythOracle', () => {
           {
             action: 6,
             args: utils.defaultAbiCoder.encode(
-              ['address', 'uint256', 'uint256', 'bytes', 'bool'],
-              [pythOracle.address, 1, STARTING_TIME + 60, FailingVAA, false],
+              ['address', 'uint256', 'bytes32[]', 'uint256', 'bytes', 'bool'],
+              [pythOracleFactory.address, 1, [PYTH_ETH_USD_PRICE_FEED], STARTING_TIME + 60, FailingVAA, false],
             ),
           },
         ],
