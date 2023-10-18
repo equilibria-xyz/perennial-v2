@@ -548,7 +548,10 @@ describe('Vault', () => {
       )
 
       // User 2 should not be able to redeem; they haven't deposited anything.
-      await expect(vault.connect(user2).update(user2.address, 0, 1, 0)).to.be.revertedWithPanic('0x11')
+      await expect(vault.connect(user2).update(user2.address, 0, 1, 0)).to.be.revertedWithCustomError(
+        vault,
+        'VaultRedemptionLimitExceededError',
+      )
       expect((await vault.accounts(user.address)).shares).to.equal(parse6decimal('10010'))
       await vault.connect(user).update(user.address, 0, (await vault.accounts(user.address)).shares, 0)
       await updateOracle()
@@ -573,6 +576,7 @@ describe('Vault', () => {
       )
 
       await vault.connect(user).update(user.address, 0, 0, ethers.constants.MaxUint256)
+
       expect(await totalCollateralInVault()).to.equal(0)
       expect(await asset.balanceOf(user.address)).to.equal(parse6decimal('100000').add(fundingAmount).mul(1e12))
       expect((await vault.accounts(user.address)).assets).to.equal(0)
@@ -761,7 +765,7 @@ describe('Vault', () => {
       // We shouldn't be able to redeem more than balance.
       await expect(
         vault.connect(user).update(user.address, 0, (await vault.accounts(user.address)).shares.add(1), 0),
-      ).to.be.revertedWithPanic('0x11')
+      ).to.be.revertedWithCustomError(vault, 'VaultRedemptionLimitExceededError')
 
       // But we should be able to redeem exactly balance.
 
