@@ -3,6 +3,7 @@ pragma solidity 0.8.19;
 
 import "@equilibria/root/attribute/Instance.sol";
 import "@equilibria/perennial-v2/contracts/interfaces/IOracleProviderFactory.sol";
+import "@equilibria/perennial-v2/contracts/interfaces/IMarket.sol";
 import "./interfaces/IOracle.sol";
 
 /// @title Oracle
@@ -33,13 +34,14 @@ contract Oracle is IOracle, Instance {
     }
 
     /// @notice Requests a new version at the current timestamp
+    /// @param market Original market to optionally use for callbacks
     /// @param account Original sender to optionally use for callbacks
-    function request(address account) external onlyAuthorized {
+    function request(IMarket market, address account) external onlyAuthorized {
         (OracleVersion memory latestVersion, uint256 currentTimestamp) = oracles[global.current].provider.status();
 
         oracles[
             (currentTimestamp > oracles[global.latest].timestamp) ? global.current : global.latest
-        ].provider.request(account);
+        ].provider.request(market, account);
 
         oracles[global.current].timestamp = uint96(currentTimestamp);
         _updateLatest(latestVersion);

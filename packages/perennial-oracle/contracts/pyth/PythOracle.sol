@@ -55,22 +55,19 @@ contract PythOracle is IPythOracle, Instance, Kept {
         return versions[_global.latestIndex + 1];
     }
 
-    /// @notice Registers a settlement callback for the account on the market for the version
-    /// @param callback The local settlement callback to process
-    function register(SettlementCallback memory callback) external onlyAuthorized {
-        _globalCallbacks[callback.version].add(address(callback.market));
-        _localCallbacks[callback.version][callback.market].add(callback.account);
-        emit CallbackRequested(callback);
-    }
-
     /// @notice Records a request for a new oracle version
-    /// @dev Original sender to optionally use for callbacks
-    function request(address) external onlyAuthorized {
+    /// @param market The market to callback to
+    /// @param account The account to callback to
+    function request(IMarket market, address account) external onlyAuthorized {
         uint256 currentTimestamp = current();
         if (versions[_global.currentIndex] == currentTimestamp) return;
 
         versions[++_global.currentIndex] = currentTimestamp;
         emit OracleProviderVersionRequested(currentTimestamp);
+
+        _globalCallbacks[currentTimestamp].add(address(market));
+        _localCallbacks[currentTimestamp][market].add(account);
+        emit CallbackRequested(SettlementCallback(market, account, currentTimestamp));
     }
 
     /// @notice Returns the latest synced oracle version and the current oracle version
