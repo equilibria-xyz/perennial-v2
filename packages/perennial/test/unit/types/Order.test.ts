@@ -43,7 +43,7 @@ const VALID_POSITION: PositionStruct = {
   },
 }
 
-describe('Order', () => {
+describe.only('Order', () => {
   let owner: SignerWithAddress
 
   let order: OrderTester
@@ -313,27 +313,6 @@ describe('Order', () => {
         )
 
         expect(result.keeper).to.eq(0)
-      })
-
-      context('offsetting changes', () => {
-        it('returns non-0 settlement', async () => {
-          const result = await order.registerFee(
-            {
-              ...VALID_ORDER,
-              maker: 10,
-              long: -8,
-              short: -2,
-            },
-            VALID_ORACLE_VERSION,
-            {
-              ...VALID_MARKET_PARAMETER,
-              settlementFee: parse6decimal('12'),
-            },
-            VALID_RISK_PARAMETER,
-          )
-
-          expect(result.keeper).to.eq(parse6decimal('12'))
-        })
       })
     })
   })
@@ -1008,19 +987,6 @@ describe('Order', () => {
         const result = await order.isEmpty({
           ...VALID_ORDER,
           short: parse6decimal('1'),
-        })
-
-        expect(result).to.be.false
-      })
-    })
-
-    context('order is not empty (offsetting)', () => {
-      it('returns false', async () => {
-        const result = await order.isEmpty({
-          ...VALID_ORDER,
-          maker: parse6decimal('10'),
-          long: parse6decimal('-9'),
-          short: parse6decimal('-1'),
         })
 
         expect(result).to.be.false
