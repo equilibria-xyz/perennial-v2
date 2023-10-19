@@ -43,8 +43,6 @@ const getVaa = (price: BigNumberish, conf: BigNumberish, expo: BigNumberish, pub
   return '0x' + hexString
 }
 
-// TODO: fix tests for new interface
-
 describe('PythOracle', () => {
   let owner: SignerWithAddress
   let user: SignerWithAddress

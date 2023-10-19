@@ -30,8 +30,6 @@ function mockVersion(
   oracle.at.whenCalledWith(latestVersion.timestamp).returns(latestVersion)
 }
 
-// TODO: fix tests for new interface
-
 describe('Oracle', () => {
   let owner: SignerWithAddress
   let user: SignerWithAddress

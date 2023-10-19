@@ -8,6 +8,8 @@ import "@equilibria/root/attribute/Instance.sol";
 import "@equilibria/root/attribute/Kept/Kept.sol";
 import "../interfaces/IPythFactory.sol";
 
+// TODO: add getters for new state
+
 /// @title PythOracle
 /// @notice Pyth implementation of the IOracle interface.
 /// @dev One instance per Pyth price feed should be deployed. Multiple products may use the same

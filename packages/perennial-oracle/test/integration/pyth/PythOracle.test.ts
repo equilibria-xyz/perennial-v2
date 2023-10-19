@@ -84,9 +84,9 @@ const testOracles = [
   },
 ]
 
-// TODO: fix tests for new interface
-// TODO: add settle tests
-// TODO: add global settlement checks for commit tests
+// TODO: add tests for request storing the correct callback
+// TODO: add settle tests (single, batch, maxCount)
+// TODO: add checks that market.settle was correctly calledback (single, multiple)
 
 testOracles.forEach(testOracle => {
   describe(testOracle.name, () => {
