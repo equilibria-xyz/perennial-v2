@@ -119,11 +119,11 @@ contract MultiInvoker is IMultiInvoker, Kept {
                     UFixed6 newLong,
                     UFixed6 newShort,
                     Fixed6 collateral,
-                    bool wrapUpdate,
+                    bool wrap,
                     InterfaceFee memory interfaceFee
                 ) = abi.decode(invocation.args, (IMarket, UFixed6, UFixed6, UFixed6, Fixed6, bool, InterfaceFee));
 
-                _update(market, newMaker, newLong, newShort, collateral, wrapUpdate, interfaceFee);
+                _update(market, newMaker, newLong, newShort, collateral, wrap, interfaceFee);
             } else if (invocation.action == PerennialAction.UPDATE_VAULT) {
                 (IVault vault, UFixed6 depositAssets, UFixed6 redeemShares, UFixed6 claimAssets, bool wrap)
                     = abi.decode(invocation.args, (IVault, UFixed6, UFixed6, UFixed6, bool));

@@ -15,12 +15,6 @@ export type OrderStruct = {
   delta?: BigNumberish
 }
 
-export type InterfaceFeeStruct = {
-  amount: BigNumberish
-  wrap: boolean
-  to: string
-}
-
 export type Actions = IMultiInvoker.InvocationStruct[]
 
 export const buildUpdateMarket = ({
@@ -30,7 +24,7 @@ export const buildUpdateMarket = ({
   short,
   collateral,
   handleWrap,
-  feeStruct,
+  interfaceFee,
 }: {
   market: string
   maker?: BigNumberish
@@ -38,13 +32,13 @@ export const buildUpdateMarket = ({
   short?: BigNumberish
   collateral?: BigNumberish
   handleWrap?: boolean
-  feeStruct?: InterfaceFeeStruct
+  interfaceFee?: IMultiInvoker.InterfaceFeeStruct
 }): Actions => {
   return [
     {
       action: 1,
       args: utils.defaultAbiCoder.encode(
-        ['address', 'uint256', 'uint256', 'uint256', 'int256', 'bool', 'tuple(uint256,bool,address)'],
+        ['address', 'uint256', 'uint256', 'uint256', 'int256', 'bool', 'tuple(uint256,address,bool)'],
         [
           market,
           maker ?? MAX_UINT,
@@ -53,9 +47,9 @@ export const buildUpdateMarket = ({
           collateral ?? MIN_INT,
           handleWrap ?? false,
           [
-            feeStruct ? feeStruct.amount : 0,
-            feeStruct ? feeStruct.wrap : false,
-            feeStruct ? feeStruct.to : '0x0000000000000000000000000000000000000000',
+            interfaceFee ? interfaceFee.amount : 0,
+            interfaceFee ? interfaceFee.receiver : '0x0000000000000000000000000000000000000000',
+            interfaceFee ? interfaceFee.unwrap : false,
           ],
         ],
       ),
@@ -71,7 +65,7 @@ export const buildPlaceOrder = ({
   collateral,
   handleWrap,
   order,
-  fee,
+  interfaceFee,
 }: {
   market: string
   maker?: BigNumberish
@@ -80,13 +74,13 @@ export const buildPlaceOrder = ({
   collateral: BigNumberish
   handleWrap?: boolean
   order: TriggerOrderStruct
-  fee?: InterfaceFeeStruct
+  interfaceFee?: IMultiInvoker.InterfaceFeeStruct
 }): Actions => {
   return [
     {
       action: 1,
       args: utils.defaultAbiCoder.encode(
-        ['address', 'uint256', 'uint256', 'uint256', 'int256', 'bool', 'tuple(uint256,bool,address)'],
+        ['address', 'uint256', 'uint256', 'uint256', 'int256', 'bool', 'tuple(uint256,address,bool)'],
         [
           market,
           maker ?? MAX_UINT,
@@ -94,7 +88,11 @@ export const buildPlaceOrder = ({
           short ?? MAX_UINT,
           collateral ?? MIN_INT,
           handleWrap ?? false,
-          [fee ? fee.amount : 0, fee ? fee.wrap : false, fee ? fee.to : '0x0000000000000000000000000000000000000000'],
+          [
+            interfaceFee ? interfaceFee.amount : 0,
+            interfaceFee ? interfaceFee.receiver : '0x0000000000000000000000000000000000000000',
+            interfaceFee ? interfaceFee.unwrap : false,
+          ],
         ],
       ),
     },

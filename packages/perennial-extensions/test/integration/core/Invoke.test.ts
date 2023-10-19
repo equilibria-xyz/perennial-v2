@@ -489,16 +489,16 @@ describe('Invoke', () => {
           buildUpdateMarket({
             market: market.address,
             collateral: collateral,
-            feeStruct: {
-              to: owner.address,
+            interfaceFee: {
               amount: feeAmt,
-              wrap: true,
+              receiver: owner.address,
+              unwrap: true,
             },
           }),
         ),
       )
-        .to.emit(multiInvoker, 'FeeCharged')
-        .withArgs(user.address, market.address, owner.address, feeAmt, true)
+        .to.emit(multiInvoker, 'InterfaceFeeCharged')
+        .withArgs(user.address, market.address, [feeAmt, owner.address, true])
 
       expect((await usdc.balanceOf(owner.address)).sub(balanceBefore)).to.eq(feeAmt)
     })
@@ -517,16 +517,16 @@ describe('Invoke', () => {
           buildUpdateMarket({
             market: market.address,
             collateral: collateral,
-            feeStruct: {
-              to: owner.address,
+            interfaceFee: {
               amount: feeAmt,
-              wrap: false,
+              receiver: owner.address,
+              unwrap: false,
             },
           }),
         ),
       )
-        .to.emit(multiInvoker, 'FeeCharged')
-        .withArgs(user.address, market.address, owner.address, feeAmt, false)
+        .to.emit(multiInvoker, 'InterfaceFeeCharged')
+        .withArgs(user.address, market.address, [feeAmt, owner.address, false])
 
       expect((await dsu.balanceOf(owner.address)).sub(balanceBefore)).to.eq(feeAmt.mul(1e12))
     })
@@ -549,16 +549,16 @@ describe('Invoke', () => {
           buildUpdateMarket({
             market: market.address,
             collateral: collateral.sub(feeAmt).mul(-1),
-            feeStruct: {
-              to: owner.address,
+            interfaceFee: {
               amount: feeAmt,
-              wrap: true,
+              receiver: owner.address,
+              unwrap: true,
             },
           }),
         ),
       )
-        .to.emit(multiInvoker, 'FeeCharged')
-        .withArgs(user.address, market.address, owner.address, feeAmt, true)
+        .to.emit(multiInvoker, 'InterfaceFeeCharged')
+        .withArgs(user.address, market.address, [feeAmt, owner.address, true])
 
       expect((await usdc.balanceOf(owner.address)).sub(balanceBefore)).to.eq(feeAmt)
     })
@@ -581,16 +581,16 @@ describe('Invoke', () => {
           buildUpdateMarket({
             market: market.address,
             collateral: collateral.sub(feeAmt).mul(-1),
-            feeStruct: {
-              to: owner.address,
+            interfaceFee: {
               amount: feeAmt,
-              wrap: false,
+              receiver: owner.address,
+              unwrap: false,
             },
           }),
         ),
       )
-        .to.emit(multiInvoker, 'FeeCharged')
-        .withArgs(user.address, market.address, owner.address, feeAmt, false)
+        .to.emit(multiInvoker, 'InterfaceFeeCharged')
+        .withArgs(user.address, market.address, [feeAmt, owner.address, false])
 
       expect((await dsu.balanceOf(owner.address)).sub(balanceBefore)).to.eq(feeAmt.mul(1e12))
     })
