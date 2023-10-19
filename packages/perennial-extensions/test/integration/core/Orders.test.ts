@@ -141,7 +141,7 @@ describe('Orders', () => {
     const execute = buildExecOrder({ user: user.address, market: market.address, orderId: 1 })
     await expect(multiInvoker.connect(user).invoke(execute))
       .to.emit(multiInvoker, 'OrderExecuted')
-      .withArgs(user.address, market.address, 1, anyValue)
+      .withArgs(user.address, market.address, 1)
       .to.emit(multiInvoker, 'KeeperCall')
   })
 
@@ -172,7 +172,7 @@ describe('Orders', () => {
     const execute = buildExecOrder({ user: user.address, market: market.address, orderId: 1 })
     await expect(multiInvoker.connect(user).invoke(execute))
       .to.emit(multiInvoker, 'OrderExecuted')
-      .withArgs(user.address, market.address, 1, anyValue)
+      .withArgs(user.address, market.address, 1)
       .to.emit(multiInvoker, 'KeeperCall')
   })
 
@@ -204,7 +204,7 @@ describe('Orders', () => {
     const execute = buildExecOrder({ user: user.address, market: market.address, orderId: 1 })
     await expect(multiInvoker.connect(user).invoke(execute))
       .to.emit(multiInvoker, 'OrderExecuted')
-      .withArgs(user.address, market.address, 1, anyValue)
+      .withArgs(user.address, market.address, 1)
       .to.emit(multiInvoker, 'KeeperCall')
   })
 
@@ -236,7 +236,7 @@ describe('Orders', () => {
     const execute = buildExecOrder({ user: user.address, market: market.address, orderId: 1 })
     await expect(multiInvoker.connect(user).invoke(execute))
       .to.emit(multiInvoker, 'OrderExecuted')
-      .withArgs(user.address, market.address, 1, anyValue)
+      .withArgs(user.address, market.address, 1)
       .to.emit(multiInvoker, 'KeeperCall')
   })
 
@@ -268,7 +268,7 @@ describe('Orders', () => {
     const execute = buildExecOrder({ user: user.address, market: market.address, orderId: 1 })
     await expect(multiInvoker.connect(user).invoke(execute))
       .to.emit(multiInvoker, 'OrderExecuted')
-      .withArgs(user.address, market.address, 1, anyValue)
+      .withArgs(user.address, market.address, 1)
       .to.emit(multiInvoker, 'KeeperCall')
   })
 
@@ -299,7 +299,7 @@ describe('Orders', () => {
     const execute = buildExecOrder({ user: user.address, market: market.address, orderId: 1 })
     await expect(multiInvoker.connect(user).invoke(execute))
       .to.emit(multiInvoker, 'OrderExecuted')
-      .withArgs(user.address, market.address, 1, anyValue)
+      .withArgs(user.address, market.address, 1)
       .to.emit(multiInvoker, 'KeeperCall')
   })
 
@@ -329,7 +329,7 @@ describe('Orders', () => {
     const execute = buildExecOrder({ user: userB.address, market: market.address, orderId: 1 })
     await expect(multiInvoker.connect(userB).invoke(execute))
       .to.emit(multiInvoker, 'OrderExecuted')
-      .withArgs(userB.address, market.address, 1, anyValue)
+      .withArgs(userB.address, market.address, 1)
       .to.emit(multiInvoker, 'KeeperCall')
   })
 
@@ -360,7 +360,7 @@ describe('Orders', () => {
     const execute = buildExecOrder({ user: userB.address, market: market.address, orderId: 1 })
     await expect(multiInvoker.connect(userB).invoke(execute))
       .to.emit(multiInvoker, 'OrderExecuted')
-      .withArgs(userB.address, market.address, 1, anyValue)
+      .withArgs(userB.address, market.address, 1)
       .to.emit(multiInvoker, 'KeeperCall')
   })
 
@@ -392,7 +392,7 @@ describe('Orders', () => {
     const execute = buildExecOrder({ user: userB.address, market: market.address, orderId: 1 })
     await expect(multiInvoker.connect(userB).invoke(execute))
       .to.emit(multiInvoker, 'OrderExecuted')
-      .withArgs(userB.address, market.address, 1, anyValue)
+      .withArgs(userB.address, market.address, 1)
       .to.emit(multiInvoker, 'KeeperCall')
   })
 

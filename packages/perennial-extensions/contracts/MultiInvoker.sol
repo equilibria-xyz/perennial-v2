@@ -450,7 +450,7 @@ contract MultiInvoker is IMultiInvoker, Kept {
             false
         ) {
             delete _orders[account][market][nonce];
-            emit OrderExecuted(account, market, nonce, market.locals(account).currentId);
+            emit OrderExecuted(account, market, nonce);
         } catch (bytes memory reason) {
             if (revertOnFailure) Address.verifyCallResult(false, reason, "");
         }
