@@ -40,7 +40,7 @@ interface IMultiInvoker {
 
     event KeeperFeeCharged(address indexed account, address indexed market, address indexed to, UFixed6 fee);
     event OrderPlaced(address indexed account, IMarket indexed market, uint256 indexed nonce, TriggerOrder order);
-    event OrderExecuted(address indexed account, IMarket indexed market, uint256 nonce, uint256 positionId);
+    event OrderExecuted(address indexed account, IMarket indexed market, uint256 nonce);
     event OrderCancelled(address indexed account, IMarket indexed market, uint256 nonce);
     event FeeCharged(address indexed account, address indexed to, UFixed6 amount, bool wrap);
 

@@ -1,22 +1,33 @@
 // SPDX-License-Identifier: Apache-2.0
 pragma solidity 0.8.19;
 
+import "@openzeppelin/contracts/utils/math/SafeCast.sol";
 import "@equilibria/root/attribute/Factory.sol";
+import "@equilibria/root/attribute/Kept/Kept.sol";
 import "@pythnetwork/pyth-sdk-solidity/AbstractPyth.sol";
 import "../interfaces/IPythFactory.sol";
 import "../interfaces/IOracleFactory.sol";
 
 /// @title PythFactory
 /// @notice Factory contract for creating and managing Pyth oracles
-contract PythFactory is IPythFactory, Factory {
+contract PythFactory is IPythFactory, Factory, Kept {
+    /// @dev A Pyth update must come at least this long after a version to be valid
+    uint256 constant public MIN_VALID_TIME_AFTER_VERSION = 4 seconds;
+
+    /// @dev A Pyth update must come at most this long after a version to be valid
+    uint256 constant public MAX_VALID_TIME_AFTER_VERSION = 10 seconds;
+
+    /// @dev The multiplier for the keeper reward on top of cost
+    UFixed18 constant public KEEPER_REWARD_PREMIUM = UFixed18.wrap(3e18);
+
+    /// @dev The fixed gas buffer that is added to the keeper reward
+    uint256 constant public KEEPER_BUFFER = 1_000_000;
+
     /// @notice The maximum value for granularity
     uint256 public constant MAX_GRANULARITY = 1 hours;
 
-    /// @notice The legacy Chainlink price feed for ETH/USD used to calculate the keeper reward
-    AggregatorV3Interface public immutable ethTokenChainlinkFeed;
-
-    /// @notice The token that is paid out as a reward to oracle keepers
-    Token18 public immutable keeperToken;
+    /// @dev Pyth contract
+    AbstractPyth public immutable pyth;
 
     /// @notice The root oracle factory
     IOracleFactory public oracleFactory;
@@ -31,18 +42,21 @@ contract PythFactory is IPythFactory, Factory {
     Granularity private _granularity;
 
     /// @notice Initializes the immutable contract state
+    /// @param pyth_ Pyth contract
     /// @param implementation_ IPythOracle implementation contract
-    /// @param chainlinkFeed_ Chainlink price feed for rewarding keeper in DSU
-    /// @param dsu_ Token to pay the keeper reward in
-    constructor(address implementation_, AggregatorV3Interface chainlinkFeed_, Token18 dsu_) Factory(implementation_) {
-        ethTokenChainlinkFeed = chainlinkFeed_;
-        keeperToken = dsu_;
+    constructor(AbstractPyth pyth_, address implementation_) Factory(implementation_) {
+        pyth = pyth_;
     }
 
     /// @notice Initializes the contract state
     /// @param oracleFactory_ The root oracle factory
-    function initialize(IOracleFactory oracleFactory_) external initializer(1) {
+    function initialize(
+        IOracleFactory oracleFactory_,
+        AggregatorV3Interface chainlinkFeed_,
+        Token18 dsu_
+    ) external initializer(1) {
         __Factory__initialize();
+        __Kept__initialize(chainlinkFeed_, dsu_);
 
         oracleFactory = oracleFactory_;
         _granularity = Granularity(0, 1, 0);
@@ -59,9 +73,9 @@ contract PythFactory is IPythFactory, Factory {
     /// @return newOracle The newly created oracle instance
     function create(bytes32 id) external onlyOwner returns (IPythOracle newOracle) {
         if (oracles[id] != IOracleProvider(address(0))) revert PythFactoryAlreadyCreatedError();
+        if (!pyth.priceFeedExists(id)) revert PythFactoryInvalidIdError();
 
-        newOracle = IPythOracle(address(
-            _create(abi.encodeCall(IPythOracle.initialize, (id, ethTokenChainlinkFeed, keeperToken)))));
+        newOracle = IPythOracle(address(_create(abi.encodeCall(IPythOracle.initialize, (id)))));
         oracles[id] = newOracle;
 
         emit OracleCreated(newOracle, id);
@@ -76,6 +90,40 @@ contract PythFactory is IPythFactory, Factory {
             uint256(_granularity.currentGranularity);
 
         return Math.ceilDiv(block.timestamp, effectiveGranularity) * effectiveGranularity;
+    }
+
+    /// @notice Commits the price to specified version
+    /// @dev Accepts both requested and non-requested versions.
+    ///      Requested versions will pay out a keeper reward, non-requested versions will not.
+    ///      Accepts any publish time in the underlying price message, as long as it is within the validity window,
+    ///      which means its possible for publish times to be slightly out of order with respect to versions.
+    ///      Batched updates are supported by passing in a list of price feed ids along with a valid batch update data.
+    /// @param ids The list of price feed ids to commit
+    /// @param version The oracle version to commit
+    /// @param data The update data to commit
+    function commit(bytes32[] memory ids, uint256 version, bytes calldata data) external payable {
+        bool valid = data.length != 0;
+        Fixed6[] memory prices = valid ? _parsePrices(ids, version, data) : new Fixed6[](ids.length);
+
+        for (uint256 i; i < ids.length; i++)
+            if (IPythOracle(address(oracles[ids[i]])).commit(OracleVersion(version, prices[i], valid)))
+                _handleKeep(ids[i], version, prices[i]);
+    }
+
+    /// @notice Handles paying out one instance of a keeper reward for a requested version
+    /// @param id The id of the price feed
+    /// @param version The oracle version to commit
+    /// @param price The price of version to commit
+    function _handleKeep(bytes32 id, uint256 version, Fixed6 price)
+        private
+        keep(KEEPER_REWARD_PREMIUM, KEEPER_BUFFER, abi.encode(id, version, price), "") // TODO: add calldata buffer
+    { }
+
+    /// @notice Pulls funds from the factory to reward the keeper
+    /// @param keeperFee The keeper fee to pull
+    function _raiseKeeperFee(UFixed18 keeperFee, bytes memory) internal virtual override {
+        UFixed6 amount = UFixed6Lib.from(keeperFee, true);
+        oracleFactory.claim(amount);
     }
 
     /// @notice Returns the granularity
@@ -100,14 +148,6 @@ contract PythFactory is IPythFactory, Factory {
         emit GranularityUpdated(newGranularity, _current);
     }
 
-    /// @notice Claims an amount of incentive tokens, to be paid out as a reward to the keeper
-    /// @dev Can only be called by an instance of the factory
-    /// @param amount The amount of tokens to claim
-    function claim(UFixed6 amount) external onlyInstance {
-        oracleFactory.claim(amount);
-        keeperToken.push(msg.sender, UFixed18Lib.from(amount));
-    }
-
     /// @notice Returns whether a caller is authorized to request from this factory's instances
     /// @param caller The caller to check
     /// @return Whether the caller is authorized
@@ -116,5 +156,34 @@ contract PythFactory is IPythFactory, Factory {
         IFactory callerFactory = callerInstance.factory();
         if (!callerFactory.instances(callerInstance)) return false;
         return callers[callerFactory];
+    }
+
+    /// @notice Validates and parses the update data payload against the specified version
+    /// @param ids The list of price feed ids validate against
+    /// @param version The oracle version to validate against
+    /// @param data The update data to validate
+    /// @return prices The parsed price list if valid
+    function _parsePrices(
+        bytes32[] memory ids,
+        uint256 version,
+        bytes calldata data
+    ) private returns (Fixed6[] memory prices) {
+        prices = new Fixed6[](ids.length);
+        bytes[] memory datas = new bytes[](1);
+        datas[0] = data;
+
+        PythStructs.PriceFeed[] memory parsedPrices = pyth.parsePriceFeedUpdates{value: msg.value}(
+            datas,
+            ids,
+            SafeCast.toUint64(version + MIN_VALID_TIME_AFTER_VERSION),
+            SafeCast.toUint64(version + MAX_VALID_TIME_AFTER_VERSION)
+        );
+
+        for (uint256 i; i < parsedPrices.length; i++) {
+            (Fixed6 significand, int256 exponent) =
+                (Fixed6.wrap(parsedPrices[i].price.price), parsedPrices[i].price.expo + 6);
+            Fixed6 base = Fixed6Lib.from(int256(10 ** SignedMath.abs(exponent)));
+            prices[i] = exponent < 0 ? significand.div(base) : significand.mul(base);
+        }
     }
 }

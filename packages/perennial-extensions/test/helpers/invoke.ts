@@ -120,11 +120,19 @@ export const buildUpdateVault = (vaultUpdate: VaultUpdate): Actions => {
   ]
 }
 
-export const buildLiquidateUser = ({ user, market }: { market: string; user: string }): Actions => {
+export const buildLiquidateUser = ({
+  user,
+  market,
+  revertOnFailure,
+}: {
+  market: string
+  user: string
+  revertOnFailure?: boolean
+}): Actions => {
   return [
     {
       action: 7,
-      args: utils.defaultAbiCoder.encode(['address', 'address'], [market, user]),
+      args: utils.defaultAbiCoder.encode(['address', 'address', 'bool'], [market, user, revertOnFailure ?? true]),
     },
   ]
 }
@@ -151,15 +159,20 @@ export const buildExecOrder = ({
   user,
   market,
   orderId,
+  revertOnFailure,
 }: {
   user: string
   market: string
   orderId: BigNumberish
+  revertOnFailure?: boolean
 }): Actions => {
   return [
     {
       action: 5,
-      args: utils.defaultAbiCoder.encode(['address', 'address', 'uint256'], [user, market, orderId]),
+      args: utils.defaultAbiCoder.encode(
+        ['address', 'address', 'uint256', 'bool'],
+        [user, market, orderId, revertOnFailure ?? true],
+      ),
     },
   ]
 }
@@ -183,6 +196,7 @@ export const buildChargeFee = ({
 
 module.exports = {
   MAX_INT,
+  MAX_UINT,
   buildCancelOrder,
   buildExecOrder,
   buildPlaceOrder,

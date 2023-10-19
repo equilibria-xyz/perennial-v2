@@ -8,7 +8,7 @@ import { expect } from 'chai'
 import { parse6decimal } from '../../../../common/testutil/types'
 import { Market, MultiInvoker } from '../../../types/generated'
 import { Compare, Dir, openTriggerOrder } from '../../helpers/types'
-import { buildCancelOrder, buildExecOrder, buildPlaceOrder } from '../../helpers/invoke'
+import { buildCancelOrder, buildExecOrder, buildPlaceOrder, buildUpdateMarket } from '../../helpers/invoke'
 import { loadFixture } from '@nomicfoundation/hardhat-network-helpers'
 import { TriggerOrderStruct } from '../../../types/generated/contracts/MultiInvoker'
 import { SignerWithAddress } from '@nomiclabs/hardhat-ethers/signers'
@@ -31,7 +31,7 @@ describe('Orders', () => {
     instanceVars = await loadFixture(deployProtocol)
     await instanceVars.chainlink.reset()
 
-    const { user, userB, userC, dsu, chainlink } = instanceVars
+    const { user, userB, dsu, chainlink } = instanceVars
 
     market = await createMarket(instanceVars)
     multiInvoker = await createInvoker(instanceVars)
@@ -138,7 +138,7 @@ describe('Orders', () => {
     const execute = buildExecOrder({ user: user.address, market: market.address, orderId: 1 })
     await expect(multiInvoker.connect(user).invoke(execute))
       .to.emit(multiInvoker, 'OrderExecuted')
-      .withArgs(user.address, market.address, 1, anyValue)
+      .withArgs(user.address, market.address, 1)
       .to.emit(multiInvoker, 'KeeperCall')
   })
 
@@ -168,7 +168,7 @@ describe('Orders', () => {
     const execute = buildExecOrder({ user: user.address, market: market.address, orderId: 1 })
     await expect(multiInvoker.connect(user).invoke(execute))
       .to.emit(multiInvoker, 'OrderExecuted')
-      .withArgs(user.address, market.address, 1, anyValue)
+      .withArgs(user.address, market.address, 1)
       .to.emit(multiInvoker, 'KeeperCall')
   })
 
@@ -199,7 +199,7 @@ describe('Orders', () => {
     const execute = buildExecOrder({ user: user.address, market: market.address, orderId: 1 })
     await expect(multiInvoker.connect(user).invoke(execute))
       .to.emit(multiInvoker, 'OrderExecuted')
-      .withArgs(user.address, market.address, 1, anyValue)
+      .withArgs(user.address, market.address, 1)
       .to.emit(multiInvoker, 'KeeperCall')
   })
 
@@ -230,7 +230,7 @@ describe('Orders', () => {
     const execute = buildExecOrder({ user: user.address, market: market.address, orderId: 1 })
     await expect(multiInvoker.connect(user).invoke(execute))
       .to.emit(multiInvoker, 'OrderExecuted')
-      .withArgs(user.address, market.address, 1, anyValue)
+      .withArgs(user.address, market.address, 1)
       .to.emit(multiInvoker, 'KeeperCall')
   })
 
@@ -261,7 +261,7 @@ describe('Orders', () => {
     const execute = buildExecOrder({ user: user.address, market: market.address, orderId: 1 })
     await expect(multiInvoker.connect(user).invoke(execute))
       .to.emit(multiInvoker, 'OrderExecuted')
-      .withArgs(user.address, market.address, 1, anyValue)
+      .withArgs(user.address, market.address, 1)
       .to.emit(multiInvoker, 'KeeperCall')
   })
 
@@ -291,7 +291,7 @@ describe('Orders', () => {
     const execute = buildExecOrder({ user: user.address, market: market.address, orderId: 1 })
     await expect(multiInvoker.connect(user).invoke(execute))
       .to.emit(multiInvoker, 'OrderExecuted')
-      .withArgs(user.address, market.address, 1, anyValue)
+      .withArgs(user.address, market.address, 1)
       .to.emit(multiInvoker, 'KeeperCall')
   })
 
@@ -320,7 +320,7 @@ describe('Orders', () => {
     const execute = buildExecOrder({ user: userB.address, market: market.address, orderId: 1 })
     await expect(multiInvoker.connect(userB).invoke(execute))
       .to.emit(multiInvoker, 'OrderExecuted')
-      .withArgs(userB.address, market.address, 1, anyValue)
+      .withArgs(userB.address, market.address, 1)
       .to.emit(multiInvoker, 'KeeperCall')
   })
 
@@ -350,7 +350,7 @@ describe('Orders', () => {
     const execute = buildExecOrder({ user: userB.address, market: market.address, orderId: 1 })
     await expect(multiInvoker.connect(userB).invoke(execute))
       .to.emit(multiInvoker, 'OrderExecuted')
-      .withArgs(userB.address, market.address, 1, anyValue)
+      .withArgs(userB.address, market.address, 1)
       .to.emit(multiInvoker, 'KeeperCall')
   })
 
@@ -381,7 +381,7 @@ describe('Orders', () => {
     const execute = buildExecOrder({ user: userB.address, market: market.address, orderId: 1 })
     await expect(multiInvoker.connect(userB).invoke(execute))
       .to.emit(multiInvoker, 'OrderExecuted')
-      .withArgs(userB.address, market.address, 1, anyValue)
+      .withArgs(userB.address, market.address, 1)
       .to.emit(multiInvoker, 'KeeperCall')
   })
 
@@ -416,6 +416,61 @@ describe('Orders', () => {
       .to.emit(multiInvoker, 'KeeperCall')
       .to.emit(market, 'Updated')
       .withArgs(multiInvoker.address, userB.address, anyValue, anyValue, anyValue, anyValue, collateral.div(-4), false)
+  })
+
+  it('soft reverts on failed execute order', async () => {
+    const { user, chainlink } = instanceVars
+
+    const trigger = openTriggerOrder({
+      delta: userPosition,
+      price: payoff(marketPrice.add(10)),
+      fee: 50,
+      side: Dir.S,
+      comparison: Compare.BELOW_MARKET,
+    })
+
+    const placeOrder = buildPlaceOrder({
+      market: market.address,
+      order: trigger,
+      collateral: collateral,
+    })
+
+    await multiInvoker.connect(user).invoke(placeOrder)
+    expect(await multiInvoker.canExecuteOrder(user.address, market.address, 1)).to.be.false
+
+    await chainlink.nextWithPriceModification(() => marketPrice.add(11))
+    await settle(market, user)
+
+    // make collateral insufficient to update market on order execution
+    await multiInvoker
+      .connect(user)
+      .invoke(
+        buildUpdateMarket({ market: market.address, collateral: BigNumber.from(collateral).mul(99).div(100).mul(-1) }),
+      )
+
+    await expect(
+      multiInvoker
+        .connect(user)
+        .invoke(buildExecOrder({ user: user.address, market: market.address, orderId: 1, revertOnFailure: true })),
+    ).to.be.reverted
+
+    await ethers.provider.send('hardhat_setNextBlockBaseFeePerGas', ['0x1'])
+    await expect(
+      multiInvoker
+        .connect(user)
+        .invoke(buildExecOrder({ user: user.address, market: market.address, orderId: 1, revertOnFailure: false })),
+    ).to.not.be.reverted
+
+    // add collateral back
+    await multiInvoker.connect(user).invoke(buildUpdateMarket({ market: market.address, collateral: collateral }))
+
+    // soft-reverted order with collateral added back was not deleted, can be executed
+    await ethers.provider.send('hardhat_setNextBlockBaseFeePerGas', ['0x1'])
+    await expect(
+      multiInvoker
+        .connect(user)
+        .invoke(buildExecOrder({ user: user.address, market: market.address, orderId: 1, revertOnFailure: true })),
+    ).to.not.be.reverted
   })
 
   describe('Sad path :(', () => {
