@@ -418,7 +418,7 @@ describe('Orders', () => {
       .withArgs(multiInvoker.address, userB.address, anyValue, anyValue, anyValue, anyValue, collateral.div(-4), false)
   })
 
-  it.only('executes a maker, long, and short magic close all order', async () => {
+  it('executes a maker, long, and short magic close all order', async () => {
     const { user, chainlink } = instanceVars
 
     // ------------------- Maker close all ------------------------- //
