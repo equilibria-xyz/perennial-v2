@@ -43,7 +43,7 @@ const VALID_POSITION: PositionStruct = {
   },
 }
 
-describe.only('Order', () => {
+describe('Order', () => {
   let owner: SignerWithAddress
 
   let order: OrderTester
