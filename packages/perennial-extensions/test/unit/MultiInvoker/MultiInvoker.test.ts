@@ -357,9 +357,8 @@ describe('MultiInvoker', () => {
 
     it('places a limit order', async () => {
       const trigger = openTriggerOrder({
-        size: position,
+        delta: position,
         side: Dir.L,
-        orderType: 'LM',
         comparison: Compare.ABOVE_MARKET,
         price: price,
       })
@@ -388,10 +387,9 @@ describe('MultiInvoker', () => {
 
     it('places a tp order', async () => {
       let trigger = openTriggerOrder({
-        size: position,
+        delta: position.mul(-1),
         price: BigNumber.from(1100e6),
         side: Dir.S,
-        orderType: 'TG',
         comparison: Compare.ABOVE_MARKET,
       })
       let i = buildPlaceOrder({ market: market.address, short: position, collateral: collateral, order: trigger })
@@ -400,10 +398,9 @@ describe('MultiInvoker', () => {
       // mkt price >= trigger price (false)
       expect(await multiInvoker.canExecuteOrder(user.address, market.address, 1)).to.be.false
       trigger = openTriggerOrder({
-        size: position,
+        delta: position.mul(-1),
         price: BigNumber.from(1200e6),
         side: Dir.L,
-        orderType: 'TG',
         comparison: Compare.ABOVE_MARKET,
       })
       i = buildPlaceOrder({ market: market.address, short: position, collateral: collateral, order: trigger })
@@ -417,10 +414,9 @@ describe('MultiInvoker', () => {
     it('places a sl order', async () => {
       // order cannot be stopped
       let trigger = openTriggerOrder({
-        size: position,
+        delta: position.mul(-1),
         price: BigNumber.from(1200e6),
         side: Dir.S,
-        orderType: 'TG',
         comparison: Compare.BELOW_MARKET,
       })
       let i = buildPlaceOrder({ market: market.address, short: position, collateral: collateral, order: trigger })
@@ -432,10 +428,35 @@ describe('MultiInvoker', () => {
 
       // order can be stopped
       trigger = openTriggerOrder({
-        size: position,
+        delta: position.mul(-1),
         price: BigNumber.from(1100e6),
         side: Dir.L,
-        orderType: 'TG',
+        comparison: Compare.BELOW_MARKET,
+      })
+      i = buildPlaceOrder({ market: market.address, short: position, collateral: collateral, order: trigger })
+      await expect(multiInvoker.connect(user).invoke(i)).to.not.be.reverted
+
+      expect(await multiInvoker.canExecuteOrder(user.address, market.address, 2)).to.be.true
+    })
+
+    it('places a withdraw order', async () => {
+      let trigger = openTriggerOrder({
+        delta: collateral.div(-4),
+        price: BigNumber.from(1200e6),
+        side: Dir.C,
+        comparison: Compare.BELOW_MARKET,
+      })
+      let i = buildPlaceOrder({ market: market.address, short: position, collateral: collateral, order: trigger })
+      setMarketPosition(market, user, defaultPosition)
+
+      await expect(multiInvoker.connect(user).invoke(i)).to.not.be.reverted
+
+      expect(await multiInvoker.canExecuteOrder(user.address, market.address, 1)).to.be.false
+
+      trigger = openTriggerOrder({
+        delta: collateral.div(-4),
+        price: BigNumber.from(1100e6),
+        side: Dir.C,
         comparison: Compare.BELOW_MARKET,
       })
       i = buildPlaceOrder({ market: market.address, short: position, collateral: collateral, order: trigger })
@@ -449,10 +470,9 @@ describe('MultiInvoker', () => {
 
       // place the order to cancel
       const trigger = openTriggerOrder({
-        size: position,
+        delta: position,
         price: price,
         side: Dir.L,
-        orderType: 'LM',
         comparison: Compare.ABOVE_MARKET,
       })
       const placeAction = buildPlaceOrder({
@@ -483,10 +503,9 @@ describe('MultiInvoker', () => {
         ).to.be.revertedWithCustomError(multiInvoker, 'MultiInvokerInvalidInstanceError')
 
         const trigger = openTriggerOrder({
-          size: collateral,
+          delta: collateral,
           price: 1100e6,
           side: Dir.L,
-          orderType: 'LM',
           comparison: Compare.ABOVE_MARKET,
         })
 
@@ -500,10 +519,9 @@ describe('MultiInvoker', () => {
       it('reverts placeOrder on InvalidOrderError', async () => {
         // Case 0 fee
         let trigger = openTriggerOrder({
-          size: position,
+          delta: position,
           price: BigNumber.from(1100e6),
           side: Dir.L,
-          orderType: 'LM',
           comparison: Compare.ABOVE_MARKET,
           fee: 0,
         })
@@ -523,10 +541,9 @@ describe('MultiInvoker', () => {
         // -------------------------------------------------------------------------------------- //
         // case 2 < comparisson  || < -2
         trigger = openTriggerOrder({
-          size: position,
+          delta: position,
           price: BigNumber.from(1100e6),
           side: Dir.L,
-          orderType: 'LM',
           comparison: -3,
         })
 
@@ -543,10 +560,9 @@ describe('MultiInvoker', () => {
         )
 
         trigger = openTriggerOrder({
-          size: position,
+          delta: position,
           price: BigNumber.from(1100e6),
           side: Dir.L,
-          orderType: 'LM',
           comparison: 3,
         })
 
@@ -563,11 +579,31 @@ describe('MultiInvoker', () => {
         )
 
         // -------------------------------------------------------------------------------------- //
-        // case side > 2
+        // case side > 3
         trigger = openTriggerOrder({
-          size: position,
+          delta: position,
           price: BigNumber.from(1100e6),
-          orderType: 'LM',
+          comparison: Compare.ABOVE_MARKET,
+          side: 4,
+        })
+
+        placeOrder = buildPlaceOrder({
+          market: market.address,
+          collateral: collateral,
+          long: BigNumber.from(trigger.delta).abs(),
+          order: trigger,
+        })
+
+        await expect(multiInvoker.connect(user).invoke(placeOrder)).to.be.revertedWithCustomError(
+          multiInvoker,
+          'MultiInvokerInvalidOrderError',
+        )
+
+        // -------------------------------------------------------------------------------------- //
+        // case side = 3, delta >= 0
+        trigger = openTriggerOrder({
+          delta: collateral,
+          price: BigNumber.from(1100e6),
           comparison: Compare.ABOVE_MARKET,
           side: 3,
         })
@@ -600,10 +636,9 @@ describe('MultiInvoker', () => {
       it('executes a long limit order', async () => {
         // long limit: mkt price <= exec price
         const trigger = openTriggerOrder({
-          size: position,
+          delta: position,
           price: BigNumber.from(1200e6),
           side: Dir.L,
-          orderType: 'LM',
           comparison: Compare.ABOVE_MARKET,
         })
 
@@ -627,10 +662,9 @@ describe('MultiInvoker', () => {
       it('executes a short limit order', async () => {
         // set short position in market
         const triggerOrder = openTriggerOrder({
-          size: position,
+          delta: position,
           price: BigNumber.from(1000e6),
           side: Dir.S,
-          orderType: 'LM',
           comparison: Compare.BELOW_MARKET,
         })
 
@@ -656,10 +690,9 @@ describe('MultiInvoker', () => {
       it('execues a short sl order', async () => {
         // set short position in market
         const triggerOrder = openTriggerOrder({
-          size: position,
+          delta: position.mul(-1),
           price: BigNumber.from(1100e6),
           side: Dir.S,
-          orderType: 'TG',
           comparison: Compare.BELOW_MARKET,
         })
 
@@ -683,10 +716,9 @@ describe('MultiInvoker', () => {
 
       it('executes a long sl order', async () => {
         const triggerOrder = openTriggerOrder({
-          size: position,
+          delta: position.mul(-1),
           price: BigNumber.from(1200e6),
           side: Dir.L,
-          orderType: 'TG',
           comparison: Compare.ABOVE_MARKET,
         })
 
@@ -710,10 +742,9 @@ describe('MultiInvoker', () => {
 
       it('executes a maker limit order', async () => {
         const triggerOrder = openTriggerOrder({
-          size: position,
+          delta: position,
           price: BigNumber.from(1200e6),
           side: Dir.M,
-          orderType: 'LM',
           comparison: Compare.ABOVE_MARKET,
         })
 
@@ -733,10 +764,34 @@ describe('MultiInvoker', () => {
 
       it('executes a maker trigger order', async () => {
         const triggerOrder = openTriggerOrder({
-          size: position,
+          delta: position.mul(-1),
           price: BigNumber.from(1100e6),
           side: Dir.M,
-          orderType: 'TG',
+          comparison: Compare.BELOW_MARKET,
+        })
+
+        const placeOrder = buildPlaceOrder({
+          market: market.address,
+          collateral: collateral,
+          maker: position,
+          order: triggerOrder,
+        })
+
+        const pending = openPosition({ maker: BigNumber.from(triggerOrder.delta).abs(), collateral: collateral })
+        setPendingPosition(market, user, '0', pending)
+
+        await multiInvoker.connect(user).invoke(placeOrder)
+        const execOrder = buildExecOrder({ user: user.address, market: market.address, orderId: 1 })
+        await expect(await multiInvoker.connect(user).invoke(execOrder))
+          .to.emit(multiInvoker, 'OrderExecuted')
+          .to.emit(multiInvoker, 'KeeperCall')
+      })
+
+      it('executes a withdrawal trigger order', async () => {
+        const triggerOrder = openTriggerOrder({
+          delta: collateral.div(-4),
+          price: BigNumber.from(1100e6),
+          side: Dir.C,
           comparison: Compare.BELOW_MARKET,
         })
 
@@ -760,10 +815,9 @@ describe('MultiInvoker', () => {
       it('executes an order and charges keeper fee to sender', async () => {
         // long limit: limit = true && mkt price (1150) <= exec price 1200
         const trigger = openTriggerOrder({
-          size: position,
+          delta: position,
           price: BigNumber.from(1200e6),
           side: Dir.L,
-          orderType: 'LM',
           comparison: Compare.ABOVE_MARKET,
         })
         const pending = openPosition({ long: BigNumber.from(trigger.delta).abs(), collateral: collateral })

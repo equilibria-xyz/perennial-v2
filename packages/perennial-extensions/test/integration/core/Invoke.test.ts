@@ -550,10 +550,9 @@ describe('Invoke', () => {
       const { user } = instanceVars
 
       const trigger = openTriggerOrder({
-        size: collateral,
+        delta: collateral,
         price: 1100e6,
         side: Dir.L,
-        orderType: 'LM',
         comparison: Compare.ABOVE_MARKET,
       })
       await expect(
