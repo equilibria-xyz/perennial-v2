@@ -120,10 +120,10 @@ contract MultiInvoker is IMultiInvoker, Kept {
                     UFixed6 newShort,
                     Fixed6 collateral,
                     bool wrapUpdate,
-                    InterfaceFeeInfo memory feeInfo
-                ) = abi.decode(invocation.args, (IMarket, UFixed6, UFixed6, UFixed6, Fixed6, bool, InterfaceFeeInfo));
+                    InterfaceFee memory interfaceFee
+                ) = abi.decode(invocation.args, (IMarket, UFixed6, UFixed6, UFixed6, Fixed6, bool, InterfaceFee));
 
-                _update(market, newMaker, newLong, newShort, collateral, wrapUpdate, feeInfo);
+                _update(market, newMaker, newLong, newShort, collateral, wrapUpdate, interfaceFee);
             } else if (invocation.action == PerennialAction.UPDATE_VAULT) {
                 (IVault vault, UFixed6 depositAssets, UFixed6 redeemShares, UFixed6 claimAssets, bool wrap)
                     = abi.decode(invocation.args, (IVault, UFixed6, UFixed6, UFixed6, bool));
@@ -166,6 +166,7 @@ contract MultiInvoker is IMultiInvoker, Kept {
     /// @param newShort New short position for msg.sender in `market`
     /// @param collateral Net change in collateral for msg.sender in `market`
     /// @param wrap Wheather to wrap/unwrap collateral on deposit/withdrawal
+    /// @param interfaceFee Interface fee to charge
     function _update(
         IMarket market,
         UFixed6 newMaker,
@@ -173,7 +174,7 @@ contract MultiInvoker is IMultiInvoker, Kept {
         UFixed6 newShort,
         Fixed6 collateral,
         bool wrap,
-        InterfaceFeeInfo memory feeInfo
+        InterfaceFee memory interfaceFee
     ) internal isMarketInstance(market) {
         Fixed18 balanceBefore =  Fixed18Lib.from(DSU.balanceOf());
 
@@ -187,8 +188,8 @@ contract MultiInvoker is IMultiInvoker, Kept {
         Fixed6 withdrawAmount = Fixed6Lib.from(Fixed18Lib.from(DSU.balanceOf()).sub(balanceBefore));
         if (!withdrawAmount.isZero()) _withdraw(msg.sender, withdrawAmount.abs(), wrap);
 
-        // charge interface fee from collateral
-        _chargeFee(market, collateral, feeInfo);
+        // charge interface fee
+        _chargeFee(market, interfaceFee);
     }
 
     /// @notice Update vault on behalf of msg.sender
@@ -255,34 +256,24 @@ contract MultiInvoker is IMultiInvoker, Kept {
     }
 
     /// @notice Charges an interface fee from collateral in this address during an update to a receiver
-    /// @param market Market to emit in fee event for context
-    /// @param collateral Amount of DSU in Invoker to subtract fee from
-    /// @param feeInfo Information on fee (amount, wrap, to)
-    function _chargeFee(
-        IMarket market,
-        Fixed6 collateral,
-        InterfaceFeeInfo memory feeInfo
-    ) internal {
-        bool wrap = feeInfo.wrap;
-        address to = feeInfo.to;
-        UFixed6 amount = feeInfo.amount;
-
-        // NO-OP (0 interface fee)
-        if (amount.isZero()) return;
+    /// @param market Market to emit in fee event for context=
+    /// @param interfaceFee Interface fee to charge
+    function _chargeFee(IMarket market, InterfaceFee memory interfaceFee) internal {
+        if (interfaceFee.amount.isZero()) return;
 
         market.update(
             msg.sender,
             UFixed6Lib.MAX,
             UFixed6Lib.MAX,
             UFixed6Lib.MAX,
-            Fixed6Lib.from(-1, feeInfo.amount),
+            Fixed6Lib.from(-1, interfaceFee.amount),
             false
         );
 
-        if (wrap) _unwrap(to, UFixed18Lib.from(amount));
-        else DSU.push(to, UFixed18Lib.from(amount));
+        if (interfaceFee.unwrap) _unwrap(interfaceFee.receiver, UFixed18Lib.from(interfaceFee.amount));
+        else DSU.push(interfaceFee.receiver, UFixed18Lib.from(interfaceFee.amount));
 
-        emit FeeCharged(msg.sender, market, to, amount, wrap);
+        emit InterfaceFeeCharged(msg.sender, market, interfaceFee);
     }
 
     /// @notice Pull DSU or wrap and deposit USDC from msg.sender to this address for market usage
