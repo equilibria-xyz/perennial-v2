@@ -296,21 +296,23 @@ describe('MultiInvoker', () => {
       dsu.transferFrom.returns(true)
       dsu.transfer.returns(true)
 
+      const feeAmt = collateral.div(10)
+
       await expect(
         multiInvoker.connect(user).invoke(
           buildUpdateMarket({
             market: market.address,
             collateral: collateral,
-            feeStruct: {
-              to: owner.address,
-              amount: collateral.div(10),
-              wrap: false,
+            interfaceFee: {
+              receiver: owner.address,
+              amount: feeAmt,
+              unwrap: false,
             },
           }),
         ),
       )
-        .to.emit(multiInvoker, 'FeeCharged')
-        .withArgs(user.address, market.address, owner.address, collateral.div(10), false)
+        .to.emit(multiInvoker, 'InterfaceFeeCharged')
+        .withArgs(user.address, market.address, [feeAmt, owner.address, false])
 
       expect(dsu.transfer).to.have.been.calledWith(owner.address, dsuCollateral.div(10))
     })
@@ -320,21 +322,23 @@ describe('MultiInvoker', () => {
       dsu.transfer.returns(true)
       usdc.transfer.returns(true)
 
+      const feeAmt = collateral.div(10)
+
       await expect(
         multiInvoker.connect(user).invoke(
           buildUpdateMarket({
             market: market.address,
             collateral: collateral,
-            feeStruct: {
-              to: owner.address,
-              amount: collateral.div(10),
-              wrap: true,
+            interfaceFee: {
+              receiver: owner.address,
+              amount: feeAmt,
+              unwrap: true,
             },
           }),
         ),
       )
-        .to.emit(multiInvoker, 'FeeCharged')
-        .withArgs(user.address, market.address, owner.address, collateral.div(10), true)
+        .to.emit(multiInvoker, 'InterfaceFeeCharged')
+        .withArgs(user.address, market.address, [feeAmt, owner.address, true])
 
       expect(usdc.transfer).to.have.been.calledWith(owner.address, collateral.div(10))
     })
@@ -354,16 +358,16 @@ describe('MultiInvoker', () => {
           buildUpdateMarket({
             market: market.address,
             collateral: collateral.sub(feeAmt).mul(-1),
-            feeStruct: {
-              to: owner.address,
+            interfaceFee: {
+              receiver: owner.address,
               amount: feeAmt,
-              wrap: false,
+              unwrap: false,
             },
           }),
         ),
       )
-        .to.emit(multiInvoker, 'FeeCharged')
-        .withArgs(user.address, market.address, owner.address, feeAmt, false)
+        .to.emit(multiInvoker, 'InterfaceFeeCharged')
+        .withArgs(user.address, market.address, [feeAmt, owner.address, false])
 
       expect(dsu.transfer).to.have.been.calledWith(owner.address, feeAmt.mul(1e12))
     })
@@ -385,16 +389,16 @@ describe('MultiInvoker', () => {
           buildUpdateMarket({
             market: market.address,
             collateral: collateral.sub(feeAmt).mul(-1),
-            feeStruct: {
-              to: owner.address,
+            interfaceFee: {
+              receiver: owner.address,
               amount: feeAmt,
-              wrap: true,
+              unwrap: true,
             },
           }),
         ),
       )
-        .to.emit(multiInvoker, 'FeeCharged')
-        .withArgs(user.address, market.address, owner.address, feeAmt, true)
+        .to.emit(multiInvoker, 'InterfaceFeeCharged')
+        .withArgs(user.address, market.address, [feeAmt, owner.address, true])
 
       expect(usdc.transfer).to.have.been.calledWith(owner.address, feeAmt)
     })
