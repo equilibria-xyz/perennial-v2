@@ -11,6 +11,7 @@ import { IVault } from "@equilibria/perennial-v2-vault/contracts/interfaces/IVau
 import "./interfaces/IMultiInvoker.sol";
 import "./types/TriggerOrder.sol";
 import "@equilibria/root/attribute/Kept/Kept.sol";
+import "@openzeppelin/contracts/utils/Address.sol";
 
 /// @title MultiInvoker
 /// @notice Extension to handle batched calls to the Perennial protocol
@@ -136,19 +137,19 @@ contract MultiInvoker is IMultiInvoker, Kept {
 
                 _cancelOrder(msg.sender, market, nonce);
             } else if (invocation.action == PerennialAction.EXEC_ORDER) {
-                (address account, IMarket market, uint256 nonce) =
-                    abi.decode(invocation.args, (address, IMarket, uint256));
+                (address account, IMarket market, uint256 nonce, bool revertOnFailure) =
+                    abi.decode(invocation.args, (address, IMarket, uint256, bool));
 
-                _executeOrder(account, market, nonce);
+                _executeOrder(account, market, nonce, revertOnFailure);
             } else if (invocation.action == PerennialAction.COMMIT_PRICE) {
                 (address oracleProviderFactory, uint256 value, bytes32[] memory ids, uint256 version, bytes memory data, bool revertOnFailure) =
                     abi.decode(invocation.args, (address, uint256, bytes32[], uint256, bytes, bool));
 
                 _commitPrice(oracleProviderFactory, value, ids, version, data, revertOnFailure);
             } else if (invocation.action == PerennialAction.LIQUIDATE) {
-                (IMarket market, address account) = abi.decode(invocation.args, (IMarket, address));
+                (IMarket market, address account, bool revertOnFailure) = abi.decode(invocation.args, (IMarket, address, bool));
 
-                _liquidate(IMarket(market), account);
+                _liquidate(IMarket(market), account, revertOnFailure);
             } else if (invocation.action == PerennialAction.APPROVE) {
                 (address target) = abi.decode(invocation.args, (address));
 
@@ -224,22 +225,23 @@ contract MultiInvoker is IMultiInvoker, Kept {
     /// @notice Liquidates an account for a specific market
     /// @param market Market to liquidate account in
     /// @param account Address of market to liquidate
-    function _liquidate(IMarket market, address account) internal isMarketInstance(market) {
+    function _liquidate(IMarket market, address account, bool revertOnFailure) internal isMarketInstance(market) {
         (Position memory latestPosition, UFixed6 liquidationFee, UFixed6 closable) = _liquidationFee(market, account);
-
         Position memory currentPosition = market.pendingPositions(account, market.locals(account).currentId);
         currentPosition.adjust(latestPosition);
 
-        market.update(
-            account,
-            currentPosition.maker.isZero() ? UFixed6Lib.ZERO : currentPosition.maker.sub(closable),
-            currentPosition.long.isZero() ? UFixed6Lib.ZERO : currentPosition.long.sub(closable),
-            currentPosition.short.isZero() ? UFixed6Lib.ZERO : currentPosition.short.sub(closable),
-            Fixed6Lib.from(-1, liquidationFee),
-            true
-        );
-
-        _withdraw(msg.sender, liquidationFee, true);
+        try market.update(
+                account,
+                currentPosition.maker.isZero() ? UFixed6Lib.ZERO : currentPosition.maker.sub(closable),
+                currentPosition.long.isZero() ? UFixed6Lib.ZERO : currentPosition.long.sub(closable),
+                currentPosition.short.isZero() ? UFixed6Lib.ZERO : currentPosition.short.sub(closable),
+                Fixed6Lib.from(-1, liquidationFee),
+                true
+        ) {
+            _withdraw(msg.sender, liquidationFee, true);
+        } catch (bytes memory reason) {
+            if (revertOnFailure) Address.verifyCallResult(false, reason, "");
+        }
     }
 
     /// @notice Helper to max approve DSU for usage in a market or vault deployed by the registered factories
@@ -336,18 +338,12 @@ contract MultiInvoker is IMultiInvoker, Kept {
     ) internal {
         UFixed18 balanceBefore = DSU.balanceOf();
 
-        if (revertOnFailure) {
-            IPythFactory(oracleProviderFactory).commit{value: value}(ids, version, data);
-        } else {
-            try IPythFactory(oracleProviderFactory).commit{value: value}(ids, version, data) { } // solhint-disable-line no-empty-blocks
-            catch {
-                // Avoids DSU push on soft-revert
-                return;
-            }
+        try IPythFactory(oracleProviderFactory).commit{value: value}(ids, version, data) {
+            // Return through keeper reward if any
+            DSU.push(msg.sender, DSU.balanceOf().sub(balanceBefore));
+        } catch (bytes memory reason) {
+            if (revertOnFailure) Address.verifyCallResult(false, reason, "");
         }
-
-        // Return through keeper reward if any
-        DSU.push(msg.sender, DSU.balanceOf().sub(balanceBefore));
     }
 
     /// @notice Helper function to compute the liquidation fee for an account
@@ -429,7 +425,8 @@ contract MultiInvoker is IMultiInvoker, Kept {
     function _executeOrder(
         address account,
         IMarket market,
-        uint256 nonce
+        uint256 nonce,
+        bool revertOnFailure
     ) internal keep (
         UFixed18Lib.from(keeperMultiplier),
         GAS_BUFFER,
@@ -444,17 +441,19 @@ contract MultiInvoker is IMultiInvoker, Kept {
 
         orders(account, market, nonce).execute(currentPosition);
 
-        market.update(
+        try market.update(
             account,
             currentPosition.maker,
             currentPosition.long,
             currentPosition.short,
             Fixed6Lib.ZERO,
             false
-        );
-
-        delete _orders[account][market][nonce];
-        emit OrderExecuted(account, market, nonce, market.locals(account).currentId);
+        ) {
+            delete _orders[account][market][nonce];
+            emit OrderExecuted(account, market, nonce);
+        } catch (bytes memory reason) {
+            if (revertOnFailure) Address.verifyCallResult(false, reason, "");
+        }
     }
 
     /// @notice Helper function to raise keeper fee
@@ -508,6 +507,6 @@ contract MultiInvoker is IMultiInvoker, Kept {
     modifier isVaultInstance(IVault vault) {
         if (!vaultFactory.instances(vault))
             revert MultiInvokerInvalidInstanceError();
-            _;
+        _;
     }
 }
