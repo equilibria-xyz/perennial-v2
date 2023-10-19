@@ -154,6 +154,61 @@ testOracles.forEach(testOracle => {
         marketImpl.address,
       )
       await marketFactory.initialize()
+      await marketFactory.updateParameter({
+        protocolFee: parse6decimal('0.50'),
+        maxFee: parse6decimal('0.01'),
+        maxFeeAbsolute: parse6decimal('1000'),
+        maxCut: parse6decimal('0.50'),
+        maxRate: parse6decimal('10.00'),
+        minMaintenance: parse6decimal('0.01'),
+        minEfficiency: parse6decimal('0.1'),
+      })
+
+      const riskParameter = {
+        margin: parse6decimal('0.3'),
+        maintenance: parse6decimal('0.3'),
+        takerFee: 0,
+        takerSkewFee: 0,
+        takerImpactFee: 0,
+        makerFee: 0,
+        makerImpactFee: 0,
+        makerLimit: parse6decimal('1000'),
+        efficiencyLimit: parse6decimal('0.2'),
+        liquidationFee: parse6decimal('0.50'),
+        minLiquidationFee: parse6decimal('0'),
+        maxLiquidationFee: parse6decimal('1000'),
+        utilizationCurve: {
+          minRate: 0,
+          maxRate: parse6decimal('5.00'),
+          targetRate: parse6decimal('0.80'),
+          targetUtilization: parse6decimal('0.80'),
+        },
+        pController: {
+          k: parse6decimal('40000'),
+          max: parse6decimal('1.20'),
+        },
+        minMargin: parse6decimal('500'),
+        minMaintenance: parse6decimal('500'),
+        virtualTaker: 0,
+        staleAfter: 7200,
+        makerReceiveOnly: false,
+      }
+      const marketParameter = {
+        fundingFee: parse6decimal('0.1'),
+        interestFee: parse6decimal('0.1'),
+        oracleFee: 0,
+        riskFee: 0,
+        positionFee: 0,
+        maxPendingGlobal: 8,
+        maxPendingLocal: 8,
+        makerRewardRate: 0,
+        longRewardRate: 0,
+        shortRewardRate: 0,
+        settlementFee: 0,
+        makerCloseAlways: false,
+        takerCloseAlways: false,
+        closed: false,
+      }
       market = Market__factory.connect(
         await marketFactory.callStatic.create({
           token: dsu.address,
@@ -167,6 +222,8 @@ testOracles.forEach(testOracle => {
         oracle: oracle.address,
         payoff: ethers.constants.AddressZero,
       })
+      await market.updateParameter(marketParameter)
+      await market.updateRiskParameter(riskParameter)
 
       oracleSigner = await impersonateWithBalance(oracle.address, utils.parseEther('10'))
       factorySigner = await impersonateWithBalance(pythOracleFactory.address, utils.parseEther('10'))
