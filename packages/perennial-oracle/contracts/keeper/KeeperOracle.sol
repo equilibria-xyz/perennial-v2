@@ -115,9 +115,7 @@ contract KeeperOracle is IKeeperOracle, Instance {
     /// @dev Verification of price happens in the oracle's factory
     /// @param version The oracle version to commit
     /// @return requested Whether the commit was requested
-    function commit(OracleVersion memory version) external returns (bool requested) {
-        if (msg.sender != address(factory())) revert OracleProviderUnauthorizedError(); // TODO: make modifier in root
-
+    function commit(OracleVersion memory version) external onlyFactory returns (bool requested) {
         if (version.timestamp == 0) revert KeeperOracleVersionOutsideRangeError();
         requested = (version.timestamp == next()) ? _commitRequested(version) : _commitUnrequested(version);
         _global.latestVersion = uint64(version.timestamp);
@@ -133,9 +131,7 @@ contract KeeperOracle is IKeeperOracle, Instance {
     /// @param market The market to settle
     /// @param version The version to settle
     /// @param maxCount The maximum number of settlement callbacks to perform before exiting
-    function settle(IMarket market, uint256 version, uint256 maxCount) external {
-        if (msg.sender != address(factory())) revert OracleProviderUnauthorizedError(); // TODO: make modifier in root
-
+    function settle(IMarket market, uint256 version, uint256 maxCount) external onlyFactory {
         EnumerableSet.AddressSet storage callbacks = _localCallbacks[version][market];
 
         if (_global.latestVersion < version) revert KeeperOracleVersionOutsideRangeError();

@@ -62,7 +62,10 @@ interface IMultiInvoker {
     function vaultFactory() external view returns (IFactory);
     function batcher() external view returns (IBatcher);
     function reserve() external view returns (IEmptySetReserve);
-    function keeperMultiplier() external view returns (UFixed6);
+    function keepMultiplierBase() external view returns (UFixed18);
+    function keepBufferBase() external view returns (uint256);
+    function keepMultiplierData() external view returns (UFixed18);
+    function keepBufferData() external view returns (uint256);
     function latestNonce() external view returns (uint256);
     function orders(address account, IMarket market, uint256 nonce) external view returns (TriggerOrder memory);
     function canExecuteOrder(address account, IMarket market, uint256 nonce) external view returns (bool);

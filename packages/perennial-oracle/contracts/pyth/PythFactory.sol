@@ -21,8 +21,10 @@ contract PythFactory is IPythFactory, KeeperFactory {
         uint256 validFrom_,
         uint256 validTo_,
         UFixed18 keepMultiplierBase_,
-        uint256 keepBufferBase
-    ) KeeperFactory(implementation_, validFrom_, validTo_, keepMultiplierBase_, keepBufferBase) {
+        uint256 keepBufferBase_,
+        UFixed18 keepMultiplierData_,
+        uint256 keepBufferData_
+    ) KeeperFactory(implementation_, validFrom_, validTo_, keepMultiplierBase_, keepBufferBase_, keepMultiplierData_, keepBufferData_) {
         pyth = pyth_;
     }
 
@@ -74,4 +76,21 @@ contract PythFactory is IPythFactory, KeeperFactory {
             underlyingIds[i] = toUnderlyingId[ids[i]];
         }
     }
+
+    /// @notice Handles paying the keeper requested for given number of requested updates
+    /// @param numRequested Number of requested price updates
+    function _handleKeep(uint256 numRequested)
+        private override
+        keep(
+            KeepConfig(
+                keepMultiplierBase,
+                keepBufferBase,
+                keepMultiplierData,
+                keepBufferData
+            ),
+            msg.data[0:0],
+            IPythStaticFee(address(pyth)).singleUpdateFeeInWei() * numRequested,
+            ""
+        )
+    { }
 }

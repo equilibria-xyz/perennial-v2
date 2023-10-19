@@ -16,12 +16,18 @@ contract PythFactory_Arbitrum is PythFactory, Kept_Arbitrum {
         uint256 validFrom_,
         uint256 validTo_,
         UFixed18 keepMultiplierBase_,
-        uint256 keepBufferBase
-    ) PythFactory(pyth_, implementation_, validFrom_, validTo_, keepMultiplierBase_, keepBufferBase) { }
+        uint256 keepBufferBase_,
+        UFixed18 keepMultiplierData_,
+        uint256 keepBufferData_
+    ) PythFactory(pyth_, implementation_, validFrom_, validTo_, keepMultiplierBase_, keepBufferBase_, keepMultiplierData_, keepBufferData_ ) { }
 
     /// @dev Use the Kept_Arbitrum implementation for calculating the dynamic fee
-    function _calculateDynamicFee(bytes memory callData) internal view override(Kept_Arbitrum, Kept) returns (UFixed18) {
-        return Kept_Arbitrum._calculateDynamicFee(callData);
+    function _calldataFee(
+        bytes calldata applicableCalldata,
+        UFixed18 multiplierCalldata,
+        uint256 bufferCalldata
+    ) internal view virtual override(Kept_Arbitrum, Kept) returns (UFixed18) {
+        return Kept_Arbitrum._calldataFee(applicableCalldata, multiplierCalldata, bufferCalldata);
     }
 
     /// @dev Use the PythFactory implementation for raising the keeper fee

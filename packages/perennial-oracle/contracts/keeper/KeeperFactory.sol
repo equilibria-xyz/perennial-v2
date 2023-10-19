@@ -25,6 +25,12 @@ abstract contract KeeperFactory is IKeeperFactory, Factory, Kept {
     /// @dev The fixed gas buffer that is added to the keeper reward
     uint256 public immutable keepBufferBase;
 
+    /// @dev The multiplier for the calldata portion of the keeper reward on top of cost
+    UFixed18 public immutable keepMultiplierData;
+
+    /// @dev The fixed gas buffer that is added to the calldata portion of  the keeper reward
+    uint256 public immutable keepBufferData;
+
     /// @dev The root oracle factory
     IOracleFactory public oracleFactory;
 
@@ -54,12 +60,16 @@ abstract contract KeeperFactory is IKeeperFactory, Factory, Kept {
         uint256 validFrom_,
         uint256 validTo_,
         UFixed18 keepMultiplierBase_,
-        uint256 keepBufferBase_
+        uint256 keepBufferBase_,
+        UFixed18 keepMultiplierData_,
+        uint256 keepBufferData_
     ) Factory(implementation_) {
         validFrom = validFrom_;
         validTo = validTo_;
         keepMultiplierBase = keepMultiplierBase_;
         keepBufferBase = keepBufferBase_;
+        keepMultiplierData = keepMultiplierData_;
+        keepBufferData = keepBufferData_;
     }
 
     /// @notice Initializes the contract state
@@ -133,10 +143,13 @@ abstract contract KeeperFactory is IKeeperFactory, Factory, Kept {
     function commit(bytes32[] memory ids, uint256 version, bytes calldata data) external payable {
         bool valid = data.length != 0;
         Fixed6[] memory prices = valid ? _parsePrices(ids, version, data) : new Fixed6[](ids.length);
+        uint256 numRequested = 0;
 
         for (uint256 i; i < ids.length; i++)
             if (IKeeperOracle(address(oracles[ids[i]])).commit(OracleVersion(version, prices[i], valid)))
-                _handleKeep(ids[i], version, prices[i]);
+                numRequested++;
+
+        _handleKeep(numRequested);
     }
 
     /// @notice Performs a list of local settlement callbacks
@@ -148,19 +161,37 @@ abstract contract KeeperFactory is IKeeperFactory, Factory, Kept {
     /// @param maxCounts The list of maximum number of settlement callbacks to perform before exiting
     function settle(bytes32[] memory ids, IMarket[] memory markets, uint256[] memory versions, uint256[] memory maxCounts)
         external
-        keep(keepMultiplierBase, keepBufferBase, abi.encode(ids, markets, versions, maxCounts), "") // TODO: add calldata buffer
+        keep(
+            KeepConfig(
+                keepMultiplierBase,
+                keepBufferBase,
+                keepMultiplierData,
+                keepBufferData
+            ),
+            msg.data,
+            0,
+            ""
+        )
     {
         for (uint256 i; i < ids.length; i++)
             IKeeperOracle(address(oracles[ids[i]])).settle(markets[i], versions[i], maxCounts[i]);
     }
 
-    /// @notice Handles paying out one instance of a keeper reward for a requested version
-    /// @param id The id of the price feed
-    /// @param version The oracle version to commit
-    /// @param price The price of version to commit
-    function _handleKeep(bytes32 id, uint256 version, Fixed6 price)
+    /// @notice Handles paying the keeper requested for given number of requested updates
+    /// @param numRequested Number of requested price updates
+    function _handleKeep(uint256 numRequested)
         private
-        keep(keepMultiplierBase, keepBufferBase, abi.encode(id, version, price), "") // TODO: add calldata buffer
+        keep(
+            KeepConfig(
+                keepMultiplierBase,
+                keepBufferBase,
+                keepMultiplierData,
+                keepBufferData
+            ),
+            msg.data[0:0],
+            0,
+            ""
+        )
     { }
 
     /// @notice Pulls funds from the factory to reward the keeper
