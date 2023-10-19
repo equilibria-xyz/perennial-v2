@@ -6,7 +6,7 @@ import { IEmptySetReserve } from "@equilibria/emptyset-batcher/interfaces/IEmpty
 import { IFactory } from "@equilibria/root/attribute/interfaces/IFactory.sol";
 import { IBatcher } from "@equilibria/emptyset-batcher/interfaces/IBatcher.sol";
 import { IInstance } from "@equilibria/root/attribute/interfaces/IInstance.sol";
-import { IPythOracle } from "@equilibria/perennial-v2-oracle/contracts/interfaces/IPythOracle.sol";
+import { IPythFactory } from "@equilibria/perennial-v2-oracle/contracts/interfaces/IPythFactory.sol";
 import { IVault } from "@equilibria/perennial-v2-vault/contracts/interfaces/IVault.sol";
 import "./interfaces/IMultiInvoker.sol";
 import "./types/TriggerOrder.sol";
@@ -142,10 +142,10 @@ contract MultiInvoker is IMultiInvoker, Kept {
 
                 _executeOrder(account, market, nonce, revertOnFailure);
             } else if (invocation.action == PerennialAction.COMMIT_PRICE) {
-                (address oracleProvider, uint256 value, uint256 version, bytes memory data, bool revertOnFailure) =
-                    abi.decode(invocation.args, (address, uint256, uint256, bytes, bool));
+                (address oracleProviderFactory, uint256 value, bytes32[] memory ids, uint256 version, bytes memory data, bool revertOnFailure) =
+                    abi.decode(invocation.args, (address, uint256, bytes32[], uint256, bytes, bool));
 
-                _commitPrice(oracleProvider, value, version, data, revertOnFailure);
+                _commitPrice(oracleProviderFactory, value, ids, version, data, revertOnFailure);
             } else if (invocation.action == PerennialAction.LIQUIDATE) {
                 (IMarket market, address account, bool revertOnFailure) = abi.decode(invocation.args, (IMarket, address, bool));
 
@@ -323,21 +323,22 @@ contract MultiInvoker is IMultiInvoker, Kept {
     }
 
     /// @notice Helper function to commit a price to an oracle
-    /// @param oracleProvider Address of oracle provider
+    /// @param oracleProviderFactory Address of oracle provider factory
     /// @param value The ether value to pass on with the commit sub-call
     /// @param version Version of oracle to commit to
     /// @param data Data to commit to oracle
     /// @param revertOnFailure Whether to revert on sub-call failure
     function _commitPrice(
-        address oracleProvider,
+        address oracleProviderFactory,
         uint256 value,
+        bytes32[] memory ids,
         uint256 version,
         bytes memory data,
         bool revertOnFailure
     ) internal {
         UFixed18 balanceBefore = DSU.balanceOf();
 
-        try IPythOracle(oracleProvider).commit{value: value}(version, data) {
+        try IPythFactory(oracleProviderFactory).commit{value: value}(ids, version, data) {
             // Return through keeper reward if any
             DSU.push(msg.sender, DSU.balanceOf().sub(balanceBefore));
         } catch (bytes memory reason) {

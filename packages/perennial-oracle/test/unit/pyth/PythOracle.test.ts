@@ -89,13 +89,9 @@ describe('PythOracle', () => {
     await oracleFactory.initialize(dsu.address)
     await oracleFactory.updateMaxClaim(parse6decimal('10'))
 
-    const pythOracleImpl = await new PythOracle__factory(owner).deploy(pyth.address)
-    pythOracleFactory = await new PythFactory__factory(owner).deploy(
-      pythOracleImpl.address,
-      chainlinkFeed.address,
-      dsu.address,
-    )
-    await pythOracleFactory.initialize(oracleFactory.address)
+    const pythOracleImpl = await new PythOracle__factory(owner).deploy()
+    pythOracleFactory = await new PythFactory__factory(owner).deploy(pyth.address, pythOracleImpl.address)
+    await pythOracleFactory.initialize(oracleFactory.address, chainlinkFeed.address, dsu.address)
     await oracleFactory.register(pythOracleFactory.address)
     await pythOracleFactory.authorize(oracleFactory.address)
 
@@ -112,11 +108,12 @@ describe('PythOracle', () => {
   })
 
   it('parses Pyth exponents correctly', async () => {
-    const minDelay = await pythOracle.MIN_VALID_TIME_AFTER_VERSION()
+    const minDelay = await pythOracleFactory.MIN_VALID_TIME_AFTER_VERSION()
     await pythOracle.connect(oracleSigner).request(user.address)
-    await pythOracle
+    await pythOracleFactory
       .connect(user)
       .commit(
+        [PYTH_ETH_USD_PRICE_FEED],
         await pythOracle.callStatic.next(),
         getVaa(100000000000, 2, -8, (await pythOracle.callStatic.next()).add(minDelay)),
         {
@@ -126,9 +123,10 @@ describe('PythOracle', () => {
     expect((await pythOracle.callStatic.latest()).price).to.equal(ethers.utils.parseUnits('1000', 6))
 
     await pythOracle.connect(oracleSigner).request(user.address)
-    await pythOracle
+    await pythOracleFactory
       .connect(user)
       .commit(
+        [PYTH_ETH_USD_PRICE_FEED],
         await pythOracle.callStatic.next(),
         getVaa(20000000, 2, -4, (await pythOracle.callStatic.next()).add(minDelay)),
         {
