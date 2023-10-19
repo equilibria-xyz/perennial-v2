@@ -11,6 +11,7 @@ import { IVault } from "@equilibria/perennial-v2-vault/contracts/interfaces/IVau
 import "./interfaces/IMultiInvoker.sol";
 import "./types/TriggerOrder.sol";
 import "@equilibria/root/attribute/Kept/Kept.sol";
+import "@openzeppelin/contracts/utils/Address.sol";
 
 /// @title MultiInvoker
 /// @notice Extension to handle batched calls to the Perennial protocol
@@ -239,7 +240,7 @@ contract MultiInvoker is IMultiInvoker, Kept {
         ) {
             _withdraw(msg.sender, liquidationFee, true);
         } catch (bytes memory reason) {
-            if (revertOnFailure) _revert(reason);
+            if (revertOnFailure) Address.verifyCallResult(false, reason, "");
         }
     }
 
@@ -340,7 +341,7 @@ contract MultiInvoker is IMultiInvoker, Kept {
             // Return through keeper reward if any
             DSU.push(msg.sender, DSU.balanceOf().sub(balanceBefore));
         } catch (bytes memory reason) {
-            if (revertOnFailure) _revert(reason);
+            if (revertOnFailure) Address.verifyCallResult(false, reason, "");
         }
     }
 
@@ -434,8 +435,7 @@ contract MultiInvoker is IMultiInvoker, Kept {
         if (!canExecuteOrder(account, market, nonce)) revert MultiInvokerCantExecuteError();
 
         (Position memory latestPosition, , ) = _latest(market, account);
-        uint256 currentId = market.locals(account).currentId;
-        Position memory currentPosition = market.pendingPositions(account, currentId);
+        Position memory currentPosition = market.pendingPositions(account, market.locals(account).currentId);
         currentPosition.adjust(latestPosition);
 
         orders(account, market, nonce).execute(currentPosition);
@@ -449,9 +449,9 @@ contract MultiInvoker is IMultiInvoker, Kept {
             false
         ) {
             delete _orders[account][market][nonce];
-            emit OrderExecuted(account, market, nonce, currentId);
+            emit OrderExecuted(account, market, nonce, market.locals(account).currentId);
         } catch (bytes memory reason) {
-            if (revertOnFailure) _revert(reason);
+            if (revertOnFailure) Address.verifyCallResult(false, reason, "");
         }
     }
 
@@ -507,21 +507,5 @@ contract MultiInvoker is IMultiInvoker, Kept {
         if (!vaultFactory.instances(vault))
             revert MultiInvokerInvalidInstanceError();
             _;
-    }
-
-    /// @dev Reverts with returndata if present. Otherwise reverts with {FailedInnerCall}
-    /// Used in OpenZeppelin's Address.sol https://github.com/OpenZeppelin/openzeppelin-contracts/blob/18a76e7d1760ac3f9aee062756f7b299e77d75d7/contracts/utils/Address.sol#L146
-    function _revert(bytes memory returndata) private pure {
-        // Look for revert reason and bubble it up if present
-        if (returndata.length > 0) {
-            // The easiest way to bubble the revert reason is using memory via assembly
-            /// @solidity memory-safe-assembly
-            assembly {
-                let returndata_size := mload(returndata)
-                revert(add(32, returndata), returndata_size)
-            }
-        } else {
-            revert FailedInnerCall();
-        }
     }
 }
