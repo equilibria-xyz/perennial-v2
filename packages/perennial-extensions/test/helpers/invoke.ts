@@ -24,6 +24,7 @@ export const buildUpdateMarket = ({
   short,
   collateral,
   handleWrap,
+  interfaceFee,
 }: {
   market: string
   maker?: BigNumberish
@@ -31,19 +32,25 @@ export const buildUpdateMarket = ({
   short?: BigNumberish
   collateral?: BigNumberish
   handleWrap?: boolean
+  interfaceFee?: IMultiInvoker.InterfaceFeeStruct
 }): Actions => {
   return [
     {
       action: 1,
       args: utils.defaultAbiCoder.encode(
-        ['address', 'uint256', 'uint256', 'uint256', 'int256', 'bool'],
+        ['address', 'uint256', 'uint256', 'uint256', 'int256', 'bool', 'tuple(uint256,address,bool)'],
         [
           market,
-          maker ? maker : '0',
-          long ? long : '0',
-          short ? short : '0',
-          collateral ? collateral : '0',
-          handleWrap ? handleWrap : false,
+          maker ?? MAX_UINT,
+          long ?? MAX_UINT,
+          short ?? MAX_UINT,
+          collateral ?? MIN_INT,
+          handleWrap ?? false,
+          [
+            interfaceFee ? interfaceFee.amount : 0,
+            interfaceFee ? interfaceFee.receiver : '0x0000000000000000000000000000000000000000',
+            interfaceFee ? interfaceFee.unwrap : false,
+          ],
         ],
       ),
     },
@@ -58,6 +65,7 @@ export const buildPlaceOrder = ({
   collateral,
   handleWrap,
   order,
+  interfaceFee,
 }: {
   market: string
   maker?: BigNumberish
@@ -66,13 +74,26 @@ export const buildPlaceOrder = ({
   collateral: BigNumberish
   handleWrap?: boolean
   order: TriggerOrderStruct
+  interfaceFee?: IMultiInvoker.InterfaceFeeStruct
 }): Actions => {
   return [
     {
       action: 1,
       args: utils.defaultAbiCoder.encode(
-        ['address', 'uint256', 'uint256', 'uint256', 'int256', 'bool'],
-        [market, maker ?? MAX_UINT, long ?? MAX_UINT, short ?? MAX_UINT, collateral ?? '0', handleWrap ?? false],
+        ['address', 'uint256', 'uint256', 'uint256', 'int256', 'bool', 'tuple(uint256,address,bool)'],
+        [
+          market,
+          maker ?? MAX_UINT,
+          long ?? MAX_UINT,
+          short ?? MAX_UINT,
+          collateral ?? MIN_INT,
+          handleWrap ?? false,
+          [
+            interfaceFee ? interfaceFee.amount : 0,
+            interfaceFee ? interfaceFee.receiver : '0x0000000000000000000000000000000000000000',
+            interfaceFee ? interfaceFee.unwrap : false,
+          ],
+        ],
       ),
     },
     {
@@ -177,23 +198,6 @@ export const buildExecOrder = ({
   ]
 }
 
-export const buildChargeFee = ({
-  receiver,
-  amount,
-  handleWrap,
-}: {
-  receiver: string
-  amount: BigNumberish
-  handleWrap: boolean
-}): Actions => {
-  return [
-    {
-      action: 9,
-      args: ethers.utils.defaultAbiCoder.encode(['address', 'uint256', 'bool'], [receiver, amount, handleWrap]),
-    },
-  ]
-}
-
 module.exports = {
   MAX_INT,
   MAX_UINT,
@@ -204,5 +208,4 @@ module.exports = {
   buildLiquidateUser,
   buildUpdateVault,
   buildApproveTarget,
-  buildChargeFee,
 }

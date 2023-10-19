@@ -29,8 +29,7 @@ interface IMultiInvoker {
         EXEC_ORDER,      // 5
         COMMIT_PRICE,    // 6
         LIQUIDATE,       // 7
-        APPROVE,         // 8
-        CHARGE_FEE       // 9
+        APPROVE          // 8
     }
 
     struct Invocation {
@@ -38,11 +37,17 @@ interface IMultiInvoker {
         bytes args;
     }
 
+    struct InterfaceFee {
+        UFixed6 amount;
+        address receiver;
+        bool unwrap;
+    }
+
     event KeeperFeeCharged(address indexed account, address indexed market, address indexed to, UFixed6 fee);
     event OrderPlaced(address indexed account, IMarket indexed market, uint256 indexed nonce, TriggerOrder order);
     event OrderExecuted(address indexed account, IMarket indexed market, uint256 nonce);
     event OrderCancelled(address indexed account, IMarket indexed market, uint256 nonce);
-    event FeeCharged(address indexed account, address indexed to, UFixed6 amount, bool wrap);
+    event InterfaceFeeCharged(address indexed account, IMarket indexed market, InterfaceFee fee);
 
     // sig: 0x217b1699
     error MultiInvokerBadSenderError();
