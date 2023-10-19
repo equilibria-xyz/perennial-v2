@@ -2,7 +2,7 @@
 pragma solidity ^0.8.13;
 
 import "./MultiInvoker.sol";
-import "../interfaces/IMultiInvokerRollup.sol";
+import "./interfaces/IMultiInvokerRollup.sol";
 
 contract MultiInvokerRollup is IMultiInvokerRollup, MultiInvoker {
 
@@ -31,16 +31,22 @@ contract MultiInvokerRollup is IMultiInvokerRollup, MultiInvoker {
     /// Prevents public fns from being called by arbitrary fallback data
     uint8 public constant INVOKE_ID = 73;
 
-    /**
-     * @notice Constructs the contract
-     * @param usdc_ The USDC token contract address
-     * @param reserve_ The DSU batcher contract address
-     * @param reserve_ The DSU reserve contract address
-     * @param controller_ The Perennial controller contract address
-     */
-    constructor(Token6 usdc_, IBatcher batcher_, IEmptySetReserve reserve_, IController controller_)
-    MultiInvoker(usdc_, batcher_, reserve_, controller_)
-    {
+    // /**
+    //  * @notice Constructs the contract
+    //  * @param usdc_ The USDC token contract address
+    //  * @param reserve_ The DSU batcher contract address
+    //  * @param reserve_ The DSU reserve contract address
+    //  * @param controller_ The Perennial controller contract address
+    //  */
+    constructor(
+        Token6 usdc_,
+        Token18 dsu_,
+        IFactory marketFactory_,
+        IFactory vaultFactory_,
+        IBatcher batcher_,
+        IEmptySetReserve reserve_,
+        UFixed6 keeperMultiplier_
+    ) MultiInvoker(usdc_, dsu_, marketFactory_, vaultFactory_, batcher_, reserve_, keeperMultiplier_) {
         _cacheAddress(address(0)); // Cache 0-address to avoid 0-index lookup collision
     }
 
@@ -79,7 +85,7 @@ contract MultiInvokerRollup is IMultiInvokerRollup, MultiInvoker {
                 UFixed6 newLong = _readUFixed6(input, ptr);
                 UFixed6 newShort = _readUFixed6(input, ptr);
                 Fixed6  collateral = _readFixed6(input, ptr);
-                bool wrap = _readBool(input, ptr);
+                bool wrap = _readUint8(input, ptr) == 0 ? false : true;
 
                 _update(market, newMaker, newLong, newShort, collateral, wrap);
             } else if (action == PerennialAction.UPDATE_VAULT) {
@@ -87,7 +93,7 @@ contract MultiInvokerRollup is IMultiInvokerRollup, MultiInvoker {
                 UFixed6 depositAssets = _readUFixed6(input, ptr);
                 UFixed6 redeemShares = _readUFixed6(input, ptr);
                 UFixed6 claimAssets = _readUFixed6(input, ptr);
-                bool wrap = readBool(input, ptr);
+                bool wrap = _readUint8(input, ptr) == 0? false : true;
 
                 _vaultUpdate(vault, depositAssets, redeemShares, claimAssets, wrap);
             } else if (action == PerennialAction.PLACE_ORDER) {
@@ -112,7 +118,7 @@ contract MultiInvokerRollup is IMultiInvokerRollup, MultiInvoker {
                 uint256 index = _readUint256(input, ptr);
                 uint256 version = _readUint256(input, ptr);
                 bytes memory data = _readBytes(input, ptr);
-                bool revertOnFailure = _readBool(input, ptr);
+                bool revertOnFailure = _readUint8(input, ptr) == 0 ? false : true;
 
                 _commitPrice(oracleProvider, value, index, version, data, revertOnFailure);
             } else if (action == PerennialAction.LIQUIDATE) {
@@ -122,11 +128,6 @@ contract MultiInvokerRollup is IMultiInvokerRollup, MultiInvoker {
             } else if (action == PerennialAction.APPROVE) {
                 address target = _readAndCacheAddress(input, ptr);
                 _approve(target);
-            } else if (action == PerennialAction.CHARGE_FEE) {
-                //(address to, UFixed6 amount) = abi.decode(invocation.args, (address, UFixed6));
-
-                USDC.pullTo(msg.sender, to, amount);
-                emit FeeCharged(msg.sender, to, amount);
             }
         }
     }
@@ -177,13 +178,21 @@ contract MultiInvokerRollup is IMultiInvokerRollup, MultiInvoker {
         if (result == address(0)) revert MultiInvokerRollupAddressIndexOutOfBoundsError();
     }
 
+    function _readOrder(bytes calldata input, PTR memory ptr) private pure returns (TriggerOrder memory order) {
+        order.side = _readUint8(input, ptr);
+        order.comparison = _readInt8(input, ptr);
+        order.fee = _readUFixed6(input, ptr);
+        order.price = _readFixed6(input, ptr);
+        order.delta = _readFixed6(input, ptr);
+    }
+
     function _readUFixed6(bytes calldata input, PTR memory ptr) private pure returns (UFixed6 result) {
         return UFixed6.wrap(_readUint256(input, ptr));
     }
 
     function _readFixed6(bytes calldata input, PTR memory ptr) private pure returns (Fixed6 result) {
-        int256 sign = _readSign(input, PTR);
-        result = Fixed6.wrap(sign.mul(_readInt256(input, ptr)));
+        int8 sign = _readSign(input, ptr);
+        result = Fixed6Lib.from(int256(sign), UFixed6Lib.from(_readUint256(input, ptr)));
     }
 
     /**
@@ -207,12 +216,17 @@ contract MultiInvokerRollup is IMultiInvokerRollup, MultiInvoker {
         ptr.pos += UINT8_LENGTH;
     }
 
-    function _readUint16(bytes calldata input, PTR memory ptr) prvate pure returns (uint16 result) {
+    function _readInt8(bytes calldata input, PTR memory ptr) private pure returns (int8 result) {
+        int8 sign = _readSign(input, ptr);
+        result = sign * int8(_readUint8(input, ptr));
+    }
+
+    function _readUint16(bytes calldata input, PTR memory ptr) private pure returns (uint16 result) {
         result = _bytesToUint16(input, ptr.pos);
-        ptr.pos +=UINT16_LENGTH;
+        ptr.pos += UINT16_LENGTH;
     }
     // TODO can pack sign into length byte
-    function _readSign(bytes calldata input, PTR memory ptr) private pure returns (int256 sign) {
+    function _readSign(bytes calldata input, PTR memory ptr) private pure returns (int8 sign) {
         uint8 val = _readUint8(input, ptr);
         if(val > 0) return -1;
         return 1;
@@ -222,7 +236,7 @@ contract MultiInvokerRollup is IMultiInvokerRollup, MultiInvoker {
         uint8 len = _readUint8(input, ptr);
         if (len > INT256_LENGTH) revert MultiInvokerRollupInvalidInt256LengthError();
 
-        result = int256(_bytesToUnt256(input, ptr.pos, len));
+        result = int256(_bytesToUint256(input, ptr.pos, len));
         ptr.pos += len;
     }
 
@@ -240,7 +254,7 @@ contract MultiInvokerRollup is IMultiInvokerRollup, MultiInvoker {
         ptr.pos += len;
     }
 
-    function readBytes(bytes calldata input, PTR memory ptr) private pure returns (bytes memory result) {
+    function _readBytes(bytes calldata input, PTR memory ptr) private pure returns (bytes memory result) {
         uint16 len = _readUint16(input, ptr);
 
         result = input[ptr.pos:ptr.pos+len];
