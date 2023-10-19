@@ -506,6 +506,6 @@ contract MultiInvoker is IMultiInvoker, Kept {
     modifier isVaultInstance(IVault vault) {
         if (!vaultFactory.instances(vault))
             revert MultiInvokerInvalidInstanceError();
-            _;
+        _;
     }
 }
