@@ -481,9 +481,10 @@ contract MultiInvoker is IMultiInvoker, Kept {
     function _placeOrder(address account, IMarket market, TriggerOrder memory order) internal isMarketInstance(market) {
         if (order.fee.isZero()) revert MultiInvokerInvalidOrderError();
         if (order.comparison != -1 && order.comparison != 1) revert MultiInvokerInvalidOrderError();
-        if (order.side > 3) revert MultiInvokerInvalidOrderError();
-        // Disallow placing orders that increase collateral
-        if (order.side == 3 && order.delta.gte(Fixed6Lib.ZERO)) revert MultiInvokerInvalidOrderError();
+        if (
+            order.side > 3 ||                                       // Invalid side
+            (order.side == 3 && order.delta.gte(Fixed6Lib.ZERO))    // Disallow placing orders that increase collateral
+        ) revert MultiInvokerInvalidOrderError();
 
         _orders[account][market][++latestNonce].store(order);
         emit OrderPlaced(account, market, latestNonce, order);
