@@ -119,11 +119,10 @@ contract PythOracle is IPythOracle, Instance, Kept {
     /// @param callback The local settlement callback to process
     function settle(SettlementCallback memory callback) external {
         if (msg.sender != address(factory())) revert OracleProviderUnauthorizedError(); // TODO: make modifier in root
-
-        // TODO: only allow after version has been committed
-
+        if (_global.latestVersion < callback.version) revert PythOracleVersionOutsideRangeError();
         if (!_localCallbacks[callback.version][callback.market].contains(callback.account))
             revert PythOracleInvalidCallbackError();
+
         _settle(callback.market, callback.account);
         _localCallbacks[callback.version][callback.market].remove(callback.account);
 
