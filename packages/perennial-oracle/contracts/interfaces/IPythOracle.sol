@@ -41,7 +41,7 @@ interface IPythOracle is IOracleProvider, IInstance {
 
     function initialize(bytes32 id_) external;
     function commit(OracleVersion memory version) external returns (bool);
-    function settle(SettlementCallback memory callback) external;
+    function settle(IMarket market, uint256 version, uint256 maxCount) external;
     function next() external view returns (uint256);
 
     function GRACE_PERIOD() external view returns (uint256);

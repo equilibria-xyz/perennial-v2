@@ -116,17 +116,24 @@ contract PythOracle is IPythOracle, Instance, Kept {
 
     /// @notice Performs an asynchronous local settlement callback
     /// @dev Distribution of keeper incentive is consolidated in the oracle's factory
-    /// @param callback The local settlement callback to process
-    function settle(SettlementCallback memory callback) external {
+    /// @param market The market to settle
+    /// @param version The version to settle
+    /// @param maxCount The maximum number of settlement callbacks to perform before exiting
+    function settle(IMarket market, uint256 version, uint256 maxCount) external {
         if (msg.sender != address(factory())) revert OracleProviderUnauthorizedError(); // TODO: make modifier in root
-        if (_global.latestVersion < callback.version) revert PythOracleVersionOutsideRangeError();
-        if (!_localCallbacks[callback.version][callback.market].contains(callback.account))
-            revert PythOracleInvalidCallbackError();
 
-        _settle(callback.market, callback.account);
-        _localCallbacks[callback.version][callback.market].remove(callback.account);
+        EnumerableSet.AddressSet storage callbacks = _localCallbacks[version][market];
 
-        emit CallbackFulfilled(callback);
+        if (_global.latestVersion < version) revert PythOracleVersionOutsideRangeError();
+        if (maxCount == 0) revert PythOracleInvalidCallbackError();
+        if (callbacks.length() == 0) revert PythOracleInvalidCallbackError();
+
+        for (uint256 i; i < maxCount && callbacks.length() > 0; i++) {
+            address account = callbacks.at(0);
+            _settle(market, account);
+            callbacks.remove(account);
+            emit CallbackFulfilled(SettlementCallback(market, account, version));
+        }
     }
 
     /// @notice Commits the price to a requested version
