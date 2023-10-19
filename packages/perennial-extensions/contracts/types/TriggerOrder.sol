@@ -38,11 +38,17 @@ library TriggerOrderLib {
     function execute(TriggerOrder memory self, Position memory currentPosition) internal pure {
         // update position
         if (self.side == 0)
-            currentPosition.maker = UFixed6Lib.from(Fixed6Lib.from(currentPosition.maker).add(self.delta));
+            currentPosition.maker = self.delta.isZero() ?
+                UFixed6Lib.ZERO :
+                UFixed6Lib.from(Fixed6Lib.from(currentPosition.maker).add(self.delta));
         if (self.side == 1)
-            currentPosition.long = UFixed6Lib.from(Fixed6Lib.from(currentPosition.long).add(self.delta));
+            currentPosition.long = self.delta.isZero() ?
+                UFixed6Lib.ZERO :
+                UFixed6Lib.from(Fixed6Lib.from(currentPosition.long).add(self.delta));
         if (self.side == 2)
-            currentPosition.short = UFixed6Lib.from(Fixed6Lib.from(currentPosition.short).add(self.delta));
+            currentPosition.short = self.delta.isZero() ?
+                UFixed6Lib.ZERO :
+                UFixed6Lib.from(Fixed6Lib.from(currentPosition.short).add(self.delta));
 
         // update collateral (override collateral field in position since it is not used in this context)
         currentPosition.collateral = (self.side == 3) ? self.delta : Fixed6Lib.ZERO;
