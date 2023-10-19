@@ -575,7 +575,7 @@ describe('Orders', () => {
       ).to.be.revertedWithCustomError(multiInvoker, 'MultiInvokerInvalidOrderError')
     })
 
-    it.only('fails to place order with side = 3, delta >= 0', async () => {
+    it('fails to place order with side = 3, delta >= 0', async () => {
       const { user } = instanceVars
 
       const trigger = openTriggerOrder({

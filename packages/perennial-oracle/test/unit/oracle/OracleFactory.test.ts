@@ -25,7 +25,7 @@ use(smock.matchers)
 
 const PYTH_ETH_USD_PRICE_FEED = '0xff61491a931112ddf1bd8147cd1b641375f79f5825126d665480874634fd0ace'
 
-describe.only('OracleFactory', () => {
+describe('OracleFactory', () => {
   let user: SignerWithAddress
   let owner: SignerWithAddress
   let dsu: FakeContract<IERC20Metadata>
