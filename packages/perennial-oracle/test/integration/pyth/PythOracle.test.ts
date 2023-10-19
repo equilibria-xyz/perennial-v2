@@ -10,6 +10,9 @@ import {
   IERC20Metadata,
   IERC20Metadata__factory,
   IFactory,
+  Market__factory,
+  MarketFactory,
+  MarketFactory__factory,
   Oracle,
   Oracle__factory,
   OracleFactory,
@@ -18,6 +21,11 @@ import {
   PythFactory__factory,
   PythOracle,
   PythOracle__factory,
+  PayoffFactory,
+  PayoffFactory__factory,
+  IMarket,
+  MarketParameterStorageLib__factory,
+  RiskParameterStorageLib__factory,
 } from '../../../types/generated'
 import { parse6decimal } from '../../../../common/testutil/types'
 import { smock } from '@defi-wonderland/smock'
@@ -63,14 +71,6 @@ const VAA_WITH_MULTIPLE_UPDATES =
 const VAA_WITH_MULTIPLE_UPDATES_2 =
   '0x504e41550100000003b801000000030d0010fc3ccba0af48851af3e44f56c8f6b607df3f920f9645fbce556879553ee3642054812dd938a427b7c6663c49be0da851cc1dbce9bec900d2f137f63abfdbb4000158fd9af9c87f09ee08532a584afe0edde5e18c13c18c633898c26afad9a7d9a8025ed13e09ab6ea50aa1bbbd114f027dba5fb4e4ea9e05df02cc69f11e540d140002f6dde33ffcc265df48402d690e39c5bfa3ba1a90739ff2626d7d77688994ee1304be4d132b8828e0965096c3d19ad1c4536bb0e1649a6d52765a8966e7f68623010697d31b8a98a1a5d80cf9e82f717b6b905d74eee5f71941f4fed1657200dd69ed7f7b9b0d98f85152c115aab7e9f82605c9e57be16cbcc3cb51cdc8c348a8b52000073d870e8ac1a8a127df58612df5c75b4aa0a207347676bb9dfce4874b62fbfe12714cf737d286b805d62ad64b72ec6f72a58fcecf2876516675227d595fa84ee00108512340a2b57d6e2ba1fe06a221251f97acb9992b66ad9e1196482c39d0cc04a132337c2dad528f063391d42f976a3dd6cd341bb7c8b732d9134ea3b9071afe70000a8b037d1078fe7986a0786f34c2119c924227b7ef6fbe6e82ace4d1648873112e3539e6cc537d1bb9e3898800b20d9e3392a194f259398022d4988e36eedb4fa6000bc9556474ec5cf5959be645ac7b3cd37bb567e033b99946c6bcc94d4ca1671197692cb034433a6911e2776ff82846ff7c1bf0a39aa5cde1b324cc3372b5c7e91d010d36dcf4f8c94502a9227ae1bfb648db9f8d5a8aafebc8e1841ce34f5c9121b4c35693eae191bb59e0622e4a41c7a0aa9ec256e3b09b4e6b917c16a6855fc5a3a7000e6529e2de38971afba15bdf8c7dda6a331975c0526695be05384d70a8ecbc32e76ba6c952fd5ac711b8053d27e21a3336d7b78eb4b591847c4f2f4e436ebe5d43000f4d7c85fdce3c5b76b10dec27f892d39a5931554d22301db82c86a58ffabda1596029decd53c145fd1359dcf30673905fd7c7c2d6a200d6ad5ba15721d285537d0011ee19ed6f05f83ae8e94f8eeaf4a836e2c965e00830b09dc62080cc9d5dca502e09c34b0385b0b9d545025cf83d6d59ff822290241fd218d912b5974fdd1a4b6901129aa2e02afff0bbf0c794c131bddb6016cc4d9051c51e93de744d28f962eddeeb230b27a2302ca5cf7572964e811934544591df48ac144aa29d1aa5f8bcf6305301652b01dd00000000001ae101faedac5851e32b9b23b5f9411a8c2bac4aae3ed4dd7b811dd1a72ea4aa7100000000011b804e01415557560000000000061ec52f00002710a2fa33b99d0b9673b28d532f7fd24b10799c24e902005500ff61491a931112ddf1bd8147cd1b641375f79f5825126d665480874634fd0ace000000244a0adcec0000000002eaf093fffffff800000000652b01dc00000000652b01dc00000024346bd9d0000000000384e7cb09fd052ff1a1f0fd3638fc34ad246bc2b004ec0e6736c1b541a1eb6bcd693c8112ed565c73172a905605a01e2504d9f0c06e7e7cb0cf24116098ca202ac5f6ade2e8f5a12ec006b16d46be1f0228b94d95115af802d65322ad2f3cd882fc1b60975ce13af3d5a54791aa79e1ab25e9814cd33845c52af2a95396fc64a987ef498fe6cbd8656f4fc911e77c8194dd38f0da18fcb0f7ead4d1de56db6c0442b94883ac3566efd0575b43e8d2ed03d4c2f1bced59eb71005500e62df6c8b4a85fe1a67db44dc12de5db330f7ac66b72dc658afedf0f4a415b4300000271b88758760000000044e07b0afffffff800000000652b01dc00000000652b01dc00000271562c3de0000000003f9f8988094a92c643d1aa3b8e4a70f1e0f4cd33a7a5ea3b0ef4a6239e0c0c49ebd6ef0f6979b45c4d952ce4330bef33ee63bc0484ef89ec054f6c5cd433c78dbfb5fcd4e6e0fc5d192b899766b4f4e84c9fbdb3111b4e76a83ce4fdebc4dded43686ff3440b82414db36a74e16723b6c1480753b3da86df63c7375d0e96fc64a987ef498fe6cbd8656f4fc911e77c8194dd38f0da18fcb0f7ead4d1de56db6c0442b94883ac3566efd0575b43e8d2ed03d4c2f1bced59eb71'
 
-// New Multi-Update payload w/ Publish Time: 1693407490
-const VAA_WITH_MULTIPLE_UPDATES =
-  '0x504e41550100000003b801000000030d00082c2243d3fa525d51bc3b3bbe2016c427e53753326e7223e21438b5411eb59103aba9fee9c4537113bfb38706ce0d1f1d10bbd5e7d947c78f7f7c883857bfa7000284f291f05f5652dde66ee6489787a61e282ff6c201e0ab9452f50b53e434f2ae2239700e071906d30ee4fe2b9e5958a1523b876bb672a19765b4ac53e580fb4501035734dd99903dd74d7bec4b47a3aa36ddfd78a8d06e974810e77f19fd9f9578d43d1fe71fe75dea33151a92e5987664e3654566ff9f24948d9b6d9eff32908df30004c16f14f7cf686e32381cc518f530a0030ef1d8f12428f9391ce743aae4de9cec5455fd42520c0c3850b6cf8c60f48738f79b2bd36621ea392ac83bc897f4c6ff010665531930c4684bc042461c1c8fdb36a6db67fdb19625cc83cc7d884da09b173d15c4605e122905f28298dfa2e5d8a3e2b565cdba851b1d228224b9bd52cf2fa500090ac3b0b7602d06f3afca318a65d343012cce4d56adb1c9a66853290dbb2e4b49389ec5d2dcf4b1ce4f8c6f57a883a1fa74ea6d4c58923e9fce3597afeed7671c000a1478cdd918941c9ee16a309373f00301c770134ee55f4def3fb120b4c7c935c445df29623127be0e10e5030f246e41ed682ba93c05209095b0b61ea7d47a0422010b3e5801e17768884398cb8ab6a1a42b4c7843068744d12e46f65682351d571d180c3a477af5126148c6291f3654c50cec1f7a73e9ef0a5d312a31b93f172c63d0000ebf74e1c3e5b490fdaddc24a78b24a248313a4dc878ae5b7b98512a5473c5c69809aa906f04a08b1e03f4cd706a9b0983201b6f095060337fc3ac638f3d356cac010f3ca2405569e08444a4a90dc5f616ad4476e8f71ce5a766a5083311baa676928d30f52624ae733326fbec70b6e8833373680624d152edc9c0080711db69db809f0010e7bf1f7359520372c48f6c7745853de313716eb4fc4bb134f9c3bd2b01c3f8ae6ed7c703ea7551521171c3768ecb91b49f0177762a5cf03ffb9f10d0050ea5ca011124ec81adb4688547fbc190f2673491159de676a8d348bd8f0fd2f715643fca093d01c944cd423eff20fa2a77b259b917e319e6822b8b4bd8e1f896af69d064b701123067c9eb31326b3021e70002cb0a222d943fa876a4ee1afa97ea55dbfdfebc341033e302857a4625419d2cb8bbeceea89489531daefb4d74c8b688fdb587468f0064ef590400000000001ae101faedac5851e32b9b23b5f9411a8c2bac4aae3ed4dd7b811dd1a72ea4aa71000000000085aae00141555756000000000005861808000027105453884a96124ee00a9e46bcfd854f58a139537902005500ff61491a931112ddf1bd8147cd1b641375f79f5825126d665480874634fd0ace00000027a3a9356000000000063c479bfffffff80000000064ef59020000000064ef590100000027ea4388b800000000059d66a809fd052ff1a1f0fd3638fc34ad246bc2b004ec0e67a8a1180177cf30b2c0bebbb1adfe8f7985d051d205a01e2504d9f0c06e7e7cb0cf24116098ca202ac5f6ade2e8f5a12ec006b16d46be1f0228b94d95485aa0e4df2967e9353738ab1ee8ac694f05c9f93090789120e39302b12a1330f05c8f71c0f5a883e79ce8949e3992bd353598ed5ff2f09be708bf76dd38f0da18fcb0f7ead4d1de56db6c0442b9488350275717d4ebee942ea448bc9f492c881aef590a005500e62df6c8b4a85fe1a67db44dc12de5db330f7ac66b72dc658afedf0f4a415b43000002775a71feff000000004d4744cdfffffff80000000064ef59020000000064ef59010000027c169ba7a0000000003d7557a009fb953b6bdba977da858e45c514b3b2f01a03ba7a3cca00578b83239a81c37f7a18474e8563d3c530fa371b7db694a82e6d9b8afe758ef024eae8bedac96c3218b1c3915d0914dfada4e50b43cfcc1c010e61ac7cc3f171452564d92964915c67c40cffae8b4613f97247c357de9270a7201ad298af334c7f77ae5a6c4556c660208f5f41b3ec8cbb1b9b7329dd38f0da18fcb0f7ead4d1de56db6c0442b9488350275717d4ebee942ea448bc9f492c881aef590a'
-
-// New Multi-Update payload w/ (ETH / BTC) Publish Time: 1697317340
-const VAA_WITH_MULTIPLE_UPDATES_2 =
-  '0x504e41550100000003b801000000030d0010fc3ccba0af48851af3e44f56c8f6b607df3f920f9645fbce556879553ee3642054812dd938a427b7c6663c49be0da851cc1dbce9bec900d2f137f63abfdbb4000158fd9af9c87f09ee08532a584afe0edde5e18c13c18c633898c26afad9a7d9a8025ed13e09ab6ea50aa1bbbd114f027dba5fb4e4ea9e05df02cc69f11e540d140002f6dde33ffcc265df48402d690e39c5bfa3ba1a90739ff2626d7d77688994ee1304be4d132b8828e0965096c3d19ad1c4536bb0e1649a6d52765a8966e7f68623010697d31b8a98a1a5d80cf9e82f717b6b905d74eee5f71941f4fed1657200dd69ed7f7b9b0d98f85152c115aab7e9f82605c9e57be16cbcc3cb51cdc8c348a8b52000073d870e8ac1a8a127df58612df5c75b4aa0a207347676bb9dfce4874b62fbfe12714cf737d286b805d62ad64b72ec6f72a58fcecf2876516675227d595fa84ee00108512340a2b57d6e2ba1fe06a221251f97acb9992b66ad9e1196482c39d0cc04a132337c2dad528f063391d42f976a3dd6cd341bb7c8b732d9134ea3b9071afe70000a8b037d1078fe7986a0786f34c2119c924227b7ef6fbe6e82ace4d1648873112e3539e6cc537d1bb9e3898800b20d9e3392a194f259398022d4988e36eedb4fa6000bc9556474ec5cf5959be645ac7b3cd37bb567e033b99946c6bcc94d4ca1671197692cb034433a6911e2776ff82846ff7c1bf0a39aa5cde1b324cc3372b5c7e91d010d36dcf4f8c94502a9227ae1bfb648db9f8d5a8aafebc8e1841ce34f5c9121b4c35693eae191bb59e0622e4a41c7a0aa9ec256e3b09b4e6b917c16a6855fc5a3a7000e6529e2de38971afba15bdf8c7dda6a331975c0526695be05384d70a8ecbc32e76ba6c952fd5ac711b8053d27e21a3336d7b78eb4b591847c4f2f4e436ebe5d43000f4d7c85fdce3c5b76b10dec27f892d39a5931554d22301db82c86a58ffabda1596029decd53c145fd1359dcf30673905fd7c7c2d6a200d6ad5ba15721d285537d0011ee19ed6f05f83ae8e94f8eeaf4a836e2c965e00830b09dc62080cc9d5dca502e09c34b0385b0b9d545025cf83d6d59ff822290241fd218d912b5974fdd1a4b6901129aa2e02afff0bbf0c794c131bddb6016cc4d9051c51e93de744d28f962eddeeb230b27a2302ca5cf7572964e811934544591df48ac144aa29d1aa5f8bcf6305301652b01dd00000000001ae101faedac5851e32b9b23b5f9411a8c2bac4aae3ed4dd7b811dd1a72ea4aa7100000000011b804e01415557560000000000061ec52f00002710a2fa33b99d0b9673b28d532f7fd24b10799c24e902005500ff61491a931112ddf1bd8147cd1b641375f79f5825126d665480874634fd0ace000000244a0adcec0000000002eaf093fffffff800000000652b01dc00000000652b01dc00000024346bd9d0000000000384e7cb09fd052ff1a1f0fd3638fc34ad246bc2b004ec0e6736c1b541a1eb6bcd693c8112ed565c73172a905605a01e2504d9f0c06e7e7cb0cf24116098ca202ac5f6ade2e8f5a12ec006b16d46be1f0228b94d95115af802d65322ad2f3cd882fc1b60975ce13af3d5a54791aa79e1ab25e9814cd33845c52af2a95396fc64a987ef498fe6cbd8656f4fc911e77c8194dd38f0da18fcb0f7ead4d1de56db6c0442b94883ac3566efd0575b43e8d2ed03d4c2f1bced59eb71005500e62df6c8b4a85fe1a67db44dc12de5db330f7ac66b72dc658afedf0f4a415b4300000271b88758760000000044e07b0afffffff800000000652b01dc00000000652b01dc00000271562c3de0000000003f9f8988094a92c643d1aa3b8e4a70f1e0f4cd33a7a5ea3b0ef4a6239e0c0c49ebd6ef0f6979b45c4d952ce4330bef33ee63bc0484ef89ec054f6c5cd433c78dbfb5fcd4e6e0fc5d192b899766b4f4e84c9fbdb3111b4e76a83ce4fdebc4dded43686ff3440b82414db36a74e16723b6c1480753b3da86df63c7375d0e96fc64a987ef498fe6cbd8656f4fc911e77c8194dd38f0da18fcb0f7ead4d1de56db6c0442b94883ac3566efd0575b43e8d2ed03d4c2f1bced59eb71'
-
 const testOracles = [
   {
     name: 'PythOracle',
@@ -96,7 +96,10 @@ testOracles.forEach(testOracle => {
     let pythOracle: PythOracle
     let pythOracleBtc: PythOracle
     let pythOracleFactory: PythFactory
+    let payoffFactory: PayoffFactory
     let oracleFactory: OracleFactory
+    let marketFactory: MarketFactory
+    let market: IMarket
     let dsu: IERC20Metadata
     let oracleSigner: SignerWithAddress
     let factorySigner: SignerWithAddress
@@ -105,6 +108,9 @@ testOracles.forEach(testOracle => {
       ;[owner, user] = await ethers.getSigners()
 
       dsu = IERC20Metadata__factory.connect(DSU_ADDRESS, owner)
+
+      payoffFactory = await new PayoffFactory__factory(owner).deploy()
+      await payoffFactory.initialize()
 
       const oracleImpl = await new Oracle__factory(owner).deploy()
       oracleFactory = await new OracleFactory__factory(owner).deploy(oracleImpl.address)
@@ -130,6 +136,37 @@ testOracles.forEach(testOracle => {
         owner,
       )
       await oracleFactory.create(PYTH_ETH_USD_PRICE_FEED, pythOracleFactory.address)
+
+      const marketImpl = await new Market__factory(
+        {
+          '@equilibria/perennial-v2/contracts/types/MarketParameter.sol:MarketParameterStorageLib': (
+            await new MarketParameterStorageLib__factory(owner).deploy()
+          ).address,
+          '@equilibria/perennial-v2/contracts/types/RiskParameter.sol:RiskParameterStorageLib': (
+            await new RiskParameterStorageLib__factory(owner).deploy()
+          ).address,
+        },
+        owner,
+      ).deploy()
+      marketFactory = await new MarketFactory__factory(owner).deploy(
+        oracleFactory.address,
+        payoffFactory.address,
+        marketImpl.address,
+      )
+      await marketFactory.initialize()
+      market = Market__factory.connect(
+        await marketFactory.callStatic.create({
+          token: dsu.address,
+          oracle: oracle.address,
+          payoff: ethers.constants.AddressZero,
+        }),
+        owner,
+      )
+      await marketFactory.create({
+        token: dsu.address,
+        oracle: oracle.address,
+        payoff: ethers.constants.AddressZero,
+      })
 
       oracleSigner = await impersonateWithBalance(oracle.address, utils.parseEther('10'))
       factorySigner = await impersonateWithBalance(pythOracleFactory.address, utils.parseEther('10'))
@@ -244,7 +281,7 @@ testOracles.forEach(testOracle => {
       it('commits successfully and incentivizes the keeper', async () => {
         const originalDSUBalance = await dsu.callStatic.balanceOf(user.address)
         const originalFactoryDSUBalance = await dsu.callStatic.balanceOf(oracleFactory.address)
-        await pythOracle.connect(oracleSigner).request(user.address)
+        await pythOracle.connect(oracleSigner).request(market.address, user.address)
         // Base fee isn't working properly in coverage, so we need to set it manually
         await ethers.provider.send('hardhat_setNextBlockBaseFeePerGas', ['0x5F5E100'])
         expect(await pythOracle.versions(1)).to.be.equal(STARTING_TIME)
@@ -268,7 +305,7 @@ testOracles.forEach(testOracle => {
       })
 
       it('fails to commit if update fee is not provided', async () => {
-        await pythOracle.connect(oracleSigner).request(user.address)
+        await pythOracle.connect(oracleSigner).request(market.address, user.address)
         expect(await pythOracle.versions(1)).to.be.equal(STARTING_TIME)
         expect(await pythOracle.next()).to.be.equal(STARTING_TIME)
         await expect(
@@ -280,13 +317,13 @@ testOracles.forEach(testOracle => {
       })
 
       it('does not commit a version that has already been committed', async () => {
-        await pythOracle.connect(oracleSigner).request(user.address)
+        await pythOracle.connect(oracleSigner).request(market.address, user.address)
         expect(await pythOracle.versions(1)).to.be.equal(STARTING_TIME)
         expect(await pythOracle.next()).to.be.equal(STARTING_TIME)
         await pythOracleFactory.connect(user).commit([PYTH_ETH_USD_PRICE_FEED], STARTING_TIME, VAA, {
           value: 1,
         })
-        await pythOracle.connect(oracleSigner).request(user.address)
+        await pythOracle.connect(oracleSigner).request(market.address, user.address)
         await expect(
           pythOracleFactory.connect(user).commit([PYTH_ETH_USD_PRICE_FEED], STARTING_TIME, VAA, {
             value: 1,
@@ -295,7 +332,7 @@ testOracles.forEach(testOracle => {
       })
 
       it('rejects invalid update data', async () => {
-        await pythOracle.connect(oracleSigner).request(user.address)
+        await pythOracle.connect(oracleSigner).request(market.address, user.address)
         expect(await pythOracle.versions(1)).to.be.equal(STARTING_TIME)
         expect(await pythOracle.next()).to.be.equal(STARTING_TIME)
         await expect(
@@ -306,8 +343,8 @@ testOracles.forEach(testOracle => {
       })
 
       it('cannot skip a version', async () => {
-        await pythOracle.connect(oracleSigner).request(user.address)
-        await pythOracle.connect(oracleSigner).request(user.address)
+        await pythOracle.connect(oracleSigner).request(market.address, user.address)
+        await pythOracle.connect(oracleSigner).request(market.address, user.address)
         expect(await pythOracle.versions(1)).to.be.equal(STARTING_TIME)
         expect(await pythOracle.versions(2)).to.be.equal(STARTING_TIME + 1)
         expect(await pythOracle.next()).to.be.equal(STARTING_TIME)
@@ -319,9 +356,9 @@ testOracles.forEach(testOracle => {
       })
 
       it('cannot skip a version if the grace period has expired', async () => {
-        await pythOracle.connect(oracleSigner).request(user.address)
+        await pythOracle.connect(oracleSigner).request(market.address, user.address)
         await time.increase(59)
-        await pythOracle.connect(oracleSigner).request(user.address)
+        await pythOracle.connect(oracleSigner).request(market.address, user.address)
         expect(await pythOracle.versions(1)).to.be.equal(STARTING_TIME)
         expect(await pythOracle.versions(2)).to.be.equal(STARTING_TIME + 60)
         expect(await pythOracle.next()).to.be.equal(STARTING_TIME)
@@ -363,14 +400,14 @@ testOracles.forEach(testOracle => {
 
       it('can commit if there are requested versions but no committed versions', async () => {
         await time.increase(30)
-        await pythOracle.connect(oracleSigner).request(user.address)
+        await pythOracle.connect(oracleSigner).request(market.address, user.address)
         await pythOracleFactory.connect(user).commit([PYTH_ETH_USD_PRICE_FEED], STARTING_TIME, VAA, {
           value: 1,
         })
       })
 
       it('can commit if there are committed versions but no requested versions', async () => {
-        await pythOracle.connect(oracleSigner).request(user.address)
+        await pythOracle.connect(oracleSigner).request(market.address, user.address)
         await pythOracleFactory.connect(user).commit([PYTH_ETH_USD_PRICE_FEED], STARTING_TIME, VAA, {
           value: 1,
         })
@@ -383,11 +420,11 @@ testOracles.forEach(testOracle => {
       })
 
       it('can commit if there are committed versions and requested versions', async () => {
-        await pythOracle.connect(oracleSigner).request(user.address)
+        await pythOracle.connect(oracleSigner).request(market.address, user.address)
         await time.increase(1)
         await pythOracleFactory.connect(user).commit([PYTH_ETH_USD_PRICE_FEED], STARTING_TIME, VAA, { value: 1 })
         await time.increaseTo(1686199141)
-        await pythOracle.connect(oracleSigner).request(user.address)
+        await pythOracle.connect(oracleSigner).request(market.address, user.address)
         const secondRequestedVersion = await currentBlockTimestamp()
         const nonRequestedOracleVersion = STARTING_TIME + 60
         await pythOracleFactory
@@ -415,7 +452,7 @@ testOracles.forEach(testOracle => {
 
       it('must be more recent than the most recently committed version', async () => {
         await time.increase(2)
-        await pythOracle.connect(oracleSigner).request(user.address)
+        await pythOracle.connect(oracleSigner).request(market.address, user.address)
         await pythOracleFactory.connect(user).commit([PYTH_ETH_USD_PRICE_FEED], STARTING_TIME + 2, VAA, {
           value: 1,
         })
@@ -429,7 +466,7 @@ testOracles.forEach(testOracle => {
 
       it('does not commitRequested if oracleVersion is incorrect', async () => {
         const originalDSUBalance = await dsu.callStatic.balanceOf(user.address)
-        await pythOracle.connect(oracleSigner).request(user.address)
+        await pythOracle.connect(oracleSigner).request(market.address, user.address)
         // Base fee isn't working properly in coverage, so we need to set it manually
         await ethers.provider.send('hardhat_setNextBlockBaseFeePerGas', ['0x5F5E100'])
         await pythOracleFactory.connect(user).commit([PYTH_ETH_USD_PRICE_FEED], STARTING_TIME - 1, VAA, {
@@ -456,7 +493,7 @@ testOracles.forEach(testOracle => {
       })
 
       it('cant commit non-requested version until after an invalid has passed grace period', async () => {
-        await pythOracle.connect(oracleSigner).request(user.address)
+        await pythOracle.connect(oracleSigner).request(market.address, user.address)
         expect((await pythOracle.global()).latestIndex).to.equal(0)
 
         await time.increase(59)
@@ -468,7 +505,7 @@ testOracles.forEach(testOracle => {
       })
 
       it('can commit non-requested version after an invalid', async () => {
-        await pythOracle.connect(oracleSigner).request(user.address)
+        await pythOracle.connect(oracleSigner).request(market.address, user.address)
         expect((await pythOracle.global()).latestIndex).to.equal(0)
 
         await time.increase(60)
@@ -489,7 +526,7 @@ testOracles.forEach(testOracle => {
       })
 
       it('reverts if committing invalid non-requested version', async () => {
-        await pythOracle.connect(oracleSigner).request(user.address)
+        await pythOracle.connect(oracleSigner).request(market.address, user.address)
         expect((await pythOracle.global()).latestIndex).to.equal(0)
 
         await time.increase(60)
@@ -590,7 +627,7 @@ testOracles.forEach(testOracle => {
 
     describe('#status', async () => {
       it('returns the correct versions', async () => {
-        await pythOracle.connect(oracleSigner).request(user.address)
+        await pythOracle.connect(oracleSigner).request(market.address, user.address)
         await pythOracleFactory.connect(user).commit([PYTH_ETH_USD_PRICE_FEED], STARTING_TIME, VAA, {
           value: 1,
         })
@@ -613,7 +650,7 @@ testOracles.forEach(testOracle => {
       it('can request a version', async () => {
         // No requested versions
         expect((await pythOracle.global()).currentIndex).to.equal(0)
-        await expect(pythOracle.connect(oracleSigner).request(user.address))
+        await expect(pythOracle.connect(oracleSigner).request(market.address, user.address))
           .to.emit(pythOracle, 'OracleProviderVersionRequested')
           .withArgs('1686198981')
         // Now there is exactly one requested version
@@ -626,7 +663,7 @@ testOracles.forEach(testOracle => {
 
         // No requested versions
         expect((await pythOracle.global()).currentIndex).to.equal(0)
-        await pythOracle.connect(oracleSigner).request(user.address)
+        await pythOracle.connect(oracleSigner).request(market.address, user.address)
         const currentTimestamp = await pythOracleFactory.current()
 
         // Now there is exactly one requested version
@@ -641,7 +678,7 @@ testOracles.forEach(testOracle => {
         badFactory.instances.returns(true)
         const badSigner = await impersonateWithBalance(badInstance.address, utils.parseEther('10'))
 
-        await expect(pythOracle.connect(badSigner).request(user.address)).to.be.revertedWithCustomError(
+        await expect(pythOracle.connect(badSigner).request(market.address, user.address)).to.be.revertedWithCustomError(
           pythOracle,
           'OracleProviderUnauthorizedError',
         )
@@ -651,8 +688,8 @@ testOracles.forEach(testOracle => {
         await ethers.provider.send('evm_setAutomine', [false])
         await ethers.provider.send('evm_setIntervalMining', [0])
 
-        await pythOracle.connect(oracleSigner).request(user.address)
-        await pythOracle.connect(oracleSigner).request(user.address)
+        await pythOracle.connect(oracleSigner).request(market.address, user.address)
+        await pythOracle.connect(oracleSigner).request(market.address, user.address)
 
         await ethers.provider.send('evm_mine', [])
 
@@ -664,7 +701,7 @@ testOracles.forEach(testOracle => {
 
     describe('#latest', async () => {
       it('returns the latest version', async () => {
-        await pythOracle.connect(oracleSigner).request(user.address)
+        await pythOracle.connect(oracleSigner).request(market.address, user.address)
         await pythOracleFactory.connect(user).commit([PYTH_ETH_USD_PRICE_FEED], STARTING_TIME, VAA, {
           value: 1,
         })
@@ -774,7 +811,7 @@ testOracles.forEach(testOracle => {
 
     describe('#atVersion', async () => {
       it('returns the correct version', async () => {
-        await pythOracle.connect(oracleSigner).request(user.address)
+        await pythOracle.connect(oracleSigner).request(market.address, user.address)
         await pythOracleFactory.connect(user).commit([PYTH_ETH_USD_PRICE_FEED], STARTING_TIME, VAA, {
           value: 1,
         })
@@ -789,7 +826,7 @@ testOracles.forEach(testOracle => {
       })
 
       it('returns invalid version if that version was requested but not committed', async () => {
-        await pythOracle.connect(oracleSigner).request(user.address)
+        await pythOracle.connect(oracleSigner).request(market.address, user.address)
         const version = await pythOracle.connect(user).at(STARTING_TIME)
         expect(version.valid).to.be.false
       })
