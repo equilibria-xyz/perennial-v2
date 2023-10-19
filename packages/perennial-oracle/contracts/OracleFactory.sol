@@ -30,10 +30,15 @@ contract OracleFactory is IOracleFactory, Factory {
 
     /// @notice Initializes the contract state
     /// @param incentive_ The token that is paid out as a reward to oracle keepers
-    function initialize(Token18 incentive_) external initializer(1) {
+    /// @param wrapper_ The Wrapper used to wrap USDC to DSU
+    function initialize(Token18 incentive_, IWrapper wrapper_) external initializer(2) {
         __Factory__initialize();
 
         incentive = incentive_;
+
+        // One-time wrap of USDC.
+        wrapper_.USDC().push(address(wrapper_));
+        wrapper_.wrap(address(this));
     }
 
     /// @notice Registers a new oracle provider factory to be used in the underlying oracle instances

@@ -52,6 +52,7 @@ import {
   ProxyAdmin__factory,
   TransparentUpgradeableProxy__factory,
 } from '@equilibria/perennial-v2/types/generated'
+import { MockWrapper__factory } from '@equilibria/perennial-v2-oracle/types/generated'
 
 const { ethers } = HRE
 
@@ -146,8 +147,10 @@ export async function deployProtocol(chainlinkContext?: ChainlinkContext): Promi
 
   const marketFactory = new MarketFactory__factory(owner).attach(factoryProxy.address)
 
+  const wrapper = await new MockWrapper__factory(owner).deploy(dsu.address, usdc.address)
+
   // Init
-  await oracleFactory.connect(owner).initialize(dsu.address)
+  await oracleFactory.connect(owner).initialize(dsu.address, wrapper.address)
   await payoffFactory.connect(owner).initialize()
   await marketFactory.connect(owner).initialize()
 

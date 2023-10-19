@@ -10,6 +10,7 @@ import {
   IERC20Metadata,
   IERC20Metadata__factory,
   IFactory,
+  MockWrapper__factory,
   Oracle,
   Oracle__factory,
   OracleFactory,
@@ -30,6 +31,7 @@ const PYTH_ETH_USD_PRICE_FEED = '0xff61491a931112ddf1bd8147cd1b641375f79f5825126
 const PYTH_BTC_USD_PRICE_FEED = '0xe62df6c8b4a85fe1a67db44dc12de5db330f7ac66b72dc658afedf0f4a415b43'
 const PYTH_ARB_USD_PRICE_FEED = '0x3fa4252848f9f0a1480be62745a4629d9eb1322aebab8a791e344b3b9c1adcf5'
 const DSU_ADDRESS = '0x605D26FBd5be761089281d5cec2Ce86eeA667109'
+const USDC_ADDRESS = '0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48'
 const CHAINLINK_ETH_USD_FEED = '0x5f4eC3Df9cbd43714FE2740f5E3616155c5b8419'
 const DSU_HOLDER = '0x2d264EBDb6632A06A1726193D4d37FeF1E5dbDcd'
 
@@ -96,7 +98,8 @@ testOracles.forEach(testOracle => {
 
       const oracleImpl = await new Oracle__factory(owner).deploy()
       oracleFactory = await new OracleFactory__factory(owner).deploy(oracleImpl.address)
-      await oracleFactory.initialize(dsu.address)
+      const wrapper = await new MockWrapper__factory(owner).deploy(DSU_ADDRESS, USDC_ADDRESS)
+      await oracleFactory.initialize(dsu.address, wrapper.address)
       await oracleFactory.updateMaxClaim(parse6decimal('100'))
 
       const pythOracleImpl = await new testOracle.Oracle(owner).deploy()

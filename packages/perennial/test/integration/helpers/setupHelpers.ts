@@ -36,6 +36,7 @@ import {
   Oracle__factory,
   OracleFactory__factory,
   IOracle__factory,
+  MockWrapper__factory,
 } from '@equilibria/perennial-v2-oracle/types/generated'
 const { deployments, ethers } = HRE
 
@@ -122,8 +123,10 @@ export async function deployProtocol(chainlinkContext?: ChainlinkContext): Promi
 
   const marketFactory = new MarketFactory__factory(owner).attach(factoryProxy.address)
 
+  const wrapper = await new MockWrapper__factory(owner).deploy(dsu.address, usdc.address)
+
   // Init
-  await oracleFactory.connect(owner).initialize(dsu.address)
+  await oracleFactory.connect(owner).initialize(dsu.address, wrapper.address)
   await payoffFactory.connect(owner).initialize()
   await marketFactory.connect(owner).initialize()
 

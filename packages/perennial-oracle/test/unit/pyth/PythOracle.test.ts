@@ -7,6 +7,7 @@ import {
   AggregatorV3Interface,
   IERC20Metadata,
   IPythStaticFee,
+  MockWrapper__factory,
   Oracle,
   Oracle__factory,
   OracleFactory,
@@ -53,6 +54,7 @@ describe('PythOracle', () => {
   let pythOracleFactory: PythFactory
   let oracleFactory: OracleFactory
   let dsu: FakeContract<IERC20Metadata>
+  let usdc: FakeContract<IERC20Metadata>
   let oracleSigner: SignerWithAddress
 
   beforeEach(async () => {
@@ -83,10 +85,13 @@ describe('PythOracle', () => {
 
     dsu = await smock.fake<IERC20Metadata>('IERC20Metadata')
     dsu.transfer.returns(true)
+    usdc = await smock.fake<IERC20Metadata>('IERC20Metadata')
+    usdc.transfer.returns(true)
 
     const oracleImpl = await new Oracle__factory(owner).deploy()
     oracleFactory = await new OracleFactory__factory(owner).deploy(oracleImpl.address)
-    await oracleFactory.initialize(dsu.address)
+    const wrapper = await new MockWrapper__factory(owner).deploy(dsu.address, usdc.address)
+    await oracleFactory.initialize(dsu.address, wrapper.address)
     await oracleFactory.updateMaxClaim(parse6decimal('10'))
 
     const pythOracleImpl = await new PythOracle__factory(owner).deploy()

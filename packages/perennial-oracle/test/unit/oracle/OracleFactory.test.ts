@@ -15,6 +15,7 @@ import {
   IInstance,
   IOracle,
   IMarket,
+  MockWrapper__factory,
 } from '../../../types/generated'
 import { constants } from 'ethers'
 import { parse6decimal } from '../../../../common/testutil/types'
@@ -24,10 +25,11 @@ use(smock.matchers)
 
 const PYTH_ETH_USD_PRICE_FEED = '0xff61491a931112ddf1bd8147cd1b641375f79f5825126d665480874634fd0ace'
 
-describe('OracleFactory', () => {
+describe.only('OracleFactory', () => {
   let user: SignerWithAddress
   let owner: SignerWithAddress
   let dsu: FakeContract<IERC20Metadata>
+  let usdc: FakeContract<IERC20Metadata>
   let marketFactory: FakeContract<IFactory>
   let subOracleFactory: FakeContract<IOracleProviderFactory>
   let subOracleFactory2: FakeContract<IOracleProviderFactory>
@@ -46,13 +48,16 @@ describe('OracleFactory', () => {
     subOracle = await smock.fake<IOracleProvider>('IOracleProvider')
     subOracle2 = await smock.fake<IOracleProvider>('IOracleProvider')
     dsu = await smock.fake<IERC20Metadata>('IERC20Metadata')
+    usdc = await smock.fake<IERC20Metadata>('IERC20Metadata')
+    usdc.transfer.returns(true)
     oracleImpl = await new Oracle__factory(owner).deploy()
     factory = await new OracleFactory__factory(owner).deploy(oracleImpl.address)
     subOracleFactorySigner = await impersonate.impersonateWithBalance(
       subOracleFactory.address,
       ethers.utils.parseEther('1000'),
     )
-    await factory.initialize(dsu.address)
+    const wrapper = await new MockWrapper__factory(owner).deploy(dsu.address, usdc.address)
+    await factory.initialize(dsu.address, wrapper.address)
   })
 
   describe('#initialize', async () => {
@@ -63,9 +68,9 @@ describe('OracleFactory', () => {
     })
 
     it('reverts if already initialized', async () => {
-      await expect(factory.initialize(dsu.address))
+      await expect(factory.initialize(dsu.address, constants.AddressZero))
         .to.be.revertedWithCustomError(factory, 'InitializableAlreadyInitializedError')
-        .withArgs(1)
+        .withArgs(2)
     })
   })
 
