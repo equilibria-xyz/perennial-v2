@@ -182,14 +182,14 @@ library VersionLib {
         // Compute long-short funding rate
         Fixed6 funding = global.pAccumulator.accumulate(
             riskParameter.pController,
-            toPosition.virtualSkew(riskParameter),
+            toPosition.staticSkew(riskParameter),
             fromOracleVersion.timestamp,
             toOracleVersion.timestamp,
             fromPosition.takerSocialized().mul(fromOracleVersion.price.abs())
         );
 
         // Handle maker receive-only status
-        if (riskParameter.makerReceiveOnly && funding.sign() != fromPosition.skew().sign())
+        if (riskParameter.makerReceiveOnly && funding.sign() != fromPosition.relativeSkew().sign())
             funding = funding.mul(Fixed6Lib.NEG_ONE);
 
         // Initialize long and short funding

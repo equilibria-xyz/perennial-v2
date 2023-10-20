@@ -102,7 +102,7 @@ library PositionLib {
         RiskParameter memory riskParameter
     ) internal pure {
         // load the computed attributes of the latest position
-        Fixed6 latestSkew = virtualSkew(self, riskParameter);
+        Fixed6 latestStaticSkew = staticSkew(self, riskParameter);
         (order.net, order.efficiency, order.utilization) =
             (Fixed6Lib.from(net(self)), Fixed6Lib.from(efficiency(self)), Fixed6Lib.from(utilization(self)));
 
@@ -114,11 +114,15 @@ library PositionLib {
             UFixed6Lib.from(Fixed6Lib.from(self.short).add(order.short))
         );
 
+        Fixed6 currentStaticSkew = staticSkew(self, riskParameter);
         // update the order's delta attributes with the positions updated attributes
         (order.net, order.skew, order.impact, order.efficiency, order.utilization) = (
             Fixed6Lib.from(net(self)).sub(order.net),
-            virtualSkew(self, riskParameter).sub(latestSkew).abs(),
-            Fixed6Lib.from(virtualSkew(self, riskParameter).abs()).sub(Fixed6Lib.from(latestSkew.abs())),
+            order.magnitude().abs().div(riskParameter.skewScale),
+            currentStaticSkew.eq(latestStaticSkew) ?
+                Fixed6Lib.ZERO :
+                currentStaticSkew.add(latestStaticSkew).div(
+                    Fixed6Lib.from(2 * latestStaticSkew.sub(currentStaticSkew).sign())),
             Fixed6Lib.from(efficiency(self)).sub(order.efficiency),
             Fixed6Lib.from(utilization(self)).sub(order.utilization)
         );
@@ -207,17 +211,17 @@ library PositionLib {
     /// @dev skew = (long - short) / max(long, short)
     /// @param self The position object to check
     /// @return The skew of the position
-    function skew(Position memory self) internal pure returns (Fixed6) {
-        return _skew(self, UFixed6Lib.ZERO);
+    function relativeSkew(Position memory self) internal pure returns (Fixed6) {
+        return _skew(self, major(self));
     }
 
-    /// @notice Returns the skew of the position taking into account the virtual taker
-    /// @dev virtual skew = (long - short) / (max(long, short) + virtualTaker)
+    /// @notice Returns the static skew of the position taking into account the skew scale
+    /// @dev static skew = (long - short) / skewScale
     /// @param self The position object to check
     /// @param riskParameter The current risk parameter
-    /// @return The virtual skew of the position
-    function virtualSkew(Position memory self, RiskParameter memory riskParameter) internal pure returns (Fixed6) {
-        return _skew(self, riskParameter.virtualTaker);
+    /// @return The static skew of the position
+    function staticSkew(Position memory self, RiskParameter memory riskParameter) internal pure returns (Fixed6) {
+        return _skew(self, riskParameter.skewScale);
     }
 
     /// @notice Returns the skew of the position taking into account position socialization
@@ -230,16 +234,15 @@ library PositionLib {
             takerSocialized(self).sub(minor(self)).div(takerSocialized(self));
     }
 
-    /// @notice Helper function to return the skew of the position with an optional virtual taker
+    /// @notice Helper function to return the skew of the position given a denominator
     /// @param self The position object to check
-    /// @param virtualTaker The virtual taker to use in the calculation
-    /// @return The virtual skew of the position
-    function _skew(Position memory self, UFixed6 virtualTaker) internal pure returns (Fixed6) {
-        return major(self).isZero() ?
+    /// @param denominator The denominator of the skew calculation
+    /// @return The skew of the position
+    function _skew(Position memory self, UFixed6 denominator) internal pure returns (Fixed6) {
+        return denominator.isZero() ?
             Fixed6Lib.ZERO :
-            Fixed6Lib.from(self.long)
-                .sub(Fixed6Lib.from(self.short))
-                .div(Fixed6Lib.from(major(self).add(virtualTaker)));
+            Fixed6Lib.from(self.long).sub(Fixed6Lib.from(self.short))
+                .div(Fixed6Lib.from(denominator));
     }
 
     /// @notice Returns the utilization of the position
