@@ -1,6 +1,6 @@
 import { SignerWithAddress } from '@nomiclabs/hardhat-ethers/signers'
 import { expect } from 'chai'
-import { BigNumber, utils } from 'ethers'
+import { utils } from 'ethers'
 import HRE from 'hardhat'
 import { time } from '../../../../common/testutil'
 import { impersonateWithBalance } from '../../../../common/testutil/impersonate'
@@ -10,7 +10,6 @@ import {
   IERC20Metadata,
   IERC20Metadata__factory,
   IFactory,
-  MockWrapper__factory,
   Oracle,
   Oracle__factory,
   OracleFactory,
@@ -34,6 +33,7 @@ const DSU_ADDRESS = '0x605D26FBd5be761089281d5cec2Ce86eeA667109'
 const USDC_ADDRESS = '0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48'
 const CHAINLINK_ETH_USD_FEED = '0x5f4eC3Df9cbd43714FE2740f5E3616155c5b8419'
 const DSU_HOLDER = '0x2d264EBDb6632A06A1726193D4d37FeF1E5dbDcd'
+const RESERVE_ADDRESS = '0xD05aCe63789cCb35B9cE71d01e4d632a0486Da4B'
 
 const STARTING_TIME = 1686198981
 
@@ -98,8 +98,7 @@ testOracles.forEach(testOracle => {
 
       const oracleImpl = await new Oracle__factory(owner).deploy()
       oracleFactory = await new OracleFactory__factory(owner).deploy(oracleImpl.address)
-      const wrapper = await new MockWrapper__factory(owner).deploy(DSU_ADDRESS, USDC_ADDRESS)
-      await oracleFactory.initialize(dsu.address, wrapper.address)
+      await oracleFactory.initialize(dsu.address, USDC_ADDRESS, RESERVE_ADDRESS)
       await oracleFactory.updateMaxClaim(parse6decimal('100'))
 
       const pythOracleImpl = await new testOracle.Oracle(owner).deploy()

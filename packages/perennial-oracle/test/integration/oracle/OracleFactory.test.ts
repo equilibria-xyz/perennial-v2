@@ -6,7 +6,6 @@ import { impersonateWithBalance } from '../../../../common/testutil/impersonate'
 import {
   IERC20Metadata,
   IERC20Metadata__factory,
-  MockWrapper__factory,
   Oracle__factory,
   OracleFactory,
   OracleFactory__factory,
@@ -25,6 +24,7 @@ const DSU_ADDRESS = '0x605D26FBd5be761089281d5cec2Ce86eeA667109'
 const CHAINLINK_ETH_USD_FEED = '0x5f4eC3Df9cbd43714FE2740f5E3616155c5b8419'
 const DSU_HOLDER = '0x2d264EBDb6632A06A1726193D4d37FeF1E5dbDcd'
 const USDC_HOLDER = '0x0A59649758aa4d66E25f08Dd01271e891fe52199'
+const RESERVE_ADDRESS = '0xD05aCe63789cCb35B9cE71d01e4d632a0486Da4B'
 
 describe('OracleFactory', () => {
   let owner: SignerWithAddress
@@ -38,7 +38,6 @@ describe('OracleFactory', () => {
 
     dsu = IERC20Metadata__factory.connect(DSU_ADDRESS, owner)
 
-    const wrapper = await new MockWrapper__factory(owner).deploy(DSU_ADDRESS, USDC_ADDRESS)
     const oracleImpl = await new Oracle__factory(owner).deploy()
     oracleFactory = await new OracleFactory__factory(owner).deploy(oracleImpl.address)
     usdc = IERC20Metadata__factory.connect(USDC_ADDRESS, owner)
@@ -47,7 +46,7 @@ describe('OracleFactory', () => {
     // Sanity check
     expect(await usdc.balanceOf(oracleFactory.address)).to.gt(0)
 
-    await oracleFactory.initialize(dsu.address, wrapper.address)
+    await oracleFactory.initialize(dsu.address, usdc.address, RESERVE_ADDRESS)
     await oracleFactory.updateMaxClaim(parse6decimal('10'))
 
     const pythOracleImpl = await new PythOracle__factory(owner).deploy()

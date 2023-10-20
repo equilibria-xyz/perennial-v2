@@ -15,7 +15,7 @@ import {
   IInstance,
   IOracle,
   IMarket,
-  MockWrapper__factory,
+  IEmptySetReserve,
 } from '../../../types/generated'
 import { constants } from 'ethers'
 import { parse6decimal } from '../../../../common/testutil/types'
@@ -50,14 +50,15 @@ describe('OracleFactory', () => {
     dsu = await smock.fake<IERC20Metadata>('IERC20Metadata')
     usdc = await smock.fake<IERC20Metadata>('IERC20Metadata')
     usdc.transfer.returns(true)
+    usdc.approve.returns(true)
+    const reserve = await smock.fake<IEmptySetReserve>('IEmptySetReserve')
     oracleImpl = await new Oracle__factory(owner).deploy()
     factory = await new OracleFactory__factory(owner).deploy(oracleImpl.address)
     subOracleFactorySigner = await impersonate.impersonateWithBalance(
       subOracleFactory.address,
       ethers.utils.parseEther('1000'),
     )
-    const wrapper = await new MockWrapper__factory(owner).deploy(dsu.address, usdc.address)
-    await factory.initialize(dsu.address, wrapper.address)
+    await factory.initialize(dsu.address, usdc.address, reserve.address)
   })
 
   describe('#initialize', async () => {
@@ -68,7 +69,7 @@ describe('OracleFactory', () => {
     })
 
     it('reverts if already initialized', async () => {
-      await expect(factory.initialize(dsu.address, constants.AddressZero))
+      await expect(factory.initialize(dsu.address, usdc.address, constants.AddressZero))
         .to.be.revertedWithCustomError(factory, 'InitializableAlreadyInitializedError')
         .withArgs(2)
     })

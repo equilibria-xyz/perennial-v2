@@ -1,20 +1,13 @@
 // SPDX-License-Identifier: Apache-2.0
 pragma solidity ^0.8.13;
 
+import "@equilibria/emptyset-batcher/interfaces/IEmptySetReserve.sol";
 import "@equilibria/root/token/types/Token6.sol";
 import "@equilibria/root/token/types/Token18.sol";
 import "@equilibria/root/attribute/interfaces/IFactory.sol";
 import "@equilibria/perennial-v2/contracts/interfaces/IOracleProviderFactory.sol";
 import "@equilibria/perennial-v2/contracts/interfaces/IMarket.sol";
 import "./IOracle.sol";
-
-interface IWrapper {
-    function USDC() external view returns (Token6); // solhint-disable-line func-name-mixedcase
-    function DSU() external view returns (Token18); // solhint-disable-line func-name-mixedcase
-
-    function wrap(address to) external;
-    function unwrap(address to) external;
-}
 
 interface IOracleFactory is IOracleProviderFactory, IFactory {
     event MaxClaimUpdated(UFixed6 newMaxClaim);
@@ -33,7 +26,7 @@ interface IOracleFactory is IOracleProviderFactory, IFactory {
     error OracleFactoryClaimTooLargeError();
 
     function factories(IOracleProviderFactory factory) external view returns (bool);
-    function initialize(Token18 incentive, IWrapper wrapper) external;
+    function initialize(Token18 incentive, Token6 usdc, IEmptySetReserve reserve) external;
     function register(IOracleProviderFactory factory) external;
     function create(bytes32 id, IOracleProviderFactory factory) external returns (IOracle newOracle);
     function update(bytes32 id, IOracleProviderFactory factory) external;

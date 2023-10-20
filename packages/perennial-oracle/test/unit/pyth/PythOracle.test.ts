@@ -5,9 +5,9 @@ import HRE from 'hardhat'
 import {
   AbstractPyth,
   AggregatorV3Interface,
+  IEmptySetReserve,
   IERC20Metadata,
   IPythStaticFee,
-  MockWrapper__factory,
   Oracle,
   Oracle__factory,
   OracleFactory,
@@ -87,11 +87,12 @@ describe('PythOracle', () => {
     dsu.transfer.returns(true)
     usdc = await smock.fake<IERC20Metadata>('IERC20Metadata')
     usdc.transfer.returns(true)
+    usdc.approve.returns(true)
+    const reserve = await smock.fake<IEmptySetReserve>('IEmptySetReserve')
 
     const oracleImpl = await new Oracle__factory(owner).deploy()
     oracleFactory = await new OracleFactory__factory(owner).deploy(oracleImpl.address)
-    const wrapper = await new MockWrapper__factory(owner).deploy(dsu.address, usdc.address)
-    await oracleFactory.initialize(dsu.address, wrapper.address)
+    await oracleFactory.initialize(dsu.address, usdc.address, reserve.address)
     await oracleFactory.updateMaxClaim(parse6decimal('10'))
 
     const pythOracleImpl = await new PythOracle__factory(owner).deploy()
