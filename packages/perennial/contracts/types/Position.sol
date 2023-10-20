@@ -241,8 +241,7 @@ library PositionLib {
     function _skew(Position memory self, UFixed6 denominator) internal pure returns (Fixed6) {
         return denominator.isZero() ?
             Fixed6Lib.ZERO :
-            Fixed6Lib.from(self.long).sub(Fixed6Lib.from(self.short))
-                .div(Fixed6Lib.from(denominator));
+            Fixed6Lib.from(self.long).sub(Fixed6Lib.from(self.short)).div(Fixed6Lib.from(denominator));
     }
 
     /// @notice Returns the utilization of the position

@@ -198,7 +198,7 @@ library RiskParameterStorageLib {
         uint256 encoded1 =
             uint256(UFixed6.unwrap(newValue.liquidationFee)                     << (256 - 24)) >> (256 - 24) |
             uint256(UFixed6.unwrap(newValue.minLiquidationFee)                  << (256 - 48)) >> (256 - 24 - 48) |
-            uint256(UFixed6.unwrap(newValue.skewScale)                       << (256 - 64)) >> (256 - 24 - 48 - 64) |
+            uint256(UFixed6.unwrap(newValue.skewScale)                          << (256 - 64)) >> (256 - 24 - 48 - 64) |
             uint256(UFixed6.unwrap(newValue.utilizationCurve.minRate)           << (256 - 32)) >> (256 - 24 - 48 - 64 - 32) |
             uint256(UFixed6.unwrap(newValue.utilizationCurve.maxRate)           << (256 - 32)) >> (256 - 24 - 48 - 64 - 32 - 32) |
             uint256(UFixed6.unwrap(newValue.utilizationCurve.targetRate)        << (256 - 32)) >> (256 - 24 - 48 - 64 - 32 - 32 - 32) |
