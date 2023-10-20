@@ -2,6 +2,7 @@
 pragma solidity ^0.8.13;
 
 import "@equilibria/root/number/types/UFixed6.sol";
+import "@equilibria/perennial-v2/contracts/interfaces/IMarket.sol";
 import "@equilibria/perennial-v2/contracts/types/Position.sol";
 import "./InterfaceFee.sol";
 
@@ -42,7 +43,10 @@ library TriggerOrderLib {
         return false;
     }
 
-    function execute(TriggerOrder memory self, Position memory currentPosition) internal pure {
+    function execute(TriggerOrder memory self, address account, IMarket market, Position memory latestPosition) internal view returns (Position memory currentPosition) {
+        currentPosition = market.pendingPositions(account, market.locals(account).currentId);
+        currentPosition.adjust(latestPosition);
+
         // update position
         if (self.side == 0)
             currentPosition.maker = UFixed6Lib.from(Fixed6Lib.from(currentPosition.maker).add(self.delta));
@@ -53,6 +57,10 @@ library TriggerOrderLib {
 
         // update collateral (override collateral field in position since it is not used in this context)
         currentPosition.collateral = (self.side == 3) ? self.delta : Fixed6Lib.ZERO;
+    }
+
+    function maxWithdraw(TriggerOrder memory self) internal pure returns (bool) {
+        return self.side == 3 && self.delta.eq(Fixed6.wrap(type(int64).min));
     }
 }
 

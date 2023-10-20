@@ -125,7 +125,7 @@ contract MultiInvoker is IMultiInvoker, Kept {
                     InterfaceFee memory interfaceFee
                 ) = abi.decode(invocation.args, (IMarket, UFixed6, UFixed6, UFixed6, Fixed6, bool, InterfaceFee));
 
-                _update(market, newMaker, newLong, newShort, collateral, wrap, interfaceFee);
+                _update(msg.sender, market, newMaker, newLong, newShort, collateral, wrap, interfaceFee, true);
             } else if (invocation.action == PerennialAction.UPDATE_VAULT) {
                 (IVault vault, UFixed6 depositAssets, UFixed6 redeemShares, UFixed6 claimAssets, bool wrap)
                     = abi.decode(invocation.args, (IVault, UFixed6, UFixed6, UFixed6, bool));
@@ -143,7 +143,7 @@ contract MultiInvoker is IMultiInvoker, Kept {
                 (address account, IMarket market, uint256 nonce, bool revertOnFailure) =
                     abi.decode(invocation.args, (address, IMarket, uint256, bool));
 
-                _executeOrder(account, market, nonce, revertOnFailure);
+                _executeOrder(_ExecuteOrderArgs(account, market, nonce, orders(account, market, nonce), revertOnFailure));
             } else if (invocation.action == PerennialAction.COMMIT_PRICE) {
                 (address oracleProviderFactory, uint256 value, bytes32[] memory ids, uint256 version, bytes memory data, bool revertOnFailure) =
                     abi.decode(invocation.args, (address, uint256, bytes32[], uint256, bytes, bool));
@@ -165,6 +165,7 @@ contract MultiInvoker is IMultiInvoker, Kept {
     }
 
     /// @notice Updates market on behalf of msg.sender
+    /// @param account Address of account to update
     /// @param market Address of market up update
     /// @param newMaker New maker position for msg.sender in `market`
     /// @param newLong New long position for msg.sender in `market`
@@ -173,28 +174,30 @@ contract MultiInvoker is IMultiInvoker, Kept {
     /// @param wrap Wheather to wrap/unwrap collateral on deposit/withdrawal
     /// @param interfaceFee Interface fee to charge
     function _update(
+        address account,
         IMarket market,
         UFixed6 newMaker,
         UFixed6 newLong,
         UFixed6 newShort,
         Fixed6 collateral,
         bool wrap,
-        InterfaceFee memory interfaceFee
+        InterfaceFee memory interfaceFee,
+        bool revertOnFailure
     ) internal isMarketInstance(market) {
         Fixed18 balanceBefore =  Fixed18Lib.from(DSU.balanceOf());
 
         // collateral is transferred here as DSU then an optional interface fee is charged from it
         if (collateral.sign() == 1) _deposit(collateral.abs(), wrap);
 
-        market.update(msg.sender, newMaker, newLong, newShort, collateral, false);
+        try market.update(account, newMaker, newLong, newShort, collateral, false) {
+            Fixed6 withdrawAmount = Fixed6Lib.from(Fixed18Lib.from(DSU.balanceOf()).sub(balanceBefore));
+            if (!withdrawAmount.isZero()) _withdraw(account, withdrawAmount.abs(), wrap);
 
-        // collateral is transferred from the market to this address, an optional interface fee is charged from it,
-        // and the rest is sent to the msg.sender
-        Fixed6 withdrawAmount = Fixed6Lib.from(Fixed18Lib.from(DSU.balanceOf()).sub(balanceBefore));
-        if (!withdrawAmount.isZero()) _withdraw(msg.sender, withdrawAmount.abs(), wrap);
-
-        // charge interface fee
-        _chargeFee(market, interfaceFee);
+            // charge interface fee
+            _chargeFee(market, interfaceFee);
+        } catch (bytes memory reason) {
+            if (revertOnFailure) Address.verifyCallResult(false, reason, "");
+        }
     }
 
     /// @notice Update vault on behalf of msg.sender
@@ -428,44 +431,48 @@ contract MultiInvoker is IMultiInvoker, Kept {
         }
     }
 
+    /// @dev Internal struct to bypass stack depth limit
+    struct _ExecuteOrderArgs {
+        address account;
+        IMarket market;
+        uint256 nonce;
+        TriggerOrder order;
+        bool revertOnFailure;
+    }
+
     /**
      * @notice executes an `account's` open order for a `market` and pays a fee to `msg.sender`
-     * @param account Account to execute order of
-     * @param market Market to execute order for
-     * @param nonce Id of open order to index
+     * @param args Execute order args
      */
     function _executeOrder(
-        address account,
-        IMarket market,
-        uint256 nonce,
-        bool revertOnFailure
+        _ExecuteOrderArgs memory args
     ) internal keep (
         UFixed18Lib.from(keeperMultiplier),
-        GAS_BUFFER,
+        args.order.maxWithdraw() ? GAS_BUFFER * 5 : GAS_BUFFER,
         "",
-        abi.encode(account, market, orders(account, market, nonce).fee)
+        abi.encode(args.account, args.market, args.nonce, args.order, args.revertOnFailure)
     ) {
-        if (!canExecuteOrder(account, market, nonce)) revert MultiInvokerCantExecuteError();
+        if (!canExecuteOrder(args.account, args.market, args.nonce)) revert MultiInvokerCantExecuteError();
 
-        (Position memory latestPosition, , ) = _latest(market, account);
-        Position memory currentPosition = market.pendingPositions(account, market.locals(account).currentId);
-        currentPosition.adjust(latestPosition);
+        (Position memory latestPosition, , ) = _latest(args.market, args.account);
 
-        orders(account, market, nonce).execute(currentPosition);
+        latestPosition = args.order.execute(args.account, args.market, latestPosition);
 
-        try market.update(
-            account,
-            currentPosition.maker,
-            currentPosition.long,
-            currentPosition.short,
-            currentPosition.collateral,
-            false
-        ) {
-            _chargeFee(market, orders(account, market, nonce).interfaceFee);
-            delete _orders[account][market][nonce];
-            emit OrderExecuted(account, market, nonce);
-        } catch (bytes memory reason) {
-            if (revertOnFailure) Address.verifyCallResult(false, reason, "");
+        // If this is not a max withdrawal order, execute it
+        if (!args.order.maxWithdraw()) {
+            _update(
+                args.account,
+                args.market,
+                latestPosition.maker,
+                latestPosition.long,
+                latestPosition.short,
+                latestPosition.collateral,
+                true,
+                args.order.interfaceFee,
+                args.revertOnFailure
+            );
+            delete _orders[args.account][args.market][args.nonce];
+            emit OrderExecuted(args.account, args.market, args.nonce);
         }
     }
 
@@ -473,10 +480,11 @@ contract MultiInvoker is IMultiInvoker, Kept {
     /// @param keeperFee Keeper fee to raise
     /// @param data Data to raise keeper fee with
     function _raiseKeeperFee(UFixed18 keeperFee, bytes memory data) internal override {
-        (address account, address market, UFixed6 fee) = abi.decode(data, (address, address, UFixed6));
-        if (keeperFee.gt(UFixed18Lib.from(fee))) revert MultiInvokerMaxFeeExceededError();
+        (address account, IMarket market, uint256 nonce, TriggerOrder memory order, bool revertOnFailure)
+            = abi.decode(data, (address, IMarket, uint256, TriggerOrder, bool));
+        if (keeperFee.gt(UFixed18Lib.from(order.fee))) revert MultiInvokerMaxFeeExceededError();
 
-        IMarket(market).update(
+        market.update(
             account,
             UFixed6Lib.MAX,
             UFixed6Lib.MAX,
@@ -485,6 +493,22 @@ contract MultiInvoker is IMultiInvoker, Kept {
             false
         );
 
+        // If this is a max withdrawal, execute it here
+        if (order.maxWithdraw()) {
+            _update(
+                account,
+                market,
+                UFixed6Lib.MAX,
+                UFixed6Lib.MAX,
+                UFixed6Lib.MAX,
+                Fixed6.wrap(type(int256).min),
+                true,
+                order.interfaceFee,
+                revertOnFailure
+            );
+            delete _orders[account][market][nonce];
+            emit OrderExecuted(account, market, nonce);
+        }
     }
 
     /// @notice Places order on behalf of msg.sender from the invoker

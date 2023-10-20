@@ -6,17 +6,18 @@ import 'hardhat'
 
 import { expect } from 'chai'
 import { parse6decimal } from '../../../../common/testutil/types'
-import { IMultiInvoker, Market, MultiInvoker } from '../../../types/generated'
+import { Market, MultiInvoker } from '../../../types/generated'
 import { Compare, Dir, openTriggerOrder } from '../../helpers/types'
 import { buildCancelOrder, buildExecOrder, buildPlaceOrder, buildUpdateMarket } from '../../helpers/invoke'
 import { loadFixture } from '@nomicfoundation/hardhat-network-helpers'
-import { InterfaceFeeStruct, TriggerOrderStruct } from '../../../types/generated/contracts/MultiInvoker'
+import { TriggerOrderStruct } from '../../../types/generated/contracts/MultiInvoker'
 import { SignerWithAddress } from '@nomiclabs/hardhat-ethers/signers'
 import { ethers } from 'hardhat'
 
 const MAX_UINT48 = BigNumber.from('281474976710655')
 const MAX_UINT64 = BigNumber.from('18446744073709551615')
-const MIN_MAX_UINT64 = BigNumber.from('9223372036854775807')
+const MAX_INT64 = BigNumber.from('9223372036854775807')
+const MIN_INT64 = BigNumber.from('-9223372036854775808')
 
 describe('Orders', () => {
   let instanceVars: InstanceVars
@@ -114,7 +115,7 @@ describe('Orders', () => {
   })
 
   it('executes a long limit order', async () => {
-    const { user, chainlink } = instanceVars
+    const { user, userC, chainlink } = instanceVars
 
     const trigger = openTriggerOrder({
       delta: userPosition,
@@ -137,14 +138,14 @@ describe('Orders', () => {
 
     await ethers.provider.send('hardhat_setNextBlockBaseFeePerGas', ['0x1'])
     const execute = buildExecOrder({ user: user.address, market: market.address, orderId: 1 })
-    await expect(multiInvoker.connect(user).invoke(execute))
+    await expect(multiInvoker.connect(userC).invoke(execute))
       .to.emit(multiInvoker, 'OrderExecuted')
       .withArgs(user.address, market.address, 1)
       .to.emit(multiInvoker, 'KeeperCall')
   })
 
   it('executes a short limit order', async () => {
-    const { user, chainlink } = instanceVars
+    const { user, userC, chainlink } = instanceVars
 
     const trigger = openTriggerOrder({
       delta: userPosition,
@@ -167,14 +168,14 @@ describe('Orders', () => {
 
     await ethers.provider.send('hardhat_setNextBlockBaseFeePerGas', ['0x1'])
     const execute = buildExecOrder({ user: user.address, market: market.address, orderId: 1 })
-    await expect(multiInvoker.connect(user).invoke(execute))
+    await expect(multiInvoker.connect(userC).invoke(execute))
       .to.emit(multiInvoker, 'OrderExecuted')
       .withArgs(user.address, market.address, 1)
       .to.emit(multiInvoker, 'KeeperCall')
   })
 
   it('executes a long tp order', async () => {
-    const { user, chainlink } = instanceVars
+    const { user, userC, chainlink } = instanceVars
 
     const trigger = openTriggerOrder({
       delta: userPosition.mul(-1),
@@ -198,14 +199,14 @@ describe('Orders', () => {
 
     await ethers.provider.send('hardhat_setNextBlockBaseFeePerGas', ['0x1'])
     const execute = buildExecOrder({ user: user.address, market: market.address, orderId: 1 })
-    await expect(multiInvoker.connect(user).invoke(execute))
+    await expect(multiInvoker.connect(userC).invoke(execute))
       .to.emit(multiInvoker, 'OrderExecuted')
       .withArgs(user.address, market.address, 1)
       .to.emit(multiInvoker, 'KeeperCall')
   })
 
   it('executes a short tp order', async () => {
-    const { user, chainlink } = instanceVars
+    const { user, userC, chainlink } = instanceVars
 
     const trigger = openTriggerOrder({
       delta: userPosition.mul(-1),
@@ -229,14 +230,14 @@ describe('Orders', () => {
 
     await ethers.provider.send('hardhat_setNextBlockBaseFeePerGas', ['0x1'])
     const execute = buildExecOrder({ user: user.address, market: market.address, orderId: 1 })
-    await expect(multiInvoker.connect(user).invoke(execute))
+    await expect(multiInvoker.connect(userC).invoke(execute))
       .to.emit(multiInvoker, 'OrderExecuted')
       .withArgs(user.address, market.address, 1)
       .to.emit(multiInvoker, 'KeeperCall')
   })
 
   it('executes a long sl order', async () => {
-    const { user, chainlink } = instanceVars
+    const { user, userC, chainlink } = instanceVars
 
     const trigger = openTriggerOrder({
       delta: userPosition.mul(-1),
@@ -260,14 +261,14 @@ describe('Orders', () => {
 
     await ethers.provider.send('hardhat_setNextBlockBaseFeePerGas', ['0x1'])
     const execute = buildExecOrder({ user: user.address, market: market.address, orderId: 1 })
-    await expect(multiInvoker.connect(user).invoke(execute))
+    await expect(multiInvoker.connect(userC).invoke(execute))
       .to.emit(multiInvoker, 'OrderExecuted')
       .withArgs(user.address, market.address, 1)
       .to.emit(multiInvoker, 'KeeperCall')
   })
 
   it('executes a short sl order', async () => {
-    const { user, chainlink } = instanceVars
+    const { user, userC, chainlink } = instanceVars
 
     const trigger = openTriggerOrder({
       delta: userPosition.mul(-1),
@@ -290,14 +291,14 @@ describe('Orders', () => {
 
     await ethers.provider.send('hardhat_setNextBlockBaseFeePerGas', ['0x1'])
     const execute = buildExecOrder({ user: user.address, market: market.address, orderId: 1 })
-    await expect(multiInvoker.connect(user).invoke(execute))
+    await expect(multiInvoker.connect(userC).invoke(execute))
       .to.emit(multiInvoker, 'OrderExecuted')
       .withArgs(user.address, market.address, 1)
       .to.emit(multiInvoker, 'KeeperCall')
   })
 
   it('executes a maker limit order', async () => {
-    const { userB, chainlink } = instanceVars
+    const { userB, userC, chainlink } = instanceVars
     const trigger = openTriggerOrder({
       delta: userPosition,
       price: payoff(marketPrice.add(10)),
@@ -319,14 +320,14 @@ describe('Orders', () => {
 
     await ethers.provider.send('hardhat_setNextBlockBaseFeePerGas', ['0x1'])
     const execute = buildExecOrder({ user: userB.address, market: market.address, orderId: 1 })
-    await expect(multiInvoker.connect(userB).invoke(execute))
+    await expect(multiInvoker.connect(userC).invoke(execute))
       .to.emit(multiInvoker, 'OrderExecuted')
       .withArgs(userB.address, market.address, 1)
       .to.emit(multiInvoker, 'KeeperCall')
   })
 
   it('executes a maker above market price order', async () => {
-    const { userB, chainlink } = instanceVars
+    const { userB, userC, chainlink } = instanceVars
     const trigger = openTriggerOrder({
       delta: userPosition.mul(-1),
       price: payoff(marketPrice.sub(10)),
@@ -349,14 +350,14 @@ describe('Orders', () => {
 
     await ethers.provider.send('hardhat_setNextBlockBaseFeePerGas', ['0x1'])
     const execute = buildExecOrder({ user: userB.address, market: market.address, orderId: 1 })
-    await expect(multiInvoker.connect(userB).invoke(execute))
+    await expect(multiInvoker.connect(userC).invoke(execute))
       .to.emit(multiInvoker, 'OrderExecuted')
       .withArgs(userB.address, market.address, 1)
       .to.emit(multiInvoker, 'KeeperCall')
   })
 
   it('executes a maker below price order', async () => {
-    const { userB, chainlink } = instanceVars
+    const { userB, userC, chainlink } = instanceVars
     const trigger = openTriggerOrder({
       delta: userPosition.mul(-1),
       price: payoff(marketPrice.add(10)),
@@ -380,14 +381,14 @@ describe('Orders', () => {
 
     await ethers.provider.send('hardhat_setNextBlockBaseFeePerGas', ['0x1'])
     const execute = buildExecOrder({ user: userB.address, market: market.address, orderId: 1 })
-    await expect(multiInvoker.connect(userB).invoke(execute))
+    await expect(multiInvoker.connect(userC).invoke(execute))
       .to.emit(multiInvoker, 'OrderExecuted')
       .withArgs(userB.address, market.address, 1)
       .to.emit(multiInvoker, 'KeeperCall')
   })
 
   it('executes an order with interface fee', async () => {
-    const { user, userB, chainlink, dsu } = instanceVars
+    const { user, userB, userC, chainlink, dsu } = instanceVars
 
     const trigger = openTriggerOrder({
       delta: userPosition,
@@ -412,7 +413,7 @@ describe('Orders', () => {
     const balanceBefore = await dsu.balanceOf(userB.address)
     await ethers.provider.send('hardhat_setNextBlockBaseFeePerGas', ['0x1'])
     const execute = buildExecOrder({ user: user.address, market: market.address, orderId: 1 })
-    await expect(multiInvoker.connect(user).invoke(execute))
+    await expect(multiInvoker.connect(userC).invoke(execute))
       .to.emit(multiInvoker, 'OrderExecuted')
       .withArgs(user.address, market.address, 1)
       .to.emit(multiInvoker, 'KeeperCall')
@@ -425,7 +426,7 @@ describe('Orders', () => {
   })
 
   it('executes an order with interface fee (unwrap)', async () => {
-    const { user, userB, chainlink, usdc } = instanceVars
+    const { user, userB, userC, chainlink, usdc } = instanceVars
 
     const trigger = openTriggerOrder({
       delta: userPosition,
@@ -450,7 +451,7 @@ describe('Orders', () => {
     const balanceBefore = await usdc.balanceOf(userB.address)
     await ethers.provider.send('hardhat_setNextBlockBaseFeePerGas', ['0x1'])
     const execute = buildExecOrder({ user: user.address, market: market.address, orderId: 1 })
-    await expect(multiInvoker.connect(user).invoke(execute))
+    await expect(multiInvoker.connect(userC).invoke(execute))
       .to.emit(multiInvoker, 'OrderExecuted')
       .withArgs(user.address, market.address, 1)
       .to.emit(multiInvoker, 'KeeperCall')
@@ -463,7 +464,7 @@ describe('Orders', () => {
   })
 
   it('executes a withdrawal order', async () => {
-    const { userB, chainlink } = instanceVars
+    const { user, userC, chainlink, usdc } = instanceVars
     const trigger = openTriggerOrder({
       delta: collateral.div(-4),
       price: payoff(marketPrice.add(10)),
@@ -474,25 +475,68 @@ describe('Orders', () => {
 
     const placeOrder = buildPlaceOrder({
       market: market.address,
-      maker: (await market.positions(userB.address)).maker,
+      maker: (await market.positions(user.address)).maker,
       order: trigger,
       collateral: collateral,
     })
 
-    await expect(multiInvoker.connect(userB).invoke(placeOrder)).to.not.be.reverted
-    expect(await multiInvoker.canExecuteOrder(userB.address, market.address, 1)).to.be.false
+    await expect(multiInvoker.connect(user).invoke(placeOrder)).to.not.be.reverted
+    expect(await multiInvoker.canExecuteOrder(user.address, market.address, 1)).to.be.false
 
     await chainlink.nextWithPriceModification(() => marketPrice.add(11))
-    await settle(market, userB)
+    await settle(market, user)
 
+    const balanceBefore = await usdc.balanceOf(user.address)
     await ethers.provider.send('hardhat_setNextBlockBaseFeePerGas', ['0x1'])
-    const execute = buildExecOrder({ user: userB.address, market: market.address, orderId: 1 })
-    await expect(multiInvoker.connect(userB).invoke(execute))
+    const execute = buildExecOrder({ user: user.address, market: market.address, orderId: 1 })
+    await expect(multiInvoker.connect(userC).invoke(execute))
       .to.emit(multiInvoker, 'OrderExecuted')
-      .withArgs(userB.address, market.address, 1)
+      .withArgs(user.address, market.address, 1)
       .to.emit(multiInvoker, 'KeeperCall')
       .to.emit(market, 'Updated')
-      .withArgs(multiInvoker.address, userB.address, anyValue, anyValue, anyValue, anyValue, collateral.div(-4), false)
+      .withArgs(multiInvoker.address, user.address, anyValue, anyValue, anyValue, anyValue, collateral.div(-4), false)
+
+    expect(await usdc.balanceOf(user.address)).to.equal(balanceBefore.add(collateral.div(4)))
+  })
+
+  it('executes a max withdrawal order with order fee', async () => {
+    const { user, userC, chainlink, dsu, usdc } = instanceVars
+    const trigger = openTriggerOrder({
+      delta: MIN_INT64,
+      price: payoff(marketPrice.add(10)),
+      side: Dir.C,
+      comparison: Compare.BELOW_MARKET,
+    })
+
+    const placeOrder = buildPlaceOrder({
+      market: market.address,
+      maker: 0,
+      order: trigger,
+      collateral: collateral,
+    })
+
+    await expect(multiInvoker.connect(user).invoke(placeOrder)).to.not.be.reverted
+    expect(await multiInvoker.canExecuteOrder(user.address, market.address, 1)).to.be.false
+
+    await chainlink.nextWithPriceModification(() => marketPrice.add(11))
+    await settle(market, user)
+
+    const executorBalanceBefore = await dsu.balanceOf(userC.address)
+    const balanceBefore = await usdc.balanceOf(user.address)
+    const execute = buildExecOrder({ user: user.address, market: market.address, orderId: 1 })
+    await expect(multiInvoker.connect(userC).invoke(execute))
+      .to.emit(multiInvoker, 'OrderExecuted')
+      .withArgs(user.address, market.address, 1)
+      .to.emit(multiInvoker, 'KeeperCall')
+      .to.emit(market, 'Updated')
+      .withArgs(multiInvoker.address, user.address, anyValue, anyValue, anyValue, anyValue, anyValue, false)
+
+    const executorDSUNet = (await dsu.balanceOf(userC.address)).sub(executorBalanceBefore)
+    const feeCharged = executorDSUNet.div(BigNumber.from(10).pow(12))
+    expect(await usdc.balanceOf(user.address)).to.be.within(
+      balanceBefore.add(collateral.sub(feeCharged.add(1))),
+      balanceBefore.add(collateral.sub(feeCharged)),
+    )
   })
 
   it('soft reverts on failed execute order', async () => {
@@ -718,19 +762,19 @@ describe('Orders', () => {
       await assertStoreFail(testOrder, multiInvoker, market, user)
       testOrder = { ...defaultOrder }
 
-      testOrder.price = MIN_MAX_UINT64.add(1)
+      testOrder.price = MAX_INT64.add(1)
       await assertStoreFail(testOrder, multiInvoker, market, user)
       testOrder = { ...defaultOrder }
 
-      testOrder.price = MIN_MAX_UINT64.add(2).mul(-1)
+      testOrder.price = MIN_INT64.sub(1)
       await assertStoreFail(testOrder, multiInvoker, market, user)
       testOrder = { ...defaultOrder }
 
-      testOrder.delta = MIN_MAX_UINT64.add(1)
+      testOrder.delta = MAX_INT64.add(1)
       await assertStoreFail(testOrder, multiInvoker, market, user)
       testOrder = { ...defaultOrder }
 
-      testOrder.delta = MIN_MAX_UINT64.add(2).mul(-1)
+      testOrder.delta = MIN_INT64.sub(1)
       await assertStoreFail(testOrder, multiInvoker, market, user)
       testOrder = { ...defaultOrder }
 
