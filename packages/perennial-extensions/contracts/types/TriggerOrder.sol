@@ -43,10 +43,7 @@ library TriggerOrderLib {
         return false;
     }
 
-    function execute(TriggerOrder memory self, address account, IMarket market, Position memory latestPosition) internal view returns (Position memory currentPosition) {
-        currentPosition = market.pendingPositions(account, market.locals(account).currentId);
-        currentPosition.adjust(latestPosition);
-
+    function execute(TriggerOrder memory self, Position memory currentPosition) internal pure {
         // update position
         if (self.side == 0)
             currentPosition.maker = UFixed6Lib.from(Fixed6Lib.from(currentPosition.maker).add(self.delta));
@@ -56,11 +53,10 @@ library TriggerOrderLib {
             currentPosition.short = UFixed6Lib.from(Fixed6Lib.from(currentPosition.short).add(self.delta));
 
         // update collateral (override collateral field in position since it is not used in this context)
-        currentPosition.collateral = (self.side == 3) ? self.delta : Fixed6Lib.ZERO;
-    }
-
-    function isMaxWithdraw(TriggerOrder memory self) internal pure returns (bool) {
-        return self.side == 3 && self.delta.eq(Fixed6.wrap(type(int64).min));
+        // Handles collateral withdrawal magic value
+        currentPosition.collateral = (self.side == 3) ?
+            self.delta.eq(Fixed6.wrap(type(int64).min)) ? Fixed6Lib.MIN : self.delta
+            : Fixed6Lib.ZERO;
     }
 }
 

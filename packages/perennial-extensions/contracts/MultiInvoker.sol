@@ -18,7 +18,7 @@ import "@openzeppelin/contracts/utils/Address.sol";
 /// @notice Extension to handle batched calls to the Perennial protocol
 contract MultiInvoker is IMultiInvoker, Kept {
     /// @dev Gas buffer estimating remaining execution gas to include in fee to cover further instructions
-    uint256 public constant GAS_BUFFER = 100000; // solhint-disable-line var-name-mixedcase
+    uint256 public constant GAS_BUFFER = 500000; // solhint-disable-line var-name-mixedcase
 
     /// @dev USDC stablecoin address
     Token6 public immutable USDC; // solhint-disable-line var-name-mixedcase
@@ -125,7 +125,7 @@ contract MultiInvoker is IMultiInvoker, Kept {
                     InterfaceFee memory interfaceFee
                 ) = abi.decode(invocation.args, (IMarket, UFixed6, UFixed6, UFixed6, Fixed6, bool, InterfaceFee));
 
-                _update(msg.sender, market, newMaker, newLong, newShort, collateral, wrap, interfaceFee, true);
+                _update(msg.sender, market, newMaker, newLong, newShort, collateral, wrap, interfaceFee);
             } else if (invocation.action == PerennialAction.UPDATE_VAULT) {
                 (IVault vault, UFixed6 depositAssets, UFixed6 redeemShares, UFixed6 claimAssets, bool wrap)
                     = abi.decode(invocation.args, (IVault, UFixed6, UFixed6, UFixed6, bool));
@@ -140,10 +140,10 @@ contract MultiInvoker is IMultiInvoker, Kept {
 
                 _cancelOrder(msg.sender, market, nonce);
             } else if (invocation.action == PerennialAction.EXEC_ORDER) {
-                (address account, IMarket market, uint256 nonce, bool revertOnFailure) =
-                    abi.decode(invocation.args, (address, IMarket, uint256, bool));
+                (address account, IMarket market, uint256 nonce)
+                    = abi.decode(invocation.args, (address, IMarket, uint256));
 
-                _executeOrder(_ExecuteOrderArgs(account, market, nonce, orders(account, market, nonce), revertOnFailure));
+                _executeOrder(account, market, nonce);
             } else if (invocation.action == PerennialAction.COMMIT_PRICE) {
                 (address oracleProviderFactory, uint256 value, bytes32[] memory ids, uint256 version, bytes memory data, bool revertOnFailure) =
                     abi.decode(invocation.args, (address, uint256, bytes32[], uint256, bytes, bool));
@@ -173,7 +173,6 @@ contract MultiInvoker is IMultiInvoker, Kept {
     /// @param collateral Net change in collateral for account in `market`
     /// @param wrap Wheather to wrap/unwrap collateral on deposit/withdrawal
     /// @param interfaceFee Interface fee to charge
-    /// @return success Whether the update was successful
     function _update(
         address account,
         IMarket market,
@@ -182,25 +181,20 @@ contract MultiInvoker is IMultiInvoker, Kept {
         UFixed6 newShort,
         Fixed6 collateral,
         bool wrap,
-        InterfaceFee memory interfaceFee,
-        bool revertOnFailure
-    ) internal isMarketInstance(market) returns (bool success) {
+        InterfaceFee memory interfaceFee
+    ) internal isMarketInstance(market) {
         Fixed18 balanceBefore =  Fixed18Lib.from(DSU.balanceOf());
 
         // collateral is transferred here as DSU then an optional interface fee is charged from it
         if (collateral.sign() == 1) _deposit(collateral.abs(), wrap);
 
-        try market.update(account, newMaker, newLong, newShort, collateral, false) {
-            Fixed6 withdrawAmount = Fixed6Lib.from(Fixed18Lib.from(DSU.balanceOf()).sub(balanceBefore));
-            if (!withdrawAmount.isZero()) _withdraw(account, withdrawAmount.abs(), wrap);
+        market.update(account, newMaker, newLong, newShort, collateral, false);
 
-            // charge interface fee
-            _chargeFee(account, market, interfaceFee);
-            return true;
-        } catch (bytes memory reason) {
-            if (revertOnFailure) Address.verifyCallResult(false, reason, "");
-            return false;
-        }
+        Fixed6 withdrawAmount = Fixed6Lib.from(Fixed18Lib.from(DSU.balanceOf()).sub(balanceBefore));
+        if (!withdrawAmount.isZero()) _withdraw(account, withdrawAmount.abs(), wrap);
+
+        // charge interface fee
+        _chargeFee(account, market, interfaceFee);
     }
 
     /// @notice Update vault on behalf of msg.sender
@@ -435,57 +429,52 @@ contract MultiInvoker is IMultiInvoker, Kept {
         }
     }
 
-    /// @dev Internal struct to bypass stack depth limit
-    struct _ExecuteOrderArgs {
-        address account;
-        IMarket market;
-        uint256 nonce;
-        TriggerOrder order;
-        bool revertOnFailure;
-    }
-
     /**
      * @notice executes an `account's` open order for a `market` and pays a fee to `msg.sender`
-     * @param args Execute order args
+     * @param account Account to execute order of
+     * @param market Market to execute order for
+     * @param nonce Id of open order to index
      */
-    function _executeOrder(
-        _ExecuteOrderArgs memory args
-    ) internal keep (
-        UFixed18Lib.from(keeperMultiplier),
-        args.order.isMaxWithdraw() ? GAS_BUFFER * 5 : GAS_BUFFER,
-        "",
-        abi.encode(args.account, args.market, args.nonce, args.order, args.revertOnFailure)
-    ) {
-        if (!canExecuteOrder(args.account, args.market, args.nonce)) revert MultiInvokerCantExecuteError();
+    function _executeOrder(address account, IMarket market, uint256 nonce) internal {
+        if (!canExecuteOrder(account, market, nonce)) revert MultiInvokerCantExecuteError();
 
-        (Position memory latestPosition, , ) = _latest(args.market, args.account);
+        TriggerOrder memory order = orders(account, market, nonce);
+        // Pay out keeper fee based on static gas buffer
+        _handleKeep(account, market, order.fee);
 
-        latestPosition = args.order.execute(args.account, args.market, latestPosition);
+        (Position memory latestPosition, , ) = _latest(market, account);
+        Position memory currentPosition = market.pendingPositions(account, market.locals(account).currentId);
+        currentPosition.adjust(latestPosition);
 
-        // If this is not a max withdrawal order, execute it
-        if (!args.order.isMaxWithdraw() && _update(
-            args.account,
-            args.market,
-            latestPosition.maker,
-            latestPosition.long,
-            latestPosition.short,
-            latestPosition.collateral,
+        order.execute(currentPosition);
+
+        _update(
+            account,
+            market,
+            currentPosition.maker,
+            currentPosition.long,
+            currentPosition.short,
+            currentPosition.collateral,
             true,
-            args.order.interfaceFee,
-            args.revertOnFailure
-        )) {
-            delete _orders[args.account][args.market][args.nonce];
-            emit OrderExecuted(args.account, args.market, args.nonce);
-        }
+            order.interfaceFee
+        );
+
+        delete _orders[account][market][nonce];
+        emit OrderExecuted(account, market, nonce);
     }
+
+    /// @notice Handles paying out keeper reward for an order exection
+    function _handleKeep(address account, IMarket market, UFixed6 fee)
+        private
+        keep(UFixed18Lib.from(keeperMultiplier), GAS_BUFFER, "", abi.encode(account, market, fee))
+    { }
 
     /// @notice Helper function to raise keeper fee
     /// @param keeperFee Keeper fee to raise
     /// @param data Data to raise keeper fee with
     function _raiseKeeperFee(UFixed18 keeperFee, bytes memory data) internal override {
-        (address account, IMarket market, uint256 nonce, TriggerOrder memory order, bool revertOnFailure)
-            = abi.decode(data, (address, IMarket, uint256, TriggerOrder, bool));
-        if (keeperFee.gt(UFixed18Lib.from(order.fee))) revert MultiInvokerMaxFeeExceededError();
+        (address account, IMarket market, UFixed6 fee) = abi.decode(data, (address, IMarket, UFixed6));
+        if (keeperFee.gt(UFixed18Lib.from(fee))) revert MultiInvokerMaxFeeExceededError();
 
         market.update(
             account,
@@ -495,22 +484,6 @@ contract MultiInvoker is IMultiInvoker, Kept {
             Fixed6Lib.from(Fixed18Lib.from(-1, keeperFee), true),
             false
         );
-
-        // If this is a max withdrawal, execute it here
-        if (order.isMaxWithdraw() && _update(
-            account,
-            market,
-            UFixed6Lib.MAX,
-            UFixed6Lib.MAX,
-            UFixed6Lib.MAX,
-            Fixed6.wrap(type(int256).min),
-            true,
-            order.interfaceFee,
-            revertOnFailure
-        )) {
-            delete _orders[account][market][nonce];
-            emit OrderExecuted(account, market, nonce);
-        }
     }
 
     /// @notice Places order on behalf of msg.sender from the invoker
