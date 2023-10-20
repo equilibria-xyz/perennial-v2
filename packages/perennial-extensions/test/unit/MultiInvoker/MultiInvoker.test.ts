@@ -489,6 +489,11 @@ describe('MultiInvoker', () => {
         side: Dir.L,
         comparison: Compare.ABOVE_MARKET,
         price: price,
+        interfaceFee: {
+          receiver: owner.address,
+          amount: 100e6,
+          unwrap: false,
+        },
       })
 
       const txn = await multiInvoker.connect(user).invoke(
@@ -496,11 +501,6 @@ describe('MultiInvoker', () => {
           market: market.address,
           collateral: collateral,
           order: trigger,
-          interfaceFee: {
-            receiver: owner.address,
-            amount: 100e6,
-            unwrap: false,
-          },
         }),
       )
 
@@ -536,6 +536,11 @@ describe('MultiInvoker', () => {
         side: Dir.L,
         comparison: Compare.ABOVE_MARKET,
         price: price,
+        interfaceFee: {
+          receiver: owner.address,
+          amount: 100e6,
+          unwrap: true,
+        },
       })
 
       const txn = await multiInvoker.connect(user).invoke(
@@ -543,11 +548,6 @@ describe('MultiInvoker', () => {
           market: market.address,
           collateral: collateral,
           order: trigger,
-          interfaceFee: {
-            receiver: owner.address,
-            amount: 100e6,
-            unwrap: true,
-          },
         }),
       )
 
@@ -986,13 +986,13 @@ describe('MultiInvoker', () => {
           price: BigNumber.from(1200e6),
           side: Dir.L,
           comparison: Compare.ABOVE_MARKET,
+          interfaceFee: { receiver: owner.address, amount: 100e6, unwrap: false },
         })
 
         const placeOrder = buildPlaceOrder({
           market: market.address,
           collateral: collateral,
           order: trigger,
-          interfaceFee: { receiver: owner.address, amount: 100e6, unwrap: false },
         })
 
         const pending = openPosition({ long: BigNumber.from(trigger.delta), collateral: collateral })

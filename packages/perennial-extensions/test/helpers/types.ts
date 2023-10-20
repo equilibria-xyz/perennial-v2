@@ -1,9 +1,9 @@
-import { BigNumber, BigNumberish } from 'ethers'
+import { BigNumber, BigNumberish, constants } from 'ethers'
 import { IMarket, PositionStruct } from '../../types/generated/@equilibria/perennial-v2/contracts/interfaces/IMarket'
 import { FakeContract } from '@defi-wonderland/smock'
 import { SignerWithAddress } from '@nomiclabs/hardhat-ethers/signers'
 import { LocalStruct } from '@equilibria/perennial-v2/types/generated/contracts/Market'
-import { TriggerOrderStruct } from '../../types/generated/contracts/MultiInvoker'
+import { InterfaceFeeStruct, TriggerOrderStruct } from '../../types/generated/contracts/MultiInvoker'
 import { parse6decimal } from '../../../common/testutil/types'
 
 export function setMarketPosition(
@@ -59,12 +59,14 @@ export const openTriggerOrder = ({
   side,
   comparison,
   fee,
+  interfaceFee,
 }: {
   delta: BigNumberish
   price: BigNumberish
   side: Dir | number
   comparison: Compare | number
   fee?: BigNumberish
+  interfaceFee?: InterfaceFeeStruct
 }): TriggerOrderStruct => {
   return {
     side: side,
@@ -72,6 +74,11 @@ export const openTriggerOrder = ({
     fee: fee ?? parse6decimal('10'),
     price: price,
     delta: delta,
+    interfaceFee: interfaceFee ?? {
+      amount: 0,
+      receiver: constants.AddressZero,
+      unwrap: false,
+    },
   }
 }
 
