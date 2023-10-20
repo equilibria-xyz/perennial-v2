@@ -8,8 +8,6 @@ import "@equilibria/root/attribute/Instance.sol";
 import "@equilibria/root/attribute/Kept/Kept.sol";
 import "../interfaces/IPythFactory.sol";
 
-// TODO: add getters for new state
-
 /// @title PythOracle
 /// @notice Pyth implementation of the IOracle interface.
 /// @dev One instance per Pyth price feed should be deployed. Multiple products may use the same
@@ -49,6 +47,21 @@ contract PythOracle is IPythOracle, Instance, Kept {
     /// @notice Returns the global state of the oracle
     /// @return The global state of the oracle
     function global() external view returns (Global memory) { return _global; }
+
+    /// @notice Returns the global oracle callback set for a version
+    /// @param version The version to lookup
+    /// @return The global oracle callback set for the version
+    function globalCallbacks(uint256 version) external view returns (address[] memory) {
+        return _globalCallbacks[version].values();
+    }
+
+    /// @notice Returns the local oracle callback set for a version and market
+    /// @param version The version to lookup
+    /// @param market The market to lookup
+    /// @return The local oracle callback set for the version and market
+    function localCallbacks(uint256 version, IMarket market) external view returns (address[] memory) {
+        return _localCallbacks[version][market].values();
+    }
 
     /// @notice Returns the next requested oracle version
     /// @dev Returns 0 if no next version is requested

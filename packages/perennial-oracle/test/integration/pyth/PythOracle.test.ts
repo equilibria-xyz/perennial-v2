@@ -76,9 +76,9 @@ const testOracles = [
   },
 ]
 
-// TODO: add tests for request storing the correct callback
-// TODO: add settle tests (batch, maxCount)
-// TODO: add checks that market.settle was correctly calledback (multiple)
+// TODO: add callback state checks to more requests
+// TODO: add additional settle tests (batch, maxCount, zero)
+// TODO: add checks that market.settle was correctly calledback (multiple, zero / non-requested)
 
 testOracles.forEach(testOracle => {
   describe(testOracle.name, () => {
@@ -331,6 +331,9 @@ testOracles.forEach(testOracle => {
         const originalDSUBalance = await dsu.callStatic.balanceOf(user.address)
         const originalFactoryDSUBalance = await dsu.callStatic.balanceOf(oracleFactory.address)
         await pythOracle.connect(oracleSigner).request(market.address, user.address)
+        expect(await pythOracle.globalCallbacks(STARTING_TIME)).to.deep.eq([market.address])
+        expect(await pythOracle.localCallbacks(STARTING_TIME, market.address)).to.deep.eq([user.address])
+
         // Base fee isn't working properly in coverage, so we need to set it manually
         await ethers.provider.send('hardhat_setNextBlockBaseFeePerGas', ['0x5F5E100'])
         expect(await pythOracle.versions(1)).to.be.equal(STARTING_TIME)
