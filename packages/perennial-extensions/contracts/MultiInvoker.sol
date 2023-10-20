@@ -164,13 +164,13 @@ contract MultiInvoker is IMultiInvoker, Kept {
         }
     }
 
-    /// @notice Updates market on behalf of msg.sender
+    /// @notice Updates market on behalf of account
     /// @param account Address of account to update
     /// @param market Address of market up update
-    /// @param newMaker New maker position for msg.sender in `market`
-    /// @param newLong New long position for msg.sender in `market`
-    /// @param newShort New short position for msg.sender in `market`
-    /// @param collateral Net change in collateral for msg.sender in `market`
+    /// @param newMaker New maker position for account in `market`
+    /// @param newLong New long position for account in `market`
+    /// @param newShort New short position for account in `market`
+    /// @param collateral Net change in collateral for account in `market`
     /// @param wrap Wheather to wrap/unwrap collateral on deposit/withdrawal
     /// @param interfaceFee Interface fee to charge
     function _update(
@@ -310,7 +310,7 @@ contract MultiInvoker is IMultiInvoker, Kept {
         }
     }
 
-    /// @notice Helper function to wrap `amount` USDC from `msg.sender` into DSU using the batcher or reserve
+    /// @notice Helper function to wrap `amount` USDC from `address(this)` into DSU using the batcher or reserve
     /// @param receiver Address to receive the DSU
     /// @param amount Amount of USDC to wrap
     function _wrap(address receiver, UFixed18 amount) internal {
