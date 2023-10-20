@@ -55,7 +55,8 @@ library OrderLib {
         RiskParameter memory riskParameter
     ) internal pure {
         Fixed6 makerFee = Fixed6Lib.from(riskParameter.makerFee)
-            .add(Fixed6Lib.from(riskParameter.makerImpactFee).mul(self.utilization));
+            .add(Fixed6Lib.from(riskParameter.makerImpactFee).mul(self.utilization))
+            .max(Fixed6Lib.ZERO);
         Fixed6 takerFee = Fixed6Lib.from(riskParameter.takerFee)
             .add(Fixed6Lib.from(riskParameter.takerSkewFee.mul(self.skew)))
             .add(Fixed6Lib.from(riskParameter.takerImpactFee).mul(self.impact));
