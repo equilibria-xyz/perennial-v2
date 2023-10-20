@@ -173,6 +173,7 @@ contract MultiInvoker is IMultiInvoker, Kept {
     /// @param collateral Net change in collateral for account in `market`
     /// @param wrap Wheather to wrap/unwrap collateral on deposit/withdrawal
     /// @param interfaceFee Interface fee to charge
+    /// @return success Whether the update was successful
     function _update(
         address account,
         IMarket market,
@@ -183,7 +184,7 @@ contract MultiInvoker is IMultiInvoker, Kept {
         bool wrap,
         InterfaceFee memory interfaceFee,
         bool revertOnFailure
-    ) internal isMarketInstance(market) {
+    ) internal isMarketInstance(market) returns (bool success) {
         Fixed18 balanceBefore =  Fixed18Lib.from(DSU.balanceOf());
 
         // collateral is transferred here as DSU then an optional interface fee is charged from it
@@ -195,8 +196,10 @@ contract MultiInvoker is IMultiInvoker, Kept {
 
             // charge interface fee
             _chargeFee(account, market, interfaceFee);
+            return true;
         } catch (bytes memory reason) {
             if (revertOnFailure) Address.verifyCallResult(false, reason, "");
+            return false;
         }
     }
 
@@ -460,18 +463,17 @@ contract MultiInvoker is IMultiInvoker, Kept {
         latestPosition = args.order.execute(args.account, args.market, latestPosition);
 
         // If this is not a max withdrawal order, execute it
-        if (!args.order.isMaxWithdraw()) {
-            _update(
-                args.account,
-                args.market,
-                latestPosition.maker,
-                latestPosition.long,
-                latestPosition.short,
-                latestPosition.collateral,
-                true,
-                args.order.interfaceFee,
-                args.revertOnFailure
-            );
+        if (!args.order.isMaxWithdraw() && _update(
+            args.account,
+            args.market,
+            latestPosition.maker,
+            latestPosition.long,
+            latestPosition.short,
+            latestPosition.collateral,
+            true,
+            args.order.interfaceFee,
+            args.revertOnFailure
+        )) {
             delete _orders[args.account][args.market][args.nonce];
             emit OrderExecuted(args.account, args.market, args.nonce);
         }
@@ -495,18 +497,17 @@ contract MultiInvoker is IMultiInvoker, Kept {
         );
 
         // If this is a max withdrawal, execute it here
-        if (order.isMaxWithdraw()) {
-            _update(
-                account,
-                market,
-                UFixed6Lib.MAX,
-                UFixed6Lib.MAX,
-                UFixed6Lib.MAX,
-                Fixed6.wrap(type(int256).min),
-                true,
-                order.interfaceFee,
-                revertOnFailure
-            );
+        if (order.isMaxWithdraw() && _update(
+            account,
+            market,
+            UFixed6Lib.MAX,
+            UFixed6Lib.MAX,
+            UFixed6Lib.MAX,
+            Fixed6.wrap(type(int256).min),
+            true,
+            order.interfaceFee,
+            revertOnFailure
+        )) {
             delete _orders[account][market][nonce];
             emit OrderExecuted(account, market, nonce);
         }
