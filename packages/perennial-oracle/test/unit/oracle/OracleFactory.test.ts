@@ -30,6 +30,7 @@ describe('OracleFactory', () => {
   let owner: SignerWithAddress
   let dsu: FakeContract<IERC20Metadata>
   let usdc: FakeContract<IERC20Metadata>
+  let reserve: FakeContract<IEmptySetReserve>
   let marketFactory: FakeContract<IFactory>
   let subOracleFactory: FakeContract<IOracleProviderFactory>
   let subOracleFactory2: FakeContract<IOracleProviderFactory>
@@ -49,9 +50,10 @@ describe('OracleFactory', () => {
     subOracle2 = await smock.fake<IOracleProvider>('IOracleProvider')
     dsu = await smock.fake<IERC20Metadata>('IERC20Metadata')
     usdc = await smock.fake<IERC20Metadata>('IERC20Metadata')
+    reserve = await smock.fake<IEmptySetReserve>('IEmptySetReserve')
+    usdc.approve.whenCalledWith(reserve.address, constants.MaxUint256).returns(true)
     usdc.transfer.returns(true)
-    usdc.approve.returns(true)
-    const reserve = await smock.fake<IEmptySetReserve>('IEmptySetReserve')
+    usdc.approve.whenCalledWith(reserve.address, 0).returns(true)
     oracleImpl = await new Oracle__factory(owner).deploy()
     factory = await new OracleFactory__factory(owner).deploy(oracleImpl.address)
     subOracleFactorySigner = await impersonate.impersonateWithBalance(
@@ -66,6 +68,9 @@ describe('OracleFactory', () => {
       expect(await factory.implementation()).to.equal(oracleImpl.address)
       expect(await factory.owner()).to.equal(owner.address)
       expect(await factory.pauser()).to.equal(constants.AddressZero)
+      expect(reserve.mint).to.have.been.called
+      expect(usdc.approve).to.have.been.calledWith(reserve.address, constants.MaxUint256)
+      expect(usdc.approve).to.have.been.calledWith(reserve.address, 0)
     })
 
     it('reverts if already initialized', async () => {

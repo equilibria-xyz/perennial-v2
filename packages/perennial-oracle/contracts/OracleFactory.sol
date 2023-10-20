@@ -40,6 +40,7 @@ contract OracleFactory is IOracleFactory, Factory {
         // One-time wrap of USDC to DSU.
         usdc_.approve(address(reserve_));
         reserve_.mint(UFixed18Lib.from(usdc_.balanceOf()));
+        usdc_.approve(address(reserve_), UFixed6Lib.ZERO);
     }
 
     /// @notice Registers a new oracle provider factory to be used in the underlying oracle instances

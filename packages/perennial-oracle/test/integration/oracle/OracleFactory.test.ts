@@ -66,6 +66,8 @@ describe('OracleFactory', () => {
   describe('#initialize', async () => {
     it('wraps USDC', async () => {
       expect(await usdc.balanceOf(oracleFactory.address)).to.equal(0)
+      expect(await dsu.balanceOf(oracleFactory.address)).to.equal(utils.parseEther('10010'))
+      expect(await usdc.allowance(oracleFactory.address, RESERVE_ADDRESS)).to.equal(0)
     })
   })
 
