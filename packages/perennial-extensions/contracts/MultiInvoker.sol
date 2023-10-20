@@ -10,6 +10,7 @@ import { IPythFactory } from "@equilibria/perennial-v2-oracle/contracts/interfac
 import { IVault } from "@equilibria/perennial-v2-vault/contracts/interfaces/IVault.sol";
 import "./interfaces/IMultiInvoker.sol";
 import "./types/TriggerOrder.sol";
+import "./types/TriggerOrderMeta.sol";
 import "@equilibria/root/attribute/Kept/Kept.sol";
 import "@openzeppelin/contracts/utils/Address.sol";
 
@@ -45,6 +46,9 @@ contract MultiInvoker is IMultiInvoker, Kept {
 
     /// @dev State for the order data
     mapping(address => mapping(IMarket => mapping(uint256 => TriggerOrderStorage))) private _orders;
+
+    /// @dev State for the order metadata
+    mapping(address => mapping(IMarket => mapping(uint256 => TriggerOrderMetaStorage))) private _orderMetas;
 
     /// @notice Constructs the MultiInvoker contract
     /// @param usdc_ USDC stablecoin address
@@ -94,6 +98,14 @@ contract MultiInvoker is IMultiInvoker, Kept {
         return _orders[account][market][nonce].read();
     }
 
+    /// @notice View function to get order metadata
+    /// @param account Account to get open oder of
+    /// @param market Market to get open order in
+    /// @param nonce UID of order
+    function orderMetas(address account, IMarket market, uint256 nonce) public view returns (TriggerOrderMeta memory) {
+        return _orderMetas[account][market][nonce].read();
+    }
+
     /// @notice Returns whether an order can be executed
     /// @param account Account to get open oder of
     /// @param market Market to get open order in
@@ -131,9 +143,10 @@ contract MultiInvoker is IMultiInvoker, Kept {
 
                 _vaultUpdate(vault, depositAssets, redeemShares, claimAssets, wrap);
             } else if (invocation.action == PerennialAction.PLACE_ORDER) {
-                (IMarket market, TriggerOrder memory order) = abi.decode(invocation.args, (IMarket, TriggerOrder));
+                (IMarket market, TriggerOrder memory order, InterfaceFee memory interfaceFee)
+                    = abi.decode(invocation.args, (IMarket, TriggerOrder, InterfaceFee));
 
-                _placeOrder(msg.sender, market, order);
+                _placeOrder(msg.sender, market, order, interfaceFee);
             } else if (invocation.action == PerennialAction.CANCEL_ORDER) {
                 (IMarket market, uint256 nonce) = abi.decode(invocation.args, (IMarket, uint256));
 
@@ -460,7 +473,8 @@ contract MultiInvoker is IMultiInvoker, Kept {
             currentPosition.collateral,
             false
         ) {
-            delete _orders[account][market][nonce];
+            _chargeFee(market, orderMetas(account, market, nonce).interfaceFee);
+            _deleteOrder(account, market, nonce);
             emit OrderExecuted(account, market, nonce);
         } catch (bytes memory reason) {
             if (revertOnFailure) Address.verifyCallResult(false, reason, "");
@@ -489,7 +503,9 @@ contract MultiInvoker is IMultiInvoker, Kept {
     /// @param account Account to place order for
     /// @param market Market to place order in
     /// @param order Order state to place
-    function _placeOrder(address account, IMarket market, TriggerOrder memory order) internal isMarketInstance(market) {
+    function _placeOrder(
+        address account, IMarket market, TriggerOrder memory order, InterfaceFee memory interfaceFee
+    ) internal isMarketInstance(market) {
         if (order.fee.isZero()) revert MultiInvokerInvalidOrderError();
         if (order.comparison != -1 && order.comparison != 1) revert MultiInvokerInvalidOrderError();
         if (
@@ -498,7 +514,8 @@ contract MultiInvoker is IMultiInvoker, Kept {
         ) revert MultiInvokerInvalidOrderError();
 
         _orders[account][market][++latestNonce].store(order);
-        emit OrderPlaced(account, market, latestNonce, order);
+        _orderMetas[account][market][latestNonce].store(TriggerOrderMeta(interfaceFee));
+        emit OrderPlaced(account, market, latestNonce, order, TriggerOrderMeta(interfaceFee));
     }
 
     /// @notice Cancels an open order for msg.sender
@@ -506,8 +523,13 @@ contract MultiInvoker is IMultiInvoker, Kept {
     /// @param market Market order is open in
     /// @param nonce UID of order
     function _cancelOrder(address account, IMarket market, uint256 nonce) internal {
-        delete _orders[account][market][nonce];
+        _deleteOrder(account, market, nonce);
         emit OrderCancelled(account, market, nonce);
+    }
+
+    function _deleteOrder(address account, IMarket market, uint256 nonce) internal {
+        delete _orders[account][market][nonce];
+        delete _orderMetas[account][market][nonce];
     }
 
     /// @notice Target market must be created by MarketFactory

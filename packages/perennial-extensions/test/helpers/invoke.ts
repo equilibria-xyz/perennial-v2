@@ -88,18 +88,14 @@ export const buildPlaceOrder = ({
           short ?? MAX_UINT,
           collateral ?? MIN_INT,
           handleWrap ?? false,
-          [
-            interfaceFee ? interfaceFee.amount : 0,
-            interfaceFee ? interfaceFee.receiver : '0x0000000000000000000000000000000000000000',
-            interfaceFee ? interfaceFee.unwrap : false,
-          ],
+          [0, '0x0000000000000000000000000000000000000000', false],
         ],
       ),
     },
     {
       action: 3,
       args: utils.defaultAbiCoder.encode(
-        ['address', 'tuple(uint8,int8,uint256,int256,int256)'],
+        ['address', 'tuple(uint8,int8,uint256,int256,int256)', 'tuple(uint256,address,bool)'],
         [
           market,
           [
@@ -108,6 +104,11 @@ export const buildPlaceOrder = ({
             order.fee,
             order.price,
             order.delta,
+          ],
+          [
+            interfaceFee ? interfaceFee.amount : 0,
+            interfaceFee ? interfaceFee.receiver : '0x0000000000000000000000000000000000000000',
+            interfaceFee ? interfaceFee.unwrap : false,
           ],
         ],
       ),
