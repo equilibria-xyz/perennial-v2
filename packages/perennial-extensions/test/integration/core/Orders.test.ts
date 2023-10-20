@@ -412,10 +412,100 @@ describe('Orders', () => {
     const execute = buildExecOrder({ user: userB.address, market: market.address, orderId: 1 })
     await expect(multiInvoker.connect(userB).invoke(execute))
       .to.emit(multiInvoker, 'OrderExecuted')
-      .withArgs(userB.address, market.address, 1, anyValue)
+      .withArgs(userB.address, market.address, 1)
       .to.emit(multiInvoker, 'KeeperCall')
       .to.emit(market, 'Updated')
       .withArgs(multiInvoker.address, userB.address, anyValue, anyValue, anyValue, anyValue, collateral.div(-4), false)
+  })
+
+  it('executes a maker, long, and short magic close all order', async () => {
+    const { user, chainlink } = instanceVars
+
+    // ------------------- Maker close all ------------------------- //
+
+    const trigger = openTriggerOrder({
+      delta: 0,
+      price: payoff(marketPrice.add(10)),
+      side: Dir.M,
+      comparison: Compare.BELOW_MARKET,
+      fee: userPosition,
+    })
+
+    let placeOrder = buildPlaceOrder({
+      market: market.address,
+      maker: userPosition,
+      order: trigger,
+      collateral: collateral,
+    })
+
+    await expect(multiInvoker.connect(user).invoke(placeOrder)).to.not.be.reverted
+    expect(await multiInvoker.canExecuteOrder(user.address, market.address, 1)).to.be.false
+
+    await chainlink.nextWithPriceModification(() => marketPrice.add(11))
+    await settle(market, user)
+
+    expect((await market.positions(user.address)).maker).to.be.eq(userPosition)
+
+    await ethers.provider.send('hardhat_setNextBlockBaseFeePerGas', ['0x1'])
+    let execute = buildExecOrder({ user: user.address, market: market.address, orderId: 1, revertOnFailure: true })
+    await expect(multiInvoker.connect(user).invoke(execute))
+      .to.emit(multiInvoker, 'OrderExecuted')
+      .withArgs(user.address, market.address, 1)
+
+    await chainlink.nextWithPriceModification(() => marketPrice.sub(11))
+    await settle(market, user)
+
+    expect((await market.positions(user.address)).maker).to.be.eq(0)
+
+    // ------------------- Long close all ------------------------- //
+    trigger.side = Dir.L
+    trigger.comparison = Compare.BELOW_MARKET
+
+    placeOrder = buildPlaceOrder({ market: market.address, long: userPosition, order: trigger, collateral: 0 })
+
+    await expect(multiInvoker.connect(user).invoke(placeOrder)).to.not.be.reverted
+    expect(await multiInvoker.canExecuteOrder(user.address, market.address, 2)).to.be.false
+
+    await chainlink.nextWithPriceModification(() => marketPrice.add(11))
+    await settle(market, user)
+
+    expect((await market.positions(user.address)).long).to.be.eq(userPosition)
+
+    await ethers.provider.send('hardhat_setNextBlockBaseFeePerGas', ['0x1'])
+    execute = buildExecOrder({ user: user.address, market: market.address, orderId: 2, revertOnFailure: true })
+    await expect(multiInvoker.connect(user).invoke(execute))
+      .to.emit(multiInvoker, 'OrderExecuted')
+      .withArgs(user.address, market.address, 2)
+
+    await chainlink.nextWithPriceModification(() => marketPrice.sub(11))
+    await settle(market, user)
+
+    expect((await market.positions(user.address)).long).to.be.eq(0)
+
+    // ------------------- Short close all ------------------------- //
+    trigger.side = Dir.S
+    trigger.comparison = Compare.BELOW_MARKET
+
+    placeOrder = buildPlaceOrder({ market: market.address, short: userPosition, order: trigger, collateral: 0 })
+
+    await expect(multiInvoker.connect(user).invoke(placeOrder)).to.not.be.reverted
+    expect(await multiInvoker.canExecuteOrder(user.address, market.address, 3)).to.be.false
+
+    await chainlink.nextWithPriceModification(() => marketPrice.add(11))
+    await settle(market, user)
+
+    expect((await market.positions(user.address)).short).to.be.eq(userPosition)
+
+    await ethers.provider.send('hardhat_setNextBlockBaseFeePerGas', ['0x1'])
+    execute = buildExecOrder({ user: user.address, market: market.address, orderId: 3, revertOnFailure: true })
+    await expect(multiInvoker.connect(user).invoke(execute))
+      .to.emit(multiInvoker, 'OrderExecuted')
+      .withArgs(user.address, market.address, 3)
+
+    await chainlink.nextWithPriceModification(() => marketPrice.sub(11))
+    await settle(market, user)
+
+    expect((await market.positions(user.address)).short).to.be.eq(0)
   })
 
   it('soft reverts on failed execute order', async () => {
@@ -575,12 +665,12 @@ describe('Orders', () => {
       ).to.be.revertedWithCustomError(multiInvoker, 'MultiInvokerInvalidOrderError')
     })
 
-    it.only('fails to place order with side = 3, delta >= 0', async () => {
+    it('fails to place order with side = 4, delta >= 0', async () => {
       const { user } = instanceVars
 
       const trigger = openTriggerOrder({
         delta: collateral,
-        side: 3,
+        side: 4,
         comparison: Compare.ABOVE_MARKET,
         price: marketPrice,
       })
