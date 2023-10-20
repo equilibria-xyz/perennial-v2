@@ -3,6 +3,7 @@ pragma solidity ^0.8.13;
 
 import "@equilibria/root/number/types/UFixed6.sol";
 import "@equilibria/perennial-v2/contracts/types/Position.sol";
+import "./InterfaceFee.sol";
 
 struct TriggerOrder {
     uint8 side;
@@ -10,16 +11,22 @@ struct TriggerOrder {
     UFixed6 fee;
     Fixed6 price;
     Fixed6 delta;
+    InterfaceFee interfaceFee;
 }
 using TriggerOrderLib for TriggerOrder global;
 struct StoredTriggerOrder {
     /* slot 0 */
-    uint8 side;         // 0 = maker, 1 = long, 2 = short
-    int8 comparison;    // -2 = lt, -1 = lte, 0 = eq, 1 = gte, 2 = gt
-    uint64 fee;         // <= 18.44tb
-    int64 price;        // <= 9.22t
-    int64 delta;        // <= 9.22t
-    bytes6 __unallocated0__;
+    uint8 side;                // 0 = maker, 1 = long, 2 = short, 4 = collateral
+    int8 comparison;           // -2 = lt, -1 = lte, 0 = eq, 1 = gte, 2 = gt
+    uint64 fee;                // <= 18.44tb
+    int64 price;               // <= 9.22t
+    int64 delta;               // <= 9.22t
+    uint48 interfaceFeeAmount; // <= 281m
+
+    /* slot 1 */
+    address interfaceFeeReceiver;
+    bool interfaceFeeUnwrap;
+    bytes11 __unallocated0__;
 }
 struct TriggerOrderStorage { StoredTriggerOrder value; }
 using TriggerOrderStorageLib for TriggerOrderStorage global;
@@ -66,7 +73,12 @@ library TriggerOrderStorageLib {
             int8(storedValue.comparison),
             UFixed6.wrap(uint256(storedValue.fee)),
             Fixed6.wrap(int256(storedValue.price)),
-            Fixed6.wrap(int256(storedValue.delta))
+            Fixed6.wrap(int256(storedValue.delta)),
+            InterfaceFee(
+                UFixed6.wrap(uint256(storedValue.interfaceFeeAmount)),
+                storedValue.interfaceFeeReceiver,
+                storedValue.interfaceFeeUnwrap
+            )
         );
     }
 
@@ -79,6 +91,7 @@ library TriggerOrderStorageLib {
         if (newValue.price.lt(Fixed6.wrap(type(int64).min))) revert TriggerOrderStorageInvalidError();
         if (newValue.delta.gt(Fixed6.wrap(type(int64).max))) revert TriggerOrderStorageInvalidError();
         if (newValue.delta.lt(Fixed6.wrap(type(int64).min))) revert TriggerOrderStorageInvalidError();
+        if (newValue.interfaceFee.amount.gt(UFixed6.wrap(type(uint48).max))) revert TriggerOrderStorageInvalidError();
 
         self.value = StoredTriggerOrder(
             uint8(newValue.side),
@@ -86,7 +99,10 @@ library TriggerOrderStorageLib {
             uint64(UFixed6.unwrap(newValue.fee)),
             int64(Fixed6.unwrap(newValue.price)),
             int64(Fixed6.unwrap(newValue.delta)),
-            bytes6(0)
+            uint40(UFixed6.unwrap(newValue.interfaceFee.amount)),
+            newValue.interfaceFee.receiver,
+            newValue.interfaceFee.unwrap,
+            bytes11(0)
         );
     }
 }

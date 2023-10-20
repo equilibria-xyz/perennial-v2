@@ -95,7 +95,7 @@ export const buildPlaceOrder = ({
     {
       action: 3,
       args: utils.defaultAbiCoder.encode(
-        ['address', 'tuple(uint8,int8,uint256,int256,int256)', 'tuple(uint256,address,bool)'],
+        ['address', 'tuple(uint8,int8,uint256,int256,int256,tuple(uint256,address,bool))'],
         [
           market,
           [
@@ -104,11 +104,11 @@ export const buildPlaceOrder = ({
             order.fee,
             order.price,
             order.delta,
-          ],
-          [
-            interfaceFee ? interfaceFee.amount : 0,
-            interfaceFee ? interfaceFee.receiver : '0x0000000000000000000000000000000000000000',
-            interfaceFee ? interfaceFee.unwrap : false,
+            [
+              interfaceFee ? interfaceFee.amount : 0,
+              interfaceFee ? interfaceFee.receiver : '0x0000000000000000000000000000000000000000',
+              interfaceFee ? interfaceFee.unwrap : false,
+            ],
           ],
         ],
       ),

@@ -10,11 +10,11 @@ import { IMultiInvoker, Market, MultiInvoker } from '../../../types/generated'
 import { Compare, Dir, openTriggerOrder } from '../../helpers/types'
 import { buildCancelOrder, buildExecOrder, buildPlaceOrder, buildUpdateMarket } from '../../helpers/invoke'
 import { loadFixture } from '@nomicfoundation/hardhat-network-helpers'
-import { TriggerOrderStruct } from '../../../types/generated/contracts/MultiInvoker'
+import { InterfaceFeeStruct, TriggerOrderStruct } from '../../../types/generated/contracts/MultiInvoker'
 import { SignerWithAddress } from '@nomiclabs/hardhat-ethers/signers'
 import { ethers } from 'hardhat'
 
-const MAX_UINT40 = BigNumber.from('1099511627775')
+const MAX_UINT48 = BigNumber.from('281474976710655')
 const MAX_UINT64 = BigNumber.from('18446744073709551615')
 const MIN_MAX_UINT64 = BigNumber.from('9223372036854775807')
 
@@ -822,32 +822,11 @@ describe('Orders', () => {
 
       testOrder.delta = MIN_MAX_UINT64.add(2).mul(-1)
       await assertStoreFail(testOrder, multiInvoker, market, user)
-    })
+      testOrder = { ...defaultOrder }
 
-    it('Fails to store TRIGGER META values out of slot bounds', async () => {
-      const { user } = instanceVars
-
-      const defaultOrder = openTriggerOrder({
-        delta: parse6decimal('10000'),
-        side: Dir.L,
-        comparison: Compare.ABOVE_MARKET,
-        price: BigNumber.from(1000e6),
-      })
-
-      await expect(
-        multiInvoker.connect(user).invoke(
-          buildPlaceOrder({
-            market: market.address,
-            order: defaultOrder,
-            collateral: 0,
-            interfaceFee: {
-              amount: MAX_UINT64.add(1),
-              receiver: user.address,
-              unwrap: false,
-            },
-          }),
-        ),
-      ).to.be.revertedWithCustomError(multiInvoker, 'TriggerOrderMetaStorageInvalidError')
+      testOrder.interfaceFee.amount = MAX_UINT48.add(1)
+      await assertStoreFail(testOrder, multiInvoker, market, user)
+      testOrder = { ...defaultOrder }
     })
   })
 })
@@ -857,7 +836,7 @@ async function assertStoreFail(
   multiInvoker: MultiInvoker,
   market: Market,
   user: SignerWithAddress,
-  interfaceFee?: IMultiInvoker.InterfaceFeeStruct,
+  interfaceFee?: InterfaceFeeStruct,
 ) {
   await expect(
     multiInvoker
