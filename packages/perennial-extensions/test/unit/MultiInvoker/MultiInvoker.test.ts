@@ -462,21 +462,14 @@ describe('MultiInvoker', () => {
 
       await expect(txn)
         .to.emit(multiInvoker, 'OrderPlaced')
-        .withArgs(
-          user.address,
-          market.address,
-          1,
-          {
-            side: 1,
-            comparison: -1,
-            fee: 10e6,
-            price: trigger.price,
-            delta: position,
-          },
-          {
-            interfaceFee: { amount: 0, receiver: constants.AddressZero, unwrap: false },
-          },
-        )
+        .withArgs(user.address, market.address, 1, {
+          side: 1,
+          comparison: -1,
+          fee: 10e6,
+          price: trigger.price,
+          delta: position,
+          interfaceFee: { amount: 0, receiver: constants.AddressZero, unwrap: false },
+        })
 
       expect(await multiInvoker.latestNonce()).to.eq(1)
 
@@ -515,32 +508,26 @@ describe('MultiInvoker', () => {
 
       await expect(txn)
         .to.emit(multiInvoker, 'OrderPlaced')
-        .withArgs(
-          user.address,
-          market.address,
-          1,
-          {
-            side: 1,
-            comparison: -1,
-            fee: 10e6,
-            price: trigger.price,
-            delta: position,
-          },
-          {
-            interfaceFee: { amount: 100e6, receiver: owner.address, unwrap: false },
-          },
-        )
+        .withArgs(user.address, market.address, 1, {
+          side: 1,
+          comparison: -1,
+          fee: 10e6,
+          price: trigger.price,
+          delta: position,
+          interfaceFee: { amount: 100e6, receiver: owner.address, unwrap: false },
+        })
 
       expect(await multiInvoker.latestNonce()).to.eq(1)
 
       const orderState = await multiInvoker.orders(user.address, market.address, 1)
 
-      expect(
-        orderState.side == trigger.side &&
-          orderState.fee.eq(await trigger.fee) &&
-          orderState.price.eq(await trigger.price) &&
-          orderState.delta.eq(await trigger.delta),
-      ).to.be.true
+      expect(orderState.side).to.equal(trigger.side)
+      expect(orderState.fee).to.equal(trigger.fee)
+      expect(orderState.price).to.equal(trigger.price)
+      expect(orderState.delta).to.equal(trigger.delta)
+      expect(orderState.interfaceFee.amount).to.equal(100e6)
+      expect(orderState.interfaceFee.receiver).to.equal(owner.address)
+      expect(orderState.interfaceFee.unwrap).to.equal(false)
     })
 
     it('places a limit order w/ interface fee (unwrap)', async () => {
@@ -568,32 +555,26 @@ describe('MultiInvoker', () => {
 
       await expect(txn)
         .to.emit(multiInvoker, 'OrderPlaced')
-        .withArgs(
-          user.address,
-          market.address,
-          1,
-          {
-            side: 1,
-            comparison: -1,
-            fee: 10e6,
-            price: trigger.price,
-            delta: position,
-          },
-          {
-            interfaceFee: { amount: 100e6, receiver: owner.address, unwrap: true },
-          },
-        )
+        .withArgs(user.address, market.address, 1, {
+          side: 1,
+          comparison: -1,
+          fee: 10e6,
+          price: trigger.price,
+          delta: position,
+          interfaceFee: { amount: 100e6, receiver: owner.address, unwrap: true },
+        })
 
       expect(await multiInvoker.latestNonce()).to.eq(1)
 
       const orderState = await multiInvoker.orders(user.address, market.address, 1)
 
-      expect(
-        orderState.side == trigger.side &&
-          orderState.fee.eq(await trigger.fee) &&
-          orderState.price.eq(await trigger.price) &&
-          orderState.delta.eq(await trigger.delta),
-      ).to.be.true
+      expect(orderState.side).to.equal(trigger.side)
+      expect(orderState.fee).to.equal(trigger.fee)
+      expect(orderState.price).to.equal(trigger.price)
+      expect(orderState.delta).to.equal(trigger.delta)
+      expect(orderState.interfaceFee.amount).to.equal(100e6)
+      expect(orderState.interfaceFee.receiver).to.equal(owner.address)
+      expect(orderState.interfaceFee.unwrap).to.equal(true)
     })
 
     it('places a tp order', async () => {
