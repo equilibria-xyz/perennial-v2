@@ -64,7 +64,7 @@ abstract contract KeeperFactory is IKeeperFactory, Factory, Kept {
     /// @notice Creates a new oracle instance
     /// @param id The id of the oracle to create
     /// @return newOracle The newly created oracle instance
-    function create(bytes32 id) external onlyOwner returns (IKeeperOracle newOracle) {
+    function create(bytes32 id) public virtual onlyOwner returns (IKeeperOracle newOracle) {
         if (oracles[id] != IOracleProvider(address(0))) revert KeeperFactoryAlreadyCreatedError();
 
         newOracle = IKeeperOracle(address(_create(abi.encodeCall(IKeeperOracle.initialize, (id)))));

@@ -1,8 +1,10 @@
 // SPDX-License-Identifier: Apache-2.0
 pragma solidity 0.8.19;
 
+import "@pythnetwork/pyth-sdk-solidity/AbstractPyth.sol";
 import "@equilibria/root/attribute/Kept/Kept_Optimism.sol";
 import "./PythFactory.sol";
+import "../keeper/KeeperFactory.sol";
 
 /// @title PythFactory_Optimism
 /// @notice Optimism Kept Oracle implementation for Pyth price feeds.
@@ -16,7 +18,7 @@ contract PythFactory_Optimism is PythFactory, Kept_Optimism {
     }
 
     /// @dev Use the PythFactory implementation for raising the keeper fee
-    function _raiseKeeperFee(UFixed18 amount, bytes memory data) internal override(PythFactory, Kept) {
-        PythFactory._raiseKeeperFee(amount, data);
+    function _raiseKeeperFee(UFixed18 amount, bytes memory data) internal override(KeeperFactory, Kept) {
+        KeeperFactory._raiseKeeperFee(amount, data);
     }
 }

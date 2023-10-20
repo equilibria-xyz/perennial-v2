@@ -11,7 +11,7 @@ import "../interfaces/IKeeperFactory.sol";
 /// @dev One instance per price feed should be deployed. Multiple products may use the same
 ///      KeeperOracle instance if their payoff functions are based on the same underlying oracle.
 ///      This implementation only supports non-negative prices.
-abstract contract KeeperOracle is IKeeperOracle, Instance {
+contract KeeperOracle is IKeeperOracle, Instance {
     using EnumerableSet for EnumerableSet.AddressSet;
 
     /// @dev After this amount of time has passed for a version without being committed, the version can be invalidated.
@@ -41,9 +41,6 @@ abstract contract KeeperOracle is IKeeperOracle, Instance {
         __Instance__initialize();
         id = id_;
     }
-
-    function fromUnderlyingId(bytes32 underlyingId) public view virtual returns (bytes32);
-    function toUnderlyingId(bytes32 underlyingId) public view virtual returns (bytes32);
 
     /// @notice Returns the global state of the oracle
     /// @return The global state of the oracle

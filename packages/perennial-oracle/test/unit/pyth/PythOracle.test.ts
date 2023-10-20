@@ -14,9 +14,9 @@ import {
   OracleFactory__factory,
   PythFactory,
   PythFactory__factory,
-  PythOracle,
-  PythOracle__factory,
   IMarketFactory,
+  KeeperOracle,
+  KeeperOracle__factory,
 } from '../../../types/generated'
 import { FakeContract, smock } from '@defi-wonderland/smock'
 import { parse6decimal } from '../../../../common/testutil/types'
@@ -51,7 +51,7 @@ describe('PythOracle', () => {
   let pythUpdateFee: FakeContract<IPythStaticFee>
   let chainlinkFeed: FakeContract<AggregatorV3Interface>
   let oracle: Oracle
-  let pythOracle: PythOracle
+  let keeperOracle: KeeperOracle
   let pythOracleFactory: PythFactory
   let oracleFactory: OracleFactory
   let dsu: FakeContract<IERC20Metadata>
@@ -98,13 +98,16 @@ describe('PythOracle', () => {
     await oracleFactory.initialize(dsu.address)
     await oracleFactory.updateMaxClaim(parse6decimal('10'))
 
-    const pythOracleImpl = await new PythOracle__factory(owner).deploy()
+    const pythOracleImpl = await new KeeperOracle__factory(owner).deploy()
     pythOracleFactory = await new PythFactory__factory(owner).deploy(pyth.address, pythOracleImpl.address)
     await pythOracleFactory.initialize(oracleFactory.address, chainlinkFeed.address, dsu.address)
     await oracleFactory.register(pythOracleFactory.address)
     await pythOracleFactory.authorize(oracleFactory.address)
 
-    pythOracle = PythOracle__factory.connect(await pythOracleFactory.callStatic.create(PYTH_ETH_USD_PRICE_FEED), owner)
+    keeperOracle = KeeperOracle__factory.connect(
+      await pythOracleFactory.callStatic.create(PYTH_ETH_USD_PRICE_FEED),
+      owner,
+    )
     await pythOracleFactory.create(PYTH_ETH_USD_PRICE_FEED)
 
     oracle = Oracle__factory.connect(
@@ -118,30 +121,30 @@ describe('PythOracle', () => {
 
   it('parses Pyth exponents correctly', async () => {
     const minDelay = await pythOracleFactory.MIN_VALID_TIME_AFTER_VERSION()
-    await pythOracle.connect(oracleSigner).request(market.address, user.address)
+    await keeperOracle.connect(oracleSigner).request(market.address, user.address)
     await pythOracleFactory
       .connect(user)
       .commit(
         [PYTH_ETH_USD_PRICE_FEED],
-        await pythOracle.callStatic.next(),
-        getVaa(100000000000, 2, -8, (await pythOracle.callStatic.next()).add(minDelay)),
+        await keeperOracle.callStatic.next(),
+        getVaa(100000000000, 2, -8, (await keeperOracle.callStatic.next()).add(minDelay)),
         {
           value: 1,
         },
       )
-    expect((await pythOracle.callStatic.latest()).price).to.equal(ethers.utils.parseUnits('1000', 6))
+    expect((await keeperOracle.callStatic.latest()).price).to.equal(ethers.utils.parseUnits('1000', 6))
 
-    await pythOracle.connect(oracleSigner).request(market.address, user.address)
+    await keeperOracle.connect(oracleSigner).request(market.address, user.address)
     await pythOracleFactory
       .connect(user)
       .commit(
         [PYTH_ETH_USD_PRICE_FEED],
-        await pythOracle.callStatic.next(),
-        getVaa(20000000, 2, -4, (await pythOracle.callStatic.next()).add(minDelay)),
+        await keeperOracle.callStatic.next(),
+        getVaa(20000000, 2, -4, (await keeperOracle.callStatic.next()).add(minDelay)),
         {
           value: 1,
         },
       )
-    expect((await pythOracle.callStatic.latest()).price).to.equal(ethers.utils.parseUnits('2000', 6))
+    expect((await keeperOracle.callStatic.latest()).price).to.equal(ethers.utils.parseUnits('2000', 6))
   })
 })

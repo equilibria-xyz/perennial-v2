@@ -6,12 +6,12 @@ import { impersonateWithBalance } from '../../../../common/testutil/impersonate'
 import {
   IERC20Metadata,
   IERC20Metadata__factory,
+  KeeperOracle__factory,
   Oracle__factory,
   OracleFactory,
   OracleFactory__factory,
   PythFactory,
   PythFactory__factory,
-  PythOracle__factory,
 } from '../../../types/generated'
 import { parse6decimal } from '../../../../common/testutil/types'
 
@@ -39,8 +39,8 @@ describe('OracleFactory', () => {
     await oracleFactory.initialize(dsu.address)
     await oracleFactory.updateMaxClaim(parse6decimal('10'))
 
-    const pythOracleImpl = await new PythOracle__factory(owner).deploy()
-    pythOracleFactory = await new PythFactory__factory(owner).deploy(PYTH_ADDRESS, pythOracleImpl.address)
+    const keeperOracleImpl = await new KeeperOracle__factory(owner).deploy()
+    pythOracleFactory = await new PythFactory__factory(owner).deploy(PYTH_ADDRESS, keeperOracleImpl.address)
     await pythOracleFactory.initialize(oracleFactory.address, CHAINLINK_ETH_USD_FEED, dsu.address)
     await oracleFactory.register(pythOracleFactory.address)
     await pythOracleFactory.authorize(oracleFactory.address)
@@ -55,8 +55,8 @@ describe('OracleFactory', () => {
 
   describe('#update', async () => {
     it('can update the price id', async () => {
-      const pythOracleImpl2 = await new PythOracle__factory(owner).deploy()
-      const pythOracleFactory2 = await new PythFactory__factory(owner).deploy(PYTH_ADDRESS, pythOracleImpl2.address)
+      const keeperOracleImpl2 = await new KeeperOracle__factory(owner).deploy()
+      const pythOracleFactory2 = await new PythFactory__factory(owner).deploy(PYTH_ADDRESS, keeperOracleImpl2.address)
       await pythOracleFactory2.initialize(oracleFactory.address, CHAINLINK_ETH_USD_FEED, dsu.address)
       await oracleFactory.register(pythOracleFactory2.address)
 
