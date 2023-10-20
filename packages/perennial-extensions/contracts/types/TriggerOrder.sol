@@ -59,7 +59,7 @@ library TriggerOrderLib {
         currentPosition.collateral = (self.side == 3) ? self.delta : Fixed6Lib.ZERO;
     }
 
-    function maxWithdraw(TriggerOrder memory self) internal pure returns (bool) {
+    function isMaxWithdraw(TriggerOrder memory self) internal pure returns (bool) {
         return self.side == 3 && self.delta.eq(Fixed6.wrap(type(int64).min));
     }
 }

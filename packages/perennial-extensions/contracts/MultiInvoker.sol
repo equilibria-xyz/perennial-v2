@@ -448,7 +448,7 @@ contract MultiInvoker is IMultiInvoker, Kept {
         _ExecuteOrderArgs memory args
     ) internal keep (
         UFixed18Lib.from(keeperMultiplier),
-        args.order.maxWithdraw() ? GAS_BUFFER * 5 : GAS_BUFFER,
+        args.order.isMaxWithdraw() ? GAS_BUFFER * 5 : GAS_BUFFER,
         "",
         abi.encode(args.account, args.market, args.nonce, args.order, args.revertOnFailure)
     ) {
@@ -459,7 +459,7 @@ contract MultiInvoker is IMultiInvoker, Kept {
         latestPosition = args.order.execute(args.account, args.market, latestPosition);
 
         // If this is not a max withdrawal order, execute it
-        if (!args.order.maxWithdraw()) {
+        if (!args.order.isMaxWithdraw()) {
             _update(
                 args.account,
                 args.market,
@@ -494,7 +494,7 @@ contract MultiInvoker is IMultiInvoker, Kept {
         );
 
         // If this is a max withdrawal, execute it here
-        if (order.maxWithdraw()) {
+        if (order.isMaxWithdraw()) {
             _update(
                 account,
                 market,
