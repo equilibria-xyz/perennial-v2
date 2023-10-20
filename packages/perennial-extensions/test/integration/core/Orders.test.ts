@@ -394,13 +394,13 @@ describe('Orders', () => {
       price: payoff(marketPrice.sub(10)),
       side: Dir.L,
       comparison: Compare.ABOVE_MARKET,
+      interfaceFee: { amount: 50e6, receiver: userB.address, unwrap: false },
     })
 
     const placeOrder = buildPlaceOrder({
       market: market.address,
       order: trigger,
       collateral: collateral,
-      interfaceFee: { amount: 50e6, receiver: userB.address, unwrap: false },
     })
 
     await expect(multiInvoker.connect(user).invoke(placeOrder)).to.not.be.reverted
@@ -432,13 +432,13 @@ describe('Orders', () => {
       price: payoff(marketPrice.sub(10)),
       side: Dir.L,
       comparison: Compare.ABOVE_MARKET,
+      interfaceFee: { amount: 50e6, receiver: userB.address, unwrap: true },
     })
 
     const placeOrder = buildPlaceOrder({
       market: market.address,
       order: trigger,
       collateral: collateral,
-      interfaceFee: { amount: 50e6, receiver: userB.address, unwrap: true },
     })
 
     await expect(multiInvoker.connect(user).invoke(placeOrder)).to.not.be.reverted
@@ -489,7 +489,7 @@ describe('Orders', () => {
     const execute = buildExecOrder({ user: userB.address, market: market.address, orderId: 1 })
     await expect(multiInvoker.connect(userB).invoke(execute))
       .to.emit(multiInvoker, 'OrderExecuted')
-      .withArgs(userB.address, market.address, 1, anyValue)
+      .withArgs(userB.address, market.address, 1)
       .to.emit(multiInvoker, 'KeeperCall')
       .to.emit(market, 'Updated')
       .withArgs(multiInvoker.address, userB.address, anyValue, anyValue, anyValue, anyValue, collateral.div(-4), false)
@@ -746,12 +746,9 @@ async function assertStoreFail(
   multiInvoker: MultiInvoker,
   market: Market,
   user: SignerWithAddress,
-  interfaceFee?: InterfaceFeeStruct,
 ) {
   await expect(
-    multiInvoker
-      .connect(user)
-      .invoke(buildPlaceOrder({ market: market.address, order: testOrder, collateral: 0, interfaceFee })),
+    multiInvoker.connect(user).invoke(buildPlaceOrder({ market: market.address, order: testOrder, collateral: 0 })),
   ).to.be.revertedWithCustomError(multiInvoker, 'TriggerOrderStorageInvalidError')
 }
 const payoff = (price: BigNumber) => {
