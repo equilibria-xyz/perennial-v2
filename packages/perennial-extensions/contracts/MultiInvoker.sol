@@ -516,10 +516,6 @@ contract MultiInvoker is IMultiInvoker, Kept {
         emit OrderCancelled(account, market, nonce);
     }
 
-    function _deleteOrder(address account, IMarket market, uint256 nonce) internal {
-        delete _orders[account][market][nonce];
-    }
-
     /// @notice Target market must be created by MarketFactory
     modifier isMarketInstance(IMarket market) {
         if (!marketFactory.instances(market))
