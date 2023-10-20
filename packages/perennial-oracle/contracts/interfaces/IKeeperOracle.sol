@@ -39,7 +39,7 @@ interface IKeeperOracle is IOracleProvider, IInstance {
     //sig: 0xb5fe533f
     error KeeperOracleInvalidCallbackError();
 
-    function initialize(bytes32 id_) external;
+    function initialize() external;
     function commit(OracleVersion memory version) external returns (bool);
     function settle(IMarket market, uint256 version, uint256 maxCount) external;
     function next() external view returns (uint256);

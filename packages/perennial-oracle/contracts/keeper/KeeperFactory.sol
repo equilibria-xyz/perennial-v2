@@ -22,17 +22,23 @@ abstract contract KeeperFactory is IKeeperFactory, Factory, Kept {
     /// @dev The fixed gas buffer that is added to the keeper reward
     uint256 constant public KEEPER_BUFFER = 1_000_000;
 
-    /// @notice The maximum value for granularity
+    /// @dev The maximum value for granularity
     uint256 public constant MAX_GRANULARITY = 1 hours;
 
-    /// @notice The root oracle factory
+    /// @dev The root oracle factory
     IOracleFactory public oracleFactory;
 
-    /// @notice Mapping of which factory's instances are authorized to request from this factory's instances
+    /// @dev Mapping of which factory's instances are authorized to request from this factory's instances
     mapping(IFactory => bool) public callers;
 
-    /// @notice Mapping of oracle id to oracle instance
+    /// @dev Mapping of oracle id to oracle instance
     mapping(bytes32 => IOracleProvider) public oracles;
+
+    /// @dev Mapping of oracle id to underlying id
+    mapping(bytes32 => bytes32) public toUnderlyingId;
+
+    /// @dev Mapping of underlying id to oracle id
+    mapping(bytes32 => bytes32) public fromUnderlyingId;
 
     /// @notice The granularity of the oracle
     Granularity private _granularity;
@@ -61,13 +67,26 @@ abstract contract KeeperFactory is IKeeperFactory, Factory, Kept {
         callers[factory] = true;
     }
 
+    /// @notice Associates an oracle id with an underlying id
+    /// @param id The oracle id
+    /// @param underlyingId The underlying price feed id within the oracle's specific implementation
+    function associate(bytes32 id, bytes32 underlyingId) external onlyOwner {
+        toUnderlyingId[id] = underlyingId;
+        fromUnderlyingId[underlyingId] = id;
+    }
+
+    function associated(bytes32 id) public view returns (bool) {
+        return toUnderlyingId[id] != bytes32(0);
+    }
+
     /// @notice Creates a new oracle instance
     /// @param id The id of the oracle to create
     /// @return newOracle The newly created oracle instance
     function create(bytes32 id) public virtual onlyOwner returns (IKeeperOracle newOracle) {
         if (oracles[id] != IOracleProvider(address(0))) revert KeeperFactoryAlreadyCreatedError();
+        if (!associated(id)) revert KeeperFactoryNotAssociatedError();
 
-        newOracle = IKeeperOracle(address(_create(abi.encodeCall(IKeeperOracle.initialize, (id)))));
+        newOracle = IKeeperOracle(address(_create(abi.encodeCall(IKeeperOracle.initialize, ()))));
         oracles[id] = newOracle;
 
         emit OracleCreated(newOracle, id);

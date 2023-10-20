@@ -37,6 +37,7 @@ const PYTH_ADDRESS = '0x4305FB66699C3B2702D4d05CF36551390A4c69C6'
 const PYTH_ETH_USD_PRICE_FEED = '0xff61491a931112ddf1bd8147cd1b641375f79f5825126d665480874634fd0ace'
 const PYTH_BTC_USD_PRICE_FEED = '0xe62df6c8b4a85fe1a67db44dc12de5db330f7ac66b72dc658afedf0f4a415b43'
 const PYTH_ARB_USD_PRICE_FEED = '0x3fa4252848f9f0a1480be62745a4629d9eb1322aebab8a791e344b3b9c1adcf5'
+const PYTH_USDC_USD_PRICE_FEED = '0xeaa020c61cc479712813461ce153894a96a6c00b21ed0cfc2798d1f9a9e9c94a'
 const DSU_ADDRESS = '0x605D26FBd5be761089281d5cec2Ce86eeA667109'
 const CHAINLINK_ETH_USD_FEED = '0x5f4eC3Df9cbd43714FE2740f5E3616155c5b8419'
 const DSU_HOLDER = '0x2d264EBDb6632A06A1726193D4d37FeF1E5dbDcd'
@@ -115,16 +116,23 @@ testOracles.forEach(testOracle => {
       await oracleFactory.register(pythOracleFactory.address)
       await pythOracleFactory.authorize(oracleFactory.address)
 
+      await pythOracleFactory.associate(PYTH_ETH_USD_PRICE_FEED, PYTH_ETH_USD_PRICE_FEED) // ETH -> ETH
+      await pythOracleFactory.associate(
+        '0x0000000000000000000000000000000000000000000000000000000000000017',
+        PYTH_BTC_USD_PRICE_FEED,
+      ) // custom -> BTC
+      await pythOracleFactory.associate(PYTH_ARB_USD_PRICE_FEED, PYTH_ARB_USD_PRICE_FEED) // ARB -> ARB
+
       keeperOracle = testOracle.Oracle.connect(
         await pythOracleFactory.callStatic.create(PYTH_ETH_USD_PRICE_FEED),
         owner,
       )
       await pythOracleFactory.create(PYTH_ETH_USD_PRICE_FEED)
       keeperOracleBtc = testOracle.Oracle.connect(
-        await pythOracleFactory.callStatic.create(PYTH_BTC_USD_PRICE_FEED),
+        await pythOracleFactory.callStatic.create('0x0000000000000000000000000000000000000000000000000000000000000017'),
         owner,
       )
-      await pythOracleFactory.create(PYTH_BTC_USD_PRICE_FEED)
+      await pythOracleFactory.create('0x0000000000000000000000000000000000000000000000000000000000000017')
 
       oracle = Oracle__factory.connect(
         await oracleFactory.callStatic.create(PYTH_ETH_USD_PRICE_FEED, pythOracleFactory.address),
@@ -271,6 +279,13 @@ testOracles.forEach(testOracle => {
             'OwnableNotOwnerError',
           )
         })
+
+        it('reverts when not associated', async () => {
+          await expect(pythOracleFactory.connect(user).create(PYTH_USDC_USD_PRICE_FEED)).to.be.revertedWithCustomError(
+            pythOracleFactory,
+            'PythFactoryInvalidIdError', // not associated returns zero-id for pyth lookup
+          )
+        })
       })
 
       context('#updateGranularity', async () => {
@@ -290,18 +305,26 @@ testOracles.forEach(testOracle => {
           )
         })
       })
+
+      context('#associate', async () => {
+        it('reverts when not owner', async () => {
+          await expect(
+            pythOracleFactory.connect(user).associate(PYTH_ETH_USD_PRICE_FEED, PYTH_ETH_USD_PRICE_FEED),
+          ).to.be.revertedWithCustomError(pythOracleFactory, 'OwnableNotOwnerError')
+        })
+      })
     })
 
     describe('#initialize', async () => {
       it('only initializes with a valid priceId', async () => {
         const oracle = await new KeeperOracle__factory(owner).deploy()
-        await expect(oracle.initialize(PYTH_ETH_USD_PRICE_FEED)).to.emit(oracle, 'Initialized').withArgs(1)
+        await expect(oracle.initialize()).to.emit(oracle, 'Initialized').withArgs(1)
       })
 
       it('reverts if already initialized', async () => {
         const oracle = await new KeeperOracle__factory(owner).deploy()
-        await oracle.initialize(PYTH_ETH_USD_PRICE_FEED)
-        await expect(oracle.initialize(PYTH_ETH_USD_PRICE_FEED))
+        await oracle.initialize()
+        await expect(oracle.initialize())
           .to.be.revertedWithCustomError(oracle, 'InitializableAlreadyInitializedError')
           .withArgs(1)
       })
@@ -621,7 +644,7 @@ testOracles.forEach(testOracle => {
         await pythOracleFactory
           .connect(user)
           .commit(
-            [PYTH_ETH_USD_PRICE_FEED, PYTH_BTC_USD_PRICE_FEED],
+            [PYTH_ETH_USD_PRICE_FEED, '0x0000000000000000000000000000000000000000000000000000000000000017'],
             BATCHED_TIMESTAMP - MIN_DELAY,
             VAA_WITH_MULTIPLE_UPDATES_2,
             { value: 2 },
@@ -646,7 +669,11 @@ testOracles.forEach(testOracle => {
           pythOracleFactory
             .connect(user)
             .commit(
-              [PYTH_ETH_USD_PRICE_FEED, PYTH_BTC_USD_PRICE_FEED, PYTH_ARB_USD_PRICE_FEED],
+              [
+                PYTH_ETH_USD_PRICE_FEED,
+                '0x0000000000000000000000000000000000000000000000000000000000000017',
+                PYTH_ARB_USD_PRICE_FEED,
+              ],
               BATCHED_TIMESTAMP - MIN_DELAY,
               VAA_WITH_MULTIPLE_UPDATES_2,
               { value: 2 },
@@ -670,7 +697,11 @@ testOracles.forEach(testOracle => {
           pythOracleFactory
             .connect(user)
             .commit(
-              [PYTH_ETH_USD_PRICE_FEED, PYTH_BTC_USD_PRICE_FEED, PYTH_BTC_USD_PRICE_FEED],
+              [
+                PYTH_ETH_USD_PRICE_FEED,
+                '0x0000000000000000000000000000000000000000000000000000000000000017',
+                '0x0000000000000000000000000000000000000000000000000000000000000017',
+              ],
               BATCHED_TIMESTAMP - MIN_DELAY,
               VAA_WITH_MULTIPLE_UPDATES_2,
               { value: 2 },

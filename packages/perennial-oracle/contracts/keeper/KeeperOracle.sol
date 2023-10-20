@@ -17,9 +17,6 @@ contract KeeperOracle is IKeeperOracle, Instance {
     /// @dev After this amount of time has passed for a version without being committed, the version can be invalidated.
     uint256 constant public GRACE_PERIOD = 1 minutes;
 
-    /// @dev Pyth price feed id
-    bytes32 public id;
-
     /// @dev List of all requested oracle versions
     mapping(uint256 => uint256) public versions;
 
@@ -36,10 +33,8 @@ contract KeeperOracle is IKeeperOracle, Instance {
     mapping(uint256 => mapping(IMarket => EnumerableSet.AddressSet)) private _localCallbacks;
 
     /// @notice Initializes the contract state
-    /// @param id_ Price feed id
-    function initialize(bytes32 id_) external initializer(1) {
+    function initialize() external initializer(1) {
         __Instance__initialize();
-        id = id_;
     }
 
     /// @notice Returns the global state of the oracle

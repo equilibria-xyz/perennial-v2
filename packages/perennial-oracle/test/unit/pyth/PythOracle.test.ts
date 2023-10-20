@@ -103,6 +103,7 @@ describe('PythOracle', () => {
     await pythOracleFactory.initialize(oracleFactory.address, chainlinkFeed.address, dsu.address)
     await oracleFactory.register(pythOracleFactory.address)
     await pythOracleFactory.authorize(oracleFactory.address)
+    await pythOracleFactory.associate(PYTH_ETH_USD_PRICE_FEED, PYTH_ETH_USD_PRICE_FEED)
 
     keeperOracle = KeeperOracle__factory.connect(
       await pythOracleFactory.callStatic.create(PYTH_ETH_USD_PRICE_FEED),

@@ -25,6 +25,8 @@ interface IKeeperFactory is IOracleProviderFactory, IFactory, IKept {
     error KeeperFactoryAlreadyCreatedError();
     // sig: 0x22445848
     error KeeperFactoryInvalidIdError();
+    // sig: 0x267646d7
+    error KeeperFactoryNotAssociatedError();
 
     function MIN_VALID_TIME_AFTER_VERSION() external view returns (uint256);
     function MAX_VALID_TIME_AFTER_VERSION() external view returns (uint256);
@@ -32,6 +34,10 @@ interface IKeeperFactory is IOracleProviderFactory, IFactory, IKept {
     function KEEPER_BUFFER() external view returns (uint256);
 
     function initialize(IOracleFactory oracleFactory, AggregatorV3Interface chainlinkFeed_, Token18 dsu_) external;
+    function authorize(IFactory factory) external;
+    function associate(bytes32 id, bytes32 underlyingId) external;
+    function toUnderlyingId(bytes32 id) external returns (bytes32);
+    function fromUnderlyingId(bytes32 underlyingId) external returns (bytes32);
     function create(bytes32 id) external returns (IKeeperOracle oracle);
     function current() external view returns (uint256);
     function granularity() external view returns (Granularity memory);

@@ -23,7 +23,7 @@ contract PythFactory is IPythFactory, KeeperFactory {
     /// @param id The id of the oracle to create
     /// @return newOracle The newly created oracle instance
     function create(bytes32 id) public override(IKeeperFactory, KeeperFactory) returns (IKeeperOracle newOracle) {
-        if (!pyth.priceFeedExists(id)) revert PythFactoryInvalidIdError();
+        if (!pyth.priceFeedExists(toUnderlyingId[id])) revert PythFactoryInvalidIdError();
         return super.create(id);
     }
 
@@ -43,7 +43,7 @@ contract PythFactory is IPythFactory, KeeperFactory {
 
         PythStructs.PriceFeed[] memory parsedPrices = pyth.parsePriceFeedUpdates{value: msg.value}(
             datas,
-            ids,
+            _toUnderlyingIds(ids),
             SafeCast.toUint64(version + MIN_VALID_TIME_AFTER_VERSION),
             SafeCast.toUint64(version + MAX_VALID_TIME_AFTER_VERSION)
         );
@@ -53,6 +53,14 @@ contract PythFactory is IPythFactory, KeeperFactory {
                 (Fixed6.wrap(parsedPrices[i].price.price), parsedPrices[i].price.expo + 6);
             Fixed6 base = Fixed6Lib.from(int256(10 ** SignedMath.abs(exponent)));
             prices[i] = exponent < 0 ? significand.div(base) : significand.mul(base);
+        }
+    }
+
+    function _toUnderlyingIds(bytes32[] memory ids) private view returns (bytes32[] memory underlyingIds) {
+        underlyingIds = new bytes32[](ids.length);
+        for (uint256 i; i < ids.length; i++) {
+            if (!associated(ids[i])) revert KeeperFactoryNotAssociatedError();
+            underlyingIds[i] = toUnderlyingId[ids[i]];
         }
     }
 }
