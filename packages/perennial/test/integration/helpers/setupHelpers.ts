@@ -41,6 +41,7 @@ const { deployments, ethers } = HRE
 
 export const USDC_HOLDER = '0x0A59649758aa4d66E25f08Dd01271e891fe52199'
 const DSU_MINTER = '0xD05aCe63789cCb35B9cE71d01e4d632a0486Da4B'
+const RESERVE_ADDRESS = '0xD05aCe63789cCb35B9cE71d01e4d632a0486Da4B'
 
 export interface InstanceVars {
   owner: SignerWithAddress
@@ -123,7 +124,7 @@ export async function deployProtocol(chainlinkContext?: ChainlinkContext): Promi
   const marketFactory = new MarketFactory__factory(owner).attach(factoryProxy.address)
 
   // Init
-  await oracleFactory.connect(owner).initialize(dsu.address)
+  await oracleFactory.connect(owner).initialize(dsu.address, usdc.address, RESERVE_ADDRESS)
   await payoffFactory.connect(owner).initialize()
   await marketFactory.connect(owner).initialize()
 
