@@ -482,7 +482,7 @@ contract MultiInvoker is IMultiInvoker, Kept {
         if (order.fee.isZero()) revert MultiInvokerInvalidOrderError();
         if (order.comparison != -1 && order.comparison != 1) revert MultiInvokerInvalidOrderError();
         if (
-            order.side > 3 ||                                         // Invalid side
+            order.side > 3 ||                                       // Invalid side
             (order.side == 3 && order.delta.gte(Fixed6Lib.ZERO))    // Disallow placing orders that increase collateral
         ) revert MultiInvokerInvalidOrderError();
 
