@@ -194,7 +194,7 @@ contract MultiInvoker is IMultiInvoker, Kept {
             if (!withdrawAmount.isZero()) _withdraw(account, withdrawAmount.abs(), wrap);
 
             // charge interface fee
-            _chargeFee(market, interfaceFee);
+            _chargeFee(account, market, interfaceFee);
         } catch (bytes memory reason) {
             if (revertOnFailure) Address.verifyCallResult(false, reason, "");
         }
@@ -265,13 +265,14 @@ contract MultiInvoker is IMultiInvoker, Kept {
     }
 
     /// @notice Charges an interface fee from collateral in this address during an update to a receiver
-    /// @param market Market to emit in fee event for context=
+    /// @param account Account to charge fee from
+    /// @param market Market to charge fee from
     /// @param interfaceFee Interface fee to charge
-    function _chargeFee(IMarket market, InterfaceFee memory interfaceFee) internal {
+    function _chargeFee(address account, IMarket market, InterfaceFee memory interfaceFee) internal {
         if (interfaceFee.amount.isZero()) return;
 
         market.update(
-            msg.sender,
+            account,
             UFixed6Lib.MAX,
             UFixed6Lib.MAX,
             UFixed6Lib.MAX,
