@@ -283,7 +283,7 @@ contract MultiInvoker is IMultiInvoker, Kept {
         if (interfaceFee.unwrap) _unwrap(interfaceFee.receiver, UFixed18Lib.from(interfaceFee.amount));
         else DSU.push(interfaceFee.receiver, UFixed18Lib.from(interfaceFee.amount));
 
-        emit InterfaceFeeCharged(msg.sender, market, interfaceFee);
+        emit InterfaceFeeCharged(account, market, interfaceFee);
     }
 
     /// @notice Pull DSU or wrap and deposit USDC from msg.sender to this address for market usage
