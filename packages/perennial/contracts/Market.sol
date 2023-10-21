@@ -366,7 +366,7 @@ contract Market is IMarket, Instance, ReentrancyGuard {
         bool protected = context.local.protect(context.latestPosition.local, context.currentTimestamp, protect);
 
         // request version
-        if (!newOrder.isEmpty()) oracle.request(account);
+        if (!newOrder.isEmpty()) oracle.request(IMarket(this), account);
 
         // after
         _invariant(context, account, newOrder, collateral, protected);

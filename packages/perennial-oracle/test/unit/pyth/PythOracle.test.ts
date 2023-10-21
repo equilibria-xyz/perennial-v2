@@ -5,7 +5,9 @@ import HRE from 'hardhat'
 import {
   AbstractPyth,
   AggregatorV3Interface,
+  IEmptySetReserve,
   IERC20Metadata,
+  IMarket,
   IPythStaticFee,
   Oracle,
   Oracle__factory,
@@ -15,6 +17,7 @@ import {
   PythFactory__factory,
   PythOracle,
   PythOracle__factory,
+  IMarketFactory,
 } from '../../../types/generated'
 import { FakeContract, smock } from '@defi-wonderland/smock'
 import { parse6decimal } from '../../../../common/testutil/types'
@@ -53,7 +56,10 @@ describe('PythOracle', () => {
   let pythOracleFactory: PythFactory
   let oracleFactory: OracleFactory
   let dsu: FakeContract<IERC20Metadata>
+  let usdc: FakeContract<IERC20Metadata>
   let oracleSigner: SignerWithAddress
+  let market: FakeContract<IMarket>
+  let marketFactory: FakeContract<IMarketFactory>
 
   beforeEach(async () => {
     ;[owner, user] = await ethers.getSigners()
@@ -83,10 +89,19 @@ describe('PythOracle', () => {
 
     dsu = await smock.fake<IERC20Metadata>('IERC20Metadata')
     dsu.transfer.returns(true)
+    usdc = await smock.fake<IERC20Metadata>('IERC20Metadata')
+    usdc.transfer.returns(true)
+    usdc.approve.returns(true)
+    const reserve = await smock.fake<IEmptySetReserve>('IEmptySetReserve')
+
+    market = await smock.fake<IMarket>('IMarket')
+    marketFactory = await smock.fake<IMarketFactory>('IMarketFactory')
+    market.factory.returns(marketFactory.address)
+    marketFactory.instances.whenCalledWith(market.address).returns(true)
 
     const oracleImpl = await new Oracle__factory(owner).deploy()
     oracleFactory = await new OracleFactory__factory(owner).deploy(oracleImpl.address)
-    await oracleFactory.initialize(dsu.address)
+    await oracleFactory.initialize(dsu.address, usdc.address, reserve.address)
     await oracleFactory.updateMaxClaim(parse6decimal('10'))
 
     const pythOracleImpl = await new PythOracle__factory(owner).deploy()
@@ -109,7 +124,7 @@ describe('PythOracle', () => {
 
   it('parses Pyth exponents correctly', async () => {
     const minDelay = await pythOracleFactory.MIN_VALID_TIME_AFTER_VERSION()
-    await pythOracle.connect(oracleSigner).request(user.address)
+    await pythOracle.connect(oracleSigner).request(market.address, user.address)
     await pythOracleFactory
       .connect(user)
       .commit(
@@ -122,7 +137,7 @@ describe('PythOracle', () => {
       )
     expect((await pythOracle.callStatic.latest()).price).to.equal(ethers.utils.parseUnits('1000', 6))
 
-    await pythOracle.connect(oracleSigner).request(user.address)
+    await pythOracle.connect(oracleSigner).request(market.address, user.address)
     await pythOracleFactory
       .connect(user)
       .commit(

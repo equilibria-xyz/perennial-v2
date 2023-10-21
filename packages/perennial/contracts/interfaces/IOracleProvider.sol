@@ -2,6 +2,7 @@
 pragma solidity ^0.8.13;
 
 import "../types/OracleVersion.sol";
+import "./IMarket.sol";
 
 /// @dev OracleVersion Invariants
 ///       - Each newly requested version must be increasing, but does not need to incrementing
@@ -21,7 +22,7 @@ interface IOracleProvider {
     event OracleProviderVersionRequested(uint256 indexed version);
     event OracleProviderVersionFulfilled(OracleVersion version);
 
-    function request(address account) external;
+    function request(IMarket market, address account) external;
     function status() external view returns (OracleVersion memory, uint256);
     function latest() external view returns (OracleVersion memory);
     function current() external view returns (uint256);
