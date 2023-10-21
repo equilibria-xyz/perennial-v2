@@ -17,7 +17,7 @@ struct TriggerOrder {
 using TriggerOrderLib for TriggerOrder global;
 struct StoredTriggerOrder {
     /* slot 0 */
-    uint8 side;                // 0 = maker, 1 = long, 2 = short, 4 = collateral
+    uint8 side;                // 0 = maker, 1 = long, 2 = short, 3 = collateral
     int8 comparison;           // -2 = lt, -1 = lte, 0 = eq, 1 = gte, 2 = gt
     uint64 fee;                // <= 18.44tb
     int64 price;               // <= 9.22t
