@@ -32,11 +32,11 @@ interface IKeeperOracle is IOracleProvider, IInstance {
         uint64 latestIndex;
     }
 
-    // sig: 0x9b4e67d3
+    // sig: 0xb8499c31
     error KeeperOracleVersionOutsideRangeError();
-    // sig: 0xcaf4caf3
+    // sig: 0xce9529c8
     error KeeperOracleInvalidPriceError();
-    //sig: 0xb5fe533f
+    //sig: 0x4889ef6f
     error KeeperOracleInvalidCallbackError();
 
     function initialize() external;

@@ -10,6 +10,7 @@ import "../interfaces/IOracleFactory.sol";
 /// @title KeeperFactory
 /// @notice Factory contract for creating and managing keeper-based oracles
 abstract contract KeeperFactory is IKeeperFactory, Factory, Kept {
+    // TODO: constants
     /// @dev A Keeper update must come at least this long after a version to be valid
     uint256 constant public MIN_VALID_TIME_AFTER_VERSION = 4 seconds;
 
@@ -65,14 +66,17 @@ abstract contract KeeperFactory is IKeeperFactory, Factory, Kept {
     /// @param factory The factory to authorize
     function authorize(IFactory factory) external onlyOwner {
         callers[factory] = true;
+        emit CallerAuthorized(factory);
     }
 
     /// @notice Associates an oracle id with an underlying id
     /// @param id The oracle id
     /// @param underlyingId The underlying price feed id within the oracle's specific implementation
     function associate(bytes32 id, bytes32 underlyingId) external onlyOwner {
+        if (associated(id)) revert KeeperFactoryAlreadyAssociatedError();
         toUnderlyingId[id] = underlyingId;
         fromUnderlyingId[underlyingId] = id;
+        emit OracleAssociated(id, underlyingId);
     }
 
     function associated(bytes32 id) public view returns (bool) {

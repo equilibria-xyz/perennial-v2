@@ -14,6 +14,7 @@ import "../interfaces/IKeeperFactory.sol";
 contract KeeperOracle is IKeeperOracle, Instance {
     using EnumerableSet for EnumerableSet.AddressSet;
 
+    // TODO: constants
     /// @dev After this amount of time has passed for a version without being committed, the version can be invalidated.
     uint256 constant public GRACE_PERIOD = 1 minutes;
 

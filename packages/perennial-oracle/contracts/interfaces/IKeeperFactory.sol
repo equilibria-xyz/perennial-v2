@@ -16,17 +16,20 @@ interface IKeeperFactory is IOracleProviderFactory, IFactory, IKept {
     }
 
     event GranularityUpdated(uint256 newGranularity, uint256 effectiveAfter);
+    event CallerAuthorized(IFactory indexed caller);
 
-    // sig: 0x3d225882
+    // sig: 0xe65b0914
     error KeeperFactoryNotInstanceError();
-    // sig: 0xa7cc0264
+    // sig: 0x19136990
     error KeeperFactoryInvalidGranularityError();
-    // sig: 0xf2f2ce54
+    // sig: 0x953ec95c
     error KeeperFactoryAlreadyCreatedError();
-    // sig: 0x22445848
+    // sig: 0x131b567b
     error KeeperFactoryInvalidIdError();
     // sig: 0x267646d7
     error KeeperFactoryNotAssociatedError();
+    // sig: 0xf0253cdc
+    error KeeperFactoryAlreadyAssociatedError();
 
     function MIN_VALID_TIME_AFTER_VERSION() external view returns (uint256);
     function MAX_VALID_TIME_AFTER_VERSION() external view returns (uint256);
