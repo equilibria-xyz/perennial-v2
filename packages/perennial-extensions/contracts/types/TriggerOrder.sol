@@ -55,8 +55,8 @@ library TriggerOrderLib {
         // update collateral (override collateral field in position since it is not used in this context)
         // Handles collateral withdrawal magic value
         currentPosition.collateral = (self.side == 3) ?
-            self.delta.eq(Fixed6.wrap(type(int64).min)) ? Fixed6Lib.MIN : self.delta
-            : Fixed6Lib.ZERO;
+            (self.delta.eq(Fixed6.wrap(type(int64).min)) ? Fixed6Lib.MIN : self.delta) :
+            Fixed6Lib.ZERO;
     }
 }
 
