@@ -6,6 +6,7 @@ import { time } from '../../../../common/testutil'
 import { impersonateWithBalance } from '../../../../common/testutil/impersonate'
 import {
   IERC20Metadata,
+  Market,
   MultiInvoker,
   Oracle,
   OracleFactory,
@@ -16,7 +17,7 @@ import {
   PythOracle__factory,
 } from '../../../types/generated'
 
-import { InstanceVars, createInvoker, deployProtocol } from '../helpers/setupHelpers'
+import { InstanceVars, createInvoker, createMarket, deployProtocol } from '../helpers/setupHelpers'
 import { parse6decimal } from '../../../../common/testutil/types'
 import { increase } from '../../../../common/testutil/time'
 
@@ -48,6 +49,7 @@ describe('PythOracle', () => {
   let dsu: IERC20Metadata
   let oracleSigner: SignerWithAddress
   let multiInvoker: MultiInvoker
+  let market: Market
 
   beforeEach(async () => {
     await time.reset(17433260)
@@ -77,6 +79,8 @@ describe('PythOracle', () => {
     await dsu.connect(dsuHolder).transfer(oracleFactory.address, utils.parseEther('100000'))
 
     multiInvoker = await createInvoker(instanceVars)
+    market = await createMarket(instanceVars)
+
     await time.increaseTo(STARTING_TIME - 1)
     // block.timestamp of the next call will be STARTING_TIME
   })
@@ -84,7 +88,7 @@ describe('PythOracle', () => {
   describe('PerennialAction.COMMIT_PRICE', async () => {
     it('commits a requested pyth version', async () => {
       const originalDSUBalance = await dsu.callStatic.balanceOf(user.address)
-      await pythOracle.connect(oracleSigner).request(user.address)
+      await pythOracle.connect(oracleSigner).request(market.address, user.address)
 
       // Base fee isn't working properly in coverage, so we need to set it manually
       await ethers.provider.send('hardhat_setNextBlockBaseFeePerGas', ['0x1000'])
