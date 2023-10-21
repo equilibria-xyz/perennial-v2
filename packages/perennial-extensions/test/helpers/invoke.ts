@@ -1,6 +1,6 @@
 import { BigNumberish, utils } from 'ethers'
 import { IMultiInvoker } from '../../types/generated'
-import { TriggerOrderStruct } from '../../types/generated/contracts/MultiInvoker'
+import { InterfaceFeeStruct, TriggerOrderStruct } from '../../types/generated/contracts/MultiInvoker'
 import { ethers } from 'hardhat'
 
 export const MAX_INT = ethers.constants.MaxInt256
@@ -32,7 +32,7 @@ export const buildUpdateMarket = ({
   short?: BigNumberish
   collateral?: BigNumberish
   handleWrap?: boolean
-  interfaceFee?: IMultiInvoker.InterfaceFeeStruct
+  interfaceFee?: InterfaceFeeStruct
 }): Actions => {
   return [
     {
@@ -65,7 +65,6 @@ export const buildPlaceOrder = ({
   collateral,
   handleWrap,
   order,
-  interfaceFee,
 }: {
   market: string
   maker?: BigNumberish
@@ -74,7 +73,6 @@ export const buildPlaceOrder = ({
   collateral: BigNumberish
   handleWrap?: boolean
   order: TriggerOrderStruct
-  interfaceFee?: IMultiInvoker.InterfaceFeeStruct
 }): Actions => {
   return [
     {
@@ -88,18 +86,14 @@ export const buildPlaceOrder = ({
           short ?? MAX_UINT,
           collateral ?? MIN_INT,
           handleWrap ?? false,
-          [
-            interfaceFee ? interfaceFee.amount : 0,
-            interfaceFee ? interfaceFee.receiver : '0x0000000000000000000000000000000000000000',
-            interfaceFee ? interfaceFee.unwrap : false,
-          ],
+          [0, '0x0000000000000000000000000000000000000000', false],
         ],
       ),
     },
     {
       action: 3,
       args: utils.defaultAbiCoder.encode(
-        ['address', 'tuple(uint8,int8,uint256,int256,int256)'],
+        ['address', 'tuple(uint8,int8,uint256,int256,int256,tuple(uint256,address,bool))'],
         [
           market,
           [
@@ -108,6 +102,7 @@ export const buildPlaceOrder = ({
             order.fee,
             order.price,
             order.delta,
+            [order.interfaceFee.amount, order.interfaceFee.receiver, order.interfaceFee.unwrap],
           ],
         ],
       ),

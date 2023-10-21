@@ -18,6 +18,7 @@ import { Fixed6, Fixed6Lib } from "@equilibria/root/number/types/Fixed6.sol";
 import { Token6 } from "@equilibria/root/token/types/Token6.sol";
 import { Token18 } from "@equilibria/root/token/types/Token18.sol";
 import { TriggerOrder } from "../types/TriggerOrder.sol";
+import { InterfaceFee } from "../types/InterfaceFee.sol";
 
 interface IMultiInvoker {
     enum PerennialAction {
@@ -35,12 +36,6 @@ interface IMultiInvoker {
     struct Invocation {
         PerennialAction action;
         bytes args;
-    }
-
-    struct InterfaceFee {
-        UFixed6 amount;
-        address receiver;
-        bool unwrap;
     }
 
     event KeeperFeeCharged(address indexed account, address indexed market, address indexed to, UFixed6 fee);

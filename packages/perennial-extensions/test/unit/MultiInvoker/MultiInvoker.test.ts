@@ -460,9 +460,16 @@ describe('MultiInvoker', () => {
 
       setMarketPosition(market, user, defaultPosition)
 
-      expect(txn)
+      await expect(txn)
         .to.emit(multiInvoker, 'OrderPlaced')
-        .withArgs(user.address, market.address, 1, 1, trigger.price, trigger.fee)
+        .withArgs(user.address, market.address, 1, {
+          side: 1,
+          comparison: -1,
+          fee: 10e6,
+          price: trigger.price,
+          delta: position,
+          interfaceFee: { amount: 0, receiver: constants.AddressZero, unwrap: false },
+        })
 
       expect(await multiInvoker.latestNonce()).to.eq(1)
 
@@ -474,6 +481,100 @@ describe('MultiInvoker', () => {
           orderState.price.eq(await trigger.price) &&
           orderState.delta.eq(await trigger.delta),
       ).to.be.true
+    })
+
+    it('places a limit order w/ interface fee', async () => {
+      const trigger = openTriggerOrder({
+        delta: position,
+        side: Dir.L,
+        comparison: Compare.ABOVE_MARKET,
+        price: price,
+        interfaceFee: {
+          receiver: owner.address,
+          amount: 100e6,
+          unwrap: false,
+        },
+      })
+
+      const txn = await multiInvoker.connect(user).invoke(
+        buildPlaceOrder({
+          market: market.address,
+          collateral: collateral,
+          order: trigger,
+        }),
+      )
+
+      setMarketPosition(market, user, defaultPosition)
+
+      await expect(txn)
+        .to.emit(multiInvoker, 'OrderPlaced')
+        .withArgs(user.address, market.address, 1, {
+          side: 1,
+          comparison: -1,
+          fee: 10e6,
+          price: trigger.price,
+          delta: position,
+          interfaceFee: { amount: 100e6, receiver: owner.address, unwrap: false },
+        })
+
+      expect(await multiInvoker.latestNonce()).to.eq(1)
+
+      const orderState = await multiInvoker.orders(user.address, market.address, 1)
+
+      expect(orderState.side).to.equal(trigger.side)
+      expect(orderState.fee).to.equal(trigger.fee)
+      expect(orderState.price).to.equal(trigger.price)
+      expect(orderState.delta).to.equal(trigger.delta)
+      expect(orderState.interfaceFee.amount).to.equal(100e6)
+      expect(orderState.interfaceFee.receiver).to.equal(owner.address)
+      expect(orderState.interfaceFee.unwrap).to.equal(false)
+    })
+
+    it('places a limit order w/ interface fee (unwrap)', async () => {
+      const trigger = openTriggerOrder({
+        delta: position,
+        side: Dir.L,
+        comparison: Compare.ABOVE_MARKET,
+        price: price,
+        interfaceFee: {
+          receiver: owner.address,
+          amount: 100e6,
+          unwrap: true,
+        },
+      })
+
+      const txn = await multiInvoker.connect(user).invoke(
+        buildPlaceOrder({
+          market: market.address,
+          collateral: collateral,
+          order: trigger,
+        }),
+      )
+
+      setMarketPosition(market, user, defaultPosition)
+
+      await expect(txn)
+        .to.emit(multiInvoker, 'OrderPlaced')
+        .withArgs(user.address, market.address, 1, {
+          side: 1,
+          comparison: -1,
+          fee: 10e6,
+          price: trigger.price,
+          delta: position,
+          interfaceFee: { amount: 100e6, receiver: owner.address, unwrap: true },
+        })
+
+      expect(await multiInvoker.latestNonce()).to.eq(1)
+
+      const orderState = await multiInvoker.orders(user.address, market.address, 1)
+
+      expect(orderState.side).to.equal(trigger.side)
+      expect(orderState.fee).to.equal(trigger.fee)
+      expect(orderState.price).to.equal(trigger.price)
+      expect(orderState.delta).to.equal(trigger.delta)
+      expect(orderState.interfaceFee.amount).to.equal(100e6)
+      expect(orderState.interfaceFee.receiver).to.equal(owner.address)
+      expect(orderState.interfaceFee.unwrap).to.equal(true)
     })
 
     it('places a tp order', async () => {
@@ -876,6 +977,34 @@ describe('MultiInvoker', () => {
         await expect(await multiInvoker.connect(user).invoke(execOrder))
           .to.emit(multiInvoker, 'OrderExecuted')
           .to.emit(multiInvoker, 'KeeperCall')
+      })
+
+      it('executs an order with a interface fee', async () => {
+        // long limit: mkt price <= exec price
+        const trigger = openTriggerOrder({
+          delta: position,
+          price: BigNumber.from(1200e6),
+          side: Dir.L,
+          comparison: Compare.ABOVE_MARKET,
+          interfaceFee: { receiver: owner.address, amount: 100e6, unwrap: false },
+        })
+
+        const placeOrder = buildPlaceOrder({
+          market: market.address,
+          collateral: collateral,
+          order: trigger,
+        })
+
+        const pending = openPosition({ long: BigNumber.from(trigger.delta), collateral: collateral })
+        setPendingPosition(market, user, 0, pending)
+
+        await expect(multiInvoker.connect(user).invoke(placeOrder)).to.not.be.reverted
+
+        const execOrder = buildExecOrder({ user: user.address, market: market.address, orderId: 1 })
+        await expect(multiInvoker.connect(user).invoke(execOrder))
+          .to.emit(multiInvoker, 'OrderExecuted')
+          .to.emit(multiInvoker, 'KeeperCall')
+          .to.emit(multiInvoker, 'InterfaceFeeCharged')
       })
 
       it('executes a withdrawal trigger order', async () => {
