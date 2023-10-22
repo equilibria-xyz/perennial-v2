@@ -10,6 +10,7 @@ import { IPythFactory } from "@equilibria/perennial-v2-oracle/contracts/interfac
 import { IVault } from "@equilibria/perennial-v2-vault/contracts/interfaces/IVault.sol";
 import "./interfaces/IMultiInvoker.sol";
 import "./types/TriggerOrder.sol";
+import "./types/InterfaceFee.sol";
 import "@equilibria/root/attribute/Kept/Kept.sol";
 import "@openzeppelin/contracts/utils/Address.sol";
 
@@ -460,6 +461,7 @@ contract MultiInvoker is IMultiInvoker, Kept {
             currentPosition.collateral,
             false
         ) {
+            _chargeFee(market, orders(account, market, nonce).interfaceFee);
             delete _orders[account][market][nonce];
             emit OrderExecuted(account, market, nonce);
         } catch (bytes memory reason) {
@@ -489,7 +491,11 @@ contract MultiInvoker is IMultiInvoker, Kept {
     /// @param account Account to place order for
     /// @param market Market to place order in
     /// @param order Order state to place
-    function _placeOrder(address account, IMarket market, TriggerOrder memory order) internal isMarketInstance(market) {
+    function _placeOrder(
+        address account,
+        IMarket market,
+        TriggerOrder memory order
+    ) internal isMarketInstance(market) {
         if (order.fee.isZero()) revert MultiInvokerInvalidOrderError();
         if (order.comparison != -1 && order.comparison != 1) revert MultiInvokerInvalidOrderError();
         if (
