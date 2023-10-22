@@ -110,8 +110,15 @@ testOracles.forEach(testOracle => {
       await oracleFactory.initialize(dsu.address)
       await oracleFactory.updateMaxClaim(parse6decimal('100'))
 
-      const keeperOracleImpl = await new testOracle.Oracle(owner).deploy()
-      pythOracleFactory = await new PythFactory__factory(owner).deploy(PYTH_ADDRESS, keeperOracleImpl.address)
+      const keeperOracleImpl = await new testOracle.Oracle(owner).deploy(60)
+      pythOracleFactory = await new PythFactory__factory(owner).deploy(
+        PYTH_ADDRESS,
+        keeperOracleImpl.address,
+        4,
+        10,
+        ethers.utils.parseEther('3'),
+        1_000_000,
+      )
       await pythOracleFactory.initialize(oracleFactory.address, CHAINLINK_ETH_USD_FEED, dsu.address)
       await oracleFactory.register(pythOracleFactory.address)
       await pythOracleFactory.authorize(oracleFactory.address)
@@ -251,6 +258,10 @@ testOracles.forEach(testOracle => {
           const pythOracleFactory2 = await new PythFactory__factory(owner).deploy(
             PYTH_ADDRESS,
             await pythOracleFactory.implementation(),
+            4,
+            10,
+            ethers.utils.parseEther('3'),
+            1_000_000,
           )
           await pythOracleFactory2.initialize(oracleFactory.address, CHAINLINK_ETH_USD_FEED, dsu.address)
           await expect(pythOracleFactory2.initialize(oracleFactory.address, CHAINLINK_ETH_USD_FEED, dsu.address))
@@ -317,12 +328,12 @@ testOracles.forEach(testOracle => {
 
     describe('#initialize', async () => {
       it('only initializes with a valid priceId', async () => {
-        const oracle = await new KeeperOracle__factory(owner).deploy()
+        const oracle = await new KeeperOracle__factory(owner).deploy(60)
         await expect(oracle.initialize()).to.emit(oracle, 'Initialized').withArgs(1)
       })
 
       it('reverts if already initialized', async () => {
-        const oracle = await new KeeperOracle__factory(owner).deploy()
+        const oracle = await new KeeperOracle__factory(owner).deploy(60)
         await oracle.initialize()
         await expect(oracle.initialize())
           .to.be.revertedWithCustomError(oracle, 'InitializableAlreadyInitializedError')
@@ -332,23 +343,23 @@ testOracles.forEach(testOracle => {
 
     describe('constants', async () => {
       it('#MIN_VALID_TIME_AFTER_VERSION', async () => {
-        expect(await pythOracleFactory.MIN_VALID_TIME_AFTER_VERSION()).to.equal(4)
+        expect(await pythOracleFactory.validFrom()).to.equal(4)
       })
 
       it('#MAX_VALID_TIME_AFTER_VERSION', async () => {
-        expect(await pythOracleFactory.MAX_VALID_TIME_AFTER_VERSION()).to.equal(10)
+        expect(await pythOracleFactory.validTo()).to.equal(10)
       })
 
       it('#GRACE_PERIOD', async () => {
-        expect(await keeperOracle.GRACE_PERIOD()).to.equal(60)
+        expect(await keeperOracle.timeout()).to.equal(60)
       })
 
       it('#KEEPER_REWARD_PREMIUM', async () => {
-        expect(await pythOracleFactory.KEEPER_REWARD_PREMIUM()).to.equal(utils.parseEther('3'))
+        expect(await pythOracleFactory.keepMultiplierBase()).to.equal(utils.parseEther('3'))
       })
 
       it('#KEEPER_BUFFER', async () => {
-        expect(await pythOracleFactory.KEEPER_BUFFER()).to.equal(1000000)
+        expect(await pythOracleFactory.keepBufferBase()).to.equal(1000000)
       })
     })
 

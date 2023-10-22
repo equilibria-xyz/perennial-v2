@@ -39,8 +39,15 @@ describe('OracleFactory', () => {
     await oracleFactory.initialize(dsu.address)
     await oracleFactory.updateMaxClaim(parse6decimal('10'))
 
-    const keeperOracleImpl = await new KeeperOracle__factory(owner).deploy()
-    pythOracleFactory = await new PythFactory__factory(owner).deploy(PYTH_ADDRESS, keeperOracleImpl.address)
+    const keeperOracleImpl = await new KeeperOracle__factory(owner).deploy(60)
+    pythOracleFactory = await new PythFactory__factory(owner).deploy(
+      PYTH_ADDRESS,
+      keeperOracleImpl.address,
+      4,
+      10,
+      ethers.utils.parseEther('3'),
+      1_000_000,
+    )
     await pythOracleFactory.initialize(oracleFactory.address, CHAINLINK_ETH_USD_FEED, dsu.address)
     await oracleFactory.register(pythOracleFactory.address)
     await pythOracleFactory.authorize(oracleFactory.address)
@@ -56,8 +63,15 @@ describe('OracleFactory', () => {
 
   describe('#update', async () => {
     it('can update the price id', async () => {
-      const keeperOracleImpl2 = await new KeeperOracle__factory(owner).deploy()
-      const pythOracleFactory2 = await new PythFactory__factory(owner).deploy(PYTH_ADDRESS, keeperOracleImpl2.address)
+      const keeperOracleImpl2 = await new KeeperOracle__factory(owner).deploy(60)
+      const pythOracleFactory2 = await new PythFactory__factory(owner).deploy(
+        PYTH_ADDRESS,
+        keeperOracleImpl2.address,
+        4,
+        10,
+        ethers.utils.parseEther('3'),
+        1_000_000,
+      )
       await pythOracleFactory2.initialize(oracleFactory.address, CHAINLINK_ETH_USD_FEED, dsu.address)
       await oracleFactory.register(pythOracleFactory2.address)
 

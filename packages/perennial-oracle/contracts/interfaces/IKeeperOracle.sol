@@ -46,7 +46,7 @@ interface IKeeperOracle is IOracleProvider, IInstance {
     function globalCallbacks(uint256 version) external view returns (address[] memory);
     function localCallbacks(uint256 version, IMarket market) external view returns (address[] memory);
 
-    function GRACE_PERIOD() external view returns (uint256);
+    function timeout() external view returns (uint256);
     function versions(uint256 index) external view returns (uint256);
     function global() external view returns (Global memory);
 }

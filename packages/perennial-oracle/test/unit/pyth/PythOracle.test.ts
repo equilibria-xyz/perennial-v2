@@ -98,8 +98,15 @@ describe('PythOracle', () => {
     await oracleFactory.initialize(dsu.address)
     await oracleFactory.updateMaxClaim(parse6decimal('10'))
 
-    const pythOracleImpl = await new KeeperOracle__factory(owner).deploy()
-    pythOracleFactory = await new PythFactory__factory(owner).deploy(pyth.address, pythOracleImpl.address)
+    const keeperOracleImpl = await new KeeperOracle__factory(owner).deploy(60)
+    pythOracleFactory = await new PythFactory__factory(owner).deploy(
+      pyth.address,
+      keeperOracleImpl.address,
+      4,
+      10,
+      ethers.utils.parseEther('3'),
+      1_000_000,
+    )
     await pythOracleFactory.initialize(oracleFactory.address, chainlinkFeed.address, dsu.address)
     await oracleFactory.register(pythOracleFactory.address)
     await pythOracleFactory.authorize(oracleFactory.address)
@@ -121,7 +128,7 @@ describe('PythOracle', () => {
   })
 
   it('parses Pyth exponents correctly', async () => {
-    const minDelay = await pythOracleFactory.MIN_VALID_TIME_AFTER_VERSION()
+    const minDelay = await pythOracleFactory.validFrom()
     await keeperOracle.connect(oracleSigner).request(market.address, user.address)
     await pythOracleFactory
       .connect(user)

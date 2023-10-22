@@ -15,7 +15,14 @@ contract PythFactory is IPythFactory, KeeperFactory {
     /// @notice Initializes the immutable contract state
     /// @param pyth_ Pyth contract
     /// @param implementation_ IPythOracle implementation contract
-    constructor(AbstractPyth pyth_, address implementation_) KeeperFactory(implementation_) {
+    constructor(
+        AbstractPyth pyth_,
+        address implementation_,
+        uint256 validFrom_,
+        uint256 validTo_,
+        UFixed18 keepMultiplierBase_,
+        uint256 keepBufferBase
+    ) KeeperFactory(implementation_, validFrom_, validTo_, keepMultiplierBase_, keepBufferBase) {
         pyth = pyth_;
     }
 
@@ -44,8 +51,8 @@ contract PythFactory is IPythFactory, KeeperFactory {
         PythStructs.PriceFeed[] memory parsedPrices = pyth.parsePriceFeedUpdates{value: msg.value}(
             datas,
             _toUnderlyingIds(ids),
-            SafeCast.toUint64(version + MIN_VALID_TIME_AFTER_VERSION),
-            SafeCast.toUint64(version + MAX_VALID_TIME_AFTER_VERSION)
+            SafeCast.toUint64(version + validFrom),
+            SafeCast.toUint64(version + validTo)
         );
 
         for (uint256 i; i < parsedPrices.length; i++) {
@@ -56,7 +63,10 @@ contract PythFactory is IPythFactory, KeeperFactory {
         }
     }
 
-    // TODO
+    /// @notice Converts a list of oracle ids to a list of underlying ids
+    /// @dev Reverts if any of the ids are not associated
+    /// @param ids The list of oracle ids to convert
+    /// @return underlyingIds The list of underlying ids
     function _toUnderlyingIds(bytes32[] memory ids) private view returns (bytes32[] memory underlyingIds) {
         underlyingIds = new bytes32[](ids.length);
         for (uint256 i; i < ids.length; i++) {

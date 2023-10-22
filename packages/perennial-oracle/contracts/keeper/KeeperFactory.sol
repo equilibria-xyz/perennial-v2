@@ -10,21 +10,20 @@ import "../interfaces/IOracleFactory.sol";
 /// @title KeeperFactory
 /// @notice Factory contract for creating and managing keeper-based oracles
 abstract contract KeeperFactory is IKeeperFactory, Factory, Kept {
-    // TODO: constants
-    /// @dev A Keeper update must come at least this long after a version to be valid
-    uint256 constant public MIN_VALID_TIME_AFTER_VERSION = 4 seconds;
-
-    /// @dev A Keeper update must come at most this long after a version to be valid
-    uint256 constant public MAX_VALID_TIME_AFTER_VERSION = 10 seconds;
-
-    /// @dev The multiplier for the keeper reward on top of cost
-    UFixed18 constant public KEEPER_REWARD_PREMIUM = UFixed18.wrap(3e18);
-
-    /// @dev The fixed gas buffer that is added to the keeper reward
-    uint256 constant public KEEPER_BUFFER = 1_000_000;
-
     /// @dev The maximum value for granularity
     uint256 public constant MAX_GRANULARITY = 1 hours;
+
+    /// @dev A Keeper update must come at least this long after a version to be valid
+    uint256 public immutable validFrom;
+
+    /// @dev A Keeper update must come at most this long after a version to be valid
+    uint256 public immutable validTo;
+
+    /// @dev The multiplier for the keeper reward on top of cost
+    UFixed18 public immutable keepMultiplierBase;
+
+    /// @dev The fixed gas buffer that is added to the keeper reward
+    uint256 public immutable keepBufferBase;
 
     /// @dev The root oracle factory
     IOracleFactory public oracleFactory;
@@ -46,7 +45,22 @@ abstract contract KeeperFactory is IKeeperFactory, Factory, Kept {
 
     /// @notice Initializes the immutable contract state
     /// @param implementation_ IKeeperOracle implementation contract
-    constructor(address implementation_) Factory(implementation_) { }
+    /// @param validFrom_ The minimum time after a version that a keeper update can be valid
+    /// @param validTo_ The maximum time after a version that a keeper update can be valid
+    /// @param keepMultiplierBase_ The multiplier for the keeper reward on top of cost
+    /// @param keepBufferBase_ The fixed gas buffer that is added to the keeper reward
+    constructor(
+        address implementation_,
+        uint256 validFrom_,
+        uint256 validTo_,
+        UFixed18 keepMultiplierBase_,
+        uint256 keepBufferBase_
+    ) Factory(implementation_) {
+        validFrom = validFrom_;
+        validTo = validTo_;
+        keepMultiplierBase = keepMultiplierBase_;
+        keepBufferBase = keepBufferBase_;
+    }
 
     /// @notice Initializes the contract state
     /// @param oracleFactory_ The root oracle factory
@@ -134,7 +148,7 @@ abstract contract KeeperFactory is IKeeperFactory, Factory, Kept {
     /// @param maxCounts The list of maximum number of settlement callbacks to perform before exiting
     function settle(bytes32[] memory ids, IMarket[] memory markets, uint256[] memory versions, uint256[] memory maxCounts)
         external
-        keep(KEEPER_REWARD_PREMIUM, KEEPER_BUFFER, abi.encode(ids, markets, versions, maxCounts), "") // TODO: add calldata buffer
+        keep(keepMultiplierBase, keepBufferBase, abi.encode(ids, markets, versions, maxCounts), "") // TODO: add calldata buffer
     {
         for (uint256 i; i < ids.length; i++)
             IKeeperOracle(address(oracles[ids[i]])).settle(markets[i], versions[i], maxCounts[i]);
@@ -146,7 +160,7 @@ abstract contract KeeperFactory is IKeeperFactory, Factory, Kept {
     /// @param price The price of version to commit
     function _handleKeep(bytes32 id, uint256 version, Fixed6 price)
         private
-        keep(KEEPER_REWARD_PREMIUM, KEEPER_BUFFER, abi.encode(id, version, price), "") // TODO: add calldata buffer
+        keep(keepMultiplierBase, keepBufferBase, abi.encode(id, version, price), "") // TODO: add calldata buffer
     { }
 
     /// @notice Pulls funds from the factory to reward the keeper

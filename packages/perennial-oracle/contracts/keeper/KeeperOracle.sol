@@ -14,9 +14,8 @@ import "../interfaces/IKeeperFactory.sol";
 contract KeeperOracle is IKeeperOracle, Instance {
     using EnumerableSet for EnumerableSet.AddressSet;
 
-    // TODO: constants
     /// @dev After this amount of time has passed for a version without being committed, the version can be invalidated.
-    uint256 constant public GRACE_PERIOD = 1 minutes;
+    uint256 public immutable timeout;
 
     /// @dev List of all requested oracle versions
     mapping(uint256 => uint256) public versions;
@@ -32,6 +31,12 @@ contract KeeperOracle is IKeeperOracle, Instance {
 
     /// @dev Mapping from version and market to a set of registered accounts for settlement callback
     mapping(uint256 => mapping(IMarket => EnumerableSet.AddressSet)) private _localCallbacks;
+
+    /// @notice Constructs the contract
+    /// @param timeout_ The timeout for a version to be committed
+    constructor(uint256 timeout_)  {
+        timeout = timeout_;
+    }
 
     /// @notice Initializes the contract state
     function initialize() external initializer(1) {
@@ -150,7 +155,7 @@ contract KeeperOracle is IKeeperOracle, Instance {
     /// @param version The oracle version to commit
     /// @return Whether the commit was requested
     function _commitRequested(OracleVersion memory version) private returns (bool) {
-        if (block.timestamp <= (next() + GRACE_PERIOD)) {
+        if (block.timestamp <= (next() + timeout)) {
             if (!version.valid) revert KeeperOracleInvalidPriceError();
             _prices[version.timestamp] = version.price;
         }

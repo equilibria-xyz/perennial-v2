@@ -31,10 +31,10 @@ interface IKeeperFactory is IOracleProviderFactory, IFactory, IKept {
     // sig: 0xf0253cdc
     error KeeperFactoryAlreadyAssociatedError();
 
-    function MIN_VALID_TIME_AFTER_VERSION() external view returns (uint256);
-    function MAX_VALID_TIME_AFTER_VERSION() external view returns (uint256);
-    function KEEPER_REWARD_PREMIUM() external view returns (UFixed18);
-    function KEEPER_BUFFER() external view returns (uint256);
+    function validFrom() external view returns (uint256);
+    function validTo() external view returns (uint256);
+    function keepMultiplierBase() external view returns (UFixed18);
+    function keepBufferBase() external view returns (uint256);
 
     function initialize(IOracleFactory oracleFactory, AggregatorV3Interface chainlinkFeed_, Token18 dsu_) external;
     function authorize(IFactory factory) external;
