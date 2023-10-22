@@ -6,7 +6,6 @@ import "./IOracleProvider.sol";
 
 interface IOracleProviderFactory {
     event OracleCreated(IOracleProvider indexed oracle, bytes32 indexed id);
-    event OracleAssociated(bytes32 indexed id, bytes32 indexed underlyingId);
 
     function oracles(bytes32 id) external view returns (IOracleProvider);
     function authorized(address caller) external view returns (bool);

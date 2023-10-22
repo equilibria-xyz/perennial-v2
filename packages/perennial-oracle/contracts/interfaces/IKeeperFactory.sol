@@ -15,6 +15,7 @@ interface IKeeperFactory is IOracleProviderFactory, IFactory, IKept {
         uint128 effectiveAfter;
     }
 
+    event OracleAssociated(bytes32 indexed id, bytes32 indexed underlyingId);
     event GranularityUpdated(uint256 newGranularity, uint256 effectiveAfter);
     event CallerAuthorized(IFactory indexed caller);
 
