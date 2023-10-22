@@ -166,8 +166,7 @@ abstract contract KeeperFactory is IKeeperFactory, Factory, Kept {
     /// @notice Pulls funds from the factory to reward the keeper
     /// @param keeperFee The keeper fee to pull
     function _raiseKeeperFee(UFixed18 keeperFee, bytes memory) internal virtual override {
-        UFixed6 amount = UFixed6Lib.from(keeperFee, true);
-        oracleFactory.claim(amount);
+        oracleFactory.claim(UFixed6Lib.from(keeperFee, true));
     }
 
     /// @notice Returns the granularity
