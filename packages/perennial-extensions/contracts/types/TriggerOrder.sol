@@ -2,6 +2,7 @@
 pragma solidity ^0.8.13;
 
 import "@equilibria/root/number/types/UFixed6.sol";
+import "@equilibria/perennial-v2/contracts/interfaces/IMarket.sol";
 import "@equilibria/perennial-v2/contracts/types/Position.sol";
 import "./InterfaceFee.sol";
 
@@ -16,7 +17,7 @@ struct TriggerOrder {
 using TriggerOrderLib for TriggerOrder global;
 struct StoredTriggerOrder {
     /* slot 0 */
-    uint8 side;                // 0 = maker, 1 = long, 2 = short, 4 = collateral
+    uint8 side;                // 0 = maker, 1 = long, 2 = short, 3 = collateral
     int8 comparison;           // -2 = lt, -1 = lte, 0 = eq, 1 = gte, 2 = gt
     uint64 fee;                // <= 18.44tb
     int64 price;               // <= 9.22t
@@ -58,7 +59,10 @@ library TriggerOrderLib {
                 UFixed6Lib.from(Fixed6Lib.from(currentPosition.short).add(self.delta));
 
         // update collateral (override collateral field in position since it is not used in this context)
-        currentPosition.collateral = (self.side == 3) ? self.delta : Fixed6Lib.ZERO;
+        // Handles collateral withdrawal magic value
+        currentPosition.collateral = (self.side == 3) ?
+            (self.delta.eq(Fixed6.wrap(type(int64).min)) ? Fixed6Lib.MIN : self.delta) :
+            Fixed6Lib.ZERO;
     }
 }
 
