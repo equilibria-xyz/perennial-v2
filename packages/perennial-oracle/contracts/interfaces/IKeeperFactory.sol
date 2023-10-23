@@ -36,6 +36,8 @@ interface IKeeperFactory is IOracleProviderFactory, IFactory, IKept {
     function validTo() external view returns (uint256);
     function keepMultiplierBase() external view returns (UFixed18);
     function keepBufferBase() external view returns (uint256);
+    function keepMultiplierData() external view returns (UFixed18);
+    function keepBufferData() external view returns (uint256);
 
     function initialize(IOracleFactory oracleFactory, AggregatorV3Interface chainlinkFeed_, Token18 dsu_) external;
     function authorize(IFactory factory) external;
