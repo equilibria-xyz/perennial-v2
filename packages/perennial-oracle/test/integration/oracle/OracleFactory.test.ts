@@ -50,16 +50,16 @@ describe('OracleFactory', () => {
     await oracleFactory.updateMaxClaim(parse6decimal('10'))
 
     const keeperOracleImpl = await new KeeperOracle__factory(owner).deploy(60)
-    pythOracleFactory = await new PythFactory__factory(owner).deploy(
-      PYTH_ADDRESS,
-      keeperOracleImpl.address,
-      4,
-      10,
-      ethers.utils.parseEther('3'),
-      1_000_000,
-      ethers.utils.parseEther('1'),
-      500_000,
-    )
+    pythOracleFactory = await new PythFactory__factory(owner).deploy(PYTH_ADDRESS, keeperOracleImpl.address, 4, 10, {
+      keepCommitMultiplierBase: ethers.utils.parseEther('3'),
+      keepCommitBufferBase: 1_000_000,
+      keepCommitMultiplierData: ethers.utils.parseEther('1'),
+      keepCommitBufferData: 500_000,
+      keepSettleMultiplierBase: ethers.utils.parseEther('1'),
+      keepSettleBufferBase: 2_000_000,
+      keepSettleMultiplierData: ethers.utils.parseEther('1'),
+      keepSettleBufferData: 1_500_000,
+    })
     await pythOracleFactory.initialize(oracleFactory.address, CHAINLINK_ETH_USD_FEED, dsu.address)
     await oracleFactory.register(pythOracleFactory.address)
     await pythOracleFactory.authorize(oracleFactory.address)
@@ -89,10 +89,16 @@ describe('OracleFactory', () => {
         keeperOracleImpl2.address,
         4,
         10,
-        ethers.utils.parseEther('3'),
-        1_000_000,
-        ethers.utils.parseEther('1'),
-        500_000,
+        {
+          keepCommitMultiplierBase: ethers.utils.parseEther('3'),
+          keepCommitBufferBase: 1_000_000,
+          keepCommitMultiplierData: ethers.utils.parseEther('1'),
+          keepCommitBufferData: 500_000,
+          keepSettleMultiplierBase: ethers.utils.parseEther('1'),
+          keepSettleBufferBase: 2_000_000,
+          keepSettleMultiplierData: ethers.utils.parseEther('1'),
+          keepSettleBufferData: 1_500_000,
+        },
       )
       await pythOracleFactory2.initialize(oracleFactory.address, CHAINLINK_ETH_USD_FEED, dsu.address)
       await oracleFactory.register(pythOracleFactory2.address)

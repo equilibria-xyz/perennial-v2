@@ -15,6 +15,17 @@ interface IKeeperFactory is IOracleProviderFactory, IFactory, IKept {
         uint128 effectiveAfter;
     }
 
+    struct KeepParamConfig {
+        UFixed18 keepCommitMultiplierBase;
+        uint256 keepCommitBufferBase;
+        UFixed18 keepCommitMultiplierData;
+        uint256 keepCommitBufferData;
+        UFixed18 keepSettleMultiplierBase;
+        uint256 keepSettleBufferBase;
+        UFixed18 keepSettleMultiplierData;
+        uint256 keepSettleBufferData;
+    }
+
     event OracleAssociated(bytes32 indexed id, bytes32 indexed underlyingId);
     event GranularityUpdated(uint256 newGranularity, uint256 effectiveAfter);
     event CallerAuthorized(IFactory indexed caller);
@@ -34,10 +45,7 @@ interface IKeeperFactory is IOracleProviderFactory, IFactory, IKept {
 
     function validFrom() external view returns (uint256);
     function validTo() external view returns (uint256);
-    function keepMultiplierBase() external view returns (UFixed18);
-    function keepBufferBase() external view returns (uint256);
-    function keepMultiplierData() external view returns (UFixed18);
-    function keepBufferData() external view returns (uint256);
+    function keepParamConfig() external view returns (KeepParamConfig memory);
 
     function initialize(IOracleFactory oracleFactory, AggregatorV3Interface chainlinkFeed_, Token18 dsu_) external;
     function authorize(IFactory factory) external;

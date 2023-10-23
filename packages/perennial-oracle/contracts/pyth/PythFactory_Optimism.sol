@@ -15,11 +15,8 @@ contract PythFactory_Optimism is PythFactory, Kept_Optimism {
         address implementation_,
         uint256 validFrom_,
         uint256 validTo_,
-        UFixed18 keepMultiplierBase_,
-        uint256 keepBufferBase_,
-        UFixed18 keepMultiplierData_,
-        uint256 keepBufferData_
-    ) PythFactory(pyth_, implementation_, validFrom_, validTo_, keepMultiplierBase_, keepBufferBase_, keepMultiplierData_, keepBufferData_ ) { }
+        KeepParamConfig memory keepParamConfig_
+    ) PythFactory(pyth_, implementation_, validFrom_, validTo_, keepParamConfig_) { }
 
     /// @dev Use the Kept_Optimism implementation for calculating the dynamic fee
     function _calldataFee(

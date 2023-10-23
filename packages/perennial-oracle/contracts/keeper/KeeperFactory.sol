@@ -19,17 +19,29 @@ abstract contract KeeperFactory is IKeeperFactory, Factory, Kept {
     /// @dev A Keeper update must come at most this long after a version to be valid
     uint256 public immutable validTo;
 
-    /// @dev The multiplier for the keeper reward on top of cost
-    UFixed18 public immutable keepMultiplierBase;
+    /// @dev The multiplier for the keeper reward on top of cost of commit
+    UFixed18 internal immutable keepCommitMultiplierBase;
 
-    /// @dev The fixed gas buffer that is added to the keeper reward
-    uint256 public immutable keepBufferBase;
+    /// @dev The fixed gas buffer that is added to the keeper reward for commits
+    uint256 internal immutable keepCommitBufferBase;
 
-    /// @dev The multiplier for the calldata portion of the keeper reward on top of cost
-    UFixed18 public immutable keepMultiplierData;
+    /// @dev The multiplier for the calldata portion of the keeper reward on top of cost of commit
+    UFixed18 internal immutable keepCommitMultiplierData;
 
-    /// @dev The fixed gas buffer that is added to the calldata portion of  the keeper reward
-    uint256 public immutable keepBufferData;
+    /// @dev The fixed gas buffer that is added to the calldata portion of the keeper reward for commits
+    uint256 internal immutable keepCommitBufferData;
+
+    /// @dev The multiplier for the keeper reward on top of cost of settle
+    UFixed18 internal immutable keepSettleMultiplierBase;
+
+    /// @dev The fixed gas buffer that is added to the keeper reward for settles
+    uint256 internal immutable keepSettleBufferBase;
+
+    /// @dev The multiplier for the calldata portion of the keeper reward on top of cost of settle
+    UFixed18 internal immutable keepSettleMultiplierData;
+
+    /// @dev The fixed gas buffer that is added to the calldata portion of the keeper reward for settles
+    uint256 internal immutable keepSettleBufferData;
 
     /// @dev The root oracle factory
     IOracleFactory public oracleFactory;
@@ -53,23 +65,23 @@ abstract contract KeeperFactory is IKeeperFactory, Factory, Kept {
     /// @param implementation_ IKeeperOracle implementation contract
     /// @param validFrom_ The minimum time after a version that a keeper update can be valid
     /// @param validTo_ The maximum time after a version that a keeper update can be valid
-    /// @param keepMultiplierBase_ The multiplier for the keeper reward on top of cost
-    /// @param keepBufferBase_ The fixed gas buffer that is added to the keeper reward
+    /// @param keepParamConfig_ Parameter configuration for keeper incentivization
     constructor(
         address implementation_,
         uint256 validFrom_,
         uint256 validTo_,
-        UFixed18 keepMultiplierBase_,
-        uint256 keepBufferBase_,
-        UFixed18 keepMultiplierData_,
-        uint256 keepBufferData_
+        KeepParamConfig memory keepParamConfig_
     ) Factory(implementation_) {
         validFrom = validFrom_;
         validTo = validTo_;
-        keepMultiplierBase = keepMultiplierBase_;
-        keepBufferBase = keepBufferBase_;
-        keepMultiplierData = keepMultiplierData_;
-        keepBufferData = keepBufferData_;
+        keepCommitMultiplierBase = keepParamConfig_.keepCommitMultiplierBase;
+        keepCommitBufferBase = keepParamConfig_.keepCommitBufferBase;
+        keepCommitMultiplierData = keepParamConfig_.keepCommitMultiplierData;
+        keepCommitBufferData = keepParamConfig_.keepCommitBufferData;
+        keepSettleMultiplierBase = keepParamConfig_.keepSettleMultiplierBase;
+        keepSettleBufferBase = keepParamConfig_.keepSettleBufferBase;
+        keepSettleMultiplierData = keepParamConfig_.keepSettleMultiplierData;
+        keepSettleBufferData = keepParamConfig_.keepSettleBufferData;
     }
 
     /// @notice Initializes the contract state
@@ -149,7 +161,20 @@ abstract contract KeeperFactory is IKeeperFactory, Factory, Kept {
             if (IKeeperOracle(address(oracles[ids[i]])).commit(OracleVersion(version, prices[i], valid)))
                 numRequested++;
 
-        if (numRequested > 0) _handleKeep(numRequested);
+        if (numRequested > 0) _handleCommitKeep(numRequested);
+    }
+
+    function keepParamConfig() external view returns (KeepParamConfig memory) {
+        return KeepParamConfig(
+            keepCommitMultiplierBase,
+            keepCommitBufferBase,
+            keepCommitMultiplierData,
+            keepCommitBufferData,
+            keepSettleMultiplierBase,
+            keepSettleBufferBase,
+            keepSettleMultiplierData,
+            keepSettleBufferData
+        );
     }
 
     /// @notice Performs a list of local settlement callbacks
@@ -163,10 +188,10 @@ abstract contract KeeperFactory is IKeeperFactory, Factory, Kept {
         external
         keep(
             KeepConfig(
-                keepMultiplierBase,
-                keepBufferBase,
-                keepMultiplierData,
-                keepBufferData
+                keepSettleMultiplierBase,
+                keepSettleBufferBase,
+                keepSettleMultiplierData,
+                keepSettleBufferData
             ),
             msg.data,
             0,
@@ -179,14 +204,14 @@ abstract contract KeeperFactory is IKeeperFactory, Factory, Kept {
 
     /// @notice Handles paying the keeper requested for given number of requested updates
     /// @param numRequested Number of requested price updates
-    function _handleKeep(uint256 numRequested)
+    function _handleCommitKeep(uint256 numRequested)
         internal virtual
         keep(
             KeepConfig(
-                keepMultiplierBase,
-                keepBufferBase,
-                keepMultiplierData,
-                keepBufferData
+                keepCommitMultiplierBase,
+                keepCommitBufferBase,
+                keepCommitMultiplierData,
+                keepCommitBufferData
             ),
             msg.data[0:0],
             0,

@@ -17,16 +17,16 @@ contract PythFactory is IPythFactory, KeeperFactory {
     /// @notice Initializes the immutable contract state
     /// @param pyth_ Pyth contract
     /// @param implementation_ IPythOracle implementation contract
+    /// @param validFrom_ The minimum time after a version that a keeper update can be valid
+    /// @param validTo_ The maximum time after a version that a keeper update can be valid
+    /// @param keepParamConfig_ Parameter configuration for keeper incentivization
     constructor(
         AbstractPyth pyth_,
         address implementation_,
         uint256 validFrom_,
         uint256 validTo_,
-        UFixed18 keepMultiplierBase_,
-        uint256 keepBufferBase_,
-        UFixed18 keepMultiplierData_,
-        uint256 keepBufferData_
-    ) KeeperFactory(implementation_, validFrom_, validTo_, keepMultiplierBase_, keepBufferBase_, keepMultiplierData_, keepBufferData_) {
+        KeepParamConfig memory keepParamConfig_
+    ) KeeperFactory(implementation_, validFrom_, validTo_, keepParamConfig_) {
         pyth = pyth_;
     }
 
@@ -81,14 +81,14 @@ contract PythFactory is IPythFactory, KeeperFactory {
 
     /// @notice Handles paying the keeper requested for given number of requested updates
     /// @param numRequested Number of requested price updates
-    function _handleKeep(uint256 numRequested)
+    function _handleCommitKeep(uint256 numRequested)
         internal override
         keep(
             KeepConfig(
-                keepMultiplierBase,
-                keepBufferBase * numRequested,
-                keepMultiplierData,
-                keepBufferData + numRequested * INCREMENTAL_UPDATE_COST_DATA
+                keepCommitMultiplierBase,
+                keepCommitBufferBase * numRequested,
+                keepCommitMultiplierData,
+                keepCommitBufferData + numRequested * INCREMENTAL_UPDATE_COST_DATA
             ),
             msg.data[0:0],
             IPythStaticFee(address(pyth)).singleUpdateFeeInWei() * numRequested,
