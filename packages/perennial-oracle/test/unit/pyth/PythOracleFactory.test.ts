@@ -44,7 +44,7 @@ const getVaa = (price: BigNumberish, conf: BigNumberish, expo: BigNumberish, pub
   return '0x' + hexString
 }
 
-describe('PythOracle', () => {
+describe('PythOracleFactory', () => {
   let owner: SignerWithAddress
   let user: SignerWithAddress
 
