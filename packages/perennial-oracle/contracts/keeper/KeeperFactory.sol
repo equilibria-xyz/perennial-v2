@@ -149,7 +149,7 @@ abstract contract KeeperFactory is IKeeperFactory, Factory, Kept {
             if (IKeeperOracle(address(oracles[ids[i]])).commit(OracleVersion(version, prices[i], valid)))
                 numRequested++;
 
-        _handleKeep(numRequested);
+        if (numRequested > 0) _handleKeep(numRequested);
     }
 
     /// @notice Performs a list of local settlement callbacks
