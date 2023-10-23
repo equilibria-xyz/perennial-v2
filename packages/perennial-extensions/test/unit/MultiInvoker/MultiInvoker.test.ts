@@ -88,6 +88,9 @@ describe('MultiInvoker', () => {
       '0x0000000000000000000000000000000000000000',
       reserve.address,
       parse6decimal('1.4'),
+      500_000,
+      parse6decimal('1'),
+      1_000_000,
     )
 
     // Default mkt price: 1150
@@ -1060,7 +1063,7 @@ describe('MultiInvoker', () => {
         await expect(multiInvoker.connect(owner).invoke(execOrder, { maxFeePerGas: 100000000 }))
           .to.emit(multiInvoker, 'OrderExecuted')
           .to.emit(multiInvoker, 'KeeperCall')
-          .withArgs(owner.address, anyValue, anyValue, anyValue, anyValue)
+          .withArgs(owner.address, anyValue, anyValue, anyValue, anyValue, anyValue)
       })
     })
   })

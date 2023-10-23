@@ -120,6 +120,8 @@ testOracles.forEach(testOracle => {
         10,
         ethers.utils.parseEther('3'),
         1_000_000,
+        ethers.utils.parseEther('1'),
+        500_000,
       )
       await pythOracleFactory.initialize(oracleFactory.address, CHAINLINK_ETH_USD_FEED, dsu.address)
       await oracleFactory.register(pythOracleFactory.address)
@@ -264,6 +266,8 @@ testOracles.forEach(testOracle => {
             10,
             ethers.utils.parseEther('3'),
             1_000_000,
+            ethers.utils.parseEther('1'),
+            500_000,
           )
           await pythOracleFactory2.initialize(oracleFactory.address, CHAINLINK_ETH_USD_FEED, dsu.address)
           await expect(pythOracleFactory2.initialize(oracleFactory.address, CHAINLINK_ETH_USD_FEED, dsu.address))
@@ -482,7 +486,7 @@ testOracles.forEach(testOracle => {
       it('reverts if not called from factory', async () => {
         await expect(
           keeperOracle.connect(user).commit({ timestamp: STARTING_TIME, price: parse6decimal('1000'), valid: true }),
-        ).to.be.revertedWithCustomError(keeperOracle, 'OracleProviderUnauthorizedError')
+        ).to.be.revertedWithCustomError(keeperOracle, 'InstanceNotFactoryError')
       })
 
       it('reverts if version is zero', async () => {

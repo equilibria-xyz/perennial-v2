@@ -71,6 +71,8 @@ describe('PythOracleFactory', () => {
       10,
       ethers.utils.parseEther('3'),
       1_000_000,
+      ethers.utils.parseEther('1'),
+      500_000,
     )
     await pythOracleFactory.initialize(oracleFactory.address, CHAINLINK_ETH_USD_FEED, dsu.address)
     await oracleFactory.register(pythOracleFactory.address)
