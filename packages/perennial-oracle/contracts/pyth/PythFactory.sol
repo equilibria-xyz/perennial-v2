@@ -82,7 +82,7 @@ contract PythFactory is IPythFactory, KeeperFactory {
     /// @notice Handles paying the keeper requested for given number of requested updates
     /// @param numRequested Number of requested price updates
     function _handleKeep(uint256 numRequested)
-        private override
+        internal override
         keep(
             KeepConfig(
                 keepMultiplierBase,

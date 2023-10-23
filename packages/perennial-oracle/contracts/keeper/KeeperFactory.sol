@@ -180,7 +180,7 @@ abstract contract KeeperFactory is IKeeperFactory, Factory, Kept {
     /// @notice Handles paying the keeper requested for given number of requested updates
     /// @param numRequested Number of requested price updates
     function _handleKeep(uint256 numRequested)
-        private
+        internal virtual
         keep(
             KeepConfig(
                 keepMultiplierBase,
