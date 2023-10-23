@@ -9,6 +9,8 @@ import "../keeper/KeeperFactory.sol";
 /// @title PythFactory
 /// @notice Factory contract for creating and managing Pyth oracles
 contract PythFactory is IPythFactory, KeeperFactory {
+    uint256 private constant INCREMENTAL_UPDATE_COST_DATA = 5_000 wei;
+
     /// @dev Pyth contract
     AbstractPyth public immutable pyth;
 
@@ -84,9 +86,9 @@ contract PythFactory is IPythFactory, KeeperFactory {
         keep(
             KeepConfig(
                 keepMultiplierBase,
-                keepBufferBase,
+                keepBufferBase * numRequested,
                 keepMultiplierData,
-                keepBufferData
+                keepBufferData + numRequested * INCREMENTAL_UPDATE_COST_DATA
             ),
             msg.data[0:0],
             IPythStaticFee(address(pyth)).singleUpdateFeeInWei() * numRequested,
