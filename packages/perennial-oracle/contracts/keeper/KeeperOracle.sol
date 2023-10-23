@@ -2,25 +2,20 @@
 pragma solidity 0.8.19;
 
 import "@openzeppelin/contracts/utils/math/SafeCast.sol";
-import "@pythnetwork/pyth-sdk-solidity/AbstractPyth.sol";
 import "@openzeppelin/contracts/utils/structs/EnumerableSet.sol";
 import "@equilibria/root/attribute/Instance.sol";
-import "@equilibria/root/attribute/Kept/Kept.sol";
-import "../interfaces/IPythFactory.sol";
+import "../interfaces/IKeeperFactory.sol";
 
-/// @title PythOracle
-/// @notice Pyth implementation of the IOracle interface.
-/// @dev One instance per Pyth price feed should be deployed. Multiple products may use the same
-///      PythOracle instance if their payoff functions are based on the same underlying oracle.
+/// @title KeeperOracle
+/// @notice Generic implementation of the IOracle interface for keeper-based oracles.
+/// @dev One instance per price feed should be deployed. Multiple products may use the same
+///      KeeperOracle instance if their payoff functions are based on the same underlying oracle.
 ///      This implementation only supports non-negative prices.
-contract PythOracle is IPythOracle, Instance, Kept {
+contract KeeperOracle is IKeeperOracle, Instance {
     using EnumerableSet for EnumerableSet.AddressSet;
 
     /// @dev After this amount of time has passed for a version without being committed, the version can be invalidated.
-    uint256 constant public GRACE_PERIOD = 1 minutes;
-
-    /// @dev Pyth price feed id
-    bytes32 public id;
+    uint256 public immutable timeout;
 
     /// @dev List of all requested oracle versions
     mapping(uint256 => uint256) public versions;
@@ -37,11 +32,15 @@ contract PythOracle is IPythOracle, Instance, Kept {
     /// @dev Mapping from version and market to a set of registered accounts for settlement callback
     mapping(uint256 => mapping(IMarket => EnumerableSet.AddressSet)) private _localCallbacks;
 
+    /// @notice Constructs the contract
+    /// @param timeout_ The timeout for a version to be committed
+    constructor(uint256 timeout_)  {
+        timeout = timeout_;
+    }
+
     /// @notice Initializes the contract state
-    /// @param id_ price ID for Pyth price feed
-    function initialize(bytes32 id_) external initializer(1) {
+    function initialize() external initializer(1) {
         __Instance__initialize();
-        id = id_;
     }
 
     /// @notice Returns the global state of the oracle
@@ -101,7 +100,7 @@ contract PythOracle is IPythOracle, Instance, Kept {
     /// @notice Returns the current oracle version accepting new orders
     /// @return Current oracle version
     function current() public view returns (uint256) {
-        return IPythFactory(address(factory())).current();
+        return IKeeperFactory(address(factory())).current();
     }
 
     /// @notice Returns the oracle version at version `version`
@@ -119,7 +118,7 @@ contract PythOracle is IPythOracle, Instance, Kept {
     function commit(OracleVersion memory version) external returns (bool requested) {
         if (msg.sender != address(factory())) revert OracleProviderUnauthorizedError(); // TODO: make modifier in root
 
-        if (version.timestamp == 0) revert PythOracleVersionOutsideRangeError();
+        if (version.timestamp == 0) revert KeeperOracleVersionOutsideRangeError();
         requested = (version.timestamp == next()) ? _commitRequested(version) : _commitUnrequested(version);
         _global.latestVersion = uint64(version.timestamp);
 
@@ -139,9 +138,9 @@ contract PythOracle is IPythOracle, Instance, Kept {
 
         EnumerableSet.AddressSet storage callbacks = _localCallbacks[version][market];
 
-        if (_global.latestVersion < version) revert PythOracleVersionOutsideRangeError();
-        if (maxCount == 0) revert PythOracleInvalidCallbackError();
-        if (callbacks.length() == 0) revert PythOracleInvalidCallbackError();
+        if (_global.latestVersion < version) revert KeeperOracleVersionOutsideRangeError();
+        if (maxCount == 0) revert KeeperOracleInvalidCallbackError();
+        if (callbacks.length() == 0) revert KeeperOracleInvalidCallbackError();
 
         for (uint256 i; i < maxCount && callbacks.length() > 0; i++) {
             address account = callbacks.at(0);
@@ -156,8 +155,8 @@ contract PythOracle is IPythOracle, Instance, Kept {
     /// @param version The oracle version to commit
     /// @return Whether the commit was requested
     function _commitRequested(OracleVersion memory version) private returns (bool) {
-        if (block.timestamp <= (next() + GRACE_PERIOD)) {
-            if (!version.valid) revert PythOracleInvalidPriceError();
+        if (block.timestamp <= (next() + timeout)) {
+            if (!version.valid) revert KeeperOracleInvalidPriceError();
             _prices[version.timestamp] = version.price;
         }
         _global.latestIndex++;
@@ -168,9 +167,9 @@ contract PythOracle is IPythOracle, Instance, Kept {
     /// @param version The oracle version to commit
     /// @return Whether the commit was requested
     function _commitUnrequested(OracleVersion memory version) private returns (bool) {
-        if (!version.valid) revert PythOracleInvalidPriceError();
+        if (!version.valid) revert KeeperOracleInvalidPriceError();
         if (version.timestamp <= _global.latestVersion || (next() != 0 && version.timestamp >= next()))
-            revert PythOracleVersionOutsideRangeError();
+            revert KeeperOracleVersionOutsideRangeError();
         _prices[version.timestamp] = version.price;
         return false;
     }

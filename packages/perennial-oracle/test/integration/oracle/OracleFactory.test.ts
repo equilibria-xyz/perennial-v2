@@ -6,12 +6,12 @@ import { impersonateWithBalance } from '../../../../common/testutil/impersonate'
 import {
   IERC20Metadata,
   IERC20Metadata__factory,
+  KeeperOracle__factory,
   Oracle__factory,
   OracleFactory,
   OracleFactory__factory,
   PythFactory,
   PythFactory__factory,
-  PythOracle__factory,
 } from '../../../types/generated'
 import { parse6decimal } from '../../../../common/testutil/types'
 
@@ -49,11 +49,19 @@ describe('OracleFactory', () => {
     await oracleFactory.initialize(dsu.address, usdc.address, RESERVE_ADDRESS)
     await oracleFactory.updateMaxClaim(parse6decimal('10'))
 
-    const pythOracleImpl = await new PythOracle__factory(owner).deploy()
-    pythOracleFactory = await new PythFactory__factory(owner).deploy(PYTH_ADDRESS, pythOracleImpl.address)
+    const keeperOracleImpl = await new KeeperOracle__factory(owner).deploy(60)
+    pythOracleFactory = await new PythFactory__factory(owner).deploy(
+      PYTH_ADDRESS,
+      keeperOracleImpl.address,
+      4,
+      10,
+      ethers.utils.parseEther('3'),
+      1_000_000,
+    )
     await pythOracleFactory.initialize(oracleFactory.address, CHAINLINK_ETH_USD_FEED, dsu.address)
     await oracleFactory.register(pythOracleFactory.address)
     await pythOracleFactory.authorize(oracleFactory.address)
+    await pythOracleFactory.associate(PYTH_ETH_USD_PRICE_FEED, PYTH_ETH_USD_PRICE_FEED)
 
     await pythOracleFactory.create(PYTH_ETH_USD_PRICE_FEED)
 
@@ -73,12 +81,20 @@ describe('OracleFactory', () => {
 
   describe('#update', async () => {
     it('can update the price id', async () => {
-      const pythOracleImpl2 = await new PythOracle__factory(owner).deploy()
-      const pythOracleFactory2 = await new PythFactory__factory(owner).deploy(PYTH_ADDRESS, pythOracleImpl2.address)
+      const keeperOracleImpl2 = await new KeeperOracle__factory(owner).deploy(60)
+      const pythOracleFactory2 = await new PythFactory__factory(owner).deploy(
+        PYTH_ADDRESS,
+        keeperOracleImpl2.address,
+        4,
+        10,
+        ethers.utils.parseEther('3'),
+        1_000_000,
+      )
       await pythOracleFactory2.initialize(oracleFactory.address, CHAINLINK_ETH_USD_FEED, dsu.address)
       await oracleFactory.register(pythOracleFactory2.address)
 
       await pythOracleFactory2.connect(owner).authorize(oracleFactory.address)
+      await pythOracleFactory2.associate(PYTH_ETH_USD_PRICE_FEED, PYTH_ETH_USD_PRICE_FEED)
       await pythOracleFactory2.create(PYTH_ETH_USD_PRICE_FEED)
       const newProvider = await pythOracleFactory2.oracles(PYTH_ETH_USD_PRICE_FEED)
 
