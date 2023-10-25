@@ -381,17 +381,17 @@ testOracles.forEach(testOracle => {
       it('#commitKeepConfig', async () => {
         const keepConfig = await pythOracleFactory.commitKeepConfig(1)
         expect(keepConfig.multiplierBase).to.equal(0)
-        expect(keepConfig.bufferBase).to.equal(2_000_000)
+        expect(keepConfig.bufferBase).to.equal(1_000_000)
         expect(keepConfig.multiplierCalldata).to.equal(0)
-        expect(keepConfig.bufferCalldata).to.equal(1_500_000)
+        expect(keepConfig.bufferCalldata).to.equal(505_000)
       })
 
       it('#commitKeepConfig with multiple requested', async () => {
         const keepConfig = await pythOracleFactory.commitKeepConfig(5)
         expect(keepConfig.multiplierBase).to.equal(0)
-        expect(keepConfig.bufferBase).to.equal(10_000_000)
+        expect(keepConfig.bufferBase).to.equal(5_000_000)
         expect(keepConfig.multiplierCalldata).to.equal(0)
-        expect(keepConfig.bufferCalldata).to.equal(1_525_000)
+        expect(keepConfig.bufferCalldata).to.equal(525_000)
       })
 
       it('#settleKeepConfig', async () => {
