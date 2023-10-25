@@ -152,7 +152,7 @@ contract MultiInvoker is IMultiInvoker, Kept {
             } else if (invocation.action == PerennialAction.LIQUIDATE) {
                 (IMarket market, address account, bool revertOnFailure) = abi.decode(invocation.args, (IMarket, address, bool));
 
-                _liquidate(IMarket(market), account, revertOnFailure);
+                _liquidate(market, account, revertOnFailure);
             } else if (invocation.action == PerennialAction.APPROVE) {
                 (address target) = abi.decode(invocation.args, (address));
 
