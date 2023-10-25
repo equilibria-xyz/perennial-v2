@@ -479,9 +479,7 @@ export async function createInvoker(
     vaultFactory ? vaultFactory.address : ZERO_ADDR,
     noBatcher ? ZERO_ADDR : BATCHER,
     DSU_MINTER,
-    parse6decimal('1.5'),
     500_000,
-    ethers.utils.parseEther('1'),
     500_000,
   )
 

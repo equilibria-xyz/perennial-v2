@@ -19,29 +19,26 @@ abstract contract KeeperFactory is IKeeperFactory, Factory, Kept {
     /// @dev A Keeper update must come at most this long after a version to be valid
     uint256 public immutable validTo;
 
-    /// @dev The multiplier for the keeper reward on top of cost of commit
-    UFixed18 internal immutable keepCommitMultiplierBase;
-
     /// @dev The fixed gas buffer that is added to the keeper reward for commits
-    uint256 internal immutable keepCommitBufferBase;
-
-    /// @dev The multiplier for the calldata portion of the keeper reward on top of cost of commit
-    UFixed18 internal immutable keepCommitMultiplierData;
+    uint256 internal immutable _keepCommitBufferBase;
 
     /// @dev The fixed gas buffer that is added to the calldata portion of the keeper reward for commits
-    uint256 internal immutable keepCommitBufferData;
+    uint256 internal immutable _keepCommitBufferCalldata;
+
+    /// @dev The fixed gas buffer that is added for each incremental update
+    uint256 internal immutable _keepCommitIncrementalBufferCalldata;
 
     /// @dev The multiplier for the keeper reward on top of cost of settle
-    UFixed18 internal immutable keepSettleMultiplierBase;
+    UFixed18 internal immutable _keepSettleMultiplierBase;
 
     /// @dev The fixed gas buffer that is added to the keeper reward for settles
-    uint256 internal immutable keepSettleBufferBase;
+    uint256 internal immutable _keepSettleBufferBase;
 
     /// @dev The multiplier for the calldata portion of the keeper reward on top of cost of settle
-    UFixed18 internal immutable keepSettleMultiplierData;
+    UFixed18 internal immutable _keepSettleMultiplierCalldata;
 
     /// @dev The fixed gas buffer that is added to the calldata portion of the keeper reward for settles
-    uint256 internal immutable keepSettleBufferData;
+    uint256 internal immutable _keepSettleBufferCalldata;
 
     /// @dev The root oracle factory
     IOracleFactory public oracleFactory;
@@ -65,23 +62,25 @@ abstract contract KeeperFactory is IKeeperFactory, Factory, Kept {
     /// @param implementation_ IKeeperOracle implementation contract
     /// @param validFrom_ The minimum time after a version that a keeper update can be valid
     /// @param validTo_ The maximum time after a version that a keeper update can be valid
-    /// @param keepParamConfig_ Parameter configuration for keeper incentivization
+    /// @param commitKeepConfig_ Parameter configuration for commit keeper incentivization
+    /// @param settleKeepConfig_ Parameter configuration for settle keeper incentivization
     constructor(
         address implementation_,
         uint256 validFrom_,
         uint256 validTo_,
-        KeepParamConfig memory keepParamConfig_
+        KeepConfig memory commitKeepConfig_,
+        KeepConfig memory settleKeepConfig_,
+        uint256 keepCommitIncrementalBufferCallata_
     ) Factory(implementation_) {
         validFrom = validFrom_;
         validTo = validTo_;
-        keepCommitMultiplierBase = keepParamConfig_.keepCommitMultiplierBase;
-        keepCommitBufferBase = keepParamConfig_.keepCommitBufferBase;
-        keepCommitMultiplierData = keepParamConfig_.keepCommitMultiplierData;
-        keepCommitBufferData = keepParamConfig_.keepCommitBufferData;
-        keepSettleMultiplierBase = keepParamConfig_.keepSettleMultiplierBase;
-        keepSettleBufferBase = keepParamConfig_.keepSettleBufferBase;
-        keepSettleMultiplierData = keepParamConfig_.keepSettleMultiplierData;
-        keepSettleBufferData = keepParamConfig_.keepSettleBufferData;
+        _keepCommitBufferBase = commitKeepConfig_.bufferBase;
+        _keepCommitBufferCalldata = commitKeepConfig_.bufferCalldata;
+        _keepCommitIncrementalBufferCalldata = keepCommitIncrementalBufferCallata_;
+        _keepSettleMultiplierBase = settleKeepConfig_.multiplierBase;
+        _keepSettleBufferBase = settleKeepConfig_.bufferBase;
+        _keepSettleMultiplierCalldata = settleKeepConfig_.multiplierCalldata;
+        _keepSettleBufferCalldata = settleKeepConfig_.bufferCalldata;
     }
 
     /// @notice Initializes the contract state
@@ -155,25 +154,32 @@ abstract contract KeeperFactory is IKeeperFactory, Factory, Kept {
     function commit(bytes32[] memory ids, uint256 version, bytes calldata data) external payable {
         bool valid = data.length != 0;
         Fixed6[] memory prices = valid ? _parsePrices(ids, version, data) : new Fixed6[](ids.length);
-        uint256 numRequested = 0;
+        uint256 numRequested;
 
         for (uint256 i; i < ids.length; i++)
             if (IKeeperOracle(address(oracles[ids[i]])).commit(OracleVersion(version, prices[i], valid)))
                 numRequested++;
 
-        if (numRequested > 0) _handleCommitKeep(numRequested);
+        if (numRequested != 0) _handleCommitKeep(numRequested);
     }
 
-    function keepParamConfig() external view returns (KeepParamConfig memory) {
-        return KeepParamConfig(
-            keepCommitMultiplierBase,
-            keepCommitBufferBase,
-            keepCommitMultiplierData,
-            keepCommitBufferData,
-            keepSettleMultiplierBase,
-            keepSettleBufferBase,
-            keepSettleMultiplierData,
-            keepSettleBufferData
+    /// @notice Returns the keep config for commit
+    function commitKeepConfig(uint256 numRequested) public view returns (KeepConfig memory) {
+        return KeepConfig(
+            UFixed18Lib.ZERO,
+            _keepCommitBufferBase * numRequested,
+            UFixed18Lib.ZERO,
+            _keepCommitBufferCalldata + _keepCommitIncrementalBufferCalldata * numRequested
+        );
+    }
+
+    /// @notice Returns the keep config for settle
+    function settleKeepConfig() public view returns (KeepConfig memory) {
+        return KeepConfig(
+            _keepSettleMultiplierBase,
+            _keepSettleBufferBase,
+            _keepSettleMultiplierCalldata,
+            _keepSettleBufferCalldata
         );
     }
 
@@ -186,17 +192,7 @@ abstract contract KeeperFactory is IKeeperFactory, Factory, Kept {
     /// @param maxCounts The list of maximum number of settlement callbacks to perform before exiting
     function settle(bytes32[] memory ids, IMarket[] memory markets, uint256[] memory versions, uint256[] memory maxCounts)
         external
-        keep(
-            KeepConfig(
-                keepSettleMultiplierBase,
-                keepSettleBufferBase,
-                keepSettleMultiplierData,
-                keepSettleBufferData
-            ),
-            msg.data,
-            0,
-            ""
-        )
+        keep(settleKeepConfig(), msg.data, 0, "")
     {
         for (uint256 i; i < ids.length; i++)
             IKeeperOracle(address(oracles[ids[i]])).settle(markets[i], versions[i], maxCounts[i]);
@@ -206,17 +202,7 @@ abstract contract KeeperFactory is IKeeperFactory, Factory, Kept {
     /// @param numRequested Number of requested price updates
     function _handleCommitKeep(uint256 numRequested)
         internal virtual
-        keep(
-            KeepConfig(
-                keepCommitMultiplierBase,
-                keepCommitBufferBase,
-                keepCommitMultiplierData,
-                keepCommitBufferData
-            ),
-            msg.data[0:0],
-            0,
-            ""
-        )
+        keep(commitKeepConfig(numRequested), msg.data[0:0], 0, "")
     { }
 
     /// @notice Pulls funds from the factory to reward the keeper

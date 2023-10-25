@@ -113,16 +113,25 @@ testOracles.forEach(testOracle => {
       await oracleFactory.updateMaxClaim(parse6decimal('100'))
 
       const keeperOracleImpl = await new testOracle.Oracle(owner).deploy(60)
-      pythOracleFactory = await new PythFactory__factory(owner).deploy(PYTH_ADDRESS, keeperOracleImpl.address, 4, 10, {
-        keepCommitMultiplierBase: ethers.utils.parseEther('3'),
-        keepCommitBufferBase: 1_000_000,
-        keepCommitMultiplierData: ethers.utils.parseEther('1.01'),
-        keepCommitBufferData: 500_000,
-        keepSettleMultiplierBase: ethers.utils.parseEther('1.02'),
-        keepSettleBufferBase: 2_000_000,
-        keepSettleMultiplierData: ethers.utils.parseEther('1.03'),
-        keepSettleBufferData: 1_500_000,
-      })
+      pythOracleFactory = await new PythFactory__factory(owner).deploy(
+        PYTH_ADDRESS,
+        keeperOracleImpl.address,
+        4,
+        10,
+        {
+          multiplierBase: ethers.utils.parseEther('3'),
+          bufferBase: 1_000_000,
+          multiplierCalldata: ethers.utils.parseEther('1.01'),
+          bufferCalldata: 500_000,
+        },
+        {
+          multiplierBase: ethers.utils.parseEther('1.02'),
+          bufferBase: 2_000_000,
+          multiplierCalldata: ethers.utils.parseEther('1.03'),
+          bufferCalldata: 1_500_000,
+        },
+        5_000,
+      )
       await pythOracleFactory.initialize(oracleFactory.address, CHAINLINK_ETH_USD_FEED, dsu.address)
       await oracleFactory.register(pythOracleFactory.address)
       await pythOracleFactory.authorize(oracleFactory.address)
@@ -265,15 +274,18 @@ testOracles.forEach(testOracle => {
             4,
             10,
             {
-              keepCommitMultiplierBase: ethers.utils.parseEther('3'),
-              keepCommitBufferBase: 1_000_000,
-              keepCommitMultiplierData: ethers.utils.parseEther('1'),
-              keepCommitBufferData: 500_000,
-              keepSettleMultiplierBase: ethers.utils.parseEther('1'),
-              keepSettleBufferBase: 2_000_000,
-              keepSettleMultiplierData: ethers.utils.parseEther('1'),
-              keepSettleBufferData: 1_500_000,
+              multiplierBase: 0,
+              bufferBase: 1_000_000,
+              multiplierCalldata: 0,
+              bufferCalldata: 500_000,
             },
+            {
+              multiplierBase: ethers.utils.parseEther('1.02'),
+              bufferBase: 2_000_000,
+              multiplierCalldata: ethers.utils.parseEther('1.03'),
+              bufferCalldata: 1_500_000,
+            },
+            5_000,
           )
           await pythOracleFactory2.initialize(oracleFactory.address, CHAINLINK_ETH_USD_FEED, dsu.address)
           await expect(pythOracleFactory2.initialize(oracleFactory.address, CHAINLINK_ETH_USD_FEED, dsu.address))
@@ -366,16 +378,28 @@ testOracles.forEach(testOracle => {
         expect(await keeperOracle.timeout()).to.equal(60)
       })
 
-      it('#keepParamConfig', async () => {
-        const paramConfig = await pythOracleFactory.keepParamConfig()
-        expect(paramConfig.keepCommitMultiplierBase).to.equal(ethers.utils.parseEther('3'))
-        expect(paramConfig.keepCommitBufferBase).to.equal(1_000_000)
-        expect(paramConfig.keepCommitMultiplierData).to.equal(ethers.utils.parseEther('1.01'))
-        expect(paramConfig.keepCommitBufferData).to.equal(500_000)
-        expect(paramConfig.keepSettleMultiplierBase).to.equal(ethers.utils.parseEther('1.02'))
-        expect(paramConfig.keepSettleBufferBase).to.equal(2_000_000)
-        expect(paramConfig.keepSettleMultiplierData).to.equal(ethers.utils.parseEther('1.03'))
-        expect(paramConfig.keepSettleBufferData).to.equal(1_500_000)
+      it('#commitKeepConfig', async () => {
+        const keepConfig = await pythOracleFactory.commitKeepConfig(1)
+        expect(keepConfig.multiplierBase).to.equal(0)
+        expect(keepConfig.bufferBase).to.equal(2_000_000)
+        expect(keepConfig.multiplierCalldata).to.equal(0)
+        expect(keepConfig.bufferCalldata).to.equal(1_500_000)
+      })
+
+      it('#commitKeepConfig with multiple requested', async () => {
+        const keepConfig = await pythOracleFactory.commitKeepConfig(5)
+        expect(keepConfig.multiplierBase).to.equal(0)
+        expect(keepConfig.bufferBase).to.equal(10_000_000)
+        expect(keepConfig.multiplierCalldata).to.equal(0)
+        expect(keepConfig.bufferCalldata).to.equal(1_525_000)
+      })
+
+      it('#settleKeepConfig', async () => {
+        const keepConfig = await pythOracleFactory.settleKeepConfig()
+        expect(keepConfig.multiplierBase).to.equal(ethers.utils.parseEther('1.02'))
+        expect(keepConfig.bufferBase).to.equal(2_000_000)
+        expect(keepConfig.multiplierCalldata).to.equal(ethers.utils.parseEther('1.03'))
+        expect(keepConfig.bufferCalldata).to.equal(1_500_000)
       })
     })
 

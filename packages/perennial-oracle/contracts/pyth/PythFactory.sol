@@ -9,8 +9,6 @@ import "../keeper/KeeperFactory.sol";
 /// @title PythFactory
 /// @notice Factory contract for creating and managing Pyth oracles
 contract PythFactory is IPythFactory, KeeperFactory {
-    uint256 private constant INCREMENTAL_UPDATE_COST_DATA = 5_000 wei;
-
     /// @dev Pyth contract
     AbstractPyth public immutable pyth;
 
@@ -19,14 +17,17 @@ contract PythFactory is IPythFactory, KeeperFactory {
     /// @param implementation_ IPythOracle implementation contract
     /// @param validFrom_ The minimum time after a version that a keeper update can be valid
     /// @param validTo_ The maximum time after a version that a keeper update can be valid
-    /// @param keepParamConfig_ Parameter configuration for keeper incentivization
+    /// @param commitKeepConfig_ Parameter configuration for commit keeper incentivization
+    /// @param settleKeepConfig_ Parameter configuration for settle keeper incentivization
     constructor(
         AbstractPyth pyth_,
         address implementation_,
         uint256 validFrom_,
         uint256 validTo_,
-        KeepParamConfig memory keepParamConfig_
-    ) KeeperFactory(implementation_, validFrom_, validTo_, keepParamConfig_) {
+        KeepConfig memory commitKeepConfig_,
+        KeepConfig memory settleKeepConfig_,
+        uint256 keepCommitIncrementalBufferData_
+    ) KeeperFactory(implementation_, validFrom_, validTo_, commitKeepConfig_, settleKeepConfig_, keepCommitIncrementalBufferData_) {
         pyth = pyth_;
     }
 
@@ -84,12 +85,7 @@ contract PythFactory is IPythFactory, KeeperFactory {
     function _handleCommitKeep(uint256 numRequested)
         internal override
         keep(
-            KeepConfig(
-                keepCommitMultiplierBase,
-                keepCommitBufferBase * numRequested,
-                keepCommitMultiplierData,
-                keepCommitBufferData + numRequested * INCREMENTAL_UPDATE_COST_DATA
-            ),
+            commitKeepConfig(numRequested),
             msg.data[0:0],
             IPythStaticFee(address(pyth)).singleUpdateFeeInWei() * numRequested,
             ""

@@ -87,9 +87,7 @@ describe('MultiInvoker', () => {
       vaultFactory.address,
       '0x0000000000000000000000000000000000000000',
       reserve.address,
-      parse6decimal('1.4'),
       500_000,
-      parse6decimal('1'),
       1_000_000,
     )
 

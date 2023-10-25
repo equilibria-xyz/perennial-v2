@@ -35,17 +35,11 @@ contract MultiInvoker is IMultiInvoker, Kept {
     /// @dev Reserve address
     IEmptySetReserve public immutable reserve;
 
-    /// @dev The multiplier for the keeper reward on top of cost
-    UFixed18 public immutable keepMultiplierBase;
-
     /// @dev The fixed gas buffer that is added to the keeper reward
     uint256 public immutable keepBufferBase;
 
-    /// @dev The multiplier for the calldata portion of the keeper reward on top of cost
-    UFixed18 public immutable keepMultiplierData;
-
     /// @dev The fixed gas buffer that is added to the calldata portion of  the keeper reward
-    uint256 public immutable keepBufferData;
+    uint256 public immutable keepBufferCalldata;
 
     /// @dev UID for an order
     uint256 public latestNonce;
@@ -60,8 +54,8 @@ contract MultiInvoker is IMultiInvoker, Kept {
     /// @param vaultFactory_ Protocol factory to validate vault approvals
     /// @param batcher_ Batcher address
     /// @param reserve_ Reserve address
-    /// @param keepMultiplierBase_ The multiplier for the keeper reward on top of cost
     /// @param keepBufferBase_ The fixed gas buffer that is added to the keeper reward
+    /// @param keepBufferCalldata_ The fixed calldata buffer that is added to the keeper reward
     constructor(
         Token6 usdc_,
         Token18 dsu_,
@@ -69,10 +63,8 @@ contract MultiInvoker is IMultiInvoker, Kept {
         IFactory vaultFactory_,
         IBatcher batcher_,
         IEmptySetReserve reserve_,
-        UFixed18 keepMultiplierBase_,
         uint256 keepBufferBase_,
-        UFixed18 keepMultiplierData_,
-        uint256 keepBufferData_
+        uint256 keepBufferCalldata_
     ) {
         USDC = usdc_;
         DSU = dsu_;
@@ -80,10 +72,8 @@ contract MultiInvoker is IMultiInvoker, Kept {
         vaultFactory = vaultFactory_;
         batcher = batcher_;
         reserve = reserve_;
-        keepMultiplierBase = keepMultiplierBase_;
         keepBufferBase = keepBufferBase_;
-        keepMultiplierData = keepMultiplierData_;
-        keepBufferData = keepBufferData_;
+        keepBufferCalldata = keepBufferCalldata_;
     }
 
     /// @notice Initialize the contract
@@ -481,10 +471,10 @@ contract MultiInvoker is IMultiInvoker, Kept {
         private
         keep(
             KeepConfig(
-                keepMultiplierBase,
+                UFixed18Lib.ZERO,
                 keepBufferBase,
-                keepMultiplierData,
-                keepBufferData
+                UFixed18Lib.ZERO,
+                keepBufferCalldata
             ),
             msg.data[0:0],
             0,

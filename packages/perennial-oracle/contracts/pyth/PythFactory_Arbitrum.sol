@@ -15,8 +15,10 @@ contract PythFactory_Arbitrum is PythFactory, Kept_Arbitrum {
         address implementation_,
         uint256 validFrom_,
         uint256 validTo_,
-        KeepParamConfig memory keepParamConfig_
-    ) PythFactory(pyth_, implementation_, validFrom_, validTo_, keepParamConfig_) { }
+        KeepConfig memory commitKeepConfig_,
+        KeepConfig memory settleKeepConfig_,
+        uint256 keepCommitIncrementalBufferData_
+    ) PythFactory(pyth_, implementation_, validFrom_, validTo_, commitKeepConfig_, settleKeepConfig_, keepCommitIncrementalBufferData_) { }
 
     /// @dev Use the Kept_Arbitrum implementation for calculating the dynamic fee
     function _calldataFee(
