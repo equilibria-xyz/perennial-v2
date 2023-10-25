@@ -18,6 +18,7 @@ import { Fixed6, Fixed6Lib } from "@equilibria/root/number/types/Fixed6.sol";
 import { Token6 } from "@equilibria/root/token/types/Token6.sol";
 import { Token18 } from "@equilibria/root/token/types/Token18.sol";
 import { TriggerOrder } from "../types/TriggerOrder.sol";
+import { InterfaceFee } from "../types/InterfaceFee.sol";
 
 interface IMultiInvoker {
     enum PerennialAction {
@@ -29,8 +30,7 @@ interface IMultiInvoker {
         EXEC_ORDER,      // 5
         COMMIT_PRICE,    // 6
         LIQUIDATE,       // 7
-        APPROVE,         // 8
-        CHARGE_FEE       // 9
+        APPROVE          // 8
     }
 
     struct Invocation {
@@ -40,9 +40,9 @@ interface IMultiInvoker {
 
     event KeeperFeeCharged(address indexed account, address indexed market, address indexed to, UFixed6 fee);
     event OrderPlaced(address indexed account, IMarket indexed market, uint256 indexed nonce, TriggerOrder order);
-    event OrderExecuted(address indexed account, IMarket indexed market, uint256 nonce, uint256 positionId);
+    event OrderExecuted(address indexed account, IMarket indexed market, uint256 nonce);
     event OrderCancelled(address indexed account, IMarket indexed market, uint256 nonce);
-    event FeeCharged(address indexed account, address indexed to, UFixed6 amount);
+    event InterfaceFeeCharged(address indexed account, IMarket indexed market, InterfaceFee fee);
 
     // sig: 0x217b1699
     error MultiInvokerBadSenderError();

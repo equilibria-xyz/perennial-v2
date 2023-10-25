@@ -65,9 +65,9 @@ const func: DeployFunction = async function (hre: HardhatRuntimeEnvironment) {
   const oracleFactory = new OracleFactory__factory(deployerSigner).attach((await get('OracleFactory')).address)
 
   // Deploy Pyth Implementations
-  const pythOracleContract = isArbitrum(getNetworkName()) ? 'PythOracle_Arbitrum' : 'PythOracle_Optimism'
+  const pythFactoryContract = isArbitrum(getNetworkName()) ? 'PythFactory_Arbitrum' : 'PythFactory_Optimism'
   await deploy('PythOracleImpl', {
-    contract: pythOracleContract,
+    contract: 'PythOracle',
     args: [(await get('Pyth')).address],
     from: deployer,
     skipIfAlreadyDeployed: true,
@@ -75,7 +75,7 @@ const func: DeployFunction = async function (hre: HardhatRuntimeEnvironment) {
     autoMine: true,
   })
   await deploy('PythFactoryImpl', {
-    contract: 'PythFactory',
+    contract: pythFactoryContract,
     args: [
       (await get('PythOracleImpl')).address,
       (await get('ChainlinkETHUSDFeed')).address,

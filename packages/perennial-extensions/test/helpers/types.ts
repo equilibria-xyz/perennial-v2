@@ -1,9 +1,10 @@
-import { BigNumber, BigNumberish } from 'ethers'
+import { BigNumber, BigNumberish, constants } from 'ethers'
 import { IMarket, PositionStruct } from '../../types/generated/@equilibria/perennial-v2/contracts/interfaces/IMarket'
 import { FakeContract } from '@defi-wonderland/smock'
 import { SignerWithAddress } from '@nomiclabs/hardhat-ethers/signers'
 import { LocalStruct } from '@equilibria/perennial-v2/types/generated/contracts/Market'
-import { TriggerOrderStruct } from '../../types/generated/contracts/MultiInvoker'
+import { InterfaceFeeStruct, TriggerOrderStruct } from '../../types/generated/contracts/MultiInvoker'
+import { parse6decimal } from '../../../common/testutil/types'
 
 export function setMarketPosition(
   market: FakeContract<IMarket>,
@@ -33,8 +34,18 @@ export function setPendingPosition(
   market.pendingPositions.whenCalledWith(user.address, currentId).returns(position)
 }
 
-export type Dir = 'L' | 'S' | 'M'
-export type TriggerType = 'LM' | 'TP' | 'SL'
+export enum Dir {
+  M = 0,
+  L = 1,
+  S = 2,
+  C = 3,
+}
+
+export enum Compare {
+  ABOVE_MARKET = -1,
+  BELOW_MARKET = 1,
+}
+
 export type TriggerOrder = {
   side: number
   fee: BigNumberish
@@ -43,33 +54,31 @@ export type TriggerOrder = {
 }
 
 export const openTriggerOrder = ({
-  size,
+  delta,
   price,
   side,
-  trigger,
-  feePct,
+  comparison,
+  fee,
+  interfaceFee,
 }: {
-  size: BigNumberish
+  delta: BigNumberish
   price: BigNumberish
-  side?: Dir
-  trigger?: TriggerType
-  feePct?: BigNumberish
+  side: Dir | number
+  comparison: Compare | number
+  fee?: BigNumberish
+  interfaceFee?: InterfaceFeeStruct
 }): TriggerOrderStruct => {
-  if (feePct === undefined) {
-    feePct = BigNumber.from(size).div(20)
-  } else {
-    if (BigNumber.from(feePct).gt(100)) throw Error('Specified fee pct too large')
-    feePct = BigNumber.from(feePct).mul(size).div(100)
-  }
-
-  if (BigNumber.from(size).isNegative()) throw Error('size must be positive')
-
   return {
-    side: side ? (side === 'L' ? 1 : side === 'M' ? 0 : 2) : 1,
-    comparison: 0,
-    fee: feePct,
+    side: side,
+    comparison: comparison,
+    fee: fee ?? parse6decimal('10'),
     price: price,
-    delta: !trigger || trigger == 'LM' ? size : BigNumber.from(size).mul(-1),
+    delta: delta,
+    interfaceFee: interfaceFee ?? {
+      amount: 0,
+      receiver: constants.AddressZero,
+      unwrap: false,
+    },
   }
 }
 
@@ -136,4 +145,6 @@ module.exports = {
   openTriggerOrder,
   openPosition,
   changePosition,
+  Compare,
+  Dir,
 }

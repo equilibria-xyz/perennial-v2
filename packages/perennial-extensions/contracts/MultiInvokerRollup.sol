@@ -86,8 +86,9 @@ contract MultiInvokerRollup is IMultiInvokerRollup, MultiInvoker {
                 UFixed6 newShort = _readUFixed6(input, ptr);
                 Fixed6  collateral = _readFixed6(input, ptr);
                 bool wrap = _readUint8(input, ptr) == 0 ? false : true;
+                InterfaceFee memory interfaceFee = _readInterfaceFee(input, ptr);
 
-                _update(market, newMaker, newLong, newShort, collateral, wrap);
+                _update(msg.sender, market, newMaker, newLong, newShort, collateral, wrap, interfaceFee);
             } else if (action == PerennialAction.UPDATE_VAULT) {
                 IVault vault = IVault(_readAndCacheAddress(input, ptr));
                 UFixed6 depositAssets = _readUFixed6(input, ptr);
@@ -113,18 +114,21 @@ contract MultiInvokerRollup is IMultiInvokerRollup, MultiInvoker {
 
                 _executeOrder(account, market, nonce);
             } else if (action == PerennialAction.COMMIT_PRICE) {
-                address oracleProvider = _readAndCacheAddress(input, ptr);
+                address oracleProviderFactory = _readAndCacheAddress(input, ptr);
                 uint256 value = _readUint256(input, ptr);
+                bytes32[] memory ids = _readBytes32Array(input, ptr);
                 uint256 index = _readUint256(input, ptr);
                 uint256 version = _readUint256(input, ptr);
                 bytes memory data = _readBytes(input, ptr);
                 bool revertOnFailure = _readUint8(input, ptr) == 0 ? false : true;
 
-                _commitPrice(oracleProvider, value, index, version, data, revertOnFailure);
+                _commitPrice(oracleProviderFactory, value, ids, version, data, revertOnFailure);
             } else if (action == PerennialAction.LIQUIDATE) {
                 IMarket market = IMarket(_readAndCacheAddress(input, ptr));
                 address account = _readAndCacheAddress(input, ptr);
-                _liquidate(IMarket(market), account);
+                bool revertOnFailure = _readUint8(input, ptr) == 0 ? false : true;
+
+                _liquidate(market, account, revertOnFailure);
             } else if (action == PerennialAction.APPROVE) {
                 address target = _readAndCacheAddress(input, ptr);
                 _approve(target);
@@ -261,6 +265,12 @@ contract MultiInvokerRollup is IMultiInvokerRollup, MultiInvoker {
         ptr.pos += len;
     }
 
+    function _readBytes32Array(bytes calldata input, PTR memory ptr) private pure returns (bytes32[] memory result) {
+        return result;
+    }
+    function _readInterfaceFee(bytes calldata input, PTR memory ptr) private pure returns (InterfaceFee memory result) {
+        return result;
+    }
     /**
      * @notice Implementation of GNSPS' standard BytesLib.sol
      * @param input 1 byte slice to convert to uint8 to decode lengths
