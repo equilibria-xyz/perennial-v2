@@ -265,48 +265,48 @@ describe('Position', () => {
         context('major is 0', () => {
           it('returns 0', async () => {
             await position.store({ ...VALID_GLOBAL_POSITION, long: 0, short: 0 })
-            expect(await position.skew()).to.equal(0)
+            expect(await position.relativeSkew()).to.equal(0)
           })
         })
 
         context('long is major', () => {
           it('returns (long - short)/long', async () => {
             await position.store({ ...VALID_GLOBAL_POSITION, long: parse6decimal('102'), short: parse6decimal('2') })
-            expect(await position.skew()).to.equal(BigNumber.from('980392'))
+            expect(await position.relativeSkew()).to.equal(BigNumber.from('980392'))
           })
         })
 
         context('short is major', () => {
           it('returns (short - long)/short', async () => {
             await position.store({ ...VALID_GLOBAL_POSITION, long: parse6decimal('2'), short: parse6decimal('102') })
-            expect(await position.skew()).to.equal(BigNumber.from('-980392'))
+            expect(await position.relativeSkew()).to.equal(BigNumber.from('-980392'))
           })
         })
       })
 
-      describe('#virtualSkew', () => {
-        const RISK_PARAM_WITH_VIRTUAL_TAKER = {
+      describe('#staticSkew', () => {
+        const RISK_PARAM_WITH_SKEW_SCALE = {
           ...VALID_RISK_PARAMETER,
-          virtualTaker: parse6decimal('100'),
+          skewScale: parse6decimal('100'),
         }
         context('major is 0', () => {
           it('returns 0', async () => {
             await position.store({ ...VALID_GLOBAL_POSITION, long: 0, short: 0 })
-            expect(await position.virtualSkew(RISK_PARAM_WITH_VIRTUAL_TAKER)).to.equal(0)
+            expect(await position.staticSkew(RISK_PARAM_WITH_SKEW_SCALE)).to.equal(0)
           })
         })
 
         context('long is major', () => {
-          it('returns (long - short)/(long + virtualTaker)', async () => {
+          it('returns (long - short)/(long + skewScale)', async () => {
             await position.store({ ...VALID_GLOBAL_POSITION, long: parse6decimal('102'), short: parse6decimal('2') })
-            expect(await position.virtualSkew(RISK_PARAM_WITH_VIRTUAL_TAKER)).to.equal(BigNumber.from('495049'))
+            expect(await position.staticSkew(RISK_PARAM_WITH_SKEW_SCALE)).to.equal(BigNumber.from('495049'))
           })
         })
 
         context('short is major', () => {
-          it('returns (short - long)/(short + virtualTaker)', async () => {
+          it('returns (short - long)/(short + skewScale)', async () => {
             await position.store({ ...VALID_GLOBAL_POSITION, long: parse6decimal('2'), short: parse6decimal('102') })
-            expect(await position.virtualSkew(RISK_PARAM_WITH_VIRTUAL_TAKER)).to.equal(BigNumber.from('-495049'))
+            expect(await position.staticSkew(RISK_PARAM_WITH_SKEW_SCALE)).to.equal(BigNumber.from('-495049'))
           })
         })
       })
@@ -679,7 +679,7 @@ describe('Position', () => {
             short: parse6decimal('12'),
             fee: parse6decimal('100'),
           })
-          const latestSkew = await position.skew()
+          const latestSkew = await position.relativeSkew()
           const latestEfficiency = await position.efficiency()
 
           const updatedOrder = await position.callStatic[
@@ -697,7 +697,7 @@ describe('Position', () => {
           expect(value.short).to.equal(parse6decimal('15'))
           expect(value.fee).to.equal(parse6decimal('100'))
 
-          const skew = await position.skew()
+          const skew = await position.relativeSkew()
           const efficiency = await position.efficiency()
 
           expect(updatedOrder.skew).to.equal(skew.sub(latestSkew).abs())

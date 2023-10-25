@@ -118,11 +118,11 @@ library PositionLib {
         // update the order's delta attributes with the positions updated attributes
         (order.net, order.skew, order.impact, order.efficiency, order.utilization) = (
             Fixed6Lib.from(net(self)).sub(order.net),
-            order.magnitude().abs().div(riskParameter.skewScale),
+            riskParameter.skewScale.isZero() ? UFixed6Lib.ZERO : order.magnitude().abs().div(riskParameter.skewScale),
             currentStaticSkew.eq(latestStaticSkew) ?
                 Fixed6Lib.ZERO :
-                currentStaticSkew.add(latestStaticSkew).div(
-                    Fixed6Lib.from(2 * latestStaticSkew.sub(currentStaticSkew).sign())),
+                latestStaticSkew.add(currentStaticSkew).div(
+                    Fixed6Lib.from(2 * currentStaticSkew.sub(latestStaticSkew).sign())),
             Fixed6Lib.from(efficiency(self)).sub(order.efficiency),
             Fixed6Lib.from(utilization(self)).sub(order.utilization)
         );

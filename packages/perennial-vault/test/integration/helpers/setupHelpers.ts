@@ -66,7 +66,7 @@ export async function deployProductOnMainnetFork({
     },
     minMargin: minMargin ?? parse6decimal('100'),
     minMaintenance: minMaintenance ?? parse6decimal('100'),
-    virtualTaker: 0,
+    skewScale: 0,
     staleAfter: staleAfter ?? 7200,
     makerReceiveOnly: false,
   }

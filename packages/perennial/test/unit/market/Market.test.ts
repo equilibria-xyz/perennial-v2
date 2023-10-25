@@ -413,7 +413,7 @@ describe('Market', () => {
       },
       minMargin: parse6decimal('120'),
       minMaintenance: parse6decimal('100'),
-      virtualTaker: parse6decimal('0'),
+      skewScale: parse6decimal('5.000'),
       staleAfter: 7200,
       makerReceiveOnly: false,
     }
@@ -476,7 +476,7 @@ describe('Market', () => {
       expect(riskParameterResult.pController.max).to.equal(0)
       expect(riskParameterResult.minMargin).to.equal(0)
       expect(riskParameterResult.minMaintenance).to.equal(0)
-      expect(riskParameterResult.virtualTaker).to.equal(0)
+      expect(riskParameterResult.skewScale).to.equal(0)
       expect(riskParameterResult.staleAfter).to.equal(0)
       expect(riskParameterResult.makerReceiveOnly).to.equal(false)
 
@@ -638,7 +638,7 @@ describe('Market', () => {
         },
         minMargin: parse6decimal('60'),
         minMaintenance: parse6decimal('50'),
-        virtualTaker: parse6decimal('100000'),
+        skewScale: parse6decimal('100000'),
         staleAfter: 9600,
         makerReceiveOnly: true,
       }
@@ -672,7 +672,7 @@ describe('Market', () => {
         expect(riskParameter.pController.max).to.equal(defaultRiskParameter.pController.max)
         expect(riskParameter.minMargin).to.equal(defaultRiskParameter.minMargin)
         expect(riskParameter.minMaintenance).to.equal(defaultRiskParameter.minMaintenance)
-        expect(riskParameter.virtualTaker).to.equal(defaultRiskParameter.virtualTaker)
+        expect(riskParameter.skewScale).to.equal(defaultRiskParameter.skewScale)
         expect(riskParameter.staleAfter).to.equal(defaultRiskParameter.staleAfter)
         expect(riskParameter.makerReceiveOnly).to.equal(defaultRiskParameter.makerReceiveOnly)
       })
@@ -2574,15 +2574,15 @@ describe('Market', () => {
             it('opens the position and settles later with fee', async () => {
               const riskParameter = { ...(await market.riskParameter()) }
               riskParameter.takerFee = parse6decimal('0.01')
-              riskParameter.takerImpactFee = parse6decimal('0.004')
               riskParameter.takerSkewFee = parse6decimal('0.002')
+              riskParameter.takerImpactFee = parse6decimal('0.004')
               await market.updateRiskParameter(riskParameter)
 
               const marketParameter = { ...(await market.parameter()) }
               marketParameter.settlementFee = parse6decimal('0.50')
               await market.updateParameter(marketParameter)
 
-              const TAKER_FEE = parse6decimal('9.84') // position * (0.01 + 0.004 + 0.002) * price
+              const TAKER_FEE = parse6decimal('8.61') // position * (0.01 + 0.002 + 0.004/2) * price
               const SETTLEMENT_FEE = parse6decimal('0.50')
 
               await expect(market.connect(user).update(user.address, 0, POSITION.div(2), 0, COLLATERAL, false))
@@ -14708,7 +14708,7 @@ describe('Market', () => {
         })
       })
 
-      context('virtual skew', async () => {
+      context('skew scale', async () => {
         // rate_0 = 0
         // rate_1 = rate_0 + (elapsed * skew / k)
         // funding = (rate_0 + rate_1) / 2 * elapsed * taker * price / time_in_years
@@ -14720,7 +14720,7 @@ describe('Market', () => {
 
         beforeEach(async () => {
           const riskParameter = { ...(await market.riskParameter()) }
-          riskParameter.virtualTaker = POSITION
+          riskParameter.skewScale = POSITION
           await market.connect(owner).updateRiskParameter(riskParameter)
 
           dsu.transferFrom.whenCalledWith(user.address, market.address, COLLATERAL.mul(1e12)).returns(true)
