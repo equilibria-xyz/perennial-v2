@@ -38,7 +38,7 @@ using VersionStorageLib for VersionStorage global;
 
 /// @dev Individual accumulation values
 struct VersionAccumulationResult {
-    UFixed6 positionFeeMaker;
+    Fixed6 positionFeeMaker;
     UFixed6 positionFeeFee;
 
     Fixed6 fundingMaker;
@@ -141,14 +141,14 @@ library VersionLib {
         Position memory fromPosition,
         Position memory toPosition,
         MarketParameter memory marketParameter
-    ) private pure returns (UFixed6 positionFeeMaker, UFixed6 positionFeeFee) {
+    ) private pure returns (Fixed6 positionFeeMaker, UFixed6 positionFeeFee) {
         // If there are no makers to distribute the taker's position fee to, give it to the protocol
-        if (fromPosition.maker.isZero()) return (UFixed6Lib.ZERO, toPosition.fee);
+        if (fromPosition.maker.isZero()) return (Fixed6Lib.ZERO, toPosition.fee.lt(Fixed6Lib.ZERO) ? UFixed6Lib.ZERO : UFixed6Lib.from(toPosition.fee));
 
-        positionFeeFee = marketParameter.positionFee.mul(toPosition.fee);
-        positionFeeMaker = toPosition.fee.sub(positionFeeFee);
+        positionFeeFee = marketParameter.positionFee.mul(toPosition.fee.lt(Fixed6Lib.ZERO) ? UFixed6Lib.ZERO : UFixed6Lib.from(toPosition.fee));
+        positionFeeMaker = toPosition.fee.sub(Fixed6Lib.from(positionFeeFee));
 
-        self.makerValue.increment(Fixed6Lib.from(positionFeeMaker), fromPosition.maker);
+        self.makerValue.increment(positionFeeMaker, fromPosition.maker);
     }
 
     /// @dev Internal struct to bypass stack depth limit

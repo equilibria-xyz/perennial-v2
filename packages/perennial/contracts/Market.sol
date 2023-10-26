@@ -247,7 +247,7 @@ contract Market is IMarket, Instance, ReentrancyGuard {
     /// @param newPendingPosition The pending position to process
     function _processPendingPosition(Context memory context, Position memory newPendingPosition) private pure {
         context.pendingCollateral = context.pendingCollateral
-            .sub(Fixed6Lib.from(newPendingPosition.fee))
+            .sub(newPendingPosition.fee)
             .sub(Fixed6Lib.from(newPendingPosition.keeper));
 
         context.closable = context.closable
@@ -470,7 +470,7 @@ contract Market is IMarket, Instance, ReentrancyGuard {
         Position memory currentAccountPosition = _pendingPositions[account][context.local.currentId].read();
         latestAccountPosition.collateral = context.local.collateral
             .sub(currentAccountPosition.delta.sub(previousDelta))         // deposits happen after snapshot point
-            .add(Fixed6Lib.from(nextPosition.fee))                        // position fee happens after snapshot point
+            .add(nextPosition.fee)                                        // position fee happens after snapshot point
             .add(Fixed6Lib.from(nextPosition.keeper));                    // keeper fee happens after snapshot point
         _pendingPositions[account][context.local.latestId].store(latestAccountPosition);
     }

@@ -23,7 +23,7 @@ struct Position {
     UFixed6 short;
 
     /// @dev The fee for the position (only used for pending positions)
-    UFixed6 fee;
+    Fixed6 fee;
 
     /// @dev The fixed settlement fee for the position (only used for pending positions)
     UFixed6 keeper;
@@ -131,7 +131,7 @@ library PositionLib {
     /// @notice prepares the position for the next id
     /// @param self The position object to update
     function prepare(Position memory self) internal pure {
-        self.fee = UFixed6Lib.ZERO;
+        self.fee = Fixed6Lib.ZERO;
         self.keeper = UFixed6Lib.ZERO;
         self.collateral = Fixed6Lib.ZERO;
     }
@@ -150,7 +150,7 @@ library PositionLib {
     function invalidate(Position memory self, Position memory newPosition) internal pure {
         self.invalidation.increment(self, newPosition);
         (newPosition.maker, newPosition.long, newPosition.short, newPosition.fee) =
-            (self.maker, self.long, self.short, UFixed6Lib.ZERO);
+            (self.maker, self.long, self.short, Fixed6Lib.ZERO);
     }
 
     // @notice Adjusts the position if any invalidations have occurred
@@ -168,7 +168,7 @@ library PositionLib {
     /// @param self The position object to update
     /// @param latestVersion The latest oracle version
     function sync(Position memory self, OracleVersion memory latestVersion) internal pure {
-        (self.timestamp, self.fee, self.keeper) = (latestVersion.timestamp, UFixed6Lib.ZERO, UFixed6Lib.ZERO);
+        (self.timestamp, self.fee, self.keeper) = (latestVersion.timestamp, Fixed6Lib.ZERO, UFixed6Lib.ZERO);
     }
 
     /// @notice Registers the fees from a new order
@@ -446,7 +446,7 @@ library PositionStorageGlobalLib {
             UFixed6.wrap(uint256(slot1 << (256 - 64)) >> (256 - 64)),
             UFixed6.wrap(uint256(slot0 << (256 - 32 - 48 - 48 - 64)) >> (256 - 64)),
             UFixed6.wrap(uint256(slot0 << (256 - 32 - 48 - 48 - 64 - 64)) >> (256 - 64)),
-            UFixed6.wrap(uint256(slot0 << (256 - 32 - 48)) >> (256 - 48)),
+            Fixed6.wrap(int256(slot0   << (256 - 32 - 48)) >> (256 - 48)),
             UFixed6.wrap(uint256(slot0 << (256 - 32 - 48 - 48)) >> (256 - 48)),
             Fixed6Lib.ZERO,
             Fixed6Lib.ZERO,
@@ -467,7 +467,7 @@ library PositionStorageGlobalLib {
 
         uint256 encoded0 =
             uint256(newValue.timestamp << (256 - 32)) >> (256 - 32) |
-            uint256(UFixed6.unwrap(newValue.fee) << (256 - 48)) >> (256 - 32 - 48) |
+            uint256(Fixed6.unwrap(newValue.fee) << (256 - 48)) >> (256 - 32 - 48) |
             uint256(UFixed6.unwrap(newValue.keeper) << (256 - 48)) >> (256 - 32 - 48 - 48) |
             uint256(UFixed6.unwrap(newValue.long) << (256 - 64)) >> (256 - 32 - 48 - 48 - 64) |
             uint256(UFixed6.unwrap(newValue.short) << (256 - 64)) >> (256 - 32 - 48 - 48 - 64 - 64);
@@ -490,7 +490,7 @@ library PositionStorageGlobalLib {
 ///     struct StoredPositionLocal {
 ///         /* slot 0 */
 ///         uint32 timestamp;
-///         uint48 fee;
+///         int48 fee;
 ///         uint48 keeper;
 ///         int64 collateral;
 ///         int64 delta;
@@ -515,7 +515,7 @@ library PositionStorageLocalLib {
             direction == 0 ? magnitude : UFixed6Lib.ZERO,
             direction == 1 ? magnitude : UFixed6Lib.ZERO,
             direction == 2 ? magnitude : UFixed6Lib.ZERO,
-            UFixed6.wrap(uint256(slot0 << (256 - 32 - 48)) >> (256 - 48)),
+            Fixed6.wrap(int256(slot0 << (256 - 32 - 48)) >> (256 - 48)),
             UFixed6.wrap(uint256(slot0 << (256 - 32 - 48 - 48)) >> (256 - 48)),
             Fixed6.wrap(int256(slot0 << (256 - 32 - 48 - 48 - 64)) >> (256 - 64)),
             Fixed6.wrap(int256(slot0 << (256 - 32 - 48 - 48 - 64 - 64)) >> (256 - 64)),
@@ -538,7 +538,7 @@ library PositionStorageLocalLib {
 
         uint256 encoded0 =
             uint256(newValue.timestamp << (256 - 32)) >> (256 - 32) |
-            uint256(UFixed6.unwrap(newValue.fee) << (256 - 48)) >> (256 - 32 - 48) |
+            uint256(Fixed6.unwrap(newValue.fee) << (256 - 48)) >> (256 - 32 - 48) |
             uint256(UFixed6.unwrap(newValue.keeper) << (256 - 48)) >> (256 - 32 - 48 - 48) |
             uint256(Fixed6.unwrap(newValue.collateral) << (256 - 64)) >> (256 - 32 - 48 - 48 - 64) |
             uint256(Fixed6.unwrap(newValue.delta) << (256 - 64)) >> (256 - 32 - 48 - 48 - 64 - 64);
@@ -562,7 +562,8 @@ library PositionStorageLib {
 
     function validate(Position memory newValue) internal pure {
         if (newValue.timestamp > type(uint32).max) revert PositionStorageInvalidError();
-        if (newValue.fee.gt(UFixed6.wrap(type(uint48).max))) revert PositionStorageInvalidError();
+        if (newValue.fee.gt(Fixed6.wrap(type(int48).max))) revert PositionStorageInvalidError();
+        if (newValue.fee.lt(Fixed6.wrap(type(int48).min))) revert PositionStorageInvalidError();
         if (newValue.keeper.gt(UFixed6.wrap(type(uint48).max))) revert PositionStorageInvalidError();
         if (newValue.collateral.gt(Fixed6.wrap(type(int64).max))) revert PositionStorageInvalidError();
         if (newValue.collateral.lt(Fixed6.wrap(type(int64).min))) revert PositionStorageInvalidError();
