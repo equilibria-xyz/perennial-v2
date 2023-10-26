@@ -289,24 +289,24 @@ describe('Position', () => {
           ...VALID_RISK_PARAMETER,
           skewScale: parse6decimal('100'),
         }
-        context('major is 0', () => {
+        context('skewScale is 0', () => {
           it('returns 0', async () => {
             await position.store({ ...VALID_GLOBAL_POSITION, long: 0, short: 0 })
-            expect(await position.staticSkew(RISK_PARAM_WITH_SKEW_SCALE)).to.equal(0)
+            expect(await position.staticSkew({ ...RISK_PARAM_WITH_SKEW_SCALE, skewScale: 0 })).to.equal(0)
           })
         })
 
         context('long is major', () => {
-          it('returns (long - short)/(long + skewScale)', async () => {
+          it('returns (long - short)/skewScale', async () => {
             await position.store({ ...VALID_GLOBAL_POSITION, long: parse6decimal('102'), short: parse6decimal('2') })
-            expect(await position.staticSkew(RISK_PARAM_WITH_SKEW_SCALE)).to.equal(BigNumber.from('495049'))
+            expect(await position.staticSkew(RISK_PARAM_WITH_SKEW_SCALE)).to.equal(parse6decimal('1'))
           })
         })
 
         context('short is major', () => {
-          it('returns (short - long)/(short + skewScale)', async () => {
+          it('returns (long - short)/skewScale', async () => {
             await position.store({ ...VALID_GLOBAL_POSITION, long: parse6decimal('2'), short: parse6decimal('102') })
-            expect(await position.staticSkew(RISK_PARAM_WITH_SKEW_SCALE)).to.equal(BigNumber.from('-495049'))
+            expect(await position.staticSkew(RISK_PARAM_WITH_SKEW_SCALE)).to.equal(parse6decimal('-1'))
           })
         })
       })
@@ -679,7 +679,7 @@ describe('Position', () => {
             short: parse6decimal('12'),
             fee: parse6decimal('100'),
           })
-          const latestSkew = await position.relativeSkew()
+          const latestSkew = await position.staticSkew(VALID_RISK_PARAMETER)
           const latestEfficiency = await position.efficiency()
 
           const updatedOrder = await position.callStatic[
@@ -697,11 +697,11 @@ describe('Position', () => {
           expect(value.short).to.equal(parse6decimal('15'))
           expect(value.fee).to.equal(parse6decimal('100'))
 
-          const skew = await position.relativeSkew()
+          const skew = await position.staticSkew(VALID_RISK_PARAMETER)
           const efficiency = await position.efficiency()
 
-          expect(updatedOrder.skew).to.equal(skew.sub(latestSkew).abs())
-          expect(updatedOrder.impact).to.equal(skew.abs().sub(latestSkew.abs()))
+          expect(updatedOrder.skew).to.equal(parse6decimal('6').mul(parse6decimal('1')).div(14))
+          expect(updatedOrder.impact).to.equal(latestSkew.add(skew).div(-2))
           expect(updatedOrder.efficiency).to.equal(efficiency.sub(latestEfficiency))
           expect(updatedOrder.net).to.equal(parse6decimal('1'))
           expect(updatedOrder.utilization).to.equal(BigNumber.from('42483'))

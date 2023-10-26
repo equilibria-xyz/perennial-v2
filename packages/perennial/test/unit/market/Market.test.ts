@@ -2575,14 +2575,14 @@ describe('Market', () => {
               const riskParameter = { ...(await market.riskParameter()) }
               riskParameter.takerFee = parse6decimal('0.01')
               riskParameter.takerSkewFee = parse6decimal('0.002')
-              riskParameter.takerImpactFee = parse6decimal('0.004')
+              riskParameter.takerImpactFee = parse6decimal('0.008')
               await market.updateRiskParameter(riskParameter)
 
               const marketParameter = { ...(await market.parameter()) }
               marketParameter.settlementFee = parse6decimal('0.50')
               await market.updateParameter(marketParameter)
 
-              const TAKER_FEE = parse6decimal('8.61') // position * (0.01 + 0.002 + 0.004/2) * price
+              const TAKER_FEE = parse6decimal('9.84') // position * (0.01 + 0.002 + 0.004) * price
               const SETTLEMENT_FEE = parse6decimal('0.50')
 
               await expect(market.connect(user).update(user.address, 0, POSITION.div(2), 0, COLLATERAL, false))
@@ -2690,15 +2690,15 @@ describe('Market', () => {
 
               const riskParameter = { ...(await market.riskParameter()) }
               riskParameter.takerFee = parse6decimal('0.01')
-              riskParameter.takerImpactFee = parse6decimal('0.004')
               riskParameter.takerSkewFee = parse6decimal('0.002')
+              riskParameter.takerImpactFee = parse6decimal('0.008')
               await market.updateRiskParameter(riskParameter)
 
               const marketParameter = { ...(await market.parameter()) }
               marketParameter.settlementFee = parse6decimal('0.50')
               await market.updateParameter(marketParameter)
 
-              const TAKER_FEE = parse6decimal('9.84') // position * (0.01 + 0.004 + 0.002) * price
+              const TAKER_FEE = parse6decimal('9.84') // position * (0.01 + 0.002 + 0.004) * price
               const TAKER_FEE_FEE = TAKER_FEE.div(10)
               const TAKER_FEE_WITHOUT_FEE = TAKER_FEE.sub(TAKER_FEE_FEE)
               const SETTLEMENT_FEE = parse6decimal('0.50')
@@ -3273,6 +3273,7 @@ describe('Market', () => {
               })
 
               it('closes a second position and settles (next version)', async () => {
+                await market.updateRiskParameter({ ...(await market.riskParameter()), skewScale: POSITION.div(4) })
                 await market.connect(user).update(user.address, 0, POSITION.div(4), 0, 0, false)
 
                 oracle.at.whenCalledWith(ORACLE_VERSION_3.timestamp).returns(ORACLE_VERSION_3)
@@ -3471,15 +3472,15 @@ describe('Market', () => {
               it('closes the position and settles later with fee', async () => {
                 const riskParameter = { ...(await market.riskParameter()) }
                 riskParameter.takerFee = parse6decimal('0.01')
-                riskParameter.takerImpactFee = parse6decimal('0.004')
                 riskParameter.takerSkewFee = parse6decimal('0.002')
+                riskParameter.takerImpactFee = parse6decimal('0.008')
                 await market.updateRiskParameter(riskParameter)
 
                 const marketParameter = { ...(await market.parameter()) }
                 marketParameter.settlementFee = parse6decimal('0.50')
                 await market.updateParameter(marketParameter)
 
-                const TAKER_FEE = parse6decimal('4.92') // position * (0.01 - 0.004 + 0.002) * price
+                const TAKER_FEE = parse6decimal('4.92') // position * (0.01 + 0.002 - 0.004) * price
                 const TAKER_FEE_FEE = TAKER_FEE.div(10)
                 const TAKER_FEE_WITHOUT_FEE = TAKER_FEE.sub(TAKER_FEE_FEE)
                 const SETTLEMENT_FEE = parse6decimal('0.50')
@@ -5486,15 +5487,15 @@ describe('Market', () => {
             it('opens the position and settles later with fee', async () => {
               const riskParameter = { ...(await market.riskParameter()) }
               riskParameter.takerFee = parse6decimal('0.01')
-              riskParameter.takerImpactFee = parse6decimal('0.004')
               riskParameter.takerSkewFee = parse6decimal('0.002')
+              riskParameter.takerImpactFee = parse6decimal('0.008')
               await market.updateRiskParameter(riskParameter)
 
               const marketParameter = { ...(await market.parameter()) }
               marketParameter.settlementFee = parse6decimal('0.50')
               await market.updateParameter(marketParameter)
 
-              const TAKER_FEE = parse6decimal('9.84') // position * (0.01 + 0.004 + 0.002) * price
+              const TAKER_FEE = parse6decimal('9.84') // position * (0.01 + 0.002 + 0.004) * price
               const TAKER_FEE_FEE = TAKER_FEE.div(10)
               const TAKER_FEE_WITHOUT_FEE = TAKER_FEE.sub(TAKER_FEE_FEE)
               const SETTLEMENT_FEE = parse6decimal('0.50')
@@ -5607,15 +5608,15 @@ describe('Market', () => {
 
               const riskParameter = { ...(await market.riskParameter()) }
               riskParameter.takerFee = parse6decimal('0.01')
-              riskParameter.takerImpactFee = parse6decimal('0.004')
               riskParameter.takerSkewFee = parse6decimal('0.002')
+              riskParameter.takerImpactFee = parse6decimal('0.008')
               await market.updateRiskParameter(riskParameter)
 
               const marketParameter = { ...(await market.parameter()) }
               marketParameter.settlementFee = parse6decimal('0.50')
               await market.updateParameter(marketParameter)
 
-              const TAKER_FEE = parse6decimal('9.84') // position * (0.01 + 0.004 + 0.002) * price
+              const TAKER_FEE = parse6decimal('9.84') // position * (0.01 + 0.002 + 0.008) * price
               const TAKER_FEE_FEE = TAKER_FEE.div(10)
               const TAKER_FEE_WITHOUT_FEE = TAKER_FEE.sub(TAKER_FEE_FEE)
               const SETTLEMENT_FEE = parse6decimal('0.50')
@@ -6191,6 +6192,7 @@ describe('Market', () => {
               })
 
               it('closes a second position and settles (next version)', async () => {
+                await market.updateRiskParameter({ ...(await market.riskParameter()), skewScale: POSITION.div(4) })
                 await market.connect(user).update(user.address, 0, 0, POSITION.div(4), 0, false)
 
                 oracle.at.whenCalledWith(ORACLE_VERSION_3.timestamp).returns(ORACLE_VERSION_3)
@@ -6389,15 +6391,15 @@ describe('Market', () => {
               it('closes the position and settles later with fee', async () => {
                 const riskParameter = { ...(await market.riskParameter()) }
                 riskParameter.takerFee = parse6decimal('0.01')
-                riskParameter.takerImpactFee = parse6decimal('0.004')
                 riskParameter.takerSkewFee = parse6decimal('0.002')
+                riskParameter.takerImpactFee = parse6decimal('0.008')
                 await market.updateRiskParameter(riskParameter)
 
                 const marketParameter = { ...(await market.parameter()) }
                 marketParameter.settlementFee = parse6decimal('0.50')
                 await market.updateParameter(marketParameter)
 
-                const TAKER_FEE = parse6decimal('4.92') // position * (0.01 - 0.004 + 0.002) * price
+                const TAKER_FEE = parse6decimal('4.92') // position * (0.01 + 0.002 - 0.004) * price
                 const TAKER_FEE_FEE = TAKER_FEE.div(10)
                 const TAKER_FEE_WITHOUT_FEE = TAKER_FEE.sub(TAKER_FEE_FEE)
                 const SETTLEMENT_FEE = parse6decimal('0.50')
@@ -7919,8 +7921,8 @@ describe('Market', () => {
           it('does not zero position and keeper fee upon closing', async () => {
             const riskParameter = { ...(await market.riskParameter()) }
             riskParameter.takerFee = parse6decimal('0.01')
-            riskParameter.takerImpactFee = parse6decimal('0.004')
             riskParameter.takerSkewFee = parse6decimal('0.002')
+            riskParameter.takerImpactFee = parse6decimal('0.008')
             riskParameter.makerFee = parse6decimal('0.01')
             riskParameter.makerImpactFee = parse6decimal('0.004')
             await market.updateRiskParameter(riskParameter)
@@ -8017,8 +8019,8 @@ describe('Market', () => {
           it('zeros position fee for new positions after close', async () => {
             const riskParameter = { ...(await market.riskParameter()) }
             riskParameter.takerFee = parse6decimal('0.01')
-            riskParameter.takerImpactFee = parse6decimal('0.004')
             riskParameter.takerSkewFee = parse6decimal('0.002')
+            riskParameter.takerImpactFee = parse6decimal('0.008')
             riskParameter.makerFee = parse6decimal('0.01')
             riskParameter.makerImpactFee = parse6decimal('0.004')
             await market.updateRiskParameter(riskParameter)
@@ -8112,6 +8114,7 @@ describe('Market', () => {
       context('all positions', async () => {
         beforeEach(async () => {
           dsu.transferFrom.whenCalledWith(user.address, market.address, COLLATERAL.mul(1e12)).returns(true)
+          await market.updateRiskParameter({ ...(await market.riskParameter()), skewScale: POSITION })
         })
 
         context('position delta', async () => {
@@ -8632,15 +8635,15 @@ describe('Market', () => {
             it('opens the position and settles later with fee', async () => {
               const riskParameter = { ...(await market.riskParameter()) }
               riskParameter.takerFee = parse6decimal('0.01')
-              riskParameter.takerImpactFee = parse6decimal('0.004')
               riskParameter.takerSkewFee = parse6decimal('0.002')
+              riskParameter.takerImpactFee = parse6decimal('0.004')
               await market.updateRiskParameter(riskParameter)
 
               const marketParameter = { ...(await market.parameter()) }
               marketParameter.settlementFee = parse6decimal('0.50')
               await market.updateParameter(marketParameter)
 
-              const TAKER_FEE = parse6decimal('5.535') // position * (0.01 - 0.002 - 0.001) * price
+              const TAKER_FEE = parse6decimal('4.92') // position * (0.01 + 0.002 - 0.004) * price
               const SETTLEMENT_FEE = parse6decimal('0.50')
 
               await expect(market.connect(user).update(user.address, 0, POSITION.div(2), 0, COLLATERAL, false))
@@ -9942,15 +9945,15 @@ describe('Market', () => {
               it('closes the position and settles later with fee', async () => {
                 const riskParameter = { ...(await market.riskParameter()) }
                 riskParameter.takerFee = parse6decimal('0.01')
-                riskParameter.takerImpactFee = parse6decimal('0.004')
                 riskParameter.takerSkewFee = parse6decimal('0.002')
+                riskParameter.takerImpactFee = parse6decimal('0.004')
                 await market.updateRiskParameter(riskParameter)
 
                 const marketParameter = { ...(await market.parameter()) }
                 marketParameter.settlementFee = parse6decimal('0.50')
                 await market.updateParameter(marketParameter)
 
-                const TAKER_FEE = parse6decimal('7.995') // position * (0.01 + 0.002 + 0.001) * price
+                const TAKER_FEE = parse6decimal('8.61') // position * (0.01 + 0.002 + 0.004/2) * price
                 const TAKER_FEE_FEE = TAKER_FEE.div(10)
                 const TAKER_FEE_WITHOUT_FEE = TAKER_FEE.sub(TAKER_FEE_FEE)
                 const SETTLEMENT_FEE = parse6decimal('0.50')
@@ -12644,15 +12647,15 @@ describe('Market', () => {
 
           const riskParameter = { ...(await market.riskParameter()) }
           riskParameter.takerFee = parse6decimal('0.01')
-          riskParameter.takerImpactFee = parse6decimal('0.004')
           riskParameter.takerSkewFee = parse6decimal('0.002')
+          riskParameter.takerImpactFee = parse6decimal('0.008')
           await market.updateRiskParameter(riskParameter)
 
           const marketParameter = { ...(await market.parameter()) }
           marketParameter.settlementFee = parse6decimal('0.50')
           await market.updateParameter(marketParameter)
 
-          const TAKER_FEE = parse6decimal('9.84') // position * (0.01 + 0.004 + 0.002) * price
+          const TAKER_FEE = parse6decimal('9.84') // position * (0.01 + 0.002 + 0.004) * price
           const SETTLEMENT_FEE = parse6decimal('0.50')
 
           await expect(market.connect(user).update(user.address, 0, POSITION.div(2), 0, COLLATERAL, false))
@@ -12769,15 +12772,15 @@ describe('Market', () => {
 
           const riskParameter = { ...(await market.riskParameter()) }
           riskParameter.takerFee = parse6decimal('0.01')
-          riskParameter.takerImpactFee = parse6decimal('0.004')
           riskParameter.takerSkewFee = parse6decimal('0.002')
+          riskParameter.takerImpactFee = parse6decimal('0.008')
           await market.updateRiskParameter(riskParameter)
 
           const marketParameter = { ...(await market.parameter()) }
           marketParameter.settlementFee = parse6decimal('0.50')
           await market.updateParameter(marketParameter)
 
-          const TAKER_FEE = parse6decimal('9.84') // position * (0.01 + 0.004 + 0.002) * price
+          const TAKER_FEE = parse6decimal('9.84') // position * (0.01 + 0.002 + 0.004) * price
           const TAKER_FEE_FEE = TAKER_FEE.div(10)
           const TAKER_FEE_WITHOUT_FEE = TAKER_FEE.sub(TAKER_FEE_FEE)
           const SETTLEMENT_FEE = parse6decimal('0.50')
@@ -12927,15 +12930,15 @@ describe('Market', () => {
 
           const riskParameter = { ...(await market.riskParameter()) }
           riskParameter.takerFee = parse6decimal('0.01')
-          riskParameter.takerImpactFee = parse6decimal('0.004')
           riskParameter.takerSkewFee = parse6decimal('0.002')
+          riskParameter.takerImpactFee = parse6decimal('0.008')
           await market.updateRiskParameter(riskParameter)
 
           const marketParameter = { ...(await market.parameter()) }
           marketParameter.settlementFee = parse6decimal('0.50')
           await market.updateParameter(marketParameter)
 
-          const TAKER_FEE = parse6decimal('9.84') // position * (0.01 + 0.004 + 0.002) * price
+          const TAKER_FEE = parse6decimal('9.84') // position * (0.01 + 0.002 + 0.004) * price
           const TAKER_FEE_FEE = TAKER_FEE.div(10)
           const TAKER_FEE_WITHOUT_FEE = TAKER_FEE.sub(TAKER_FEE_FEE)
           const SETTLEMENT_FEE = parse6decimal('0.50')
@@ -13085,8 +13088,8 @@ describe('Market', () => {
 
           const riskParameter = { ...(await market.riskParameter()) }
           riskParameter.takerFee = parse6decimal('0.01')
-          riskParameter.takerImpactFee = parse6decimal('0.004')
           riskParameter.takerSkewFee = parse6decimal('0.002')
+          riskParameter.takerImpactFee = parse6decimal('0.008')
           riskParameter.staleAfter = BigNumber.from(9600)
           await market.updateRiskParameter(riskParameter)
 
@@ -13094,7 +13097,7 @@ describe('Market', () => {
           marketParameter.settlementFee = parse6decimal('0.50')
           await market.updateParameter(marketParameter)
 
-          const TAKER_FEE = parse6decimal('9.84') // position * (0.01 + 0.004 + 0.002) * price
+          const TAKER_FEE = parse6decimal('9.84') // position * (0.01 + 0.002 + 0.004) * price
           const TAKER_FEE_FEE = TAKER_FEE.div(10)
           const TAKER_FEE_WITHOUT_FEE = TAKER_FEE.sub(TAKER_FEE_FEE)
           const SETTLEMENT_FEE = parse6decimal('0.50')
@@ -13243,8 +13246,8 @@ describe('Market', () => {
 
           const riskParameter = { ...(await market.riskParameter()) }
           riskParameter.takerFee = parse6decimal('0.01')
-          riskParameter.takerImpactFee = parse6decimal('0.004')
           riskParameter.takerSkewFee = parse6decimal('0.002')
+          riskParameter.takerImpactFee = parse6decimal('0.008')
           riskParameter.staleAfter = BigNumber.from(9600)
           await market.updateRiskParameter(riskParameter)
 
@@ -13252,7 +13255,7 @@ describe('Market', () => {
           marketParameter.settlementFee = parse6decimal('0.50')
           await market.updateParameter(marketParameter)
 
-          const TAKER_FEE = parse6decimal('9.84') // position * (0.01 + 0.004 + 0.002) * price
+          const TAKER_FEE = parse6decimal('9.84') // position * (0.01 + 0.002 + 0.004) * price
           const TAKER_FEE_FEE = TAKER_FEE.div(10)
           const TAKER_FEE_WITHOUT_FEE = TAKER_FEE.sub(TAKER_FEE_FEE)
           const SETTLEMENT_FEE = parse6decimal('0.50')
