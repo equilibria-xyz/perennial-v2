@@ -56,9 +56,9 @@ describe('OracleFactory', () => {
       4,
       10,
       {
-        multiplierBase: ethers.utils.parseEther('3'),
+        multiplierBase: 0,
         bufferBase: 1_000_000,
-        multiplierCalldata: ethers.utils.parseEther('1.01'),
+        multiplierCalldata: 0,
         bufferCalldata: 500_000,
       },
       {
@@ -99,9 +99,9 @@ describe('OracleFactory', () => {
         4,
         10,
         {
-          multiplierBase: ethers.utils.parseEther('3'),
+          multiplierBase: 0,
           bufferBase: 1_000_000,
-          multiplierCalldata: ethers.utils.parseEther('1.01'),
+          multiplierCalldata: 0,
           bufferCalldata: 500_000,
         },
         {

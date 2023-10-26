@@ -31,6 +31,8 @@ interface IKeeperFactory is IOracleProviderFactory, IFactory, IKept {
     error KeeperFactoryNotAssociatedError();
     // sig: 0xf0253cdc
     error KeeperFactoryAlreadyAssociatedError();
+    // sig: 0xb043fd7b
+    error KeeperFactoryInvalidSettleError();
 
     function validFrom() external view returns (uint256);
     function validTo() external view returns (uint256);

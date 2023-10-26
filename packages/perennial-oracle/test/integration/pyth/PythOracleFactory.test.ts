@@ -119,9 +119,9 @@ testOracles.forEach(testOracle => {
         4,
         10,
         {
-          multiplierBase: ethers.utils.parseEther('3'),
+          multiplierBase: 0,
           bufferBase: 1_000_000,
-          multiplierCalldata: ethers.utils.parseEther('1.01'),
+          multiplierCalldata: 0,
           bufferCalldata: 500_000,
         },
         {
@@ -796,6 +796,42 @@ testOracles.forEach(testOracle => {
           utils.parseEther('0.10'),
           utils.parseEther('0.20'),
         )
+      })
+
+      it('reverts if array lengths mismatch', async () => {
+        await keeperOracle.connect(oracleSigner).request(market.address, user.address)
+        await pythOracleFactory.connect(user).commit([PYTH_ETH_USD_PRICE_FEED], STARTING_TIME, VAA, {
+          value: 1,
+        })
+        await expect(
+          pythOracleFactory
+            .connect(user)
+            .settle([PYTH_ETH_USD_PRICE_FEED], [market.address, market.address], [STARTING_TIME], [1]),
+        ).to.be.revertedWithCustomError(pythOracleFactory, 'KeeperFactoryInvalidSettleError')
+
+        await expect(
+          pythOracleFactory
+            .connect(user)
+            .settle([PYTH_ETH_USD_PRICE_FEED], [market.address], [STARTING_TIME, STARTING_TIME], [1]),
+        ).to.be.revertedWithCustomError(pythOracleFactory, 'KeeperFactoryInvalidSettleError')
+
+        await expect(
+          pythOracleFactory.connect(user).settle([PYTH_ETH_USD_PRICE_FEED], [market.address], [STARTING_TIME], [1, 1]),
+        ).to.be.revertedWithCustomError(pythOracleFactory, 'KeeperFactoryInvalidSettleError')
+      })
+
+      it('reverts if calldata is stuffed', async () => {
+        await keeperOracle.connect(oracleSigner).request(market.address, user.address)
+        await pythOracleFactory.connect(user).commit([PYTH_ETH_USD_PRICE_FEED], STARTING_TIME, VAA, {
+          value: 1,
+        })
+        const calldata = pythOracleFactory
+          .connect(user)
+          .interface.encodeFunctionData('settle', [[PYTH_ETH_USD_PRICE_FEED], [market.address], [STARTING_TIME], [1]])
+
+        await expect(
+          user.sendTransaction({ to: pythOracleFactory.address, data: calldata.concat(calldata.slice(2)) }),
+        ).to.be.revertedWithCustomError(pythOracleFactory, 'KeeperFactoryInvalidSettleError')
       })
     })
 

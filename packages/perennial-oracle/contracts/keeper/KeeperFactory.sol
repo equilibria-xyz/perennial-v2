@@ -19,8 +19,14 @@ abstract contract KeeperFactory is IKeeperFactory, Factory, Kept {
     /// @dev A Keeper update must come at most this long after a version to be valid
     uint256 public immutable validTo;
 
+    /// @dev The multiplier for the keeper reward on top of cost of commit
+    UFixed18 internal immutable _keepCommitMultiplierBase;
+
     /// @dev The fixed gas buffer that is added to the keeper reward for commits
     uint256 internal immutable _keepCommitBufferBase;
+
+    /// @dev The multiplier for the calldata portion of the keeper reward on top of cost of commit
+    UFixed18 internal immutable _keepCommitMultiplierCalldata;
 
     /// @dev The fixed gas buffer that is added to the calldata portion of the keeper reward for commits
     uint256 internal immutable _keepCommitBufferCalldata;
@@ -64,6 +70,7 @@ abstract contract KeeperFactory is IKeeperFactory, Factory, Kept {
     /// @param validTo_ The maximum time after a version that a keeper update can be valid
     /// @param commitKeepConfig_ Parameter configuration for commit keeper incentivization
     /// @param settleKeepConfig_ Parameter configuration for settle keeper incentivization
+    /// @param keepCommitIncrementalBufferCallata_ Calldata buffer amount for each incremental requested update
     constructor(
         address implementation_,
         uint256 validFrom_,
@@ -74,7 +81,9 @@ abstract contract KeeperFactory is IKeeperFactory, Factory, Kept {
     ) Factory(implementation_) {
         validFrom = validFrom_;
         validTo = validTo_;
+        _keepCommitMultiplierBase = commitKeepConfig_.multiplierBase;
         _keepCommitBufferBase = commitKeepConfig_.bufferBase;
+        _keepCommitMultiplierCalldata = settleKeepConfig_.multiplierCalldata;
         _keepCommitBufferCalldata = commitKeepConfig_.bufferCalldata;
         _keepCommitIncrementalBufferCalldata = keepCommitIncrementalBufferCallata_;
         _keepSettleMultiplierBase = settleKeepConfig_.multiplierBase;
@@ -166,9 +175,9 @@ abstract contract KeeperFactory is IKeeperFactory, Factory, Kept {
     /// @notice Returns the keep config for commit
     function commitKeepConfig(uint256 numRequested) public view returns (KeepConfig memory) {
         return KeepConfig(
-            UFixed18Lib.ZERO,
+            _keepCommitMultiplierBase,
             _keepCommitBufferBase * numRequested,
-            UFixed18Lib.ZERO,
+            _keepCommitMultiplierCalldata,
             _keepCommitBufferCalldata + _keepCommitIncrementalBufferCalldata * numRequested
         );
     }
@@ -194,6 +203,13 @@ abstract contract KeeperFactory is IKeeperFactory, Factory, Kept {
         external
         keep(settleKeepConfig(), msg.data, 0, "")
     {
+        if (ids.length != markets.length || ids.length != versions.length || ids.length != maxCounts.length)
+            revert KeeperFactoryInvalidSettleError();
+
+        // Prevent calldata stuffing
+        if (keccak256(abi.encodeCall(KeeperFactory.settle, (ids, markets, versions, maxCounts))) != keccak256(msg.data))
+            revert KeeperFactoryInvalidSettleError();
+
         for (uint256 i; i < ids.length; i++)
             IKeeperOracle(address(oracles[ids[i]])).settle(markets[i], versions[i], maxCounts[i]);
     }
