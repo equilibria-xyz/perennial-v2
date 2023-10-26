@@ -83,7 +83,7 @@ abstract contract KeeperFactory is IKeeperFactory, Factory, Kept {
         validTo = validTo_;
         _keepCommitMultiplierBase = commitKeepConfig_.multiplierBase;
         _keepCommitBufferBase = commitKeepConfig_.bufferBase;
-        _keepCommitMultiplierCalldata = settleKeepConfig_.multiplierCalldata;
+        _keepCommitMultiplierCalldata = commitKeepConfig_.multiplierCalldata;
         _keepCommitBufferCalldata = commitKeepConfig_.bufferCalldata;
         _keepCommitIncrementalBufferCalldata = keepCommitIncrementalBufferCallata_;
         _keepSettleMultiplierBase = settleKeepConfig_.multiplierBase;
