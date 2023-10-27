@@ -648,7 +648,7 @@ describe('Oracle', () => {
     it('reverts when not the owner', async () => {
       await expect(oracle.connect(user).update(underlying1.address)).to.revertedWithCustomError(
         oracle,
-        'OracleNotFactoryError',
+        'InstanceNotFactoryError',
       )
     })
   })

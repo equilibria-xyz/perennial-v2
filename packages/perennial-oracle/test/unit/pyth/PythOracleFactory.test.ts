@@ -115,8 +115,19 @@ describe('PythOracleFactory', () => {
       keeperOracleImpl.address,
       4,
       10,
-      ethers.utils.parseEther('3'),
-      1_000_000,
+      {
+        multiplierBase: 0,
+        bufferBase: 1_000_000,
+        multiplierCalldata: 0,
+        bufferCalldata: 500_000,
+      },
+      {
+        multiplierBase: ethers.utils.parseEther('1.02'),
+        bufferBase: 2_000_000,
+        multiplierCalldata: ethers.utils.parseEther('1.03'),
+        bufferCalldata: 1_500_000,
+      },
+      5_000,
     )
     await pythOracleFactory.initialize(oracleFactory.address, chainlinkFeed.address, dsu.address)
     await oracleFactory.register(pythOracleFactory.address)
