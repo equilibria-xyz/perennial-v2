@@ -436,6 +436,7 @@ describe('Happy Path', () => {
     const { user, userB, dsu, chainlink } = instanceVars
 
     const market = await createMarket(instanceVars)
+    await market.updateRiskParameter({ ...(await market.riskParameter()), skewScale: parse6decimal('0.00001') })
     await dsu.connect(user).approve(market.address, COLLATERAL.mul(1e12))
     await dsu.connect(userB).approve(market.address, COLLATERAL.mul(1e12))
 
@@ -564,6 +565,7 @@ describe('Happy Path', () => {
     const { user, userB, dsu, chainlink } = instanceVars
 
     const market = await createMarket(instanceVars)
+    await market.updateRiskParameter({ ...(await market.riskParameter()), skewScale: parse6decimal('0.00001') })
     await dsu.connect(user).approve(market.address, COLLATERAL.mul(1e12))
     await dsu.connect(userB).approve(market.address, COLLATERAL.mul(1e12))
 
@@ -839,6 +841,7 @@ describe('Happy Path', () => {
     const { user, userB, dsu, chainlink } = instanceVars
 
     const market = await createMarket(instanceVars)
+    await market.updateRiskParameter({ ...(await market.riskParameter()), skewScale: parse6decimal('0.00001') })
     await dsu.connect(user).approve(market.address, COLLATERAL.mul(1e12))
     await dsu.connect(userB).approve(market.address, COLLATERAL.mul(1e12))
 
@@ -867,6 +870,7 @@ describe('Happy Path', () => {
     const { user, userB, dsu, chainlink } = instanceVars
 
     const market = await createMarket(instanceVars)
+    await market.updateRiskParameter({ ...(await market.riskParameter()), skewScale: parse6decimal('0.00001') })
     await dsu.connect(user).approve(market.address, COLLATERAL.mul(1e12))
     await dsu.connect(userB).approve(market.address, COLLATERAL.mul(1e12))
 
