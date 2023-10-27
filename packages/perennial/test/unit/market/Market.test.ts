@@ -37,6 +37,8 @@ const PRICE = parse6decimal('123')
 const DEFAULT_VERSION_ACCUMULATION_RESULT = {
   positionFeeMaker: 0,
   positionFeeFee: 0,
+  socializedPositionFeeLong: 0,
+  socializedPositionFeeShort: 0,
   fundingMaker: 0,
   fundingLong: 0,
   fundingShort: 0,
