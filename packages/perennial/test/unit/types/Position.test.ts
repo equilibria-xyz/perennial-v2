@@ -168,8 +168,8 @@ describe('Position', () => {
       })
 
       describe('.fee', async () => {
-        const STORAGE_SIZE = 48
-        it('saves if in range', async () => {
+        const STORAGE_SIZE = 47
+        it('saves if in range (above)', async () => {
           await position.store({
             ...VALID_GLOBAL_POSITION,
             fee: BigNumber.from(2).pow(STORAGE_SIZE).sub(1),
@@ -178,11 +178,29 @@ describe('Position', () => {
           expect(value.fee).to.equal(BigNumber.from(2).pow(STORAGE_SIZE).sub(1))
         })
 
-        it('reverts if fee out of range', async () => {
+        it('saves if in range (below)', async () => {
+          await position.store({
+            ...VALID_GLOBAL_POSITION,
+            fee: BigNumber.from(2).pow(STORAGE_SIZE).mul(-1),
+          })
+          const value = await position.read()
+          expect(value.fee).to.equal(BigNumber.from(2).pow(STORAGE_SIZE).mul(-1))
+        })
+
+        it('reverts if fee out of range (above)', async () => {
           await expect(
             position.store({
               ...VALID_GLOBAL_POSITION,
               fee: BigNumber.from(2).pow(STORAGE_SIZE),
+            }),
+          ).to.be.revertedWithCustomError(position, 'PositionStorageInvalidError')
+        })
+
+        it('reverts if fee out of range (above)', async () => {
+          await expect(
+            position.store({
+              ...VALID_GLOBAL_POSITION,
+              fee: BigNumber.from(2).pow(STORAGE_SIZE).add(1).mul(-1),
             }),
           ).to.be.revertedWithCustomError(position, 'PositionStorageInvalidError')
         })
@@ -641,7 +659,7 @@ describe('Position', () => {
           await position.store(VALID_GLOBAL_POSITION)
 
           await position[
-            'update((uint256,uint256,uint256,uint256,uint256,uint256,int256,int256,(int256,int256,int256)))'
+            'update((uint256,uint256,uint256,uint256,int256,uint256,int256,int256,(int256,int256,int256)))'
           ]({
             timestamp: 20,
             maker: 30,
@@ -683,11 +701,11 @@ describe('Position', () => {
           const latestEfficiency = await position.efficiency()
 
           const updatedOrder = await position.callStatic[
-            'update(uint256,(int256,int256,int256,int256,uint256,int256,int256,int256,uint256,uint256),(uint256,uint256,uint256,uint256,uint256,uint256,uint256,uint256,uint256,uint256,uint256,uint256,(uint256,uint256,uint256,uint256),(uint256,uint256),uint256,uint256,uint256,uint256,bool))'
+            'update(uint256,(int256,int256,int256,int256,uint256,int256,int256,int256,int256,uint256),(uint256,uint256,uint256,uint256,uint256,uint256,uint256,uint256,uint256,uint256,uint256,uint256,(uint256,uint256,uint256,uint256),(uint256,uint256),uint256,uint256,uint256,uint256,bool))'
           ](123456, VALID_ORDER, VALID_RISK_PARAMETER)
 
           await position[
-            'update(uint256,(int256,int256,int256,int256,uint256,int256,int256,int256,uint256,uint256),(uint256,uint256,uint256,uint256,uint256,uint256,uint256,uint256,uint256,uint256,uint256,uint256,(uint256,uint256,uint256,uint256),(uint256,uint256),uint256,uint256,uint256,uint256,bool))'
+            'update(uint256,(int256,int256,int256,int256,uint256,int256,int256,int256,int256,uint256),(uint256,uint256,uint256,uint256,uint256,uint256,uint256,uint256,uint256,uint256,uint256,uint256,(uint256,uint256,uint256,uint256),(uint256,uint256),uint256,uint256,uint256,uint256,bool))'
           ](123456, VALID_ORDER, VALID_RISK_PARAMETER)
 
           const value = await position.read()
@@ -712,7 +730,7 @@ describe('Position', () => {
             await position.store({ ...VALID_GLOBAL_POSITION, fee: 50, keeper: 60 })
 
             await position[
-              'update(uint256,(int256,int256,int256,int256,uint256,int256,int256,int256,uint256,uint256),(uint256,uint256,uint256,uint256,uint256,uint256,uint256,uint256,uint256,uint256,uint256,uint256,(uint256,uint256,uint256,uint256),(uint256,uint256),uint256,uint256,uint256,uint256,bool))'
+              'update(uint256,(int256,int256,int256,int256,uint256,int256,int256,int256,int256,uint256),(uint256,uint256,uint256,uint256,uint256,uint256,uint256,uint256,uint256,uint256,uint256,uint256,(uint256,uint256,uint256,uint256),(uint256,uint256),uint256,uint256,uint256,uint256,bool))'
             ](123456, VALID_ORDER, VALID_RISK_PARAMETER)
 
             const value = await position.read()
@@ -996,8 +1014,8 @@ describe('Position', () => {
       })
 
       describe('.fee', async () => {
-        const STORAGE_SIZE = 48
-        it('saves if in range', async () => {
+        const STORAGE_SIZE = 47
+        it('saves if in range (above)', async () => {
           await position.store({
             ...VALID_LOCAL_POSITION,
             fee: BigNumber.from(2).pow(STORAGE_SIZE).sub(1),
@@ -1006,11 +1024,29 @@ describe('Position', () => {
           expect(value.fee).to.equal(BigNumber.from(2).pow(STORAGE_SIZE).sub(1))
         })
 
-        it('reverts if fee out of range', async () => {
+        it('saves if in range (below)', async () => {
+          await position.store({
+            ...VALID_LOCAL_POSITION,
+            fee: BigNumber.from(2).pow(STORAGE_SIZE).mul(-1),
+          })
+          const value = await position.read()
+          expect(value.fee).to.equal(BigNumber.from(2).pow(STORAGE_SIZE).mul(-1))
+        })
+
+        it('reverts if fee out of range (above)', async () => {
           await expect(
             position.store({
               ...VALID_LOCAL_POSITION,
               fee: BigNumber.from(2).pow(STORAGE_SIZE),
+            }),
+          ).to.be.revertedWithCustomError(position, 'PositionStorageInvalidError')
+        })
+
+        it('reverts if fee out of range (below)', async () => {
+          await expect(
+            position.store({
+              ...VALID_LOCAL_POSITION,
+              fee: BigNumber.from(2).pow(STORAGE_SIZE).add(1).mul(-1),
             }),
           ).to.be.revertedWithCustomError(position, 'PositionStorageInvalidError')
         })
@@ -1473,7 +1509,7 @@ describe('Position', () => {
           await position.store(VALID_LOCAL_POSITION)
 
           await position[
-            'update((uint256,uint256,uint256,uint256,uint256,uint256,int256,int256,(int256,int256,int256)))'
+            'update((uint256,uint256,uint256,uint256,int256,uint256,int256,int256,(int256,int256,int256)))'
           ]({
             timestamp: 20,
             maker: 0, // only max is stored

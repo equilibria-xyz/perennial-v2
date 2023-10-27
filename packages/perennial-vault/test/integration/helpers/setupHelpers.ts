@@ -40,6 +40,7 @@ export async function deployProductOnMainnetFork({
   minLiquidationFee,
   maxLiquidationFee,
   staleAfter,
+  skewScale,
 }: DeployProductParams): Promise<IMarket> {
   const riskParameter: RiskParameterStruct = {
     margin: margin ?? parse6decimal('0.10'),
@@ -66,7 +67,7 @@ export async function deployProductOnMainnetFork({
     },
     minMargin: minMargin ?? parse6decimal('100'),
     minMaintenance: minMaintenance ?? parse6decimal('100'),
-    skewScale: 0,
+    skewScale: skewScale ?? 0,
     staleAfter: staleAfter ?? 7200,
     makerReceiveOnly: false,
   }

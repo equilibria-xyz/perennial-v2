@@ -208,6 +208,7 @@ describe('Vault', () => {
       minMargin: parse6decimal('50'),
       minMaintenance: parse6decimal('50'),
       maxLiquidationFee: parse6decimal('25000'),
+      skewScale: parse6decimal('100'),
     })
     btcMarket = await deployProductOnMainnetFork({
       factory: instanceVars.marketFactory,
@@ -218,6 +219,7 @@ describe('Vault', () => {
       minMargin: parse6decimal('50'),
       minMaintenance: parse6decimal('50'),
       maxLiquidationFee: parse6decimal('25000'),
+      skewScale: parse6decimal('10'),
     })
 
     const vaultImpl = await new Vault__factory(owner).deploy()

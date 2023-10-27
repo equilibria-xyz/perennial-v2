@@ -14725,7 +14725,7 @@ describe('Market', () => {
 
         beforeEach(async () => {
           const riskParameter = { ...(await market.riskParameter()) }
-          riskParameter.skewScale = POSITION
+          riskParameter.skewScale = parse6decimal('15')
           await market.connect(owner).updateRiskParameter(riskParameter)
 
           dsu.transferFrom.whenCalledWith(user.address, market.address, COLLATERAL.mul(1e12)).returns(true)
@@ -14745,7 +14745,7 @@ describe('Market', () => {
             await settle(market, userB)
           })
 
-          it('correctly dampens the finding rate increase', async () => {
+          it('correctly dampens the funding rate increase', async () => {
             oracle.at.whenCalledWith(ORACLE_VERSION_3.timestamp).returns(ORACLE_VERSION_3)
             oracle.status.returns([ORACLE_VERSION_3, ORACLE_VERSION_4.timestamp])
             oracle.request.whenCalledWith(user.address).returns()
@@ -14841,7 +14841,7 @@ describe('Market', () => {
             await settle(market, userB)
           })
 
-          it('correctly dampens the finding rate decrease', async () => {
+          it('correctly dampens the funding rate decrease', async () => {
             oracle.at.whenCalledWith(ORACLE_VERSION_3.timestamp).returns(ORACLE_VERSION_3)
             oracle.status.returns([ORACLE_VERSION_3, ORACLE_VERSION_4.timestamp])
             oracle.request.whenCalledWith(user.address).returns()

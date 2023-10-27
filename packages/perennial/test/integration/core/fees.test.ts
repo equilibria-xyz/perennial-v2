@@ -51,7 +51,7 @@ const MARKET_PARAMS = {
   positionFee: parse6decimal('0.5'),
 }
 
-describe.only('Fees', () => {
+describe('Fees', () => {
   let instanceVars: InstanceVars
   let market: Market
 
