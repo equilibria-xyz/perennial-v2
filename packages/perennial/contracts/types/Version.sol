@@ -143,9 +143,9 @@ library VersionLib {
         MarketParameter memory marketParameter
     ) private pure returns (Fixed6 positionFeeMaker, UFixed6 positionFeeFee) {
         // If there are no makers to distribute the taker's position fee to, give it to the protocol
-        if (fromPosition.maker.isZero()) return (Fixed6Lib.ZERO, toPosition.fee.lt(Fixed6Lib.ZERO) ? UFixed6Lib.ZERO : UFixed6Lib.from(toPosition.fee));
+        if (fromPosition.maker.isZero()) return (Fixed6Lib.ZERO, toPosition.fee.max(Fixed6Lib.ZERO).abs());
 
-        positionFeeFee = marketParameter.positionFee.mul(toPosition.fee.lt(Fixed6Lib.ZERO) ? UFixed6Lib.ZERO : UFixed6Lib.from(toPosition.fee));
+        positionFeeFee = marketParameter.positionFee.mul(toPosition.fee.max(Fixed6Lib.ZERO).abs());
         positionFeeMaker = toPosition.fee.sub(Fixed6Lib.from(positionFeeFee));
 
         self.makerValue.increment(positionFeeMaker, fromPosition.maker);
