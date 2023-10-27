@@ -516,7 +516,7 @@ contract Vault is IVault, Instance {
             Position memory currentAccountPosition = context.registrations[marketId].market
                 .pendingPositions(address(this), mappingAtId.get(marketId));
             value = value.add(currentAccountPosition.collateral);
-            fee = fee.add(currentAccountPosition.fee.max(Fixed6Lib.ZERO).abs());
+            fee = fee.add(currentAccountPosition.fee.max(Fixed6Lib.ZERO).abs()); // Maker fee cannot be negative as of v2.1
             keeper = keeper.add(currentAccountPosition.keeper);
         }
     }
