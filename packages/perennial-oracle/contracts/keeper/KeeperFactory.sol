@@ -203,11 +203,13 @@ abstract contract KeeperFactory is IKeeperFactory, Factory, Kept {
         external
         keep(settleKeepConfig(), msg.data, 0, "")
     {
-        if (ids.length != markets.length || ids.length != versions.length || ids.length != maxCounts.length)
-            revert KeeperFactoryInvalidSettleError();
-
-        // Prevent calldata stuffing
-        if (keccak256(abi.encodeCall(KeeperFactory.settle, (ids, markets, versions, maxCounts))) != keccak256(msg.data))
+        if (
+            ids.length != markets.length ||
+            ids.length != versions.length ||
+            ids.length != maxCounts.length ||
+            // Prevent calldata stuffing
+            abi.encodeCall(KeeperFactory.settle, (ids, markets, versions, maxCounts)).length != msg.data.length
+        )
             revert KeeperFactoryInvalidSettleError();
 
         for (uint256 i; i < ids.length; i++)
