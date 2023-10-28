@@ -65,7 +65,7 @@ const DEFAULT_RISK_PARAMETERS = {
   },
   minMargin: utils.parseUnits('10', 6),
   minMaintenance: utils.parseUnits('10', 6),
-  virtualTaker: 0,
+  skewScale: 0,
   staleAfter: 7200,
   makerReceiveOnly: false,
 }

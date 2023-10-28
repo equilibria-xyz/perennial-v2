@@ -28,7 +28,7 @@ export const TIMESTAMP_5 = 1631118731
 const RISK_PARAMS = {
   takerFee: parse6decimal('0.05'),
   takerSkewFee: parse6decimal('0.06'),
-  takerImpactFee: parse6decimal('0.07'),
+  takerImpactFee: parse6decimal('0.14'),
   makerFee: parse6decimal('0.09'),
   makerImpactFee: parse6decimal('0.08'),
   utilizationCurve: {
@@ -41,6 +41,7 @@ const RISK_PARAMS = {
     k: BigNumber.from('1099511627775'),
     max: 0,
   },
+  skewScale: parse6decimal('0.00001'),
 }
 const MARKET_PARAMS = {
   fundingFee: parse6decimal('0.1'),
@@ -882,7 +883,7 @@ describe('Fees', () => {
           e => e.event === 'PositionProcessed',
         )?.args as unknown as PositionProcessedEventObject
 
-        const expectedLongSkewFee = BigNumber.from('3416489') // = 3374.655169**2 * 0.00002 * 150% * 0.01
+        const expectedLongSkewFee = BigNumber.from('4555319') // = 3374.655169**2 * 0.00002 * 200% * 0.01
         expect(accountProcessEventLong.accumulationResult.positionFee).to.equal(expectedLongSkewFee)
         expect(
           positionProcessEventLong.accumulationResult.positionFeeMaker.add(
@@ -904,7 +905,7 @@ describe('Fees', () => {
           ...riskParams,
           makerFee: BigNumber.from('0'),
           takerFee: BigNumber.from('0'),
-          takerImpactFee: parse6decimal('0.01'),
+          takerImpactFee: parse6decimal('0.02'),
           takerSkewFee: BigNumber.from('0'),
         })
 
@@ -981,7 +982,7 @@ describe('Fees', () => {
         await market.updateRiskParameter({
           ...riskParams,
           takerFee: parse6decimal('0.01'),
-          takerImpactFee: parse6decimal('0.01'),
+          takerImpactFee: parse6decimal('0.02'),
         })
         // Bring skew from -100% to 0% -> total impact change of -100%
         await market.connect(userC).update(userC.address, 0, LONG_POSITION, 0, COLLATERAL, false)
@@ -996,6 +997,43 @@ describe('Fees', () => {
         )?.args as unknown as PositionProcessedEventObject
 
         const expectedShortSkewFee = BigNumber.from('0') // The impact fee offsets the taker fee
+        expect(accountProcessEventShort.accumulationResult.positionFee).to.equal(expectedShortSkewFee)
+        expect(
+          positionProcessEventShort.accumulationResult.positionFeeMaker.add(
+            positionProcessEventShort.accumulationResult.positionFeeFee,
+          ),
+        ).to.equal(expectedShortSkewFee)
+      })
+
+      it('refunds taker position fee for negative impact (negative fees)', async () => {
+        const { userB, userC } = instanceVars
+
+        // Bring skew from 0 to 100% -> total impact change of 100%
+        await market.connect(userB).update(userB.address, 0, 0, SHORT_POSITION, COLLATERAL, false)
+
+        await nextWithConstantPrice()
+        await settle(market, userB)
+
+        // Enable position fee to test refund
+        const riskParams = await market.riskParameter()
+        await market.updateRiskParameter({
+          ...riskParams,
+          takerFee: parse6decimal('0.01'),
+          takerImpactFee: parse6decimal('0.04'),
+        })
+        // Bring skew from -100% to 0% -> total impact change of -100%
+        await market.connect(userC).update(userC.address, 0, LONG_POSITION, 0, COLLATERAL, false)
+
+        await nextWithConstantPrice()
+        const tx = await settle(market, userC)
+        const accountProcessEventShort: AccountPositionProcessedEventObject = (await tx.wait()).events?.find(
+          e => e.event === 'AccountPositionProcessed',
+        )?.args as unknown as AccountPositionProcessedEventObject
+        const positionProcessEventShort: PositionProcessedEventObject = (await tx.wait()).events?.find(
+          e => e.event === 'PositionProcessed',
+        )?.args as unknown as PositionProcessedEventObject
+
+        const expectedShortSkewFee = BigNumber.from('-1138829') // The impact fee refunds more than the taker fee charged
         expect(accountProcessEventShort.accumulationResult.positionFee).to.equal(expectedShortSkewFee)
         expect(
           positionProcessEventShort.accumulationResult.positionFeeMaker.add(
