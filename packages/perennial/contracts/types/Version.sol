@@ -40,8 +40,6 @@ using VersionStorageLib for VersionStorage global;
 struct VersionAccumulationResult {
     Fixed6 positionFeeMaker;
     UFixed6 positionFeeFee;
-    UFixed6 socializedPositionFeeLong;
-    UFixed6 socializedPositionFeeShort;
 
     Fixed6 fundingMaker;
     Fixed6 fundingLong;
@@ -92,7 +90,7 @@ library VersionLib {
         self.valid = toOracleVersion.valid;
 
         // accumulate position fee
-        (values.positionFeeMaker, values.positionFeeFee, values.socializedPositionFeeLong, values.socializedPositionFeeShort) =
+        (values.positionFeeMaker, values.positionFeeFee) =
             _accumulatePositionFee(self, fromPosition, toPosition, marketParameter);
 
         // if closed, don't accrue anything else
@@ -132,37 +130,21 @@ library VersionLib {
     }
 
     /// @notice Globally accumulates position fees since last oracle update
-    /// @dev Socializes negative position fees to takers if no makers exist
     /// @param self The Version object to update
     /// @param fromPosition The previous latest position
     /// @param toPosition The next latest position
     /// @param marketParameter The market parameter
     /// @return positionFeeMaker The maker's position fee
     /// @return positionFeeFee The protocol's position fee
-    /// @return socializedPositionFeeLong The long's socialized position fee
-    /// @return socializedPositionFeeShort The short's socialized position fee
     function _accumulatePositionFee(
         Version memory self,
         Position memory fromPosition,
         Position memory toPosition,
         MarketParameter memory marketParameter
-    ) private pure returns (Fixed6 positionFeeMaker, UFixed6 positionFeeFee, UFixed6 socializedPositionFeeLong, UFixed6 socializedPositionFeeShort) {
+    ) private pure returns (Fixed6 positionFeeMaker, UFixed6 positionFeeFee) {
         UFixed6 toPositionFeeAbs = toPosition.fee.abs();
         // If there are no makers to distribute the taker's position fee to, give it to the protocol
-        if (fromPosition.maker.isZero()) {
-            if (toPosition.fee.gte(Fixed6Lib.ZERO))
-                return (Fixed6Lib.ZERO, toPositionFeeAbs, UFixed6Lib.ZERO, UFixed6Lib.ZERO);
-
-            // If fee is negative and no makers to pay it, distribute position fee to longs and shorts
-            socializedPositionFeeLong = fromPosition.major().isZero() ?
-                toPositionFeeAbs :
-                toPositionFeeAbs.muldiv(fromPosition.long, fromPosition.long.add(fromPosition.short));
-            socializedPositionFeeShort = toPositionFeeAbs.sub(socializedPositionFeeLong);
-            self.longValue.decrement(Fixed6Lib.from(socializedPositionFeeLong), fromPosition.long);
-            self.shortValue.decrement(Fixed6Lib.from(socializedPositionFeeShort), fromPosition.short);
-
-            return (Fixed6Lib.ZERO, UFixed6Lib.ZERO, socializedPositionFeeLong, socializedPositionFeeShort);
-        }
+        if (fromPosition.maker.isZero()) return (Fixed6Lib.ZERO, toPositionFeeAbs);
 
         positionFeeFee = marketParameter.positionFee.mul(toPositionFeeAbs);
         positionFeeMaker = toPosition.fee.sub(Fixed6Lib.from(positionFeeFee));
