@@ -1043,6 +1043,28 @@ testOracles.forEach(testOracle => {
         const version = await keeperOracle.connect(user).at(STARTING_TIME)
         expect(version.valid).to.be.false
       })
+
+      it('zero timestamp', async () => {
+        expect((await keeperOracle.connect(user).at(0)).valid).to.be.false
+
+        await keeperOracle.connect(oracleSigner).request(market.address, user.address)
+        await pythOracleFactory.connect(user).commit([PYTH_ETH_USD_PRICE_FEED], STARTING_TIME, VAA, {
+          value: 1,
+        })
+
+        expect((await keeperOracle.connect(user).at(0)).valid).to.be.false
+      })
+
+      it('timestamp in the future', async () => {
+        expect((await keeperOracle.connect(user).at((await currentBlockTimestamp()) + 1)).valid).to.be.false
+
+        await keeperOracle.connect(oracleSigner).request(market.address, user.address)
+        await pythOracleFactory.connect(user).commit([PYTH_ETH_USD_PRICE_FEED], STARTING_TIME, VAA, {
+          value: 1,
+        })
+
+        expect((await keeperOracle.connect(user).at((await currentBlockTimestamp()) + 1)).valid).to.be.false
+      })
     })
   })
 })
