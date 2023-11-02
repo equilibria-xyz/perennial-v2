@@ -98,7 +98,7 @@ describe('Liquidate', () => {
     ).to.be.revertedWithCustomError(market, 'MarketInsufficientMaintenanceError') // underflow
 
     await market.connect(userB).update(user.address, 0, 0, 0, '-690277557', true) // liquidate
-    expect((await market.locals(user.address)).collateral).to.equal(BigNumber.from('-3154014022'))
+    expect((await market.locals(user.address)).collateral).to.equal(BigNumber.from('-3154014381'))
 
     await chainlink.nextWithPriceModification(price => price.mul(2))
     await settle(market, user)

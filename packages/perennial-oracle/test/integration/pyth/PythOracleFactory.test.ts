@@ -118,8 +118,19 @@ testOracles.forEach(testOracle => {
         keeperOracleImpl.address,
         4,
         10,
-        ethers.utils.parseEther('3'),
-        1_000_000,
+        {
+          multiplierBase: 0,
+          bufferBase: 1_000_000,
+          multiplierCalldata: 0,
+          bufferCalldata: 500_000,
+        },
+        {
+          multiplierBase: ethers.utils.parseEther('1.02'),
+          bufferBase: 2_000_000,
+          multiplierCalldata: ethers.utils.parseEther('1.03'),
+          bufferCalldata: 1_500_000,
+        },
+        5_000,
       )
       await pythOracleFactory.initialize(oracleFactory.address, CHAINLINK_ETH_USD_FEED, dsu.address)
       await oracleFactory.register(pythOracleFactory.address)
@@ -201,7 +212,7 @@ testOracles.forEach(testOracle => {
         },
         minMargin: parse6decimal('500'),
         minMaintenance: parse6decimal('500'),
-        virtualTaker: 0,
+        skewScale: 0,
         staleAfter: 7200,
         makerReceiveOnly: false,
       }
@@ -262,8 +273,19 @@ testOracles.forEach(testOracle => {
             await pythOracleFactory.implementation(),
             4,
             10,
-            ethers.utils.parseEther('3'),
-            1_000_000,
+            {
+              multiplierBase: 0,
+              bufferBase: 1_000_000,
+              multiplierCalldata: 0,
+              bufferCalldata: 500_000,
+            },
+            {
+              multiplierBase: ethers.utils.parseEther('1.02'),
+              bufferBase: 2_000_000,
+              multiplierCalldata: ethers.utils.parseEther('1.03'),
+              bufferCalldata: 1_500_000,
+            },
+            5_000,
           )
           await pythOracleFactory2.initialize(oracleFactory.address, CHAINLINK_ETH_USD_FEED, dsu.address)
           await expect(pythOracleFactory2.initialize(oracleFactory.address, CHAINLINK_ETH_USD_FEED, dsu.address))
@@ -356,12 +378,28 @@ testOracles.forEach(testOracle => {
         expect(await keeperOracle.timeout()).to.equal(60)
       })
 
-      it('#KEEPER_REWARD_PREMIUM', async () => {
-        expect(await pythOracleFactory.keepMultiplierBase()).to.equal(utils.parseEther('3'))
+      it('#commitKeepConfig', async () => {
+        const keepConfig = await pythOracleFactory.commitKeepConfig(1)
+        expect(keepConfig.multiplierBase).to.equal(0)
+        expect(keepConfig.bufferBase).to.equal(1_000_000)
+        expect(keepConfig.multiplierCalldata).to.equal(0)
+        expect(keepConfig.bufferCalldata).to.equal(505_000)
       })
 
-      it('#KEEPER_BUFFER', async () => {
-        expect(await pythOracleFactory.keepBufferBase()).to.equal(1000000)
+      it('#commitKeepConfig with multiple requested', async () => {
+        const keepConfig = await pythOracleFactory.commitKeepConfig(5)
+        expect(keepConfig.multiplierBase).to.equal(0)
+        expect(keepConfig.bufferBase).to.equal(5_000_000)
+        expect(keepConfig.multiplierCalldata).to.equal(0)
+        expect(keepConfig.bufferCalldata).to.equal(525_000)
+      })
+
+      it('#settleKeepConfig', async () => {
+        const keepConfig = await pythOracleFactory.settleKeepConfig()
+        expect(keepConfig.multiplierBase).to.equal(ethers.utils.parseEther('1.02'))
+        expect(keepConfig.bufferBase).to.equal(2_000_000)
+        expect(keepConfig.multiplierCalldata).to.equal(ethers.utils.parseEther('1.03'))
+        expect(keepConfig.bufferCalldata).to.equal(1_500_000)
       })
     })
 
@@ -482,7 +520,7 @@ testOracles.forEach(testOracle => {
       it('reverts if not called from factory', async () => {
         await expect(
           keeperOracle.connect(user).commit({ timestamp: STARTING_TIME, price: parse6decimal('1000'), valid: true }),
-        ).to.be.revertedWithCustomError(keeperOracle, 'OracleProviderUnauthorizedError')
+        ).to.be.revertedWithCustomError(keeperOracle, 'InstanceNotFactoryError')
       })
 
       it('reverts if version is zero', async () => {
@@ -758,6 +796,42 @@ testOracles.forEach(testOracle => {
           utils.parseEther('0.10'),
           utils.parseEther('0.20'),
         )
+      })
+
+      it('reverts if array lengths mismatch', async () => {
+        await keeperOracle.connect(oracleSigner).request(market.address, user.address)
+        await pythOracleFactory.connect(user).commit([PYTH_ETH_USD_PRICE_FEED], STARTING_TIME, VAA, {
+          value: 1,
+        })
+        await expect(
+          pythOracleFactory
+            .connect(user)
+            .settle([PYTH_ETH_USD_PRICE_FEED], [market.address, market.address], [STARTING_TIME], [1]),
+        ).to.be.revertedWithCustomError(pythOracleFactory, 'KeeperFactoryInvalidSettleError')
+
+        await expect(
+          pythOracleFactory
+            .connect(user)
+            .settle([PYTH_ETH_USD_PRICE_FEED], [market.address], [STARTING_TIME, STARTING_TIME], [1]),
+        ).to.be.revertedWithCustomError(pythOracleFactory, 'KeeperFactoryInvalidSettleError')
+
+        await expect(
+          pythOracleFactory.connect(user).settle([PYTH_ETH_USD_PRICE_FEED], [market.address], [STARTING_TIME], [1, 1]),
+        ).to.be.revertedWithCustomError(pythOracleFactory, 'KeeperFactoryInvalidSettleError')
+      })
+
+      it('reverts if calldata is stuffed', async () => {
+        await keeperOracle.connect(oracleSigner).request(market.address, user.address)
+        await pythOracleFactory.connect(user).commit([PYTH_ETH_USD_PRICE_FEED], STARTING_TIME, VAA, {
+          value: 1,
+        })
+        const calldata = pythOracleFactory
+          .connect(user)
+          .interface.encodeFunctionData('settle', [[PYTH_ETH_USD_PRICE_FEED], [market.address], [STARTING_TIME], [1]])
+
+        await expect(
+          user.sendTransaction({ to: pythOracleFactory.address, data: calldata.concat(calldata.slice(2)) }),
+        ).to.be.revertedWithCustomError(pythOracleFactory, 'KeeperFactoryInvalidSettleError')
       })
     })
 

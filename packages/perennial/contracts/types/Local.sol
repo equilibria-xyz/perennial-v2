@@ -30,7 +30,7 @@ using LocalStorageLib for LocalStorage global;
 struct LocalAccumulationResult {
     Fixed6 collateralAmount;
     UFixed6 rewardAmount;
-    UFixed6 positionFee;
+    Fixed6 positionFee;
     UFixed6 keeper;
 }
 
@@ -68,7 +68,7 @@ library LocalLib {
         values.positionFee = toPosition.fee;
         values.keeper = toPosition.keeper;
 
-        Fixed6 feeAmount = Fixed6Lib.from(values.positionFee.add(values.keeper));
+        Fixed6 feeAmount = values.positionFee.add(Fixed6Lib.from(values.keeper));
         self.collateral = self.collateral.add(values.collateralAmount).sub(feeAmount);
         self.reward = self.reward.add(values.rewardAmount);
         self.latestId = latestId;

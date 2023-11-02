@@ -31,11 +31,13 @@ interface IKeeperFactory is IOracleProviderFactory, IFactory, IKept {
     error KeeperFactoryNotAssociatedError();
     // sig: 0xf0253cdc
     error KeeperFactoryAlreadyAssociatedError();
+    // sig: 0xb043fd7b
+    error KeeperFactoryInvalidSettleError();
 
     function validFrom() external view returns (uint256);
     function validTo() external view returns (uint256);
-    function keepMultiplierBase() external view returns (UFixed18);
-    function keepBufferBase() external view returns (uint256);
+    function commitKeepConfig(uint256 numRequested) external view returns (KeepConfig memory);
+    function settleKeepConfig() external view returns (KeepConfig memory);
 
     function initialize(IOracleFactory oracleFactory, AggregatorV3Interface chainlinkFeed_, Token18 dsu_) external;
     function authorize(IFactory factory) external;

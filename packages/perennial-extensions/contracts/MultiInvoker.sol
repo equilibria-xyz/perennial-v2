@@ -17,9 +17,6 @@ import "@openzeppelin/contracts/utils/Address.sol";
 /// @title MultiInvoker
 /// @notice Extension to handle batched calls to the Perennial protocol
 contract MultiInvoker is IMultiInvoker, Kept {
-    /// @dev Gas buffer estimating remaining execution gas to include in fee to cover further instructions
-    uint256 public constant GAS_BUFFER = 500000; // solhint-disable-line var-name-mixedcase
-
     /// @dev USDC stablecoin address
     Token6 public immutable USDC; // solhint-disable-line var-name-mixedcase
 
@@ -38,8 +35,11 @@ contract MultiInvoker is IMultiInvoker, Kept {
     /// @dev Reserve address
     IEmptySetReserve public immutable reserve;
 
-    /// @dev multiplier to charge accounts on top of gas cost for keeper executions
-    UFixed6 public immutable keeperMultiplier;
+    /// @dev The fixed gas buffer that is added to the keeper reward
+    uint256 public immutable keepBufferBase;
+
+    /// @dev The fixed gas buffer that is added to the calldata portion of  the keeper reward
+    uint256 public immutable keepBufferCalldata;
 
     /// @dev UID for an order
     uint256 public latestNonce;
@@ -54,7 +54,8 @@ contract MultiInvoker is IMultiInvoker, Kept {
     /// @param vaultFactory_ Protocol factory to validate vault approvals
     /// @param batcher_ Batcher address
     /// @param reserve_ Reserve address
-    /// @param keeperMultiplier_ multiplier to charge accounts on top of gas cost for keeper executions
+    /// @param keepBufferBase_ The fixed gas buffer that is added to the keeper reward
+    /// @param keepBufferCalldata_ The fixed calldata buffer that is added to the keeper reward
     constructor(
         Token6 usdc_,
         Token18 dsu_,
@@ -62,7 +63,8 @@ contract MultiInvoker is IMultiInvoker, Kept {
         IFactory vaultFactory_,
         IBatcher batcher_,
         IEmptySetReserve reserve_,
-        UFixed6 keeperMultiplier_
+        uint256 keepBufferBase_,
+        uint256 keepBufferCalldata_
     ) {
         USDC = usdc_;
         DSU = dsu_;
@@ -70,7 +72,8 @@ contract MultiInvoker is IMultiInvoker, Kept {
         vaultFactory = vaultFactory_;
         batcher = batcher_;
         reserve = reserve_;
-        keeperMultiplier = keeperMultiplier_;
+        keepBufferBase = keepBufferBase_;
+        keepBufferCalldata = keepBufferCalldata_;
     }
 
     /// @notice Initialize the contract
@@ -466,7 +469,17 @@ contract MultiInvoker is IMultiInvoker, Kept {
     /// @notice Handles paying out keeper reward for an order exection
     function _handleKeep(address account, IMarket market, UFixed6 fee)
         private
-        keep(UFixed18Lib.from(keeperMultiplier), GAS_BUFFER, "", abi.encode(account, market, fee))
+        keep(
+            KeepConfig(
+                UFixed18Lib.ZERO,
+                keepBufferBase,
+                UFixed18Lib.ZERO,
+                keepBufferCalldata
+            ),
+            msg.data[0:0],
+            0,
+            abi.encode(account, market, fee)
+        )
     { }
 
     /// @notice Helper function to raise keeper fee

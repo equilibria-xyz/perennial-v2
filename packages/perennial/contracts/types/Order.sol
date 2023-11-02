@@ -33,7 +33,7 @@ struct Order {
     Fixed6 efficiency;
 
     /// @dev The fee for the order
-    UFixed6 fee;
+    Fixed6 fee;
 
     /// @dev The fixed settlement fee for the order
     UFixed6 keeper;
@@ -59,12 +59,11 @@ library OrderLib {
             .max(Fixed6Lib.ZERO);
         Fixed6 takerFee = Fixed6Lib.from(riskParameter.takerFee)
             .add(Fixed6Lib.from(riskParameter.takerSkewFee.mul(self.skew)))
-            .add(Fixed6Lib.from(riskParameter.takerImpactFee).mul(self.impact))
-            .max(Fixed6Lib.ZERO);
-        UFixed6 fee = self.maker.abs().mul(latestVersion.price.abs()).mul(UFixed6Lib.from(makerFee))
-            .add(self.long.abs().add(self.short.abs()).mul(latestVersion.price.abs()).mul(UFixed6Lib.from(takerFee)));
+            .add(Fixed6Lib.from(riskParameter.takerImpactFee).mul(self.impact));
+        Fixed6 fee = Fixed6Lib.from(self.maker.abs().mul(latestVersion.price.abs())).mul(makerFee)
+            .add(Fixed6Lib.from(self.long.abs().add(self.short.abs()).mul(latestVersion.price.abs())).mul(takerFee));
 
-        self.fee = marketParameter.closed ? UFixed6Lib.ZERO : fee;
+        self.fee = marketParameter.closed ? Fixed6Lib.ZERO : fee;
         self.keeper = isEmpty(self) ? UFixed6Lib.ZERO : marketParameter.settlementFee;
     }
 

@@ -67,7 +67,7 @@ describe('Happy Path', () => {
       },
       minMargin: parse6decimal('500'),
       minMaintenance: parse6decimal('500'),
-      virtualTaker: parse6decimal('10000'),
+      skewScale: parse6decimal('10000'),
       staleAfter: 7200,
       makerReceiveOnly: false,
     }
@@ -436,6 +436,7 @@ describe('Happy Path', () => {
     const { user, userB, dsu, chainlink } = instanceVars
 
     const market = await createMarket(instanceVars)
+    await market.updateRiskParameter({ ...(await market.riskParameter()), skewScale: parse6decimal('0.00001') })
     await dsu.connect(user).approve(market.address, COLLATERAL.mul(1e12))
     await dsu.connect(userB).approve(market.address, COLLATERAL.mul(1e12))
 
@@ -564,6 +565,7 @@ describe('Happy Path', () => {
     const { user, userB, dsu, chainlink } = instanceVars
 
     const market = await createMarket(instanceVars)
+    await market.updateRiskParameter({ ...(await market.riskParameter()), skewScale: parse6decimal('0.00001') })
     await dsu.connect(user).approve(market.address, COLLATERAL.mul(1e12))
     await dsu.connect(userB).approve(market.address, COLLATERAL.mul(1e12))
 
@@ -839,6 +841,7 @@ describe('Happy Path', () => {
     const { user, userB, dsu, chainlink } = instanceVars
 
     const market = await createMarket(instanceVars)
+    await market.updateRiskParameter({ ...(await market.riskParameter()), skewScale: parse6decimal('0.00001') })
     await dsu.connect(user).approve(market.address, COLLATERAL.mul(1e12))
     await dsu.connect(userB).approve(market.address, COLLATERAL.mul(1e12))
 
@@ -867,6 +870,7 @@ describe('Happy Path', () => {
     const { user, userB, dsu, chainlink } = instanceVars
 
     const market = await createMarket(instanceVars)
+    await market.updateRiskParameter({ ...(await market.riskParameter()), skewScale: parse6decimal('0.00001') })
     await dsu.connect(user).approve(market.address, COLLATERAL.mul(1e12))
     await dsu.connect(userB).approve(market.address, COLLATERAL.mul(1e12))
 
@@ -921,7 +925,7 @@ describe('Happy Path', () => {
       },
       minMargin: parse6decimal('500'),
       minMaintenance: parse6decimal('500'),
-      virtualTaker: parse6decimal('10000'),
+      skewScale: parse6decimal('10000'),
       staleAfter: 7200,
       makerReceiveOnly: false,
     }
@@ -1062,7 +1066,7 @@ describe('Happy Path', () => {
       },
       minMargin: parse6decimal('500'),
       minMaintenance: parse6decimal('500'),
-      virtualTaker: parse6decimal('10000'),
+      skweScale: parse6decimal('10000'),
       staleAfter: 100000, // enable long delays for testing
       makerReceiveOnly: false,
     }

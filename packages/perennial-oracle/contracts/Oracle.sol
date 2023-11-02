@@ -27,8 +27,7 @@ contract Oracle is IOracle, Instance {
     /// @notice Updates the current oracle provider
     /// @dev Both the current and new oracle provider must have the same current
     /// @param newProvider The new oracle provider
-    function update(IOracleProvider newProvider) external {
-        if (msg.sender != address(factory())) revert OracleNotFactoryError();
+    function update(IOracleProvider newProvider) external onlyFactory {
         _updateCurrent(newProvider);
         _updateLatest(newProvider.latest());
     }
