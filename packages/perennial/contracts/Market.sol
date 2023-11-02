@@ -23,10 +23,10 @@ contract Market is IMarket, Instance, ReentrancyGuard {
     IPayoffProvider public payoff;
 
     /// @dev Beneficiary of the market, receives donations
-    address public beneficiary;
+    address private beneficiary;
 
     /// @dev Risk coordinator of the market
-    address public coordinator;
+    address private coordinator;
 
     /// @dev Risk parameters of the market
     RiskParameterStorage private _riskParameter;
@@ -493,7 +493,8 @@ contract Market is IMarket, Instance, ReentrancyGuard {
                 context.riskParameter,
                 collateralAfterFees.sub(collateral)
             ) ||
-            collateral.lt(Fixed6Lib.from(-1, _liquidationFee(context, newOrder)))
+            collateral.lt(Fixed6Lib.from(-1, _liquidationFee(context, newOrder))) ||
+            newOrder.maker.add(newOrder.long).add(newOrder.short).gte(Fixed6Lib.ZERO)
         )) revert MarketInvalidProtectionError();
 
         if (context.currentTimestamp - context.latestVersion.timestamp >= context.riskParameter.staleAfter)
