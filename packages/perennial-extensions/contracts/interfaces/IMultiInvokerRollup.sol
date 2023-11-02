@@ -2,11 +2,11 @@
 pragma solidity ^0.8.13;
 
 import "./IMultiInvoker.sol";
+import "../types/packedBytes/PackedCalldataLib.sol";
+import { PackedFixedLib } from "../types/packedBytes/rootNumber/PackedFixedLib.sol";
+import { PackedUFixedLib } from "../types/packedBytes/rootNumber/PackedUFixedLib.sol";
 
 interface IMultiInvokerRollup is IMultiInvoker {
-    struct PTR {
-        uint256 pos;
-    }
 
     event AddressAddedToCache(address indexed value, uint256 index);
 
