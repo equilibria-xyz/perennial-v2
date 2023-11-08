@@ -3,6 +3,7 @@ pragma solidity ^0.8.13;
 
 import "./MultiInvoker.sol";
 import "./interfaces/IMultiInvokerRollup.sol";
+import "hardhat/console.sol";
 
 contract MultiInvokerRollup is IMultiInvokerRollup, MultiInvoker {
     using PackedFixedLib for PTR;
@@ -34,8 +35,9 @@ contract MultiInvokerRollup is IMultiInvokerRollup, MultiInvoker {
         IFactory vaultFactory_,
         IBatcher batcher_,
         IEmptySetReserve reserve_,
-        UFixed6 keeperMultiplier_
-    ) MultiInvoker (usdc_, dsu_, marketFactory_, vaultFactory_, batcher_, reserve_, keeperMultiplier_) {
+        uint256 keepBufferBase_,
+        uint256 keepBufferCalldata_
+    ) MultiInvoker (usdc_, dsu_, marketFactory_, vaultFactory_, batcher_, reserve_, keepBufferBase_, keepBufferCalldata_) {
         _cacheAddress(address(0)); // Cache 0-address to avoid 0-index lookup collision
     }
 

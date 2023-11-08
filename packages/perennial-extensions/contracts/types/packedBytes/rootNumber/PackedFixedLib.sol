@@ -14,7 +14,7 @@ library PackedFixedLib {
 
   function readFixed6(PTR memory ptr, bytes calldata input) internal pure returns (Fixed6 result) {
       int8 sign = ptr.readSign(input);
-      result = Fixed6Lib.from(ptr.readInt256WithMagicValues(sign, input));
+      result = Fixed6.wrap(ptr.readInt256WithMagicValues(sign, input));
   }
 
   function readInt256WithMagicValues(PTR memory ptr, int8 sign, bytes calldata input) internal pure returns (int256 result) {
@@ -25,7 +25,7 @@ library PackedFixedLib {
     }
 
     result = int256(ptr.bytesToUint256(len, input));
-    if (sign > 0) result *= -1;
+    result *= sign;
     ptr.pos += len;
   }
 }

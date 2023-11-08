@@ -52,7 +52,7 @@ library PackedCalldataLib {
     // TODO can pack sign into length byte
     function readSign(PTR memory ptr, bytes calldata input) internal pure returns (int8 sign) {
         uint8 val = ptr.readUint8(input);
-        if(val > 0) return -1;
+        if (val > 0) return -1;
         return 1;
     }
 
