@@ -1,14 +1,15 @@
 import { BigNumber, BigNumberish, utils } from 'ethers'
 import { IMultiInvoker } from '../../types/generated'
-import { InterfaceFeeStruct, TriggerOrderStruct } from '../../types/generated/contracts/MultiInvoker'
 import { ethers } from 'hardhat'
-import { MAX_INT, MAX_UINT, MIN_INT } from './invoke'
+import { MAX_INT, MAX_UINT } from './invoke'
+import { InterfaceFeeStruct, TriggerOrderStruct } from './types'
 
 export type Actions = IMultiInvoker.InvocationStruct[]
 
 const MAGIC_BYTE = '0x49'
+const MIN_INT = ethers.constants.MinInt256
 
-export const buildUpdateMarket = async ({
+export const buildUpdateMarket = ({
   market,
   marketIndex,
   maker,
@@ -28,7 +29,9 @@ export const buildUpdateMarket = async ({
   handleWrap?: boolean
   interfaceFee?: InterfaceFeeStruct
   interfaceFeeReceiverIndex?: BigNumberish
-}): Promise<string> => {
+}): string => {
+  if (!interfaceFee) interfaceFee = { amount: 0, receiver: '0x0000000000000000000000000000000000000000', unwrap: false }
+
   return (
     MAGIC_BYTE +
     '01' +
@@ -38,13 +41,13 @@ export const buildUpdateMarket = async ({
     encodeUFixed(short ?? MAX_UINT) +
     encodeFixed(collateral ?? MAX_INT) +
     encodeBool(handleWrap ?? false) +
-    encodeUFixed(await (interfaceFee ? interfaceFee.amount : 0)) + // TODO remove promise
-    encodeAddressOrCacheIndex(interfaceFeeReceiverIndex ?? 0, await interfaceFee?.receiver) +
-    encodeBool(await (interfaceFee ? interfaceFee.unwrap : false))
+    encodeUFixed(interfaceFee.amount ?? 0) + // TODO remove promise
+    encodeAddressOrCacheIndex(interfaceFeeReceiverIndex ?? 0, interfaceFee.receiver) +
+    encodeBool(interfaceFee.unwrap ?? false)
   )
 }
 
-export const buildPlaceOrder = async ({
+export const buildPlaceOrder = ({
   market,
   marketIndex,
   maker,
@@ -64,7 +67,8 @@ export const buildPlaceOrder = async ({
   handleWrap?: boolean
   order: TriggerOrderStruct
   interfaceFeeReceiverIndex?: BigNumberish
-}): Promise<string> => {
+}): string => {
+  console.log('HERE')
   return (
     MAGIC_BYTE +
       '01' +
@@ -79,14 +83,14 @@ export const buildPlaceOrder = async ({
       encodeBool(false) +
       '03' +
       encodeAddressOrCacheIndex(marketIndex ?? 0, market) +
-      encodeUint8(await order.side) + // TODO fix promise
-      encodeInt8(await order.comparison) +
-      encodeUint(await order.fee) +
-      encodeInt(await order.price) +
-      encodeFixed(await order.delta) +
-      encodeUint(await order.interfaceFee.amount) +
-      encodeAddressOrCacheIndex(interfaceFeeReceiverIndex ?? 0, await order.interfaceFee.receiver),
-    encodeBool(await order.interfaceFee.unwrap)
+      encodeUint8(order.side) + // TODO fix promise
+      encodeInt8(order.comparison) +
+      encodeUint(order.fee) +
+      encodeInt(order.price) +
+      encodeFixed(order.delta) +
+      encodeUint(order.interfaceFee.amount) +
+      encodeAddressOrCacheIndex(interfaceFeeReceiverIndex ?? 0, order.interfaceFee.receiver),
+    encodeBool(order.interfaceFee.unwrap)
   )
 }
 
@@ -132,7 +136,13 @@ export const buildLiquidateUser = ({
   )
 }
 
-export const buildApproveTarget = (target?: string, targetIndex?: BigNumberish): string => {
+export const buildApproveTarget = ({
+  target,
+  targetIndex,
+}: {
+  target?: string
+  targetIndex?: BigNumberish
+}): string => {
   return MAGIC_BYTE + '08' + encodeAddressOrCacheIndex(targetIndex ?? 0, target)
 }
 
@@ -195,8 +205,9 @@ export const encodeUint = (uint: BigNumberish): string => {
 
 export const encodeInt = (int: BigNumberish): string => {
   const _int = BigNumber.from(int)
+
   if (_int.eq(0)) return '00'
-  if (_int.lt(0)) return '01' + toHex((_int._hex.length - 2) / 2) + toHex(_int._hex)
+  if (_int.lt(0)) return '01' + toHex((_int.mul(-1)._hex.length - 2) / 2) + toHex(_int.mul(-1)._hex)
   return '00' + toHex((_int._hex.length - 2) / 2) + toHex(_int._hex)
 }
 
@@ -225,7 +236,6 @@ export const encodeAddressOrCacheIndex = (
   // contract reads the next 20 bytes into an address when given an address length of 0
   if (address) return '00' + address.slice(2)
 
-  //
   return encodeUint(cacheIndex)
 }
 

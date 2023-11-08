@@ -3,7 +3,6 @@ import { IMarket, PositionStruct } from '../../types/generated/@equilibria/peren
 import { FakeContract } from '@defi-wonderland/smock'
 import { SignerWithAddress } from '@nomiclabs/hardhat-ethers/signers'
 import { LocalStruct } from '@equilibria/perennial-v2/types/generated/contracts/Market'
-import { InterfaceFeeStruct, TriggerOrderStruct } from '../../types/generated/contracts/MultiInvoker'
 import { parse6decimal } from '../../../common/testutil/types'
 
 export function setMarketPosition(
@@ -46,11 +45,26 @@ export enum Compare {
   BELOW_MARKET = 1,
 }
 
+export type InterfaceFeeStruct = {
+  amount: BigNumberish
+  receiver: string | undefined
+  unwrap: boolean
+}
+
 export type TriggerOrder = {
   side: number
   fee: BigNumberish
   price: BigNumberish
   delta: BigNumberish
+}
+
+export type TriggerOrderStruct = {
+  side: BigNumberish
+  comparison: BigNumberish
+  fee: BigNumberish
+  price: BigNumberish
+  delta: BigNumberish
+  interfaceFee: InterfaceFeeStruct
 }
 
 export const openTriggerOrder = ({
