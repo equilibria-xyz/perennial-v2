@@ -115,6 +115,10 @@ describe('MultiInvoker_Arbitrum', () => {
     await multiInvoker.initialize(invokerOracle.address)
   })
 
+  afterEach(async () => {
+    await ethers.HRE.ethers.provider.send('hardhat_setNextBlockBaseFeePerGas', ['0x1'])
+  })
+
   describe('#invoke', () => {
     const collateral = parse6decimal('10000')
     const dsuCollateral = collateral.mul(1e12)
@@ -133,7 +137,6 @@ describe('MultiInvoker_Arbitrum', () => {
 
     beforeEach(async () => {
       await loadFixture(fixture)
-      await ethers.HRE.ethers.provider.send('hardhat_setNextBlockBaseFeePerGas', ['0x1'])
     })
 
     it('deposits collateral', async () => {
