@@ -133,6 +133,7 @@ describe('MultiInvoker_Arbitrum', () => {
 
     beforeEach(async () => {
       await loadFixture(fixture)
+      await ethers.HRE.ethers.provider.send('hardhat_setNextBlockBaseFeePerGas', ['0x1'])
     })
 
     it('deposits collateral', async () => {

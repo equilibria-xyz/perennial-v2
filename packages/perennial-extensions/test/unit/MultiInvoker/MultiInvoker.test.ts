@@ -125,7 +125,6 @@ describe('MultiInvoker', () => {
     }
 
     beforeEach(async () => {
-      await ethers.HRE.ethers.provider.send('hardhat_setNextBlockBaseFeePerGas', ['0x1'])
       await loadFixture(fixture)
     })
 
