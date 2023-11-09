@@ -8,7 +8,8 @@ import "./MultiInvoker.sol";
 /// @notice Arbitrum Kept MultiInvoker implementation.
 /// @dev Additionally incentivizes keepers with L1 rollup fees according to the Arbitrum spec
 contract MultiInvoker_Arbitrum is MultiInvoker, Kept_Arbitrum {
-    constructor(Token6 usdc_,
+    constructor(
+        Token6 usdc_,
         Token18 dsu_,
         IFactory marketFactory_,
         IFactory vaultFactory_,
