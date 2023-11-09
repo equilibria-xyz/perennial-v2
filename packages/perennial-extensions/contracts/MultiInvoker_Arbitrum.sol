@@ -14,7 +14,8 @@ contract MultiInvoker_Arbitrum is MultiInvoker, Kept_Arbitrum {
         IFactory vaultFactory_,
         IBatcher batcher_,
         IEmptySetReserve reserve_,
-        UFixed6 keeperMultiplier_) MultiInvoker(usdc_, dsu_, marketFactory_, vaultFactory_, batcher_, reserve_, keeperMultiplier_) { }
+        UFixed6 keeperMultiplier_
+    ) MultiInvoker(usdc_, dsu_, marketFactory_, vaultFactory_, batcher_, reserve_, keeperMultiplier_) { }
 
     /// @dev Use the Kept_Arbitrum implementation for calculating the dynamic fee
     function _calculateDynamicFee(bytes memory callData) internal view override(Kept_Arbitrum, Kept) returns (UFixed18) {
