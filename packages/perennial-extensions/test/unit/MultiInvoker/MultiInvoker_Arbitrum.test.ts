@@ -5,8 +5,6 @@ import HRE from 'hardhat'
 import { BigNumber, constants, utils } from 'ethers'
 
 import {
-  MultiInvoker,
-  MultiInvoker__factory,
   IMarket,
   IBatcher,
   IEmptySetReserve,
@@ -16,6 +14,9 @@ import {
   IVaultFactory,
   IVault,
   IOracleProvider,
+  MultiInvoker_Arbitrum__factory,
+  MultiInvoker_Arbitrum,
+  ArbGasInfo,
 } from '../../../types/generated'
 import { OracleVersionStruct } from '@equilibria/perennial-v2-oracle/types/generated/contracts/Oracle'
 import { PositionStruct } from '@equilibria/perennial-v2/types/generated/contracts/Market'
@@ -37,7 +38,7 @@ import { anyValue } from '@nomicfoundation/hardhat-chai-matchers/withArgs'
 const ethers = { HRE }
 use(smock.matchers)
 
-describe('MultiInvoker', () => {
+describe('MultiInvoker_Arbitrum', () => {
   let owner: SignerWithAddress
   let user: SignerWithAddress
   let usdc: FakeContract<IERC20>
@@ -50,7 +51,7 @@ describe('MultiInvoker', () => {
   let reserve: FakeContract<IEmptySetReserve>
   let marketFactory: FakeContract<IMarketFactory>
   let vaultFactory: FakeContract<IVaultFactory>
-  let multiInvoker: MultiInvoker
+  let multiInvoker: MultiInvoker_Arbitrum
 
   const multiInvokerFixture = async () => {
     ;[owner, user] = await ethers.HRE.ethers.getSigners()
@@ -70,7 +71,7 @@ describe('MultiInvoker', () => {
     marketFactory = await smock.fake<IMarketFactory>('IMarketFactory')
     vaultFactory = await smock.fake<IVaultFactory>('IVaultFactory')
 
-    multiInvoker = await new MultiInvoker__factory(owner).deploy(
+    multiInvoker = await new MultiInvoker_Arbitrum__factory(owner).deploy(
       usdc.address,
       dsu.address,
       marketFactory.address,
@@ -79,6 +80,12 @@ describe('MultiInvoker', () => {
       reserve.address,
       parse6decimal('1.4'),
     )
+
+    // Mock L1 gas pricing
+    const gasInfo = await smock.fake<ArbGasInfo>('ArbGasInfo', {
+      address: '0x000000000000000000000000000000000000006C',
+    })
+    gasInfo.getL1BaseFeeEstimate.returns(0)
 
     // Default mkt price: 1150
     const oracleVersion: OracleVersionStruct = {
