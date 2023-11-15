@@ -503,8 +503,10 @@ contract Market is IMarket, Instance, ReentrancyGuard {
         if (context.marketParameter.closed && newOrder.increasesPosition())
             revert MarketClosedError();
 
-        if (context.currentPosition.global.maker.gt(context.riskParameter.makerLimit))
-            revert MarketMakerOverLimitError();
+        if (
+            context.currentPosition.global.maker.gt(context.riskParameter.makerLimit) &&
+            newOrder.maker.gt(Fixed6Lib.ZERO)
+        ) revert MarketMakerOverLimitError();
 
         if (!newOrder.singleSided(context.currentPosition.local) || !newOrder.singleSided(context.latestPosition.local))
             revert MarketNotSingleSidedError();
