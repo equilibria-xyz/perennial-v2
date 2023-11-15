@@ -783,7 +783,7 @@ describe('Vault', () => {
       expect(await vault.totalAssets()).to.equal(0)
     })
 
-    it('max redeem with close limited', async () => {
+    it('max redeem with close limited (1st market)', async () => {
       const largeDeposit = parse6decimal('10000')
 
       await vault.connect(user).update(user.address, largeDeposit, 0, 0)
@@ -815,6 +815,46 @@ describe('Vault', () => {
       const redeemAvailable = await vault.convertToShares(
         originalOraclePrice.mul(makerAvailable).mul(5).div(4).div(leverage),
       )
+
+      await expect(
+        vault.connect(user).update(user.address, 0, redeemAvailable.add(1), 0),
+      ).to.be.revertedWithCustomError(vault, 'VaultRedemptionLimitExceededError')
+
+      await expect(vault.connect(user).update(user.address, 0, redeemAvailable, 0)).to.not.be.reverted
+    })
+
+    it('max redeem with close limited (2nd market)', async () => {
+      const largeDeposit = parse6decimal('10000')
+
+      await vault.connect(user).update(user.address, largeDeposit, 0, 0)
+      await updateOracle()
+      await vault.settle(user.address)
+
+      const currentPosition = await btcMarket.pendingPosition((await btcMarket.global()).currentId)
+      const currentNet = currentPosition.long.sub(currentPosition.short).abs()
+
+      // Open taker position up to 100% utilization minus 0.1 BTC
+      await asset.connect(perennialUser).approve(btcMarket.address, constants.MaxUint256)
+      await btcMarket
+        .connect(perennialUser)
+        .update(
+          perennialUser.address,
+          0,
+          currentPosition.maker.sub(currentNet).sub(parse6decimal('0.1')),
+          0,
+          parse6decimal('1000000'),
+          false,
+        )
+
+      // Settle the take position
+      await updateOracle()
+      await vault.settle(user.address)
+
+      // The vault can close 1 BTC of maker positions in the BTC market, which means the user can redeem 5/1 this amount
+      const makerAvailable = BigNumber.from(100000)
+      const redeemAvailable = (
+        await vault.convertToShares(btcOriginalOraclePrice.mul(makerAvailable).mul(5).div(1).div(leverage))
+      ).sub(1)
 
       await expect(
         vault.connect(user).update(user.address, 0, redeemAvailable.add(1), 0),
