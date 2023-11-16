@@ -515,9 +515,13 @@ contract Vault is IVault, Instance {
                 (marketContext.latestAccountPosition.isZero() && marketContext.currentAccountPosition.isZero())
             ) continue;
 
-            UFixed6 collateral = marketContext.currentPosition
+            UFixed6 availableClosable = marketContext.currentPosition
                 .sub(marketContext.currentNet.min(marketContext.currentPosition))           // available maker
-                .min(_closablePosition(context, marketId).mul(StrategyLib.LEVERAGE_BUFFER)) // available closable
+                .min(_closablePosition(context, marketId));                                 // available closable
+
+            if (availableClosable.gte(marketContext.currentAccountPosition)) continue;      // entire position can be closed, don't limit in cases of price deviation
+
+            UFixed6 collateral = availableClosable
                 .muldiv(marketContext.latestPrice, registration.leverage)                   // available collateral
                 .muldiv(context.totalWeight, registration.weight);                          // collateral in market
 
