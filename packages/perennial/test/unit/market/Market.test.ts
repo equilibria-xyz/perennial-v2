@@ -598,7 +598,7 @@ describe('Market', () => {
       })
 
       it('reverts if not owner (coordinator)', async () => {
-        await market.connect(owner).updateParameter(beneficiary.address, coordinator.address, marketParameter)
+        await market.connect(owner).updateParameter(beneficiary.address, coordinator.address, await market.parameter())
         await expect(
           market.connect(coordinator).updateParameter(beneficiary.address, coordinator.address, marketParameter),
         ).to.be.revertedWithCustomError(market, 'InstanceNotOwnerError')
@@ -671,7 +671,7 @@ describe('Market', () => {
       })
 
       it('updates the parameters (coordinator)', async () => {
-        await market.connect(owner).updateParameter(beneficiary.address, coordinator.address, marketParameter)
+        await market.connect(owner).updateParameter(beneficiary.address, coordinator.address, await market.parameter())
         await expect(market.connect(coordinator).updateRiskParameter(defaultRiskParameter)).to.emit(
           market,
           'RiskParameterUpdated',
