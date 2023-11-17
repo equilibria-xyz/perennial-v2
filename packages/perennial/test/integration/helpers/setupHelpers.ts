@@ -1,6 +1,6 @@
 import { SignerWithAddress } from '@nomiclabs/hardhat-ethers/signers'
 import HRE from 'hardhat'
-import { utils, ContractTransaction } from 'ethers'
+import { utils, ContractTransaction, constants } from 'ethers'
 
 import { impersonate } from '../../../../common/testutil'
 import {
@@ -256,9 +256,8 @@ export async function createMarket(
 
   const market = Market__factory.connect(marketAddress, owner)
   await market.updateRiskParameter(riskParameter)
-  await market.updateBeneficiary(beneficiaryB.address)
   await market.updateReward(rewardToken.address)
-  await market.updateParameter(marketParameter)
+  await market.updateParameter(beneficiaryB.address, constants.AddressZero, marketParameter)
 
   return market
 }

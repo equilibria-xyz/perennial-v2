@@ -1,6 +1,7 @@
 import { expect } from 'chai'
 import 'hardhat'
-import { BigNumber } from 'ethers'
+import { BigNumber, constants } from 'ethers'
+const { AddressZero } = constants
 
 import { InstanceVars, deployProtocol, createMarket, settle } from '../helpers/setupHelpers'
 import {
@@ -103,8 +104,7 @@ describe('Happy Path', () => {
     await expect(marketFactory.create(definition)).to.emit(marketFactory, 'MarketCreated')
     const market = Market__factory.connect(marketAddress, owner)
     await market.connect(owner).updateRiskParameter(riskParameter)
-    await market.connect(owner).updateParameter(parameter)
-    await market.connect(owner).updateBeneficiary(beneficiaryB.address)
+    await market.connect(owner).updateParameter(beneficiaryB.address, AddressZero, parameter)
   })
 
   it('opens a make position', async () => {
@@ -956,7 +956,7 @@ describe('Happy Path', () => {
 
     const POSITION = parse6decimal('0.0001')
     const COLLATERAL = parse6decimal('1000')
-    const { user, userB, dsu, chainlink, oracle, payoff } = instanceVars
+    const { user, userB, dsu, chainlink, beneficiaryB, oracle, payoff } = instanceVars
 
     const riskParameter = {
       margin: parse6decimal('0.3'),
@@ -1005,7 +1005,7 @@ describe('Happy Path', () => {
     }
 
     const market = await createMarket(instanceVars)
-    await market.updateParameter(parameter)
+    await market.updateParameter(beneficiaryB.address, AddressZero, parameter)
     await market.updateRiskParameter(riskParameter)
 
     await dsu.connect(user).approve(market.address, COLLATERAL.mul(2).mul(1e12))
@@ -1097,7 +1097,7 @@ describe('Happy Path', () => {
       delay,
     ).init()
     const instanceVars = await deployProtocol(chainlink)
-    const { user, userB, dsu, oracle } = instanceVars
+    const { user, userB, dsu, beneficiaryB, oracle } = instanceVars
 
     const riskParameter = {
       margin: parse6decimal('0.3'),
@@ -1146,7 +1146,7 @@ describe('Happy Path', () => {
     }
 
     const market = await createMarket(instanceVars)
-    await market.updateParameter(parameter)
+    await market.updateParameter(beneficiaryB.address, AddressZero, parameter)
     await market.updateRiskParameter(riskParameter)
 
     await dsu.connect(user).approve(market.address, COLLATERAL.mul(2).mul(1e12))

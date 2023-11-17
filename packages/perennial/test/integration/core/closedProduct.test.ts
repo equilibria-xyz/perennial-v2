@@ -1,6 +1,7 @@
 import { expect } from 'chai'
 import 'hardhat'
-import { BigNumber } from 'ethers'
+import { BigNumber, constants } from 'ethers'
+const { AddressZero } = constants
 
 import { InstanceVars, deployProtocol, createMarket, settle } from '../helpers/setupHelpers'
 import { Market } from '../../../types/generated'
@@ -20,7 +21,7 @@ describe('Closed Market', () => {
   it('closes the market', async () => {
     const POSITION = parse6decimal('0.0001')
     const COLLATERAL = parse6decimal('1000')
-    const { owner, user, dsu, chainlink } = instanceVars
+    const { owner, user, dsu, chainlink, beneficiaryB } = instanceVars
 
     const market = await createMarket(instanceVars)
     await dsu.connect(user).approve(market.address, COLLATERAL.mul(1e12))
@@ -35,7 +36,7 @@ describe('Closed Market', () => {
     await chainlink.next()
     const parameters = { ...(await market.parameter()) }
     parameters.closed = true
-    await market.updateParameter(parameters)
+    await market.updateParameter(beneficiaryB.address, AddressZero, parameters)
 
     expect((await market.parameter()).closed).to.be.true
   })
@@ -46,7 +47,7 @@ describe('Closed Market', () => {
     const COLLATERAL = parse6decimal('1000')
 
     beforeEach(async () => {
-      const { user, userB, dsu } = instanceVars
+      const { user, userB, dsu, beneficiaryB } = instanceVars
 
       market = await createMarket(instanceVars)
       await dsu.connect(user).approve(market.address, COLLATERAL.mul(1e12))
@@ -55,7 +56,7 @@ describe('Closed Market', () => {
       await market.connect(userB).update(userB.address, 0, POSITION, 0, COLLATERAL, false)
       const parameters = { ...(await market.parameter()) }
       parameters.closed = true
-      await market.updateParameter(parameters)
+      await market.updateParameter(beneficiaryB.address, AddressZero, parameters)
     })
 
     it('reverts on new open positions', async () => {
@@ -78,7 +79,7 @@ describe('Closed Market', () => {
   it('zeroes PnL and fees', async () => {
     const POSITION = parse6decimal('0.0001')
     const COLLATERAL = parse6decimal('1000')
-    const { user, userB, chainlink, dsu } = instanceVars
+    const { user, userB, chainlink, dsu, beneficiaryB } = instanceVars
 
     const market = await createMarket(instanceVars)
     await dsu.connect(user).approve(market.address, COLLATERAL.mul(1e12))
@@ -90,7 +91,7 @@ describe('Closed Market', () => {
     await chainlink.next()
     const parameters = { ...(await market.parameter()) }
     parameters.closed = true
-    await market.updateParameter(parameters)
+    await market.updateParameter(beneficiaryB.address, AddressZero, parameters)
     await settle(market, user)
     await settle(market, userB)
 
@@ -119,7 +120,7 @@ describe('Closed Market', () => {
   it('handles closing during liquidations', async () => {
     const POSITION = parse6decimal('0.0001')
     const COLLATERAL = parse6decimal('1000')
-    const { user, userB, chainlink, dsu } = instanceVars
+    const { user, userB, chainlink, dsu, beneficiaryB } = instanceVars
 
     const market = await createMarket(instanceVars)
     await dsu.connect(user).approve(market.address, COLLATERAL.mul(1e12))
@@ -133,7 +134,7 @@ describe('Closed Market', () => {
     expect((await market.locals(user.address)).protection).to.eq(TIMESTAMP_3)
     const parameters = { ...(await market.parameter()) }
     parameters.closed = true
-    await market.updateParameter(parameters)
+    await market.updateParameter(beneficiaryB.address, AddressZero, parameters)
     await chainlink.next()
 
     await settle(market, user)

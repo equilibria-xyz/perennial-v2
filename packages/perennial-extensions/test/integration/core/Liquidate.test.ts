@@ -1,6 +1,7 @@
 import { expect } from 'chai'
 import 'hardhat'
 import { BigNumber, constants, utils } from 'ethers'
+const { AddressZero } = constants
 
 import { InstanceVars, deployProtocol, createMarket, createInvoker } from '../helpers/setupHelpers'
 import { parse6decimal } from '../../../../common/testutil/types'
@@ -149,14 +150,14 @@ describe('Liquidate', () => {
   it('Liquidate a user when price drops after in-state latest', async () => {
     const POSITION = parse6decimal('0.0001')
     const COLLATERAL = parse6decimal('1000')
-    const { user, userB, dsu, chainlink } = instanceVars
+    const { user, userB, dsu, chainlink, beneficiaryB } = instanceVars
 
     const multiInvoker = await createInvoker(instanceVars)
     const market = await createMarket(instanceVars)
 
     const protocolParameter = { ...(await instanceVars.marketFactory.parameter()) }
     protocolParameter.maxFeeAbsolute = parse6decimal('1000000')
-    await instanceVars.marketFactory.updateParameter(protocolParameter)
+    await instanceVars.marketFactory.updateParameter(beneficiaryB.address, AddressZero, protocolParameter)
 
     const riskParameter = { ...(await market.riskParameter()) }
     riskParameter.minMaintenance = parse6decimal('0')

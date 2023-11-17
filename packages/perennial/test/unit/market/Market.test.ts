@@ -545,21 +545,6 @@ describe('Market', () => {
       })
     })
 
-    describe('#updateCoordinator', async () => {
-      it('updates the coordinator', async () => {
-        await expect(market.connect(owner).updateCoordinator(coordinator.address))
-          .to.emit(market, 'CoordinatorUpdated')
-          .withArgs(coordinator.address)
-      })
-
-      it('reverts if not owner', async () => {
-        await expect(market.connect(user).updateCoordinator(coordinator.address)).to.be.revertedWithCustomError(
-          market,
-          'InstanceNotOwnerError',
-        )
-      })
-    })
-
     describe('#updateParameter', async () => {
       const defaultMarketParameter = {
         fundingFee: parse6decimal('0.03'),
@@ -581,7 +566,13 @@ describe('Market', () => {
       it('updates the parameters', async () => {
         await market.connect(owner).updateReward(reward.address)
 
-        await expect(market.connect(owner).updateParameter(defaultMarketParameter))
+        await expect(
+          market.connect(owner).updateParameter(beneficiary.address, coordinator.address, defaultMarketParameter),
+        )
+          .to.emit(market, 'BeneficiaryUpdated')
+          .withArgs(beneficiary.address)
+          .to.emit(market, 'CoordinatorUpdated')
+          .withArgs(coordinator.address)
           .to.emit(market, 'ParameterUpdated')
           .withArgs(defaultMarketParameter)
 
@@ -601,18 +592,16 @@ describe('Market', () => {
       })
 
       it('reverts if not owner (user)', async () => {
-        await expect(market.connect(user).updateParameter(marketParameter)).to.be.revertedWithCustomError(
-          market,
-          'InstanceNotOwnerError',
-        )
+        await expect(
+          market.connect(user).updateParameter(beneficiary.address, coordinator.address, marketParameter),
+        ).to.be.revertedWithCustomError(market, 'InstanceNotOwnerError')
       })
 
       it('reverts if not owner (coordinator)', async () => {
-        await market.connect(owner).updateCoordinator(coordinator.address)
-        await expect(market.connect(coordinator).updateParameter(marketParameter)).to.be.revertedWithCustomError(
-          market,
-          'InstanceNotOwnerError',
-        )
+        await market.connect(owner).updateParameter(beneficiary.address, coordinator.address, marketParameter)
+        await expect(
+          market.connect(coordinator).updateParameter(beneficiary.address, coordinator.address, marketParameter),
+        ).to.be.revertedWithCustomError(market, 'InstanceNotOwnerError')
       })
     })
 
@@ -682,7 +671,7 @@ describe('Market', () => {
       })
 
       it('updates the parameters (coordinator)', async () => {
-        await market.connect(owner).updateCoordinator(coordinator.address)
+        await market.connect(owner).updateParameter(beneficiary.address, coordinator.address, marketParameter)
         await expect(market.connect(coordinator).updateRiskParameter(defaultRiskParameter)).to.emit(
           market,
           'RiskParameterUpdated',
@@ -723,25 +712,10 @@ describe('Market', () => {
       })
     })
 
-    describe('#updateBeneficiary', async () => {
-      it('updates the beneficiary', async () => {
-        await expect(market.connect(owner).updateBeneficiary(beneficiary.address))
-          .to.emit(market, 'BeneficiaryUpdated')
-          .withArgs(beneficiary.address)
-      })
-
-      it('reverts if not owner', async () => {
-        await expect(market.connect(user).updateBeneficiary(beneficiary.address)).to.be.revertedWithCustomError(
-          market,
-          'InstanceNotOwnerError',
-        )
-      })
-    })
-
     describe('#update', async () => {
       beforeEach(async () => {
         await market.connect(owner).updateReward(reward.address)
-        await market.connect(owner).updateParameter(marketParameter)
+        await market.connect(owner).updateParameter(beneficiary.address, coordinator.address, marketParameter)
 
         oracle.at.whenCalledWith(ORACLE_VERSION_0.timestamp).returns(ORACLE_VERSION_0)
         oracle.at.whenCalledWith(ORACLE_VERSION_1.timestamp).returns(ORACLE_VERSION_1)
@@ -1391,7 +1365,7 @@ describe('Market', () => {
 
             const marketParameter = { ...(await market.parameter()) }
             marketParameter.settlementFee = parse6decimal('0.50')
-            await market.updateParameter(marketParameter)
+            await market.updateParameter(beneficiary.address, coordinator.address, marketParameter)
 
             const MAKER_FEE = parse6decimal('3.075') // position * (0.005 - 0.0025) * price
             const SETTLEMENT_FEE = parse6decimal('0.50')
@@ -1971,7 +1945,7 @@ describe('Market', () => {
 
               const marketParameter = { ...(await market.parameter()) }
               marketParameter.settlementFee = parse6decimal('0.50')
-              await market.updateParameter(marketParameter)
+              await market.updateParameter(beneficiary.address, coordinator.address, marketParameter)
 
               const MAKER_FEE = parse6decimal('9.225') // position * (0.005 + 0.0025) * price
               const MAKER_FEE_FEE = MAKER_FEE.div(10)
@@ -2534,7 +2508,7 @@ describe('Market', () => {
 
               const marketParameter = { ...(await market.parameter()) }
               marketParameter.settlementFee = parse6decimal('0.50')
-              await market.updateParameter(marketParameter)
+              await market.updateParameter(beneficiary.address, coordinator.address, marketParameter)
 
               const TAKER_FEE = parse6decimal('9.84') // position * (0.01 + 0.004 + 0.002) * price
               const SETTLEMENT_FEE = parse6decimal('0.50')
@@ -2650,7 +2624,7 @@ describe('Market', () => {
 
               const marketParameter = { ...(await market.parameter()) }
               marketParameter.settlementFee = parse6decimal('0.50')
-              await market.updateParameter(marketParameter)
+              await market.updateParameter(beneficiary.address, coordinator.address, marketParameter)
 
               const TAKER_FEE = parse6decimal('9.84') // position * (0.01 + 0.004 + 0.002) * price
               const TAKER_FEE_FEE = TAKER_FEE.div(10)
@@ -3457,7 +3431,7 @@ describe('Market', () => {
 
                 const marketParameter = { ...(await market.parameter()) }
                 marketParameter.settlementFee = parse6decimal('0.50')
-                await market.updateParameter(marketParameter)
+                await market.updateParameter(beneficiary.address, coordinator.address, marketParameter)
 
                 const TAKER_FEE = parse6decimal('4.92') // position * (0.01 - 0.004 + 0.002) * price
                 const TAKER_FEE_FEE = TAKER_FEE.div(10)
@@ -4886,7 +4860,7 @@ describe('Market', () => {
           it('zeroes PnL and fees (price change)', async () => {
             const marketParameter = { ...(await market.parameter()) }
             marketParameter.closed = true
-            await market.updateParameter(marketParameter)
+            await market.updateParameter(beneficiary.address, coordinator.address, marketParameter)
 
             const oracleVersionHigherPrice_0 = {
               price: parse6decimal('125'),
@@ -5486,7 +5460,7 @@ describe('Market', () => {
 
               const marketParameter = { ...(await market.parameter()) }
               marketParameter.settlementFee = parse6decimal('0.50')
-              await market.updateParameter(marketParameter)
+              await market.updateParameter(beneficiary.address, coordinator.address, marketParameter)
 
               const TAKER_FEE = parse6decimal('9.84') // position * (0.01 + 0.004 + 0.002) * price
               const TAKER_FEE_FEE = TAKER_FEE.div(10)
@@ -5607,7 +5581,7 @@ describe('Market', () => {
 
               const marketParameter = { ...(await market.parameter()) }
               marketParameter.settlementFee = parse6decimal('0.50')
-              await market.updateParameter(marketParameter)
+              await market.updateParameter(beneficiary.address, coordinator.address, marketParameter)
 
               const TAKER_FEE = parse6decimal('9.84') // position * (0.01 + 0.004 + 0.002) * price
               const TAKER_FEE_FEE = TAKER_FEE.div(10)
@@ -6415,7 +6389,7 @@ describe('Market', () => {
 
                 const marketParameter = { ...(await market.parameter()) }
                 marketParameter.settlementFee = parse6decimal('0.50')
-                await market.updateParameter(marketParameter)
+                await market.updateParameter(beneficiary.address, coordinator.address, marketParameter)
 
                 const TAKER_FEE = parse6decimal('4.92') // position * (0.01 - 0.004 + 0.002) * price
                 const TAKER_FEE_FEE = TAKER_FEE.div(10)
@@ -7841,7 +7815,7 @@ describe('Market', () => {
           it('zeroes PnL and funding / interest fees (price change)', async () => {
             const marketParameter = { ...(await market.parameter()) }
             marketParameter.closed = true
-            await market.updateParameter(marketParameter)
+            await market.updateParameter(beneficiary.address, coordinator.address, marketParameter)
 
             const oracleVersionHigherPrice_0 = {
               price: parse6decimal('121'),
@@ -7947,7 +7921,7 @@ describe('Market', () => {
 
             const marketParameter = { ...(await market.parameter()) }
             marketParameter.settlementFee = parse6decimal('0.50')
-            await market.updateParameter(marketParameter)
+            await market.updateParameter(beneficiary.address, coordinator.address, marketParameter)
 
             const EXPECTED_SETTLEMENT_FEE = parse6decimal('0.50')
             const EXPECTED_MAKER_FEE = parse6decimal('7.38')
@@ -7958,7 +7932,7 @@ describe('Market', () => {
 
             const marketParameter2 = { ...(await market.parameter()) }
             marketParameter2.closed = true
-            await market.updateParameter(marketParameter2)
+            await market.updateParameter(beneficiary.address, coordinator.address, marketParameter2)
 
             oracle.at.whenCalledWith(ORACLE_VERSION_3.timestamp).returns(ORACLE_VERSION_3)
             oracle.status.returns([ORACLE_VERSION_3, ORACLE_VERSION_4.timestamp])
@@ -8046,7 +8020,7 @@ describe('Market', () => {
             const marketParameter = { ...(await market.parameter()) }
             marketParameter.closed = true
             marketParameter.settlementFee = parse6decimal('0.50')
-            await market.updateParameter(marketParameter)
+            await market.updateParameter(beneficiary.address, coordinator.address, marketParameter)
 
             const EXPECTED_SETTLEMENT_FEE = parse6decimal('0.50')
 
@@ -8658,7 +8632,7 @@ describe('Market', () => {
 
               const marketParameter = { ...(await market.parameter()) }
               marketParameter.settlementFee = parse6decimal('0.50')
-              await market.updateParameter(marketParameter)
+              await market.updateParameter(beneficiary.address, coordinator.address, marketParameter)
 
               const TAKER_FEE = parse6decimal('5.535') // position * (0.01 - 0.002 - 0.001) * price
               const SETTLEMENT_FEE = parse6decimal('0.50')
@@ -9520,7 +9494,7 @@ describe('Market', () => {
 
                 const marketParameter = { ...(await market.parameter()) }
                 marketParameter.settlementFee = parse6decimal('0.50')
-                await market.updateParameter(marketParameter)
+                await market.updateParameter(beneficiary.address, coordinator.address, marketParameter)
 
                 const TAKER_FEE = parse6decimal('7.995') // position * (0.01 + 0.002 + 0.001) * price
                 const TAKER_FEE_FEE = TAKER_FEE.div(10)
@@ -11132,7 +11106,7 @@ describe('Market', () => {
           it('zeroes PnL and fees (price change)', async () => {
             const marketParameter = { ...(await market.parameter()) }
             marketParameter.closed = true
-            await market.updateParameter(marketParameter)
+            await market.updateParameter(beneficiary.address, coordinator.address, marketParameter)
 
             const oracleVersionHigherPrice_0 = {
               price: parse6decimal('125'),
@@ -11275,7 +11249,7 @@ describe('Market', () => {
         it('reverts if too many pending orders (global)', async () => {
           const marketParameter = { ...(await market.parameter()) }
           marketParameter.maxPendingGlobal = BigNumber.from(3)
-          await market.updateParameter(marketParameter)
+          await market.updateParameter(beneficiary.address, coordinator.address, marketParameter)
 
           oracle.at.whenCalledWith(ORACLE_VERSION_1.timestamp).returns(ORACLE_VERSION_1)
           oracle.status.returns([ORACLE_VERSION_1, ORACLE_VERSION_2.timestamp])
@@ -11307,7 +11281,7 @@ describe('Market', () => {
         it('reverts if too many pending orders (local)', async () => {
           const marketParameter = { ...(await market.parameter()) }
           marketParameter.maxPendingLocal = BigNumber.from(3)
-          await market.updateParameter(marketParameter)
+          await market.updateParameter(beneficiary.address, coordinator.address, marketParameter)
 
           oracle.at.whenCalledWith(ORACLE_VERSION_1.timestamp).returns(ORACLE_VERSION_1)
           oracle.status.returns([ORACLE_VERSION_1, ORACLE_VERSION_2.timestamp])
@@ -11389,7 +11363,7 @@ describe('Market', () => {
         it('reverts if closed', async () => {
           const marketParameter = { ...(await market.parameter()) }
           marketParameter.closed = true
-          await market.updateParameter(marketParameter)
+          await market.updateParameter(beneficiary.address, coordinator.address, marketParameter)
           await expect(
             market.connect(user).update(user.address, POSITION, 0, 0, COLLATERAL, false),
           ).to.be.revertedWithCustomError(market, 'MarketClosedError')
@@ -11407,7 +11381,7 @@ describe('Market', () => {
         it('reverts when opening and closing immediately with settlementFee', async () => {
           const marketParameter = { ...(await market.parameter()) }
           marketParameter.settlementFee = parse6decimal('0.50')
-          await market.updateParameter(marketParameter)
+          await market.updateParameter(beneficiary.address, coordinator.address, marketParameter)
 
           const minMarginAmount = (await market.riskParameter()).minMargin
           const dustPosition = parse6decimal('0.000001')
@@ -11690,7 +11664,7 @@ describe('Market', () => {
             it('allows closing when takerCloseAlways', async () => {
               const marketParameter = { ...(await market.parameter()) }
               marketParameter.takerCloseAlways = true
-              await market.updateParameter(marketParameter)
+              await market.updateParameter(beneficiary.address, coordinator.address, marketParameter)
 
               await expect(market.connect(user).update(user.address, 0, 0, 0, 0, false)).to.not.be.reverted
             })
@@ -11705,7 +11679,7 @@ describe('Market', () => {
             it('disallows short increasing (efficiency)', async () => {
               const marketParameter = { ...(await market.parameter()) }
               marketParameter.takerCloseAlways = true
-              await market.updateParameter(marketParameter)
+              await market.updateParameter(beneficiary.address, coordinator.address, marketParameter)
 
               const riskParameter = { ...(await market.riskParameter()) }
               riskParameter.efficiencyLimit = parse6decimal('0.5')
@@ -11719,7 +11693,7 @@ describe('Market', () => {
             it('disallows short increasing (liquidity)', async () => {
               const marketParameter = { ...(await market.parameter()) }
               marketParameter.takerCloseAlways = true
-              await market.updateParameter(marketParameter)
+              await market.updateParameter(beneficiary.address, coordinator.address, marketParameter)
 
               const riskParameter = { ...(await market.riskParameter()) }
               riskParameter.efficiencyLimit = parse6decimal('0.3')
@@ -11746,7 +11720,7 @@ describe('Market', () => {
             it('allows closing when takerCloseAlways', async () => {
               const marketParameter = { ...(await market.parameter()) }
               marketParameter.takerCloseAlways = true
-              await market.updateParameter(marketParameter)
+              await market.updateParameter(beneficiary.address, coordinator.address, marketParameter)
 
               await expect(market.connect(user).update(user.address, 0, 0, 0, 0, false)).to.not.be.reverted
             })
@@ -11761,7 +11735,7 @@ describe('Market', () => {
             it('disallows long increasing (efficiency)', async () => {
               const marketParameter = { ...(await market.parameter()) }
               marketParameter.takerCloseAlways = true
-              await market.updateParameter(marketParameter)
+              await market.updateParameter(beneficiary.address, coordinator.address, marketParameter)
 
               const riskParameter = { ...(await market.riskParameter()) }
               riskParameter.efficiencyLimit = parse6decimal('0.5')
@@ -11775,7 +11749,7 @@ describe('Market', () => {
             it('disallows long increasing (liquidity)', async () => {
               const marketParameter = { ...(await market.parameter()) }
               marketParameter.takerCloseAlways = true
-              await market.updateParameter(marketParameter)
+              await market.updateParameter(beneficiary.address, coordinator.address, marketParameter)
 
               const riskParameter = { ...(await market.riskParameter()) }
               riskParameter.efficiencyLimit = parse6decimal('0.3')
@@ -11802,7 +11776,7 @@ describe('Market', () => {
             it('allows closing when makerCloseAlways', async () => {
               const marketParameter = { ...(await market.parameter()) }
               marketParameter.makerCloseAlways = true
-              await market.updateParameter(marketParameter)
+              await market.updateParameter(beneficiary.address, coordinator.address, marketParameter)
 
               await expect(market.connect(userB).update(userB.address, 0, 0, 0, 0, false)).to.not.be.reverted
             })
@@ -12243,7 +12217,7 @@ describe('Market', () => {
 
           const marketParameter = { ...(await market.parameter()) }
           marketParameter.settlementFee = parse6decimal('0.50')
-          await market.updateParameter(marketParameter)
+          await market.updateParameter(beneficiary.address, coordinator.address, marketParameter)
 
           const TAKER_FEE = parse6decimal('9.84') // position * (0.01 + 0.004 + 0.002) * price
           const SETTLEMENT_FEE = parse6decimal('0.50')
@@ -12368,7 +12342,7 @@ describe('Market', () => {
 
           const marketParameter = { ...(await market.parameter()) }
           marketParameter.settlementFee = parse6decimal('0.50')
-          await market.updateParameter(marketParameter)
+          await market.updateParameter(beneficiary.address, coordinator.address, marketParameter)
 
           const TAKER_FEE = parse6decimal('9.84') // position * (0.01 + 0.004 + 0.002) * price
           const TAKER_FEE_FEE = TAKER_FEE.div(10)
@@ -12526,7 +12500,7 @@ describe('Market', () => {
 
           const marketParameter = { ...(await market.parameter()) }
           marketParameter.settlementFee = parse6decimal('0.50')
-          await market.updateParameter(marketParameter)
+          await market.updateParameter(beneficiary.address, coordinator.address, marketParameter)
 
           const TAKER_FEE = parse6decimal('9.84') // position * (0.01 + 0.004 + 0.002) * price
           const TAKER_FEE_FEE = TAKER_FEE.div(10)
@@ -12685,7 +12659,7 @@ describe('Market', () => {
 
           const marketParameter = { ...(await market.parameter()) }
           marketParameter.settlementFee = parse6decimal('0.50')
-          await market.updateParameter(marketParameter)
+          await market.updateParameter(beneficiary.address, coordinator.address, marketParameter)
 
           const TAKER_FEE = parse6decimal('9.84') // position * (0.01 + 0.004 + 0.002) * price
           const TAKER_FEE_FEE = TAKER_FEE.div(10)
@@ -12843,7 +12817,7 @@ describe('Market', () => {
 
           const marketParameter = { ...(await market.parameter()) }
           marketParameter.settlementFee = parse6decimal('0.50')
-          await market.updateParameter(marketParameter)
+          await market.updateParameter(beneficiary.address, coordinator.address, marketParameter)
 
           const TAKER_FEE = parse6decimal('9.84') // position * (0.01 + 0.004 + 0.002) * price
           const TAKER_FEE_FEE = TAKER_FEE.div(10)
@@ -13628,7 +13602,7 @@ describe('Market', () => {
           await marketPayoff.connect(factorySigner).initialize(marketDefinition)
           await marketPayoff.connect(owner).updateRiskParameter(riskParameter)
           await marketPayoff.connect(owner).updateReward(reward.address)
-          await marketPayoff.connect(owner).updateParameter(marketParameter)
+          await marketPayoff.connect(owner).updateParameter(beneficiary.address, coordinator.address, marketParameter)
 
           dsu.transferFrom.whenCalledWith(user.address, marketPayoff.address, COLLATERAL.mul(1e12)).returns(true)
         })
@@ -14278,7 +14252,7 @@ describe('Market', () => {
 
       beforeEach(async () => {
         await market.connect(owner).updateReward(reward.address)
-        await market.updateParameter({
+        await market.updateParameter(beneficiary.address, coordinator.address, {
           ...marketParameter,
           riskFee: parse6decimal('0.2'),
           oracleFee: parse6decimal('0.1'),
@@ -14303,9 +14277,6 @@ describe('Market', () => {
 
         await settle(market, user)
         await settle(market, userB)
-
-        await market.updateBeneficiary(beneficiary.address)
-        await market.updateCoordinator(coordinator.address)
       })
 
       it('claims fee (protocol)', async () => {
@@ -14373,7 +14344,7 @@ describe('Market', () => {
     describe('#claimReward', async () => {
       beforeEach(async () => {
         await market.connect(owner).updateReward(reward.address)
-        await market.connect(owner).updateParameter(marketParameter)
+        await market.connect(owner).updateParameter(beneficiary.address, coordinator.address, marketParameter)
 
         oracle.at.whenCalledWith(ORACLE_VERSION_0.timestamp).returns(ORACLE_VERSION_0)
 
@@ -14394,8 +14365,6 @@ describe('Market', () => {
 
         await settle(market, user)
         await settle(market, userB)
-
-        await market.updateBeneficiary(beneficiary.address)
 
         expectVersionEq(await market.versions(ORACLE_VERSION_3.timestamp), {
           makerValue: { _value: EXPECTED_FUNDING_WITHOUT_FEE_1_5_123.add(EXPECTED_INTEREST_WITHOUT_FEE_5_123).div(10) },
