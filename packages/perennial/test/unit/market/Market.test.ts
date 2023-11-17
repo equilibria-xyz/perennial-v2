@@ -757,7 +757,7 @@ describe('Market', () => {
             .to.emit(market, 'Updated')
             .withArgs(user.address, user.address, ORACLE_VERSION_2.timestamp, 0, 0, 0, COLLATERAL, false)
             .to.emit(market, 'OrderCreated')
-            .withArgs(user.address, ORACLE_VERSION_2.timestamp, COLLATERAL, DEFAULT_ORDER)
+            .withArgs(user.address, ORACLE_VERSION_2.timestamp, DEFAULT_ORDER, COLLATERAL)
 
           expectLocalEq(await market.locals(user.address), {
             currentId: 1,
@@ -805,7 +805,7 @@ describe('Market', () => {
             .to.emit(market, 'Updated')
             .withArgs(user.address, user.address, ORACLE_VERSION_2.timestamp, 0, 0, 0, COLLATERAL.mul(-1), false)
             .to.emit(market, 'OrderCreated')
-            .withArgs(user.address, ORACLE_VERSION_2.timestamp, COLLATERAL.mul(-1), DEFAULT_ORDER)
+            .withArgs(user.address, ORACLE_VERSION_2.timestamp, DEFAULT_ORDER, COLLATERAL.mul(-1))
 
           expectLocalEq(await market.locals(user.address), {
             currentId: 1,
@@ -959,11 +959,16 @@ describe('Market', () => {
               .to.emit(market, 'Updated')
               .withArgs(user.address, user.address, ORACLE_VERSION_2.timestamp, POSITION, 0, 0, COLLATERAL, false)
               .to.emit(market, 'OrderCreated')
-              .withArgs(user.address, ORACLE_VERSION_2.timestamp, COLLATERAL, {
-                ...DEFAULT_ORDER,
-                maker: POSITION,
-                utilization: parse6decimal('-1'),
-              })
+              .withArgs(
+                user.address,
+                ORACLE_VERSION_2.timestamp,
+                {
+                  ...DEFAULT_ORDER,
+                  maker: POSITION,
+                  utilization: parse6decimal('-1'),
+                },
+                COLLATERAL,
+              )
 
             expectLocalEq(await market.locals(user.address), {
               currentId: 1,
@@ -1460,11 +1465,16 @@ describe('Market', () => {
               .to.emit(market, 'Updated')
               .withArgs(user.address, user.address, ORACLE_VERSION_2.timestamp, 0, 0, 0, 0, false)
               .to.emit(market, 'OrderCreated')
-              .withArgs(user.address, ORACLE_VERSION_2.timestamp, 0, {
-                ...DEFAULT_ORDER,
-                maker: POSITION.mul(-1),
-                utilization: parse6decimal('1'),
-              })
+              .withArgs(
+                user.address,
+                ORACLE_VERSION_2.timestamp,
+                {
+                  ...DEFAULT_ORDER,
+                  maker: POSITION.mul(-1),
+                  utilization: parse6decimal('1'),
+                },
+                0,
+              )
 
             expectLocalEq(await market.locals(user.address), {
               currentId: 1,
@@ -1513,10 +1523,15 @@ describe('Market', () => {
               .to.emit(market, 'Updated')
               .withArgs(user.address, user.address, ORACLE_VERSION_2.timestamp, POSITION.div(2), 0, 0, 0, false)
               .to.emit(market, 'OrderCreated')
-              .withArgs(user.address, ORACLE_VERSION_2.timestamp, 0, {
-                ...DEFAULT_ORDER,
-                maker: POSITION.div(2).mul(-1),
-              })
+              .withArgs(
+                user.address,
+                ORACLE_VERSION_2.timestamp,
+                {
+                  ...DEFAULT_ORDER,
+                  maker: POSITION.div(2).mul(-1),
+                },
+                0,
+              )
 
             expectLocalEq(await market.locals(user.address), {
               currentId: 1,
@@ -2037,14 +2052,19 @@ describe('Market', () => {
                 .to.emit(market, 'Updated')
                 .withArgs(user.address, user.address, ORACLE_VERSION_2.timestamp, 0, POSITION, 0, COLLATERAL, false)
                 .to.emit(market, 'OrderCreated')
-                .withArgs(user.address, ORACLE_VERSION_2.timestamp, COLLATERAL, {
-                  ...DEFAULT_ORDER,
-                  long: POSITION,
-                  net: parse6decimal('10'),
-                  skew: parse6decimal('1'),
-                  impact: parse6decimal('1'),
-                  utilization: parse6decimal('1'),
-                })
+                .withArgs(
+                  user.address,
+                  ORACLE_VERSION_2.timestamp,
+                  {
+                    ...DEFAULT_ORDER,
+                    long: POSITION,
+                    net: parse6decimal('10'),
+                    skew: parse6decimal('1'),
+                    impact: parse6decimal('1'),
+                    utilization: parse6decimal('1'),
+                  },
+                  COLLATERAL,
+                )
 
               expectLocalEq(await market.locals(user.address), {
                 currentId: 1,
@@ -2751,12 +2771,17 @@ describe('Market', () => {
                 .to.emit(market, 'Updated')
                 .withArgs(user.address, user.address, ORACLE_VERSION_2.timestamp, 0, POSITION.div(4), 0, 0, false)
                 .to.emit(market, 'OrderCreated')
-                .withArgs(user.address, ORACLE_VERSION_2.timestamp, 0, {
-                  ...DEFAULT_ORDER,
-                  long: POSITION.div(4).mul(-1),
-                  net: parse6decimal('-2.5'),
-                  utilization: parse6decimal('-.25'),
-                })
+                .withArgs(
+                  user.address,
+                  ORACLE_VERSION_2.timestamp,
+                  {
+                    ...DEFAULT_ORDER,
+                    long: POSITION.div(4).mul(-1),
+                    net: parse6decimal('-2.5'),
+                    utilization: parse6decimal('-.25'),
+                  },
+                  0,
+                )
 
               expectLocalEq(await market.locals(user.address), {
                 currentId: 1,
@@ -2808,14 +2833,19 @@ describe('Market', () => {
                 .to.emit(market, 'Updated')
                 .withArgs(user.address, user.address, ORACLE_VERSION_2.timestamp, 0, 0, 0, 0, false)
                 .to.emit(market, 'OrderCreated')
-                .withArgs(user.address, ORACLE_VERSION_2.timestamp, 0, {
-                  ...DEFAULT_ORDER,
-                  long: POSITION.div(2).mul(-1),
-                  net: parse6decimal('-5'),
-                  skew: parse6decimal('1'),
-                  impact: parse6decimal('-1'),
-                  utilization: parse6decimal('-.5'),
-                })
+                .withArgs(
+                  user.address,
+                  ORACLE_VERSION_2.timestamp,
+                  {
+                    ...DEFAULT_ORDER,
+                    long: POSITION.div(2).mul(-1),
+                    net: parse6decimal('-5'),
+                    skew: parse6decimal('1'),
+                    impact: parse6decimal('-1'),
+                    utilization: parse6decimal('-.5'),
+                  },
+                  0,
+                )
 
               expectLocalEq(await market.locals(user.address), {
                 currentId: 1,
@@ -4970,14 +5000,19 @@ describe('Market', () => {
                 .to.emit(market, 'Updated')
                 .withArgs(user.address, user.address, ORACLE_VERSION_2.timestamp, 0, 0, POSITION, COLLATERAL, false)
                 .to.emit(market, 'OrderCreated')
-                .withArgs(user.address, ORACLE_VERSION_2.timestamp, COLLATERAL, {
-                  ...DEFAULT_ORDER,
-                  short: POSITION,
-                  net: parse6decimal('10'),
-                  skew: parse6decimal('1'),
-                  impact: parse6decimal('1'),
-                  utilization: parse6decimal('1'),
-                })
+                .withArgs(
+                  user.address,
+                  ORACLE_VERSION_2.timestamp,
+                  {
+                    ...DEFAULT_ORDER,
+                    short: POSITION,
+                    net: parse6decimal('10'),
+                    skew: parse6decimal('1'),
+                    impact: parse6decimal('1'),
+                    utilization: parse6decimal('1'),
+                  },
+                  COLLATERAL,
+                )
 
               expectLocalEq(await market.locals(user.address), {
                 currentId: 1,
@@ -5695,12 +5730,17 @@ describe('Market', () => {
                 .to.emit(market, 'Updated')
                 .withArgs(user.address, user.address, ORACLE_VERSION_2.timestamp, 0, 0, POSITION.div(4), 0, false)
                 .to.emit(market, 'OrderCreated')
-                .withArgs(user.address, ORACLE_VERSION_2.timestamp, 0, {
-                  ...DEFAULT_ORDER,
-                  short: POSITION.div(4).mul(-1),
-                  net: parse6decimal('-2.5'),
-                  utilization: parse6decimal('-.25'),
-                })
+                .withArgs(
+                  user.address,
+                  ORACLE_VERSION_2.timestamp,
+                  {
+                    ...DEFAULT_ORDER,
+                    short: POSITION.div(4).mul(-1),
+                    net: parse6decimal('-2.5'),
+                    utilization: parse6decimal('-.25'),
+                  },
+                  0,
+                )
 
               expectLocalEq(await market.locals(user.address), {
                 currentId: 1,
@@ -5752,14 +5792,19 @@ describe('Market', () => {
                 .to.emit(market, 'Updated')
                 .withArgs(user.address, user.address, ORACLE_VERSION_2.timestamp, 0, 0, 0, 0, false)
                 .to.emit(market, 'OrderCreated')
-                .withArgs(user.address, ORACLE_VERSION_2.timestamp, 0, {
-                  ...DEFAULT_ORDER,
-                  short: POSITION.div(2).mul(-1),
-                  net: parse6decimal('-5'),
-                  skew: parse6decimal('1'),
-                  impact: parse6decimal('-1'),
-                  utilization: parse6decimal('-.5'),
-                })
+                .withArgs(
+                  user.address,
+                  ORACLE_VERSION_2.timestamp,
+                  {
+                    ...DEFAULT_ORDER,
+                    short: POSITION.div(2).mul(-1),
+                    net: parse6decimal('-5'),
+                    skew: parse6decimal('1'),
+                    impact: parse6decimal('-1'),
+                    utilization: parse6decimal('-.5'),
+                  },
+                  0,
+                )
 
               expectLocalEq(await market.locals(user.address), {
                 currentId: 1,

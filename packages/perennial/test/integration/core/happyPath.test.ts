@@ -119,11 +119,16 @@ describe('Happy Path', () => {
       .to.emit(market, 'Updated')
       .withArgs(user.address, user.address, TIMESTAMP_1, POSITION, 0, 0, COLLATERAL, false)
       .to.emit(market, 'OrderCreated')
-      .withArgs(user.address, TIMESTAMP_1, COLLATERAL, {
-        ...DEFAULT_ORDER,
-        maker: POSITION,
-        utilization: parse6decimal('-1'),
-      })
+      .withArgs(
+        user.address,
+        TIMESTAMP_1,
+        {
+          ...DEFAULT_ORDER,
+          maker: POSITION,
+          utilization: parse6decimal('-1'),
+        },
+        COLLATERAL,
+      )
 
     // Check user is in the correct state
     expectLocalEq(await market.locals(user.address), {
@@ -336,11 +341,16 @@ describe('Happy Path', () => {
       .to.emit(market, 'Updated')
       .withArgs(user.address, user.address, TIMESTAMP_2, 0, 0, 0, 0, false)
       .to.emit(market, 'OrderCreated')
-      .withArgs(user.address, TIMESTAMP_2, 0, {
-        ...DEFAULT_ORDER,
-        maker: POSITION.mul(-1),
-        utilization: parse6decimal('1'),
-      })
+      .withArgs(
+        user.address,
+        TIMESTAMP_2,
+        {
+          ...DEFAULT_ORDER,
+          maker: POSITION.mul(-1),
+          utilization: parse6decimal('1'),
+        },
+        0,
+      )
 
     // User state
     expectLocalEq(await market.locals(user.address), {
@@ -468,14 +478,19 @@ describe('Happy Path', () => {
       .to.emit(market, 'Updated')
       .withArgs(userB.address, userB.address, TIMESTAMP_1, 0, POSITION_B, 0, COLLATERAL, false)
       .to.emit(market, 'OrderCreated')
-      .withArgs(userB.address, TIMESTAMP_1, COLLATERAL, {
-        ...DEFAULT_ORDER,
-        long: POSITION_B,
-        net: POSITION_B,
-        skew: parse6decimal('1'),
-        impact: parse6decimal('1'),
-        utilization: parse6decimal('.1'),
-      })
+      .withArgs(
+        userB.address,
+        TIMESTAMP_1,
+        {
+          ...DEFAULT_ORDER,
+          long: POSITION_B,
+          net: POSITION_B,
+          skew: parse6decimal('1'),
+          impact: parse6decimal('1'),
+          utilization: parse6decimal('.1'),
+        },
+        COLLATERAL,
+      )
 
     // User State
     expectLocalEq(await market.locals(user.address), {
@@ -723,14 +738,19 @@ describe('Happy Path', () => {
       .to.emit(market, 'Updated')
       .withArgs(userB.address, userB.address, TIMESTAMP_2, 0, 0, 0, 0, false)
       .to.emit(market, 'OrderCreated')
-      .withArgs(userB.address, TIMESTAMP_2, 0, {
-        ...DEFAULT_ORDER,
-        long: POSITION_B.mul(-1),
-        net: POSITION_B.mul(-1),
-        skew: parse6decimal('1'),
-        impact: parse6decimal('-1'),
-        utilization: parse6decimal('-.1'),
-      })
+      .withArgs(
+        userB.address,
+        TIMESTAMP_2,
+        {
+          ...DEFAULT_ORDER,
+          long: POSITION_B.mul(-1),
+          net: POSITION_B.mul(-1),
+          skew: parse6decimal('1'),
+          impact: parse6decimal('-1'),
+          utilization: parse6decimal('-.1'),
+        },
+        0,
+      )
 
     // User State
     expectLocalEq(await market.locals(userB.address), {

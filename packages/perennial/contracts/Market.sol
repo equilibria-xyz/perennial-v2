@@ -301,7 +301,7 @@ contract Market is IMarket, Instance, ReentrancyGuard {
 
         // events
         emit Updated(msg.sender, account, context.currentTimestamp, newMaker, newLong, newShort, collateral, protect);
-        emit OrderCreated(account, context.currentTimestamp, collateral, newOrder);
+        emit OrderCreated(account, context.currentTimestamp, newOrder, collateral);
     }
 
     function _loadContext(address account) private view returns (Context memory context) {
