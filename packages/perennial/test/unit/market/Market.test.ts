@@ -60,6 +60,19 @@ const DEFAULT_LOCAL_ACCUMULATION_RESULT = {
   keeper: 0,
 }
 
+const DEFAULT_ORDER = {
+  maker: 0,
+  long: 0,
+  short: 0,
+  net: 0,
+  skew: 0,
+  impact: 0,
+  utilization: 0,
+  efficiency: 0,
+  fee: 0,
+  keeper: 0,
+}
+
 const ORACLE_VERSION_0 = {
   price: BigNumber.from(0),
   timestamp: 0,
@@ -743,6 +756,8 @@ describe('Market', () => {
           await expect(market.connect(user).update(user.address, 0, 0, 0, COLLATERAL, false))
             .to.emit(market, 'Updated')
             .withArgs(user.address, user.address, ORACLE_VERSION_2.timestamp, 0, 0, 0, COLLATERAL, false)
+            .to.emit(market, 'OrderCreated')
+            .withArgs(user.address, ORACLE_VERSION_2.timestamp, COLLATERAL, DEFAULT_ORDER)
 
           expectLocalEq(await market.locals(user.address), {
             currentId: 1,
@@ -789,6 +804,8 @@ describe('Market', () => {
           await expect(market.connect(user).update(user.address, 0, 0, 0, COLLATERAL.mul(-1), false))
             .to.emit(market, 'Updated')
             .withArgs(user.address, user.address, ORACLE_VERSION_2.timestamp, 0, 0, 0, COLLATERAL.mul(-1), false)
+            .to.emit(market, 'OrderCreated')
+            .withArgs(user.address, ORACLE_VERSION_2.timestamp, COLLATERAL.mul(-1), DEFAULT_ORDER)
 
           expectLocalEq(await market.locals(user.address), {
             currentId: 1,
@@ -941,6 +958,12 @@ describe('Market', () => {
             await expect(market.connect(user).update(user.address, POSITION, 0, 0, COLLATERAL, false))
               .to.emit(market, 'Updated')
               .withArgs(user.address, user.address, ORACLE_VERSION_2.timestamp, POSITION, 0, 0, COLLATERAL, false)
+              .to.emit(market, 'OrderCreated')
+              .withArgs(user.address, ORACLE_VERSION_2.timestamp, COLLATERAL, {
+                ...DEFAULT_ORDER,
+                maker: POSITION,
+                utilization: parse6decimal('-1'),
+              })
 
             expectLocalEq(await market.locals(user.address), {
               currentId: 1,
@@ -1436,6 +1459,12 @@ describe('Market', () => {
             await expect(market.connect(user).update(user.address, 0, 0, 0, 0, false))
               .to.emit(market, 'Updated')
               .withArgs(user.address, user.address, ORACLE_VERSION_2.timestamp, 0, 0, 0, 0, false)
+              .to.emit(market, 'OrderCreated')
+              .withArgs(user.address, ORACLE_VERSION_2.timestamp, 0, {
+                ...DEFAULT_ORDER,
+                maker: POSITION.mul(-1),
+                utilization: parse6decimal('1'),
+              })
 
             expectLocalEq(await market.locals(user.address), {
               currentId: 1,
@@ -1483,6 +1512,11 @@ describe('Market', () => {
             await expect(market.connect(user).update(user.address, POSITION.div(2), 0, 0, 0, false))
               .to.emit(market, 'Updated')
               .withArgs(user.address, user.address, ORACLE_VERSION_2.timestamp, POSITION.div(2), 0, 0, 0, false)
+              .to.emit(market, 'OrderCreated')
+              .withArgs(user.address, ORACLE_VERSION_2.timestamp, 0, {
+                ...DEFAULT_ORDER,
+                maker: POSITION.div(2).mul(-1),
+              })
 
             expectLocalEq(await market.locals(user.address), {
               currentId: 1,
@@ -2002,6 +2036,15 @@ describe('Market', () => {
               await expect(market.connect(user).update(user.address, 0, POSITION, 0, COLLATERAL, false))
                 .to.emit(market, 'Updated')
                 .withArgs(user.address, user.address, ORACLE_VERSION_2.timestamp, 0, POSITION, 0, COLLATERAL, false)
+                .to.emit(market, 'OrderCreated')
+                .withArgs(user.address, ORACLE_VERSION_2.timestamp, COLLATERAL, {
+                  ...DEFAULT_ORDER,
+                  long: POSITION,
+                  net: parse6decimal('10'),
+                  skew: parse6decimal('1'),
+                  impact: parse6decimal('1'),
+                  utilization: parse6decimal('1'),
+                })
 
               expectLocalEq(await market.locals(user.address), {
                 currentId: 1,
@@ -2707,6 +2750,13 @@ describe('Market', () => {
               await expect(market.connect(user).update(user.address, 0, POSITION.div(4), 0, 0, false))
                 .to.emit(market, 'Updated')
                 .withArgs(user.address, user.address, ORACLE_VERSION_2.timestamp, 0, POSITION.div(4), 0, 0, false)
+                .to.emit(market, 'OrderCreated')
+                .withArgs(user.address, ORACLE_VERSION_2.timestamp, 0, {
+                  ...DEFAULT_ORDER,
+                  long: POSITION.div(4).mul(-1),
+                  net: parse6decimal('-2.5'),
+                  utilization: parse6decimal('-.25'),
+                })
 
               expectLocalEq(await market.locals(user.address), {
                 currentId: 1,
@@ -2757,6 +2807,15 @@ describe('Market', () => {
               await expect(market.connect(user).update(user.address, 0, 0, 0, 0, false))
                 .to.emit(market, 'Updated')
                 .withArgs(user.address, user.address, ORACLE_VERSION_2.timestamp, 0, 0, 0, 0, false)
+                .to.emit(market, 'OrderCreated')
+                .withArgs(user.address, ORACLE_VERSION_2.timestamp, 0, {
+                  ...DEFAULT_ORDER,
+                  long: POSITION.div(2).mul(-1),
+                  net: parse6decimal('-5'),
+                  skew: parse6decimal('1'),
+                  impact: parse6decimal('-1'),
+                  utilization: parse6decimal('-.5'),
+                })
 
               expectLocalEq(await market.locals(user.address), {
                 currentId: 1,
@@ -4910,6 +4969,15 @@ describe('Market', () => {
               await expect(market.connect(user).update(user.address, 0, 0, POSITION, COLLATERAL, false))
                 .to.emit(market, 'Updated')
                 .withArgs(user.address, user.address, ORACLE_VERSION_2.timestamp, 0, 0, POSITION, COLLATERAL, false)
+                .to.emit(market, 'OrderCreated')
+                .withArgs(user.address, ORACLE_VERSION_2.timestamp, COLLATERAL, {
+                  ...DEFAULT_ORDER,
+                  short: POSITION,
+                  net: parse6decimal('10'),
+                  skew: parse6decimal('1'),
+                  impact: parse6decimal('1'),
+                  utilization: parse6decimal('1'),
+                })
 
               expectLocalEq(await market.locals(user.address), {
                 currentId: 1,
@@ -5626,6 +5694,13 @@ describe('Market', () => {
               await expect(market.connect(user).update(user.address, 0, 0, POSITION.div(4), 0, false))
                 .to.emit(market, 'Updated')
                 .withArgs(user.address, user.address, ORACLE_VERSION_2.timestamp, 0, 0, POSITION.div(4), 0, false)
+                .to.emit(market, 'OrderCreated')
+                .withArgs(user.address, ORACLE_VERSION_2.timestamp, 0, {
+                  ...DEFAULT_ORDER,
+                  short: POSITION.div(4).mul(-1),
+                  net: parse6decimal('-2.5'),
+                  utilization: parse6decimal('-.25'),
+                })
 
               expectLocalEq(await market.locals(user.address), {
                 currentId: 1,
@@ -5676,6 +5751,15 @@ describe('Market', () => {
               await expect(market.connect(user).update(user.address, 0, 0, 0, 0, false))
                 .to.emit(market, 'Updated')
                 .withArgs(user.address, user.address, ORACLE_VERSION_2.timestamp, 0, 0, 0, 0, false)
+                .to.emit(market, 'OrderCreated')
+                .withArgs(user.address, ORACLE_VERSION_2.timestamp, 0, {
+                  ...DEFAULT_ORDER,
+                  short: POSITION.div(2).mul(-1),
+                  net: parse6decimal('-5'),
+                  skew: parse6decimal('1'),
+                  impact: parse6decimal('-1'),
+                  utilization: parse6decimal('-.5'),
+                })
 
               expectLocalEq(await market.locals(user.address), {
                 currentId: 1,
