@@ -120,12 +120,10 @@ interface IMarket is IInstance {
     function position() external view returns (Position memory);
     function global() external view returns (Global memory);
     function update(address account, UFixed6 newMaker, UFixed6 newLong, UFixed6 newShort, Fixed6 collateral, bool protect) external;
-    function updateBeneficiary(address newBeneficiary) external;
-    function updateCoordinator(address newCoordinator) external;
     function updateReward(Token18 newReward) external;
     function parameter() external view returns (MarketParameter memory);
     function riskParameter() external view returns (RiskParameter memory);
-    function updateParameter(MarketParameter memory newParameter) external;
+    function updateParameter(address newBeneficiary, address newCoordinator, MarketParameter memory newParameter) external;
     function updateRiskParameter(RiskParameter memory newRiskParameter) external;
     function claimFee() external;
     function claimReward() external;

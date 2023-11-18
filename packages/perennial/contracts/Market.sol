@@ -87,23 +87,21 @@ contract Market is IMarket, Instance, ReentrancyGuard {
         _saveContext(context, account);
     }
 
-    /// @notice Updates the beneficiary of the market
+    /// @notice Updates the beneficiary, coordinator, and parameter set of the market
     /// @param newBeneficiary The new beneficiary address
-    function updateBeneficiary(address newBeneficiary) external onlyOwner {
+    /// @param newCoordinator The new coordinator address
+    /// @param newParameter The new parameter set
+    function updateParameter(
+        address newBeneficiary,
+        address newCoordinator,
+        MarketParameter memory newParameter
+    ) external onlyOwner {
         beneficiary = newBeneficiary;
         emit BeneficiaryUpdated(newBeneficiary);
-    }
 
-    /// @notice Updates the coordinator of the market
-    /// @param newCoordinator The new coordinator address
-    function updateCoordinator(address newCoordinator) external onlyOwner {
         coordinator = newCoordinator;
         emit CoordinatorUpdated(newCoordinator);
-    }
 
-    /// @notice Updates the parameter set of the market
-    /// @param newParameter The new parameter set
-    function updateParameter(MarketParameter memory newParameter) external onlyOwner {
         _parameter.validateAndStore(newParameter, IMarketFactory(address(factory())).parameter(), reward);
         emit ParameterUpdated(newParameter);
     }
