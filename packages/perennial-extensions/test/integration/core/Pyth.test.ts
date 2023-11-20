@@ -291,7 +291,7 @@ describe('PythOracleFactory', () => {
       expect(startingBalance.sub(receipt.gasUsed.mul(10000))).to.be.eq(await user.getBalance())
     })
 
-    it.only('does soft revert refund outside of invoke loop to allow for successful commits after failed ones', async () => {
+    it('does soft revert refund outside of invoke loop to allow for successful commits after failed ones', async () => {
       await increase(1)
 
       const originalDSUBalance = await dsu.callStatic.balanceOf(user.address)
