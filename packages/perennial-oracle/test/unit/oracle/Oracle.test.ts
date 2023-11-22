@@ -140,6 +140,14 @@ describe('Oracle', () => {
         expect((await oracle.oracles(1)).timestamp).to.equal(1687229905)
         expect((await oracle.oracles(2)).provider).to.equal(underlying1.address)
         expect((await oracle.oracles(2)).timestamp).to.equal(0)
+
+        const [latestVersion, currentTimestamp] = await oracle.connect(caller).status()
+        expect(latestVersion.timestamp).to.equal(1687229000)
+        expect(latestVersion.price).to.equal(parse6decimal('999'))
+        expect(latestVersion.valid).to.equal(true)
+        expect(currentTimestamp).to.equal(0)
+
+        expect(await oracle.at(1687229000)).to.deep.equal(latestVersion)
       })
 
       it('syncs another version', async () => {
@@ -164,6 +172,9 @@ describe('Oracle', () => {
 
         underlying0.request.reset()
         underlying1.request.reset()
+
+        // Latest should not be updated until we call request
+        expect((await oracle.global()).latest).to.equal(1)
 
         const [latestVersionDirect, currentTimestampDirect] = [
           await oracle.connect(caller).latest(),
@@ -642,6 +653,51 @@ describe('Oracle', () => {
         expect((await oracle.at(1687231005)).timestamp).to.equal(1687231005)
         expect((await oracle.at(1687231005)).price).to.equal(parse6decimal('987'))
         expect((await oracle.at(1687231005)).valid).to.equal(true)
+      })
+    })
+
+    context('updates the oracle from a blank oracle', async () => {
+      beforeEach(async () => {
+        oracle = await new Oracle__factory(owner).deploy()
+        await oracle.connect(oracleFactorySigner).initialize(underlying1.address)
+      })
+
+      it('updates the oracle', async () => {
+        const underlying2 = await smock.fake<IOracleProvider>('IOracleProvider')
+        await expect(oracle.connect(oracleFactorySigner).update(underlying2.address))
+          .to.emit(oracle, 'OracleUpdated')
+          .withArgs(underlying2.address)
+
+        expect((await oracle.global()).latest).to.equal(1)
+
+        mockVersion(
+          underlying2,
+          {
+            timestamp: 1687230000,
+            price: parse6decimal('1000'),
+            valid: true,
+          },
+          1687231005,
+        )
+        underlying1.request.reset()
+        underlying2.request.reset()
+        await oracle.connect(caller).request(market.address, user.address)
+
+        expect((await oracle.global()).latest).to.equal(2)
+        expect((await oracle.oracles(1)).timestamp).to.equal(0)
+      })
+
+      it('cannot update the oracle to two successive blank oracles', async () => {
+        const underlying2 = await smock.fake<IOracleProvider>('IOracleProvider')
+        await expect(oracle.connect(oracleFactorySigner).update(underlying2.address))
+          .to.emit(oracle, 'OracleUpdated')
+          .withArgs(underlying2.address)
+
+        const underlying3 = await smock.fake<IOracleProvider>('IOracleProvider')
+        await expect(oracle.connect(oracleFactorySigner).update(underlying3.address)).to.revertedWithCustomError(
+          oracle,
+          'OracleOutOfSyncError',
+        )
       })
     })
 
