@@ -487,7 +487,7 @@ describe('Happy Path', () => {
           long: POSITION_B,
           net: POSITION_B,
           skew: parse6decimal('1'),
-          impact: parse6decimal('1'),
+          impact: parse6decimal('.5'),
           utilization: parse6decimal('.1'),
         },
         COLLATERAL,
@@ -747,8 +747,6 @@ describe('Happy Path', () => {
           ...DEFAULT_ORDER,
           long: POSITION_B.mul(-1),
           net: POSITION_B.mul(-1),
-          skew: parse6decimal('1'),
-          impact: parse6decimal('-1'),
           utilization: parse6decimal('-.1'),
         },
         0,
@@ -960,7 +958,7 @@ describe('Happy Path', () => {
 
     const POSITION = parse6decimal('0.0001')
     const COLLATERAL = parse6decimal('1000')
-    const { user, userB, dsu, chainlink, beneficiaryB, oracle, payoff } = instanceVars
+    const { user, userB, dsu, chainlink, beneficiaryB } = instanceVars
 
     const riskParameter = {
       margin: parse6decimal('0.3'),
@@ -1101,7 +1099,7 @@ describe('Happy Path', () => {
       delay,
     ).init()
     const instanceVars = await deployProtocol(chainlink)
-    const { user, userB, dsu, beneficiaryB, oracle } = instanceVars
+    const { user, userB, dsu, beneficiaryB } = instanceVars
 
     const riskParameter = {
       margin: parse6decimal('0.3'),
@@ -1128,7 +1126,7 @@ describe('Happy Path', () => {
       },
       minMargin: parse6decimal('500'),
       minMaintenance: parse6decimal('500'),
-      skweScale: parse6decimal('10000'),
+      skewScale: parse6decimal('10000'),
       staleAfter: 100000, // enable long delays for testing
       makerReceiveOnly: false,
     }
