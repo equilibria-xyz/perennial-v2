@@ -105,11 +105,11 @@ describe('Closed Market', () => {
     await chainlink.nextWithPriceModification(price => price.mul(4))
 
     const LIQUIDATION_FEE = BigNumber.from('1000000000')
-    await market.connect(user).update(user.address, 0, 0, 0, LIQUIDATION_FEE.mul(-1), true)
-    await market.connect(userB).update(userB.address, 0, 0, 0, LIQUIDATION_FEE.mul(-1), true)
+    await market.connect(user).update(user.address, 0, 0, 0, 0, true)
+    await market.connect(userB).update(userB.address, 0, 0, 0, 0, true)
 
-    expect((await market.locals(user.address)).collateral).to.equal(userCollateralBefore.sub(LIQUIDATION_FEE))
-    expect((await market.locals(userB.address)).collateral).to.equal(userBCollateralBefore.sub(LIQUIDATION_FEE))
+    expect((await market.locals(user.address)).collateral).to.equal(userCollateralBefore)
+    expect((await market.locals(userB.address)).collateral).to.equal(userBCollateralBefore)
     expect((await market.global()).protocolFee).to.equal(feesABefore)
     expect((await market.global()).oracleFee).to.equal(feesBBefore)
     expect((await market.global()).riskFee).to.equal(feesCBefore)
@@ -129,8 +129,10 @@ describe('Closed Market', () => {
 
     await chainlink.next()
     await chainlink.nextWithPriceModification(price => price.mul(2))
-    await expect(market.connect(userB).update(user.address, 0, 0, 0, '-690277557', true)).to.not.be.reverted
+    await expect(market.connect(userB).update(user.address, 0, 0, 0, 0, true)).to.not.be.reverted
     expect((await market.locals(user.address)).protection).to.eq(TIMESTAMP_3)
+    expect((await market.locals(user.address)).protectionAmount).to.eq('690277557')
+    expect((await market.locals(user.address)).protectionInitiator).to.eq(userB.address)
     const parameters = { ...(await market.parameter()) }
     parameters.closed = true
     await market.updateParameter(parameters)
@@ -141,6 +143,8 @@ describe('Closed Market', () => {
 
     expect((await market.position()).timestamp).to.eq(TIMESTAMP_3)
     expect((await market.locals(user.address)).protection).to.eq(TIMESTAMP_3)
+    expect((await market.locals(user.address)).protectionAmount).to.eq('690277557')
+    expect((await market.locals(user.address)).protectionInitiator).to.eq(userB.address)
     const userCollateralBefore = (await market.locals(user.address)).collateral
     const userBCollateralBefore = (await market.locals(userB.address)).collateral
     const feesABefore = (await market.global()).protocolFee
@@ -153,10 +157,10 @@ describe('Closed Market', () => {
 
     const LIQUIDATION_FEE = BigNumber.from('1000000000')
     await settle(market, user)
-    await market.connect(userB).update(userB.address, 0, 0, 0, LIQUIDATION_FEE.mul(-1), true)
+    await market.connect(userB).update(userB.address, 0, 0, 0, 0, true)
 
     expect((await market.locals(user.address)).collateral).to.equal(userCollateralBefore)
-    expect((await market.locals(userB.address)).collateral).to.equal(userBCollateralBefore.sub(LIQUIDATION_FEE))
+    expect((await market.locals(userB.address)).collateral).to.equal(userBCollateralBefore)
     expect((await market.global()).protocolFee).to.equal(feesABefore)
     expect((await market.global()).oracleFee).to.equal(feesBBefore)
     expect((await market.global()).riskFee).to.equal(feesCBefore)

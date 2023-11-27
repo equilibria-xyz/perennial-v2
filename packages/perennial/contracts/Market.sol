@@ -287,6 +287,8 @@ contract Market is IMarket, Instance, ReentrancyGuard {
         // load pending positions
         for (uint256 id = context.local.latestId + 1; id < context.local.currentId; id++)
             _processPendingPosition(context, _loadPendingPositionLocal(context, account, id));
+        context.pendingCollateral = context.pendingCollateral
+            .sub(Fixed6Lib.from(context.local.pendingLiquidationFee(context.latestPosition.local)));
     }
 
     /// @notice Modifies the collateral input per magic values
@@ -363,7 +365,14 @@ contract Market is IMarket, Instance, ReentrancyGuard {
         _processPendingPosition(context, context.currentPosition.local);
 
         // protect account
-        bool protected = context.local.protect(context.latestPosition.local, context.currentTimestamp, protect);
+        bool protected = context.local.protect(
+            context.riskParameter,
+            context.latestVersion,
+            context.currentTimestamp,
+            newOrder,
+            msg.sender,
+            protect
+        );
 
         // request version
         if (!newOrder.isEmpty()) oracle.request(IMarket(this), account);
@@ -469,9 +478,10 @@ contract Market is IMarket, Instance, ReentrancyGuard {
         Position memory latestAccountPosition = _pendingPositions[account][context.local.latestId].read();
         Position memory currentAccountPosition = _pendingPositions[account][context.local.currentId].read();
         latestAccountPosition.collateral = context.local.collateral
-            .sub(currentAccountPosition.delta.sub(previousDelta))         // deposits happen after snapshot point
-            .add(nextPosition.fee)                                        // position fee happens after snapshot point
-            .add(Fixed6Lib.from(nextPosition.keeper));                    // keeper fee happens after snapshot point
+            .sub(currentAccountPosition.delta.sub(previousDelta))                       // deposits happen after snapshot point
+            .add(nextPosition.fee)                                                      // position fee happens after snapshot point
+            .add(Fixed6Lib.from(nextPosition.keeper))                                   // keeper fee happens after snapshot point
+            .add(Fixed6Lib.from(context.local.pendingLiquidationFee(nextPosition)));    // liquidation fee happens after snapshot point
         _pendingPositions[account][context.local.latestId].store(latestAccountPosition);
     }
 
@@ -539,6 +549,11 @@ contract Market is IMarket, Instance, ReentrancyGuard {
             version
         );
         context.latestPosition.local.update(newPosition);
+        if (context.local.processProtection(newPosition, version)) {
+            Local memory localInitiator = _locals[context.local.protectionInitiator].read();
+            localInitiator.processLiquidationFee(context.local);
+            _locals[context.local.protectionInitiator].store(localInitiator);
+        }
 
         // events
         emit AccountPositionProcessed(
@@ -571,7 +586,7 @@ contract Market is IMarket, Instance, ReentrancyGuard {
                 context.riskParameter,
                 context.pendingCollateral.sub(collateral)
             ) ||
-            collateral.lt(Fixed6Lib.from(-1, _liquidationFee(context, newOrder)))
+            collateral.lt(Fixed6Lib.ZERO)
         )) revert MarketInvalidProtectionError();
 
         if (
@@ -629,16 +644,6 @@ contract Market is IMarket, Instance, ReentrancyGuard {
 
         if (collateral.lt(Fixed6Lib.ZERO) && context.pendingCollateral.lt(Fixed6Lib.ZERO))
             revert MarketInsufficientCollateralError();
-    }
-
-    /// @notice Computes the liquidation fee for the current latest local position
-    /// @param context The context to use
-    /// @param order The order to use
-    /// @return The liquidation fee
-    function _liquidationFee(Context memory context, Order memory order) private view returns (UFixed6) {
-        return order
-            .liquidationFee(context.latestVersion, context.riskParameter)
-            .min(UFixed6Lib.from(token.balanceOf()));
     }
 
     /// @notice Computes the current oracle status with the market's payoff

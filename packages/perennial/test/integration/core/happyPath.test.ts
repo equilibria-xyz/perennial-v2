@@ -5,6 +5,7 @@ import { BigNumber } from 'ethers'
 import { InstanceVars, deployProtocol, createMarket, settle } from '../helpers/setupHelpers'
 import {
   DEFAULT_POSITION,
+  DEFAULT_LOCAL,
   expectGlobalEq,
   expectLocalEq,
   expectPositionEq,
@@ -109,6 +110,7 @@ describe('Happy Path', () => {
 
     // Check user is in the correct state
     expectLocalEq(await market.locals(user.address), {
+      ...DEFAULT_LOCAL,
       currentId: 1,
       latestId: 0,
       collateral: COLLATERAL,
@@ -159,6 +161,7 @@ describe('Happy Path', () => {
 
     // check user state
     expectLocalEq(await market.locals(user.address), {
+      ...DEFAULT_LOCAL,
       currentId: 2,
       latestId: 1,
       collateral: COLLATERAL,
@@ -213,6 +216,7 @@ describe('Happy Path', () => {
 
     // Check user is in the correct state
     expectLocalEq(await market.locals(user.address), {
+      ...DEFAULT_LOCAL,
       currentId: 1,
       latestId: 0,
       collateral: COLLATERAL,
@@ -263,6 +267,7 @@ describe('Happy Path', () => {
 
     // check user state
     expectLocalEq(await market.locals(user.address), {
+      ...DEFAULT_LOCAL,
       currentId: 2,
       latestId: 1,
       collateral: COLLATERAL,
@@ -320,6 +325,7 @@ describe('Happy Path', () => {
 
     // User state
     expectLocalEq(await market.locals(user.address), {
+      ...DEFAULT_LOCAL,
       currentId: 2,
       latestId: 1,
       collateral: COLLATERAL,
@@ -384,6 +390,7 @@ describe('Happy Path', () => {
 
     // User state
     expectLocalEq(await market.locals(user.address), {
+      ...DEFAULT_LOCAL,
       currentId: 2,
       latestId: 1,
       collateral: COLLATERAL,
@@ -447,6 +454,7 @@ describe('Happy Path', () => {
 
     // User State
     expectLocalEq(await market.locals(user.address), {
+      ...DEFAULT_LOCAL,
       currentId: 1,
       latestId: 0,
       collateral: COLLATERAL,
@@ -465,6 +473,7 @@ describe('Happy Path', () => {
     })
 
     expectLocalEq(await market.locals(userB.address), {
+      ...DEFAULT_LOCAL,
       currentId: 1,
       latestId: 0,
       collateral: COLLATERAL,
@@ -539,6 +548,7 @@ describe('Happy Path', () => {
     })
 
     expectLocalEq(await market.locals(userB.address), {
+      ...DEFAULT_LOCAL,
       currentId: 2,
       latestId: 1,
       collateral: COLLATERAL.add(BigNumber.from('1249392')),
@@ -578,6 +588,7 @@ describe('Happy Path', () => {
 
     // User State
     expectLocalEq(await market.locals(userB.address), {
+      ...DEFAULT_LOCAL,
       currentId: 1,
       latestId: 0,
       collateral: COLLATERAL,
@@ -651,6 +662,7 @@ describe('Happy Path', () => {
       long: POSITION_B,
     })
     expectLocalEq(await market.locals(userB.address), {
+      ...DEFAULT_LOCAL,
       currentId: 2,
       latestId: 1,
       collateral: COLLATERAL.add(BigNumber.from('1249392')),
@@ -694,6 +706,7 @@ describe('Happy Path', () => {
 
     // User State
     expectLocalEq(await market.locals(userB.address), {
+      ...DEFAULT_LOCAL,
       currentId: 2,
       latestId: 1,
       collateral: COLLATERAL,
@@ -767,6 +780,7 @@ describe('Happy Path', () => {
 
     // User State
     expectLocalEq(await market.locals(userB.address), {
+      ...DEFAULT_LOCAL,
       currentId: 2,
       latestId: 1,
       collateral: COLLATERAL,
@@ -972,6 +986,7 @@ describe('Happy Path', () => {
 
     // Check user is in the correct state
     expectLocalEq(await market.locals(user.address), {
+      ...DEFAULT_LOCAL,
       currentId: 3,
       latestId: 2,
       collateral: '986127025',
@@ -1066,7 +1081,7 @@ describe('Happy Path', () => {
       },
       minMargin: parse6decimal('500'),
       minMaintenance: parse6decimal('500'),
-      skweScale: parse6decimal('10000'),
+      skewScale: parse6decimal('10000'),
       staleAfter: 100000, // enable long delays for testing
       makerReceiveOnly: false,
     }
@@ -1114,6 +1129,7 @@ describe('Happy Path', () => {
 
     // Check user is in the correct state
     expectLocalEq(await market.locals(user.address), {
+      ...DEFAULT_LOCAL,
       currentId: delay + 1,
       latestId: delay,
       collateral: (await market.locals(user.address)).collateral,
