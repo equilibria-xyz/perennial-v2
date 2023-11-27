@@ -244,17 +244,20 @@ contract Market is IMarket, Instance, ReentrancyGuard {
     /// @param context The context to use
     /// @param newPendingPosition The pending position to process
     function _processPendingPosition(Context memory context, Position memory newPendingPosition) private pure {
+        // apply pending fees to collateral
         context.pendingCollateral = context.pendingCollateral
             .sub(newPendingPosition.fee)
             .sub(Fixed6Lib.from(newPendingPosition.keeper));
 
-        context.closable = context.closable
-            .sub(context.previousPendingMagnitude
-                .sub(newPendingPosition.magnitude().min(context.previousPendingMagnitude)));
+        // measure pending position deltas
+        if (context.previousPendingMagnitude.gt(newPendingPosition.magnitude())) {
+            context.pendingClose = context.pendingClose
+                .add(context.previousPendingMagnitude.sub(newPendingPosition.magnitude()));
+        } else {
+            context.pendingOpen = context.pendingOpen
+                .add(newPendingPosition.magnitude().sub(context.previousPendingMagnitude));
+        }
         context.previousPendingMagnitude = newPendingPosition.magnitude();
-
-        if (context.previousPendingMagnitude.gt(context.maxPendingMagnitude))
-            context.maxPendingMagnitude = newPendingPosition.magnitude();
     }
 
     /// @notice Loads the context for the update process
@@ -263,8 +266,7 @@ contract Market is IMarket, Instance, ReentrancyGuard {
     function _loadUpdateContext(Context memory context, address account) private view {
         // load latest position
         context.pendingCollateral = context.local.collateral;
-        context.maxPendingMagnitude = context.previousPendingMagnitude = context.closable =
-            context.latestPosition.local.magnitude();
+        context.previousPendingMagnitude = context.latestPosition.local.magnitude();
 
         // load current position
         context.currentPosition.global = _loadPendingPositionGlobal(context, context.global.currentId);
@@ -313,7 +315,8 @@ contract Market is IMarket, Instance, ReentrancyGuard {
             return currentPosition;
         if (newPosition.eq(MAGIC_VALUE_FULLY_CLOSED_POSITION)) {
             if (currentPosition.isZero()) return currentPosition;
-            return context.previousPendingMagnitude.sub(context.closable.min(context.previousPendingMagnitude));
+            UFixed6 closable = context.latestPosition.local.magnitude().sub(context.pendingClose);
+            return context.previousPendingMagnitude.sub(closable.min(context.previousPendingMagnitude));
         }
         return newPosition;
     }
@@ -578,8 +581,10 @@ contract Market is IMarket, Instance, ReentrancyGuard {
         Fixed6 collateral,
         bool protected
     ) private view {
+        if (context.pendingClose.gt(context.latestPosition.local.magnitude())) revert MarketOverCloseError();
+
         if (protected && (
-            !context.closable.isZero() ||
+            !context.pendingClose.eq(context.latestPosition.local.magnitude()) ||
             context.latestPosition.local.maintained(
                 context.latestVersion,
                 context.riskParameter,
@@ -624,7 +629,12 @@ contract Market is IMarket, Instance, ReentrancyGuard {
         ) revert MarketInsufficientMarginError();
 
         if (
-            !PositionLib.maintained(context.maxPendingMagnitude, context.latestVersion, context.riskParameter, context.pendingCollateral)
+            !PositionLib.maintained(
+                context.latestPosition.local.magnitude().add(context.pendingOpen),
+                context.latestVersion,
+                context.riskParameter,
+                context.pendingCollateral
+            )
         ) revert MarketInsufficientMaintenanceError();
 
         if (
