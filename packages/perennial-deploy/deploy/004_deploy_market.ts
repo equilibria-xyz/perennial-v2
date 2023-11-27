@@ -190,7 +190,7 @@ const func: DeployFunction = async function (hre: HardhatRuntimeEnvironment) {
           deployerSigner,
         )
 
-        await market.updateParameter(DEFAULT_MARKET_PARAMETER)
+        await market.updateParameter(constants.AddressZero, constants.AddressZero, DEFAULT_MARKET_PARAMETER)
         await market.updateRiskParameter(DEFAULT_RISK_PARAMETERS)
 
         process.stdout.write('complete\n')

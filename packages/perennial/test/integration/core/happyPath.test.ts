@@ -1,6 +1,7 @@
 import { expect } from 'chai'
 import 'hardhat'
-import { BigNumber } from 'ethers'
+import { BigNumber, constants } from 'ethers'
+const { AddressZero } = constants
 
 import { InstanceVars, deployProtocol, createMarket, settle } from '../helpers/setupHelpers'
 import {
@@ -22,6 +23,18 @@ export const TIMESTAMP_2 = 1631113819
 export const TIMESTAMP_3 = 1631114005
 export const TIMESTAMP_4 = 1631115371
 export const TIMESTAMP_5 = 1631118731
+const DEFAULT_ORDER = {
+  maker: 0,
+  long: 0,
+  short: 0,
+  net: 0,
+  skew: 0,
+  impact: 0,
+  utilization: 0,
+  efficiency: 0,
+  fee: 0,
+  keeper: 0,
+}
 
 describe('Happy Path', () => {
   let instanceVars: InstanceVars
@@ -91,8 +104,7 @@ describe('Happy Path', () => {
     await expect(marketFactory.create(definition)).to.emit(marketFactory, 'MarketCreated')
     const market = Market__factory.connect(marketAddress, owner)
     await market.connect(owner).updateRiskParameter(riskParameter)
-    await market.connect(owner).updateParameter(parameter)
-    await market.connect(owner).updateBeneficiary(beneficiaryB.address)
+    await market.connect(owner).updateParameter(beneficiaryB.address, AddressZero, parameter)
   })
 
   it('opens a make position', async () => {
@@ -106,6 +118,17 @@ describe('Happy Path', () => {
     await expect(market.connect(user).update(user.address, POSITION, 0, 0, COLLATERAL, false))
       .to.emit(market, 'Updated')
       .withArgs(user.address, user.address, TIMESTAMP_1, POSITION, 0, 0, COLLATERAL, false)
+      .to.emit(market, 'OrderCreated')
+      .withArgs(
+        user.address,
+        TIMESTAMP_1,
+        {
+          ...DEFAULT_ORDER,
+          maker: POSITION,
+          utilization: parse6decimal('-1'),
+        },
+        COLLATERAL,
+      )
 
     // Check user is in the correct state
     expectLocalEq(await market.locals(user.address), {
@@ -317,6 +340,17 @@ describe('Happy Path', () => {
     await expect(market.connect(user).update(user.address, 0, 0, 0, 0, false))
       .to.emit(market, 'Updated')
       .withArgs(user.address, user.address, TIMESTAMP_2, 0, 0, 0, 0, false)
+      .to.emit(market, 'OrderCreated')
+      .withArgs(
+        user.address,
+        TIMESTAMP_2,
+        {
+          ...DEFAULT_ORDER,
+          maker: POSITION.mul(-1),
+          utilization: parse6decimal('1'),
+        },
+        0,
+      )
 
     // User state
     expectLocalEq(await market.locals(user.address), {
@@ -444,6 +478,20 @@ describe('Happy Path', () => {
     await expect(market.connect(userB).update(userB.address, 0, POSITION_B, 0, COLLATERAL, false))
       .to.emit(market, 'Updated')
       .withArgs(userB.address, userB.address, TIMESTAMP_1, 0, POSITION_B, 0, COLLATERAL, false)
+      .to.emit(market, 'OrderCreated')
+      .withArgs(
+        userB.address,
+        TIMESTAMP_1,
+        {
+          ...DEFAULT_ORDER,
+          long: POSITION_B,
+          net: POSITION_B,
+          skew: parse6decimal('1'),
+          impact: parse6decimal('1'),
+          utilization: parse6decimal('.1'),
+        },
+        COLLATERAL,
+      )
 
     // User State
     expectLocalEq(await market.locals(user.address), {
@@ -691,6 +739,20 @@ describe('Happy Path', () => {
     await expect(market.connect(userB).update(userB.address, 0, 0, 0, 0, false))
       .to.emit(market, 'Updated')
       .withArgs(userB.address, userB.address, TIMESTAMP_2, 0, 0, 0, 0, false)
+      .to.emit(market, 'OrderCreated')
+      .withArgs(
+        userB.address,
+        TIMESTAMP_2,
+        {
+          ...DEFAULT_ORDER,
+          long: POSITION_B.mul(-1),
+          net: POSITION_B.mul(-1),
+          skew: parse6decimal('1'),
+          impact: parse6decimal('-1'),
+          utilization: parse6decimal('-.1'),
+        },
+        0,
+      )
 
     // User State
     expectLocalEq(await market.locals(userB.address), {
@@ -898,7 +960,7 @@ describe('Happy Path', () => {
 
     const POSITION = parse6decimal('0.0001')
     const COLLATERAL = parse6decimal('1000')
-    const { user, userB, dsu, chainlink, oracle, payoff } = instanceVars
+    const { user, userB, dsu, chainlink, beneficiaryB, oracle, payoff } = instanceVars
 
     const riskParameter = {
       margin: parse6decimal('0.3'),
@@ -947,7 +1009,7 @@ describe('Happy Path', () => {
     }
 
     const market = await createMarket(instanceVars)
-    await market.updateParameter(parameter)
+    await market.updateParameter(beneficiaryB.address, AddressZero, parameter)
     await market.updateRiskParameter(riskParameter)
 
     await dsu.connect(user).approve(market.address, COLLATERAL.mul(2).mul(1e12))
@@ -1039,7 +1101,7 @@ describe('Happy Path', () => {
       delay,
     ).init()
     const instanceVars = await deployProtocol(chainlink)
-    const { user, userB, dsu, oracle } = instanceVars
+    const { user, userB, dsu, beneficiaryB, oracle } = instanceVars
 
     const riskParameter = {
       margin: parse6decimal('0.3'),
@@ -1088,7 +1150,7 @@ describe('Happy Path', () => {
     }
 
     const market = await createMarket(instanceVars)
-    await market.updateParameter(parameter)
+    await market.updateParameter(beneficiaryB.address, AddressZero, parameter)
     await market.updateRiskParameter(riskParameter)
 
     await dsu.connect(user).approve(market.address, COLLATERAL.mul(2).mul(1e12))
