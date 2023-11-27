@@ -629,13 +629,13 @@ contract Market is IMarket, Instance, ReentrancyGuard {
         ) revert MarketInsufficientMarginError();
 
         if (
-            !PositionLib.maintained(
+            !PositionLib.margined(
                 context.latestPosition.local.magnitude().add(context.pendingOpen),
                 context.latestVersion,
                 context.riskParameter,
                 context.pendingCollateral
             )
-        ) revert MarketInsufficientMaintenanceError();
+        ) revert MarketInsufficientMarginError();
 
         if (
             (context.local.protection > context.latestPosition.local.timestamp) &&
