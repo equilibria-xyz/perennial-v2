@@ -204,11 +204,11 @@ abstract contract KeeperFactory is IKeeperFactory, Factory, Kept {
         keep(settleKeepConfig(), msg.data, 0, "")
     {
         if (
+            ids.length == 0 ||
             ids.length != markets.length ||
             ids.length != versions.length ||
             ids.length != maxCounts.length ||
-            // Prevent calldata stuffing
-            abi.encodeCall(KeeperFactory.settle, (ids, markets, versions, maxCounts)).length != msg.data.length
+            abi.encodeCall(KeeperFactory.settle, (ids, markets, versions, maxCounts)).length != msg.data.length // Prevent calldata stuffing
         )
             revert KeeperFactoryInvalidSettleError();
 
