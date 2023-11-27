@@ -1064,6 +1064,38 @@ describe('MultiInvoker', () => {
           .to.emit(multiInvoker, 'KeeperCall')
           .withArgs(owner.address, anyValue, anyValue, anyValue, anyValue, anyValue)
       })
+
+      it('doesnt execute when version invalid', async () => {
+        marketOracle.latest.returns({
+          timestamp: BigNumber.from(0),
+          price: BigNumber.from(1150e6),
+          valid: false,
+        })
+
+        // long limit: mkt price <= exec price
+        const trigger = openTriggerOrder({
+          delta: position,
+          price: BigNumber.from(1200e6),
+          side: Dir.L,
+          comparison: Compare.ABOVE_MARKET,
+        })
+
+        const placeOrder = buildPlaceOrder({
+          market: market.address,
+          collateral: collateral,
+          order: trigger,
+        })
+
+        const pending = openPosition({ long: BigNumber.from(trigger.delta), collateral: collateral })
+        setPendingPosition(market, user, 0, pending)
+        await expect(multiInvoker.connect(user).invoke(placeOrder)).to.not.be.reverted
+
+        const execOrder = buildExecOrder({ user: user.address, market: market.address, orderId: 1 })
+        await expect(multiInvoker.connect(user).invoke(execOrder)).to.revertedWithCustomError(
+          multiInvoker,
+          'MultiInvokerCantExecuteError',
+        )
+      })
     })
   })
 })

@@ -106,8 +106,8 @@ contract MultiInvoker is IMultiInvoker, Kept {
     function canExecuteOrder(address account, IMarket market, uint256 nonce) public view returns (bool) {
         TriggerOrder memory order = orders(account, market, nonce);
         if (order.fee.isZero()) return false;
-        (, Fixed6 latestPrice) = _latest(market, account);
-        return order.fillable(latestPrice);
+        (, OracleVersion memory latestVersion) = _latest(market, account);
+        return order.fillable(latestVersion);
     }
 
     /// @notice entry to perform invocations
@@ -339,19 +339,17 @@ contract MultiInvoker is IMultiInvoker, Kept {
     /// @param market Market to compute latest position and oracle version for
     /// @param account Account to compute latest position and oracle version for
     /// @return latestPosition Latest position for the account
-    /// @return latestPrice Latest oracle price for the account
+    /// @return latestVersion Latest oracle version for the market
     function _latest(
         IMarket market,
         address account
-    ) internal view returns (Position memory latestPosition, Fixed6 latestPrice) {
+    ) internal view returns (Position memory latestPosition, OracleVersion memory latestVersion) {
         // load latest price
-        OracleVersion memory latestOracleVersion = market.oracle().latest();
-        latestPrice = latestOracleVersion.price;
+        latestVersion = market.oracle().latest();
         IPayoffProvider payoff = market.payoff();
-        if (address(payoff) != address(0)) latestPrice = payoff.payoff(latestPrice);
+        if (address(payoff) != address(0)) latestVersion.price = payoff.payoff(latestVersion.price);
 
         // load latest settled position
-        uint256 latestTimestamp = latestOracleVersion.timestamp;
         latestPosition = market.positions(account);
 
         // scan pending position for any ready-to-be-settled positions
@@ -363,7 +361,7 @@ contract MultiInvoker is IMultiInvoker, Kept {
             pendingPosition.adjust(latestPosition);
 
             // virtual settlement
-            if (pendingPosition.timestamp <= latestTimestamp) {
+            if (pendingPosition.timestamp <= latestVersion.timestamp) {
                 if (!market.oracle().at(pendingPosition.timestamp).valid) latestPosition.invalidate(pendingPosition);
                 latestPosition.update(pendingPosition);
             }
