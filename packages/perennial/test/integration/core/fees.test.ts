@@ -1,6 +1,7 @@
 import { expect } from 'chai'
 import 'hardhat'
-import { BigNumber } from 'ethers'
+import { BigNumber, constants } from 'ethers'
+const { AddressZero } = constants
 
 import { InstanceVars, deployProtocol, createMarket, settle } from '../helpers/setupHelpers'
 import {
@@ -402,7 +403,7 @@ describe('Fees', () => {
         takerImpactFee: BigNumber.from('0'),
         takerSkewFee: BigNumber.from('0'),
       })
-      await market.updateParameter({
+      await market.updateParameter(AddressZero, AddressZero, {
         ...marketParams,
         fundingFee: BigNumber.from('0'),
       })
@@ -708,7 +709,7 @@ describe('Fees', () => {
         takerImpactFee: BigNumber.from('0'),
         takerSkewFee: BigNumber.from('0'),
       })
-      await market.updateParameter({
+      await market.updateParameter(AddressZero, AddressZero, {
         ...marketParams,
         fundingFee: BigNumber.from('0'),
       })
@@ -1070,7 +1071,7 @@ describe('Fees', () => {
         await nextWithConstantPrice()
         await settle(market, user)
 
-        await market.updateParameter({
+        await market.updateParameter(AddressZero, AddressZero, {
           ...marketParams,
           settlementFee: parse6decimal('1.23'),
         })
