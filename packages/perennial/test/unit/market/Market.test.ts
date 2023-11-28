@@ -14984,6 +14984,20 @@ describe('Market', () => {
               shortReward: { _value: 0 },
             })
           })
+
+          it('correctly stores large skew', async () => {
+            const riskParameter = { ...(await market.riskParameter()) }
+            riskParameter.skewScale = parse6decimal('1')
+            await market.connect(owner).updateRiskParameter(riskParameter)
+
+            await market.connect(user).update(user.address, 0, POSITION, 0, 0, false)
+
+            oracle.at.whenCalledWith(ORACLE_VERSION_3.timestamp).returns(ORACLE_VERSION_3)
+            oracle.status.returns([ORACLE_VERSION_3, ORACLE_VERSION_4.timestamp])
+            oracle.request.whenCalledWith(user.address).returns()
+
+            await expect(market.connect(user).update(user.address, 0, POSITION, 0, 0, false)).to.not.reverted
+          })
         })
 
         context('short', async () => {
@@ -15079,6 +15093,20 @@ describe('Market', () => {
               longReward: { _value: 0 },
               shortReward: { _value: EXPECTED_REWARD.div(5) },
             })
+          })
+
+          it('correctly stores large skew', async () => {
+            const riskParameter = { ...(await market.riskParameter()) }
+            riskParameter.skewScale = parse6decimal('1')
+            await market.connect(owner).updateRiskParameter(riskParameter)
+
+            await market.connect(user).update(user.address, 0, 0, POSITION, 0, false)
+
+            oracle.at.whenCalledWith(ORACLE_VERSION_3.timestamp).returns(ORACLE_VERSION_3)
+            oracle.status.returns([ORACLE_VERSION_3, ORACLE_VERSION_4.timestamp])
+            oracle.request.whenCalledWith(user.address).returns()
+
+            await expect(market.connect(user).update(user.address, 0, 0, POSITION, 0, false)).to.not.reverted
           })
         })
       })
