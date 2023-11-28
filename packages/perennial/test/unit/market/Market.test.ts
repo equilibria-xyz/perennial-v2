@@ -12062,7 +12062,7 @@ describe('Market', () => {
           // can't close more than POSITION / 2
           await expect(
             market.connect(user).update(user.address, 0, POSITION.div(2).sub(1), 0, 0, false),
-          ).to.revertedWithPanic('0x11')
+          ).to.revertedWithCustomError(market, 'MarketOverCloseError')
 
           // close out as much as possible
           await expect(market.connect(user).update(user.address, 0, POSITION.div(2), 0, 0, false))
@@ -12076,7 +12076,7 @@ describe('Market', () => {
           // can't close any more
           await expect(
             market.connect(user).update(user.address, 0, POSITION.div(2).sub(1), 0, 0, false),
-          ).to.revertedWithPanic('0x11')
+          ).to.revertedWithCustomError(market, 'MarketOverCloseError')
 
           oracle.at.whenCalledWith(ORACLE_VERSION_3.timestamp).returns(ORACLE_VERSION_3)
           oracle.status.returns([ORACLE_VERSION_3, ORACLE_VERSION_5.timestamp])
@@ -12127,7 +12127,7 @@ describe('Market', () => {
           it('it reverts if not protected', async () => {
             await expect(market.connect(userB).update(userB.address, 0, 0, 0, 0, false)).to.be.revertedWithCustomError(
               market,
-              'MarketInsufficientMaintenanceError',
+              'MarketInsufficientMarginError',
             )
           })
 
@@ -12696,7 +12696,7 @@ describe('Market', () => {
 
           await expect(
             market.connect(liquidator).update(user.address, 0, 0, POSITION.div(4).sub(1), 0, true),
-          ).to.revertedWithPanic('0x11')
+          ).to.revertedWithCustomError(market, 'MarketOverCloseError')
 
           dsu.transfer.whenCalledWith(liquidator.address, EXPECTED_LIQUIDATION_FEE.add(1).mul(1e12)).returns(true)
           await expect(
