@@ -91,13 +91,16 @@ library StrategyLib {
                 )
             ) continue;
 
-            UFixed6 collateral = marketContext.currentPosition.maker
+            UFixed6 availableClosable = marketContext.currentPosition.maker
                 .sub(marketContext.currentPosition.net().min(marketContext.currentPosition.maker))  // available maker
-                .min(marketContext.closable.mul(StrategyLib.LEVERAGE_BUFFER))                       // available closable
-                .muldiv(marketContext.latestPrice.abs(), registration.leverage)                     // available collateral
-                .muldiv(totalWeight, registration.weight);                                          // collateral in market
+                .min(marketContext.closable);                                                       // available closable
 
-            redemptionAssets = redemptionAssets.min(collateral);
+            if (availableClosable.gte(marketContext.currentAccountPosition.maker)) continue;        // entire position can be closed, don't limit in cases of price deviation
+
+            redemptionAssets = availableClosable
+                .muldiv(marketContext.latestPrice.abs(), registration.leverage)                     // available collateral
+                .muldiv(totalWeight, registration.weight)                                           // collateral in market
+                .min(redemptionAssets);
         }
     }
 
