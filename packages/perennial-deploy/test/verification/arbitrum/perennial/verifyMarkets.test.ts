@@ -103,8 +103,6 @@ describe('Verify Markets', () => {
     expect(riskParameter.skewScale).to.equal(0)
     expect(riskParameter.staleAfter).to.equal(60)
     expect(riskParameter.makerReceiveOnly).to.be.false
-
-    expect(await ethMarket.coordinator()).to.equal(GAUNTLET_ADDRESS)
   })
 
   it('Market: BTC', async () => {
@@ -114,8 +112,6 @@ describe('Verify Markets', () => {
       await marketFactory.callStatic.markets(oracle, constants.AddressZero),
       signer,
     )
-
-    expect(await btcMarket.coordinator()).to.equal(GAUNTLET_ADDRESS)
 
     const parameter = await btcMarket.callStatic.parameter()
     expect(parameter.fundingFee).to.equal(utils.parseUnits('0.05', 6))
@@ -167,8 +163,6 @@ describe('Verify Markets', () => {
       signer,
     )
 
-    expect(await solMarket.coordinator()).to.equal(GAUNTLET_ADDRESS)
-
     const parameter = await solMarket.callStatic.parameter()
     expect(parameter.fundingFee).to.equal(utils.parseUnits('0.05', 6))
     expect(parameter.interestFee).to.equal(utils.parseUnits('0.05', 6))
@@ -218,8 +212,6 @@ describe('Verify Markets', () => {
       await marketFactory.callStatic.markets(oracle, constants.AddressZero),
       signer,
     )
-
-    expect(await maticMarket.coordinator()).to.equal(GAUNTLET_ADDRESS)
 
     const parameter = await maticMarket.callStatic.parameter()
     expect(parameter.fundingFee).to.equal(utils.parseUnits('0.05', 6))

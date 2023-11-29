@@ -157,10 +157,9 @@ contract MultiInvoker is IMultiInvoker, Kept {
 
                 _approve(target);
             }
-
-            // Eth must not remain in this contract at rest
-            payable(msg.sender).transfer(address(this).balance);
         }
+        // Eth must not remain in this contract at rest
+        payable(msg.sender).transfer(address(this).balance);
     }
 
     /// @notice Updates market on behalf of account
@@ -424,7 +423,7 @@ contract MultiInvoker is IMultiInvoker, Kept {
     /// @notice Helper function to raise keeper fee
     /// @param keeperFee Keeper fee to raise
     /// @param data Data to raise keeper fee with
-    function _raiseKeeperFee(UFixed18 keeperFee, bytes memory data) internal override {
+    function _raiseKeeperFee(UFixed18 keeperFee, bytes memory data) internal virtual override {
         (address account, IMarket market, UFixed6 fee) = abi.decode(data, (address, IMarket, UFixed6));
         if (keeperFee.gt(UFixed18Lib.from(fee))) revert MultiInvokerMaxFeeExceededError();
 

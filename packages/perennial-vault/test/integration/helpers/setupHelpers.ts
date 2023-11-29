@@ -102,7 +102,7 @@ export async function deployProductOnMainnetFork({
 
   const market = IMarket__factory.connect(productAddress, owner)
   await market.connect(owner).updateRiskParameter(riskParameter)
-  await market.connect(owner).updateParameter(marketParameter)
+  await market.connect(owner).updateParameter(constants.AddressZero, constants.AddressZero, marketParameter)
 
   return market
 }

@@ -5,8 +5,6 @@ import HRE from 'hardhat'
 import { BigNumber, constants, utils } from 'ethers'
 
 import {
-  MultiInvoker,
-  MultiInvoker__factory,
   IMarket,
   IBatcher,
   IEmptySetReserve,
@@ -16,38 +14,41 @@ import {
   IVaultFactory,
   IVault,
   IOracleProvider,
+  MultiInvoker_Arbitrum__factory,
+  MultiInvoker_Arbitrum,
+  ArbGasInfo,
 } from '../../../types/generated'
 import { OracleVersionStruct } from '@equilibria/perennial-v2-oracle/types/generated/contracts/Oracle'
+import { PositionStruct } from '@equilibria/perennial-v2/types/generated/contracts/Market'
 import { loadFixture } from '@nomicfoundation/hardhat-network-helpers'
 import {
+  buildPlaceOrder,
+  type Actions,
+  buildCancelOrder,
   buildUpdateMarket,
   buildUpdateVault,
-  buildPlaceOrder,
-  buildCancelOrder,
   buildExecOrder,
-  VaultUpdate,
-  Actions,
   MAX_UINT,
+  VaultUpdate,
 } from '../../helpers/invoke'
 
-import { DEFAULT_LOCAL, Local, parse6decimal } from '../../../../common/testutil/types'
+import { Local, parse6decimal } from '../../../../common/testutil/types'
 import {
+  Compare,
+  Dir,
   openPosition,
   openTriggerOrder,
   setGlobalPrice,
   setMarketPosition,
   setPendingPosition,
-  Compare,
-  Dir,
 } from '../../helpers/types'
 
 import { anyValue } from '@nomicfoundation/hardhat-chai-matchers/withArgs'
-import { PositionStruct } from '@equilibria/perennial-v2/types/generated/contracts/Market'
 
 const ethers = { HRE }
 use(smock.matchers)
 
-describe('MultiInvoker', () => {
+describe('MultiInvoker_Arbitrum', () => {
   let owner: SignerWithAddress
   let user: SignerWithAddress
   let usdc: FakeContract<IERC20>
@@ -60,7 +61,7 @@ describe('MultiInvoker', () => {
   let reserve: FakeContract<IEmptySetReserve>
   let marketFactory: FakeContract<IMarketFactory>
   let vaultFactory: FakeContract<IVaultFactory>
-  let multiInvoker: MultiInvoker
+  let multiInvoker: MultiInvoker_Arbitrum
 
   const multiInvokerFixture = async () => {
     ;[owner, user] = await ethers.HRE.ethers.getSigners()
@@ -80,16 +81,22 @@ describe('MultiInvoker', () => {
     marketFactory = await smock.fake<IMarketFactory>('IMarketFactory')
     vaultFactory = await smock.fake<IVaultFactory>('IVaultFactory')
 
-    multiInvoker = await new MultiInvoker__factory(owner).deploy(
+    multiInvoker = await new MultiInvoker_Arbitrum__factory(owner).deploy(
       usdc.address,
       dsu.address,
       marketFactory.address,
       vaultFactory.address,
       '0x0000000000000000000000000000000000000000',
       reserve.address,
-      500_000,
-      1_000_000,
+      100_000,
+      200_000,
     )
+
+    // Mock L1 gas pricing
+    const gasInfo = await smock.fake<ArbGasInfo>('ArbGasInfo', {
+      address: '0x000000000000000000000000000000000000006C',
+    })
+    gasInfo.getL1BaseFeeEstimate.returns(0)
 
     // Default mkt price: 1150
     const oracleVersion: OracleVersionStruct = {
@@ -108,7 +115,6 @@ describe('MultiInvoker', () => {
 
     invokerOracle.latestRoundData.returns(aggRoundData)
     market.oracle.returns(marketOracle.address)
-    marketOracle.current.returns(0)
     marketOracle.latest.returns(oracleVersion)
 
     usdc.transferFrom.whenCalledWith(user.address).returns(true)
@@ -415,8 +421,11 @@ describe('MultiInvoker', () => {
     const price = BigNumber.from(1150e6)
 
     const defaultLocal: Local = {
-      ...DEFAULT_LOCAL,
       currentId: 1,
+      latestId: 0,
+      collateral: 0,
+      reward: 0,
+      protection: 0,
     }
 
     const defaultPosition: PositionStruct = {

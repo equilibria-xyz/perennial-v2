@@ -27,10 +27,10 @@ contract Market is IMarket, Instance, ReentrancyGuard {
     IPayoffProvider public payoff;
 
     /// @dev Beneficiary of the market, receives donations
-    address public beneficiary;
+    address private beneficiary;
 
     /// @dev Risk coordinator of the market
-    address public coordinator;
+    address private coordinator;
 
     /// @dev Risk parameters of the market
     RiskParameterStorage private _riskParameter;
@@ -91,23 +91,21 @@ contract Market is IMarket, Instance, ReentrancyGuard {
         _saveContext(context, account);
     }
 
-    /// @notice Updates the beneficiary of the market
+    /// @notice Updates the beneficiary, coordinator, and parameter set of the market
     /// @param newBeneficiary The new beneficiary address
-    function updateBeneficiary(address newBeneficiary) external onlyOwner {
+    /// @param newCoordinator The new coordinator address
+    /// @param newParameter The new parameter set
+    function updateParameter(
+        address newBeneficiary,
+        address newCoordinator,
+        MarketParameter memory newParameter
+    ) external onlyOwner {
         beneficiary = newBeneficiary;
         emit BeneficiaryUpdated(newBeneficiary);
-    }
 
-    /// @notice Updates the coordinator of the market
-    /// @param newCoordinator The new coordinator address
-    function updateCoordinator(address newCoordinator) external onlyOwner {
         coordinator = newCoordinator;
         emit CoordinatorUpdated(newCoordinator);
-    }
 
-    /// @notice Updates the parameter set of the market
-    /// @param newParameter The new parameter set
-    function updateParameter(MarketParameter memory newParameter) external onlyOwner {
         _parameter.validateAndStore(newParameter, IMarketFactory(address(factory())).parameter(), reward);
         emit ParameterUpdated(newParameter);
     }
@@ -390,6 +388,7 @@ contract Market is IMarket, Instance, ReentrancyGuard {
 
         // events
         emit Updated(msg.sender, account, context.currentTimestamp, newMaker, newLong, newShort, collateral, protect);
+        emit OrderCreated(account, context.currentTimestamp, newOrder, collateral);
     }
 
     /// @notice Loads the context of the transaction
@@ -586,7 +585,8 @@ contract Market is IMarket, Instance, ReentrancyGuard {
                 context.riskParameter,
                 context.pendingCollateral.sub(collateral)
             ) ||
-            collateral.lt(Fixed6Lib.ZERO)
+            collateral.lt(Fixed6Lib.ZERO) ||
+            newOrder.maker.add(newOrder.long).add(newOrder.short).gte(Fixed6Lib.ZERO)
         )) revert MarketInvalidProtectionError();
 
         if (
@@ -598,8 +598,10 @@ contract Market is IMarket, Instance, ReentrancyGuard {
         if (context.marketParameter.closed && newOrder.increasesPosition())
             revert MarketClosedError();
 
-        if (context.currentPosition.global.maker.gt(context.riskParameter.makerLimit))
-            revert MarketMakerOverLimitError();
+        if (
+            context.currentPosition.global.maker.gt(context.riskParameter.makerLimit) &&
+            newOrder.maker.gt(Fixed6Lib.ZERO)
+        ) revert MarketMakerOverLimitError();
 
         if (!newOrder.singleSided(context.currentPosition.local) || !newOrder.singleSided(context.latestPosition.local))
             revert MarketNotSingleSidedError();

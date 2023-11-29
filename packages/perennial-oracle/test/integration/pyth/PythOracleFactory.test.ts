@@ -245,7 +245,7 @@ testOracles.forEach(testOracle => {
         oracle: oracle.address,
         payoff: ethers.constants.AddressZero,
       })
-      await market.updateParameter(marketParameter)
+      await market.updateParameter(ethers.constants.AddressZero, ethers.constants.AddressZero, marketParameter)
       await market.updateRiskParameter(riskParameter)
 
       oracleSigner = await impersonateWithBalance(oracle.address, utils.parseEther('10'))
@@ -832,6 +832,18 @@ testOracles.forEach(testOracle => {
         await expect(
           user.sendTransaction({ to: pythOracleFactory.address, data: calldata.concat(calldata.slice(2)) }),
         ).to.be.revertedWithCustomError(pythOracleFactory, 'KeeperFactoryInvalidSettleError')
+      })
+
+      it('reverts if calldata is ids is empty', async () => {
+        await keeperOracle.connect(oracleSigner).request(market.address, user.address)
+        await pythOracleFactory.connect(user).commit([PYTH_ETH_USD_PRICE_FEED], STARTING_TIME, VAA, {
+          value: 1,
+        })
+
+        await expect(pythOracleFactory.connect(user).settle([], [], [], [])).to.be.revertedWithCustomError(
+          pythOracleFactory,
+          'KeeperFactoryInvalidSettleError',
+        )
       })
     })
 

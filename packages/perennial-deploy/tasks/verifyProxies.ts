@@ -11,7 +11,9 @@ export default task('verify-proxies', 'Verifies proxies on Etherscan for the giv
       config: { etherscan },
     } = HRE
     const res = await HRE.run('verify:get-etherscan-endpoint')
-    const apiKey = (etherscan?.apiKey as Record<string, string>)[getNetworkName()]
+    const apiKey = (etherscan?.apiKey as Record<string, string>)[
+      getNetworkName() === 'arbitrum' ? 'arbitrumOne' : getNetworkName()
+    ]
     const proxyVerifyUrl = `${res.urls.apiURL}?module=contract&action=verifyproxycontract&apikey=${apiKey}`
     const proxyVerifyStatusUrl = `${res.urls.apiURL}?module=contract&action=checkproxyverification&apikey=${apiKey}"`
 

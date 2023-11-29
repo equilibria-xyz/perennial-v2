@@ -59,7 +59,8 @@ library OrderLib {
             .max(Fixed6Lib.ZERO);
         Fixed6 takerFee = Fixed6Lib.from(riskParameter.takerFee)
             .add(Fixed6Lib.from(riskParameter.takerSkewFee.mul(self.skew)))
-            .add(Fixed6Lib.from(riskParameter.takerImpactFee).mul(self.impact));
+            .add(Fixed6Lib.from(riskParameter.takerImpactFee).mul(self.impact))
+            .max(Fixed6Lib.ZERO);
         Fixed6 fee = Fixed6Lib.from(self.maker.abs().mul(latestVersion.price.abs())).mul(makerFee)
             .add(Fixed6Lib.from(self.long.abs().add(self.short.abs()).mul(latestVersion.price.abs())).mul(takerFee));
 
