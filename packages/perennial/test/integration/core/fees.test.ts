@@ -1034,7 +1034,7 @@ describe('Fees', () => {
           e => e.event === 'PositionProcessed',
         )?.args as unknown as PositionProcessedEventObject
 
-        const expectedShortSkewFee = BigNumber.from('-1138829') // The impact fee refunds more than the taker fee charged
+        const expectedShortSkewFee = BigNumber.from('0') // The impact fee refunds more than the taker fee charged, but is capped at zero
         expect(accountProcessEventShort.accumulationResult.positionFee).to.equal(expectedShortSkewFee)
         expect(
           positionProcessEventShort.accumulationResult.positionFeeMaker.add(
