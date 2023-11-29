@@ -30,7 +30,7 @@ import {
   MAX_UINT,
 } from '../../helpers/invoke'
 
-import { Local, parse6decimal } from '../../../../common/testutil/types'
+import { DEFAULT_LOCAL, Local, parse6decimal } from '../../../../common/testutil/types'
 import {
   openPosition,
   openTriggerOrder,
@@ -415,11 +415,8 @@ describe('MultiInvoker', () => {
     const price = BigNumber.from(1150e6)
 
     const defaultLocal: Local = {
+      ...DEFAULT_LOCAL,
       currentId: 1,
-      latestId: 0,
-      collateral: 0,
-      reward: 0,
-      protection: 0,
     }
 
     const defaultPosition: PositionStruct = {
