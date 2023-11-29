@@ -74,14 +74,14 @@ contract KeeperOracle is IKeeperOracle, Instance {
     /// @param account The account to callback to
     function request(IMarket market, address account) external onlyAuthorized {
         uint256 currentTimestamp = current();
-        if (versions[_global.currentIndex] == currentTimestamp) return;
-
-        versions[++_global.currentIndex] = currentTimestamp;
-        emit OracleProviderVersionRequested(currentTimestamp);
 
         _globalCallbacks[currentTimestamp].add(address(market));
         _localCallbacks[currentTimestamp][market].add(account);
         emit CallbackRequested(SettlementCallback(market, account, currentTimestamp));
+
+        if (versions[_global.currentIndex] == currentTimestamp) return;
+        versions[++_global.currentIndex] = currentTimestamp;
+        emit OracleProviderVersionRequested(currentTimestamp);
     }
 
     /// @notice Returns the latest synced oracle version and the current oracle version

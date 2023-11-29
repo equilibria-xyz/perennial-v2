@@ -26,6 +26,7 @@ import {
   RiskParameterStorageLib__factory,
   KeeperOracle__factory,
   KeeperOracle,
+  MilliPowerTwo__factory,
 } from '../../../types/generated'
 import { parse6decimal } from '../../../../common/testutil/types'
 import { smock } from '@defi-wonderland/smock'
@@ -87,6 +88,7 @@ testOracles.forEach(testOracle => {
   describe(testOracle.name, () => {
     let owner: SignerWithAddress
     let user: SignerWithAddress
+    let user2: SignerWithAddress
     let oracle: Oracle
     let keeperOracle: KeeperOracle
     let keeperOracleBtc: KeeperOracle
@@ -95,17 +97,20 @@ testOracles.forEach(testOracle => {
     let oracleFactory: OracleFactory
     let marketFactory: MarketFactory
     let market: IMarket
+    let market2: IMarket
     let dsu: IERC20Metadata
     let oracleSigner: SignerWithAddress
     let factorySigner: SignerWithAddress
 
     const setup = async () => {
-      ;[owner, user] = await ethers.getSigners()
+      ;[owner, user, user2] = await ethers.getSigners()
 
       dsu = IERC20Metadata__factory.connect(DSU_ADDRESS, owner)
 
       payoffFactory = await new PayoffFactory__factory(owner).deploy()
       await payoffFactory.initialize()
+      const milliPowerTwoPayoff = await new MilliPowerTwo__factory(owner).deploy()
+      await payoffFactory.register(milliPowerTwoPayoff.address)
 
       const oracleImpl = await new Oracle__factory(owner).deploy()
       oracleFactory = await new OracleFactory__factory(owner).deploy(oracleImpl.address)
@@ -247,6 +252,22 @@ testOracles.forEach(testOracle => {
       })
       await market.updateParameter(ethers.constants.AddressZero, ethers.constants.AddressZero, marketParameter)
       await market.updateRiskParameter(riskParameter)
+
+      market2 = Market__factory.connect(
+        await marketFactory.callStatic.create({
+          token: dsu.address,
+          oracle: oracle.address,
+          payoff: milliPowerTwoPayoff.address,
+        }),
+        owner,
+      )
+      await marketFactory.create({
+        token: dsu.address,
+        oracle: oracle.address,
+        payoff: milliPowerTwoPayoff.address,
+      })
+      await market2.updateParameter(ethers.constants.AddressZero, ethers.constants.AddressZero, marketParameter)
+      await market2.updateRiskParameter(riskParameter)
 
       oracleSigner = await impersonateWithBalance(oracle.address, utils.parseEther('10'))
       factorySigner = await impersonateWithBalance(pythOracleFactory.address, utils.parseEther('10'))
@@ -433,6 +454,47 @@ testOracles.forEach(testOracle => {
         )
 
         expect((await market.position()).timestamp).to.equal(STARTING_TIME)
+      })
+
+      it('commits successfully and incentivizes the keeper w/ multiple markets', async () => {
+        await pythOracleFactory.updateGranularity(3) // get both requests in the same version
+        const GRANULARITY_STARTING_TIME = Math.ceil(STARTING_TIME / 3 + 1) * 3
+
+        const originalDSUBalance = await dsu.callStatic.balanceOf(user.address)
+        const originalFactoryDSUBalance = await dsu.callStatic.balanceOf(oracleFactory.address)
+        await keeperOracle.connect(oracleSigner).request(market.address, user.address)
+        await keeperOracle.connect(oracleSigner).request(market2.address, user2.address)
+        expect(await keeperOracle.globalCallbacks(GRANULARITY_STARTING_TIME)).to.deep.eq([
+          market.address,
+          market2.address,
+        ])
+        expect(await keeperOracle.localCallbacks(GRANULARITY_STARTING_TIME, market.address)).to.deep.eq([user.address])
+        expect(await keeperOracle.localCallbacks(GRANULARITY_STARTING_TIME, market2.address)).to.deep.eq([
+          user2.address,
+        ])
+
+        // Base fee isn't working properly in coverage, so we need to set it manually
+        await ethers.provider.send('hardhat_setNextBlockBaseFeePerGas', ['0x5F5E100'])
+        expect(await keeperOracle.versions(1)).to.be.equal(GRANULARITY_STARTING_TIME)
+        expect(await keeperOracle.next()).to.be.equal(GRANULARITY_STARTING_TIME)
+        await expect(
+          pythOracleFactory.connect(user).commit([PYTH_ETH_USD_PRICE_FEED], GRANULARITY_STARTING_TIME, OTHER_VAA, {
+            value: 1,
+            maxFeePerGas: 100000000,
+          }),
+        )
+          .to.emit(keeperOracle, 'OracleProviderVersionFulfilled')
+          .withArgs({ timestamp: GRANULARITY_STARTING_TIME, price: '1838207180', valid: true })
+        const newDSUBalance = await dsu.callStatic.balanceOf(user.address)
+        const newFactoryDSUBalance = await dsu.callStatic.balanceOf(oracleFactory.address)
+
+        expect(newDSUBalance.sub(originalDSUBalance)).to.be.within(utils.parseEther('0.10'), utils.parseEther('0.20'))
+        expect(originalFactoryDSUBalance.sub(newFactoryDSUBalance)).to.be.within(
+          utils.parseEther('0.10'),
+          utils.parseEther('0.20'),
+        )
+
+        expect((await market.position()).timestamp).to.equal(GRANULARITY_STARTING_TIME)
       })
 
       it('fails to commit if update fee is not provided', async () => {
