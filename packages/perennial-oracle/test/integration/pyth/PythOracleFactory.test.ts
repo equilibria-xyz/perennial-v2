@@ -266,7 +266,7 @@ testOracles.forEach(testOracle => {
         oracle: oracle.address,
         payoff: milliPowerTwoPayoff.address,
       })
-      await market2.updateParameter(marketParameter)
+      await market2.updateParameter(ethers.constants.AddressZero, ethers.constants.AddressZero, marketParameter)
       await market2.updateRiskParameter(riskParameter)
 
       oracleSigner = await impersonateWithBalance(oracle.address, utils.parseEther('10'))

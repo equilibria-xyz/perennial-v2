@@ -77,11 +77,11 @@ contract KeeperOracle is IKeeperOracle, Instance {
 
         _globalCallbacks[currentTimestamp].add(address(market));
         _localCallbacks[currentTimestamp][market].add(account);
-        emit OracleProviderVersionRequested(currentTimestamp);
-        
+        emit CallbackRequested(SettlementCallback(market, account, currentTimestamp));
+
         if (versions[_global.currentIndex] == currentTimestamp) return;
         versions[++_global.currentIndex] = currentTimestamp;
-        emit CallbackRequested(SettlementCallback(market, account, currentTimestamp));
+        emit OracleProviderVersionRequested(currentTimestamp);
     }
 
     /// @notice Returns the latest synced oracle version and the current oracle version
