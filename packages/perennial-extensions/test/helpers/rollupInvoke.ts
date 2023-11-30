@@ -68,29 +68,29 @@ export const buildPlaceOrder = ({
   order: TriggerOrderStruct
   interfaceFeeReceiverIndex?: BigNumberish
 }): string => {
-  console.log('HERE')
   return (
     MAGIC_BYTE +
-      '01' +
-      encodeAddressOrCacheIndex(marketIndex ?? 0, market) +
-      encodeUFixed(maker ?? MAX_UINT) +
-      encodeUFixed(long ?? MAX_UINT) +
-      encodeUFixed(short ?? MAX_UINT) +
-      encodeFixed(collateral ?? MAX_INT) +
-      encodeBool(handleWrap ?? false) +
-      encodeUFixed(0) +
-      encodeAddressOrCacheIndex(0) +
-      encodeBool(false) +
-      '03' +
-      encodeAddressOrCacheIndex(marketIndex ?? 0, market) +
-      encodeUint8(order.side) + // TODO fix promise
-      encodeInt8(order.comparison) +
-      encodeUint(order.fee) +
-      encodeInt(order.price) +
-      encodeFixed(order.delta) +
-      encodeUint(order.interfaceFee.amount) +
-      encodeAddressOrCacheIndex(interfaceFeeReceiverIndex ?? 0, order.interfaceFee.receiver),
-    encodeBool(order.interfaceFee.unwrap)
+    '01' +
+    encodeAddressOrCacheIndex(marketIndex ?? 0, market) +
+    encodeUFixed(maker ?? MAX_UINT) +
+    encodeUFixed(long ?? MAX_UINT) +
+    encodeUFixed(short ?? MAX_UINT) +
+    encodeFixed(collateral ?? MAX_INT) +
+    encodeBool(handleWrap ?? false) +
+    encodeUFixed(0) + // rest of interface fee skipped when 0
+    '03' +
+    encodeAddressOrCacheIndex(marketIndex ?? 0, market) +
+    encodeUint8(order.side) +
+    encodeInt8(order.comparison) +
+    encodeUint(order.fee) +
+    encodeInt(order.price) +
+    encodeFixed(order.delta) +
+    encodeUint(order.interfaceFee.amount) +
+    // skip encoding interface fee if amount == 0
+    (BigNumber.from(order.interfaceFee.amount).isZero()
+      ? ''
+      : encodeAddressOrCacheIndex(interfaceFeeReceiverIndex ?? 0, order.interfaceFee.receiver) +
+        encodeBool(order.interfaceFee.unwrap))
   )
 }
 
@@ -225,8 +225,8 @@ export const encodeUint8 = (uint8: BigNumberish): string => {
 export const encodeInt8 = (int8: BigNumberish): string => {
   const _int8 = BigNumber.from(int8)
   if (_int8.eq(0)) return '00'
-  if (_int8.lt(0)) return '01' + toHex(_int8._hex)
-  return '00' + toHex(_int8._hex)
+  if (_int8.lt(0)) return '01' + toHex(_int8.abs()._hex)
+  return '00' + toHex(_int8.abs()._hex)
 }
 export const encodeAddressOrCacheIndex = (
   cacheIndex: BigNumberish, // must not be null, default to BN(0) and pass address if user's first interaction with protocol

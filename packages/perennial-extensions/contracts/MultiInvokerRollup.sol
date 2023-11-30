@@ -172,16 +172,18 @@ contract MultiInvokerRollup is IMultiInvokerRollup, MultiInvoker {
         if (result == address(0)) revert MultiInvokerRollupAddressIndexOutOfBoundsError();
     }
 
-    function _readOrder(PTR memory ptr, bytes calldata input) private pure returns (TriggerOrder memory order) {
+    function _readOrder(PTR memory ptr, bytes calldata input) private returns (TriggerOrder memory order) {
         order.side = ptr.readUint8(input);
         order.comparison = ptr.readInt8(input);
         order.fee = ptr.readUFixed6(input);
         order.price = ptr.readFixed6(input);
         order.delta = ptr.readFixed6(input);
+        order.interfaceFee = _readInterfaceFee(ptr, input);
     }
 
     function _readInterfaceFee(PTR memory ptr, bytes calldata input) internal returns (InterfaceFee memory result) {
         result.amount = ptr.readUFixed6(input);
+        if (result.amount.isZero()) return result;
         result.receiver = _readAndCacheAddress(ptr, input);
         result.unwrap = ptr.readUint8(input) > 0 ? true : false;
     }
