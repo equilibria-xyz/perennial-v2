@@ -479,8 +479,8 @@ contract Vault is IVault, Instance {
     /// @return Maximum available deposit amount
     function _maxDeposit(Context memory context) private view returns (UFixed6) {
         if (context.latestCheckpoint.unhealthy()) return UFixed6Lib.ZERO;
-        UFixed6 collateral = UFixed6Lib.from(totalAssets().max(Fixed6Lib.ZERO)).add(context.global.deposit);
-        return context.global.assets.add(context.parameter.cap.sub(collateral.min(context.parameter.cap)));
+        UFixed6 assets = UFixed6Lib.from(totalAssets().max(Fixed6Lib.ZERO));
+        return context.parameter.cap.sub(assets.min(context.parameter.cap));
     }
 
     /// @notice The maximum available redemption amount for `account`

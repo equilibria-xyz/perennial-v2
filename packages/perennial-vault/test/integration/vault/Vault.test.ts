@@ -1446,6 +1446,32 @@ describe('Vault', () => {
       await expect(vault.connect(btcUser1).update(btcUser1.address, 0, 0, 0)).to.revertedWithPanic('0x11')
     })
 
+    it('doesnt bypass vault deposit cap', async () => {
+      await vault.connect(owner).updateParameter({
+        cap: parse6decimal('100'),
+      })
+
+      await updateOracle()
+
+      const deposit1 = parse6decimal('100')
+      await vault.connect(user).update(user.address, deposit1, 0, 0)
+
+      await updateOracle()
+      await vault.settle(user.address)
+
+      const deposit2 = parse6decimal('10')
+      await expect(vault.connect(user).update(user.address, deposit2, 0, 0)).to.be.reverted
+
+      const redeem = parse6decimal('50')
+      await vault.connect(user).update(user.address, 0, redeem, 0)
+
+      await updateOracle()
+      await vault.settle(user.address)
+
+      const deposit3 = parse6decimal('100')
+      await expect(vault.connect(user).update(user.address, deposit3, 0, 0)).to.be.reverted
+    })
+
     it('reverts when paused', async () => {
       await vaultFactory.connect(owner).pause()
       await expect(vault.settle(user.address)).to.revertedWithCustomError(vault, 'InstancePausedError')
