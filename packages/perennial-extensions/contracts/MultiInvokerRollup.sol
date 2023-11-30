@@ -188,7 +188,6 @@ contract MultiInvokerRollup is IMultiInvokerRollup, MultiInvoker {
         result.unwrap = ptr.readUint8(input) > 0 ? true : false;
     }
 
-
     /**
      * @dev This is called in decodeAccount and decodeProduct which both only pass 20 byte slices
      * @notice Unchecked force of 20 bytes into address

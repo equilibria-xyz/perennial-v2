@@ -1031,7 +1031,7 @@ describe('MultiInvokerRollup', () => {
             .to.emit(multiInvoker, 'KeeperCall')
         })
 
-        it.only('executes an order and charges keeper fee to sender', async () => {
+        it('executes an order and charges keeper fee to sender', async () => {
           // long limit: limit = true && mkt price (1150) <= exec price 1200
           const trigger = openTriggerOrder({
             delta: position,
