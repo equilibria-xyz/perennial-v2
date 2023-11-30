@@ -75,9 +75,12 @@ library StrategyLib {
     function maxRedeem(
         Strategy memory strategy,
         Registration[] memory registrations,
-        uint256 totalWeight
+        uint256 totalWeight,
+        UFixed6 collateral
     ) internal pure returns (UFixed6 redemptionAssets) {
         redemptionAssets = UFixed6Lib.MAX;
+        MarketTarget[] memory targets = _allocate(strategy, registrations, collateral, collateral);
+
         for (uint256 marketId; marketId < strategy.marketContexts.length; marketId++) {
             MarketStrategyContext memory marketContext = strategy.marketContexts[marketId];
             Registration memory registration = registrations[marketId];
@@ -91,9 +94,8 @@ library StrategyLib {
                 )
             ) continue;
 
-            UFixed6 availableClosable = marketContext.currentPosition.maker
-                .sub(marketContext.currentPosition.net().min(marketContext.currentPosition.maker))  // available maker
-                .min(marketContext.closable);                                                       // available closable
+            (UFixed6 minPosition, ) = _positionLimit(marketContext);
+            UFixed6 availableClosable = targets[marketId].position.sub(minPosition.min(targets[marketId].position));
 
             if (availableClosable.gte(marketContext.currentAccountPosition.maker)) continue;        // entire position can be closed, don't limit in cases of price deviation
 
@@ -110,6 +112,20 @@ library StrategyLib {
     /// @param collateral The amount of collateral to allocate
     /// @param assets The amount of collateral that is eligible for positions
     function allocate(
+        Strategy memory strategy,
+        Registration[] memory registrations,
+        UFixed6 collateral,
+        UFixed6 assets
+    ) internal pure returns (MarketTarget[] memory targets) {
+        targets = _allocate(strategy, registrations, collateral, assets);
+
+        for (uint256 marketId; marketId < registrations.length; marketId++) {
+            (UFixed6 minPosition, UFixed6 maxPosition) = _positionLimit(strategy.marketContexts[marketId]);
+            targets[marketId].position = targets[marketId].position.max(minPosition).min(maxPosition);
+        }
+    }
+
+    function _allocate(
         Strategy memory strategy,
         Registration[] memory registrations,
         UFixed6 collateral,
@@ -133,14 +149,10 @@ library StrategyLib {
             if (strategy.marketContexts[marketId].marketParameter.closed || _locals.marketAssets.lt(_locals.minAssets))
                 _locals.marketAssets = UFixed6Lib.ZERO;
 
-            (_locals.minPosition, _locals.maxPosition) = _positionLimit(strategy.marketContexts[marketId]);
-
             (targets[marketId].collateral, targets[marketId].position) = (
                 Fixed6Lib.from(_locals.marketCollateral).sub(strategy.marketContexts[marketId].local.collateral),
                 _locals.marketAssets
                     .muldiv(registrations[marketId].leverage, strategy.marketContexts[marketId].latestPrice.abs())
-                    .min(_locals.maxPosition)
-                    .max(_locals.minPosition)
             );
         }
     }
