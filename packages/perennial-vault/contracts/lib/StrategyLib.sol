@@ -43,6 +43,8 @@ using StrategyLib for Strategy global;
 /// @dev - Deploys collateral first to satisfy the margin of each market, then deploys the rest by weight.
 ///      - Positions are then targeted based on the amount of collateral that ends up deployed to each market.
 library StrategyLib {
+    error StrategyLibInsufficientMarginError();
+
     /// @dev The maximum multiplier that is allowed for leverage
     UFixed6 public constant LEVERAGE_BUFFER = UFixed6.wrap(1.2e6);
 
@@ -133,6 +135,8 @@ library StrategyLib {
     ) internal pure returns (MarketTarget[] memory targets) {
         _AllocateLocals memory _locals;
         (_locals.totalWeight, _locals.totalMargin) = _aggregate(registrations, strategy.marketContexts);
+
+        if (collateral.lt(_locals.totalMargin)) revert StrategyLibInsufficientMarginError();
 
         targets = new MarketTarget[](registrations.length);
         for (uint256 marketId; marketId < registrations.length; marketId++) {

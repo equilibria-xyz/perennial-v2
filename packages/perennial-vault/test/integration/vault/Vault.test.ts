@@ -1737,14 +1737,10 @@ describe('Vault', () => {
         expect((await vault.accounts(user.address)).assets).to.equal(finalUnclaimed)
         expect((await vault.accounts(ethers.constants.AddressZero)).assets).to.equal(finalUnclaimed)
 
-        // 6. Claim should be pro-rated
-        const initialBalanceOf = await asset.balanceOf(user.address)
-        await vault.connect(user).update(user.address, 0, 0, ethers.constants.MaxUint256)
-        expect(await collateralInVault()).to.equal(finalCollateral)
-        expect(await btcCollateralInVault()).to.equal(btcFinalCollateral)
-        expect((await vault.accounts(user.address)).assets).to.equal(0)
-        expect((await vault.accounts(ethers.constants.AddressZero)).assets).to.equal(0)
-        expect(await asset.balanceOf(user.address)).to.equal(initialBalanceOf)
+        // 6. Claim should not be possible since we cannot rebalance
+        await expect(
+          vault.connect(user).update(user.address, 0, 0, ethers.constants.MaxUint256),
+        ).to.revertedWithCustomError(vault, 'StrategyLibInsufficientMarginError')
       })
     })
 
