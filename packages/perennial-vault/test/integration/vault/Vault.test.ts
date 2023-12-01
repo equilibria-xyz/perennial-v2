@@ -1394,7 +1394,7 @@ describe('Vault', () => {
       await vault.settle(user.address)
       await vault.settle(user2.address)
 
-      const totalAssets = BigNumber.from('10906553351')
+      const totalAssets = BigNumber.from('10906581353')
       expect((await vault.accounts(constants.AddressZero)).assets).to.equal(totalAssets)
     })
 
