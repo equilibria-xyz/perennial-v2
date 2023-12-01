@@ -104,7 +104,7 @@ library TriggerOrderStorageLib {
             uint64(UFixed6.unwrap(newValue.fee)),
             int64(Fixed6.unwrap(newValue.price)),
             int64(Fixed6.unwrap(newValue.delta)),
-            uint40(UFixed6.unwrap(newValue.interfaceFee.amount)),
+            uint48(UFixed6.unwrap(newValue.interfaceFee.amount)),
             newValue.interfaceFee.receiver,
             newValue.interfaceFee.unwrap,
             bytes11(0)

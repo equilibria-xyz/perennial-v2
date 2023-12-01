@@ -28,6 +28,10 @@ import {
   VaultUpdate,
   Actions,
   MAX_UINT,
+  MAX_UINT64,
+  MAX_UINT48,
+  MAX_INT64,
+  MIN_INT64,
 } from '../../helpers/invoke'
 
 import { DEFAULT_LOCAL, Local, parse6decimal } from '../../../../common/testutil/types'
@@ -43,6 +47,7 @@ import {
 
 import { anyValue } from '@nomicfoundation/hardhat-chai-matchers/withArgs'
 import { PositionStruct } from '@equilibria/perennial-v2/types/generated/contracts/Market'
+import exp from 'constants'
 
 const ethers = { HRE }
 use(smock.matchers)
@@ -1095,6 +1100,49 @@ describe('MultiInvoker', () => {
           multiInvoker,
           'MultiInvokerCantExecuteError',
         )
+      })
+
+      it('Properly stores trigger order values', async () => {
+        const defaultOrder = openTriggerOrder({
+          delta: parse6decimal('10000'),
+          side: Dir.L,
+          comparison: Compare.ABOVE_MARKET,
+          price: BigNumber.from(1000e6),
+        })
+
+        defaultOrder.comparison = 1
+
+        const testOrder = { ...defaultOrder }
+
+        //market.update.returns(true)
+
+        // max values test
+        testOrder.fee = MAX_UINT64
+        testOrder.price = MAX_INT64
+        testOrder.delta = MAX_INT64
+        testOrder.interfaceFee.amount = MAX_UINT48
+
+        await multiInvoker
+          .connect(user)
+          .invoke(buildPlaceOrder({ market: market.address, order: testOrder, collateral: 0 }))
+
+        let placedOrder = await multiInvoker.orders(user.address, market.address, 1)
+
+        expect(placedOrder.fee).to.be.eq(MAX_UINT64)
+        expect(placedOrder.price).to.be.eq(MAX_INT64)
+        expect(placedOrder.delta).to.be.eq(MAX_INT64)
+        expect(placedOrder.interfaceFee.amount).to.be.eq(MAX_UINT48)
+
+        testOrder.price = MIN_INT64
+        testOrder.delta = MIN_INT64
+        await multiInvoker
+          .connect(user)
+          .invoke(buildPlaceOrder({ market: market.address, order: testOrder, collateral: 0 }))
+
+        placedOrder = await multiInvoker.orders(user.address, market.address, 2)
+
+        expect(placedOrder.price).to.be.eq(MIN_INT64)
+        expect(placedOrder.delta).to.be.eq(MIN_INT64)
       })
     })
   })

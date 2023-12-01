@@ -8,16 +8,19 @@ import { expect } from 'chai'
 import { parse6decimal } from '../../../../common/testutil/types'
 import { IMultiInvoker, Market, MultiInvoker } from '../../../types/generated'
 import { Compare, Dir, openTriggerOrder } from '../../helpers/types'
-import { buildCancelOrder, buildExecOrder, buildPlaceOrder } from '../../helpers/invoke'
+import {
+  MAX_INT64,
+  MAX_UINT48,
+  MAX_UINT64,
+  MIN_INT64,
+  buildCancelOrder,
+  buildExecOrder,
+  buildPlaceOrder,
+} from '../../helpers/invoke'
 import { loadFixture } from '@nomicfoundation/hardhat-network-helpers'
 import { InterfaceFeeStruct, TriggerOrderStruct } from '../../../types/generated/contracts/MultiInvoker'
 import { SignerWithAddress } from '@nomiclabs/hardhat-ethers/signers'
 import { ethers } from 'hardhat'
-
-const MAX_UINT48 = BigNumber.from('281474976710655')
-const MAX_UINT64 = BigNumber.from('18446744073709551615')
-const MAX_INT64 = BigNumber.from('9223372036854775807')
-const MIN_INT64 = BigNumber.from('-9223372036854775808')
 
 describe('Orders', () => {
   let instanceVars: InstanceVars
