@@ -32,10 +32,10 @@ interface IMarket is IInstance {
         Local local;
         PositionContext currentPosition;
         PositionContext latestPosition;
-        UFixed6 maxPendingMagnitude;
         UFixed6 previousPendingMagnitude;
         Fixed6 pendingCollateral;
-        UFixed6 closable;
+        UFixed6 pendingOpen;
+        UFixed6 pendingClose;
     }
 
     struct PositionContext {
@@ -59,8 +59,6 @@ interface IMarket is IInstance {
     error MarketInsufficientLiquidityError();
     // sig: 0x00e2b6a8
     error MarketInsufficientMarginError();
-    // sig: 0xa8e7d409
-    error MarketInsufficientMaintenanceError();
     // sig: 0x442145e5
     error MarketInsufficientCollateralError();
     // sig: 0xba555da7
