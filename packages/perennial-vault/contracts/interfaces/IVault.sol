@@ -61,6 +61,7 @@ interface IVault is IInstance {
     error MappingStorageInvalidError();
     error RegistrationStorageInvalidError();
     error VaultParameterStorageInvalidError();
+    error StrategyLibInsufficientMarginError();
 
     function initialize(Token18 asset, IMarket initialMaker, UFixed6 cap, string calldata name_) external;
     function name() external view returns (string memory);

@@ -817,15 +817,14 @@ describe('Vault', () => {
       await vault.settle(user.address)
 
       // The vault can close 1 ETH of maker positions in the ETH market, which means the user can redeem 5/4 this amount
-      const makerAvailable = BigNumber.from(1000000)
-      const redeemAvailable = await vault.convertToShares(
-        originalOraclePrice.mul(makerAvailable).mul(5).div(4).div(leverage),
-      )
+      const makerAvailable = BigNumber.from(1000268)
+      const redeemAvailable = (
+        await vault.convertToShares(originalOraclePrice.mul(makerAvailable).mul(5).div(4).div(leverage))
+      ).sub(1)
 
       await expect(
         vault.connect(user).update(user.address, 0, redeemAvailable.add(1), 0),
       ).to.be.revertedWithCustomError(vault, 'VaultRedemptionLimitExceededError')
-
       await expect(vault.connect(user).update(user.address, 0, redeemAvailable, 0)).to.not.be.reverted
     })
 
@@ -857,7 +856,7 @@ describe('Vault', () => {
       await vault.settle(user.address)
 
       // The vault can close 1 BTC of maker positions in the BTC market, which means the user can redeem 5/1 this amount
-      const makerAvailable = BigNumber.from(100000)
+      const makerAvailable = BigNumber.from(100005)
       const redeemAvailable = (
         await vault.convertToShares(btcOriginalOraclePrice.mul(makerAvailable).mul(5).div(1).div(leverage))
       ).sub(1)
@@ -865,7 +864,6 @@ describe('Vault', () => {
       await expect(
         vault.connect(user).update(user.address, 0, redeemAvailable.add(1), 0),
       ).to.be.revertedWithCustomError(vault, 'VaultRedemptionLimitExceededError')
-
       await expect(vault.connect(user).update(user.address, 0, redeemAvailable, 0)).to.not.be.reverted
     })
 
@@ -1739,14 +1737,10 @@ describe('Vault', () => {
         expect((await vault.accounts(user.address)).assets).to.equal(finalUnclaimed)
         expect((await vault.accounts(ethers.constants.AddressZero)).assets).to.equal(finalUnclaimed)
 
-        // 6. Claim should be pro-rated
-        const initialBalanceOf = await asset.balanceOf(user.address)
-        await vault.connect(user).update(user.address, 0, 0, ethers.constants.MaxUint256)
-        expect(await collateralInVault()).to.equal(finalCollateral)
-        expect(await btcCollateralInVault()).to.equal(btcFinalCollateral)
-        expect((await vault.accounts(user.address)).assets).to.equal(0)
-        expect((await vault.accounts(ethers.constants.AddressZero)).assets).to.equal(0)
-        expect(await asset.balanceOf(user.address)).to.equal(initialBalanceOf)
+        // 6. Claim should not be possible since we cannot rebalance
+        await expect(
+          vault.connect(user).update(user.address, 0, 0, ethers.constants.MaxUint256),
+        ).to.revertedWithCustomError(vault, 'StrategyLibInsufficientMarginError')
       })
     })
 
