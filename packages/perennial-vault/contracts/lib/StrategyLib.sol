@@ -150,7 +150,7 @@ library StrategyLib {
         Registration[] memory registrations,
         UFixed6 collateral,
         UFixed6 assets
-    ) private pure returns (MarketTarget[] memory targets) {
+    ) internal pure returns (MarketTarget[] memory targets) {
         _AllocateLocals memory _locals;
         (_locals.totalWeight, _locals.totalMargin) = _aggregate(registrations, strategy.marketContexts);
 
