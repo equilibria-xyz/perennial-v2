@@ -214,7 +214,6 @@ contract Vault is IVault, Instance {
     }
 
     /// @notice Syncs `account`'s state up to current
-    /// @dev Also rebalances the collateral and position of the vault without a deposit or withdraw
     /// @param account The account that should be synced
     function settle(address account) public whenNotPaused {
         _settleUnderlying();
@@ -388,6 +387,7 @@ contract Vault is IVault, Instance {
     function _manage(Context memory context, UFixed6 withdrawAmount, bool rebalance) private {
         (Fixed6 collateral, UFixed6 assets) = _treasury(context, withdrawAmount);
 
+        // for now, skip all rebalancing if we cannot rebalance the position
         if (!rebalance || collateral.lt(Fixed6Lib.ZERO)) return;
 
         StrategyLib.MarketTarget[] memory targets = context.strategy.allocate(
