@@ -79,6 +79,7 @@ library MappingLib {
 }
 
 library MappingStorageLib {
+    // sig: 0xf003e2c3
     error MappingStorageInvalidError();
 
     function read(MappingStorage storage self) internal view returns (Mapping memory) {
