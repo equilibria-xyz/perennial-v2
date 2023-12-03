@@ -100,7 +100,7 @@ library StrategyLib {
             ) continue;
 
             (UFixed6 minPosition, ) = _positionLimit(marketContext);
-            UFixed6 availableClosable = targets[marketId].position.sub(minPosition.min(targets[marketId].position));
+            UFixed6 availableClosable = targets[marketId].position.unsafeSub(minPosition);
 
             if (availableClosable.gte(marketContext.currentAccountPosition.maker)) continue;        // entire position can be closed, don't limit in cases of price deviation
 
@@ -148,7 +148,7 @@ library StrategyLib {
                 .add(collateral.sub(_locals.totalMargin).muldiv(registrations[marketId].weight, _locals.totalWeight));
 
             _locals.marketAssets = assets
-                .sub(strategy.marketContexts[marketId].pendingFee.min(assets))
+                .unsafeSub(strategy.marketContexts[marketId].pendingFee)
                 .muldiv(registrations[marketId].weight, _locals.totalWeight)
                 .min(_locals.marketCollateral.mul(LEVERAGE_BUFFER));
 
@@ -215,9 +215,9 @@ library StrategyLib {
         marketContext.margin = position
             .margin(OracleVersion(0, marketContext.latestPrice, true), marketContext.riskParameter)
             .max(marketContext.margin);
-        marketContext.closable = marketContext.closable.sub(previousMaker.sub(position.maker.min(previousMaker)));
+        marketContext.closable = marketContext.closable.sub(previousMaker.unsafeSub(position.maker));
         marketContext.pendingFee = marketContext.pendingFee
-            .add(UFixed6Lib.from(position.fee.max(Fixed6Lib.ZERO))) // don't allocate negative fees
+            .add(UFixed6Lib.unsafeFrom(position.fee)) // don't allocate negative fees
             .add(position.keeper);
         nextMaker = position.maker;
     }
@@ -244,17 +244,12 @@ library StrategyLib {
     function _positionLimit(MarketStrategyContext memory marketContext) private pure returns (UFixed6, UFixed6) {
         return (
             // minimum position size before crossing the net position
-            marketContext.currentAccountPosition.maker.sub(
-            marketContext.currentPosition.maker
-                    .sub(marketContext.currentPosition.net().min(marketContext.currentPosition.maker))
-                    .min(marketContext.currentAccountPosition.maker)
-                    .min(marketContext.closable)
-            ),
+            marketContext.currentAccountPosition.maker
+                .unsafeSub(marketContext.currentPosition.maker
+                    .unsafeSub(marketContext.currentPosition.net()).min(marketContext.closable)),
             // maximum position size before crossing the maker limit
-            marketContext.currentAccountPosition.maker.add(
-            marketContext.riskParameter.makerLimit
-                    .sub(marketContext.currentPosition.maker.min(marketContext.riskParameter.makerLimit))
-            )
+            marketContext.currentAccountPosition.maker
+                .add(marketContext.riskParameter.makerLimit.unsafeSub(marketContext.currentPosition.maker))
         );
     }
 }
