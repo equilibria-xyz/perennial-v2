@@ -106,8 +106,8 @@ contract MultiInvoker is IMultiInvoker, Kept {
     function canExecuteOrder(address account, IMarket market, uint256 nonce) public view returns (bool) {
         TriggerOrder memory order = orders(account, market, nonce);
         if (order.fee.isZero()) return false;
-        (, Fixed6 latestPrice, ) = _latest(market, account);
-        return order.fillable(latestPrice);
+        (, OracleVersion memory latestVersion) = _latest(market, account);
+        return order.fillable(latestVersion);
     }
 
     /// @notice entry to perform invocations
@@ -152,19 +152,14 @@ contract MultiInvoker is IMultiInvoker, Kept {
                     abi.decode(invocation.args, (address, uint256, bytes32[], uint256, bytes, bool));
 
                 _commitPrice(oracleProviderFactory, value, ids, version, data, revertOnFailure);
-            } else if (invocation.action == PerennialAction.LIQUIDATE) {
-                (IMarket market, address account, bool revertOnFailure) = abi.decode(invocation.args, (IMarket, address, bool));
-
-                _liquidate(market, account, revertOnFailure);
             } else if (invocation.action == PerennialAction.APPROVE) {
                 (address target) = abi.decode(invocation.args, (address));
 
                 _approve(target);
             }
-
-            // Eth must not remain in this contract at rest
-            payable(msg.sender).transfer(address(this).balance);
         }
+        // Eth must not remain in this contract at rest
+        payable(msg.sender).transfer(address(this).balance);
     }
 
     /// @notice Updates market on behalf of account
@@ -228,28 +223,6 @@ contract MultiInvoker is IMultiInvoker, Kept {
 
         if (!claimAmount.isZero()) {
             _withdraw(msg.sender, claimAmount, wrap);
-        }
-    }
-
-    /// @notice Liquidates an account for a specific market
-    /// @param market Market to liquidate account in
-    /// @param account Address of market to liquidate
-    function _liquidate(IMarket market, address account, bool revertOnFailure) internal isMarketInstance(market) {
-        (Position memory latestPosition, UFixed6 liquidationFee, UFixed6 closable) = _liquidationFee(market, account);
-        Position memory currentPosition = market.pendingPositions(account, market.locals(account).currentId);
-        currentPosition.adjust(latestPosition);
-
-        try market.update(
-                account,
-                currentPosition.maker.isZero() ? UFixed6Lib.ZERO : currentPosition.maker.sub(closable),
-                currentPosition.long.isZero() ? UFixed6Lib.ZERO : currentPosition.long.sub(closable),
-                currentPosition.short.isZero() ? UFixed6Lib.ZERO : currentPosition.short.sub(closable),
-                Fixed6Lib.from(-1, liquidationFee),
-                true
-        ) {
-            _withdraw(msg.sender, liquidationFee, true);
-        } catch (bytes memory reason) {
-            if (revertOnFailure) Address.verifyCallResult(false, reason, "");
         }
     }
 
@@ -362,50 +335,22 @@ contract MultiInvoker is IMultiInvoker, Kept {
         }
     }
 
-    /// @notice Helper function to compute the liquidation fee for an account
-    /// @param market Market to compute liquidation fee for
-    /// @param account Account to compute liquidation fee for
-    /// @return liquidationFee Liquidation fee for the account
-    /// @return closable The amount of the position that can be closed
-    function _liquidationFee(IMarket market, address account) internal view returns (Position memory, UFixed6, UFixed6) {
-        // load information about liquidation
-        RiskParameter memory riskParameter = market.riskParameter();
-        (Position memory latestPosition, Fixed6 latestPrice, UFixed6 closableAmount) = _latest(market, account);
-
-        // create placeholder order for liquidation fee calculation (fee is charged the same on all sides)
-        Order memory placeholderOrder;
-        placeholderOrder.maker = Fixed6Lib.from(closableAmount);
-
-        return (
-            latestPosition,
-            placeholderOrder
-                .liquidationFee(OracleVersion(latestPosition.timestamp, latestPrice, true), riskParameter)
-                .min(UFixed6Lib.from(market.token().balanceOf(address(market)))),
-            closableAmount
-        );
-    }
-
     /// @notice Helper function to compute the latest position and oracle version without a settlement
     /// @param market Market to compute latest position and oracle version for
     /// @param account Account to compute latest position and oracle version for
     /// @return latestPosition Latest position for the account
-    /// @return latestPrice Latest oracle price for the account
-    /// @return closableAmount Amount of position that can be closed
+    /// @return latestVersion Latest oracle version for the market
     function _latest(
         IMarket market,
         address account
-    ) internal view returns (Position memory latestPosition, Fixed6 latestPrice, UFixed6 closableAmount) {
+    ) internal view returns (Position memory latestPosition, OracleVersion memory latestVersion) {
         // load latest price
-        OracleVersion memory latestOracleVersion = market.oracle().latest();
-        latestPrice = latestOracleVersion.price;
+        latestVersion = market.oracle().latest();
         IPayoffProvider payoff = market.payoff();
-        if (address(payoff) != address(0)) latestPrice = payoff.payoff(latestPrice);
+        if (address(payoff) != address(0)) latestVersion.price = payoff.payoff(latestVersion.price);
 
         // load latest settled position
-        uint256 latestTimestamp = latestOracleVersion.timestamp;
         latestPosition = market.positions(account);
-        closableAmount = latestPosition.magnitude();
-        UFixed6 previousMagnitude = closableAmount;
 
         // scan pending position for any ready-to-be-settled positions
         Local memory local = market.locals(account);
@@ -416,18 +361,9 @@ contract MultiInvoker is IMultiInvoker, Kept {
             pendingPosition.adjust(latestPosition);
 
             // virtual settlement
-            if (pendingPosition.timestamp <= latestTimestamp) {
+            if (pendingPosition.timestamp <= latestVersion.timestamp) {
                 if (!market.oracle().at(pendingPosition.timestamp).valid) latestPosition.invalidate(pendingPosition);
                 latestPosition.update(pendingPosition);
-
-                previousMagnitude = latestPosition.magnitude();
-                closableAmount = previousMagnitude;
-
-            // process pending positions
-            } else {
-                closableAmount = closableAmount
-                    .sub(previousMagnitude.sub(pendingPosition.magnitude().min(previousMagnitude)));
-                previousMagnitude = latestPosition.magnitude();
             }
         }
     }
@@ -445,7 +381,7 @@ contract MultiInvoker is IMultiInvoker, Kept {
         // Pay out keeper fee based on static gas buffer
         _handleKeep(account, market, order.fee);
 
-        (Position memory latestPosition, , ) = _latest(market, account);
+        (Position memory latestPosition, ) = _latest(market, account);
         Position memory currentPosition = market.pendingPositions(account, market.locals(account).currentId);
         currentPosition.adjust(latestPosition);
 
@@ -485,7 +421,7 @@ contract MultiInvoker is IMultiInvoker, Kept {
     /// @notice Helper function to raise keeper fee
     /// @param keeperFee Keeper fee to raise
     /// @param data Data to raise keeper fee with
-    function _raiseKeeperFee(UFixed18 keeperFee, bytes memory data) internal override {
+    function _raiseKeeperFee(UFixed18 keeperFee, bytes memory data) internal virtual override {
         (address account, IMarket market, UFixed6 fee) = abi.decode(data, (address, IMarket, UFixed6));
         if (keeperFee.gt(UFixed18Lib.from(fee))) revert MultiInvokerMaxFeeExceededError();
 

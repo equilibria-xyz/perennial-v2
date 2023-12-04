@@ -32,10 +32,10 @@ interface IMarket is IInstance {
         Local local;
         PositionContext currentPosition;
         PositionContext latestPosition;
-        UFixed6 maxPendingMagnitude;
         UFixed6 previousPendingMagnitude;
         Fixed6 pendingCollateral;
-        UFixed6 closable;
+        UFixed6 pendingOpen;
+        UFixed6 pendingClose;
     }
 
     struct PositionContext {
@@ -44,6 +44,7 @@ interface IMarket is IInstance {
     }
 
     event Updated(address indexed sender, address indexed account, uint256 version, UFixed6 newMaker, UFixed6 newLong, UFixed6 newShort, Fixed6 collateral, bool protect);
+    event OrderCreated(address indexed account, uint256 version, Order order, Fixed6 collateral);
     event PositionProcessed(uint256 indexed fromOracleVersion, uint256 indexed toOracleVersion, uint256 fromPosition, uint256 toPosition, VersionAccumulationResult accumulationResult);
     event AccountPositionProcessed(address indexed account, uint256 indexed fromOracleVersion, uint256 indexed toOracleVersion, uint256 fromPosition, uint256 toPosition, LocalAccumulationResult accumulationResult);
     event BeneficiaryUpdated(address newBeneficiary);
@@ -58,8 +59,6 @@ interface IMarket is IInstance {
     error MarketInsufficientLiquidityError();
     // sig: 0x00e2b6a8
     error MarketInsufficientMarginError();
-    // sig: 0xa8e7d409
-    error MarketInsufficientMaintenanceError();
     // sig: 0x442145e5
     error MarketInsufficientCollateralError();
     // sig: 0xba555da7
@@ -115,8 +114,6 @@ interface IMarket is IInstance {
     function reward() external view returns (Token18);
     function oracle() external view returns (IOracleProvider);
     function payoff() external view returns (IPayoffProvider);
-    function beneficiary() external view returns (address);
-    function coordinator() external view returns (address);
     function positions(address account) external view returns (Position memory);
     function pendingPositions(address account, uint256 id) external view returns (Position memory);
     function locals(address account) external view returns (Local memory);
@@ -125,12 +122,10 @@ interface IMarket is IInstance {
     function position() external view returns (Position memory);
     function global() external view returns (Global memory);
     function update(address account, UFixed6 newMaker, UFixed6 newLong, UFixed6 newShort, Fixed6 collateral, bool protect) external;
-    function updateBeneficiary(address newBeneficiary) external;
-    function updateCoordinator(address newCoordinator) external;
     function updateReward(Token18 newReward) external;
     function parameter() external view returns (MarketParameter memory);
     function riskParameter() external view returns (RiskParameter memory);
-    function updateParameter(MarketParameter memory newParameter) external;
+    function updateParameter(address newBeneficiary, address newCoordinator, MarketParameter memory newParameter) external;
     function updateRiskParameter(RiskParameter memory newRiskParameter) external;
     function claimFee() external;
     function claimReward() external;

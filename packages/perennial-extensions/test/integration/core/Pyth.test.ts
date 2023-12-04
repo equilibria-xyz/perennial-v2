@@ -290,5 +290,47 @@ describe('PythOracleFactory', () => {
 
       expect(startingBalance.sub(receipt.gasUsed.mul(10000))).to.be.eq(await user.getBalance())
     })
+
+    it('does soft revert refund outside of invoke loop to allow for successful commits after failed ones', async () => {
+      await increase(1)
+
+      const originalDSUBalance = await dsu.callStatic.balanceOf(user.address)
+
+      // Base fee isn't working properly in coverage, so we need to set it manually
+      await ethers.provider.send('hardhat_setNextBlockBaseFeePerGas', ['0x1000'])
+      await multiInvoker.connect(user).invoke(
+        [
+          {
+            action: 6,
+            args: utils.defaultAbiCoder.encode(
+              ['address', 'uint256', 'bytes32[]', 'uint256', 'bytes', 'bool'],
+              [pythOracleFactory.address, 1, [PYTH_ETH_USD_PRICE_FEED], STARTING_TIME + 60, FailingVAA, false],
+            ),
+          },
+          {
+            action: 6,
+            args: utils.defaultAbiCoder.encode(
+              ['address', 'uint256', 'bytes32[]', 'uint256', 'bytes', 'bool'],
+              [pythOracleFactory.address, 1, [PYTH_ETH_USD_PRICE_FEED], STARTING_TIME + 60, FailingVAA, false],
+            ),
+          },
+          {
+            action: 6,
+            args: utils.defaultAbiCoder.encode(
+              ['address', 'uint256', 'bytes32[]', 'uint256', 'bytes', 'bool'],
+              [pythOracleFactory.address, 1, [PYTH_ETH_USD_PRICE_FEED], STARTING_TIME, VAA, true],
+            ),
+          },
+        ],
+        {
+          value: 1,
+          gasPrice: 10000,
+        },
+      )
+
+      expect((await keeperOracle.callStatic.latest()).timestamp).to.equal(STARTING_TIME)
+      const newDSUBalance = await dsu.callStatic.balanceOf(user.address)
+      expect(newDSUBalance.sub(originalDSUBalance)).to.equal(0)
+    })
   })
 })

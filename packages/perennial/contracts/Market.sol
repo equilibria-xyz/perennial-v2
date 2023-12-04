@@ -27,10 +27,10 @@ contract Market is IMarket, Instance, ReentrancyGuard {
     IPayoffProvider public payoff;
 
     /// @dev Beneficiary of the market, receives donations
-    address public beneficiary;
+    address private beneficiary;
 
     /// @dev Risk coordinator of the market
-    address public coordinator;
+    address private coordinator;
 
     /// @dev Risk parameters of the market
     RiskParameterStorage private _riskParameter;
@@ -91,23 +91,21 @@ contract Market is IMarket, Instance, ReentrancyGuard {
         _saveContext(context, account);
     }
 
-    /// @notice Updates the beneficiary of the market
+    /// @notice Updates the beneficiary, coordinator, and parameter set of the market
     /// @param newBeneficiary The new beneficiary address
-    function updateBeneficiary(address newBeneficiary) external onlyOwner {
+    /// @param newCoordinator The new coordinator address
+    /// @param newParameter The new parameter set
+    function updateParameter(
+        address newBeneficiary,
+        address newCoordinator,
+        MarketParameter memory newParameter
+    ) external onlyOwner {
         beneficiary = newBeneficiary;
         emit BeneficiaryUpdated(newBeneficiary);
-    }
 
-    /// @notice Updates the coordinator of the market
-    /// @param newCoordinator The new coordinator address
-    function updateCoordinator(address newCoordinator) external onlyOwner {
         coordinator = newCoordinator;
         emit CoordinatorUpdated(newCoordinator);
-    }
 
-    /// @notice Updates the parameter set of the market
-    /// @param newParameter The new parameter set
-    function updateParameter(MarketParameter memory newParameter) external onlyOwner {
         _parameter.validateAndStore(newParameter, IMarketFactory(address(factory())).parameter(), reward);
         emit ParameterUpdated(newParameter);
     }
@@ -246,17 +244,20 @@ contract Market is IMarket, Instance, ReentrancyGuard {
     /// @param context The context to use
     /// @param newPendingPosition The pending position to process
     function _processPendingPosition(Context memory context, Position memory newPendingPosition) private pure {
+        // apply pending fees to collateral
         context.pendingCollateral = context.pendingCollateral
             .sub(newPendingPosition.fee)
             .sub(Fixed6Lib.from(newPendingPosition.keeper));
 
-        context.closable = context.closable
-            .sub(context.previousPendingMagnitude
-                .sub(newPendingPosition.magnitude().min(context.previousPendingMagnitude)));
+        // measure pending position deltas
+        if (context.previousPendingMagnitude.gt(newPendingPosition.magnitude())) {
+            context.pendingClose = context.pendingClose
+                .add(context.previousPendingMagnitude.sub(newPendingPosition.magnitude()));
+        } else {
+            context.pendingOpen = context.pendingOpen
+                .add(newPendingPosition.magnitude().sub(context.previousPendingMagnitude));
+        }
         context.previousPendingMagnitude = newPendingPosition.magnitude();
-
-        if (context.previousPendingMagnitude.gt(context.maxPendingMagnitude))
-            context.maxPendingMagnitude = newPendingPosition.magnitude();
     }
 
     /// @notice Loads the context for the update process
@@ -265,8 +266,7 @@ contract Market is IMarket, Instance, ReentrancyGuard {
     function _loadUpdateContext(Context memory context, address account) private view {
         // load latest position
         context.pendingCollateral = context.local.collateral;
-        context.maxPendingMagnitude = context.previousPendingMagnitude = context.closable =
-            context.latestPosition.local.magnitude();
+        context.previousPendingMagnitude = context.latestPosition.local.magnitude();
 
         // load current position
         context.currentPosition.global = _loadPendingPositionGlobal(context, context.global.currentId);
@@ -287,6 +287,8 @@ contract Market is IMarket, Instance, ReentrancyGuard {
         // load pending positions
         for (uint256 id = context.local.latestId + 1; id < context.local.currentId; id++)
             _processPendingPosition(context, _loadPendingPositionLocal(context, account, id));
+        context.pendingCollateral = context.pendingCollateral
+            .sub(Fixed6Lib.from(context.local.pendingLiquidationFee(context.latestPosition.local)));
     }
 
     /// @notice Modifies the collateral input per magic values
@@ -313,7 +315,8 @@ contract Market is IMarket, Instance, ReentrancyGuard {
             return currentPosition;
         if (newPosition.eq(MAGIC_VALUE_FULLY_CLOSED_POSITION)) {
             if (currentPosition.isZero()) return currentPosition;
-            return context.previousPendingMagnitude.sub(context.closable.min(context.previousPendingMagnitude));
+            UFixed6 closable = context.latestPosition.local.magnitude().sub(context.pendingClose);
+            return context.previousPendingMagnitude.sub(closable.min(context.previousPendingMagnitude));
         }
         return newPosition;
     }
@@ -363,7 +366,14 @@ contract Market is IMarket, Instance, ReentrancyGuard {
         _processPendingPosition(context, context.currentPosition.local);
 
         // protect account
-        bool protected = context.local.protect(context.latestPosition.local, context.currentTimestamp, protect);
+        bool protected = context.local.protect(
+            context.riskParameter,
+            context.latestVersion,
+            context.currentTimestamp,
+            newOrder,
+            msg.sender,
+            protect
+        );
 
         // request version
         if (!newOrder.isEmpty()) oracle.request(IMarket(this), account);
@@ -381,6 +391,7 @@ contract Market is IMarket, Instance, ReentrancyGuard {
 
         // events
         emit Updated(msg.sender, account, context.currentTimestamp, newMaker, newLong, newShort, collateral, protect);
+        emit OrderCreated(account, context.currentTimestamp, newOrder, collateral);
     }
 
     /// @notice Loads the context of the transaction
@@ -469,9 +480,10 @@ contract Market is IMarket, Instance, ReentrancyGuard {
         Position memory latestAccountPosition = _pendingPositions[account][context.local.latestId].read();
         Position memory currentAccountPosition = _pendingPositions[account][context.local.currentId].read();
         latestAccountPosition.collateral = context.local.collateral
-            .sub(currentAccountPosition.delta.sub(previousDelta))         // deposits happen after snapshot point
-            .add(nextPosition.fee)                                        // position fee happens after snapshot point
-            .add(Fixed6Lib.from(nextPosition.keeper));                    // keeper fee happens after snapshot point
+            .sub(currentAccountPosition.delta.sub(previousDelta))                       // deposits happen after snapshot point
+            .add(nextPosition.fee)                                                      // position fee happens after snapshot point
+            .add(Fixed6Lib.from(nextPosition.keeper))                                   // keeper fee happens after snapshot point
+            .add(Fixed6Lib.from(context.local.pendingLiquidationFee(nextPosition)));    // liquidation fee happens after snapshot point
         _pendingPositions[account][context.local.latestId].store(latestAccountPosition);
     }
 
@@ -539,6 +551,11 @@ contract Market is IMarket, Instance, ReentrancyGuard {
             version
         );
         context.latestPosition.local.update(newPosition);
+        if (context.local.processProtection(newPosition, version)) {
+            Local memory localInitiator = _locals[context.local.protectionInitiator].read();
+            localInitiator.processLiquidationFee(context.local);
+            _locals[context.local.protectionInitiator].store(localInitiator);
+        }
 
         // events
         emit AccountPositionProcessed(
@@ -564,14 +581,17 @@ contract Market is IMarket, Instance, ReentrancyGuard {
         Fixed6 collateral,
         bool protected
     ) private view {
+        if (context.pendingClose.gt(context.latestPosition.local.magnitude())) revert MarketOverCloseError();
+
         if (protected && (
-            !context.closable.isZero() ||
+            !context.pendingClose.eq(context.latestPosition.local.magnitude()) ||
             context.latestPosition.local.maintained(
                 context.latestVersion,
                 context.riskParameter,
                 context.pendingCollateral.sub(collateral)
             ) ||
-            collateral.lt(Fixed6Lib.from(-1, _liquidationFee(context, newOrder)))
+            collateral.lt(Fixed6Lib.ZERO) ||
+            newOrder.maker.add(newOrder.long).add(newOrder.short).gte(Fixed6Lib.ZERO)
         )) revert MarketInvalidProtectionError();
 
         if (
@@ -583,8 +603,10 @@ contract Market is IMarket, Instance, ReentrancyGuard {
         if (context.marketParameter.closed && newOrder.increasesPosition())
             revert MarketClosedError();
 
-        if (context.currentPosition.global.maker.gt(context.riskParameter.makerLimit))
-            revert MarketMakerOverLimitError();
+        if (
+            context.currentPosition.global.maker.gt(context.riskParameter.makerLimit) &&
+            newOrder.maker.gt(Fixed6Lib.ZERO)
+        ) revert MarketMakerOverLimitError();
 
         if (!newOrder.singleSided(context.currentPosition.local) || !newOrder.singleSided(context.latestPosition.local))
             revert MarketNotSingleSidedError();
@@ -607,8 +629,13 @@ contract Market is IMarket, Instance, ReentrancyGuard {
         ) revert MarketInsufficientMarginError();
 
         if (
-            !PositionLib.maintained(context.maxPendingMagnitude, context.latestVersion, context.riskParameter, context.pendingCollateral)
-        ) revert MarketInsufficientMaintenanceError();
+            !PositionLib.margined(
+                context.latestPosition.local.magnitude().add(context.pendingOpen),
+                context.latestVersion,
+                context.riskParameter,
+                context.pendingCollateral
+            )
+        ) revert MarketInsufficientMarginError();
 
         if (
             (context.local.protection > context.latestPosition.local.timestamp) &&
@@ -629,16 +656,6 @@ contract Market is IMarket, Instance, ReentrancyGuard {
 
         if (collateral.lt(Fixed6Lib.ZERO) && context.pendingCollateral.lt(Fixed6Lib.ZERO))
             revert MarketInsufficientCollateralError();
-    }
-
-    /// @notice Computes the liquidation fee for the current latest local position
-    /// @param context The context to use
-    /// @param order The order to use
-    /// @return The liquidation fee
-    function _liquidationFee(Context memory context, Order memory order) private view returns (UFixed6) {
-        return order
-            .liquidationFee(context.latestVersion, context.riskParameter)
-            .min(UFixed6Lib.from(token.balanceOf()));
     }
 
     /// @notice Computes the current oracle status with the market's payoff

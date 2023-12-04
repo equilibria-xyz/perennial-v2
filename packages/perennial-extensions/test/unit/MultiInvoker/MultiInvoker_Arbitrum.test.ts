@@ -5,8 +5,6 @@ import HRE from 'hardhat'
 import { BigNumber, constants, utils } from 'ethers'
 
 import {
-  MultiInvoker,
-  MultiInvoker__factory,
   IMarket,
   IBatcher,
   IEmptySetReserve,
@@ -16,43 +14,41 @@ import {
   IVaultFactory,
   IVault,
   IOracleProvider,
+  MultiInvoker_Arbitrum__factory,
+  MultiInvoker_Arbitrum,
+  ArbGasInfo,
 } from '../../../types/generated'
 import { OracleVersionStruct } from '@equilibria/perennial-v2-oracle/types/generated/contracts/Oracle'
+import { PositionStruct } from '@equilibria/perennial-v2/types/generated/contracts/Market'
 import { loadFixture } from '@nomicfoundation/hardhat-network-helpers'
 import {
+  buildPlaceOrder,
+  type Actions,
+  buildCancelOrder,
   buildUpdateMarket,
   buildUpdateVault,
-  buildPlaceOrder,
-  buildCancelOrder,
   buildExecOrder,
-  VaultUpdate,
-  Actions,
   MAX_UINT,
-  MAX_UINT64,
-  MAX_UINT48,
-  MAX_INT64,
-  MIN_INT64,
+  VaultUpdate,
 } from '../../helpers/invoke'
 
 import { DEFAULT_LOCAL, Local, parse6decimal } from '../../../../common/testutil/types'
 import {
+  Compare,
+  Dir,
   openPosition,
   openTriggerOrder,
   setGlobalPrice,
   setMarketPosition,
   setPendingPosition,
-  Compare,
-  Dir,
 } from '../../helpers/types'
 
 import { anyValue } from '@nomicfoundation/hardhat-chai-matchers/withArgs'
-import { PositionStruct } from '@equilibria/perennial-v2/types/generated/contracts/Market'
-import exp from 'constants'
 
 const ethers = { HRE }
 use(smock.matchers)
 
-describe('MultiInvoker', () => {
+describe('MultiInvoker_Arbitrum', () => {
   let owner: SignerWithAddress
   let user: SignerWithAddress
   let usdc: FakeContract<IERC20>
@@ -65,7 +61,7 @@ describe('MultiInvoker', () => {
   let reserve: FakeContract<IEmptySetReserve>
   let marketFactory: FakeContract<IMarketFactory>
   let vaultFactory: FakeContract<IVaultFactory>
-  let multiInvoker: MultiInvoker
+  let multiInvoker: MultiInvoker_Arbitrum
 
   const multiInvokerFixture = async () => {
     ;[owner, user] = await ethers.HRE.ethers.getSigners()
@@ -85,16 +81,22 @@ describe('MultiInvoker', () => {
     marketFactory = await smock.fake<IMarketFactory>('IMarketFactory')
     vaultFactory = await smock.fake<IVaultFactory>('IVaultFactory')
 
-    multiInvoker = await new MultiInvoker__factory(owner).deploy(
+    multiInvoker = await new MultiInvoker_Arbitrum__factory(owner).deploy(
       usdc.address,
       dsu.address,
       marketFactory.address,
       vaultFactory.address,
       '0x0000000000000000000000000000000000000000',
       reserve.address,
-      500_000,
-      1_000_000,
+      100_000,
+      200_000,
     )
+
+    // Mock L1 gas pricing
+    const gasInfo = await smock.fake<ArbGasInfo>('ArbGasInfo', {
+      address: '0x000000000000000000000000000000000000006C',
+    })
+    gasInfo.getL1BaseFeeEstimate.returns(0)
 
     // Default mkt price: 1150
     const oracleVersion: OracleVersionStruct = {
@@ -113,7 +115,6 @@ describe('MultiInvoker', () => {
 
     invokerOracle.latestRoundData.returns(aggRoundData)
     market.oracle.returns(marketOracle.address)
-    marketOracle.current.returns(0)
     marketOracle.latest.returns(oracleVersion)
 
     usdc.transferFrom.whenCalledWith(user.address).returns(true)
@@ -1068,81 +1069,6 @@ describe('MultiInvoker', () => {
           .to.emit(multiInvoker, 'OrderExecuted')
           .to.emit(multiInvoker, 'KeeperCall')
           .withArgs(owner.address, anyValue, anyValue, anyValue, anyValue, anyValue)
-      })
-
-      it('doesnt execute when version invalid', async () => {
-        marketOracle.latest.returns({
-          timestamp: BigNumber.from(0),
-          price: BigNumber.from(1150e6),
-          valid: false,
-        })
-
-        // long limit: mkt price <= exec price
-        const trigger = openTriggerOrder({
-          delta: position,
-          price: BigNumber.from(1200e6),
-          side: Dir.L,
-          comparison: Compare.ABOVE_MARKET,
-        })
-
-        const placeOrder = buildPlaceOrder({
-          market: market.address,
-          collateral: collateral,
-          order: trigger,
-        })
-
-        const pending = openPosition({ long: BigNumber.from(trigger.delta), collateral: collateral })
-        setPendingPosition(market, user, 0, pending)
-        await expect(multiInvoker.connect(user).invoke(placeOrder)).to.not.be.reverted
-
-        const execOrder = buildExecOrder({ user: user.address, market: market.address, orderId: 1 })
-        await expect(multiInvoker.connect(user).invoke(execOrder)).to.revertedWithCustomError(
-          multiInvoker,
-          'MultiInvokerCantExecuteError',
-        )
-      })
-
-      it('Properly stores trigger order values', async () => {
-        const defaultOrder = openTriggerOrder({
-          delta: parse6decimal('10000'),
-          side: Dir.L,
-          comparison: Compare.ABOVE_MARKET,
-          price: BigNumber.from(1000e6),
-        })
-
-        defaultOrder.comparison = 1
-
-        const testOrder = { ...defaultOrder }
-
-        //market.update.returns(true)
-
-        // max values test
-        testOrder.fee = MAX_UINT64
-        testOrder.price = MAX_INT64
-        testOrder.delta = MAX_INT64
-        testOrder.interfaceFee.amount = MAX_UINT48
-
-        await multiInvoker
-          .connect(user)
-          .invoke(buildPlaceOrder({ market: market.address, order: testOrder, collateral: 0 }))
-
-        let placedOrder = await multiInvoker.orders(user.address, market.address, 1)
-
-        expect(placedOrder.fee).to.be.eq(MAX_UINT64)
-        expect(placedOrder.price).to.be.eq(MAX_INT64)
-        expect(placedOrder.delta).to.be.eq(MAX_INT64)
-        expect(placedOrder.interfaceFee.amount).to.be.eq(MAX_UINT48)
-
-        testOrder.price = MIN_INT64
-        testOrder.delta = MIN_INT64
-        await multiInvoker
-          .connect(user)
-          .invoke(buildPlaceOrder({ market: market.address, order: testOrder, collateral: 0 }))
-
-        placedOrder = await multiInvoker.orders(user.address, market.address, 2)
-
-        expect(placedOrder.price).to.be.eq(MIN_INT64)
-        expect(placedOrder.delta).to.be.eq(MIN_INT64)
       })
     })
   })

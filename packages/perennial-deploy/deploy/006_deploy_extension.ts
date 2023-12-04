@@ -9,18 +9,21 @@ import {
 } from '../types/generated'
 import { SignerWithAddress } from '@nomiclabs/hardhat-ethers/signers'
 import { constants, utils } from 'ethers'
+import { isArbitrum } from '../../common/testutil/network'
 
 const func: DeployFunction = async function (hre: HardhatRuntimeEnvironment) {
   const { deployments, getNamedAccounts, ethers } = hre
-  const { deploy, get, getOrNull } = deployments
+  const { deploy, get, getOrNull, getNetworkName } = deployments
   const { deployer } = await getNamedAccounts()
   const deployerSigner: SignerWithAddress = await ethers.getSigner(deployer)
 
   const proxyAdmin = new ProxyAdmin__factory(deployerSigner).attach((await get('ProxyAdmin')).address)
 
   // Deploy Implementation
-  await deploy('MultiInvokerImpl', {
-    contract: 'MultiInvoker',
+  const multiInvokerContract = isArbitrum(getNetworkName()) ? 'MultiInvoker_Arbitrum' : 'MultiInvoker'
+  const multiInvokerContractName = isArbitrum(getNetworkName()) ? 'MultiInvokerImpl_Arbitrum' : 'MultiInvokerImpl'
+  await deploy(multiInvokerContractName, {
+    contract: multiInvokerContract,
     args: [
       (await get('USDC')).address,
       (await get('DSU')).address,

@@ -3,7 +3,6 @@ pragma solidity ^0.8.13;
 
 import "./MultiInvoker.sol";
 import "./interfaces/IMultiInvokerRollup.sol";
-import "hardhat/console.sol";
 
 contract MultiInvokerRollup is IMultiInvokerRollup, MultiInvoker {
     using PackedFixedLib for PTR;
@@ -113,12 +112,6 @@ contract MultiInvokerRollup is IMultiInvokerRollup, MultiInvoker {
                 bool revertOnFailure = ptr.readUint8(input) == 0 ? false : true;
 
                 _commitPrice(oracleProviderFactory, value, ids, version, data, revertOnFailure);
-            } else if (action == PerennialAction.LIQUIDATE) {
-                IMarket market = IMarket(_readAndCacheAddress(ptr, input));
-                address account = _readAndCacheAddress(ptr, input);
-                bool revertOnFailure = ptr.readUint8(input) == 0 ? false : true;
-
-                _liquidate(market, account, revertOnFailure);
             } else if (action == PerennialAction.APPROVE) {
                 address target = _readAndCacheAddress(ptr, input);
                 _approve(target);

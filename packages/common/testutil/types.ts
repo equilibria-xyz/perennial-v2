@@ -30,6 +30,8 @@ export interface Local {
   collateral: BigNumberish
   reward: BigNumberish
   protection: BigNumberish
+  protectionInitiator: string
+  protectionAmount: BigNumberish
 }
 
 export interface Version {
@@ -71,6 +73,8 @@ export function expectLocalEq(a: Local, b: Local): void {
   expect(a.collateral).to.equal(b.collateral, 'Local:Collateral')
   expect(a.reward).to.equal(b.reward, 'Local:Reward')
   expect(a.protection).to.equal(b.protection, 'Local:Protection')
+  expect(a.protectionAmount).to.equal(b.protectionAmount, 'Local:ProtectionAmount')
+  expect(a.protectionInitiator).to.equal(b.protectionInitiator, 'Local:ProtectionInitiator')
 }
 
 export function expectVersionEq(a: Version, b: Version): void {
@@ -118,4 +122,14 @@ export const DEFAULT_POSITION: Position = {
   fee: 0,
   collateral: 0,
   delta: 0,
+}
+
+export const DEFAULT_LOCAL: Local = {
+  currentId: 0,
+  latestId: 0,
+  collateral: 0,
+  reward: 0,
+  protection: 0,
+  protectionAmount: 0,
+  protectionInitiator: constants.AddressZero,
 }

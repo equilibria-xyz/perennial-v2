@@ -1,10 +1,12 @@
 import { expect } from 'chai'
 import 'hardhat'
-import { BigNumber } from 'ethers'
+import { BigNumber, constants } from 'ethers'
+const { AddressZero } = constants
 
 import { InstanceVars, deployProtocol, createMarket, settle } from '../helpers/setupHelpers'
 import {
   DEFAULT_POSITION,
+  DEFAULT_LOCAL,
   expectGlobalEq,
   expectLocalEq,
   expectPositionEq,
@@ -96,6 +98,7 @@ describe('Fees', () => {
 
       // check user state
       expectLocalEq(await market.locals(user.address), {
+        ...DEFAULT_LOCAL,
         currentId: 2,
         latestId: 1,
         collateral: COLLATERAL.sub(expectedMakerFee),
@@ -170,6 +173,7 @@ describe('Fees', () => {
 
       // check user state
       expectLocalEq(await market.locals(user.address), {
+        ...DEFAULT_LOCAL,
         currentId: 3,
         latestId: 2,
         collateral: COLLATERAL.sub(expectedMakerFee.div(2)), // Maker gets part of their fee refunded since they were an exisiting maker
@@ -265,6 +269,7 @@ describe('Fees', () => {
 
       // Long State
       expectLocalEq(await market.locals(userB.address), {
+        ...DEFAULT_LOCAL,
         currentId: 2,
         latestId: 1,
         collateral: COLLATERAL.sub(expectedPositionFee),
@@ -345,6 +350,7 @@ describe('Fees', () => {
 
       // Long State
       expectLocalEq(await market.locals(userB.address), {
+        ...DEFAULT_LOCAL,
         currentId: 2,
         latestId: 1,
         collateral: COLLATERAL.sub(expectedPositionFee),
@@ -373,6 +379,7 @@ describe('Fees', () => {
 
       // Maker State
       expectLocalEq(await market.locals(user.address), {
+        ...DEFAULT_LOCAL,
         currentId: 3,
         latestId: 2,
         collateral: COLLATERAL.add(expectedMakerFee),
@@ -402,7 +409,7 @@ describe('Fees', () => {
         takerImpactFee: BigNumber.from('0'),
         takerSkewFee: BigNumber.from('0'),
       })
-      await market.updateParameter({
+      await market.updateParameter(AddressZero, AddressZero, {
         ...marketParams,
         fundingFee: BigNumber.from('0'),
       })
@@ -470,6 +477,7 @@ describe('Fees', () => {
 
       // Long State
       expectLocalEq(await market.locals(userB.address), {
+        ...DEFAULT_LOCAL,
         currentId: 3,
         latestId: 2,
         collateral: COLLATERAL.sub(expectedPositionFee),
@@ -496,6 +504,7 @@ describe('Fees', () => {
 
       // Maker State
       expectLocalEq(await market.locals(user.address), {
+        ...DEFAULT_LOCAL,
         currentId: 3,
         latestId: 2,
         collateral: COLLATERAL.add(expectedMakerFee),
@@ -571,6 +580,7 @@ describe('Fees', () => {
 
       // Long State
       expectLocalEq(await market.locals(userB.address), {
+        ...DEFAULT_LOCAL,
         currentId: 2,
         latestId: 1,
         collateral: COLLATERAL.sub(expectedPositionFee),
@@ -651,6 +661,7 @@ describe('Fees', () => {
 
       // Long State
       expectLocalEq(await market.locals(userB.address), {
+        ...DEFAULT_LOCAL,
         currentId: 2,
         latestId: 1,
         collateral: COLLATERAL.sub(expectedPositionFee),
@@ -679,6 +690,7 @@ describe('Fees', () => {
 
       // Maker State
       expectLocalEq(await market.locals(user.address), {
+        ...DEFAULT_LOCAL,
         currentId: 3,
         latestId: 2,
         collateral: COLLATERAL.add(expectedMakerFee),
@@ -708,7 +720,7 @@ describe('Fees', () => {
         takerImpactFee: BigNumber.from('0'),
         takerSkewFee: BigNumber.from('0'),
       })
-      await market.updateParameter({
+      await market.updateParameter(AddressZero, AddressZero, {
         ...marketParams,
         fundingFee: BigNumber.from('0'),
       })
@@ -776,6 +788,7 @@ describe('Fees', () => {
 
       // Long State
       expectLocalEq(await market.locals(userB.address), {
+        ...DEFAULT_LOCAL,
         currentId: 3,
         latestId: 2,
         collateral: COLLATERAL.sub(expectedPositionFee),
@@ -802,6 +815,7 @@ describe('Fees', () => {
 
       // Maker State
       expectLocalEq(await market.locals(user.address), {
+        ...DEFAULT_LOCAL,
         currentId: 3,
         latestId: 2,
         collateral: COLLATERAL.add(expectedMakerFee),
@@ -1033,7 +1047,7 @@ describe('Fees', () => {
           e => e.event === 'PositionProcessed',
         )?.args as unknown as PositionProcessedEventObject
 
-        const expectedShortSkewFee = BigNumber.from('-1138829') // The impact fee refunds more than the taker fee charged
+        const expectedShortSkewFee = BigNumber.from('0') // The impact fee refunds more than the taker fee charged, but is capped at zero
         expect(accountProcessEventShort.accumulationResult.positionFee).to.equal(expectedShortSkewFee)
         expect(
           positionProcessEventShort.accumulationResult.positionFeeMaker.add(
@@ -1070,7 +1084,7 @@ describe('Fees', () => {
         await nextWithConstantPrice()
         await settle(market, user)
 
-        await market.updateParameter({
+        await market.updateParameter(AddressZero, AddressZero, {
           ...marketParams,
           settlementFee: parse6decimal('1.23'),
         })

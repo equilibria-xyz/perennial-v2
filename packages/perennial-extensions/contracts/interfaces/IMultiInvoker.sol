@@ -29,7 +29,7 @@ interface IMultiInvoker {
         CANCEL_ORDER,    // 4
         EXEC_ORDER,      // 5
         COMMIT_PRICE,    // 6
-        LIQUIDATE,       // 7
+        __LIQUIDATE__DEPRECATED,
         APPROVE          // 8
     }
 

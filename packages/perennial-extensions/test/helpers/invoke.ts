@@ -2,10 +2,15 @@ import { BigNumberish, utils } from 'ethers'
 import { IMultiInvoker } from '../../types/generated'
 import { ethers } from 'hardhat'
 import { InterfaceFeeStruct, TriggerOrderStruct } from './types'
+import { BigNumber } from 'ethers'
 
 export const MAX_INT = ethers.constants.MaxInt256
 export const MIN_INT = ethers.constants.MinInt256
 export const MAX_UINT = ethers.constants.MaxUint256
+export const MAX_UINT48 = BigNumber.from('281474976710655')
+export const MAX_UINT64 = BigNumber.from('18446744073709551615')
+export const MAX_INT64 = BigNumber.from('9223372036854775807')
+export const MIN_INT64 = BigNumber.from('-9223372036854775808')
 
 export type OrderStruct = {
   side?: number
@@ -196,6 +201,10 @@ export const buildExecOrder = ({
 module.exports = {
   MAX_INT,
   MAX_UINT,
+  MAX_UINT48,
+  MAX_UINT64,
+  MAX_INT64,
+  MIN_INT64,
   buildCancelOrder,
   buildExecOrder,
   buildPlaceOrder,

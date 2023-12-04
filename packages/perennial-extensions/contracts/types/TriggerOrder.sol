@@ -37,9 +37,10 @@ using TriggerOrderStorageLib for TriggerOrderStorage global;
  * @notice
  */
 library TriggerOrderLib {
-    function fillable(TriggerOrder memory self, Fixed6 latestPrice) internal pure returns (bool) {
-        if (self.comparison == 1) return latestPrice.gte(self.price);
-        if (self.comparison == -1) return latestPrice.lte(self.price);
+    function fillable(TriggerOrder memory self, OracleVersion memory latestVersion) internal pure returns (bool) {
+        if (!latestVersion.valid) return false;
+        if (self.comparison == 1) return latestVersion.price.gte(self.price);
+        if (self.comparison == -1) return latestVersion.price.lte(self.price);
         return false;
     }
 
@@ -103,7 +104,7 @@ library TriggerOrderStorageLib {
             uint64(UFixed6.unwrap(newValue.fee)),
             int64(Fixed6.unwrap(newValue.price)),
             int64(Fixed6.unwrap(newValue.delta)),
-            uint40(UFixed6.unwrap(newValue.interfaceFee.amount)),
+            uint48(UFixed6.unwrap(newValue.interfaceFee.amount)),
             newValue.interfaceFee.receiver,
             newValue.interfaceFee.unwrap,
             bytes11(0)

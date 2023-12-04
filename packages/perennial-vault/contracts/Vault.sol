@@ -480,15 +480,19 @@ contract Vault is IVault, Instance {
     function _maxDeposit(Context memory context) private view returns (UFixed6) {
         if (context.latestCheckpoint.unhealthy()) return UFixed6Lib.ZERO;
         UFixed6 collateral = UFixed6Lib.from(totalAssets().max(Fixed6Lib.ZERO)).add(context.global.deposit);
-        return context.global.assets.add(context.parameter.cap.sub(collateral.min(context.parameter.cap)));
+        return context.parameter.cap.sub(collateral.min(context.parameter.cap));
     }
 
     /// @notice The maximum available redemption amount for `account`
     /// @param context Context to use
     /// @return redemptionAmount Maximum available redemption amount
-    function _maxRedeem(Context memory context) private pure returns (UFixed6) {
+    function _maxRedeem(Context memory context) private view returns (UFixed6) {
         if (context.latestCheckpoint.unhealthy()) return UFixed6Lib.ZERO;
-        UFixed6 maxRedeemAssets = context.strategy.maxRedeem(context.registrations, context.totalWeight);
+        UFixed6 maxRedeemAssets = context.strategy.maxRedeem(
+            context.registrations,
+            context.totalWeight,
+            UFixed6Lib.from(_collateral(context).max(Fixed6Lib.ZERO))
+        );
         UFixed6 maxRedeemShares = maxRedeemAssets.eq(UFixed6Lib.MAX) ?
             UFixed6Lib.MAX :
             context.latestCheckpoint.toShares(maxRedeemAssets, UFixed6Lib.ZERO);

@@ -31,6 +31,9 @@ struct MarketStrategyContext {
 
     /// @dev The current closable amount of the vault
     UFixed6 closable;
+
+    // @dev The pending fees of the vault
+    UFixed6 pendingFee;
 }
 
 struct Strategy {
@@ -43,6 +46,8 @@ using StrategyLib for Strategy global;
 /// @dev - Deploys collateral first to satisfy the margin of each market, then deploys the rest by weight.
 ///      - Positions are then targeted based on the amount of collateral that ends up deployed to each market.
 library StrategyLib {
+    error StrategyLibInsufficientMarginError();
+
     /// @dev The maximum multiplier that is allowed for leverage
     UFixed6 public constant LEVERAGE_BUFFER = UFixed6.wrap(1.2e6);
 
@@ -75,9 +80,12 @@ library StrategyLib {
     function maxRedeem(
         Strategy memory strategy,
         Registration[] memory registrations,
-        uint256 totalWeight
+        uint256 totalWeight,
+        UFixed6 collateral
     ) internal pure returns (UFixed6 redemptionAssets) {
         redemptionAssets = UFixed6Lib.MAX;
+        MarketTarget[] memory targets = _allocate(strategy, registrations, collateral, collateral);
+
         for (uint256 marketId; marketId < strategy.marketContexts.length; marketId++) {
             MarketStrategyContext memory marketContext = strategy.marketContexts[marketId];
             Registration memory registration = registrations[marketId];
@@ -91,13 +99,15 @@ library StrategyLib {
                 )
             ) continue;
 
-            UFixed6 collateral = marketContext.currentPosition.maker
-                .sub(marketContext.currentPosition.net().min(marketContext.currentPosition.maker))  // available maker
-                .min(marketContext.closable.mul(StrategyLib.LEVERAGE_BUFFER))                       // available closable
-                .muldiv(marketContext.latestPrice.abs(), registration.leverage)                     // available collateral
-                .muldiv(totalWeight, registration.weight);                                          // collateral in market
+            (UFixed6 minPosition, ) = _positionLimit(marketContext);
+            UFixed6 availableClosable = targets[marketId].position.sub(minPosition.min(targets[marketId].position));
 
-            redemptionAssets = redemptionAssets.min(collateral);
+            if (availableClosable.gte(marketContext.currentAccountPosition.maker)) continue;        // entire position can be closed, don't limit in cases of price deviation
+
+            redemptionAssets = availableClosable
+                .muldiv(marketContext.latestPrice.abs(), registration.leverage)                     // available collateral
+                .muldiv(totalWeight, registration.weight)                                           // collateral in market
+                .min(redemptionAssets);
         }
     }
 
@@ -112,8 +122,24 @@ library StrategyLib {
         UFixed6 collateral,
         UFixed6 assets
     ) internal pure returns (MarketTarget[] memory targets) {
+        targets = _allocate(strategy, registrations, collateral, assets);
+
+        for (uint256 marketId; marketId < registrations.length; marketId++) {
+            (UFixed6 minPosition, UFixed6 maxPosition) = _positionLimit(strategy.marketContexts[marketId]);
+            targets[marketId].position = targets[marketId].position.max(minPosition).min(maxPosition);
+        }
+    }
+
+    function _allocate(
+        Strategy memory strategy,
+        Registration[] memory registrations,
+        UFixed6 collateral,
+        UFixed6 assets
+    ) internal pure returns (MarketTarget[] memory targets) {
         _AllocateLocals memory _locals;
         (_locals.totalWeight, _locals.totalMargin) = _aggregate(registrations, strategy.marketContexts);
+
+        if (collateral.lt(_locals.totalMargin)) revert StrategyLibInsufficientMarginError();
 
         targets = new MarketTarget[](registrations.length);
         for (uint256 marketId; marketId < registrations.length; marketId++) {
@@ -122,6 +148,7 @@ library StrategyLib {
                 .add(collateral.sub(_locals.totalMargin).muldiv(registrations[marketId].weight, _locals.totalWeight));
 
             _locals.marketAssets = assets
+                .sub(strategy.marketContexts[marketId].pendingFee.min(assets))
                 .muldiv(registrations[marketId].weight, _locals.totalWeight)
                 .min(_locals.marketCollateral.mul(LEVERAGE_BUFFER));
 
@@ -130,14 +157,10 @@ library StrategyLib {
             if (strategy.marketContexts[marketId].marketParameter.closed || _locals.marketAssets.lt(_locals.minAssets))
                 _locals.marketAssets = UFixed6Lib.ZERO;
 
-            (_locals.minPosition, _locals.maxPosition) = _positionLimit(strategy.marketContexts[marketId]);
-
             (targets[marketId].collateral, targets[marketId].position) = (
                 Fixed6Lib.from(_locals.marketCollateral).sub(strategy.marketContexts[marketId].local.collateral),
                 _locals.marketAssets
                     .muldiv(registrations[marketId].leverage, strategy.marketContexts[marketId].latestPrice.abs())
-                    .min(_locals.maxPosition)
-                    .max(_locals.minPosition)
             );
         }
     }
@@ -173,6 +196,8 @@ library StrategyLib {
         Position memory latestPosition = registration.market.position();
         marketContext.currentPosition = registration.market.pendingPosition(global.currentId);
         marketContext.currentPosition.adjust(latestPosition);
+        marketContext.pendingFee = marketContext.pendingFee
+            .add(marketContext.local.pendingLiquidationFee(marketContext.latestAccountPosition));
     }
 
     /// @notice Loads one position for the context calculation
@@ -191,6 +216,9 @@ library StrategyLib {
             .margin(OracleVersion(0, marketContext.latestPrice, true), marketContext.riskParameter)
             .max(marketContext.margin);
         marketContext.closable = marketContext.closable.sub(previousMaker.sub(position.maker.min(previousMaker)));
+        marketContext.pendingFee = marketContext.pendingFee
+            .add(UFixed6Lib.from(position.fee.max(Fixed6Lib.ZERO))) // don't allocate negative fees
+            .add(position.keeper);
         nextMaker = position.maker;
     }
 
