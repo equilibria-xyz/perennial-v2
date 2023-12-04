@@ -1,7 +1,6 @@
 // SPDX-License-Identifier: Apache-2.0
 pragma solidity 0.8.19;
 
-import "@openzeppelin/contracts/utils/math/SafeCast.sol";
 import "../interfaces/IChainlinkFactory.sol";
 import "../keeper/KeeperFactory.sol";
 
@@ -15,7 +14,7 @@ contract ChainlinkFactory is IChainlinkFactory, KeeperFactory {
     IFeeManager public immutable feeManager;
 
     /// @dev Fee token address
-    address feeTokenAddress;
+    address public immutable feeTokenAddress;
 
     /// @notice Initializes the immutable contract state
     /// @param chainlink_ Chainlink verifier contract
@@ -52,7 +51,7 @@ contract ChainlinkFactory is IChainlinkFactory, KeeperFactory {
         bytes calldata data
     ) internal override returns (Fixed6[] memory prices) {
         if (ids.length != 1) revert ChainlinkFactoryMultipleIdsError();
-        prices = new Fixed6[](ids.length);
+        prices = new Fixed6[](1);
 
         bytes memory verifiedReport = chainlink.verify{value: msg.value}(data, abi.encode(feeTokenAddress));
         (bytes32 feedId, , uint32 observationsTimestamp, , , , uint192 price) =
@@ -64,7 +63,7 @@ contract ChainlinkFactory is IChainlinkFactory, KeeperFactory {
         ) revert ChainlinkFactoryVersionOutsideRangeError();
         if (feedId != toUnderlyingId[ids[0]]) revert ChainlinkFactoryInvalidFeedIdError(feedId);
 
-        prices[0] = Fixed6Lib.from(Fixed18.wrap(SafeCast.toInt256(price)));
+        prices[0] = Fixed6Lib.from(Fixed18Lib.from(UFixed18.wrap(price)));
         return prices;
     }
 
