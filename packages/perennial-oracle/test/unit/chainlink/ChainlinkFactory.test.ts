@@ -161,7 +161,7 @@ describe('ChainlinkFactory', () => {
     oracleSigner = await impersonateWithBalance(oracle.address, utils.parseEther('10'))
   })
 
-  it.only('parses Chainlink report correctly', async () => {
+  it('parses Chainlink report correctly', async () => {
     await keeperOracle.connect(oracleSigner).request(market.address, user.address)
 
     const report = overwriteTimestamp(
