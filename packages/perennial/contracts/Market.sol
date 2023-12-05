@@ -18,7 +18,7 @@ contract Market is IMarket, Instance, ReentrancyGuard {
     Token18 public token;
 
     /// @dev The token that incentive rewards are paid in
-    Token18 public reward;
+    Token18 private _reward;
 
     /// @dev The oracle that provides the market price
     IOracleProvider public oracle;
@@ -106,7 +106,7 @@ contract Market is IMarket, Instance, ReentrancyGuard {
         coordinator = newCoordinator;
         emit CoordinatorUpdated(newCoordinator);
 
-        _parameter.validateAndStore(newParameter, IMarketFactory(address(factory())).parameter(), reward);
+        _parameter.validateAndStore(newParameter, IMarketFactory(address(factory())).parameter(), _reward);
         emit ParameterUpdated(newParameter);
     }
 
@@ -115,16 +115,6 @@ contract Market is IMarket, Instance, ReentrancyGuard {
     function updateRiskParameter(RiskParameter memory newRiskParameter) external onlyCoordinator {
         _riskParameter.validateAndStore(newRiskParameter, IMarketFactory(address(factory())).parameter());
         emit RiskParameterUpdated(newRiskParameter);
-    }
-
-    /// @notice Updates the reward token of the market
-    /// @param newReward The new reward token
-    function updateReward(Token18 newReward) public onlyOwner {
-        if (!reward.eq(Token18Lib.ZERO)) revert MarketRewardAlreadySetError();
-        if (newReward.eq(token)) revert MarketInvalidRewardError();
-
-        reward = newReward;
-        emit RewardUpdated(newReward);
     }
 
     /// @notice Claims any available fee that the sender has accrued
@@ -150,17 +140,6 @@ contract Market is IMarket, Instance, ReentrancyGuard {
         token.push(receiver, UFixed18Lib.from(fee));
         emit FeeClaimed(receiver, fee);
         return true;
-    }
-
-    /// @notice Claims any available reward that the sender has accrued
-    function claimReward() external {
-        Local memory newLocal = _locals[msg.sender].read();
-
-        reward.push(msg.sender, UFixed18Lib.from(newLocal.reward));
-        emit RewardClaimed(msg.sender, newLocal.reward);
-
-        newLocal.reward = UFixed6Lib.ZERO;
-        _locals[msg.sender].store(newLocal);
     }
 
     /// @notice Returns the current parameter set

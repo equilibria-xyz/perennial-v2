@@ -53,7 +53,7 @@ interface IMarket is IInstance {
     event RewardClaimed(address indexed account, UFixed6 amount);
     event ParameterUpdated(MarketParameter newParameter);
     event RiskParameterUpdated(RiskParameter newRiskParameter);
-    event RewardUpdated(Token18 newReward);
+    // event RewardUpdated(Token18 newReward);
 
     // sig: 0x0fe90964
     error MarketInsufficientLiquidityError();
@@ -77,10 +77,6 @@ interface IMarket is IInstance {
     error MarketOverCloseError();
     // sig: 0x935bdc21
     error MarketExceedsPendingIdLimitError();
-    // sig: 0x473b50fd
-    error MarketRewardAlreadySetError();
-    // sig: 0x06fbf046
-    error MarketInvalidRewardError();
     // sig: 0x9bca0625
     error MarketNotCoordinatorError();
     // sig: 0xb602d086
@@ -111,7 +107,6 @@ interface IMarket is IInstance {
 
     function initialize(MarketDefinition calldata definition_) external;
     function token() external view returns (Token18);
-    function reward() external view returns (Token18);
     function oracle() external view returns (IOracleProvider);
     function payoff() external view returns (IPayoffProvider);
     function positions(address account) external view returns (Position memory);
@@ -122,11 +117,9 @@ interface IMarket is IInstance {
     function position() external view returns (Position memory);
     function global() external view returns (Global memory);
     function update(address account, UFixed6 newMaker, UFixed6 newLong, UFixed6 newShort, Fixed6 collateral, bool protect) external;
-    function updateReward(Token18 newReward) external;
     function parameter() external view returns (MarketParameter memory);
     function riskParameter() external view returns (RiskParameter memory);
     function updateParameter(address newBeneficiary, address newCoordinator, MarketParameter memory newParameter) external;
     function updateRiskParameter(RiskParameter memory newRiskParameter) external;
     function claimFee() external;
-    function claimReward() external;
 }
