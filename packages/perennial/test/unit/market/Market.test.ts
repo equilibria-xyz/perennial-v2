@@ -525,37 +525,6 @@ describe('Market', () => {
       await market.connect(owner).updateRiskParameter(riskParameter)
     })
 
-    describe('#updateReward', async () => {
-      it('updates the reward', async () => {
-        await expect(market.connect(owner).updateReward(reward.address))
-          .to.emit(market, 'RewardUpdated')
-          .withArgs(reward.address)
-        expect(await market.reward()).to.equal(reward.address)
-      })
-
-      it('reverts if already set', async () => {
-        await market.connect(owner).updateReward(reward.address)
-        await expect(market.connect(owner).updateReward(dsu.address)).to.be.revertedWithCustomError(
-          market,
-          'MarketRewardAlreadySetError',
-        )
-      })
-
-      it('reverts if equal to asset', async () => {
-        await expect(market.connect(owner).updateReward(dsu.address)).to.be.revertedWithCustomError(
-          market,
-          'MarketInvalidRewardError',
-        )
-      })
-
-      it('reverts if not owner', async () => {
-        await expect(market.connect(user).updateReward(reward.address)).to.be.revertedWithCustomError(
-          market,
-          'InstanceNotOwnerError',
-        )
-      })
-    })
-
     describe('#updateParameter', async () => {
       const defaultMarketParameter = {
         fundingFee: parse6decimal('0.03'),
@@ -15561,58 +15530,6 @@ describe('Market', () => {
         expect((await market.global()).oracleFee).to.equal(ORACLE_FEE)
         expect((await market.global()).riskFee).to.equal(RISK_FEE)
         expect((await market.global()).donation).to.equal(DONATION)
-      })
-    })
-
-    describe('#claimReward', async () => {
-      beforeEach(async () => {
-        await market.connect(owner).updateReward(reward.address)
-        await market.connect(owner).updateParameter(beneficiary.address, coordinator.address, marketParameter)
-
-        oracle.at.whenCalledWith(ORACLE_VERSION_0.timestamp).returns(ORACLE_VERSION_0)
-
-        oracle.at.whenCalledWith(ORACLE_VERSION_1.timestamp).returns(ORACLE_VERSION_1)
-        oracle.status.returns([ORACLE_VERSION_1, ORACLE_VERSION_2.timestamp])
-        oracle.request.whenCalledWith(user.address).returns()
-
-        dsu.transferFrom.whenCalledWith(userB.address, market.address, COLLATERAL.mul(1e12)).returns(true)
-        await market.connect(userB).update(userB.address, POSITION, 0, 0, COLLATERAL, false)
-        dsu.transferFrom.whenCalledWith(user.address, market.address, COLLATERAL.mul(1e12)).returns(true)
-        await market.connect(user).update(user.address, 0, POSITION.div(2), 0, COLLATERAL, false)
-
-        oracle.at.whenCalledWith(ORACLE_VERSION_2.timestamp).returns(ORACLE_VERSION_2)
-
-        oracle.at.whenCalledWith(ORACLE_VERSION_3.timestamp).returns(ORACLE_VERSION_3)
-        oracle.status.returns([ORACLE_VERSION_3, ORACLE_VERSION_4.timestamp])
-        oracle.request.whenCalledWith(user.address).returns()
-
-        await settle(market, user)
-        await settle(market, userB)
-
-        expectVersionEq(await market.versions(ORACLE_VERSION_3.timestamp), {
-          makerValue: { _value: EXPECTED_FUNDING_WITHOUT_FEE_1_5_123.add(EXPECTED_INTEREST_WITHOUT_FEE_5_123).div(10) },
-          longValue: { _value: EXPECTED_FUNDING_WITH_FEE_1_5_123.add(EXPECTED_INTEREST_5_123).div(5).mul(-1) },
-          shortValue: { _value: 0 },
-          makerReward: { _value: EXPECTED_REWARD.mul(3).div(10) },
-          longReward: { _value: EXPECTED_REWARD.mul(2).div(5) },
-          shortReward: { _value: 0 },
-        })
-      })
-
-      it('claims reward', async () => {
-        await reward.transfer.whenCalledWith(user.address, EXPECTED_REWARD.mul(2).mul(1e12)).returns(true)
-
-        await expect(market.connect(user).claimReward())
-          .to.emit(market, 'RewardClaimed')
-          .withArgs(user.address, EXPECTED_REWARD.mul(2))
-
-        expect((await market.locals(user.address)).reward).to.equal(0)
-      })
-
-      it('claims reward (none)', async () => {
-        await reward.transfer.whenCalledWith(userC.address, 0).returns(true)
-
-        await expect(market.connect(userC).claimReward()).to.emit(market, 'RewardClaimed').withArgs(userC.address, 0)
       })
     })
   })
