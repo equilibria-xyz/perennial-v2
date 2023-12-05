@@ -58,8 +58,8 @@ contract ChainlinkFactory is IChainlinkFactory, KeeperFactory {
             abi.decode(verifiedReport, (bytes32, uint32, uint32, uint192, uint192, uint32, uint192));
 
         if (
-            version < observationsTimestamp + validFrom ||
-            version > observationsTimestamp + validTo
+            observationsTimestamp < version + validFrom ||
+            observationsTimestamp > version + validTo
         ) revert ChainlinkFactoryVersionOutsideRangeError();
         if (feedId != toUnderlyingId[ids[0]]) revert ChainlinkFactoryInvalidFeedIdError(feedId);
 
