@@ -1301,40 +1301,6 @@ describe('Version', () => {
           expect(value.shortReward._value).to.equal(0)
         })
       })
-
-      context('positions', () => {
-        it('accumulates rewards', async () => {
-          await version.store(EMPTY_VERSION)
-
-          const { ret, value } = await accumulateWithReturn(
-            GLOBAL,
-            {
-              ...FROM_POSITION,
-              maker: parse6decimal('10'),
-              long: parse6decimal('12'),
-              short: parse6decimal('2'),
-            },
-            { ...TO_POSITION, fee: 0 },
-            ORACLE_VERSION_1,
-            ORACLE_VERSION_2,
-            {
-              ...VALID_MARKET_PARAMETER,
-              makerRewardRate: parse6decimal('0.001'),
-              longRewardRate: parse6decimal('0.002'),
-              shortRewardRate: parse6decimal('0.003'),
-            },
-            VALID_RISK_PARAMETER,
-          )
-
-          expect(ret[0].rewardMaker).to.equal(parse6decimal('3.6'))
-          expect(ret[0].rewardLong).to.equal(parse6decimal('7.2'))
-          expect(ret[0].rewardShort).to.equal(parse6decimal('10.8'))
-
-          expect(value.makerReward._value).to.equal(parse6decimal('0.36'))
-          expect(value.longReward._value).to.equal(parse6decimal('0.6'))
-          expect(value.shortReward._value).to.equal(parse6decimal('5.4'))
-        })
-      })
     })
   })
 })

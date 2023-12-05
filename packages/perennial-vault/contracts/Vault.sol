@@ -204,15 +204,6 @@ contract Vault is IVault, Instance {
         emit ParameterUpdated(newParameter);
     }
 
-    /// @notice Claims the accrued rewards for each registered market
-    /// @dev Callable by owner in case vault accrues rewards, since it is not able to disperse them itself
-    function claimReward() external onlyOwner {
-        for (uint256 marketId; marketId < totalMarkets; marketId++) {
-            _registrations[marketId].read().market.claimReward();
-            _registrations[marketId].read().market.reward().push(factory().owner());
-        }
-    }
-
     /// @notice Syncs `account`'s state up to current
     /// @dev Also rebalances the collateral and position of the vault without a deposit or withdraw
     /// @param account The account that should be synced

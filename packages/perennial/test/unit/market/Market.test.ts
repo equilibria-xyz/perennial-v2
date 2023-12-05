@@ -442,9 +442,9 @@ describe('Market', () => {
       maxPendingGlobal: 5,
       maxPendingLocal: 3,
       settlementFee: 0,
-      makerRewardRate: parse6decimal('0.3'),
-      longRewardRate: parse6decimal('0.2'),
-      shortRewardRate: parse6decimal('0.1'),
+      makerRewardRate: parse6decimal('0.0'),
+      longRewardRate: parse6decimal('0.0'),
+      shortRewardRate: parse6decimal('0.0'),
       makerCloseAlways: false,
       takerCloseAlways: false,
       closed: false,
@@ -525,37 +525,6 @@ describe('Market', () => {
       await market.connect(owner).updateRiskParameter(riskParameter)
     })
 
-    describe('#updateReward', async () => {
-      it('updates the reward', async () => {
-        await expect(market.connect(owner).updateReward(reward.address))
-          .to.emit(market, 'RewardUpdated')
-          .withArgs(reward.address)
-        expect(await market.reward()).to.equal(reward.address)
-      })
-
-      it('reverts if already set', async () => {
-        await market.connect(owner).updateReward(reward.address)
-        await expect(market.connect(owner).updateReward(dsu.address)).to.be.revertedWithCustomError(
-          market,
-          'MarketRewardAlreadySetError',
-        )
-      })
-
-      it('reverts if equal to asset', async () => {
-        await expect(market.connect(owner).updateReward(dsu.address)).to.be.revertedWithCustomError(
-          market,
-          'MarketInvalidRewardError',
-        )
-      })
-
-      it('reverts if not owner', async () => {
-        await expect(market.connect(user).updateReward(reward.address)).to.be.revertedWithCustomError(
-          market,
-          'InstanceNotOwnerError',
-        )
-      })
-    })
-
     describe('#updateParameter', async () => {
       const defaultMarketParameter = {
         fundingFee: parse6decimal('0.03'),
@@ -566,17 +535,15 @@ describe('Market', () => {
         maxPendingGlobal: 5,
         maxPendingLocal: 3,
         settlementFee: parse6decimal('0.09'),
-        makerRewardRate: parse6decimal('0.06'),
-        longRewardRate: parse6decimal('0.07'),
-        shortRewardRate: parse6decimal('0.08'),
+        makerRewardRate: parse6decimal('0.00'),
+        longRewardRate: parse6decimal('0.00'),
+        shortRewardRate: parse6decimal('0.00'),
         makerCloseAlways: true,
         takerCloseAlways: true,
         closed: true,
       }
 
       it('updates the parameters', async () => {
-        await market.connect(owner).updateReward(reward.address)
-
         await expect(
           market.connect(owner).updateParameter(beneficiary.address, coordinator.address, defaultMarketParameter),
         )
@@ -596,9 +563,9 @@ describe('Market', () => {
         expect(marketParameter.maxPendingGlobal).to.equal(defaultMarketParameter.maxPendingGlobal)
         expect(marketParameter.maxPendingLocal).to.equal(defaultMarketParameter.maxPendingLocal)
         expect(marketParameter.settlementFee).to.equal(defaultMarketParameter.settlementFee)
-        expect(marketParameter.makerRewardRate).to.equal(defaultMarketParameter.makerRewardRate)
-        expect(marketParameter.longRewardRate).to.equal(defaultMarketParameter.longRewardRate)
-        expect(marketParameter.shortRewardRate).to.equal(defaultMarketParameter.shortRewardRate)
+        expect(marketParameter.makerRewardRate).to.equal(0)
+        expect(marketParameter.longRewardRate).to.equal(0)
+        expect(marketParameter.shortRewardRate).to.equal(0)
         expect(marketParameter.closed).to.equal(defaultMarketParameter.closed)
       })
 
@@ -725,7 +692,6 @@ describe('Market', () => {
 
     describe('#update', async () => {
       beforeEach(async () => {
-        await market.connect(owner).updateReward(reward.address)
         await market.connect(owner).updateParameter(beneficiary.address, coordinator.address, marketParameter)
 
         oracle.at.whenCalledWith(ORACLE_VERSION_0.timestamp).returns(ORACLE_VERSION_0)
@@ -1346,7 +1312,7 @@ describe('Market', () => {
               currentId: 3,
               latestId: 2,
               collateral: COLLATERAL,
-              reward: EXPECTED_REWARD.mul(3),
+              reward: 0,
             })
             expectPositionEq(await market.positions(user.address), {
               ...DEFAULT_POSITION,
@@ -1384,7 +1350,7 @@ describe('Market', () => {
               makerValue: { _value: 0 },
               longValue: { _value: 0 },
               shortValue: { _value: 0 },
-              makerReward: { _value: EXPECTED_REWARD.mul(3).div(10) },
+              makerReward: { _value: 0 },
               longReward: { _value: 0 },
               shortReward: { _value: 0 },
             })
@@ -1407,7 +1373,7 @@ describe('Market', () => {
               currentId: 2,
               latestId: 1,
               collateral: COLLATERAL,
-              reward: EXPECTED_REWARD.mul(3),
+              reward: 0,
             })
             expectPositionEq(await market.positions(user.address), {
               ...DEFAULT_POSITION,
@@ -1442,7 +1408,7 @@ describe('Market', () => {
               makerValue: { _value: 0 },
               longValue: { _value: 0 },
               shortValue: { _value: 0 },
-              makerReward: { _value: EXPECTED_REWARD.mul(3).div(10) },
+              makerReward: { _value: 0 },
               longReward: { _value: 0 },
               shortReward: { _value: 0 },
             })
@@ -1477,7 +1443,7 @@ describe('Market', () => {
               currentId: 2,
               latestId: 1,
               collateral: COLLATERAL.sub(MAKER_FEE).sub(SETTLEMENT_FEE),
-              reward: EXPECTED_REWARD.mul(3),
+              reward: 0,
             })
             expectPositionEq(await market.positions(user.address), {
               ...DEFAULT_POSITION,
@@ -1512,7 +1478,7 @@ describe('Market', () => {
               makerValue: { _value: 0 },
               longValue: { _value: 0 },
               shortValue: { _value: 0 },
-              makerReward: { _value: EXPECTED_REWARD.mul(3).div(10) },
+              makerReward: { _value: 0 },
               longReward: { _value: 0 },
               shortReward: { _value: 0 },
             })
@@ -1715,7 +1681,7 @@ describe('Market', () => {
                 currentId: 3,
                 latestId: 2,
                 collateral: COLLATERAL,
-                reward: EXPECTED_REWARD.mul(3),
+                reward: 0,
               })
               expectPositionEq(await market.positions(user.address), {
                 ...DEFAULT_POSITION,
@@ -1746,7 +1712,7 @@ describe('Market', () => {
                 makerValue: { _value: 0 },
                 longValue: { _value: 0 },
                 shortValue: { _value: 0 },
-                makerReward: { _value: EXPECTED_REWARD.mul(3).div(10) },
+                makerReward: { _value: 0 },
                 longReward: { _value: 0 },
                 shortReward: { _value: 0 },
               })
@@ -1820,7 +1786,7 @@ describe('Market', () => {
                 currentId: 3,
                 latestId: 2,
                 collateral: COLLATERAL,
-                reward: EXPECTED_REWARD.mul(3),
+                reward: 0,
               })
               expectPositionEq(await market.positions(user.address), {
                 ...DEFAULT_POSITION,
@@ -1851,7 +1817,7 @@ describe('Market', () => {
                 makerValue: { _value: 0 },
                 longValue: { _value: 0 },
                 shortValue: { _value: 0 },
-                makerReward: { _value: EXPECTED_REWARD.mul(3).div(10) },
+                makerReward: { _value: 0 },
                 longReward: { _value: 0 },
                 shortReward: { _value: 0 },
               })
@@ -1873,7 +1839,7 @@ describe('Market', () => {
                 currentId: 3,
                 latestId: 2,
                 collateral: COLLATERAL,
-                reward: EXPECTED_REWARD.mul(3),
+                reward: 0,
               })
               expectPositionEq(await market.positions(user.address), {
                 ...DEFAULT_POSITION,
@@ -1906,7 +1872,7 @@ describe('Market', () => {
                 makerValue: { _value: 0 },
                 longValue: { _value: 0 },
                 shortValue: { _value: 0 },
-                makerReward: { _value: EXPECTED_REWARD.mul(3).div(10) },
+                makerReward: { _value: 0 },
                 longReward: { _value: 0 },
                 shortReward: { _value: 0 },
               })
@@ -1934,7 +1900,7 @@ describe('Market', () => {
                 currentId: 4,
                 latestId: 3,
                 collateral: COLLATERAL,
-                reward: EXPECTED_REWARD.mul(3).mul(2),
+                reward: 0,
               })
               expectPositionEq(await market.positions(user.address), {
                 ...DEFAULT_POSITION,
@@ -1965,7 +1931,7 @@ describe('Market', () => {
                 makerValue: { _value: 0 },
                 longValue: { _value: 0 },
                 shortValue: { _value: 0 },
-                makerReward: { _value: EXPECTED_REWARD.mul(3).div(10).add(EXPECTED_REWARD.mul(3).div(5)) },
+                makerReward: { _value: 0 },
                 longReward: { _value: 0 },
                 shortReward: { _value: 0 },
               })
@@ -1989,7 +1955,7 @@ describe('Market', () => {
                 currentId: 3,
                 latestId: 2,
                 collateral: COLLATERAL,
-                reward: EXPECTED_REWARD.mul(3),
+                reward: 0,
               })
               expectPositionEq(await market.positions(user.address), {
                 ...DEFAULT_POSITION,
@@ -2020,7 +1986,7 @@ describe('Market', () => {
                 makerValue: { _value: 0 },
                 longValue: { _value: 0 },
                 shortValue: { _value: 0 },
-                makerReward: { _value: EXPECTED_REWARD.mul(3).div(10) },
+                makerReward: { _value: 0 },
                 longReward: { _value: 0 },
                 shortReward: { _value: 0 },
               })
@@ -2058,7 +2024,7 @@ describe('Market', () => {
                 currentId: 3,
                 latestId: 2,
                 collateral: COLLATERAL.sub(MAKER_FEE).add(MAKER_FEE_WITHOUT_FEE).sub(SETTLEMENT_FEE),
-                reward: EXPECTED_REWARD.mul(3),
+                reward: 0,
               })
               expectPositionEq(await market.positions(user.address), {
                 ...DEFAULT_POSITION,
@@ -2089,7 +2055,7 @@ describe('Market', () => {
                 makerValue: { _value: MAKER_FEE_WITHOUT_FEE.div(10) },
                 longValue: { _value: 0 },
                 shortValue: { _value: 0 },
-                makerReward: { _value: EXPECTED_REWARD.mul(3).div(10) },
+                makerReward: { _value: 0 },
                 longReward: { _value: 0 },
                 shortReward: { _value: 0 },
               })
@@ -2422,7 +2388,7 @@ describe('Market', () => {
                 currentId: 3,
                 latestId: 2,
                 collateral: COLLATERAL.sub(EXPECTED_FUNDING_WITH_FEE_1_5_123).sub(EXPECTED_INTEREST_5_123),
-                reward: EXPECTED_REWARD.mul(2),
+                reward: 0,
               })
               expectPositionEq(await market.positions(user.address), {
                 ...DEFAULT_POSITION,
@@ -2442,7 +2408,7 @@ describe('Market', () => {
                 collateral: COLLATERAL.add(EXPECTED_FUNDING_WITHOUT_FEE_1_5_123)
                   .add(EXPECTED_INTEREST_WITHOUT_FEE_5_123)
                   .sub(8), // loss of precision
-                reward: EXPECTED_REWARD.mul(3),
+                reward: 0,
               })
               expectPositionEq(await market.positions(userB.address), {
                 ...DEFAULT_POSITION,
@@ -2482,8 +2448,8 @@ describe('Market', () => {
                 },
                 longValue: { _value: EXPECTED_FUNDING_WITH_FEE_1_5_123.add(EXPECTED_INTEREST_5_123).div(5).mul(-1) },
                 shortValue: { _value: 0 },
-                makerReward: { _value: EXPECTED_REWARD.mul(3).div(10) },
-                longReward: { _value: EXPECTED_REWARD.mul(2).div(5) },
+                makerReward: { _value: 0 },
+                longReward: { _value: 0 },
                 shortReward: { _value: 0 },
               })
             })
@@ -2516,7 +2482,7 @@ describe('Market', () => {
                 currentId: 2,
                 latestId: 1,
                 collateral: COLLATERAL.sub(EXPECTED_FUNDING_WITH_FEE_1_5_123).sub(EXPECTED_INTEREST_5_123),
-                reward: EXPECTED_REWARD.mul(2),
+                reward: 0,
               })
               expectPositionEq(await market.positions(user.address), {
                 ...DEFAULT_POSITION,
@@ -2536,7 +2502,7 @@ describe('Market', () => {
                 collateral: COLLATERAL.add(EXPECTED_FUNDING_WITHOUT_FEE_1_5_123)
                   .add(EXPECTED_INTEREST_WITHOUT_FEE_5_123)
                   .sub(8), // loss of precision
-                reward: EXPECTED_REWARD.mul(3),
+                reward: 0,
               })
               expectPositionEq(await market.positions(userB.address), {
                 ...DEFAULT_POSITION,
@@ -2576,8 +2542,8 @@ describe('Market', () => {
                 },
                 longValue: { _value: EXPECTED_FUNDING_WITH_FEE_1_5_123.add(EXPECTED_INTEREST_5_123).div(5).mul(-1) },
                 shortValue: { _value: 0 },
-                makerReward: { _value: EXPECTED_REWARD.mul(3).div(10) },
-                longReward: { _value: EXPECTED_REWARD.mul(2).div(5) },
+                makerReward: { _value: 0 },
+                longReward: { _value: 0 },
                 shortReward: { _value: 0 },
               })
             })
@@ -2626,7 +2592,7 @@ describe('Market', () => {
                   .sub(EXPECTED_INTEREST_5_123)
                   .sub(TAKER_FEE)
                   .sub(SETTLEMENT_FEE),
-                reward: EXPECTED_REWARD.mul(2),
+                reward: 0,
               })
               expectPositionEq(await market.positions(user.address), {
                 ...DEFAULT_POSITION,
@@ -2646,7 +2612,7 @@ describe('Market', () => {
                 collateral: COLLATERAL.add(EXPECTED_FUNDING_WITHOUT_FEE_1_5_123)
                   .add(EXPECTED_INTEREST_WITHOUT_FEE_5_123)
                   .sub(8), // loss of precision
-                reward: EXPECTED_REWARD.mul(3),
+                reward: 0,
               })
               expectPositionEq(await market.positions(userB.address), {
                 ...DEFAULT_POSITION,
@@ -2686,8 +2652,8 @@ describe('Market', () => {
                 },
                 longValue: { _value: EXPECTED_FUNDING_WITH_FEE_1_5_123.add(EXPECTED_INTEREST_5_123).div(5).mul(-1) },
                 shortValue: { _value: 0 },
-                makerReward: { _value: EXPECTED_REWARD.mul(3).div(10) },
-                longReward: { _value: EXPECTED_REWARD.mul(2).div(5) },
+                makerReward: { _value: 0 },
+                longReward: { _value: 0 },
                 shortReward: { _value: 0 },
               })
             })
@@ -2744,7 +2710,7 @@ describe('Market', () => {
                   .sub(EXPECTED_INTEREST_5_123)
                   .sub(TAKER_FEE)
                   .sub(SETTLEMENT_FEE),
-                reward: EXPECTED_REWARD.mul(2),
+                reward: 0,
               })
               expectPositionEq(await market.positions(user.address), {
                 ...DEFAULT_POSITION,
@@ -2767,7 +2733,7 @@ describe('Market', () => {
                   .add(EXPECTED_FUNDING_WITHOUT_FEE_1_5_123)
                   .add(EXPECTED_INTEREST_WITHOUT_FEE_5_123)
                   .sub(8), // loss of precision
-                reward: EXPECTED_REWARD.mul(3).mul(2),
+                reward: 0,
               })
               expectPositionEq(await market.positions(userB.address), {
                 ...DEFAULT_POSITION,
@@ -2809,8 +2775,8 @@ describe('Market', () => {
                 },
                 longValue: { _value: EXPECTED_FUNDING_WITH_FEE_1_5_123.add(EXPECTED_INTEREST_5_123).div(5).mul(-1) },
                 shortValue: { _value: 0 },
-                makerReward: { _value: EXPECTED_REWARD.mul(3).mul(2).div(10) },
-                longReward: { _value: EXPECTED_REWARD.mul(2).div(5) },
+                makerReward: { _value: 0 },
+                longReward: { _value: 0 },
                 shortReward: { _value: 0 },
               })
             })
@@ -3026,7 +2992,7 @@ describe('Market', () => {
                   currentId: 3,
                   latestId: 2,
                   collateral: COLLATERAL.sub(EXPECTED_FUNDING_WITH_FEE_1_5_123).sub(EXPECTED_INTEREST_5_123),
-                  reward: EXPECTED_REWARD.mul(2),
+                  reward: 0,
                 })
                 expectPositionEq(await market.positions(user.address), {
                   ...DEFAULT_POSITION,
@@ -3044,7 +3010,7 @@ describe('Market', () => {
                   collateral: COLLATERAL.add(EXPECTED_FUNDING_WITHOUT_FEE_1_5_123)
                     .add(EXPECTED_INTEREST_WITHOUT_FEE_5_123)
                     .sub(8), // loss of precision
-                  reward: EXPECTED_REWARD.mul(3),
+                  reward: 0,
                 })
                 expectPositionEq(await market.positions(userB.address), {
                   ...DEFAULT_POSITION,
@@ -3084,8 +3050,8 @@ describe('Market', () => {
                     _value: EXPECTED_FUNDING_WITH_FEE_1_5_123.add(EXPECTED_INTEREST_5_123).div(5).mul(-1),
                   },
                   shortValue: { _value: 0 },
-                  makerReward: { _value: EXPECTED_REWARD.mul(3).div(10) },
-                  longReward: { _value: EXPECTED_REWARD.mul(2).div(5) },
+                  makerReward: { _value: 0 },
+                  longReward: { _value: 0 },
                   shortReward: { _value: 0 },
                 })
               })
@@ -3162,7 +3128,7 @@ describe('Market', () => {
                   currentId: 3,
                   latestId: 2,
                   collateral: COLLATERAL.sub(EXPECTED_FUNDING_WITH_FEE_1_5_123).sub(EXPECTED_INTEREST_5_123),
-                  reward: EXPECTED_REWARD.mul(2),
+                  reward: 0,
                 })
                 expectPositionEq(await market.positions(user.address), {
                   ...DEFAULT_POSITION,
@@ -3180,7 +3146,7 @@ describe('Market', () => {
                   collateral: COLLATERAL.add(EXPECTED_FUNDING_WITHOUT_FEE_1_5_123)
                     .add(EXPECTED_INTEREST_WITHOUT_FEE_5_123)
                     .sub(8), // loss of precision
-                  reward: EXPECTED_REWARD.mul(3),
+                  reward: 0,
                 })
                 expectPositionEq(await market.positions(userB.address), {
                   ...DEFAULT_POSITION,
@@ -3220,8 +3186,8 @@ describe('Market', () => {
                     _value: EXPECTED_FUNDING_WITH_FEE_1_5_123.add(EXPECTED_INTEREST_5_123).div(5).mul(-1),
                   },
                   shortValue: { _value: 0 },
-                  makerReward: { _value: EXPECTED_REWARD.mul(3).div(10) },
-                  longReward: { _value: EXPECTED_REWARD.mul(2).div(5) },
+                  makerReward: { _value: 0 },
+                  longReward: { _value: 0 },
                   shortReward: { _value: 0 },
                 })
               })
@@ -3245,7 +3211,7 @@ describe('Market', () => {
                   currentId: 3,
                   latestId: 2,
                   collateral: COLLATERAL.sub(EXPECTED_FUNDING_WITH_FEE_1_5_123).sub(EXPECTED_INTEREST_5_123),
-                  reward: EXPECTED_REWARD.mul(2),
+                  reward: 0,
                 })
                 expectPositionEq(await market.positions(user.address), {
                   ...DEFAULT_POSITION,
@@ -3264,7 +3230,7 @@ describe('Market', () => {
                   collateral: COLLATERAL.add(EXPECTED_FUNDING_WITHOUT_FEE_1_5_123)
                     .add(EXPECTED_INTEREST_WITHOUT_FEE_5_123)
                     .sub(8), // loss of precision
-                  reward: EXPECTED_REWARD.mul(3),
+                  reward: 0,
                 })
                 expectPositionEq(await market.positions(userB.address), {
                   ...DEFAULT_POSITION,
@@ -3305,8 +3271,8 @@ describe('Market', () => {
                     _value: EXPECTED_FUNDING_WITH_FEE_1_5_123.add(EXPECTED_INTEREST_5_123).div(5).mul(-1),
                   },
                   shortValue: { _value: 0 },
-                  makerReward: { _value: EXPECTED_REWARD.mul(3).div(10) },
-                  longReward: { _value: EXPECTED_REWARD.mul(2).div(5) },
+                  makerReward: { _value: 0 },
+                  longReward: { _value: 0 },
                   shortReward: { _value: 0 },
                 })
               })
@@ -3338,7 +3304,7 @@ describe('Market', () => {
                     .sub(EXPECTED_FUNDING_WITH_FEE_2_25_123)
                     .sub(EXPECTED_INTEREST_5_123)
                     .sub(EXPECTED_INTEREST_25_123),
-                  reward: EXPECTED_REWARD.mul(2).mul(2),
+                  reward: 0,
                 })
                 expectPositionEq(await market.positions(user.address), {
                   ...DEFAULT_POSITION,
@@ -3358,7 +3324,7 @@ describe('Market', () => {
                     .add(EXPECTED_INTEREST_WITHOUT_FEE_5_123)
                     .add(EXPECTED_INTEREST_WITHOUT_FEE_25_123)
                     .sub(13), // loss of precision
-                  reward: EXPECTED_REWARD.mul(3).mul(2),
+                  reward: 0,
                 })
                 expectPositionEq(await market.positions(userB.address), {
                   ...DEFAULT_POSITION,
@@ -3400,8 +3366,8 @@ describe('Market', () => {
                     _value: EXPECTED_FUNDING_WITH_FEE_1_5_123.add(EXPECTED_INTEREST_5_123).div(5).mul(-1),
                   },
                   shortValue: { _value: 0 },
-                  makerReward: { _value: EXPECTED_REWARD.mul(3).div(10) },
-                  longReward: { _value: EXPECTED_REWARD.mul(2).div(5) },
+                  makerReward: { _value: 0 },
+                  longReward: { _value: 0 },
                   shortReward: { _value: 0 },
                 })
                 expectVersionEq(await market.versions(ORACLE_VERSION_4.timestamp), {
@@ -3419,8 +3385,8 @@ describe('Market', () => {
                       .mul(-1),
                   },
                   shortValue: { _value: 0 },
-                  makerReward: { _value: EXPECTED_REWARD.mul(3).mul(2).div(10) },
-                  longReward: { _value: EXPECTED_REWARD.mul(2).div(5).add(EXPECTED_REWARD.mul(2).mul(2).div(5)) },
+                  makerReward: { _value: 0 },
+                  longReward: { _value: 0 },
                   shortReward: { _value: 0 },
                 })
               })
@@ -3444,7 +3410,7 @@ describe('Market', () => {
                   currentId: 3,
                   latestId: 2,
                   collateral: COLLATERAL.sub(EXPECTED_FUNDING_WITH_FEE_1_5_123).sub(EXPECTED_INTEREST_5_123),
-                  reward: EXPECTED_REWARD.mul(2),
+                  reward: 0,
                 })
                 expectPositionEq(await market.positions(user.address), {
                   ...DEFAULT_POSITION,
@@ -3462,7 +3428,7 @@ describe('Market', () => {
                   collateral: COLLATERAL.add(EXPECTED_FUNDING_WITHOUT_FEE_1_5_123)
                     .add(EXPECTED_INTEREST_WITHOUT_FEE_5_123)
                     .sub(8), // loss of precision
-                  reward: EXPECTED_REWARD.mul(3).mul(2),
+                  reward: 0,
                 })
                 expectPositionEq(await market.positions(userB.address), {
                   ...DEFAULT_POSITION,
@@ -3502,8 +3468,8 @@ describe('Market', () => {
                     _value: EXPECTED_FUNDING_WITH_FEE_1_5_123.add(EXPECTED_INTEREST_5_123).div(5).mul(-1),
                   },
                   shortValue: { _value: 0 },
-                  makerReward: { _value: EXPECTED_REWARD.mul(3).mul(2).div(10) },
-                  longReward: { _value: EXPECTED_REWARD.mul(2).div(5) },
+                  makerReward: { _value: 0 },
+                  longReward: { _value: 0 },
                   shortReward: { _value: 0 },
                 })
               })
@@ -3545,7 +3511,7 @@ describe('Market', () => {
                     .sub(EXPECTED_INTEREST_5_123)
                     .sub(TAKER_FEE)
                     .sub(SETTLEMENT_FEE),
-                  reward: EXPECTED_REWARD.mul(2),
+                  reward: 0,
                 })
                 expectPositionEq(await market.positions(user.address), {
                   ...DEFAULT_POSITION,
@@ -3564,7 +3530,7 @@ describe('Market', () => {
                     .add(EXPECTED_INTEREST_WITHOUT_FEE_5_123)
                     .add(TAKER_FEE_WITHOUT_FEE)
                     .sub(8), // loss of precision
-                  reward: EXPECTED_REWARD.mul(3).mul(2),
+                  reward: 0,
                 })
                 expectPositionEq(await market.positions(userB.address), {
                   ...DEFAULT_POSITION,
@@ -3606,8 +3572,8 @@ describe('Market', () => {
                     _value: EXPECTED_FUNDING_WITH_FEE_1_5_123.add(EXPECTED_INTEREST_5_123).div(5).mul(-1),
                   },
                   shortValue: { _value: 0 },
-                  makerReward: { _value: EXPECTED_REWARD.mul(3).mul(2).div(10) },
-                  longReward: { _value: EXPECTED_REWARD.mul(2).div(5) },
+                  makerReward: { _value: 0 },
+                  longReward: { _value: 0 },
                   shortReward: { _value: 0 },
                 })
               })
@@ -3738,8 +3704,8 @@ describe('Market', () => {
                 interestFee: EXPECTED_INTEREST_FEE_5_123,
                 pnlMaker: EXPECTED_PNL,
                 pnlLong: EXPECTED_PNL.mul(-1),
-                rewardMaker: EXPECTED_REWARD.mul(3),
-                rewardLong: EXPECTED_REWARD.mul(2),
+                rewardMaker: 0,
+                rewardLong: 0,
               })
               .to.emit(market, 'AccountPositionProcessed')
               .withArgs(user.address, ORACLE_VERSION_2.timestamp, oracleVersionLowerPrice.timestamp, 1, 2, {
@@ -3747,7 +3713,7 @@ describe('Market', () => {
                 collateralAmount: EXPECTED_PNL.mul(-1)
                   .sub(EXPECTED_FUNDING_WITH_FEE_1_5_123)
                   .sub(EXPECTED_INTEREST_5_123),
-                rewardAmount: EXPECTED_REWARD.mul(2),
+                rewardAmount: 0,
               })
 
             await expect(settle(market, userB))
@@ -3757,7 +3723,7 @@ describe('Market', () => {
                 collateralAmount: EXPECTED_PNL.add(EXPECTED_FUNDING_WITHOUT_FEE_1_5_123)
                   .add(EXPECTED_INTEREST_WITHOUT_FEE_5_123)
                   .sub(8),
-                rewardAmount: EXPECTED_REWARD.mul(3),
+                rewardAmount: 0,
               })
 
             expectLocalEq(await market.locals(user.address), {
@@ -3767,7 +3733,7 @@ describe('Market', () => {
               collateral: COLLATERAL.sub(EXPECTED_PNL)
                 .sub(EXPECTED_FUNDING_WITH_FEE_1_5_123)
                 .sub(EXPECTED_INTEREST_5_123),
-              reward: EXPECTED_REWARD.mul(2),
+              reward: 0,
             })
             expectPositionEq(await market.positions(user.address), {
               ...DEFAULT_POSITION,
@@ -3788,7 +3754,7 @@ describe('Market', () => {
                 .add(EXPECTED_FUNDING_WITHOUT_FEE_1_5_123)
                 .add(EXPECTED_INTEREST_WITHOUT_FEE_5_123)
                 .sub(8), // loss of precision
-              reward: EXPECTED_REWARD.mul(3),
+              reward: 0,
             })
             expectPositionEq(await market.positions(userB.address), {
               ...DEFAULT_POSITION,
@@ -3832,8 +3798,8 @@ describe('Market', () => {
                 _value: EXPECTED_PNL.add(EXPECTED_FUNDING_WITH_FEE_1_5_123).add(EXPECTED_INTEREST_5_123).div(5).mul(-1),
               },
               shortValue: { _value: 0 },
-              makerReward: { _value: EXPECTED_REWARD.mul(3).div(10) },
-              longReward: { _value: EXPECTED_REWARD.mul(2).div(5) },
+              makerReward: { _value: 0 },
+              longReward: { _value: 0 },
               shortReward: { _value: 0 },
             })
           })
@@ -3865,8 +3831,8 @@ describe('Market', () => {
                 interestFee: EXPECTED_INTEREST_FEE_5_123,
                 pnlMaker: EXPECTED_PNL,
                 pnlLong: EXPECTED_PNL.mul(-1),
-                rewardMaker: EXPECTED_REWARD.mul(3),
-                rewardLong: EXPECTED_REWARD.mul(2),
+                rewardMaker: 0,
+                rewardLong: 0,
               })
               .to.emit(market, 'AccountPositionProcessed')
               .withArgs(user.address, ORACLE_VERSION_2.timestamp, oracleVersionHigherPrice.timestamp, 1, 2, {
@@ -3874,7 +3840,7 @@ describe('Market', () => {
                 collateralAmount: EXPECTED_PNL.mul(-1)
                   .sub(EXPECTED_FUNDING_WITH_FEE_1_5_123)
                   .sub(EXPECTED_INTEREST_5_123),
-                rewardAmount: EXPECTED_REWARD.mul(2),
+                rewardAmount: 0,
               })
 
             await expect(settle(market, userB))
@@ -3884,7 +3850,7 @@ describe('Market', () => {
                 collateralAmount: EXPECTED_PNL.add(EXPECTED_FUNDING_WITHOUT_FEE_1_5_123)
                   .add(EXPECTED_INTEREST_WITHOUT_FEE_5_123)
                   .sub(8),
-                rewardAmount: EXPECTED_REWARD.mul(3),
+                rewardAmount: 0,
               })
 
             expectLocalEq(await market.locals(user.address), {
@@ -3894,7 +3860,7 @@ describe('Market', () => {
               collateral: COLLATERAL.sub(EXPECTED_PNL)
                 .sub(EXPECTED_FUNDING_WITH_FEE_1_5_123)
                 .sub(EXPECTED_INTEREST_5_123),
-              reward: EXPECTED_REWARD.mul(2),
+              reward: 0,
             })
             expectPositionEq(await market.positions(user.address), {
               ...DEFAULT_POSITION,
@@ -3915,7 +3881,7 @@ describe('Market', () => {
                 .add(EXPECTED_FUNDING_WITHOUT_FEE_1_5_123)
                 .add(EXPECTED_INTEREST_WITHOUT_FEE_5_123)
                 .sub(8), // loss of precision
-              reward: EXPECTED_REWARD.mul(3),
+              reward: 0,
             })
             expectPositionEq(await market.positions(userB.address), {
               ...DEFAULT_POSITION,
@@ -3960,8 +3926,8 @@ describe('Market', () => {
                 _value: EXPECTED_PNL.add(EXPECTED_FUNDING_WITH_FEE_1_5_123).add(EXPECTED_INTEREST_5_123).div(5).mul(-1),
               },
               shortValue: { _value: 0 },
-              makerReward: { _value: EXPECTED_REWARD.mul(3).div(10) },
-              longReward: { _value: EXPECTED_REWARD.mul(2).div(5) },
+              makerReward: { _value: 0 },
+              longReward: { _value: 0 },
               shortReward: { _value: 0 },
             })
           })
@@ -4039,7 +4005,7 @@ describe('Market', () => {
                   .sub(EXPECTED_FUNDING_WITH_FEE_2_5_150)
                   .sub(EXPECTED_INTEREST_5_150)
                   .sub(5), // loss of precision
-                reward: EXPECTED_REWARD.mul(2).mul(3),
+                reward: 0,
               })
               expectPositionEq(await market.positions(user.address), {
                 ...DEFAULT_POSITION,
@@ -4063,7 +4029,7 @@ describe('Market', () => {
                   .add(EXPECTED_INTEREST_WITHOUT_FEE_5_150)
                   .sub(EXPECTED_LIQUIDATION_FEE)
                   .sub(22), // loss of precision
-                reward: EXPECTED_REWARD.mul(3).mul(2),
+                reward: 0,
                 protection: ORACLE_VERSION_4.timestamp,
                 protectionAmount: EXPECTED_LIQUIDATION_FEE,
                 protectionInitiator: liquidator.address,
@@ -4112,8 +4078,8 @@ describe('Market', () => {
                     .mul(-1),
                 },
                 shortValue: { _value: 0 },
-                makerReward: { _value: EXPECTED_REWARD.mul(3).div(10) },
-                longReward: { _value: EXPECTED_REWARD.mul(2).div(5) },
+                makerReward: { _value: 0 },
+                longReward: { _value: 0 },
                 shortReward: { _value: 0 },
               })
               expectVersionEq(await market.versions(ORACLE_VERSION_4.timestamp), {
@@ -4133,8 +4099,8 @@ describe('Market', () => {
                     .sub(1), // loss of precision
                 },
                 shortValue: { _value: 0 },
-                makerReward: { _value: EXPECTED_REWARD.mul(3).div(10).mul(2) },
-                longReward: { _value: EXPECTED_REWARD.mul(2).div(5).mul(2) },
+                makerReward: { _value: 0 },
+                longReward: { _value: 0 },
                 shortReward: { _value: 0 },
               })
               expectVersionEq(await market.versions(ORACLE_VERSION_5.timestamp), {
@@ -4154,8 +4120,8 @@ describe('Market', () => {
                     .sub(1), // loss of precision
                 },
                 shortValue: { _value: 0 },
-                makerReward: { _value: EXPECTED_REWARD.mul(3).div(10).mul(2) },
-                longReward: { _value: EXPECTED_REWARD.mul(2).div(5).mul(3) },
+                makerReward: { _value: 0 },
+                longReward: { _value: 0 },
                 shortReward: { _value: 0 },
               })
             })
@@ -4240,7 +4206,7 @@ describe('Market', () => {
                   .sub(EXPECTED_INTEREST_3)
                   .add(EXPECTED_PNL)
                   .sub(5), // loss of precision
-                reward: EXPECTED_REWARD.mul(2).mul(3),
+                reward: 0,
               })
               expectLocalEq(await market.locals(liquidator.address), {
                 ...DEFAULT_LOCAL,
@@ -4269,7 +4235,7 @@ describe('Market', () => {
                   .add(EXPECTED_FUNDING_WITHOUT_FEE_2_5_150.add(EXPECTED_INTEREST_WITHOUT_FEE_2).mul(4).div(5))
                   .sub(EXPECTED_LIQUIDATION_FEE)
                   .sub(16), // loss of precision
-                reward: EXPECTED_REWARD.mul(4).div(5).mul(3).mul(2),
+                reward: 0,
                 protection: ORACLE_VERSION_4.timestamp,
                 protectionAmount: EXPECTED_LIQUIDATION_FEE,
                 protectionInitiator: liquidator.address,
@@ -4294,7 +4260,7 @@ describe('Market', () => {
                   .add(EXPECTED_FUNDING_WITHOUT_FEE_3_25_123.add(EXPECTED_INTEREST_WITHOUT_FEE_3))
                   .sub(EXPECTED_PNL)
                   .sub(12), // loss of precision
-                reward: EXPECTED_REWARD.div(5).mul(3).mul(2).add(EXPECTED_REWARD.mul(3)),
+                reward: 0,
               })
               expectPositionEq(await market.positions(userC.address), {
                 ...DEFAULT_POSITION,
@@ -4345,8 +4311,8 @@ describe('Market', () => {
                     .mul(-1),
                 },
                 shortValue: { _value: 0 },
-                makerReward: { _value: EXPECTED_REWARD.mul(3).mul(2).div(25) },
-                longReward: { _value: EXPECTED_REWARD.mul(2).div(5) },
+                makerReward: { _value: 0 },
+                longReward: { _value: 0 },
                 shortReward: { _value: 0 },
               })
               expectVersionEq(await market.versions(ORACLE_VERSION_4.timestamp), {
@@ -4365,8 +4331,8 @@ describe('Market', () => {
                     .sub(1), // loss of precision
                 },
                 shortValue: { _value: 0 },
-                makerReward: { _value: EXPECTED_REWARD.mul(3).mul(2).div(25).mul(2) },
-                longReward: { _value: EXPECTED_REWARD.mul(2).mul(2).div(5) },
+                makerReward: { _value: 0 },
+                longReward: { _value: 0 },
                 shortReward: { _value: 0 },
               })
               expectVersionEq(await market.versions(ORACLE_VERSION_5.timestamp), {
@@ -4389,10 +4355,8 @@ describe('Market', () => {
                     .sub(1), // loss of precision
                 },
                 shortValue: { _value: 0 },
-                makerReward: {
-                  _value: EXPECTED_REWARD.mul(3).mul(2).div(25).mul(2).add(EXPECTED_REWARD.mul(3).mul(2).div(5)),
-                },
-                longReward: { _value: EXPECTED_REWARD.mul(2).mul(3).div(5) },
+                makerReward: { _value: 0 },
+                longReward: { _value: 0 },
                 shortReward: { _value: 0 },
               })
             })
@@ -4432,7 +4396,7 @@ describe('Market', () => {
                 collateral: COLLATERAL.sub(EXPECTED_FUNDING_WITH_FEE_1_5_123)
                   .sub(EXPECTED_INTEREST_5_123)
                   .add(EXPECTED_PNL),
-                reward: EXPECTED_REWARD.mul(2),
+                reward: 0,
               })
               expectPositionEq(await market.positions(user.address), {
                 ...DEFAULT_POSITION,
@@ -4454,7 +4418,7 @@ describe('Market', () => {
                   .add(EXPECTED_INTEREST_WITHOUT_FEE_5_123)
                   .sub(EXPECTED_PNL)
                   .sub(8), // loss of precision
-                reward: EXPECTED_REWARD.mul(3),
+                reward: 0,
                 protection: ORACLE_VERSION_4.timestamp,
                 protectionAmount: EXPECTED_LIQUIDATION_FEE,
                 protectionInitiator: liquidator.address,
@@ -4503,8 +4467,8 @@ describe('Market', () => {
                     .mul(-1),
                 },
                 shortValue: { _value: 0 },
-                makerReward: { _value: EXPECTED_REWARD.mul(3).div(10) },
-                longReward: { _value: EXPECTED_REWARD.mul(2).div(5) },
+                makerReward: { _value: 0 },
+                longReward: { _value: 0 },
                 shortReward: { _value: 0 },
               })
 
@@ -4554,7 +4518,7 @@ describe('Market', () => {
                 currentId: 4,
                 latestId: 3,
                 collateral: 0,
-                reward: EXPECTED_REWARD.mul(3).mul(2),
+                reward: 0,
                 protection: ORACLE_VERSION_4.timestamp,
                 protectionAmount: EXPECTED_LIQUIDATION_FEE,
                 protectionInitiator: liquidator.address,
@@ -4634,7 +4598,7 @@ describe('Market', () => {
                   .sub(EXPECTED_FUNDING_WITH_FEE_1_5_123.add(EXPECTED_INTEREST_5_123))
                   .sub(EXPECTED_FUNDING_WITH_FEE_2_5_96.add(EXPECTED_INTEREST_5_96))
                   .sub(EXPECTED_LIQUIDATION_FEE),
-                reward: EXPECTED_REWARD.mul(2).mul(2),
+                reward: 0,
                 protection: ORACLE_VERSION_4.timestamp,
                 protectionAmount: EXPECTED_LIQUIDATION_FEE,
                 protectionInitiator: liquidator.address,
@@ -4664,7 +4628,7 @@ describe('Market', () => {
                 )
                   .add(EXPECTED_FUNDING_WITHOUT_FEE_2_5_96.add(EXPECTED_INTEREST_WITHOUT_FEE_5_96))
                   .sub(20), // loss of precision
-                reward: EXPECTED_REWARD.mul(3).mul(3),
+                reward: 0,
               })
               expectPositionEq(await market.positions(userB.address), {
                 ...DEFAULT_POSITION,
@@ -4711,8 +4675,8 @@ describe('Market', () => {
                     .mul(-1),
                 },
                 shortValue: { _value: 0 },
-                makerReward: { _value: EXPECTED_REWARD.mul(3).div(10) },
-                longReward: { _value: EXPECTED_REWARD.mul(2).div(5) },
+                makerReward: { _value: 0 },
+                longReward: { _value: 0 },
                 shortReward: { _value: 0 },
               })
               expectVersionEq(await market.versions(ORACLE_VERSION_4.timestamp), {
@@ -4729,8 +4693,8 @@ describe('Market', () => {
                     .mul(-1),
                 },
                 shortValue: { _value: 0 },
-                makerReward: { _value: EXPECTED_REWARD.mul(3).div(10).mul(2) },
-                longReward: { _value: EXPECTED_REWARD.mul(2).div(5).mul(2) },
+                makerReward: { _value: 0 },
+                longReward: { _value: 0 },
                 shortReward: { _value: 0 },
               })
               expectVersionEq(await market.versions(ORACLE_VERSION_5.timestamp), {
@@ -4747,8 +4711,8 @@ describe('Market', () => {
                     .mul(-1),
                 },
                 shortValue: { _value: 0 },
-                makerReward: { _value: EXPECTED_REWARD.mul(3).div(10).mul(3) },
-                longReward: { _value: EXPECTED_REWARD.mul(2).div(5).mul(2) },
+                makerReward: { _value: 0 },
+                longReward: { _value: 0 },
                 shortReward: { _value: 0 },
               })
             })
@@ -4792,7 +4756,7 @@ describe('Market', () => {
                 collateral: parse6decimal('216')
                   .sub(EXPECTED_FUNDING_WITH_FEE_1_5_123.add(EXPECTED_INTEREST_5_123))
                   .sub(EXPECTED_PNL),
-                reward: EXPECTED_REWARD.mul(2),
+                reward: 0,
                 protection: ORACLE_VERSION_4.timestamp,
                 protectionAmount: EXPECTED_LIQUIDATION_FEE,
                 protectionInitiator: liquidator.address,
@@ -4816,7 +4780,7 @@ describe('Market', () => {
                 )
                   .add(EXPECTED_PNL)
                   .sub(8), // loss of precision
-                reward: EXPECTED_REWARD.mul(3),
+                reward: 0,
               })
               expectPositionEq(await market.positions(userB.address), {
                 ...DEFAULT_POSITION,
@@ -4862,8 +4826,8 @@ describe('Market', () => {
                     .mul(-1),
                 },
                 shortValue: { _value: 0 },
-                makerReward: { _value: EXPECTED_REWARD.mul(3).div(10) },
-                longReward: { _value: EXPECTED_REWARD.mul(2).div(5) },
+                makerReward: { _value: 0 },
+                longReward: { _value: 0 },
                 shortReward: { _value: 0 },
               })
 
@@ -4903,7 +4867,7 @@ describe('Market', () => {
                 currentId: 4,
                 latestId: 3,
                 collateral: 0,
-                reward: EXPECTED_REWARD.mul(2).mul(2),
+                reward: 0,
                 protection: ORACLE_VERSION_4.timestamp,
                 protectionAmount: EXPECTED_LIQUIDATION_FEE,
                 protectionInitiator: liquidator.address,
@@ -5372,7 +5336,7 @@ describe('Market', () => {
                 currentId: 3,
                 latestId: 2,
                 collateral: COLLATERAL.sub(EXPECTED_FUNDING_WITH_FEE_1_5_123).sub(EXPECTED_INTEREST_5_123),
-                reward: EXPECTED_REWARD,
+                reward: 0,
               })
               expectPositionEq(await market.positions(user.address), {
                 ...DEFAULT_POSITION,
@@ -5392,7 +5356,7 @@ describe('Market', () => {
                 collateral: COLLATERAL.add(EXPECTED_FUNDING_WITHOUT_FEE_1_5_123)
                   .add(EXPECTED_INTEREST_WITHOUT_FEE_5_123)
                   .sub(8), // loss of precision
-                reward: EXPECTED_REWARD.mul(3),
+                reward: 0,
               })
               expectPositionEq(await market.positions(userB.address), {
                 ...DEFAULT_POSITION,
@@ -5432,9 +5396,9 @@ describe('Market', () => {
                 },
                 longValue: { _value: 0 },
                 shortValue: { _value: EXPECTED_FUNDING_WITH_FEE_1_5_123.add(EXPECTED_INTEREST_5_123).div(5).mul(-1) },
-                makerReward: { _value: EXPECTED_REWARD.mul(3).div(10) },
+                makerReward: { _value: 0 },
                 longReward: { _value: 0 },
-                shortReward: { _value: EXPECTED_REWARD.div(5) },
+                shortReward: { _value: 0 },
               })
             })
 
@@ -5470,7 +5434,7 @@ describe('Market', () => {
                 currentId: 2,
                 latestId: 1,
                 collateral: COLLATERAL.sub(EXPECTED_FUNDING_WITH_FEE_1_5_123).sub(EXPECTED_INTEREST_5_123),
-                reward: EXPECTED_REWARD,
+                reward: 0,
               })
               expectPositionEq(await market.positions(user.address), {
                 ...DEFAULT_POSITION,
@@ -5490,7 +5454,7 @@ describe('Market', () => {
                 collateral: COLLATERAL.add(EXPECTED_FUNDING_WITHOUT_FEE_1_5_123)
                   .add(EXPECTED_INTEREST_WITHOUT_FEE_5_123)
                   .sub(8), // loss of precision
-                reward: EXPECTED_REWARD.mul(3),
+                reward: 0,
               })
               expectPositionEq(await market.positions(userB.address), {
                 ...DEFAULT_POSITION,
@@ -5530,9 +5494,9 @@ describe('Market', () => {
                 },
                 longValue: { _value: 0 },
                 shortValue: { _value: EXPECTED_FUNDING_WITH_FEE_1_5_123.add(EXPECTED_INTEREST_5_123).div(5).mul(-1) },
-                makerReward: { _value: EXPECTED_REWARD.mul(3).div(10) },
+                makerReward: { _value: 0 },
                 longReward: { _value: 0 },
-                shortReward: { _value: EXPECTED_REWARD.div(5) },
+                shortReward: { _value: 0 },
               })
             })
 
@@ -5585,7 +5549,7 @@ describe('Market', () => {
                   .sub(EXPECTED_INTEREST_5_123)
                   .sub(TAKER_FEE)
                   .sub(SETTLEMENT_FEE),
-                reward: EXPECTED_REWARD,
+                reward: 0,
               })
               expectPositionEq(await market.positions(user.address), {
                 ...DEFAULT_POSITION,
@@ -5605,7 +5569,7 @@ describe('Market', () => {
                 collateral: COLLATERAL.add(EXPECTED_FUNDING_WITHOUT_FEE_1_5_123)
                   .add(EXPECTED_INTEREST_WITHOUT_FEE_5_123)
                   .sub(8), // loss of precision
-                reward: EXPECTED_REWARD.mul(3),
+                reward: 0,
               })
               expectPositionEq(await market.positions(userB.address), {
                 ...DEFAULT_POSITION,
@@ -5645,9 +5609,9 @@ describe('Market', () => {
                 },
                 longValue: { _value: 0 },
                 shortValue: { _value: EXPECTED_FUNDING_WITH_FEE_1_5_123.add(EXPECTED_INTEREST_5_123).div(5).mul(-1) },
-                makerReward: { _value: EXPECTED_REWARD.mul(3).div(10) },
+                makerReward: { _value: 0 },
                 longReward: { _value: 0 },
-                shortReward: { _value: EXPECTED_REWARD.div(5) },
+                shortReward: { _value: 0 },
               })
             })
 
@@ -5706,7 +5670,7 @@ describe('Market', () => {
                   .sub(EXPECTED_INTEREST_5_123)
                   .sub(TAKER_FEE)
                   .sub(SETTLEMENT_FEE),
-                reward: EXPECTED_REWARD,
+                reward: 0,
               })
               expectPositionEq(await market.positions(user.address), {
                 ...DEFAULT_POSITION,
@@ -5728,7 +5692,7 @@ describe('Market', () => {
                     EXPECTED_FUNDING_WITHOUT_FEE_1_5_123.add(EXPECTED_INTEREST_WITHOUT_FEE_5_123),
                   ),
                 ).sub(8), // loss of precision
-                reward: EXPECTED_REWARD.mul(3).mul(2),
+                reward: 0,
               })
               expectPositionEq(await market.positions(userB.address), {
                 ...DEFAULT_POSITION,
@@ -5770,9 +5734,9 @@ describe('Market', () => {
                 },
                 longValue: { _value: 0 },
                 shortValue: { _value: EXPECTED_FUNDING_WITH_FEE_1_5_123.add(EXPECTED_INTEREST_5_123).div(5).mul(-1) },
-                makerReward: { _value: EXPECTED_REWARD.mul(3).mul(2).div(10) },
+                makerReward: { _value: 0 },
                 longReward: { _value: 0 },
-                shortReward: { _value: EXPECTED_REWARD.div(5) },
+                shortReward: { _value: 0 },
               })
             })
           })
@@ -5987,7 +5951,7 @@ describe('Market', () => {
                   currentId: 3,
                   latestId: 2,
                   collateral: COLLATERAL.sub(EXPECTED_FUNDING_WITH_FEE_1_5_123).sub(EXPECTED_INTEREST_5_123),
-                  reward: EXPECTED_REWARD,
+                  reward: 0,
                 })
                 expectPositionEq(await market.positions(user.address), {
                   ...DEFAULT_POSITION,
@@ -6005,7 +5969,7 @@ describe('Market', () => {
                   collateral: COLLATERAL.add(EXPECTED_FUNDING_WITHOUT_FEE_1_5_123)
                     .add(EXPECTED_INTEREST_WITHOUT_FEE_5_123)
                     .sub(8), // loss of precision
-                  reward: EXPECTED_REWARD.mul(3),
+                  reward: 0,
                 })
                 expectPositionEq(await market.positions(userB.address), {
                   ...DEFAULT_POSITION,
@@ -6045,9 +6009,9 @@ describe('Market', () => {
                   shortValue: {
                     _value: EXPECTED_FUNDING_WITH_FEE_1_5_123.add(EXPECTED_INTEREST_5_123).div(5).mul(-1),
                   },
-                  makerReward: { _value: EXPECTED_REWARD.mul(3).div(10) },
+                  makerReward: { _value: 0 },
                   longReward: { _value: 0 },
-                  shortReward: { _value: EXPECTED_REWARD.div(5) },
+                  shortReward: { _value: 0 },
                 })
               })
 
@@ -6123,7 +6087,7 @@ describe('Market', () => {
                   currentId: 3,
                   latestId: 2,
                   collateral: COLLATERAL.sub(EXPECTED_FUNDING_WITH_FEE_1_5_123).sub(EXPECTED_INTEREST_5_123),
-                  reward: EXPECTED_REWARD,
+                  reward: 0,
                 })
                 expectPositionEq(await market.positions(user.address), {
                   ...DEFAULT_POSITION,
@@ -6141,7 +6105,7 @@ describe('Market', () => {
                   collateral: COLLATERAL.add(EXPECTED_FUNDING_WITHOUT_FEE_1_5_123)
                     .add(EXPECTED_INTEREST_WITHOUT_FEE_5_123)
                     .sub(8), // loss of precision
-                  reward: EXPECTED_REWARD.mul(3),
+                  reward: 0,
                 })
                 expectPositionEq(await market.positions(userB.address), {
                   ...DEFAULT_POSITION,
@@ -6181,9 +6145,9 @@ describe('Market', () => {
                   shortValue: {
                     _value: EXPECTED_FUNDING_WITH_FEE_1_5_123.add(EXPECTED_INTEREST_5_123).div(5).mul(-1),
                   },
-                  makerReward: { _value: EXPECTED_REWARD.mul(3).div(10) },
+                  makerReward: { _value: 0 },
                   longReward: { _value: 0 },
-                  shortReward: { _value: EXPECTED_REWARD.div(5) },
+                  shortReward: { _value: 0 },
                 })
               })
 
@@ -6205,7 +6169,7 @@ describe('Market', () => {
                   currentId: 3,
                   latestId: 2,
                   collateral: COLLATERAL.sub(EXPECTED_FUNDING_WITH_FEE_1_5_123).sub(EXPECTED_INTEREST_5_123),
-                  reward: EXPECTED_REWARD,
+                  reward: 0,
                 })
                 expectPositionEq(await market.positions(user.address), {
                   ...DEFAULT_POSITION,
@@ -6224,7 +6188,7 @@ describe('Market', () => {
                   collateral: COLLATERAL.add(EXPECTED_FUNDING_WITHOUT_FEE_1_5_123)
                     .add(EXPECTED_INTEREST_WITHOUT_FEE_5_123)
                     .sub(8), // loss of precision
-                  reward: EXPECTED_REWARD.mul(3),
+                  reward: 0,
                 })
                 expectPositionEq(await market.positions(userB.address), {
                   ...DEFAULT_POSITION,
@@ -6265,9 +6229,9 @@ describe('Market', () => {
                   shortValue: {
                     _value: EXPECTED_FUNDING_WITH_FEE_1_5_123.add(EXPECTED_INTEREST_5_123).div(5).mul(-1),
                   },
-                  makerReward: { _value: EXPECTED_REWARD.mul(3).div(10) },
+                  makerReward: { _value: 0 },
                   longReward: { _value: 0 },
-                  shortReward: { _value: EXPECTED_REWARD.div(5) },
+                  shortReward: { _value: 0 },
                 })
               })
 
@@ -6298,7 +6262,7 @@ describe('Market', () => {
                     .sub(EXPECTED_FUNDING_WITH_FEE_2_25_123)
                     .sub(EXPECTED_INTEREST_5_123)
                     .sub(EXPECTED_INTEREST_25_123),
-                  reward: EXPECTED_REWARD.mul(2),
+                  reward: 0,
                 })
                 expectPositionEq(await market.positions(user.address), {
                   ...DEFAULT_POSITION,
@@ -6318,7 +6282,7 @@ describe('Market', () => {
                     .add(EXPECTED_INTEREST_WITHOUT_FEE_5_123)
                     .add(EXPECTED_INTEREST_WITHOUT_FEE_25_123)
                     .sub(13), // loss of precision
-                  reward: EXPECTED_REWARD.mul(3).mul(2),
+                  reward: 0,
                 })
                 expectPositionEq(await market.positions(userB.address), {
                   ...DEFAULT_POSITION,
@@ -6360,9 +6324,9 @@ describe('Market', () => {
                   shortValue: {
                     _value: EXPECTED_FUNDING_WITH_FEE_1_5_123.add(EXPECTED_INTEREST_5_123).div(5).mul(-1),
                   },
-                  makerReward: { _value: EXPECTED_REWARD.mul(3).div(10) },
+                  makerReward: { _value: 0 },
                   longReward: { _value: 0 },
-                  shortReward: { _value: EXPECTED_REWARD.div(5) },
+                  shortReward: { _value: 0 },
                 })
                 expectVersionEq(await market.versions(ORACLE_VERSION_4.timestamp), {
                   makerValue: {
@@ -6379,9 +6343,9 @@ describe('Market', () => {
                       .add(EXPECTED_FUNDING_WITH_FEE_2_25_123.add(EXPECTED_INTEREST_25_123).mul(2).div(5))
                       .mul(-1),
                   },
-                  makerReward: { _value: EXPECTED_REWARD.mul(3).mul(2).div(10) },
+                  makerReward: { _value: 0 },
                   longReward: { _value: 0 },
-                  shortReward: { _value: EXPECTED_REWARD.div(5).add(EXPECTED_REWARD.mul(2).div(5)) },
+                  shortReward: { _value: 0 },
                 })
               })
 
@@ -6404,7 +6368,7 @@ describe('Market', () => {
                   currentId: 3,
                   latestId: 2,
                   collateral: COLLATERAL.sub(EXPECTED_FUNDING_WITH_FEE_1_5_123).sub(EXPECTED_INTEREST_5_123),
-                  reward: EXPECTED_REWARD,
+                  reward: 0,
                 })
                 expectPositionEq(await market.positions(user.address), {
                   ...DEFAULT_POSITION,
@@ -6422,7 +6386,7 @@ describe('Market', () => {
                   collateral: COLLATERAL.add(EXPECTED_FUNDING_WITHOUT_FEE_1_5_123)
                     .add(EXPECTED_INTEREST_WITHOUT_FEE_5_123)
                     .sub(8), // loss of precision
-                  reward: EXPECTED_REWARD.mul(3).mul(2),
+                  reward: 0,
                 })
                 expectPositionEq(await market.positions(userB.address), {
                   ...DEFAULT_POSITION,
@@ -6462,9 +6426,9 @@ describe('Market', () => {
                   shortValue: {
                     _value: EXPECTED_FUNDING_WITH_FEE_1_5_123.add(EXPECTED_INTEREST_5_123).div(5).mul(-1),
                   },
-                  makerReward: { _value: EXPECTED_REWARD.mul(3).mul(2).div(10) },
+                  makerReward: { _value: 0 },
                   longReward: { _value: 0 },
-                  shortReward: { _value: EXPECTED_REWARD.div(5) },
+                  shortReward: { _value: 0 },
                 })
               })
 
@@ -6506,7 +6470,7 @@ describe('Market', () => {
                     .sub(EXPECTED_INTEREST_5_123)
                     .sub(TAKER_FEE)
                     .sub(SETTLEMENT_FEE),
-                  reward: EXPECTED_REWARD,
+                  reward: 0,
                 })
                 expectPositionEq(await market.positions(user.address), {
                   ...DEFAULT_POSITION,
@@ -6525,7 +6489,7 @@ describe('Market', () => {
                     .add(EXPECTED_INTEREST_WITHOUT_FEE_5_123)
                     .add(TAKER_FEE_WITHOUT_FEE)
                     .sub(8), // loss of precision
-                  reward: EXPECTED_REWARD.mul(3).mul(2),
+                  reward: 0,
                 })
                 expectPositionEq(await market.positions(userB.address), {
                   ...DEFAULT_POSITION,
@@ -6567,9 +6531,9 @@ describe('Market', () => {
                   shortValue: {
                     _value: EXPECTED_FUNDING_WITH_FEE_1_5_123.add(EXPECTED_INTEREST_5_123).div(5).mul(-1),
                   },
-                  makerReward: { _value: EXPECTED_REWARD.mul(3).mul(2).div(10) },
+                  makerReward: { _value: 0 },
                   longReward: { _value: 0 },
-                  shortReward: { _value: EXPECTED_REWARD.div(5) },
+                  shortReward: { _value: 0 },
                 })
               })
             })
@@ -6699,8 +6663,8 @@ describe('Market', () => {
                 interestFee: EXPECTED_INTEREST_FEE_5_123,
                 pnlMaker: EXPECTED_PNL,
                 pnlShort: EXPECTED_PNL.mul(-1),
-                rewardMaker: EXPECTED_REWARD.mul(3),
-                rewardShort: EXPECTED_REWARD,
+                rewardMaker: 0,
+                rewardShort: 0,
               })
               .to.emit(market, 'AccountPositionProcessed')
               .withArgs(user.address, ORACLE_VERSION_2.timestamp, oracleVersionLowerPrice.timestamp, 1, 2, {
@@ -6708,7 +6672,7 @@ describe('Market', () => {
                 collateralAmount: EXPECTED_PNL.mul(-1)
                   .sub(EXPECTED_FUNDING_WITH_FEE_1_5_123)
                   .sub(EXPECTED_INTEREST_5_123),
-                rewardAmount: EXPECTED_REWARD,
+                rewardAmount: 0,
               })
 
             await expect(settle(market, userB))
@@ -6718,7 +6682,7 @@ describe('Market', () => {
                 collateralAmount: EXPECTED_PNL.add(EXPECTED_FUNDING_WITHOUT_FEE_1_5_123)
                   .add(EXPECTED_INTEREST_WITHOUT_FEE_5_123)
                   .sub(8),
-                rewardAmount: EXPECTED_REWARD.mul(3),
+                rewardAmount: 0,
               })
 
             expectLocalEq(await market.locals(user.address), {
@@ -6728,7 +6692,7 @@ describe('Market', () => {
               collateral: COLLATERAL.sub(EXPECTED_PNL)
                 .sub(EXPECTED_FUNDING_WITH_FEE_1_5_123)
                 .sub(EXPECTED_INTEREST_5_123),
-              reward: EXPECTED_REWARD,
+              reward: 0,
             })
             expectPositionEq(await market.positions(user.address), {
               ...DEFAULT_POSITION,
@@ -6749,7 +6713,7 @@ describe('Market', () => {
                 .add(EXPECTED_FUNDING_WITHOUT_FEE_1_5_123)
                 .add(EXPECTED_INTEREST_WITHOUT_FEE_5_123)
                 .sub(8), // loss of precision
-              reward: EXPECTED_REWARD.mul(3),
+              reward: 0,
             })
             expectPositionEq(await market.positions(userB.address), {
               ...DEFAULT_POSITION,
@@ -6794,9 +6758,9 @@ describe('Market', () => {
               shortValue: {
                 _value: EXPECTED_PNL.add(EXPECTED_FUNDING_WITH_FEE_1_5_123).add(EXPECTED_INTEREST_5_123).div(5).mul(-1),
               },
-              makerReward: { _value: EXPECTED_REWARD.mul(3).div(10) },
+              makerReward: { _value: 0 },
               longReward: { _value: 0 },
-              shortReward: { _value: EXPECTED_REWARD.div(5) },
+              shortReward: { _value: 0 },
             })
           })
 
@@ -6827,8 +6791,8 @@ describe('Market', () => {
                 interestFee: EXPECTED_INTEREST_FEE_5_123,
                 pnlMaker: EXPECTED_PNL,
                 pnlShort: EXPECTED_PNL.mul(-1),
-                rewardMaker: EXPECTED_REWARD.mul(3),
-                rewardShort: EXPECTED_REWARD,
+                rewardMaker: 0,
+                rewardShort: 0,
               })
               .to.emit(market, 'AccountPositionProcessed')
               .withArgs(user.address, ORACLE_VERSION_2.timestamp, oracleVersionHigherPrice.timestamp, 1, 2, {
@@ -6836,7 +6800,7 @@ describe('Market', () => {
                 collateralAmount: EXPECTED_PNL.mul(-1)
                   .sub(EXPECTED_FUNDING_WITH_FEE_1_5_123)
                   .sub(EXPECTED_INTEREST_5_123),
-                rewardAmount: EXPECTED_REWARD,
+                rewardAmount: 0,
               })
 
             await expect(settle(market, userB))
@@ -6846,7 +6810,7 @@ describe('Market', () => {
                 collateralAmount: EXPECTED_PNL.add(EXPECTED_FUNDING_WITHOUT_FEE_1_5_123)
                   .add(EXPECTED_INTEREST_WITHOUT_FEE_5_123)
                   .sub(8),
-                rewardAmount: EXPECTED_REWARD.mul(3),
+                rewardAmount: 0,
               })
 
             expectLocalEq(await market.locals(user.address), {
@@ -6856,7 +6820,7 @@ describe('Market', () => {
               collateral: COLLATERAL.sub(EXPECTED_PNL)
                 .sub(EXPECTED_FUNDING_WITH_FEE_1_5_123)
                 .sub(EXPECTED_INTEREST_5_123),
-              reward: EXPECTED_REWARD,
+              reward: 0,
             })
             expectPositionEq(await market.positions(user.address), {
               ...DEFAULT_POSITION,
@@ -6877,7 +6841,7 @@ describe('Market', () => {
                 .add(EXPECTED_FUNDING_WITHOUT_FEE_1_5_123)
                 .add(EXPECTED_INTEREST_WITHOUT_FEE_5_123)
                 .sub(8), // loss of precision
-              reward: EXPECTED_REWARD.mul(3),
+              reward: 0,
             })
             expectPositionEq(await market.positions(userB.address), {
               ...DEFAULT_POSITION,
@@ -6921,9 +6885,9 @@ describe('Market', () => {
               shortValue: {
                 _value: EXPECTED_PNL.add(EXPECTED_FUNDING_WITH_FEE_1_5_123).add(EXPECTED_INTEREST_5_123).div(5).mul(-1),
               },
-              makerReward: { _value: EXPECTED_REWARD.mul(3).div(10) },
+              makerReward: { _value: 0 },
               longReward: { _value: 0 },
-              shortReward: { _value: EXPECTED_REWARD.div(5) },
+              shortReward: { _value: 0 },
             })
           })
         })
@@ -7002,7 +6966,7 @@ describe('Market', () => {
                 collateral: COLLATERAL.sub(EXPECTED_FUNDING_WITH_FEE_1_5_123.add(EXPECTED_INTEREST_5_123)).sub(
                   EXPECTED_FUNDING_WITH_FEE_2_5_96.add(EXPECTED_INTEREST_5_96),
                 ),
-                reward: EXPECTED_REWARD.mul(3),
+                reward: 0,
               })
               expectPositionEq(await market.positions(user.address), {
                 ...DEFAULT_POSITION,
@@ -7024,7 +6988,7 @@ describe('Market', () => {
                   .add(EXPECTED_FUNDING_WITHOUT_FEE_2_5_96.add(EXPECTED_INTEREST_WITHOUT_FEE_5_96))
                   .sub(EXPECTED_LIQUIDATION_FEE)
                   .sub(20), // loss of precision
-                reward: EXPECTED_REWARD.mul(3).mul(2),
+                reward: 0,
                 protection: ORACLE_VERSION_4.timestamp,
                 protectionAmount: EXPECTED_LIQUIDATION_FEE,
                 protectionInitiator: liquidator.address,
@@ -7073,9 +7037,9 @@ describe('Market', () => {
                     .div(5)
                     .mul(-1),
                 },
-                makerReward: { _value: EXPECTED_REWARD.mul(3).div(10) },
+                makerReward: { _value: 0 },
                 longReward: { _value: 0 },
-                shortReward: { _value: EXPECTED_REWARD.div(5) },
+                shortReward: { _value: 0 },
               })
               expectVersionEq(await market.versions(ORACLE_VERSION_4.timestamp), {
                 makerValue: {
@@ -7091,9 +7055,9 @@ describe('Market', () => {
                     .div(5)
                     .mul(-1),
                 },
-                makerReward: { _value: EXPECTED_REWARD.mul(3).div(10).mul(2) },
+                makerReward: { _value: 0 },
                 longReward: { _value: 0 },
-                shortReward: { _value: EXPECTED_REWARD.div(5).mul(2) },
+                shortReward: { _value: 0 },
               })
               expectVersionEq(await market.versions(ORACLE_VERSION_5.timestamp), {
                 makerValue: {
@@ -7109,9 +7073,9 @@ describe('Market', () => {
                     .div(5)
                     .mul(-1),
                 },
-                makerReward: { _value: EXPECTED_REWARD.mul(3).div(10).mul(2) },
+                makerReward: { _value: 0 },
                 longReward: { _value: 0 },
-                shortReward: { _value: EXPECTED_REWARD.div(5).mul(3) },
+                shortReward: { _value: 0 },
               })
             })
 
@@ -7201,7 +7165,7 @@ describe('Market', () => {
                   .sub(EXPECTED_FUNDING_WITH_FEE_3_25_123)
                   .sub(EXPECTED_INTEREST_3)
                   .add(EXPECTED_PNL),
-                reward: EXPECTED_REWARD.mul(3),
+                reward: 0,
               })
               expectPositionEq(await market.positions(user.address), {
                 ...DEFAULT_POSITION,
@@ -7223,7 +7187,7 @@ describe('Market', () => {
                   .add(EXPECTED_FUNDING_WITHOUT_FEE_2_5_96.add(EXPECTED_INTEREST_WITHOUT_FEE_2).mul(4).div(5))
                   .sub(EXPECTED_LIQUIDATION_FEE)
                   .sub(17), // loss of precision
-                reward: EXPECTED_REWARD.mul(4).div(5).mul(3).mul(2),
+                reward: 0,
                 protection: ORACLE_VERSION_4.timestamp,
                 protectionAmount: EXPECTED_LIQUIDATION_FEE,
                 protectionInitiator: liquidator.address,
@@ -7248,7 +7212,7 @@ describe('Market', () => {
                   .add(EXPECTED_FUNDING_WITHOUT_FEE_3_25_123.add(EXPECTED_INTEREST_WITHOUT_FEE_3))
                   .sub(EXPECTED_PNL)
                   .sub(12), // loss of precision
-                reward: EXPECTED_REWARD.div(5).mul(3).mul(2).add(EXPECTED_REWARD.mul(3)),
+                reward: 0,
               })
               expectPositionEq(await market.positions(userC.address), {
                 ...DEFAULT_POSITION,
@@ -7299,9 +7263,9 @@ describe('Market', () => {
                     .div(5)
                     .mul(-1),
                 },
-                makerReward: { _value: EXPECTED_REWARD.mul(3).mul(2).div(25) },
+                makerReward: { _value: 0 },
                 longReward: { _value: 0 },
-                shortReward: { _value: EXPECTED_REWARD.div(5) },
+                shortReward: { _value: 0 },
               })
               expectVersionEq(await market.versions(ORACLE_VERSION_4.timestamp), {
                 makerValue: {
@@ -7318,9 +7282,9 @@ describe('Market', () => {
                     .div(5)
                     .mul(-1),
                 },
-                makerReward: { _value: EXPECTED_REWARD.mul(3).mul(2).div(25).mul(2) },
+                makerReward: { _value: 0 },
                 longReward: { _value: 0 },
-                shortReward: { _value: EXPECTED_REWARD.mul(2).div(5) },
+                shortReward: { _value: 0 },
               })
               expectVersionEq(await market.versions(ORACLE_VERSION_5.timestamp), {
                 makerValue: {
@@ -7341,11 +7305,9 @@ describe('Market', () => {
                     .div(5)
                     .mul(-1),
                 },
-                makerReward: {
-                  _value: EXPECTED_REWARD.mul(3).mul(2).div(25).mul(2).add(EXPECTED_REWARD.mul(3).mul(2).div(5)),
-                },
+                makerReward: { _value: 0 },
                 longReward: { _value: 0 },
-                shortReward: { _value: EXPECTED_REWARD.mul(3).div(5) },
+                shortReward: { _value: 0 },
               })
             })
 
@@ -7384,7 +7346,7 @@ describe('Market', () => {
                 collateral: COLLATERAL.sub(EXPECTED_FUNDING_WITH_FEE_1_5_123.add(EXPECTED_INTEREST_5_123)).add(
                   EXPECTED_PNL,
                 ),
-                reward: EXPECTED_REWARD,
+                reward: 0,
               })
               expectPositionEq(await market.positions(user.address), {
                 ...DEFAULT_POSITION,
@@ -7405,7 +7367,7 @@ describe('Market', () => {
                   .add(EXPECTED_FUNDING_WITHOUT_FEE_1_5_123.add(EXPECTED_INTEREST_WITHOUT_FEE_5_123))
                   .sub(EXPECTED_PNL)
                   .sub(8), // loss of precision
-                reward: EXPECTED_REWARD.mul(3),
+                reward: 0,
                 protection: ORACLE_VERSION_4.timestamp,
                 protectionAmount: EXPECTED_LIQUIDATION_FEE,
                 protectionInitiator: liquidator.address,
@@ -7449,9 +7411,9 @@ describe('Market', () => {
                     .div(5)
                     .mul(-1),
                 },
-                makerReward: { _value: EXPECTED_REWARD.mul(3).div(10) },
+                makerReward: { _value: 0 },
                 longReward: { _value: 0 },
-                shortReward: { _value: EXPECTED_REWARD.div(5) },
+                shortReward: { _value: 0 },
               })
 
               const oracleVersionHigherPrice2 = {
@@ -7498,7 +7460,7 @@ describe('Market', () => {
                 currentId: 4,
                 latestId: 3,
                 collateral: 0,
-                reward: EXPECTED_REWARD.mul(3).mul(2),
+                reward: 0,
                 protection: ORACLE_VERSION_4.timestamp,
                 protectionAmount: EXPECTED_LIQUIDATION_FEE,
                 protectionInitiator: liquidator.address,
@@ -7587,7 +7549,7 @@ describe('Market', () => {
                   .sub(EXPECTED_FUNDING_WITH_FEE_2_5_150)
                   .sub(EXPECTED_INTEREST_5_150)
                   .sub(EXPECTED_LIQUIDATION_FEE),
-                reward: EXPECTED_REWARD.mul(2),
+                reward: 0,
                 protection: ORACLE_VERSION_4.timestamp,
                 protectionAmount: EXPECTED_LIQUIDATION_FEE,
                 protectionInitiator: liquidator.address,
@@ -7610,7 +7572,7 @@ describe('Market', () => {
                   .add(EXPECTED_FUNDING_WITHOUT_FEE_2_5_150)
                   .add(EXPECTED_INTEREST_WITHOUT_FEE_5_150)
                   .sub(22), // loss of precision
-                reward: EXPECTED_REWARD.mul(3).mul(3),
+                reward: 0,
               })
               expectPositionEq(await market.positions(userB.address), {
                 ...DEFAULT_POSITION,
@@ -7657,9 +7619,9 @@ describe('Market', () => {
                     .div(5)
                     .mul(-1),
                 },
-                makerReward: { _value: EXPECTED_REWARD.mul(3).div(10) },
+                makerReward: { _value: 0 },
                 longReward: { _value: 0 },
-                shortReward: { _value: EXPECTED_REWARD.div(5) },
+                shortReward: { _value: 0 },
               })
               expectVersionEq(await market.versions(ORACLE_VERSION_4.timestamp), {
                 makerValue: {
@@ -7677,9 +7639,9 @@ describe('Market', () => {
                     .div(5)
                     .mul(-1),
                 },
-                makerReward: { _value: EXPECTED_REWARD.mul(3).div(10).mul(2) },
+                makerReward: { _value: 0 },
                 longReward: { _value: 0 },
-                shortReward: { _value: EXPECTED_REWARD.div(5).mul(2) },
+                shortReward: { _value: 0 },
               })
               expectVersionEq(await market.versions(ORACLE_VERSION_5.timestamp), {
                 makerValue: {
@@ -7697,9 +7659,9 @@ describe('Market', () => {
                     .div(5)
                     .mul(-1),
                 },
-                makerReward: { _value: EXPECTED_REWARD.mul(3).div(10).mul(3) },
+                makerReward: { _value: 0 },
                 longReward: { _value: 0 },
-                shortReward: { _value: EXPECTED_REWARD.div(5).mul(2) },
+                shortReward: { _value: 0 },
               })
             })
 
@@ -7743,7 +7705,7 @@ describe('Market', () => {
                   .sub(EXPECTED_FUNDING_WITH_FEE_1_5_123)
                   .sub(EXPECTED_INTEREST_5_123)
                   .sub(EXPECTED_PNL),
-                reward: EXPECTED_REWARD,
+                reward: 0,
                 protection: ORACLE_VERSION_4.timestamp,
                 protectionAmount: EXPECTED_LIQUIDATION_FEE,
                 protectionInitiator: liquidator.address,
@@ -7766,7 +7728,7 @@ describe('Market', () => {
                   .add(EXPECTED_INTEREST_WITHOUT_FEE_5_123)
                   .add(EXPECTED_PNL)
                   .sub(8), // loss of precision
-                reward: EXPECTED_REWARD.mul(3),
+                reward: 0,
               })
               expectPositionEq(await market.positions(userB.address), {
                 ...DEFAULT_POSITION,
@@ -7812,9 +7774,9 @@ describe('Market', () => {
                     .div(5)
                     .mul(-1),
                 },
-                makerReward: { _value: EXPECTED_REWARD.mul(3).div(10) },
+                makerReward: { _value: 0 },
                 longReward: { _value: 0 },
-                shortReward: { _value: EXPECTED_REWARD.div(5) },
+                shortReward: { _value: 0 },
               })
 
               const oracleVersionHigherPrice2 = {
@@ -7862,7 +7824,7 @@ describe('Market', () => {
                 currentId: 4,
                 latestId: 3,
                 collateral: 0,
-                reward: EXPECTED_REWARD.mul(2),
+                reward: 0,
                 protection: ORACLE_VERSION_4.timestamp,
                 protectionAmount: EXPECTED_LIQUIDATION_FEE,
                 protectionInitiator: liquidator.address,
@@ -8514,7 +8476,7 @@ describe('Market', () => {
                 collateral: COLLATERAL.add(EXPECTED_FUNDING_WITHOUT_FEE_1_10_123_ALL.div(2)) // 50% to long, 50% to maker
                   .sub(EXPECTED_INTEREST_10_67_123_ALL.div(3)) // 33% from long, 67% from short
                   .sub(2), // loss of precision
-                reward: EXPECTED_REWARD.mul(2),
+                reward: 0,
               })
               expectPositionEq(await market.positions(user.address), {
                 ...DEFAULT_POSITION,
@@ -8534,7 +8496,7 @@ describe('Market', () => {
                 collateral: COLLATERAL.add(EXPECTED_FUNDING_WITHOUT_FEE_1_10_123_ALL.div(2))
                   .add(EXPECTED_INTEREST_WITHOUT_FEE_10_67_123_ALL)
                   .sub(13), // loss of precision
-                reward: EXPECTED_REWARD.mul(3),
+                reward: 0,
               })
               expectPositionEq(await market.positions(userB.address), {
                 ...DEFAULT_POSITION,
@@ -8589,9 +8551,9 @@ describe('Market', () => {
                     .mul(-1)
                     .sub(1), // loss of precision
                 },
-                makerReward: { _value: EXPECTED_REWARD.mul(3).div(10) },
-                longReward: { _value: EXPECTED_REWARD.mul(2).div(5) },
-                shortReward: { _value: EXPECTED_REWARD.div(10) },
+                makerReward: { _value: 0 },
+                longReward: { _value: 0 },
+                shortReward: { _value: 0 },
               })
             })
 
@@ -8625,7 +8587,7 @@ describe('Market', () => {
                 collateral: COLLATERAL.add(EXPECTED_FUNDING_WITHOUT_FEE_1_10_123_ALL.div(2)) // 50% to long, 50% to maker
                   .sub(EXPECTED_INTEREST_10_67_123_ALL.div(3)) // 33% from long, 67% from short
                   .sub(2), // loss of precision
-                reward: EXPECTED_REWARD.mul(2),
+                reward: 0,
               })
               expectPositionEq(await market.positions(user.address), {
                 ...DEFAULT_POSITION,
@@ -8645,7 +8607,7 @@ describe('Market', () => {
                 collateral: COLLATERAL.add(EXPECTED_FUNDING_WITHOUT_FEE_1_10_123_ALL.div(2))
                   .add(EXPECTED_INTEREST_WITHOUT_FEE_10_67_123_ALL)
                   .sub(13), // loss of precision
-                reward: EXPECTED_REWARD.mul(3),
+                reward: 0,
               })
               expectPositionEq(await market.positions(userB.address), {
                 ...DEFAULT_POSITION,
@@ -8700,9 +8662,9 @@ describe('Market', () => {
                     .mul(-1)
                     .sub(1), // loss of precision
                 },
-                makerReward: { _value: EXPECTED_REWARD.mul(3).div(10) },
-                longReward: { _value: EXPECTED_REWARD.mul(2).div(5) },
-                shortReward: { _value: EXPECTED_REWARD.div(10) },
+                makerReward: { _value: 0 },
+                longReward: { _value: 0 },
+                shortReward: { _value: 0 },
               })
             })
 
@@ -8751,7 +8713,7 @@ describe('Market', () => {
                   .sub(TAKER_FEE)
                   .sub(SETTLEMENT_FEE)
                   .sub(2), // loss of precision
-                reward: EXPECTED_REWARD.mul(2),
+                reward: 0,
               })
               expectPositionEq(await market.positions(user.address), {
                 ...DEFAULT_POSITION,
@@ -8771,7 +8733,7 @@ describe('Market', () => {
                 collateral: COLLATERAL.add(EXPECTED_FUNDING_WITHOUT_FEE_1_10_123_ALL.div(2))
                   .add(EXPECTED_INTEREST_WITHOUT_FEE_10_67_123_ALL)
                   .sub(13), // loss of precision
-                reward: EXPECTED_REWARD.mul(3),
+                reward: 0,
               })
               expectPositionEq(await market.positions(userB.address), {
                 ...DEFAULT_POSITION,
@@ -8826,9 +8788,9 @@ describe('Market', () => {
                     .mul(-1)
                     .sub(1), // loss of precision
                 },
-                makerReward: { _value: EXPECTED_REWARD.mul(3).div(10) },
-                longReward: { _value: EXPECTED_REWARD.mul(2).div(5) },
-                shortReward: { _value: EXPECTED_REWARD.div(10) },
+                makerReward: { _value: 0 },
+                longReward: { _value: 0 },
+                shortReward: { _value: 0 },
               })
             })
 
@@ -8862,7 +8824,7 @@ describe('Market', () => {
                 collateral: COLLATERAL.add(EXPECTED_FUNDING_WITHOUT_FEE_1_10_123_ALL.div(2)) // 50% to long, 50% to maker
                   .sub(EXPECTED_INTEREST_10_67_123_ALL.div(3)) // 33% from long, 67% from short
                   .sub(2), // loss of precision
-                reward: EXPECTED_REWARD.mul(2),
+                reward: 0,
               })
               expectPositionEq(await market.positions(user.address), {
                 ...DEFAULT_POSITION,
@@ -8882,7 +8844,7 @@ describe('Market', () => {
                 collateral: COLLATERAL.add(EXPECTED_FUNDING_WITHOUT_FEE_1_10_123_ALL.div(2))
                   .add(EXPECTED_INTEREST_WITHOUT_FEE_10_67_123_ALL)
                   .sub(13), // loss of precision
-                reward: EXPECTED_REWARD.mul(3),
+                reward: 0,
               })
               expectPositionEq(await market.positions(userB.address), {
                 ...DEFAULT_POSITION,
@@ -8937,9 +8899,9 @@ describe('Market', () => {
                     .mul(-1)
                     .sub(1), // loss of precision
                 },
-                makerReward: { _value: EXPECTED_REWARD.mul(3).div(10) },
-                longReward: { _value: EXPECTED_REWARD.mul(2).div(5) },
-                shortReward: { _value: EXPECTED_REWARD.div(10) },
+                makerReward: { _value: 0 },
+                longReward: { _value: 0 },
+                shortReward: { _value: 0 },
               })
             })
 
@@ -8974,7 +8936,7 @@ describe('Market', () => {
                   .add(EXPECTED_FUNDING_WITHOUT_FEE_1_10_123_ALL.div(2)) // 50% to long, 50% to maker
                   .sub(EXPECTED_INTEREST_10_67_123_ALL.div(3)) // 33% from long, 67% from short
                   .sub(2), // loss of precision
-                reward: EXPECTED_REWARD.mul(2),
+                reward: 0,
               })
               expectPositionEq(await market.positions(user.address), {
                 ...DEFAULT_POSITION,
@@ -8995,7 +8957,7 @@ describe('Market', () => {
                   .add(EXPECTED_FUNDING_WITHOUT_FEE_1_10_123_ALL.div(2))
                   .add(EXPECTED_INTEREST_WITHOUT_FEE_10_67_123_ALL)
                   .sub(13), // loss of precision
-                reward: EXPECTED_REWARD.mul(3),
+                reward: 0,
               })
               expectPositionEq(await market.positions(userB.address), {
                 ...DEFAULT_POSITION,
@@ -9050,9 +9012,9 @@ describe('Market', () => {
                     .mul(-1)
                     .sub(1), // loss of precision
                 },
-                makerReward: { _value: EXPECTED_REWARD.mul(3).div(10) },
-                longReward: { _value: EXPECTED_REWARD.mul(2).div(5) },
-                shortReward: { _value: EXPECTED_REWARD.div(10) },
+                makerReward: { _value: 0 },
+                longReward: { _value: 0 },
+                shortReward: { _value: 0 },
               })
             })
 
@@ -9086,7 +9048,7 @@ describe('Market', () => {
                 collateral: COLLATERAL.add(EXPECTED_FUNDING_WITHOUT_FEE_1_10_123_ALL.div(2)) // 50% to long, 50% to maker
                   .sub(EXPECTED_INTEREST_10_67_123_ALL.div(3)) // 33% from long, 67% from short
                   .sub(2), // loss of precision
-                reward: EXPECTED_REWARD.mul(2),
+                reward: 0,
               })
               expectPositionEq(await market.positions(user.address), {
                 ...DEFAULT_POSITION,
@@ -9106,7 +9068,7 @@ describe('Market', () => {
                 collateral: COLLATERAL.add(EXPECTED_FUNDING_WITHOUT_FEE_1_10_123_ALL.div(2))
                   .add(EXPECTED_INTEREST_WITHOUT_FEE_10_67_123_ALL)
                   .sub(13), // loss of precision
-                reward: EXPECTED_REWARD.mul(3),
+                reward: 0,
               })
               expectPositionEq(await market.positions(userB.address), {
                 ...DEFAULT_POSITION,
@@ -9161,9 +9123,9 @@ describe('Market', () => {
                     .mul(-1)
                     .sub(1), // loss of precision
                 },
-                makerReward: { _value: EXPECTED_REWARD.mul(3).div(10) },
-                longReward: { _value: EXPECTED_REWARD.mul(2).div(5) },
-                shortReward: { _value: EXPECTED_REWARD.div(10) },
+                makerReward: { _value: 0 },
+                longReward: { _value: 0 },
+                shortReward: { _value: 0 },
               })
             })
 
@@ -9198,7 +9160,7 @@ describe('Market', () => {
                   .add(EXPECTED_FUNDING_WITHOUT_FEE_1_10_123_ALL.div(2)) // 50% to long, 50% to maker
                   .sub(EXPECTED_INTEREST_10_67_123_ALL.div(3)) // 33% from long, 67% from short
                   .sub(2), // loss of precision
-                reward: EXPECTED_REWARD.mul(2),
+                reward: 0,
               })
               expectPositionEq(await market.positions(user.address), {
                 ...DEFAULT_POSITION,
@@ -9219,7 +9181,7 @@ describe('Market', () => {
                   .add(EXPECTED_FUNDING_WITHOUT_FEE_1_10_123_ALL.div(2))
                   .add(EXPECTED_INTEREST_WITHOUT_FEE_10_67_123_ALL)
                   .sub(13), // loss of precision
-                reward: EXPECTED_REWARD.mul(3),
+                reward: 0,
               })
               expectPositionEq(await market.positions(userB.address), {
                 ...DEFAULT_POSITION,
@@ -9274,9 +9236,9 @@ describe('Market', () => {
                     .mul(-1)
                     .sub(1), // loss of precision
                 },
-                makerReward: { _value: EXPECTED_REWARD.mul(3).div(10) },
-                longReward: { _value: EXPECTED_REWARD.mul(2).div(5) },
-                shortReward: { _value: EXPECTED_REWARD.div(10) },
+                makerReward: { _value: 0 },
+                longReward: { _value: 0 },
+                shortReward: { _value: 0 },
               })
             })
           })
@@ -9473,7 +9435,7 @@ describe('Market', () => {
                   collateral: COLLATERAL.add(EXPECTED_FUNDING_WITHOUT_FEE_1_10_123_ALL.div(2))
                     .sub(EXPECTED_INTEREST_10_67_123_ALL.div(3))
                     .sub(2), // loss of precision
-                  reward: EXPECTED_REWARD.mul(2),
+                  reward: 0,
                 })
                 expectPositionEq(await market.positions(user.address), {
                   ...DEFAULT_POSITION,
@@ -9491,7 +9453,7 @@ describe('Market', () => {
                   collateral: COLLATERAL.add(EXPECTED_FUNDING_WITHOUT_FEE_1_10_123_ALL.div(2))
                     .add(EXPECTED_INTEREST_WITHOUT_FEE_10_67_123_ALL)
                     .sub(13), // loss of precision
-                  reward: EXPECTED_REWARD.mul(3),
+                  reward: 0,
                 })
                 expectPositionEq(await market.positions(userB.address), {
                   ...DEFAULT_POSITION,
@@ -9544,9 +9506,9 @@ describe('Market', () => {
                       .mul(-1)
                       .sub(1), // loss of precision
                   },
-                  makerReward: { _value: EXPECTED_REWARD.mul(3).div(10) },
-                  longReward: { _value: EXPECTED_REWARD.mul(2).div(5) },
-                  shortReward: { _value: EXPECTED_REWARD.div(10) },
+                  makerReward: { _value: 0 },
+                  longReward: { _value: 0 },
+                  shortReward: { _value: 0 },
                 })
               })
 
@@ -9626,7 +9588,7 @@ describe('Market', () => {
                   collateral: COLLATERAL.add(EXPECTED_FUNDING_WITHOUT_FEE_1_10_123_ALL.div(2))
                     .sub(EXPECTED_INTEREST_10_67_123_ALL.div(3))
                     .sub(2), // loss of precision
-                  reward: EXPECTED_REWARD.mul(2),
+                  reward: 0,
                 })
                 expectPositionEq(await market.positions(user.address), {
                   ...DEFAULT_POSITION,
@@ -9644,7 +9606,7 @@ describe('Market', () => {
                   collateral: COLLATERAL.add(EXPECTED_FUNDING_WITHOUT_FEE_1_10_123_ALL.div(2))
                     .add(EXPECTED_INTEREST_WITHOUT_FEE_10_67_123_ALL)
                     .sub(13), // loss of precision
-                  reward: EXPECTED_REWARD.mul(3),
+                  reward: 0,
                 })
                 expectPositionEq(await market.positions(userB.address), {
                   ...DEFAULT_POSITION,
@@ -9697,9 +9659,9 @@ describe('Market', () => {
                       .mul(-1)
                       .sub(1), // loss of precision
                   },
-                  makerReward: { _value: EXPECTED_REWARD.mul(3).div(10) },
-                  longReward: { _value: EXPECTED_REWARD.mul(2).div(5) },
-                  shortReward: { _value: EXPECTED_REWARD.div(10) },
+                  makerReward: { _value: 0 },
+                  longReward: { _value: 0 },
+                  shortReward: { _value: 0 },
                 })
               })
 
@@ -9724,7 +9686,7 @@ describe('Market', () => {
                   collateral: COLLATERAL.add(EXPECTED_FUNDING_WITHOUT_FEE_1_10_123_ALL.div(2))
                     .sub(EXPECTED_INTEREST_10_67_123_ALL.div(3))
                     .sub(2), // loss of precision
-                  reward: EXPECTED_REWARD.mul(2),
+                  reward: 0,
                 })
                 expectPositionEq(await market.positions(user.address), {
                   ...DEFAULT_POSITION,
@@ -9743,7 +9705,7 @@ describe('Market', () => {
                   collateral: COLLATERAL.add(EXPECTED_FUNDING_WITHOUT_FEE_1_10_123_ALL.div(2))
                     .add(EXPECTED_INTEREST_WITHOUT_FEE_10_67_123_ALL)
                     .sub(13), // loss of precision
-                  reward: EXPECTED_REWARD.mul(3),
+                  reward: 0,
                 })
                 expectPositionEq(await market.positions(userB.address), {
                   ...DEFAULT_POSITION,
@@ -9797,9 +9759,9 @@ describe('Market', () => {
                       .mul(-1)
                       .sub(1), // loss of precision
                   },
-                  makerReward: { _value: EXPECTED_REWARD.mul(3).div(10) },
-                  longReward: { _value: EXPECTED_REWARD.mul(2).div(5) },
-                  shortReward: { _value: EXPECTED_REWARD.div(10) },
+                  makerReward: { _value: 0 },
+                  longReward: { _value: 0 },
+                  shortReward: { _value: 0 },
                 })
               })
 
@@ -9830,7 +9792,7 @@ describe('Market', () => {
                     .sub(EXPECTED_INTEREST_10_67_123_ALL.div(3))
                     .sub(EXPECTED_INTEREST_10_80_123_ALL.div(5))
                     .sub(3), // loss of precision
-                  reward: EXPECTED_REWARD.mul(2).mul(2),
+                  reward: 0,
                 })
                 expectPositionEq(await market.positions(user.address), {
                   ...DEFAULT_POSITION,
@@ -9850,7 +9812,7 @@ describe('Market', () => {
                     .add(EXPECTED_INTEREST_WITHOUT_FEE_10_67_123_ALL)
                     .add(EXPECTED_INTEREST_WITHOUT_FEE_10_80_123_ALL)
                     .sub(38), // loss of precision
-                  reward: EXPECTED_REWARD.mul(3).mul(2),
+                  reward: 0,
                 })
                 expectPositionEq(await market.positions(userB.address), {
                   ...DEFAULT_POSITION,
@@ -9905,9 +9867,9 @@ describe('Market', () => {
                       .mul(-1)
                       .sub(1), // loss of precision
                   },
-                  makerReward: { _value: EXPECTED_REWARD.mul(3).div(10) },
-                  longReward: { _value: EXPECTED_REWARD.mul(2).div(5) },
-                  shortReward: { _value: EXPECTED_REWARD.div(10) },
+                  makerReward: { _value: 0 },
+                  longReward: { _value: 0 },
+                  shortReward: { _value: 0 },
                 })
                 expectVersionEq(await market.versions(ORACLE_VERSION_4.timestamp), {
                   makerValue: {
@@ -9941,9 +9903,9 @@ describe('Market', () => {
                       .mul(-1)
                       .sub(2), // loss of precision
                   },
-                  makerReward: { _value: EXPECTED_REWARD.mul(3).mul(2).div(10) },
-                  longReward: { _value: EXPECTED_REWARD.mul(2).div(5).add(EXPECTED_REWARD.mul(2).mul(2).div(5)) },
-                  shortReward: { _value: EXPECTED_REWARD.mul(2).div(10) },
+                  makerReward: { _value: 0 },
+                  longReward: { _value: 0 },
+                  shortReward: { _value: 0 },
                 })
               })
 
@@ -9968,7 +9930,7 @@ describe('Market', () => {
                   collateral: COLLATERAL.add(EXPECTED_FUNDING_WITHOUT_FEE_1_10_123_ALL.div(2))
                     .sub(EXPECTED_INTEREST_10_67_123_ALL.div(3))
                     .sub(2), // loss of precision
-                  reward: EXPECTED_REWARD.mul(2),
+                  reward: 0,
                 })
                 expectPositionEq(await market.positions(user.address), {
                   ...DEFAULT_POSITION,
@@ -10010,9 +9972,9 @@ describe('Market', () => {
                       .mul(-1)
                       .sub(1), // loss of precision
                   },
-                  makerReward: { _value: EXPECTED_REWARD.mul(3).div(10) },
-                  longReward: { _value: EXPECTED_REWARD.mul(2).div(5) },
-                  shortReward: { _value: EXPECTED_REWARD.div(10) },
+                  makerReward: { _value: 0 },
+                  longReward: { _value: 0 },
+                  shortReward: { _value: 0 },
                 })
               })
 
@@ -10054,7 +10016,7 @@ describe('Market', () => {
                     .sub(TAKER_FEE)
                     .sub(SETTLEMENT_FEE)
                     .sub(2), // loss of precision
-                  reward: EXPECTED_REWARD.mul(2),
+                  reward: 0,
                 })
                 expectPositionEq(await market.positions(user.address), {
                   ...DEFAULT_POSITION,
@@ -10097,9 +10059,9 @@ describe('Market', () => {
                       .mul(-1)
                       .sub(1), // loss of precision
                   },
-                  makerReward: { _value: EXPECTED_REWARD.mul(3).div(10) },
-                  longReward: { _value: EXPECTED_REWARD.mul(2).div(5) },
-                  shortReward: { _value: EXPECTED_REWARD.div(10) },
+                  makerReward: { _value: 0 },
+                  longReward: { _value: 0 },
+                  shortReward: { _value: 0 },
                 })
               })
             })
@@ -10233,9 +10195,9 @@ describe('Market', () => {
                 pnlMaker: EXPECTED_PNL.div(2).mul(-1),
                 pnlLong: EXPECTED_PNL.div(2).mul(-1),
                 pnlShort: EXPECTED_PNL,
-                rewardMaker: EXPECTED_REWARD.mul(3),
-                rewardLong: EXPECTED_REWARD.mul(2),
-                rewardShort: EXPECTED_REWARD,
+                rewardMaker: 0,
+                rewardLong: 0,
+                rewardShort: 0,
               })
               .to.emit(market, 'AccountPositionProcessed')
               .withArgs(user.address, ORACLE_VERSION_2.timestamp, oracleVersionLowerPrice.timestamp, 1, 2, {
@@ -10245,7 +10207,7 @@ describe('Market', () => {
                   .add(EXPECTED_FUNDING_WITHOUT_FEE_1_10_123_ALL.div(2))
                   .sub(EXPECTED_INTEREST_10_67_123_ALL.div(3))
                   .sub(2), // loss of precision
-                rewardAmount: EXPECTED_REWARD.mul(2),
+                rewardAmount: 0,
               })
 
             await expect(settle(market, userB))
@@ -10257,7 +10219,7 @@ describe('Market', () => {
                   .add(EXPECTED_FUNDING_WITHOUT_FEE_1_10_123_ALL.div(2))
                   .add(EXPECTED_INTEREST_WITHOUT_FEE_10_67_123_ALL)
                   .sub(13), // loss of precision
-                rewardAmount: EXPECTED_REWARD.mul(3),
+                rewardAmount: 0,
               })
 
             expectLocalEq(await market.locals(user.address), {
@@ -10268,7 +10230,7 @@ describe('Market', () => {
                 .add(EXPECTED_FUNDING_WITHOUT_FEE_1_10_123_ALL.div(2))
                 .sub(EXPECTED_INTEREST_10_67_123_ALL.div(3))
                 .sub(2), // loss of precision
-              reward: EXPECTED_REWARD.mul(2),
+              reward: 0,
             })
             expectPositionEq(await market.positions(user.address), {
               ...DEFAULT_POSITION,
@@ -10289,7 +10251,7 @@ describe('Market', () => {
                 .add(EXPECTED_FUNDING_WITHOUT_FEE_1_10_123_ALL.div(2))
                 .add(EXPECTED_INTEREST_WITHOUT_FEE_10_67_123_ALL)
                 .sub(13), // loss of precision
-              reward: EXPECTED_REWARD.mul(3),
+              reward: 0,
             })
             expectPositionEq(await market.positions(userB.address), {
               ...DEFAULT_POSITION,
@@ -10347,9 +10309,9 @@ describe('Market', () => {
                   .sub(EXPECTED_INTEREST_10_67_123_ALL.mul(2).div(3))
                   .div(10),
               },
-              makerReward: { _value: EXPECTED_REWARD.mul(3).div(10) },
-              longReward: { _value: EXPECTED_REWARD.mul(2).div(5) },
-              shortReward: { _value: EXPECTED_REWARD.div(10) },
+              makerReward: { _value: 0 },
+              longReward: { _value: 0 },
+              shortReward: { _value: 0 },
             })
           })
 
@@ -10380,9 +10342,9 @@ describe('Market', () => {
                 pnlMaker: EXPECTED_PNL.div(2).mul(-1),
                 pnlLong: EXPECTED_PNL.div(2).mul(-1),
                 pnlShort: EXPECTED_PNL,
-                rewardMaker: EXPECTED_REWARD.mul(3),
-                rewardLong: EXPECTED_REWARD.mul(2),
-                rewardShort: EXPECTED_REWARD,
+                rewardMaker: 0,
+                rewardLong: 0,
+                rewardShort: 0,
               })
               .to.emit(market, 'AccountPositionProcessed')
               .withArgs(user.address, ORACLE_VERSION_2.timestamp, oracleVersionHigherPrice.timestamp, 1, 2, {
@@ -10392,7 +10354,7 @@ describe('Market', () => {
                   .add(EXPECTED_FUNDING_WITHOUT_FEE_1_10_123_ALL.div(2))
                   .sub(EXPECTED_INTEREST_10_67_123_ALL.div(3))
                   .sub(2), // loss of precision
-                rewardAmount: EXPECTED_REWARD.mul(2),
+                rewardAmount: 0,
               })
 
             await expect(settle(market, userB))
@@ -10404,7 +10366,7 @@ describe('Market', () => {
                   .add(EXPECTED_FUNDING_WITHOUT_FEE_1_10_123_ALL.div(2))
                   .add(EXPECTED_INTEREST_WITHOUT_FEE_10_67_123_ALL)
                   .sub(13), // loss of precision
-                rewardAmount: EXPECTED_REWARD.mul(3),
+                rewardAmount: 0,
               })
 
             expectLocalEq(await market.locals(user.address), {
@@ -10415,7 +10377,7 @@ describe('Market', () => {
                 .add(EXPECTED_FUNDING_WITHOUT_FEE_1_10_123_ALL.div(2))
                 .sub(EXPECTED_INTEREST_10_67_123_ALL.div(3))
                 .sub(2), // loss of precision
-              reward: EXPECTED_REWARD.mul(2),
+              reward: 0,
             })
             expectPositionEq(await market.positions(user.address), {
               ...DEFAULT_POSITION,
@@ -10436,7 +10398,7 @@ describe('Market', () => {
                 .add(EXPECTED_FUNDING_WITHOUT_FEE_1_10_123_ALL.div(2))
                 .add(EXPECTED_INTEREST_WITHOUT_FEE_10_67_123_ALL)
                 .sub(13), // loss of precision
-              reward: EXPECTED_REWARD.mul(3),
+              reward: 0,
             })
             expectPositionEq(await market.positions(userB.address), {
               ...DEFAULT_POSITION,
@@ -10494,9 +10456,9 @@ describe('Market', () => {
                   .div(10)
                   .sub(1), // loss of precision
               },
-              makerReward: { _value: EXPECTED_REWARD.mul(3).div(10) },
-              longReward: { _value: EXPECTED_REWARD.mul(2).div(5) },
-              shortReward: { _value: EXPECTED_REWARD.div(10) },
+              makerReward: { _value: 0 },
+              longReward: { _value: 0 },
+              shortReward: { _value: 0 },
             })
           })
         })
@@ -10578,7 +10540,7 @@ describe('Market', () => {
                   .sub(EXPECTED_INTEREST_10_67_45_ALL.div(3))
                   .add(EXPECTED_FUNDING_WITHOUT_FEE_3_10_123_ALL)
                   .sub(9), // loss of precision
-                reward: EXPECTED_REWARD.mul(2).mul(3),
+                reward: 0,
               })
               expectPositionEq(await market.positions(user.address), {
                 ...DEFAULT_POSITION,
@@ -10602,7 +10564,7 @@ describe('Market', () => {
                   .add(EXPECTED_INTEREST_WITHOUT_FEE_10_67_45_ALL)
                   .sub(EXPECTED_LIQUIDATION_FEE)
                   .sub(25), // loss of precision
-                reward: EXPECTED_REWARD.mul(3).mul(2),
+                reward: 0,
                 protection: ORACLE_VERSION_4.timestamp,
                 protectionAmount: EXPECTED_LIQUIDATION_FEE,
                 protectionInitiator: liquidator.address,
@@ -10661,9 +10623,9 @@ describe('Market', () => {
                     .div(10)
                     .mul(-1),
                 },
-                makerReward: { _value: EXPECTED_REWARD.mul(3).div(10) },
-                longReward: { _value: EXPECTED_REWARD.mul(2).div(5) },
-                shortReward: { _value: EXPECTED_REWARD.div(10) },
+                makerReward: { _value: 0 },
+                longReward: { _value: 0 },
+                shortReward: { _value: 0 },
               })
               expectVersionEq(await market.versions(ORACLE_VERSION_4.timestamp), {
                 makerValue: {
@@ -10689,9 +10651,9 @@ describe('Market', () => {
                     .div(10)
                     .mul(-1),
                 },
-                makerReward: { _value: EXPECTED_REWARD.mul(3).div(10).mul(2) },
-                longReward: { _value: EXPECTED_REWARD.mul(2).div(5).mul(2) },
-                shortReward: { _value: EXPECTED_REWARD.div(10).mul(2) },
+                makerReward: { _value: 0 },
+                longReward: { _value: 0 },
+                shortReward: { _value: 0 },
               })
               expectVersionEq(await market.versions(ORACLE_VERSION_5.timestamp), {
                 makerValue: {
@@ -10721,9 +10683,9 @@ describe('Market', () => {
                     .div(10)
                     .mul(-1),
                 },
-                makerReward: { _value: EXPECTED_REWARD.mul(3).div(10).mul(2) },
-                longReward: { _value: EXPECTED_REWARD.mul(2).div(5).mul(3) },
-                shortReward: { _value: EXPECTED_REWARD.div(10).mul(3) },
+                makerReward: { _value: 0 },
+                longReward: { _value: 0 },
+                shortReward: { _value: 0 },
               })
             })
 
@@ -10824,7 +10786,7 @@ describe('Market', () => {
                   .sub(EXPECTED_INTEREST_3.div(3))
                   .sub(EXPECTED_PNL)
                   .sub(6), // loss of precision
-                reward: EXPECTED_REWARD.mul(2).mul(3),
+                reward: 0,
               })
               expectPositionEq(await market.positions(user.address), {
                 ...DEFAULT_POSITION,
@@ -10848,7 +10810,7 @@ describe('Market', () => {
                   .add(EXPECTED_INTEREST_WITHOUT_FEE_2.mul(10).div(12))
                   .sub(EXPECTED_LIQUIDATION_FEE)
                   .sub(19), // loss of precision
-                reward: EXPECTED_REWARD.mul(3).mul(2).mul(10).div(12),
+                reward: 0,
                 protection: ORACLE_VERSION_4.timestamp,
                 protectionAmount: EXPECTED_LIQUIDATION_FEE,
                 protectionInitiator: liquidator.address,
@@ -10910,9 +10872,9 @@ describe('Market', () => {
                     .div(10)
                     .mul(-1),
                 },
-                makerReward: { _value: EXPECTED_REWARD.mul(3).div(12) },
-                longReward: { _value: EXPECTED_REWARD.mul(2).div(5) },
-                shortReward: { _value: EXPECTED_REWARD.div(10) },
+                makerReward: { _value: 0 },
+                longReward: { _value: 0 },
+                shortReward: { _value: 0 },
               })
               expectVersionEq(await market.versions(ORACLE_VERSION_4.timestamp), {
                 makerValue: {
@@ -10939,9 +10901,9 @@ describe('Market', () => {
                     .mul(-1)
                     .sub(1), // loss of precision
                 },
-                makerReward: { _value: EXPECTED_REWARD.mul(3).div(12).mul(2) },
-                longReward: { _value: EXPECTED_REWARD.mul(2).div(5).mul(2) },
-                shortReward: { _value: EXPECTED_REWARD.div(10).mul(2) },
+                makerReward: { _value: 0 },
+                longReward: { _value: 0 },
+                shortReward: { _value: 0 },
               })
               expectVersionEq(await market.versions(ORACLE_VERSION_5.timestamp), {
                 makerValue: {
@@ -10980,9 +10942,9 @@ describe('Market', () => {
                     .div(10)
                     .mul(-1),
                 },
-                makerReward: { _value: EXPECTED_REWARD.mul(3).div(12).mul(2).add(EXPECTED_REWARD.mul(3).div(2)) },
-                longReward: { _value: EXPECTED_REWARD.mul(2).div(5).mul(3) },
-                shortReward: { _value: EXPECTED_REWARD.div(10).mul(3) },
+                makerReward: { _value: 0 },
+                longReward: { _value: 0 },
+                shortReward: { _value: 0 },
               })
             })
 
@@ -11022,7 +10984,7 @@ describe('Market', () => {
                   .sub(EXPECTED_INTEREST_10_67_123_ALL.div(3))
                   .sub(EXPECTED_PNL)
                   .sub(2), // loss of precision
-                reward: EXPECTED_REWARD.mul(2),
+                reward: 0,
               })
               expectPositionEq(await market.positions(user.address), {
                 ...DEFAULT_POSITION,
@@ -11044,7 +11006,7 @@ describe('Market', () => {
                   .add(EXPECTED_INTEREST_WITHOUT_FEE_10_67_123_ALL)
                   .sub(EXPECTED_PNL)
                   .sub(13), // loss of precision
-                reward: EXPECTED_REWARD.mul(3),
+                reward: 0,
                 protection: ORACLE_VERSION_4.timestamp,
                 protectionAmount: EXPECTED_LIQUIDATION_FEE,
                 protectionInitiator: liquidator.address,
@@ -11102,9 +11064,9 @@ describe('Market', () => {
                     .div(10)
                     .mul(-1),
                 },
-                makerReward: { _value: EXPECTED_REWARD.mul(3).div(10) },
-                longReward: { _value: EXPECTED_REWARD.mul(2).div(5) },
-                shortReward: { _value: EXPECTED_REWARD.div(10) },
+                makerReward: { _value: 0 },
+                longReward: { _value: 0 },
+                shortReward: { _value: 0 },
               })
 
               const oracleVersionHigherPrice2 = {
@@ -11153,7 +11115,7 @@ describe('Market', () => {
                 currentId: 4,
                 latestId: 3,
                 collateral: 0,
-                reward: EXPECTED_REWARD.mul(3).mul(2),
+                reward: 0,
                 protection: ORACLE_VERSION_4.timestamp,
                 protectionAmount: EXPECTED_LIQUIDATION_FEE,
                 protectionInitiator: liquidator.address,
@@ -11260,7 +11222,7 @@ describe('Market', () => {
                   .sub(EXPECTED_INTEREST_10_67_96_ALL.div(3))
                   .sub(EXPECTED_LIQUIDATION_FEE)
                   .sub(9), // loss of precision
-                reward: EXPECTED_REWARD.mul(2).mul(2),
+                reward: 0,
                 protection: ORACLE_VERSION_4.timestamp,
                 protectionAmount: EXPECTED_LIQUIDATION_FEE,
                 protectionInitiator: liquidator.address,
@@ -11286,7 +11248,7 @@ describe('Market', () => {
                   .add(EXPECTED_INTEREST_WITHOUT_FEE_3)
                   .sub(EXPECTED_PNL.mul(2))
                   .sub(45), // loss of precision
-                reward: EXPECTED_REWARD.mul(3).mul(3),
+                reward: 0,
               })
               expectPositionEq(await market.positions(userB.address), {
                 ...DEFAULT_POSITION,
@@ -11345,9 +11307,9 @@ describe('Market', () => {
                     .mul(-1)
                     .div(10),
                 },
-                makerReward: { _value: EXPECTED_REWARD.mul(3).div(10) },
-                longReward: { _value: EXPECTED_REWARD.mul(2).div(5) },
-                shortReward: { _value: EXPECTED_REWARD.div(10) },
+                makerReward: { _value: 0 },
+                longReward: { _value: 0 },
+                shortReward: { _value: 0 },
               })
               expectVersionEq(await market.versions(ORACLE_VERSION_4.timestamp), {
                 makerValue: {
@@ -11374,9 +11336,9 @@ describe('Market', () => {
                     .div(10)
                     .sub(1), // loss of precision
                 },
-                makerReward: { _value: EXPECTED_REWARD.mul(3).div(10).mul(2) },
-                longReward: { _value: EXPECTED_REWARD.mul(2).div(5).mul(2) },
-                shortReward: { _value: EXPECTED_REWARD.div(10).mul(2) },
+                makerReward: { _value: 0 },
+                longReward: { _value: 0 },
+                shortReward: { _value: 0 },
               })
               expectVersionEq(await market.versions(ORACLE_VERSION_5.timestamp), {
                 makerValue: {
@@ -11409,9 +11371,9 @@ describe('Market', () => {
                     .div(10)
                     .sub(1), // loss of precision
                 },
-                makerReward: { _value: EXPECTED_REWARD.mul(3).div(10).mul(3) },
-                longReward: { _value: EXPECTED_REWARD.mul(2).div(5).mul(2) },
-                shortReward: { _value: EXPECTED_REWARD.div(10).mul(3) },
+                makerReward: { _value: 0 },
+                longReward: { _value: 0 },
+                shortReward: { _value: 0 },
               })
             })
 
@@ -11470,7 +11432,7 @@ describe('Market', () => {
                   .sub(EXPECTED_INTEREST_10_67_123_ALL.div(3))
                   .sub(EXPECTED_PNL)
                   .sub(2), // loss of precision
-                reward: EXPECTED_REWARD.mul(2),
+                reward: 0,
                 protection: ORACLE_VERSION_4.timestamp,
                 protectionAmount: EXPECTED_LIQUIDATION_FEE,
                 protectionInitiator: liquidator.address,
@@ -11493,7 +11455,7 @@ describe('Market', () => {
                   .add(EXPECTED_INTEREST_WITHOUT_FEE_10_67_123_ALL)
                   .sub(EXPECTED_PNL)
                   .sub(13), // loss of precision
-                reward: EXPECTED_REWARD.mul(3),
+                reward: 0,
               })
               expectPositionEq(await market.positions(userB.address), {
                 ...DEFAULT_POSITION,
@@ -11549,9 +11511,9 @@ describe('Market', () => {
                     .div(10)
                     .mul(-1),
                 },
-                makerReward: { _value: EXPECTED_REWARD.mul(3).div(10) },
-                longReward: { _value: EXPECTED_REWARD.mul(2).div(5) },
-                shortReward: { _value: EXPECTED_REWARD.div(10) },
+                makerReward: { _value: 0 },
+                longReward: { _value: 0 },
+                shortReward: { _value: 0 },
               })
 
               const oracleVersionLowerPrice2 = {
@@ -11600,7 +11562,7 @@ describe('Market', () => {
                 currentId: 4,
                 latestId: 3,
                 collateral: 0,
-                reward: EXPECTED_REWARD.mul(2).mul(2),
+                reward: 0,
                 protection: ORACLE_VERSION_4.timestamp,
                 protectionAmount: EXPECTED_LIQUIDATION_FEE,
                 protectionInitiator: liquidator.address,
@@ -12397,7 +12359,7 @@ describe('Market', () => {
             collateral: parse6decimal('216')
               .sub(EXPECTED_FUNDING_WITH_FEE_1_5_123.add(EXPECTED_INTEREST_5_123))
               .sub(EXPECTED_PNL),
-            reward: EXPECTED_REWARD.mul(2),
+            reward: 0,
             protection: ORACLE_VERSION_4.timestamp,
             protectionAmount: EXPECTED_LIQUIDATION_FEE,
             protectionInitiator: liquidator.address,
@@ -12419,7 +12381,7 @@ describe('Market', () => {
             collateral: COLLATERAL.add(EXPECTED_FUNDING_WITHOUT_FEE_1_5_123.add(EXPECTED_INTEREST_WITHOUT_FEE_5_123))
               .add(EXPECTED_PNL)
               .sub(8), // loss of precision
-            reward: EXPECTED_REWARD.mul(3),
+            reward: 0,
           })
           expectPositionEq(await market.positions(userB.address), {
             ...DEFAULT_POSITION,
@@ -12462,8 +12424,8 @@ describe('Market', () => {
               _value: EXPECTED_FUNDING_WITH_FEE_1_5_123.add(EXPECTED_INTEREST_5_123).add(EXPECTED_PNL).div(5).mul(-1),
             },
             shortValue: { _value: 0 },
-            makerReward: { _value: EXPECTED_REWARD.mul(3).div(10) },
-            longReward: { _value: EXPECTED_REWARD.mul(2).div(5) },
+            makerReward: { _value: 0 },
+            longReward: { _value: 0 },
             shortReward: { _value: 0 },
           })
         })
@@ -12545,7 +12507,7 @@ describe('Market', () => {
               .sub(EXPECTED_FUNDING_WITH_FEE_2_5_150)
               .sub(EXPECTED_INTEREST_5_150)
               .sub(EXPECTED_LIQUIDATION_FEE),
-            reward: EXPECTED_REWARD.mul(2),
+            reward: 0,
             protection: ORACLE_VERSION_4.timestamp,
             protectionAmount: EXPECTED_LIQUIDATION_FEE,
             protectionInitiator: liquidator.address,
@@ -12568,7 +12530,7 @@ describe('Market', () => {
               .add(EXPECTED_FUNDING_WITHOUT_FEE_2_5_150)
               .add(EXPECTED_INTEREST_WITHOUT_FEE_5_150)
               .sub(22), // loss of precision
-            reward: EXPECTED_REWARD.mul(3).mul(3),
+            reward: 0,
           })
           expectPositionEq(await market.positions(userB.address), {
             ...DEFAULT_POSITION,
@@ -12612,9 +12574,9 @@ describe('Market', () => {
             shortValue: {
               _value: EXPECTED_FUNDING_WITH_FEE_1_5_123.add(EXPECTED_INTEREST_5_123).add(EXPECTED_PNL).div(5).mul(-1),
             },
-            makerReward: { _value: EXPECTED_REWARD.mul(3).div(10) },
+            makerReward: { _value: 0 },
             longReward: { _value: 0 },
-            shortReward: { _value: EXPECTED_REWARD.div(5) },
+            shortReward: { _value: 0 },
           })
           expectVersionEq(await market.versions(ORACLE_VERSION_4.timestamp), {
             makerValue: {
@@ -12632,9 +12594,9 @@ describe('Market', () => {
                 .div(5)
                 .mul(-1),
             },
-            makerReward: { _value: EXPECTED_REWARD.mul(3).div(10).mul(2) },
+            makerReward: { _value: 0 },
             longReward: { _value: 0 },
-            shortReward: { _value: EXPECTED_REWARD.div(5).mul(2) },
+            shortReward: { _value: 0 },
           })
           expectVersionEq(await market.versions(ORACLE_VERSION_5.timestamp), {
             makerValue: {
@@ -12652,9 +12614,9 @@ describe('Market', () => {
                 .div(5)
                 .mul(-1),
             },
-            makerReward: { _value: EXPECTED_REWARD.mul(3).div(10).mul(3) },
+            makerReward: { _value: 0 },
             longReward: { _value: 0 },
-            shortReward: { _value: EXPECTED_REWARD.div(5).mul(2) },
+            shortReward: { _value: 0 },
           })
         })
       })
@@ -12827,7 +12789,7 @@ describe('Market', () => {
               .sub(EXPECTED_INTEREST_5_150)
               .sub(EXPECTED_ROUND_3_ACC)
               .sub(EXPECTED_LIQUIDATION_FEE), // does not double charge
-            reward: EXPECTED_REWARD.mul(3),
+            reward: 0,
             protection: ORACLE_VERSION_5.timestamp,
             protectionAmount: EXPECTED_LIQUIDATION_FEE,
             protectionInitiator: liquidator.address,
@@ -12851,7 +12813,7 @@ describe('Market', () => {
               .add(EXPECTED_INTEREST_WITHOUT_FEE_5_150)
               .add(EXPECTED_ROUND_3_ACC_WITHOUT_FEE)
               .sub(32), // loss of precision
-            reward: EXPECTED_REWARD.mul(3).mul(4),
+            reward: 0,
           })
           expectPositionEq(await market.positions(userB.address), {
             ...DEFAULT_POSITION,
@@ -12896,9 +12858,9 @@ describe('Market', () => {
             shortValue: {
               _value: EXPECTED_FUNDING_WITH_FEE_1_5_123.add(EXPECTED_INTEREST_5_123).add(EXPECTED_PNL).div(5).mul(-1),
             },
-            makerReward: { _value: EXPECTED_REWARD.mul(3).div(10) },
+            makerReward: { _value: 0 },
             longReward: { _value: 0 },
-            shortReward: { _value: EXPECTED_REWARD.div(5) },
+            shortReward: { _value: 0 },
           })
           expectVersionEq(await market.versions(ORACLE_VERSION_4.timestamp), {
             makerValue: {
@@ -12918,9 +12880,9 @@ describe('Market', () => {
                 .div(5)
                 .mul(-1),
             },
-            makerReward: { _value: EXPECTED_REWARD.mul(3).div(10).mul(2) },
+            makerReward: { _value: 0 },
             longReward: { _value: 0 },
-            shortReward: { _value: EXPECTED_REWARD.div(5).mul(2) },
+            shortReward: { _value: 0 },
           })
           expectVersionEq(await market.versions(ORACLE_VERSION_5.timestamp), {
             makerValue: {
@@ -12940,9 +12902,9 @@ describe('Market', () => {
                 .div(5)
                 .mul(-1),
             },
-            makerReward: { _value: EXPECTED_REWARD.mul(3).div(10).mul(3) },
+            makerReward: { _value: 0 },
             longReward: { _value: 0 },
-            shortReward: { _value: EXPECTED_REWARD.div(5).mul(3) },
+            shortReward: { _value: 0 },
           })
         })
       })
@@ -13015,7 +12977,7 @@ describe('Market', () => {
             currentId: 2,
             latestId: 1,
             collateral: COLLATERAL,
-            reward: EXPECTED_REWARD.mul(3),
+            reward: 0,
           })
           expectPositionEq(await market.positions(userB.address), {
             ...DEFAULT_POSITION,
@@ -13073,7 +13035,7 @@ describe('Market', () => {
             makerValue: { _value: 0 },
             longValue: { _value: 0 },
             shortValue: { _value: 0 },
-            makerReward: { _value: EXPECTED_REWARD.mul(3).div(10) },
+            makerReward: { _value: 0 },
             longReward: { _value: 0 },
             shortReward: { _value: 0 },
           })
@@ -13158,7 +13120,7 @@ describe('Market', () => {
             currentId: 2,
             latestId: 1,
             collateral: COLLATERAL.add(TAKER_FEE_WITHOUT_FEE),
-            reward: EXPECTED_REWARD.mul(3).mul(2),
+            reward: 0,
           })
           expectPositionEq(await market.positions(userB.address), {
             ...DEFAULT_POSITION,
@@ -13223,7 +13185,7 @@ describe('Market', () => {
             makerValue: { _value: 0 },
             longValue: { _value: 0 },
             shortValue: { _value: 0 },
-            makerReward: { _value: EXPECTED_REWARD.mul(3).div(10) },
+            makerReward: { _value: 0 },
             longReward: { _value: 0 },
             shortReward: { _value: 0 },
           })
@@ -13231,7 +13193,7 @@ describe('Market', () => {
             makerValue: { _value: TAKER_FEE_WITHOUT_FEE.div(10) },
             longValue: { _value: 0 },
             shortValue: { _value: 0 },
-            makerReward: { _value: EXPECTED_REWARD.mul(3).mul(2).div(10) },
+            makerReward: { _value: 0 },
             longReward: { _value: 0 },
             shortReward: { _value: 0 },
           })
@@ -13316,7 +13278,7 @@ describe('Market', () => {
             currentId: 2,
             latestId: 1,
             collateral: COLLATERAL,
-            reward: EXPECTED_REWARD.mul(3).mul(2),
+            reward: 0,
           })
           expectPositionEq(await market.positions(userB.address), {
             ...DEFAULT_POSITION,
@@ -13381,7 +13343,7 @@ describe('Market', () => {
             makerValue: { _value: 0 },
             longValue: { _value: 0 },
             shortValue: { _value: 0 },
-            makerReward: { _value: EXPECTED_REWARD.mul(3).div(10) },
+            makerReward: { _value: 0 },
             longReward: { _value: 0 },
             shortReward: { _value: 0 },
           })
@@ -13389,7 +13351,7 @@ describe('Market', () => {
             makerValue: { _value: 0 },
             longValue: { _value: 0 },
             shortValue: { _value: 0 },
-            makerReward: { _value: EXPECTED_REWARD.mul(3).mul(2).div(10) },
+            makerReward: { _value: 0 },
             longReward: { _value: 0 },
             shortReward: { _value: 0 },
           })
@@ -13474,7 +13436,7 @@ describe('Market', () => {
             currentId: 2,
             latestId: 1,
             collateral: COLLATERAL,
-            reward: EXPECTED_REWARD.mul(3).mul(2),
+            reward: 0,
           })
           expectPositionEq(await market.positions(userB.address), {
             ...DEFAULT_POSITION,
@@ -13539,7 +13501,7 @@ describe('Market', () => {
             makerValue: { _value: 0 },
             longValue: { _value: 0 },
             shortValue: { _value: 0 },
-            makerReward: { _value: EXPECTED_REWARD.mul(3).div(10) },
+            makerReward: { _value: 0 },
             longReward: { _value: 0 },
             shortReward: { _value: 0 },
           })
@@ -13547,7 +13509,7 @@ describe('Market', () => {
             makerValue: { _value: 0 },
             longValue: { _value: 0 },
             shortValue: { _value: 0 },
-            makerReward: { _value: EXPECTED_REWARD.mul(3).mul(2).div(10) },
+            makerReward: { _value: 0 },
             longReward: { _value: 0 },
             shortReward: { _value: 0 },
           })
@@ -13648,7 +13610,7 @@ describe('Market', () => {
             currentId: 2,
             latestId: 1,
             collateral: COLLATERAL.add(TAKER_FEE_WITHOUT_FEE),
-            reward: EXPECTED_REWARD.mul(3).mul(3),
+            reward: 0,
           })
           expectPositionEq(await market.positions(userB.address), {
             ...DEFAULT_POSITION,
@@ -13720,7 +13682,7 @@ describe('Market', () => {
             makerValue: { _value: 0 },
             longValue: { _value: 0 },
             shortValue: { _value: 0 },
-            makerReward: { _value: EXPECTED_REWARD.mul(3).div(10) },
+            makerReward: { _value: 0 },
             longReward: { _value: 0 },
             shortReward: { _value: 0 },
           })
@@ -13728,7 +13690,7 @@ describe('Market', () => {
             makerValue: { _value: 0 },
             longValue: { _value: 0 },
             shortValue: { _value: 0 },
-            makerReward: { _value: EXPECTED_REWARD.mul(3).mul(2).div(10) },
+            makerReward: { _value: 0 },
             longReward: { _value: 0 },
             shortReward: { _value: 0 },
           })
@@ -13736,7 +13698,7 @@ describe('Market', () => {
             makerValue: { _value: TAKER_FEE_WITHOUT_FEE.div(10) },
             longValue: { _value: 0 },
             shortValue: { _value: 0 },
-            makerReward: { _value: EXPECTED_REWARD.mul(3).mul(3).div(10) },
+            makerReward: { _value: 0 },
             longReward: { _value: 0 },
             shortReward: { _value: 0 },
           })
@@ -13761,7 +13723,7 @@ describe('Market', () => {
             currentId: 2,
             latestId: 1,
             collateral: COLLATERAL.sub(EXPECTED_FUNDING_WITH_FEE_1_5_123).sub(EXPECTED_INTEREST_5_123),
-            reward: EXPECTED_REWARD.mul(2),
+            reward: 0,
           })
           expectPositionEq(await market.positions(user.address), {
             ...DEFAULT_POSITION,
@@ -13781,7 +13743,7 @@ describe('Market', () => {
             collateral: COLLATERAL.add(EXPECTED_FUNDING_WITHOUT_FEE_1_5_123)
               .add(EXPECTED_INTEREST_WITHOUT_FEE_5_123)
               .sub(8), // loss of precision
-            reward: EXPECTED_REWARD.mul(3),
+            reward: 0,
           })
           expectPositionEq(await market.positions(userB.address), {
             ...DEFAULT_POSITION,
@@ -13821,8 +13783,8 @@ describe('Market', () => {
             },
             longValue: { _value: EXPECTED_FUNDING_WITH_FEE_1_5_123.add(EXPECTED_INTEREST_5_123).div(5).mul(-1) },
             shortValue: { _value: 0 },
-            makerReward: { _value: EXPECTED_REWARD.mul(3).div(10) },
-            longReward: { _value: EXPECTED_REWARD.mul(2).div(5) },
+            makerReward: { _value: 0 },
+            longReward: { _value: 0 },
             shortReward: { _value: 0 },
           })
         })
@@ -13860,7 +13822,7 @@ describe('Market', () => {
             currentId: 3,
             latestId: 2,
             collateral: COLLATERAL.sub(EXPECTED_FUNDING_WITH_FEE_1_5_123).sub(EXPECTED_INTEREST_5_123),
-            reward: EXPECTED_REWARD.mul(2),
+            reward: 0,
           })
           expectPositionEq(await market.positions(user.address), {
             ...DEFAULT_POSITION,
@@ -13880,7 +13842,7 @@ describe('Market', () => {
               .sub(EXPECTED_FUNDING_WITH_FEE_1_5_123)
               .add(EXPECTED_INTEREST_WITHOUT_FEE_5_123)
               .sub(16), // loss of precision
-            reward: EXPECTED_REWARD.mul(3).mul(2),
+            reward: 0,
           })
           expectPositionEq(await market.positions(userB.address), {
             ...DEFAULT_POSITION,
@@ -13898,7 +13860,7 @@ describe('Market', () => {
             currentId: 2,
             latestId: 1,
             collateral: COLLATERAL.add(EXPECTED_FUNDING_WITHOUT_FEE_1_5_123).sub(EXPECTED_INTEREST_5_123),
-            reward: EXPECTED_REWARD,
+            reward: 0,
           })
           expectPositionEq(await market.positions(userC.address), {
             ...DEFAULT_POSITION,
@@ -13948,9 +13910,9 @@ describe('Market', () => {
             shortValue: {
               _value: EXPECTED_FUNDING_WITHOUT_FEE_1_5_123.sub(EXPECTED_INTEREST_5_123).div(5),
             },
-            makerReward: { _value: EXPECTED_REWARD.mul(3).mul(2).div(10) },
-            longReward: { _value: EXPECTED_REWARD.mul(2).div(5) },
-            shortReward: { _value: EXPECTED_REWARD.div(5) },
+            makerReward: { _value: 0 },
+            longReward: { _value: 0 },
+            shortReward: { _value: 0 },
           })
         })
 
@@ -13982,7 +13944,7 @@ describe('Market', () => {
             currentId: 3,
             latestId: 2,
             collateral: COLLATERAL.sub(EXPECTED_FUNDING_WITH_FEE_1_5_123).sub(EXPECTED_INTEREST_5_123),
-            reward: EXPECTED_REWARD.mul(2),
+            reward: 0,
           })
           expectPositionEq(await market.positions(user.address), {
             ...DEFAULT_POSITION,
@@ -14002,7 +13964,7 @@ describe('Market', () => {
               .add(EXPECTED_FUNDING_WITHOUT_FEE_1_5_123)
               .add(EXPECTED_INTEREST_WITHOUT_FEE_5_123)
               .sub(16), // loss of precision
-            reward: EXPECTED_REWARD.mul(3).mul(2),
+            reward: 0,
           })
           expectPositionEq(await market.positions(userB.address), {
             ...DEFAULT_POSITION,
@@ -14020,7 +13982,7 @@ describe('Market', () => {
             currentId: 2,
             latestId: 1,
             collateral: COLLATERAL.sub(EXPECTED_FUNDING_WITH_FEE_1_5_123).sub(EXPECTED_INTEREST_5_123),
-            reward: EXPECTED_REWARD,
+            reward: 0,
           })
           expectPositionEq(await market.positions(userC.address), {
             ...DEFAULT_POSITION,
@@ -14070,9 +14032,9 @@ describe('Market', () => {
             shortValue: {
               _value: EXPECTED_FUNDING_WITH_FEE_1_5_123.add(EXPECTED_INTEREST_5_123).div(5).mul(-1),
             },
-            makerReward: { _value: EXPECTED_REWARD.mul(3).mul(2).div(10) },
-            longReward: { _value: EXPECTED_REWARD.mul(2).div(5) },
-            shortReward: { _value: EXPECTED_REWARD.div(5) },
+            makerReward: { _value: 0 },
+            longReward: { _value: 0 },
+            shortReward: { _value: 0 },
           })
         })
       })
@@ -14170,7 +14132,7 @@ describe('Market', () => {
             currentId: 3,
             latestId: 2,
             collateral: COLLATERAL.sub(EXPECTED_FUNDING_WITH_FEE_1_5_123).sub(EXPECTED_INTEREST_5_123),
-            reward: EXPECTED_REWARD.mul(2),
+            reward: 0,
           })
           expectLocalEq(await market.locals(userB.address), {
             ...DEFAULT_LOCAL,
@@ -14179,7 +14141,7 @@ describe('Market', () => {
             collateral: COLLATERAL.add(EXPECTED_FUNDING_WITHOUT_FEE_1_5_123)
               .add(EXPECTED_INTEREST_WITHOUT_FEE_5_123)
               .sub(8), // loss of precision
-            reward: EXPECTED_REWARD.mul(3),
+            reward: 0,
           })
 
           dsu.transfer
@@ -14205,14 +14167,14 @@ describe('Market', () => {
             currentId: 3,
             latestId: 2,
             collateral: 0,
-            reward: EXPECTED_REWARD.mul(2),
+            reward: 0,
           })
           expectLocalEq(await market.locals(userB.address), {
             ...DEFAULT_LOCAL,
             currentId: 3,
             latestId: 2,
             collateral: 0,
-            reward: EXPECTED_REWARD.mul(3),
+            reward: 0,
           })
         })
 
@@ -14796,7 +14758,6 @@ describe('Market', () => {
           marketDefinition.payoff = payoff.address
           await marketPayoff.connect(factorySigner).initialize(marketDefinition)
           await marketPayoff.connect(owner).updateRiskParameter(riskParameter)
-          await marketPayoff.connect(owner).updateReward(reward.address)
           await marketPayoff.connect(owner).updateParameter(beneficiary.address, coordinator.address, marketParameter)
 
           dsu.transferFrom.whenCalledWith(user.address, marketPayoff.address, COLLATERAL.mul(1e12)).returns(true)
@@ -14838,7 +14799,7 @@ describe('Market', () => {
               collateral: COLLATERAL.sub(EXPECTED_PNL)
                 .sub(EXPECTED_FUNDING_WITH_FEE_1_5_123_P2)
                 .sub(EXPECTED_INTEREST_5_123_P2),
-              reward: EXPECTED_REWARD.mul(2),
+              reward: 0,
             })
             expectPositionEq(await marketPayoff.positions(user.address), {
               ...DEFAULT_POSITION,
@@ -14859,7 +14820,7 @@ describe('Market', () => {
                 .add(EXPECTED_FUNDING_WITHOUT_FEE_1_5_123_P2)
                 .add(EXPECTED_INTEREST_WITHOUT_FEE_5_123_P2)
                 .sub(19), // loss of precision
-              reward: EXPECTED_REWARD.mul(3),
+              reward: 0,
             })
             expectPositionEq(await marketPayoff.positions(userB.address), {
               ...DEFAULT_POSITION,
@@ -14907,8 +14868,8 @@ describe('Market', () => {
                   .mul(-1),
               },
               shortValue: { _value: 0 },
-              makerReward: { _value: EXPECTED_REWARD.mul(3).div(10) },
-              longReward: { _value: EXPECTED_REWARD.mul(2).div(5) },
+              makerReward: { _value: 0 },
+              longReward: { _value: 0 },
               shortReward: { _value: 0 },
             })
           })
@@ -14950,7 +14911,7 @@ describe('Market', () => {
               collateral: COLLATERAL.sub(EXPECTED_PNL)
                 .sub(EXPECTED_FUNDING_WITH_FEE_1_5_123_P2)
                 .sub(EXPECTED_INTEREST_5_123_P2),
-              reward: EXPECTED_REWARD,
+              reward: 0,
             })
             expectPositionEq(await marketPayoff.positions(user.address), {
               ...DEFAULT_POSITION,
@@ -14971,7 +14932,7 @@ describe('Market', () => {
                 .add(EXPECTED_FUNDING_WITHOUT_FEE_1_5_123_P2)
                 .add(EXPECTED_INTEREST_WITHOUT_FEE_5_123_P2)
                 .sub(19), // loss of precision
-              reward: EXPECTED_REWARD.mul(3),
+              reward: 0,
             })
             expectPositionEq(await marketPayoff.positions(userB.address), {
               ...DEFAULT_POSITION,
@@ -15019,9 +14980,9 @@ describe('Market', () => {
                   .div(5)
                   .mul(-1),
               },
-              makerReward: { _value: EXPECTED_REWARD.mul(3).div(10) },
+              makerReward: { _value: 0 },
               longReward: { _value: 0 },
-              shortReward: { _value: EXPECTED_REWARD.div(5) },
+              shortReward: { _value: 0 },
             })
           })
         })
@@ -15072,7 +15033,7 @@ describe('Market', () => {
               currentId: 3,
               latestId: 2,
               collateral: COLLATERAL.sub(EXPECTED_FUNDING_WITH_FEE_1_5_123_V).sub(EXPECTED_INTEREST_5_123),
-              reward: EXPECTED_REWARD.mul(2),
+              reward: 0,
             })
             expectPositionEq(await market.positions(user.address), {
               ...DEFAULT_POSITION,
@@ -15092,7 +15053,7 @@ describe('Market', () => {
               collateral: COLLATERAL.add(EXPECTED_FUNDING_WITHOUT_FEE_1_5_123_V)
                 .add(EXPECTED_INTEREST_WITHOUT_FEE_5_123)
                 .sub(13), // loss of precision
-              reward: EXPECTED_REWARD.mul(3),
+              reward: 0,
             })
             expectPositionEq(await market.positions(userB.address), {
               ...DEFAULT_POSITION,
@@ -15134,8 +15095,8 @@ describe('Market', () => {
                 _value: EXPECTED_FUNDING_WITH_FEE_1_5_123_V.add(EXPECTED_INTEREST_5_123).div(5).mul(-1),
               },
               shortValue: { _value: 0 },
-              makerReward: { _value: EXPECTED_REWARD.mul(3).div(10) },
-              longReward: { _value: EXPECTED_REWARD.mul(2).div(5) },
+              makerReward: { _value: 0 },
+              longReward: { _value: 0 },
               shortReward: { _value: 0 },
             })
           })
@@ -15182,7 +15143,7 @@ describe('Market', () => {
               currentId: 3,
               latestId: 2,
               collateral: COLLATERAL.sub(EXPECTED_FUNDING_WITH_FEE_1_5_123_V).sub(EXPECTED_INTEREST_5_123).add(5), // excess fundingFee taken from long
-              reward: EXPECTED_REWARD,
+              reward: 0,
             })
             expectPositionEq(await market.positions(user.address), {
               ...DEFAULT_POSITION,
@@ -15202,7 +15163,7 @@ describe('Market', () => {
               collateral: COLLATERAL.add(EXPECTED_FUNDING_WITHOUT_FEE_1_5_123_V)
                 .add(EXPECTED_INTEREST_WITHOUT_FEE_5_123)
                 .sub(13), // loss of precision
-              reward: EXPECTED_REWARD.mul(3),
+              reward: 0,
             })
             expectPositionEq(await market.positions(userB.address), {
               ...DEFAULT_POSITION,
@@ -15244,9 +15205,9 @@ describe('Market', () => {
               shortValue: {
                 _value: EXPECTED_FUNDING_WITH_FEE_1_5_123_V.add(EXPECTED_INTEREST_5_123).div(5).mul(-1).add(1), // loss of precision (fundingFee)
               },
-              makerReward: { _value: EXPECTED_REWARD.mul(3).div(10) },
+              makerReward: { _value: 0 },
               longReward: { _value: 0 },
-              shortReward: { _value: EXPECTED_REWARD.div(5) },
+              shortReward: { _value: 0 },
             })
           })
 
@@ -15474,7 +15435,6 @@ describe('Market', () => {
       const DONATION = MARKET_FEE.sub(ORACLE_FEE).sub(RISK_FEE)
 
       beforeEach(async () => {
-        await market.connect(owner).updateReward(reward.address)
         await market.updateParameter(beneficiary.address, coordinator.address, {
           ...marketParameter,
           riskFee: parse6decimal('0.2'),
@@ -15561,58 +15521,6 @@ describe('Market', () => {
         expect((await market.global()).oracleFee).to.equal(ORACLE_FEE)
         expect((await market.global()).riskFee).to.equal(RISK_FEE)
         expect((await market.global()).donation).to.equal(DONATION)
-      })
-    })
-
-    describe('#claimReward', async () => {
-      beforeEach(async () => {
-        await market.connect(owner).updateReward(reward.address)
-        await market.connect(owner).updateParameter(beneficiary.address, coordinator.address, marketParameter)
-
-        oracle.at.whenCalledWith(ORACLE_VERSION_0.timestamp).returns(ORACLE_VERSION_0)
-
-        oracle.at.whenCalledWith(ORACLE_VERSION_1.timestamp).returns(ORACLE_VERSION_1)
-        oracle.status.returns([ORACLE_VERSION_1, ORACLE_VERSION_2.timestamp])
-        oracle.request.whenCalledWith(user.address).returns()
-
-        dsu.transferFrom.whenCalledWith(userB.address, market.address, COLLATERAL.mul(1e12)).returns(true)
-        await market.connect(userB).update(userB.address, POSITION, 0, 0, COLLATERAL, false)
-        dsu.transferFrom.whenCalledWith(user.address, market.address, COLLATERAL.mul(1e12)).returns(true)
-        await market.connect(user).update(user.address, 0, POSITION.div(2), 0, COLLATERAL, false)
-
-        oracle.at.whenCalledWith(ORACLE_VERSION_2.timestamp).returns(ORACLE_VERSION_2)
-
-        oracle.at.whenCalledWith(ORACLE_VERSION_3.timestamp).returns(ORACLE_VERSION_3)
-        oracle.status.returns([ORACLE_VERSION_3, ORACLE_VERSION_4.timestamp])
-        oracle.request.whenCalledWith(user.address).returns()
-
-        await settle(market, user)
-        await settle(market, userB)
-
-        expectVersionEq(await market.versions(ORACLE_VERSION_3.timestamp), {
-          makerValue: { _value: EXPECTED_FUNDING_WITHOUT_FEE_1_5_123.add(EXPECTED_INTEREST_WITHOUT_FEE_5_123).div(10) },
-          longValue: { _value: EXPECTED_FUNDING_WITH_FEE_1_5_123.add(EXPECTED_INTEREST_5_123).div(5).mul(-1) },
-          shortValue: { _value: 0 },
-          makerReward: { _value: EXPECTED_REWARD.mul(3).div(10) },
-          longReward: { _value: EXPECTED_REWARD.mul(2).div(5) },
-          shortReward: { _value: 0 },
-        })
-      })
-
-      it('claims reward', async () => {
-        await reward.transfer.whenCalledWith(user.address, EXPECTED_REWARD.mul(2).mul(1e12)).returns(true)
-
-        await expect(market.connect(user).claimReward())
-          .to.emit(market, 'RewardClaimed')
-          .withArgs(user.address, EXPECTED_REWARD.mul(2))
-
-        expect((await market.locals(user.address)).reward).to.equal(0)
-      })
-
-      it('claims reward (none)', async () => {
-        await reward.transfer.whenCalledWith(userC.address, 0).returns(true)
-
-        await expect(market.connect(userC).claimReward()).to.emit(market, 'RewardClaimed').withArgs(userC.address, 0)
       })
     })
   })

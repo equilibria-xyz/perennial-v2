@@ -122,10 +122,6 @@ library VersionLib {
         (values.pnlMaker, values.pnlLong, values.pnlShort) =
             _accumulatePNL(self, fromPosition, fromOracleVersion, toOracleVersion);
 
-        // accumulate reward
-        (values.rewardMaker, values.rewardLong, values.rewardShort) =
-            _accumulateReward(self, fromPosition, fromOracleVersion, toOracleVersion, marketParameter);
-
         return (values, values.positionFeeFee.add(values.fundingFee).add(values.interestFee));
     }
 
@@ -292,38 +288,6 @@ library VersionLib {
         self.longValue.increment(pnlLong, position.long);
         self.shortValue.increment(pnlShort, position.short);
         self.makerValue.increment(pnlMaker, position.maker);
-    }
-
-    /// @notice Globally accumulates position's reward share since last oracle update
-    /// @param self The Version object to update
-    /// @param position The previous latest position
-    /// @param fromOracleVersion The previous latest oracle version
-    /// @param toOracleVersion The next latest oracle version
-    /// @param marketParameter The market parameter
-    /// @return rewardMaker The total reward accrued by makers
-    /// @return rewardLong The total reward accrued by longs
-    /// @return rewardShort The total reward accrued by shorts
-    function _accumulateReward(
-        Version memory self,
-        Position memory position,
-        OracleVersion memory fromOracleVersion,
-        OracleVersion memory toOracleVersion,
-        MarketParameter memory marketParameter
-    ) private pure returns (UFixed6 rewardMaker, UFixed6 rewardLong, UFixed6 rewardShort) {
-        UFixed6 elapsed = UFixed6Lib.from(toOracleVersion.timestamp - fromOracleVersion.timestamp);
-
-        if (!position.maker.isZero()) {
-            rewardMaker = elapsed.mul(marketParameter.makerRewardRate);
-            self.makerReward.increment(rewardMaker, position.maker);
-        }
-        if (!position.long.isZero()) {
-            rewardLong = elapsed.mul(marketParameter.longRewardRate);
-            self.longReward.increment(rewardLong, position.long);
-        }
-        if (!position.short.isZero()) {
-            rewardShort = elapsed.mul(marketParameter.shortRewardRate);
-            self.shortReward.increment(rewardShort, position.short);
-        }
     }
 }
 
