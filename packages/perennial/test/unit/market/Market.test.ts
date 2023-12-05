@@ -3704,8 +3704,8 @@ describe('Market', () => {
                 interestFee: EXPECTED_INTEREST_FEE_5_123,
                 pnlMaker: EXPECTED_PNL,
                 pnlLong: EXPECTED_PNL.mul(-1),
-                rewardMaker: EXPECTED_REWARD.mul(3),
-                rewardLong: EXPECTED_REWARD.mul(2),
+                rewardMaker: 0,
+                rewardLong: 0,
               })
               .to.emit(market, 'AccountPositionProcessed')
               .withArgs(user.address, ORACLE_VERSION_2.timestamp, oracleVersionLowerPrice.timestamp, 1, 2, {
@@ -3713,7 +3713,7 @@ describe('Market', () => {
                 collateralAmount: EXPECTED_PNL.mul(-1)
                   .sub(EXPECTED_FUNDING_WITH_FEE_1_5_123)
                   .sub(EXPECTED_INTEREST_5_123),
-                rewardAmount: EXPECTED_REWARD.mul(2),
+                rewardAmount: 0,
               })
 
             await expect(settle(market, userB))
@@ -3723,7 +3723,7 @@ describe('Market', () => {
                 collateralAmount: EXPECTED_PNL.add(EXPECTED_FUNDING_WITHOUT_FEE_1_5_123)
                   .add(EXPECTED_INTEREST_WITHOUT_FEE_5_123)
                   .sub(8),
-                rewardAmount: EXPECTED_REWARD.mul(3),
+                rewardAmount: 0,
               })
 
             expectLocalEq(await market.locals(user.address), {
@@ -3831,8 +3831,8 @@ describe('Market', () => {
                 interestFee: EXPECTED_INTEREST_FEE_5_123,
                 pnlMaker: EXPECTED_PNL,
                 pnlLong: EXPECTED_PNL.mul(-1),
-                rewardMaker: EXPECTED_REWARD.mul(3),
-                rewardLong: EXPECTED_REWARD.mul(2),
+                rewardMaker: 0,
+                rewardLong: 0,
               })
               .to.emit(market, 'AccountPositionProcessed')
               .withArgs(user.address, ORACLE_VERSION_2.timestamp, oracleVersionHigherPrice.timestamp, 1, 2, {
@@ -3840,7 +3840,7 @@ describe('Market', () => {
                 collateralAmount: EXPECTED_PNL.mul(-1)
                   .sub(EXPECTED_FUNDING_WITH_FEE_1_5_123)
                   .sub(EXPECTED_INTEREST_5_123),
-                rewardAmount: EXPECTED_REWARD.mul(2),
+                rewardAmount: 0,
               })
 
             await expect(settle(market, userB))
@@ -3850,7 +3850,7 @@ describe('Market', () => {
                 collateralAmount: EXPECTED_PNL.add(EXPECTED_FUNDING_WITHOUT_FEE_1_5_123)
                   .add(EXPECTED_INTEREST_WITHOUT_FEE_5_123)
                   .sub(8),
-                rewardAmount: EXPECTED_REWARD.mul(3),
+                rewardAmount: 0,
               })
 
             expectLocalEq(await market.locals(user.address), {
@@ -6663,8 +6663,8 @@ describe('Market', () => {
                 interestFee: EXPECTED_INTEREST_FEE_5_123,
                 pnlMaker: EXPECTED_PNL,
                 pnlShort: EXPECTED_PNL.mul(-1),
-                rewardMaker: EXPECTED_REWARD.mul(3),
-                rewardShort: EXPECTED_REWARD,
+                rewardMaker: 0,
+                rewardShort: 0,
               })
               .to.emit(market, 'AccountPositionProcessed')
               .withArgs(user.address, ORACLE_VERSION_2.timestamp, oracleVersionLowerPrice.timestamp, 1, 2, {
@@ -6672,7 +6672,7 @@ describe('Market', () => {
                 collateralAmount: EXPECTED_PNL.mul(-1)
                   .sub(EXPECTED_FUNDING_WITH_FEE_1_5_123)
                   .sub(EXPECTED_INTEREST_5_123),
-                rewardAmount: EXPECTED_REWARD,
+                rewardAmount: 0,
               })
 
             await expect(settle(market, userB))
@@ -6682,7 +6682,7 @@ describe('Market', () => {
                 collateralAmount: EXPECTED_PNL.add(EXPECTED_FUNDING_WITHOUT_FEE_1_5_123)
                   .add(EXPECTED_INTEREST_WITHOUT_FEE_5_123)
                   .sub(8),
-                rewardAmount: EXPECTED_REWARD.mul(3),
+                rewardAmount: 0,
               })
 
             expectLocalEq(await market.locals(user.address), {
@@ -6791,8 +6791,8 @@ describe('Market', () => {
                 interestFee: EXPECTED_INTEREST_FEE_5_123,
                 pnlMaker: EXPECTED_PNL,
                 pnlShort: EXPECTED_PNL.mul(-1),
-                rewardMaker: EXPECTED_REWARD.mul(3),
-                rewardShort: EXPECTED_REWARD,
+                rewardMaker: 0,
+                rewardShort: 0,
               })
               .to.emit(market, 'AccountPositionProcessed')
               .withArgs(user.address, ORACLE_VERSION_2.timestamp, oracleVersionHigherPrice.timestamp, 1, 2, {
@@ -6800,7 +6800,7 @@ describe('Market', () => {
                 collateralAmount: EXPECTED_PNL.mul(-1)
                   .sub(EXPECTED_FUNDING_WITH_FEE_1_5_123)
                   .sub(EXPECTED_INTEREST_5_123),
-                rewardAmount: EXPECTED_REWARD,
+                rewardAmount: 0,
               })
 
             await expect(settle(market, userB))
@@ -6810,7 +6810,7 @@ describe('Market', () => {
                 collateralAmount: EXPECTED_PNL.add(EXPECTED_FUNDING_WITHOUT_FEE_1_5_123)
                   .add(EXPECTED_INTEREST_WITHOUT_FEE_5_123)
                   .sub(8),
-                rewardAmount: EXPECTED_REWARD.mul(3),
+                rewardAmount: 0,
               })
 
             expectLocalEq(await market.locals(user.address), {
@@ -10195,9 +10195,9 @@ describe('Market', () => {
                 pnlMaker: EXPECTED_PNL.div(2).mul(-1),
                 pnlLong: EXPECTED_PNL.div(2).mul(-1),
                 pnlShort: EXPECTED_PNL,
-                rewardMaker: EXPECTED_REWARD.mul(3),
-                rewardLong: EXPECTED_REWARD.mul(2),
-                rewardShort: EXPECTED_REWARD,
+                rewardMaker: 0,
+                rewardLong: 0,
+                rewardShort: 0,
               })
               .to.emit(market, 'AccountPositionProcessed')
               .withArgs(user.address, ORACLE_VERSION_2.timestamp, oracleVersionLowerPrice.timestamp, 1, 2, {
@@ -10207,7 +10207,7 @@ describe('Market', () => {
                   .add(EXPECTED_FUNDING_WITHOUT_FEE_1_10_123_ALL.div(2))
                   .sub(EXPECTED_INTEREST_10_67_123_ALL.div(3))
                   .sub(2), // loss of precision
-                rewardAmount: EXPECTED_REWARD.mul(2),
+                rewardAmount: 0,
               })
 
             await expect(settle(market, userB))
@@ -10219,7 +10219,7 @@ describe('Market', () => {
                   .add(EXPECTED_FUNDING_WITHOUT_FEE_1_10_123_ALL.div(2))
                   .add(EXPECTED_INTEREST_WITHOUT_FEE_10_67_123_ALL)
                   .sub(13), // loss of precision
-                rewardAmount: EXPECTED_REWARD.mul(3),
+                rewardAmount: 0,
               })
 
             expectLocalEq(await market.locals(user.address), {
@@ -10342,9 +10342,9 @@ describe('Market', () => {
                 pnlMaker: EXPECTED_PNL.div(2).mul(-1),
                 pnlLong: EXPECTED_PNL.div(2).mul(-1),
                 pnlShort: EXPECTED_PNL,
-                rewardMaker: EXPECTED_REWARD.mul(3),
-                rewardLong: EXPECTED_REWARD.mul(2),
-                rewardShort: EXPECTED_REWARD,
+                rewardMaker: 0,
+                rewardLong: 0,
+                rewardShort: 0,
               })
               .to.emit(market, 'AccountPositionProcessed')
               .withArgs(user.address, ORACLE_VERSION_2.timestamp, oracleVersionHigherPrice.timestamp, 1, 2, {
@@ -10354,7 +10354,7 @@ describe('Market', () => {
                   .add(EXPECTED_FUNDING_WITHOUT_FEE_1_10_123_ALL.div(2))
                   .sub(EXPECTED_INTEREST_10_67_123_ALL.div(3))
                   .sub(2), // loss of precision
-                rewardAmount: EXPECTED_REWARD.mul(2),
+                rewardAmount: 0,
               })
 
             await expect(settle(market, userB))
@@ -10366,7 +10366,7 @@ describe('Market', () => {
                   .add(EXPECTED_FUNDING_WITHOUT_FEE_1_10_123_ALL.div(2))
                   .add(EXPECTED_INTEREST_WITHOUT_FEE_10_67_123_ALL)
                   .sub(13), // loss of precision
-                rewardAmount: EXPECTED_REWARD.mul(3),
+                rewardAmount: 0,
               })
 
             expectLocalEq(await market.locals(user.address), {

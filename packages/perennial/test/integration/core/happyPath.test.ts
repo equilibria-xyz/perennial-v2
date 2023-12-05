@@ -968,7 +968,6 @@ describe('Happy Path', () => {
 
   it('delayed update w/ collateral (gas)', async () => {
     const positionFeesOn = true
-    const incentizesOn = true
 
     const POSITION = parse6decimal('0.0001')
     const COLLATERAL = parse6decimal('1000')
@@ -1012,9 +1011,9 @@ describe('Happy Path', () => {
       maxPendingGlobal: 8,
       maxPendingLocal: 8,
       positionFee: positionFeesOn ? parse6decimal('0.1') : 0,
-      makerRewardRate: incentizesOn ? parse6decimal('0.01') : 0,
-      longRewardRate: incentizesOn ? parse6decimal('0.001') : 0,
-      shortRewardRate: incentizesOn ? parse6decimal('0.001') : 0,
+      makerRewardRate: 0,
+      longRewardRate: 0,
+      shortRewardRate: 0,
       makerCloseAlways: false,
       takerCloseAlways: false,
       closed: false,
@@ -1050,7 +1049,7 @@ describe('Happy Path', () => {
       currentId: 3,
       latestId: 2,
       collateral: '986127025',
-      reward: incentizesOn ? '24669998' : 0,
+      reward: 0,
       protection: 0,
     })
     expectPositionEq(await market.pendingPositions(user.address, 3), {
@@ -1092,8 +1091,8 @@ describe('Happy Path', () => {
       makerValue: { _value: '-354909471518' },
       longValue: { _value: '362096873938' },
       shortValue: { _value: 0 },
-      makerReward: { _value: incentizesOn ? '606836363635' : 0 },
-      longReward: { _value: incentizesOn ? '60683636363' : 0 },
+      makerReward: { _value: 0 },
+      longReward: { _value: 0 },
       shortReward: { _value: 0 },
     })
   })
@@ -1101,7 +1100,6 @@ describe('Happy Path', () => {
   // uncheck skip to see gas results
   it.skip('multi-delayed update w/ collateral (gas)', async () => {
     const positionFeesOn = true
-    const incentizesOn = true
     const delay = 5
     const sync = true
 
@@ -1154,9 +1152,9 @@ describe('Happy Path', () => {
       maxPendingGlobal: 8,
       maxPendingLocal: 8,
       positionFee: positionFeesOn ? parse6decimal('0.1') : 0,
-      makerRewardRate: incentizesOn ? parse6decimal('0.01') : 0,
-      longRewardRate: incentizesOn ? parse6decimal('0.001') : 0,
-      shortRewardRate: incentizesOn ? parse6decimal('0.001') : 0,
+      makerRewardRate: 0,
+      longRewardRate: 0,
+      shortRewardRate: 0,
       makerCloseAlways: false,
       takerCloseAlways: false,
       closed: false,
