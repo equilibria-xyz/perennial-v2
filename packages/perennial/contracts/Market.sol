@@ -295,7 +295,7 @@ contract Market is IMarket, Instance, ReentrancyGuard {
         if (newPosition.eq(MAGIC_VALUE_FULLY_CLOSED_POSITION)) {
             if (currentPosition.isZero()) return currentPosition;
             UFixed6 closable = context.latestPosition.local.magnitude().sub(context.pendingClose);
-            return context.previousPendingMagnitude.sub(closable.min(context.previousPendingMagnitude));
+            return context.previousPendingMagnitude.unsafeSub(closable);
         }
         return newPosition;
     }

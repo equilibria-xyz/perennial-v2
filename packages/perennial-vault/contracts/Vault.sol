@@ -129,7 +129,7 @@ contract Vault is IVault, Instance {
     /// @return Amount of shares for the given assets
     function convertToShares(UFixed6 assets) external view returns (UFixed6) {
         (UFixed6 _totalAssets, UFixed6 _totalShares) =
-            (UFixed6Lib.from(totalAssets().max(Fixed6Lib.ZERO)), totalShares());
+            (UFixed6Lib.unsafeFrom(totalAssets()), totalShares());
         return _totalShares.isZero() ? assets : assets.muldiv(_totalShares, _totalAssets);
     }
 
@@ -138,7 +138,7 @@ contract Vault is IVault, Instance {
     /// @return Amount of assets for the given shares
     function convertToAssets(UFixed6 shares) external view returns (UFixed6) {
         (UFixed6 _totalAssets, UFixed6 _totalShares) =
-            (UFixed6Lib.from(totalAssets().max(Fixed6Lib.ZERO)), totalShares());
+            (UFixed6Lib.unsafeFrom(totalAssets()), totalShares());
         return _totalShares.isZero() ? shares : shares.muldiv(_totalAssets, _totalShares);
     }
 
@@ -311,7 +311,7 @@ contract Vault is IVault, Instance {
         UFixed6 redeemShares,
         UFixed6 claimAssets
     ) private view returns (UFixed6 claimAmount) {
-        UFixed6 totalCollateral = UFixed6Lib.from(_collateral(context).max(Fixed6Lib.ZERO));
+        UFixed6 totalCollateral = UFixed6Lib.unsafeFrom(_collateral(context));
         claimAmount = context.global.assets.isZero() ?
             UFixed6Lib.ZERO :
             claimAssets.muldiv(totalCollateral.min(context.global.assets), context.global.assets);
@@ -383,7 +383,7 @@ contract Vault is IVault, Instance {
 
         StrategyLib.MarketTarget[] memory targets = context.strategy.allocate(
             context.registrations,
-            UFixed6Lib.from(collateral.max(Fixed6Lib.ZERO)),
+            UFixed6Lib.unsafeFrom(collateral),
             assets
         );
 
@@ -404,7 +404,7 @@ contract Vault is IVault, Instance {
         // collateral currently deployed
         Fixed6 liabilities = Fixed6Lib.from(context.global.assets.add(context.global.deposit));
         // net assets
-        assets = UFixed6Lib.from(collateral.sub(liabilities).max(Fixed6Lib.ZERO))
+        assets = UFixed6Lib.unsafeFrom(collateral.sub(liabilities))
             // approximate assets up for redemption
             .mul(context.global.shares.unsafeDiv(context.global.shares.add(context.global.redemption)))
             // deploy assets up for deposit
@@ -470,8 +470,8 @@ contract Vault is IVault, Instance {
     /// @return Maximum available deposit amount
     function _maxDeposit(Context memory context) private view returns (UFixed6) {
         if (context.latestCheckpoint.unhealthy()) return UFixed6Lib.ZERO;
-        UFixed6 collateral = UFixed6Lib.from(totalAssets().max(Fixed6Lib.ZERO)).add(context.global.deposit);
-        return context.parameter.cap.sub(collateral.min(context.parameter.cap));
+        UFixed6 collateral = UFixed6Lib.unsafeFrom(totalAssets()).add(context.global.deposit);
+        return context.parameter.cap.unsafeSub(collateral);
     }
 
     /// @notice The maximum available redemption amount for `account`
@@ -482,7 +482,7 @@ contract Vault is IVault, Instance {
         UFixed6 maxRedeemAssets = context.strategy.maxRedeem(
             context.registrations,
             context.totalWeight,
-            UFixed6Lib.from(_collateral(context).max(Fixed6Lib.ZERO))
+            UFixed6Lib.unsafeFrom(_collateral(context))
         );
         UFixed6 maxRedeemShares = maxRedeemAssets.eq(UFixed6Lib.MAX) ?
             UFixed6Lib.MAX :
@@ -511,7 +511,7 @@ contract Vault is IVault, Instance {
             Position memory currentAccountPosition = context.registrations[marketId].market
                 .pendingPositions(address(this), mappingAtId.get(marketId));
             value = value.add(currentAccountPosition.collateral);
-            fee = fee.add(currentAccountPosition.fee.max(Fixed6Lib.ZERO).abs()); // Maker fee cannot be negative as of v2.1
+            fee = fee.add(UFixed6Lib.unsafeFrom(currentAccountPosition.fee)); // Maker fee cannot be negative as of v2.1
             keeper = keeper.add(currentAccountPosition.keeper);
         }
     }
