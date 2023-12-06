@@ -146,7 +146,7 @@ library CheckpointLib {
     /// @param assets Number of assets to convert to shares
     /// @return Amount of shares for the given assets at checkpoint
     function _toShares(Checkpoint memory self, UFixed6 assets) private pure returns (UFixed6) {
-        UFixed6 selfAssets = UFixed6Lib.from(self.assets.max(Fixed6Lib.ZERO));
+        UFixed6 selfAssets = UFixed6Lib.unsafeFrom(self.assets);
         return _withSpread(self, assets.muldiv(self.shares, selfAssets));
     }
 
@@ -154,7 +154,7 @@ library CheckpointLib {
     /// @param shares Number of shares to convert to shares
     /// @return Amount of assets for the given shares at checkpoint
     function _toAssets(Checkpoint memory self, UFixed6 shares) private pure returns (UFixed6) {
-        UFixed6 selfAssets = UFixed6Lib.from(self.assets.max(Fixed6Lib.ZERO));
+        UFixed6 selfAssets = UFixed6Lib.unsafeFrom(self.assets);
         return _withSpread(self, shares.muldiv(selfAssets, self.shares));
     }
 
@@ -162,12 +162,12 @@ library CheckpointLib {
     /// @param self The checkpoint to apply the spread to
     /// @param amount The amount to apply the spread to
     function _withSpread(Checkpoint memory self, UFixed6 amount) private pure returns (UFixed6) {
-        UFixed6 selfAssets = UFixed6Lib.from(self.assets.max(Fixed6Lib.ZERO));
+        UFixed6 selfAssets = UFixed6Lib.unsafeFrom(self.assets);
         UFixed6 totalAmount = self.deposit.add(self.redemption.muldiv(selfAssets, self.shares));
 
         return totalAmount.isZero() ?
             amount :
-            amount.muldiv(totalAmount.sub(self.fee.min(totalAmount)), totalAmount);
+            amount.muldiv(totalAmount.unsafeSub(self.fee), totalAmount);
     }
 
     /// @notice Applies the fixed settlement fee to a given amount in the global context
@@ -192,7 +192,7 @@ library CheckpointLib {
     /// @param keeper The amount of settlement fee to deduct
     /// @return The amount with the settlement fee
     function _withoutKeeper(UFixed6 amount, UFixed6 keeper) private pure returns (UFixed6) {
-        return amount.sub(keeper.min(amount));
+        return amount.unsafeSub(keeper);
     }
 
     /// @notice Returns if the checkpoint is healthy

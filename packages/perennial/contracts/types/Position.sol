@@ -369,7 +369,7 @@ library PositionLib {
         RiskParameter memory riskParameter,
         Fixed6 collateral
     ) internal pure returns (bool) {
-        return collateral.max(Fixed6Lib.ZERO).gte(Fixed6Lib.from(maintenance(positionMagnitude, latestVersion, riskParameter)));
+        return UFixed6Lib.unsafeFrom(collateral).gte(maintenance(positionMagnitude, latestVersion, riskParameter));
     }
 
     /// @notice Returns the whether the position is margined
@@ -385,7 +385,7 @@ library PositionLib {
         RiskParameter memory riskParameter,
         Fixed6 collateral
     ) internal pure returns (bool) {
-        return collateral.max(Fixed6Lib.ZERO).gte(Fixed6Lib.from(margin(positionMagnitude, latestVersion, riskParameter)));
+        return UFixed6Lib.unsafeFrom(collateral).gte(margin(positionMagnitude, latestVersion, riskParameter));
     }
 
     /// @notice Returns the whether the position is maintained
