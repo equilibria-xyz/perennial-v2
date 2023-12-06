@@ -205,6 +205,7 @@ library CheckpointLib {
 }
 
 library CheckpointStorageLib {
+    // sig: 0xba85116a
     error CheckpointStorageInvalidError();
 
     function read(CheckpointStorage storage self) internal view returns (Checkpoint memory) {
