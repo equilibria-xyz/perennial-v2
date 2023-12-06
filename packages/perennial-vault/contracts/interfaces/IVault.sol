@@ -45,22 +45,38 @@ interface IVault is IInstance {
     event ParameterUpdated(VaultParameter newParameter);
     event Updated(address indexed sender, address indexed account, uint256 version, UFixed6 depositAssets, UFixed6 redeemShares, UFixed6 claimAssets);
 
+    // sig: 0xa9785d3d
     error VaultDepositLimitExceededError();
+    // sig: 0xc85650f7
     error VaultRedemptionLimitExceededError();
+    // sig: 0xe4b29524
     error VaultExistingOrderError();
+    // sig: 0x499943cd
     error VaultMarketExistsError();
+    // sig: 0x04467fe8
     error VaultMarketDoesNotExistError();
+    // sig: 0x7c04a019
     error VaultNotMarketError();
+    // sig: 0xaddc4c0d
     error VaultIncorrectAssetError();
+    // sig: 0x7eb267c7
     error VaultNotOperatorError();
+    // sig: 0xa65ac9fb
     error VaultNotSingleSidedError();
+    // sig: 0xa65ac9fb
     error VaultInsufficientMinimumError();
 
+    // sig: 0xb8a09499
     error AccountStorageInvalidError();
+    // sig: 0xba85116a
     error CheckpointStorageInvalidError();
+    // sig: 0xf003e2c3
     error MappingStorageInvalidError();
+    // sig: 0x92f03c86
     error RegistrationStorageInvalidError();
+    // sig: 0x0f9f8b19
     error VaultParameterStorageInvalidError();
+    // sig: 0x9c8507ac
     error StrategyLibInsufficientMarginError();
 
     function initialize(Token18 asset, IMarket initialMaker, UFixed6 cap, string calldata name_) external;

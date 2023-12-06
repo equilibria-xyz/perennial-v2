@@ -55,8 +55,8 @@ library MappingLib {
         if (index < self._ids.length) id = self._ids[index];
     }
 
-    /// @notice Returns whether the latest mapping is ready to be settled based on this mapping
-    /// @dev The latest mapping is ready to be settled when all ids in this mapping are greater than the latest mapping
+    /// @notice Returns whether the mapping is ready to be settled based on latest mapping
+    /// @dev This mapping is ready to be settled when all ids in the latest mapping have caught up to this mapping
     /// @param self The mapping to query
     /// @param latestMapping The latest mapping
     /// @return Whether the mapping is ready to be settled
@@ -79,6 +79,7 @@ library MappingLib {
 }
 
 library MappingStorageLib {
+    // sig: 0xf003e2c3
     error MappingStorageInvalidError();
 
     function read(MappingStorage storage self) internal view returns (Mapping memory) {

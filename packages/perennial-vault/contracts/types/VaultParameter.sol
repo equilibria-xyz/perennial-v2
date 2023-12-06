@@ -17,6 +17,7 @@ struct VaultParameterStorage { StoredVaultParameter value; }
 using VaultParameterStorageLib for VaultParameterStorage global;
 
 library VaultParameterStorageLib {
+    // sig: 0x0f9f8b19
     error VaultParameterStorageInvalidError();
 
     function read(VaultParameterStorage storage self) internal view returns (VaultParameter memory) {

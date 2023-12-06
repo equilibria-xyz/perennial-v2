@@ -91,6 +91,7 @@ contract OracleFactory is IOracleFactory, Factory {
     }
 
     /// @notice Updates the maximum amount of tokens that can be rewarded in a single price update
+    /// @param newMaxClaim The new maximum amount
     function updateMaxClaim(UFixed6 newMaxClaim) external onlyOwner {
         maxClaim = newMaxClaim;
         emit MaxClaimUpdated(newMaxClaim);

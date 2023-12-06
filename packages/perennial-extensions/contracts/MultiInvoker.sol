@@ -372,12 +372,10 @@ contract MultiInvoker is IMultiInvoker, Kept {
         }
     }
 
-    /**
-     * @notice executes an `account's` open order for a `market` and pays a fee to `msg.sender`
-     * @param account Account to execute order of
-     * @param market Market to execute order for
-     * @param nonce Id of open order to index
-     */
+    /// @notice executes an `account's` open order for a `market` and pays a fee to `msg.sender`
+    /// @param account Account to execute order of
+    /// @param market Market to execute order for
+    /// @param nonce Id of open order to index
     function _executeOrder(address account, IMarket market, uint256 nonce) internal {
         if (!canExecuteOrder(account, market, nonce)) revert MultiInvokerCantExecuteError();
 
@@ -408,6 +406,9 @@ contract MultiInvoker is IMultiInvoker, Kept {
     }
 
     /// @notice Handles paying out keeper reward for an order exection
+    /// @param account Account to pay keeper reward to
+    /// @param market Market to pay keeper reward for
+    /// @param fee Keeper fee to pay
     function _handleKeep(address account, IMarket market, UFixed6 fee)
         private
         keep(
@@ -482,5 +483,4 @@ contract MultiInvoker is IMultiInvoker, Kept {
             revert MultiInvokerInvalidInstanceError();
         _;
     }
-
 }

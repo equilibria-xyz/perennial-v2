@@ -26,6 +26,7 @@ struct RegistrationStorage { StoredRegistration value; }
 using RegistrationStorageLib for RegistrationStorage global;
 
 library RegistrationStorageLib {
+    // sig: 0x92f03c86
     error RegistrationStorageInvalidError();
 
     function read(RegistrationStorage storage self) internal view returns (Registration memory) {
