@@ -154,6 +154,8 @@ library PositionLib {
     }
 
     // @notice Adjusts the position if any invalidations have occurred
+    /// @param self The position object to update
+    /// @param latestPosition The latest settled position from which to compare invalidation accumualtors
     function adjust(Position memory self, Position memory latestPosition) internal pure {
         Invalidation memory invalidation = latestPosition.invalidation.sub(self.invalidation);
         (self.maker, self.long, self.short) = (

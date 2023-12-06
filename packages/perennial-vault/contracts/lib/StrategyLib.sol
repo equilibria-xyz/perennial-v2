@@ -71,12 +71,21 @@ library StrategyLib {
         UFixed6 totalMargin;
     }
 
+    /// @notice Loads the strategy context of each of the underlying markets
+    /// @param registrations The registrations of the underlying markets
+    /// @return strategy The strategy contexts of the vault
     function load(Registration[] memory registrations) internal view returns (Strategy memory strategy) {
         strategy.marketContexts = new MarketStrategyContext[](registrations.length);
         for (uint256 marketId; marketId < registrations.length; marketId++)
             strategy.marketContexts[marketId] = _loadContext(registrations[marketId]);
     }
 
+    /// @notice Compute the maximum amount of collateral that can be redeemed
+    /// @param strategy The strategy context of the vault
+    /// @param registrations The registrations of the underlying markets
+    /// @param totalWeight The total weight of all markets
+    /// @param collateral The amount of collateral currently in the vault
+    /// @return redemptionAssets The maximum amount of collateral that can be redeemed
     function maxRedeem(
         Strategy memory strategy,
         Registration[] memory registrations,
@@ -130,6 +139,12 @@ library StrategyLib {
         }
     }
 
+    /// @notice Compute the target allocation for each market
+    /// @dev Internal helper that does not enforce position limits
+    /// @param strategy The strategy of the vault
+    /// @param registrations The registrations of the markets
+    /// @param collateral The amount of collateral to allocate
+    /// @param assets The amount of collateral that is eligible for positions
     function _allocate(
         Strategy memory strategy,
         Registration[] memory registrations,

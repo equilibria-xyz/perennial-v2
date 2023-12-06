@@ -16,6 +16,7 @@ contract PayoffFactory is IPayoffFactory, Factory {
     }
 
     /// @notice Registers a new payoff provider
+    /// @param payoff The payoff provider to register
     function register(IPayoffProvider payoff) external onlyOwner {
         _register(IInstance(address(payoff)));
     }
