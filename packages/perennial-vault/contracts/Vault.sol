@@ -487,7 +487,7 @@ contract Vault is IVault, Instance {
         UFixed6 maxRedeemAssets = context.strategy.maxRedeem(
             context.registrations,
             context.totalWeight,
-            UFixed6Lib.unsafeFrom(_collateral(context))
+            UFixed6Lib.unsafeFrom(context.totalCollateral)
         );
         UFixed6 maxRedeemShares = maxRedeemAssets.eq(UFixed6Lib.MAX) ?
             UFixed6Lib.MAX :
