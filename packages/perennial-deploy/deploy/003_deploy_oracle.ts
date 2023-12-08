@@ -18,6 +18,9 @@ export const ORACLE_IDS: { [key: string]: { [asset: string]: string } } = {
     sol: '0xfe650f0367d4a7ef9815a593ea15d36593f0643aaaf0149bb04be67ab851decd', // Pyth: SOL
     matic: '0xd2c2c1f2bba8e0964f9589e060c2ee97f5e19057267ac3284caef3bd50bd2cb5', // Pyth: MATIC
   },
+  arbitrumSepolia: {
+    eth: '0xff61491a931112ddf1bd8147cd1b641375f79f5825126d665480874634fd0ace', // Pyth: ETH
+  },
 }
 
 const DEFAULT_MAX_CLAIM_AMOUNT = utils.parseUnits('25', 6)
@@ -49,13 +52,17 @@ const func: DeployFunction = async function (hre: HardhatRuntimeEnvironment) {
   })
 
   // Deploy Oracle Factory
-  const oracleFactoryInterface = new ethers.utils.Interface(['function initialize(address)'])
+  const oracleFactoryInterface = OracleFactory__factory.createInterface()
   await deploy('OracleFactory', {
     contract: 'TransparentUpgradeableProxy',
     args: [
       (await get('OracleFactoryImpl')).address,
       proxyAdmin.address,
-      oracleFactoryInterface.encodeFunctionData('initialize', [(await get('DSU')).address]),
+      oracleFactoryInterface.encodeFunctionData('initialize', [
+        (await get('DSU')).address,
+        (await get('USDC')).address,
+        (await get('DSUReserve')).address,
+      ]),
     ],
     from: deployer,
     skipIfAlreadyDeployed: true,
@@ -66,9 +73,9 @@ const func: DeployFunction = async function (hre: HardhatRuntimeEnvironment) {
 
   // Deploy Pyth Implementations
   const pythFactoryContract = isArbitrum(getNetworkName()) ? 'PythFactory_Arbitrum' : 'PythFactory_Optimism'
-  await deploy('PythOracleImpl', {
-    contract: 'PythOracle',
-    args: [(await get('Pyth')).address],
+  await deploy('KeeperOracleImpl', {
+    contract: 'KeeperOracle',
+    args: [60],
     from: deployer,
     skipIfAlreadyDeployed: true,
     log: true,
@@ -77,9 +84,23 @@ const func: DeployFunction = async function (hre: HardhatRuntimeEnvironment) {
   await deploy('PythFactoryImpl', {
     contract: pythFactoryContract,
     args: [
-      (await get('PythOracleImpl')).address,
-      (await get('ChainlinkETHUSDFeed')).address,
-      (await get('DSU')).address,
+      (await get('Pyth')).address,
+      (await get('KeeperOracleImpl')).address,
+      4,
+      12,
+      {
+        multiplierBase: ethers.utils.parseEther('1'),
+        bufferBase: 100_000,
+        multiplierCalldata: 0,
+        bufferCalldata: 0,
+      },
+      {
+        multiplierBase: ethers.utils.parseEther('1'),
+        bufferBase: 100_000,
+        multiplierCalldata: 0,
+        bufferCalldata: 0,
+      },
+      100_000,
     ],
     from: deployer,
     skipIfAlreadyDeployed: true,
@@ -88,13 +109,17 @@ const func: DeployFunction = async function (hre: HardhatRuntimeEnvironment) {
   })
 
   // Deploy Pyth Factory
-  const pythFactoryInterface = new ethers.utils.Interface(['function initialize(address)'])
+  const pythFactoryInterface = PythFactory__factory.createInterface()
   await deploy('PythFactory', {
     contract: 'TransparentUpgradeableProxy',
     args: [
       (await get('PythFactoryImpl')).address,
       proxyAdmin.address,
-      pythFactoryInterface.encodeFunctionData('initialize', [(await get('OracleFactory')).address]),
+      pythFactoryInterface.encodeFunctionData('initialize', [
+        (await get('OracleFactory')).address,
+        (await get('ChainlinkETHUSDFeed')).address,
+        (await get('DSU')).address,
+      ]),
     ],
     from: deployer,
     skipIfAlreadyDeployed: true,
@@ -122,6 +147,8 @@ const func: DeployFunction = async function (hre: HardhatRuntimeEnvironment) {
   if (!oracleIDs) throw new Error('No oracle IDs for network')
   for (const id of Object.values(oracleIDs)) {
     if ((await pythFactory.oracles(id)).toLowerCase() === ethers.constants.AddressZero.toLowerCase()) {
+      process.stdout.write(`Associating pyth oracle id ${id}...`)
+      await (await pythFactory.associate(id, id)).wait()
       process.stdout.write(`Creating pyth oracle ${id}...`)
       const address = await pythFactory.callStatic.create(id)
       process.stdout.write(`deploying at ${address}...`)

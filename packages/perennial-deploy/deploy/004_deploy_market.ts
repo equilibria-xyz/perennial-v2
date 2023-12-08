@@ -83,6 +83,7 @@ const MARKETS: { [key: string]: string[][] } = {
     [ORACLE_IDS.arbitrumGoerli.sol, ''], // SOL / None
     [ORACLE_IDS.arbitrumGoerli.matic, ''], // MATIC / None
   ],
+  arbitrumSepolia: [[ORACLE_IDS.arbitrumSepolia.eth, '']], // ETH / None
 }
 
 const func: DeployFunction = async function (hre: HardhatRuntimeEnvironment) {
