@@ -169,7 +169,13 @@ abstract contract KeeperFactory is IKeeperFactory, Factory, Kept {
             if (IKeeperOracle(address(oracles[ids[i]])).commit(OracleVersion(version, prices[i], valid)))
                 numRequested++;
 
-        if (numRequested != 0) _handleCommitKeep(numRequested);
+        if (numRequested != 0) _handleKeeperReward(
+            commitKeepConfig(numRequested),
+            0,
+            msg.data[0:0],
+            _applicableValue(numRequested, data),
+            ""
+        );
     }
 
     /// @notice Returns the keep config for commit
@@ -201,32 +207,26 @@ abstract contract KeeperFactory is IKeeperFactory, Factory, Kept {
     /// @param maxCounts The list of maximum number of settlement callbacks to perform before exiting
     function settle(bytes32[] memory ids, IMarket[] memory markets, uint256[] memory versions, uint256[] memory maxCounts)
         external
-        keep(settleKeepConfig(), msg.data, 0, "")
+        keep(settleKeepConfig(), abi.encode(ids, markets, versions, maxCounts), 0, "")
     {
         if (
             ids.length == 0 ||
             ids.length != markets.length ||
             ids.length != versions.length ||
-            ids.length != maxCounts.length ||
-            abi.encodeCall(KeeperFactory.settle, (ids, markets, versions, maxCounts)).length != msg.data.length // Prevent calldata stuffing
-        )
-            revert KeeperFactoryInvalidSettleError();
+            ids.length != maxCounts.length
+        ) revert KeeperFactoryInvalidSettleError();
 
         for (uint256 i; i < ids.length; i++)
             IKeeperOracle(address(oracles[ids[i]])).settle(markets[i], versions[i], maxCounts[i]);
     }
 
-    /// @notice Handles paying the keeper requested for given number of requested updates
-    /// @param numRequested Number of requested price updates
-    function _handleCommitKeep(uint256 numRequested)
-        internal virtual
-        keep(commitKeepConfig(numRequested), msg.data[0:0], 0, "")
-    { }
-
     /// @notice Pulls funds from the factory to award the keeper
     /// @param keeperFee The keeper fee to pull
-    function _raiseKeeperFee(UFixed18 keeperFee, bytes memory) internal virtual override {
-        oracleFactory.claim(UFixed6Lib.from(keeperFee, true));
+    /// @return The keeper fee that was raised
+    function _raiseKeeperFee(UFixed18 keeperFee, bytes memory) internal virtual override returns (UFixed18) {
+        UFixed6 raisedKeeperFee = UFixed6Lib.from(keeperFee, true).max(oracleFactory.maxClaim());
+        oracleFactory.claim(raisedKeeperFee);
+        return UFixed18Lib.from(raisedKeeperFee);
     }
 
     /// @notice Returns the granularity
@@ -259,6 +259,14 @@ abstract contract KeeperFactory is IKeeperFactory, Factory, Kept {
         IFactory callerFactory = callerInstance.factory();
         if (!callerFactory.instances(callerInstance)) return false;
         return callers[callerFactory];
+    }
+
+    /// @notice Returns the applicable value for the keeper fee
+    /// @param numRequested The number of requested price commits
+    /// @param data The price commit update data
+    /// @return The applicable value for the keeper fee
+    function _applicableValue(uint256 numRequested, bytes memory data) internal view virtual returns (uint256) {
+        return 0;
     }
 
     /// @notice Validates and parses the update data payload against the specified version

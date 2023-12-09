@@ -138,10 +138,10 @@
   dependencies:
     "@openzeppelin/contracts" "4.6.0"
 
-"@equilibria/root@2.2.0-rc0":
-  version "2.2.0-rc0"
-  resolved "https://registry.yarnpkg.com/@equilibria/root/-/root-2.2.0-rc0.tgz#d9a2f42a30687a4d22e08b911baef6d752133629"
-  integrity sha512-45pmil20UxggFTHYMeZ0ar3ttSLQpqu6XhQGEV7JcnXNOS3jjOGkcesfNM8CF0gOqGaF7jzHvMbpua/eQRMokQ==
+"@equilibria/root@2.2.0-rc2":
+  version "2.2.0-rc2"
+  resolved "https://registry.yarnpkg.com/@equilibria/root/-/root-2.2.0-rc2.tgz#72ab86f57b334a0b8495aa3ca6328a06db5172a9"
+  integrity sha512-CkXw/XfZ7Sa0l1L1mUqbGzLP2sZ09morwxPJxkUhfO8J9H7Pg2hX9p1eSxcEfioV00VbMNo45MgXYGJAil8bvg==
   dependencies:
     "@openzeppelin/contracts" "4.6.0"
 
