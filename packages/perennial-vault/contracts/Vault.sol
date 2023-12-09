@@ -410,9 +410,11 @@ contract Vault is IVault, Instance {
 
         return redemptionEligable
             // approximate assets up for redemption
-            .mul(context.global.shares.unsafeDiv(context.global.shares.add(context.global.redemption)))
-            // deploy assets up for deposit
-            .add(context.global.deposit);
+            .mul(context.global.redemption.unsafeDiv(context.global.shares.add(context.global.redemption)))
+            // assets pending claim
+            .add(context.global.assets)
+            // assets withdrawing
+            .add(withdrawal);
     }
 
     /// @notice Adjusts the position on `market` to `targetPosition`
@@ -484,11 +486,7 @@ contract Vault is IVault, Instance {
     /// @return redemptionAmount Maximum available redemption amount
     function _maxRedeem(Context memory context) private pure returns (UFixed6) {
         if (context.latestCheckpoint.unhealthy()) return UFixed6Lib.ZERO;
-        UFixed6 maxRedeemAssets = context.strategy.maxRedeem(
-            context.registrations,
-            context.totalWeight,
-            UFixed6Lib.unsafeFrom(context.totalCollateral)
-        );
+        UFixed6 maxRedeemAssets = context.strategy.maxRedeem(context.registrations, context.totalWeight);
         UFixed6 maxRedeemShares = maxRedeemAssets.eq(UFixed6Lib.MAX) ?
             UFixed6Lib.MAX :
             context.latestCheckpoint.toShares(maxRedeemAssets, UFixed6Lib.ZERO);
