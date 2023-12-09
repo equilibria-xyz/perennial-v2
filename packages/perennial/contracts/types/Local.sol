@@ -20,9 +20,6 @@ struct Local {
     /// @dev The collateral balance
     Fixed6 collateral;
 
-    /// @dev The reward balance
-    UFixed6 reward;
-
     /// @dev The timestamp of the latest protection
     uint256 protection;
 
@@ -64,12 +61,8 @@ library LocalLib {
         collateralAmount = toVersion.makerValue.accumulated(fromVersion.makerValue, fromPosition.maker)
             .add(toVersion.longValue.accumulated(fromVersion.longValue, fromPosition.long))
             .add(toVersion.shortValue.accumulated(fromVersion.shortValue, fromPosition.short));
-        rewardAmount = toVersion.makerReward.accumulated(fromVersion.makerReward, fromPosition.maker)
-            .add(toVersion.longReward.accumulated(fromVersion.longReward, fromPosition.long))
-            .add(toVersion.shortReward.accumulated(fromVersion.shortReward, fromPosition.short));
 
         self.collateral = self.collateral.add(collateralAmount);
-        self.reward = self.reward.add(rewardAmount);
         self.latestId = latestId;
     }
 
@@ -108,12 +101,6 @@ library LocalLib {
         (self.protection, self.protectionAmount, self.protectionInitiator) =
             (currentTimestamp, newOrder.liquidationFee(latestVersion, riskParameter), initiator);
         return true;
-    }
-
-    /// @notice Clears the local's reward value
-    /// @param self The Local object to update
-    function clearReward(Local memory self) internal pure {
-        self.reward = UFixed6Lib.ZERO;
     }
 
     /// @notice Processes the account's protection if it is valid
@@ -155,11 +142,11 @@ library LocalLib {
 ///
 ///     struct StoredLocal {
 ///         /* slot 0 */
-///         uint32 currentId;   // <= 4.29b
-///         uint32 latestId;    // <= 4.29b
-///         int64 collateral;   // <= 9.22t
-///         uint64 reward;      // <= 18.44t
-///         uint32 protection;  // <= 4.29b
+///         uint32 currentId;       // <= 4.29b
+///         uint32 latestId;        // <= 4.29b
+///         int64 collateral;       // <= 9.22t
+///         uint64 __unallocated__;
+///         uint32 protection;      // <= 4.29b
 ///
 ///         /* slot 1 */
 ///         address protectionInitiator;    
@@ -176,7 +163,6 @@ library LocalStorageLib {
             uint256(slot0 << (256 - 32)) >> (256 - 32),
             uint256(slot0 << (256 - 32 - 32)) >> (256 - 32),
             Fixed6.wrap(int256(slot0 << (256 - 32 - 32 - 64)) >> (256 - 64)),
-            UFixed6.wrap(uint256(slot0 << (256 - 32 - 32 - 64 - 64)) >> (256 - 64)),
             (uint256(slot0) << (256 - 32 - 32 - 64 - 64 - 32)) >> (256 - 32),
             address(uint160(uint256(slot1 << (256 - 160)) >> (256 - 160))),
             UFixed6.wrap(uint256(slot1 << (256 - 160 - 64)) >> (256 - 64))
@@ -188,7 +174,6 @@ library LocalStorageLib {
         if (newValue.latestId > uint256(type(uint32).max)) revert LocalStorageInvalidError();
         if (newValue.collateral.gt(Fixed6.wrap(type(int64).max))) revert LocalStorageInvalidError();
         if (newValue.collateral.lt(Fixed6.wrap(type(int64).min))) revert LocalStorageInvalidError();
-        if (newValue.reward.gt(UFixed6.wrap(type(uint64).max))) revert LocalStorageInvalidError();
         if (newValue.protection > uint256(type(uint32).max)) revert LocalStorageInvalidError();
         if (newValue.protectionAmount.gt(UFixed6.wrap(type(uint64).max))) revert LocalStorageInvalidError();
 
@@ -196,7 +181,6 @@ library LocalStorageLib {
             uint256(newValue.currentId << (256 - 32)) >> (256 - 32) |
             uint256(newValue.latestId << (256 - 32)) >> (256 - 32 - 32) |
             uint256(Fixed6.unwrap(newValue.collateral) << (256 - 64)) >> (256 - 32 - 32 - 64) |
-            uint256(UFixed6.unwrap(newValue.reward) << (256 - 64)) >> (256 - 32 - 32 - 64 - 64) |
             uint256(newValue.protection << (256 - 32)) >> (256 - 32 - 32 - 64 - 64 - 32);
         uint256 encoded1 =
             uint256(uint256(uint160(newValue.protectionInitiator)) << (256 - 160)) >> (256 - 160) |

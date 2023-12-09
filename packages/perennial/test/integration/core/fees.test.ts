@@ -102,7 +102,6 @@ describe('Fees', () => {
         currentId: 2,
         latestId: 1,
         collateral: COLLATERAL.sub(expectedMakerFee),
-        reward: 0,
         protection: 0,
       })
       expectPositionEq(await market.pendingPositions(user.address, 2), {
@@ -177,7 +176,6 @@ describe('Fees', () => {
         currentId: 3,
         latestId: 2,
         collateral: COLLATERAL.sub(expectedMakerFee.div(2)), // Maker gets part of their fee refunded since they were an exisiting maker
-        reward: 0,
         protection: 0,
       })
       expectPositionEq(await market.pendingPositions(user.address, 3), {
@@ -273,7 +271,6 @@ describe('Fees', () => {
         currentId: 2,
         latestId: 1,
         collateral: COLLATERAL.sub(expectedPositionFee),
-        reward: 0,
         protection: 0,
       })
       expectPositionEq(await market.pendingPositions(userB.address, 2), {
@@ -354,7 +351,6 @@ describe('Fees', () => {
         currentId: 2,
         latestId: 1,
         collateral: COLLATERAL.sub(expectedPositionFee),
-        reward: 0,
         protection: 0,
       })
       expectPositionEq(await market.pendingPositions(userB.address, 2), {
@@ -383,7 +379,6 @@ describe('Fees', () => {
         currentId: 3,
         latestId: 2,
         collateral: COLLATERAL.add(expectedMakerFee),
-        reward: 0,
         protection: 0,
       })
       expectPositionEq(await market.pendingPositions(user.address, 3), {
@@ -481,7 +476,6 @@ describe('Fees', () => {
         currentId: 3,
         latestId: 2,
         collateral: COLLATERAL.sub(expectedPositionFee),
-        reward: 0,
         protection: 0,
       })
       expectPositionEq(await market.pendingPositions(userB.address, 3), {
@@ -508,7 +502,6 @@ describe('Fees', () => {
         currentId: 3,
         latestId: 2,
         collateral: COLLATERAL.add(expectedMakerFee),
-        reward: 0,
         protection: 0,
       })
       expectPositionEq(await market.pendingPositions(user.address, 3), {
@@ -584,7 +577,6 @@ describe('Fees', () => {
         currentId: 2,
         latestId: 1,
         collateral: COLLATERAL.sub(expectedPositionFee),
-        reward: 0,
         protection: 0,
       })
       expectPositionEq(await market.pendingPositions(userB.address, 2), {
@@ -665,7 +657,6 @@ describe('Fees', () => {
         currentId: 2,
         latestId: 1,
         collateral: COLLATERAL.sub(expectedPositionFee),
-        reward: 0,
         protection: 0,
       })
       expectPositionEq(await market.pendingPositions(userB.address, 2), {
@@ -694,7 +685,6 @@ describe('Fees', () => {
         currentId: 3,
         latestId: 2,
         collateral: COLLATERAL.add(expectedMakerFee),
-        reward: 0,
         protection: 0,
       })
       expectPositionEq(await market.pendingPositions(user.address, 3), {
@@ -792,7 +782,6 @@ describe('Fees', () => {
         currentId: 3,
         latestId: 2,
         collateral: COLLATERAL.sub(expectedPositionFee),
-        reward: 0,
         protection: 0,
       })
       expectPositionEq(await market.pendingPositions(userB.address, 3), {
@@ -819,7 +808,6 @@ describe('Fees', () => {
         currentId: 3,
         latestId: 2,
         collateral: COLLATERAL.add(expectedMakerFee),
-        reward: 0,
         protection: 0,
       })
       expectPositionEq(await market.pendingPositions(user.address, 3), {

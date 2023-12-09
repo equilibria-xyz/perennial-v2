@@ -32,15 +32,6 @@ struct MarketParameter {
     /// @dev The maximum amount of orders that can be pending at one time per account
     uint256 maxPendingLocal;
 
-    /// @dev The rate at which the makers receives rewards (share / sec)
-    UFixed6 makerRewardRate;
-
-    /// @dev The rate at which the longs receives rewards (share / sec)
-    UFixed6 longRewardRate;
-
-    /// @dev The rate at which the shorts receives rewards (share / sec)
-    UFixed6 shortRewardRate;
-
     /// @dev The fixed fee that is charge whenever an oracle request occurs
     UFixed6 settlementFee;
 
@@ -53,7 +44,7 @@ struct MarketParameter {
     /// @dev Whether the market is in close-only mode
     bool closed;
 }
-struct MarketParameterStorage { uint256 slot0; uint256 slot1; }
+struct MarketParameterStorage { uint256 slot0; }
 using MarketParameterStorageLib for MarketParameterStorage global;
 
 /// @dev Manually encodes and decodes the MarketParameter struct into storage.
@@ -69,11 +60,6 @@ using MarketParameterStorageLib for MarketParameterStorage global;
 ///        uint16 maxPendingLocal;     // <= 65k
 ///        uint48 settlementFee;       // <= 281m
 ///        uint8 flags;
-///
-///        /* slot 1 */
-///        uint40 makerRewardRate;     // <= 281m / s
-///        uint40 longRewardRate;      // <= 281m / s
-///        uint40 shortRewardRate;     // <= 281m / s
 ///    }
 ///
 library MarketParameterStorageLib {
@@ -81,7 +67,7 @@ library MarketParameterStorageLib {
     error MarketParameterStorageInvalidError();
 
     function read(MarketParameterStorage storage self) external view returns (MarketParameter memory) {
-        (uint256 slot0, uint256 slot1) = (self.slot0, self.slot1);
+        uint256 slot0 = self.slot0;
 
         uint256 flags = uint256(slot0) >> (256 - 8);
         (bool takerCloseAlways, bool makerCloseAlways, bool closed) =
@@ -95,9 +81,6 @@ library MarketParameterStorageLib {
             UFixed6.wrap(uint256(slot0 << (256 - 24 - 24 - 24 - 24 - 24)) >> (256 - 24)),
             uint256(slot0 << (256 - 24 - 24 - 24 - 24 - 24 - 16)) >> (256 - 16),
             uint256(slot0 << (256 - 24 - 24 - 24 - 24 - 24 - 16 - 16)) >> (256 - 16),
-            UFixed6.wrap(uint256(slot1 << (256 - 40)) >> (256 - 40)),
-            UFixed6.wrap(uint256(slot1 << (256 - 40 - 40)) >> (256 - 40)),
-            UFixed6.wrap(uint256(slot1 << (256 - 40 - 40 - 40)) >> (256 - 40)),
             UFixed6.wrap(uint256(slot0 << (256 - 24 - 24 - 24 - 24 - 24 - 16 - 16 - 48)) >> (256 - 48)),
             takerCloseAlways,
             makerCloseAlways,
@@ -107,8 +90,7 @@ library MarketParameterStorageLib {
 
     function validate(
         MarketParameter memory self,
-        ProtocolParameter memory protocolParameter,
-        Token18 reward
+        ProtocolParameter memory protocolParameter
     ) public pure {
         if (self.settlementFee.gt(protocolParameter.maxFeeAbsolute)) revert MarketParameterStorageInvalidError();
 
@@ -116,26 +98,17 @@ library MarketParameterStorageLib {
             revert MarketParameterStorageInvalidError();
 
         if (self.oracleFee.add(self.riskFee).gt(UFixed6Lib.ONE)) revert MarketParameterStorageInvalidError();
-
-        if (
-            reward.isZero() &&
-            (!self.makerRewardRate.isZero() || !self.longRewardRate.isZero() || !self.shortRewardRate.isZero())
-        ) revert MarketParameterStorageInvalidError();
     }
 
     function validateAndStore(
         MarketParameterStorage storage self,
         MarketParameter memory newValue,
-        ProtocolParameter memory protocolParameter,
-        Token18 reward
+        ProtocolParameter memory protocolParameter
     ) external {
-        validate(newValue, protocolParameter, reward);
+        validate(newValue, protocolParameter);
 
         if (newValue.maxPendingGlobal > uint256(type(uint16).max)) revert MarketParameterStorageInvalidError();
         if (newValue.maxPendingLocal > uint256(type(uint16).max)) revert MarketParameterStorageInvalidError();
-        if (newValue.makerRewardRate.gt(UFixed6.wrap(type(uint40).max))) revert MarketParameterStorageInvalidError();
-        if (newValue.longRewardRate.gt(UFixed6.wrap(type(uint40).max))) revert MarketParameterStorageInvalidError();
-        if (newValue.shortRewardRate.gt(UFixed6.wrap(type(uint40).max))) revert MarketParameterStorageInvalidError();
 
         _store(self, newValue);
     }
@@ -155,14 +128,9 @@ library MarketParameterStorageLib {
             uint256(newValue.maxPendingLocal << (256 - 16)) >> (256 - 24 - 24 - 24 - 24 - 24 - 16 - 16) |
             uint256(UFixed6.unwrap(newValue.settlementFee) << (256 - 48)) >> (256 - 24 - 24 - 24 - 24 - 24 - 16 - 16 - 48) |
             uint256(flags << (256 - 8)) >> (256 - 24 - 24 - 24 - 24 - 24 - 32 - 32 - 32 - 32 - 8);
-        uint256 encoded1 =
-            uint256(UFixed6.unwrap(newValue.makerRewardRate) << (256 - 40)) >> (256 - 40) |
-            uint256(UFixed6.unwrap(newValue.longRewardRate) << (256 - 40)) >> (256 - 40 - 40) |
-            uint256(UFixed6.unwrap(newValue.shortRewardRate) << (256 - 40)) >> (256 - 40 - 40 - 40);
 
         assembly {
             sstore(self.slot, encoded0)
-            sstore(add(self.slot, 1), encoded1)
         }
     }
 }

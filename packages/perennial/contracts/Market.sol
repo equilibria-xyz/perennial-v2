@@ -17,8 +17,8 @@ contract Market is IMarket, Instance, ReentrancyGuard {
     /// @dev The underlying token that the market settles in
     Token18 public token;
 
-    /// @dev The token that incentive rewards are paid in
-    Token18 private _reward;
+    /// @dev DEPRECATED SLOT -- previously the reward token
+    bytes32 private __unused__;
 
     /// @dev The oracle that provides the market price
     IOracleProvider public oracle;
@@ -106,7 +106,7 @@ contract Market is IMarket, Instance, ReentrancyGuard {
         coordinator = newCoordinator;
         emit CoordinatorUpdated(newCoordinator);
 
-        _parameter.validateAndStore(newParameter, IMarketFactory(address(factory())).parameter(), _reward);
+        _parameter.validateAndStore(newParameter, IMarketFactory(address(factory())).parameter());
         emit ParameterUpdated(newParameter);
     }
 
