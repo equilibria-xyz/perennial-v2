@@ -102,11 +102,11 @@ library StrategyLib {
             (UFixed6 minPosition, ) = _positionLimit(marketContext);
             UFixed6 availableClosable = targets[marketId].position.sub(minPosition.min(targets[marketId].position));
 
-            if (availableClosable.gte(marketContext.currentAccountPosition.maker)) continue;        // entire position can be closed, don't limit in cases of price deviation
+            if (minPosition.isZero()) continue; // entire position can be closed, don't limit in cases of price deviation
 
             redemptionAssets = availableClosable
-                .muldiv(marketContext.latestPrice.abs(), registration.leverage)                     // available collateral
-                .muldiv(totalWeight, registration.weight)                                           // collateral in market
+                .muldiv(marketContext.latestPrice.abs(), registration.leverage) // available collateral
+                .muldiv(totalWeight, registration.weight)                       // collateral in market
                 .min(redemptionAssets);
         }
     }
