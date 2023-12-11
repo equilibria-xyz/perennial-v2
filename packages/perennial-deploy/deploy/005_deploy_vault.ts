@@ -35,6 +35,10 @@ const VAULTS: { [key: string]: { [key: string]: string[][] } } = {
       [ORACLE_IDS.arbitrumGoerli.matic, ''], // MATIC / None
     ],
   },
+  arbitrumSepolia: {
+    AsterVault: [[ORACLE_IDS.arbitrumSepolia.eth, '']], // ETH / None
+    BegoniaVault: [[ORACLE_IDS.arbitrumSepolia.eth, '']], // ETH / None
+  },
 }
 
 const INITIAL_AMOUNT = BigNumber.from('5000000') // 5 DSU
@@ -45,7 +49,7 @@ const func: DeployFunction = async function (hre: HardhatRuntimeEnvironment) {
   const { deployer } = await getNamedAccounts()
   const labsMultisig = getLabsMultisig(getNetworkName())
   const deployerSigner: SignerWithAddress = await ethers.getSigner(deployer)
-  const deployVaults = true
+  const deployVaults = false
 
   const dsu = IERC20__factory.connect((await get('DSU')).address, deployerSigner)
   const proxyAdmin = new ProxyAdmin__factory(deployerSigner).attach((await get('ProxyAdmin')).address)
