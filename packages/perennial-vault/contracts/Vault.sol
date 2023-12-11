@@ -211,7 +211,7 @@ contract Vault is IVault, Instance {
         Context memory context = _loadContext(account);
 
         _settle(context, account);
-        _manage(context, UFixed6Lib.ZERO, false);
+        _manage(context, UFixed6Lib.ZERO, UFixed6Lib.ZERO, false);
         _saveContext(context, account);
     }
 
@@ -241,7 +241,7 @@ contract Vault is IVault, Instance {
         context.currentId = context.global.current;
         if (_mappings[context.currentId].read().next(context.currentIds)) {
             context.currentId++;
-            context.currentCheckpoint.initialize(context.global, asset.balanceOf());
+            context.currentCheckpoint.initialize(context.global);
             _mappings[context.currentId].store(context.currentIds);
         } else {
             context.currentCheckpoint = _checkpoints[context.currentId].read();
@@ -293,7 +293,7 @@ contract Vault is IVault, Instance {
 
         // manage assets
         asset.pull(msg.sender, UFixed18Lib.from(depositAssets));
-        _manage(context, claimAmount, true);
+        _manage(context, depositAssets, claimAmount, true);
         asset.push(msg.sender, UFixed18Lib.from(claimAmount));
 
         emit Updated(msg.sender, account, context.currentId, depositAssets, redeemShares, claimAssets);
@@ -309,11 +309,13 @@ contract Vault is IVault, Instance {
         UFixed6 depositAssets,
         UFixed6 redeemShares,
         UFixed6 claimAssets
-    ) private view returns (UFixed6 claimAmount) {
-        UFixed6 totalCollateral = UFixed6Lib.unsafeFrom(_collateral(context));
+    ) private pure returns (UFixed6 claimAmount) {
         claimAmount = context.global.assets.isZero() ?
             UFixed6Lib.ZERO :
-            claimAssets.muldiv(totalCollateral.min(context.global.assets), context.global.assets);
+            claimAssets.muldiv(
+                UFixed6Lib.unsafeFrom(context.totalCollateral).min(context.global.assets),
+                context.global.assets
+            );
 
         if (depositAssets.isZero() && redeemShares.isZero()) claimAmount = claimAmount.sub(context.settlementFee);
     }
@@ -373,18 +375,18 @@ contract Vault is IVault, Instance {
     }
 
     /// @notice Manages the internal collateral and position strategy of the vault
-    /// @param withdrawAmount The amount of assets that need to be withdrawn from the markets into the vault
+    /// @param deposit The amount of assets that are being deposited into the vault
+    /// @param withdrawal The amount of assets that need to be withdrawn from the markets into the vault
     /// @param rebalance Whether to rebalance the vault's position
-    function _manage(Context memory context, UFixed6 withdrawAmount, bool rebalance) private {
-        (Fixed6 collateral, UFixed6 assets) = _treasury(context, withdrawAmount);
-
+    function _manage(Context memory context, UFixed6 deposit, UFixed6 withdrawal, bool rebalance) private {
         // for now, skip all rebalancing if we cannot rebalance the position
-        if (!rebalance || collateral.lt(Fixed6Lib.ZERO)) return;
+        if (!rebalance || context.totalCollateral.lt(Fixed6Lib.ZERO)) return;
 
         StrategyLib.MarketTarget[] memory targets = context.strategy.allocate(
             context.registrations,
-            UFixed6Lib.unsafeFrom(collateral),
-            assets
+            deposit,
+            withdrawal,
+            _ineligable(context, withdrawal)
         );
 
         for (uint256 marketId; marketId < context.registrations.length; marketId++)
@@ -395,20 +397,24 @@ contract Vault is IVault, Instance {
                 _retarget(context.registrations[marketId], targets[marketId]);
     }
 
-    /// @notice Returns the amount of collateral and assets in the vault
+    /// @notice Returns the amount of collateral is ineligable for allocation
     /// @param context The context to use
-    /// @param withdrawAmount The amount of assets that need to be withdrawn from the markets into the vault
-    function _treasury(Context memory context, UFixed6 withdrawAmount) private view returns (Fixed6 collateral, UFixed6 assets) {
-        collateral = _collateral(context).sub(Fixed6Lib.from(withdrawAmount));
+    /// @param withdrawal The amount of assets that need to be withdrawn from the markets into the vault
+    /// @return The amount of assets that are ineligable from being allocated
+    function _ineligable(Context memory context, UFixed6 withdrawal) private pure returns (UFixed6) {
+        // assets eligable for redemption
+        UFixed6 redemptionEligable = UFixed6Lib.unsafeFrom(context.totalCollateral)
+            .unsafeSub(withdrawal)
+            .unsafeSub(context.global.assets)
+            .unsafeSub(context.global.deposit);
 
-        // collateral currently deployed
-        Fixed6 liabilities = Fixed6Lib.from(context.global.assets.add(context.global.deposit));
-        // net assets
-        assets = UFixed6Lib.unsafeFrom(collateral.sub(liabilities))
+        return redemptionEligable
             // approximate assets up for redemption
-            .mul(context.global.shares.unsafeDiv(context.global.shares.add(context.global.redemption)))
-            // deploy assets up for deposit
-            .add(context.global.deposit);
+            .mul(context.global.redemption.unsafeDiv(context.global.shares.add(context.global.redemption)))
+            // assets pending claim
+            .add(context.global.assets)
+            // assets withdrawing
+            .add(withdrawal);
     }
 
     /// @notice Adjusts the position on `market` to `targetPosition`
@@ -449,6 +455,7 @@ contract Vault is IVault, Instance {
             context.latestIds.update(marketId, local.latestId);
             context.currentIds.update(marketId, local.currentId);
             context.collaterals[marketId] = local.collateral;
+            context.totalCollateral = context.totalCollateral.add(local.collateral);
         }
 
         if (account != address(0)) context.local = _accounts[account].read();
@@ -477,26 +484,14 @@ contract Vault is IVault, Instance {
     /// @notice The maximum available redemption amount for `account`
     /// @param context Context to use
     /// @return redemptionAmount Maximum available redemption amount
-    function _maxRedeem(Context memory context) private view returns (UFixed6) {
+    function _maxRedeem(Context memory context) private pure returns (UFixed6) {
         if (context.latestCheckpoint.unhealthy()) return UFixed6Lib.ZERO;
-        UFixed6 maxRedeemAssets = context.strategy.maxRedeem(
-            context.registrations,
-            context.totalWeight,
-            UFixed6Lib.unsafeFrom(_collateral(context))
-        );
+        UFixed6 maxRedeemAssets = context.strategy.maxRedeem(context.registrations, context.totalWeight);
         UFixed6 maxRedeemShares = maxRedeemAssets.eq(UFixed6Lib.MAX) ?
             UFixed6Lib.MAX :
             context.latestCheckpoint.toShares(maxRedeemAssets, UFixed6Lib.ZERO);
 
         return maxRedeemShares.min(context.local.shares);
-    }
-
-    /// @notice Returns the real amount of collateral in the vault
-    /// @return value The real amount of collateral in the vault
-    function _collateral(Context memory context) public view returns (Fixed6 value) {
-        value = Fixed6Lib.from(UFixed6Lib.from(asset.balanceOf()));
-        for (uint256 marketId; marketId < context.registrations.length; marketId++)
-            value = value.add(context.collaterals[marketId]);
     }
 
     /// @notice Returns the collateral and fee information for the vault at position

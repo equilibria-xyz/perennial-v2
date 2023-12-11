@@ -14,10 +14,10 @@ contract CheckpointTester {
         return checkpoint.read();
     }
 
-    function initialize(Account memory global, UFixed18 balance) external {
+    function initialize(Account memory global) external {
         Checkpoint memory newCheckpoint = checkpoint.read();
 
-        newCheckpoint.initialize(global, balance);
+        newCheckpoint.initialize(global);
 
         checkpoint.store(newCheckpoint);
     }

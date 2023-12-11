@@ -218,25 +218,12 @@ describe('Checkpoint', () => {
     it('sets the checkpoint', async () => {
       await checkpoint.store(VALID_CHECKPOINT)
 
-      await checkpoint.initialize(VALID_ACCOUNT, 158e12)
+      await checkpoint.initialize(VALID_ACCOUNT)
 
       const value = await checkpoint.read()
 
       expect(value.shares).to.equal(3)
-      expect(value.assets).to.equal(149)
-    })
-
-    context('negative assets', () => {
-      it('sets the checkpoint', async () => {
-        await checkpoint.store(VALID_CHECKPOINT)
-
-        await checkpoint.initialize(VALID_ACCOUNT, 0)
-
-        const value = await checkpoint.read()
-
-        expect(value.shares).to.equal(3)
-        expect(value.assets).to.equal(-9)
-      })
+      expect(value.assets).to.equal(-9)
     })
   })
 

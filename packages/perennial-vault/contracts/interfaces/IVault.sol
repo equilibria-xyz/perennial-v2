@@ -24,6 +24,7 @@ interface IVault is IInstance {
         uint256 currentId;
         Registration[] registrations;
         Fixed6[] collaterals;
+        Fixed6 totalCollateral;
         Mapping currentIds;
         Mapping latestIds;
 
