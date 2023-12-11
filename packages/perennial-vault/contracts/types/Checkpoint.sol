@@ -51,12 +51,8 @@ library CheckpointLib {
     /// @dev Saves the current shares, and the assets + liabilities in the vault itself (not in the markets)
     /// @param self The checkpoint to initialize
     /// @param global The global account
-    /// @param balance The balance of the vault
-    function initialize(Checkpoint memory self, Account memory global, UFixed18 balance) internal pure {
-        (self.shares, self.assets) = (
-            global.shares,
-            Fixed6Lib.from(UFixed6Lib.from(balance)).sub(Fixed6Lib.from(global.deposit.add(global.assets)))
-        );
+    function initialize(Checkpoint memory self, Account memory global) internal pure {
+        (self.shares, self.assets) = (global.shares, Fixed6Lib.from(-1, global.deposit.add(global.assets)));
     }
 
     /// @notice Updates the checkpoint with a new deposit or redemption
