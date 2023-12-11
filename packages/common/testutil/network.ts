@@ -6,6 +6,7 @@ export const ALL_CHAINS = [
   'goerli',
   'optimismGoerli',
   'arbitrumGoerli',
+  'arbitrumSepolia',
   'baseGoerli',
   'hardhat',
   'localhost',
@@ -15,10 +16,16 @@ export type SupportedChains = typeof ALL_CHAINS
 export type SupportedChain = SupportedChains[number]
 
 export const MAINNETS: SupportedChain[] = ['mainnet', 'arbitrum', 'optimism', 'base']
-export const TESTNETS: SupportedChain[] = ['goerli', 'arbitrumGoerli', 'optimismGoerli', 'baseGoerli']
+export const TESTNETS: SupportedChain[] = [
+  'goerli',
+  'arbitrumGoerli',
+  'optimismGoerli',
+  'baseGoerli',
+  'arbitrumSepolia',
+]
 export const DEVNETS: SupportedChain[] = ['hardhat', 'localhost']
 export const ETHEREUM_NETS: SupportedChain[] = ['mainnet', 'goerli']
-export const ARBITRUM_NETS: SupportedChain[] = ['arbitrum', 'arbitrumGoerli']
+export const ARBITRUM_NETS: SupportedChain[] = ['arbitrum', 'arbitrumGoerli', 'arbitrumSepolia']
 export const OPTIMISM_NETS: SupportedChain[] = ['optimism', 'optimismGoerli']
 export const BASE_NETS: SupportedChain[] = ['base', 'baseGoerli']
 
@@ -43,6 +50,8 @@ export function getChainId(networkName: string): number {
       return 420
     case 'arbitrumGoerli':
       return 421613
+    case 'arbitrumSepolia':
+      return 421614
     case 'baseGoerli':
       return 84531
     case 'hardhat':

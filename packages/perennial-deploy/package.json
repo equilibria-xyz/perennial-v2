@@ -28,6 +28,8 @@
     "prepack": "yarn clean && yarn build && find artifacts/contracts -name '*.dbg.json' -type f -delete",
     "node:fork:arbitrumGoerli": "FORK_ENABLED=true FORK_NETWORK=arbitrumGoerli NODE_INTERVAL_MINING=250 hardhat node",
     "deploy:fork:arbitrumGoerli": "OPTIMIZER_ENABLED=true FORK_ENABLED=true FORK_NETWORK=arbitrumGoerli hardhat deploy --network localhost",
+    "node:fork:arbitrumSepolia": "FORK_ENABLED=true FORK_NETWORK=arbitrumSepolia NODE_INTERVAL_MINING=250 hardhat node",
+    "deploy:fork:arbitrumSepolia": "OPTIMIZER_ENABLED=true FORK_ENABLED=true FORK_NETWORK=arbitrumSepolia hardhat deploy --network localhost",
     "node:fork:arbitrum": "FORK_ENABLED=true FORK_NETWORK=arbitrum NODE_INTERVAL_MINING=250 hardhat node",
     "deploy:fork:arbitrum": "OPTIMIZER_ENABLED=true  FORK_ENABLED=true FORK_NETWORK=arbitrum hardhat deploy --network localhost"
   },
