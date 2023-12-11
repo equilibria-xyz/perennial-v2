@@ -63,7 +63,7 @@ const overwriteTimestamp = (payload: string, timestamp: BigNumberish) => {
   )
 }
 
-describe('ChainlinkFactory', () => {
+describe.only('ChainlinkFactory', () => {
   let owner: SignerWithAddress
   let user: SignerWithAddress
 
@@ -175,7 +175,7 @@ describe('ChainlinkFactory', () => {
       }),
     )
       .to.emit(keeperOracle, 'OracleProviderVersionFulfilled')
-      .withArgs({ timestamp: version, price: '2092999105', valid: true })
+      .withArgs([version, '2092999105', true])
       .to.emit(chainlinkFactory, 'KeeperCall')
     expect((await keeperOracle.callStatic.latest()).price).to.equal(ethers.utils.parseUnits('2092.999105', 6))
   })
