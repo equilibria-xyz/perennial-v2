@@ -377,7 +377,7 @@ contract MultiInvoker is IMultiInvoker, Kept {
 
         TriggerOrder memory order = orders(account, market, nonce);
         // Pay out keeper fee based on static gas buffer
-        _handleKeeperReward(
+        _handleKeeperFee(
             KeepConfig(
                 UFixed18Lib.ZERO,
                 keepBufferBase,
