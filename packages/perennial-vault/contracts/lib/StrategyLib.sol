@@ -69,6 +69,8 @@ library StrategyLib {
         UFixed6 minAssets;
         uint256 totalWeight;
         UFixed6 totalMargin;
+        Fixed6 totalCollateral;
+        UFixed6 totalDeployed;
     }
 
     /// @notice Loads the strategy context of each of the underlying markets
@@ -84,16 +86,20 @@ library StrategyLib {
     /// @param strategy The strategy context of the vault
     /// @param registrations The registrations of the underlying markets
     /// @param totalWeight The total weight of all markets
-    /// @param collateral The amount of collateral currently in the vault
     /// @return redemptionAssets The maximum amount of collateral that can be redeemed
     function maxRedeem(
         Strategy memory strategy,
         Registration[] memory registrations,
-        uint256 totalWeight,
-        UFixed6 collateral
+        uint256 totalWeight
     ) internal pure returns (UFixed6 redemptionAssets) {
         redemptionAssets = UFixed6Lib.MAX;
-        MarketTarget[] memory targets = _allocate(strategy, registrations, collateral, collateral);
+        MarketTarget[] memory targets = _allocate(
+            strategy,
+            registrations,
+            UFixed6Lib.ZERO,
+            UFixed6Lib.ZERO,
+            UFixed6Lib.ZERO
+        );
 
         for (uint256 marketId; marketId < strategy.marketContexts.length; marketId++) {
             MarketStrategyContext memory marketContext = strategy.marketContexts[marketId];
@@ -123,15 +129,17 @@ library StrategyLib {
     /// @notice Compute the target allocation for each market
     /// @param strategy The strategy of the vault
     /// @param registrations The registrations of the markets
-    /// @param collateral The amount of collateral to allocate
-    /// @param assets The amount of collateral that is eligible for positions
+    /// @param deposit The amount of assets that are being deposited into the vault
+    /// @param withdrawal The amount of assets to make available for withdrawal
+    /// @param ineligable The amount of assets that are inapplicable for allocation
     function allocate(
         Strategy memory strategy,
         Registration[] memory registrations,
-        UFixed6 collateral,
-        UFixed6 assets
+        UFixed6 deposit,
+        UFixed6 withdrawal,
+        UFixed6 ineligable
     ) internal pure returns (MarketTarget[] memory targets) {
-        targets = _allocate(strategy, registrations, collateral, assets);
+        targets = _allocate(strategy, registrations, deposit, withdrawal, ineligable);
 
         for (uint256 marketId; marketId < registrations.length; marketId++) {
             (UFixed6 minPosition, UFixed6 maxPosition) = _positionLimit(strategy.marketContexts[marketId]);
@@ -143,16 +151,23 @@ library StrategyLib {
     /// @dev Internal helper that does not enforce position limits
     /// @param strategy The strategy of the vault
     /// @param registrations The registrations of the markets
-    /// @param collateral The amount of collateral to allocate
-    /// @param assets The amount of collateral that is eligible for positions
+    /// @param deposit The amount of assets that are being deposited into the vault
+    /// @param withdrawal The amount of assets to make available for withdrawal
+    /// @param ineligable The amount of assets that are inapplicable for allocation
     function _allocate(
         Strategy memory strategy,
         Registration[] memory registrations,
-        UFixed6 collateral,
-        UFixed6 assets
+        UFixed6 deposit,
+        UFixed6 withdrawal,
+        UFixed6 ineligable
     ) private pure returns (MarketTarget[] memory targets) {
         _AllocateLocals memory _locals;
-        (_locals.totalWeight, _locals.totalMargin) = _aggregate(registrations, strategy.marketContexts);
+        (_locals.totalWeight, _locals.totalMargin, _locals.totalCollateral) =
+            _aggregate(registrations, strategy.marketContexts);
+
+        // TODO: revert if not enough collateral to redeem / get rid of maxRedeem check
+        UFixed6 collateral = UFixed6Lib.unsafeFrom(_locals.totalCollateral).add(deposit).unsafeSub(withdrawal);
+        UFixed6 assets = collateral.unsafeSub(ineligable);
 
         if (collateral.lt(_locals.totalMargin)) revert StrategyLibInsufficientMarginError();
 
@@ -161,6 +176,8 @@ library StrategyLib {
 
             _locals.marketCollateral = strategy.marketContexts[marketId].margin
                 .add(collateral.sub(_locals.totalMargin).muldiv(registrations[marketId].weight, _locals.totalWeight));
+
+            _locals.totalDeployed = _locals.totalDeployed.add(_locals.marketCollateral);
 
             _locals.marketAssets = assets
                 .unsafeSub(strategy.marketContexts[marketId].pendingFee)
@@ -178,6 +195,8 @@ library StrategyLib {
                     .muldiv(registrations[marketId].leverage, strategy.marketContexts[marketId].latestPrice.abs())
             );
         }
+
+        targets[0].collateral = targets[0].collateral.add(Fixed6Lib.from(collateral.sub(_locals.totalDeployed)));
     }
 
     /// @notice Load the context of a market
@@ -245,10 +264,11 @@ library StrategyLib {
     function _aggregate(
         Registration[] memory registrations,
         MarketStrategyContext[] memory marketContexts
-    ) private pure returns (uint256 totalWeight, UFixed6 totalMargin) {
+    ) private pure returns (uint256 totalWeight, UFixed6 totalMargin, Fixed6 totalCollateral) {
         for (uint256 marketId; marketId < registrations.length; marketId++) {
             totalWeight += registrations[marketId].weight;
             totalMargin = totalMargin.add(marketContexts[marketId].margin);
+            totalCollateral = totalCollateral.add(marketContexts[marketId].local.collateral);
         }
     }
 

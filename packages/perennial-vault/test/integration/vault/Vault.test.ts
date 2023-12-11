@@ -902,7 +902,8 @@ describe('Vault', () => {
       await vault.connect(user).update(user.address, oddDepositAmount, 0, 0)
       await updateOracle()
       await vault.settle(user.address)
-      expect(await asset.balanceOf(vault.address)).to.equal(1e12)
+      expect(await asset.balanceOf(vault.address)).to.equal(0) // deposits everything into markets
+      expect((await collateralInVault()).add(await btcCollateralInVault())).to.equal(oddDepositAmount)
 
       await vault.connect(user).update(user.address, oddDepositAmount, 0, 0)
       await updateOracle()
@@ -1124,9 +1125,9 @@ describe('Vault', () => {
         await btcMarket.pendingPositions(vault.address, (await btcMarket.locals(vault.address)).currentId.sub(1))
       ).fee
 
-      const unclaimed1 = BigNumber.from('992142699')
-      const unclaimed2 = BigNumber.from('9923301967')
-      const finalTotalAssets = BigNumber.from('39840038') // last position fee
+      const unclaimed1 = BigNumber.from('992142736')
+      const unclaimed2 = BigNumber.from('9923301933')
+      const finalTotalAssets = BigNumber.from('39840074') // last position fee
       expect(await totalCollateralInVault()).to.equal(unclaimed1.add(unclaimed2).mul(1e12))
       expect((await vault.accounts(user.address)).shares).to.equal(0)
       expect((await vault.accounts(user2.address)).shares).to.equal(0)
@@ -1240,9 +1241,9 @@ describe('Vault', () => {
         await btcMarket.pendingPositions(vault.address, (await btcMarket.locals(vault.address)).currentId.sub(1))
       ).keeper
 
-      const unclaimed1 = BigNumber.from('988141833')
-      const unclaimed2 = BigNumber.from('9919317811')
-      const finalTotalAssets = BigNumber.from('41832055') // last position fee + keeper
+      const unclaimed1 = BigNumber.from('988141867')
+      const unclaimed2 = BigNumber.from('9919317780')
+      const finalTotalAssets = BigNumber.from('41832089') // last position fee + keeper
       expect(await totalCollateralInVault()).to.equal(unclaimed1.add(unclaimed2).mul(1e12))
       expect((await vault.accounts(user.address)).shares).to.equal(0)
       expect((await vault.accounts(user2.address)).shares).to.equal(0)
@@ -1529,7 +1530,7 @@ describe('Vault', () => {
           await vault.settle(user.address)
 
           const finalPosition = BigNumber.from('103114684')
-          const finalCollateral = BigNumber.from('73949280168')
+          const finalCollateral = BigNumber.from('73949280169')
           const btcFinalPosition = BigNumber.from('1006709')
           const btcFinalCollateral = BigNumber.from('10486559512')
           expect(await position()).to.equal(finalPosition)
@@ -1569,7 +1570,7 @@ describe('Vault', () => {
           await vault.settle(user.address)
 
           const finalPosition = BigNumber.from('65131685')
-          const finalCollateral = BigNumber.from('49068161452')
+          const finalCollateral = BigNumber.from('49068161453')
           const btcFinalPosition = BigNumber.from('255976')
           const btcFinalCollateral = BigNumber.from('4266279833')
           expect(await position()).to.equal(finalPosition)
@@ -1624,7 +1625,7 @@ describe('Vault', () => {
           await vault.settle(user.address)
 
           const finalPosition = BigNumber.from('98136381')
-          const finalCollateral = BigNumber.from('70689216964')
+          const finalCollateral = BigNumber.from('70689216965')
           const btcFinalPosition = BigNumber.from('2321109')
           const btcFinalCollateral = BigNumber.from('9671288559')
           expect(await position()).to.equal(finalPosition)
@@ -1663,7 +1664,7 @@ describe('Vault', () => {
           await vault.settle(user.address)
 
           const finalPosition = BigNumber.from('97121779')
-          const finalCollateral = BigNumber.from('70024591953')
+          const finalCollateral = BigNumber.from('70024591954')
           const btcFinalPosition = BigNumber.from('2401296')
           const btcFinalCollateral = BigNumber.from('9505132306')
           expect(await position()).to.equal(finalPosition)
@@ -1701,7 +1702,7 @@ describe('Vault', () => {
 
         // 5. Vault should no longer have enough collateral to cover claims, pro-rata claim should be enabled
         const finalPosition = BigNumber.from('0')
-        const finalCollateral = BigNumber.from('4700653858')
+        const finalCollateral = BigNumber.from('4700653859')
         const btcFinalPosition = BigNumber.from('0')
         const btcFinalCollateral = BigNumber.from('2775492943')
         const finalUnclaimed = BigNumber.from('80001128624')
