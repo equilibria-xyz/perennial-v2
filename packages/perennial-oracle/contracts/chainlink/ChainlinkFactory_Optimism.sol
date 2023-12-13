@@ -5,10 +5,10 @@ import "@equilibria/root/attribute/Kept/Kept_Optimism.sol";
 import "./ChainlinkFactory.sol";
 import "../keeper/KeeperFactory.sol";
 
-/// @title PythFactory_Optimism
-/// @notice Optimism Kept Oracle implementation for Pyth price feeds.
+/// @title ChainlinkFactory_Optimism
+/// @notice Optimism Kept Oracle implementation for Chainlink price feeds.
 /// @dev Additionally incentivizes keepers with L1 rollup fees according to the Optimism spec
-contract PythFactory_Optimism is ChainlinkFactory, Kept_Optimism {
+contract ChainlinkFactory_Optimism is ChainlinkFactory, Kept_Optimism {
     constructor(
         IVerifierProxy chainlink_,
         IFeeManager feeManager_,
