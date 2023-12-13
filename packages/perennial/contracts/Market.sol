@@ -502,7 +502,7 @@ contract Market is IMarket, Instance, ReentrancyGuard {
         if (!version.valid) context.latestPosition.local.invalidate(newPosition);
 
         (uint256 fromTimestamp, uint256 fromId) = (context.latestPosition.local.timestamp, context.local.latestId);
-        (accumulationResult.collateralAmount, accumulationResult.rewardAmount) = context.local.accumulatePnl(
+        accumulationResult.collateralAmount = context.local.accumulatePnl(
             newPositionId,
             context.latestPosition.local,
             _versions[context.latestPosition.local.timestamp].read(),

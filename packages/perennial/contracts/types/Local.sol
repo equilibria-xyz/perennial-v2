@@ -50,14 +50,13 @@ library LocalLib {
     /// @param fromVersion The previous latest version
     /// @param toVersion The next latest version
     /// @return collateralAmount The resulting collateral change
-    /// @return rewardAmount The resulting reward change
     function accumulatePnl(
         Local memory self,
         uint256 latestId,
         Position memory fromPosition,
         Version memory fromVersion,
         Version memory toVersion
-    ) internal pure returns (Fixed6 collateralAmount, UFixed6 rewardAmount) {
+    ) internal pure returns (Fixed6 collateralAmount) {
         collateralAmount = toVersion.makerValue.accumulated(fromVersion.makerValue, fromPosition.maker)
             .add(toVersion.longValue.accumulated(fromVersion.longValue, fromPosition.long))
             .add(toVersion.shortValue.accumulated(fromVersion.shortValue, fromPosition.short));

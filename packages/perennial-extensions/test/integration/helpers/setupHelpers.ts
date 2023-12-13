@@ -177,6 +177,7 @@ export async function deployProtocol(chainlinkContext?: ChainlinkContext): Promi
   await fundWallet(dsu, usdc, userC)
   await fundWallet(dsu, usdc, userD)
   const usdcHolder = await impersonate.impersonateWithBalance(USDC_HOLDER, utils.parseEther('10'))
+  await fundWalletUSDC(usdc, user)
 
   return {
     owner,

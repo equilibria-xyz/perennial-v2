@@ -61,7 +61,7 @@ describe('MarketParameter', () => {
 
   describe('#store', () => {
     it('stores a new value', async () => {
-      await marketParameter.validateAndStore(VALID_MARKET_PARAMETER, PROTOCOL_PARAMETER, marketParameter.address)
+      await marketParameter.validateAndStore(VALID_MARKET_PARAMETER, PROTOCOL_PARAMETER)
 
       const value = await marketParameter.read()
       expect(value.fundingFee).to.equal(1)
@@ -294,7 +294,6 @@ describe('MarketParameter', () => {
               maxPendingLocal: BigNumber.from(2).pow(16),
             },
             PROTOCOL_PARAMETER,
-            marketParameter.address,
           ),
         ).to.be.revertedWithCustomError(marketParameterStorage, 'MarketParameterStorageInvalidError')
       })
