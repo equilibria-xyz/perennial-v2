@@ -1468,6 +1468,12 @@ describe('Vault', () => {
 
       const deposit3 = parse6decimal('100')
       await expect(vault.connect(user).update(user.address, deposit3, 0, 0)).to.be.reverted
+
+      const deposit4 = parse6decimal('50').add(1)
+      await expect(vault.connect(user).update(user.address, deposit4, 0, 0)).to.be.reverted
+
+      const deposit5 = parse6decimal('50')
+      await expect(vault.connect(user).update(user.address, deposit5, 0, 0)).to.not.be.reverted
     })
 
     it('reverts when paused', async () => {
