@@ -224,7 +224,7 @@ abstract contract KeeperFactory is IKeeperFactory, Factory, Kept {
     /// @param keeperFee The keeper fee to pull
     /// @return The keeper fee that was raised
     function _raiseKeeperFee(UFixed18 keeperFee, bytes memory) internal virtual override returns (UFixed18) {
-        UFixed6 raisedKeeperFee = UFixed6Lib.from(keeperFee, true).max(oracleFactory.maxClaim());
+        UFixed6 raisedKeeperFee = UFixed6Lib.from(keeperFee, true).min(oracleFactory.maxClaim());
         oracleFactory.claim(raisedKeeperFee);
         return UFixed18Lib.from(raisedKeeperFee);
     }

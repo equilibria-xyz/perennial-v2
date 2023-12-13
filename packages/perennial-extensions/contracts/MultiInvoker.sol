@@ -411,9 +411,9 @@ contract MultiInvoker is IMultiInvoker, Kept {
         emit OrderExecuted(account, market, nonce);
     }
 
-    /// @notice Handles paying out keeper reward for an order exection
-    /// @param account Account to pay keeper reward to
-    /// @param market Market to pay keeper reward for
+    /// @notice Handles paying out keeper fee for an order exection
+    /// @param account Account to pay keeper fee to
+    /// @param market Market to pay keeper fee for
     /// @param fee Keeper fee to pay
     function _handleKeep(address account, IMarket market, UFixed6 fee)
         private
