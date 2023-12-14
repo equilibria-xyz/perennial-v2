@@ -36,13 +36,6 @@ using LocalLib for Local global;
 struct LocalStorage { uint256 slot0; uint256 slot1; }
 using LocalStorageLib for LocalStorage global;
 
-struct LocalAccumulationResult {
-    Fixed6 collateralAmount;
-    UFixed6 rewardAmount;
-    Fixed6 positionFee;
-    UFixed6 keeper;
-}
-
 /// @title Local
 /// @notice Holds the local account state
 library LocalLib {
@@ -53,34 +46,47 @@ library LocalLib {
         self.collateral = self.collateral.add(collateral);
     }
 
-    /// @notice Settled the local from its latest position to next position
+    /// @notice Accumulate pnl from the latest position to next position
     /// @param self The Local object to update
+    /// @param latestId The latest position id
     /// @param fromPosition The previous latest position
-    /// @param toPosition The next latest position
     /// @param fromVersion The previous latest version
     /// @param toVersion The next latest version
-    /// @return values The accumulation result
-    function accumulate(
+    /// @return collateralAmount The resulting collateral change
+    /// @return rewardAmount The resulting reward change
+    function accumulatePnl(
         Local memory self,
         uint256 latestId,
         Position memory fromPosition,
-        Position memory toPosition,
         Version memory fromVersion,
         Version memory toVersion
-    ) internal pure returns (LocalAccumulationResult memory values) {
-        values.collateralAmount = toVersion.makerValue.accumulated(fromVersion.makerValue, fromPosition.maker)
+    ) internal pure returns (Fixed6 collateralAmount, UFixed6 rewardAmount) {
+        collateralAmount = toVersion.makerValue.accumulated(fromVersion.makerValue, fromPosition.maker)
             .add(toVersion.longValue.accumulated(fromVersion.longValue, fromPosition.long))
             .add(toVersion.shortValue.accumulated(fromVersion.shortValue, fromPosition.short));
-        values.rewardAmount = toVersion.makerReward.accumulated(fromVersion.makerReward, fromPosition.maker)
+        rewardAmount = toVersion.makerReward.accumulated(fromVersion.makerReward, fromPosition.maker)
             .add(toVersion.longReward.accumulated(fromVersion.longReward, fromPosition.long))
             .add(toVersion.shortReward.accumulated(fromVersion.shortReward, fromPosition.short));
-        values.positionFee = toPosition.fee;
-        values.keeper = toPosition.keeper;
 
-        Fixed6 feeAmount = values.positionFee.add(Fixed6Lib.from(values.keeper));
-        self.collateral = self.collateral.add(values.collateralAmount).sub(feeAmount);
-        self.reward = self.reward.add(values.rewardAmount);
+        self.collateral = self.collateral.add(collateralAmount);
+        self.reward = self.reward.add(rewardAmount);
         self.latestId = latestId;
+    }
+
+    /// @notice Accumulate fees from the latest position to next position
+    /// @param self The Local object to update
+    /// @param toPosition The next latest position
+    /// @return positionFee The resulting position fee
+    /// @return keeper The resulting keeper fee
+    function accumulateFees(
+        Local memory self,
+        Position memory toPosition
+    ) internal pure returns (Fixed6 positionFee, UFixed6 keeper) {
+        positionFee = toPosition.fee;
+        keeper = toPosition.keeper;
+
+        Fixed6 feeAmount = positionFee.add(Fixed6Lib.from(keeper));
+        self.collateral = self.collateral.sub(feeAmount);
     }
 
     /// @notice Updates the Local to put it into a protected state for liquidation

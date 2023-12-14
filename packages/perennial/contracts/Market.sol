@@ -275,9 +275,9 @@ contract Market is IMarket, Instance, ReentrancyGuard {
     /// @param collateral The collateral to process
     /// @return The resulting collateral value
     function _processCollateralMagicValue(Context memory context, Fixed6 collateral) private pure returns (Fixed6) {
-        if (collateral.eq(MAGIC_VALUE_WITHDRAW_ALL_COLLATERAL))
-            return context.local.collateral.mul(Fixed6Lib.NEG_ONE);
-        return collateral;
+        return collateral.eq(MAGIC_VALUE_WITHDRAW_ALL_COLLATERAL) ?
+            context.local.collateral.mul(Fixed6Lib.NEG_ONE) :
+            collateral;
     }
 
     /// @notice Modifies the position input per magic values
@@ -405,6 +405,7 @@ contract Market is IMarket, Instance, ReentrancyGuard {
     function _settle(Context memory context, address account) private {
         context.latestPosition.global = _position.read();
         context.latestPosition.local = _positions[account].read();
+        context.currentPosition.local = _pendingPositions[account][context.local.currentId].read(); // load for collateral checkpoint
 
         Position memory nextPosition;
 
@@ -419,11 +420,7 @@ contract Market is IMarket, Instance, ReentrancyGuard {
             context.local.currentId != context.local.latestId &&
             (nextPosition = _loadPendingPositionLocal(context, account, context.local.latestId + 1))
                 .ready(context.latestVersion)
-        ) {
-            Fixed6 previousDelta = _pendingPositions[account][context.local.latestId].read().delta;
-            _processPositionLocal(context, account, context.local.latestId + 1, nextPosition);
-            _checkpointCollateral(context, account, previousDelta, nextPosition);
-        }
+        ) _processPositionLocal(context, account, context.local.latestId + 1, nextPosition, true);
 
         // sync
         if (context.latestVersion.timestamp > context.latestPosition.global.timestamp) {
@@ -435,7 +432,7 @@ contract Market is IMarket, Instance, ReentrancyGuard {
         if (context.latestVersion.timestamp > context.latestPosition.local.timestamp) {
             nextPosition = _loadPendingPositionLocal(context, account, context.local.latestId);
             nextPosition.sync(context.latestVersion);
-            _processPositionLocal(context, account, context.local.latestId, nextPosition);
+            _processPositionLocal(context, account, context.local.latestId, nextPosition, false);
         }
 
         // overwrite latestPrice if invalid
@@ -443,27 +440,6 @@ contract Market is IMarket, Instance, ReentrancyGuard {
 
         _position.store(context.latestPosition.global);
         _positions[account].store(context.latestPosition.local);
-    }
-
-    /// @notice Places a collateral checkpoint for the account on the given pending position
-    /// @param context The context to use
-    /// @param account The account to checkpoint for
-    /// @param previousDelta The previous pending position's delta value
-    /// @param nextPosition The next pending position
-    function _checkpointCollateral(
-        Context memory context,
-        address account,
-        Fixed6 previousDelta,
-        Position memory nextPosition
-    ) private {
-        Position memory latestAccountPosition = _pendingPositions[account][context.local.latestId].read();
-        Position memory currentAccountPosition = _pendingPositions[account][context.local.currentId].read();
-        latestAccountPosition.collateral = context.local.collateral
-            .sub(currentAccountPosition.delta.sub(previousDelta))                       // deposits happen after snapshot point
-            .add(nextPosition.fee)                                                      // position fee happens after snapshot point
-            .add(Fixed6Lib.from(nextPosition.keeper))                                   // keeper fee happens after snapshot point
-            .add(Fixed6Lib.from(context.local.pendingLiquidationFee(nextPosition)));    // liquidation fee happens after snapshot point
-        _pendingPositions[account][context.local.latestId].store(latestAccountPosition);
     }
 
     /// @notice Processes the given global pending position into the latest position
@@ -512,29 +488,30 @@ contract Market is IMarket, Instance, ReentrancyGuard {
     /// @param account The account to process for
     /// @param newPositionId The id of the pending position to process
     /// @param newPosition The pending position to process
+    /// @param checkpoint Whether to create a collateral checkpoint
     function _processPositionLocal(
         Context memory context,
         address account,
         uint256 newPositionId,
-        Position memory newPosition
+        Position memory newPosition,
+        bool checkpoint
     ) private {
+        LocalAccumulationResult memory accumulationResult;
+
         Version memory version = _versions[newPosition.timestamp].read();
         if (!version.valid) context.latestPosition.local.invalidate(newPosition);
 
         (uint256 fromTimestamp, uint256 fromId) = (context.latestPosition.local.timestamp, context.local.latestId);
-        LocalAccumulationResult memory accumulationResult = context.local.accumulate(
+        (accumulationResult.collateralAmount, accumulationResult.rewardAmount) = context.local.accumulatePnl(
             newPositionId,
             context.latestPosition.local,
-            newPosition,
             _versions[context.latestPosition.local.timestamp].read(),
             version
         );
+        if (checkpoint) _checkpointCollateral(context, account);
+        (accumulationResult.positionFee, accumulationResult.keeper) = context.local.accumulateFees(newPosition);
         context.latestPosition.local.update(newPosition);
-        if (context.local.processProtection(newPosition, version)) {
-            Local memory localInitiator = _locals[context.local.protectionInitiator].read();
-            localInitiator.processLiquidationFee(context.local);
-            _locals[context.local.protectionInitiator].store(localInitiator);
-        }
+        _processLiquidationFee(context, newPosition, version);
 
         // events
         emit AccountPositionProcessed(
@@ -545,6 +522,35 @@ contract Market is IMarket, Instance, ReentrancyGuard {
             newPositionId,
             accumulationResult
         );
+    }
+
+    /// @notice Creates a collateral checkpoint for the account
+    /// @param context The context to use
+    /// @param account The account to checkpoint
+    function _checkpointCollateral(Context memory context, address account) private {
+        Position memory latestAccountPosition = _pendingPositions[account][context.local.latestId].read();
+
+        latestAccountPosition.collateral = context.local.collateral.sub(
+            context.currentPosition.local.delta.sub(_pendingPositions[account][context.local.latestId - 1].read().delta)
+        ); // deposits happen after snapshot point
+
+        _pendingPositions[account][context.local.latestId].store(latestAccountPosition);
+    }
+
+    /// @notice Processes the liquidation fee for the account
+    /// @param context The context to use
+    /// @param newPosition The new position to use
+    /// @param version The version to use
+    function _processLiquidationFee(
+        Context memory context,
+        Position memory newPosition,
+        Version memory version
+    ) private {
+        if (context.local.processProtection(newPosition, version)) {
+            Local memory localInitiator = _locals[context.local.protectionInitiator].read();
+            localInitiator.processLiquidationFee(context.local);
+            _locals[context.local.protectionInitiator].store(localInitiator);
+        }
     }
 
     /// @notice Verifies the invariant of the market
