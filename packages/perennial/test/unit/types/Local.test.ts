@@ -302,8 +302,10 @@ describe('Local', () => {
       })
 
       it('accumulates values (increase)', async () => {
-        const values = await local.callStatic.accumulate(1, FROM_POSITION, TO_POSITION, FROM_VERSION, TO_VERSION)
-        await local.accumulate(1, FROM_POSITION, TO_POSITION, FROM_VERSION, TO_VERSION)
+        const valuesPnl = await local.callStatic.accumulatePnl(1, FROM_POSITION, FROM_VERSION, TO_VERSION)
+        await local.accumulatePnl(1, FROM_POSITION, FROM_VERSION, TO_VERSION)
+        const valuesFees = await local.callStatic.accumulateFees(TO_POSITION)
+        await local.accumulateFees(TO_POSITION)
 
         const value = await local.read()
 
@@ -312,10 +314,10 @@ describe('Local', () => {
         const expectedKeeper = parse6decimal('456')
         const expectedReward = parse6decimal('8229600') // = 3600 * 987 + 4500 * 654 + 5400 * 321
 
-        expect(values.collateralAmount).to.equal(expectedCollateral)
-        expect(values.rewardAmount).to.equal(expectedReward)
-        expect(values.positionFee).to.equal(expectedPositionFee)
-        expect(values.keeper).to.equal(expectedKeeper)
+        expect(valuesPnl.collateralAmount).to.equal(expectedCollateral)
+        expect(valuesPnl.rewardAmount).to.equal(expectedReward)
+        expect(valuesFees.positionFee).to.equal(expectedPositionFee)
+        expect(valuesFees.keeper).to.equal(expectedKeeper)
 
         expect(value.currentId).to.equal(1)
         expect(value.latestId).to.equal(1)
@@ -330,8 +332,10 @@ describe('Local', () => {
           longValue: { _value: BigNumber.from(TO_VERSION.longValue._value).mul(-1) },
           shortValue: { _value: BigNumber.from(TO_VERSION.shortValue._value).mul(-1) },
         }
-        const values = await local.callStatic.accumulate(1, FROM_POSITION, TO_POSITION, FROM_VERSION, TO_VERSION_NEG)
-        await local.accumulate(1, FROM_POSITION, TO_POSITION, FROM_VERSION, TO_VERSION_NEG)
+        const valuesPnl = await local.callStatic.accumulatePnl(1, FROM_POSITION, FROM_VERSION, TO_VERSION_NEG)
+        await local.accumulatePnl(1, FROM_POSITION, FROM_VERSION, TO_VERSION_NEG)
+        const valuesFees = await local.callStatic.accumulateFees(TO_POSITION)
+        await local.accumulateFees(TO_POSITION)
 
         const value = await local.read()
 
@@ -340,10 +344,10 @@ describe('Local', () => {
         const expectedKeeper = parse6decimal('456')
         const expectedReward = parse6decimal('8229600') // = 3600 * 987 + 4500 * 654 + 5400 * 321
 
-        expect(values.collateralAmount).to.equal(expectedCollateral)
-        expect(values.rewardAmount).to.equal(expectedReward)
-        expect(values.positionFee).to.equal(expectedPositionFee)
-        expect(values.keeper).to.equal(expectedKeeper)
+        expect(valuesPnl.collateralAmount).to.equal(expectedCollateral)
+        expect(valuesPnl.rewardAmount).to.equal(expectedReward)
+        expect(valuesFees.positionFee).to.equal(expectedPositionFee)
+        expect(valuesFees.keeper).to.equal(expectedKeeper)
 
         expect(value.currentId).to.equal(1)
         expect(value.latestId).to.equal(1)
@@ -352,9 +356,7 @@ describe('Local', () => {
       })
 
       it('reverts on negative rewards', async () => {
-        await expect(local.accumulate(1, FROM_POSITION, TO_POSITION, TO_VERSION, FROM_VERSION)).to.be.revertedWithPanic(
-          17,
-        )
+        await expect(local.accumulatePnl(1, FROM_POSITION, TO_VERSION, FROM_VERSION)).to.be.revertedWithPanic(17)
       })
     })
 
@@ -372,8 +374,10 @@ describe('Local', () => {
       })
 
       it('accumulates values (increase)', async () => {
-        const values = await local.callStatic.accumulate(11, FROM_POSITION, TO_POSITION, FROM_VERSION, TO_VERSION)
-        await local.accumulate(11, FROM_POSITION, TO_POSITION, FROM_VERSION, TO_VERSION)
+        const valuesPnl = await local.callStatic.accumulatePnl(11, FROM_POSITION, FROM_VERSION, TO_VERSION)
+        await local.accumulatePnl(11, FROM_POSITION, FROM_VERSION, TO_VERSION)
+        const valuesFees = await local.callStatic.accumulateFees(TO_POSITION)
+        await local.accumulateFees(TO_POSITION)
 
         const value = await local.read()
 
@@ -382,10 +386,10 @@ describe('Local', () => {
         const expectedKeeper = parse6decimal('456')
         const expectedReward = parse6decimal('8229600') // = 3600 * 987 + 4500 * 654 + 5400 * 321
 
-        expect(values.collateralAmount).to.equal(expectedCollateral)
-        expect(values.rewardAmount).to.equal(expectedReward)
-        expect(values.positionFee).to.equal(expectedPositionFee)
-        expect(values.keeper).to.equal(expectedKeeper)
+        expect(valuesPnl.collateralAmount).to.equal(expectedCollateral)
+        expect(valuesPnl.rewardAmount).to.equal(expectedReward)
+        expect(valuesFees.positionFee).to.equal(expectedPositionFee)
+        expect(valuesFees.keeper).to.equal(expectedKeeper)
 
         expect(value.currentId).to.equal(INITIAL_VALUES.currentId)
         expect(value.latestId).to.equal(11)
@@ -402,8 +406,10 @@ describe('Local', () => {
           longValue: { _value: BigNumber.from(TO_VERSION.longValue._value).mul(-1) },
           shortValue: { _value: BigNumber.from(TO_VERSION.shortValue._value).mul(-1) },
         }
-        const values = await local.callStatic.accumulate(11, FROM_POSITION, TO_POSITION, FROM_VERSION, TO_VERSION_NEG)
-        await local.accumulate(11, FROM_POSITION, TO_POSITION, FROM_VERSION, TO_VERSION_NEG)
+        const valuesPnl = await local.callStatic.accumulatePnl(11, FROM_POSITION, FROM_VERSION, TO_VERSION_NEG)
+        await local.accumulatePnl(11, FROM_POSITION, FROM_VERSION, TO_VERSION_NEG)
+        const valuesFees = await local.callStatic.accumulateFees(TO_POSITION)
+        await local.accumulateFees(TO_POSITION)
 
         const value = await local.read()
 
@@ -412,10 +418,10 @@ describe('Local', () => {
         const expectedKeeper = parse6decimal('456')
         const expectedReward = parse6decimal('8229600') // = 3600 * 987 + 4500 * 654 + 5400 * 321
 
-        expect(values.collateralAmount).to.equal(expectedCollateral)
-        expect(values.rewardAmount).to.equal(expectedReward)
-        expect(values.positionFee).to.equal(expectedPositionFee)
-        expect(values.keeper).to.equal(expectedKeeper)
+        expect(valuesPnl.collateralAmount).to.equal(expectedCollateral)
+        expect(valuesPnl.rewardAmount).to.equal(expectedReward)
+        expect(valuesFees.positionFee).to.equal(expectedPositionFee)
+        expect(valuesFees.keeper).to.equal(expectedKeeper)
 
         expect(value.currentId).to.equal(INITIAL_VALUES.currentId)
         expect(value.latestId).to.equal(11)
@@ -426,9 +432,7 @@ describe('Local', () => {
       })
 
       it('reverts on negative rewards', async () => {
-        await expect(
-          local.accumulate(11, FROM_POSITION, TO_POSITION, TO_VERSION, FROM_VERSION),
-        ).to.be.revertedWithPanic(17)
+        await expect(local.accumulatePnl(11, FROM_POSITION, TO_VERSION, FROM_VERSION)).to.be.revertedWithPanic(17)
       })
     })
   })
