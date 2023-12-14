@@ -20,15 +20,20 @@ contract LocalTester {
         local.store(newLocal);
     }
 
-    function accumulate(
+    function accumulatePnl(
         uint256 latestId,
         Position memory fromPosition,
-        Position memory toPosition,
         Version memory fromVersion,
         Version memory toVersion
-    ) external returns (LocalAccumulationResult memory values) {
+    ) external returns (Fixed6 collateralAmount, UFixed6 rewardAmount) {
         Local memory newLocal = local.read();
-        values = newLocal.accumulate(latestId, fromPosition, toPosition, fromVersion, toVersion);
+        (collateralAmount, rewardAmount) = newLocal.accumulatePnl(latestId, fromPosition, fromVersion, toVersion);
+        local.store(newLocal);
+    }
+
+    function accumulateFees(Position memory toPosition) external returns (Fixed6 positionFee, UFixed6 keeper) {
+        Local memory newLocal = local.read();
+        (positionFee, keeper) = newLocal.accumulateFees(toPosition);
         local.store(newLocal);
     }
 
