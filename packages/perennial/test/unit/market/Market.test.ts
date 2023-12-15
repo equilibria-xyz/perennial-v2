@@ -6,15 +6,7 @@ import HRE from 'hardhat'
 
 import { impersonate } from '../../../../common/testutil'
 
-import {
-  Market,
-  Market__factory,
-  IOracleProvider,
-  IERC20Metadata,
-  IMarketFactory,
-  MarketParameterStorageLib__factory,
-  RiskParameterStorageLib__factory,
-} from '../../../types/generated'
+import { Market, Market__factory, IOracleProvider, IERC20Metadata, IMarketFactory } from '../../../types/generated'
 import {
   DEFAULT_POSITION,
   DEFAULT_LOCAL,

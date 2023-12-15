@@ -9,8 +9,6 @@ import {
   IERC20Metadata__factory,
   MarketFactory__factory,
   Market__factory,
-  ERC20PresetMinterPauser,
-  ERC20PresetMinterPauser__factory,
   ProxyAdmin,
   ProxyAdmin__factory,
   TransparentUpgradeableProxy__factory,
@@ -19,8 +17,6 @@ import {
   MarketFactory,
   IOracleProvider,
   IMarket,
-  MarketParameterStorageLib__factory,
-  RiskParameterStorageLib__factory,
 } from '../../../types/generated'
 import { ChainlinkContext } from './chainlinkHelpers'
 import { parse6decimal } from '../../../../common/testutil/types'

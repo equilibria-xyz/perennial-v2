@@ -11,10 +11,7 @@ import {
   IOracleProvider,
   IERC20Metadata,
   IPayoffProvider,
-  IMarket,
   IFactory,
-  MarketParameterStorageLib__factory,
-  RiskParameterStorageLib__factory,
 } from '../../../types/generated'
 import { parse6decimal } from '../../../../common/testutil/types'
 import { constants } from 'ethers'

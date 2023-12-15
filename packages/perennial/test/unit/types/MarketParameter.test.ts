@@ -9,7 +9,7 @@ import {
   MarketParameterTester,
   MarketParameterTester__factory,
 } from '../../../types/generated'
-import { BigNumber, constants } from 'ethers'
+import { BigNumber } from 'ethers'
 import { MarketParameterStruct } from '../../../types/generated/contracts/Market'
 import { ProtocolParameterStruct } from '../../../types/generated/contracts/MarketFactory'
 import { parse6decimal } from '../../../../common/testutil/types'
