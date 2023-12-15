@@ -438,17 +438,7 @@ describe('Market', () => {
       takerCloseAlways: false,
       closed: false,
     }
-    market = await new Market__factory(
-      {
-        'contracts/types/MarketParameter.sol:MarketParameterStorageLib': (
-          await new MarketParameterStorageLib__factory(owner).deploy()
-        ).address,
-        'contracts/types/RiskParameter.sol:RiskParameterStorageLib': (
-          await new RiskParameterStorageLib__factory(owner).deploy()
-        ).address,
-      },
-      owner,
-    ).deploy()
+    market = await new Market__factory(owner).deploy()
   })
 
   describe('#initialize', async () => {
