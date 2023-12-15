@@ -496,20 +496,18 @@ contract Market is IMarket, Instance, ReentrancyGuard {
         Position memory newPosition,
         bool checkpoint
     ) private {
-        LocalAccumulationResult memory accumulationResult;
-
         Version memory version = _versions[newPosition.timestamp].read();
         if (!version.valid) context.latestPosition.local.invalidate(newPosition);
 
         (uint256 fromTimestamp, uint256 fromId) = (context.latestPosition.local.timestamp, context.local.latestId);
-        accumulationResult.collateralAmount = context.local.accumulatePnl(
+        Fixed6 collateralAmount = context.local.accumulatePnl(
             newPositionId,
             context.latestPosition.local,
             _versions[context.latestPosition.local.timestamp].read(),
             version
         );
         if (checkpoint) _checkpointCollateral(context, account);
-        (accumulationResult.positionFee, accumulationResult.keeper) = context.local.accumulateFees(newPosition);
+        (Fixed6 positionFee, UFixed6 keeperFee) = context.local.accumulateFees(newPosition);
         context.latestPosition.local.update(newPosition);
         _processLiquidationFee(context, newPosition, version);
 
@@ -520,7 +518,9 @@ contract Market is IMarket, Instance, ReentrancyGuard {
             newPosition.timestamp,
             fromId,
             newPositionId,
-            accumulationResult
+            collateralAmount,
+            positionFee,
+            keeperFee
         );
     }
 
