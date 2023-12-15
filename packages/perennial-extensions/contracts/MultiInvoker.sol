@@ -417,7 +417,7 @@ contract MultiInvoker is IMultiInvoker, Kept {
     /// @return Amount of keeper fee raised
     function _raiseKeeperFee(UFixed18 keeperFee, bytes memory data) internal virtual override returns (UFixed18) {
         (address account, IMarket market, UFixed6 fee) = abi.decode(data, (address, IMarket, UFixed6));
-        UFixed6 raisedKeeperFee = UFixed6Lib.from(keeperFee.min(UFixed18Lib.from(fee)), true);
+        UFixed6 raisedKeeperFee = UFixed6Lib.from(keeperFee, true).min(fee);
 
         market.update(
             account,
