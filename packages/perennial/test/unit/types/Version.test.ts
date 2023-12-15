@@ -25,9 +25,6 @@ const VALID_VERSION: VersionStruct = {
   makerValue: { _value: 1 },
   longValue: { _value: 2 },
   shortValue: { _value: 3 },
-  makerReward: { _value: 4 },
-  longReward: { _value: 5 },
-  shortReward: { _value: 6 },
 }
 
 const EMPTY_VERSION: VersionStruct = {
@@ -35,9 +32,6 @@ const EMPTY_VERSION: VersionStruct = {
   makerValue: { _value: 0 },
   longValue: { _value: 0 },
   shortValue: { _value: 0 },
-  makerReward: { _value: 0 },
-  longReward: { _value: 0 },
-  shortReward: { _value: 0 },
 }
 
 const GLOBAL: GlobalStruct = {
@@ -52,11 +46,6 @@ const GLOBAL: GlobalStruct = {
     _skew: 7,
   },
   latestPrice: 8,
-  latestInvalidation: {
-    maker: 10,
-    long: 11,
-    short: 12,
-  },
 }
 
 const FROM_POSITION: PositionStruct = {
@@ -157,9 +146,6 @@ describe('Version', () => {
       expect(value.makerValue._value).to.equal(1)
       expect(value.longValue._value).to.equal(2)
       expect(value.shortValue._value).to.equal(3)
-      expect(value.makerReward._value).to.equal(4)
-      expect(value.longReward._value).to.equal(5)
-      expect(value.shortReward._value).to.equal(6)
     })
 
     describe('.makerValue', async () => {
@@ -278,69 +264,6 @@ describe('Version', () => {
         ).to.be.revertedWithCustomError(version, 'VersionStorageInvalidError')
       })
     })
-
-    describe('.makerReward', async () => {
-      const STORAGE_SIZE = 64
-      it('saves if in range', async () => {
-        await version.store({
-          ...VALID_VERSION,
-          makerReward: { _value: BigNumber.from(2).pow(STORAGE_SIZE).sub(1) },
-        })
-        const value = await version.read()
-        expect(value.makerReward._value).to.equal(BigNumber.from(2).pow(STORAGE_SIZE).sub(1))
-      })
-
-      it('reverts if out of range', async () => {
-        await expect(
-          version.store({
-            ...VALID_VERSION,
-            makerReward: { _value: BigNumber.from(2).pow(STORAGE_SIZE) },
-          }),
-        ).to.be.revertedWithCustomError(version, 'VersionStorageInvalidError')
-      })
-    })
-
-    describe('.longReward', async () => {
-      const STORAGE_SIZE = 64
-      it('saves if in range', async () => {
-        await version.store({
-          ...VALID_VERSION,
-          longReward: { _value: BigNumber.from(2).pow(STORAGE_SIZE).sub(1) },
-        })
-        const value = await version.read()
-        expect(value.longReward._value).to.equal(BigNumber.from(2).pow(STORAGE_SIZE).sub(1))
-      })
-
-      it('reverts if out of range', async () => {
-        await expect(
-          version.store({
-            ...VALID_VERSION,
-            longReward: { _value: BigNumber.from(2).pow(STORAGE_SIZE) },
-          }),
-        ).to.be.revertedWithCustomError(version, 'VersionStorageInvalidError')
-      })
-    })
-
-    describe('.shortReward', async () => {
-      const STORAGE_SIZE = 64
-      it('saves if in range', async () => {
-        await version.store({
-          ...VALID_VERSION,
-          shortReward: { _value: BigNumber.from(2).pow(STORAGE_SIZE).sub(1) },
-        })
-        const value = await version.read()
-        expect(value.shortReward._value).to.equal(BigNumber.from(2).pow(STORAGE_SIZE).sub(1))
-      })
-
-      it('reverts if out of range', async () => {
-        await expect(
-          version.store({
-            ...VALID_VERSION,
-            shortReward: { _value: BigNumber.from(2).pow(STORAGE_SIZE) },
-          }),
-        ).to.be.revertedWithCustomError(version, 'VersionStorageInvalidError')
-      })
-    })
   })
 
   describe('#accumulate', () => {
@@ -373,9 +296,6 @@ describe('Version', () => {
         expect(value.makerValue._value).to.equal(1)
         expect(value.longValue._value).to.equal(2)
         expect(value.shortValue._value).to.equal(3)
-        expect(value.makerReward._value).to.equal(4)
-        expect(value.longReward._value).to.equal(5)
-        expect(value.shortReward._value).to.equal(6)
 
         expect(ret.totalFee).to.equal(0)
         // All values should be 0 (default value)
@@ -410,9 +330,6 @@ describe('Version', () => {
         expect(value.makerValue._value).to.equal(parse6decimal('20').add(1))
         expect(value.longValue._value).to.equal(2)
         expect(value.shortValue._value).to.equal(3)
-        expect(value.makerReward._value).to.equal(4)
-        expect(value.longReward._value).to.equal(5)
-        expect(value.shortReward._value).to.equal(6)
 
         expect(ret.totalFee).to.equal(0)
         // All values should be 0 (default value)
@@ -1241,64 +1158,6 @@ describe('Version', () => {
             expect(value.longValue._value).to.equal(parse6decimal('-2'))
             expect(value.shortValue._value).to.equal(parse6decimal('2'))
           })
-        })
-      })
-    })
-
-    describe('reward accumulation', () => {
-      context('no time elapsed', () => {
-        it('accumulates 0 rewards', async () => {
-          await version.store(EMPTY_VERSION)
-
-          const { ret, value } = await accumulateWithReturn(
-            GLOBAL,
-            {
-              ...FROM_POSITION,
-              maker: parse6decimal('10'),
-              long: parse6decimal('12'),
-              short: parse6decimal('2'),
-            },
-            { ...TO_POSITION, fee: 0 },
-            ORACLE_VERSION_1,
-            ORACLE_VERSION_1,
-            VALID_MARKET_PARAMETER,
-            VALID_RISK_PARAMETER,
-          )
-          expect(ret[0].rewardMaker).to.equal(0)
-          expect(ret[0].rewardLong).to.equal(0)
-          expect(ret[0].rewardShort).to.equal(0)
-
-          expect(value.makerReward._value).to.equal(0)
-          expect(value.longReward._value).to.equal(0)
-          expect(value.shortReward._value).to.equal(0)
-        })
-      })
-
-      context('no positions', () => {
-        it('accumulates 0 rewards', async () => {
-          await version.store(EMPTY_VERSION)
-
-          const { ret, value } = await accumulateWithReturn(
-            GLOBAL,
-            {
-              ...FROM_POSITION,
-              maker: 0,
-              long: 0,
-              short: 0,
-            },
-            { ...TO_POSITION, fee: 0 },
-            ORACLE_VERSION_1,
-            ORACLE_VERSION_2,
-            VALID_MARKET_PARAMETER,
-            VALID_RISK_PARAMETER,
-          )
-          expect(ret[0].rewardMaker).to.equal(0)
-          expect(ret[0].rewardLong).to.equal(0)
-          expect(ret[0].rewardShort).to.equal(0)
-
-          expect(value.makerReward._value).to.equal(0)
-          expect(value.longReward._value).to.equal(0)
-          expect(value.shortReward._value).to.equal(0)
         })
       })
     })

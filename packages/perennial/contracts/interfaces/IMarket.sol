@@ -45,7 +45,6 @@ interface IMarket is IInstance {
 
     struct LocalAccumulationResult {
         Fixed6 collateralAmount;
-        UFixed6 rewardAmount;
         Fixed6 positionFee;
         UFixed6 keeper;
     }
@@ -57,7 +56,6 @@ interface IMarket is IInstance {
     event BeneficiaryUpdated(address newBeneficiary);
     event CoordinatorUpdated(address newCoordinator);
     event FeeClaimed(address indexed account, UFixed6 amount);
-    event RewardClaimed(address indexed account, UFixed6 amount);
     event ParameterUpdated(MarketParameter newParameter);
     event RiskParameterUpdated(RiskParameter newRiskParameter);
 

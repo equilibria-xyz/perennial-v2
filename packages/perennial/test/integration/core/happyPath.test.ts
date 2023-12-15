@@ -46,13 +46,12 @@ describe('Happy Path', () => {
   })
 
   it('creates a market', async () => {
-    const { owner, marketFactory, beneficiaryB, payoff, oracle, dsu, rewardToken } = instanceVars
+    const { owner, marketFactory, beneficiaryB, payoff, oracle, dsu } = instanceVars
 
     const definition = {
       name: 'Squeeth',
       symbol: 'SQTH',
       token: dsu.address,
-      reward: rewardToken.address,
       oracle: oracle.address,
       payoff: payoff.address,
     }
@@ -94,9 +93,6 @@ describe('Happy Path', () => {
       maxPendingGlobal: 8,
       maxPendingLocal: 8,
       settlementFee: 0,
-      makerRewardRate: 0,
-      longRewardRate: 0,
-      shortRewardRate: 0,
       makerCloseAlways: false,
       takerCloseAlways: false,
       closed: false,
@@ -137,7 +133,6 @@ describe('Happy Path', () => {
       currentId: 1,
       latestId: 0,
       collateral: COLLATERAL,
-      reward: 0,
       protection: 0,
     })
     expectPositionEq(await market.pendingPositions(user.address, 1), {
@@ -173,9 +168,6 @@ describe('Happy Path', () => {
       makerValue: { _value: 0 },
       longValue: { _value: 0 },
       shortValue: { _value: 0 },
-      makerReward: { _value: 0 },
-      longReward: { _value: 0 },
-      shortReward: { _value: 0 },
     })
 
     // Settle the market with a new oracle version
@@ -188,7 +180,6 @@ describe('Happy Path', () => {
       currentId: 2,
       latestId: 1,
       collateral: COLLATERAL,
-      reward: 0,
       protection: 0,
     })
     expectPositionEq(await market.pendingPositions(user.address, 2), {
@@ -243,7 +234,6 @@ describe('Happy Path', () => {
       currentId: 1,
       latestId: 0,
       collateral: COLLATERAL,
-      reward: 0,
       protection: 0,
     })
     expectPositionEq(await market.pendingPositions(user.address, 1), {
@@ -279,9 +269,6 @@ describe('Happy Path', () => {
       makerValue: { _value: 0 },
       longValue: { _value: 0 },
       shortValue: { _value: 0 },
-      makerReward: { _value: 0 },
-      longReward: { _value: 0 },
-      shortReward: { _value: 0 },
     })
 
     // Settle the market with a new oracle version
@@ -294,7 +281,6 @@ describe('Happy Path', () => {
       currentId: 2,
       latestId: 1,
       collateral: COLLATERAL,
-      reward: 0,
       protection: 0,
     })
     expectPositionEq(await market.pendingPositions(user.address, 2), {
@@ -363,7 +349,6 @@ describe('Happy Path', () => {
       currentId: 2,
       latestId: 1,
       collateral: COLLATERAL,
-      reward: 0,
       protection: 0,
     })
     expectPositionEq(await market.pendingPositions(user.address, 2), {
@@ -399,9 +384,6 @@ describe('Happy Path', () => {
       makerValue: { _value: 0 },
       longValue: { _value: 0 },
       shortValue: { _value: 0 },
-      makerReward: { _value: 0 },
-      longReward: { _value: 0 },
-      shortReward: { _value: 0 },
     })
   })
 
@@ -428,7 +410,6 @@ describe('Happy Path', () => {
       currentId: 2,
       latestId: 1,
       collateral: COLLATERAL,
-      reward: 0,
       protection: 0,
     })
     expectPositionEq(await market.pendingPositions(user.address, 2), {
@@ -464,9 +445,6 @@ describe('Happy Path', () => {
       makerValue: { _value: 0 },
       longValue: { _value: 0 },
       shortValue: { _value: 0 },
-      makerReward: { _value: 0 },
-      longReward: { _value: 0 },
-      shortReward: { _value: 0 },
     })
   })
 
@@ -506,7 +484,6 @@ describe('Happy Path', () => {
       currentId: 1,
       latestId: 0,
       collateral: COLLATERAL,
-      reward: 0,
       protection: 0,
     })
     expectPositionEq(await market.pendingPositions(user.address, 1), {
@@ -525,7 +502,6 @@ describe('Happy Path', () => {
       currentId: 1,
       latestId: 0,
       collateral: COLLATERAL,
-      reward: 0,
       protection: 0,
     })
     expectPositionEq(await market.pendingPositions(userB.address, 1), {
@@ -562,9 +538,6 @@ describe('Happy Path', () => {
       makerValue: { _value: 0 },
       longValue: { _value: 0 },
       shortValue: { _value: 0 },
-      makerReward: { _value: 0 },
-      longReward: { _value: 0 },
-      shortReward: { _value: 0 },
     })
 
     // One round
@@ -600,7 +573,6 @@ describe('Happy Path', () => {
       currentId: 2,
       latestId: 1,
       collateral: COLLATERAL.add(BigNumber.from('1249392')),
-      reward: 0,
       protection: 0,
     })
     expectPositionEq(await market.pendingPositions(userB.address, 2), {
@@ -640,7 +612,6 @@ describe('Happy Path', () => {
       currentId: 1,
       latestId: 0,
       collateral: COLLATERAL,
-      reward: 0,
       protection: 0,
     })
     expectPositionEq(await market.pendingPositions(userB.address, 1), {
@@ -677,9 +648,6 @@ describe('Happy Path', () => {
       makerValue: { _value: 0 },
       longValue: { _value: 0 },
       shortValue: { _value: 0 },
-      makerReward: { _value: 0 },
-      longReward: { _value: 0 },
-      shortReward: { _value: 0 },
     })
 
     // One round
@@ -714,7 +682,6 @@ describe('Happy Path', () => {
       currentId: 2,
       latestId: 1,
       collateral: COLLATERAL.add(BigNumber.from('1249392')),
-      reward: 0,
       protection: 0,
     })
     expectPositionEq(await market.pendingPositions(userB.address, 2), {
@@ -770,7 +737,6 @@ describe('Happy Path', () => {
       currentId: 2,
       latestId: 1,
       collateral: COLLATERAL,
-      reward: 0,
       protection: 0,
     })
     expectPositionEq(await market.pendingPositions(userB.address, 2), {
@@ -808,9 +774,6 @@ describe('Happy Path', () => {
       makerValue: { _value: 0 },
       longValue: { _value: 0 },
       shortValue: { _value: 0 },
-      makerReward: { _value: 0 },
-      longReward: { _value: 0 },
-      shortReward: { _value: 0 },
     })
   })
 
@@ -844,7 +807,6 @@ describe('Happy Path', () => {
       currentId: 2,
       latestId: 1,
       collateral: COLLATERAL,
-      reward: 0,
       protection: 0,
     })
     expectPositionEq(await market.pendingPositions(userB.address, 2), {
@@ -882,9 +844,6 @@ describe('Happy Path', () => {
       makerValue: { _value: 0 },
       longValue: { _value: 0 },
       shortValue: { _value: 0 },
-      makerReward: { _value: 0 },
-      longReward: { _value: 0 },
-      shortReward: { _value: 0 },
     })
   })
 
@@ -1011,9 +970,6 @@ describe('Happy Path', () => {
       maxPendingGlobal: 8,
       maxPendingLocal: 8,
       positionFee: positionFeesOn ? parse6decimal('0.1') : 0,
-      makerRewardRate: 0,
-      longRewardRate: 0,
-      shortRewardRate: 0,
       makerCloseAlways: false,
       takerCloseAlways: false,
       closed: false,
@@ -1049,7 +1005,6 @@ describe('Happy Path', () => {
       currentId: 3,
       latestId: 2,
       collateral: '986127025',
-      reward: 0,
       protection: 0,
     })
     expectPositionEq(await market.pendingPositions(user.address, 3), {
@@ -1091,9 +1046,6 @@ describe('Happy Path', () => {
       makerValue: { _value: '-354909471518' },
       longValue: { _value: '362096873938' },
       shortValue: { _value: 0 },
-      makerReward: { _value: 0 },
-      longReward: { _value: 0 },
-      shortReward: { _value: 0 },
     })
   })
 
@@ -1152,9 +1104,6 @@ describe('Happy Path', () => {
       maxPendingGlobal: 8,
       maxPendingLocal: 8,
       positionFee: positionFeesOn ? parse6decimal('0.1') : 0,
-      makerRewardRate: 0,
-      longRewardRate: 0,
-      shortRewardRate: 0,
       makerCloseAlways: false,
       takerCloseAlways: false,
       closed: false,
@@ -1191,7 +1140,6 @@ describe('Happy Path', () => {
       currentId: delay + 1,
       latestId: delay,
       collateral: (await market.locals(user.address)).collateral,
-      reward: (await market.locals(user.address)).reward,
       protection: 0,
     })
     expectPositionEq(await market.pendingPositions(user.address, delay + 1), {

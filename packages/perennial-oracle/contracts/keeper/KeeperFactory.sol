@@ -19,31 +19,31 @@ abstract contract KeeperFactory is IKeeperFactory, Factory, Kept {
     /// @dev A Keeper update must come at most this long after a version to be valid
     uint256 public immutable validTo;
 
-    /// @dev The multiplier for the keeper reward on top of cost of commit
+    /// @dev The multiplier for the keeper fee on top of cost of commit
     UFixed18 internal immutable _keepCommitMultiplierBase;
 
-    /// @dev The fixed gas buffer that is added to the keeper reward for commits
+    /// @dev The fixed gas buffer that is added to the keeper fee for commits
     uint256 internal immutable _keepCommitBufferBase;
 
-    /// @dev The multiplier for the calldata portion of the keeper reward on top of cost of commit
+    /// @dev The multiplier for the calldata portion of the keeper fee on top of cost of commit
     UFixed18 internal immutable _keepCommitMultiplierCalldata;
 
-    /// @dev The fixed gas buffer that is added to the calldata portion of the keeper reward for commits
+    /// @dev The fixed gas buffer that is added to the calldata portion of the keeper fee for commits
     uint256 internal immutable _keepCommitBufferCalldata;
 
     /// @dev The fixed gas buffer that is added for each incremental update
     uint256 internal immutable _keepCommitIncrementalBufferCalldata;
 
-    /// @dev The multiplier for the keeper reward on top of cost of settle
+    /// @dev The multiplier for the keeper fee on top of cost of settle
     UFixed18 internal immutable _keepSettleMultiplierBase;
 
-    /// @dev The fixed gas buffer that is added to the keeper reward for settles
+    /// @dev The fixed gas buffer that is added to the keeper fee for settles
     uint256 internal immutable _keepSettleBufferBase;
 
-    /// @dev The multiplier for the calldata portion of the keeper reward on top of cost of settle
+    /// @dev The multiplier for the calldata portion of the keeper fee on top of cost of settle
     UFixed18 internal immutable _keepSettleMultiplierCalldata;
 
-    /// @dev The fixed gas buffer that is added to the calldata portion of the keeper reward for settles
+    /// @dev The fixed gas buffer that is added to the calldata portion of the keeper fee for settles
     uint256 internal immutable _keepSettleBufferCalldata;
 
     /// @dev The root oracle factory
@@ -153,7 +153,7 @@ abstract contract KeeperFactory is IKeeperFactory, Factory, Kept {
 
     /// @notice Commits the price to specified version
     /// @dev Accepts both requested and non-requested versions.
-    ///      Requested versions will pay out a keeper reward, non-requested versions will not.
+    ///      Requested versions will pay out a keeper fee, non-requested versions will not.
     ///      Accepts any publish time in the underlying price message, as long as it is within the validity window,
     ///      which means its possible for publish times to be slightly out of order with respect to versions.
     ///      Batched updates are supported by passing in a list of price feed ids along with a valid batch update data.
@@ -223,7 +223,7 @@ abstract contract KeeperFactory is IKeeperFactory, Factory, Kept {
         keep(commitKeepConfig(numRequested), msg.data[0:0], 0, "")
     { }
 
-    /// @notice Pulls funds from the factory to reward the keeper
+    /// @notice Pulls funds from the factory to award the keeper
     /// @param keeperFee The keeper fee to pull
     function _raiseKeeperFee(UFixed18 keeperFee, bytes memory) internal virtual override {
         oracleFactory.claim(UFixed6Lib.from(keeperFee, true));

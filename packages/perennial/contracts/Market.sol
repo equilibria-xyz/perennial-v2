@@ -17,8 +17,8 @@ contract Market is IMarket, Instance, ReentrancyGuard {
     /// @dev The underlying token that the market settles in
     Token18 public token;
 
-    /// @dev The token that incentive rewards are paid in
-    Token18 private _reward;
+    /// @dev DEPRECATED SLOT -- previously the reward token
+    bytes32 private __unused__;
 
     /// @dev The oracle that provides the market price
     IOracleProvider public oracle;
@@ -106,7 +106,7 @@ contract Market is IMarket, Instance, ReentrancyGuard {
         coordinator = newCoordinator;
         emit CoordinatorUpdated(newCoordinator);
 
-        _parameter.validateAndStore(newParameter, IMarketFactory(address(factory())).parameter(), _reward);
+        _parameter.validateAndStore(newParameter, IMarketFactory(address(factory())).parameter());
         emit ParameterUpdated(newParameter);
     }
 
@@ -502,7 +502,7 @@ contract Market is IMarket, Instance, ReentrancyGuard {
         if (!version.valid) context.latestPosition.local.invalidate(newPosition);
 
         (uint256 fromTimestamp, uint256 fromId) = (context.latestPosition.local.timestamp, context.local.latestId);
-        (accumulationResult.collateralAmount, accumulationResult.rewardAmount) = context.local.accumulatePnl(
+        accumulationResult.collateralAmount = context.local.accumulatePnl(
             newPositionId,
             context.latestPosition.local,
             _versions[context.latestPosition.local.timestamp].read(),
