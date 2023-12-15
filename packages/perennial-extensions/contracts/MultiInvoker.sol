@@ -411,34 +411,13 @@ contract MultiInvoker is IMultiInvoker, Kept {
         emit OrderExecuted(account, market, nonce);
     }
 
-    /// @notice Handles paying out keeper fee for an order exection
-    /// @param account Account to pay keeper fee to
-    /// @param market Market to pay keeper fee for
-    /// @param fee Keeper fee to pay
-    function _handleKeep(address account, IMarket market, UFixed6 fee)
-        private
-        keep(
-            KeepConfig(
-                UFixed18Lib.ZERO,
-                keepBufferBase,
-                UFixed18Lib.ZERO,
-                keepBufferCalldata
-            ),
-            msg.data[0:0],
-            0,
-            abi.encode(account, market, fee)
-        )
-    { }
-
     /// @notice Helper function to raise keeper fee
     /// @param keeperFee Keeper fee to raise
     /// @param data Data to raise keeper fee with
     /// @return Amount of keeper fee raised
     function _raiseKeeperFee(UFixed18 keeperFee, bytes memory data) internal virtual override returns (UFixed18) {
         (address account, IMarket market, UFixed6 fee) = abi.decode(data, (address, IMarket, UFixed6));
-        if (keeperFee.gt(UFixed18Lib.from(fee))) revert MultiInvokerMaxFeeExceededError();
-
-        UFixed6 raisedKeeperFee = UFixed6Lib.from(keeperFee, true);
+        UFixed6 raisedKeeperFee = UFixed6Lib.from(keeperFee.min(UFixed18Lib.from(fee)), true);
 
         market.update(
             account,
