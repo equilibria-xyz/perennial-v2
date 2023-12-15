@@ -71,9 +71,6 @@ describe('Verify Markets', () => {
     expect(parameter.riskFee).to.equal(utils.parseUnits('1', 6))
     expect(parameter.maxPendingGlobal).to.equal(12)
     expect(parameter.maxPendingLocal).to.equal(6)
-    expect(parameter.makerRewardRate).to.equal(0)
-    expect(parameter.longRewardRate).to.equal(0)
-    expect(parameter.shortRewardRate).to.equal(0)
     expect(parameter.settlementFee).to.equal(utils.parseUnits('1.50', 6))
     expect(parameter.makerCloseAlways).to.be.false
     expect(parameter.takerCloseAlways).to.be.true
@@ -121,9 +118,6 @@ describe('Verify Markets', () => {
     expect(parameter.riskFee).to.equal(utils.parseUnits('1', 6))
     expect(parameter.maxPendingGlobal).to.equal(12)
     expect(parameter.maxPendingLocal).to.equal(6)
-    expect(parameter.makerRewardRate).to.equal(0)
-    expect(parameter.longRewardRate).to.equal(0)
-    expect(parameter.shortRewardRate).to.equal(0)
     expect(parameter.settlementFee).to.equal(utils.parseUnits('1.50', 6))
     expect(parameter.makerCloseAlways).to.be.false
     expect(parameter.takerCloseAlways).to.be.true
@@ -171,9 +165,6 @@ describe('Verify Markets', () => {
     expect(parameter.riskFee).to.equal(utils.parseUnits('1', 6))
     expect(parameter.maxPendingGlobal).to.equal(12)
     expect(parameter.maxPendingLocal).to.equal(6)
-    expect(parameter.makerRewardRate).to.equal(0)
-    expect(parameter.longRewardRate).to.equal(0)
-    expect(parameter.shortRewardRate).to.equal(0)
     expect(parameter.settlementFee).to.equal(utils.parseUnits('1.50', 6))
     expect(parameter.makerCloseAlways).to.be.false
     expect(parameter.takerCloseAlways).to.be.true
@@ -221,9 +212,6 @@ describe('Verify Markets', () => {
     expect(parameter.riskFee).to.equal(utils.parseUnits('1', 6))
     expect(parameter.maxPendingGlobal).to.equal(12)
     expect(parameter.maxPendingLocal).to.equal(6)
-    expect(parameter.makerRewardRate).to.equal(0)
-    expect(parameter.longRewardRate).to.equal(0)
-    expect(parameter.shortRewardRate).to.equal(0)
     expect(parameter.settlementFee).to.equal(utils.parseUnits('1.50', 6))
     expect(parameter.makerCloseAlways).to.be.false
     expect(parameter.takerCloseAlways).to.be.true

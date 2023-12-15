@@ -35,10 +35,10 @@ contract MultiInvoker is IMultiInvoker, Kept {
     /// @dev Reserve address
     IEmptySetReserve public immutable reserve;
 
-    /// @dev The fixed gas buffer that is added to the keeper reward
+    /// @dev The fixed gas buffer that is added to the keeper fee
     uint256 public immutable keepBufferBase;
 
-    /// @dev The fixed gas buffer that is added to the calldata portion of  the keeper reward
+    /// @dev The fixed gas buffer that is added to the calldata portion of the keeper fee
     uint256 public immutable keepBufferCalldata;
 
     /// @dev UID for an order
@@ -54,8 +54,8 @@ contract MultiInvoker is IMultiInvoker, Kept {
     /// @param vaultFactory_ Protocol factory to validate vault approvals
     /// @param batcher_ Batcher address
     /// @param reserve_ Reserve address
-    /// @param keepBufferBase_ The fixed gas buffer that is added to the keeper reward
-    /// @param keepBufferCalldata_ The fixed calldata buffer that is added to the keeper reward
+    /// @param keepBufferBase_ The fixed gas buffer that is added to the keeper fee
+    /// @param keepBufferCalldata_ The fixed calldata buffer that is added to the keeper fee
     constructor(
         Token6 usdc_,
         Token18 dsu_,
@@ -328,7 +328,7 @@ contract MultiInvoker is IMultiInvoker, Kept {
         UFixed18 balanceBefore = DSU.balanceOf();
 
         try IPythFactory(oracleProviderFactory).commit{value: value}(ids, version, data) {
-            // Return through keeper reward if any
+            // Return through keeper fee if any
             DSU.push(msg.sender, DSU.balanceOf().sub(balanceBefore));
         } catch (bytes memory reason) {
             if (revertOnFailure) Address.verifyCallResult(false, reason, "");
@@ -400,9 +400,9 @@ contract MultiInvoker is IMultiInvoker, Kept {
         emit OrderExecuted(account, market, nonce);
     }
 
-    /// @notice Handles paying out keeper reward for an order exection
-    /// @param account Account to pay keeper reward to
-    /// @param market Market to pay keeper reward for
+    /// @notice Handles paying out keeper fee for an order exection
+    /// @param account Account to pay keeper fee to
+    /// @param market Market to pay keeper fee for
     /// @param fee Keeper fee to pay
     function _handleKeep(address account, IMarket market, UFixed6 fee)
         private

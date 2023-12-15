@@ -25,9 +25,9 @@ contract LocalTester {
         Position memory fromPosition,
         Version memory fromVersion,
         Version memory toVersion
-    ) external returns (Fixed6 collateralAmount, UFixed6 rewardAmount) {
+    ) external returns (Fixed6 collateralAmount) {
         Local memory newLocal = local.read();
-        (collateralAmount, rewardAmount) = newLocal.accumulatePnl(latestId, fromPosition, fromVersion, toVersion);
+        collateralAmount = newLocal.accumulatePnl(latestId, fromPosition, fromVersion, toVersion);
         local.store(newLocal);
     }
 

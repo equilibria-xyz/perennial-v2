@@ -22,7 +22,6 @@ const DEFAULT_LOCAL: LocalStruct = {
   currentId: 0,
   latestId: 0,
   collateral: 0,
-  reward: 0,
   protection: 0,
   protectionAmount: 0,
   protectionInitiator: ethers.constants.AddressZero,
@@ -46,7 +45,6 @@ describe('Local', () => {
       currentId: 1,
       latestId: 5,
       collateral: 2,
-      reward: 3,
       protection: 4,
       protectionAmount: 5,
       protectionInitiator: DEFAULT_ADDRESS,
@@ -58,7 +56,6 @@ describe('Local', () => {
       expect(value.currentId).to.equal(1)
       expect(value.latestId).to.equal(5)
       expect(value.collateral).to.equal(2)
-      expect(value.reward).to.equal(3)
       expect(value.protection).to.equal(4)
       expect(value.protectionAmount).to.equal(5)
       expect(value.protectionInitiator.toLowerCase()).to.equal(DEFAULT_ADDRESS)
@@ -140,27 +137,6 @@ describe('Local', () => {
           local.store({
             ...VALID_STORED_VALUE,
             collateral: BigNumber.from(2).pow(STORAGE_SIZE).add(1).mul(-1),
-          }),
-        ).to.be.revertedWithCustomError(local, 'LocalStorageInvalidError')
-      })
-    })
-
-    context('.reward', async () => {
-      const STORAGE_SIZE = 64
-      it('saves if in range', async () => {
-        await local.store({
-          ...VALID_STORED_VALUE,
-          reward: BigNumber.from(2).pow(STORAGE_SIZE).sub(1),
-        })
-        const value = await local.read()
-        expect(value.reward).to.equal(BigNumber.from(2).pow(STORAGE_SIZE).sub(1))
-      })
-
-      it('reverts if reward out of range', async () => {
-        await expect(
-          local.store({
-            ...VALID_STORED_VALUE,
-            reward: BigNumber.from(2).pow(STORAGE_SIZE),
           }),
         ).to.be.revertedWithCustomError(local, 'LocalStorageInvalidError')
       })
@@ -278,9 +254,6 @@ describe('Local', () => {
       makerValue: { _value: parse6decimal('100') },
       longValue: { _value: parse6decimal('200') },
       shortValue: { _value: parse6decimal('300') },
-      makerReward: { _value: parse6decimal('400') },
-      longReward: { _value: parse6decimal('500') },
-      shortReward: { _value: parse6decimal('600') },
     }
 
     const TO_VERSION: VersionStruct = {
@@ -288,9 +261,6 @@ describe('Local', () => {
       makerValue: { _value: parse6decimal('1000') },
       longValue: { _value: parse6decimal('2000') },
       shortValue: { _value: parse6decimal('3000') },
-      makerReward: { _value: parse6decimal('4000') },
-      longReward: { _value: parse6decimal('5000') },
-      shortReward: { _value: parse6decimal('6000') },
     }
 
     context('zero initial values', () => {
@@ -302,7 +272,7 @@ describe('Local', () => {
       })
 
       it('accumulates values (increase)', async () => {
-        const valuesPnl = await local.callStatic.accumulatePnl(1, FROM_POSITION, FROM_VERSION, TO_VERSION)
+        const collateralAmount = await local.callStatic.accumulatePnl(1, FROM_POSITION, FROM_VERSION, TO_VERSION)
         await local.accumulatePnl(1, FROM_POSITION, FROM_VERSION, TO_VERSION)
         const valuesFees = await local.callStatic.accumulateFees(TO_POSITION)
         await local.accumulateFees(TO_POSITION)
@@ -312,17 +282,14 @@ describe('Local', () => {
         const expectedCollateral = parse6decimal('2932200') // = 900 * 987 + 1800 * 654 + 2700 * 321
         const expectedPositionFee = parse6decimal('123')
         const expectedKeeper = parse6decimal('456')
-        const expectedReward = parse6decimal('8229600') // = 3600 * 987 + 4500 * 654 + 5400 * 321
 
-        expect(valuesPnl.collateralAmount).to.equal(expectedCollateral)
-        expect(valuesPnl.rewardAmount).to.equal(expectedReward)
+        expect(collateralAmount).to.equal(expectedCollateral)
         expect(valuesFees.positionFee).to.equal(expectedPositionFee)
         expect(valuesFees.keeper).to.equal(expectedKeeper)
 
         expect(value.currentId).to.equal(1)
         expect(value.latestId).to.equal(1)
         expect(value.collateral).to.equal(expectedCollateral.sub(expectedPositionFee.add(expectedKeeper)))
-        expect(value.reward).to.equal(expectedReward)
       })
 
       it('accumulates values (decrease)', async () => {
@@ -332,7 +299,7 @@ describe('Local', () => {
           longValue: { _value: BigNumber.from(TO_VERSION.longValue._value).mul(-1) },
           shortValue: { _value: BigNumber.from(TO_VERSION.shortValue._value).mul(-1) },
         }
-        const valuesPnl = await local.callStatic.accumulatePnl(1, FROM_POSITION, FROM_VERSION, TO_VERSION_NEG)
+        const collateralAmount = await local.callStatic.accumulatePnl(1, FROM_POSITION, FROM_VERSION, TO_VERSION_NEG)
         await local.accumulatePnl(1, FROM_POSITION, FROM_VERSION, TO_VERSION_NEG)
         const valuesFees = await local.callStatic.accumulateFees(TO_POSITION)
         await local.accumulateFees(TO_POSITION)
@@ -342,21 +309,14 @@ describe('Local', () => {
         const expectedCollateral = parse6decimal('-3583800') // = -1100 * 987 + -2200 * 654 + -3300 * 321
         const expectedPositionFee = parse6decimal('123')
         const expectedKeeper = parse6decimal('456')
-        const expectedReward = parse6decimal('8229600') // = 3600 * 987 + 4500 * 654 + 5400 * 321
 
-        expect(valuesPnl.collateralAmount).to.equal(expectedCollateral)
-        expect(valuesPnl.rewardAmount).to.equal(expectedReward)
+        expect(collateralAmount).to.equal(expectedCollateral)
         expect(valuesFees.positionFee).to.equal(expectedPositionFee)
         expect(valuesFees.keeper).to.equal(expectedKeeper)
 
         expect(value.currentId).to.equal(1)
         expect(value.latestId).to.equal(1)
         expect(value.collateral).to.equal(expectedCollateral.sub(expectedPositionFee.add(expectedKeeper)))
-        expect(value.reward).to.equal(expectedReward)
-      })
-
-      it('reverts on negative rewards', async () => {
-        await expect(local.accumulatePnl(1, FROM_POSITION, TO_VERSION, FROM_VERSION)).to.be.revertedWithPanic(17)
       })
     })
 
@@ -366,7 +326,6 @@ describe('Local', () => {
         currentId: 12,
         latestId: 10,
         collateral: parse6decimal('10'),
-        reward: parse6decimal('20'),
         protection: parse6decimal('34'),
       }
       beforeEach(async () => {
@@ -374,7 +333,7 @@ describe('Local', () => {
       })
 
       it('accumulates values (increase)', async () => {
-        const valuesPnl = await local.callStatic.accumulatePnl(11, FROM_POSITION, FROM_VERSION, TO_VERSION)
+        const collateralAmount = await local.callStatic.accumulatePnl(11, FROM_POSITION, FROM_VERSION, TO_VERSION)
         await local.accumulatePnl(11, FROM_POSITION, FROM_VERSION, TO_VERSION)
         const valuesFees = await local.callStatic.accumulateFees(TO_POSITION)
         await local.accumulateFees(TO_POSITION)
@@ -384,10 +343,8 @@ describe('Local', () => {
         const expectedCollateral = parse6decimal('2932200') // = 900 * 987 + 1800 * 654 + 2700 * 321
         const expectedPositionFee = parse6decimal('123')
         const expectedKeeper = parse6decimal('456')
-        const expectedReward = parse6decimal('8229600') // = 3600 * 987 + 4500 * 654 + 5400 * 321
 
-        expect(valuesPnl.collateralAmount).to.equal(expectedCollateral)
-        expect(valuesPnl.rewardAmount).to.equal(expectedReward)
+        expect(collateralAmount).to.equal(expectedCollateral)
         expect(valuesFees.positionFee).to.equal(expectedPositionFee)
         expect(valuesFees.keeper).to.equal(expectedKeeper)
 
@@ -396,7 +353,6 @@ describe('Local', () => {
         expect(value.collateral).to.equal(
           expectedCollateral.add(INITIAL_VALUES.collateral).sub(expectedPositionFee.add(expectedKeeper)),
         )
-        expect(value.reward).to.equal(expectedReward.add(INITIAL_VALUES.reward))
       })
 
       it('accumulates values (decrease)', async () => {
@@ -406,7 +362,7 @@ describe('Local', () => {
           longValue: { _value: BigNumber.from(TO_VERSION.longValue._value).mul(-1) },
           shortValue: { _value: BigNumber.from(TO_VERSION.shortValue._value).mul(-1) },
         }
-        const valuesPnl = await local.callStatic.accumulatePnl(11, FROM_POSITION, FROM_VERSION, TO_VERSION_NEG)
+        const collateralAmount = await local.callStatic.accumulatePnl(11, FROM_POSITION, FROM_VERSION, TO_VERSION_NEG)
         await local.accumulatePnl(11, FROM_POSITION, FROM_VERSION, TO_VERSION_NEG)
         const valuesFees = await local.callStatic.accumulateFees(TO_POSITION)
         await local.accumulateFees(TO_POSITION)
@@ -416,10 +372,8 @@ describe('Local', () => {
         const expectedCollateral = parse6decimal('-3583800') // = -1100 * 987 + -2200 * 654 + -3300 * 321
         const expectedPositionFee = parse6decimal('123')
         const expectedKeeper = parse6decimal('456')
-        const expectedReward = parse6decimal('8229600') // = 3600 * 987 + 4500 * 654 + 5400 * 321
 
-        expect(valuesPnl.collateralAmount).to.equal(expectedCollateral)
-        expect(valuesPnl.rewardAmount).to.equal(expectedReward)
+        expect(collateralAmount).to.equal(expectedCollateral)
         expect(valuesFees.positionFee).to.equal(expectedPositionFee)
         expect(valuesFees.keeper).to.equal(expectedKeeper)
 
@@ -428,11 +382,6 @@ describe('Local', () => {
         expect(value.collateral).to.equal(
           expectedCollateral.add(INITIAL_VALUES.collateral).sub(expectedPositionFee.add(expectedKeeper)),
         )
-        expect(value.reward).to.equal(expectedReward.add(INITIAL_VALUES.reward))
-      })
-
-      it('reverts on negative rewards', async () => {
-        await expect(local.accumulatePnl(11, FROM_POSITION, TO_VERSION, FROM_VERSION)).to.be.revertedWithPanic(17)
       })
     })
   })
@@ -716,9 +665,6 @@ describe('Local', () => {
       makerValue: { _value: parse6decimal('1000') },
       longValue: { _value: parse6decimal('2000') },
       shortValue: { _value: parse6decimal('3000') },
-      makerReward: { _value: parse6decimal('4000') },
-      longReward: { _value: parse6decimal('5000') },
-      shortReward: { _value: parse6decimal('6000') },
     }
 
     it('does not decrement fee when invalid', async () => {
@@ -727,7 +673,6 @@ describe('Local', () => {
         currentId: 0,
         latestId: 0,
         collateral: 1000,
-        reward: 0,
         protection: 123,
         protectionAmount: 123,
         protectionInitiator: owner.address,
@@ -749,7 +694,6 @@ describe('Local', () => {
         currentId: 0,
         latestId: 0,
         collateral: 1000,
-        reward: 0,
         protection: 123,
         protectionAmount: 123,
         protectionInitiator: owner.address,
@@ -771,7 +715,6 @@ describe('Local', () => {
         currentId: 0,
         latestId: 0,
         collateral: 1000,
-        reward: 0,
         protection: 123,
         protectionAmount: 123,
         protectionInitiator: owner.address,
@@ -793,7 +736,6 @@ describe('Local', () => {
         currentId: 0,
         latestId: 0,
         collateral: 1000,
-        reward: 0,
         protection: 123,
         protectionAmount: 123,
         protectionInitiator: owner.address,
@@ -832,9 +774,6 @@ describe('Local', () => {
       makerValue: { _value: parse6decimal('1000') },
       longValue: { _value: parse6decimal('2000') },
       shortValue: { _value: parse6decimal('3000') },
-      makerReward: { _value: parse6decimal('4000') },
-      longReward: { _value: parse6decimal('5000') },
-      shortReward: { _value: parse6decimal('6000') },
     }
 
     it('increments fee', async () => {

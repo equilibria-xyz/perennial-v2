@@ -22,18 +22,9 @@ struct Version {
 
     /// @dev The short accumulator value
     Accumulator6 shortValue;
-
-    /// @dev The maker reward accumulator value
-    UAccumulator6 makerReward;
-
-    /// @dev The long reward accumulator value
-    UAccumulator6 longReward;
-
-    /// @dev The short reward accumulator value
-    UAccumulator6 shortReward;
 }
 using VersionLib for Version global;
-struct VersionStorage { uint256 slot0; uint256 slot1; }
+struct VersionStorage { uint256 slot0; }
 using VersionStorageLib for VersionStorage global;
 
 /// @dev Individual accumulation values
@@ -54,16 +45,11 @@ struct VersionAccumulationResult {
     Fixed6 pnlMaker;
     Fixed6 pnlLong;
     Fixed6 pnlShort;
-
-    UFixed6 rewardMaker;
-    UFixed6 rewardLong;
-    UFixed6 rewardShort;
 }
 
 ///@title Version
 /// @notice Library that manages global versioned accumulator state.
-/// @dev Manages two accumulators: value and reward. The value accumulator measures the change in position value
-///      over time, while the reward accumulator measures the change in position ownership over time.
+/// @dev Manages the value accumulator which measures the change in position value over time.
 library VersionLib {
     /// @notice Accumulates the global state for the period from `fromVersion` to `toOracleVersion`
     /// @param self The Version object to update
@@ -299,11 +285,6 @@ library VersionLib {
 ///         int64 makerValue;
 ///         int64 longValue;
 ///         int64 shortValue;
-///
-///         /* slot 1 */
-///         uint64 makerReward;
-///         uint64 longReward;
-///         uint64 shortReward;
 ///     }
 ///
 library VersionStorageLib {
@@ -311,15 +292,12 @@ library VersionStorageLib {
     error VersionStorageInvalidError();
 
     function read(VersionStorage storage self) internal view returns (Version memory) {
-        (uint256 slot0, uint256 slot1) = (self.slot0, self.slot1);
+        uint256 slot0 = self.slot0;
         return Version(
             (uint256(slot0 << (256 - 8)) >> (256 - 8)) != 0,
             Accumulator6(Fixed6.wrap(int256(slot0 << (256 - 8 - 64)) >> (256 - 64))),
             Accumulator6(Fixed6.wrap(int256(slot0 << (256 - 8 - 64 - 64)) >> (256 - 64))),
-            Accumulator6(Fixed6.wrap(int256(slot0 << (256 - 8 - 64 - 64 - 64)) >> (256 - 64))),
-            UAccumulator6(UFixed6.wrap(uint256(slot1 << (256 - 64)) >> (256 - 64))),
-            UAccumulator6(UFixed6.wrap(uint256(slot1 << (256 - 64 - 64)) >> (256 - 64))),
-            UAccumulator6(UFixed6.wrap(uint256(slot1 << (256 - 64 - 64 - 64)) >> (256 - 64)))
+            Accumulator6(Fixed6.wrap(int256(slot0 << (256 - 8 - 64 - 64 - 64)) >> (256 - 64)))
         );
     }
 
@@ -330,23 +308,15 @@ library VersionStorageLib {
         if (newValue.longValue._value.lt(Fixed6.wrap(type(int64).min))) revert VersionStorageInvalidError();
         if (newValue.shortValue._value.gt(Fixed6.wrap(type(int64).max))) revert VersionStorageInvalidError();
         if (newValue.shortValue._value.lt(Fixed6.wrap(type(int64).min))) revert VersionStorageInvalidError();
-        if (newValue.makerReward._value.gt(UFixed6.wrap(type(uint64).max))) revert VersionStorageInvalidError();
-        if (newValue.longReward._value.gt(UFixed6.wrap(type(uint64).max))) revert VersionStorageInvalidError();
-        if (newValue.shortReward._value.gt(UFixed6.wrap(type(uint64).max))) revert VersionStorageInvalidError();
 
         uint256 encoded0 =
             uint256((newValue.valid ? uint256(1) : uint256(0)) << (256 - 8)) >> (256 - 8) |
             uint256(Fixed6.unwrap(newValue.makerValue._value) << (256 - 64)) >> (256 - 8 - 64) |
             uint256(Fixed6.unwrap(newValue.longValue._value) << (256 - 64)) >> (256 - 8 - 64 - 64) |
             uint256(Fixed6.unwrap(newValue.shortValue._value) << (256 - 64)) >> (256 - 8 - 64 - 64 - 64);
-        uint256 encoded1 =
-            uint256(UFixed6.unwrap(newValue.makerReward._value) << (256 - 64)) >> (256 - 64) |
-            uint256(UFixed6.unwrap(newValue.longReward._value) << (256 - 64)) >> (256 - 64 - 64) |
-            uint256(UFixed6.unwrap(newValue.shortReward._value) << (256 - 64)) >> (256 - 64 - 64 - 64);
 
         assembly {
             sstore(self.slot, encoded0)
-            sstore(add(self.slot, 1), encoded1)
         }
     }
 }

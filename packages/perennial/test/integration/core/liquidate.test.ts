@@ -56,7 +56,7 @@ describe('Liquidate', () => {
     expect((await market.locals(user.address)).protectionInitiator).to.eq(userB.address)
   })
 
-  it('liquidates a user with a reward larger than total collateral', async () => {
+  it('liquidates a user with a fee larger than total collateral', async () => {
     const POSITION = parse6decimal('0.0001')
     const COLLATERAL = parse6decimal('900')
     const { user, userB, dsu, chainlink } = instanceVars

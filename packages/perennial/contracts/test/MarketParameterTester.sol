@@ -12,9 +12,8 @@ contract MarketParameterTester {
 
     function validateAndStore(
         MarketParameter memory newMarketParameter,
-        ProtocolParameter memory protocolParameter,
-        Token18 reward
+        ProtocolParameter memory protocolParameter
     ) external {
-        return marketParameter.validateAndStore(newMarketParameter, protocolParameter, reward);
+        return marketParameter.validateAndStore(newMarketParameter, protocolParameter);
     }
 }

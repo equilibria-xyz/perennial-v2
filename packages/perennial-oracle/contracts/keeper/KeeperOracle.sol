@@ -147,7 +147,7 @@ contract KeeperOracle is IKeeperOracle, Instance {
     }
 
     /// @notice Commits the price to a requested version
-    /// @dev This commit function will pay out a keeper reward if the committed version is valid
+    /// @dev This commit function will pay out a keeper fee if the committed version is valid
     /// @param version The oracle version to commit
     /// @return Whether the commit was requested
     function _commitRequested(OracleVersion memory version) private returns (bool) {

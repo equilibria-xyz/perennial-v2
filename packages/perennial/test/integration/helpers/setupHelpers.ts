@@ -62,7 +62,6 @@ export interface InstanceVars {
   chainlink: ChainlinkContext
   oracle: IOracleProvider
   marketImpl: Market
-  rewardToken: ERC20PresetMinterPauser
 }
 
 export async function deployProtocol(chainlinkContext?: ChainlinkContext): Promise<InstanceVars> {
@@ -155,8 +154,6 @@ export async function deployProtocol(chainlinkContext?: ChainlinkContext): Promi
   await fundWallet(dsu, userD)
   const usdcHolder = await impersonate.impersonateWithBalance(USDC_HOLDER, utils.parseEther('10'))
 
-  const rewardToken = await new ERC20PresetMinterPauser__factory(owner).deploy('Incentive Token', 'ITKN')
-
   return {
     owner,
     pauser,
@@ -176,7 +173,6 @@ export async function deployProtocol(chainlinkContext?: ChainlinkContext): Promi
     marketFactory,
     oracle,
     marketImpl,
-    rewardToken,
   }
 }
 
@@ -198,7 +194,7 @@ export async function createMarket(
   riskParamOverrides?: Partial<RiskParameterStruct>,
   marketParamOverrides?: Partial<MarketParameterStruct>,
 ): Promise<Market> {
-  const { owner, marketFactory, beneficiaryB, oracle, rewardToken, dsu } = instanceVars
+  const { owner, marketFactory, beneficiaryB, oracle, dsu } = instanceVars
 
   const definition = {
     token: dsu.address,
@@ -243,9 +239,6 @@ export async function createMarket(
     positionFee: 0,
     maxPendingGlobal: 8,
     maxPendingLocal: 8,
-    makerRewardRate: 0,
-    longRewardRate: 0,
-    shortRewardRate: 0,
     settlementFee: 0,
     makerCloseAlways: false,
     takerCloseAlways: false,
