@@ -13983,17 +13983,7 @@ describe('Market', () => {
         const EXPECTED_INTEREST_WITHOUT_FEE_5_123_P2 = EXPECTED_INTEREST_5_123_P2.sub(EXPECTED_INTEREST_FEE_5_123_P2)
 
         beforeEach(async () => {
-          marketPayoff = await new Market__factory(
-            {
-              'contracts/types/MarketParameter.sol:MarketParameterStorageLib': (
-                await new MarketParameterStorageLib__factory(owner).deploy()
-              ).address,
-              'contracts/types/RiskParameter.sol:RiskParameterStorageLib': (
-                await new RiskParameterStorageLib__factory(owner).deploy()
-              ).address,
-            },
-            owner,
-          ).deploy()
+          marketPayoff = await new Market__factory(owner).deploy()
           const payoff = await new MilliPowerTwo__factory(owner).deploy()
           marketDefinition.payoff = payoff.address
           await marketPayoff.connect(factorySigner).initialize(marketDefinition)
