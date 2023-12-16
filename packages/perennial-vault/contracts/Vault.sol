@@ -277,8 +277,6 @@ contract Vault is IVault, Instance {
             revert VaultUnhealthyError();
         if (depositAssets.gt(_maxDeposit(context)))
             revert VaultDepositLimitExceededError();
-        if (redeemShares.gt(_maxRedeem(context)))
-            revert VaultRedemptionLimitExceededError();
         if (!depositAssets.isZero() && depositAssets.lt(context.settlementFee))
             revert VaultInsufficientMinimumError();
         if (!redeemShares.isZero() && context.latestCheckpoint.toAssets(redeemShares, context.settlementFee).isZero())
@@ -478,16 +476,6 @@ contract Vault is IVault, Instance {
     /// @return Maximum available deposit amount
     function _maxDeposit(Context memory context) private view returns (UFixed6) {
         return context.parameter.cap.unsafeSub(UFixed6Lib.unsafeFrom(totalAssets()).add(context.global.deposit));
-    }
-
-    /// @notice The maximum available redemption amount for `account`
-    /// @param context Context to use
-    /// @return redemptionAmount Maximum available redemption amount
-    function _maxRedeem(Context memory context) private pure returns (UFixed6) {
-        UFixed6 maxRedeemAssets = context.strategy.maxRedeem();
-        return maxRedeemAssets.eq(UFixed6Lib.MAX) ?
-            UFixed6Lib.MAX :
-            context.latestCheckpoint.toShares(maxRedeemAssets, UFixed6Lib.ZERO);
     }
 
     /// @notice Returns the collateral and fee information for the vault at position
