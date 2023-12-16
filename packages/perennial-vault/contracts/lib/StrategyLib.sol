@@ -37,6 +37,15 @@ struct MarketStrategyContext {
 
     // @dev The pending fees of the vault
     UFixed6 pendingFee;
+
+    // @dev minimum position size before crossing the net position
+    UFixed6 minPosition;
+
+    // @dev maximum position size before crossing the maker limit
+    UFixed6 maxPosition;
+
+    // @dev collateral required to maintain leverage target at minimum position
+    UFixed6 minCollateral;
 }
 
 struct Strategy {
@@ -87,37 +96,9 @@ library StrategyLib {
     /// @param strategy The strategy context of the vault
     /// @return redemptionAssets The maximum amount of collateral that can be redeemed
     function maxRedeem(Strategy memory strategy) internal pure returns (UFixed6 redemptionAssets) {
-        redemptionAssets = UFixed6Lib.MAX;
-        MarketTarget[] memory targets = _allocate(
-            strategy,
-            UFixed6Lib.ZERO,
-            UFixed6Lib.ZERO,
-            UFixed6Lib.ZERO
-        );
-
-        for (uint256 marketId; marketId < strategy.marketContexts.length; marketId++) {
-            MarketStrategyContext memory marketContext = strategy.marketContexts[marketId];
-
-            // If market has 0 weight, leverage, or position, skip
-            if (
-                marketContext.registration.weight == 0 ||
-                marketContext.registration.leverage.isZero() || (
-                    marketContext.latestAccountPosition.maker.isZero() &&
-                    marketContext.currentAccountPosition.maker.isZero()
-                )
-            ) continue;
-
-            (UFixed6 minPosition, ) = _positionLimit(marketContext);
-            UFixed6 availableClosable = targets[marketId].position.unsafeSub(minPosition);
-
-            // If entire position can be closed, don't limit in cases of price deviation
-            if (minPosition.isZero()) continue; // entire position can be closed, don't limit in cases of price deviation
-
-            redemptionAssets = availableClosable
-                .muldiv(marketContext.latestPrice.abs(), marketContext.registration.leverage)   // available collateral
-                .muldiv(strategy.totalWeight, marketContext.registration.weight)                // collateral in market
-                .min(redemptionAssets);
-        }
+        redemptionAssets = UFixed6Lib.unsafeFrom(strategy.totalCollateral);
+        for (uint256 marketId; marketId < strategy.marketContexts.length; marketId++)
+            redemptionAssets = redemptionAssets.unsafeSub(strategy.marketContexts[marketId].minCollateral);
     }
 
     /// @notice Compute the target allocation for each market
@@ -131,29 +112,10 @@ library StrategyLib {
         UFixed6 withdrawal,
         UFixed6 ineligable
     ) internal pure returns (MarketTarget[] memory targets) {
-        targets = _allocate(strategy, deposit, withdrawal, ineligable);
-
-        for (uint256 marketId; marketId < strategy.marketContexts.length; marketId++) {
-            (UFixed6 minPosition, UFixed6 maxPosition) = _positionLimit(strategy.marketContexts[marketId]);
-            targets[marketId].position = targets[marketId].position.max(minPosition).min(maxPosition);
-        }
-    }
-
-    /// @notice Compute the target allocation for each market
-    /// @dev Internal helper that does not enforce position limits
-    /// @param strategy The strategy of the vault
-    /// @param deposit The amount of assets that are being deposited into the vault
-    /// @param withdrawal The amount of assets to make available for withdrawal
-    /// @param ineligable The amount of assets that are inapplicable for allocation
-    function _allocate(
-        Strategy memory strategy,
-        UFixed6 deposit,
-        UFixed6 withdrawal,
-        UFixed6 ineligable
-    ) private pure returns (MarketTarget[] memory targets) {
         UFixed6 totalDeployed;
 
-        (UFixed6 collateral, UFixed6 assets) = _treasury(strategy, deposit, withdrawal, ineligable);
+        UFixed6 collateral = UFixed6Lib.unsafeFrom(strategy.totalCollateral).add(deposit).unsafeSub(withdrawal);
+        UFixed6 assets = collateral.unsafeSub(ineligable);
 
         // TODO: revert if not enough collateral to redeem / get rid of maxRedeem check
         if (collateral.lt(strategy.totalMargin)) revert StrategyLibInsufficientMarginError();
@@ -172,7 +134,13 @@ library StrategyLib {
         targets[0].collateral = targets[0].collateral.add(Fixed6Lib.from(collateral.sub(totalDeployed)));
     }
 
-    // TODO:
+    /// @notice Compute the target allocation for a market
+    /// @param marketContext The context of the market
+    /// @param totalDeployed The total amount of deployed collateral accumulator
+    /// @param totalWeight The total weight of the vault
+    /// @param totalMargin The total margin requirement of the vault
+    /// @param collateral The total amount of collateral of the vault
+    /// @param assets The total amount of collateral available for allocation
     function _allocateMarket(
         MarketStrategyContext memory marketContext,
         UFixed6 totalDeployed,
@@ -184,8 +152,6 @@ library StrategyLib {
         UFixed6 marketCollateral = marketContext.margin
             .add(collateral.sub(totalMargin).muldiv(marketContext.registration.weight, totalWeight));
 
-        newTotalDeployed = totalDeployed.add(marketCollateral);
-
         UFixed6 marketAssets = assets
             .unsafeSub(marketContext.pendingFee)
             .muldiv(marketContext.registration.weight, totalWeight)
@@ -194,24 +160,25 @@ library StrategyLib {
         UFixed6 minAssets = marketContext.riskParameter.minMargin
             .unsafeDiv(marketContext.registration.leverage.mul(marketContext.riskParameter.maintenance));
 
-        if (marketContext.marketParameter.closed || marketAssets.lt(minAssets))
-            marketAssets = UFixed6Lib.ZERO;
+        if (marketContext.marketParameter.closed || marketAssets.lt(minAssets)) marketAssets = UFixed6Lib.ZERO;
 
-        (target.collateral, target.position) = (
+        (target.collateral, target.position, newTotalDeployed) = (
             Fixed6Lib.from(marketCollateral).sub(marketContext.local.collateral),
-            marketAssets.muldiv(marketContext.registration.leverage, marketContext.latestPrice.abs())
+            _limitPosition(
+                marketAssets.muldiv(marketContext.registration.leverage, marketContext.latestPrice.abs()),
+                marketContext
+            ),
+            totalDeployed.add(marketCollateral)
         );
     }
 
-    // TODO
-    function _treasury(
-        Strategy memory strategy,
-        UFixed6 deposit,
-        UFixed6 withdrawal,
-        UFixed6 ineligable
-    ) private pure returns (UFixed6 collateral, UFixed6 assets) {
-        collateral = UFixed6Lib.unsafeFrom(strategy.totalCollateral).add(deposit).unsafeSub(withdrawal);
-        assets = collateral.unsafeSub(ineligable);
+    // TODO: remove w/ totalWeight to one change
+    /// @dev required for stack too deep
+    function _limitPosition(
+        UFixed6 position,
+        MarketStrategyContext memory marketContext
+    ) private pure returns (UFixed6) {
+        return position.max(marketContext.minPosition).min(marketContext.maxPosition);
     }
 
     /// @notice Load the context of a market
@@ -250,6 +217,13 @@ library StrategyLib {
         marketContext.currentPosition.adjust(latestPosition);
         marketContext.pendingFee = marketContext.pendingFee
             .add(marketContext.local.pendingLiquidationFee(marketContext.latestAccountPosition));
+        marketContext.minPosition = marketContext.currentAccountPosition.maker
+            .unsafeSub(marketContext.currentPosition.maker
+                .unsafeSub(marketContext.currentPosition.net()).min(marketContext.closable));
+        marketContext.maxPosition = marketContext.currentAccountPosition.maker
+            .add(marketContext.riskParameter.makerLimit.unsafeSub(marketContext.currentPosition.maker));
+        marketContext.minCollateral = marketContext.minPosition
+            .muldiv(marketContext.latestPrice.abs(), marketContext.registration.leverage);
     }
 
     /// @notice Loads one position for the context calculation
@@ -272,21 +246,5 @@ library StrategyLib {
             .add(UFixed6Lib.unsafeFrom(position.fee)) // don't allocate negative fees
             .add(position.keeper);
         nextMaker = position.maker;
-    }
-
-    /// @notice Compute the position limit of a market
-    /// @param marketContext The context of the market
-    /// @return The minimum position size before crossing the net position
-    /// @return The maximum position size before crossing the maker limit
-    function _positionLimit(MarketStrategyContext memory marketContext) private pure returns (UFixed6, UFixed6) {
-        return (
-            // minimum position size before crossing the net position
-            marketContext.currentAccountPosition.maker
-                .unsafeSub(marketContext.currentPosition.maker
-                    .unsafeSub(marketContext.currentPosition.net()).min(marketContext.closable)),
-            // maximum position size before crossing the maker limit
-            marketContext.currentAccountPosition.maker
-                .add(marketContext.riskParameter.makerLimit.unsafeSub(marketContext.currentPosition.maker))
-        );
     }
 }
