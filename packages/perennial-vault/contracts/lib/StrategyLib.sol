@@ -88,6 +88,9 @@ library StrategyLib {
             strategy.totalWeight += registrations[marketId].weight;
             strategy.totalMargin = strategy.totalMargin.add(strategy.marketContexts[marketId].margin);
             strategy.totalCollateral = strategy.totalCollateral.add(strategy.marketContexts[marketId].local.collateral);
+            strategy.minAssets = strategy.marketContexts[marketId].minPosition
+                .muldiv(strategy.marketContexts[marketId].latestPrice.abs(), registrations[marketId].leverage)
+                .muldiv(strategy.totalWeight, registrations[marketId].weight);
         }
 
         // second pass to compute minAssets (TODO remove w/ totalWeight to one change)
