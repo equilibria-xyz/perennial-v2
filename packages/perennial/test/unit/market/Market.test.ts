@@ -51,12 +51,6 @@ const DEFAULT_VERSION_ACCUMULATION_RESULT = {
   pnlShort: 0,
 }
 
-const DEFAULT_LOCAL_ACCUMULATION_RESULT = {
-  collateralAmount: 0,
-  positionFee: 0,
-  keeper: 0,
-}
-
 const DEFAULT_ORDER = {
   maker: 0,
   long: 0,
@@ -1014,7 +1008,7 @@ describe('Market', () => {
               .to.emit(market, 'PositionProcessed')
               .withArgs(0, ORACLE_VERSION_1.timestamp, 0, 0, DEFAULT_VERSION_ACCUMULATION_RESULT)
               .to.emit(market, 'AccountPositionProcessed')
-              .withArgs(user.address, 0, ORACLE_VERSION_1.timestamp, 0, 0, DEFAULT_LOCAL_ACCUMULATION_RESULT)
+              .withArgs(user.address, 0, ORACLE_VERSION_1.timestamp, 0, 0, 0, 0, 0)
               .to.emit(market, 'Updated')
               .withArgs(user.address, user.address, ORACLE_VERSION_2.timestamp, POSITION, 0, 0, COLLATERAL, false)
 
@@ -1032,14 +1026,7 @@ describe('Market', () => {
                 DEFAULT_VERSION_ACCUMULATION_RESULT,
               )
               .to.emit(market, 'AccountPositionProcessed')
-              .withArgs(
-                user.address,
-                ORACLE_VERSION_1.timestamp,
-                ORACLE_VERSION_2.timestamp,
-                0,
-                1,
-                DEFAULT_LOCAL_ACCUMULATION_RESULT,
-              )
+              .withArgs(user.address, ORACLE_VERSION_1.timestamp, ORACLE_VERSION_2.timestamp, 0, 1, 0, 0, 0)
 
             expectLocalEq(await market.locals(user.address), {
               ...DEFAULT_LOCAL,
@@ -3514,21 +3501,29 @@ describe('Market', () => {
                 pnlLong: EXPECTED_PNL.mul(-1),
               })
               .to.emit(market, 'AccountPositionProcessed')
-              .withArgs(user.address, ORACLE_VERSION_2.timestamp, oracleVersionLowerPrice.timestamp, 1, 2, {
-                ...DEFAULT_LOCAL_ACCUMULATION_RESULT,
-                collateralAmount: EXPECTED_PNL.mul(-1)
-                  .sub(EXPECTED_FUNDING_WITH_FEE_1_5_123)
-                  .sub(EXPECTED_INTEREST_5_123),
-              })
+              .withArgs(
+                user.address,
+                ORACLE_VERSION_2.timestamp,
+                oracleVersionLowerPrice.timestamp,
+                1,
+                2,
+                EXPECTED_PNL.mul(-1).sub(EXPECTED_FUNDING_WITH_FEE_1_5_123).sub(EXPECTED_INTEREST_5_123),
+                0,
+                0,
+              )
 
             await expect(settle(market, userB))
               .to.emit(market, 'AccountPositionProcessed')
-              .withArgs(userB.address, ORACLE_VERSION_2.timestamp, oracleVersionLowerPrice.timestamp, 1, 2, {
-                ...DEFAULT_LOCAL_ACCUMULATION_RESULT,
-                collateralAmount: EXPECTED_PNL.add(EXPECTED_FUNDING_WITHOUT_FEE_1_5_123)
-                  .add(EXPECTED_INTEREST_WITHOUT_FEE_5_123)
-                  .sub(8),
-              })
+              .withArgs(
+                userB.address,
+                ORACLE_VERSION_2.timestamp,
+                oracleVersionLowerPrice.timestamp,
+                1,
+                2,
+                EXPECTED_PNL.add(EXPECTED_FUNDING_WITHOUT_FEE_1_5_123).add(EXPECTED_INTEREST_WITHOUT_FEE_5_123).sub(8),
+                0,
+                0,
+              )
 
             expectLocalEq(await market.locals(user.address), {
               ...DEFAULT_LOCAL,
@@ -3632,21 +3627,29 @@ describe('Market', () => {
                 pnlLong: EXPECTED_PNL.mul(-1),
               })
               .to.emit(market, 'AccountPositionProcessed')
-              .withArgs(user.address, ORACLE_VERSION_2.timestamp, oracleVersionHigherPrice.timestamp, 1, 2, {
-                ...DEFAULT_LOCAL_ACCUMULATION_RESULT,
-                collateralAmount: EXPECTED_PNL.mul(-1)
-                  .sub(EXPECTED_FUNDING_WITH_FEE_1_5_123)
-                  .sub(EXPECTED_INTEREST_5_123),
-              })
+              .withArgs(
+                user.address,
+                ORACLE_VERSION_2.timestamp,
+                oracleVersionHigherPrice.timestamp,
+                1,
+                2,
+                EXPECTED_PNL.mul(-1).sub(EXPECTED_FUNDING_WITH_FEE_1_5_123).sub(EXPECTED_INTEREST_5_123),
+                0,
+                0,
+              )
 
             await expect(settle(market, userB))
               .to.emit(market, 'AccountPositionProcessed')
-              .withArgs(userB.address, ORACLE_VERSION_2.timestamp, oracleVersionHigherPrice.timestamp, 1, 2, {
-                ...DEFAULT_LOCAL_ACCUMULATION_RESULT,
-                collateralAmount: EXPECTED_PNL.add(EXPECTED_FUNDING_WITHOUT_FEE_1_5_123)
-                  .add(EXPECTED_INTEREST_WITHOUT_FEE_5_123)
-                  .sub(8),
-              })
+              .withArgs(
+                userB.address,
+                ORACLE_VERSION_2.timestamp,
+                oracleVersionHigherPrice.timestamp,
+                1,
+                2,
+                EXPECTED_PNL.add(EXPECTED_FUNDING_WITHOUT_FEE_1_5_123).add(EXPECTED_INTEREST_WITHOUT_FEE_5_123).sub(8),
+                0,
+                0,
+              )
 
             expectLocalEq(await market.locals(user.address), {
               ...DEFAULT_LOCAL,
@@ -6302,21 +6305,29 @@ describe('Market', () => {
                 pnlShort: EXPECTED_PNL.mul(-1),
               })
               .to.emit(market, 'AccountPositionProcessed')
-              .withArgs(user.address, ORACLE_VERSION_2.timestamp, oracleVersionLowerPrice.timestamp, 1, 2, {
-                ...DEFAULT_LOCAL_ACCUMULATION_RESULT,
-                collateralAmount: EXPECTED_PNL.mul(-1)
-                  .sub(EXPECTED_FUNDING_WITH_FEE_1_5_123)
-                  .sub(EXPECTED_INTEREST_5_123),
-              })
+              .withArgs(
+                user.address,
+                ORACLE_VERSION_2.timestamp,
+                oracleVersionLowerPrice.timestamp,
+                1,
+                2,
+                EXPECTED_PNL.mul(-1).sub(EXPECTED_FUNDING_WITH_FEE_1_5_123).sub(EXPECTED_INTEREST_5_123),
+                0,
+                0,
+              )
 
             await expect(settle(market, userB))
               .to.emit(market, 'AccountPositionProcessed')
-              .withArgs(userB.address, ORACLE_VERSION_2.timestamp, oracleVersionLowerPrice.timestamp, 1, 2, {
-                ...DEFAULT_LOCAL_ACCUMULATION_RESULT,
-                collateralAmount: EXPECTED_PNL.add(EXPECTED_FUNDING_WITHOUT_FEE_1_5_123)
-                  .add(EXPECTED_INTEREST_WITHOUT_FEE_5_123)
-                  .sub(8),
-              })
+              .withArgs(
+                userB.address,
+                ORACLE_VERSION_2.timestamp,
+                oracleVersionLowerPrice.timestamp,
+                1,
+                2,
+                EXPECTED_PNL.add(EXPECTED_FUNDING_WITHOUT_FEE_1_5_123).add(EXPECTED_INTEREST_WITHOUT_FEE_5_123).sub(8),
+                0,
+                0,
+              )
 
             expectLocalEq(await market.locals(user.address), {
               ...DEFAULT_LOCAL,
@@ -6421,21 +6432,29 @@ describe('Market', () => {
                 pnlShort: EXPECTED_PNL.mul(-1),
               })
               .to.emit(market, 'AccountPositionProcessed')
-              .withArgs(user.address, ORACLE_VERSION_2.timestamp, oracleVersionHigherPrice.timestamp, 1, 2, {
-                ...DEFAULT_LOCAL_ACCUMULATION_RESULT,
-                collateralAmount: EXPECTED_PNL.mul(-1)
-                  .sub(EXPECTED_FUNDING_WITH_FEE_1_5_123)
-                  .sub(EXPECTED_INTEREST_5_123),
-              })
+              .withArgs(
+                user.address,
+                ORACLE_VERSION_2.timestamp,
+                oracleVersionHigherPrice.timestamp,
+                1,
+                2,
+                EXPECTED_PNL.mul(-1).sub(EXPECTED_FUNDING_WITH_FEE_1_5_123).sub(EXPECTED_INTEREST_5_123),
+                0,
+                0,
+              )
 
             await expect(settle(market, userB))
               .to.emit(market, 'AccountPositionProcessed')
-              .withArgs(userB.address, ORACLE_VERSION_2.timestamp, oracleVersionHigherPrice.timestamp, 1, 2, {
-                ...DEFAULT_LOCAL_ACCUMULATION_RESULT,
-                collateralAmount: EXPECTED_PNL.add(EXPECTED_FUNDING_WITHOUT_FEE_1_5_123)
-                  .add(EXPECTED_INTEREST_WITHOUT_FEE_5_123)
-                  .sub(8),
-              })
+              .withArgs(
+                userB.address,
+                ORACLE_VERSION_2.timestamp,
+                oracleVersionHigherPrice.timestamp,
+                1,
+                2,
+                EXPECTED_PNL.add(EXPECTED_FUNDING_WITHOUT_FEE_1_5_123).add(EXPECTED_INTEREST_WITHOUT_FEE_5_123).sub(8),
+                0,
+                0,
+              )
 
             expectLocalEq(await market.locals(user.address), {
               ...DEFAULT_LOCAL,
@@ -9640,25 +9659,37 @@ describe('Market', () => {
                 pnlShort: EXPECTED_PNL,
               })
               .to.emit(market, 'AccountPositionProcessed')
-              .withArgs(user.address, ORACLE_VERSION_2.timestamp, oracleVersionLowerPrice.timestamp, 1, 2, {
-                ...DEFAULT_LOCAL_ACCUMULATION_RESULT,
-                collateralAmount: EXPECTED_PNL.div(2)
+              .withArgs(
+                user.address,
+                ORACLE_VERSION_2.timestamp,
+                oracleVersionLowerPrice.timestamp,
+                1,
+                2,
+                EXPECTED_PNL.div(2)
                   .mul(-1)
                   .add(EXPECTED_FUNDING_WITHOUT_FEE_1_10_123_ALL.div(2))
                   .sub(EXPECTED_INTEREST_10_67_123_ALL.div(3))
                   .sub(2), // loss of precision
-              })
+                0,
+                0,
+              )
 
             await expect(settle(market, userB))
               .to.emit(market, 'AccountPositionProcessed')
-              .withArgs(userB.address, ORACLE_VERSION_2.timestamp, oracleVersionLowerPrice.timestamp, 1, 2, {
-                ...DEFAULT_LOCAL_ACCUMULATION_RESULT,
-                collateralAmount: EXPECTED_PNL.div(2)
+              .withArgs(
+                userB.address,
+                ORACLE_VERSION_2.timestamp,
+                oracleVersionLowerPrice.timestamp,
+                1,
+                2,
+                EXPECTED_PNL.div(2)
                   .mul(-1)
                   .add(EXPECTED_FUNDING_WITHOUT_FEE_1_10_123_ALL.div(2))
                   .add(EXPECTED_INTEREST_WITHOUT_FEE_10_67_123_ALL)
                   .sub(13), // loss of precision
-              })
+                0,
+                0,
+              )
 
             expectLocalEq(await market.locals(user.address), {
               ...DEFAULT_LOCAL,
@@ -9777,25 +9808,37 @@ describe('Market', () => {
                 pnlShort: EXPECTED_PNL,
               })
               .to.emit(market, 'AccountPositionProcessed')
-              .withArgs(user.address, ORACLE_VERSION_2.timestamp, oracleVersionHigherPrice.timestamp, 1, 2, {
-                ...DEFAULT_LOCAL_ACCUMULATION_RESULT,
-                collateralAmount: EXPECTED_PNL.div(2)
+              .withArgs(
+                user.address,
+                ORACLE_VERSION_2.timestamp,
+                oracleVersionHigherPrice.timestamp,
+                1,
+                2,
+                EXPECTED_PNL.div(2)
                   .mul(-1)
                   .add(EXPECTED_FUNDING_WITHOUT_FEE_1_10_123_ALL.div(2))
                   .sub(EXPECTED_INTEREST_10_67_123_ALL.div(3))
                   .sub(2), // loss of precision
-              })
+                0,
+                0,
+              )
 
             await expect(settle(market, userB))
               .to.emit(market, 'AccountPositionProcessed')
-              .withArgs(userB.address, ORACLE_VERSION_2.timestamp, oracleVersionHigherPrice.timestamp, 1, 2, {
-                ...DEFAULT_LOCAL_ACCUMULATION_RESULT,
-                collateralAmount: EXPECTED_PNL.div(2)
+              .withArgs(
+                userB.address,
+                ORACLE_VERSION_2.timestamp,
+                oracleVersionHigherPrice.timestamp,
+                1,
+                2,
+                EXPECTED_PNL.div(2)
                   .mul(-1)
                   .add(EXPECTED_FUNDING_WITHOUT_FEE_1_10_123_ALL.div(2))
                   .add(EXPECTED_INTEREST_WITHOUT_FEE_10_67_123_ALL)
                   .sub(13), // loss of precision
-              })
+                0,
+                0,
+              )
 
             expectLocalEq(await market.locals(user.address), {
               ...DEFAULT_LOCAL,
