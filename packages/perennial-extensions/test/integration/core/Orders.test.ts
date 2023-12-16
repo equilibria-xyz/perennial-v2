@@ -24,7 +24,7 @@ import HRE from 'hardhat'
 
 const ethers = { HRE }
 
-describe.only('Orders', () => {
+describe('Orders', () => {
   let instanceVars: InstanceVars
   let dsuCollateral: BigNumber
   let collateral: BigNumber
