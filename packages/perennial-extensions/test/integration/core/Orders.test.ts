@@ -776,10 +776,9 @@ describe('Orders', () => {
 
       await ethers.provider.send('hardhat_setNextBlockBaseFeePerGas', ['0x1000000'])
       const execute = buildExecOrder({ user: user.address, market: market.address, orderId: 1 })
-      await expect(multiInvoker.connect(user).invoke(execute)).to.be.revertedWithCustomError(
-        multiInvoker,
-        'MultiInvokerMaxFeeExceededError',
-      )
+      await expect(multiInvoker.connect(user).invoke(execute))
+        .to.emit(market, 'Updated')
+        .withArgs(multiInvoker.address, user.address, 1631114005, 0, 0, 0, -10, false)
     })
 
     it('Fails to store TRIGGER values out of slot bounds', async () => {
