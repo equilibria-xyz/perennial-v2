@@ -383,7 +383,6 @@ contract Vault is IVault, Instance {
         if (!rebalance || context.totalCollateral.lt(Fixed6Lib.ZERO)) return;
 
         StrategyLib.MarketTarget[] memory targets = context.strategy.allocate(
-            context.registrations,
             deposit,
             withdrawal,
             _ineligable(context, withdrawal)
@@ -486,7 +485,7 @@ contract Vault is IVault, Instance {
     /// @return redemptionAmount Maximum available redemption amount
     function _maxRedeem(Context memory context) private pure returns (UFixed6) {
         if (context.latestCheckpoint.unhealthy()) return UFixed6Lib.ZERO;
-        UFixed6 maxRedeemAssets = context.strategy.maxRedeem(context.registrations, context.totalWeight);
+        UFixed6 maxRedeemAssets = context.strategy.maxRedeem();
         UFixed6 maxRedeemShares = maxRedeemAssets.eq(UFixed6Lib.MAX) ?
             UFixed6Lib.MAX :
             context.latestCheckpoint.toShares(maxRedeemAssets, UFixed6Lib.ZERO);
