@@ -2,6 +2,7 @@
 pragma solidity ^0.8.13;
 
 import "../types/Registration.sol";
+import "hardhat/console.sol";
 
 /// @dev The context of an underlying market
 struct MarketStrategyContext {
@@ -88,9 +89,11 @@ library StrategyLib {
             strategy.totalWeight += registrations[marketId].weight;
             strategy.totalMargin = strategy.totalMargin.add(strategy.marketContexts[marketId].margin);
             strategy.totalCollateral = strategy.totalCollateral.add(strategy.marketContexts[marketId].local.collateral);
-            strategy.minAssets = strategy.marketContexts[marketId].minPosition
-                .muldiv(strategy.marketContexts[marketId].latestPrice.abs(), registrations[marketId].leverage)
-                .muldiv(strategy.totalWeight, registrations[marketId].weight);
+            strategy.minAssets = (registrations[marketId].leverage.isZero() || registrations[marketId].weight == 0) ?
+                UFixed6Lib.ZERO : // skip if no leverage or weight
+                strategy.marketContexts[marketId].minPosition
+                    .muldiv(strategy.marketContexts[marketId].latestPrice.abs(), registrations[marketId].leverage)
+                    .muldiv(strategy.totalWeight, registrations[marketId].weight);
         }
 
         // second pass to compute minAssets (TODO remove w/ totalWeight to one change)
