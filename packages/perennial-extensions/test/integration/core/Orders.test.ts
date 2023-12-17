@@ -767,7 +767,7 @@ describe('Orders', () => {
 
       await ethers.HRE.ethers.provider.send('hardhat_setNextBlockBaseFeePerGas', ['0x1000000'])
       const execute = buildExecOrder({ user: user.address, market: market.address, orderId: 1 })
-      await expect(multiInvoker.connect(user).invoke(execute))
+      await expect(multiInvoker.connect(user).invoke(execute, { maxFeePerGas: 16777216 }))
         .to.emit(market, 'Updated')
         .withArgs(multiInvoker.address, user.address, 1631114005, 0, 0, 0, -10, false)
     })
