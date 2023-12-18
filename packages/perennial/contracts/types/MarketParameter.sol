@@ -66,7 +66,7 @@ library MarketParameterStorageLib {
     // sig: 0x7c53e926
     error MarketParameterStorageInvalidError();
 
-    function read(MarketParameterStorage storage self) external view returns (MarketParameter memory) {
+    function read(MarketParameterStorage storage self) internal view returns (MarketParameter memory) {
         uint256 slot0 = self.slot0;
 
         uint256 flags = uint256(slot0) >> (256 - 8);
@@ -88,10 +88,7 @@ library MarketParameterStorageLib {
         );
     }
 
-    function validate(
-        MarketParameter memory self,
-        ProtocolParameter memory protocolParameter
-    ) public pure {
+    function validate(MarketParameter memory self, ProtocolParameter memory protocolParameter) internal pure {
         if (self.settlementFee.gt(protocolParameter.maxFeeAbsolute)) revert MarketParameterStorageInvalidError();
 
         if (self.fundingFee.max(self.interestFee).max(self.positionFee).gt(protocolParameter.maxCut))
@@ -104,7 +101,7 @@ library MarketParameterStorageLib {
         MarketParameterStorage storage self,
         MarketParameter memory newValue,
         ProtocolParameter memory protocolParameter
-    ) external {
+    ) internal {
         validate(newValue, protocolParameter);
 
         if (newValue.maxPendingGlobal > uint256(type(uint16).max)) revert MarketParameterStorageInvalidError();
@@ -113,7 +110,7 @@ library MarketParameterStorageLib {
         _store(self, newValue);
     }
 
-    function _store(MarketParameterStorage storage self, MarketParameter memory newValue) internal {
+    function _store(MarketParameterStorage storage self, MarketParameter memory newValue) private {
         uint256 flags = (newValue.takerCloseAlways ? 0x01 : 0x00) |
             (newValue.makerCloseAlways ? 0x02 : 0x00) |
             (newValue.closed ? 0x04 : 0x00);

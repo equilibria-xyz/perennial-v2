@@ -9,7 +9,7 @@ import {
   MarketParameterTester,
   MarketParameterTester__factory,
 } from '../../../types/generated'
-import { BigNumber, constants } from 'ethers'
+import { BigNumber } from 'ethers'
 import { MarketParameterStruct } from '../../../types/generated/contracts/Market'
 import { ProtocolParameterStruct } from '../../../types/generated/contracts/MarketFactory'
 import { parse6decimal } from '../../../../common/testutil/types'
@@ -51,12 +51,7 @@ describe('MarketParameter', () => {
     ;[owner] = await ethers.getSigners()
 
     marketParameterStorage = await new MarketParameterStorageLib__factory(owner).deploy()
-    marketParameter = await new MarketParameterTester__factory(
-      {
-        'contracts/types/MarketParameter.sol:MarketParameterStorageLib': marketParameterStorage.address,
-      },
-      owner,
-    ).deploy()
+    marketParameter = await new MarketParameterTester__factory(owner).deploy()
   })
 
   describe('#store', () => {

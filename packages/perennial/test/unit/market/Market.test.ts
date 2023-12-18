@@ -6,15 +6,7 @@ import HRE from 'hardhat'
 
 import { impersonate } from '../../../../common/testutil'
 
-import {
-  Market,
-  Market__factory,
-  IOracleProvider,
-  IERC20Metadata,
-  IMarketFactory,
-  MarketParameterStorageLib__factory,
-  RiskParameterStorageLib__factory,
-} from '../../../types/generated'
+import { Market, Market__factory, IOracleProvider, IERC20Metadata, IMarketFactory } from '../../../types/generated'
 import {
   DEFAULT_POSITION,
   DEFAULT_LOCAL,
@@ -438,17 +430,7 @@ describe('Market', () => {
       takerCloseAlways: false,
       closed: false,
     }
-    market = await new Market__factory(
-      {
-        'contracts/types/MarketParameter.sol:MarketParameterStorageLib': (
-          await new MarketParameterStorageLib__factory(owner).deploy()
-        ).address,
-        'contracts/types/RiskParameter.sol:RiskParameterStorageLib': (
-          await new RiskParameterStorageLib__factory(owner).deploy()
-        ).address,
-      },
-      owner,
-    ).deploy()
+    market = await new Market__factory(owner).deploy()
   })
 
   describe('#initialize', async () => {
@@ -13993,17 +13975,7 @@ describe('Market', () => {
         const EXPECTED_INTEREST_WITHOUT_FEE_5_123_P2 = EXPECTED_INTEREST_5_123_P2.sub(EXPECTED_INTEREST_FEE_5_123_P2)
 
         beforeEach(async () => {
-          marketPayoff = await new Market__factory(
-            {
-              'contracts/types/MarketParameter.sol:MarketParameterStorageLib': (
-                await new MarketParameterStorageLib__factory(owner).deploy()
-              ).address,
-              'contracts/types/RiskParameter.sol:RiskParameterStorageLib': (
-                await new RiskParameterStorageLib__factory(owner).deploy()
-              ).address,
-            },
-            owner,
-          ).deploy()
+          marketPayoff = await new Market__factory(owner).deploy()
           const payoff = await new MilliPowerTwo__factory(owner).deploy()
           marketDefinition.payoff = payoff.address
           await marketPayoff.connect(factorySigner).initialize(marketDefinition)
