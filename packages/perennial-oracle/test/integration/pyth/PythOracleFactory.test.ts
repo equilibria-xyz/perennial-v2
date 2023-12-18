@@ -879,20 +879,6 @@ testOracles.forEach(testOracle => {
         ).to.be.revertedWithCustomError(pythOracleFactory, 'KeeperFactoryInvalidSettleError')
       })
 
-      it('reverts if calldata is stuffed', async () => {
-        await keeperOracle.connect(oracleSigner).request(market.address, user.address)
-        await pythOracleFactory.connect(user).commit([PYTH_ETH_USD_PRICE_FEED], STARTING_TIME, VAA, {
-          value: 1,
-        })
-        const calldata = pythOracleFactory
-          .connect(user)
-          .interface.encodeFunctionData('settle', [[PYTH_ETH_USD_PRICE_FEED], [market.address], [STARTING_TIME], [1]])
-
-        await expect(
-          user.sendTransaction({ to: pythOracleFactory.address, data: calldata.concat(calldata.slice(2)) }),
-        ).to.be.revertedWithCustomError(pythOracleFactory, 'KeeperFactoryInvalidSettleError')
-      })
-
       it('reverts if calldata is ids is empty', async () => {
         await keeperOracle.connect(oracleSigner).request(market.address, user.address)
         await pythOracleFactory.connect(user).commit([PYTH_ETH_USD_PRICE_FEED], STARTING_TIME, VAA, {

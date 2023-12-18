@@ -381,7 +381,18 @@ contract MultiInvoker is IMultiInvoker, Kept {
 
         TriggerOrder memory order = orders(account, market, nonce);
         // Pay out keeper fee based on static gas buffer
-        _handleKeep(account, market, order.fee);
+        _handleKeeperFee(
+            KeepConfig(
+                UFixed18Lib.ZERO,
+                keepBufferBase,
+                UFixed18Lib.ZERO,
+                keepBufferCalldata
+            ),
+            0,
+            msg.data[0:0],
+            0,
+            abi.encode(account, market, order.fee)
+        );
 
         (Position memory latestPosition, ) = _latest(market, account);
         Position memory currentPosition = market.pendingPositions(account, market.locals(account).currentId);
@@ -405,40 +416,24 @@ contract MultiInvoker is IMultiInvoker, Kept {
         emit OrderExecuted(account, market, nonce);
     }
 
-    /// @notice Handles paying out keeper fee for an order exection
-    /// @param account Account to pay keeper fee to
-    /// @param market Market to pay keeper fee for
-    /// @param fee Keeper fee to pay
-    function _handleKeep(address account, IMarket market, UFixed6 fee)
-        private
-        keep(
-            KeepConfig(
-                UFixed18Lib.ZERO,
-                keepBufferBase,
-                UFixed18Lib.ZERO,
-                keepBufferCalldata
-            ),
-            msg.data[0:0],
-            0,
-            abi.encode(account, market, fee)
-        )
-    { }
-
     /// @notice Helper function to raise keeper fee
     /// @param keeperFee Keeper fee to raise
     /// @param data Data to raise keeper fee with
-    function _raiseKeeperFee(UFixed18 keeperFee, bytes memory data) internal virtual override {
+    /// @return Amount of keeper fee raised
+    function _raiseKeeperFee(UFixed18 keeperFee, bytes memory data) internal virtual override returns (UFixed18) {
         (address account, IMarket market, UFixed6 fee) = abi.decode(data, (address, IMarket, UFixed6));
-        if (keeperFee.gt(UFixed18Lib.from(fee))) revert MultiInvokerMaxFeeExceededError();
+        UFixed6 raisedKeeperFee = UFixed6Lib.from(keeperFee, true).min(fee);
 
         market.update(
             account,
             UFixed6Lib.MAX,
             UFixed6Lib.MAX,
             UFixed6Lib.MAX,
-            Fixed6Lib.from(Fixed18Lib.from(-1, keeperFee), true),
+            Fixed6Lib.from(-1, raisedKeeperFee),
             false
         );
+
+        return UFixed18Lib.from(raisedKeeperFee);
     }
 
     /// @notice Places order on behalf of msg.sender from the invoker
