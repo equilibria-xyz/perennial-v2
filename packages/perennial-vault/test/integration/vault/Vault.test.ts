@@ -1680,7 +1680,7 @@ describe('Vault', () => {
     })
 
     context('insolvency', () => {
-      it('gracefully unwinds upon totalClaimable insolvency', async () => {
+      it.only('gracefully unwinds upon totalClaimable insolvency', async () => {
         // 1. Deposit initial amount into the vault
         await vault.connect(user).update(user.address, parse6decimal('100000'), 0, 0)
         await updateOracle()
@@ -1700,10 +1700,10 @@ describe('Vault', () => {
         // 4. Settle the vault to recover and rebalance
         await updateOracle() // let take settle at high price
         await vault.connect(user).update(user.address, 0, 0, 0)
-
+        console.log(1)
         await updateOracle()
         await vault.settle(user.address)
-
+        console.log(1)
         // 5. Vault should no longer have enough collateral to cover claims, pro-rata claim should be enabled
         const finalPosition = BigNumber.from('0')
         const finalCollateral = BigNumber.from('4700653859')
@@ -1717,11 +1717,11 @@ describe('Vault', () => {
         expect(await btcCollateralInVault()).to.equal(btcFinalCollateral)
         expect((await vault.accounts(user.address)).assets).to.equal(finalUnclaimed)
         expect((await vault.accounts(ethers.constants.AddressZero)).assets).to.equal(finalUnclaimed)
-
+        console.log(1)
         // 6. Claim should be pro-rated
         const initialBalanceOf = await asset.balanceOf(user.address)
         await vault.connect(user).update(user.address, 0, 0, ethers.constants.MaxUint256)
-
+        console.log(1)
         expect(await collateralInVault()).to.equal(0)
         expect(await btcCollateralInVault()).to.equal(0)
         expect((await vault.accounts(user.address)).shares).to.equal(parse6decimal('20000'))
@@ -1732,7 +1732,7 @@ describe('Vault', () => {
         expect(await asset.balanceOf(user.address)).to.equal(
           initialBalanceOf.add(finalCollateral.add(btcFinalCollateral).mul(1e12)).add(vaultFinalCollateral),
         )
-
+        console.log(1)
         // 7. Should no longer be able to deposit, vault is closed
         await updateOracle()
         await expect(vault.connect(user).update(user.address, 2, 0, 0)).to.revertedWithCustomError(
@@ -1741,7 +1741,7 @@ describe('Vault', () => {
         )
       })
 
-      it('gracefully unwinds upon total insolvency', async () => {
+      it.only('gracefully unwinds upon total insolvency', async () => {
         // 1. Deposit initial amount into the vault
         await vault.connect(user).update(user.address, parse6decimal('100000'), 0, 0)
         await updateOracle()

@@ -46,8 +46,6 @@ interface IVault is IInstance {
     event ParameterUpdated(VaultParameter newParameter);
     event Updated(address indexed sender, address indexed account, uint256 version, UFixed6 depositAssets, UFixed6 redeemShares, UFixed6 claimAssets);
 
-    // sig: 0x843314f1
-    error VaultUnhealthyError();
     // sig: 0xa9785d3d
     error VaultDepositLimitExceededError();
     // sig: 0xc85650f7

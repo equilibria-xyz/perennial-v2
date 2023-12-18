@@ -89,11 +89,17 @@ library StrategyLib {
             strategy.totalWeight += registrations[marketId].weight;
             strategy.totalMargin = strategy.totalMargin.add(strategy.marketContexts[marketId].margin);
             strategy.totalCollateral = strategy.totalCollateral.add(strategy.marketContexts[marketId].local.collateral);
-            strategy.minAssets = (registrations[marketId].leverage.isZero() || registrations[marketId].weight == 0) ?
-                UFixed6Lib.ZERO : // skip if no leverage or weight
-                strategy.marketContexts[marketId].minPosition
-                    .muldiv(strategy.marketContexts[marketId].latestPrice.abs(), registrations[marketId].leverage)
-                    .muldiv(strategy.totalWeight, registrations[marketId].weight);
+        }
+
+        // second pass to compute minAssets (TODO remove w/ totalWeight to one change)
+        for (uint256 marketId; marketId < registrations.length; marketId++) {
+            strategy.minAssets = strategy.minAssets.max(
+                (registrations[marketId].leverage.isZero() || registrations[marketId].weight == 0) ?
+                    UFixed6Lib.ZERO : // skip if no leverage or weight
+                    strategy.marketContexts[marketId].minPosition
+                        .muldiv(strategy.marketContexts[marketId].latestPrice.abs(), registrations[marketId].leverage)
+                        .muldiv(strategy.totalWeight, registrations[marketId].weight)
+            );
         }
 
         // second pass to compute minAssets (TODO remove w/ totalWeight to one change)
@@ -118,12 +124,15 @@ library StrategyLib {
         UFixed6 deposit,
         UFixed6 withdrawal,
         UFixed6 ineligable
-    ) internal pure returns (MarketTarget[] memory targets) {
+    ) internal view returns (MarketTarget[] memory targets) {
         UFixed6 totalDeployed;
 
         UFixed6 collateral = UFixed6Lib.unsafeFrom(strategy.totalCollateral).add(deposit).unsafeSub(withdrawal);
         UFixed6 assets = collateral.unsafeSub(ineligable);
 
+        console.log("totalCollateral", UFixed6.unwrap(UFixed6Lib.unsafeFrom(strategy.totalCollateral)));
+        console.log("collateral", UFixed6.unwrap(collateral));
+        console.log("strategy.totalMargin", UFixed6.unwrap(assets));
         if (collateral.lt(strategy.totalMargin)) revert StrategyLibInsufficientCollateralError();
         if (assets.lt(strategy.minAssets)) revert StrategyLibInsufficientAssetsError();
 
