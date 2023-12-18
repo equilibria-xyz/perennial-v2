@@ -11,10 +11,7 @@ import {
   IOracleProvider,
   IERC20Metadata,
   IPayoffProvider,
-  IMarket,
   IFactory,
-  MarketParameterStorageLib__factory,
-  RiskParameterStorageLib__factory,
 } from '../../../types/generated'
 import { parse6decimal } from '../../../../common/testutil/types'
 import { constants } from 'ethers'
@@ -40,17 +37,7 @@ describe('MarketFactory', () => {
     dsu = await smock.fake<IERC20Metadata>('IERC20Metadata')
     payoffFactory = await smock.fake<IFactory>('IFactory')
     payoffProvider = await smock.fake<IPayoffProvider>('IPayoffProvider')
-    marketImpl = await new Market__factory(
-      {
-        'contracts/types/MarketParameter.sol:MarketParameterStorageLib': (
-          await new MarketParameterStorageLib__factory(owner).deploy()
-        ).address,
-        'contracts/types/RiskParameter.sol:RiskParameterStorageLib': (
-          await new RiskParameterStorageLib__factory(owner).deploy()
-        ).address,
-      },
-      owner,
-    ).deploy()
+    marketImpl = await new Market__factory(owner).deploy()
     factory = await new MarketFactory__factory(owner).deploy(
       oracleFactory.address,
       payoffFactory.address,

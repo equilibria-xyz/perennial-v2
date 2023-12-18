@@ -25,7 +25,6 @@ import { parse6decimal } from '../../../../common/testutil/types'
 import {
   MarketFactory,
   ProxyAdmin,
-  TransparentUpgradeableProxy,
   TransparentUpgradeableProxy__factory,
 } from '@equilibria/perennial-v2/types/generated'
 import { IOracle, IOracle__factory, OracleFactory } from '@equilibria/perennial-v2-oracle/types/generated'

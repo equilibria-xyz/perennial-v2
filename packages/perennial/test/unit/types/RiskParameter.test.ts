@@ -67,12 +67,7 @@ describe('RiskParameter', () => {
     ;[owner] = await ethers.getSigners()
 
     riskParameterStorage = await new RiskParameterStorageLib__factory(owner).deploy()
-    riskParameter = await new RiskParameterTester__factory(
-      {
-        'contracts/types/RiskParameter.sol:RiskParameterStorageLib': riskParameterStorage.address,
-      },
-      owner,
-    ).deploy()
+    riskParameter = await new RiskParameterTester__factory(owner).deploy()
   })
 
   describe('#store', () => {

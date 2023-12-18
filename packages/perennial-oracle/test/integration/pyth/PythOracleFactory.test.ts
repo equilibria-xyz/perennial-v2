@@ -165,17 +165,7 @@ testOracles.forEach(testOracle => {
       )
       await oracleFactory.create(PYTH_ETH_USD_PRICE_FEED, pythOracleFactory.address)
 
-      const marketImpl = await new Market__factory(
-        {
-          '@equilibria/perennial-v2/contracts/types/MarketParameter.sol:MarketParameterStorageLib': (
-            await new MarketParameterStorageLib__factory(owner).deploy()
-          ).address,
-          '@equilibria/perennial-v2/contracts/types/RiskParameter.sol:RiskParameterStorageLib': (
-            await new RiskParameterStorageLib__factory(owner).deploy()
-          ).address,
-        },
-        owner,
-      ).deploy()
+      const marketImpl = await new Market__factory(owner).deploy()
       marketFactory = await new MarketFactory__factory(owner).deploy(
         oracleFactory.address,
         payoffFactory.address,

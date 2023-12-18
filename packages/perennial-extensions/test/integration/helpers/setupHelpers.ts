@@ -4,7 +4,6 @@ import { BigNumber, utils, ContractTransaction, constants } from 'ethers'
 
 import { impersonate } from '../../../../common/testutil'
 
-// extensions types
 import {
   IERC20Metadata,
   IERC20Metadata__factory,
@@ -29,8 +28,6 @@ import {
   IOracle__factory,
   PayoffFactory__factory,
   PayoffFactory,
-  RiskParameterStorageLib__factory,
-  MarketParameterStorageLib__factory,
   IOracleFactory,
 } from '../../../types/generated'
 import { ChainlinkContext } from '@equilibria/perennial-v2/test/integration/helpers/chainlinkHelpers'
@@ -43,8 +40,6 @@ import {
 import { FakeContract, smock } from '@defi-wonderland/smock'
 import { deployProductOnMainnetFork } from '@equilibria/perennial-v2-vault/test/integration/helpers/setupHelpers'
 import {
-  ERC20PresetMinterPauser,
-  ERC20PresetMinterPauser__factory,
   IMarketFactory__factory,
   MarketFactory,
   MarketFactory__factory,
@@ -120,17 +115,7 @@ export async function deployProtocol(chainlinkContext?: ChainlinkContext): Promi
     [],
   )
   const payoffFactory = new PayoffFactory__factory(owner).attach(payoffFactoryProxy.address)
-  const marketImpl = await new Market__factory(
-    {
-      '@equilibria/perennial-v2/contracts/types/MarketParameter.sol:MarketParameterStorageLib': (
-        await new MarketParameterStorageLib__factory(owner).deploy()
-      ).address,
-      '@equilibria/perennial-v2/contracts/types/RiskParameter.sol:RiskParameterStorageLib': (
-        await new RiskParameterStorageLib__factory(owner).deploy()
-      ).address,
-    },
-    owner,
-  ).deploy()
+  const marketImpl = await new Market__factory(owner).deploy()
 
   const factoryImpl = await new MarketFactory__factory(owner).deploy(
     oracleFactory.address,
