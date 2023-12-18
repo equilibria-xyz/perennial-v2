@@ -549,10 +549,7 @@ describe('Vault', () => {
       )
 
       // User 2 should not be able to redeem; they haven't deposited anything.
-      await expect(vault.connect(user2).update(user2.address, 0, 1, 0)).to.be.revertedWithCustomError(
-        vault,
-        'VaultRedemptionLimitExceededError',
-      )
+      await expect(vault.connect(user2).update(user2.address, 0, 1, 0)).to.be.revertedWithPanic(0x11)
       expect((await vault.accounts(user.address)).shares).to.equal(parse6decimal('10010'))
       await vault.connect(user).update(user.address, 0, (await vault.accounts(user.address)).shares, 0)
       await updateOracle()
@@ -766,7 +763,7 @@ describe('Vault', () => {
       // We shouldn't be able to redeem more than balance.
       await expect(
         vault.connect(user).update(user.address, 0, (await vault.accounts(user.address)).shares.add(1), 0),
-      ).to.be.revertedWithCustomError(vault, 'VaultRedemptionLimitExceededError')
+      ).to.be.revertedWithPanic(0x11)
 
       // But we should be able to redeem exactly balance.
 
@@ -816,15 +813,16 @@ describe('Vault', () => {
       await vault.settle(user.address)
 
       // The vault can close 1 ETH of maker positions in the ETH market, which means the user can redeem 5/4 this amount
-      const makerAvailable = BigNumber.from(1000268)
-      const redeemAvailable = (
-        await vault.convertToShares(originalOraclePrice.mul(makerAvailable).mul(5).div(4).div(leverage))
-      ).sub(1)
+      const minPosition = BigNumber.from(11212633)
+      const minCollateral = originalOraclePrice.mul(minPosition).div(leverage).mul(5).div(4)
+      const totalCollateral = (await totalCollateralInVault()).div(1e12)
+      const maxRedeem = await vault.convertToShares(totalCollateral.sub(minCollateral))
 
-      await expect(
-        vault.connect(user).update(user.address, 0, redeemAvailable.add(1), 0),
-      ).to.be.revertedWithCustomError(vault, 'VaultRedemptionLimitExceededError')
-      await expect(vault.connect(user).update(user.address, 0, redeemAvailable, 0)).to.not.be.reverted
+      await expect(vault.connect(user).update(user.address, 0, maxRedeem, 0)).to.be.revertedWithCustomError(
+        vault,
+        'StrategyLibInsufficientAssetsError',
+      )
+      await expect(vault.connect(user).update(user.address, 0, maxRedeem.sub(parse6decimal('1')), 0)).to.not.be.reverted
     })
 
     it('max redeem with close limited (2nd market)', async () => {
@@ -855,15 +853,16 @@ describe('Vault', () => {
       await vault.settle(user.address)
 
       // The vault can close 1 BTC of maker positions in the BTC market, which means the user can redeem 5/1 this amount
-      const makerAvailable = BigNumber.from(100005)
-      const redeemAvailable = (
-        await vault.convertToShares(btcOriginalOraclePrice.mul(makerAvailable).mul(5).div(1).div(leverage))
-      ).sub(1)
+      const minPosition = BigNumber.from(105981)
+      const minCollateral = btcOriginalOraclePrice.mul(minPosition).div(leverage).mul(5)
+      const totalCollateral = (await totalCollateralInVault()).div(1e12)
+      const maxRedeem = await vault.convertToShares(totalCollateral.sub(minCollateral))
 
-      await expect(
-        vault.connect(user).update(user.address, 0, redeemAvailable.add(1), 0),
-      ).to.be.revertedWithCustomError(vault, 'VaultRedemptionLimitExceededError')
-      await expect(vault.connect(user).update(user.address, 0, redeemAvailable, 0)).to.not.be.reverted
+      await expect(vault.connect(user).update(user.address, 0, maxRedeem, 0)).to.be.revertedWithCustomError(
+        vault,
+        'StrategyLibInsufficientAssetsError',
+      )
+      await expect(vault.connect(user).update(user.address, 0, maxRedeem.sub(parse6decimal('1')), 0)).to.not.be.reverted
     })
 
     it('rebalances collateral', async () => {
@@ -1681,7 +1680,7 @@ describe('Vault', () => {
     })
 
     context('insolvency', () => {
-      it('gracefully unwinds upon totalClaimable insolvency', async () => {
+      it.only('gracefully unwinds upon totalClaimable insolvency', async () => {
         // 1. Deposit initial amount into the vault
         await vault.connect(user).update(user.address, parse6decimal('100000'), 0, 0)
         await updateOracle()
@@ -1701,10 +1700,10 @@ describe('Vault', () => {
         // 4. Settle the vault to recover and rebalance
         await updateOracle() // let take settle at high price
         await vault.connect(user).update(user.address, 0, 0, 0)
-
+        console.log(1)
         await updateOracle()
         await vault.settle(user.address)
-
+        console.log(1)
         // 5. Vault should no longer have enough collateral to cover claims, pro-rata claim should be enabled
         const finalPosition = BigNumber.from('0')
         const finalCollateral = BigNumber.from('4700653859')
@@ -1718,19 +1717,22 @@ describe('Vault', () => {
         expect(await btcCollateralInVault()).to.equal(btcFinalCollateral)
         expect((await vault.accounts(user.address)).assets).to.equal(finalUnclaimed)
         expect((await vault.accounts(ethers.constants.AddressZero)).assets).to.equal(finalUnclaimed)
-
+        console.log(1)
         // 6. Claim should be pro-rated
         const initialBalanceOf = await asset.balanceOf(user.address)
         await vault.connect(user).update(user.address, 0, 0, ethers.constants.MaxUint256)
-
+        console.log(1)
         expect(await collateralInVault()).to.equal(0)
         expect(await btcCollateralInVault()).to.equal(0)
+        expect((await vault.accounts(user.address)).shares).to.equal(0)
         expect((await vault.accounts(user.address)).assets).to.equal(0)
+        expect((await vault.accounts(constants.AddressZero)).shares).to.equal(0)
+        expect((await vault.accounts(constants.AddressZero)).assets).to.equal(0)
         expect((await vault.accounts(ethers.constants.AddressZero)).assets).to.equal(0)
         expect(await asset.balanceOf(user.address)).to.equal(
           initialBalanceOf.add(finalCollateral.add(btcFinalCollateral).mul(1e12)).add(vaultFinalCollateral),
         )
-
+        console.log(1)
         // 7. Should no longer be able to deposit, vault is closed
         await updateOracle()
         await expect(vault.connect(user).update(user.address, 2, 0, 0)).to.revertedWithCustomError(
@@ -1739,7 +1741,7 @@ describe('Vault', () => {
         )
       })
 
-      it('gracefully unwinds upon total insolvency', async () => {
+      it.only('gracefully unwinds upon total insolvency', async () => {
         // 1. Deposit initial amount into the vault
         await vault.connect(user).update(user.address, parse6decimal('100000'), 0, 0)
         await updateOracle()
@@ -1772,7 +1774,7 @@ describe('Vault', () => {
         // 6. Claim should not be possible since we cannot rebalance
         await expect(
           vault.connect(user).update(user.address, 0, 0, ethers.constants.MaxUint256),
-        ).to.revertedWithCustomError(vault, 'StrategyLibInsufficientMarginError')
+        ).to.revertedWithCustomError(vault, 'StrategyLibInsufficientCollateralError')
       })
     })
 

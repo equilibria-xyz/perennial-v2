@@ -273,8 +273,6 @@ contract Vault is IVault, Instance {
             revert VaultNotOperatorError();
         if (!depositAssets.add(redeemShares).add(claimAssets).eq(depositAssets.max(redeemShares).max(claimAssets)))
             revert VaultNotSingleSidedError();
-        if (context.latestCheckpoint.unhealthy())
-            revert VaultUnhealthyError();
         if (depositAssets.gt(_maxDeposit(context)))
             revert VaultDepositLimitExceededError();
         if (!depositAssets.isZero() && depositAssets.lt(context.settlementFee))
