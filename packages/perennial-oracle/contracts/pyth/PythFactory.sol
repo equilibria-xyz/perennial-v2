@@ -80,15 +80,10 @@ contract PythFactory is IPythFactory, KeeperFactory {
         }
     }
 
-    /// @notice Handles paying the keeper requested for given number of requested updates
-    /// @param numRequested Number of requested price updates
-    function _handleCommitKeep(uint256 numRequested)
-        internal override
-        keep(
-            commitKeepConfig(numRequested),
-            msg.data[0:0],
-            IPythStaticFee(address(pyth)).singleUpdateFeeInWei() * numRequested,
-            ""
-        )
-    { }
+    /// @notice Returns the applicable value for the keeper fee
+    /// @param numRequested The number of requested price commits
+    /// @return The applicable value for the keeper fee
+    function _applicableValue(uint256 numRequested, bytes memory) internal view override returns (uint256) {
+        return IPythStaticFee(address(pyth)).singleUpdateFeeInWei() * numRequested;
+    }
 }
