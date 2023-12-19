@@ -191,7 +191,7 @@ jobs:
         env:
           MOCHA_REPORTER: dot
           MOCHA_RETRY_COUNT: 2
-          MAINNET_NODE_URL: ${{ secrets.ARBITRUM_SEPOLIA_NODE_URL }}
+          ARBITRUM_SEPOLIA_NODE_URL: ${{ secrets.ARBITRUM_SEPOLIA_NODE_URL }}
         run: |
           yarn workspace @equilibria/perennial-v2-oracle run ${{ env.PARSER_BROKEN != 'true' && 'coverage:integrationSepolia' || 'test:integrationSepolia' }}
       - name: '[Oracle] Sepolia Integration Test Coverage Report'
