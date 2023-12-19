@@ -473,7 +473,9 @@ contract Vault is IVault, Instance {
     /// @param context Context to use in calculation
     /// @return Maximum available deposit amount
     function _maxDeposit(Context memory context) private view returns (UFixed6) {
-        return context.parameter.cap.unsafeSub(UFixed6Lib.unsafeFrom(totalAssets()).add(context.global.deposit));
+        return context.latestCheckpoint.unhealthy() ?
+            UFixed6Lib.ZERO :
+            context.parameter.cap.unsafeSub(UFixed6Lib.unsafeFrom(totalAssets()).add(context.global.deposit));
     }
 
     /// @notice Returns the collateral and fee information for the vault at position
