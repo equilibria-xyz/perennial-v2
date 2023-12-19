@@ -1,6 +1,6 @@
 {
   "name": "@equilibria/perennial-v2-deploy",
-  "version": "1.0.0",
+  "version": "1.1.0-rc0",
   "description": "Perennial V2 Deployment Tooling",
   "files": [
     "contracts",
@@ -36,7 +36,7 @@
   "author": "",
   "license": "APACHE-2.0",
   "dependencies": {
-    "@equilibria/perennial-v2": "1.0.0",
+    "@equilibria/perennial-v2": "1.1.0-rc0",
     "@pythnetwork/pyth-evm-js": "^1.29.0",
     "@types/isomorphic-fetch": "^0.0.37",
     "isomorphic-fetch": "^3.0.0"

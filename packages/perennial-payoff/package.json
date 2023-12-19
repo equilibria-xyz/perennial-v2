@@ -1,17 +1,16 @@
 {
   "name": "@equilibria/perennial-v2-payoff",
-  "version": "1.0.0",
+  "version": "1.1.0-rc0",
   "description": "Perennial V2 Payoff",
   "files": [
-    "contracts",
-    "artifacts/contracts",
-    "deployments/!(localhost)",
-    "dist"
+    "contracts/interfaces",
+    "artifacts/contracts/interfaces",
+    "deployments/!(localhost)"
   ],
   "main": "./dist/index.js",
   "module": "./dist/index.js",
   "scripts": {
-    "build": "yarn compile && tsc -p tsconfig.build.json",
+    "build": "yarn compile",
     "compile": "hardhat compile",
     "deploy": "OPTIMIZER_ENABLED=true hardhat deploy",
     "verify": "hardhat etherscan-verify --sleep --solc-input",
@@ -29,6 +28,6 @@
   "author": "",
   "license": "APACHE-2.0",
   "dependencies": {
-    "@equilibria/perennial-v2": "1.0.0"
+    "@equilibria/perennial-v2": "1.1.0-rc0"
   }
 }
