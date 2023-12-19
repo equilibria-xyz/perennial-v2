@@ -1,7 +1,7 @@
 import { BigNumberish, utils } from 'ethers'
 import { IMultiInvoker } from '../../types/generated'
-import { InterfaceFeeStruct, TriggerOrderStruct } from '../../types/generated/contracts/MultiInvoker'
 import { ethers } from 'hardhat'
+import { InterfaceFeeStruct, TriggerOrderStruct } from './types'
 import { BigNumber } from 'ethers'
 
 export const MAX_INT = ethers.constants.MaxInt256

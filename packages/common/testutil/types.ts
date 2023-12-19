@@ -29,8 +29,8 @@ export interface Local {
   latestId: BigNumberish
   collateral: BigNumberish
   protection: BigNumberish
-  protectionAmount: BigNumberish
   protectionInitiator: string
+  protectionAmount: BigNumberish
 }
 
 export interface Version {
