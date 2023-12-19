@@ -182,17 +182,7 @@ testOracles.forEach(testOracle => {
       )
       await oracleFactory.create(CHAINLINK_ETH_USD_PRICE_FEED, chainlinkOracleFactory.address)
 
-      const marketImpl = await new Market__factory(
-        {
-          '@equilibria/perennial-v2/contracts/types/MarketParameter.sol:MarketParameterStorageLib': (
-            await new MarketParameterStorageLib__factory(owner).deploy()
-          ).address,
-          '@equilibria/perennial-v2/contracts/types/RiskParameter.sol:RiskParameterStorageLib': (
-            await new RiskParameterStorageLib__factory(owner).deploy()
-          ).address,
-        },
-        owner,
-      ).deploy()
+      const marketImpl = await new Market__factory(owner).deploy()
       marketFactory = await new MarketFactory__factory(owner).deploy(
         oracleFactory.address,
         payoffFactory.address,
@@ -246,9 +236,6 @@ testOracles.forEach(testOracle => {
         positionFee: 0,
         maxPendingGlobal: 8,
         maxPendingLocal: 8,
-        makerRewardRate: 0,
-        longRewardRate: 0,
-        shortRewardRate: 0,
         settlementFee: 0,
         makerCloseAlways: false,
         takerCloseAlways: false,
@@ -776,25 +763,6 @@ testOracles.forEach(testOracle => {
           chainlinkOracleFactory
             .connect(user)
             .settle([CHAINLINK_ETH_USD_PRICE_FEED], [market.address], [STARTING_TIME], [1, 1]),
-        ).to.be.revertedWithCustomError(chainlinkOracleFactory, 'KeeperFactoryInvalidSettleError')
-      })
-
-      it('reverts if calldata is stuffed', async () => {
-        await keeperOracle.connect(oracleSigner).request(market.address, user.address)
-        await chainlinkOracleFactory.connect(user).commit([CHAINLINK_ETH_USD_PRICE_FEED], STARTING_TIME, REPORT, {
-          value: getFee(REPORT),
-        })
-        const calldata = chainlinkOracleFactory
-          .connect(user)
-          .interface.encodeFunctionData('settle', [
-            [CHAINLINK_ETH_USD_PRICE_FEED],
-            [market.address],
-            [STARTING_TIME],
-            [1],
-          ])
-
-        await expect(
-          user.sendTransaction({ to: chainlinkOracleFactory.address, data: calldata.concat(calldata.slice(2)) }),
         ).to.be.revertedWithCustomError(chainlinkOracleFactory, 'KeeperFactoryInvalidSettleError')
       })
 

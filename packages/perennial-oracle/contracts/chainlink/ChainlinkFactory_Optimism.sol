@@ -23,7 +23,7 @@ contract ChainlinkFactory_Optimism is ChainlinkFactory, Kept_Optimism {
 
     /// @dev Use the Kept_Optimism implementation for calculating the dynamic fee
     function _calldataFee(
-        bytes calldata applicableCalldata,
+        bytes memory applicableCalldata,
         UFixed18 multiplierCalldata,
         uint256 bufferCalldata
     ) internal view virtual override(Kept_Optimism, Kept) returns (UFixed18) {

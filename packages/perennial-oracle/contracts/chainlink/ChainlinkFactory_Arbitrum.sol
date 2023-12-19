@@ -23,7 +23,7 @@ contract ChainlinkFactory_Arbitrum is ChainlinkFactory, Kept_Arbitrum {
 
     /// @dev Use the Kept_Arbitrum implementation for calculating the dynamic fee
     function _calldataFee(
-        bytes calldata applicableCalldata,
+        bytes memory applicableCalldata,
         UFixed18 multiplierCalldata,
         uint256 bufferCalldata
     ) internal view virtual override(Kept_Arbitrum, Kept) returns (UFixed18) {
