@@ -102,9 +102,8 @@ library PositionLib {
         RiskParameter memory riskParameter
     ) internal pure {
         // load the computed attributes of the latest position
-        Fixed6 latestStaticSkew = staticSkew(self, riskParameter);
-        (order.net, order.efficiency, order.utilization) =
-            (Fixed6Lib.from(net(self)), Fixed6Lib.from(efficiency(self)), Fixed6Lib.from(utilization(self, riskParameter)));
+        (order.net, order.efficiency, order.latestSkew) =
+            (Fixed6Lib.from(net(self)), Fixed6Lib.from(efficiency(self)), skewScaled(self, riskParameter));
 
         // update the position's attributes
         (self.timestamp, self.maker, self.long, self.short) = (
@@ -114,17 +113,13 @@ library PositionLib {
             UFixed6Lib.from(Fixed6Lib.from(self.short).add(order.short))
         );
 
-        Fixed6 currentStaticSkew = staticSkew(self, riskParameter);
+        // TODO: needs to have flattened portioned for AUC w/ socialization
+
         // update the order's delta attributes with the positions updated attributes
-        (order.net, order.skew, order.impact, order.efficiency, order.utilization) = (
+        (order.net, order.efficiency, order.currentSkew) = (
             Fixed6Lib.from(net(self)).sub(order.net),
-            riskParameter.skewScale.isZero() ? UFixed6Lib.ZERO : order.magnitude().abs().div(riskParameter.skewScale),
-            currentStaticSkew.eq(latestStaticSkew) ?
-                Fixed6Lib.ZERO :
-                latestStaticSkew.add(currentStaticSkew).div(
-                    Fixed6Lib.from(2 * currentStaticSkew.sub(latestStaticSkew).sign())),
             Fixed6Lib.from(efficiency(self)).sub(order.efficiency),
-            Fixed6Lib.from(utilization(self, riskParameter)).sub(order.utilization)
+            skewScaled(self, riskParameter)
         );
     }
 
@@ -209,41 +204,24 @@ library PositionLib {
         return Fixed6Lib.from(self.long).sub(Fixed6Lib.from(self.short)).abs();
     }
 
-    /// @notice Returns the skew of the position
-    /// @dev skew = (long - short) / max(long, short)
-    /// @param self The position object to check
-    /// @return The skew of the position
-    function relativeSkew(Position memory self) internal pure returns (Fixed6) {
-        return _skew(self, major(self));
-    }
-
-    /// @notice Returns the static skew of the position taking into account the skew scale
+    /// @notice Returns the scaled skew of the position taking into account the skew scale
     /// @dev static skew = (long - short) / skewScale
     /// @param self The position object to check
     /// @param riskParameter The current risk parameter
     /// @return The static skew of the position
-    function staticSkew(Position memory self, RiskParameter memory riskParameter) internal pure returns (Fixed6) {
-        return _skew(self, riskParameter.skewScale);
+    function skewScaled(Position memory self, RiskParameter memory riskParameter) internal pure returns (Fixed6) {
+        return Fixed6Lib.from(longSocialized(self)).sub(Fixed6Lib.from(shortSocialized(self)))
+            .div(riskParameter.skewScale);
     }
 
     /// @notice Returns the skew of the position taking into account position socialization
     /// @dev Used to calculate the portion of the position that is covered by the maker
     /// @param self The position object to check
     /// @return The socialized skew of the position
-    function socializedSkew(Position memory self) internal pure returns (UFixed6) {
+    function notSocializedSkew(Position memory self) internal pure returns (UFixed6) {
         return takerSocialized(self).isZero() ?
             UFixed6Lib.ZERO :
             takerSocialized(self).sub(minor(self)).div(takerSocialized(self));
-    }
-
-    /// @notice Helper function to return the skew of the position given a denominator
-    /// @param self The position object to check
-    /// @param denominator The denominator of the skew calculation
-    /// @return The skew of the position
-    function _skew(Position memory self, UFixed6 denominator) internal pure returns (Fixed6) {
-        return denominator.isZero() ?
-            Fixed6Lib.ZERO :
-            Fixed6Lib.from(self.long).sub(Fixed6Lib.from(self.short)).div(Fixed6Lib.from(denominator));
     }
 
     /// @notice Returns the utilization of the position
@@ -257,7 +235,7 @@ library PositionLib {
 
         // efficiency limit utilization of the maker position
         UFixed6 efficiencyUtilization = major(self).mul(riskParameter.efficiencyLimit).unsafeDiv(self.maker);
-        
+
         // maximum of the two utilizations, capped at 100%
         return netUtilization.max(efficiencyUtilization).min(UFixed6Lib.ONE);
     }
@@ -295,7 +273,7 @@ library PositionLib {
     /// @param self The position object to check
     /// @return Whether the position is socialized
     function socialized(Position memory self) internal pure returns (bool) {
-        return self.maker.add(self.short).lt(self.long) || self.maker.add(self.long).lt(self.short);
+        return self.maker.add(minor(self)).lt(major(self));
     }
 
     /// @notice Returns the maintenance requirement of the position

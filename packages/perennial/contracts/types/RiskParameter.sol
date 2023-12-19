@@ -19,16 +19,16 @@ struct RiskParameter {
     UFixed6 takerFee;
 
     /// @dev The additional percentage that is added scaled by the change in skew
-    UFixed6 takerSkewFee;
+    UFixed6 takerSkewFee; // TODO: rename all of these
 
     /// @dev The additional percentage that is added scaled by the change in impact
-    UFixed6 takerImpactFee;
+    UFixed6 takerImpactFee; // TODO: rename all of these
 
     /// @dev The percentage fee on the notional that is charged when a maker position is open or closed
     UFixed6 makerFee;
 
     /// @dev The additional percentage that is added scaled by the change in utilization
-    UFixed6 makerImpactFee;
+    UFixed6 makerImpactFee; // TODO: rename all of these
 
     /// @dev The maximum amount of maker positions that opened
     UFixed6 makerLimit;

@@ -20,17 +20,14 @@ struct Order {
     /// @dev The change in the net position
     Fixed6 net;
 
-    /// @dev The magnitude of the change in the skew
-    UFixed6 skew;
-
-    /// @dev The change of the magnitude in the skew
-    Fixed6 impact;
-
-    /// @dev The change in the utilization=
-    Fixed6 utilization;
-
     /// @dev The change in the efficiency
     Fixed6 efficiency;
+    
+    /// @dev The latest unscaled skew
+    Fixed6 latestSkew;
+
+    /// @dev The latest unscaled skew
+    Fixed6 currentSkew;
 
     /// @dev The fee for the order
     Fixed6 fee;
@@ -54,13 +51,20 @@ library OrderLib {
         MarketParameter memory marketParameter,
         RiskParameter memory riskParameter
     ) internal pure {
-        Fixed6 makerFee = Fixed6Lib.from(riskParameter.makerFee)
-            .add(Fixed6Lib.from(riskParameter.makerImpactFee).mul(self.utilization))
-            .max(Fixed6Lib.ZERO);
+        UFixed6 orderSkewMagnitude = self.magnitude().abs().unsafeDiv(riskParameter.skewScale);
+        Fixed6 orderSkewAUC = 
+            self.latestSkew.add(self.currentSkew).div(Fixed6Lib.from(2))
+                .mul(self.currentSkew.gte(self.latestSkew) ? Fixed6Lib.ONE : Fixed6Lib.NEG_ONE);
+        Fixed6 makerSkewAUC = Fixed6(self.currentSkew.div(Fixed6Lib.from(2))
+
+
         Fixed6 takerFee = Fixed6Lib.from(riskParameter.takerFee)
-            .add(Fixed6Lib.from(riskParameter.takerSkewFee.mul(self.skew)))
-            .add(Fixed6Lib.from(riskParameter.takerImpactFee).mul(self.impact))
-            .max(Fixed6Lib.ZERO);
+            .add(Fixed6Lib.from(riskParameter.takerSkewFee.mul(orderSkewMagnitude)))
+            .add(Fixed6Lib.from(riskParameter.takerImpactFee).mul(orderSkewAUC));
+
+        Fixed6 makerFee = Fixed6Lib.from(riskParameter.makerFee)
+            .add(Fixed6Lib.from(riskParameter.makerImpactFee).mul(self.utilization));
+
         Fixed6 fee = Fixed6Lib.from(self.maker.abs().mul(latestVersion.price.abs())).mul(makerFee)
             .add(Fixed6Lib.from(self.long.abs().add(self.short.abs()).mul(latestVersion.price.abs())).mul(takerFee));
 
