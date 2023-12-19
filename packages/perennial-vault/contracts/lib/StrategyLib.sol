@@ -2,7 +2,6 @@
 pragma solidity ^0.8.13;
 
 import "../types/Registration.sol";
-import "hardhat/console.sol";
 
 /// @dev The context of an underlying market
 struct MarketStrategyContext {
@@ -124,15 +123,12 @@ library StrategyLib {
         UFixed6 deposit,
         UFixed6 withdrawal,
         UFixed6 ineligable
-    ) internal view returns (MarketTarget[] memory targets) {
+    ) internal pure returns (MarketTarget[] memory targets) {
         UFixed6 totalDeployed;
 
         UFixed6 collateral = UFixed6Lib.unsafeFrom(strategy.totalCollateral).add(deposit).unsafeSub(withdrawal);
         UFixed6 assets = collateral.unsafeSub(ineligable);
 
-        console.log("totalCollateral", UFixed6.unwrap(UFixed6Lib.unsafeFrom(strategy.totalCollateral)));
-        console.log("collateral", UFixed6.unwrap(collateral));
-        console.log("strategy.totalMargin", UFixed6.unwrap(assets));
         if (collateral.lt(strategy.totalMargin)) revert StrategyLibInsufficientCollateralError();
         if (assets.lt(strategy.minAssets)) revert StrategyLibInsufficientAssetsError();
 
