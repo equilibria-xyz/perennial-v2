@@ -64,7 +64,6 @@ contract ChainlinkFactory is IChainlinkFactory, KeeperFactory {
         if (feedId != toUnderlyingId[ids[0]]) revert ChainlinkFactoryInvalidFeedIdError(feedId);
 
         prices[0] = Fixed6Lib.from(Fixed18Lib.from(UFixed18.wrap(price)));
-        return prices;
     }
 
     /// @notice Returns the applicable value for the keeper fee
