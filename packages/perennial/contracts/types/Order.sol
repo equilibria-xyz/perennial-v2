@@ -51,25 +51,53 @@ library OrderLib {
         MarketParameter memory marketParameter,
         RiskParameter memory riskParameter
     ) internal pure {
-        UFixed6 orderSkewMagnitude = self.magnitude().abs().unsafeDiv(riskParameter.skewScale);
-        Fixed6 orderSkewAUC = 
-            self.latestSkew.add(self.currentSkew).div(Fixed6Lib.from(2))
-                .mul(self.currentSkew.gte(self.latestSkew) ? Fixed6Lib.ONE : Fixed6Lib.NEG_ONE);
-        Fixed6 makerSkewAUC = Fixed6(self.currentSkew.div(Fixed6Lib.from(2))
+        Fixed6 fee = Fixed6Lib.from(latestVersion.price.abs())
 
+            // taker fee
+            .mul(_calculateFee(
+                self.latestSkew,
+                self.currentSkew,
+                self.long.abs().add(self.short.abs()),
+                riskParameter.takerFee,
+                riskParameter.takerImpactFee,
+                riskParameter.takerSkewFee,
+                riskParameter.skewScale
 
-        Fixed6 takerFee = Fixed6Lib.from(riskParameter.takerFee)
-            .add(Fixed6Lib.from(riskParameter.takerSkewFee.mul(orderSkewMagnitude)))
-            .add(Fixed6Lib.from(riskParameter.takerImpactFee).mul(orderSkewAUC));
-
-        Fixed6 makerFee = Fixed6Lib.from(riskParameter.makerFee)
-            .add(Fixed6Lib.from(riskParameter.makerImpactFee).mul(self.utilization));
-
-        Fixed6 fee = Fixed6Lib.from(self.maker.abs().mul(latestVersion.price.abs())).mul(makerFee)
-            .add(Fixed6Lib.from(self.long.abs().add(self.short.abs()).mul(latestVersion.price.abs())).mul(takerFee));
+            // maker fee
+            ).add(_calculateFee(
+                self.maker.gt(Fixed6Lib.ZERO) ? self.currentSkew : Fixed6Lib.ZERO,
+                self.maker.lt(Fixed6Lib.ZERO) ? self.currentSkew : Fixed6Lib.ZERO,
+                self.maker.abs(),
+                riskParameter.makerFee,
+                riskParameter.makerImpactFee,
+                UFixed6Lib.ZERO, // TODO: add
+                riskParameter.skewScale
+            )));
 
         self.fee = marketParameter.closed ? Fixed6Lib.ZERO : fee;
         self.keeper = isEmpty(self) ? UFixed6Lib.ZERO : marketParameter.settlementFee;
+    }
+
+    // TODO: natspec
+    function _calculateFee(
+        Fixed6 latestSkew,
+        Fixed6 currentSkew,
+        UFixed6 orderMagnitude,
+        UFixed6 baseFee,
+        UFixed6 impactFee,
+        UFixed6 magnitudeFee,
+        UFixed6 skewScale
+    ) private pure returns (Fixed6) {
+        UFixed6 scaledMagnitude = orderMagnitude.unsafeDiv(skewScale);
+        Fixed6 unscaledDelta = currentSkew.sub(latestSkew).mul(Fixed6Lib.from(skewScale)); // TODO: cleanup
+        Fixed6 skewAUC = latestSkew.add(currentSkew).div(Fixed6Lib.from(2));
+
+        // base fee
+        return Fixed6Lib.from(baseFee.mul(orderMagnitude))
+            // impact fee
+            .add(Fixed6Lib.from(impactFee).mul(skewAUC).mul(unscaledDelta))
+            // magnitude fee
+            .add(Fixed6Lib.from(magnitudeFee.mul(scaledMagnitude).mul(orderMagnitude)));
     }
 
     /// @notice Returns whether the order increases any of the account's positions

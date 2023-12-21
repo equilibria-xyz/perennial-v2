@@ -165,14 +165,14 @@ library VersionLib {
         // Compute long-short funding rate
         Fixed6 funding = global.pAccumulator.accumulate(
             riskParameter.pController,
-            toPosition.staticSkew(riskParameter).min(Fixed6Lib.ONE).max(Fixed6Lib.NEG_ONE),
+            toPosition.skewScaled(riskParameter).min(Fixed6Lib.ONE).max(Fixed6Lib.NEG_ONE),
             fromOracleVersion.timestamp,
             toOracleVersion.timestamp,
             fromPosition.takerSocialized().mul(fromOracleVersion.price.abs())
         );
 
         // Handle maker receive-only status
-        if (riskParameter.makerReceiveOnly && funding.sign() != fromPosition.relativeSkew().sign())
+        if (riskParameter.makerReceiveOnly && funding.sign() != fromPosition.skewScaled(riskParameter).sign())
             funding = funding.mul(Fixed6Lib.NEG_ONE);
 
         // Initialize long and short funding
@@ -190,11 +190,11 @@ library VersionLib {
 
         // Redirect net portion of minor's side to maker
         if (fromPosition.long.gt(fromPosition.short)) {
-            fundingValues.fundingMaker = fundingValues.fundingShort.mul(Fixed6Lib.from(fromPosition.socializedSkew()));
+            fundingValues.fundingMaker = fundingValues.fundingShort.mul(Fixed6Lib.from(fromPosition.socializedMakerPortion()));
             fundingValues.fundingShort = fundingValues.fundingShort.sub(fundingValues.fundingMaker);
         }
         if (fromPosition.short.gt(fromPosition.long)) {
-            fundingValues.fundingMaker = fundingValues.fundingLong.mul(Fixed6Lib.from(fromPosition.socializedSkew()));
+            fundingValues.fundingMaker = fundingValues.fundingLong.mul(Fixed6Lib.from(fromPosition.socializedMakerPortion()));
             fundingValues.fundingLong = fundingValues.fundingLong.sub(fundingValues.fundingMaker);
         }
 

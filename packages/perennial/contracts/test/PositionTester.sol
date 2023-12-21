@@ -92,12 +92,12 @@ abstract contract PositionTester {
         return read().net();
     }
 
-    function relativeSkew() external view returns (Fixed6) {
-        return read().relativeSkew();
+    function skewScaled(RiskParameter memory riskParameter) external view returns (Fixed6) {
+        return read().skewScaled(riskParameter);
     }
 
-    function staticSkew(RiskParameter memory riskParameter) external view returns (Fixed6) {
-        return read().staticSkew(riskParameter);
+    function socializedMakerPortion() external view returns (UFixed6) {
+        return read().socializedMakerPortion();
     }
 
     function utilization(RiskParameter memory riskParameter) external view returns (UFixed6) {

@@ -113,8 +113,6 @@ library PositionLib {
             UFixed6Lib.from(Fixed6Lib.from(self.short).add(order.short))
         );
 
-        // TODO: needs to have flattened portioned for AUC w/ socialization
-
         // update the order's delta attributes with the positions updated attributes
         (order.net, order.efficiency, order.currentSkew) = (
             Fixed6Lib.from(net(self)).sub(order.net),
@@ -211,14 +209,13 @@ library PositionLib {
     /// @return The static skew of the position
     function skewScaled(Position memory self, RiskParameter memory riskParameter) internal pure returns (Fixed6) {
         return Fixed6Lib.from(longSocialized(self)).sub(Fixed6Lib.from(shortSocialized(self)))
-            .div(riskParameter.skewScale);
+            .div(Fixed6Lib.from(riskParameter.skewScale));
     }
 
-    /// @notice Returns the skew of the position taking into account position socialization
-    /// @dev Used to calculate the portion of the position that is covered by the maker
+    /// @notice Returns the portion of the position that is covered by the maker
     /// @param self The position object to check
-    /// @return The socialized skew of the position
-    function notSocializedSkew(Position memory self) internal pure returns (UFixed6) {
+    /// @return The portion of the position that is covered by the maker
+    function socializedMakerPortion(Position memory self) internal pure returns (UFixed6) {
         return takerSocialized(self).isZero() ?
             UFixed6Lib.ZERO :
             takerSocialized(self).sub(minor(self)).div(takerSocialized(self));
