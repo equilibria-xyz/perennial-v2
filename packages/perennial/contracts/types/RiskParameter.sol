@@ -18,17 +18,17 @@ struct RiskParameter {
     /// @dev The percentage fee on the notional that is charged when a long or short position is open or closed
     UFixed6 takerFee;
 
-    /// @dev The additional percentage that is added scaled by the change in skew
-    UFixed6 takerSkewFee; // TODO: rename all of these
+    /// @dev The additional percentage that is added scaled by the taker size of the order relative to skewScale
+    UFixed6 takerMagnitudeFee;
 
-    /// @dev The additional percentage that is added scaled by the change in impact
-    UFixed6 takerImpactFee; // TODO: rename all of these
+    /// @dev The additional percentage that is added scaled by the impact to the scaled skew of the market
+    UFixed6 impactFee;
 
     /// @dev The percentage fee on the notional that is charged when a maker position is open or closed
     UFixed6 makerFee;
 
-    /// @dev The additional percentage that is added scaled by the change in utilization
-    UFixed6 makerImpactFee; // TODO: rename all of these
+    /// @dev The additional percentage that is added scaled by the maker size of the order relative to skewScale
+    UFixed6 makerMagnitudeFee;
 
     /// @dev The maximum amount of maker positions that opened
     UFixed6 makerLimit;
@@ -74,10 +74,10 @@ using RiskParameterStorageLib for RiskParameterStorage global;
 //        uint24 margin;                              // <= 1677%
 //        uint24 maintenance;                         // <= 1677%
 //        uint24 takerFee;                            // <= 1677%
-//        uint24 takerSkewFee;                        // <= 1677%
-//        uint24 takerImpactFee;                      // <= 1677%
+//        uint24 takerMagnitudeFee;                   // <= 1677%
+//        uint24 impactFee;                           // <= 1677%
 //        uint24 makerFee;                            // <= 1677%
-//        uint24 makerImpactFee;                      // <= 1677%
+//        uint24 makerMagnitudeFee;                   // <= 1677%
 //        uint64 makerLimit;                          // <= 18.44t
 //        uint24 efficiencyLimit;                     // <= 1677%
 //
@@ -140,7 +140,7 @@ library RiskParameterStorageLib {
 
     function validate(RiskParameter memory self, ProtocolParameter memory protocolParameter) internal pure {
         if (
-            self.takerFee.max(self.takerSkewFee).max(self.takerImpactFee).max(self.makerFee).max(self.makerImpactFee)
+            self.takerFee.max(self.takerMagnitudeFee).max(self.impactFee).max(self.makerFee).max(self.makerMagnitudeFee)
             .gt(protocolParameter.maxFee)
         ) revert RiskParameterStorageInvalidError();
 
@@ -187,10 +187,10 @@ library RiskParameterStorageLib {
             uint256(UFixed6.unwrap(newValue.margin)             << (256 - 24)) >> (256 - 24) |
             uint256(UFixed6.unwrap(newValue.maintenance)        << (256 - 24)) >> (256 - 24 - 24) |
             uint256(UFixed6.unwrap(newValue.takerFee)           << (256 - 24)) >> (256 - 24 - 24 - 24) |
-            uint256(UFixed6.unwrap(newValue.takerSkewFee)       << (256 - 24)) >> (256 - 24 - 24 - 24 - 24) |
-            uint256(UFixed6.unwrap(newValue.takerImpactFee)     << (256 - 24)) >> (256 - 24 - 24 - 24 - 24 - 24) |
+            uint256(UFixed6.unwrap(newValue.takerMagnitudeFee)  << (256 - 24)) >> (256 - 24 - 24 - 24 - 24) |
+            uint256(UFixed6.unwrap(newValue.impactFee)          << (256 - 24)) >> (256 - 24 - 24 - 24 - 24 - 24) |
             uint256(UFixed6.unwrap(newValue.makerFee)           << (256 - 24)) >> (256 - 24 - 24 - 24 - 24 - 24 - 24) |
-            uint256(UFixed6.unwrap(newValue.makerImpactFee)     << (256 - 24)) >> (256 - 24 - 24 - 24 - 24 - 24 - 24 - 24) |
+            uint256(UFixed6.unwrap(newValue.makerMagnitudeFee)   << (256 - 24)) >> (256 - 24 - 24 - 24 - 24 - 24 - 24 - 24) |
             uint256(UFixed6.unwrap(newValue.makerLimit)         << (256 - 64)) >> (256 - 24 - 24 - 24 - 24 - 24 - 24 - 24 - 64) |
             uint256(UFixed6.unwrap(newValue.efficiencyLimit)    << (256 - 24)) >> (256 - 24 - 24 - 24 - 24 - 24 - 24 - 24 - 64 - 24);
 

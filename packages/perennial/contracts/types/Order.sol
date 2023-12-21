@@ -57,10 +57,11 @@ library OrderLib {
             .mul(_calculateFee(
                 self.latestSkew,
                 self.currentSkew,
-                self.long.abs().add(self.short.abs()),
+                self.long.abs().add(self.short.abs()), // charge magnitude fee on entire order
+                self.currentSkew.sub(self.latestSkew), // only charge impact fee on non-socialized portion
                 riskParameter.takerFee,
-                riskParameter.takerImpactFee,
-                riskParameter.takerSkewFee,
+                riskParameter.impactFee,
+                riskParameter.takerMagnitudeFee,
                 riskParameter.skewScale
 
             // maker fee
@@ -68,9 +69,10 @@ library OrderLib {
                 self.maker.gt(Fixed6Lib.ZERO) ? self.currentSkew : Fixed6Lib.ZERO,
                 self.maker.lt(Fixed6Lib.ZERO) ? self.currentSkew : Fixed6Lib.ZERO,
                 self.maker.abs(),
+                self.maker.mul(Fixed6Lib.NEG_ONE), // refund on open, charge on close, compute for worst case 100% utilization
                 riskParameter.makerFee,
-                riskParameter.makerImpactFee,
-                UFixed6Lib.ZERO, // TODO: add
+                riskParameter.impactFee,
+                riskParameter.makerMagnitudeFee,
                 riskParameter.skewScale
             )));
 
@@ -83,21 +85,37 @@ library OrderLib {
         Fixed6 latestSkew,
         Fixed6 currentSkew,
         UFixed6 orderMagnitude,
+        Fixed6 orderImpact,
         UFixed6 baseFee,
         UFixed6 impactFee,
         UFixed6 magnitudeFee,
         UFixed6 skewScale
     ) private pure returns (Fixed6) {
-        UFixed6 orderMagnitudeScaled = orderMagnitude.unsafeDiv(skewScale);
+        return Fixed6Lib.from(_calculateMagnitudeFee(orderMagnitude, baseFee, magnitudeFee, skewScale))
+            .add(_calculateImpactFee(latestSkew, currentSkew, orderImpact, impactFee, skewScale));
+    }
+
+    // TODO: natspec
+    function _calculateImpactFee(
+        Fixed6 latestSkew,
+        Fixed6 currentSkew,
+        Fixed6 orderImpact,
+        UFixed6 impactFee,
+        UFixed6 skewScale
+    ) private pure returns (Fixed6) {
         Fixed6 skewAUC = latestSkew.add(currentSkew).unsafeDiv(Fixed6Lib.from(skewScale)).div(Fixed6Lib.from(2));
-        Fixed6 orderMagnitudeSkew = currentSkew.sub(latestSkew);
-        
-        // base fee
-        return Fixed6Lib.from(baseFee.mul(orderMagnitude))
-            // impact fee
-            .add(Fixed6Lib.from(impactFee).mul(skewAUC).mul(orderMagnitudeSkew))
-            // magnitude fee
-            .add(Fixed6Lib.from(magnitudeFee.mul(orderMagnitudeScaled).mul(orderMagnitude)));
+        return Fixed6Lib.from(impactFee).mul(skewAUC).mul(orderImpact);
+    }
+
+    // TODO: natspec
+    function _calculateMagnitudeFee(
+        UFixed6 orderMagnitude,
+        UFixed6 baseFee,
+        UFixed6 magnitudeFee,
+        UFixed6 skewScale
+    ) private pure returns (UFixed6) {
+        UFixed6 orderMagnitudeScaled = orderMagnitude.unsafeDiv(skewScale);
+        return baseFee.add(magnitudeFee.mul(orderMagnitudeScaled)).mul(orderMagnitude);
     }
 
     /// @notice Returns whether the order increases any of the account's positions
