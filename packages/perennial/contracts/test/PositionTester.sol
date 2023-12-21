@@ -31,11 +31,10 @@ abstract contract PositionTester {
 
     function update(
         uint256 currentTimestamp,
-        Order memory order,
-        RiskParameter memory riskParameter
+        Order memory order
     ) external returns (Order memory updatedOrder) {
         Position memory _position = read();
-        _position.update(currentTimestamp, order, riskParameter);
+        _position.update(currentTimestamp, order);
         store(_position);
         return order;
     }
@@ -92,8 +91,8 @@ abstract contract PositionTester {
         return read().net();
     }
 
-    function skewScaled(RiskParameter memory riskParameter) external view returns (Fixed6) {
-        return read().skewScaled(riskParameter);
+    function skew() external view returns (Fixed6) {
+        return read().skew();
     }
 
     function socializedMakerPortion() external view returns (UFixed6) {

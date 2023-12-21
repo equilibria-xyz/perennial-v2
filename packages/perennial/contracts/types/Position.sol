@@ -94,16 +94,14 @@ library PositionLib {
     /// @param self The position object to update
     /// @param currentTimestamp The current timestamp
     /// @param order The new order
-    /// @param riskParameter The current risk parameter
     function update(
         Position memory self,
         uint256 currentTimestamp,
-        Order memory order,
-        RiskParameter memory riskParameter
+        Order memory order
     ) internal pure {
         // load the computed attributes of the latest position
         (order.net, order.efficiency, order.latestSkew) =
-            (Fixed6Lib.from(net(self)), Fixed6Lib.from(efficiency(self)), skewScaled(self, riskParameter));
+            (Fixed6Lib.from(net(self)), Fixed6Lib.from(efficiency(self)), skew(self));
 
         // update the position's attributes
         (self.timestamp, self.maker, self.long, self.short) = (
@@ -117,7 +115,7 @@ library PositionLib {
         (order.net, order.efficiency, order.currentSkew) = (
             Fixed6Lib.from(net(self)).sub(order.net),
             Fixed6Lib.from(efficiency(self)).sub(order.efficiency),
-            skewScaled(self, riskParameter)
+            skew(self)
         );
     }
 
@@ -205,11 +203,9 @@ library PositionLib {
     /// @notice Returns the scaled skew of the position taking into account the skew scale
     /// @dev static skew = (long - short) / skewScale
     /// @param self The position object to check
-    /// @param riskParameter The current risk parameter
     /// @return The static skew of the position
-    function skewScaled(Position memory self, RiskParameter memory riskParameter) internal pure returns (Fixed6) {
-        return Fixed6Lib.from(longSocialized(self)).sub(Fixed6Lib.from(shortSocialized(self)))
-            .div(Fixed6Lib.from(riskParameter.skewScale));
+    function skew(Position memory self) internal pure returns (Fixed6) {
+        return Fixed6Lib.from(longSocialized(self)).sub(Fixed6Lib.from(shortSocialized(self)));
     }
 
     /// @notice Returns the portion of the position that is covered by the maker

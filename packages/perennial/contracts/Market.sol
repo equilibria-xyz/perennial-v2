@@ -334,7 +334,7 @@ contract Market is IMarket, Instance, ReentrancyGuard {
         // update position
         Order memory newOrder =
             context.currentPosition.local.update(context.currentTimestamp, newMaker, newLong, newShort);
-        context.currentPosition.global.update(context.currentTimestamp, newOrder, context.riskParameter);
+        context.currentPosition.global.update(context.currentTimestamp, newOrder);
 
         // update fee
         newOrder.registerFee(context.latestVersion, context.marketParameter, context.riskParameter);

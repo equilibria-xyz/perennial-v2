@@ -88,16 +88,16 @@ library OrderLib {
         UFixed6 magnitudeFee,
         UFixed6 skewScale
     ) private pure returns (Fixed6) {
-        UFixed6 scaledMagnitude = orderMagnitude.unsafeDiv(skewScale);
-        Fixed6 unscaledDelta = currentSkew.sub(latestSkew).mul(Fixed6Lib.from(skewScale)); // TODO: cleanup
-        Fixed6 skewAUC = latestSkew.add(currentSkew).div(Fixed6Lib.from(2));
-
+        UFixed6 orderMagnitudeScaled = orderMagnitude.unsafeDiv(skewScale);
+        Fixed6 skewAUC = latestSkew.add(currentSkew).unsafeDiv(Fixed6Lib.from(skewScale)).div(Fixed6Lib.from(2));
+        Fixed6 orderMagnitudeSkew = currentSkew.sub(latestSkew);
+        
         // base fee
         return Fixed6Lib.from(baseFee.mul(orderMagnitude))
             // impact fee
-            .add(Fixed6Lib.from(impactFee).mul(skewAUC).mul(unscaledDelta))
+            .add(Fixed6Lib.from(impactFee).mul(skewAUC).mul(orderMagnitudeSkew))
             // magnitude fee
-            .add(Fixed6Lib.from(magnitudeFee.mul(scaledMagnitude).mul(orderMagnitude)));
+            .add(Fixed6Lib.from(magnitudeFee.mul(orderMagnitudeScaled).mul(orderMagnitude)));
     }
 
     /// @notice Returns whether the order increases any of the account's positions
