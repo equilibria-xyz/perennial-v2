@@ -406,6 +406,32 @@ describe('Position', () => {
             })
           })
         })
+
+        context('high efficiency', () => {
+          context('long is major', () => {
+            it('uses efficiency utilization instead of net', async () => {
+              await position.store({
+                ...VALID_GLOBAL_POSITION,
+                long: parse6decimal('190'),
+                short: parse6decimal('180'),
+                maker: parse6decimal('100'),
+              })
+              expect(await position.utilization(RISK_PARAM_WITH_EFFICIENCY_LIMIT)).to.equal(BigNumber.from('950000'))
+            })
+          })
+
+          context('short is major', () => {
+            it('uses efficiency utilization instead of net', async () => {
+              await position.store({
+                ...VALID_GLOBAL_POSITION,
+                long: parse6decimal('180'),
+                short: parse6decimal('190'),
+                maker: parse6decimal('100'),
+              })
+              expect(await position.utilization(RISK_PARAM_WITH_EFFICIENCY_LIMIT)).to.equal(BigNumber.from('950000'))
+            })
+          })
+        })
       })
 
       describe('#longSocialized', () => {
