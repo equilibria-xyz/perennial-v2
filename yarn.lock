@@ -131,13 +131,6 @@
     "@equilibria/root" "0.1.5"
     "@openzeppelin/contracts" "4.6.0"
 
-"@equilibria/perennial-v2@1.1.0-rc0":
-  version "1.1.0-rc0"
-  resolved "https://registry.yarnpkg.com/@equilibria/perennial-v2/-/perennial-v2-1.1.0-rc0.tgz#7d5a338f9644c03a1cd780e19ee250ed41979101"
-  integrity sha512-JuYqgBXulnKWOi1oveVO/oKdaqegUoHGsL30iA8H1t4PLCtItfDjMaSKL75lq0OjdDA3Zf/UCcyDQbUXpAV1AA==
-  dependencies:
-    "@chainlink/contracts" "0.3.1"
-
 "@equilibria/root@0.1.5":
   version "0.1.5"
   resolved "https://registry.yarnpkg.com/@equilibria/root/-/root-0.1.5.tgz#f9fb606fed2d0f3d7426d37d7bc45f176b26f80e"
