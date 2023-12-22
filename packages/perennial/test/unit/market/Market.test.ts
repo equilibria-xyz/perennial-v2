@@ -17,7 +17,7 @@ import {
   parse6decimal,
 } from '../../../../common/testutil/types'
 import { IMarket, MarketParameterStruct, RiskParameterStruct } from '../../../types/generated/contracts/Market'
-import { MilliPowerTwo__factory } from '@equilibria/perennial-v2-payoff/types/generated'
+import { MilliPowerTwo__factory } from '@equilibria/perennial-v2-oracle/types/generated'
 
 const { ethers } = HRE
 use(smock.matchers)

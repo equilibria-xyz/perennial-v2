@@ -26,7 +26,7 @@ import {
   PowerTwo__factory,
   PayoffFactory__factory,
   PayoffFactory,
-} from '@equilibria/perennial-v2-payoff/types/generated'
+} from '@equilibria/perennial-v2-oracle/types/generated'
 import {
   OracleFactory,
   Oracle__factory,

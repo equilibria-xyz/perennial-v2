@@ -21,10 +21,9 @@ interface IMarketFactory is IFactory {
     error ProtocolParameterStorageInvalidError();
 
     function oracleFactory() external view returns (IFactory);
-    function payoffFactory() external view returns (IFactory);
     function parameter() external view returns (ProtocolParameter memory);
     function operators(address account, address operator) external view returns (bool);
-    function markets(IOracleProvider oracle, IPayoffProvider payoff) external view returns (IMarket);
+    function markets(IOracleProvider oracle) external view returns (IMarket);
     function initialize() external;
     function updateParameter(ProtocolParameter memory newParameter) external;
     function updateOperator(address operator, bool newEnabled) external;
