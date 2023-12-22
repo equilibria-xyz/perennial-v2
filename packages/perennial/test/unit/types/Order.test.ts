@@ -18,13 +18,12 @@ export const VALID_ORDER: OrderStruct = {
   maker: 0,
   long: 0,
   short: 0,
-  skew: 0,
-  impact: 0,
+  net: 0,
   efficiency: 0,
+  latestSkew: 0,
+  currentSkew: 0,
   fee: 0,
   keeper: 0,
-  utilization: 0,
-  net: 0,
 }
 
 const VALID_POSITION: PositionStruct = {
