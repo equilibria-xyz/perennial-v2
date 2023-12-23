@@ -8,7 +8,6 @@ const config = defaultConfig({
     '@openzeppelin/contracts/governance/TimelockController.sol',
     '@openzeppelin/contracts/proxy/transparent/ProxyAdmin.sol',
     '@openzeppelin/contracts/interfaces/IERC20.sol',
-    '@equilibria/perennial-v2-oracle/contracts/PayoffFactory.sol',
     '@equilibria/perennial-v2-oracle/contracts/payoff/Giga.sol',
     '@equilibria/perennial-v2-oracle/contracts/payoff/Kilo.sol',
     '@equilibria/perennial-v2-oracle/contracts/payoff/KiloPowerHalf.sol',
