@@ -38,17 +38,12 @@ describe('MarketFactory', () => {
     payoffFactory = await smock.fake<IFactory>('IFactory')
     payoffProvider = await smock.fake<IPayoffProvider>('IPayoffProvider')
     marketImpl = await new Market__factory(owner).deploy()
-    factory = await new MarketFactory__factory(owner).deploy(
-      oracleFactory.address,
-      payoffFactory.address,
-      marketImpl.address,
-    )
+    factory = await new MarketFactory__factory(owner).deploy(oracleFactory.address, marketImpl.address)
     await factory.initialize()
   })
 
   describe('#initialize', async () => {
     it('initialize with the correct variables set', async () => {
-      expect(await factory.payoffFactory()).to.equal(payoffFactory.address)
       expect(await factory.implementation()).to.equal(marketImpl.address)
       expect(await factory.owner()).to.equal(owner.address)
       expect(await factory.pauser()).to.equal(constants.AddressZero)

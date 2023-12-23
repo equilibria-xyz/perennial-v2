@@ -22,11 +22,7 @@ import { ChainlinkContext } from './chainlinkHelpers'
 import { parse6decimal } from '../../../../common/testutil/types'
 import { CHAINLINK_CUSTOM_CURRENCIES } from '@equilibria/perennial-v2-oracle/util/constants'
 import { MarketParameterStruct, RiskParameterStruct } from '../../../types/generated/contracts/Market'
-import {
-  PowerTwo__factory,
-  PayoffFactory__factory,
-  PayoffFactory,
-} from '@equilibria/perennial-v2-oracle/types/generated'
+import { PowerTwo__factory } from '@equilibria/perennial-v2-oracle/types/generated'
 import {
   OracleFactory,
   Oracle__factory,
@@ -49,7 +45,6 @@ export interface InstanceVars {
   beneficiaryB: SignerWithAddress
   proxyAdmin: ProxyAdmin
   oracleFactory: OracleFactory
-  payoffFactory: PayoffFactory
   marketFactory: MarketFactory
   payoff: IPayoffProvider
   dsu: IERC20Metadata
@@ -84,21 +79,9 @@ export async function deployProtocol(chainlinkContext?: ChainlinkContext): Promi
   )
   const oracleFactory = new OracleFactory__factory(owner).attach(oracleFactoryProxy.address)
 
-  const payoffFactoryImpl = await new PayoffFactory__factory(owner).deploy()
-  const payoffFactoryProxy = await new TransparentUpgradeableProxy__factory(owner).deploy(
-    payoffFactoryImpl.address,
-    proxyAdmin.address,
-    [],
-  )
-  const payoffFactory = new PayoffFactory__factory(owner).attach(payoffFactoryProxy.address)
-
   const marketImpl = await new Market__factory(owner).deploy()
 
-  const factoryImpl = await new MarketFactory__factory(owner).deploy(
-    oracleFactory.address,
-    payoffFactory.address,
-    marketImpl.address,
-  )
+  const factoryImpl = await new MarketFactory__factory(owner).deploy(oracleFactory.address, marketImpl.address)
 
   const factoryProxy = await new TransparentUpgradeableProxy__factory(owner).deploy(
     factoryImpl.address,
@@ -110,7 +93,6 @@ export async function deployProtocol(chainlinkContext?: ChainlinkContext): Promi
 
   // Init
   await oracleFactory.connect(owner).initialize(dsu.address, usdc.address, RESERVE_ADDRESS)
-  await payoffFactory.connect(owner).initialize()
   await marketFactory.connect(owner).initialize()
 
   // Params
@@ -124,7 +106,6 @@ export async function deployProtocol(chainlinkContext?: ChainlinkContext): Promi
     minMaintenance: parse6decimal('0.01'),
     minEfficiency: parse6decimal('0.1'),
   })
-  await payoffFactory.connect(owner).register(payoff.address)
   await oracleFactory.connect(owner).register(chainlink.oracleFactory.address)
   await oracleFactory.connect(owner).authorize(marketFactory.address)
   const oracle = IOracle__factory.connect(
@@ -155,7 +136,6 @@ export async function deployProtocol(chainlinkContext?: ChainlinkContext): Promi
     usdcHolder,
     proxyAdmin,
     oracleFactory,
-    payoffFactory,
     marketFactory,
     oracle,
     marketImpl,

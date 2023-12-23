@@ -17,7 +17,6 @@ import {
   parse6decimal,
 } from '../../../../common/testutil/types'
 import { IMarket, MarketParameterStruct, RiskParameterStruct } from '../../../types/generated/contracts/Market'
-import { MilliPowerTwo__factory } from '@equilibria/perennial-v2-oracle/types/generated'
 
 const { ethers } = HRE
 use(smock.matchers)
@@ -386,7 +385,6 @@ describe('Market', () => {
     marketDefinition = {
       token: dsu.address,
       oracle: oracle.address,
-      payoff: constants.AddressZero,
     }
     riskParameter = {
       margin: parse6decimal('0.35'),
@@ -440,7 +438,6 @@ describe('Market', () => {
       expect(await market.factory()).to.equal(factory.address)
       expect(await market.token()).to.equal(dsu.address)
       expect(await market.oracle()).to.equal(marketDefinition.oracle)
-      expect(await market.payoff()).to.equal(marketDefinition.payoff)
 
       const riskParameterResult = await market.riskParameter()
       expect(riskParameterResult.margin).to.equal(0)
@@ -13948,254 +13945,6 @@ describe('Market', () => {
             timestamp: ORACLE_VERSION_4.timestamp,
             short: POSITION.div(2),
             delta: COLLATERAL,
-          })
-        })
-      })
-
-      context('payoff', async () => {
-        let marketPayoff: Market
-
-        // rate_0 = 0
-        // rate_1 = rate_0 + (elapsed * skew / k)
-        // funding = (rate_0 + rate_1) / 2 * elapsed * taker * price / time_in_years
-        // (0 + (0 + 3600 * 1.00 / 40000)) / 2 * 3600 * 5 * 15.129 / (86400 * 365) = 390
-        const EXPECTED_FUNDING_1_5_123_P2 = BigNumber.from(390)
-        const EXPECTED_FUNDING_FEE_1_5_123_P2 = BigNumber.from(40) // (388 + 19) = 407 / 5 -> 82 * 5 -> 410 - 390 -> 20 * 2 -> 40
-        const EXPECTED_FUNDING_WITH_FEE_1_5_123_P2 = EXPECTED_FUNDING_1_5_123_P2.add(
-          EXPECTED_FUNDING_FEE_1_5_123_P2.div(2),
-        )
-        const EXPECTED_FUNDING_WITHOUT_FEE_1_5_123_P2 = EXPECTED_FUNDING_1_5_123_P2.sub(
-          EXPECTED_FUNDING_FEE_1_5_123_P2.div(2),
-        )
-
-        // rate * elapsed * utilization * min(maker, taker) * price
-        // (0.10 / 365 / 24 / 60 / 60 ) * 3600 * 5 * 15.129 = 865
-        const EXPECTED_INTEREST_5_123_P2 = BigNumber.from(865)
-        const EXPECTED_INTEREST_FEE_5_123_P2 = EXPECTED_INTEREST_5_123_P2.div(10)
-        const EXPECTED_INTEREST_WITHOUT_FEE_5_123_P2 = EXPECTED_INTEREST_5_123_P2.sub(EXPECTED_INTEREST_FEE_5_123_P2)
-
-        beforeEach(async () => {
-          marketPayoff = await new Market__factory(owner).deploy()
-          const payoff = await new MilliPowerTwo__factory(owner).deploy()
-          marketDefinition.payoff = payoff.address
-          await marketPayoff.connect(factorySigner).initialize(marketDefinition)
-          await marketPayoff.connect(owner).updateRiskParameter(riskParameter)
-          await marketPayoff.connect(owner).updateParameter(beneficiary.address, coordinator.address, marketParameter)
-
-          dsu.transferFrom.whenCalledWith(user.address, marketPayoff.address, COLLATERAL.mul(1e12)).returns(true)
-        })
-
-        context('long', async () => {
-          beforeEach(async () => {
-            dsu.transferFrom.whenCalledWith(userB.address, marketPayoff.address, COLLATERAL.mul(1e12)).returns(true)
-            await marketPayoff.connect(userB).update(userB.address, POSITION, 0, 0, COLLATERAL, false)
-            await marketPayoff.connect(user).update(user.address, 0, POSITION.div(2), 0, COLLATERAL, false)
-
-            oracle.at.whenCalledWith(ORACLE_VERSION_2.timestamp).returns(ORACLE_VERSION_2)
-            oracle.status.returns([ORACLE_VERSION_2, ORACLE_VERSION_3.timestamp])
-            oracle.request.whenCalledWith(user.address).returns()
-
-            await settle(marketPayoff, user)
-            await settle(marketPayoff, userB)
-          })
-
-          it('higher price same rate settle', async () => {
-            const EXPECTED_PNL = parse6decimal('-0.496').mul(5) // maker pnl
-
-            const oracleVersionHigherPrice = {
-              price: parse6decimal('125'),
-              timestamp: TIMESTAMP + 7200,
-              valid: true,
-            }
-            oracle.at.whenCalledWith(oracleVersionHigherPrice.timestamp).returns(oracleVersionHigherPrice)
-            oracle.status.returns([oracleVersionHigherPrice, ORACLE_VERSION_4.timestamp])
-            oracle.request.whenCalledWith(user.address).returns()
-
-            await settle(marketPayoff, user)
-            await settle(marketPayoff, userB)
-
-            expectLocalEq(await marketPayoff.locals(user.address), {
-              ...DEFAULT_LOCAL,
-              currentId: 3,
-              latestId: 2,
-              collateral: COLLATERAL.sub(EXPECTED_PNL)
-                .sub(EXPECTED_FUNDING_WITH_FEE_1_5_123_P2)
-                .sub(EXPECTED_INTEREST_5_123_P2),
-            })
-            expectPositionEq(await marketPayoff.positions(user.address), {
-              ...DEFAULT_POSITION,
-              timestamp: ORACLE_VERSION_3.timestamp,
-              long: POSITION.div(2),
-            })
-            expectPositionEq(await marketPayoff.pendingPositions(user.address, 3), {
-              ...DEFAULT_POSITION,
-              timestamp: ORACLE_VERSION_4.timestamp,
-              long: POSITION.div(2),
-              delta: COLLATERAL,
-            })
-            expectLocalEq(await marketPayoff.locals(userB.address), {
-              ...DEFAULT_LOCAL,
-              currentId: 3,
-              latestId: 2,
-              collateral: COLLATERAL.add(EXPECTED_PNL)
-                .add(EXPECTED_FUNDING_WITHOUT_FEE_1_5_123_P2)
-                .add(EXPECTED_INTEREST_WITHOUT_FEE_5_123_P2)
-                .sub(19), // loss of precision
-            })
-            expectPositionEq(await marketPayoff.positions(userB.address), {
-              ...DEFAULT_POSITION,
-              timestamp: ORACLE_VERSION_3.timestamp,
-              maker: POSITION,
-            })
-            expectPositionEq(await marketPayoff.pendingPositions(userB.address, 3), {
-              ...DEFAULT_POSITION,
-              timestamp: ORACLE_VERSION_4.timestamp,
-              maker: POSITION,
-              delta: COLLATERAL,
-            })
-            const totalFee = EXPECTED_FUNDING_FEE_1_5_123_P2.add(EXPECTED_INTEREST_FEE_5_123_P2)
-            expectGlobalEq(await marketPayoff.global(), {
-              currentId: 3,
-              latestId: 2,
-              protocolFee: totalFee.div(2).sub(1), // loss of precision
-              oracleFee: totalFee.div(2).div(10),
-              riskFee: totalFee.div(2).div(10),
-              donation: totalFee.div(2).mul(8).div(10),
-            })
-            expectPositionEq(await marketPayoff.position(), {
-              ...DEFAULT_POSITION,
-              timestamp: ORACLE_VERSION_3.timestamp,
-              maker: POSITION,
-              long: POSITION.div(2),
-            })
-            expectPositionEq(await marketPayoff.pendingPosition(3), {
-              ...DEFAULT_POSITION,
-              timestamp: ORACLE_VERSION_4.timestamp,
-              maker: POSITION,
-              long: POSITION.div(2),
-            })
-            expectVersionEq(await marketPayoff.versions(ORACLE_VERSION_3.timestamp), {
-              makerValue: {
-                _value: EXPECTED_PNL.add(EXPECTED_FUNDING_WITHOUT_FEE_1_5_123_P2)
-                  .add(EXPECTED_INTEREST_WITHOUT_FEE_5_123_P2)
-                  .div(10)
-                  .sub(2), // loss of precision
-              },
-              longValue: {
-                _value: EXPECTED_PNL.add(EXPECTED_FUNDING_WITH_FEE_1_5_123_P2)
-                  .add(EXPECTED_INTEREST_5_123_P2)
-                  .div(5)
-                  .mul(-1),
-              },
-              shortValue: { _value: 0 },
-            })
-          })
-        })
-
-        context('short', async () => {
-          beforeEach(async () => {
-            dsu.transferFrom.whenCalledWith(userB.address, marketPayoff.address, COLLATERAL.mul(1e12)).returns(true)
-            await marketPayoff.connect(userB).update(userB.address, POSITION, 0, 0, COLLATERAL, false)
-            await marketPayoff.connect(user).update(user.address, 0, 0, POSITION.div(2), COLLATERAL, false)
-
-            oracle.at.whenCalledWith(ORACLE_VERSION_2.timestamp).returns(ORACLE_VERSION_2)
-            oracle.status.returns([ORACLE_VERSION_2, ORACLE_VERSION_3.timestamp])
-            oracle.request.whenCalledWith(user.address).returns()
-
-            await settle(marketPayoff, user)
-            await settle(marketPayoff, userB)
-          })
-
-          it('higher price same rate settle', async () => {
-            const EXPECTED_PNL = parse6decimal('0.496').mul(5) // maker pnl
-
-            const oracleVersionHigherPrice = {
-              price: parse6decimal('125'),
-              timestamp: TIMESTAMP + 7200,
-              valid: true,
-            }
-            oracle.at.whenCalledWith(oracleVersionHigherPrice.timestamp).returns(oracleVersionHigherPrice)
-            oracle.status.returns([oracleVersionHigherPrice, ORACLE_VERSION_4.timestamp])
-            oracle.request.whenCalledWith(user.address).returns()
-
-            await settle(marketPayoff, user)
-            await settle(marketPayoff, userB)
-
-            expectLocalEq(await marketPayoff.locals(user.address), {
-              ...DEFAULT_LOCAL,
-              currentId: 3,
-              latestId: 2,
-              collateral: COLLATERAL.sub(EXPECTED_PNL)
-                .sub(EXPECTED_FUNDING_WITH_FEE_1_5_123_P2)
-                .sub(EXPECTED_INTEREST_5_123_P2),
-            })
-            expectPositionEq(await marketPayoff.positions(user.address), {
-              ...DEFAULT_POSITION,
-              timestamp: ORACLE_VERSION_3.timestamp,
-              short: POSITION.div(2),
-            })
-            expectPositionEq(await marketPayoff.pendingPositions(user.address, 3), {
-              ...DEFAULT_POSITION,
-              timestamp: ORACLE_VERSION_4.timestamp,
-              short: POSITION.div(2),
-              delta: COLLATERAL,
-            })
-            expectLocalEq(await marketPayoff.locals(userB.address), {
-              ...DEFAULT_LOCAL,
-              currentId: 3,
-              latestId: 2,
-              collateral: COLLATERAL.add(EXPECTED_PNL)
-                .add(EXPECTED_FUNDING_WITHOUT_FEE_1_5_123_P2)
-                .add(EXPECTED_INTEREST_WITHOUT_FEE_5_123_P2)
-                .sub(19), // loss of precision
-            })
-            expectPositionEq(await marketPayoff.positions(userB.address), {
-              ...DEFAULT_POSITION,
-              timestamp: ORACLE_VERSION_3.timestamp,
-              maker: POSITION,
-            })
-            expectPositionEq(await marketPayoff.pendingPositions(userB.address, 3), {
-              ...DEFAULT_POSITION,
-              timestamp: ORACLE_VERSION_4.timestamp,
-              maker: POSITION,
-              delta: COLLATERAL,
-            })
-            const totalFee = EXPECTED_FUNDING_FEE_1_5_123_P2.add(EXPECTED_INTEREST_FEE_5_123_P2)
-            expectGlobalEq(await marketPayoff.global(), {
-              currentId: 3,
-              latestId: 2,
-              protocolFee: totalFee.div(2).sub(1), // loss of precision
-              oracleFee: totalFee.div(2).div(10),
-              riskFee: totalFee.div(2).div(10),
-              donation: totalFee.div(2).mul(8).div(10),
-            })
-            expectPositionEq(await marketPayoff.position(), {
-              ...DEFAULT_POSITION,
-              timestamp: ORACLE_VERSION_3.timestamp,
-              maker: POSITION,
-              short: POSITION.div(2),
-            })
-            expectPositionEq(await marketPayoff.pendingPosition(3), {
-              ...DEFAULT_POSITION,
-              timestamp: ORACLE_VERSION_4.timestamp,
-              maker: POSITION,
-              short: POSITION.div(2),
-            })
-            expectVersionEq(await marketPayoff.versions(ORACLE_VERSION_3.timestamp), {
-              makerValue: {
-                _value: EXPECTED_PNL.add(EXPECTED_FUNDING_WITHOUT_FEE_1_5_123_P2)
-                  .add(EXPECTED_INTEREST_WITHOUT_FEE_5_123_P2)
-                  .div(10)
-                  .sub(1), // loss of precision
-              },
-              longValue: { _value: 0 },
-              shortValue: {
-                _value: EXPECTED_PNL.add(EXPECTED_FUNDING_WITH_FEE_1_5_123_P2)
-                  .add(EXPECTED_INTEREST_5_123_P2)
-                  .div(5)
-                  .mul(-1),
-              },
-            })
           })
         })
       })
