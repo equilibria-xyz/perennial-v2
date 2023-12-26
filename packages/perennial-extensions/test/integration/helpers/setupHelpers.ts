@@ -90,7 +90,7 @@ export async function deployProtocol(chainlinkContext?: ChainlinkContext): Promi
 
   const chainlink =
     chainlinkContext ??
-    (await new ChainlinkContext(CHAINLINK_CUSTOM_CURRENCIES.ETH, CHAINLINK_CUSTOM_CURRENCIES.USD, 1).init())
+    (await new ChainlinkContext(CHAINLINK_CUSTOM_CURRENCIES.ETH, CHAINLINK_CUSTOM_CURRENCIES.USD, payoff, 1).init())
 
   // Deploy protocol contracts
   const proxyAdmin = await new ProxyAdmin__factory(owner).deploy()
@@ -206,7 +206,6 @@ export async function createMarket(
   name?: string,
   symbol?: string,
   oracleOverride?: IOracleProvider,
-  payoff?: IPayoffProvider,
   riskParamOverrides?: Partial<RiskParameterStruct>,
   marketParamOverrides?: Partial<MarketParameterStruct>,
 ): Promise<Market> {
@@ -215,7 +214,6 @@ export async function createMarket(
   const definition = {
     token: dsu.address,
     oracle: (oracleOverride ?? oracle).address,
-    payoff: (payoff ?? instanceVars.payoff).address,
   }
   const riskParameter = {
     margin: parse6decimal('0.3'),
