@@ -107,7 +107,6 @@ export class ChainlinkContext {
 
   private async _payoff(price: BigNumber): Promise<BigNumber> {
     const priceAfterPayoff = this.payoff !== undefined ? await this.payoff.payoff(price) : price
-
     return priceAfterPayoff.div(1e12)
   }
 }
