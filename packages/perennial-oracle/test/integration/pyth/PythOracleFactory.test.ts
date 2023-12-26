@@ -19,11 +19,7 @@ import {
   OracleFactory__factory,
   PythFactory,
   PythFactory__factory,
-  PayoffFactory,
-  PayoffFactory__factory,
   IMarket,
-  MarketParameterStorageLib__factory,
-  RiskParameterStorageLib__factory,
   KeeperOracle__factory,
   KeeperOracle,
   MilliPowerTwo__factory,
@@ -37,8 +33,8 @@ const { ethers } = HRE
 const PYTH_ADDRESS = '0x4305FB66699C3B2702D4d05CF36551390A4c69C6'
 const PYTH_ETH_USD_PRICE_FEED = '0xff61491a931112ddf1bd8147cd1b641375f79f5825126d665480874634fd0ace'
 const PYTH_BTC_USD_PRICE_FEED = '0xe62df6c8b4a85fe1a67db44dc12de5db330f7ac66b72dc658afedf0f4a415b43'
-const PYTH_ARB_USD_PRICE_FEED = '0x3fa4252848f9f0a1480be62745a4629d9eb1322aebab8a791e344b3b9c1adcf5'
 const PYTH_USDC_USD_PRICE_FEED = '0xeaa020c61cc479712813461ce153894a96a6c00b21ed0cfc2798d1f9a9e9c94a'
+const PYTH_ARB_USD_PRICE_FEED = '0x3fa4252848f9f0a1480be62745a4629d9eb1322aebab8a791e344b3b9c1adcf5'
 const DSU_ADDRESS = '0x605D26FBd5be761089281d5cec2Ce86eeA667109'
 const USDC_ADDRESS = '0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48'
 const CHAINLINK_ETH_USD_FEED = '0x5f4eC3Df9cbd43714FE2740f5E3616155c5b8419'
@@ -83,6 +79,8 @@ const testOracles = [
 // TODO: add callback state checks to more requests
 // TODO: add additional settle tests (batch, maxCount, zero)
 // TODO: add checks that market.settle was correctly calledback (multiple, zero / non-requested)
+// TODO: add register test
+// TODO: tests for payoffs
 
 testOracles.forEach(testOracle => {
   describe(testOracle.name, () => {
@@ -90,10 +88,11 @@ testOracles.forEach(testOracle => {
     let user: SignerWithAddress
     let user2: SignerWithAddress
     let oracle: Oracle
+    let oracle2: Oracle
     let keeperOracle: KeeperOracle
+    let keeperOracle2: KeeperOracle
     let keeperOracleBtc: KeeperOracle
     let pythOracleFactory: PythFactory
-    let payoffFactory: PayoffFactory
     let oracleFactory: OracleFactory
     let marketFactory: MarketFactory
     let market: IMarket
@@ -107,10 +106,7 @@ testOracles.forEach(testOracle => {
 
       dsu = IERC20Metadata__factory.connect(DSU_ADDRESS, owner)
 
-      payoffFactory = await new PayoffFactory__factory(owner).deploy()
-      await payoffFactory.initialize()
       const milliPowerTwoPayoff = await new MilliPowerTwo__factory(owner).deploy()
-      await payoffFactory.register(milliPowerTwoPayoff.address)
 
       const oracleImpl = await new Oracle__factory(owner).deploy()
       oracleFactory = await new OracleFactory__factory(owner).deploy(oracleImpl.address)
@@ -140,37 +136,64 @@ testOracles.forEach(testOracle => {
       await pythOracleFactory.initialize(oracleFactory.address, CHAINLINK_ETH_USD_FEED, dsu.address)
       await oracleFactory.register(pythOracleFactory.address)
       await pythOracleFactory.authorize(oracleFactory.address)
-
-      await pythOracleFactory.associate(PYTH_ETH_USD_PRICE_FEED, PYTH_ETH_USD_PRICE_FEED) // ETH -> ETH
-      await pythOracleFactory.associate(
-        '0x0000000000000000000000000000000000000000000000000000000000000017',
-        PYTH_BTC_USD_PRICE_FEED,
-      ) // custom -> BTC
-      await pythOracleFactory.associate(PYTH_ARB_USD_PRICE_FEED, PYTH_ARB_USD_PRICE_FEED) // ARB -> ARB
+      await pythOracleFactory.register(milliPowerTwoPayoff.address)
 
       keeperOracle = testOracle.Oracle.connect(
-        await pythOracleFactory.callStatic.create(PYTH_ETH_USD_PRICE_FEED),
+        await pythOracleFactory.callStatic.create(
+          PYTH_ETH_USD_PRICE_FEED,
+          PYTH_ETH_USD_PRICE_FEED,
+          ethers.constants.AddressZero,
+        ),
         owner,
       )
-      await pythOracleFactory.create(PYTH_ETH_USD_PRICE_FEED)
+      await pythOracleFactory.create(PYTH_ETH_USD_PRICE_FEED, PYTH_ETH_USD_PRICE_FEED, ethers.constants.AddressZero)
       keeperOracleBtc = testOracle.Oracle.connect(
-        await pythOracleFactory.callStatic.create('0x0000000000000000000000000000000000000000000000000000000000000017'),
+        await pythOracleFactory.callStatic.create(
+          '0x0000000000000000000000000000000000000000000000000000000000000017',
+          PYTH_BTC_USD_PRICE_FEED,
+          ethers.constants.AddressZero,
+        ),
         owner,
       )
-      await pythOracleFactory.create('0x0000000000000000000000000000000000000000000000000000000000000017')
+      await pythOracleFactory.create(
+        '0x0000000000000000000000000000000000000000000000000000000000000017',
+        PYTH_BTC_USD_PRICE_FEED,
+        ethers.constants.AddressZero,
+      )
+      keeperOracle2 = testOracle.Oracle.connect(
+        await pythOracleFactory.callStatic.create(
+          '0x0000000000000000000000000000000000000000000000000000000000000021',
+          PYTH_ETH_USD_PRICE_FEED,
+          milliPowerTwoPayoff.address,
+        ),
+        owner,
+      )
+      await pythOracleFactory.create(
+        '0x0000000000000000000000000000000000000000000000000000000000000021',
+        PYTH_ETH_USD_PRICE_FEED,
+        milliPowerTwoPayoff.address,
+      )
+      await pythOracleFactory.create(PYTH_USDC_USD_PRICE_FEED, PYTH_USDC_USD_PRICE_FEED, ethers.constants.AddressZero)
 
       oracle = Oracle__factory.connect(
         await oracleFactory.callStatic.create(PYTH_ETH_USD_PRICE_FEED, pythOracleFactory.address),
         owner,
       )
       await oracleFactory.create(PYTH_ETH_USD_PRICE_FEED, pythOracleFactory.address)
+      oracle2 = Oracle__factory.connect(
+        await oracleFactory.callStatic.create(
+          '0x0000000000000000000000000000000000000000000000000000000000000021',
+          pythOracleFactory.address,
+        ),
+        owner,
+      )
+      await oracleFactory.create(
+        '0x0000000000000000000000000000000000000000000000000000000000000021',
+        pythOracleFactory.address,
+      )
 
       const marketImpl = await new Market__factory(owner).deploy()
-      marketFactory = await new MarketFactory__factory(owner).deploy(
-        oracleFactory.address,
-        payoffFactory.address,
-        marketImpl.address,
-      )
+      marketFactory = await new MarketFactory__factory(owner).deploy(oracleFactory.address, marketImpl.address)
       await marketFactory.initialize()
       await marketFactory.updateParameter({
         protocolFee: parse6decimal('0.50'),
@@ -186,10 +209,10 @@ testOracles.forEach(testOracle => {
         margin: parse6decimal('0.3'),
         maintenance: parse6decimal('0.3'),
         takerFee: 0,
-        takerMagnitudeFee: 0,
-        impactFee: 0,
+        takerSkewFee: 0,
+        takerImpactFee: 0,
         makerFee: 0,
-        makerMagnitudeFee: 0,
+        makerImpactFee: 0,
         makerLimit: parse6decimal('1000'),
         efficiencyLimit: parse6decimal('0.2'),
         liquidationFee: parse6decimal('0.50'),
@@ -228,14 +251,12 @@ testOracles.forEach(testOracle => {
         await marketFactory.callStatic.create({
           token: dsu.address,
           oracle: oracle.address,
-          payoff: ethers.constants.AddressZero,
         }),
         owner,
       )
       await marketFactory.create({
         token: dsu.address,
         oracle: oracle.address,
-        payoff: ethers.constants.AddressZero,
       })
       await market.updateParameter(ethers.constants.AddressZero, ethers.constants.AddressZero, marketParameter)
       await market.updateRiskParameter(riskParameter)
@@ -243,15 +264,13 @@ testOracles.forEach(testOracle => {
       market2 = Market__factory.connect(
         await marketFactory.callStatic.create({
           token: dsu.address,
-          oracle: oracle.address,
-          payoff: milliPowerTwoPayoff.address,
+          oracle: oracle2.address,
         }),
         owner,
       )
       await marketFactory.create({
         token: dsu.address,
-        oracle: oracle.address,
-        payoff: milliPowerTwoPayoff.address,
+        oracle: oracle2.address,
       })
       await market2.updateParameter(ethers.constants.AddressZero, ethers.constants.AddressZero, marketParameter)
       await market2.updateRiskParameter(riskParameter)
@@ -304,30 +323,27 @@ testOracles.forEach(testOracle => {
 
       context('#create', async () => {
         it('cant recreate price id', async () => {
-          await expect(pythOracleFactory.create(PYTH_ETH_USD_PRICE_FEED)).to.be.revertedWithCustomError(
-            pythOracleFactory,
-            'KeeperFactoryAlreadyCreatedError',
-          )
+          await expect(
+            pythOracleFactory.create(PYTH_ETH_USD_PRICE_FEED, PYTH_ETH_USD_PRICE_FEED, ethers.constants.AddressZero),
+          ).to.be.revertedWithCustomError(pythOracleFactory, 'KeeperFactoryAlreadyCreatedError')
         })
 
         it('cant recreate invalid price id', async () => {
           await expect(
-            pythOracleFactory.create('0x0000000000000000000000000000000000000000000000000000000000000000'),
+            pythOracleFactory.create(
+              PYTH_ETH_USD_PRICE_FEED,
+              '0x0000000000000000000000000000000000000000000000000000000000000000',
+              ethers.constants.AddressZero,
+            ),
           ).to.be.revertedWithCustomError(pythOracleFactory, 'PythFactoryInvalidIdError')
         })
 
         it('reverts when not owner', async () => {
-          await expect(pythOracleFactory.connect(user).create(PYTH_ETH_USD_PRICE_FEED)).to.be.revertedWithCustomError(
-            pythOracleFactory,
-            'OwnableNotOwnerError',
-          )
-        })
-
-        it('reverts when not associated', async () => {
-          await expect(pythOracleFactory.connect(user).create(PYTH_USDC_USD_PRICE_FEED)).to.be.revertedWithCustomError(
-            pythOracleFactory,
-            'PythFactoryInvalidIdError', // not associated returns zero-id for pyth lookup
-          )
+          await expect(
+            pythOracleFactory
+              .connect(user)
+              .create(PYTH_ETH_USD_PRICE_FEED, PYTH_ETH_USD_PRICE_FEED, ethers.constants.AddressZero),
+          ).to.be.revertedWithCustomError(pythOracleFactory, 'OwnableNotOwnerError')
         })
       })
 
@@ -346,14 +362,6 @@ testOracles.forEach(testOracle => {
             pythOracleFactory,
             'OwnableNotOwnerError',
           )
-        })
-      })
-
-      context('#associate', async () => {
-        it('reverts when not owner', async () => {
-          await expect(
-            pythOracleFactory.connect(user).associate(PYTH_ETH_USD_PRICE_FEED, PYTH_ETH_USD_PRICE_FEED),
-          ).to.be.revertedWithCustomError(pythOracleFactory, 'OwnableNotOwnerError')
         })
       })
     })
@@ -772,7 +780,7 @@ testOracles.forEach(testOracle => {
               [
                 PYTH_ETH_USD_PRICE_FEED,
                 '0x0000000000000000000000000000000000000000000000000000000000000017',
-                PYTH_ARB_USD_PRICE_FEED,
+                PYTH_USDC_USD_PRICE_FEED,
               ],
               BATCHED_TIMESTAMP - MIN_DELAY,
               VAA_WITH_MULTIPLE_UPDATES_2,
@@ -781,6 +789,34 @@ testOracles.forEach(testOracle => {
         ).to.be.revertedWithCustomError(
           { interface: new ethers.utils.Interface(['error PriceFeedNotFoundWithinRange()']) },
           'PriceFeedNotFoundWithinRange',
+        )
+      })
+
+      it('reverts if feed not created', async () => {
+        await time.reset(18028156)
+        await setup()
+
+        const MIN_DELAY = 4
+        const BATCHED_TIMESTAMP = 1697317340
+
+        await time.increaseTo(BATCHED_TIMESTAMP + 60)
+
+        await expect(
+          pythOracleFactory
+            .connect(user)
+            .commit(
+              [
+                PYTH_ETH_USD_PRICE_FEED,
+                '0x0000000000000000000000000000000000000000000000000000000000000017',
+                PYTH_ARB_USD_PRICE_FEED,
+              ],
+              BATCHED_TIMESTAMP - MIN_DELAY,
+              VAA_WITH_MULTIPLE_UPDATES_2,
+              { value: 2 },
+            ),
+        ).to.be.revertedWithCustomError(
+          { interface: new ethers.utils.Interface(['error KeeperFactoryNotCreatedError()']) },
+          'KeeperFactoryNotCreatedError',
         )
       })
 

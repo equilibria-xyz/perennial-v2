@@ -63,7 +63,7 @@ const overwriteTimestamp = (payload: string, timestamp: BigNumberish) => {
   )
 }
 
-describe.only('ChainlinkFactory', () => {
+describe('ChainlinkFactory', () => {
   let owner: SignerWithAddress
   let user: SignerWithAddress
 

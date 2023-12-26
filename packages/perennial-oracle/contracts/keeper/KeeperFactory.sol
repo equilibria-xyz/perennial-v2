@@ -110,6 +110,7 @@ abstract contract KeeperFactory is IKeeperFactory, Factory, Kept {
 
         oracleFactory = oracleFactory_;
         _granularity = Granularity(0, 1, 0);
+        payoffs[IPayoffProvider(address(0))] = true;
     }
 
     /// @notice Authorizes a factory's instances to request from this factory's instances
@@ -273,7 +274,10 @@ abstract contract KeeperFactory is IKeeperFactory, Factory, Kept {
     }
 
     function _transformPrices(bytes32[] memory ids, Fixed18[] memory prices) private view {
-        for (uint256 i; i < prices.length; i++) prices[i] = toUnderlyingPayoff[ids[i]].payoff(prices[i]);
+        for (uint256 i; i < prices.length; i++) {
+            IPayoffProvider payoff = toUnderlyingPayoff[ids[i]];
+            if (payoff != IPayoffProvider(address(0))) prices[i] = payoff.payoff(prices[i]);
+        }
     }
 
     /// @notice Returns the applicable value for the keeper fee
