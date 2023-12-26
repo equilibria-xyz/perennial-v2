@@ -128,7 +128,7 @@ describe('Orders', () => {
 
     const trigger = openTriggerOrder({
       delta: userPosition,
-      price: payoff(marketPrice.sub(10)),
+      price: marketPrice.sub(10),
       side: Dir.L,
       comparison: Compare.ABOVE_MARKET,
     })
@@ -157,7 +157,7 @@ describe('Orders', () => {
 
     const trigger = openTriggerOrder({
       delta: userPosition,
-      price: payoff(marketPrice.add(10)),
+      price: marketPrice.add(10),
       side: Dir.S,
       comparison: Compare.BELOW_MARKET,
     })
@@ -216,7 +216,7 @@ describe('Orders', () => {
 
     const trigger = openTriggerOrder({
       delta: userPosition.mul(-1),
-      price: payoff(marketPrice.sub(11)),
+      price: marketPrice.sub(11),
       side: Dir.S,
       comparison: Compare.ABOVE_MARKET,
     })
@@ -246,7 +246,7 @@ describe('Orders', () => {
 
     const trigger = openTriggerOrder({
       delta: userPosition.mul(-1),
-      price: payoff(marketPrice.sub(10)),
+      price: marketPrice.sub(10),
       side: Dir.L,
       comparison: Compare.ABOVE_MARKET,
     })
@@ -276,7 +276,7 @@ describe('Orders', () => {
 
     const trigger = openTriggerOrder({
       delta: userPosition.mul(-1),
-      price: payoff(marketPrice.add(10)),
+      price: marketPrice.add(10),
       side: Dir.S,
       comparison: Compare.BELOW_MARKET,
     })
@@ -304,7 +304,7 @@ describe('Orders', () => {
     const { userB, userC, chainlink } = instanceVars
     const trigger = openTriggerOrder({
       delta: userPosition,
-      price: payoff(marketPrice.add(10)),
+      price: marketPrice.add(10),
       side: Dir.M,
       comparison: Compare.BELOW_MARKET,
     })
@@ -332,7 +332,7 @@ describe('Orders', () => {
     const { userB, userC, chainlink } = instanceVars
     const trigger = openTriggerOrder({
       delta: userPosition.mul(-1),
-      price: payoff(marketPrice.sub(10)),
+      price: marketPrice.sub(10),
       side: Dir.M,
       comparison: Compare.ABOVE_MARKET,
     })
@@ -361,7 +361,7 @@ describe('Orders', () => {
     const { userB, userC, chainlink } = instanceVars
     const trigger = openTriggerOrder({
       delta: userPosition.mul(-1),
-      price: payoff(marketPrice.add(10)),
+      price: marketPrice.add(10),
       side: Dir.M,
       comparison: Compare.BELOW_MARKET,
       fee: userPosition,
@@ -392,7 +392,7 @@ describe('Orders', () => {
 
     const trigger = openTriggerOrder({
       delta: userPosition,
-      price: payoff(marketPrice.sub(10)),
+      price: marketPrice.sub(10),
       side: Dir.L,
       comparison: Compare.ABOVE_MARKET,
       interfaceFee: { amount: 50e6, receiver: userB.address, unwrap: false },
@@ -429,7 +429,7 @@ describe('Orders', () => {
 
     const trigger = openTriggerOrder({
       delta: userPosition,
-      price: payoff(marketPrice.sub(10)),
+      price: marketPrice.sub(10),
       side: Dir.L,
       comparison: Compare.ABOVE_MARKET,
       interfaceFee: { amount: 50e6, receiver: userB.address, unwrap: true },
@@ -465,7 +465,7 @@ describe('Orders', () => {
     const { user, userB, userC, chainlink, usdc } = instanceVars
     const trigger = openTriggerOrder({
       delta: collateral.div(-4),
-      price: payoff(marketPrice.add(10)),
+      price: marketPrice.add(10),
       side: Dir.C,
       comparison: Compare.BELOW_MARKET,
       fee: userPosition,
@@ -500,7 +500,7 @@ describe('Orders', () => {
     const { user, userC, chainlink, dsu, usdc } = instanceVars
     const trigger = openTriggerOrder({
       delta: MIN_INT64,
-      price: payoff(marketPrice.add(10)),
+      price: marketPrice.add(10),
       side: Dir.C,
       comparison: Compare.BELOW_MARKET,
     })
@@ -543,7 +543,7 @@ describe('Orders', () => {
 
     const trigger = openTriggerOrder({
       delta: 0,
-      price: payoff(marketPrice.add(10)),
+      price: marketPrice.add(10),
       side: Dir.M,
       comparison: Compare.BELOW_MARKET,
       fee: userPosition,
@@ -658,7 +658,7 @@ describe('Orders', () => {
 
       const trigger = openTriggerOrder({
         delta: userPosition,
-        price: payoff(marketPrice.add(10)),
+        price: marketPrice.add(10),
         side: Dir.L,
         comparison: Compare.ABOVE_MARKET,
         fee: 0,
@@ -747,7 +747,7 @@ describe('Orders', () => {
 
       const trigger = openTriggerOrder({
         delta: userPosition,
-        price: payoff(marketPrice.add(10)),
+        price: marketPrice.add(10),
         side: Dir.L,
         comparison: Compare.BELOW_MARKET,
         fee: 10,
@@ -822,7 +822,4 @@ async function assertStoreFail(
   await expect(
     multiInvoker.connect(user).invoke(buildPlaceOrder({ market: market.address, order: testOrder, collateral: 0 })),
   ).to.be.revertedWithCustomError(multiInvoker, 'TriggerOrderStorageInvalidError')
-}
-const payoff = (price: BigNumber) => {
-  return price.mul(price).div(1e6)
 }
