@@ -33,7 +33,7 @@ describe('Liquidate', () => {
       .withArgs(userB.address, user.address, TIMESTAMP_2, 0, 0, 0, 0, true)
 
     expect((await market.locals(user.address)).protection).to.eq(TIMESTAMP_2)
-    expect((await market.locals(user.address)).protectionAmount).to.eq('682778988')
+    expect((await market.locals(user.address)).protectionAmount).to.eq('682778989')
     expect((await market.locals(user.address)).protectionInitiator).to.eq(userB.address)
 
     expect((await market.locals(user.address)).collateral).to.equal(COLLATERAL)
@@ -44,15 +44,15 @@ describe('Liquidate', () => {
     await market.connect(user).update(user.address, 0, 0, 0, 0, false) // settle
     await market.connect(userB).update(userB.address, 0, 0, 0, constants.MinInt256, false) // liquidator withdrawal
 
-    expect(await dsu.balanceOf(userB.address)).to.equal(utils.parseEther('200682.778988')) // Original 200000 + fee
-    expect((await market.locals(user.address)).collateral).to.equal('317221012')
-    expect(await dsu.balanceOf(market.address)).to.equal(utils.parseEther('317.221012'))
+    expect(await dsu.balanceOf(userB.address)).to.equal(utils.parseEther('200682.778989')) // Original 200000 + fee
+    expect((await market.locals(user.address)).collateral).to.equal('317221011')
+    expect(await dsu.balanceOf(market.address)).to.equal(utils.parseEther('317.221011'))
 
     await market.connect(user).update(user.address, 0, 0, 0, constants.MinInt256, false) // withdraw everything
 
     expect((await market.position()).timestamp).to.eq(TIMESTAMP_2)
     expect((await market.locals(user.address)).protection).to.eq(TIMESTAMP_2)
-    expect((await market.locals(user.address)).protectionAmount).to.eq('682778988')
+    expect((await market.locals(user.address)).protectionAmount).to.eq('682778989')
     expect((await market.locals(user.address)).protectionInitiator).to.eq(userB.address)
   })
 
@@ -125,7 +125,7 @@ describe('Liquidate', () => {
     await chainlink.nextWithPriceModification(price => price.mul(2))
     await settle(market, user)
 
-    expect((await market.locals(user.address)).collateral).to.equal(BigNumber.from('-3203431996'))
+    expect((await market.locals(user.address)).collateral).to.equal(BigNumber.from('-3203431997'))
 
     await dsu.connect(userB).approve(market.address, constants.MaxUint256)
     const userCollateral = (await market.locals(user.address)).collateral

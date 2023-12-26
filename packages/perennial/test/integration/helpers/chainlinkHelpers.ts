@@ -4,7 +4,11 @@ import { smock, FakeContract } from '@defi-wonderland/smock'
 
 import { FeedRegistryInterface__factory, FeedRegistryInterface, IOracleProvider } from '../../../types/generated'
 import { buildChainlinkRoundId } from '@equilibria/perennial-v2-oracle/util/buildChainlinkRoundId'
-import { IOracleFactory, IOracleFactory__factory } from '@equilibria/perennial-v2-oracle/types/generated'
+import {
+  IOracleFactory,
+  IOracleFactory__factory,
+  IPayoffProvider,
+} from '@equilibria/perennial-v2-oracle/types/generated'
 
 const { ethers, deployments } = HRE
 
@@ -16,6 +20,7 @@ export class ChainlinkContext {
   private initialRoundId: BigNumber
   private latestRoundId: BigNumber
   private currentRoundId: BigNumber
+  public payoff: IPayoffProvider
   public delay: number
   private decimals!: number
   private readonly base: string
@@ -25,10 +30,11 @@ export class ChainlinkContext {
   public oracleFactory!: FakeContract<IOracleFactory>
   public oracle!: FakeContract<IOracleProvider>
 
-  constructor(base: string, quote: string, delay: number) {
+  constructor(base: string, quote: string, payoff: IPayoffProvider, delay: number) {
     const initialRoundId = buildChainlinkRoundId(INITIAL_PHASE_ID, INITIAL_AGGREGATOR_ROUND_ID)
     this.base = base
     this.quote = quote
+    this.payoff = payoff
     this.id = ethers.utils.keccak256(ethers.utils.defaultAbiCoder.encode(['string', 'string'], [base, quote]))
     this.initialRoundId = initialRoundId
     this.latestRoundId = initialRoundId
@@ -67,11 +73,15 @@ export class ChainlinkContext {
 
     const latestData = await this.feedRegistryExternal.getRoundData(this.base, this.quote, this.latestRoundId)
     const currentData = await this.feedRegistryExternal.getRoundData(this.base, this.quote, this.currentRoundId)
+    const latestPrice =
+      this.decimals < 18
+        ? latestData.answer.mul(BigNumber.from(10).pow(18 - this.decimals))
+        : latestData.answer.div(BigNumber.from(10).pow(this.decimals - 18))
 
     const latestVersion = {
       version: latestData.startedAt,
       timestamp: latestData.startedAt,
-      price: priceFn(latestData.answer.div(BigNumber.from(10).pow(this.decimals - 6))),
+      price: await this._payoff(priceFn(latestPrice)),
       valid: true,
     }
 
@@ -93,5 +103,11 @@ export class ChainlinkContext {
     this.oracle.at.reset()
 
     await this.next()
+  }
+
+  private async _payoff(price: BigNumber): Promise<BigNumber> {
+    const priceAfterPayoff = this.payoff !== undefined ? await this.payoff.payoff(price) : price
+
+    return priceAfterPayoff.div(1e12)
   }
 }

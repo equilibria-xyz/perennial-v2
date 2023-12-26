@@ -12,8 +12,6 @@ import {
   ProxyAdmin,
   ProxyAdmin__factory,
   TransparentUpgradeableProxy__factory,
-  IPayoffProvider,
-  IPayoffProvider__factory,
   MarketFactory,
   IOracleProvider,
   IMarket,
@@ -22,12 +20,14 @@ import { ChainlinkContext } from './chainlinkHelpers'
 import { parse6decimal } from '../../../../common/testutil/types'
 import { CHAINLINK_CUSTOM_CURRENCIES } from '@equilibria/perennial-v2-oracle/util/constants'
 import { MarketParameterStruct, RiskParameterStruct } from '../../../types/generated/contracts/Market'
-import { PowerTwo__factory } from '@equilibria/perennial-v2-oracle/types/generated'
 import {
   OracleFactory,
   Oracle__factory,
   OracleFactory__factory,
   IOracle__factory,
+  PowerTwo__factory,
+  IPayoffProvider,
+  IPayoffProvider__factory,
 } from '@equilibria/perennial-v2-oracle/types/generated'
 const { deployments, ethers } = HRE
 
@@ -64,7 +64,7 @@ export async function deployProtocol(chainlinkContext?: ChainlinkContext): Promi
 
   const chainlink =
     chainlinkContext ??
-    (await new ChainlinkContext(CHAINLINK_CUSTOM_CURRENCIES.ETH, CHAINLINK_CUSTOM_CURRENCIES.USD, 1).init())
+    (await new ChainlinkContext(CHAINLINK_CUSTOM_CURRENCIES.ETH, CHAINLINK_CUSTOM_CURRENCIES.USD, payoff, 1).init())
 
   // Deploy protocol contracts
   const proxyAdmin = await new ProxyAdmin__factory(owner).deploy()
@@ -156,7 +156,6 @@ export async function fundWallet(dsu: IERC20Metadata, wallet: SignerWithAddress)
 export async function createMarket(
   instanceVars: InstanceVars,
   oracleOverride?: IOracleProvider,
-  payoff?: IPayoffProvider,
   riskParamOverrides?: Partial<RiskParameterStruct>,
   marketParamOverrides?: Partial<MarketParameterStruct>,
 ): Promise<Market> {
@@ -165,7 +164,6 @@ export async function createMarket(
   const definition = {
     token: dsu.address,
     oracle: (oracleOverride ?? oracle).address,
-    payoff: (payoff ?? instanceVars.payoff).address,
   }
   const riskParameter = {
     margin: parse6decimal('0.3'),

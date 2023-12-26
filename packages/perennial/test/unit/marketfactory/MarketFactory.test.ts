@@ -10,7 +10,6 @@ import {
   Market__factory,
   IOracleProvider,
   IERC20Metadata,
-  IPayoffProvider,
   IFactory,
 } from '../../../types/generated'
 import { parse6decimal } from '../../../../common/testutil/types'
@@ -22,7 +21,6 @@ describe('MarketFactory', () => {
   let user: SignerWithAddress
   let owner: SignerWithAddress
   let payoffFactory: FakeContract<IFactory>
-  let payoffProvider: FakeContract<IPayoffProvider>
   let oracleFactory: FakeContract<IFactory>
   let oracle: FakeContract<IOracleProvider>
   let dsu: FakeContract<IERC20Metadata>
@@ -36,7 +34,6 @@ describe('MarketFactory', () => {
     oracle = await smock.fake<IOracleProvider>('IOracleProvider')
     dsu = await smock.fake<IERC20Metadata>('IERC20Metadata')
     payoffFactory = await smock.fake<IFactory>('IFactory')
-    payoffProvider = await smock.fake<IPayoffProvider>('IPayoffProvider')
     marketImpl = await new Market__factory(owner).deploy()
     factory = await new MarketFactory__factory(owner).deploy(oracleFactory.address, marketImpl.address)
     await factory.initialize()
@@ -70,11 +67,9 @@ describe('MarketFactory', () => {
       const marketDefinition = {
         token: dsu.address,
         oracle: oracle.address,
-        payoff: payoffProvider.address,
       }
 
       oracleFactory.instances.whenCalledWith(oracle.address).returns(true)
-      payoffFactory.instances.whenCalledWith(payoffProvider.address).returns(true)
 
       const marketAddress = await factory.callStatic.create(marketDefinition)
       await expect(factory.connect(owner).create(marketDefinition))
@@ -91,7 +86,6 @@ describe('MarketFactory', () => {
       const marketDefinition = {
         token: dsu.address,
         oracle: oracle.address,
-        payoff: constants.AddressZero,
       }
 
       oracleFactory.instances.whenCalledWith(oracle.address).returns(true)
@@ -107,31 +101,13 @@ describe('MarketFactory', () => {
       expect(await market.factory()).to.equal(factory.address)
     })
 
-    it('reverts when invalid payoff', async () => {
-      const marketDefinition = {
-        token: dsu.address,
-        oracle: oracle.address,
-        payoff: payoffProvider.address,
-      }
-
-      oracleFactory.instances.whenCalledWith(oracle.address).returns(true)
-      payoffFactory.instances.whenCalledWith(payoffProvider.address).returns(false)
-
-      await expect(factory.connect(owner).create(marketDefinition)).to.revertedWithCustomError(
-        factory,
-        'FactoryInvalidPayoffError',
-      )
-    })
-
     it('reverts when invalid oracle', async () => {
       const marketDefinition = {
         token: dsu.address,
         oracle: oracle.address,
-        payoff: payoffProvider.address,
       }
 
       oracleFactory.instances.whenCalledWith(oracle.address).returns(false)
-      payoffFactory.instances.whenCalledWith(payoffProvider.address).returns(true)
 
       await expect(factory.connect(owner).create(marketDefinition)).to.revertedWithCustomError(
         factory,
@@ -143,11 +119,9 @@ describe('MarketFactory', () => {
       const marketDefinition = {
         token: dsu.address,
         oracle: oracle.address,
-        payoff: payoffProvider.address,
       }
 
       oracleFactory.instances.whenCalledWith(oracle.address).returns(true)
-      payoffFactory.instances.whenCalledWith(payoffProvider.address).returns(true)
 
       await factory.connect(owner).create(marketDefinition)
 
@@ -161,11 +135,9 @@ describe('MarketFactory', () => {
       const marketDefinition = {
         token: dsu.address,
         oracle: oracle.address,
-        payoff: payoffProvider.address,
       }
 
       oracleFactory.instances.whenCalledWith(oracle.address).returns(true)
-      payoffFactory.instances.whenCalledWith(payoffProvider.address).returns(true)
 
       await expect(factory.connect(user).create(marketDefinition)).to.revertedWithCustomError(
         factory,

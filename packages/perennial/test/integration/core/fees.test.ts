@@ -19,7 +19,7 @@ import {
   PositionProcessedEventObject,
 } from '../../../types/generated/contracts/Market'
 
-export const PRICE = parse6decimal('3374.655169')
+export const PRICE = parse6decimal('11388297.509860')
 export const TIMESTAMP_0 = 1631112429
 export const TIMESTAMP_1 = 1631112904
 export const TIMESTAMP_2 = 1631113819
@@ -71,7 +71,7 @@ describe('Fees', () => {
   beforeEach(async () => {
     instanceVars = await loadFixture(fixture)
     await instanceVars.chainlink.reset()
-    market = await createMarket(instanceVars, undefined, undefined, RISK_PARAMS, MARKET_PARAMS)
+    market = await createMarket(instanceVars, undefined, RISK_PARAMS, MARKET_PARAMS)
   })
 
   describe('position fees', () => {

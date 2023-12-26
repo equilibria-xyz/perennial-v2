@@ -5,6 +5,7 @@ import "./OracleVersion.sol";
 import "./RiskParameter.sol";
 import "./MarketParameter.sol";
 import "./Position.sol";
+import "hardhat/console.sol";
 
 /// @dev Order type
 struct Order {
