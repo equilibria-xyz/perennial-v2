@@ -13,9 +13,6 @@ import "../lib/StrategyLib.sol";
 
 interface IVault is IInstance {
     struct Context {
-        // strategy
-        Strategy strategy;
-
         // parameters
         UFixed6 settlementFee;
         uint256 totalWeight;

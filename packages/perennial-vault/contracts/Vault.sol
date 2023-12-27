@@ -262,9 +262,6 @@ contract Vault is IVault, Instance {
         UFixed6 redeemShares,
         UFixed6 claimAssets
     ) private {
-        // load strategy
-        context.strategy = StrategyLib.load(context.registrations);
-
         // magic values
         if (claimAssets.eq(UFixed6Lib.MAX)) claimAssets = context.local.assets;
         if (redeemShares.eq(UFixed6Lib.MAX)) redeemShares = context.local.shares;
@@ -371,11 +368,13 @@ contract Vault is IVault, Instance {
     function _manage(Context memory context, UFixed6 deposit, UFixed6 withdrawal, bool rebalance) private {
         if (context.totalCollateral.lt(Fixed6Lib.ZERO)) return;
 
-        StrategyLib.MarketTarget[] memory targets = context.strategy.allocate(
-            deposit,
-            withdrawal,
-            _ineligable(context, withdrawal)
-        );
+        StrategyLib.MarketTarget[] memory targets = StrategyLib
+            .load(context.registrations)
+            .allocate(
+                deposit,
+                withdrawal,
+                _ineligable(context, withdrawal)
+            );
 
         for (uint256 marketId; marketId < context.registrations.length; marketId++)
             if (targets[marketId].collateral.lt(Fixed6Lib.ZERO))
