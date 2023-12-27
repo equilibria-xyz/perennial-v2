@@ -205,6 +205,7 @@ contract Vault is IVault, Instance {
     }
 
     /// @notice Syncs `account`'s state up to current
+    /// @dev Rebalances only the collateral of the vault
     /// @param account The account that should be synced
     function settle(address account) public whenNotPaused {
         _settleUnderlying();
@@ -281,8 +282,8 @@ contract Vault is IVault, Instance {
             revert VaultInsufficientMinimumError();
         if (context.local.current != context.local.latest) revert VaultExistingOrderError();
 
-        // asses socialization and settlement fee
-        UFixed6 claimAmount = _socialize(context, depositAssets, redeemShares, claimAssets);
+        // asses socialization
+        UFixed6 claimAmount = _socialize(context, claimAssets);
 
         // update positions
         context.global.update(context.currentId, claimAssets, redeemShares, depositAssets, redeemShares);
@@ -297,25 +298,16 @@ contract Vault is IVault, Instance {
         emit Updated(msg.sender, account, context.currentId, depositAssets, redeemShares, claimAssets);
     }
 
-    /// @notice Returns the claim amount after socialization and settlement fee
+    /// @notice Returns the claim amount after socialization
     /// @param context The context to use
-    /// @param depositAssets The amount of assets to deposit
-    /// @param redeemShares The amount of shares to redeem
     /// @param claimAssets The amount of assets to claim
-    function _socialize(
-        Context memory context,
-        UFixed6 depositAssets,
-        UFixed6 redeemShares,
-        UFixed6 claimAssets
-    ) private pure returns (UFixed6 claimAmount) {
-        claimAmount = context.global.assets.isZero() ?
+    function _socialize(Context memory context, UFixed6 claimAssets) private pure returns (UFixed6) {
+        return context.global.assets.isZero() ?
             UFixed6Lib.ZERO :
             claimAssets.muldiv(
                 UFixed6Lib.unsafeFrom(context.totalCollateral).min(context.global.assets),
                 context.global.assets
             );
-
-        if (depositAssets.isZero() && redeemShares.isZero()) claimAmount = claimAmount.sub(context.settlementFee);
     }
 
     /// @notice Handles settling the vault's underlying markets
@@ -377,8 +369,7 @@ contract Vault is IVault, Instance {
     /// @param withdrawal The amount of assets that need to be withdrawn from the markets into the vault
     /// @param rebalance Whether to rebalance the vault's position
     function _manage(Context memory context, UFixed6 deposit, UFixed6 withdrawal, bool rebalance) private {
-        // for now, skip all rebalancing if we cannot rebalance the position
-        if (!rebalance || context.totalCollateral.lt(Fixed6Lib.ZERO)) return;
+        if (context.totalCollateral.lt(Fixed6Lib.ZERO)) return;
 
         StrategyLib.MarketTarget[] memory targets = context.strategy.allocate(
             deposit,
@@ -388,10 +379,10 @@ contract Vault is IVault, Instance {
 
         for (uint256 marketId; marketId < context.registrations.length; marketId++)
             if (targets[marketId].collateral.lt(Fixed6Lib.ZERO))
-                _retarget(context.registrations[marketId], targets[marketId]);
+                _retarget(context.registrations[marketId], targets[marketId], rebalance);
         for (uint256 marketId; marketId < context.registrations.length; marketId++)
             if (targets[marketId].collateral.gte(Fixed6Lib.ZERO))
-                _retarget(context.registrations[marketId], targets[marketId]);
+                _retarget(context.registrations[marketId], targets[marketId], rebalance);
     }
 
     /// @notice Returns the amount of collateral is ineligable for allocation
@@ -415,11 +406,17 @@ contract Vault is IVault, Instance {
     }
 
     /// @notice Adjusts the position on `market` to `targetPosition`
+    /// @param registration The registration of the market to use
     /// @param target The new state to target
-    function _retarget(Registration memory registration, StrategyLib.MarketTarget memory target) private {
+    /// @param rebalance Whether to rebalance the vault's position
+    function _retarget(
+        Registration memory registration,
+        StrategyLib.MarketTarget memory target,
+        bool rebalance
+    ) private {
         registration.market.update(
             address(this),
-            target.position,
+            rebalance ? target.position : UFixed6Lib.MAX,
             UFixed6Lib.ZERO,
             UFixed6Lib.ZERO,
             target.collateral,
