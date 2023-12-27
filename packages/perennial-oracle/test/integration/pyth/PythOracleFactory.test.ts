@@ -27,6 +27,7 @@ import {
 import { parse6decimal } from '../../../../common/testutil/types'
 import { smock } from '@defi-wonderland/smock'
 import { IInstance } from '../../../types/generated/@equilibria/root/attribute/interfaces'
+import { payoff } from '../../../types/generated/contracts'
 
 const { ethers } = HRE
 
@@ -75,12 +76,6 @@ const testOracles = [
     },
   },
 ]
-
-// TODO: add callback state checks to more requests
-// TODO: add additional settle tests (batch, maxCount, zero)
-// TODO: add checks that market.settle was correctly calledback (multiple, zero / non-requested)
-// TODO: add register test
-// TODO: tests for payoffs
 
 testOracles.forEach(testOracle => {
   describe(testOracle.name, () => {
@@ -364,6 +359,14 @@ testOracles.forEach(testOracle => {
           )
         })
       })
+
+      context('#register', async () => {
+        it('reverts when not owner', async () => {
+          await expect(
+            pythOracleFactory.connect(user).register(ethers.constants.AddressZero),
+          ).to.be.revertedWithCustomError(pythOracleFactory, 'OwnableNotOwnerError')
+        })
+      })
     })
 
     describe('#initialize', async () => {
@@ -449,6 +452,37 @@ testOracles.forEach(testOracle => {
         )
 
         expect((await market.position()).timestamp).to.equal(STARTING_TIME)
+      })
+
+      it('commits successfully with payoff and incentivizes the keeper', async () => {
+        const originalDSUBalance = await dsu.callStatic.balanceOf(user.address)
+        const originalFactoryDSUBalance = await dsu.callStatic.balanceOf(oracleFactory.address)
+        await keeperOracle2.connect(oracleSigner).request(market.address, user.address)
+        expect(await keeperOracle2.globalCallbacks(STARTING_TIME)).to.deep.eq([market.address])
+        expect(await keeperOracle2.localCallbacks(STARTING_TIME, market.address)).to.deep.eq([user.address])
+
+        // Base fee isn't working properly in coverage, so we need to set it manually
+        await ethers.provider.send('hardhat_setNextBlockBaseFeePerGas', ['0x5F5E100'])
+        expect(await keeperOracle2.versions(1)).to.be.equal(STARTING_TIME)
+        expect(await keeperOracle2.next()).to.be.equal(STARTING_TIME)
+        await expect(
+          pythOracleFactory
+            .connect(user)
+            .commit(['0x0000000000000000000000000000000000000000000000000000000000000021'], STARTING_TIME, VAA, {
+              value: 1,
+              maxFeePerGas: 100000000,
+            }),
+        )
+          .to.emit(keeperOracle2, 'OracleProviderVersionFulfilled')
+          .withArgs({ timestamp: STARTING_TIME, price: '3378858036', valid: true })
+        const newDSUBalance = await dsu.callStatic.balanceOf(user.address)
+        const newFactoryDSUBalance = await dsu.callStatic.balanceOf(oracleFactory.address)
+
+        expect(newDSUBalance.sub(originalDSUBalance)).to.be.within(utils.parseEther('0.10'), utils.parseEther('0.20'))
+        expect(originalFactoryDSUBalance.sub(newFactoryDSUBalance)).to.be.within(
+          utils.parseEther('0.10'),
+          utils.parseEther('0.20'),
+        )
       })
 
       it('commits successfully and incentivizes the keeper w/ multiple markets', async () => {

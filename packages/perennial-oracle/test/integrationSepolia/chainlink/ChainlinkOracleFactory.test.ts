@@ -116,6 +116,7 @@ testOracles.forEach(testOracle => {
     let user: SignerWithAddress
     let oracle: Oracle
     let keeperOracle: KeeperOracle
+    let keeperOraclePayoff: KeeperOracle
     let chainlinkOracleFactory: ChainlinkFactory
     let oracleFactory: OracleFactory
     let marketFactory: MarketFactory
@@ -162,16 +163,34 @@ testOracles.forEach(testOracle => {
       await chainlinkOracleFactory.initialize(oracleFactory.address, CHAINLINK_ETH_USD_FEED, dsu.address)
       await oracleFactory.register(chainlinkOracleFactory.address)
       await chainlinkOracleFactory.authorize(oracleFactory.address)
+      await chainlinkOracleFactory.register(payoff.address)
 
       keeperOracle = testOracle.Oracle.connect(
         await chainlinkOracleFactory.callStatic.create(
           CHAINLINK_ETH_USD_PRICE_FEED,
           CHAINLINK_ETH_USD_PRICE_FEED,
+          ethers.constants.AddressZero,
+        ),
+        owner,
+      )
+      await chainlinkOracleFactory.create(
+        CHAINLINK_ETH_USD_PRICE_FEED,
+        CHAINLINK_ETH_USD_PRICE_FEED,
+        ethers.constants.AddressZero,
+      )
+      keeperOraclePayoff = testOracle.Oracle.connect(
+        await chainlinkOracleFactory.callStatic.create(
+          '0x0000000000000000000000000000000000000000000000000000000000000021',
+          CHAINLINK_ETH_USD_PRICE_FEED,
           payoff.address,
         ),
         owner,
       )
-      await chainlinkOracleFactory.create(CHAINLINK_ETH_USD_PRICE_FEED, CHAINLINK_ETH_USD_PRICE_FEED, payoff.address)
+      await chainlinkOracleFactory.create(
+        '0x0000000000000000000000000000000000000000000000000000000000000021',
+        CHAINLINK_ETH_USD_PRICE_FEED,
+        payoff.address,
+      )
 
       oracle = Oracle__factory.connect(
         await oracleFactory.callStatic.create(CHAINLINK_ETH_USD_PRICE_FEED, chainlinkOracleFactory.address),
@@ -427,6 +446,39 @@ testOracles.forEach(testOracle => {
         )
 
         expect((await market.position()).timestamp).to.equal(STARTING_TIME)
+      })
+
+      it('commits successfully with payoff and incentivizes the keeper', async () => {
+        const originalDSUBalance = await dsu.callStatic.balanceOf(user.address)
+        const originalFactoryDSUBalance = await dsu.callStatic.balanceOf(oracleFactory.address)
+        await keeperOraclePayoff.connect(oracleSigner).request(market.address, user.address)
+        expect(await keeperOraclePayoff.globalCallbacks(STARTING_TIME)).to.deep.eq([market.address])
+        expect(await keeperOraclePayoff.localCallbacks(STARTING_TIME, market.address)).to.deep.eq([user.address])
+
+        // Base fee isn't working properly in coverage, so we need to set it manually
+        await ethers.provider.send('hardhat_setNextBlockBaseFeePerGas', ['0x5F5E100'])
+        expect(await keeperOraclePayoff.versions(1)).to.be.equal(STARTING_TIME)
+        expect(await keeperOraclePayoff.next()).to.be.equal(STARTING_TIME)
+
+        await expect(
+          chainlinkOracleFactory
+            .connect(user)
+            .commit(['0x0000000000000000000000000000000000000000000000000000000000000021'], STARTING_TIME, REPORT, {
+              value: getFee(REPORT),
+              maxFeePerGas: 100000000,
+            }),
+        )
+          .to.emit(keeperOraclePayoff, 'OracleProviderVersionFulfilled')
+          .withArgs([STARTING_TIME, getPrice(REPORT).mul(getPrice(REPORT)).div(1e9), true])
+
+        const newDSUBalance = await dsu.callStatic.balanceOf(user.address)
+        const newFactoryDSUBalance = await dsu.callStatic.balanceOf(oracleFactory.address)
+
+        expect(newDSUBalance.sub(originalDSUBalance)).to.be.within(utils.parseEther('0.30'), utils.parseEther('0.35'))
+        expect(originalFactoryDSUBalance.sub(newFactoryDSUBalance)).to.be.within(
+          utils.parseEther('0.30'),
+          utils.parseEther('0.35'),
+        )
       })
 
       it('commits successfully if report is barely not too early', async () => {
