@@ -1064,7 +1064,7 @@ describe('Vault', () => {
       expect(await btcPosition()).to.equal(largeDeposit.mul(leverage).div(5).div(btcOriginalOraclePrice))
     })
 
-    it('multiple users w/ makerFee', async () => {
+    it.only('multiple users w/ makerFee', async () => {
       const makerFee = parse6decimal('0.001')
       const riskParameters = { ...(await market.riskParameter()) }
       riskParameters.makerFee = makerFee

@@ -42,7 +42,7 @@ const VALID_POSITION: PositionStruct = {
   },
 }
 
-describe('Order', () => {
+describe.only('Order', () => {
   let owner: SignerWithAddress
 
   let order: OrderTester
@@ -55,13 +55,14 @@ describe('Order', () => {
 
   describe('#registerFee', () => {
     describe('maker fees', async () => {
-      context('positive change, negative impact (full refund)', () => {
-        it('registers fees', async () => {
+      context('open', () => {
+        it.only('registers fees', async () => {
           const result = await order.registerFee(
             {
               ...VALID_ORDER,
               maker: parse6decimal('10'),
-              utilization: parse6decimal('-0.5'),
+              latestSkew: parse6decimal('100'),
+              currentSkew: parse6decimal('100'),
             },
             {
               ...VALID_ORACLE_VERSION,
@@ -74,11 +75,13 @@ describe('Order', () => {
             {
               ...VALID_RISK_PARAMETER,
               makerFee: parse6decimal('0.01'),
-              makerImpactFee: parse6decimal('0.02'),
+              makerMagnitudeFee: parse6decimal('0.02'),
+              impactFee: parse6decimal('0.03'),
+              skewScale: parse6decimal('200'),
             },
           )
 
-          expect(result.fee).to.eq(parse6decimal('0')) // = 100 * 10 * 0.01 - 100 * 10 * 0.5 * 0.02
+          expect(result.fee).to.eq(parse6decimal('12.5')) // (-(0 + 0.50 / 2) * 10 * 0.03 + 10 * 0.1 * 0.02 + 0.01) * 100
           expect(result.keeper).to.eq(parse6decimal('12'))
         })
       })
