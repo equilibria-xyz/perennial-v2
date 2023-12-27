@@ -386,7 +386,7 @@ contract Market is IMarket, Instance, ReentrancyGuard {
         context.local = _locals[account].read();
 
         // oracle
-        (context.latestVersion, context.currentTimestamp) = _oracleVersion();
+        (context.latestVersion, context.currentTimestamp) = oracle.status();
         context.positionVersion = _oracleVersionAtPosition(context, _position.read());
     }
 
@@ -642,20 +642,6 @@ contract Market is IMarket, Instance, ReentrancyGuard {
             revert MarketInsufficientCollateralError();
     }
 
-    /// @notice Computes the current oracle status with the market's payoff
-    /// @return latestVersion The latest oracle version with payoff applied
-    /// @return currentTimestamp The current oracle timestamp
-    function _oracleVersion() private view returns (OracleVersion memory latestVersion, uint256 currentTimestamp) {
-        (latestVersion, currentTimestamp) = oracle.status(); // TODO: cleanup
-    }
-
-    /// @notice Computes the latest oracle version at a given timestamp with the market's payoff
-    /// @param timestamp The timestamp to use
-    /// @return oracleVersion The oracle version at the given timestamp with payoff applied
-    function _oracleVersionAt(uint256 timestamp) private view returns (OracleVersion memory oracleVersion) {
-        oracleVersion = oracle.at(timestamp); // TODO: cleanup
-    }
-
     /// @notice Computes the latest oracle version at a given position with the market's payoff
     /// @dev applies the latest valid price when the version at position is invalid
     /// @param context The context to use
@@ -665,7 +651,7 @@ contract Market is IMarket, Instance, ReentrancyGuard {
         Context memory context,
         Position memory toPosition
     ) private view returns (OracleVersion memory oracleVersion) {
-        oracleVersion = _oracleVersionAt(toPosition.timestamp); // TODO: cleanup
+        oracleVersion = oracle.at(toPosition.timestamp);
         if (!oracleVersion.valid) oracleVersion.price = context.global.latestPrice;
     }
 
