@@ -100,17 +100,6 @@ library StrategyLib {
                         .muldiv(strategy.totalWeight, registrations[marketId].weight)
             );
         }
-
-        // second pass to compute minAssets (TODO remove w/ totalWeight to one change)
-        for (uint256 marketId; marketId < registrations.length; marketId++) {
-            strategy.minAssets = strategy.minAssets.max(
-                (registrations[marketId].leverage.isZero() || registrations[marketId].weight == 0) ?
-                    UFixed6Lib.ZERO : // skip if no leverage or weight
-                    strategy.marketContexts[marketId].minPosition
-                        .muldiv(strategy.marketContexts[marketId].latestPrice.abs(), registrations[marketId].leverage)
-                        .muldiv(strategy.totalWeight, registrations[marketId].weight)
-            );
-        }
     }
 
     /// @notice Compute the target allocation for each market
