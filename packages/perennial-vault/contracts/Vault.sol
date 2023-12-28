@@ -275,8 +275,6 @@ contract Vault is IVault, Instance {
             revert VaultNotSingleSidedError();
         if (depositAssets.gt(_maxDeposit(context)))
             revert VaultDepositLimitExceededError();
-        if (redeemShares.gt(_maxRedeem(context)))
-            revert VaultRedemptionLimitExceededError();
         if (!depositAssets.isZero() && depositAssets.lt(context.settlementFee))
             revert VaultInsufficientMinimumError();
         if (!redeemShares.isZero() && context.latestCheckpoint.toAssets(redeemShares, context.settlementFee).isZero())
@@ -383,7 +381,6 @@ contract Vault is IVault, Instance {
         if (!rebalance || context.totalCollateral.lt(Fixed6Lib.ZERO)) return;
 
         StrategyLib.MarketTarget[] memory targets = context.strategy.allocate(
-            context.registrations,
             deposit,
             withdrawal,
             _ineligable(context, withdrawal)
@@ -476,22 +473,9 @@ contract Vault is IVault, Instance {
     /// @param context Context to use in calculation
     /// @return Maximum available deposit amount
     function _maxDeposit(Context memory context) private view returns (UFixed6) {
-        if (context.latestCheckpoint.unhealthy()) return UFixed6Lib.ZERO;
-        UFixed6 collateral = UFixed6Lib.unsafeFrom(totalAssets()).add(context.global.deposit);
-        return context.parameter.cap.unsafeSub(collateral);
-    }
-
-    /// @notice The maximum available redemption amount for `account`
-    /// @param context Context to use
-    /// @return redemptionAmount Maximum available redemption amount
-    function _maxRedeem(Context memory context) private pure returns (UFixed6) {
-        if (context.latestCheckpoint.unhealthy()) return UFixed6Lib.ZERO;
-        UFixed6 maxRedeemAssets = context.strategy.maxRedeem(context.registrations, context.totalWeight);
-        UFixed6 maxRedeemShares = maxRedeemAssets.eq(UFixed6Lib.MAX) ?
-            UFixed6Lib.MAX :
-            context.latestCheckpoint.toShares(maxRedeemAssets, UFixed6Lib.ZERO);
-
-        return maxRedeemShares.min(context.local.shares);
+        return context.latestCheckpoint.unhealthy() ?
+            UFixed6Lib.ZERO :
+            context.parameter.cap.unsafeSub(UFixed6Lib.unsafeFrom(totalAssets()).add(context.global.deposit));
     }
 
     /// @notice Returns the collateral and fee information for the vault at position
