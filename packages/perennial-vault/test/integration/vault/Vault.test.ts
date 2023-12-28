@@ -1258,14 +1258,14 @@ describe('Vault', () => {
       await vault.connect(user).update(user.address, 0, 0, ethers.constants.MaxUint256)
       await vault.connect(user2).update(user2.address, 0, 0, ethers.constants.MaxUint256)
 
-      expect(await totalCollateralInVault()).to.equal(parse6decimal('4').mul(1e12)) // optimistically charges settlement fee on claim
+      expect(await totalCollateralInVault()).to.equal(0)
       expect(await vault.totalAssets()).to.equal(finalTotalAssets)
       expect(await vault.totalShares()).to.equal(0)
       expect(await asset.balanceOf(user.address)).to.equal(
-        parse6decimal('100000').add(unclaimed1).sub(parse6decimal('1000')).sub(parse6decimal('2')).mul(1e12),
+        parse6decimal('100000').add(unclaimed1).sub(parse6decimal('1000')).mul(1e12),
       )
       expect(await asset.balanceOf(user2.address)).to.equal(
-        parse6decimal('100000').add(unclaimed2).sub(parse6decimal('10000')).sub(parse6decimal('2')).mul(1e12),
+        parse6decimal('100000').add(unclaimed2).sub(parse6decimal('10000')).mul(1e12),
       )
       expect((await vault.accounts(user2.address)).assets).to.equal(0)
       expect((await vault.accounts(ethers.constants.AddressZero)).assets).to.equal(0)
@@ -1276,10 +1276,10 @@ describe('Vault', () => {
       await updateOracle()
       await vault.settle(user.address)
       expect((await vault.accounts(user.address)).shares).to.equal(parse6decimal('1000'))
-      expect(await vault.totalAssets()).to.equal(parse6decimal('1004').add(0))
+      expect(await vault.totalAssets()).to.equal(parse6decimal('1000').add(0))
       expect((await vault.accounts(ethers.constants.AddressZero)).shares).to.equal(parse6decimal('1000'))
-      expect(await vault.convertToAssets(parse6decimal('1000'))).to.equal(parse6decimal('1004').add(0))
-      expect(await vault.convertToShares(parse6decimal('1004').add(0))).to.equal(parse6decimal('1000'))
+      expect(await vault.convertToAssets(parse6decimal('1000'))).to.equal(parse6decimal('1000').add(0))
+      expect(await vault.convertToShares(parse6decimal('1000').add(0))).to.equal(parse6decimal('1000'))
     })
 
     it('simple deposits and redemptions w/ factory initial amount', async () => {
@@ -1420,10 +1420,10 @@ describe('Vault', () => {
       await vault.connect(user).update(user.address, 0, parse6decimal('10'), 0)
       await updateOracle()
 
-      await expect(vault.connect(user).update(user.address, 0, 0, parse6decimal('0.50'))).to.revertedWithPanic('0x11')
+      await expect(vault.connect(user).update(user.address, 0, 0, parse6decimal('0.50'))).to.not.reverted // claim doesn't charge settlement fee
     })
 
-    it('inflate checkpoint count', async () => {
+    it('does not inflate checkpoint count', async () => {
       const settlementFee = parse6decimal('10.00')
       const marketParameter = { ...(await market.parameter()) }
       marketParameter.settlementFee = settlementFee
@@ -1440,7 +1440,10 @@ describe('Vault', () => {
       const deposit2 = parse6decimal('10000')
       await vault.connect(user2).update(user2.address, deposit2, 0, 0)
 
-      await expect(vault.connect(btcUser1).update(btcUser1.address, 0, 0, 0)).to.revertedWithPanic('0x11')
+      const currentId = (await vault.accounts(ethers.constants.AddressZero)).current
+      expect((await vault.checkpoints(currentId)).count).to.equal(1)
+      await vault.connect(btcUser1).update(btcUser1.address, 0, 0, 0)
+      expect((await vault.checkpoints(currentId)).count).to.equal(1)
     })
 
     it('doesnt bypass vault deposit cap', async () => {
@@ -1534,9 +1537,9 @@ describe('Vault', () => {
           await vault.settle(user.address)
 
           const finalPosition = BigNumber.from('103114684')
-          const finalCollateral = BigNumber.from('73949280169')
+          const finalCollateral = BigNumber.from('68925534750')
           const btcFinalPosition = BigNumber.from('1006709')
-          const btcFinalCollateral = BigNumber.from('10486559512')
+          const btcFinalCollateral = BigNumber.from('15510304931')
           expect(await position()).to.equal(finalPosition)
           expect(await collateralInVault()).to.equal(finalCollateral)
           expect(await btcPosition()).to.equal(btcFinalPosition)
@@ -1574,9 +1577,9 @@ describe('Vault', () => {
           await vault.settle(user.address)
 
           const finalPosition = BigNumber.from('65131685')
-          const finalCollateral = BigNumber.from('49068161453')
+          const finalCollateral = BigNumber.from('44442516153')
           const btcFinalPosition = BigNumber.from('255976')
-          const btcFinalCollateral = BigNumber.from('4266279833')
+          const btcFinalCollateral = BigNumber.from('8891925133')
           expect(await position()).to.equal(finalPosition)
           expect(await collateralInVault()).to.equal(finalCollateral)
           expect(await btcPosition()).to.equal(btcFinalPosition)
@@ -1629,9 +1632,9 @@ describe('Vault', () => {
           await vault.settle(user.address)
 
           const finalPosition = BigNumber.from('98136381')
-          const finalCollateral = BigNumber.from('70689216965')
+          const finalCollateral = BigNumber.from('65717442312')
           const btcFinalPosition = BigNumber.from('2321109')
-          const btcFinalCollateral = BigNumber.from('9671288559')
+          const btcFinalCollateral = BigNumber.from('14643063212')
           expect(await position()).to.equal(finalPosition)
           expect(await collateralInVault()).to.equal(finalCollateral)
           expect(await btcPosition()).to.equal(btcFinalPosition)
@@ -1668,9 +1671,9 @@ describe('Vault', () => {
           await vault.settle(user.address)
 
           const finalPosition = BigNumber.from('97121779')
-          const finalCollateral = BigNumber.from('70024591954')
+          const finalCollateral = BigNumber.from('65063451819')
           const btcFinalPosition = BigNumber.from('2401296')
-          const btcFinalCollateral = BigNumber.from('9505132306')
+          const btcFinalCollateral = BigNumber.from('14466272441')
           expect(await position()).to.equal(finalPosition)
           expect(await collateralInVault()).to.equal(finalCollateral)
           expect(await btcPosition()).to.equal(btcFinalPosition)
@@ -1706,9 +1709,9 @@ describe('Vault', () => {
 
         // 5. Vault should no longer have enough collateral to cover claims, pro-rata claim should be enabled
         const finalPosition = BigNumber.from('0')
-        const finalCollateral = BigNumber.from('4700653859')
+        const finalCollateral = BigNumber.from('5980917442')
         const btcFinalPosition = BigNumber.from('0')
-        const btcFinalCollateral = BigNumber.from('2775492943')
+        const btcFinalCollateral = BigNumber.from('1495229360')
         const finalUnclaimed = BigNumber.from('80001128624')
         const vaultFinalCollateral = await asset.balanceOf(vault.address)
         expect(await position()).to.equal(finalPosition)
@@ -1760,9 +1763,9 @@ describe('Vault', () => {
 
         // 5. Vault should no longer have enough collateral to cover claims, pro-rata claim should be enabled
         const finalPosition = BigNumber.from('0')
-        const finalCollateral = BigNumber.from('-133568939868')
+        const finalCollateral = BigNumber.from('-133568809905')
         const btcFinalPosition = BigNumber.from('411963') // small position because vault is net negative and won't rebalance
-        const btcFinalCollateral = BigNumber.from('20000833313')
+        const btcFinalCollateral = BigNumber.from('20000703350')
         const finalUnclaimed = BigNumber.from('80001128624')
         expect(await position()).to.equal(finalPosition)
         expect(await collateralInVault()).to.equal(finalCollateral)

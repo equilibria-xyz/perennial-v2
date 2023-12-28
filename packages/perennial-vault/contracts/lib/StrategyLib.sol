@@ -132,7 +132,8 @@ library StrategyLib {
                 assets
             );
 
-        targets[0].collateral = targets[0].collateral.add(Fixed6Lib.from(collateral.sub(totalDeployed)));
+        if (strategy.marketContexts.length != 0)
+            targets[0].collateral = targets[0].collateral.add(Fixed6Lib.from(collateral.sub(totalDeployed)));
     }
 
     /// @notice Compute the target allocation for a market

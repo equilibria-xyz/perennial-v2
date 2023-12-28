@@ -61,7 +61,7 @@ library CheckpointLib {
     /// @param redemption The amount of new redemptions
     function update(Checkpoint memory self, UFixed6 deposit, UFixed6 redemption) internal pure {
         (self.deposit, self.redemption) = (self.deposit.add(deposit), self.redemption.add(redemption));
-        self.count++;
+        if (!deposit.isZero() || !redemption.isZero()) self.count++;
     }
 
     /// @notice Completes the checkpoint
