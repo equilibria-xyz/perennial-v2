@@ -350,8 +350,6 @@ contract MultiInvoker is IMultiInvoker, Kept {
     ) internal view returns (Position memory latestPosition, OracleVersion memory latestVersion) {
         // load latest price
         latestVersion = market.oracle().latest();
-        IPayoffProvider payoff = market.payoff();
-        if (address(payoff) != address(0)) latestVersion.price = payoff.payoff(latestVersion.price);
 
         // load latest settled position
         latestPosition = market.positions(account);

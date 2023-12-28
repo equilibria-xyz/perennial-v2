@@ -72,9 +72,8 @@ describe('OracleFactory', () => {
     await pythOracleFactory.initialize(oracleFactory.address, CHAINLINK_ETH_USD_FEED, dsu.address)
     await oracleFactory.register(pythOracleFactory.address)
     await pythOracleFactory.authorize(oracleFactory.address)
-    await pythOracleFactory.associate(PYTH_ETH_USD_PRICE_FEED, PYTH_ETH_USD_PRICE_FEED)
 
-    await pythOracleFactory.create(PYTH_ETH_USD_PRICE_FEED)
+    await pythOracleFactory.create(PYTH_ETH_USD_PRICE_FEED, PYTH_ETH_USD_PRICE_FEED, ethers.constants.AddressZero)
 
     await oracleFactory.create(PYTH_ETH_USD_PRICE_FEED, pythOracleFactory.address)
 
@@ -116,8 +115,7 @@ describe('OracleFactory', () => {
       await oracleFactory.register(pythOracleFactory2.address)
 
       await pythOracleFactory2.connect(owner).authorize(oracleFactory.address)
-      await pythOracleFactory2.associate(PYTH_ETH_USD_PRICE_FEED, PYTH_ETH_USD_PRICE_FEED)
-      await pythOracleFactory2.create(PYTH_ETH_USD_PRICE_FEED)
+      await pythOracleFactory2.create(PYTH_ETH_USD_PRICE_FEED, PYTH_ETH_USD_PRICE_FEED, ethers.constants.AddressZero)
       const newProvider = await pythOracleFactory2.oracles(PYTH_ETH_USD_PRICE_FEED)
 
       const oracle = Oracle__factory.connect(await oracleFactory.oracles(PYTH_ETH_USD_PRICE_FEED), owner)

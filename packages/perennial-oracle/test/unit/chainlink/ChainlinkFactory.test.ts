@@ -63,7 +63,7 @@ const overwriteTimestamp = (payload: string, timestamp: BigNumberish) => {
   )
 }
 
-describe.only('ChainlinkFactory', () => {
+describe('ChainlinkFactory', () => {
   let owner: SignerWithAddress
   let user: SignerWithAddress
 
@@ -144,13 +144,20 @@ describe.only('ChainlinkFactory', () => {
     await chainlinkFactory.initialize(oracleFactory.address, chainlinkFeed.address, dsu.address)
     await oracleFactory.register(chainlinkFactory.address)
     await chainlinkFactory.authorize(oracleFactory.address)
-    await chainlinkFactory.associate(CHAINLINK_ETH_USD_PRICE_FEED, CHAINLINK_ETH_USD_PRICE_FEED)
 
     keeperOracle = KeeperOracle__factory.connect(
-      await chainlinkFactory.callStatic.create(CHAINLINK_ETH_USD_PRICE_FEED),
+      await chainlinkFactory.callStatic.create(
+        CHAINLINK_ETH_USD_PRICE_FEED,
+        CHAINLINK_ETH_USD_PRICE_FEED,
+        ethers.constants.AddressZero,
+      ),
       owner,
     )
-    await chainlinkFactory.create(CHAINLINK_ETH_USD_PRICE_FEED)
+    await chainlinkFactory.create(
+      CHAINLINK_ETH_USD_PRICE_FEED,
+      CHAINLINK_ETH_USD_PRICE_FEED,
+      ethers.constants.AddressZero,
+    )
 
     oracle = Oracle__factory.connect(
       await oracleFactory.callStatic.create(CHAINLINK_ETH_USD_PRICE_FEED, chainlinkFactory.address),

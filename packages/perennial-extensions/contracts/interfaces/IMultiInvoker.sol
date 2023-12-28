@@ -3,7 +3,6 @@ pragma solidity ^0.8.13;
 import {
     IFactory,
     IMarket,
-    IPayoffProvider,
     Position,
     Local,
     UFixed18Lib,

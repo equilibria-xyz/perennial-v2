@@ -51,6 +51,9 @@ abstract contract KeeperFactory is IKeeperFactory, Factory, Kept {
 
     /// @dev Mapping of which factory's instances are authorized to request from this factory's instances
     mapping(IFactory => bool) public callers;
+    
+    /// @dev Registered payoff providers
+    mapping(IPayoffProvider => bool) public payoffs;
 
     /// @dev Mapping of oracle id to oracle instance
     mapping(bytes32 => IOracleProvider) public oracles;
@@ -58,8 +61,11 @@ abstract contract KeeperFactory is IKeeperFactory, Factory, Kept {
     /// @dev Mapping of oracle id to underlying id
     mapping(bytes32 => bytes32) public toUnderlyingId;
 
-    /// @dev Mapping of underlying id to oracle id
-    mapping(bytes32 => bytes32) public fromUnderlyingId;
+    /// @dev Mapping of oracle id to payoff provider
+    mapping(bytes32 => IPayoffProvider) public toUnderlyingPayoff;
+
+    /// @dev Mapping of oracle id to underlying id
+    mapping(bytes32 => mapping(IPayoffProvider => bytes32)) public fromUnderlying;
 
     /// @notice The granularity of the oracle
     Granularity private _granularity;
@@ -104,6 +110,7 @@ abstract contract KeeperFactory is IKeeperFactory, Factory, Kept {
 
         oracleFactory = oracleFactory_;
         _granularity = Granularity(0, 1, 0);
+        payoffs[IPayoffProvider(address(0))] = true;
     }
 
     /// @notice Authorizes a factory's instances to request from this factory's instances
@@ -113,29 +120,32 @@ abstract contract KeeperFactory is IKeeperFactory, Factory, Kept {
         emit CallerAuthorized(factory);
     }
 
-    /// @notice Associates an oracle id with an underlying id
-    /// @param id The oracle id
-    /// @param underlyingId The underlying price feed id within the oracle's specific implementation
-    function associate(bytes32 id, bytes32 underlyingId) external onlyOwner {
-        if (associated(id)) revert KeeperFactoryAlreadyAssociatedError();
-        toUnderlyingId[id] = underlyingId;
-        fromUnderlyingId[underlyingId] = id;
-        emit OracleAssociated(id, underlyingId);
-    }
-
-    function associated(bytes32 id) public view returns (bool) {
-        return toUnderlyingId[id] != bytes32(0);
+    /// @notice Authorizes a factory's instances to request from this factory's instances
+    /// @param payoff The payoff provider to register
+    function register(IPayoffProvider payoff) external onlyOwner {
+        payoffs[payoff] = true;
+        emit PayoffRegistered(payoff);
     }
 
     /// @notice Creates a new oracle instance
     /// @param id The id of the oracle to create
+    /// @param underlyingId The underlying id of the oracle to create
+    /// @param payoff The payoff provider for the oracle
     /// @return newOracle The newly created oracle instance
-    function create(bytes32 id) public virtual onlyOwner returns (IKeeperOracle newOracle) {
+    function create(
+        bytes32 id,
+        bytes32 underlyingId,
+        IPayoffProvider payoff
+     ) public virtual onlyOwner returns (IKeeperOracle newOracle) {
         if (oracles[id] != IOracleProvider(address(0))) revert KeeperFactoryAlreadyCreatedError();
-        if (!associated(id)) revert KeeperFactoryNotAssociatedError();
+        if (!payoffs[payoff]) revert KeeperFactoryInvalidPayoffError();
+        if (fromUnderlying[underlyingId][payoff] != bytes32(0)) revert KeeperFactoryAlreadyCreatedError();
 
         newOracle = IKeeperOracle(address(_create(abi.encodeCall(IKeeperOracle.initialize, ()))));
         oracles[id] = newOracle;
+        toUnderlyingId[id] = underlyingId;
+        toUnderlyingPayoff[id] = payoff;
+        fromUnderlying[underlyingId][payoff] = id;
 
         emit OracleCreated(newOracle, id);
     }
@@ -162,12 +172,14 @@ abstract contract KeeperFactory is IKeeperFactory, Factory, Kept {
     /// @param data The update data to commit
     function commit(bytes32[] memory ids, uint256 version, bytes calldata data) external payable {
         bool valid = data.length != 0;
-        Fixed6[] memory prices = valid ? _parsePrices(ids, version, data) : new Fixed6[](ids.length);
-        uint256 numRequested;
+        Fixed18[] memory prices = valid ? _parsePrices(ids, version, data) : new Fixed18[](ids.length);
+        _transformPrices(ids, prices);
 
+        uint256 numRequested;
         for (uint256 i; i < ids.length; i++)
-            if (IKeeperOracle(address(oracles[ids[i]])).commit(OracleVersion(version, prices[i], valid)))
-                numRequested++;
+            if (IKeeperOracle(address(oracles[ids[i]])).commit(
+                OracleVersion(version, Fixed6Lib.from(prices[i]), valid))
+            ) numRequested++;
 
         if (numRequested != 0) _handleKeeperFee(
             commitKeepConfig(numRequested),
@@ -261,6 +273,13 @@ abstract contract KeeperFactory is IKeeperFactory, Factory, Kept {
         return callers[callerFactory];
     }
 
+    function _transformPrices(bytes32[] memory ids, Fixed18[] memory prices) private view {
+        for (uint256 i; i < prices.length; i++) {
+            IPayoffProvider payoff = toUnderlyingPayoff[ids[i]];
+            if (payoff != IPayoffProvider(address(0))) prices[i] = payoff.payoff(prices[i]);
+        }
+    }
+
     /// @notice Returns the applicable value for the keeper fee
     /// @param numRequested The number of requested price commits
     /// @param data The price commit update data
@@ -278,5 +297,5 @@ abstract contract KeeperFactory is IKeeperFactory, Factory, Kept {
         bytes32[] memory ids,
         uint256 version,
         bytes calldata data
-    ) internal virtual returns (Fixed6[] memory prices);
+    ) internal virtual returns (Fixed18[] memory prices);
 }

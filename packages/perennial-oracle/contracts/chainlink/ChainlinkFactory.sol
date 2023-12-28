@@ -49,9 +49,9 @@ contract ChainlinkFactory is IChainlinkFactory, KeeperFactory {
         bytes32[] memory ids,
         uint256 version,
         bytes calldata data
-    ) internal override returns (Fixed6[] memory prices) {
+    ) internal override returns (Fixed18[] memory prices) {
         if (ids.length != 1) revert ChainlinkFactoryMultipleIdsError();
-        prices = new Fixed6[](1);
+        prices = new Fixed18[](1);
 
         bytes memory verifiedReport = chainlink.verify{value: msg.value}(data, abi.encode(feeTokenAddress));
         (bytes32 feedId, , uint32 observationsTimestamp, , , , uint192 price) =
@@ -63,7 +63,7 @@ contract ChainlinkFactory is IChainlinkFactory, KeeperFactory {
         ) revert ChainlinkFactoryVersionOutsideRangeError();
         if (feedId != toUnderlyingId[ids[0]]) revert ChainlinkFactoryInvalidFeedIdError(feedId);
 
-        prices[0] = Fixed6Lib.from(Fixed18Lib.from(UFixed18.wrap(price)));
+        prices[0] = Fixed18Lib.from(UFixed18.wrap(price));
     }
 
     /// @notice Returns the applicable value for the keeper fee

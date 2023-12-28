@@ -17,16 +17,13 @@ import {
   Oracle__factory,
   OracleFactory,
   OracleFactory__factory,
-  PayoffFactory,
-  PayoffFactory__factory,
   IMarket,
-  MarketParameterStorageLib__factory,
-  RiskParameterStorageLib__factory,
   KeeperOracle__factory,
   KeeperOracle,
   ChainlinkFactory__factory,
   ChainlinkFactory,
   MilliPowerTwo__factory,
+  MilliPowerTwo,
 } from '../../../types/generated'
 import { parse6decimal } from '../../../../common/testutil/types'
 import { smock } from '@defi-wonderland/smock'
@@ -119,24 +116,22 @@ testOracles.forEach(testOracle => {
     let user: SignerWithAddress
     let oracle: Oracle
     let keeperOracle: KeeperOracle
+    let keeperOraclePayoff: KeeperOracle
     let chainlinkOracleFactory: ChainlinkFactory
-    let payoffFactory: PayoffFactory
     let oracleFactory: OracleFactory
     let marketFactory: MarketFactory
     let market: IMarket
     let dsu: IERC20Metadata
     let oracleSigner: SignerWithAddress
     let factorySigner: SignerWithAddress
+    let payoff: MilliPowerTwo
 
     const setup = async () => {
       ;[owner, user] = await ethers.getSigners()
 
       dsu = IERC20Metadata__factory.connect(DSU_ADDRESS, owner)
 
-      payoffFactory = await new PayoffFactory__factory(owner).deploy()
-      await payoffFactory.initialize()
-      const milliPowerTwoPayoff = await new MilliPowerTwo__factory(owner).deploy()
-      await payoffFactory.register(milliPowerTwoPayoff.address)
+      payoff = await new MilliPowerTwo__factory(owner).deploy()
 
       const oracleImpl = await new Oracle__factory(owner).deploy()
       oracleFactory = await new OracleFactory__factory(owner).deploy(oracleImpl.address)
@@ -168,13 +163,34 @@ testOracles.forEach(testOracle => {
       await chainlinkOracleFactory.initialize(oracleFactory.address, CHAINLINK_ETH_USD_FEED, dsu.address)
       await oracleFactory.register(chainlinkOracleFactory.address)
       await chainlinkOracleFactory.authorize(oracleFactory.address)
-      await chainlinkOracleFactory.associate(CHAINLINK_ETH_USD_PRICE_FEED, CHAINLINK_ETH_USD_PRICE_FEED) // ETH -> ETH
+      await chainlinkOracleFactory.register(payoff.address)
 
       keeperOracle = testOracle.Oracle.connect(
-        await chainlinkOracleFactory.callStatic.create(CHAINLINK_ETH_USD_PRICE_FEED),
+        await chainlinkOracleFactory.callStatic.create(
+          CHAINLINK_ETH_USD_PRICE_FEED,
+          CHAINLINK_ETH_USD_PRICE_FEED,
+          ethers.constants.AddressZero,
+        ),
         owner,
       )
-      await chainlinkOracleFactory.create(CHAINLINK_ETH_USD_PRICE_FEED)
+      await chainlinkOracleFactory.create(
+        CHAINLINK_ETH_USD_PRICE_FEED,
+        CHAINLINK_ETH_USD_PRICE_FEED,
+        ethers.constants.AddressZero,
+      )
+      keeperOraclePayoff = testOracle.Oracle.connect(
+        await chainlinkOracleFactory.callStatic.create(
+          '0x0000000000000000000000000000000000000000000000000000000000000021',
+          CHAINLINK_ETH_USD_PRICE_FEED,
+          payoff.address,
+        ),
+        owner,
+      )
+      await chainlinkOracleFactory.create(
+        '0x0000000000000000000000000000000000000000000000000000000000000021',
+        CHAINLINK_ETH_USD_PRICE_FEED,
+        payoff.address,
+      )
 
       oracle = Oracle__factory.connect(
         await oracleFactory.callStatic.create(CHAINLINK_ETH_USD_PRICE_FEED, chainlinkOracleFactory.address),
@@ -183,11 +199,7 @@ testOracles.forEach(testOracle => {
       await oracleFactory.create(CHAINLINK_ETH_USD_PRICE_FEED, chainlinkOracleFactory.address)
 
       const marketImpl = await new Market__factory(owner).deploy()
-      marketFactory = await new MarketFactory__factory(owner).deploy(
-        oracleFactory.address,
-        payoffFactory.address,
-        marketImpl.address,
-      )
+      marketFactory = await new MarketFactory__factory(owner).deploy(oracleFactory.address, marketImpl.address)
       await marketFactory.initialize()
       await marketFactory.updateParameter({
         protocolFee: parse6decimal('0.50'),
@@ -245,14 +257,12 @@ testOracles.forEach(testOracle => {
         await marketFactory.callStatic.create({
           token: dsu.address,
           oracle: oracle.address,
-          payoff: ethers.constants.AddressZero,
         }),
         owner,
       )
       await marketFactory.create({
         token: dsu.address,
         oracle: oracle.address,
-        payoff: milliPowerTwoPayoff.address,
       })
       await market.updateParameter(ethers.constants.AddressZero, ethers.constants.AddressZero, marketParameter)
       await market.updateRiskParameter(riskParameter)
@@ -310,15 +320,16 @@ testOracles.forEach(testOracle => {
 
       context('#create', async () => {
         it('cant recreate price id', async () => {
-          await expect(chainlinkOracleFactory.create(CHAINLINK_ETH_USD_PRICE_FEED)).to.be.revertedWithCustomError(
-            chainlinkOracleFactory,
-            'KeeperFactoryAlreadyCreatedError',
-          )
+          await expect(
+            chainlinkOracleFactory.create(CHAINLINK_ETH_USD_PRICE_FEED, CHAINLINK_ETH_USD_PRICE_FEED, payoff.address),
+          ).to.be.revertedWithCustomError(chainlinkOracleFactory, 'KeeperFactoryAlreadyCreatedError')
         })
 
         it('reverts when not owner', async () => {
           await expect(
-            chainlinkOracleFactory.connect(user).create(CHAINLINK_ETH_USD_PRICE_FEED),
+            chainlinkOracleFactory
+              .connect(user)
+              .create(CHAINLINK_ETH_USD_PRICE_FEED, CHAINLINK_ETH_USD_PRICE_FEED, payoff.address),
           ).to.be.revertedWithCustomError(chainlinkOracleFactory, 'OwnableNotOwnerError')
         })
       })
@@ -340,11 +351,12 @@ testOracles.forEach(testOracle => {
         })
       })
 
-      context('#associate', async () => {
+      context('#register', async () => {
         it('reverts when not owner', async () => {
-          await expect(
-            chainlinkOracleFactory.connect(user).associate(CHAINLINK_ETH_USD_PRICE_FEED, CHAINLINK_ETH_USD_PRICE_FEED),
-          ).to.be.revertedWithCustomError(chainlinkOracleFactory, 'OwnableNotOwnerError')
+          await expect(chainlinkOracleFactory.connect(user).register(payoff.address)).to.be.revertedWithCustomError(
+            chainlinkOracleFactory,
+            'OwnableNotOwnerError',
+          )
         })
       })
     })
@@ -434,6 +446,39 @@ testOracles.forEach(testOracle => {
         )
 
         expect((await market.position()).timestamp).to.equal(STARTING_TIME)
+      })
+
+      it('commits successfully with payoff and incentivizes the keeper', async () => {
+        const originalDSUBalance = await dsu.callStatic.balanceOf(user.address)
+        const originalFactoryDSUBalance = await dsu.callStatic.balanceOf(oracleFactory.address)
+        await keeperOraclePayoff.connect(oracleSigner).request(market.address, user.address)
+        expect(await keeperOraclePayoff.globalCallbacks(STARTING_TIME)).to.deep.eq([market.address])
+        expect(await keeperOraclePayoff.localCallbacks(STARTING_TIME, market.address)).to.deep.eq([user.address])
+
+        // Base fee isn't working properly in coverage, so we need to set it manually
+        await ethers.provider.send('hardhat_setNextBlockBaseFeePerGas', ['0x5F5E100'])
+        expect(await keeperOraclePayoff.versions(1)).to.be.equal(STARTING_TIME)
+        expect(await keeperOraclePayoff.next()).to.be.equal(STARTING_TIME)
+
+        await expect(
+          chainlinkOracleFactory
+            .connect(user)
+            .commit(['0x0000000000000000000000000000000000000000000000000000000000000021'], STARTING_TIME, REPORT, {
+              value: getFee(REPORT),
+              maxFeePerGas: 100000000,
+            }),
+        )
+          .to.emit(keeperOraclePayoff, 'OracleProviderVersionFulfilled')
+          .withArgs([STARTING_TIME, getPrice(REPORT).mul(getPrice(REPORT)).div(1e9), true])
+
+        const newDSUBalance = await dsu.callStatic.balanceOf(user.address)
+        const newFactoryDSUBalance = await dsu.callStatic.balanceOf(oracleFactory.address)
+
+        expect(newDSUBalance.sub(originalDSUBalance)).to.be.within(utils.parseEther('0.30'), utils.parseEther('0.35'))
+        expect(originalFactoryDSUBalance.sub(newFactoryDSUBalance)).to.be.within(
+          utils.parseEther('0.30'),
+          utils.parseEther('0.35'),
+        )
       })
 
       it('commits successfully if report is barely not too early', async () => {
