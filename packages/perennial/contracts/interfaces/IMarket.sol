@@ -5,7 +5,6 @@ import "@equilibria/root/attribute/interfaces/IInstance.sol";
 import "@equilibria/root/number/types/UFixed6.sol";
 import "@equilibria/root/token/types/Token18.sol";
 import "./IOracleProvider.sol";
-import "./IPayoffProvider.sol";
 import "../types/OracleVersion.sol";
 import "../types/MarketParameter.sol";
 import "../types/RiskParameter.sol";
@@ -18,7 +17,6 @@ interface IMarket is IInstance {
     struct MarketDefinition {
         Token18 token;
         IOracleProvider oracle;
-        IPayoffProvider payoff;
     }
 
     struct Context {
@@ -112,7 +110,7 @@ interface IMarket is IInstance {
     function initialize(MarketDefinition calldata definition_) external;
     function token() external view returns (Token18);
     function oracle() external view returns (IOracleProvider);
-    function payoff() external view returns (IPayoffProvider);
+    function payoff() external view returns (address);
     function positions(address account) external view returns (Position memory);
     function pendingPositions(address account, uint256 id) external view returns (Position memory);
     function locals(address account) external view returns (Local memory);

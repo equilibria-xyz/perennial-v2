@@ -18,13 +18,13 @@ contract Market is IMarket, Instance, ReentrancyGuard {
     Token18 public token;
 
     /// @dev DEPRECATED SLOT -- previously the reward token
-    bytes32 private __unused__;
+    bytes32 private __unused0__;
 
     /// @dev The oracle that provides the market price
     IOracleProvider public oracle;
 
-    /// @dev The payoff function over the underlying oracle
-    IPayoffProvider public payoff;
+    /// @dev DEPRECATED SLOT -- previously the payoff provider
+    bytes32 private __unused1__;
 
     /// @dev Beneficiary of the market, receives donations
     address private beneficiary;
@@ -67,7 +67,6 @@ contract Market is IMarket, Instance, ReentrancyGuard {
 
         token = definition_.token;
         oracle = definition_.oracle;
-        payoff = definition_.payoff;
     }
 
     /// @notice Updates the account's position and collateral
@@ -140,6 +139,12 @@ contract Market is IMarket, Instance, ReentrancyGuard {
         token.push(receiver, UFixed18Lib.from(fee));
         emit FeeClaimed(receiver, fee);
         return true;
+    }
+
+    /// @notice Returns the payoff provider
+    /// @dev For backwards compatibility
+    function payoff() external pure returns (address) {
+        return address(0);
     }
 
     /// @notice Returns the current parameter set
@@ -387,7 +392,7 @@ contract Market is IMarket, Instance, ReentrancyGuard {
         context.local = _locals[account].read();
 
         // oracle
-        (context.latestVersion, context.currentTimestamp) = _oracleVersion();
+        (context.latestVersion, context.currentTimestamp) = oracle.status();
         context.positionVersion = _oracleVersionAtPosition(context, _position.read());
     }
 
@@ -643,22 +648,6 @@ contract Market is IMarket, Instance, ReentrancyGuard {
             revert MarketInsufficientCollateralError();
     }
 
-    /// @notice Computes the current oracle status with the market's payoff
-    /// @return latestVersion The latest oracle version with payoff applied
-    /// @return currentTimestamp The current oracle timestamp
-    function _oracleVersion() private view returns (OracleVersion memory latestVersion, uint256 currentTimestamp) {
-        (latestVersion, currentTimestamp) = oracle.status();
-        _transform(latestVersion);
-    }
-
-    /// @notice Computes the latest oracle version at a given timestamp with the market's payoff
-    /// @param timestamp The timestamp to use
-    /// @return oracleVersion The oracle version at the given timestamp with payoff applied
-    function _oracleVersionAt(uint256 timestamp) private view returns (OracleVersion memory oracleVersion) {
-        oracleVersion = oracle.at(timestamp);
-        _transform(oracleVersion);
-    }
-
     /// @notice Computes the latest oracle version at a given position with the market's payoff
     /// @dev applies the latest valid price when the version at position is invalid
     /// @param context The context to use
@@ -668,14 +657,8 @@ contract Market is IMarket, Instance, ReentrancyGuard {
         Context memory context,
         Position memory toPosition
     ) private view returns (OracleVersion memory oracleVersion) {
-        oracleVersion = _oracleVersionAt(toPosition.timestamp);
+        oracleVersion = oracle.at(toPosition.timestamp);
         if (!oracleVersion.valid) oracleVersion.price = context.global.latestPrice;
-    }
-
-    /// @notice Applies the market's payoff to an oracle version
-    /// @param oracleVersion The oracle version to transform
-    function _transform(OracleVersion memory oracleVersion) private view {
-        if (address(payoff) != address(0)) oracleVersion.price = payoff.payoff(oracleVersion.price);
     }
 
     /// @notice Only the coordinator or the owner can call

@@ -9,6 +9,8 @@ import "../keeper/KeeperFactory.sol";
 /// @title PythFactory
 /// @notice Factory contract for creating and managing Pyth oracles
 contract PythFactory is IPythFactory, KeeperFactory {
+    int32 private constant PARSE_DECIMALS = 18;
+
     /// @dev Pyth contract
     AbstractPyth public immutable pyth;
 
@@ -33,10 +35,16 @@ contract PythFactory is IPythFactory, KeeperFactory {
 
     /// @notice Creates a new oracle instance
     /// @param id The id of the oracle to create
+    /// @param underlyingId The underlying id of the oracle to create
+    /// @param payoff The payoff provider contract
     /// @return newOracle The newly created oracle instance
-    function create(bytes32 id) public override(IKeeperFactory, KeeperFactory) returns (IKeeperOracle newOracle) {
-        if (!pyth.priceFeedExists(toUnderlyingId[id])) revert PythFactoryInvalidIdError();
-        return super.create(id);
+    function create(
+        bytes32 id,
+        bytes32 underlyingId,
+        IPayoffProvider payoff
+    ) public override(IKeeperFactory, KeeperFactory) returns (IKeeperOracle newOracle) {
+        if (!pyth.priceFeedExists(underlyingId)) revert PythFactoryInvalidIdError();
+        return super.create(id, underlyingId, payoff);
     }
 
     /// @notice Validates and parses the update data payload against the specified version
@@ -48,8 +56,8 @@ contract PythFactory is IPythFactory, KeeperFactory {
         bytes32[] memory ids,
         uint256 version,
         bytes calldata data
-    ) internal override returns (Fixed6[] memory prices) {
-        prices = new Fixed6[](ids.length);
+    ) internal override returns (Fixed18[] memory prices) {
+        prices = new Fixed18[](ids.length);
         bytes[] memory datas = new bytes[](1);
         datas[0] = data;
 
@@ -61,9 +69,9 @@ contract PythFactory is IPythFactory, KeeperFactory {
         );
 
         for (uint256 i; i < parsedPrices.length; i++) {
-            (Fixed6 significand, int256 exponent) =
-                (Fixed6.wrap(parsedPrices[i].price.price), parsedPrices[i].price.expo + 6);
-            Fixed6 base = Fixed6Lib.from(int256(10 ** SignedMath.abs(exponent)));
+            (Fixed18 significand, int256 exponent) =
+                (Fixed18.wrap(parsedPrices[i].price.price), parsedPrices[i].price.expo + PARSE_DECIMALS);
+            Fixed18 base = Fixed18Lib.from(int256(10 ** SignedMath.abs(exponent)));
             prices[i] = exponent < 0 ? significand.div(base) : significand.mul(base);
         }
     }
@@ -75,8 +83,8 @@ contract PythFactory is IPythFactory, KeeperFactory {
     function _toUnderlyingIds(bytes32[] memory ids) private view returns (bytes32[] memory underlyingIds) {
         underlyingIds = new bytes32[](ids.length);
         for (uint256 i; i < ids.length; i++) {
-            if (!associated(ids[i])) revert KeeperFactoryNotAssociatedError();
             underlyingIds[i] = toUnderlyingId[ids[i]];
+            if (underlyingIds[i] == bytes32(0)) revert KeeperFactoryNotCreatedError();
         }
     }
 
