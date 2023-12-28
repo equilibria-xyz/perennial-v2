@@ -100,8 +100,8 @@ abstract contract PositionTester {
         return read().staticSkew(riskParameter);
     }
 
-    function utilization() external view returns (UFixed6) {
-        return read().utilization();
+    function utilization(RiskParameter memory riskParameter) external view returns (UFixed6) {
+        return read().utilization(riskParameter);
     }
 
     function longSocialized() external view returns (UFixed6) {

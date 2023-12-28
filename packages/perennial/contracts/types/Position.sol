@@ -104,7 +104,7 @@ library PositionLib {
         // load the computed attributes of the latest position
         Fixed6 latestStaticSkew = staticSkew(self, riskParameter);
         (order.net, order.efficiency, order.utilization) =
-            (Fixed6Lib.from(net(self)), Fixed6Lib.from(efficiency(self)), Fixed6Lib.from(utilization(self)));
+            (Fixed6Lib.from(net(self)), Fixed6Lib.from(efficiency(self)), Fixed6Lib.from(utilization(self, riskParameter)));
 
         // update the position's attributes
         (self.timestamp, self.maker, self.long, self.short) = (
@@ -124,7 +124,7 @@ library PositionLib {
                 latestStaticSkew.add(currentStaticSkew).div(
                     Fixed6Lib.from(2 * currentStaticSkew.sub(latestStaticSkew).sign())),
             Fixed6Lib.from(efficiency(self)).sub(order.efficiency),
-            Fixed6Lib.from(utilization(self)).sub(order.utilization)
+            Fixed6Lib.from(utilization(self, riskParameter)).sub(order.utilization)
         );
     }
 
@@ -249,9 +249,17 @@ library PositionLib {
     /// @notice Returns the utilization of the position
     /// @dev utilization = major / (maker + minor)
     /// @param self The position object to check
+    /// @param riskParameter The current risk parameter
     /// @return The utilization of the position
-    function utilization(Position memory self) internal pure returns (UFixed6) {
-        return major(self).unsafeDiv(self.maker.add(minor(self))).min(UFixed6Lib.ONE);
+    function utilization(Position memory self, RiskParameter memory riskParameter) internal pure returns (UFixed6) {
+        // long-short net utilization of the maker position
+        UFixed6 netUtilization = major(self).unsafeDiv(self.maker.add(minor(self)));
+
+        // efficiency limit utilization of the maker position
+        UFixed6 efficiencyUtilization = major(self).mul(riskParameter.efficiencyLimit).unsafeDiv(self.maker);
+        
+        // maximum of the two utilizations, capped at 100%
+        return netUtilization.max(efficiencyUtilization).min(UFixed6Lib.ONE);
     }
 
     /// @notice Returns the long position with socialization taken into account

@@ -226,7 +226,7 @@ library VersionLib {
 
         // Compute maker interest
         UFixed6 interest = riskParameter.utilizationCurve.accumulate(
-            position.utilization(),
+            position.utilization(riskParameter),
             fromOracleVersion.timestamp,
             toOracleVersion.timestamp,
             notional
