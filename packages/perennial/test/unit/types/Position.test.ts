@@ -330,10 +330,14 @@ describe('Position', () => {
       })
 
       describe('#utilization', () => {
+        const RISK_PARAM_WITH_EFFICIENCY_LIMIT = {
+          ...VALID_RISK_PARAMETER,
+          efficiencyLimit: parse6decimal('0.50'),
+        }
         context('major is 0', () => {
           it('returns 0', async () => {
             await position.store({ ...VALID_GLOBAL_POSITION, long: 0, short: 0 })
-            expect(await position.utilization()).to.equal(0)
+            expect(await position.utilization(RISK_PARAM_WITH_EFFICIENCY_LIMIT)).to.equal(0)
           })
         })
 
@@ -346,13 +350,13 @@ describe('Position', () => {
                 short: parse6decimal('2'),
                 maker: 0,
               })
-              expect(await position.utilization()).to.equal(parse6decimal('1'))
+              expect(await position.utilization(RISK_PARAM_WITH_EFFICIENCY_LIMIT)).to.equal(parse6decimal('1'))
             })
 
             context('minor is 0', () => {
               it('returns 1', async () => {
                 await position.store({ ...VALID_GLOBAL_POSITION, long: parse6decimal('102'), short: 0, maker: 0 })
-                expect(await position.utilization()).to.equal(parse6decimal('1'))
+                expect(await position.utilization(RISK_PARAM_WITH_EFFICIENCY_LIMIT)).to.equal(parse6decimal('1'))
               })
             })
           })
@@ -365,13 +369,13 @@ describe('Position', () => {
                 short: parse6decimal('102'),
                 maker: 0,
               })
-              expect(await position.utilization()).to.equal(parse6decimal('1'))
+              expect(await position.utilization(RISK_PARAM_WITH_EFFICIENCY_LIMIT)).to.equal(parse6decimal('1'))
             })
 
             context('minor is 0', () => {
               it('returns 1', async () => {
                 await position.store({ ...VALID_GLOBAL_POSITION, long: 0, short: parse6decimal('102'), maker: 0 })
-                expect(await position.utilization()).to.equal(parse6decimal('1'))
+                expect(await position.utilization(RISK_PARAM_WITH_EFFICIENCY_LIMIT)).to.equal(parse6decimal('1'))
               })
             })
           })
@@ -386,7 +390,7 @@ describe('Position', () => {
                 short: parse6decimal('2'),
                 maker: parse6decimal('110'),
               })
-              expect(await position.utilization()).to.equal(BigNumber.from('910714'))
+              expect(await position.utilization(RISK_PARAM_WITH_EFFICIENCY_LIMIT)).to.equal(BigNumber.from('910714'))
             })
           })
 
@@ -398,7 +402,33 @@ describe('Position', () => {
                 short: parse6decimal('102'),
                 maker: parse6decimal('110'),
               })
-              expect(await position.utilization()).to.equal(BigNumber.from('910714'))
+              expect(await position.utilization(RISK_PARAM_WITH_EFFICIENCY_LIMIT)).to.equal(BigNumber.from('910714'))
+            })
+          })
+        })
+
+        context('high efficiency', () => {
+          context('long is major', () => {
+            it('uses efficiency utilization instead of net', async () => {
+              await position.store({
+                ...VALID_GLOBAL_POSITION,
+                long: parse6decimal('190'),
+                short: parse6decimal('180'),
+                maker: parse6decimal('100'),
+              })
+              expect(await position.utilization(RISK_PARAM_WITH_EFFICIENCY_LIMIT)).to.equal(BigNumber.from('950000'))
+            })
+          })
+
+          context('short is major', () => {
+            it('uses efficiency utilization instead of net', async () => {
+              await position.store({
+                ...VALID_GLOBAL_POSITION,
+                long: parse6decimal('180'),
+                short: parse6decimal('190'),
+                maker: parse6decimal('100'),
+              })
+              expect(await position.utilization(RISK_PARAM_WITH_EFFICIENCY_LIMIT)).to.equal(BigNumber.from('950000'))
             })
           })
         })
