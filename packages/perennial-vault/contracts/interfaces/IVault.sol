@@ -15,7 +15,6 @@ interface IVault is IInstance {
     struct Context {
         // parameters
         UFixed6 settlementFee;
-        uint256 totalWeight;
 
         // markets
         uint256 currentId;
@@ -39,7 +38,7 @@ interface IVault is IInstance {
     }
 
     event MarketRegistered(uint256 indexed marketId, IMarket market);
-    event MarketUpdated(uint256 indexed marketId, uint256 newWeight, UFixed6 newLeverage);
+    event MarketUpdated(uint256 indexed marketId, UFixed6 newWeight, UFixed6 newLeverage);
     event ParameterUpdated(VaultParameter newParameter);
     event Updated(address indexed sender, address indexed account, uint256 version, UFixed6 depositAssets, UFixed6 redeemShares, UFixed6 claimAssets);
 
@@ -63,6 +62,8 @@ interface IVault is IInstance {
     error VaultNotSingleSidedError();
     // sig: 0xa65ac9fb
     error VaultInsufficientMinimumError();
+    // sig: 0xdbdb7620
+    error VaultAggregateWeightError();
 
     // sig: 0xb8a09499
     error AccountStorageInvalidError();
@@ -95,6 +96,7 @@ interface IVault is IInstance {
     function checkpoints(uint256 id) external view returns (Checkpoint memory);
     function mappings(uint256 id) external view returns (Mapping memory);
     function register(IMarket market) external;
-    function updateMarket(uint256 marketId, uint256 newWeight, UFixed6 newLeverage) external;
+    function updateLeverage(uint256 marketId, UFixed6 newLeverage) external;
+    function updateWeights(UFixed6[] calldata newWeights) external;
     function updateParameter(VaultParameter memory newParameter) external;
 }
