@@ -386,8 +386,10 @@ export async function createVault(
   await vaultFactory.create(instanceVars.dsu.address, ethMarket.address, 'Blue Chip')
 
   await vault.register(btcMarket.address)
-  await vault.updateMarket(0, 4, leverage ?? parse6decimal('4.0'))
-  await vault.updateMarket(1, 1, leverage ?? parse6decimal('4.0'))
+  await vault.updateLeverage(0, leverage ?? parse6decimal('4.0'))
+  await vault.updateLeverage(1, leverage ?? parse6decimal('4.0'))
+  await vault.updateWeights([0.8, 0.2])
+
   await vault.updateParameter({
     cap: maxCollateral ?? parse6decimal('500000'),
   })

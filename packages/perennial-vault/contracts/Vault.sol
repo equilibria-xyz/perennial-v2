@@ -162,9 +162,14 @@ contract Vault is IVault, Instance {
         asset.approve(address(market));
 
         uint256 newMarketId = totalMarkets++;
-        _updateMarket(newMarketId, newMarketId == 0 ? UFixed6Lib.ONE : UFixed6Lib.ZERO, UFixed6Lib.MAX);
+        _registerMarket(newMarketId, market);
+        _updateMarket(newMarketId, newMarketId == 0 ? UFixed6Lib.ONE : UFixed6Lib.ZERO, UFixed6Lib.ZERO);
+    }
 
-        emit MarketRegistered(newMarketId, market);
+    // TODO
+    function _registerMarket(uint256 marketId, IMarket market) private {
+        _registrations[marketId].store(Registration(market, UFixed6Lib.ZERO, UFixed6Lib.ZERO));
+        emit MarketRegistered(marketId, market);
     }
 
     function _updateMarket(uint256 marketId, UFixed6 newWeight, UFixed6 newLeverage) private {
