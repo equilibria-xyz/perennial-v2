@@ -1847,7 +1847,7 @@ describe('Vault', () => {
         expect(await btcPosition()).to.be.equal(parse6decimal('11000').mul(leverage).div(5).div(btcOriginalOraclePrice))
 
         // Deleverage the ETH market
-        await vault.updateMarket(0, 4, 0)
+        await vault.updateLeverage(0, 0)
 
         await vault.connect(user).update(user.address, 0, 0, 0)
         await updateOracle()
@@ -1884,7 +1884,7 @@ describe('Vault', () => {
         expect(await btcPosition()).to.be.equal(parse6decimal('11000').mul(leverage).div(5).div(btcOriginalOraclePrice))
 
         // Close the ETH market
-        await vault.updateMarket(0, 0, leverage)
+        await vault.updateWeights([0, parse6decimal('1')])
 
         await vault.connect(user).update(user.address, 0, 0, 0)
         await updateOracle()
@@ -1903,7 +1903,8 @@ describe('Vault', () => {
     context('add market', () => {
       beforeEach(async () => {
         // set ETH market to 0
-        await vault.updateMarket(0, 0, 0)
+        await vault.updateLeverage(0, 0)
+        await vault.updateWeights([0, parse6decimal('1')])
 
         // Seed vault with deposits
         const deposit0 = parse6decimal('1000')
@@ -1922,7 +1923,8 @@ describe('Vault', () => {
         expect(await btcPosition()).to.be.equal(parse6decimal('11000').mul(leverage).div(btcOriginalOraclePrice))
 
         // Open the ETH market
-        await vault.updateMarket(0, 9, leverage)
+        await vault.updateLeverage(0, leverage)
+        await vault.updateWeights([parse6decimal('0.9'), parse6decimal('0.1')])
 
         await vault.connect(user).update(user.address, 0, 0, 0)
         await updateOracle()

@@ -388,7 +388,7 @@ export async function createVault(
   await vault.register(btcMarket.address)
   await vault.updateLeverage(0, leverage ?? parse6decimal('4.0'))
   await vault.updateLeverage(1, leverage ?? parse6decimal('4.0'))
-  await vault.updateWeights([0.8, 0.2])
+  await vault.updateWeights([parse6decimal('0.8'), parse6decimal('0.2')])
 
   await vault.updateParameter({
     cap: maxCollateral ?? parse6decimal('500000'),
