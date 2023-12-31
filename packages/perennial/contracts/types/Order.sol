@@ -50,49 +50,35 @@ library OrderLib {
         OracleVersion memory latestVersion,
         MarketParameter memory marketParameter,
         RiskParameter memory riskParameter
-    ) internal pure {
-        Fixed6 fee = Fixed6Lib.from(latestVersion.price.abs())
+    ) internal pure returns (Fixed6 marketFee) {
+        UFixed6 magnitudeFee = _calculateMagnitudeFee(
+            self.maker.isZero() ? self.long.add(self.short).abs() : self.maker.abs(),
+            self.maker.isZero() ? riskParameter.takerFee : riskParameter.makerFee,
+            self.maker.isZero() ? riskParameter.takerMagnitudeFee : riskParameter.makerMagnitudeFee,
+            riskParameter.skewScale
+        );
+        Fixed6 impactFee = _calculateImpactFee(
+            self.latestSkew,
+            self.currentSkew,
+            self.currentSkew.sub(self.latestSkew), // only charge impact fee on non-socialized portion
+            riskParameter.impactFee,
+            riskParameter.skewScale
+        );
+        Fixed6 makerImpactFee = _calculateImpactFee(
+            self.maker.gt(Fixed6Lib.ZERO) ? self.currentSkew : Fixed6Lib.ZERO,
+            self.maker.lt(Fixed6Lib.ZERO) ? self.currentSkew : Fixed6Lib.ZERO,
+            self.maker.mul(Fixed6Lib.NEG_ONE), // refund on open, charge on close, compute for worst case 100% utilization
+            riskParameter.impactFee,
+            riskParameter.skewScale
+        );
 
-            // taker fee
-            .mul(_calculateFee(
-                self.latestSkew,
-                self.currentSkew,
-                self.long.abs().add(self.short.abs()), // charge magnitude fee on entire order
-                self.currentSkew.sub(self.latestSkew), // only charge impact fee on non-socialized portion
-                riskParameter.takerFee,
-                riskParameter.impactFee,
-                riskParameter.takerMagnitudeFee,
-                riskParameter.skewScale
+        Fixed6 orderFee = Fixed6Lib.from(latestVersion.price.abs())
+            .mul(Fixed6Lib.from(magnitudeFee).add(self.maker.isZero() ? impactFee : Fixed6Lib.ZERO));
+        marketFee = Fixed6Lib.from(latestVersion.price.abs())
+            .mul(self.maker.isZero() ? Fixed6Lib.ZERO : impactFee);
 
-            // maker fee
-            ).add(_calculateFee(
-                self.maker.gt(Fixed6Lib.ZERO) ? self.currentSkew : Fixed6Lib.ZERO,
-                self.maker.lt(Fixed6Lib.ZERO) ? self.currentSkew : Fixed6Lib.ZERO,
-                self.maker.abs(),
-                self.maker.mul(Fixed6Lib.NEG_ONE), // refund on open, charge on close, compute for worst case 100% utilization
-                riskParameter.makerFee,
-                riskParameter.impactFee,
-                riskParameter.makerMagnitudeFee,
-                riskParameter.skewScale
-            )));
-
-        self.fee = marketParameter.closed ? Fixed6Lib.ZERO : fee;
+        self.fee = marketParameter.closed ? Fixed6Lib.ZERO : orderFee;
         self.keeper = isEmpty(self) ? UFixed6Lib.ZERO : marketParameter.settlementFee;
-    }
-
-    // TODO: natspec
-    function _calculateFee(
-        Fixed6 latestSkew,
-        Fixed6 currentSkew,
-        UFixed6 orderMagnitude,
-        Fixed6 orderImpact,
-        UFixed6 baseFee,
-        UFixed6 impactFee,
-        UFixed6 magnitudeFee,
-        UFixed6 skewScale
-    ) private pure returns (Fixed6) {
-        return Fixed6Lib.from(_calculateMagnitudeFee(orderMagnitude, baseFee, magnitudeFee, skewScale))
-            .add(_calculateImpactFee(latestSkew, currentSkew, orderImpact, impactFee, skewScale));
     }
 
     // TODO: natspec
