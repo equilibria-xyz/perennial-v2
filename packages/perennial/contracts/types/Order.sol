@@ -29,6 +29,9 @@ struct Order {
     /// @dev The latest unscaled skew
     Fixed6 currentSkew;
 
+    /// @dev The latest global maker amount
+    UFixed6 latestMaker;
+
     /// @dev The socialization fee for the order
     Fixed6 socialization;
 
@@ -48,18 +51,16 @@ using OrderLib for Order global;
 library OrderLib {
     /// @notice Computes and sets the fee and keeper once an order is already created
     /// @param self The Order object to update
-    /// @param totalMaker The total maker amount of the market before the order
     /// @param latestVersion The latest oracle version
     /// @param marketParameter The market parameter
     /// @param riskParameter The risk parameter
     /// @param protected Whether the order is protected
     function registerFee(
         Order memory self,
-        UFixed6 totalMaker,
         OracleVersion memory latestVersion,
         MarketParameter memory marketParameter,
         RiskParameter memory riskParameter,
-        bool protected // TODO: cleanup
+        bool protected
     ) internal pure {
         UFixed6 magnitudeFee = _calculateMagnitudeFee(
             self.maker.isZero() ? self.long.add(self.short).abs() : self.maker.abs(),
@@ -77,7 +78,7 @@ library OrderLib {
         Fixed6 makerFee = _calculateMakerFee(
             self.currentSkew,
             self.maker,
-            totalMaker,
+            self.latestMaker,
             riskParameter.impactFee,
             riskParameter.skewScale
         );
@@ -93,7 +94,13 @@ library OrderLib {
         self.settlementFee = isEmpty(self) ? UFixed6Lib.ZERO : marketParameter.settlementFee;
     }
 
-    // TODO: natspec
+    /// @notice Calculates the maker fee
+    /// @param currentSkew The current skew
+    /// @param orderMaker The maker amount of the order
+    /// @param totalMaker The latest global maker amount
+    /// @param impactFee The impact fee
+    /// @param skewScale The skew scale
+    /// @return The maker fee
     function _calculateMakerFee(
         Fixed6 currentSkew,
         Fixed6 orderMaker,
@@ -112,7 +119,13 @@ library OrderLib {
         return totalTakerFee.muldiv(orderMaker.mul(Fixed6Lib.NEG_ONE), Fixed6Lib.from(totalMaker));
     }
 
-    // TODO: natspec
+    /// @notice Calculates the impact fee
+    /// @param latestSkew The latest skew
+    /// @param currentSkew The current skew
+    /// @param orderImpact The order impact
+    /// @param impactFee The impact fee
+    /// @param skewScale The skew scale
+    /// @return The impact fee
     function _calculateImpactFee(
         Fixed6 latestSkew,
         Fixed6 currentSkew,
@@ -124,7 +137,12 @@ library OrderLib {
         return Fixed6Lib.from(impactFee).mul(skewAUC).mul(orderImpact);
     }
 
-    // TODO: natspec
+    /// @notice Calculates the magnitude fee
+    /// @param orderMagnitude The order magnitude
+    /// @param baseFee The base fee
+    /// @param magnitudeFee The magnitude fee
+    /// @param skewScale The skew scale
+    /// @return The magnitude fee
     function _calculateMagnitudeFee(
         UFixed6 orderMagnitude,
         UFixed6 baseFee,

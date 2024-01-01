@@ -334,26 +334,7 @@ contract Market is IMarket, Instance, ReentrancyGuard {
         // update position
         Order memory newOrder =
             context.currentPosition.local.update(context.currentTimestamp, newMaker, newLong, newShort);
-        newOrder.registerFee( // TODO: cleanup?
-            context.currentPosition.global.maker,
-            context.latestVersion, 
-            context.marketParameter,
-            context.riskParameter,
-            protect // TODO: protected?
-        );
         context.currentPosition.global.update(context.currentTimestamp, newOrder);
-
-        // update fee
-        context.currentPosition.local.registerFee(newOrder);
-        context.currentPosition.global.registerFee(newOrder);
-
-        // update collateral
-        context.local.update(collateral);
-        context.currentPosition.local.update(collateral);
-        context.pendingCollateral = context.pendingCollateral.add(collateral);
-
-        // process current position
-        _processPendingPosition(context, context.currentPosition.local);
 
         // protect account
         bool protected = context.local.protect(
@@ -364,6 +345,19 @@ contract Market is IMarket, Instance, ReentrancyGuard {
             msg.sender,
             protect
         );
+
+        // update fee
+        newOrder.registerFee(context.latestVersion, context.marketParameter, context.riskParameter, protected);
+        context.currentPosition.local.registerFee(newOrder);
+        context.currentPosition.global.registerFee(newOrder);
+
+        // update collateral
+        context.local.update(collateral);
+        context.currentPosition.local.update(collateral);
+        context.pendingCollateral = context.pendingCollateral.add(collateral);
+
+        // process current position
+        _processPendingPosition(context, context.currentPosition.local);
 
         // request version
         if (!newOrder.isEmpty()) oracle.request(IMarket(this), account);

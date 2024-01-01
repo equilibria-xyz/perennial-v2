@@ -103,8 +103,8 @@ library PositionLib {
         Order memory order
     ) internal pure {
         // load the computed attributes of the latest position
-        (order.net, order.efficiency, order.latestSkew) =
-            (Fixed6Lib.from(net(self)), Fixed6Lib.from(efficiency(self)), skew(self));
+        (order.net, order.efficiency, order.latestSkew, order.latestMaker) =
+            (Fixed6Lib.from(net(self)), Fixed6Lib.from(efficiency(self)), skew(self), self.maker);
 
         // update the position's attributes
         (self.timestamp, self.maker, self.long, self.short) = (

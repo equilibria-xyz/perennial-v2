@@ -170,7 +170,6 @@ library VersionLib {
         positionPostFeeTaker =
             (toPosition.postFee.gt(Fixed6Lib.ZERO) ? toPosition.postFee : positionFeeWithoutFee).mul(Fixed6Lib.ZERO);
 
-
         self.makerValue.increment(positionPostFeeMaker, fromPosition.maker);
         if (fromPosition.long.gt(fromPosition.short)) {
             self.longValue.increment(positionPostFeeTaker, fromPosition.long);
