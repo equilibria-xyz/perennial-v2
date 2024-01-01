@@ -29,8 +29,12 @@ using VersionStorageLib for VersionStorage global;
 
 /// @dev Individual accumulation values
 struct VersionAccumulationResult {
-    Fixed6 positionFeeMaker;
-    UFixed6 positionFeeFee;
+    Fixed6 positionPreFeeMaker;
+    UFixed6 positionPreFeeFee;
+
+    Fixed6 positionPostFeeMaker;
+    Fixed6 positionPostFeeTaker;
+    UFixed6 positionPostFeeFee;
 
     Fixed6 fundingMaker;
     Fixed6 fundingLong;
@@ -75,12 +79,16 @@ library VersionLib {
         // record validity
         self.valid = toOracleVersion.valid;
 
-        // accumulate position fee
-        (values.positionFeeMaker, values.positionFeeFee) =
-            _accumulatePositionFee(self, fromPosition, toPosition, marketParameter);
-
+        // accumulate position prefee
+        (values.positionPreFeeMaker, values.positionPreFeeFee) =
+            _accumulatePositionPreFee(self, fromPosition, toPosition, marketParameter);
+        
         // if closed, don't accrue anything else
-        if (marketParameter.closed) return (values, values.positionFeeFee);
+        if (marketParameter.closed) return (values, values.positionPostFeeFee);
+
+        // accumulate position post fee
+        (values.positionPostFeeMaker, values.positionPostFeeMaker, values.positionPostFeeFee) =
+            _accumulatePositionPostFee(self, fromPosition, toPosition, marketParameter);
 
         // accumulate funding
         _FundingValues memory fundingValues = _accumulateFunding(
@@ -108,7 +116,10 @@ library VersionLib {
         (values.pnlMaker, values.pnlLong, values.pnlShort) =
             _accumulatePNL(self, fromPosition, fromOracleVersion, toOracleVersion);
 
-        return (values, values.positionFeeFee.add(values.fundingFee).add(values.interestFee));
+        return (
+            values,
+            values.positionPreFeeFee.add(values.positionPostFeeFee).add(values.fundingFee).add(values.interestFee)
+        );
     }
 
     /// @notice Globally accumulates position fees since last oracle update
@@ -118,20 +129,54 @@ library VersionLib {
     /// @param marketParameter The market parameter
     /// @return positionFeeMaker The maker's position fee
     /// @return positionFeeFee The protocol's position fee
-    function _accumulatePositionFee(
+    function _accumulatePositionPreFee(
         Version memory self,
         Position memory fromPosition,
         Position memory toPosition,
         MarketParameter memory marketParameter
     ) private pure returns (Fixed6 positionFeeMaker, UFixed6 positionFeeFee) {
-        UFixed6 toPositionFeeAbs = toPosition.fee.abs();
+        UFixed6 toPositionFeeAbs = toPosition.preFee.abs();
         // If there are no makers to distribute the taker's position fee to, give it to the protocol
         if (fromPosition.maker.isZero()) return (Fixed6Lib.ZERO, toPositionFeeAbs);
 
         positionFeeFee = marketParameter.positionFee.mul(toPositionFeeAbs);
-        positionFeeMaker = toPosition.fee.sub(Fixed6Lib.from(positionFeeFee));
+        positionFeeMaker = toPosition.preFee.sub(Fixed6Lib.from(positionFeeFee));
 
         self.makerValue.increment(positionFeeMaker, fromPosition.maker);
+    }
+
+    /// @notice Globally accumulates position fees since last oracle update
+    /// @param self The Version object to update
+    /// @param fromPosition The previous latest position
+    /// @param toPosition The next latest position
+    /// @param marketParameter The market parameter
+    /// @return positionPostFeeMaker The maker portion of the protocol's position post fee
+    /// @return positionPostFeeTaker The taker portion of the protocol's position post fee
+    /// @return positionPostFeeFee The protocol's position post fee
+    function _accumulatePositionPostFee(
+        Version memory self,
+        Position memory fromPosition,
+        Position memory toPosition,
+        MarketParameter memory marketParameter
+    ) private pure returns (Fixed6 positionPostFeeMaker, Fixed6 positionPostFeeTaker, UFixed6 positionPostFeeFee) {
+        // TODO: what if zero maker to taker?
+
+        positionPostFeeFee = marketParameter.positionFee.mul(toPosition.postFee.abs());
+        Fixed6 positionFeeWithoutFee =
+            Fixed6Lib.from(toPosition.postFee.sign(), toPosition.postFee.abs().sub(positionPostFeeFee));
+
+        positionPostFeeMaker =
+            toPosition.postFee.gt(Fixed6Lib.ZERO) ? positionFeeWithoutFee : toPosition.postFee;
+        positionPostFeeTaker =
+            (toPosition.postFee.gt(Fixed6Lib.ZERO) ? toPosition.postFee : positionFeeWithoutFee).mul(Fixed6Lib.ZERO);
+
+
+        self.makerValue.increment(positionPostFeeMaker, fromPosition.maker);
+        if (fromPosition.long.gt(fromPosition.short)) {
+            self.longValue.increment(positionPostFeeTaker, fromPosition.long);
+        } else {
+            self.shortValue.increment(positionPostFeeTaker, fromPosition.short);
+        }
     }
 
     /// @dev Internal struct to bypass stack depth limit

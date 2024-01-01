@@ -6,11 +6,13 @@ import "../types/Order.sol";
 contract OrderTester {
     function registerFee(
         Order memory order,
+        UFixed6 totalMaker,
         OracleVersion memory latestVersion,
         MarketParameter memory marketParameter,
-        RiskParameter memory riskParameter
+        RiskParameter memory riskParameter,
+        bool protected
     ) public pure returns (Order memory) {
-        order.registerFee(latestVersion, marketParameter, riskParameter);
+        order.registerFee(totalMaker, latestVersion, marketParameter, riskParameter, protected);
 
         return order;
     }

@@ -230,8 +230,8 @@ contract Market is IMarket, Instance, ReentrancyGuard {
     function _processPendingPosition(Context memory context, Position memory newPendingPosition) private pure {
         // apply pending fees to collateral
         context.pendingCollateral = context.pendingCollateral
-            .sub(newPendingPosition.fee)
-            .sub(Fixed6Lib.from(newPendingPosition.keeper));
+            .sub(newPendingPosition.preFee)
+            .sub(Fixed6Lib.from(newPendingPosition.settlementFee));
 
         // measure pending position deltas
         if (context.previousPendingMagnitude.gt(newPendingPosition.magnitude())) {
@@ -334,10 +334,16 @@ contract Market is IMarket, Instance, ReentrancyGuard {
         // update position
         Order memory newOrder =
             context.currentPosition.local.update(context.currentTimestamp, newMaker, newLong, newShort);
+        newOrder.registerFee( // TODO: cleanup?
+            context.currentPosition.global.maker,
+            context.latestVersion, 
+            context.marketParameter,
+            context.riskParameter,
+            protect // TODO: protected?
+        );
         context.currentPosition.global.update(context.currentTimestamp, newOrder);
 
         // update fee
-        newOrder.registerFee(context.latestVersion, context.marketParameter, context.riskParameter);
         context.currentPosition.local.registerFee(newOrder);
         context.currentPosition.global.registerFee(newOrder);
 
@@ -471,7 +477,7 @@ contract Market is IMarket, Instance, ReentrancyGuard {
         context.global.update(newPositionId, oracleVersion.price);
         context.global.incrementFees(
             accumulatedFee,
-            newPosition.keeper,
+            newPosition.settlementFee,
             context.marketParameter,
             context.protocolParameter
         );

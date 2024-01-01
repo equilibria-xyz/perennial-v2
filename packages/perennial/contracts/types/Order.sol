@@ -29,11 +29,17 @@ struct Order {
     /// @dev The latest unscaled skew
     Fixed6 currentSkew;
 
-    /// @dev The fee for the order
-    Fixed6 fee;
+    /// @dev The socialization fee for the order
+    Fixed6 socialization;
+
+    /// @dev The fee charged locally on order creation
+    Fixed6 preFee;
+
+    /// @dev The fee charged globally on order settlement
+    Fixed6 postFee;
 
     /// @dev The fixed settlement fee for the order
-    UFixed6 keeper;
+    UFixed6 settlementFee;
 }
 using OrderLib for Order global;
 
@@ -42,15 +48,19 @@ using OrderLib for Order global;
 library OrderLib {
     /// @notice Computes and sets the fee and keeper once an order is already created
     /// @param self The Order object to update
+    /// @param totalMaker The total maker amount of the market before the order
     /// @param latestVersion The latest oracle version
     /// @param marketParameter The market parameter
     /// @param riskParameter The risk parameter
+    /// @param protected Whether the order is protected
     function registerFee(
         Order memory self,
+        UFixed6 totalMaker,
         OracleVersion memory latestVersion,
         MarketParameter memory marketParameter,
-        RiskParameter memory riskParameter
-    ) internal pure returns (Fixed6 marketFee) {
+        RiskParameter memory riskParameter,
+        bool protected // TODO: cleanup
+    ) internal pure {
         UFixed6 magnitudeFee = _calculateMagnitudeFee(
             self.maker.isZero() ? self.long.add(self.short).abs() : self.maker.abs(),
             self.maker.isZero() ? riskParameter.takerFee : riskParameter.makerFee,
@@ -64,21 +74,42 @@ library OrderLib {
             riskParameter.impactFee,
             riskParameter.skewScale
         );
-        Fixed6 makerImpactFee = _calculateImpactFee(
-            self.maker.gt(Fixed6Lib.ZERO) ? self.currentSkew : Fixed6Lib.ZERO,
-            self.maker.lt(Fixed6Lib.ZERO) ? self.currentSkew : Fixed6Lib.ZERO,
-            self.maker.mul(Fixed6Lib.NEG_ONE), // refund on open, charge on close, compute for worst case 100% utilization
+        Fixed6 makerFee = _calculateMakerFee(
+            self.currentSkew,
+            self.maker,
+            totalMaker,
             riskParameter.impactFee,
             riskParameter.skewScale
         );
 
+        bool makerPaysImpact = self.maker.isZero() || protected;
         Fixed6 orderFee = Fixed6Lib.from(latestVersion.price.abs())
-            .mul(Fixed6Lib.from(magnitudeFee).add(self.maker.isZero() ? impactFee : Fixed6Lib.ZERO));
-        marketFee = Fixed6Lib.from(latestVersion.price.abs())
-            .mul(self.maker.isZero() ? Fixed6Lib.ZERO : impactFee);
+            .mul(Fixed6Lib.from(magnitudeFee).add(makerPaysImpact ? impactFee : Fixed6Lib.ZERO).add(makerFee));
+        Fixed6 takerSocializationFee = Fixed6Lib.from(latestVersion.price.abs())
+            .mul(makerPaysImpact ? Fixed6Lib.ZERO : impactFee);
 
-        self.fee = marketParameter.closed ? Fixed6Lib.ZERO : orderFee;
-        self.keeper = isEmpty(self) ? UFixed6Lib.ZERO : marketParameter.settlementFee;
+        self.postFee = marketParameter.closed ? Fixed6Lib.ZERO : takerSocializationFee;
+        self.preFee = marketParameter.closed ? Fixed6Lib.ZERO : orderFee;
+        self.settlementFee = isEmpty(self) ? UFixed6Lib.ZERO : marketParameter.settlementFee;
+    }
+
+    // TODO: natspec
+    function _calculateMakerFee(
+        Fixed6 currentSkew,
+        Fixed6 orderMaker,
+        UFixed6 totalMaker,
+        UFixed6 impactFee,
+        UFixed6 skewScale
+    ) private pure returns (Fixed6) {
+        Fixed6 totalTakerFee = _calculateImpactFee(
+            Fixed6Lib.ZERO,
+            currentSkew, // TODO: use current or latest?
+            currentSkew, // TODO: do maker soc. movements affect the adiabaticness of this?
+            impactFee,
+            skewScale
+        );
+
+        return totalTakerFee.muldiv(orderMaker.mul(Fixed6Lib.NEG_ONE), Fixed6Lib.from(totalMaker));
     }
 
     // TODO: natspec

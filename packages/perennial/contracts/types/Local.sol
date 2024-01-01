@@ -74,8 +74,8 @@ library LocalLib {
         Local memory self,
         Position memory toPosition
     ) internal pure returns (Fixed6 positionFee, UFixed6 keeper) {
-        positionFee = toPosition.fee;
-        keeper = toPosition.keeper;
+        positionFee = toPosition.preFee;
+        keeper = toPosition.settlementFee;
 
         Fixed6 feeAmount = positionFee.add(Fixed6Lib.from(keeper));
         self.collateral = self.collateral.sub(feeAmount);
