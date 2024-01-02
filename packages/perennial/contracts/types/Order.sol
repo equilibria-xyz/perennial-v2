@@ -76,6 +76,7 @@ library OrderLib {
             riskParameter.skewScale
         );
         Fixed6 makerFee = _calculateMakerFee(
+            self.latestSkew,
             self.currentSkew,
             self.maker,
             self.latestMaker,
@@ -95,6 +96,7 @@ library OrderLib {
     }
 
     /// @notice Calculates the maker fee
+    /// @param latestSkew The latestSkew skew
     /// @param currentSkew The current skew
     /// @param orderMaker The maker amount of the order
     /// @param totalMaker The latest global maker amount
@@ -102,20 +104,26 @@ library OrderLib {
     /// @param skewScale The skew scale
     /// @return The maker fee
     function _calculateMakerFee(
+        Fixed6 latestSkew,
         Fixed6 currentSkew,
         Fixed6 orderMaker,
         UFixed6 totalMaker,
         UFixed6 impactFee,
         UFixed6 skewScale
     ) private pure returns (Fixed6) {
+        // when opening use skew before order, when closing use skew after order
+        Fixed6 effectiveSkew = orderMaker.gt(Fixed6Lib.ZERO) ? latestSkew : currentSkew;
+
+        // calculate total impact fee pool value in underlying terms
         Fixed6 totalTakerFee = _calculateImpactFee(
             Fixed6Lib.ZERO,
-            currentSkew, // TODO: use current or latest?
-            currentSkew, // TODO: do maker soc. movements affect the adiabaticness of this?
+            effectiveSkew,
+            effectiveSkew,
             impactFee,
             skewScale
         );
 
+        // charge or refund pro-rata portion of impact fee pool
         return totalTakerFee.muldiv(orderMaker.mul(Fixed6Lib.NEG_ONE), Fixed6Lib.from(totalMaker));
     }
 

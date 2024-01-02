@@ -135,11 +135,12 @@ library VersionLib {
         Position memory toPosition,
         MarketParameter memory marketParameter
     ) private pure returns (Fixed6 positionFeeMaker, UFixed6 positionFeeFee) {
-        UFixed6 toPositionFeeAbs = toPosition.preFee.abs();
-        // If there are no makers to distribute the taker's position fee to, give it to the protocol
-        if (fromPosition.maker.isZero()) return (Fixed6Lib.ZERO, toPositionFeeAbs);
+        UFixed6 toPositionPreFeeMagnitude = toPosition.preFee.abs();
 
-        positionFeeFee = marketParameter.positionFee.mul(toPositionFeeAbs);
+        // If there are no makers to distribute the taker's position fee to, give it to the protocol
+        if (fromPosition.maker.isZero()) return (Fixed6Lib.ZERO, toPositionPreFeeMagnitude);
+
+        positionFeeFee = marketParameter.positionFee.mul(toPositionPreFeeMagnitude);
         positionFeeMaker = toPosition.preFee.sub(Fixed6Lib.from(positionFeeFee));
 
         self.makerValue.increment(positionFeeMaker, fromPosition.maker);
@@ -159,11 +160,14 @@ library VersionLib {
         Position memory toPosition,
         MarketParameter memory marketParameter
     ) private pure returns (Fixed6 positionPostFeeMaker, Fixed6 positionPostFeeTaker, UFixed6 positionPostFeeFee) {
-        // TODO: what if zero maker to taker?
+        UFixed6 toPositionPostFeeMagnitude = toPosition.postFee.abs();
 
-        positionPostFeeFee = marketParameter.positionFee.mul(toPosition.postFee.abs());
+        // If there are no makers to distribute the taker's position fee to, give it to the protocol
+        if (fromPosition.maker.isZero()) return (Fixed6Lib.ZERO, Fixed6Lib.ZERO, toPositionPostFeeMagnitude);
+
+        positionPostFeeFee = marketParameter.positionFee.mul(toPositionPostFeeMagnitude);
         Fixed6 positionFeeWithoutFee =
-            Fixed6Lib.from(toPosition.postFee.sign(), toPosition.postFee.abs().sub(positionPostFeeFee));
+            Fixed6Lib.from(toPosition.postFee.sign(), toPositionPostFeeMagnitude.sub(positionPostFeeFee));
 
         positionPostFeeMaker =
             toPosition.postFee.gt(Fixed6Lib.ZERO) ? positionFeeWithoutFee : toPosition.postFee;
