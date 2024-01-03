@@ -22,8 +22,10 @@ export const VALID_ORDER: OrderStruct = {
   efficiency: 0,
   latestSkew: 0,
   currentSkew: 0,
-  fee: 0,
-  keeper: 0,
+  latestMaker: 0,
+  preFee: 0,
+  postFee: 0,
+  settlementFee: 0,
 }
 
 const VALID_POSITION: PositionStruct = {
@@ -31,8 +33,9 @@ const VALID_POSITION: PositionStruct = {
   maker: 0,
   long: 0,
   short: 0,
-  fee: 0,
-  keeper: 0,
+  preFee: 0,
+  postFee: 0,
+  settlementFee: 0,
   collateral: 0,
   delta: 0,
   invalidation: {
@@ -42,7 +45,7 @@ const VALID_POSITION: PositionStruct = {
   },
 }
 
-describe.only('Order', () => {
+describe('Order', () => {
   let owner: SignerWithAddress
 
   let order: OrderTester
@@ -56,7 +59,7 @@ describe.only('Order', () => {
   describe('#registerFee', () => {
     describe('maker fees', async () => {
       context('open', () => {
-        it.only('registers fees', async () => {
+        it('registers fees', async () => {
           const result = await order.registerFee(
             {
               ...VALID_ORDER,
@@ -79,10 +82,11 @@ describe.only('Order', () => {
               impactFee: parse6decimal('0.03'),
               skewScale: parse6decimal('200'),
             },
+            false,
           )
 
-          expect(result.fee).to.eq(parse6decimal('12.5')) // (-(0 + 0.50 / 2) * 10 * 0.03 + 10 * 0.1 * 0.02 + 0.01) * 100
-          expect(result.keeper).to.eq(parse6decimal('12'))
+          expect(result.preFee).to.eq(parse6decimal('12.5')) // (-(0 + 0.50 / 2) * 10 * 0.03 + 10 * 0.1 * 0.02 + 0.01) * 100
+          expect(result.settlementFee).to.eq(parse6decimal('12'))
         })
       })
 
@@ -107,10 +111,11 @@ describe.only('Order', () => {
               makerFee: parse6decimal('0.01'),
               makerImpactFee: parse6decimal('0.02'),
             },
+            false,
           )
 
-          expect(result.fee).to.eq(parse6decimal('0'))
-          expect(result.keeper).to.eq(parse6decimal('12'))
+          expect(result.preFee).to.eq(parse6decimal('0'))
+          expect(result.settlementFee).to.eq(parse6decimal('12'))
         })
       })
 
@@ -135,10 +140,11 @@ describe.only('Order', () => {
               makerFee: parse6decimal('0.01'),
               makerImpactFee: parse6decimal('0.02'),
             },
+            false,
           )
 
-          expect(result.fee).to.eq(parse6decimal('5')) // = 100 * 10 * 0.01 - 100 * 10 * 0.25 * 0.02
-          expect(result.keeper).to.eq(parse6decimal('12'))
+          expect(result.preFee).to.eq(parse6decimal('5')) // = 100 * 10 * 0.01 - 100 * 10 * 0.25 * 0.02
+          expect(result.settlementFee).to.eq(parse6decimal('12'))
         })
       })
 
@@ -163,10 +169,11 @@ describe.only('Order', () => {
               makerFee: parse6decimal('0.01'),
               makerImpactFee: parse6decimal('0.02'),
             },
+            false,
           )
 
-          expect(result.fee).to.eq(parse6decimal('20')) // = 100 * 10 * 0.01 + 100 * 10 * 0.5 * 0.02
-          expect(result.keeper).to.eq(parse6decimal('12'))
+          expect(result.preFee).to.eq(parse6decimal('20')) // = 100 * 10 * 0.01 + 100 * 10 * 0.5 * 0.02
+          expect(result.settlementFee).to.eq(parse6decimal('12'))
         })
       })
     })
@@ -197,10 +204,11 @@ describe.only('Order', () => {
                   takerSkewFee: parse6decimal('0.02'),
                   takerImpactFee: parse6decimal('0.03'),
                 },
+                false,
               )
 
-              expect(result.fee).to.eq(parse6decimal('42.5')) // = 100 * 10 * (0.01 + 0.5 * 0.02 + 0.75 * 0.03)
-              expect(result.keeper).to.eq(parse6decimal('12'))
+              expect(result.preFee).to.eq(parse6decimal('42.5')) // = 100 * 10 * (0.01 + 0.5 * 0.02 + 0.75 * 0.03)
+              expect(result.settlementFee).to.eq(parse6decimal('12'))
             })
           })
 
@@ -227,10 +235,11 @@ describe.only('Order', () => {
                   takerSkewFee: parse6decimal('0.02'),
                   takerImpactFee: parse6decimal('0.03'),
                 },
+                false,
               )
 
-              expect(result.fee).to.eq(parse6decimal('12.5')) // = 100 * 10 * (0.01 + 0.5 * 0.02 + -0.25 * 0.03)
-              expect(result.keeper).to.eq(parse6decimal('12'))
+              expect(result.preFee).to.eq(parse6decimal('12.5')) // = 100 * 10 * (0.01 + 0.5 * 0.02 + -0.25 * 0.03)
+              expect(result.settlementFee).to.eq(parse6decimal('12'))
             })
           })
 
@@ -257,10 +266,11 @@ describe.only('Order', () => {
                   takerSkewFee: parse6decimal('0.02'),
                   takerImpactFee: parse6decimal('0.03'),
                 },
+                false,
               )
 
-              expect(result.fee).to.eq(parse6decimal('12.5')) // = 100 * 10 * (0.01 + 0.5 * 0.02 + -0.25 * 0.03)
-              expect(result.keeper).to.eq(parse6decimal('12'))
+              expect(result.preFee).to.eq(parse6decimal('12.5')) // = 100 * 10 * (0.01 + 0.5 * 0.02 + -0.25 * 0.03)
+              expect(result.settlementFee).to.eq(parse6decimal('12'))
             })
           })
 
@@ -287,10 +297,11 @@ describe.only('Order', () => {
                   takerSkewFee: parse6decimal('0.02'),
                   takerImpactFee: parse6decimal('0.03'),
                 },
+                false,
               )
 
-              expect(result.fee).to.eq(parse6decimal('27.5')) // = 100 * 10 * (0.01 + 0.5 * 0.02 + 0.25 * 0.03)
-              expect(result.keeper).to.eq(parse6decimal('12'))
+              expect(result.preFee).to.eq(parse6decimal('27.5')) // = 100 * 10 * (0.01 + 0.5 * 0.02 + 0.25 * 0.03)
+              expect(result.settlementFee).to.eq(parse6decimal('12'))
             })
           })
         })
@@ -312,9 +323,10 @@ describe.only('Order', () => {
             settlementFee: parse6decimal('12'),
           },
           VALID_RISK_PARAMETER,
+          false,
         )
 
-        expect(result.keeper).to.eq(0)
+        expect(result.settlementFee).to.eq(0)
       })
     })
   })

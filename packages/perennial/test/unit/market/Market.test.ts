@@ -660,7 +660,7 @@ describe('Market', () => {
         oracle.request.whenCalledWith(user.address).returns()
       })
 
-      context('no position', async () => {
+      context.only('no position', async () => {
         it('deposits and withdraws (immediately)', async () => {
           dsu.transferFrom.whenCalledWith(user.address, market.address, COLLATERAL.mul(1e12)).returns(true)
           await expect(market.connect(user).update(user.address, 0, 0, 0, COLLATERAL, false))

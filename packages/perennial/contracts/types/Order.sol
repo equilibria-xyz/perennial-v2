@@ -32,9 +32,6 @@ struct Order {
     /// @dev The latest global maker amount
     UFixed6 latestMaker;
 
-    /// @dev The socialization fee for the order
-    Fixed6 socialization;
-
     /// @dev The fee charged locally on order creation
     Fixed6 preFee;
 
@@ -124,7 +121,7 @@ library OrderLib {
         );
 
         // charge or refund pro-rata portion of impact fee pool
-        return totalTakerFee.muldiv(orderMaker.mul(Fixed6Lib.NEG_ONE), Fixed6Lib.from(totalMaker));
+        return totalTakerFee.muldiv(orderMaker.mul(Fixed6Lib.NEG_ONE), Fixed6Lib.from(totalMaker)); // TODO: this doesn't work as additive, but wouldn't be safe as subtractive?
     }
 
     /// @notice Calculates the impact fee
