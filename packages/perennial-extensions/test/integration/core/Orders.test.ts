@@ -30,7 +30,7 @@ function payoff(number: BigNumber): BigNumber {
   return number.mul(number).div(utils.parseEther('1'))
 }
 
-describe.only('Orders', () => {
+describe('Orders', () => {
   let instanceVars: InstanceVars
   let dsuCollateral: BigNumber
   let collateral: BigNumber
