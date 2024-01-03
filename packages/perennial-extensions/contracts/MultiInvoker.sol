@@ -106,8 +106,8 @@ contract MultiInvoker is IMultiInvoker, Kept {
     function canExecuteOrder(address account, IMarket market, uint256 nonce) public view returns (bool) {
         TriggerOrder memory order = orders(account, market, nonce);
         if (order.fee.isZero()) return false;
-        (, OracleVersion memory latestVersion) = _latest(market, account);
-        return order.fillable(latestVersion);
+
+        return order.fillable(market.oracle().latest());
     }
 
     /// @notice entry to perform invocations
@@ -243,15 +243,7 @@ contract MultiInvoker is IMultiInvoker, Kept {
     /// @param interfaceFee Interface fee to charge
     function _chargeFee(address account, IMarket market, InterfaceFee memory interfaceFee) internal {
         if (interfaceFee.amount.isZero()) return;
-
-        market.update(
-            account,
-            UFixed6Lib.MAX,
-            UFixed6Lib.MAX,
-            UFixed6Lib.MAX,
-            Fixed6Lib.from(-1, interfaceFee.amount),
-            false
-        );
+        _marketWithdraw(market, account, interfaceFee.amount);
 
         if (interfaceFee.unwrap) _unwrap(interfaceFee.receiver, UFixed18Lib.from(interfaceFee.amount));
         else DSU.push(interfaceFee.receiver, UFixed18Lib.from(interfaceFee.amount));
@@ -335,37 +327,6 @@ contract MultiInvoker is IMultiInvoker, Kept {
         }
     }
 
-    /// @notice Helper function to compute the latest position and oracle version without a settlement
-    /// @param market Market to compute latest position and oracle version for
-    /// @param account Account to compute latest position and oracle version for
-    /// @return latestPosition Latest position for the account
-    /// @return latestVersion Latest oracle version for the market
-    function _latest(
-        IMarket market,
-        address account
-    ) internal view returns (Position memory latestPosition, OracleVersion memory latestVersion) {
-        // load latest price
-        latestVersion = market.oracle().latest();
-
-        // load latest settled position
-        latestPosition = market.positions(account);
-
-        // scan pending position for any ready-to-be-settled positions
-        Local memory local = market.locals(account);
-        for (uint256 id = local.latestId + 1; id <= local.currentId; id++) {
-
-            // load pending position
-            Position memory pendingPosition = market.pendingPositions(account, id);
-            pendingPosition.adjust(latestPosition);
-
-            // virtual settlement
-            if (pendingPosition.timestamp <= latestVersion.timestamp) {
-                if (!market.oracle().at(pendingPosition.timestamp).valid) latestPosition.invalidate(pendingPosition);
-                latestPosition.update(pendingPosition);
-            }
-        }
-    }
-
     /// @notice executes an `account's` open order for a `market` and pays a fee to `msg.sender`
     /// @param account Account to execute order of
     /// @param market Market to execute order for
@@ -374,7 +335,7 @@ contract MultiInvoker is IMultiInvoker, Kept {
         if (!canExecuteOrder(account, market, nonce)) revert MultiInvokerCantExecuteError();
 
         TriggerOrder memory order = orders(account, market, nonce);
-        // Pay out keeper fee based on static gas buffer
+
         _handleKeeperFee(
             KeepConfig(
                 UFixed18Lib.ZERO,
@@ -388,9 +349,9 @@ contract MultiInvoker is IMultiInvoker, Kept {
             abi.encode(account, market, order.fee)
         );
 
-        (Position memory latestPosition, ) = _latest(market, account);
+        _marketSettle(market, account);
+
         Position memory currentPosition = market.pendingPositions(account, market.locals(account).currentId);
-        currentPosition.adjust(latestPosition);
 
         order.execute(currentPosition);
 
@@ -416,15 +377,7 @@ contract MultiInvoker is IMultiInvoker, Kept {
     function _raiseKeeperFee(UFixed18 keeperFee, bytes memory data) internal virtual override returns (UFixed18) {
         (address account, IMarket market, UFixed6 fee) = abi.decode(data, (address, IMarket, UFixed6));
         UFixed6 raisedKeeperFee = UFixed6Lib.from(keeperFee, true).min(fee);
-
-        market.update(
-            account,
-            UFixed6Lib.MAX,
-            UFixed6Lib.MAX,
-            UFixed6Lib.MAX,
-            Fixed6Lib.from(-1, raisedKeeperFee),
-            false
-        );
+        _marketWithdraw(market, account, raisedKeeperFee);
 
         return UFixed18Lib.from(raisedKeeperFee);
     }
@@ -456,6 +409,21 @@ contract MultiInvoker is IMultiInvoker, Kept {
     function _cancelOrder(address account, IMarket market, uint256 nonce) internal {
         delete _orders[account][market][nonce];
         emit OrderCancelled(account, market, nonce);
+    }
+
+    /// @notice Withdraws `withdrawal` from `account`'s `market` position
+    /// @param market Market to withdraw from
+    /// @param account Account to withdraw from
+    /// @param withdrawal Amount to withdraw
+    function _marketWithdraw(IMarket market, address account, UFixed6 withdrawal) private {
+        market.update(account, UFixed6Lib.MAX, UFixed6Lib.MAX, UFixed6Lib.MAX, Fixed6Lib.from(-1, withdrawal), false);
+    }
+
+    /// @notice Settles `account`'s `market` position
+    /// @param market Market to settle
+    /// @param account Account to settle
+    function _marketSettle(IMarket market, address account) private {
+        _marketWithdraw(market, account, UFixed6Lib.ZERO);
     }
 
     /// @notice Target market must be created by MarketFactory
