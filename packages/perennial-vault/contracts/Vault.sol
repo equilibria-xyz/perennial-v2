@@ -161,17 +161,23 @@ contract Vault is IVault, Instance {
 
         asset.approve(address(market));
 
-        uint256 newMarketId = totalMarkets++;
-        _registerMarket(newMarketId, market);
+        uint256 newMarketId = _registerMarket(market);
         _updateMarket(newMarketId, newMarketId == 0 ? UFixed6Lib.ONE : UFixed6Lib.ZERO, UFixed6Lib.ZERO);
     }
 
-    // TODO
-    function _registerMarket(uint256 marketId, IMarket market) private {
-        _registrations[marketId].store(Registration(market, UFixed6Lib.ZERO, UFixed6Lib.ZERO));
-        emit MarketRegistered(marketId, market);
+    /// @notice Processes the state changes for a market registration
+    /// @param market The market to register
+    /// @return newMarketId The new market id
+    function _registerMarket(IMarket market) private returns (uint256 newMarketId) {
+        newMarketId = totalMarkets++;
+        _registrations[newMarketId].store(Registration(market, UFixed6Lib.ZERO, UFixed6Lib.ZERO));
+        emit MarketRegistered(newMarketId, market);
     }
 
+    /// @notice Processes the state changes for a market update
+    /// @param marketId The market id
+    /// @param newWeight The new weight for the market
+    /// @param newLeverage The new leverage for the market
     function _updateMarket(uint256 marketId, UFixed6 newWeight, UFixed6 newLeverage) private {
         Registration memory registration = _registrations[marketId].read();
         registration.weight = newWeight.eq(UFixed6Lib.MAX) ? registration.weight : newWeight;
