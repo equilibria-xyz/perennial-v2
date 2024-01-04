@@ -313,7 +313,7 @@ describe('MultiInvoker', () => {
           buildUpdateMarket({
             market: market.address,
             collateral: collateral,
-            interfaceFee: {
+            interfaceFee1: {
               receiver: owner.address,
               amount: feeAmt,
               unwrap: false,
@@ -339,7 +339,7 @@ describe('MultiInvoker', () => {
           buildUpdateMarket({
             market: market.address,
             collateral: collateral,
-            interfaceFee: {
+            interfaceFee1: {
               receiver: owner.address,
               amount: feeAmt,
               unwrap: true,
@@ -368,7 +368,7 @@ describe('MultiInvoker', () => {
           buildUpdateMarket({
             market: market.address,
             collateral: collateral.sub(feeAmt).mul(-1),
-            interfaceFee: {
+            interfaceFee1: {
               receiver: owner.address,
               amount: feeAmt,
               unwrap: false,
@@ -399,7 +399,7 @@ describe('MultiInvoker', () => {
           buildUpdateMarket({
             market: market.address,
             collateral: collateral.sub(feeAmt).mul(-1),
-            interfaceFee: {
+            interfaceFee1: {
               receiver: owner.address,
               amount: feeAmt,
               unwrap: true,
@@ -475,7 +475,8 @@ describe('MultiInvoker', () => {
           fee: 10e6,
           price: trigger.price,
           delta: position,
-          interfaceFee: { amount: 0, receiver: constants.AddressZero, unwrap: false },
+          interfaceFee1: { amount: 0, receiver: constants.AddressZero, unwrap: false },
+          interfaceFee2: { amount: 0, receiver: constants.AddressZero, unwrap: false },
         })
 
       expect(await multiInvoker.latestNonce()).to.eq(1)
@@ -496,7 +497,7 @@ describe('MultiInvoker', () => {
         side: Dir.L,
         comparison: Compare.ABOVE_MARKET,
         price: price,
-        interfaceFee: {
+        interfaceFee1: {
           receiver: owner.address,
           amount: 100e6,
           unwrap: false,
@@ -521,7 +522,8 @@ describe('MultiInvoker', () => {
           fee: 10e6,
           price: trigger.price,
           delta: position,
-          interfaceFee: { amount: 100e6, receiver: owner.address, unwrap: false },
+          interfaceFee1: { amount: 100e6, receiver: owner.address, unwrap: false },
+          interfaceFee2: { amount: 0, receiver: constants.AddressZero, unwrap: false },
         })
 
       expect(await multiInvoker.latestNonce()).to.eq(1)
@@ -532,9 +534,12 @@ describe('MultiInvoker', () => {
       expect(orderState.fee).to.equal(trigger.fee)
       expect(orderState.price).to.equal(trigger.price)
       expect(orderState.delta).to.equal(trigger.delta)
-      expect(orderState.interfaceFee.amount).to.equal(100e6)
-      expect(orderState.interfaceFee.receiver).to.equal(owner.address)
-      expect(orderState.interfaceFee.unwrap).to.equal(false)
+      expect(orderState.interfaceFee1.amount).to.equal(100e6)
+      expect(orderState.interfaceFee1.receiver).to.equal(owner.address)
+      expect(orderState.interfaceFee1.unwrap).to.equal(false)
+      expect(orderState.interfaceFee2.amount).to.equal(0)
+      expect(orderState.interfaceFee2.receiver).to.equal(constants.AddressZero)
+      expect(orderState.interfaceFee2.unwrap).to.equal(false)
     })
 
     it('places a limit order w/ interface fee (unwrap)', async () => {
@@ -543,9 +548,14 @@ describe('MultiInvoker', () => {
         side: Dir.L,
         comparison: Compare.ABOVE_MARKET,
         price: price,
-        interfaceFee: {
+        interfaceFee1: {
           receiver: owner.address,
           amount: 100e6,
+          unwrap: true,
+        },
+        interfaceFee2: {
+          receiver: constants.AddressZero,
+          amount: 0,
           unwrap: true,
         },
       })
@@ -568,7 +578,8 @@ describe('MultiInvoker', () => {
           fee: 10e6,
           price: trigger.price,
           delta: position,
-          interfaceFee: { amount: 100e6, receiver: owner.address, unwrap: true },
+          interfaceFee1: { amount: 100e6, receiver: owner.address, unwrap: true },
+          interfaceFee2: { amount: 0, receiver: constants.AddressZero, unwrap: true },
         })
 
       expect(await multiInvoker.latestNonce()).to.eq(1)
@@ -579,9 +590,12 @@ describe('MultiInvoker', () => {
       expect(orderState.fee).to.equal(trigger.fee)
       expect(orderState.price).to.equal(trigger.price)
       expect(orderState.delta).to.equal(trigger.delta)
-      expect(orderState.interfaceFee.amount).to.equal(100e6)
-      expect(orderState.interfaceFee.receiver).to.equal(owner.address)
-      expect(orderState.interfaceFee.unwrap).to.equal(true)
+      expect(orderState.interfaceFee1.amount).to.equal(100e6)
+      expect(orderState.interfaceFee1.receiver).to.equal(owner.address)
+      expect(orderState.interfaceFee1.unwrap).to.equal(true)
+      expect(orderState.interfaceFee2.amount).to.equal(0)
+      expect(orderState.interfaceFee2.receiver).to.equal(constants.AddressZero)
+      expect(orderState.interfaceFee2.unwrap).to.equal(true)
     })
 
     it('places a tp order', async () => {
@@ -993,7 +1007,7 @@ describe('MultiInvoker', () => {
           price: BigNumber.from(1200e6),
           side: Dir.L,
           comparison: Compare.ABOVE_MARKET,
-          interfaceFee: { receiver: owner.address, amount: 100e6, unwrap: false },
+          interfaceFee1: { receiver: owner.address, amount: 100e6, unwrap: false },
         })
 
         const placeOrder = buildPlaceOrder({
@@ -1120,7 +1134,8 @@ describe('MultiInvoker', () => {
         testOrder.fee = MAX_UINT64
         testOrder.price = MAX_INT64
         testOrder.delta = MAX_INT64
-        testOrder.interfaceFee.amount = MAX_UINT48
+        testOrder.interfaceFee1.amount = MAX_UINT48
+        testOrder.interfaceFee2.amount = MAX_UINT48
 
         await multiInvoker
           .connect(user)
@@ -1131,7 +1146,8 @@ describe('MultiInvoker', () => {
         expect(placedOrder.fee).to.be.eq(MAX_UINT64)
         expect(placedOrder.price).to.be.eq(MAX_INT64)
         expect(placedOrder.delta).to.be.eq(MAX_INT64)
-        expect(placedOrder.interfaceFee.amount).to.be.eq(MAX_UINT48)
+        expect(placedOrder.interfaceFee1.amount).to.be.eq(MAX_UINT48)
+        expect(placedOrder.interfaceFee2.amount).to.be.eq(MAX_UINT48)
 
         testOrder.price = MIN_INT64
         testOrder.delta = MIN_INT64

@@ -398,7 +398,7 @@ describe('Orders', () => {
       price: payoff(marketPrice.sub(10)),
       side: Dir.L,
       comparison: Compare.ABOVE_MARKET,
-      interfaceFee: { amount: 50e6, receiver: userB.address, unwrap: false },
+      interfaceFee1: { amount: 50e6, receiver: userB.address, unwrap: false },
     })
 
     const placeOrder = buildPlaceOrder({
@@ -436,7 +436,7 @@ describe('Orders', () => {
       price: payoff(marketPrice.sub(10)),
       side: Dir.L,
       comparison: Compare.ABOVE_MARKET,
-      interfaceFee: { amount: 50e6, receiver: userB.address, unwrap: true },
+      interfaceFee1: { amount: 50e6, receiver: userB.address, unwrap: true },
     })
 
     const placeOrder = buildPlaceOrder({
@@ -816,7 +816,11 @@ describe('Orders', () => {
       await assertStoreFail(testOrder, multiInvoker, market, user)
       testOrder = { ...defaultOrder }
 
-      testOrder.interfaceFee.amount = MAX_UINT48.add(1)
+      testOrder.interfaceFee1.amount = MAX_UINT48.add(1)
+      await assertStoreFail(testOrder, multiInvoker, market, user)
+      testOrder = { ...defaultOrder }
+
+      testOrder.interfaceFee2.amount = MAX_UINT48.add(1)
       await assertStoreFail(testOrder, multiInvoker, market, user)
       testOrder = { ...defaultOrder }
     })

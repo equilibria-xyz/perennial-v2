@@ -125,10 +125,11 @@ contract MultiInvoker is IMultiInvoker, Kept {
                     UFixed6 newShort,
                     Fixed6 collateral,
                     bool wrap,
-                    InterfaceFee memory interfaceFee
-                ) = abi.decode(invocation.args, (IMarket, UFixed6, UFixed6, UFixed6, Fixed6, bool, InterfaceFee));
+                    InterfaceFee memory interfaceFee1,
+                    InterfaceFee memory interfaceFee2
+                ) = abi.decode(invocation.args, (IMarket, UFixed6, UFixed6, UFixed6, Fixed6, bool, InterfaceFee, InterfaceFee));
 
-                _update(msg.sender, market, newMaker, newLong, newShort, collateral, wrap, interfaceFee);
+                _update(msg.sender, market, newMaker, newLong, newShort, collateral, wrap, interfaceFee1, interfaceFee2);
             } else if (invocation.action == PerennialAction.UPDATE_VAULT) {
                 (IVault vault, UFixed6 depositAssets, UFixed6 redeemShares, UFixed6 claimAssets, bool wrap)
                     = abi.decode(invocation.args, (IVault, UFixed6, UFixed6, UFixed6, bool));
@@ -170,7 +171,8 @@ contract MultiInvoker is IMultiInvoker, Kept {
     /// @param newShort New short position for account in `market`
     /// @param collateral Net change in collateral for account in `market`
     /// @param wrap Wheather to wrap/unwrap collateral on deposit/withdrawal
-    /// @param interfaceFee Interface fee to charge
+    /// @param interfaceFee1 Primary interface fee to charge
+    /// @param interfaceFee2 Secondary interface fee to charge
     function _update(
         address account,
         IMarket market,
@@ -179,7 +181,8 @@ contract MultiInvoker is IMultiInvoker, Kept {
         UFixed6 newShort,
         Fixed6 collateral,
         bool wrap,
-        InterfaceFee memory interfaceFee
+        InterfaceFee memory interfaceFee1,
+        InterfaceFee memory interfaceFee2
     ) internal isMarketInstance(market) {
         Fixed18 balanceBefore =  Fixed18Lib.from(DSU.balanceOf());
 
@@ -192,7 +195,8 @@ contract MultiInvoker is IMultiInvoker, Kept {
         if (!withdrawAmount.isZero()) _withdraw(account, withdrawAmount.abs(), wrap);
 
         // charge interface fee
-        _chargeFee(account, market, interfaceFee);
+        _chargeFee(account, market, interfaceFee1);
+        _chargeFee(account, market, interfaceFee2);
     }
 
     /// @notice Update vault on behalf of msg.sender
@@ -395,7 +399,8 @@ contract MultiInvoker is IMultiInvoker, Kept {
             currentPosition.short,
             currentPosition.collateral,
             true,
-            order.interfaceFee
+            order.interfaceFee1,
+            order.interfaceFee2
         );
 
         delete _orders[account][market][nonce];

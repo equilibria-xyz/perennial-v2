@@ -489,7 +489,7 @@ describe('Invoke', () => {
           buildUpdateMarket({
             market: market.address,
             collateral: collateral,
-            interfaceFee: {
+            interfaceFee1: {
               amount: feeAmt,
               receiver: owner.address,
               unwrap: true,
@@ -517,7 +517,7 @@ describe('Invoke', () => {
           buildUpdateMarket({
             market: market.address,
             collateral: collateral,
-            interfaceFee: {
+            interfaceFee1: {
               amount: feeAmt,
               receiver: owner.address,
               unwrap: false,
@@ -549,7 +549,7 @@ describe('Invoke', () => {
           buildUpdateMarket({
             market: market.address,
             collateral: collateral.sub(feeAmt).mul(-1),
-            interfaceFee: {
+            interfaceFee1: {
               amount: feeAmt,
               receiver: owner.address,
               unwrap: true,
@@ -581,7 +581,7 @@ describe('Invoke', () => {
           buildUpdateMarket({
             market: market.address,
             collateral: collateral.sub(feeAmt).mul(-1),
-            interfaceFee: {
+            interfaceFee1: {
               amount: feeAmt,
               receiver: owner.address,
               unwrap: false,
