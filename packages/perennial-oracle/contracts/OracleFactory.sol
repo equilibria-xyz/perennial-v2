@@ -30,17 +30,10 @@ contract OracleFactory is IOracleFactory, Factory {
 
     /// @notice Initializes the contract state
     /// @param incentive_ The token that is paid out as a fee to oracle keepers
-    /// @param usdc_ USDC address
-    /// @param reserve_ EmptySetReserve address
-    function initialize(Token18 incentive_, Token6 usdc_, IEmptySetReserve reserve_) external initializer(2) {
+    function initialize(Token18 incentive_) external initializer(3) {
         __Factory__initialize();
 
         incentive = incentive_;
-
-        // One-time wrap of USDC to DSU.
-        usdc_.approve(address(reserve_));
-        reserve_.mint(UFixed18Lib.from(usdc_.balanceOf()));
-        usdc_.approve(address(reserve_), UFixed6Lib.ZERO);
     }
 
     /// @notice Registers a new oracle provider factory to be used in the underlying oracle instances
