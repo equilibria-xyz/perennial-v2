@@ -63,6 +63,10 @@ const overwriteTimestamp = (payload: string, timestamp: BigNumberish) => {
   )
 }
 
+const listify = (...payload: string[]) => {
+  return ethers.utils.defaultAbiCoder.encode(['bytes[]'], [payload])
+}
+
 describe('ChainlinkFactory', () => {
   let owner: SignerWithAddress
   let user: SignerWithAddress
@@ -171,14 +175,17 @@ describe('ChainlinkFactory', () => {
   it('parses Chainlink report correctly', async () => {
     await keeperOracle.connect(oracleSigner).request(market.address, user.address)
 
-    const report = overwriteTimestamp(
-      CHAINLINK_PAYLOAD,
-      (await keeperOracle.callStatic.next()).add(await chainlinkFactory.validFrom()),
+    const report = listify(
+      overwriteTimestamp(
+        CHAINLINK_PAYLOAD,
+        (await keeperOracle.callStatic.next()).add(await chainlinkFactory.validFrom()),
+      ),
     )
     const version = await keeperOracle.callStatic.next()
     await expect(
       chainlinkFactory.connect(user).commit([CHAINLINK_ETH_USD_PRICE_FEED], version, report, {
         value: 4800,
+        gasLimit: 1_000_000,
       }),
     )
       .to.emit(keeperOracle, 'OracleProviderVersionFulfilled')
@@ -190,9 +197,11 @@ describe('ChainlinkFactory', () => {
   it('commit reverts if msg.value is too low', async () => {
     await keeperOracle.connect(oracleSigner).request(market.address, user.address)
 
-    const report = overwriteTimestamp(
-      CHAINLINK_PAYLOAD,
-      (await keeperOracle.callStatic.next()).add(await chainlinkFactory.validFrom()),
+    const report = listify(
+      overwriteTimestamp(
+        CHAINLINK_PAYLOAD,
+        (await keeperOracle.callStatic.next()).add(await chainlinkFactory.validFrom()),
+      ),
     )
 
     await expect(

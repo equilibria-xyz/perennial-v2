@@ -4,7 +4,7 @@ pragma solidity ^0.8.13;
 import "./IKeeperFactory.sol";
 
 interface IChainlinkFactory is IKeeperFactory {
-    error ChainlinkFactoryMultipleIdsError();
+    error ChainlinkFactoryMismatchingInputLengthsError();
     error ChainlinkFactoryVersionOutsideRangeError();
     error ChainlinkFactoryInvalidFeedIdError(bytes32 feedId);
 }
