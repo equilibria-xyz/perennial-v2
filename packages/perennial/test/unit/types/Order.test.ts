@@ -75,7 +75,7 @@ describe('Order', () => {
             {
               ...VALID_RISK_PARAMETER,
               makerFee: parse6decimal('0.01'),
-              makerImpactFee: parse6decimal('0.02'),
+              makerMagnitudeFee: parse6decimal('0.02'),
             },
           )
 
@@ -103,7 +103,7 @@ describe('Order', () => {
             {
               ...VALID_RISK_PARAMETER,
               makerFee: parse6decimal('0.01'),
-              makerImpactFee: parse6decimal('0.02'),
+              makerMagnitudeFee: parse6decimal('0.02'),
             },
           )
 
@@ -131,7 +131,7 @@ describe('Order', () => {
             {
               ...VALID_RISK_PARAMETER,
               makerFee: parse6decimal('0.01'),
-              makerImpactFee: parse6decimal('0.02'),
+              makerMagnitudeFee: parse6decimal('0.02'),
             },
           )
 
@@ -159,7 +159,7 @@ describe('Order', () => {
             {
               ...VALID_RISK_PARAMETER,
               makerFee: parse6decimal('0.01'),
-              makerImpactFee: parse6decimal('0.02'),
+              makerMagnitudeFee: parse6decimal('0.02'),
             },
           )
 
@@ -192,8 +192,8 @@ describe('Order', () => {
                 {
                   ...VALID_RISK_PARAMETER,
                   takerFee: parse6decimal('0.01'),
-                  takerSkewFee: parse6decimal('0.02'),
-                  takerImpactFee: parse6decimal('0.03'),
+                  takerMagnitudeFee: parse6decimal('0.02'),
+                  impactFee: parse6decimal('0.03'),
                 },
               )
 
@@ -222,8 +222,8 @@ describe('Order', () => {
                 {
                   ...VALID_RISK_PARAMETER,
                   takerFee: parse6decimal('0.01'),
-                  takerSkewFee: parse6decimal('0.02'),
-                  takerImpactFee: parse6decimal('0.03'),
+                  takerMagnitudeFee: parse6decimal('0.02'),
+                  impactFee: parse6decimal('0.03'),
                 },
               )
 
@@ -252,8 +252,8 @@ describe('Order', () => {
                 {
                   ...VALID_RISK_PARAMETER,
                   takerFee: parse6decimal('0.01'),
-                  takerSkewFee: parse6decimal('0.02'),
-                  takerImpactFee: parse6decimal('0.03'),
+                  takerMagnitudeFee: parse6decimal('0.02'),
+                  impactFee: parse6decimal('0.03'),
                 },
               )
 
@@ -282,8 +282,8 @@ describe('Order', () => {
                 {
                   ...VALID_RISK_PARAMETER,
                   takerFee: parse6decimal('0.01'),
-                  takerSkewFee: parse6decimal('0.02'),
-                  takerImpactFee: parse6decimal('0.03'),
+                  takerMagnitudeFee: parse6decimal('0.02'),
+                  impactFee: parse6decimal('0.03'),
                 },
               )
 

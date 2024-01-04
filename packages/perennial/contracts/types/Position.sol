@@ -58,12 +58,8 @@ library PositionLib {
     /// @param self The position object to update
     /// @param newPosition The new latest position
     function update(Position memory self, Position memory newPosition) internal pure {
-        (self.timestamp, self.maker, self.long, self.short) = (
-            newPosition.timestamp,
-            newPosition.maker,
-            newPosition.long,
-            newPosition.short
-        );
+        (self.timestamp, self.maker, self.long, self.short) =
+            (newPosition.timestamp, newPosition.maker, newPosition.long, newPosition.short);
     }
 
     /// @notice Updates the current local position with a new order
@@ -86,25 +82,21 @@ library PositionLib {
             Fixed6Lib.from(newShort).sub(Fixed6Lib.from(self.short))
         );
 
-        (self.timestamp, self.maker, self.long, self.short) =
-            (currentTimestamp, newMaker, newLong, newShort);
+        (self.timestamp, self.maker, self.long, self.short) = (currentTimestamp, newMaker, newLong, newShort);
     }
 
     /// @notice Updates the current global position with a new order
     /// @param self The position object to update
     /// @param currentTimestamp The current timestamp
     /// @param order The new order
-    /// @param riskParameter The current risk parameter
     function update(
         Position memory self,
         uint256 currentTimestamp,
-        Order memory order,
-        RiskParameter memory riskParameter
+        Order memory order
     ) internal pure {
         // load the computed attributes of the latest position
-        Fixed6 latestStaticSkew = staticSkew(self, riskParameter);
-        (order.net, order.efficiency, order.utilization) =
-            (Fixed6Lib.from(net(self)), Fixed6Lib.from(efficiency(self)), Fixed6Lib.from(utilization(self, riskParameter)));
+        (order.net, order.efficiency, order.latestMaker, order.latestSkew) =
+            (Fixed6Lib.from(net(self)), Fixed6Lib.from(efficiency(self)), self.maker, skew(self));
 
         // update the position's attributes
         (self.timestamp, self.maker, self.long, self.short) = (
@@ -114,17 +106,11 @@ library PositionLib {
             UFixed6Lib.from(Fixed6Lib.from(self.short).add(order.short))
         );
 
-        Fixed6 currentStaticSkew = staticSkew(self, riskParameter);
         // update the order's delta attributes with the positions updated attributes
-        (order.net, order.skew, order.impact, order.efficiency, order.utilization) = (
-            Fixed6Lib.from(net(self)).sub(order.net),
-            riskParameter.skewScale.isZero() ? UFixed6Lib.ZERO : order.magnitude().abs().div(riskParameter.skewScale),
-            currentStaticSkew.eq(latestStaticSkew) ?
-                Fixed6Lib.ZERO :
-                latestStaticSkew.add(currentStaticSkew).div(
-                    Fixed6Lib.from(2 * currentStaticSkew.sub(latestStaticSkew).sign())),
-            Fixed6Lib.from(efficiency(self)).sub(order.efficiency),
-            Fixed6Lib.from(utilization(self, riskParameter)).sub(order.utilization)
+        (order.currentMaker, order.currentSkew, order.efficiency) = (
+            self.maker,
+            skew(self),
+            Fixed6Lib.from(efficiency(self)).sub(order.efficiency)
         );
     }
 
@@ -210,40 +196,10 @@ library PositionLib {
     }
 
     /// @notice Returns the skew of the position
-    /// @dev skew = (long - short) / max(long, short)
     /// @param self The position object to check
     /// @return The skew of the position
-    function relativeSkew(Position memory self) internal pure returns (Fixed6) {
-        return _skew(self, major(self));
-    }
-
-    /// @notice Returns the static skew of the position taking into account the skew scale
-    /// @dev static skew = (long - short) / skewScale
-    /// @param self The position object to check
-    /// @param riskParameter The current risk parameter
-    /// @return The static skew of the position
-    function staticSkew(Position memory self, RiskParameter memory riskParameter) internal pure returns (Fixed6) {
-        return _skew(self, riskParameter.skewScale);
-    }
-
-    /// @notice Returns the skew of the position taking into account position socialization
-    /// @dev Used to calculate the portion of the position that is covered by the maker
-    /// @param self The position object to check
-    /// @return The socialized skew of the position
-    function socializedSkew(Position memory self) internal pure returns (UFixed6) {
-        return takerSocialized(self).isZero() ?
-            UFixed6Lib.ZERO :
-            takerSocialized(self).sub(minor(self)).div(takerSocialized(self));
-    }
-
-    /// @notice Helper function to return the skew of the position given a denominator
-    /// @param self The position object to check
-    /// @param denominator The denominator of the skew calculation
-    /// @return The skew of the position
-    function _skew(Position memory self, UFixed6 denominator) internal pure returns (Fixed6) {
-        return denominator.isZero() ?
-            Fixed6Lib.ZERO :
-            Fixed6Lib.from(self.long).sub(Fixed6Lib.from(self.short)).div(Fixed6Lib.from(denominator));
+    function skew(Position memory self) internal pure returns (Fixed6) {
+        return Fixed6Lib.from(self.long).sub(Fixed6Lib.from(self.short));
     }
 
     /// @notice Returns the utilization of the position
@@ -260,6 +216,15 @@ library PositionLib {
         
         // maximum of the two utilizations, capped at 100%
         return netUtilization.max(efficiencyUtilization).min(UFixed6Lib.ONE);
+    }
+
+    /// @notice Returns the portion of the position that is covered by the maker
+    /// @param self The position object to check
+    /// @return The portion of the position that is covered by the maker
+    function socializedMakerPortion(Position memory self) internal pure returns (UFixed6) {
+        return takerSocialized(self).isZero() ?
+            UFixed6Lib.ZERO :
+            takerSocialized(self).sub(minor(self)).div(takerSocialized(self));
     }
 
     /// @notice Returns the long position with socialization taken into account

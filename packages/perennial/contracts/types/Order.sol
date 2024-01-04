@@ -20,20 +20,26 @@ struct Order {
     /// @dev The change in the net position
     Fixed6 net;
 
-    /// @dev The magnitude of the change in the skew
-    UFixed6 skew;
+    /// @dev The latest global maker prior to the order
+    UFixed6 latestMaker;
 
-    /// @dev The change of the magnitude in the skew
-    Fixed6 impact;
+    /// @dev The global maker after the order the order is applied
+    UFixed6 currentMaker;
 
-    /// @dev The change in the utilization=
-    Fixed6 utilization;
+    /// @dev The latest skew prior to the order
+    Fixed6 latestSkew;
+
+    /// @dev The skew after the order is applied
+    Fixed6 currentSkew;
 
     /// @dev The change in the efficiency
     Fixed6 efficiency;
 
     /// @dev The fee for the order
     Fixed6 fee;
+
+    /// @dev The impact delta for the order
+    Fixed6 impact;
 
     /// @dev The fixed settlement fee for the order
     UFixed6 keeper;
@@ -54,18 +60,58 @@ library OrderLib {
         MarketParameter memory marketParameter,
         RiskParameter memory riskParameter
     ) internal pure {
-        Fixed6 makerFee = Fixed6Lib.from(riskParameter.makerFee)
-            .add(Fixed6Lib.from(riskParameter.makerImpactFee).mul(self.utilization))
-            .max(Fixed6Lib.ZERO);
-        Fixed6 takerFee = Fixed6Lib.from(riskParameter.takerFee)
-            .add(Fixed6Lib.from(riskParameter.takerSkewFee.mul(self.skew)))
-            .add(Fixed6Lib.from(riskParameter.takerImpactFee).mul(self.impact))
-            .max(Fixed6Lib.ZERO);
-        Fixed6 fee = Fixed6Lib.from(self.maker.abs().mul(latestVersion.price.abs())).mul(makerFee)
-            .add(Fixed6Lib.from(self.long.abs().add(self.short.abs()).mul(latestVersion.price.abs())).mul(takerFee));
+        UFixed6 magnitudeFee = _calculateMagnitudeFee(
+            magnitude(self).abs(),
+            self.maker.isZero() ? riskParameter.takerFee : riskParameter.makerFee,
+            self.maker.isZero() ? riskParameter.takerMagnitudeFee : riskParameter.makerMagnitudeFee,
+            riskParameter.skewScale
+        ).mul(latestVersion.price.abs());
 
-        self.fee = marketParameter.closed ? Fixed6Lib.ZERO : fee;
+        Fixed6 impactFee = _calculateImpactFee(
+            self.maker.isZero() ? self.latestSkew : Fixed6Lib.from(riskParameter.skewScale.unsafeSub(self.latestMaker)),
+            self.maker.isZero() ? self.currentSkew : Fixed6Lib.from(riskParameter.skewScale.unsafeSub(self.currentMaker)),
+            self.maker.isZero() ? self.currentSkew.sub(self.latestSkew) : self.maker,
+            riskParameter.impactFee,
+            riskParameter.skewScale
+        ).mul(Fixed6Lib.from(latestVersion.price.abs()));
+
+        self.impact = marketParameter.closed ? Fixed6Lib.ZERO : impactFee;
+        self.fee = marketParameter.closed ? Fixed6Lib.ZERO : Fixed6Lib.from(magnitudeFee);
         self.keeper = isEmpty(self) ? UFixed6Lib.ZERO : marketParameter.settlementFee;
+    }
+
+    /// @notice Calculates the impact fee
+    /// @param latestSkew The latest skew
+    /// @param currentSkew The current skew
+    /// @param orderImpact The order impact
+    /// @param impactFee The impact fee
+    /// @param skewScale The skew scale
+    /// @return The impact fee
+    function _calculateImpactFee(
+        Fixed6 latestSkew,
+        Fixed6 currentSkew,
+        Fixed6 orderImpact,
+        UFixed6 impactFee,
+        UFixed6 skewScale
+    ) private pure returns (Fixed6) {
+        Fixed6 skewAUC = latestSkew.add(currentSkew).unsafeDiv(Fixed6Lib.from(skewScale)).div(Fixed6Lib.from(2));
+        return Fixed6Lib.from(impactFee).mul(skewAUC).mul(orderImpact);
+    }
+
+    /// @notice Calculates the magnitude fee
+    /// @param orderMagnitude The order magnitude
+    /// @param baseFee The base fee
+    /// @param magnitudeFee The magnitude fee
+    /// @param skewScale The skew scale
+    /// @return The magnitude fee
+    function _calculateMagnitudeFee(
+        UFixed6 orderMagnitude,
+        UFixed6 baseFee,
+        UFixed6 magnitudeFee,
+        UFixed6 skewScale
+    ) private pure returns (UFixed6) {
+        UFixed6 orderMagnitudeScaled = orderMagnitude.unsafeDiv(skewScale);
+        return baseFee.add(magnitudeFee.mul(orderMagnitudeScaled)).mul(orderMagnitude);
     }
 
     /// @notice Returns whether the order increases any of the account's positions

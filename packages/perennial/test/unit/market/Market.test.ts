@@ -390,10 +390,10 @@ describe('Market', () => {
       margin: parse6decimal('0.35'),
       maintenance: parse6decimal('0.3'),
       takerFee: 0,
-      takerSkewFee: 0,
-      takerImpactFee: 0,
+      takerMagnitudeFee: 0,
+      impactFee: 0,
       makerFee: 0,
-      makerImpactFee: 0,
+      makerMagnitudeFee: 0,
       makerLimit: parse6decimal('1000'),
       efficiencyLimit: parse6decimal('0.2'),
       liquidationFee: parse6decimal('0.50'),
@@ -443,10 +443,10 @@ describe('Market', () => {
       expect(riskParameterResult.margin).to.equal(0)
       expect(riskParameterResult.maintenance).to.equal(0)
       expect(riskParameterResult.takerFee).to.equal(0)
-      expect(riskParameterResult.takerSkewFee).to.equal(0)
-      expect(riskParameterResult.takerImpactFee).to.equal(0)
+      expect(riskParameterResult.takerMagnitudeFee).to.equal(0)
+      expect(riskParameterResult.impactFee).to.equal(0)
       expect(riskParameterResult.makerFee).to.equal(0)
-      expect(riskParameterResult.makerImpactFee).to.equal(0)
+      expect(riskParameterResult.makerMagnitudeFee).to.equal(0)
       expect(riskParameterResult.makerLimit).to.equal(0)
       expect(riskParameterResult.efficiencyLimit).to.equal(0)
       expect(riskParameterResult.liquidationFee).to.equal(0)
@@ -547,10 +547,10 @@ describe('Market', () => {
         margin: parse6decimal('0.5'),
         maintenance: parse6decimal('0.4'),
         takerFee: parse6decimal('0.01'),
-        takerSkewFee: parse6decimal('0.004'),
-        takerImpactFee: parse6decimal('0.003'),
+        takerMagnitudeFee: parse6decimal('0.004'),
+        impactFee: parse6decimal('0.003'),
         makerFee: parse6decimal('0.005'),
-        makerImpactFee: parse6decimal('0.001'),
+        makerMagnitudeFee: parse6decimal('0.001'),
         makerLimit: parse6decimal('2000'),
         efficiencyLimit: parse6decimal('0.2'),
         liquidationFee: parse6decimal('0.25'),
@@ -583,10 +583,10 @@ describe('Market', () => {
         expect(riskParameter.margin).to.equal(defaultRiskParameter.margin)
         expect(riskParameter.maintenance).to.equal(defaultRiskParameter.maintenance)
         expect(riskParameter.takerFee).to.equal(defaultRiskParameter.takerFee)
-        expect(riskParameter.takerSkewFee).to.equal(defaultRiskParameter.takerSkewFee)
-        expect(riskParameter.takerImpactFee).to.equal(defaultRiskParameter.takerImpactFee)
+        expect(riskParameter.takerMagnitudeFee).to.equal(defaultRiskParameter.takerMagnitudeFee)
+        expect(riskParameter.impactFee).to.equal(defaultRiskParameter.impactFee)
         expect(riskParameter.makerFee).to.equal(defaultRiskParameter.makerFee)
-        expect(riskParameter.makerImpactFee).to.equal(defaultRiskParameter.makerImpactFee)
+        expect(riskParameter.makerMagnitudeFee).to.equal(defaultRiskParameter.makerMagnitudeFee)
         expect(riskParameter.makerLimit).to.equal(defaultRiskParameter.makerLimit)
         expect(riskParameter.efficiencyLimit).to.equal(defaultRiskParameter.efficiencyLimit)
         expect(riskParameter.liquidationFee).to.equal(defaultRiskParameter.liquidationFee)
@@ -618,10 +618,10 @@ describe('Market', () => {
         expect(riskParameter.margin).to.equal(defaultRiskParameter.margin)
         expect(riskParameter.maintenance).to.equal(defaultRiskParameter.maintenance)
         expect(riskParameter.takerFee).to.equal(defaultRiskParameter.takerFee)
-        expect(riskParameter.takerSkewFee).to.equal(defaultRiskParameter.takerSkewFee)
-        expect(riskParameter.takerImpactFee).to.equal(defaultRiskParameter.takerImpactFee)
+        expect(riskParameter.takerMagnitudeFee).to.equal(defaultRiskParameter.takerMagnitudeFee)
+        expect(riskParameter.impactFee).to.equal(defaultRiskParameter.impactFee)
         expect(riskParameter.makerFee).to.equal(defaultRiskParameter.makerFee)
-        expect(riskParameter.makerImpactFee).to.equal(defaultRiskParameter.makerImpactFee)
+        expect(riskParameter.makerMagnitudeFee).to.equal(defaultRiskParameter.makerMagnitudeFee)
         expect(riskParameter.makerLimit).to.equal(defaultRiskParameter.makerLimit)
         expect(riskParameter.efficiencyLimit).to.equal(defaultRiskParameter.efficiencyLimit)
         expect(riskParameter.liquidationFee).to.equal(defaultRiskParameter.liquidationFee)
@@ -1335,7 +1335,7 @@ describe('Market', () => {
           it('opens the position and settles later with fee', async () => {
             const riskParameter = { ...(await market.riskParameter()) }
             riskParameter.makerFee = parse6decimal('0.005')
-            riskParameter.makerImpactFee = parse6decimal('0.0025')
+            riskParameter.makerMagnitudeFee = parse6decimal('0.0025')
             await market.updateRiskParameter(riskParameter)
 
             const marketParameter = { ...(await market.parameter()) }
@@ -1876,7 +1876,7 @@ describe('Market', () => {
             it('closes the position and settles later with fee', async () => {
               const riskParameter = { ...(await market.riskParameter()) }
               riskParameter.makerFee = parse6decimal('0.005')
-              riskParameter.makerImpactFee = parse6decimal('0.0025')
+              riskParameter.makerMagnitudeFee = parse6decimal('0.0025')
               await market.updateRiskParameter(riskParameter)
 
               const marketParameter = { ...(await market.parameter()) }
@@ -2402,8 +2402,8 @@ describe('Market', () => {
             it('opens the position and settles later with fee', async () => {
               const riskParameter = { ...(await market.riskParameter()) }
               riskParameter.takerFee = parse6decimal('0.01')
-              riskParameter.takerSkewFee = parse6decimal('0.002')
-              riskParameter.takerImpactFee = parse6decimal('0.008')
+              riskParameter.takerMagnitudeFee = parse6decimal('0.002')
+              riskParameter.impactFee = parse6decimal('0.008')
               await market.updateRiskParameter(riskParameter)
 
               const marketParameter = { ...(await market.parameter()) }
@@ -2513,8 +2513,8 @@ describe('Market', () => {
 
               const riskParameter = { ...(await market.riskParameter()) }
               riskParameter.takerFee = parse6decimal('0.01')
-              riskParameter.takerSkewFee = parse6decimal('0.002')
-              riskParameter.takerImpactFee = parse6decimal('0.008')
+              riskParameter.takerMagnitudeFee = parse6decimal('0.002')
+              riskParameter.impactFee = parse6decimal('0.008')
               await market.updateRiskParameter(riskParameter)
 
               const marketParameter = { ...(await market.parameter()) }
@@ -3274,8 +3274,8 @@ describe('Market', () => {
               it('closes the position and settles later with fee', async () => {
                 const riskParameter = { ...(await market.riskParameter()) }
                 riskParameter.takerFee = parse6decimal('0.01')
-                riskParameter.takerSkewFee = parse6decimal('0.002')
-                riskParameter.takerImpactFee = parse6decimal('0.008')
+                riskParameter.takerMagnitudeFee = parse6decimal('0.002')
+                riskParameter.impactFee = parse6decimal('0.008')
                 await market.updateRiskParameter(riskParameter)
 
                 const marketParameter = { ...(await market.parameter()) }
@@ -5183,8 +5183,8 @@ describe('Market', () => {
             it('opens the position and settles later with fee', async () => {
               const riskParameter = { ...(await market.riskParameter()) }
               riskParameter.takerFee = parse6decimal('0.01')
-              riskParameter.takerSkewFee = parse6decimal('0.002')
-              riskParameter.takerImpactFee = parse6decimal('0.008')
+              riskParameter.takerMagnitudeFee = parse6decimal('0.002')
+              riskParameter.impactFee = parse6decimal('0.008')
               await market.updateRiskParameter(riskParameter)
 
               const marketParameter = { ...(await market.parameter()) }
@@ -5299,8 +5299,8 @@ describe('Market', () => {
 
               const riskParameter = { ...(await market.riskParameter()) }
               riskParameter.takerFee = parse6decimal('0.01')
-              riskParameter.takerSkewFee = parse6decimal('0.002')
-              riskParameter.takerImpactFee = parse6decimal('0.008')
+              riskParameter.takerMagnitudeFee = parse6decimal('0.002')
+              riskParameter.impactFee = parse6decimal('0.008')
               await market.updateRiskParameter(riskParameter)
 
               const marketParameter = { ...(await market.parameter()) }
@@ -6061,8 +6061,8 @@ describe('Market', () => {
               it('closes the position and settles later with fee', async () => {
                 const riskParameter = { ...(await market.riskParameter()) }
                 riskParameter.takerFee = parse6decimal('0.01')
-                riskParameter.takerSkewFee = parse6decimal('0.002')
-                riskParameter.takerImpactFee = parse6decimal('0.008')
+                riskParameter.takerMagnitudeFee = parse6decimal('0.002')
+                riskParameter.impactFee = parse6decimal('0.008')
                 await market.updateRiskParameter(riskParameter)
 
                 const marketParameter = { ...(await market.parameter()) }
@@ -7496,10 +7496,10 @@ describe('Market', () => {
           it('does not zero position and keeper fee upon closing', async () => {
             const riskParameter = { ...(await market.riskParameter()) }
             riskParameter.takerFee = parse6decimal('0.01')
-            riskParameter.takerSkewFee = parse6decimal('0.002')
-            riskParameter.takerImpactFee = parse6decimal('0.008')
+            riskParameter.takerMagnitudeFee = parse6decimal('0.002')
+            riskParameter.impactFee = parse6decimal('0.008')
             riskParameter.makerFee = parse6decimal('0.01')
-            riskParameter.makerImpactFee = parse6decimal('0.004')
+            riskParameter.makerMagnitudeFee = parse6decimal('0.004')
             await market.updateRiskParameter(riskParameter)
 
             const marketParameter = { ...(await market.parameter()) }
@@ -7589,10 +7589,10 @@ describe('Market', () => {
           it('zeros position fee for new positions after close', async () => {
             const riskParameter = { ...(await market.riskParameter()) }
             riskParameter.takerFee = parse6decimal('0.01')
-            riskParameter.takerSkewFee = parse6decimal('0.002')
-            riskParameter.takerImpactFee = parse6decimal('0.008')
+            riskParameter.takerMagnitudeFee = parse6decimal('0.002')
+            riskParameter.impactFee = parse6decimal('0.008')
             riskParameter.makerFee = parse6decimal('0.01')
-            riskParameter.makerImpactFee = parse6decimal('0.004')
+            riskParameter.makerMagnitudeFee = parse6decimal('0.004')
             await market.updateRiskParameter(riskParameter)
 
             const marketParameter = { ...(await market.parameter()) }
@@ -8170,8 +8170,8 @@ describe('Market', () => {
             it('opens the position and settles later with fee', async () => {
               const riskParameter = { ...(await market.riskParameter()) }
               riskParameter.takerFee = parse6decimal('0.01')
-              riskParameter.takerSkewFee = parse6decimal('0.002')
-              riskParameter.takerImpactFee = parse6decimal('0.004')
+              riskParameter.takerMagnitudeFee = parse6decimal('0.002')
+              riskParameter.impactFee = parse6decimal('0.004')
               await market.updateRiskParameter(riskParameter)
 
               const marketParameter = { ...(await market.parameter()) }
@@ -9412,8 +9412,8 @@ describe('Market', () => {
               it('closes the position and settles later with fee', async () => {
                 const riskParameter = { ...(await market.riskParameter()) }
                 riskParameter.takerFee = parse6decimal('0.01')
-                riskParameter.takerSkewFee = parse6decimal('0.002')
-                riskParameter.takerImpactFee = parse6decimal('0.004')
+                riskParameter.takerMagnitudeFee = parse6decimal('0.002')
+                riskParameter.impactFee = parse6decimal('0.004')
                 await market.updateRiskParameter(riskParameter)
 
                 const marketParameter = { ...(await market.parameter()) }
@@ -12234,8 +12234,8 @@ describe('Market', () => {
 
           const riskParameter = { ...(await market.riskParameter()) }
           riskParameter.takerFee = parse6decimal('0.01')
-          riskParameter.takerSkewFee = parse6decimal('0.002')
-          riskParameter.takerImpactFee = parse6decimal('0.008')
+          riskParameter.takerMagnitudeFee = parse6decimal('0.002')
+          riskParameter.impactFee = parse6decimal('0.008')
           await market.updateRiskParameter(riskParameter)
 
           const marketParameter = { ...(await market.parameter()) }
@@ -12351,8 +12351,8 @@ describe('Market', () => {
 
           const riskParameter = { ...(await market.riskParameter()) }
           riskParameter.takerFee = parse6decimal('0.01')
-          riskParameter.takerSkewFee = parse6decimal('0.002')
-          riskParameter.takerImpactFee = parse6decimal('0.008')
+          riskParameter.takerMagnitudeFee = parse6decimal('0.002')
+          riskParameter.impactFee = parse6decimal('0.008')
           await market.updateRiskParameter(riskParameter)
 
           const marketParameter = { ...(await market.parameter()) }
@@ -12498,8 +12498,8 @@ describe('Market', () => {
 
           const riskParameter = { ...(await market.riskParameter()) }
           riskParameter.takerFee = parse6decimal('0.01')
-          riskParameter.takerSkewFee = parse6decimal('0.002')
-          riskParameter.takerImpactFee = parse6decimal('0.008')
+          riskParameter.takerMagnitudeFee = parse6decimal('0.002')
+          riskParameter.impactFee = parse6decimal('0.008')
           await market.updateRiskParameter(riskParameter)
 
           const marketParameter = { ...(await market.parameter()) }
@@ -12645,8 +12645,8 @@ describe('Market', () => {
 
           const riskParameter = { ...(await market.riskParameter()) }
           riskParameter.takerFee = parse6decimal('0.01')
-          riskParameter.takerSkewFee = parse6decimal('0.002')
-          riskParameter.takerImpactFee = parse6decimal('0.008')
+          riskParameter.takerMagnitudeFee = parse6decimal('0.002')
+          riskParameter.impactFee = parse6decimal('0.008')
           riskParameter.staleAfter = BigNumber.from(9600)
           await market.updateRiskParameter(riskParameter)
 
@@ -12792,8 +12792,8 @@ describe('Market', () => {
 
           const riskParameter = { ...(await market.riskParameter()) }
           riskParameter.takerFee = parse6decimal('0.01')
-          riskParameter.takerSkewFee = parse6decimal('0.002')
-          riskParameter.takerImpactFee = parse6decimal('0.008')
+          riskParameter.takerMagnitudeFee = parse6decimal('0.002')
+          riskParameter.impactFee = parse6decimal('0.008')
           riskParameter.staleAfter = BigNumber.from(9600)
           await market.updateRiskParameter(riskParameter)
 

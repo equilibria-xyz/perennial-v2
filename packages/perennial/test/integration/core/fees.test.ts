@@ -29,10 +29,10 @@ export const TIMESTAMP_5 = 1631118731
 
 const RISK_PARAMS = {
   takerFee: parse6decimal('0.05'),
-  takerSkewFee: parse6decimal('0.06'),
-  takerImpactFee: parse6decimal('0.14'),
+  takerMagnitudeFee: parse6decimal('0.06'),
+  impactFee: parse6decimal('0.14'),
   makerFee: parse6decimal('0.09'),
-  makerImpactFee: parse6decimal('0.08'),
+  makerMagnitudeFee: parse6decimal('0.08'),
   utilizationCurve: {
     minRate: 0,
     maxRate: 0,
@@ -402,8 +402,8 @@ describe('Fees', () => {
         ...riskParams,
         makerFee: BigNumber.from('0'),
         takerFee: BigNumber.from('0'),
-        takerImpactFee: BigNumber.from('0'),
-        takerSkewFee: BigNumber.from('0'),
+        impactFee: BigNumber.from('0'),
+        takerMagnitudeFee: BigNumber.from('0'),
       })
       await market.updateParameter(AddressZero, AddressZero, {
         ...marketParams,
@@ -431,8 +431,8 @@ describe('Fees', () => {
       await market.updateRiskParameter({
         ...riskParams,
         makerFee: BigNumber.from('0'),
-        takerImpactFee: BigNumber.from('0'),
-        takerSkewFee: BigNumber.from('0'),
+        impactFee: BigNumber.from('0'),
+        takerMagnitudeFee: BigNumber.from('0'),
       })
       await market.connect(userB).update(userB.address, 0, 0, 0, 0, false)
 
@@ -708,8 +708,8 @@ describe('Fees', () => {
         ...riskParams,
         makerFee: BigNumber.from('0'),
         takerFee: BigNumber.from('0'),
-        takerImpactFee: BigNumber.from('0'),
-        takerSkewFee: BigNumber.from('0'),
+        impactFee: BigNumber.from('0'),
+        takerMagnitudeFee: BigNumber.from('0'),
       })
       await market.updateParameter(AddressZero, AddressZero, {
         ...marketParams,
@@ -737,8 +737,8 @@ describe('Fees', () => {
       await market.updateRiskParameter({
         ...riskParams,
         makerFee: BigNumber.from('0'),
-        takerImpactFee: BigNumber.from('0'),
-        takerSkewFee: BigNumber.from('0'),
+        impactFee: BigNumber.from('0'),
+        takerMagnitudeFee: BigNumber.from('0'),
       })
       await market.connect(userB).update(userB.address, 0, 0, 0, 0, false)
 
@@ -836,8 +836,8 @@ describe('Fees', () => {
           ...riskParams,
           makerFee: BigNumber.from('0'),
           takerFee: BigNumber.from('0'),
-          takerImpactFee: BigNumber.from('0'),
-          takerSkewFee: parse6decimal('0.01'),
+          impactFee: BigNumber.from('0'),
+          takerMagnitudeFee: parse6decimal('0.01'),
         })
 
         const { user, userB, userC, dsu } = instanceVars
@@ -908,8 +908,8 @@ describe('Fees', () => {
           ...riskParams,
           makerFee: BigNumber.from('0'),
           takerFee: BigNumber.from('0'),
-          takerImpactFee: parse6decimal('0.02'),
-          takerSkewFee: BigNumber.from('0'),
+          impactFee: parse6decimal('0.02'),
+          takerMagnitudeFee: BigNumber.from('0'),
         })
 
         const { user, userB, userC, dsu } = instanceVars
@@ -985,7 +985,7 @@ describe('Fees', () => {
         await market.updateRiskParameter({
           ...riskParams,
           takerFee: parse6decimal('0.01'),
-          takerImpactFee: parse6decimal('0.02'),
+          impactFee: parse6decimal('0.02'),
         })
         // Bring skew from -100% to 0% -> total impact change of -100%
         await market.connect(userC).update(userC.address, 0, LONG_POSITION, 0, COLLATERAL, false)
@@ -1022,7 +1022,7 @@ describe('Fees', () => {
         await market.updateRiskParameter({
           ...riskParams,
           takerFee: parse6decimal('0.01'),
-          takerImpactFee: parse6decimal('0.04'),
+          impactFee: parse6decimal('0.04'),
         })
         // Bring skew from -100% to 0% -> total impact change of -100%
         await market.connect(userC).update(userC.address, 0, LONG_POSITION, 0, COLLATERAL, false)
@@ -1059,8 +1059,8 @@ describe('Fees', () => {
           ...riskParams,
           makerFee: BigNumber.from('0'),
           takerFee: BigNumber.from('0'),
-          takerImpactFee: parse6decimal('0.0'),
-          takerSkewFee: BigNumber.from('0'),
+          impactFee: parse6decimal('0.0'),
+          takerMagnitudeFee: BigNumber.from('0'),
         })
 
         const { user, userB, userC, dsu } = instanceVars
@@ -1146,8 +1146,8 @@ describe('Fees', () => {
         ...riskParams,
         makerFee: BigNumber.from('0'),
         takerFee: BigNumber.from('0'),
-        takerImpactFee: parse6decimal('0'),
-        takerSkewFee: BigNumber.from('0'),
+        impactFee: parse6decimal('0'),
+        takerMagnitudeFee: BigNumber.from('0'),
         utilizationCurve: {
           minRate: parse6decimal('0.01'),
           maxRate: parse6decimal('0.01'),
@@ -1238,8 +1238,8 @@ describe('Fees', () => {
         ...riskParams,
         makerFee: BigNumber.from('0'),
         takerFee: BigNumber.from('0'),
-        takerImpactFee: parse6decimal('0'),
-        takerSkewFee: BigNumber.from('0'),
+        impactFee: parse6decimal('0'),
+        takerMagnitudeFee: BigNumber.from('0'),
         pController: {
           k: parse6decimal('10'),
           max: parse6decimal('1.20'),

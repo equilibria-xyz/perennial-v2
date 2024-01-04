@@ -21,10 +21,10 @@ export const VALID_RISK_PARAMETER: RiskParameterStruct = {
   margin: 15,
   maintenance: 1,
   takerFee: 2,
-  takerSkewFee: 3,
-  takerImpactFee: 4,
+  takerMagnitudeFee: 3,
+  impactFee: 4,
   makerFee: 5,
-  makerImpactFee: 6,
+  makerMagnitudeFee: 6,
   makerLimit: 7,
   efficiencyLimit: 8,
   liquidationFee: 9,
@@ -78,10 +78,10 @@ describe('RiskParameter', () => {
       expect(value.margin).to.equal(15)
       expect(value.maintenance).to.equal(1)
       expect(value.takerFee).to.equal(2)
-      expect(value.takerSkewFee).to.equal(3)
-      expect(value.takerImpactFee).to.equal(4)
+      expect(value.takerMagnitudeFee).to.equal(3)
+      expect(value.impactFee).to.equal(4)
       expect(value.makerFee).to.equal(5)
-      expect(value.makerImpactFee).to.equal(6)
+      expect(value.makerMagnitudeFee).to.equal(6)
       expect(value.makerLimit).to.equal(7)
       expect(value.efficiencyLimit).to.equal(8)
       expect(value.liquidationFee).to.equal(9)
@@ -480,17 +480,17 @@ describe('RiskParameter', () => {
       })
     })
 
-    describe('.takerSkewFee', () => {
+    describe('.takerMagnitudeFee', () => {
       it('saves if in range', async () => {
         await riskParameter.validateAndStore(
           {
             ...VALID_RISK_PARAMETER,
-            takerSkewFee: parse6decimal('1'),
+            takerMagnitudeFee: parse6decimal('1'),
           },
           PROTOCOL_PARAMETER,
         )
         const value = await riskParameter.read()
-        expect(value.takerSkewFee).to.equal(parse6decimal('1'))
+        expect(value.takerMagnitudeFee).to.equal(parse6decimal('1'))
       })
 
       it('reverts if invalid', async () => {
@@ -498,7 +498,7 @@ describe('RiskParameter', () => {
           riskParameter.validateAndStore(
             {
               ...VALID_RISK_PARAMETER,
-              takerSkewFee: parse6decimal('1').add(1),
+              takerMagnitudeFee: parse6decimal('1').add(1),
             },
             PROTOCOL_PARAMETER,
           ),
@@ -506,17 +506,17 @@ describe('RiskParameter', () => {
       })
     })
 
-    describe('.takerImpactFee', () => {
+    describe('.impactFee', () => {
       it('saves if in range', async () => {
         await riskParameter.validateAndStore(
           {
             ...VALID_RISK_PARAMETER,
-            takerImpactFee: parse6decimal('1'),
+            impactFee: parse6decimal('1'),
           },
           PROTOCOL_PARAMETER,
         )
         const value = await riskParameter.read()
-        expect(value.takerImpactFee).to.equal(parse6decimal('1'))
+        expect(value.impactFee).to.equal(parse6decimal('1'))
       })
 
       it('reverts if invalid', async () => {
@@ -524,7 +524,7 @@ describe('RiskParameter', () => {
           riskParameter.validateAndStore(
             {
               ...VALID_RISK_PARAMETER,
-              takerImpactFee: parse6decimal('1').add(1),
+              impactFee: parse6decimal('1').add(1),
             },
             PROTOCOL_PARAMETER,
           ),
@@ -532,17 +532,17 @@ describe('RiskParameter', () => {
       })
     })
 
-    describe('.makerImpactFee', () => {
+    describe('.makerMagnitudeFee', () => {
       it('saves if in range', async () => {
         await riskParameter.validateAndStore(
           {
             ...VALID_RISK_PARAMETER,
-            makerImpactFee: parse6decimal('1'),
+            makerMagnitudeFee: parse6decimal('1'),
           },
           PROTOCOL_PARAMETER,
         )
         const value = await riskParameter.read()
-        expect(value.makerImpactFee).to.equal(parse6decimal('1'))
+        expect(value.makerMagnitudeFee).to.equal(parse6decimal('1'))
       })
 
       it('reverts if invalid', async () => {
@@ -550,7 +550,7 @@ describe('RiskParameter', () => {
           riskParameter.validateAndStore(
             {
               ...VALID_RISK_PARAMETER,
-              makerImpactFee: parse6decimal('1').add(1),
+              makerMagnitudeFee: parse6decimal('1').add(1),
             },
             PROTOCOL_PARAMETER,
           ),
