@@ -2,7 +2,7 @@ import { BigNumberish, utils } from 'ethers'
 import { IMultiInvoker } from '../../types/generated'
 import { InterfaceFeeStruct, TriggerOrderStruct } from '../../types/generated/contracts/MultiInvoker'
 import { ethers } from 'hardhat'
-import { BigNumber } from 'ethers'
+import { BigNumber, constants } from 'ethers'
 
 export const MAX_INT = ethers.constants.MaxInt256
 export const MIN_INT = ethers.constants.MinInt256
@@ -64,12 +64,12 @@ export const buildUpdateMarket = ({
           handleWrap ?? false,
           [
             interfaceFee1 ? interfaceFee1.amount : 0,
-            interfaceFee1 ? interfaceFee1.receiver : '0x0000000000000000000000000000000000000000',
+            interfaceFee1 ? interfaceFee1.receiver : constants.AddressZero,
             interfaceFee1 ? interfaceFee1.unwrap : false,
           ],
           [
             interfaceFee2 ? interfaceFee2.amount : 0,
-            interfaceFee2 ? interfaceFee2.receiver : '0x0000000000000000000000000000000000000000',
+            interfaceFee2 ? interfaceFee2.receiver : constants.AddressZero,
             interfaceFee2 ? interfaceFee2.unwrap : false,
           ],
         ],
@@ -116,8 +116,8 @@ export const buildPlaceOrder = ({
           short ?? MAX_UINT,
           collateral ?? MIN_INT,
           handleWrap ?? false,
-          [0, '0x0000000000000000000000000000000000000000', false],
-          [0, '0x0000000000000000000000000000000000000000', false],
+          [0, constants.AddressZero, false],
+          [0, constants.AddressZero, false],
         ],
       ),
     },

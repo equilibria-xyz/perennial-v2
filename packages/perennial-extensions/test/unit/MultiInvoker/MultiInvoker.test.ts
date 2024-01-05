@@ -55,6 +55,7 @@ use(smock.matchers)
 describe('MultiInvoker', () => {
   let owner: SignerWithAddress
   let user: SignerWithAddress
+  let user2: SignerWithAddress
   let usdc: FakeContract<IERC20>
   let dsu: FakeContract<IERC20>
   let market: FakeContract<IMarket>
@@ -68,7 +69,7 @@ describe('MultiInvoker', () => {
   let multiInvoker: MultiInvoker
 
   const multiInvokerFixture = async () => {
-    ;[owner, user] = await ethers.HRE.ethers.getSigners()
+    ;[owner, user, user2] = await ethers.HRE.ethers.getSigners()
   }
 
   beforeEach(async () => {
@@ -327,6 +328,40 @@ describe('MultiInvoker', () => {
       expect(dsu.transfer).to.have.been.calledWith(owner.address, dsuCollateral.div(10))
     })
 
+    it('charges multiple interface fees on deposit and pushes DSU from collateral to the receivers', async () => {
+      dsu.transferFrom.returns(true)
+      dsu.transfer.returns(true)
+
+      const feeAmt = collateral.div(10)
+      const feeAmt2 = collateral.div(20)
+
+      await expect(
+        multiInvoker.connect(user).invoke(
+          buildUpdateMarket({
+            market: market.address,
+            collateral: collateral,
+            interfaceFee1: {
+              receiver: owner.address,
+              amount: feeAmt,
+              unwrap: false,
+            },
+            interfaceFee2: {
+              receiver: user2.address,
+              amount: feeAmt2,
+              unwrap: false,
+            },
+          }),
+        ),
+      )
+        .to.emit(multiInvoker, 'InterfaceFeeCharged')
+        .withArgs(user.address, market.address, [feeAmt, owner.address, false])
+        .to.emit(multiInvoker, 'InterfaceFeeCharged')
+        .withArgs(user.address, market.address, [feeAmt2, user2.address, false])
+
+      expect(dsu.transfer).to.have.been.calledWith(owner.address, dsuCollateral.div(10))
+      expect(dsu.transfer).to.have.been.calledWith(user2.address, dsuCollateral.div(20))
+    })
+
     it('charges an interface fee on deposit, unwraps DSU from collateral to USDC, and pushes USDC to the receiver', async () => {
       dsu.transferFrom.returns(true)
       dsu.transfer.returns(true)
@@ -351,6 +386,76 @@ describe('MultiInvoker', () => {
         .withArgs(user.address, market.address, [feeAmt, owner.address, true])
 
       expect(usdc.transfer).to.have.been.calledWith(owner.address, collateral.div(10))
+    })
+
+    it('charges multiple interface fees on deposit, unwraps DSU from collateral to USDC, and pushes USDC to the receivers', async () => {
+      dsu.transferFrom.returns(true)
+      dsu.transfer.returns(true)
+      usdc.transfer.returns(true)
+
+      const feeAmt = collateral.div(10)
+      const feeAmt2 = collateral.div(20)
+
+      await expect(
+        multiInvoker.connect(user).invoke(
+          buildUpdateMarket({
+            market: market.address,
+            collateral: collateral,
+            interfaceFee1: {
+              receiver: owner.address,
+              amount: feeAmt,
+              unwrap: true,
+            },
+            interfaceFee2: {
+              receiver: user2.address,
+              amount: feeAmt2,
+              unwrap: true,
+            },
+          }),
+        ),
+      )
+        .to.emit(multiInvoker, 'InterfaceFeeCharged')
+        .withArgs(user.address, market.address, [feeAmt, owner.address, true])
+        .to.emit(multiInvoker, 'InterfaceFeeCharged')
+        .withArgs(user.address, market.address, [feeAmt2, user2.address, true])
+
+      expect(usdc.transfer).to.have.been.calledWith(owner.address, collateral.div(10))
+      expect(usdc.transfer).to.have.been.calledWith(user2.address, collateral.div(20))
+    })
+
+    it('charges multiple interface fees on deposit, unwraps one to USDC, and pushes to receive', async () => {
+      dsu.transferFrom.returns(true)
+      dsu.transfer.returns(true)
+      usdc.transfer.returns(true)
+
+      const feeAmt = collateral.div(10)
+      const feeAmt2 = collateral.div(20)
+
+      await expect(
+        multiInvoker.connect(user).invoke(
+          buildUpdateMarket({
+            market: market.address,
+            collateral: collateral,
+            interfaceFee1: {
+              receiver: owner.address,
+              amount: feeAmt,
+              unwrap: true,
+            },
+            interfaceFee2: {
+              receiver: user2.address,
+              amount: feeAmt2,
+              unwrap: false,
+            },
+          }),
+        ),
+      )
+        .to.emit(multiInvoker, 'InterfaceFeeCharged')
+        .withArgs(user.address, market.address, [feeAmt, owner.address, true])
+        .to.emit(multiInvoker, 'InterfaceFeeCharged')
+        .withArgs(user.address, market.address, [feeAmt2, user2.address, false])
+
+      expect(usdc.transfer).to.have.been.calledWith(owner.address, collateral.div(10))
+      expect(dsu.transfer).to.have.been.calledWith(user2.address, dsuCollateral.div(20))
     })
 
     it('charges an interface fee on withdrawal and pushes DSU from collateral to the receiver', async () => {
@@ -540,6 +645,62 @@ describe('MultiInvoker', () => {
       expect(orderState.interfaceFee2.amount).to.equal(0)
       expect(orderState.interfaceFee2.receiver).to.equal(constants.AddressZero)
       expect(orderState.interfaceFee2.unwrap).to.equal(false)
+    })
+
+    it('places a limit order w/ multiple interface fees', async () => {
+      const trigger = openTriggerOrder({
+        delta: position,
+        side: Dir.L,
+        comparison: Compare.ABOVE_MARKET,
+        price: price,
+        interfaceFee1: {
+          receiver: owner.address,
+          amount: 100e6,
+          unwrap: false,
+        },
+        interfaceFee2: {
+          receiver: user2.address,
+          amount: 50e6,
+          unwrap: true,
+        },
+      })
+
+      const txn = await multiInvoker.connect(user).invoke(
+        buildPlaceOrder({
+          market: market.address,
+          collateral: collateral,
+          order: trigger,
+        }),
+      )
+
+      setMarketPosition(market, user, defaultPosition)
+
+      await expect(txn)
+        .to.emit(multiInvoker, 'OrderPlaced')
+        .withArgs(user.address, market.address, 1, {
+          side: 1,
+          comparison: -1,
+          fee: 10e6,
+          price: trigger.price,
+          delta: position,
+          interfaceFee1: { amount: 100e6, receiver: owner.address, unwrap: false },
+          interfaceFee2: { amount: 50e6, receiver: user2.address, unwrap: true },
+        })
+
+      expect(await multiInvoker.latestNonce()).to.eq(1)
+
+      const orderState = await multiInvoker.orders(user.address, market.address, 1)
+
+      expect(orderState.side).to.equal(trigger.side)
+      expect(orderState.fee).to.equal(trigger.fee)
+      expect(orderState.price).to.equal(trigger.price)
+      expect(orderState.delta).to.equal(trigger.delta)
+      expect(orderState.interfaceFee1.amount).to.equal(100e6)
+      expect(orderState.interfaceFee1.receiver).to.equal(owner.address)
+      expect(orderState.interfaceFee1.unwrap).to.equal(false)
+      expect(orderState.interfaceFee2.amount).to.equal(50e6)
+      expect(orderState.interfaceFee2.receiver).to.equal(user2.address)
+      expect(orderState.interfaceFee2.unwrap).to.equal(true)
     })
 
     it('places a limit order w/ interface fee (unwrap)', async () => {
