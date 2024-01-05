@@ -466,6 +466,49 @@ describe('Orders', () => {
     expect(await usdc.balanceOf(userB.address)).to.eq(balanceBefore.add(50e6))
   })
 
+  it('executes an order with multiple interface fees', async () => {
+    const { user, userB, userC, userD, chainlink, dsu, usdc } = instanceVars
+
+    const trigger = openTriggerOrder({
+      delta: userPosition,
+      price: payoff(marketPrice.sub(10)),
+      side: Dir.L,
+      comparison: Compare.ABOVE_MARKET,
+      interfaceFee1: { amount: 50e6, receiver: userB.address, unwrap: true },
+      interfaceFee2: { amount: 100e6, receiver: userD.address, unwrap: false },
+    })
+
+    const placeOrder = buildPlaceOrder({
+      market: market.address,
+      order: trigger,
+      collateral: collateral,
+    })
+
+    await expect(multiInvoker.connect(user).invoke(placeOrder)).to.not.be.reverted
+    expect(await multiInvoker.canExecuteOrder(user.address, market.address, 1)).to.be.false
+
+    await chainlink.nextWithPriceModification(() => marketPrice.sub(11))
+    await settle(market, user)
+
+    const balanceBefore = await usdc.balanceOf(userB.address)
+    const balanceBefore2 = await dsu.balanceOf(userD.address)
+    await ethers.provider.send('hardhat_setNextBlockBaseFeePerGas', ['0x1'])
+    const execute = buildExecOrder({ user: user.address, market: market.address, orderId: 1 })
+    await expect(multiInvoker.connect(userC).invoke(execute))
+      .to.emit(multiInvoker, 'OrderExecuted')
+      .withArgs(user.address, market.address, 1)
+      .to.emit(multiInvoker, 'KeeperCall')
+      .to.emit(market, 'Updated')
+      .withArgs(multiInvoker.address, user.address, anyValue, anyValue, anyValue, anyValue, -50e6, false)
+      .to.emit(multiInvoker, 'InterfaceFeeCharged')
+      .withArgs(user.address, market.address, { receiver: userB.address, amount: 50e6, unwrap: true })
+      .to.emit(multiInvoker, 'InterfaceFeeCharged')
+      .withArgs(user.address, market.address, { receiver: userD.address, amount: 100e6, unwrap: false })
+
+    expect(await usdc.balanceOf(userB.address)).to.eq(balanceBefore.add(50e6))
+    expect(await dsu.balanceOf(userD.address)).to.eq(balanceBefore2.add(ethers.utils.parseEther('100')))
+  })
+
   it('executes a withdrawal order', async () => {
     const { user, userB, userC, chainlink, usdc } = instanceVars
     const trigger = openTriggerOrder({
