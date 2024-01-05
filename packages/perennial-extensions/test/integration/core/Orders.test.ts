@@ -828,44 +828,43 @@ describe('Orders', () => {
     it('Fails to store TRIGGER values out of slot bounds', async () => {
       const { user } = instanceVars
 
-      const defaultOrder = openTriggerOrder({
-        delta: parse6decimal('10000'),
-        side: Dir.L,
-        comparison: Compare.ABOVE_MARKET,
-        price: BigNumber.from(1000e6),
-      })
+      const defaultOrder = () =>
+        openTriggerOrder({
+          delta: parse6decimal('10000'),
+          side: Dir.L,
+          comparison: Compare.BELOW_MARKET,
+          price: BigNumber.from(1000e6),
+        })
 
-      defaultOrder.comparison = 1
-
-      let testOrder = { ...defaultOrder }
+      let testOrder = defaultOrder()
 
       testOrder.fee = MAX_UINT64.add(1)
       await assertStoreFail(testOrder, multiInvoker, market, user)
-      testOrder = { ...defaultOrder }
+      testOrder = defaultOrder()
 
       testOrder.price = MAX_INT64.add(1)
       await assertStoreFail(testOrder, multiInvoker, market, user)
-      testOrder = { ...defaultOrder }
+      testOrder = defaultOrder()
 
       testOrder.price = MIN_INT64.sub(1)
       await assertStoreFail(testOrder, multiInvoker, market, user)
-      testOrder = { ...defaultOrder }
+      testOrder = defaultOrder()
 
       testOrder.delta = MAX_INT64.add(1)
       await assertStoreFail(testOrder, multiInvoker, market, user)
-      testOrder = { ...defaultOrder }
+      testOrder = defaultOrder()
 
       testOrder.delta = MIN_INT64.sub(1)
       await assertStoreFail(testOrder, multiInvoker, market, user)
-      testOrder = { ...defaultOrder }
+      testOrder = defaultOrder()
 
       testOrder.interfaceFee1.amount = MAX_UINT48.add(1)
       await assertStoreFail(testOrder, multiInvoker, market, user)
-      testOrder = { ...defaultOrder }
+      testOrder = defaultOrder()
 
       testOrder.interfaceFee2.amount = MAX_UINT48.add(1)
       await assertStoreFail(testOrder, multiInvoker, market, user)
-      testOrder = { ...defaultOrder }
+      testOrder = defaultOrder()
     })
   })
 })
