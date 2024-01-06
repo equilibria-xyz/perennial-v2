@@ -4,6 +4,7 @@ pragma solidity ^0.8.13;
 import "@equilibria/root/number/types/UFixed6.sol";
 import "@equilibria/root/utilization/types/UJumpRateUtilizationCurve6.sol";
 import "@equilibria/root/pid/types/PController6.sol";
+import "@equilibria/root/adiabatic/types/Adiabatic6.sol";
 import "../interfaces/IOracleProvider.sol";
 import "./ProtocolParameter.sol";
 
@@ -15,20 +16,11 @@ struct RiskParameter {
     /// @dev The minimum amount of collateral that must be maintained as a percentage of notional
     UFixed6 maintenance;
 
-    /// @dev The percentage fee on the notional that is charged when a long or short position is open or closed
-    UFixed6 takerFee;
+    /// @dev The maker fee configuration
+    Adiabatic6 makerFee;
 
-    /// @dev The additional percentage that is added scaled by the change in skew
-    UFixed6 takerMagnitudeFee;
-
-    /// @dev The additional percentage that is added scaled by the change in impact
-    UFixed6 impactFee;
-
-    /// @dev The percentage fee on the notional that is charged when a maker position is open or closed
-    UFixed6 makerFee;
-
-    /// @dev The additional percentage that is added scaled by the change in utilization
-    UFixed6 makerMagnitudeFee;
+    /// @dev The taker fee configuration
+    Adiabatic6 takerFee;
 
     /// @dev The maximum amount of maker positions that opened
     UFixed6 makerLimit;
@@ -74,10 +66,10 @@ using RiskParameterStorageLib for RiskParameterStorage global;
 //        uint24 margin;                              // <= 1677%
 //        uint24 maintenance;                         // <= 1677%
 //        uint24 takerFee;                            // <= 1677%
-//        uint24 takerMagnitudeFee;                   // <= 1677%
+//        uint24 takerFeeMagnitude;                   // <= 1677%
 //        uint24 impactFee;                           // <= 1677%
 //        uint24 makerFee;                            // <= 1677%
-//        uint24 makerMagnitudeFee;                   // <= 1677%
+//        uint24 makerFeeMagnitude;                   // <= 1677%
 //        uint64 makerLimit;                          // <= 18.44t
 //        uint24 efficiencyLimit;                     // <= 1677%
 //
@@ -108,11 +100,16 @@ library RiskParameterStorageLib {
         return RiskParameter(
             UFixed6.wrap(uint256(       slot0 << (256 - 24)) >> (256 - 24)),
             UFixed6.wrap(uint256(       slot0 << (256 - 24 - 24)) >> (256 - 24)),
-            UFixed6.wrap(uint256(       slot0 << (256 - 24 - 24 - 24)) >> (256 - 24)),
-            UFixed6.wrap(uint256(       slot0 << (256 - 24 - 24 - 24 - 24)) >> (256 - 24)),
-            UFixed6.wrap(uint256(       slot0 << (256 - 24 - 24 - 24 - 24 - 24)) >> (256 - 24)),
-            UFixed6.wrap(uint256(       slot0 << (256 - 24 - 24 - 24 - 24 - 24 - 24)) >> (256 - 24)),
-            UFixed6.wrap(uint256(       slot0 << (256 - 24 - 24 - 24 - 24 - 24 - 24 - 24)) >> (256 - 24)),
+            Adiabatic6(
+                UFixed6.wrap(uint256(       slot0 << (256 - 24 - 24 - 24)) >> (256 - 24)),
+                UFixed6.wrap(uint256(       slot0 << (256 - 24 - 24 - 24 - 24)) >> (256 - 24)),
+                UFixed6.wrap(uint256(       slot0 << (256 - 24 - 24 - 24 - 24 - 24)) >> (256 - 24))
+            ),
+            Adiabatic6(
+                UFixed6.wrap(uint256(       slot0 << (256 - 24 - 24 - 24 - 24 - 24 - 24)) >> (256 - 24)),
+                UFixed6.wrap(uint256(       slot0 << (256 - 24 - 24 - 24 - 24 - 24 - 24 - 24)) >> (256 - 24)),
+                UFixed6.wrap(uint256(       slot0 << (256 - 24 - 24 - 24 - 24 - 24)) >> (256 - 24))
+            ),
             UFixed6.wrap(uint256(       slot0 << (256 - 24 - 24 - 24 - 24 - 24 - 24 - 24 - 64)) >> (256 - 64)),
             UFixed6.wrap(uint256(       slot0 << (256 - 24 - 24 - 24 - 24 - 24 - 24 - 24 - 64 - 24)) >> (256 - 24)),
 
@@ -140,8 +137,9 @@ library RiskParameterStorageLib {
 
     function validate(RiskParameter memory self, ProtocolParameter memory protocolParameter) internal pure {
         if (
-            self.takerFee.max(self.takerMagnitudeFee).max(self.impactFee).max(self.makerFee).max(self.makerMagnitudeFee)
-            .gt(protocolParameter.maxFee)
+            self.takerFee.base.max(self.takerFee.magnitude).max(self.takerFee.impact)
+                .max(self.makerFee.base).max(self.makerFee.magnitude).max(self.makerFee.impact)
+                .gt(protocolParameter.maxFee)
         ) revert RiskParameterStorageInvalidError();
 
         if (
@@ -167,6 +165,8 @@ library RiskParameterStorageLib {
         if (self.minMaintenance.lt(self.minLiquidationFee)) revert RiskParameterStorageInvalidError();
 
         if (self.minMargin.lt(self.minMaintenance)) revert RiskParameterStorageInvalidError();
+
+        if (!self.makerFee.impact.eq(self.takerFee.impact)) revert RiskParameterStorageInvalidError();
     }
 
     function validateAndStore(
@@ -186,11 +186,11 @@ library RiskParameterStorageLib {
         uint256 encoded0 =
             uint256(UFixed6.unwrap(newValue.margin)             << (256 - 24)) >> (256 - 24) |
             uint256(UFixed6.unwrap(newValue.maintenance)        << (256 - 24)) >> (256 - 24 - 24) |
-            uint256(UFixed6.unwrap(newValue.takerFee)           << (256 - 24)) >> (256 - 24 - 24 - 24) |
-            uint256(UFixed6.unwrap(newValue.takerMagnitudeFee)       << (256 - 24)) >> (256 - 24 - 24 - 24 - 24) |
-            uint256(UFixed6.unwrap(newValue.impactFee)     << (256 - 24)) >> (256 - 24 - 24 - 24 - 24 - 24) |
-            uint256(UFixed6.unwrap(newValue.makerFee)           << (256 - 24)) >> (256 - 24 - 24 - 24 - 24 - 24 - 24) |
-            uint256(UFixed6.unwrap(newValue.makerMagnitudeFee)     << (256 - 24)) >> (256 - 24 - 24 - 24 - 24 - 24 - 24 - 24) |
+            uint256(UFixed6.unwrap(newValue.takerFee.base)      << (256 - 24)) >> (256 - 24 - 24 - 24) |
+            uint256(UFixed6.unwrap(newValue.takerFee.magnitude) << (256 - 24)) >> (256 - 24 - 24 - 24 - 24) |
+            uint256(UFixed6.unwrap(newValue.takerFee.impact)    << (256 - 24)) >> (256 - 24 - 24 - 24 - 24 - 24) |
+            uint256(UFixed6.unwrap(newValue.makerFee.base)      << (256 - 24)) >> (256 - 24 - 24 - 24 - 24 - 24 - 24) |
+            uint256(UFixed6.unwrap(newValue.makerFee.impact)    << (256 - 24)) >> (256 - 24 - 24 - 24 - 24 - 24 - 24 - 24) |
             uint256(UFixed6.unwrap(newValue.makerLimit)         << (256 - 64)) >> (256 - 24 - 24 - 24 - 24 - 24 - 24 - 24 - 64) |
             uint256(UFixed6.unwrap(newValue.efficiencyLimit)    << (256 - 24)) >> (256 - 24 - 24 - 24 - 24 - 24 - 24 - 24 - 64 - 24);
 

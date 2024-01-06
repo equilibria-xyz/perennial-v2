@@ -229,9 +229,8 @@ contract Market is IMarket, Instance, ReentrancyGuard {
     /// @param newPendingPosition The pending position to process
     function _processPendingPosition(Context memory context, Position memory newPendingPosition) private pure {
         // apply pending fees to collateral
-        context.pendingCollateral = context.pendingCollateral
-            .sub(newPendingPosition.fee)
-            .sub(Fixed6Lib.from(newPendingPosition.keeper));
+        context.pendingCollateral = context.pendingCollateral;
+            // TODO: substract pending fees?
 
         // measure pending position deltas
         if (context.previousPendingMagnitude.gt(newPendingPosition.magnitude())) {
@@ -336,11 +335,6 @@ contract Market is IMarket, Instance, ReentrancyGuard {
             context.currentPosition.local.update(context.currentTimestamp, newMaker, newLong, newShort);
         context.currentPosition.global.update(context.currentTimestamp, newOrder);
 
-        // update fee
-        newOrder.registerFee(context.latestVersion, context.marketParameter, context.riskParameter);
-        context.currentPosition.local.registerFee(newOrder);
-        context.currentPosition.global.registerFee(newOrder);
-
         // update collateral
         context.local.update(collateral);
         context.currentPosition.local.update(collateral);
@@ -440,6 +434,8 @@ contract Market is IMarket, Instance, ReentrancyGuard {
             _processPositionLocal(context, account, context.local.latestId, nextPosition, false);
         }
 
+        // TODO: make sure syncs create 0-order positions and don't charge a fee when settled
+
         // overwrite latestPrice if invalid
         context.latestVersion.price = context.global.latestPrice;
 
@@ -471,7 +467,7 @@ contract Market is IMarket, Instance, ReentrancyGuard {
         context.global.update(newPositionId, oracleVersion.price);
         context.global.incrementFees(
             accumulatedFee,
-            newPosition.keeper,
+            UFixed6Lib.ZERO, // TODO: settlement fee goes here
             context.marketParameter,
             context.protocolParameter
         );
@@ -514,9 +510,11 @@ contract Market is IMarket, Instance, ReentrancyGuard {
             version
         );
         if (checkpoint) _checkpointCollateral(context, account);
-        (accumulationResult.positionFee, accumulationResult.keeper) = context.local.accumulateFees(newPosition);
+        (accumulationResult.positionFee, accumulationResult.keeper) = context.local.accumulateFees(version);
         context.latestPosition.local.update(newPosition);
         _processLiquidationFee(context, newPosition, version);
+
+        // TODO: make sure to re-include settlement fee here
 
         // events
         emit AccountPositionProcessed(

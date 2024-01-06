@@ -31,9 +31,9 @@ contract LocalTester {
         local.store(newLocal);
     }
 
-    function accumulateFees(Position memory toPosition) external returns (Fixed6 positionFee, UFixed6 keeper) {
+    function accumulateFees(Version memory toVersion) external returns (Fixed6 positionFee, UFixed6 keeper) {
         Local memory newLocal = local.read();
-        (positionFee, keeper) = newLocal.accumulateFees(toPosition);
+        (positionFee, keeper) = newLocal.accumulateFees(toVersion);
         local.store(newLocal);
     }
 

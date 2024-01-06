@@ -66,12 +66,6 @@ abstract contract PositionTester {
         store(_position);
     }
 
-    function registerFee(Order memory order) external {
-        Position memory _position = read();
-        _position.registerFee(order);
-        store(_position);
-    }
-
     function magnitude() external view returns (UFixed6) {
         return read().magnitude();
     }

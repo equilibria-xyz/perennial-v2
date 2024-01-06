@@ -2,7 +2,6 @@
 pragma solidity ^0.8.13;
 
 import "@equilibria/root/number/types/Fixed6.sol";
-import "@equilibria/root/number/types/Fixed6.sol";
 import "./Version.sol";
 import "./Position.sol";
 import "./Order.sol";
@@ -67,15 +66,11 @@ library LocalLib {
 
     /// @notice Accumulate fees from the latest position to next position
     /// @param self The Local object to update
-    /// @param toPosition The next latest position
+    /// @param toVersion The next latest version
     /// @return positionFee The resulting position fee
     /// @return keeper The resulting keeper fee
-    function accumulateFees(
-        Local memory self,
-        Position memory toPosition
-    ) internal pure returns (Fixed6 positionFee, UFixed6 keeper) {
-        positionFee = toPosition.fee;
-        keeper = toPosition.keeper;
+    function accumulateFees(Local memory self, Version memory toVersion) internal pure returns (Fixed6 positionFee, UFixed6 keeper) {
+        // TODO: accumulate fees
 
         Fixed6 feeAmount = positionFee.add(Fixed6Lib.from(keeper));
         self.collateral = self.collateral.sub(feeAmount);
