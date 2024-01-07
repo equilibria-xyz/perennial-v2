@@ -31,7 +31,6 @@ interface IMarket is IInstance {
         PositionContext currentPosition;
         PositionContext latestPosition;
         UFixed6 previousPendingMagnitude;
-        Fixed6 pendingCollateral;
         UFixed6 pendingOpen;
         UFixed6 pendingClose;
     }

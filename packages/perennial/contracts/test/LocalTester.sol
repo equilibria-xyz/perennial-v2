@@ -68,8 +68,4 @@ contract LocalTester {
         result = newLocal.protect(riskParameter, latestVersion, currentTimestamp, newOrder, initiator, tryProtect);
         local.store(newLocal);
     }
-
-    function pendingLiquidationFee(Position memory latestPosition) external view returns (UFixed6) {
-        return local.read().pendingLiquidationFee(latestPosition);
-    }
 }

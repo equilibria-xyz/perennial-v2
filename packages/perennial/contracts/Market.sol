@@ -228,10 +228,6 @@ contract Market is IMarket, Instance, ReentrancyGuard {
     /// @param context The context to use
     /// @param newPendingPosition The pending position to process
     function _processPendingPosition(Context memory context, Position memory newPendingPosition) private pure {
-        // apply pending fees to collateral
-        context.pendingCollateral = context.pendingCollateral;
-            // TODO: substract pending fees?
-
         // measure pending position deltas
         if (context.previousPendingMagnitude.gt(newPendingPosition.magnitude())) {
             context.pendingClose = context.pendingClose
@@ -248,7 +244,6 @@ contract Market is IMarket, Instance, ReentrancyGuard {
     /// @param account The account to query
     function _loadUpdateContext(Context memory context, address account) private view {
         // load latest position
-        context.pendingCollateral = context.local.collateral;
         context.previousPendingMagnitude = context.latestPosition.local.magnitude();
 
         // load current position
@@ -270,8 +265,6 @@ contract Market is IMarket, Instance, ReentrancyGuard {
         // load pending positions
         for (uint256 id = context.local.latestId + 1; id < context.local.currentId; id++)
             _processPendingPosition(context, _loadPendingPositionLocal(context, account, id));
-        context.pendingCollateral = context.pendingCollateral
-            .sub(Fixed6Lib.from(context.local.pendingLiquidationFee(context.latestPosition.local)));
     }
 
     /// @notice Modifies the collateral input per magic values
@@ -338,7 +331,6 @@ contract Market is IMarket, Instance, ReentrancyGuard {
         // update collateral
         context.local.update(collateral);
         context.currentPosition.local.update(collateral);
-        context.pendingCollateral = context.pendingCollateral.add(collateral);
 
         // process current position
         _processPendingPosition(context, context.currentPosition.local);
@@ -434,8 +426,6 @@ contract Market is IMarket, Instance, ReentrancyGuard {
             _processPositionLocal(context, account, context.local.latestId, nextPosition, false);
         }
 
-        // TODO: make sure syncs create 0-order positions and don't charge a fee when settled
-
         // overwrite latestPrice if invalid
         context.latestVersion.price = context.global.latestPrice;
 
@@ -519,8 +509,6 @@ contract Market is IMarket, Instance, ReentrancyGuard {
         context.latestPosition.local.update(newPosition);
         _processLiquidationFee(context, newPosition, version);
 
-        // TODO: make sure to re-include settlement fee here
-
         // events
         emit AccountPositionProcessed(
             account,
@@ -581,7 +569,7 @@ contract Market is IMarket, Instance, ReentrancyGuard {
             context.latestPosition.local.maintained(
                 context.latestVersion,
                 context.riskParameter,
-                context.pendingCollateral.sub(collateral)
+                context.local.collateral.sub(collateral)
             ) ||
             collateral.lt(Fixed6Lib.ZERO) ||
             newOrder.maker.add(newOrder.long).add(newOrder.short).gte(Fixed6Lib.ZERO)
@@ -618,7 +606,7 @@ contract Market is IMarket, Instance, ReentrancyGuard {
         ) revert MarketExceedsPendingIdLimitError();
 
         if (
-            !context.currentPosition.local.margined(context.latestVersion, context.riskParameter, context.pendingCollateral)
+            !context.currentPosition.local.margined(context.latestVersion, context.riskParameter, context.local.collateral)
         ) revert MarketInsufficientMarginError();
 
         if (
@@ -626,7 +614,7 @@ contract Market is IMarket, Instance, ReentrancyGuard {
                 context.latestPosition.local.magnitude().add(context.pendingOpen),
                 context.latestVersion,
                 context.riskParameter,
-                context.pendingCollateral
+                context.local.collateral
             )
         ) revert MarketInsufficientMarginError();
 
@@ -647,7 +635,7 @@ contract Market is IMarket, Instance, ReentrancyGuard {
             newOrder.decreasesLiquidity()
         ) revert MarketInsufficientLiquidityError();
 
-        if (collateral.lt(Fixed6Lib.ZERO) && context.pendingCollateral.lt(Fixed6Lib.ZERO))
+        if (collateral.lt(Fixed6Lib.ZERO) && context.local.collateral.lt(Fixed6Lib.ZERO))
             revert MarketInsufficientCollateralError();
     }
 

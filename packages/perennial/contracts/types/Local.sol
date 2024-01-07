@@ -136,18 +136,6 @@ library LocalLib {
     function processLiquidationFee(Local memory self, Local memory initiateeLocal) internal pure {
         self.collateral = self.collateral.add(Fixed6Lib.from(initiateeLocal.protectionAmount));
     }
-
-    /// @notice Returns the pending amount of liquidation fee
-    /// @dev May or may not realize depending on whether the liquidation version is valid
-    /// @param self The Local object
-    /// @param latestPosition The latest position
-    /// @return The pending liquidation fee
-    function pendingLiquidationFee(
-        Local memory self,
-        Position memory latestPosition
-    ) internal pure returns (UFixed6) {
-        return self.protection > latestPosition.timestamp ? self.protectionAmount : UFixed6Lib.ZERO;
-    }
 }
 
 /// @dev Manually encodes and decodes the Local struct into storage.
