@@ -31,6 +31,9 @@ struct Position {
     /// @dev The value of the invalidation accumulator at the time of creation
     Invalidation invalidation;
 
+    /// @dev The quantity of orders that are included in this position
+    uint256 orders;
+
     /// @dev The positive skew maker order size
     UFixed6 makerPos;
 
@@ -42,7 +45,6 @@ struct Position {
 
     /// @dev The negative skew taker order size
     UFixed6 takerNeg;
-
 }
 using PositionLib for Position global;
 struct PositionStorageGlobal { uint256 slot0; uint256 slot1; uint256 slot2; }
@@ -120,6 +122,7 @@ library PositionLib {
             self.takerPos.add(takerDelta.max(Fixed6Lib.ZERO).abs()),
             self.takerNeg.add(takerDelta.min(Fixed6Lib.ZERO).abs())
         );
+        if (!order.isEmpty()) self.orders++;
 
         // update the order's delta attributes with the positions updated attributes
         (order.efficiency) = (Fixed6Lib.from(efficiency(self)).sub(order.efficiency));
@@ -128,8 +131,8 @@ library PositionLib {
     /// @notice Removes all delta attributes from the position to prepate it for the next update
     /// @param self The position object to update
     function prepare(Position memory self) internal pure {
-        (self.collateral, self.makerPos, self.makerNeg, self.takerPos, self.takerNeg) =
-            (Fixed6Lib.ZERO, UFixed6Lib.ZERO, UFixed6Lib.ZERO, UFixed6Lib.ZERO, UFixed6Lib.ZERO);
+        (self.collateral, self.makerPos, self.makerNeg, self.takerPos, self.takerNeg, self.orders) =
+            (Fixed6Lib.ZERO, UFixed6Lib.ZERO, UFixed6Lib.ZERO, UFixed6Lib.ZERO, UFixed6Lib.ZERO, 0);
     }
 
     /// @notice Updates the collateral delta of the position
@@ -404,7 +407,8 @@ library PositionLib {
 ///     struct StoredPositionGlobal {
 ///         /* slot 0 */
 ///         uint32 timestamp;
-///         uint96 __unallocated__;
+///         uint32 orders;
+///         uint65 __unallocated__;
 ///         uint64 long;
 ///         uint64 short;
 ///
@@ -436,6 +440,7 @@ library PositionStorageGlobalLib {
                 Fixed6.wrap(int256(slot1 << (256 - 64 - 64 - 64)) >> (256 - 64)),
                 Fixed6.wrap(int256(slot1 << (256 - 64 - 64 - 64 - 64)) >> (256 - 64))
             ),
+            uint256(slot0 << (256 - 32 - 32)) >> (256 - 32 - 32),
             UFixed6.wrap(uint256(slot2 << (256 - 64)) >> (256 - 64)),
             UFixed6.wrap(uint256(slot2 << (256 - 64)) >> (256 - 64 - 64)),
             UFixed6.wrap(uint256(slot2 << (256 - 64)) >> (256 - 64 - 64 - 64)),
@@ -509,6 +514,7 @@ library PositionStorageLocalLib {
                 Fixed6.wrap(int256(slot1 << (256 - 2 - 62 - 64 - 64)) >> (256 - 64)),
                 Fixed6.wrap(int256(slot1 << (256 - 2 - 62 - 64 - 64 - 64)) >> (256 - 64))
             ),
+            0,
             UFixed6Lib.ZERO,
             UFixed6Lib.ZERO,
             UFixed6Lib.ZERO,
@@ -527,6 +533,7 @@ library PositionStorageLocalLib {
 
         uint256 encoded0 =
             uint256(newValue.timestamp << (256 - 32)) >> (256 - 32) |
+            uint256(newValue.orders << (256 - 32)) >> (256 - 32 - 32) |
             uint256(Fixed6.unwrap(newValue.collateral) << (256 - 64)) >> (256 - 32 - 48 - 48 - 64) |
             uint256(Fixed6.unwrap(newValue.delta) << (256 - 64)) >> (256 - 32 - 48 - 48 - 64 - 64);
         uint256 encoded1 =
@@ -549,6 +556,7 @@ library PositionStorageLib {
 
     function validate(Position memory newValue) internal pure {
         if (newValue.timestamp > type(uint32).max) revert PositionStorageInvalidError();
+        if (newValue.orders > type(uint32).max) revert PositionStorageInvalidError();
         if (newValue.collateral.gt(Fixed6.wrap(type(int64).max))) revert PositionStorageInvalidError();
         if (newValue.collateral.lt(Fixed6.wrap(type(int64).min))) revert PositionStorageInvalidError();
         if (newValue.delta.gt(Fixed6.wrap(type(int64).max))) revert PositionStorageInvalidError();

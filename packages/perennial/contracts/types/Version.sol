@@ -33,7 +33,10 @@ struct Version {
     Accumulator6 takerPosFee;
 
     /// @dev The accumulated fee for negative skew taker orders
-    Accumulator6 takerNegFee;
+    Accumulator6 takerNegFee; // TODO: should decrement for fees for rounding consistency
+
+    /// @dev The accumulated settlement fee for each individual order
+    UAccumulator6 settlementFee; // TODO: should decrement for fees for rounding consistency
 }
 using VersionLib for Version global;
 struct VersionStorage { uint256 slot0; uint256 slot1; }
@@ -58,6 +61,8 @@ struct VersionAccumulationResult {
     Fixed6 pnlMaker;
     Fixed6 pnlLong;
     Fixed6 pnlShort;
+
+    UFixed6 settlementFee;
 }
 
 ///@title Version
@@ -75,6 +80,7 @@ library VersionLib {
     /// @param riskParameter The risk parameter
     /// @return values The accumulation result
     /// @return totalFee The total fee accumulated
+    /// @return settlementFee The settlement fee accumulated
     function accumulate(
         Version memory self,
         Global memory global,
@@ -84,16 +90,19 @@ library VersionLib {
         OracleVersion memory toOracleVersion,
         MarketParameter memory marketParameter,
         RiskParameter memory riskParameter
-    ) internal pure returns (VersionAccumulationResult memory values, UFixed6 totalFee) {
+    ) internal pure returns (VersionAccumulationResult memory values, UFixed6 totalFee, UFixed6 settlementFee) {
         // record validity
         self.valid = toOracleVersion.valid;
+
+        // accumulate settlement fee
+        values.settlementFee = _accumulateSettlementFee(self, toPosition, marketParameter);
 
         // accumulate position fee
         (values.positionFeeMaker, values.positionFeeImpact, values.positionFeeFee) =
             _accumulatePositionFee(self, fromPosition, toPosition, toOracleVersion, marketParameter, riskParameter);
 
         // if closed, don't accrue anything else
-        if (marketParameter.closed) return (values, values.positionFeeFee);
+        if (marketParameter.closed) return (values, values.positionFeeFee, values.settlementFee);
 
         // accumulate funding
         _FundingValues memory fundingValues = _accumulateFunding(
@@ -121,8 +130,18 @@ library VersionLib {
         (values.pnlMaker, values.pnlLong, values.pnlShort) =
             _accumulatePNL(self, fromPosition, fromOracleVersion, toOracleVersion);
 
-        return (values, values.positionFeeFee.add(values.fundingFee).add(values.interestFee));
+        return (values, values.positionFeeFee.add(values.fundingFee).add(values.interestFee), values.settlementFee);
     }
+
+    function _accumulateSettlementFee(
+        Version memory self,
+        Position memory toPosition,
+        MarketParameter memory marketParameter
+    ) private pure returns (UFixed6 settlementFee) {
+        settlementFee = toPosition.orders == 0 ? UFixed6Lib.ZERO : marketParameter.settlementFee;
+        self.settlementFee.increment(settlementFee, UFixed6Lib.from(toPosition.orders));
+    }
+    
 
     /// @notice Globally accumulates position fees since last oracle update
     /// @param self The Version object to update
@@ -390,6 +409,7 @@ library VersionLib {
 ///         int48 makerNegFee;
 ///         int48 takerPosFee;
 ///         int48 takerNegFee;
+///         uint48 settlementFee;
 ///     }
 ///
 library VersionStorageLib {
@@ -406,7 +426,8 @@ library VersionStorageLib {
             Accumulator6(Fixed6.wrap(int256(slot1 << (256 - 48)) >> (256 - 48))),
             Accumulator6(Fixed6.wrap(int256(slot1 << (256 - 48 - 48)) >> (256 - 48))),
             Accumulator6(Fixed6.wrap(int256(slot1 << (256 - 48 - 48 - 48)) >> (256 - 48))),
-            Accumulator6(Fixed6.wrap(int256(slot1 << (256 - 48 - 48 - 48 - 48)) >> (256 - 48)))
+            Accumulator6(Fixed6.wrap(int256(slot1 << (256 - 48 - 48 - 48 - 48)) >> (256 - 48))),
+            UAccumulator6(UFixed6.wrap(uint256(slot1 << (256 - 48 - 48 - 48 - 48 - 48)) >> (256 - 48)))
         );
     }
 
@@ -418,9 +439,14 @@ library VersionStorageLib {
         if (newValue.shortValue._value.gt(Fixed6.wrap(type(int64).max))) revert VersionStorageInvalidError();
         if (newValue.shortValue._value.lt(Fixed6.wrap(type(int64).min))) revert VersionStorageInvalidError();
         if (newValue.makerPosFee._value.gt(Fixed6.wrap(type(int48).max))) revert VersionStorageInvalidError();
+        if (newValue.makerPosFee._value.lt(Fixed6.wrap(type(int48).min))) revert VersionStorageInvalidError();
         if (newValue.makerNegFee._value.gt(Fixed6.wrap(type(int48).max))) revert VersionStorageInvalidError();
+        if (newValue.makerNegFee._value.lt(Fixed6.wrap(type(int48).min))) revert VersionStorageInvalidError();
         if (newValue.takerPosFee._value.gt(Fixed6.wrap(type(int48).max))) revert VersionStorageInvalidError();
+        if (newValue.takerPosFee._value.lt(Fixed6.wrap(type(int48).min))) revert VersionStorageInvalidError();
         if (newValue.takerNegFee._value.gt(Fixed6.wrap(type(int48).max))) revert VersionStorageInvalidError();
+        if (newValue.takerNegFee._value.lt(Fixed6.wrap(type(int48).min))) revert VersionStorageInvalidError();
+        if (newValue.settlementFee._value.gt(UFixed6.wrap(type(uint48).max))) revert VersionStorageInvalidError();
 
         uint256 encoded0 =
             uint256((newValue.valid ? uint256(1) : uint256(0)) << (256 - 8)) >> (256 - 8) |
@@ -431,7 +457,8 @@ library VersionStorageLib {
             uint256(Fixed6.unwrap(newValue.makerPosFee._value) << (256 - 48)) >> (256 - 48) |
             uint256(Fixed6.unwrap(newValue.makerNegFee._value) << (256 - 48)) >> (256 - 48 - 48) |
             uint256(Fixed6.unwrap(newValue.takerPosFee._value) << (256 - 48)) >> (256 - 48 - 48 - 48) |
-            uint256(Fixed6.unwrap(newValue.takerNegFee._value) << (256 - 48)) >> (256 - 48 - 48 - 48 - 48);
+            uint256(Fixed6.unwrap(newValue.takerNegFee._value) << (256 - 48)) >> (256 - 48 - 48 - 48 - 48) |
+            uint256(UFixed6.unwrap(newValue.settlementFee._value) << (256 - 48)) >> (256 - 48 - 48 - 48 - 48 - 48);
 
         assembly {
             sstore(self.slot, encoded0)

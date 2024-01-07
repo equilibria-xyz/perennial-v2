@@ -454,7 +454,11 @@ contract Market is IMarket, Instance, ReentrancyGuard {
         if (!oracleVersion.valid) context.latestPosition.global.invalidate(newPosition);
 
         (uint256 fromTimestamp, uint256 fromId) = (context.latestPosition.global.timestamp, context.global.latestId);
-        (VersionAccumulationResult memory accumulationResult, UFixed6 accumulatedFee) = version.accumulate(
+        (
+            VersionAccumulationResult memory accumulationResult,
+            UFixed6 accumulatedFee,
+            UFixed6 accumulatedSettlementFee
+        ) = version.accumulate(
             context.global,
             context.latestPosition.global,
             newPosition,
@@ -467,7 +471,7 @@ contract Market is IMarket, Instance, ReentrancyGuard {
         context.global.update(newPositionId, oracleVersion.price);
         context.global.incrementFees(
             accumulatedFee,
-            UFixed6Lib.ZERO, // TODO: settlement fee goes here
+            accumulatedSettlementFee,
             context.marketParameter,
             context.protocolParameter
         );
@@ -510,7 +514,8 @@ contract Market is IMarket, Instance, ReentrancyGuard {
             version
         );
         if (checkpoint) _checkpointCollateral(context, account);
-        (accumulationResult.positionFee, accumulationResult.keeper) = context.local.accumulateFees(version);
+        (accumulationResult.positionFee, accumulationResult.keeper) =
+            context.local.accumulateFees(context.latestPosition.local, newPosition, version);
         context.latestPosition.local.update(newPosition);
         _processLiquidationFee(context, newPosition, version);
 

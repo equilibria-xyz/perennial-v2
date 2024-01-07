@@ -2,6 +2,8 @@
 pragma solidity ^0.8.13;
 
 import "@equilibria/root/number/types/Fixed6.sol";
+import "@equilibria/root/accumulator/types/UAccumulator6.sol";
+import "@equilibria/root/accumulator/types/Accumulator6.sol";
 import "./Version.sol";
 import "./Position.sol";
 import "./Order.sol";
@@ -66,13 +68,29 @@ library LocalLib {
 
     /// @notice Accumulate fees from the latest position to next position
     /// @param self The Local object to update
+    /// @param fromPosition The previous latest position
+    /// @param toPosition The next latest position
     /// @param toVersion The next latest version
     /// @return positionFee The resulting position fee
-    /// @return keeper The resulting keeper fee
-    function accumulateFees(Local memory self, Version memory toVersion) internal pure returns (Fixed6 positionFee, UFixed6 keeper) {
-        // TODO: accumulate fees
+    /// @return settlementFee The resulting keeper fee
+    function accumulateFees(
+        Local memory self,
+        Position memory fromPosition,
+        Position memory toPosition,
+        Version memory toVersion
+    ) internal pure returns (Fixed6 positionFee, UFixed6 settlementFee) {
+        Fixed6 takerDelta = Fixed6Lib.from(toPosition.long.add(fromPosition.short))
+            .sub(Fixed6Lib.from(fromPosition.long.add(toPosition.short)));
+        Fixed6 makerDelta = Fixed6Lib.from(toPosition.maker).sub(Fixed6Lib.from(fromPosition.maker));
 
-        Fixed6 feeAmount = positionFee.add(Fixed6Lib.from(keeper));
+        positionFee = toVersion.makerPosFee.accumulated(Accumulator6(Fixed6Lib.ZERO), makerDelta.max(Fixed6Lib.ZERO).abs())
+            .add(toVersion.makerNegFee.accumulated(Accumulator6(Fixed6Lib.ZERO), makerDelta.min(Fixed6Lib.ZERO).abs()))
+            .add(toVersion.takerPosFee.accumulated(Accumulator6(Fixed6Lib.ZERO), takerDelta.max(Fixed6Lib.ZERO).abs()))
+            .add(toVersion.takerNegFee.accumulated(Accumulator6(Fixed6Lib.ZERO), takerDelta.min(Fixed6Lib.ZERO).abs()));
+
+        settlementFee = toVersion.settlementFee.accumulated(UAccumulator6(UFixed6Lib.ZERO), UFixed6Lib.ONE);
+
+        Fixed6 feeAmount = positionFee.add(Fixed6Lib.from(settlementFee));
         self.collateral = self.collateral.sub(feeAmount);
     }
 
