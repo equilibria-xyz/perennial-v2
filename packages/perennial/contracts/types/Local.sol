@@ -79,19 +79,23 @@ library LocalLib {
         Position memory toPosition,
         Version memory toVersion
     ) internal pure returns (Fixed6 positionFee, UFixed6 settlementFee) {
+        // compute local order
         Fixed6 takerDelta = Fixed6Lib.from(toPosition.long.add(fromPosition.short))
             .sub(Fixed6Lib.from(fromPosition.long.add(toPosition.short)));
         Fixed6 makerDelta = Fixed6Lib.from(toPosition.maker).sub(Fixed6Lib.from(fromPosition.maker));
 
-        positionFee = toVersion.makerPosFee.accumulated(Accumulator6(Fixed6Lib.ZERO), makerDelta.max(Fixed6Lib.ZERO).abs())
-            .add(toVersion.makerNegFee.accumulated(Accumulator6(Fixed6Lib.ZERO), makerDelta.min(Fixed6Lib.ZERO).abs()))
-            .add(toVersion.takerPosFee.accumulated(Accumulator6(Fixed6Lib.ZERO), takerDelta.max(Fixed6Lib.ZERO).abs()))
-            .add(toVersion.takerNegFee.accumulated(Accumulator6(Fixed6Lib.ZERO), takerDelta.min(Fixed6Lib.ZERO).abs()));
+        // accumulate position fee
+        positionFee = Fixed6Lib.ZERO
+            .sub(toVersion.makerPosFee.accumulated(Accumulator6(Fixed6Lib.ZERO), makerDelta.max(Fixed6Lib.ZERO).abs()))
+            .sub(toVersion.makerNegFee.accumulated(Accumulator6(Fixed6Lib.ZERO), makerDelta.min(Fixed6Lib.ZERO).abs()))
+            .sub(toVersion.takerPosFee.accumulated(Accumulator6(Fixed6Lib.ZERO), takerDelta.max(Fixed6Lib.ZERO).abs()))
+            .sub(toVersion.takerNegFee.accumulated(Accumulator6(Fixed6Lib.ZERO), takerDelta.min(Fixed6Lib.ZERO).abs()));
 
-        settlementFee = toVersion.settlementFee.accumulated(UAccumulator6(UFixed6Lib.ZERO), UFixed6Lib.ONE);
+        // accumulate settlement fee
+        uint256 orders = takerDelta.add(makerDelta).eq(Fixed6Lib.ZERO) ? 0 : 1;
+        settlementFee = toVersion.settlementFee.accumulated(Accumulator6(Fixed6Lib.ZERO), UFixed6Lib.from(orders)).abs();
 
-        Fixed6 feeAmount = positionFee.add(Fixed6Lib.from(settlementFee));
-        self.collateral = self.collateral.sub(feeAmount);
+        self.collateral = self.collateral.sub(positionFee).sub(Fixed6Lib.from(settlementFee));
     }
 
     /// @notice Updates the Local to put it into a protected state for liquidation
