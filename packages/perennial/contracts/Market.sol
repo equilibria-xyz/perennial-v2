@@ -446,8 +446,7 @@ contract Market is IMarket, Instance, ReentrancyGuard {
         (uint256 fromTimestamp, uint256 fromId) = (context.latestPosition.global.timestamp, context.global.latestId);
         (
             VersionAccumulationResult memory accumulationResult,
-            UFixed6 accumulatedFee,
-            UFixed6 accumulatedSettlementFee
+            VersionFeeResult memory feeResult
         ) = version.accumulate(
             context.global,
             context.latestPosition.global,
@@ -460,8 +459,8 @@ contract Market is IMarket, Instance, ReentrancyGuard {
         context.latestPosition.global.update(newPosition);
         context.global.update(newPositionId, oracleVersion.price);
         context.global.incrementFees(
-            accumulatedFee,
-            accumulatedSettlementFee,
+            feeResult.marketFee,
+            feeResult.settlementFee,
             context.marketParameter,
             context.protocolParameter
         );
