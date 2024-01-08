@@ -9,6 +9,7 @@ import "./Position.sol";
 import "./Order.sol";
 import "./RiskParameter.sol";
 import "./OracleVersion.sol";
+import "./Delta.sol";
 
 /// @dev Local type
 struct Local {
@@ -102,6 +103,8 @@ library LocalLib {
     /// @param self The Local object to update
     /// @param latestVersion The latest oracle version
     /// @param currentTimestamp The current timestamp
+    /// @param newDelta The new delta
+    /// @param initiator The initiator of the protection
     /// @param tryProtect Whether to try to protect the Local
     /// @return Whether the protection was protected
     function protect(
@@ -109,13 +112,13 @@ library LocalLib {
         RiskParameter memory riskParameter,
         OracleVersion memory latestVersion,
         uint256 currentTimestamp,
-        Order memory newOrder,
+        Delta memory newDelta,
         address initiator,
         bool tryProtect
     ) internal pure returns (bool) {
         if (!tryProtect || self.protection > latestVersion.timestamp) return false;
         (self.protection, self.protectionAmount, self.protectionInitiator) =
-            (currentTimestamp, newOrder.liquidationFee(latestVersion, riskParameter), initiator);
+            (currentTimestamp, newDelta.liquidationFee(latestVersion, riskParameter), initiator);
         return true;
     }
 

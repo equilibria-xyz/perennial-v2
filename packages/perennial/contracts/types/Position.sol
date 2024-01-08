@@ -7,6 +7,7 @@ import "./Order.sol";
 import "./Global.sol";
 import "./Local.sol";
 import "./Invalidation.sol";
+import "./Delta.sol";
 
 /// @dev Order type
 struct Position {
@@ -30,21 +31,6 @@ struct Position {
 
     /// @dev The value of the invalidation accumulator at the time of creation
     Invalidation invalidation;
-
-    /// @dev The quantity of orders that are included in this position
-    uint256 orders;
-
-    /// @dev The positive skew maker order size
-    UFixed6 makerPos;
-
-    /// @dev The negative skew maker order size
-    UFixed6 makerNeg;
-
-    /// @dev The positive skew taker order size
-    UFixed6 takerPos;
-
-    /// @dev The negative skew taker order size
-    UFixed6 takerNeg;
 }
 using PositionLib for Position global;
 struct PositionStorageGlobal { uint256 slot0; uint256 slot1; uint256 slot2; }
@@ -71,68 +57,23 @@ library PositionLib {
             (newPosition.timestamp, newPosition.maker, newPosition.long, newPosition.short);
     }
 
-    /// @notice Updates the current local position with a new order
-    /// @param self The position object to update
-    /// @param currentTimestamp The current timestamp
-    /// @param newMaker The new maker position
-    /// @param newLong The new long position
-    /// @param newShort The new short position
-    /// @return newOrder The new order
-    function update(
-        Position memory self,
-        uint256 currentTimestamp,
-        UFixed6 newMaker,
-        UFixed6 newLong,
-        UFixed6 newShort
-    ) internal pure returns (Order memory newOrder) {
-        (newOrder.maker, newOrder.long, newOrder.short) = (
-            Fixed6Lib.from(newMaker).sub(Fixed6Lib.from(self.maker)),
-            Fixed6Lib.from(newLong).sub(Fixed6Lib.from(self.long)),
-            Fixed6Lib.from(newShort).sub(Fixed6Lib.from(self.short))
-        );
-
-        (self.timestamp, self.maker, self.long, self.short) = (currentTimestamp, newMaker, newLong, newShort);
-    }
-
     /// @notice Updates the current global position with a new order
     /// @param self The position object to update
     /// @param currentTimestamp The current timestamp
-    /// @param order The new order
-    function update(
-        Position memory self,
-        uint256 currentTimestamp,
-        Order memory order
-    ) internal pure {
-        // load the computed attributes of the latest position
-        (order.net, order.efficiency) = (Fixed6Lib.from(net(self)), Fixed6Lib.from(efficiency(self)));
-
-        // update the position's attributes
+    /// @param delta The new delta
+    function update(Position memory self, uint256 currentTimestamp, Delta memory delta) internal pure {
         (self.timestamp, self.maker, self.long, self.short) = (
             currentTimestamp,
-            UFixed6Lib.from(Fixed6Lib.from(self.maker).add(order.maker)),
-            UFixed6Lib.from(Fixed6Lib.from(self.long).add(order.long)),
-            UFixed6Lib.from(Fixed6Lib.from(self.short).add(order.short))
+            UFixed6Lib.from(Fixed6Lib.from(self.maker).add(delta.maker)),
+            UFixed6Lib.from(Fixed6Lib.from(self.long).add(delta.long)),
+            UFixed6Lib.from(Fixed6Lib.from(self.short).add(delta.short))
         );
-
-        // update the order's delta attributes
-        Fixed6 takerDelta = order.long.sub(order.short);
-        (self.makerPos, self.makerNeg, self.takerPos, self.takerNeg) = (
-            self.makerPos.add(order.maker.max(Fixed6Lib.ZERO).abs()),
-            self.makerNeg.add(order.maker.min(Fixed6Lib.ZERO).abs()),
-            self.takerPos.add(takerDelta.max(Fixed6Lib.ZERO).abs()),
-            self.takerNeg.add(takerDelta.min(Fixed6Lib.ZERO).abs())
-        );
-        if (!order.isEmpty()) self.orders++;
-
-        // update the order's delta attributes with the positions updated attributes
-        (order.efficiency) = (Fixed6Lib.from(efficiency(self)).sub(order.efficiency));
     }
 
     /// @notice Removes all delta attributes from the position to prepate it for the next update
     /// @param self The position object to update
     function prepare(Position memory self) internal pure {
-        (self.collateral, self.makerPos, self.makerNeg, self.takerPos, self.takerNeg, self.orders) =
-            (Fixed6Lib.ZERO, UFixed6Lib.ZERO, UFixed6Lib.ZERO, UFixed6Lib.ZERO, UFixed6Lib.ZERO, 0);
+        self.collateral = Fixed6Lib.ZERO;
     }
 
     /// @notice Updates the collateral delta of the position
@@ -171,6 +112,11 @@ library PositionLib {
     function sync(Position memory self, OracleVersion memory latestVersion) internal pure {
         prepare(self);
         self.timestamp = latestVersion.timestamp;
+    }
+
+    // TODO
+    function direction(Position memory self) internal pure returns (uint256) {
+        return self.long.isZero() ? (self.short.isZero() ? 0 : 2) : 1;
     }
 
     /// @notice Returns the maximum position size
@@ -267,6 +213,13 @@ library PositionLib {
     /// @return Whether the position is socialized
     function socialized(Position memory self) internal pure returns (bool) {
         return self.maker.add(self.short).lt(self.long) || self.maker.add(self.long).lt(self.short);
+    }
+    
+    /// @notice Returns the whether the position is single-sided
+    /// @param self The position object to check
+    /// @return Whether the position is single-sided
+    function singleSided(Position memory self) internal pure returns (bool) {
+        return magnitude(self).eq(self.long.add(self.short).add(self.maker));
     }
 
     /// @notice Returns the maintenance requirement of the position
@@ -417,17 +370,11 @@ library PositionLib {
 ///         int64 invalidation.maker;
 ///         int64 invalidation.long;
 ///         int64 invalidation.short;
-///
-///         /* slot 2 */
-///         uint64 makerPos;
-///         uint64 makerNeg;
-///         uint64 takerPos;
-///         uint64 takerNeg;
 ///     }
 ///
 library PositionStorageGlobalLib {
     function read(PositionStorageGlobal storage self) internal view returns (Position memory) {
-        (uint256 slot0, uint256 slot1, uint256 slot2) = (self.slot0, self.slot1, self.slot2);
+        (uint256 slot0, uint256 slot1) = (self.slot0, self.slot1);
         return Position(
             uint256(slot0 << (256 - 32)) >> (256 - 32),
             UFixed6.wrap(uint256(slot1 << (256 - 64)) >> (256 - 64)),
@@ -439,12 +386,7 @@ library PositionStorageGlobalLib {
                 Fixed6.wrap(int256(slot1 << (256 - 64 - 64)) >> (256 - 64)),
                 Fixed6.wrap(int256(slot1 << (256 - 64 - 64 - 64)) >> (256 - 64)),
                 Fixed6.wrap(int256(slot1 << (256 - 64 - 64 - 64 - 64)) >> (256 - 64))
-            ),
-            uint256(slot0 << (256 - 32 - 32)) >> (256 - 32 - 32),
-            UFixed6.wrap(uint256(slot2 << (256 - 64)) >> (256 - 64)),
-            UFixed6.wrap(uint256(slot2 << (256 - 64)) >> (256 - 64 - 64)),
-            UFixed6.wrap(uint256(slot2 << (256 - 64)) >> (256 - 64 - 64 - 64)),
-            UFixed6.wrap(uint256(slot2 << (256 - 64)) >> (256 - 64 - 64 - 64 - 64))
+            )
         );
     }
 
@@ -464,16 +406,10 @@ library PositionStorageGlobalLib {
             uint256(Fixed6.unwrap(newValue.invalidation.maker) << (256 - 64)) >> (256 - 64 - 64) |
             uint256(Fixed6.unwrap(newValue.invalidation.long) << (256 - 64)) >> (256 - 64 - 64 - 64) |
             uint256(Fixed6.unwrap(newValue.invalidation.short) << (256 - 64)) >> (256 - 64 - 64 - 64 - 64);
-        uint256 encoded2 =
-            uint256(UFixed6.unwrap(newValue.makerPos) << (256 - 64)) >> (256 - 64) |
-            uint256(UFixed6.unwrap(newValue.makerNeg) << (256 - 64)) >> (256 - 64 - 64) |
-            uint256(UFixed6.unwrap(newValue.takerPos) << (256 - 64)) >> (256 - 64 - 64 - 64) |
-            uint256(UFixed6.unwrap(newValue.takerNeg) << (256 - 64)) >> (256 - 64 - 64 - 64 - 64);
 
         assembly {
             sstore(self.slot, encoded0)
             sstore(add(self.slot, 1), encoded1)
-            sstore(add(self.slot, 2), encoded2)
         }
     }
 }
@@ -513,32 +449,24 @@ library PositionStorageLocalLib {
                 Fixed6.wrap(int256(slot1 << (256 - 2 - 62 - 64)) >> (256 - 64)),
                 Fixed6.wrap(int256(slot1 << (256 - 2 - 62 - 64 - 64)) >> (256 - 64)),
                 Fixed6.wrap(int256(slot1 << (256 - 2 - 62 - 64 - 64 - 64)) >> (256 - 64))
-            ),
-            0,
-            UFixed6Lib.ZERO,
-            UFixed6Lib.ZERO,
-            UFixed6Lib.ZERO,
-            UFixed6Lib.ZERO
+            )
         );
     }
 
     function store(PositionStorageLocal storage self, Position memory newValue) internal {
         PositionStorageLib.validate(newValue);
 
-        if (newValue.maker.gt(UFixed6.wrap(2 ** 62 - 1))) revert PositionStorageLib.PositionStorageInvalidError();
-        if (newValue.long.gt(UFixed6.wrap(2 ** 62 - 1))) revert PositionStorageLib.PositionStorageInvalidError();
-        if (newValue.short.gt(UFixed6.wrap(2 ** 62 - 1))) revert PositionStorageLib.PositionStorageInvalidError();
+        UFixed6 magnitude = newValue.magnitude();
 
-        uint256 direction = newValue.long.isZero() ? (newValue.short.isZero() ? 0 : 2) : 1;
+        if (magnitude.gt(UFixed6.wrap(2 ** 62 - 1))) revert PositionStorageLib.PositionStorageInvalidError();
 
         uint256 encoded0 =
             uint256(newValue.timestamp << (256 - 32)) >> (256 - 32) |
-            uint256(newValue.orders << (256 - 32)) >> (256 - 32 - 32) |
             uint256(Fixed6.unwrap(newValue.collateral) << (256 - 64)) >> (256 - 32 - 48 - 48 - 64) |
             uint256(Fixed6.unwrap(newValue.delta) << (256 - 64)) >> (256 - 32 - 48 - 48 - 64 - 64);
         uint256 encoded1 =
-            uint256(direction << (256 - 2)) >> (256 - 2) |
-            uint256(UFixed6.unwrap(newValue.magnitude()) << (256 - 62)) >> (256 - 2 - 62) |
+            uint256(newValue.direction() << (256 - 2)) >> (256 - 2) |
+            uint256(UFixed6.unwrap(magnitude) << (256 - 62)) >> (256 - 2 - 62) |
             uint256(Fixed6.unwrap(newValue.invalidation.maker) << (256 - 64)) >> (256 - 2 - 62 - 64) |
             uint256(Fixed6.unwrap(newValue.invalidation.long) << (256 - 64)) >> (256 - 2 - 62 - 64 - 64) |
             uint256(Fixed6.unwrap(newValue.invalidation.short) << (256 - 64)) >> (256 - 2 - 62 - 64 - 64 - 64);
@@ -556,7 +484,6 @@ library PositionStorageLib {
 
     function validate(Position memory newValue) internal pure {
         if (newValue.timestamp > type(uint32).max) revert PositionStorageInvalidError();
-        if (newValue.orders > type(uint32).max) revert PositionStorageInvalidError();
         if (newValue.collateral.gt(Fixed6.wrap(type(int64).max))) revert PositionStorageInvalidError();
         if (newValue.collateral.lt(Fixed6.wrap(type(int64).min))) revert PositionStorageInvalidError();
         if (newValue.delta.gt(Fixed6.wrap(type(int64).max))) revert PositionStorageInvalidError();
@@ -567,9 +494,5 @@ library PositionStorageLib {
         if (newValue.invalidation.long.lt(Fixed6.wrap(type(int64).min))) revert PositionStorageInvalidError();
         if (newValue.invalidation.short.gt(Fixed6.wrap(type(int64).max))) revert PositionStorageInvalidError();
         if (newValue.invalidation.short.lt(Fixed6.wrap(type(int64).min))) revert PositionStorageInvalidError();
-        if (newValue.makerPos.gt(UFixed6.wrap(type(uint64).max))) revert PositionStorageInvalidError();
-        if (newValue.makerNeg.gt(UFixed6.wrap(type(uint64).max))) revert PositionStorageInvalidError();
-        if (newValue.takerPos.gt(UFixed6.wrap(type(uint64).max))) revert PositionStorageInvalidError();
-        if (newValue.takerNeg.gt(UFixed6.wrap(type(uint64).max))) revert PositionStorageInvalidError();
     }
 }

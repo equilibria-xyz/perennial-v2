@@ -90,8 +90,16 @@ library DeltaLib {
         if (!empty(newDelta)) newDelta.orders = 1;
     }
 
+    function direction(Delta memory self) internal pure returns (uint256) {
+        return self.long.isZero() ? (self.short.isZero() ? 0 : 2) : 1;
+    }
+
+    function magnitude(Delta memory self) internal pure returns (Fixed6) {
+        return self.maker.add(self.long).add(self.short);
+    }
+
     function empty(Delta memory self) internal pure returns (bool) {
-        return self.maker.isZero() && self.long.isZero() && self.short.isZero();
+        return magnitude(self).isZero();
     }
 
     /// @notice Updates the current global delta with a new local delta
@@ -112,6 +120,78 @@ library DeltaLib {
             self.takerPos.add(delta.takerPos),
             self.takerNeg.add(delta.takerNeg)
         );
+    }
+
+    /// @notice Returns the liquidation fee of the position
+    /// @dev Assumes the order must be single-sided
+    /// @param self The position object to check
+    /// @param latestVersion The latest oracle version
+    /// @param riskParameter The current risk parameter
+    /// @return The liquidation fee of the position
+    function liquidationFee(
+        Delta memory self,
+        OracleVersion memory latestVersion,
+        RiskParameter memory riskParameter
+    ) internal pure returns (UFixed6) {
+        if (empty(self)) return UFixed6Lib.ZERO;
+
+        UFixed6 partialMaintenance = magnitude(self).abs()
+            .mul(latestVersion.price.abs())
+            .mul(riskParameter.maintenance)
+            .max(riskParameter.minMaintenance);
+
+        return partialMaintenance.mul(riskParameter.liquidationFee)
+            .min(riskParameter.maxLiquidationFee)
+            .max(riskParameter.minLiquidationFee);
+    }
+
+    /// @notice Returns whether the order increases any of the account's positions
+    /// @return Whether the order increases any of the account's positions
+    function increasesPosition(Delta memory self) internal pure returns (bool) {
+        return increasesMaker(self) || increasesTaker(self);
+    }
+
+    /// @notice Returns whether the order increases the account's long or short positions
+    /// @return Whether the order increases the account's long or short positions
+    function increasesTaker(Delta memory self) internal pure returns (bool) {
+        return self.long.gt(Fixed6Lib.ZERO) || self.short.gt(Fixed6Lib.ZERO);
+    }
+
+    /// @notice Returns whether the order increases the account's maker position
+    /// @return Whether the order increases the account's maker positions
+    function increasesMaker(Delta memory self) internal pure returns (bool) {
+        return self.maker.gt(Fixed6Lib.ZERO);
+    }
+
+    /// @notice Returns whether the order decreases the liquidity of the market
+    /// @return Whether the order decreases the liquidity of the market
+    function decreasesLiquidity(Delta memory self, Position memory currentPosition) internal pure returns (bool) {
+        Fixed6 currentSkew = currentPosition.skew();
+        Fixed6 latestSkew = currentSkew.sub(self.long).add(self.short);
+        return self.maker.lt(Fixed6Lib.ZERO) || currentSkew.abs().gt(latestSkew.abs());
+    }
+
+    /// @notice Returns whether the order decreases the efficieny of the market
+    /// @dev Decreased efficiency ratio intuitively means that the market is "more efficient" on an OI to LP basis.
+    /// @return Whether the order decreases the liquidity of the market
+    function decreasesEfficiency(Delta memory self, Position memory currentPosition) internal pure returns (bool) {
+        UFixed6 currentMajor = currentPosition.major();
+        UFixed6 latestMajor = UFixed6Lib.from(Fixed6Lib.from(currentPosition.long).sub(self.long))
+            .max(UFixed6Lib.from(Fixed6Lib.from(currentPosition.short).sub(self.short)));
+        return self.maker.lt(Fixed6Lib.ZERO) || currentMajor.gt(latestMajor);
+    }
+
+    /// @notice Returns whether the order is applicable for liquidity checks
+    /// @param self The Order object to check
+    /// @param marketParameter The market parameter
+    /// @return Whether the order is applicable for liquidity checks
+    function liquidityCheckApplicable(
+        Delta memory self,
+        MarketParameter memory marketParameter
+    ) internal pure returns (bool) {
+        return !marketParameter.closed &&
+            ((self.maker.isZero()) || !marketParameter.makerCloseAlways || increasesMaker(self)) &&
+            ((self.long.isZero() && self.short.isZero()) || !marketParameter.takerCloseAlways || increasesTaker(self));
     }
 }
 
@@ -208,14 +288,13 @@ library DeltaStorageLocalLib {
     function store(DeltaStorageLocal storage self, Delta memory newValue) internal {
         DeltaStorageLib.validate(newValue);
 
-        uint256 direction = newValue.long.isZero() ? (newValue.short.isZero() ? 0 : 2) : 1;
-        Fixed6 magnitude = newValue.maker.add(newValue.long).add(newValue.short);
+        Fixed6 magnitude = newValue.magnitude();
 
         if (magnitude.gt(Fixed6.wrap(2 ** 61 - 1))) revert DeltaStorageLib.DeltaStorageInvalidError();
 
         uint256 encoded =
             uint256(newValue.timestamp << (256 - 32)) >> (256 - 32) |
-            uint256(direction << (256 - 2)) >> (256 - 32 - 2) |
+            uint256(newValue.direction() << (256 - 2)) >> (256 - 32 - 2) |
             uint256(Fixed6.unwrap(magnitude) << (256 - 62)) >> (256 - 32 - 2 - 62);
 
         assembly {

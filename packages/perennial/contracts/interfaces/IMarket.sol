@@ -28,6 +28,7 @@ interface IMarket is IInstance {
         OracleVersion positionVersion;
         Global global;
         Local local;
+        Delta delta;
         PositionContext currentPosition;
         PositionContext latestPosition;
         UFixed6 previousPendingMagnitude;
@@ -47,7 +48,7 @@ interface IMarket is IInstance {
     }
 
     event Updated(address indexed sender, address indexed account, uint256 version, UFixed6 newMaker, UFixed6 newLong, UFixed6 newShort, Fixed6 collateral, bool protect);
-    event OrderCreated(address indexed account, uint256 version, Order order, Fixed6 collateral);
+    event OrderCreated(address indexed account, uint256 version, Delta delta, Fixed6 collateral);
     event PositionProcessed(uint256 indexed fromOracleVersion, uint256 indexed toOracleVersion, uint256 fromPosition, uint256 toPosition, VersionAccumulationResult accumulationResult);
     event AccountPositionProcessed(address indexed account, uint256 indexed fromOracleVersion, uint256 indexed toOracleVersion, uint256 fromPosition, uint256 toPosition, LocalAccumulationResult accumulationResult);
     event BeneficiaryUpdated(address newBeneficiary);
