@@ -3,7 +3,6 @@ pragma solidity ^0.8.13;
 
 import "./OracleVersion.sol";
 import "./RiskParameter.sol";
-import "./Order.sol";
 import "./Global.sol";
 import "./Local.sol";
 import "./Invalidation.sol";

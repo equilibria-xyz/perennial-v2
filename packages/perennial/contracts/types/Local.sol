@@ -6,7 +6,6 @@ import "@equilibria/root/accumulator/types/UAccumulator6.sol";
 import "@equilibria/root/accumulator/types/Accumulator6.sol";
 import "./Version.sol";
 import "./Position.sol";
-import "./Order.sol";
 import "./RiskParameter.sol";
 import "./OracleVersion.sol";
 import "./Delta.sol";
