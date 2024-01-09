@@ -11,8 +11,8 @@
 | `@perennial-v2`            | Core perennial smart contracts.   |                       [![npm version](https://badge.fury.io/js/@equilibria%2Fperennial-v2.svg)](https://badge.fury.io/js/@equilibria%2Fperennial-v2) |
 | `@perennial-v2-deploy`     | Deployment scripts and artifacts. |         [![npm version](https://badge.fury.io/js/@equilibria%2Fperennial-v2-deploy.svg)](https://badge.fury.io/js/@equilibria%2Fperennial-v2-deploy) |
 | `@perennial-v2-extensions` | Extension smart contracts.        | [![npm version](https://badge.fury.io/js/@equilibria%2Fperennial-v2-extensions.svg)](https://badge.fury.io/js/@equilibria%2Fperennial-v2-extensions) |
-| `@perennial-v2-oracle`     | Oracle provider smart contracts.  |         [![npm version](https://badge.fury.io/js/@equilibria%2Fperennial-v2-payoff.svg)](https://badge.fury.io/js/@equilibria%2Fperennial-v2-payoff) |
-| `@perennial-v2-payoff`     | Payoff provider smart contracts.  |         [![npm version](https://badge.fury.io/js/@equilibria%2Fperennial-v2-oracle.svg)](https://badge.fury.io/js/@equilibria%2Fperennial-v2-oracle) |
+| `@perennial-v2-oracle`     | Oracle provider smart contracts.  |         [![npm version](https://badge.fury.io/js/@equilibria%2Fperennial-v2-oracle.svg)](https://badge.fury.io/js/@equilibria%2Fperennial-v2-oracle) |
+| `@perennial-v2-payoff`     | Payoff provider smart contracts.  |         [![npm version](https://badge.fury.io/js/@equilibria%2Fperennial-v2-payoff.svg)](https://badge.fury.io/js/@equilibria%2Fperennial-v2-payoff) |
 | `@perennial-v2-vault`      | Vault smart contracts.            |           [![npm version](https://badge.fury.io/js/@equilibria%2Fperennial-v2-vault.svg)](https://badge.fury.io/js/@equilibria%2Fperennial-v2-vault) |
 
 ## 🔗 Resources
