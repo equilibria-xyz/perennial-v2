@@ -489,7 +489,7 @@ describe('Invoke', () => {
           buildUpdateMarket({
             market: market.address,
             collateral: collateral,
-            interfaceFee: {
+            interfaceFee1: {
               amount: feeAmt,
               receiver: owner.address,
               unwrap: true,
@@ -517,7 +517,7 @@ describe('Invoke', () => {
           buildUpdateMarket({
             market: market.address,
             collateral: collateral,
-            interfaceFee: {
+            interfaceFee1: {
               amount: feeAmt,
               receiver: owner.address,
               unwrap: false,
@@ -549,7 +549,7 @@ describe('Invoke', () => {
           buildUpdateMarket({
             market: market.address,
             collateral: collateral.sub(feeAmt).mul(-1),
-            interfaceFee: {
+            interfaceFee1: {
               amount: feeAmt,
               receiver: owner.address,
               unwrap: true,
@@ -581,7 +581,7 @@ describe('Invoke', () => {
           buildUpdateMarket({
             market: market.address,
             collateral: collateral.sub(feeAmt).mul(-1),
-            interfaceFee: {
+            interfaceFee1: {
               amount: feeAmt,
               receiver: owner.address,
               unwrap: false,
@@ -593,6 +593,44 @@ describe('Invoke', () => {
         .withArgs(user.address, market.address, [feeAmt, owner.address, false])
 
       expect((await dsu.balanceOf(owner.address)).sub(balanceBefore)).to.eq(feeAmt.mul(1e12))
+    })
+
+    it('charges multiple interface fees', async () => {
+      const { owner, user, userB, usdc, dsu } = instanceVars
+
+      const balanceBefore = await usdc.balanceOf(owner.address)
+      const balanceBefore2 = await dsu.balanceOf(userB.address)
+      const feeAmt = collateral.div(10)
+      const feeAmt2 = collateral.div(20)
+      await usdc.connect(user).approve(multiInvoker.address, collateral.add(feeAmt))
+      await dsu.connect(user).approve(multiInvoker.address, dsuCollateral)
+      await multiInvoker.invoke(buildApproveTarget(market.address))
+
+      await expect(
+        multiInvoker.connect(user).invoke(
+          buildUpdateMarket({
+            market: market.address,
+            collateral: collateral,
+            interfaceFee1: {
+              amount: feeAmt,
+              receiver: owner.address,
+              unwrap: true,
+            },
+            interfaceFee2: {
+              amount: feeAmt2,
+              receiver: userB.address,
+              unwrap: false,
+            },
+          }),
+        ),
+      )
+        .to.emit(multiInvoker, 'InterfaceFeeCharged')
+        .withArgs(user.address, market.address, [feeAmt, owner.address, true])
+        .to.emit(multiInvoker, 'InterfaceFeeCharged')
+        .withArgs(user.address, market.address, [feeAmt2, userB.address, false])
+
+      expect((await usdc.balanceOf(owner.address)).sub(balanceBefore)).to.eq(feeAmt)
+      expect((await dsu.balanceOf(userB.address)).sub(balanceBefore2)).to.eq(feeAmt2.mul(1e12))
     })
 
     it('Only allows updates to factory created markets', async () => {
