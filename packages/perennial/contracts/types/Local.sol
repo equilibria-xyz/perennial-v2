@@ -135,13 +135,6 @@ library LocalLib {
         self.collateral = self.collateral.sub(Fixed6Lib.from(self.protectionAmount));
         return true;
     }
-
-    /// @notice Processes the initiator's liquidation fee
-    /// @param self The Local object to update
-    /// @param initiateeLocal The Local object to process
-    function processLiquidationFee(Local memory self, Local memory initiateeLocal) internal pure {
-        self.collateral = self.collateral.add(Fixed6Lib.from(initiateeLocal.protectionAmount));
-    }
 }
 
 /// @dev Manually encodes and decodes the Local struct into storage.

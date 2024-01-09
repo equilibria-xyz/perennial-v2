@@ -50,6 +50,7 @@ struct VersionAccumulationResult {
 
     Fixed6 impactFeeMaker;
     Fixed6 impactFee;
+    Fixed6 impactFeeProtocol;
 
     Fixed6 fundingMaker;
     Fixed6 fundingLong;
@@ -71,6 +72,7 @@ struct VersionAccumulationResult {
 struct VersionFeeResult {
     UFixed6 marketFee;
     UFixed6 settlementFee;
+    Fixed6 protocolFee;
 }
 
 ///@title Version
@@ -108,7 +110,7 @@ library VersionLib {
             _accumulatePositionFee(self, fromPosition, order, toOracleVersion, marketParameter, riskParameter);
 
         // accumulate impact fee
-        (values.impactFeeMaker, values.impactFee) =
+        (values.impactFeeMaker, values.impactFee, values.impactFeeProtocol) =
             _accumulateImpactFee(self, fromPosition, order, fromOracleVersion, toOracleVersion, riskParameter);
 
         // if closed, don't accrue anything else
@@ -204,8 +206,8 @@ library VersionLib {
         OracleVersion memory toOracleVersion,
         OracleVersion memory fromOracleVersion,
         RiskParameter memory riskParameter
-    ) private pure returns (Fixed6 positionFeeMaker, Fixed6 positionFeeImpact) {
-        Fixed6 makerFee; Fixed6 impactFee;
+    ) private pure returns (Fixed6 positionFeeMaker, Fixed6 positionFeeImpact, Fixed6 positionFeeProtocol) {
+        Fixed6 makerFee; Fixed6 impactFee; Fixed6 protocolFee;
 
         // position fee from positive skew taker orders
         ComponentParams memory component = ComponentParams(
@@ -213,7 +215,7 @@ library VersionLib {
             fromPosition.skew(),
             Fixed6Lib.from(order.takerPos)
         );
-        (positionFeeMaker, positionFeeImpact) = _accumulateImpactFeeComponent(
+        (positionFeeMaker, positionFeeImpact, positionFeeProtocol) = _accumulateImpactFeeComponent(
             self,
             fromPosition,
             fromOracleVersion,
@@ -229,7 +231,7 @@ library VersionLib {
             fromPosition.skew().add(Fixed6Lib.from(order.takerPos)),
             Fixed6Lib.from(-1, order.takerNeg)
         );
-        (makerFee, impactFee) = _accumulateImpactFeeComponent(
+        (makerFee, impactFee, protocolFee) = _accumulateImpactFeeComponent(
             self,
             fromPosition,
             fromOracleVersion,
@@ -237,7 +239,8 @@ library VersionLib {
             riskParameter,
             component
         );
-        (positionFeeMaker, positionFeeImpact) = (positionFeeMaker.add(makerFee), positionFeeImpact.add(impactFee));
+        (positionFeeMaker, positionFeeImpact, positionFeeProtocol) =
+            (positionFeeMaker.add(makerFee), positionFeeImpact.add(impactFee), positionFeeProtocol.add(protocolFee));
         self.takerNegFee.decrement(impactFee, order.takerNeg);
 
         // position fee from negative skew maker orders
@@ -247,7 +250,7 @@ library VersionLib {
             Fixed6Lib.from(latestMakerSkew),
             Fixed6Lib.from(order.makerNeg)
         );
-        (makerFee, impactFee) = _accumulateImpactFeeComponent(
+        (makerFee, impactFee, protocolFee) = _accumulateImpactFeeComponent(
             self,
             fromPosition,
             fromOracleVersion,
@@ -255,7 +258,8 @@ library VersionLib {
             riskParameter,
             component
         );
-        (positionFeeMaker, positionFeeImpact) = (positionFeeMaker.add(makerFee), positionFeeImpact.add(impactFee));
+        (positionFeeMaker, positionFeeImpact, positionFeeProtocol) =
+            (positionFeeMaker.add(makerFee), positionFeeImpact.add(impactFee), positionFeeProtocol.add(protocolFee));
         self.makerNegFee.decrement(impactFee, order.makerNeg);
 
         // position fee from positive skew maker orders
@@ -265,7 +269,7 @@ library VersionLib {
             Fixed6Lib.from(latestMakerSkew),
             Fixed6Lib.from(-1, order.makerPos.min(latestMakerSkew))
         );
-        (makerFee, impactFee) = _accumulateImpactFeeComponent(
+        (makerFee, impactFee, protocolFee) = _accumulateImpactFeeComponent(
             self,
             fromPosition,
             fromOracleVersion,
@@ -273,7 +277,8 @@ library VersionLib {
             riskParameter,
             component
         );
-        (positionFeeMaker, positionFeeImpact) = (positionFeeMaker.add(makerFee), positionFeeImpact.add(impactFee));
+        (positionFeeMaker, positionFeeImpact, positionFeeProtocol) =
+            (positionFeeMaker.add(makerFee), positionFeeImpact.add(impactFee), positionFeeProtocol.add(protocolFee));
         self.makerPosFee.decrement(impactFee, order.makerPos);
     }
 
@@ -290,7 +295,7 @@ library VersionLib {
         OracleVersion memory toOracleVersion,
         RiskParameter memory riskParameter,
         ComponentParams memory component
-    ) private pure returns (Fixed6 makerFee, Fixed6 impactFee) {
+    ) private pure returns (Fixed6 makerFee, Fixed6 impactFee, Fixed6 protocolFee) {
         (Fixed6 impact, Fixed6 totalImpact) = component.impactConfig.compute(
             component.latestSkew.unsafeDiv(Fixed6Lib.from(riskParameter.skewScale)),
             component.orderSkew.unsafeDiv(Fixed6Lib.from(riskParameter.skewScale))
@@ -298,7 +303,7 @@ library VersionLib {
         impactFee = impact.mul(toOracleVersion.price);
         makerFee = toOracleVersion.price.sub(fromOracleVersion.price).mul(totalImpact);
 
-        // TODO: maker is zero?
+        if (fromPosition.maker.isZero()) return (Fixed6Lib.ZERO, impactFee, makerFee);
 
         self.makerValue.decrement(makerFee, fromPosition.maker);
     }

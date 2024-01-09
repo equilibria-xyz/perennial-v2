@@ -89,14 +89,24 @@ library OrderLib {
         if (!empty(newOrder)) newOrder.orders = 1;
     }
 
+    /// @notice Returns the direction of the order
+    /// @dev 0 = maker, 1 = long, 2 = short
+    /// @param self The position object to check
+    /// @return The direction of the position
     function direction(Order memory self) internal pure returns (uint256) {
         return self.long.isZero() ? (self.short.isZero() ? 0 : 2) : 1;
     }
 
+    /// @notice Returns the magnitude of the order
+    /// @param self The order object to check
+    /// @return The magnitude of the order
     function magnitude(Order memory self) internal pure returns (Fixed6) {
         return self.maker.add(self.long).add(self.short);
     }
 
+    /// @notice Returns whether the order is empty
+    /// @param self The order object to check
+    /// @return Whether the order is empty
     function empty(Order memory self) internal pure returns (bool) {
         return magnitude(self).isZero();
     }
@@ -303,7 +313,7 @@ library OrderStorageLocalLib {
 }
 
 library OrderStorageLib {
-    // sig: TODO
+    // sig: 0x67e45965
     error OrderStorageInvalidError();
 
     function validate(Order memory newValue) internal pure {

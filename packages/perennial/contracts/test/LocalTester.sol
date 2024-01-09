@@ -50,12 +50,6 @@ contract LocalTester {
         local.store(newLocal);
     }
 
-    function processLiquidationFee(Local memory initiateeLocal) external {
-        Local memory newLocal = local.read();
-        newLocal.processLiquidationFee(initiateeLocal);
-        local.store(newLocal);
-    }
-
     function protect(
         RiskParameter memory riskParameter,
         OracleVersion memory latestVersion,

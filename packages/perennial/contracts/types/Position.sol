@@ -113,7 +113,10 @@ library PositionLib {
         self.timestamp = latestVersion.timestamp;
     }
 
-    // TODO
+    /// @notice Returns the direction of the position
+    /// @dev 0 = maker, 1 = long, 2 = short
+    /// @param self The position object to check
+    /// @return The direction of the position
     function direction(Position memory self) internal pure returns (uint256) {
         return self.long.isZero() ? (self.short.isZero() ? 0 : 2) : 1;
     }

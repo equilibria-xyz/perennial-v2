@@ -115,10 +115,19 @@ contract Market is IMarket, Instance, ReentrancyGuard {
     /// @notice Updates the risk parameter set of the market
     /// @param newRiskParameter The new risk parameter set
     function updateRiskParameter(RiskParameter memory newRiskParameter) external onlyCoordinator {
+
+        // credit impact update fee to the protocol account
+        Position memory latestPosition = _position.read();
+        RiskParameter memory latestRiskParameter = _riskParameter.read();
+        Fixed6 updateFee = latestRiskParameter.makerImpactFee
+            .update(latestPosition.skew(), newRiskParameter.makerImpactFee.scale)
+            .add(latestRiskParameter.takerImpactFee
+                .update(latestPosition.skew(), newRiskParameter.takerImpactFee.scale));
+        _credit(address(0), updateFee.mul(Fixed6Lib.NEG_ONE));
+        
+        // update 
         _riskParameter.validateAndStore(newRiskParameter, IMarketFactory(address(factory())).parameter());
         emit RiskParameterUpdated(newRiskParameter);
-
-        // TODO: charge the impact update fee to
     }
 
     /// @notice Claims any available fee that the sender has accrued
@@ -479,6 +488,7 @@ contract Market is IMarket, Instance, ReentrancyGuard {
             context.marketParameter,
             context.protocolParameter
         );
+        _credit(address(0), feeResult.protocolFee);
         context.positionVersion = oracleVersion;
         _versions[newPosition.timestamp].store(version);
 
@@ -521,7 +531,8 @@ contract Market is IMarket, Instance, ReentrancyGuard {
         (accumulationResult.positionFee, accumulationResult.keeper) =
             context.local.accumulateFees(context.latestPosition.local, newPosition, version);
         context.latestPosition.local.update(newPosition);
-        _processLiquidationFee(context, newPosition, version);
+        if (context.local.processProtection(newPosition, version))
+            _credit(context.local.protectionInitiator, Fixed6Lib.from(context.local.protectionAmount));
 
         // events
         emit AccountPositionProcessed(
@@ -547,20 +558,13 @@ contract Market is IMarket, Instance, ReentrancyGuard {
         _pendingPositions[account][context.local.latestId].store(latestAccountPosition);
     }
 
-    /// @notice Processes the liquidation fee for the account
-    /// @param context The context to use
-    /// @param newPosition The new position to use
-    /// @param version The version to use
-    function _processLiquidationFee(
-        Context memory context,
-        Position memory newPosition,
-        Version memory version
-    ) private {
-        if (context.local.processProtection(newPosition, version)) {
-            Local memory localInitiator = _locals[context.local.protectionInitiator].read();
-            localInitiator.processLiquidationFee(context.local);
-            _locals[context.local.protectionInitiator].store(localInitiator);
-        }
+    /// @notice Credits an account's collateral that is out-of-context
+    /// @param account The account to credit
+    /// @param amount The amount to credit
+    function _credit(address account, Fixed6 amount) private {
+        Local memory newLocal = _locals[account].read();
+        newLocal.update(amount);
+        _locals[account].store(newLocal);
     }
 
     /// @notice Verifies the invariant of the market
