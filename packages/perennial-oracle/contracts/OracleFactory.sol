@@ -33,7 +33,9 @@ contract OracleFactory is IOracleFactory, Factory {
     /// @param usdc_ USDC address
     /// @param reserve_ EmptySetReserve address
     function initialize(Token18 incentive_, Token6 usdc_, IEmptySetReserve reserve_) external initializer(2) {
-        __Factory__initialize();
+        // Re-initialize if owner is unset
+        if (owner() == address(0))
+            __Factory__initialize();
 
         incentive = incentive_;
 
