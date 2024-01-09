@@ -41,7 +41,7 @@ const VAULTS: { [key: string]: { [key: string]: string[][] } } = {
   },
 }
 
-const INITIAL_AMOUNT = BigNumber.from('5000000') // 5 DSU
+export const INITIAL_AMOUNT = BigNumber.from('5000000') // 5 DSU
 
 const func: DeployFunction = async function (hre: HardhatRuntimeEnvironment) {
   const { deployments, getNamedAccounts, ethers } = hre

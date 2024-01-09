@@ -24,7 +24,7 @@ export const ORACLE_IDS: { [key: string]: { [asset: string]: string } } = {
 }
 
 const DEFAULT_MAX_CLAIM_AMOUNT = utils.parseUnits('25', 6)
-const DEFAULT_GRANULARITY = 10
+export const DEFAULT_GRANULARITY = 10
 
 const func: DeployFunction = async function (hre: HardhatRuntimeEnvironment) {
   const { deployments, getNamedAccounts, ethers } = hre
