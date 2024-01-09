@@ -8,11 +8,11 @@ import "./Local.sol";
 import "./Invalidation.sol";
 
 /// @dev Order type
-struct Delta {
-    /// @dev The timestamp of the delta
+struct Order {
+    /// @dev The timestamp of the order
     uint256 timestamp;
 
-    /// @dev The quantity of orders that are included in this delta
+    /// @dev The quantity of orders that are included in this order
     uint256 orders;
 
     /// @dev The maker delta
@@ -36,23 +36,23 @@ struct Delta {
     /// @dev The negative skew taker order size
     UFixed6 takerNeg;
 }
-using DeltaLib for Delta global;
-struct DeltaStorageGlobal { uint256 slot0; uint256 slot1; }
-using DeltaStorageGlobalLib for DeltaStorageGlobal global;
-struct DeltaStorageLocal { uint256 slot0; }
-using DeltaStorageLocalLib for DeltaStorageLocal global;
+using OrderLib for Order global;
+struct OrderStorageGlobal { uint256 slot0; uint256 slot1; }
+using OrderStorageGlobalLib for OrderStorageGlobal global;
+struct OrderStorageLocal { uint256 slot0; }
+using OrderStorageLocalLib for OrderStorageLocal global;
 
-/// @title Delta
-/// @notice Holds the state for a delta
-library DeltaLib {
+/// @title Order
+/// @notice Holds the state for a order
+library OrderLib {
     function from(
         uint256 timestamp,
         uint256 orders,
         Fixed6 maker,
         Fixed6 long,
         Fixed6 short
-    ) internal pure returns (Delta memory) {
-        return Delta(
+    ) internal pure returns (Order memory) {
+        return Order(
             timestamp,
             orders,
             maker,
@@ -65,59 +65,59 @@ library DeltaLib {
         );
     }
 
-    /// @notice Creates a new delta from the current position and an update request
+    /// @notice Creates a new order from the current position and an update request
     /// @param timestamp The current timestamp
     /// @param position The current position
     /// @param newMaker The new maker
     /// @param newLong The new long
     /// @param newShort The new short
-    /// @return newDelta The resulting order
+    /// @return newOrder The resulting order
     function from(
         uint256 timestamp,
         Position memory position,
         UFixed6 newMaker,
         UFixed6 newLong,
         UFixed6 newShort
-    ) internal pure returns (Delta memory newDelta) {
-        newDelta = from(
+    ) internal pure returns (Order memory newOrder) {
+        newOrder = from(
             timestamp,
             0,
             Fixed6Lib.from(newMaker).sub(Fixed6Lib.from(position.maker)),
             Fixed6Lib.from(newLong).sub(Fixed6Lib.from(position.long)),
             Fixed6Lib.from(newShort).sub(Fixed6Lib.from(position.short))
         );
-        if (!empty(newDelta)) newDelta.orders = 1;
+        if (!empty(newOrder)) newOrder.orders = 1;
     }
 
-    function direction(Delta memory self) internal pure returns (uint256) {
+    function direction(Order memory self) internal pure returns (uint256) {
         return self.long.isZero() ? (self.short.isZero() ? 0 : 2) : 1;
     }
 
-    function magnitude(Delta memory self) internal pure returns (Fixed6) {
+    function magnitude(Order memory self) internal pure returns (Fixed6) {
         return self.maker.add(self.long).add(self.short);
     }
 
-    function empty(Delta memory self) internal pure returns (bool) {
+    function empty(Order memory self) internal pure returns (bool) {
         return magnitude(self).isZero();
     }
 
-    /// @notice Updates the current global delta with a new local delta
-    /// @param self The delta object to update
-    /// @param delta The new delta
-    function add(Delta memory self, Delta memory delta) internal pure {
+    /// @notice Updates the current global order with a new local order
+    /// @param self The order object to update
+    /// @param order The new order
+    function add(Order memory self, Order memory order) internal pure {
         (self.timestamp, self.maker, self.long, self.short) = (
-            delta.timestamp,
-            self.maker.add(delta.maker),
-            self.long.add(delta.long),
-            self.short.add(delta.short)
+            order.timestamp,
+            self.maker.add(order.maker),
+            self.long.add(order.long),
+            self.short.add(order.short)
         );
 
         (self.orders, self.makerPos, self.makerNeg, self.takerPos, self.takerNeg) = (
-            self.orders + delta.orders,
-            self.makerPos.add(delta.makerPos),
-            self.makerNeg.add(delta.makerNeg),
-            self.takerPos.add(delta.takerPos),
-            self.takerNeg.add(delta.takerNeg)
+            self.orders + order.orders,
+            self.makerPos.add(order.makerPos),
+            self.makerNeg.add(order.makerNeg),
+            self.takerPos.add(order.takerPos),
+            self.takerNeg.add(order.takerNeg)
         );
     }
 
@@ -128,7 +128,7 @@ library DeltaLib {
     /// @param riskParameter The current risk parameter
     /// @return The liquidation fee of the position
     function liquidationFee(
-        Delta memory self,
+        Order memory self,
         OracleVersion memory latestVersion,
         RiskParameter memory riskParameter
     ) internal pure returns (UFixed6) {
@@ -146,25 +146,25 @@ library DeltaLib {
 
     /// @notice Returns whether the order increases any of the account's positions
     /// @return Whether the order increases any of the account's positions
-    function increasesPosition(Delta memory self) internal pure returns (bool) {
+    function increasesPosition(Order memory self) internal pure returns (bool) {
         return increasesMaker(self) || increasesTaker(self);
     }
 
     /// @notice Returns whether the order increases the account's long or short positions
     /// @return Whether the order increases the account's long or short positions
-    function increasesTaker(Delta memory self) internal pure returns (bool) {
+    function increasesTaker(Order memory self) internal pure returns (bool) {
         return self.long.gt(Fixed6Lib.ZERO) || self.short.gt(Fixed6Lib.ZERO);
     }
 
     /// @notice Returns whether the order increases the account's maker position
     /// @return Whether the order increases the account's maker positions
-    function increasesMaker(Delta memory self) internal pure returns (bool) {
+    function increasesMaker(Order memory self) internal pure returns (bool) {
         return self.maker.gt(Fixed6Lib.ZERO);
     }
 
     /// @notice Returns whether the order decreases the liquidity of the market
     /// @return Whether the order decreases the liquidity of the market
-    function decreasesLiquidity(Delta memory self, Position memory currentPosition) internal pure returns (bool) {
+    function decreasesLiquidity(Order memory self, Position memory currentPosition) internal pure returns (bool) {
         Fixed6 currentSkew = currentPosition.skew();
         Fixed6 latestSkew = currentSkew.sub(self.long).add(self.short);
         return self.maker.lt(Fixed6Lib.ZERO) || currentSkew.abs().gt(latestSkew.abs());
@@ -173,7 +173,7 @@ library DeltaLib {
     /// @notice Returns whether the order decreases the efficieny of the market
     /// @dev Decreased efficiency ratio intuitively means that the market is "more efficient" on an OI to LP basis.
     /// @return Whether the order decreases the liquidity of the market
-    function decreasesEfficiency(Delta memory self, Position memory currentPosition) internal pure returns (bool) {
+    function decreasesEfficiency(Order memory self, Position memory currentPosition) internal pure returns (bool) {
         UFixed6 currentMajor = currentPosition.major();
         UFixed6 latestMajor = UFixed6Lib.from(Fixed6Lib.from(currentPosition.long).sub(self.long))
             .max(UFixed6Lib.from(Fixed6Lib.from(currentPosition.short).sub(self.short)));
@@ -185,7 +185,7 @@ library DeltaLib {
     /// @param marketParameter The market parameter
     /// @return Whether the order is applicable for liquidity checks
     function liquidityCheckApplicable(
-        Delta memory self,
+        Order memory self,
         MarketParameter memory marketParameter
     ) internal pure returns (bool) {
         return !marketParameter.closed &&
@@ -194,9 +194,9 @@ library DeltaLib {
     }
 }
 
-/// @dev Manually encodes and decodes the global Delta struct into storage.
+/// @dev Manually encodes and decodes the global Order struct into storage.
 ///
-///     struct StoredDeltaGlobal {
+///     struct StoredOrderGlobal {
 ///         /* slot 0 */
 ///         uint32 timestamp;
 ///         uint32 orders;
@@ -211,14 +211,14 @@ library DeltaLib {
 ///         uint64 takerNeg;
 ///     }
 ///
-library DeltaStorageGlobalLib {
-    function read(DeltaStorageGlobal storage self) internal view returns (Delta memory) {
+library OrderStorageGlobalLib {
+    function read(OrderStorageGlobal storage self) internal view returns (Order memory) {
         (uint256 slot0, uint256 slot1) = (self.slot0, self.slot1);
 
         UFixed6 makerPos = UFixed6.wrap(uint256(slot1 << (256 - 64)) >> (256 - 64));
         UFixed6 makerNeg = UFixed6.wrap(uint256(slot1 << (256 - 64 - 64)) >> (256 - 64));
 
-        return Delta(
+        return Order(
             uint256(slot0 << (256 - 32)) >> (256 - 32),
             uint256(slot0 << (256 - 32 - 32)) >> (256 - 32),
             Fixed6Lib.from(makerPos).sub(Fixed6Lib.from(makerNeg)),
@@ -231,15 +231,15 @@ library DeltaStorageGlobalLib {
         );
     }
 
-    function store(DeltaStorageGlobal storage self, Delta memory newValue) internal {
-        DeltaStorageLib.validate(newValue);
+    function store(OrderStorageGlobal storage self, Order memory newValue) internal {
+        OrderStorageLib.validate(newValue);
 
-        if (newValue.maker.gt(Fixed6.wrap(type(int64).max))) revert DeltaStorageLib.DeltaStorageInvalidError();
-        if (newValue.maker.lt(Fixed6.wrap(type(int64).min))) revert DeltaStorageLib.DeltaStorageInvalidError();
-        if (newValue.long.gt(Fixed6.wrap(type(int64).max))) revert DeltaStorageLib.DeltaStorageInvalidError();
-        if (newValue.long.lt(Fixed6.wrap(type(int64).min))) revert DeltaStorageLib.DeltaStorageInvalidError();
-        if (newValue.short.gt(Fixed6.wrap(type(int64).max))) revert DeltaStorageLib.DeltaStorageInvalidError();
-        if (newValue.short.lt(Fixed6.wrap(type(int64).min))) revert DeltaStorageLib.DeltaStorageInvalidError();
+        if (newValue.maker.gt(Fixed6.wrap(type(int64).max))) revert OrderStorageLib.OrderStorageInvalidError();
+        if (newValue.maker.lt(Fixed6.wrap(type(int64).min))) revert OrderStorageLib.OrderStorageInvalidError();
+        if (newValue.long.gt(Fixed6.wrap(type(int64).max))) revert OrderStorageLib.OrderStorageInvalidError();
+        if (newValue.long.lt(Fixed6.wrap(type(int64).min))) revert OrderStorageLib.OrderStorageInvalidError();
+        if (newValue.short.gt(Fixed6.wrap(type(int64).max))) revert OrderStorageLib.OrderStorageInvalidError();
+        if (newValue.short.lt(Fixed6.wrap(type(int64).min))) revert OrderStorageLib.OrderStorageInvalidError();
 
         uint256 encoded0 =
             uint256(newValue.timestamp << (256 - 32)) >> (256 - 32) |
@@ -259,23 +259,23 @@ library DeltaStorageGlobalLib {
     }
 }
 
-/// @dev Manually encodes and decodes the local Delta struct into storage.
+/// @dev Manually encodes and decodes the local Order struct into storage.
 ///
-///     struct StoredDeltaLocal {
+///     struct StoredOrderLocal {
 ///         /* slot 0 */
 ///         uint32 timestamp;
 ///         uint2 direction;
 ///         int62 magnitude;
 ///     }
 ///
-library DeltaStorageLocalLib {
-    function read(DeltaStorageLocal storage self) internal view returns (Delta memory) {
+library OrderStorageLocalLib {
+    function read(OrderStorageLocal storage self) internal view returns (Order memory) {
         uint256 slot0 = self.slot0;
 
         uint256 direction = uint256(slot0 << (256 - 2)) >> (256 - 2);
         Fixed6 magnitude = Fixed6.wrap(int256(slot0 << (256 - 2 - 62)) >> (256 - 62));
 
-        return DeltaLib.from(
+        return OrderLib.from(
             uint256(slot0 << (256 - 32)) >> (256 - 32),
             magnitude.isZero() ? 0 : 1,
             direction == 0 ? magnitude : Fixed6Lib.ZERO,
@@ -284,12 +284,12 @@ library DeltaStorageLocalLib {
         );
     }
 
-    function store(DeltaStorageLocal storage self, Delta memory newValue) internal {
-        DeltaStorageLib.validate(newValue);
+    function store(OrderStorageLocal storage self, Order memory newValue) internal {
+        OrderStorageLib.validate(newValue);
 
         Fixed6 magnitude = newValue.magnitude();
 
-        if (magnitude.gt(Fixed6.wrap(2 ** 61 - 1))) revert DeltaStorageLib.DeltaStorageInvalidError();
+        if (magnitude.gt(Fixed6.wrap(2 ** 61 - 1))) revert OrderStorageLib.OrderStorageInvalidError();
 
         uint256 encoded =
             uint256(newValue.timestamp << (256 - 32)) >> (256 - 32) |
@@ -302,16 +302,16 @@ library DeltaStorageLocalLib {
     }
 }
 
-library DeltaStorageLib {
+library OrderStorageLib {
     // sig: TODO
-    error DeltaStorageInvalidError();
+    error OrderStorageInvalidError();
 
-    function validate(Delta memory newValue) internal pure {
-        if (newValue.timestamp > type(uint32).max) revert DeltaStorageInvalidError();
-        if (newValue.orders > type(uint32).max) revert DeltaStorageInvalidError();
-        if (newValue.makerPos.gt(UFixed6.wrap(type(uint64).max))) revert DeltaStorageInvalidError();
-        if (newValue.makerNeg.gt(UFixed6.wrap(type(uint64).max))) revert DeltaStorageInvalidError();
-        if (newValue.takerPos.gt(UFixed6.wrap(type(uint64).max))) revert DeltaStorageInvalidError();
-        if (newValue.takerNeg.gt(UFixed6.wrap(type(uint64).max))) revert DeltaStorageInvalidError();
+    function validate(Order memory newValue) internal pure {
+        if (newValue.timestamp > type(uint32).max) revert OrderStorageInvalidError();
+        if (newValue.orders > type(uint32).max) revert OrderStorageInvalidError();
+        if (newValue.makerPos.gt(UFixed6.wrap(type(uint64).max))) revert OrderStorageInvalidError();
+        if (newValue.makerNeg.gt(UFixed6.wrap(type(uint64).max))) revert OrderStorageInvalidError();
+        if (newValue.takerPos.gt(UFixed6.wrap(type(uint64).max))) revert OrderStorageInvalidError();
+        if (newValue.takerNeg.gt(UFixed6.wrap(type(uint64).max))) revert OrderStorageInvalidError();
     }
 }

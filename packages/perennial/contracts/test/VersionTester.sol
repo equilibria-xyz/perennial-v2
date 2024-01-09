@@ -17,7 +17,7 @@ contract VersionTester {
     function accumulate(
         Global memory global,
         Position memory fromPosition,
-        Delta memory delta,
+        Order memory order,
         OracleVersion memory fromOracleVersion,
         OracleVersion memory toOracleVersion,
         MarketParameter memory marketParameter,
@@ -28,7 +28,7 @@ contract VersionTester {
         (values, fees) = newVersion.accumulate(
             global,
             fromPosition,
-            delta,
+            order,
             fromOracleVersion,
             toOracleVersion,
             marketParameter,

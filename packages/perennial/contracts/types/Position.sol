@@ -6,7 +6,7 @@ import "./RiskParameter.sol";
 import "./Global.sol";
 import "./Local.sol";
 import "./Invalidation.sol";
-import "./Delta.sol";
+import "./Order.sol";
 
 /// @dev Order type
 struct Position {
@@ -26,7 +26,7 @@ struct Position {
     Fixed6 collateral;
 
     /// @dev The change in collateral during this position (only used for pending positions)
-    Fixed6 delta;
+    Fixed6 order;
 
     /// @dev The value of the invalidation accumulator at the time of creation
     Invalidation invalidation;
@@ -59,31 +59,31 @@ library PositionLib {
     /// @notice Updates the current global position with a new order
     /// @param self The position object to update
     /// @param currentTimestamp The current timestamp
-    /// @param delta The new delta
-    function update(Position memory self, uint256 currentTimestamp, Delta memory delta) internal pure {
+    /// @param order The new order
+    function update(Position memory self, uint256 currentTimestamp, Order memory order) internal pure {
         (self.timestamp, self.maker, self.long, self.short) = (
             currentTimestamp,
-            UFixed6Lib.from(Fixed6Lib.from(self.maker).add(delta.maker)),
-            UFixed6Lib.from(Fixed6Lib.from(self.long).add(delta.long)),
-            UFixed6Lib.from(Fixed6Lib.from(self.short).add(delta.short))
+            UFixed6Lib.from(Fixed6Lib.from(self.maker).add(order.maker)),
+            UFixed6Lib.from(Fixed6Lib.from(self.long).add(order.long)),
+            UFixed6Lib.from(Fixed6Lib.from(self.short).add(order.short))
         );
     }
 
-    /// @notice Removes all delta attributes from the position to prepate it for the next update
+    /// @notice Removes all order attributes from the position to prepate it for the next update
     /// @param self The position object to update
     function prepare(Position memory self) internal pure {
         self.collateral = Fixed6Lib.ZERO;
     }
 
-    /// @notice Updates the collateral delta of the position
+    /// @notice Updates the collateral order of the position
     /// @param self The position object to update
     /// @param collateralAmount The amount of collateral change that occurred
     function update(Position memory self, Fixed6 collateralAmount) internal pure {
-        self.delta = self.delta.add(collateralAmount);
+        self.order = self.order.add(collateralAmount);
     }
 
     /// @notice Processes an invalidation of a position
-    /// @dev Increments the invalidation accumulator by the new position's delta, and resets the fee
+    /// @dev Increments the invalidation accumulator by the new position's order, and resets the fee
     /// @param self The position object to update
     /// @param newPosition The latest valid position
     function invalidate(Position memory self, Position memory newPosition) internal pure {
@@ -420,7 +420,7 @@ library PositionStorageGlobalLib {
 ///         uint32 timestamp;
 ///         uint96 __unallocated__;
 ///         int64 collateral;
-///         int64 delta;
+///         int64 order;
 ///
 ///         /* slot 1 */
 ///         uint2 direction;
@@ -462,7 +462,7 @@ library PositionStorageLocalLib {
         uint256 encoded0 =
             uint256(newValue.timestamp << (256 - 32)) >> (256 - 32) |
             uint256(Fixed6.unwrap(newValue.collateral) << (256 - 64)) >> (256 - 32 - 48 - 48 - 64) |
-            uint256(Fixed6.unwrap(newValue.delta) << (256 - 64)) >> (256 - 32 - 48 - 48 - 64 - 64);
+            uint256(Fixed6.unwrap(newValue.order) << (256 - 64)) >> (256 - 32 - 48 - 48 - 64 - 64);
         uint256 encoded1 =
             uint256(newValue.direction() << (256 - 2)) >> (256 - 2) |
             uint256(UFixed6.unwrap(magnitude) << (256 - 62)) >> (256 - 2 - 62) |
@@ -485,8 +485,8 @@ library PositionStorageLib {
         if (newValue.timestamp > type(uint32).max) revert PositionStorageInvalidError();
         if (newValue.collateral.gt(Fixed6.wrap(type(int64).max))) revert PositionStorageInvalidError();
         if (newValue.collateral.lt(Fixed6.wrap(type(int64).min))) revert PositionStorageInvalidError();
-        if (newValue.delta.gt(Fixed6.wrap(type(int64).max))) revert PositionStorageInvalidError();
-        if (newValue.delta.lt(Fixed6.wrap(type(int64).min))) revert PositionStorageInvalidError();
+        if (newValue.order.gt(Fixed6.wrap(type(int64).max))) revert PositionStorageInvalidError();
+        if (newValue.order.lt(Fixed6.wrap(type(int64).min))) revert PositionStorageInvalidError();
         if (newValue.invalidation.maker.gt(Fixed6.wrap(type(int64).max))) revert PositionStorageInvalidError();
         if (newValue.invalidation.maker.lt(Fixed6.wrap(type(int64).min))) revert PositionStorageInvalidError();
         if (newValue.invalidation.long.gt(Fixed6.wrap(type(int64).max))) revert PositionStorageInvalidError();

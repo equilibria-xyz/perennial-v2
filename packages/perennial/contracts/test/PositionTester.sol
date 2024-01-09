@@ -18,9 +18,9 @@ abstract contract PositionTester {
         store(_position);
     }
 
-    function update(uint256 currentTimestamp, Delta memory newDelta) external {
+    function update(uint256 currentTimestamp, Order memory newOrder) external {
         Position memory _position = read();
-        _position.update(currentTimestamp, newDelta);
+        _position.update(currentTimestamp, newOrder);
         store(_position);
     }
 

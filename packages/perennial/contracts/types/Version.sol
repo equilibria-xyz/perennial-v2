@@ -8,7 +8,7 @@ import "./MarketParameter.sol";
 import "./RiskParameter.sol";
 import "./Global.sol";
 import "./Position.sol";
-import "./Delta.sol";
+import "./Order.sol";
 
 /// @dev Version type
 struct Version {
@@ -91,7 +91,7 @@ library VersionLib {
         Version memory self,
         Global memory global,
         Position memory fromPosition,
-        Delta memory delta,
+        Order memory order,
         OracleVersion memory fromOracleVersion,
         OracleVersion memory toOracleVersion,
         MarketParameter memory marketParameter,
@@ -101,15 +101,15 @@ library VersionLib {
         self.valid = toOracleVersion.valid;
 
         // accumulate settlement fee
-        fees.settlementFee = _accumulateSettlementFee(self, delta, marketParameter);
+        fees.settlementFee = _accumulateSettlementFee(self, order, marketParameter);
 
         // accumulate position fee
         (values.positionFeeMaker, fees.marketFee) =
-            _accumulatePositionFee(self, fromPosition, delta, toOracleVersion, marketParameter, riskParameter);
+            _accumulatePositionFee(self, fromPosition, order, toOracleVersion, marketParameter, riskParameter);
 
         // accumulate impact fee
         (values.impactFeeMaker, values.impactFee) =
-            _accumulateImpactFee(self, fromPosition, delta, fromOracleVersion, toOracleVersion, riskParameter);
+            _accumulateImpactFee(self, fromPosition, order, fromOracleVersion, toOracleVersion, riskParameter);
 
         // if closed, don't accrue anything else
         if (marketParameter.closed) return (values, fees);
@@ -119,7 +119,7 @@ library VersionLib {
             self,
             global,
             fromPosition,
-            delta,
+            order,
             fromOracleVersion,
             toOracleVersion,
             marketParameter,
@@ -146,18 +146,18 @@ library VersionLib {
 
     function _accumulateSettlementFee(
         Version memory self,
-        Delta memory delta,
+        Order memory order,
         MarketParameter memory marketParameter
     ) private pure returns (UFixed6 settlementFee) {
-        settlementFee = delta.orders == 0 ? UFixed6Lib.ZERO : marketParameter.settlementFee;
-        self.settlementFee.decrement(Fixed6Lib.from(settlementFee), UFixed6Lib.from(delta.orders));
+        settlementFee = order.orders == 0 ? UFixed6Lib.ZERO : marketParameter.settlementFee;
+        self.settlementFee.decrement(Fixed6Lib.from(settlementFee), UFixed6Lib.from(order.orders));
     }
     
 
     /// @notice Globally accumulates position fees since last oracle update
     /// @param self The Version object to update
     /// @param fromPosition The previous latest position
-    /// @param delta The next delta
+    /// @param order The next order
     /// @param toOracleVersion The next latest oracle version
     /// @param marketParameter The market parameter
     /// @param riskParameter The risk parameter
@@ -166,13 +166,13 @@ library VersionLib {
     function _accumulatePositionFee(
         Version memory self,
         Position memory fromPosition,
-        Delta memory delta,
+        Order memory order,
         OracleVersion memory toOracleVersion,
         MarketParameter memory marketParameter,
         RiskParameter memory riskParameter
     ) private pure returns (UFixed6 positionFeeMaker, UFixed6 positionFeeFee) {
         (UFixed6 makerMagnitude, UFixed6 takerMagnitude) =
-            (delta.makerPos.add(delta.makerNeg), delta.takerPos.add(delta.takerNeg));
+            (order.makerPos.add(order.makerNeg), order.takerPos.add(order.takerNeg));
 
         UFixed6 effectiveMakerFee = riskParameter.makerFee
             .add(riskParameter.makerMagnitudeFee.mul(makerMagnitude.unsafeDiv(riskParameter.skewScale)));
@@ -191,7 +191,7 @@ library VersionLib {
     /// @notice Globally accumulates position fees since last oracle update
     /// @param self The Version object to update
     /// @param fromPosition The previous latest position
-    /// @param delta The next delta
+    /// @param order The next order
     /// @param fromOracleVersion The latest oracle version
     /// @param toOracleVersion The next latest oracle version
     /// @param riskParameter The risk parameter
@@ -200,7 +200,7 @@ library VersionLib {
     function _accumulateImpactFee(
         Version memory self,
         Position memory fromPosition,
-        Delta memory delta,
+        Order memory order,
         OracleVersion memory toOracleVersion,
         OracleVersion memory fromOracleVersion,
         RiskParameter memory riskParameter
@@ -211,7 +211,7 @@ library VersionLib {
         ComponentParams memory component = ComponentParams(
             riskParameter.takerImpactFee,
             fromPosition.skew(),
-            Fixed6Lib.from(delta.takerPos)
+            Fixed6Lib.from(order.takerPos)
         );
         (positionFeeMaker, positionFeeImpact) = _accumulateImpactFeeComponent(
             self,
@@ -221,13 +221,13 @@ library VersionLib {
             riskParameter,
             component
         );
-        self.takerPosFee.decrement(positionFeeImpact, delta.takerPos);
+        self.takerPosFee.decrement(positionFeeImpact, order.takerPos);
 
         // position fee from negative skew taker orders
         component = ComponentParams(
             riskParameter.takerImpactFee,
-            fromPosition.skew().add(Fixed6Lib.from(delta.takerPos)),
-            Fixed6Lib.from(-1, delta.takerNeg)
+            fromPosition.skew().add(Fixed6Lib.from(order.takerPos)),
+            Fixed6Lib.from(-1, order.takerNeg)
         );
         (makerFee, impactFee) = _accumulateImpactFeeComponent(
             self,
@@ -238,14 +238,14 @@ library VersionLib {
             component
         );
         (positionFeeMaker, positionFeeImpact) = (positionFeeMaker.add(makerFee), positionFeeImpact.add(impactFee));
-        self.takerNegFee.decrement(impactFee, delta.takerNeg);
+        self.takerNegFee.decrement(impactFee, order.takerNeg);
 
         // position fee from negative skew maker orders
         UFixed6 latestMakerSkew = riskParameter.skewScale.unsafeSub(fromPosition.maker);
         component = ComponentParams(
             riskParameter.makerImpactFee,
             Fixed6Lib.from(latestMakerSkew),
-            Fixed6Lib.from(delta.makerNeg)
+            Fixed6Lib.from(order.makerNeg)
         );
         (makerFee, impactFee) = _accumulateImpactFeeComponent(
             self,
@@ -256,14 +256,14 @@ library VersionLib {
             component
         );
         (positionFeeMaker, positionFeeImpact) = (positionFeeMaker.add(makerFee), positionFeeImpact.add(impactFee));
-        self.makerNegFee.decrement(impactFee, delta.makerNeg);
+        self.makerNegFee.decrement(impactFee, order.makerNeg);
 
         // position fee from positive skew maker orders
-        latestMakerSkew = latestMakerSkew.add(delta.makerNeg);
+        latestMakerSkew = latestMakerSkew.add(order.makerNeg);
         component = ComponentParams(
             riskParameter.makerImpactFee,
             Fixed6Lib.from(latestMakerSkew),
-            Fixed6Lib.from(-1, delta.makerPos.min(latestMakerSkew))
+            Fixed6Lib.from(-1, order.makerPos.min(latestMakerSkew))
         );
         (makerFee, impactFee) = _accumulateImpactFeeComponent(
             self,
@@ -274,7 +274,7 @@ library VersionLib {
             component
         );
         (positionFeeMaker, positionFeeImpact) = (positionFeeMaker.add(makerFee), positionFeeImpact.add(impactFee));
-        self.makerPosFee.decrement(impactFee, delta.makerPos);
+        self.makerPosFee.decrement(impactFee, order.makerPos);
     }
 
     struct ComponentParams {
@@ -315,7 +315,7 @@ library VersionLib {
     /// @param self The Version object to update
     /// @param global The global state
     /// @param fromPosition The previous latest position
-    /// @param delta The next delta
+    /// @param order The next order
     /// @param fromOracleVersion The previous latest oracle version
     /// @param toOracleVersion The next latest oracle version
     /// @param marketParameter The market parameter
@@ -325,13 +325,13 @@ library VersionLib {
         Version memory self,
         Global memory global,
         Position memory fromPosition,
-        Delta memory delta,
+        Order memory order,
         OracleVersion memory fromOracleVersion,
         OracleVersion memory toOracleVersion,
         MarketParameter memory marketParameter,
         RiskParameter memory riskParameter
     ) private pure returns (_FundingValues memory fundingValues) {
-        Fixed6 toSkew = fromPosition.skew().add(delta.long).sub(delta.short);
+        Fixed6 toSkew = fromPosition.skew().add(order.long).sub(order.short);
 
         // Compute long-short funding rate
         Fixed6 funding = global.pAccumulator.accumulate(

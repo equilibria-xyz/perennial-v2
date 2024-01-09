@@ -8,7 +8,7 @@ import "./Version.sol";
 import "./Position.sol";
 import "./RiskParameter.sol";
 import "./OracleVersion.sol";
-import "./Delta.sol";
+import "./Order.sol";
 
 /// @dev Local type
 struct Local {
@@ -80,19 +80,19 @@ library LocalLib {
         Version memory toVersion
     ) internal pure returns (Fixed6 positionFee, UFixed6 settlementFee) {
         // compute local order
-        Fixed6 takerDelta = Fixed6Lib.from(toPosition.long.add(fromPosition.short))
+        Fixed6 takerOrder = Fixed6Lib.from(toPosition.long.add(fromPosition.short))
             .sub(Fixed6Lib.from(fromPosition.long.add(toPosition.short)));
-        Fixed6 makerDelta = Fixed6Lib.from(toPosition.maker).sub(Fixed6Lib.from(fromPosition.maker));
+        Fixed6 makerOrder = Fixed6Lib.from(toPosition.maker).sub(Fixed6Lib.from(fromPosition.maker));
 
         // accumulate position fee
         positionFee = Fixed6Lib.ZERO
-            .sub(toVersion.makerPosFee.accumulated(Accumulator6(Fixed6Lib.ZERO), makerDelta.max(Fixed6Lib.ZERO).abs()))
-            .sub(toVersion.makerNegFee.accumulated(Accumulator6(Fixed6Lib.ZERO), makerDelta.min(Fixed6Lib.ZERO).abs()))
-            .sub(toVersion.takerPosFee.accumulated(Accumulator6(Fixed6Lib.ZERO), takerDelta.max(Fixed6Lib.ZERO).abs()))
-            .sub(toVersion.takerNegFee.accumulated(Accumulator6(Fixed6Lib.ZERO), takerDelta.min(Fixed6Lib.ZERO).abs()));
+            .sub(toVersion.makerPosFee.accumulated(Accumulator6(Fixed6Lib.ZERO), makerOrder.max(Fixed6Lib.ZERO).abs()))
+            .sub(toVersion.makerNegFee.accumulated(Accumulator6(Fixed6Lib.ZERO), makerOrder.min(Fixed6Lib.ZERO).abs()))
+            .sub(toVersion.takerPosFee.accumulated(Accumulator6(Fixed6Lib.ZERO), takerOrder.max(Fixed6Lib.ZERO).abs()))
+            .sub(toVersion.takerNegFee.accumulated(Accumulator6(Fixed6Lib.ZERO), takerOrder.min(Fixed6Lib.ZERO).abs()));
 
         // accumulate settlement fee
-        uint256 orders = takerDelta.add(makerDelta).eq(Fixed6Lib.ZERO) ? 0 : 1;
+        uint256 orders = takerOrder.add(makerOrder).eq(Fixed6Lib.ZERO) ? 0 : 1;
         settlementFee = toVersion.settlementFee.accumulated(Accumulator6(Fixed6Lib.ZERO), UFixed6Lib.from(orders)).abs();
 
         self.collateral = self.collateral.sub(positionFee).sub(Fixed6Lib.from(settlementFee));
@@ -102,7 +102,7 @@ library LocalLib {
     /// @param self The Local object to update
     /// @param latestVersion The latest oracle version
     /// @param currentTimestamp The current timestamp
-    /// @param newDelta The new delta
+    /// @param newOrder The new order
     /// @param initiator The initiator of the protection
     /// @param tryProtect Whether to try to protect the Local
     /// @return Whether the protection was protected
@@ -111,13 +111,13 @@ library LocalLib {
         RiskParameter memory riskParameter,
         OracleVersion memory latestVersion,
         uint256 currentTimestamp,
-        Delta memory newDelta,
+        Order memory newOrder,
         address initiator,
         bool tryProtect
     ) internal pure returns (bool) {
         if (!tryProtect || self.protection > latestVersion.timestamp) return false;
         (self.protection, self.protectionAmount, self.protectionInitiator) =
-            (currentTimestamp, newDelta.liquidationFee(latestVersion, riskParameter), initiator);
+            (currentTimestamp, newOrder.liquidationFee(latestVersion, riskParameter), initiator);
         return true;
     }
 

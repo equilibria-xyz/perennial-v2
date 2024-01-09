@@ -60,12 +60,12 @@ contract LocalTester {
         RiskParameter memory riskParameter,
         OracleVersion memory latestVersion,
         uint256 currentTimestamp,
-        Delta memory newDelta,
+        Order memory newOrder,
         address initiator,
         bool tryProtect
     ) external returns (bool result) {
         Local memory newLocal = local.read();
-        result = newLocal.protect(riskParameter, latestVersion, currentTimestamp, newDelta, initiator, tryProtect);
+        result = newLocal.protect(riskParameter, latestVersion, currentTimestamp, newOrder, initiator, tryProtect);
         local.store(newLocal);
     }
 }
