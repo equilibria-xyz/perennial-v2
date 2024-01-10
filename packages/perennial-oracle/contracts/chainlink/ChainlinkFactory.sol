@@ -53,7 +53,7 @@ contract ChainlinkFactory is IChainlinkFactory, KeeperFactory {
         prices = new Fixed18[](ids.length);
 
         bytes[] memory verifiedReports = chainlink.verifyBulk{value: msg.value}(abi.decode(data, (bytes[])), abi.encode(feeTokenAddress));
-        if (verifiedReports.length != ids.length) revert ChainlinkFactoryMismatchingInputLengthsError();
+        if (verifiedReports.length != ids.length) revert ChainlinkFactoryInputLengthMismatchError();
         for (uint256 i = 0; i < verifiedReports.length; i++) {
             (bytes32 feedId, , uint32 observationsTimestamp, , , , uint192 price) =
                 abi.decode(verifiedReports[i], (bytes32, uint32, uint32, uint192, uint192, uint32, uint192));
