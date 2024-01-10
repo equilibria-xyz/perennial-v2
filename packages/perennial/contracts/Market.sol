@@ -455,32 +455,40 @@ contract Market is IMarket, Instance, ReentrancyGuard {
         _positions[account].store(context.latestPosition.local);
     }
 
+    struct _ProcessGlobalContext {
+        Version version;
+        OracleVersion oracleVersion;
+        Order order;
+    }
+
     /// @notice Processes the given global pending position into the latest position
     /// @param context The context to use
     /// @param newPositionId The id of the pending position to process
     /// @param newPosition The pending position to process
     function _processPositionGlobal(Context memory context, uint256 newPositionId, Position memory newPosition) private {
-        Version memory version = _versions[context.latestPosition.global.timestamp].read();
-        OracleVersion memory oracleVersion = _oracleVersionAtPosition(context, newPosition);
-        Order memory order = _pendingOrder[newPositionId].read();
+        _ProcessGlobalContext memory processGlobalContext = _ProcessGlobalContext(
+            _versions[context.latestPosition.global.timestamp].read(),
+            _oracleVersionAtPosition(context, newPosition),
+            _pendingOrder[newPositionId].read()
+        );
 
-        if (!oracleVersion.valid) context.latestPosition.global.invalidate(newPosition);
+        if (!processGlobalContext.oracleVersion.valid) context.latestPosition.global.invalidate(newPosition);
 
         (uint256 fromTimestamp, uint256 fromId) = (context.latestPosition.global.timestamp, context.global.latestId);
         (
             VersionAccumulationResult memory accumulationResult,
             VersionFeeResult memory feeResult
-        ) = version.accumulate(
+        ) = processGlobalContext.version.accumulate(
             context.global,
             context.latestPosition.global,
-            order,
+            processGlobalContext.order,
             context.positionVersion,
-            oracleVersion,
+            processGlobalContext.oracleVersion,
             context.marketParameter,
             context.riskParameter
         );
         context.latestPosition.global.update(newPosition);
-        context.global.update(newPositionId, oracleVersion.price);
+        context.global.update(newPositionId, processGlobalContext.oracleVersion.price);
         context.global.incrementFees(
             feeResult.marketFee,
             feeResult.settlementFee,
@@ -488,8 +496,8 @@ contract Market is IMarket, Instance, ReentrancyGuard {
             context.protocolParameter
         );
         _credit(address(0), feeResult.protocolFee);
-        context.positionVersion = oracleVersion;
-        _versions[newPosition.timestamp].store(version);
+        context.positionVersion = processGlobalContext.oracleVersion;
+        _versions[newPosition.timestamp].store(processGlobalContext.version);
 
         // events
         emit PositionProcessed(

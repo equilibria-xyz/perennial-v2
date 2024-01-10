@@ -5,14 +5,32 @@ export interface Accumulator {
   _value: BigNumberish
 }
 
+export interface Invalidation {
+  maker: BigNumberish
+  long: BigNumberish
+  short: BigNumberish
+}
+
+export interface Order {
+  timestamp: BigNumberish
+  orders: BigNumberish
+  maker: BigNumberish
+  long: BigNumberish
+  short: BigNumberish
+  makerPos: BigNumberish
+  makerNeg: BigNumberish
+  takerPos: BigNumberish
+  takerNeg: BigNumberish
+}
+
 export interface Position {
   timestamp: BigNumberish
   maker: BigNumberish
   long: BigNumberish
   short: BigNumberish
-  fee: BigNumberish
   collateral: BigNumberish
   delta: BigNumberish
+  invalidation: Invalidation
 }
 
 export interface Global {
@@ -44,14 +62,28 @@ export interface Fee {
   market: BigNumberish
 }
 
+export function expectOrderEq(a: Order, b: Order): void {
+  expect(a.timestamp).to.equal(b.timestamp, 'Order:Timestamp')
+  expect(a.orders).to.equal(b.orders, 'Order:Timestamp')
+  expect(a.maker).to.equal(b.maker, 'Order:Maker')
+  expect(a.long).to.equal(b.long, 'Order:Long')
+  expect(a.short).to.equal(b.short, 'Order:Short')
+  expect(a.makerPos).to.equal(b.makerPos, 'Order:MakerPos')
+  expect(a.makerNeg).to.equal(b.makerNeg, 'Order:MakerNeg')
+  expect(a.takerPos).to.equal(b.takerPos, 'Order:TakerPos')
+  expect(a.takerNeg).to.equal(b.takerNeg, 'Order:TakerNeg')
+}
+
 export function expectPositionEq(a: Position, b: Position): void {
   expect(a.timestamp).to.equal(b.timestamp, 'Position:Timestamp')
   expect(a.maker).to.equal(b.maker, 'Position:Maker')
   expect(a.long).to.equal(b.long, 'Position:Long')
   expect(a.short).to.equal(b.short, 'Position:Short')
-  expect(a.fee).to.equal(b.fee, 'Position:Fee')
   expect(a.collateral).to.equal(b.collateral, 'Position:Collateral')
   expect(a.delta).to.equal(b.delta, 'Position:Delta')
+  expect(a.invalidation.maker).to.equal(b.invalidation.maker, 'Position:Invalidation:Maker')
+  expect(a.invalidation.long).to.equal(b.invalidation.long, 'Position:Invalidation:Long')
+  expect(a.invalidation.short).to.equal(b.invalidation.short, 'Position:Invalidation:Short')
 }
 
 export function expectGlobalEq(a: Global, b: Global): void {
@@ -111,9 +143,13 @@ export const DEFAULT_POSITION: Position = {
   long: 0,
   maker: 0,
   short: 0,
-  fee: 0,
   collateral: 0,
   delta: 0,
+  invalidation: {
+    maker: 0,
+    long: 0,
+    short: 0,
+  },
 }
 
 export const DEFAULT_LOCAL: Local = {
@@ -123,4 +159,16 @@ export const DEFAULT_LOCAL: Local = {
   protection: 0,
   protectionAmount: 0,
   protectionInitiator: constants.AddressZero,
+}
+
+export const DEFAULT_ORDER: Order = {
+  timestamp: 0,
+  orders: 0,
+  maker: 0,
+  long: 0,
+  short: 0,
+  makerPos: 0,
+  makerNeg: 0,
+  takerPos: 0,
+  takerNeg: 0,
 }

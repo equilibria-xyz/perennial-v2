@@ -222,8 +222,6 @@ describe('Local', () => {
       maker: parse6decimal('987'),
       long: parse6decimal('654'),
       short: parse6decimal('321'),
-      fee: 0, // unused
-      keeper: 0, // unused
       collateral: 0, // unused
       delta: 0, // unused
       invalidation: {
@@ -238,8 +236,6 @@ describe('Local', () => {
       maker: 0, // unused
       long: 0, // unused
       short: 0, // unused
-      fee: parse6decimal('123'),
-      keeper: parse6decimal('456'),
       collateral: 0, // unused
       delta: 0, // unused
       invalidation: {

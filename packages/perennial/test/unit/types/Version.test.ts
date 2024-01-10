@@ -5,11 +5,12 @@ import HRE from 'hardhat'
 
 import { VersionTester, VersionTester__factory } from '../../../types/generated'
 import { BigNumber } from 'ethers'
-import { parse6decimal } from '../../../../common/testutil/types'
+import { Order, parse6decimal } from '../../../../common/testutil/types'
 import {
   GlobalStruct,
   MarketParameterStruct,
   OracleVersionStruct,
+  OrderStruct,
   PositionStruct,
   RiskParameterStruct,
   VersionStruct,
@@ -25,6 +26,11 @@ const VALID_VERSION: VersionStruct = {
   makerValue: { _value: 1 },
   longValue: { _value: 2 },
   shortValue: { _value: 3 },
+  makerNegFee: { _value: 4 },
+  makerPosFee: { _value: 5 },
+  takerNegFee: { _value: 6 },
+  takerPosFee: { _value: 7 },
+  settlementFee: { _value: -8 },
 }
 
 const EMPTY_VERSION: VersionStruct = {
@@ -32,6 +38,11 @@ const EMPTY_VERSION: VersionStruct = {
   makerValue: { _value: 0 },
   longValue: { _value: 0 },
   shortValue: { _value: 0 },
+  makerNegFee: { _value: 0 },
+  makerPosFee: { _value: 0 },
+  takerNegFee: { _value: 0 },
+  takerPosFee: { _value: 0 },
+  settlementFee: { _value: 0 },
 }
 
 const GLOBAL: GlobalStruct = {
@@ -53,8 +64,6 @@ const FROM_POSITION: PositionStruct = {
   maker: 3,
   long: 4,
   short: 5,
-  fee: 6,
-  keeper: 7,
   collateral: 8,
   delta: 9,
   invalidation: {
@@ -64,20 +73,16 @@ const FROM_POSITION: PositionStruct = {
   },
 }
 
-const TO_POSITION: PositionStruct = {
+const ORDER: OrderStruct = {
   timestamp: 20,
-  maker: 30,
-  long: 40,
-  short: 50,
-  fee: 60,
-  keeper: 70,
-  collateral: 80,
-  delta: 90,
-  invalidation: {
-    maker: 10,
-    long: 11,
-    short: 12,
-  },
+  orders: 4,
+  maker: 27,
+  long: 36,
+  short: 45,
+  makerPos: 30,
+  makerNeg: 3,
+  takerPos: 36,
+  takerNeg: 45,
 }
 
 const TIMESTAMP = 1636401093
@@ -102,7 +107,7 @@ describe('Version', () => {
   const accumulateWithReturn = async (
     global: GlobalStruct,
     fromPosition: PositionStruct,
-    toPosition: PositionStruct,
+    order: OrderStruct,
     fromOracleVersion: OracleVersionStruct,
     toOracleVersion: OracleVersionStruct,
     marketParameter: MarketParameterStruct,
@@ -111,7 +116,7 @@ describe('Version', () => {
     const ret = await version.callStatic.accumulate(
       global,
       fromPosition,
-      toPosition,
+      order,
       fromOracleVersion,
       toOracleVersion,
       marketParameter,
@@ -120,7 +125,7 @@ describe('Version', () => {
     await version.accumulate(
       global,
       fromPosition,
-      toPosition,
+      order,
       fromOracleVersion,
       toOracleVersion,
       marketParameter,
@@ -274,7 +279,7 @@ describe('Version', () => {
         const ret = await version.callStatic.accumulate(
           GLOBAL,
           FROM_POSITION,
-          { ...TO_POSITION, fee: 0 },
+          ORDER,
           ORACLE_VERSION_1,
           ORACLE_VERSION_2,
           { ...VALID_MARKET_PARAMETER, closed: true },
@@ -283,7 +288,7 @@ describe('Version', () => {
         await version.accumulate(
           GLOBAL,
           FROM_POSITION,
-          { ...TO_POSITION, fee: 0 },
+          ORDER,
           ORACLE_VERSION_1,
           ORACLE_VERSION_2,
           { ...VALID_MARKET_PARAMETER, closed: true },
@@ -297,7 +302,7 @@ describe('Version', () => {
         expect(value.longValue._value).to.equal(2)
         expect(value.shortValue._value).to.equal(3)
 
-        expect(ret.totalFee).to.equal(0)
+        expect(ret.fees.marketFee).to.equal(0)
         // All values should be 0 (default value)
         ret[0].forEach(v => expect(v).to.equal(0))
       })
@@ -308,7 +313,7 @@ describe('Version', () => {
         const ret = await version.callStatic.accumulate(
           GLOBAL,
           FROM_POSITION,
-          TO_POSITION,
+          ORDER,
           ORACLE_VERSION_1,
           ORACLE_VERSION_2,
           { ...VALID_MARKET_PARAMETER, closed: true },
@@ -317,7 +322,7 @@ describe('Version', () => {
         await version.accumulate(
           GLOBAL,
           FROM_POSITION,
-          TO_POSITION,
+          ORDER,
           ORACLE_VERSION_1,
           ORACLE_VERSION_2,
           { ...VALID_MARKET_PARAMETER, closed: true },
@@ -331,7 +336,7 @@ describe('Version', () => {
         expect(value.longValue._value).to.equal(2)
         expect(value.shortValue._value).to.equal(3)
 
-        expect(ret.totalFee).to.equal(0)
+        expect(ret.fees.marketFee).to.equal(0)
         // All values should be 0 (default value)
         expect(ret[0].positionFeeMaker).to.equal(60)
       })
@@ -344,7 +349,7 @@ describe('Version', () => {
           await version.accumulate(
             GLOBAL,
             FROM_POSITION,
-            TO_POSITION,
+            ORDER,
             ORACLE_VERSION_1,
             { ...ORACLE_VERSION_2, valid: false },
             VALID_MARKET_PARAMETER,
@@ -362,7 +367,7 @@ describe('Version', () => {
           await version.accumulate(
             GLOBAL,
             FROM_POSITION,
-            TO_POSITION,
+            ORDER,
             ORACLE_VERSION_1,
             ORACLE_VERSION_2,
             VALID_MARKET_PARAMETER,
@@ -380,7 +385,7 @@ describe('Version', () => {
           await version.accumulate(
             GLOBAL,
             FROM_POSITION,
-            TO_POSITION,
+            ORDER,
             ORACLE_VERSION_1,
             ORACLE_VERSION_2,
             { ...VALID_MARKET_PARAMETER, closed: true },
@@ -401,7 +406,7 @@ describe('Version', () => {
           const { ret, value } = await accumulateWithReturn(
             GLOBAL,
             { ...FROM_POSITION, maker: 0 },
-            { ...TO_POSITION, fee: parse6decimal('1.01') },
+            ORDER,
             ORACLE_VERSION_1,
             ORACLE_VERSION_2,
             VALID_MARKET_PARAMETER,
@@ -420,7 +425,7 @@ describe('Version', () => {
           const { ret, value } = await accumulateWithReturn(
             GLOBAL,
             { ...FROM_POSITION, maker: parse6decimal('10') },
-            { ...TO_POSITION, fee: parse6decimal('101') },
+            ORDER,
             ORACLE_VERSION_1,
             ORACLE_VERSION_1,
             { ...VALID_MARKET_PARAMETER, positionFee: parse6decimal('0.1') },
@@ -447,7 +452,7 @@ describe('Version', () => {
               long: parse6decimal('12'),
               short: parse6decimal('2'),
             },
-            { ...TO_POSITION, fee: 0 },
+            ORDER,
             ORACLE_VERSION_1,
             ORACLE_VERSION_1,
             {
@@ -489,7 +494,7 @@ describe('Version', () => {
               long: 0,
               short: 0,
             },
-            { ...TO_POSITION, fee: 0 },
+            ORDER,
             ORACLE_VERSION_1,
             ORACLE_VERSION_2,
             {
@@ -531,10 +536,7 @@ describe('Version', () => {
               long: parse6decimal('12'),
               short: parse6decimal('8'),
             },
-            {
-              ...TO_POSITION,
-              fee: 0,
-            },
+            ORDER,
             ORACLE_VERSION_1,
             ORACLE_VERSION_2,
             {
@@ -577,10 +579,7 @@ describe('Version', () => {
               long: parse6decimal('8'),
               short: parse6decimal('12'),
             },
-            {
-              ...TO_POSITION,
-              fee: 0,
-            },
+            ORDER,
             ORACLE_VERSION_1,
             ORACLE_VERSION_2,
             {
@@ -623,10 +622,7 @@ describe('Version', () => {
               long: parse6decimal('8'),
               short: parse6decimal('12'),
             },
-            {
-              ...TO_POSITION,
-              fee: 0,
-            },
+            ORDER,
             ORACLE_VERSION_1,
             ORACLE_VERSION_2,
             {
@@ -672,7 +668,7 @@ describe('Version', () => {
               long: parse6decimal('12'),
               short: parse6decimal('2'),
             },
-            { ...TO_POSITION, fee: 0 },
+            ORDER,
             ORACLE_VERSION_1,
             ORACLE_VERSION_1,
             {
@@ -714,7 +710,7 @@ describe('Version', () => {
               long: parse6decimal('12'),
               short: parse6decimal('2'),
             },
-            { ...TO_POSITION, fee: 0 },
+            ORDER,
             ORACLE_VERSION_1,
             ORACLE_VERSION_2,
             {
@@ -763,7 +759,7 @@ describe('Version', () => {
               long: parse6decimal('8'),
               short: parse6decimal('2'),
             },
-            { ...TO_POSITION, fee: 0 },
+            ORDER,
             ORACLE_VERSION_1,
             ORACLE_VERSION_2,
             {
@@ -812,7 +808,7 @@ describe('Version', () => {
               long: 0,
               short: 0,
             },
-            { ...TO_POSITION, fee: 0 },
+            ORDER,
             ORACLE_VERSION_1,
             ORACLE_VERSION_2,
             {
@@ -857,7 +853,7 @@ describe('Version', () => {
               long: parse6decimal('2'),
               short: parse6decimal('9'),
             },
-            { ...TO_POSITION, fee: 0 },
+            ORDER,
             ORACLE_VERSION_1,
             ORACLE_VERSION_2,
             {
@@ -900,7 +896,7 @@ describe('Version', () => {
                 long: parse6decimal('9'),
                 short: parse6decimal('9'),
               },
-              { ...TO_POSITION, fee: 0 },
+              ORDER,
               ORACLE_VERSION_1,
               {
                 ...ORACLE_VERSION_2,
@@ -945,7 +941,7 @@ describe('Version', () => {
                 long: parse6decimal('2'),
                 short: parse6decimal('9'),
               },
-              { ...TO_POSITION, fee: 0 },
+              ORDER,
               ORACLE_VERSION_1,
               {
                 ...ORACLE_VERSION_2,
@@ -990,7 +986,7 @@ describe('Version', () => {
                 long: parse6decimal('20'),
                 short: parse6decimal('15'),
               },
-              { ...TO_POSITION, fee: 0 },
+              ORDER,
               ORACLE_VERSION_1,
               {
                 ...ORACLE_VERSION_2,
@@ -1037,7 +1033,7 @@ describe('Version', () => {
                 long: parse6decimal('9'),
                 short: parse6decimal('9'),
               },
-              { ...TO_POSITION, fee: 0 },
+              ORDER,
               ORACLE_VERSION_1,
               {
                 ...ORACLE_VERSION_2,
@@ -1082,7 +1078,7 @@ describe('Version', () => {
                 long: parse6decimal('2'),
                 short: parse6decimal('9'),
               },
-              { ...TO_POSITION, fee: 0 },
+              ORDER,
               ORACLE_VERSION_1,
               {
                 ...ORACLE_VERSION_2,
@@ -1127,7 +1123,7 @@ describe('Version', () => {
                 long: parse6decimal('20'),
                 short: parse6decimal('15'),
               },
-              { ...TO_POSITION, fee: 0 },
+              ORDER,
               ORACLE_VERSION_1,
               {
                 ...ORACLE_VERSION_2,

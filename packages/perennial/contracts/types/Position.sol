@@ -109,7 +109,6 @@ library PositionLib {
     /// @param self The position object to update
     /// @param latestVersion The latest oracle version
     function sync(Position memory self, OracleVersion memory latestVersion) internal pure {
-        prepare(self);
         self.timestamp = latestVersion.timestamp;
     }
 

@@ -10,11 +10,13 @@ import { Market, Market__factory, IOracleProvider, IERC20Metadata, IMarketFactor
 import {
   DEFAULT_POSITION,
   DEFAULT_LOCAL,
+  DEFAULT_ORDER,
   expectGlobalEq,
   expectLocalEq,
   expectPositionEq,
   expectVersionEq,
   parse6decimal,
+  expectOrderEq,
 } from '../../../../common/testutil/types'
 import { IMarket, MarketParameterStruct, RiskParameterStruct } from '../../../types/generated/contracts/Market'
 
@@ -45,19 +47,6 @@ const DEFAULT_VERSION_ACCUMULATION_RESULT = {
 const DEFAULT_LOCAL_ACCUMULATION_RESULT = {
   collateralAmount: 0,
   positionFee: 0,
-  keeper: 0,
-}
-
-const DEFAULT_ORDER = {
-  maker: 0,
-  long: 0,
-  short: 0,
-  net: 0,
-  skew: 0,
-  impact: 0,
-  utilization: 0,
-  efficiency: 0,
-  fee: 0,
   keeper: 0,
 }
 
@@ -391,9 +380,10 @@ describe('Market', () => {
       maintenance: parse6decimal('0.3'),
       takerFee: 0,
       takerMagnitudeFee: 0,
-      impactFee: 0,
+      takerImpactFee: { scale: 0 },
       makerFee: 0,
       makerMagnitudeFee: 0,
+      makerImpactFee: { scale: 0 },
       makerLimit: parse6decimal('1000'),
       efficiencyLimit: parse6decimal('0.2'),
       liquidationFee: parse6decimal('0.50'),
@@ -444,9 +434,10 @@ describe('Market', () => {
       expect(riskParameterResult.maintenance).to.equal(0)
       expect(riskParameterResult.takerFee).to.equal(0)
       expect(riskParameterResult.takerMagnitudeFee).to.equal(0)
-      expect(riskParameterResult.impactFee).to.equal(0)
+      expect(riskParameterResult.takerImpactFee.scale).to.equal(0)
       expect(riskParameterResult.makerFee).to.equal(0)
       expect(riskParameterResult.makerMagnitudeFee).to.equal(0)
+      expect(riskParameterResult.makerImpactFee.scale).to.equal(0)
       expect(riskParameterResult.makerLimit).to.equal(0)
       expect(riskParameterResult.efficiencyLimit).to.equal(0)
       expect(riskParameterResult.liquidationFee).to.equal(0)
@@ -548,9 +539,10 @@ describe('Market', () => {
         maintenance: parse6decimal('0.4'),
         takerFee: parse6decimal('0.01'),
         takerMagnitudeFee: parse6decimal('0.004'),
-        impactFee: parse6decimal('0.003'),
+        takerImpactFee: { scale: parse6decimal('0.003') },
         makerFee: parse6decimal('0.005'),
         makerMagnitudeFee: parse6decimal('0.001'),
+        makerImpactFee: { scale: parse6decimal('0.004') },
         makerLimit: parse6decimal('2000'),
         efficiencyLimit: parse6decimal('0.2'),
         liquidationFee: parse6decimal('0.25'),
@@ -584,9 +576,10 @@ describe('Market', () => {
         expect(riskParameter.maintenance).to.equal(defaultRiskParameter.maintenance)
         expect(riskParameter.takerFee).to.equal(defaultRiskParameter.takerFee)
         expect(riskParameter.takerMagnitudeFee).to.equal(defaultRiskParameter.takerMagnitudeFee)
-        expect(riskParameter.impactFee).to.equal(defaultRiskParameter.impactFee)
+        expect(riskParameter.takerImpactFee.scale).to.equal(defaultRiskParameter.takerImpactFee.scale)
         expect(riskParameter.makerFee).to.equal(defaultRiskParameter.makerFee)
         expect(riskParameter.makerMagnitudeFee).to.equal(defaultRiskParameter.makerMagnitudeFee)
+        expect(riskParameter.makerImpactFee.scale).to.equal(defaultRiskParameter.makerImpactFee.scale)
         expect(riskParameter.makerLimit).to.equal(defaultRiskParameter.makerLimit)
         expect(riskParameter.efficiencyLimit).to.equal(defaultRiskParameter.efficiencyLimit)
         expect(riskParameter.liquidationFee).to.equal(defaultRiskParameter.liquidationFee)
@@ -619,9 +612,10 @@ describe('Market', () => {
         expect(riskParameter.maintenance).to.equal(defaultRiskParameter.maintenance)
         expect(riskParameter.takerFee).to.equal(defaultRiskParameter.takerFee)
         expect(riskParameter.takerMagnitudeFee).to.equal(defaultRiskParameter.takerMagnitudeFee)
-        expect(riskParameter.impactFee).to.equal(defaultRiskParameter.impactFee)
+        expect(riskParameter.takerImpactFee.scale).to.equal(defaultRiskParameter.takerImpactFee.scale)
         expect(riskParameter.makerFee).to.equal(defaultRiskParameter.makerFee)
         expect(riskParameter.makerMagnitudeFee).to.equal(defaultRiskParameter.makerMagnitudeFee)
+        expect(riskParameter.makerImpactFee.scale).to.equal(defaultRiskParameter.makerImpactFee.scale)
         expect(riskParameter.makerLimit).to.equal(defaultRiskParameter.makerLimit)
         expect(riskParameter.efficiencyLimit).to.equal(defaultRiskParameter.efficiencyLimit)
         expect(riskParameter.liquidationFee).to.equal(defaultRiskParameter.liquidationFee)
@@ -667,7 +661,12 @@ describe('Market', () => {
             .to.emit(market, 'Updated')
             .withArgs(user.address, user.address, ORACLE_VERSION_2.timestamp, 0, 0, 0, COLLATERAL, false)
             .to.emit(market, 'OrderCreated')
-            .withArgs(user.address, ORACLE_VERSION_2.timestamp, DEFAULT_ORDER, COLLATERAL)
+            .withArgs(
+              user.address,
+              ORACLE_VERSION_2.timestamp,
+              { ...DEFAULT_ORDER, timestamp: ORACLE_VERSION_2.timestamp },
+              COLLATERAL,
+            )
 
           expectLocalEq(await market.locals(user.address), {
             ...DEFAULT_LOCAL,
@@ -710,7 +709,12 @@ describe('Market', () => {
             .to.emit(market, 'Updated')
             .withArgs(user.address, user.address, ORACLE_VERSION_2.timestamp, 0, 0, 0, COLLATERAL.mul(-1), false)
             .to.emit(market, 'OrderCreated')
-            .withArgs(user.address, ORACLE_VERSION_2.timestamp, DEFAULT_ORDER, COLLATERAL.mul(-1))
+            .withArgs(
+              user.address,
+              ORACLE_VERSION_2.timestamp,
+              { ...DEFAULT_ORDER, timestamp: ORACLE_VERSION_2.timestamp },
+              COLLATERAL.mul(-1),
+            )
 
           expectLocalEq(await market.locals(user.address), {
             ...DEFAULT_LOCAL,
@@ -942,9 +946,10 @@ describe('Market', () => {
                 ORACLE_VERSION_2.timestamp,
                 {
                   ...DEFAULT_ORDER,
+                  orders: 1,
+                  timestamp: ORACLE_VERSION_2.timestamp,
                   maker: POSITION,
-                  skew: parse6decimal('2'),
-                  utilization: parse6decimal('-1'),
+                  makerPos: POSITION,
                 },
                 COLLATERAL,
               )
@@ -1264,7 +1269,6 @@ describe('Market', () => {
               maker: POSITION.mul(2),
               long: 0,
               short: 0,
-              fee: 0,
             })
             expectPositionEq(await market.pendingPosition(3), {
               ...DEFAULT_POSITION,
@@ -1415,9 +1419,10 @@ describe('Market', () => {
                 ORACLE_VERSION_2.timestamp,
                 {
                   ...DEFAULT_ORDER,
+                  timestamp: ORACLE_VERSION_2.timestamp,
+                  orders: 1,
                   maker: POSITION.mul(-1),
-                  skew: parse6decimal('2'),
-                  utilization: parse6decimal('1'),
+                  makerNeg: POSITION,
                 },
                 0,
               )
@@ -1469,8 +1474,10 @@ describe('Market', () => {
                 ORACLE_VERSION_2.timestamp,
                 {
                   ...DEFAULT_ORDER,
-                  skew: parse6decimal('1'),
+                  timestamp: ORACLE_VERSION_2.timestamp,
+                  orders: 1,
                   maker: POSITION.div(2).mul(-1),
+                  makerNeg: POSITION.div(2),
                 },
                 0,
               )
@@ -1963,11 +1970,10 @@ describe('Market', () => {
                   ORACLE_VERSION_2.timestamp,
                   {
                     ...DEFAULT_ORDER,
+                    timestamp: ORACLE_VERSION_2.timestamp,
+                    orders: 1,
                     long: POSITION,
-                    net: parse6decimal('10'),
-                    skew: parse6decimal('2'),
-                    impact: parse6decimal('1'),
-                    utilization: parse6decimal('1'),
+                    takerPos: POSITION,
                   },
                   COLLATERAL,
                 )
@@ -2403,7 +2409,7 @@ describe('Market', () => {
               const riskParameter = { ...(await market.riskParameter()) }
               riskParameter.takerFee = parse6decimal('0.01')
               riskParameter.takerMagnitudeFee = parse6decimal('0.002')
-              riskParameter.impactFee = parse6decimal('0.008')
+              riskParameter.takerImpactFee.scale = parse6decimal('0.008')
               await market.updateRiskParameter(riskParameter)
 
               const marketParameter = { ...(await market.parameter()) }
@@ -2514,7 +2520,7 @@ describe('Market', () => {
               const riskParameter = { ...(await market.riskParameter()) }
               riskParameter.takerFee = parse6decimal('0.01')
               riskParameter.takerMagnitudeFee = parse6decimal('0.002')
-              riskParameter.impactFee = parse6decimal('0.008')
+              riskParameter.takerImpactFee.scale = parse6decimal('0.008')
               await market.updateRiskParameter(riskParameter)
 
               const marketParameter = { ...(await market.parameter()) }
@@ -2640,11 +2646,10 @@ describe('Market', () => {
                   ORACLE_VERSION_2.timestamp,
                   {
                     ...DEFAULT_ORDER,
+                    timestamp: ORACLE_VERSION_2.timestamp,
+                    orders: 1,
                     long: POSITION.div(4).mul(-1),
-                    net: parse6decimal('-2.5'),
-                    skew: parse6decimal('.5'),
-                    impact: parse6decimal('-.75'),
-                    utilization: parse6decimal('-.25'),
+                    takerNeg: POSITION.div(4),
                   },
                   0,
                 )
@@ -2700,11 +2705,10 @@ describe('Market', () => {
                   ORACLE_VERSION_2.timestamp,
                   {
                     ...DEFAULT_ORDER,
+                    timestamp: ORACLE_VERSION_2.timestamp,
+                    orders: 1,
                     long: POSITION.div(2).mul(-1),
-                    net: parse6decimal('-5'),
-                    skew: parse6decimal('1'),
-                    impact: parse6decimal('-.5'),
-                    utilization: parse6decimal('-.5'),
+                    takerNeg: POSITION.div(2),
                   },
                   0,
                 )
@@ -3275,7 +3279,7 @@ describe('Market', () => {
                 const riskParameter = { ...(await market.riskParameter()) }
                 riskParameter.takerFee = parse6decimal('0.01')
                 riskParameter.takerMagnitudeFee = parse6decimal('0.002')
-                riskParameter.impactFee = parse6decimal('0.008')
+                riskParameter.takerImpactFee.scale = parse6decimal('0.008')
                 await market.updateRiskParameter(riskParameter)
 
                 const marketParameter = { ...(await market.parameter()) }
@@ -4738,11 +4742,10 @@ describe('Market', () => {
                   ORACLE_VERSION_2.timestamp,
                   {
                     ...DEFAULT_ORDER,
+                    timestamp: ORACLE_VERSION_2.timestamp,
+                    orders: 1,
                     short: POSITION,
-                    net: parse6decimal('10'),
-                    skew: parse6decimal('2'),
-                    impact: parse6decimal('1'),
-                    utilization: parse6decimal('1'),
+                    takerNeg: POSITION,
                   },
                   COLLATERAL,
                 )
@@ -5184,7 +5187,7 @@ describe('Market', () => {
               const riskParameter = { ...(await market.riskParameter()) }
               riskParameter.takerFee = parse6decimal('0.01')
               riskParameter.takerMagnitudeFee = parse6decimal('0.002')
-              riskParameter.impactFee = parse6decimal('0.008')
+              riskParameter.takerImpactFee.scale = parse6decimal('0.008')
               await market.updateRiskParameter(riskParameter)
 
               const marketParameter = { ...(await market.parameter()) }
@@ -5300,7 +5303,7 @@ describe('Market', () => {
               const riskParameter = { ...(await market.riskParameter()) }
               riskParameter.takerFee = parse6decimal('0.01')
               riskParameter.takerMagnitudeFee = parse6decimal('0.002')
-              riskParameter.impactFee = parse6decimal('0.008')
+              riskParameter.takerImpactFee.scale = parse6decimal('0.008')
               await market.updateRiskParameter(riskParameter)
 
               const marketParameter = { ...(await market.parameter()) }
@@ -5428,11 +5431,10 @@ describe('Market', () => {
                   ORACLE_VERSION_2.timestamp,
                   {
                     ...DEFAULT_ORDER,
+                    timestamp: ORACLE_VERSION_2.timestamp,
+                    orders: 1,
                     short: POSITION.div(4).mul(-1),
-                    net: parse6decimal('-2.5'),
-                    skew: parse6decimal('.5'),
-                    impact: parse6decimal('-.75'),
-                    utilization: parse6decimal('-.25'),
+                    takerPos: POSITION.div(4),
                   },
                   0,
                 )
@@ -5488,11 +5490,10 @@ describe('Market', () => {
                   ORACLE_VERSION_2.timestamp,
                   {
                     ...DEFAULT_ORDER,
+                    timestamp: ORACLE_VERSION_2.timestamp,
+                    orders: 1,
                     short: POSITION.div(2).mul(-1),
-                    net: parse6decimal('-5'),
-                    skew: parse6decimal('1'),
-                    impact: parse6decimal('-.5'),
-                    utilization: parse6decimal('-.5'),
+                    takerPos: POSITION.div(2),
                   },
                   0,
                 )
@@ -6062,7 +6063,7 @@ describe('Market', () => {
                 const riskParameter = { ...(await market.riskParameter()) }
                 riskParameter.takerFee = parse6decimal('0.01')
                 riskParameter.takerMagnitudeFee = parse6decimal('0.002')
-                riskParameter.impactFee = parse6decimal('0.008')
+                riskParameter.takerImpactFee.scale = parse6decimal('0.008')
                 await market.updateRiskParameter(riskParameter)
 
                 const marketParameter = { ...(await market.parameter()) }
@@ -7497,7 +7498,7 @@ describe('Market', () => {
             const riskParameter = { ...(await market.riskParameter()) }
             riskParameter.takerFee = parse6decimal('0.01')
             riskParameter.takerMagnitudeFee = parse6decimal('0.002')
-            riskParameter.impactFee = parse6decimal('0.008')
+            riskParameter.takerImpactFee.scale = parse6decimal('0.008')
             riskParameter.makerFee = parse6decimal('0.01')
             riskParameter.makerMagnitudeFee = parse6decimal('0.004')
             await market.updateRiskParameter(riskParameter)
@@ -7590,7 +7591,7 @@ describe('Market', () => {
             const riskParameter = { ...(await market.riskParameter()) }
             riskParameter.takerFee = parse6decimal('0.01')
             riskParameter.takerMagnitudeFee = parse6decimal('0.002')
-            riskParameter.impactFee = parse6decimal('0.008')
+            riskParameter.takerImpactFee.scale = parse6decimal('0.008')
             riskParameter.makerFee = parse6decimal('0.01')
             riskParameter.makerMagnitudeFee = parse6decimal('0.004')
             await market.updateRiskParameter(riskParameter)
@@ -8171,7 +8172,7 @@ describe('Market', () => {
               const riskParameter = { ...(await market.riskParameter()) }
               riskParameter.takerFee = parse6decimal('0.01')
               riskParameter.takerMagnitudeFee = parse6decimal('0.002')
-              riskParameter.impactFee = parse6decimal('0.004')
+              riskParameter.takerImpactFee.scale = parse6decimal('0.004')
               await market.updateRiskParameter(riskParameter)
 
               const marketParameter = { ...(await market.parameter()) }
@@ -9413,7 +9414,7 @@ describe('Market', () => {
                 const riskParameter = { ...(await market.riskParameter()) }
                 riskParameter.takerFee = parse6decimal('0.01')
                 riskParameter.takerMagnitudeFee = parse6decimal('0.002')
-                riskParameter.impactFee = parse6decimal('0.004')
+                riskParameter.takerImpactFee.scale = parse6decimal('0.004')
                 await market.updateRiskParameter(riskParameter)
 
                 const marketParameter = { ...(await market.parameter()) }
@@ -12235,7 +12236,7 @@ describe('Market', () => {
           const riskParameter = { ...(await market.riskParameter()) }
           riskParameter.takerFee = parse6decimal('0.01')
           riskParameter.takerMagnitudeFee = parse6decimal('0.002')
-          riskParameter.impactFee = parse6decimal('0.008')
+          riskParameter.takerImpactFee.scale = parse6decimal('0.008')
           await market.updateRiskParameter(riskParameter)
 
           const marketParameter = { ...(await market.parameter()) }
@@ -12270,14 +12271,12 @@ describe('Market', () => {
             ...DEFAULT_POSITION,
             timestamp: ORACLE_VERSION_3.timestamp,
             long: POSITION.div(2),
-            fee: TAKER_FEE,
             delta: COLLATERAL,
           })
           expectPositionEq(await market.pendingPositions(user.address, 2), {
             ...DEFAULT_POSITION,
             timestamp: ORACLE_VERSION_4.timestamp,
             long: POSITION.div(2),
-            fee: TAKER_FEE,
             delta: COLLATERAL,
           })
           expectLocalEq(await market.locals(userB.address), {
@@ -12321,14 +12320,12 @@ describe('Market', () => {
             timestamp: ORACLE_VERSION_3.timestamp,
             maker: POSITION,
             long: POSITION.div(2),
-            fee: TAKER_FEE,
           })
           expectPositionEq(await market.pendingPosition(3), {
             ...DEFAULT_POSITION,
             timestamp: ORACLE_VERSION_4.timestamp,
             maker: POSITION,
             long: POSITION.div(2),
-            fee: TAKER_FEE,
           })
           expectVersionEq(await market.versions(ORACLE_VERSION_2.timestamp), {
             makerValue: { _value: 0 },
@@ -12352,7 +12349,7 @@ describe('Market', () => {
           const riskParameter = { ...(await market.riskParameter()) }
           riskParameter.takerFee = parse6decimal('0.01')
           riskParameter.takerMagnitudeFee = parse6decimal('0.002')
-          riskParameter.impactFee = parse6decimal('0.008')
+          riskParameter.takerImpactFee.scale = parse6decimal('0.008')
           await market.updateRiskParameter(riskParameter)
 
           const marketParameter = { ...(await market.parameter()) }
@@ -12398,14 +12395,12 @@ describe('Market', () => {
             ...DEFAULT_POSITION,
             timestamp: ORACLE_VERSION_3.timestamp,
             long: POSITION.div(2),
-            fee: TAKER_FEE,
             delta: COLLATERAL,
           })
           expectPositionEq(await market.pendingPositions(user.address, 2), {
             ...DEFAULT_POSITION,
             timestamp: ORACLE_VERSION_4.timestamp,
             long: POSITION.div(2),
-            fee: TAKER_FEE,
             delta: COLLATERAL,
             collateral: COLLATERAL.sub(SETTLEMENT_FEE),
           })
@@ -12457,14 +12452,12 @@ describe('Market', () => {
             timestamp: ORACLE_VERSION_3.timestamp,
             maker: POSITION,
             long: POSITION.div(2),
-            fee: TAKER_FEE,
           })
           expectPositionEq(await market.pendingPosition(3), {
             ...DEFAULT_POSITION,
             timestamp: ORACLE_VERSION_4.timestamp,
             maker: POSITION,
             long: POSITION.div(2),
-            fee: TAKER_FEE,
           })
           expectPositionEq(await market.pendingPosition(4), {
             ...DEFAULT_POSITION,
@@ -12499,7 +12492,7 @@ describe('Market', () => {
           const riskParameter = { ...(await market.riskParameter()) }
           riskParameter.takerFee = parse6decimal('0.01')
           riskParameter.takerMagnitudeFee = parse6decimal('0.002')
-          riskParameter.impactFee = parse6decimal('0.008')
+          riskParameter.takerImpactFee.scale = parse6decimal('0.008')
           await market.updateRiskParameter(riskParameter)
 
           const marketParameter = { ...(await market.parameter()) }
@@ -12544,14 +12537,12 @@ describe('Market', () => {
             ...DEFAULT_POSITION,
             timestamp: ORACLE_VERSION_3.timestamp,
             long: POSITION.div(2),
-            fee: TAKER_FEE,
             delta: COLLATERAL,
           })
           expectPositionEq(await market.pendingPositions(user.address, 2), {
             ...DEFAULT_POSITION,
             timestamp: ORACLE_VERSION_4.timestamp,
             long: POSITION.div(2),
-            fee: TAKER_FEE,
             collateral: COLLATERAL.sub(SETTLEMENT_FEE),
             delta: COLLATERAL,
           })
@@ -12559,7 +12550,6 @@ describe('Market', () => {
             ...DEFAULT_POSITION,
             timestamp: ORACLE_VERSION_5.timestamp,
             long: POSITION.div(2),
-            fee: TAKER_FEE,
             delta: COLLATERAL,
           })
           expectLocalEq(await market.locals(userB.address), {
@@ -12603,21 +12593,18 @@ describe('Market', () => {
             timestamp: ORACLE_VERSION_3.timestamp,
             maker: POSITION,
             long: POSITION.div(2),
-            fee: TAKER_FEE,
           })
           expectPositionEq(await market.pendingPosition(3), {
             ...DEFAULT_POSITION,
             timestamp: ORACLE_VERSION_4.timestamp,
             maker: POSITION,
             long: POSITION.div(2),
-            fee: TAKER_FEE,
           })
           expectPositionEq(await market.pendingPosition(4), {
             ...DEFAULT_POSITION,
             timestamp: ORACLE_VERSION_5.timestamp,
             maker: POSITION,
             long: POSITION.div(2),
-            fee: TAKER_FEE,
           })
           expectVersionEq(await market.versions(ORACLE_VERSION_2.timestamp), {
             makerValue: { _value: 0 },
@@ -12646,7 +12633,7 @@ describe('Market', () => {
           const riskParameter = { ...(await market.riskParameter()) }
           riskParameter.takerFee = parse6decimal('0.01')
           riskParameter.takerMagnitudeFee = parse6decimal('0.002')
-          riskParameter.impactFee = parse6decimal('0.008')
+          riskParameter.takerImpactFee.scale = parse6decimal('0.008')
           riskParameter.staleAfter = BigNumber.from(9600)
           await market.updateRiskParameter(riskParameter)
 
@@ -12692,7 +12679,6 @@ describe('Market', () => {
             ...DEFAULT_POSITION,
             timestamp: ORACLE_VERSION_3.timestamp,
             long: POSITION.div(2),
-            fee: TAKER_FEE,
             delta: COLLATERAL,
           })
           expectPositionEq(await market.pendingPositions(user.address, 2), {
@@ -12706,7 +12692,6 @@ describe('Market', () => {
             ...DEFAULT_POSITION,
             timestamp: ORACLE_VERSION_5.timestamp,
             long: POSITION.div(2),
-            fee: TAKER_FEE,
             delta: COLLATERAL,
           })
           expectLocalEq(await market.locals(userB.address), {
@@ -12751,7 +12736,6 @@ describe('Market', () => {
             maker: POSITION,
             long: POSITION.div(2),
             short: 0,
-            fee: TAKER_FEE,
           })
           expectPositionEq(await market.pendingPosition(3), {
             ...DEFAULT_POSITION,
@@ -12764,7 +12748,6 @@ describe('Market', () => {
             timestamp: ORACLE_VERSION_5.timestamp,
             maker: POSITION,
             long: POSITION.div(2),
-            fee: TAKER_FEE,
           })
           expectVersionEq(await market.versions(ORACLE_VERSION_2.timestamp), {
             makerValue: { _value: 0 },
@@ -12793,7 +12776,7 @@ describe('Market', () => {
           const riskParameter = { ...(await market.riskParameter()) }
           riskParameter.takerFee = parse6decimal('0.01')
           riskParameter.takerMagnitudeFee = parse6decimal('0.002')
-          riskParameter.impactFee = parse6decimal('0.008')
+          riskParameter.takerImpactFee.scale = parse6decimal('0.008')
           riskParameter.staleAfter = BigNumber.from(9600)
           await market.updateRiskParameter(riskParameter)
 
@@ -12848,7 +12831,6 @@ describe('Market', () => {
             ...DEFAULT_POSITION,
             timestamp: ORACLE_VERSION_3.timestamp,
             long: POSITION.div(2),
-            fee: TAKER_FEE,
             delta: COLLATERAL,
           })
           expectPositionEq(await market.pendingPositions(user.address, 2), {
@@ -12862,7 +12844,6 @@ describe('Market', () => {
             ...DEFAULT_POSITION,
             timestamp: ORACLE_VERSION_5.timestamp,
             long: POSITION.div(2),
-            fee: TAKER_FEE,
             collateral: COLLATERAL.sub(SETTLEMENT_FEE),
             delta: COLLATERAL,
           })
@@ -12915,7 +12896,6 @@ describe('Market', () => {
             maker: POSITION,
             long: POSITION.div(2),
             short: 0,
-            fee: TAKER_FEE,
           })
           expectPositionEq(await market.pendingPosition(3), {
             ...DEFAULT_POSITION,
@@ -12928,7 +12908,6 @@ describe('Market', () => {
             timestamp: ORACLE_VERSION_5.timestamp,
             maker: POSITION,
             long: POSITION.div(2),
-            fee: TAKER_FEE,
           })
           expectPositionEq(await market.pendingPosition(5), {
             ...DEFAULT_POSITION,
