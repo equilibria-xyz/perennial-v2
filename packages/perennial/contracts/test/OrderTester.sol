@@ -31,7 +31,7 @@ contract OrderTester {
         return order.liquidationFee(latestVersion, riskParameter);
     }
 
-    function empty(Order memory order) public pure returns (bool) {
-        return order.empty();
+    function isEmpty(Order memory order) public pure returns (bool) {
+        return order.isEmpty();
     }
 }

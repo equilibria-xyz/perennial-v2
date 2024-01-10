@@ -154,7 +154,6 @@ library VersionLib {
         settlementFee = order.orders == 0 ? UFixed6Lib.ZERO : marketParameter.settlementFee;
         self.settlementFee.decrement(Fixed6Lib.from(settlementFee), UFixed6Lib.from(order.orders));
     }
-    
 
     /// @notice Globally accumulates position fees since last oracle update
     /// @param self The Version object to update

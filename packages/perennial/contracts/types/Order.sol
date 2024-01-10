@@ -15,13 +15,13 @@ struct Order {
     /// @dev The quantity of orders that are included in this order
     uint256 orders;
 
-    /// @dev The maker delta
+    /// @dev@dev The change in the maker position
     Fixed6 maker;
 
-    /// @dev The long delta
+    /// @dev @dev The change in the long position
     Fixed6 long;
 
-    /// @dev The short delta
+    /// @dev @dev The change in the short position
     Fixed6 short;
 
     /// @dev The positive skew maker order size
@@ -43,8 +43,15 @@ struct OrderStorageLocal { uint256 slot0; }
 using OrderStorageLocalLib for OrderStorageLocal global;
 
 /// @title Order
-/// @notice Holds the state for a order
+/// @notice Holds the state for an account's update order
 library OrderLib {
+    /// @notice Helper to create a new order from basic data
+    /// @param timestamp The timestamp of the order
+    /// @param orders The quantity of orders that are included in this order
+    /// @param maker The change in the maker position
+    /// @param long The change in the long position
+    /// @param short The change in the short position
+    /// @return The new order
     function from(
         uint256 timestamp,
         uint256 orders,
@@ -86,72 +93,7 @@ library OrderLib {
             Fixed6Lib.from(newLong).sub(Fixed6Lib.from(position.long)),
             Fixed6Lib.from(newShort).sub(Fixed6Lib.from(position.short))
         );
-        if (!empty(newOrder)) newOrder.orders = 1;
-    }
-
-    /// @notice Returns the direction of the order
-    /// @dev 0 = maker, 1 = long, 2 = short
-    /// @param self The position object to check
-    /// @return The direction of the position
-    function direction(Order memory self) internal pure returns (uint256) {
-        return self.long.isZero() ? (self.short.isZero() ? 0 : 2) : 1;
-    }
-
-    /// @notice Returns the magnitude of the order
-    /// @param self The order object to check
-    /// @return The magnitude of the order
-    function magnitude(Order memory self) internal pure returns (Fixed6) {
-        return self.maker.add(self.long).add(self.short);
-    }
-
-    /// @notice Returns whether the order is empty
-    /// @param self The order object to check
-    /// @return Whether the order is empty
-    function empty(Order memory self) internal pure returns (bool) {
-        return magnitude(self).isZero();
-    }
-
-    /// @notice Updates the current global order with a new local order
-    /// @param self The order object to update
-    /// @param order The new order
-    function add(Order memory self, Order memory order) internal pure {
-        (self.timestamp, self.maker, self.long, self.short) = (
-            order.timestamp,
-            self.maker.add(order.maker),
-            self.long.add(order.long),
-            self.short.add(order.short)
-        );
-
-        (self.orders, self.makerPos, self.makerNeg, self.takerPos, self.takerNeg) = (
-            self.orders + order.orders,
-            self.makerPos.add(order.makerPos),
-            self.makerNeg.add(order.makerNeg),
-            self.takerPos.add(order.takerPos),
-            self.takerNeg.add(order.takerNeg)
-        );
-    }
-
-    /// @notice Returns the liquidation fee of the position
-    /// @dev Assumes the order must be single-sided
-    /// @param self The position object to check
-    /// @param latestVersion The latest oracle version
-    /// @param riskParameter The current risk parameter
-    /// @return The liquidation fee of the position
-    function liquidationFee(
-        Order memory self,
-        OracleVersion memory latestVersion,
-        RiskParameter memory riskParameter
-    ) internal pure returns (UFixed6) {
-        if (empty(self)) return UFixed6Lib.ZERO;
-
-        UFixed6 partialMaintenance = magnitude(self).abs()
-            .mul(latestVersion.price.abs())
-            .mul(riskParameter.maintenance)
-            .max(riskParameter.minMaintenance);
-
-        return partialMaintenance.mul(riskParameter.liquidationFee)
-            .min(riskParameter.maxLiquidationFee)
-            .max(riskParameter.minLiquidationFee);
+        if (!isEmpty(newOrder)) newOrder.orders = 1;
     }
 
     /// @notice Returns whether the order increases any of the account's positions
@@ -201,6 +143,71 @@ library OrderLib {
         return !marketParameter.closed &&
             ((self.maker.isZero()) || !marketParameter.makerCloseAlways || increasesMaker(self)) &&
             ((self.long.isZero() && self.short.isZero()) || !marketParameter.takerCloseAlways || increasesTaker(self));
+    }
+
+    /// @notice Returns the liquidation fee of the position
+    /// @dev Assumes the order must be single-sided
+    /// @param self The position object to check
+    /// @param latestVersion The latest oracle version
+    /// @param riskParameter The current risk parameter
+    /// @return The liquidation fee of the position
+    function liquidationFee(
+        Order memory self,
+        OracleVersion memory latestVersion,
+        RiskParameter memory riskParameter
+    ) internal pure returns (UFixed6) {
+        if (isEmpty(self)) return UFixed6Lib.ZERO;
+
+        UFixed6 partialMaintenance = magnitude(self).abs()
+            .mul(latestVersion.price.abs())
+            .mul(riskParameter.maintenance)
+            .max(riskParameter.minMaintenance);
+
+        return partialMaintenance.mul(riskParameter.liquidationFee)
+            .min(riskParameter.maxLiquidationFee)
+            .max(riskParameter.minLiquidationFee);
+    }
+
+    /// @notice Returns whether the order is empty
+    /// @param self The order object to check
+    /// @return Whether the order is empty
+    function isEmpty(Order memory self) internal pure returns (bool) {
+        return magnitude(self).isZero();
+    }
+
+     /// @notice Returns the direction of the order
+    /// @dev 0 = maker, 1 = long, 2 = short
+    /// @param self The position object to check
+    /// @return The direction of the position
+    function direction(Order memory self) internal pure returns (uint256) {
+        return self.long.isZero() ? (self.short.isZero() ? 0 : 2) : 1;
+    }
+
+    /// @notice Returns the magnitude of the order
+    /// @param self The order object to check
+    /// @return The magnitude of the order
+    function magnitude(Order memory self) internal pure returns (Fixed6) {
+        return self.maker.add(self.long).add(self.short);
+    }
+
+    /// @notice Updates the current global order with a new local order
+    /// @param self The order object to update
+    /// @param order The new order
+    function add(Order memory self, Order memory order) internal pure {
+        (self.timestamp, self.maker, self.long, self.short) = (
+            order.timestamp,
+            self.maker.add(order.maker),
+            self.long.add(order.long),
+            self.short.add(order.short)
+        );
+
+        (self.orders, self.makerPos, self.makerNeg, self.takerPos, self.takerNeg) = (
+            self.orders + order.orders,
+            self.makerPos.add(order.makerPos),
+            self.makerNeg.add(order.makerNeg),
+            self.takerPos.add(order.takerPos),
+            self.takerNeg.add(order.takerNeg)
+        );
     }
 }
 

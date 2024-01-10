@@ -242,7 +242,7 @@ contract Market is IMarket, Instance, ReentrancyGuard {
     /// @param context The context to use
     /// @param newPendingPosition The pending position to process
     function _processPendingPosition(Context memory context, Position memory newPendingPosition) private pure {
-        // measure pending position orders
+        // measure pending position deltas
         if (context.previousPendingMagnitude.gt(newPendingPosition.magnitude())) {
             context.pendingClose = context.pendingClose
                 .add(context.previousPendingMagnitude.sub(newPendingPosition.magnitude()));
@@ -340,15 +340,14 @@ contract Market is IMarket, Instance, ReentrancyGuard {
         newLong = _processPositionMagicValue(context, context.currentPosition.local.long, newLong);
         newShort = _processPositionMagicValue(context, context.currentPosition.local.short, newShort);
 
+        // update order
         Order memory newOrder =
             OrderLib.from(context.currentTimestamp, context.currentPosition.local, newMaker, newLong, newShort);
+        context.order.add(newOrder);
 
         // update position
         context.currentPosition.local.update(context.currentTimestamp, newOrder);
         context.currentPosition.global.update(context.currentTimestamp, newOrder);
-
-        // update order
-        context.order.add(newOrder);
 
         // update collateral
         context.local.update(collateral);
@@ -368,7 +367,7 @@ contract Market is IMarket, Instance, ReentrancyGuard {
         );
 
         // request version
-        if (!newOrder.empty()) oracle.request(IMarket(this), account);
+        if (!newOrder.isEmpty()) oracle.request(IMarket(this), account);
 
         // after
         _invariant(context, account, newOrder, collateral, protected);
@@ -552,7 +551,7 @@ contract Market is IMarket, Instance, ReentrancyGuard {
         Position memory latestAccountPosition = _pendingPositions[account][context.local.latestId].read();
 
         latestAccountPosition.collateral = context.local.collateral.sub(
-            context.currentPosition.local.order.sub(_pendingPositions[account][context.local.latestId - 1].read().order)
+            context.currentPosition.local.delta.sub(_pendingPositions[account][context.local.latestId - 1].read().delta)
         ); // deposits happen after snapshot point
 
         _pendingPositions[account][context.local.latestId].store(latestAccountPosition);
@@ -594,9 +593,9 @@ contract Market is IMarket, Instance, ReentrancyGuard {
         )) revert MarketInvalidProtectionError();
 
         if (
-            !(context.currentPosition.local.magnitude().isZero() && context.latestPosition.local.magnitude().isZero()) &&  // sender has no position
-            !(newOrder.empty() && collateral.gte(Fixed6Lib.ZERO)) &&                                                       // sender is depositing zero or more into account, without position change
-            (context.currentTimestamp - context.latestVersion.timestamp >= context.riskParameter.staleAfter)               // price is not stale
+            !(context.currentPosition.local.magnitude().isZero() && context.latestPosition.local.magnitude().isZero()) &&   // sender has no position
+            !(newOrder.isEmpty() && collateral.gte(Fixed6Lib.ZERO)) &&                                                      // sender is depositing zero or more into account, without position change
+            (context.currentTimestamp - context.latestVersion.timestamp >= context.riskParameter.staleAfter)                // price is not stale
         ) revert MarketStalePriceError();
 
         if (context.marketParameter.closed && newOrder.increasesPosition())
@@ -615,9 +614,9 @@ contract Market is IMarket, Instance, ReentrancyGuard {
         if (protected) return; // The following invariants do not apply to protected position updates (liquidations)
 
         if (
-            msg.sender != account &&                                                // sender is operating on own account
-            !IMarketFactory(address(factory())).operators(account, msg.sender) &&   // sender is operator approved for account
-            !(newOrder.empty() && collateral.gte(Fixed6Lib.ZERO))                   // sender is depositing zero or more into account, without position change
+            msg.sender != account &&                                                        // sender is operating on own account
+            !IMarketFactory(address(factory())).operators(account, msg.sender) &&           // sender is operator approved for account
+            !(newOrder.isEmpty() && collateral.gte(Fixed6Lib.ZERO))                         // sender is depositing zero or more into account, without position change
         ) revert MarketOperatorNotAllowedError();
 
         if (
@@ -640,7 +639,7 @@ contract Market is IMarket, Instance, ReentrancyGuard {
 
         if (
             (context.local.protection > context.latestPosition.local.timestamp) &&
-            !newOrder.empty()
+            !newOrder.isEmpty()
         ) revert MarketProtectedError();
 
         if (
