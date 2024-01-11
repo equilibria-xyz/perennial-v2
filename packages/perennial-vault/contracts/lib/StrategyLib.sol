@@ -35,9 +35,6 @@ struct MarketStrategyContext {
     /// @dev The current closable amount of the vault
     UFixed6 closable;
 
-    // @dev The pending fees of the vault
-    UFixed6 pendingFee;
-
     // @dev minimum position size before crossing the net position
     UFixed6 minPosition;
 
@@ -155,7 +152,6 @@ library StrategyLib {
             .add(collateral.sub(totalMargin).muldiv(marketContext.registration.weight, totalWeight));
 
         UFixed6 marketAssets = assets
-            .unsafeSub(marketContext.pendingFee)
             .muldiv(marketContext.registration.weight, totalWeight)
             .min(marketCollateral.mul(LEVERAGE_BUFFER));
 
@@ -217,8 +213,6 @@ library StrategyLib {
         Position memory latestPosition = registration.market.position();
         marketContext.currentPosition = registration.market.pendingPosition(global.currentId);
         marketContext.currentPosition.adjust(latestPosition);
-        marketContext.pendingFee = marketContext.pendingFee
-            .add(marketContext.local.pendingLiquidationFee(marketContext.latestAccountPosition));
         marketContext.minPosition = marketContext.currentAccountPosition.maker
             .unsafeSub(marketContext.currentPosition.maker
                 .unsafeSub(marketContext.currentPosition.net()).min(marketContext.closable));
@@ -242,9 +236,6 @@ library StrategyLib {
             .margin(OracleVersion(0, marketContext.latestPrice, true), marketContext.riskParameter)
             .max(marketContext.margin);
         marketContext.closable = marketContext.closable.sub(previousMaker.unsafeSub(position.maker));
-        marketContext.pendingFee = marketContext.pendingFee
-            .add(UFixed6Lib.unsafeFrom(position.fee)) // don't allocate negative fees
-            .add(position.keeper);
         nextMaker = position.maker;
     }
 }

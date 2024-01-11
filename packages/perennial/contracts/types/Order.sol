@@ -243,8 +243,8 @@ library OrderStorageGlobalLib {
             Fixed6.wrap(int256(slot0 << (256 - 32 - 32 - 64 - 64)) >> (256 - 64)),
             makerPos,
             makerNeg,
-            UFixed6.wrap(uint256(slot1 << (256 - 64)) >> (256 - 64 - 64 - 64)),
-            UFixed6.wrap(uint256(slot1 << (256 - 64)) >> (256 - 64 - 64 - 64 - 64))
+            UFixed6.wrap(uint256(slot1 << (256 - 64 - 64 - 64)) >> (256 - 64)),
+            UFixed6.wrap(uint256(slot1 << (256 - 64 - 64 - 64 - 64)) >> (256 - 64))
         );
     }
 
@@ -289,8 +289,8 @@ library OrderStorageLocalLib {
     function read(OrderStorageLocal storage self) internal view returns (Order memory) {
         uint256 slot0 = self.slot0;
 
-        uint256 direction = uint256(slot0 << (256 - 2)) >> (256 - 2);
-        Fixed6 magnitude = Fixed6.wrap(int256(slot0 << (256 - 2 - 62)) >> (256 - 62));
+        uint256 direction = uint256(slot0 << (256 - 32 - 2)) >> (256 - 2);
+        Fixed6 magnitude = Fixed6.wrap(int256(slot0 << (256 - 32 - 2 - 62)) >> (256 - 62));
 
         return OrderLib.from(
             uint256(slot0 << (256 - 32)) >> (256 - 32),
@@ -307,6 +307,7 @@ library OrderStorageLocalLib {
         Fixed6 magnitude = newValue.magnitude();
 
         if (magnitude.gt(Fixed6.wrap(2 ** 61 - 1))) revert OrderStorageLib.OrderStorageInvalidError();
+        if (magnitude.lt(Fixed6.wrap(2 ** 61))) revert OrderStorageLib.OrderStorageInvalidError();
 
         uint256 encoded =
             uint256(newValue.timestamp << (256 - 32)) >> (256 - 32) |

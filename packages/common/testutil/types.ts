@@ -5,6 +5,13 @@ export interface Accumulator {
   _value: BigNumberish
 }
 
+export interface Checkpoint {
+  tradeFee: BigNumberish
+  settlementFee: BigNumberish
+  collateral: BigNumberish
+  delta: BigNumberish
+}
+
 export interface Invalidation {
   maker: BigNumberish
   long: BigNumberish
@@ -28,8 +35,6 @@ export interface Position {
   maker: BigNumberish
   long: BigNumberish
   short: BigNumberish
-  collateral: BigNumberish
-  delta: BigNumberish
   invalidation: Invalidation
 }
 
@@ -62,6 +67,13 @@ export interface Fee {
   market: BigNumberish
 }
 
+export function expectCheckpointEq(a: Checkpoint, b: Checkpoint): void {
+  expect(a.tradeFee).to.equal(b.tradeFee, 'Checkpoint:TradeFee')
+  expect(a.settlementFee).to.equal(b.settlementFee, 'Checkpoint:SettlementFee')
+  expect(a.collateral).to.equal(b.collateral, 'Checkpoint:Collateral')
+  expect(a.delta).to.equal(b.delta, 'Checkpoint:Delta')
+}
+
 export function expectOrderEq(a: Order, b: Order): void {
   expect(a.timestamp).to.equal(b.timestamp, 'Order:Timestamp')
   expect(a.orders).to.equal(b.orders, 'Order:Timestamp')
@@ -79,8 +91,6 @@ export function expectPositionEq(a: Position, b: Position): void {
   expect(a.maker).to.equal(b.maker, 'Position:Maker')
   expect(a.long).to.equal(b.long, 'Position:Long')
   expect(a.short).to.equal(b.short, 'Position:Short')
-  expect(a.collateral).to.equal(b.collateral, 'Position:Collateral')
-  expect(a.delta).to.equal(b.delta, 'Position:Delta')
   expect(a.invalidation.maker).to.equal(b.invalidation.maker, 'Position:Invalidation:Maker')
   expect(a.invalidation.long).to.equal(b.invalidation.long, 'Position:Invalidation:Long')
   expect(a.invalidation.short).to.equal(b.invalidation.short, 'Position:Invalidation:Short')
@@ -138,13 +148,18 @@ export class Big6Math {
   }
 }
 
+export const DEFAULT_CHECKPOINT: Checkpoint = {
+  tradeFee: 0,
+  settlementFee: 0,
+  collateral: 0,
+  delta: 0,
+}
+
 export const DEFAULT_POSITION: Position = {
   timestamp: 0,
   long: 0,
   maker: 0,
   short: 0,
-  collateral: 0,
-  delta: 0,
   invalidation: {
     maker: 0,
     long: 0,

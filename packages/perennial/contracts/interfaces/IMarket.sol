@@ -12,6 +12,7 @@ import "../types/Version.sol";
 import "../types/Local.sol";
 import "../types/Global.sol";
 import "../types/Position.sol";
+import "../types/Checkpoint.sol";
 
 interface IMarket is IInstance {
     struct MarketDefinition {
@@ -29,6 +30,7 @@ interface IMarket is IInstance {
         Global global;
         Local local;
         Order order;
+        Checkpoint currentCheckpoint;
         PositionContext currentPosition;
         PositionContext latestPosition;
         UFixed6 previousPendingMagnitude;
@@ -118,6 +120,7 @@ interface IMarket is IInstance {
     function pendingPosition(uint256 id) external view returns (Position memory);
     function position() external view returns (Position memory);
     function global() external view returns (Global memory);
+    function checkpoints(address account, uint256 id) external view returns (Checkpoint memory);
     function update(address account, UFixed6 newMaker, UFixed6 newLong, UFixed6 newShort, Fixed6 collateral, bool protect) external;
     function parameter() external view returns (MarketParameter memory);
     function riskParameter() external view returns (RiskParameter memory);

@@ -62,6 +62,9 @@ contract Market is IMarket, Instance, ReentrancyGuard {
     /// @dev The global pending order for each id
     mapping(uint256 => OrderStorageGlobal) private _pendingOrder;
 
+    /// @dev The local checkpoint for each id for each account
+    mapping(address => mapping(uint256 => CheckpointStorage)) private _checkpoints;
+
     /// @notice Initializes the contract state
     /// @param definition_ The market definition
     function initialize(IMarket.MarketDefinition calldata definition_) external initializer(1) {
@@ -212,6 +215,13 @@ contract Market is IMarket, Instance, ReentrancyGuard {
         return _pendingPositions[account][id].read();
     }
 
+    /// @notice Returns the local checkpoint for the given account and id
+    /// @param account The account to query
+    /// @param id The id to query
+    function checkpoints(address account, uint256 id) external view returns (Checkpoint memory) {
+        return _checkpoints[account][id].read();
+    }
+
     /// @notice Loads the specified global pending position from state and adjusts it
     /// @param context The context to use
     /// @param id The position id to load
@@ -266,14 +276,16 @@ contract Market is IMarket, Instance, ReentrancyGuard {
         context.currentPosition.local = _loadPendingPositionLocal(context, account, context.local.currentId);
         context.currentPosition.local.invalidation.update(context.latestPosition.local.invalidation);
 
+        // loadl current checkpoint
+        context.currentCheckpoint = _checkpoints[account][context.global.currentId].read();
+
         // advance to next id if applicable
         if (context.currentTimestamp > context.currentPosition.local.timestamp) {
             context.local.currentId++;
-            context.currentPosition.local.prepare();
+            context.currentCheckpoint.next();
         }
         if (context.currentTimestamp > context.currentPosition.global.timestamp) {
             context.global.currentId++;
-            context.currentPosition.global.prepare();
         }
 
         // load order
@@ -351,7 +363,7 @@ contract Market is IMarket, Instance, ReentrancyGuard {
 
         // update collateral
         context.local.update(collateral);
-        context.currentPosition.local.update(collateral);
+        context.currentCheckpoint.updateDelta(collateral);
 
         // process current position
         _processPendingPosition(context, context.currentPosition.local);
@@ -376,6 +388,7 @@ contract Market is IMarket, Instance, ReentrancyGuard {
         _pendingPosition[context.global.currentId].store(context.currentPosition.global);
         _pendingPositions[account][context.local.currentId].store(context.currentPosition.local);
         _pendingOrder[context.local.currentId].store(context.order);
+        _checkpoints[account][context.global.currentId].store(context.currentCheckpoint);
 
         // fund
         if (collateral.sign() == 1) token.pull(msg.sender, UFixed18Lib.from(collateral.abs()));
@@ -525,6 +538,7 @@ contract Market is IMarket, Instance, ReentrancyGuard {
         LocalAccumulationResult memory accumulationResult;
 
         Version memory version = _versions[newPosition.timestamp].read();
+        Checkpoint memory newCheckpoint = _checkpoints[account][newPositionId].read();
         if (!version.valid) context.latestPosition.local.invalidate(newPosition);
 
         (uint256 fromTimestamp, uint256 fromId) = (context.latestPosition.local.timestamp, context.local.latestId);
@@ -534,12 +548,19 @@ contract Market is IMarket, Instance, ReentrancyGuard {
             _versions[context.latestPosition.local.timestamp].read(),
             version
         );
-        if (checkpoint) _checkpointCollateral(context, account);
+        if (checkpoint) newCheckpoint.updateCollateral(
+            _checkpoints[account][context.local.latestId - 1].read(),
+            context.currentCheckpoint,
+            context.local.collateral
+        );
         (accumulationResult.positionFee, accumulationResult.keeper) =
             context.local.accumulateFees(context.latestPosition.local, newPosition, version);
+        if (checkpoint) newCheckpoint.updateFees(accumulationResult.positionFee, accumulationResult.keeper);
         context.latestPosition.local.update(newPosition);
         if (context.local.processProtection(newPosition, version))
             _credit(context.local.protectionInitiator, Fixed6Lib.from(context.local.protectionAmount));
+
+        _checkpoints[account][newPositionId].store(newCheckpoint);
 
         // events
         emit AccountPositionProcessed(
@@ -550,19 +571,6 @@ contract Market is IMarket, Instance, ReentrancyGuard {
             newPositionId,
             accumulationResult
         );
-    }
-
-    /// @notice Creates a collateral checkpoint for the account
-    /// @param context The context to use
-    /// @param account The account to checkpoint
-    function _checkpointCollateral(Context memory context, address account) private {
-        Position memory latestAccountPosition = _pendingPositions[account][context.local.latestId].read();
-
-        latestAccountPosition.collateral = context.local.collateral.sub(
-            context.currentPosition.local.delta.sub(_pendingPositions[account][context.local.latestId - 1].read().delta)
-        ); // deposits happen after snapshot point
-
-        _pendingPositions[account][context.local.latestId].store(latestAccountPosition);
     }
 
     /// @notice Credits an account's collateral that is out-of-context

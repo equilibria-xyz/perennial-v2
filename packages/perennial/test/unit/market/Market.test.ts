@@ -11,12 +11,14 @@ import {
   DEFAULT_POSITION,
   DEFAULT_LOCAL,
   DEFAULT_ORDER,
+  DEFAULT_CHECKPOINT,
   expectGlobalEq,
   expectLocalEq,
   expectPositionEq,
   expectVersionEq,
   parse6decimal,
   expectOrderEq,
+  expectCheckpointEq,
 } from '../../../../common/testutil/types'
 import { IMarket, MarketParameterStruct, RiskParameterStruct } from '../../../types/generated/contracts/Market'
 
@@ -680,6 +682,9 @@ describe('Market', () => {
           expectPositionEq(await market.pendingPositions(user.address, 1), {
             ...DEFAULT_POSITION,
             timestamp: ORACLE_VERSION_2.timestamp,
+          })
+          expectCheckpointEq(await market.checkpoints(user.address, 1), {
+            ...DEFAULT_CHECKPOINT,
             delta: COLLATERAL,
           })
           expectGlobalEq(await market.global(), {
@@ -769,6 +774,9 @@ describe('Market', () => {
           expectPositionEq(await market.pendingPositions(user.address, 1), {
             ...DEFAULT_POSITION,
             timestamp: ORACLE_VERSION_2.timestamp,
+          })
+          expectCheckpointEq(await market.checkpoints(user.address, 1), {
+            ...DEFAULT_CHECKPOINT,
             delta: COLLATERAL,
           })
           expectGlobalEq(await market.global(), {
@@ -858,6 +866,9 @@ describe('Market', () => {
           expectPositionEq(await market.pendingPositions(user.address, 1), {
             ...DEFAULT_POSITION,
             timestamp: ORACLE_VERSION_2.timestamp,
+          })
+          expectCheckpointEq(await market.checkpoints(user.address, 1), {
+            ...DEFAULT_CHECKPOINT,
             delta: COLLATERAL,
           })
           expectGlobalEq(await market.global(), {
@@ -967,6 +978,9 @@ describe('Market', () => {
               ...DEFAULT_POSITION,
               timestamp: ORACLE_VERSION_2.timestamp,
               maker: POSITION,
+            })
+            expectCheckpointEq(await market.checkpoints(user.address, 1), {
+              ...DEFAULT_CHECKPOINT,
               delta: COLLATERAL,
             })
             expectGlobalEq(await market.global(), {
@@ -1040,6 +1054,9 @@ describe('Market', () => {
               ...DEFAULT_POSITION,
               timestamp: ORACLE_VERSION_3.timestamp,
               maker: POSITION,
+            })
+            expectCheckpointEq(await market.checkpoints(user.address, 2), {
+              ...DEFAULT_CHECKPOINT,
               delta: COLLATERAL,
             })
             expectGlobalEq(await market.global(), {
@@ -1087,6 +1104,9 @@ describe('Market', () => {
               ...DEFAULT_POSITION,
               timestamp: ORACLE_VERSION_2.timestamp,
               maker: POSITION.mul(2),
+            })
+            expectCheckpointEq(await market.checkpoints(user.address, 1), {
+              ...DEFAULT_CHECKPOINT,
               delta: COLLATERAL,
             })
             expectGlobalEq(await market.global(), {
@@ -1141,6 +1161,9 @@ describe('Market', () => {
               ...DEFAULT_POSITION,
               timestamp: ORACLE_VERSION_3.timestamp,
               maker: POSITION.mul(2),
+            })
+            expectCheckpointEq(await market.checkpoints(user.address, 2), {
+              ...DEFAULT_CHECKPOINT,
               delta: COLLATERAL,
             })
             expectGlobalEq(await market.global(), {
@@ -1194,6 +1217,9 @@ describe('Market', () => {
               ...DEFAULT_POSITION,
               timestamp: ORACLE_VERSION_3.timestamp,
               maker: POSITION.mul(2),
+            })
+            expectCheckpointEq(await market.checkpoints(user.address, 2), {
+              ...DEFAULT_CHECKPOINT,
               delta: COLLATERAL,
             })
             expectGlobalEq(await market.global(), {
@@ -1253,6 +1279,9 @@ describe('Market', () => {
               ...DEFAULT_POSITION,
               timestamp: ORACLE_VERSION_4.timestamp,
               maker: POSITION.mul(2),
+            })
+            expectCheckpointEq(await market.checkpoints(user.address, 3), {
+              ...DEFAULT_CHECKPOINT,
               delta: COLLATERAL,
             })
             expectGlobalEq(await market.global(), {
@@ -1309,6 +1338,9 @@ describe('Market', () => {
               ...DEFAULT_POSITION,
               timestamp: ORACLE_VERSION_4.timestamp,
               maker: POSITION,
+            })
+            expectCheckpointEq(await market.checkpoints(user.address, 2), {
+              ...DEFAULT_CHECKPOINT,
               delta: COLLATERAL,
             })
             expectGlobalEq(await market.global(), {
@@ -1375,6 +1407,9 @@ describe('Market', () => {
               ...DEFAULT_POSITION,
               timestamp: ORACLE_VERSION_4.timestamp,
               maker: POSITION,
+            })
+            expectCheckpointEq(await market.checkpoints(user.address, 2), {
+              ...DEFAULT_CHECKPOINT,
               delta: COLLATERAL,
             })
             expectGlobalEq(await market.global(), {
@@ -1439,6 +1474,9 @@ describe('Market', () => {
             expectPositionEq(await market.pendingPositions(user.address, 1), {
               ...DEFAULT_POSITION,
               timestamp: ORACLE_VERSION_2.timestamp,
+            })
+            expectCheckpointEq(await market.checkpoints(user.address, 1), {
+              ...DEFAULT_CHECKPOINT,
               delta: COLLATERAL,
             })
             expectGlobalEq(await market.global(), {
@@ -1496,6 +1534,9 @@ describe('Market', () => {
               ...DEFAULT_POSITION,
               timestamp: ORACLE_VERSION_2.timestamp,
               maker: POSITION.div(2),
+            })
+            expectCheckpointEq(await market.checkpoints(user.address, 1), {
+              ...DEFAULT_CHECKPOINT,
               delta: COLLATERAL,
             })
             expectGlobalEq(await market.global(), {
@@ -1550,6 +1591,9 @@ describe('Market', () => {
               expectPositionEq(await market.pendingPositions(user.address, 2), {
                 ...DEFAULT_POSITION,
                 timestamp: ORACLE_VERSION_3.timestamp,
+              })
+              expectCheckpointEq(await market.checkpoints(user.address, 2), {
+                ...DEFAULT_CHECKPOINT,
                 delta: COLLATERAL,
               })
               expectGlobalEq(await market.global(), {
@@ -1600,6 +1644,9 @@ describe('Market', () => {
               expectPositionEq(await market.pendingPositions(user.address, 3), {
                 ...DEFAULT_POSITION,
                 timestamp: ORACLE_VERSION_4.timestamp,
+              })
+              expectCheckpointEq(await market.checkpoints(user.address, 3), {
+                ...DEFAULT_CHECKPOINT,
                 delta: COLLATERAL,
               })
               expectGlobalEq(await market.global(), {
@@ -1646,6 +1693,9 @@ describe('Market', () => {
               expectPositionEq(await market.pendingPositions(user.address, 2), {
                 ...DEFAULT_POSITION,
                 timestamp: ORACLE_VERSION_3.timestamp,
+              })
+              expectCheckpointEq(await market.checkpoints(user.address, 2), {
+                ...DEFAULT_CHECKPOINT,
                 delta: COLLATERAL,
               })
               expectGlobalEq(await market.global(), {
@@ -1698,6 +1748,9 @@ describe('Market', () => {
               expectPositionEq(await market.pendingPositions(user.address, 3), {
                 ...DEFAULT_POSITION,
                 timestamp: ORACLE_VERSION_4.timestamp,
+              })
+              expectCheckpointEq(await market.checkpoints(user.address, 3), {
+                ...DEFAULT_CHECKPOINT,
                 delta: COLLATERAL,
               })
               expectGlobalEq(await market.global(), {
@@ -1748,6 +1801,9 @@ describe('Market', () => {
               expectPositionEq(await market.pendingPositions(user.address, 3), {
                 ...DEFAULT_POSITION,
                 timestamp: ORACLE_VERSION_4.timestamp,
+              })
+              expectCheckpointEq(await market.checkpoints(user.address, 3), {
+                ...DEFAULT_CHECKPOINT,
                 delta: COLLATERAL,
               })
               expectGlobalEq(await market.global(), {
@@ -1804,6 +1860,9 @@ describe('Market', () => {
               expectPositionEq(await market.pendingPositions(user.address, 4), {
                 ...DEFAULT_POSITION,
                 timestamp: ORACLE_VERSION_5.timestamp,
+              })
+              expectCheckpointEq(await market.checkpoints(user.address, 4), {
+                ...DEFAULT_CHECKPOINT,
                 delta: COLLATERAL,
               })
               expectGlobalEq(await market.global(), {
@@ -1855,6 +1914,9 @@ describe('Market', () => {
               expectPositionEq(await market.pendingPositions(user.address, 3), {
                 ...DEFAULT_POSITION,
                 timestamp: ORACLE_VERSION_5.timestamp,
+              })
+              expectCheckpointEq(await market.checkpoints(user.address, 3), {
+                ...DEFAULT_CHECKPOINT,
                 delta: COLLATERAL,
               })
               expectGlobalEq(await market.global(), {
@@ -1920,6 +1982,9 @@ describe('Market', () => {
               expectPositionEq(await market.pendingPositions(user.address, 3), {
                 ...DEFAULT_POSITION,
                 timestamp: ORACLE_VERSION_5.timestamp,
+              })
+              expectCheckpointEq(await market.checkpoints(user.address, 3), {
+                ...DEFAULT_CHECKPOINT,
                 delta: COLLATERAL,
               })
               expectGlobalEq(await market.global(), {
@@ -1991,6 +2056,9 @@ describe('Market', () => {
                 ...DEFAULT_POSITION,
                 timestamp: ORACLE_VERSION_2.timestamp,
                 long: POSITION,
+              })
+              expectCheckpointEq(await market.checkpoints(user.address, 1), {
+                ...DEFAULT_CHECKPOINT,
                 delta: COLLATERAL,
               })
               expectGlobalEq(await market.global(), {
@@ -2044,6 +2112,9 @@ describe('Market', () => {
                 ...DEFAULT_POSITION,
                 timestamp: ORACLE_VERSION_3.timestamp,
                 long: POSITION,
+              })
+              expectCheckpointEq(await market.checkpoints(user.address, 2), {
+                ...DEFAULT_CHECKPOINT,
                 delta: COLLATERAL,
               })
               expectGlobalEq(await market.global(), {
@@ -2093,6 +2164,9 @@ describe('Market', () => {
                 ...DEFAULT_POSITION,
                 timestamp: ORACLE_VERSION_2.timestamp,
                 long: POSITION,
+              })
+              expectCheckpointEq(await market.checkpoints(user.address, 1), {
+                ...DEFAULT_CHECKPOINT,
                 delta: COLLATERAL,
               })
               expectGlobalEq(await market.global(), {
@@ -2148,6 +2222,9 @@ describe('Market', () => {
                 ...DEFAULT_POSITION,
                 timestamp: ORACLE_VERSION_3.timestamp,
                 long: POSITION,
+              })
+              expectCheckpointEq(await market.checkpoints(user.address, 2), {
+                ...DEFAULT_CHECKPOINT,
                 delta: COLLATERAL,
               })
               expectGlobalEq(await market.global(), {
@@ -2203,6 +2280,9 @@ describe('Market', () => {
                 ...DEFAULT_POSITION,
                 timestamp: ORACLE_VERSION_3.timestamp,
                 long: POSITION,
+              })
+              expectCheckpointEq(await market.checkpoints(user.address, 2), {
+                ...DEFAULT_CHECKPOINT,
                 delta: COLLATERAL,
               })
               expectGlobalEq(await market.global(), {
@@ -2265,6 +2345,9 @@ describe('Market', () => {
                 ...DEFAULT_POSITION,
                 timestamp: ORACLE_VERSION_4.timestamp,
                 long: POSITION,
+              })
+              expectCheckpointEq(await market.checkpoints(user.address, 3), {
+                ...DEFAULT_CHECKPOINT,
                 delta: COLLATERAL,
               })
               expectLocalEq(await market.locals(userB.address), {
@@ -2284,6 +2367,9 @@ describe('Market', () => {
                 ...DEFAULT_POSITION,
                 timestamp: ORACLE_VERSION_4.timestamp,
                 maker: POSITION,
+              })
+              expectCheckpointEq(await market.checkpoints(userB.address, 2), {
+                ...DEFAULT_CHECKPOINT,
                 delta: COLLATERAL,
               })
               const totalFee = EXPECTED_FUNDING_FEE_1_5_123.add(EXPECTED_INTEREST_FEE_5_123)
@@ -2354,6 +2440,9 @@ describe('Market', () => {
                 ...DEFAULT_POSITION,
                 timestamp: ORACLE_VERSION_4.timestamp,
                 long: POSITION.div(2),
+              })
+              expectCheckpointEq(await market.checkpoints(user.address, 2), {
+                ...DEFAULT_CHECKPOINT,
                 delta: COLLATERAL,
               })
               expectLocalEq(await market.locals(userB.address), {
@@ -2373,6 +2462,9 @@ describe('Market', () => {
                 ...DEFAULT_POSITION,
                 timestamp: ORACLE_VERSION_4.timestamp,
                 maker: POSITION,
+              })
+              expectCheckpointEq(await market.checkpoints(userB.address, 2), {
+                ...DEFAULT_CHECKPOINT,
                 delta: COLLATERAL,
               })
               const totalFee = EXPECTED_FUNDING_FEE_1_5_123.add(EXPECTED_INTEREST_FEE_5_123)
@@ -2459,6 +2551,9 @@ describe('Market', () => {
                 ...DEFAULT_POSITION,
                 timestamp: ORACLE_VERSION_4.timestamp,
                 long: POSITION.div(2),
+              })
+              expectCheckpointEq(await market.checkpoints(user.address, 2), {
+                ...DEFAULT_CHECKPOINT,
                 delta: COLLATERAL,
               })
               expectLocalEq(await market.locals(userB.address), {
@@ -2478,6 +2573,9 @@ describe('Market', () => {
                 ...DEFAULT_POSITION,
                 timestamp: ORACLE_VERSION_4.timestamp,
                 maker: POSITION,
+              })
+              expectCheckpointEq(await market.checkpoints(userB.address, 2), {
+                ...DEFAULT_CHECKPOINT,
                 delta: COLLATERAL,
               })
               const totalFee = EXPECTED_FUNDING_FEE_1_5_123.add(EXPECTED_INTEREST_FEE_5_123).add(TAKER_FEE)
@@ -2574,6 +2672,9 @@ describe('Market', () => {
                 timestamp: ORACLE_VERSION_5.timestamp,
                 maker: 0,
                 long: POSITION.div(2),
+              })
+              expectCheckpointEq(await market.checkpoints(user.address, 2), {
+                ...DEFAULT_CHECKPOINT,
                 delta: COLLATERAL,
               })
               expectLocalEq(await market.locals(userB.address), {
@@ -2594,6 +2695,9 @@ describe('Market', () => {
                 ...DEFAULT_POSITION,
                 timestamp: ORACLE_VERSION_5.timestamp,
                 maker: POSITION,
+              })
+              expectCheckpointEq(await market.checkpoints(userB.address, 2), {
+                ...DEFAULT_CHECKPOINT,
                 delta: COLLATERAL,
               })
               const totalFee = EXPECTED_FUNDING_FEE_1_5_123.add(EXPECTED_INTEREST_FEE_5_123).add(TAKER_FEE_FEE)
@@ -2668,6 +2772,9 @@ describe('Market', () => {
                 ...DEFAULT_POSITION,
                 timestamp: ORACLE_VERSION_2.timestamp,
                 long: POSITION.div(4),
+              })
+              expectCheckpointEq(await market.checkpoints(user.address, 1), {
+                ...DEFAULT_CHECKPOINT,
                 delta: COLLATERAL,
               })
               expectGlobalEq(await market.global(), {
@@ -2726,6 +2833,9 @@ describe('Market', () => {
               expectPositionEq(await market.pendingPositions(user.address, 1), {
                 ...DEFAULT_POSITION,
                 timestamp: ORACLE_VERSION_2.timestamp,
+              })
+              expectCheckpointEq(await market.checkpoints(user.address, 1), {
+                ...DEFAULT_CHECKPOINT,
                 delta: COLLATERAL,
               })
               expectGlobalEq(await market.global(), {
@@ -2780,6 +2890,9 @@ describe('Market', () => {
                 expectPositionEq(await market.pendingPositions(user.address, 2), {
                   ...DEFAULT_POSITION,
                   timestamp: ORACLE_VERSION_3.timestamp,
+                })
+                expectCheckpointEq(await market.checkpoints(user.address, 2), {
+                  ...DEFAULT_CHECKPOINT,
                   delta: COLLATERAL,
                 })
                 expectGlobalEq(await market.global(), {
@@ -2833,6 +2946,9 @@ describe('Market', () => {
                 expectPositionEq(await market.pendingPositions(user.address, 3), {
                   ...DEFAULT_POSITION,
                   timestamp: ORACLE_VERSION_4.timestamp,
+                })
+                expectCheckpointEq(await market.checkpoints(user.address, 3), {
+                  ...DEFAULT_CHECKPOINT,
                   delta: COLLATERAL,
                 })
                 expectLocalEq(await market.locals(userB.address), {
@@ -2852,6 +2968,9 @@ describe('Market', () => {
                   ...DEFAULT_POSITION,
                   timestamp: ORACLE_VERSION_4.timestamp,
                   maker: POSITION,
+                })
+                expectCheckpointEq(await market.checkpoints(userB.address, 2), {
+                  ...DEFAULT_CHECKPOINT,
                   delta: COLLATERAL,
                 })
                 const totalFee = EXPECTED_FUNDING_FEE_1_5_123.add(EXPECTED_INTEREST_FEE_5_123)
@@ -2905,6 +3024,9 @@ describe('Market', () => {
                 expectPositionEq(await market.pendingPositions(user.address, 2), {
                   ...DEFAULT_POSITION,
                   timestamp: ORACLE_VERSION_3.timestamp,
+                })
+                expectCheckpointEq(await market.checkpoints(user.address, 2), {
+                  ...DEFAULT_CHECKPOINT,
                   delta: COLLATERAL,
                 })
                 expectGlobalEq(await market.global(), {
@@ -2960,6 +3082,9 @@ describe('Market', () => {
                 expectPositionEq(await market.pendingPositions(user.address, 3), {
                   ...DEFAULT_POSITION,
                   timestamp: ORACLE_VERSION_4.timestamp,
+                })
+                expectCheckpointEq(await market.checkpoints(user.address, 3), {
+                  ...DEFAULT_CHECKPOINT,
                   delta: COLLATERAL,
                 })
                 expectLocalEq(await market.locals(userB.address), {
@@ -2979,6 +3104,9 @@ describe('Market', () => {
                   ...DEFAULT_POSITION,
                   timestamp: ORACLE_VERSION_4.timestamp,
                   maker: POSITION,
+                })
+                expectCheckpointEq(await market.checkpoints(userB.address, 2), {
+                  ...DEFAULT_CHECKPOINT,
                   delta: COLLATERAL,
                 })
                 const totalFee = EXPECTED_FUNDING_FEE_1_5_123.add(EXPECTED_INTEREST_FEE_5_123)
@@ -3039,6 +3167,9 @@ describe('Market', () => {
                 expectPositionEq(await market.pendingPositions(user.address, 3), {
                   ...DEFAULT_POSITION,
                   timestamp: ORACLE_VERSION_4.timestamp,
+                })
+                expectCheckpointEq(await market.checkpoints(user.address, 3), {
+                  ...DEFAULT_CHECKPOINT,
                   delta: COLLATERAL,
                 })
                 expectLocalEq(await market.locals(userB.address), {
@@ -3058,6 +3189,9 @@ describe('Market', () => {
                   ...DEFAULT_POSITION,
                   timestamp: ORACLE_VERSION_4.timestamp,
                   maker: POSITION,
+                })
+                expectCheckpointEq(await market.checkpoints(userB.address, 2), {
+                  ...DEFAULT_CHECKPOINT,
                   delta: COLLATERAL,
                 })
                 const totalFee = EXPECTED_FUNDING_FEE_1_5_123.add(EXPECTED_INTEREST_FEE_5_123)
@@ -3126,6 +3260,9 @@ describe('Market', () => {
                 expectPositionEq(await market.pendingPositions(user.address, 4), {
                   ...DEFAULT_POSITION,
                   timestamp: ORACLE_VERSION_5.timestamp,
+                })
+                expectCheckpointEq(await market.checkpoints(user.address, 4), {
+                  ...DEFAULT_CHECKPOINT,
                   delta: COLLATERAL,
                 })
                 expectLocalEq(await market.locals(userB.address), {
@@ -3147,6 +3284,9 @@ describe('Market', () => {
                   ...DEFAULT_POSITION,
                   timestamp: ORACLE_VERSION_5.timestamp,
                   maker: POSITION,
+                })
+                expectCheckpointEq(await market.checkpoints(userB.address, 2), {
+                  ...DEFAULT_CHECKPOINT,
                   delta: COLLATERAL,
                 })
                 const totalFee = EXPECTED_FUNDING_FEE_1_5_123.add(EXPECTED_FUNDING_FEE_2_25_123)
@@ -3224,6 +3364,9 @@ describe('Market', () => {
                 expectPositionEq(await market.pendingPositions(user.address, 3), {
                   ...DEFAULT_POSITION,
                   timestamp: ORACLE_VERSION_5.timestamp,
+                })
+                expectCheckpointEq(await market.checkpoints(user.address, 3), {
+                  ...DEFAULT_CHECKPOINT,
                   delta: COLLATERAL,
                 })
                 expectLocalEq(await market.locals(userB.address), {
@@ -3243,6 +3386,9 @@ describe('Market', () => {
                   ...DEFAULT_POSITION,
                   timestamp: ORACLE_VERSION_5.timestamp,
                   maker: POSITION,
+                })
+                expectCheckpointEq(await market.checkpoints(userB.address, 2), {
+                  ...DEFAULT_CHECKPOINT,
                   delta: COLLATERAL,
                 })
                 const totalFee = EXPECTED_FUNDING_FEE_1_5_123.add(EXPECTED_INTEREST_FEE_5_123)
@@ -3320,6 +3466,9 @@ describe('Market', () => {
                 expectPositionEq(await market.pendingPositions(user.address, 3), {
                   ...DEFAULT_POSITION,
                   timestamp: ORACLE_VERSION_5.timestamp,
+                })
+                expectCheckpointEq(await market.checkpoints(user.address, 3), {
+                  ...DEFAULT_CHECKPOINT,
                   delta: COLLATERAL,
                 })
                 expectLocalEq(await market.locals(userB.address), {
@@ -3340,6 +3489,9 @@ describe('Market', () => {
                   ...DEFAULT_POSITION,
                   timestamp: ORACLE_VERSION_5.timestamp,
                   maker: POSITION,
+                })
+                expectCheckpointEq(await market.checkpoints(userB.address, 2), {
+                  ...DEFAULT_CHECKPOINT,
                   delta: COLLATERAL,
                 })
                 const totalFee = EXPECTED_FUNDING_FEE_1_5_123.add(EXPECTED_INTEREST_FEE_5_123).add(TAKER_FEE_FEE)
@@ -3420,6 +3572,9 @@ describe('Market', () => {
               ...DEFAULT_POSITION,
               timestamp: ORACLE_VERSION_3.timestamp,
               long: POSITION.div(2),
+            })
+            expectCheckpointEq(await market.checkpoints(user.address, 2), {
+              ...DEFAULT_CHECKPOINT,
               delta: COLLATERAL,
             })
             expectLocalEq(await market.locals(userB.address), {
@@ -3437,6 +3592,9 @@ describe('Market', () => {
               ...DEFAULT_POSITION,
               timestamp: ORACLE_VERSION_3.timestamp,
               maker: POSITION,
+            })
+            expectCheckpointEq(await market.checkpoints(userB.address, 2), {
+              ...DEFAULT_CHECKPOINT,
               delta: COLLATERAL,
             })
             expectGlobalEq(await market.global(), {
@@ -3530,6 +3688,9 @@ describe('Market', () => {
               ...DEFAULT_POSITION,
               timestamp: ORACLE_VERSION_4.timestamp,
               long: POSITION.div(2),
+            })
+            expectCheckpointEq(await market.checkpoints(user.address, 3), {
+              ...DEFAULT_CHECKPOINT,
               delta: COLLATERAL,
             })
             expectLocalEq(await market.locals(userB.address), {
@@ -3550,6 +3711,9 @@ describe('Market', () => {
               ...DEFAULT_POSITION,
               timestamp: ORACLE_VERSION_4.timestamp,
               maker: POSITION,
+            })
+            expectCheckpointEq(await market.checkpoints(userB.address, 3), {
+              ...DEFAULT_CHECKPOINT,
               delta: COLLATERAL,
             })
             const totalFee = EXPECTED_FUNDING_FEE_1_5_123.add(EXPECTED_INTEREST_FEE_5_123)
@@ -3648,6 +3812,9 @@ describe('Market', () => {
               ...DEFAULT_POSITION,
               timestamp: ORACLE_VERSION_4.timestamp,
               long: POSITION.div(2),
+            })
+            expectCheckpointEq(await market.checkpoints(user.address, 3), {
+              ...DEFAULT_CHECKPOINT,
               delta: COLLATERAL,
             })
             expectLocalEq(await market.locals(userB.address), {
@@ -3668,6 +3835,9 @@ describe('Market', () => {
               ...DEFAULT_POSITION,
               timestamp: ORACLE_VERSION_4.timestamp,
               maker: POSITION,
+            })
+            expectCheckpointEq(await market.checkpoints(userB.address, 3), {
+              ...DEFAULT_CHECKPOINT,
               delta: COLLATERAL,
             })
             const totalFee = EXPECTED_FUNDING_FEE_1_5_123.add(EXPECTED_INTEREST_FEE_5_123)
@@ -3787,6 +3957,9 @@ describe('Market', () => {
                 ...DEFAULT_POSITION,
                 timestamp: ORACLE_VERSION_6.timestamp,
                 long: POSITION.div(2),
+              })
+              expectCheckpointEq(await market.checkpoints(user.address, 5), {
+                ...DEFAULT_CHECKPOINT,
                 delta: COLLATERAL,
               })
               expectLocalEq(await market.locals(userB.address), {
@@ -3811,6 +3984,9 @@ describe('Market', () => {
               expectPositionEq(await market.pendingPositions(userB.address, 5), {
                 ...DEFAULT_POSITION,
                 timestamp: ORACLE_VERSION_6.timestamp,
+              })
+              expectCheckpointEq(await market.checkpoints(userB.address, 5), {
+                ...DEFAULT_CHECKPOINT,
                 delta: parse6decimal('450'),
               })
               const totalFee = EXPECTED_FUNDING_FEE_1_5_123.add(EXPECTED_INTEREST_FEE_5_123)
@@ -3983,6 +4159,9 @@ describe('Market', () => {
                 ...DEFAULT_POSITION,
                 timestamp: ORACLE_VERSION_6.timestamp,
                 long: POSITION.div(2),
+              })
+              expectCheckpointEq(await market.checkpoints(user.address, 5), {
+                ...DEFAULT_CHECKPOINT,
                 delta: COLLATERAL,
               })
               expectLocalEq(await market.locals(userB.address), {
@@ -4005,6 +4184,9 @@ describe('Market', () => {
               expectPositionEq(await market.pendingPositions(userB.address, 5), {
                 ...DEFAULT_POSITION,
                 timestamp: ORACLE_VERSION_6.timestamp,
+              })
+              expectCheckpointEq(await market.checkpoints(userB.address, 5), {
+                ...DEFAULT_CHECKPOINT,
                 delta: parse6decimal('450'),
               })
               expectLocalEq(await market.locals(userC.address), {
@@ -4028,6 +4210,9 @@ describe('Market', () => {
                 ...DEFAULT_POSITION,
                 timestamp: ORACLE_VERSION_6.timestamp,
                 maker: POSITION.div(4),
+              })
+              expectCheckpointEq(await market.checkpoints(user.address, 5), {
+                ...DEFAULT_CHECKPOINT,
                 delta: COLLATERAL,
               })
               const totalFee = EXPECTED_FUNDING_FEE_1_5_123.add(EXPECTED_INTEREST_FEE_1)
@@ -4154,6 +4339,9 @@ describe('Market', () => {
                 ...DEFAULT_POSITION,
                 timestamp: ORACLE_VERSION_4.timestamp,
                 long: POSITION.div(2),
+              })
+              expectCheckpointEq(await market.checkpoints(user.address, 3), {
+                ...DEFAULT_CHECKPOINT,
                 delta: COLLATERAL,
               })
               expectLocalEq(await market.locals(userB.address), {
@@ -4177,6 +4365,9 @@ describe('Market', () => {
               expectPositionEq(await market.pendingPositions(userB.address, 3), {
                 ...DEFAULT_POSITION,
                 timestamp: ORACLE_VERSION_4.timestamp,
+              })
+              expectCheckpointEq(await market.checkpoints(userB.address, 3), {
+                ...DEFAULT_CHECKPOINT,
                 delta: parse6decimal('450'),
               })
               const totalFee = EXPECTED_FUNDING_FEE_1_5_123.add(EXPECTED_INTEREST_FEE_5_123)
@@ -4271,6 +4462,9 @@ describe('Market', () => {
               expectPositionEq(await market.pendingPositions(userB.address, 4), {
                 ...DEFAULT_POSITION,
                 timestamp: ORACLE_VERSION_5.timestamp,
+              })
+              expectCheckpointEq(await market.checkpoints(userB.address, 4), {
+                ...DEFAULT_CHECKPOINT,
                 delta: parse6decimal('450').add(shortfall.mul(-1)),
               })
             })
@@ -4356,6 +4550,9 @@ describe('Market', () => {
               expectPositionEq(await market.pendingPositions(user.address, 5), {
                 ...DEFAULT_POSITION,
                 timestamp: ORACLE_VERSION_6.timestamp,
+              })
+              expectCheckpointEq(await market.checkpoints(user.address, 5), {
+                ...DEFAULT_CHECKPOINT,
                 delta: parse6decimal('216'),
               })
               expectLocalEq(await market.locals(userB.address), {
@@ -4377,6 +4574,9 @@ describe('Market', () => {
                 ...DEFAULT_POSITION,
                 timestamp: ORACLE_VERSION_6.timestamp,
                 maker: POSITION,
+              })
+              expectCheckpointEq(await market.checkpoints(user.address, 5), {
+                ...DEFAULT_CHECKPOINT,
                 delta: COLLATERAL,
               })
               const totalFee = EXPECTED_FUNDING_FEE_1_5_123.add(EXPECTED_INTEREST_FEE_5_123).add(
@@ -4497,6 +4697,9 @@ describe('Market', () => {
               expectPositionEq(await market.pendingPositions(user.address, 3), {
                 ...DEFAULT_POSITION,
                 timestamp: ORACLE_VERSION_4.timestamp,
+              })
+              expectCheckpointEq(await market.checkpoints(user.address, 3), {
+                ...DEFAULT_CHECKPOINT,
                 delta: parse6decimal('216'),
               })
               expectLocalEq(await market.locals(userB.address), {
@@ -4518,6 +4721,9 @@ describe('Market', () => {
                 ...DEFAULT_POSITION,
                 timestamp: ORACLE_VERSION_4.timestamp,
                 maker: POSITION,
+              })
+              expectCheckpointEq(await market.checkpoints(user.address, 3), {
+                ...DEFAULT_CHECKPOINT,
                 delta: COLLATERAL,
               })
               const totalFee = EXPECTED_FUNDING_FEE_1_5_123.add(EXPECTED_INTEREST_FEE_5_123)
@@ -4608,6 +4814,9 @@ describe('Market', () => {
               expectPositionEq(await market.pendingPositions(user.address, 4), {
                 ...DEFAULT_POSITION,
                 timestamp: ORACLE_VERSION_5.timestamp,
+              })
+              expectCheckpointEq(await market.checkpoints(user.address, 4), {
+                ...DEFAULT_CHECKPOINT,
                 delta: parse6decimal('216').add(shortfall.mul(-1)),
               })
             })
@@ -4667,6 +4876,9 @@ describe('Market', () => {
               ...DEFAULT_POSITION,
               timestamp: ORACLE_VERSION_5.timestamp,
               maker: POSITION,
+            })
+            expectCheckpointEq(await market.checkpoints(user.address, 3), {
+              ...DEFAULT_CHECKPOINT,
               delta: COLLATERAL,
             })
             expectLocalEq(await market.locals(userB.address), {
@@ -4684,6 +4896,9 @@ describe('Market', () => {
               ...DEFAULT_POSITION,
               timestamp: ORACLE_VERSION_5.timestamp,
               long: POSITION.div(2),
+            })
+            expectCheckpointEq(await market.checkpoints(userB.address, 3), {
+              ...DEFAULT_CHECKPOINT,
               delta: COLLATERAL,
             })
             expectGlobalEq(await market.global(), {
@@ -4764,6 +4979,9 @@ describe('Market', () => {
                 ...DEFAULT_POSITION,
                 timestamp: ORACLE_VERSION_2.timestamp,
                 short: POSITION,
+              })
+              expectCheckpointEq(await market.checkpoints(user.address, 1), {
+                ...DEFAULT_CHECKPOINT,
                 delta: COLLATERAL,
               })
               expectGlobalEq(await market.global(), {
@@ -4817,6 +5035,9 @@ describe('Market', () => {
                 ...DEFAULT_POSITION,
                 timestamp: ORACLE_VERSION_3.timestamp,
                 short: POSITION,
+              })
+              expectCheckpointEq(await market.checkpoints(user.address, 2), {
+                ...DEFAULT_CHECKPOINT,
                 delta: COLLATERAL,
               })
               expectGlobalEq(await market.global(), {
@@ -4867,6 +5088,9 @@ describe('Market', () => {
                 ...DEFAULT_POSITION,
                 timestamp: ORACLE_VERSION_2.timestamp,
                 short: POSITION,
+              })
+              expectCheckpointEq(await market.checkpoints(user.address, 1), {
+                ...DEFAULT_CHECKPOINT,
                 delta: COLLATERAL,
               })
               expectGlobalEq(await market.global(), {
@@ -4922,6 +5146,9 @@ describe('Market', () => {
                 ...DEFAULT_POSITION,
                 timestamp: ORACLE_VERSION_3.timestamp,
                 short: POSITION,
+              })
+              expectCheckpointEq(await market.checkpoints(user.address, 2), {
+                ...DEFAULT_CHECKPOINT,
                 delta: COLLATERAL,
               })
               expectGlobalEq(await market.global(), {
@@ -4977,6 +5204,9 @@ describe('Market', () => {
                 ...DEFAULT_POSITION,
                 timestamp: ORACLE_VERSION_3.timestamp,
                 short: POSITION,
+              })
+              expectCheckpointEq(await market.checkpoints(user.address, 2), {
+                ...DEFAULT_CHECKPOINT,
                 delta: COLLATERAL,
               })
               expectGlobalEq(await market.global(), {
@@ -5039,6 +5269,9 @@ describe('Market', () => {
                 ...DEFAULT_POSITION,
                 timestamp: ORACLE_VERSION_4.timestamp,
                 short: POSITION,
+              })
+              expectCheckpointEq(await market.checkpoints(user.address, 3), {
+                ...DEFAULT_CHECKPOINT,
                 delta: COLLATERAL,
               })
               expectLocalEq(await market.locals(userB.address), {
@@ -5058,6 +5291,9 @@ describe('Market', () => {
                 ...DEFAULT_POSITION,
                 timestamp: ORACLE_VERSION_4.timestamp,
                 maker: POSITION,
+              })
+              expectCheckpointEq(await market.checkpoints(user.address, 2), {
+                ...DEFAULT_CHECKPOINT,
                 delta: COLLATERAL,
               })
               const totalFee = EXPECTED_FUNDING_FEE_1_5_123.add(EXPECTED_INTEREST_FEE_5_123)
@@ -5132,6 +5368,9 @@ describe('Market', () => {
                 ...DEFAULT_POSITION,
                 timestamp: ORACLE_VERSION_5.timestamp,
                 short: POSITION.div(2),
+              })
+              expectCheckpointEq(await market.checkpoints(user.address, 2), {
+                ...DEFAULT_CHECKPOINT,
                 delta: COLLATERAL,
               })
               expectLocalEq(await market.locals(userB.address), {
@@ -5151,6 +5390,9 @@ describe('Market', () => {
                 ...DEFAULT_POSITION,
                 timestamp: ORACLE_VERSION_5.timestamp,
                 maker: POSITION,
+              })
+              expectCheckpointEq(await market.checkpoints(user.address, 2), {
+                ...DEFAULT_CHECKPOINT,
                 delta: COLLATERAL,
               })
               const totalFee = EXPECTED_FUNDING_FEE_1_5_123.add(EXPECTED_INTEREST_FEE_5_123)
@@ -5242,6 +5484,9 @@ describe('Market', () => {
                 ...DEFAULT_POSITION,
                 timestamp: ORACLE_VERSION_4.timestamp,
                 short: POSITION.div(2),
+              })
+              expectCheckpointEq(await market.checkpoints(user.address, 2), {
+                ...DEFAULT_CHECKPOINT,
                 delta: COLLATERAL,
               })
               expectLocalEq(await market.locals(userB.address), {
@@ -5261,6 +5506,9 @@ describe('Market', () => {
                 ...DEFAULT_POSITION,
                 timestamp: ORACLE_VERSION_4.timestamp,
                 maker: POSITION,
+              })
+              expectCheckpointEq(await market.checkpoints(user.address, 2), {
+                ...DEFAULT_CHECKPOINT,
                 delta: COLLATERAL,
               })
               const totalFee = EXPECTED_FUNDING_FEE_1_5_123.add(EXPECTED_INTEREST_FEE_5_123).add(TAKER_FEE)
@@ -5358,6 +5606,9 @@ describe('Market', () => {
                 ...DEFAULT_POSITION,
                 timestamp: ORACLE_VERSION_5.timestamp,
                 short: POSITION.div(2),
+              })
+              expectCheckpointEq(await market.checkpoints(user.address, 2), {
+                ...DEFAULT_CHECKPOINT,
                 delta: COLLATERAL,
               })
               expectLocalEq(await market.locals(userB.address), {
@@ -5379,6 +5630,9 @@ describe('Market', () => {
                 ...DEFAULT_POSITION,
                 timestamp: ORACLE_VERSION_5.timestamp,
                 maker: POSITION,
+              })
+              expectCheckpointEq(await market.checkpoints(user.address, 2), {
+                ...DEFAULT_CHECKPOINT,
                 delta: COLLATERAL,
               })
               const totalFee = EXPECTED_FUNDING_FEE_1_5_123.add(EXPECTED_INTEREST_FEE_5_123).add(TAKER_FEE_FEE)
@@ -5453,6 +5707,9 @@ describe('Market', () => {
                 ...DEFAULT_POSITION,
                 timestamp: ORACLE_VERSION_2.timestamp,
                 short: POSITION.div(4),
+              })
+              expectCheckpointEq(await market.checkpoints(user.address, 1), {
+                ...DEFAULT_CHECKPOINT,
                 delta: COLLATERAL,
               })
               expectGlobalEq(await market.global(), {
@@ -5511,6 +5768,9 @@ describe('Market', () => {
               expectPositionEq(await market.pendingPositions(user.address, 1), {
                 ...DEFAULT_POSITION,
                 timestamp: ORACLE_VERSION_2.timestamp,
+              })
+              expectCheckpointEq(await market.checkpoints(user.address, 1), {
+                ...DEFAULT_CHECKPOINT,
                 delta: COLLATERAL,
               })
               expectGlobalEq(await market.global(), {
@@ -5565,6 +5825,9 @@ describe('Market', () => {
                 expectPositionEq(await market.pendingPositions(user.address, 2), {
                   ...DEFAULT_POSITION,
                   timestamp: ORACLE_VERSION_3.timestamp,
+                })
+                expectCheckpointEq(await market.checkpoints(user.address, 2), {
+                  ...DEFAULT_CHECKPOINT,
                   delta: COLLATERAL,
                 })
                 expectGlobalEq(await market.global(), {
@@ -5618,6 +5881,9 @@ describe('Market', () => {
                 expectPositionEq(await market.pendingPositions(user.address, 3), {
                   ...DEFAULT_POSITION,
                   timestamp: ORACLE_VERSION_4.timestamp,
+                })
+                expectCheckpointEq(await market.checkpoints(user.address, 3), {
+                  ...DEFAULT_CHECKPOINT,
                   delta: COLLATERAL,
                 })
                 expectLocalEq(await market.locals(userB.address), {
@@ -5637,6 +5903,9 @@ describe('Market', () => {
                   ...DEFAULT_POSITION,
                   timestamp: ORACLE_VERSION_4.timestamp,
                   maker: POSITION,
+                })
+                expectCheckpointEq(await market.checkpoints(userB.address, 2), {
+                  ...DEFAULT_CHECKPOINT,
                   delta: COLLATERAL,
                 })
                 const totalFee = EXPECTED_FUNDING_FEE_1_5_123.add(EXPECTED_INTEREST_FEE_5_123)
@@ -5690,6 +5959,9 @@ describe('Market', () => {
                 expectPositionEq(await market.pendingPositions(user.address, 2), {
                   ...DEFAULT_POSITION,
                   timestamp: ORACLE_VERSION_3.timestamp,
+                })
+                expectCheckpointEq(await market.checkpoints(user.address, 2), {
+                  ...DEFAULT_CHECKPOINT,
                   delta: COLLATERAL,
                 })
                 expectGlobalEq(await market.global(), {
@@ -5745,6 +6017,9 @@ describe('Market', () => {
                 expectPositionEq(await market.pendingPositions(user.address, 3), {
                   ...DEFAULT_POSITION,
                   timestamp: ORACLE_VERSION_4.timestamp,
+                })
+                expectCheckpointEq(await market.checkpoints(user.address, 3), {
+                  ...DEFAULT_CHECKPOINT,
                   delta: COLLATERAL,
                 })
                 expectLocalEq(await market.locals(userB.address), {
@@ -5764,6 +6039,9 @@ describe('Market', () => {
                   ...DEFAULT_POSITION,
                   timestamp: ORACLE_VERSION_4.timestamp,
                   maker: POSITION,
+                })
+                expectCheckpointEq(await market.checkpoints(userB.address, 2), {
+                  ...DEFAULT_CHECKPOINT,
                   delta: COLLATERAL,
                 })
                 const totalFee = EXPECTED_FUNDING_FEE_1_5_123.add(EXPECTED_INTEREST_FEE_5_123)
@@ -5823,6 +6101,9 @@ describe('Market', () => {
                 expectPositionEq(await market.pendingPositions(user.address, 3), {
                   ...DEFAULT_POSITION,
                   timestamp: ORACLE_VERSION_4.timestamp,
+                })
+                expectCheckpointEq(await market.checkpoints(user.address, 3), {
+                  ...DEFAULT_CHECKPOINT,
                   delta: COLLATERAL,
                 })
                 expectLocalEq(await market.locals(userB.address), {
@@ -5842,6 +6123,9 @@ describe('Market', () => {
                   ...DEFAULT_POSITION,
                   timestamp: ORACLE_VERSION_4.timestamp,
                   maker: POSITION,
+                })
+                expectCheckpointEq(await market.checkpoints(userB.address, 2), {
+                  ...DEFAULT_CHECKPOINT,
                   delta: COLLATERAL,
                 })
                 const totalFee = EXPECTED_FUNDING_FEE_1_5_123.add(EXPECTED_INTEREST_FEE_5_123)
@@ -5910,6 +6194,9 @@ describe('Market', () => {
                 expectPositionEq(await market.pendingPositions(user.address, 4), {
                   ...DEFAULT_POSITION,
                   timestamp: ORACLE_VERSION_5.timestamp,
+                })
+                expectCheckpointEq(await market.checkpoints(user.address, 4), {
+                  ...DEFAULT_CHECKPOINT,
                   delta: COLLATERAL,
                 })
                 expectLocalEq(await market.locals(userB.address), {
@@ -5931,6 +6218,9 @@ describe('Market', () => {
                   ...DEFAULT_POSITION,
                   timestamp: ORACLE_VERSION_5.timestamp,
                   maker: POSITION,
+                })
+                expectCheckpointEq(await market.checkpoints(userB.address, 2), {
+                  ...DEFAULT_CHECKPOINT,
                   delta: COLLATERAL,
                 })
                 const totalFee = EXPECTED_FUNDING_FEE_1_5_123.add(EXPECTED_FUNDING_FEE_2_25_123)
@@ -6008,6 +6298,9 @@ describe('Market', () => {
                 expectPositionEq(await market.pendingPositions(user.address, 3), {
                   ...DEFAULT_POSITION,
                   timestamp: ORACLE_VERSION_5.timestamp,
+                })
+                expectCheckpointEq(await market.checkpoints(user.address, 3), {
+                  ...DEFAULT_CHECKPOINT,
                   delta: COLLATERAL,
                 })
                 expectLocalEq(await market.locals(userB.address), {
@@ -6027,6 +6320,9 @@ describe('Market', () => {
                   ...DEFAULT_POSITION,
                   timestamp: ORACLE_VERSION_5.timestamp,
                   maker: POSITION,
+                })
+                expectCheckpointEq(await market.checkpoints(userB.address, 2), {
+                  ...DEFAULT_CHECKPOINT,
                   delta: COLLATERAL,
                 })
                 const totalFee = EXPECTED_FUNDING_FEE_1_5_123.add(EXPECTED_INTEREST_FEE_5_123)
@@ -6105,6 +6401,9 @@ describe('Market', () => {
                 expectPositionEq(await market.pendingPositions(user.address, 3), {
                   ...DEFAULT_POSITION,
                   timestamp: ORACLE_VERSION_5.timestamp,
+                })
+                expectCheckpointEq(await market.checkpoints(user.address, 3), {
+                  ...DEFAULT_CHECKPOINT,
                   delta: COLLATERAL,
                 })
                 expectLocalEq(await market.locals(userB.address), {
@@ -6125,6 +6424,9 @@ describe('Market', () => {
                   ...DEFAULT_POSITION,
                   timestamp: ORACLE_VERSION_5.timestamp,
                   maker: POSITION,
+                })
+                expectCheckpointEq(await market.checkpoints(userB.address, 2), {
+                  ...DEFAULT_CHECKPOINT,
                   delta: COLLATERAL,
                 })
                 const totalFee = EXPECTED_FUNDING_FEE_1_5_123.add(EXPECTED_INTEREST_FEE_5_123).add(TAKER_FEE_FEE)
@@ -6205,6 +6507,9 @@ describe('Market', () => {
               ...DEFAULT_POSITION,
               timestamp: ORACLE_VERSION_3.timestamp,
               short: POSITION.div(2),
+            })
+            expectCheckpointEq(await market.checkpoints(user.address, 2), {
+              ...DEFAULT_CHECKPOINT,
               delta: COLLATERAL,
             })
             expectLocalEq(await market.locals(userB.address), {
@@ -6222,6 +6527,9 @@ describe('Market', () => {
               ...DEFAULT_POSITION,
               timestamp: ORACLE_VERSION_3.timestamp,
               maker: POSITION,
+            })
+            expectCheckpointEq(await market.checkpoints(userB.address, 2), {
+              ...DEFAULT_CHECKPOINT,
               delta: COLLATERAL,
             })
             expectGlobalEq(await market.global(), {
@@ -6315,6 +6623,9 @@ describe('Market', () => {
               ...DEFAULT_POSITION,
               timestamp: ORACLE_VERSION_4.timestamp,
               short: POSITION.div(2),
+            })
+            expectCheckpointEq(await market.checkpoints(user.address, 3), {
+              ...DEFAULT_CHECKPOINT,
               delta: COLLATERAL,
             })
             expectLocalEq(await market.locals(userB.address), {
@@ -6335,6 +6646,9 @@ describe('Market', () => {
               ...DEFAULT_POSITION,
               timestamp: ORACLE_VERSION_4.timestamp,
               maker: POSITION,
+            })
+            expectCheckpointEq(await market.checkpoints(userB.address, 3), {
+              ...DEFAULT_CHECKPOINT,
               delta: COLLATERAL,
             })
             const totalFee = EXPECTED_FUNDING_FEE_1_5_123.add(EXPECTED_INTEREST_FEE_5_123)
@@ -6434,6 +6748,9 @@ describe('Market', () => {
               ...DEFAULT_POSITION,
               timestamp: ORACLE_VERSION_4.timestamp,
               short: POSITION.div(2),
+            })
+            expectCheckpointEq(await market.checkpoints(user.address, 3), {
+              ...DEFAULT_CHECKPOINT,
               delta: COLLATERAL,
             })
             expectLocalEq(await market.locals(userB.address), {
@@ -6454,6 +6771,9 @@ describe('Market', () => {
               ...DEFAULT_POSITION,
               timestamp: ORACLE_VERSION_4.timestamp,
               maker: POSITION,
+            })
+            expectCheckpointEq(await market.checkpoints(userB.address, 3), {
+              ...DEFAULT_CHECKPOINT,
               delta: COLLATERAL,
             })
             const totalFee = EXPECTED_FUNDING_FEE_1_5_123.add(EXPECTED_INTEREST_FEE_5_123)
@@ -6574,6 +6894,9 @@ describe('Market', () => {
                 ...DEFAULT_POSITION,
                 timestamp: ORACLE_VERSION_6.timestamp,
                 short: POSITION.div(2),
+              })
+              expectCheckpointEq(await market.checkpoints(user.address, 5), {
+                ...DEFAULT_CHECKPOINT,
                 delta: COLLATERAL,
               })
               expectLocalEq(await market.locals(userB.address), {
@@ -6596,6 +6919,9 @@ describe('Market', () => {
               expectPositionEq(await market.pendingPositions(userB.address, 5), {
                 ...DEFAULT_POSITION,
                 timestamp: ORACLE_VERSION_6.timestamp,
+              })
+              expectCheckpointEq(await market.checkpoints(userB.address, 5), {
+                ...DEFAULT_CHECKPOINT,
                 delta: parse6decimal('390'),
               })
               const totalFee = EXPECTED_FUNDING_FEE_1_5_123.add(EXPECTED_INTEREST_FEE_5_123).add(
@@ -6761,6 +7087,9 @@ describe('Market', () => {
                 ...DEFAULT_POSITION,
                 timestamp: ORACLE_VERSION_6.timestamp,
                 short: POSITION.div(2),
+              })
+              expectCheckpointEq(await market.checkpoints(user.address, 5), {
+                ...DEFAULT_CHECKPOINT,
                 delta: COLLATERAL,
               })
               expectLocalEq(await market.locals(userB.address), {
@@ -6783,6 +7112,9 @@ describe('Market', () => {
               expectPositionEq(await market.pendingPositions(userB.address, 5), {
                 ...DEFAULT_POSITION,
                 timestamp: ORACLE_VERSION_6.timestamp,
+              })
+              expectCheckpointEq(await market.checkpoints(userB.address, 5), {
+                ...DEFAULT_CHECKPOINT,
                 delta: parse6decimal('390'),
               })
               expectLocalEq(await market.locals(userC.address), {
@@ -6806,6 +7138,9 @@ describe('Market', () => {
                 ...DEFAULT_POSITION,
                 timestamp: ORACLE_VERSION_6.timestamp,
                 maker: POSITION.div(4),
+              })
+              expectCheckpointEq(await market.checkpoints(userC.address, 5), {
+                ...DEFAULT_CHECKPOINT,
                 delta: COLLATERAL,
               })
               const totalFee = EXPECTED_FUNDING_FEE_1_5_123.add(EXPECTED_INTEREST_FEE_1)
@@ -6930,6 +7265,9 @@ describe('Market', () => {
                 ...DEFAULT_POSITION,
                 timestamp: ORACLE_VERSION_4.timestamp,
                 short: POSITION.div(2),
+              })
+              expectCheckpointEq(await market.checkpoints(user.address, 3), {
+                ...DEFAULT_CHECKPOINT,
                 delta: COLLATERAL,
               })
               expectLocalEq(await market.locals(userB.address), {
@@ -6947,6 +7285,9 @@ describe('Market', () => {
               expectPositionEq(await market.pendingPositions(userB.address, 3), {
                 ...DEFAULT_POSITION,
                 timestamp: ORACLE_VERSION_4.timestamp,
+              })
+              expectCheckpointEq(await market.checkpoints(userB.address, 3), {
+                ...DEFAULT_CHECKPOINT,
                 delta: parse6decimal('390'),
               })
               const totalFee = EXPECTED_FUNDING_FEE_1_5_123.add(EXPECTED_INTEREST_FEE_5_123)
@@ -7039,6 +7380,9 @@ describe('Market', () => {
               expectPositionEq(await market.pendingPositions(userB.address, 4), {
                 ...DEFAULT_POSITION,
                 timestamp: ORACLE_VERSION_5.timestamp,
+              })
+              expectCheckpointEq(await market.checkpoints(userB.address, 4), {
+                ...DEFAULT_CHECKPOINT,
                 delta: parse6decimal('390').add(shortfall.mul(-1)),
               })
             })
@@ -7126,6 +7470,9 @@ describe('Market', () => {
               expectPositionEq(await market.pendingPositions(user.address, 5), {
                 ...DEFAULT_POSITION,
                 timestamp: ORACLE_VERSION_6.timestamp,
+              })
+              expectCheckpointEq(await market.checkpoints(user.address, 5), {
+                ...DEFAULT_CHECKPOINT,
                 delta: parse6decimal('216'),
               })
               expectLocalEq(await market.locals(userB.address), {
@@ -7147,6 +7494,9 @@ describe('Market', () => {
                 ...DEFAULT_POSITION,
                 timestamp: ORACLE_VERSION_6.timestamp,
                 maker: POSITION,
+              })
+              expectCheckpointEq(await market.checkpoints(userB.address, 5), {
+                ...DEFAULT_CHECKPOINT,
                 delta: COLLATERAL,
               })
               const totalFee = EXPECTED_FUNDING_FEE_1_5_123.add(EXPECTED_INTEREST_FEE_5_123)
@@ -7272,6 +7622,9 @@ describe('Market', () => {
               expectPositionEq(await market.pendingPositions(user.address, 3), {
                 ...DEFAULT_POSITION,
                 timestamp: ORACLE_VERSION_4.timestamp,
+              })
+              expectCheckpointEq(await market.checkpoints(user.address, 3), {
+                ...DEFAULT_CHECKPOINT,
                 delta: parse6decimal('216'),
               })
               expectLocalEq(await market.locals(userB.address), {
@@ -7292,6 +7645,9 @@ describe('Market', () => {
                 ...DEFAULT_POSITION,
                 timestamp: ORACLE_VERSION_4.timestamp,
                 maker: POSITION,
+              })
+              expectCheckpointEq(await market.checkpoints(userB.address, 3), {
+                ...DEFAULT_CHECKPOINT,
                 delta: COLLATERAL,
               })
               const totalFee = EXPECTED_FUNDING_FEE_1_5_123.add(EXPECTED_INTEREST_FEE_5_123)
@@ -7384,6 +7740,9 @@ describe('Market', () => {
               expectPositionEq(await market.pendingPositions(user.address, 4), {
                 ...DEFAULT_POSITION,
                 timestamp: ORACLE_VERSION_5.timestamp,
+              })
+              expectCheckpointEq(await market.checkpoints(user.address, 4), {
+                ...DEFAULT_CHECKPOINT,
                 delta: parse6decimal('216').add(shortfall.mul(-1)),
               })
             })
@@ -7443,6 +7802,9 @@ describe('Market', () => {
               ...DEFAULT_POSITION,
               timestamp: ORACLE_VERSION_5.timestamp,
               maker: POSITION,
+            })
+            expectCheckpointEq(await market.checkpoints(user.address, 3), {
+              ...DEFAULT_CHECKPOINT,
               delta: COLLATERAL,
             })
             expectLocalEq(await market.locals(userB.address), {
@@ -7460,6 +7822,9 @@ describe('Market', () => {
               ...DEFAULT_POSITION,
               timestamp: ORACLE_VERSION_5.timestamp,
               short: POSITION.div(2),
+            })
+            expectCheckpointEq(await market.checkpoints(userB.address, 3), {
+              ...DEFAULT_CHECKPOINT,
               delta: COLLATERAL,
             })
             expectGlobalEq(await market.global(), {
@@ -7540,6 +7905,9 @@ describe('Market', () => {
               ...DEFAULT_POSITION,
               timestamp: ORACLE_VERSION_4.timestamp,
               maker: POSITION.div(2),
+            })
+            expectCheckpointEq(await market.checkpoints(user.address, 3), {
+              ...DEFAULT_CHECKPOINT,
               delta: COLLATERAL,
             })
             expectLocalEq(await market.locals(userB.address), {
@@ -7557,6 +7925,9 @@ describe('Market', () => {
               ...DEFAULT_POSITION,
               timestamp: ORACLE_VERSION_4.timestamp,
               short: POSITION.div(2),
+            })
+            expectCheckpointEq(await market.checkpoints(userB.address, 3), {
+              ...DEFAULT_CHECKPOINT,
               delta: COLLATERAL,
             })
             const totalFee = EXPECTED_MAKER_FEE.div(10)
@@ -7629,6 +8000,9 @@ describe('Market', () => {
               ...DEFAULT_POSITION,
               timestamp: ORACLE_VERSION_4.timestamp,
               maker: POSITION.div(2),
+            })
+            expectCheckpointEq(await market.checkpoints(user.address, 3), {
+              ...DEFAULT_CHECKPOINT,
               delta: COLLATERAL,
             })
             expectLocalEq(await market.locals(userB.address), {
@@ -7646,6 +8020,9 @@ describe('Market', () => {
               ...DEFAULT_POSITION,
               timestamp: ORACLE_VERSION_4.timestamp,
               short: POSITION.div(2),
+            })
+            expectCheckpointEq(await market.checkpoints(userB.address, 3), {
+              ...DEFAULT_CHECKPOINT,
               delta: COLLATERAL,
             })
             expectGlobalEq(await market.global(), {
@@ -7711,6 +8088,9 @@ describe('Market', () => {
                 ...DEFAULT_POSITION,
                 timestamp: ORACLE_VERSION_2.timestamp,
                 long: POSITION,
+              })
+              expectCheckpointEq(await market.checkpoints(user.address, 1), {
+                ...DEFAULT_CHECKPOINT,
                 delta: COLLATERAL,
               })
               expectGlobalEq(await market.global(), {
@@ -7765,6 +8145,9 @@ describe('Market', () => {
                 ...DEFAULT_POSITION,
                 timestamp: ORACLE_VERSION_3.timestamp,
                 long: POSITION,
+              })
+              expectCheckpointEq(await market.checkpoints(user.address, 2), {
+                ...DEFAULT_CHECKPOINT,
                 delta: COLLATERAL,
               })
               expectGlobalEq(await market.global(), {
@@ -7817,6 +8200,9 @@ describe('Market', () => {
                 ...DEFAULT_POSITION,
                 timestamp: ORACLE_VERSION_2.timestamp,
                 long: POSITION,
+              })
+              expectCheckpointEq(await market.checkpoints(user.address, 1), {
+                ...DEFAULT_CHECKPOINT,
                 delta: COLLATERAL,
               })
               expectGlobalEq(await market.global(), {
@@ -7873,6 +8259,9 @@ describe('Market', () => {
                 ...DEFAULT_POSITION,
                 timestamp: ORACLE_VERSION_3.timestamp,
                 long: POSITION,
+              })
+              expectCheckpointEq(await market.checkpoints(user.address, 2), {
+                ...DEFAULT_CHECKPOINT,
                 delta: COLLATERAL,
               })
               expectGlobalEq(await market.global(), {
@@ -7930,6 +8319,9 @@ describe('Market', () => {
                 ...DEFAULT_POSITION,
                 timestamp: ORACLE_VERSION_3.timestamp,
                 long: POSITION,
+              })
+              expectCheckpointEq(await market.checkpoints(user.address, 2), {
+                ...DEFAULT_CHECKPOINT,
                 delta: COLLATERAL,
               })
               expectGlobalEq(await market.global(), {
@@ -7996,6 +8388,12 @@ describe('Market', () => {
                 ...DEFAULT_POSITION,
                 timestamp: ORACLE_VERSION_4.timestamp,
                 long: POSITION,
+              })
+              expectCheckpointEq(await market.checkpoints(user.address, 3), {
+                ...DEFAULT_CHECKPOINT,
+              })
+              expectCheckpointEq(await market.checkpoints(user.address, 3), {
+                ...DEFAULT_CHECKPOINT,
                 delta: COLLATERAL,
               })
               expectLocalEq(await market.locals(userB.address), {
@@ -8015,6 +8413,12 @@ describe('Market', () => {
                 ...DEFAULT_POSITION,
                 timestamp: ORACLE_VERSION_4.timestamp,
                 maker: POSITION,
+              })
+              expectCheckpointEq(await market.checkpoints(userB.address, 2), {
+                ...DEFAULT_CHECKPOINT,
+              })
+              expectCheckpointEq(await market.checkpoints(userB.address, 2), {
+                ...DEFAULT_CHECKPOINT,
                 delta: COLLATERAL,
               })
               const totalFee = EXPECTED_FUNDING_FEE_1_10_123_ALL.add(EXPECTED_INTEREST_FEE_10_67_123_ALL)
@@ -8102,6 +8506,9 @@ describe('Market', () => {
                 ...DEFAULT_POSITION,
                 timestamp: ORACLE_VERSION_4.timestamp,
                 long: POSITION.div(2),
+              })
+              expectCheckpointEq(await market.checkpoints(user.address, 1), {
+                ...DEFAULT_CHECKPOINT,
                 delta: COLLATERAL,
               })
               expectLocalEq(await market.locals(userB.address), {
@@ -8121,6 +8528,9 @@ describe('Market', () => {
                 ...DEFAULT_POSITION,
                 timestamp: ORACLE_VERSION_4.timestamp,
                 maker: POSITION,
+              })
+              expectCheckpointEq(await market.checkpoints(userB.address, 2), {
+                ...DEFAULT_CHECKPOINT,
                 delta: COLLATERAL,
               })
               const totalFee = EXPECTED_FUNDING_FEE_1_10_123_ALL.add(EXPECTED_INTEREST_FEE_10_67_123_ALL)
@@ -8223,6 +8633,9 @@ describe('Market', () => {
                 ...DEFAULT_POSITION,
                 timestamp: ORACLE_VERSION_4.timestamp,
                 long: POSITION.div(2),
+              })
+              expectCheckpointEq(await market.checkpoints(user.address, 2), {
+                ...DEFAULT_CHECKPOINT,
                 delta: COLLATERAL,
               })
               expectLocalEq(await market.locals(userB.address), {
@@ -8242,6 +8655,9 @@ describe('Market', () => {
                 ...DEFAULT_POSITION,
                 timestamp: ORACLE_VERSION_4.timestamp,
                 maker: POSITION,
+              })
+              expectCheckpointEq(await market.checkpoints(userB.address, 2), {
+                ...DEFAULT_CHECKPOINT,
                 delta: COLLATERAL,
               })
               const totalFee = EXPECTED_FUNDING_FEE_1_10_123_ALL.add(EXPECTED_INTEREST_FEE_10_67_123_ALL).add(TAKER_FEE)
@@ -8329,6 +8745,9 @@ describe('Market', () => {
                 ...DEFAULT_POSITION,
                 timestamp: ORACLE_VERSION_4.timestamp,
                 long: POSITION.div(2),
+              })
+              expectCheckpointEq(await market.checkpoints(user.address, 2), {
+                ...DEFAULT_CHECKPOINT,
                 delta: COLLATERAL,
               })
               expectLocalEq(await market.locals(userB.address), {
@@ -8348,6 +8767,9 @@ describe('Market', () => {
                 ...DEFAULT_POSITION,
                 timestamp: ORACLE_VERSION_4.timestamp,
                 maker: POSITION,
+              })
+              expectCheckpointEq(await market.checkpoints(userB.address, 2), {
+                ...DEFAULT_CHECKPOINT,
                 delta: COLLATERAL,
               })
               const totalFee = EXPECTED_FUNDING_FEE_1_10_123_ALL.add(EXPECTED_INTEREST_FEE_10_67_123_ALL)
@@ -8436,6 +8858,9 @@ describe('Market', () => {
                 ...DEFAULT_POSITION,
                 timestamp: ORACLE_VERSION_4.timestamp,
                 long: POSITION.div(2),
+              })
+              expectCheckpointEq(await market.checkpoints(user.address, 2), {
+                ...DEFAULT_CHECKPOINT,
                 delta: COLLATERAL.add(COLLATERAL),
               })
               expectLocalEq(await market.locals(userB.address), {
@@ -8456,6 +8881,9 @@ describe('Market', () => {
                 ...DEFAULT_POSITION,
                 timestamp: ORACLE_VERSION_4.timestamp,
                 maker: POSITION,
+              })
+              expectCheckpointEq(await market.checkpoints(userB.address, 2), {
+                ...DEFAULT_CHECKPOINT,
                 delta: COLLATERAL.add(COLLATERAL),
               })
               const totalFee = EXPECTED_FUNDING_FEE_1_10_123_ALL.add(EXPECTED_INTEREST_FEE_10_67_123_ALL)
@@ -8543,6 +8971,9 @@ describe('Market', () => {
                 ...DEFAULT_POSITION,
                 timestamp: ORACLE_VERSION_6.timestamp,
                 long: POSITION.div(2),
+              })
+              expectCheckpointEq(await market.checkpoints(user.address, 2), {
+                ...DEFAULT_CHECKPOINT,
                 delta: COLLATERAL,
               })
               expectLocalEq(await market.locals(userB.address), {
@@ -8562,6 +8993,9 @@ describe('Market', () => {
                 ...DEFAULT_POSITION,
                 timestamp: ORACLE_VERSION_6.timestamp,
                 maker: POSITION,
+              })
+              expectCheckpointEq(await market.checkpoints(userB.address, 2), {
+                ...DEFAULT_CHECKPOINT,
                 delta: COLLATERAL,
               })
               const totalFee = EXPECTED_FUNDING_FEE_1_10_123_ALL.add(EXPECTED_INTEREST_FEE_10_67_123_ALL)
@@ -8650,6 +9084,9 @@ describe('Market', () => {
                 ...DEFAULT_POSITION,
                 timestamp: ORACLE_VERSION_6.timestamp,
                 long: POSITION.div(2),
+              })
+              expectCheckpointEq(await market.checkpoints(user.address, 2), {
+                ...DEFAULT_CHECKPOINT,
                 delta: COLLATERAL.add(COLLATERAL),
               })
               expectLocalEq(await market.locals(userB.address), {
@@ -8670,6 +9107,9 @@ describe('Market', () => {
                 ...DEFAULT_POSITION,
                 timestamp: ORACLE_VERSION_6.timestamp,
                 maker: POSITION,
+              })
+              expectCheckpointEq(await market.checkpoints(userB.address, 2), {
+                ...DEFAULT_CHECKPOINT,
                 delta: COLLATERAL.add(COLLATERAL),
               })
               const totalFee = EXPECTED_FUNDING_FEE_1_10_123_ALL.add(EXPECTED_INTEREST_FEE_10_67_123_ALL)
@@ -8748,6 +9188,9 @@ describe('Market', () => {
                 ...DEFAULT_POSITION,
                 timestamp: ORACLE_VERSION_2.timestamp,
                 long: POSITION.div(4),
+              })
+              expectCheckpointEq(await market.checkpoints(user.address, 1), {
+                ...DEFAULT_CHECKPOINT,
                 delta: COLLATERAL,
               })
               expectGlobalEq(await market.global(), {
@@ -8794,6 +9237,9 @@ describe('Market', () => {
               expectPositionEq(await market.pendingPositions(user.address, 1), {
                 ...DEFAULT_POSITION,
                 timestamp: ORACLE_VERSION_2.timestamp,
+              })
+              expectCheckpointEq(await market.checkpoints(user.address, 1), {
+                ...DEFAULT_CHECKPOINT,
                 delta: COLLATERAL,
               })
               expectGlobalEq(await market.global(), {
@@ -8849,6 +9295,9 @@ describe('Market', () => {
                 expectPositionEq(await market.pendingPositions(user.address, 2), {
                   ...DEFAULT_POSITION,
                   timestamp: ORACLE_VERSION_3.timestamp,
+                })
+                expectCheckpointEq(await market.checkpoints(user.address, 2), {
+                  ...DEFAULT_CHECKPOINT,
                   delta: COLLATERAL,
                 })
                 expectGlobalEq(await market.global(), {
@@ -8906,6 +9355,9 @@ describe('Market', () => {
                 expectPositionEq(await market.pendingPositions(user.address, 3), {
                   ...DEFAULT_POSITION,
                   timestamp: ORACLE_VERSION_4.timestamp,
+                })
+                expectCheckpointEq(await market.checkpoints(user.address, 3), {
+                  ...DEFAULT_CHECKPOINT,
                   delta: COLLATERAL,
                 })
                 expectLocalEq(await market.locals(userB.address), {
@@ -8925,6 +9377,9 @@ describe('Market', () => {
                   ...DEFAULT_POSITION,
                   timestamp: ORACLE_VERSION_4.timestamp,
                   maker: POSITION,
+                })
+                expectCheckpointEq(await market.checkpoints(userB.address, 2), {
+                  ...DEFAULT_CHECKPOINT,
                   delta: COLLATERAL,
                 })
                 const totalFee = EXPECTED_FUNDING_FEE_1_10_123_ALL.add(EXPECTED_INTEREST_FEE_10_67_123_ALL)
@@ -8991,6 +9446,9 @@ describe('Market', () => {
                 expectPositionEq(await market.pendingPositions(user.address, 2), {
                   ...DEFAULT_POSITION,
                   timestamp: ORACLE_VERSION_3.timestamp,
+                })
+                expectCheckpointEq(await market.checkpoints(user.address, 2), {
+                  ...DEFAULT_CHECKPOINT,
                   delta: COLLATERAL,
                 })
                 expectGlobalEq(await market.global(), {
@@ -9050,6 +9508,9 @@ describe('Market', () => {
                 expectPositionEq(await market.pendingPositions(user.address, 3), {
                   ...DEFAULT_POSITION,
                   timestamp: ORACLE_VERSION_4.timestamp,
+                })
+                expectCheckpointEq(await market.checkpoints(user.address, 3), {
+                  ...DEFAULT_CHECKPOINT,
                   delta: COLLATERAL,
                 })
                 expectLocalEq(await market.locals(userB.address), {
@@ -9069,6 +9530,9 @@ describe('Market', () => {
                   ...DEFAULT_POSITION,
                   timestamp: ORACLE_VERSION_4.timestamp,
                   maker: POSITION,
+                })
+                expectCheckpointEq(await market.checkpoints(userB.address, 2), {
+                  ...DEFAULT_CHECKPOINT,
                   delta: COLLATERAL,
                 })
                 const totalFee = EXPECTED_FUNDING_FEE_1_10_123_ALL.add(EXPECTED_INTEREST_FEE_10_67_123_ALL)
@@ -9144,6 +9608,9 @@ describe('Market', () => {
                 expectPositionEq(await market.pendingPositions(user.address, 3), {
                   ...DEFAULT_POSITION,
                   timestamp: ORACLE_VERSION_4.timestamp,
+                })
+                expectCheckpointEq(await market.checkpoints(user.address, 3), {
+                  ...DEFAULT_CHECKPOINT,
                   delta: COLLATERAL,
                 })
                 expectLocalEq(await market.locals(userB.address), {
@@ -9163,6 +9630,9 @@ describe('Market', () => {
                   ...DEFAULT_POSITION,
                   timestamp: ORACLE_VERSION_4.timestamp,
                   maker: POSITION,
+                })
+                expectCheckpointEq(await market.checkpoints(userB.address, 2), {
+                  ...DEFAULT_CHECKPOINT,
                   delta: COLLATERAL,
                 })
                 const totalFee = EXPECTED_FUNDING_FEE_1_10_123_ALL.add(EXPECTED_INTEREST_FEE_10_67_123_ALL)
@@ -9244,6 +9714,9 @@ describe('Market', () => {
                 expectPositionEq(await market.pendingPositions(user.address, 4), {
                   ...DEFAULT_POSITION,
                   timestamp: ORACLE_VERSION_5.timestamp,
+                })
+                expectCheckpointEq(await market.checkpoints(user.address, 4), {
+                  ...DEFAULT_CHECKPOINT,
                   delta: COLLATERAL,
                 })
                 expectLocalEq(await market.locals(userB.address), {
@@ -9265,6 +9738,9 @@ describe('Market', () => {
                   ...DEFAULT_POSITION,
                   timestamp: ORACLE_VERSION_5.timestamp,
                   maker: POSITION,
+                })
+                expectCheckpointEq(await market.checkpoints(userB.address, 2), {
+                  ...DEFAULT_CHECKPOINT,
                   delta: COLLATERAL,
                 })
                 const totalFee = EXPECTED_FUNDING_FEE_1_10_123_ALL.add(EXPECTED_FUNDING_FEE_2_10_123_ALL)
@@ -9374,6 +9850,9 @@ describe('Market', () => {
                 expectPositionEq(await market.pendingPositions(user.address, 3), {
                   ...DEFAULT_POSITION,
                   timestamp: ORACLE_VERSION_5.timestamp,
+                })
+                expectCheckpointEq(await market.checkpoints(user.address, 3), {
+                  ...DEFAULT_CHECKPOINT,
                   delta: COLLATERAL,
                 })
                 expectPositionEq(await market.position(), {
@@ -9456,6 +9935,9 @@ describe('Market', () => {
                 expectPositionEq(await market.pendingPositions(user.address, 3), {
                   ...DEFAULT_POSITION,
                   timestamp: ORACLE_VERSION_5.timestamp,
+                })
+                expectCheckpointEq(await market.checkpoints(user.address, 3), {
+                  ...DEFAULT_CHECKPOINT,
                   delta: COLLATERAL,
                 })
                 expectPositionEq(await market.position(), {
@@ -9541,6 +10023,9 @@ describe('Market', () => {
               ...DEFAULT_POSITION,
               timestamp: ORACLE_VERSION_3.timestamp,
               long: POSITION.div(2),
+            })
+            expectCheckpointEq(await market.checkpoints(user.address, 2), {
+              ...DEFAULT_CHECKPOINT,
               delta: COLLATERAL,
             })
             expectLocalEq(await market.locals(userB.address), {
@@ -9558,6 +10043,9 @@ describe('Market', () => {
               ...DEFAULT_POSITION,
               timestamp: ORACLE_VERSION_3.timestamp,
               maker: POSITION,
+            })
+            expectCheckpointEq(await market.checkpoints(userB.address, 2), {
+              ...DEFAULT_CHECKPOINT,
               delta: COLLATERAL,
             })
             expectGlobalEq(await market.global(), {
@@ -9658,6 +10146,9 @@ describe('Market', () => {
               ...DEFAULT_POSITION,
               timestamp: ORACLE_VERSION_4.timestamp,
               long: POSITION.div(2),
+            })
+            expectCheckpointEq(await market.checkpoints(user.address, 3), {
+              ...DEFAULT_CHECKPOINT,
               delta: COLLATERAL,
             })
             expectLocalEq(await market.locals(userB.address), {
@@ -9678,6 +10169,9 @@ describe('Market', () => {
               ...DEFAULT_POSITION,
               timestamp: ORACLE_VERSION_4.timestamp,
               maker: POSITION,
+            })
+            expectCheckpointEq(await market.checkpoints(userB.address, 3), {
+              ...DEFAULT_CHECKPOINT,
               delta: COLLATERAL,
             })
             const totalFee = EXPECTED_FUNDING_FEE_1_10_123_ALL.add(EXPECTED_INTEREST_FEE_10_67_123_ALL)
@@ -9795,6 +10289,9 @@ describe('Market', () => {
               ...DEFAULT_POSITION,
               timestamp: ORACLE_VERSION_4.timestamp,
               long: POSITION.div(2),
+            })
+            expectCheckpointEq(await market.checkpoints(user.address, 3), {
+              ...DEFAULT_CHECKPOINT,
               delta: COLLATERAL,
             })
             expectLocalEq(await market.locals(userB.address), {
@@ -9815,6 +10312,9 @@ describe('Market', () => {
               ...DEFAULT_POSITION,
               timestamp: ORACLE_VERSION_4.timestamp,
               maker: POSITION,
+            })
+            expectCheckpointEq(await market.checkpoints(userB.address, 3), {
+              ...DEFAULT_CHECKPOINT,
               delta: COLLATERAL,
             })
             const totalFee = EXPECTED_FUNDING_FEE_1_10_123_ALL.add(EXPECTED_INTEREST_FEE_10_67_123_ALL)
@@ -9952,6 +10452,9 @@ describe('Market', () => {
                 ...DEFAULT_POSITION,
                 timestamp: ORACLE_VERSION_6.timestamp,
                 long: POSITION.div(2),
+              })
+              expectCheckpointEq(await market.checkpoints(user.address, 5), {
+                ...DEFAULT_CHECKPOINT,
                 delta: COLLATERAL,
               })
               expectLocalEq(await market.locals(userB.address), {
@@ -9976,6 +10479,9 @@ describe('Market', () => {
               expectPositionEq(await market.pendingPositions(userB.address, 5), {
                 ...DEFAULT_POSITION,
                 timestamp: ORACLE_VERSION_6.timestamp,
+              })
+              expectCheckpointEq(await market.checkpoints(userB.address, 5), {
+                ...DEFAULT_CHECKPOINT,
                 delta: parse6decimal('450'),
               })
               const totalFee = EXPECTED_FUNDING_FEE_1_10_123_ALL.add(EXPECTED_INTEREST_FEE_10_67_123_ALL)
@@ -10186,6 +10692,9 @@ describe('Market', () => {
                 ...DEFAULT_POSITION,
                 timestamp: ORACLE_VERSION_6.timestamp,
                 long: POSITION.div(2),
+              })
+              expectCheckpointEq(await market.checkpoints(user.address, 5), {
+                ...DEFAULT_CHECKPOINT,
                 delta: COLLATERAL,
               })
               expectLocalEq(await market.locals(userB.address), {
@@ -10210,6 +10719,9 @@ describe('Market', () => {
               expectPositionEq(await market.pendingPositions(userB.address, 5), {
                 ...DEFAULT_POSITION,
                 timestamp: ORACLE_VERSION_6.timestamp,
+              })
+              expectCheckpointEq(await market.checkpoints(userB.address, 5), {
+                ...DEFAULT_CHECKPOINT,
                 delta: parse6decimal('450'),
               })
               const totalFee = EXPECTED_FUNDING_FEE_1_10_123_ALL.add(EXPECTED_INTEREST_FEE_1)
@@ -10373,6 +10885,9 @@ describe('Market', () => {
                 ...DEFAULT_POSITION,
                 timestamp: ORACLE_VERSION_4.timestamp,
                 long: POSITION.div(2),
+              })
+              expectCheckpointEq(await market.checkpoints(user.address, 3), {
+                ...DEFAULT_CHECKPOINT,
                 delta: COLLATERAL,
               })
               expectLocalEq(await market.locals(userB.address), {
@@ -10396,6 +10911,9 @@ describe('Market', () => {
               expectPositionEq(await market.pendingPositions(userB.address, 3), {
                 ...DEFAULT_POSITION,
                 timestamp: ORACLE_VERSION_4.timestamp,
+              })
+              expectCheckpointEq(await market.checkpoints(userB.address, 3), {
+                ...DEFAULT_CHECKPOINT,
                 delta: parse6decimal('450'),
               })
               const totalFee = EXPECTED_FUNDING_FEE_1_10_123_ALL.add(EXPECTED_INTEREST_FEE_10_67_123_ALL)
@@ -10499,6 +11017,9 @@ describe('Market', () => {
               expectPositionEq(await market.pendingPositions(userB.address, 4), {
                 ...DEFAULT_POSITION,
                 timestamp: ORACLE_VERSION_5.timestamp,
+              })
+              expectCheckpointEq(await market.checkpoints(userB.address, 4), {
+                ...DEFAULT_CHECKPOINT,
                 delta: parse6decimal('450').add(shortfall.mul(-1)),
               })
             })
@@ -10604,6 +11125,9 @@ describe('Market', () => {
               expectPositionEq(await market.pendingPositions(user.address, 5), {
                 ...DEFAULT_POSITION,
                 timestamp: ORACLE_VERSION_6.timestamp,
+              })
+              expectCheckpointEq(await market.checkpoints(user.address, 5), {
+                ...DEFAULT_CHECKPOINT,
                 delta: parse6decimal('216'),
               })
               expectLocalEq(await market.locals(userB.address), {
@@ -10628,6 +11152,9 @@ describe('Market', () => {
                 ...DEFAULT_POSITION,
                 timestamp: ORACLE_VERSION_6.timestamp,
                 maker: POSITION,
+              })
+              expectCheckpointEq(await market.checkpoints(user.address, 5), {
+                ...DEFAULT_CHECKPOINT,
                 delta: COLLATERAL,
               })
               const totalFee = EXPECTED_FUNDING_FEE_1_10_123_ALL.add(EXPECTED_INTEREST_FEE_10_67_123_ALL)
@@ -10804,6 +11331,9 @@ describe('Market', () => {
               expectPositionEq(await market.pendingPositions(user.address, 3), {
                 ...DEFAULT_POSITION,
                 timestamp: ORACLE_VERSION_4.timestamp,
+              })
+              expectCheckpointEq(await market.checkpoints(user.address, 3), {
+                ...DEFAULT_CHECKPOINT,
                 delta: parse6decimal('216'),
               })
               expectLocalEq(await market.locals(userB.address), {
@@ -10824,6 +11354,9 @@ describe('Market', () => {
                 ...DEFAULT_POSITION,
                 timestamp: ORACLE_VERSION_4.timestamp,
                 maker: POSITION,
+              })
+              expectCheckpointEq(await market.checkpoints(user.address, 3), {
+                ...DEFAULT_CHECKPOINT,
                 delta: COLLATERAL,
               })
               const totalFee = EXPECTED_FUNDING_FEE_1_10_123_ALL.add(EXPECTED_INTEREST_FEE_10_67_123_ALL)
@@ -10927,6 +11460,9 @@ describe('Market', () => {
               expectPositionEq(await market.pendingPositions(user.address, 4), {
                 ...DEFAULT_POSITION,
                 timestamp: ORACLE_VERSION_5.timestamp,
+              })
+              expectCheckpointEq(await market.checkpoints(user.address, 4), {
+                ...DEFAULT_CHECKPOINT,
                 delta: parse6decimal('216').add(shortfall.mul(-1)),
               })
             })
@@ -10988,6 +11524,9 @@ describe('Market', () => {
               ...DEFAULT_POSITION,
               timestamp: ORACLE_VERSION_5.timestamp,
               maker: POSITION,
+            })
+            expectCheckpointEq(await market.checkpoints(user.address, 3), {
+              ...DEFAULT_CHECKPOINT,
               delta: COLLATERAL,
             })
             expectLocalEq(await market.locals(userB.address), {
@@ -11005,6 +11544,9 @@ describe('Market', () => {
               ...DEFAULT_POSITION,
               timestamp: ORACLE_VERSION_5.timestamp,
               long: POSITION.div(2),
+            })
+            expectCheckpointEq(await market.checkpoints(userB.address, 3), {
+              ...DEFAULT_CHECKPOINT,
               delta: COLLATERAL,
             })
             expectGlobalEq(await market.global(), {
@@ -11294,6 +11836,9 @@ describe('Market', () => {
             ...DEFAULT_POSITION,
             timestamp: ORACLE_VERSION_2.timestamp,
             maker: dustPosition,
+          })
+          expectCheckpointEq(await market.checkpoints(user.address, 1), {
+            ...DEFAULT_CHECKPOINT,
             delta: minMarginAmount.add(marketParameter.settlementFee),
           })
           expectGlobalEq(await market.global(), {
@@ -11711,6 +12256,9 @@ describe('Market', () => {
           expectPositionEq(await market.pendingPositions(user.address, 3), {
             ...DEFAULT_POSITION,
             timestamp: ORACLE_VERSION_4.timestamp,
+          })
+          expectCheckpointEq(await market.checkpoints(user.address, 3), {
+            ...DEFAULT_CHECKPOINT,
             delta: parse6decimal('216'),
           })
           expectLocalEq(await market.locals(userB.address), {
@@ -11730,6 +12278,9 @@ describe('Market', () => {
             ...DEFAULT_POSITION,
             timestamp: ORACLE_VERSION_4.timestamp,
             maker: POSITION,
+          })
+          expectCheckpointEq(await market.checkpoints(user.address, 1), {
+            ...DEFAULT_CHECKPOINT,
             delta: COLLATERAL,
           })
           const totalFee = EXPECTED_FUNDING_FEE_1_5_123.add(EXPECTED_INTEREST_FEE_5_123)
@@ -11852,6 +12403,9 @@ describe('Market', () => {
           expectPositionEq(await market.pendingPositions(user.address, 5), {
             ...DEFAULT_POSITION,
             timestamp: ORACLE_VERSION_6.timestamp,
+          })
+          expectCheckpointEq(await market.checkpoints(user.address, 5), {
+            ...DEFAULT_CHECKPOINT,
             delta: parse6decimal('216'),
           })
           expectLocalEq(await market.locals(userB.address), {
@@ -11873,6 +12427,9 @@ describe('Market', () => {
             ...DEFAULT_POSITION,
             timestamp: ORACLE_VERSION_6.timestamp,
             maker: POSITION,
+          })
+          expectCheckpointEq(await market.checkpoints(user.address, 1), {
+            ...DEFAULT_CHECKPOINT,
             delta: COLLATERAL,
           })
           const totalFee = EXPECTED_FUNDING_FEE_1_5_123.add(EXPECTED_INTEREST_FEE_5_123)
@@ -12121,6 +12678,9 @@ describe('Market', () => {
           expectPositionEq(await market.pendingPositions(user.address, 6), {
             ...DEFAULT_POSITION,
             timestamp: ORACLE_VERSION_6.timestamp + 3600,
+          })
+          expectCheckpointEq(await market.checkpoints(user.address, 6), {
+            ...DEFAULT_CHECKPOINT,
             delta: parse6decimal('216'),
           })
           expectLocalEq(await market.locals(userB.address), {
@@ -12143,6 +12703,9 @@ describe('Market', () => {
             ...DEFAULT_POSITION,
             timestamp: ORACLE_VERSION_6.timestamp + 3600,
             maker: POSITION,
+          })
+          expectCheckpointEq(await market.checkpoints(user.address, 1), {
+            ...DEFAULT_CHECKPOINT,
             delta: COLLATERAL,
           })
           const totalFee = EXPECTED_FUNDING_FEE_1_5_123.add(EXPECTED_INTEREST_FEE_5_123)
@@ -12271,12 +12834,18 @@ describe('Market', () => {
             ...DEFAULT_POSITION,
             timestamp: ORACLE_VERSION_3.timestamp,
             long: POSITION.div(2),
+          })
+          expectCheckpointEq(await market.checkpoints(user.address, 1), {
+            ...DEFAULT_CHECKPOINT,
             delta: COLLATERAL,
           })
           expectPositionEq(await market.pendingPositions(user.address, 2), {
             ...DEFAULT_POSITION,
             timestamp: ORACLE_VERSION_4.timestamp,
             long: POSITION.div(2),
+          })
+          expectCheckpointEq(await market.checkpoints(user.address, 2), {
+            ...DEFAULT_CHECKPOINT,
             delta: COLLATERAL,
           })
           expectLocalEq(await market.locals(userB.address), {
@@ -12294,12 +12863,18 @@ describe('Market', () => {
             ...DEFAULT_POSITION,
             timestamp: ORACLE_VERSION_2.timestamp,
             maker: POSITION,
+          })
+          expectCheckpointEq(await market.checkpoints(userB.address, 1), {
+            ...DEFAULT_CHECKPOINT,
             delta: COLLATERAL,
           })
           expectPositionEq(await market.pendingPositions(userB.address, 2), {
             ...DEFAULT_POSITION,
             timestamp: ORACLE_VERSION_4.timestamp,
             maker: POSITION,
+          })
+          expectCheckpointEq(await market.checkpoints(userB.address, 2), {
+            ...DEFAULT_CHECKPOINT,
             delta: COLLATERAL,
           })
           expectGlobalEq(await market.global(), {
@@ -12395,19 +12970,31 @@ describe('Market', () => {
             ...DEFAULT_POSITION,
             timestamp: ORACLE_VERSION_3.timestamp,
             long: POSITION.div(2),
+          })
+          expectCheckpointEq(await market.checkpoints(user.address, 1), {
+            ...DEFAULT_CHECKPOINT,
             delta: COLLATERAL,
           })
           expectPositionEq(await market.pendingPositions(user.address, 2), {
             ...DEFAULT_POSITION,
             timestamp: ORACLE_VERSION_4.timestamp,
             long: POSITION.div(2),
+          })
+          expectCheckpointEq(await market.checkpoints(user.address, 2), {
+            ...DEFAULT_CHECKPOINT,
+            delta: COLLATERAL.sub(SETTLEMENT_FEE),
+          })
+          expectCheckpointEq(await market.checkpoints(user.address, 2), {
+            ...DEFAULT_CHECKPOINT,
             delta: COLLATERAL,
-            collateral: COLLATERAL.sub(SETTLEMENT_FEE),
           })
           expectPositionEq(await market.pendingPositions(user.address, 3), {
             ...DEFAULT_POSITION,
             timestamp: ORACLE_VERSION_5.timestamp,
             long: POSITION.div(2),
+          })
+          expectCheckpointEq(await market.checkpoints(user.address, 3), {
+            ...DEFAULT_CHECKPOINT,
             delta: COLLATERAL,
           })
           expectLocalEq(await market.locals(userB.address), {
@@ -12425,12 +13012,18 @@ describe('Market', () => {
             ...DEFAULT_POSITION,
             timestamp: ORACLE_VERSION_2.timestamp,
             maker: POSITION,
+          })
+          expectCheckpointEq(await market.checkpoints(userB.address, 1), {
+            ...DEFAULT_CHECKPOINT,
             delta: COLLATERAL,
           })
           expectPositionEq(await market.pendingPositions(userB.address, 2), {
             ...DEFAULT_POSITION,
             timestamp: ORACLE_VERSION_5.timestamp,
             maker: POSITION,
+          })
+          expectCheckpointEq(await market.checkpoints(userB.address, 2), {
+            ...DEFAULT_CHECKPOINT,
             delta: COLLATERAL,
           })
           expectGlobalEq(await market.global(), {
@@ -12537,12 +13130,18 @@ describe('Market', () => {
             ...DEFAULT_POSITION,
             timestamp: ORACLE_VERSION_3.timestamp,
             long: POSITION.div(2),
+          })
+          expectCheckpointEq(await market.checkpoints(user.address, 1), {
+            ...DEFAULT_CHECKPOINT,
             delta: COLLATERAL,
           })
           expectPositionEq(await market.pendingPositions(user.address, 2), {
             ...DEFAULT_POSITION,
             timestamp: ORACLE_VERSION_4.timestamp,
             long: POSITION.div(2),
+          })
+          expectCheckpointEq(await market.checkpoints(user.address, 2), {
+            ...DEFAULT_CHECKPOINT,
             collateral: COLLATERAL.sub(SETTLEMENT_FEE),
             delta: COLLATERAL,
           })
@@ -12550,6 +13149,9 @@ describe('Market', () => {
             ...DEFAULT_POSITION,
             timestamp: ORACLE_VERSION_5.timestamp,
             long: POSITION.div(2),
+          })
+          expectCheckpointEq(await market.checkpoints(user.address, 3), {
+            ...DEFAULT_CHECKPOINT,
             delta: COLLATERAL,
           })
           expectLocalEq(await market.locals(userB.address), {
@@ -12567,12 +13169,18 @@ describe('Market', () => {
             ...DEFAULT_POSITION,
             timestamp: ORACLE_VERSION_2.timestamp,
             maker: POSITION,
+          })
+          expectCheckpointEq(await market.checkpoints(userB.address, 1), {
+            ...DEFAULT_CHECKPOINT,
             delta: COLLATERAL,
           })
           expectPositionEq(await market.pendingPositions(userB.address, 2), {
             ...DEFAULT_POSITION,
             timestamp: ORACLE_VERSION_5.timestamp,
             maker: POSITION,
+          })
+          expectCheckpointEq(await market.checkpoints(userB.address, 2), {
+            ...DEFAULT_CHECKPOINT,
             delta: COLLATERAL,
           })
           expectGlobalEq(await market.global(), {
@@ -12679,12 +13287,18 @@ describe('Market', () => {
             ...DEFAULT_POSITION,
             timestamp: ORACLE_VERSION_3.timestamp,
             long: POSITION.div(2),
+          })
+          expectCheckpointEq(await market.checkpoints(user.address, 1), {
+            ...DEFAULT_CHECKPOINT,
             delta: COLLATERAL,
           })
           expectPositionEq(await market.pendingPositions(user.address, 2), {
             ...DEFAULT_POSITION,
             timestamp: ORACLE_VERSION_4.timestamp,
             long: POSITION.div(2),
+          })
+          expectCheckpointEq(await market.checkpoints(user.address, 2), {
+            ...DEFAULT_CHECKPOINT,
             collateral: COLLATERAL.sub(SETTLEMENT_FEE),
             delta: COLLATERAL,
           })
@@ -12692,6 +13306,9 @@ describe('Market', () => {
             ...DEFAULT_POSITION,
             timestamp: ORACLE_VERSION_5.timestamp,
             long: POSITION.div(2),
+          })
+          expectCheckpointEq(await market.checkpoints(user.address, 3), {
+            ...DEFAULT_CHECKPOINT,
             delta: COLLATERAL,
           })
           expectLocalEq(await market.locals(userB.address), {
@@ -12709,12 +13326,18 @@ describe('Market', () => {
             ...DEFAULT_POSITION,
             timestamp: ORACLE_VERSION_2.timestamp,
             maker: POSITION,
+          })
+          expectCheckpointEq(await market.checkpoints(userB.address, 1), {
+            ...DEFAULT_CHECKPOINT,
             delta: COLLATERAL,
           })
           expectPositionEq(await market.pendingPositions(userB.address, 2), {
             ...DEFAULT_POSITION,
             timestamp: ORACLE_VERSION_5.timestamp,
             maker: POSITION,
+          })
+          expectCheckpointEq(await market.checkpoints(userB.address, 2), {
+            ...DEFAULT_CHECKPOINT,
             delta: COLLATERAL,
           })
           expectGlobalEq(await market.global(), {
@@ -12831,12 +13454,18 @@ describe('Market', () => {
             ...DEFAULT_POSITION,
             timestamp: ORACLE_VERSION_3.timestamp,
             long: POSITION.div(2),
+          })
+          expectCheckpointEq(await market.checkpoints(user.address, 1), {
+            ...DEFAULT_CHECKPOINT,
             delta: COLLATERAL,
           })
           expectPositionEq(await market.pendingPositions(user.address, 2), {
             ...DEFAULT_POSITION,
             timestamp: ORACLE_VERSION_4.timestamp,
             long: POSITION.div(2),
+          })
+          expectCheckpointEq(await market.checkpoints(user.address, 2), {
+            ...DEFAULT_CHECKPOINT,
             collateral: COLLATERAL.sub(SETTLEMENT_FEE),
             delta: COLLATERAL,
           })
@@ -12844,6 +13473,9 @@ describe('Market', () => {
             ...DEFAULT_POSITION,
             timestamp: ORACLE_VERSION_5.timestamp,
             long: POSITION.div(2),
+          })
+          expectCheckpointEq(await market.checkpoints(user.address, 3), {
+            ...DEFAULT_CHECKPOINT,
             collateral: COLLATERAL.sub(SETTLEMENT_FEE),
             delta: COLLATERAL,
           })
@@ -12851,6 +13483,9 @@ describe('Market', () => {
             ...DEFAULT_POSITION,
             timestamp: ORACLE_VERSION_6.timestamp,
             long: POSITION.div(2),
+          })
+          expectCheckpointEq(await market.checkpoints(user.address, 4), {
+            ...DEFAULT_CHECKPOINT,
             delta: COLLATERAL,
           })
           expectLocalEq(await market.locals(userB.address), {
@@ -12868,12 +13503,18 @@ describe('Market', () => {
             ...DEFAULT_POSITION,
             timestamp: ORACLE_VERSION_2.timestamp,
             maker: POSITION,
+          })
+          expectCheckpointEq(await market.checkpoints(userB.address, 1), {
+            ...DEFAULT_CHECKPOINT,
             delta: COLLATERAL,
           })
           expectPositionEq(await market.pendingPositions(userB.address, 2), {
             ...DEFAULT_POSITION,
             timestamp: ORACLE_VERSION_6.timestamp,
             maker: POSITION,
+          })
+          expectCheckpointEq(await market.checkpoints(userB.address, 2), {
+            ...DEFAULT_CHECKPOINT,
             delta: COLLATERAL,
           })
           expectGlobalEq(await market.global(), {
@@ -12966,6 +13607,9 @@ describe('Market', () => {
             ...DEFAULT_POSITION,
             timestamp: ORACLE_VERSION_4.timestamp,
             long: POSITION.div(2),
+          })
+          expectCheckpointEq(await market.checkpoints(user.address, 2), {
+            ...DEFAULT_CHECKPOINT,
             delta: COLLATERAL,
           })
           expectLocalEq(await market.locals(userB.address), {
@@ -12985,6 +13629,9 @@ describe('Market', () => {
             ...DEFAULT_POSITION,
             timestamp: ORACLE_VERSION_4.timestamp,
             maker: POSITION,
+          })
+          expectCheckpointEq(await market.checkpoints(userB.address, 2), {
+            ...DEFAULT_CHECKPOINT,
             delta: COLLATERAL,
           })
           const totalFee = EXPECTED_FUNDING_FEE_1_5_123.add(EXPECTED_INTEREST_FEE_5_123)
@@ -13058,6 +13705,9 @@ describe('Market', () => {
           expectPositionEq(await market.pendingPositions(user.address, 3), {
             ...DEFAULT_POSITION,
             timestamp: ORACLE_VERSION_5.timestamp,
+          })
+          expectCheckpointEq(await market.checkpoints(user.address, 3), {
+            ...DEFAULT_CHECKPOINT,
             delta: COLLATERAL,
           })
           expectLocalEq(await market.locals(userB.address), {
@@ -13079,6 +13729,9 @@ describe('Market', () => {
             ...DEFAULT_POSITION,
             timestamp: ORACLE_VERSION_5.timestamp,
             maker: POSITION,
+          })
+          expectCheckpointEq(await market.checkpoints(userB.address, 2), {
+            ...DEFAULT_CHECKPOINT,
             delta: COLLATERAL,
           })
           expectLocalEq(await market.locals(userC.address), {
@@ -13096,6 +13749,9 @@ describe('Market', () => {
             ...DEFAULT_POSITION,
             timestamp: ORACLE_VERSION_5.timestamp,
             short: POSITION.div(2),
+          })
+          expectCheckpointEq(await market.checkpoints(userC.address, 2), {
+            ...DEFAULT_CHECKPOINT,
             delta: COLLATERAL,
           })
           const totalFee = EXPECTED_FUNDING_FEE_1_5_123.add(EXPECTED_INTEREST_FEE_5_123)
@@ -13174,6 +13830,9 @@ describe('Market', () => {
           expectPositionEq(await market.pendingPositions(user.address, 3), {
             ...DEFAULT_POSITION,
             timestamp: ORACLE_VERSION_5.timestamp,
+          })
+          expectCheckpointEq(await market.checkpoints(user.address, 3), {
+            ...DEFAULT_CHECKPOINT,
             delta: COLLATERAL,
           })
           expectLocalEq(await market.locals(userB.address), {
@@ -13195,6 +13854,9 @@ describe('Market', () => {
             ...DEFAULT_POSITION,
             timestamp: ORACLE_VERSION_5.timestamp,
             maker: POSITION,
+          })
+          expectCheckpointEq(await market.checkpoints(userB.address, 2), {
+            ...DEFAULT_CHECKPOINT,
             delta: COLLATERAL,
           })
           expectLocalEq(await market.locals(userC.address), {
@@ -13212,6 +13874,9 @@ describe('Market', () => {
             ...DEFAULT_POSITION,
             timestamp: ORACLE_VERSION_5.timestamp,
             short: POSITION.div(2),
+          })
+          expectCheckpointEq(await market.checkpoints(userC.address, 2), {
+            ...DEFAULT_CHECKPOINT,
             delta: COLLATERAL,
           })
           const totalFee = EXPECTED_FUNDING_FEE_1_5_123.add(EXPECTED_INTEREST_FEE_5_123)
@@ -13280,6 +13945,9 @@ describe('Market', () => {
             ...DEFAULT_POSITION,
             timestamp: ORACLE_VERSION_2.timestamp,
             maker: POSITION,
+          })
+          expectCheckpointEq(await market.checkpoints(user.address, 1), {
+            ...DEFAULT_CHECKPOINT,
             delta: COLLATERAL,
           })
           expectGlobalEq(await market.global(), {
@@ -13395,18 +14063,27 @@ describe('Market', () => {
             ...DEFAULT_POSITION,
             timestamp: ORACLE_VERSION_2.timestamp,
             long: POSITION.div(2),
+          })
+          expectCheckpointEq(await market.checkpoints(user.address, 1), {
+            ...DEFAULT_CHECKPOINT,
             delta: COLLATERAL,
           })
           expectPositionEq(await market.pendingPositions(userB.address, 1), {
             ...DEFAULT_POSITION,
             timestamp: ORACLE_VERSION_2.timestamp,
             maker: POSITION,
+          })
+          expectCheckpointEq(await market.checkpoints(userB.address, 1), {
+            ...DEFAULT_CHECKPOINT,
             delta: COLLATERAL,
           })
           expectPositionEq(await market.pendingPositions(userC.address, 1), {
             ...DEFAULT_POSITION,
             timestamp: ORACLE_VERSION_2.timestamp,
             short: POSITION.div(2),
+          })
+          expectCheckpointEq(await market.checkpoints(userC.address, 1), {
+            ...DEFAULT_CHECKPOINT,
             delta: COLLATERAL,
           })
 
@@ -13418,18 +14095,27 @@ describe('Market', () => {
             ...DEFAULT_POSITION,
             timestamp: ORACLE_VERSION_2.timestamp,
             long: POSITION.div(2),
+          })
+          expectCheckpointEq(await market.checkpoints(user.address, 1), {
+            ...DEFAULT_CHECKPOINT,
             delta: COLLATERAL,
           })
           expectPositionEq(await market.pendingPositions(userB.address, 1), {
             ...DEFAULT_POSITION,
             timestamp: ORACLE_VERSION_2.timestamp,
             maker: POSITION,
+          })
+          expectCheckpointEq(await market.checkpoints(userB.address, 1), {
+            ...DEFAULT_CHECKPOINT,
             delta: COLLATERAL,
           })
           expectPositionEq(await market.pendingPositions(userC.address, 1), {
             ...DEFAULT_POSITION,
             timestamp: ORACLE_VERSION_2.timestamp,
             short: POSITION.div(2),
+          })
+          expectCheckpointEq(await market.checkpoints(userC.address, 1), {
+            ...DEFAULT_CHECKPOINT,
             delta: COLLATERAL,
           })
 
@@ -13468,18 +14154,27 @@ describe('Market', () => {
             ...DEFAULT_POSITION,
             timestamp: ORACLE_VERSION_2.timestamp,
             long: POSITION.div(2),
+          })
+          expectCheckpointEq(await market.checkpoints(user.address, 1), {
+            ...DEFAULT_CHECKPOINT,
             delta: COLLATERAL,
           })
           expectPositionEq(await market.pendingPositions(userB.address, 1), {
             ...DEFAULT_POSITION,
             timestamp: ORACLE_VERSION_2.timestamp,
             maker: POSITION,
+          })
+          expectCheckpointEq(await market.checkpoints(userB.address, 1), {
+            ...DEFAULT_CHECKPOINT,
             delta: COLLATERAL,
           })
           expectPositionEq(await market.pendingPositions(userC.address, 1), {
             ...DEFAULT_POSITION,
             timestamp: ORACLE_VERSION_2.timestamp,
             short: POSITION.div(2),
+          })
+          expectCheckpointEq(await market.checkpoints(userC.address, 1), {
+            ...DEFAULT_CHECKPOINT,
             delta: COLLATERAL,
           })
         })
@@ -13493,18 +14188,27 @@ describe('Market', () => {
             ...DEFAULT_POSITION,
             timestamp: ORACLE_VERSION_2.timestamp,
             long: POSITION.div(2),
+          })
+          expectCheckpointEq(await market.checkpoints(user.address, 1), {
+            ...DEFAULT_CHECKPOINT,
             delta: COLLATERAL,
           })
           expectPositionEq(await market.pendingPositions(userB.address, 1), {
             ...DEFAULT_POSITION,
             timestamp: ORACLE_VERSION_2.timestamp,
             maker: POSITION,
+          })
+          expectCheckpointEq(await market.checkpoints(userB.address, 1), {
+            ...DEFAULT_CHECKPOINT,
             delta: COLLATERAL,
           })
           expectPositionEq(await market.pendingPositions(userC.address, 1), {
             ...DEFAULT_POSITION,
             timestamp: ORACLE_VERSION_2.timestamp,
             short: POSITION.div(2),
+          })
+          expectCheckpointEq(await market.checkpoints(userC.address, 1), {
+            ...DEFAULT_CHECKPOINT,
             delta: COLLATERAL,
           })
 
@@ -13515,16 +14219,25 @@ describe('Market', () => {
           expectPositionEq(await market.pendingPositions(user.address, 1), {
             ...DEFAULT_POSITION,
             timestamp: ORACLE_VERSION_2.timestamp,
+          })
+          expectCheckpointEq(await market.checkpoints(user.address, 1), {
+            ...DEFAULT_CHECKPOINT,
             delta: COLLATERAL,
           })
           expectPositionEq(await market.pendingPositions(userB.address, 1), {
             ...DEFAULT_POSITION,
             timestamp: ORACLE_VERSION_2.timestamp,
+          })
+          expectCheckpointEq(await market.checkpoints(userB.address, 1), {
+            ...DEFAULT_CHECKPOINT,
             delta: COLLATERAL,
           })
           expectPositionEq(await market.pendingPositions(userC.address, 1), {
             ...DEFAULT_POSITION,
             timestamp: ORACLE_VERSION_2.timestamp,
+          })
+          expectCheckpointEq(await market.checkpoints(userC.address, 1), {
+            ...DEFAULT_CHECKPOINT,
             delta: COLLATERAL,
           })
 
@@ -13536,18 +14249,27 @@ describe('Market', () => {
             ...DEFAULT_POSITION,
             timestamp: ORACLE_VERSION_2.timestamp,
             long: POSITION.div(2),
+          })
+          expectCheckpointEq(await market.checkpoints(user.address, 1), {
+            ...DEFAULT_CHECKPOINT,
             delta: COLLATERAL,
           })
           expectPositionEq(await market.pendingPositions(userB.address, 1), {
             ...DEFAULT_POSITION,
             timestamp: ORACLE_VERSION_2.timestamp,
             maker: POSITION,
+          })
+          expectCheckpointEq(await market.checkpoints(userB.address, 1), {
+            ...DEFAULT_CHECKPOINT,
             delta: COLLATERAL,
           })
           expectPositionEq(await market.pendingPositions(userC.address, 1), {
             ...DEFAULT_POSITION,
             timestamp: ORACLE_VERSION_2.timestamp,
             short: POSITION.div(2),
+          })
+          expectCheckpointEq(await market.checkpoints(userC.address, 1), {
+            ...DEFAULT_CHECKPOINT,
             delta: COLLATERAL,
           })
 
@@ -13585,16 +14307,25 @@ describe('Market', () => {
           expectPositionEq(await market.pendingPositions(user.address, 1), {
             ...DEFAULT_POSITION,
             timestamp: ORACLE_VERSION_2.timestamp,
+          })
+          expectCheckpointEq(await market.checkpoints(user.address, 1), {
+            ...DEFAULT_CHECKPOINT,
             delta: COLLATERAL,
           })
           expectPositionEq(await market.pendingPositions(userB.address, 1), {
             ...DEFAULT_POSITION,
             timestamp: ORACLE_VERSION_2.timestamp,
+          })
+          expectCheckpointEq(await market.checkpoints(userB.address, 1), {
+            ...DEFAULT_CHECKPOINT,
             delta: COLLATERAL,
           })
           expectPositionEq(await market.pendingPositions(userC.address, 1), {
             ...DEFAULT_POSITION,
             timestamp: ORACLE_VERSION_2.timestamp,
+          })
+          expectCheckpointEq(await market.checkpoints(userC.address, 1), {
+            ...DEFAULT_CHECKPOINT,
             delta: COLLATERAL,
           })
         })
@@ -13608,18 +14339,27 @@ describe('Market', () => {
             ...DEFAULT_POSITION,
             timestamp: ORACLE_VERSION_2.timestamp,
             long: POSITION.div(2),
+          })
+          expectCheckpointEq(await market.checkpoints(user.address, 1), {
+            ...DEFAULT_CHECKPOINT,
             delta: COLLATERAL,
           })
           expectPositionEq(await market.pendingPositions(userB.address, 1), {
             ...DEFAULT_POSITION,
             timestamp: ORACLE_VERSION_2.timestamp,
             maker: POSITION,
+          })
+          expectCheckpointEq(await market.checkpoints(userB.address, 1), {
+            ...DEFAULT_CHECKPOINT,
             delta: COLLATERAL,
           })
           expectPositionEq(await market.pendingPositions(userC.address, 1), {
             ...DEFAULT_POSITION,
             timestamp: ORACLE_VERSION_2.timestamp,
             short: POSITION.div(2),
+          })
+          expectCheckpointEq(await market.checkpoints(userC.address, 1), {
+            ...DEFAULT_CHECKPOINT,
             delta: COLLATERAL,
           })
 
@@ -13634,16 +14374,25 @@ describe('Market', () => {
           expectPositionEq(await market.pendingPositions(user.address, 2), {
             ...DEFAULT_POSITION,
             timestamp: ORACLE_VERSION_3.timestamp,
+          })
+          expectCheckpointEq(await market.checkpoints(user.address, 2), {
+            ...DEFAULT_CHECKPOINT,
             delta: COLLATERAL,
           })
           expectPositionEq(await market.pendingPositions(userB.address, 2), {
             ...DEFAULT_POSITION,
             timestamp: ORACLE_VERSION_3.timestamp,
+          })
+          expectCheckpointEq(await market.checkpoints(userB.address, 2), {
+            ...DEFAULT_CHECKPOINT,
             delta: COLLATERAL,
           })
           expectPositionEq(await market.pendingPositions(userC.address, 2), {
             ...DEFAULT_POSITION,
             timestamp: ORACLE_VERSION_3.timestamp,
+          })
+          expectCheckpointEq(await market.checkpoints(userC.address, 2), {
+            ...DEFAULT_CHECKPOINT,
             delta: COLLATERAL,
           })
 
@@ -13659,18 +14408,27 @@ describe('Market', () => {
             ...DEFAULT_POSITION,
             timestamp: ORACLE_VERSION_4.timestamp,
             long: POSITION.div(2),
+          })
+          expectCheckpointEq(await market.checkpoints(user.address, 3), {
+            ...DEFAULT_CHECKPOINT,
             delta: COLLATERAL,
           })
           expectPositionEq(await market.pendingPositions(userB.address, 3), {
             ...DEFAULT_POSITION,
             timestamp: ORACLE_VERSION_4.timestamp,
             maker: POSITION,
+          })
+          expectCheckpointEq(await market.checkpoints(userB.address, 3), {
+            ...DEFAULT_CHECKPOINT,
             delta: COLLATERAL,
           })
           expectPositionEq(await market.pendingPositions(userC.address, 3), {
             ...DEFAULT_POSITION,
             timestamp: ORACLE_VERSION_4.timestamp,
             short: POSITION.div(2),
+          })
+          expectCheckpointEq(await market.checkpoints(userC.address, 3), {
+            ...DEFAULT_CHECKPOINT,
             delta: COLLATERAL,
           })
 
@@ -13712,16 +14470,25 @@ describe('Market', () => {
           expectPositionEq(await market.pendingPositions(user.address, 4), {
             ...DEFAULT_POSITION,
             timestamp: ORACLE_VERSION_5.timestamp,
+          })
+          expectCheckpointEq(await market.checkpoints(user.address, 4), {
+            ...DEFAULT_CHECKPOINT,
             delta: COLLATERAL,
           })
           expectPositionEq(await market.pendingPositions(userB.address, 4), {
             ...DEFAULT_POSITION,
             timestamp: ORACLE_VERSION_5.timestamp,
+          })
+          expectCheckpointEq(await market.checkpoints(userB.address, 4), {
+            ...DEFAULT_CHECKPOINT,
             delta: COLLATERAL,
           })
           expectPositionEq(await market.pendingPositions(userC.address, 4), {
             ...DEFAULT_POSITION,
             timestamp: ORACLE_VERSION_5.timestamp,
+          })
+          expectCheckpointEq(await market.checkpoints(userC.address, 4), {
+            ...DEFAULT_CHECKPOINT,
             delta: COLLATERAL,
           })
         })
@@ -13739,18 +14506,27 @@ describe('Market', () => {
             ...DEFAULT_POSITION,
             timestamp: ORACLE_VERSION_2.timestamp,
             long: POSITION.div(2),
+          })
+          expectCheckpointEq(await market.checkpoints(user.address, 1), {
+            ...DEFAULT_CHECKPOINT,
             delta: COLLATERAL,
           })
           expectPositionEq(await market.pendingPositions(userB.address, 1), {
             ...DEFAULT_POSITION,
             timestamp: ORACLE_VERSION_2.timestamp,
             maker: POSITION,
+          })
+          expectCheckpointEq(await market.checkpoints(userB.address, 1), {
+            ...DEFAULT_CHECKPOINT,
             delta: COLLATERAL,
           })
           expectPositionEq(await market.pendingPositions(userC.address, 1), {
             ...DEFAULT_POSITION,
             timestamp: ORACLE_VERSION_2.timestamp,
             short: POSITION.div(2),
+          })
+          expectCheckpointEq(await market.checkpoints(userC.address, 1), {
+            ...DEFAULT_CHECKPOINT,
             delta: COLLATERAL,
           })
 
@@ -13766,18 +14542,27 @@ describe('Market', () => {
             ...DEFAULT_POSITION,
             timestamp: ORACLE_VERSION_3.timestamp,
             long: POSITION.div(2),
+          })
+          expectCheckpointEq(await market.checkpoints(user.address, 2), {
+            ...DEFAULT_CHECKPOINT,
             delta: COLLATERAL,
           })
           expectPositionEq(await market.pendingPositions(userB.address, 2), {
             ...DEFAULT_POSITION,
             timestamp: ORACLE_VERSION_3.timestamp,
             maker: POSITION,
+          })
+          expectCheckpointEq(await market.checkpoints(userB.address, 2), {
+            ...DEFAULT_CHECKPOINT,
             delta: COLLATERAL,
           })
           expectPositionEq(await market.pendingPositions(userC.address, 2), {
             ...DEFAULT_POSITION,
             timestamp: ORACLE_VERSION_3.timestamp,
             short: POSITION.div(2),
+          })
+          expectCheckpointEq(await market.checkpoints(userC.address, 2), {
+            ...DEFAULT_CHECKPOINT,
             delta: COLLATERAL,
           })
 
@@ -13816,18 +14601,27 @@ describe('Market', () => {
             ...DEFAULT_POSITION,
             timestamp: ORACLE_VERSION_3.timestamp,
             long: POSITION.div(2),
+          })
+          expectCheckpointEq(await market.checkpoints(user.address, 2), {
+            ...DEFAULT_CHECKPOINT,
             delta: COLLATERAL,
           })
           expectPositionEq(await market.pendingPositions(userB.address, 2), {
             ...DEFAULT_POSITION,
             timestamp: ORACLE_VERSION_3.timestamp,
             maker: POSITION,
+          })
+          expectCheckpointEq(await market.checkpoints(userB.address, 2), {
+            ...DEFAULT_CHECKPOINT,
             delta: COLLATERAL,
           })
           expectPositionEq(await market.pendingPositions(userC.address, 2), {
             ...DEFAULT_POSITION,
             timestamp: ORACLE_VERSION_3.timestamp,
             short: POSITION.div(2),
+          })
+          expectCheckpointEq(await market.checkpoints(userC.address, 2), {
+            ...DEFAULT_CHECKPOINT,
             delta: COLLATERAL,
           })
         })
@@ -13861,18 +14655,27 @@ describe('Market', () => {
             ...DEFAULT_POSITION,
             timestamp: ORACLE_VERSION_4.timestamp,
             long: POSITION.div(2),
+          })
+          expectCheckpointEq(await market.checkpoints(user.address, 3), {
+            ...DEFAULT_CHECKPOINT,
             delta: COLLATERAL,
           })
           expectPositionEq(await market.pendingPositions(userB.address, 3), {
             ...DEFAULT_POSITION,
             timestamp: ORACLE_VERSION_4.timestamp,
             maker: POSITION,
+          })
+          expectCheckpointEq(await market.checkpoints(userB.address, 3), {
+            ...DEFAULT_CHECKPOINT,
             delta: COLLATERAL,
           })
           expectPositionEq(await market.pendingPositions(userC.address, 3), {
             ...DEFAULT_POSITION,
             timestamp: ORACLE_VERSION_4.timestamp,
             short: POSITION.div(2),
+          })
+          expectCheckpointEq(await market.checkpoints(userC.address, 3), {
+            ...DEFAULT_CHECKPOINT,
             delta: COLLATERAL,
           })
 
@@ -13911,18 +14714,27 @@ describe('Market', () => {
             ...DEFAULT_POSITION,
             timestamp: ORACLE_VERSION_4.timestamp,
             long: POSITION.div(2),
+          })
+          expectCheckpointEq(await market.checkpoints(user.address, 3), {
+            ...DEFAULT_CHECKPOINT,
             delta: COLLATERAL,
           })
           expectPositionEq(await market.pendingPositions(userB.address, 3), {
             ...DEFAULT_POSITION,
             timestamp: ORACLE_VERSION_4.timestamp,
             maker: POSITION,
+          })
+          expectCheckpointEq(await market.checkpoints(userB.address, 3), {
+            ...DEFAULT_CHECKPOINT,
             delta: COLLATERAL,
           })
           expectPositionEq(await market.pendingPositions(userC.address, 3), {
             ...DEFAULT_POSITION,
             timestamp: ORACLE_VERSION_4.timestamp,
             short: POSITION.div(2),
+          })
+          expectCheckpointEq(await market.checkpoints(userC.address, 3), {
+            ...DEFAULT_CHECKPOINT,
             delta: COLLATERAL,
           })
         })
@@ -13983,6 +14795,9 @@ describe('Market', () => {
               ...DEFAULT_POSITION,
               timestamp: ORACLE_VERSION_4.timestamp,
               long: POSITION.div(2),
+            })
+            expectCheckpointEq(await market.checkpoints(user.address, 3), {
+              ...DEFAULT_CHECKPOINT,
               delta: COLLATERAL,
             })
             expectLocalEq(await market.locals(userB.address), {
@@ -14002,6 +14817,9 @@ describe('Market', () => {
               ...DEFAULT_POSITION,
               timestamp: ORACLE_VERSION_4.timestamp,
               maker: POSITION,
+            })
+            expectCheckpointEq(await market.checkpoints(userB.address, 3), {
+              ...DEFAULT_CHECKPOINT,
               delta: COLLATERAL,
             })
             const totalFee = EXPECTED_FUNDING_FEE_1_5_123_V.add(EXPECTED_INTEREST_FEE_5_123)
@@ -14088,6 +14906,9 @@ describe('Market', () => {
               ...DEFAULT_POSITION,
               timestamp: ORACLE_VERSION_4.timestamp,
               short: POSITION.div(2),
+            })
+            expectCheckpointEq(await market.checkpoints(user.address, 3), {
+              ...DEFAULT_CHECKPOINT,
               delta: COLLATERAL,
             })
             expectLocalEq(await market.locals(userB.address), {
@@ -14107,6 +14928,9 @@ describe('Market', () => {
               ...DEFAULT_POSITION,
               timestamp: ORACLE_VERSION_4.timestamp,
               maker: POSITION,
+            })
+            expectCheckpointEq(await market.checkpoints(userB.address, 3), {
+              ...DEFAULT_CHECKPOINT,
               delta: COLLATERAL,
             })
             const totalFee = EXPECTED_FUNDING_FEE_1_5_123_V.add(EXPECTED_INTEREST_FEE_5_123)

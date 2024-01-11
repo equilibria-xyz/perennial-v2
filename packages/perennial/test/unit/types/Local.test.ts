@@ -7,6 +7,7 @@ import { LocalTester, LocalTester__factory } from '../../../types/generated'
 import { BigNumber } from 'ethers'
 import { parse6decimal } from '../../../../common/testutil/types'
 import {
+  DEFAULT_ORDER,
   LocalStruct,
   PositionStruct,
   VersionStruct,
@@ -222,8 +223,6 @@ describe('Local', () => {
       maker: parse6decimal('987'),
       long: parse6decimal('654'),
       short: parse6decimal('321'),
-      collateral: 0, // unused
-      delta: 0, // unused
       invalidation: {
         maker: 0, // unused
         long: 0, // unused
@@ -236,8 +235,6 @@ describe('Local', () => {
       maker: 0, // unused
       long: 0, // unused
       short: 0, // unused
-      collateral: 0, // unused
-      delta: 0, // unused
       invalidation: {
         maker: 0, // unused
         long: 0, // unused
@@ -419,19 +416,6 @@ describe('Local', () => {
       skewScale: 14,
     }
 
-    const VALID_ORDER: OrderStruct = {
-      maker: 0,
-      long: 0,
-      short: 0,
-      skew: 0,
-      impact: 0,
-      efficiency: 0,
-      fee: 0,
-      keeper: 0,
-      utilization: 0,
-      net: 0,
-    }
-
     const TO_POSITION: PositionStruct = {
       timestamp: 0, // unused
       maker: 0, // unused
@@ -453,11 +437,11 @@ describe('Local', () => {
         VALID_RISK_PARAMETER,
         VALID_ORACLE_VERSION,
         123,
-        VALID_ORDER,
+        DEFAULT_ORDER,
         owner.address,
         false,
       )
-      await local.protect(VALID_RISK_PARAMETER, VALID_ORACLE_VERSION, 123, VALID_ORDER, owner.address, false)
+      await local.protect(VALID_RISK_PARAMETER, VALID_ORACLE_VERSION, 123, DEFAULT_ORDER, owner.address, false)
 
       const value = await local.read()
 
@@ -473,11 +457,11 @@ describe('Local', () => {
         VALID_RISK_PARAMETER,
         VALID_ORACLE_VERSION,
         123,
-        VALID_ORDER,
+        DEFAULT_ORDER,
         owner.address,
         false,
       )
-      await local.protect(VALID_RISK_PARAMETER, VALID_ORACLE_VERSION, 123, VALID_ORDER, owner.address, false)
+      await local.protect(VALID_RISK_PARAMETER, VALID_ORACLE_VERSION, 123, DEFAULT_ORDER, owner.address, false)
 
       const value = await local.read()
 
@@ -499,7 +483,7 @@ describe('Local', () => {
         VALID_RISK_PARAMETER,
         { ...VALID_ORACLE_VERSION, timestamp: 123 },
         127,
-        VALID_ORDER,
+        DEFAULT_ORDER,
         owner.address,
         true,
       )
@@ -507,7 +491,7 @@ describe('Local', () => {
         VALID_RISK_PARAMETER,
         { ...VALID_ORACLE_VERSION, timestamp: 123 },
         127,
-        VALID_ORDER,
+        DEFAULT_ORDER,
         owner.address,
         true,
       )
@@ -532,7 +516,7 @@ describe('Local', () => {
         VALID_RISK_PARAMETER,
         { ...VALID_ORACLE_VERSION, timestamp: 124 },
         127,
-        { ...VALID_ORDER, long: parse6decimal('1') },
+        { ...DEFAULT_ORDER, long: parse6decimal('1') },
         owner.address,
         true,
       )
@@ -540,7 +524,7 @@ describe('Local', () => {
         VALID_RISK_PARAMETER,
         { ...VALID_ORACLE_VERSION, timestamp: 124 },
         127,
-        { ...VALID_ORDER, long: parse6decimal('1') },
+        { ...DEFAULT_ORDER, long: parse6decimal('1') },
         owner.address,
         true,
       )
@@ -565,7 +549,7 @@ describe('Local', () => {
         VALID_RISK_PARAMETER,
         { ...VALID_ORACLE_VERSION, timestamp: 124 },
         127,
-        { ...VALID_ORDER, long: parse6decimal('1') },
+        { ...DEFAULT_ORDER, long: parse6decimal('1') },
         owner.address,
         true,
       )
@@ -573,7 +557,7 @@ describe('Local', () => {
         VALID_RISK_PARAMETER,
         { ...VALID_ORACLE_VERSION, timestamp: 124 },
         127,
-        { ...VALID_ORDER, long: parse6decimal('1') },
+        { ...DEFAULT_ORDER, long: parse6decimal('1') },
         owner.address,
         true,
       )
@@ -585,57 +569,6 @@ describe('Local', () => {
       expect(value.protection).to.equal(127)
       expect(value.protectionAmount).to.equal(10)
       expect(value.protectionInitiator).to.equal(owner.address)
-    })
-  })
-
-  describe('#liquidationFee', () => {
-    const TO_POSITION: PositionStruct = {
-      timestamp: 0, // unused
-      maker: 0, // unused
-      long: 0, // unused
-      short: 0, // unused
-      fee: 0, // unused
-      keeper: 0, // unused
-      collateral: 0, // unused
-      delta: 0, // unused
-      invalidation: {
-        maker: 0, // unused
-        long: 0, // unused
-        short: 0, // unused
-      },
-    }
-
-    it('non-zero if protected at version', async () => {
-      await local.store({
-        ...DEFAULT_LOCAL,
-        protection: 123,
-        protectionAmount: 5,
-        protectionInitiator: owner.address,
-      })
-
-      expect(await local.pendingLiquidationFee({ ...TO_POSITION, timestamp: 122 })).to.equal(5)
-    })
-
-    it('zero if latest after protection', async () => {
-      await local.store({
-        ...DEFAULT_LOCAL,
-        protection: 123,
-        protectionAmount: 5,
-        protectionInitiator: owner.address,
-      })
-
-      expect(await local.pendingLiquidationFee({ ...TO_POSITION, timestamp: 124 })).to.equal(0)
-    })
-
-    it('zero if latest at protection', async () => {
-      await local.store({
-        ...DEFAULT_LOCAL,
-        protection: 123,
-        protectionAmount: 5,
-        protectionInitiator: owner.address,
-      })
-
-      expect(await local.pendingLiquidationFee({ ...TO_POSITION, timestamp: 123 })).to.equal(0)
     })
   })
 
@@ -745,51 +678,6 @@ describe('Local', () => {
       expect(result).to.equal(true)
 
       expect(value.collateral).to.equal(877)
-    })
-  })
-
-  describe('#processLiquidationFee', () => {
-    const TO_POSITION: PositionStruct = {
-      timestamp: 0, // unused
-      maker: 0, // unused
-      long: 0, // unused
-      short: 0, // unused
-      fee: parse6decimal('123'),
-      keeper: parse6decimal('456'),
-      collateral: 0, // unused
-      delta: 0, // unused
-      invalidation: {
-        maker: 0, // unused
-        long: 0, // unused
-        short: 0, // unused
-      },
-    }
-
-    const TO_VERSION: VersionStruct = {
-      valid: true,
-      makerValue: { _value: parse6decimal('1000') },
-      longValue: { _value: parse6decimal('2000') },
-      shortValue: { _value: parse6decimal('3000') },
-    }
-
-    it('increments fee', async () => {
-      await local.store({
-        ...DEFAULT_LOCAL,
-        collateral: 1000,
-      })
-
-      const initiateeLocal: LocalStruct = {
-        ...DEFAULT_LOCAL,
-        protection: 123,
-        protectionAmount: 123,
-        protectionInitiator: owner.address,
-      }
-
-      await local.processLiquidationFee(initiateeLocal)
-
-      const value = await local.read()
-
-      expect(value.collateral).to.equal(1123)
     })
   })
 })

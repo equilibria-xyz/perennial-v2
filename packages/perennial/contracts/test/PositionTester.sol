@@ -24,18 +24,6 @@ abstract contract PositionTester {
         store(_position);
     }
 
-    function update(Fixed6 collateralAmount) external {
-        Position memory _position = read();
-        _position.update(collateralAmount);
-        store(_position);
-    }
-
-    function prepare() external {
-        Position memory _position = read();
-        _position.prepare();
-        store(_position);
-    }
-
     function invalidate(Position memory latestPosition) external {
         Position memory _position = read();
         _position.invalidate(latestPosition);
