@@ -2312,7 +2312,7 @@ describe('Market', () => {
               })
             })
 
-            it.only('opens a second position and settles (next version)', async () => {
+            it('opens a second position and settles (next version)', async () => {
               await market.connect(user).update(user.address, 0, POSITION.div(2), 0, COLLATERAL, false)
 
               oracle.at.whenCalledWith(ORACLE_VERSION_2.timestamp).returns(ORACLE_VERSION_2)
