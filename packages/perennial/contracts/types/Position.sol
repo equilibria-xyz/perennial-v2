@@ -203,6 +203,13 @@ library PositionLib {
         return magnitude(self).eq(self.long.add(self.short).add(self.maker));
     }
 
+    /// @notice Returns the whether the position is empty
+    /// @param self The position object to check
+    /// @return Whether the position is empty
+    function empty(Position memory self) internal pure returns (bool) {
+        return magnitude(self).isZero();
+    }
+
     /// @notice Returns the maintenance requirement of the position
     /// @param positionMagnitude The position magnitude value to check
     /// @param latestVersion The latest oracle version

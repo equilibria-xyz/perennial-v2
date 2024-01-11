@@ -483,11 +483,11 @@ contract Vault is IVault, Instance {
     function _collateralAtId(Context memory context, uint256 id) public view returns (Fixed6 value, UFixed6 fee, UFixed6 keeper) {
         Mapping memory mappingAtId = _mappings[id].read();
         for (uint256 marketId; marketId < mappingAtId.length(); marketId++) {
-            Position memory currentAccountPosition = context.registrations[marketId].market
-                .pendingPositions(address(this), mappingAtId.get(marketId));
-            value = value.add(currentAccountPosition.collateral);
-            fee = fee.add(UFixed6Lib.unsafeFrom(currentAccountPosition.fee)); // Maker fee cannot be negative as of v2.1
-            keeper = keeper.add(currentAccountPosition.keeper);
+            PerennialCheckpoint memory checkpoint = context.registrations[marketId].market
+                .checkpoints(address(this), mappingAtId.get(marketId));
+            value = value.add(checkpoint.collateral);
+            fee = fee.add(UFixed6Lib.unsafeFrom(checkpoint.tradeFee)); // TODO: maker fee cannot be negative as of v2.1
+            keeper = keeper.add(checkpoint.settlementFee);
         }
     }
 }

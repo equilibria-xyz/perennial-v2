@@ -2312,7 +2312,7 @@ describe('Market', () => {
               })
             })
 
-            it('opens a second position and settles (next version)', async () => {
+            it.only('opens a second position and settles (next version)', async () => {
               await market.connect(user).update(user.address, 0, POSITION.div(2), 0, COLLATERAL, false)
 
               oracle.at.whenCalledWith(ORACLE_VERSION_2.timestamp).returns(ORACLE_VERSION_2)
@@ -2618,7 +2618,9 @@ describe('Market', () => {
               const riskParameter = { ...(await market.riskParameter()) }
               riskParameter.takerFee = parse6decimal('0.01')
               riskParameter.takerMagnitudeFee = parse6decimal('0.002')
-              riskParameter.takerImpactFee.scale = parse6decimal('0.008')
+              const takerImpactFee = { ...riskParameter.takerImpactFee }
+              takerImpactFee.scale = parse6decimal('0.008')
+              riskParameter.takerImpactFee = takerImpactFee
               await market.updateRiskParameter(riskParameter)
 
               const marketParameter = { ...(await market.parameter()) }

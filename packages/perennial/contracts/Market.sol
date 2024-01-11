@@ -623,8 +623,11 @@ contract Market is IMarket, Instance, ReentrancyGuard {
         ) revert MarketMakerOverLimitError();
 
         if (
-            !context.currentPosition.local.singleSided() ||
-            context.latestPosition.local.direction() != context.currentPosition.local.direction()
+            !context.currentPosition.local.singleSided() || (
+                context.latestPosition.local.direction() != context.currentPosition.local.direction() &&
+                    !context.latestPosition.local.empty() &&
+                    !context.currentPosition.local.empty()
+            )
         ) revert MarketNotSingleSidedError();
 
         if (protected) return; // The following invariants do not apply to protected position updates (liquidations)

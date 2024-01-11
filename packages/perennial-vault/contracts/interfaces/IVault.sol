@@ -1,15 +1,16 @@
 //SPDX-License-Identifier: Apache-2.0
 pragma solidity ^0.8.13;
 
-import "@equilibria/root/attribute/interfaces/IInstance.sol";
-import "@equilibria/perennial-v2/contracts/interfaces/IMarket.sol";
-import "@equilibria/root/number/types/UFixed6.sol";
-import "../types/Account.sol";
-import "../types/Checkpoint.sol";
-import "../types/Mapping.sol";
-import "../types/VaultParameter.sol";
-import "../types/Registration.sol";
-import "../lib/StrategyLib.sol";
+import { IMarket, Checkpoint as PerennialCheckpoint } from "@equilibria/perennial-v2/contracts/interfaces/IMarket.sol";
+import { IInstance } from "@equilibria/root/attribute/interfaces/IInstance.sol";
+import { UFixed6 } from "@equilibria/root/number/types/UFixed6.sol";
+import { Fixed6 } from "@equilibria/root/number/types/Fixed6.sol";
+import { Token18 } from "@equilibria/root/token/types/Token18.sol";
+import { Account } from "../types/Account.sol";
+import { Checkpoint } from "../types/Checkpoint.sol";
+import { Mapping } from "../types/Mapping.sol";
+import { VaultParameter } from "../types/VaultParameter.sol";
+import { Registration } from "../types/Registration.sol";
 
 interface IVault is IInstance {
     struct Context {
