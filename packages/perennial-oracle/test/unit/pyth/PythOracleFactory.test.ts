@@ -5,7 +5,6 @@ import HRE from 'hardhat'
 import {
   AbstractPyth,
   AggregatorV3Interface,
-  IEmptySetReserve,
   IERC20Metadata,
   IMarket,
   IPythStaticFee,
@@ -56,7 +55,6 @@ describe('PythOracleFactory', () => {
   let pythOracleFactory: PythFactory
   let oracleFactory: OracleFactory
   let dsu: FakeContract<IERC20Metadata>
-  let usdc: FakeContract<IERC20Metadata>
   let oracleSigner: SignerWithAddress
   let market: FakeContract<IMarket>
   let marketFactory: FakeContract<IMarketFactory>
@@ -89,10 +87,6 @@ describe('PythOracleFactory', () => {
 
     dsu = await smock.fake<IERC20Metadata>('IERC20Metadata')
     dsu.transfer.returns(true)
-    usdc = await smock.fake<IERC20Metadata>('IERC20Metadata')
-    usdc.transfer.returns(true)
-    usdc.approve.returns(true)
-    const reserve = await smock.fake<IEmptySetReserve>('IEmptySetReserve')
 
     market = await smock.fake<IMarket>('IMarket')
     marketFactory = await smock.fake<IMarketFactory>('IMarketFactory')
@@ -106,7 +100,7 @@ describe('PythOracleFactory', () => {
 
     const oracleImpl = await new Oracle__factory(owner).deploy()
     oracleFactory = await new OracleFactory__factory(owner).deploy(oracleImpl.address)
-    await oracleFactory.initialize(dsu.address, usdc.address, reserve.address)
+    await oracleFactory.initialize(dsu.address)
     await oracleFactory.updateMaxClaim(parse6decimal('10'))
 
     const keeperOracleImpl = await new KeeperOracle__factory(owner).deploy(60)

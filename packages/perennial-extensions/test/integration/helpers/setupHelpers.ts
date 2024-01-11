@@ -57,7 +57,6 @@ export const ETH_ORACLE = '0x5f4eC3Df9cbd43714FE2740f5E3616155c5b8419' // chainl
 export const DSU = '0x605D26FBd5be761089281d5cec2Ce86eeA667109'
 export const USDC = '0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48'
 const DSU_MINTER = '0xD05aCe63789cCb35B9cE71d01e4d632a0486Da4B'
-const RESERVE_ADDRESS = '0xD05aCe63789cCb35B9cE71d01e4d632a0486Da4B'
 
 const LEGACY_ORACLE_DELAY = 3600
 
@@ -118,7 +117,7 @@ export async function deployProtocol(chainlinkContext?: ChainlinkContext): Promi
   const marketFactory = new MarketFactory__factory(owner).attach(factoryProxy.address)
 
   // Init
-  await oracleFactory.connect(owner).initialize(dsu.address, usdc.address, RESERVE_ADDRESS)
+  await oracleFactory.connect(owner).initialize(dsu.address)
   await marketFactory.connect(owner).initialize()
 
   // Params
