@@ -37,7 +37,6 @@ const WETH_ADDRESS = '0x980B62Da83eFf3D4576C647993b0c1D7faf17c73'
 const CHAINLINK_ETH_USD_PRICE_FEED = '0x00027bbaff688c906a3e20a34fe951715d1018d262a5b66e38eda027a674cd1b'
 const CHAINLINK_BTC_USD_PRICE_FEED = '0x00020ffa644e6c585a5bec0e25ca476b9538198259e22b6240957720dcba0e14'
 const DSU_ADDRESS = '0x5FA881826AD000D010977645450292701bc2f56D'
-const USDC_ADDRESS = '0x16b38364bA6f55B6E150cC7f52D22E89643f3535'
 const CHAINLINK_ETH_USD_FEED = '0xd30e2101a97dcbAeBCBC04F14C3f624E67A35165'
 const RESERVE_ADDRESS = '0x841d7C994aC0Bb17CcD65a021E686e3cFafE2118'
 
@@ -168,7 +167,7 @@ testOracles.forEach(testOracle => {
 
       const oracleImpl = await new Oracle__factory(owner).deploy()
       oracleFactory = await new OracleFactory__factory(owner).deploy(oracleImpl.address)
-      await oracleFactory.initialize(DSU_ADDRESS, USDC_ADDRESS, RESERVE_ADDRESS)
+      await oracleFactory.initialize(DSU_ADDRESS)
       await oracleFactory.updateMaxClaim(parse6decimal('100'))
 
       const keeperOracleImpl = await new testOracle.Oracle(owner).deploy(60)

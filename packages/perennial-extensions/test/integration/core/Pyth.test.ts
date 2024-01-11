@@ -18,7 +18,7 @@ import {
   PythFactory__factory,
 } from '../../../types/generated'
 
-import { InstanceVars, RESERVE, USDC, createInvoker, createMarket, deployProtocol } from '../helpers/setupHelpers'
+import { InstanceVars, createInvoker, createMarket, deployProtocol } from '../helpers/setupHelpers'
 import { parse6decimal } from '../../../../common/testutil/types'
 import { increase } from '../../../../common/testutil/time'
 
@@ -60,7 +60,7 @@ describe('PythOracleFactory', () => {
 
     const oracleImpl = await new Oracle__factory(owner).deploy()
     oracleFactory = await new OracleFactory__factory(owner).deploy(oracleImpl.address)
-    await oracleFactory.initialize(dsu.address, USDC, RESERVE)
+    await oracleFactory.initialize(dsu.address)
     await oracleFactory.updateMaxClaim(parse6decimal('10'))
 
     const keeperOracleImpl = await new KeeperOracle__factory(owner).deploy(60)
