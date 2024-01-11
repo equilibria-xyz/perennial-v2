@@ -232,8 +232,8 @@ const func: DeployFunction = async function (hre: HardhatRuntimeEnvironment) {
       a. Settle all markets
       b. 'proxyAdmihn.upgrade' MarketFactory, VaultFactory, MultiInvoker contracts
       c. 'proxyAdmin.upgradeAndCall' OracleFactory(initialize)
-      d. 'oracleFactory.update(v2.1 oracle, pythFactory)' for each each
-      e. Accept PythFactory ownership from MultiSig
+      d. 'oracleFactory.update(oracleID, pythFactory)' for each each oracleID
+      e. Accept PythFactory ownership from Timelock
   `)
 }
 
