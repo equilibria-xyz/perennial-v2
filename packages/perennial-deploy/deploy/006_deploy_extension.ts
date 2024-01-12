@@ -31,8 +31,8 @@ const func: DeployFunction = async function (hre: HardhatRuntimeEnvironment) {
       (await get('VaultFactory')).address,
       (await getOrNull('DSUBatcher'))?.address ?? ethers.constants.AddressZero,
       (await get('DSUReserve')).address,
-      100_000,
-      0,
+      1_800_000, // Full Order Commit uses about 1.5M gas
+      36_000, // Single commitment uses 31k calldata gas
     ],
     from: deployer,
     skipIfAlreadyDeployed: true,

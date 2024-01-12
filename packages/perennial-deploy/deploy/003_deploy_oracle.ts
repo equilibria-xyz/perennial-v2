@@ -89,18 +89,18 @@ const func: DeployFunction = async function (hre: HardhatRuntimeEnvironment) {
       4,
       12,
       {
-        multiplierBase: ethers.utils.parseEther('1'),
-        bufferBase: 100_000,
+        multiplierBase: 0, // Unused
+        bufferBase: 900_000, // Each Call uses approx 750k gas
         multiplierCalldata: 0,
-        bufferCalldata: 0,
+        bufferCalldata: 36_000, // Each update costs 31k L1 gas
       },
       {
-        multiplierBase: ethers.utils.parseEther('1'),
-        bufferBase: 100_000,
-        multiplierCalldata: 0,
+        multiplierBase: ethers.utils.parseEther('1.15'), // Gas usage tracks full call
+        bufferBase: 100_000, // Initial Fee + Transfers
+        multiplierCalldata: ethers.utils.parseEther('1.15'), // Gas usage tracks full L1 calldata,
         bufferCalldata: 0,
       },
-      100_000,
+      4_600, // Each subsequent pyth commitment adds about 4k L1 gas
     ],
     from: deployer,
     skipIfAlreadyDeployed: true,
