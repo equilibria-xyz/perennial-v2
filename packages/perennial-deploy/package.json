@@ -19,7 +19,7 @@
     "gasReport": "OPTIMIZER_ENABLED=true REPORT_GAS=true yarn test:integration",
     "test": "hardhat test test/unit/**/*",
     "test:integration": "FORK_ENABLED=true FORK_BLOCK_NUMBER=17433260 hardhat test test/integration/**/*",
-    "test:verification:arbitrum": "FORK_ENABLED=true FORK_NETWORK=arbitrum FORK_USE_REAL_DEPLOYS=true hardhat test test/verification/arbitrum/**/*",
+    "test:verification:arbitrum": "FORK_ENABLED=true FORK_NETWORK=arbitrum FORK_USE_REAL_DEPLOYS=true FORK_BLOCK_NUMBER=169150861 hardhat test test/verification/arbitrum/**/*",
     "coverage": "hardhat coverage --testfiles 'test/unit/**/*'",
     "coverage:integration": "FORK_ENABLED=true FORK_BLOCK_NUMBER=17433260 hardhat coverage --testfiles 'test/integration/**/*'",
     "lint": "eslint --fix --ext '.ts,.js' ./ && solhint 'contracts/**/*.sol' --fix",
@@ -36,6 +36,7 @@
   "author": "",
   "license": "APACHE-2.0",
   "dependencies": {
+    "@defi-wonderland/smock": "^2.3.5",
     "@equilibria/perennial-v2": "1.1.0-rc1",
     "@pythnetwork/pyth-evm-js": "^1.29.0",
     "@types/isomorphic-fetch": "^0.0.37",
