@@ -35,9 +35,9 @@ contract LocalTester {
         Position memory fromPosition,
         Position memory toPosition,
         Version memory toVersion
-    ) external returns (Fixed6 positionFee, UFixed6 keeper) {
+    ) external returns (Fixed6 positionFee, UFixed6 settlementFee) {
         Local memory newLocal = local.read();
-        (positionFee, keeper) = newLocal.accumulateFees(fromPosition, toPosition, toVersion);
+        (positionFee, settlementFee) = newLocal.accumulateFees(fromPosition, toPosition, toVersion);
         local.store(newLocal);
     }
 

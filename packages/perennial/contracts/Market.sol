@@ -122,10 +122,8 @@ contract Market is IMarket, Instance, ReentrancyGuard {
         // credit impact update fee to the protocol account
         Position memory latestPosition = _position.read();
         RiskParameter memory latestRiskParameter = _riskParameter.read();
-        Fixed6 updateFee = latestRiskParameter.makerImpactFee
-            .update(latestPosition.skew(), newRiskParameter.makerImpactFee.scale)
-            .add(latestRiskParameter.takerImpactFee
-                .update(latestPosition.skew(), newRiskParameter.takerImpactFee.scale));
+        Fixed6 updateFee = latestRiskParameter.makerFee.update(newRiskParameter.makerFee, latestPosition.skew())
+            .add(latestRiskParameter.takerFee.update(newRiskParameter.takerFee, latestPosition.skew()));
         _credit(address(0), updateFee.mul(Fixed6Lib.NEG_ONE));
         
         // update 
@@ -277,7 +275,7 @@ contract Market is IMarket, Instance, ReentrancyGuard {
         context.currentPosition.local.invalidation.update(context.latestPosition.local.invalidation);
 
         // loadl current checkpoint
-        context.currentCheckpoint = _checkpoints[account][context.global.currentId].read();
+        context.currentCheckpoint = _checkpoints[account][context.local.currentId].read();
 
         // advance to next id if applicable
         if (context.currentTimestamp > context.currentPosition.local.timestamp) {
@@ -388,7 +386,7 @@ contract Market is IMarket, Instance, ReentrancyGuard {
         _pendingPosition[context.global.currentId].store(context.currentPosition.global);
         _pendingPositions[account][context.local.currentId].store(context.currentPosition.local);
         _pendingOrder[context.local.currentId].store(context.order);
-        _checkpoints[account][context.global.currentId].store(context.currentCheckpoint);
+        _checkpoints[account][context.local.currentId].store(context.currentCheckpoint);
 
         // fund
         if (collateral.sign() == 1) token.pull(msg.sender, UFixed18Lib.from(collateral.abs()));

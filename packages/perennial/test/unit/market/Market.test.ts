@@ -12,6 +12,7 @@ import {
   DEFAULT_LOCAL,
   DEFAULT_ORDER,
   DEFAULT_CHECKPOINT,
+  DEFAULT_VERSION,
   expectGlobalEq,
   expectLocalEq,
   expectPositionEq,
@@ -382,10 +383,10 @@ describe('Market', () => {
       maintenance: parse6decimal('0.3'),
       takerFee: 0,
       takerMagnitudeFee: 0,
-      takerImpactFee: { scale: 0 },
+      takerImpactFee: { fee: 0, scale: 0 },
       makerFee: 0,
       makerMagnitudeFee: 0,
-      makerImpactFee: { scale: 0 },
+      makerImpactFee: { fee: 0, scale: 0 },
       makerLimit: parse6decimal('1000'),
       efficiencyLimit: parse6decimal('0.2'),
       liquidationFee: parse6decimal('0.50'),
@@ -403,7 +404,6 @@ describe('Market', () => {
       },
       minMargin: parse6decimal('120'),
       minMaintenance: parse6decimal('100'),
-      skewScale: parse6decimal('5.000'),
       staleAfter: 7200,
       makerReceiveOnly: false,
     }
@@ -436,9 +436,11 @@ describe('Market', () => {
       expect(riskParameterResult.maintenance).to.equal(0)
       expect(riskParameterResult.takerFee).to.equal(0)
       expect(riskParameterResult.takerMagnitudeFee).to.equal(0)
+      expect(riskParameterResult.takerImpactFee.fee).to.equal(0)
       expect(riskParameterResult.takerImpactFee.scale).to.equal(0)
       expect(riskParameterResult.makerFee).to.equal(0)
       expect(riskParameterResult.makerMagnitudeFee).to.equal(0)
+      expect(riskParameterResult.makerImpactFee.fee).to.equal(0)
       expect(riskParameterResult.makerImpactFee.scale).to.equal(0)
       expect(riskParameterResult.makerLimit).to.equal(0)
       expect(riskParameterResult.efficiencyLimit).to.equal(0)
@@ -453,7 +455,6 @@ describe('Market', () => {
       expect(riskParameterResult.pController.max).to.equal(0)
       expect(riskParameterResult.minMargin).to.equal(0)
       expect(riskParameterResult.minMaintenance).to.equal(0)
-      expect(riskParameterResult.skewScale).to.equal(0)
       expect(riskParameterResult.staleAfter).to.equal(0)
       expect(riskParameterResult.makerReceiveOnly).to.equal(false)
 
@@ -541,10 +542,10 @@ describe('Market', () => {
         maintenance: parse6decimal('0.4'),
         takerFee: parse6decimal('0.01'),
         takerMagnitudeFee: parse6decimal('0.004'),
-        takerImpactFee: { scale: parse6decimal('0.003') },
+        takerImpactFee: { fee: parse6decimal('0.003'), scale: parse6decimal('100000') },
         makerFee: parse6decimal('0.005'),
         makerMagnitudeFee: parse6decimal('0.001'),
-        makerImpactFee: { scale: parse6decimal('0.004') },
+        makerImpactFee: { fee: parse6decimal('0.004'), scale: parse6decimal('100000') },
         makerLimit: parse6decimal('2000'),
         efficiencyLimit: parse6decimal('0.2'),
         liquidationFee: parse6decimal('0.25'),
@@ -562,7 +563,6 @@ describe('Market', () => {
         },
         minMargin: parse6decimal('60'),
         minMaintenance: parse6decimal('50'),
-        skewScale: parse6decimal('100000'),
         staleAfter: 9600,
         makerReceiveOnly: true,
       }
@@ -578,9 +578,11 @@ describe('Market', () => {
         expect(riskParameter.maintenance).to.equal(defaultRiskParameter.maintenance)
         expect(riskParameter.takerFee).to.equal(defaultRiskParameter.takerFee)
         expect(riskParameter.takerMagnitudeFee).to.equal(defaultRiskParameter.takerMagnitudeFee)
+        expect(riskParameter.takerImpactFee.fee).to.equal(defaultRiskParameter.takerImpactFee.fee)
         expect(riskParameter.takerImpactFee.scale).to.equal(defaultRiskParameter.takerImpactFee.scale)
         expect(riskParameter.makerFee).to.equal(defaultRiskParameter.makerFee)
         expect(riskParameter.makerMagnitudeFee).to.equal(defaultRiskParameter.makerMagnitudeFee)
+        expect(riskParameter.makerImpactFee.fee).to.equal(defaultRiskParameter.makerImpactFee.fee)
         expect(riskParameter.makerImpactFee.scale).to.equal(defaultRiskParameter.makerImpactFee.scale)
         expect(riskParameter.makerLimit).to.equal(defaultRiskParameter.makerLimit)
         expect(riskParameter.efficiencyLimit).to.equal(defaultRiskParameter.efficiencyLimit)
@@ -597,7 +599,6 @@ describe('Market', () => {
         expect(riskParameter.pController.max).to.equal(defaultRiskParameter.pController.max)
         expect(riskParameter.minMargin).to.equal(defaultRiskParameter.minMargin)
         expect(riskParameter.minMaintenance).to.equal(defaultRiskParameter.minMaintenance)
-        expect(riskParameter.skewScale).to.equal(defaultRiskParameter.skewScale)
         expect(riskParameter.staleAfter).to.equal(defaultRiskParameter.staleAfter)
         expect(riskParameter.makerReceiveOnly).to.equal(defaultRiskParameter.makerReceiveOnly)
       })

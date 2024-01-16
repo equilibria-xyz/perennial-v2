@@ -57,9 +57,15 @@ export interface Local {
 }
 
 export interface Version {
+  valid: boolean
   makerValue: Accumulator
   longValue: Accumulator
   shortValue: Accumulator
+  makerPosFee: Accumulator
+  makerNegFee: Accumulator
+  takerPosFee: Accumulator
+  takerNegFee: Accumulator
+  settlementFee: Accumulator
 }
 
 export interface Fee {
@@ -115,9 +121,15 @@ export function expectLocalEq(a: Local, b: Local): void {
 }
 
 export function expectVersionEq(a: Version, b: Version): void {
+  expect(a.valid).to.equal(b.valid, 'Version:Valid')
   expect(a.makerValue._value).to.equal(b.makerValue._value, 'Version:MakerValue')
   expect(a.longValue._value).to.equal(b.longValue._value, 'Version:LongValue')
   expect(a.shortValue._value).to.equal(b.shortValue._value, 'Version:ShortValue')
+  expect(a.makerPosFee._value).to.equal(b.makerPosFee._value, 'Version:MakerPosFee')
+  expect(a.makerNegFee._value).to.equal(b.makerNegFee._value, 'Version:MakerNegFee')
+  expect(a.takerPosFee._value).to.equal(b.takerPosFee._value, 'Version:TakerPosFee')
+  expect(a.takerNegFee._value).to.equal(b.takerNegFee._value, 'Version:TakerNegFee')
+  expect(a.settlementFee._value).to.equal(b.settlementFee._value, 'Version:SettlementFee')
 }
 
 export function parse6decimal(amount: string): BigNumber {
@@ -186,4 +198,16 @@ export const DEFAULT_ORDER: Order = {
   makerNeg: 0,
   takerPos: 0,
   takerNeg: 0,
+}
+
+export const DEFAULT_VERSION: Version = {
+  valid: 9,
+  makerValue: { _value: 0 },
+  longValue: { _value: 0 },
+  shortValue: { _value: 0 },
+  makerPosFee: { _value: 0 },
+  makerNegFee: { _value: 0 },
+  takerPosFee: { _value: 0 },
+  takerNegFee: { _value: 0 },
+  settlementFee: { _value: 0 },
 }

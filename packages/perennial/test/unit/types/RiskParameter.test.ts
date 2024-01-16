@@ -20,12 +20,18 @@ use(smock.matchers)
 export const VALID_RISK_PARAMETER: RiskParameterStruct = {
   margin: 15,
   maintenance: 1,
-  takerFee: 2,
-  takerMagnitudeFee: 3,
-  takerImpactFee: { scale: 4 },
-  makerFee: 5,
-  makerMagnitudeFee: 6,
-  makerImpactFee: { scale: 17 },
+  takerFee: {
+    linearFee: 2,
+    proportionalFee: 3,
+    adiabaticFee: 18,
+    scale: 4,
+  },
+  makerFee: {
+    linearFee: 5,
+    proportionalFee: 6,
+    adiabaticFee: 19,
+    scale: 17,
+  },
   makerLimit: 7,
   efficiencyLimit: 8,
   liquidationFee: 9,
@@ -45,7 +51,6 @@ export const VALID_RISK_PARAMETER: RiskParameterStruct = {
   minMaintenance: 12,
   staleAfter: 13,
   makerReceiveOnly: false,
-  skewScale: 14,
 }
 
 const PROTOCOL_PARAMETER: ProtocolParameterStruct = {
