@@ -381,12 +381,18 @@ describe('Market', () => {
     riskParameter = {
       margin: parse6decimal('0.35'),
       maintenance: parse6decimal('0.3'),
-      takerFee: 0,
-      takerMagnitudeFee: 0,
-      takerImpactFee: { fee: 0, scale: 0 },
-      makerFee: 0,
-      makerMagnitudeFee: 0,
-      makerImpactFee: { fee: 0, scale: 0 },
+      takerFee: {
+        linearFee: 0,
+        proportionalFee: 0,
+        adiabaticFee: 0,
+        scale: parse6decimal('5.000'),
+      },
+      makerFee: {
+        linearFee: 0,
+        proportionalFee: 0,
+        adiabaticFee: 0,
+        scale: parse6decimal('10.000'),
+      },
       makerLimit: parse6decimal('1000'),
       efficiencyLimit: parse6decimal('0.2'),
       liquidationFee: parse6decimal('0.50'),
@@ -434,14 +440,14 @@ describe('Market', () => {
       const riskParameterResult = await market.riskParameter()
       expect(riskParameterResult.margin).to.equal(0)
       expect(riskParameterResult.maintenance).to.equal(0)
-      expect(riskParameterResult.takerFee).to.equal(0)
-      expect(riskParameterResult.takerMagnitudeFee).to.equal(0)
-      expect(riskParameterResult.takerImpactFee.fee).to.equal(0)
-      expect(riskParameterResult.takerImpactFee.scale).to.equal(0)
-      expect(riskParameterResult.makerFee).to.equal(0)
-      expect(riskParameterResult.makerMagnitudeFee).to.equal(0)
-      expect(riskParameterResult.makerImpactFee.fee).to.equal(0)
-      expect(riskParameterResult.makerImpactFee.scale).to.equal(0)
+      expect(riskParameterResult.takerFee.linearFee).to.equal(0)
+      expect(riskParameterResult.takerFee.proportionalFee).to.equal(0)
+      expect(riskParameterResult.takerFee.adiabaticFee).to.equal(0)
+      expect(riskParameterResult.takerFee.scale).to.equal(0)
+      expect(riskParameterResult.makerFee.linearFee).to.equal(0)
+      expect(riskParameterResult.makerFee.proportionalFee).to.equal(0)
+      expect(riskParameterResult.makerFee.adiabaticFee).to.equal(0)
+      expect(riskParameterResult.makerFee.scale).to.equal(0)
       expect(riskParameterResult.makerLimit).to.equal(0)
       expect(riskParameterResult.efficiencyLimit).to.equal(0)
       expect(riskParameterResult.liquidationFee).to.equal(0)
@@ -540,12 +546,18 @@ describe('Market', () => {
       const defaultRiskParameter = {
         margin: parse6decimal('0.5'),
         maintenance: parse6decimal('0.4'),
-        takerFee: parse6decimal('0.01'),
-        takerMagnitudeFee: parse6decimal('0.004'),
-        takerImpactFee: { fee: parse6decimal('0.003'), scale: parse6decimal('100000') },
-        makerFee: parse6decimal('0.005'),
-        makerMagnitudeFee: parse6decimal('0.001'),
-        makerImpactFee: { fee: parse6decimal('0.004'), scale: parse6decimal('100000') },
+        takerFee: {
+          linearFee: parse6decimal('0.01'),
+          proportionalFee: parse6decimal('0.004'),
+          adiabaticFee: parse6decimal('0.003'),
+          scale: parse6decimal('100000'),
+        },
+        makerFee: {
+          linearFee: parse6decimal('0.005'),
+          proportionalFee: parse6decimal('0.001'),
+          adiabaticFee: parse6decimal('0.004'),
+          scale: parse6decimal('100000'),
+        },
         makerLimit: parse6decimal('2000'),
         efficiencyLimit: parse6decimal('0.2'),
         liquidationFee: parse6decimal('0.25'),
@@ -576,14 +588,14 @@ describe('Market', () => {
         const riskParameter = await market.riskParameter()
         expect(riskParameter.margin).to.equal(defaultRiskParameter.margin)
         expect(riskParameter.maintenance).to.equal(defaultRiskParameter.maintenance)
-        expect(riskParameter.takerFee).to.equal(defaultRiskParameter.takerFee)
-        expect(riskParameter.takerMagnitudeFee).to.equal(defaultRiskParameter.takerMagnitudeFee)
-        expect(riskParameter.takerImpactFee.fee).to.equal(defaultRiskParameter.takerImpactFee.fee)
-        expect(riskParameter.takerImpactFee.scale).to.equal(defaultRiskParameter.takerImpactFee.scale)
-        expect(riskParameter.makerFee).to.equal(defaultRiskParameter.makerFee)
-        expect(riskParameter.makerMagnitudeFee).to.equal(defaultRiskParameter.makerMagnitudeFee)
-        expect(riskParameter.makerImpactFee.fee).to.equal(defaultRiskParameter.makerImpactFee.fee)
-        expect(riskParameter.makerImpactFee.scale).to.equal(defaultRiskParameter.makerImpactFee.scale)
+        expect(riskParameter.takerFee.linearFee).to.equal(defaultRiskParameter.takerFee.linearFee)
+        expect(riskParameter.takerFee.proportionalFee).to.equal(defaultRiskParameter.takerFee.proportionalFee)
+        expect(riskParameter.takerFee.adiabaticFee).to.equal(defaultRiskParameter.takerFee.adiabaticFee)
+        expect(riskParameter.takerFee.scale).to.equal(defaultRiskParameter.takerFee.scale)
+        expect(riskParameter.makerFee.linearFee).to.equal(defaultRiskParameter.makerFee.linearFee)
+        expect(riskParameter.makerFee.proportionalFee).to.equal(defaultRiskParameter.makerFee.proportionalFee)
+        expect(riskParameter.makerFee.adiabaticFee).to.equal(defaultRiskParameter.makerFee.adiabaticFee)
+        expect(riskParameter.makerFee.scale).to.equal(defaultRiskParameter.makerFee.scale)
         expect(riskParameter.makerLimit).to.equal(defaultRiskParameter.makerLimit)
         expect(riskParameter.efficiencyLimit).to.equal(defaultRiskParameter.efficiencyLimit)
         expect(riskParameter.liquidationFee).to.equal(defaultRiskParameter.liquidationFee)
@@ -613,12 +625,14 @@ describe('Market', () => {
         const riskParameter = await market.riskParameter()
         expect(riskParameter.margin).to.equal(defaultRiskParameter.margin)
         expect(riskParameter.maintenance).to.equal(defaultRiskParameter.maintenance)
-        expect(riskParameter.takerFee).to.equal(defaultRiskParameter.takerFee)
-        expect(riskParameter.takerMagnitudeFee).to.equal(defaultRiskParameter.takerMagnitudeFee)
-        expect(riskParameter.takerImpactFee.scale).to.equal(defaultRiskParameter.takerImpactFee.scale)
-        expect(riskParameter.makerFee).to.equal(defaultRiskParameter.makerFee)
-        expect(riskParameter.makerMagnitudeFee).to.equal(defaultRiskParameter.makerMagnitudeFee)
-        expect(riskParameter.makerImpactFee.scale).to.equal(defaultRiskParameter.makerImpactFee.scale)
+        expect(riskParameter.takerFee.linearFee).to.equal(defaultRiskParameter.takerFee.linearFee)
+        expect(riskParameter.takerFee.proportionalFee).to.equal(defaultRiskParameter.takerFee.proportionalFee)
+        expect(riskParameter.takerFee.adiabaticFee).to.equal(defaultRiskParameter.takerFee.adiabaticFee)
+        expect(riskParameter.takerFee.scale).to.equal(defaultRiskParameter.takerFee.scale)
+        expect(riskParameter.makerFee.linearFee).to.equal(defaultRiskParameter.makerFee.linearFee)
+        expect(riskParameter.makerFee.proportionalFee).to.equal(defaultRiskParameter.makerFee.proportionalFee)
+        expect(riskParameter.makerFee.adiabaticFee).to.equal(defaultRiskParameter.makerFee.adiabaticFee)
+        expect(riskParameter.makerFee.scale).to.equal(defaultRiskParameter.makerFee.scale)
         expect(riskParameter.makerLimit).to.equal(defaultRiskParameter.makerLimit)
         expect(riskParameter.efficiencyLimit).to.equal(defaultRiskParameter.efficiencyLimit)
         expect(riskParameter.liquidationFee).to.equal(defaultRiskParameter.liquidationFee)
@@ -705,9 +719,7 @@ describe('Market', () => {
             timestamp: ORACLE_VERSION_2.timestamp,
           })
           expectVersionEq(await market.versions(ORACLE_VERSION_1.timestamp), {
-            makerValue: { _value: 0 },
-            longValue: { _value: 0 },
-            shortValue: { _value: 0 },
+            ...DEFAULT_VERSION,
           })
 
           dsu.transfer.whenCalledWith(user.address, COLLATERAL.mul(1e12)).returns(true)
@@ -751,9 +763,7 @@ describe('Market', () => {
             timestamp: ORACLE_VERSION_2.timestamp,
           })
           expectVersionEq(await market.versions(ORACLE_VERSION_1.timestamp), {
-            makerValue: { _value: 0 },
-            longValue: { _value: 0 },
-            shortValue: { _value: 0 },
+            ...DEFAULT_VERSION,
           })
         })
 
@@ -797,9 +807,7 @@ describe('Market', () => {
             timestamp: ORACLE_VERSION_2.timestamp,
           })
           expectVersionEq(await market.versions(ORACLE_VERSION_1.timestamp), {
-            makerValue: { _value: 0 },
-            longValue: { _value: 0 },
-            shortValue: { _value: 0 },
+            ...DEFAULT_VERSION,
           })
 
           oracle.at.whenCalledWith(ORACLE_VERSION_2.timestamp).returns(ORACLE_VERSION_2)
@@ -843,9 +851,7 @@ describe('Market', () => {
             timestamp: ORACLE_VERSION_3.timestamp,
           })
           expectVersionEq(await market.versions(ORACLE_VERSION_2.timestamp), {
-            makerValue: { _value: 0 },
-            longValue: { _value: 0 },
-            shortValue: { _value: 0 },
+            ...DEFAULT_VERSION,
           })
         })
 
@@ -889,9 +895,7 @@ describe('Market', () => {
             timestamp: ORACLE_VERSION_2.timestamp,
           })
           expectVersionEq(await market.versions(ORACLE_VERSION_1.timestamp), {
-            makerValue: { _value: 0 },
-            longValue: { _value: 0 },
-            shortValue: { _value: 0 },
+            ...DEFAULT_VERSION,
           })
 
           oracle.at.whenCalledWith(ORACLE_VERSION_2.timestamp).returns(ORACLE_VERSION_2)
@@ -935,9 +939,7 @@ describe('Market', () => {
             timestamp: ORACLE_VERSION_6.timestamp,
           })
           expectVersionEq(await market.versions(ORACLE_VERSION_2.timestamp), {
-            makerValue: { _value: 0 },
-            longValue: { _value: 0 },
-            shortValue: { _value: 0 },
+            ...DEFAULT_VERSION,
           })
         })
       })
@@ -1002,9 +1004,7 @@ describe('Market', () => {
               maker: POSITION,
             })
             expectVersionEq(await market.versions(ORACLE_VERSION_1.timestamp), {
-              makerValue: { _value: 0 },
-              longValue: { _value: 0 },
-              shortValue: { _value: 0 },
+              ...DEFAULT_VERSION,
             })
           })
 
@@ -1079,9 +1079,7 @@ describe('Market', () => {
               maker: POSITION,
             })
             expectVersionEq(await market.versions(ORACLE_VERSION_2.timestamp), {
-              makerValue: { _value: 0 },
-              longValue: { _value: 0 },
-              shortValue: { _value: 0 },
+              ...DEFAULT_VERSION,
             })
           })
 
@@ -1128,9 +1126,7 @@ describe('Market', () => {
               maker: POSITION.mul(2),
             })
             expectVersionEq(await market.versions(ORACLE_VERSION_1.timestamp), {
-              makerValue: { _value: 0 },
-              longValue: { _value: 0 },
-              shortValue: { _value: 0 },
+              ...DEFAULT_VERSION,
             })
           })
 
@@ -1186,9 +1182,7 @@ describe('Market', () => {
               maker: POSITION.mul(2),
             })
             expectVersionEq(await market.versions(ORACLE_VERSION_2.timestamp), {
-              makerValue: { _value: 0 },
-              longValue: { _value: 0 },
-              shortValue: { _value: 0 },
+              ...DEFAULT_VERSION,
             })
           })
 
@@ -1242,9 +1236,7 @@ describe('Market', () => {
               maker: POSITION.mul(2),
             })
             expectVersionEq(await market.versions(ORACLE_VERSION_2.timestamp), {
-              makerValue: { _value: 0 },
-              longValue: { _value: 0 },
-              shortValue: { _value: 0 },
+              ...DEFAULT_VERSION,
             })
           })
 
@@ -1306,9 +1298,7 @@ describe('Market', () => {
               maker: POSITION.mul(2),
             })
             expectVersionEq(await market.versions(ORACLE_VERSION_3.timestamp), {
-              makerValue: { _value: 0 },
-              longValue: { _value: 0 },
-              shortValue: { _value: 0 },
+              ...DEFAULT_VERSION,
             })
           })
 
@@ -1363,16 +1353,16 @@ describe('Market', () => {
               maker: POSITION,
             })
             expectVersionEq(await market.versions(ORACLE_VERSION_3.timestamp), {
-              makerValue: { _value: 0 },
-              longValue: { _value: 0 },
-              shortValue: { _value: 0 },
+              ...DEFAULT_VERSION,
             })
           })
 
           it('opens the position and settles later with fee', async () => {
             const riskParameter = { ...(await market.riskParameter()) }
-            riskParameter.makerFee = parse6decimal('0.005')
-            riskParameter.makerMagnitudeFee = parse6decimal('0.0025')
+            const riskParameterMakerFee = { ...riskParameter.makerFee }
+            riskParameterMakerFee.linearFee = parse6decimal('0.005')
+            riskParameterMakerFee.proportionalFee = parse6decimal('0.0025')
+            riskParameter.makerFee = riskParameterMakerFee
             await market.updateRiskParameter(riskParameter)
 
             const marketParameter = { ...(await market.parameter()) }
@@ -1432,9 +1422,7 @@ describe('Market', () => {
               maker: POSITION,
             })
             expectVersionEq(await market.versions(ORACLE_VERSION_3.timestamp), {
-              makerValue: { _value: 0 },
-              longValue: { _value: 0 },
-              shortValue: { _value: 0 },
+              ...DEFAULT_VERSION,
             })
           })
         })
@@ -1497,9 +1485,7 @@ describe('Market', () => {
               timestamp: ORACLE_VERSION_2.timestamp,
             })
             expectVersionEq(await market.versions(ORACLE_VERSION_1.timestamp), {
-              makerValue: { _value: 0 },
-              longValue: { _value: 0 },
-              shortValue: { _value: 0 },
+              ...DEFAULT_VERSION,
             })
           })
 
@@ -1558,9 +1544,7 @@ describe('Market', () => {
               maker: POSITION.div(2),
             })
             expectVersionEq(await market.versions(ORACLE_VERSION_1.timestamp), {
-              makerValue: { _value: 0 },
-              longValue: { _value: 0 },
-              shortValue: { _value: 0 },
+              ...DEFAULT_VERSION,
             })
           })
 
@@ -1615,9 +1599,7 @@ describe('Market', () => {
                 timestamp: ORACLE_VERSION_3.timestamp,
               })
               expectVersionEq(await market.versions(ORACLE_VERSION_2.timestamp), {
-                makerValue: { _value: 0 },
-                longValue: { _value: 0 },
-                shortValue: { _value: 0 },
+                ...DEFAULT_VERSION,
               })
             })
 
@@ -1667,9 +1649,7 @@ describe('Market', () => {
                 timestamp: ORACLE_VERSION_4.timestamp,
               })
               expectVersionEq(await market.versions(ORACLE_VERSION_3.timestamp), {
-                makerValue: { _value: 0 },
-                longValue: { _value: 0 },
-                shortValue: { _value: 0 },
+                ...DEFAULT_VERSION,
               })
             })
 
@@ -1717,9 +1697,7 @@ describe('Market', () => {
                 timestamp: ORACLE_VERSION_3.timestamp,
               })
               expectVersionEq(await market.versions(ORACLE_VERSION_2.timestamp), {
-                makerValue: { _value: 0 },
-                longValue: { _value: 0 },
-                shortValue: { _value: 0 },
+                ...DEFAULT_VERSION,
               })
             })
 
@@ -1771,9 +1749,7 @@ describe('Market', () => {
                 timestamp: ORACLE_VERSION_4.timestamp,
               })
               expectVersionEq(await market.versions(ORACLE_VERSION_3.timestamp), {
-                makerValue: { _value: 0 },
-                longValue: { _value: 0 },
-                shortValue: { _value: 0 },
+                ...DEFAULT_VERSION,
               })
             })
 
@@ -1825,9 +1801,7 @@ describe('Market', () => {
                 timestamp: ORACLE_VERSION_4.timestamp,
               })
               expectVersionEq(await market.versions(ORACLE_VERSION_3.timestamp), {
-                makerValue: { _value: 0 },
-                longValue: { _value: 0 },
-                shortValue: { _value: 0 },
+                ...DEFAULT_VERSION,
               })
             })
 
@@ -1883,9 +1857,7 @@ describe('Market', () => {
                 timestamp: ORACLE_VERSION_5.timestamp,
               })
               expectVersionEq(await market.versions(ORACLE_VERSION_4.timestamp), {
-                makerValue: { _value: 0 },
-                longValue: { _value: 0 },
-                shortValue: { _value: 0 },
+                ...DEFAULT_VERSION,
               })
             })
 
@@ -1937,16 +1909,16 @@ describe('Market', () => {
                 timestamp: ORACLE_VERSION_5.timestamp,
               })
               expectVersionEq(await market.versions(ORACLE_VERSION_4.timestamp), {
-                makerValue: { _value: 0 },
-                longValue: { _value: 0 },
-                shortValue: { _value: 0 },
+                ...DEFAULT_VERSION,
               })
             })
 
             it('closes the position and settles later with fee', async () => {
               const riskParameter = { ...(await market.riskParameter()) }
-              riskParameter.makerFee = parse6decimal('0.005')
-              riskParameter.makerMagnitudeFee = parse6decimal('0.0025')
+              const riskParameterMakerFee = { ...riskParameter.makerFee }
+              riskParameterMakerFee.linearFee = parse6decimal('0.005')
+              riskParameterMakerFee.proportionalFee = parse6decimal('0.0025')
+              riskParameter.makerFee = riskParameterMakerFee
               await market.updateRiskParameter(riskParameter)
 
               const marketParameter = { ...(await market.parameter()) }
@@ -2005,9 +1977,8 @@ describe('Market', () => {
                 timestamp: ORACLE_VERSION_5.timestamp,
               })
               expectVersionEq(await market.versions(ORACLE_VERSION_4.timestamp), {
+                ...DEFAULT_VERSION,
                 makerValue: { _value: MAKER_FEE_WITHOUT_FEE.div(10) },
-                longValue: { _value: 0 },
-                shortValue: { _value: 0 },
               })
             })
           })
@@ -2081,9 +2052,7 @@ describe('Market', () => {
                 long: POSITION,
               })
               expectVersionEq(await market.versions(ORACLE_VERSION_1.timestamp), {
-                makerValue: { _value: 0 },
-                longValue: { _value: 0 },
-                shortValue: { _value: 0 },
+                ...DEFAULT_VERSION,
               })
             })
 
@@ -2139,9 +2108,7 @@ describe('Market', () => {
                 long: POSITION,
               })
               expectVersionEq(await market.versions(ORACLE_VERSION_2.timestamp), {
-                makerValue: { _value: 0 },
-                longValue: { _value: 0 },
-                shortValue: { _value: 0 },
+                ...DEFAULT_VERSION,
               })
             })
 
@@ -2189,9 +2156,7 @@ describe('Market', () => {
                 long: POSITION,
               })
               expectVersionEq(await market.versions(ORACLE_VERSION_2.timestamp), {
-                makerValue: { _value: 0 },
-                longValue: { _value: 0 },
-                shortValue: { _value: 0 },
+                ...DEFAULT_VERSION,
               })
             })
 
@@ -2249,9 +2214,7 @@ describe('Market', () => {
                 long: POSITION,
               })
               expectVersionEq(await market.versions(ORACLE_VERSION_2.timestamp), {
-                makerValue: { _value: 0 },
-                longValue: { _value: 0 },
-                shortValue: { _value: 0 },
+                ...DEFAULT_VERSION,
               })
             })
 
@@ -2307,9 +2270,7 @@ describe('Market', () => {
                 long: POSITION,
               })
               expectVersionEq(await market.versions(ORACLE_VERSION_2.timestamp), {
-                makerValue: { _value: 0 },
-                longValue: { _value: 0 },
-                shortValue: { _value: 0 },
+                ...DEFAULT_VERSION,
               })
             })
 
@@ -2395,11 +2356,11 @@ describe('Market', () => {
                 long: POSITION,
               })
               expectVersionEq(await market.versions(ORACLE_VERSION_3.timestamp), {
+                ...DEFAULT_VERSION,
                 makerValue: {
                   _value: EXPECTED_FUNDING_WITHOUT_FEE_1_5_123.add(EXPECTED_INTEREST_WITHOUT_FEE_5_123).div(10),
                 },
                 longValue: { _value: EXPECTED_FUNDING_WITH_FEE_1_5_123.add(EXPECTED_INTEREST_5_123).div(5).mul(-1) },
-                shortValue: { _value: 0 },
               })
             })
 
@@ -2490,19 +2451,21 @@ describe('Market', () => {
                 long: POSITION.div(2),
               })
               expectVersionEq(await market.versions(ORACLE_VERSION_3.timestamp), {
+                ...DEFAULT_VERSION,
                 makerValue: {
                   _value: EXPECTED_FUNDING_WITHOUT_FEE_1_5_123.add(EXPECTED_INTEREST_WITHOUT_FEE_5_123).div(10),
                 },
                 longValue: { _value: EXPECTED_FUNDING_WITH_FEE_1_5_123.add(EXPECTED_INTEREST_5_123).div(5).mul(-1) },
-                shortValue: { _value: 0 },
               })
             })
 
             it('opens the position and settles later with fee', async () => {
               const riskParameter = { ...(await market.riskParameter()) }
-              riskParameter.takerFee = parse6decimal('0.01')
-              riskParameter.takerMagnitudeFee = parse6decimal('0.002')
-              riskParameter.takerImpactFee.scale = parse6decimal('0.008')
+              const riskParameterTakerFee = { ...riskParameter.takerFee }
+              riskParameterTakerFee.linearFee = parse6decimal('0.01')
+              riskParameterTakerFee.proportionalFee = parse6decimal('0.002')
+              riskParameterTakerFee.scale = parse6decimal('0.008')
+              riskParameter.takerFee = riskParameterTakerFee
               await market.updateRiskParameter(riskParameter)
 
               const marketParameter = { ...(await market.parameter()) }
@@ -2601,11 +2564,11 @@ describe('Market', () => {
                 long: POSITION.div(2),
               })
               expectVersionEq(await market.versions(ORACLE_VERSION_3.timestamp), {
+                ...DEFAULT_VERSION,
                 makerValue: {
                   _value: EXPECTED_FUNDING_WITHOUT_FEE_1_5_123.add(EXPECTED_INTEREST_WITHOUT_FEE_5_123).div(10),
                 },
                 longValue: { _value: EXPECTED_FUNDING_WITH_FEE_1_5_123.add(EXPECTED_INTEREST_5_123).div(5).mul(-1) },
-                shortValue: { _value: 0 },
               })
             })
 
@@ -2617,11 +2580,11 @@ describe('Market', () => {
               await settle(market, user)
 
               const riskParameter = { ...(await market.riskParameter()) }
-              riskParameter.takerFee = parse6decimal('0.01')
-              riskParameter.takerMagnitudeFee = parse6decimal('0.002')
-              const takerImpactFee = { ...riskParameter.takerImpactFee }
-              takerImpactFee.scale = parse6decimal('0.008')
-              riskParameter.takerImpactFee = takerImpactFee
+              const riskParameterTakerFee = { ...riskParameter.takerFee }
+              riskParameterTakerFee.linearFee = parse6decimal('0.01')
+              riskParameterTakerFee.proportionalFee = parse6decimal('0.002')
+              riskParameterTakerFee.adiabaticFee = parse6decimal('0.008')
+              riskParameter.takerFee = riskParameterTakerFee
               await market.updateRiskParameter(riskParameter)
 
               const marketParameter = { ...(await market.parameter()) }
@@ -2725,13 +2688,13 @@ describe('Market', () => {
                 long: POSITION.div(2),
               })
               expectVersionEq(await market.versions(ORACLE_VERSION_4.timestamp), {
+                ...DEFAULT_VERSION,
                 makerValue: {
                   _value: TAKER_FEE_WITHOUT_FEE.add(EXPECTED_FUNDING_WITHOUT_FEE_1_5_123)
                     .add(EXPECTED_INTEREST_WITHOUT_FEE_5_123)
                     .div(10),
                 },
                 longValue: { _value: EXPECTED_FUNDING_WITH_FEE_1_5_123.add(EXPECTED_INTEREST_5_123).div(5).mul(-1) },
-                shortValue: { _value: 0 },
               })
             })
           })
@@ -2799,9 +2762,7 @@ describe('Market', () => {
                 long: POSITION.div(4),
               })
               expectVersionEq(await market.versions(ORACLE_VERSION_1.timestamp), {
-                makerValue: { _value: 0 },
-                longValue: { _value: 0 },
-                shortValue: { _value: 0 },
+                ...DEFAULT_VERSION,
               })
             })
 
@@ -2859,9 +2820,7 @@ describe('Market', () => {
                 maker: POSITION,
               })
               expectVersionEq(await market.versions(ORACLE_VERSION_1.timestamp), {
-                makerValue: { _value: 0 },
-                longValue: { _value: 0 },
-                shortValue: { _value: 0 },
+                ...DEFAULT_VERSION,
               })
             })
 
@@ -2918,9 +2877,7 @@ describe('Market', () => {
                   maker: POSITION,
                 })
                 expectVersionEq(await market.versions(ORACLE_VERSION_2.timestamp), {
-                  makerValue: { _value: 0 },
-                  longValue: { _value: 0 },
-                  shortValue: { _value: 0 },
+                  ...DEFAULT_VERSION,
                 })
               })
 
@@ -2996,13 +2953,13 @@ describe('Market', () => {
                   maker: POSITION,
                 })
                 expectVersionEq(await market.versions(ORACLE_VERSION_3.timestamp), {
+                  ...DEFAULT_VERSION,
                   makerValue: {
                     _value: EXPECTED_FUNDING_WITHOUT_FEE_1_5_123.add(EXPECTED_INTEREST_WITHOUT_FEE_5_123).div(10),
                   },
                   longValue: {
                     _value: EXPECTED_FUNDING_WITH_FEE_1_5_123.add(EXPECTED_INTEREST_5_123).div(5).mul(-1),
                   },
-                  shortValue: { _value: 0 },
                 })
               })
 
@@ -3052,9 +3009,7 @@ describe('Market', () => {
                   maker: POSITION,
                 })
                 expectVersionEq(await market.versions(ORACLE_VERSION_2.timestamp), {
-                  makerValue: { _value: 0 },
-                  longValue: { _value: 0 },
-                  shortValue: { _value: 0 },
+                  ...DEFAULT_VERSION,
                 })
               })
 
@@ -3132,13 +3087,13 @@ describe('Market', () => {
                   maker: POSITION,
                 })
                 expectVersionEq(await market.versions(ORACLE_VERSION_3.timestamp), {
+                  ...DEFAULT_VERSION,
                   makerValue: {
                     _value: EXPECTED_FUNDING_WITHOUT_FEE_1_5_123.add(EXPECTED_INTEREST_WITHOUT_FEE_5_123).div(10),
                   },
                   longValue: {
                     _value: EXPECTED_FUNDING_WITH_FEE_1_5_123.add(EXPECTED_INTEREST_5_123).div(5).mul(-1),
                   },
-                  shortValue: { _value: 0 },
                 })
               })
 
@@ -3218,18 +3173,23 @@ describe('Market', () => {
                   maker: POSITION,
                 })
                 expectVersionEq(await market.versions(ORACLE_VERSION_3.timestamp), {
+                  ...DEFAULT_VERSION,
                   makerValue: {
                     _value: EXPECTED_FUNDING_WITHOUT_FEE_1_5_123.add(EXPECTED_INTEREST_WITHOUT_FEE_5_123).div(10),
                   },
                   longValue: {
                     _value: EXPECTED_FUNDING_WITH_FEE_1_5_123.add(EXPECTED_INTEREST_5_123).div(5).mul(-1),
                   },
-                  shortValue: { _value: 0 },
                 })
               })
 
               it('closes a second position and settles (next version)', async () => {
-                await market.updateRiskParameter({ ...(await market.riskParameter()), skewScale: POSITION.div(4) })
+                const riskParameter = { ...(await market.riskParameter()) }
+                const riskParameterTakerFee = { ...riskParameter.takerFee }
+                riskParameterTakerFee.scale = POSITION.div(4)
+                riskParameter.takerFee = riskParameterTakerFee
+                await market.updateRiskParameter(riskParameter)
+
                 await market.connect(user).update(user.address, 0, POSITION.div(4), 0, 0, false)
 
                 oracle.at.whenCalledWith(ORACLE_VERSION_3.timestamp).returns(ORACLE_VERSION_3)
@@ -3314,15 +3274,16 @@ describe('Market', () => {
                   maker: POSITION,
                 })
                 expectVersionEq(await market.versions(ORACLE_VERSION_3.timestamp), {
+                  ...DEFAULT_VERSION,
                   makerValue: {
                     _value: EXPECTED_FUNDING_WITHOUT_FEE_1_5_123.add(EXPECTED_INTEREST_WITHOUT_FEE_5_123).div(10),
                   },
                   longValue: {
                     _value: EXPECTED_FUNDING_WITH_FEE_1_5_123.add(EXPECTED_INTEREST_5_123).div(5).mul(-1),
                   },
-                  shortValue: { _value: 0 },
                 })
                 expectVersionEq(await market.versions(ORACLE_VERSION_4.timestamp), {
+                  ...DEFAULT_VERSION,
                   makerValue: {
                     _value: EXPECTED_FUNDING_WITHOUT_FEE_1_5_123.add(EXPECTED_FUNDING_WITHOUT_FEE_2_25_123)
                       .add(EXPECTED_INTEREST_WITHOUT_FEE_5_123)
@@ -3336,7 +3297,6 @@ describe('Market', () => {
                       .add(EXPECTED_FUNDING_WITH_FEE_2_25_123.add(EXPECTED_INTEREST_25_123).mul(2).div(5))
                       .mul(-1),
                   },
-                  shortValue: { _value: 0 },
                 })
               })
 
@@ -3414,21 +3374,23 @@ describe('Market', () => {
                   maker: POSITION,
                 })
                 expectVersionEq(await market.versions(ORACLE_VERSION_4.timestamp), {
+                  ...DEFAULT_VERSION,
                   makerValue: {
                     _value: EXPECTED_FUNDING_WITHOUT_FEE_1_5_123.add(EXPECTED_INTEREST_WITHOUT_FEE_5_123).div(10),
                   },
                   longValue: {
                     _value: EXPECTED_FUNDING_WITH_FEE_1_5_123.add(EXPECTED_INTEREST_5_123).div(5).mul(-1),
                   },
-                  shortValue: { _value: 0 },
                 })
               })
 
               it('closes the position and settles later with fee', async () => {
                 const riskParameter = { ...(await market.riskParameter()) }
-                riskParameter.takerFee = parse6decimal('0.01')
-                riskParameter.takerMagnitudeFee = parse6decimal('0.002')
-                riskParameter.takerImpactFee.scale = parse6decimal('0.008')
+                const riskParameterTakerFee = { ...riskParameter.takerFee }
+                riskParameterTakerFee.linearFee = parse6decimal('0.01')
+                riskParameterTakerFee.proportionalFee = parse6decimal('0.002')
+                riskParameterTakerFee.adiabaticFee = parse6decimal('0.008')
+                riskParameter.takerFee = riskParameterTakerFee
                 await market.updateRiskParameter(riskParameter)
 
                 const marketParameter = { ...(await market.parameter()) }
@@ -3517,6 +3479,7 @@ describe('Market', () => {
                   maker: POSITION,
                 })
                 expectVersionEq(await market.versions(ORACLE_VERSION_4.timestamp), {
+                  ...DEFAULT_VERSION,
                   makerValue: {
                     _value: EXPECTED_FUNDING_WITHOUT_FEE_1_5_123.add(EXPECTED_INTEREST_WITHOUT_FEE_5_123)
                       .add(TAKER_FEE_WITHOUT_FEE)
@@ -3525,7 +3488,6 @@ describe('Market', () => {
                   longValue: {
                     _value: EXPECTED_FUNDING_WITH_FEE_1_5_123.add(EXPECTED_INTEREST_5_123).div(5).mul(-1),
                   },
-                  shortValue: { _value: 0 },
                 })
               })
             })
@@ -3621,9 +3583,7 @@ describe('Market', () => {
               long: POSITION.div(2),
             })
             expectVersionEq(await market.versions(ORACLE_VERSION_3.timestamp), {
-              makerValue: { _value: 0 },
-              longValue: { _value: 0 },
-              shortValue: { _value: 0 },
+              ...DEFAULT_VERSION,
             })
           })
 
@@ -3741,6 +3701,7 @@ describe('Market', () => {
               long: POSITION.div(2),
             })
             expectVersionEq(await market.versions(ORACLE_VERSION_3.timestamp), {
+              ...DEFAULT_VERSION,
               makerValue: {
                 _value: EXPECTED_PNL.add(EXPECTED_FUNDING_WITHOUT_FEE_1_5_123)
                   .add(EXPECTED_INTEREST_WITHOUT_FEE_5_123)
@@ -3749,7 +3710,6 @@ describe('Market', () => {
               longValue: {
                 _value: EXPECTED_PNL.add(EXPECTED_FUNDING_WITH_FEE_1_5_123).add(EXPECTED_INTEREST_5_123).div(5).mul(-1),
               },
-              shortValue: { _value: 0 },
             })
           })
 
@@ -3865,6 +3825,7 @@ describe('Market', () => {
               long: POSITION.div(2),
             })
             expectVersionEq(await market.versions(ORACLE_VERSION_3.timestamp), {
+              ...DEFAULT_VERSION,
               makerValue: {
                 _value: EXPECTED_PNL.add(EXPECTED_FUNDING_WITHOUT_FEE_1_5_123)
                   .add(EXPECTED_INTEREST_WITHOUT_FEE_5_123)
@@ -3874,7 +3835,6 @@ describe('Market', () => {
               longValue: {
                 _value: EXPECTED_PNL.add(EXPECTED_FUNDING_WITH_FEE_1_5_123).add(EXPECTED_INTEREST_5_123).div(5).mul(-1),
               },
-              shortValue: { _value: 0 },
             })
           })
         })
@@ -4014,6 +3974,7 @@ describe('Market', () => {
                 long: POSITION.div(2),
               })
               expectVersionEq(await market.versions(ORACLE_VERSION_3.timestamp), {
+                ...DEFAULT_VERSION,
                 makerValue: {
                   _value: EXPECTED_FUNDING_WITHOUT_FEE_1_5_123.add(EXPECTED_INTEREST_WITHOUT_FEE_5_123)
                     .sub(EXPECTED_PNL)
@@ -4026,9 +3987,9 @@ describe('Market', () => {
                     .div(5)
                     .mul(-1),
                 },
-                shortValue: { _value: 0 },
               })
               expectVersionEq(await market.versions(ORACLE_VERSION_4.timestamp), {
+                ...DEFAULT_VERSION,
                 makerValue: {
                   _value: EXPECTED_FUNDING_WITHOUT_FEE_1_5_123.add(EXPECTED_INTEREST_WITHOUT_FEE_5_123)
                     .add(EXPECTED_FUNDING_WITHOUT_FEE_2_5_150)
@@ -4044,9 +4005,9 @@ describe('Market', () => {
                     .mul(-1)
                     .sub(1), // loss of precision
                 },
-                shortValue: { _value: 0 },
               })
               expectVersionEq(await market.versions(ORACLE_VERSION_5.timestamp), {
+                ...DEFAULT_VERSION,
                 makerValue: {
                   _value: EXPECTED_FUNDING_WITHOUT_FEE_1_5_123.add(EXPECTED_INTEREST_WITHOUT_FEE_5_123)
                     .add(EXPECTED_FUNDING_WITHOUT_FEE_2_5_150)
@@ -4062,7 +4023,6 @@ describe('Market', () => {
                     .mul(-1)
                     .sub(1), // loss of precision
                 },
-                shortValue: { _value: 0 },
               })
             })
 
@@ -4242,6 +4202,7 @@ describe('Market', () => {
                 long: POSITION.div(2),
               })
               expectVersionEq(await market.versions(ORACLE_VERSION_3.timestamp), {
+                ...DEFAULT_VERSION,
                 makerValue: {
                   _value: EXPECTED_FUNDING_WITHOUT_FEE_1_5_123.add(EXPECTED_INTEREST_WITHOUT_FEE_1)
                     .sub(EXPECTED_PNL.mul(2))
@@ -4255,9 +4216,9 @@ describe('Market', () => {
                     .div(5)
                     .mul(-1),
                 },
-                shortValue: { _value: 0 },
               })
               expectVersionEq(await market.versions(ORACLE_VERSION_4.timestamp), {
+                ...DEFAULT_VERSION,
                 makerValue: {
                   _value: EXPECTED_FUNDING_WITHOUT_FEE_1_5_123.add(EXPECTED_INTEREST_WITHOUT_FEE_1)
                     .add(EXPECTED_FUNDING_WITHOUT_FEE_2_5_150.add(EXPECTED_INTEREST_WITHOUT_FEE_2))
@@ -4272,9 +4233,9 @@ describe('Market', () => {
                     .mul(-1)
                     .sub(1), // loss of precision
                 },
-                shortValue: { _value: 0 },
               })
               expectVersionEq(await market.versions(ORACLE_VERSION_5.timestamp), {
+                ...DEFAULT_VERSION,
                 makerValue: {
                   _value: EXPECTED_FUNDING_WITHOUT_FEE_1_5_123.add(EXPECTED_INTEREST_WITHOUT_FEE_1)
                     .add(EXPECTED_FUNDING_WITHOUT_FEE_2_5_150.add(EXPECTED_INTEREST_WITHOUT_FEE_2))
@@ -4293,7 +4254,6 @@ describe('Market', () => {
                     .mul(-1)
                     .sub(1), // loss of precision
                 },
-                shortValue: { _value: 0 },
               })
             })
 
@@ -4394,6 +4354,7 @@ describe('Market', () => {
                 long: POSITION.div(2),
               })
               expectVersionEq(await market.versions(ORACLE_VERSION_3.timestamp), {
+                ...DEFAULT_VERSION,
                 makerValue: {
                   _value: EXPECTED_FUNDING_WITHOUT_FEE_1_5_123.add(EXPECTED_INTEREST_WITHOUT_FEE_5_123)
                     .sub(EXPECTED_PNL)
@@ -4604,6 +4565,7 @@ describe('Market', () => {
                 maker: POSITION,
               })
               expectVersionEq(await market.versions(ORACLE_VERSION_3.timestamp), {
+                ...DEFAULT_VERSION,
                 makerValue: {
                   _value: EXPECTED_FUNDING_WITHOUT_FEE_1_5_123.add(EXPECTED_INTEREST_WITHOUT_FEE_5_123)
                     .add(EXPECTED_PNL)
@@ -4618,6 +4580,7 @@ describe('Market', () => {
                 shortValue: { _value: 0 },
               })
               expectVersionEq(await market.versions(ORACLE_VERSION_4.timestamp), {
+                ...DEFAULT_VERSION,
                 makerValue: {
                   _value: EXPECTED_FUNDING_WITHOUT_FEE_1_5_123.add(EXPECTED_INTEREST_WITHOUT_FEE_5_123)
                     .add(EXPECTED_FUNDING_WITHOUT_FEE_2_5_96.add(EXPECTED_INTEREST_WITHOUT_FEE_5_96))
@@ -4633,6 +4596,7 @@ describe('Market', () => {
                 shortValue: { _value: 0 },
               })
               expectVersionEq(await market.versions(ORACLE_VERSION_5.timestamp), {
+                ...DEFAULT_VERSION,
                 makerValue: {
                   _value: EXPECTED_FUNDING_WITHOUT_FEE_1_5_123.add(EXPECTED_INTEREST_WITHOUT_FEE_5_123)
                     .add(EXPECTED_FUNDING_WITHOUT_FEE_2_5_96.add(EXPECTED_INTEREST_WITHOUT_FEE_5_96))
@@ -4750,6 +4714,7 @@ describe('Market', () => {
                 maker: POSITION,
               })
               expectVersionEq(await market.versions(ORACLE_VERSION_3.timestamp), {
+                ...DEFAULT_VERSION,
                 makerValue: {
                   _value: EXPECTED_FUNDING_WITHOUT_FEE_1_5_123.add(EXPECTED_INTEREST_WITHOUT_FEE_5_123)
                     .add(EXPECTED_PNL)
@@ -4925,14 +4890,10 @@ describe('Market', () => {
               long: POSITION.div(2),
             })
             expectVersionEq(await market.versions(ORACLE_VERSION_3.timestamp), {
-              makerValue: { _value: 0 },
-              longValue: { _value: 0 },
-              shortValue: { _value: 0 },
+              ...DEFAULT_VERSION,
             })
             expectVersionEq(await market.versions(ORACLE_VERSION_4.timestamp), {
-              makerValue: { _value: 0 },
-              longValue: { _value: 0 },
-              shortValue: { _value: 0 },
+              ...DEFAULT_VERSION,
             })
           })
         })
@@ -5006,9 +4967,7 @@ describe('Market', () => {
                 short: POSITION,
               })
               expectVersionEq(await market.versions(ORACLE_VERSION_1.timestamp), {
-                makerValue: { _value: 0 },
-                longValue: { _value: 0 },
-                shortValue: { _value: 0 },
+                ...DEFAULT_VERSION,
               })
             })
 
@@ -5064,9 +5023,7 @@ describe('Market', () => {
                 short: POSITION,
               })
               expectVersionEq(await market.versions(ORACLE_VERSION_2.timestamp), {
-                makerValue: { _value: 0 },
-                longValue: { _value: 0 },
-                shortValue: { _value: 0 },
+                ...DEFAULT_VERSION,
               })
             })
 
@@ -5115,9 +5072,7 @@ describe('Market', () => {
                 short: POSITION,
               })
               expectVersionEq(await market.versions(ORACLE_VERSION_2.timestamp), {
-                makerValue: { _value: 0 },
-                longValue: { _value: 0 },
-                shortValue: { _value: 0 },
+                ...DEFAULT_VERSION,
               })
             })
 
@@ -5175,9 +5130,7 @@ describe('Market', () => {
                 short: POSITION,
               })
               expectVersionEq(await market.versions(ORACLE_VERSION_2.timestamp), {
-                makerValue: { _value: 0 },
-                longValue: { _value: 0 },
-                shortValue: { _value: 0 },
+                ...DEFAULT_VERSION,
               })
             })
 
@@ -5233,9 +5186,7 @@ describe('Market', () => {
                 short: POSITION,
               })
               expectVersionEq(await market.versions(ORACLE_VERSION_2.timestamp), {
-                makerValue: { _value: 0 },
-                longValue: { _value: 0 },
-                shortValue: { _value: 0 },
+                ...DEFAULT_VERSION,
               })
             })
 
@@ -5321,6 +5272,7 @@ describe('Market', () => {
                 short: POSITION,
               })
               expectVersionEq(await market.versions(ORACLE_VERSION_3.timestamp), {
+                ...DEFAULT_VERSION,
                 makerValue: {
                   _value: EXPECTED_FUNDING_WITHOUT_FEE_1_5_123.add(EXPECTED_INTEREST_WITHOUT_FEE_5_123).div(10),
                 },
@@ -5420,6 +5372,7 @@ describe('Market', () => {
                 short: POSITION.div(2),
               })
               expectVersionEq(await market.versions(ORACLE_VERSION_3.timestamp), {
+                ...DEFAULT_VERSION,
                 makerValue: {
                   _value: EXPECTED_FUNDING_WITHOUT_FEE_1_5_123.add(EXPECTED_INTEREST_WITHOUT_FEE_5_123).div(10),
                 },
@@ -5430,9 +5383,11 @@ describe('Market', () => {
 
             it('opens the position and settles later with fee', async () => {
               const riskParameter = { ...(await market.riskParameter()) }
-              riskParameter.takerFee = parse6decimal('0.01')
-              riskParameter.takerMagnitudeFee = parse6decimal('0.002')
-              riskParameter.takerImpactFee.scale = parse6decimal('0.008')
+              const riskParameterTakerFee = { ...riskParameter.takerFee }
+              riskParameterTakerFee.linearFee = parse6decimal('0.01')
+              riskParameterTakerFee.proportionalFee = parse6decimal('0.002')
+              riskParameterTakerFee.adiabaticFee = parse6decimal('0.008')
+              riskParameter.takerFee = riskParameterTakerFee
               await market.updateRiskParameter(riskParameter)
 
               const marketParameter = { ...(await market.parameter()) }
@@ -5536,6 +5491,7 @@ describe('Market', () => {
                 short: POSITION.div(2),
               })
               expectVersionEq(await market.versions(ORACLE_VERSION_3.timestamp), {
+                ...DEFAULT_VERSION,
                 makerValue: {
                   _value: EXPECTED_FUNDING_WITHOUT_FEE_1_5_123.add(EXPECTED_INTEREST_WITHOUT_FEE_5_123).div(10),
                 },
@@ -5552,9 +5508,11 @@ describe('Market', () => {
               await settle(market, user)
 
               const riskParameter = { ...(await market.riskParameter()) }
-              riskParameter.takerFee = parse6decimal('0.01')
-              riskParameter.takerMagnitudeFee = parse6decimal('0.002')
-              riskParameter.takerImpactFee.scale = parse6decimal('0.008')
+              const riskParameterTakerFee = { ...riskParameter.takerFee }
+              riskParameterTakerFee.linearFee = parse6decimal('0.01')
+              riskParameterTakerFee.proportionalFee = parse6decimal('0.002')
+              riskParameterTakerFee.adiabaticFee = parse6decimal('0.008')
+              riskParameter.takerFee = riskParameterTakerFee
               await market.updateRiskParameter(riskParameter)
 
               const marketParameter = { ...(await market.parameter()) }
@@ -5660,6 +5618,7 @@ describe('Market', () => {
                 short: POSITION.div(2),
               })
               expectVersionEq(await market.versions(ORACLE_VERSION_4.timestamp), {
+                ...DEFAULT_VERSION,
                 makerValue: {
                   _value: TAKER_FEE_WITHOUT_FEE.add(EXPECTED_FUNDING_WITHOUT_FEE_1_5_123)
                     .add(EXPECTED_INTEREST_WITHOUT_FEE_5_123)
@@ -5734,9 +5693,7 @@ describe('Market', () => {
                 short: POSITION.div(4),
               })
               expectVersionEq(await market.versions(ORACLE_VERSION_1.timestamp), {
-                makerValue: { _value: 0 },
-                longValue: { _value: 0 },
-                shortValue: { _value: 0 },
+                ...DEFAULT_VERSION,
               })
             })
 
@@ -5794,9 +5751,7 @@ describe('Market', () => {
                 maker: POSITION,
               })
               expectVersionEq(await market.versions(ORACLE_VERSION_1.timestamp), {
-                makerValue: { _value: 0 },
-                longValue: { _value: 0 },
-                shortValue: { _value: 0 },
+                ...DEFAULT_VERSION,
               })
             })
 
@@ -5853,9 +5808,7 @@ describe('Market', () => {
                   maker: POSITION,
                 })
                 expectVersionEq(await market.versions(ORACLE_VERSION_2.timestamp), {
-                  makerValue: { _value: 0 },
-                  longValue: { _value: 0 },
-                  shortValue: { _value: 0 },
+                  ...DEFAULT_VERSION,
                 })
               })
 
@@ -5931,6 +5884,7 @@ describe('Market', () => {
                   maker: POSITION,
                 })
                 expectVersionEq(await market.versions(ORACLE_VERSION_3.timestamp), {
+                  ...DEFAULT_VERSION,
                   makerValue: {
                     _value: EXPECTED_FUNDING_WITHOUT_FEE_1_5_123.add(EXPECTED_INTEREST_WITHOUT_FEE_5_123).div(10),
                   },
@@ -5987,9 +5941,7 @@ describe('Market', () => {
                   maker: POSITION,
                 })
                 expectVersionEq(await market.versions(ORACLE_VERSION_2.timestamp), {
-                  makerValue: { _value: 0 },
-                  longValue: { _value: 0 },
-                  shortValue: { _value: 0 },
+                  ...DEFAULT_VERSION,
                 })
               })
 
@@ -6067,6 +6019,7 @@ describe('Market', () => {
                   maker: POSITION,
                 })
                 expectVersionEq(await market.versions(ORACLE_VERSION_3.timestamp), {
+                  ...DEFAULT_VERSION,
                   makerValue: {
                     _value: EXPECTED_FUNDING_WITHOUT_FEE_1_5_123.add(EXPECTED_INTEREST_WITHOUT_FEE_5_123).div(10),
                   },
@@ -6152,6 +6105,7 @@ describe('Market', () => {
                   maker: POSITION,
                 })
                 expectVersionEq(await market.versions(ORACLE_VERSION_3.timestamp), {
+                  ...DEFAULT_VERSION,
                   makerValue: {
                     _value: EXPECTED_FUNDING_WITHOUT_FEE_1_5_123.add(EXPECTED_INTEREST_WITHOUT_FEE_5_123).div(10),
                   },
@@ -6163,7 +6117,12 @@ describe('Market', () => {
               })
 
               it('closes a second position and settles (next version)', async () => {
-                await market.updateRiskParameter({ ...(await market.riskParameter()), skewScale: POSITION.div(4) })
+                const riskParameter = { ...(await market.riskParameter()) }
+                const riskParameterTakerFee = { ...riskParameter.takerFee }
+                riskParameterTakerFee.scale = POSITION.div(4)
+                riskParameter.takerFee = riskParameterTakerFee
+                await market.updateRiskParameter(riskParameter)
+
                 await market.connect(user).update(user.address, 0, 0, POSITION.div(4), 0, false)
 
                 oracle.at.whenCalledWith(ORACLE_VERSION_3.timestamp).returns(ORACLE_VERSION_3)
@@ -6248,6 +6207,7 @@ describe('Market', () => {
                   maker: POSITION,
                 })
                 expectVersionEq(await market.versions(ORACLE_VERSION_3.timestamp), {
+                  ...DEFAULT_VERSION,
                   makerValue: {
                     _value: EXPECTED_FUNDING_WITHOUT_FEE_1_5_123.add(EXPECTED_INTEREST_WITHOUT_FEE_5_123).div(10),
                   },
@@ -6257,6 +6217,7 @@ describe('Market', () => {
                   },
                 })
                 expectVersionEq(await market.versions(ORACLE_VERSION_4.timestamp), {
+                  ...DEFAULT_VERSION,
                   makerValue: {
                     _value: EXPECTED_FUNDING_WITHOUT_FEE_1_5_123.add(EXPECTED_FUNDING_WITHOUT_FEE_2_25_123)
                       .add(EXPECTED_INTEREST_WITHOUT_FEE_5_123)
@@ -6348,6 +6309,7 @@ describe('Market', () => {
                   maker: POSITION,
                 })
                 expectVersionEq(await market.versions(ORACLE_VERSION_4.timestamp), {
+                  ...DEFAULT_VERSION,
                   makerValue: {
                     _value: EXPECTED_FUNDING_WITHOUT_FEE_1_5_123.add(EXPECTED_INTEREST_WITHOUT_FEE_5_123).div(10),
                   },
@@ -6360,9 +6322,11 @@ describe('Market', () => {
 
               it('closes the position and settles later with fee', async () => {
                 const riskParameter = { ...(await market.riskParameter()) }
-                riskParameter.takerFee = parse6decimal('0.01')
-                riskParameter.takerMagnitudeFee = parse6decimal('0.002')
-                riskParameter.takerImpactFee.scale = parse6decimal('0.008')
+                const riskParameterTakerFee = { ...riskParameter.takerFee }
+                riskParameterTakerFee.linearFee = parse6decimal('0.01')
+                riskParameterTakerFee.proportionalFee = parse6decimal('0.002')
+                riskParameterTakerFee.adiabaticFee = parse6decimal('0.008')
+                riskParameter.takerFee = riskParameterTakerFee
                 await market.updateRiskParameter(riskParameter)
 
                 const marketParameter = { ...(await market.parameter()) }
@@ -6452,6 +6416,7 @@ describe('Market', () => {
                   maker: POSITION,
                 })
                 expectVersionEq(await market.versions(ORACLE_VERSION_4.timestamp), {
+                  ...DEFAULT_VERSION,
                   makerValue: {
                     _value: EXPECTED_FUNDING_WITHOUT_FEE_1_5_123.add(EXPECTED_INTEREST_WITHOUT_FEE_5_123)
                       .add(TAKER_FEE_WITHOUT_FEE)
@@ -6556,9 +6521,7 @@ describe('Market', () => {
               short: POSITION.div(2),
             })
             expectVersionEq(await market.versions(ORACLE_VERSION_3.timestamp), {
-              makerValue: { _value: 0 },
-              longValue: { _value: 0 },
-              shortValue: { _value: 0 },
+              ...DEFAULT_VERSION,
             })
           })
 
@@ -6676,6 +6639,7 @@ describe('Market', () => {
               short: POSITION.div(2),
             })
             expectVersionEq(await market.versions(ORACLE_VERSION_3.timestamp), {
+              ...DEFAULT_VERSION,
               makerValue: {
                 _value: EXPECTED_PNL.add(EXPECTED_FUNDING_WITHOUT_FEE_1_5_123)
                   .add(EXPECTED_INTEREST_WITHOUT_FEE_5_123)
@@ -6801,6 +6765,7 @@ describe('Market', () => {
               short: POSITION.div(2),
             })
             expectVersionEq(await market.versions(ORACLE_VERSION_3.timestamp), {
+              ...DEFAULT_VERSION,
               makerValue: {
                 _value: EXPECTED_PNL.add(EXPECTED_FUNDING_WITHOUT_FEE_1_5_123)
                   .add(EXPECTED_INTEREST_WITHOUT_FEE_5_123)
@@ -6949,6 +6914,7 @@ describe('Market', () => {
                 short: POSITION.div(2),
               })
               expectVersionEq(await market.versions(ORACLE_VERSION_3.timestamp), {
+                ...DEFAULT_VERSION,
                 makerValue: {
                   _value: EXPECTED_FUNDING_WITHOUT_FEE_1_5_123.add(EXPECTED_INTEREST_WITHOUT_FEE_5_123)
                     .sub(EXPECTED_PNL)
@@ -6964,6 +6930,7 @@ describe('Market', () => {
                 },
               })
               expectVersionEq(await market.versions(ORACLE_VERSION_4.timestamp), {
+                ...DEFAULT_VERSION,
                 makerValue: {
                   _value: EXPECTED_FUNDING_WITHOUT_FEE_1_5_123.add(EXPECTED_INTEREST_WITHOUT_FEE_5_123)
                     .add(EXPECTED_FUNDING_WITHOUT_FEE_2_5_96.add(EXPECTED_INTEREST_WITHOUT_FEE_5_96))
@@ -6979,6 +6946,7 @@ describe('Market', () => {
                 },
               })
               expectVersionEq(await market.versions(ORACLE_VERSION_5.timestamp), {
+                ...DEFAULT_VERSION,
                 makerValue: {
                   _value: EXPECTED_FUNDING_WITHOUT_FEE_1_5_123.add(EXPECTED_INTEREST_WITHOUT_FEE_5_123)
                     .add(EXPECTED_FUNDING_WITHOUT_FEE_2_5_96.add(EXPECTED_INTEREST_WITHOUT_FEE_5_96))
@@ -7170,6 +7138,7 @@ describe('Market', () => {
                 short: POSITION.div(2),
               })
               expectVersionEq(await market.versions(ORACLE_VERSION_3.timestamp), {
+                ...DEFAULT_VERSION,
                 makerValue: {
                   _value: EXPECTED_FUNDING_WITHOUT_FEE_1_5_123.add(EXPECTED_INTEREST_WITHOUT_FEE_1)
                     .sub(EXPECTED_PNL.mul(2))
@@ -7186,6 +7155,7 @@ describe('Market', () => {
                 },
               })
               expectVersionEq(await market.versions(ORACLE_VERSION_4.timestamp), {
+                ...DEFAULT_VERSION,
                 makerValue: {
                   _value: EXPECTED_FUNDING_WITHOUT_FEE_1_5_123.add(EXPECTED_INTEREST_WITHOUT_FEE_1)
                     .add(EXPECTED_FUNDING_WITHOUT_FEE_2_5_96.add(EXPECTED_INTEREST_WITHOUT_FEE_2))
@@ -7202,6 +7172,7 @@ describe('Market', () => {
                 },
               })
               expectVersionEq(await market.versions(ORACLE_VERSION_5.timestamp), {
+                ...DEFAULT_VERSION,
                 makerValue: {
                   _value: EXPECTED_FUNDING_WITHOUT_FEE_1_5_123.add(EXPECTED_INTEREST_WITHOUT_FEE_1)
                     .add(EXPECTED_FUNDING_WITHOUT_FEE_2_5_96.add(EXPECTED_INTEREST_WITHOUT_FEE_2))
@@ -7314,6 +7285,7 @@ describe('Market', () => {
                 short: POSITION.div(2),
               })
               expectVersionEq(await market.versions(ORACLE_VERSION_3.timestamp), {
+                ...DEFAULT_VERSION,
                 makerValue: {
                   _value: EXPECTED_FUNDING_WITHOUT_FEE_1_5_123.add(EXPECTED_INTEREST_WITHOUT_FEE_5_123)
                     .sub(EXPECTED_PNL)
@@ -7524,6 +7496,7 @@ describe('Market', () => {
                 maker: POSITION,
               })
               expectVersionEq(await market.versions(ORACLE_VERSION_3.timestamp), {
+                ...DEFAULT_VERSION,
                 makerValue: {
                   _value: EXPECTED_FUNDING_WITHOUT_FEE_1_5_123.add(EXPECTED_INTEREST_WITHOUT_FEE_5_123)
                     .add(EXPECTED_PNL)
@@ -7538,6 +7511,7 @@ describe('Market', () => {
                 },
               })
               expectVersionEq(await market.versions(ORACLE_VERSION_4.timestamp), {
+                ...DEFAULT_VERSION,
                 makerValue: {
                   _value: EXPECTED_FUNDING_WITHOUT_FEE_1_5_123.add(EXPECTED_INTEREST_WITHOUT_FEE_5_123)
                     .add(EXPECTED_FUNDING_WITHOUT_FEE_2_5_150)
@@ -7555,6 +7529,7 @@ describe('Market', () => {
                 },
               })
               expectVersionEq(await market.versions(ORACLE_VERSION_5.timestamp), {
+                ...DEFAULT_VERSION,
                 makerValue: {
                   _value: EXPECTED_FUNDING_WITHOUT_FEE_1_5_123.add(EXPECTED_INTEREST_WITHOUT_FEE_5_123)
                     .add(EXPECTED_FUNDING_WITHOUT_FEE_2_5_150)
@@ -7674,6 +7649,7 @@ describe('Market', () => {
                 maker: POSITION,
               })
               expectVersionEq(await market.versions(ORACLE_VERSION_3.timestamp), {
+                ...DEFAULT_VERSION,
                 makerValue: {
                   _value: EXPECTED_FUNDING_WITHOUT_FEE_1_5_123.add(EXPECTED_INTEREST_WITHOUT_FEE_5_123)
                     .add(EXPECTED_PNL)
@@ -7851,24 +7827,25 @@ describe('Market', () => {
               short: POSITION.div(2),
             })
             expectVersionEq(await market.versions(ORACLE_VERSION_3.timestamp), {
-              makerValue: { _value: 0 },
-              longValue: { _value: 0 },
-              shortValue: { _value: 0 },
+              ...DEFAULT_VERSION,
             })
             expectVersionEq(await market.versions(ORACLE_VERSION_4.timestamp), {
-              makerValue: { _value: 0 },
-              longValue: { _value: 0 },
-              shortValue: { _value: 0 },
+              ...DEFAULT_VERSION,
             })
           })
 
           it('does not zero position and keeper fee upon closing', async () => {
             const riskParameter = { ...(await market.riskParameter()) }
-            riskParameter.takerFee = parse6decimal('0.01')
-            riskParameter.takerMagnitudeFee = parse6decimal('0.002')
-            riskParameter.takerImpactFee.scale = parse6decimal('0.008')
-            riskParameter.makerFee = parse6decimal('0.01')
-            riskParameter.makerMagnitudeFee = parse6decimal('0.004')
+            const riskParmeterTakerFee = { ...riskParameter.takerFee }
+            riskParmeterTakerFee.linearFee = parse6decimal('0.01')
+            riskParmeterTakerFee.proportionalFee = parse6decimal('0.002')
+            riskParmeterTakerFee.adiabaticFee = parse6decimal('0.008')
+            const riskParameterMakerFee = { ...riskParameter.makerFee }
+            riskParameterMakerFee.linearFee = parse6decimal('0.01')
+            riskParameterMakerFee.proportionalFee = parse6decimal('0.004')
+            riskParameterMakerFee.adiabaticFee = parse6decimal('0.0016')
+            riskParameter.takerFee = riskParmeterTakerFee
+            riskParameter.makerFee = riskParameterMakerFee
             await market.updateRiskParameter(riskParameter)
 
             const marketParameter = { ...(await market.parameter()) }
@@ -7955,6 +7932,7 @@ describe('Market', () => {
               short: POSITION.div(2),
             })
             expectVersionEq(await market.versions(ORACLE_VERSION_3.timestamp), {
+              ...DEFAULT_VERSION,
               makerValue: { _value: EXPECTED_MAKER_FEE.mul(9).div(10).div(10) },
               longValue: { _value: 0 },
               shortValue: { _value: 0 },
@@ -7963,11 +7941,16 @@ describe('Market', () => {
 
           it('zeros position fee for new positions after close', async () => {
             const riskParameter = { ...(await market.riskParameter()) }
-            riskParameter.takerFee = parse6decimal('0.01')
-            riskParameter.takerMagnitudeFee = parse6decimal('0.002')
-            riskParameter.takerImpactFee.scale = parse6decimal('0.008')
-            riskParameter.makerFee = parse6decimal('0.01')
-            riskParameter.makerMagnitudeFee = parse6decimal('0.004')
+            const riskParmeterTakerFee = { ...riskParameter.takerFee }
+            riskParmeterTakerFee.linearFee = parse6decimal('0.01')
+            riskParmeterTakerFee.proportionalFee = parse6decimal('0.002')
+            riskParmeterTakerFee.adiabaticFee = parse6decimal('0.008')
+            const riskParameterMakerFee = { ...riskParameter.makerFee }
+            riskParameterMakerFee.linearFee = parse6decimal('0.01')
+            riskParameterMakerFee.proportionalFee = parse6decimal('0.004')
+            riskParameterMakerFee.adiabaticFee = parse6decimal('0.0016')
+            riskParameter.takerFee = riskParmeterTakerFee
+            riskParameter.makerFee = riskParameterMakerFee
             await market.updateRiskParameter(riskParameter)
 
             const marketParameter = { ...(await market.parameter()) }
@@ -8049,9 +8032,7 @@ describe('Market', () => {
               short: POSITION.div(2),
             })
             expectVersionEq(await market.versions(ORACLE_VERSION_3.timestamp), {
-              makerValue: { _value: 0 },
-              longValue: { _value: 0 },
-              shortValue: { _value: 0 },
+              ...DEFAULT_VERSION,
             })
           })
         })
@@ -8060,7 +8041,12 @@ describe('Market', () => {
       context('all positions', async () => {
         beforeEach(async () => {
           dsu.transferFrom.whenCalledWith(user.address, market.address, COLLATERAL.mul(1e12)).returns(true)
-          await market.updateRiskParameter({ ...(await market.riskParameter()), skewScale: POSITION })
+
+          const riskParameter = { ...(await market.riskParameter()) }
+          const riskParameterTakerFee = { ...riskParameter.takerFee }
+          riskParameterTakerFee.scale = POSITION
+          riskParameter.takerFee = riskParameterTakerFee
+          await market.updateRiskParameter(riskParameter)
         })
 
         context('position delta', async () => {
@@ -8116,9 +8102,7 @@ describe('Market', () => {
                 short: POSITION,
               })
               expectVersionEq(await market.versions(ORACLE_VERSION_1.timestamp), {
-                makerValue: { _value: 0 },
-                longValue: { _value: 0 },
-                shortValue: { _value: 0 },
+                ...DEFAULT_VERSION,
               })
             })
 
@@ -8176,9 +8160,7 @@ describe('Market', () => {
                 short: POSITION,
               })
               expectVersionEq(await market.versions(ORACLE_VERSION_2.timestamp), {
-                makerValue: { _value: 0 },
-                longValue: { _value: 0 },
-                shortValue: { _value: 0 },
+                ...DEFAULT_VERSION,
               })
             })
 
@@ -8228,9 +8210,7 @@ describe('Market', () => {
                 short: POSITION,
               })
               expectVersionEq(await market.versions(ORACLE_VERSION_2.timestamp), {
-                makerValue: { _value: 0 },
-                longValue: { _value: 0 },
-                shortValue: { _value: 0 },
+                ...DEFAULT_VERSION,
               })
             })
 
@@ -8290,9 +8270,7 @@ describe('Market', () => {
                 short: POSITION,
               })
               expectVersionEq(await market.versions(ORACLE_VERSION_2.timestamp), {
-                makerValue: { _value: 0 },
-                longValue: { _value: 0 },
-                shortValue: { _value: 0 },
+                ...DEFAULT_VERSION,
               })
             })
 
@@ -8350,9 +8328,7 @@ describe('Market', () => {
                 short: POSITION,
               })
               expectVersionEq(await market.versions(ORACLE_VERSION_2.timestamp), {
-                makerValue: { _value: 0 },
-                longValue: { _value: 0 },
-                shortValue: { _value: 0 },
+                ...DEFAULT_VERSION,
               })
             })
 
@@ -8448,6 +8424,7 @@ describe('Market', () => {
                 short: POSITION,
               })
               expectVersionEq(await market.versions(ORACLE_VERSION_3.timestamp), {
+                ...DEFAULT_VERSION,
                 makerValue: {
                   _value: EXPECTED_FUNDING_WITHOUT_FEE_1_10_123_ALL.div(2)
                     .add(EXPECTED_INTEREST_WITHOUT_FEE_10_67_123_ALL)
@@ -8560,6 +8537,7 @@ describe('Market', () => {
                 short: POSITION,
               })
               expectVersionEq(await market.versions(ORACLE_VERSION_3.timestamp), {
+                ...DEFAULT_VERSION,
                 makerValue: {
                   _value: EXPECTED_FUNDING_WITHOUT_FEE_1_10_123_ALL.div(2)
                     .add(EXPECTED_INTEREST_WITHOUT_FEE_10_67_123_ALL)
@@ -8583,9 +8561,11 @@ describe('Market', () => {
 
             it('opens the position and settles later with fee', async () => {
               const riskParameter = { ...(await market.riskParameter()) }
-              riskParameter.takerFee = parse6decimal('0.01')
-              riskParameter.takerMagnitudeFee = parse6decimal('0.002')
-              riskParameter.takerImpactFee.scale = parse6decimal('0.004')
+              const riskParameterTakerFee = { ...riskParameter.takerFee }
+              riskParameterTakerFee.linearFee = parse6decimal('0.01')
+              riskParameterTakerFee.proportionalFee = parse6decimal('0.002')
+              riskParameterTakerFee.adiabaticFee = parse6decimal('0.004')
+              riskParameter.takerFee = riskParameterTakerFee
               await market.updateRiskParameter(riskParameter)
 
               const marketParameter = { ...(await market.parameter()) }
@@ -8687,6 +8667,7 @@ describe('Market', () => {
                 short: POSITION,
               })
               expectVersionEq(await market.versions(ORACLE_VERSION_3.timestamp), {
+                ...DEFAULT_VERSION,
                 makerValue: {
                   _value: EXPECTED_FUNDING_WITHOUT_FEE_1_10_123_ALL.div(2)
                     .add(EXPECTED_INTEREST_WITHOUT_FEE_10_67_123_ALL)
@@ -8799,6 +8780,7 @@ describe('Market', () => {
                 short: POSITION,
               })
               expectVersionEq(await market.versions(ORACLE_VERSION_3.timestamp), {
+                ...DEFAULT_VERSION,
                 makerValue: {
                   _value: EXPECTED_FUNDING_WITHOUT_FEE_1_10_123_ALL.div(2)
                     .add(EXPECTED_INTEREST_WITHOUT_FEE_10_67_123_ALL)
@@ -8913,6 +8895,7 @@ describe('Market', () => {
                 short: POSITION,
               })
               expectVersionEq(await market.versions(ORACLE_VERSION_3.timestamp), {
+                ...DEFAULT_VERSION,
                 makerValue: {
                   _value: EXPECTED_FUNDING_WITHOUT_FEE_1_10_123_ALL.div(2)
                     .add(EXPECTED_INTEREST_WITHOUT_FEE_10_67_123_ALL)
@@ -9025,6 +9008,7 @@ describe('Market', () => {
                 short: POSITION,
               })
               expectVersionEq(await market.versions(ORACLE_VERSION_3.timestamp), {
+                ...DEFAULT_VERSION,
                 makerValue: {
                   _value: EXPECTED_FUNDING_WITHOUT_FEE_1_10_123_ALL.div(2)
                     .add(EXPECTED_INTEREST_WITHOUT_FEE_10_67_123_ALL)
@@ -9139,6 +9123,7 @@ describe('Market', () => {
                 short: POSITION,
               })
               expectVersionEq(await market.versions(ORACLE_VERSION_3.timestamp), {
+                ...DEFAULT_VERSION,
                 makerValue: {
                   _value: EXPECTED_FUNDING_WITHOUT_FEE_1_10_123_ALL.div(2)
                     .add(EXPECTED_INTEREST_WITHOUT_FEE_10_67_123_ALL)
@@ -9216,9 +9201,7 @@ describe('Market', () => {
                 short: POSITION,
               })
               expectVersionEq(await market.versions(ORACLE_VERSION_1.timestamp), {
-                makerValue: { _value: 0 },
-                longValue: { _value: 0 },
-                shortValue: { _value: 0 },
+                ...DEFAULT_VERSION,
               })
             })
 
@@ -9264,9 +9247,7 @@ describe('Market', () => {
                 short: POSITION,
               })
               expectVersionEq(await market.versions(ORACLE_VERSION_1.timestamp), {
-                makerValue: { _value: 0 },
-                longValue: { _value: 0 },
-                shortValue: { _value: 0 },
+                ...DEFAULT_VERSION,
               })
             })
 
@@ -9325,9 +9306,7 @@ describe('Market', () => {
                   short: POSITION,
                 })
                 expectVersionEq(await market.versions(ORACLE_VERSION_2.timestamp), {
-                  makerValue: { _value: 0 },
-                  longValue: { _value: 0 },
-                  shortValue: { _value: 0 },
+                  ...DEFAULT_VERSION,
                 })
               })
 
@@ -9407,6 +9386,7 @@ describe('Market', () => {
                   short: POSITION,
                 })
                 expectVersionEq(await market.versions(ORACLE_VERSION_3.timestamp), {
+                  ...DEFAULT_VERSION,
                   makerValue: {
                     _value: EXPECTED_FUNDING_WITHOUT_FEE_1_10_123_ALL.div(2)
                       .add(EXPECTED_INTEREST_WITHOUT_FEE_10_67_123_ALL)
@@ -9476,9 +9456,7 @@ describe('Market', () => {
                   short: POSITION,
                 })
                 expectVersionEq(await market.versions(ORACLE_VERSION_2.timestamp), {
-                  makerValue: { _value: 0 },
-                  longValue: { _value: 0 },
-                  shortValue: { _value: 0 },
+                  ...DEFAULT_VERSION,
                 })
               })
 
@@ -9560,6 +9538,7 @@ describe('Market', () => {
                   short: POSITION,
                 })
                 expectVersionEq(await market.versions(ORACLE_VERSION_3.timestamp), {
+                  ...DEFAULT_VERSION,
                   makerValue: {
                     _value: EXPECTED_FUNDING_WITHOUT_FEE_1_10_123_ALL.div(2)
                       .add(EXPECTED_INTEREST_WITHOUT_FEE_10_67_123_ALL)
@@ -9661,6 +9640,7 @@ describe('Market', () => {
                   short: POSITION,
                 })
                 expectVersionEq(await market.versions(ORACLE_VERSION_3.timestamp), {
+                  ...DEFAULT_VERSION,
                   makerValue: {
                     _value: EXPECTED_FUNDING_WITHOUT_FEE_1_10_123_ALL.div(2)
                       .add(EXPECTED_INTEREST_WITHOUT_FEE_10_67_123_ALL)
@@ -9770,6 +9750,7 @@ describe('Market', () => {
                   short: POSITION,
                 })
                 expectVersionEq(await market.versions(ORACLE_VERSION_3.timestamp), {
+                  ...DEFAULT_VERSION,
                   makerValue: {
                     _value: EXPECTED_FUNDING_WITHOUT_FEE_1_10_123_ALL.div(2)
                       .add(EXPECTED_INTEREST_WITHOUT_FEE_10_67_123_ALL)
@@ -9790,6 +9771,7 @@ describe('Market', () => {
                   },
                 })
                 expectVersionEq(await market.versions(ORACLE_VERSION_4.timestamp), {
+                  ...DEFAULT_VERSION,
                   makerValue: {
                     _value: EXPECTED_FUNDING_WITHOUT_FEE_1_10_123_ALL.div(2)
                       .add(EXPECTED_FUNDING_WITHOUT_FEE_2_10_123_ALL.mul(3).div(4))
@@ -9871,6 +9853,7 @@ describe('Market', () => {
                   short: POSITION,
                 })
                 expectVersionEq(await market.versions(ORACLE_VERSION_3.timestamp), {
+                  ...DEFAULT_VERSION,
                   makerValue: {
                     _value: EXPECTED_FUNDING_WITHOUT_FEE_1_10_123_ALL.div(2)
                       .add(EXPECTED_INTEREST_WITHOUT_FEE_10_67_123_ALL)
@@ -9894,9 +9877,11 @@ describe('Market', () => {
 
               it('closes the position and settles later with fee', async () => {
                 const riskParameter = { ...(await market.riskParameter()) }
-                riskParameter.takerFee = parse6decimal('0.01')
-                riskParameter.takerMagnitudeFee = parse6decimal('0.002')
-                riskParameter.takerImpactFee.scale = parse6decimal('0.004')
+                const riskParameterTakerFee = { ...riskParameter.takerFee }
+                riskParameterTakerFee.linearFee = parse6decimal('0.01')
+                riskParameterTakerFee.proportionalFee = parse6decimal('0.002')
+                riskParameterTakerFee.adiabaticFee = parse6decimal('0.004')
+                riskParameter.takerFee = riskParameterTakerFee
                 await market.updateRiskParameter(riskParameter)
 
                 const marketParameter = { ...(await market.parameter()) }
@@ -9956,6 +9941,7 @@ describe('Market', () => {
                   short: POSITION,
                 })
                 expectVersionEq(await market.versions(ORACLE_VERSION_3.timestamp), {
+                  ...DEFAULT_VERSION,
                   makerValue: {
                     _value: EXPECTED_FUNDING_WITHOUT_FEE_1_10_123_ALL.div(2)
                       .add(EXPECTED_INTEREST_WITHOUT_FEE_10_67_123_ALL)
@@ -10074,9 +10060,7 @@ describe('Market', () => {
               short: POSITION,
             })
             expectVersionEq(await market.versions(ORACLE_VERSION_3.timestamp), {
-              makerValue: { _value: 0 },
-              longValue: { _value: 0 },
-              shortValue: { _value: 0 },
+              ...DEFAULT_VERSION,
             })
           })
 
@@ -10201,6 +10185,7 @@ describe('Market', () => {
               short: POSITION,
             })
             expectVersionEq(await market.versions(ORACLE_VERSION_3.timestamp), {
+              ...DEFAULT_VERSION,
               makerValue: {
                 _value: EXPECTED_PNL.div(2)
                   .mul(-1)
@@ -10344,6 +10329,7 @@ describe('Market', () => {
               short: POSITION,
             })
             expectVersionEq(await market.versions(ORACLE_VERSION_3.timestamp), {
+              ...DEFAULT_VERSION,
               makerValue: {
                 _value: EXPECTED_PNL.div(2)
                   .mul(-1)
@@ -10512,6 +10498,7 @@ describe('Market', () => {
                 short: POSITION,
               })
               expectVersionEq(await market.versions(ORACLE_VERSION_3.timestamp), {
+                ...DEFAULT_VERSION,
                 makerValue: {
                   _value: EXPECTED_FUNDING_WITHOUT_FEE_1_10_123_ALL.div(2)
                     .add(EXPECTED_INTEREST_WITHOUT_FEE_10_67_123_ALL)
@@ -10534,6 +10521,7 @@ describe('Market', () => {
                 },
               })
               expectVersionEq(await market.versions(ORACLE_VERSION_4.timestamp), {
+                ...DEFAULT_VERSION,
                 makerValue: {
                   _value: EXPECTED_FUNDING_WITHOUT_FEE_1_10_123_ALL.div(2)
                     .add(EXPECTED_INTEREST_WITHOUT_FEE_10_67_123_ALL)
@@ -10559,6 +10547,7 @@ describe('Market', () => {
                 },
               })
               expectVersionEq(await market.versions(ORACLE_VERSION_5.timestamp), {
+                ...DEFAULT_VERSION,
                 makerValue: {
                   _value: EXPECTED_FUNDING_WITHOUT_FEE_1_10_123_ALL.div(2)
                     .add(EXPECTED_INTEREST_WITHOUT_FEE_10_67_123_ALL)
@@ -10755,6 +10744,7 @@ describe('Market', () => {
                 short: POSITION,
               })
               expectVersionEq(await market.versions(ORACLE_VERSION_3.timestamp), {
+                ...DEFAULT_VERSION,
                 makerValue: {
                   _value: EXPECTED_FUNDING_WITHOUT_FEE_1_10_123_ALL.div(2)
                     .add(EXPECTED_INTEREST_WITHOUT_FEE_1)
@@ -10777,6 +10767,7 @@ describe('Market', () => {
                 },
               })
               expectVersionEq(await market.versions(ORACLE_VERSION_4.timestamp), {
+                ...DEFAULT_VERSION,
                 makerValue: {
                   _value: EXPECTED_FUNDING_WITHOUT_FEE_1_10_123_ALL.div(2)
                     .add(EXPECTED_INTEREST_WITHOUT_FEE_1)
@@ -10803,6 +10794,7 @@ describe('Market', () => {
                 },
               })
               expectVersionEq(await market.versions(ORACLE_VERSION_5.timestamp), {
+                ...DEFAULT_VERSION,
                 makerValue: {
                   _value: EXPECTED_FUNDING_WITHOUT_FEE_1_10_123_ALL.div(2)
                     .add(EXPECTED_INTEREST_WITHOUT_FEE_1)
@@ -10942,6 +10934,7 @@ describe('Market', () => {
                 short: POSITION,
               })
               expectVersionEq(await market.versions(ORACLE_VERSION_3.timestamp), {
+                ...DEFAULT_VERSION,
                 makerValue: {
                   _value: EXPECTED_FUNDING_WITHOUT_FEE_1_10_123_ALL.div(2)
                     .add(EXPECTED_INTEREST_WITHOUT_FEE_10_67_123_ALL)
@@ -11186,6 +11179,7 @@ describe('Market', () => {
                 short: POSITION,
               })
               expectVersionEq(await market.versions(ORACLE_VERSION_3.timestamp), {
+                ...DEFAULT_VERSION,
                 makerValue: {
                   _value: EXPECTED_FUNDING_WITHOUT_FEE_1_10_123_ALL.div(2)
                     .add(EXPECTED_INTEREST_WITHOUT_FEE_10_67_123_ALL)
@@ -11208,6 +11202,7 @@ describe('Market', () => {
                 },
               })
               expectVersionEq(await market.versions(ORACLE_VERSION_4.timestamp), {
+                ...DEFAULT_VERSION,
                 makerValue: {
                   _value: EXPECTED_FUNDING_WITHOUT_FEE_1_10_123_ALL.div(2)
                     .add(EXPECTED_INTEREST_WITHOUT_FEE_10_67_123_ALL)
@@ -11234,6 +11229,7 @@ describe('Market', () => {
                 },
               })
               expectVersionEq(await market.versions(ORACLE_VERSION_5.timestamp), {
+                ...DEFAULT_VERSION,
                 makerValue: {
                   _value: EXPECTED_FUNDING_WITHOUT_FEE_1_10_123_ALL.div(2)
                     .add(EXPECTED_INTEREST_WITHOUT_FEE_10_67_123_ALL)
@@ -11385,6 +11381,7 @@ describe('Market', () => {
                 short: POSITION,
               })
               expectVersionEq(await market.versions(ORACLE_VERSION_3.timestamp), {
+                ...DEFAULT_VERSION,
                 makerValue: {
                   _value: EXPECTED_FUNDING_WITHOUT_FEE_1_10_123_ALL.div(2)
                     .add(EXPECTED_INTEREST_WITHOUT_FEE_10_67_123_ALL)
@@ -11575,14 +11572,10 @@ describe('Market', () => {
               short: POSITION,
             })
             expectVersionEq(await market.versions(ORACLE_VERSION_3.timestamp), {
-              makerValue: { _value: 0 },
-              longValue: { _value: 0 },
-              shortValue: { _value: 0 },
+              ...DEFAULT_VERSION,
             })
             expectVersionEq(await market.versions(ORACLE_VERSION_4.timestamp), {
-              makerValue: { _value: 0 },
-              longValue: { _value: 0 },
-              shortValue: { _value: 0 },
+              ...DEFAULT_VERSION,
             })
           })
         })
@@ -11862,9 +11855,7 @@ describe('Market', () => {
             maker: dustPosition,
           })
           expectVersionEq(await market.versions(ORACLE_VERSION_1.timestamp), {
-            makerValue: { _value: 0 },
-            longValue: { _value: 0 },
-            shortValue: { _value: 0 },
+            ...DEFAULT_VERSION,
           })
 
           await expect(
@@ -12307,6 +12298,7 @@ describe('Market', () => {
             maker: POSITION,
           })
           expectVersionEq(await market.versions(ORACLE_VERSION_3.timestamp), {
+            ...DEFAULT_VERSION,
             makerValue: {
               _value: EXPECTED_FUNDING_WITHOUT_FEE_1_5_123.add(EXPECTED_INTEREST_WITHOUT_FEE_5_123)
                 .add(EXPECTED_PNL)
@@ -12457,6 +12449,7 @@ describe('Market', () => {
             maker: POSITION,
           })
           expectVersionEq(await market.versions(ORACLE_VERSION_3.timestamp), {
+            ...DEFAULT_VERSION,
             makerValue: {
               _value: EXPECTED_FUNDING_WITHOUT_FEE_1_5_123.add(EXPECTED_INTEREST_WITHOUT_FEE_5_123)
                 .add(EXPECTED_PNL)
@@ -12468,6 +12461,7 @@ describe('Market', () => {
             },
           })
           expectVersionEq(await market.versions(ORACLE_VERSION_4.timestamp), {
+            ...DEFAULT_VERSION,
             makerValue: {
               _value: EXPECTED_FUNDING_WITHOUT_FEE_1_5_123.add(EXPECTED_INTEREST_WITHOUT_FEE_5_123)
                 .add(EXPECTED_FUNDING_WITHOUT_FEE_2_5_150)
@@ -12485,6 +12479,7 @@ describe('Market', () => {
             },
           })
           expectVersionEq(await market.versions(ORACLE_VERSION_5.timestamp), {
+            ...DEFAULT_VERSION,
             makerValue: {
               _value: EXPECTED_FUNDING_WITHOUT_FEE_1_5_123.add(EXPECTED_INTEREST_WITHOUT_FEE_5_123)
                 .add(EXPECTED_FUNDING_WITHOUT_FEE_2_5_150)
@@ -12734,6 +12729,7 @@ describe('Market', () => {
             maker: POSITION,
           })
           expectVersionEq(await market.versions(ORACLE_VERSION_3.timestamp), {
+            ...DEFAULT_VERSION,
             makerValue: {
               _value: EXPECTED_FUNDING_WITHOUT_FEE_1_5_123.add(EXPECTED_INTEREST_WITHOUT_FEE_5_123)
                 .add(EXPECTED_PNL)
@@ -12745,6 +12741,7 @@ describe('Market', () => {
             },
           })
           expectVersionEq(await market.versions(ORACLE_VERSION_4.timestamp), {
+            ...DEFAULT_VERSION,
             makerValue: {
               _value: EXPECTED_FUNDING_WITHOUT_FEE_1_5_123.add(EXPECTED_INTEREST_WITHOUT_FEE_5_123)
                 .add(EXPECTED_FUNDING_WITHOUT_FEE_2_5_150)
@@ -12764,6 +12761,7 @@ describe('Market', () => {
             },
           })
           expectVersionEq(await market.versions(ORACLE_VERSION_5.timestamp), {
+            ...DEFAULT_VERSION,
             makerValue: {
               _value: EXPECTED_FUNDING_WITHOUT_FEE_1_5_123.add(EXPECTED_INTEREST_WITHOUT_FEE_5_123)
                 .add(EXPECTED_FUNDING_WITHOUT_FEE_2_5_150)
@@ -12800,9 +12798,11 @@ describe('Market', () => {
           await settle(market, user)
 
           const riskParameter = { ...(await market.riskParameter()) }
-          riskParameter.takerFee = parse6decimal('0.01')
-          riskParameter.takerMagnitudeFee = parse6decimal('0.002')
-          riskParameter.takerImpactFee.scale = parse6decimal('0.008')
+          const riskParameterTakerFee = { ...riskParameter.takerFee }
+          riskParameterTakerFee.linearFee = parse6decimal('0.01')
+          riskParameterTakerFee.proportionalFee = parse6decimal('0.002')
+          riskParameterTakerFee.adiabaticFee = parse6decimal('0.008')
+          riskParameter.takerFee = riskParameterTakerFee
           await market.updateRiskParameter(riskParameter)
 
           const marketParameter = { ...(await market.parameter()) }
@@ -12906,14 +12906,10 @@ describe('Market', () => {
             long: POSITION.div(2),
           })
           expectVersionEq(await market.versions(ORACLE_VERSION_2.timestamp), {
-            makerValue: { _value: 0 },
-            longValue: { _value: 0 },
-            shortValue: { _value: 0 },
+            ...DEFAULT_VERSION,
           })
           expectVersionEq(await market.versions(ORACLE_VERSION_3.timestamp), {
-            makerValue: { _value: 0 },
-            longValue: { _value: 0 },
-            shortValue: { _value: 0 },
+            ...DEFAULT_VERSION,
           })
         })
 
@@ -12925,9 +12921,11 @@ describe('Market', () => {
           await settle(market, user)
 
           const riskParameter = { ...(await market.riskParameter()) }
-          riskParameter.takerFee = parse6decimal('0.01')
-          riskParameter.takerMagnitudeFee = parse6decimal('0.002')
-          riskParameter.takerImpactFee.scale = parse6decimal('0.008')
+          const riskParameterTakerFee = { ...riskParameter.takerFee }
+          riskParameterTakerFee.linearFee = parse6decimal('0.01')
+          riskParameterTakerFee.proportionalFee = parse6decimal('0.002')
+          riskParameterTakerFee.adiabaticFee = parse6decimal('0.008')
+          riskParameter.takerFee = riskParameterTakerFee
           await market.updateRiskParameter(riskParameter)
 
           const marketParameter = { ...(await market.parameter()) }
@@ -13062,19 +13060,14 @@ describe('Market', () => {
             long: POSITION.div(2),
           })
           expectVersionEq(await market.versions(ORACLE_VERSION_2.timestamp), {
-            makerValue: { _value: 0 },
-            longValue: { _value: 0 },
-            shortValue: { _value: 0 },
+            ...DEFAULT_VERSION,
           })
           expectVersionEq(await market.versions(ORACLE_VERSION_3.timestamp), {
-            makerValue: { _value: 0 },
-            longValue: { _value: 0 },
-            shortValue: { _value: 0 },
+            ...DEFAULT_VERSION,
           })
           expectVersionEq(await market.versions(ORACLE_VERSION_4.timestamp), {
+            ...DEFAULT_VERSION,
             makerValue: { _value: TAKER_FEE_WITHOUT_FEE.div(10) },
-            longValue: { _value: 0 },
-            shortValue: { _value: 0 },
           })
         })
 
@@ -13086,9 +13079,11 @@ describe('Market', () => {
           await settle(market, user)
 
           const riskParameter = { ...(await market.riskParameter()) }
-          riskParameter.takerFee = parse6decimal('0.01')
-          riskParameter.takerMagnitudeFee = parse6decimal('0.002')
-          riskParameter.takerImpactFee.scale = parse6decimal('0.008')
+          const riskParameterTakerFee = { ...riskParameter.takerFee }
+          riskParameterTakerFee.linearFee = parse6decimal('0.01')
+          riskParameterTakerFee.proportionalFee = parse6decimal('0.002')
+          riskParameterTakerFee.adiabaticFee = parse6decimal('0.008')
+          riskParameter.takerFee = riskParameterTakerFee
           await market.updateRiskParameter(riskParameter)
 
           const marketParameter = { ...(await market.parameter()) }
@@ -13218,19 +13213,13 @@ describe('Market', () => {
             long: POSITION.div(2),
           })
           expectVersionEq(await market.versions(ORACLE_VERSION_2.timestamp), {
-            makerValue: { _value: 0 },
-            longValue: { _value: 0 },
-            shortValue: { _value: 0 },
+            ...DEFAULT_VERSION,
           })
           expectVersionEq(await market.versions(ORACLE_VERSION_3.timestamp), {
-            makerValue: { _value: 0 },
-            longValue: { _value: 0 },
-            shortValue: { _value: 0 },
+            ...DEFAULT_VERSION,
           })
           expectVersionEq(await market.versions(ORACLE_VERSION_4.timestamp), {
-            makerValue: { _value: 0 },
-            longValue: { _value: 0 },
-            shortValue: { _value: 0 },
+            ...DEFAULT_VERSION,
           })
         })
 
@@ -13242,9 +13231,11 @@ describe('Market', () => {
           await settle(market, user)
 
           const riskParameter = { ...(await market.riskParameter()) }
-          riskParameter.takerFee = parse6decimal('0.01')
-          riskParameter.takerMagnitudeFee = parse6decimal('0.002')
-          riskParameter.takerImpactFee.scale = parse6decimal('0.008')
+          const riskParameterTakerFee = { ...riskParameter.takerFee }
+          riskParameterTakerFee.linearFee = parse6decimal('0.01')
+          riskParameterTakerFee.proportionalFee = parse6decimal('0.002')
+          riskParameterTakerFee.adiabaticFee = parse6decimal('0.008')
+          riskParameter.takerFee = riskParameterTakerFee
           riskParameter.staleAfter = BigNumber.from(9600)
           await market.updateRiskParameter(riskParameter)
 
@@ -13376,19 +13367,13 @@ describe('Market', () => {
             long: POSITION.div(2),
           })
           expectVersionEq(await market.versions(ORACLE_VERSION_2.timestamp), {
-            makerValue: { _value: 0 },
-            longValue: { _value: 0 },
-            shortValue: { _value: 0 },
+            ...DEFAULT_VERSION,
           })
           expectVersionEq(await market.versions(ORACLE_VERSION_3.timestamp), {
-            makerValue: { _value: 0 },
-            longValue: { _value: 0 },
-            shortValue: { _value: 0 },
+            ...DEFAULT_VERSION,
           })
           expectVersionEq(await market.versions(ORACLE_VERSION_4.timestamp), {
-            makerValue: { _value: 0 },
-            longValue: { _value: 0 },
-            shortValue: { _value: 0 },
+            ...DEFAULT_VERSION,
           })
         })
 
@@ -13400,9 +13385,11 @@ describe('Market', () => {
           await settle(market, user)
 
           const riskParameter = { ...(await market.riskParameter()) }
-          riskParameter.takerFee = parse6decimal('0.01')
-          riskParameter.takerMagnitudeFee = parse6decimal('0.002')
-          riskParameter.takerImpactFee.scale = parse6decimal('0.008')
+          const riskParameterTakerFee = { ...riskParameter.takerFee }
+          riskParameterTakerFee.linearFee = parse6decimal('0.01')
+          riskParameterTakerFee.proportionalFee = parse6decimal('0.002')
+          riskParameterTakerFee.adiabaticFee = parse6decimal('0.008')
+          riskParameter.takerFee = riskParameterTakerFee
           riskParameter.staleAfter = BigNumber.from(9600)
           await market.updateRiskParameter(riskParameter)
 
@@ -13560,24 +13547,17 @@ describe('Market', () => {
             long: POSITION.div(2),
           })
           expectVersionEq(await market.versions(ORACLE_VERSION_2.timestamp), {
-            makerValue: { _value: 0 },
-            longValue: { _value: 0 },
-            shortValue: { _value: 0 },
+            ...DEFAULT_VERSION,
           })
           expectVersionEq(await market.versions(ORACLE_VERSION_3.timestamp), {
-            makerValue: { _value: 0 },
-            longValue: { _value: 0 },
-            shortValue: { _value: 0 },
+            ...DEFAULT_VERSION,
           })
           expectVersionEq(await market.versions(ORACLE_VERSION_4.timestamp), {
-            makerValue: { _value: 0 },
-            longValue: { _value: 0 },
-            shortValue: { _value: 0 },
+            ...DEFAULT_VERSION,
           })
           expectVersionEq(await market.versions(ORACLE_VERSION_5.timestamp), {
+            ...DEFAULT_VERSION,
             makerValue: { _value: TAKER_FEE_WITHOUT_FEE.div(10) },
-            longValue: { _value: 0 },
-            shortValue: { _value: 0 },
           })
         })
 
@@ -13659,6 +13639,7 @@ describe('Market', () => {
             long: POSITION.div(2),
           })
           expectVersionEq(await market.versions(ORACLE_VERSION_3.timestamp), {
+            ...DEFAULT_VERSION,
             makerValue: {
               _value: EXPECTED_FUNDING_WITHOUT_FEE_1_5_123.add(EXPECTED_INTEREST_WITHOUT_FEE_5_123).div(10),
             },
@@ -13781,6 +13762,7 @@ describe('Market', () => {
             short: POSITION.div(2),
           })
           expectVersionEq(await market.versions(ORACLE_VERSION_4.timestamp), {
+            ...DEFAULT_VERSION,
             makerValue: {
               _value: EXPECTED_FUNDING_WITHOUT_FEE_1_5_123.add(EXPECTED_INTEREST_WITHOUT_FEE_5_123)
                 .sub(EXPECTED_FUNDING_WITH_FEE_1_5_123)
@@ -13906,6 +13888,7 @@ describe('Market', () => {
             short: POSITION.div(2),
           })
           expectVersionEq(await market.versions(ORACLE_VERSION_4.timestamp), {
+            ...DEFAULT_VERSION,
             makerValue: {
               _value: EXPECTED_FUNDING_WITHOUT_FEE_1_5_123.add(EXPECTED_INTEREST_WITHOUT_FEE_5_123)
                 .add(EXPECTED_FUNDING_WITHOUT_FEE_1_5_123)
@@ -13971,9 +13954,7 @@ describe('Market', () => {
             maker: POSITION,
           })
           expectVersionEq(await market.versions(ORACLE_VERSION_1.timestamp), {
-            makerValue: { _value: 0 },
-            longValue: { _value: 0 },
-            shortValue: { _value: 0 },
+            ...DEFAULT_VERSION,
           })
         })
 
@@ -14755,8 +14736,10 @@ describe('Market', () => {
 
         beforeEach(async () => {
           const riskParameter = { ...(await market.riskParameter()) }
-          riskParameter.skewScale = parse6decimal('15')
-          await market.connect(owner).updateRiskParameter(riskParameter)
+          const riskParameterTakerFee = { ...riskParameter.takerFee }
+          riskParameterTakerFee.scale = parse6decimal('15')
+          riskParameter.takerFee = riskParameterTakerFee
+          await market.updateRiskParameter(riskParameter)
 
           dsu.transferFrom.whenCalledWith(user.address, market.address, COLLATERAL.mul(1e12)).returns(true)
         })
@@ -14847,6 +14830,7 @@ describe('Market', () => {
               long: POSITION.div(2),
             })
             expectVersionEq(await market.versions(ORACLE_VERSION_3.timestamp), {
+              ...DEFAULT_VERSION,
               makerValue: {
                 _value: EXPECTED_FUNDING_WITHOUT_FEE_1_5_123_V.add(EXPECTED_INTEREST_WITHOUT_FEE_5_123).div(10).sub(1), // loss of precision
               },
@@ -14859,8 +14843,10 @@ describe('Market', () => {
 
           it('correctly stores large skew', async () => {
             const riskParameter = { ...(await market.riskParameter()) }
-            riskParameter.skewScale = parse6decimal('1')
-            await market.connect(owner).updateRiskParameter(riskParameter)
+            const riskParameterTakerFee = { ...riskParameter.takerFee }
+            riskParameterTakerFee.scale = parse6decimal('')
+            riskParameter.takerFee = riskParameterTakerFee
+            await market.updateRiskParameter(riskParameter)
 
             await market.connect(user).update(user.address, 0, POSITION, 0, 0, false)
 
@@ -14958,6 +14944,7 @@ describe('Market', () => {
               short: POSITION.div(2),
             })
             expectVersionEq(await market.versions(ORACLE_VERSION_3.timestamp), {
+              ...DEFAULT_VERSION,
               makerValue: {
                 _value: EXPECTED_FUNDING_WITHOUT_FEE_1_5_123_V.add(EXPECTED_INTEREST_WITHOUT_FEE_5_123).div(10).sub(1), // loss of precision
               },
@@ -14970,8 +14957,10 @@ describe('Market', () => {
 
           it('correctly stores large skew', async () => {
             const riskParameter = { ...(await market.riskParameter()) }
-            riskParameter.skewScale = parse6decimal('1')
-            await market.connect(owner).updateRiskParameter(riskParameter)
+            const riskParameterTakerFee = { ...riskParameter.takerFee }
+            riskParameterTakerFee.scale = parse6decimal('1')
+            riskParameter.takerFee = riskParameterTakerFee
+            await market.updateRiskParameter(riskParameter)
 
             await market.connect(user).update(user.address, 0, 0, POSITION, 0, false)
 

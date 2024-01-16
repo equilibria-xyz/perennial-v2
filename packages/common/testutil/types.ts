@@ -201,7 +201,7 @@ export const DEFAULT_ORDER: Order = {
 }
 
 export const DEFAULT_VERSION: Version = {
-  valid: 9,
+  valid: true,
   makerValue: { _value: 0 },
   longValue: { _value: 0 },
   shortValue: { _value: 0 },
