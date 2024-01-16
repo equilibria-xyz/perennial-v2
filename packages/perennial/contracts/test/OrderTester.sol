@@ -4,6 +4,8 @@ pragma solidity ^0.8.13;
 import "../types/Order.sol";
 
 contract OrderTester {
+    // TODO: add storage
+    
     function increasesPosition(Order memory order) public pure returns (bool) {
         return order.increasesPosition();
     }

@@ -29,7 +29,11 @@ using CheckpointStorageLib for CheckpointStorage global;
 /// @title Checkpoint
 /// @notice Holds the state for a checkpoint
 library CheckpointLib {
-    /// TODO
+    /// @notice Updates the checkpoint with the latest collateral snapshot
+    /// @param self The checkpoint object to update
+    /// @param previousCheckpoint The previous checkpoint object
+    /// @param currentCheckpoint The current checkpoint object
+    /// @param collateral The current collateral amount
     function updateCollateral(
         Checkpoint memory self,
         Checkpoint memory previousCheckpoint,
@@ -39,6 +43,10 @@ library CheckpointLib {
         self.collateral = collateral.sub(currentCheckpoint.delta.sub(previousCheckpoint.delta)); // deposits happen after snapshot point
     }
 
+    /// @notice Updates the fees of the checkpoint
+    /// @param self The checkpoint object to update
+    /// @param tradeFee The trade fee that the order incurred at the checkpoint settlement
+    /// @param settlementFee The settlement fee that the order incurred at the checkpoint settlement
     function updateFees(
         Checkpoint memory self,
         Fixed6 tradeFee,
@@ -75,7 +83,7 @@ library CheckpointLib {
 ///     }
 ///
 library CheckpointStorageLib {
-    // TODO: 
+    // sig: 0xba85116a
     error CheckpointStorageInvalidError();
 
     function read(CheckpointStorage storage self) internal view returns (Checkpoint memory) {

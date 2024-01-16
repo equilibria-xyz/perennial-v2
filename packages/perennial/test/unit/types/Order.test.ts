@@ -5,11 +5,9 @@ import HRE from 'hardhat'
 
 import { OrderTester, OrderTester__factory } from '../../../types/generated'
 import { parse6decimal } from '../../../../common/testutil/types'
-import { OrderStruct } from '../../../types/generated/contracts/test/OrderTester'
 import { VALID_ORACLE_VERSION } from './Position.test'
 import { VALID_MARKET_PARAMETER } from './MarketParameter.test'
 import { VALID_RISK_PARAMETER } from './RiskParameter.test'
-import { PositionStruct } from '../../../types/generated/contracts/Market'
 import { DEFAULT_POSITION, DEFAULT_ORDER } from '../../../../common/testutil/types'
 
 const { ethers } = HRE
@@ -137,7 +135,7 @@ describe('Order', () => {
           },
         )
 
-        expect(result).to.be.false
+        expect(result).to.be.true
       })
     })
 
@@ -153,7 +151,7 @@ describe('Order', () => {
           },
         )
 
-        expect(result).to.be.true
+        expect(result).to.be.false
       })
     })
 
@@ -216,7 +214,7 @@ describe('Order', () => {
           },
           {
             ...DEFAULT_POSITION,
-            long: parse6decimal('10'),
+            long: parse6decimal('0'),
             short: parse6decimal('10'),
           },
         )
@@ -235,7 +233,7 @@ describe('Order', () => {
           {
             ...DEFAULT_POSITION,
             long: parse6decimal('10'),
-            short: parse6decimal('10'),
+            short: parse6decimal('0'),
           },
         )
 

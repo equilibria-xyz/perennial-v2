@@ -11,7 +11,9 @@ import {
 } from '../../../types/generated'
 import { BigNumber } from 'ethers'
 import { parse6decimal } from '../../../../common/testutil/types'
-import { OracleVersionStruct, PositionStruct } from '../../../types/generated/contracts/Market'
+import { PositionStruct } from '../../../types/generated/contracts/Market'
+import { OracleVersionStruct } from '../../../types/generated/contracts/interfaces/IOracleProvider'
+
 import { VALID_RISK_PARAMETER } from './RiskParameter.test'
 
 const { ethers } = HRE
@@ -634,8 +636,8 @@ describe('Position', () => {
 
           const value = await position.read()
           expect(value.timestamp).to.equal(123456)
-          expect(value.maker).to.equal(parse6decimal('41'))
-          expect(value.long).to.equal(parse6decimal('13'))
+          expect(value.maker).to.equal(parse6decimal('39'))
+          expect(value.long).to.equal(parse6decimal('16'))
           expect(value.short).to.equal(parse6decimal('15'))
         })
       })

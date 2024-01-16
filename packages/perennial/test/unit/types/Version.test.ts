@@ -9,12 +9,12 @@ import { DEFAULT_ORDER, parse6decimal } from '../../../../common/testutil/types'
 import {
   GlobalStruct,
   MarketParameterStruct,
-  OracleVersionStruct,
   OrderStruct,
   PositionStruct,
   RiskParameterStruct,
   VersionStruct,
 } from '../../../types/generated/contracts/Market'
+import { OracleVersionStruct } from '../../../types/generated/contracts/interfaces/IOracleProvider'
 import { VALID_MARKET_PARAMETER } from './MarketParameter.test'
 import { VALID_RISK_PARAMETER } from './RiskParameter.test'
 

@@ -83,12 +83,14 @@ describe('RiskParameter', () => {
       const value = await riskParameter.read()
       expect(value.margin).to.equal(15)
       expect(value.maintenance).to.equal(1)
-      expect(value.takerFee).to.equal(2)
-      expect(value.takerMagnitudeFee).to.equal(3)
-      expect(value.makerImpactFee).to.equal(4)
-      expect(value.takerImpactFee).to.equal(4)
-      expect(value.makerFee).to.equal(5)
-      expect(value.makerMagnitudeFee).to.equal(6)
+      expect(value.takerFee.linearFee).to.equal(2)
+      expect(value.takerFee.proportionalFee).to.equal(3)
+      expect(value.takerFee.adiabaticFee).to.equal(18)
+      expect(value.takerFee.scale).to.equal(4)
+      expect(value.makerFee.linearFee).to.equal(5)
+      expect(value.makerFee.proportionalFee).to.equal(6)
+      expect(value.makerFee.adiabaticFee).to.equal(19)
+      expect(value.makerFee.scale).to.equal(17)
       expect(value.makerLimit).to.equal(7)
       expect(value.efficiencyLimit).to.equal(8)
       expect(value.liquidationFee).to.equal(9)
@@ -104,7 +106,6 @@ describe('RiskParameter', () => {
       expect(value.minMaintenance).to.equal(12)
       expect(value.staleAfter).to.equal(13)
       expect(value.makerReceiveOnly).to.equal(false)
-      expect(value.skewScale).to.equal(14)
     })
 
     describe('.makerLimit', () => {
@@ -295,58 +296,6 @@ describe('RiskParameter', () => {
       })
     })
 
-    describe('.takerFee', () => {
-      it('saves if in range', async () => {
-        await riskParameter.validateAndStore(
-          {
-            ...VALID_RISK_PARAMETER,
-            takerFee: parse6decimal('1'),
-          },
-          PROTOCOL_PARAMETER,
-        )
-        const value = await riskParameter.read()
-        expect(value.takerFee).to.equal(parse6decimal('1'))
-      })
-
-      it('reverts if invalid', async () => {
-        await expect(
-          riskParameter.validateAndStore(
-            {
-              ...VALID_RISK_PARAMETER,
-              takerFee: parse6decimal('1').add(1),
-            },
-            PROTOCOL_PARAMETER,
-          ),
-        ).to.be.revertedWithCustomError(riskParameterStorage, 'RiskParameterStorageInvalidError')
-      })
-    })
-
-    describe('.makerFee', () => {
-      it('saves if in range', async () => {
-        await riskParameter.validateAndStore(
-          {
-            ...VALID_RISK_PARAMETER,
-            makerFee: parse6decimal('1'),
-          },
-          PROTOCOL_PARAMETER,
-        )
-        const value = await riskParameter.read()
-        expect(value.makerFee).to.equal(parse6decimal('1'))
-      })
-
-      it('reverts if invalid', async () => {
-        await expect(
-          riskParameter.validateAndStore(
-            {
-              ...VALID_RISK_PARAMETER,
-              makerFee: parse6decimal('1').add(1),
-            },
-            PROTOCOL_PARAMETER,
-          ),
-        ).to.be.revertedWithCustomError(riskParameterStorage, 'RiskParameterStorageInvalidError')
-      })
-    })
-
     describe('.margin', () => {
       const STORAGE_SIZE = 24
       it('saves if in range', async () => {
@@ -487,17 +436,20 @@ describe('RiskParameter', () => {
       })
     })
 
-    describe('.takerMagnitudeFee', () => {
+    describe('.takerFee.linearFee', () => {
       it('saves if in range', async () => {
         await riskParameter.validateAndStore(
           {
             ...VALID_RISK_PARAMETER,
-            takerMagnitudeFee: parse6decimal('1'),
+            takerFee: {
+              ...VALID_RISK_PARAMETER.takerFee,
+              linearFee: parse6decimal('1'),
+            },
           },
           PROTOCOL_PARAMETER,
         )
         const value = await riskParameter.read()
-        expect(value.takerMagnitudeFee).to.equal(parse6decimal('1'))
+        expect(value.takerFee.linearFee).to.equal(parse6decimal('1'))
       })
 
       it('reverts if invalid', async () => {
@@ -505,36 +457,9 @@ describe('RiskParameter', () => {
           riskParameter.validateAndStore(
             {
               ...VALID_RISK_PARAMETER,
-              takerMagnitudeFee: parse6decimal('1').add(1),
-            },
-            PROTOCOL_PARAMETER,
-          ),
-        ).to.be.revertedWithCustomError(riskParameterStorage, 'RiskParameterStorageInvalidError')
-      })
-    })
-
-    describe('.makerImpactFee', () => {
-      it('saves if in range', async () => {
-        await riskParameter.validateAndStore(
-          {
-            ...VALID_RISK_PARAMETER,
-            makerImpactFee: {
-              scale: parse6decimal('1'),
-            },
-          },
-          PROTOCOL_PARAMETER,
-        )
-        const value = await riskParameter.read()
-        expect(value.makerImpactFee.scale).to.equal(parse6decimal('1'))
-      })
-
-      it('reverts if invalid', async () => {
-        await expect(
-          riskParameter.validateAndStore(
-            {
-              ...VALID_RISK_PARAMETER,
-              makerImpactFee: {
-                scale: parse6decimal('1').add(1),
+              takerFee: {
+                ...VALID_RISK_PARAMETER.takerFee,
+                linearFee: parse6decimal('1').add(1),
               },
             },
             PROTOCOL_PARAMETER,
@@ -543,19 +468,20 @@ describe('RiskParameter', () => {
       })
     })
 
-    describe('.takerImpactFee', () => {
+    describe('.takerFee.proportionalFee', () => {
       it('saves if in range', async () => {
         await riskParameter.validateAndStore(
           {
             ...VALID_RISK_PARAMETER,
-            takerImpactFee: {
-              scale: parse6decimal('1'),
+            takerFee: {
+              ...VALID_RISK_PARAMETER.takerFee,
+              proportionalFee: parse6decimal('1'),
             },
           },
           PROTOCOL_PARAMETER,
         )
         const value = await riskParameter.read()
-        expect(value.takerImpactFee.scale).to.equal(parse6decimal('1'))
+        expect(value.takerFee.proportionalFee).to.equal(parse6decimal('1'))
       })
 
       it('reverts if invalid', async () => {
@@ -563,8 +489,9 @@ describe('RiskParameter', () => {
           riskParameter.validateAndStore(
             {
               ...VALID_RISK_PARAMETER,
-              takerImpactFee: {
-                scale: parse6decimal('1').add(1),
+              takerFee: {
+                ...VALID_RISK_PARAMETER.takerFee,
+                linearFee: parse6decimal('1').add(1),
               },
             },
             PROTOCOL_PARAMETER,
@@ -573,17 +500,20 @@ describe('RiskParameter', () => {
       })
     })
 
-    describe('.makerMagnitudeFee', () => {
+    describe('.takerFee.adiabaticFee', () => {
       it('saves if in range', async () => {
         await riskParameter.validateAndStore(
           {
             ...VALID_RISK_PARAMETER,
-            makerMagnitudeFee: parse6decimal('1'),
+            takerFee: {
+              ...VALID_RISK_PARAMETER.takerFee,
+              adiabaticFee: parse6decimal('1'),
+            },
           },
           PROTOCOL_PARAMETER,
         )
         const value = await riskParameter.read()
-        expect(value.makerMagnitudeFee).to.equal(parse6decimal('1'))
+        expect(value.takerFee.adiabaticFee).to.equal(parse6decimal('1'))
       })
 
       it('reverts if invalid', async () => {
@@ -591,7 +521,172 @@ describe('RiskParameter', () => {
           riskParameter.validateAndStore(
             {
               ...VALID_RISK_PARAMETER,
-              makerMagnitudeFee: parse6decimal('1').add(1),
+              takerFee: {
+                ...VALID_RISK_PARAMETER.takerFee,
+                adiabaticFee: parse6decimal('1').add(1),
+              },
+            },
+            PROTOCOL_PARAMETER,
+          ),
+        ).to.be.revertedWithCustomError(riskParameterStorage, 'RiskParameterStorageInvalidError')
+      })
+    })
+
+    describe('.takerFee.scale', () => {
+      const STORAGE_SIZE = 64
+      it('saves if in range', async () => {
+        await riskParameter.validateAndStore(
+          {
+            ...VALID_RISK_PARAMETER,
+            takerFee: {
+              ...VALID_RISK_PARAMETER.takerFee,
+              scale: BigNumber.from(2).pow(STORAGE_SIZE).sub(1),
+            },
+          },
+          PROTOCOL_PARAMETER,
+        )
+        const value = await riskParameter.read()
+        expect(value.takerFee.scale).to.equal(BigNumber.from(2).pow(STORAGE_SIZE).sub(1))
+      })
+
+      it('reverts if out of range', async () => {
+        await expect(
+          riskParameter.validateAndStore(
+            {
+              ...VALID_RISK_PARAMETER,
+              takerFee: {
+                ...VALID_RISK_PARAMETER.takerFee,
+                scale: BigNumber.from(2).pow(STORAGE_SIZE),
+              },
+            },
+            PROTOCOL_PARAMETER,
+          ),
+        ).to.be.revertedWithCustomError(riskParameterStorage, 'RiskParameterStorageInvalidError')
+      })
+    })
+
+    describe('.makerFee.linearFee', () => {
+      it('saves if in range', async () => {
+        await riskParameter.validateAndStore(
+          {
+            ...VALID_RISK_PARAMETER,
+            makerFee: {
+              ...VALID_RISK_PARAMETER.takerFee,
+              linearFee: parse6decimal('1'),
+            },
+          },
+          PROTOCOL_PARAMETER,
+        )
+        const value = await riskParameter.read()
+        expect(value.makerFee.linearFee).to.equal(parse6decimal('1'))
+      })
+
+      it('reverts if invalid', async () => {
+        await expect(
+          riskParameter.validateAndStore(
+            {
+              ...VALID_RISK_PARAMETER,
+              makerFee: {
+                ...VALID_RISK_PARAMETER.takerFee,
+                linearFee: parse6decimal('1').add(1),
+              },
+            },
+            PROTOCOL_PARAMETER,
+          ),
+        ).to.be.revertedWithCustomError(riskParameterStorage, 'RiskParameterStorageInvalidError')
+      })
+    })
+
+    describe('.makerFee.proportionalFee', () => {
+      it('saves if in range', async () => {
+        await riskParameter.validateAndStore(
+          {
+            ...VALID_RISK_PARAMETER,
+            makerFee: {
+              ...VALID_RISK_PARAMETER.takerFee,
+              proportionalFee: parse6decimal('1'),
+            },
+          },
+          PROTOCOL_PARAMETER,
+        )
+        const value = await riskParameter.read()
+        expect(value.makerFee.proportionalFee).to.equal(parse6decimal('1'))
+      })
+
+      it('reverts if invalid', async () => {
+        await expect(
+          riskParameter.validateAndStore(
+            {
+              ...VALID_RISK_PARAMETER,
+              makerFee: {
+                ...VALID_RISK_PARAMETER.takerFee,
+                linearFee: parse6decimal('1').add(1),
+              },
+            },
+            PROTOCOL_PARAMETER,
+          ),
+        ).to.be.revertedWithCustomError(riskParameterStorage, 'RiskParameterStorageInvalidError')
+      })
+    })
+
+    describe('.makerFee.adiabaticFee', () => {
+      it('saves if in range', async () => {
+        await riskParameter.validateAndStore(
+          {
+            ...VALID_RISK_PARAMETER,
+            makerFee: {
+              ...VALID_RISK_PARAMETER.makerFee,
+              adiabaticFee: parse6decimal('1'),
+            },
+          },
+          PROTOCOL_PARAMETER,
+        )
+        const value = await riskParameter.read()
+        expect(value.makerFee.adiabaticFee).to.equal(parse6decimal('1'))
+      })
+
+      it('reverts if invalid', async () => {
+        await expect(
+          riskParameter.validateAndStore(
+            {
+              ...VALID_RISK_PARAMETER,
+              makerFee: {
+                ...VALID_RISK_PARAMETER.makerFee,
+                adiabaticFee: parse6decimal('1').add(1),
+              },
+            },
+            PROTOCOL_PARAMETER,
+          ),
+        ).to.be.revertedWithCustomError(riskParameterStorage, 'RiskParameterStorageInvalidError')
+      })
+    })
+
+    describe('.makerFee.scale', () => {
+      const STORAGE_SIZE = 64
+      it('saves if in range', async () => {
+        await riskParameter.validateAndStore(
+          {
+            ...VALID_RISK_PARAMETER,
+            makerFee: {
+              ...VALID_RISK_PARAMETER.makerFee,
+              scale: BigNumber.from(2).pow(STORAGE_SIZE).sub(1),
+            },
+          },
+          PROTOCOL_PARAMETER,
+        )
+        const value = await riskParameter.read()
+        expect(value.makerFee.scale).to.equal(BigNumber.from(2).pow(STORAGE_SIZE).sub(1))
+      })
+
+      it('reverts if out of range', async () => {
+        await expect(
+          riskParameter.validateAndStore(
+            {
+              ...VALID_RISK_PARAMETER,
+              makerFee: {
+                ...VALID_RISK_PARAMETER.makerFee,
+                scale: BigNumber.from(2).pow(STORAGE_SIZE),
+              },
             },
             PROTOCOL_PARAMETER,
           ),
@@ -699,33 +794,6 @@ describe('RiskParameter', () => {
             {
               ...VALID_RISK_PARAMETER,
               staleAfter: BigNumber.from(2).pow(STORAGE_SIZE),
-            },
-            PROTOCOL_PARAMETER,
-          ),
-        ).to.be.revertedWithCustomError(riskParameterStorage, 'RiskParameterStorageInvalidError')
-      })
-    })
-
-    describe('.skewScale', () => {
-      const STORAGE_SIZE = 64
-      it('saves if in range', async () => {
-        await riskParameter.validateAndStore(
-          {
-            ...VALID_RISK_PARAMETER,
-            skewScale: BigNumber.from(2).pow(STORAGE_SIZE).sub(1),
-          },
-          PROTOCOL_PARAMETER,
-        )
-        const value = await riskParameter.read()
-        expect(value.skewScale).to.equal(BigNumber.from(2).pow(STORAGE_SIZE).sub(1))
-      })
-
-      it('reverts if out of range', async () => {
-        await expect(
-          riskParameter.validateAndStore(
-            {
-              ...VALID_RISK_PARAMETER,
-              skewScale: BigNumber.from(2).pow(STORAGE_SIZE),
             },
             PROTOCOL_PARAMETER,
           ),

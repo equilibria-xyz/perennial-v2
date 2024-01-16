@@ -11,8 +11,8 @@ import {
   PositionStruct,
   VersionStruct,
   RiskParameterStruct,
-  OracleVersionStruct,
 } from '../../../types/generated/contracts/Market'
+import { OracleVersionStruct } from '../../../types/generated/contracts/interfaces/IOracleProvider'
 
 const { ethers } = HRE
 use(smock.matchers)
@@ -480,12 +480,18 @@ describe('Local', () => {
     const VALID_RISK_PARAMETER: RiskParameterStruct = {
       margin: 15,
       maintenance: 1,
-      takerFee: 2,
-      takerMagnitudeFee: 3,
-      takerImpactFee: { scale: 4 },
-      makerFee: 5,
-      makerMagnitudeFee: 6,
-      makerImpactFee: { scale: 17 },
+      takerFee: {
+        linearFee: 2,
+        proportionalFee: 3,
+        adiabaticFee: 4,
+        scale: 14,
+      },
+      makerFee: {
+        linearFee: 5,
+        proportionalFee: 6,
+        adiabaticFee: 17,
+        scale: 14,
+      },
       makerLimit: 7,
       efficiencyLimit: 8,
       liquidationFee: 9,
@@ -505,7 +511,6 @@ describe('Local', () => {
       minMaintenance: 12,
       staleAfter: 13,
       makerReceiveOnly: false,
-      skewScale: 14,
     }
 
     it('doesnt protect tryProtect == false', async () => {
