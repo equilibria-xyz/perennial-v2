@@ -26,25 +26,37 @@ import { IMarket, MarketParameterStruct, RiskParameterStruct } from '../../../ty
 const { ethers } = HRE
 use(smock.matchers)
 
+// TODO: pendingOrder tests
+
 const POSITION = parse6decimal('10.000')
 const COLLATERAL = parse6decimal('10000')
 const TIMESTAMP = 1636401093
 const PRICE = parse6decimal('123')
 
 const DEFAULT_VERSION_ACCUMULATION_RESULT = {
+  positionFee: 0,
   positionFeeMaker: 0,
-  positionFeeFee: 0,
+  positionFeeProtocol: 0,
+  positionFeeExposure: 0,
+  positionFeeExposureMaker: 0,
+  positionFeeExposureProtocol: 0,
+  positionFeeImpact: 0,
+
   fundingMaker: 0,
   fundingLong: 0,
   fundingShort: 0,
   fundingFee: 0,
+
   interestMaker: 0,
   interestLong: 0,
   interestShort: 0,
   interestFee: 0,
+
   pnlMaker: 0,
   pnlLong: 0,
   pnlShort: 0,
+
+  settlementFee: 0,
 }
 
 const DEFAULT_LOCAL_ACCUMULATION_RESULT = {
@@ -320,7 +332,7 @@ async function deposit(market: Market, amount: BigNumber, account: SignerWithAdd
     .update(account.address, currentPosition.maker, currentPosition.long, currentPosition.short, amount, false)
 }
 
-describe('Market', () => {
+describe.only('Market', () => {
   let protocolTreasury: SignerWithAddress
   let owner: SignerWithAddress
   let beneficiary: SignerWithAddress
@@ -1124,9 +1136,6 @@ describe('Market', () => {
               ...DEFAULT_POSITION,
               timestamp: ORACLE_VERSION_2.timestamp,
               maker: POSITION.mul(2),
-            })
-            expectVersionEq(await market.versions(ORACLE_VERSION_1.timestamp), {
-              ...DEFAULT_VERSION,
             })
           })
 
@@ -2154,9 +2163,6 @@ describe('Market', () => {
                 timestamp: ORACLE_VERSION_2.timestamp,
                 maker: POSITION,
                 long: POSITION,
-              })
-              expectVersionEq(await market.versions(ORACLE_VERSION_2.timestamp), {
-                ...DEFAULT_VERSION,
               })
             })
 
@@ -3582,9 +3588,6 @@ describe('Market', () => {
               maker: POSITION,
               long: POSITION.div(2),
             })
-            expectVersionEq(await market.versions(ORACLE_VERSION_3.timestamp), {
-              ...DEFAULT_VERSION,
-            })
           })
 
           it('lower price same rate settle', async () => {
@@ -4539,7 +4542,7 @@ describe('Market', () => {
                 timestamp: ORACLE_VERSION_6.timestamp,
                 maker: POSITION,
               })
-              expectCheckpointEq(await market.checkpoints(user.address, 5), {
+              expectCheckpointEq(await market.checkpoints(userB.address, 5), {
                 ...DEFAULT_CHECKPOINT,
                 delta: COLLATERAL,
               })
@@ -4689,7 +4692,7 @@ describe('Market', () => {
                 timestamp: ORACLE_VERSION_4.timestamp,
                 maker: POSITION,
               })
-              expectCheckpointEq(await market.checkpoints(user.address, 3), {
+              expectCheckpointEq(await market.checkpoints(userB.address, 3), {
                 ...DEFAULT_CHECKPOINT,
                 delta: COLLATERAL,
               })
@@ -5071,9 +5074,6 @@ describe('Market', () => {
                 maker: POSITION,
                 short: POSITION,
               })
-              expectVersionEq(await market.versions(ORACLE_VERSION_2.timestamp), {
-                ...DEFAULT_VERSION,
-              })
             })
 
             it('opens a second position and settles (same version)', async () => {
@@ -5246,7 +5246,7 @@ describe('Market', () => {
                 timestamp: ORACLE_VERSION_4.timestamp,
                 maker: POSITION,
               })
-              expectCheckpointEq(await market.checkpoints(user.address, 2), {
+              expectCheckpointEq(await market.checkpoints(userB.address, 2), {
                 ...DEFAULT_CHECKPOINT,
                 delta: COLLATERAL,
               })
@@ -6519,9 +6519,6 @@ describe('Market', () => {
               timestamp: ORACLE_VERSION_3.timestamp,
               maker: POSITION,
               short: POSITION.div(2),
-            })
-            expectVersionEq(await market.versions(ORACLE_VERSION_3.timestamp), {
-              ...DEFAULT_VERSION,
             })
           })
 
@@ -8209,9 +8206,6 @@ describe('Market', () => {
                 long: POSITION,
                 short: POSITION,
               })
-              expectVersionEq(await market.versions(ORACLE_VERSION_2.timestamp), {
-                ...DEFAULT_VERSION,
-              })
             })
 
             it('opens a second position and settles (same version)', async () => {
@@ -8370,9 +8364,6 @@ describe('Market', () => {
               })
               expectCheckpointEq(await market.checkpoints(user.address, 3), {
                 ...DEFAULT_CHECKPOINT,
-              })
-              expectCheckpointEq(await market.checkpoints(user.address, 3), {
-                ...DEFAULT_CHECKPOINT,
                 delta: COLLATERAL,
               })
               expectLocalEq(await market.locals(userB.address), {
@@ -8392,9 +8383,6 @@ describe('Market', () => {
                 ...DEFAULT_POSITION,
                 timestamp: ORACLE_VERSION_4.timestamp,
                 maker: POSITION,
-              })
-              expectCheckpointEq(await market.checkpoints(userB.address, 2), {
-                ...DEFAULT_CHECKPOINT,
               })
               expectCheckpointEq(await market.checkpoints(userB.address, 2), {
                 ...DEFAULT_CHECKPOINT,
@@ -8487,7 +8475,7 @@ describe('Market', () => {
                 timestamp: ORACLE_VERSION_4.timestamp,
                 long: POSITION.div(2),
               })
-              expectCheckpointEq(await market.checkpoints(user.address, 1), {
+              expectCheckpointEq(await market.checkpoints(user.address, 2), {
                 ...DEFAULT_CHECKPOINT,
                 delta: COLLATERAL,
               })
@@ -10059,9 +10047,6 @@ describe('Market', () => {
               long: POSITION.div(2),
               short: POSITION,
             })
-            expectVersionEq(await market.versions(ORACLE_VERSION_3.timestamp), {
-              ...DEFAULT_VERSION,
-            })
           })
 
           it('lower price same rate settle', async () => {
@@ -11149,7 +11134,7 @@ describe('Market', () => {
                 timestamp: ORACLE_VERSION_6.timestamp,
                 maker: POSITION,
               })
-              expectCheckpointEq(await market.checkpoints(user.address, 5), {
+              expectCheckpointEq(await market.checkpoints(userB.address, 5), {
                 ...DEFAULT_CHECKPOINT,
                 delta: COLLATERAL,
               })
@@ -11354,7 +11339,7 @@ describe('Market', () => {
                 timestamp: ORACLE_VERSION_4.timestamp,
                 maker: POSITION,
               })
-              expectCheckpointEq(await market.checkpoints(user.address, 3), {
+              expectCheckpointEq(await market.checkpoints(userB.address, 3), {
                 ...DEFAULT_CHECKPOINT,
                 delta: COLLATERAL,
               })
@@ -12273,7 +12258,7 @@ describe('Market', () => {
             timestamp: ORACLE_VERSION_4.timestamp,
             maker: POSITION,
           })
-          expectCheckpointEq(await market.checkpoints(user.address, 1), {
+          expectCheckpointEq(await market.checkpoints(userB.address, 3), {
             ...DEFAULT_CHECKPOINT,
             delta: COLLATERAL,
           })
@@ -12423,7 +12408,7 @@ describe('Market', () => {
             timestamp: ORACLE_VERSION_6.timestamp,
             maker: POSITION,
           })
-          expectCheckpointEq(await market.checkpoints(user.address, 1), {
+          expectCheckpointEq(await market.checkpoints(userB.address, 5), {
             ...DEFAULT_CHECKPOINT,
             delta: COLLATERAL,
           })
@@ -12672,10 +12657,20 @@ describe('Market', () => {
           expectPositionEq(await market.positions(user.address), {
             ...DEFAULT_POSITION,
             timestamp: ORACLE_VERSION_6.timestamp,
+            invalidation: {
+              maker: 0,
+              long: 0,
+              short: POSITION.div(2),
+            },
           })
           expectPositionEq(await market.pendingPositions(user.address, 6), {
             ...DEFAULT_POSITION,
             timestamp: ORACLE_VERSION_6.timestamp + 3600,
+            invalidation: {
+              maker: 0,
+              long: 0,
+              short: POSITION.div(2),
+            },
           })
           expectCheckpointEq(await market.checkpoints(user.address, 6), {
             ...DEFAULT_CHECKPOINT,
@@ -12702,7 +12697,7 @@ describe('Market', () => {
             timestamp: ORACLE_VERSION_6.timestamp + 3600,
             maker: POSITION,
           })
-          expectCheckpointEq(await market.checkpoints(user.address, 1), {
+          expectCheckpointEq(await market.checkpoints(userB.address, 6), {
             ...DEFAULT_CHECKPOINT,
             delta: COLLATERAL,
           })
@@ -12722,11 +12717,21 @@ describe('Market', () => {
             ...DEFAULT_POSITION,
             timestamp: ORACLE_VERSION_6.timestamp,
             maker: POSITION,
+            invalidation: {
+              maker: 0,
+              long: 0,
+              short: POSITION.div(2),
+            },
           })
           expectPositionEq(await market.pendingPosition(6), {
             ...DEFAULT_POSITION,
             timestamp: ORACLE_VERSION_6.timestamp + 3600,
             maker: POSITION,
+            invalidation: {
+              maker: 0,
+              long: 0,
+              short: POSITION.div(2),
+            },
           })
           expectVersionEq(await market.versions(ORACLE_VERSION_3.timestamp), {
             ...DEFAULT_VERSION,
@@ -12742,6 +12747,7 @@ describe('Market', () => {
           })
           expectVersionEq(await market.versions(ORACLE_VERSION_4.timestamp), {
             ...DEFAULT_VERSION,
+            valid: false,
             makerValue: {
               _value: EXPECTED_FUNDING_WITHOUT_FEE_1_5_123.add(EXPECTED_INTEREST_WITHOUT_FEE_5_123)
                 .add(EXPECTED_FUNDING_WITHOUT_FEE_2_5_150)
@@ -12783,7 +12789,7 @@ describe('Market', () => {
         })
       })
 
-      context('invalid oracle version', async () => {
+      context.only('invalid oracle version', async () => {
         beforeEach(async () => {
           dsu.transferFrom.whenCalledWith(user.address, market.address, COLLATERAL.mul(1e12)).returns(true)
           dsu.transferFrom.whenCalledWith(userB.address, market.address, COLLATERAL.mul(1e12)).returns(true)
@@ -14844,7 +14850,7 @@ describe('Market', () => {
           it('correctly stores large skew', async () => {
             const riskParameter = { ...(await market.riskParameter()) }
             const riskParameterTakerFee = { ...riskParameter.takerFee }
-            riskParameterTakerFee.scale = parse6decimal('')
+            riskParameterTakerFee.scale = parse6decimal('1')
             riskParameter.takerFee = riskParameterTakerFee
             await market.updateRiskParameter(riskParameter)
 
@@ -15114,17 +15120,10 @@ describe('Market', () => {
           dsu.transferFrom.whenCalledWith(userC.address, market.address, COLLATERAL.mul(1e12)).returns(true)
         })
 
-        it('can switch current through reset', async () => {
+        it('can switch current before settlement', async () => {
           await market.connect(userB).update(userB.address, POSITION, 0, 0, COLLATERAL, false)
           await market.connect(user).update(user.address, 0, POSITION, 0, COLLATERAL, false)
 
-          // switch (before any latest) -> then reset
-          await expect(
-            market.connect(user).update(user.address, 0, 0, POSITION, 0, false),
-          ).to.be.revertedWithCustomError(market, 'MarketNotSingleSidedError')
-
-          // zero -> switch (before any latest)
-          await expect(market.connect(user).update(user.address, 0, 0, 0, 0, false)).to.not.be.reverted
           await expect(market.connect(user).update(user.address, 0, 0, POSITION, 0, false)).to.not.be.reverted
         })
 

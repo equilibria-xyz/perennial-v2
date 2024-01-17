@@ -348,8 +348,7 @@ library PositionLib {
 ///     struct StoredPositionGlobal {
 ///         /* slot 0 */
 ///         uint32 timestamp;
-///         uint32 orders;
-///         uint65 __unallocated__;
+///         uint96 __unallocated__;
 ///         uint64 long;
 ///         uint64 short;
 ///

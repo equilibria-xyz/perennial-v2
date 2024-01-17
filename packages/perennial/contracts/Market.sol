@@ -213,6 +213,12 @@ contract Market is IMarket, Instance, ReentrancyGuard {
         return _pendingPositions[account][id].read();
     }
 
+    /// @notice Returns the global pending order for the given id
+    /// @param id The id to query
+    function pendingOrder(uint256 id) external view returns (Order memory) {
+        return _pendingOrder[id].read();
+    }
+
     /// @notice Returns the local checkpoint for the given account and id
     /// @param account The account to query
     /// @param id The id to query
@@ -385,7 +391,7 @@ contract Market is IMarket, Instance, ReentrancyGuard {
         // store
         _pendingPosition[context.global.currentId].store(context.currentPosition.global);
         _pendingPositions[account][context.local.currentId].store(context.currentPosition.local);
-        _pendingOrder[context.local.currentId].store(context.order);
+        _pendingOrder[context.global.currentId].store(context.order);
         _checkpoints[account][context.local.currentId].store(context.currentCheckpoint);
 
         // fund
