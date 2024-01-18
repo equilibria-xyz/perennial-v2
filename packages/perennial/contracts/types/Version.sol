@@ -80,6 +80,16 @@ struct VersionFeeResult {
 /// @notice Library that manages global versioned accumulator state.
 /// @dev Manages the value accumulator which measures the change in position value over time.
 library VersionLib {
+    /// @notice Resets the per-version accumulators to prepare for the next version
+    /// @param self The Version object to update
+    function next(Version memory self) internal pure {
+        self.makerPosFee._value = Fixed6Lib.ZERO;
+        self.makerNegFee._value = Fixed6Lib.ZERO;
+        self.takerPosFee._value = Fixed6Lib.ZERO;
+        self.takerNegFee._value = Fixed6Lib.ZERO;
+        self.settlementFee._value = Fixed6Lib.ZERO;
+    }
+
     struct AccumulationContext {
         Version self;
         Global global;
@@ -132,6 +142,9 @@ library VersionLib {
         _accumulatePositionFee(self, context, values);
 
         // if closed, don't accrue anything else
+        fees.marketFee = values.positionFeeProtocol;
+        fees.settlementFee = values.settlementFee;
+        fees.protocolFee = values.positionFeeExposureProtocol;
         if (marketParameter.closed) return (values, fees);
 
         // accumulate funding
@@ -145,9 +158,7 @@ library VersionLib {
         // accumulate P&L
         (values.pnlMaker, values.pnlLong, values.pnlShort) = _accumulatePNL(self, context);
 
-        fees.marketFee = values.positionFeeProtocol.add(values.fundingFee).add(values.interestFee);
-        fees.settlementFee = values.settlementFee;
-        fees.protocolFee = values.positionFeeExposureProtocol;
+        fees.marketFee = fees.marketFee.add(values.fundingFee).add(values.interestFee);
         return (values, fees);
     }
 
@@ -170,6 +181,8 @@ library VersionLib {
         AccumulationContext memory context,
         VersionAccumulationResult memory result
     ) private pure {
+        if (!context.toOracleVersion.valid) return;
+
         Fixed6 latestTakerSkew = context.fromPosition.skew();
         UFixed6 latestMakerSkew = context.riskParameter.makerFee.scale.unsafeSub(context.fromPosition.maker);
 
@@ -279,7 +292,6 @@ library VersionLib {
     ) private pure {
         Fixed6 impactFee = adiabaticFee.mul(context.toOracleVersion.price);
         feeAccumulator.decrement(impactFee, orderMagnitude);
-
         result.positionFeeImpact = result.positionFeeImpact.add(impactFee);
     }
 

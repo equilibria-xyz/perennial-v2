@@ -337,13 +337,11 @@ describe('Local', () => {
 
       it('accumulates fees (maker pos)', async () => {
         const feeAmount = await local.callStatic.accumulateFees(
-          { ...DEFAULT_POSITION, maker: parse6decimal('10') },
-          { ...DEFAULT_POSITION, maker: parse6decimal('20') },
+          { ...DEFAULT_ORDER, maker: parse6decimal('5'), makerPos: parse6decimal('10') },
           { ...DEFAULT_VERSION, makerPosFee: { _value: parse6decimal('-2') } },
         )
         await local.accumulateFees(
-          { ...DEFAULT_POSITION, maker: parse6decimal('10') },
-          { ...DEFAULT_POSITION, maker: parse6decimal('20') },
+          { ...DEFAULT_ORDER, maker: parse6decimal('5'), makerPos: parse6decimal('10') },
           { ...DEFAULT_VERSION, makerPosFee: { _value: parse6decimal('-2') } },
         )
         expect(feeAmount.positionFee).to.equal(parse6decimal('20'))
@@ -356,13 +354,11 @@ describe('Local', () => {
 
       it('accumulates fees (maker neg)', async () => {
         const feeAmount = await local.callStatic.accumulateFees(
-          { ...DEFAULT_POSITION, maker: parse6decimal('20') },
-          { ...DEFAULT_POSITION, maker: parse6decimal('10') },
+          { ...DEFAULT_ORDER, maker: parse6decimal('-5'), makerNeg: parse6decimal('10') },
           { ...DEFAULT_VERSION, makerNegFee: { _value: parse6decimal('-2') } },
         )
         await local.accumulateFees(
-          { ...DEFAULT_POSITION, maker: parse6decimal('20') },
-          { ...DEFAULT_POSITION, maker: parse6decimal('10') },
+          { ...DEFAULT_ORDER, maker: parse6decimal('-5'), makerNeg: parse6decimal('10') },
           { ...DEFAULT_VERSION, makerNegFee: { _value: parse6decimal('-2') } },
         )
         expect(feeAmount.positionFee).to.equal(parse6decimal('20'))
@@ -375,13 +371,11 @@ describe('Local', () => {
 
       it('accumulates fees (long pos)', async () => {
         const feeAmount = await local.callStatic.accumulateFees(
-          { ...DEFAULT_POSITION, long: parse6decimal('10') },
-          { ...DEFAULT_POSITION, long: parse6decimal('20') },
+          { ...DEFAULT_ORDER, long: parse6decimal('5'), takerPos: parse6decimal('10') },
           { ...DEFAULT_VERSION, takerPosFee: { _value: parse6decimal('-2') } },
         )
         await local.accumulateFees(
-          { ...DEFAULT_POSITION, long: parse6decimal('10') },
-          { ...DEFAULT_POSITION, long: parse6decimal('20') },
+          { ...DEFAULT_ORDER, long: parse6decimal('5'), takerPos: parse6decimal('10') },
           { ...DEFAULT_VERSION, takerPosFee: { _value: parse6decimal('-2') } },
         )
         expect(feeAmount.positionFee).to.equal(parse6decimal('20'))
@@ -394,13 +388,11 @@ describe('Local', () => {
 
       it('accumulates fees (short neg)', async () => {
         const feeAmount = await local.callStatic.accumulateFees(
-          { ...DEFAULT_POSITION, short: parse6decimal('20') },
-          { ...DEFAULT_POSITION, short: parse6decimal('10') },
+          { ...DEFAULT_ORDER, short: parse6decimal('-5'), takerPos: parse6decimal('10') },
           { ...DEFAULT_VERSION, takerPosFee: { _value: parse6decimal('-2') } },
         )
         await local.accumulateFees(
-          { ...DEFAULT_POSITION, short: parse6decimal('20') },
-          { ...DEFAULT_POSITION, short: parse6decimal('10') },
+          { ...DEFAULT_ORDER, short: parse6decimal('-5'), takerPos: parse6decimal('10') },
           { ...DEFAULT_VERSION, takerPosFee: { _value: parse6decimal('-2') } },
         )
         expect(feeAmount.positionFee).to.equal(parse6decimal('20'))
@@ -413,13 +405,11 @@ describe('Local', () => {
 
       it('accumulates fees (long neg)', async () => {
         const feeAmount = await local.callStatic.accumulateFees(
-          { ...DEFAULT_POSITION, long: parse6decimal('20') },
-          { ...DEFAULT_POSITION, long: parse6decimal('10') },
+          { ...DEFAULT_ORDER, long: parse6decimal('-5'), takerNeg: parse6decimal('10') },
           { ...DEFAULT_VERSION, takerNegFee: { _value: parse6decimal('-2') } },
         )
         await local.accumulateFees(
-          { ...DEFAULT_POSITION, long: parse6decimal('20') },
-          { ...DEFAULT_POSITION, long: parse6decimal('10') },
+          { ...DEFAULT_ORDER, long: parse6decimal('-5'), takerNeg: parse6decimal('10') },
           { ...DEFAULT_VERSION, takerNegFee: { _value: parse6decimal('-2') } },
         )
         expect(feeAmount.positionFee).to.equal(parse6decimal('20'))
@@ -432,13 +422,11 @@ describe('Local', () => {
 
       it('accumulates fees (short pos)', async () => {
         const feeAmount = await local.callStatic.accumulateFees(
-          { ...DEFAULT_POSITION, short: parse6decimal('10') },
-          { ...DEFAULT_POSITION, short: parse6decimal('20') },
+          { ...DEFAULT_ORDER, short: parse6decimal('5'), takerNeg: parse6decimal('10') },
           { ...DEFAULT_VERSION, takerNegFee: { _value: parse6decimal('-2') } },
         )
         await local.accumulateFees(
-          { ...DEFAULT_POSITION, short: parse6decimal('10') },
-          { ...DEFAULT_POSITION, short: parse6decimal('20') },
+          { ...DEFAULT_ORDER, short: parse6decimal('5'), takerNeg: parse6decimal('10') },
           { ...DEFAULT_VERSION, takerNegFee: { _value: parse6decimal('-2') } },
         )
         expect(feeAmount.positionFee).to.equal(parse6decimal('20'))
@@ -451,13 +439,11 @@ describe('Local', () => {
 
       it('accumulates settlement fee', async () => {
         const feeAmount = await local.callStatic.accumulateFees(
-          { ...DEFAULT_POSITION, short: parse6decimal('10') },
-          { ...DEFAULT_POSITION, short: parse6decimal('20') },
+          { ...DEFAULT_ORDER, short: parse6decimal('10') },
           { ...DEFAULT_VERSION, settlementFee: { _value: parse6decimal('-4') } },
         )
         await local.accumulateFees(
-          { ...DEFAULT_POSITION, short: parse6decimal('10') },
-          { ...DEFAULT_POSITION, short: parse6decimal('20') },
+          { ...DEFAULT_ORDER, short: parse6decimal('10') },
           { ...DEFAULT_VERSION, settlementFee: { _value: parse6decimal('-4') } },
         )
         expect(feeAmount.settlementFee).to.equal(parse6decimal('4'))

@@ -280,9 +280,6 @@ contract Market is IMarket, Instance, ReentrancyGuard {
         context.currentPosition.local = _loadPendingPositionLocal(context, account, context.local.currentId);
         context.currentPosition.local.invalidation.update(context.latestPosition.local.invalidation);
 
-        // loadl current checkpoint
-        context.currentCheckpoint = _checkpoints[account][context.local.currentId].read();
-
         // advance to next id if applicable
         if (context.currentTimestamp > context.currentPosition.local.timestamp) {
             context.local.currentId++;
@@ -415,6 +412,7 @@ contract Market is IMarket, Instance, ReentrancyGuard {
         // state
         context.global = _global.read();
         context.local = _locals[account].read();
+        context.currentCheckpoint = _checkpoints[account][context.local.currentId].read();
 
         // oracle
         (context.latestVersion, context.currentTimestamp) = oracle.status();
@@ -483,14 +481,14 @@ contract Market is IMarket, Instance, ReentrancyGuard {
     /// @param newPositionId The id of the pending position to process
     /// @param newPosition The pending position to process
     function _processPositionGlobal(Context memory context, uint256 newPositionId, Position memory newPosition) private {
-        _ProcessGlobalContext memory processGlobalContext = _ProcessGlobalContext(
-            _versions[context.latestPosition.global.timestamp].read(),
-            _oracleVersionAtPosition(context, newPosition),
-            _pendingOrder[newPositionId].read()
-        );
+        _ProcessGlobalContext memory processGlobalContext;
+        processGlobalContext.version = _versions[context.latestPosition.global.timestamp].read();
+        processGlobalContext.oracleVersion = _oracleVersionAtPosition(context, newPosition);
+        if (newPositionId > context.global.latestId) processGlobalContext.order = _pendingOrder[newPositionId].read();
 
         if (!processGlobalContext.oracleVersion.valid) context.latestPosition.global.invalidate(newPosition);
-
+        
+        processGlobalContext.version.next();
         (uint256 fromTimestamp, uint256 fromId) = (context.latestPosition.global.timestamp, context.global.latestId);
         (
             VersionAccumulationResult memory accumulationResult,
@@ -526,6 +524,12 @@ contract Market is IMarket, Instance, ReentrancyGuard {
         );
     }
 
+    struct _ProcessLocalContext {
+        Version version;
+        Checkpoint checkpoint;
+        Order order;
+    }
+
     /// @notice Processes the given local pending position into the latest position
     /// @param context The context to use
     /// @param account The account to process for
@@ -540,31 +544,42 @@ contract Market is IMarket, Instance, ReentrancyGuard {
         bool checkpoint
     ) private {
         LocalAccumulationResult memory accumulationResult;
-
-        Version memory version = _versions[newPosition.timestamp].read();
-        Checkpoint memory newCheckpoint = _checkpoints[account][newPositionId].read();
-        if (!version.valid) context.latestPosition.local.invalidate(newPosition);
+        _ProcessLocalContext memory processLocalContext = _ProcessLocalContext(
+            _versions[newPosition.timestamp].read(),
+            _checkpoints[account][newPositionId].read(),
+            OrderLib.from(
+                newPosition.timestamp,
+                context.latestPosition.local,
+                newPosition.maker,
+                newPosition.long,
+                newPosition.short
+            )
+        );
+        if (!processLocalContext.version.valid) context.latestPosition.local.invalidate(newPosition);
 
         (uint256 fromTimestamp, uint256 fromId) = (context.latestPosition.local.timestamp, context.local.latestId);
         accumulationResult.collateralAmount = context.local.accumulatePnl(
             newPositionId,
             context.latestPosition.local,
             _versions[context.latestPosition.local.timestamp].read(),
-            version
+            processLocalContext.version
         );
-        if (checkpoint) newCheckpoint.updateCollateral(
+        if (checkpoint) processLocalContext.checkpoint.updateCollateral(
             _checkpoints[account][context.local.latestId - 1].read(),
             context.currentCheckpoint,
             context.local.collateral
         );
         (accumulationResult.positionFee, accumulationResult.keeper) =
-            context.local.accumulateFees(context.latestPosition.local, newPosition, version);
-        if (checkpoint) newCheckpoint.updateFees(accumulationResult.positionFee, accumulationResult.keeper);
+            context.local.accumulateFees(processLocalContext.order, processLocalContext.version);
+        if (checkpoint) processLocalContext.checkpoint.updateFees(
+            accumulationResult.positionFee,
+            accumulationResult.keeper
+        );
         context.latestPosition.local.update(newPosition);
-        if (context.local.processProtection(newPosition, version))
+        if (context.local.processProtection(newPosition, processLocalContext.version))
             _credit(context.local.protectionInitiator, Fixed6Lib.from(context.local.protectionAmount));
 
-        _checkpoints[account][newPositionId].store(newCheckpoint);
+        _checkpoints[account][newPositionId].store(processLocalContext.checkpoint);
 
         // events
         emit AccountPositionProcessed(

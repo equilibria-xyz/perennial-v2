@@ -68,31 +68,27 @@ library LocalLib {
 
     /// @notice Accumulate fees from the latest position to next position
     /// @param self The Local object to update
-    /// @param fromPosition The previous latest position
-    /// @param toPosition The next latest position
+    /// @param order The next order
     /// @param toVersion The next latest version
     /// @return positionFee The resulting position fee
     /// @return settlementFee The resulting keeper fee
     function accumulateFees(
         Local memory self,
-        Position memory fromPosition,
-        Position memory toPosition,
+        Order memory order,
         Version memory toVersion
     ) internal pure returns (Fixed6 positionFee, UFixed6 settlementFee) {
         // compute local order
-        Fixed6 takerOrder = Fixed6Lib.from(toPosition.long.add(fromPosition.short))
-            .sub(Fixed6Lib.from(fromPosition.long.add(toPosition.short)));
-        Fixed6 makerOrder = Fixed6Lib.from(toPosition.maker).sub(Fixed6Lib.from(fromPosition.maker));
+        Fixed6 takerOrder = order.long.sub(order.short);
 
         // accumulate position fee
         positionFee = Fixed6Lib.ZERO
-            .sub(toVersion.makerPosFee.accumulated(Accumulator6(Fixed6Lib.ZERO), makerOrder.max(Fixed6Lib.ZERO).abs()))
-            .sub(toVersion.makerNegFee.accumulated(Accumulator6(Fixed6Lib.ZERO), makerOrder.min(Fixed6Lib.ZERO).abs()))
-            .sub(toVersion.takerPosFee.accumulated(Accumulator6(Fixed6Lib.ZERO), takerOrder.max(Fixed6Lib.ZERO).abs()))
-            .sub(toVersion.takerNegFee.accumulated(Accumulator6(Fixed6Lib.ZERO), takerOrder.min(Fixed6Lib.ZERO).abs()));
+            .sub(toVersion.makerPosFee.accumulated(Accumulator6(Fixed6Lib.ZERO), order.makerPos))
+            .sub(toVersion.makerNegFee.accumulated(Accumulator6(Fixed6Lib.ZERO), order.makerNeg))
+            .sub(toVersion.takerPosFee.accumulated(Accumulator6(Fixed6Lib.ZERO), order.takerPos))
+            .sub(toVersion.takerNegFee.accumulated(Accumulator6(Fixed6Lib.ZERO), order.takerNeg));
 
         // accumulate settlement fee
-        uint256 orders = takerOrder.add(makerOrder).eq(Fixed6Lib.ZERO) ? 0 : 1;
+        uint256 orders = takerOrder.add(order.maker).isZero() ? 0 : 1;
         settlementFee = toVersion.settlementFee.accumulated(Accumulator6(Fixed6Lib.ZERO), UFixed6Lib.from(orders)).abs();
 
         self.collateral = self.collateral.sub(positionFee).sub(Fixed6Lib.from(settlementFee));
