@@ -53,8 +53,6 @@ struct MarketStrategyContext {
 }
 
 struct Strategy {
-    uint256 totalWeight;
-
     UFixed6 totalMargin;
 
     Fixed6 totalCollateral;
@@ -92,19 +90,14 @@ library StrategyLib {
         strategy.marketContexts = new MarketStrategyContext[](registrations.length);
         for (uint256 marketId; marketId < registrations.length; marketId++) {
             strategy.marketContexts[marketId] = _loadContext(registrations[marketId]);
-            strategy.totalWeight += registrations[marketId].weight;
             strategy.totalMargin = strategy.totalMargin.add(strategy.marketContexts[marketId].margin);
             strategy.totalCollateral = strategy.totalCollateral.add(strategy.marketContexts[marketId].local.collateral);
-        }
-
-        // second pass to compute minAssets (TODO remove w/ totalWeight to one change)
-        for (uint256 marketId; marketId < registrations.length; marketId++) {
             strategy.minAssets = strategy.minAssets.max(
-                (registrations[marketId].leverage.isZero() || registrations[marketId].weight == 0) ?
+                (registrations[marketId].leverage.isZero() || registrations[marketId].weight.isZero()) ?
                     UFixed6Lib.ZERO : // skip if no leverage or weight
                     strategy.marketContexts[marketId].minPosition
                         .muldiv(strategy.marketContexts[marketId].latestPrice.abs(), registrations[marketId].leverage)
-                        .muldiv(strategy.totalWeight, registrations[marketId].weight)
+                        .div(registrations[marketId].weight)
             );
         }
     }
@@ -120,8 +113,6 @@ library StrategyLib {
         UFixed6 withdrawal,
         UFixed6 ineligable
     ) internal pure returns (MarketTarget[] memory targets) {
-        UFixed6 totalDeployed;
-
         UFixed6 collateral = UFixed6Lib.unsafeFrom(strategy.totalCollateral).add(deposit).unsafeSub(withdrawal);
         UFixed6 assets = collateral.unsafeSub(ineligable);
 
@@ -129,64 +120,51 @@ library StrategyLib {
         if (assets.lt(strategy.minAssets)) revert StrategyLibInsufficientAssetsError();
 
         targets = new MarketTarget[](strategy.marketContexts.length);
-        for (uint256 marketId; marketId < strategy.marketContexts.length; marketId++)
-            (targets[marketId], totalDeployed) = _allocateMarket(
+        UFixed6 totalMarketCollateral;
+        for (uint256 marketId; marketId < strategy.marketContexts.length; marketId++) {
+            UFixed6 marketCollateral;
+            (targets[marketId], marketCollateral) = _allocateMarket(
                 strategy.marketContexts[marketId],
-                totalDeployed,
-                strategy.totalWeight,
                 strategy.totalMargin,
                 collateral,
                 assets
             );
+            totalMarketCollateral = totalMarketCollateral.add(marketCollateral);
+        }
 
         if (strategy.marketContexts.length != 0)
-            targets[0].collateral = targets[0].collateral.add(Fixed6Lib.from(collateral.sub(totalDeployed)));
+            targets[0].collateral = targets[0].collateral.add(Fixed6Lib.from(collateral.sub(totalMarketCollateral)));
     }
 
     /// @notice Compute the target allocation for a market
     /// @param marketContext The context of the market
-    /// @param totalDeployed The total amount of deployed collateral accumulator
-    /// @param totalWeight The total weight of the vault
     /// @param totalMargin The total margin requirement of the vault
     /// @param collateral The total amount of collateral of the vault
     /// @param assets The total amount of collateral available for allocation
     function _allocateMarket(
         MarketStrategyContext memory marketContext,
-        UFixed6 totalDeployed,
-        uint256 totalWeight,
         UFixed6 totalMargin,
         UFixed6 collateral,
         UFixed6 assets
-    ) private pure returns (MarketTarget memory target, UFixed6 newTotalDeployed) {
-        UFixed6 marketCollateral = marketContext.margin
-            .add(collateral.sub(totalMargin).muldiv(marketContext.registration.weight, totalWeight));
+    ) private pure returns (MarketTarget memory target, UFixed6 marketCollateral) {
+        marketCollateral = marketContext.margin
+            .add(collateral.sub(totalMargin).mul(marketContext.registration.weight));
 
         UFixed6 marketAssets = assets
-            .muldiv(marketContext.registration.weight, totalWeight)
+            .mul(marketContext.registration.weight)
             .min(marketCollateral.mul(LEVERAGE_BUFFER));
+
+        target.collateral = Fixed6Lib.from(marketCollateral).sub(marketContext.local.collateral);
 
         UFixed6 minAssets = marketContext.riskParameter.minMargin
             .unsafeDiv(marketContext.registration.leverage.mul(marketContext.riskParameter.maintenance));
 
         if (marketContext.marketParameter.closed || marketAssets.lt(minAssets)) marketAssets = UFixed6Lib.ZERO;
 
-        (target.collateral, target.position, newTotalDeployed) = (
-            Fixed6Lib.from(marketCollateral).sub(marketContext.local.collateral),
-            _limitPosition(
-                marketAssets.muldiv(marketContext.registration.leverage, marketContext.latestPrice.abs()),
-                marketContext
-            ),
-            totalDeployed.add(marketCollateral)
-        );
-    }
-
-    // TODO: remove w/ totalWeight to one change
-    /// @dev required for stack too deep
-    function _limitPosition(
-        UFixed6 position,
-        MarketStrategyContext memory marketContext
-    ) private pure returns (UFixed6) {
-        return position.max(marketContext.minPosition).min(marketContext.maxPosition);
+        target.position = marketAssets
+            .muldiv(marketContext.registration.leverage, marketContext.latestPrice.abs())
+            .max(marketContext.minPosition)
+            .min(marketContext.maxPosition);
     }
 
     /// @notice Load the context of a market

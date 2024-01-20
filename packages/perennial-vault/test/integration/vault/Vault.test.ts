@@ -260,8 +260,9 @@ describe('Vault', () => {
     await vaultFactory.create(instanceVars.dsu.address, market.address, 'Blue Chip')
 
     await vault.register(btcMarket.address)
-    await vault.updateMarket(0, 4, leverage)
-    await vault.updateMarket(1, 1, leverage)
+    await vault.updateLeverage(0, leverage)
+    await vault.updateLeverage(1, leverage)
+    await vault.updateWeights([0.8e6, 0.2e6])
     await vault.updateParameter({
       cap: maxCollateral,
     })
@@ -481,33 +482,73 @@ describe('Vault', () => {
     })
   })
 
-  describe('#updateMarket', () => {
+  describe('#updateLeverage', () => {
     it('updates correctly', async () => {
-      await expect(vault.connect(owner).updateMarket(1, 2, parse6decimal('3')))
+      await expect(vault.connect(owner).updateLeverage(1, parse6decimal('3')))
         .to.emit(vault, 'MarketUpdated')
-        .withArgs(1, 2, parse6decimal('3'))
+        .withArgs(1, 0.2e6, parse6decimal('3'))
 
-      expect((await vault.registrations(1)).weight).to.eq(2)
+      expect((await vault.registrations(1)).weight).to.eq(0.2e6)
       expect((await vault.registrations(1)).leverage).to.eq(parse6decimal('3'))
 
-      await expect(vault.connect(owner).updateMarket(1, 0, 0)).to.emit(vault, 'MarketUpdated').withArgs(1, 0, 0)
+      await expect(vault.connect(owner).updateLeverage(1, 0)).to.emit(vault, 'MarketUpdated').withArgs(1, 0.2e6, 0)
 
-      expect((await vault.registrations(1)).weight).to.eq(0)
+      expect((await vault.registrations(1)).weight).to.eq(0.2e6)
       expect((await vault.registrations(1)).leverage).to.eq(0)
     })
 
     it('reverts when invalid marketId', async () => {
-      await expect(vault.connect(owner).updateMarket(2, 10, parse6decimal('1'))).to.be.revertedWithCustomError(
+      await expect(vault.connect(owner).updateLeverage(2, parse6decimal('1'))).to.be.revertedWithCustomError(
         vault,
         'VaultMarketDoesNotExistError',
       )
     })
 
     it('reverts when not owner', async () => {
-      await expect(vault.connect(user).updateMarket(2, 10, parse6decimal('1'))).to.be.revertedWithCustomError(
+      await expect(vault.connect(user).updateLeverage(2, parse6decimal('1'))).to.be.revertedWithCustomError(
         vault,
         'InstanceNotOwnerError',
       )
+    })
+  })
+
+  describe('#updateWeights', () => {
+    it('updates correctly', async () => {
+      await expect(vault.connect(owner).updateWeights([parse6decimal('0.4'), parse6decimal('0.6')]))
+        .to.emit(vault, 'MarketUpdated')
+        .withArgs(0, parse6decimal('0.4'), parse6decimal('4'))
+        .to.emit(vault, 'MarketUpdated')
+        .withArgs(1, parse6decimal('0.6'), parse6decimal('4'))
+
+      expect((await vault.registrations(0)).weight).to.eq(0.4e6)
+      expect((await vault.registrations(0)).leverage).to.eq(parse6decimal('4'))
+      expect((await vault.registrations(1)).weight).to.eq(0.6e6)
+      expect((await vault.registrations(1)).leverage).to.eq(parse6decimal('4'))
+    })
+
+    it('reverts when too few', async () => {
+      await expect(vault.connect(owner).updateWeights([parse6decimal('1.0')])).to.be.revertedWithCustomError(
+        vault,
+        'VaultMarketDoesNotExistError',
+      )
+    })
+
+    it('reverts when too many', async () => {
+      await expect(
+        vault.connect(owner).updateWeights([parse6decimal('0.2'), parse6decimal('0.2'), parse6decimal('0.6')]),
+      ).to.be.revertedWithCustomError(vault, 'VaultMarketDoesNotExistError')
+    })
+
+    it('reverts when invalid aggregate', async () => {
+      await expect(
+        vault.connect(owner).updateWeights([parse6decimal('0.5'), parse6decimal('0.4')]),
+      ).to.be.revertedWithCustomError(vault, 'VaultAggregateWeightError')
+    })
+
+    it('reverts when not owner', async () => {
+      await expect(
+        vault.connect(user).updateWeights([parse6decimal('0.4'), parse6decimal('0.6')]),
+      ).to.be.revertedWithCustomError(vault, 'InstanceNotOwnerError')
     })
   })
 
@@ -1860,7 +1901,7 @@ describe('Vault', () => {
         expect(await btcPosition()).to.be.equal(parse6decimal('11000').mul(leverage).div(5).div(btcOriginalOraclePrice))
 
         // Deleverage the ETH market
-        await vault.updateMarket(0, 4, 0)
+        await vault.updateLeverage(0, 0)
 
         await vault.connect(user).update(user.address, 0, 0, 0)
         await updateOracle()
@@ -1897,7 +1938,7 @@ describe('Vault', () => {
         expect(await btcPosition()).to.be.equal(parse6decimal('11000').mul(leverage).div(5).div(btcOriginalOraclePrice))
 
         // Close the ETH market
-        await vault.updateMarket(0, 0, leverage)
+        await vault.updateWeights([0, parse6decimal('1')])
 
         await vault.connect(user).update(user.address, 0, 0, 0)
         await updateOracle()
@@ -1916,7 +1957,8 @@ describe('Vault', () => {
     context('add market', () => {
       beforeEach(async () => {
         // set ETH market to 0
-        await vault.updateMarket(0, 0, 0)
+        await vault.updateLeverage(0, 0)
+        await vault.updateWeights([0, parse6decimal('1')])
 
         // Seed vault with deposits
         const deposit0 = parse6decimal('1000')
@@ -1935,7 +1977,8 @@ describe('Vault', () => {
         expect(await btcPosition()).to.be.equal(parse6decimal('11000').mul(leverage).div(btcOriginalOraclePrice))
 
         // Open the ETH market
-        await vault.updateMarket(0, 9, leverage)
+        await vault.updateLeverage(0, leverage)
+        await vault.updateWeights([parse6decimal('0.9'), parse6decimal('0.1')])
 
         await vault.connect(user).update(user.address, 0, 0, 0)
         await updateOracle()

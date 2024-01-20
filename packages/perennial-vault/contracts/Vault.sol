@@ -62,7 +62,6 @@ contract Vault is IVault, Instance {
         asset = asset_;
         _name = name_;
         _register(initialMarket);
-        _updateMarket(0, 1, UFixed6Lib.ZERO);
         _updateParameter(VaultParameter(cap));
     }
 
@@ -162,32 +161,56 @@ contract Vault is IVault, Instance {
 
         asset.approve(address(market));
 
-        uint256 newMarketId = totalMarkets++;
-        _registrations[newMarketId].store(Registration(market, 0, UFixed6Lib.ZERO));
+        uint256 newMarketId = _registerMarket(market);
+        _updateMarket(newMarketId, newMarketId == 0 ? UFixed6Lib.ONE : UFixed6Lib.ZERO, UFixed6Lib.ZERO);
+    }
+
+    /// @notice Processes the state changes for a market registration
+    /// @param market The market to register
+    /// @return newMarketId The new market id
+    function _registerMarket(IMarket market) private returns (uint256 newMarketId) {
+        newMarketId = totalMarkets++;
+        _registrations[newMarketId].store(Registration(market, UFixed6Lib.ZERO, UFixed6Lib.ZERO));
         emit MarketRegistered(newMarketId, market);
+    }
+
+    /// @notice Processes the state changes for a market update
+    /// @param marketId The market id
+    /// @param newWeight The new weight for the market
+    /// @param newLeverage The new leverage for the market
+    function _updateMarket(uint256 marketId, UFixed6 newWeight, UFixed6 newLeverage) private {
+        Registration memory registration = _registrations[marketId].read();
+        registration.weight = newWeight.eq(UFixed6Lib.MAX) ? registration.weight : newWeight;
+        registration.leverage = newLeverage.eq(UFixed6Lib.MAX) ? registration.leverage : newLeverage;
+        _registrations[marketId].store(registration);
+        emit MarketUpdated(marketId, registration.weight, registration.leverage);
     }
 
     /// @notice Settles, then updates the registration parameters for a given market
     /// @param marketId The market id
-    /// @param newWeight The new weight
     /// @param newLeverage The new leverage
-    function updateMarket(uint256 marketId, uint256 newWeight, UFixed6 newLeverage) external onlyOwner {
+    function updateLeverage(uint256 marketId, UFixed6 newLeverage) external onlyOwner {
         settle(address(0));
-        _updateMarket(marketId, newWeight, newLeverage);
-    }
 
-    /// @notice Updates the registration parameters for a given market
-    /// @param marketId The market id
-    /// @param newWeight The new weight
-    /// @param newLeverage The new leverage
-    function _updateMarket(uint256 marketId, uint256 newWeight, UFixed6 newLeverage) private {
         if (marketId >= totalMarkets) revert VaultMarketDoesNotExistError();
 
-        Registration memory registration = _registrations[marketId].read();
-        registration.weight = newWeight;
-        registration.leverage = newLeverage;
-        _registrations[marketId].store(registration);
-        emit MarketUpdated(marketId, newWeight, newLeverage);
+        _updateMarket(marketId, UFixed6Lib.MAX, newLeverage);
+    }
+
+    /// @notice Updates the set of market weights for the vault
+    /// @param newWeights The new set of market weights
+    function updateWeights(UFixed6[] calldata newWeights) external onlyOwner {
+        settle(address(0));
+
+        if (newWeights.length != totalMarkets) revert VaultMarketDoesNotExistError();
+
+        UFixed6 totalWeight;
+        for(uint256 i; i < totalMarkets; i++) {
+            _updateMarket(i, newWeights[i], UFixed6Lib.MAX);
+            totalWeight = totalWeight.add(newWeights[i]);
+        }
+
+        if (!totalWeight.eq(UFixed6Lib.ONE)) revert VaultAggregateWeightError();
     }
 
     /// @notice Settles, then updates the vault parameter set
@@ -440,7 +463,6 @@ contract Vault is IVault, Instance {
             MarketParameter memory marketParameter = registration.market.parameter();
 
             context.registrations[marketId] = registration;
-            context.totalWeight += registration.weight;
             context.settlementFee = context.settlementFee.add(marketParameter.settlementFee);
 
             // local

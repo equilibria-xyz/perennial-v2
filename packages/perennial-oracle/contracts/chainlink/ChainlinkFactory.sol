@@ -50,28 +50,36 @@ contract ChainlinkFactory is IChainlinkFactory, KeeperFactory {
         uint256 version,
         bytes calldata data
     ) internal override returns (Fixed18[] memory prices) {
-        if (ids.length != 1) revert ChainlinkFactoryMultipleIdsError();
-        prices = new Fixed18[](1);
+        prices = new Fixed18[](ids.length);
 
-        bytes memory verifiedReport = chainlink.verify{value: msg.value}(data, abi.encode(feeTokenAddress));
-        (bytes32 feedId, , uint32 observationsTimestamp, , , , uint192 price) =
-            abi.decode(verifiedReport, (bytes32, uint32, uint32, uint192, uint192, uint32, uint192));
+        bytes[] memory verifiedReports = chainlink.verifyBulk{value: msg.value}(abi.decode(data, (bytes[])), abi.encode(feeTokenAddress));
+        if (verifiedReports.length != ids.length) revert ChainlinkFactoryInputLengthMismatchError();
+        for (uint256 i = 0; i < verifiedReports.length; i++) {
+            (bytes32 feedId, , uint32 observationsTimestamp, , , , uint192 price) =
+                abi.decode(verifiedReports[i], (bytes32, uint32, uint32, uint192, uint192, uint32, uint192));
 
-        if (
-            observationsTimestamp < version + validFrom ||
-            observationsTimestamp > version + validTo
-        ) revert ChainlinkFactoryVersionOutsideRangeError();
-        if (feedId != toUnderlyingId[ids[0]]) revert ChainlinkFactoryInvalidFeedIdError(feedId);
+            if (
+                observationsTimestamp < version + validFrom ||
+                observationsTimestamp > version + validTo
+            ) revert ChainlinkFactoryVersionOutsideRangeError();
+            if (feedId != toUnderlyingId[ids[i]]) revert ChainlinkFactoryInvalidFeedIdError(feedId);
 
-        prices[0] = Fixed18Lib.from(UFixed18.wrap(price));
+            prices[i] = Fixed18Lib.from(UFixed18.wrap(price));
+        }
     }
 
     /// @notice Returns the applicable value for the keeper fee
     /// @param data The update data to validate
     /// @return The applicable value for the keeper fee
     function _applicableValue(uint256, bytes memory data) internal view override returns (uint256) {
-        (, bytes memory report) = abi.decode(data, (bytes32[3], bytes));
-        (Asset memory fee, ,) = feeManager.getFeeAndReward(address(this), report, feeTokenAddress);
-        return fee.amount;
+        bytes[] memory payloads = abi.decode(data, (bytes[]));
+        uint256 totalFeeAmount = 0;
+        for (uint256 i = 0; i < payloads.length; i++) {
+            (, bytes memory report) = abi.decode(payloads[i], (bytes32[3], bytes));
+            (Asset memory fee, ,) = feeManager.getFeeAndReward(address(this), report, feeTokenAddress);
+            totalFeeAmount += fee.amount;
+        }
+        return totalFeeAmount;
     }
 }
+

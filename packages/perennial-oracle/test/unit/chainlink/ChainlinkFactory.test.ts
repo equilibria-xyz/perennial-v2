@@ -4,7 +4,6 @@ import HRE from 'hardhat'
 
 import {
   AggregatorV3Interface,
-  IEmptySetReserve,
   IERC20Metadata,
   IMarket,
   Oracle,
@@ -63,6 +62,10 @@ const overwriteTimestamp = (payload: string, timestamp: BigNumberish) => {
   )
 }
 
+const listify = (...payload: string[]) => {
+  return ethers.utils.defaultAbiCoder.encode(['bytes[]'], [payload])
+}
+
 describe('ChainlinkFactory', () => {
   let owner: SignerWithAddress
   let user: SignerWithAddress
@@ -102,7 +105,6 @@ describe('ChainlinkFactory', () => {
     usdc = await smock.fake<IERC20Metadata>('IERC20Metadata')
     usdc.transfer.returns(true)
     usdc.approve.returns(true)
-    const reserve = await smock.fake<IEmptySetReserve>('IEmptySetReserve')
 
     market = await smock.fake<IMarket>('IMarket')
     marketFactory = await smock.fake<IMarketFactory>('IMarketFactory')
@@ -116,7 +118,7 @@ describe('ChainlinkFactory', () => {
 
     const oracleImpl = await new Oracle__factory(owner).deploy()
     oracleFactory = await new OracleFactory__factory(owner).deploy(oracleImpl.address)
-    await oracleFactory.initialize(dsu.address, usdc.address, reserve.address)
+    await oracleFactory.initialize(dsu.address)
     await oracleFactory.updateMaxClaim(parse6decimal('10'))
 
     const keeperOracleImpl = await new KeeperOracle__factory(owner).deploy(60)
@@ -171,14 +173,17 @@ describe('ChainlinkFactory', () => {
   it('parses Chainlink report correctly', async () => {
     await keeperOracle.connect(oracleSigner).request(market.address, user.address)
 
-    const report = overwriteTimestamp(
-      CHAINLINK_PAYLOAD,
-      (await keeperOracle.callStatic.next()).add(await chainlinkFactory.validFrom()),
+    const report = listify(
+      overwriteTimestamp(
+        CHAINLINK_PAYLOAD,
+        (await keeperOracle.callStatic.next()).add(await chainlinkFactory.validFrom()),
+      ),
     )
     const version = await keeperOracle.callStatic.next()
     await expect(
       chainlinkFactory.connect(user).commit([CHAINLINK_ETH_USD_PRICE_FEED], version, report, {
         value: 4800,
+        gasLimit: 1_000_000,
       }),
     )
       .to.emit(keeperOracle, 'OracleProviderVersionFulfilled')
@@ -190,9 +195,11 @@ describe('ChainlinkFactory', () => {
   it('commit reverts if msg.value is too low', async () => {
     await keeperOracle.connect(oracleSigner).request(market.address, user.address)
 
-    const report = overwriteTimestamp(
-      CHAINLINK_PAYLOAD,
-      (await keeperOracle.callStatic.next()).add(await chainlinkFactory.validFrom()),
+    const report = listify(
+      overwriteTimestamp(
+        CHAINLINK_PAYLOAD,
+        (await keeperOracle.callStatic.next()).add(await chainlinkFactory.validFrom()),
+      ),
     )
 
     await expect(
