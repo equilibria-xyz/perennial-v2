@@ -45,6 +45,7 @@ import {
   ProxyAdmin__factory,
   TransparentUpgradeableProxy__factory,
 } from '@equilibria/perennial-v2/types/generated'
+import { parse } from 'url'
 
 const { ethers } = HRE
 
@@ -218,11 +219,18 @@ export async function createMarket(
   const riskParameter = {
     margin: parse6decimal('0.3'),
     maintenance: parse6decimal('0.3'),
-    takerFee: 0,
-    takerMagnitudeFee: 0,
-    impactFee: 0,
-    makerFee: 0,
-    makerMagnitudeFee: 0,
+    takerFee: {
+      linearFee: 0,
+      proportionalFee: 0,
+      adiabaticFee: 0,
+      scale: parse6decimal('100'),
+    },
+    makerFee: {
+      linearFee: 0,
+      proportionalFee: 0,
+      adiabaticFee: 0,
+      scale: parse6decimal('10'),
+    },
     makerLimit: parse6decimal('1000'),
     efficiencyLimit: parse6decimal('0.2'),
     liquidationFee: parse6decimal('0.50'),
@@ -240,7 +248,6 @@ export async function createMarket(
     },
     minMargin: parse6decimal('500'),
     minMaintenance: parse6decimal('500'),
-    skewScale: 0,
     staleAfter: 7200,
     makerReceiveOnly: false,
     ...riskParamOverrides,
@@ -360,6 +367,18 @@ export async function createVault(
     makerLimit: parse6decimal('1000'),
     minMaintenance: parse6decimal('50'),
     maxLiquidationFee: parse6decimal('25000'),
+    takerFee: {
+      linearFee: 0,
+      proportionalFee: 0,
+      adiabaticFee: 0,
+      scale: parse6decimal('10'),
+    },
+    makerFee: {
+      linearFee: 0,
+      proportionalFee: 0,
+      adiabaticFee: 0,
+      scale: parse6decimal('10'),
+    },
   })
   const btcMarket = await deployProductOnMainnetFork({
     factory: _marketFactory,
@@ -369,6 +388,18 @@ export async function createVault(
     payoff: constants.AddressZero,
     minMaintenance: parse6decimal('50'),
     maxLiquidationFee: parse6decimal('25000'),
+    takerFee: {
+      linearFee: 0,
+      proportionalFee: 0,
+      adiabaticFee: 0,
+      scale: parse6decimal('10'),
+    },
+    makerFee: {
+      linearFee: 0,
+      proportionalFee: 0,
+      adiabaticFee: 0,
+      scale: parse6decimal('10'),
+    },
   })
   const vaultImpl = await new Vault__factory(owner).deploy()
   const vaultFactoryImpl = await new VaultFactory__factory(owner).deploy(
