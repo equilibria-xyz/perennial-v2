@@ -10,7 +10,7 @@ import {
     Global,
     Position,
     OracleVersion
-    } from "@equilibria/perennial-v2/contracts/interfaces/IMarket.sol";
+} from "@equilibria/perennial-v2/contracts/interfaces/IMarket.sol";
 import { Registration } from "../types/Registration.sol";
 
 /// @dev The context of an underlying market

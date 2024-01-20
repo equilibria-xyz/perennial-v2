@@ -508,7 +508,7 @@ contract Vault is IVault, Instance {
             PerennialCheckpoint memory checkpoint = context.registrations[marketId].market
                 .checkpoints(address(this), mappingAtId.get(marketId));
             value = value.add(checkpoint.collateral);
-            fee = fee.add(UFixed6Lib.unsafeFrom(checkpoint.tradeFee)); // TODO: maker fee cannot be negative as of v2.1
+            fee = fee.add(UFixed6Lib.unsafeFrom(checkpoint.tradeFee)); // TODO: support negative maker fee in v2.2
             keeper = keeper.add(checkpoint.settlementFee);
         }
     }

@@ -26,9 +26,6 @@ import { IMarket, MarketParameterStruct, RiskParameterStruct } from '../../../ty
 const { ethers } = HRE
 use(smock.matchers)
 
-// TODO: pendingOrder tests
-// TODO: maker adiabatic fee tests
-
 const POSITION = parse6decimal('10.000')
 const COLLATERAL = parse6decimal('10000')
 const TIMESTAMP = 1636401093
