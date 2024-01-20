@@ -5,6 +5,7 @@ import "@equilibria/root/number/types/UFixed6.sol";
 import "@equilibria/root/utilization/types/UJumpRateUtilizationCurve6.sol";
 import "@equilibria/root/pid/types/PController6.sol";
 import "@equilibria/root/adiabatic/types/LinearAdiabatic6.sol";
+import "@equilibria/root/adiabatic/types/InverseAdiabatic6.sol";
 import "../interfaces/IOracleProvider.sol";
 import "./ProtocolParameter.sol";
 
@@ -20,7 +21,7 @@ struct RiskParameter {
     LinearAdiabatic6 takerFee;
 
     /// @dev The maker fee configuration
-    LinearAdiabatic6 makerFee;
+    InverseAdiabatic6 makerFee;
 
     /// @dev The maximum amount of maker positions that opened
     UFixed6 makerLimit;
@@ -107,7 +108,7 @@ library RiskParameterStorageLib {
                 UFixed6.wrap(uint256(   slot0 << (256 - 24 - 24 - 24 - 24 - 24)) >> (256 - 24)),
                 UFixed6.wrap(uint256(   slot1 << (256 - 24 - 48 - 64)) >> (256 - 64))
             ),
-            LinearAdiabatic6(
+            InverseAdiabatic6(
                 UFixed6.wrap(uint256(   slot0 << (256 - 24 - 24 - 24 - 24 - 24 - 24)) >> (256 - 24)),
                 UFixed6.wrap(uint256(   slot0 << (256 - 24 - 24 - 24 - 24 - 24 - 24 - 24)) >> (256 - 24)),
                 UFixed6.wrap(uint256(   slot3 << (256 - 24)) >> (256 - 24)),

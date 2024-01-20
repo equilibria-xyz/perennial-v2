@@ -527,7 +527,7 @@ describe('Version', () => {
         expect(value.longValue._value).to.equal(2)
         expect(value.shortValue._value).to.equal(3)
 
-        expect(ret.fees.marketFee).to.equal(0)
+        expect(ret.fees.marketFee).to.equal(BigNumber.from('442'))
 
         expect(ret[0].positionFee).to.equal(BigNumber.from('147600000'))
         expect(ret[0].positionFeeMaker).to.equal(BigNumber.from('147599558'))
@@ -619,8 +619,8 @@ describe('Version', () => {
             maker: parse6decimal('10'),
             long: parse6decimal('20'), // 30 / 10
             short: parse6decimal('30'), // 50 / 20
-            makerNeg: parse6decimal('10'),
-            makerPos: parse6decimal('20'),
+            makerNeg: parse6decimal('0'),
+            makerPos: parse6decimal('10'),
             takerPos: parse6decimal('50'),
             takerNeg: parse6decimal('60'),
           },
@@ -652,26 +652,26 @@ describe('Version', () => {
         )
 
         const takerExposure = parse6decimal('0.05') // 0 -> -10 / 100 = -5 / 100 = -0.05 * -10 * 0.1
-        const makerExposure = parse6decimal('10.0') // 0 -> 100 / 100 = 50 / 100 = 0.5 * 100 * 0.2
+        const makerExposure = parse6decimal('0.0') // 100 -> 100 / 100 = 199 / 100 = 1.0 * 0 * 0.2
         const exposure = takerExposure.add(makerExposure).mul(2) // price delta
 
         const fee1 = parse6decimal('1.75') // 50 * 0.01 + 50 * 0.025
         const fee2 = parse6decimal('2.4') // 60 * 0.01 + 60 * 0.03
-        const fee3 = parse6decimal('0.3') // 10 * 0.02 + 10 * 0.01
-        const fee4 = parse6decimal('0.8') // 20 * 0.02 + 20 * 0.02
+        const fee3 = parse6decimal('0.0')
+        const fee4 = parse6decimal('0.3') // 10 * 0.02 + 10 * 0.01
         const fee = fee1.add(fee2).add(fee3).add(fee4).mul(123) // price
 
         const impact1 = parse6decimal('.75') // -10 -> 40 / 100 = 15 / 100 = 0.15 * 50 * 0.1
         const impact2 = parse6decimal('-0.6') // 40 -> -20 / 100 = -10 / 100 = -0.1 * 60 * 0.1
-        const impact3 = parse6decimal('2.1') // 100 -> 110 / 100 = 105 / 100 = 1.05 * 10 * 0.2
-        const impact4 = parse6decimal('-4.0') // 110 -> 90 / 100 = -100 / 100 = -1.0 * 20 * 0.2
+        const impact3 = parse6decimal('0')
+        const impact4 = parse6decimal('-1.9') // 100 -> 90 / 100 = -95 / 100 = -0.95 * 10 * 0.2
         const impact = impact1.add(impact2).add(impact3).add(impact4).mul(123) // price
 
         expect(value.makerValue._value).to.equal(1)
         expect(value.longValue._value).to.equal(parse6decimal('2').add(2)) // pnl
         expect(value.shortValue._value).to.equal(parse6decimal('-2').mul(2).div(3).sub(1).add(3)) // pnl
-        expect(value.makerPosFee._value).to.equal(impact4.add(fee4).mul(-1).mul(123).div(20).add(4))
-        expect(value.makerNegFee._value).to.equal(impact3.add(fee3).mul(-1).mul(123).div(10).add(5))
+        expect(value.makerPosFee._value).to.equal(impact4.add(fee4).mul(-1).mul(123).div(10).add(4))
+        expect(value.makerNegFee._value).to.equal(5)
         expect(value.takerPosFee._value).to.equal(impact1.add(fee1).mul(-1).mul(123).div(50).add(6))
         expect(value.takerNegFee._value).to.equal(impact2.add(fee2).mul(-1).mul(123).div(60).add(7))
         expect(value.settlementFee._value).to.equal(-10)
@@ -729,7 +729,7 @@ describe('Version', () => {
         )
 
         const takerExposure = parse6decimal('0.05') // 0 -> -10 / 100 = -5 / 100 = -0.05 * -10 * 0.1
-        const makerExposure = parse6decimal('2.5') // 0 -> 50 / 100 = 25 / 100 = 0.25 * 50 * 0.2
+        const makerExposure = parse6decimal('-7.5') // 100 -> 50 / 100 = 75 / 100 = 0.75 * 50 * 0.2
         const exposure = takerExposure.add(makerExposure).mul(2) // price delta
 
         const fee1 = parse6decimal('1.75') // 50 * 0.01 + 50 * 0.025
@@ -820,7 +820,11 @@ describe('Version', () => {
               long: 0,
               short: 0,
             },
-            ORDER,
+            {
+              ...ORDER,
+              makerPos: ORDER.maker,
+              makerNeg: 0,
+            },
             ORACLE_VERSION_1,
             ORACLE_VERSION_2,
             {
@@ -1235,6 +1239,18 @@ describe('Version', () => {
               },
               {
                 ...VALID_RISK_PARAMETER,
+                makerFee: {
+                  linearFee: 0,
+                  proportionalFee: 0,
+                  adiabaticFee: 0,
+                  scale: parse6decimal('100'),
+                },
+                takerFee: {
+                  linearFee: 0,
+                  proportionalFee: 0,
+                  adiabaticFee: 0,
+                  scale: parse6decimal('100'),
+                },
                 pController: { max: 0, k: parse6decimal('999999') },
                 utilizationCurve: {
                   minRate: 0,
