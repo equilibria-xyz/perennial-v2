@@ -21,9 +21,24 @@ export const ORACLE_IDS: { [key: string]: { [asset: string]: string } } = {
   arbitrumSepolia: {
     eth: '0xff61491a931112ddf1bd8147cd1b641375f79f5825126d665480874634fd0ace', // Pyth: ETH
   },
+  base: {
+    eth: '0xff61491a931112ddf1bd8147cd1b641375f79f5825126d665480874634fd0ace', // Pyth: ETH
+    btc: '0xe62df6c8b4a85fe1a67db44dc12de5db330f7ac66b72dc658afedf0f4a415b43', // Pyth: BTC
+  },
 }
 
 const DEFAULT_MAX_CLAIM_AMOUNT = utils.parseUnits('25', 6)
+export const L1_GAS_BUFFERS = {
+  arbitrum: {
+    commitCalldata: 31_000,
+    commitIncrement: 4_200,
+  },
+  base: {
+    commitCalldata: 17_000,
+    commitIncrement: 4_200,
+  },
+}
+
 export const DEFAULT_GRANULARITY = 10
 
 const func: DeployFunction = async function (hre: HardhatRuntimeEnvironment) {
@@ -81,6 +96,13 @@ const func: DeployFunction = async function (hre: HardhatRuntimeEnvironment) {
     log: true,
     autoMine: true,
   })
+
+  const commitBuffer = isArbitrum(getNetworkName())
+    ? L1_GAS_BUFFERS.arbitrum.commitCalldata
+    : L1_GAS_BUFFERS.base.commitCalldata
+  const incrementalBuffer = isArbitrum(getNetworkName())
+    ? L1_GAS_BUFFERS.arbitrum.commitIncrement
+    : L1_GAS_BUFFERS.base.commitIncrement
   await deploy('PythFactoryImpl', {
     contract: pythFactoryContract,
     args: [
@@ -92,15 +114,15 @@ const func: DeployFunction = async function (hre: HardhatRuntimeEnvironment) {
         multiplierBase: 0, // Unused
         bufferBase: 900_000, // Each Call uses approx 750k gas
         multiplierCalldata: 0,
-        bufferCalldata: 36_000, // Each update costs 31k L1 gas
+        bufferCalldata: commitBuffer,
       },
       {
-        multiplierBase: ethers.utils.parseEther('1.15'), // Gas usage tracks full call
+        multiplierBase: ethers.utils.parseEther('1.10'), // Gas usage tracks full call
         bufferBase: 100_000, // Initial Fee + Transfers
-        multiplierCalldata: ethers.utils.parseEther('1.15'), // Gas usage tracks full L1 calldata,
+        multiplierCalldata: ethers.utils.parseEther('1.10'), // Gas usage tracks full L1 calldata,
         bufferCalldata: 0,
       },
-      4_600, // Each subsequent pyth commitment adds about 4k L1 gas
+      incrementalBuffer,
     ],
     from: deployer,
     skipIfAlreadyDeployed: true,

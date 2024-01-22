@@ -171,7 +171,7 @@ export default function defaultConfig({
         mainnet: getEtherscanApiConfig('mainnet').apiKey,
         optimisticEthereum: getEtherscanApiConfig('optimism').apiKey,
         arbitrumOne: getEtherscanApiConfig('arbitrum').apiKey,
-        // base: getEtherscanApiConfig('base').apiKey,
+        base: getEtherscanApiConfig('base').apiKey,
         goerli: getEtherscanApiConfig('goerli').apiKey,
         optimisticGoerli: getEtherscanApiConfig('optimismGoerli').apiKey,
         arbitrumGoerli: getEtherscanApiConfig('arbitrumGoerli').apiKey,
@@ -185,6 +185,14 @@ export default function defaultConfig({
           urls: {
             apiURL: 'https://api-sepolia.arbiscan.io/api',
             browserURL: 'https://sepolia.arbiscan.io',
+          },
+        },
+        {
+          network: 'base',
+          chainId: getChainId('base'),
+          urls: {
+            apiURL: 'https://api.basescan.org/api',
+            browserURL: 'https://basescan.io',
           },
         },
       ],

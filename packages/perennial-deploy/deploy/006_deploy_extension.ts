@@ -10,6 +10,7 @@ import {
 import { SignerWithAddress } from '@nomiclabs/hardhat-ethers/signers'
 import { constants, utils } from 'ethers'
 import { isArbitrum } from '../../common/testutil/network'
+import { L1_GAS_BUFFERS } from './003_deploy_oracle'
 
 const func: DeployFunction = async function (hre: HardhatRuntimeEnvironment) {
   const { deployments, getNamedAccounts, ethers } = hre
@@ -20,8 +21,14 @@ const func: DeployFunction = async function (hre: HardhatRuntimeEnvironment) {
   const proxyAdmin = new ProxyAdmin__factory(deployerSigner).attach((await get('ProxyAdmin')).address)
 
   // Deploy Implementation
-  const multiInvokerContract = isArbitrum(getNetworkName()) ? 'MultiInvoker_Arbitrum' : 'MultiInvoker'
-  const multiInvokerContractName = isArbitrum(getNetworkName()) ? 'MultiInvokerImpl_Arbitrum' : 'MultiInvokerImpl'
+  const multiInvokerContract = isArbitrum(getNetworkName()) ? 'MultiInvoker_Arbitrum' : 'MultiInvoker_Optimism'
+  const multiInvokerContractName = isArbitrum(getNetworkName())
+    ? 'MultiInvokerImpl_Arbitrum'
+    : 'MultiInvokerImpl_Optimism'
+
+  const commitBuffer = isArbitrum(getNetworkName())
+    ? L1_GAS_BUFFERS.arbitrum.commitCalldata + L1_GAS_BUFFERS.arbitrum.commitIncrement
+    : L1_GAS_BUFFERS.base.commitCalldata + L1_GAS_BUFFERS.arbitrum.commitIncrement
   await deploy(multiInvokerContractName, {
     contract: multiInvokerContract,
     args: [
@@ -31,8 +38,8 @@ const func: DeployFunction = async function (hre: HardhatRuntimeEnvironment) {
       (await get('VaultFactory')).address,
       (await getOrNull('DSUBatcher'))?.address ?? ethers.constants.AddressZero,
       (await get('DSUReserve')).address,
-      1_800_000, // Full Order Commit uses about 1.5M gas
-      36_000, // Single commitment uses 31k calldata gas
+      1_500_000, // Full Order Commit uses about 1.5M gas
+      commitBuffer,
     ],
     from: deployer,
     skipIfAlreadyDeployed: true,
