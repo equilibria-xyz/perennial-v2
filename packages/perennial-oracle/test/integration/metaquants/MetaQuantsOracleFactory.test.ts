@@ -285,7 +285,7 @@ testOracles.forEach(testOracle => {
         await expect(
           metaquantsOracleFactory
             .connect(user)
-            .commit([METAQUANTS_BAYC_ETH_PRICE_FEED], STARTING_TIME, listify(PAYLOAD)),
+            .commit([METAQUANTS_BAYC_ETH_PRICE_FEED], STARTING_TIME, listify(PAYLOAD), { maxFeePerGas: 100000000 }),
         )
           .to.emit(keeperOracle, 'OracleProviderVersionFulfilled')
           .withArgs([STARTING_TIME, getPrices(listify(PAYLOAD))[0], true])
