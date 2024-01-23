@@ -86,7 +86,7 @@ const getPrices = (data: string) => {
 
 const testOracles = [
   {
-    name: 'KeeperOracle',
+    name: 'MetaQuantsOracleFactory',
     Oracle: KeeperOracle__factory,
     gasMock: async () => {
       const gasInfo = await smock.fake<ArbGasInfo>('ArbGasInfo', {
@@ -256,7 +256,7 @@ testOracles.forEach(testOracle => {
       factorySigner = await impersonateWithBalance(metaquantsOracleFactory.address, utils.parseEther('10'))
 
       const dsuHolder = await impersonateWithBalance(DSU_HOLDER, utils.parseEther('10'))
-      await dsu.connect(dsuHolder).transfer(oracleFactory.address, utils.parseEther('100000'))
+      await dsu.connect(dsuHolder).transfer(oracleFactory.address, utils.parseEther('10000'))
 
       await testOracle.gasMock()
     }
