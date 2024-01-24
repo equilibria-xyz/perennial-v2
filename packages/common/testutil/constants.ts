@@ -14,6 +14,7 @@ export function getMultisigAddress(networkName: string): string | null {
 export function getLabsMultisig(networkName: string): string | null {
   if (isMainnet(networkName)) {
     if (isArbitrum(networkName)) return '0xcc2A6ef429b402f7d8D72D6AEcd6Dfd0D787AcfF'
+    if (isBase(networkName)) return '0x63716C3656C7C3937981ccE3D4F0451b40302429'
   }
   return null
 }
