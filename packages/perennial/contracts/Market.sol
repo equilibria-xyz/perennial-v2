@@ -596,6 +596,7 @@ contract Market is IMarket, Instance, ReentrancyGuard {
     }
 
     /// @notice Credits an account's collateral that is out-of-context
+    /// @dev The amount must have already come from a corresponing debit in the settlement flow
     /// @param account The account to credit
     /// @param amount The amount to credit
     function _credit(address account, Fixed6 amount) private {

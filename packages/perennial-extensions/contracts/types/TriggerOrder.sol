@@ -70,7 +70,6 @@ library TriggerOrderLib {
                 UFixed6Lib.ZERO :
                 UFixed6Lib.from(Fixed6Lib.from(currentPosition.short).add(self.delta));
 
-        // update collateral (override collateral field in position since it is not used in this context)
         // Handles collateral withdrawal magic value
         if (self.side == 3) collateral = (self.delta.eq(Fixed6.wrap(type(int64).min)) ? Fixed6Lib.MIN : self.delta);
     }
