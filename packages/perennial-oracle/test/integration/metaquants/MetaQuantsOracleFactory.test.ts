@@ -269,6 +269,144 @@ testOracles.forEach(testOracle => {
       // block.timestamp of the next call will be STARTING_TIME
     })
 
+    describe('Factory', async () => {
+      context('#initialize', async () => {
+        it('reverts if already initialized', async () => {
+          const metaquantsOracleFactory2 = await new MetaQuantsFactory__factory(owner).deploy(
+            SIGNER,
+            await metaquantsOracleFactory.implementation(),
+            4,
+            10,
+            {
+              multiplierBase: 0,
+              bufferBase: 1_000_000,
+              multiplierCalldata: 0,
+              bufferCalldata: 500_000,
+            },
+            {
+              multiplierBase: ethers.utils.parseEther('1.02'),
+              bufferBase: 2_000_000,
+              multiplierCalldata: ethers.utils.parseEther('1.03'),
+              bufferCalldata: 1_500_000,
+            },
+            5_000,
+          )
+          await metaquantsOracleFactory2.initialize(oracleFactory.address, CHAINLINK_ETH_USD_FEED, dsu.address)
+          await expect(metaquantsOracleFactory2.initialize(oracleFactory.address, CHAINLINK_ETH_USD_FEED, dsu.address))
+            .to.be.revertedWithCustomError(metaquantsOracleFactory2, 'InitializableAlreadyInitializedError')
+            .withArgs(1)
+        })
+      })
+
+      context('#create', async () => {
+        it('cant recreate price id', async () => {
+          await expect(
+            metaquantsOracleFactory.create(
+              METAQUANTS_BAYC_ETH_PRICE_FEED,
+              METAQUANTS_BAYC_ETH_PRICE_FEED,
+              ethers.constants.AddressZero,
+            ),
+          ).to.be.revertedWithCustomError(metaquantsOracleFactory, 'KeeperFactoryAlreadyCreatedError')
+        })
+
+        it('cant recreate invalid price id', async () => {
+          await expect(
+            metaquantsOracleFactory.create(
+              METAQUANTS_BAYC_ETH_PRICE_FEED,
+              '0x0000000000000000000000000000000000000000000000000000000000000000',
+              ethers.constants.AddressZero,
+            ),
+          ).to.be.revertedWithCustomError(metaquantsOracleFactory, 'KeeperFactoryAlreadyCreatedError')
+        })
+
+        it('reverts when not owner', async () => {
+          await expect(
+            metaquantsOracleFactory
+              .connect(user)
+              .create(METAQUANTS_BAYC_ETH_PRICE_FEED, METAQUANTS_BAYC_ETH_PRICE_FEED, ethers.constants.AddressZero),
+          ).to.be.revertedWithCustomError(metaquantsOracleFactory, 'OwnableNotOwnerError')
+        })
+      })
+
+      context('#updateGranularity', async () => {
+        it('reverts when not owner', async () => {
+          await expect(metaquantsOracleFactory.connect(user).updateGranularity(10)).to.be.revertedWithCustomError(
+            metaquantsOracleFactory,
+            'OwnableNotOwnerError',
+          )
+        })
+      })
+
+      context('#authorize', async () => {
+        it('reverts when not owner', async () => {
+          await expect(
+            metaquantsOracleFactory.connect(user).authorize(oracleFactory.address),
+          ).to.be.revertedWithCustomError(metaquantsOracleFactory, 'OwnableNotOwnerError')
+        })
+      })
+
+      context('#register', async () => {
+        it('reverts when not owner', async () => {
+          await expect(
+            metaquantsOracleFactory.connect(user).register(ethers.constants.AddressZero),
+          ).to.be.revertedWithCustomError(metaquantsOracleFactory, 'OwnableNotOwnerError')
+        })
+      })
+    })
+
+    describe('#initialize', async () => {
+      it('only initializes with a valid priceId', async () => {
+        const oracle = await new KeeperOracle__factory(owner).deploy(60)
+        await expect(oracle.initialize()).to.emit(oracle, 'Initialized').withArgs(1)
+      })
+
+      it('reverts if already initialized', async () => {
+        const oracle = await new KeeperOracle__factory(owner).deploy(60)
+        await oracle.initialize()
+        await expect(oracle.initialize())
+          .to.be.revertedWithCustomError(oracle, 'InitializableAlreadyInitializedError')
+          .withArgs(1)
+      })
+    })
+
+    describe('constants', async () => {
+      it('#MIN_VALID_TIME_AFTER_VERSION', async () => {
+        expect(await metaquantsOracleFactory.validFrom()).to.equal(4)
+      })
+
+      it('#MAX_VALID_TIME_AFTER_VERSION', async () => {
+        expect(await metaquantsOracleFactory.validTo()).to.equal(10)
+      })
+
+      it('#GRACE_PERIOD', async () => {
+        expect(await keeperOracle.timeout()).to.equal(60)
+      })
+
+      it('#commitKeepConfig', async () => {
+        const keepConfig = await metaquantsOracleFactory.commitKeepConfig(1)
+        expect(keepConfig.multiplierBase).to.equal(0)
+        expect(keepConfig.bufferBase).to.equal(1_000_000)
+        expect(keepConfig.multiplierCalldata).to.equal(0)
+        expect(keepConfig.bufferCalldata).to.equal(505_000)
+      })
+
+      it('#commitKeepConfig with multiple requested', async () => {
+        const keepConfig = await metaquantsOracleFactory.commitKeepConfig(5)
+        expect(keepConfig.multiplierBase).to.equal(0)
+        expect(keepConfig.bufferBase).to.equal(5_000_000)
+        expect(keepConfig.multiplierCalldata).to.equal(0)
+        expect(keepConfig.bufferCalldata).to.equal(525_000)
+      })
+
+      it('#settleKeepConfig', async () => {
+        const keepConfig = await metaquantsOracleFactory.settleKeepConfig()
+        expect(keepConfig.multiplierBase).to.equal(ethers.utils.parseEther('1.02'))
+        expect(keepConfig.bufferBase).to.equal(2_000_000)
+        expect(keepConfig.multiplierCalldata).to.equal(ethers.utils.parseEther('1.03'))
+        expect(keepConfig.bufferCalldata).to.equal(1_500_000)
+      })
+    })
+
     describe('#commit', async () => {
       it('commits successfully and incentivizes the keeper', async () => {
         const originalDSUBalance = await dsu.callStatic.balanceOf(user.address)
@@ -395,6 +533,288 @@ testOracles.forEach(testOracle => {
             .connect(user)
             .commit([METAQUANTS_BAYC_ETH_PRICE_FEED], STARTING_TIME + 3, listify(PAYLOAD)),
         ).to.revertedWithCustomError(metaquantsOracleFactory, 'MetaQuantsFactoryVersionOutsideRangeError')
+      })
+    })
+
+    describe('#settle', async () => {
+      it('settles successfully and incentivizes the keeper', async () => {
+        const originalDSUBalance = await dsu.callStatic.balanceOf(user.address)
+        const originalFactoryDSUBalance = await dsu.callStatic.balanceOf(oracleFactory.address)
+        await keeperOracle.connect(oracleSigner).request(market.address, user.address)
+        // Base fee isn't working properly in coverage, so we need to set it manually
+        await ethers.provider.send('hardhat_setNextBlockBaseFeePerGas', ['0x5F5E100'])
+        expect(await keeperOracle.versions(1)).to.be.equal(STARTING_TIME)
+        expect(await keeperOracle.next()).to.be.equal(STARTING_TIME)
+        await metaquantsOracleFactory
+          .connect(user)
+          .commit([METAQUANTS_BAYC_ETH_PRICE_FEED], STARTING_TIME, listify(PAYLOAD), {
+            maxFeePerGas: 100000000,
+          })
+        const newDSUBalance = await dsu.callStatic.balanceOf(user.address)
+        const newFactoryDSUBalance = await dsu.callStatic.balanceOf(oracleFactory.address)
+
+        expect((await market.position()).timestamp).to.equal(STARTING_TIME)
+
+        await expect(
+          metaquantsOracleFactory
+            .connect(user)
+            .settle([METAQUANTS_BAYC_ETH_PRICE_FEED], [market.address], [STARTING_TIME], [1], {
+              maxFeePerGas: 100000000,
+            }),
+        ).to.emit(keeperOracle, 'CallbackFulfilled')
+        // .withArgs([market.address, user.address, STARTING_TIME]) cannot parse indexed tuples in events
+
+        expect((await market.positions(user.address)).timestamp).to.equal(STARTING_TIME)
+
+        expect(newDSUBalance.sub(originalDSUBalance)).to.be.within(utils.parseEther('0.15'), utils.parseEther('0.20'))
+        expect(originalFactoryDSUBalance.sub(newFactoryDSUBalance)).to.be.within(
+          utils.parseEther('0.15'),
+          utils.parseEther('0.20'),
+        )
+      })
+
+      it('reverts if array lengths mismatch', async () => {
+        await keeperOracle.connect(oracleSigner).request(market.address, user.address)
+        await metaquantsOracleFactory
+          .connect(user)
+          .commit([METAQUANTS_BAYC_ETH_PRICE_FEED], STARTING_TIME, listify(PAYLOAD))
+        await expect(
+          metaquantsOracleFactory
+            .connect(user)
+            .settle([METAQUANTS_BAYC_ETH_PRICE_FEED], [market.address, market.address], [STARTING_TIME], [1]),
+        ).to.be.revertedWithCustomError(metaquantsOracleFactory, 'KeeperFactoryInvalidSettleError')
+
+        await expect(
+          metaquantsOracleFactory
+            .connect(user)
+            .settle([METAQUANTS_BAYC_ETH_PRICE_FEED], [market.address], [STARTING_TIME, STARTING_TIME], [1]),
+        ).to.be.revertedWithCustomError(metaquantsOracleFactory, 'KeeperFactoryInvalidSettleError')
+
+        await expect(
+          metaquantsOracleFactory
+            .connect(user)
+            .settle([METAQUANTS_BAYC_ETH_PRICE_FEED], [market.address], [STARTING_TIME], [1, 1]),
+        ).to.be.revertedWithCustomError(metaquantsOracleFactory, 'KeeperFactoryInvalidSettleError')
+      })
+
+      it('reverts if calldata is ids is empty', async () => {
+        await keeperOracle.connect(oracleSigner).request(market.address, user.address)
+        await metaquantsOracleFactory
+          .connect(user)
+          .commit([METAQUANTS_BAYC_ETH_PRICE_FEED], STARTING_TIME, listify(PAYLOAD))
+
+        await expect(metaquantsOracleFactory.connect(user).settle([], [], [], [])).to.be.revertedWithCustomError(
+          metaquantsOracleFactory,
+          'KeeperFactoryInvalidSettleError',
+        )
+      })
+    })
+
+    describe('#status', async () => {
+      it('returns the correct versions', async () => {
+        await keeperOracle.connect(oracleSigner).request(market.address, user.address)
+        await metaquantsOracleFactory
+          .connect(user)
+          .commit([METAQUANTS_BAYC_ETH_PRICE_FEED], STARTING_TIME, listify(PAYLOAD))
+        const [latestIndex, currentIndex] = await keeperOracle.status()
+        expect(latestIndex.valid).to.be.true
+        expect(latestIndex.price).to.equal(getPrices(listify(PAYLOAD))[0])
+        expect(currentIndex).to.equal(await currentBlockTimestamp())
+      })
+
+      it('returns empty versions if no version has ever been committed', async () => {
+        const [latestIndex, currentIndex] = await keeperOracle.status()
+        expect(currentIndex).to.equal(await currentBlockTimestamp())
+        expect(latestIndex.timestamp).to.equal(0)
+        expect(latestIndex.price).to.equal(0)
+        expect(latestIndex.valid).to.be.false
+      })
+    })
+
+    describe('#request', async () => {
+      it('can request a version', async () => {
+        // No requested versions
+        expect((await keeperOracle.global()).currentIndex).to.equal(0)
+        await expect(keeperOracle.connect(oracleSigner).request(market.address, user.address))
+          .to.emit(keeperOracle, 'OracleProviderVersionRequested')
+          .withArgs(STARTING_TIME)
+        // Now there is exactly one requested version
+        expect(await keeperOracle.versions(1)).to.equal(STARTING_TIME)
+        expect((await keeperOracle.global()).currentIndex).to.equal(1)
+      })
+
+      it('can request a version w/ granularity', async () => {
+        await metaquantsOracleFactory.updateGranularity(10)
+
+        // No requested versions
+        expect((await keeperOracle.global()).currentIndex).to.equal(0)
+        await keeperOracle.connect(oracleSigner).request(market.address, user.address)
+        const currentTimestamp = await metaquantsOracleFactory.current()
+
+        // Now there is exactly one requested version
+        expect(await keeperOracle.versions(1)).to.equal(currentTimestamp)
+        expect((await keeperOracle.global()).currentIndex).to.equal(1)
+      })
+
+      it('does not allow unauthorized instances to request', async () => {
+        const badInstance = await smock.fake<IInstance>('IInstance')
+        const badFactory = await smock.fake<IFactory>('IFactory')
+        badInstance.factory.returns(badFactory.address)
+        badFactory.instances.returns(true)
+        const badSigner = await impersonateWithBalance(badInstance.address, utils.parseEther('10'))
+
+        await expect(
+          keeperOracle.connect(badSigner).request(market.address, user.address),
+        ).to.be.revertedWithCustomError(keeperOracle, 'OracleProviderUnauthorizedError')
+      })
+
+      it('a version can only be requested once', async () => {
+        await ethers.provider.send('evm_setAutomine', [false])
+        await ethers.provider.send('evm_setIntervalMining', [0])
+
+        await keeperOracle.connect(oracleSigner).request(market.address, user.address)
+        await keeperOracle.connect(oracleSigner).request(market.address, user.address)
+
+        await ethers.provider.send('evm_mine', [])
+
+        const currentTimestamp = await metaquantsOracleFactory.current()
+        expect(await keeperOracle.callStatic.versions(1)).to.equal(currentTimestamp)
+        expect(await keeperOracle.callStatic.versions(2)).to.equal(0)
+      })
+    })
+
+    describe('#latest', async () => {
+      it('returns the latest version', async () => {
+        await metaquantsOracleFactory
+          .connect(user)
+          .commit([METAQUANTS_BAYC_ETH_PRICE_FEED], STARTING_TIME, listify(PAYLOAD))
+        const latestValue = await keeperOracle.connect(user).latest()
+        expect(latestValue.price).to.equal(getPrices(listify(PAYLOAD))[0])
+      })
+
+      it('returns empty version if no version has ever been committed', async () => {
+        const latestIndex = await keeperOracle.connect(user).latest()
+        expect(latestIndex.timestamp).to.equal(0)
+        expect(latestIndex.price).to.equal(0)
+        expect(latestIndex.valid).to.be.false
+      })
+    })
+
+    describe('#current', async () => {
+      it('returns the current timestamp', async () => {
+        expect(await keeperOracle.connect(user).current()).to.equal(await currentBlockTimestamp())
+      })
+
+      it('returns the current timestamp w/ granularity == 0', async () => {
+        await expect(metaquantsOracleFactory.connect(owner).updateGranularity(0)).to.be.revertedWithCustomError(
+          metaquantsOracleFactory,
+          'KeeperFactoryInvalidGranularityError',
+        )
+      })
+
+      it('returns the current timestamp w/ granularity > MAX', async () => {
+        await expect(metaquantsOracleFactory.connect(owner).updateGranularity(3601)).to.be.revertedWithCustomError(
+          metaquantsOracleFactory,
+          'KeeperFactoryInvalidGranularityError',
+        )
+        await expect(metaquantsOracleFactory.connect(owner).updateGranularity(3600)).to.be.not.reverted
+      })
+
+      it('returns the current timestamp w/ fresh granularity > 1', async () => {
+        await metaquantsOracleFactory.connect(owner).updateGranularity(10)
+
+        const granularity = await metaquantsOracleFactory.granularity()
+        expect(granularity.latestGranularity).to.equal(1)
+        expect(granularity.currentGranularity).to.equal(10)
+        expect(granularity.effectiveAfter).to.equal(await currentBlockTimestamp())
+
+        expect(await keeperOracle.connect(user).current()).to.equal(await currentBlockTimestamp())
+      })
+
+      it('returns the current timestamp w/ settled granularity > 1', async () => {
+        const granularity = await metaquantsOracleFactory.granularity()
+        expect(granularity.latestGranularity).to.equal(0)
+        expect(granularity.currentGranularity).to.equal(1)
+        expect(granularity.effectiveAfter).to.equal(0)
+
+        await metaquantsOracleFactory.connect(owner).updateGranularity(10)
+
+        const granularity2 = await metaquantsOracleFactory.granularity()
+        expect(granularity2.latestGranularity).to.equal(1)
+        expect(granularity2.currentGranularity).to.equal(10)
+        expect(granularity2.effectiveAfter).to.equal(await currentBlockTimestamp())
+
+        await time.increase(1)
+
+        expect(await keeperOracle.connect(user).current()).to.equal(
+          Math.ceil((await currentBlockTimestamp()) / 10) * 10,
+        )
+      })
+
+      it('returns the current timestamp w/ fresh + fresh granularity > 1', async () => {
+        await metaquantsOracleFactory.connect(owner).updateGranularity(10)
+        // hardhat automatically moves 1 second ahead so we have to do this twice
+        await metaquantsOracleFactory.connect(owner).updateGranularity(100)
+        await expect(metaquantsOracleFactory.connect(owner).updateGranularity(1000)).to.be.revertedWithCustomError(
+          metaquantsOracleFactory,
+          'KeeperFactoryInvalidGranularityError',
+        )
+      })
+
+      it('returns the current timestamp w/ settled + fresh granularity > 1', async () => {
+        await metaquantsOracleFactory.connect(owner).updateGranularity(10)
+        await time.increase(1)
+
+        await metaquantsOracleFactory.connect(owner).updateGranularity(100)
+        const granularity = await metaquantsOracleFactory.granularity()
+        expect(granularity.latestGranularity).to.equal(10)
+        expect(granularity.currentGranularity).to.equal(100)
+        expect(granularity.effectiveAfter).to.equal(Math.ceil((await currentBlockTimestamp()) / 10) * 10)
+
+        expect(await keeperOracle.connect(user).current()).to.equal(
+          Math.ceil((await currentBlockTimestamp()) / 10) * 10,
+        )
+      })
+
+      it('returns the current timestamp w/ settled + settled granularity > 1', async () => {
+        await metaquantsOracleFactory.connect(owner).updateGranularity(10)
+        await time.increase(1)
+
+        await metaquantsOracleFactory.connect(owner).updateGranularity(100)
+        const granularity = await metaquantsOracleFactory.granularity()
+        expect(granularity.latestGranularity).to.equal(10)
+        expect(granularity.currentGranularity).to.equal(100)
+        expect(granularity.effectiveAfter).to.equal(Math.ceil((await currentBlockTimestamp()) / 10) * 10)
+
+        const previousCurrent = Math.ceil((await currentBlockTimestamp()) / 10) * 10
+        await time.increase(previousCurrent - (await currentBlockTimestamp()) + 1)
+
+        expect(await keeperOracle.connect(user).current()).to.equal(
+          Math.ceil((await currentBlockTimestamp()) / 100) * 100,
+        )
+      })
+    })
+
+    describe('#atVersion', async () => {
+      it('returns the correct version', async () => {
+        await keeperOracle.connect(oracleSigner).request(market.address, user.address)
+        await metaquantsOracleFactory
+          .connect(user)
+          .commit([METAQUANTS_BAYC_ETH_PRICE_FEED], STARTING_TIME, listify(PAYLOAD))
+        const version = await keeperOracle.connect(user).at(STARTING_TIME)
+        expect(version.valid).to.be.true
+        expect(version.price).to.equal(getPrices(listify(PAYLOAD))[0])
+      })
+
+      it('returns invalid version if that version was not requested', async () => {
+        const version = await keeperOracle.connect(user).at(STARTING_TIME)
+        expect(version.valid).to.be.false
+      })
+
+      it('returns invalid version if that version was requested but not committed', async () => {
+        await keeperOracle.connect(oracleSigner).request(market.address, user.address)
+        const version = await keeperOracle.connect(user).at(STARTING_TIME)
+        expect(version.valid).to.be.false
       })
     })
   })
