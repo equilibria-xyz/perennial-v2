@@ -168,8 +168,8 @@ describe('Position', () => {
       })
 
       describe('.fee', async () => {
-        const STORAGE_SIZE = 48
-        it('saves if in range', async () => {
+        const STORAGE_SIZE = 47
+        it('saves if in range (above)', async () => {
           await position.store({
             ...VALID_GLOBAL_POSITION,
             fee: BigNumber.from(2).pow(STORAGE_SIZE).sub(1),
@@ -178,11 +178,29 @@ describe('Position', () => {
           expect(value.fee).to.equal(BigNumber.from(2).pow(STORAGE_SIZE).sub(1))
         })
 
-        it('reverts if fee out of range', async () => {
+        it('saves if in range (below)', async () => {
+          await position.store({
+            ...VALID_GLOBAL_POSITION,
+            fee: BigNumber.from(2).pow(STORAGE_SIZE).mul(-1),
+          })
+          const value = await position.read()
+          expect(value.fee).to.equal(BigNumber.from(2).pow(STORAGE_SIZE).mul(-1))
+        })
+
+        it('reverts if fee out of range (above)', async () => {
           await expect(
             position.store({
               ...VALID_GLOBAL_POSITION,
               fee: BigNumber.from(2).pow(STORAGE_SIZE),
+            }),
+          ).to.be.revertedWithCustomError(position, 'PositionStorageInvalidError')
+        })
+
+        it('reverts if fee out of range (above)', async () => {
+          await expect(
+            position.store({
+              ...VALID_GLOBAL_POSITION,
+              fee: BigNumber.from(2).pow(STORAGE_SIZE).add(1).mul(-1),
             }),
           ).to.be.revertedWithCustomError(position, 'PositionStorageInvalidError')
         })
@@ -265,48 +283,48 @@ describe('Position', () => {
         context('major is 0', () => {
           it('returns 0', async () => {
             await position.store({ ...VALID_GLOBAL_POSITION, long: 0, short: 0 })
-            expect(await position.skew()).to.equal(0)
+            expect(await position.relativeSkew()).to.equal(0)
           })
         })
 
         context('long is major', () => {
           it('returns (long - short)/long', async () => {
             await position.store({ ...VALID_GLOBAL_POSITION, long: parse6decimal('102'), short: parse6decimal('2') })
-            expect(await position.skew()).to.equal(BigNumber.from('980392'))
+            expect(await position.relativeSkew()).to.equal(BigNumber.from('980392'))
           })
         })
 
         context('short is major', () => {
           it('returns (short - long)/short', async () => {
             await position.store({ ...VALID_GLOBAL_POSITION, long: parse6decimal('2'), short: parse6decimal('102') })
-            expect(await position.skew()).to.equal(BigNumber.from('-980392'))
+            expect(await position.relativeSkew()).to.equal(BigNumber.from('-980392'))
           })
         })
       })
 
-      describe('#virtualSkew', () => {
-        const RISK_PARAM_WITH_VIRTUAL_TAKER = {
+      describe('#staticSkew', () => {
+        const RISK_PARAM_WITH_SKEW_SCALE = {
           ...VALID_RISK_PARAMETER,
-          virtualTaker: parse6decimal('100'),
+          skewScale: parse6decimal('100'),
         }
-        context('major is 0', () => {
+        context('skewScale is 0', () => {
           it('returns 0', async () => {
             await position.store({ ...VALID_GLOBAL_POSITION, long: 0, short: 0 })
-            expect(await position.virtualSkew(RISK_PARAM_WITH_VIRTUAL_TAKER)).to.equal(0)
+            expect(await position.staticSkew({ ...RISK_PARAM_WITH_SKEW_SCALE, skewScale: 0 })).to.equal(0)
           })
         })
 
         context('long is major', () => {
-          it('returns (long - short)/(long + virtualTaker)', async () => {
+          it('returns (long - short)/skewScale', async () => {
             await position.store({ ...VALID_GLOBAL_POSITION, long: parse6decimal('102'), short: parse6decimal('2') })
-            expect(await position.virtualSkew(RISK_PARAM_WITH_VIRTUAL_TAKER)).to.equal(BigNumber.from('495049'))
+            expect(await position.staticSkew(RISK_PARAM_WITH_SKEW_SCALE)).to.equal(parse6decimal('1'))
           })
         })
 
         context('short is major', () => {
-          it('returns (short - long)/(short + virtualTaker)', async () => {
+          it('returns (long - short)/skewScale', async () => {
             await position.store({ ...VALID_GLOBAL_POSITION, long: parse6decimal('2'), short: parse6decimal('102') })
-            expect(await position.virtualSkew(RISK_PARAM_WITH_VIRTUAL_TAKER)).to.equal(BigNumber.from('-495049'))
+            expect(await position.staticSkew(RISK_PARAM_WITH_SKEW_SCALE)).to.equal(parse6decimal('-1'))
           })
         })
       })
@@ -641,7 +659,7 @@ describe('Position', () => {
           await position.store(VALID_GLOBAL_POSITION)
 
           await position[
-            'update((uint256,uint256,uint256,uint256,uint256,uint256,int256,int256,(int256,int256,int256)))'
+            'update((uint256,uint256,uint256,uint256,int256,uint256,int256,int256,(int256,int256,int256)))'
           ]({
             timestamp: 20,
             maker: 30,
@@ -679,15 +697,15 @@ describe('Position', () => {
             short: parse6decimal('12'),
             fee: parse6decimal('100'),
           })
-          const latestSkew = await position.skew()
+          const latestSkew = await position.staticSkew(VALID_RISK_PARAMETER)
           const latestEfficiency = await position.efficiency()
 
           const updatedOrder = await position.callStatic[
-            'update(uint256,(int256,int256,int256,int256,uint256,int256,int256,int256,uint256,uint256),(uint256,uint256,uint256,uint256,uint256,uint256,uint256,uint256,uint256,uint256,uint256,uint256,(uint256,uint256,uint256,uint256),(uint256,uint256),uint256,uint256,uint256,uint256,bool))'
+            'update(uint256,(int256,int256,int256,int256,uint256,int256,int256,int256,int256,uint256),(uint256,uint256,uint256,uint256,uint256,uint256,uint256,uint256,uint256,uint256,uint256,uint256,(uint256,uint256,uint256,uint256),(uint256,uint256),uint256,uint256,uint256,uint256,bool))'
           ](123456, VALID_ORDER, VALID_RISK_PARAMETER)
 
           await position[
-            'update(uint256,(int256,int256,int256,int256,uint256,int256,int256,int256,uint256,uint256),(uint256,uint256,uint256,uint256,uint256,uint256,uint256,uint256,uint256,uint256,uint256,uint256,(uint256,uint256,uint256,uint256),(uint256,uint256),uint256,uint256,uint256,uint256,bool))'
+            'update(uint256,(int256,int256,int256,int256,uint256,int256,int256,int256,int256,uint256),(uint256,uint256,uint256,uint256,uint256,uint256,uint256,uint256,uint256,uint256,uint256,uint256,(uint256,uint256,uint256,uint256),(uint256,uint256),uint256,uint256,uint256,uint256,bool))'
           ](123456, VALID_ORDER, VALID_RISK_PARAMETER)
 
           const value = await position.read()
@@ -697,11 +715,11 @@ describe('Position', () => {
           expect(value.short).to.equal(parse6decimal('15'))
           expect(value.fee).to.equal(parse6decimal('100'))
 
-          const skew = await position.skew()
+          const skew = await position.staticSkew(VALID_RISK_PARAMETER)
           const efficiency = await position.efficiency()
 
-          expect(updatedOrder.skew).to.equal(skew.sub(latestSkew).abs())
-          expect(updatedOrder.impact).to.equal(skew.abs().sub(latestSkew.abs()))
+          expect(updatedOrder.skew).to.equal(parse6decimal('6').mul(parse6decimal('1')).div(14))
+          expect(updatedOrder.impact).to.equal(latestSkew.add(skew).div(-2))
           expect(updatedOrder.efficiency).to.equal(efficiency.sub(latestEfficiency))
           expect(updatedOrder.net).to.equal(parse6decimal('1'))
           expect(updatedOrder.utilization).to.equal(BigNumber.from('42483'))
@@ -712,7 +730,7 @@ describe('Position', () => {
             await position.store({ ...VALID_GLOBAL_POSITION, fee: 50, keeper: 60 })
 
             await position[
-              'update(uint256,(int256,int256,int256,int256,uint256,int256,int256,int256,uint256,uint256),(uint256,uint256,uint256,uint256,uint256,uint256,uint256,uint256,uint256,uint256,uint256,uint256,(uint256,uint256,uint256,uint256),(uint256,uint256),uint256,uint256,uint256,uint256,bool))'
+              'update(uint256,(int256,int256,int256,int256,uint256,int256,int256,int256,int256,uint256),(uint256,uint256,uint256,uint256,uint256,uint256,uint256,uint256,uint256,uint256,uint256,uint256,(uint256,uint256,uint256,uint256),(uint256,uint256),uint256,uint256,uint256,uint256,bool))'
             ](123456, VALID_ORDER, VALID_RISK_PARAMETER)
 
             const value = await position.read()
@@ -996,8 +1014,8 @@ describe('Position', () => {
       })
 
       describe('.fee', async () => {
-        const STORAGE_SIZE = 48
-        it('saves if in range', async () => {
+        const STORAGE_SIZE = 47
+        it('saves if in range (above)', async () => {
           await position.store({
             ...VALID_LOCAL_POSITION,
             fee: BigNumber.from(2).pow(STORAGE_SIZE).sub(1),
@@ -1006,11 +1024,29 @@ describe('Position', () => {
           expect(value.fee).to.equal(BigNumber.from(2).pow(STORAGE_SIZE).sub(1))
         })
 
-        it('reverts if fee out of range', async () => {
+        it('saves if in range (below)', async () => {
+          await position.store({
+            ...VALID_LOCAL_POSITION,
+            fee: BigNumber.from(2).pow(STORAGE_SIZE).mul(-1),
+          })
+          const value = await position.read()
+          expect(value.fee).to.equal(BigNumber.from(2).pow(STORAGE_SIZE).mul(-1))
+        })
+
+        it('reverts if fee out of range (above)', async () => {
           await expect(
             position.store({
               ...VALID_LOCAL_POSITION,
               fee: BigNumber.from(2).pow(STORAGE_SIZE),
+            }),
+          ).to.be.revertedWithCustomError(position, 'PositionStorageInvalidError')
+        })
+
+        it('reverts if fee out of range (below)', async () => {
+          await expect(
+            position.store({
+              ...VALID_LOCAL_POSITION,
+              fee: BigNumber.from(2).pow(STORAGE_SIZE).add(1).mul(-1),
             }),
           ).to.be.revertedWithCustomError(position, 'PositionStorageInvalidError')
         })
@@ -1473,7 +1509,7 @@ describe('Position', () => {
           await position.store(VALID_LOCAL_POSITION)
 
           await position[
-            'update((uint256,uint256,uint256,uint256,uint256,uint256,int256,int256,(int256,int256,int256)))'
+            'update((uint256,uint256,uint256,uint256,int256,uint256,int256,int256,(int256,int256,int256)))'
           ]({
             timestamp: 20,
             maker: 0, // only max is stored

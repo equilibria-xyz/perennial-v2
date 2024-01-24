@@ -31,7 +31,8 @@ const func: DeployFunction = async function (hre: HardhatRuntimeEnvironment) {
       (await get('VaultFactory')).address,
       (await getOrNull('DSUBatcher'))?.address ?? ethers.constants.AddressZero,
       (await get('DSUReserve')).address,
-      ethers.utils.parseUnits('1.75', 6),
+      1_800_000, // Full Order Commit uses about 1.5M gas
+      36_000, // Single commitment uses 31k calldata gas
     ],
     from: deployer,
     skipIfAlreadyDeployed: true,
@@ -44,7 +45,7 @@ const func: DeployFunction = async function (hre: HardhatRuntimeEnvironment) {
   await deploy('MultiInvoker', {
     contract: 'TransparentUpgradeableProxy',
     args: [
-      (await get('MultiInvokerImpl')).address,
+      (await get(multiInvokerContractName)).address,
       proxyAdmin.address,
       multiInvokerInterface.encodeFunctionData('initialize', [(await get('ChainlinkETHUSDFeed')).address]),
     ],

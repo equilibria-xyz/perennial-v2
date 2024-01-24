@@ -28,26 +28,37 @@ describe('Liquidate', () => {
     // Settle the market with a new oracle version
     await chainlink.nextWithPriceModification(price => price.mul(2))
 
-    await expect(market.connect(userB).update(user.address, 0, 0, 0, '-682778988', true)) // liquidate
+    await expect(market.connect(userB).update(user.address, 0, 0, 0, 0, true)) // liquidate
       .to.emit(market, 'Updated')
-      .withArgs(userB.address, user.address, TIMESTAMP_2, 0, 0, 0, '-682778988', true)
+      .withArgs(userB.address, user.address, TIMESTAMP_2, 0, 0, 0, 0, true)
 
     expect((await market.locals(user.address)).protection).to.eq(TIMESTAMP_2)
+    expect((await market.locals(user.address)).protectionAmount).to.eq('682778988')
+    expect((await market.locals(user.address)).protectionInitiator).to.eq(userB.address)
 
-    expect((await market.locals(user.address)).collateral).to.equal('317221012')
-    expect(await dsu.balanceOf(market.address)).to.equal(utils.parseEther('317.221012'))
-    expect(await dsu.balanceOf(userB.address)).to.equal(utils.parseEther('200682.778988')) // Original 200000 + fee
+    expect((await market.locals(user.address)).collateral).to.equal(COLLATERAL)
+    expect(await dsu.balanceOf(market.address)).to.equal(utils.parseEther('1000'))
+    expect(await dsu.balanceOf(userB.address)).to.equal(utils.parseEther('200000')) // Original 200000 + fee
 
     await chainlink.next()
+    await market.connect(user).update(user.address, 0, 0, 0, 0, false) // settle
+    await market.connect(userB).update(userB.address, 0, 0, 0, constants.MinInt256, false) // liquidator withdrawal
+
+    expect(await dsu.balanceOf(userB.address)).to.equal(utils.parseEther('200682.778988')) // Original 200000 + fee
+    expect((await market.locals(user.address)).collateral).to.equal('317221012')
+    expect(await dsu.balanceOf(market.address)).to.equal(utils.parseEther('317.221012'))
+
     await market.connect(user).update(user.address, 0, 0, 0, constants.MinInt256, false) // withdraw everything
 
     expect((await market.position()).timestamp).to.eq(TIMESTAMP_2)
     expect((await market.locals(user.address)).protection).to.eq(TIMESTAMP_2)
+    expect((await market.locals(user.address)).protectionAmount).to.eq('682778988')
+    expect((await market.locals(user.address)).protectionInitiator).to.eq(userB.address)
   })
 
   it('liquidates a user with a reward larger than total collateral', async () => {
     const POSITION = parse6decimal('0.0001')
-    const COLLATERAL = parse6decimal('1000')
+    const COLLATERAL = parse6decimal('900')
     const { user, userB, dsu, chainlink } = instanceVars
 
     const market = await createMarket(instanceVars)
@@ -57,21 +68,33 @@ describe('Liquidate', () => {
     // Settle the market with a new oracle version
     await chainlink.nextWithPriceModification(price => price.mul(10))
 
-    await expect(market.connect(userB).update(user.address, 0, 0, 0, COLLATERAL.mul(-1), true)) // liquidate
+    await expect(market.connect(userB).update(user.address, 0, 0, 0, 0, true)) // liquidate
       .to.emit(market, 'Updated')
-      .withArgs(userB.address, user.address, TIMESTAMP_2, 0, 0, 0, COLLATERAL.mul(-1), true)
+      .withArgs(userB.address, user.address, TIMESTAMP_2, 0, 0, 0, 0, true)
 
     expect((await market.locals(user.address)).protection).to.eq(TIMESTAMP_2)
+    expect((await market.locals(user.address)).protectionAmount).to.eq(parse6decimal('1000'))
+    expect((await market.locals(user.address)).protectionInitiator).to.eq(userB.address)
 
-    expect((await market.locals(user.address)).collateral).to.equal(0)
-    expect(await dsu.balanceOf(market.address)).to.equal(0)
-    expect(await dsu.balanceOf(userB.address)).to.equal(utils.parseEther('201000')) // Original 200000 + fee
+    expect((await market.locals(user.address)).protectionAmount).to.gt(COLLATERAL)
 
     await chainlink.next()
     await settle(market, user)
 
+    expect((await market.locals(user.address)).collateral).to.equal(parse6decimal('-100'))
+
+    await expect(market.connect(userB).update(userB.address, 0, 0, 0, constants.MinInt256, false)) // liquidator withdrawal
+      .to.rejectedWith('ERC20: transfer amount exceeds balance')
+
+    await market.connect(userB).update(userB.address, 0, 0, 0, parse6decimal('-900'), false)
+    expect((await market.locals(userB.address)).collateral).to.equal(parse6decimal('100'))
+    expect(await dsu.balanceOf(market.address)).to.equal(0)
+    expect(await dsu.balanceOf(userB.address)).to.equal(utils.parseEther('200900')) // Original 200000 + fee
+
     expect((await market.position()).timestamp).to.eq(TIMESTAMP_2)
     expect((await market.locals(user.address)).protection).to.eq(TIMESTAMP_2)
+    expect((await market.locals(user.address)).protectionAmount).to.eq(parse6decimal('1000'))
+    expect((await market.locals(user.address)).protectionInitiator).to.eq(userB.address)
   })
 
   it('creates and resolves a shortfall', async () => {
@@ -95,13 +118,14 @@ describe('Liquidate', () => {
     const userBCollateral = (await market.locals(userB.address)).collateral
     await expect(
       market.connect(userB).update(userB.address, 0, 0, 0, userBCollateral.mul(-1).sub(1), false),
-    ).to.be.revertedWithCustomError(market, 'MarketInsufficientMaintenanceError') // underflow
+    ).to.be.revertedWithCustomError(market, 'MarketInsufficientMarginError') // underflow
 
-    await market.connect(userB).update(user.address, 0, 0, 0, '-690277557', true) // liquidate
-    expect((await market.locals(user.address)).collateral).to.equal(BigNumber.from('-3154014022'))
+    await market.connect(userB).update(user.address, 0, 0, 0, 0, true) // liquidate
 
     await chainlink.nextWithPriceModification(price => price.mul(2))
     await settle(market, user)
+
+    expect((await market.locals(user.address)).collateral).to.equal(BigNumber.from('-3203431996'))
 
     await dsu.connect(userB).approve(market.address, constants.MaxUint256)
     const userCollateral = (await market.locals(user.address)).collateral
@@ -141,10 +165,9 @@ describe('Liquidate', () => {
     await chainlink.nextWithPriceModification(price => price.mul(2))
 
     // Liquidate `user` which results in taker > maker
-    const expectedLiquidationFee = BigNumber.from('682778988')
-    await expect(market.connect(userB).update(user.address, 0, 0, 0, expectedLiquidationFee.mul(-1), true)) // liquidate
+    await expect(market.connect(userB).update(user.address, 0, 0, 0, 0, true)) // liquidate
       .to.emit(market, 'Updated')
-      .withArgs(userB.address, user.address, TIMESTAMP_2, 0, 0, 0, expectedLiquidationFee.mul(-1), true)
+      .withArgs(userB.address, user.address, TIMESTAMP_2, 0, 0, 0, 0, true)
 
     await chainlink.next()
     await settle(market, user)
@@ -196,6 +219,6 @@ describe('Liquidate', () => {
       .add((await market.global()).oracleFee)
       .add((await market.global()).riskFee)
       .add((await market.global()).donation)
-    expect(totalCollateral.add(totalFees)).to.be.lte(parse6decimal('22000').sub(expectedLiquidationFee))
+    expect(totalCollateral.add(totalFees)).to.be.lte(parse6decimal('22000'))
   })
 })

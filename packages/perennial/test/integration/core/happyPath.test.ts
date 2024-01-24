@@ -6,6 +6,7 @@ const { AddressZero } = constants
 import { InstanceVars, deployProtocol, createMarket, settle } from '../helpers/setupHelpers'
 import {
   DEFAULT_POSITION,
+  DEFAULT_LOCAL,
   expectGlobalEq,
   expectLocalEq,
   expectPositionEq,
@@ -80,7 +81,7 @@ describe('Happy Path', () => {
       },
       minMargin: parse6decimal('500'),
       minMaintenance: parse6decimal('500'),
-      virtualTaker: parse6decimal('10000'),
+      skewScale: parse6decimal('10000'),
       staleAfter: 7200,
       makerReceiveOnly: false,
     }
@@ -132,6 +133,7 @@ describe('Happy Path', () => {
 
     // Check user is in the correct state
     expectLocalEq(await market.locals(user.address), {
+      ...DEFAULT_LOCAL,
       currentId: 1,
       latestId: 0,
       collateral: COLLATERAL,
@@ -182,6 +184,7 @@ describe('Happy Path', () => {
 
     // check user state
     expectLocalEq(await market.locals(user.address), {
+      ...DEFAULT_LOCAL,
       currentId: 2,
       latestId: 1,
       collateral: COLLATERAL,
@@ -236,6 +239,7 @@ describe('Happy Path', () => {
 
     // Check user is in the correct state
     expectLocalEq(await market.locals(user.address), {
+      ...DEFAULT_LOCAL,
       currentId: 1,
       latestId: 0,
       collateral: COLLATERAL,
@@ -286,6 +290,7 @@ describe('Happy Path', () => {
 
     // check user state
     expectLocalEq(await market.locals(user.address), {
+      ...DEFAULT_LOCAL,
       currentId: 2,
       latestId: 1,
       collateral: COLLATERAL,
@@ -354,6 +359,7 @@ describe('Happy Path', () => {
 
     // User state
     expectLocalEq(await market.locals(user.address), {
+      ...DEFAULT_LOCAL,
       currentId: 2,
       latestId: 1,
       collateral: COLLATERAL,
@@ -418,6 +424,7 @@ describe('Happy Path', () => {
 
     // User state
     expectLocalEq(await market.locals(user.address), {
+      ...DEFAULT_LOCAL,
       currentId: 2,
       latestId: 1,
       collateral: COLLATERAL,
@@ -470,6 +477,7 @@ describe('Happy Path', () => {
     const { user, userB, dsu, chainlink } = instanceVars
 
     const market = await createMarket(instanceVars)
+    await market.updateRiskParameter({ ...(await market.riskParameter()), skewScale: parse6decimal('0.00001') })
     await dsu.connect(user).approve(market.address, COLLATERAL.mul(1e12))
     await dsu.connect(userB).approve(market.address, COLLATERAL.mul(1e12))
 
@@ -486,7 +494,7 @@ describe('Happy Path', () => {
           long: POSITION_B,
           net: POSITION_B,
           skew: parse6decimal('1'),
-          impact: parse6decimal('1'),
+          impact: parse6decimal('.5'),
           utilization: parse6decimal('.1'),
         },
         COLLATERAL,
@@ -494,6 +502,7 @@ describe('Happy Path', () => {
 
     // User State
     expectLocalEq(await market.locals(user.address), {
+      ...DEFAULT_LOCAL,
       currentId: 1,
       latestId: 0,
       collateral: COLLATERAL,
@@ -512,6 +521,7 @@ describe('Happy Path', () => {
     })
 
     expectLocalEq(await market.locals(userB.address), {
+      ...DEFAULT_LOCAL,
       currentId: 1,
       latestId: 0,
       collateral: COLLATERAL,
@@ -586,6 +596,7 @@ describe('Happy Path', () => {
     })
 
     expectLocalEq(await market.locals(userB.address), {
+      ...DEFAULT_LOCAL,
       currentId: 2,
       latestId: 1,
       collateral: COLLATERAL.add(BigNumber.from('1249392')),
@@ -612,6 +623,7 @@ describe('Happy Path', () => {
     const { user, userB, dsu, chainlink } = instanceVars
 
     const market = await createMarket(instanceVars)
+    await market.updateRiskParameter({ ...(await market.riskParameter()), skewScale: parse6decimal('0.00001') })
     await dsu.connect(user).approve(market.address, COLLATERAL.mul(1e12))
     await dsu.connect(userB).approve(market.address, COLLATERAL.mul(1e12))
 
@@ -624,6 +636,7 @@ describe('Happy Path', () => {
 
     // User State
     expectLocalEq(await market.locals(userB.address), {
+      ...DEFAULT_LOCAL,
       currentId: 1,
       latestId: 0,
       collateral: COLLATERAL,
@@ -697,6 +710,7 @@ describe('Happy Path', () => {
       long: POSITION_B,
     })
     expectLocalEq(await market.locals(userB.address), {
+      ...DEFAULT_LOCAL,
       currentId: 2,
       latestId: 1,
       collateral: COLLATERAL.add(BigNumber.from('1249392')),
@@ -745,8 +759,6 @@ describe('Happy Path', () => {
           ...DEFAULT_ORDER,
           long: POSITION_B.mul(-1),
           net: POSITION_B.mul(-1),
-          skew: parse6decimal('1'),
-          impact: parse6decimal('-1'),
           utilization: parse6decimal('-.1'),
         },
         0,
@@ -754,6 +766,7 @@ describe('Happy Path', () => {
 
     // User State
     expectLocalEq(await market.locals(userB.address), {
+      ...DEFAULT_LOCAL,
       currentId: 2,
       latestId: 1,
       collateral: COLLATERAL,
@@ -827,6 +840,7 @@ describe('Happy Path', () => {
 
     // User State
     expectLocalEq(await market.locals(userB.address), {
+      ...DEFAULT_LOCAL,
       currentId: 2,
       latestId: 1,
       collateral: COLLATERAL,
@@ -901,6 +915,7 @@ describe('Happy Path', () => {
     const { user, userB, dsu, chainlink } = instanceVars
 
     const market = await createMarket(instanceVars)
+    await market.updateRiskParameter({ ...(await market.riskParameter()), skewScale: parse6decimal('0.00001') })
     await dsu.connect(user).approve(market.address, COLLATERAL.mul(1e12))
     await dsu.connect(userB).approve(market.address, COLLATERAL.mul(1e12))
 
@@ -929,6 +944,7 @@ describe('Happy Path', () => {
     const { user, userB, dsu, chainlink } = instanceVars
 
     const market = await createMarket(instanceVars)
+    await market.updateRiskParameter({ ...(await market.riskParameter()), skewScale: parse6decimal('0.00001') })
     await dsu.connect(user).approve(market.address, COLLATERAL.mul(1e12))
     await dsu.connect(userB).approve(market.address, COLLATERAL.mul(1e12))
 
@@ -952,11 +968,10 @@ describe('Happy Path', () => {
 
   it('delayed update w/ collateral (gas)', async () => {
     const positionFeesOn = true
-    const incentizesOn = true
 
     const POSITION = parse6decimal('0.0001')
     const COLLATERAL = parse6decimal('1000')
-    const { user, userB, dsu, chainlink, beneficiaryB, oracle, payoff } = instanceVars
+    const { user, userB, dsu, chainlink, beneficiaryB } = instanceVars
 
     const riskParameter = {
       margin: parse6decimal('0.3'),
@@ -983,7 +998,7 @@ describe('Happy Path', () => {
       },
       minMargin: parse6decimal('500'),
       minMaintenance: parse6decimal('500'),
-      virtualTaker: parse6decimal('10000'),
+      skewScale: parse6decimal('10000'),
       staleAfter: 7200,
       makerReceiveOnly: false,
     }
@@ -996,9 +1011,9 @@ describe('Happy Path', () => {
       maxPendingGlobal: 8,
       maxPendingLocal: 8,
       positionFee: positionFeesOn ? parse6decimal('0.1') : 0,
-      makerRewardRate: incentizesOn ? parse6decimal('0.01') : 0,
-      longRewardRate: incentizesOn ? parse6decimal('0.001') : 0,
-      shortRewardRate: incentizesOn ? parse6decimal('0.001') : 0,
+      makerRewardRate: 0,
+      longRewardRate: 0,
+      shortRewardRate: 0,
       makerCloseAlways: false,
       takerCloseAlways: false,
       closed: false,
@@ -1030,10 +1045,11 @@ describe('Happy Path', () => {
 
     // Check user is in the correct state
     expectLocalEq(await market.locals(user.address), {
+      ...DEFAULT_LOCAL,
       currentId: 3,
       latestId: 2,
       collateral: '986127025',
-      reward: incentizesOn ? '24669998' : 0,
+      reward: 0,
       protection: 0,
     })
     expectPositionEq(await market.pendingPositions(user.address, 3), {
@@ -1075,8 +1091,8 @@ describe('Happy Path', () => {
       makerValue: { _value: '-354909471518' },
       longValue: { _value: '362096873938' },
       shortValue: { _value: 0 },
-      makerReward: { _value: incentizesOn ? '606836363635' : 0 },
-      longReward: { _value: incentizesOn ? '60683636363' : 0 },
+      makerReward: { _value: 0 },
+      longReward: { _value: 0 },
       shortReward: { _value: 0 },
     })
   })
@@ -1084,7 +1100,6 @@ describe('Happy Path', () => {
   // uncheck skip to see gas results
   it.skip('multi-delayed update w/ collateral (gas)', async () => {
     const positionFeesOn = true
-    const incentizesOn = true
     const delay = 5
     const sync = true
 
@@ -1097,7 +1112,7 @@ describe('Happy Path', () => {
       delay,
     ).init()
     const instanceVars = await deployProtocol(chainlink)
-    const { user, userB, dsu, beneficiaryB, oracle } = instanceVars
+    const { user, userB, dsu, beneficiaryB } = instanceVars
 
     const riskParameter = {
       margin: parse6decimal('0.3'),
@@ -1124,7 +1139,7 @@ describe('Happy Path', () => {
       },
       minMargin: parse6decimal('500'),
       minMaintenance: parse6decimal('500'),
-      virtualTaker: parse6decimal('10000'),
+      skewScale: parse6decimal('10000'),
       staleAfter: 100000, // enable long delays for testing
       makerReceiveOnly: false,
     }
@@ -1137,9 +1152,9 @@ describe('Happy Path', () => {
       maxPendingGlobal: 8,
       maxPendingLocal: 8,
       positionFee: positionFeesOn ? parse6decimal('0.1') : 0,
-      makerRewardRate: incentizesOn ? parse6decimal('0.01') : 0,
-      longRewardRate: incentizesOn ? parse6decimal('0.001') : 0,
-      shortRewardRate: incentizesOn ? parse6decimal('0.001') : 0,
+      makerRewardRate: 0,
+      longRewardRate: 0,
+      shortRewardRate: 0,
       makerCloseAlways: false,
       takerCloseAlways: false,
       closed: false,
@@ -1172,6 +1187,7 @@ describe('Happy Path', () => {
 
     // Check user is in the correct state
     expectLocalEq(await market.locals(user.address), {
+      ...DEFAULT_LOCAL,
       currentId: delay + 1,
       latestId: delay,
       collateral: (await market.locals(user.address)).collateral,

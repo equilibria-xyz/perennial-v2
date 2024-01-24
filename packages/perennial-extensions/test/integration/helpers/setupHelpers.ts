@@ -31,32 +31,27 @@ import {
   PayoffFactory,
   RiskParameterStorageLib__factory,
   MarketParameterStorageLib__factory,
+  IOracleFactory,
 } from '../../../types/generated'
-
-// v2 core types
-import {
-  ERC20PresetMinterPauser,
-  ERC20PresetMinterPauser__factory,
-  ProxyAdmin,
-  ProxyAdmin__factory,
-  TransparentUpgradeableProxy__factory,
-} from '@equilibria/perennial-v2/types/generated'
-
 import { ChainlinkContext } from '@equilibria/perennial-v2/test/integration/helpers/chainlinkHelpers'
-
 import { parse6decimal } from '../../../../common/testutil/types'
 import { CHAINLINK_CUSTOM_CURRENCIES } from '@equilibria/perennial-v2-oracle/util/constants'
-
-import { MarketFactory } from '@equilibria/perennial-v2/types/generated/contracts'
-
 import {
   MarketParameterStruct,
   RiskParameterStruct,
 } from '../../../types/generated/@equilibria/perennial-v2/contracts/Market'
-import { MarketFactory__factory } from '@equilibria/perennial-v2/types/generated'
 import { FakeContract, smock } from '@defi-wonderland/smock'
-import { IOracleFactory } from '@equilibria/perennial-v2-vault/types/generated'
 import { deployProductOnMainnetFork } from '@equilibria/perennial-v2-vault/test/integration/helpers/setupHelpers'
+import {
+  ERC20PresetMinterPauser,
+  ERC20PresetMinterPauser__factory,
+  IMarketFactory__factory,
+  MarketFactory,
+  MarketFactory__factory,
+  ProxyAdmin,
+  ProxyAdmin__factory,
+  TransparentUpgradeableProxy__factory,
+} from '@equilibria/perennial-v2/types/generated'
 
 const { ethers } = HRE
 
@@ -69,6 +64,7 @@ export const ETH_ORACLE = '0x5f4eC3Df9cbd43714FE2740f5E3616155c5b8419' // chainl
 export const DSU = '0x605D26FBd5be761089281d5cec2Ce86eeA667109'
 export const USDC = '0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48'
 const DSU_MINTER = '0xD05aCe63789cCb35B9cE71d01e4d632a0486Da4B'
+const RESERVE_ADDRESS = '0xD05aCe63789cCb35B9cE71d01e4d632a0486Da4B'
 
 const LEGACY_ORACLE_DELAY = 3600
 
@@ -152,7 +148,7 @@ export async function deployProtocol(chainlinkContext?: ChainlinkContext): Promi
   const marketFactory = new MarketFactory__factory(owner).attach(factoryProxy.address)
 
   // Init
-  await oracleFactory.connect(owner).initialize(dsu.address)
+  await oracleFactory.connect(owner).initialize(dsu.address, usdc.address, RESERVE_ADDRESS)
   await payoffFactory.connect(owner).initialize()
   await marketFactory.connect(owner).initialize()
 
@@ -282,7 +278,7 @@ export async function createMarket(
     },
     minMargin: parse6decimal('500'),
     minMaintenance: parse6decimal('500'),
-    virtualTaker: 0,
+    skewScale: 0,
     staleAfter: 7200,
     makerReceiveOnly: false,
     ...riskParamOverrides,
@@ -304,12 +300,13 @@ export async function createMarket(
     closed: false,
     ...marketParamOverrides,
   }
+
   const marketAddress = await marketFactory.callStatic.create(definition)
   await marketFactory.create(definition)
 
   const market = Market__factory.connect(marketAddress, owner)
+
   await market.updateRiskParameter(riskParameter)
-  await market.updateReward(rewardToken.address)
   await market.updateParameter(beneficiaryB.address, constants.AddressZero, marketParameter)
 
   return market
@@ -393,24 +390,24 @@ export async function createVault(
     owner,
   )
   await instanceVars.oracleFactory.connect(owner).create(BTC_PRICE_FEE_ID, vaultOracleFactory.address)
+
+  const _marketFactory = IMarketFactory__factory.connect(instanceVars.marketFactory.address, owner)
   const ethMarket = await deployProductOnMainnetFork({
-    factory: instanceVars.marketFactory,
+    factory: _marketFactory,
     token: instanceVars.dsu,
     owner: owner,
     oracle: ethOracle.address,
     payoff: constants.AddressZero,
     makerLimit: parse6decimal('1000'),
-    minMargin: parse6decimal('50'),
     minMaintenance: parse6decimal('50'),
     maxLiquidationFee: parse6decimal('25000'),
   })
   const btcMarket = await deployProductOnMainnetFork({
-    factory: instanceVars.marketFactory,
+    factory: _marketFactory,
     token: instanceVars.dsu,
     owner: owner,
     oracle: btcOracle.address,
     payoff: constants.AddressZero,
-    minMargin: parse6decimal('50'),
     minMaintenance: parse6decimal('50'),
     maxLiquidationFee: parse6decimal('25000'),
   })
@@ -480,7 +477,8 @@ export async function createInvoker(
     vaultFactory ? vaultFactory.address : ZERO_ADDR,
     noBatcher ? ZERO_ADDR : BATCHER,
     DSU_MINTER,
-    parse6decimal('1.5'),
+    500_000,
+    500_000,
   )
 
   await instanceVars.marketFactory.connect(user).updateOperator(multiInvoker.address, true)

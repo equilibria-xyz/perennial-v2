@@ -38,7 +38,7 @@ using VersionStorageLib for VersionStorage global;
 
 /// @dev Individual accumulation values
 struct VersionAccumulationResult {
-    UFixed6 positionFeeMaker;
+    Fixed6 positionFeeMaker;
     UFixed6 positionFeeFee;
 
     Fixed6 fundingMaker;
@@ -122,10 +122,6 @@ library VersionLib {
         (values.pnlMaker, values.pnlLong, values.pnlShort) =
             _accumulatePNL(self, fromPosition, fromOracleVersion, toOracleVersion);
 
-        // accumulate reward
-        (values.rewardMaker, values.rewardLong, values.rewardShort) =
-            _accumulateReward(self, fromPosition, fromOracleVersion, toOracleVersion, marketParameter);
-
         return (values, values.positionFeeFee.add(values.fundingFee).add(values.interestFee));
     }
 
@@ -141,14 +137,15 @@ library VersionLib {
         Position memory fromPosition,
         Position memory toPosition,
         MarketParameter memory marketParameter
-    ) private pure returns (UFixed6 positionFeeMaker, UFixed6 positionFeeFee) {
+    ) private pure returns (Fixed6 positionFeeMaker, UFixed6 positionFeeFee) {
+        UFixed6 toPositionFeeAbs = toPosition.fee.abs();
         // If there are no makers to distribute the taker's position fee to, give it to the protocol
-        if (fromPosition.maker.isZero()) return (UFixed6Lib.ZERO, toPosition.fee);
+        if (fromPosition.maker.isZero()) return (Fixed6Lib.ZERO, toPositionFeeAbs);
 
-        positionFeeFee = marketParameter.positionFee.mul(toPosition.fee);
-        positionFeeMaker = toPosition.fee.sub(positionFeeFee);
+        positionFeeFee = marketParameter.positionFee.mul(toPositionFeeAbs);
+        positionFeeMaker = toPosition.fee.sub(Fixed6Lib.from(positionFeeFee));
 
-        self.makerValue.increment(Fixed6Lib.from(positionFeeMaker), fromPosition.maker);
+        self.makerValue.increment(positionFeeMaker, fromPosition.maker);
     }
 
     /// @dev Internal struct to bypass stack depth limit
@@ -182,14 +179,14 @@ library VersionLib {
         // Compute long-short funding rate
         Fixed6 funding = global.pAccumulator.accumulate(
             riskParameter.pController,
-            toPosition.virtualSkew(riskParameter),
+            toPosition.staticSkew(riskParameter).min(Fixed6Lib.ONE).max(Fixed6Lib.NEG_ONE),
             fromOracleVersion.timestamp,
             toOracleVersion.timestamp,
             fromPosition.takerSocialized().mul(fromOracleVersion.price.abs())
         );
 
         // Handle maker receive-only status
-        if (riskParameter.makerReceiveOnly && funding.sign() != fromPosition.skew().sign())
+        if (riskParameter.makerReceiveOnly && funding.sign() != fromPosition.relativeSkew().sign())
             funding = funding.mul(Fixed6Lib.NEG_ONE);
 
         // Initialize long and short funding
@@ -291,38 +288,6 @@ library VersionLib {
         self.longValue.increment(pnlLong, position.long);
         self.shortValue.increment(pnlShort, position.short);
         self.makerValue.increment(pnlMaker, position.maker);
-    }
-
-    /// @notice Globally accumulates position's reward share since last oracle update
-    /// @param self The Version object to update
-    /// @param position The previous latest position
-    /// @param fromOracleVersion The previous latest oracle version
-    /// @param toOracleVersion The next latest oracle version
-    /// @param marketParameter The market parameter
-    /// @return rewardMaker The total reward accrued by makers
-    /// @return rewardLong The total reward accrued by longs
-    /// @return rewardShort The total reward accrued by shorts
-    function _accumulateReward(
-        Version memory self,
-        Position memory position,
-        OracleVersion memory fromOracleVersion,
-        OracleVersion memory toOracleVersion,
-        MarketParameter memory marketParameter
-    ) private pure returns (UFixed6 rewardMaker, UFixed6 rewardLong, UFixed6 rewardShort) {
-        UFixed6 elapsed = UFixed6Lib.from(toOracleVersion.timestamp - fromOracleVersion.timestamp);
-
-        if (!position.maker.isZero()) {
-            rewardMaker = elapsed.mul(marketParameter.makerRewardRate);
-            self.makerReward.increment(rewardMaker, position.maker);
-        }
-        if (!position.long.isZero()) {
-            rewardLong = elapsed.mul(marketParameter.longRewardRate);
-            self.longReward.increment(rewardLong, position.long);
-        }
-        if (!position.short.isZero()) {
-            rewardShort = elapsed.mul(marketParameter.shortRewardRate);
-            self.shortReward.increment(rewardShort, position.short);
-        }
     }
 }
 

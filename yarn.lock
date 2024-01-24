@@ -123,6 +123,20 @@
     rxjs "^7.2.0"
     semver "^7.3.5"
 
+"@defi-wonderland/smock@^2.3.5":
+  version "2.3.5"
+  resolved "https://registry.yarnpkg.com/@defi-wonderland/smock/-/smock-2.3.5.tgz#2f4daa10b4f4c69627200128778f61c51f4b32cc"
+  integrity sha512-klANj1hUpc3cd2ShXdVH/bEGwxJd+LxOngkF5gLcIbg6b37RCgMPMmR/94/hgL62F8bfWtuNKsQD7K+c6M5fWQ==
+  dependencies:
+    "@nomicfoundation/ethereumjs-evm" "^1.0.0-rc.3"
+    "@nomicfoundation/ethereumjs-util" "^8.0.0-rc.3"
+    "@nomicfoundation/ethereumjs-vm" "^6.0.0-rc.3"
+    diff "^5.0.0"
+    lodash.isequal "^4.5.0"
+    lodash.isequalwith "^4.4.0"
+    rxjs "^7.2.0"
+    semver "^7.3.5"
+
 "@equilibria/emptyset-batcher@^0.1.0":
   version "0.1.0"
   resolved "https://registry.yarnpkg.com/@equilibria/emptyset-batcher/-/emptyset-batcher-0.1.0.tgz#2068d202d38614a337d115d4109f05cf72e48d09"
@@ -138,10 +152,10 @@
   dependencies:
     "@openzeppelin/contracts" "4.6.0"
 
-"@equilibria/root@2.0.0":
-  version "2.0.0"
-  resolved "https://registry.yarnpkg.com/@equilibria/root/-/root-2.0.0.tgz#92cb6417eef75ffcff1c73f9c1aaa517ecfd9665"
-  integrity sha512-k98wACZRB2VfpOagbkygTqB8M4wHOJ6cgynipexdpnAYl9iQUEBZhI868UeNLBzDc0jtIaf7upczAklJpKi7jA==
+"@equilibria/root@2.1.0-rc0":
+  version "2.1.0-rc0"
+  resolved "https://registry.yarnpkg.com/@equilibria/root/-/root-2.1.0-rc0.tgz#47d567617fd21529102919496f3904cd8851367a"
+  integrity sha512-wpaCgDqEVp0qrHo209UnQYdKEQHHsmSmDaD2FflDzhuytMFGu4KqEzECLcHs0JKavoY+G1MbXCkLWAbZVJWhRg==
   dependencies:
     "@openzeppelin/contracts" "4.6.0"
 
@@ -1788,10 +1802,10 @@
   resolved "https://registry.npmjs.org/@nomiclabs/hardhat-ethers/-/hardhat-ethers-2.2.3.tgz"
   integrity sha512-YhzPdzb612X591FOe68q+qXVXGG2ANZRvDo0RRUtimev85rCrAlv/TLMEZw5c+kq9AbzocLTVX/h2jVIFPL9Xg==
 
-"@nomiclabs/hardhat-etherscan@^3.1.7":
-  version "3.1.7"
-  resolved "https://registry.npmjs.org/@nomiclabs/hardhat-etherscan/-/hardhat-etherscan-3.1.7.tgz"
-  integrity sha512-tZ3TvSgpvsQ6B6OGmo1/Au6u8BrAkvs1mIC/eURA3xgIfznUZBhmpne8hv7BXUzw9xNL3fXdpOYgOQlVMTcoHQ==
+"@nomiclabs/hardhat-etherscan@^3.1.8":
+  version "3.1.8"
+  resolved "https://registry.yarnpkg.com/@nomiclabs/hardhat-etherscan/-/hardhat-etherscan-3.1.8.tgz#3c12ee90b3733e0775e05111146ef9418d4f5a38"
+  integrity sha512-v5F6IzQhrsjHh6kQz4uNrym49brK9K5bYCq2zQZ729RYRaifI9hHbtmK+KkIVevfhut7huQFEQ77JLRMAzWYjQ==
   dependencies:
     "@ethersproject/abi" "^5.1.2"
     "@ethersproject/address" "^5.0.2"

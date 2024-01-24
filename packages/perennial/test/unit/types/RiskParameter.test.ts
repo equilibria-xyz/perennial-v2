@@ -44,7 +44,7 @@ export const VALID_RISK_PARAMETER: RiskParameterStruct = {
   minMaintenance: 12,
   staleAfter: 13,
   makerReceiveOnly: false,
-  virtualTaker: 14,
+  skewScale: 14,
 }
 
 const PROTOCOL_PARAMETER: ProtocolParameterStruct = {
@@ -102,7 +102,7 @@ describe('RiskParameter', () => {
       expect(value.minMaintenance).to.equal(12)
       expect(value.staleAfter).to.equal(13)
       expect(value.makerReceiveOnly).to.equal(false)
-      expect(value.virtualTaker).to.equal(14)
+      expect(value.skewScale).to.equal(14)
     })
 
     describe('.makerLimit', () => {
@@ -670,18 +670,18 @@ describe('RiskParameter', () => {
       })
     })
 
-    describe('.virtualTaker', () => {
+    describe('.skewScale', () => {
       const STORAGE_SIZE = 64
       it('saves if in range', async () => {
         await riskParameter.validateAndStore(
           {
             ...VALID_RISK_PARAMETER,
-            virtualTaker: BigNumber.from(2).pow(STORAGE_SIZE).sub(1),
+            skewScale: BigNumber.from(2).pow(STORAGE_SIZE).sub(1),
           },
           PROTOCOL_PARAMETER,
         )
         const value = await riskParameter.read()
-        expect(value.virtualTaker).to.equal(BigNumber.from(2).pow(STORAGE_SIZE).sub(1))
+        expect(value.skewScale).to.equal(BigNumber.from(2).pow(STORAGE_SIZE).sub(1))
       })
 
       it('reverts if out of range', async () => {
@@ -689,7 +689,7 @@ describe('RiskParameter', () => {
           riskParameter.validateAndStore(
             {
               ...VALID_RISK_PARAMETER,
-              virtualTaker: BigNumber.from(2).pow(STORAGE_SIZE),
+              skewScale: BigNumber.from(2).pow(STORAGE_SIZE),
             },
             PROTOCOL_PARAMETER,
           ),

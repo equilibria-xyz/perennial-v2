@@ -100,7 +100,7 @@ describe('Verify Markets', () => {
     expect(riskParameter.pController.max).to.equal(utils.parseUnits('2.5', 6))
     expect(riskParameter.minMargin).to.equal(utils.parseUnits('10', 6))
     expect(riskParameter.minMaintenance).to.equal(utils.parseUnits('10', 6))
-    expect(riskParameter.virtualTaker).to.equal(0)
+    expect(riskParameter.skewScale).to.equal(0)
     expect(riskParameter.staleAfter).to.equal(60)
     expect(riskParameter.makerReceiveOnly).to.be.false
   })
@@ -150,7 +150,7 @@ describe('Verify Markets', () => {
     expect(riskParameter.pController.max).to.equal(utils.parseUnits('2.5', 6))
     expect(riskParameter.minMargin).to.equal(utils.parseUnits('10', 6))
     expect(riskParameter.minMaintenance).to.equal(utils.parseUnits('10', 6))
-    expect(riskParameter.virtualTaker).to.equal(0)
+    expect(riskParameter.skewScale).to.equal(0)
     expect(riskParameter.staleAfter).to.equal(60)
     expect(riskParameter.makerReceiveOnly).to.be.false
   })
@@ -200,7 +200,7 @@ describe('Verify Markets', () => {
     expect(riskParameter.pController.max).to.equal(utils.parseUnits('2.5', 6))
     expect(riskParameter.minMargin).to.equal(utils.parseUnits('10', 6))
     expect(riskParameter.minMaintenance).to.equal(utils.parseUnits('10', 6))
-    expect(riskParameter.virtualTaker).to.equal(0)
+    expect(riskParameter.skewScale).to.equal(0)
     expect(riskParameter.staleAfter).to.equal(60)
     expect(riskParameter.makerReceiveOnly).to.be.false
   })
@@ -250,7 +250,7 @@ describe('Verify Markets', () => {
     expect(riskParameter.pController.max).to.equal(utils.parseUnits('2.5', 6))
     expect(riskParameter.minMargin).to.equal(utils.parseUnits('10', 6))
     expect(riskParameter.minMaintenance).to.equal(utils.parseUnits('10', 6))
-    expect(riskParameter.virtualTaker).to.equal(0)
+    expect(riskParameter.skewScale).to.equal(0)
     expect(riskParameter.staleAfter).to.equal(60)
     expect(riskParameter.makerReceiveOnly).to.be.false
   })

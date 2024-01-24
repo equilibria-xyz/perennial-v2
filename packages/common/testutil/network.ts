@@ -6,6 +6,7 @@ export const ALL_CHAINS = [
   'goerli',
   'optimismGoerli',
   'arbitrumGoerli',
+  'arbitrumSepolia',
   'baseGoerli',
   'hardhat',
   'localhost',
@@ -15,10 +16,16 @@ export type SupportedChains = typeof ALL_CHAINS
 export type SupportedChain = SupportedChains[number]
 
 export const MAINNETS: SupportedChain[] = ['mainnet', 'arbitrum', 'optimism', 'base']
-export const TESTNETS: SupportedChain[] = ['goerli', 'arbitrumGoerli', 'optimismGoerli', 'baseGoerli']
+export const TESTNETS: SupportedChain[] = [
+  'goerli',
+  'arbitrumGoerli',
+  'optimismGoerli',
+  'baseGoerli',
+  'arbitrumSepolia',
+]
 export const DEVNETS: SupportedChain[] = ['hardhat', 'localhost']
 export const ETHEREUM_NETS: SupportedChain[] = ['mainnet', 'goerli']
-export const ARBITRUM_NETS: SupportedChain[] = ['arbitrum', 'arbitrumGoerli']
+export const ARBITRUM_NETS: SupportedChain[] = ['arbitrum', 'arbitrumGoerli', 'arbitrumSepolia']
 export const OPTIMISM_NETS: SupportedChain[] = ['optimism', 'optimismGoerli']
 export const BASE_NETS: SupportedChain[] = ['base', 'baseGoerli']
 
@@ -43,6 +50,8 @@ export function getChainId(networkName: string): number {
       return 420
     case 'arbitrumGoerli':
       return 421613
+    case 'arbitrumSepolia':
+      return 421614
     case 'baseGoerli':
       return 84531
     case 'hardhat':
@@ -54,61 +63,37 @@ export function getChainId(networkName: string): number {
 
 export function isEthereum(networkName: string): boolean {
   if (!isSupported(networkName)) return false
-  switch (networkName) {
-    case 'localhost':
-      return process.env.FORK_ENABLED === 'true' && ETHEREUM_NETS.includes(process.env.FORK_NETWORK as SupportedChain)
-    default:
-      return ETHEREUM_NETS.includes(networkName)
-  }
+  if (isLocalhost(networkName)) return isFork() && ETHEREUM_NETS.includes(forkNetwork() as SupportedChain)
+  return ETHEREUM_NETS.includes(networkName)
 }
 export function isOptimism(networkName: string): boolean {
   if (!isSupported(networkName)) return false
-  switch (networkName) {
-    case 'localhost':
-      return process.env.FORK_ENABLED === 'true' && OPTIMISM_NETS.includes(process.env.FORK_NETWORK as SupportedChain)
-    default:
-      return OPTIMISM_NETS.includes(networkName)
-  }
+  if (isLocalhost(networkName)) return isFork() && OPTIMISM_NETS.includes(forkNetwork() as SupportedChain)
+  return OPTIMISM_NETS.includes(networkName)
 }
 
 export function isArbitrum(networkName: string): boolean {
   if (!isSupported(networkName)) return false
-  switch (networkName) {
-    case 'localhost':
-      return process.env.FORK_ENABLED === 'true' && ARBITRUM_NETS.includes(process.env.FORK_NETWORK as SupportedChain)
-    default:
-      return ARBITRUM_NETS.includes(networkName)
-  }
+  if (isLocalhost(networkName)) return isFork() && ARBITRUM_NETS.includes(forkNetwork() as SupportedChain)
+  return ARBITRUM_NETS.includes(networkName)
 }
 
 export function isBase(networkName: string): boolean {
   if (!isSupported(networkName)) return false
-  switch (networkName) {
-    case 'localhost':
-      return process.env.FORK_ENABLED === 'true' && BASE_NETS.includes(process.env.FORK_NETWORK as SupportedChain)
-    default:
-      return BASE_NETS.includes(networkName)
-  }
+  if (isLocalhost(networkName)) return isFork() && BASE_NETS.includes(forkNetwork() as SupportedChain)
+  return BASE_NETS.includes(networkName)
 }
 
 export function isTestnet(networkName: string): boolean {
   if (!isSupported(networkName)) return false
-  switch (networkName) {
-    case 'localhost':
-      return process.env.FORK_ENABLED === 'true' && TESTNETS.includes(process.env.FORK_NETWORK as SupportedChain)
-    default:
-      return TESTNETS.includes(networkName)
-  }
+  if (isLocalhost(networkName)) return isFork() && TESTNETS.includes(forkNetwork() as SupportedChain)
+  return TESTNETS.includes(networkName)
 }
 
 export function isMainnet(networkName: string): boolean {
   if (!isSupported(networkName)) return false
-  switch (networkName) {
-    case 'localhost':
-      return process.env.FORK_ENABLED === 'true' && MAINNETS.includes(process.env.FORK_NETWORK as SupportedChain)
-    default:
-      return MAINNETS.includes(networkName)
-  }
+  if (isLocalhost(networkName)) return isFork() && MAINNETS.includes(forkNetwork() as SupportedChain)
+  return MAINNETS.includes(networkName)
 }
 
 export function isLocalhost(networkName: string): boolean {

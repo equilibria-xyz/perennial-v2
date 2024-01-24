@@ -6,18 +6,17 @@ import { IEmptySetReserve } from "@equilibria/emptyset-batcher/interfaces/IEmpty
 import { IFactory } from "@equilibria/root/attribute/interfaces/IFactory.sol";
 import { IBatcher } from "@equilibria/emptyset-batcher/interfaces/IBatcher.sol";
 import { IInstance } from "@equilibria/root/attribute/interfaces/IInstance.sol";
-import { IPythOracle } from "@equilibria/perennial-v2-oracle/contracts/interfaces/IPythOracle.sol";
+import { IPythFactory } from "@equilibria/perennial-v2-oracle/contracts/interfaces/IPythFactory.sol";
 import { IVault } from "@equilibria/perennial-v2-vault/contracts/interfaces/IVault.sol";
 import "./interfaces/IMultiInvoker.sol";
 import "./types/TriggerOrder.sol";
+import "./types/InterfaceFee.sol";
 import "@equilibria/root/attribute/Kept/Kept.sol";
+import "@openzeppelin/contracts/utils/Address.sol";
 
 /// @title MultiInvoker
 /// @notice Extension to handle batched calls to the Perennial protocol
 contract MultiInvoker is IMultiInvoker, Kept {
-    /// @dev Gas buffer estimating remaining execution gas to include in fee to cover further instructions
-    uint256 public constant GAS_BUFFER = 100000; // solhint-disable-line var-name-mixedcase
-
     /// @dev USDC stablecoin address
     Token6 public immutable USDC; // solhint-disable-line var-name-mixedcase
 
@@ -36,8 +35,11 @@ contract MultiInvoker is IMultiInvoker, Kept {
     /// @dev Reserve address
     IEmptySetReserve public immutable reserve;
 
-    /// @dev multiplier to charge accounts on top of gas cost for keeper executions
-    UFixed6 public immutable keeperMultiplier;
+    /// @dev The fixed gas buffer that is added to the keeper reward
+    uint256 public immutable keepBufferBase;
+
+    /// @dev The fixed gas buffer that is added to the calldata portion of  the keeper reward
+    uint256 public immutable keepBufferCalldata;
 
     /// @dev UID for an order
     uint256 public latestNonce;
@@ -52,7 +54,8 @@ contract MultiInvoker is IMultiInvoker, Kept {
     /// @param vaultFactory_ Protocol factory to validate vault approvals
     /// @param batcher_ Batcher address
     /// @param reserve_ Reserve address
-    /// @param keeperMultiplier_ multiplier to charge accounts on top of gas cost for keeper executions
+    /// @param keepBufferBase_ The fixed gas buffer that is added to the keeper reward
+    /// @param keepBufferCalldata_ The fixed calldata buffer that is added to the keeper reward
     constructor(
         Token6 usdc_,
         Token18 dsu_,
@@ -60,7 +63,8 @@ contract MultiInvoker is IMultiInvoker, Kept {
         IFactory vaultFactory_,
         IBatcher batcher_,
         IEmptySetReserve reserve_,
-        UFixed6 keeperMultiplier_
+        uint256 keepBufferBase_,
+        uint256 keepBufferCalldata_
     ) {
         USDC = usdc_;
         DSU = dsu_;
@@ -68,7 +72,8 @@ contract MultiInvoker is IMultiInvoker, Kept {
         vaultFactory = vaultFactory_;
         batcher = batcher_;
         reserve = reserve_;
-        keeperMultiplier = keeperMultiplier_;
+        keepBufferBase = keepBufferBase_;
+        keepBufferCalldata = keepBufferCalldata_;
     }
 
     /// @notice Initialize the contract
@@ -101,8 +106,8 @@ contract MultiInvoker is IMultiInvoker, Kept {
     function canExecuteOrder(address account, IMarket market, uint256 nonce) public view returns (bool) {
         TriggerOrder memory order = orders(account, market, nonce);
         if (order.fee.isZero()) return false;
-        (, Fixed6 latestPrice, ) = _latest(market, account);
-        return order.fillable(latestPrice);
+        (, OracleVersion memory latestVersion) = _latest(market, account);
+        return order.fillable(latestVersion);
     }
 
     /// @notice entry to perform invocations
@@ -113,15 +118,18 @@ contract MultiInvoker is IMultiInvoker, Kept {
 
             if (invocation.action == PerennialAction.UPDATE_POSITION) {
                 (
+                    // update data
                     IMarket market,
                     UFixed6 newMaker,
                     UFixed6 newLong,
                     UFixed6 newShort,
                     Fixed6 collateral,
-                    bool wrap
-                ) = abi.decode(invocation.args, (IMarket, UFixed6, UFixed6, UFixed6, Fixed6, bool));
+                    bool wrap,
+                    InterfaceFee memory interfaceFee1,
+                    InterfaceFee memory interfaceFee2
+                ) = abi.decode(invocation.args, (IMarket, UFixed6, UFixed6, UFixed6, Fixed6, bool, InterfaceFee, InterfaceFee));
 
-                _update(market, newMaker, newLong, newShort, collateral, wrap);
+                _update(msg.sender, market, newMaker, newLong, newShort, collateral, wrap, interfaceFee1, interfaceFee2);
             } else if (invocation.action == PerennialAction.UPDATE_VAULT) {
                 (IVault vault, UFixed6 depositAssets, UFixed6 redeemShares, UFixed6 claimAssets, bool wrap)
                     = abi.decode(invocation.args, (IVault, UFixed6, UFixed6, UFixed6, bool));
@@ -136,56 +144,59 @@ contract MultiInvoker is IMultiInvoker, Kept {
 
                 _cancelOrder(msg.sender, market, nonce);
             } else if (invocation.action == PerennialAction.EXEC_ORDER) {
-                (address account, IMarket market, uint256 nonce) =
-                    abi.decode(invocation.args, (address, IMarket, uint256));
+                (address account, IMarket market, uint256 nonce)
+                    = abi.decode(invocation.args, (address, IMarket, uint256));
 
                 _executeOrder(account, market, nonce);
             } else if (invocation.action == PerennialAction.COMMIT_PRICE) {
-                (address oracleProvider, uint256 value, uint256 index, uint256 version, bytes memory data, bool revertOnFailure) =
-                    abi.decode(invocation.args, (address, uint256, uint256, uint256, bytes, bool));
+                (address oracleProviderFactory, uint256 value, bytes32[] memory ids, uint256 version, bytes memory data, bool revertOnFailure) =
+                    abi.decode(invocation.args, (address, uint256, bytes32[], uint256, bytes, bool));
 
-                _commitPrice(oracleProvider, value, index, version, data, revertOnFailure);
-            } else if (invocation.action == PerennialAction.LIQUIDATE) {
-                (IMarket market, address account) = abi.decode(invocation.args, (IMarket, address));
-
-                _liquidate(IMarket(market), account);
+                _commitPrice(oracleProviderFactory, value, ids, version, data, revertOnFailure);
             } else if (invocation.action == PerennialAction.APPROVE) {
                 (address target) = abi.decode(invocation.args, (address));
 
                 _approve(target);
-            } else if (invocation.action == PerennialAction.CHARGE_FEE) {
-                (address to, UFixed6 amount) = abi.decode(invocation.args, (address, UFixed6));
-
-                USDC.pullTo(msg.sender, to, amount);
-                emit FeeCharged(msg.sender, to, amount);
             }
         }
+        // Eth must not remain in this contract at rest
+        payable(msg.sender).transfer(address(this).balance);
     }
 
-    /// @notice Updates market on behalf of msg.sender
+    /// @notice Updates market on behalf of account
+    /// @param account Address of account to update
     /// @param market Address of market up update
-    /// @param newMaker New maker position for msg.sender in `market`
-    /// @param newLong New long position for msg.sender in `market`
-    /// @param newShort New short position for msg.sender in `market`
-    /// @param collateral Net change in collateral for msg.sender in `market`
+    /// @param newMaker New maker position for account in `market`
+    /// @param newLong New long position for account in `market`
+    /// @param newShort New short position for account in `market`
+    /// @param collateral Net change in collateral for account in `market`
     /// @param wrap Wheather to wrap/unwrap collateral on deposit/withdrawal
+    /// @param interfaceFee1 Primary interface fee to charge
+    /// @param interfaceFee2 Secondary interface fee to charge
     function _update(
+        address account,
         IMarket market,
         UFixed6 newMaker,
         UFixed6 newLong,
         UFixed6 newShort,
         Fixed6 collateral,
-        bool wrap
+        bool wrap,
+        InterfaceFee memory interfaceFee1,
+        InterfaceFee memory interfaceFee2
     ) internal isMarketInstance(market) {
         Fixed18 balanceBefore =  Fixed18Lib.from(DSU.balanceOf());
-        // collateral is transferred from this address to the market, transfer from msg.sender to here
+
+        // collateral is transferred here as DSU then an optional interface fee is charged from it
         if (collateral.sign() == 1) _deposit(collateral.abs(), wrap);
 
-        market.update(msg.sender, newMaker, newLong, newShort, collateral, false);
+        market.update(account, newMaker, newLong, newShort, collateral, false);
 
         Fixed6 withdrawAmount = Fixed6Lib.from(Fixed18Lib.from(DSU.balanceOf()).sub(balanceBefore));
-        // collateral is transferred from the market to this address, transfer to msg.sender from here
-        if (!withdrawAmount.isZero()) _withdraw(msg.sender, withdrawAmount.abs(), wrap);
+        if (!withdrawAmount.isZero()) _withdraw(account, withdrawAmount.abs(), wrap);
+
+        // charge interface fee
+        _chargeFee(account, market, interfaceFee1);
+        _chargeFee(account, market, interfaceFee2);
     }
 
     /// @notice Update vault on behalf of msg.sender
@@ -219,27 +230,6 @@ contract MultiInvoker is IMultiInvoker, Kept {
         }
     }
 
-    /// @notice Liquidates an account for a specific market
-    /// @param market Market to liquidate account in
-    /// @param account Address of market to liquidate
-    function _liquidate(IMarket market, address account) internal isMarketInstance(market) {
-        (Position memory latestPosition, UFixed6 liquidationFee, UFixed6 closable) = _liquidationFee(market, account);
-
-        Position memory currentPosition = market.pendingPositions(account, market.locals(account).currentId);
-        currentPosition.adjust(latestPosition);
-
-        market.update(
-            account,
-            currentPosition.maker.isZero() ? UFixed6Lib.ZERO : currentPosition.maker.sub(closable),
-            currentPosition.long.isZero() ? UFixed6Lib.ZERO : currentPosition.long.sub(closable),
-            currentPosition.short.isZero() ? UFixed6Lib.ZERO : currentPosition.short.sub(closable),
-            Fixed6Lib.from(-1, liquidationFee),
-            true
-        );
-
-        _withdraw(msg.sender, liquidationFee, true);
-    }
-
     /// @notice Helper to max approve DSU for usage in a market or vault deployed by the registered factories
     /// @param target Market or Vault to approve
     function _approve(address target) internal {
@@ -249,6 +239,28 @@ contract MultiInvoker is IMultiInvoker, Kept {
         ) revert MultiInvokerInvalidInstanceError();
 
         DSU.approve(target);
+    }
+
+    /// @notice Charges an interface fee from collateral in this address during an update to a receiver
+    /// @param account Account to charge fee from
+    /// @param market Market to charge fee from
+    /// @param interfaceFee Interface fee to charge
+    function _chargeFee(address account, IMarket market, InterfaceFee memory interfaceFee) internal {
+        if (interfaceFee.amount.isZero()) return;
+
+        market.update(
+            account,
+            UFixed6Lib.MAX,
+            UFixed6Lib.MAX,
+            UFixed6Lib.MAX,
+            Fixed6Lib.from(-1, interfaceFee.amount),
+            false
+        );
+
+        if (interfaceFee.unwrap) _unwrap(interfaceFee.receiver, UFixed18Lib.from(interfaceFee.amount));
+        else DSU.push(interfaceFee.receiver, UFixed18Lib.from(interfaceFee.amount));
+
+        emit InterfaceFeeCharged(account, market, interfaceFee);
     }
 
     /// @notice Pull DSU or wrap and deposit USDC from msg.sender to this address for market usage
@@ -275,7 +287,7 @@ contract MultiInvoker is IMultiInvoker, Kept {
         }
     }
 
-    /// @notice Helper function to wrap `amount` USDC from `msg.sender` into DSU using the batcher or reserve
+    /// @notice Helper function to wrap `amount` USDC from `address(this)` into DSU using the batcher or reserve
     /// @param receiver Address to receive the DSU
     /// @param amount Amount of USDC to wrap
     function _wrap(address receiver, UFixed18 amount) internal {
@@ -304,76 +316,45 @@ contract MultiInvoker is IMultiInvoker, Kept {
     }
 
     /// @notice Helper function to commit a price to an oracle
-    /// @param oracleProvider Address of oracle provider
+    /// @param oracleProviderFactory Address of oracle provider factory
     /// @param value The ether value to pass on with the commit sub-call
     /// @param version Version of oracle to commit to
     /// @param data Data to commit to oracle
     /// @param revertOnFailure Whether to revert on sub-call failure
     function _commitPrice(
-        address oracleProvider,
+        address oracleProviderFactory,
         uint256 value,
-        uint256 index,
+        bytes32[] memory ids,
         uint256 version,
         bytes memory data,
         bool revertOnFailure
     ) internal {
         UFixed18 balanceBefore = DSU.balanceOf();
 
-        if (revertOnFailure) {
-            IPythOracle(oracleProvider).commit{value: value}(index, version, data);
-        } else {
-            try IPythOracle(oracleProvider).commit{value: value}(index, version, data) { }
-            catch { }
+        try IPythFactory(oracleProviderFactory).commit{value: value}(ids, version, data) {
+            // Return through keeper reward if any
+            DSU.push(msg.sender, DSU.balanceOf().sub(balanceBefore));
+        } catch (bytes memory reason) {
+            if (revertOnFailure) Address.verifyCallResult(false, reason, "");
         }
-
-        // Return through keeper reward if any
-        DSU.push(msg.sender, DSU.balanceOf().sub(balanceBefore));
-    }
-
-    /// @notice Helper function to compute the liquidation fee for an account
-    /// @param market Market to compute liquidation fee for
-    /// @param account Account to compute liquidation fee for
-    /// @return liquidationFee Liquidation fee for the account
-    /// @return closable The amount of the position that can be closed
-    function _liquidationFee(IMarket market, address account) internal view returns (Position memory, UFixed6, UFixed6) {
-        // load information about liquidation
-        RiskParameter memory riskParameter = market.riskParameter();
-        (Position memory latestPosition, Fixed6 latestPrice, UFixed6 closableAmount) = _latest(market, account);
-
-        // create placeholder order for liquidation fee calculation (fee is charged the same on all sides)
-        Order memory placeholderOrder;
-        placeholderOrder.maker = Fixed6Lib.from(closableAmount);
-
-        return (
-            latestPosition,
-            placeholderOrder
-                .liquidationFee(OracleVersion(latestPosition.timestamp, latestPrice, true), riskParameter)
-                .min(UFixed6Lib.from(market.token().balanceOf(address(market)))),
-            closableAmount
-        );
     }
 
     /// @notice Helper function to compute the latest position and oracle version without a settlement
     /// @param market Market to compute latest position and oracle version for
     /// @param account Account to compute latest position and oracle version for
     /// @return latestPosition Latest position for the account
-    /// @return latestPrice Latest oracle price for the account
-    /// @return closableAmount Amount of position that can be closed
+    /// @return latestVersion Latest oracle version for the market
     function _latest(
         IMarket market,
         address account
-    ) internal view returns (Position memory latestPosition, Fixed6 latestPrice, UFixed6 closableAmount) {
+    ) internal view returns (Position memory latestPosition, OracleVersion memory latestVersion) {
         // load latest price
-        OracleVersion memory latestOracleVersion = market.oracle().latest();
-        latestPrice = latestOracleVersion.price;
+        latestVersion = market.oracle().latest();
         IPayoffProvider payoff = market.payoff();
-        if (address(payoff) != address(0)) latestPrice = payoff.payoff(latestPrice);
+        if (address(payoff) != address(0)) latestVersion.price = payoff.payoff(latestVersion.price);
 
         // load latest settled position
-        uint256 latestTimestamp = latestOracleVersion.timestamp;
         latestPosition = market.positions(account);
-        closableAmount = latestPosition.magnitude();
-        UFixed6 previousMagnitude = closableAmount;
 
         // scan pending position for any ready-to-be-settled positions
         Local memory local = market.locals(account);
@@ -384,18 +365,9 @@ contract MultiInvoker is IMultiInvoker, Kept {
             pendingPosition.adjust(latestPosition);
 
             // virtual settlement
-            if (pendingPosition.timestamp <= latestTimestamp) {
+            if (pendingPosition.timestamp <= latestVersion.timestamp) {
                 if (!market.oracle().at(pendingPosition.timestamp).valid) latestPosition.invalidate(pendingPosition);
                 latestPosition.update(pendingPosition);
-
-                previousMagnitude = latestPosition.magnitude();
-                closableAmount = previousMagnitude;
-
-            // process pending positions
-            } else {
-                closableAmount = closableAmount
-                    .sub(previousMagnitude.sub(pendingPosition.magnitude().min(previousMagnitude)));
-                previousMagnitude = latestPosition.magnitude();
             }
         }
     }
@@ -406,45 +378,59 @@ contract MultiInvoker is IMultiInvoker, Kept {
      * @param market Market to execute order for
      * @param nonce Id of open order to index
      */
-    function _executeOrder(
-        address account,
-        IMarket market,
-        uint256 nonce
-    ) internal keep (
-        UFixed18Lib.from(keeperMultiplier),
-        GAS_BUFFER,
-        COMMITMENT_BUFFER,
-        abi.encode(account, market, orders(account, market, nonce).fee)
-    ) {
+    function _executeOrder(address account, IMarket market, uint256 nonce) internal {
         if (!canExecuteOrder(account, market, nonce)) revert MultiInvokerCantExecuteError();
 
-        (Position memory latestPosition, , ) = _latest(market, account);
+        TriggerOrder memory order = orders(account, market, nonce);
+        // Pay out keeper fee based on static gas buffer
+        _handleKeep(account, market, order.fee);
+
+        (Position memory latestPosition, ) = _latest(market, account);
         Position memory currentPosition = market.pendingPositions(account, market.locals(account).currentId);
         currentPosition.adjust(latestPosition);
 
-        orders(account, market, nonce).execute(currentPosition);
+        order.execute(currentPosition);
 
-        market.update(
+        _update(
             account,
+            market,
             currentPosition.maker,
             currentPosition.long,
             currentPosition.short,
-            Fixed6Lib.ZERO,
-            false
+            currentPosition.collateral,
+            true,
+            order.interfaceFee1,
+            order.interfaceFee2
         );
 
         delete _orders[account][market][nonce];
-        emit OrderExecuted(account, market, nonce, market.locals(account).currentId);
+        emit OrderExecuted(account, market, nonce);
     }
+
+    /// @notice Handles paying out keeper reward for an order exection
+    function _handleKeep(address account, IMarket market, UFixed6 fee)
+        private
+        keep(
+            KeepConfig(
+                UFixed18Lib.ZERO,
+                keepBufferBase,
+                UFixed18Lib.ZERO,
+                keepBufferCalldata
+            ),
+            msg.data[0:0],
+            0,
+            abi.encode(account, market, fee)
+        )
+    { }
 
     /// @notice Helper function to raise keeper fee
     /// @param keeperFee Keeper fee to raise
     /// @param data Data to raise keeper fee with
     function _raiseKeeperFee(UFixed18 keeperFee, bytes memory data) internal virtual override {
-        (address account, address market, UFixed6 fee) = abi.decode(data, (address, address, UFixed6));
+        (address account, IMarket market, UFixed6 fee) = abi.decode(data, (address, IMarket, UFixed6));
         if (keeperFee.gt(UFixed18Lib.from(fee))) revert MultiInvokerMaxFeeExceededError();
 
-        IMarket(market).update(
+        market.update(
             account,
             UFixed6Lib.MAX,
             UFixed6Lib.MAX,
@@ -452,17 +438,23 @@ contract MultiInvoker is IMultiInvoker, Kept {
             Fixed6Lib.from(Fixed18Lib.from(-1, keeperFee), true),
             false
         );
-
     }
 
     /// @notice Places order on behalf of msg.sender from the invoker
     /// @param account Account to place order for
     /// @param market Market to place order in
     /// @param order Order state to place
-    function _placeOrder(address account, IMarket market, TriggerOrder memory order) internal isMarketInstance(market) {
+    function _placeOrder(
+        address account,
+        IMarket market,
+        TriggerOrder memory order
+    ) internal isMarketInstance(market) {
         if (order.fee.isZero()) revert MultiInvokerInvalidOrderError();
         if (order.comparison != -1 && order.comparison != 1) revert MultiInvokerInvalidOrderError();
-        if (order.side != 1 && order.side != 2) revert MultiInvokerInvalidOrderError();
+        if (
+            order.side > 3 ||                                       // Invalid side
+            (order.side == 3 && order.delta.gte(Fixed6Lib.ZERO))    // Disallow placing orders that increase collateral
+        ) revert MultiInvokerInvalidOrderError();
 
         _orders[account][market][++latestNonce].store(order);
         emit OrderPlaced(account, market, latestNonce, order);
@@ -479,53 +471,16 @@ contract MultiInvoker is IMultiInvoker, Kept {
 
     /// @notice Target market must be created by MarketFactory
     modifier isMarketInstance(IMarket market) {
-        if(!marketFactory.instances(market))
+        if (!marketFactory.instances(market))
             revert MultiInvokerInvalidInstanceError();
         _;
     }
 
     /// @notice Target vault must be created by VaultFactory
     modifier isVaultInstance(IVault vault) {
-        if(!vaultFactory.instances(vault))
+        if (!vaultFactory.instances(vault))
             revert MultiInvokerInvalidInstanceError();
-            _;
+        _;
     }
 
-    // Hardcoded commitment data to reward order execution keepers. This is equivalent to 1.5 commitments
-    bytes private constant COMMITMENT_BUFFER =
-        hex"504e41550100000003b801000000030d00b51fb99e6397d379dd05b329086fc76dfbb9caa5bbb37ef5360e99438be75c525f0c0be5"
-        hex"08912eb9fab922abece6341c44da06b190192374889c67f7c1a3e5fb00012aa7e5ad9566fce27a7c8c97cba6e4365be9792974e282"
-        hex"c740873e43c95814df1b3e127688671070704ec42b38cc6a6f95f6b951cb4086b22435923aaa2f37c00102eca153b456ee6056681c"
-        hex"f17190ef1621a33dfaaec0603231be7b797f074d5eb108bf2b33ee05ffc0afc4a0e5a4843af114d26b920dbf8a22be9df1e102f85b"
-        hex"5c0003d911a052b78cac5d52fce0b51c25e9900f74a21b7d2439f52917ca3bff023633625ffcbc82b1b284414c8bb4b6d9aa724149"
-        hex"f64947900cb2b9c70ea9e030b1060006385031bd182a51b8fbe0f213a5b2b5ee3cfdf3abbc953eac86d121be6cda3cac484fe5bd6f"
-        hex"5e51dd1b86d9b2eb57e3b779559eb19c544e2ae771dd3dff7e7594010800535fa45057377b4659797d5d2d1544af2348572c4c4087"
-        hex"315b075ecbe8e5200628c0744cd1f257dd272cf343a74ff0844708792cc945c94d70e7bf0dab15be01097613ff5fc638144e2f1cac"
-        hex"e7c3a70b14b26396c34f90e4e5068442efff6519a07023b1ac3d3a29d652080a002a3849da4f947625768585f89db2196396f85e22"
-        hex"010adee1cfa871be9af6e4963a74e5745922a2a85df65866579e36f95a270afbb2e13bb6d7834ffb650d77fe0a93728909fde2ce24"
-        hex"09ac205e2e2d5c2c774b522920010b6f44547f9dea5c17d95e825f83cb00245078b9ff530d8e5110be51f28765db3224bce72bbbff"
-        hex"d2e033a4abfb4ba47d963999290e72f524a479fe4fe370fc8ad0010ee5b72e65baf294981a48dc84f14a6a23275689d248ff75cd19"
-        hex"71093efeaa34974977fde44b9188f0e63f8c64a03c8c4b9bac7cd40a47bdf1e4a88fc974f3e3c6000f8300a36d0b03597b8a7a2755"
-        hex"1ca1df0ba3944a15f03ce023cb57213310f405676e54f60ad42ba8a51781a11226bf9dd6172c1b773c65b7a9ae820413cceeb1f700"
-        hex"1180c9812d530cc1e0279579d039a3a70aa6346421e6ea0cd48eaa5b6cafec3b91775f155b6c2b614c18564db79adba4847ea69ced"
-        hex"a09e9e38a1e62a68bd9d0f7d0112a44f1444aceb3dc095cd1da02e211577f28d69c51ae5411cc6b11b8a06ac5c404a42f0e3c5a722"
-        hex"98729ea20f997b70efe04434da98b172862501c0a28c3f4ec50164c426ff00000000001ae101faedac5851e32b9b23b5f9411a8c2b"
-        hex"ac4aae3ed4dd7b811dd1a72ea4aa7100000000001a9d0601415557560000000000051852620000271006c7ca52daf83e065b217471"
-        hex"444494efd3e3138201005500e62df6c8b4a85fe1a67db44dc12de5db330f7ac66b72dc658afedf0f4a415b43000002aaa8c245c000"
-        hex"0000002a13f357fffffff80000000064c426fb0000000064c426fa000002aa21c5b16000000000254799b808ffe63ec87521ece362"
-        hex"90e52781916f9ab87d3b362e3b723ba3345e05629ab210e244a1d6a83b24a5b881b1a4c919ed54547d24efc635ddc53c38add012ba"
-        hex"33e2735e1fe1d7660d0b3f70c65653bd7acdb5635bcea4fef75a6f97972986148f31f007c84cd33da191f6d283cbd28dbb9ea99a16"
-        hex"98df6776bdf1164262a8db682e7a0791f7ca03c6cebb3269d4ada728e3a6b7cc49da736066f34a5ab1480c3b6e504e415501000000"
-        hex"03b801000000030d00b51fb99e6397d379dd05b329086fc76dfbb9caa5bbb37ef5360e99438be75c525f0c0be508912eb9fab922ab"
-        hex"ece6341c44da06b190192374889c67f7c1a3e5fb00012aa7e5ad9566fce27a7c8c97cba6e4365be9792974e282c740873e43c95814"
-        hex"df1b3e127688671070704ec42b38cc6a6f95f6b951cb4086b22435923aaa2f37c00102eca153b456ee6056681cf17190ef1621a33d"
-        hex"faaec0603231be7b797f074d5eb108bf2b33ee05ffc0afc4a0e5a4843af114d26b920dbf8a22be9df1e102f85b5c0003d911a052b7"
-        hex"8cac5d52fce0b51c25e9900f74a21b7d2439f52917ca3bff023633625ffcbc82b1b284414c8bb4b6d9aa724149f64947900cb2b9c7"
-        hex"0ea9e030b1060006385031bd182a51b8fbe0f213a5b2b5ee3cfdf3abbc953eac86d121be6cda3cac484fe5bd6f5e51dd1b86d9b2eb"
-        hex"57e3b779559eb19c544e2ae771dd3dff7e7594010800535fa45057377b4659797d5d2d1544af2348572c4c4087315b075ecbe8e520"
-        hex"0628c0744cd1f257dd272cf343a74ff0844708792cc945c94d70e7bf0dab15be01097613ff5fc638144e2f1cace7c3a70b14b26396"
-        hex"c34f90e4e5068442efff6519a07023b1ac3d3a29d652080a002a3849da4f947625768585f89db2196396f85e22010adee1cfa871be"
-        hex"9af6e4963a74e5745922a2a85df65866579e36f95a270afbb2e13bb6d7834ffb650d77fe0a93728909fde2ce2409ac205e2e2d5c2c"
-        hex"774b522920010b6f44547f9dea5c17d95e825f83cb00245078b9ff530d8e5110be51f28765db3224bce72bbbffd2e033a4abfb4ba4"
-        hex"7d963999290e72f524a479fe4fe370";
 }

@@ -18,10 +18,13 @@ export const ORACLE_IDS: { [key: string]: { [asset: string]: string } } = {
     sol: '0xfe650f0367d4a7ef9815a593ea15d36593f0643aaaf0149bb04be67ab851decd', // Pyth: SOL
     matic: '0xd2c2c1f2bba8e0964f9589e060c2ee97f5e19057267ac3284caef3bd50bd2cb5', // Pyth: MATIC
   },
+  arbitrumSepolia: {
+    eth: '0xff61491a931112ddf1bd8147cd1b641375f79f5825126d665480874634fd0ace', // Pyth: ETH
+  },
 }
 
 const DEFAULT_MAX_CLAIM_AMOUNT = utils.parseUnits('25', 6)
-const DEFAULT_GRANULARITY = 10
+export const DEFAULT_GRANULARITY = 10
 
 const func: DeployFunction = async function (hre: HardhatRuntimeEnvironment) {
   const { deployments, getNamedAccounts, ethers } = hre
@@ -49,13 +52,17 @@ const func: DeployFunction = async function (hre: HardhatRuntimeEnvironment) {
   })
 
   // Deploy Oracle Factory
-  const oracleFactoryInterface = new ethers.utils.Interface(['function initialize(address)'])
+  const oracleFactoryInterface = OracleFactory__factory.createInterface()
   await deploy('OracleFactory', {
     contract: 'TransparentUpgradeableProxy',
     args: [
       (await get('OracleFactoryImpl')).address,
       proxyAdmin.address,
-      oracleFactoryInterface.encodeFunctionData('initialize', [(await get('DSU')).address]),
+      oracleFactoryInterface.encodeFunctionData('initialize', [
+        (await get('DSU')).address,
+        (await get('USDC')).address,
+        (await get('DSUReserve')).address,
+      ]),
     ],
     from: deployer,
     skipIfAlreadyDeployed: true,
@@ -65,21 +72,35 @@ const func: DeployFunction = async function (hre: HardhatRuntimeEnvironment) {
   const oracleFactory = new OracleFactory__factory(deployerSigner).attach((await get('OracleFactory')).address)
 
   // Deploy Pyth Implementations
-  const pythOracleContract = isArbitrum(getNetworkName()) ? 'PythOracle_Arbitrum' : 'PythOracle_Optimism'
-  await deploy('PythOracleImpl', {
-    contract: pythOracleContract,
-    args: [(await get('Pyth')).address],
+  const pythFactoryContract = isArbitrum(getNetworkName()) ? 'PythFactory_Arbitrum' : 'PythFactory_Optimism'
+  await deploy('KeeperOracleImpl', {
+    contract: 'KeeperOracle',
+    args: [60],
     from: deployer,
     skipIfAlreadyDeployed: true,
     log: true,
     autoMine: true,
   })
   await deploy('PythFactoryImpl', {
-    contract: 'PythFactory',
+    contract: pythFactoryContract,
     args: [
-      (await get('PythOracleImpl')).address,
-      (await get('ChainlinkETHUSDFeed')).address,
-      (await get('DSU')).address,
+      (await get('Pyth')).address,
+      (await get('KeeperOracleImpl')).address,
+      4,
+      12,
+      {
+        multiplierBase: 0, // Unused
+        bufferBase: 900_000, // Each Call uses approx 750k gas
+        multiplierCalldata: 0,
+        bufferCalldata: 36_000, // Each update costs 31k L1 gas
+      },
+      {
+        multiplierBase: ethers.utils.parseEther('1.15'), // Gas usage tracks full call
+        bufferBase: 100_000, // Initial Fee + Transfers
+        multiplierCalldata: ethers.utils.parseEther('1.15'), // Gas usage tracks full L1 calldata,
+        bufferCalldata: 0,
+      },
+      4_600, // Each subsequent pyth commitment adds about 4k L1 gas
     ],
     from: deployer,
     skipIfAlreadyDeployed: true,
@@ -88,13 +109,17 @@ const func: DeployFunction = async function (hre: HardhatRuntimeEnvironment) {
   })
 
   // Deploy Pyth Factory
-  const pythFactoryInterface = new ethers.utils.Interface(['function initialize(address)'])
+  const pythFactoryInterface = PythFactory__factory.createInterface()
   await deploy('PythFactory', {
     contract: 'TransparentUpgradeableProxy',
     args: [
       (await get('PythFactoryImpl')).address,
       proxyAdmin.address,
-      pythFactoryInterface.encodeFunctionData('initialize', [(await get('OracleFactory')).address]),
+      pythFactoryInterface.encodeFunctionData('initialize', [
+        (await get('OracleFactory')).address,
+        (await get('ChainlinkETHUSDFeed')).address,
+        (await get('DSU')).address,
+      ]),
     ],
     from: deployer,
     skipIfAlreadyDeployed: true,
@@ -122,6 +147,8 @@ const func: DeployFunction = async function (hre: HardhatRuntimeEnvironment) {
   if (!oracleIDs) throw new Error('No oracle IDs for network')
   for (const id of Object.values(oracleIDs)) {
     if ((await pythFactory.oracles(id)).toLowerCase() === ethers.constants.AddressZero.toLowerCase()) {
+      process.stdout.write(`Associating pyth oracle id ${id}...`)
+      await (await pythFactory.associate(id, id)).wait()
       process.stdout.write(`Creating pyth oracle ${id}...`)
       const address = await pythFactory.callStatic.create(id)
       process.stdout.write(`deploying at ${address}...`)
