@@ -342,6 +342,26 @@ testOracles.forEach(testOracle => {
         ).to.be.revertedWithCustomError(metaquantsOracleFactory, 'MetaQuantsFactoryInvalidSignatureError')
       })
 
+      it('does not allow committing with no signature', async () => {
+        await keeperOracle.connect(oracleSigner).request(market.address, user.address)
+
+        // Base fee isn't working properly in coverage, so we need to set it manually
+        await ethers.provider.send('hardhat_setNextBlockBaseFeePerGas', ['0x5F5E100'])
+        expect(await keeperOracle.versions(1)).to.be.equal(STARTING_TIME)
+        expect(await keeperOracle.next()).to.be.equal(STARTING_TIME)
+
+        await expect(
+          metaquantsOracleFactory.connect(user).commit(
+            [METAQUANTS_BAYC_ETH_PRICE_FEED],
+            STARTING_TIME,
+            listify({
+              update: PAYLOAD.update,
+              signature: '0x',
+            }),
+          ),
+        ).to.be.revertedWith('ECDSA: invalid signature length')
+      })
+
       it('does not allow mismatched ids', async () => {
         // Don't allow extra IDs.
         await expect(
