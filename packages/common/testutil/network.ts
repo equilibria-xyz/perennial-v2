@@ -8,6 +8,7 @@ export const ALL_CHAINS = [
   'arbitrumGoerli',
   'arbitrumSepolia',
   'baseGoerli',
+  'blastSepolia',
   'hardhat',
   'localhost',
 ] as const
@@ -22,12 +23,15 @@ export const TESTNETS: SupportedChain[] = [
   'optimismGoerli',
   'baseGoerli',
   'arbitrumSepolia',
+  'blastSepolia',
 ]
 export const DEVNETS: SupportedChain[] = ['hardhat', 'localhost']
 export const ETHEREUM_NETS: SupportedChain[] = ['mainnet', 'goerli']
 export const ARBITRUM_NETS: SupportedChain[] = ['arbitrum', 'arbitrumGoerli', 'arbitrumSepolia']
 export const OPTIMISM_NETS: SupportedChain[] = ['optimism', 'optimismGoerli']
 export const BASE_NETS: SupportedChain[] = ['base', 'baseGoerli']
+export const BLAST_NETS: SupportedChain[] = ['blastSepolia']
+export const OP_CHAIN_NETS: SupportedChain[] = [...OPTIMISM_NETS, ...BASE_NETS, ...BLAST_NETS]
 
 export function isSupported(networkName: string): networkName is SupportedChain {
   return ALL_CHAINS.includes(networkName as SupportedChain)
@@ -54,6 +58,8 @@ export function getChainId(networkName: string): number {
       return 421614
     case 'baseGoerli':
       return 84531
+    case 'blastSepolia':
+      return 168587773
     case 'hardhat':
       return 31337
     default:
@@ -84,6 +90,12 @@ export function isBase(networkName: string): boolean {
   return BASE_NETS.includes(networkName)
 }
 
+export function isBlast(networkName: string): boolean {
+  if (!isSupported(networkName)) return false
+  if (isLocalhost(networkName)) return isFork() && BLAST_NETS.includes(forkNetwork() as SupportedChain)
+  return BLAST_NETS.includes(networkName)
+}
+
 export function isTestnet(networkName: string): boolean {
   if (!isSupported(networkName)) return false
   if (isLocalhost(networkName)) return isFork() && TESTNETS.includes(forkNetwork() as SupportedChain)
@@ -94,6 +106,12 @@ export function isMainnet(networkName: string): boolean {
   if (!isSupported(networkName)) return false
   if (isLocalhost(networkName)) return isFork() && MAINNETS.includes(forkNetwork() as SupportedChain)
   return MAINNETS.includes(networkName)
+}
+
+export function isOPChain(networkName: string): boolean {
+  if (!isSupported(networkName)) return false
+  if (isLocalhost(networkName)) return isFork() && OP_CHAIN_NETS.includes(forkNetwork() as SupportedChain)
+  return OP_CHAIN_NETS.includes(networkName)
 }
 
 export function isLocalhost(networkName: string): boolean {

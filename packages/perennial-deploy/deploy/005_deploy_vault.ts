@@ -25,16 +25,6 @@ const VAULTS: { [key: string]: { [key: string]: string[][] } } = {
       [ORACLE_IDS.arbitrum.matic, ''], // MATIC / None
     ],
   },
-  arbitrumGoerli: {
-    AsterVault: [
-      [ORACLE_IDS.arbitrumGoerli.eth, ''], // ETH / None
-      [ORACLE_IDS.arbitrumGoerli.btc, ''], // BTC / None
-    ],
-    BegoniaVault: [
-      [ORACLE_IDS.arbitrumGoerli.sol, ''], // SOL / None
-      [ORACLE_IDS.arbitrumGoerli.matic, ''], // MATIC / None
-    ],
-  },
   arbitrumSepolia: {
     AsterVault: [[ORACLE_IDS.arbitrumSepolia.eth, '']], // ETH / None
     BegoniaVault: [[ORACLE_IDS.arbitrumSepolia.eth, '']], // ETH / None
@@ -44,6 +34,9 @@ const VAULTS: { [key: string]: { [key: string]: string[][] } } = {
       [ORACLE_IDS.base.eth, ''], // ETH / None
       [ORACLE_IDS.base.btc, ''], // BTC / None
     ],
+  },
+  blastSepolia: {
+    AsterVault: [[ORACLE_IDS.blastSepolia.eth, '']], // ETH / None
   },
 }
 

@@ -11,7 +11,7 @@ import 'hardhat-dependency-compiler'
 import 'hardhat-tracer'
 import 'solidity-coverage'
 
-import { getChainId, isArbitrum, isBase, isOptimism, SupportedChain } from './testutil/network'
+import { getChainId, isArbitrum, isBase, isBlast, SupportedChain } from './testutil/network'
 
 import { utils } from 'ethers'
 utils.Logger.setLogLevel(utils.Logger.levels.ERROR) // turn off duplicate definition warnings
@@ -21,20 +21,14 @@ export const SOLIDITY_VERSION = '0.8.19'
 const PRIVATE_KEY_MAINNET = process.env.PRIVATE_KEY_MAINNET || ''
 const PRIVATE_KEY_TESTNET = process.env.PRIVATE_KEY_TESTNET || ''
 
-const ETHERSCAN_API_KEY_MAINNET = process.env.ETHERSCAN_API_KEY_MAINNET || ''
-const ETHERSCAN_API_KEY_OPTIMISM = process.env.ETHERSCAN_API_KEY_OPTIMISM || ''
 const ETHERSCAN_API_KEY_ARBITRUM = process.env.ETHERSCAN_API_KEY_ARBITRUM || ''
 const ETHERSCAN_API_KEY_BASE = process.env.ETHERSCAN_API_KEY_BASE || ''
+const ETHERSCAN_API_KEY_BLAST = process.env.ETHERSCAN_API_KEY_BLAST || ''
 
-const MAINNET_NODE_URL = process.env.MAINNET_NODE_URL || ''
-const OPTIMISM_NODE_URL = process.env.OPTIMISM_NODE_URL || ''
 const ARBITRUM_NODE_URL = process.env.ARBITRUM_NODE_URL || ''
 const BASE_NODE_URL = process.env.BASE_NODE_URL || ''
-const GOERLI_NODE_URL = process.env.GOERLI_NODE_URL || ''
-const OPTIMISM_GOERLI_NODE_URL = process.env.OPTIMISM_GOERLI_NODE_URL || ''
-const ARBITRUM_GOERLI_NODE_URL = process.env.ARBITRUM_GOERLI_NODE_URL || ''
-const BASE_GOERLI_NODE_URL = process.env.BASE_GOERLI_NODE_URL || ''
 const ARBITRUM_SEPOLIA_NODE_URL = process.env.ARBITRUM_SEPOLIA_NODE_URL || ''
+const BLAST_SEPOLIA_NODE_URL = process.env.BLAST_SEPOLIA_NODE_URL || ''
 
 const FORK_ENABLED = process.env.FORK_ENABLED === 'true' || false
 const FORK_NETWORK = process.env.FORK_NETWORK || 'mainnet'
@@ -51,35 +45,25 @@ export const OPTIMIZER_ENABLED = process.env.OPTIMIZER_ENABLED === 'true' || fal
 
 function getUrl(networkName: SupportedChain): string {
   switch (networkName) {
-    case 'mainnet':
-      return MAINNET_NODE_URL
     case 'arbitrum':
       return ARBITRUM_NODE_URL
-    case 'optimism':
-      return OPTIMISM_NODE_URL
     case 'base':
       return BASE_NODE_URL
-    case 'goerli':
-      return GOERLI_NODE_URL
-    case 'optimismGoerli':
-      return OPTIMISM_GOERLI_NODE_URL
-    case 'arbitrumGoerli':
-      return ARBITRUM_GOERLI_NODE_URL
     case 'arbitrumSepolia':
       return ARBITRUM_SEPOLIA_NODE_URL
-    case 'baseGoerli':
-      return BASE_GOERLI_NODE_URL
+    case 'blastSepolia':
+      return BLAST_SEPOLIA_NODE_URL
     default:
       return ''
   }
 }
 
 function getEtherscanApiConfig(networkName: SupportedChain): { apiKey: string; apiUrl?: string } {
-  if (isOptimism(networkName)) return { apiKey: ETHERSCAN_API_KEY_OPTIMISM }
   if (isArbitrum(networkName)) return { apiKey: ETHERSCAN_API_KEY_ARBITRUM }
   if (isBase(networkName)) return { apiKey: ETHERSCAN_API_KEY_BASE }
+  if (isBlast(networkName)) return { apiKey: ETHERSCAN_API_KEY_BLAST }
 
-  return { apiKey: ETHERSCAN_API_KEY_MAINNET }
+  return { apiKey: '' }
 }
 
 function createNetworkConfig(network: SupportedChain): NetworkUserConfig {
@@ -128,15 +112,10 @@ export default function defaultConfig({
             }
           : undefined,
       },
-      goerli: createNetworkConfig('goerli'),
-      arbitrumGoerli: createNetworkConfig('arbitrumGoerli'),
       arbitrumSepolia: createNetworkConfig('arbitrumSepolia'),
-      optimismGoerli: createNetworkConfig('optimismGoerli'),
-      baseGoerli: createNetworkConfig('baseGoerli'),
-      mainnet: createNetworkConfig('mainnet'),
       arbitrum: createNetworkConfig('arbitrum'),
-      optimism: createNetworkConfig('optimism'),
       base: createNetworkConfig('base'),
+      blastSepolia: createNetworkConfig('blastSepolia'),
     },
     solidity: {
       compilers: [
@@ -168,14 +147,10 @@ export default function defaultConfig({
     },
     etherscan: {
       apiKey: {
-        mainnet: getEtherscanApiConfig('mainnet').apiKey,
-        optimisticEthereum: getEtherscanApiConfig('optimism').apiKey,
         arbitrumOne: getEtherscanApiConfig('arbitrum').apiKey,
         base: getEtherscanApiConfig('base').apiKey,
-        goerli: getEtherscanApiConfig('goerli').apiKey,
-        optimisticGoerli: getEtherscanApiConfig('optimismGoerli').apiKey,
-        arbitrumGoerli: getEtherscanApiConfig('arbitrumGoerli').apiKey,
         arbitrumSepolia: getEtherscanApiConfig('arbitrumSepolia').apiKey,
+        blastSepolia: getEtherscanApiConfig('blastSepolia').apiKey,
         // baseGoerli: getEtherscanApiConfig('baseGoerli').apiKey,
       },
       customChains: [
@@ -193,6 +168,14 @@ export default function defaultConfig({
           urls: {
             apiURL: 'https://api.basescan.org/api',
             browserURL: 'https://basescan.io',
+          },
+        },
+        {
+          network: 'blastSepolia',
+          chainId: getChainId('blastSepolia'),
+          urls: {
+            apiURL: 'https://api.routescan.io/v2/network/testnet/evm/168587773/etherscan',
+            browserURL: 'https://testnet.blastscan.io',
           },
         },
       ],
@@ -222,16 +205,10 @@ export default function defaultConfig({
     external: {
       contracts: [{ artifacts: 'external/contracts' }],
       deployments: {
-        kovan: ['external/deployments/kovan', ...(externalDeployments?.kovan || [])],
-        goerli: ['external/deployments/goerli', ...(externalDeployments?.goerli || [])],
-        arbitrumGoerli: ['external/deployments/arbitrumGoerli', ...(externalDeployments?.arbitrumGoerli || [])],
-        optimismGoerli: ['external/deployments/optimismGoerli', ...(externalDeployments?.optimismGoerli || [])],
-        baseGoerli: ['external/deployments/baseGoerli', ...(externalDeployments?.baseGoerli || [])],
         arbitrumSepolia: ['external/deployments/arbitrumSepolia', ...(externalDeployments?.arbitrumSepolia || [])],
-        mainnet: ['external/deployments/mainnet', ...(externalDeployments?.mainnet || [])],
         arbitrum: ['external/deployments/arbitrum', ...(externalDeployments?.arbitrum || [])],
-        optimism: ['external/deployments/optimism', ...(externalDeployments?.optimism || [])],
         base: ['external/deployments/base', ...(externalDeployments?.base || [])],
+        blastSepolia: ['external/deployments/blastSepolia', ...(externalDeployments?.blastSepolia || [])],
         hardhat: [
           FORK_ENABLED ? `external/deployments/${FORK_NETWORK}` : '',
           FORK_ENABLED && FORK_USE_REAL_DEPLOYS ? `deployments/${FORK_NETWORK}` : '',
