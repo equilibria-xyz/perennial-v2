@@ -17,18 +17,18 @@ contract VersionTester {
     function accumulate(
         Global memory global,
         Position memory fromPosition,
-        Position memory toPosition,
+        Order memory order,
         OracleVersion memory fromOracleVersion,
         OracleVersion memory toOracleVersion,
         MarketParameter memory marketParameter,
         RiskParameter memory riskParameter
-    ) external returns (VersionAccumulationResult memory values, UFixed6 totalFee) {
+    ) external returns (VersionAccumulationResult memory values, VersionFeeResult memory fees) {
         Version memory newVersion = version.read();
 
-        (values, totalFee) = newVersion.accumulate(
+        (values, fees) = newVersion.accumulate(
             global,
             fromPosition,
-            toPosition,
+            order,
             fromOracleVersion,
             toOracleVersion,
             marketParameter,

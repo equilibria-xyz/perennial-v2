@@ -59,6 +59,12 @@ contract Market is IMarket, Instance, ReentrancyGuard {
     /// @dev The historical version accumulator data for each accessed version
     mapping(uint256 => VersionStorage) private _versions;
 
+    /// @dev The global pending order for each id
+    mapping(uint256 => OrderStorageGlobal) private _pendingOrder;
+
+    /// @dev The local checkpoint for each id for each account
+    mapping(address => mapping(uint256 => CheckpointStorage)) private _checkpoints;
+
     /// @notice Initializes the contract state
     /// @param definition_ The market definition
     function initialize(IMarket.MarketDefinition calldata definition_) external initializer(1) {
@@ -112,6 +118,18 @@ contract Market is IMarket, Instance, ReentrancyGuard {
     /// @notice Updates the risk parameter set of the market
     /// @param newRiskParameter The new risk parameter set
     function updateRiskParameter(RiskParameter memory newRiskParameter) external onlyCoordinator {
+
+        // credit impact update fee to the protocol account
+        Global memory latestGlobal = _global.read();
+        Position memory latestPosition = _position.read();
+        RiskParameter memory latestRiskParameter = _riskParameter.read();
+        Fixed6 updateFee = latestRiskParameter.makerFee
+            .update(newRiskParameter.makerFee, latestPosition.maker, latestGlobal.latestPrice.abs())
+            .add(latestRiskParameter.takerFee
+                .update(newRiskParameter.takerFee, latestPosition.skew(), latestGlobal.latestPrice.abs()));
+        _credit(address(0), updateFee.mul(Fixed6Lib.NEG_ONE));
+        
+        // update 
         _riskParameter.validateAndStore(newRiskParameter, IMarketFactory(address(factory())).parameter());
         emit RiskParameterUpdated(newRiskParameter);
     }
@@ -198,6 +216,19 @@ contract Market is IMarket, Instance, ReentrancyGuard {
         return _pendingPositions[account][id].read();
     }
 
+    /// @notice Returns the global pending order for the given id
+    /// @param id The id to query
+    function pendingOrder(uint256 id) external view returns (Order memory) {
+        return _pendingOrder[id].read();
+    }
+
+    /// @notice Returns the local checkpoint for the given account and id
+    /// @param account The account to query
+    /// @param id The id to query
+    function checkpoints(address account, uint256 id) external view returns (Checkpoint memory) {
+        return _checkpoints[account][id].read();
+    }
+
     /// @notice Loads the specified global pending position from state and adjusts it
     /// @param context The context to use
     /// @param id The position id to load
@@ -228,11 +259,6 @@ contract Market is IMarket, Instance, ReentrancyGuard {
     /// @param context The context to use
     /// @param newPendingPosition The pending position to process
     function _processPendingPosition(Context memory context, Position memory newPendingPosition) private pure {
-        // apply pending fees to collateral
-        context.pendingCollateral = context.pendingCollateral
-            .sub(newPendingPosition.fee)
-            .sub(Fixed6Lib.from(newPendingPosition.keeper));
-
         // measure pending position deltas
         if (context.previousPendingMagnitude.gt(newPendingPosition.magnitude())) {
             context.pendingClose = context.pendingClose
@@ -249,7 +275,6 @@ contract Market is IMarket, Instance, ReentrancyGuard {
     /// @param account The account to query
     function _loadUpdateContext(Context memory context, address account) private view {
         // load latest position
-        context.pendingCollateral = context.local.collateral;
         context.previousPendingMagnitude = context.latestPosition.local.magnitude();
 
         // load current position
@@ -261,18 +286,18 @@ contract Market is IMarket, Instance, ReentrancyGuard {
         // advance to next id if applicable
         if (context.currentTimestamp > context.currentPosition.local.timestamp) {
             context.local.currentId++;
-            context.currentPosition.local.prepare();
+            context.currentCheckpoint.next();
         }
         if (context.currentTimestamp > context.currentPosition.global.timestamp) {
             context.global.currentId++;
-            context.currentPosition.global.prepare();
         }
+
+        // load order
+        context.order = _pendingOrder[context.global.currentId].read();
 
         // load pending positions
         for (uint256 id = context.local.latestId + 1; id < context.local.currentId; id++)
             _processPendingPosition(context, _loadPendingPositionLocal(context, account, id));
-        context.pendingCollateral = context.pendingCollateral
-            .sub(Fixed6Lib.from(context.local.pendingLiquidationFee(context.latestPosition.local)));
     }
 
     /// @notice Modifies the collateral input per magic values
@@ -331,20 +356,18 @@ contract Market is IMarket, Instance, ReentrancyGuard {
         newLong = _processPositionMagicValue(context, context.currentPosition.local.long, newLong);
         newShort = _processPositionMagicValue(context, context.currentPosition.local.short, newShort);
 
-        // update position
+        // update order
         Order memory newOrder =
-            context.currentPosition.local.update(context.currentTimestamp, newMaker, newLong, newShort);
-        context.currentPosition.global.update(context.currentTimestamp, newOrder, context.riskParameter);
+            OrderLib.from(context.currentTimestamp, context.currentPosition.local, newMaker, newLong, newShort);
+        context.order.add(newOrder);
 
-        // update fee
-        newOrder.registerFee(context.latestVersion, context.marketParameter, context.riskParameter);
-        context.currentPosition.local.registerFee(newOrder);
-        context.currentPosition.global.registerFee(newOrder);
+        // update position
+        context.currentPosition.local.update(context.currentTimestamp, newOrder);
+        context.currentPosition.global.update(context.currentTimestamp, newOrder);
 
         // update collateral
         context.local.update(collateral);
-        context.currentPosition.local.update(collateral);
-        context.pendingCollateral = context.pendingCollateral.add(collateral);
+        context.currentCheckpoint.updateDelta(collateral);
 
         // process current position
         _processPendingPosition(context, context.currentPosition.local);
@@ -368,6 +391,8 @@ contract Market is IMarket, Instance, ReentrancyGuard {
         // store
         _pendingPosition[context.global.currentId].store(context.currentPosition.global);
         _pendingPositions[account][context.local.currentId].store(context.currentPosition.local);
+        _pendingOrder[context.global.currentId].store(context.order);
+        _checkpoints[account][context.local.currentId].store(context.currentCheckpoint);
 
         // fund
         if (collateral.sign() == 1) token.pull(msg.sender, UFixed18Lib.from(collateral.abs()));
@@ -390,6 +415,7 @@ contract Market is IMarket, Instance, ReentrancyGuard {
         // state
         context.global = _global.read();
         context.local = _locals[account].read();
+        context.currentCheckpoint = _checkpoints[account][context.local.currentId].read();
 
         // oracle
         (context.latestVersion, context.currentTimestamp) = oracle.status();
@@ -447,36 +473,49 @@ contract Market is IMarket, Instance, ReentrancyGuard {
         _positions[account].store(context.latestPosition.local);
     }
 
+    struct _ProcessGlobalContext {
+        Version version;
+        OracleVersion oracleVersion;
+        Order order;
+    }
+
     /// @notice Processes the given global pending position into the latest position
     /// @param context The context to use
     /// @param newPositionId The id of the pending position to process
     /// @param newPosition The pending position to process
     function _processPositionGlobal(Context memory context, uint256 newPositionId, Position memory newPosition) private {
-        Version memory version = _versions[context.latestPosition.global.timestamp].read();
-        OracleVersion memory oracleVersion = _oracleVersionAtPosition(context, newPosition);
+        _ProcessGlobalContext memory processGlobalContext;
+        processGlobalContext.version = _versions[context.latestPosition.global.timestamp].read();
+        processGlobalContext.oracleVersion = _oracleVersionAtPosition(context, newPosition);
+        if (newPositionId > context.global.latestId) processGlobalContext.order = _pendingOrder[newPositionId].read();
 
-        if (!oracleVersion.valid) context.latestPosition.global.invalidate(newPosition);
-
+        if (!processGlobalContext.oracleVersion.valid) context.latestPosition.global.invalidate(newPosition);
+        
+        processGlobalContext.version.next();
         (uint256 fromTimestamp, uint256 fromId) = (context.latestPosition.global.timestamp, context.global.latestId);
-        (VersionAccumulationResult memory accumulationResult, UFixed6 accumulatedFee) = version.accumulate(
+        (
+            VersionAccumulationResult memory accumulationResult,
+            VersionFeeResult memory feeResult
+        ) = processGlobalContext.version.accumulate(
             context.global,
             context.latestPosition.global,
-            newPosition,
+            processGlobalContext.order,
             context.positionVersion,
-            oracleVersion,
+            processGlobalContext.oracleVersion,
             context.marketParameter,
             context.riskParameter
         );
         context.latestPosition.global.update(newPosition);
-        context.global.update(newPositionId, oracleVersion.price);
+        context.global.update(newPositionId, processGlobalContext.oracleVersion.price);
         context.global.incrementFees(
-            accumulatedFee,
-            newPosition.keeper,
+            feeResult.marketFee,
+            feeResult.settlementFee,
             context.marketParameter,
             context.protocolParameter
         );
-        context.positionVersion = oracleVersion;
-        _versions[newPosition.timestamp].store(version);
+        _credit(address(0), feeResult.protocolFee);
+        context.positionVersion = processGlobalContext.oracleVersion;
+        _versions[newPosition.timestamp].store(processGlobalContext.version);
 
         // events
         emit PositionProcessed(
@@ -486,6 +525,12 @@ contract Market is IMarket, Instance, ReentrancyGuard {
             newPositionId,
             accumulationResult
         );
+    }
+
+    struct _ProcessLocalContext {
+        Version version;
+        Checkpoint checkpoint;
+        Order order;
     }
 
     /// @notice Processes the given local pending position into the latest position
@@ -502,21 +547,42 @@ contract Market is IMarket, Instance, ReentrancyGuard {
         bool checkpoint
     ) private {
         LocalAccumulationResult memory accumulationResult;
-
-        Version memory version = _versions[newPosition.timestamp].read();
-        if (!version.valid) context.latestPosition.local.invalidate(newPosition);
+        _ProcessLocalContext memory processLocalContext = _ProcessLocalContext(
+            _versions[newPosition.timestamp].read(),
+            _checkpoints[account][newPositionId].read(),
+            OrderLib.from(
+                newPosition.timestamp,
+                context.latestPosition.local,
+                newPosition.maker,
+                newPosition.long,
+                newPosition.short
+            )
+        );
+        if (!processLocalContext.version.valid) context.latestPosition.local.invalidate(newPosition);
 
         (uint256 fromTimestamp, uint256 fromId) = (context.latestPosition.local.timestamp, context.local.latestId);
         accumulationResult.collateralAmount = context.local.accumulatePnl(
             newPositionId,
             context.latestPosition.local,
             _versions[context.latestPosition.local.timestamp].read(),
-            version
+            processLocalContext.version
         );
-        if (checkpoint) _checkpointCollateral(context, account);
-        (accumulationResult.positionFee, accumulationResult.keeper) = context.local.accumulateFees(newPosition);
+        if (checkpoint) processLocalContext.checkpoint.updateCollateral(
+            _checkpoints[account][context.local.latestId - 1].read(),
+            context.currentCheckpoint,
+            context.local.collateral
+        );
+        (accumulationResult.positionFee, accumulationResult.keeper) =
+            context.local.accumulateFees(processLocalContext.order, processLocalContext.version);
+        if (checkpoint) processLocalContext.checkpoint.updateFees(
+            accumulationResult.positionFee,
+            accumulationResult.keeper
+        );
         context.latestPosition.local.update(newPosition);
-        _processLiquidationFee(context, newPosition, version);
+        if (context.local.processProtection(newPosition, processLocalContext.version))
+            _credit(context.local.protectionInitiator, Fixed6Lib.from(context.local.protectionAmount));
+
+        _checkpoints[account][newPositionId].store(processLocalContext.checkpoint);
 
         // events
         emit AccountPositionProcessed(
@@ -529,33 +595,14 @@ contract Market is IMarket, Instance, ReentrancyGuard {
         );
     }
 
-    /// @notice Creates a collateral checkpoint for the account
-    /// @param context The context to use
-    /// @param account The account to checkpoint
-    function _checkpointCollateral(Context memory context, address account) private {
-        Position memory latestAccountPosition = _pendingPositions[account][context.local.latestId].read();
-
-        latestAccountPosition.collateral = context.local.collateral.sub(
-            context.currentPosition.local.delta.sub(_pendingPositions[account][context.local.latestId - 1].read().delta)
-        ); // deposits happen after snapshot point
-
-        _pendingPositions[account][context.local.latestId].store(latestAccountPosition);
-    }
-
-    /// @notice Processes the liquidation fee for the account
-    /// @param context The context to use
-    /// @param newPosition The new position to use
-    /// @param version The version to use
-    function _processLiquidationFee(
-        Context memory context,
-        Position memory newPosition,
-        Version memory version
-    ) private {
-        if (context.local.processProtection(newPosition, version)) {
-            Local memory localInitiator = _locals[context.local.protectionInitiator].read();
-            localInitiator.processLiquidationFee(context.local);
-            _locals[context.local.protectionInitiator].store(localInitiator);
-        }
+    /// @notice Credits an account's collateral that is out-of-context
+    /// @dev The amount must have already come from a corresponing debit in the settlement flow
+    /// @param account The account to credit
+    /// @param amount The amount to credit
+    function _credit(address account, Fixed6 amount) private {
+        Local memory newLocal = _locals[account].read();
+        newLocal.update(amount);
+        _locals[account].store(newLocal);
     }
 
     /// @notice Verifies the invariant of the market
@@ -578,10 +625,10 @@ contract Market is IMarket, Instance, ReentrancyGuard {
             context.latestPosition.local.maintained(
                 context.latestVersion,
                 context.riskParameter,
-                context.pendingCollateral.sub(collateral)
+                context.local.collateral.sub(collateral)
             ) ||
             collateral.lt(Fixed6Lib.ZERO) ||
-            newOrder.maker.add(newOrder.long).add(newOrder.short).gte(Fixed6Lib.ZERO)
+            newOrder.magnitude().gte(Fixed6Lib.ZERO)
         )) revert MarketInvalidProtectionError();
 
         if (
@@ -598,8 +645,13 @@ contract Market is IMarket, Instance, ReentrancyGuard {
             newOrder.maker.gt(Fixed6Lib.ZERO)
         ) revert MarketMakerOverLimitError();
 
-        if (!newOrder.singleSided(context.currentPosition.local) || !newOrder.singleSided(context.latestPosition.local))
-            revert MarketNotSingleSidedError();
+        if (
+            !context.currentPosition.local.singleSided() || (
+                context.latestPosition.local.direction() != context.currentPosition.local.direction() &&
+                    !context.latestPosition.local.empty() &&
+                    !context.currentPosition.local.empty()
+            )
+        ) revert MarketNotSingleSidedError();
 
         if (protected) return; // The following invariants do not apply to protected position updates (liquidations)
 
@@ -615,7 +667,7 @@ contract Market is IMarket, Instance, ReentrancyGuard {
         ) revert MarketExceedsPendingIdLimitError();
 
         if (
-            !context.currentPosition.local.margined(context.latestVersion, context.riskParameter, context.pendingCollateral)
+            !context.currentPosition.local.margined(context.latestVersion, context.riskParameter, context.local.collateral)
         ) revert MarketInsufficientMarginError();
 
         if (
@@ -623,7 +675,7 @@ contract Market is IMarket, Instance, ReentrancyGuard {
                 context.latestPosition.local.magnitude().add(context.pendingOpen),
                 context.latestVersion,
                 context.riskParameter,
-                context.pendingCollateral
+                context.local.collateral
             )
         ) revert MarketInsufficientMarginError();
 
@@ -634,17 +686,17 @@ contract Market is IMarket, Instance, ReentrancyGuard {
 
         if (
             newOrder.liquidityCheckApplicable(context.marketParameter) &&
-            newOrder.efficiency.lt(Fixed6Lib.ZERO) &&
+            newOrder.decreasesEfficiency(context.currentPosition.global) &&
             context.currentPosition.global.efficiency().lt(context.riskParameter.efficiencyLimit)
         ) revert MarketEfficiencyUnderLimitError();
 
         if (
             newOrder.liquidityCheckApplicable(context.marketParameter) &&
             context.currentPosition.global.socialized() &&
-            newOrder.decreasesLiquidity()
+            newOrder.decreasesLiquidity(context.currentPosition.global)
         ) revert MarketInsufficientLiquidityError();
 
-        if (collateral.lt(Fixed6Lib.ZERO) && context.pendingCollateral.lt(Fixed6Lib.ZERO))
+        if (collateral.lt(Fixed6Lib.ZERO) && context.local.collateral.lt(Fixed6Lib.ZERO))
             revert MarketInsufficientCollateralError();
     }
 

@@ -18,37 +18,9 @@ abstract contract PositionTester {
         store(_position);
     }
 
-    function update(
-        uint256 currentTimestamp,
-        UFixed6 newMaker,
-        UFixed6 newLong,
-        UFixed6 newShort
-    ) external returns (Order memory newOrder) {
+    function update(uint256 currentTimestamp, Order memory newOrder) external {
         Position memory _position = read();
-        newOrder = _position.update(currentTimestamp, newMaker, newLong, newShort);
-        store(_position);
-    }
-
-    function update(
-        uint256 currentTimestamp,
-        Order memory order,
-        RiskParameter memory riskParameter
-    ) external returns (Order memory updatedOrder) {
-        Position memory _position = read();
-        _position.update(currentTimestamp, order, riskParameter);
-        store(_position);
-        return order;
-    }
-
-    function update(Fixed6 collateralAmount) external {
-        Position memory _position = read();
-        _position.update(collateralAmount);
-        store(_position);
-    }
-
-    function prepare() external {
-        Position memory _position = read();
-        _position.prepare();
+        _position.update(currentTimestamp, newOrder);
         store(_position);
     }
 
@@ -70,12 +42,6 @@ abstract contract PositionTester {
         store(_position);
     }
 
-    function registerFee(Order memory order) external {
-        Position memory _position = read();
-        _position.registerFee(order);
-        store(_position);
-    }
-
     function magnitude() external view returns (UFixed6) {
         return read().magnitude();
     }
@@ -92,12 +58,12 @@ abstract contract PositionTester {
         return read().net();
     }
 
-    function relativeSkew() external view returns (Fixed6) {
-        return read().relativeSkew();
+    function skew() external view returns (Fixed6) {
+        return read().skew();
     }
 
-    function staticSkew(RiskParameter memory riskParameter) external view returns (Fixed6) {
-        return read().staticSkew(riskParameter);
+    function socializedMakerPortion() external view returns (UFixed6) {
+        return read().socializedMakerPortion();
     }
 
     function utilization(RiskParameter memory riskParameter) external view returns (UFixed6) {

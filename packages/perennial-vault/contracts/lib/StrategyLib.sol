@@ -1,7 +1,17 @@
 // SPDX-License-Identifier: Apache-2.0
 pragma solidity ^0.8.13;
 
-import "../types/Registration.sol";
+import { Fixed6, Fixed6Lib } from "@equilibria/root/number/types/Fixed6.sol";
+import { UFixed6, UFixed6Lib } from "@equilibria/root/number/types/UFixed6.sol";
+import {
+    MarketParameter,
+    RiskParameter,
+    Local,
+    Global,
+    Position,
+    OracleVersion
+} from "@equilibria/perennial-v2/contracts/interfaces/IMarket.sol";
+import { Registration } from "../types/Registration.sol";
 
 /// @dev The context of an underlying market
 struct MarketStrategyContext {
@@ -34,9 +44,6 @@ struct MarketStrategyContext {
 
     /// @dev The current closable amount of the vault
     UFixed6 closable;
-
-    // @dev The pending fees of the vault
-    UFixed6 pendingFee;
 
     // @dev minimum position size before crossing the net position
     UFixed6 minPosition;
@@ -144,7 +151,6 @@ library StrategyLib {
             .add(collateral.sub(totalMargin).mul(marketContext.registration.weight));
 
         UFixed6 marketAssets = assets
-            .unsafeSub(marketContext.pendingFee)
             .mul(marketContext.registration.weight)
             .min(marketCollateral.mul(LEVERAGE_BUFFER));
 
@@ -195,8 +201,6 @@ library StrategyLib {
         Position memory latestPosition = registration.market.position();
         marketContext.currentPosition = registration.market.pendingPosition(global.currentId);
         marketContext.currentPosition.adjust(latestPosition);
-        marketContext.pendingFee = marketContext.pendingFee
-            .add(marketContext.local.pendingLiquidationFee(marketContext.latestAccountPosition));
         marketContext.minPosition = marketContext.currentAccountPosition.maker
             .unsafeSub(marketContext.currentPosition.maker
                 .unsafeSub(marketContext.currentPosition.net()).min(marketContext.closable));
@@ -220,9 +224,6 @@ library StrategyLib {
             .margin(OracleVersion(0, marketContext.latestPrice, true), marketContext.riskParameter)
             .max(marketContext.margin);
         marketContext.closable = marketContext.closable.sub(previousMaker.unsafeSub(position.maker));
-        marketContext.pendingFee = marketContext.pendingFee
-            .add(UFixed6Lib.unsafeFrom(position.fee)) // don't allocate negative fees
-            .add(position.keeper);
         nextMaker = position.maker;
     }
 }

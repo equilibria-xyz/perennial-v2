@@ -31,9 +31,12 @@ contract LocalTester {
         local.store(newLocal);
     }
 
-    function accumulateFees(Position memory toPosition) external returns (Fixed6 positionFee, UFixed6 keeper) {
+    function accumulateFees(
+        Order memory order,
+        Version memory toVersion
+    ) external returns (Fixed6 positionFee, UFixed6 settlementFee) {
         Local memory newLocal = local.read();
-        (positionFee, keeper) = newLocal.accumulateFees(toPosition);
+        (positionFee, settlementFee) = newLocal.accumulateFees(order, toVersion);
         local.store(newLocal);
     }
 
@@ -43,12 +46,6 @@ contract LocalTester {
     ) external returns (bool result) {
         Local memory newLocal = local.read();
         result = newLocal.processProtection(latestPosition, version);
-        local.store(newLocal);
-    }
-
-    function processLiquidationFee(Local memory initiateeLocal) external {
-        Local memory newLocal = local.read();
-        newLocal.processLiquidationFee(initiateeLocal);
         local.store(newLocal);
     }
 
@@ -63,9 +60,5 @@ contract LocalTester {
         Local memory newLocal = local.read();
         result = newLocal.protect(riskParameter, latestVersion, currentTimestamp, newOrder, initiator, tryProtect);
         local.store(newLocal);
-    }
-
-    function pendingLiquidationFee(Position memory latestPosition) external view returns (UFixed6) {
-        return local.read().pendingLiquidationFee(latestPosition);
     }
 }

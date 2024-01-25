@@ -353,7 +353,7 @@ contract MultiInvoker is IMultiInvoker, Kept {
 
         Position memory currentPosition = market.pendingPositions(account, market.locals(account).currentId);
 
-        order.execute(currentPosition);
+        Fixed6 collateral = order.execute(currentPosition);
 
         _update(
             account,
@@ -361,7 +361,7 @@ contract MultiInvoker is IMultiInvoker, Kept {
             currentPosition.maker,
             currentPosition.long,
             currentPosition.short,
-            currentPosition.collateral,
+            collateral,
             true,
             order.interfaceFee
         );
