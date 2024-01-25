@@ -8,37 +8,9 @@ abstract contract PositionTester {
 
     function store(Position memory newPosition) public virtual;
 
-    function ready(OracleVersion memory latestVersion) external view returns (bool result) {
-        return read().ready(latestVersion);
-    }
-
-    function update(Position memory newPosition) external {
+    function update(Order memory newOrder, bool valid) external {
         Position memory _position = read();
-        _position.update(newPosition);
-        store(_position);
-    }
-
-    function update(uint256 currentTimestamp, Order memory newOrder) external {
-        Position memory _position = read();
-        _position.update(currentTimestamp, newOrder);
-        store(_position);
-    }
-
-    function invalidate(Position memory latestPosition) external {
-        Position memory _position = read();
-        _position.invalidate(latestPosition);
-        store(_position);
-    }
-
-    function adjust(Position memory latestPosition) external {
-        Position memory _position = read();
-        _position.adjust(latestPosition);
-        store(_position);
-    }
-
-    function sync(OracleVersion memory latestVersion) external {
-        Position memory _position = read();
-        _position.sync(latestVersion);
+        _position.update(newOrder, valid);
         store(_position);
     }
 

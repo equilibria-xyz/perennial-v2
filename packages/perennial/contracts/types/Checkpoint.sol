@@ -5,7 +5,6 @@ import "./OracleVersion.sol";
 import "./RiskParameter.sol";
 import "./Global.sol";
 import "./Local.sol";
-import "./Invalidation.sol";
 import "./Order.sol";
 
 /// @dev Checkpoint type

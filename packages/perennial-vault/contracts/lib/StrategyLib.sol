@@ -9,6 +9,8 @@ import {
     Local,
     Global,
     Position,
+    PositionLib,
+    Order,
     OracleVersion
 } from "@equilibria/perennial-v2/contracts/interfaces/IMarket.sol";
 import { Registration } from "../types/Registration.sol";
@@ -180,50 +182,28 @@ library StrategyLib {
         Global memory global = registration.market.global();
         marketContext.latestPrice = global.latestPrice;
 
-        // latest position
-        UFixed6 previousClosable;
-        previousClosable = _loadPosition(
-            marketContext,
-            marketContext.latestAccountPosition = registration.market.positions(address(this)),
-            previousClosable
-        );
-        marketContext.closable = marketContext.latestAccountPosition.maker;
+        marketContext.latestAccountPosition = registration.market.positions(address(this));
+        marketContext.currentAccountPosition = marketContext.latestAccountPosition.clone();
 
-        // pending positions
-        for (uint256 id = marketContext.local.latestId + 1; id <= marketContext.local.currentId; id++)
-            previousClosable = _loadPosition(
-                marketContext,
-                marketContext.currentAccountPosition = registration.market.pendingPositions(address(this), id),
-                previousClosable
-            );
+        Order memory pendingLocal = registration.market.pendings(address(this));
+        marketContext.currentAccountPosition.update(pendingLocal, true);
+
+        marketContext.margin = PositionLib.margin(
+            marketContext.latestAccountPosition.magnitude().add(pendingLocal.pos()),
+            OracleVersion(0, marketContext.latestPrice, true),
+            marketContext.riskParameter
+        );
+
+        marketContext.closable = marketContext.latestAccountPosition.magnitude().sub(pendingLocal.neg());
 
         // current position
-        Position memory latestPosition = registration.market.position();
-        marketContext.currentPosition = registration.market.pendingPosition(global.currentId);
-        marketContext.currentPosition.adjust(latestPosition);
+        Order memory pendingGlobal = registration.market.pendings(address(this));
+        marketContext.currentPosition = registration.market.position();
+        marketContext.currentPosition.update(pendingGlobal, true);
         marketContext.minPosition = marketContext.currentAccountPosition.maker
             .unsafeSub(marketContext.currentPosition.maker
                 .unsafeSub(marketContext.currentPosition.net()).min(marketContext.closable));
         marketContext.maxPosition = marketContext.currentAccountPosition.maker
             .add(marketContext.riskParameter.makerLimit.unsafeSub(marketContext.currentPosition.maker));
-    }
-
-    /// @notice Loads one position for the context calculation
-    /// @param marketContext The context of the market
-    /// @param position The position to load
-    /// @param previousMaker The previous maker position
-    /// @return nextMaker The next maker position
-    function _loadPosition(
-        MarketStrategyContext memory marketContext,
-        Position memory position,
-        UFixed6 previousMaker
-    ) private pure returns (UFixed6 nextMaker) {
-        position.adjust(marketContext.latestAccountPosition);
-
-        marketContext.margin = position
-            .margin(OracleVersion(0, marketContext.latestPrice, true), marketContext.riskParameter)
-            .max(marketContext.margin);
-        marketContext.closable = marketContext.closable.sub(previousMaker.unsafeSub(position.maker));
-        nextMaker = position.maker;
     }
 }

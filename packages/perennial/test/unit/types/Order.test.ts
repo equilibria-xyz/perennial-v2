@@ -24,14 +24,33 @@ describe('Order', () => {
     order = await new OrderTester__factory(owner).deploy()
   })
 
+  describe('#ready', () => {
+    context('oracleVersion.timestamp > position.timestamp', () => {
+      it('returns true', async () => {
+        expect(await order.ready({ ...DEFAULT_ORDER, timestamp: 2 }, VALID_ORACLE_VERSION)).to.be.true
+      })
+    })
+
+    context('position.timestamp = oracleVersion.timestamp', () => {
+      it('returns true', async () => {
+        expect(await order.ready({ ...DEFAULT_ORDER, timestamp: VALID_ORACLE_VERSION.timestamp }, VALID_ORACLE_VERSION))
+          .to.be.true
+      })
+    })
+
+    context('oracleVersion.timestamp < position.timestamp', () => {
+      it('returns false', async () => {
+        expect(await order.ready({ ...DEFAULT_ORDER, timestamp: 12346 }, VALID_ORACLE_VERSION)).to.be.false
+      })
+    })
+  })
+
   describe('#increasesPosition', () => {
     context('maker increase', () => {
       it('returns true', async () => {
         const result = await order.increasesPosition({
           ...DEFAULT_ORDER,
-          maker: parse6decimal('10'),
-          long: 0,
-          short: 0,
+          makerPos: parse6decimal('10'),
         })
 
         expect(result).to.be.true
@@ -42,9 +61,7 @@ describe('Order', () => {
       it('returns true', async () => {
         const result = await order.increasesPosition({
           ...DEFAULT_ORDER,
-          maker: 0,
-          long: parse6decimal('10'),
-          short: 0,
+          longPos: parse6decimal('10'),
         })
 
         expect(result).to.be.true
@@ -55,9 +72,7 @@ describe('Order', () => {
       it('returns true', async () => {
         const result = await order.increasesPosition({
           ...DEFAULT_ORDER,
-          maker: 0,
-          long: 0,
-          short: parse6decimal('10'),
+          shortPos: parse6decimal('10'),
         })
 
         expect(result).to.be.true
@@ -78,9 +93,7 @@ describe('Order', () => {
       it('returns false', async () => {
         const result = await order.increasesTaker({
           ...DEFAULT_ORDER,
-          maker: parse6decimal('10'),
-          long: 0,
-          short: 0,
+          makerPos: parse6decimal('10'),
         })
 
         expect(result).to.be.false
@@ -91,9 +104,7 @@ describe('Order', () => {
       it('returns true', async () => {
         const result = await order.increasesTaker({
           ...DEFAULT_ORDER,
-          maker: 0,
-          long: parse6decimal('10'),
-          short: 0,
+          longPos: parse6decimal('10'),
         })
 
         expect(result).to.be.true
@@ -104,9 +115,7 @@ describe('Order', () => {
       it('returns true', async () => {
         const result = await order.increasesTaker({
           ...DEFAULT_ORDER,
-          maker: 0,
-          long: 0,
-          short: parse6decimal('10'),
+          shortPos: parse6decimal('10'),
         })
 
         expect(result).to.be.true
@@ -128,7 +137,7 @@ describe('Order', () => {
         const result = await order.decreasesLiquidity(
           {
             ...DEFAULT_ORDER,
-            maker: parse6decimal('-10'),
+            makerNeg: parse6decimal('10'),
           },
           {
             ...DEFAULT_POSITION,
@@ -144,7 +153,7 @@ describe('Order', () => {
         const result = await order.decreasesLiquidity(
           {
             ...DEFAULT_ORDER,
-            maker: parse6decimal('10'),
+            makerPos: parse6decimal('10'),
           },
           {
             ...DEFAULT_POSITION,
@@ -160,7 +169,6 @@ describe('Order', () => {
         const result = await order.decreasesLiquidity(
           {
             ...DEFAULT_ORDER,
-            maker: parse6decimal('0'),
           },
           DEFAULT_POSITION,
         )
@@ -174,7 +182,7 @@ describe('Order', () => {
         const result = await order.decreasesLiquidity(
           {
             ...DEFAULT_ORDER,
-            long: parse6decimal('10'),
+            longPos: parse6decimal('10'),
           },
           {
             ...DEFAULT_POSITION,
@@ -192,7 +200,7 @@ describe('Order', () => {
         const result = await order.decreasesLiquidity(
           {
             ...DEFAULT_ORDER,
-            short: parse6decimal('10'),
+            shortPos: parse6decimal('10'),
           },
           {
             ...DEFAULT_POSITION,
@@ -210,7 +218,7 @@ describe('Order', () => {
         const result = await order.decreasesLiquidity(
           {
             ...DEFAULT_ORDER,
-            long: parse6decimal('-10'),
+            longNeg: parse6decimal('10'),
           },
           {
             ...DEFAULT_POSITION,
@@ -228,7 +236,7 @@ describe('Order', () => {
         const result = await order.decreasesLiquidity(
           {
             ...DEFAULT_ORDER,
-            short: parse6decimal('-10'),
+            shortNeg: parse6decimal('10'),
           },
           {
             ...DEFAULT_POSITION,
@@ -275,7 +283,7 @@ describe('Order', () => {
       context('maker increase', () => {
         it('returns true', async () => {
           const result = await order.liquidityCheckApplicable(
-            { ...DEFAULT_ORDER, maker: 10 },
+            { ...DEFAULT_ORDER, makerPos: 10 },
             {
               ...VALID_MARKET_PARAMETER,
               takerCloseAlways: true,
@@ -289,7 +297,7 @@ describe('Order', () => {
       context('long increase', () => {
         it('returns true', async () => {
           const result = await order.liquidityCheckApplicable(
-            { ...DEFAULT_ORDER, long: 10 },
+            { ...DEFAULT_ORDER, longPos: 10 },
             {
               ...VALID_MARKET_PARAMETER,
               takerCloseAlways: true,
@@ -303,7 +311,7 @@ describe('Order', () => {
       context('short increase', () => {
         it('returns true', async () => {
           const result = await order.liquidityCheckApplicable(
-            { ...DEFAULT_ORDER, short: 10 },
+            { ...DEFAULT_ORDER, shortPos: 10 },
             {
               ...VALID_MARKET_PARAMETER,
               takerCloseAlways: true,
@@ -328,7 +336,7 @@ describe('Order', () => {
       context('maker decrease', () => {
         it('returns false', async () => {
           const result = await order.liquidityCheckApplicable(
-            { ...DEFAULT_ORDER, maker: -10 },
+            { ...DEFAULT_ORDER, makerNeg: 10 },
             {
               ...VALID_MARKET_PARAMETER,
               takerCloseAlways: true,
@@ -342,7 +350,7 @@ describe('Order', () => {
       context('long decrease', () => {
         it('returns false', async () => {
           const result = await order.liquidityCheckApplicable(
-            { ...DEFAULT_ORDER, long: -10 },
+            { ...DEFAULT_ORDER, longNeg: 10 },
             {
               ...VALID_MARKET_PARAMETER,
               takerCloseAlways: true,
@@ -356,7 +364,7 @@ describe('Order', () => {
       context('short decrease', () => {
         it('returns false', async () => {
           const result = await order.liquidityCheckApplicable(
-            { ...DEFAULT_ORDER, short: -10 },
+            { ...DEFAULT_ORDER, shortNeg: 10 },
             {
               ...VALID_MARKET_PARAMETER,
               takerCloseAlways: true,
@@ -372,7 +380,7 @@ describe('Order', () => {
       context('maker increase', () => {
         it('returns true', async () => {
           const result = await order.liquidityCheckApplicable(
-            { ...DEFAULT_ORDER, maker: 10 },
+            { ...DEFAULT_ORDER, makerPos: 10 },
             {
               ...VALID_MARKET_PARAMETER,
               takerCloseAlways: true,
@@ -386,7 +394,7 @@ describe('Order', () => {
       context('long increase', () => {
         it('returns true', async () => {
           const result = await order.liquidityCheckApplicable(
-            { ...DEFAULT_ORDER, long: 10 },
+            { ...DEFAULT_ORDER, longPos: 10 },
             {
               ...VALID_MARKET_PARAMETER,
               takerCloseAlways: true,
@@ -400,7 +408,7 @@ describe('Order', () => {
       context('short increase', () => {
         it('returns true', async () => {
           const result = await order.liquidityCheckApplicable(
-            { ...DEFAULT_ORDER, short: 10 },
+            { ...DEFAULT_ORDER, shortPos: 10 },
             {
               ...VALID_MARKET_PARAMETER,
               takerCloseAlways: true,
@@ -425,7 +433,7 @@ describe('Order', () => {
       context('maker decrease', () => {
         it('returns false', async () => {
           const result = await order.liquidityCheckApplicable(
-            { ...DEFAULT_ORDER, maker: -10 },
+            { ...DEFAULT_ORDER, makerNeg: 10 },
             {
               ...VALID_MARKET_PARAMETER,
               takerCloseAlways: true,
@@ -439,7 +447,7 @@ describe('Order', () => {
       context('long decrease', () => {
         it('returns false', async () => {
           const result = await order.liquidityCheckApplicable(
-            { ...DEFAULT_ORDER, long: -10 },
+            { ...DEFAULT_ORDER, longNeg: 10 },
             {
               ...VALID_MARKET_PARAMETER,
               takerCloseAlways: true,
@@ -453,7 +461,7 @@ describe('Order', () => {
       context('short decrease', () => {
         it('returns false', async () => {
           const result = await order.liquidityCheckApplicable(
-            { ...DEFAULT_ORDER, short: -10 },
+            { ...DEFAULT_ORDER, shortNeg: 10 },
             {
               ...VALID_MARKET_PARAMETER,
               takerCloseAlways: true,
@@ -469,7 +477,7 @@ describe('Order', () => {
       context('maker increase', () => {
         it('returns true', async () => {
           const result = await order.liquidityCheckApplicable(
-            { ...DEFAULT_ORDER, maker: 10 },
+            { ...DEFAULT_ORDER, makerPos: 10 },
             {
               ...VALID_MARKET_PARAMETER,
               takerCloseAlways: true,
@@ -482,7 +490,7 @@ describe('Order', () => {
 
       context('long increase', () => {
         it('returns true', async () => {
-          const result = await order.liquidityCheckApplicable({ ...DEFAULT_ORDER, long: 10 }, VALID_MARKET_PARAMETER)
+          const result = await order.liquidityCheckApplicable({ ...DEFAULT_ORDER, longPos: 10 }, VALID_MARKET_PARAMETER)
 
           expect(result).to.be.true
         })
@@ -490,7 +498,10 @@ describe('Order', () => {
 
       context('short increase', () => {
         it('returns true', async () => {
-          const result = await order.liquidityCheckApplicable({ ...DEFAULT_ORDER, short: 10 }, VALID_MARKET_PARAMETER)
+          const result = await order.liquidityCheckApplicable(
+            { ...DEFAULT_ORDER, shortPos: 10 },
+            VALID_MARKET_PARAMETER,
+          )
 
           expect(result).to.be.true
         })
@@ -507,7 +518,7 @@ describe('Order', () => {
       context('maker decrease', () => {
         it('returns false', async () => {
           const result = await order.liquidityCheckApplicable(
-            { ...DEFAULT_ORDER, maker: -10 },
+            { ...DEFAULT_ORDER, makerNeg: 10 },
             {
               ...VALID_MARKET_PARAMETER,
               takerCloseAlways: true,
@@ -520,7 +531,7 @@ describe('Order', () => {
 
       context('long decrease', () => {
         it('returns true', async () => {
-          const result = await order.liquidityCheckApplicable({ ...DEFAULT_ORDER, long: -10 }, VALID_MARKET_PARAMETER)
+          const result = await order.liquidityCheckApplicable({ ...DEFAULT_ORDER, longNeg: 10 }, VALID_MARKET_PARAMETER)
 
           expect(result).to.be.true
         })
@@ -528,7 +539,10 @@ describe('Order', () => {
 
       context('short decrease', () => {
         it('returns true', async () => {
-          const result = await order.liquidityCheckApplicable({ ...DEFAULT_ORDER, short: -10 }, VALID_MARKET_PARAMETER)
+          const result = await order.liquidityCheckApplicable(
+            { ...DEFAULT_ORDER, shortNeg: 10 },
+            VALID_MARKET_PARAMETER,
+          )
 
           expect(result).to.be.true
         })
@@ -540,7 +554,7 @@ describe('Order', () => {
     it('returns notional * riskParameter.maintenance * riskParameter.liquidationFee', async () => {
       expect(
         await order.liquidationFee(
-          { ...DEFAULT_ORDER, maker: parse6decimal('-6') },
+          { ...DEFAULT_ORDER, makerNeg: parse6decimal('6') },
           { ...VALID_ORACLE_VERSION, price: parse6decimal('100') },
           {
             ...VALID_RISK_PARAMETER,
@@ -556,7 +570,7 @@ describe('Order', () => {
       it('returns riskParameter.minMaintenance * riskParameter.liquidationFee', async () => {
         expect(
           await order.liquidationFee(
-            { ...DEFAULT_ORDER, maker: parse6decimal('-6') },
+            { ...DEFAULT_ORDER, makerNeg: parse6decimal('6') },
             { ...VALID_ORACLE_VERSION, price: parse6decimal('100') },
             {
               ...VALID_RISK_PARAMETER,
@@ -576,7 +590,7 @@ describe('Order', () => {
         it('returns riskParameter.maxLiquidationFee', async () => {
           expect(
             await order.liquidationFee(
-              { ...DEFAULT_ORDER, maker: parse6decimal('-6') },
+              { ...DEFAULT_ORDER, makerNeg: parse6decimal('6') },
               { ...VALID_ORACLE_VERSION, price: parse6decimal('100') },
               {
                 ...VALID_RISK_PARAMETER,
@@ -596,7 +610,7 @@ describe('Order', () => {
         it('returns riskParameter.minLiquidationFee', async () => {
           expect(
             await order.liquidationFee(
-              { ...DEFAULT_ORDER, maker: parse6decimal('-6') },
+              { ...DEFAULT_ORDER, makerNeg: parse6decimal('6') },
               { ...VALID_ORACLE_VERSION, price: parse6decimal('100') },
               {
                 ...VALID_RISK_PARAMETER,
@@ -637,33 +651,66 @@ describe('Order', () => {
       })
     })
 
-    context('order is not empty (maker)', () => {
+    context('order is not empty (makerPos)', () => {
       it('returns false', async () => {
         const result = await order.isEmpty({
           ...DEFAULT_ORDER,
-          maker: parse6decimal('1'),
+          makerPos: parse6decimal('1'),
         })
 
         expect(result).to.be.false
       })
     })
 
-    context('order is not empty (long)', () => {
+    context('order is not empty (makerNeg)', () => {
       it('returns false', async () => {
         const result = await order.isEmpty({
           ...DEFAULT_ORDER,
-          long: parse6decimal('1'),
+          makerNeg: parse6decimal('1'),
         })
 
         expect(result).to.be.false
       })
     })
 
-    context('order is not empty (short)', () => {
+    context('order is not empty (longPos)', () => {
       it('returns false', async () => {
         const result = await order.isEmpty({
           ...DEFAULT_ORDER,
-          short: parse6decimal('1'),
+          longPos: parse6decimal('1'),
+        })
+
+        expect(result).to.be.false
+      })
+    })
+
+    context('order is not empty (longNeg)', () => {
+      it('returns false', async () => {
+        const result = await order.isEmpty({
+          ...DEFAULT_ORDER,
+          longNeg: parse6decimal('1'),
+        })
+
+        expect(result).to.be.false
+      })
+    })
+
+    context('order is not empty (shortPos)', () => {
+      it('returns false', async () => {
+        const result = await order.isEmpty({
+          ...DEFAULT_ORDER,
+          shortPos: parse6decimal('1'),
+        })
+
+        expect(result).to.be.false
+      })
+    })
+
+    context('order is not empty (shortNeg)', () => {
+      it('returns false', async () => {
+        const result = await order.isEmpty({
+          ...DEFAULT_ORDER,
+          shortNeg: parse6decimal('1'),
         })
 
         expect(result).to.be.false

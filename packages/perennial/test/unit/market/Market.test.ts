@@ -316,18 +316,30 @@ const EXPECTED_INTEREST_WITHOUT_FEE_10_67_96_ALL = EXPECTED_INTEREST_10_67_96_AL
 
 async function settle(market: Market, account: SignerWithAddress, sender?: SignerWithAddress) {
   const local = await market.locals(account.address)
-  const currentPosition = await market.pendingPositions(account.address, local.currentId)
   return await market
     .connect(sender || account)
-    .update(account.address, currentPosition.maker, currentPosition.long, currentPosition.short, 0, false)
+    .update(
+      account.address,
+      ethers.constants.MaxUint256,
+      ethers.constants.MaxUint256,
+      ethers.constants.MaxUint256,
+      0,
+      false,
+    )
 }
 
 async function deposit(market: Market, amount: BigNumber, account: SignerWithAddress, sender?: SignerWithAddress) {
   const local = await market.locals(account.address)
-  const currentPosition = await market.pendingPositions(account.address, local.currentId)
   return await market
     .connect(sender || account)
-    .update(account.address, currentPosition.maker, currentPosition.long, currentPosition.short, amount, false)
+    .update(
+      account.address,
+      ethers.constants.MaxUint256,
+      ethers.constants.MaxUint256,
+      ethers.constants.MaxUint256,
+      amount,
+      false,
+    )
 }
 
 describe('Market', () => {
@@ -704,8 +716,8 @@ describe('Market', () => {
             ...DEFAULT_POSITION,
             timestamp: ORACLE_VERSION_1.timestamp,
           })
-          expectPositionEq(await market.pendingPositions(user.address, 1), {
-            ...DEFAULT_POSITION,
+          expectOrderEq(await market.pendingOrders(user.address, 1), {
+            ...DEFAULT_ORDER,
             timestamp: ORACLE_VERSION_2.timestamp,
           })
           expectCheckpointEq(await market.checkpoints(user.address, 1), {
@@ -724,8 +736,8 @@ describe('Market', () => {
             ...DEFAULT_POSITION,
             timestamp: ORACLE_VERSION_1.timestamp,
           })
-          expectPositionEq(await market.pendingPosition(1), {
-            ...DEFAULT_POSITION,
+          expectOrderEq(await market.pendingOrder(1), {
+            ...DEFAULT_ORDER,
             timestamp: ORACLE_VERSION_2.timestamp,
           })
           expectVersionEq(await market.versions(ORACLE_VERSION_1.timestamp), {
@@ -752,8 +764,8 @@ describe('Market', () => {
             ...DEFAULT_POSITION,
             timestamp: ORACLE_VERSION_1.timestamp,
           })
-          expectPositionEq(await market.pendingPositions(user.address, 1), {
-            ...DEFAULT_POSITION,
+          expectOrderEq(await market.pendingOrders(user.address, 1), {
+            ...DEFAULT_ORDER,
             timestamp: ORACLE_VERSION_2.timestamp,
           })
           expectGlobalEq(await market.global(), {
@@ -768,8 +780,8 @@ describe('Market', () => {
             ...DEFAULT_POSITION,
             timestamp: ORACLE_VERSION_1.timestamp,
           })
-          expectPositionEq(await market.pendingPosition(1), {
-            ...DEFAULT_POSITION,
+          expectOrderEq(await market.pendingOrder(1), {
+            ...DEFAULT_ORDER,
             timestamp: ORACLE_VERSION_2.timestamp,
           })
           expectVersionEq(await market.versions(ORACLE_VERSION_1.timestamp), {
@@ -792,8 +804,8 @@ describe('Market', () => {
             ...DEFAULT_POSITION,
             timestamp: ORACLE_VERSION_1.timestamp,
           })
-          expectPositionEq(await market.pendingPositions(user.address, 1), {
-            ...DEFAULT_POSITION,
+          expectOrderEq(await market.pendingOrders(user.address, 1), {
+            ...DEFAULT_ORDER,
             timestamp: ORACLE_VERSION_2.timestamp,
           })
           expectCheckpointEq(await market.checkpoints(user.address, 1), {
@@ -812,8 +824,8 @@ describe('Market', () => {
             ...DEFAULT_POSITION,
             timestamp: ORACLE_VERSION_1.timestamp,
           })
-          expectPositionEq(await market.pendingPosition(1), {
-            ...DEFAULT_POSITION,
+          expectOrderEq(await market.pendingOrder(1), {
+            ...DEFAULT_ORDER,
             timestamp: ORACLE_VERSION_2.timestamp,
           })
           expectVersionEq(await market.versions(ORACLE_VERSION_1.timestamp), {
@@ -840,8 +852,8 @@ describe('Market', () => {
             ...DEFAULT_POSITION,
             timestamp: ORACLE_VERSION_2.timestamp,
           })
-          expectPositionEq(await market.pendingPositions(user.address, 2), {
-            ...DEFAULT_POSITION,
+          expectOrderEq(await market.pendingOrders(user.address, 2), {
+            ...DEFAULT_ORDER,
             timestamp: ORACLE_VERSION_3.timestamp,
           })
           expectGlobalEq(await market.global(), {
@@ -856,8 +868,8 @@ describe('Market', () => {
             ...DEFAULT_POSITION,
             timestamp: ORACLE_VERSION_2.timestamp,
           })
-          expectPositionEq(await market.pendingPosition(2), {
-            ...DEFAULT_POSITION,
+          expectOrderEq(await market.pendingOrder(2), {
+            ...DEFAULT_ORDER,
             timestamp: ORACLE_VERSION_3.timestamp,
           })
           expectVersionEq(await market.versions(ORACLE_VERSION_2.timestamp), {
@@ -880,8 +892,8 @@ describe('Market', () => {
             ...DEFAULT_POSITION,
             timestamp: ORACLE_VERSION_1.timestamp,
           })
-          expectPositionEq(await market.pendingPositions(user.address, 1), {
-            ...DEFAULT_POSITION,
+          expectOrderEq(await market.pendingOrders(user.address, 1), {
+            ...DEFAULT_ORDER,
             timestamp: ORACLE_VERSION_2.timestamp,
           })
           expectCheckpointEq(await market.checkpoints(user.address, 1), {
@@ -900,8 +912,8 @@ describe('Market', () => {
             ...DEFAULT_POSITION,
             timestamp: ORACLE_VERSION_1.timestamp,
           })
-          expectPositionEq(await market.pendingPosition(1), {
-            ...DEFAULT_POSITION,
+          expectOrderEq(await market.pendingOrder(1), {
+            ...DEFAULT_ORDER,
             timestamp: ORACLE_VERSION_2.timestamp,
           })
           expectVersionEq(await market.versions(ORACLE_VERSION_1.timestamp), {
@@ -928,8 +940,8 @@ describe('Market', () => {
             ...DEFAULT_POSITION,
             timestamp: ORACLE_VERSION_2.timestamp,
           })
-          expectPositionEq(await market.pendingPositions(user.address, 2), {
-            ...DEFAULT_POSITION,
+          expectOrderEq(await market.pendingOrders(user.address, 2), {
+            ...DEFAULT_ORDER,
             timestamp: ORACLE_VERSION_6.timestamp,
           })
           expectGlobalEq(await market.global(), {
@@ -944,8 +956,8 @@ describe('Market', () => {
             ...DEFAULT_POSITION,
             timestamp: ORACLE_VERSION_2.timestamp,
           })
-          expectPositionEq(await market.pendingPosition(2), {
-            ...DEFAULT_POSITION,
+          expectOrderEq(await market.pendingOrder(2), {
+            ...DEFAULT_ORDER,
             timestamp: ORACLE_VERSION_6.timestamp,
           })
           expectVersionEq(await market.versions(ORACLE_VERSION_2.timestamp), {
@@ -972,7 +984,6 @@ describe('Market', () => {
                   ...DEFAULT_ORDER,
                   orders: 1,
                   timestamp: ORACLE_VERSION_2.timestamp,
-                  maker: POSITION,
                   makerPos: POSITION,
                 },
                 COLLATERAL,
@@ -987,10 +998,11 @@ describe('Market', () => {
               ...DEFAULT_POSITION,
               timestamp: ORACLE_VERSION_1.timestamp,
             })
-            expectPositionEq(await market.pendingPositions(user.address, 1), {
-              ...DEFAULT_POSITION,
+            expectOrderEq(await market.pendingOrders(user.address, 1), {
+              ...DEFAULT_ORDER,
               timestamp: ORACLE_VERSION_2.timestamp,
-              maker: POSITION,
+              orders: 1,
+              makerPos: POSITION,
             })
             expectCheckpointEq(await market.checkpoints(user.address, 1), {
               ...DEFAULT_CHECKPOINT,
@@ -1008,10 +1020,11 @@ describe('Market', () => {
               ...DEFAULT_POSITION,
               timestamp: ORACLE_VERSION_1.timestamp,
             })
-            expectPositionEq(await market.pendingPosition(1), {
-              ...DEFAULT_POSITION,
+            expectOrderEq(await market.pendingOrder(1), {
+              ...DEFAULT_ORDER,
               timestamp: ORACLE_VERSION_2.timestamp,
-              maker: POSITION,
+              orders: 1,
+              makerPos: POSITION,
             })
             expectVersionEq(await market.versions(ORACLE_VERSION_1.timestamp), {
               ...DEFAULT_VERSION,
@@ -1061,10 +1074,9 @@ describe('Market', () => {
               timestamp: ORACLE_VERSION_2.timestamp,
               maker: POSITION,
             })
-            expectPositionEq(await market.pendingPositions(user.address, 2), {
-              ...DEFAULT_POSITION,
+            expectOrderEq(await market.pendingOrders(user.address, 2), {
+              ...DEFAULT_ORDER,
               timestamp: ORACLE_VERSION_3.timestamp,
-              maker: POSITION,
             })
             expectCheckpointEq(await market.checkpoints(user.address, 2), {
               ...DEFAULT_CHECKPOINT,
@@ -1083,10 +1095,9 @@ describe('Market', () => {
               timestamp: ORACLE_VERSION_2.timestamp,
               maker: POSITION,
             })
-            expectPositionEq(await market.pendingPosition(2), {
-              ...DEFAULT_POSITION,
+            expectOrderEq(await market.pendingOrder(2), {
+              ...DEFAULT_ORDER,
               timestamp: ORACLE_VERSION_3.timestamp,
-              maker: POSITION,
             })
             expectVersionEq(await market.versions(ORACLE_VERSION_2.timestamp), {
               ...DEFAULT_VERSION,
@@ -1109,10 +1120,11 @@ describe('Market', () => {
               ...DEFAULT_POSITION,
               timestamp: ORACLE_VERSION_1.timestamp,
             })
-            expectPositionEq(await market.pendingPositions(user.address, 1), {
-              ...DEFAULT_POSITION,
+            expectOrderEq(await market.pendingOrders(user.address, 1), {
+              ...DEFAULT_ORDER,
               timestamp: ORACLE_VERSION_2.timestamp,
-              maker: POSITION.mul(2),
+              orders: 1,
+              makerPos: POSITION.mul(2),
             })
             expectCheckpointEq(await market.checkpoints(user.address, 1), {
               ...DEFAULT_CHECKPOINT,
@@ -1130,10 +1142,11 @@ describe('Market', () => {
               ...DEFAULT_POSITION,
               timestamp: ORACLE_VERSION_1.timestamp,
             })
-            expectPositionEq(await market.pendingPosition(1), {
-              ...DEFAULT_POSITION,
+            expectOrderEq(await market.pendingOrder(1), {
+              ...DEFAULT_ORDER,
               timestamp: ORACLE_VERSION_2.timestamp,
-              maker: POSITION.mul(2),
+              orders: 1,
+              makerPos: POSITION.mul(2),
             })
           })
 
@@ -1161,10 +1174,9 @@ describe('Market', () => {
               timestamp: ORACLE_VERSION_2.timestamp,
               maker: POSITION.mul(2),
             })
-            expectPositionEq(await market.pendingPositions(user.address, 2), {
-              ...DEFAULT_POSITION,
+            expectOrderEq(await market.pendingOrders(user.address, 2), {
+              ...DEFAULT_ORDER,
               timestamp: ORACLE_VERSION_3.timestamp,
-              maker: POSITION.mul(2),
             })
             expectCheckpointEq(await market.checkpoints(user.address, 2), {
               ...DEFAULT_CHECKPOINT,
@@ -1183,10 +1195,9 @@ describe('Market', () => {
               timestamp: ORACLE_VERSION_2.timestamp,
               maker: POSITION.mul(2),
             })
-            expectPositionEq(await market.pendingPosition(2), {
-              ...DEFAULT_POSITION,
+            expectOrderEq(await market.pendingOrder(2), {
+              ...DEFAULT_ORDER,
               timestamp: ORACLE_VERSION_3.timestamp,
-              maker: POSITION.mul(2),
             })
             expectVersionEq(await market.versions(ORACLE_VERSION_2.timestamp), {
               ...DEFAULT_VERSION,
@@ -1215,10 +1226,11 @@ describe('Market', () => {
               timestamp: ORACLE_VERSION_2.timestamp,
               maker: POSITION,
             })
-            expectPositionEq(await market.pendingPositions(user.address, 2), {
-              ...DEFAULT_POSITION,
+            expectOrderEq(await market.pendingOrders(user.address, 2), {
+              ...DEFAULT_ORDER,
               timestamp: ORACLE_VERSION_3.timestamp,
-              maker: POSITION.mul(2),
+              orders: 1,
+              makerPos: POSITION,
             })
             expectCheckpointEq(await market.checkpoints(user.address, 2), {
               ...DEFAULT_CHECKPOINT,
@@ -1237,10 +1249,11 @@ describe('Market', () => {
               timestamp: ORACLE_VERSION_2.timestamp,
               maker: POSITION,
             })
-            expectPositionEq(await market.pendingPosition(2), {
-              ...DEFAULT_POSITION,
+            expectOrderEq(await market.pendingOrder(2), {
+              ...DEFAULT_ORDER,
               timestamp: ORACLE_VERSION_3.timestamp,
-              maker: POSITION.mul(2),
+              orders: 1,
+              makerPos: POSITION,
             })
             expectVersionEq(await market.versions(ORACLE_VERSION_2.timestamp), {
               ...DEFAULT_VERSION,
@@ -1275,10 +1288,9 @@ describe('Market', () => {
               timestamp: ORACLE_VERSION_3.timestamp,
               maker: POSITION.mul(2),
             })
-            expectPositionEq(await market.pendingPositions(user.address, 3), {
-              ...DEFAULT_POSITION,
+            expectOrderEq(await market.pendingOrders(user.address, 3), {
+              ...DEFAULT_ORDER,
               timestamp: ORACLE_VERSION_4.timestamp,
-              maker: POSITION.mul(2),
             })
             expectCheckpointEq(await market.checkpoints(user.address, 3), {
               ...DEFAULT_CHECKPOINT,
@@ -1299,10 +1311,9 @@ describe('Market', () => {
               long: 0,
               short: 0,
             })
-            expectPositionEq(await market.pendingPosition(3), {
-              ...DEFAULT_POSITION,
+            expectOrderEq(await market.pendingOrder(3), {
+              ...DEFAULT_ORDER,
               timestamp: ORACLE_VERSION_4.timestamp,
-              maker: POSITION.mul(2),
             })
             expectVersionEq(await market.versions(ORACLE_VERSION_3.timestamp), {
               ...DEFAULT_VERSION,
@@ -1332,10 +1343,9 @@ describe('Market', () => {
               timestamp: ORACLE_VERSION_3.timestamp,
               maker: POSITION,
             })
-            expectPositionEq(await market.pendingPositions(user.address, 2), {
-              ...DEFAULT_POSITION,
+            expectOrderEq(await market.pendingOrders(user.address, 2), {
+              ...DEFAULT_ORDER,
               timestamp: ORACLE_VERSION_4.timestamp,
-              maker: POSITION,
             })
             expectCheckpointEq(await market.checkpoints(user.address, 2), {
               ...DEFAULT_CHECKPOINT,
@@ -1354,10 +1364,9 @@ describe('Market', () => {
               timestamp: ORACLE_VERSION_3.timestamp,
               maker: POSITION,
             })
-            expectPositionEq(await market.pendingPosition(2), {
-              ...DEFAULT_POSITION,
+            expectOrderEq(await market.pendingOrder(2), {
+              ...DEFAULT_ORDER,
               timestamp: ORACLE_VERSION_4.timestamp,
-              maker: POSITION,
             })
             expectVersionEq(await market.versions(ORACLE_VERSION_3.timestamp), {
               ...DEFAULT_VERSION,
@@ -1401,10 +1410,9 @@ describe('Market', () => {
               timestamp: ORACLE_VERSION_3.timestamp,
               maker: POSITION,
             })
-            expectPositionEq(await market.pendingPositions(user.address, 2), {
-              ...DEFAULT_POSITION,
+            expectOrderEq(await market.pendingOrders(user.address, 2), {
+              ...DEFAULT_ORDER,
               timestamp: ORACLE_VERSION_4.timestamp,
-              maker: POSITION,
             })
             expectCheckpointEq(await market.checkpoints(user.address, 2), {
               ...DEFAULT_CHECKPOINT,
@@ -1423,10 +1431,9 @@ describe('Market', () => {
               timestamp: ORACLE_VERSION_3.timestamp,
               maker: POSITION,
             })
-            expectPositionEq(await market.pendingPosition(2), {
-              ...DEFAULT_POSITION,
+            expectOrderEq(await market.pendingOrder(2), {
+              ...DEFAULT_ORDER,
               timestamp: ORACLE_VERSION_4.timestamp,
-              maker: POSITION,
             })
             expectVersionEq(await market.versions(ORACLE_VERSION_3.timestamp), {
               ...DEFAULT_VERSION,
@@ -1452,7 +1459,6 @@ describe('Market', () => {
                   ...DEFAULT_ORDER,
                   timestamp: ORACLE_VERSION_2.timestamp,
                   orders: 1,
-                  maker: POSITION.mul(-1),
                   makerNeg: POSITION,
                 },
                 0,
@@ -1467,8 +1473,8 @@ describe('Market', () => {
               ...DEFAULT_POSITION,
               timestamp: ORACLE_VERSION_1.timestamp,
             })
-            expectPositionEq(await market.pendingPositions(user.address, 1), {
-              ...DEFAULT_POSITION,
+            expectOrderEq(await market.pendingOrders(user.address, 1), {
+              ...DEFAULT_ORDER,
               timestamp: ORACLE_VERSION_2.timestamp,
             })
             expectCheckpointEq(await market.checkpoints(user.address, 1), {
@@ -1487,8 +1493,8 @@ describe('Market', () => {
               ...DEFAULT_POSITION,
               timestamp: ORACLE_VERSION_1.timestamp,
             })
-            expectPositionEq(await market.pendingPosition(1), {
-              ...DEFAULT_POSITION,
+            expectOrderEq(await market.pendingOrder(1), {
+              ...DEFAULT_ORDER,
               timestamp: ORACLE_VERSION_2.timestamp,
             })
             expectVersionEq(await market.versions(ORACLE_VERSION_1.timestamp), {
@@ -1508,7 +1514,6 @@ describe('Market', () => {
                   ...DEFAULT_ORDER,
                   timestamp: ORACLE_VERSION_2.timestamp,
                   orders: 1,
-                  maker: POSITION.div(2).mul(-1),
                   makerNeg: POSITION.div(2),
                 },
                 0,
@@ -1524,10 +1529,11 @@ describe('Market', () => {
               ...DEFAULT_POSITION,
               timestamp: ORACLE_VERSION_1.timestamp,
             })
-            expectPositionEq(await market.pendingPositions(user.address, 1), {
-              ...DEFAULT_POSITION,
+            expectOrderEq(await market.pendingOrders(user.address, 1), {
+              ...DEFAULT_ORDER,
               timestamp: ORACLE_VERSION_2.timestamp,
-              maker: POSITION.div(2),
+              orders: 1,
+              makerPos: POSITION.div(2),
             })
             expectCheckpointEq(await market.checkpoints(user.address, 1), {
               ...DEFAULT_CHECKPOINT,
@@ -1545,10 +1551,11 @@ describe('Market', () => {
               ...DEFAULT_POSITION,
               timestamp: ORACLE_VERSION_1.timestamp,
             })
-            expectPositionEq(await market.pendingPosition(1), {
-              ...DEFAULT_POSITION,
+            expectOrderEq(await market.pendingOrder(1), {
+              ...DEFAULT_ORDER,
               timestamp: ORACLE_VERSION_2.timestamp,
-              maker: POSITION.div(2),
+              orders: 1,
+              makerPos: POSITION.div(2),
             })
             expectVersionEq(await market.versions(ORACLE_VERSION_1.timestamp), {
               ...DEFAULT_VERSION,
@@ -1580,9 +1587,11 @@ describe('Market', () => {
                 timestamp: ORACLE_VERSION_2.timestamp,
                 maker: POSITION,
               })
-              expectPositionEq(await market.pendingPositions(user.address, 2), {
-                ...DEFAULT_POSITION,
+              expectOrderEq(await market.pendingOrders(user.address, 2), {
+                ...DEFAULT_ORDER,
                 timestamp: ORACLE_VERSION_3.timestamp,
+                orders: 1,
+                makerNeg: POSITION,
               })
               expectCheckpointEq(await market.checkpoints(user.address, 2), {
                 ...DEFAULT_CHECKPOINT,
@@ -1601,9 +1610,11 @@ describe('Market', () => {
                 timestamp: ORACLE_VERSION_2.timestamp,
                 maker: POSITION,
               })
-              expectPositionEq(await market.pendingPosition(2), {
-                ...DEFAULT_POSITION,
+              expectOrderEq(await market.pendingOrder(2), {
+                ...DEFAULT_ORDER,
                 timestamp: ORACLE_VERSION_3.timestamp,
+                orders: 1,
+                makerNeg: POSITION,
               })
               expectVersionEq(await market.versions(ORACLE_VERSION_2.timestamp), {
                 ...DEFAULT_VERSION,
@@ -1631,8 +1642,8 @@ describe('Market', () => {
                 ...DEFAULT_POSITION,
                 timestamp: ORACLE_VERSION_3.timestamp,
               })
-              expectPositionEq(await market.pendingPositions(user.address, 3), {
-                ...DEFAULT_POSITION,
+              expectOrderEq(await market.pendingOrders(user.address, 3), {
+                ...DEFAULT_ORDER,
                 timestamp: ORACLE_VERSION_4.timestamp,
               })
               expectCheckpointEq(await market.checkpoints(user.address, 3), {
@@ -1651,8 +1662,8 @@ describe('Market', () => {
                 ...DEFAULT_POSITION,
                 timestamp: ORACLE_VERSION_3.timestamp,
               })
-              expectPositionEq(await market.pendingPosition(3), {
-                ...DEFAULT_POSITION,
+              expectOrderEq(await market.pendingOrder(3), {
+                ...DEFAULT_ORDER,
                 timestamp: ORACLE_VERSION_4.timestamp,
               })
               expectVersionEq(await market.versions(ORACLE_VERSION_3.timestamp), {
@@ -1678,9 +1689,11 @@ describe('Market', () => {
                 timestamp: ORACLE_VERSION_2.timestamp,
                 maker: POSITION,
               })
-              expectPositionEq(await market.pendingPositions(user.address, 2), {
-                ...DEFAULT_POSITION,
+              expectOrderEq(await market.pendingOrders(user.address, 2), {
+                ...DEFAULT_ORDER,
                 timestamp: ORACLE_VERSION_3.timestamp,
+                orders: 1,
+                makerNeg: POSITION,
               })
               expectCheckpointEq(await market.checkpoints(user.address, 2), {
                 ...DEFAULT_CHECKPOINT,
@@ -1699,9 +1712,11 @@ describe('Market', () => {
                 timestamp: ORACLE_VERSION_2.timestamp,
                 maker: POSITION,
               })
-              expectPositionEq(await market.pendingPosition(2), {
-                ...DEFAULT_POSITION,
+              expectOrderEq(await market.pendingOrder(2), {
+                ...DEFAULT_ORDER,
                 timestamp: ORACLE_VERSION_3.timestamp,
+                orders: 1,
+                makerNeg: POSITION,
               })
               expectVersionEq(await market.versions(ORACLE_VERSION_2.timestamp), {
                 ...DEFAULT_VERSION,
@@ -1731,8 +1746,8 @@ describe('Market', () => {
                 ...DEFAULT_POSITION,
                 timestamp: ORACLE_VERSION_3.timestamp,
               })
-              expectPositionEq(await market.pendingPositions(user.address, 3), {
-                ...DEFAULT_POSITION,
+              expectOrderEq(await market.pendingOrders(user.address, 3), {
+                ...DEFAULT_ORDER,
                 timestamp: ORACLE_VERSION_4.timestamp,
               })
               expectCheckpointEq(await market.checkpoints(user.address, 3), {
@@ -1751,8 +1766,8 @@ describe('Market', () => {
                 ...DEFAULT_POSITION,
                 timestamp: ORACLE_VERSION_3.timestamp,
               })
-              expectPositionEq(await market.pendingPosition(3), {
-                ...DEFAULT_POSITION,
+              expectOrderEq(await market.pendingOrder(3), {
+                ...DEFAULT_ORDER,
                 timestamp: ORACLE_VERSION_4.timestamp,
               })
               expectVersionEq(await market.versions(ORACLE_VERSION_3.timestamp), {
@@ -1782,9 +1797,11 @@ describe('Market', () => {
                 timestamp: ORACLE_VERSION_3.timestamp,
                 maker: POSITION.div(2),
               })
-              expectPositionEq(await market.pendingPositions(user.address, 3), {
-                ...DEFAULT_POSITION,
+              expectOrderEq(await market.pendingOrders(user.address, 3), {
+                ...DEFAULT_ORDER,
                 timestamp: ORACLE_VERSION_4.timestamp,
+                orders: 1,
+                makerNeg: POSITION.div(2),
               })
               expectCheckpointEq(await market.checkpoints(user.address, 3), {
                 ...DEFAULT_CHECKPOINT,
@@ -1803,9 +1820,11 @@ describe('Market', () => {
                 timestamp: ORACLE_VERSION_3.timestamp,
                 maker: POSITION.div(2),
               })
-              expectPositionEq(await market.pendingPosition(3), {
-                ...DEFAULT_POSITION,
+              expectOrderEq(await market.pendingOrder(3), {
+                ...DEFAULT_ORDER,
                 timestamp: ORACLE_VERSION_4.timestamp,
+                orders: 1,
+                makerNeg: POSITION.div(2),
               })
               expectVersionEq(await market.versions(ORACLE_VERSION_3.timestamp), {
                 ...DEFAULT_VERSION,
@@ -1839,8 +1858,8 @@ describe('Market', () => {
                 ...DEFAULT_POSITION,
                 timestamp: ORACLE_VERSION_4.timestamp,
               })
-              expectPositionEq(await market.pendingPositions(user.address, 4), {
-                ...DEFAULT_POSITION,
+              expectOrderEq(await market.pendingOrders(user.address, 4), {
+                ...DEFAULT_ORDER,
                 timestamp: ORACLE_VERSION_5.timestamp,
               })
               expectCheckpointEq(await market.checkpoints(user.address, 4), {
@@ -1859,8 +1878,8 @@ describe('Market', () => {
                 ...DEFAULT_POSITION,
                 timestamp: ORACLE_VERSION_4.timestamp,
               })
-              expectPositionEq(await market.pendingPosition(4), {
-                ...DEFAULT_POSITION,
+              expectOrderEq(await market.pendingOrder(4), {
+                ...DEFAULT_ORDER,
                 timestamp: ORACLE_VERSION_5.timestamp,
               })
               expectVersionEq(await market.versions(ORACLE_VERSION_4.timestamp), {
@@ -1891,8 +1910,8 @@ describe('Market', () => {
                 ...DEFAULT_POSITION,
                 timestamp: ORACLE_VERSION_4.timestamp,
               })
-              expectPositionEq(await market.pendingPositions(user.address, 3), {
-                ...DEFAULT_POSITION,
+              expectOrderEq(await market.pendingOrders(user.address, 3), {
+                ...DEFAULT_ORDER,
                 timestamp: ORACLE_VERSION_5.timestamp,
               })
               expectCheckpointEq(await market.checkpoints(user.address, 3), {
@@ -1911,8 +1930,8 @@ describe('Market', () => {
                 ...DEFAULT_POSITION,
                 timestamp: ORACLE_VERSION_4.timestamp,
               })
-              expectPositionEq(await market.pendingPosition(3), {
-                ...DEFAULT_POSITION,
+              expectOrderEq(await market.pendingOrder(3), {
+                ...DEFAULT_ORDER,
                 timestamp: ORACLE_VERSION_5.timestamp,
               })
               expectVersionEq(await market.versions(ORACLE_VERSION_4.timestamp), {
@@ -1959,8 +1978,8 @@ describe('Market', () => {
                 ...DEFAULT_POSITION,
                 timestamp: ORACLE_VERSION_4.timestamp,
               })
-              expectPositionEq(await market.pendingPositions(user.address, 3), {
-                ...DEFAULT_POSITION,
+              expectOrderEq(await market.pendingOrders(user.address, 3), {
+                ...DEFAULT_ORDER,
                 timestamp: ORACLE_VERSION_5.timestamp,
               })
               expectCheckpointEq(await market.checkpoints(user.address, 3), {
@@ -1979,8 +1998,8 @@ describe('Market', () => {
                 ...DEFAULT_POSITION,
                 timestamp: ORACLE_VERSION_4.timestamp,
               })
-              expectPositionEq(await market.pendingPosition(3), {
-                ...DEFAULT_POSITION,
+              expectOrderEq(await market.pendingOrder(3), {
+                ...DEFAULT_ORDER,
                 timestamp: ORACLE_VERSION_5.timestamp,
               })
               expectVersionEq(await market.versions(ORACLE_VERSION_4.timestamp), {
@@ -2016,8 +2035,7 @@ describe('Market', () => {
                     ...DEFAULT_ORDER,
                     timestamp: ORACLE_VERSION_2.timestamp,
                     orders: 1,
-                    long: POSITION,
-                    takerPos: POSITION,
+                    longPos: POSITION,
                   },
                   COLLATERAL,
                 )
@@ -2031,10 +2049,11 @@ describe('Market', () => {
                 ...DEFAULT_POSITION,
                 timestamp: ORACLE_VERSION_1.timestamp,
               })
-              expectPositionEq(await market.pendingPositions(user.address, 1), {
-                ...DEFAULT_POSITION,
+              expectOrderEq(await market.pendingOrders(user.address, 1), {
+                ...DEFAULT_ORDER,
                 timestamp: ORACLE_VERSION_2.timestamp,
-                long: POSITION,
+                orders: 1,
+                longPos: POSITION,
               })
               expectCheckpointEq(await market.checkpoints(user.address, 1), {
                 ...DEFAULT_CHECKPOINT,
@@ -2052,11 +2071,12 @@ describe('Market', () => {
                 ...DEFAULT_POSITION,
                 timestamp: ORACLE_VERSION_1.timestamp,
               })
-              expectPositionEq(await market.pendingPosition(1), {
-                ...DEFAULT_POSITION,
+              expectOrderEq(await market.pendingOrder(1), {
+                ...DEFAULT_ORDER,
                 timestamp: ORACLE_VERSION_2.timestamp,
-                maker: POSITION,
-                long: POSITION,
+                orders: 2,
+                makerPos: POSITION,
+                longPos: POSITION,
               })
               expectVersionEq(await market.versions(ORACLE_VERSION_1.timestamp), {
                 ...DEFAULT_VERSION,
@@ -2085,10 +2105,9 @@ describe('Market', () => {
                 timestamp: ORACLE_VERSION_2.timestamp,
                 long: POSITION,
               })
-              expectPositionEq(await market.pendingPositions(user.address, 2), {
-                ...DEFAULT_POSITION,
+              expectOrderEq(await market.pendingOrders(user.address, 2), {
+                ...DEFAULT_ORDER,
                 timestamp: ORACLE_VERSION_3.timestamp,
-                long: POSITION,
               })
               expectCheckpointEq(await market.checkpoints(user.address, 2), {
                 ...DEFAULT_CHECKPOINT,
@@ -2108,11 +2127,9 @@ describe('Market', () => {
                 maker: POSITION,
                 long: POSITION,
               })
-              expectPositionEq(await market.pendingPosition(2), {
-                ...DEFAULT_POSITION,
+              expectOrderEq(await market.pendingOrder(2), {
+                ...DEFAULT_ORDER,
                 timestamp: ORACLE_VERSION_3.timestamp,
-                maker: POSITION,
-                long: POSITION,
               })
               expectVersionEq(await market.versions(ORACLE_VERSION_2.timestamp), {
                 ...DEFAULT_VERSION,
@@ -2135,10 +2152,11 @@ describe('Market', () => {
                 ...DEFAULT_POSITION,
                 timestamp: ORACLE_VERSION_1.timestamp,
               })
-              expectPositionEq(await market.pendingPositions(user.address, 1), {
-                ...DEFAULT_POSITION,
+              expectOrderEq(await market.pendingOrders(user.address, 1), {
+                ...DEFAULT_ORDER,
                 timestamp: ORACLE_VERSION_2.timestamp,
-                long: POSITION,
+                orders: 1,
+                longPos: POSITION,
               })
               expectCheckpointEq(await market.checkpoints(user.address, 1), {
                 ...DEFAULT_CHECKPOINT,
@@ -2156,11 +2174,12 @@ describe('Market', () => {
                 ...DEFAULT_POSITION,
                 timestamp: ORACLE_VERSION_1.timestamp,
               })
-              expectPositionEq(await market.pendingPosition(1), {
-                ...DEFAULT_POSITION,
+              expectOrderEq(await market.pendingOrder(1), {
+                ...DEFAULT_ORDER,
                 timestamp: ORACLE_VERSION_2.timestamp,
-                maker: POSITION,
-                long: POSITION,
+                orders: 2,
+                makerPos: POSITION,
+                longPos: POSITION,
               })
             })
 
@@ -2188,10 +2207,9 @@ describe('Market', () => {
                 timestamp: ORACLE_VERSION_2.timestamp,
                 long: POSITION,
               })
-              expectPositionEq(await market.pendingPositions(user.address, 2), {
-                ...DEFAULT_POSITION,
+              expectOrderEq(await market.pendingOrders(user.address, 2), {
+                ...DEFAULT_ORDER,
                 timestamp: ORACLE_VERSION_3.timestamp,
-                long: POSITION,
               })
               expectCheckpointEq(await market.checkpoints(user.address, 2), {
                 ...DEFAULT_CHECKPOINT,
@@ -2211,11 +2229,9 @@ describe('Market', () => {
                 maker: POSITION,
                 long: POSITION,
               })
-              expectPositionEq(await market.pendingPosition(2), {
-                ...DEFAULT_POSITION,
+              expectOrderEq(await market.pendingOrder(2), {
+                ...DEFAULT_ORDER,
                 timestamp: ORACLE_VERSION_3.timestamp,
-                maker: POSITION,
-                long: POSITION,
               })
               expectVersionEq(await market.versions(ORACLE_VERSION_2.timestamp), {
                 ...DEFAULT_VERSION,
@@ -2244,10 +2260,11 @@ describe('Market', () => {
                 timestamp: ORACLE_VERSION_2.timestamp,
                 long: POSITION.div(2),
               })
-              expectPositionEq(await market.pendingPositions(user.address, 2), {
-                ...DEFAULT_POSITION,
+              expectOrderEq(await market.pendingOrders(user.address, 2), {
+                ...DEFAULT_ORDER,
                 timestamp: ORACLE_VERSION_3.timestamp,
-                long: POSITION,
+                orders: 1,
+                longPos: POSITION.div(2),
               })
               expectCheckpointEq(await market.checkpoints(user.address, 2), {
                 ...DEFAULT_CHECKPOINT,
@@ -2267,11 +2284,11 @@ describe('Market', () => {
                 maker: POSITION,
                 long: POSITION.div(2),
               })
-              expectPositionEq(await market.pendingPosition(2), {
-                ...DEFAULT_POSITION,
+              expectOrderEq(await market.pendingOrder(2), {
+                ...DEFAULT_ORDER,
                 timestamp: ORACLE_VERSION_3.timestamp,
-                maker: POSITION,
-                long: POSITION,
+                orders: 1,
+                longPos: POSITION.div(2),
               })
               expectVersionEq(await market.versions(ORACLE_VERSION_2.timestamp), {
                 ...DEFAULT_VERSION,
@@ -2307,10 +2324,9 @@ describe('Market', () => {
                 timestamp: ORACLE_VERSION_3.timestamp,
                 long: POSITION,
               })
-              expectPositionEq(await market.pendingPositions(user.address, 3), {
-                ...DEFAULT_POSITION,
+              expectOrderEq(await market.pendingOrders(user.address, 3), {
+                ...DEFAULT_ORDER,
                 timestamp: ORACLE_VERSION_4.timestamp,
-                long: POSITION,
               })
               expectCheckpointEq(await market.checkpoints(user.address, 3), {
                 ...DEFAULT_CHECKPOINT,
@@ -2329,10 +2345,9 @@ describe('Market', () => {
                 timestamp: ORACLE_VERSION_3.timestamp,
                 maker: POSITION,
               })
-              expectPositionEq(await market.pendingPositions(userB.address, 2), {
-                ...DEFAULT_POSITION,
+              expectOrderEq(await market.pendingOrders(userB.address, 2), {
+                ...DEFAULT_ORDER,
                 timestamp: ORACLE_VERSION_4.timestamp,
-                maker: POSITION,
               })
               expectCheckpointEq(await market.checkpoints(userB.address, 2), {
                 ...DEFAULT_CHECKPOINT,
@@ -2353,11 +2368,9 @@ describe('Market', () => {
                 maker: POSITION,
                 long: POSITION,
               })
-              expectPositionEq(await market.pendingPosition(3), {
-                ...DEFAULT_POSITION,
+              expectOrderEq(await market.pendingOrder(3), {
+                ...DEFAULT_ORDER,
                 timestamp: ORACLE_VERSION_4.timestamp,
-                maker: POSITION,
-                long: POSITION,
               })
               expectVersionEq(await market.versions(ORACLE_VERSION_3.timestamp), {
                 ...DEFAULT_VERSION,
@@ -2402,10 +2415,9 @@ describe('Market', () => {
                 timestamp: ORACLE_VERSION_3.timestamp,
                 long: POSITION.div(2),
               })
-              expectPositionEq(await market.pendingPositions(user.address, 2), {
-                ...DEFAULT_POSITION,
+              expectOrderEq(await market.pendingOrders(user.address, 2), {
+                ...DEFAULT_ORDER,
                 timestamp: ORACLE_VERSION_4.timestamp,
-                long: POSITION.div(2),
               })
               expectCheckpointEq(await market.checkpoints(user.address, 2), {
                 ...DEFAULT_CHECKPOINT,
@@ -2424,10 +2436,9 @@ describe('Market', () => {
                 timestamp: ORACLE_VERSION_3.timestamp,
                 maker: POSITION,
               })
-              expectPositionEq(await market.pendingPositions(userB.address, 2), {
-                ...DEFAULT_POSITION,
+              expectOrderEq(await market.pendingOrders(userB.address, 2), {
+                ...DEFAULT_ORDER,
                 timestamp: ORACLE_VERSION_4.timestamp,
-                maker: POSITION,
               })
               expectCheckpointEq(await market.checkpoints(userB.address, 2), {
                 ...DEFAULT_CHECKPOINT,
@@ -2448,11 +2459,9 @@ describe('Market', () => {
                 maker: POSITION,
                 long: POSITION.div(2),
               })
-              expectPositionEq(await market.pendingPosition(2), {
-                ...DEFAULT_POSITION,
+              expectOrderEq(await market.pendingOrder(2), {
+                ...DEFAULT_ORDER,
                 timestamp: ORACLE_VERSION_4.timestamp,
-                maker: POSITION,
-                long: POSITION.div(2),
               })
               expectVersionEq(await market.versions(ORACLE_VERSION_3.timestamp), {
                 ...DEFAULT_VERSION,
@@ -2516,10 +2525,9 @@ describe('Market', () => {
                 timestamp: ORACLE_VERSION_3.timestamp,
                 long: POSITION.div(2),
               })
-              expectPositionEq(await market.pendingPositions(user.address, 2), {
-                ...DEFAULT_POSITION,
+              expectOrderEq(await market.pendingOrders(user.address, 2), {
+                ...DEFAULT_ORDER,
                 timestamp: ORACLE_VERSION_4.timestamp,
-                long: POSITION.div(2),
               })
               expectCheckpointEq(await market.checkpoints(user.address, 2), {
                 ...DEFAULT_CHECKPOINT,
@@ -2539,10 +2547,9 @@ describe('Market', () => {
                 timestamp: ORACLE_VERSION_3.timestamp,
                 maker: POSITION,
               })
-              expectPositionEq(await market.pendingPositions(userB.address, 2), {
-                ...DEFAULT_POSITION,
+              expectOrderEq(await market.pendingOrders(userB.address, 2), {
+                ...DEFAULT_ORDER,
                 timestamp: ORACLE_VERSION_4.timestamp,
-                maker: POSITION,
               })
               expectCheckpointEq(await market.checkpoints(userB.address, 2), {
                 ...DEFAULT_CHECKPOINT,
@@ -2564,11 +2571,9 @@ describe('Market', () => {
                 maker: POSITION,
                 long: POSITION.div(2),
               })
-              expectPositionEq(await market.pendingPosition(2), {
-                ...DEFAULT_POSITION,
+              expectOrderEq(await market.pendingOrder(2), {
+                ...DEFAULT_ORDER,
                 timestamp: ORACLE_VERSION_4.timestamp,
-                maker: POSITION,
-                long: POSITION.div(2),
               })
               expectVersionEq(await market.versions(ORACLE_VERSION_3.timestamp), {
                 ...DEFAULT_VERSION,
@@ -2641,11 +2646,9 @@ describe('Market', () => {
                 maker: 0,
                 long: POSITION.div(2),
               })
-              expectPositionEq(await market.pendingPositions(user.address, 2), {
-                ...DEFAULT_POSITION,
+              expectOrderEq(await market.pendingOrders(user.address, 2), {
+                ...DEFAULT_ORDER,
                 timestamp: ORACLE_VERSION_5.timestamp,
-                maker: 0,
-                long: POSITION.div(2),
               })
               expectCheckpointEq(await market.checkpoints(user.address, 2), {
                 ...DEFAULT_CHECKPOINT,
@@ -2665,10 +2668,9 @@ describe('Market', () => {
                 timestamp: ORACLE_VERSION_4.timestamp,
                 maker: POSITION,
               })
-              expectPositionEq(await market.pendingPositions(userB.address, 2), {
-                ...DEFAULT_POSITION,
+              expectOrderEq(await market.pendingOrders(userB.address, 2), {
+                ...DEFAULT_ORDER,
                 timestamp: ORACLE_VERSION_5.timestamp,
-                maker: POSITION,
               })
               expectCheckpointEq(await market.checkpoints(userB.address, 2), {
                 ...DEFAULT_CHECKPOINT,
@@ -2689,11 +2691,9 @@ describe('Market', () => {
                 maker: POSITION,
                 long: POSITION.div(2),
               })
-              expectPositionEq(await market.pendingPosition(3), {
-                ...DEFAULT_POSITION,
+              expectOrderEq(await market.pendingOrder(3), {
+                ...DEFAULT_ORDER,
                 timestamp: ORACLE_VERSION_5.timestamp,
-                maker: POSITION,
-                long: POSITION.div(2),
               })
               expectVersionEq(await market.versions(ORACLE_VERSION_4.timestamp), {
                 ...DEFAULT_VERSION,
@@ -2726,8 +2726,7 @@ describe('Market', () => {
                     ...DEFAULT_ORDER,
                     timestamp: ORACLE_VERSION_2.timestamp,
                     orders: 1,
-                    long: POSITION.div(4).mul(-1),
-                    takerNeg: POSITION.div(4),
+                    longNeg: POSITION.div(4),
                   },
                   0,
                 )
@@ -2742,10 +2741,11 @@ describe('Market', () => {
                 ...DEFAULT_POSITION,
                 timestamp: ORACLE_VERSION_1.timestamp,
               })
-              expectPositionEq(await market.pendingPositions(user.address, 1), {
-                ...DEFAULT_POSITION,
+              expectOrderEq(await market.pendingOrders(user.address, 1), {
+                ...DEFAULT_ORDER,
                 timestamp: ORACLE_VERSION_2.timestamp,
-                long: POSITION.div(4),
+                orders: 1,
+                longPos: POSITION.div(4),
               })
               expectCheckpointEq(await market.checkpoints(user.address, 1), {
                 ...DEFAULT_CHECKPOINT,
@@ -2763,11 +2763,12 @@ describe('Market', () => {
                 ...DEFAULT_POSITION,
                 timestamp: ORACLE_VERSION_1.timestamp,
               })
-              expectPositionEq(await market.pendingPosition(1), {
-                ...DEFAULT_POSITION,
+              expectOrderEq(await market.pendingOrder(1), {
+                ...DEFAULT_ORDER,
                 timestamp: ORACLE_VERSION_2.timestamp,
-                maker: POSITION,
-                long: POSITION.div(4),
+                orders: 2,
+                makerPos: POSITION,
+                longPos: POSITION.div(4),
               })
               expectVersionEq(await market.versions(ORACLE_VERSION_1.timestamp), {
                 ...DEFAULT_VERSION,
@@ -2786,8 +2787,7 @@ describe('Market', () => {
                     ...DEFAULT_ORDER,
                     timestamp: ORACLE_VERSION_2.timestamp,
                     orders: 1,
-                    long: POSITION.div(2).mul(-1),
-                    takerNeg: POSITION.div(2),
+                    longNeg: POSITION.div(2),
                   },
                   0,
                 )
@@ -2802,8 +2802,8 @@ describe('Market', () => {
                 ...DEFAULT_POSITION,
                 timestamp: ORACLE_VERSION_1.timestamp,
               })
-              expectPositionEq(await market.pendingPositions(user.address, 1), {
-                ...DEFAULT_POSITION,
+              expectOrderEq(await market.pendingOrders(user.address, 1), {
+                ...DEFAULT_ORDER,
                 timestamp: ORACLE_VERSION_2.timestamp,
               })
               expectCheckpointEq(await market.checkpoints(user.address, 1), {
@@ -2822,10 +2822,11 @@ describe('Market', () => {
                 ...DEFAULT_POSITION,
                 timestamp: ORACLE_VERSION_1.timestamp,
               })
-              expectPositionEq(await market.pendingPosition(1), {
-                ...DEFAULT_POSITION,
+              expectOrderEq(await market.pendingOrder(1), {
+                ...DEFAULT_ORDER,
                 timestamp: ORACLE_VERSION_2.timestamp,
-                maker: POSITION,
+                orders: 1,
+                makerPos: POSITION,
               })
               expectVersionEq(await market.versions(ORACLE_VERSION_1.timestamp), {
                 ...DEFAULT_VERSION,
@@ -2857,9 +2858,11 @@ describe('Market', () => {
                   timestamp: ORACLE_VERSION_2.timestamp,
                   long: POSITION.div(2),
                 })
-                expectPositionEq(await market.pendingPositions(user.address, 2), {
-                  ...DEFAULT_POSITION,
+                expectOrderEq(await market.pendingOrders(user.address, 2), {
+                  ...DEFAULT_ORDER,
                   timestamp: ORACLE_VERSION_3.timestamp,
+                  orders: 1,
+                  longNeg: POSITION.div(2),
                 })
                 expectCheckpointEq(await market.checkpoints(user.address, 2), {
                   ...DEFAULT_CHECKPOINT,
@@ -2879,10 +2882,11 @@ describe('Market', () => {
                   maker: POSITION,
                   long: POSITION.div(2),
                 })
-                expectPositionEq(await market.pendingPosition(2), {
-                  ...DEFAULT_POSITION,
+                expectOrderEq(await market.pendingOrder(2), {
+                  ...DEFAULT_ORDER,
                   timestamp: ORACLE_VERSION_3.timestamp,
-                  maker: POSITION,
+                  orders: 1,
+                  longNeg: POSITION.div(2),
                 })
                 expectVersionEq(await market.versions(ORACLE_VERSION_2.timestamp), {
                   ...DEFAULT_VERSION,
@@ -2911,8 +2915,8 @@ describe('Market', () => {
                   ...DEFAULT_POSITION,
                   timestamp: ORACLE_VERSION_3.timestamp,
                 })
-                expectPositionEq(await market.pendingPositions(user.address, 3), {
-                  ...DEFAULT_POSITION,
+                expectOrderEq(await market.pendingOrders(user.address, 3), {
+                  ...DEFAULT_ORDER,
                   timestamp: ORACLE_VERSION_4.timestamp,
                 })
                 expectCheckpointEq(await market.checkpoints(user.address, 3), {
@@ -2932,10 +2936,9 @@ describe('Market', () => {
                   timestamp: ORACLE_VERSION_3.timestamp,
                   maker: POSITION,
                 })
-                expectPositionEq(await market.pendingPositions(userB.address, 2), {
-                  ...DEFAULT_POSITION,
+                expectOrderEq(await market.pendingOrders(userB.address, 2), {
+                  ...DEFAULT_ORDER,
                   timestamp: ORACLE_VERSION_4.timestamp,
-                  maker: POSITION,
                 })
                 expectCheckpointEq(await market.checkpoints(userB.address, 2), {
                   ...DEFAULT_CHECKPOINT,
@@ -2955,10 +2958,9 @@ describe('Market', () => {
                   timestamp: ORACLE_VERSION_3.timestamp,
                   maker: POSITION,
                 })
-                expectPositionEq(await market.pendingPosition(3), {
-                  ...DEFAULT_POSITION,
+                expectOrderEq(await market.pendingOrder(3), {
+                  ...DEFAULT_ORDER,
                   timestamp: ORACLE_VERSION_4.timestamp,
-                  maker: POSITION,
                 })
                 expectVersionEq(await market.versions(ORACLE_VERSION_3.timestamp), {
                   ...DEFAULT_VERSION,
@@ -2989,9 +2991,11 @@ describe('Market', () => {
                   timestamp: ORACLE_VERSION_2.timestamp,
                   long: POSITION.div(2),
                 })
-                expectPositionEq(await market.pendingPositions(user.address, 2), {
-                  ...DEFAULT_POSITION,
+                expectOrderEq(await market.pendingOrders(user.address, 2), {
+                  ...DEFAULT_ORDER,
                   timestamp: ORACLE_VERSION_3.timestamp,
+                  orders: 1,
+                  longNeg: POSITION.div(2),
                 })
                 expectCheckpointEq(await market.checkpoints(user.address, 2), {
                   ...DEFAULT_CHECKPOINT,
@@ -3008,13 +3012,14 @@ describe('Market', () => {
                 expectPositionEq(await market.position(), {
                   ...DEFAULT_POSITION,
                   timestamp: ORACLE_VERSION_2.timestamp,
-                  maker: POSITION,
                   long: POSITION.div(2),
-                })
-                expectPositionEq(await market.pendingPosition(2), {
-                  ...DEFAULT_POSITION,
-                  timestamp: ORACLE_VERSION_3.timestamp,
                   maker: POSITION,
+                })
+                expectOrderEq(await market.pendingOrder(2), {
+                  ...DEFAULT_ORDER,
+                  timestamp: ORACLE_VERSION_3.timestamp,
+                  orders: 1,
+                  longNeg: POSITION.div(2),
                 })
                 expectVersionEq(await market.versions(ORACLE_VERSION_2.timestamp), {
                   ...DEFAULT_VERSION,
@@ -3045,8 +3050,8 @@ describe('Market', () => {
                   ...DEFAULT_POSITION,
                   timestamp: ORACLE_VERSION_3.timestamp,
                 })
-                expectPositionEq(await market.pendingPositions(user.address, 3), {
-                  ...DEFAULT_POSITION,
+                expectOrderEq(await market.pendingOrders(user.address, 3), {
+                  ...DEFAULT_ORDER,
                   timestamp: ORACLE_VERSION_4.timestamp,
                 })
                 expectCheckpointEq(await market.checkpoints(user.address, 3), {
@@ -3066,10 +3071,9 @@ describe('Market', () => {
                   timestamp: ORACLE_VERSION_3.timestamp,
                   maker: POSITION,
                 })
-                expectPositionEq(await market.pendingPositions(userB.address, 2), {
-                  ...DEFAULT_POSITION,
+                expectOrderEq(await market.pendingOrders(userB.address, 2), {
+                  ...DEFAULT_ORDER,
                   timestamp: ORACLE_VERSION_4.timestamp,
-                  maker: POSITION,
                 })
                 expectCheckpointEq(await market.checkpoints(userB.address, 2), {
                   ...DEFAULT_CHECKPOINT,
@@ -3089,10 +3093,9 @@ describe('Market', () => {
                   timestamp: ORACLE_VERSION_3.timestamp,
                   maker: POSITION,
                 })
-                expectPositionEq(await market.pendingPosition(3), {
-                  ...DEFAULT_POSITION,
+                expectOrderEq(await market.pendingOrder(3), {
+                  ...DEFAULT_ORDER,
                   timestamp: ORACLE_VERSION_4.timestamp,
-                  maker: POSITION,
                 })
                 expectVersionEq(await market.versions(ORACLE_VERSION_3.timestamp), {
                   ...DEFAULT_VERSION,
@@ -3130,9 +3133,11 @@ describe('Market', () => {
                   timestamp: ORACLE_VERSION_3.timestamp,
                   long: POSITION.div(4),
                 })
-                expectPositionEq(await market.pendingPositions(user.address, 3), {
-                  ...DEFAULT_POSITION,
+                expectOrderEq(await market.pendingOrders(user.address, 3), {
+                  ...DEFAULT_ORDER,
                   timestamp: ORACLE_VERSION_4.timestamp,
+                  orders: 1,
+                  longNeg: POSITION.div(4),
                 })
                 expectCheckpointEq(await market.checkpoints(user.address, 3), {
                   ...DEFAULT_CHECKPOINT,
@@ -3151,10 +3156,9 @@ describe('Market', () => {
                   timestamp: ORACLE_VERSION_3.timestamp,
                   maker: POSITION,
                 })
-                expectPositionEq(await market.pendingPositions(userB.address, 2), {
-                  ...DEFAULT_POSITION,
+                expectOrderEq(await market.pendingOrders(userB.address, 2), {
+                  ...DEFAULT_ORDER,
                   timestamp: ORACLE_VERSION_4.timestamp,
-                  maker: POSITION,
                 })
                 expectCheckpointEq(await market.checkpoints(userB.address, 2), {
                   ...DEFAULT_CHECKPOINT,
@@ -3175,10 +3179,11 @@ describe('Market', () => {
                   maker: POSITION,
                   long: POSITION.div(4),
                 })
-                expectPositionEq(await market.pendingPosition(3), {
-                  ...DEFAULT_POSITION,
+                expectOrderEq(await market.pendingOrder(3), {
+                  ...DEFAULT_ORDER,
                   timestamp: ORACLE_VERSION_4.timestamp,
-                  maker: POSITION,
+                  orders: 1,
+                  longNeg: POSITION.div(4),
                 })
                 expectVersionEq(await market.versions(ORACLE_VERSION_3.timestamp), {
                   ...DEFAULT_VERSION,
@@ -3228,8 +3233,8 @@ describe('Market', () => {
                   ...DEFAULT_POSITION,
                   timestamp: ORACLE_VERSION_4.timestamp,
                 })
-                expectPositionEq(await market.pendingPositions(user.address, 4), {
-                  ...DEFAULT_POSITION,
+                expectOrderEq(await market.pendingOrders(user.address, 4), {
+                  ...DEFAULT_ORDER,
                   timestamp: ORACLE_VERSION_5.timestamp,
                 })
                 expectCheckpointEq(await market.checkpoints(user.address, 4), {
@@ -3251,10 +3256,9 @@ describe('Market', () => {
                   timestamp: ORACLE_VERSION_4.timestamp,
                   maker: POSITION,
                 })
-                expectPositionEq(await market.pendingPositions(userB.address, 2), {
-                  ...DEFAULT_POSITION,
+                expectOrderEq(await market.pendingOrders(userB.address, 2), {
+                  ...DEFAULT_ORDER,
                   timestamp: ORACLE_VERSION_5.timestamp,
-                  maker: POSITION,
                 })
                 expectCheckpointEq(await market.checkpoints(userB.address, 2), {
                   ...DEFAULT_CHECKPOINT,
@@ -3276,10 +3280,9 @@ describe('Market', () => {
                   timestamp: ORACLE_VERSION_4.timestamp,
                   maker: POSITION,
                 })
-                expectPositionEq(await market.pendingPosition(4), {
-                  ...DEFAULT_POSITION,
+                expectOrderEq(await market.pendingOrder(4), {
+                  ...DEFAULT_ORDER,
                   timestamp: ORACLE_VERSION_5.timestamp,
-                  maker: POSITION,
                 })
                 expectVersionEq(await market.versions(ORACLE_VERSION_3.timestamp), {
                   ...DEFAULT_VERSION,
@@ -3332,8 +3335,8 @@ describe('Market', () => {
                   ...DEFAULT_POSITION,
                   timestamp: ORACLE_VERSION_4.timestamp,
                 })
-                expectPositionEq(await market.pendingPositions(user.address, 3), {
-                  ...DEFAULT_POSITION,
+                expectOrderEq(await market.pendingOrders(user.address, 3), {
+                  ...DEFAULT_ORDER,
                   timestamp: ORACLE_VERSION_5.timestamp,
                 })
                 expectCheckpointEq(await market.checkpoints(user.address, 3), {
@@ -3353,10 +3356,9 @@ describe('Market', () => {
                   timestamp: ORACLE_VERSION_4.timestamp,
                   maker: POSITION,
                 })
-                expectPositionEq(await market.pendingPositions(userB.address, 2), {
-                  ...DEFAULT_POSITION,
+                expectOrderEq(await market.pendingOrders(userB.address, 2), {
+                  ...DEFAULT_ORDER,
                   timestamp: ORACLE_VERSION_5.timestamp,
-                  maker: POSITION,
                 })
                 expectCheckpointEq(await market.checkpoints(userB.address, 2), {
                   ...DEFAULT_CHECKPOINT,
@@ -3376,10 +3378,9 @@ describe('Market', () => {
                   timestamp: ORACLE_VERSION_4.timestamp,
                   maker: POSITION,
                 })
-                expectPositionEq(await market.pendingPosition(3), {
-                  ...DEFAULT_POSITION,
+                expectOrderEq(await market.pendingOrder(3), {
+                  ...DEFAULT_ORDER,
                   timestamp: ORACLE_VERSION_5.timestamp,
-                  maker: POSITION,
                 })
                 expectVersionEq(await market.versions(ORACLE_VERSION_4.timestamp), {
                   ...DEFAULT_VERSION,
@@ -3437,8 +3438,8 @@ describe('Market', () => {
                   ...DEFAULT_POSITION,
                   timestamp: ORACLE_VERSION_4.timestamp,
                 })
-                expectPositionEq(await market.pendingPositions(user.address, 3), {
-                  ...DEFAULT_POSITION,
+                expectOrderEq(await market.pendingOrders(user.address, 3), {
+                  ...DEFAULT_ORDER,
                   timestamp: ORACLE_VERSION_5.timestamp,
                 })
                 expectCheckpointEq(await market.checkpoints(user.address, 3), {
@@ -3459,10 +3460,9 @@ describe('Market', () => {
                   timestamp: ORACLE_VERSION_4.timestamp,
                   maker: POSITION,
                 })
-                expectPositionEq(await market.pendingPositions(userB.address, 2), {
-                  ...DEFAULT_POSITION,
+                expectOrderEq(await market.pendingOrders(userB.address, 2), {
+                  ...DEFAULT_ORDER,
                   timestamp: ORACLE_VERSION_5.timestamp,
-                  maker: POSITION,
                 })
                 expectCheckpointEq(await market.checkpoints(userB.address, 2), {
                   ...DEFAULT_CHECKPOINT,
@@ -3482,10 +3482,9 @@ describe('Market', () => {
                   timestamp: ORACLE_VERSION_4.timestamp,
                   maker: POSITION,
                 })
-                expectPositionEq(await market.pendingPosition(3), {
-                  ...DEFAULT_POSITION,
+                expectOrderEq(await market.pendingOrder(3), {
+                  ...DEFAULT_ORDER,
                   timestamp: ORACLE_VERSION_5.timestamp,
-                  maker: POSITION,
                 })
                 expectVersionEq(await market.versions(ORACLE_VERSION_4.timestamp), {
                   ...DEFAULT_VERSION,
@@ -3542,10 +3541,9 @@ describe('Market', () => {
               timestamp: ORACLE_VERSION_2.timestamp,
               long: POSITION.div(2),
             })
-            expectPositionEq(await market.pendingPositions(user.address, 2), {
-              ...DEFAULT_POSITION,
+            expectOrderEq(await market.pendingOrders(user.address, 2), {
+              ...DEFAULT_ORDER,
               timestamp: ORACLE_VERSION_3.timestamp,
-              long: POSITION.div(2),
             })
             expectCheckpointEq(await market.checkpoints(user.address, 2), {
               ...DEFAULT_CHECKPOINT,
@@ -3562,10 +3560,9 @@ describe('Market', () => {
               timestamp: ORACLE_VERSION_2.timestamp,
               maker: POSITION,
             })
-            expectPositionEq(await market.pendingPositions(userB.address, 2), {
-              ...DEFAULT_POSITION,
+            expectOrderEq(await market.pendingOrders(userB.address, 2), {
+              ...DEFAULT_ORDER,
               timestamp: ORACLE_VERSION_3.timestamp,
-              maker: POSITION,
             })
             expectCheckpointEq(await market.checkpoints(userB.address, 2), {
               ...DEFAULT_CHECKPOINT,
@@ -3585,11 +3582,9 @@ describe('Market', () => {
               maker: POSITION,
               long: POSITION.div(2),
             })
-            expectPositionEq(await market.pendingPosition(2), {
-              ...DEFAULT_POSITION,
+            expectOrderEq(await market.pendingOrder(2), {
+              ...DEFAULT_ORDER,
               timestamp: ORACLE_VERSION_3.timestamp,
-              maker: POSITION,
-              long: POSITION.div(2),
             })
           })
 
@@ -3653,10 +3648,9 @@ describe('Market', () => {
               timestamp: ORACLE_VERSION_3.timestamp,
               long: POSITION.div(2),
             })
-            expectPositionEq(await market.pendingPositions(user.address, 3), {
-              ...DEFAULT_POSITION,
+            expectOrderEq(await market.pendingOrders(user.address, 3), {
+              ...DEFAULT_ORDER,
               timestamp: ORACLE_VERSION_4.timestamp,
-              long: POSITION.div(2),
             })
             expectCheckpointEq(await market.checkpoints(user.address, 3), {
               ...DEFAULT_CHECKPOINT,
@@ -3676,10 +3670,9 @@ describe('Market', () => {
               timestamp: ORACLE_VERSION_3.timestamp,
               maker: POSITION,
             })
-            expectPositionEq(await market.pendingPositions(userB.address, 3), {
-              ...DEFAULT_POSITION,
+            expectOrderEq(await market.pendingOrders(userB.address, 3), {
+              ...DEFAULT_ORDER,
               timestamp: ORACLE_VERSION_4.timestamp,
-              maker: POSITION,
             })
             expectCheckpointEq(await market.checkpoints(userB.address, 3), {
               ...DEFAULT_CHECKPOINT,
@@ -3700,11 +3693,9 @@ describe('Market', () => {
               maker: POSITION,
               long: POSITION.div(2),
             })
-            expectPositionEq(await market.pendingPosition(3), {
-              ...DEFAULT_POSITION,
+            expectOrderEq(await market.pendingOrder(3), {
+              ...DEFAULT_ORDER,
               timestamp: ORACLE_VERSION_4.timestamp,
-              maker: POSITION,
-              long: POSITION.div(2),
             })
             expectVersionEq(await market.versions(ORACLE_VERSION_3.timestamp), {
               ...DEFAULT_VERSION,
@@ -3777,10 +3768,9 @@ describe('Market', () => {
               timestamp: ORACLE_VERSION_3.timestamp,
               long: POSITION.div(2),
             })
-            expectPositionEq(await market.pendingPositions(user.address, 3), {
-              ...DEFAULT_POSITION,
+            expectOrderEq(await market.pendingOrders(user.address, 3), {
+              ...DEFAULT_ORDER,
               timestamp: ORACLE_VERSION_4.timestamp,
-              long: POSITION.div(2),
             })
             expectCheckpointEq(await market.checkpoints(user.address, 3), {
               ...DEFAULT_CHECKPOINT,
@@ -3800,10 +3790,9 @@ describe('Market', () => {
               timestamp: ORACLE_VERSION_3.timestamp,
               maker: POSITION,
             })
-            expectPositionEq(await market.pendingPositions(userB.address, 3), {
-              ...DEFAULT_POSITION,
+            expectOrderEq(await market.pendingOrders(userB.address, 3), {
+              ...DEFAULT_ORDER,
               timestamp: ORACLE_VERSION_4.timestamp,
-              maker: POSITION,
             })
             expectCheckpointEq(await market.checkpoints(userB.address, 3), {
               ...DEFAULT_CHECKPOINT,
@@ -3824,11 +3813,9 @@ describe('Market', () => {
               maker: POSITION,
               long: POSITION.div(2),
             })
-            expectPositionEq(await market.pendingPosition(3), {
-              ...DEFAULT_POSITION,
+            expectOrderEq(await market.pendingOrder(3), {
+              ...DEFAULT_ORDER,
               timestamp: ORACLE_VERSION_4.timestamp,
-              maker: POSITION,
-              long: POSITION.div(2),
             })
             expectVersionEq(await market.versions(ORACLE_VERSION_3.timestamp), {
               ...DEFAULT_VERSION,
@@ -3922,10 +3909,9 @@ describe('Market', () => {
                 timestamp: ORACLE_VERSION_5.timestamp,
                 long: POSITION.div(2),
               })
-              expectPositionEq(await market.pendingPositions(user.address, 5), {
-                ...DEFAULT_POSITION,
+              expectOrderEq(await market.pendingOrders(user.address, 5), {
+                ...DEFAULT_ORDER,
                 timestamp: ORACLE_VERSION_6.timestamp,
-                long: POSITION.div(2),
               })
               expectCheckpointEq(await market.checkpoints(user.address, 5), {
                 ...DEFAULT_CHECKPOINT,
@@ -3950,8 +3936,8 @@ describe('Market', () => {
                 ...DEFAULT_POSITION,
                 timestamp: ORACLE_VERSION_5.timestamp,
               })
-              expectPositionEq(await market.pendingPositions(userB.address, 5), {
-                ...DEFAULT_POSITION,
+              expectOrderEq(await market.pendingOrders(userB.address, 5), {
+                ...DEFAULT_ORDER,
                 timestamp: ORACLE_VERSION_6.timestamp,
               })
               expectCheckpointEq(await market.checkpoints(userB.address, 5), {
@@ -3974,10 +3960,9 @@ describe('Market', () => {
                 timestamp: ORACLE_VERSION_5.timestamp,
                 long: POSITION.div(2),
               })
-              expectPositionEq(await market.pendingPosition(5), {
-                ...DEFAULT_POSITION,
+              expectOrderEq(await market.pendingOrder(5), {
+                ...DEFAULT_ORDER,
                 timestamp: ORACLE_VERSION_6.timestamp,
-                long: POSITION.div(2),
               })
               expectVersionEq(await market.versions(ORACLE_VERSION_3.timestamp), {
                 ...DEFAULT_VERSION,
@@ -4124,10 +4109,9 @@ describe('Market', () => {
                 timestamp: ORACLE_VERSION_5.timestamp,
                 long: POSITION.div(2),
               })
-              expectPositionEq(await market.pendingPositions(user.address, 5), {
-                ...DEFAULT_POSITION,
+              expectOrderEq(await market.pendingOrders(user.address, 5), {
+                ...DEFAULT_ORDER,
                 timestamp: ORACLE_VERSION_6.timestamp,
-                long: POSITION.div(2),
               })
               expectCheckpointEq(await market.checkpoints(user.address, 5), {
                 ...DEFAULT_CHECKPOINT,
@@ -4150,8 +4134,8 @@ describe('Market', () => {
                 ...DEFAULT_POSITION,
                 timestamp: ORACLE_VERSION_5.timestamp,
               })
-              expectPositionEq(await market.pendingPositions(userB.address, 5), {
-                ...DEFAULT_POSITION,
+              expectOrderEq(await market.pendingOrders(userB.address, 5), {
+                ...DEFAULT_ORDER,
                 timestamp: ORACLE_VERSION_6.timestamp,
               })
               expectCheckpointEq(await market.checkpoints(userB.address, 5), {
@@ -4175,10 +4159,9 @@ describe('Market', () => {
                 timestamp: ORACLE_VERSION_5.timestamp,
                 maker: POSITION.div(4),
               })
-              expectPositionEq(await market.pendingPositions(userC.address, 5), {
-                ...DEFAULT_POSITION,
+              expectOrderEq(await market.pendingOrders(userC.address, 5), {
+                ...DEFAULT_ORDER,
                 timestamp: ORACLE_VERSION_6.timestamp,
-                maker: POSITION.div(4),
               })
               expectCheckpointEq(await market.checkpoints(user.address, 5), {
                 ...DEFAULT_CHECKPOINT,
@@ -4201,11 +4184,9 @@ describe('Market', () => {
                 maker: POSITION.div(4),
                 long: POSITION.div(2),
               })
-              expectPositionEq(await market.pendingPosition(5), {
-                ...DEFAULT_POSITION,
+              expectOrderEq(await market.pendingOrder(5), {
+                ...DEFAULT_ORDER,
                 timestamp: ORACLE_VERSION_6.timestamp,
-                maker: POSITION.div(4),
-                long: POSITION.div(2),
               })
               expectVersionEq(await market.versions(ORACLE_VERSION_3.timestamp), {
                 ...DEFAULT_VERSION,
@@ -4304,10 +4285,9 @@ describe('Market', () => {
                 timestamp: ORACLE_VERSION_3.timestamp,
                 long: POSITION.div(2),
               })
-              expectPositionEq(await market.pendingPositions(user.address, 3), {
-                ...DEFAULT_POSITION,
+              expectOrderEq(await market.pendingOrders(user.address, 3), {
+                ...DEFAULT_ORDER,
                 timestamp: ORACLE_VERSION_4.timestamp,
-                long: POSITION.div(2),
               })
               expectCheckpointEq(await market.checkpoints(user.address, 3), {
                 ...DEFAULT_CHECKPOINT,
@@ -4331,9 +4311,11 @@ describe('Market', () => {
                 timestamp: ORACLE_VERSION_3.timestamp,
                 maker: POSITION,
               })
-              expectPositionEq(await market.pendingPositions(userB.address, 3), {
-                ...DEFAULT_POSITION,
+              expectOrderEq(await market.pendingOrders(userB.address, 3), {
+                ...DEFAULT_ORDER,
                 timestamp: ORACLE_VERSION_4.timestamp,
+                orders: 1,
+                makerNeg: POSITION,
               })
               expectCheckpointEq(await market.checkpoints(userB.address, 3), {
                 ...DEFAULT_CHECKPOINT,
@@ -4354,10 +4336,11 @@ describe('Market', () => {
                 maker: POSITION,
                 long: POSITION.div(2),
               })
-              expectPositionEq(await market.pendingPosition(3), {
-                ...DEFAULT_POSITION,
+              expectOrderEq(await market.pendingOrder(3), {
+                ...DEFAULT_ORDER,
                 timestamp: ORACLE_VERSION_4.timestamp,
-                long: POSITION.div(2),
+                orders: 1,
+                makerNeg: POSITION,
               })
               expectVersionEq(await market.versions(ORACLE_VERSION_3.timestamp), {
                 ...DEFAULT_VERSION,
@@ -4429,8 +4412,8 @@ describe('Market', () => {
                 ...DEFAULT_POSITION,
                 timestamp: ORACLE_VERSION_4.timestamp,
               })
-              expectPositionEq(await market.pendingPositions(userB.address, 4), {
-                ...DEFAULT_POSITION,
+              expectOrderEq(await market.pendingOrders(userB.address, 4), {
+                ...DEFAULT_ORDER,
                 timestamp: ORACLE_VERSION_5.timestamp,
               })
               expectCheckpointEq(await market.checkpoints(userB.address, 4), {
@@ -4517,8 +4500,8 @@ describe('Market', () => {
                 ...DEFAULT_POSITION,
                 timestamp: ORACLE_VERSION_5.timestamp,
               })
-              expectPositionEq(await market.pendingPositions(user.address, 5), {
-                ...DEFAULT_POSITION,
+              expectOrderEq(await market.pendingOrders(user.address, 5), {
+                ...DEFAULT_ORDER,
                 timestamp: ORACLE_VERSION_6.timestamp,
               })
               expectCheckpointEq(await market.checkpoints(user.address, 5), {
@@ -4540,10 +4523,9 @@ describe('Market', () => {
                 timestamp: ORACLE_VERSION_5.timestamp,
                 maker: POSITION,
               })
-              expectPositionEq(await market.pendingPositions(userB.address, 5), {
-                ...DEFAULT_POSITION,
+              expectOrderEq(await market.pendingOrders(userB.address, 5), {
+                ...DEFAULT_ORDER,
                 timestamp: ORACLE_VERSION_6.timestamp,
-                maker: POSITION,
               })
               expectCheckpointEq(await market.checkpoints(userB.address, 5), {
                 ...DEFAULT_CHECKPOINT,
@@ -4565,10 +4547,9 @@ describe('Market', () => {
                 timestamp: ORACLE_VERSION_5.timestamp,
                 maker: POSITION,
               })
-              expectPositionEq(await market.pendingPosition(5), {
-                ...DEFAULT_POSITION,
+              expectOrderEq(await market.pendingOrder(5), {
+                ...DEFAULT_ORDER,
                 timestamp: ORACLE_VERSION_6.timestamp,
-                maker: POSITION,
               })
               expectVersionEq(await market.versions(ORACLE_VERSION_3.timestamp), {
                 ...DEFAULT_VERSION,
@@ -4667,9 +4648,11 @@ describe('Market', () => {
                 timestamp: ORACLE_VERSION_3.timestamp,
                 long: POSITION.div(2),
               })
-              expectPositionEq(await market.pendingPositions(user.address, 3), {
-                ...DEFAULT_POSITION,
+              expectOrderEq(await market.pendingOrders(user.address, 3), {
+                ...DEFAULT_ORDER,
                 timestamp: ORACLE_VERSION_4.timestamp,
+                orders: 1,
+                longNeg: POSITION.div(2),
               })
               expectCheckpointEq(await market.checkpoints(user.address, 3), {
                 ...DEFAULT_CHECKPOINT,
@@ -4690,10 +4673,9 @@ describe('Market', () => {
                 timestamp: ORACLE_VERSION_3.timestamp,
                 maker: POSITION,
               })
-              expectPositionEq(await market.pendingPositions(userB.address, 3), {
-                ...DEFAULT_POSITION,
+              expectOrderEq(await market.pendingOrders(userB.address, 3), {
+                ...DEFAULT_ORDER,
                 timestamp: ORACLE_VERSION_4.timestamp,
-                maker: POSITION,
               })
               expectCheckpointEq(await market.checkpoints(userB.address, 3), {
                 ...DEFAULT_CHECKPOINT,
@@ -4714,10 +4696,11 @@ describe('Market', () => {
                 maker: POSITION,
                 long: POSITION.div(2),
               })
-              expectPositionEq(await market.pendingPosition(3), {
-                ...DEFAULT_POSITION,
+              expectOrderEq(await market.pendingOrder(3), {
+                ...DEFAULT_ORDER,
                 timestamp: ORACLE_VERSION_4.timestamp,
-                maker: POSITION,
+                orders: 1,
+                longNeg: POSITION.div(2),
               })
               expectVersionEq(await market.versions(ORACLE_VERSION_3.timestamp), {
                 ...DEFAULT_VERSION,
@@ -4785,8 +4768,8 @@ describe('Market', () => {
                 ...DEFAULT_POSITION,
                 timestamp: ORACLE_VERSION_4.timestamp,
               })
-              expectPositionEq(await market.pendingPositions(user.address, 4), {
-                ...DEFAULT_POSITION,
+              expectOrderEq(await market.pendingOrders(user.address, 4), {
+                ...DEFAULT_ORDER,
                 timestamp: ORACLE_VERSION_5.timestamp,
               })
               expectCheckpointEq(await market.checkpoints(user.address, 4), {
@@ -4846,10 +4829,9 @@ describe('Market', () => {
               timestamp: ORACLE_VERSION_4.timestamp,
               maker: POSITION,
             })
-            expectPositionEq(await market.pendingPositions(user.address, 3), {
-              ...DEFAULT_POSITION,
+            expectOrderEq(await market.pendingOrders(user.address, 3), {
+              ...DEFAULT_ORDER,
               timestamp: ORACLE_VERSION_5.timestamp,
-              maker: POSITION,
             })
             expectCheckpointEq(await market.checkpoints(user.address, 3), {
               ...DEFAULT_CHECKPOINT,
@@ -4866,10 +4848,9 @@ describe('Market', () => {
               timestamp: ORACLE_VERSION_4.timestamp,
               long: POSITION.div(2),
             })
-            expectPositionEq(await market.pendingPositions(userB.address, 3), {
-              ...DEFAULT_POSITION,
+            expectOrderEq(await market.pendingOrders(userB.address, 3), {
+              ...DEFAULT_ORDER,
               timestamp: ORACLE_VERSION_5.timestamp,
-              long: POSITION.div(2),
             })
             expectCheckpointEq(await market.checkpoints(userB.address, 3), {
               ...DEFAULT_CHECKPOINT,
@@ -4889,11 +4870,9 @@ describe('Market', () => {
               maker: POSITION,
               long: POSITION.div(2),
             })
-            expectPositionEq(await market.pendingPosition(3), {
-              ...DEFAULT_POSITION,
+            expectOrderEq(await market.pendingOrder(3), {
+              ...DEFAULT_ORDER,
               timestamp: ORACLE_VERSION_5.timestamp,
-              maker: POSITION,
-              long: POSITION.div(2),
             })
             expectVersionEq(await market.versions(ORACLE_VERSION_3.timestamp), {
               ...DEFAULT_VERSION,
@@ -4929,8 +4908,7 @@ describe('Market', () => {
                     ...DEFAULT_ORDER,
                     timestamp: ORACLE_VERSION_2.timestamp,
                     orders: 1,
-                    short: POSITION,
-                    takerNeg: POSITION,
+                    shortPos: POSITION,
                   },
                   COLLATERAL,
                 )
@@ -4945,10 +4923,11 @@ describe('Market', () => {
                 ...DEFAULT_POSITION,
                 timestamp: ORACLE_VERSION_1.timestamp,
               })
-              expectPositionEq(await market.pendingPositions(user.address, 1), {
-                ...DEFAULT_POSITION,
+              expectOrderEq(await market.pendingOrders(user.address, 1), {
+                ...DEFAULT_ORDER,
                 timestamp: ORACLE_VERSION_2.timestamp,
-                short: POSITION,
+                orders: 1,
+                shortPos: POSITION,
               })
               expectCheckpointEq(await market.checkpoints(user.address, 1), {
                 ...DEFAULT_CHECKPOINT,
@@ -4966,11 +4945,12 @@ describe('Market', () => {
                 ...DEFAULT_POSITION,
                 timestamp: ORACLE_VERSION_1.timestamp,
               })
-              expectPositionEq(await market.pendingPosition(1), {
-                ...DEFAULT_POSITION,
+              expectOrderEq(await market.pendingOrder(1), {
+                ...DEFAULT_ORDER,
                 timestamp: ORACLE_VERSION_2.timestamp,
-                maker: POSITION,
-                short: POSITION,
+                orders: 2,
+                makerPos: POSITION,
+                shortPos: POSITION,
               })
               expectVersionEq(await market.versions(ORACLE_VERSION_1.timestamp), {
                 ...DEFAULT_VERSION,
@@ -4999,10 +4979,9 @@ describe('Market', () => {
                 timestamp: ORACLE_VERSION_2.timestamp,
                 short: POSITION,
               })
-              expectPositionEq(await market.pendingPositions(user.address, 2), {
-                ...DEFAULT_POSITION,
+              expectOrderEq(await market.pendingOrders(user.address, 2), {
+                ...DEFAULT_ORDER,
                 timestamp: ORACLE_VERSION_3.timestamp,
-                short: POSITION,
               })
               expectCheckpointEq(await market.checkpoints(user.address, 2), {
                 ...DEFAULT_CHECKPOINT,
@@ -5022,11 +5001,9 @@ describe('Market', () => {
                 maker: POSITION,
                 short: POSITION,
               })
-              expectPositionEq(await market.pendingPosition(2), {
-                ...DEFAULT_POSITION,
+              expectOrderEq(await market.pendingOrder(2), {
+                ...DEFAULT_ORDER,
                 timestamp: ORACLE_VERSION_3.timestamp,
-                maker: POSITION,
-                short: POSITION,
               })
               expectVersionEq(await market.versions(ORACLE_VERSION_2.timestamp), {
                 ...DEFAULT_VERSION,
@@ -5050,10 +5027,11 @@ describe('Market', () => {
                 ...DEFAULT_POSITION,
                 timestamp: ORACLE_VERSION_1.timestamp,
               })
-              expectPositionEq(await market.pendingPositions(user.address, 1), {
-                ...DEFAULT_POSITION,
+              expectOrderEq(await market.pendingOrders(user.address, 1), {
+                ...DEFAULT_ORDER,
                 timestamp: ORACLE_VERSION_2.timestamp,
-                short: POSITION,
+                orders: 1,
+                shortPos: POSITION,
               })
               expectCheckpointEq(await market.checkpoints(user.address, 1), {
                 ...DEFAULT_CHECKPOINT,
@@ -5071,11 +5049,12 @@ describe('Market', () => {
                 ...DEFAULT_POSITION,
                 timestamp: ORACLE_VERSION_1.timestamp,
               })
-              expectPositionEq(await market.pendingPosition(1), {
-                ...DEFAULT_POSITION,
+              expectOrderEq(await market.pendingOrder(1), {
+                ...DEFAULT_ORDER,
                 timestamp: ORACLE_VERSION_2.timestamp,
-                maker: POSITION,
-                short: POSITION,
+                orders: 2,
+                makerPos: POSITION,
+                shortPos: POSITION,
               })
             })
 
@@ -5103,10 +5082,9 @@ describe('Market', () => {
                 timestamp: ORACLE_VERSION_2.timestamp,
                 short: POSITION,
               })
-              expectPositionEq(await market.pendingPositions(user.address, 2), {
-                ...DEFAULT_POSITION,
+              expectOrderEq(await market.pendingOrders(user.address, 2), {
+                ...DEFAULT_ORDER,
                 timestamp: ORACLE_VERSION_3.timestamp,
-                short: POSITION,
               })
               expectCheckpointEq(await market.checkpoints(user.address, 2), {
                 ...DEFAULT_CHECKPOINT,
@@ -5126,11 +5104,9 @@ describe('Market', () => {
                 maker: POSITION,
                 short: POSITION,
               })
-              expectPositionEq(await market.pendingPosition(2), {
-                ...DEFAULT_POSITION,
+              expectOrderEq(await market.pendingOrder(2), {
+                ...DEFAULT_ORDER,
                 timestamp: ORACLE_VERSION_3.timestamp,
-                maker: POSITION,
-                short: POSITION,
               })
               expectVersionEq(await market.versions(ORACLE_VERSION_2.timestamp), {
                 ...DEFAULT_VERSION,
@@ -5159,10 +5135,11 @@ describe('Market', () => {
                 timestamp: ORACLE_VERSION_2.timestamp,
                 short: POSITION.div(2),
               })
-              expectPositionEq(await market.pendingPositions(user.address, 2), {
-                ...DEFAULT_POSITION,
+              expectOrderEq(await market.pendingOrders(user.address, 2), {
+                ...DEFAULT_ORDER,
                 timestamp: ORACLE_VERSION_3.timestamp,
-                short: POSITION,
+                orders: 1,
+                shortPos: POSITION.div(2),
               })
               expectCheckpointEq(await market.checkpoints(user.address, 2), {
                 ...DEFAULT_CHECKPOINT,
@@ -5182,11 +5159,11 @@ describe('Market', () => {
                 maker: POSITION,
                 short: POSITION.div(2),
               })
-              expectPositionEq(await market.pendingPosition(2), {
-                ...DEFAULT_POSITION,
+              expectOrderEq(await market.pendingOrder(2), {
+                ...DEFAULT_ORDER,
                 timestamp: ORACLE_VERSION_3.timestamp,
-                maker: POSITION,
-                short: POSITION,
+                orders: 1,
+                shortPos: POSITION.div(2),
               })
               expectVersionEq(await market.versions(ORACLE_VERSION_2.timestamp), {
                 ...DEFAULT_VERSION,
@@ -5222,10 +5199,9 @@ describe('Market', () => {
                 timestamp: ORACLE_VERSION_3.timestamp,
                 short: POSITION,
               })
-              expectPositionEq(await market.pendingPositions(user.address, 3), {
-                ...DEFAULT_POSITION,
+              expectOrderEq(await market.pendingOrders(user.address, 3), {
+                ...DEFAULT_ORDER,
                 timestamp: ORACLE_VERSION_4.timestamp,
-                short: POSITION,
               })
               expectCheckpointEq(await market.checkpoints(user.address, 3), {
                 ...DEFAULT_CHECKPOINT,
@@ -5244,10 +5220,9 @@ describe('Market', () => {
                 timestamp: ORACLE_VERSION_3.timestamp,
                 maker: POSITION,
               })
-              expectPositionEq(await market.pendingPositions(userB.address, 2), {
-                ...DEFAULT_POSITION,
+              expectOrderEq(await market.pendingOrders(userB.address, 2), {
+                ...DEFAULT_ORDER,
                 timestamp: ORACLE_VERSION_4.timestamp,
-                maker: POSITION,
               })
               expectCheckpointEq(await market.checkpoints(userB.address, 2), {
                 ...DEFAULT_CHECKPOINT,
@@ -5268,11 +5243,9 @@ describe('Market', () => {
                 maker: POSITION,
                 short: POSITION,
               })
-              expectPositionEq(await market.pendingPosition(3), {
-                ...DEFAULT_POSITION,
+              expectOrderEq(await market.pendingOrder(3), {
+                ...DEFAULT_ORDER,
                 timestamp: ORACLE_VERSION_4.timestamp,
-                maker: POSITION,
-                short: POSITION,
               })
               expectVersionEq(await market.versions(ORACLE_VERSION_3.timestamp), {
                 ...DEFAULT_VERSION,
@@ -5322,10 +5295,9 @@ describe('Market', () => {
                 timestamp: ORACLE_VERSION_3.timestamp,
                 short: POSITION.div(2),
               })
-              expectPositionEq(await market.pendingPositions(user.address, 2), {
-                ...DEFAULT_POSITION,
+              expectOrderEq(await market.pendingOrders(user.address, 2), {
+                ...DEFAULT_ORDER,
                 timestamp: ORACLE_VERSION_5.timestamp,
-                short: POSITION.div(2),
               })
               expectCheckpointEq(await market.checkpoints(user.address, 2), {
                 ...DEFAULT_CHECKPOINT,
@@ -5344,10 +5316,9 @@ describe('Market', () => {
                 timestamp: ORACLE_VERSION_3.timestamp,
                 maker: POSITION,
               })
-              expectPositionEq(await market.pendingPositions(userB.address, 2), {
-                ...DEFAULT_POSITION,
+              expectOrderEq(await market.pendingOrders(userB.address, 2), {
+                ...DEFAULT_ORDER,
                 timestamp: ORACLE_VERSION_5.timestamp,
-                maker: POSITION,
               })
               expectCheckpointEq(await market.checkpoints(user.address, 2), {
                 ...DEFAULT_CHECKPOINT,
@@ -5368,11 +5339,9 @@ describe('Market', () => {
                 maker: POSITION,
                 short: POSITION.div(2),
               })
-              expectPositionEq(await market.pendingPosition(2), {
-                ...DEFAULT_POSITION,
+              expectOrderEq(await market.pendingOrder(2), {
+                ...DEFAULT_ORDER,
                 timestamp: ORACLE_VERSION_5.timestamp,
-                maker: POSITION,
-                short: POSITION.div(2),
               })
               expectVersionEq(await market.versions(ORACLE_VERSION_3.timestamp), {
                 ...DEFAULT_VERSION,
@@ -5440,10 +5409,9 @@ describe('Market', () => {
                 timestamp: ORACLE_VERSION_3.timestamp,
                 short: POSITION.div(2),
               })
-              expectPositionEq(await market.pendingPositions(user.address, 2), {
-                ...DEFAULT_POSITION,
+              expectOrderEq(await market.pendingOrders(user.address, 2), {
+                ...DEFAULT_ORDER,
                 timestamp: ORACLE_VERSION_4.timestamp,
-                short: POSITION.div(2),
               })
               expectCheckpointEq(await market.checkpoints(user.address, 2), {
                 ...DEFAULT_CHECKPOINT,
@@ -5463,10 +5431,9 @@ describe('Market', () => {
                 timestamp: ORACLE_VERSION_3.timestamp,
                 maker: POSITION,
               })
-              expectPositionEq(await market.pendingPositions(userB.address, 2), {
-                ...DEFAULT_POSITION,
+              expectOrderEq(await market.pendingOrders(userB.address, 2), {
+                ...DEFAULT_ORDER,
                 timestamp: ORACLE_VERSION_4.timestamp,
-                maker: POSITION,
               })
               expectCheckpointEq(await market.checkpoints(user.address, 2), {
                 ...DEFAULT_CHECKPOINT,
@@ -5487,11 +5454,9 @@ describe('Market', () => {
                 maker: POSITION,
                 short: POSITION.div(2),
               })
-              expectPositionEq(await market.pendingPosition(2), {
-                ...DEFAULT_POSITION,
+              expectOrderEq(await market.pendingOrder(2), {
+                ...DEFAULT_ORDER,
                 timestamp: ORACLE_VERSION_4.timestamp,
-                maker: POSITION,
-                short: POSITION.div(2),
               })
               expectVersionEq(await market.versions(ORACLE_VERSION_3.timestamp), {
                 ...DEFAULT_VERSION,
@@ -5567,10 +5532,9 @@ describe('Market', () => {
                 timestamp: ORACLE_VERSION_4.timestamp,
                 short: POSITION.div(2),
               })
-              expectPositionEq(await market.pendingPositions(user.address, 2), {
-                ...DEFAULT_POSITION,
+              expectOrderEq(await market.pendingOrders(user.address, 2), {
+                ...DEFAULT_ORDER,
                 timestamp: ORACLE_VERSION_5.timestamp,
-                short: POSITION.div(2),
               })
               expectCheckpointEq(await market.checkpoints(user.address, 2), {
                 ...DEFAULT_CHECKPOINT,
@@ -5591,10 +5555,9 @@ describe('Market', () => {
                 timestamp: ORACLE_VERSION_4.timestamp,
                 maker: POSITION,
               })
-              expectPositionEq(await market.pendingPositions(userB.address, 2), {
-                ...DEFAULT_POSITION,
+              expectOrderEq(await market.pendingOrders(userB.address, 2), {
+                ...DEFAULT_ORDER,
                 timestamp: ORACLE_VERSION_5.timestamp,
-                maker: POSITION,
               })
               expectCheckpointEq(await market.checkpoints(user.address, 2), {
                 ...DEFAULT_CHECKPOINT,
@@ -5615,11 +5578,9 @@ describe('Market', () => {
                 maker: POSITION,
                 short: POSITION.div(2),
               })
-              expectPositionEq(await market.pendingPosition(3), {
-                ...DEFAULT_POSITION,
+              expectOrderEq(await market.pendingOrder(3), {
+                ...DEFAULT_ORDER,
                 timestamp: ORACLE_VERSION_5.timestamp,
-                maker: POSITION,
-                short: POSITION.div(2),
               })
               expectVersionEq(await market.versions(ORACLE_VERSION_4.timestamp), {
                 ...DEFAULT_VERSION,
@@ -5653,8 +5614,7 @@ describe('Market', () => {
                     ...DEFAULT_ORDER,
                     timestamp: ORACLE_VERSION_2.timestamp,
                     orders: 1,
-                    short: POSITION.div(4).mul(-1),
-                    takerPos: POSITION.div(4),
+                    shortNeg: POSITION.div(4),
                   },
                   0,
                 )
@@ -5669,10 +5629,11 @@ describe('Market', () => {
                 ...DEFAULT_POSITION,
                 timestamp: ORACLE_VERSION_1.timestamp,
               })
-              expectPositionEq(await market.pendingPositions(user.address, 1), {
-                ...DEFAULT_POSITION,
+              expectOrderEq(await market.pendingOrders(user.address, 1), {
+                ...DEFAULT_ORDER,
                 timestamp: ORACLE_VERSION_2.timestamp,
-                short: POSITION.div(4),
+                orders: 1,
+                shortPos: POSITION.div(4),
               })
               expectCheckpointEq(await market.checkpoints(user.address, 1), {
                 ...DEFAULT_CHECKPOINT,
@@ -5690,11 +5651,12 @@ describe('Market', () => {
                 ...DEFAULT_POSITION,
                 timestamp: ORACLE_VERSION_1.timestamp,
               })
-              expectPositionEq(await market.pendingPosition(1), {
-                ...DEFAULT_POSITION,
+              expectOrderEq(await market.pendingOrder(1), {
+                ...DEFAULT_ORDER,
                 timestamp: ORACLE_VERSION_2.timestamp,
-                maker: POSITION,
-                short: POSITION.div(4),
+                orders: 2,
+                makerPos: POSITION,
+                shortPos: POSITION.div(4),
               })
               expectVersionEq(await market.versions(ORACLE_VERSION_1.timestamp), {
                 ...DEFAULT_VERSION,
@@ -5713,8 +5675,7 @@ describe('Market', () => {
                     ...DEFAULT_ORDER,
                     timestamp: ORACLE_VERSION_2.timestamp,
                     orders: 1,
-                    short: POSITION.div(2).mul(-1),
-                    takerPos: POSITION.div(2),
+                    shortNeg: POSITION.div(2),
                   },
                   0,
                 )
@@ -5729,8 +5690,8 @@ describe('Market', () => {
                 ...DEFAULT_POSITION,
                 timestamp: ORACLE_VERSION_1.timestamp,
               })
-              expectPositionEq(await market.pendingPositions(user.address, 1), {
-                ...DEFAULT_POSITION,
+              expectOrderEq(await market.pendingOrders(user.address, 1), {
+                ...DEFAULT_ORDER,
                 timestamp: ORACLE_VERSION_2.timestamp,
               })
               expectCheckpointEq(await market.checkpoints(user.address, 1), {
@@ -5749,10 +5710,11 @@ describe('Market', () => {
                 ...DEFAULT_POSITION,
                 timestamp: ORACLE_VERSION_1.timestamp,
               })
-              expectPositionEq(await market.pendingPosition(1), {
-                ...DEFAULT_POSITION,
+              expectOrderEq(await market.pendingOrder(1), {
+                ...DEFAULT_ORDER,
                 timestamp: ORACLE_VERSION_2.timestamp,
-                maker: POSITION,
+                orders: 1,
+                makerPos: POSITION,
               })
               expectVersionEq(await market.versions(ORACLE_VERSION_1.timestamp), {
                 ...DEFAULT_VERSION,
@@ -5784,9 +5746,11 @@ describe('Market', () => {
                   timestamp: ORACLE_VERSION_2.timestamp,
                   short: POSITION.div(2),
                 })
-                expectPositionEq(await market.pendingPositions(user.address, 2), {
-                  ...DEFAULT_POSITION,
+                expectOrderEq(await market.pendingOrders(user.address, 2), {
+                  ...DEFAULT_ORDER,
                   timestamp: ORACLE_VERSION_3.timestamp,
+                  orders: 1,
+                  shortNeg: POSITION.div(2),
                 })
                 expectCheckpointEq(await market.checkpoints(user.address, 2), {
                   ...DEFAULT_CHECKPOINT,
@@ -5806,10 +5770,11 @@ describe('Market', () => {
                   maker: POSITION,
                   short: POSITION.div(2),
                 })
-                expectPositionEq(await market.pendingPosition(2), {
-                  ...DEFAULT_POSITION,
+                expectOrderEq(await market.pendingOrder(2), {
+                  ...DEFAULT_ORDER,
                   timestamp: ORACLE_VERSION_3.timestamp,
-                  maker: POSITION,
+                  orders: 1,
+                  shortNeg: POSITION.div(2),
                 })
                 expectVersionEq(await market.versions(ORACLE_VERSION_2.timestamp), {
                   ...DEFAULT_VERSION,
@@ -5838,8 +5803,8 @@ describe('Market', () => {
                   ...DEFAULT_POSITION,
                   timestamp: ORACLE_VERSION_3.timestamp,
                 })
-                expectPositionEq(await market.pendingPositions(user.address, 3), {
-                  ...DEFAULT_POSITION,
+                expectOrderEq(await market.pendingOrders(user.address, 3), {
+                  ...DEFAULT_ORDER,
                   timestamp: ORACLE_VERSION_4.timestamp,
                 })
                 expectCheckpointEq(await market.checkpoints(user.address, 3), {
@@ -5859,10 +5824,9 @@ describe('Market', () => {
                   timestamp: ORACLE_VERSION_3.timestamp,
                   maker: POSITION,
                 })
-                expectPositionEq(await market.pendingPositions(userB.address, 2), {
-                  ...DEFAULT_POSITION,
+                expectOrderEq(await market.pendingOrders(userB.address, 2), {
+                  ...DEFAULT_ORDER,
                   timestamp: ORACLE_VERSION_4.timestamp,
-                  maker: POSITION,
                 })
                 expectCheckpointEq(await market.checkpoints(userB.address, 2), {
                   ...DEFAULT_CHECKPOINT,
@@ -5882,10 +5846,9 @@ describe('Market', () => {
                   timestamp: ORACLE_VERSION_3.timestamp,
                   maker: POSITION,
                 })
-                expectPositionEq(await market.pendingPosition(3), {
-                  ...DEFAULT_POSITION,
+                expectOrderEq(await market.pendingOrder(3), {
+                  ...DEFAULT_ORDER,
                   timestamp: ORACLE_VERSION_4.timestamp,
-                  maker: POSITION,
                 })
                 expectVersionEq(await market.versions(ORACLE_VERSION_3.timestamp), {
                   ...DEFAULT_VERSION,
@@ -5917,9 +5880,11 @@ describe('Market', () => {
                   timestamp: ORACLE_VERSION_2.timestamp,
                   short: POSITION.div(2),
                 })
-                expectPositionEq(await market.pendingPositions(user.address, 2), {
-                  ...DEFAULT_POSITION,
+                expectOrderEq(await market.pendingOrders(user.address, 2), {
+                  ...DEFAULT_ORDER,
                   timestamp: ORACLE_VERSION_3.timestamp,
+                  orders: 1,
+                  shortNeg: POSITION.div(2),
                 })
                 expectCheckpointEq(await market.checkpoints(user.address, 2), {
                   ...DEFAULT_CHECKPOINT,
@@ -5939,10 +5904,11 @@ describe('Market', () => {
                   maker: POSITION,
                   short: POSITION.div(2),
                 })
-                expectPositionEq(await market.pendingPosition(2), {
-                  ...DEFAULT_POSITION,
+                expectOrderEq(await market.pendingOrder(2), {
+                  ...DEFAULT_ORDER,
                   timestamp: ORACLE_VERSION_3.timestamp,
-                  maker: POSITION,
+                  orders: 1,
+                  shortNeg: POSITION.div(2),
                 })
                 expectVersionEq(await market.versions(ORACLE_VERSION_2.timestamp), {
                   ...DEFAULT_VERSION,
@@ -5973,8 +5939,8 @@ describe('Market', () => {
                   ...DEFAULT_POSITION,
                   timestamp: ORACLE_VERSION_3.timestamp,
                 })
-                expectPositionEq(await market.pendingPositions(user.address, 3), {
-                  ...DEFAULT_POSITION,
+                expectOrderEq(await market.pendingOrders(user.address, 3), {
+                  ...DEFAULT_ORDER,
                   timestamp: ORACLE_VERSION_4.timestamp,
                 })
                 expectCheckpointEq(await market.checkpoints(user.address, 3), {
@@ -5994,10 +5960,9 @@ describe('Market', () => {
                   timestamp: ORACLE_VERSION_3.timestamp,
                   maker: POSITION,
                 })
-                expectPositionEq(await market.pendingPositions(userB.address, 2), {
-                  ...DEFAULT_POSITION,
+                expectOrderEq(await market.pendingOrders(userB.address, 2), {
+                  ...DEFAULT_ORDER,
                   timestamp: ORACLE_VERSION_4.timestamp,
-                  maker: POSITION,
                 })
                 expectCheckpointEq(await market.checkpoints(userB.address, 2), {
                   ...DEFAULT_CHECKPOINT,
@@ -6017,10 +5982,9 @@ describe('Market', () => {
                   timestamp: ORACLE_VERSION_3.timestamp,
                   maker: POSITION,
                 })
-                expectPositionEq(await market.pendingPosition(3), {
-                  ...DEFAULT_POSITION,
+                expectOrderEq(await market.pendingOrder(3), {
+                  ...DEFAULT_ORDER,
                   timestamp: ORACLE_VERSION_4.timestamp,
-                  maker: POSITION,
                 })
                 expectVersionEq(await market.versions(ORACLE_VERSION_3.timestamp), {
                   ...DEFAULT_VERSION,
@@ -6058,9 +6022,11 @@ describe('Market', () => {
                   timestamp: ORACLE_VERSION_3.timestamp,
                   short: POSITION.div(4),
                 })
-                expectPositionEq(await market.pendingPositions(user.address, 3), {
-                  ...DEFAULT_POSITION,
+                expectOrderEq(await market.pendingOrders(user.address, 3), {
+                  ...DEFAULT_ORDER,
                   timestamp: ORACLE_VERSION_4.timestamp,
+                  orders: 1,
+                  shortNeg: POSITION.div(4),
                 })
                 expectCheckpointEq(await market.checkpoints(user.address, 3), {
                   ...DEFAULT_CHECKPOINT,
@@ -6079,10 +6045,9 @@ describe('Market', () => {
                   timestamp: ORACLE_VERSION_3.timestamp,
                   maker: POSITION,
                 })
-                expectPositionEq(await market.pendingPositions(userB.address, 2), {
-                  ...DEFAULT_POSITION,
+                expectOrderEq(await market.pendingOrders(userB.address, 2), {
+                  ...DEFAULT_ORDER,
                   timestamp: ORACLE_VERSION_4.timestamp,
-                  maker: POSITION,
                 })
                 expectCheckpointEq(await market.checkpoints(userB.address, 2), {
                   ...DEFAULT_CHECKPOINT,
@@ -6103,10 +6068,11 @@ describe('Market', () => {
                   maker: POSITION,
                   short: POSITION.div(4),
                 })
-                expectPositionEq(await market.pendingPosition(3), {
-                  ...DEFAULT_POSITION,
+                expectOrderEq(await market.pendingOrder(3), {
+                  ...DEFAULT_ORDER,
                   timestamp: ORACLE_VERSION_4.timestamp,
-                  maker: POSITION,
+                  orders: 1,
+                  shortNeg: POSITION.div(4),
                 })
                 expectVersionEq(await market.versions(ORACLE_VERSION_3.timestamp), {
                   ...DEFAULT_VERSION,
@@ -6157,8 +6123,8 @@ describe('Market', () => {
                   ...DEFAULT_POSITION,
                   timestamp: ORACLE_VERSION_4.timestamp,
                 })
-                expectPositionEq(await market.pendingPositions(user.address, 4), {
-                  ...DEFAULT_POSITION,
+                expectOrderEq(await market.pendingOrders(user.address, 4), {
+                  ...DEFAULT_ORDER,
                   timestamp: ORACLE_VERSION_5.timestamp,
                 })
                 expectCheckpointEq(await market.checkpoints(user.address, 4), {
@@ -6180,10 +6146,9 @@ describe('Market', () => {
                   timestamp: ORACLE_VERSION_4.timestamp,
                   maker: POSITION,
                 })
-                expectPositionEq(await market.pendingPositions(userB.address, 2), {
-                  ...DEFAULT_POSITION,
+                expectOrderEq(await market.pendingOrders(userB.address, 2), {
+                  ...DEFAULT_ORDER,
                   timestamp: ORACLE_VERSION_5.timestamp,
-                  maker: POSITION,
                 })
                 expectCheckpointEq(await market.checkpoints(userB.address, 2), {
                   ...DEFAULT_CHECKPOINT,
@@ -6205,10 +6170,9 @@ describe('Market', () => {
                   timestamp: ORACLE_VERSION_4.timestamp,
                   maker: POSITION,
                 })
-                expectPositionEq(await market.pendingPosition(4), {
-                  ...DEFAULT_POSITION,
+                expectOrderEq(await market.pendingOrder(4), {
+                  ...DEFAULT_ORDER,
                   timestamp: ORACLE_VERSION_5.timestamp,
-                  maker: POSITION,
                 })
                 expectVersionEq(await market.versions(ORACLE_VERSION_3.timestamp), {
                   ...DEFAULT_VERSION,
@@ -6263,8 +6227,8 @@ describe('Market', () => {
                   ...DEFAULT_POSITION,
                   timestamp: ORACLE_VERSION_4.timestamp,
                 })
-                expectPositionEq(await market.pendingPositions(user.address, 3), {
-                  ...DEFAULT_POSITION,
+                expectOrderEq(await market.pendingOrders(user.address, 3), {
+                  ...DEFAULT_ORDER,
                   timestamp: ORACLE_VERSION_5.timestamp,
                 })
                 expectCheckpointEq(await market.checkpoints(user.address, 3), {
@@ -6284,10 +6248,9 @@ describe('Market', () => {
                   timestamp: ORACLE_VERSION_4.timestamp,
                   maker: POSITION,
                 })
-                expectPositionEq(await market.pendingPositions(userB.address, 2), {
-                  ...DEFAULT_POSITION,
+                expectOrderEq(await market.pendingOrders(userB.address, 2), {
+                  ...DEFAULT_ORDER,
                   timestamp: ORACLE_VERSION_5.timestamp,
-                  maker: POSITION,
                 })
                 expectCheckpointEq(await market.checkpoints(userB.address, 2), {
                   ...DEFAULT_CHECKPOINT,
@@ -6307,10 +6270,9 @@ describe('Market', () => {
                   timestamp: ORACLE_VERSION_4.timestamp,
                   maker: POSITION,
                 })
-                expectPositionEq(await market.pendingPosition(3), {
-                  ...DEFAULT_POSITION,
+                expectOrderEq(await market.pendingOrder(3), {
+                  ...DEFAULT_ORDER,
                   timestamp: ORACLE_VERSION_5.timestamp,
-                  maker: POSITION,
                 })
                 expectVersionEq(await market.versions(ORACLE_VERSION_4.timestamp), {
                   ...DEFAULT_VERSION,
@@ -6370,8 +6332,8 @@ describe('Market', () => {
                   ...DEFAULT_POSITION,
                   timestamp: ORACLE_VERSION_4.timestamp,
                 })
-                expectPositionEq(await market.pendingPositions(user.address, 3), {
-                  ...DEFAULT_POSITION,
+                expectOrderEq(await market.pendingOrders(user.address, 3), {
+                  ...DEFAULT_ORDER,
                   timestamp: ORACLE_VERSION_5.timestamp,
                 })
                 expectCheckpointEq(await market.checkpoints(user.address, 3), {
@@ -6392,10 +6354,9 @@ describe('Market', () => {
                   timestamp: ORACLE_VERSION_4.timestamp,
                   maker: POSITION,
                 })
-                expectPositionEq(await market.pendingPositions(userB.address, 2), {
-                  ...DEFAULT_POSITION,
+                expectOrderEq(await market.pendingOrders(userB.address, 2), {
+                  ...DEFAULT_ORDER,
                   timestamp: ORACLE_VERSION_5.timestamp,
-                  maker: POSITION,
                 })
                 expectCheckpointEq(await market.checkpoints(userB.address, 2), {
                   ...DEFAULT_CHECKPOINT,
@@ -6415,10 +6376,9 @@ describe('Market', () => {
                   timestamp: ORACLE_VERSION_4.timestamp,
                   maker: POSITION,
                 })
-                expectPositionEq(await market.pendingPosition(3), {
-                  ...DEFAULT_POSITION,
+                expectOrderEq(await market.pendingOrder(3), {
+                  ...DEFAULT_ORDER,
                   timestamp: ORACLE_VERSION_5.timestamp,
-                  maker: POSITION,
                 })
                 expectVersionEq(await market.versions(ORACLE_VERSION_4.timestamp), {
                   ...DEFAULT_VERSION,
@@ -6476,10 +6436,9 @@ describe('Market', () => {
               timestamp: ORACLE_VERSION_2.timestamp,
               short: POSITION.div(2),
             })
-            expectPositionEq(await market.pendingPositions(user.address, 2), {
-              ...DEFAULT_POSITION,
+            expectOrderEq(await market.pendingOrders(user.address, 2), {
+              ...DEFAULT_ORDER,
               timestamp: ORACLE_VERSION_3.timestamp,
-              short: POSITION.div(2),
             })
             expectCheckpointEq(await market.checkpoints(user.address, 2), {
               ...DEFAULT_CHECKPOINT,
@@ -6496,10 +6455,9 @@ describe('Market', () => {
               timestamp: ORACLE_VERSION_2.timestamp,
               maker: POSITION,
             })
-            expectPositionEq(await market.pendingPositions(userB.address, 2), {
-              ...DEFAULT_POSITION,
+            expectOrderEq(await market.pendingOrders(userB.address, 2), {
+              ...DEFAULT_ORDER,
               timestamp: ORACLE_VERSION_3.timestamp,
-              maker: POSITION,
             })
             expectCheckpointEq(await market.checkpoints(userB.address, 2), {
               ...DEFAULT_CHECKPOINT,
@@ -6519,11 +6477,9 @@ describe('Market', () => {
               maker: POSITION,
               short: POSITION.div(2),
             })
-            expectPositionEq(await market.pendingPosition(2), {
-              ...DEFAULT_POSITION,
+            expectOrderEq(await market.pendingOrder(2), {
+              ...DEFAULT_ORDER,
               timestamp: ORACLE_VERSION_3.timestamp,
-              maker: POSITION,
-              short: POSITION.div(2),
             })
           })
 
@@ -6587,10 +6543,9 @@ describe('Market', () => {
               timestamp: ORACLE_VERSION_3.timestamp,
               short: POSITION.div(2),
             })
-            expectPositionEq(await market.pendingPositions(user.address, 3), {
-              ...DEFAULT_POSITION,
+            expectOrderEq(await market.pendingOrders(user.address, 3), {
+              ...DEFAULT_ORDER,
               timestamp: ORACLE_VERSION_4.timestamp,
-              short: POSITION.div(2),
             })
             expectCheckpointEq(await market.checkpoints(user.address, 3), {
               ...DEFAULT_CHECKPOINT,
@@ -6610,10 +6565,9 @@ describe('Market', () => {
               timestamp: ORACLE_VERSION_3.timestamp,
               maker: POSITION,
             })
-            expectPositionEq(await market.pendingPositions(userB.address, 3), {
-              ...DEFAULT_POSITION,
+            expectOrderEq(await market.pendingOrders(userB.address, 3), {
+              ...DEFAULT_ORDER,
               timestamp: ORACLE_VERSION_4.timestamp,
-              maker: POSITION,
             })
             expectCheckpointEq(await market.checkpoints(userB.address, 3), {
               ...DEFAULT_CHECKPOINT,
@@ -6634,11 +6588,9 @@ describe('Market', () => {
               maker: POSITION,
               short: POSITION.div(2),
             })
-            expectPositionEq(await market.pendingPosition(3), {
-              ...DEFAULT_POSITION,
+            expectOrderEq(await market.pendingOrder(3), {
+              ...DEFAULT_ORDER,
               timestamp: ORACLE_VERSION_4.timestamp,
-              maker: POSITION,
-              short: POSITION.div(2),
             })
             expectVersionEq(await market.versions(ORACLE_VERSION_3.timestamp), {
               ...DEFAULT_VERSION,
@@ -6713,10 +6665,9 @@ describe('Market', () => {
               timestamp: ORACLE_VERSION_3.timestamp,
               short: POSITION.div(2),
             })
-            expectPositionEq(await market.pendingPositions(user.address, 3), {
-              ...DEFAULT_POSITION,
+            expectOrderEq(await market.pendingOrders(user.address, 3), {
+              ...DEFAULT_ORDER,
               timestamp: ORACLE_VERSION_4.timestamp,
-              short: POSITION.div(2),
             })
             expectCheckpointEq(await market.checkpoints(user.address, 3), {
               ...DEFAULT_CHECKPOINT,
@@ -6736,10 +6687,9 @@ describe('Market', () => {
               timestamp: ORACLE_VERSION_3.timestamp,
               maker: POSITION,
             })
-            expectPositionEq(await market.pendingPositions(userB.address, 3), {
-              ...DEFAULT_POSITION,
+            expectOrderEq(await market.pendingOrders(userB.address, 3), {
+              ...DEFAULT_ORDER,
               timestamp: ORACLE_VERSION_4.timestamp,
-              maker: POSITION,
             })
             expectCheckpointEq(await market.checkpoints(userB.address, 3), {
               ...DEFAULT_CHECKPOINT,
@@ -6760,11 +6710,9 @@ describe('Market', () => {
               maker: POSITION,
               short: POSITION.div(2),
             })
-            expectPositionEq(await market.pendingPosition(3), {
-              ...DEFAULT_POSITION,
+            expectOrderEq(await market.pendingOrder(3), {
+              ...DEFAULT_ORDER,
               timestamp: ORACLE_VERSION_4.timestamp,
-              maker: POSITION,
-              short: POSITION.div(2),
             })
             expectVersionEq(await market.versions(ORACLE_VERSION_3.timestamp), {
               ...DEFAULT_VERSION,
@@ -6860,10 +6808,9 @@ describe('Market', () => {
                 timestamp: ORACLE_VERSION_5.timestamp,
                 short: POSITION.div(2),
               })
-              expectPositionEq(await market.pendingPositions(user.address, 5), {
-                ...DEFAULT_POSITION,
+              expectOrderEq(await market.pendingOrders(user.address, 5), {
+                ...DEFAULT_ORDER,
                 timestamp: ORACLE_VERSION_6.timestamp,
-                short: POSITION.div(2),
               })
               expectCheckpointEq(await market.checkpoints(user.address, 5), {
                 ...DEFAULT_CHECKPOINT,
@@ -6886,8 +6833,8 @@ describe('Market', () => {
                 ...DEFAULT_POSITION,
                 timestamp: ORACLE_VERSION_5.timestamp,
               })
-              expectPositionEq(await market.pendingPositions(userB.address, 5), {
-                ...DEFAULT_POSITION,
+              expectOrderEq(await market.pendingOrders(userB.address, 5), {
+                ...DEFAULT_ORDER,
                 timestamp: ORACLE_VERSION_6.timestamp,
               })
               expectCheckpointEq(await market.checkpoints(userB.address, 5), {
@@ -6910,10 +6857,9 @@ describe('Market', () => {
                 timestamp: ORACLE_VERSION_5.timestamp,
                 short: POSITION.div(2),
               })
-              expectPositionEq(await market.pendingPosition(5), {
-                ...DEFAULT_POSITION,
+              expectOrderEq(await market.pendingOrder(5), {
+                ...DEFAULT_ORDER,
                 timestamp: ORACLE_VERSION_6.timestamp,
-                short: POSITION.div(2),
               })
               expectVersionEq(await market.versions(ORACLE_VERSION_3.timestamp), {
                 ...DEFAULT_VERSION,
@@ -7056,10 +7002,9 @@ describe('Market', () => {
                 timestamp: ORACLE_VERSION_5.timestamp,
                 short: POSITION.div(2),
               })
-              expectPositionEq(await market.pendingPositions(user.address, 5), {
-                ...DEFAULT_POSITION,
+              expectOrderEq(await market.pendingOrders(user.address, 5), {
+                ...DEFAULT_ORDER,
                 timestamp: ORACLE_VERSION_6.timestamp,
-                short: POSITION.div(2),
               })
               expectCheckpointEq(await market.checkpoints(user.address, 5), {
                 ...DEFAULT_CHECKPOINT,
@@ -7082,8 +7027,8 @@ describe('Market', () => {
                 ...DEFAULT_POSITION,
                 timestamp: ORACLE_VERSION_5.timestamp,
               })
-              expectPositionEq(await market.pendingPositions(userB.address, 5), {
-                ...DEFAULT_POSITION,
+              expectOrderEq(await market.pendingOrders(userB.address, 5), {
+                ...DEFAULT_ORDER,
                 timestamp: ORACLE_VERSION_6.timestamp,
               })
               expectCheckpointEq(await market.checkpoints(userB.address, 5), {
@@ -7107,10 +7052,9 @@ describe('Market', () => {
                 timestamp: ORACLE_VERSION_5.timestamp,
                 maker: POSITION.div(4),
               })
-              expectPositionEq(await market.pendingPositions(userC.address, 5), {
-                ...DEFAULT_POSITION,
+              expectOrderEq(await market.pendingOrders(userC.address, 5), {
+                ...DEFAULT_ORDER,
                 timestamp: ORACLE_VERSION_6.timestamp,
-                maker: POSITION.div(4),
               })
               expectCheckpointEq(await market.checkpoints(userC.address, 5), {
                 ...DEFAULT_CHECKPOINT,
@@ -7133,11 +7077,9 @@ describe('Market', () => {
                 maker: POSITION.div(4),
                 short: POSITION.div(2),
               })
-              expectPositionEq(await market.pendingPosition(5), {
-                ...DEFAULT_POSITION,
+              expectOrderEq(await market.pendingOrder(5), {
+                ...DEFAULT_ORDER,
                 timestamp: ORACLE_VERSION_6.timestamp,
-                maker: POSITION.div(4),
-                short: POSITION.div(2),
               })
               expectVersionEq(await market.versions(ORACLE_VERSION_3.timestamp), {
                 ...DEFAULT_VERSION,
@@ -7237,10 +7179,9 @@ describe('Market', () => {
                 timestamp: ORACLE_VERSION_3.timestamp,
                 short: POSITION.div(2),
               })
-              expectPositionEq(await market.pendingPositions(user.address, 3), {
-                ...DEFAULT_POSITION,
+              expectOrderEq(await market.pendingOrders(user.address, 3), {
+                ...DEFAULT_ORDER,
                 timestamp: ORACLE_VERSION_4.timestamp,
-                short: POSITION.div(2),
               })
               expectCheckpointEq(await market.checkpoints(user.address, 3), {
                 ...DEFAULT_CHECKPOINT,
@@ -7258,9 +7199,11 @@ describe('Market', () => {
                 protectionAmount: EXPECTED_LIQUIDATION_FEE,
                 protectionInitiator: liquidator.address,
               })
-              expectPositionEq(await market.pendingPositions(userB.address, 3), {
-                ...DEFAULT_POSITION,
+              expectOrderEq(await market.pendingOrders(userB.address, 3), {
+                ...DEFAULT_ORDER,
                 timestamp: ORACLE_VERSION_4.timestamp,
+                orders: 1,
+                makerNeg: POSITION,
               })
               expectCheckpointEq(await market.checkpoints(userB.address, 3), {
                 ...DEFAULT_CHECKPOINT,
@@ -7281,10 +7224,11 @@ describe('Market', () => {
                 maker: POSITION,
                 short: POSITION.div(2),
               })
-              expectPositionEq(await market.pendingPosition(3), {
-                ...DEFAULT_POSITION,
+              expectOrderEq(await market.pendingOrder(3), {
+                ...DEFAULT_ORDER,
                 timestamp: ORACLE_VERSION_4.timestamp,
-                short: POSITION.div(2),
+                orders: 1,
+                makerNeg: POSITION,
               })
               expectVersionEq(await market.versions(ORACLE_VERSION_3.timestamp), {
                 ...DEFAULT_VERSION,
@@ -7354,8 +7298,8 @@ describe('Market', () => {
                 ...DEFAULT_POSITION,
                 timestamp: ORACLE_VERSION_4.timestamp,
               })
-              expectPositionEq(await market.pendingPositions(userB.address, 4), {
-                ...DEFAULT_POSITION,
+              expectOrderEq(await market.pendingOrders(userB.address, 4), {
+                ...DEFAULT_ORDER,
                 timestamp: ORACLE_VERSION_5.timestamp,
               })
               expectCheckpointEq(await market.checkpoints(userB.address, 4), {
@@ -7444,8 +7388,8 @@ describe('Market', () => {
                 ...DEFAULT_POSITION,
                 timestamp: ORACLE_VERSION_5.timestamp,
               })
-              expectPositionEq(await market.pendingPositions(user.address, 5), {
-                ...DEFAULT_POSITION,
+              expectOrderEq(await market.pendingOrders(user.address, 5), {
+                ...DEFAULT_ORDER,
                 timestamp: ORACLE_VERSION_6.timestamp,
               })
               expectCheckpointEq(await market.checkpoints(user.address, 5), {
@@ -7467,10 +7411,9 @@ describe('Market', () => {
                 timestamp: ORACLE_VERSION_5.timestamp,
                 maker: POSITION,
               })
-              expectPositionEq(await market.pendingPositions(userB.address, 5), {
-                ...DEFAULT_POSITION,
+              expectOrderEq(await market.pendingOrders(userB.address, 5), {
+                ...DEFAULT_ORDER,
                 timestamp: ORACLE_VERSION_6.timestamp,
-                maker: POSITION,
               })
               expectCheckpointEq(await market.checkpoints(userB.address, 5), {
                 ...DEFAULT_CHECKPOINT,
@@ -7492,10 +7435,9 @@ describe('Market', () => {
                 timestamp: ORACLE_VERSION_5.timestamp,
                 maker: POSITION,
               })
-              expectPositionEq(await market.pendingPosition(5), {
-                ...DEFAULT_POSITION,
+              expectOrderEq(await market.pendingOrder(5), {
+                ...DEFAULT_ORDER,
                 timestamp: ORACLE_VERSION_6.timestamp,
-                maker: POSITION,
               })
               expectVersionEq(await market.versions(ORACLE_VERSION_3.timestamp), {
                 ...DEFAULT_VERSION,
@@ -7599,9 +7541,11 @@ describe('Market', () => {
                 timestamp: ORACLE_VERSION_3.timestamp,
                 short: POSITION.div(2),
               })
-              expectPositionEq(await market.pendingPositions(user.address, 3), {
-                ...DEFAULT_POSITION,
+              expectOrderEq(await market.pendingOrders(user.address, 3), {
+                ...DEFAULT_ORDER,
                 timestamp: ORACLE_VERSION_4.timestamp,
+                orders: 1,
+                shortNeg: POSITION.div(2),
               })
               expectCheckpointEq(await market.checkpoints(user.address, 3), {
                 ...DEFAULT_CHECKPOINT,
@@ -7621,10 +7565,9 @@ describe('Market', () => {
                 timestamp: ORACLE_VERSION_3.timestamp,
                 maker: POSITION,
               })
-              expectPositionEq(await market.pendingPositions(userB.address, 3), {
-                ...DEFAULT_POSITION,
+              expectOrderEq(await market.pendingOrders(userB.address, 3), {
+                ...DEFAULT_ORDER,
                 timestamp: ORACLE_VERSION_4.timestamp,
-                maker: POSITION,
               })
               expectCheckpointEq(await market.checkpoints(userB.address, 3), {
                 ...DEFAULT_CHECKPOINT,
@@ -7645,10 +7588,11 @@ describe('Market', () => {
                 maker: POSITION,
                 short: POSITION.div(2),
               })
-              expectPositionEq(await market.pendingPosition(3), {
-                ...DEFAULT_POSITION,
+              expectOrderEq(await market.pendingOrder(3), {
+                ...DEFAULT_ORDER,
                 timestamp: ORACLE_VERSION_4.timestamp,
-                maker: POSITION,
+                orders: 1,
+                shortNeg: POSITION.div(2),
               })
               expectVersionEq(await market.versions(ORACLE_VERSION_3.timestamp), {
                 ...DEFAULT_VERSION,
@@ -7718,8 +7662,8 @@ describe('Market', () => {
                 ...DEFAULT_POSITION,
                 timestamp: ORACLE_VERSION_4.timestamp,
               })
-              expectPositionEq(await market.pendingPositions(user.address, 4), {
-                ...DEFAULT_POSITION,
+              expectOrderEq(await market.pendingOrders(user.address, 4), {
+                ...DEFAULT_ORDER,
                 timestamp: ORACLE_VERSION_5.timestamp,
               })
               expectCheckpointEq(await market.checkpoints(user.address, 4), {
@@ -7779,10 +7723,9 @@ describe('Market', () => {
               timestamp: ORACLE_VERSION_4.timestamp,
               maker: POSITION,
             })
-            expectPositionEq(await market.pendingPositions(user.address, 3), {
-              ...DEFAULT_POSITION,
+            expectOrderEq(await market.pendingOrders(user.address, 3), {
+              ...DEFAULT_ORDER,
               timestamp: ORACLE_VERSION_5.timestamp,
-              maker: POSITION,
             })
             expectCheckpointEq(await market.checkpoints(user.address, 3), {
               ...DEFAULT_CHECKPOINT,
@@ -7799,10 +7742,9 @@ describe('Market', () => {
               timestamp: ORACLE_VERSION_4.timestamp,
               short: POSITION.div(2),
             })
-            expectPositionEq(await market.pendingPositions(userB.address, 3), {
-              ...DEFAULT_POSITION,
+            expectOrderEq(await market.pendingOrders(userB.address, 3), {
+              ...DEFAULT_ORDER,
               timestamp: ORACLE_VERSION_5.timestamp,
-              short: POSITION.div(2),
             })
             expectCheckpointEq(await market.checkpoints(userB.address, 3), {
               ...DEFAULT_CHECKPOINT,
@@ -7822,11 +7764,9 @@ describe('Market', () => {
               maker: POSITION,
               short: POSITION.div(2),
             })
-            expectPositionEq(await market.pendingPosition(3), {
-              ...DEFAULT_POSITION,
+            expectOrderEq(await market.pendingOrder(3), {
+              ...DEFAULT_ORDER,
               timestamp: ORACLE_VERSION_5.timestamp,
-              maker: POSITION,
-              short: POSITION.div(2),
             })
             expectVersionEq(await market.versions(ORACLE_VERSION_3.timestamp), {
               ...DEFAULT_VERSION,
@@ -7882,10 +7822,9 @@ describe('Market', () => {
               timestamp: ORACLE_VERSION_3.timestamp,
               maker: POSITION.div(2),
             })
-            expectPositionEq(await market.pendingPositions(user.address, 3), {
-              ...DEFAULT_POSITION,
+            expectOrderEq(await market.pendingOrders(user.address, 3), {
+              ...DEFAULT_ORDER,
               timestamp: ORACLE_VERSION_4.timestamp,
-              maker: POSITION.div(2),
             })
             expectCheckpointEq(await market.checkpoints(user.address, 3), {
               ...DEFAULT_CHECKPOINT,
@@ -7902,10 +7841,9 @@ describe('Market', () => {
               timestamp: ORACLE_VERSION_3.timestamp,
               short: POSITION.div(2),
             })
-            expectPositionEq(await market.pendingPositions(userB.address, 3), {
-              ...DEFAULT_POSITION,
+            expectOrderEq(await market.pendingOrders(userB.address, 3), {
+              ...DEFAULT_ORDER,
               timestamp: ORACLE_VERSION_4.timestamp,
-              short: POSITION.div(2),
             })
             expectCheckpointEq(await market.checkpoints(userB.address, 3), {
               ...DEFAULT_CHECKPOINT,
@@ -7926,11 +7864,9 @@ describe('Market', () => {
               maker: POSITION.div(2),
               short: POSITION.div(2),
             })
-            expectPositionEq(await market.pendingPosition(3), {
-              ...DEFAULT_POSITION,
+            expectOrderEq(await market.pendingOrder(3), {
+              ...DEFAULT_ORDER,
               timestamp: ORACLE_VERSION_4.timestamp,
-              maker: POSITION.div(2),
-              short: POSITION.div(2),
             })
             expectVersionEq(await market.versions(ORACLE_VERSION_3.timestamp), {
               ...DEFAULT_VERSION,
@@ -7979,10 +7915,11 @@ describe('Market', () => {
                 ...DEFAULT_POSITION,
                 timestamp: ORACLE_VERSION_1.timestamp,
               })
-              expectPositionEq(await market.pendingPositions(user.address, 1), {
-                ...DEFAULT_POSITION,
+              expectOrderEq(await market.pendingOrders(user.address, 1), {
+                ...DEFAULT_ORDER,
                 timestamp: ORACLE_VERSION_2.timestamp,
-                long: POSITION,
+                orders: 1,
+                longPos: POSITION,
               })
               expectCheckpointEq(await market.checkpoints(user.address, 1), {
                 ...DEFAULT_CHECKPOINT,
@@ -8000,12 +7937,13 @@ describe('Market', () => {
                 ...DEFAULT_POSITION,
                 timestamp: ORACLE_VERSION_1.timestamp,
               })
-              expectPositionEq(await market.pendingPosition(1), {
-                ...DEFAULT_POSITION,
+              expectOrderEq(await market.pendingOrder(1), {
+                ...DEFAULT_ORDER,
                 timestamp: ORACLE_VERSION_2.timestamp,
-                maker: POSITION,
-                long: POSITION,
-                short: POSITION,
+                orders: 3,
+                makerPos: POSITION,
+                longPos: POSITION,
+                shortPos: POSITION,
               })
               expectVersionEq(await market.versions(ORACLE_VERSION_1.timestamp), {
                 ...DEFAULT_VERSION,
@@ -8034,10 +7972,9 @@ describe('Market', () => {
                 timestamp: ORACLE_VERSION_2.timestamp,
                 long: POSITION,
               })
-              expectPositionEq(await market.pendingPositions(user.address, 2), {
-                ...DEFAULT_POSITION,
+              expectOrderEq(await market.pendingOrders(user.address, 2), {
+                ...DEFAULT_ORDER,
                 timestamp: ORACLE_VERSION_3.timestamp,
-                long: POSITION,
               })
               expectCheckpointEq(await market.checkpoints(user.address, 2), {
                 ...DEFAULT_CHECKPOINT,
@@ -8058,12 +7995,9 @@ describe('Market', () => {
                 long: POSITION,
                 short: POSITION,
               })
-              expectPositionEq(await market.pendingPosition(2), {
-                ...DEFAULT_POSITION,
+              expectOrderEq(await market.pendingOrder(2), {
+                ...DEFAULT_ORDER,
                 timestamp: ORACLE_VERSION_3.timestamp,
-                maker: POSITION,
-                long: POSITION,
-                short: POSITION,
               })
               expectVersionEq(await market.versions(ORACLE_VERSION_2.timestamp), {
                 ...DEFAULT_VERSION,
@@ -8087,10 +8021,11 @@ describe('Market', () => {
                 ...DEFAULT_POSITION,
                 timestamp: ORACLE_VERSION_1.timestamp,
               })
-              expectPositionEq(await market.pendingPositions(user.address, 1), {
-                ...DEFAULT_POSITION,
+              expectOrderEq(await market.pendingOrders(user.address, 1), {
+                ...DEFAULT_ORDER,
                 timestamp: ORACLE_VERSION_2.timestamp,
-                long: POSITION,
+                orders: 1,
+                longPos: POSITION,
               })
               expectCheckpointEq(await market.checkpoints(user.address, 1), {
                 ...DEFAULT_CHECKPOINT,
@@ -8108,12 +8043,13 @@ describe('Market', () => {
                 ...DEFAULT_POSITION,
                 timestamp: ORACLE_VERSION_1.timestamp,
               })
-              expectPositionEq(await market.pendingPosition(1), {
-                ...DEFAULT_POSITION,
+              expectOrderEq(await market.pendingOrder(1), {
+                ...DEFAULT_ORDER,
                 timestamp: ORACLE_VERSION_2.timestamp,
-                maker: POSITION,
-                long: POSITION,
-                short: POSITION,
+                orders: 3,
+                makerPos: POSITION,
+                longPos: POSITION,
+                shortPos: POSITION,
               })
             })
 
@@ -8141,10 +8077,9 @@ describe('Market', () => {
                 timestamp: ORACLE_VERSION_2.timestamp,
                 long: POSITION,
               })
-              expectPositionEq(await market.pendingPositions(user.address, 2), {
-                ...DEFAULT_POSITION,
+              expectOrderEq(await market.pendingOrders(user.address, 2), {
+                ...DEFAULT_ORDER,
                 timestamp: ORACLE_VERSION_3.timestamp,
-                long: POSITION,
               })
               expectCheckpointEq(await market.checkpoints(user.address, 2), {
                 ...DEFAULT_CHECKPOINT,
@@ -8165,12 +8100,9 @@ describe('Market', () => {
                 long: POSITION,
                 short: POSITION,
               })
-              expectPositionEq(await market.pendingPosition(2), {
-                ...DEFAULT_POSITION,
+              expectOrderEq(await market.pendingOrder(2), {
+                ...DEFAULT_ORDER,
                 timestamp: ORACLE_VERSION_3.timestamp,
-                maker: POSITION,
-                long: POSITION,
-                short: POSITION,
               })
               expectVersionEq(await market.versions(ORACLE_VERSION_2.timestamp), {
                 ...DEFAULT_VERSION,
@@ -8199,10 +8131,11 @@ describe('Market', () => {
                 timestamp: ORACLE_VERSION_2.timestamp,
                 long: POSITION.div(2),
               })
-              expectPositionEq(await market.pendingPositions(user.address, 2), {
-                ...DEFAULT_POSITION,
+              expectOrderEq(await market.pendingOrders(user.address, 2), {
+                ...DEFAULT_ORDER,
                 timestamp: ORACLE_VERSION_3.timestamp,
-                long: POSITION,
+                orders: 1,
+                longPos: POSITION.div(2),
               })
               expectCheckpointEq(await market.checkpoints(user.address, 2), {
                 ...DEFAULT_CHECKPOINT,
@@ -8223,12 +8156,11 @@ describe('Market', () => {
                 long: POSITION.div(2),
                 short: POSITION,
               })
-              expectPositionEq(await market.pendingPosition(2), {
-                ...DEFAULT_POSITION,
+              expectOrderEq(await market.pendingOrder(2), {
+                ...DEFAULT_ORDER,
                 timestamp: ORACLE_VERSION_3.timestamp,
-                maker: POSITION,
-                long: POSITION,
-                short: POSITION,
+                orders: 1,
+                longPos: POSITION.div(2),
               })
               expectVersionEq(await market.versions(ORACLE_VERSION_2.timestamp), {
                 ...DEFAULT_VERSION,
@@ -8266,10 +8198,9 @@ describe('Market', () => {
                 timestamp: ORACLE_VERSION_3.timestamp,
                 long: POSITION,
               })
-              expectPositionEq(await market.pendingPositions(user.address, 3), {
-                ...DEFAULT_POSITION,
+              expectOrderEq(await market.pendingOrders(user.address, 3), {
+                ...DEFAULT_ORDER,
                 timestamp: ORACLE_VERSION_4.timestamp,
-                long: POSITION,
               })
               expectCheckpointEq(await market.checkpoints(user.address, 3), {
                 ...DEFAULT_CHECKPOINT,
@@ -8288,10 +8219,9 @@ describe('Market', () => {
                 timestamp: ORACLE_VERSION_3.timestamp,
                 maker: POSITION,
               })
-              expectPositionEq(await market.pendingPositions(userB.address, 2), {
-                ...DEFAULT_POSITION,
+              expectOrderEq(await market.pendingOrders(userB.address, 2), {
+                ...DEFAULT_ORDER,
                 timestamp: ORACLE_VERSION_4.timestamp,
-                maker: POSITION,
               })
               expectCheckpointEq(await market.checkpoints(userB.address, 2), {
                 ...DEFAULT_CHECKPOINT,
@@ -8313,12 +8243,9 @@ describe('Market', () => {
                 long: POSITION,
                 short: POSITION,
               })
-              expectPositionEq(await market.pendingPosition(3), {
-                ...DEFAULT_POSITION,
+              expectOrderEq(await market.pendingOrder(3), {
+                ...DEFAULT_ORDER,
                 timestamp: ORACLE_VERSION_4.timestamp,
-                maker: POSITION,
-                long: POSITION,
-                short: POSITION,
               })
               expectVersionEq(await market.versions(ORACLE_VERSION_3.timestamp), {
                 ...DEFAULT_VERSION,
@@ -8379,10 +8306,9 @@ describe('Market', () => {
                 timestamp: ORACLE_VERSION_3.timestamp,
                 long: POSITION.div(2),
               })
-              expectPositionEq(await market.pendingPositions(user.address, 2), {
-                ...DEFAULT_POSITION,
+              expectOrderEq(await market.pendingOrders(user.address, 2), {
+                ...DEFAULT_ORDER,
                 timestamp: ORACLE_VERSION_4.timestamp,
-                long: POSITION.div(2),
               })
               expectCheckpointEq(await market.checkpoints(user.address, 2), {
                 ...DEFAULT_CHECKPOINT,
@@ -8401,10 +8327,9 @@ describe('Market', () => {
                 timestamp: ORACLE_VERSION_3.timestamp,
                 maker: POSITION,
               })
-              expectPositionEq(await market.pendingPositions(userB.address, 2), {
-                ...DEFAULT_POSITION,
+              expectOrderEq(await market.pendingOrders(userB.address, 2), {
+                ...DEFAULT_ORDER,
                 timestamp: ORACLE_VERSION_4.timestamp,
-                maker: POSITION,
               })
               expectCheckpointEq(await market.checkpoints(userB.address, 2), {
                 ...DEFAULT_CHECKPOINT,
@@ -8426,12 +8351,9 @@ describe('Market', () => {
                 long: POSITION.div(2),
                 short: POSITION,
               })
-              expectPositionEq(await market.pendingPosition(2), {
-                ...DEFAULT_POSITION,
+              expectOrderEq(await market.pendingOrder(2), {
+                ...DEFAULT_ORDER,
                 timestamp: ORACLE_VERSION_4.timestamp,
-                maker: POSITION,
-                long: POSITION.div(2),
-                short: POSITION,
               })
               expectVersionEq(await market.versions(ORACLE_VERSION_3.timestamp), {
                 ...DEFAULT_VERSION,
@@ -8510,10 +8432,9 @@ describe('Market', () => {
                 timestamp: ORACLE_VERSION_3.timestamp,
                 long: POSITION.div(2),
               })
-              expectPositionEq(await market.pendingPositions(user.address, 2), {
-                ...DEFAULT_POSITION,
+              expectOrderEq(await market.pendingOrders(user.address, 2), {
+                ...DEFAULT_ORDER,
                 timestamp: ORACLE_VERSION_4.timestamp,
-                long: POSITION.div(2),
               })
               expectCheckpointEq(await market.checkpoints(user.address, 2), {
                 ...DEFAULT_CHECKPOINT,
@@ -8533,10 +8454,9 @@ describe('Market', () => {
                 timestamp: ORACLE_VERSION_3.timestamp,
                 maker: POSITION,
               })
-              expectPositionEq(await market.pendingPositions(userB.address, 2), {
-                ...DEFAULT_POSITION,
+              expectOrderEq(await market.pendingOrders(userB.address, 2), {
+                ...DEFAULT_ORDER,
                 timestamp: ORACLE_VERSION_4.timestamp,
-                maker: POSITION,
               })
               expectCheckpointEq(await market.checkpoints(userB.address, 2), {
                 ...DEFAULT_CHECKPOINT,
@@ -8560,12 +8480,9 @@ describe('Market', () => {
                 long: POSITION.div(2),
                 short: POSITION,
               })
-              expectPositionEq(await market.pendingPosition(2), {
-                ...DEFAULT_POSITION,
+              expectOrderEq(await market.pendingOrder(2), {
+                ...DEFAULT_ORDER,
                 timestamp: ORACLE_VERSION_4.timestamp,
-                maker: POSITION,
-                long: POSITION.div(2),
-                short: POSITION,
               })
               expectVersionEq(await market.versions(ORACLE_VERSION_3.timestamp), {
                 ...DEFAULT_VERSION,
@@ -8626,10 +8543,9 @@ describe('Market', () => {
                 timestamp: ORACLE_VERSION_3.timestamp,
                 long: POSITION.div(2),
               })
-              expectPositionEq(await market.pendingPositions(user.address, 2), {
-                ...DEFAULT_POSITION,
+              expectOrderEq(await market.pendingOrders(user.address, 2), {
+                ...DEFAULT_ORDER,
                 timestamp: ORACLE_VERSION_4.timestamp,
-                long: POSITION.div(2),
               })
               expectCheckpointEq(await market.checkpoints(user.address, 2), {
                 ...DEFAULT_CHECKPOINT,
@@ -8648,10 +8564,9 @@ describe('Market', () => {
                 timestamp: ORACLE_VERSION_3.timestamp,
                 maker: POSITION,
               })
-              expectPositionEq(await market.pendingPositions(userB.address, 2), {
-                ...DEFAULT_POSITION,
+              expectOrderEq(await market.pendingOrders(userB.address, 2), {
+                ...DEFAULT_ORDER,
                 timestamp: ORACLE_VERSION_4.timestamp,
-                maker: POSITION,
               })
               expectCheckpointEq(await market.checkpoints(userB.address, 2), {
                 ...DEFAULT_CHECKPOINT,
@@ -8673,12 +8588,9 @@ describe('Market', () => {
                 long: POSITION.div(2),
                 short: POSITION,
               })
-              expectPositionEq(await market.pendingPosition(2), {
-                ...DEFAULT_POSITION,
+              expectOrderEq(await market.pendingOrder(2), {
+                ...DEFAULT_ORDER,
                 timestamp: ORACLE_VERSION_4.timestamp,
-                maker: POSITION,
-                long: POSITION.div(2),
-                short: POSITION,
               })
               expectVersionEq(await market.versions(ORACLE_VERSION_3.timestamp), {
                 ...DEFAULT_VERSION,
@@ -8740,10 +8652,9 @@ describe('Market', () => {
                 timestamp: ORACLE_VERSION_3.timestamp,
                 long: POSITION.div(2),
               })
-              expectPositionEq(await market.pendingPositions(user.address, 2), {
-                ...DEFAULT_POSITION,
+              expectOrderEq(await market.pendingOrders(user.address, 2), {
+                ...DEFAULT_ORDER,
                 timestamp: ORACLE_VERSION_4.timestamp,
-                long: POSITION.div(2),
               })
               expectCheckpointEq(await market.checkpoints(user.address, 2), {
                 ...DEFAULT_CHECKPOINT,
@@ -8763,10 +8674,9 @@ describe('Market', () => {
                 timestamp: ORACLE_VERSION_3.timestamp,
                 maker: POSITION,
               })
-              expectPositionEq(await market.pendingPositions(userB.address, 2), {
-                ...DEFAULT_POSITION,
+              expectOrderEq(await market.pendingOrders(userB.address, 2), {
+                ...DEFAULT_ORDER,
                 timestamp: ORACLE_VERSION_4.timestamp,
-                maker: POSITION,
               })
               expectCheckpointEq(await market.checkpoints(userB.address, 2), {
                 ...DEFAULT_CHECKPOINT,
@@ -8788,12 +8698,9 @@ describe('Market', () => {
                 long: POSITION.div(2),
                 short: POSITION,
               })
-              expectPositionEq(await market.pendingPosition(2), {
-                ...DEFAULT_POSITION,
+              expectOrderEq(await market.pendingOrder(2), {
+                ...DEFAULT_ORDER,
                 timestamp: ORACLE_VERSION_4.timestamp,
-                maker: POSITION,
-                long: POSITION.div(2),
-                short: POSITION,
               })
               expectVersionEq(await market.versions(ORACLE_VERSION_3.timestamp), {
                 ...DEFAULT_VERSION,
@@ -8854,10 +8761,9 @@ describe('Market', () => {
                 timestamp: ORACLE_VERSION_3.timestamp,
                 long: POSITION.div(2),
               })
-              expectPositionEq(await market.pendingPositions(user.address, 2), {
-                ...DEFAULT_POSITION,
+              expectOrderEq(await market.pendingOrders(user.address, 2), {
+                ...DEFAULT_ORDER,
                 timestamp: ORACLE_VERSION_6.timestamp,
-                long: POSITION.div(2),
               })
               expectCheckpointEq(await market.checkpoints(user.address, 2), {
                 ...DEFAULT_CHECKPOINT,
@@ -8876,10 +8782,9 @@ describe('Market', () => {
                 timestamp: ORACLE_VERSION_3.timestamp,
                 maker: POSITION,
               })
-              expectPositionEq(await market.pendingPositions(userB.address, 2), {
-                ...DEFAULT_POSITION,
+              expectOrderEq(await market.pendingOrders(userB.address, 2), {
+                ...DEFAULT_ORDER,
                 timestamp: ORACLE_VERSION_6.timestamp,
-                maker: POSITION,
               })
               expectCheckpointEq(await market.checkpoints(userB.address, 2), {
                 ...DEFAULT_CHECKPOINT,
@@ -8901,12 +8806,9 @@ describe('Market', () => {
                 long: POSITION.div(2),
                 short: POSITION,
               })
-              expectPositionEq(await market.pendingPosition(2), {
-                ...DEFAULT_POSITION,
+              expectOrderEq(await market.pendingOrder(2), {
+                ...DEFAULT_ORDER,
                 timestamp: ORACLE_VERSION_6.timestamp,
-                maker: POSITION,
-                long: POSITION.div(2),
-                short: POSITION,
               })
               expectVersionEq(await market.versions(ORACLE_VERSION_3.timestamp), {
                 ...DEFAULT_VERSION,
@@ -8968,10 +8870,9 @@ describe('Market', () => {
                 timestamp: ORACLE_VERSION_3.timestamp,
                 long: POSITION.div(2),
               })
-              expectPositionEq(await market.pendingPositions(user.address, 2), {
-                ...DEFAULT_POSITION,
+              expectOrderEq(await market.pendingOrders(user.address, 2), {
+                ...DEFAULT_ORDER,
                 timestamp: ORACLE_VERSION_6.timestamp,
-                long: POSITION.div(2),
               })
               expectCheckpointEq(await market.checkpoints(user.address, 2), {
                 ...DEFAULT_CHECKPOINT,
@@ -8991,10 +8892,9 @@ describe('Market', () => {
                 timestamp: ORACLE_VERSION_3.timestamp,
                 maker: POSITION,
               })
-              expectPositionEq(await market.pendingPositions(userB.address, 2), {
-                ...DEFAULT_POSITION,
+              expectOrderEq(await market.pendingOrders(userB.address, 2), {
+                ...DEFAULT_ORDER,
                 timestamp: ORACLE_VERSION_6.timestamp,
-                maker: POSITION,
               })
               expectCheckpointEq(await market.checkpoints(userB.address, 2), {
                 ...DEFAULT_CHECKPOINT,
@@ -9016,12 +8916,9 @@ describe('Market', () => {
                 long: POSITION.div(2),
                 short: POSITION,
               })
-              expectPositionEq(await market.pendingPosition(2), {
-                ...DEFAULT_POSITION,
+              expectOrderEq(await market.pendingOrder(2), {
+                ...DEFAULT_ORDER,
                 timestamp: ORACLE_VERSION_6.timestamp,
-                maker: POSITION,
-                long: POSITION.div(2),
-                short: POSITION,
               })
               expectVersionEq(await market.versions(ORACLE_VERSION_3.timestamp), {
                 ...DEFAULT_VERSION,
@@ -9073,10 +8970,11 @@ describe('Market', () => {
                 ...DEFAULT_POSITION,
                 timestamp: ORACLE_VERSION_1.timestamp,
               })
-              expectPositionEq(await market.pendingPositions(user.address, 1), {
-                ...DEFAULT_POSITION,
+              expectOrderEq(await market.pendingOrders(user.address, 1), {
+                ...DEFAULT_ORDER,
                 timestamp: ORACLE_VERSION_2.timestamp,
-                long: POSITION.div(4),
+                orders: 1,
+                longPos: POSITION.div(4),
               })
               expectCheckpointEq(await market.checkpoints(user.address, 1), {
                 ...DEFAULT_CHECKPOINT,
@@ -9094,12 +8992,13 @@ describe('Market', () => {
                 ...DEFAULT_POSITION,
                 timestamp: ORACLE_VERSION_1.timestamp,
               })
-              expectPositionEq(await market.pendingPosition(1), {
-                ...DEFAULT_POSITION,
+              expectOrderEq(await market.pendingOrder(1), {
+                ...DEFAULT_ORDER,
                 timestamp: ORACLE_VERSION_2.timestamp,
-                maker: POSITION,
-                long: POSITION.div(4),
-                short: POSITION,
+                orders: 3,
+                makerPos: POSITION,
+                longPos: POSITION.div(4),
+                shortPos: POSITION,
               })
               expectVersionEq(await market.versions(ORACLE_VERSION_1.timestamp), {
                 ...DEFAULT_VERSION,
@@ -9121,8 +9020,8 @@ describe('Market', () => {
                 ...DEFAULT_POSITION,
                 timestamp: ORACLE_VERSION_1.timestamp,
               })
-              expectPositionEq(await market.pendingPositions(user.address, 1), {
-                ...DEFAULT_POSITION,
+              expectOrderEq(await market.pendingOrders(user.address, 1), {
+                ...DEFAULT_ORDER,
                 timestamp: ORACLE_VERSION_2.timestamp,
               })
               expectCheckpointEq(await market.checkpoints(user.address, 1), {
@@ -9141,11 +9040,12 @@ describe('Market', () => {
                 ...DEFAULT_POSITION,
                 timestamp: ORACLE_VERSION_1.timestamp,
               })
-              expectPositionEq(await market.pendingPosition(1), {
-                ...DEFAULT_POSITION,
+              expectOrderEq(await market.pendingOrder(1), {
+                ...DEFAULT_ORDER,
                 timestamp: ORACLE_VERSION_2.timestamp,
-                maker: POSITION,
-                short: POSITION,
+                orders: 2,
+                makerPos: POSITION,
+                shortPos: POSITION,
               })
               expectVersionEq(await market.versions(ORACLE_VERSION_1.timestamp), {
                 ...DEFAULT_VERSION,
@@ -9177,9 +9077,11 @@ describe('Market', () => {
                   timestamp: ORACLE_VERSION_2.timestamp,
                   long: POSITION.div(2),
                 })
-                expectPositionEq(await market.pendingPositions(user.address, 2), {
-                  ...DEFAULT_POSITION,
+                expectOrderEq(await market.pendingOrders(user.address, 2), {
+                  ...DEFAULT_ORDER,
                   timestamp: ORACLE_VERSION_3.timestamp,
+                  orders: 1,
+                  longNeg: POSITION.div(2),
                 })
                 expectCheckpointEq(await market.checkpoints(user.address, 2), {
                   ...DEFAULT_CHECKPOINT,
@@ -9200,11 +9102,11 @@ describe('Market', () => {
                   long: POSITION.div(2),
                   short: POSITION,
                 })
-                expectPositionEq(await market.pendingPosition(2), {
-                  ...DEFAULT_POSITION,
+                expectOrderEq(await market.pendingOrder(2), {
+                  ...DEFAULT_ORDER,
                   timestamp: ORACLE_VERSION_3.timestamp,
-                  maker: POSITION,
-                  short: POSITION,
+                  orders: 1,
+                  longNeg: POSITION.div(2),
                 })
                 expectVersionEq(await market.versions(ORACLE_VERSION_2.timestamp), {
                   ...DEFAULT_VERSION,
@@ -9235,8 +9137,8 @@ describe('Market', () => {
                   ...DEFAULT_POSITION,
                   timestamp: ORACLE_VERSION_3.timestamp,
                 })
-                expectPositionEq(await market.pendingPositions(user.address, 3), {
-                  ...DEFAULT_POSITION,
+                expectOrderEq(await market.pendingOrders(user.address, 3), {
+                  ...DEFAULT_ORDER,
                   timestamp: ORACLE_VERSION_4.timestamp,
                 })
                 expectCheckpointEq(await market.checkpoints(user.address, 3), {
@@ -9256,10 +9158,9 @@ describe('Market', () => {
                   timestamp: ORACLE_VERSION_3.timestamp,
                   maker: POSITION,
                 })
-                expectPositionEq(await market.pendingPositions(userB.address, 2), {
-                  ...DEFAULT_POSITION,
+                expectOrderEq(await market.pendingOrders(userB.address, 2), {
+                  ...DEFAULT_ORDER,
                   timestamp: ORACLE_VERSION_4.timestamp,
-                  maker: POSITION,
                 })
                 expectCheckpointEq(await market.checkpoints(userB.address, 2), {
                   ...DEFAULT_CHECKPOINT,
@@ -9280,11 +9181,9 @@ describe('Market', () => {
                   maker: POSITION,
                   short: POSITION,
                 })
-                expectPositionEq(await market.pendingPosition(3), {
-                  ...DEFAULT_POSITION,
+                expectOrderEq(await market.pendingOrder(3), {
+                  ...DEFAULT_ORDER,
                   timestamp: ORACLE_VERSION_4.timestamp,
-                  maker: POSITION,
-                  short: POSITION,
                 })
                 expectVersionEq(await market.versions(ORACLE_VERSION_3.timestamp), {
                   ...DEFAULT_VERSION,
@@ -9327,9 +9226,11 @@ describe('Market', () => {
                   timestamp: ORACLE_VERSION_2.timestamp,
                   long: POSITION.div(2),
                 })
-                expectPositionEq(await market.pendingPositions(user.address, 2), {
-                  ...DEFAULT_POSITION,
+                expectOrderEq(await market.pendingOrders(user.address, 2), {
+                  ...DEFAULT_ORDER,
                   timestamp: ORACLE_VERSION_3.timestamp,
+                  orders: 1,
+                  longNeg: POSITION.div(2),
                 })
                 expectCheckpointEq(await market.checkpoints(user.address, 2), {
                   ...DEFAULT_CHECKPOINT,
@@ -9350,11 +9251,11 @@ describe('Market', () => {
                   long: POSITION.div(2),
                   short: POSITION,
                 })
-                expectPositionEq(await market.pendingPosition(2), {
-                  ...DEFAULT_POSITION,
+                expectOrderEq(await market.pendingOrder(2), {
+                  ...DEFAULT_ORDER,
                   timestamp: ORACLE_VERSION_3.timestamp,
-                  maker: POSITION,
-                  short: POSITION,
+                  orders: 1,
+                  longNeg: POSITION.div(2),
                 })
                 expectVersionEq(await market.versions(ORACLE_VERSION_2.timestamp), {
                   ...DEFAULT_VERSION,
@@ -9387,8 +9288,8 @@ describe('Market', () => {
                   ...DEFAULT_POSITION,
                   timestamp: ORACLE_VERSION_3.timestamp,
                 })
-                expectPositionEq(await market.pendingPositions(user.address, 3), {
-                  ...DEFAULT_POSITION,
+                expectOrderEq(await market.pendingOrders(user.address, 3), {
+                  ...DEFAULT_ORDER,
                   timestamp: ORACLE_VERSION_4.timestamp,
                 })
                 expectCheckpointEq(await market.checkpoints(user.address, 3), {
@@ -9408,10 +9309,9 @@ describe('Market', () => {
                   timestamp: ORACLE_VERSION_3.timestamp,
                   maker: POSITION,
                 })
-                expectPositionEq(await market.pendingPositions(userB.address, 2), {
-                  ...DEFAULT_POSITION,
+                expectOrderEq(await market.pendingOrders(userB.address, 2), {
+                  ...DEFAULT_ORDER,
                   timestamp: ORACLE_VERSION_4.timestamp,
-                  maker: POSITION,
                 })
                 expectCheckpointEq(await market.checkpoints(userB.address, 2), {
                   ...DEFAULT_CHECKPOINT,
@@ -9432,11 +9332,9 @@ describe('Market', () => {
                   maker: POSITION,
                   short: POSITION,
                 })
-                expectPositionEq(await market.pendingPosition(3), {
-                  ...DEFAULT_POSITION,
+                expectOrderEq(await market.pendingOrder(3), {
+                  ...DEFAULT_ORDER,
                   timestamp: ORACLE_VERSION_4.timestamp,
-                  maker: POSITION,
-                  short: POSITION,
                 })
                 expectVersionEq(await market.versions(ORACLE_VERSION_3.timestamp), {
                   ...DEFAULT_VERSION,
@@ -9488,9 +9386,11 @@ describe('Market', () => {
                   timestamp: ORACLE_VERSION_3.timestamp,
                   long: POSITION.div(4),
                 })
-                expectPositionEq(await market.pendingPositions(user.address, 3), {
-                  ...DEFAULT_POSITION,
+                expectOrderEq(await market.pendingOrders(user.address, 3), {
+                  ...DEFAULT_ORDER,
                   timestamp: ORACLE_VERSION_4.timestamp,
+                  orders: 1,
+                  longNeg: POSITION.div(4),
                 })
                 expectCheckpointEq(await market.checkpoints(user.address, 3), {
                   ...DEFAULT_CHECKPOINT,
@@ -9509,10 +9409,9 @@ describe('Market', () => {
                   timestamp: ORACLE_VERSION_3.timestamp,
                   maker: POSITION,
                 })
-                expectPositionEq(await market.pendingPositions(userB.address, 2), {
-                  ...DEFAULT_POSITION,
+                expectOrderEq(await market.pendingOrders(userB.address, 2), {
+                  ...DEFAULT_ORDER,
                   timestamp: ORACLE_VERSION_4.timestamp,
-                  maker: POSITION,
                 })
                 expectCheckpointEq(await market.checkpoints(userB.address, 2), {
                   ...DEFAULT_CHECKPOINT,
@@ -9534,11 +9433,11 @@ describe('Market', () => {
                   long: POSITION.div(4),
                   short: POSITION,
                 })
-                expectPositionEq(await market.pendingPosition(3), {
-                  ...DEFAULT_POSITION,
+                expectOrderEq(await market.pendingOrder(3), {
+                  ...DEFAULT_ORDER,
                   timestamp: ORACLE_VERSION_4.timestamp,
-                  maker: POSITION,
-                  short: POSITION,
+                  orders: 1,
+                  longNeg: POSITION.div(4),
                 })
                 expectVersionEq(await market.versions(ORACLE_VERSION_3.timestamp), {
                   ...DEFAULT_VERSION,
@@ -9595,8 +9494,8 @@ describe('Market', () => {
                   ...DEFAULT_POSITION,
                   timestamp: ORACLE_VERSION_4.timestamp,
                 })
-                expectPositionEq(await market.pendingPositions(user.address, 4), {
-                  ...DEFAULT_POSITION,
+                expectOrderEq(await market.pendingOrders(user.address, 4), {
+                  ...DEFAULT_ORDER,
                   timestamp: ORACLE_VERSION_5.timestamp,
                 })
                 expectCheckpointEq(await market.checkpoints(user.address, 4), {
@@ -9618,10 +9517,9 @@ describe('Market', () => {
                   timestamp: ORACLE_VERSION_4.timestamp,
                   maker: POSITION,
                 })
-                expectPositionEq(await market.pendingPositions(userB.address, 2), {
-                  ...DEFAULT_POSITION,
+                expectOrderEq(await market.pendingOrders(userB.address, 2), {
+                  ...DEFAULT_ORDER,
                   timestamp: ORACLE_VERSION_5.timestamp,
-                  maker: POSITION,
                 })
                 expectCheckpointEq(await market.checkpoints(userB.address, 2), {
                   ...DEFAULT_CHECKPOINT,
@@ -9644,11 +9542,9 @@ describe('Market', () => {
                   maker: POSITION,
                   short: POSITION,
                 })
-                expectPositionEq(await market.pendingPosition(4), {
-                  ...DEFAULT_POSITION,
+                expectOrderEq(await market.pendingOrder(4), {
+                  ...DEFAULT_ORDER,
                   timestamp: ORACLE_VERSION_5.timestamp,
-                  maker: POSITION,
-                  short: POSITION,
                 })
                 expectVersionEq(await market.versions(ORACLE_VERSION_3.timestamp), {
                   ...DEFAULT_VERSION,
@@ -9733,8 +9629,8 @@ describe('Market', () => {
                   ...DEFAULT_POSITION,
                   timestamp: ORACLE_VERSION_4.timestamp,
                 })
-                expectPositionEq(await market.pendingPositions(user.address, 3), {
-                  ...DEFAULT_POSITION,
+                expectOrderEq(await market.pendingOrders(user.address, 3), {
+                  ...DEFAULT_ORDER,
                   timestamp: ORACLE_VERSION_5.timestamp,
                 })
                 expectCheckpointEq(await market.checkpoints(user.address, 3), {
@@ -9747,11 +9643,9 @@ describe('Market', () => {
                   maker: POSITION,
                   short: POSITION,
                 })
-                expectPositionEq(await market.pendingPosition(3), {
-                  ...DEFAULT_POSITION,
+                expectOrderEq(await market.pendingOrder(3), {
+                  ...DEFAULT_ORDER,
                   timestamp: ORACLE_VERSION_5.timestamp,
-                  maker: POSITION,
-                  short: POSITION,
                 })
                 expectVersionEq(await market.versions(ORACLE_VERSION_3.timestamp), {
                   ...DEFAULT_VERSION,
@@ -9822,8 +9716,8 @@ describe('Market', () => {
                   ...DEFAULT_POSITION,
                   timestamp: ORACLE_VERSION_4.timestamp,
                 })
-                expectPositionEq(await market.pendingPositions(user.address, 3), {
-                  ...DEFAULT_POSITION,
+                expectOrderEq(await market.pendingOrders(user.address, 3), {
+                  ...DEFAULT_ORDER,
                   timestamp: ORACLE_VERSION_5.timestamp,
                 })
                 expectCheckpointEq(await market.checkpoints(user.address, 3), {
@@ -9836,11 +9730,9 @@ describe('Market', () => {
                   maker: POSITION,
                   short: POSITION,
                 })
-                expectPositionEq(await market.pendingPosition(3), {
-                  ...DEFAULT_POSITION,
+                expectOrderEq(await market.pendingOrder(3), {
+                  ...DEFAULT_ORDER,
                   timestamp: ORACLE_VERSION_5.timestamp,
-                  maker: POSITION,
-                  short: POSITION,
                 })
                 expectVersionEq(await market.versions(ORACLE_VERSION_3.timestamp), {
                   ...DEFAULT_VERSION,
@@ -9912,10 +9804,9 @@ describe('Market', () => {
               timestamp: ORACLE_VERSION_2.timestamp,
               long: POSITION.div(2),
             })
-            expectPositionEq(await market.pendingPositions(user.address, 2), {
-              ...DEFAULT_POSITION,
+            expectOrderEq(await market.pendingOrders(user.address, 2), {
+              ...DEFAULT_ORDER,
               timestamp: ORACLE_VERSION_3.timestamp,
-              long: POSITION.div(2),
             })
             expectCheckpointEq(await market.checkpoints(user.address, 2), {
               ...DEFAULT_CHECKPOINT,
@@ -9932,10 +9823,9 @@ describe('Market', () => {
               timestamp: ORACLE_VERSION_2.timestamp,
               maker: POSITION,
             })
-            expectPositionEq(await market.pendingPositions(userB.address, 2), {
-              ...DEFAULT_POSITION,
+            expectOrderEq(await market.pendingOrders(userB.address, 2), {
+              ...DEFAULT_ORDER,
               timestamp: ORACLE_VERSION_3.timestamp,
-              maker: POSITION,
             })
             expectCheckpointEq(await market.checkpoints(userB.address, 2), {
               ...DEFAULT_CHECKPOINT,
@@ -9956,12 +9846,9 @@ describe('Market', () => {
               long: POSITION.div(2),
               short: POSITION,
             })
-            expectPositionEq(await market.pendingPosition(2), {
-              ...DEFAULT_POSITION,
+            expectOrderEq(await market.pendingOrder(2), {
+              ...DEFAULT_ORDER,
               timestamp: ORACLE_VERSION_3.timestamp,
-              maker: POSITION,
-              long: POSITION.div(2),
-              short: POSITION,
             })
           })
 
@@ -10030,10 +9917,9 @@ describe('Market', () => {
               timestamp: ORACLE_VERSION_3.timestamp,
               long: POSITION.div(2),
             })
-            expectPositionEq(await market.pendingPositions(user.address, 3), {
-              ...DEFAULT_POSITION,
+            expectOrderEq(await market.pendingOrders(user.address, 3), {
+              ...DEFAULT_ORDER,
               timestamp: ORACLE_VERSION_4.timestamp,
-              long: POSITION.div(2),
             })
             expectCheckpointEq(await market.checkpoints(user.address, 3), {
               ...DEFAULT_CHECKPOINT,
@@ -10053,10 +9939,9 @@ describe('Market', () => {
               timestamp: ORACLE_VERSION_3.timestamp,
               maker: POSITION,
             })
-            expectPositionEq(await market.pendingPositions(userB.address, 3), {
-              ...DEFAULT_POSITION,
+            expectOrderEq(await market.pendingOrders(userB.address, 3), {
+              ...DEFAULT_ORDER,
               timestamp: ORACLE_VERSION_4.timestamp,
-              maker: POSITION,
             })
             expectCheckpointEq(await market.checkpoints(userB.address, 3), {
               ...DEFAULT_CHECKPOINT,
@@ -10078,12 +9963,9 @@ describe('Market', () => {
               long: POSITION.div(2),
               short: POSITION,
             })
-            expectPositionEq(await market.pendingPosition(3), {
-              ...DEFAULT_POSITION,
+            expectOrderEq(await market.pendingOrder(3), {
+              ...DEFAULT_ORDER,
               timestamp: ORACLE_VERSION_4.timestamp,
-              maker: POSITION,
-              long: POSITION.div(2),
-              short: POSITION,
             })
             expectVersionEq(await market.versions(ORACLE_VERSION_3.timestamp), {
               ...DEFAULT_VERSION,
@@ -10174,10 +10056,9 @@ describe('Market', () => {
               timestamp: ORACLE_VERSION_3.timestamp,
               long: POSITION.div(2),
             })
-            expectPositionEq(await market.pendingPositions(user.address, 3), {
-              ...DEFAULT_POSITION,
+            expectOrderEq(await market.pendingOrders(user.address, 3), {
+              ...DEFAULT_ORDER,
               timestamp: ORACLE_VERSION_4.timestamp,
-              long: POSITION.div(2),
             })
             expectCheckpointEq(await market.checkpoints(user.address, 3), {
               ...DEFAULT_CHECKPOINT,
@@ -10197,10 +10078,9 @@ describe('Market', () => {
               timestamp: ORACLE_VERSION_3.timestamp,
               maker: POSITION,
             })
-            expectPositionEq(await market.pendingPositions(userB.address, 3), {
-              ...DEFAULT_POSITION,
+            expectOrderEq(await market.pendingOrders(userB.address, 3), {
+              ...DEFAULT_ORDER,
               timestamp: ORACLE_VERSION_4.timestamp,
-              maker: POSITION,
             })
             expectCheckpointEq(await market.checkpoints(userB.address, 3), {
               ...DEFAULT_CHECKPOINT,
@@ -10222,12 +10102,9 @@ describe('Market', () => {
               long: POSITION.div(2),
               short: POSITION,
             })
-            expectPositionEq(await market.pendingPosition(3), {
-              ...DEFAULT_POSITION,
+            expectOrderEq(await market.pendingOrder(3), {
+              ...DEFAULT_ORDER,
               timestamp: ORACLE_VERSION_4.timestamp,
-              maker: POSITION,
-              long: POSITION.div(2),
-              short: POSITION,
             })
             expectVersionEq(await market.versions(ORACLE_VERSION_3.timestamp), {
               ...DEFAULT_VERSION,
@@ -10338,10 +10215,9 @@ describe('Market', () => {
                 timestamp: ORACLE_VERSION_5.timestamp,
                 long: POSITION.div(2),
               })
-              expectPositionEq(await market.pendingPositions(user.address, 5), {
-                ...DEFAULT_POSITION,
+              expectOrderEq(await market.pendingOrders(user.address, 5), {
+                ...DEFAULT_ORDER,
                 timestamp: ORACLE_VERSION_6.timestamp,
-                long: POSITION.div(2),
               })
               expectCheckpointEq(await market.checkpoints(user.address, 5), {
                 ...DEFAULT_CHECKPOINT,
@@ -10366,8 +10242,8 @@ describe('Market', () => {
                 ...DEFAULT_POSITION,
                 timestamp: ORACLE_VERSION_5.timestamp,
               })
-              expectPositionEq(await market.pendingPositions(userB.address, 5), {
-                ...DEFAULT_POSITION,
+              expectOrderEq(await market.pendingOrders(userB.address, 5), {
+                ...DEFAULT_ORDER,
                 timestamp: ORACLE_VERSION_6.timestamp,
               })
               expectCheckpointEq(await market.checkpoints(userB.address, 5), {
@@ -10392,11 +10268,9 @@ describe('Market', () => {
                 long: POSITION.div(2),
                 short: POSITION,
               })
-              expectPositionEq(await market.pendingPosition(5), {
-                ...DEFAULT_POSITION,
+              expectOrderEq(await market.pendingOrder(5), {
+                ...DEFAULT_ORDER,
                 timestamp: ORACLE_VERSION_6.timestamp,
-                long: POSITION.div(2),
-                short: POSITION,
               })
               expectVersionEq(await market.versions(ORACLE_VERSION_3.timestamp), {
                 ...DEFAULT_VERSION,
@@ -10581,10 +10455,9 @@ describe('Market', () => {
                 timestamp: ORACLE_VERSION_5.timestamp,
                 long: POSITION.div(2),
               })
-              expectPositionEq(await market.pendingPositions(user.address, 5), {
-                ...DEFAULT_POSITION,
+              expectOrderEq(await market.pendingOrders(user.address, 5), {
+                ...DEFAULT_ORDER,
                 timestamp: ORACLE_VERSION_6.timestamp,
-                long: POSITION.div(2),
               })
               expectCheckpointEq(await market.checkpoints(user.address, 5), {
                 ...DEFAULT_CHECKPOINT,
@@ -10609,8 +10482,8 @@ describe('Market', () => {
                 ...DEFAULT_POSITION,
                 timestamp: ORACLE_VERSION_5.timestamp,
               })
-              expectPositionEq(await market.pendingPositions(userB.address, 5), {
-                ...DEFAULT_POSITION,
+              expectOrderEq(await market.pendingOrders(userB.address, 5), {
+                ...DEFAULT_ORDER,
                 timestamp: ORACLE_VERSION_6.timestamp,
               })
               expectCheckpointEq(await market.checkpoints(userB.address, 5), {
@@ -10637,12 +10510,9 @@ describe('Market', () => {
                 long: POSITION.div(2),
                 short: POSITION,
               })
-              expectPositionEq(await market.pendingPosition(5), {
-                ...DEFAULT_POSITION,
+              expectOrderEq(await market.pendingOrder(5), {
+                ...DEFAULT_ORDER,
                 timestamp: ORACLE_VERSION_6.timestamp,
-                maker: POSITION.div(5),
-                long: POSITION.div(2),
-                short: POSITION,
               })
               expectVersionEq(await market.versions(ORACLE_VERSION_3.timestamp), {
                 ...DEFAULT_VERSION,
@@ -10777,10 +10647,9 @@ describe('Market', () => {
                 timestamp: ORACLE_VERSION_3.timestamp,
                 long: POSITION.div(2),
               })
-              expectPositionEq(await market.pendingPositions(user.address, 3), {
-                ...DEFAULT_POSITION,
+              expectOrderEq(await market.pendingOrders(user.address, 3), {
+                ...DEFAULT_ORDER,
                 timestamp: ORACLE_VERSION_4.timestamp,
-                long: POSITION.div(2),
               })
               expectCheckpointEq(await market.checkpoints(user.address, 3), {
                 ...DEFAULT_CHECKPOINT,
@@ -10804,9 +10673,11 @@ describe('Market', () => {
                 timestamp: ORACLE_VERSION_3.timestamp,
                 maker: POSITION,
               })
-              expectPositionEq(await market.pendingPositions(userB.address, 3), {
-                ...DEFAULT_POSITION,
+              expectOrderEq(await market.pendingOrders(userB.address, 3), {
+                ...DEFAULT_ORDER,
                 timestamp: ORACLE_VERSION_4.timestamp,
+                orders: 1,
+                makerNeg: POSITION,
               })
               expectCheckpointEq(await market.checkpoints(userB.address, 3), {
                 ...DEFAULT_CHECKPOINT,
@@ -10828,11 +10699,11 @@ describe('Market', () => {
                 long: POSITION.div(2),
                 short: POSITION,
               })
-              expectPositionEq(await market.pendingPosition(3), {
-                ...DEFAULT_POSITION,
+              expectOrderEq(await market.pendingOrder(3), {
+                ...DEFAULT_ORDER,
                 timestamp: ORACLE_VERSION_4.timestamp,
-                long: POSITION.div(2),
-                short: POSITION,
+                orders: 1,
+                makerNeg: POSITION,
               })
               expectVersionEq(await market.versions(ORACLE_VERSION_3.timestamp), {
                 ...DEFAULT_VERSION,
@@ -10911,8 +10782,8 @@ describe('Market', () => {
                 ...DEFAULT_POSITION,
                 timestamp: ORACLE_VERSION_4.timestamp,
               })
-              expectPositionEq(await market.pendingPositions(userB.address, 4), {
-                ...DEFAULT_POSITION,
+              expectOrderEq(await market.pendingOrders(userB.address, 4), {
+                ...DEFAULT_ORDER,
                 timestamp: ORACLE_VERSION_5.timestamp,
               })
               expectCheckpointEq(await market.checkpoints(userB.address, 4), {
@@ -11019,8 +10890,8 @@ describe('Market', () => {
                 ...DEFAULT_POSITION,
                 timestamp: ORACLE_VERSION_5.timestamp,
               })
-              expectPositionEq(await market.pendingPositions(user.address, 5), {
-                ...DEFAULT_POSITION,
+              expectOrderEq(await market.pendingOrders(user.address, 5), {
+                ...DEFAULT_ORDER,
                 timestamp: ORACLE_VERSION_6.timestamp,
               })
               expectCheckpointEq(await market.checkpoints(user.address, 5), {
@@ -11045,10 +10916,9 @@ describe('Market', () => {
                 timestamp: ORACLE_VERSION_5.timestamp,
                 maker: POSITION,
               })
-              expectPositionEq(await market.pendingPositions(userB.address, 5), {
-                ...DEFAULT_POSITION,
+              expectOrderEq(await market.pendingOrders(userB.address, 5), {
+                ...DEFAULT_ORDER,
                 timestamp: ORACLE_VERSION_6.timestamp,
-                maker: POSITION,
               })
               expectCheckpointEq(await market.checkpoints(userB.address, 5), {
                 ...DEFAULT_CHECKPOINT,
@@ -11073,11 +10943,9 @@ describe('Market', () => {
                 maker: POSITION,
                 short: POSITION,
               })
-              expectPositionEq(await market.pendingPosition(5), {
-                ...DEFAULT_POSITION,
+              expectOrderEq(await market.pendingOrder(5), {
+                ...DEFAULT_ORDER,
                 timestamp: ORACLE_VERSION_6.timestamp,
-                maker: POSITION,
-                short: POSITION,
               })
               expectVersionEq(await market.versions(ORACLE_VERSION_3.timestamp), {
                 ...DEFAULT_VERSION,
@@ -11228,9 +11096,11 @@ describe('Market', () => {
                 timestamp: ORACLE_VERSION_3.timestamp,
                 long: POSITION.div(2),
               })
-              expectPositionEq(await market.pendingPositions(user.address, 3), {
-                ...DEFAULT_POSITION,
+              expectOrderEq(await market.pendingOrders(user.address, 3), {
+                ...DEFAULT_ORDER,
                 timestamp: ORACLE_VERSION_4.timestamp,
+                orders: 1,
+                longNeg: POSITION.div(2),
               })
               expectCheckpointEq(await market.checkpoints(user.address, 3), {
                 ...DEFAULT_CHECKPOINT,
@@ -11250,10 +11120,9 @@ describe('Market', () => {
                 timestamp: ORACLE_VERSION_3.timestamp,
                 maker: POSITION,
               })
-              expectPositionEq(await market.pendingPositions(userB.address, 3), {
-                ...DEFAULT_POSITION,
+              expectOrderEq(await market.pendingOrders(userB.address, 3), {
+                ...DEFAULT_ORDER,
                 timestamp: ORACLE_VERSION_4.timestamp,
-                maker: POSITION,
               })
               expectCheckpointEq(await market.checkpoints(userB.address, 3), {
                 ...DEFAULT_CHECKPOINT,
@@ -11275,11 +11144,11 @@ describe('Market', () => {
                 long: POSITION.div(2),
                 short: POSITION,
               })
-              expectPositionEq(await market.pendingPosition(3), {
-                ...DEFAULT_POSITION,
+              expectOrderEq(await market.pendingOrder(3), {
+                ...DEFAULT_ORDER,
                 timestamp: ORACLE_VERSION_4.timestamp,
-                maker: POSITION,
-                short: POSITION,
+                orders: 1,
+                longNeg: POSITION.div(2),
               })
               expectVersionEq(await market.versions(ORACLE_VERSION_3.timestamp), {
                 ...DEFAULT_VERSION,
@@ -11358,8 +11227,8 @@ describe('Market', () => {
                 ...DEFAULT_POSITION,
                 timestamp: ORACLE_VERSION_4.timestamp,
               })
-              expectPositionEq(await market.pendingPositions(user.address, 4), {
-                ...DEFAULT_POSITION,
+              expectOrderEq(await market.pendingOrders(user.address, 4), {
+                ...DEFAULT_ORDER,
                 timestamp: ORACLE_VERSION_5.timestamp,
               })
               expectCheckpointEq(await market.checkpoints(user.address, 4), {
@@ -11421,10 +11290,9 @@ describe('Market', () => {
               timestamp: ORACLE_VERSION_4.timestamp,
               maker: POSITION,
             })
-            expectPositionEq(await market.pendingPositions(user.address, 3), {
-              ...DEFAULT_POSITION,
+            expectOrderEq(await market.pendingOrders(user.address, 3), {
+              ...DEFAULT_ORDER,
               timestamp: ORACLE_VERSION_5.timestamp,
-              maker: POSITION,
             })
             expectCheckpointEq(await market.checkpoints(user.address, 3), {
               ...DEFAULT_CHECKPOINT,
@@ -11441,10 +11309,9 @@ describe('Market', () => {
               timestamp: ORACLE_VERSION_4.timestamp,
               long: POSITION.div(2),
             })
-            expectPositionEq(await market.pendingPositions(userB.address, 3), {
-              ...DEFAULT_POSITION,
+            expectOrderEq(await market.pendingOrders(userB.address, 3), {
+              ...DEFAULT_ORDER,
               timestamp: ORACLE_VERSION_5.timestamp,
-              long: POSITION.div(2),
             })
             expectCheckpointEq(await market.checkpoints(userB.address, 3), {
               ...DEFAULT_CHECKPOINT,
@@ -11465,12 +11332,9 @@ describe('Market', () => {
               long: POSITION.div(2),
               short: POSITION,
             })
-            expectPositionEq(await market.pendingPosition(3), {
-              ...DEFAULT_POSITION,
+            expectOrderEq(await market.pendingOrder(3), {
+              ...DEFAULT_ORDER,
               timestamp: ORACLE_VERSION_5.timestamp,
-              maker: POSITION,
-              long: POSITION.div(2),
-              short: POSITION,
             })
             expectVersionEq(await market.versions(ORACLE_VERSION_3.timestamp), {
               ...DEFAULT_VERSION,
@@ -11517,7 +11381,6 @@ describe('Market', () => {
           await market.connect(userB).update(userB.address, 0, POSITION.div(2), 0, COLLATERAL, false)
           dsu.transferFrom.whenCalledWith(userC.address, market.address, COLLATERAL.mul(1e12)).returns(true)
           await market.connect(userC).update(userC.address, 0, 0, POSITION.div(2), COLLATERAL, false)
-
           await expect(
             market.connect(userB).update(userB.address, 0, POSITION, 0, 0, false),
           ).to.be.revertedWithCustomError(market, 'MarketEfficiencyUnderLimitError')
@@ -11687,98 +11550,6 @@ describe('Market', () => {
           ).to.be.revertedWithCustomError(market, `MarketInsufficientLiquidityError`)
         })
 
-        // TODO: follow up with unrequest fix
-        it.skip('reverts when opening and closing immediately with settlementFee', async () => {
-          const marketParameter = { ...(await market.parameter()) }
-          marketParameter.settlementFee = parse6decimal('0.50')
-          await market.updateParameter(beneficiary.address, coordinator.address, marketParameter)
-
-          const minMarginAmount = (await market.riskParameter()).minMargin
-          const dustPosition = parse6decimal('0.000001')
-          dsu.transferFrom
-            .whenCalledWith(user.address, market.address, minMarginAmount.add(marketParameter.settlementFee).mul(1e12))
-            .returns(true)
-
-          await expect(
-            market.connect(user).update(user.address, dustPosition, 0, 0, minMarginAmount, false),
-          ).to.be.revertedWithCustomError(market, 'MarketInsufficientMarginError')
-
-          await expect(
-            market
-              .connect(user)
-              .update(user.address, dustPosition, 0, 0, minMarginAmount.add(marketParameter.settlementFee), false),
-          )
-            .to.emit(market, 'Updated')
-            .withArgs(
-              user.address,
-              user.address,
-              ORACLE_VERSION_2.timestamp,
-              dustPosition,
-              0,
-              0,
-              minMarginAmount.add(marketParameter.settlementFee),
-              false,
-            )
-
-          expectLocalEq(await market.locals(user.address), {
-            ...DEFAULT_LOCAL,
-            currentId: 1,
-            latestId: 0,
-            collateral: minMarginAmount.add(marketParameter.settlementFee),
-          })
-          expectPositionEq(await market.positions(user.address), {
-            ...DEFAULT_POSITION,
-            timestamp: ORACLE_VERSION_1.timestamp,
-          })
-          expectPositionEq(await market.pendingPositions(user.address, 1), {
-            ...DEFAULT_POSITION,
-            timestamp: ORACLE_VERSION_2.timestamp,
-            maker: dustPosition,
-          })
-          expectCheckpointEq(await market.checkpoints(user.address, 1), {
-            ...DEFAULT_CHECKPOINT,
-            delta: minMarginAmount.add(marketParameter.settlementFee),
-          })
-          expectGlobalEq(await market.global(), {
-            currentId: 1,
-            latestId: 0,
-            protocolFee: 0,
-            oracleFee: 0,
-            riskFee: 0,
-            donation: 0,
-          })
-          expectPositionEq(await market.position(), {
-            ...DEFAULT_POSITION,
-            timestamp: ORACLE_VERSION_1.timestamp,
-          })
-          expectPositionEq(await market.pendingPosition(1), {
-            ...DEFAULT_POSITION,
-            timestamp: ORACLE_VERSION_2.timestamp,
-            maker: dustPosition,
-          })
-          expectVersionEq(await market.versions(ORACLE_VERSION_1.timestamp), {
-            ...DEFAULT_VERSION,
-          })
-
-          await expect(
-            market.connect(user).update(user.address, 0, 0, 0, minMarginAmount.mul(-1), false),
-          ).to.be.revertedWithCustomError(market, 'MarketInsufficientCollateralError')
-
-          dsu.transfer
-            .whenCalledWith(user.address, minMarginAmount.sub(marketParameter.settlementFee).mul(1e12))
-            .returns(true)
-          await market
-            .connect(user)
-            .update(user.address, 0, 0, 0, minMarginAmount.sub(marketParameter.settlementFee).mul(-1), false)
-
-          expectLocalEq(await market.locals(user.address), {
-            ...DEFAULT_LOCAL,
-            currentId: 1,
-            latestId: 0,
-            collateral: parse6decimal('1'),
-          })
-        })
-
         it('reverts when the position is over-closed', async () => {
           const riskParameter = { ...(await market.riskParameter()) }
           riskParameter.staleAfter = BigNumber.from(14400)
@@ -11850,6 +11621,7 @@ describe('Market', () => {
             dsu.transferFrom.whenCalledWith(userB.address, market.address, utils.parseEther('450')).returns(true)
             await market.connect(userB).update(userB.address, POSITION, 0, 0, parse6decimal('450'), false)
             dsu.transferFrom.whenCalledWith(user.address, market.address, COLLATERAL.mul(1e12)).returns(true)
+
             await market.connect(user).update(user.address, 0, POSITION.div(2), 0, COLLATERAL, false)
 
             oracle.at.whenCalledWith(ORACLE_VERSION_2.timestamp).returns(ORACLE_VERSION_2)
@@ -11904,11 +11676,11 @@ describe('Market', () => {
 
             const oracleVersion = {
               price: parse6decimal('100'),
-              timestamp: TIMESTAMP,
+              timestamp: TIMESTAMP + 7200,
               valid: true,
             }
             oracle.at.whenCalledWith(oracleVersion.timestamp).returns(oracleVersion)
-            oracle.status.returns([oracleVersion, TIMESTAMP + 100])
+            oracle.status.returns([oracleVersion, TIMESTAMP + 7300])
             oracle.request.returns()
 
             dsu.transferFrom.whenCalledWith(userB.address, market.address, collateral.mul(1e12)).returns(true)
@@ -11918,16 +11690,16 @@ describe('Market', () => {
 
             const oracleVersion2 = {
               price: parse6decimal('100'),
-              timestamp: TIMESTAMP + 100,
+              timestamp: TIMESTAMP + 7300,
               valid: true,
             }
             oracle.at.whenCalledWith(oracleVersion2.timestamp).returns(oracleVersion2)
-            oracle.status.returns([oracleVersion2, TIMESTAMP + 200])
+            oracle.status.returns([oracleVersion2, TIMESTAMP + 7400])
             oracle.request.returns()
 
             await market.connect(user).update(user.address, 0, 0, 0, 0, false)
 
-            oracle.status.returns([oracleVersion2, TIMESTAMP + 300])
+            oracle.status.returns([oracleVersion2, TIMESTAMP + 7500])
             oracle.request.returns()
 
             dsu.transfer.whenCalledWith(user.address, collateralWithdraw2.mul(1e12)).returns(true)
@@ -11935,11 +11707,11 @@ describe('Market', () => {
 
             const oracleVersion3 = {
               price: parse6decimal('99.9999'),
-              timestamp: TIMESTAMP + 180,
+              timestamp: TIMESTAMP + 7380,
               valid: true,
             }
             oracle.at.whenCalledWith(oracleVersion3.timestamp).returns(oracleVersion3)
-            oracle.status.returns([oracleVersion3, TIMESTAMP + 300])
+            oracle.status.returns([oracleVersion3, TIMESTAMP + 7500])
             oracle.request.returns()
 
             await expect(
@@ -12149,9 +11921,11 @@ describe('Market', () => {
             timestamp: ORACLE_VERSION_3.timestamp,
             long: POSITION.div(2),
           })
-          expectPositionEq(await market.pendingPositions(user.address, 3), {
-            ...DEFAULT_POSITION,
+          expectOrderEq(await market.pendingOrders(user.address, 3), {
+            ...DEFAULT_ORDER,
             timestamp: ORACLE_VERSION_4.timestamp,
+            orders: 1,
+            longNeg: POSITION.div(2),
           })
           expectCheckpointEq(await market.checkpoints(user.address, 3), {
             ...DEFAULT_CHECKPOINT,
@@ -12170,10 +11944,9 @@ describe('Market', () => {
             timestamp: ORACLE_VERSION_3.timestamp,
             maker: POSITION,
           })
-          expectPositionEq(await market.pendingPositions(userB.address, 3), {
-            ...DEFAULT_POSITION,
+          expectOrderEq(await market.pendingOrders(userB.address, 3), {
+            ...DEFAULT_ORDER,
             timestamp: ORACLE_VERSION_4.timestamp,
-            maker: POSITION,
           })
           expectCheckpointEq(await market.checkpoints(userB.address, 3), {
             ...DEFAULT_CHECKPOINT,
@@ -12194,10 +11967,11 @@ describe('Market', () => {
             maker: POSITION,
             long: POSITION.div(2),
           })
-          expectPositionEq(await market.pendingPosition(3), {
-            ...DEFAULT_POSITION,
+          expectOrderEq(await market.pendingOrder(3), {
+            ...DEFAULT_ORDER,
             timestamp: ORACLE_VERSION_4.timestamp,
-            maker: POSITION,
+            orders: 1,
+            longNeg: POSITION.div(2),
           })
           expectVersionEq(await market.versions(ORACLE_VERSION_3.timestamp), {
             ...DEFAULT_VERSION,
@@ -12297,8 +12071,8 @@ describe('Market', () => {
             ...DEFAULT_POSITION,
             timestamp: ORACLE_VERSION_5.timestamp,
           })
-          expectPositionEq(await market.pendingPositions(user.address, 5), {
-            ...DEFAULT_POSITION,
+          expectOrderEq(await market.pendingOrders(user.address, 5), {
+            ...DEFAULT_ORDER,
             timestamp: ORACLE_VERSION_6.timestamp,
           })
           expectCheckpointEq(await market.checkpoints(user.address, 5), {
@@ -12320,10 +12094,9 @@ describe('Market', () => {
             timestamp: ORACLE_VERSION_5.timestamp,
             maker: POSITION,
           })
-          expectPositionEq(await market.pendingPositions(userB.address, 5), {
-            ...DEFAULT_POSITION,
+          expectOrderEq(await market.pendingOrders(userB.address, 5), {
+            ...DEFAULT_ORDER,
             timestamp: ORACLE_VERSION_6.timestamp,
-            maker: POSITION,
           })
           expectCheckpointEq(await market.checkpoints(userB.address, 5), {
             ...DEFAULT_CHECKPOINT,
@@ -12345,10 +12118,9 @@ describe('Market', () => {
             timestamp: ORACLE_VERSION_5.timestamp,
             maker: POSITION,
           })
-          expectPositionEq(await market.pendingPosition(5), {
-            ...DEFAULT_POSITION,
+          expectOrderEq(await market.pendingOrder(5), {
+            ...DEFAULT_ORDER,
             timestamp: ORACLE_VERSION_6.timestamp,
-            maker: POSITION,
           })
           expectVersionEq(await market.versions(ORACLE_VERSION_3.timestamp), {
             ...DEFAULT_VERSION,
@@ -12574,20 +12346,10 @@ describe('Market', () => {
           expectPositionEq(await market.positions(user.address), {
             ...DEFAULT_POSITION,
             timestamp: ORACLE_VERSION_6.timestamp,
-            invalidation: {
-              maker: 0,
-              long: 0,
-              short: POSITION.div(2),
-            },
           })
-          expectPositionEq(await market.pendingPositions(user.address, 6), {
-            ...DEFAULT_POSITION,
+          expectOrderEq(await market.pendingOrders(user.address, 6), {
+            ...DEFAULT_ORDER,
             timestamp: ORACLE_VERSION_6.timestamp + 3600,
-            invalidation: {
-              maker: 0,
-              long: 0,
-              short: POSITION.div(2),
-            },
           })
           expectCheckpointEq(await market.checkpoints(user.address, 6), {
             ...DEFAULT_CHECKPOINT,
@@ -12609,10 +12371,9 @@ describe('Market', () => {
             timestamp: ORACLE_VERSION_6.timestamp,
             maker: POSITION,
           })
-          expectPositionEq(await market.pendingPositions(userB.address, 6), {
-            ...DEFAULT_POSITION,
+          expectOrderEq(await market.pendingOrders(userB.address, 6), {
+            ...DEFAULT_ORDER,
             timestamp: ORACLE_VERSION_6.timestamp + 3600,
-            maker: POSITION,
           })
           expectCheckpointEq(await market.checkpoints(userB.address, 6), {
             ...DEFAULT_CHECKPOINT,
@@ -12634,21 +12395,10 @@ describe('Market', () => {
             ...DEFAULT_POSITION,
             timestamp: ORACLE_VERSION_6.timestamp,
             maker: POSITION,
-            invalidation: {
-              maker: 0,
-              long: 0,
-              short: POSITION.div(2),
-            },
           })
-          expectPositionEq(await market.pendingPosition(6), {
-            ...DEFAULT_POSITION,
+          expectOrderEq(await market.pendingOrder(6), {
+            ...DEFAULT_ORDER,
             timestamp: ORACLE_VERSION_6.timestamp + 3600,
-            maker: POSITION,
-            invalidation: {
-              maker: 0,
-              long: 0,
-              short: POSITION.div(2),
-            },
           })
           expectVersionEq(await market.versions(ORACLE_VERSION_3.timestamp), {
             ...DEFAULT_VERSION,
@@ -12755,31 +12505,21 @@ describe('Market', () => {
           expectPositionEq(await market.positions(user.address), {
             ...DEFAULT_POSITION,
             timestamp: ORACLE_VERSION_3.timestamp,
-            invalidation: {
-              maker: 0,
-              long: -POSITION.div(2),
-              short: 0,
-            },
           })
-          expectPositionEq(await market.pendingPositions(user.address, 1), {
-            ...DEFAULT_POSITION,
+          expectOrderEq(await market.pendingOrders(user.address, 1), {
+            ...DEFAULT_ORDER,
             timestamp: ORACLE_VERSION_3.timestamp,
-            long: POSITION.div(2),
+            orders: 1,
+            longPos: POSITION.div(2),
           })
           expectCheckpointEq(await market.checkpoints(user.address, 1), {
             ...DEFAULT_CHECKPOINT,
             delta: COLLATERAL,
             settlementFee: SETTLEMENT_FEE,
           })
-          expectPositionEq(await market.pendingPositions(user.address, 2), {
-            ...DEFAULT_POSITION,
+          expectOrderEq(await market.pendingOrders(user.address, 2), {
+            ...DEFAULT_ORDER,
             timestamp: ORACLE_VERSION_4.timestamp,
-            long: POSITION.div(2),
-            invalidation: {
-              maker: 0,
-              long: -POSITION.div(2),
-              short: 0,
-            },
           })
           expectCheckpointEq(await market.checkpoints(user.address, 2), {
             ...DEFAULT_CHECKPOINT,
@@ -12796,19 +12536,19 @@ describe('Market', () => {
             timestamp: ORACLE_VERSION_3.timestamp,
             maker: POSITION,
           })
-          expectPositionEq(await market.pendingPositions(userB.address, 1), {
-            ...DEFAULT_POSITION,
+          expectOrderEq(await market.pendingOrders(userB.address, 1), {
+            ...DEFAULT_ORDER,
             timestamp: ORACLE_VERSION_2.timestamp,
-            maker: POSITION,
+            orders: 1,
+            makerPos: POSITION,
           })
           expectCheckpointEq(await market.checkpoints(userB.address, 1), {
             ...DEFAULT_CHECKPOINT,
             delta: COLLATERAL,
           })
-          expectPositionEq(await market.pendingPositions(userB.address, 2), {
-            ...DEFAULT_POSITION,
+          expectOrderEq(await market.pendingOrders(userB.address, 2), {
+            ...DEFAULT_ORDER,
             timestamp: ORACLE_VERSION_4.timestamp,
-            maker: POSITION,
           })
           expectCheckpointEq(await market.checkpoints(userB.address, 2), {
             ...DEFAULT_CHECKPOINT,
@@ -12826,28 +12566,16 @@ describe('Market', () => {
             ...DEFAULT_POSITION,
             timestamp: ORACLE_VERSION_3.timestamp,
             maker: POSITION,
-            invalidation: {
-              maker: 0,
-              long: -POSITION.div(2),
-              short: 0,
-            },
           })
-          expectPositionEq(await market.pendingPosition(2), {
-            ...DEFAULT_POSITION,
+          expectOrderEq(await market.pendingOrder(2), {
+            ...DEFAULT_ORDER,
             timestamp: ORACLE_VERSION_3.timestamp,
-            maker: POSITION,
-            long: POSITION.div(2),
+            orders: 1,
+            longPos: POSITION.div(2),
           })
-          expectPositionEq(await market.pendingPosition(3), {
-            ...DEFAULT_POSITION,
+          expectOrderEq(await market.pendingOrder(3), {
+            ...DEFAULT_ORDER,
             timestamp: ORACLE_VERSION_4.timestamp,
-            maker: POSITION,
-            long: POSITION.div(2),
-            invalidation: {
-              maker: 0,
-              long: -POSITION.div(2),
-              short: 0,
-            },
           })
           expectVersionEq(await market.versions(ORACLE_VERSION_2.timestamp), {
             ...DEFAULT_VERSION,
@@ -12913,31 +12641,23 @@ describe('Market', () => {
             ...DEFAULT_POSITION,
             timestamp: ORACLE_VERSION_4.timestamp,
             long: POSITION.div(2),
-            invalidation: {
-              maker: 0,
-              long: -POSITION.div(2),
-              short: 0,
-            },
           })
-          expectPositionEq(await market.pendingPositions(user.address, 1), {
-            ...DEFAULT_POSITION,
+          expectOrderEq(await market.pendingOrders(user.address, 1), {
+            ...DEFAULT_ORDER,
             timestamp: ORACLE_VERSION_3.timestamp,
-            long: POSITION.div(2),
+            orders: 1,
+            longPos: POSITION.div(2),
           })
           expectCheckpointEq(await market.checkpoints(user.address, 1), {
             ...DEFAULT_CHECKPOINT,
             delta: COLLATERAL,
             settlementFee: SETTLEMENT_FEE,
           })
-          expectPositionEq(await market.pendingPositions(user.address, 2), {
-            ...DEFAULT_POSITION,
+          expectOrderEq(await market.pendingOrders(user.address, 2), {
+            ...DEFAULT_ORDER,
             timestamp: ORACLE_VERSION_4.timestamp,
-            long: POSITION.div(2),
-            invalidation: {
-              maker: 0,
-              long: -POSITION.div(2),
-              short: 0,
-            },
+            orders: 1,
+            longPos: POSITION.div(2),
           })
           expectCheckpointEq(await market.checkpoints(user.address, 2), {
             ...DEFAULT_CHECKPOINT,
@@ -12946,15 +12666,9 @@ describe('Market', () => {
             delta: COLLATERAL,
             collateral: COLLATERAL.sub(SETTLEMENT_FEE),
           })
-          expectPositionEq(await market.pendingPositions(user.address, 3), {
-            ...DEFAULT_POSITION,
+          expectOrderEq(await market.pendingOrders(user.address, 3), {
+            ...DEFAULT_ORDER,
             timestamp: ORACLE_VERSION_5.timestamp,
-            long: POSITION.div(2),
-            invalidation: {
-              maker: 0,
-              long: -POSITION.div(2),
-              short: 0,
-            },
           })
           expectCheckpointEq(await market.checkpoints(user.address, 3), {
             ...DEFAULT_CHECKPOINT,
@@ -12971,19 +12685,19 @@ describe('Market', () => {
             timestamp: ORACLE_VERSION_4.timestamp,
             maker: POSITION,
           })
-          expectPositionEq(await market.pendingPositions(userB.address, 1), {
-            ...DEFAULT_POSITION,
+          expectOrderEq(await market.pendingOrders(userB.address, 1), {
+            ...DEFAULT_ORDER,
             timestamp: ORACLE_VERSION_2.timestamp,
-            maker: POSITION,
+            orders: 1,
+            makerPos: POSITION,
           })
           expectCheckpointEq(await market.checkpoints(userB.address, 1), {
             ...DEFAULT_CHECKPOINT,
             delta: COLLATERAL,
           })
-          expectPositionEq(await market.pendingPositions(userB.address, 2), {
-            ...DEFAULT_POSITION,
+          expectOrderEq(await market.pendingOrders(userB.address, 2), {
+            ...DEFAULT_ORDER,
             timestamp: ORACLE_VERSION_5.timestamp,
-            maker: POSITION,
           })
           expectCheckpointEq(await market.checkpoints(userB.address, 2), {
             ...DEFAULT_CHECKPOINT,
@@ -13002,39 +12716,22 @@ describe('Market', () => {
             timestamp: ORACLE_VERSION_4.timestamp,
             maker: POSITION,
             long: POSITION.div(2),
-            invalidation: {
-              maker: 0,
-              long: -POSITION.div(2),
-              short: 0,
-            },
           })
-          expectPositionEq(await market.pendingPosition(2), {
-            ...DEFAULT_POSITION,
+          expectOrderEq(await market.pendingOrder(2), {
+            ...DEFAULT_ORDER,
             timestamp: ORACLE_VERSION_3.timestamp,
-            maker: POSITION,
-            long: POSITION.div(2),
+            orders: 1,
+            longPos: POSITION.div(2),
           })
-          expectPositionEq(await market.pendingPosition(3), {
-            ...DEFAULT_POSITION,
+          expectOrderEq(await market.pendingOrder(3), {
+            ...DEFAULT_ORDER,
             timestamp: ORACLE_VERSION_4.timestamp,
-            maker: POSITION,
-            long: POSITION.div(2),
-            invalidation: {
-              maker: 0,
-              long: -POSITION.div(2),
-              short: 0,
-            },
+            orders: 1,
+            longPos: POSITION.div(2),
           })
-          expectPositionEq(await market.pendingPosition(4), {
-            ...DEFAULT_POSITION,
+          expectOrderEq(await market.pendingOrder(4), {
+            ...DEFAULT_ORDER,
             timestamp: ORACLE_VERSION_5.timestamp,
-            maker: POSITION,
-            long: POSITION.div(2),
-            invalidation: {
-              maker: 0,
-              long: -POSITION.div(2),
-              short: 0,
-            },
           })
           expectVersionEq(await market.versions(ORACLE_VERSION_2.timestamp), {
             ...DEFAULT_VERSION,
@@ -13104,31 +12801,23 @@ describe('Market', () => {
           expectPositionEq(await market.positions(user.address), {
             ...DEFAULT_POSITION,
             timestamp: ORACLE_VERSION_4.timestamp,
-            invalidation: {
-              maker: 0,
-              long: -POSITION,
-              short: 0,
-            },
           })
-          expectPositionEq(await market.pendingPositions(user.address, 1), {
-            ...DEFAULT_POSITION,
+          expectOrderEq(await market.pendingOrders(user.address, 1), {
+            ...DEFAULT_ORDER,
             timestamp: ORACLE_VERSION_3.timestamp,
-            long: POSITION.div(2),
+            orders: 1,
+            longPos: POSITION.div(2),
           })
           expectCheckpointEq(await market.checkpoints(user.address, 1), {
             ...DEFAULT_CHECKPOINT,
             delta: COLLATERAL,
             settlementFee: SETTLEMENT_FEE,
           })
-          expectPositionEq(await market.pendingPositions(user.address, 2), {
-            ...DEFAULT_POSITION,
+          expectOrderEq(await market.pendingOrders(user.address, 2), {
+            ...DEFAULT_ORDER,
             timestamp: ORACLE_VERSION_4.timestamp,
-            long: POSITION.div(2),
-            invalidation: {
-              maker: 0,
-              long: -POSITION.div(2),
-              short: 0,
-            },
+            orders: 1,
+            longPos: POSITION.div(2),
           })
           expectCheckpointEq(await market.checkpoints(user.address, 2), {
             ...DEFAULT_CHECKPOINT,
@@ -13136,15 +12825,9 @@ describe('Market', () => {
             delta: COLLATERAL,
             settlementFee: SETTLEMENT_FEE,
           })
-          expectPositionEq(await market.pendingPositions(user.address, 3), {
-            ...DEFAULT_POSITION,
+          expectOrderEq(await market.pendingOrders(user.address, 3), {
+            ...DEFAULT_ORDER,
             timestamp: ORACLE_VERSION_5.timestamp,
-            long: POSITION.div(2),
-            invalidation: {
-              maker: 0,
-              long: -POSITION,
-              short: 0,
-            },
           })
           expectCheckpointEq(await market.checkpoints(user.address, 3), {
             ...DEFAULT_CHECKPOINT,
@@ -13161,19 +12844,19 @@ describe('Market', () => {
             timestamp: ORACLE_VERSION_4.timestamp,
             maker: POSITION,
           })
-          expectPositionEq(await market.pendingPositions(userB.address, 1), {
-            ...DEFAULT_POSITION,
+          expectOrderEq(await market.pendingOrders(userB.address, 1), {
+            ...DEFAULT_ORDER,
             timestamp: ORACLE_VERSION_2.timestamp,
-            maker: POSITION,
+            orders: 1,
+            makerPos: POSITION,
           })
           expectCheckpointEq(await market.checkpoints(userB.address, 1), {
             ...DEFAULT_CHECKPOINT,
             delta: COLLATERAL,
           })
-          expectPositionEq(await market.pendingPositions(userB.address, 2), {
-            ...DEFAULT_POSITION,
+          expectOrderEq(await market.pendingOrders(userB.address, 2), {
+            ...DEFAULT_ORDER,
             timestamp: ORACLE_VERSION_5.timestamp,
-            maker: POSITION,
           })
           expectCheckpointEq(await market.checkpoints(userB.address, 2), {
             ...DEFAULT_CHECKPOINT,
@@ -13191,39 +12874,22 @@ describe('Market', () => {
             ...DEFAULT_POSITION,
             timestamp: ORACLE_VERSION_4.timestamp,
             maker: POSITION,
-            invalidation: {
-              maker: 0,
-              long: -POSITION,
-              short: 0,
-            },
           })
-          expectPositionEq(await market.pendingPosition(2), {
-            ...DEFAULT_POSITION,
+          expectOrderEq(await market.pendingOrder(2), {
+            ...DEFAULT_ORDER,
             timestamp: ORACLE_VERSION_3.timestamp,
-            maker: POSITION,
-            long: POSITION.div(2),
+            orders: 1,
+            longPos: POSITION.div(2),
           })
-          expectPositionEq(await market.pendingPosition(3), {
-            ...DEFAULT_POSITION,
+          expectOrderEq(await market.pendingOrder(3), {
+            ...DEFAULT_ORDER,
             timestamp: ORACLE_VERSION_4.timestamp,
-            maker: POSITION,
-            long: POSITION.div(2),
-            invalidation: {
-              maker: 0,
-              long: -POSITION.div(2),
-              short: 0,
-            },
+            orders: 1,
+            longPos: POSITION.div(2),
           })
-          expectPositionEq(await market.pendingPosition(4), {
-            ...DEFAULT_POSITION,
+          expectOrderEq(await market.pendingOrder(4), {
+            ...DEFAULT_ORDER,
             timestamp: ORACLE_VERSION_5.timestamp,
-            maker: POSITION,
-            long: POSITION.div(2),
-            invalidation: {
-              maker: 0,
-              long: -POSITION,
-              short: 0,
-            },
           })
           expectVersionEq(await market.versions(ORACLE_VERSION_2.timestamp), {
             ...DEFAULT_VERSION,
@@ -13293,41 +12959,30 @@ describe('Market', () => {
           expectPositionEq(await market.positions(user.address), {
             ...DEFAULT_POSITION,
             timestamp: ORACLE_VERSION_4.timestamp,
-            invalidation: {
-              maker: 0,
-              long: -POSITION.div(2),
-              short: 0,
-            },
           })
-          expectPositionEq(await market.pendingPositions(user.address, 1), {
-            ...DEFAULT_POSITION,
+          expectOrderEq(await market.pendingOrders(user.address, 1), {
+            ...DEFAULT_ORDER,
             timestamp: ORACLE_VERSION_3.timestamp,
-            long: POSITION.div(2),
+            orders: 1,
+            longPos: POSITION.div(2),
           })
           expectCheckpointEq(await market.checkpoints(user.address, 1), {
             ...DEFAULT_CHECKPOINT,
             delta: COLLATERAL,
             settlementFee: SETTLEMENT_FEE,
           })
-          expectPositionEq(await market.pendingPositions(user.address, 2), {
-            ...DEFAULT_POSITION,
+          expectOrderEq(await market.pendingOrders(user.address, 2), {
+            ...DEFAULT_ORDER,
             timestamp: ORACLE_VERSION_4.timestamp,
-            long: POSITION.div(2),
           })
           expectCheckpointEq(await market.checkpoints(user.address, 2), {
             ...DEFAULT_CHECKPOINT,
             collateral: COLLATERAL.sub(SETTLEMENT_FEE),
             delta: COLLATERAL,
           })
-          expectPositionEq(await market.pendingPositions(user.address, 3), {
-            ...DEFAULT_POSITION,
+          expectOrderEq(await market.pendingOrders(user.address, 3), {
+            ...DEFAULT_ORDER,
             timestamp: ORACLE_VERSION_5.timestamp,
-            long: POSITION.div(2),
-            invalidation: {
-              maker: 0,
-              long: -POSITION.div(2),
-              short: 0,
-            },
           })
           expectCheckpointEq(await market.checkpoints(user.address, 3), {
             ...DEFAULT_CHECKPOINT,
@@ -13344,19 +12999,19 @@ describe('Market', () => {
             timestamp: ORACLE_VERSION_4.timestamp,
             maker: POSITION,
           })
-          expectPositionEq(await market.pendingPositions(userB.address, 1), {
-            ...DEFAULT_POSITION,
+          expectOrderEq(await market.pendingOrders(userB.address, 1), {
+            ...DEFAULT_ORDER,
             timestamp: ORACLE_VERSION_2.timestamp,
-            maker: POSITION,
+            orders: 1,
+            makerPos: POSITION,
           })
           expectCheckpointEq(await market.checkpoints(userB.address, 1), {
             ...DEFAULT_CHECKPOINT,
             delta: COLLATERAL,
           })
-          expectPositionEq(await market.pendingPositions(userB.address, 2), {
-            ...DEFAULT_POSITION,
+          expectOrderEq(await market.pendingOrders(userB.address, 2), {
+            ...DEFAULT_ORDER,
             timestamp: ORACLE_VERSION_5.timestamp,
-            maker: POSITION,
           })
           expectCheckpointEq(await market.checkpoints(userB.address, 2), {
             ...DEFAULT_CHECKPOINT,
@@ -13374,35 +13029,20 @@ describe('Market', () => {
             ...DEFAULT_POSITION,
             timestamp: ORACLE_VERSION_4.timestamp,
             maker: POSITION,
-            invalidation: {
-              maker: 0,
-              long: -POSITION.div(2),
-              short: 0,
-            },
           })
-          expectPositionEq(await market.pendingPosition(2), {
-            ...DEFAULT_POSITION,
+          expectOrderEq(await market.pendingOrder(2), {
+            ...DEFAULT_ORDER,
             timestamp: ORACLE_VERSION_3.timestamp,
-            maker: POSITION,
-            long: POSITION.div(2),
-            short: 0,
+            orders: 1,
+            longPos: POSITION.div(2),
           })
-          expectPositionEq(await market.pendingPosition(3), {
-            ...DEFAULT_POSITION,
+          expectOrderEq(await market.pendingOrder(3), {
+            ...DEFAULT_ORDER,
             timestamp: ORACLE_VERSION_4.timestamp,
-            maker: POSITION,
-            long: POSITION.div(2),
           })
-          expectPositionEq(await market.pendingPosition(4), {
-            ...DEFAULT_POSITION,
+          expectOrderEq(await market.pendingOrder(4), {
+            ...DEFAULT_ORDER,
             timestamp: ORACLE_VERSION_5.timestamp,
-            maker: POSITION,
-            long: POSITION.div(2),
-            invalidation: {
-              maker: 0,
-              long: -POSITION.div(2),
-              short: 0,
-            },
           })
           expectVersionEq(await market.versions(ORACLE_VERSION_2.timestamp), {
             ...DEFAULT_VERSION,
@@ -13480,41 +13120,32 @@ describe('Market', () => {
             ...DEFAULT_POSITION,
             timestamp: ORACLE_VERSION_5.timestamp,
             long: POSITION.div(2),
-            invalidation: {
-              maker: 0,
-              long: -POSITION.div(2),
-              short: 0,
-            },
           })
-          expectPositionEq(await market.pendingPositions(user.address, 1), {
-            ...DEFAULT_POSITION,
+          expectOrderEq(await market.pendingOrders(user.address, 1), {
+            ...DEFAULT_ORDER,
             timestamp: ORACLE_VERSION_3.timestamp,
-            long: POSITION.div(2),
+            orders: 1,
+            longPos: POSITION.div(2),
           })
           expectCheckpointEq(await market.checkpoints(user.address, 1), {
             ...DEFAULT_CHECKPOINT,
             delta: COLLATERAL,
             settlementFee: SETTLEMENT_FEE,
           })
-          expectPositionEq(await market.pendingPositions(user.address, 2), {
-            ...DEFAULT_POSITION,
+          expectOrderEq(await market.pendingOrders(user.address, 2), {
+            ...DEFAULT_ORDER,
             timestamp: ORACLE_VERSION_4.timestamp,
-            long: POSITION.div(2),
           })
           expectCheckpointEq(await market.checkpoints(user.address, 2), {
             ...DEFAULT_CHECKPOINT,
             collateral: COLLATERAL.sub(SETTLEMENT_FEE),
             delta: COLLATERAL,
           })
-          expectPositionEq(await market.pendingPositions(user.address, 3), {
-            ...DEFAULT_POSITION,
+          expectOrderEq(await market.pendingOrders(user.address, 3), {
+            ...DEFAULT_ORDER,
             timestamp: ORACLE_VERSION_5.timestamp,
-            long: POSITION.div(2),
-            invalidation: {
-              maker: 0,
-              long: -POSITION.div(2),
-              short: 0,
-            },
+            orders: 1,
+            longPos: POSITION.div(2),
           })
           expectCheckpointEq(await market.checkpoints(user.address, 3), {
             ...DEFAULT_CHECKPOINT,
@@ -13523,15 +13154,9 @@ describe('Market', () => {
             collateral: COLLATERAL.sub(SETTLEMENT_FEE),
             delta: COLLATERAL,
           })
-          expectPositionEq(await market.pendingPositions(user.address, 4), {
-            ...DEFAULT_POSITION,
+          expectOrderEq(await market.pendingOrders(user.address, 4), {
+            ...DEFAULT_ORDER,
             timestamp: ORACLE_VERSION_6.timestamp,
-            long: POSITION.div(2),
-            invalidation: {
-              maker: 0,
-              long: -POSITION.div(2),
-              short: 0,
-            },
           })
           expectCheckpointEq(await market.checkpoints(user.address, 4), {
             ...DEFAULT_CHECKPOINT,
@@ -13548,19 +13173,19 @@ describe('Market', () => {
             timestamp: ORACLE_VERSION_5.timestamp,
             maker: POSITION,
           })
-          expectPositionEq(await market.pendingPositions(userB.address, 1), {
-            ...DEFAULT_POSITION,
+          expectOrderEq(await market.pendingOrders(userB.address, 1), {
+            ...DEFAULT_ORDER,
             timestamp: ORACLE_VERSION_2.timestamp,
-            maker: POSITION,
+            orders: 1,
+            makerPos: POSITION,
           })
           expectCheckpointEq(await market.checkpoints(userB.address, 1), {
             ...DEFAULT_CHECKPOINT,
             delta: COLLATERAL,
           })
-          expectPositionEq(await market.pendingPositions(userB.address, 2), {
-            ...DEFAULT_POSITION,
+          expectOrderEq(await market.pendingOrders(userB.address, 2), {
+            ...DEFAULT_ORDER,
             timestamp: ORACLE_VERSION_6.timestamp,
-            maker: POSITION,
           })
           expectCheckpointEq(await market.checkpoints(userB.address, 2), {
             ...DEFAULT_CHECKPOINT,
@@ -13579,46 +13204,26 @@ describe('Market', () => {
             timestamp: ORACLE_VERSION_5.timestamp,
             maker: POSITION,
             long: POSITION.div(2),
-            invalidation: {
-              maker: 0,
-              long: -POSITION.div(2),
-              short: 0,
-            },
           })
-          expectPositionEq(await market.pendingPosition(2), {
-            ...DEFAULT_POSITION,
+          expectOrderEq(await market.pendingOrder(2), {
+            ...DEFAULT_ORDER,
             timestamp: ORACLE_VERSION_3.timestamp,
-            maker: POSITION,
-            long: POSITION.div(2),
-            short: 0,
+            orders: 1,
+            longPos: POSITION.div(2),
           })
-          expectPositionEq(await market.pendingPosition(3), {
-            ...DEFAULT_POSITION,
+          expectOrderEq(await market.pendingOrder(3), {
+            ...DEFAULT_ORDER,
             timestamp: ORACLE_VERSION_4.timestamp,
-            maker: POSITION,
-            long: POSITION.div(2),
           })
-          expectPositionEq(await market.pendingPosition(4), {
-            ...DEFAULT_POSITION,
+          expectOrderEq(await market.pendingOrder(4), {
+            ...DEFAULT_ORDER,
             timestamp: ORACLE_VERSION_5.timestamp,
-            maker: POSITION,
-            long: POSITION.div(2),
-            invalidation: {
-              maker: 0,
-              long: -POSITION.div(2),
-              short: 0,
-            },
+            orders: 1,
+            longPos: POSITION.div(2),
           })
-          expectPositionEq(await market.pendingPosition(5), {
-            ...DEFAULT_POSITION,
+          expectOrderEq(await market.pendingOrder(5), {
+            ...DEFAULT_ORDER,
             timestamp: ORACLE_VERSION_6.timestamp,
-            maker: POSITION,
-            long: POSITION.div(2),
-            invalidation: {
-              maker: 0,
-              long: -POSITION.div(2),
-              short: 0,
-            },
           })
           expectVersionEq(await market.versions(ORACLE_VERSION_2.timestamp), {
             ...DEFAULT_VERSION,
@@ -13664,10 +13269,9 @@ describe('Market', () => {
             timestamp: ORACLE_VERSION_3.timestamp,
             long: POSITION.div(2),
           })
-          expectPositionEq(await market.pendingPositions(user.address, 2), {
-            ...DEFAULT_POSITION,
+          expectOrderEq(await market.pendingOrders(user.address, 2), {
+            ...DEFAULT_ORDER,
             timestamp: ORACLE_VERSION_4.timestamp,
-            long: POSITION.div(2),
           })
           expectCheckpointEq(await market.checkpoints(user.address, 2), {
             ...DEFAULT_CHECKPOINT,
@@ -13686,10 +13290,9 @@ describe('Market', () => {
             timestamp: ORACLE_VERSION_3.timestamp,
             maker: POSITION,
           })
-          expectPositionEq(await market.pendingPositions(userB.address, 2), {
-            ...DEFAULT_POSITION,
+          expectOrderEq(await market.pendingOrders(userB.address, 2), {
+            ...DEFAULT_ORDER,
             timestamp: ORACLE_VERSION_4.timestamp,
-            maker: POSITION,
           })
           expectCheckpointEq(await market.checkpoints(userB.address, 2), {
             ...DEFAULT_CHECKPOINT,
@@ -13710,11 +13313,9 @@ describe('Market', () => {
             maker: POSITION,
             long: POSITION.div(2),
           })
-          expectPositionEq(await market.pendingPosition(2), {
-            ...DEFAULT_POSITION,
+          expectOrderEq(await market.pendingOrder(2), {
+            ...DEFAULT_ORDER,
             timestamp: ORACLE_VERSION_4.timestamp,
-            maker: POSITION,
-            long: POSITION.div(2),
           })
           expectVersionEq(await market.versions(ORACLE_VERSION_3.timestamp), {
             ...DEFAULT_VERSION,
@@ -13765,8 +13366,8 @@ describe('Market', () => {
             ...DEFAULT_POSITION,
             timestamp: ORACLE_VERSION_4.timestamp,
           })
-          expectPositionEq(await market.pendingPositions(user.address, 3), {
-            ...DEFAULT_POSITION,
+          expectOrderEq(await market.pendingOrders(user.address, 3), {
+            ...DEFAULT_ORDER,
             timestamp: ORACLE_VERSION_5.timestamp,
           })
           expectCheckpointEq(await market.checkpoints(user.address, 3), {
@@ -13788,10 +13389,9 @@ describe('Market', () => {
             timestamp: ORACLE_VERSION_4.timestamp,
             maker: POSITION,
           })
-          expectPositionEq(await market.pendingPositions(userB.address, 2), {
-            ...DEFAULT_POSITION,
+          expectOrderEq(await market.pendingOrders(userB.address, 2), {
+            ...DEFAULT_ORDER,
             timestamp: ORACLE_VERSION_5.timestamp,
-            maker: POSITION,
           })
           expectCheckpointEq(await market.checkpoints(userB.address, 2), {
             ...DEFAULT_CHECKPOINT,
@@ -13808,10 +13408,9 @@ describe('Market', () => {
             timestamp: ORACLE_VERSION_4.timestamp,
             short: POSITION.div(2),
           })
-          expectPositionEq(await market.pendingPositions(userC.address, 2), {
-            ...DEFAULT_POSITION,
+          expectOrderEq(await market.pendingOrders(userC.address, 2), {
+            ...DEFAULT_ORDER,
             timestamp: ORACLE_VERSION_5.timestamp,
-            short: POSITION.div(2),
           })
           expectCheckpointEq(await market.checkpoints(userC.address, 2), {
             ...DEFAULT_CHECKPOINT,
@@ -13834,11 +13433,9 @@ describe('Market', () => {
             maker: POSITION,
             short: POSITION.div(2),
           })
-          expectPositionEq(await market.pendingPosition(3), {
-            ...DEFAULT_POSITION,
+          expectOrderEq(await market.pendingOrder(3), {
+            ...DEFAULT_ORDER,
             timestamp: ORACLE_VERSION_5.timestamp,
-            maker: POSITION,
-            short: POSITION.div(2),
           })
           expectVersionEq(await market.versions(ORACLE_VERSION_4.timestamp), {
             ...DEFAULT_VERSION,
@@ -13891,8 +13488,8 @@ describe('Market', () => {
             ...DEFAULT_POSITION,
             timestamp: ORACLE_VERSION_4.timestamp,
           })
-          expectPositionEq(await market.pendingPositions(user.address, 3), {
-            ...DEFAULT_POSITION,
+          expectOrderEq(await market.pendingOrders(user.address, 3), {
+            ...DEFAULT_ORDER,
             timestamp: ORACLE_VERSION_5.timestamp,
           })
           expectCheckpointEq(await market.checkpoints(user.address, 3), {
@@ -13914,10 +13511,9 @@ describe('Market', () => {
             timestamp: ORACLE_VERSION_4.timestamp,
             maker: POSITION,
           })
-          expectPositionEq(await market.pendingPositions(userB.address, 2), {
-            ...DEFAULT_POSITION,
+          expectOrderEq(await market.pendingOrders(userB.address, 2), {
+            ...DEFAULT_ORDER,
             timestamp: ORACLE_VERSION_5.timestamp,
-            maker: POSITION,
           })
           expectCheckpointEq(await market.checkpoints(userB.address, 2), {
             ...DEFAULT_CHECKPOINT,
@@ -13934,10 +13530,9 @@ describe('Market', () => {
             timestamp: ORACLE_VERSION_4.timestamp,
             short: POSITION.div(2),
           })
-          expectPositionEq(await market.pendingPositions(userC.address, 2), {
-            ...DEFAULT_POSITION,
+          expectOrderEq(await market.pendingOrders(userC.address, 2), {
+            ...DEFAULT_ORDER,
             timestamp: ORACLE_VERSION_5.timestamp,
-            short: POSITION.div(2),
           })
           expectCheckpointEq(await market.checkpoints(userC.address, 2), {
             ...DEFAULT_CHECKPOINT,
@@ -13960,11 +13555,9 @@ describe('Market', () => {
             maker: POSITION,
             short: POSITION.div(2),
           })
-          expectPositionEq(await market.pendingPosition(3), {
-            ...DEFAULT_POSITION,
+          expectOrderEq(await market.pendingOrder(3), {
+            ...DEFAULT_ORDER,
             timestamp: ORACLE_VERSION_5.timestamp,
-            maker: POSITION,
-            short: POSITION.div(2),
           })
           expectVersionEq(await market.versions(ORACLE_VERSION_4.timestamp), {
             ...DEFAULT_VERSION,
@@ -14006,10 +13599,11 @@ describe('Market', () => {
             ...DEFAULT_POSITION,
             timestamp: ORACLE_VERSION_1.timestamp,
           })
-          expectPositionEq(await market.pendingPositions(user.address, 1), {
-            ...DEFAULT_POSITION,
+          expectOrderEq(await market.pendingOrders(user.address, 1), {
+            ...DEFAULT_ORDER,
             timestamp: ORACLE_VERSION_2.timestamp,
-            maker: POSITION,
+            orders: 1,
+            makerPos: POSITION,
           })
           expectCheckpointEq(await market.checkpoints(user.address, 1), {
             ...DEFAULT_CHECKPOINT,
@@ -14027,10 +13621,11 @@ describe('Market', () => {
             ...DEFAULT_POSITION,
             timestamp: ORACLE_VERSION_1.timestamp,
           })
-          expectPositionEq(await market.pendingPosition(1), {
-            ...DEFAULT_POSITION,
+          expectOrderEq(await market.pendingOrder(1), {
+            ...DEFAULT_ORDER,
             timestamp: ORACLE_VERSION_2.timestamp,
-            maker: POSITION,
+            orders: 1,
+            makerPos: POSITION,
           })
           expectVersionEq(await market.versions(ORACLE_VERSION_1.timestamp), {
             ...DEFAULT_VERSION,
@@ -14122,28 +13717,31 @@ describe('Market', () => {
           await market.connect(user).update(user.address, 0, POSITION.div(2), 0, COLLATERAL, false)
           await market.connect(userC).update(userC.address, 0, 0, POSITION.div(2), COLLATERAL, false)
 
-          expectPositionEq(await market.pendingPositions(user.address, 1), {
-            ...DEFAULT_POSITION,
+          expectOrderEq(await market.pendingOrders(user.address, 1), {
+            ...DEFAULT_ORDER,
             timestamp: ORACLE_VERSION_2.timestamp,
-            long: POSITION.div(2),
+            orders: 1,
+            longPos: POSITION.div(2),
           })
           expectCheckpointEq(await market.checkpoints(user.address, 1), {
             ...DEFAULT_CHECKPOINT,
             delta: COLLATERAL,
           })
-          expectPositionEq(await market.pendingPositions(userB.address, 1), {
-            ...DEFAULT_POSITION,
+          expectOrderEq(await market.pendingOrders(userB.address, 1), {
+            ...DEFAULT_ORDER,
             timestamp: ORACLE_VERSION_2.timestamp,
-            maker: POSITION,
+            orders: 1,
+            makerPos: POSITION,
           })
           expectCheckpointEq(await market.checkpoints(userB.address, 1), {
             ...DEFAULT_CHECKPOINT,
             delta: COLLATERAL,
           })
-          expectPositionEq(await market.pendingPositions(userC.address, 1), {
-            ...DEFAULT_POSITION,
+          expectOrderEq(await market.pendingOrders(userC.address, 1), {
+            ...DEFAULT_ORDER,
             timestamp: ORACLE_VERSION_2.timestamp,
-            short: POSITION.div(2),
+            orders: 1,
+            shortPos: POSITION.div(2),
           })
           expectCheckpointEq(await market.checkpoints(userC.address, 1), {
             ...DEFAULT_CHECKPOINT,
@@ -14154,28 +13752,31 @@ describe('Market', () => {
           await market.connect(userB).update(userB.address, ethers.constants.MaxUint256, 0, 0, 0, false)
           await market.connect(userC).update(userC.address, 0, 0, ethers.constants.MaxUint256, 0, false)
 
-          expectPositionEq(await market.pendingPositions(user.address, 1), {
-            ...DEFAULT_POSITION,
+          expectOrderEq(await market.pendingOrders(user.address, 1), {
+            ...DEFAULT_ORDER,
             timestamp: ORACLE_VERSION_2.timestamp,
-            long: POSITION.div(2),
+            orders: 1,
+            longPos: POSITION.div(2),
           })
           expectCheckpointEq(await market.checkpoints(user.address, 1), {
             ...DEFAULT_CHECKPOINT,
             delta: COLLATERAL,
           })
-          expectPositionEq(await market.pendingPositions(userB.address, 1), {
-            ...DEFAULT_POSITION,
+          expectOrderEq(await market.pendingOrders(userB.address, 1), {
+            ...DEFAULT_ORDER,
             timestamp: ORACLE_VERSION_2.timestamp,
-            maker: POSITION,
+            orders: 1,
+            makerPos: POSITION,
           })
           expectCheckpointEq(await market.checkpoints(userB.address, 1), {
             ...DEFAULT_CHECKPOINT,
             delta: COLLATERAL,
           })
-          expectPositionEq(await market.pendingPositions(userC.address, 1), {
-            ...DEFAULT_POSITION,
+          expectOrderEq(await market.pendingOrders(userC.address, 1), {
+            ...DEFAULT_ORDER,
             timestamp: ORACLE_VERSION_2.timestamp,
-            short: POSITION.div(2),
+            orders: 1,
+            shortPos: POSITION.div(2),
           })
           expectCheckpointEq(await market.checkpoints(userC.address, 1), {
             ...DEFAULT_CHECKPOINT,
@@ -14213,28 +13814,31 @@ describe('Market', () => {
               false,
             )
 
-          expectPositionEq(await market.pendingPositions(user.address, 1), {
-            ...DEFAULT_POSITION,
+          expectOrderEq(await market.pendingOrders(user.address, 1), {
+            ...DEFAULT_ORDER,
             timestamp: ORACLE_VERSION_2.timestamp,
-            long: POSITION.div(2),
+            orders: 1,
+            longPos: POSITION.div(2),
           })
           expectCheckpointEq(await market.checkpoints(user.address, 1), {
             ...DEFAULT_CHECKPOINT,
             delta: COLLATERAL,
           })
-          expectPositionEq(await market.pendingPositions(userB.address, 1), {
-            ...DEFAULT_POSITION,
+          expectOrderEq(await market.pendingOrders(userB.address, 1), {
+            ...DEFAULT_ORDER,
             timestamp: ORACLE_VERSION_2.timestamp,
-            maker: POSITION,
+            orders: 1,
+            makerPos: POSITION,
           })
           expectCheckpointEq(await market.checkpoints(userB.address, 1), {
             ...DEFAULT_CHECKPOINT,
             delta: COLLATERAL,
           })
-          expectPositionEq(await market.pendingPositions(userC.address, 1), {
-            ...DEFAULT_POSITION,
+          expectOrderEq(await market.pendingOrders(userC.address, 1), {
+            ...DEFAULT_ORDER,
             timestamp: ORACLE_VERSION_2.timestamp,
-            short: POSITION.div(2),
+            orders: 1,
+            shortPos: POSITION.div(2),
           })
           expectCheckpointEq(await market.checkpoints(userC.address, 1), {
             ...DEFAULT_CHECKPOINT,
@@ -14247,28 +13851,31 @@ describe('Market', () => {
           await market.connect(user).update(user.address, 0, POSITION.div(2), 0, COLLATERAL, false)
           await market.connect(userC).update(userC.address, 0, 0, POSITION.div(2), COLLATERAL, false)
 
-          expectPositionEq(await market.pendingPositions(user.address, 1), {
-            ...DEFAULT_POSITION,
+          expectOrderEq(await market.pendingOrders(user.address, 1), {
+            ...DEFAULT_ORDER,
             timestamp: ORACLE_VERSION_2.timestamp,
-            long: POSITION.div(2),
+            orders: 1,
+            longPos: POSITION.div(2),
           })
           expectCheckpointEq(await market.checkpoints(user.address, 1), {
             ...DEFAULT_CHECKPOINT,
             delta: COLLATERAL,
           })
-          expectPositionEq(await market.pendingPositions(userB.address, 1), {
-            ...DEFAULT_POSITION,
+          expectOrderEq(await market.pendingOrders(userB.address, 1), {
+            ...DEFAULT_ORDER,
             timestamp: ORACLE_VERSION_2.timestamp,
-            maker: POSITION,
+            orders: 1,
+            makerPos: POSITION,
           })
           expectCheckpointEq(await market.checkpoints(userB.address, 1), {
             ...DEFAULT_CHECKPOINT,
             delta: COLLATERAL,
           })
-          expectPositionEq(await market.pendingPositions(userC.address, 1), {
-            ...DEFAULT_POSITION,
+          expectOrderEq(await market.pendingOrders(userC.address, 1), {
+            ...DEFAULT_ORDER,
             timestamp: ORACLE_VERSION_2.timestamp,
-            short: POSITION.div(2),
+            orders: 1,
+            shortPos: POSITION.div(2),
           })
           expectCheckpointEq(await market.checkpoints(userC.address, 1), {
             ...DEFAULT_CHECKPOINT,
@@ -14279,25 +13886,31 @@ describe('Market', () => {
           await market.connect(userC).update(userC.address, 0, 0, ethers.constants.MaxUint256.sub(1), 0, false)
           await market.connect(userB).update(userB.address, ethers.constants.MaxUint256.sub(1), 0, 0, 0, false)
 
-          expectPositionEq(await market.pendingPositions(user.address, 1), {
-            ...DEFAULT_POSITION,
+          expectOrderEq(await market.pendingOrders(user.address, 1), {
+            ...DEFAULT_ORDER,
             timestamp: ORACLE_VERSION_2.timestamp,
+            orders: 1,
+            longPos: POSITION.div(2),
           })
           expectCheckpointEq(await market.checkpoints(user.address, 1), {
             ...DEFAULT_CHECKPOINT,
             delta: COLLATERAL,
           })
-          expectPositionEq(await market.pendingPositions(userB.address, 1), {
-            ...DEFAULT_POSITION,
+          expectOrderEq(await market.pendingOrders(userB.address, 1), {
+            ...DEFAULT_ORDER,
             timestamp: ORACLE_VERSION_2.timestamp,
+            orders: 1,
+            makerPos: POSITION,
           })
           expectCheckpointEq(await market.checkpoints(userB.address, 1), {
             ...DEFAULT_CHECKPOINT,
             delta: COLLATERAL,
           })
-          expectPositionEq(await market.pendingPositions(userC.address, 1), {
-            ...DEFAULT_POSITION,
+          expectOrderEq(await market.pendingOrders(userC.address, 1), {
+            ...DEFAULT_ORDER,
             timestamp: ORACLE_VERSION_2.timestamp,
+            orders: 1,
+            shortPos: POSITION.div(2),
           })
           expectCheckpointEq(await market.checkpoints(userC.address, 1), {
             ...DEFAULT_CHECKPOINT,
@@ -14308,28 +13921,31 @@ describe('Market', () => {
           await market.connect(user).update(user.address, 0, POSITION.div(2), 0, 0, false)
           await market.connect(userC).update(userC.address, 0, 0, POSITION.div(2), 0, false)
 
-          expectPositionEq(await market.pendingPositions(user.address, 1), {
-            ...DEFAULT_POSITION,
+          expectOrderEq(await market.pendingOrders(user.address, 1), {
+            ...DEFAULT_ORDER,
             timestamp: ORACLE_VERSION_2.timestamp,
-            long: POSITION.div(2),
+            orders: 1,
+            longPos: POSITION.div(2),
           })
           expectCheckpointEq(await market.checkpoints(user.address, 1), {
             ...DEFAULT_CHECKPOINT,
             delta: COLLATERAL,
           })
-          expectPositionEq(await market.pendingPositions(userB.address, 1), {
-            ...DEFAULT_POSITION,
+          expectOrderEq(await market.pendingOrders(userB.address, 1), {
+            ...DEFAULT_ORDER,
             timestamp: ORACLE_VERSION_2.timestamp,
-            maker: POSITION,
+            orders: 1,
+            makerPos: POSITION,
           })
           expectCheckpointEq(await market.checkpoints(userB.address, 1), {
             ...DEFAULT_CHECKPOINT,
             delta: COLLATERAL,
           })
-          expectPositionEq(await market.pendingPositions(userC.address, 1), {
-            ...DEFAULT_POSITION,
+          expectOrderEq(await market.pendingOrders(userC.address, 1), {
+            ...DEFAULT_ORDER,
             timestamp: ORACLE_VERSION_2.timestamp,
-            short: POSITION.div(2),
+            orders: 1,
+            shortPos: POSITION.div(2),
           })
           expectCheckpointEq(await market.checkpoints(userC.address, 1), {
             ...DEFAULT_CHECKPOINT,
@@ -14367,25 +13983,31 @@ describe('Market', () => {
               false,
             )
 
-          expectPositionEq(await market.pendingPositions(user.address, 1), {
-            ...DEFAULT_POSITION,
+          expectOrderEq(await market.pendingOrders(user.address, 1), {
+            ...DEFAULT_ORDER,
             timestamp: ORACLE_VERSION_2.timestamp,
+            orders: 1,
+            longPos: POSITION.div(2),
           })
           expectCheckpointEq(await market.checkpoints(user.address, 1), {
             ...DEFAULT_CHECKPOINT,
             delta: COLLATERAL,
           })
-          expectPositionEq(await market.pendingPositions(userB.address, 1), {
-            ...DEFAULT_POSITION,
+          expectOrderEq(await market.pendingOrders(userB.address, 1), {
+            ...DEFAULT_ORDER,
             timestamp: ORACLE_VERSION_2.timestamp,
+            orders: 1,
+            makerPos: POSITION,
           })
           expectCheckpointEq(await market.checkpoints(userB.address, 1), {
             ...DEFAULT_CHECKPOINT,
             delta: COLLATERAL,
           })
-          expectPositionEq(await market.pendingPositions(userC.address, 1), {
-            ...DEFAULT_POSITION,
+          expectOrderEq(await market.pendingOrders(userC.address, 1), {
+            ...DEFAULT_ORDER,
             timestamp: ORACLE_VERSION_2.timestamp,
+            orders: 1,
+            shortPos: POSITION.div(2),
           })
           expectCheckpointEq(await market.checkpoints(userC.address, 1), {
             ...DEFAULT_CHECKPOINT,
@@ -14398,28 +14020,31 @@ describe('Market', () => {
           await market.connect(user).update(user.address, 0, POSITION.div(2), 0, COLLATERAL, false)
           await market.connect(userC).update(userC.address, 0, 0, POSITION.div(2), COLLATERAL, false)
 
-          expectPositionEq(await market.pendingPositions(user.address, 1), {
-            ...DEFAULT_POSITION,
+          expectOrderEq(await market.pendingOrders(user.address, 1), {
+            ...DEFAULT_ORDER,
             timestamp: ORACLE_VERSION_2.timestamp,
-            long: POSITION.div(2),
+            orders: 1,
+            longPos: POSITION.div(2),
           })
           expectCheckpointEq(await market.checkpoints(user.address, 1), {
             ...DEFAULT_CHECKPOINT,
             delta: COLLATERAL,
           })
-          expectPositionEq(await market.pendingPositions(userB.address, 1), {
-            ...DEFAULT_POSITION,
+          expectOrderEq(await market.pendingOrders(userB.address, 1), {
+            ...DEFAULT_ORDER,
             timestamp: ORACLE_VERSION_2.timestamp,
-            maker: POSITION,
+            orders: 1,
+            makerPos: POSITION,
           })
           expectCheckpointEq(await market.checkpoints(userB.address, 1), {
             ...DEFAULT_CHECKPOINT,
             delta: COLLATERAL,
           })
-          expectPositionEq(await market.pendingPositions(userC.address, 1), {
-            ...DEFAULT_POSITION,
+          expectOrderEq(await market.pendingOrders(userC.address, 1), {
+            ...DEFAULT_ORDER,
             timestamp: ORACLE_VERSION_2.timestamp,
-            short: POSITION.div(2),
+            orders: 1,
+            shortPos: POSITION.div(2),
           })
           expectCheckpointEq(await market.checkpoints(userC.address, 1), {
             ...DEFAULT_CHECKPOINT,
@@ -14434,25 +14059,31 @@ describe('Market', () => {
           await market.connect(userC).update(userC.address, 0, 0, ethers.constants.MaxUint256.sub(1), 0, false)
           await market.connect(userB).update(userB.address, ethers.constants.MaxUint256.sub(1), 0, 0, 0, false)
 
-          expectPositionEq(await market.pendingPositions(user.address, 2), {
-            ...DEFAULT_POSITION,
+          expectOrderEq(await market.pendingOrders(user.address, 2), {
+            ...DEFAULT_ORDER,
             timestamp: ORACLE_VERSION_3.timestamp,
+            orders: 1,
+            longNeg: POSITION.div(2),
           })
           expectCheckpointEq(await market.checkpoints(user.address, 2), {
             ...DEFAULT_CHECKPOINT,
             delta: COLLATERAL,
           })
-          expectPositionEq(await market.pendingPositions(userB.address, 2), {
-            ...DEFAULT_POSITION,
+          expectOrderEq(await market.pendingOrders(userB.address, 2), {
+            ...DEFAULT_ORDER,
             timestamp: ORACLE_VERSION_3.timestamp,
+            orders: 1,
+            makerNeg: POSITION,
           })
           expectCheckpointEq(await market.checkpoints(userB.address, 2), {
             ...DEFAULT_CHECKPOINT,
             delta: COLLATERAL,
           })
-          expectPositionEq(await market.pendingPositions(userC.address, 2), {
-            ...DEFAULT_POSITION,
+          expectOrderEq(await market.pendingOrders(userC.address, 2), {
+            ...DEFAULT_ORDER,
             timestamp: ORACLE_VERSION_3.timestamp,
+            orders: 1,
+            shortNeg: POSITION.div(2),
           })
           expectCheckpointEq(await market.checkpoints(userC.address, 2), {
             ...DEFAULT_CHECKPOINT,
@@ -14467,28 +14098,31 @@ describe('Market', () => {
           await market.connect(user).update(user.address, 0, POSITION.div(2), 0, 0, false)
           await market.connect(userC).update(userC.address, 0, 0, POSITION.div(2), 0, false)
 
-          expectPositionEq(await market.pendingPositions(user.address, 3), {
-            ...DEFAULT_POSITION,
+          expectOrderEq(await market.pendingOrders(user.address, 3), {
+            ...DEFAULT_ORDER,
             timestamp: ORACLE_VERSION_4.timestamp,
-            long: POSITION.div(2),
+            orders: 1,
+            longPos: POSITION.div(2),
           })
           expectCheckpointEq(await market.checkpoints(user.address, 3), {
             ...DEFAULT_CHECKPOINT,
             delta: COLLATERAL,
           })
-          expectPositionEq(await market.pendingPositions(userB.address, 3), {
-            ...DEFAULT_POSITION,
+          expectOrderEq(await market.pendingOrders(userB.address, 3), {
+            ...DEFAULT_ORDER,
             timestamp: ORACLE_VERSION_4.timestamp,
-            maker: POSITION,
+            orders: 1,
+            makerPos: POSITION,
           })
           expectCheckpointEq(await market.checkpoints(userB.address, 3), {
             ...DEFAULT_CHECKPOINT,
             delta: COLLATERAL,
           })
-          expectPositionEq(await market.pendingPositions(userC.address, 3), {
-            ...DEFAULT_POSITION,
+          expectOrderEq(await market.pendingOrders(userC.address, 3), {
+            ...DEFAULT_ORDER,
             timestamp: ORACLE_VERSION_4.timestamp,
-            short: POSITION.div(2),
+            orders: 1,
+            shortPos: POSITION.div(2),
           })
           expectCheckpointEq(await market.checkpoints(userC.address, 3), {
             ...DEFAULT_CHECKPOINT,
@@ -14530,25 +14164,31 @@ describe('Market', () => {
               false,
             )
 
-          expectPositionEq(await market.pendingPositions(user.address, 4), {
-            ...DEFAULT_POSITION,
+          expectOrderEq(await market.pendingOrders(user.address, 4), {
+            ...DEFAULT_ORDER,
             timestamp: ORACLE_VERSION_5.timestamp,
+            orders: 1,
+            longNeg: POSITION.div(2),
           })
           expectCheckpointEq(await market.checkpoints(user.address, 4), {
             ...DEFAULT_CHECKPOINT,
             delta: COLLATERAL,
           })
-          expectPositionEq(await market.pendingPositions(userB.address, 4), {
-            ...DEFAULT_POSITION,
+          expectOrderEq(await market.pendingOrders(userB.address, 4), {
+            ...DEFAULT_ORDER,
             timestamp: ORACLE_VERSION_5.timestamp,
+            orders: 1,
+            makerNeg: POSITION,
           })
           expectCheckpointEq(await market.checkpoints(userB.address, 4), {
             ...DEFAULT_CHECKPOINT,
             delta: COLLATERAL,
           })
-          expectPositionEq(await market.pendingPositions(userC.address, 4), {
-            ...DEFAULT_POSITION,
+          expectOrderEq(await market.pendingOrders(userC.address, 4), {
+            ...DEFAULT_ORDER,
             timestamp: ORACLE_VERSION_5.timestamp,
+            orders: 1,
+            shortNeg: POSITION.div(2),
           })
           expectCheckpointEq(await market.checkpoints(userC.address, 4), {
             ...DEFAULT_CHECKPOINT,
@@ -14565,28 +14205,31 @@ describe('Market', () => {
           await market.connect(user).update(user.address, 0, POSITION.div(2), 0, COLLATERAL, false)
           await market.connect(userC).update(userC.address, 0, 0, POSITION.div(2), COLLATERAL, false)
 
-          expectPositionEq(await market.pendingPositions(user.address, 1), {
-            ...DEFAULT_POSITION,
+          expectOrderEq(await market.pendingOrders(user.address, 1), {
+            ...DEFAULT_ORDER,
             timestamp: ORACLE_VERSION_2.timestamp,
-            long: POSITION.div(2),
+            orders: 1,
+            longPos: POSITION.div(2),
           })
           expectCheckpointEq(await market.checkpoints(user.address, 1), {
             ...DEFAULT_CHECKPOINT,
             delta: COLLATERAL,
           })
-          expectPositionEq(await market.pendingPositions(userB.address, 1), {
-            ...DEFAULT_POSITION,
+          expectOrderEq(await market.pendingOrders(userB.address, 1), {
+            ...DEFAULT_ORDER,
             timestamp: ORACLE_VERSION_2.timestamp,
-            maker: POSITION,
+            orders: 1,
+            makerPos: POSITION,
           })
           expectCheckpointEq(await market.checkpoints(userB.address, 1), {
             ...DEFAULT_CHECKPOINT,
             delta: COLLATERAL,
           })
-          expectPositionEq(await market.pendingPositions(userC.address, 1), {
-            ...DEFAULT_POSITION,
+          expectOrderEq(await market.pendingOrders(userC.address, 1), {
+            ...DEFAULT_ORDER,
             timestamp: ORACLE_VERSION_2.timestamp,
-            short: POSITION.div(2),
+            orders: 1,
+            shortPos: POSITION.div(2),
           })
           expectCheckpointEq(await market.checkpoints(userC.address, 1), {
             ...DEFAULT_CHECKPOINT,
@@ -14601,28 +14244,25 @@ describe('Market', () => {
           await market.connect(userC).update(userC.address, 0, 0, ethers.constants.MaxUint256.sub(1), 0, false)
           await market.connect(userB).update(userB.address, ethers.constants.MaxUint256.sub(1), 0, 0, 0, false)
 
-          expectPositionEq(await market.pendingPositions(user.address, 2), {
-            ...DEFAULT_POSITION,
+          expectOrderEq(await market.pendingOrders(user.address, 2), {
+            ...DEFAULT_ORDER,
             timestamp: ORACLE_VERSION_3.timestamp,
-            long: POSITION.div(2),
           })
           expectCheckpointEq(await market.checkpoints(user.address, 2), {
             ...DEFAULT_CHECKPOINT,
             delta: COLLATERAL,
           })
-          expectPositionEq(await market.pendingPositions(userB.address, 2), {
-            ...DEFAULT_POSITION,
+          expectOrderEq(await market.pendingOrders(userB.address, 2), {
+            ...DEFAULT_ORDER,
             timestamp: ORACLE_VERSION_3.timestamp,
-            maker: POSITION,
           })
           expectCheckpointEq(await market.checkpoints(userB.address, 2), {
             ...DEFAULT_CHECKPOINT,
             delta: COLLATERAL,
           })
-          expectPositionEq(await market.pendingPositions(userC.address, 2), {
-            ...DEFAULT_POSITION,
+          expectOrderEq(await market.pendingOrders(userC.address, 2), {
+            ...DEFAULT_ORDER,
             timestamp: ORACLE_VERSION_3.timestamp,
-            short: POSITION.div(2),
           })
           expectCheckpointEq(await market.checkpoints(userC.address, 2), {
             ...DEFAULT_CHECKPOINT,
@@ -14660,28 +14300,25 @@ describe('Market', () => {
               false,
             )
 
-          expectPositionEq(await market.pendingPositions(user.address, 2), {
-            ...DEFAULT_POSITION,
+          expectOrderEq(await market.pendingOrders(user.address, 2), {
+            ...DEFAULT_ORDER,
             timestamp: ORACLE_VERSION_3.timestamp,
-            long: POSITION.div(2),
           })
           expectCheckpointEq(await market.checkpoints(user.address, 2), {
             ...DEFAULT_CHECKPOINT,
             delta: COLLATERAL,
           })
-          expectPositionEq(await market.pendingPositions(userB.address, 2), {
-            ...DEFAULT_POSITION,
+          expectOrderEq(await market.pendingOrders(userB.address, 2), {
+            ...DEFAULT_ORDER,
             timestamp: ORACLE_VERSION_3.timestamp,
-            maker: POSITION,
           })
           expectCheckpointEq(await market.checkpoints(userB.address, 2), {
             ...DEFAULT_CHECKPOINT,
             delta: COLLATERAL,
           })
-          expectPositionEq(await market.pendingPositions(userC.address, 2), {
-            ...DEFAULT_POSITION,
+          expectOrderEq(await market.pendingOrders(userC.address, 2), {
+            ...DEFAULT_ORDER,
             timestamp: ORACLE_VERSION_3.timestamp,
-            short: POSITION.div(2),
           })
           expectCheckpointEq(await market.checkpoints(userC.address, 2), {
             ...DEFAULT_CHECKPOINT,
@@ -14714,28 +14351,31 @@ describe('Market', () => {
           await market.connect(userC).update(userC.address, 0, 0, ethers.constants.MaxUint256.sub(1), 0, false)
           await market.connect(userB).update(userB.address, ethers.constants.MaxUint256.sub(1), 0, 0, 0, false)
 
-          expectPositionEq(await market.pendingPositions(user.address, 3), {
-            ...DEFAULT_POSITION,
+          expectOrderEq(await market.pendingOrders(user.address, 3), {
+            ...DEFAULT_ORDER,
             timestamp: ORACLE_VERSION_4.timestamp,
-            long: POSITION.div(2),
+            orders: 1,
+            longNeg: POSITION.div(2),
           })
           expectCheckpointEq(await market.checkpoints(user.address, 3), {
             ...DEFAULT_CHECKPOINT,
             delta: COLLATERAL,
           })
-          expectPositionEq(await market.pendingPositions(userB.address, 3), {
-            ...DEFAULT_POSITION,
+          expectOrderEq(await market.pendingOrders(userB.address, 3), {
+            ...DEFAULT_ORDER,
             timestamp: ORACLE_VERSION_4.timestamp,
-            maker: POSITION,
+            orders: 1,
+            makerNeg: POSITION,
           })
           expectCheckpointEq(await market.checkpoints(userB.address, 3), {
             ...DEFAULT_CHECKPOINT,
             delta: COLLATERAL,
           })
-          expectPositionEq(await market.pendingPositions(userC.address, 3), {
-            ...DEFAULT_POSITION,
+          expectOrderEq(await market.pendingOrders(userC.address, 3), {
+            ...DEFAULT_ORDER,
             timestamp: ORACLE_VERSION_4.timestamp,
-            short: POSITION.div(2),
+            orders: 1,
+            shortNeg: POSITION.div(2),
           })
           expectCheckpointEq(await market.checkpoints(userC.address, 3), {
             ...DEFAULT_CHECKPOINT,
@@ -14773,28 +14413,31 @@ describe('Market', () => {
               false,
             )
 
-          expectPositionEq(await market.pendingPositions(user.address, 3), {
-            ...DEFAULT_POSITION,
+          expectOrderEq(await market.pendingOrders(user.address, 3), {
+            ...DEFAULT_ORDER,
             timestamp: ORACLE_VERSION_4.timestamp,
-            long: POSITION.div(2),
+            orders: 1,
+            longNeg: POSITION.div(2),
           })
           expectCheckpointEq(await market.checkpoints(user.address, 3), {
             ...DEFAULT_CHECKPOINT,
             delta: COLLATERAL,
           })
-          expectPositionEq(await market.pendingPositions(userB.address, 3), {
-            ...DEFAULT_POSITION,
+          expectOrderEq(await market.pendingOrders(userB.address, 3), {
+            ...DEFAULT_ORDER,
             timestamp: ORACLE_VERSION_4.timestamp,
-            maker: POSITION,
+            orders: 1,
+            makerNeg: POSITION,
           })
           expectCheckpointEq(await market.checkpoints(userB.address, 3), {
             ...DEFAULT_CHECKPOINT,
             delta: COLLATERAL,
           })
-          expectPositionEq(await market.pendingPositions(userC.address, 3), {
-            ...DEFAULT_POSITION,
+          expectOrderEq(await market.pendingOrders(userC.address, 3), {
+            ...DEFAULT_ORDER,
             timestamp: ORACLE_VERSION_4.timestamp,
-            short: POSITION.div(2),
+            orders: 1,
+            shortNeg: POSITION.div(2),
           })
           expectCheckpointEq(await market.checkpoints(userC.address, 3), {
             ...DEFAULT_CHECKPOINT,
@@ -14803,7 +14446,7 @@ describe('Market', () => {
         })
       })
 
-      context('skew scale', async () => {
+      context('funding skew', async () => {
         // rate_0 = 0
         // rate_1 = rate_0 + (elapsed * skew / k)
         // funding = (rate_0 + rate_1) / 2 * elapsed * taker * price / time_in_years
@@ -14856,10 +14499,9 @@ describe('Market', () => {
               timestamp: ORACLE_VERSION_3.timestamp,
               long: POSITION.div(2),
             })
-            expectPositionEq(await market.pendingPositions(user.address, 3), {
-              ...DEFAULT_POSITION,
+            expectOrderEq(await market.pendingOrders(user.address, 3), {
+              ...DEFAULT_ORDER,
               timestamp: ORACLE_VERSION_4.timestamp,
-              long: POSITION.div(2),
             })
             expectCheckpointEq(await market.checkpoints(user.address, 3), {
               ...DEFAULT_CHECKPOINT,
@@ -14878,10 +14520,9 @@ describe('Market', () => {
               timestamp: ORACLE_VERSION_3.timestamp,
               maker: POSITION,
             })
-            expectPositionEq(await market.pendingPositions(userB.address, 3), {
-              ...DEFAULT_POSITION,
+            expectOrderEq(await market.pendingOrders(userB.address, 3), {
+              ...DEFAULT_ORDER,
               timestamp: ORACLE_VERSION_4.timestamp,
-              maker: POSITION,
             })
             expectCheckpointEq(await market.checkpoints(userB.address, 3), {
               ...DEFAULT_CHECKPOINT,
@@ -14902,11 +14543,9 @@ describe('Market', () => {
               maker: POSITION,
               long: POSITION.div(2),
             })
-            expectPositionEq(await market.pendingPosition(3), {
-              ...DEFAULT_POSITION,
+            expectOrderEq(await market.pendingOrder(3), {
+              ...DEFAULT_ORDER,
               timestamp: ORACLE_VERSION_4.timestamp,
-              maker: POSITION,
-              long: POSITION.div(2),
             })
             expectVersionEq(await market.versions(ORACLE_VERSION_3.timestamp), {
               ...DEFAULT_VERSION,
@@ -14970,10 +14609,9 @@ describe('Market', () => {
               timestamp: ORACLE_VERSION_3.timestamp,
               short: POSITION.div(2),
             })
-            expectPositionEq(await market.pendingPositions(user.address, 3), {
-              ...DEFAULT_POSITION,
+            expectOrderEq(await market.pendingOrders(user.address, 3), {
+              ...DEFAULT_ORDER,
               timestamp: ORACLE_VERSION_4.timestamp,
-              short: POSITION.div(2),
             })
             expectCheckpointEq(await market.checkpoints(user.address, 3), {
               ...DEFAULT_CHECKPOINT,
@@ -14992,10 +14630,9 @@ describe('Market', () => {
               timestamp: ORACLE_VERSION_3.timestamp,
               maker: POSITION,
             })
-            expectPositionEq(await market.pendingPositions(userB.address, 3), {
-              ...DEFAULT_POSITION,
+            expectOrderEq(await market.pendingOrders(userB.address, 3), {
+              ...DEFAULT_ORDER,
               timestamp: ORACLE_VERSION_4.timestamp,
-              maker: POSITION,
             })
             expectCheckpointEq(await market.checkpoints(userB.address, 3), {
               ...DEFAULT_CHECKPOINT,
@@ -15016,11 +14653,9 @@ describe('Market', () => {
               maker: POSITION,
               short: POSITION.div(2),
             })
-            expectPositionEq(await market.pendingPosition(3), {
-              ...DEFAULT_POSITION,
+            expectOrderEq(await market.pendingOrder(3), {
+              ...DEFAULT_ORDER,
               timestamp: ORACLE_VERSION_4.timestamp,
-              maker: POSITION,
-              short: POSITION.div(2),
             })
             expectVersionEq(await market.versions(ORACLE_VERSION_3.timestamp), {
               ...DEFAULT_VERSION,

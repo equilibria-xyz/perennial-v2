@@ -8,6 +8,8 @@ import {
   DEFAULT_CHECKPOINT,
   DEFAULT_POSITION,
   DEFAULT_LOCAL,
+  DEFAULT_ORDER,
+  expectOrderEq,
   expectGlobalEq,
   expectLocalEq,
   expectPositionEq,
@@ -113,10 +115,9 @@ describe('Fees', () => {
         collateral: COLLATERAL.sub(expectedMakerFee),
         protection: 0,
       })
-      expectPositionEq(await market.pendingPositions(user.address, 2), {
-        ...DEFAULT_POSITION,
+      expectOrderEq(await market.pendingOrders(user.address, 2), {
+        ...DEFAULT_ORDER,
         timestamp: TIMESTAMP_2,
-        maker: POSITION,
       })
       expectCheckpointEq(await market.checkpoints(user.address, 2), {
         ...DEFAULT_CHECKPOINT,
@@ -141,10 +142,9 @@ describe('Fees', () => {
         oracleFee: expectedOracleFee,
         donation: expectedDonation,
       })
-      expectPositionEq(await market.pendingPosition(2), {
-        ...DEFAULT_POSITION,
+      expectOrderEq(await market.pendingOrder(2), {
+        ...DEFAULT_ORDER,
         timestamp: TIMESTAMP_2,
-        maker: POSITION,
       })
       expectPositionEq(await market.position(), {
         ...DEFAULT_POSITION,
@@ -196,8 +196,8 @@ describe('Fees', () => {
         collateral: COLLATERAL.sub(expectedMakerFee.div(2)), // Maker gets part of their fee refunded since they were an exisiting maker
         protection: 0,
       })
-      expectPositionEq(await market.pendingPositions(user.address, 3), {
-        ...DEFAULT_POSITION,
+      expectOrderEq(await market.pendingOrders(user.address, 3), {
+        ...DEFAULT_ORDER,
         timestamp: TIMESTAMP_3,
       })
       expectCheckpointEq(await market.checkpoints(user.address, 3), {
@@ -222,8 +222,8 @@ describe('Fees', () => {
         oracleFee: expectedOracleFee,
         donation: expectedDonation,
       })
-      expectPositionEq(await market.pendingPosition(3), {
-        ...DEFAULT_POSITION,
+      expectOrderEq(await market.pendingOrder(3), {
+        ...DEFAULT_ORDER,
         timestamp: TIMESTAMP_3,
       })
       expectPositionEq(await market.position(), {
@@ -278,11 +278,9 @@ describe('Fees', () => {
         oracleFee: expectedOracleFee,
         donation: expectedDonation,
       })
-      expectPositionEq(await market.pendingPosition(2), {
-        ...DEFAULT_POSITION,
+      expectOrderEq(await market.pendingOrder(2), {
+        ...DEFAULT_ORDER,
         timestamp: TIMESTAMP_2,
-        maker: MAKER_POSITION,
-        long: LONG_POSITION,
       })
       expectPositionEq(await market.position(), {
         ...DEFAULT_POSITION,
@@ -299,10 +297,9 @@ describe('Fees', () => {
         collateral: COLLATERAL.sub(expectedPositionFee),
         protection: 0,
       })
-      expectPositionEq(await market.pendingPositions(userB.address, 2), {
-        ...DEFAULT_POSITION,
+      expectOrderEq(await market.pendingOrders(userB.address, 2), {
+        ...DEFAULT_ORDER,
         timestamp: TIMESTAMP_2,
-        long: LONG_POSITION,
       })
       expectCheckpointEq(await market.checkpoints(userB.address, 2), {
         ...DEFAULT_CHECKPOINT,
@@ -366,11 +363,9 @@ describe('Fees', () => {
         oracleFee: expectedOracleFee,
         donation: expectedDonation,
       })
-      expectPositionEq(await market.pendingPosition(3), {
-        ...DEFAULT_POSITION,
+      expectOrderEq(await market.pendingOrder(3), {
+        ...DEFAULT_ORDER,
         timestamp: TIMESTAMP_3,
-        maker: MAKER_POSITION,
-        long: LONG_POSITION,
       })
       expectPositionEq(await market.position(), {
         ...DEFAULT_POSITION,
@@ -387,10 +382,9 @@ describe('Fees', () => {
         collateral: COLLATERAL.sub(expectedPositionFee),
         protection: 0,
       })
-      expectPositionEq(await market.pendingPositions(userB.address, 2), {
-        ...DEFAULT_POSITION,
+      expectOrderEq(await market.pendingOrders(userB.address, 2), {
+        ...DEFAULT_ORDER,
         timestamp: TIMESTAMP_3,
-        long: LONG_POSITION,
       })
       expectCheckpointEq(await market.checkpoints(userB.address, 2), {
         ...DEFAULT_CHECKPOINT,
@@ -418,10 +412,9 @@ describe('Fees', () => {
         collateral: COLLATERAL.add(expectedMakerFee),
         protection: 0,
       })
-      expectPositionEq(await market.pendingPositions(user.address, 3), {
-        ...DEFAULT_POSITION,
+      expectOrderEq(await market.pendingOrders(user.address, 3), {
+        ...DEFAULT_ORDER,
         timestamp: TIMESTAMP_3,
-        maker: MAKER_POSITION,
       })
       expectCheckpointEq(await market.checkpoints(user.address, 3), {
         ...DEFAULT_CHECKPOINT,
@@ -515,10 +508,9 @@ describe('Fees', () => {
         oracleFee: expectedOracleFee,
         donation: expectedDonation,
       })
-      expectPositionEq(await market.pendingPosition(3), {
-        ...DEFAULT_POSITION,
+      expectOrderEq(await market.pendingOrder(3), {
+        ...DEFAULT_ORDER,
         timestamp: TIMESTAMP_3,
-        maker: MAKER_POSITION,
       })
       expectPositionEq(await market.position(), {
         ...DEFAULT_POSITION,
@@ -534,8 +526,8 @@ describe('Fees', () => {
         collateral: COLLATERAL.sub(expectedPositionFee),
         protection: 0,
       })
-      expectPositionEq(await market.pendingPositions(userB.address, 3), {
-        ...DEFAULT_POSITION,
+      expectOrderEq(await market.pendingOrders(userB.address, 3), {
+        ...DEFAULT_ORDER,
         timestamp: TIMESTAMP_3,
       })
       expectCheckpointEq(await market.checkpoints(userB.address, 3), {
@@ -563,10 +555,9 @@ describe('Fees', () => {
         collateral: COLLATERAL.add(expectedMakerFee),
         protection: 0,
       })
-      expectPositionEq(await market.pendingPositions(user.address, 3), {
-        ...DEFAULT_POSITION,
+      expectOrderEq(await market.pendingOrders(user.address, 3), {
+        ...DEFAULT_ORDER,
         timestamp: TIMESTAMP_3,
-        maker: MAKER_POSITION,
       })
       expectCheckpointEq(await market.checkpoints(user.address, 3), {
         ...DEFAULT_CHECKPOINT,
@@ -625,11 +616,9 @@ describe('Fees', () => {
         oracleFee: expectedOracleFee,
         donation: expectedDonation,
       })
-      expectPositionEq(await market.pendingPosition(2), {
-        ...DEFAULT_POSITION,
+      expectOrderEq(await market.pendingOrder(2), {
+        ...DEFAULT_ORDER,
         timestamp: TIMESTAMP_2,
-        maker: MAKER_POSITION,
-        short: SHORT_POSITION,
       })
       expectPositionEq(await market.position(), {
         ...DEFAULT_POSITION,
@@ -646,10 +635,9 @@ describe('Fees', () => {
         collateral: COLLATERAL.sub(expectedPositionFee),
         protection: 0,
       })
-      expectPositionEq(await market.pendingPositions(userB.address, 2), {
-        ...DEFAULT_POSITION,
+      expectOrderEq(await market.pendingOrders(userB.address, 2), {
+        ...DEFAULT_ORDER,
         timestamp: TIMESTAMP_2,
-        short: SHORT_POSITION,
       })
       expectCheckpointEq(await market.checkpoints(userB.address, 2), {
         ...DEFAULT_CHECKPOINT,
@@ -712,11 +700,9 @@ describe('Fees', () => {
         oracleFee: expectedOracleFee,
         donation: expectedDonation,
       })
-      expectPositionEq(await market.pendingPosition(3), {
-        ...DEFAULT_POSITION,
+      expectOrderEq(await market.pendingOrder(3), {
+        ...DEFAULT_ORDER,
         timestamp: TIMESTAMP_3,
-        maker: MAKER_POSITION,
-        short: SHORT_POSITION,
       })
       expectPositionEq(await market.position(), {
         ...DEFAULT_POSITION,
@@ -733,10 +719,9 @@ describe('Fees', () => {
         collateral: COLLATERAL.sub(expectedPositionFee),
         protection: 0,
       })
-      expectPositionEq(await market.pendingPositions(userB.address, 2), {
-        ...DEFAULT_POSITION,
+      expectOrderEq(await market.pendingOrders(userB.address, 2), {
+        ...DEFAULT_ORDER,
         timestamp: TIMESTAMP_3,
-        short: SHORT_POSITION,
       })
       expectCheckpointEq(await market.checkpoints(userB.address, 2), {
         ...DEFAULT_CHECKPOINT,
@@ -764,10 +749,9 @@ describe('Fees', () => {
         collateral: COLLATERAL.add(expectedMakerFee),
         protection: 0,
       })
-      expectPositionEq(await market.pendingPositions(user.address, 3), {
-        ...DEFAULT_POSITION,
+      expectOrderEq(await market.pendingOrders(user.address, 3), {
+        ...DEFAULT_ORDER,
         timestamp: TIMESTAMP_3,
-        maker: MAKER_POSITION,
       })
       expectCheckpointEq(await market.checkpoints(user.address, 3), {
         ...DEFAULT_CHECKPOINT,
@@ -861,10 +845,9 @@ describe('Fees', () => {
         oracleFee: expectedOracleFee,
         donation: expectedDonation,
       })
-      expectPositionEq(await market.pendingPosition(3), {
-        ...DEFAULT_POSITION,
+      expectOrderEq(await market.pendingOrder(3), {
+        ...DEFAULT_ORDER,
         timestamp: TIMESTAMP_3,
-        maker: MAKER_POSITION,
       })
       expectPositionEq(await market.position(), {
         ...DEFAULT_POSITION,
@@ -880,8 +863,8 @@ describe('Fees', () => {
         collateral: COLLATERAL.sub(expectedPositionFee),
         protection: 0,
       })
-      expectPositionEq(await market.pendingPositions(userB.address, 3), {
-        ...DEFAULT_POSITION,
+      expectOrderEq(await market.pendingOrders(userB.address, 3), {
+        ...DEFAULT_ORDER,
         timestamp: TIMESTAMP_3,
       })
       expectCheckpointEq(await market.checkpoints(userB.address, 3), {
@@ -909,10 +892,9 @@ describe('Fees', () => {
         collateral: COLLATERAL.add(expectedMakerFee),
         protection: 0,
       })
-      expectPositionEq(await market.pendingPositions(user.address, 3), {
-        ...DEFAULT_POSITION,
+      expectOrderEq(await market.pendingOrders(user.address, 3), {
+        ...DEFAULT_ORDER,
         timestamp: TIMESTAMP_3,
-        maker: MAKER_POSITION,
       })
       expectCheckpointEq(await market.checkpoints(user.address, 3), {
         ...DEFAULT_CHECKPOINT,
