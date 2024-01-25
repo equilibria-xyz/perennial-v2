@@ -124,6 +124,28 @@ describe('Vault', () => {
       .add(await asset.balanceOf(vault.address))
   }
 
+  async function currentPositionGlobal(market: IMarket) {
+    const currentPosition = { ...(await market.position()) }
+    const pending = await market.pending()
+
+    currentPosition.maker = currentPosition.maker.add(pending.makerPos).sub(pending.makerNeg)
+    currentPosition.long = currentPosition.long.add(pending.longNeg).sub(pending.longNeg)
+    currentPosition.short = currentPosition.short.add(pending.shortPos).sub(pending.shortNeg)
+
+    return currentPosition
+  }
+
+  async function currentPositionLocal(market: IMarket) {
+    const currentPosition = { ...(await market.positions(vault.address)) }
+    const pending = await market.pendings(vault.address)
+
+    currentPosition.maker = currentPosition.maker.add(pending.makerPos).sub(pending.makerNeg)
+    currentPosition.long = currentPosition.long.add(pending.longNeg).sub(pending.longNeg)
+    currentPosition.short = currentPosition.short.add(pending.shortPos).sub(pending.shortNeg)
+
+    return currentPosition
+  }
+
   const fixture = async () => {
     const instanceVars = await deployProtocol()
 
@@ -855,7 +877,7 @@ describe('Vault', () => {
       await updateOracle()
       await vault.settle(user.address)
 
-      const currentPosition = await market.pendingPosition((await market.global()).currentId)
+      const currentPosition = await currentPositionGlobal(market)
       const currentNet = currentPosition.long.sub(currentPosition.short).abs()
 
       // Open taker position up to 100% utilization minus 1 ETH
@@ -895,7 +917,7 @@ describe('Vault', () => {
       await updateOracle()
       await vault.settle(user.address)
 
-      const currentPosition = await btcMarket.pendingPosition((await btcMarket.global()).currentId)
+      const currentPosition = await currentPositionGlobal(btcMarket)
       const currentNet = currentPosition.long.sub(currentPosition.short).abs()
 
       // Open taker position up to 100% utilization minus 0.1 BTC
@@ -1036,9 +1058,7 @@ describe('Vault', () => {
     it('exactly at makerLimit', async () => {
       // Get maker product very close to the makerLimit
       await asset.connect(perennialUser).approve(market.address, constants.MaxUint256)
-      const makerAvailable = (await market.riskParameter()).makerLimit.sub(
-        (await market.pendingPosition((await market.global()).currentId)).maker,
-      )
+      const makerAvailable = (await market.riskParameter()).makerLimit.sub((await currentPositionGlobal(market)).maker)
       await market
         .connect(perennialUser)
         .update(perennialUser.address, makerAvailable, 0, 0, parse6decimal('400000'), false)
@@ -1488,7 +1508,7 @@ describe('Vault', () => {
       await vault.settle(user.address)
       await vault.settle(user2.address)
 
-      const totalAssets = BigNumber.from('10913053329')
+      const totalAssets = BigNumber.from('10911886661')
       expect((await vault.accounts(constants.AddressZero)).assets).to.equal(totalAssets)
     })
 
@@ -1906,9 +1926,8 @@ describe('Vault', () => {
         await vault.connect(user).update(user.address, 0, 0, 0)
         await updateOracle()
 
-        const currentId = (await market.locals(vault.address)).currentId
-        const pendingPosition = await market.pendingPositions(vault.address, currentId)
-        expect(pendingPosition.maker).to.equal(0)
+        const currentPosition = await currentPositionLocal(market)
+        expect(currentPosition.maker).to.equal(0)
 
         await vault.connect(user).update(user.address, 0, 0, 0)
         await updateOracle()
@@ -1943,9 +1962,8 @@ describe('Vault', () => {
         await vault.connect(user).update(user.address, 0, 0, 0)
         await updateOracle()
 
-        const currentId = (await market.locals(vault.address)).currentId
-        const pendingPosition = await market.pendingPositions(vault.address, currentId)
-        expect(pendingPosition.maker).to.equal(0)
+        const currentPosition = await currentPositionLocal(market)
+        expect(currentPosition.maker).to.equal(0)
 
         await vault.connect(user).update(user.address, 0, 0, 0)
         await updateOracle()
@@ -1983,9 +2001,8 @@ describe('Vault', () => {
         await vault.connect(user).update(user.address, 0, 0, 0)
         await updateOracle()
 
-        const currentId = (await market.locals(vault.address)).currentId
-        const pendingPosition = await market.pendingPositions(vault.address, currentId)
-        expect(pendingPosition.maker).to.be.greaterThan(0)
+        const currentPosition = await currentPositionLocal(market)
+        expect(currentPosition.maker).to.be.greaterThan(0)
 
         await vault.connect(user).update(user.address, 0, 0, 0)
         await updateOracle()

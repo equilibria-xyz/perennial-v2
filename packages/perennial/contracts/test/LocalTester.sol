@@ -40,12 +40,9 @@ contract LocalTester {
         local.store(newLocal);
     }
 
-    function processProtection(
-        Position memory latestPosition,
-        Version memory version
-    ) external returns (bool result) {
+    function processProtection(Order memory order, Version memory version) external returns (bool result) {
         Local memory newLocal = local.read();
-        result = newLocal.processProtection(latestPosition, version);
+        result = newLocal.processProtection(order, version);
         local.store(newLocal);
     }
 

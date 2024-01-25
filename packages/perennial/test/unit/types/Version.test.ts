@@ -64,23 +64,17 @@ const FROM_POSITION: PositionStruct = {
   maker: 3,
   long: 4,
   short: 5,
-  invalidation: {
-    maker: 10,
-    long: 11,
-    short: 12,
-  },
 }
 
 const ORDER: OrderStruct = {
   timestamp: 20,
   orders: 4,
-  maker: 27,
-  long: 36,
-  short: 45,
   makerPos: 30,
   makerNeg: 3,
-  takerPos: 36,
-  takerNeg: 45,
+  longPos: 36,
+  longNeg: 0,
+  shortPos: 45,
+  shortNeg: 0,
 }
 
 const TIMESTAMP = 1636401093
@@ -488,7 +482,7 @@ describe('Version', () => {
         const ret = await version.callStatic.accumulate(
           GLOBAL,
           { ...FROM_POSITION, long: parse6decimal('10'), short: parse6decimal('10'), maker: parse6decimal('10') },
-          { ...DEFAULT_ORDER, orders: 1, long: parse6decimal('10'), takerPos: parse6decimal('10') },
+          { ...DEFAULT_ORDER, orders: 1, longPos: parse6decimal('10') },
           ORACLE_VERSION_1,
           ORACLE_VERSION_2,
           { ...VALID_MARKET_PARAMETER, settlementFee: parse6decimal('2'), closed: true },
@@ -505,7 +499,7 @@ describe('Version', () => {
         await version.accumulate(
           GLOBAL,
           { ...FROM_POSITION, long: parse6decimal('10'), short: parse6decimal('10'), maker: parse6decimal('10') },
-          { ...DEFAULT_ORDER, orders: 1, long: parse6decimal('10'), takerPos: parse6decimal('10') },
+          { ...DEFAULT_ORDER, orders: 1, longPos: parse6decimal('10') },
           ORACLE_VERSION_1,
           ORACLE_VERSION_2,
           { ...VALID_MARKET_PARAMETER, settlementFee: parse6decimal('2'), closed: true },
@@ -616,13 +610,12 @@ describe('Version', () => {
           { ...FROM_POSITION, long: parse6decimal('20'), short: parse6decimal('30'), maker: 0 },
           {
             ...ORDER,
-            maker: parse6decimal('10'),
-            long: parse6decimal('20'), // 30 / 10
-            short: parse6decimal('30'), // 50 / 20
             makerNeg: parse6decimal('0'),
             makerPos: parse6decimal('10'),
-            takerPos: parse6decimal('50'),
-            takerNeg: parse6decimal('60'),
+            longPos: parse6decimal('30'),
+            longNeg: parse6decimal('10'),
+            shortPos: parse6decimal('50'),
+            shortNeg: parse6decimal('20'),
           },
           { ...ORACLE_VERSION_1, price: parse6decimal('121') },
           { ...ORACLE_VERSION_2 },
@@ -670,11 +663,11 @@ describe('Version', () => {
         expect(value.makerValue._value).to.equal(1)
         expect(value.longValue._value).to.equal(parse6decimal('2').add(2)) // pnl
         expect(value.shortValue._value).to.equal(parse6decimal('-2').mul(2).div(3).sub(1).add(3)) // pnl
-        expect(value.makerPosFee._value).to.equal(impact4.add(fee4).mul(-1).mul(123).div(10).add(4))
-        expect(value.makerNegFee._value).to.equal(5)
-        expect(value.takerPosFee._value).to.equal(impact1.add(fee1).mul(-1).mul(123).div(50).add(6))
-        expect(value.takerNegFee._value).to.equal(impact2.add(fee2).mul(-1).mul(123).div(60).add(7))
-        expect(value.settlementFee._value).to.equal(-10)
+        expect(value.makerPosFee._value).to.equal(impact4.add(fee4).mul(-1).mul(123).div(10))
+        expect(value.makerNegFee._value).to.equal(0)
+        expect(value.takerPosFee._value).to.equal(impact1.add(fee1).mul(-1).mul(123).div(50))
+        expect(value.takerNegFee._value).to.equal(impact2.add(fee2).mul(-1).mul(123).div(60))
+        expect(value.settlementFee._value).to.equal(-2)
 
         expect(ret[0].positionFee).to.equal(fee)
         expect(ret[0].positionFeeMaker).to.equal(0)
@@ -693,13 +686,12 @@ describe('Version', () => {
           { ...FROM_POSITION, long: parse6decimal('20'), short: parse6decimal('30'), maker: parse6decimal('50') },
           {
             ...ORDER,
-            maker: parse6decimal('10'),
-            long: parse6decimal('20'), // 30 / 10
-            short: parse6decimal('30'), // 50 / 20
             makerNeg: parse6decimal('10'),
             makerPos: parse6decimal('20'),
-            takerPos: parse6decimal('50'),
-            takerNeg: parse6decimal('60'),
+            longPos: parse6decimal('30'),
+            longNeg: parse6decimal('10'),
+            shortPos: parse6decimal('50'),
+            shortNeg: parse6decimal('20'),
           },
           { ...ORACLE_VERSION_1, price: parse6decimal('121') },
           { ...ORACLE_VERSION_2 },
@@ -749,11 +741,11 @@ describe('Version', () => {
         )
         expect(value.longValue._value).to.equal(parse6decimal('2').add(2))
         expect(value.shortValue._value).to.equal(parse6decimal('-2').add(3))
-        expect(value.makerPosFee._value).to.equal(impact4.add(fee4).mul(-1).mul(123).div(20).add(4))
-        expect(value.makerNegFee._value).to.equal(impact3.add(fee3).mul(-1).mul(123).div(10).add(5))
-        expect(value.takerPosFee._value).to.equal(impact1.add(fee1).mul(-1).mul(123).div(50).add(6))
-        expect(value.takerNegFee._value).to.equal(impact2.add(fee2).mul(-1).mul(123).div(60).add(7))
-        expect(value.settlementFee._value).to.equal(-10)
+        expect(value.makerPosFee._value).to.equal(impact4.add(fee4).mul(-1).mul(123).div(20))
+        expect(value.makerNegFee._value).to.equal(impact3.add(fee3).mul(-1).mul(123).div(10))
+        expect(value.takerPosFee._value).to.equal(impact1.add(fee1).mul(-1).mul(123).div(50))
+        expect(value.takerNegFee._value).to.equal(impact2.add(fee2).mul(-1).mul(123).div(60))
+        expect(value.settlementFee._value).to.equal(-2)
 
         expect(ret[0].positionFee).to.equal(fee)
         expect(ret[0].positionFeeMaker).to.equal(fee.mul(9).div(10))
@@ -822,7 +814,7 @@ describe('Version', () => {
             },
             {
               ...ORDER,
-              makerPos: ORDER.maker,
+              makerPos: ORDER.makerPos,
               makerNeg: 0,
             },
             ORACLE_VERSION_1,

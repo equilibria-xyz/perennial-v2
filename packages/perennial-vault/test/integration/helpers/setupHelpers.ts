@@ -89,7 +89,6 @@ export async function deployProductOnMainnetFork({
   const marketDefinition: IMarket.MarketDefinitionStruct = {
     token: token.address,
     oracle: oracle ?? constants.AddressZero,
-    payoff: payoff ?? constants.AddressZero,
   }
 
   const protocolParameter = { ...(await factory.parameter()) }

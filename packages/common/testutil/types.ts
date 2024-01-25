@@ -1,6 +1,12 @@
 import { BigNumber, BigNumberish, utils, constants } from 'ethers'
 import { expect } from 'chai'
 
+export interface OracleVersion {
+  valid: boolean
+  price: BigNumberish
+  timestamp: BigNumberish
+}
+
 export interface Accumulator {
   _value: BigNumberish
 }
@@ -12,22 +18,15 @@ export interface Checkpoint {
   delta: BigNumberish
 }
 
-export interface Invalidation {
-  maker: BigNumberish
-  long: BigNumberish
-  short: BigNumberish
-}
-
 export interface Order {
   timestamp: BigNumberish
   orders: BigNumberish
-  maker: BigNumberish
-  long: BigNumberish
-  short: BigNumberish
   makerPos: BigNumberish
   makerNeg: BigNumberish
-  takerPos: BigNumberish
-  takerNeg: BigNumberish
+  longPos: BigNumberish
+  longNeg: BigNumberish
+  shortPos: BigNumberish
+  shortNeg: BigNumberish
 }
 
 export interface Position {
@@ -35,7 +34,6 @@ export interface Position {
   maker: BigNumberish
   long: BigNumberish
   short: BigNumberish
-  invalidation: Invalidation
 }
 
 export interface Global {
@@ -83,13 +81,12 @@ export function expectCheckpointEq(a: Checkpoint, b: Checkpoint): void {
 export function expectOrderEq(a: Order, b: Order): void {
   expect(a.timestamp).to.equal(b.timestamp, 'Order:Timestamp')
   expect(a.orders).to.equal(b.orders, 'Order:Timestamp')
-  expect(a.maker).to.equal(b.maker, 'Order:Maker')
-  expect(a.long).to.equal(b.long, 'Order:Long')
-  expect(a.short).to.equal(b.short, 'Order:Short')
   expect(a.makerPos).to.equal(b.makerPos, 'Order:MakerPos')
   expect(a.makerNeg).to.equal(b.makerNeg, 'Order:MakerNeg')
-  expect(a.takerPos).to.equal(b.takerPos, 'Order:TakerPos')
-  expect(a.takerNeg).to.equal(b.takerNeg, 'Order:TakerNeg')
+  expect(a.longPos).to.equal(b.longPos, 'Order:LongPos')
+  expect(a.longNeg).to.equal(b.longNeg, 'Order:LongNeg')
+  expect(a.shortPos).to.equal(b.shortPos, 'Order:ShortPos')
+  expect(a.shortNeg).to.equal(b.shortNeg, 'Order:ShortNeg')
 }
 
 export function expectPositionEq(a: Position, b: Position): void {
@@ -97,9 +94,6 @@ export function expectPositionEq(a: Position, b: Position): void {
   expect(a.maker).to.equal(b.maker, 'Position:Maker')
   expect(a.long).to.equal(b.long, 'Position:Long')
   expect(a.short).to.equal(b.short, 'Position:Short')
-  expect(a.invalidation.maker).to.equal(b.invalidation.maker, 'Position:Invalidation:Maker')
-  expect(a.invalidation.long).to.equal(b.invalidation.long, 'Position:Invalidation:Long')
-  expect(a.invalidation.short).to.equal(b.invalidation.short, 'Position:Invalidation:Short')
 }
 
 export function expectGlobalEq(a: Global, b: Global): void {
@@ -172,11 +166,6 @@ export const DEFAULT_POSITION: Position = {
   long: 0,
   maker: 0,
   short: 0,
-  invalidation: {
-    maker: 0,
-    long: 0,
-    short: 0,
-  },
 }
 
 export const DEFAULT_LOCAL: Local = {
@@ -191,13 +180,12 @@ export const DEFAULT_LOCAL: Local = {
 export const DEFAULT_ORDER: Order = {
   timestamp: 0,
   orders: 0,
-  maker: 0,
-  long: 0,
-  short: 0,
   makerPos: 0,
   makerNeg: 0,
-  takerPos: 0,
-  takerNeg: 0,
+  longPos: 0,
+  longNeg: 0,
+  shortPos: 0,
+  shortNeg: 0,
 }
 
 export const DEFAULT_VERSION: Version = {

@@ -80,16 +80,6 @@ struct VersionFeeResult {
 /// @notice Library that manages global versioned accumulator state.
 /// @dev Manages the value accumulator which measures the change in position value over time.
 library VersionLib {
-    /// @notice Resets the per-version accumulators to prepare for the next version
-    /// @param self The Version object to update
-    function next(Version memory self) internal pure {
-        self.makerPosFee._value = Fixed6Lib.ZERO;
-        self.makerNegFee._value = Fixed6Lib.ZERO;
-        self.takerPosFee._value = Fixed6Lib.ZERO;
-        self.takerNegFee._value = Fixed6Lib.ZERO;
-        self.settlementFee._value = Fixed6Lib.ZERO;
-    }
-
     struct AccumulationContext {
         Version self;
         Global global;
@@ -132,6 +122,9 @@ library VersionLib {
             riskParameter
         );
 
+        // reset per-version accumulators
+        _next(self);
+
         // record validity
         self.valid = toOracleVersion.valid;
 
@@ -160,6 +153,16 @@ library VersionLib {
 
         fees.marketFee = fees.marketFee.add(values.fundingFee).add(values.interestFee);
         return (values, fees);
+    }
+
+    /// @notice Resets the per-version accumulators to prepare for the next version
+    /// @param self The Version object to update
+    function _next(Version memory self) internal pure {
+        self.makerPosFee._value = Fixed6Lib.ZERO;
+        self.makerNegFee._value = Fixed6Lib.ZERO;
+        self.takerPosFee._value = Fixed6Lib.ZERO;
+        self.takerNegFee._value = Fixed6Lib.ZERO;
+        self.settlementFee._value = Fixed6Lib.ZERO;
     }
 
     /// @notice Globally accumulates settlement fees since last oracle update
@@ -198,7 +201,7 @@ library VersionLib {
             context.riskParameter.takerFee,
             self.takerPosFee,
             context.fromPosition.skew(),
-            Fixed6Lib.from(context.order.takerPos)
+            Fixed6Lib.from(context.order.takerPos())
         );
 
         // position fee from negative skew taker orders
@@ -208,8 +211,8 @@ library VersionLib {
             result,
             context.riskParameter.takerFee,
             self.takerNegFee,
-            context.fromPosition.skew().add(Fixed6Lib.from(context.order.takerPos)),
-            Fixed6Lib.from(-1, context.order.takerNeg)
+            context.fromPosition.skew().add(Fixed6Lib.from(context.order.takerPos())),
+            Fixed6Lib.from(-1, context.order.takerNeg())
         );
 
         // position fee from negative skew maker orders
@@ -341,7 +344,7 @@ library VersionLib {
         UFixed6 fundingFee
     ) {
         Fixed6 toSkew = context.toOracleVersion.valid ?
-            context.fromPosition.skew().add(context.order.long).sub(context.order.short) :
+            context.fromPosition.skew().add(context.order.long()).sub(context.order.short()) :
             context.fromPosition.skew();
     
         // Compute long-short funding rate

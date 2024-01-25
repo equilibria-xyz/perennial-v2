@@ -225,9 +225,7 @@ export async function createMarket(
 }
 
 export async function settle(market: IMarket, account: SignerWithAddress): Promise<ContractTransaction> {
-  const local = await market.locals(account.address)
-  const currentPosition = await market.pendingPositions(account.address, local.currentId)
   return market
     .connect(account)
-    .update(account.address, currentPosition.maker, currentPosition.long, currentPosition.short, 0, false)
+    .update(account.address, constants.MaxUint256, constants.MaxUint256, constants.MaxUint256, 0, false)
 }
