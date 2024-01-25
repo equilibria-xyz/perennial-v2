@@ -4,6 +4,10 @@ pragma solidity ^0.8.13;
 import "../types/Order.sol";
 
 contract OrderTester {
+    function ready(Order memory order, OracleVersion memory latestVersion) external pure returns (bool result) {
+        return order.ready(latestVersion);
+    }
+
     function increasesPosition(Order memory order) public pure returns (bool) {
         return order.increasesPosition();
     }

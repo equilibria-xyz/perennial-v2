@@ -221,11 +221,6 @@ describe('Local', () => {
       maker: parse6decimal('987'),
       long: parse6decimal('654'),
       short: parse6decimal('321'),
-      invalidation: {
-        maker: 0, // unused
-        long: 0, // unused
-        short: 0, // unused
-      },
     }
 
     const TO_POSITION: PositionStruct = {
@@ -233,11 +228,6 @@ describe('Local', () => {
       maker: 0,
       long: 0,
       short: 0,
-      invalidation: {
-        maker: 0, // unused
-        long: 0, // unused
-        short: 0, // unused
-      },
     }
 
     const FROM_VERSION: VersionStruct = {
@@ -337,11 +327,11 @@ describe('Local', () => {
 
       it('accumulates fees (maker pos)', async () => {
         const feeAmount = await local.callStatic.accumulateFees(
-          { ...DEFAULT_ORDER, maker: parse6decimal('5'), makerPos: parse6decimal('10') },
+          { ...DEFAULT_ORDER, makerPos: parse6decimal('10') },
           { ...DEFAULT_VERSION, makerPosFee: { _value: parse6decimal('-2') } },
         )
         await local.accumulateFees(
-          { ...DEFAULT_ORDER, maker: parse6decimal('5'), makerPos: parse6decimal('10') },
+          { ...DEFAULT_ORDER, makerPos: parse6decimal('10') },
           { ...DEFAULT_VERSION, makerPosFee: { _value: parse6decimal('-2') } },
         )
         expect(feeAmount.positionFee).to.equal(parse6decimal('20'))
@@ -354,11 +344,11 @@ describe('Local', () => {
 
       it('accumulates fees (maker neg)', async () => {
         const feeAmount = await local.callStatic.accumulateFees(
-          { ...DEFAULT_ORDER, maker: parse6decimal('-5'), makerNeg: parse6decimal('10') },
+          { ...DEFAULT_ORDER, makerNeg: parse6decimal('10') },
           { ...DEFAULT_VERSION, makerNegFee: { _value: parse6decimal('-2') } },
         )
         await local.accumulateFees(
-          { ...DEFAULT_ORDER, maker: parse6decimal('-5'), makerNeg: parse6decimal('10') },
+          { ...DEFAULT_ORDER, makerNeg: parse6decimal('10') },
           { ...DEFAULT_VERSION, makerNegFee: { _value: parse6decimal('-2') } },
         )
         expect(feeAmount.positionFee).to.equal(parse6decimal('20'))
@@ -371,11 +361,11 @@ describe('Local', () => {
 
       it('accumulates fees (long pos)', async () => {
         const feeAmount = await local.callStatic.accumulateFees(
-          { ...DEFAULT_ORDER, long: parse6decimal('5'), takerPos: parse6decimal('10') },
+          { ...DEFAULT_ORDER, longPos: parse6decimal('10') },
           { ...DEFAULT_VERSION, takerPosFee: { _value: parse6decimal('-2') } },
         )
         await local.accumulateFees(
-          { ...DEFAULT_ORDER, long: parse6decimal('5'), takerPos: parse6decimal('10') },
+          { ...DEFAULT_ORDER, longPos: parse6decimal('10') },
           { ...DEFAULT_VERSION, takerPosFee: { _value: parse6decimal('-2') } },
         )
         expect(feeAmount.positionFee).to.equal(parse6decimal('20'))
@@ -388,11 +378,11 @@ describe('Local', () => {
 
       it('accumulates fees (short neg)', async () => {
         const feeAmount = await local.callStatic.accumulateFees(
-          { ...DEFAULT_ORDER, short: parse6decimal('-5'), takerPos: parse6decimal('10') },
+          { ...DEFAULT_ORDER, shortNeg: parse6decimal('10') },
           { ...DEFAULT_VERSION, takerPosFee: { _value: parse6decimal('-2') } },
         )
         await local.accumulateFees(
-          { ...DEFAULT_ORDER, short: parse6decimal('-5'), takerPos: parse6decimal('10') },
+          { ...DEFAULT_ORDER, shortNeg: parse6decimal('10') },
           { ...DEFAULT_VERSION, takerPosFee: { _value: parse6decimal('-2') } },
         )
         expect(feeAmount.positionFee).to.equal(parse6decimal('20'))
@@ -405,11 +395,11 @@ describe('Local', () => {
 
       it('accumulates fees (long neg)', async () => {
         const feeAmount = await local.callStatic.accumulateFees(
-          { ...DEFAULT_ORDER, long: parse6decimal('-5'), takerNeg: parse6decimal('10') },
+          { ...DEFAULT_ORDER, longNeg: parse6decimal('10') },
           { ...DEFAULT_VERSION, takerNegFee: { _value: parse6decimal('-2') } },
         )
         await local.accumulateFees(
-          { ...DEFAULT_ORDER, long: parse6decimal('-5'), takerNeg: parse6decimal('10') },
+          { ...DEFAULT_ORDER, longNeg: parse6decimal('10') },
           { ...DEFAULT_VERSION, takerNegFee: { _value: parse6decimal('-2') } },
         )
         expect(feeAmount.positionFee).to.equal(parse6decimal('20'))
@@ -422,11 +412,11 @@ describe('Local', () => {
 
       it('accumulates fees (short pos)', async () => {
         const feeAmount = await local.callStatic.accumulateFees(
-          { ...DEFAULT_ORDER, short: parse6decimal('5'), takerNeg: parse6decimal('10') },
+          { ...DEFAULT_ORDER, shortPos: parse6decimal('10') },
           { ...DEFAULT_VERSION, takerNegFee: { _value: parse6decimal('-2') } },
         )
         await local.accumulateFees(
-          { ...DEFAULT_ORDER, short: parse6decimal('5'), takerNeg: parse6decimal('10') },
+          { ...DEFAULT_ORDER, shortPos: parse6decimal('10') },
           { ...DEFAULT_VERSION, takerNegFee: { _value: parse6decimal('-2') } },
         )
         expect(feeAmount.positionFee).to.equal(parse6decimal('20'))
@@ -439,11 +429,11 @@ describe('Local', () => {
 
       it('accumulates settlement fee', async () => {
         const feeAmount = await local.callStatic.accumulateFees(
-          { ...DEFAULT_ORDER, short: parse6decimal('10') },
+          { ...DEFAULT_ORDER, makerPos: parse6decimal('1') },
           { ...DEFAULT_VERSION, settlementFee: { _value: parse6decimal('-4') } },
         )
         await local.accumulateFees(
-          { ...DEFAULT_ORDER, short: parse6decimal('10') },
+          { ...DEFAULT_ORDER, makerPos: parse6decimal('1') },
           { ...DEFAULT_VERSION, settlementFee: { _value: parse6decimal('-4') } },
         )
         expect(feeAmount.settlementFee).to.equal(parse6decimal('4'))
@@ -563,7 +553,7 @@ describe('Local', () => {
         VALID_RISK_PARAMETER,
         { ...VALID_ORACLE_VERSION, timestamp: 124 },
         127,
-        { ...DEFAULT_ORDER, long: parse6decimal('1') },
+        { ...DEFAULT_ORDER, makerPos: parse6decimal('1') },
         owner.address,
         true,
       )
@@ -571,7 +561,7 @@ describe('Local', () => {
         VALID_RISK_PARAMETER,
         { ...VALID_ORACLE_VERSION, timestamp: 124 },
         127,
-        { ...DEFAULT_ORDER, long: parse6decimal('1') },
+        { ...DEFAULT_ORDER, makerPos: parse6decimal('1') },
         owner.address,
         true,
       )
@@ -596,7 +586,7 @@ describe('Local', () => {
         VALID_RISK_PARAMETER,
         { ...VALID_ORACLE_VERSION, timestamp: 124 },
         127,
-        { ...DEFAULT_ORDER, long: parse6decimal('1') },
+        { ...DEFAULT_ORDER, makerPos: parse6decimal('1') },
         owner.address,
         true,
       )
@@ -604,7 +594,7 @@ describe('Local', () => {
         VALID_RISK_PARAMETER,
         { ...VALID_ORACLE_VERSION, timestamp: 124 },
         127,
-        { ...DEFAULT_ORDER, long: parse6decimal('1') },
+        { ...DEFAULT_ORDER, makerPos: parse6decimal('1') },
         owner.address,
         true,
       )
@@ -620,18 +610,6 @@ describe('Local', () => {
   })
 
   describe('#processProtection', () => {
-    const TO_POSITION: PositionStruct = {
-      timestamp: 0, // unused
-      maker: 0, // unused
-      long: 0, // unused
-      short: 0, // unused
-      invalidation: {
-        maker: 0, // unused
-        long: 0, // unused
-        short: 0, // unused
-      },
-    }
-
     const TO_VERSION: VersionStruct = {
       valid: true,
       makerValue: { _value: parse6decimal('1000') },
@@ -655,8 +633,8 @@ describe('Local', () => {
         protectionInitiator: owner.address,
       })
 
-      const result = await local.callStatic.processProtection(TO_POSITION, { ...TO_VERSION, valid: false })
-      await local.processProtection(TO_POSITION, { ...TO_VERSION, valid: false })
+      const result = await local.callStatic.processProtection(DEFAULT_ORDER, { ...TO_VERSION, valid: false })
+      await local.processProtection(DEFAULT_ORDER, { ...TO_VERSION, valid: false })
 
       const value = await local.read()
 
@@ -676,8 +654,8 @@ describe('Local', () => {
         protectionInitiator: owner.address,
       })
 
-      const result = await local.callStatic.processProtection({ ...TO_POSITION, timestamp: 122 }, TO_VERSION)
-      await local.processProtection({ ...TO_POSITION, timestamp: 122 }, TO_VERSION)
+      const result = await local.callStatic.processProtection({ ...DEFAULT_ORDER, timestamp: 122 }, TO_VERSION)
+      await local.processProtection({ ...DEFAULT_ORDER, timestamp: 122 }, TO_VERSION)
 
       const value = await local.read()
 
@@ -697,8 +675,8 @@ describe('Local', () => {
         protectionInitiator: owner.address,
       })
 
-      const result = await local.callStatic.processProtection({ ...TO_POSITION, timestamp: 124 }, TO_VERSION)
-      await local.processProtection({ ...TO_POSITION, timestamp: 122 }, TO_VERSION)
+      const result = await local.callStatic.processProtection({ ...DEFAULT_ORDER, timestamp: 124 }, TO_VERSION)
+      await local.processProtection({ ...DEFAULT_ORDER, timestamp: 122 }, TO_VERSION)
 
       const value = await local.read()
 
@@ -718,8 +696,8 @@ describe('Local', () => {
         protectionInitiator: owner.address,
       })
 
-      const result = await local.callStatic.processProtection({ ...TO_POSITION, timestamp: 123 }, TO_VERSION)
-      await local.processProtection({ ...TO_POSITION, timestamp: 123 }, TO_VERSION)
+      const result = await local.callStatic.processProtection({ ...DEFAULT_ORDER, timestamp: 123 }, TO_VERSION)
+      await local.processProtection({ ...DEFAULT_ORDER, timestamp: 123 }, TO_VERSION)
 
       const value = await local.read()
 

@@ -29,18 +29,21 @@ interface IMarket is IInstance {
         OracleVersion positionVersion;
         Global global;
         Local local;
-        Order order;
         Checkpoint currentCheckpoint;
-        PositionContext currentPosition;
         PositionContext latestPosition;
-        UFixed6 previousPendingMagnitude;
-        UFixed6 pendingOpen;
-        UFixed6 pendingClose;
+        PositionContext currentPosition;
+        OrderContext order;
+        OrderContext pending;
     }
 
     struct PositionContext {
         Position global;
         Position local;
+    }
+
+    struct OrderContext {
+        Order global;
+        Order local;
     }
 
     struct LocalAccumulationResult {
@@ -114,12 +117,13 @@ interface IMarket is IInstance {
     function oracle() external view returns (IOracleProvider);
     function payoff() external view returns (address);
     function positions(address account) external view returns (Position memory);
-    function pendingPositions(address account, uint256 id) external view returns (Position memory);
+    function pendingOrders(address account, uint256 id) external view returns (Order memory);
+    function pendings(address account) external view returns (Order memory);
     function locals(address account) external view returns (Local memory);
     function versions(uint256 timestamp) external view returns (Version memory);
-    function pendingOrder(uint256 id) external view returns (Order memory);
-    function pendingPosition(uint256 id) external view returns (Position memory);
     function position() external view returns (Position memory);
+    function pendingOrder(uint256 id) external view returns (Order memory);
+    function pending() external view returns (Order memory);
     function global() external view returns (Global memory);
     function checkpoints(address account, uint256 id) external view returns (Checkpoint memory);
     function update(address account, UFixed6 newMaker, UFixed6 newLong, UFixed6 newShort, Fixed6 collateral, bool protect) external;

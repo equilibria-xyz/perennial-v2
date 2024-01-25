@@ -10,7 +10,7 @@ import {
   PositionLocalTester__factory,
 } from '../../../types/generated'
 import { BigNumber } from 'ethers'
-import { parse6decimal } from '../../../../common/testutil/types'
+import { DEFAULT_ORDER, OracleVersion, parse6decimal } from '../../../../common/testutil/types'
 import { PositionStruct } from '../../../types/generated/contracts/Market'
 import { OracleVersionStruct } from '../../../types/generated/contracts/interfaces/IOracleProvider'
 
@@ -19,7 +19,7 @@ import { VALID_RISK_PARAMETER } from './RiskParameter.test'
 const { ethers } = HRE
 use(smock.matchers)
 
-export const VALID_ORACLE_VERSION: OracleVersionStruct = {
+export const VALID_ORACLE_VERSION: OracleVersion = {
   timestamp: 12345,
   price: parse6decimal('100'),
   valid: true,
@@ -28,13 +28,12 @@ export const VALID_ORACLE_VERSION: OracleVersionStruct = {
 const VALID_ORDER = {
   timestamp: 123456,
   orders: 1,
-  maker: parse6decimal('-1'),
-  long: parse6decimal('5'),
-  short: parse6decimal('3'),
   makerPos: parse6decimal('4'),
   makerNeg: parse6decimal('5'),
-  takerPos: parse6decimal('8'),
-  takerNeg: parse6decimal('6'),
+  longPos: parse6decimal('8'),
+  longNeg: parse6decimal('3'),
+  shortPos: parse6decimal('6'),
+  shortNeg: parse6decimal('3'),
 }
 
 describe('Position', () => {
@@ -48,11 +47,6 @@ describe('Position', () => {
       maker: 3,
       long: 4,
       short: 5,
-      invalidation: {
-        maker: 10,
-        long: 11,
-        short: 12,
-      },
     }
 
     beforeEach(async () => {
@@ -70,9 +64,6 @@ describe('Position', () => {
         expect(value.maker).to.equal(3)
         expect(value.long).to.equal(4)
         expect(value.short).to.equal(5)
-        expect(value.invalidation.maker).to.equal(10)
-        expect(value.invalidation.long).to.equal(11)
-        expect(value.invalidation.short).to.equal(12)
       })
 
       describe('.timestamp', async () => {
@@ -593,30 +584,6 @@ describe('Position', () => {
     })
 
     describe('update functions', () => {
-      describe('#update(newPosition)', () => {
-        it('updates the position to the new position', async () => {
-          await position.store(VALID_GLOBAL_POSITION)
-
-          await position['update((uint256,uint256,uint256,uint256,(int256,int256,int256)))']({
-            timestamp: 20,
-            maker: 30,
-            long: 40,
-            short: 50,
-            invalidation: {
-              maker: 100,
-              long: 110,
-              short: 120,
-            },
-          })
-
-          const value = await position.read()
-          expect(value.timestamp).to.equal(20)
-          expect(value.maker).to.equal(30)
-          expect(value.long).to.equal(40)
-          expect(value.short).to.equal(50)
-        })
-      })
-
       describe('#update(currentId, currentTimestamp, order)', () => {
         it('updates the position and the order', async () => {
           await position.store({
@@ -626,13 +593,8 @@ describe('Position', () => {
             short: parse6decimal('12'),
           })
 
-          const updatedOrder = await position.callStatic[
-            'update(uint256,(uint256,uint256,int256,int256,int256,uint256,uint256,uint256,uint256))'
-          ](123456, VALID_ORDER)
-          await position['update(uint256,(uint256,uint256,int256,int256,int256,uint256,uint256,uint256,uint256))'](
-            123456,
-            VALID_ORDER,
-          )
+          const updatedOrder = await position.callStatic.update(VALID_ORDER, true)
+          await position.update(VALID_ORDER, true)
 
           const value = await position.read()
           expect(value.timestamp).to.equal(123456)
@@ -640,70 +602,23 @@ describe('Position', () => {
           expect(value.long).to.equal(parse6decimal('16'))
           expect(value.short).to.equal(parse6decimal('15'))
         })
-      })
 
-      describe('#invalidate', () => {
-        it('sets the position to latestPosition and zeroes fee', async () => {
-          const newPosition = {
+        it('doesnt update when valid', async () => {
+          await position.store({
             ...VALID_GLOBAL_POSITION,
-            maker: 50,
-            long: 60,
-            short: 70,
-          }
+            maker: parse6decimal('40'),
+            long: parse6decimal('11'),
+            short: parse6decimal('12'),
+          })
 
-          await position.store(VALID_GLOBAL_POSITION)
+          const updatedOrder = await position.callStatic.update(VALID_ORDER, false)
+          await position.update(VALID_ORDER, false)
 
-          await position.invalidate(newPosition)
           const value = await position.read()
-
-          expect(value.invalidation.maker).to.equal(-37)
-          expect(value.invalidation.long).to.equal(-45)
-          expect(value.invalidation.short).to.equal(-53)
-        })
-      })
-
-      describe('#adjust', () => {
-        it('adjusts the position if invalidations have occurred', async () => {
-          const latestPosition = {
-            ...VALID_GLOBAL_POSITION,
-            invalidation: {
-              maker: 10,
-              long: 11,
-              short: 12,
-            },
-          }
-
-          const newPosition = {
-            ...VALID_GLOBAL_POSITION,
-            maker: 50,
-            long: 60,
-            short: 70,
-            invalidation: {
-              maker: 21,
-              long: 23,
-              short: 25,
-            },
-          }
-
-          await position.store(newPosition)
-
-          await position.adjust(latestPosition)
-          const value = await position.read()
-
-          expect(value.maker).to.equal(39)
-          expect(value.long).to.equal(48)
-          expect(value.short).to.equal(57)
-        })
-      })
-
-      describe('#sync', () => {
-        it('sets the position to latestPosition and zeroes fee', async () => {
-          await position.store(VALID_GLOBAL_POSITION)
-
-          await position.sync(VALID_ORACLE_VERSION)
-          const value = await position.read()
-
-          expect(value.timestamp).to.equal(12345)
+          expect(value.timestamp).to.equal(123456)
+          expect(value.maker).to.equal(parse6decimal('40'))
+          expect(value.long).to.equal(parse6decimal('11'))
+          expect(value.short).to.equal(parse6decimal('12'))
         })
       })
     })
@@ -717,11 +632,6 @@ describe('Position', () => {
       maker: 0, // only max(maker, long, short) is stored
       long: 0,
       short: 0,
-      invalidation: {
-        maker: 10,
-        long: 11,
-        short: 12,
-      },
     }
 
     beforeEach(async () => {
@@ -858,159 +768,6 @@ describe('Position', () => {
             position.store({
               ...VALID_LOCAL_POSITION,
               short: BigNumber.from(2).pow(STORAGE_SIZE),
-            }),
-          ).to.be.revertedWithCustomError(position, 'PositionStorageInvalidError')
-        })
-      })
-
-      describe('.invalidation.maker', async () => {
-        const STORAGE_SIZE = 63
-        it('saves if in range (above)', async () => {
-          await position.store({
-            ...VALID_LOCAL_POSITION,
-            invalidation: {
-              ...VALID_LOCAL_POSITION.invalidation,
-              maker: BigNumber.from(2).pow(STORAGE_SIZE).sub(1),
-            },
-          })
-          const value = await position.read()
-          expect(value.invalidation.maker).to.equal(BigNumber.from(2).pow(STORAGE_SIZE).sub(1))
-        })
-
-        it('saves if in range (below)', async () => {
-          await position.store({
-            ...VALID_LOCAL_POSITION,
-            invalidation: {
-              ...VALID_LOCAL_POSITION.invalidation,
-              maker: BigNumber.from(2).pow(STORAGE_SIZE).mul(-1),
-            },
-          })
-          const value = await position.read()
-          expect(value.invalidation.maker).to.equal(BigNumber.from(2).pow(STORAGE_SIZE).mul(-1))
-        })
-
-        it('reverts if delta out of range (above)', async () => {
-          await expect(
-            position.store({
-              ...VALID_LOCAL_POSITION,
-              invalidation: {
-                ...VALID_LOCAL_POSITION.invalidation,
-                maker: BigNumber.from(2).pow(STORAGE_SIZE),
-              },
-            }),
-          ).to.be.revertedWithCustomError(position, 'PositionStorageInvalidError')
-        })
-
-        it('reverts if delta out of range (below)', async () => {
-          await expect(
-            position.store({
-              ...VALID_LOCAL_POSITION,
-              invalidation: {
-                ...VALID_LOCAL_POSITION.invalidation,
-                maker: BigNumber.from(2).pow(STORAGE_SIZE).add(1).mul(-1),
-              },
-            }),
-          ).to.be.revertedWithCustomError(position, 'PositionStorageInvalidError')
-        })
-      })
-
-      describe('.invalidation.long', async () => {
-        const STORAGE_SIZE = 63
-        it('saves if in range (above)', async () => {
-          await position.store({
-            ...VALID_LOCAL_POSITION,
-            invalidation: {
-              ...VALID_LOCAL_POSITION.invalidation,
-              long: BigNumber.from(2).pow(STORAGE_SIZE).sub(1),
-            },
-          })
-          const value = await position.read()
-          expect(value.invalidation.long).to.equal(BigNumber.from(2).pow(STORAGE_SIZE).sub(1))
-        })
-
-        it('saves if in range (below)', async () => {
-          await position.store({
-            ...VALID_LOCAL_POSITION,
-            invalidation: {
-              ...VALID_LOCAL_POSITION.invalidation,
-              long: BigNumber.from(2).pow(STORAGE_SIZE).mul(-1),
-            },
-          })
-          const value = await position.read()
-          expect(value.invalidation.long).to.equal(BigNumber.from(2).pow(STORAGE_SIZE).mul(-1))
-        })
-
-        it('reverts if delta out of range (above)', async () => {
-          await expect(
-            position.store({
-              ...VALID_LOCAL_POSITION,
-              invalidation: {
-                ...VALID_LOCAL_POSITION.invalidation,
-                long: BigNumber.from(2).pow(STORAGE_SIZE),
-              },
-            }),
-          ).to.be.revertedWithCustomError(position, 'PositionStorageInvalidError')
-        })
-
-        it('reverts if delta out of range (below)', async () => {
-          await expect(
-            position.store({
-              ...VALID_LOCAL_POSITION,
-              invalidation: {
-                ...VALID_LOCAL_POSITION.invalidation,
-                long: BigNumber.from(2).pow(STORAGE_SIZE).add(1).mul(-1),
-              },
-            }),
-          ).to.be.revertedWithCustomError(position, 'PositionStorageInvalidError')
-        })
-      })
-
-      describe('.invalidation.short', async () => {
-        const STORAGE_SIZE = 63
-        it('saves if in range (above)', async () => {
-          await position.store({
-            ...VALID_LOCAL_POSITION,
-            invalidation: {
-              ...VALID_LOCAL_POSITION.invalidation,
-              short: BigNumber.from(2).pow(STORAGE_SIZE).sub(1),
-            },
-          })
-          const value = await position.read()
-          expect(value.invalidation.short).to.equal(BigNumber.from(2).pow(STORAGE_SIZE).sub(1))
-        })
-
-        it('saves if in range (below)', async () => {
-          await position.store({
-            ...VALID_LOCAL_POSITION,
-            invalidation: {
-              ...VALID_LOCAL_POSITION.invalidation,
-              short: BigNumber.from(2).pow(STORAGE_SIZE).mul(-1),
-            },
-          })
-          const value = await position.read()
-          expect(value.invalidation.short).to.equal(BigNumber.from(2).pow(STORAGE_SIZE).mul(-1))
-        })
-
-        it('reverts if delta out of range (above)', async () => {
-          await expect(
-            position.store({
-              ...VALID_LOCAL_POSITION,
-              invalidation: {
-                ...VALID_LOCAL_POSITION.invalidation,
-                short: BigNumber.from(2).pow(STORAGE_SIZE),
-              },
-            }),
-          ).to.be.revertedWithCustomError(position, 'PositionStorageInvalidError')
-        })
-
-        it('reverts if delta out of range (below)', async () => {
-          await expect(
-            position.store({
-              ...VALID_LOCAL_POSITION,
-              invalidation: {
-                ...VALID_LOCAL_POSITION.invalidation,
-                short: BigNumber.from(2).pow(STORAGE_SIZE).add(1).mul(-1),
-              },
             }),
           ).to.be.revertedWithCustomError(position, 'PositionStorageInvalidError')
         })
@@ -1214,81 +971,6 @@ describe('Position', () => {
         })
       })
     })
-
-    describe('update functions', () => {
-      describe('#update(newPosition)', () => {
-        it('updates the position to the new position', async () => {
-          await position.store(VALID_LOCAL_POSITION)
-
-          await position['update((uint256,uint256,uint256,uint256,(int256,int256,int256)))']({
-            timestamp: 20,
-            maker: 0, // only max is stored
-            long: 0, // only max is stored
-            short: 50,
-            invalidation: {
-              maker: 123456890, // not updated
-              long: 123456890, // not updated
-              short: 123456890, // not updated
-            },
-          })
-
-          const value = await position.read()
-          expect(value.timestamp).to.equal(20)
-          expect(value.maker).to.equal(0)
-          expect(value.long).to.equal(0)
-          expect(value.short).to.equal(50)
-          expect(value.invalidation.maker).to.equal(10)
-          expect(value.invalidation.long).to.equal(11)
-          expect(value.invalidation.short).to.equal(12)
-        })
-      })
-
-      describe('#invalidate', () => {
-        it('sets the position to latestPosition and zeroes fee', async () => {
-          const newPosition = {
-            ...VALID_LOCAL_POSITION,
-            short: 70,
-          }
-
-          await position.store(VALID_LOCAL_POSITION)
-
-          await position.invalidate(newPosition)
-          const value = await position.read()
-
-          expect(value.invalidation.maker).to.equal(10)
-          expect(value.invalidation.long).to.equal(11)
-          expect(value.invalidation.short).to.equal(-58)
-        })
-      })
-
-      describe('#adjust', () => {
-        it('adjusts the position if invalidations have occurred', async () => {
-          const latestPosition = {
-            ...VALID_LOCAL_POSITION,
-            invalidation: {
-              ...VALID_LOCAL_POSITION.invalidation,
-              maker: 10,
-            },
-          }
-
-          const newPosition = {
-            ...VALID_LOCAL_POSITION,
-            maker: 50,
-            invalidation: {
-              ...VALID_LOCAL_POSITION.invalidation,
-              maker: 21,
-            },
-          }
-
-          await position.store(newPosition)
-
-          await position.adjust(latestPosition)
-          const value = await position.read()
-
-          expect(value.maker).to.equal(39)
-        })
-      })
-    })
   })
 })
 
@@ -1303,32 +985,6 @@ function viewFunctions(
 
   beforeEach(async () => {
     ;({ position, validStoredPosition } = getter())
-  })
-
-  describe('#ready', () => {
-    context('oracleVersion.timestamp > position.timestamp', () => {
-      it('returns true', async () => {
-        await position.store(validStoredPosition)
-        expect(await position.ready(VALID_ORACLE_VERSION)).to.be.true
-      })
-    })
-
-    context('position.timestamp = oracleVersion.timestamp', () => {
-      it('returns true', async () => {
-        await position.store({ ...validStoredPosition, timestamp: VALID_ORACLE_VERSION.timestamp })
-        expect(await position.ready(VALID_ORACLE_VERSION)).to.be.true
-      })
-    })
-
-    context('oracleVersion.timestamp < position.timestamp', () => {
-      it('returns false', async () => {
-        await position.store({
-          ...validStoredPosition,
-          timestamp: BigNumber.from(VALID_ORACLE_VERSION.timestamp).add(1),
-        })
-        expect(await position.ready(VALID_ORACLE_VERSION)).to.be.false
-      })
-    })
   })
 
   describe('#magnitude', () => {

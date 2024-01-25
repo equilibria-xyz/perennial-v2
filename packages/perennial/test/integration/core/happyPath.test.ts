@@ -10,6 +10,7 @@ import {
   DEFAULT_LOCAL,
   DEFAULT_VERSION,
   DEFAULT_CHECKPOINT,
+  expectOrderEq,
   expectGlobalEq,
   expectLocalEq,
   expectPositionEq,
@@ -121,7 +122,6 @@ describe('Happy Path', () => {
           ...DEFAULT_ORDER,
           timestamp: TIMESTAMP_1,
           orders: 1,
-          maker: POSITION,
           makerPos: POSITION,
         },
         COLLATERAL,
@@ -135,10 +135,11 @@ describe('Happy Path', () => {
       collateral: COLLATERAL,
       protection: 0,
     })
-    expectPositionEq(await market.pendingPositions(user.address, 1), {
-      ...DEFAULT_POSITION,
+    expectOrderEq(await market.pendingOrders(user.address, 1), {
+      ...DEFAULT_ORDER,
       timestamp: TIMESTAMP_1,
-      maker: POSITION,
+      orders: 1,
+      makerPos: POSITION,
     })
     expectCheckpointEq(await market.checkpoints(user.address, 1), {
       ...DEFAULT_CHECKPOINT,
@@ -158,10 +159,11 @@ describe('Happy Path', () => {
       oracleFee: 0,
       donation: 0,
     })
-    expectPositionEq(await market.pendingPosition(1), {
-      ...DEFAULT_POSITION,
+    expectOrderEq(await market.pendingOrder(1), {
+      ...DEFAULT_ORDER,
       timestamp: TIMESTAMP_1,
-      maker: POSITION,
+      orders: 1,
+      makerPos: POSITION,
     })
     expectPositionEq(await market.position(), {
       ...DEFAULT_POSITION,
@@ -183,10 +185,9 @@ describe('Happy Path', () => {
       collateral: COLLATERAL,
       protection: 0,
     })
-    expectPositionEq(await market.pendingPositions(user.address, 2), {
-      ...DEFAULT_POSITION,
+    expectOrderEq(await market.pendingOrders(user.address, 2), {
+      ...DEFAULT_ORDER,
       timestamp: TIMESTAMP_2,
-      maker: POSITION,
     })
     expectCheckpointEq(await market.checkpoints(user.address, 2), {
       ...DEFAULT_CHECKPOINT,
@@ -207,10 +208,9 @@ describe('Happy Path', () => {
       oracleFee: 0,
       donation: 0,
     })
-    expectPositionEq(await market.pendingPosition(2), {
-      ...DEFAULT_POSITION,
+    expectOrderEq(await market.pendingOrder(2), {
+      ...DEFAULT_ORDER,
       timestamp: TIMESTAMP_2,
-      maker: POSITION,
     })
     expectPositionEq(await market.position(), {
       ...DEFAULT_POSITION,
@@ -240,10 +240,11 @@ describe('Happy Path', () => {
       collateral: COLLATERAL,
       protection: 0,
     })
-    expectPositionEq(await market.pendingPositions(user.address, 1), {
-      ...DEFAULT_POSITION,
+    expectOrderEq(await market.pendingOrders(user.address, 1), {
+      ...DEFAULT_ORDER,
       timestamp: TIMESTAMP_1,
-      maker: POSITION,
+      orders: 1,
+      makerPos: POSITION,
     })
     expectCheckpointEq(await market.checkpoints(user.address, 1), {
       ...DEFAULT_CHECKPOINT,
@@ -263,10 +264,11 @@ describe('Happy Path', () => {
       oracleFee: 0,
       donation: 0,
     })
-    expectPositionEq(await market.pendingPosition(1), {
-      ...DEFAULT_POSITION,
+    expectOrderEq(await market.pendingOrder(1), {
+      ...DEFAULT_ORDER,
       timestamp: TIMESTAMP_1,
-      maker: POSITION,
+      orders: 1,
+      makerPos: POSITION,
     })
     expectPositionEq(await market.position(), {
       ...DEFAULT_POSITION,
@@ -288,10 +290,9 @@ describe('Happy Path', () => {
       collateral: COLLATERAL,
       protection: 0,
     })
-    expectPositionEq(await market.pendingPositions(user.address, 2), {
-      ...DEFAULT_POSITION,
+    expectOrderEq(await market.pendingOrders(user.address, 2), {
+      ...DEFAULT_ORDER,
       timestamp: TIMESTAMP_2,
-      maker: POSITION,
     })
     expectCheckpointEq(await market.checkpoints(user.address, 2), {
       ...DEFAULT_CHECKPOINT,
@@ -312,10 +313,9 @@ describe('Happy Path', () => {
       oracleFee: 0,
       donation: 0,
     })
-    expectPositionEq(await market.pendingPosition(2), {
-      ...DEFAULT_POSITION,
+    expectOrderEq(await market.pendingOrder(2), {
+      ...DEFAULT_ORDER,
       timestamp: TIMESTAMP_2,
-      maker: POSITION,
     })
     expectPositionEq(await market.position(), {
       ...DEFAULT_POSITION,
@@ -347,7 +347,6 @@ describe('Happy Path', () => {
           ...DEFAULT_ORDER,
           timestamp: TIMESTAMP_2,
           orders: 1,
-          maker: POSITION.mul(-1),
           makerNeg: POSITION,
         },
         0,
@@ -361,9 +360,11 @@ describe('Happy Path', () => {
       collateral: COLLATERAL,
       protection: 0,
     })
-    expectPositionEq(await market.pendingPositions(user.address, 2), {
-      ...DEFAULT_POSITION,
+    expectOrderEq(await market.pendingOrders(user.address, 2), {
+      ...DEFAULT_ORDER,
       timestamp: TIMESTAMP_2,
+      orders: 1,
+      makerNeg: POSITION,
     })
     expectCheckpointEq(await market.checkpoints(user.address, 2), {
       ...DEFAULT_CHECKPOINT,
@@ -384,9 +385,11 @@ describe('Happy Path', () => {
       oracleFee: 0,
       donation: 0,
     })
-    expectPositionEq(await market.pendingPosition(2), {
-      ...DEFAULT_POSITION,
+    expectOrderEq(await market.pendingOrder(2), {
+      ...DEFAULT_ORDER,
       timestamp: TIMESTAMP_2,
+      orders: 1,
+      makerNeg: POSITION,
     })
     expectPositionEq(await market.position(), {
       ...DEFAULT_POSITION,
@@ -423,9 +426,11 @@ describe('Happy Path', () => {
       collateral: COLLATERAL,
       protection: 0,
     })
-    expectPositionEq(await market.pendingPositions(user.address, 2), {
-      ...DEFAULT_POSITION,
+    expectOrderEq(await market.pendingOrders(user.address, 2), {
+      ...DEFAULT_ORDER,
       timestamp: TIMESTAMP_2,
+      orders: 1,
+      makerNeg: POSITION,
     })
     expectCheckpointEq(await market.checkpoints(user.address, 2), {
       ...DEFAULT_CHECKPOINT,
@@ -446,9 +451,11 @@ describe('Happy Path', () => {
       oracleFee: 0,
       donation: 0,
     })
-    expectPositionEq(await market.pendingPosition(2), {
-      ...DEFAULT_POSITION,
+    expectOrderEq(await market.pendingOrder(2), {
+      ...DEFAULT_ORDER,
       timestamp: TIMESTAMP_2,
+      orders: 1,
+      makerNeg: POSITION,
     })
     expectPositionEq(await market.position(), {
       ...DEFAULT_POSITION,
@@ -489,8 +496,7 @@ describe('Happy Path', () => {
           ...DEFAULT_ORDER,
           timestamp: TIMESTAMP_1,
           orders: 1,
-          long: POSITION_B,
-          takerPos: POSITION_B,
+          longPos: POSITION_B,
         },
         COLLATERAL,
       )
@@ -503,10 +509,11 @@ describe('Happy Path', () => {
       collateral: COLLATERAL,
       protection: 0,
     })
-    expectPositionEq(await market.pendingPositions(user.address, 1), {
-      ...DEFAULT_POSITION,
+    expectOrderEq(await market.pendingOrders(user.address, 1), {
+      ...DEFAULT_ORDER,
       timestamp: TIMESTAMP_1,
-      maker: POSITION,
+      orders: 1,
+      makerPos: POSITION,
     })
     expectCheckpointEq(await market.checkpoints(user.address, 1), {
       ...DEFAULT_CHECKPOINT,
@@ -524,10 +531,11 @@ describe('Happy Path', () => {
       collateral: COLLATERAL,
       protection: 0,
     })
-    expectPositionEq(await market.pendingPositions(userB.address, 1), {
-      ...DEFAULT_POSITION,
+    expectOrderEq(await market.pendingOrders(userB.address, 1), {
+      ...DEFAULT_ORDER,
       timestamp: TIMESTAMP_1,
-      long: POSITION_B,
+      orders: 1,
+      longPos: POSITION_B,
     })
     expectCheckpointEq(await market.checkpoints(userB.address, 1), {
       ...DEFAULT_CHECKPOINT,
@@ -547,11 +555,12 @@ describe('Happy Path', () => {
       oracleFee: 0,
       donation: 0,
     })
-    expectPositionEq(await market.pendingPosition(1), {
-      ...DEFAULT_POSITION,
+    expectOrderEq(await market.pendingOrder(1), {
+      ...DEFAULT_ORDER,
       timestamp: TIMESTAMP_1,
-      maker: POSITION,
-      long: POSITION_B,
+      orders: 2,
+      makerPos: POSITION,
+      longPos: POSITION_B,
     })
     expectPositionEq(await market.position(), {
       ...DEFAULT_POSITION,
@@ -576,11 +585,9 @@ describe('Happy Path', () => {
       oracleFee: 0,
       donation: '18',
     })
-    expectPositionEq(await market.pendingPosition(2), {
-      ...DEFAULT_POSITION,
+    expectOrderEq(await market.pendingOrder(2), {
+      ...DEFAULT_ORDER,
       timestamp: TIMESTAMP_3,
-      maker: POSITION,
-      long: POSITION_B,
     })
     expectPositionEq(await market.position(), {
       ...DEFAULT_POSITION,
@@ -596,10 +603,9 @@ describe('Happy Path', () => {
       collateral: COLLATERAL.add(BigNumber.from('1249392')),
       protection: 0,
     })
-    expectPositionEq(await market.pendingPositions(userB.address, 2), {
-      ...DEFAULT_POSITION,
+    expectOrderEq(await market.pendingOrders(userB.address, 2), {
+      ...DEFAULT_ORDER,
       timestamp: TIMESTAMP_3,
-      long: POSITION_B,
     })
     expectCheckpointEq(await market.checkpoints(userB.address, 2), {
       ...DEFAULT_CHECKPOINT,
@@ -644,10 +650,11 @@ describe('Happy Path', () => {
       collateral: COLLATERAL,
       protection: 0,
     })
-    expectPositionEq(await market.pendingPositions(userB.address, 1), {
-      ...DEFAULT_POSITION,
+    expectOrderEq(await market.pendingOrders(userB.address, 1), {
+      ...DEFAULT_ORDER,
       timestamp: TIMESTAMP_1,
-      long: POSITION_B,
+      orders: 1,
+      longPos: POSITION_B,
     })
     expectCheckpointEq(await market.checkpoints(userB.address, 1), {
       ...DEFAULT_CHECKPOINT,
@@ -667,11 +674,12 @@ describe('Happy Path', () => {
       oracleFee: 0,
       donation: 0,
     })
-    expectPositionEq(await market.pendingPosition(1), {
-      ...DEFAULT_POSITION,
+    expectOrderEq(await market.pendingOrder(1), {
+      ...DEFAULT_ORDER,
       timestamp: TIMESTAMP_1,
-      maker: POSITION,
-      long: POSITION_B,
+      orders: 2,
+      makerPos: POSITION,
+      longPos: POSITION_B,
     })
     expectPositionEq(await market.position(), {
       ...DEFAULT_POSITION,
@@ -696,11 +704,9 @@ describe('Happy Path', () => {
       oracleFee: 0,
       donation: '18',
     })
-    expectPositionEq(await market.pendingPosition(2), {
-      ...DEFAULT_POSITION,
+    expectOrderEq(await market.pendingOrder(2), {
+      ...DEFAULT_ORDER,
       timestamp: TIMESTAMP_3,
-      maker: POSITION,
-      long: POSITION_B,
     })
     expectPositionEq(await market.position(), {
       ...DEFAULT_POSITION,
@@ -715,10 +721,9 @@ describe('Happy Path', () => {
       collateral: COLLATERAL.add(BigNumber.from('1249392')),
       protection: 0,
     })
-    expectPositionEq(await market.pendingPositions(userB.address, 2), {
-      ...DEFAULT_POSITION,
+    expectOrderEq(await market.pendingOrders(userB.address, 2), {
+      ...DEFAULT_ORDER,
       timestamp: TIMESTAMP_3,
-      long: POSITION_B,
     })
     expectCheckpointEq(await market.checkpoints(userB.address, 2), {
       ...DEFAULT_CHECKPOINT,
@@ -760,8 +765,7 @@ describe('Happy Path', () => {
           ...DEFAULT_ORDER,
           timestamp: TIMESTAMP_2,
           orders: 1,
-          long: POSITION_B.mul(-1),
-          takerNeg: POSITION_B,
+          longNeg: POSITION_B,
         },
         0,
       )
@@ -774,9 +778,11 @@ describe('Happy Path', () => {
       collateral: COLLATERAL,
       protection: 0,
     })
-    expectPositionEq(await market.pendingPositions(userB.address, 2), {
-      ...DEFAULT_POSITION,
+    expectOrderEq(await market.pendingOrders(userB.address, 2), {
+      ...DEFAULT_ORDER,
       timestamp: TIMESTAMP_2,
+      orders: 1,
+      longNeg: POSITION_B,
     })
     expectCheckpointEq(await market.checkpoints(userB.address, 2), {
       ...DEFAULT_CHECKPOINT,
@@ -797,10 +803,11 @@ describe('Happy Path', () => {
       oracleFee: 0,
       donation: 0,
     })
-    expectPositionEq(await market.pendingPosition(2), {
-      ...DEFAULT_POSITION,
+    expectOrderEq(await market.pendingOrder(2), {
+      ...DEFAULT_ORDER,
       timestamp: TIMESTAMP_2,
-      maker: POSITION,
+      orders: 1,
+      longNeg: POSITION_B,
     })
     expectPositionEq(await market.position(), {
       ...DEFAULT_POSITION,
@@ -848,9 +855,11 @@ describe('Happy Path', () => {
       collateral: COLLATERAL,
       protection: 0,
     })
-    expectPositionEq(await market.pendingPositions(userB.address, 2), {
-      ...DEFAULT_POSITION,
+    expectOrderEq(await market.pendingOrders(userB.address, 2), {
+      ...DEFAULT_ORDER,
       timestamp: TIMESTAMP_2,
+      orders: 1,
+      longNeg: POSITION_B,
     })
     expectCheckpointEq(await market.checkpoints(userB.address, 2), {
       ...DEFAULT_CHECKPOINT,
@@ -871,10 +880,11 @@ describe('Happy Path', () => {
       oracleFee: 0,
       donation: 0,
     })
-    expectPositionEq(await market.pendingPosition(2), {
-      ...DEFAULT_POSITION,
+    expectOrderEq(await market.pendingOrder(2), {
+      ...DEFAULT_ORDER,
       timestamp: TIMESTAMP_2,
-      maker: POSITION,
+      orders: 1,
+      longNeg: POSITION_B,
     })
     expectPositionEq(await market.position(), {
       ...DEFAULT_POSITION,
@@ -1065,10 +1075,11 @@ describe('Happy Path', () => {
       collateral: '986224425',
       protection: 0,
     })
-    expectPositionEq(await market.pendingPositions(user.address, 3), {
-      ...DEFAULT_POSITION,
+    expectOrderEq(await market.pendingOrders(user.address, 3), {
+      ...DEFAULT_ORDER,
       timestamp: TIMESTAMP_5,
-      maker: POSITION,
+      orders: 1,
+      makerPos: POSITION.div(2),
     })
     expectCheckpointEq(await market.checkpoints(user.address, 3), {
       ...DEFAULT_CHECKPOINT,
@@ -1089,11 +1100,11 @@ describe('Happy Path', () => {
       oracleFee: 0,
       donation: '306052',
     })
-    expectPositionEq(await market.pendingPosition(3), {
-      ...DEFAULT_POSITION,
+    expectOrderEq(await market.pendingOrder(3), {
+      ...DEFAULT_ORDER,
       timestamp: TIMESTAMP_5,
-      maker: POSITION,
-      long: POSITION.div(2),
+      orders: 1,
+      makerPos: POSITION.div(2),
     })
     expectPositionEq(await market.position(), {
       ...DEFAULT_POSITION,
@@ -1211,10 +1222,10 @@ describe('Happy Path', () => {
       collateral: (await market.locals(user.address)).collateral,
       protection: 0,
     })
-    expectPositionEq(await market.pendingPositions(user.address, delay + 1), {
-      ...DEFAULT_POSITION,
+    expectOrderEq(await market.pendingOrders(user.address, delay + 1), {
+      ...DEFAULT_ORDER,
       timestamp: await chainlink.oracle.current(),
-      maker: POSITION,
+      makerNeg: 1,
     })
     expectCheckpointEq(await market.checkpoints(user.address, delay + 1), {
       ...DEFAULT_CHECKPOINT,
@@ -1236,11 +1247,11 @@ describe('Happy Path', () => {
       oracleFee: (await market.global()).oracleFee,
       donation: (await market.global()).donation,
     })
-    expectPositionEq(await market.pendingPosition(delay + 1), {
-      ...DEFAULT_POSITION,
+    expectOrderEq(await market.pendingOrder(delay + 1), {
+      ...DEFAULT_ORDER,
       timestamp: await chainlink.oracle.current(),
-      maker: POSITION,
-      long: POSITION.sub(1),
+      orders: 1,
+      makerPos: 1,
     })
     expectPositionEq(await market.position(), {
       ...DEFAULT_POSITION,

@@ -78,17 +78,17 @@ library LocalLib {
         Version memory toVersion
     ) internal pure returns (Fixed6 positionFee, UFixed6 settlementFee) {
         // compute local order
-        Fixed6 takerOrder = order.long.sub(order.short);
+        Fixed6 takerOrder = order.long().sub(order.short());
 
         // accumulate position fee
         positionFee = Fixed6Lib.ZERO
             .sub(toVersion.makerPosFee.accumulated(Accumulator6(Fixed6Lib.ZERO), order.makerPos))
             .sub(toVersion.makerNegFee.accumulated(Accumulator6(Fixed6Lib.ZERO), order.makerNeg))
-            .sub(toVersion.takerPosFee.accumulated(Accumulator6(Fixed6Lib.ZERO), order.takerPos))
-            .sub(toVersion.takerNegFee.accumulated(Accumulator6(Fixed6Lib.ZERO), order.takerNeg));
+            .sub(toVersion.takerPosFee.accumulated(Accumulator6(Fixed6Lib.ZERO), order.takerPos()))
+            .sub(toVersion.takerNegFee.accumulated(Accumulator6(Fixed6Lib.ZERO), order.takerNeg()));
 
         // accumulate settlement fee
-        uint256 orders = takerOrder.add(order.maker).isZero() ? 0 : 1;
+        uint256 orders = takerOrder.add(order.maker()).isZero() ? 0 : 1;
         settlementFee = toVersion.settlementFee.accumulated(Accumulator6(Fixed6Lib.ZERO), UFixed6Lib.from(orders)).abs();
 
         self.collateral = self.collateral.sub(positionFee).sub(Fixed6Lib.from(settlementFee));
@@ -119,15 +119,15 @@ library LocalLib {
 
     /// @notice Processes the account's protection if it is valid
     /// @param self The Local object to update
-    /// @param latestPosition The latest account position
+    /// @param order The latest account order
     /// @param version The latest version
     /// @return
     function processProtection(
         Local memory self,
-        Position memory latestPosition,
+        Order memory order,
         Version memory version
     ) internal pure returns (bool) {
-        if (!version.valid || latestPosition.timestamp != self.protection) return false;
+        if (!version.valid || order.timestamp != self.protection) return false;
         self.collateral = self.collateral.sub(Fixed6Lib.from(self.protectionAmount));
         return true;
     }
