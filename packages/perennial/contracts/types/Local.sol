@@ -2,12 +2,13 @@
 pragma solidity ^0.8.13;
 
 import "@equilibria/root/number/types/Fixed6.sol";
-import "@equilibria/root/number/types/Fixed6.sol";
+import "@equilibria/root/accumulator/types/UAccumulator6.sol";
+import "@equilibria/root/accumulator/types/Accumulator6.sol";
 import "./Version.sol";
 import "./Position.sol";
-import "./Order.sol";
 import "./RiskParameter.sol";
 import "./OracleVersion.sol";
+import "./Order.sol";
 
 /// @dev Local type
 struct Local {
@@ -67,24 +68,38 @@ library LocalLib {
 
     /// @notice Accumulate fees from the latest position to next position
     /// @param self The Local object to update
-    /// @param toPosition The next latest position
+    /// @param order The next order
+    /// @param toVersion The next latest version
     /// @return positionFee The resulting position fee
-    /// @return keeper The resulting keeper fee
+    /// @return settlementFee The resulting keeper fee
     function accumulateFees(
         Local memory self,
-        Position memory toPosition
-    ) internal pure returns (Fixed6 positionFee, UFixed6 keeper) {
-        positionFee = toPosition.fee;
-        keeper = toPosition.keeper;
+        Order memory order,
+        Version memory toVersion
+    ) internal pure returns (Fixed6 positionFee, UFixed6 settlementFee) {
+        // compute local order
+        Fixed6 takerOrder = order.long.sub(order.short);
 
-        Fixed6 feeAmount = positionFee.add(Fixed6Lib.from(keeper));
-        self.collateral = self.collateral.sub(feeAmount);
+        // accumulate position fee
+        positionFee = Fixed6Lib.ZERO
+            .sub(toVersion.makerPosFee.accumulated(Accumulator6(Fixed6Lib.ZERO), order.makerPos))
+            .sub(toVersion.makerNegFee.accumulated(Accumulator6(Fixed6Lib.ZERO), order.makerNeg))
+            .sub(toVersion.takerPosFee.accumulated(Accumulator6(Fixed6Lib.ZERO), order.takerPos))
+            .sub(toVersion.takerNegFee.accumulated(Accumulator6(Fixed6Lib.ZERO), order.takerNeg));
+
+        // accumulate settlement fee
+        uint256 orders = takerOrder.add(order.maker).isZero() ? 0 : 1;
+        settlementFee = toVersion.settlementFee.accumulated(Accumulator6(Fixed6Lib.ZERO), UFixed6Lib.from(orders)).abs();
+
+        self.collateral = self.collateral.sub(positionFee).sub(Fixed6Lib.from(settlementFee));
     }
 
     /// @notice Updates the Local to put it into a protected state for liquidation
     /// @param self The Local object to update
     /// @param latestVersion The latest oracle version
     /// @param currentTimestamp The current timestamp
+    /// @param newOrder The new order
+    /// @param initiator The initiator of the protection
     /// @param tryProtect Whether to try to protect the Local
     /// @return Whether the protection was protected
     function protect(
@@ -115,25 +130,6 @@ library LocalLib {
         if (!version.valid || latestPosition.timestamp != self.protection) return false;
         self.collateral = self.collateral.sub(Fixed6Lib.from(self.protectionAmount));
         return true;
-    }
-
-    /// @notice Processes the initiator's liquidation fee
-    /// @param self The Local object to update
-    /// @param initiateeLocal The Local object to process
-    function processLiquidationFee(Local memory self, Local memory initiateeLocal) internal pure {
-        self.collateral = self.collateral.add(Fixed6Lib.from(initiateeLocal.protectionAmount));
-    }
-
-    /// @notice Returns the pending amount of liquidation fee
-    /// @dev May or may not realize depending on whether the liquidation version is valid
-    /// @param self The Local object
-    /// @param latestPosition The latest position
-    /// @return The pending liquidation fee
-    function pendingLiquidationFee(
-        Local memory self,
-        Position memory latestPosition
-    ) internal pure returns (UFixed6) {
-        return self.protection > latestPosition.timestamp ? self.protectionAmount : UFixed6Lib.ZERO;
     }
 }
 

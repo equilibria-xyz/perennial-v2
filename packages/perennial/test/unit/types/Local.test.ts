@@ -5,15 +5,14 @@ import HRE from 'hardhat'
 
 import { LocalTester, LocalTester__factory } from '../../../types/generated'
 import { BigNumber } from 'ethers'
-import { parse6decimal } from '../../../../common/testutil/types'
+import { DEFAULT_ORDER, DEFAULT_VERSION, DEFAULT_POSITION, parse6decimal } from '../../../../common/testutil/types'
 import {
   LocalStruct,
   PositionStruct,
   VersionStruct,
-  OrderStruct,
   RiskParameterStruct,
-  OracleVersionStruct,
 } from '../../../types/generated/contracts/Market'
+import { OracleVersionStruct } from '../../../types/generated/contracts/interfaces/IOracleProvider'
 
 const { ethers } = HRE
 use(smock.matchers)
@@ -222,10 +221,6 @@ describe('Local', () => {
       maker: parse6decimal('987'),
       long: parse6decimal('654'),
       short: parse6decimal('321'),
-      fee: 0, // unused
-      keeper: 0, // unused
-      collateral: 0, // unused
-      delta: 0, // unused
       invalidation: {
         maker: 0, // unused
         long: 0, // unused
@@ -235,13 +230,9 @@ describe('Local', () => {
 
     const TO_POSITION: PositionStruct = {
       timestamp: 0, // unused
-      maker: 0, // unused
-      long: 0, // unused
-      short: 0, // unused
-      fee: parse6decimal('123'),
-      keeper: parse6decimal('456'),
-      collateral: 0, // unused
-      delta: 0, // unused
+      maker: 0,
+      long: 0,
+      short: 0,
       invalidation: {
         maker: 0, // unused
         long: 0, // unused
@@ -254,6 +245,11 @@ describe('Local', () => {
       makerValue: { _value: parse6decimal('100') },
       longValue: { _value: parse6decimal('200') },
       shortValue: { _value: parse6decimal('300') },
+      makerPosFee: { _value: parse6decimal('400') },
+      makerNegFee: { _value: parse6decimal('500') },
+      takerPosFee: { _value: parse6decimal('600') },
+      takerNegFee: { _value: parse6decimal('700') },
+      settlementFee: { _value: parse6decimal('800') },
     }
 
     const TO_VERSION: VersionStruct = {
@@ -261,6 +257,11 @@ describe('Local', () => {
       makerValue: { _value: parse6decimal('1000') },
       longValue: { _value: parse6decimal('2000') },
       shortValue: { _value: parse6decimal('3000') },
+      makerPosFee: { _value: parse6decimal('4000') },
+      makerNegFee: { _value: parse6decimal('5000') },
+      takerPosFee: { _value: parse6decimal('6000') },
+      takerNegFee: { _value: parse6decimal('7000') },
+      settlementFee: { _value: parse6decimal('8000') },
     }
 
     context('zero initial values', () => {
@@ -271,117 +272,186 @@ describe('Local', () => {
         })
       })
 
-      it('accumulates values (increase)', async () => {
-        const collateralAmount = await local.callStatic.accumulatePnl(1, FROM_POSITION, FROM_VERSION, TO_VERSION)
-        await local.accumulatePnl(1, FROM_POSITION, FROM_VERSION, TO_VERSION)
-        const valuesFees = await local.callStatic.accumulateFees(TO_POSITION)
-        await local.accumulateFees(TO_POSITION)
+      it('accumulates pnl (maker)', async () => {
+        const collateralAmount = await local.callStatic.accumulatePnl(
+          1,
+          { ...DEFAULT_POSITION, maker: parse6decimal('10') },
+          { ...DEFAULT_VERSION, makerValue: { _value: parse6decimal('100') } },
+          { ...DEFAULT_VERSION, makerValue: { _value: parse6decimal('200') } },
+        )
+        await local.accumulatePnl(
+          1,
+          { ...DEFAULT_POSITION, maker: parse6decimal('10') },
+          { ...DEFAULT_VERSION, makerValue: { _value: parse6decimal('100') } },
+          { ...DEFAULT_VERSION, makerValue: { _value: parse6decimal('200') } },
+        )
+        expect(collateralAmount).to.equal(parse6decimal('1000'))
 
         const value = await local.read()
-
-        const expectedCollateral = parse6decimal('2932200') // = 900 * 987 + 1800 * 654 + 2700 * 321
-        const expectedPositionFee = parse6decimal('123')
-        const expectedKeeper = parse6decimal('456')
-
-        expect(collateralAmount).to.equal(expectedCollateral)
-        expect(valuesFees.positionFee).to.equal(expectedPositionFee)
-        expect(valuesFees.keeper).to.equal(expectedKeeper)
-
         expect(value.currentId).to.equal(1)
         expect(value.latestId).to.equal(1)
-        expect(value.collateral).to.equal(expectedCollateral.sub(expectedPositionFee.add(expectedKeeper)))
+        expect(value.collateral).to.equal(parse6decimal('1000'))
       })
 
-      it('accumulates values (decrease)', async () => {
-        const TO_VERSION_NEG = {
-          ...TO_VERSION,
-          makerValue: { _value: BigNumber.from(TO_VERSION.makerValue._value).mul(-1) },
-          longValue: { _value: BigNumber.from(TO_VERSION.longValue._value).mul(-1) },
-          shortValue: { _value: BigNumber.from(TO_VERSION.shortValue._value).mul(-1) },
-        }
-        const collateralAmount = await local.callStatic.accumulatePnl(1, FROM_POSITION, FROM_VERSION, TO_VERSION_NEG)
-        await local.accumulatePnl(1, FROM_POSITION, FROM_VERSION, TO_VERSION_NEG)
-        const valuesFees = await local.callStatic.accumulateFees(TO_POSITION)
-        await local.accumulateFees(TO_POSITION)
+      it('accumulates pnl (long)', async () => {
+        const collateralAmount = await local.callStatic.accumulatePnl(
+          1,
+          { ...DEFAULT_POSITION, long: parse6decimal('10') },
+          { ...DEFAULT_VERSION, longValue: { _value: parse6decimal('100') } },
+          { ...DEFAULT_VERSION, longValue: { _value: parse6decimal('200') } },
+        )
+        await local.accumulatePnl(
+          1,
+          { ...DEFAULT_POSITION, long: parse6decimal('10') },
+          { ...DEFAULT_VERSION, longValue: { _value: parse6decimal('100') } },
+          { ...DEFAULT_VERSION, longValue: { _value: parse6decimal('200') } },
+        )
+        expect(collateralAmount).to.equal(parse6decimal('1000'))
 
         const value = await local.read()
-
-        const expectedCollateral = parse6decimal('-3583800') // = -1100 * 987 + -2200 * 654 + -3300 * 321
-        const expectedPositionFee = parse6decimal('123')
-        const expectedKeeper = parse6decimal('456')
-
-        expect(collateralAmount).to.equal(expectedCollateral)
-        expect(valuesFees.positionFee).to.equal(expectedPositionFee)
-        expect(valuesFees.keeper).to.equal(expectedKeeper)
-
         expect(value.currentId).to.equal(1)
         expect(value.latestId).to.equal(1)
-        expect(value.collateral).to.equal(expectedCollateral.sub(expectedPositionFee.add(expectedKeeper)))
-      })
-    })
-
-    context('non-zero initial values', () => {
-      const INITIAL_VALUES = {
-        ...DEFAULT_LOCAL,
-        currentId: 12,
-        latestId: 10,
-        collateral: parse6decimal('10'),
-        protection: parse6decimal('34'),
-      }
-      beforeEach(async () => {
-        await local.store(INITIAL_VALUES)
+        expect(value.collateral).to.equal(parse6decimal('1000'))
       })
 
-      it('accumulates values (increase)', async () => {
-        const collateralAmount = await local.callStatic.accumulatePnl(11, FROM_POSITION, FROM_VERSION, TO_VERSION)
-        await local.accumulatePnl(11, FROM_POSITION, FROM_VERSION, TO_VERSION)
-        const valuesFees = await local.callStatic.accumulateFees(TO_POSITION)
-        await local.accumulateFees(TO_POSITION)
+      it('accumulates pnl (short)', async () => {
+        const collateralAmount = await local.callStatic.accumulatePnl(
+          1,
+          { ...DEFAULT_POSITION, short: parse6decimal('10') },
+          { ...DEFAULT_VERSION, shortValue: { _value: parse6decimal('100') } },
+          { ...DEFAULT_VERSION, shortValue: { _value: parse6decimal('200') } },
+        )
+        await local.accumulatePnl(
+          1,
+          { ...DEFAULT_POSITION, short: parse6decimal('10') },
+          { ...DEFAULT_VERSION, shortValue: { _value: parse6decimal('100') } },
+          { ...DEFAULT_VERSION, shortValue: { _value: parse6decimal('200') } },
+        )
+        expect(collateralAmount).to.equal(parse6decimal('1000'))
 
         const value = await local.read()
-
-        const expectedCollateral = parse6decimal('2932200') // = 900 * 987 + 1800 * 654 + 2700 * 321
-        const expectedPositionFee = parse6decimal('123')
-        const expectedKeeper = parse6decimal('456')
-
-        expect(collateralAmount).to.equal(expectedCollateral)
-        expect(valuesFees.positionFee).to.equal(expectedPositionFee)
-        expect(valuesFees.keeper).to.equal(expectedKeeper)
-
-        expect(value.currentId).to.equal(INITIAL_VALUES.currentId)
-        expect(value.latestId).to.equal(11)
-        expect(value.collateral).to.equal(
-          expectedCollateral.add(INITIAL_VALUES.collateral).sub(expectedPositionFee.add(expectedKeeper)),
-        )
+        expect(value.currentId).to.equal(1)
+        expect(value.latestId).to.equal(1)
+        expect(value.collateral).to.equal(parse6decimal('1000'))
       })
 
-      it('accumulates values (decrease)', async () => {
-        const TO_VERSION_NEG = {
-          ...TO_VERSION,
-          makerValue: { _value: BigNumber.from(TO_VERSION.makerValue._value).mul(-1) },
-          longValue: { _value: BigNumber.from(TO_VERSION.longValue._value).mul(-1) },
-          shortValue: { _value: BigNumber.from(TO_VERSION.shortValue._value).mul(-1) },
-        }
-        const collateralAmount = await local.callStatic.accumulatePnl(11, FROM_POSITION, FROM_VERSION, TO_VERSION_NEG)
-        await local.accumulatePnl(11, FROM_POSITION, FROM_VERSION, TO_VERSION_NEG)
-        const valuesFees = await local.callStatic.accumulateFees(TO_POSITION)
-        await local.accumulateFees(TO_POSITION)
+      it('accumulates fees (maker pos)', async () => {
+        const feeAmount = await local.callStatic.accumulateFees(
+          { ...DEFAULT_ORDER, maker: parse6decimal('5'), makerPos: parse6decimal('10') },
+          { ...DEFAULT_VERSION, makerPosFee: { _value: parse6decimal('-2') } },
+        )
+        await local.accumulateFees(
+          { ...DEFAULT_ORDER, maker: parse6decimal('5'), makerPos: parse6decimal('10') },
+          { ...DEFAULT_VERSION, makerPosFee: { _value: parse6decimal('-2') } },
+        )
+        expect(feeAmount.positionFee).to.equal(parse6decimal('20'))
 
         const value = await local.read()
+        expect(value.currentId).to.equal(1)
+        expect(value.latestId).to.equal(0)
+        expect(value.collateral).to.equal(parse6decimal('-20'))
+      })
 
-        const expectedCollateral = parse6decimal('-3583800') // = -1100 * 987 + -2200 * 654 + -3300 * 321
-        const expectedPositionFee = parse6decimal('123')
-        const expectedKeeper = parse6decimal('456')
-
-        expect(collateralAmount).to.equal(expectedCollateral)
-        expect(valuesFees.positionFee).to.equal(expectedPositionFee)
-        expect(valuesFees.keeper).to.equal(expectedKeeper)
-
-        expect(value.currentId).to.equal(INITIAL_VALUES.currentId)
-        expect(value.latestId).to.equal(11)
-        expect(value.collateral).to.equal(
-          expectedCollateral.add(INITIAL_VALUES.collateral).sub(expectedPositionFee.add(expectedKeeper)),
+      it('accumulates fees (maker neg)', async () => {
+        const feeAmount = await local.callStatic.accumulateFees(
+          { ...DEFAULT_ORDER, maker: parse6decimal('-5'), makerNeg: parse6decimal('10') },
+          { ...DEFAULT_VERSION, makerNegFee: { _value: parse6decimal('-2') } },
         )
+        await local.accumulateFees(
+          { ...DEFAULT_ORDER, maker: parse6decimal('-5'), makerNeg: parse6decimal('10') },
+          { ...DEFAULT_VERSION, makerNegFee: { _value: parse6decimal('-2') } },
+        )
+        expect(feeAmount.positionFee).to.equal(parse6decimal('20'))
+
+        const value = await local.read()
+        expect(value.currentId).to.equal(1)
+        expect(value.latestId).to.equal(0)
+        expect(value.collateral).to.equal(parse6decimal('-20'))
+      })
+
+      it('accumulates fees (long pos)', async () => {
+        const feeAmount = await local.callStatic.accumulateFees(
+          { ...DEFAULT_ORDER, long: parse6decimal('5'), takerPos: parse6decimal('10') },
+          { ...DEFAULT_VERSION, takerPosFee: { _value: parse6decimal('-2') } },
+        )
+        await local.accumulateFees(
+          { ...DEFAULT_ORDER, long: parse6decimal('5'), takerPos: parse6decimal('10') },
+          { ...DEFAULT_VERSION, takerPosFee: { _value: parse6decimal('-2') } },
+        )
+        expect(feeAmount.positionFee).to.equal(parse6decimal('20'))
+
+        const value = await local.read()
+        expect(value.currentId).to.equal(1)
+        expect(value.latestId).to.equal(0)
+        expect(value.collateral).to.equal(parse6decimal('-20'))
+      })
+
+      it('accumulates fees (short neg)', async () => {
+        const feeAmount = await local.callStatic.accumulateFees(
+          { ...DEFAULT_ORDER, short: parse6decimal('-5'), takerPos: parse6decimal('10') },
+          { ...DEFAULT_VERSION, takerPosFee: { _value: parse6decimal('-2') } },
+        )
+        await local.accumulateFees(
+          { ...DEFAULT_ORDER, short: parse6decimal('-5'), takerPos: parse6decimal('10') },
+          { ...DEFAULT_VERSION, takerPosFee: { _value: parse6decimal('-2') } },
+        )
+        expect(feeAmount.positionFee).to.equal(parse6decimal('20'))
+
+        const value = await local.read()
+        expect(value.currentId).to.equal(1)
+        expect(value.latestId).to.equal(0)
+        expect(value.collateral).to.equal(parse6decimal('-20'))
+      })
+
+      it('accumulates fees (long neg)', async () => {
+        const feeAmount = await local.callStatic.accumulateFees(
+          { ...DEFAULT_ORDER, long: parse6decimal('-5'), takerNeg: parse6decimal('10') },
+          { ...DEFAULT_VERSION, takerNegFee: { _value: parse6decimal('-2') } },
+        )
+        await local.accumulateFees(
+          { ...DEFAULT_ORDER, long: parse6decimal('-5'), takerNeg: parse6decimal('10') },
+          { ...DEFAULT_VERSION, takerNegFee: { _value: parse6decimal('-2') } },
+        )
+        expect(feeAmount.positionFee).to.equal(parse6decimal('20'))
+
+        const value = await local.read()
+        expect(value.currentId).to.equal(1)
+        expect(value.latestId).to.equal(0)
+        expect(value.collateral).to.equal(parse6decimal('-20'))
+      })
+
+      it('accumulates fees (short pos)', async () => {
+        const feeAmount = await local.callStatic.accumulateFees(
+          { ...DEFAULT_ORDER, short: parse6decimal('5'), takerNeg: parse6decimal('10') },
+          { ...DEFAULT_VERSION, takerNegFee: { _value: parse6decimal('-2') } },
+        )
+        await local.accumulateFees(
+          { ...DEFAULT_ORDER, short: parse6decimal('5'), takerNeg: parse6decimal('10') },
+          { ...DEFAULT_VERSION, takerNegFee: { _value: parse6decimal('-2') } },
+        )
+        expect(feeAmount.positionFee).to.equal(parse6decimal('20'))
+
+        const value = await local.read()
+        expect(value.currentId).to.equal(1)
+        expect(value.latestId).to.equal(0)
+        expect(value.collateral).to.equal(parse6decimal('-20'))
+      })
+
+      it('accumulates settlement fee', async () => {
+        const feeAmount = await local.callStatic.accumulateFees(
+          { ...DEFAULT_ORDER, short: parse6decimal('10') },
+          { ...DEFAULT_VERSION, settlementFee: { _value: parse6decimal('-4') } },
+        )
+        await local.accumulateFees(
+          { ...DEFAULT_ORDER, short: parse6decimal('10') },
+          { ...DEFAULT_VERSION, settlementFee: { _value: parse6decimal('-4') } },
+        )
+        expect(feeAmount.settlementFee).to.equal(parse6decimal('4'))
+
+        const value = await local.read()
+        expect(value.currentId).to.equal(1)
+        expect(value.latestId).to.equal(0)
+        expect(value.collateral).to.equal(parse6decimal('-4'))
       })
     })
   })
@@ -396,11 +466,18 @@ describe('Local', () => {
     const VALID_RISK_PARAMETER: RiskParameterStruct = {
       margin: 15,
       maintenance: 1,
-      takerFee: 2,
-      takerSkewFee: 3,
-      takerImpactFee: 4,
-      makerFee: 5,
-      makerImpactFee: 6,
+      takerFee: {
+        linearFee: 2,
+        proportionalFee: 3,
+        adiabaticFee: 4,
+        scale: 14,
+      },
+      makerFee: {
+        linearFee: 5,
+        proportionalFee: 6,
+        adiabaticFee: 17,
+        scale: 14,
+      },
       makerLimit: 7,
       efficiencyLimit: 8,
       liquidationFee: 9,
@@ -420,36 +497,6 @@ describe('Local', () => {
       minMaintenance: 12,
       staleAfter: 13,
       makerReceiveOnly: false,
-      skewScale: 14,
-    }
-
-    const VALID_ORDER: OrderStruct = {
-      maker: 0,
-      long: 0,
-      short: 0,
-      skew: 0,
-      impact: 0,
-      efficiency: 0,
-      fee: 0,
-      keeper: 0,
-      utilization: 0,
-      net: 0,
-    }
-
-    const TO_POSITION: PositionStruct = {
-      timestamp: 0, // unused
-      maker: 0, // unused
-      long: 0, // unused
-      short: 0, // unused
-      fee: parse6decimal('123'),
-      keeper: parse6decimal('456'),
-      collateral: 0, // unused
-      delta: 0, // unused
-      invalidation: {
-        maker: 0, // unused
-        long: 0, // unused
-        short: 0, // unused
-      },
     }
 
     it('doesnt protect tryProtect == false', async () => {
@@ -457,31 +504,11 @@ describe('Local', () => {
         VALID_RISK_PARAMETER,
         VALID_ORACLE_VERSION,
         123,
-        VALID_ORDER,
+        DEFAULT_ORDER,
         owner.address,
         false,
       )
-      await local.protect(VALID_RISK_PARAMETER, VALID_ORACLE_VERSION, 123, VALID_ORDER, owner.address, false)
-
-      const value = await local.read()
-
-      expect(result).to.equal(false)
-
-      expect(value.protection).to.equal(0)
-      expect(value.protectionAmount).to.equal(0)
-      expect(value.protectionInitiator).to.equal(ethers.constants.AddressZero)
-    })
-
-    it('doesnt protect tryProtect == false', async () => {
-      const result = await local.callStatic.protect(
-        VALID_RISK_PARAMETER,
-        VALID_ORACLE_VERSION,
-        123,
-        VALID_ORDER,
-        owner.address,
-        false,
-      )
-      await local.protect(VALID_RISK_PARAMETER, VALID_ORACLE_VERSION, 123, VALID_ORDER, owner.address, false)
+      await local.protect(VALID_RISK_PARAMETER, VALID_ORACLE_VERSION, 123, DEFAULT_ORDER, owner.address, false)
 
       const value = await local.read()
 
@@ -503,7 +530,7 @@ describe('Local', () => {
         VALID_RISK_PARAMETER,
         { ...VALID_ORACLE_VERSION, timestamp: 123 },
         127,
-        VALID_ORDER,
+        DEFAULT_ORDER,
         owner.address,
         true,
       )
@@ -511,7 +538,7 @@ describe('Local', () => {
         VALID_RISK_PARAMETER,
         { ...VALID_ORACLE_VERSION, timestamp: 123 },
         127,
-        VALID_ORDER,
+        DEFAULT_ORDER,
         owner.address,
         true,
       )
@@ -536,7 +563,7 @@ describe('Local', () => {
         VALID_RISK_PARAMETER,
         { ...VALID_ORACLE_VERSION, timestamp: 124 },
         127,
-        { ...VALID_ORDER, long: parse6decimal('1') },
+        { ...DEFAULT_ORDER, long: parse6decimal('1') },
         owner.address,
         true,
       )
@@ -544,7 +571,7 @@ describe('Local', () => {
         VALID_RISK_PARAMETER,
         { ...VALID_ORACLE_VERSION, timestamp: 124 },
         127,
-        { ...VALID_ORDER, long: parse6decimal('1') },
+        { ...DEFAULT_ORDER, long: parse6decimal('1') },
         owner.address,
         true,
       )
@@ -569,7 +596,7 @@ describe('Local', () => {
         VALID_RISK_PARAMETER,
         { ...VALID_ORACLE_VERSION, timestamp: 124 },
         127,
-        { ...VALID_ORDER, long: parse6decimal('1') },
+        { ...DEFAULT_ORDER, long: parse6decimal('1') },
         owner.address,
         true,
       )
@@ -577,7 +604,7 @@ describe('Local', () => {
         VALID_RISK_PARAMETER,
         { ...VALID_ORACLE_VERSION, timestamp: 124 },
         127,
-        { ...VALID_ORDER, long: parse6decimal('1') },
+        { ...DEFAULT_ORDER, long: parse6decimal('1') },
         owner.address,
         true,
       )
@@ -592,67 +619,12 @@ describe('Local', () => {
     })
   })
 
-  describe('#liquidationFee', () => {
-    const TO_POSITION: PositionStruct = {
-      timestamp: 0, // unused
-      maker: 0, // unused
-      long: 0, // unused
-      short: 0, // unused
-      fee: 0, // unused
-      keeper: 0, // unused
-      collateral: 0, // unused
-      delta: 0, // unused
-      invalidation: {
-        maker: 0, // unused
-        long: 0, // unused
-        short: 0, // unused
-      },
-    }
-
-    it('non-zero if protected at version', async () => {
-      await local.store({
-        ...DEFAULT_LOCAL,
-        protection: 123,
-        protectionAmount: 5,
-        protectionInitiator: owner.address,
-      })
-
-      expect(await local.pendingLiquidationFee({ ...TO_POSITION, timestamp: 122 })).to.equal(5)
-    })
-
-    it('zero if latest after protection', async () => {
-      await local.store({
-        ...DEFAULT_LOCAL,
-        protection: 123,
-        protectionAmount: 5,
-        protectionInitiator: owner.address,
-      })
-
-      expect(await local.pendingLiquidationFee({ ...TO_POSITION, timestamp: 124 })).to.equal(0)
-    })
-
-    it('zero if latest at protection', async () => {
-      await local.store({
-        ...DEFAULT_LOCAL,
-        protection: 123,
-        protectionAmount: 5,
-        protectionInitiator: owner.address,
-      })
-
-      expect(await local.pendingLiquidationFee({ ...TO_POSITION, timestamp: 123 })).to.equal(0)
-    })
-  })
-
   describe('#processProtection', () => {
     const TO_POSITION: PositionStruct = {
       timestamp: 0, // unused
       maker: 0, // unused
       long: 0, // unused
       short: 0, // unused
-      fee: parse6decimal('123'),
-      keeper: parse6decimal('456'),
-      collateral: 0, // unused
-      delta: 0, // unused
       invalidation: {
         maker: 0, // unused
         long: 0, // unused
@@ -665,6 +637,11 @@ describe('Local', () => {
       makerValue: { _value: parse6decimal('1000') },
       longValue: { _value: parse6decimal('2000') },
       shortValue: { _value: parse6decimal('3000') },
+      makerPosFee: { _value: parse6decimal('4000') },
+      makerNegFee: { _value: parse6decimal('5000') },
+      takerPosFee: { _value: parse6decimal('6000') },
+      takerNegFee: { _value: parse6decimal('7000') },
+      settlementFee: { _value: parse6decimal('8000') },
     }
 
     it('does not decrement fee when invalid', async () => {
@@ -749,51 +726,6 @@ describe('Local', () => {
       expect(result).to.equal(true)
 
       expect(value.collateral).to.equal(877)
-    })
-  })
-
-  describe('#processLiquidationFee', () => {
-    const TO_POSITION: PositionStruct = {
-      timestamp: 0, // unused
-      maker: 0, // unused
-      long: 0, // unused
-      short: 0, // unused
-      fee: parse6decimal('123'),
-      keeper: parse6decimal('456'),
-      collateral: 0, // unused
-      delta: 0, // unused
-      invalidation: {
-        maker: 0, // unused
-        long: 0, // unused
-        short: 0, // unused
-      },
-    }
-
-    const TO_VERSION: VersionStruct = {
-      valid: true,
-      makerValue: { _value: parse6decimal('1000') },
-      longValue: { _value: parse6decimal('2000') },
-      shortValue: { _value: parse6decimal('3000') },
-    }
-
-    it('increments fee', async () => {
-      await local.store({
-        ...DEFAULT_LOCAL,
-        collateral: 1000,
-      })
-
-      const initiateeLocal: LocalStruct = {
-        ...DEFAULT_LOCAL,
-        protection: 123,
-        protectionAmount: 123,
-        protectionInitiator: owner.address,
-      }
-
-      await local.processLiquidationFee(initiateeLocal)
-
-      const value = await local.read()
-
-      expect(value.collateral).to.equal(1123)
     })
   })
 })

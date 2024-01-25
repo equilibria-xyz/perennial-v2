@@ -4,17 +4,6 @@ pragma solidity ^0.8.13;
 import "../types/Order.sol";
 
 contract OrderTester {
-    function registerFee(
-        Order memory order,
-        OracleVersion memory latestVersion,
-        MarketParameter memory marketParameter,
-        RiskParameter memory riskParameter
-    ) public pure returns (Order memory) {
-        order.registerFee(latestVersion, marketParameter, riskParameter);
-
-        return order;
-    }
-
     function increasesPosition(Order memory order) public pure returns (bool) {
         return order.increasesPosition();
     }
@@ -23,12 +12,8 @@ contract OrderTester {
         return order.increasesTaker();
     }
 
-    function decreasesLiquidity(Order memory order) public pure returns (bool) {
-        return order.decreasesLiquidity();
-    }
-
-    function singleSided(Order memory order, Position memory currentPosition) public pure returns (bool) {
-        return order.singleSided(currentPosition);
+    function decreasesLiquidity(Order memory order, Position memory currentPosition) public pure returns (bool) {
+        return order.decreasesLiquidity(currentPosition);
     }
 
     function liquidityCheckApplicable(
