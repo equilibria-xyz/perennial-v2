@@ -129,7 +129,6 @@ contract Market is IMarket, Instance, ReentrancyGuard {
     function updateRiskParameter(RiskParameter memory newRiskParameter) external onlyCoordinator {
 
         // credit impact update fee to the protocol account
-        Global memory latestGlobal = _global.read();
         Position memory latestPosition = _position.read();
         RiskParameter memory latestRiskParameter = _riskParameter.read();
         OracleVersion memory latestVersion = oracle.at(latestPosition.timestamp);
