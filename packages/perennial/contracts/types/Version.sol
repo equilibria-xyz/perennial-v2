@@ -2,6 +2,7 @@
 pragma solidity ^0.8.13;
 
 import "@equilibria/root/accumulator/types/Accumulator6.sol";
+import "@equilibria/root/accumulator/types/AccumulatorValue6.sol";
 import "@equilibria/root/accumulator/types/UAccumulator6.sol";
 import "./ProtocolParameter.sol";
 import "./MarketParameter.sol";
@@ -16,28 +17,28 @@ struct Version {
     bool valid;
 
     /// @dev The maker accumulator value
-    Accumulator6 makerValue;
+    AccumulatorValue6 makerValue;
 
     /// @dev The long accumulator value
-    Accumulator6 longValue;
+    AccumulatorValue6 longValue;
 
     /// @dev The short accumulator value
-    Accumulator6 shortValue;
+    AccumulatorValue6 shortValue;
 
     /// @dev The accumulated fee for positive skew maker orders
-    Accumulator6 makerPosFee;
+    AccumulatorValue6 makerPosFee;
 
     /// @dev The accumulated fee for negative skew maker orders
-    Accumulator6 makerNegFee;
+    AccumulatorValue6 makerNegFee;
 
     /// @dev The accumulated fee for positive skew taker orders
-    Accumulator6 takerPosFee;
+    AccumulatorValue6 takerPosFee;
 
     /// @dev The accumulated fee for negative skew taker orders
-    Accumulator6 takerNegFee;
+    AccumulatorValue6 takerNegFee;
 
     /// @dev The accumulated settlement fee for each individual order
-    Accumulator6 settlementFee;
+    AccumulatorValue6 settlementFee;
 }
 using VersionLib for Version global;
 struct VersionStorage { uint256 slot0; uint256 slot1; }
@@ -81,6 +82,15 @@ struct VersionFeeResult {
 /// @dev Manages the value accumulator which measures the change in position value over time.
 library VersionLib {
     struct AccumulationContext {
+        Accumulator6 makerValue;
+        Accumulator6 longValue;
+        Accumulator6 shortValue;
+        Accumulator6 makerPosFee;
+        Accumulator6 makerNegFee;
+        Accumulator6 takerPosFee;
+        Accumulator6 takerNegFee;
+        Accumulator6 settlementFee;
+
         Version self;
         Global global;
         Position fromPosition;
@@ -112,6 +122,14 @@ library VersionLib {
         RiskParameter memory riskParameter
     ) internal pure returns (VersionAccumulationResult memory values, VersionFeeResult memory fees) {
         AccumulationContext memory context = AccumulationContext(
+            Accumulator6(self.makerValue, fromPosition.maker), // TODO: socialized positions?
+            Accumulator6(self.longValue, fromPosition.long),
+            Accumulator6(self.shortValue, fromPosition.short),
+            Accumulator6(self.makerPosFee, order.makerPos),
+            Accumulator6(self.makerNegFee, order.makerNeg),
+            Accumulator6(self.takerPosFee, order.takerPos()),
+            Accumulator6(self.takerNegFee, order.takerNeg()),
+            Accumulator6(self.settlementFee, UFixed6Lib.from(order.orders)),
             self,
             global,
             fromPosition,
@@ -148,8 +166,14 @@ library VersionLib {
         (values.interestMaker, values.interestLong, values.interestShort, values.interestFee) =
             _accumulateInterest(self, context);
 
+        (self.makerValue, self.longValue, self.shortValue) = (
+            context.makerValue._value,
+            context.longValue._value,
+            context.shortValue._value
+        );
+
         // accumulate P&L
-        (values.pnlMaker, values.pnlLong, values.pnlShort) = _accumulatePNL(self, context);
+        (values.pnlMaker, values.pnlLong, values.pnlShort) = _accumulatePNL(context);
 
         fees.marketFee = fees.marketFee.add(values.fundingFee).add(values.interestFee);
         return (values, fees);
@@ -199,7 +223,7 @@ library VersionLib {
             context,
             result,
             context.riskParameter.takerFee,
-            self.takerPosFee,
+            context.takerPosFee,
             context.fromPosition.skew(),
             Fixed6Lib.from(context.order.takerPos())
         );
@@ -210,7 +234,7 @@ library VersionLib {
             context,
             result,
             context.riskParameter.takerFee,
-            self.takerNegFee,
+            context.takerNegFee,
             context.fromPosition.skew().add(Fixed6Lib.from(context.order.takerPos())),
             Fixed6Lib.from(-1, context.order.takerNeg())
         );
@@ -221,7 +245,7 @@ library VersionLib {
             context,
             result,
             context.riskParameter.makerFee,
-            self.makerNegFee,
+            context.makerNegFee,
             context.fromPosition.maker,
             Fixed6Lib.from(-1, context.order.makerNeg)
         );
@@ -232,7 +256,7 @@ library VersionLib {
             context,
             result,
             context.riskParameter.makerFee,
-            self.makerPosFee,
+            context.makerPosFee,
             context.fromPosition.maker.sub(context.order.makerNeg),
             Fixed6Lib.from(context.order.makerPos)
         );
@@ -301,6 +325,8 @@ library VersionLib {
         result.positionFee = result.positionFee.add(positionFee);
         result.positionFeeMaker = result.positionFeeMaker.add(positionFeeMaker);
         result.positionFeeProtocol = result.positionFeeProtocol.add(protocolFee);
+
+        Accumulator6.transfer();
     }
 
     function _accumulatePositionFeeComponentImpact(
@@ -360,32 +386,14 @@ library VersionLib {
         if (context.riskParameter.makerReceiveOnly && funding.sign() != context.fromPosition.skew().sign())
             funding = funding.mul(Fixed6Lib.NEG_ONE);
 
-        // Initialize long and short funding
-        (fundingLong, fundingShort) = (Fixed6Lib.NEG_ONE.mul(funding), funding);
-
-        // Compute fee spread
-        fundingFee = funding.abs().mul(context.marketParameter.fundingFee);
-        Fixed6 fundingSpread = Fixed6Lib.from(fundingFee).div(Fixed6Lib.from(2));
-
-        // Adjust funding with spread
-        (fundingLong, fundingShort) = (
-            fundingLong.sub(Fixed6Lib.from(fundingFee)).add(fundingSpread),
-            fundingShort.sub(fundingSpread)
+        // Need other data
+        fundingFee = Accumulator6Lib.transfer(
+            context.longValue,
+            context.shortValue,
+            context.makerValue,
+            funding,
+            context.marketParameter.fundingFee
         );
-
-        // Redirect net portion of minor's side to maker
-        if (context.fromPosition.long.gt(context.fromPosition.short)) {
-            fundingMaker = fundingShort.mul(Fixed6Lib.from(context.fromPosition.socializedMakerPortion()));
-            fundingShort = fundingShort.sub(fundingMaker);
-        }
-        if (context.fromPosition.short.gt(context.fromPosition.long)) {
-            fundingMaker = fundingLong.mul(Fixed6Lib.from(context.fromPosition.socializedMakerPortion()));
-            fundingLong = fundingLong.sub(fundingMaker);
-        }
-
-        self.makerValue.increment(fundingMaker, context.fromPosition.maker);
-        self.longValue.increment(fundingLong, context.fromPosition.long);
-        self.shortValue.increment(fundingShort, context.fromPosition.short);
     }
 
     /// @notice Globally accumulates all maker interest since last oracle update
@@ -399,7 +407,8 @@ library VersionLib {
         Version memory self,
         AccumulationContext memory context
     ) private pure returns (Fixed6 interestMaker, Fixed6 interestLong, Fixed6 interestShort, UFixed6 interestFee) {
-        UFixed6 notional = context.fromPosition.long.add(context.fromPosition.short).min(context.fromPosition.maker).mul(context.fromOracleVersion.price.abs());
+        UFixed6 notional = context.fromPosition.long.add(context.fromPosition.short).min(context.fromPosition.maker)
+            .mul(context.fromOracleVersion.price.abs());
 
         // Compute maker interest
         UFixed6 interest = context.riskParameter.utilizationCurve.accumulate(
@@ -409,44 +418,42 @@ library VersionLib {
             notional
         );
 
-        // Compute fee
-        interestFee = interest.mul(context.marketParameter.interestFee);
+        UFixed6 takerRatio = context.fromPosition.long
+            .unsafeDiv(context.fromPosition.long.add(context.fromPosition.short));
 
-        // Adjust long and short funding with spread
-        interestLong = Fixed6Lib.from(
-            context.fromPosition.major().isZero() ?
-            interest :
-            interest.muldiv(context.fromPosition.long, context.fromPosition.long.add(context.fromPosition.short))
+        Accumulator6Lib.transfer(
+            context.longValue,
+            context.makerValue,
+            Fixed6Lib.from(interest.mul(takerRatio)),
+            context.marketParameter.interestFee
         );
-        interestShort = Fixed6Lib.from(interest).sub(interestLong);
-        interestMaker = Fixed6Lib.from(interest.sub(interestFee));
-
-        interestLong = interestLong.mul(Fixed6Lib.NEG_ONE);
-        interestShort = interestShort.mul(Fixed6Lib.NEG_ONE);
-        self.makerValue.increment(interestMaker, context.fromPosition.maker);
-        self.longValue.increment(interestLong, context.fromPosition.long);
-        self.shortValue.increment(interestShort, context.fromPosition.short);
+        Accumulator6Lib.transfer(
+            context.shortValue,
+            context.makerValue,
+            Fixed6Lib.from(interest.sub(interest.mul(takerRatio))),
+            context.marketParameter.interestFee
+        );
     }
 
     /// @notice Globally accumulates position profit & loss since last oracle update
-    /// @param self The Version object to update
     /// @param context The accumulation context
     /// @return pnlMaker The total pnl accrued by makers
     /// @return pnlLong The total pnl accrued by longs
     /// @return pnlShort The total pnl accrued by shorts
     function _accumulatePNL(
-        Version memory self,
         AccumulationContext memory context
     ) private pure returns (Fixed6 pnlMaker, Fixed6 pnlLong, Fixed6 pnlShort) {
-        pnlLong = context.toOracleVersion.price.sub(context.fromOracleVersion.price)
-            .mul(Fixed6Lib.from(context.fromPosition.longSocialized()));
-        pnlShort = context.fromOracleVersion.price.sub(context.toOracleVersion.price)
-            .mul(Fixed6Lib.from(context.fromPosition.shortSocialized()));
-        pnlMaker = pnlLong.add(pnlShort).mul(Fixed6Lib.NEG_ONE);
 
-        self.longValue.increment(pnlLong, context.fromPosition.long);
-        self.shortValue.increment(pnlShort, context.fromPosition.short);
-        self.makerValue.increment(pnlMaker, context.fromPosition.maker);
+        Fixed6 pnl = context.toOracleVersion.price.sub(context.fromOracleVersion.price)
+            .mul(Fixed6Lib.from(context.fromPosition.major()));
+
+        Accumulator6Lib.transfer(
+            context.longValue,
+            context.shortValue,
+            context.makerValue,
+            pnl,
+            UFixed6Lib.ZERO
+        );
     }
 }
 
@@ -475,14 +482,14 @@ library VersionStorageLib {
         (uint256 slot0, uint256 slot1) = (self.slot0, self.slot1);
         return Version(
             (uint256(slot0 << (256 - 8)) >> (256 - 8)) != 0,
-            Accumulator6(Fixed6.wrap(int256(slot0 << (256 - 8 - 64)) >> (256 - 64))),
-            Accumulator6(Fixed6.wrap(int256(slot0 << (256 - 8 - 64 - 64)) >> (256 - 64))),
-            Accumulator6(Fixed6.wrap(int256(slot0 << (256 - 8 - 64 - 64 - 64)) >> (256 - 64))),
-            Accumulator6(Fixed6.wrap(int256(slot1 << (256 - 48)) >> (256 - 48))),
-            Accumulator6(Fixed6.wrap(int256(slot1 << (256 - 48 - 48)) >> (256 - 48))),
-            Accumulator6(Fixed6.wrap(int256(slot1 << (256 - 48 - 48 - 48)) >> (256 - 48))),
-            Accumulator6(Fixed6.wrap(int256(slot1 << (256 - 48 - 48 - 48 - 48)) >> (256 - 48))),
-            Accumulator6(Fixed6.wrap(int256(slot1 << (256 - 48 - 48 - 48 - 48 - 48)) >> (256 - 48)))
+            AccumulatorValue6(Fixed6.wrap(int256(slot0 << (256 - 8 - 64)) >> (256 - 64))),
+            AccumulatorValue6(Fixed6.wrap(int256(slot0 << (256 - 8 - 64 - 64)) >> (256 - 64))),
+            AccumulatorValue6(Fixed6.wrap(int256(slot0 << (256 - 8 - 64 - 64 - 64)) >> (256 - 64))),
+            AccumulatorValue6(Fixed6.wrap(int256(slot1 << (256 - 48)) >> (256 - 48))),
+            AccumulatorValue6(Fixed6.wrap(int256(slot1 << (256 - 48 - 48)) >> (256 - 48))),
+            AccumulatorValue6(Fixed6.wrap(int256(slot1 << (256 - 48 - 48 - 48)) >> (256 - 48))),
+            AccumulatorValue6(Fixed6.wrap(int256(slot1 << (256 - 48 - 48 - 48 - 48)) >> (256 - 48))),
+            AccumulatorValue6(Fixed6.wrap(int256(slot1 << (256 - 48 - 48 - 48 - 48 - 48)) >> (256 - 48)))
         );
     }
 

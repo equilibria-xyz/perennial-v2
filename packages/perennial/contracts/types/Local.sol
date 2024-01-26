@@ -82,14 +82,14 @@ library LocalLib {
 
         // accumulate position fee
         positionFee = Fixed6Lib.ZERO
-            .sub(toVersion.makerPosFee.accumulated(Accumulator6(Fixed6Lib.ZERO), order.makerPos))
-            .sub(toVersion.makerNegFee.accumulated(Accumulator6(Fixed6Lib.ZERO), order.makerNeg))
-            .sub(toVersion.takerPosFee.accumulated(Accumulator6(Fixed6Lib.ZERO), order.takerPos()))
-            .sub(toVersion.takerNegFee.accumulated(Accumulator6(Fixed6Lib.ZERO), order.takerNeg()));
+            .sub(toVersion.makerPosFee.accumulated(AccumulatorValue6(Fixed6Lib.ZERO), order.makerPos))
+            .sub(toVersion.makerNegFee.accumulated(AccumulatorValue6(Fixed6Lib.ZERO), order.makerNeg))
+            .sub(toVersion.takerPosFee.accumulated(AccumulatorValue6(Fixed6Lib.ZERO), order.takerPos()))
+            .sub(toVersion.takerNegFee.accumulated(AccumulatorValue6(Fixed6Lib.ZERO), order.takerNeg()));
 
         // accumulate settlement fee
         uint256 orders = takerOrder.add(order.maker()).isZero() ? 0 : 1;
-        settlementFee = toVersion.settlementFee.accumulated(Accumulator6(Fixed6Lib.ZERO), UFixed6Lib.from(orders)).abs();
+        settlementFee = toVersion.settlementFee.accumulated(AccumulatorValue6(Fixed6Lib.ZERO), UFixed6Lib.from(orders)).abs();
 
         self.collateral = self.collateral.sub(positionFee).sub(Fixed6Lib.from(settlementFee));
     }
