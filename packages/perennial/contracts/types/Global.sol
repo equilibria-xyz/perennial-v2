@@ -28,8 +28,6 @@ struct Global {
     /// @dev The current PAccumulator state
     PAccumulator6 pAccumulator;
 
-    /// @dev The latest valid price
-    Fixed6 latestPrice;
 }
 using GlobalLib for Global global;
 struct GlobalStorage { uint256 slot0; uint256 slot1; }
@@ -63,14 +61,6 @@ library GlobalLib {
         self.riskFee = self.riskFee.add(riskFeeAmount);
         self.donation = self.donation.add(donationAmount);
     }
-
-    /// @notice Updates the latest valid price
-    /// @param self The Global object to update
-    /// @param latestPrice The new latest valid price
-    function update(Global memory self, uint256 latestId, Fixed6 latestPrice) internal pure {
-        self.latestId = latestId;
-        self.latestPrice = latestPrice;
-    }
 }
 
 /// @dev Manually encodes and decodes the Global struct into storage.
@@ -87,7 +77,7 @@ library GlobalLib {
 ///         /* slot 1 */
 ///         int32 pAccumulator.value;   // <= 214000%
 ///         int24 pAccumulator.skew;    // <= 838%
-///         int64 latestPrice;          // <= 9.22t
+///         int64 __unallocated__;
 ///     }
 ///
 library GlobalStorageLib {
@@ -106,8 +96,7 @@ library GlobalStorageLib {
             PAccumulator6(
                 Fixed6.wrap(int256(slot1 << (256 - 32)) >> (256 - 32)),
                 Fixed6.wrap(int256(slot1 << (256 - 32 - 24)) >> (256 - 24))
-            ),
-            Fixed6.wrap(int256(slot1 << (256 - 32 - 24 - 64)) >> (256 - 64))
+            )
         );
     }
 
@@ -122,8 +111,6 @@ library GlobalStorageLib {
         if (newValue.pAccumulator._value.lt(Fixed6.wrap(type(int32).min))) revert GlobalStorageInvalidError();
         if (newValue.pAccumulator._skew.gt(Fixed6.wrap(type(int24).max))) revert GlobalStorageInvalidError();
         if (newValue.pAccumulator._skew.lt(Fixed6.wrap(type(int24).min))) revert GlobalStorageInvalidError();
-        if (newValue.latestPrice.gt(Fixed6.wrap(type(int64).max))) revert GlobalStorageInvalidError();
-        if (newValue.latestPrice.lt(Fixed6.wrap(type(int64).min))) revert GlobalStorageInvalidError();
 
         uint256 encoded0 =
             uint256(newValue.currentId << (256 - 32)) >> (256 - 32) |
@@ -135,8 +122,7 @@ library GlobalStorageLib {
 
         uint256 encoded1 =
             uint256(Fixed6.unwrap(newValue.pAccumulator._value) << (256 - 32)) >> (256 - 32) |
-            uint256(Fixed6.unwrap(newValue.pAccumulator._skew) << (256 - 24)) >> (256 - 32 - 24) |
-            uint256(Fixed6.unwrap(newValue.latestPrice) << (256 - 64)) >> (256 - 32 - 24 - 64);
+            uint256(Fixed6.unwrap(newValue.pAccumulator._skew) << (256 - 24)) >> (256 - 32 - 24);
 
         assembly {
             sstore(self.slot, encoded0)

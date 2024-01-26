@@ -132,10 +132,12 @@ contract Market is IMarket, Instance, ReentrancyGuard {
         Global memory latestGlobal = _global.read();
         Position memory latestPosition = _position.read();
         RiskParameter memory latestRiskParameter = _riskParameter.read();
+        OracleVersion memory latestVersion = oracle.at(latestPosition.timestamp);
+
         Fixed6 updateFee = latestRiskParameter.makerFee
-            .update(newRiskParameter.makerFee, latestPosition.maker, latestGlobal.latestPrice.abs())
+            .update(newRiskParameter.makerFee, latestPosition.maker, latestVersion.price.abs())
             .add(latestRiskParameter.takerFee
-                .update(newRiskParameter.takerFee, latestPosition.skew(), latestGlobal.latestPrice.abs()));
+                .update(newRiskParameter.takerFee, latestPosition.skew(), latestVersion.price.abs()));
         _credit(address(0), updateFee.mul(Fixed6Lib.NEG_ONE));
         
         // update 
@@ -410,7 +412,7 @@ contract Market is IMarket, Instance, ReentrancyGuard {
 
         // oracle
         (context.latestVersion, context.currentTimestamp) = oracle.status();
-        context.positionVersion = _oracleVersionAtTimestamp(context, _position.read().timestamp);
+        context.positionVersion = oracle.at(_position.read().timestamp);
     }
 
     /// @notice Stores the given context
@@ -456,9 +458,6 @@ contract Market is IMarket, Instance, ReentrancyGuard {
             _processOrderLocal(context, account, context.local.latestId, nextOrder, false);
         }
 
-        // overwrite latestPrice if invalid
-        context.latestVersion.price = context.global.latestPrice;
-
         _position.store(context.latestPosition.global);
         _positions[account].store(context.latestPosition.local);
         _pending.store(context.pending.global);
@@ -477,7 +476,7 @@ contract Market is IMarket, Instance, ReentrancyGuard {
     function _processOrderGlobal(Context memory context, uint256 newOrderId, Order memory newOrder) private {
         _ProcessGlobalContext memory processGlobalContext;
         processGlobalContext.version = _versions[context.latestPosition.global.timestamp].read();
-        processGlobalContext.oracleVersion = _oracleVersionAtTimestamp(context, newOrder.timestamp);
+        processGlobalContext.oracleVersion = oracle.at(newOrder.timestamp);
         
         (uint256 fromTimestamp, uint256 fromId) = (context.latestPosition.global.timestamp, context.global.latestId);
         (
@@ -494,13 +493,13 @@ contract Market is IMarket, Instance, ReentrancyGuard {
         );
         context.latestPosition.global.update(newOrder, processGlobalContext.oracleVersion.valid);
         context.pending.global.sub(newOrder);
-        context.global.update(newOrderId, processGlobalContext.oracleVersion.price);
         context.global.incrementFees(
             feeResult.marketFee,
             feeResult.settlementFee,
             context.marketParameter,
             context.protocolParameter
         );
+        context.global.latestId = newOrderId;
         _credit(address(0), feeResult.protocolFee);
         context.positionVersion = processGlobalContext.oracleVersion;
         _versions[newOrder.timestamp].store(processGlobalContext.version);
@@ -674,19 +673,6 @@ contract Market is IMarket, Instance, ReentrancyGuard {
 
         if (collateral.lt(Fixed6Lib.ZERO) && context.local.collateral.lt(Fixed6Lib.ZERO))
             revert MarketInsufficientCollateralError();
-    }
-
-    /// @notice Computes the latest oracle version at a given timestamp
-    /// @dev Applies the latest valid price when the version at position is invalid
-    /// @param context The context to use
-    /// @param timestamp The timestamp to query
-    /// @return oracleVersion The oracle version at the given position
-    function _oracleVersionAtTimestamp(
-        Context memory context,
-        uint256 timestamp
-    ) private view returns (OracleVersion memory oracleVersion) {
-        oracleVersion = oracle.at(timestamp);
-        if (!oracleVersion.valid) oracleVersion.price = context.global.latestPrice;
     }
 
     /// @notice Only the coordinator or the owner can call
