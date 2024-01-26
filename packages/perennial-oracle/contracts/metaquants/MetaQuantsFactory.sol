@@ -2,22 +2,12 @@
 pragma solidity 0.8.19;
 
 import "@openzeppelin/contracts/utils/cryptography/ECDSA.sol";
-import "@pythnetwork/pyth-sdk-solidity/PythStructs.sol";
 import "../interfaces/IMetaQuantsFactory.sol";
 import "../keeper/KeeperFactory.sol";
 
-struct UpdateAndSignature {
-    bytes encodedUpdate;
-    bytes signature;
-}
-
-struct MetaQuantsUpdate {
-    PythStructs.PriceFeed priceFeed;
-    uint256 prevPublishTime;
-}
-
 contract MetaQuantsFactory is IMetaQuantsFactory, KeeperFactory {
     int32 private constant PARSE_DECIMALS = 18;
+
     address public immutable signer;
 
     constructor(
@@ -54,13 +44,15 @@ contract MetaQuantsFactory is IMetaQuantsFactory, KeeperFactory {
 
         prices = new Fixed18[](ids.length);
         for (uint256 i; i < updates.length; i++) {
-            if (!_verifySignature(updates[i].encodedUpdate, updates[i].signature)) revert MetaQuantsFactoryInvalidSignatureError(updates[i].encodedUpdate, updates[i].signature);
+            if (!_verifySignature(updates[i].encodedUpdate, updates[i].signature))
+                revert MetaQuantsFactoryInvalidSignatureError();
 
             MetaQuantsUpdate memory parsedUpdate = abi.decode(updates[i].encodedUpdate, (MetaQuantsUpdate));
 
-            if (parsedUpdate.priceFeed.id != toUnderlyingId[ids[i]]) revert MetaQuantsFactoryInvalidIdError(ids[i]);
+            if (parsedUpdate.priceFeed.id != toUnderlyingId[ids[i]]) revert MetaQuantsFactoryInvalidIdError();
             uint256 publishTime = parsedUpdate.priceFeed.price.publishTime;
-            if (publishTime < version + validFrom || publishTime > version + validTo) revert MetaQuantsFactoryVersionOutsideRangeError();
+            if (publishTime < version + validFrom || publishTime > version + validTo)
+                revert MetaQuantsFactoryVersionOutsideRangeError();
 
             (Fixed18 significand, int256 exponent) =
                 (Fixed18.wrap(parsedUpdate.priceFeed.price.price), parsedUpdate.priceFeed.price.expo + PARSE_DECIMALS);
