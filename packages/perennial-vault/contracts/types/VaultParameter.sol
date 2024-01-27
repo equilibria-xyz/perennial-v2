@@ -13,7 +13,7 @@ struct StoredVaultParameter {
     uint64 cap;
     bytes24 __unallocated0__;
 }
-struct VaultParameterStorage { StoredVaultParameter value; }
+struct VaultParameterStorage { StoredVaultParameter value; } // SECURITY: must remain at (1) slots
 using VaultParameterStorageLib for VaultParameterStorage global;
 
 library VaultParameterStorageLib {

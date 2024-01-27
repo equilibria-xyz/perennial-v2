@@ -32,7 +32,7 @@ struct Global {
     Fixed6 latestPrice;
 }
 using GlobalLib for Global global;
-struct GlobalStorage { uint256 slot0; uint256 slot1; }
+struct GlobalStorage { uint256 slot0; uint256 slot1; } // SECURITY: must remain at (2) slots
 using GlobalStorageLib for GlobalStorage global;
 
 /// @title Global
