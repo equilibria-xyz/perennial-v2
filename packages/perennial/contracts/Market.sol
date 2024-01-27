@@ -481,7 +481,7 @@ contract Market is IMarket, Instance, ReentrancyGuard {
         
         (uint256 fromTimestamp, uint256 fromId) = (context.latestPosition.global.timestamp, context.global.latestId);
         (
-            VersionAccumulationResult memory accumulationResult,
+            VersionAccumulation memory accumulation,
             VersionFeeResult memory feeResult
         ) = processGlobalContext.version.accumulate(
             context.global,
@@ -501,7 +501,7 @@ contract Market is IMarket, Instance, ReentrancyGuard {
             context.marketParameter,
             context.protocolParameter
         );
-        _credit(address(0), feeResult.protocolFee);
+        _credit(address(0), feeResult.marketExposure);
         context.positionVersion = processGlobalContext.oracleVersion;
         _versions[newOrder.timestamp].store(processGlobalContext.version);
 
@@ -511,7 +511,7 @@ contract Market is IMarket, Instance, ReentrancyGuard {
             newOrder.timestamp,
             fromId,
             newOrderId,
-            accumulationResult
+            accumulation
         );
     }
 

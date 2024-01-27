@@ -22,10 +22,10 @@ contract VersionTester {
         OracleVersion memory toOracleVersion,
         MarketParameter memory marketParameter,
         RiskParameter memory riskParameter
-    ) external returns (VersionAccumulationResult memory values, VersionFeeResult memory fees) {
+    ) external returns (VersionAccumulation memory result, VersionFeeResult memory fees) {
         Version memory newVersion = version.read();
 
-        (values, fees) = newVersion.accumulate(
+        (result, fees) = newVersion.accumulate(
             global,
             fromPosition,
             order,
