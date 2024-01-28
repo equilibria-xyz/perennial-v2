@@ -348,6 +348,10 @@ testOracles.forEach(testOracle => {
       // block.timestamp of the next call will be STARTING_TIME
     })
 
+    afterEach(async () => {
+      await ethers.provider.send('hardhat_setNextBlockBaseFeePerGas', ['0x1'])
+    })
+
     describe('Factory', async () => {
       context('#initialize', async () => {
         it('reverts if already initialized', async () => {
