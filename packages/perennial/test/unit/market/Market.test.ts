@@ -14724,6 +14724,7 @@ describe('Market', () => {
 
           // Fulfill oracle version 3 (invalid)
           const oracleVersion3 = {
+            price: parse6decimal('100'),
             timestamp: TIMESTAMP + 200,
             valid: false,
           }
@@ -14779,6 +14780,7 @@ describe('Market', () => {
 
           // invalid oracle version
           const oracleVersion3 = {
+            price: parse6decimal('100'),
             timestamp: TIMESTAMP + 200,
             valid: false,
           }
