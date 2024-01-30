@@ -117,7 +117,6 @@ describe('Happy Path', () => {
       .to.emit(market, 'OrderCreated')
       .withArgs(
         user.address,
-        TIMESTAMP_1,
         {
           ...DEFAULT_ORDER,
           timestamp: TIMESTAMP_1,
@@ -343,7 +342,6 @@ describe('Happy Path', () => {
       .to.emit(market, 'OrderCreated')
       .withArgs(
         user.address,
-        TIMESTAMP_2,
         {
           ...DEFAULT_ORDER,
           timestamp: TIMESTAMP_2,
@@ -490,7 +488,6 @@ describe('Happy Path', () => {
       .to.emit(market, 'OrderCreated')
       .withArgs(
         userB.address,
-        TIMESTAMP_1,
         {
           ...DEFAULT_ORDER,
           timestamp: TIMESTAMP_1,
@@ -760,7 +757,6 @@ describe('Happy Path', () => {
       .to.emit(market, 'OrderCreated')
       .withArgs(
         userB.address,
-        TIMESTAMP_2,
         {
           ...DEFAULT_ORDER,
           timestamp: TIMESTAMP_2,
