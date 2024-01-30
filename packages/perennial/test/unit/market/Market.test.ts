@@ -12290,8 +12290,13 @@ describe('Market', () => {
             .to.emit(market, 'Updated')
             .withArgs(liquidator.address, user.address, ORACLE_VERSION_4.timestamp, 0, 0, 0, 0, true)
 
-          oracle.at.whenCalledWith(ORACLE_VERSION_4.timestamp).returns({ ...ORACLE_VERSION_4, valid: false })
-          oracle.status.returns([{ ...ORACLE_VERSION_4, valid: false }, ORACLE_VERSION_5.timestamp])
+          oracle.at
+            .whenCalledWith(ORACLE_VERSION_4.timestamp)
+            .returns({ ...ORACLE_VERSION_4, price: oracleVersionLowerPrice.price, valid: false })
+          oracle.status.returns([
+            { ...ORACLE_VERSION_4, price: oracleVersionLowerPrice.price, valid: false },
+            ORACLE_VERSION_5.timestamp,
+          ])
           oracle.request.whenCalledWith(user.address).returns()
 
           await expect(market.connect(liquidator).update(user.address, 0, 0, 0, 0, true))
@@ -12489,8 +12494,8 @@ describe('Market', () => {
             .to.emit(market, 'Updated')
             .withArgs(user.address, user.address, ORACLE_VERSION_3.timestamp, 0, POSITION.div(2), 0, COLLATERAL, false)
 
-          oracle.at.whenCalledWith(ORACLE_VERSION_3.timestamp).returns({ ...ORACLE_VERSION_3, price: 0, valid: false })
-          oracle.status.returns([{ ...ORACLE_VERSION_3, price: 0, valid: false }, ORACLE_VERSION_4.timestamp])
+          oracle.at.whenCalledWith(ORACLE_VERSION_3.timestamp).returns({ ...ORACLE_VERSION_3, valid: false })
+          oracle.status.returns([{ ...ORACLE_VERSION_3, valid: false }, ORACLE_VERSION_4.timestamp])
           oracle.request.whenCalledWith(user.address).returns()
 
           await settle(market, user)
@@ -12616,8 +12621,8 @@ describe('Market', () => {
             .to.emit(market, 'Updated')
             .withArgs(user.address, user.address, ORACLE_VERSION_3.timestamp, 0, POSITION.div(2), 0, COLLATERAL, false)
 
-          oracle.at.whenCalledWith(ORACLE_VERSION_3.timestamp).returns({ ...ORACLE_VERSION_3, price: 0, valid: false })
-          oracle.status.returns([{ ...ORACLE_VERSION_3, price: 0, valid: false }, ORACLE_VERSION_4.timestamp])
+          oracle.at.whenCalledWith(ORACLE_VERSION_3.timestamp).returns({ ...ORACLE_VERSION_3, valid: false })
+          oracle.status.returns([{ ...ORACLE_VERSION_3, valid: false }, ORACLE_VERSION_4.timestamp])
           oracle.request.whenCalledWith(user.address).returns()
 
           await expect(market.connect(user).update(user.address, 0, POSITION.div(2), 0, 0, false))
@@ -12777,16 +12782,16 @@ describe('Market', () => {
             .to.emit(market, 'Updated')
             .withArgs(user.address, user.address, ORACLE_VERSION_3.timestamp, 0, POSITION.div(2), 0, COLLATERAL, false)
 
-          oracle.at.whenCalledWith(ORACLE_VERSION_3.timestamp).returns({ ...ORACLE_VERSION_3, price: 0, valid: false })
-          oracle.status.returns([{ ...ORACLE_VERSION_3, price: 0, valid: false }, ORACLE_VERSION_4.timestamp])
+          oracle.at.whenCalledWith(ORACLE_VERSION_3.timestamp).returns({ ...ORACLE_VERSION_3, valid: false })
+          oracle.status.returns([{ ...ORACLE_VERSION_3, valid: false }, ORACLE_VERSION_4.timestamp])
           oracle.request.whenCalledWith(user.address).returns()
 
           await expect(market.connect(user).update(user.address, 0, POSITION.div(2), 0, 0, false))
             .to.emit(market, 'Updated')
             .withArgs(user.address, user.address, ORACLE_VERSION_4.timestamp, 0, POSITION.div(2), 0, 0, false)
 
-          oracle.at.whenCalledWith(ORACLE_VERSION_4.timestamp).returns({ ...ORACLE_VERSION_4, price: 0, valid: false })
-          oracle.status.returns([{ ...ORACLE_VERSION_4, price: 0, valid: false }, ORACLE_VERSION_5.timestamp])
+          oracle.at.whenCalledWith(ORACLE_VERSION_4.timestamp).returns({ ...ORACLE_VERSION_4, valid: false })
+          oracle.status.returns([{ ...ORACLE_VERSION_4, valid: false }, ORACLE_VERSION_5.timestamp])
           oracle.request.whenCalledWith(user.address).returns()
 
           await settle(market, user)
@@ -12942,7 +12947,7 @@ describe('Market', () => {
             .to.emit(market, 'Updated')
             .withArgs(user.address, user.address, ORACLE_VERSION_4.timestamp, 0, POSITION.div(2), 0, 0, false)
 
-          oracle.at.whenCalledWith(ORACLE_VERSION_3.timestamp).returns({ ...ORACLE_VERSION_3, price: 0, valid: false })
+          oracle.at.whenCalledWith(ORACLE_VERSION_3.timestamp).returns({ ...ORACLE_VERSION_3, valid: false })
           oracle.at.whenCalledWith(ORACLE_VERSION_4.timestamp).returns({ ...ORACLE_VERSION_4 })
           oracle.status.returns([{ ...ORACLE_VERSION_4 }, ORACLE_VERSION_5.timestamp])
           oracle.request.whenCalledWith(user.address).returns()
@@ -13094,7 +13099,7 @@ describe('Market', () => {
             .to.emit(market, 'Updated')
             .withArgs(user.address, user.address, ORACLE_VERSION_4.timestamp, 0, POSITION.div(2), 0, 0, false)
 
-          oracle.at.whenCalledWith(ORACLE_VERSION_3.timestamp).returns({ ...ORACLE_VERSION_3, price: 0, valid: false })
+          oracle.at.whenCalledWith(ORACLE_VERSION_3.timestamp).returns({ ...ORACLE_VERSION_3, valid: false })
           oracle.at.whenCalledWith(ORACLE_VERSION_4.timestamp).returns({ ...ORACLE_VERSION_4 })
           oracle.status.returns([{ ...ORACLE_VERSION_4 }, ORACLE_VERSION_5.timestamp])
           oracle.request.whenCalledWith(user.address).returns()
@@ -13251,8 +13256,8 @@ describe('Market', () => {
 
           oracle.at.whenCalledWith(ORACLE_VERSION_2.timestamp).returns(ORACLE_VERSION_2)
 
-          oracle.at.whenCalledWith(ORACLE_VERSION_3.timestamp).returns({ ...ORACLE_VERSION_3, price: 0, valid: false })
-          oracle.status.returns([{ ...ORACLE_VERSION_3, price: 0, valid: false }, ORACLE_VERSION_4.timestamp])
+          oracle.at.whenCalledWith(ORACLE_VERSION_3.timestamp).returns({ ...ORACLE_VERSION_3, valid: false })
+          oracle.status.returns([{ ...ORACLE_VERSION_3, valid: false }, ORACLE_VERSION_4.timestamp])
           oracle.request.whenCalledWith(user.address).returns()
 
           await settle(market, user)
@@ -14719,7 +14724,6 @@ describe('Market', () => {
 
           // Fulfill oracle version 3 (invalid)
           const oracleVersion3 = {
-            price: 0,
             timestamp: TIMESTAMP + 200,
             valid: false,
           }
@@ -14775,7 +14779,6 @@ describe('Market', () => {
 
           // invalid oracle version
           const oracleVersion3 = {
-            price: 0,
             timestamp: TIMESTAMP + 200,
             valid: false,
           }
