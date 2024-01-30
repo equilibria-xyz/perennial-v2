@@ -1299,7 +1299,7 @@ describe('Vault', () => {
 
       // Now we should have opened positions.
       // The positions should be equal to (smallDeposit + largeDeposit) * leverage / 2 / originalOraclePrice.
-      const settlementFeeCharged = parse6decimal('0.666668')
+      const settlementFeeCharged = parse6decimal('0.333334').mul(2)
       const collateralForRebalance = parse6decimal('996').add(largeDeposit).sub(settlementFeeCharged).add(10)
       expect(await position()).to.be.equal(collateralForRebalance.mul(leverage).mul(4).div(5).div(originalOraclePrice))
       expect(await btcPosition()).to.be.equal(collateralForRebalance.mul(leverage).div(5).div(btcOriginalOraclePrice))
@@ -1344,6 +1344,145 @@ describe('Vault', () => {
       const unclaimed1 = BigNumber.from('989470018')
       const unclaimed2 = BigNumber.from('9919312678')
       const finalTotalAssets = BigNumber.from('41832109') // last position fee + keeper
+      expect(await totalCollateralInVault()).to.equal(unclaimed1.add(unclaimed2).mul(1e12))
+      expect((await vault.accounts(user.address)).shares).to.equal(0)
+      expect((await vault.accounts(user2.address)).shares).to.equal(0)
+      expect(currentFee.add(btcCurrentFee).add(currentKeeper).add(btcCurrentKeeper)).to.equal(finalTotalAssets)
+      expect(await vault.totalAssets()).to.equal(finalTotalAssets)
+      expect(await vault.totalShares()).to.equal(0)
+      expect((await vault.accounts(ethers.constants.AddressZero)).shares).to.equal(0)
+      expect(await vault.convertToAssets(parse6decimal('1'))).to.equal(parse6decimal('1'))
+      expect(await vault.convertToShares(parse6decimal('1'))).to.equal(parse6decimal('1'))
+      expect((await vault.accounts(user.address)).assets).to.equal(unclaimed1)
+      expect((await vault.accounts(user2.address)).assets).to.equal(unclaimed2)
+      expect((await vault.accounts(ethers.constants.AddressZero)).assets).to.equal(unclaimed1.add(unclaimed2))
+
+      await vault.connect(user).update(user.address, 0, 0, ethers.constants.MaxUint256)
+      await vault.connect(user2).update(user2.address, 0, 0, ethers.constants.MaxUint256)
+
+      expect(await totalCollateralInVault()).to.equal(0)
+      expect(await vault.totalAssets()).to.equal(finalTotalAssets)
+      expect(await vault.totalShares()).to.equal(0)
+      expect(await asset.balanceOf(user.address)).to.equal(
+        parse6decimal('100000').add(unclaimed1).sub(parse6decimal('1000')).mul(1e12),
+      )
+      expect(await asset.balanceOf(user2.address)).to.equal(
+        parse6decimal('100000').add(unclaimed2).sub(parse6decimal('10000')).mul(1e12),
+      )
+      expect((await vault.accounts(user2.address)).assets).to.equal(0)
+      expect((await vault.accounts(ethers.constants.AddressZero)).assets).to.equal(0)
+
+      await updateOracle()
+      await vault.settle(user.address)
+      await vault.connect(user).update(user.address, smallDeposit, 0, 0)
+      await updateOracle()
+      await vault.settle(user.address)
+      expect((await vault.accounts(user.address)).shares).to.equal(parse6decimal('1000'))
+      expect(await vault.totalAssets()).to.equal(parse6decimal('1000').add(0))
+      expect((await vault.accounts(ethers.constants.AddressZero)).shares).to.equal(parse6decimal('1000'))
+      expect(await vault.convertToAssets(parse6decimal('1000'))).to.equal(parse6decimal('1000').add(0))
+      expect(await vault.convertToShares(parse6decimal('1000').add(0))).to.equal(parse6decimal('1000'))
+    })
+
+    it('multiple users w/ negative makerFee + settlement fee', async () => {
+      const factoryParameter = { ...(await factory.parameter()) }
+      factoryParameter.maxFee = parse6decimal('1.00')
+      await factory.updateParameter(factoryParameter)
+
+      const riskParameters = { ...(await market.riskParameter()) }
+      await market.updateRiskParameter({
+        ...riskParameters,
+        makerFee: {
+          ...riskParameters.makerFee,
+          linearFee: parse6decimal('0.001'),
+          proportionalFee: parse6decimal('0.002'),
+          adiabaticFee: parse6decimal('0.1'),
+        },
+      })
+      const btcRiskParameters = { ...(await btcMarket.riskParameter()) }
+      await btcMarket.updateRiskParameter({
+        ...btcRiskParameters,
+        makerFee: {
+          ...btcRiskParameters.makerFee,
+          linearFee: parse6decimal('0.001'),
+          proportionalFee: parse6decimal('0.002'),
+          adiabaticFee: parse6decimal('0.1'),
+        },
+      })
+
+      const settlementFee = parse6decimal('1.00')
+      const marketParameter = { ...(await market.parameter()) }
+      marketParameter.settlementFee = settlementFee
+      await market.connect(owner).updateParameter(constants.AddressZero, constants.AddressZero, marketParameter)
+      const btcMarketParameter = { ...(await btcMarket.parameter()) }
+      btcMarketParameter.settlementFee = settlementFee
+      await btcMarket.connect(owner).updateParameter(constants.AddressZero, constants.AddressZero, btcMarketParameter)
+
+      expect(await vault.convertToAssets(parse6decimal('1'))).to.equal(parse6decimal('1'))
+      expect(await vault.convertToShares(parse6decimal('1'))).to.equal(parse6decimal('1'))
+
+      const smallDeposit = parse6decimal('1000')
+      await vault.connect(user).update(user.address, smallDeposit, 0, 0)
+      await updateOracle()
+      await vault.settle(user.address)
+
+      const largeDeposit = parse6decimal('10000')
+      await vault.connect(user2).update(user2.address, largeDeposit, 0, 0)
+      await updateOracle()
+      await vault.settle(user2.address)
+
+      // Now we should have opened positions.
+      // The positions should be equal to (smallDeposit + largeDeposit) * leverage / 2 / originalOraclePrice.
+      const settlementFeeCharged = parse6decimal('0.333334').mul(2)
+      const tradeFeeCharged = parse6decimal('-143.921792').add(parse6decimal('-35.996371'))
+      const collateralForRebalance = smallDeposit
+        .add(largeDeposit)
+        .sub(tradeFeeCharged)
+        .sub(settlementFeeCharged)
+        .add(10)
+      expect(await position()).to.be.equal(collateralForRebalance.mul(leverage).mul(4).div(5).div(originalOraclePrice))
+      expect(await btcPosition()).to.be.equal(collateralForRebalance.mul(leverage).div(5).div(btcOriginalOraclePrice))
+
+      const balanceOf2 = BigNumber.from('8434588258')
+      const totalAssets = BigNumber.from('11179530313')
+      expect((await vault.accounts(user.address)).shares).to.equal(parse6decimal('1000'))
+      expect((await vault.accounts(user2.address)).shares).to.equal(balanceOf2)
+      expect(await vault.totalAssets()).to.equal(totalAssets)
+      expect((await vault.accounts(ethers.constants.AddressZero)).shares).to.equal(
+        parse6decimal('1000').add(balanceOf2),
+      )
+      expect(await vault.convertToAssets(parse6decimal('1000').add(balanceOf2))).to.equal(totalAssets)
+      expect(await vault.convertToShares(totalAssets)).to.equal(parse6decimal('1000').add(balanceOf2))
+
+      await vault.connect(user).update(user.address, 0, (await vault.accounts(user.address)).shares, 0)
+      await updateOracle()
+      await vault.settle(user.address)
+
+      await vault.connect(user2).update(user2.address, 0, (await vault.accounts(user2.address)).shares, 0)
+      await updateOracle()
+      await vault.settle(user2.address)
+
+      // We should have closed all positions.
+      expect(await position()).to.equal(0)
+      expect(await btcPosition()).to.equal(0)
+
+      // We should have redeemed all of our shares.
+      const currentFee = (
+        await market.checkpoints(vault.address, (await market.locals(vault.address)).currentId.sub(1))
+      ).tradeFee
+      const btcCurrentFee = (
+        await btcMarket.checkpoints(vault.address, (await btcMarket.locals(vault.address)).currentId.sub(1))
+      ).tradeFee
+      const currentKeeper = (
+        await market.checkpoints(vault.address, (await market.locals(vault.address)).currentId.sub(1))
+      ).settlementFee
+      const btcCurrentKeeper = (
+        await btcMarket.checkpoints(vault.address, (await btcMarket.locals(vault.address)).currentId.sub(1))
+      ).settlementFee
+
+      const unclaimed1 = BigNumber.from('1169479029')
+      const unclaimed2 = BigNumber.from('9701035985')
+      const finalTotalAssets = BigNumber.from('251418535') // last position fee + keeper
       expect(await totalCollateralInVault()).to.equal(unclaimed1.add(unclaimed2).mul(1e12))
       expect((await vault.accounts(user.address)).shares).to.equal(0)
       expect((await vault.accounts(user2.address)).shares).to.equal(0)
