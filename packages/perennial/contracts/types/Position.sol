@@ -77,13 +77,6 @@ library PositionLib {
         return self.long.min(self.short);
     }
 
-    /// @notice Returns the difference between the long and short positions
-    /// @param self The position object to check
-    /// @return The difference between the long and short positions
-    function net(Position memory self) internal pure returns (UFixed6) {
-        return Fixed6Lib.from(self.long).sub(Fixed6Lib.from(self.short)).abs();
-    }
-
     /// @notice Returns the skew of the position
     /// @param self The position object to check
     /// @return The skew of the position

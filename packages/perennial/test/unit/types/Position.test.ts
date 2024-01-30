@@ -186,22 +186,6 @@ describe('Position', () => {
         })
       })
 
-      describe('#net', () => {
-        context('long is min', () => {
-          it('returns abs(long - short)', async () => {
-            await position.store({ ...VALID_GLOBAL_POSITION, maker: 1, long: 2, short: 102 })
-            expect(await position.net()).to.equal(100)
-          })
-        })
-
-        context('short is min', () => {
-          it('returns abs(long - short)', async () => {
-            await position.store({ ...VALID_GLOBAL_POSITION, maker: 1, long: 102, short: 3 })
-            expect(await position.net()).to.equal(99)
-          })
-        })
-      })
-
       describe('#skew', () => {
         const RISK_PARAM_WITH_SKEW_SCALE = {
           ...VALID_RISK_PARAMETER,
