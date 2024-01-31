@@ -23,15 +23,9 @@ struct Local {
 
     /// @dev The timestamp of the latest protection
     uint256 protection;
-
-    /// @dev The initiator of the latest protection
-    address protectionInitiator;
-
-    /// @dev The amount of the latest protection fee
-    UFixed6 protectionAmount;
 }
 using LocalLib for Local global;
-struct LocalStorage { uint256 slot0; uint256 slot1; }
+struct LocalStorage { uint256 slot0; }
 using LocalStorageLib for LocalStorage global;
 
 /// @title Local
@@ -49,14 +43,16 @@ library LocalLib {
     /// @param collateral The amount to update the collateral by
     /// @param tradeFee The trade fee to subtract from the collateral
     /// @param settlementFee The settlement fee to subtract from the collateral
+    /// @param liquidationFee The liquidation fee to subtract from the collateral
     function update(
         Local memory self,
         uint256 newId,
         Fixed6 collateral,
         Fixed6 tradeFee,
-        UFixed6 settlementFee
+        UFixed6 settlementFee,
+        UFixed6 liquidationFee
     ) internal pure {
-        self.collateral = self.collateral.add(collateral).sub(tradeFee).sub(Fixed6Lib.from(settlementFee));
+        self.collateral = self.collateral.add(collateral).sub(tradeFee).sub(Fixed6Lib.from(settlementFee)).sub(Fixed6Lib.from(liquidationFee));
         self.latestId = newId;
     }
 
@@ -64,39 +60,33 @@ library LocalLib {
     /// @param self The Local object to update
     /// @param latestVersion The latest oracle version
     /// @param currentTimestamp The current timestamp
-    /// @param newOrder The new order
-    /// @param initiator The initiator of the protection
     /// @param tryProtect Whether to try to protect the Local
     /// @return Whether the protection was protected
     function protect(
         Local memory self,
-        RiskParameter memory riskParameter,
         OracleVersion memory latestVersion,
         uint256 currentTimestamp,
-        Order memory newOrder,
-        address initiator,
         bool tryProtect
     ) internal pure returns (bool) {
         if (!tryProtect || self.protection > latestVersion.timestamp) return false;
-        (self.protection, self.protectionAmount, self.protectionInitiator) =
-            (currentTimestamp, newOrder.liquidationFee(latestVersion, riskParameter), initiator);
+        self.protection = currentTimestamp;
         return true;
     }
 
-    /// @notice Processes the account's protection if it is valid
-    /// @param self The Local object to update
-    /// @param order The latest account order
-    /// @param version The latest version
-    /// @return
-    function processProtection(
-        Local memory self,
-        Order memory order,
-        Version memory version
-    ) internal pure returns (bool) {
-        if (!version.valid || order.timestamp != self.protection) return false;
-        self.collateral = self.collateral.sub(Fixed6Lib.from(self.protectionAmount));
-        return true;
-    }
+    // /// @notice Processes the account's protection if it is valid
+    // /// @param self The Local object to update
+    // /// @param order The latest account order
+    // /// @param version The latest version
+    // /// @return
+    // function processProtection(
+    //     Local memory self,
+    //     Order memory order,
+    //     Version memory version
+    // ) internal pure returns (bool) {
+    //     if (!version.valid || order.timestamp != self.protection) return false;
+    //     self.collateral = self.collateral.sub(Fixed6Lib.from(self.protectionAmount));
+    //     return true;
+    // }
 }
 
 /// @dev Manually encodes and decodes the Local struct into storage.
@@ -108,10 +98,6 @@ library LocalLib {
 ///         int64 collateral;       // <= 9.22t
 ///         uint64 __unallocated__;
 ///         uint32 protection;      // <= 4.29b
-///
-///         /* slot 1 */
-///         address protectionInitiator;    
-///         uint64 protectionAmount;        // <= 18.44t
 ///     }
 ///
 library LocalStorageLib {
@@ -119,14 +105,12 @@ library LocalStorageLib {
     error LocalStorageInvalidError();
 
     function read(LocalStorage storage self) internal view returns (Local memory) {
-        (uint256 slot0, uint256 slot1) = (self.slot0, self.slot1);
+        uint256 slot0 = self.slot0;
         return Local(
             uint256(slot0 << (256 - 32)) >> (256 - 32),
             uint256(slot0 << (256 - 32 - 32)) >> (256 - 32),
             Fixed6.wrap(int256(slot0 << (256 - 32 - 32 - 64)) >> (256 - 64)),
-            (uint256(slot0) << (256 - 32 - 32 - 64 - 64 - 32)) >> (256 - 32),
-            address(uint160(uint256(slot1 << (256 - 160)) >> (256 - 160))),
-            UFixed6.wrap(uint256(slot1 << (256 - 160 - 64)) >> (256 - 64))
+            (uint256(slot0) << (256 - 32 - 32 - 64 - 64 - 32)) >> (256 - 32)
         );
     }
 
@@ -136,19 +120,14 @@ library LocalStorageLib {
         if (newValue.collateral.gt(Fixed6.wrap(type(int64).max))) revert LocalStorageInvalidError();
         if (newValue.collateral.lt(Fixed6.wrap(type(int64).min))) revert LocalStorageInvalidError();
         if (newValue.protection > uint256(type(uint32).max)) revert LocalStorageInvalidError();
-        if (newValue.protectionAmount.gt(UFixed6.wrap(type(uint64).max))) revert LocalStorageInvalidError();
 
         uint256 encoded0 =
             uint256(newValue.currentId << (256 - 32)) >> (256 - 32) |
             uint256(newValue.latestId << (256 - 32)) >> (256 - 32 - 32) |
             uint256(Fixed6.unwrap(newValue.collateral) << (256 - 64)) >> (256 - 32 - 32 - 64) |
             uint256(newValue.protection << (256 - 32)) >> (256 - 32 - 32 - 64 - 64 - 32);
-        uint256 encoded1 =
-            uint256(uint256(uint160(newValue.protectionInitiator)) << (256 - 160)) >> (256 - 160) |
-            uint256(UFixed6.unwrap(newValue.protectionAmount) << (256 - 64)) >> (256 - 160 - 64);
         assembly {
             sstore(self.slot, encoded0)
-            sstore(add(self.slot, 1), encoded1)
         }
     }
 }

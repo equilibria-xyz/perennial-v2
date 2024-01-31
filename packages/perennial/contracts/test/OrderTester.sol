@@ -27,14 +27,6 @@ contract OrderTester {
         return order.liquidityCheckApplicable(marketParameter);
     }
 
-    function liquidationFee(
-        Order memory order,
-        OracleVersion memory latestVersion,
-        RiskParameter memory riskParameter
-    ) public pure returns (UFixed6) {
-        return order.liquidationFee(latestVersion, riskParameter);
-    }
-
     function isEmpty(Order memory order) public pure returns (bool) {
         return order.isEmpty();
     }

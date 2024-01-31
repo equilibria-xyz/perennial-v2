@@ -12,7 +12,7 @@ struct Checkpoint {
     /// @dev The trade fee that the order incurred at the checkpoint settlement
     Fixed6 tradeFee;
 
-    // @dev The settlement fee that the order incurred at the checkpoint settlement
+    // @dev The settlement and liquidation fee that the order incurred at the checkpoint settlement
     UFixed6 settlementFee;
 
     /// @dev The amount deposited or withdrawn at the checkpoint settlement
@@ -38,24 +38,26 @@ library CheckpointLib {
     function accumulate(
         Checkpoint memory self,
         Order memory order,
+        Local memory local,
         Position memory fromPosition,
         Version memory fromVersion,
         Version memory toVersion
-    ) internal pure returns (Fixed6 collateral, Fixed6 tradeFee, UFixed6 settlementFee) {
+    ) internal pure returns (Fixed6 collateral, Fixed6 tradeFee, UFixed6 settlementFee, UFixed6 liquidationFee) {
         // accumulate
         collateral = _accumulateCollateral(fromPosition, fromVersion, toVersion);
         tradeFee = _accumulateTradeFee(order, toVersion);
         settlementFee = _accumulateSettlementFee(order, toVersion);
+        liquidationFee = _accumulateLiquidationFee(order, local, toVersion);
 
         // update checkpoint
         self.collateral = self.collateral
             .sub(self.tradeFee)                       // trade fee processed post settlement
-            .sub(Fixed6Lib.from(self.settlementFee))  // settlement fee processed post settlement
+            .sub(Fixed6Lib.from(self.settlementFee))  // settlement / liquidation fee processed post settlement
             .add(self.transfer)                       // deposit / withdrawal processed post settlement
             .add(collateral);                         // incorporate collateral change at this settlement
         self.transfer = order.collateral;
         self.tradeFee = tradeFee;
-        self.settlementFee = settlementFee;
+        self.settlementFee = settlementFee.add(liquidationFee);
     }
 
     /// @notice Accumulate pnl, funding, and interest from the latest position to next position
@@ -94,6 +96,19 @@ library CheckpointLib {
         Version memory toVersion
     ) private pure returns (UFixed6) {
         return toVersion.settlementFee.accumulated(Accumulator6(Fixed6Lib.ZERO), UFixed6Lib.from(order.orders)).abs();
+    }
+
+    /// @notice Accumulate liquidation fees for the next position
+    /// @param order The next order
+    /// @param local The local state
+    /// @param toVersion The next version
+    function _accumulateLiquidationFee(
+        Order memory order,
+        Local memory local,
+        Version memory toVersion
+    ) private pure returns (UFixed6 liquidationFee) {
+        if (local.protection == order.timestamp)
+            return toVersion.liquidationFee.accumulated(Accumulator6(Fixed6Lib.ZERO), UFixed6Lib.ONE).abs();
     }
 }
 

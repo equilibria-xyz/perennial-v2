@@ -38,6 +38,9 @@ struct Version {
 
     /// @dev The accumulated settlement fee for each individual order
     Accumulator6 settlementFee;
+
+    /// @dev The accumulated liquidation fee for each individual order
+    Accumulator6 liquidationFee;
 }
 using VersionLib for Version global;
 struct VersionStorage { uint256 slot0; uint256 slot1; }
@@ -131,6 +134,9 @@ library VersionLib {
         // accumulate settlement fee
         values.settlementFee = _accumulateSettlementFee(self, context);
 
+        // accumulate liquidation fee
+        values.settlementFee = _accumulateLiquidationFee(self, context);
+
         // accumulate position fee
         _accumulatePositionFee(self, context, values);
 
@@ -174,6 +180,17 @@ library VersionLib {
     ) private pure returns (UFixed6 settlementFee) {
         settlementFee = context.order.orders == 0 ? UFixed6Lib.ZERO : context.marketParameter.settlementFee;
         self.settlementFee.decrement(Fixed6Lib.from(settlementFee), UFixed6Lib.from(context.order.orders));
+    }
+
+    /// @notice Globally accumulates hypothetical liquidation fee since last oracle update
+    /// @param self The Version object to update
+    /// @param context The accumulation context
+    function _accumulateLiquidationFee(
+        Version memory self,
+        AccumulationContext memory context
+    ) private pure returns (UFixed6 liquidationFee) {
+        liquidationFee = context.toOracleVersion.valid ? context.riskParameter.liquidationFee : UFixed6Lib.ZERO;
+        self.liquidationFee.decrement(Fixed6Lib.from(liquidationFee), UFixed6Lib.ONE);
     }
 
     /// @notice Globally accumulates position fees since last oracle update
@@ -474,6 +491,7 @@ library VersionLib {
 ///         int64 makerValue;
 ///         int64 longValue;
 ///         int64 shortValue;
+///         uint48 liquidationFee;
 ///
 ///         /* slot 1 */
 ///         int48 makerPosFee;
@@ -498,7 +516,8 @@ library VersionStorageLib {
             Accumulator6(Fixed6.wrap(int256(slot1 << (256 - 48 - 48)) >> (256 - 48))),
             Accumulator6(Fixed6.wrap(int256(slot1 << (256 - 48 - 48 - 48)) >> (256 - 48))),
             Accumulator6(Fixed6.wrap(int256(slot1 << (256 - 48 - 48 - 48 - 48)) >> (256 - 48))),
-            Accumulator6(Fixed6.wrap(int256(slot1 << (256 - 48 - 48 - 48 - 48 - 48)) >> (256 - 48)))
+            Accumulator6(Fixed6.wrap(int256(slot1 << (256 - 48 - 48 - 48 - 48 - 48)) >> (256 - 48))),
+            Accumulator6(Fixed6.wrap(int256(slot0 << (256 - 8 - 64 - 64 - 64 - 48)) >> (256 - 48)))
         );
     }
 
@@ -519,12 +538,15 @@ library VersionStorageLib {
         if (newValue.takerNegFee._value.lt(Fixed6.wrap(type(int48).min))) revert VersionStorageInvalidError();
         if (newValue.settlementFee._value.gt(Fixed6.wrap(type(int48).max))) revert VersionStorageInvalidError();
         if (newValue.settlementFee._value.lt(Fixed6.wrap(type(int48).min))) revert VersionStorageInvalidError();
+        if (newValue.liquidationFee._value.gt(Fixed6.wrap(type(int48).max))) revert VersionStorageInvalidError();
+        if (newValue.liquidationFee._value.lt(Fixed6.wrap(type(int48).min))) revert VersionStorageInvalidError();
 
         uint256 encoded0 =
             uint256((newValue.valid ? uint256(1) : uint256(0)) << (256 - 8)) >> (256 - 8) |
             uint256(Fixed6.unwrap(newValue.makerValue._value) << (256 - 64)) >> (256 - 8 - 64) |
             uint256(Fixed6.unwrap(newValue.longValue._value) << (256 - 64)) >> (256 - 8 - 64 - 64) |
-            uint256(Fixed6.unwrap(newValue.shortValue._value) << (256 - 64)) >> (256 - 8 - 64 - 64 - 64);
+            uint256(Fixed6.unwrap(newValue.shortValue._value) << (256 - 64)) >> (256 - 8 - 64 - 64 - 64) |
+            uint256(Fixed6.unwrap(newValue.liquidationFee._value) << (256 - 48)) >> (256 - 8 - 64 - 64 - 64 - 48);
         uint256 encoded1 =
             uint256(Fixed6.unwrap(newValue.makerPosFee._value) << (256 - 48)) >> (256 - 48) |
             uint256(Fixed6.unwrap(newValue.makerNegFee._value) << (256 - 48)) >> (256 - 48 - 48) |

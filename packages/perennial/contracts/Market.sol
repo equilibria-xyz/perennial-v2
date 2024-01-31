@@ -74,6 +74,9 @@ contract Market is IMarket, Instance, ReentrancyGuard {
     /// @dev The local checkpoint for each id for each account
     mapping(address => mapping(uint256 => CheckpointStorage)) private _checkpoints;
 
+    /// @dev The liquidator for each id for each account
+    mapping(address => mapping(uint256 => address)) public liquidators;
+
     /// @notice Initializes the contract state
     /// @param definition_ The market definition
     function initialize(IMarket.MarketDefinition calldata definition_) external initializer(1) {
@@ -348,14 +351,8 @@ contract Market is IMarket, Instance, ReentrancyGuard {
         context.local.update(collateral);
 
         // protect account
-        bool protected = context.local.protect(
-            context.riskParameter,
-            context.latestVersion,
-            context.currentTimestamp,
-            newOrder,
-            msg.sender,
-            protect
-        );
+        bool protected = context.local.protect(context.latestVersion, context.currentTimestamp, protect);
+        if (protected) liquidators[account][context.local.currentId] = msg.sender;
 
         // request version
         if (!newOrder.isEmpty()) oracle.request(IMarket(this), account);
@@ -505,9 +502,15 @@ contract Market is IMarket, Instance, ReentrancyGuard {
         Checkpoint memory checkpoint = _checkpoints[account][context.latestPosition.local.timestamp].read();
 
         (uint256 fromTimestamp, uint256 fromId) = (context.latestPosition.local.timestamp, context.local.latestId);
-        (accumulationResult.collateral, accumulationResult.tradeFee, accumulationResult.settlementFee) =
+        (
+            accumulationResult.collateral,
+            accumulationResult.tradeFee,
+            accumulationResult.settlementFee,
+            accumulationResult.liquidationFee
+        ) =
             checkpoint.accumulate(
                 newOrder,
+                context.local,
                 context.latestPosition.local,
                 _versions[context.latestPosition.local.timestamp].read(),
                 version
@@ -516,12 +519,13 @@ contract Market is IMarket, Instance, ReentrancyGuard {
             newOrderId,
             accumulationResult.collateral,
             accumulationResult.tradeFee,
-            accumulationResult.settlementFee
+            accumulationResult.settlementFee,
+            accumulationResult.liquidationFee
         );
+        _credit(liquidators[account][newOrderId], Fixed6Lib.from(-1, accumulationResult.liquidationFee));
+
         context.latestPosition.local.update(newOrder, version.valid);
         context.pending.local.sub(newOrder);
-        if (context.local.processProtection(newOrder, version))
-            _credit(context.local.protectionInitiator, Fixed6Lib.from(context.local.protectionAmount));
 
         _checkpoints[account][newOrder.timestamp].store(checkpoint);
 
@@ -541,6 +545,8 @@ contract Market is IMarket, Instance, ReentrancyGuard {
     /// @param account The account to credit
     /// @param amount The amount to credit
     function _credit(address account, Fixed6 amount) private {
+        if (amount.isZero()) return;
+
         Local memory newLocal = _locals[account].read();
         newLocal.update(amount);
         _locals[account].store(newLocal);

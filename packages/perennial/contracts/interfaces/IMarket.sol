@@ -49,6 +49,7 @@ interface IMarket is IInstance {
         Fixed6 collateral;
         Fixed6 tradeFee;
         UFixed6 settlementFee;
+        UFixed6 liquidationFee;
     }
 
     event Updated(address indexed sender, address indexed account, uint256 version, UFixed6 newMaker, UFixed6 newLong, UFixed6 newShort, Fixed6 collateral, bool protect);
