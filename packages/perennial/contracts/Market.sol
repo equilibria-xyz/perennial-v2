@@ -522,7 +522,7 @@ contract Market is IMarket, Instance, ReentrancyGuard {
             accumulationResult.settlementFee,
             accumulationResult.liquidationFee
         );
-        _credit(liquidators[account][newOrderId], Fixed6Lib.from(-1, accumulationResult.liquidationFee));
+        _credit(liquidators[account][newOrderId], Fixed6Lib.from(accumulationResult.liquidationFee));
 
         context.latestPosition.local.update(newOrder, version.valid);
         context.pending.local.sub(newOrder);

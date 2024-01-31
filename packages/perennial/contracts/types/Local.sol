@@ -72,21 +72,6 @@ library LocalLib {
         self.protection = currentTimestamp;
         return true;
     }
-
-    // /// @notice Processes the account's protection if it is valid
-    // /// @param self The Local object to update
-    // /// @param order The latest account order
-    // /// @param version The latest version
-    // /// @return
-    // function processProtection(
-    //     Local memory self,
-    //     Order memory order,
-    //     Version memory version
-    // ) internal pure returns (bool) {
-    //     if (!version.valid || order.timestamp != self.protection) return false;
-    //     self.collateral = self.collateral.sub(Fixed6Lib.from(self.protectionAmount));
-    //     return true;
-    // }
 }
 
 /// @dev Manually encodes and decodes the Local struct into storage.
