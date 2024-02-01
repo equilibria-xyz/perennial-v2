@@ -133,10 +133,8 @@ library RiskParameterStorageLib {
                 .gt(protocolParameter.maxFee)
         ) revert RiskParameterStorageInvalidError();
 
-        if (self.minMargin.max(self.minMaintenance).gt(protocolParameter.maxFeeAbsolute))
+        if (self.minMargin.max(self.minMaintenance).max(self.liquidationFee).gt(protocolParameter.maxFeeAbsolute))
             revert RiskParameterStorageInvalidError();
-
-        if (self.liquidationFee.gt(protocolParameter.maxCut)) revert RiskParameterStorageInvalidError();
 
         if (
             self.utilizationCurve.minRate.max(self.utilizationCurve.maxRate).max(self.utilizationCurve.targetRate).max(self.pController.max)

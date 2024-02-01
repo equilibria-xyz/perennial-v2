@@ -181,7 +181,7 @@ export async function createMarket(
     },
     makerLimit: parse6decimal('1000'),
     efficiencyLimit: parse6decimal('0.2'),
-    liquidationFee: parse6decimal('0.50'),
+    liquidationFee: parse6decimal('10.00'),
     utilizationCurve: {
       minRate: 0,
       maxRate: parse6decimal('5.00'),

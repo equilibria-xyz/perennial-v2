@@ -170,6 +170,7 @@ library VersionLib {
         self.takerPosFee._value = Fixed6Lib.ZERO;
         self.takerNegFee._value = Fixed6Lib.ZERO;
         self.settlementFee._value = Fixed6Lib.ZERO;
+        self.liquidationFee._value = Fixed6Lib.ZERO;
     }
 
     /// @notice Globally accumulates settlement fees since last oracle update

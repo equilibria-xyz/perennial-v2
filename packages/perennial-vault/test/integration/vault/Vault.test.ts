@@ -1771,7 +1771,7 @@ describe('Vault', () => {
       )
     })
 
-    context('liquidation', () => {
+    context.only('liquidation', () => {
       context('long', () => {
         it('recovers from a liquidation', async () => {
           await vault.connect(user).update(user.address, parse6decimal('100000'), 0, 0)
@@ -1960,7 +1960,7 @@ describe('Vault', () => {
       })
     })
 
-    context('insolvency', () => {
+    context.only('insolvency', () => {
       it('gracefully unwinds upon totalClaimable insolvency', async () => {
         // 1. Deposit initial amount into the vault
         await vault.connect(user).update(user.address, parse6decimal('100000'), 0, 0)

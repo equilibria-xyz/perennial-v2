@@ -417,7 +417,7 @@ describe('Market', () => {
       },
       makerLimit: parse6decimal('1000'),
       efficiencyLimit: parse6decimal('0.2'),
-      liquidationFee: parse6decimal('0.50'),
+      liquidationFee: parse6decimal('10.00'),
       utilizationCurve: {
         minRate: parse6decimal('0.0'),
         maxRate: parse6decimal('1.00'),
@@ -578,9 +578,7 @@ describe('Market', () => {
         },
         makerLimit: parse6decimal('2000'),
         efficiencyLimit: parse6decimal('0.2'),
-        liquidationFee: parse6decimal('0.25'),
-        minLiquidationFee: parse6decimal('10'),
-        maxLiquidationFee: parse6decimal('200'),
+        liquidationFee: parse6decimal('5.00'),
         utilizationCurve: {
           minRate: parse6decimal('0.20'),
           maxRate: parse6decimal('0.20'),

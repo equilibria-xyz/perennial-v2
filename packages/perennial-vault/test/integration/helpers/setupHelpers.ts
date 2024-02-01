@@ -53,7 +53,7 @@ export async function deployProductOnMainnetFork({
     },
     makerLimit: makerLimit ?? parse6decimal('100'),
     efficiencyLimit: efficiencyLimit ?? parse6decimal('0.2'),
-    liquidationFee: liquidationFee ?? parse6decimal('0.50'),
+    liquidationFee: parse6decimal('10.00'),
     utilizationCurve: utilizationCurve ?? {
       minRate: parse6decimal('0.02'),
       maxRate: parse6decimal('0.80'),

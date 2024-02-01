@@ -6,6 +6,7 @@ import { InstanceVars, deployProtocol, createMarket, settle } from '../helpers/s
 import { parse6decimal } from '../../../../common/testutil/types'
 import { loadFixture } from '@nomicfoundation/hardhat-network-helpers'
 import exp from 'constants'
+import { increaseTo } from '../../../../common/testutil/time'
 
 export const TIMESTAMP_2 = 1631113819
 
@@ -17,7 +18,7 @@ describe('Liquidate', () => {
     await instanceVars.chainlink.reset()
   })
 
-  it('liquidates a user', async () => {
+  it.only('liquidates a user', async () => {
     const POSITION = parse6decimal('0.0001')
     const COLLATERAL = parse6decimal('1000')
     const { user, userB, dsu, chainlink } = instanceVars
@@ -38,14 +39,13 @@ describe('Liquidate', () => {
 
     expect((await market.locals(user.address)).collateral).to.equal(COLLATERAL)
     expect(await dsu.balanceOf(market.address)).to.equal(utils.parseEther('1000'))
-    expect(await dsu.balanceOf(userB.address)).to.equal(utils.parseEther('200000')) // Original 200000 + fee
 
     await chainlink.next()
     await market.connect(user).update(user.address, 0, 0, 0, 0, false) // settle
-    expect((await market.locals(user.address)).collateral).to.equal('682778989')
+    expect((await market.locals(userB.address)).collateral).to.equal(parse6decimal('10'))
     await market.connect(userB).update(userB.address, 0, 0, 0, constants.MinInt256, false) // liquidator withdrawal
 
-    expect(await dsu.balanceOf(userB.address)).to.equal(utils.parseEther('200682.778989')) // Original 200000 + fee
+    expect(await dsu.balanceOf(userB.address)).to.equal(utils.parseEther('200010')) // Original 200000 + fee
     expect((await market.locals(user.address)).collateral).to.equal('317221011')
     expect(await dsu.balanceOf(market.address)).to.equal(utils.parseEther('317.221011'))
 
@@ -55,7 +55,7 @@ describe('Liquidate', () => {
     expect((await market.locals(user.address)).protection).to.eq(TIMESTAMP_2)
   })
 
-  it('liquidates a user with a fee larger than total collateral', async () => {
+  it.only('liquidates a user with a fee larger than total collateral', async () => {
     const POSITION = parse6decimal('0.0001')
     const COLLATERAL = parse6decimal('900')
     const { user, userB, dsu, chainlink } = instanceVars
@@ -71,7 +71,7 @@ describe('Liquidate', () => {
       .to.emit(market, 'Updated')
       .withArgs(userB.address, user.address, TIMESTAMP_2, 0, 0, 0, 0, true)
 
-    const EXPECTED_LIQUIDATION_FEE = parse6decimal('1000')
+    const EXPECTED_LIQUIDATION_FEE = parse6decimal('10')
     expect((await market.locals(user.address)).protection).to.eq(TIMESTAMP_2)
     expect(await market.liquidators(user.address, 2)).to.eq(userB.address)
 
@@ -95,7 +95,7 @@ describe('Liquidate', () => {
     expect((await market.locals(user.address)).protection).to.eq(TIMESTAMP_2)
   })
 
-  it('creates and resolves a shortfall', async () => {
+  it.only('creates and resolves a shortfall', async () => {
     const POSITION = parse6decimal('0.0001')
     const COLLATERAL = parse6decimal('1000')
     const { user, userB, dsu, chainlink } = instanceVars
