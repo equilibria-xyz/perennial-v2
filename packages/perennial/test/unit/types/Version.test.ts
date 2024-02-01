@@ -5,7 +5,7 @@ import HRE from 'hardhat'
 
 import { VersionTester, VersionTester__factory } from '../../../types/generated'
 import { BigNumber } from 'ethers'
-import { DEFAULT_ORDER, parse6decimal } from '../../../../common/testutil/types'
+import { DEFAULT_ORDER, DEFAULT_VERSION, parse6decimal } from '../../../../common/testutil/types'
 import {
   GlobalStruct,
   MarketParameterStruct,
@@ -31,18 +31,7 @@ const VALID_VERSION: VersionStruct = {
   takerPosFee: { _value: 6 },
   takerNegFee: { _value: 7 },
   settlementFee: { _value: -8 },
-}
-
-const EMPTY_VERSION: VersionStruct = {
-  valid: true,
-  makerValue: { _value: 0 },
-  longValue: { _value: 0 },
-  shortValue: { _value: 0 },
-  makerNegFee: { _value: 0 },
-  makerPosFee: { _value: 0 },
-  takerNegFee: { _value: 0 },
-  takerPosFee: { _value: 0 },
-  settlementFee: { _value: 0 },
+  liquidationFee: { _value: -9 },
 }
 
 const GLOBAL: GlobalStruct = {
@@ -92,6 +81,9 @@ const ORACLE_VERSION_2: OracleVersionStruct = {
   timestamp: TIMESTAMP + 3600,
   valid: true,
 }
+
+// TODO: add settlement fee tests
+// TODO: add liquidation fee tests
 
 describe('Version', () => {
   let owner: SignerWithAddress
@@ -149,6 +141,7 @@ describe('Version', () => {
       expect(value.takerPosFee._value).to.equal(6)
       expect(value.takerNegFee._value).to.equal(7)
       expect(value.settlementFee._value).to.equal(-8)
+      expect(value.liquidationFee._value).to.equal(-9)
     })
 
     describe('.valid', async () => {
@@ -473,6 +466,45 @@ describe('Version', () => {
         ).to.be.revertedWithCustomError(version, 'VersionStorageInvalidError')
       })
     })
+
+    describe('.liquidationFee', async () => {
+      const STORAGE_SIZE = 47
+      it('saves if in range (above)', async () => {
+        await version.store({
+          ...VALID_VERSION,
+          liquidationFee: { _value: BigNumber.from(2).pow(STORAGE_SIZE).sub(1) },
+        })
+        const value = await version.read()
+        expect(value.liquidationFee._value).to.equal(BigNumber.from(2).pow(STORAGE_SIZE).sub(1))
+      })
+
+      it('saves if in range (below)', async () => {
+        await version.store({
+          ...VALID_VERSION,
+          liquidationFee: { _value: BigNumber.from(2).pow(STORAGE_SIZE).mul(-1) },
+        })
+        const value = await version.read()
+        expect(value.liquidationFee._value).to.equal(BigNumber.from(2).pow(STORAGE_SIZE).mul(-1))
+      })
+
+      it('reverts if out of range (above)', async () => {
+        await expect(
+          version.store({
+            ...VALID_VERSION,
+            liquidationFee: { _value: BigNumber.from(2).pow(STORAGE_SIZE) },
+          }),
+        ).to.be.revertedWithCustomError(version, 'VersionStorageInvalidError')
+      })
+
+      it('reverts if out of range (below)', async () => {
+        await expect(
+          version.store({
+            ...VALID_VERSION,
+            liquidationFee: { _value: BigNumber.from(2).pow(STORAGE_SIZE).add(1).mul(-1) },
+          }),
+        ).to.be.revertedWithCustomError(version, 'VersionStorageInvalidError')
+      })
+    })
   })
 
   describe('#accumulate', () => {
@@ -543,6 +575,7 @@ describe('Version', () => {
         expect(ret[0].pnlLong).to.equal(0)
         expect(ret[0].pnlShort).to.equal(0)
         expect(ret[0].settlementFee).to.equal(parse6decimal('2'))
+        expect(ret[0].liquidationFee).to.equal(9)
       })
     })
 
@@ -761,7 +794,7 @@ describe('Version', () => {
     describe('funding accumulation', () => {
       context('no time elapsed', () => {
         it('accumulates 0 funding', async () => {
-          await version.store(EMPTY_VERSION)
+          await version.store(DEFAULT_VERSION)
 
           const { ret, value } = await accumulateWithReturn(
             GLOBAL,
@@ -803,7 +836,7 @@ describe('Version', () => {
 
       context('no positions', () => {
         it('accumulates 0 funding', async () => {
-          await version.store(EMPTY_VERSION)
+          await version.store(DEFAULT_VERSION)
 
           const { ret, value } = await accumulateWithReturn(
             GLOBAL,
@@ -849,7 +882,7 @@ describe('Version', () => {
 
       context('longs > shorts', () => {
         it('accumulates funding', async () => {
-          await version.store(EMPTY_VERSION)
+          await version.store(DEFAULT_VERSION)
 
           const { ret, value } = await accumulateWithReturn(
             GLOBAL,
@@ -892,7 +925,7 @@ describe('Version', () => {
 
       context('shorts > longs', () => {
         it('accumulates funding', async () => {
-          await version.store(EMPTY_VERSION)
+          await version.store(DEFAULT_VERSION)
 
           const { ret, value } = await accumulateWithReturn(
             GLOBAL,
@@ -935,7 +968,7 @@ describe('Version', () => {
 
       context('makerReceiveOnly', () => {
         it('accumulates funding', async () => {
-          await version.store(EMPTY_VERSION)
+          await version.store(DEFAULT_VERSION)
 
           const { ret, value } = await accumulateWithReturn(
             GLOBAL,
@@ -981,7 +1014,7 @@ describe('Version', () => {
     describe('interest accumulation', () => {
       context('no time elapsed', () => {
         it('accumulates 0 interest', async () => {
-          await version.store(EMPTY_VERSION)
+          await version.store(DEFAULT_VERSION)
 
           const { ret, value } = await accumulateWithReturn(
             GLOBAL,
@@ -1023,7 +1056,7 @@ describe('Version', () => {
 
       context('long + short > maker', () => {
         it('uses maker notional to calculate interest', async () => {
-          await version.store(EMPTY_VERSION)
+          await version.store(DEFAULT_VERSION)
 
           const { ret, value } = await accumulateWithReturn(
             GLOBAL,
@@ -1072,7 +1105,7 @@ describe('Version', () => {
 
       context('long + short < maker', () => {
         it('uses long+short notional to calculate interest', async () => {
-          await version.store(EMPTY_VERSION)
+          await version.store(DEFAULT_VERSION)
 
           const { ret, value } = await accumulateWithReturn(
             GLOBAL,
@@ -1121,7 +1154,7 @@ describe('Version', () => {
 
       context('major is 0', () => {
         it('accumulates 0 interest', async () => {
-          await version.store(EMPTY_VERSION)
+          await version.store(DEFAULT_VERSION)
 
           const { ret, value } = await accumulateWithReturn(
             GLOBAL,
@@ -1166,7 +1199,7 @@ describe('Version', () => {
     describe('pnl accumulation', () => {
       context('no price change', () => {
         it('accumulates 0 pnl', async () => {
-          await version.store(EMPTY_VERSION)
+          await version.store(DEFAULT_VERSION)
 
           const { ret, value } = await accumulateWithReturn(
             GLOBAL,
@@ -1209,7 +1242,7 @@ describe('Version', () => {
       context('positive price change', () => {
         context('no maker exposure', () => {
           it('accumulates pnl to long/shorts', async () => {
-            await version.store(EMPTY_VERSION)
+            await version.store(DEFAULT_VERSION)
 
             const { ret, value } = await accumulateWithReturn(
               GLOBAL,
@@ -1266,7 +1299,7 @@ describe('Version', () => {
 
         context('maker long exposure', () => {
           it('accumulates pnl to long/shorts/makers', async () => {
-            await version.store(EMPTY_VERSION)
+            await version.store(DEFAULT_VERSION)
 
             const { ret, value } = await accumulateWithReturn(
               GLOBAL,
@@ -1323,7 +1356,7 @@ describe('Version', () => {
 
         context('maker short exposure', () => {
           it('accumulates pnl to long/shorts/makers', async () => {
-            await version.store(EMPTY_VERSION)
+            await version.store(DEFAULT_VERSION)
 
             const { ret, value } = await accumulateWithReturn(
               GLOBAL,
@@ -1382,7 +1415,7 @@ describe('Version', () => {
       context('negative price change', () => {
         context('no maker exposure', () => {
           it('accumulates pnl to long/shorts', async () => {
-            await version.store(EMPTY_VERSION)
+            await version.store(DEFAULT_VERSION)
 
             const { ret, value } = await accumulateWithReturn(
               GLOBAL,
@@ -1439,7 +1472,7 @@ describe('Version', () => {
 
         context('maker long exposure', () => {
           it('accumulates 0 pnl', async () => {
-            await version.store(EMPTY_VERSION)
+            await version.store(DEFAULT_VERSION)
 
             const { ret, value } = await accumulateWithReturn(
               GLOBAL,
@@ -1496,7 +1529,7 @@ describe('Version', () => {
 
         context('maker short exposure', () => {
           it('accumulates pnl to long/shorts/makers', async () => {
-            await version.store(EMPTY_VERSION)
+            await version.store(DEFAULT_VERSION)
 
             const { ret, value } = await accumulateWithReturn(
               GLOBAL,

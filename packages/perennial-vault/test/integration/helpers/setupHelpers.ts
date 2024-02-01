@@ -34,8 +34,6 @@ export async function deployProductOnMainnetFork({
   minMargin,
   minMaintenance,
   liquidationFee,
-  minLiquidationFee,
-  maxLiquidationFee,
   staleAfter,
 }: DeployProductParams): Promise<IMarket> {
   const riskParameter: RiskParameterStruct = {
@@ -56,8 +54,6 @@ export async function deployProductOnMainnetFork({
     makerLimit: makerLimit ?? parse6decimal('100'),
     efficiencyLimit: efficiencyLimit ?? parse6decimal('0.2'),
     liquidationFee: liquidationFee ?? parse6decimal('0.50'),
-    minLiquidationFee: minLiquidationFee ?? parse6decimal('0'),
-    maxLiquidationFee: maxLiquidationFee ?? parse6decimal('1000'),
     utilizationCurve: utilizationCurve ?? {
       minRate: parse6decimal('0.02'),
       maxRate: parse6decimal('0.80'),

@@ -209,6 +209,7 @@ describe('Checkpoint', () => {
       takerPosFee: { _value: parse6decimal('600') },
       takerNegFee: { _value: parse6decimal('700') },
       settlementFee: { _value: parse6decimal('800') },
+      liquidationFee: { _value: parse6decimal('900') },
     }
 
     const TO_VERSION: VersionStruct = {
@@ -221,6 +222,7 @@ describe('Checkpoint', () => {
       takerPosFee: { _value: parse6decimal('6000') },
       takerNegFee: { _value: parse6decimal('7000') },
       settlementFee: { _value: parse6decimal('8000') },
+      liquidationFee: { _value: parse6decimal('9000') },
     }
 
     context('zero initial values', () => {

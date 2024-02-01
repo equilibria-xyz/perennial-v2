@@ -5,6 +5,7 @@ import { BigNumber, constants, utils } from 'ethers'
 import { InstanceVars, deployProtocol, createMarket, settle } from '../helpers/setupHelpers'
 import { parse6decimal } from '../../../../common/testutil/types'
 import { loadFixture } from '@nomicfoundation/hardhat-network-helpers'
+import exp from 'constants'
 
 export const TIMESTAMP_2 = 1631113819
 
@@ -33,8 +34,7 @@ describe('Liquidate', () => {
       .withArgs(userB.address, user.address, TIMESTAMP_2, 0, 0, 0, 0, true)
 
     expect((await market.locals(user.address)).protection).to.eq(TIMESTAMP_2)
-    expect((await market.locals(user.address)).protectionAmount).to.eq('682778989')
-    expect((await market.locals(user.address)).protectionInitiator).to.eq(userB.address)
+    expect(await market.liquidators(user.address, 2)).to.eq(userB.address)
 
     expect((await market.locals(user.address)).collateral).to.equal(COLLATERAL)
     expect(await dsu.balanceOf(market.address)).to.equal(utils.parseEther('1000'))
@@ -42,6 +42,7 @@ describe('Liquidate', () => {
 
     await chainlink.next()
     await market.connect(user).update(user.address, 0, 0, 0, 0, false) // settle
+    expect((await market.locals(user.address)).collateral).to.equal('682778989')
     await market.connect(userB).update(userB.address, 0, 0, 0, constants.MinInt256, false) // liquidator withdrawal
 
     expect(await dsu.balanceOf(userB.address)).to.equal(utils.parseEther('200682.778989')) // Original 200000 + fee
@@ -52,8 +53,6 @@ describe('Liquidate', () => {
 
     expect((await market.position()).timestamp).to.eq(TIMESTAMP_2)
     expect((await market.locals(user.address)).protection).to.eq(TIMESTAMP_2)
-    expect((await market.locals(user.address)).protectionAmount).to.eq('682778989')
-    expect((await market.locals(user.address)).protectionInitiator).to.eq(userB.address)
   })
 
   it('liquidates a user with a fee larger than total collateral', async () => {
@@ -72,16 +71,17 @@ describe('Liquidate', () => {
       .to.emit(market, 'Updated')
       .withArgs(userB.address, user.address, TIMESTAMP_2, 0, 0, 0, 0, true)
 
+    const EXPECTED_LIQUIDATION_FEE = parse6decimal('1000')
     expect((await market.locals(user.address)).protection).to.eq(TIMESTAMP_2)
-    expect((await market.locals(user.address)).protectionAmount).to.eq(parse6decimal('1000'))
-    expect((await market.locals(user.address)).protectionInitiator).to.eq(userB.address)
+    expect(await market.liquidators(user.address, 2)).to.eq(userB.address)
 
-    expect((await market.locals(user.address)).protectionAmount).to.gt(COLLATERAL)
+    expect(EXPECTED_LIQUIDATION_FEE).to.gt(COLLATERAL)
 
     await chainlink.next()
     await settle(market, user)
 
     expect((await market.locals(user.address)).collateral).to.equal(parse6decimal('-100'))
+    expect((await market.locals(userB.address)).collateral).to.equal(EXPECTED_LIQUIDATION_FEE)
 
     await expect(market.connect(userB).update(userB.address, 0, 0, 0, constants.MinInt256, false)) // liquidator withdrawal
       .to.rejectedWith('ERC20: transfer amount exceeds balance')
@@ -93,8 +93,6 @@ describe('Liquidate', () => {
 
     expect((await market.position()).timestamp).to.eq(TIMESTAMP_2)
     expect((await market.locals(user.address)).protection).to.eq(TIMESTAMP_2)
-    expect((await market.locals(user.address)).protectionAmount).to.eq(parse6decimal('1000'))
-    expect((await market.locals(user.address)).protectionInitiator).to.eq(userB.address)
   })
 
   it('creates and resolves a shortfall', async () => {

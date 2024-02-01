@@ -71,6 +71,7 @@ struct VersionAccumulationResult {
     Fixed6 pnlShort;
 
     UFixed6 settlementFee;
+    UFixed6 liquidationFee;
 }
 
 struct VersionFeeResult {
@@ -135,7 +136,7 @@ library VersionLib {
         values.settlementFee = _accumulateSettlementFee(self, context);
 
         // accumulate liquidation fee
-        values.settlementFee = _accumulateLiquidationFee(self, context);
+        values.liquidationFee = _accumulateLiquidationFee(self, context);
 
         // accumulate position fee
         _accumulatePositionFee(self, context, values);

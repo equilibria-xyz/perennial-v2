@@ -35,8 +35,6 @@ export const VALID_RISK_PARAMETER: RiskParameterStruct = {
   makerLimit: 7,
   efficiencyLimit: 8,
   liquidationFee: 9,
-  minLiquidationFee: 10,
-  maxLiquidationFee: 11,
   utilizationCurve: {
     minRate: 101,
     maxRate: 102,
@@ -94,8 +92,6 @@ describe('RiskParameter', () => {
       expect(value.makerLimit).to.equal(7)
       expect(value.efficiencyLimit).to.equal(8)
       expect(value.liquidationFee).to.equal(9)
-      expect(value.minLiquidationFee).to.equal(10)
-      expect(value.maxLiquidationFee).to.equal(11)
       expect(value.utilizationCurve.minRate).to.equal(101)
       expect(value.utilizationCurve.maxRate).to.equal(102)
       expect(value.utilizationCurve.targetRate).to.equal(103)
@@ -820,62 +816,6 @@ describe('RiskParameter', () => {
             {
               ...VALID_RISK_PARAMETER,
               liquidationFee: parse6decimal('0.9').add(1),
-            },
-            PROTOCOL_PARAMETER,
-          ),
-        ).to.be.revertedWithCustomError(riskParameterStorage, 'RiskParameterStorageInvalidError')
-      })
-    })
-
-    describe('.minLiquidationFee', () => {
-      it('saves if in range', async () => {
-        await riskParameter.validateAndStore(
-          {
-            ...VALID_RISK_PARAMETER,
-            minLiquidationFee: BigNumber.from(2).pow(48).sub(1),
-            minMaintenance: BigNumber.from(2).pow(48).sub(1),
-            minMargin: BigNumber.from(2).pow(48).sub(1),
-          },
-          PROTOCOL_PARAMETER,
-        )
-        const value = await riskParameter.read()
-        expect(value.minLiquidationFee).to.equal(BigNumber.from(2).pow(48).sub(1))
-      })
-
-      it('reverts if invalid', async () => {
-        await expect(
-          riskParameter.validateAndStore(
-            {
-              ...VALID_RISK_PARAMETER,
-              minLiquidationFee: BigNumber.from(2).pow(48),
-              minMaintenance: BigNumber.from(2).pow(48).sub(1),
-              minMargin: BigNumber.from(2).pow(48).sub(1),
-            },
-            PROTOCOL_PARAMETER,
-          ),
-        ).to.be.revertedWithCustomError(riskParameterStorage, 'RiskParameterStorageInvalidError')
-      })
-    })
-
-    describe('.maxLiquidationFee', () => {
-      it('saves if in range', async () => {
-        await riskParameter.validateAndStore(
-          {
-            ...VALID_RISK_PARAMETER,
-            maxLiquidationFee: BigNumber.from(2).pow(48).sub(1),
-          },
-          PROTOCOL_PARAMETER,
-        )
-        const value = await riskParameter.read()
-        expect(value.maxLiquidationFee).to.equal(BigNumber.from(2).pow(48).sub(1))
-      })
-
-      it('reverts if invalid', async () => {
-        await expect(
-          riskParameter.validateAndStore(
-            {
-              ...VALID_RISK_PARAMETER,
-              maxLiquidationFee: BigNumber.from(2).pow(48),
             },
             PROTOCOL_PARAMETER,
           ),

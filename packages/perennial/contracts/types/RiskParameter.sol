@@ -187,7 +187,7 @@ library RiskParameterStorageLib {
             uint256(UFixed6.unwrap(newValue.utilizationCurve.minRate)           << (256 - 24)) >> (256 - 24 - 64 - 64 - 24) |
             uint256(UFixed6.unwrap(newValue.utilizationCurve.maxRate)           << (256 - 24)) >> (256 - 24 - 64 - 64 - 24 - 24) |
             uint256(UFixed6.unwrap(newValue.utilizationCurve.targetRate)        << (256 - 24)) >> (256 - 24 - 64 - 64 - 24 - 24 - 24) |
-            uint256(UFixed6.unwrap(newValue.utilizationCurve.targetUtilization) << (256 - 24)) >> (256 - 24 - 64 - 64 - 24 - 24 - 32 - 24);
+            uint256(UFixed6.unwrap(newValue.utilizationCurve.targetUtilization) << (256 - 24)) >> (256 - 24 - 64 - 64 - 24 - 24 - 24 - 24);
 
         uint256 encoded2 =
             uint256(UFixed6.unwrap(newValue.pController.k)                  << (256 - 48)) >> (256 - 48) |

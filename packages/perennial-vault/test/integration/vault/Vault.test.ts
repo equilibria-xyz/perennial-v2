@@ -228,7 +228,6 @@ describe('Vault', () => {
       makerLimit: parse6decimal('1000'),
       minMargin: parse6decimal('50'),
       minMaintenance: parse6decimal('50'),
-      maxLiquidationFee: parse6decimal('25000'),
       takerFee: {
         linearFee: 0,
         proportionalFee: 0,
@@ -250,7 +249,6 @@ describe('Vault', () => {
       payoff: constants.AddressZero,
       minMargin: parse6decimal('50'),
       minMaintenance: parse6decimal('50'),
-      maxLiquidationFee: parse6decimal('25000'),
       takerFee: {
         linearFee: 0,
         proportionalFee: 0,
