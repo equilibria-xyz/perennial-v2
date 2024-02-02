@@ -55,12 +55,14 @@ const DEFAULT_VERSION_ACCUMULATION_RESULT = {
   pnlShort: 0,
 
   settlementFee: 0,
+  liquidationFee: parse6decimal('10.000'), // will return liquidation fee unless invalid
 }
 
 const DEFAULT_LOCAL_ACCUMULATION_RESULT = {
   collateral: 0,
   tradeFee: 0,
   settlementFee: 0,
+  liquidationFee: 0,
 }
 
 const ORACLE_VERSION_0 = {
@@ -3570,7 +3572,7 @@ describe('Market', () => {
               await settle(market, userB)
 
               const EXPECTED_PNL = parse6decimal('27').mul(5)
-              const EXPECTED_LIQUIDATION_FEE = parse6decimal('225')
+              const EXPECTED_LIQUIDATION_FEE = parse6decimal('10')
 
               const oracleVersionHigherPrice = {
                 price: parse6decimal('150'),
@@ -3747,7 +3749,7 @@ describe('Market', () => {
               await settle(market, userC)
 
               const EXPECTED_PNL = parse6decimal('27').mul(5).div(2)
-              const EXPECTED_LIQUIDATION_FEE = parse6decimal('225')
+              const EXPECTED_LIQUIDATION_FEE = parse6decimal('10')
 
               const oracleVersionHigherPrice = {
                 price: parse6decimal('150'),
@@ -3962,11 +3964,19 @@ describe('Market', () => {
               oracle.status.returns([ORACLE_VERSION_2, ORACLE_VERSION_3.timestamp])
               oracle.request.whenCalledWith(user.address).returns()
 
+              const protocolParameter = { ...(await factory.parameter()) }
+              protocolParameter.maxFeeAbsolute = parse6decimal('100')
+              await factory.connect(owner).updateParameter(protocolParameter)
+
+              const riskParameter = { ...(await market.riskParameter()) }
+              riskParameter.liquidationFee = parse6decimal('100')
+              await market.connect(owner).updateRiskParameter(riskParameter)
+
               await settle(market, user)
               await settle(market, userB)
 
               const EXPECTED_PNL = parse6decimal('80').mul(5)
-              const EXPECTED_LIQUIDATION_FEE = parse6decimal('304.5')
+              const EXPECTED_LIQUIDATION_FEE = parse6decimal('100')
 
               const oracleVersionHigherPrice = {
                 price: parse6decimal('203'),
@@ -4149,7 +4159,7 @@ describe('Market', () => {
               await settle(market, userB)
 
               const EXPECTED_PNL = parse6decimal('27').mul(5)
-              const EXPECTED_LIQUIDATION_FEE = parse6decimal('72')
+              const EXPECTED_LIQUIDATION_FEE = parse6decimal('10')
 
               const oracleVersionLowerPrice = {
                 price: parse6decimal('96'),
@@ -4197,7 +4207,7 @@ describe('Market', () => {
                   .sub(EXPECTED_LIQUIDATION_FEE),
                 protection: ORACLE_VERSION_4.timestamp,
               })
-              expect(await market.liquidators(userB.address, 3)).to.equal(liquidator.address)
+              expect(await market.liquidators(user.address, 3)).to.equal(liquidator.address)
               expectLocalEq(await market.locals(liquidator.address), {
                 ...DEFAULT_LOCAL,
                 currentId: 0,
@@ -4319,7 +4329,7 @@ describe('Market', () => {
               await settle(market, userB)
 
               const EXPECTED_PNL = parse6decimal('80').mul(5)
-              const EXPECTED_LIQUIDATION_FEE = parse6decimal('32.25')
+              const EXPECTED_LIQUIDATION_FEE = parse6decimal('10')
 
               const oracleVersionLowerPrice = {
                 price: parse6decimal('43'),
@@ -6300,7 +6310,7 @@ describe('Market', () => {
               await settle(market, userB)
 
               const EXPECTED_PNL = parse6decimal('27').mul(5)
-              const EXPECTED_LIQUIDATION_FEE = parse6decimal('144')
+              const EXPECTED_LIQUIDATION_FEE = parse6decimal('10')
 
               const oracleVersionLowerPrice = {
                 price: parse6decimal('96'),
@@ -6470,7 +6480,7 @@ describe('Market', () => {
               await settle(market, userC)
 
               const EXPECTED_PNL = parse6decimal('27').mul(5).div(2)
-              const EXPECTED_LIQUIDATION_FEE = parse6decimal('144')
+              const EXPECTED_LIQUIDATION_FEE = parse6decimal('10')
 
               // (0.08 / 365 / 24 / 60 / 60 ) * 3600 * 5 * 123 = 5620
               const EXPECTED_INTEREST_1 = BigNumber.from(5620)
@@ -6689,7 +6699,7 @@ describe('Market', () => {
               await settle(market, userB)
 
               const EXPECTED_PNL = parse6decimal('80').mul(5)
-              const EXPECTED_LIQUIDATION_FEE = parse6decimal('64.5')
+              const EXPECTED_LIQUIDATION_FEE = parse6decimal('10')
 
               const oracleVersionHigherPrice = {
                 price: parse6decimal('43'),
@@ -6864,7 +6874,7 @@ describe('Market', () => {
               await settle(market, userB)
 
               const EXPECTED_PNL = parse6decimal('27').mul(5)
-              const EXPECTED_LIQUIDATION_FEE = parse6decimal('112.5')
+              const EXPECTED_LIQUIDATION_FEE = parse6decimal('10')
 
               const oracleVersionLowerPrice = {
                 price: parse6decimal('150'),
@@ -7040,7 +7050,7 @@ describe('Market', () => {
               await settle(market, userB)
 
               const EXPECTED_PNL = parse6decimal('80').mul(5)
-              const EXPECTED_LIQUIDATION_FEE = parse6decimal('152.25')
+              const EXPECTED_LIQUIDATION_FEE = parse6decimal('10')
 
               const oracleVersionHigherPrice = {
                 price: parse6decimal('203'),
@@ -9557,7 +9567,7 @@ describe('Market', () => {
               await settle(market, userB)
 
               const EXPECTED_PNL = parse6decimal('78').mul(5)
-              const EXPECTED_LIQUIDATION_FEE = parse6decimal('67.5')
+              const EXPECTED_LIQUIDATION_FEE = parse6decimal('10')
 
               const oracleVersionHigherPrice = {
                 price: parse6decimal('45'),
@@ -9790,7 +9800,7 @@ describe('Market', () => {
               await settle(market, userD)
 
               const EXPECTED_PNL = parse6decimal('78').mul(5)
-              const EXPECTED_LIQUIDATION_FEE = parse6decimal('67.5')
+              const EXPECTED_LIQUIDATION_FEE = parse6decimal('10')
 
               const oracleVersionHigherPrice = {
                 price: parse6decimal('45'),
@@ -10011,7 +10021,7 @@ describe('Market', () => {
               await settle(market, userB)
 
               const EXPECTED_PNL = parse6decimal('90').mul(5)
-              const EXPECTED_LIQUIDATION_FEE = parse6decimal('50') // minMaintenance * liquidationFee = 100 * 0.50 = 50
+              const EXPECTED_LIQUIDATION_FEE = parse6decimal('10')
 
               const oracleVersionHigherPrice = {
                 price: parse6decimal('33'),
@@ -10205,7 +10215,7 @@ describe('Market', () => {
               await settle(market, userB)
 
               const EXPECTED_PNL = parse6decimal('27').mul(5)
-              const EXPECTED_LIQUIDATION_FEE = parse6decimal('72')
+              const EXPECTED_LIQUIDATION_FEE = parse6decimal('10')
 
               const oracleVersionLowerPrice = {
                 price: parse6decimal('96'),
@@ -10435,7 +10445,7 @@ describe('Market', () => {
               await settle(market, userB)
 
               const EXPECTED_PNL = parse6decimal('80').mul(5)
-              const EXPECTED_LIQUIDATION_FEE = parse6decimal('32.25')
+              const EXPECTED_LIQUIDATION_FEE = parse6decimal('10')
 
               const oracleVersionLowerPrice = {
                 price: parse6decimal('43'),
@@ -11389,7 +11399,7 @@ describe('Market', () => {
         })
 
         it('default', async () => {
-          const EXPECTED_LIQUIDATION_FEE = parse6decimal('112.5') // 168.75
+          const EXPECTED_LIQUIDATION_FEE = parse6decimal('10')
 
           const oracleVersionLowerPrice = {
             price: parse6decimal('150'),
@@ -11468,7 +11478,7 @@ describe('Market', () => {
           await settle(market, userB)
 
           const EXPECTED_PNL = parse6decimal('27').mul(5)
-          const EXPECTED_LIQUIDATION_FEE = parse6decimal('112.5')
+          const EXPECTED_LIQUIDATION_FEE = parse6decimal('10')
 
           const oracleVersionLowerPrice = {
             price: parse6decimal('150'),

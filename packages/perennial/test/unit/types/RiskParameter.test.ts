@@ -715,7 +715,7 @@ describe('RiskParameter', () => {
         ).to.be.revertedWithCustomError(riskParameterStorage, 'RiskParameterStorageInvalidError')
       })
 
-      it('reverts if less than minLiquidationFee', async () => {
+      it('reverts if less than minMaintenance', async () => {
         await expect(
           riskParameter.validateAndStore(
             {
@@ -803,6 +803,8 @@ describe('RiskParameter', () => {
           {
             ...VALID_RISK_PARAMETER,
             liquidationFee: parse6decimal('0.9'),
+            minMargin: parse6decimal('0.9'),
+            minMaintenance: parse6decimal('0.9'),
           },
           PROTOCOL_PARAMETER,
         )
