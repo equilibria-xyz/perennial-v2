@@ -82,7 +82,7 @@ export function expectCheckpointEq(a: Checkpoint, b: Checkpoint): void {
 export function expectOrderEq(a: Order, b: Order): void {
   expect(a.timestamp).to.equal(b.timestamp, 'Order:Timestamp')
   expect(a.orders).to.equal(b.orders, 'Order:Orders')
-  expect(a.collateral).to.equal(b.orders, 'Order:Collateral')
+  expect(a.collateral).to.equal(b.collateral, 'Order:Collateral')
   expect(a.makerPos).to.equal(b.makerPos, 'Order:MakerPos')
   expect(a.makerNeg).to.equal(b.makerNeg, 'Order:MakerNeg')
   expect(a.longPos).to.equal(b.longPos, 'Order:LongPos')

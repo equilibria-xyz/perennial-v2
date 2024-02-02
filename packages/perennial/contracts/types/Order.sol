@@ -304,7 +304,7 @@ library OrderStorageGlobalLib {
             uint256(slot0 << (256 - 32 - 32)) >> (256 - 32),
             Fixed6.wrap(int256(slot0 << (256 - 32 - 32 - 64)) >> (256 - 64)),
             UFixed6.wrap(uint256(slot0 << (256 - 32 - 32 - 64 - 64)) >> (256 - 64)),
-            UFixed6.wrap(uint256(slot0 << (256 - 32 - 32 - 64 - 64 - 64)) >> (256 - 64 - 64)),
+            UFixed6.wrap(uint256(slot0 << (256 - 32 - 32 - 64 - 64 - 64)) >> (256 - 64)),
             UFixed6.wrap(uint256(slot1 << (256 - 64)) >> (256 - 64)),
             UFixed6.wrap(uint256(slot1 << (256 - 64 - 64)) >> (256 - 64)),
             UFixed6.wrap(uint256(slot1 << (256 - 64 - 64 - 64)) >> (256 - 64)),
