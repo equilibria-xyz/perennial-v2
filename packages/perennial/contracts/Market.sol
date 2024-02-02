@@ -63,13 +63,13 @@ contract Market is IMarket, Instance, ReentrancyGuard {
     mapping(uint256 => OrderStorageGlobal) private _pendingOrder;
 
     /// @dev The local pending order for each id for each account
-    mapping(address => mapping(uint256 => OrderStorageGlobal)) private _pendingOrders;
+    mapping(address => mapping(uint256 => OrderStorageLocal)) private _pendingOrders;
 
     /// @dev The global aggregate pending order
     OrderStorageGlobal private _pending;
 
     /// @dev The local aggregate pending order for each account
-    mapping(address => OrderStorageGlobal) private _pendings;
+    mapping(address => OrderStorageLocal) private _pendings;
 
     /// @dev The local checkpoint for each id for each account
     mapping(address => mapping(uint256 => CheckpointStorage)) private _checkpoints;
