@@ -60,7 +60,10 @@ describe('Closed Market', () => {
     })
 
     it('reverts on new open positions', async () => {
-      const { user } = instanceVars
+      const { user, chainlink } = instanceVars
+
+      await chainlink.next()
+
       await expect(market.connect(user).update(user.address, 0, POSITION, 0, 0, false)).to.be.revertedWithCustomError(
         market,
         'MarketClosedError',
