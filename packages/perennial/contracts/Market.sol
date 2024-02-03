@@ -337,26 +337,11 @@ contract Market is IMarket, Instance, ReentrancyGuard {
         context.currentPosition.global.update(newOrder, true);
         context.currentPosition.local.update(newOrder, true);
 
-        // rewind local order
-        context.order.global.sub(context.order.local);
-        context.pending.global.sub(context.order.local);
-        context.pending.local.sub(context.order.local);
-
-        // create new order
-        context.order.local = OrderLib.from(
-            context.currentTimestamp,
-            context.latestPosition.local,
-            context.pending.local,
-            newMaker,
-            newLong,
-            newShort
-        );
-
         // apply new order
-        context.order.global.add(context.order.local);
-        context.pending.global.add(context.order.local);
-        context.pending.local.add(context.order.local);
-        
+        context.order.local.add(newOrder);
+        context.order.global.add(newOrder);
+        context.pending.global.add(newOrder);
+        context.pending.local.add(newOrder);
 
         // update collateral
         context.local.update(collateral);

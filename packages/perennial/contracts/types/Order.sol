@@ -96,27 +96,6 @@ library OrderLib {
         if (!isEmpty(newOrder)) newOrder.orders = 1;
     }
 
-    /// @notice Creates a new order from the current position and an update request
-    /// @param timestamp The current timestamp
-    /// @param latestPosition The latest position
-    /// @param pending The aggregate pending order
-    /// @param newMaker The new maker
-    /// @param newLong The new long
-    /// @param newShort The new short
-    /// @return newOrder The resulting order
-    function from(
-        uint256 timestamp,
-        Position memory latestPosition,
-        Order memory pending,
-        UFixed6 newMaker,
-        UFixed6 newLong,
-        UFixed6 newShort
-    ) internal pure returns (Order memory) {
-        Position memory currentPosition = latestPosition.clone();
-        currentPosition.update(pending, true);
-        return from(timestamp, currentPosition, newMaker, newLong, newShort);
-    }
-
     /// @notice Returns whether the order increases any of the account's positions
     /// @return Whether the order increases any of the account's positions
     function increasesPosition(Order memory self) internal pure returns (bool) {
@@ -193,7 +172,7 @@ library OrderLib {
     /// @param self The order object to check
     /// @return Whether the order is empty
     function isEmpty(Order memory self) internal pure returns (bool) {
-        return magnitude(self).isZero();
+        return pos(self).isZero() && neg(self).isZero();
     }
 
      /// @notice Returns the direction of the order
@@ -201,7 +180,10 @@ library OrderLib {
     /// @param self The position object to check
     /// @return The direction of the position
     function direction(Order memory self) internal pure returns (uint256) {
-        return long(self).isZero() ? (short(self).isZero() ? 0 : 2) : 1;
+        if (!self.longPos.isZero() || !self.longNeg.isZero()) return 1;
+        if (!self.shortPos.isZero() || !self.shortNeg.isZero()) return 2;
+
+        return 0;
     }
 
     /// @notice Returns the magnitude of the order
@@ -359,6 +341,7 @@ library OrderStorageGlobalLib {
 ///     struct StoredOrderLocal {
 ///         /* slot 0 */
 ///         uint32 timestamp;
+///         uint32 orders;
 ///         uint2 direction;
 ///         uint63 magnitudePos;
 ///         uint63 magnitudeNeg;
@@ -368,13 +351,13 @@ library OrderStorageLocalLib {
     function read(OrderStorageLocal storage self) internal view returns (Order memory) {
         uint256 slot0 = self.slot0;
 
-        uint256 direction = uint256(slot0 << (256 - 32 - 2)) >> (256 - 2);
-        UFixed6 magnitudePos = UFixed6.wrap(uint256(slot0 << (256 - 32 - 2 - 63)) >> (256 - 63));
-        UFixed6 magnitudeNeg = UFixed6.wrap(uint256(slot0 << (256 - 32 - 2 - 63 -63)) >> (256 - 63));
+        uint256 direction = uint256(slot0 << (256 - 32 - 32 - 2)) >> (256 - 2);
+        UFixed6 magnitudePos = UFixed6.wrap(uint256(slot0 << (256 - 32 - 32 - 2 - 63)) >> (256 - 63));
+        UFixed6 magnitudeNeg = UFixed6.wrap(uint256(slot0 << (256 - 32 - 32 - 2 - 63 - 63)) >> (256 - 63));
 
         return Order(
             uint256(slot0 << (256 - 32)) >> (256 - 32),
-            magnitudePos.isZero() && magnitudeNeg.isZero() ? 0 : 1,
+            uint256(slot0 << (256 - 32 - 32)) >> (256 - 32),
             direction == 0 ? magnitudePos : UFixed6Lib.ZERO,
             direction == 0 ? magnitudeNeg : UFixed6Lib.ZERO,
             direction == 1 ? magnitudePos : UFixed6Lib.ZERO,
@@ -394,9 +377,10 @@ library OrderStorageLocalLib {
 
         uint256 encoded =
             uint256(newValue.timestamp << (256 - 32)) >> (256 - 32) |
-            uint256(newValue.direction() << (256 - 2)) >> (256 - 32 - 2) |
-            uint256(UFixed6.unwrap(magnitudePos) << (256 - 63)) >> (256 - 32 - 2 - 63) |
-            uint256(UFixed6.unwrap(magnitudeNeg) << (256 - 63)) >> (256 - 32 - 2 - 63 - 63);
+            uint256(newValue.orders << (256 - 32)) >> (256 - 32 - 32) |
+            uint256(newValue.direction() << (256 - 2)) >> (256 - 32 - 32 - 2) |
+            uint256(UFixed6.unwrap(magnitudePos) << (256 - 63)) >> (256 - 32 - 32 - 2 - 63) |
+            uint256(UFixed6.unwrap(magnitudeNeg) << (256 - 63)) >> (256 - 32 - 32 - 2 - 63 - 63);
 
         assembly {
             sstore(self.slot, encoded)
