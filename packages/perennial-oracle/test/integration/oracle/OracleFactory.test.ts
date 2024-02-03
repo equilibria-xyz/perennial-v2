@@ -69,7 +69,7 @@ describe('OracleFactory', () => {
     await oracleFactory.create(PYTH_ETH_USD_PRICE_FEED, pythOracleFactory.address)
 
     const dsuHolder = await impersonateWithBalance(DSU_HOLDER, utils.parseEther('10'))
-    await dsu.connect(dsuHolder).transfer(oracleFactory.address, utils.parseEther('100000'))
+    await dsu.connect(dsuHolder).transfer(oracleFactory.address, utils.parseEther('10000'))
   })
 
   describe('#update', async () => {
