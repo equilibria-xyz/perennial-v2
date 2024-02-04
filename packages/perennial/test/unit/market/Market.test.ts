@@ -693,7 +693,7 @@ describe('Market', () => {
         oracle.request.whenCalledWith(user.address).returns()
       })
 
-      context.only('no position', async () => {
+      context('no position', async () => {
         it('deposits and withdraws (immediately)', async () => {
           dsu.transferFrom.whenCalledWith(user.address, market.address, COLLATERAL.mul(1e12)).returns(true)
           await expect(market.connect(user).update(user.address, 0, 0, 0, COLLATERAL, false))
@@ -754,7 +754,7 @@ describe('Market', () => {
             .withArgs(
               user.address,
               ORACLE_VERSION_2.timestamp,
-              { ...DEFAULT_ORDER, timestamp: ORACLE_VERSION_2.timestamp },
+              { ...DEFAULT_ORDER, timestamp: ORACLE_VERSION_2.timestamp, collateral: -COLLATERAL },
               COLLATERAL.mul(-1),
             )
 
@@ -859,6 +859,7 @@ describe('Market', () => {
           expectOrderEq(await market.pendingOrders(user.address, 2), {
             ...DEFAULT_ORDER,
             timestamp: ORACLE_VERSION_3.timestamp,
+            collateral: -COLLATERAL,
           })
           expectGlobalEq(await market.global(), {
             currentId: 2,
@@ -875,6 +876,7 @@ describe('Market', () => {
           expectOrderEq(await market.pendingOrder(2), {
             ...DEFAULT_ORDER,
             timestamp: ORACLE_VERSION_3.timestamp,
+            collateral: -COLLATERAL,
           })
           expectVersionEq(await market.versions(ORACLE_VERSION_2.timestamp), {
             ...DEFAULT_VERSION,
@@ -949,6 +951,7 @@ describe('Market', () => {
           expectOrderEq(await market.pendingOrders(user.address, 2), {
             ...DEFAULT_ORDER,
             timestamp: ORACLE_VERSION_6.timestamp,
+            collateral: -COLLATERAL,
           })
           expectGlobalEq(await market.global(), {
             currentId: 2,
@@ -965,6 +968,7 @@ describe('Market', () => {
           expectOrderEq(await market.pendingOrder(2), {
             ...DEFAULT_ORDER,
             timestamp: ORACLE_VERSION_6.timestamp,
+            collateral: -COLLATERAL,
           })
           expectVersionEq(await market.versions(ORACLE_VERSION_2.timestamp), {
             ...DEFAULT_VERSION,
@@ -978,7 +982,7 @@ describe('Market', () => {
             dsu.transferFrom.whenCalledWith(user.address, market.address, COLLATERAL.mul(1e12)).returns(true)
           })
 
-          it.only('opens the position', async () => {
+          it('opens the position', async () => {
             await expect(market.connect(user).update(user.address, POSITION, 0, 0, COLLATERAL, false))
               .to.emit(market, 'Updated')
               .withArgs(user.address, user.address, ORACLE_VERSION_2.timestamp, POSITION, 0, 0, COLLATERAL, false)
@@ -1917,7 +1921,7 @@ describe('Market', () => {
               await market.connect(userB).update(userB.address, POSITION, 0, 0, COLLATERAL, false)
             })
 
-            it.only('opens the position', async () => {
+            it('opens the position', async () => {
               await expect(market.connect(user).update(user.address, 0, POSITION, 0, COLLATERAL, false))
                 .to.emit(market, 'Updated')
                 .withArgs(user.address, user.address, ORACLE_VERSION_2.timestamp, 0, POSITION, 0, COLLATERAL, false)
@@ -1928,6 +1932,7 @@ describe('Market', () => {
                   {
                     ...DEFAULT_ORDER,
                     timestamp: ORACLE_VERSION_2.timestamp,
+                    collateral: COLLATERAL,
                     orders: 1,
                     longPos: POSITION,
                   },
@@ -1947,6 +1952,7 @@ describe('Market', () => {
                 ...DEFAULT_ORDER,
                 timestamp: ORACLE_VERSION_2.timestamp,
                 orders: 1,
+                collateral: COLLATERAL,
                 longPos: POSITION,
               })
               expectCheckpointEq(await market.checkpoints(user.address, 1), {
@@ -1968,6 +1974,7 @@ describe('Market', () => {
               expectOrderEq(await market.pendingOrder(1), {
                 ...DEFAULT_ORDER,
                 timestamp: ORACLE_VERSION_2.timestamp,
+                collateral: COLLATERAL.mul(2),
                 orders: 2,
                 makerPos: POSITION,
                 longPos: POSITION,
@@ -2030,7 +2037,7 @@ describe('Market', () => {
               })
             })
 
-            it.only('opens a second position (same version)', async () => {
+            it('opens a second position (same version)', async () => {
               await market.connect(user).update(user.address, 0, POSITION.div(2), 0, COLLATERAL, false)
 
               await expect(market.connect(user).update(user.address, 0, POSITION, 0, 0, false))
@@ -2050,6 +2057,7 @@ describe('Market', () => {
                 ...DEFAULT_ORDER,
                 timestamp: ORACLE_VERSION_2.timestamp,
                 orders: 2,
+                collateral: COLLATERAL,
                 longPos: POSITION,
               })
               expectCheckpointEq(await market.checkpoints(user.address, 1), {
@@ -2072,6 +2080,7 @@ describe('Market', () => {
                 ...DEFAULT_ORDER,
                 timestamp: ORACLE_VERSION_2.timestamp,
                 orders: 3,
+                collateral: COLLATERAL.mul(2),
                 makerPos: POSITION,
                 longPos: POSITION,
               })
@@ -4019,7 +4028,7 @@ describe('Market', () => {
               })
             })
 
-            it.only('with shortfall', async () => {
+            it('with shortfall', async () => {
               oracle.at.whenCalledWith(ORACLE_VERSION_2.timestamp).returns(ORACLE_VERSION_2)
               oracle.status.returns([ORACLE_VERSION_2, ORACLE_VERSION_3.timestamp])
               oracle.request.whenCalledWith(user.address).returns()
@@ -4190,6 +4199,7 @@ describe('Market', () => {
               expectOrderEq(await market.pendingOrders(userB.address, 4), {
                 ...DEFAULT_ORDER,
                 timestamp: ORACLE_VERSION_5.timestamp,
+                collateral: shortfall.mul(-1),
               })
               expectCheckpointEq(await market.checkpoints(userB.address, 4), {
                 ...DEFAULT_CHECKPOINT,
@@ -4375,7 +4385,7 @@ describe('Market', () => {
               })
             })
 
-            it.only('with shortfall', async () => {
+            it('with shortfall', async () => {
               const riskParameter = { ...(await market.riskParameter()) }
               riskParameter.minMaintenance = parse6decimal('50')
               await market.connect(owner).updateRiskParameter(riskParameter)
@@ -4546,6 +4556,7 @@ describe('Market', () => {
               expectOrderEq(await market.pendingOrders(user.address, 4), {
                 ...DEFAULT_ORDER,
                 timestamp: ORACLE_VERSION_5.timestamp,
+                collateral: shortfall.mul(-1),
               })
               expectCheckpointEq(await market.checkpoints(user.address, 4), {
                 ...DEFAULT_CHECKPOINT,
@@ -4671,7 +4682,7 @@ describe('Market', () => {
               await market.connect(userB).update(userB.address, POSITION, 0, 0, COLLATERAL, false)
             })
 
-            it.only('opens the position', async () => {
+            it('opens the position', async () => {
               await expect(market.connect(user).update(user.address, 0, 0, POSITION, COLLATERAL, false))
                 .to.emit(market, 'Updated')
                 .withArgs(user.address, user.address, ORACLE_VERSION_2.timestamp, 0, 0, POSITION, COLLATERAL, false)
@@ -4682,6 +4693,7 @@ describe('Market', () => {
                   {
                     ...DEFAULT_ORDER,
                     timestamp: ORACLE_VERSION_2.timestamp,
+                    collateral: COLLATERAL,
                     orders: 1,
                     shortPos: POSITION,
                   },
@@ -4702,6 +4714,7 @@ describe('Market', () => {
                 ...DEFAULT_ORDER,
                 timestamp: ORACLE_VERSION_2.timestamp,
                 orders: 1,
+                collateral: COLLATERAL,
                 shortPos: POSITION,
               })
               expectCheckpointEq(await market.checkpoints(user.address, 1), {
@@ -4723,6 +4736,7 @@ describe('Market', () => {
               expectOrderEq(await market.pendingOrder(1), {
                 ...DEFAULT_ORDER,
                 timestamp: ORACLE_VERSION_2.timestamp,
+                collateral: COLLATERAL.mul(2),
                 orders: 2,
                 makerPos: POSITION,
                 shortPos: POSITION,
@@ -4785,7 +4799,7 @@ describe('Market', () => {
               })
             })
 
-            it.only('opens a second position (same version)', async () => {
+            it('opens a second position (same version)', async () => {
               await market.connect(user).update(user.address, 0, 0, POSITION.div(2), COLLATERAL, false)
 
               await expect(market.connect(user).update(user.address, 0, 0, POSITION, 0, false))
@@ -4806,6 +4820,7 @@ describe('Market', () => {
                 ...DEFAULT_ORDER,
                 timestamp: ORACLE_VERSION_2.timestamp,
                 orders: 2,
+                collateral: COLLATERAL,
                 shortPos: POSITION,
               })
               expectCheckpointEq(await market.checkpoints(user.address, 1), {
@@ -4828,6 +4843,7 @@ describe('Market', () => {
                 ...DEFAULT_ORDER,
                 timestamp: ORACLE_VERSION_2.timestamp,
                 orders: 3,
+                collateral: COLLATERAL.mul(2),
                 makerPos: POSITION,
                 shortPos: POSITION,
               })
@@ -6794,7 +6810,7 @@ describe('Market', () => {
               })
             })
 
-            it.only('with shortfall', async () => {
+            it('with shortfall', async () => {
               oracle.at.whenCalledWith(ORACLE_VERSION_2.timestamp).returns(ORACLE_VERSION_2)
               oracle.status.returns([ORACLE_VERSION_2, ORACLE_VERSION_3.timestamp])
               oracle.request.whenCalledWith(user.address).returns()
@@ -6957,6 +6973,7 @@ describe('Market', () => {
               expectOrderEq(await market.pendingOrders(userB.address, 4), {
                 ...DEFAULT_ORDER,
                 timestamp: ORACLE_VERSION_5.timestamp,
+                collateral: shortfall.mul(-1),
               })
               expectCheckpointEq(await market.checkpoints(userB.address, 4), {
                 ...DEFAULT_CHECKPOINT,
@@ -7148,7 +7165,7 @@ describe('Market', () => {
               })
             })
 
-            it.only('with shortfall', async () => {
+            it('with shortfall', async () => {
               const riskParameter = { ...(await market.riskParameter()) }
               riskParameter.minMaintenance = parse6decimal('50')
               await market.connect(owner).updateRiskParameter(riskParameter)
@@ -7321,6 +7338,7 @@ describe('Market', () => {
               expectOrderEq(await market.pendingOrders(user.address, 4), {
                 ...DEFAULT_ORDER,
                 timestamp: ORACLE_VERSION_5.timestamp,
+                collateral: shortfall.mul(-1),
               })
               expectCheckpointEq(await market.checkpoints(user.address, 4), {
                 ...DEFAULT_CHECKPOINT,
@@ -7556,7 +7574,7 @@ describe('Market', () => {
               await market.connect(userC).update(userC.address, 0, 0, POSITION, COLLATERAL, false)
             })
 
-            it.only('opens the position', async () => {
+            it('opens the position', async () => {
               await expect(market.connect(user).update(user.address, 0, POSITION, 0, COLLATERAL, false))
                 .to.emit(market, 'Updated')
                 .withArgs(user.address, user.address, ORACLE_VERSION_2.timestamp, 0, POSITION, 0, COLLATERAL, false)
@@ -7575,6 +7593,7 @@ describe('Market', () => {
                 ...DEFAULT_ORDER,
                 timestamp: ORACLE_VERSION_2.timestamp,
                 orders: 1,
+                collateral: COLLATERAL,
                 longPos: POSITION,
               })
               expectCheckpointEq(await market.checkpoints(user.address, 1), {
@@ -7597,6 +7616,7 @@ describe('Market', () => {
                 ...DEFAULT_ORDER,
                 timestamp: ORACLE_VERSION_2.timestamp,
                 orders: 3,
+                collateral: COLLATERAL.mul(3),
                 makerPos: POSITION,
                 longPos: POSITION,
                 shortPos: POSITION,
@@ -7660,7 +7680,7 @@ describe('Market', () => {
               })
             })
 
-            it.only('opens a second position (same version)', async () => {
+            it('opens a second position (same version)', async () => {
               await market.connect(user).update(user.address, 0, POSITION.div(2), 0, COLLATERAL, false)
 
               await expect(market.connect(user).update(user.address, 0, POSITION, 0, 0, false))
@@ -7681,6 +7701,7 @@ describe('Market', () => {
                 ...DEFAULT_ORDER,
                 timestamp: ORACLE_VERSION_2.timestamp,
                 orders: 2,
+                collateral: COLLATERAL,
                 longPos: POSITION,
               })
               expectCheckpointEq(await market.checkpoints(user.address, 1), {
@@ -7703,6 +7724,7 @@ describe('Market', () => {
                 ...DEFAULT_ORDER,
                 timestamp: ORACLE_VERSION_2.timestamp,
                 orders: 4,
+                collateral: COLLATERAL.mul(3),
                 makerPos: POSITION,
                 longPos: POSITION,
                 shortPos: POSITION,
@@ -8271,7 +8293,7 @@ describe('Market', () => {
               })
             })
 
-            it.only('opens the position and deposits later from different account', async () => {
+            it('opens the position and deposits later from different account', async () => {
               await expect(market.connect(user).update(user.address, 0, POSITION.div(2), 0, COLLATERAL, false))
                 .to.emit(market, 'Updated')
                 .withArgs(
@@ -8311,6 +8333,7 @@ describe('Market', () => {
               expectOrderEq(await market.pendingOrders(user.address, 2), {
                 ...DEFAULT_ORDER,
                 timestamp: ORACLE_VERSION_4.timestamp,
+                collateral: COLLATERAL,
               })
               expectCheckpointEq(await market.checkpoints(user.address, 2), {
                 ...DEFAULT_CHECKPOINT,
@@ -8333,6 +8356,7 @@ describe('Market', () => {
               expectOrderEq(await market.pendingOrders(userB.address, 2), {
                 ...DEFAULT_ORDER,
                 timestamp: ORACLE_VERSION_4.timestamp,
+                collateral: COLLATERAL,
               })
               expectCheckpointEq(await market.checkpoints(userB.address, 2), {
                 ...DEFAULT_CHECKPOINT,
@@ -8357,6 +8381,7 @@ describe('Market', () => {
               expectOrderEq(await market.pendingOrder(2), {
                 ...DEFAULT_ORDER,
                 timestamp: ORACLE_VERSION_4.timestamp,
+                collateral: COLLATERAL.mul(2),
               })
               expectVersionEq(await market.versions(ORACLE_VERSION_3.timestamp), {
                 ...DEFAULT_VERSION,
@@ -8489,7 +8514,7 @@ describe('Market', () => {
               })
             })
 
-            it.only('opens the position and deposits later from different account while stale', async () => {
+            it('opens the position and deposits later from different account while stale', async () => {
               await expect(market.connect(user).update(user.address, 0, POSITION.div(2), 0, COLLATERAL, false))
                 .to.emit(market, 'Updated')
                 .withArgs(
@@ -8529,6 +8554,7 @@ describe('Market', () => {
               expectOrderEq(await market.pendingOrders(user.address, 2), {
                 ...DEFAULT_ORDER,
                 timestamp: ORACLE_VERSION_6.timestamp,
+                collateral: COLLATERAL,
               })
               expectCheckpointEq(await market.checkpoints(user.address, 2), {
                 ...DEFAULT_CHECKPOINT,
@@ -8551,6 +8577,7 @@ describe('Market', () => {
               expectOrderEq(await market.pendingOrders(userB.address, 2), {
                 ...DEFAULT_ORDER,
                 timestamp: ORACLE_VERSION_6.timestamp,
+                collateral: COLLATERAL,
               })
               expectCheckpointEq(await market.checkpoints(userB.address, 2), {
                 ...DEFAULT_CHECKPOINT,
@@ -8575,6 +8602,7 @@ describe('Market', () => {
               expectOrderEq(await market.pendingOrder(2), {
                 ...DEFAULT_ORDER,
                 timestamp: ORACLE_VERSION_6.timestamp,
+                collateral: COLLATERAL.mul(2),
               })
               expectVersionEq(await market.versions(ORACLE_VERSION_3.timestamp), {
                 ...DEFAULT_VERSION,
@@ -10164,7 +10192,7 @@ describe('Market', () => {
               })
             })
 
-            it.only('with shortfall', async () => {
+            it('with shortfall', async () => {
               oracle.at.whenCalledWith(ORACLE_VERSION_2.timestamp).returns(ORACLE_VERSION_2)
               oracle.status.returns([ORACLE_VERSION_2, ORACLE_VERSION_3.timestamp])
               oracle.request.returns()
@@ -10344,6 +10372,7 @@ describe('Market', () => {
               expectOrderEq(await market.pendingOrders(userB.address, 4), {
                 ...DEFAULT_ORDER,
                 timestamp: ORACLE_VERSION_5.timestamp,
+                collateral: shortfall.mul(-1),
               })
               expectCheckpointEq(await market.checkpoints(userB.address, 4), {
                 ...DEFAULT_CHECKPOINT,
@@ -10591,7 +10620,7 @@ describe('Market', () => {
               })
             })
 
-            it.only('with shortfall', async () => {
+            it('with shortfall', async () => {
               const riskParameter = { ...(await market.riskParameter()) }
               riskParameter.minMaintenance = parse6decimal('50')
               await market.connect(owner).updateRiskParameter(riskParameter)
@@ -10789,6 +10818,7 @@ describe('Market', () => {
               expectOrderEq(await market.pendingOrders(user.address, 4), {
                 ...DEFAULT_ORDER,
                 timestamp: ORACLE_VERSION_5.timestamp,
+                collateral: shortfall.mul(-1),
               })
               expectCheckpointEq(await market.checkpoints(user.address, 4), {
                 ...DEFAULT_CHECKPOINT,
@@ -12020,7 +12050,7 @@ describe('Market', () => {
         })
       })
 
-      context.only('invalid oracle version', async () => {
+      context('invalid oracle version', async () => {
         beforeEach(async () => {
           dsu.transferFrom.whenCalledWith(user.address, market.address, COLLATERAL.mul(1e12)).returns(true)
           dsu.transferFrom.whenCalledWith(userB.address, market.address, COLLATERAL.mul(1e12)).returns(true)
@@ -12074,6 +12104,7 @@ describe('Market', () => {
             ...DEFAULT_ORDER,
             timestamp: ORACLE_VERSION_3.timestamp,
             orders: 1,
+            collateral: COLLATERAL,
             longPos: POSITION.div(2),
           })
           expectCheckpointEq(await market.checkpoints(user.address, 1), {
@@ -12104,6 +12135,7 @@ describe('Market', () => {
             ...DEFAULT_ORDER,
             timestamp: ORACLE_VERSION_2.timestamp,
             orders: 1,
+            collateral: COLLATERAL,
             makerPos: POSITION,
           })
           expectCheckpointEq(await market.checkpoints(userB.address, 1), {
@@ -12135,6 +12167,7 @@ describe('Market', () => {
             ...DEFAULT_ORDER,
             timestamp: ORACLE_VERSION_3.timestamp,
             orders: 1,
+            collateral: COLLATERAL,
             longPos: POSITION.div(2),
           })
           expectOrderEq(await market.pendingOrder(3), {
@@ -12210,6 +12243,7 @@ describe('Market', () => {
             ...DEFAULT_ORDER,
             timestamp: ORACLE_VERSION_3.timestamp,
             orders: 1,
+            collateral: COLLATERAL,
             longPos: POSITION.div(2),
           })
           expectCheckpointEq(await market.checkpoints(user.address, 1), {
@@ -12253,6 +12287,7 @@ describe('Market', () => {
             ...DEFAULT_ORDER,
             timestamp: ORACLE_VERSION_2.timestamp,
             orders: 1,
+            collateral: COLLATERAL,
             makerPos: POSITION,
           })
           expectCheckpointEq(await market.checkpoints(userB.address, 1), {
@@ -12285,6 +12320,7 @@ describe('Market', () => {
             ...DEFAULT_ORDER,
             timestamp: ORACLE_VERSION_3.timestamp,
             orders: 1,
+            collateral: COLLATERAL,
             longPos: POSITION.div(2),
           })
           expectOrderEq(await market.pendingOrder(3), {
@@ -12370,6 +12406,7 @@ describe('Market', () => {
             ...DEFAULT_ORDER,
             timestamp: ORACLE_VERSION_3.timestamp,
             orders: 1,
+            collateral: COLLATERAL,
             longPos: POSITION.div(2),
           })
           expectCheckpointEq(await market.checkpoints(user.address, 1), {
@@ -12412,6 +12449,7 @@ describe('Market', () => {
             ...DEFAULT_ORDER,
             timestamp: ORACLE_VERSION_2.timestamp,
             orders: 1,
+            collateral: COLLATERAL,
             makerPos: POSITION,
           })
           expectCheckpointEq(await market.checkpoints(userB.address, 1), {
@@ -12443,6 +12481,7 @@ describe('Market', () => {
             ...DEFAULT_ORDER,
             timestamp: ORACLE_VERSION_3.timestamp,
             orders: 1,
+            collateral: COLLATERAL,
             longPos: POSITION.div(2),
           })
           expectOrderEq(await market.pendingOrder(3), {
@@ -12528,6 +12567,7 @@ describe('Market', () => {
             ...DEFAULT_ORDER,
             timestamp: ORACLE_VERSION_3.timestamp,
             orders: 1,
+            collateral: COLLATERAL,
             longPos: POSITION.div(2),
           })
           expectCheckpointEq(await market.checkpoints(user.address, 1), {
@@ -12567,6 +12607,7 @@ describe('Market', () => {
             ...DEFAULT_ORDER,
             timestamp: ORACLE_VERSION_2.timestamp,
             orders: 1,
+            collateral: COLLATERAL,
             makerPos: POSITION,
           })
           expectCheckpointEq(await market.checkpoints(userB.address, 1), {
@@ -12598,6 +12639,7 @@ describe('Market', () => {
             ...DEFAULT_ORDER,
             timestamp: ORACLE_VERSION_3.timestamp,
             orders: 1,
+            collateral: COLLATERAL,
             longPos: POSITION.div(2),
           })
           expectOrderEq(await market.pendingOrder(3), {
@@ -12689,6 +12731,7 @@ describe('Market', () => {
             ...DEFAULT_ORDER,
             timestamp: ORACLE_VERSION_3.timestamp,
             orders: 1,
+            collateral: COLLATERAL,
             longPos: POSITION.div(2),
           })
           expectCheckpointEq(await market.checkpoints(user.address, 1), {
@@ -12741,6 +12784,7 @@ describe('Market', () => {
             ...DEFAULT_ORDER,
             timestamp: ORACLE_VERSION_2.timestamp,
             orders: 1,
+            collateral: COLLATERAL,
             makerPos: POSITION,
           })
           expectCheckpointEq(await market.checkpoints(userB.address, 1), {
@@ -12773,6 +12817,7 @@ describe('Market', () => {
             ...DEFAULT_ORDER,
             timestamp: ORACLE_VERSION_3.timestamp,
             orders: 1,
+            collateral: COLLATERAL,
             longPos: POSITION.div(2),
           })
           expectOrderEq(await market.pendingOrder(3), {
@@ -13142,7 +13187,7 @@ describe('Market', () => {
         })
       })
 
-      context.only('operator', async () => {
+      context('operator', async () => {
         beforeEach(async () => {
           dsu.transferFrom.whenCalledWith(operator.address, market.address, COLLATERAL.mul(1e12)).returns(true)
         })
@@ -13167,6 +13212,7 @@ describe('Market', () => {
             ...DEFAULT_ORDER,
             timestamp: ORACLE_VERSION_2.timestamp,
             orders: 1,
+            collateral: COLLATERAL,
             makerPos: POSITION,
           })
           expectCheckpointEq(await market.checkpoints(user.address, 1), {
@@ -13189,6 +13235,7 @@ describe('Market', () => {
             ...DEFAULT_ORDER,
             timestamp: ORACLE_VERSION_2.timestamp,
             orders: 1,
+            collateral: COLLATERAL,
             makerPos: POSITION,
           })
           expectVersionEq(await market.versions(ORACLE_VERSION_1.timestamp), {
@@ -13204,7 +13251,7 @@ describe('Market', () => {
         })
       })
 
-      context.only('magic values', async () => {
+      context('magic values', async () => {
         beforeEach(async () => {
           dsu.transferFrom.whenCalledWith(user.address, market.address, COLLATERAL.mul(1e12)).returns(true)
           dsu.transferFrom.whenCalledWith(userB.address, market.address, COLLATERAL.mul(1e12)).returns(true)
@@ -13285,6 +13332,7 @@ describe('Market', () => {
             ...DEFAULT_ORDER,
             timestamp: ORACLE_VERSION_2.timestamp,
             orders: 1,
+            collateral: COLLATERAL,
             longPos: POSITION.div(2),
           })
           expectCheckpointEq(await market.checkpoints(user.address, 1), {
@@ -13295,6 +13343,7 @@ describe('Market', () => {
             ...DEFAULT_ORDER,
             timestamp: ORACLE_VERSION_2.timestamp,
             orders: 1,
+            collateral: COLLATERAL,
             makerPos: POSITION,
           })
           expectCheckpointEq(await market.checkpoints(userB.address, 1), {
@@ -13305,6 +13354,7 @@ describe('Market', () => {
             ...DEFAULT_ORDER,
             timestamp: ORACLE_VERSION_2.timestamp,
             orders: 1,
+            collateral: COLLATERAL,
             shortPos: POSITION.div(2),
           })
           expectCheckpointEq(await market.checkpoints(userC.address, 1), {
@@ -13320,6 +13370,7 @@ describe('Market', () => {
             ...DEFAULT_ORDER,
             timestamp: ORACLE_VERSION_2.timestamp,
             orders: 1,
+            collateral: COLLATERAL,
             longPos: POSITION.div(2),
           })
           expectCheckpointEq(await market.checkpoints(user.address, 1), {
@@ -13330,6 +13381,7 @@ describe('Market', () => {
             ...DEFAULT_ORDER,
             timestamp: ORACLE_VERSION_2.timestamp,
             orders: 1,
+            collateral: COLLATERAL,
             makerPos: POSITION,
           })
           expectCheckpointEq(await market.checkpoints(userB.address, 1), {
@@ -13340,6 +13392,7 @@ describe('Market', () => {
             ...DEFAULT_ORDER,
             timestamp: ORACLE_VERSION_2.timestamp,
             orders: 1,
+            collateral: COLLATERAL,
             shortPos: POSITION.div(2),
           })
           expectCheckpointEq(await market.checkpoints(userC.address, 1), {
@@ -13382,6 +13435,7 @@ describe('Market', () => {
             ...DEFAULT_ORDER,
             timestamp: ORACLE_VERSION_2.timestamp,
             orders: 1,
+            collateral: COLLATERAL,
             longPos: POSITION.div(2),
           })
           expectCheckpointEq(await market.checkpoints(user.address, 1), {
@@ -13392,6 +13446,7 @@ describe('Market', () => {
             ...DEFAULT_ORDER,
             timestamp: ORACLE_VERSION_2.timestamp,
             orders: 1,
+            collateral: COLLATERAL,
             makerPos: POSITION,
           })
           expectCheckpointEq(await market.checkpoints(userB.address, 1), {
@@ -13402,6 +13457,7 @@ describe('Market', () => {
             ...DEFAULT_ORDER,
             timestamp: ORACLE_VERSION_2.timestamp,
             orders: 1,
+            collateral: COLLATERAL,
             shortPos: POSITION.div(2),
           })
           expectCheckpointEq(await market.checkpoints(userC.address, 1), {
@@ -13419,6 +13475,7 @@ describe('Market', () => {
             ...DEFAULT_ORDER,
             timestamp: ORACLE_VERSION_2.timestamp,
             orders: 1,
+            collateral: COLLATERAL,
             longPos: POSITION.div(2),
           })
           expectCheckpointEq(await market.checkpoints(user.address, 1), {
@@ -13429,6 +13486,7 @@ describe('Market', () => {
             ...DEFAULT_ORDER,
             timestamp: ORACLE_VERSION_2.timestamp,
             orders: 1,
+            collateral: COLLATERAL,
             makerPos: POSITION,
           })
           expectCheckpointEq(await market.checkpoints(userB.address, 1), {
@@ -13439,6 +13497,7 @@ describe('Market', () => {
             ...DEFAULT_ORDER,
             timestamp: ORACLE_VERSION_2.timestamp,
             orders: 1,
+            collateral: COLLATERAL,
             shortPos: POSITION.div(2),
           })
           expectCheckpointEq(await market.checkpoints(userC.address, 1), {
@@ -13454,6 +13513,7 @@ describe('Market', () => {
             ...DEFAULT_ORDER,
             timestamp: ORACLE_VERSION_2.timestamp,
             orders: 1,
+            collateral: COLLATERAL,
             longPos: POSITION.div(2),
           })
           expectCheckpointEq(await market.checkpoints(user.address, 1), {
@@ -13464,6 +13524,7 @@ describe('Market', () => {
             ...DEFAULT_ORDER,
             timestamp: ORACLE_VERSION_2.timestamp,
             orders: 1,
+            collateral: COLLATERAL,
             makerPos: POSITION,
           })
           expectCheckpointEq(await market.checkpoints(userB.address, 1), {
@@ -13474,6 +13535,7 @@ describe('Market', () => {
             ...DEFAULT_ORDER,
             timestamp: ORACLE_VERSION_2.timestamp,
             orders: 1,
+            collateral: COLLATERAL,
             shortPos: POSITION.div(2),
           })
           expectCheckpointEq(await market.checkpoints(userC.address, 1), {
@@ -13489,6 +13551,7 @@ describe('Market', () => {
             ...DEFAULT_ORDER,
             timestamp: ORACLE_VERSION_2.timestamp,
             orders: 1,
+            collateral: COLLATERAL,
             longPos: POSITION.div(2),
           })
           expectCheckpointEq(await market.checkpoints(user.address, 1), {
@@ -13499,6 +13562,7 @@ describe('Market', () => {
             ...DEFAULT_ORDER,
             timestamp: ORACLE_VERSION_2.timestamp,
             orders: 1,
+            collateral: COLLATERAL,
             makerPos: POSITION,
           })
           expectCheckpointEq(await market.checkpoints(userB.address, 1), {
@@ -13509,6 +13573,7 @@ describe('Market', () => {
             ...DEFAULT_ORDER,
             timestamp: ORACLE_VERSION_2.timestamp,
             orders: 1,
+            collateral: COLLATERAL,
             shortPos: POSITION.div(2),
           })
           expectCheckpointEq(await market.checkpoints(userC.address, 1), {
@@ -13551,6 +13616,7 @@ describe('Market', () => {
             ...DEFAULT_ORDER,
             timestamp: ORACLE_VERSION_2.timestamp,
             orders: 1,
+            collateral: COLLATERAL,
             longPos: POSITION.div(2),
           })
           expectCheckpointEq(await market.checkpoints(user.address, 1), {
@@ -13561,6 +13627,7 @@ describe('Market', () => {
             ...DEFAULT_ORDER,
             timestamp: ORACLE_VERSION_2.timestamp,
             orders: 1,
+            collateral: COLLATERAL,
             makerPos: POSITION,
           })
           expectCheckpointEq(await market.checkpoints(userB.address, 1), {
@@ -13571,6 +13638,7 @@ describe('Market', () => {
             ...DEFAULT_ORDER,
             timestamp: ORACLE_VERSION_2.timestamp,
             orders: 1,
+            collateral: COLLATERAL,
             shortPos: POSITION.div(2),
           })
           expectCheckpointEq(await market.checkpoints(userC.address, 1), {
@@ -13588,6 +13656,7 @@ describe('Market', () => {
             ...DEFAULT_ORDER,
             timestamp: ORACLE_VERSION_2.timestamp,
             orders: 1,
+            collateral: COLLATERAL,
             longPos: POSITION.div(2),
           })
           expectCheckpointEq(await market.checkpoints(user.address, 1), {
@@ -13598,6 +13667,7 @@ describe('Market', () => {
             ...DEFAULT_ORDER,
             timestamp: ORACLE_VERSION_2.timestamp,
             orders: 1,
+            collateral: COLLATERAL,
             makerPos: POSITION,
           })
           expectCheckpointEq(await market.checkpoints(userB.address, 1), {
@@ -13608,6 +13678,7 @@ describe('Market', () => {
             ...DEFAULT_ORDER,
             timestamp: ORACLE_VERSION_2.timestamp,
             orders: 1,
+            collateral: COLLATERAL,
             shortPos: POSITION.div(2),
           })
           expectCheckpointEq(await market.checkpoints(userC.address, 1), {
@@ -13773,6 +13844,7 @@ describe('Market', () => {
             ...DEFAULT_ORDER,
             timestamp: ORACLE_VERSION_2.timestamp,
             orders: 1,
+            collateral: COLLATERAL,
             longPos: POSITION.div(2),
           })
           expectCheckpointEq(await market.checkpoints(user.address, 1), {
@@ -13783,6 +13855,7 @@ describe('Market', () => {
             ...DEFAULT_ORDER,
             timestamp: ORACLE_VERSION_2.timestamp,
             orders: 1,
+            collateral: COLLATERAL,
             makerPos: POSITION,
           })
           expectCheckpointEq(await market.checkpoints(userB.address, 1), {
@@ -13793,6 +13866,7 @@ describe('Market', () => {
             ...DEFAULT_ORDER,
             timestamp: ORACLE_VERSION_2.timestamp,
             orders: 1,
+            collateral: COLLATERAL,
             shortPos: POSITION.div(2),
           })
           expectCheckpointEq(await market.checkpoints(userC.address, 1), {

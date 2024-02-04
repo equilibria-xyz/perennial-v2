@@ -357,7 +357,7 @@ library OrderStorageLocalLib {
     function read(OrderStorageLocal storage self) internal view returns (Order memory) {
         uint256 slot0 = self.slot0;
 
-        uint256 direction = uint256(slot0 << (256 - 32 - 32 - 64- 2)) >> (256 - 2);
+        uint256 direction = uint256(slot0 << (256 - 32 - 32 - 64 - 2)) >> (256 - 2);
         UFixed6 magnitudePos = UFixed6.wrap(uint256(slot0 << (256 - 32 - 32 - 64 - 2 - 63)) >> (256 - 63));
         UFixed6 magnitudeNeg = UFixed6.wrap(uint256(slot0 << (256 - 32 - 32 - 64 - 2 - 63 - 63)) >> (256 - 63));
 
