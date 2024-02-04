@@ -256,7 +256,6 @@ contract Market is IMarket, Instance, ReentrancyGuard {
 
         // advance to next id if applicable
         if (context.currentTimestamp > context.order.local.timestamp) {
-            context.currentCheckpoint.next();
             context.order.local.next(context.currentTimestamp);
             context.local.currentId++;
         }
@@ -347,7 +346,6 @@ contract Market is IMarket, Instance, ReentrancyGuard {
 
         // update collateral
         context.local.update(collateral);
-        context.currentCheckpoint.updateDelta(collateral);
 
         // protect account
         bool protected = context.local.protect(
@@ -370,7 +368,6 @@ contract Market is IMarket, Instance, ReentrancyGuard {
         _pendingOrders[account][context.local.currentId].store(context.order.local);
         _pending.store(context.pending.global);
         _pendings[account].store(context.pending.local);
-        _checkpoints[account][context.local.currentId].store(context.currentCheckpoint);
 
         // fund
         if (collateral.sign() == 1) token.pull(msg.sender, UFixed18Lib.from(collateral.abs()));
@@ -393,7 +390,6 @@ contract Market is IMarket, Instance, ReentrancyGuard {
         // state
         context.global = _global.read();
         context.local = _locals[account].read();
-        context.currentCheckpoint = _checkpoints[account][context.local.currentId].read();
 
         // oracle
         (context.latestVersion, context.currentTimestamp) = oracle.status();
@@ -508,7 +504,7 @@ contract Market is IMarket, Instance, ReentrancyGuard {
     ) private {
         LocalAccumulationResult memory accumulationResult;
         Version memory version = _versions[newOrder.timestamp].read();
-        Checkpoint memory checkpoint = _checkpoints[account][newOrderId].read();
+        Checkpoint memory checkpoint = _checkpoints[account][context.local.latestId].read(); // TODO: load from context instead
 
         (uint256 fromTimestamp, uint256 fromId) = (context.latestPosition.local.timestamp, context.local.latestId);
         accumulationResult.collateralAmount = context.local.accumulatePnl(
@@ -517,14 +513,11 @@ contract Market is IMarket, Instance, ReentrancyGuard {
             _versions[context.latestPosition.local.timestamp].read(),
             version
         );
-        if (shouldCheckpoint) checkpoint.updateCollateral(
-            _checkpoints[account][context.local.latestId - 1].read(),
-            context.currentCheckpoint,
-            context.local.collateral
-        );
-        (accumulationResult.positionFee, accumulationResult.keeper) =
+        (accumulationResult.positionFee, accumulationResult.keeper) = // TODO: combine these
             context.local.accumulateFees(newOrder, version);
-        if (shouldCheckpoint) checkpoint.updateFees(
+        if (checkpoint) checkpoint.update(
+            newOrder,
+            accumulationResult.collateralAmount,
             accumulationResult.positionFee,
             accumulationResult.keeper
         );

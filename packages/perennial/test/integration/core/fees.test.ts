@@ -121,7 +121,6 @@ describe('Fees', () => {
       })
       expectCheckpointEq(await market.checkpoints(user.address, 2), {
         ...DEFAULT_CHECKPOINT,
-        delta: COLLATERAL,
       })
       expectPositionEq(await market.positions(user.address), {
         ...DEFAULT_POSITION,
@@ -202,7 +201,6 @@ describe('Fees', () => {
       })
       expectCheckpointEq(await market.checkpoints(user.address, 3), {
         ...DEFAULT_CHECKPOINT,
-        delta: COLLATERAL,
       })
       expectPositionEq(await market.positions(user.address), {
         ...DEFAULT_POSITION,
@@ -303,7 +301,6 @@ describe('Fees', () => {
       })
       expectCheckpointEq(await market.checkpoints(userB.address, 2), {
         ...DEFAULT_CHECKPOINT,
-        delta: COLLATERAL,
       })
       expectPositionEq(await market.positions(userB.address), {
         ...DEFAULT_POSITION,
@@ -388,7 +385,6 @@ describe('Fees', () => {
       })
       expectCheckpointEq(await market.checkpoints(userB.address, 2), {
         ...DEFAULT_CHECKPOINT,
-        delta: COLLATERAL,
       })
       expectPositionEq(await market.positions(userB.address), {
         ...DEFAULT_POSITION,
@@ -418,7 +414,6 @@ describe('Fees', () => {
       })
       expectCheckpointEq(await market.checkpoints(user.address, 3), {
         ...DEFAULT_CHECKPOINT,
-        delta: COLLATERAL,
       })
       expectPositionEq(await market.positions(user.address), {
         ...DEFAULT_POSITION,
@@ -532,7 +527,6 @@ describe('Fees', () => {
       })
       expectCheckpointEq(await market.checkpoints(userB.address, 3), {
         ...DEFAULT_CHECKPOINT,
-        delta: COLLATERAL,
       })
       expectPositionEq(await market.positions(userB.address), {
         ...DEFAULT_POSITION,
@@ -561,7 +555,6 @@ describe('Fees', () => {
       })
       expectCheckpointEq(await market.checkpoints(user.address, 3), {
         ...DEFAULT_CHECKPOINT,
-        delta: COLLATERAL,
       })
       expectPositionEq(await market.positions(user.address), {
         ...DEFAULT_POSITION,
@@ -641,7 +634,6 @@ describe('Fees', () => {
       })
       expectCheckpointEq(await market.checkpoints(userB.address, 2), {
         ...DEFAULT_CHECKPOINT,
-        delta: COLLATERAL,
       })
       expectPositionEq(await market.positions(userB.address), {
         ...DEFAULT_POSITION,
@@ -725,7 +717,6 @@ describe('Fees', () => {
       })
       expectCheckpointEq(await market.checkpoints(userB.address, 2), {
         ...DEFAULT_CHECKPOINT,
-        delta: COLLATERAL,
       })
       expectPositionEq(await market.positions(userB.address), {
         ...DEFAULT_POSITION,
@@ -755,7 +746,6 @@ describe('Fees', () => {
       })
       expectCheckpointEq(await market.checkpoints(user.address, 3), {
         ...DEFAULT_CHECKPOINT,
-        delta: COLLATERAL,
       })
       expectPositionEq(await market.positions(user.address), {
         ...DEFAULT_POSITION,
@@ -869,7 +859,6 @@ describe('Fees', () => {
       })
       expectCheckpointEq(await market.checkpoints(userB.address, 3), {
         ...DEFAULT_CHECKPOINT,
-        delta: COLLATERAL,
       })
       expectPositionEq(await market.positions(userB.address), {
         ...DEFAULT_POSITION,
@@ -898,7 +887,6 @@ describe('Fees', () => {
       })
       expectCheckpointEq(await market.checkpoints(user.address, 3), {
         ...DEFAULT_CHECKPOINT,
-        delta: COLLATERAL,
       })
       expectPositionEq(await market.positions(user.address), {
         ...DEFAULT_POSITION,

@@ -145,7 +145,6 @@ describe('Happy Path', () => {
     })
     expectCheckpointEq(await market.checkpoints(user.address, 1), {
       ...DEFAULT_CHECKPOINT,
-      delta: COLLATERAL,
     })
     expectPositionEq(await market.positions(user.address), {
       ...DEFAULT_POSITION,
@@ -194,7 +193,6 @@ describe('Happy Path', () => {
     })
     expectCheckpointEq(await market.checkpoints(user.address, 2), {
       ...DEFAULT_CHECKPOINT,
-      delta: COLLATERAL,
     })
     expectPositionEq(await market.positions(user.address), {
       ...DEFAULT_POSITION,
@@ -252,7 +250,6 @@ describe('Happy Path', () => {
     })
     expectCheckpointEq(await market.checkpoints(user.address, 1), {
       ...DEFAULT_CHECKPOINT,
-      delta: COLLATERAL,
     })
     expectPositionEq(await market.positions(user.address), {
       ...DEFAULT_POSITION,
@@ -301,7 +298,6 @@ describe('Happy Path', () => {
     })
     expectCheckpointEq(await market.checkpoints(user.address, 2), {
       ...DEFAULT_CHECKPOINT,
-      delta: COLLATERAL,
     })
     expectPositionEq(await market.positions(user.address), {
       ...DEFAULT_POSITION,
@@ -373,7 +369,6 @@ describe('Happy Path', () => {
     })
     expectCheckpointEq(await market.checkpoints(user.address, 2), {
       ...DEFAULT_CHECKPOINT,
-      delta: COLLATERAL,
     })
     expectPositionEq(await market.positions(user.address), {
       ...DEFAULT_POSITION,
@@ -439,7 +434,6 @@ describe('Happy Path', () => {
     })
     expectCheckpointEq(await market.checkpoints(user.address, 2), {
       ...DEFAULT_CHECKPOINT,
-      delta: COLLATERAL,
     })
     expectPositionEq(await market.positions(user.address), {
       ...DEFAULT_POSITION,
@@ -524,7 +518,6 @@ describe('Happy Path', () => {
     })
     expectCheckpointEq(await market.checkpoints(user.address, 1), {
       ...DEFAULT_CHECKPOINT,
-      delta: COLLATERAL,
     })
     expectPositionEq(await market.positions(user.address), {
       ...DEFAULT_POSITION,
@@ -547,7 +540,6 @@ describe('Happy Path', () => {
     })
     expectCheckpointEq(await market.checkpoints(userB.address, 1), {
       ...DEFAULT_CHECKPOINT,
-      delta: COLLATERAL,
     })
     expectPositionEq(await market.positions(userB.address), {
       ...DEFAULT_POSITION,
@@ -618,7 +610,6 @@ describe('Happy Path', () => {
     })
     expectCheckpointEq(await market.checkpoints(userB.address, 2), {
       ...DEFAULT_CHECKPOINT,
-      delta: COLLATERAL,
     })
     expectPositionEq(await market.positions(userB.address), {
       ...DEFAULT_POSITION,
@@ -668,7 +659,6 @@ describe('Happy Path', () => {
     })
     expectCheckpointEq(await market.checkpoints(userB.address, 1), {
       ...DEFAULT_CHECKPOINT,
-      delta: COLLATERAL,
     })
     expectPositionEq(await market.positions(userB.address), {
       ...DEFAULT_POSITION,
@@ -738,7 +728,6 @@ describe('Happy Path', () => {
     })
     expectCheckpointEq(await market.checkpoints(userB.address, 2), {
       ...DEFAULT_CHECKPOINT,
-      delta: COLLATERAL,
     })
     expectPositionEq(await market.positions(userB.address), {
       ...DEFAULT_POSITION,
@@ -797,7 +786,6 @@ describe('Happy Path', () => {
     })
     expectCheckpointEq(await market.checkpoints(userB.address, 2), {
       ...DEFAULT_CHECKPOINT,
-      delta: COLLATERAL,
     })
     expectPositionEq(await market.positions(userB.address), {
       ...DEFAULT_POSITION,
@@ -874,7 +862,6 @@ describe('Happy Path', () => {
     })
     expectCheckpointEq(await market.checkpoints(userB.address, 2), {
       ...DEFAULT_CHECKPOINT,
-      delta: COLLATERAL,
     })
     expectPositionEq(await market.positions(userB.address), {
       ...DEFAULT_POSITION,
@@ -1095,7 +1082,6 @@ describe('Happy Path', () => {
     })
     expectCheckpointEq(await market.checkpoints(user.address, 3), {
       ...DEFAULT_CHECKPOINT,
-      delta: COLLATERAL.sub(1),
     })
     expectPositionEq(await market.positions(user.address), {
       ...DEFAULT_POSITION,
@@ -1243,7 +1229,6 @@ describe('Happy Path', () => {
     expectCheckpointEq(await market.checkpoints(user.address, delay + 1), {
       ...DEFAULT_CHECKPOINT,
       tradeFee: (await market.checkpoints(user.address, delay + 1)).tradeFee,
-      delta: COLLATERAL.sub(1),
     })
     expectPositionEq(await market.positions(user.address), {
       ...DEFAULT_POSITION,

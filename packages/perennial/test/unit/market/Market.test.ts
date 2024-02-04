@@ -723,7 +723,6 @@ describe('Market', () => {
           })
           expectCheckpointEq(await market.checkpoints(user.address, 1), {
             ...DEFAULT_CHECKPOINT,
-            delta: COLLATERAL,
           })
           expectGlobalEq(await market.global(), {
             currentId: 1,
@@ -813,7 +812,6 @@ describe('Market', () => {
           })
           expectCheckpointEq(await market.checkpoints(user.address, 1), {
             ...DEFAULT_CHECKPOINT,
-            delta: COLLATERAL,
           })
           expectGlobalEq(await market.global(), {
             currentId: 1,
@@ -905,7 +903,6 @@ describe('Market', () => {
           })
           expectCheckpointEq(await market.checkpoints(user.address, 1), {
             ...DEFAULT_CHECKPOINT,
-            delta: COLLATERAL,
           })
           expectGlobalEq(await market.global(), {
             currentId: 1,
@@ -1018,7 +1015,6 @@ describe('Market', () => {
             })
             expectCheckpointEq(await market.checkpoints(user.address, 1), {
               ...DEFAULT_CHECKPOINT,
-              delta: COLLATERAL,
             })
             expectGlobalEq(await market.global(), {
               currentId: 1,
@@ -1093,7 +1089,6 @@ describe('Market', () => {
             })
             expectCheckpointEq(await market.checkpoints(user.address, 2), {
               ...DEFAULT_CHECKPOINT,
-              delta: COLLATERAL,
             })
             expectGlobalEq(await market.global(), {
               currentId: 2,
@@ -1142,7 +1137,6 @@ describe('Market', () => {
             })
             expectCheckpointEq(await market.checkpoints(user.address, 1), {
               ...DEFAULT_CHECKPOINT,
-              delta: COLLATERAL,
             })
             expectGlobalEq(await market.global(), {
               currentId: 1,
@@ -1195,7 +1189,6 @@ describe('Market', () => {
             })
             expectCheckpointEq(await market.checkpoints(user.address, 2), {
               ...DEFAULT_CHECKPOINT,
-              delta: COLLATERAL,
             })
             expectGlobalEq(await market.global(), {
               currentId: 2,
@@ -1249,7 +1242,6 @@ describe('Market', () => {
             })
             expectCheckpointEq(await market.checkpoints(user.address, 2), {
               ...DEFAULT_CHECKPOINT,
-              delta: COLLATERAL,
             })
             expectGlobalEq(await market.global(), {
               currentId: 2,
@@ -1309,7 +1301,6 @@ describe('Market', () => {
             })
             expectCheckpointEq(await market.checkpoints(user.address, 3), {
               ...DEFAULT_CHECKPOINT,
-              delta: COLLATERAL,
             })
             expectGlobalEq(await market.global(), {
               currentId: 3,
@@ -1364,7 +1355,6 @@ describe('Market', () => {
             })
             expectCheckpointEq(await market.checkpoints(user.address, 2), {
               ...DEFAULT_CHECKPOINT,
-              delta: COLLATERAL,
             })
             expectGlobalEq(await market.global(), {
               currentId: 2,
@@ -1431,7 +1421,6 @@ describe('Market', () => {
             })
             expectCheckpointEq(await market.checkpoints(user.address, 2), {
               ...DEFAULT_CHECKPOINT,
-              delta: COLLATERAL,
             })
             expectGlobalEq(await market.global(), {
               currentId: 2,
@@ -1495,7 +1484,6 @@ describe('Market', () => {
               })
               expectCheckpointEq(await market.checkpoints(user.address, 2), {
                 ...DEFAULT_CHECKPOINT,
-                delta: COLLATERAL,
               })
               expectGlobalEq(await market.global(), {
                 currentId: 2,
@@ -1548,7 +1536,6 @@ describe('Market', () => {
               })
               expectCheckpointEq(await market.checkpoints(user.address, 3), {
                 ...DEFAULT_CHECKPOINT,
-                delta: COLLATERAL,
               })
               expectGlobalEq(await market.global(), {
                 currentId: 3,
@@ -1597,7 +1584,6 @@ describe('Market', () => {
               })
               expectCheckpointEq(await market.checkpoints(user.address, 2), {
                 ...DEFAULT_CHECKPOINT,
-                delta: COLLATERAL,
               })
               expectGlobalEq(await market.global(), {
                 currentId: 2,
@@ -1652,7 +1638,6 @@ describe('Market', () => {
               })
               expectCheckpointEq(await market.checkpoints(user.address, 3), {
                 ...DEFAULT_CHECKPOINT,
-                delta: COLLATERAL,
               })
               expectGlobalEq(await market.global(), {
                 currentId: 3,
@@ -1705,7 +1690,6 @@ describe('Market', () => {
               })
               expectCheckpointEq(await market.checkpoints(user.address, 3), {
                 ...DEFAULT_CHECKPOINT,
-                delta: COLLATERAL,
               })
               expectGlobalEq(await market.global(), {
                 currentId: 3,
@@ -1764,7 +1748,6 @@ describe('Market', () => {
               })
               expectCheckpointEq(await market.checkpoints(user.address, 4), {
                 ...DEFAULT_CHECKPOINT,
-                delta: COLLATERAL,
               })
               expectGlobalEq(await market.global(), {
                 currentId: 4,
@@ -1816,7 +1799,6 @@ describe('Market', () => {
               })
               expectCheckpointEq(await market.checkpoints(user.address, 3), {
                 ...DEFAULT_CHECKPOINT,
-                delta: COLLATERAL,
               })
               expectGlobalEq(await market.global(), {
                 currentId: 3,
@@ -1884,7 +1866,6 @@ describe('Market', () => {
               })
               expectCheckpointEq(await market.checkpoints(user.address, 3), {
                 ...DEFAULT_CHECKPOINT,
-                delta: COLLATERAL,
               })
               expectGlobalEq(await market.global(), {
                 currentId: 3,
@@ -1959,7 +1940,6 @@ describe('Market', () => {
               })
               expectCheckpointEq(await market.checkpoints(user.address, 1), {
                 ...DEFAULT_CHECKPOINT,
-                delta: COLLATERAL,
               })
               expectGlobalEq(await market.global(), {
                 currentId: 1,
@@ -2014,7 +1994,6 @@ describe('Market', () => {
               })
               expectCheckpointEq(await market.checkpoints(user.address, 2), {
                 ...DEFAULT_CHECKPOINT,
-                delta: COLLATERAL,
               })
               expectGlobalEq(await market.global(), {
                 currentId: 2,
@@ -2064,7 +2043,6 @@ describe('Market', () => {
               })
               expectCheckpointEq(await market.checkpoints(user.address, 1), {
                 ...DEFAULT_CHECKPOINT,
-                delta: COLLATERAL,
               })
               expectGlobalEq(await market.global(), {
                 currentId: 1,
@@ -2118,7 +2096,6 @@ describe('Market', () => {
               })
               expectCheckpointEq(await market.checkpoints(user.address, 2), {
                 ...DEFAULT_CHECKPOINT,
-                delta: COLLATERAL,
               })
               expectGlobalEq(await market.global(), {
                 currentId: 2,
@@ -2173,7 +2150,6 @@ describe('Market', () => {
               })
               expectCheckpointEq(await market.checkpoints(user.address, 2), {
                 ...DEFAULT_CHECKPOINT,
-                delta: COLLATERAL,
               })
               expectGlobalEq(await market.global(), {
                 currentId: 2,
@@ -2235,7 +2211,6 @@ describe('Market', () => {
               })
               expectCheckpointEq(await market.checkpoints(user.address, 3), {
                 ...DEFAULT_CHECKPOINT,
-                delta: COLLATERAL,
               })
               expectLocalEq(await market.locals(userB.address), {
                 ...DEFAULT_LOCAL,
@@ -2256,7 +2231,6 @@ describe('Market', () => {
               })
               expectCheckpointEq(await market.checkpoints(userB.address, 2), {
                 ...DEFAULT_CHECKPOINT,
-                delta: COLLATERAL,
               })
               const totalFee = EXPECTED_FUNDING_FEE_1_5_123.add(EXPECTED_INTEREST_FEE_5_123)
               expectGlobalEq(await market.global(), {
@@ -2326,7 +2300,6 @@ describe('Market', () => {
               })
               expectCheckpointEq(await market.checkpoints(user.address, 2), {
                 ...DEFAULT_CHECKPOINT,
-                delta: COLLATERAL,
               })
               expectLocalEq(await market.locals(userB.address), {
                 ...DEFAULT_LOCAL,
@@ -2347,7 +2320,6 @@ describe('Market', () => {
               })
               expectCheckpointEq(await market.checkpoints(userB.address, 2), {
                 ...DEFAULT_CHECKPOINT,
-                delta: COLLATERAL,
               })
               const totalFee = EXPECTED_FUNDING_FEE_1_5_123.add(EXPECTED_INTEREST_FEE_5_123)
               expectGlobalEq(await market.global(), {
@@ -2436,7 +2408,6 @@ describe('Market', () => {
               })
               expectCheckpointEq(await market.checkpoints(user.address, 2), {
                 ...DEFAULT_CHECKPOINT,
-                delta: COLLATERAL,
               })
               expectLocalEq(await market.locals(userB.address), {
                 ...DEFAULT_LOCAL,
@@ -2458,7 +2429,6 @@ describe('Market', () => {
               })
               expectCheckpointEq(await market.checkpoints(userB.address, 2), {
                 ...DEFAULT_CHECKPOINT,
-                delta: COLLATERAL,
               })
               const totalFee =
                 EXPECTED_FUNDING_FEE_1_5_123.add(EXPECTED_INTEREST_FEE_5_123).add(TAKER_FEE_WITHOUT_IMPACT)
@@ -2557,7 +2527,6 @@ describe('Market', () => {
               })
               expectCheckpointEq(await market.checkpoints(user.address, 2), {
                 ...DEFAULT_CHECKPOINT,
-                delta: COLLATERAL,
               })
               expectLocalEq(await market.locals(userB.address), {
                 ...DEFAULT_LOCAL,
@@ -2579,7 +2548,6 @@ describe('Market', () => {
               })
               expectCheckpointEq(await market.checkpoints(userB.address, 2), {
                 ...DEFAULT_CHECKPOINT,
-                delta: COLLATERAL,
               })
               const totalFee = EXPECTED_FUNDING_FEE_1_5_123.add(EXPECTED_INTEREST_FEE_5_123).add(TAKER_FEE_ONLY_FEE)
               expectGlobalEq(await market.global(), {
@@ -2652,7 +2620,6 @@ describe('Market', () => {
                 })
                 expectCheckpointEq(await market.checkpoints(user.address, 2), {
                   ...DEFAULT_CHECKPOINT,
-                  delta: COLLATERAL,
                 })
                 expectGlobalEq(await market.global(), {
                   currentId: 2,
@@ -2707,7 +2674,6 @@ describe('Market', () => {
                 })
                 expectCheckpointEq(await market.checkpoints(user.address, 3), {
                   ...DEFAULT_CHECKPOINT,
-                  delta: COLLATERAL,
                 })
                 expectLocalEq(await market.locals(userB.address), {
                   ...DEFAULT_LOCAL,
@@ -2728,7 +2694,6 @@ describe('Market', () => {
                 })
                 expectCheckpointEq(await market.checkpoints(userB.address, 2), {
                   ...DEFAULT_CHECKPOINT,
-                  delta: COLLATERAL,
                 })
                 const totalFee = EXPECTED_FUNDING_FEE_1_5_123.add(EXPECTED_INTEREST_FEE_5_123)
                 expectGlobalEq(await market.global(), {
@@ -2785,7 +2750,6 @@ describe('Market', () => {
                 })
                 expectCheckpointEq(await market.checkpoints(user.address, 2), {
                   ...DEFAULT_CHECKPOINT,
-                  delta: COLLATERAL,
                 })
                 expectGlobalEq(await market.global(), {
                   currentId: 2,
@@ -2842,7 +2806,6 @@ describe('Market', () => {
                 })
                 expectCheckpointEq(await market.checkpoints(user.address, 3), {
                   ...DEFAULT_CHECKPOINT,
-                  delta: COLLATERAL,
                 })
                 expectLocalEq(await market.locals(userB.address), {
                   ...DEFAULT_LOCAL,
@@ -2863,7 +2826,6 @@ describe('Market', () => {
                 })
                 expectCheckpointEq(await market.checkpoints(userB.address, 2), {
                   ...DEFAULT_CHECKPOINT,
-                  delta: COLLATERAL,
                 })
                 const totalFee = EXPECTED_FUNDING_FEE_1_5_123.add(EXPECTED_INTEREST_FEE_5_123)
                 expectGlobalEq(await market.global(), {
@@ -2927,7 +2889,6 @@ describe('Market', () => {
                 })
                 expectCheckpointEq(await market.checkpoints(user.address, 3), {
                   ...DEFAULT_CHECKPOINT,
-                  delta: COLLATERAL,
                 })
                 expectLocalEq(await market.locals(userB.address), {
                   ...DEFAULT_LOCAL,
@@ -2948,7 +2909,6 @@ describe('Market', () => {
                 })
                 expectCheckpointEq(await market.checkpoints(userB.address, 2), {
                   ...DEFAULT_CHECKPOINT,
-                  delta: COLLATERAL,
                 })
                 const totalFee = EXPECTED_FUNDING_FEE_1_5_123.add(EXPECTED_INTEREST_FEE_5_123)
                 expectGlobalEq(await market.global(), {
@@ -3025,7 +2985,6 @@ describe('Market', () => {
                 })
                 expectCheckpointEq(await market.checkpoints(user.address, 4), {
                   ...DEFAULT_CHECKPOINT,
-                  delta: COLLATERAL,
                 })
                 expectLocalEq(await market.locals(userB.address), {
                   ...DEFAULT_LOCAL,
@@ -3048,7 +3007,6 @@ describe('Market', () => {
                 })
                 expectCheckpointEq(await market.checkpoints(userB.address, 2), {
                   ...DEFAULT_CHECKPOINT,
-                  delta: COLLATERAL,
                 })
                 const totalFee = EXPECTED_FUNDING_FEE_1_5_123.add(EXPECTED_FUNDING_FEE_2_25_123)
                   .add(EXPECTED_INTEREST_FEE_5_123)
@@ -3127,7 +3085,6 @@ describe('Market', () => {
                 })
                 expectCheckpointEq(await market.checkpoints(user.address, 3), {
                   ...DEFAULT_CHECKPOINT,
-                  delta: COLLATERAL,
                 })
                 expectLocalEq(await market.locals(userB.address), {
                   ...DEFAULT_LOCAL,
@@ -3148,7 +3105,6 @@ describe('Market', () => {
                 })
                 expectCheckpointEq(await market.checkpoints(userB.address, 2), {
                   ...DEFAULT_CHECKPOINT,
-                  delta: COLLATERAL,
                 })
                 const totalFee = EXPECTED_FUNDING_FEE_1_5_123.add(EXPECTED_INTEREST_FEE_5_123)
                 expectGlobalEq(await market.global(), {
@@ -3230,7 +3186,6 @@ describe('Market', () => {
                 })
                 expectCheckpointEq(await market.checkpoints(user.address, 3), {
                   ...DEFAULT_CHECKPOINT,
-                  delta: COLLATERAL,
                 })
                 expectLocalEq(await market.locals(userB.address), {
                   ...DEFAULT_LOCAL,
@@ -3252,7 +3207,6 @@ describe('Market', () => {
                 })
                 expectCheckpointEq(await market.checkpoints(userB.address, 2), {
                   ...DEFAULT_CHECKPOINT,
-                  delta: COLLATERAL,
                 })
                 const totalFee = EXPECTED_FUNDING_FEE_1_5_123.add(EXPECTED_INTEREST_FEE_5_123).add(TAKER_FEE_ONLY_FEE)
                 expectGlobalEq(await market.global(), {
@@ -3333,7 +3287,6 @@ describe('Market', () => {
             })
             expectCheckpointEq(await market.checkpoints(user.address, 2), {
               ...DEFAULT_CHECKPOINT,
-              delta: COLLATERAL,
             })
             expectLocalEq(await market.locals(userB.address), {
               ...DEFAULT_LOCAL,
@@ -3352,7 +3305,6 @@ describe('Market', () => {
             })
             expectCheckpointEq(await market.checkpoints(userB.address, 2), {
               ...DEFAULT_CHECKPOINT,
-              delta: COLLATERAL,
             })
             expectGlobalEq(await market.global(), {
               currentId: 2,
@@ -3440,7 +3392,6 @@ describe('Market', () => {
             })
             expectCheckpointEq(await market.checkpoints(user.address, 3), {
               ...DEFAULT_CHECKPOINT,
-              delta: COLLATERAL,
             })
             expectLocalEq(await market.locals(userB.address), {
               ...DEFAULT_LOCAL,
@@ -3462,7 +3413,6 @@ describe('Market', () => {
             })
             expectCheckpointEq(await market.checkpoints(userB.address, 3), {
               ...DEFAULT_CHECKPOINT,
-              delta: COLLATERAL,
             })
             const totalFee = EXPECTED_FUNDING_FEE_1_5_123.add(EXPECTED_INTEREST_FEE_5_123)
             expectGlobalEq(await market.global(), {
@@ -3560,7 +3510,6 @@ describe('Market', () => {
             })
             expectCheckpointEq(await market.checkpoints(user.address, 3), {
               ...DEFAULT_CHECKPOINT,
-              delta: COLLATERAL,
             })
             expectLocalEq(await market.locals(userB.address), {
               ...DEFAULT_LOCAL,
@@ -3582,7 +3531,6 @@ describe('Market', () => {
             })
             expectCheckpointEq(await market.checkpoints(userB.address, 3), {
               ...DEFAULT_CHECKPOINT,
-              delta: COLLATERAL,
             })
             const totalFee = EXPECTED_FUNDING_FEE_1_5_123.add(EXPECTED_INTEREST_FEE_5_123)
             expectGlobalEq(await market.global(), {
@@ -3701,7 +3649,6 @@ describe('Market', () => {
               })
               expectCheckpointEq(await market.checkpoints(user.address, 5), {
                 ...DEFAULT_CHECKPOINT,
-                delta: COLLATERAL,
               })
               expectLocalEq(await market.locals(userB.address), {
                 ...DEFAULT_LOCAL,
@@ -3728,7 +3675,6 @@ describe('Market', () => {
               })
               expectCheckpointEq(await market.checkpoints(userB.address, 5), {
                 ...DEFAULT_CHECKPOINT,
-                delta: parse6decimal('450'),
               })
               const totalFee = EXPECTED_FUNDING_FEE_1_5_123.add(EXPECTED_INTEREST_FEE_5_123)
                 .add(EXPECTED_FUNDING_FEE_2_5_150)
@@ -3901,7 +3847,6 @@ describe('Market', () => {
               })
               expectCheckpointEq(await market.checkpoints(user.address, 5), {
                 ...DEFAULT_CHECKPOINT,
-                delta: COLLATERAL,
               })
               expectLocalEq(await market.locals(userB.address), {
                 ...DEFAULT_LOCAL,
@@ -3926,7 +3871,6 @@ describe('Market', () => {
               })
               expectCheckpointEq(await market.checkpoints(userB.address, 5), {
                 ...DEFAULT_CHECKPOINT,
-                delta: parse6decimal('450'),
               })
               expectLocalEq(await market.locals(userC.address), {
                 ...DEFAULT_LOCAL,
@@ -3951,7 +3895,6 @@ describe('Market', () => {
               })
               expectCheckpointEq(await market.checkpoints(user.address, 5), {
                 ...DEFAULT_CHECKPOINT,
-                delta: COLLATERAL,
               })
               const totalFee = EXPECTED_FUNDING_FEE_1_5_123.add(EXPECTED_INTEREST_FEE_1)
                 .add(EXPECTED_FUNDING_FEE_2_5_150.add(EXPECTED_INTEREST_FEE_2))
@@ -4077,7 +4020,6 @@ describe('Market', () => {
               })
               expectCheckpointEq(await market.checkpoints(user.address, 3), {
                 ...DEFAULT_CHECKPOINT,
-                delta: COLLATERAL,
               })
               expectLocalEq(await market.locals(userB.address), {
                 ...DEFAULT_LOCAL,
@@ -4105,7 +4047,6 @@ describe('Market', () => {
               })
               expectCheckpointEq(await market.checkpoints(userB.address, 3), {
                 ...DEFAULT_CHECKPOINT,
-                delta: parse6decimal('450'),
               })
               const totalFee = EXPECTED_FUNDING_FEE_1_5_123.add(EXPECTED_INTEREST_FEE_5_123)
               expectGlobalEq(await market.global(), {
@@ -4205,7 +4146,6 @@ describe('Market', () => {
               })
               expectCheckpointEq(await market.checkpoints(userB.address, 4), {
                 ...DEFAULT_CHECKPOINT,
-                delta: parse6decimal('450').add(shortfall.mul(-1)),
               })
             })
           })
@@ -4293,7 +4233,6 @@ describe('Market', () => {
               })
               expectCheckpointEq(await market.checkpoints(user.address, 5), {
                 ...DEFAULT_CHECKPOINT,
-                delta: parse6decimal('216'),
               })
               expectLocalEq(await market.locals(userB.address), {
                 ...DEFAULT_LOCAL,
@@ -4316,7 +4255,6 @@ describe('Market', () => {
               })
               expectCheckpointEq(await market.checkpoints(userB.address, 5), {
                 ...DEFAULT_CHECKPOINT,
-                delta: COLLATERAL,
               })
               const totalFee = EXPECTED_FUNDING_FEE_1_5_123.add(EXPECTED_INTEREST_FEE_5_123).add(
                 EXPECTED_FUNDING_FEE_2_5_96.add(EXPECTED_INTEREST_FEE_5_96),
@@ -4443,7 +4381,6 @@ describe('Market', () => {
               })
               expectCheckpointEq(await market.checkpoints(user.address, 3), {
                 ...DEFAULT_CHECKPOINT,
-                delta: parse6decimal('216'),
               })
               expectLocalEq(await market.locals(userB.address), {
                 ...DEFAULT_LOCAL,
@@ -4466,7 +4403,6 @@ describe('Market', () => {
               })
               expectCheckpointEq(await market.checkpoints(userB.address, 3), {
                 ...DEFAULT_CHECKPOINT,
-                delta: COLLATERAL,
               })
               const totalFee = EXPECTED_FUNDING_FEE_1_5_123.add(EXPECTED_INTEREST_FEE_5_123)
               expectGlobalEq(await market.global(), {
@@ -4562,7 +4498,6 @@ describe('Market', () => {
               })
               expectCheckpointEq(await market.checkpoints(user.address, 4), {
                 ...DEFAULT_CHECKPOINT,
-                delta: parse6decimal('216').add(shortfall.mul(-1)),
               })
             })
           })
@@ -4623,7 +4558,6 @@ describe('Market', () => {
             })
             expectCheckpointEq(await market.checkpoints(user.address, 3), {
               ...DEFAULT_CHECKPOINT,
-              delta: COLLATERAL,
             })
             expectLocalEq(await market.locals(userB.address), {
               ...DEFAULT_LOCAL,
@@ -4642,7 +4576,6 @@ describe('Market', () => {
             })
             expectCheckpointEq(await market.checkpoints(userB.address, 3), {
               ...DEFAULT_CHECKPOINT,
-              delta: COLLATERAL,
             })
             expectGlobalEq(await market.global(), {
               currentId: 3,
@@ -4721,7 +4654,6 @@ describe('Market', () => {
               })
               expectCheckpointEq(await market.checkpoints(user.address, 1), {
                 ...DEFAULT_CHECKPOINT,
-                delta: COLLATERAL,
               })
               expectGlobalEq(await market.global(), {
                 currentId: 1,
@@ -4776,7 +4708,6 @@ describe('Market', () => {
               })
               expectCheckpointEq(await market.checkpoints(user.address, 2), {
                 ...DEFAULT_CHECKPOINT,
-                delta: COLLATERAL,
               })
               expectGlobalEq(await market.global(), {
                 currentId: 2,
@@ -4827,7 +4758,6 @@ describe('Market', () => {
               })
               expectCheckpointEq(await market.checkpoints(user.address, 1), {
                 ...DEFAULT_CHECKPOINT,
-                delta: COLLATERAL,
               })
               expectGlobalEq(await market.global(), {
                 currentId: 1,
@@ -4881,7 +4811,6 @@ describe('Market', () => {
               })
               expectCheckpointEq(await market.checkpoints(user.address, 2), {
                 ...DEFAULT_CHECKPOINT,
-                delta: COLLATERAL,
               })
               expectGlobalEq(await market.global(), {
                 currentId: 2,
@@ -4936,7 +4865,6 @@ describe('Market', () => {
               })
               expectCheckpointEq(await market.checkpoints(user.address, 2), {
                 ...DEFAULT_CHECKPOINT,
-                delta: COLLATERAL,
               })
               expectGlobalEq(await market.global(), {
                 currentId: 2,
@@ -4998,7 +4926,6 @@ describe('Market', () => {
               })
               expectCheckpointEq(await market.checkpoints(user.address, 3), {
                 ...DEFAULT_CHECKPOINT,
-                delta: COLLATERAL,
               })
               expectLocalEq(await market.locals(userB.address), {
                 ...DEFAULT_LOCAL,
@@ -5019,7 +4946,6 @@ describe('Market', () => {
               })
               expectCheckpointEq(await market.checkpoints(userB.address, 2), {
                 ...DEFAULT_CHECKPOINT,
-                delta: COLLATERAL,
               })
               const totalFee = EXPECTED_FUNDING_FEE_1_5_123.add(EXPECTED_INTEREST_FEE_5_123)
               expectGlobalEq(await market.global(), {
@@ -5094,7 +5020,6 @@ describe('Market', () => {
               })
               expectCheckpointEq(await market.checkpoints(user.address, 2), {
                 ...DEFAULT_CHECKPOINT,
-                delta: COLLATERAL,
               })
               expectLocalEq(await market.locals(userB.address), {
                 ...DEFAULT_LOCAL,
@@ -5115,7 +5040,6 @@ describe('Market', () => {
               })
               expectCheckpointEq(await market.checkpoints(user.address, 2), {
                 ...DEFAULT_CHECKPOINT,
-                delta: COLLATERAL,
               })
               const totalFee = EXPECTED_FUNDING_FEE_1_5_123.add(EXPECTED_INTEREST_FEE_5_123)
               expectGlobalEq(await market.global(), {
@@ -5208,7 +5132,6 @@ describe('Market', () => {
               })
               expectCheckpointEq(await market.checkpoints(user.address, 2), {
                 ...DEFAULT_CHECKPOINT,
-                delta: COLLATERAL,
               })
               expectLocalEq(await market.locals(userB.address), {
                 ...DEFAULT_LOCAL,
@@ -5230,7 +5153,6 @@ describe('Market', () => {
               })
               expectCheckpointEq(await market.checkpoints(user.address, 2), {
                 ...DEFAULT_CHECKPOINT,
-                delta: COLLATERAL,
               })
               const totalFee = EXPECTED_FUNDING_FEE_1_5_123.add(EXPECTED_INTEREST_FEE_5_123).add(TAKER_FEE_ONLY)
               expectGlobalEq(await market.global(), {
@@ -5331,7 +5253,6 @@ describe('Market', () => {
               })
               expectCheckpointEq(await market.checkpoints(user.address, 2), {
                 ...DEFAULT_CHECKPOINT,
-                delta: COLLATERAL,
               })
               expectLocalEq(await market.locals(userB.address), {
                 ...DEFAULT_LOCAL,
@@ -5354,7 +5275,6 @@ describe('Market', () => {
               })
               expectCheckpointEq(await market.checkpoints(user.address, 2), {
                 ...DEFAULT_CHECKPOINT,
-                delta: COLLATERAL,
               })
               const totalFee = EXPECTED_FUNDING_FEE_1_5_123.add(EXPECTED_INTEREST_FEE_5_123).add(TAKER_FEE_ONLY_FEE)
               expectGlobalEq(await market.global(), {
@@ -5428,7 +5348,6 @@ describe('Market', () => {
                 })
                 expectCheckpointEq(await market.checkpoints(user.address, 2), {
                   ...DEFAULT_CHECKPOINT,
-                  delta: COLLATERAL,
                 })
                 expectGlobalEq(await market.global(), {
                   currentId: 2,
@@ -5483,7 +5402,6 @@ describe('Market', () => {
                 })
                 expectCheckpointEq(await market.checkpoints(user.address, 3), {
                   ...DEFAULT_CHECKPOINT,
-                  delta: COLLATERAL,
                 })
                 expectLocalEq(await market.locals(userB.address), {
                   ...DEFAULT_LOCAL,
@@ -5504,7 +5422,6 @@ describe('Market', () => {
                 })
                 expectCheckpointEq(await market.checkpoints(userB.address, 2), {
                   ...DEFAULT_CHECKPOINT,
-                  delta: COLLATERAL,
                 })
                 const totalFee = EXPECTED_FUNDING_FEE_1_5_123.add(EXPECTED_INTEREST_FEE_5_123)
                 expectGlobalEq(await market.global(), {
@@ -5562,7 +5479,6 @@ describe('Market', () => {
                 })
                 expectCheckpointEq(await market.checkpoints(user.address, 2), {
                   ...DEFAULT_CHECKPOINT,
-                  delta: COLLATERAL,
                 })
                 expectGlobalEq(await market.global(), {
                   currentId: 2,
@@ -5619,7 +5535,6 @@ describe('Market', () => {
                 })
                 expectCheckpointEq(await market.checkpoints(user.address, 3), {
                   ...DEFAULT_CHECKPOINT,
-                  delta: COLLATERAL,
                 })
                 expectLocalEq(await market.locals(userB.address), {
                   ...DEFAULT_LOCAL,
@@ -5640,7 +5555,6 @@ describe('Market', () => {
                 })
                 expectCheckpointEq(await market.checkpoints(userB.address, 2), {
                   ...DEFAULT_CHECKPOINT,
-                  delta: COLLATERAL,
                 })
                 const totalFee = EXPECTED_FUNDING_FEE_1_5_123.add(EXPECTED_INTEREST_FEE_5_123)
                 expectGlobalEq(await market.global(), {
@@ -5704,7 +5618,6 @@ describe('Market', () => {
                 })
                 expectCheckpointEq(await market.checkpoints(user.address, 3), {
                   ...DEFAULT_CHECKPOINT,
-                  delta: COLLATERAL,
                 })
                 expectLocalEq(await market.locals(userB.address), {
                   ...DEFAULT_LOCAL,
@@ -5725,7 +5638,6 @@ describe('Market', () => {
                 })
                 expectCheckpointEq(await market.checkpoints(userB.address, 2), {
                   ...DEFAULT_CHECKPOINT,
-                  delta: COLLATERAL,
                 })
                 const totalFee = EXPECTED_FUNDING_FEE_1_5_123.add(EXPECTED_INTEREST_FEE_5_123)
                 expectGlobalEq(await market.global(), {
@@ -5803,7 +5715,6 @@ describe('Market', () => {
                 })
                 expectCheckpointEq(await market.checkpoints(user.address, 4), {
                   ...DEFAULT_CHECKPOINT,
-                  delta: COLLATERAL,
                 })
                 expectLocalEq(await market.locals(userB.address), {
                   ...DEFAULT_LOCAL,
@@ -5826,7 +5737,6 @@ describe('Market', () => {
                 })
                 expectCheckpointEq(await market.checkpoints(userB.address, 2), {
                   ...DEFAULT_CHECKPOINT,
-                  delta: COLLATERAL,
                 })
                 const totalFee = EXPECTED_FUNDING_FEE_1_5_123.add(EXPECTED_FUNDING_FEE_2_25_123)
                   .add(EXPECTED_INTEREST_FEE_5_123)
@@ -5907,7 +5817,6 @@ describe('Market', () => {
                 })
                 expectCheckpointEq(await market.checkpoints(user.address, 3), {
                   ...DEFAULT_CHECKPOINT,
-                  delta: COLLATERAL,
                 })
                 expectLocalEq(await market.locals(userB.address), {
                   ...DEFAULT_LOCAL,
@@ -5928,7 +5837,6 @@ describe('Market', () => {
                 })
                 expectCheckpointEq(await market.checkpoints(userB.address, 2), {
                   ...DEFAULT_CHECKPOINT,
-                  delta: COLLATERAL,
                 })
                 const totalFee = EXPECTED_FUNDING_FEE_1_5_123.add(EXPECTED_INTEREST_FEE_5_123)
                 expectGlobalEq(await market.global(), {
@@ -6012,7 +5920,6 @@ describe('Market', () => {
                 })
                 expectCheckpointEq(await market.checkpoints(user.address, 3), {
                   ...DEFAULT_CHECKPOINT,
-                  delta: COLLATERAL,
                 })
                 expectLocalEq(await market.locals(userB.address), {
                   ...DEFAULT_LOCAL,
@@ -6034,7 +5941,6 @@ describe('Market', () => {
                 })
                 expectCheckpointEq(await market.checkpoints(userB.address, 2), {
                   ...DEFAULT_CHECKPOINT,
-                  delta: COLLATERAL,
                 })
                 const totalFee = EXPECTED_FUNDING_FEE_1_5_123.add(EXPECTED_INTEREST_FEE_5_123).add(TAKER_FEE_ONLY_FEE)
                 expectGlobalEq(await market.global(), {
@@ -6116,7 +6022,6 @@ describe('Market', () => {
             })
             expectCheckpointEq(await market.checkpoints(user.address, 2), {
               ...DEFAULT_CHECKPOINT,
-              delta: COLLATERAL,
             })
             expectLocalEq(await market.locals(userB.address), {
               ...DEFAULT_LOCAL,
@@ -6135,7 +6040,6 @@ describe('Market', () => {
             })
             expectCheckpointEq(await market.checkpoints(userB.address, 2), {
               ...DEFAULT_CHECKPOINT,
-              delta: COLLATERAL,
             })
             expectGlobalEq(await market.global(), {
               currentId: 2,
@@ -6223,7 +6127,6 @@ describe('Market', () => {
             })
             expectCheckpointEq(await market.checkpoints(user.address, 3), {
               ...DEFAULT_CHECKPOINT,
-              delta: COLLATERAL,
             })
             expectLocalEq(await market.locals(userB.address), {
               ...DEFAULT_LOCAL,
@@ -6245,7 +6148,6 @@ describe('Market', () => {
             })
             expectCheckpointEq(await market.checkpoints(userB.address, 3), {
               ...DEFAULT_CHECKPOINT,
-              delta: COLLATERAL,
             })
             const totalFee = EXPECTED_FUNDING_FEE_1_5_123.add(EXPECTED_INTEREST_FEE_5_123)
             expectGlobalEq(await market.global(), {
@@ -6345,7 +6247,6 @@ describe('Market', () => {
             })
             expectCheckpointEq(await market.checkpoints(user.address, 3), {
               ...DEFAULT_CHECKPOINT,
-              delta: COLLATERAL,
             })
             expectLocalEq(await market.locals(userB.address), {
               ...DEFAULT_LOCAL,
@@ -6367,7 +6268,6 @@ describe('Market', () => {
             })
             expectCheckpointEq(await market.checkpoints(userB.address, 3), {
               ...DEFAULT_CHECKPOINT,
-              delta: COLLATERAL,
             })
             const totalFee = EXPECTED_FUNDING_FEE_1_5_123.add(EXPECTED_INTEREST_FEE_5_123)
             expectGlobalEq(await market.global(), {
@@ -6488,7 +6388,6 @@ describe('Market', () => {
               })
               expectCheckpointEq(await market.checkpoints(user.address, 5), {
                 ...DEFAULT_CHECKPOINT,
-                delta: COLLATERAL,
               })
               expectLocalEq(await market.locals(userB.address), {
                 ...DEFAULT_LOCAL,
@@ -6513,7 +6412,6 @@ describe('Market', () => {
               })
               expectCheckpointEq(await market.checkpoints(userB.address, 5), {
                 ...DEFAULT_CHECKPOINT,
-                delta: parse6decimal('390'),
               })
               const totalFee = EXPECTED_FUNDING_FEE_1_5_123.add(EXPECTED_INTEREST_FEE_5_123).add(
                 EXPECTED_FUNDING_FEE_2_5_96.add(EXPECTED_INTEREST_FEE_5_96),
@@ -6682,7 +6580,6 @@ describe('Market', () => {
               })
               expectCheckpointEq(await market.checkpoints(user.address, 5), {
                 ...DEFAULT_CHECKPOINT,
-                delta: COLLATERAL,
               })
               expectLocalEq(await market.locals(userB.address), {
                 ...DEFAULT_LOCAL,
@@ -6707,7 +6604,6 @@ describe('Market', () => {
               })
               expectCheckpointEq(await market.checkpoints(userB.address, 5), {
                 ...DEFAULT_CHECKPOINT,
-                delta: parse6decimal('390'),
               })
               expectLocalEq(await market.locals(userC.address), {
                 ...DEFAULT_LOCAL,
@@ -6732,7 +6628,6 @@ describe('Market', () => {
               })
               expectCheckpointEq(await market.checkpoints(userC.address, 5), {
                 ...DEFAULT_CHECKPOINT,
-                delta: COLLATERAL,
               })
               const totalFee = EXPECTED_FUNDING_FEE_1_5_123.add(EXPECTED_INTEREST_FEE_1)
                 .add(EXPECTED_FUNDING_FEE_2_5_96.add(EXPECTED_INTEREST_FEE_2))
@@ -6859,7 +6754,6 @@ describe('Market', () => {
               })
               expectCheckpointEq(await market.checkpoints(user.address, 3), {
                 ...DEFAULT_CHECKPOINT,
-                delta: COLLATERAL,
               })
               expectLocalEq(await market.locals(userB.address), {
                 ...DEFAULT_LOCAL,
@@ -6881,7 +6775,6 @@ describe('Market', () => {
               })
               expectCheckpointEq(await market.checkpoints(userB.address, 3), {
                 ...DEFAULT_CHECKPOINT,
-                delta: parse6decimal('390'),
               })
               const totalFee = EXPECTED_FUNDING_FEE_1_5_123.add(EXPECTED_INTEREST_FEE_5_123)
               expectGlobalEq(await market.global(), {
@@ -6979,7 +6872,6 @@ describe('Market', () => {
               })
               expectCheckpointEq(await market.checkpoints(userB.address, 4), {
                 ...DEFAULT_CHECKPOINT,
-                delta: parse6decimal('390').add(shortfall.mul(-1)),
               })
             })
           })
@@ -7069,7 +6961,6 @@ describe('Market', () => {
               })
               expectCheckpointEq(await market.checkpoints(user.address, 5), {
                 ...DEFAULT_CHECKPOINT,
-                delta: parse6decimal('216'),
               })
               expectLocalEq(await market.locals(userB.address), {
                 ...DEFAULT_LOCAL,
@@ -7092,7 +6983,6 @@ describe('Market', () => {
               })
               expectCheckpointEq(await market.checkpoints(userB.address, 5), {
                 ...DEFAULT_CHECKPOINT,
-                delta: COLLATERAL,
               })
               const totalFee = EXPECTED_FUNDING_FEE_1_5_123.add(EXPECTED_INTEREST_FEE_5_123)
                 .add(EXPECTED_FUNDING_FEE_2_5_150)
@@ -7224,7 +7114,6 @@ describe('Market', () => {
               })
               expectCheckpointEq(await market.checkpoints(user.address, 3), {
                 ...DEFAULT_CHECKPOINT,
-                delta: parse6decimal('216'),
               })
               expectLocalEq(await market.locals(userB.address), {
                 ...DEFAULT_LOCAL,
@@ -7246,7 +7135,6 @@ describe('Market', () => {
               })
               expectCheckpointEq(await market.checkpoints(userB.address, 3), {
                 ...DEFAULT_CHECKPOINT,
-                delta: COLLATERAL,
               })
               const totalFee = EXPECTED_FUNDING_FEE_1_5_123.add(EXPECTED_INTEREST_FEE_5_123)
               expectGlobalEq(await market.global(), {
@@ -7344,7 +7232,6 @@ describe('Market', () => {
               })
               expectCheckpointEq(await market.checkpoints(user.address, 4), {
                 ...DEFAULT_CHECKPOINT,
-                delta: parse6decimal('216').add(shortfall.mul(-1)),
               })
             })
           })
@@ -7405,7 +7292,6 @@ describe('Market', () => {
             })
             expectCheckpointEq(await market.checkpoints(user.address, 3), {
               ...DEFAULT_CHECKPOINT,
-              delta: COLLATERAL,
             })
             expectLocalEq(await market.locals(userB.address), {
               ...DEFAULT_LOCAL,
@@ -7424,7 +7310,6 @@ describe('Market', () => {
             })
             expectCheckpointEq(await market.checkpoints(userB.address, 3), {
               ...DEFAULT_CHECKPOINT,
-              delta: COLLATERAL,
             })
             expectGlobalEq(await market.global(), {
               currentId: 3,
@@ -7504,7 +7389,6 @@ describe('Market', () => {
             })
             expectCheckpointEq(await market.checkpoints(user.address, 3), {
               ...DEFAULT_CHECKPOINT,
-              delta: COLLATERAL,
             })
             expectLocalEq(await market.locals(userB.address), {
               ...DEFAULT_LOCAL,
@@ -7523,7 +7407,6 @@ describe('Market', () => {
             })
             expectCheckpointEq(await market.checkpoints(userB.address, 3), {
               ...DEFAULT_CHECKPOINT,
-              delta: COLLATERAL,
             })
             const totalFee = EXPECTED_MAKER_FEE.div(10)
             expectGlobalEq(await market.global(), {
@@ -7600,7 +7483,6 @@ describe('Market', () => {
               })
               expectCheckpointEq(await market.checkpoints(user.address, 1), {
                 ...DEFAULT_CHECKPOINT,
-                delta: COLLATERAL,
               })
               expectGlobalEq(await market.global(), {
                 currentId: 1,
@@ -7656,7 +7538,6 @@ describe('Market', () => {
               })
               expectCheckpointEq(await market.checkpoints(user.address, 2), {
                 ...DEFAULT_CHECKPOINT,
-                delta: COLLATERAL,
               })
               expectGlobalEq(await market.global(), {
                 currentId: 2,
@@ -7708,7 +7589,6 @@ describe('Market', () => {
               })
               expectCheckpointEq(await market.checkpoints(user.address, 1), {
                 ...DEFAULT_CHECKPOINT,
-                delta: COLLATERAL,
               })
               expectGlobalEq(await market.global(), {
                 currentId: 1,
@@ -7763,7 +7643,6 @@ describe('Market', () => {
               })
               expectCheckpointEq(await market.checkpoints(user.address, 2), {
                 ...DEFAULT_CHECKPOINT,
-                delta: COLLATERAL,
               })
               expectGlobalEq(await market.global(), {
                 currentId: 2,
@@ -7819,7 +7698,6 @@ describe('Market', () => {
               })
               expectCheckpointEq(await market.checkpoints(user.address, 2), {
                 ...DEFAULT_CHECKPOINT,
-                delta: COLLATERAL,
               })
               expectGlobalEq(await market.global(), {
                 currentId: 2,
@@ -7884,7 +7762,6 @@ describe('Market', () => {
               })
               expectCheckpointEq(await market.checkpoints(user.address, 3), {
                 ...DEFAULT_CHECKPOINT,
-                delta: COLLATERAL,
               })
               expectLocalEq(await market.locals(userB.address), {
                 ...DEFAULT_LOCAL,
@@ -7905,7 +7782,6 @@ describe('Market', () => {
               })
               expectCheckpointEq(await market.checkpoints(userB.address, 2), {
                 ...DEFAULT_CHECKPOINT,
-                delta: COLLATERAL,
               })
               const totalFee = EXPECTED_FUNDING_FEE_1_10_123_ALL.add(EXPECTED_INTEREST_FEE_10_67_123_ALL)
               expectGlobalEq(await market.global(), {
@@ -7992,7 +7868,6 @@ describe('Market', () => {
               })
               expectCheckpointEq(await market.checkpoints(user.address, 2), {
                 ...DEFAULT_CHECKPOINT,
-                delta: COLLATERAL,
               })
               expectLocalEq(await market.locals(userB.address), {
                 ...DEFAULT_LOCAL,
@@ -8013,7 +7888,6 @@ describe('Market', () => {
               })
               expectCheckpointEq(await market.checkpoints(userB.address, 2), {
                 ...DEFAULT_CHECKPOINT,
-                delta: COLLATERAL,
               })
               const totalFee = EXPECTED_FUNDING_FEE_1_10_123_ALL.add(EXPECTED_INTEREST_FEE_10_67_123_ALL)
               expectGlobalEq(await market.global(), {
@@ -8118,7 +7992,6 @@ describe('Market', () => {
               })
               expectCheckpointEq(await market.checkpoints(user.address, 2), {
                 ...DEFAULT_CHECKPOINT,
-                delta: COLLATERAL,
               })
               expectLocalEq(await market.locals(userB.address), {
                 ...DEFAULT_LOCAL,
@@ -8140,7 +8013,6 @@ describe('Market', () => {
               })
               expectCheckpointEq(await market.checkpoints(userB.address, 2), {
                 ...DEFAULT_CHECKPOINT,
-                delta: COLLATERAL,
               })
               const totalFee = EXPECTED_FUNDING_FEE_1_10_123_ALL.add(EXPECTED_INTEREST_FEE_10_67_123_ALL)
                 .add(TAKER_FEE_ONLY)
@@ -8229,7 +8101,6 @@ describe('Market', () => {
               })
               expectCheckpointEq(await market.checkpoints(user.address, 2), {
                 ...DEFAULT_CHECKPOINT,
-                delta: COLLATERAL,
               })
               expectLocalEq(await market.locals(userB.address), {
                 ...DEFAULT_LOCAL,
@@ -8250,7 +8121,6 @@ describe('Market', () => {
               })
               expectCheckpointEq(await market.checkpoints(userB.address, 2), {
                 ...DEFAULT_CHECKPOINT,
-                delta: COLLATERAL,
               })
               const totalFee = EXPECTED_FUNDING_FEE_1_10_123_ALL.add(EXPECTED_INTEREST_FEE_10_67_123_ALL)
               expectGlobalEq(await market.global(), {
@@ -8339,7 +8209,6 @@ describe('Market', () => {
               })
               expectCheckpointEq(await market.checkpoints(user.address, 2), {
                 ...DEFAULT_CHECKPOINT,
-                delta: COLLATERAL.add(COLLATERAL),
               })
               expectLocalEq(await market.locals(userB.address), {
                 ...DEFAULT_LOCAL,
@@ -8362,7 +8231,6 @@ describe('Market', () => {
               })
               expectCheckpointEq(await market.checkpoints(userB.address, 2), {
                 ...DEFAULT_CHECKPOINT,
-                delta: COLLATERAL.add(COLLATERAL),
               })
               const totalFee = EXPECTED_FUNDING_FEE_1_10_123_ALL.add(EXPECTED_INTEREST_FEE_10_67_123_ALL)
               expectGlobalEq(await market.global(), {
@@ -8450,7 +8318,6 @@ describe('Market', () => {
               })
               expectCheckpointEq(await market.checkpoints(user.address, 2), {
                 ...DEFAULT_CHECKPOINT,
-                delta: COLLATERAL,
               })
               expectLocalEq(await market.locals(userB.address), {
                 ...DEFAULT_LOCAL,
@@ -8471,7 +8338,6 @@ describe('Market', () => {
               })
               expectCheckpointEq(await market.checkpoints(userB.address, 2), {
                 ...DEFAULT_CHECKPOINT,
-                delta: COLLATERAL,
               })
               const totalFee = EXPECTED_FUNDING_FEE_1_10_123_ALL.add(EXPECTED_INTEREST_FEE_10_67_123_ALL)
               expectGlobalEq(await market.global(), {
@@ -8560,7 +8426,6 @@ describe('Market', () => {
               })
               expectCheckpointEq(await market.checkpoints(user.address, 2), {
                 ...DEFAULT_CHECKPOINT,
-                delta: COLLATERAL.add(COLLATERAL),
               })
               expectLocalEq(await market.locals(userB.address), {
                 ...DEFAULT_LOCAL,
@@ -8583,7 +8448,6 @@ describe('Market', () => {
               })
               expectCheckpointEq(await market.checkpoints(userB.address, 2), {
                 ...DEFAULT_CHECKPOINT,
-                delta: COLLATERAL.add(COLLATERAL),
               })
               const totalFee = EXPECTED_FUNDING_FEE_1_10_123_ALL.add(EXPECTED_INTEREST_FEE_10_67_123_ALL)
               expectGlobalEq(await market.global(), {
@@ -8674,7 +8538,6 @@ describe('Market', () => {
                 })
                 expectCheckpointEq(await market.checkpoints(user.address, 2), {
                   ...DEFAULT_CHECKPOINT,
-                  delta: COLLATERAL,
                 })
                 expectGlobalEq(await market.global(), {
                   currentId: 2,
@@ -8732,7 +8595,6 @@ describe('Market', () => {
                 })
                 expectCheckpointEq(await market.checkpoints(user.address, 3), {
                   ...DEFAULT_CHECKPOINT,
-                  delta: COLLATERAL,
                 })
                 expectLocalEq(await market.locals(userB.address), {
                   ...DEFAULT_LOCAL,
@@ -8753,7 +8615,6 @@ describe('Market', () => {
                 })
                 expectCheckpointEq(await market.checkpoints(userB.address, 2), {
                   ...DEFAULT_CHECKPOINT,
-                  delta: COLLATERAL,
                 })
                 const totalFee = EXPECTED_FUNDING_FEE_1_10_123_ALL.add(EXPECTED_INTEREST_FEE_10_67_123_ALL)
                 expectGlobalEq(await market.global(), {
@@ -8823,7 +8684,6 @@ describe('Market', () => {
                 })
                 expectCheckpointEq(await market.checkpoints(user.address, 2), {
                   ...DEFAULT_CHECKPOINT,
-                  delta: COLLATERAL,
                 })
                 expectGlobalEq(await market.global(), {
                   currentId: 2,
@@ -8883,7 +8743,6 @@ describe('Market', () => {
                 })
                 expectCheckpointEq(await market.checkpoints(user.address, 3), {
                   ...DEFAULT_CHECKPOINT,
-                  delta: COLLATERAL,
                 })
                 expectLocalEq(await market.locals(userB.address), {
                   ...DEFAULT_LOCAL,
@@ -8904,7 +8763,6 @@ describe('Market', () => {
                 })
                 expectCheckpointEq(await market.checkpoints(userB.address, 2), {
                   ...DEFAULT_CHECKPOINT,
-                  delta: COLLATERAL,
                 })
                 const totalFee = EXPECTED_FUNDING_FEE_1_10_123_ALL.add(EXPECTED_INTEREST_FEE_10_67_123_ALL)
                 expectGlobalEq(await market.global(), {
@@ -8983,7 +8841,6 @@ describe('Market', () => {
                 })
                 expectCheckpointEq(await market.checkpoints(user.address, 3), {
                   ...DEFAULT_CHECKPOINT,
-                  delta: COLLATERAL,
                 })
                 expectLocalEq(await market.locals(userB.address), {
                   ...DEFAULT_LOCAL,
@@ -9004,7 +8861,6 @@ describe('Market', () => {
                 })
                 expectCheckpointEq(await market.checkpoints(userB.address, 2), {
                   ...DEFAULT_CHECKPOINT,
-                  delta: COLLATERAL,
                 })
                 const totalFee = EXPECTED_FUNDING_FEE_1_10_123_ALL.add(EXPECTED_INTEREST_FEE_10_67_123_ALL)
                 expectGlobalEq(await market.global(), {
@@ -9089,7 +8945,6 @@ describe('Market', () => {
                 })
                 expectCheckpointEq(await market.checkpoints(user.address, 4), {
                   ...DEFAULT_CHECKPOINT,
-                  delta: COLLATERAL,
                 })
                 expectLocalEq(await market.locals(userB.address), {
                   ...DEFAULT_LOCAL,
@@ -9112,7 +8967,6 @@ describe('Market', () => {
                 })
                 expectCheckpointEq(await market.checkpoints(userB.address, 2), {
                   ...DEFAULT_CHECKPOINT,
-                  delta: COLLATERAL,
                 })
                 const totalFee = EXPECTED_FUNDING_FEE_1_10_123_ALL.add(EXPECTED_FUNDING_FEE_2_10_123_ALL)
                   .add(EXPECTED_INTEREST_FEE_10_67_123_ALL)
@@ -9224,7 +9078,6 @@ describe('Market', () => {
                 })
                 expectCheckpointEq(await market.checkpoints(user.address, 3), {
                   ...DEFAULT_CHECKPOINT,
-                  delta: COLLATERAL,
                 })
                 expectPositionEq(await market.position(), {
                   ...DEFAULT_POSITION,
@@ -9311,7 +9164,6 @@ describe('Market', () => {
                 })
                 expectCheckpointEq(await market.checkpoints(user.address, 3), {
                   ...DEFAULT_CHECKPOINT,
-                  delta: COLLATERAL,
                 })
                 expectPositionEq(await market.position(), {
                   ...DEFAULT_POSITION,
@@ -9399,7 +9251,6 @@ describe('Market', () => {
             })
             expectCheckpointEq(await market.checkpoints(user.address, 2), {
               ...DEFAULT_CHECKPOINT,
-              delta: COLLATERAL,
             })
             expectLocalEq(await market.locals(userB.address), {
               ...DEFAULT_LOCAL,
@@ -9418,7 +9269,6 @@ describe('Market', () => {
             })
             expectCheckpointEq(await market.checkpoints(userB.address, 2), {
               ...DEFAULT_CHECKPOINT,
-              delta: COLLATERAL,
             })
             expectGlobalEq(await market.global(), {
               currentId: 2,
@@ -9512,7 +9362,6 @@ describe('Market', () => {
             })
             expectCheckpointEq(await market.checkpoints(user.address, 3), {
               ...DEFAULT_CHECKPOINT,
-              delta: COLLATERAL,
             })
             expectLocalEq(await market.locals(userB.address), {
               ...DEFAULT_LOCAL,
@@ -9534,7 +9383,6 @@ describe('Market', () => {
             })
             expectCheckpointEq(await market.checkpoints(userB.address, 3), {
               ...DEFAULT_CHECKPOINT,
-              delta: COLLATERAL,
             })
             const totalFee = EXPECTED_FUNDING_FEE_1_10_123_ALL.add(EXPECTED_INTEREST_FEE_10_67_123_ALL)
             expectGlobalEq(await market.global(), {
@@ -9651,7 +9499,6 @@ describe('Market', () => {
             })
             expectCheckpointEq(await market.checkpoints(user.address, 3), {
               ...DEFAULT_CHECKPOINT,
-              delta: COLLATERAL,
             })
             expectLocalEq(await market.locals(userB.address), {
               ...DEFAULT_LOCAL,
@@ -9673,7 +9520,6 @@ describe('Market', () => {
             })
             expectCheckpointEq(await market.checkpoints(userB.address, 3), {
               ...DEFAULT_CHECKPOINT,
-              delta: COLLATERAL,
             })
             const totalFee = EXPECTED_FUNDING_FEE_1_10_123_ALL.add(EXPECTED_INTEREST_FEE_10_67_123_ALL)
             expectGlobalEq(await market.global(), {
@@ -9810,7 +9656,6 @@ describe('Market', () => {
               })
               expectCheckpointEq(await market.checkpoints(user.address, 5), {
                 ...DEFAULT_CHECKPOINT,
-                delta: COLLATERAL,
               })
               expectLocalEq(await market.locals(userB.address), {
                 ...DEFAULT_LOCAL,
@@ -9837,7 +9682,6 @@ describe('Market', () => {
               })
               expectCheckpointEq(await market.checkpoints(userB.address, 5), {
                 ...DEFAULT_CHECKPOINT,
-                delta: parse6decimal('450'),
               })
               const totalFee = EXPECTED_FUNDING_FEE_1_10_123_ALL.add(EXPECTED_INTEREST_FEE_10_67_123_ALL)
                 .add(EXPECTED_FUNDING_FEE_2_10_45_ALL)
@@ -10050,7 +9894,6 @@ describe('Market', () => {
               })
               expectCheckpointEq(await market.checkpoints(user.address, 5), {
                 ...DEFAULT_CHECKPOINT,
-                delta: COLLATERAL,
               })
               expectLocalEq(await market.locals(userB.address), {
                 ...DEFAULT_LOCAL,
@@ -10077,7 +9920,6 @@ describe('Market', () => {
               })
               expectCheckpointEq(await market.checkpoints(userB.address, 5), {
                 ...DEFAULT_CHECKPOINT,
-                delta: parse6decimal('450'),
               })
               const totalFee = EXPECTED_FUNDING_FEE_1_10_123_ALL.add(EXPECTED_INTEREST_FEE_1)
                 .add(EXPECTED_FUNDING_FEE_2_10_45_ALL)
@@ -10242,7 +10084,6 @@ describe('Market', () => {
               })
               expectCheckpointEq(await market.checkpoints(user.address, 3), {
                 ...DEFAULT_CHECKPOINT,
-                delta: COLLATERAL,
               })
               expectLocalEq(await market.locals(userB.address), {
                 ...DEFAULT_LOCAL,
@@ -10270,7 +10111,6 @@ describe('Market', () => {
               })
               expectCheckpointEq(await market.checkpoints(userB.address, 3), {
                 ...DEFAULT_CHECKPOINT,
-                delta: parse6decimal('450'),
               })
               const totalFee = EXPECTED_FUNDING_FEE_1_10_123_ALL.add(EXPECTED_INTEREST_FEE_10_67_123_ALL)
               expectGlobalEq(await market.global(), {
@@ -10378,7 +10218,6 @@ describe('Market', () => {
               })
               expectCheckpointEq(await market.checkpoints(userB.address, 4), {
                 ...DEFAULT_CHECKPOINT,
-                delta: parse6decimal('450').add(shortfall.mul(-1)),
               })
             })
           })
@@ -10486,7 +10325,6 @@ describe('Market', () => {
               })
               expectCheckpointEq(await market.checkpoints(user.address, 5), {
                 ...DEFAULT_CHECKPOINT,
-                delta: parse6decimal('216'),
               })
               expectLocalEq(await market.locals(userB.address), {
                 ...DEFAULT_LOCAL,
@@ -10512,7 +10350,6 @@ describe('Market', () => {
               })
               expectCheckpointEq(await market.checkpoints(userB.address, 5), {
                 ...DEFAULT_CHECKPOINT,
-                delta: COLLATERAL,
               })
               const totalFee = EXPECTED_FUNDING_FEE_1_10_123_ALL.add(EXPECTED_INTEREST_FEE_10_67_123_ALL)
                 .add(EXPECTED_FUNDING_FEE_2_10_96_ALL)
@@ -10694,7 +10531,6 @@ describe('Market', () => {
               })
               expectCheckpointEq(await market.checkpoints(user.address, 3), {
                 ...DEFAULT_CHECKPOINT,
-                delta: parse6decimal('216'),
               })
               expectLocalEq(await market.locals(userB.address), {
                 ...DEFAULT_LOCAL,
@@ -10716,7 +10552,6 @@ describe('Market', () => {
               })
               expectCheckpointEq(await market.checkpoints(userB.address, 3), {
                 ...DEFAULT_CHECKPOINT,
-                delta: COLLATERAL,
               })
               const totalFee = EXPECTED_FUNDING_FEE_1_10_123_ALL.add(EXPECTED_INTEREST_FEE_10_67_123_ALL)
               expectGlobalEq(await market.global(), {
@@ -10824,7 +10659,6 @@ describe('Market', () => {
               })
               expectCheckpointEq(await market.checkpoints(user.address, 4), {
                 ...DEFAULT_CHECKPOINT,
-                delta: parse6decimal('216').add(shortfall.mul(-1)),
               })
             })
           })
@@ -10887,7 +10721,6 @@ describe('Market', () => {
             })
             expectCheckpointEq(await market.checkpoints(user.address, 3), {
               ...DEFAULT_CHECKPOINT,
-              delta: COLLATERAL,
             })
             expectLocalEq(await market.locals(userB.address), {
               ...DEFAULT_LOCAL,
@@ -10906,7 +10739,6 @@ describe('Market', () => {
             })
             expectCheckpointEq(await market.checkpoints(userB.address, 3), {
               ...DEFAULT_CHECKPOINT,
-              delta: COLLATERAL,
             })
             expectGlobalEq(await market.global(), {
               currentId: 3,
@@ -11520,7 +11352,6 @@ describe('Market', () => {
           })
           expectCheckpointEq(await market.checkpoints(user.address, 3), {
             ...DEFAULT_CHECKPOINT,
-            delta: parse6decimal('216'),
           })
           expectLocalEq(await market.locals(userB.address), {
             ...DEFAULT_LOCAL,
@@ -11541,7 +11372,6 @@ describe('Market', () => {
           })
           expectCheckpointEq(await market.checkpoints(userB.address, 3), {
             ...DEFAULT_CHECKPOINT,
-            delta: COLLATERAL,
           })
           const totalFee = EXPECTED_FUNDING_FEE_1_5_123.add(EXPECTED_INTEREST_FEE_5_123)
           expectGlobalEq(await market.global(), {
@@ -11668,7 +11498,6 @@ describe('Market', () => {
           })
           expectCheckpointEq(await market.checkpoints(user.address, 5), {
             ...DEFAULT_CHECKPOINT,
-            delta: parse6decimal('216'),
           })
           expectLocalEq(await market.locals(userB.address), {
             ...DEFAULT_LOCAL,
@@ -11691,7 +11520,6 @@ describe('Market', () => {
           })
           expectCheckpointEq(await market.checkpoints(userB.address, 5), {
             ...DEFAULT_CHECKPOINT,
-            delta: COLLATERAL,
           })
           const totalFee = EXPECTED_FUNDING_FEE_1_5_123.add(EXPECTED_INTEREST_FEE_5_123)
             .add(EXPECTED_FUNDING_FEE_2_5_150)
@@ -11949,7 +11777,6 @@ describe('Market', () => {
           })
           expectCheckpointEq(await market.checkpoints(user.address, 6), {
             ...DEFAULT_CHECKPOINT,
-            delta: parse6decimal('216'),
           })
           expectLocalEq(await market.locals(userB.address), {
             ...DEFAULT_LOCAL,
@@ -11973,7 +11800,6 @@ describe('Market', () => {
           })
           expectCheckpointEq(await market.checkpoints(userB.address, 6), {
             ...DEFAULT_CHECKPOINT,
-            delta: COLLATERAL,
           })
           const totalFee = EXPECTED_FUNDING_FEE_1_5_123.add(EXPECTED_INTEREST_FEE_5_123)
             .add(EXPECTED_FUNDING_FEE_2_5_150)
@@ -12111,8 +11937,8 @@ describe('Market', () => {
           })
           expectCheckpointEq(await market.checkpoints(user.address, 1), {
             ...DEFAULT_CHECKPOINT,
-            delta: COLLATERAL,
             settlementFee: SETTLEMENT_FEE,
+            transfer: COLLATERAL,
           })
           expectOrderEq(await market.pendingOrders(user.address, 2), {
             ...DEFAULT_ORDER,
@@ -12120,7 +11946,6 @@ describe('Market', () => {
           })
           expectCheckpointEq(await market.checkpoints(user.address, 2), {
             ...DEFAULT_CHECKPOINT,
-            delta: COLLATERAL,
           })
           expectLocalEq(await market.locals(userB.address), {
             ...DEFAULT_LOCAL,
@@ -12142,7 +11967,7 @@ describe('Market', () => {
           })
           expectCheckpointEq(await market.checkpoints(userB.address, 1), {
             ...DEFAULT_CHECKPOINT,
-            delta: COLLATERAL,
+            transfer: COLLATERAL,
           })
           expectOrderEq(await market.pendingOrders(userB.address, 2), {
             ...DEFAULT_ORDER,
@@ -12150,7 +11975,6 @@ describe('Market', () => {
           })
           expectCheckpointEq(await market.checkpoints(userB.address, 2), {
             ...DEFAULT_CHECKPOINT,
-            delta: COLLATERAL,
           })
           expectGlobalEq(await market.global(), {
             currentId: 3,
@@ -12250,8 +12074,8 @@ describe('Market', () => {
           })
           expectCheckpointEq(await market.checkpoints(user.address, 1), {
             ...DEFAULT_CHECKPOINT,
-            delta: COLLATERAL,
             settlementFee: SETTLEMENT_FEE,
+            transfer: COLLATERAL,
           })
           expectOrderEq(await market.pendingOrders(user.address, 2), {
             ...DEFAULT_ORDER,
@@ -12263,7 +12087,6 @@ describe('Market', () => {
             ...DEFAULT_CHECKPOINT,
             tradeFee: TAKER_FEE,
             settlementFee: SETTLEMENT_FEE,
-            delta: COLLATERAL,
             collateral: COLLATERAL.sub(SETTLEMENT_FEE),
           })
           expectOrderEq(await market.pendingOrders(user.address, 3), {
@@ -12272,7 +12095,6 @@ describe('Market', () => {
           })
           expectCheckpointEq(await market.checkpoints(user.address, 3), {
             ...DEFAULT_CHECKPOINT,
-            delta: COLLATERAL,
           })
           expectLocalEq(await market.locals(userB.address), {
             ...DEFAULT_LOCAL,
@@ -12294,7 +12116,7 @@ describe('Market', () => {
           })
           expectCheckpointEq(await market.checkpoints(userB.address, 1), {
             ...DEFAULT_CHECKPOINT,
-            delta: COLLATERAL,
+            transfer: COLLATERAL,
           })
           expectOrderEq(await market.pendingOrders(userB.address, 2), {
             ...DEFAULT_ORDER,
@@ -12302,7 +12124,6 @@ describe('Market', () => {
           })
           expectCheckpointEq(await market.checkpoints(userB.address, 2), {
             ...DEFAULT_CHECKPOINT,
-            delta: COLLATERAL,
           })
           expectGlobalEq(await market.global(), {
             currentId: 4,
@@ -12413,8 +12234,8 @@ describe('Market', () => {
           })
           expectCheckpointEq(await market.checkpoints(user.address, 1), {
             ...DEFAULT_CHECKPOINT,
-            delta: COLLATERAL,
             settlementFee: SETTLEMENT_FEE,
+            transfer: COLLATERAL,
           })
           expectOrderEq(await market.pendingOrders(user.address, 2), {
             ...DEFAULT_ORDER,
@@ -12425,7 +12246,6 @@ describe('Market', () => {
           expectCheckpointEq(await market.checkpoints(user.address, 2), {
             ...DEFAULT_CHECKPOINT,
             collateral: COLLATERAL.sub(SETTLEMENT_FEE),
-            delta: COLLATERAL,
             settlementFee: SETTLEMENT_FEE,
           })
           expectOrderEq(await market.pendingOrders(user.address, 3), {
@@ -12434,7 +12254,6 @@ describe('Market', () => {
           })
           expectCheckpointEq(await market.checkpoints(user.address, 3), {
             ...DEFAULT_CHECKPOINT,
-            delta: COLLATERAL,
           })
           expectLocalEq(await market.locals(userB.address), {
             ...DEFAULT_LOCAL,
@@ -12456,7 +12275,7 @@ describe('Market', () => {
           })
           expectCheckpointEq(await market.checkpoints(userB.address, 1), {
             ...DEFAULT_CHECKPOINT,
-            delta: COLLATERAL,
+            transfer: COLLATERAL,
           })
           expectOrderEq(await market.pendingOrders(userB.address, 2), {
             ...DEFAULT_ORDER,
@@ -12464,7 +12283,6 @@ describe('Market', () => {
           })
           expectCheckpointEq(await market.checkpoints(userB.address, 2), {
             ...DEFAULT_CHECKPOINT,
-            delta: COLLATERAL,
           })
           expectGlobalEq(await market.global(), {
             currentId: 4,
@@ -12574,8 +12392,8 @@ describe('Market', () => {
           })
           expectCheckpointEq(await market.checkpoints(user.address, 1), {
             ...DEFAULT_CHECKPOINT,
-            delta: COLLATERAL,
             settlementFee: SETTLEMENT_FEE,
+            transfer: COLLATERAL,
           })
           expectOrderEq(await market.pendingOrders(user.address, 2), {
             ...DEFAULT_ORDER,
@@ -12584,7 +12402,6 @@ describe('Market', () => {
           expectCheckpointEq(await market.checkpoints(user.address, 2), {
             ...DEFAULT_CHECKPOINT,
             collateral: COLLATERAL.sub(SETTLEMENT_FEE),
-            delta: COLLATERAL,
           })
           expectOrderEq(await market.pendingOrders(user.address, 3), {
             ...DEFAULT_ORDER,
@@ -12592,7 +12409,6 @@ describe('Market', () => {
           })
           expectCheckpointEq(await market.checkpoints(user.address, 3), {
             ...DEFAULT_CHECKPOINT,
-            delta: COLLATERAL,
           })
           expectLocalEq(await market.locals(userB.address), {
             ...DEFAULT_LOCAL,
@@ -12614,7 +12430,7 @@ describe('Market', () => {
           })
           expectCheckpointEq(await market.checkpoints(userB.address, 1), {
             ...DEFAULT_CHECKPOINT,
-            delta: COLLATERAL,
+            transfer: COLLATERAL,
           })
           expectOrderEq(await market.pendingOrders(userB.address, 2), {
             ...DEFAULT_ORDER,
@@ -12622,7 +12438,6 @@ describe('Market', () => {
           })
           expectCheckpointEq(await market.checkpoints(userB.address, 2), {
             ...DEFAULT_CHECKPOINT,
-            delta: COLLATERAL,
           })
           expectGlobalEq(await market.global(), {
             currentId: 4,
@@ -12738,8 +12553,8 @@ describe('Market', () => {
           })
           expectCheckpointEq(await market.checkpoints(user.address, 1), {
             ...DEFAULT_CHECKPOINT,
-            delta: COLLATERAL,
             settlementFee: SETTLEMENT_FEE,
+            transfer: COLLATERAL,
           })
           expectOrderEq(await market.pendingOrders(user.address, 2), {
             ...DEFAULT_ORDER,
@@ -12748,7 +12563,6 @@ describe('Market', () => {
           expectCheckpointEq(await market.checkpoints(user.address, 2), {
             ...DEFAULT_CHECKPOINT,
             collateral: COLLATERAL.sub(SETTLEMENT_FEE),
-            delta: COLLATERAL,
           })
           expectOrderEq(await market.pendingOrders(user.address, 3), {
             ...DEFAULT_ORDER,
@@ -12761,7 +12575,6 @@ describe('Market', () => {
             tradeFee: TAKER_FEE,
             settlementFee: SETTLEMENT_FEE,
             collateral: COLLATERAL.sub(SETTLEMENT_FEE),
-            delta: COLLATERAL,
           })
           expectOrderEq(await market.pendingOrders(user.address, 4), {
             ...DEFAULT_ORDER,
@@ -12769,7 +12582,6 @@ describe('Market', () => {
           })
           expectCheckpointEq(await market.checkpoints(user.address, 4), {
             ...DEFAULT_CHECKPOINT,
-            delta: COLLATERAL,
           })
           expectLocalEq(await market.locals(userB.address), {
             ...DEFAULT_LOCAL,
@@ -12791,7 +12603,7 @@ describe('Market', () => {
           })
           expectCheckpointEq(await market.checkpoints(userB.address, 1), {
             ...DEFAULT_CHECKPOINT,
-            delta: COLLATERAL,
+            transfer: COLLATERAL,
           })
           expectOrderEq(await market.pendingOrders(userB.address, 2), {
             ...DEFAULT_ORDER,
@@ -12799,7 +12611,6 @@ describe('Market', () => {
           })
           expectCheckpointEq(await market.checkpoints(userB.address, 2), {
             ...DEFAULT_CHECKPOINT,
-            delta: COLLATERAL,
           })
           expectGlobalEq(await market.global(), {
             currentId: 5,
@@ -12886,7 +12697,6 @@ describe('Market', () => {
           })
           expectCheckpointEq(await market.checkpoints(user.address, 2), {
             ...DEFAULT_CHECKPOINT,
-            delta: COLLATERAL,
           })
           expectLocalEq(await market.locals(userB.address), {
             ...DEFAULT_LOCAL,
@@ -12907,7 +12717,6 @@ describe('Market', () => {
           })
           expectCheckpointEq(await market.checkpoints(userB.address, 2), {
             ...DEFAULT_CHECKPOINT,
-            delta: COLLATERAL,
           })
           const totalFee = EXPECTED_FUNDING_FEE_1_5_123.add(EXPECTED_INTEREST_FEE_5_123)
           expectGlobalEq(await market.global(), {
@@ -12983,7 +12792,6 @@ describe('Market', () => {
           })
           expectCheckpointEq(await market.checkpoints(user.address, 3), {
             ...DEFAULT_CHECKPOINT,
-            delta: COLLATERAL,
           })
           expectLocalEq(await market.locals(userB.address), {
             ...DEFAULT_LOCAL,
@@ -13006,7 +12814,6 @@ describe('Market', () => {
           })
           expectCheckpointEq(await market.checkpoints(userB.address, 2), {
             ...DEFAULT_CHECKPOINT,
-            delta: COLLATERAL,
           })
           expectLocalEq(await market.locals(userC.address), {
             ...DEFAULT_LOCAL,
@@ -13025,7 +12832,6 @@ describe('Market', () => {
           })
           expectCheckpointEq(await market.checkpoints(userC.address, 2), {
             ...DEFAULT_CHECKPOINT,
-            delta: COLLATERAL,
           })
           const totalFee = EXPECTED_FUNDING_FEE_1_5_123.add(EXPECTED_INTEREST_FEE_5_123)
             .add(EXPECTED_FUNDING_FEE_1_5_123)
@@ -13105,7 +12911,6 @@ describe('Market', () => {
           })
           expectCheckpointEq(await market.checkpoints(user.address, 3), {
             ...DEFAULT_CHECKPOINT,
-            delta: COLLATERAL,
           })
           expectLocalEq(await market.locals(userB.address), {
             ...DEFAULT_LOCAL,
@@ -13128,7 +12933,6 @@ describe('Market', () => {
           })
           expectCheckpointEq(await market.checkpoints(userB.address, 2), {
             ...DEFAULT_CHECKPOINT,
-            delta: COLLATERAL,
           })
           expectLocalEq(await market.locals(userC.address), {
             ...DEFAULT_LOCAL,
@@ -13147,7 +12951,6 @@ describe('Market', () => {
           })
           expectCheckpointEq(await market.checkpoints(userC.address, 2), {
             ...DEFAULT_CHECKPOINT,
-            delta: COLLATERAL,
           })
           const totalFee = EXPECTED_FUNDING_FEE_1_5_123.add(EXPECTED_INTEREST_FEE_5_123)
             .add(EXPECTED_FUNDING_FEE_1_5_123)
@@ -13219,7 +13022,6 @@ describe('Market', () => {
           })
           expectCheckpointEq(await market.checkpoints(user.address, 1), {
             ...DEFAULT_CHECKPOINT,
-            delta: COLLATERAL,
           })
           expectGlobalEq(await market.global(), {
             currentId: 1,
@@ -13339,7 +13141,6 @@ describe('Market', () => {
           })
           expectCheckpointEq(await market.checkpoints(user.address, 1), {
             ...DEFAULT_CHECKPOINT,
-            delta: COLLATERAL,
           })
           expectOrderEq(await market.pendingOrders(userB.address, 1), {
             ...DEFAULT_ORDER,
@@ -13350,7 +13151,6 @@ describe('Market', () => {
           })
           expectCheckpointEq(await market.checkpoints(userB.address, 1), {
             ...DEFAULT_CHECKPOINT,
-            delta: COLLATERAL,
           })
           expectOrderEq(await market.pendingOrders(userC.address, 1), {
             ...DEFAULT_ORDER,
@@ -13361,7 +13161,6 @@ describe('Market', () => {
           })
           expectCheckpointEq(await market.checkpoints(userC.address, 1), {
             ...DEFAULT_CHECKPOINT,
-            delta: COLLATERAL,
           })
 
           await market.connect(user).update(user.address, 0, ethers.constants.MaxUint256, 0, 0, false)
@@ -13377,7 +13176,6 @@ describe('Market', () => {
           })
           expectCheckpointEq(await market.checkpoints(user.address, 1), {
             ...DEFAULT_CHECKPOINT,
-            delta: COLLATERAL,
           })
           expectOrderEq(await market.pendingOrders(userB.address, 1), {
             ...DEFAULT_ORDER,
@@ -13388,7 +13186,6 @@ describe('Market', () => {
           })
           expectCheckpointEq(await market.checkpoints(userB.address, 1), {
             ...DEFAULT_CHECKPOINT,
-            delta: COLLATERAL,
           })
           expectOrderEq(await market.pendingOrders(userC.address, 1), {
             ...DEFAULT_ORDER,
@@ -13399,7 +13196,6 @@ describe('Market', () => {
           })
           expectCheckpointEq(await market.checkpoints(userC.address, 1), {
             ...DEFAULT_CHECKPOINT,
-            delta: COLLATERAL,
           })
 
           await market
@@ -13442,7 +13238,6 @@ describe('Market', () => {
           })
           expectCheckpointEq(await market.checkpoints(user.address, 1), {
             ...DEFAULT_CHECKPOINT,
-            delta: COLLATERAL,
           })
           expectOrderEq(await market.pendingOrders(userB.address, 1), {
             ...DEFAULT_ORDER,
@@ -13453,7 +13248,6 @@ describe('Market', () => {
           })
           expectCheckpointEq(await market.checkpoints(userB.address, 1), {
             ...DEFAULT_CHECKPOINT,
-            delta: COLLATERAL,
           })
           expectOrderEq(await market.pendingOrders(userC.address, 1), {
             ...DEFAULT_ORDER,
@@ -13464,7 +13258,6 @@ describe('Market', () => {
           })
           expectCheckpointEq(await market.checkpoints(userC.address, 1), {
             ...DEFAULT_CHECKPOINT,
-            delta: COLLATERAL,
           })
         })
 
@@ -13482,7 +13275,6 @@ describe('Market', () => {
           })
           expectCheckpointEq(await market.checkpoints(user.address, 1), {
             ...DEFAULT_CHECKPOINT,
-            delta: COLLATERAL,
           })
           expectOrderEq(await market.pendingOrders(userB.address, 1), {
             ...DEFAULT_ORDER,
@@ -13493,7 +13285,6 @@ describe('Market', () => {
           })
           expectCheckpointEq(await market.checkpoints(userB.address, 1), {
             ...DEFAULT_CHECKPOINT,
-            delta: COLLATERAL,
           })
           expectOrderEq(await market.pendingOrders(userC.address, 1), {
             ...DEFAULT_ORDER,
@@ -13504,7 +13295,6 @@ describe('Market', () => {
           })
           expectCheckpointEq(await market.checkpoints(userC.address, 1), {
             ...DEFAULT_CHECKPOINT,
-            delta: COLLATERAL,
           })
 
           await market.connect(user).update(user.address, 0, ethers.constants.MaxUint256.sub(1), 0, 0, false)
@@ -13520,7 +13310,6 @@ describe('Market', () => {
           })
           expectCheckpointEq(await market.checkpoints(user.address, 1), {
             ...DEFAULT_CHECKPOINT,
-            delta: COLLATERAL,
           })
           expectOrderEq(await market.pendingOrders(userB.address, 1), {
             ...DEFAULT_ORDER,
@@ -13531,7 +13320,6 @@ describe('Market', () => {
           })
           expectCheckpointEq(await market.checkpoints(userB.address, 1), {
             ...DEFAULT_CHECKPOINT,
-            delta: COLLATERAL,
           })
           expectOrderEq(await market.pendingOrders(userC.address, 1), {
             ...DEFAULT_ORDER,
@@ -13542,7 +13330,6 @@ describe('Market', () => {
           })
           expectCheckpointEq(await market.checkpoints(userC.address, 1), {
             ...DEFAULT_CHECKPOINT,
-            delta: COLLATERAL,
           })
 
           await market.connect(userB).update(userB.address, POSITION, 0, 0, 0, false)
@@ -13558,7 +13345,6 @@ describe('Market', () => {
           })
           expectCheckpointEq(await market.checkpoints(user.address, 1), {
             ...DEFAULT_CHECKPOINT,
-            delta: COLLATERAL,
           })
           expectOrderEq(await market.pendingOrders(userB.address, 1), {
             ...DEFAULT_ORDER,
@@ -13569,7 +13355,6 @@ describe('Market', () => {
           })
           expectCheckpointEq(await market.checkpoints(userB.address, 1), {
             ...DEFAULT_CHECKPOINT,
-            delta: COLLATERAL,
           })
           expectOrderEq(await market.pendingOrders(userC.address, 1), {
             ...DEFAULT_ORDER,
@@ -13580,7 +13365,6 @@ describe('Market', () => {
           })
           expectCheckpointEq(await market.checkpoints(userC.address, 1), {
             ...DEFAULT_CHECKPOINT,
-            delta: COLLATERAL,
           })
 
           await market
@@ -13623,7 +13407,6 @@ describe('Market', () => {
           })
           expectCheckpointEq(await market.checkpoints(user.address, 1), {
             ...DEFAULT_CHECKPOINT,
-            delta: COLLATERAL,
           })
           expectOrderEq(await market.pendingOrders(userB.address, 1), {
             ...DEFAULT_ORDER,
@@ -13634,7 +13417,6 @@ describe('Market', () => {
           })
           expectCheckpointEq(await market.checkpoints(userB.address, 1), {
             ...DEFAULT_CHECKPOINT,
-            delta: COLLATERAL,
           })
           expectOrderEq(await market.pendingOrders(userC.address, 1), {
             ...DEFAULT_ORDER,
@@ -13645,7 +13427,6 @@ describe('Market', () => {
           })
           expectCheckpointEq(await market.checkpoints(userC.address, 1), {
             ...DEFAULT_CHECKPOINT,
-            delta: COLLATERAL,
           })
         })
 
@@ -13663,7 +13444,6 @@ describe('Market', () => {
           })
           expectCheckpointEq(await market.checkpoints(user.address, 1), {
             ...DEFAULT_CHECKPOINT,
-            delta: COLLATERAL,
           })
           expectOrderEq(await market.pendingOrders(userB.address, 1), {
             ...DEFAULT_ORDER,
@@ -13674,7 +13454,6 @@ describe('Market', () => {
           })
           expectCheckpointEq(await market.checkpoints(userB.address, 1), {
             ...DEFAULT_CHECKPOINT,
-            delta: COLLATERAL,
           })
           expectOrderEq(await market.pendingOrders(userC.address, 1), {
             ...DEFAULT_ORDER,
@@ -13685,7 +13464,6 @@ describe('Market', () => {
           })
           expectCheckpointEq(await market.checkpoints(userC.address, 1), {
             ...DEFAULT_CHECKPOINT,
-            delta: COLLATERAL,
           })
 
           oracle.at.whenCalledWith(ORACLE_VERSION_2.timestamp).returns(ORACLE_VERSION_2)
@@ -13704,7 +13482,6 @@ describe('Market', () => {
           })
           expectCheckpointEq(await market.checkpoints(user.address, 2), {
             ...DEFAULT_CHECKPOINT,
-            delta: COLLATERAL,
           })
           expectOrderEq(await market.pendingOrders(userB.address, 2), {
             ...DEFAULT_ORDER,
@@ -13714,7 +13491,6 @@ describe('Market', () => {
           })
           expectCheckpointEq(await market.checkpoints(userB.address, 2), {
             ...DEFAULT_CHECKPOINT,
-            delta: COLLATERAL,
           })
           expectOrderEq(await market.pendingOrders(userC.address, 2), {
             ...DEFAULT_ORDER,
@@ -13724,7 +13500,6 @@ describe('Market', () => {
           })
           expectCheckpointEq(await market.checkpoints(userC.address, 2), {
             ...DEFAULT_CHECKPOINT,
-            delta: COLLATERAL,
           })
 
           oracle.at.whenCalledWith(ORACLE_VERSION_3.timestamp).returns(ORACLE_VERSION_3)
@@ -13743,7 +13518,6 @@ describe('Market', () => {
           })
           expectCheckpointEq(await market.checkpoints(user.address, 3), {
             ...DEFAULT_CHECKPOINT,
-            delta: COLLATERAL,
           })
           expectOrderEq(await market.pendingOrders(userB.address, 3), {
             ...DEFAULT_ORDER,
@@ -13753,7 +13527,6 @@ describe('Market', () => {
           })
           expectCheckpointEq(await market.checkpoints(userB.address, 3), {
             ...DEFAULT_CHECKPOINT,
-            delta: COLLATERAL,
           })
           expectOrderEq(await market.pendingOrders(userC.address, 3), {
             ...DEFAULT_ORDER,
@@ -13763,7 +13536,6 @@ describe('Market', () => {
           })
           expectCheckpointEq(await market.checkpoints(userC.address, 3), {
             ...DEFAULT_CHECKPOINT,
-            delta: COLLATERAL,
           })
 
           oracle.at.whenCalledWith(ORACLE_VERSION_4.timestamp).returns(ORACLE_VERSION_4)
@@ -13809,7 +13581,6 @@ describe('Market', () => {
           })
           expectCheckpointEq(await market.checkpoints(user.address, 4), {
             ...DEFAULT_CHECKPOINT,
-            delta: COLLATERAL,
           })
           expectOrderEq(await market.pendingOrders(userB.address, 4), {
             ...DEFAULT_ORDER,
@@ -13819,7 +13590,6 @@ describe('Market', () => {
           })
           expectCheckpointEq(await market.checkpoints(userB.address, 4), {
             ...DEFAULT_CHECKPOINT,
-            delta: COLLATERAL,
           })
           expectOrderEq(await market.pendingOrders(userC.address, 4), {
             ...DEFAULT_ORDER,
@@ -13829,7 +13599,6 @@ describe('Market', () => {
           })
           expectCheckpointEq(await market.checkpoints(userC.address, 4), {
             ...DEFAULT_CHECKPOINT,
-            delta: COLLATERAL,
           })
         })
 
@@ -13851,7 +13620,6 @@ describe('Market', () => {
           })
           expectCheckpointEq(await market.checkpoints(user.address, 1), {
             ...DEFAULT_CHECKPOINT,
-            delta: COLLATERAL,
           })
           expectOrderEq(await market.pendingOrders(userB.address, 1), {
             ...DEFAULT_ORDER,
@@ -13862,7 +13630,6 @@ describe('Market', () => {
           })
           expectCheckpointEq(await market.checkpoints(userB.address, 1), {
             ...DEFAULT_CHECKPOINT,
-            delta: COLLATERAL,
           })
           expectOrderEq(await market.pendingOrders(userC.address, 1), {
             ...DEFAULT_ORDER,
@@ -13873,7 +13640,6 @@ describe('Market', () => {
           })
           expectCheckpointEq(await market.checkpoints(userC.address, 1), {
             ...DEFAULT_CHECKPOINT,
-            delta: COLLATERAL,
           })
 
           oracle.at.whenCalledWith(ORACLE_VERSION_1.timestamp).returns(ORACLE_VERSION_1)
@@ -13890,7 +13656,6 @@ describe('Market', () => {
           })
           expectCheckpointEq(await market.checkpoints(user.address, 2), {
             ...DEFAULT_CHECKPOINT,
-            delta: COLLATERAL,
           })
           expectOrderEq(await market.pendingOrders(userB.address, 2), {
             ...DEFAULT_ORDER,
@@ -13898,7 +13663,6 @@ describe('Market', () => {
           })
           expectCheckpointEq(await market.checkpoints(userB.address, 2), {
             ...DEFAULT_CHECKPOINT,
-            delta: COLLATERAL,
           })
           expectOrderEq(await market.pendingOrders(userC.address, 2), {
             ...DEFAULT_ORDER,
@@ -13906,7 +13670,6 @@ describe('Market', () => {
           })
           expectCheckpointEq(await market.checkpoints(userC.address, 2), {
             ...DEFAULT_CHECKPOINT,
-            delta: COLLATERAL,
           })
 
           await market
@@ -13946,7 +13709,6 @@ describe('Market', () => {
           })
           expectCheckpointEq(await market.checkpoints(user.address, 2), {
             ...DEFAULT_CHECKPOINT,
-            delta: COLLATERAL,
           })
           expectOrderEq(await market.pendingOrders(userB.address, 2), {
             ...DEFAULT_ORDER,
@@ -13954,7 +13716,6 @@ describe('Market', () => {
           })
           expectCheckpointEq(await market.checkpoints(userB.address, 2), {
             ...DEFAULT_CHECKPOINT,
-            delta: COLLATERAL,
           })
           expectOrderEq(await market.pendingOrders(userC.address, 2), {
             ...DEFAULT_ORDER,
@@ -13962,7 +13723,6 @@ describe('Market', () => {
           })
           expectCheckpointEq(await market.checkpoints(userC.address, 2), {
             ...DEFAULT_CHECKPOINT,
-            delta: COLLATERAL,
           })
         })
 
@@ -13999,7 +13759,6 @@ describe('Market', () => {
           })
           expectCheckpointEq(await market.checkpoints(user.address, 3), {
             ...DEFAULT_CHECKPOINT,
-            delta: COLLATERAL,
           })
           expectOrderEq(await market.pendingOrders(userB.address, 3), {
             ...DEFAULT_ORDER,
@@ -14009,7 +13768,6 @@ describe('Market', () => {
           })
           expectCheckpointEq(await market.checkpoints(userB.address, 3), {
             ...DEFAULT_CHECKPOINT,
-            delta: COLLATERAL,
           })
           expectOrderEq(await market.pendingOrders(userC.address, 3), {
             ...DEFAULT_ORDER,
@@ -14019,7 +13777,6 @@ describe('Market', () => {
           })
           expectCheckpointEq(await market.checkpoints(userC.address, 3), {
             ...DEFAULT_CHECKPOINT,
-            delta: COLLATERAL,
           })
 
           await market
@@ -14061,7 +13818,6 @@ describe('Market', () => {
           })
           expectCheckpointEq(await market.checkpoints(user.address, 3), {
             ...DEFAULT_CHECKPOINT,
-            delta: COLLATERAL,
           })
           expectOrderEq(await market.pendingOrders(userB.address, 3), {
             ...DEFAULT_ORDER,
@@ -14071,7 +13827,6 @@ describe('Market', () => {
           })
           expectCheckpointEq(await market.checkpoints(userB.address, 3), {
             ...DEFAULT_CHECKPOINT,
-            delta: COLLATERAL,
           })
           expectOrderEq(await market.pendingOrders(userC.address, 3), {
             ...DEFAULT_ORDER,
@@ -14081,7 +13836,6 @@ describe('Market', () => {
           })
           expectCheckpointEq(await market.checkpoints(userC.address, 3), {
             ...DEFAULT_CHECKPOINT,
-            delta: COLLATERAL,
           })
         })
       })
@@ -14145,7 +13899,6 @@ describe('Market', () => {
             })
             expectCheckpointEq(await market.checkpoints(user.address, 3), {
               ...DEFAULT_CHECKPOINT,
-              delta: COLLATERAL,
             })
             expectLocalEq(await market.locals(userB.address), {
               ...DEFAULT_LOCAL,
@@ -14166,7 +13919,6 @@ describe('Market', () => {
             })
             expectCheckpointEq(await market.checkpoints(userB.address, 3), {
               ...DEFAULT_CHECKPOINT,
-              delta: COLLATERAL,
             })
             const totalFee = EXPECTED_FUNDING_FEE_1_5_123_V.add(EXPECTED_INTEREST_FEE_5_123)
             expectGlobalEq(await market.global(), {
@@ -14255,7 +14007,6 @@ describe('Market', () => {
             })
             expectCheckpointEq(await market.checkpoints(user.address, 3), {
               ...DEFAULT_CHECKPOINT,
-              delta: COLLATERAL,
             })
             expectLocalEq(await market.locals(userB.address), {
               ...DEFAULT_LOCAL,
@@ -14276,7 +14027,6 @@ describe('Market', () => {
             })
             expectCheckpointEq(await market.checkpoints(userB.address, 3), {
               ...DEFAULT_CHECKPOINT,
-              delta: COLLATERAL,
             })
             const totalFee = EXPECTED_FUNDING_FEE_1_5_123_V.add(EXPECTED_INTEREST_FEE_5_123)
             expectGlobalEq(await market.global(), {

@@ -6,6 +6,7 @@ import HRE from 'hardhat'
 import { CheckpointTester, CheckpointTester__factory } from '../../../types/generated'
 import { BigNumber } from 'ethers'
 import { CheckpointStruct } from '../../../types/generated/contracts/Market'
+import { DEFAULT_ORDER } from '../../../../common/testutil/types'
 
 const { ethers } = HRE
 use(smock.matchers)
@@ -17,8 +18,8 @@ describe('Checkpoint', () => {
   const VALID_CHECKPOINT: CheckpointStruct = {
     tradeFee: 3,
     settlementFee: 4,
+    transfer: 6,
     collateral: 5,
-    delta: 6,
   }
 
   beforeEach(async () => {
@@ -34,8 +35,8 @@ describe('Checkpoint', () => {
       const value = await checkpoint.read()
       expect(value.tradeFee).to.equal(3)
       expect(value.settlementFee).to.equal(4)
+      expect(value.transfer).to.equal(6)
       expect(value.collateral).to.equal(5)
-      expect(value.delta).to.equal(6)
     })
 
     describe('.tradeFee', async () => {
@@ -98,6 +99,45 @@ describe('Checkpoint', () => {
       })
     })
 
+    describe('.transfer', async () => {
+      const STORAGE_SIZE = 63
+      it('saves if in range (above)', async () => {
+        await checkpoint.store({
+          ...VALID_CHECKPOINT,
+          transfer: BigNumber.from(2).pow(STORAGE_SIZE).sub(1),
+        })
+        const value = await checkpoint.read()
+        expect(value.transfer).to.equal(BigNumber.from(2).pow(STORAGE_SIZE).sub(1))
+      })
+
+      it('saves if in range (below)', async () => {
+        await checkpoint.store({
+          ...VALID_CHECKPOINT,
+          transfer: BigNumber.from(2).pow(STORAGE_SIZE).mul(-1),
+        })
+        const value = await checkpoint.read()
+        expect(value.transfer).to.equal(BigNumber.from(2).pow(STORAGE_SIZE).mul(-1))
+      })
+
+      it('reverts if delta out of range (above)', async () => {
+        await expect(
+          checkpoint.store({
+            ...VALID_CHECKPOINT,
+            transfer: BigNumber.from(2).pow(STORAGE_SIZE),
+          }),
+        ).to.be.revertedWithCustomError(checkpoint, 'CheckpointStorageInvalidError')
+      })
+
+      it('reverts if delta out of range (below)', async () => {
+        await expect(
+          checkpoint.store({
+            ...VALID_CHECKPOINT,
+            transfer: BigNumber.from(2).pow(STORAGE_SIZE).add(1).mul(-1),
+          }),
+        ).to.be.revertedWithCustomError(checkpoint, 'CheckpointStorageInvalidError')
+      })
+    })
+
     describe('.collateral', async () => {
       const STORAGE_SIZE = 63
       it('saves if in range (above)', async () => {
@@ -136,88 +176,18 @@ describe('Checkpoint', () => {
         ).to.be.revertedWithCustomError(checkpoint, 'CheckpointStorageInvalidError')
       })
     })
-
-    describe('.delta', async () => {
-      const STORAGE_SIZE = 63
-      it('saves if in range (above)', async () => {
-        await checkpoint.store({
-          ...VALID_CHECKPOINT,
-          delta: BigNumber.from(2).pow(STORAGE_SIZE).sub(1),
-        })
-        const value = await checkpoint.read()
-        expect(value.delta).to.equal(BigNumber.from(2).pow(STORAGE_SIZE).sub(1))
-      })
-
-      it('saves if in range (below)', async () => {
-        await checkpoint.store({
-          ...VALID_CHECKPOINT,
-          delta: BigNumber.from(2).pow(STORAGE_SIZE).mul(-1),
-        })
-        const value = await checkpoint.read()
-        expect(value.delta).to.equal(BigNumber.from(2).pow(STORAGE_SIZE).mul(-1))
-      })
-
-      it('reverts if delta out of range (above)', async () => {
-        await expect(
-          checkpoint.store({
-            ...VALID_CHECKPOINT,
-            delta: BigNumber.from(2).pow(STORAGE_SIZE),
-          }),
-        ).to.be.revertedWithCustomError(checkpoint, 'CheckpointStorageInvalidError')
-      })
-
-      it('reverts if delta out of range (below)', async () => {
-        await expect(
-          checkpoint.store({
-            ...VALID_CHECKPOINT,
-            delta: BigNumber.from(2).pow(STORAGE_SIZE).add(1).mul(-1),
-          }),
-        ).to.be.revertedWithCustomError(checkpoint, 'CheckpointStorageInvalidError')
-      })
-    })
   })
 
-  describe('#updateCollateral', () => {
-    it('correctly updates collateral', async () => {
-      await checkpoint.store(VALID_CHECKPOINT)
-      await checkpoint.updateCollateral({ ...VALID_CHECKPOINT, delta: 100 }, { ...VALID_CHECKPOINT, delta: 200 }, 400)
-
-      const storedCheckpoint = await checkpoint.read()
-      expect(await storedCheckpoint.collateral).to.equal(300)
-    })
-  })
-
-  describe('#updateFees', () => {
+  describe('#update', () => {
     it('correctly updates fees', async () => {
       await checkpoint.store(VALID_CHECKPOINT)
-      await checkpoint.updateFees(-123, 456)
+      await checkpoint.update({ ...DEFAULT_ORDER, collateral: 345 }, 567, -123, 456)
 
       const storedCheckpoint = await checkpoint.read()
+      expect(await storedCheckpoint.collateral).to.equal(571)
+      expect(await storedCheckpoint.transfer).to.equal(345)
       expect(await storedCheckpoint.tradeFee).to.equal(-123)
       expect(await storedCheckpoint.settlementFee).to.equal(456)
-    })
-  })
-
-  describe('#updateDelta', () => {
-    it('correctly increments delta', async () => {
-      await checkpoint.store(VALID_CHECKPOINT)
-      await checkpoint.updateDelta(100)
-
-      const storedCheckpoint = await checkpoint.read()
-      expect(await storedCheckpoint.delta).to.equal(106)
-    })
-  })
-
-  describe('#next', () => {
-    it('correctly resets everything aside from delta', async () => {
-      await checkpoint.store(VALID_CHECKPOINT)
-      await checkpoint.next()
-
-      const storedCheckpoint = await checkpoint.read()
-      expect(await storedCheckpoint.tradeFee).to.equal(0)
-      expect(await storedCheckpoint.settlementFee).to.equal(0)
-      expect(await storedCheckpoint.collateral).to.equal(0)
-      expect(await storedCheckpoint.delta).to.equal(6)
     })
   })
 })

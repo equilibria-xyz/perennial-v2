@@ -25,11 +25,10 @@ interface IMarket is IInstance {
         MarketParameter marketParameter;
         RiskParameter riskParameter;
         uint256 currentTimestamp;
-        OracleVersion latestVersion;
+        OracleVersion latestVersion; // TODO: why are there two?
         OracleVersion positionVersion;
         Global global;
         Local local;
-        Checkpoint currentCheckpoint;
         PositionContext latestPosition;
         PositionContext currentPosition;
         OrderContext order;

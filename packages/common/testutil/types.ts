@@ -14,8 +14,8 @@ export interface Accumulator {
 export interface Checkpoint {
   tradeFee: BigNumberish
   settlementFee: BigNumberish
+  transfer: BigNumberish
   collateral: BigNumberish
-  delta: BigNumberish
 }
 
 export interface Order {
@@ -75,8 +75,8 @@ export interface Fee {
 export function expectCheckpointEq(a: Checkpoint, b: Checkpoint): void {
   expect(a.tradeFee).to.equal(b.tradeFee, 'Checkpoint:TradeFee')
   expect(a.settlementFee).to.equal(b.settlementFee, 'Checkpoint:SettlementFee')
+  expect(a.transfer).to.equal(b.transfer, 'Checkpoint:Transfer')
   expect(a.collateral).to.equal(b.collateral, 'Checkpoint:Collateral')
-  expect(a.delta).to.equal(b.delta, 'Checkpoint:Delta')
 }
 
 export function expectOrderEq(a: Order, b: Order): void {
@@ -159,8 +159,8 @@ export class Big6Math {
 export const DEFAULT_CHECKPOINT: Checkpoint = {
   tradeFee: 0,
   settlementFee: 0,
+  transfer: 0,
   collateral: 0,
-  delta: 0,
 }
 
 export const DEFAULT_POSITION: Position = {
