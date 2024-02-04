@@ -693,7 +693,7 @@ describe('Market', () => {
         oracle.request.whenCalledWith(user.address).returns()
       })
 
-      context.only('no position', async () => {
+      context('no position', async () => {
         it('deposits and withdraws (immediately)', async () => {
           dsu.transferFrom.whenCalledWith(user.address, market.address, COLLATERAL.mul(1e12)).returns(true)
           await expect(market.connect(user).update(user.address, 0, 0, 0, COLLATERAL, false))
@@ -982,7 +982,7 @@ describe('Market', () => {
             dsu.transferFrom.whenCalledWith(user.address, market.address, COLLATERAL.mul(1e12)).returns(true)
           })
 
-          it.only('opens the position', async () => {
+          it('opens the position', async () => {
             await expect(market.connect(user).update(user.address, POSITION, 0, 0, COLLATERAL, false))
               .to.emit(market, 'Updated')
               .withArgs(user.address, user.address, ORACLE_VERSION_2.timestamp, POSITION, 0, 0, COLLATERAL, false)
@@ -1923,7 +1923,7 @@ describe('Market', () => {
               await market.connect(userB).update(userB.address, POSITION, 0, 0, COLLATERAL, false)
             })
 
-            it.only('opens the position', async () => {
+            it('opens the position', async () => {
               await expect(market.connect(user).update(user.address, 0, POSITION, 0, COLLATERAL, false))
                 .to.emit(market, 'Updated')
                 .withArgs(user.address, user.address, ORACLE_VERSION_2.timestamp, 0, POSITION, 0, COLLATERAL, false)
@@ -2039,7 +2039,7 @@ describe('Market', () => {
               })
             })
 
-            it.only('opens a second position (same version)', async () => {
+            it('opens a second position (same version)', async () => {
               await market.connect(user).update(user.address, 0, POSITION.div(2), 0, COLLATERAL, false)
 
               await expect(market.connect(user).update(user.address, 0, POSITION, 0, 0, false))
@@ -4030,7 +4030,7 @@ describe('Market', () => {
               })
             })
 
-            it.only('with shortfall', async () => {
+            it('with shortfall', async () => {
               oracle.at.whenCalledWith(ORACLE_VERSION_2.timestamp).returns(ORACLE_VERSION_2)
               oracle.status.returns([ORACLE_VERSION_2, ORACLE_VERSION_3.timestamp])
               oracle.request.whenCalledWith(user.address).returns()
@@ -4387,7 +4387,7 @@ describe('Market', () => {
               })
             })
 
-            it.only('with shortfall', async () => {
+            it('with shortfall', async () => {
               const riskParameter = { ...(await market.riskParameter()) }
               riskParameter.minMaintenance = parse6decimal('50')
               await market.connect(owner).updateRiskParameter(riskParameter)
@@ -4684,7 +4684,7 @@ describe('Market', () => {
               await market.connect(userB).update(userB.address, POSITION, 0, 0, COLLATERAL, false)
             })
 
-            it.only('opens the position', async () => {
+            it('opens the position', async () => {
               await expect(market.connect(user).update(user.address, 0, 0, POSITION, COLLATERAL, false))
                 .to.emit(market, 'Updated')
                 .withArgs(user.address, user.address, ORACLE_VERSION_2.timestamp, 0, 0, POSITION, COLLATERAL, false)
@@ -4801,7 +4801,7 @@ describe('Market', () => {
               })
             })
 
-            it.only('opens a second position (same version)', async () => {
+            it('opens a second position (same version)', async () => {
               await market.connect(user).update(user.address, 0, 0, POSITION.div(2), COLLATERAL, false)
 
               await expect(market.connect(user).update(user.address, 0, 0, POSITION, 0, false))
@@ -6812,7 +6812,7 @@ describe('Market', () => {
               })
             })
 
-            it.only('with shortfall', async () => {
+            it('with shortfall', async () => {
               oracle.at.whenCalledWith(ORACLE_VERSION_2.timestamp).returns(ORACLE_VERSION_2)
               oracle.status.returns([ORACLE_VERSION_2, ORACLE_VERSION_3.timestamp])
               oracle.request.whenCalledWith(user.address).returns()
@@ -7167,7 +7167,7 @@ describe('Market', () => {
               })
             })
 
-            it.only('with shortfall', async () => {
+            it('with shortfall', async () => {
               const riskParameter = { ...(await market.riskParameter()) }
               riskParameter.minMaintenance = parse6decimal('50')
               await market.connect(owner).updateRiskParameter(riskParameter)
@@ -7576,7 +7576,7 @@ describe('Market', () => {
               await market.connect(userC).update(userC.address, 0, 0, POSITION, COLLATERAL, false)
             })
 
-            it.only('opens the position', async () => {
+            it('opens the position', async () => {
               await expect(market.connect(user).update(user.address, 0, POSITION, 0, COLLATERAL, false))
                 .to.emit(market, 'Updated')
                 .withArgs(user.address, user.address, ORACLE_VERSION_2.timestamp, 0, POSITION, 0, COLLATERAL, false)
@@ -7682,7 +7682,7 @@ describe('Market', () => {
               })
             })
 
-            it.only('opens a second position (same version)', async () => {
+            it('opens a second position (same version)', async () => {
               await market.connect(user).update(user.address, 0, POSITION.div(2), 0, COLLATERAL, false)
 
               await expect(market.connect(user).update(user.address, 0, POSITION, 0, 0, false))
@@ -8295,7 +8295,7 @@ describe('Market', () => {
               })
             })
 
-            it.only('opens the position and deposits later from different account', async () => {
+            it('opens the position and deposits later from different account', async () => {
               await expect(market.connect(user).update(user.address, 0, POSITION.div(2), 0, COLLATERAL, false))
                 .to.emit(market, 'Updated')
                 .withArgs(
@@ -8516,7 +8516,7 @@ describe('Market', () => {
               })
             })
 
-            it.only('opens the position and deposits later from different account while stale', async () => {
+            it('opens the position and deposits later from different account while stale', async () => {
               await expect(market.connect(user).update(user.address, 0, POSITION.div(2), 0, COLLATERAL, false))
                 .to.emit(market, 'Updated')
                 .withArgs(
@@ -10194,7 +10194,7 @@ describe('Market', () => {
               })
             })
 
-            it.only('with shortfall', async () => {
+            it('with shortfall', async () => {
               oracle.at.whenCalledWith(ORACLE_VERSION_2.timestamp).returns(ORACLE_VERSION_2)
               oracle.status.returns([ORACLE_VERSION_2, ORACLE_VERSION_3.timestamp])
               oracle.request.returns()
@@ -10622,7 +10622,7 @@ describe('Market', () => {
               })
             })
 
-            it.only('with shortfall', async () => {
+            it('with shortfall', async () => {
               const riskParameter = { ...(await market.riskParameter()) }
               riskParameter.minMaintenance = parse6decimal('50')
               await market.connect(owner).updateRiskParameter(riskParameter)
@@ -12052,7 +12052,7 @@ describe('Market', () => {
         })
       })
 
-      context.only('invalid oracle version', async () => {
+      context('invalid oracle version', async () => {
         beforeEach(async () => {
           dsu.transferFrom.whenCalledWith(user.address, market.address, COLLATERAL.mul(1e12)).returns(true)
           dsu.transferFrom.whenCalledWith(userB.address, market.address, COLLATERAL.mul(1e12)).returns(true)
@@ -13189,7 +13189,7 @@ describe('Market', () => {
         })
       })
 
-      context.only('operator', async () => {
+      context('operator', async () => {
         beforeEach(async () => {
           dsu.transferFrom.whenCalledWith(operator.address, market.address, COLLATERAL.mul(1e12)).returns(true)
         })
@@ -13253,7 +13253,7 @@ describe('Market', () => {
         })
       })
 
-      context.only('magic values', async () => {
+      context('magic values', async () => {
         beforeEach(async () => {
           dsu.transferFrom.whenCalledWith(user.address, market.address, COLLATERAL.mul(1e12)).returns(true)
           dsu.transferFrom.whenCalledWith(userB.address, market.address, COLLATERAL.mul(1e12)).returns(true)
