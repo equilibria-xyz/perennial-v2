@@ -202,7 +202,7 @@ library StrategyLib {
         marketContext.currentPosition.update(pendingGlobal, true);
         marketContext.minPosition = marketContext.currentAccountPosition.maker
             .unsafeSub(marketContext.currentPosition.maker
-                .unsafeSub(marketContext.currentPosition.net()).min(marketContext.closable));
+                .unsafeSub(marketContext.currentPosition.skew().abs()).min(marketContext.closable));
         marketContext.maxPosition = marketContext.currentAccountPosition.maker
             .add(marketContext.riskParameter.makerLimit.unsafeSub(marketContext.currentPosition.maker));
     }
