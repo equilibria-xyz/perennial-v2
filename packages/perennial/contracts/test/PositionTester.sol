@@ -26,10 +26,6 @@ abstract contract PositionTester {
         return read().minor();
     }
 
-    function net() external view returns (UFixed6) {
-        return read().net();
-    }
-
     function skew() external view returns (Fixed6) {
         return read().skew();
     }
