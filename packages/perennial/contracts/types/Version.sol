@@ -238,7 +238,7 @@ library VersionLib {
         );
     }
 
-    /// @notice Globally accumulates single component of the impact fees since last oracle update
+    /// @notice Globally accumulates single component of the maker position fees since last oracle update
     /// @param self The Version object to update
     /// @param context The accumulation context
     /// @param makerFee The maker fee configuration
@@ -260,7 +260,7 @@ library VersionLib {
         _accumulatePositionFeeComponentBase(self, context, result, feeAccumulator, orderSkew.abs(), linearFee, proportionalFee);
     }
 
-    /// @notice Globally accumulates single component of the impact fees since last oracle update
+    /// @notice Globally accumulates single component of the taker position fees since last oracle update
     /// @param self The Version object to update
     /// @param context The accumulation context
     /// @param takerFee The taker fee configuration
@@ -282,6 +282,14 @@ library VersionLib {
         _accumulatePositionFeeComponentBase(self, context, result, feeAccumulator, orderSkew.abs(), linearFee, proportionalFee);
     }
 
+    /// @notice Globally accumulates single component of the position base fees since last oracle update
+    /// @param self The Version object to update
+    /// @param context The accumulation context
+    /// @param result The accumulation result
+    /// @param feeAccumulator The fee accumulator to update
+    /// @param orderMagnitude The order magnitude
+    /// @param linearFee The linear fee
+    /// @param proportionalFee The proportional fee
     function _accumulatePositionFeeComponentBase(
         Version memory self,
         AccumulationContext memory context,
@@ -303,6 +311,11 @@ library VersionLib {
         result.positionFeeProtocol = result.positionFeeProtocol.add(protocolFee);
     }
 
+    /// @notice Globally accumulates single component of the position impact fees since last oracle update
+    /// @param result The accumulation result
+    /// @param feeAccumulator The fee accumulator to update
+    /// @param orderMagnitude The order magnitude
+    /// @param adiabaticFee The adiabatic fee
     function _accumulatePositionFeeComponentImpact(
         VersionAccumulationResult memory result,
         Accumulator6 memory feeAccumulator,
@@ -313,6 +326,11 @@ library VersionLib {
         result.positionFeeImpact = result.positionFeeImpact.add(adiabaticFee);
     }
 
+    /// @notice Globally accumulates single component of the position fees exposure since last oracle update
+    /// @param self The Version object to update
+    /// @param context The accumulation context
+    /// @param result The accumulation result
+    /// @param latestExposure The latest exposure
     function _accumulatePositionFeeComponentExposure(
         Version memory self,
         AccumulationContext memory context,

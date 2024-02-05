@@ -30,6 +30,9 @@ using PositionStorageLocalLib for PositionStorageLocal global;
 /// @title Position
 /// @notice Holds the state for a position
 library PositionLib {
+    /// @notice Returns a cloned copy of the position
+    /// @param self The position object to clone
+    /// @return A cloned copy of the position
     function clone(Position memory self) internal pure returns (Position memory) {
         return Position(self.timestamp, self.maker, self.long, self.short);
     }
