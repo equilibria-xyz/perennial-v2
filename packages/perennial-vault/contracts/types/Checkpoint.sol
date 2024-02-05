@@ -19,7 +19,7 @@ struct Checkpoint {
     Fixed6 assets;
 
     /// @dev The total fee at the checkpoint
-    UFixed6 fee;
+    Fixed6 fee;
 
     /// @dev The total settlement fee at the checkpoint
     UFixed6 keeper;
@@ -36,7 +36,7 @@ struct StoredCheckpoint {
     int64 assets;           // <= 9.22t
 
     /* slot 1 */
-    uint64 fee;             // <= 18.44t
+    int64 fee;              // <= 9.22t
     uint64 keeper;          // <= 18.44t
     uint32 count;           // <= 4.29b
     bytes12 __unallocated1__;
@@ -70,7 +70,7 @@ library CheckpointLib {
     /// @param assets The amount of assets in the underlying markets
     /// @param fee The fee to register
     /// @param keeper The settlement fee to register
-    function complete(Checkpoint memory self, Fixed6 assets, UFixed6 fee, UFixed6 keeper) internal pure {
+    function complete(Checkpoint memory self, Fixed6 assets, Fixed6 fee, UFixed6 keeper) internal pure {
         self.assets = self.assets.add(assets);
         self.fee = fee;
         self.keeper = keeper;
@@ -160,10 +160,11 @@ library CheckpointLib {
     function _withSpread(Checkpoint memory self, UFixed6 amount) private pure returns (UFixed6) {
         UFixed6 selfAssets = UFixed6Lib.unsafeFrom(self.assets);
         UFixed6 totalAmount = self.deposit.add(self.redemption.muldiv(selfAssets, self.shares));
+        UFixed6 totalAmountIncludingFee = UFixed6Lib.unsafeFrom(Fixed6Lib.from(totalAmount).sub(self.fee));
 
         return totalAmount.isZero() ?
             amount :
-            amount.muldiv(totalAmount.unsafeSub(self.fee), totalAmount);
+            amount.muldiv(totalAmountIncludingFee, totalAmount);
     }
 
     /// @notice Applies the fixed settlement fee to a given amount in the global context
@@ -211,7 +212,7 @@ library CheckpointStorageLib {
             UFixed6.wrap(uint256(storedValue.redemption)),
             UFixed6.wrap(uint256(storedValue.shares)),
             Fixed6.wrap(int256(storedValue.assets)),
-            UFixed6.wrap(uint256(storedValue.fee)),
+            Fixed6.wrap(int256(storedValue.fee)),
             UFixed6.wrap(uint256(storedValue.keeper)),
             uint256(storedValue.count)
         );
@@ -223,7 +224,8 @@ library CheckpointStorageLib {
         if (newValue.shares.gt(UFixed6.wrap(type(uint64).max))) revert CheckpointStorageInvalidError();
         if (newValue.assets.gt(Fixed6.wrap(type(int64).max))) revert CheckpointStorageInvalidError();
         if (newValue.assets.lt(Fixed6.wrap(type(int64).min))) revert CheckpointStorageInvalidError();
-        if (newValue.fee.gt(UFixed6.wrap(type(uint64).max))) revert CheckpointStorageInvalidError();
+        if (newValue.fee.gt(Fixed6.wrap(type(int64).max))) revert CheckpointStorageInvalidError();
+        if (newValue.fee.lt(Fixed6.wrap(type(int64).min))) revert CheckpointStorageInvalidError();
         if (newValue.count > uint256(type(uint32).max)) revert CheckpointStorageInvalidError();
         if (newValue.keeper.gt(UFixed6.wrap(type(uint64).max))) revert CheckpointStorageInvalidError();
 
@@ -233,7 +235,7 @@ library CheckpointStorageLib {
             uint64(UFixed6.unwrap(newValue.shares)),
             int64(Fixed6.unwrap(newValue.assets)),
 
-            uint64(UFixed6.unwrap(newValue.fee)),
+            int64(Fixed6.unwrap(newValue.fee)),
             uint64(UFixed6.unwrap(newValue.keeper)),
             uint32(newValue.count),
             bytes12(0)

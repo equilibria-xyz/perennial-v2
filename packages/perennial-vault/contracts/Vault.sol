@@ -354,7 +354,7 @@ contract Vault is IVault, Instance {
         ) {
             uint256 newLatestId = context.global.latest + 1;
             context.latestCheckpoint = _checkpoints[newLatestId].read();
-            (Fixed6 collateralAtId, UFixed6 feeAtId, UFixed6 keeperAtId) = _collateralAtId(context, newLatestId);
+            (Fixed6 collateralAtId, Fixed6 feeAtId, UFixed6 keeperAtId) = _collateralAtId(context, newLatestId);
             context.latestCheckpoint.complete(collateralAtId, feeAtId, keeperAtId);
 
             context.global.processGlobal(
@@ -502,13 +502,13 @@ contract Vault is IVault, Instance {
     /// @return value The snapshotted amount of collateral in the vault
     /// @return fee The snapshotted amount of fee in that position
     /// @return keeper The snapshotted amount of keeper in that position
-    function _collateralAtId(Context memory context, uint256 id) public view returns (Fixed6 value, UFixed6 fee, UFixed6 keeper) {
+    function _collateralAtId(Context memory context, uint256 id) public view returns (Fixed6 value, Fixed6 fee, UFixed6 keeper) {
         Mapping memory mappingAtId = _mappings[id].read();
         for (uint256 marketId; marketId < mappingAtId.length(); marketId++) {
             PerennialCheckpoint memory checkpoint = context.registrations[marketId].market
                 .checkpoints(address(this), mappingAtId.get(marketId));
             value = value.add(checkpoint.collateral);
-            fee = fee.add(UFixed6Lib.unsafeFrom(checkpoint.tradeFee)); // TODO: support negative maker fee in v2.2
+            fee = fee.add(checkpoint.tradeFee);
             keeper = keeper.add(checkpoint.settlementFee);
         }
     }

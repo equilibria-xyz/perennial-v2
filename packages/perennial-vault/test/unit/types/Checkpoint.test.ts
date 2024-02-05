@@ -151,8 +151,8 @@ describe('Checkpoint', () => {
     })
 
     describe('.fee', async () => {
-      const STORAGE_SIZE = 64
-      it('saves if in range', async () => {
+      const STORAGE_SIZE = 63
+      it('saves if in range (above)', async () => {
         await checkpoint.store({
           ...VALID_CHECKPOINT,
           fee: BigNumber.from(2).pow(STORAGE_SIZE).sub(1),
@@ -161,11 +161,29 @@ describe('Checkpoint', () => {
         expect(value.fee).to.equal(BigNumber.from(2).pow(STORAGE_SIZE).sub(1))
       })
 
-      it('reverts if out of range', async () => {
+      it('saves if in range (below)', async () => {
+        await checkpoint.store({
+          ...VALID_CHECKPOINT,
+          fee: BigNumber.from(2).pow(STORAGE_SIZE).mul(-1),
+        })
+        const value = await checkpoint.read()
+        expect(value.fee).to.equal(BigNumber.from(2).pow(STORAGE_SIZE).mul(-1))
+      })
+
+      it('reverts if out of range (above)', async () => {
         await expect(
           checkpoint.store({
             ...VALID_CHECKPOINT,
             fee: BigNumber.from(2).pow(STORAGE_SIZE),
+          }),
+        ).to.be.revertedWithCustomError(checkpoint, 'CheckpointStorageInvalidError')
+      })
+
+      it('reverts if out of range (below)', async () => {
+        await expect(
+          checkpoint.store({
+            ...VALID_CHECKPOINT,
+            fee: BigNumber.from(2).pow(STORAGE_SIZE).add(1).mul(-1),
           }),
         ).to.be.revertedWithCustomError(checkpoint, 'CheckpointStorageInvalidError')
       })

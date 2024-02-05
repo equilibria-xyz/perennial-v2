@@ -35,7 +35,7 @@ contract CheckpointTester {
 
     function complete(
         Fixed6 assets,
-        UFixed6 fee,
+        Fixed6 fee,
         UFixed6 keeper
     ) external {
         Checkpoint memory newCheckpoint = checkpoint.read();
