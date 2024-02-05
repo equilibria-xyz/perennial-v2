@@ -56,7 +56,7 @@ struct RiskParameter {
     /// @dev Whether or not the maker should always receive positive funding
     bool makerReceiveOnly;
 }
-struct RiskParameterStorage { uint256 slot0; uint256 slot1; uint256 slot2; uint256 slot3; }
+struct RiskParameterStorage { uint256 slot0; uint256 slot1; uint256 slot2; uint256 slot3; } // SECURITY: must remain at (3) slots
 using RiskParameterStorageLib for RiskParameterStorage global;
 
 //    struct StoredRiskParameter {
