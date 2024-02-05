@@ -179,8 +179,7 @@ library StrategyLib {
         marketContext.marketParameter = registration.market.parameter();
         marketContext.riskParameter = registration.market.riskParameter();
         marketContext.local = registration.market.locals(address(this));
-        Global memory global = registration.market.global();
-        marketContext.latestPrice = global.latestPrice;
+        OracleVersion memory latestVersion = registration.market.oracle().latest();
 
         marketContext.latestAccountPosition = registration.market.positions(address(this));
         marketContext.currentAccountPosition = marketContext.latestAccountPosition.clone();
@@ -190,9 +189,10 @@ library StrategyLib {
 
         marketContext.margin = PositionLib.margin(
             marketContext.latestAccountPosition.magnitude().add(pendingLocal.pos()),
-            OracleVersion(0, marketContext.latestPrice, true),
+            latestVersion,
             marketContext.riskParameter
         );
+        marketContext.latestPrice = latestVersion.price;
 
         marketContext.closable = marketContext.latestAccountPosition.magnitude().sub(pendingLocal.neg());
 

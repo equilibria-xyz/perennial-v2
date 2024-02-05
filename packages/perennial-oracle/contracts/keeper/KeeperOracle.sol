@@ -154,6 +154,8 @@ contract KeeperOracle is IKeeperOracle, Instance {
         if (block.timestamp <= (next() + timeout)) {
             if (!version.valid) revert KeeperOracleInvalidPriceError();
             _prices[version.timestamp] = version.price;
+        } else {
+            _prices[version.timestamp] = _prices[_global.latestVersion];
         }
         _global.latestIndex++;
         return true;

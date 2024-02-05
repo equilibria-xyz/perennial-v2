@@ -24,10 +24,4 @@ contract GlobalTester {
         newGlobal.incrementFees(amount, keeper, marketParameter, protocolParameter);
         global.store(newGlobal);
     }
-
-    function update(uint256 latestId, Fixed6 latestPrice) external {
-        Global memory newGlobal = global.read();
-        newGlobal.update(latestId, latestPrice);
-        global.store(newGlobal);
-    }
 }
