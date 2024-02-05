@@ -40,7 +40,7 @@ struct MarketParameter {
     /// @dev Whether the market is in close-only mode
     bool closed;
 }
-struct MarketParameterStorage { uint256 slot0; }
+struct MarketParameterStorage { uint256 slot0; } // SECURITY: must remain at (1) slots
 using MarketParameterStorageLib for MarketParameterStorage global;
 
 /// @dev Manually encodes and decodes the MarketParameter struct into storage.

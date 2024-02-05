@@ -34,9 +34,9 @@ struct Order {
     UFixed6 shortNeg;
 }
 using OrderLib for Order global;
-struct OrderStorageGlobal { uint256 slot0; uint256 slot1; }
+struct OrderStorageGlobal { uint256 slot0; uint256 slot1; } // SECURITY: must remain at (2) slots
 using OrderStorageGlobalLib for OrderStorageGlobal global;
-struct OrderStorageLocal { uint256 slot0; }
+struct OrderStorageLocal { uint256 slot0; } // SECURITY: must remain at (1) slots
 using OrderStorageLocalLib for OrderStorageLocal global;
 
 /// @title Order

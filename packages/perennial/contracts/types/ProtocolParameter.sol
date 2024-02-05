@@ -36,7 +36,7 @@ struct StoredProtocolParameter {
     uint24 minMaintenance;     // <= 1677%
     uint24 minEfficiency;      // <= 1677%
 }
-struct ProtocolParameterStorage { StoredProtocolParameter value; }
+struct ProtocolParameterStorage { StoredProtocolParameter value; } // SECURITY: must remain at (1) slots
 using ProtocolParameterStorageLib for ProtocolParameterStorage global;
 
 library ProtocolParameterStorageLib {

@@ -22,9 +22,9 @@ struct Position {
     UFixed6 short;
 }
 using PositionLib for Position global;
-struct PositionStorageGlobal { uint256 slot0; uint256 slot1; uint256 slot2; }
+struct PositionStorageGlobal { uint256 slot0; uint256 slot1; } // SECURITY: must remain at (2) slots
 using PositionStorageGlobalLib for PositionStorageGlobal global;
-struct PositionStorageLocal { uint256 slot0; uint256 slot1; }
+struct PositionStorageLocal { uint256 slot0; uint256 slot1; } // SECURITY: must remain at (2) slots
 using PositionStorageLocalLib for PositionStorageLocal global;
 
 /// @title Position
