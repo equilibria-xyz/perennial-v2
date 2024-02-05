@@ -198,43 +198,39 @@ testOracles.forEach(testOracle => {
       await chainlinkOracleFactory.register(payoff.address)
 
       keeperOracle = testOracle.Oracle.connect(
-        await chainlinkOracleFactory.callStatic.create(
-          CHAINLINK_ETH_USD_PRICE_FEED,
-          CHAINLINK_ETH_USD_PRICE_FEED,
-          ethers.constants.AddressZero,
-        ),
+        await chainlinkOracleFactory.callStatic.create(CHAINLINK_ETH_USD_PRICE_FEED, CHAINLINK_ETH_USD_PRICE_FEED, {
+          provider: ethers.constants.AddressZero,
+          decimals: 0,
+        }),
         owner,
       )
-      await chainlinkOracleFactory.create(
-        CHAINLINK_ETH_USD_PRICE_FEED,
-        CHAINLINK_ETH_USD_PRICE_FEED,
-        ethers.constants.AddressZero,
-      )
+      await chainlinkOracleFactory.create(CHAINLINK_ETH_USD_PRICE_FEED, CHAINLINK_ETH_USD_PRICE_FEED, {
+        provider: ethers.constants.AddressZero,
+        decimals: 0,
+      })
       keeperOracleBtc = testOracle.Oracle.connect(
-        await chainlinkOracleFactory.callStatic.create(
-          CHAINLINK_BTC_USD_PRICE_FEED,
-          CHAINLINK_BTC_USD_PRICE_FEED,
-          ethers.constants.AddressZero,
-        ),
+        await chainlinkOracleFactory.callStatic.create(CHAINLINK_BTC_USD_PRICE_FEED, CHAINLINK_BTC_USD_PRICE_FEED, {
+          provider: ethers.constants.AddressZero,
+          decimals: 0,
+        }),
         owner,
       )
-      await chainlinkOracleFactory.create(
-        CHAINLINK_BTC_USD_PRICE_FEED,
-        CHAINLINK_BTC_USD_PRICE_FEED,
-        ethers.constants.AddressZero,
-      )
+      await chainlinkOracleFactory.create(CHAINLINK_BTC_USD_PRICE_FEED, CHAINLINK_BTC_USD_PRICE_FEED, {
+        provider: ethers.constants.AddressZero,
+        decimals: 0,
+      })
       keeperOraclePayoff = testOracle.Oracle.connect(
         await chainlinkOracleFactory.callStatic.create(
           '0x0000000000000000000000000000000000000000000000000000000000000021',
           CHAINLINK_ETH_USD_PRICE_FEED,
-          payoff.address,
+          { provider: payoff.address, decimals: 0 },
         ),
         owner,
       )
       await chainlinkOracleFactory.create(
         '0x0000000000000000000000000000000000000000000000000000000000000021',
         CHAINLINK_ETH_USD_PRICE_FEED,
-        payoff.address,
+        { provider: payoff.address, decimals: 0 },
       )
 
       oracle = Oracle__factory.connect(
@@ -372,7 +368,10 @@ testOracles.forEach(testOracle => {
       context('#create', async () => {
         it('cant recreate price id', async () => {
           await expect(
-            chainlinkOracleFactory.create(CHAINLINK_ETH_USD_PRICE_FEED, CHAINLINK_ETH_USD_PRICE_FEED, payoff.address),
+            chainlinkOracleFactory.create(CHAINLINK_ETH_USD_PRICE_FEED, CHAINLINK_ETH_USD_PRICE_FEED, {
+              provider: payoff.address,
+              decimals: 0,
+            }),
           ).to.be.revertedWithCustomError(chainlinkOracleFactory, 'KeeperFactoryAlreadyCreatedError')
         })
 
@@ -380,7 +379,10 @@ testOracles.forEach(testOracle => {
           await expect(
             chainlinkOracleFactory
               .connect(user)
-              .create(CHAINLINK_ETH_USD_PRICE_FEED, CHAINLINK_ETH_USD_PRICE_FEED, payoff.address),
+              .create(CHAINLINK_ETH_USD_PRICE_FEED, CHAINLINK_ETH_USD_PRICE_FEED, {
+                provider: payoff.address,
+                decimals: 0,
+              }),
           ).to.be.revertedWithCustomError(chainlinkOracleFactory, 'OwnableNotOwnerError')
         })
       })

@@ -148,18 +148,16 @@ describe('ChainlinkFactory', () => {
     await chainlinkFactory.authorize(oracleFactory.address)
 
     keeperOracle = KeeperOracle__factory.connect(
-      await chainlinkFactory.callStatic.create(
-        CHAINLINK_ETH_USD_PRICE_FEED,
-        CHAINLINK_ETH_USD_PRICE_FEED,
-        ethers.constants.AddressZero,
-      ),
+      await chainlinkFactory.callStatic.create(CHAINLINK_ETH_USD_PRICE_FEED, CHAINLINK_ETH_USD_PRICE_FEED, {
+        provider: ethers.constants.AddressZero,
+        decimals: 0,
+      }),
       owner,
     )
-    await chainlinkFactory.create(
-      CHAINLINK_ETH_USD_PRICE_FEED,
-      CHAINLINK_ETH_USD_PRICE_FEED,
-      ethers.constants.AddressZero,
-    )
+    await chainlinkFactory.create(CHAINLINK_ETH_USD_PRICE_FEED, CHAINLINK_ETH_USD_PRICE_FEED, {
+      provider: ethers.constants.AddressZero,
+      decimals: 0,
+    })
 
     oracle = Oracle__factory.connect(
       await oracleFactory.callStatic.create(CHAINLINK_ETH_USD_PRICE_FEED, chainlinkFactory.address),

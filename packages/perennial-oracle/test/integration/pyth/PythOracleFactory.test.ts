@@ -133,41 +133,46 @@ testOracles.forEach(testOracle => {
       await pythOracleFactory.register(milliPowerTwoPayoff.address)
 
       keeperOracle = testOracle.Oracle.connect(
-        await pythOracleFactory.callStatic.create(
-          PYTH_ETH_USD_PRICE_FEED,
-          PYTH_ETH_USD_PRICE_FEED,
-          ethers.constants.AddressZero,
-        ),
+        await pythOracleFactory.callStatic.create(PYTH_ETH_USD_PRICE_FEED, PYTH_ETH_USD_PRICE_FEED, {
+          provider: ethers.constants.AddressZero,
+          decimals: 0,
+        }),
         owner,
       )
-      await pythOracleFactory.create(PYTH_ETH_USD_PRICE_FEED, PYTH_ETH_USD_PRICE_FEED, ethers.constants.AddressZero)
+      await pythOracleFactory.create(PYTH_ETH_USD_PRICE_FEED, PYTH_ETH_USD_PRICE_FEED, {
+        provider: ethers.constants.AddressZero,
+        decimals: 0,
+      })
       keeperOracleBtc = testOracle.Oracle.connect(
         await pythOracleFactory.callStatic.create(
           '0x0000000000000000000000000000000000000000000000000000000000000017',
           PYTH_BTC_USD_PRICE_FEED,
-          ethers.constants.AddressZero,
+          { provider: ethers.constants.AddressZero, decimals: 0 },
         ),
         owner,
       )
       await pythOracleFactory.create(
         '0x0000000000000000000000000000000000000000000000000000000000000017',
         PYTH_BTC_USD_PRICE_FEED,
-        ethers.constants.AddressZero,
+        { provider: ethers.constants.AddressZero, decimals: 0 },
       )
       keeperOracle2 = testOracle.Oracle.connect(
         await pythOracleFactory.callStatic.create(
           '0x0000000000000000000000000000000000000000000000000000000000000021',
           PYTH_ETH_USD_PRICE_FEED,
-          milliPowerTwoPayoff.address,
+          { provider: milliPowerTwoPayoff.address, decimals: 0 }, // TODO: good test injection
         ),
         owner,
       )
       await pythOracleFactory.create(
         '0x0000000000000000000000000000000000000000000000000000000000000021',
         PYTH_ETH_USD_PRICE_FEED,
-        milliPowerTwoPayoff.address,
+        { provider: milliPowerTwoPayoff.address, decimals: 0 },
       )
-      await pythOracleFactory.create(PYTH_USDC_USD_PRICE_FEED, PYTH_USDC_USD_PRICE_FEED, ethers.constants.AddressZero)
+      await pythOracleFactory.create(PYTH_USDC_USD_PRICE_FEED, PYTH_USDC_USD_PRICE_FEED, {
+        provider: ethers.constants.AddressZero,
+        decimals: 0,
+      })
 
       oracle = Oracle__factory.connect(
         await oracleFactory.callStatic.create(PYTH_ETH_USD_PRICE_FEED, pythOracleFactory.address),
@@ -324,7 +329,10 @@ testOracles.forEach(testOracle => {
       context('#create', async () => {
         it('cant recreate price id', async () => {
           await expect(
-            pythOracleFactory.create(PYTH_ETH_USD_PRICE_FEED, PYTH_ETH_USD_PRICE_FEED, ethers.constants.AddressZero),
+            pythOracleFactory.create(PYTH_ETH_USD_PRICE_FEED, PYTH_ETH_USD_PRICE_FEED, {
+              provider: ethers.constants.AddressZero,
+              decimals: 0,
+            }),
           ).to.be.revertedWithCustomError(pythOracleFactory, 'KeeperFactoryAlreadyCreatedError')
         })
 
@@ -333,7 +341,7 @@ testOracles.forEach(testOracle => {
             pythOracleFactory.create(
               PYTH_ETH_USD_PRICE_FEED,
               '0x0000000000000000000000000000000000000000000000000000000000000000',
-              ethers.constants.AddressZero,
+              { provider: ethers.constants.AddressZero, decimals: 0 },
             ),
           ).to.be.revertedWithCustomError(pythOracleFactory, 'PythFactoryInvalidIdError')
         })
@@ -342,7 +350,10 @@ testOracles.forEach(testOracle => {
           await expect(
             pythOracleFactory
               .connect(user)
-              .create(PYTH_ETH_USD_PRICE_FEED, PYTH_ETH_USD_PRICE_FEED, ethers.constants.AddressZero),
+              .create(PYTH_ETH_USD_PRICE_FEED, PYTH_ETH_USD_PRICE_FEED, {
+                provider: ethers.constants.AddressZero,
+                decimals: 0,
+              }),
           ).to.be.revertedWithCustomError(pythOracleFactory, 'OwnableNotOwnerError')
         })
       })
