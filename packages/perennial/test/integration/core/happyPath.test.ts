@@ -243,7 +243,7 @@ describe('Happy Path', () => {
     expectOrderEq(await market.pendingOrders(user.address, 1), {
       ...DEFAULT_ORDER,
       timestamp: TIMESTAMP_1,
-      orders: 1,
+      orders: 2,
       makerPos: POSITION,
     })
     expectCheckpointEq(await market.checkpoints(user.address, 1), {
@@ -267,7 +267,7 @@ describe('Happy Path', () => {
     expectOrderEq(await market.pendingOrder(1), {
       ...DEFAULT_ORDER,
       timestamp: TIMESTAMP_1,
-      orders: 1,
+      orders: 2,
       makerPos: POSITION,
     })
     expectPositionEq(await market.position(), {
@@ -429,7 +429,7 @@ describe('Happy Path', () => {
     expectOrderEq(await market.pendingOrders(user.address, 2), {
       ...DEFAULT_ORDER,
       timestamp: TIMESTAMP_2,
-      orders: 1,
+      orders: 2,
       makerNeg: POSITION,
     })
     expectCheckpointEq(await market.checkpoints(user.address, 2), {
@@ -454,7 +454,7 @@ describe('Happy Path', () => {
     expectOrderEq(await market.pendingOrder(2), {
       ...DEFAULT_ORDER,
       timestamp: TIMESTAMP_2,
-      orders: 1,
+      orders: 2,
       makerNeg: POSITION,
     })
     expectPositionEq(await market.position(), {
@@ -653,7 +653,7 @@ describe('Happy Path', () => {
     expectOrderEq(await market.pendingOrders(userB.address, 1), {
       ...DEFAULT_ORDER,
       timestamp: TIMESTAMP_1,
-      orders: 1,
+      orders: 2,
       longPos: POSITION_B,
     })
     expectCheckpointEq(await market.checkpoints(userB.address, 1), {
@@ -677,7 +677,7 @@ describe('Happy Path', () => {
     expectOrderEq(await market.pendingOrder(1), {
       ...DEFAULT_ORDER,
       timestamp: TIMESTAMP_1,
-      orders: 2,
+      orders: 3,
       makerPos: POSITION,
       longPos: POSITION_B,
     })
@@ -858,7 +858,7 @@ describe('Happy Path', () => {
     expectOrderEq(await market.pendingOrders(userB.address, 2), {
       ...DEFAULT_ORDER,
       timestamp: TIMESTAMP_2,
-      orders: 1,
+      orders: 2,
       longNeg: POSITION_B,
     })
     expectCheckpointEq(await market.checkpoints(userB.address, 2), {
@@ -883,7 +883,7 @@ describe('Happy Path', () => {
     expectOrderEq(await market.pendingOrder(2), {
       ...DEFAULT_ORDER,
       timestamp: TIMESTAMP_2,
-      orders: 1,
+      orders: 2,
       longNeg: POSITION_B,
     })
     expectPositionEq(await market.position(), {
