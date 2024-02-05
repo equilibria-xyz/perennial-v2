@@ -42,9 +42,6 @@ using OrderStorageLocalLib for OrderStorageLocal global;
 /// @title Order
 /// @notice Holds the state for an account's update order
 library OrderLib {
-    UFixed6 private constant MAGIC_VALUE_UNCHANGED_POSITION = UFixed6.wrap(type(uint256).max);
-    UFixed6 private constant MAGIC_VALUE_FULLY_CLOSED_POSITION = UFixed6.wrap(type(uint256).max - 1);
-
     /// @notice Returns whether the position is ready to be settled
     /// @param self The position object to check
     /// @param latestVersion The latest oracle version
