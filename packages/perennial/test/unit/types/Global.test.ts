@@ -64,7 +64,6 @@ describe('Global', () => {
           _value: 6,
           _skew: 7,
         },
-        latestPrice: 8,
       })
 
       const value = await global.read()
@@ -76,7 +75,6 @@ describe('Global', () => {
       expect(value.donation).to.equal(5)
       expect(value.pAccumulator._value).to.equal(6)
       expect(value.pAccumulator._skew).to.equal(7)
-      expect(value.latestPrice).to.equal(8)
     })
 
     context('.currentId', async () => {
@@ -93,7 +91,6 @@ describe('Global', () => {
             _value: 0,
             _skew: 0,
           },
-          latestPrice: 0,
         })
         const value = await global.read()
         expect(value.currentId).to.equal(BigNumber.from(2).pow(STORAGE_SIZE).sub(1))
@@ -112,7 +109,6 @@ describe('Global', () => {
               _value: 0,
               _skew: 0,
             },
-            latestPrice: 0,
           }),
         ).to.be.revertedWithCustomError(global, 'GlobalStorageInvalidError')
       })
@@ -132,7 +128,6 @@ describe('Global', () => {
             _value: 0,
             _skew: 0,
           },
-          latestPrice: 0,
         })
         const value = await global.read()
         expect(value.latestId).to.equal(BigNumber.from(2).pow(STORAGE_SIZE).sub(1))
@@ -151,7 +146,6 @@ describe('Global', () => {
               _value: 0,
               _skew: 0,
             },
-            latestPrice: 0,
           }),
         ).to.be.revertedWithCustomError(global, 'GlobalStorageInvalidError')
       })
@@ -171,7 +165,6 @@ describe('Global', () => {
             _value: 0,
             _skew: 0,
           },
-          latestPrice: 0,
         })
         const value = await global.read()
         expect(value.protocolFee).to.equal(BigNumber.from(2).pow(STORAGE_SIZE).sub(1))
@@ -190,7 +183,6 @@ describe('Global', () => {
               _value: 0,
               _skew: 0,
             },
-            latestPrice: 0,
           }),
         ).to.be.revertedWithCustomError(global, 'GlobalStorageInvalidError')
       })
@@ -210,7 +202,6 @@ describe('Global', () => {
             _value: 0,
             _skew: 0,
           },
-          latestPrice: 0,
         })
         const value = await global.read()
         expect(value.oracleFee).to.equal(BigNumber.from(2).pow(STORAGE_SIZE).sub(1))
@@ -229,7 +220,6 @@ describe('Global', () => {
               _value: 0,
               _skew: 0,
             },
-            latestPrice: 0,
           }),
         ).to.be.revertedWithCustomError(global, 'GlobalStorageInvalidError')
       })
@@ -249,7 +239,6 @@ describe('Global', () => {
             _value: 0,
             _skew: 0,
           },
-          latestPrice: 0,
         })
         const value = await global.read()
         expect(value.riskFee).to.equal(BigNumber.from(2).pow(STORAGE_SIZE).sub(1))
@@ -268,7 +257,6 @@ describe('Global', () => {
               _value: 0,
               _skew: 0,
             },
-            latestPrice: 0,
           }),
         ).to.be.revertedWithCustomError(global, 'GlobalStorageInvalidError')
       })
@@ -288,7 +276,6 @@ describe('Global', () => {
             _value: 0,
             _skew: 0,
           },
-          latestPrice: 0,
         })
         const value = await global.read()
         expect(value.donation).to.equal(BigNumber.from(2).pow(STORAGE_SIZE).sub(1))
@@ -307,7 +294,6 @@ describe('Global', () => {
               _value: 0,
               _skew: 0,
             },
-            latestPrice: 0,
           }),
         ).to.be.revertedWithCustomError(global, 'GlobalStorageInvalidError')
       })
@@ -327,7 +313,6 @@ describe('Global', () => {
             _value: BigNumber.from(2).pow(STORAGE_SIZE).sub(1),
             _skew: 0,
           },
-          latestPrice: 0,
         })
         const value = await global.read()
         expect(value.pAccumulator._value).to.equal(BigNumber.from(2).pow(STORAGE_SIZE).sub(1))
@@ -345,7 +330,6 @@ describe('Global', () => {
             _value: BigNumber.from(2).pow(STORAGE_SIZE).mul(-1),
             _skew: 0,
           },
-          latestPrice: 0,
         })
         const value = await global.read()
         expect(value.pAccumulator._value).to.equal(BigNumber.from(2).pow(STORAGE_SIZE).mul(-1))
@@ -364,7 +348,6 @@ describe('Global', () => {
               _value: BigNumber.from(2).pow(STORAGE_SIZE),
               _skew: 0,
             },
-            latestPrice: 0,
           }),
         ).to.be.revertedWithCustomError(global, 'GlobalStorageInvalidError')
       })
@@ -382,7 +365,6 @@ describe('Global', () => {
               _value: BigNumber.from(2).pow(STORAGE_SIZE).add(1).mul(-1),
               _skew: 0,
             },
-            latestPrice: 0,
           }),
         ).to.be.revertedWithCustomError(global, 'GlobalStorageInvalidError')
       })
@@ -402,7 +384,6 @@ describe('Global', () => {
             _value: 0,
             _skew: BigNumber.from(2).pow(STORAGE_SIZE).sub(1),
           },
-          latestPrice: 0,
         })
         const value = await global.read()
         expect(value.pAccumulator._skew).to.equal(BigNumber.from(2).pow(STORAGE_SIZE).sub(1))
@@ -420,7 +401,6 @@ describe('Global', () => {
             _value: 0,
             _skew: BigNumber.from(2).pow(STORAGE_SIZE).mul(-1),
           },
-          latestPrice: 0,
         })
         const value = await global.read()
         expect(value.pAccumulator._skew).to.equal(BigNumber.from(2).pow(STORAGE_SIZE).mul(-1))
@@ -439,7 +419,6 @@ describe('Global', () => {
               _value: 0,
               _skew: BigNumber.from(2).pow(STORAGE_SIZE),
             },
-            latestPrice: 0,
           }),
         ).to.be.revertedWithCustomError(global, 'GlobalStorageInvalidError')
       })
@@ -457,82 +436,6 @@ describe('Global', () => {
               _value: 0,
               _skew: BigNumber.from(2).pow(STORAGE_SIZE).add(1).mul(-1),
             },
-            latestPrice: 0,
-          }),
-        ).to.be.revertedWithCustomError(global, 'GlobalStorageInvalidError')
-      })
-    })
-
-    context('.latestPrice', async () => {
-      const STORAGE_SIZE = 63
-      it('saves if in range (above)', async () => {
-        await global.store({
-          currentId: 0,
-          latestId: 0,
-          protocolFee: 0,
-          oracleFee: 0,
-          riskFee: 0,
-          donation: 0,
-          pAccumulator: {
-            _value: 0,
-            _skew: 0,
-          },
-          latestPrice: BigNumber.from(2).pow(STORAGE_SIZE).sub(1),
-        })
-        const value = await global.read()
-        expect(value.latestPrice).to.equal(BigNumber.from(2).pow(STORAGE_SIZE).sub(1))
-      })
-
-      it('saves if in range (below)', async () => {
-        await global.store({
-          currentId: 0,
-          latestId: 0,
-          protocolFee: 0,
-          oracleFee: 0,
-          riskFee: 0,
-          donation: 0,
-          pAccumulator: {
-            _value: 0,
-            _skew: 0,
-          },
-          latestPrice: BigNumber.from(2).pow(STORAGE_SIZE).mul(-1),
-        })
-        const value = await global.read()
-        expect(value.latestPrice).to.equal(BigNumber.from(2).pow(STORAGE_SIZE).mul(-1))
-      })
-
-      it('reverts if currentId out of range (above)', async () => {
-        await expect(
-          global.store({
-            currentId: 0,
-            latestId: 0,
-            protocolFee: 0,
-            oracleFee: 0,
-            riskFee: 0,
-            donation: 0,
-            pAccumulator: {
-              _value: 0,
-              _skew: 0,
-            },
-            latestPrice: BigNumber.from(2).pow(STORAGE_SIZE),
-          }),
-        ).to.be.revertedWithCustomError(global, 'GlobalStorageInvalidError')
-      })
-
-      it('reverts if currentId out of range (below)', async () => {
-        await expect(
-          global.store({
-            currentId: 0,
-            latestId: 0,
-            protocolFee: 0,
-            oracleFee: 0,
-            riskFee: 0,
-            donation: 0,
-            pAccumulator: {
-              _value: 0,
-              _skew: 0,
-            },
-            latestPrice: BigNumber.from(2).pow(STORAGE_SIZE).add(1).mul(-1),
           }),
         ).to.be.revertedWithCustomError(global, 'GlobalStorageInvalidError')
       })
@@ -1105,22 +1008,6 @@ describe('Global', () => {
           ),
         ).revertedWithPanic(0x11)
       })
-    })
-  })
-
-  describe('#update', async () => {
-    it('updates the latestPrice', async () => {
-      await global.update(12, 123)
-      expect((await global.read()).latestId).to.equal(12)
-      expect((await global.read()).latestPrice).to.equal(123)
-
-      await global.update(23, 456)
-      expect((await global.read()).latestId).to.equal(23)
-      expect((await global.read()).latestPrice).to.equal(456)
-
-      await global.update(34, 0)
-      expect((await global.read()).latestId).to.equal(34)
-      expect((await global.read()).latestPrice).to.equal(0)
     })
   })
 })
