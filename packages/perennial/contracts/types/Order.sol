@@ -63,32 +63,6 @@ library OrderLib {
             (UFixed6Lib.ZERO, UFixed6Lib.ZERO, UFixed6Lib.ZERO, UFixed6Lib.ZERO, UFixed6Lib.ZERO, UFixed6Lib.ZERO);
     }
 
-    /// @notice Helper to create a new order from basic data
-    /// @param timestamp The timestamp of the order
-    /// @param orders The quantity of orders that are included in this order
-    /// @param makerAmount The change in the maker position
-    /// @param longAmount The change in the long position
-    /// @param shortAmount The change in the short position
-    /// @return The new order
-    function from(
-        uint256 timestamp,
-        uint256 orders,
-        Fixed6 makerAmount,
-        Fixed6 longAmount,
-        Fixed6 shortAmount
-    ) internal pure returns (Order memory) {
-        return Order(
-            timestamp,
-            orders,
-            makerAmount.max(Fixed6Lib.ZERO).abs(),
-            makerAmount.min(Fixed6Lib.ZERO).abs(),
-            longAmount.max(Fixed6Lib.ZERO).abs(),
-            longAmount.min(Fixed6Lib.ZERO).abs(),
-            shortAmount.max(Fixed6Lib.ZERO).abs(),
-            shortAmount.min(Fixed6Lib.ZERO).abs()
-        );
-    }
-
     /// @notice Creates a new order from the current position and an update request
     /// @param timestamp The current timestamp
     /// @param position The current position
@@ -103,35 +77,23 @@ library OrderLib {
         UFixed6 newLong,
         UFixed6 newShort
     ) internal pure returns (Order memory newOrder) {
-        newOrder = from(
-            timestamp,
-            0,
+        (Fixed6 makerAmount, Fixed6 longAmount, Fixed6 shortAmount) = (
             Fixed6Lib.from(newMaker).sub(Fixed6Lib.from(position.maker)),
             Fixed6Lib.from(newLong).sub(Fixed6Lib.from(position.long)),
             Fixed6Lib.from(newShort).sub(Fixed6Lib.from(position.short))
         );
-        if (!isEmpty(newOrder)) newOrder.orders = 1;
-    }
 
-    /// @notice Creates a new order from the current position and an update request
-    /// @param timestamp The current timestamp
-    /// @param latestPosition The latest position
-    /// @param pending The aggregate pending order
-    /// @param newMaker The new maker
-    /// @param newLong The new long
-    /// @param newShort The new short
-    /// @return newOrder The resulting order
-    function from(
-        uint256 timestamp,
-        Position memory latestPosition,
-        Order memory pending,
-        UFixed6 newMaker,
-        UFixed6 newLong,
-        UFixed6 newShort
-    ) internal pure returns (Order memory) {
-        Position memory currentPosition = latestPosition.clone();
-        currentPosition.update(pending, true);
-        return from(timestamp, currentPosition, newMaker, newLong, newShort);
+        newOrder = Order(
+            timestamp,
+            0,
+            makerAmount.max(Fixed6Lib.ZERO).abs(),
+            makerAmount.min(Fixed6Lib.ZERO).abs(),
+            longAmount.max(Fixed6Lib.ZERO).abs(),
+            longAmount.min(Fixed6Lib.ZERO).abs(),
+            shortAmount.max(Fixed6Lib.ZERO).abs(),
+            shortAmount.min(Fixed6Lib.ZERO).abs()
+        );
+        if (!isEmpty(newOrder)) newOrder.orders = 1;
     }
 
     /// @notice Returns whether the order increases any of the account's positions
@@ -210,7 +172,7 @@ library OrderLib {
     /// @param self The order object to check
     /// @return Whether the order is empty
     function isEmpty(Order memory self) internal pure returns (bool) {
-        return magnitude(self).isZero();
+        return pos(self).isZero() && neg(self).isZero();
     }
 
      /// @notice Returns the direction of the order
@@ -218,7 +180,10 @@ library OrderLib {
     /// @param self The position object to check
     /// @return The direction of the position
     function direction(Order memory self) internal pure returns (uint256) {
-        return long(self).isZero() ? (short(self).isZero() ? 0 : 2) : 1;
+        if (!self.longPos.isZero() || !self.longNeg.isZero()) return 1;
+        if (!self.shortPos.isZero() || !self.shortNeg.isZero()) return 2;
+
+        return 0;
     }
 
     /// @notice Returns the magnitude of the order
@@ -376,38 +341,46 @@ library OrderStorageGlobalLib {
 ///     struct StoredOrderLocal {
 ///         /* slot 0 */
 ///         uint32 timestamp;
+///         uint32 orders;
 ///         uint2 direction;
-///         int62 magnitude;
+///         uint63 magnitudePos;
+///         uint63 magnitudeNeg;
 ///     }
 ///
 library OrderStorageLocalLib {
     function read(OrderStorageLocal storage self) internal view returns (Order memory) {
         uint256 slot0 = self.slot0;
 
-        uint256 direction = uint256(slot0 << (256 - 32 - 2)) >> (256 - 2);
-        Fixed6 magnitude = Fixed6.wrap(int256(slot0 << (256 - 32 - 2 - 62)) >> (256 - 62));
+        uint256 direction = uint256(slot0 << (256 - 32 - 32 - 2)) >> (256 - 2);
+        UFixed6 magnitudePos = UFixed6.wrap(uint256(slot0 << (256 - 32 - 32 - 2 - 63)) >> (256 - 63));
+        UFixed6 magnitudeNeg = UFixed6.wrap(uint256(slot0 << (256 - 32 - 32 - 2 - 63 - 63)) >> (256 - 63));
 
-        return OrderLib.from(
+        return Order(
             uint256(slot0 << (256 - 32)) >> (256 - 32),
-            magnitude.isZero() ? 0 : 1,
-            direction == 0 ? magnitude : Fixed6Lib.ZERO,
-            direction == 1 ? magnitude : Fixed6Lib.ZERO,
-            direction == 2 ? magnitude : Fixed6Lib.ZERO
+            uint256(slot0 << (256 - 32 - 32)) >> (256 - 32),
+            direction == 0 ? magnitudePos : UFixed6Lib.ZERO,
+            direction == 0 ? magnitudeNeg : UFixed6Lib.ZERO,
+            direction == 1 ? magnitudePos : UFixed6Lib.ZERO,
+            direction == 1 ? magnitudeNeg : UFixed6Lib.ZERO,
+            direction == 2 ? magnitudePos : UFixed6Lib.ZERO,
+            direction == 2 ? magnitudeNeg : UFixed6Lib.ZERO
         );
     }
 
     function store(OrderStorageLocal storage self, Order memory newValue) internal {
         OrderStorageLib.validate(newValue);
 
-        Fixed6 magnitude = newValue.magnitude();
+        (UFixed6 magnitudePos, UFixed6 magnitudeNeg) = (newValue.pos(), newValue.neg());
 
-        if (magnitude.gt(Fixed6.wrap(2 ** 61 - 1))) revert OrderStorageLib.OrderStorageInvalidError();
-        if (magnitude.lt(Fixed6.wrap(2 ** 61))) revert OrderStorageLib.OrderStorageInvalidError();
+        if (magnitudePos.gt(UFixed6.wrap(2 ** 63 - 1))) revert OrderStorageLib.OrderStorageInvalidError();
+        if (magnitudeNeg.gt(UFixed6.wrap(2 ** 63 - 1))) revert OrderStorageLib.OrderStorageInvalidError();
 
         uint256 encoded =
             uint256(newValue.timestamp << (256 - 32)) >> (256 - 32) |
-            uint256(newValue.direction() << (256 - 2)) >> (256 - 32 - 2) |
-            uint256(Fixed6.unwrap(magnitude) << (256 - 62)) >> (256 - 32 - 2 - 62);
+            uint256(newValue.orders << (256 - 32)) >> (256 - 32 - 32) |
+            uint256(newValue.direction() << (256 - 2)) >> (256 - 32 - 32 - 2) |
+            uint256(UFixed6.unwrap(magnitudePos) << (256 - 63)) >> (256 - 32 - 32 - 2 - 63) |
+            uint256(UFixed6.unwrap(magnitudeNeg) << (256 - 63)) >> (256 - 32 - 32 - 2 - 63 - 63);
 
         assembly {
             sstore(self.slot, encoded)
