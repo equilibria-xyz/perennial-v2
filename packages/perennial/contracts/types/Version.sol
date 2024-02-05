@@ -186,12 +186,10 @@ library VersionLib {
     ) private pure {
         if (!context.toOracleVersion.valid) return;
 
-        (Fixed6 latestTakerExposure, , , ) =
-            context.riskParameter.takerFee.sync(context.fromPosition.skew(), Fixed6Lib.ZERO, context.toOracleVersion.price.abs());
-        (Fixed6 latestMakerExposure, , , ) =
-            context.riskParameter.makerFee.sync(context.fromPosition.maker, Fixed6Lib.ZERO, context.toOracleVersion.price.abs());
+        Fixed6 exposure = context.riskParameter.takerFee.exposure(context.fromPosition.skew())
+            .add(context.riskParameter.makerFee.exposure(context.fromPosition.maker));
 
-        _accumulatePositionFeeComponentExposure(self, context, result, latestTakerExposure.add(latestMakerExposure));
+        _accumulatePositionFeeComponentExposure(self, context, result, exposure);
 
         // position fee from positive skew taker orders
         _accumulatePositionFeeComponentTaker(
@@ -253,8 +251,8 @@ library VersionLib {
         UFixed6 latestSkew,
         Fixed6 orderSkew
     ) private pure {
-        (, UFixed6 linearFee, UFixed6 proportionalFee, Fixed6 adiabaticFee) =
-            makerFee.sync(latestSkew, orderSkew, context.toOracleVersion.price.abs());
+        (UFixed6 linearFee, UFixed6 proportionalFee, Fixed6 adiabaticFee) =
+            makerFee.fee(latestSkew, orderSkew, context.toOracleVersion.price.abs());
 
         _accumulatePositionFeeComponentImpact(result, feeAccumulator, orderSkew.abs(), adiabaticFee);
         _accumulatePositionFeeComponentBase(self, context, result, feeAccumulator, orderSkew.abs(), linearFee, proportionalFee);
@@ -275,8 +273,8 @@ library VersionLib {
         Fixed6 latestSkew,
         Fixed6 orderSkew
     ) private pure  {
-        (, UFixed6 linearFee, UFixed6 proportionalFee, Fixed6 adiabaticFee) =
-            takerFee.sync(latestSkew, orderSkew, context.toOracleVersion.price.abs());
+        (UFixed6 linearFee, UFixed6 proportionalFee, Fixed6 adiabaticFee) =
+            takerFee.fee(latestSkew, orderSkew, context.toOracleVersion.price.abs());
 
         _accumulatePositionFeeComponentImpact(result, feeAccumulator, orderSkew.abs(), adiabaticFee);
         _accumulatePositionFeeComponentBase(self, context, result, feeAccumulator, orderSkew.abs(), linearFee, proportionalFee);
