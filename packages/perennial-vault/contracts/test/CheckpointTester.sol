@@ -35,12 +35,12 @@ contract CheckpointTester {
 
     function complete(
         Fixed6 assets,
-        Fixed6 fee,
-        UFixed6 keeper
+        Fixed6 tradeFee,
+        UFixed6 settlementFee
     ) external {
         Checkpoint memory newCheckpoint = checkpoint.read();
 
-        newCheckpoint.complete(assets, fee, keeper);
+        newCheckpoint.complete(assets, tradeFee, settlementFee);
 
         checkpoint.store(newCheckpoint);
     }
@@ -61,12 +61,12 @@ contract CheckpointTester {
         return checkpoint.read().toAssetsLocal(shares);
     }
 
-    function toShares(UFixed6 assets, UFixed6 keeper) external view returns (UFixed6) {
-        return checkpoint.read().toShares(assets, keeper);
+    function toShares(UFixed6 assets, UFixed6 settlementFee) external view returns (UFixed6) {
+        return checkpoint.read().toShares(assets, settlementFee);
     }
 
-    function toAssetes(UFixed6 shares, UFixed6 keeper) external view returns (UFixed6) {
-        return checkpoint.read().toAssets(shares, keeper);
+    function toAssetes(UFixed6 shares, UFixed6 settlementFee) external view returns (UFixed6) {
+        return checkpoint.read().toAssets(shares, settlementFee);
     }
 
     function unhealthy() external view returns (bool) {

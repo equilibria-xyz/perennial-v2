@@ -14,29 +14,20 @@ contract LocalTester {
         return local.store(newLocal);
     }
 
-    function update(Fixed6 collateral) external {
+    function update(Fixed6 transfer) external {
         Local memory newLocal = local.read();
-        newLocal.update(collateral);
+        newLocal.update(transfer);
         local.store(newLocal);
     }
 
-    function accumulatePnl(
-        uint256 latestId,
-        Position memory fromPosition,
-        Version memory fromVersion,
-        Version memory toVersion
-    ) external returns (Fixed6 collateralAmount) {
+    function update(
+        uint256 newId,
+        Fixed6 collateral,
+        Fixed6 tradeFee,
+        UFixed6 settlementFee
+    ) external {
         Local memory newLocal = local.read();
-        collateralAmount = newLocal.accumulatePnl(latestId, fromPosition, fromVersion, toVersion);
-        local.store(newLocal);
-    }
-
-    function accumulateFees(
-        Order memory order,
-        Version memory toVersion
-    ) external returns (Fixed6 positionFee, UFixed6 settlementFee) {
-        Local memory newLocal = local.read();
-        (positionFee, settlementFee) = newLocal.accumulateFees(order, toVersion);
+        newLocal.update(newId, collateral, tradeFee, settlementFee);
         local.store(newLocal);
     }
 

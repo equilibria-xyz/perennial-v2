@@ -28,29 +28,72 @@ using CheckpointStorageLib for CheckpointStorage global;
 /// @title Checkpoint
 /// @notice Holds the state for a checkpoint
 library CheckpointLib {
-    /// @notice Updates the fees of the checkpoint
-    /// @param self The checkpoint object to update
-    /// @param order The order that was settled
-    /// @param collateral The collateral amount incurred at the time of the checkpoint settlement
-    /// @param tradeFee The trade fee that the order incurred at the checkpoint settlement
-    /// @param settlementFee The settlement fee that the order incurred at the checkpoint settlement
-    function update(
+    /// @notice Accumulate pnl and fees from the latest position to next position
+    /// @param self The Local object to update
+    /// @param order The next order
+    /// @param fromPosition The previous latest position
+    /// @param fromVersion The previous latest version
+    /// @param toVersion The next latest version
+    /// @return collateral The resulting collateral change
+    function accumulate(
         Checkpoint memory self,
         Order memory order,
-        Fixed6 collateral,
-        Fixed6 tradeFee,
-        UFixed6 settlementFee
-    ) internal pure {
+        Position memory fromPosition,
+        Version memory fromVersion,
+        Version memory toVersion
+    ) internal pure returns (Fixed6 collateral, Fixed6 tradeFee, UFixed6 settlementFee) {
+        // accumulate
+        collateral = _accumulateCollateral(fromPosition, fromVersion, toVersion);
+        tradeFee = _accumulateTradeFee(order, toVersion);
+        settlementFee = _accumulateSettlementFee(order, toVersion);
+
+        // update checkpoint
         self.collateral = self.collateral
             .sub(self.tradeFee)                       // trade fee processed post settlement
             .sub(Fixed6Lib.from(self.settlementFee))  // settlement fee processed post settlement
             .add(self.transfer)                       // deposit / withdrawal processed post settlement
             .add(collateral);                         // incorporate collateral change at this settlement
-
-        // update post settlement collateral changes for next checkpoint
         self.transfer = order.collateral;
         self.tradeFee = tradeFee;
         self.settlementFee = settlementFee;
+    }
+
+    /// @notice Accumulate pnl, funding, and interest from the latest position to next position
+    /// @param fromPosition The previous latest position
+    /// @param fromVersion The previous latest version
+    /// @param toVersion The next version
+    function _accumulateCollateral(
+        Position memory fromPosition,
+        Version memory fromVersion,
+        Version memory toVersion
+    ) private pure returns (Fixed6) {
+        return toVersion.makerValue.accumulated(fromVersion.makerValue, fromPosition.maker)
+            .add(toVersion.longValue.accumulated(fromVersion.longValue, fromPosition.long))
+            .add(toVersion.shortValue.accumulated(fromVersion.shortValue, fromPosition.short));
+    }
+
+    /// @notice Accumulate trade fees for the next position
+    /// @param order The next order
+    /// @param toVersion The next version
+    function _accumulateTradeFee(
+        Order memory order,
+        Version memory toVersion
+    ) private pure returns (Fixed6) {
+        return Fixed6Lib.ZERO
+            .sub(toVersion.makerPosFee.accumulated(Accumulator6(Fixed6Lib.ZERO), order.makerPos))
+            .sub(toVersion.makerNegFee.accumulated(Accumulator6(Fixed6Lib.ZERO), order.makerNeg))
+            .sub(toVersion.takerPosFee.accumulated(Accumulator6(Fixed6Lib.ZERO), order.takerPos()))
+            .sub(toVersion.takerNegFee.accumulated(Accumulator6(Fixed6Lib.ZERO), order.takerNeg()));
+    }
+
+    /// @notice Accumulate settlement fees for the next position
+    /// @param order The next order
+    /// @param toVersion The next version
+    function _accumulateSettlementFee(
+        Order memory order,
+        Version memory toVersion
+    ) private pure returns (UFixed6) {
+        return toVersion.settlementFee.accumulated(Accumulator6(Fixed6Lib.ZERO), UFixed6Lib.from(order.orders)).abs();
     }
 }
 

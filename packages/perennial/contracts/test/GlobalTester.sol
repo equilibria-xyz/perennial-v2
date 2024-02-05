@@ -16,12 +16,12 @@ contract GlobalTester {
 
     function incrementFees(
         UFixed6 amount,
-        UFixed6 keeper,
+        UFixed6 settlementFee,
         MarketParameter memory marketParameter,
         ProtocolParameter memory protocolParameter
     ) external {
         Global memory newGlobal = global.read();
-        newGlobal.incrementFees(amount, keeper, marketParameter, protocolParameter);
+        newGlobal.incrementFees(amount, settlementFee, marketParameter, protocolParameter);
         global.store(newGlobal);
     }
 }

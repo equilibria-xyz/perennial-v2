@@ -105,7 +105,7 @@ describe('Fees', () => {
       )?.args as unknown as AccountPositionProcessedEventObject
       const expectedMakerFee = BigNumber.from('193601057') // = 3374.655169**2 * 0.0001 * (0.09 + 0.8)
 
-      expect(accountProcessEvent?.accumulationResult.positionFee).to.equal(expectedMakerFee)
+      expect(accountProcessEvent?.accumulationResult.tradeFee).to.equal(expectedMakerFee)
 
       // check user state
       expectLocalEq(await market.locals(user.address), {
@@ -185,7 +185,7 @@ describe('Fees', () => {
       )?.args as unknown as AccountPositionProcessedEventObject
       const expectedMakerFee = BigNumber.from('193601057') // = 3374.655169**2 * 0.0001 * (0.09 + 0.08)
 
-      expect(accountProcessEvent?.accumulationResult.positionFee).to.equal(expectedMakerFee)
+      expect(accountProcessEvent?.accumulationResult.tradeFee).to.equal(expectedMakerFee)
 
       // check user state
       expectLocalEq(await market.locals(user.address), {
@@ -260,7 +260,7 @@ describe('Fees', () => {
       // 100% long so taker takes full skew and impact
       const expectedPositionFee = BigNumber.from('20498934') // = 3374.655169**2 * 0.00001 * (0.05 + 0.06 + 0.07)
       const expectedApplicableFee = BigNumber.from('12527126') // = 3374.655169**2 * 0.00001 * (0.05 + 0.06)
-      expect(accountProcessEventLong.accumulationResult.positionFee).to.eq(expectedPositionFee)
+      expect(accountProcessEventLong.accumulationResult.tradeFee).to.eq(expectedPositionFee)
 
       const expectedProtocolFee = BigNumber.from('6263563') // = applicable fee / 2
       const expectedOracleFee = BigNumber.from('1879068') // = (12527126 - 6263563) * 0.3
@@ -344,7 +344,7 @@ describe('Fees', () => {
       // 100% long so taker takes full skew and impact
       const expectedPositionFee = BigNumber.from('20498934') // = 3374.655169**2 * 0.00001 * (0.05 + 0.06 + 0.07)
       const expectedApplicableFee = BigNumber.from('12527126') // = 3374.655169**2 * 0.00001 * (0.05 + 0.06)
-      expect(accountProcessEventLong.accumulationResult.positionFee).to.eq(expectedPositionFee)
+      expect(accountProcessEventLong.accumulationResult.tradeFee).to.eq(expectedPositionFee)
 
       const expectedProtocolFee = BigNumber.from('3131781') // = application fee * 0.5 * 0.5
       const expectedOracleFee = BigNumber.from('939534') // = (6263563 - 3131781) * 0.3
@@ -398,7 +398,7 @@ describe('Fees', () => {
       )?.args as unknown as AccountPositionProcessedEventObject
 
       const expectedMakerFee = BigNumber.from('6263563') // = 12527126 - Floor(12527126/2)
-      expect(accountProcessEventMaker.accumulationResult.collateralAmount).to.equal(expectedMakerFee)
+      expect(accountProcessEventMaker.accumulationResult.collateral).to.equal(expectedMakerFee)
 
       // Maker State
       expectLocalEq(await market.locals(user.address), {
@@ -487,7 +487,7 @@ describe('Fees', () => {
       )?.args as unknown as AccountPositionProcessedEventObject
 
       const expectedPositionFee = BigNumber.from('5694148') // = 3374.655169**2 * 0.00001 * 0.05
-      expect(accountProcessEventLong.accumulationResult.positionFee).to.eq(expectedPositionFee)
+      expect(accountProcessEventLong.accumulationResult.tradeFee).to.eq(expectedPositionFee)
 
       const expectedProtocolFee = BigNumber.from('1423537') // = 5694148 * 0.5 * 0.5
       const expectedOracleFee = BigNumber.from('427061') // = (2847074 - 1423537) * 0.3
@@ -539,7 +539,7 @@ describe('Fees', () => {
       )?.args as unknown as AccountPositionProcessedEventObject
 
       const expectedMakerFee = BigNumber.from('2847074') // = 5694148 - Floor(5694148/2)
-      expect(accountProcessEventMaker.accumulationResult.collateralAmount).to.equal(expectedMakerFee)
+      expect(accountProcessEventMaker.accumulationResult.collateral).to.equal(expectedMakerFee)
 
       // Maker State
       expectLocalEq(await market.locals(user.address), {
@@ -593,7 +593,7 @@ describe('Fees', () => {
       // 100% long so taker takes full skew and impact
       const expectedPositionFee = BigNumber.from('20498934') // = 3374.655169**2 * 0.00001 * (0.05 + 0.06 + 0.07)
       const expectedApplicableFee = BigNumber.from('12527126') // = 3374.655169**2 * 0.00001 * (0.05 + 0.06)
-      expect(accountProcessEventLong.accumulationResult.positionFee).to.eq(expectedPositionFee)
+      expect(accountProcessEventLong.accumulationResult.tradeFee).to.eq(expectedPositionFee)
 
       const expectedProtocolFee = BigNumber.from('6263563') // = applicable fee / 2
       const expectedOracleFee = BigNumber.from('1879068') // = (12527126 - 6263563) * 0.3
@@ -676,7 +676,7 @@ describe('Fees', () => {
 
       // 100% long so taker takes full skew and impact
       const expectedPositionFee = BigNumber.from('20498934') // = 3374.655169**2 * 0.00001 * (0.05 + 0.06 + 0.07)
-      expect(accountProcessEventLong.accumulationResult.positionFee).to.eq(expectedPositionFee)
+      expect(accountProcessEventLong.accumulationResult.tradeFee).to.eq(expectedPositionFee)
 
       const expectedProtocolFee = BigNumber.from('3131781') // = application fee * 0.5 * 0.5
       const expectedOracleFee = BigNumber.from('939534') // = (6263563 - 3131781) * 0.3
@@ -730,7 +730,7 @@ describe('Fees', () => {
       )?.args as unknown as AccountPositionProcessedEventObject
 
       const expectedMakerFee = BigNumber.from('6263563') // = 12527126 - Floor(12527126/2)
-      expect(accountProcessEventMaker.accumulationResult.collateralAmount).to.equal(expectedMakerFee)
+      expect(accountProcessEventMaker.accumulationResult.collateral).to.equal(expectedMakerFee)
 
       // Maker State
       expectLocalEq(await market.locals(user.address), {
@@ -819,7 +819,7 @@ describe('Fees', () => {
       )?.args as unknown as AccountPositionProcessedEventObject
 
       const expectedPositionFee = BigNumber.from('5694148') // = 3374.655169**2 * 0.00001 * 0.05
-      expect(accountProcessEventLong.accumulationResult.positionFee).to.eq(expectedPositionFee)
+      expect(accountProcessEventLong.accumulationResult.tradeFee).to.eq(expectedPositionFee)
 
       const expectedProtocolFee = BigNumber.from('1423537') // = 5694148 * 0.5 * 0.5
       const expectedOracleFee = BigNumber.from('427061') // = (2847074 - 1423537) * 0.3
@@ -871,7 +871,7 @@ describe('Fees', () => {
       )?.args as unknown as AccountPositionProcessedEventObject
 
       const expectedMakerFee = BigNumber.from('2847074') // = 5694148 - Floor(5694148/2)
-      expect(accountProcessEventMaker.accumulationResult.collateralAmount).to.equal(expectedMakerFee)
+      expect(accountProcessEventMaker.accumulationResult.collateral).to.equal(expectedMakerFee)
 
       // Maker State
       expectLocalEq(await market.locals(user.address), {
@@ -946,7 +946,7 @@ describe('Fees', () => {
         )?.args as unknown as PositionProcessedEventObject
 
         const expectedShortSkewFee = BigNumber.from('1138829') // = 3374.655169**2 * 0.00001 * 100% * 0.01
-        expect(accountProcessEventShort.accumulationResult.positionFee).to.equal(expectedShortSkewFee)
+        expect(accountProcessEventShort.accumulationResult.tradeFee).to.equal(expectedShortSkewFee)
         expect(
           positionProcessEventShort.accumulationResult.positionFeeMaker.add(
             positionProcessEventShort.accumulationResult.positionFeeProtocol,
@@ -966,7 +966,7 @@ describe('Fees', () => {
         )?.args as unknown as PositionProcessedEventObject
 
         const expectedLongSkewFee = BigNumber.from('4555319') // = 3374.655169**2 * 0.00002 * 200% * 0.01
-        expect(accountProcessEventLong.accumulationResult.positionFee).to.equal(expectedLongSkewFee)
+        expect(accountProcessEventLong.accumulationResult.tradeFee).to.equal(expectedLongSkewFee)
         expect(
           positionProcessEventLong.accumulationResult.positionFeeMaker.add(
             positionProcessEventLong.accumulationResult.positionFeeProtocol,
@@ -1026,7 +1026,7 @@ describe('Fees', () => {
         )?.args as unknown as PositionProcessedEventObject
 
         const expectedShortSkewFee = BigNumber.from('1138829') // = 3374.655169**2 * 0.00001 * 100% * 0.01
-        expect(accountProcessEvent.accumulationResult.positionFee).to.equal(expectedShortSkewFee)
+        expect(accountProcessEvent.accumulationResult.tradeFee).to.equal(expectedShortSkewFee)
       })
 
       it('charges taker impact fee for changing skew (long)', async () => {
@@ -1045,7 +1045,7 @@ describe('Fees', () => {
         )?.args as unknown as PositionProcessedEventObject
 
         const expectedShortSkewFee = BigNumber.from('1138829') // = 3374.655169**2 * 0.00001 * 100% * 0.01
-        expect(accountProcessEventShort.accumulationResult.positionFee).to.equal(expectedShortSkewFee)
+        expect(accountProcessEventShort.accumulationResult.tradeFee).to.equal(expectedShortSkewFee)
       })
 
       it('refunds taker position fee for negative impact', async () => {
@@ -1080,7 +1080,7 @@ describe('Fees', () => {
         )?.args as unknown as PositionProcessedEventObject
 
         const expectedShortSkewFee = BigNumber.from('0')
-        expect(accountProcessEventShort.accumulationResult.positionFee).to.equal(expectedShortSkewFee)
+        expect(accountProcessEventShort.accumulationResult.tradeFee).to.equal(expectedShortSkewFee)
       })
 
       it('refunds taker position fee for negative impact (negative fees)', async () => {
@@ -1115,7 +1115,7 @@ describe('Fees', () => {
         )?.args as unknown as PositionProcessedEventObject
 
         const expectedShortSkewFee = BigNumber.from('-1138830') // = 3374.655169**2 * 0.00001 * 100% * 0.01
-        expect(accountProcessEventShort.accumulationResult.positionFee).to.equal(expectedShortSkewFee)
+        expect(accountProcessEventShort.accumulationResult.tradeFee).to.equal(expectedShortSkewFee)
       })
     })
 
@@ -1171,7 +1171,7 @@ describe('Fees', () => {
         )?.args as unknown as AccountPositionProcessedEventObject
 
         const expectedSettlementFee = parse6decimal('1.23')
-        expect(accountProcessEvent.accumulationResult.keeper).to.equal(expectedSettlementFee)
+        expect(accountProcessEvent.accumulationResult.settlementFee).to.equal(expectedSettlementFee)
 
         expectGlobalEq(await market.global(), {
           currentId: 3,
@@ -1200,8 +1200,8 @@ describe('Fees', () => {
         )?.args as unknown as AccountPositionProcessedEventObject
 
         const expectedSettlementFee = parse6decimal('1.23')
-        expect(accountProcessEventB.accumulationResult.keeper).to.equal(expectedSettlementFee.div(2))
-        expect(accountProcessEventC.accumulationResult.keeper).to.equal(expectedSettlementFee.div(2))
+        expect(accountProcessEventB.accumulationResult.settlementFee).to.equal(expectedSettlementFee.div(2))
+        expect(accountProcessEventC.accumulationResult.settlementFee).to.equal(expectedSettlementFee.div(2))
 
         expectGlobalEq(await market.global(), {
           currentId: 3,
@@ -1278,7 +1278,7 @@ describe('Fees', () => {
 
       const expectedInterest = BigNumber.from('6') // = 3374.655169**2 * 0.00001 * 0.01 * 186 seconds / 365 days
       const expectedInterestFee = BigNumber.from('1') // = 6 * .2
-      expect(accountProcessEvent.accumulationResult.collateralAmount).to.equal(expectedInterest.mul(-1))
+      expect(accountProcessEvent.accumulationResult.collateral).to.equal(expectedInterest.mul(-1))
       expect(positionProcessEvent.accumulationResult.interestFee).to.equal(expectedInterestFee)
       expect(
         positionProcessEvent.accumulationResult.interestFee.add(positionProcessEvent.accumulationResult.interestMaker),
@@ -1307,7 +1307,7 @@ describe('Fees', () => {
 
       const expectedInterest = BigNumber.from('6') // = 3374.655169**2 * 0.00001 * 0.01 * 186 seconds / 365 days
       const expectedInterestFee = BigNumber.from('1') // = 6 * .2
-      expect(accountProcessEvent.accumulationResult.collateralAmount).to.equal(expectedInterest.mul(-1))
+      expect(accountProcessEvent.accumulationResult.collateral).to.equal(expectedInterest.mul(-1))
       expect(positionProcessEvent.accumulationResult.interestFee).to.equal(expectedInterestFee)
       expect(
         positionProcessEvent.accumulationResult.interestFee.add(positionProcessEvent.accumulationResult.interestMaker),
@@ -1376,7 +1376,7 @@ describe('Fees', () => {
 
       const expectedFunding = BigNumber.from('819')
       const expectedFundingFee = BigNumber.from('78') // = 819 * .1 - 3 (due to precision loss)
-      expect(accountProcessEvent.accumulationResult.collateralAmount).to.equal(expectedFunding.mul(-1))
+      expect(accountProcessEvent.accumulationResult.collateral).to.equal(expectedFunding.mul(-1))
       expect(positionProcessEvent.accumulationResult.fundingFee).to.equal(expectedFundingFee)
       expect(
         positionProcessEvent.accumulationResult.fundingFee.add(positionProcessEvent.accumulationResult.fundingMaker),
@@ -1405,7 +1405,7 @@ describe('Fees', () => {
 
       const expectedFunding = BigNumber.from('819')
       const expectedFundingFee = BigNumber.from('78') // = // = 819 * .1 - 3 (due to precision loss)
-      expect(accountProcessEvent.accumulationResult.collateralAmount).to.equal(expectedFunding.mul(-1))
+      expect(accountProcessEvent.accumulationResult.collateral).to.equal(expectedFunding.mul(-1))
       expect(positionProcessEvent.accumulationResult.fundingFee).to.equal(expectedFundingFee)
       expect(
         positionProcessEvent.accumulationResult.fundingFee.add(positionProcessEvent.accumulationResult.fundingMaker),

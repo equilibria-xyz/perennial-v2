@@ -37,61 +37,27 @@ using LocalStorageLib for LocalStorage global;
 /// @title Local
 /// @notice Holds the local account state
 library LocalLib {
+    /// @notice Updates the collateral with the new deposit or withdrwal
+    /// @param self The Local object to update
+    /// @param transfer The amount to update the collateral by
+    function update(Local memory self, Fixed6 transfer) internal pure {
+        self.collateral = self.collateral.add(transfer);
+    }
+
     /// @notice Updates the collateral with the new collateral change
     /// @param self The Local object to update
     /// @param collateral The amount to update the collateral by
-    function update(Local memory self, Fixed6 collateral) internal pure {
-        self.collateral = self.collateral.add(collateral);
-    }
-
-    /// @notice Accumulate pnl from the latest position to next position
-    /// @param self The Local object to update
-    /// @param latestId The latest position id
-    /// @param fromPosition The previous latest position
-    /// @param fromVersion The previous latest version
-    /// @param toVersion The next latest version
-    /// @return collateralAmount The resulting collateral change
-    function accumulatePnl(
+    /// @param tradeFee The trade fee to subtract from the collateral
+    /// @param settlementFee The settlement fee to subtract from the collateral
+    function update(
         Local memory self,
-        uint256 latestId,
-        Position memory fromPosition,
-        Version memory fromVersion,
-        Version memory toVersion
-    ) internal pure returns (Fixed6 collateralAmount) {
-        collateralAmount = toVersion.makerValue.accumulated(fromVersion.makerValue, fromPosition.maker)
-            .add(toVersion.longValue.accumulated(fromVersion.longValue, fromPosition.long))
-            .add(toVersion.shortValue.accumulated(fromVersion.shortValue, fromPosition.short));
-
-        self.collateral = self.collateral.add(collateralAmount);
-        self.latestId = latestId;
-    }
-
-    /// @notice Accumulate fees from the latest position to next position
-    /// @param self The Local object to update
-    /// @param order The next order
-    /// @param toVersion The next latest version
-    /// @return positionFee The resulting position fee
-    /// @return settlementFee The resulting keeper fee
-    function accumulateFees(
-        Local memory self,
-        Order memory order,
-        Version memory toVersion
-    ) internal pure returns (Fixed6 positionFee, UFixed6 settlementFee) {
-        // compute local order
-        Fixed6 takerOrder = order.long().sub(order.short());
-
-        // accumulate position fee
-        positionFee = Fixed6Lib.ZERO
-            .sub(toVersion.makerPosFee.accumulated(Accumulator6(Fixed6Lib.ZERO), order.makerPos))
-            .sub(toVersion.makerNegFee.accumulated(Accumulator6(Fixed6Lib.ZERO), order.makerNeg))
-            .sub(toVersion.takerPosFee.accumulated(Accumulator6(Fixed6Lib.ZERO), order.takerPos()))
-            .sub(toVersion.takerNegFee.accumulated(Accumulator6(Fixed6Lib.ZERO), order.takerNeg()));
-
-        // accumulate settlement fee
-        uint256 orders = takerOrder.add(order.maker()).isZero() ? 0 : 1;
-        settlementFee = toVersion.settlementFee.accumulated(Accumulator6(Fixed6Lib.ZERO), UFixed6Lib.from(orders)).abs();
-
-        self.collateral = self.collateral.sub(positionFee).sub(Fixed6Lib.from(settlementFee));
+        uint256 newId,
+        Fixed6 collateral,
+        Fixed6 tradeFee,
+        UFixed6 settlementFee
+    ) internal pure {
+        self.collateral = self.collateral.add(collateral).sub(tradeFee).sub(Fixed6Lib.from(settlementFee));
+        self.latestId = newId;
     }
 
     /// @notice Updates the Local to put it into a protected state for liquidation

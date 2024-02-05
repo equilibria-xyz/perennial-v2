@@ -19,10 +19,10 @@ struct Checkpoint {
     Fixed6 assets;
 
     /// @dev The total fee at the checkpoint
-    Fixed6 fee;
+    Fixed6 tradeFee;
 
     /// @dev The total settlement fee at the checkpoint
-    UFixed6 keeper;
+    UFixed6 settlementFee;
 
     /// @dev The number of deposits and redemptions during the checkpoint
     uint256 count;
@@ -36,8 +36,8 @@ struct StoredCheckpoint {
     int64 assets;           // <= 9.22t
 
     /* slot 1 */
-    int64 fee;              // <= 9.22t
-    uint64 keeper;          // <= 18.44t
+    int64 tradeFee;        // <= 9.22t
+    uint64 settlementFee;   // <= 18.44t
     uint32 count;           // <= 4.29b
     bytes12 __unallocated1__;
 }
@@ -68,12 +68,12 @@ library CheckpointLib {
     /// @dev Increments the assets by the snapshotted amount of collateral in the underlying markets
     /// @param self The checkpoint to complete
     /// @param assets The amount of assets in the underlying markets
-    /// @param fee The fee to register
-    /// @param keeper The settlement fee to register
-    function complete(Checkpoint memory self, Fixed6 assets, Fixed6 fee, UFixed6 keeper) internal pure {
+    /// @param tradeFee The trade fee to register
+    /// @param settlementFee The settlement fee to register
+    function complete(Checkpoint memory self, Fixed6 assets, Fixed6 tradeFee, UFixed6 settlementFee) internal pure {
         self.assets = self.assets.add(assets);
-        self.fee = fee;
-        self.keeper = keeper;
+        self.tradeFee = tradeFee;
+        self.settlementFee = settlementFee;
     }
 
     /// @notice Converts a given amount of assets to shares at checkpoint in the global context
@@ -84,7 +84,7 @@ library CheckpointLib {
         if (self.shares.isZero()) return assets;
 
         // if vault is insolvent, default to par value
-        return  self.assets.lte(Fixed6Lib.ZERO) ? assets : _toShares(self, _withoutKeeperGlobal(self, assets));
+        return  self.assets.lte(Fixed6Lib.ZERO) ? assets : _toShares(self, _withoutSettlementFeeGlobal(self, assets));
     }
 
     /// @notice Converts a given amount of shares to assets with checkpoint in the global context
@@ -92,7 +92,7 @@ library CheckpointLib {
     /// @return Amount of assets for the given shares at checkpoint
     function toAssetsGlobal(Checkpoint memory self, UFixed6 shares) internal pure returns (UFixed6) {
         // vault is fresh, use par value
-        return _withoutKeeperGlobal(self, self.shares.isZero() ? shares : _toAssets(self, shares));
+        return _withoutSettlementFeeGlobal(self, self.shares.isZero() ? shares : _toAssets(self, shares));
     }
 
 
@@ -104,7 +104,7 @@ library CheckpointLib {
         if (self.shares.isZero()) return assets;
 
         // if vault is insolvent, default to par value
-        return  self.assets.lte(Fixed6Lib.ZERO) ? assets : _toShares(self, _withoutKeeperLocal(self, assets));
+        return  self.assets.lte(Fixed6Lib.ZERO) ? assets : _toShares(self, _withoutSettlementFeeLocal(self, assets));
     }
 
     /// @notice Converts a given amount of shares to assets with checkpoint in the local context
@@ -112,30 +112,30 @@ library CheckpointLib {
     /// @return Amount of assets for the given shares at checkpoint
     function toAssetsLocal(Checkpoint memory self, UFixed6 shares) internal pure returns (UFixed6) {
         // vault is fresh, use par value
-        return _withoutKeeperLocal(self, self.shares.isZero() ? shares : _toAssets(self, shares));
+        return _withoutSettlementFeeLocal(self, self.shares.isZero() ? shares : _toAssets(self, shares));
     }
 
     /// @notice Converts a given amount of assets to shares at checkpoint in the global context
-    /// @dev Dev used in limit calculations when a non-historical keeper fee must be used
+    /// @dev Dev used in limit calculations when a non-historical settlement fee must be used
     /// @param assets Number of assets to convert to shares
-    /// @param keeper Custom keeper fee
+    /// @param settlementFee Custom settlement fee
     /// @return Amount of shares for the given assets at checkpoint
-    function toShares(Checkpoint memory self, UFixed6 assets, UFixed6 keeper) internal pure returns (UFixed6) {
+    function toShares(Checkpoint memory self, UFixed6 assets, UFixed6 settlementFee) internal pure returns (UFixed6) {
         // vault is fresh, use par value
         if (self.shares.isZero()) return assets;
 
         // if vault is insolvent, default to par value
-        return  self.assets.lte(Fixed6Lib.ZERO) ? assets : _toShares(self, _withoutKeeper(assets, keeper));
+        return  self.assets.lte(Fixed6Lib.ZERO) ? assets : _toShares(self, _withoutSettlementFee(assets, settlementFee));
     }
 
     /// @notice Converts a given amount of shares to assets with checkpoint in the global context
-    /// @dev Dev used in limit calculations when a non-historical keeper fee must be used
+    /// @dev Dev used in limit calculations when a non-historical settlement fee must be used
     /// @param shares Number of shares to convert to shares
-    /// @param keeper Custom keeper fee
+    /// @param settlementFee Custom settlement fee
     /// @return Amount of assets for the given shares at checkpoint
-    function toAssets(Checkpoint memory self, UFixed6 shares, UFixed6 keeper) internal pure returns (UFixed6) {
+    function toAssets(Checkpoint memory self, UFixed6 shares, UFixed6 settlementFee) internal pure returns (UFixed6) {
         // vault is fresh, use par value
-        return _withoutKeeper(self.shares.isZero() ? shares : _toAssets(self, shares), keeper);
+        return _withoutSettlementFee(self.shares.isZero() ? shares : _toAssets(self, shares), settlementFee);
     }
 
     /// @notice Converts a given amount of assets to shares at checkpoint
@@ -160,7 +160,7 @@ library CheckpointLib {
     function _withSpread(Checkpoint memory self, UFixed6 amount) private pure returns (UFixed6) {
         UFixed6 selfAssets = UFixed6Lib.unsafeFrom(self.assets);
         UFixed6 totalAmount = self.deposit.add(self.redemption.muldiv(selfAssets, self.shares));
-        UFixed6 totalAmountIncludingFee = UFixed6Lib.unsafeFrom(Fixed6Lib.from(totalAmount).sub(self.fee));
+        UFixed6 totalAmountIncludingFee = UFixed6Lib.unsafeFrom(Fixed6Lib.from(totalAmount).sub(self.tradeFee));
 
         return totalAmount.isZero() ?
             amount :
@@ -171,25 +171,27 @@ library CheckpointLib {
     /// @param self The checkpoint to apply the fee to
     /// @param amount The amount to apply the fee to
     /// @return The amount with the settlement fee
-    function _withoutKeeperGlobal(Checkpoint memory self, UFixed6 amount) private pure returns (UFixed6) {
-        return _withoutKeeper(amount, self.keeper);
+    function _withoutSettlementFeeGlobal(Checkpoint memory self, UFixed6 amount) private pure returns (UFixed6) {
+        return _withoutSettlementFee(amount, self.settlementFee);
     }
 
     /// @notice Applies the fixed settlement fee to a given amount in the local context
     /// @param self The checkpoint to apply the fee to
     /// @param amount The amount to apply the fee to
     /// @return The amount with the settlement fee
-    function _withoutKeeperLocal(Checkpoint memory self, UFixed6 amount) private pure returns (UFixed6) {
-        UFixed6 keeperPer = self.count == 0 ? UFixed6Lib.ZERO : self.keeper.div(UFixed6Lib.from(self.count));
-        return _withoutKeeper(amount, keeperPer);
+    function _withoutSettlementFeeLocal(Checkpoint memory self, UFixed6 amount) private pure returns (UFixed6) {
+        UFixed6 settlementFeePer = self.count == 0 ?
+            UFixed6Lib.ZERO :
+            self.settlementFee.div(UFixed6Lib.from(self.count));
+        return _withoutSettlementFee(amount, settlementFeePer);
     }
 
     /// @notice Applies the fixed settlement fee to a given amount in the local context
     /// @param amount The amount to apply the fee to
-    /// @param keeper The amount of settlement fee to deduct
+    /// @param settlementFee The amount of settlement fee to deduct
     /// @return The amount with the settlement fee
-    function _withoutKeeper(UFixed6 amount, UFixed6 keeper) private pure returns (UFixed6) {
-        return amount.unsafeSub(keeper);
+    function _withoutSettlementFee(UFixed6 amount, UFixed6 settlementFee) private pure returns (UFixed6) {
+        return amount.unsafeSub(settlementFee);
     }
 
     /// @notice Returns if the checkpoint is healthy
@@ -212,8 +214,8 @@ library CheckpointStorageLib {
             UFixed6.wrap(uint256(storedValue.redemption)),
             UFixed6.wrap(uint256(storedValue.shares)),
             Fixed6.wrap(int256(storedValue.assets)),
-            Fixed6.wrap(int256(storedValue.fee)),
-            UFixed6.wrap(uint256(storedValue.keeper)),
+            Fixed6.wrap(int256(storedValue.tradeFee)),
+            UFixed6.wrap(uint256(storedValue.settlementFee)),
             uint256(storedValue.count)
         );
     }
@@ -224,10 +226,10 @@ library CheckpointStorageLib {
         if (newValue.shares.gt(UFixed6.wrap(type(uint64).max))) revert CheckpointStorageInvalidError();
         if (newValue.assets.gt(Fixed6.wrap(type(int64).max))) revert CheckpointStorageInvalidError();
         if (newValue.assets.lt(Fixed6.wrap(type(int64).min))) revert CheckpointStorageInvalidError();
-        if (newValue.fee.gt(Fixed6.wrap(type(int64).max))) revert CheckpointStorageInvalidError();
-        if (newValue.fee.lt(Fixed6.wrap(type(int64).min))) revert CheckpointStorageInvalidError();
+        if (newValue.tradeFee.gt(Fixed6.wrap(type(int64).max))) revert CheckpointStorageInvalidError();
+        if (newValue.tradeFee.lt(Fixed6.wrap(type(int64).min))) revert CheckpointStorageInvalidError();
+        if (newValue.settlementFee.gt(UFixed6.wrap(type(uint64).max))) revert CheckpointStorageInvalidError();
         if (newValue.count > uint256(type(uint32).max)) revert CheckpointStorageInvalidError();
-        if (newValue.keeper.gt(UFixed6.wrap(type(uint64).max))) revert CheckpointStorageInvalidError();
 
         self.value = StoredCheckpoint(
             uint64(UFixed6.unwrap(newValue.deposit)),
@@ -235,8 +237,8 @@ library CheckpointStorageLib {
             uint64(UFixed6.unwrap(newValue.shares)),
             int64(Fixed6.unwrap(newValue.assets)),
 
-            int64(Fixed6.unwrap(newValue.fee)),
-            uint64(UFixed6.unwrap(newValue.keeper)),
+            int64(Fixed6.unwrap(newValue.tradeFee)),
+            uint64(UFixed6.unwrap(newValue.settlementFee)),
             uint32(newValue.count),
             bytes12(0)
         );

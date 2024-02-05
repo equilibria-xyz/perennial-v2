@@ -199,7 +199,7 @@ describe('Local', () => {
     it('adds collateral (increase)', async () => {
       await local.store(DEFAULT_LOCAL)
 
-      await local.update(1)
+      await local['update(int256)'](1)
 
       const value = await local.read()
       expect(value.collateral).to.equal(1)
@@ -208,241 +208,21 @@ describe('Local', () => {
     it('adds collateral (decrease)', async () => {
       await local.store(DEFAULT_LOCAL)
 
-      await local.update(-1)
+      await local['update(int256)'](-1)
 
       const value = await local.read()
       expect(value.collateral).to.equal(-1)
     })
   })
 
-  describe('#accumulate', () => {
-    const FROM_POSITION: PositionStruct = {
-      timestamp: 0, // unused
-      maker: parse6decimal('987'),
-      long: parse6decimal('654'),
-      short: parse6decimal('321'),
-    }
+  describe('#update', () => {
+    it('correctly updates fees', async () => {
+      await local.store({ ...DEFAULT_LOCAL, collateral: 1000 })
+      await local['update(uint256,int256,int256,uint256)'](11, 567, -123, 456)
 
-    const TO_POSITION: PositionStruct = {
-      timestamp: 0, // unused
-      maker: 0,
-      long: 0,
-      short: 0,
-    }
-
-    const FROM_VERSION: VersionStruct = {
-      valid: true,
-      makerValue: { _value: parse6decimal('100') },
-      longValue: { _value: parse6decimal('200') },
-      shortValue: { _value: parse6decimal('300') },
-      makerPosFee: { _value: parse6decimal('400') },
-      makerNegFee: { _value: parse6decimal('500') },
-      takerPosFee: { _value: parse6decimal('600') },
-      takerNegFee: { _value: parse6decimal('700') },
-      settlementFee: { _value: parse6decimal('800') },
-    }
-
-    const TO_VERSION: VersionStruct = {
-      valid: true,
-      makerValue: { _value: parse6decimal('1000') },
-      longValue: { _value: parse6decimal('2000') },
-      shortValue: { _value: parse6decimal('3000') },
-      makerPosFee: { _value: parse6decimal('4000') },
-      makerNegFee: { _value: parse6decimal('5000') },
-      takerPosFee: { _value: parse6decimal('6000') },
-      takerNegFee: { _value: parse6decimal('7000') },
-      settlementFee: { _value: parse6decimal('8000') },
-    }
-
-    context('zero initial values', () => {
-      beforeEach(async () => {
-        await local.store({
-          ...DEFAULT_LOCAL,
-          currentId: 1,
-        })
-      })
-
-      it('accumulates pnl (maker)', async () => {
-        const collateralAmount = await local.callStatic.accumulatePnl(
-          1,
-          { ...DEFAULT_POSITION, maker: parse6decimal('10') },
-          { ...DEFAULT_VERSION, makerValue: { _value: parse6decimal('100') } },
-          { ...DEFAULT_VERSION, makerValue: { _value: parse6decimal('200') } },
-        )
-        await local.accumulatePnl(
-          1,
-          { ...DEFAULT_POSITION, maker: parse6decimal('10') },
-          { ...DEFAULT_VERSION, makerValue: { _value: parse6decimal('100') } },
-          { ...DEFAULT_VERSION, makerValue: { _value: parse6decimal('200') } },
-        )
-        expect(collateralAmount).to.equal(parse6decimal('1000'))
-
-        const value = await local.read()
-        expect(value.currentId).to.equal(1)
-        expect(value.latestId).to.equal(1)
-        expect(value.collateral).to.equal(parse6decimal('1000'))
-      })
-
-      it('accumulates pnl (long)', async () => {
-        const collateralAmount = await local.callStatic.accumulatePnl(
-          1,
-          { ...DEFAULT_POSITION, long: parse6decimal('10') },
-          { ...DEFAULT_VERSION, longValue: { _value: parse6decimal('100') } },
-          { ...DEFAULT_VERSION, longValue: { _value: parse6decimal('200') } },
-        )
-        await local.accumulatePnl(
-          1,
-          { ...DEFAULT_POSITION, long: parse6decimal('10') },
-          { ...DEFAULT_VERSION, longValue: { _value: parse6decimal('100') } },
-          { ...DEFAULT_VERSION, longValue: { _value: parse6decimal('200') } },
-        )
-        expect(collateralAmount).to.equal(parse6decimal('1000'))
-
-        const value = await local.read()
-        expect(value.currentId).to.equal(1)
-        expect(value.latestId).to.equal(1)
-        expect(value.collateral).to.equal(parse6decimal('1000'))
-      })
-
-      it('accumulates pnl (short)', async () => {
-        const collateralAmount = await local.callStatic.accumulatePnl(
-          1,
-          { ...DEFAULT_POSITION, short: parse6decimal('10') },
-          { ...DEFAULT_VERSION, shortValue: { _value: parse6decimal('100') } },
-          { ...DEFAULT_VERSION, shortValue: { _value: parse6decimal('200') } },
-        )
-        await local.accumulatePnl(
-          1,
-          { ...DEFAULT_POSITION, short: parse6decimal('10') },
-          { ...DEFAULT_VERSION, shortValue: { _value: parse6decimal('100') } },
-          { ...DEFAULT_VERSION, shortValue: { _value: parse6decimal('200') } },
-        )
-        expect(collateralAmount).to.equal(parse6decimal('1000'))
-
-        const value = await local.read()
-        expect(value.currentId).to.equal(1)
-        expect(value.latestId).to.equal(1)
-        expect(value.collateral).to.equal(parse6decimal('1000'))
-      })
-
-      it('accumulates fees (maker pos)', async () => {
-        const feeAmount = await local.callStatic.accumulateFees(
-          { ...DEFAULT_ORDER, makerPos: parse6decimal('10') },
-          { ...DEFAULT_VERSION, makerPosFee: { _value: parse6decimal('-2') } },
-        )
-        await local.accumulateFees(
-          { ...DEFAULT_ORDER, makerPos: parse6decimal('10') },
-          { ...DEFAULT_VERSION, makerPosFee: { _value: parse6decimal('-2') } },
-        )
-        expect(feeAmount.positionFee).to.equal(parse6decimal('20'))
-
-        const value = await local.read()
-        expect(value.currentId).to.equal(1)
-        expect(value.latestId).to.equal(0)
-        expect(value.collateral).to.equal(parse6decimal('-20'))
-      })
-
-      it('accumulates fees (maker neg)', async () => {
-        const feeAmount = await local.callStatic.accumulateFees(
-          { ...DEFAULT_ORDER, makerNeg: parse6decimal('10') },
-          { ...DEFAULT_VERSION, makerNegFee: { _value: parse6decimal('-2') } },
-        )
-        await local.accumulateFees(
-          { ...DEFAULT_ORDER, makerNeg: parse6decimal('10') },
-          { ...DEFAULT_VERSION, makerNegFee: { _value: parse6decimal('-2') } },
-        )
-        expect(feeAmount.positionFee).to.equal(parse6decimal('20'))
-
-        const value = await local.read()
-        expect(value.currentId).to.equal(1)
-        expect(value.latestId).to.equal(0)
-        expect(value.collateral).to.equal(parse6decimal('-20'))
-      })
-
-      it('accumulates fees (long pos)', async () => {
-        const feeAmount = await local.callStatic.accumulateFees(
-          { ...DEFAULT_ORDER, longPos: parse6decimal('10') },
-          { ...DEFAULT_VERSION, takerPosFee: { _value: parse6decimal('-2') } },
-        )
-        await local.accumulateFees(
-          { ...DEFAULT_ORDER, longPos: parse6decimal('10') },
-          { ...DEFAULT_VERSION, takerPosFee: { _value: parse6decimal('-2') } },
-        )
-        expect(feeAmount.positionFee).to.equal(parse6decimal('20'))
-
-        const value = await local.read()
-        expect(value.currentId).to.equal(1)
-        expect(value.latestId).to.equal(0)
-        expect(value.collateral).to.equal(parse6decimal('-20'))
-      })
-
-      it('accumulates fees (short neg)', async () => {
-        const feeAmount = await local.callStatic.accumulateFees(
-          { ...DEFAULT_ORDER, shortNeg: parse6decimal('10') },
-          { ...DEFAULT_VERSION, takerPosFee: { _value: parse6decimal('-2') } },
-        )
-        await local.accumulateFees(
-          { ...DEFAULT_ORDER, shortNeg: parse6decimal('10') },
-          { ...DEFAULT_VERSION, takerPosFee: { _value: parse6decimal('-2') } },
-        )
-        expect(feeAmount.positionFee).to.equal(parse6decimal('20'))
-
-        const value = await local.read()
-        expect(value.currentId).to.equal(1)
-        expect(value.latestId).to.equal(0)
-        expect(value.collateral).to.equal(parse6decimal('-20'))
-      })
-
-      it('accumulates fees (long neg)', async () => {
-        const feeAmount = await local.callStatic.accumulateFees(
-          { ...DEFAULT_ORDER, longNeg: parse6decimal('10') },
-          { ...DEFAULT_VERSION, takerNegFee: { _value: parse6decimal('-2') } },
-        )
-        await local.accumulateFees(
-          { ...DEFAULT_ORDER, longNeg: parse6decimal('10') },
-          { ...DEFAULT_VERSION, takerNegFee: { _value: parse6decimal('-2') } },
-        )
-        expect(feeAmount.positionFee).to.equal(parse6decimal('20'))
-
-        const value = await local.read()
-        expect(value.currentId).to.equal(1)
-        expect(value.latestId).to.equal(0)
-        expect(value.collateral).to.equal(parse6decimal('-20'))
-      })
-
-      it('accumulates fees (short pos)', async () => {
-        const feeAmount = await local.callStatic.accumulateFees(
-          { ...DEFAULT_ORDER, shortPos: parse6decimal('10') },
-          { ...DEFAULT_VERSION, takerNegFee: { _value: parse6decimal('-2') } },
-        )
-        await local.accumulateFees(
-          { ...DEFAULT_ORDER, shortPos: parse6decimal('10') },
-          { ...DEFAULT_VERSION, takerNegFee: { _value: parse6decimal('-2') } },
-        )
-        expect(feeAmount.positionFee).to.equal(parse6decimal('20'))
-
-        const value = await local.read()
-        expect(value.currentId).to.equal(1)
-        expect(value.latestId).to.equal(0)
-        expect(value.collateral).to.equal(parse6decimal('-20'))
-      })
-
-      it('accumulates settlement fee', async () => {
-        const feeAmount = await local.callStatic.accumulateFees(
-          { ...DEFAULT_ORDER, makerPos: parse6decimal('1') },
-          { ...DEFAULT_VERSION, settlementFee: { _value: parse6decimal('-4') } },
-        )
-        await local.accumulateFees(
-          { ...DEFAULT_ORDER, makerPos: parse6decimal('1') },
-          { ...DEFAULT_VERSION, settlementFee: { _value: parse6decimal('-4') } },
-        )
-        expect(feeAmount.settlementFee).to.equal(parse6decimal('4'))
-
-        const value = await local.read()
-        expect(value.currentId).to.equal(1)
-        expect(value.latestId).to.equal(0)
-        expect(value.collateral).to.equal(parse6decimal('-4'))
-      })
+      const storedLocal = await local.read()
+      expect(await storedLocal.collateral).to.equal(1234)
+      expect(await storedLocal.latestId).to.equal(11)
     })
   })
 

@@ -237,11 +237,11 @@ contract Market is IMarket, Instance, ReentrancyGuard {
         return _pendings[account].read();
     }
 
-    /// @notice Returns the local checkpoint for the given account and id
+    /// @notice Returns the local checkpoint for the given account and version
     /// @param account The account to query
-    /// @param id The id to query
-    function checkpoints(address account, uint256 id) external view returns (Checkpoint memory) {
-        return _checkpoints[account][id].read();
+    /// @param version The version to query
+    function checkpoints(address account, uint256 version) external view returns (Checkpoint memory) {
+        return _checkpoints[account][version].read();
     }
 
     /// @notice Loads the context for the update process
@@ -424,7 +424,7 @@ contract Market is IMarket, Instance, ReentrancyGuard {
         while (
             context.local.currentId != context.local.latestId &&
             (nextOrder = _pendingOrders[account][context.local.latestId + 1].read()).ready(context.latestVersion)
-        ) _processOrderLocal(context, account, context.local.latestId + 1, nextOrder, true);
+        ) _processOrderLocal(context, account, context.local.latestId + 1, nextOrder);
 
         // sync
         if (context.latestVersion.timestamp > context.latestPosition.global.timestamp) {
@@ -436,7 +436,7 @@ contract Market is IMarket, Instance, ReentrancyGuard {
         if (context.latestVersion.timestamp > context.latestPosition.local.timestamp) {
             nextOrder = _pendingOrders[account][context.local.latestId].read();
             nextOrder.next(context.latestVersion.timestamp);
-            _processOrderLocal(context, account, context.local.latestId, nextOrder, false);
+            _processOrderLocal(context, account, context.local.latestId, nextOrder);
         }
 
         _position.store(context.latestPosition.global);
@@ -494,39 +494,36 @@ contract Market is IMarket, Instance, ReentrancyGuard {
     /// @param account The account to process for
     /// @param newOrderId The id of the pending position to process
     /// @param newOrder The pending order to process
-    /// @param shouldCheckpoint Whether to create a collateral checkpoint
     function _processOrderLocal(
         Context memory context,
         address account,
         uint256 newOrderId,
-        Order memory newOrder,
-        bool shouldCheckpoint
+        Order memory newOrder
     ) private {
         LocalAccumulationResult memory accumulationResult;
         Version memory version = _versions[newOrder.timestamp].read();
-        Checkpoint memory checkpoint = _checkpoints[account][context.local.latestId].read(); // TODO: load from context instead
+        Checkpoint memory checkpoint = _checkpoints[account][context.latestPosition.local.timestamp].read(); // TODO: load from context instead
 
         (uint256 fromTimestamp, uint256 fromId) = (context.latestPosition.local.timestamp, context.local.latestId);
-        accumulationResult.collateralAmount = context.local.accumulatePnl(
+        (accumulationResult.collateral, accumulationResult.tradeFee, accumulationResult.settlementFee) =
+            checkpoint.accumulate(
+                newOrder,
+                context.latestPosition.local,
+                _versions[context.latestPosition.local.timestamp].read(),
+                version
+            );
+        context.local.update(
             newOrderId,
-            context.latestPosition.local,
-            _versions[context.latestPosition.local.timestamp].read(),
-            version
-        );
-        (accumulationResult.positionFee, accumulationResult.keeper) = // TODO: combine these
-            context.local.accumulateFees(newOrder, version);
-        if (checkpoint) checkpoint.update(
-            newOrder,
-            accumulationResult.collateralAmount,
-            accumulationResult.positionFee,
-            accumulationResult.keeper
+            accumulationResult.collateral,
+            accumulationResult.tradeFee,
+            accumulationResult.settlementFee
         );
         context.latestPosition.local.update(newOrder, version.valid);
         context.pending.local.sub(newOrder);
         if (context.local.processProtection(newOrder, version))
             _credit(context.local.protectionInitiator, Fixed6Lib.from(context.local.protectionAmount));
 
-        _checkpoints[account][newOrderId].store(checkpoint);
+        _checkpoints[account][newOrder.timestamp].store(checkpoint);
 
         // events
         emit AccountPositionProcessed(

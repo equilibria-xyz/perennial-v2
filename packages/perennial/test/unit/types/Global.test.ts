@@ -443,7 +443,7 @@ describe('Global', () => {
   })
 
   describe('#incrementFees', async () => {
-    context('zero keeper', async () => {
+    context('zero settlement fee', async () => {
       it('no fees', async () => {
         await global.incrementFees(123, 0, generateMarketParameter(0, 0), generateProtocolParameter(0))
 
@@ -725,7 +725,7 @@ describe('Global', () => {
       })
     })
 
-    context('non-zero keeper', async () => {
+    context('non-zero settlement fee', async () => {
       it('no fees', async () => {
         await global.incrementFees(123, 456, generateMarketParameter(0, 0), generateProtocolParameter(0))
 
