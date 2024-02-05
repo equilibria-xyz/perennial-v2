@@ -22,13 +22,11 @@ import {
   IMarket,
   KeeperOracle__factory,
   KeeperOracle,
-  MilliPowerTwo__factory,
+  PowerTwo__factory,
 } from '../../../types/generated'
 import { parse6decimal } from '../../../../common/testutil/types'
 import { smock } from '@defi-wonderland/smock'
 import { IInstance } from '../../../types/generated/@equilibria/root/attribute/interfaces'
-import { payoff } from '../../../types/generated/contracts'
-import { parse } from 'dotenv'
 
 const { ethers } = HRE
 
@@ -100,7 +98,7 @@ testOracles.forEach(testOracle => {
 
       dsu = IERC20Metadata__factory.connect(DSU_ADDRESS, owner)
 
-      const milliPowerTwoPayoff = await new MilliPowerTwo__factory(owner).deploy()
+      const powerTwoPayoff = await new PowerTwo__factory(owner).deploy()
 
       const oracleImpl = await new Oracle__factory(owner).deploy()
       oracleFactory = await new OracleFactory__factory(owner).deploy(oracleImpl.address)
@@ -130,7 +128,7 @@ testOracles.forEach(testOracle => {
       await pythOracleFactory.initialize(oracleFactory.address, CHAINLINK_ETH_USD_FEED, dsu.address)
       await oracleFactory.register(pythOracleFactory.address)
       await pythOracleFactory.authorize(oracleFactory.address)
-      await pythOracleFactory.register(milliPowerTwoPayoff.address)
+      await pythOracleFactory.register(powerTwoPayoff.address)
 
       keeperOracle = testOracle.Oracle.connect(
         await pythOracleFactory.callStatic.create(PYTH_ETH_USD_PRICE_FEED, PYTH_ETH_USD_PRICE_FEED, {
@@ -160,14 +158,14 @@ testOracles.forEach(testOracle => {
         await pythOracleFactory.callStatic.create(
           '0x0000000000000000000000000000000000000000000000000000000000000021',
           PYTH_ETH_USD_PRICE_FEED,
-          { provider: milliPowerTwoPayoff.address, decimals: 0 }, // TODO: good test injection
+          { provider: powerTwoPayoff.address, decimals: -3 },
         ),
         owner,
       )
       await pythOracleFactory.create(
         '0x0000000000000000000000000000000000000000000000000000000000000021',
         PYTH_ETH_USD_PRICE_FEED,
-        { provider: milliPowerTwoPayoff.address, decimals: 0 },
+        { provider: powerTwoPayoff.address, decimals: -3 },
       )
       await pythOracleFactory.create(PYTH_USDC_USD_PRICE_FEED, PYTH_USDC_USD_PRICE_FEED, {
         provider: ethers.constants.AddressZero,
@@ -348,12 +346,10 @@ testOracles.forEach(testOracle => {
 
         it('reverts when not owner', async () => {
           await expect(
-            pythOracleFactory
-              .connect(user)
-              .create(PYTH_ETH_USD_PRICE_FEED, PYTH_ETH_USD_PRICE_FEED, {
-                provider: ethers.constants.AddressZero,
-                decimals: 0,
-              }),
+            pythOracleFactory.connect(user).create(PYTH_ETH_USD_PRICE_FEED, PYTH_ETH_USD_PRICE_FEED, {
+              provider: ethers.constants.AddressZero,
+              decimals: 0,
+            }),
           ).to.be.revertedWithCustomError(pythOracleFactory, 'OwnableNotOwnerError')
         })
       })

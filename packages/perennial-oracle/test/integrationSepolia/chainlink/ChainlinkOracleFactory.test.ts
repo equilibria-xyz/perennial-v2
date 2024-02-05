@@ -22,8 +22,8 @@ import {
   KeeperOracle,
   ChainlinkFactory__factory,
   ChainlinkFactory,
-  MilliPowerTwo__factory,
-  MilliPowerTwo,
+  PowerTwo__factory,
+  PowerTwo,
 } from '../../../types/generated'
 import { parse6decimal } from '../../../../common/testutil/types'
 import { smock } from '@defi-wonderland/smock'
@@ -156,14 +156,14 @@ testOracles.forEach(testOracle => {
     let dsu: IERC20Metadata
     let oracleSigner: SignerWithAddress
     let factorySigner: SignerWithAddress
-    let payoff: MilliPowerTwo
+    let powerTwoPayoff: PowerTwo
 
     const setup = async () => {
       ;[owner, user] = await ethers.getSigners()
 
       dsu = IERC20Metadata__factory.connect(DSU_ADDRESS, owner)
 
-      payoff = await new MilliPowerTwo__factory(owner).deploy()
+      powerTwoPayoff = await new PowerTwo__factory(owner).deploy()
 
       const oracleImpl = await new Oracle__factory(owner).deploy()
       oracleFactory = await new OracleFactory__factory(owner).deploy(oracleImpl.address)
@@ -195,7 +195,7 @@ testOracles.forEach(testOracle => {
       await chainlinkOracleFactory.initialize(oracleFactory.address, CHAINLINK_ETH_USD_FEED, dsu.address)
       await oracleFactory.register(chainlinkOracleFactory.address)
       await chainlinkOracleFactory.authorize(oracleFactory.address)
-      await chainlinkOracleFactory.register(payoff.address)
+      await chainlinkOracleFactory.register(powerTwoPayoff.address)
 
       keeperOracle = testOracle.Oracle.connect(
         await chainlinkOracleFactory.callStatic.create(CHAINLINK_ETH_USD_PRICE_FEED, CHAINLINK_ETH_USD_PRICE_FEED, {
@@ -223,14 +223,14 @@ testOracles.forEach(testOracle => {
         await chainlinkOracleFactory.callStatic.create(
           '0x0000000000000000000000000000000000000000000000000000000000000021',
           CHAINLINK_ETH_USD_PRICE_FEED,
-          { provider: payoff.address, decimals: 0 },
+          { provider: powerTwoPayoff.address, decimals: -3 },
         ),
         owner,
       )
       await chainlinkOracleFactory.create(
         '0x0000000000000000000000000000000000000000000000000000000000000021',
         CHAINLINK_ETH_USD_PRICE_FEED,
-        { provider: payoff.address, decimals: 0 },
+        { provider: powerTwoPayoff.address, decimals: -3 },
       )
 
       oracle = Oracle__factory.connect(
@@ -369,20 +369,18 @@ testOracles.forEach(testOracle => {
         it('cant recreate price id', async () => {
           await expect(
             chainlinkOracleFactory.create(CHAINLINK_ETH_USD_PRICE_FEED, CHAINLINK_ETH_USD_PRICE_FEED, {
-              provider: payoff.address,
-              decimals: 0,
+              provider: powerTwoPayoff.address,
+              decimals: -3,
             }),
           ).to.be.revertedWithCustomError(chainlinkOracleFactory, 'KeeperFactoryAlreadyCreatedError')
         })
 
         it('reverts when not owner', async () => {
           await expect(
-            chainlinkOracleFactory
-              .connect(user)
-              .create(CHAINLINK_ETH_USD_PRICE_FEED, CHAINLINK_ETH_USD_PRICE_FEED, {
-                provider: payoff.address,
-                decimals: 0,
-              }),
+            chainlinkOracleFactory.connect(user).create(CHAINLINK_ETH_USD_PRICE_FEED, CHAINLINK_ETH_USD_PRICE_FEED, {
+              provider: powerTwoPayoff.address,
+              decimals: -3,
+            }),
           ).to.be.revertedWithCustomError(chainlinkOracleFactory, 'OwnableNotOwnerError')
         })
       })
@@ -406,10 +404,9 @@ testOracles.forEach(testOracle => {
 
       context('#register', async () => {
         it('reverts when not owner', async () => {
-          await expect(chainlinkOracleFactory.connect(user).register(payoff.address)).to.be.revertedWithCustomError(
-            chainlinkOracleFactory,
-            'OwnableNotOwnerError',
-          )
+          await expect(
+            chainlinkOracleFactory.connect(user).register(powerTwoPayoff.address),
+          ).to.be.revertedWithCustomError(chainlinkOracleFactory, 'OwnableNotOwnerError')
         })
       })
     })
