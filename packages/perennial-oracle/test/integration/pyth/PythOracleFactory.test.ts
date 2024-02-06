@@ -550,6 +550,20 @@ testOracles.forEach(testOracle => {
         )
       })
 
+      it('fails to commit if version is outside of time range', async () => {
+        await expect(
+          pythOracleFactory.connect(user).commit([PYTH_ETH_USD_PRICE_FEED], STARTING_TIME - 5, VAA, { value: 1 }),
+        ).to.revertedWithCustomError(pythOracleFactory, 'KeeperFactoryVersionOutsideRangeError')
+
+        await expect(
+          pythOracleFactory.connect(user).commit([PYTH_ETH_USD_PRICE_FEED], STARTING_TIME + 3, VAA, { value: 1 }),
+        ).to.revertedWithCustomError(pythOracleFactory, 'KeeperFactoryVersionOutsideRangeError')
+
+        await keeperOracle.connect(oracleSigner).request(market.address, user.address)
+        expect(await keeperOracle.versions(1)).to.be.equal(STARTING_TIME)
+        expect(await keeperOracle.next()).to.be.equal(STARTING_TIME)
+      })
+
       it('does not commit a version that has already been committed', async () => {
         await keeperOracle.connect(oracleSigner).request(market.address, user.address)
         expect(await keeperOracle.versions(1)).to.be.equal(STARTING_TIME)

@@ -21,6 +21,11 @@ interface IKeeperFactory is IOracleProviderFactory, IFactory, IKept {
         int16 decimals;
     }
 
+    struct PriceRecord {
+        uint256 timestamp;
+        Fixed18 price;
+    }
+
     event OracleAssociated(bytes32 indexed id, bytes32 indexed underlyingId);
     event GranularityUpdated(uint256 newGranularity, uint256 effectiveAfter);
     event CallerAuthorized(IFactory indexed caller);
@@ -40,6 +45,8 @@ interface IKeeperFactory is IOracleProviderFactory, IFactory, IKept {
     error KeeperFactoryInvalidSettleError();
     // sig: 0xb2e11555
     error KeeperFactoryInvalidPayoffError();
+    // sig: 0x0afa0593
+    error KeeperFactoryVersionOutsideRangeError();
 
     function validFrom() external view returns (uint256);
     function validTo() external view returns (uint256);

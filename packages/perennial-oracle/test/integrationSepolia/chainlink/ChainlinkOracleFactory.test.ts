@@ -576,7 +576,7 @@ testOracles.forEach(testOracle => {
             .commit([CHAINLINK_ETH_USD_PRICE_FEED], STARTING_TIME, REPORT_BARELY_TOO_EARLY, {
               value: getFee(REPORT_BARELY_TOO_EARLY),
             }),
-        ).to.revertedWithCustomError(chainlinkOracleFactory, 'ChainlinkFactoryVersionOutsideRangeError')
+        ).to.revertedWithCustomError(chainlinkOracleFactory, 'KeeperFactoryVersionOutsideRangeError')
 
         await expect(
           chainlinkOracleFactory
@@ -584,7 +584,7 @@ testOracles.forEach(testOracle => {
             .commit([CHAINLINK_ETH_USD_PRICE_FEED], STARTING_TIME, REPORT_BARELY_TOO_LATE, {
               value: getFee(REPORT_BARELY_TOO_LATE),
             }),
-        ).to.revertedWithCustomError(chainlinkOracleFactory, 'ChainlinkFactoryVersionOutsideRangeError')
+        ).to.revertedWithCustomError(chainlinkOracleFactory, 'KeeperFactoryVersionOutsideRangeError')
       })
 
       it('fails to commit if update fee is not provided', async () => {

@@ -692,13 +692,13 @@ testOracles.forEach(testOracle => {
           metaquantsOracleFactory
             .connect(user)
             .commit([METAQUANTS_BAYC_ETH_PRICE_FEED], STARTING_TIME - 5, listify(PAYLOAD)),
-        ).to.revertedWithCustomError(metaquantsOracleFactory, 'MetaQuantsFactoryVersionOutsideRangeError')
+        ).to.revertedWithCustomError(metaquantsOracleFactory, 'KeeperFactoryVersionOutsideRangeError')
 
         await expect(
           metaquantsOracleFactory
             .connect(user)
             .commit([METAQUANTS_BAYC_ETH_PRICE_FEED], STARTING_TIME + 3, listify(PAYLOAD)),
-        ).to.revertedWithCustomError(metaquantsOracleFactory, 'MetaQuantsFactoryVersionOutsideRangeError')
+        ).to.revertedWithCustomError(metaquantsOracleFactory, 'KeeperFactoryVersionOutsideRangeError')
 
         await keeperOracle.connect(oracleSigner).request(market.address, user.address)
         expect(await keeperOracle.versions(1)).to.be.equal(STARTING_TIME)
@@ -709,13 +709,13 @@ testOracles.forEach(testOracle => {
           metaquantsOracleFactory
             .connect(user)
             .commit([METAQUANTS_BAYC_ETH_PRICE_FEED], STARTING_TIME, listify(PAYLOAD_BARELY_TOO_EARLY)),
-        ).to.revertedWithCustomError(metaquantsOracleFactory, 'MetaQuantsFactoryVersionOutsideRangeError')
+        ).to.revertedWithCustomError(metaquantsOracleFactory, 'KeeperFactoryVersionOutsideRangeError')
 
         await expect(
           metaquantsOracleFactory
             .connect(user)
             .commit([METAQUANTS_BAYC_ETH_PRICE_FEED], STARTING_TIME, listify(PAYLOAD_BARELY_TOO_LATE)),
-        ).to.revertedWithCustomError(metaquantsOracleFactory, 'MetaQuantsFactoryVersionOutsideRangeError')
+        ).to.revertedWithCustomError(metaquantsOracleFactory, 'KeeperFactoryVersionOutsideRangeError')
       })
 
       it('does not commit a version that has already been committed', async () => {

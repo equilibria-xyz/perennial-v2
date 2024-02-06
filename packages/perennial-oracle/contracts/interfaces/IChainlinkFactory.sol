@@ -5,7 +5,6 @@ import "./IKeeperFactory.sol";
 
 interface IChainlinkFactory is IKeeperFactory {
     error ChainlinkFactoryInputLengthMismatchError();
-    error ChainlinkFactoryVersionOutsideRangeError();
     error ChainlinkFactoryInvalidFeedIdError(bytes32 feedId);
 }
 

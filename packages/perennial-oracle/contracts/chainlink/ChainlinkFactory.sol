@@ -42,29 +42,26 @@ contract ChainlinkFactory is IChainlinkFactory, KeeperFactory {
 
     /// @notice Validates and parses the update data payload against the specified version
     /// @param ids The list of price feed ids validate against
-    /// @param version The oracle version to validate against
     /// @param data The update data to validate
     /// @return prices The parsed price list if valid
     function _parsePrices(
         bytes32[] memory ids,
-        uint256 version,
         bytes calldata data
-    ) internal override returns (Fixed18[] memory prices) {
-        prices = new Fixed18[](ids.length);
-
-        bytes[] memory verifiedReports = chainlink.verifyBulk{value: msg.value}(abi.decode(data, (bytes[])), abi.encode(feeTokenAddress));
+    ) internal override returns (PriceRecord[] memory prices) {
+        bytes[] memory verifiedReports = chainlink.verifyBulk{value: msg.value}(
+            abi.decode(data, (bytes[])),
+            abi.encode(feeTokenAddress)
+        );
         if (verifiedReports.length != ids.length) revert ChainlinkFactoryInputLengthMismatchError();
+
+        prices = new PriceRecord[](ids.length);
         for (uint256 i = 0; i < verifiedReports.length; i++) {
             (bytes32 feedId, , uint32 observationsTimestamp, , , , uint192 price) =
                 abi.decode(verifiedReports[i], (bytes32, uint32, uint32, uint192, uint192, uint32, uint192));
 
-            if (
-                observationsTimestamp < version + validFrom ||
-                observationsTimestamp > version + validTo
-            ) revert ChainlinkFactoryVersionOutsideRangeError();
             if (feedId != toUnderlyingId[ids[i]]) revert ChainlinkFactoryInvalidFeedIdError(feedId);
 
-            prices[i] = Fixed18Lib.from(UFixed18.wrap(price));
+            prices[i] = PriceRecord(observationsTimestamp, Fixed18Lib.from(UFixed18.wrap(price)));
         }
     }
 
