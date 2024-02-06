@@ -22,8 +22,8 @@ import {
   KeeperOracle,
   MetaQuantsFactory__factory,
   MetaQuantsFactory,
-  MilliPowerTwo__factory,
-  MilliPowerTwo,
+  PowerTwo__factory,
+  PowerTwo,
 } from '../../../types/generated'
 import { parse6decimal } from '../../../../common/testutil/types'
 import { smock } from '@defi-wonderland/smock'
@@ -177,14 +177,14 @@ testOracles.forEach(testOracle => {
     let dsu: IERC20Metadata
     let oracleSigner: SignerWithAddress
     let factorySigner: SignerWithAddress
-    let payoff: MilliPowerTwo
+    let powerTwoPayoff: PowerTwo
 
     const setup = async () => {
       ;[owner, user] = await ethers.getSigners()
 
       dsu = IERC20Metadata__factory.connect(DSU_ADDRESS, owner)
 
-      payoff = await new MilliPowerTwo__factory(owner).deploy()
+      powerTwoPayoff = await new PowerTwo__factory(owner).deploy()
 
       const oracleImpl = await new Oracle__factory(owner).deploy()
       oracleFactory = await new OracleFactory__factory(owner).deploy(oracleImpl.address)
@@ -214,46 +214,44 @@ testOracles.forEach(testOracle => {
       await metaquantsOracleFactory.initialize(oracleFactory.address, CHAINLINK_ETH_USD_FEED, dsu.address)
       await oracleFactory.register(metaquantsOracleFactory.address)
       await metaquantsOracleFactory.authorize(oracleFactory.address)
-      await metaquantsOracleFactory.register(payoff.address)
+      await metaquantsOracleFactory.register(powerTwoPayoff.address)
 
       keeperOracle = testOracle.Oracle.connect(
         await metaquantsOracleFactory.callStatic.create(
           METAQUANTS_BAYC_ETH_PRICE_FEED,
           METAQUANTS_BAYC_ETH_PRICE_FEED,
-          ethers.constants.AddressZero,
+          { provider: ethers.constants.AddressZero, decimals: 0 },
         ),
         owner,
       )
-      await metaquantsOracleFactory.create(
-        METAQUANTS_BAYC_ETH_PRICE_FEED,
-        METAQUANTS_BAYC_ETH_PRICE_FEED,
-        ethers.constants.AddressZero,
-      )
+      await metaquantsOracleFactory.create(METAQUANTS_BAYC_ETH_PRICE_FEED, METAQUANTS_BAYC_ETH_PRICE_FEED, {
+        provider: ethers.constants.AddressZero,
+        decimals: 0,
+      })
       keeperOracleMilady = testOracle.Oracle.connect(
         await metaquantsOracleFactory.callStatic.create(
           METAQUANTS_MILADY_ETH_PRICE_FEED,
           METAQUANTS_MILADY_ETH_PRICE_FEED,
-          ethers.constants.AddressZero,
+          { provider: ethers.constants.AddressZero, decimals: 0 },
         ),
         owner,
       )
-      await metaquantsOracleFactory.create(
-        METAQUANTS_MILADY_ETH_PRICE_FEED,
-        METAQUANTS_MILADY_ETH_PRICE_FEED,
-        ethers.constants.AddressZero,
-      )
+      await metaquantsOracleFactory.create(METAQUANTS_MILADY_ETH_PRICE_FEED, METAQUANTS_MILADY_ETH_PRICE_FEED, {
+        provider: ethers.constants.AddressZero,
+        decimals: 0,
+      })
       keeperOraclePayoff = testOracle.Oracle.connect(
         await metaquantsOracleFactory.callStatic.create(
           '0x0000000000000000000000000000000000000000000000000000000000000021',
           METAQUANTS_BAYC_ETH_PRICE_FEED,
-          payoff.address,
+          { provider: powerTwoPayoff.address, decimals: -3 },
         ),
         owner,
       )
       await metaquantsOracleFactory.create(
         '0x0000000000000000000000000000000000000000000000000000000000000021',
         METAQUANTS_BAYC_ETH_PRICE_FEED,
-        payoff.address,
+        { provider: powerTwoPayoff.address, decimals: -3 },
       )
 
       oracle = Oracle__factory.connect(
@@ -390,11 +388,10 @@ testOracles.forEach(testOracle => {
       context('#create', async () => {
         it('cant recreate price id', async () => {
           await expect(
-            metaquantsOracleFactory.create(
-              METAQUANTS_BAYC_ETH_PRICE_FEED,
-              METAQUANTS_BAYC_ETH_PRICE_FEED,
-              ethers.constants.AddressZero,
-            ),
+            metaquantsOracleFactory.create(METAQUANTS_BAYC_ETH_PRICE_FEED, METAQUANTS_BAYC_ETH_PRICE_FEED, {
+              provider: ethers.constants.AddressZero,
+              decimals: 0,
+            }),
           ).to.be.revertedWithCustomError(metaquantsOracleFactory, 'KeeperFactoryAlreadyCreatedError')
         })
 
@@ -403,7 +400,7 @@ testOracles.forEach(testOracle => {
             metaquantsOracleFactory.create(
               METAQUANTS_BAYC_ETH_PRICE_FEED,
               '0x0000000000000000000000000000000000000000000000000000000000000000',
-              ethers.constants.AddressZero,
+              { provider: ethers.constants.AddressZero, decimals: 0 },
             ),
           ).to.be.revertedWithCustomError(metaquantsOracleFactory, 'KeeperFactoryAlreadyCreatedError')
         })
@@ -412,7 +409,10 @@ testOracles.forEach(testOracle => {
           await expect(
             metaquantsOracleFactory
               .connect(user)
-              .create(METAQUANTS_BAYC_ETH_PRICE_FEED, METAQUANTS_BAYC_ETH_PRICE_FEED, ethers.constants.AddressZero),
+              .create(METAQUANTS_BAYC_ETH_PRICE_FEED, METAQUANTS_BAYC_ETH_PRICE_FEED, {
+                provider: ethers.constants.AddressZero,
+                decimals: 0,
+              }),
           ).to.be.revertedWithCustomError(metaquantsOracleFactory, 'OwnableNotOwnerError')
         })
       })

@@ -62,7 +62,7 @@ abstract contract KeeperFactory is IKeeperFactory, Factory, Kept {
     mapping(bytes32 => bytes32) public toUnderlyingId;
 
     /// @dev Mapping of oracle id to payoff provider
-    mapping(bytes32 => IPayoffProvider) public toUnderlyingPayoff;
+    mapping(bytes32 => PayoffDefinition) public _toUnderlyingPayoff;
 
     /// @dev Mapping of oracle id to underlying id
     mapping(bytes32 => mapping(IPayoffProvider => bytes32)) public fromUnderlying;
@@ -135,17 +135,17 @@ abstract contract KeeperFactory is IKeeperFactory, Factory, Kept {
     function create(
         bytes32 id,
         bytes32 underlyingId,
-        IPayoffProvider payoff
+        PayoffDefinition memory payoff
      ) public virtual onlyOwner returns (IKeeperOracle newOracle) {
         if (oracles[id] != IOracleProvider(address(0))) revert KeeperFactoryAlreadyCreatedError();
-        if (!payoffs[payoff]) revert KeeperFactoryInvalidPayoffError();
-        if (fromUnderlying[underlyingId][payoff] != bytes32(0)) revert KeeperFactoryAlreadyCreatedError();
+        if (!payoffs[payoff.provider]) revert KeeperFactoryInvalidPayoffError();
+        if (fromUnderlying[underlyingId][payoff.provider] != bytes32(0)) revert KeeperFactoryAlreadyCreatedError();
 
         newOracle = IKeeperOracle(address(_create(abi.encodeCall(IKeeperOracle.initialize, ()))));
         oracles[id] = newOracle;
         toUnderlyingId[id] = underlyingId;
-        toUnderlyingPayoff[id] = payoff;
-        fromUnderlying[underlyingId][payoff] = id;
+        _toUnderlyingPayoff[id] = payoff;
+        fromUnderlying[underlyingId][payoff.provider] = id;
 
         emit OracleCreated(newOracle, id);
     }
@@ -273,10 +273,23 @@ abstract contract KeeperFactory is IKeeperFactory, Factory, Kept {
         return callers[callerFactory];
     }
 
+    /// @notice Returns the payoff definition for the specified id
+    /// @param id The id to lookup
+    /// @return The payoff definition
+    function toUnderlyingPayoff(bytes32 id) external view returns (PayoffDefinition memory) {
+        return _toUnderlyingPayoff[id];
+    }
+
     function _transformPrices(bytes32[] memory ids, Fixed18[] memory prices) private view {
         for (uint256 i; i < prices.length; i++) {
-            IPayoffProvider payoff = toUnderlyingPayoff[ids[i]];
-            if (payoff != IPayoffProvider(address(0))) prices[i] = payoff.payoff(prices[i]);
+            PayoffDefinition memory payoff = _toUnderlyingPayoff[ids[i]];
+            
+            // apply payoff if it exists
+            if (payoff.provider != IPayoffProvider(address(0))) prices[i] = payoff.provider.payoff(prices[i]);
+            
+            // apply decimal offset
+            Fixed18 base = Fixed18Lib.from(int256(10 ** SignedMath.abs(payoff.decimals)));
+            prices[i] = payoff.decimals < 0 ? prices[i].div(base) : prices[i].mul(base);
         }
     }
 

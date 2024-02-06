@@ -64,7 +64,10 @@ describe('OracleFactory', () => {
     await oracleFactory.register(pythOracleFactory.address)
     await pythOracleFactory.authorize(oracleFactory.address)
 
-    await pythOracleFactory.create(PYTH_ETH_USD_PRICE_FEED, PYTH_ETH_USD_PRICE_FEED, ethers.constants.AddressZero)
+    await pythOracleFactory.create(PYTH_ETH_USD_PRICE_FEED, PYTH_ETH_USD_PRICE_FEED, {
+      provider: ethers.constants.AddressZero,
+      decimals: 0,
+    })
 
     await oracleFactory.create(PYTH_ETH_USD_PRICE_FEED, pythOracleFactory.address)
 
@@ -98,7 +101,10 @@ describe('OracleFactory', () => {
       await oracleFactory.register(pythOracleFactory2.address)
 
       await pythOracleFactory2.connect(owner).authorize(oracleFactory.address)
-      await pythOracleFactory2.create(PYTH_ETH_USD_PRICE_FEED, PYTH_ETH_USD_PRICE_FEED, ethers.constants.AddressZero)
+      await pythOracleFactory2.create(PYTH_ETH_USD_PRICE_FEED, PYTH_ETH_USD_PRICE_FEED, {
+        provider: ethers.constants.AddressZero,
+        decimals: 0,
+      })
       const newProvider = await pythOracleFactory2.oracles(PYTH_ETH_USD_PRICE_FEED)
 
       const oracle = Oracle__factory.connect(await oracleFactory.oracles(PYTH_ETH_USD_PRICE_FEED), owner)

@@ -16,6 +16,11 @@ interface IKeeperFactory is IOracleProviderFactory, IFactory, IKept {
         uint128 effectiveAfter;
     }
 
+    struct PayoffDefinition {
+        IPayoffProvider provider;
+        int16 decimals;
+    }
+
     event OracleAssociated(bytes32 indexed id, bytes32 indexed underlyingId);
     event GranularityUpdated(uint256 newGranularity, uint256 effectiveAfter);
     event CallerAuthorized(IFactory indexed caller);
@@ -45,9 +50,9 @@ interface IKeeperFactory is IOracleProviderFactory, IFactory, IKept {
     function authorize(IFactory factory) external;
     function register(IPayoffProvider payoff) external;
     function toUnderlyingId(bytes32 id) external returns (bytes32);
-    function toUnderlyingPayoff(bytes32 id) external returns (IPayoffProvider payoff);
+    function toUnderlyingPayoff(bytes32 id) external returns (PayoffDefinition memory payoff);
     function fromUnderlying(bytes32 underlyingId, IPayoffProvider payoff) external returns (bytes32);
-    function create(bytes32 id, bytes32 underlyingId, IPayoffProvider payoff) external returns (IKeeperOracle oracle);
+    function create(bytes32 id, bytes32 underlyingId, PayoffDefinition memory payoff) external returns (IKeeperOracle oracle);
     function current() external view returns (uint256);
     function granularity() external view returns (Granularity memory);
     function updateGranularity(uint256 newGranularity) external;
