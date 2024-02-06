@@ -502,7 +502,7 @@ contract Market is IMarket, Instance, ReentrancyGuard {
     ) private {
         LocalAccumulationResult memory accumulationResult;
         Version memory version = _versions[newOrder.timestamp].read();
-        Checkpoint memory checkpoint = _checkpoints[account][context.latestPosition.local.timestamp].read(); // TODO: load from context instead
+        Checkpoint memory checkpoint = _checkpoints[account][context.latestPosition.local.timestamp].read();
 
         (uint256 fromTimestamp, uint256 fromId) = (context.latestPosition.local.timestamp, context.local.latestId);
         (accumulationResult.collateral, accumulationResult.tradeFee, accumulationResult.settlementFee) =
