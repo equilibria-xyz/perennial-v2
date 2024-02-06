@@ -122,6 +122,7 @@ describe('Happy Path', () => {
           ...DEFAULT_ORDER,
           timestamp: TIMESTAMP_1,
           orders: 1,
+          collateral: COLLATERAL,
           makerPos: POSITION,
         },
         COLLATERAL,
@@ -139,6 +140,7 @@ describe('Happy Path', () => {
       ...DEFAULT_ORDER,
       timestamp: TIMESTAMP_1,
       orders: 1,
+      collateral: COLLATERAL,
       makerPos: POSITION,
     })
     expectCheckpointEq(await market.checkpoints(user.address, 1), {
@@ -163,6 +165,7 @@ describe('Happy Path', () => {
       ...DEFAULT_ORDER,
       timestamp: TIMESTAMP_1,
       orders: 1,
+      collateral: COLLATERAL,
       makerPos: POSITION,
     })
     expectPositionEq(await market.position(), {
@@ -244,6 +247,7 @@ describe('Happy Path', () => {
       ...DEFAULT_ORDER,
       timestamp: TIMESTAMP_1,
       orders: 2,
+      collateral: COLLATERAL,
       makerPos: POSITION,
     })
     expectCheckpointEq(await market.checkpoints(user.address, 1), {
@@ -268,6 +272,7 @@ describe('Happy Path', () => {
       ...DEFAULT_ORDER,
       timestamp: TIMESTAMP_1,
       orders: 2,
+      collateral: COLLATERAL,
       makerPos: POSITION,
     })
     expectPositionEq(await market.position(), {
@@ -496,6 +501,7 @@ describe('Happy Path', () => {
           ...DEFAULT_ORDER,
           timestamp: TIMESTAMP_1,
           orders: 1,
+          collateral: COLLATERAL,
           longPos: POSITION_B,
         },
         COLLATERAL,
@@ -513,6 +519,7 @@ describe('Happy Path', () => {
       ...DEFAULT_ORDER,
       timestamp: TIMESTAMP_1,
       orders: 1,
+      collateral: COLLATERAL,
       makerPos: POSITION,
     })
     expectCheckpointEq(await market.checkpoints(user.address, 1), {
@@ -535,6 +542,7 @@ describe('Happy Path', () => {
       ...DEFAULT_ORDER,
       timestamp: TIMESTAMP_1,
       orders: 1,
+      collateral: COLLATERAL,
       longPos: POSITION_B,
     })
     expectCheckpointEq(await market.checkpoints(userB.address, 1), {
@@ -559,6 +567,7 @@ describe('Happy Path', () => {
       ...DEFAULT_ORDER,
       timestamp: TIMESTAMP_1,
       orders: 2,
+      collateral: COLLATERAL.mul(2),
       makerPos: POSITION,
       longPos: POSITION_B,
     })
@@ -654,6 +663,7 @@ describe('Happy Path', () => {
       ...DEFAULT_ORDER,
       timestamp: TIMESTAMP_1,
       orders: 2,
+      collateral: COLLATERAL,
       longPos: POSITION_B,
     })
     expectCheckpointEq(await market.checkpoints(userB.address, 1), {
@@ -678,6 +688,7 @@ describe('Happy Path', () => {
       ...DEFAULT_ORDER,
       timestamp: TIMESTAMP_1,
       orders: 3,
+      collateral: COLLATERAL.mul(2),
       makerPos: POSITION,
       longPos: POSITION_B,
     })
@@ -1079,6 +1090,7 @@ describe('Happy Path', () => {
       ...DEFAULT_ORDER,
       timestamp: TIMESTAMP_5,
       orders: 1,
+      collateral: -1,
       makerPos: POSITION.div(2),
     })
     expectCheckpointEq(await market.checkpoints(user.address, 3), {
@@ -1104,6 +1116,7 @@ describe('Happy Path', () => {
       ...DEFAULT_ORDER,
       timestamp: TIMESTAMP_5,
       orders: 1,
+      collateral: -1,
       makerPos: POSITION.div(2),
     })
     expectPositionEq(await market.position(), {
