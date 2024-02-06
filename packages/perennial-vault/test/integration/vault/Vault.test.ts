@@ -1477,19 +1477,22 @@ describe('Vault', () => {
       expect(await position()).to.equal(0)
       expect(await btcPosition()).to.equal(0)
 
-      // We should have redeemed all of our shares.
-      const currentFee = (
-        await market.checkpoints(vault.address, (await market.locals(vault.address)).currentId.sub(1))
-      ).tradeFee
-      const btcCurrentFee = (
-        await btcMarket.checkpoints(vault.address, (await btcMarket.locals(vault.address)).currentId.sub(1))
-      ).tradeFee
-      const currentKeeper = (
-        await market.checkpoints(vault.address, (await market.locals(vault.address)).currentId.sub(1))
-      ).settlementFee
-      const btcCurrentKeeper = (
-        await btcMarket.checkpoints(vault.address, (await btcMarket.locals(vault.address)).currentId.sub(1))
-      ).settlementFee
+      const marketLocalPreviousCurrentId = (await market.locals(vault.address)).currentId.sub(1)
+      const btcMarketLocalPreviousCurrentId = (await btcMarket.locals(vault.address)).currentId.sub(1)
+
+      const marketPreviousCurrenTimestamp = (await market.pendingOrders(vault.address, marketLocalPreviousCurrentId))
+        .timestamp
+      const btcMarketPreviousCurrenTimestamp = (
+        await market.pendingOrders(vault.address, btcMarketLocalPreviousCurrentId)
+      ).timestamp
+
+      const currentTradeFee = (await market.checkpoints(vault.address, marketPreviousCurrenTimestamp)).tradeFee
+      const btcCurrentTradeFee = (await btcMarket.checkpoints(vault.address, btcMarketPreviousCurrenTimestamp)).tradeFee
+
+      const currentSettlementFee = (await market.checkpoints(vault.address, marketPreviousCurrenTimestamp))
+        .settlementFee
+      const btcCurrentSettlementFee = (await btcMarket.checkpoints(vault.address, btcMarketPreviousCurrenTimestamp))
+        .settlementFee
 
       const unclaimed1 = BigNumber.from('1072467940')
       const unclaimed2 = BigNumber.from('9903141462')
@@ -1497,7 +1500,9 @@ describe('Vault', () => {
       expect(await totalCollateralInVault()).to.equal(unclaimed1.add(unclaimed2).mul(1e12))
       expect((await vault.accounts(user.address)).shares).to.equal(0)
       expect((await vault.accounts(user2.address)).shares).to.equal(0)
-      expect(currentFee.add(btcCurrentFee).add(currentKeeper).add(btcCurrentKeeper)).to.equal(finalTotalAssets)
+      expect(currentTradeFee.add(btcCurrentTradeFee).add(currentSettlementFee).add(btcCurrentSettlementFee)).to.equal(
+        finalTotalAssets,
+      )
       expect(await vault.totalAssets()).to.equal(finalTotalAssets)
       expect(await vault.totalShares()).to.equal(0)
       expect((await vault.accounts(ethers.constants.AddressZero)).shares).to.equal(0)
