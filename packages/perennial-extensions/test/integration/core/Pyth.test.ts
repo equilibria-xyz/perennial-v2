@@ -88,14 +88,16 @@ describe('PythOracleFactory', () => {
     await pythOracleFactory.authorize(oracleFactory.address)
 
     keeperOracle = KeeperOracle__factory.connect(
-      await pythOracleFactory.callStatic.create(
-        PYTH_ETH_USD_PRICE_FEED,
-        PYTH_ETH_USD_PRICE_FEED,
-        ethers.constants.AddressZero,
-      ),
+      await pythOracleFactory.callStatic.create(PYTH_ETH_USD_PRICE_FEED, PYTH_ETH_USD_PRICE_FEED, {
+        provider: ethers.constants.AddressZero,
+        decimals: 0,
+      }),
       owner,
     )
-    await pythOracleFactory.create(PYTH_ETH_USD_PRICE_FEED, PYTH_ETH_USD_PRICE_FEED, ethers.constants.AddressZero)
+    await pythOracleFactory.create(PYTH_ETH_USD_PRICE_FEED, PYTH_ETH_USD_PRICE_FEED, {
+      provider: ethers.constants.AddressZero,
+      decimals: 0,
+    })
 
     oracle = Oracle__factory.connect(
       await oracleFactory.callStatic.create(PYTH_ETH_USD_PRICE_FEED, pythOracleFactory.address),

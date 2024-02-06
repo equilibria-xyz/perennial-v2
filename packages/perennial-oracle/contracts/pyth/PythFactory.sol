@@ -41,7 +41,7 @@ contract PythFactory is IPythFactory, KeeperFactory {
     function create(
         bytes32 id,
         bytes32 underlyingId,
-        IPayoffProvider payoff
+        PayoffDefinition memory payoff
     ) public override(IKeeperFactory, KeeperFactory) returns (IKeeperOracle newOracle) {
         if (!pyth.priceFeedExists(underlyingId)) revert PythFactoryInvalidIdError();
         return super.create(id, underlyingId, payoff);
