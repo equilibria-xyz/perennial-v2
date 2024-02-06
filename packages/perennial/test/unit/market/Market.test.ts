@@ -692,7 +692,7 @@ describe('Market', () => {
             .to.emit(market, 'Updated')
             .withArgs(user.address, user.address, ORACLE_VERSION_2.timestamp, 0, 0, 0, COLLATERAL, false)
             .to.emit(market, 'OrderCreated')
-            .withArgs(user.address, { ...DEFAULT_ORDER, timestamp: ORACLE_VERSION_2.timestamp, collateral: COLLATERAL }, COLLATERAL)
+            .withArgs(user.address, { ...DEFAULT_ORDER, timestamp: ORACLE_VERSION_2.timestamp, collateral: COLLATERAL })
 
           expectLocalEq(await market.locals(user.address), {
             ...DEFAULT_LOCAL,
@@ -737,7 +737,7 @@ describe('Market', () => {
             .to.emit(market, 'Updated')
             .withArgs(user.address, user.address, ORACLE_VERSION_2.timestamp, 0, 0, 0, COLLATERAL.mul(-1), false)
             .to.emit(market, 'OrderCreated')
-            .withArgs(user.address, { ...DEFAULT_ORDER, timestamp: ORACLE_VERSION_2.timestamp, collateral: -COLLATERAL }, COLLATERAL.mul(-1))
+            .withArgs(user.address, { ...DEFAULT_ORDER, timestamp: ORACLE_VERSION_2.timestamp, collateral: -COLLATERAL })
 
           expectLocalEq(await market.locals(user.address), {
             ...DEFAULT_LOCAL,
@@ -975,7 +975,6 @@ describe('Market', () => {
                   collateral: COLLATERAL,
                   makerPos: POSITION,
                 },
-                COLLATERAL,
               )
 
             expectLocalEq(await market.locals(user.address), {
@@ -1899,7 +1898,6 @@ describe('Market', () => {
                     orders: 1,
                     longPos: POSITION,
                   },
-                  COLLATERAL,
                 )
 
               expectLocalEq(await market.locals(user.address), {
@@ -4608,7 +4606,6 @@ describe('Market', () => {
                     orders: 1,
                     shortPos: POSITION,
                   },
-                  COLLATERAL,
                 )
 
               expectLocalEq(await market.locals(user.address), {
