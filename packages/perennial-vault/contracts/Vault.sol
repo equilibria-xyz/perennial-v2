@@ -354,9 +354,7 @@ contract Vault is IVault, Instance {
         ) {
             uint256 newLatestId = context.global.latest + 1;
             context.latestCheckpoint = _checkpoints[newLatestId].read();
-            (Fixed6 collateralAtId, Fixed6 tradeFeeAtId, UFixed6 settlementFeeAtId) =
-                _collateralAtId(context, newLatestId);
-            context.latestCheckpoint.complete(collateralAtId, tradeFeeAtId, settlementFeeAtId);
+            context.latestCheckpoint.complete(_checkpointAtId(context, newLatestId));
 
             context.global.processGlobal(
                 newLatestId,
@@ -497,26 +495,23 @@ contract Vault is IVault, Instance {
             context.parameter.cap.unsafeSub(UFixed6Lib.unsafeFrom(totalAssets()).add(context.global.deposit));
     }
 
-    /// @notice Returns the collateral and fee information for the vault at position
+    /// @notice Returns the aggregate perennial checkpoint for the vault at position
     /// @param context Context to use
     /// @param id Position to use
-    /// @return collateral The snapshotted amount of collateral in the vault
-    /// @return tradeFee The snapshotted amount of trade fee in that position
-    /// @return settlementFee The snapshotted amount of settlement fee in that position
-    function _collateralAtId(Context memory context, uint256 id) public view returns (
-        Fixed6 collateral,
-        Fixed6 tradeFee,
-        UFixed6 settlementFee
-    ) {
+    /// @return checkpoint The checkpoint at the given position
+    function _checkpointAtId(
+        Context memory context,
+        uint256 id
+    ) public view returns (PerennialCheckpoint memory checkpoint) {
         Mapping memory mappingAtId = _mappings[id].read();
         for (uint256 marketId; marketId < mappingAtId.length(); marketId++) {
-            Order memory orderAtId = context.registrations[marketId].market
-                .pendingOrders(address(this), mappingAtId.get(marketId));
-            PerennialCheckpoint memory checkpoint = context.registrations[marketId].market
-                .checkpoints(address(this), orderAtId.timestamp);
-            collateral = collateral.add(checkpoint.collateral);
-            tradeFee = tradeFee.add(checkpoint.tradeFee);
-            settlementFee = settlementFee.add(checkpoint.settlementFee);
+            PerennialCheckpoint memory marketCheckpoint = context.registrations[marketId].market
+                .checkpoints(address(this), mappingAtId.get(marketId));
+            (checkpoint.collateral, checkpoint.tradeFee, checkpoint.settlementFee) = (
+                checkpoint.collateral.add(marketCheckpoint.collateral),
+                checkpoint.tradeFee.add(marketCheckpoint.tradeFee),
+                checkpoint.settlementFee.add(marketCheckpoint.settlementFee)
+            );
         }
     }
 }
