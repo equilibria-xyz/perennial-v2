@@ -32,12 +32,6 @@ contract LocalTester {
         local.store(newLocal);
     }
 
-    function processProtection(Order memory order, Version memory version) external returns (bool result) {
-        Local memory newLocal = local.read();
-        (positionFee, settlementFee, liquidationFee) = newLocal.accumulateFees(order, toVersion);
-        local.store(newLocal);
-    }
-
     function protect(
         OracleVersion memory latestVersion,
         uint256 currentTimestamp,

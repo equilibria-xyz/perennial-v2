@@ -25,6 +25,14 @@ using CheckpointLib for Checkpoint global;
 struct CheckpointStorage { uint256 slot0; }
 using CheckpointStorageLib for CheckpointStorage global;
 
+
+struct CheckpointAccumulationResult {
+    Fixed6 collateral;
+    Fixed6 tradeFee;
+    UFixed6 settlementFee;
+    UFixed6 liquidationFee;
+}
+
 /// @title Checkpoint
 /// @notice Holds the state for a checkpoint
 library CheckpointLib {
@@ -34,7 +42,7 @@ library CheckpointLib {
     /// @param fromPosition The previous latest position
     /// @param fromVersion The previous latest version
     /// @param toVersion The next latest version
-    /// @return collateral The resulting collateral change
+    /// @return result The accumulated pnl and fees
     function accumulate(
         Checkpoint memory self,
         Order memory order,
@@ -42,22 +50,22 @@ library CheckpointLib {
         Position memory fromPosition,
         Version memory fromVersion,
         Version memory toVersion
-    ) internal pure returns (Fixed6 collateral, Fixed6 tradeFee, UFixed6 settlementFee, UFixed6 liquidationFee) {
+    ) internal pure returns (CheckpointAccumulationResult memory result) {
         // accumulate
-        collateral = _accumulateCollateral(fromPosition, fromVersion, toVersion);
-        tradeFee = _accumulateTradeFee(order, toVersion);
-        settlementFee = _accumulateSettlementFee(order, toVersion);
-        liquidationFee = _accumulateLiquidationFee(order, local, toVersion);
+        result.collateral = _accumulateCollateral(fromPosition, fromVersion, toVersion);
+        result.tradeFee = _accumulateTradeFee(order, toVersion);
+        result.settlementFee = _accumulateSettlementFee(order, toVersion);
+        result.liquidationFee = _accumulateLiquidationFee(order, local, toVersion);
 
         // update checkpoint
         self.collateral = self.collateral
             .sub(self.tradeFee)                       // trade fee processed post settlement
             .sub(Fixed6Lib.from(self.settlementFee))  // settlement / liquidation fee processed post settlement
             .add(self.transfer)                       // deposit / withdrawal processed post settlement
-            .add(collateral);                         // incorporate collateral change at this settlement
+            .add(result.collateral);                  // incorporate collateral change at this settlement
         self.transfer = order.collateral;
-        self.tradeFee = tradeFee;
-        self.settlementFee = settlementFee.add(liquidationFee);
+        self.tradeFee = result.tradeFee;
+        self.settlementFee = result.settlementFee.add(result.liquidationFee);
     }
 
     /// @notice Accumulate pnl, funding, and interest from the latest position to next position

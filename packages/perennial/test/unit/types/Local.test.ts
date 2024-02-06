@@ -180,10 +180,10 @@ describe('Local', () => {
   describe('#update', () => {
     it('correctly updates fees', async () => {
       await local.store({ ...DEFAULT_LOCAL, collateral: 1000 })
-      await local['update(uint256,int256,int256,uint256)'](11, 567, -123, 456)
+      await local['update(uint256,int256,int256,uint256,uint256)'](11, 567, -123, 456, 256)
 
       const storedLocal = await local.read()
-      expect(await storedLocal.collateral).to.equal(1234)
+      expect(await storedLocal.collateral).to.equal(978)
       expect(await storedLocal.latestId).to.equal(11)
     })
   })
