@@ -28,6 +28,7 @@ export const VALID_ORACLE_VERSION: OracleVersion = {
 const VALID_ORDER = {
   timestamp: 123456,
   orders: 1,
+  collateral: parse6decimal('100'),
   makerPos: parse6decimal('4'),
   makerNeg: parse6decimal('5'),
   longPos: parse6decimal('8'),

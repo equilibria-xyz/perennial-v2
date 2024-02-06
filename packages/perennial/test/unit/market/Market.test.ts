@@ -1137,6 +1137,7 @@ describe('Market', () => {
               ...DEFAULT_ORDER,
               timestamp: ORACLE_VERSION_2.timestamp,
               orders: 2,
+              collateral: COLLATERAL,
               makerPos: POSITION.mul(2),
             })
             expectCheckpointEq(await market.checkpoints(user.address, 1), {
@@ -1159,6 +1160,7 @@ describe('Market', () => {
               ...DEFAULT_ORDER,
               timestamp: ORACLE_VERSION_2.timestamp,
               orders: 2,
+              collateral: COLLATERAL,
               makerPos: POSITION.mul(2),
             })
           })
