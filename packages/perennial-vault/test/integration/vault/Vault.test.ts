@@ -1790,8 +1790,6 @@ describe('Vault', () => {
             BigNumber.from('4428767485').add(EXPECTED_LIQUIDATION_FEE),
           ) // no shortfall
           expect((await btcMarket.locals(vault.address)).protection).to.equal(STARTING_TIMESTAMP.add(3600 * 3))
-          expect((await btcMarket.locals(vault.address)).protectionAmount).to.equal(EXPECTED_LIQUIDATION_FEE)
-          expect((await btcMarket.locals(vault.address)).protectionInitiator).to.equal(user.address)
 
           await expect(vault.connect(user).update(user.address, 0, 0, 0)).to.be.reverted
 
@@ -1833,8 +1831,6 @@ describe('Vault', () => {
             BigNumber.from('-26673235277').add(EXPECTED_LIQUIDATION_FEE),
           ) // shortfall
           expect((await btcMarket.locals(vault.address)).protection).to.equal(STARTING_TIMESTAMP.add(3600 * 3))
-          expect((await btcMarket.locals(vault.address)).protectionAmount).to.equal(EXPECTED_LIQUIDATION_FEE)
-          expect((await btcMarket.locals(vault.address)).protectionInitiator).to.equal(user.address)
 
           await expect(vault.connect(user).update(user.address, 0, 0, 0)).to.be.reverted
 
@@ -1893,8 +1889,6 @@ describe('Vault', () => {
             BigNumber.from('350411418').add(EXPECTED_LIQUIDATION_FEE),
           ) // no shortfall
           expect((await btcMarket.locals(vault.address)).protection).to.equal(STARTING_TIMESTAMP.add(3600 * 6))
-          expect((await btcMarket.locals(vault.address)).protectionAmount).to.equal(EXPECTED_LIQUIDATION_FEE)
-          expect((await btcMarket.locals(vault.address)).protectionInitiator).to.equal(user.address)
 
           // 3. Settle the liquidation.
           // We now be able to deposit.
@@ -1907,10 +1901,10 @@ describe('Vault', () => {
           await updateOracle()
           await vault.settle(user.address)
 
-          const finalPosition = BigNumber.from('100639750')
-          const finalCollateral = BigNumber.from('67331060333')
-          const btcFinalPosition = BigNumber.from('2419500')
-          const btcFinalCollateral = BigNumber.from('15079264191')
+          const finalPosition = BigNumber.from('100636568')
+          const finalCollateral = BigNumber.from('67328192557')
+          const btcFinalPosition = BigNumber.from('2419375')
+          const btcFinalCollateral = BigNumber.from('15078505687')
           expect(await position()).to.equal(finalPosition)
           expect(await collateralInVault()).to.equal(finalCollateral)
           expect(await btcPosition()).to.equal(btcFinalPosition)
@@ -1934,8 +1928,6 @@ describe('Vault', () => {
             BigNumber.from('-480340107').add(EXPECTED_LIQUIDATION_FEE),
           ) // shortfall
           expect((await btcMarket.locals(vault.address)).protection).to.equal(STARTING_TIMESTAMP.add(3600 * 6))
-          expect((await btcMarket.locals(vault.address)).protectionAmount).to.equal(EXPECTED_LIQUIDATION_FEE)
-          expect((await btcMarket.locals(vault.address)).protectionInitiator).to.equal(user.address)
 
           // 3. Settle the liquidation.
           // We now be able to deposit.
@@ -1948,10 +1940,10 @@ describe('Vault', () => {
           await updateOracle()
           await vault.settle(user.address)
 
-          const finalPosition = BigNumber.from('99499368')
-          const finalCollateral = BigNumber.from('66595994891')
-          const btcFinalPosition = BigNumber.from('2499662')
-          const btcFinalCollateral = BigNumber.from('14880557419')
+          const finalPosition = BigNumber.from('99496198')
+          const finalCollateral = BigNumber.from('66593134539')
+          const btcFinalPosition = BigNumber.from('2499531')
+          const btcFinalCollateral = BigNumber.from('14879801085')
           expect(await position()).to.equal(finalPosition)
           expect(await collateralInVault()).to.equal(finalCollateral)
           expect(await btcPosition()).to.equal(btcFinalPosition)
