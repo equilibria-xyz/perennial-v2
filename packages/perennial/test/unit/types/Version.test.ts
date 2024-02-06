@@ -69,6 +69,7 @@ const FROM_POSITION: PositionStruct = {
 const ORDER: OrderStruct = {
   timestamp: 20,
   orders: 4,
+  collateral: 1000,
   makerPos: 30,
   makerNeg: 3,
   longPos: 36,

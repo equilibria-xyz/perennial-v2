@@ -21,6 +21,7 @@ export interface Checkpoint {
 export interface Order {
   timestamp: BigNumberish
   orders: BigNumberish
+  collateral: BigNumberish
   makerPos: BigNumberish
   makerNeg: BigNumberish
   longPos: BigNumberish
@@ -80,7 +81,8 @@ export function expectCheckpointEq(a: Checkpoint, b: Checkpoint): void {
 
 export function expectOrderEq(a: Order, b: Order): void {
   expect(a.timestamp).to.equal(b.timestamp, 'Order:Timestamp')
-  expect(a.orders).to.equal(b.orders, 'Order:Timestamp')
+  expect(a.orders).to.equal(b.orders, 'Order:Orders')
+  expect(a.collateral).to.equal(b.collateral, 'Order:Collateral')
   expect(a.makerPos).to.equal(b.makerPos, 'Order:MakerPos')
   expect(a.makerNeg).to.equal(b.makerNeg, 'Order:MakerNeg')
   expect(a.longPos).to.equal(b.longPos, 'Order:LongPos')
@@ -186,6 +188,7 @@ export const DEFAULT_ORDER: Order = {
   longNeg: 0,
   shortPos: 0,
   shortNeg: 0,
+  collateral: 0,
 }
 
 export const DEFAULT_VERSION: Version = {

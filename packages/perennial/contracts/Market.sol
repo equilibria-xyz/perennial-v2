@@ -331,6 +331,7 @@ contract Market is IMarket, Instance, ReentrancyGuard {
         Order memory newOrder = OrderLib.from(
             context.currentTimestamp,
             context.currentPosition.local,
+            collateral,
             newMaker,
             newLong,
             newShort
