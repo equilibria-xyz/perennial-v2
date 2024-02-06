@@ -39,13 +39,13 @@ library GlobalLib {
     /// @notice Increments the fees by `amount` using current parameters
     /// @param self The Global object to update
     /// @param amount The amount to increment fees by
-    /// @param keeper The amount to increment the keeper fee by
+    /// @param settlementFee The amount to increment the settlement fee by
     /// @param marketParameter The current market parameters
     /// @param protocolParameter The current protocol parameters
     function incrementFees(
         Global memory self,
         UFixed6 amount,
-        UFixed6 keeper,
+        UFixed6 settlementFee,
         MarketParameter memory marketParameter,
         ProtocolParameter memory protocolParameter
     ) internal pure {
@@ -57,7 +57,7 @@ library GlobalLib {
         UFixed6 donationAmount = marketFeeAmount.sub(oracleFeeAmount).sub(riskFeeAmount);
 
         self.protocolFee = self.protocolFee.add(protocolFeeAmount);
-        self.oracleFee = self.oracleFee.add(keeper).add(oracleFeeAmount);
+        self.oracleFee = self.oracleFee.add(settlementFee).add(oracleFeeAmount);
         self.riskFee = self.riskFee.add(riskFeeAmount);
         self.donation = self.donation.add(donationAmount);
     }

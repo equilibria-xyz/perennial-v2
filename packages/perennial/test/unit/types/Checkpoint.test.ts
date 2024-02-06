@@ -5,7 +5,14 @@ import HRE from 'hardhat'
 
 import { CheckpointTester, CheckpointTester__factory } from '../../../types/generated'
 import { BigNumber } from 'ethers'
-import { CheckpointStruct } from '../../../types/generated/contracts/Market'
+import { CheckpointStruct, PositionStruct, VersionStruct } from '../../../types/generated/contracts/Market'
+import {
+  DEFAULT_ORDER,
+  DEFAULT_CHECKPOINT,
+  DEFAULT_VERSION,
+  DEFAULT_POSITION,
+  parse6decimal,
+} from '../../../../common/testutil/types'
 
 const { ethers } = HRE
 use(smock.matchers)
@@ -17,8 +24,8 @@ describe('Checkpoint', () => {
   const VALID_CHECKPOINT: CheckpointStruct = {
     tradeFee: 3,
     settlementFee: 4,
+    transfer: 6,
     collateral: 5,
-    delta: 6,
   }
 
   beforeEach(async () => {
@@ -34,8 +41,8 @@ describe('Checkpoint', () => {
       const value = await checkpoint.read()
       expect(value.tradeFee).to.equal(3)
       expect(value.settlementFee).to.equal(4)
+      expect(value.transfer).to.equal(6)
       expect(value.collateral).to.equal(5)
-      expect(value.delta).to.equal(6)
     })
 
     describe('.tradeFee', async () => {
@@ -98,6 +105,45 @@ describe('Checkpoint', () => {
       })
     })
 
+    describe('.transfer', async () => {
+      const STORAGE_SIZE = 63
+      it('saves if in range (above)', async () => {
+        await checkpoint.store({
+          ...VALID_CHECKPOINT,
+          transfer: BigNumber.from(2).pow(STORAGE_SIZE).sub(1),
+        })
+        const value = await checkpoint.read()
+        expect(value.transfer).to.equal(BigNumber.from(2).pow(STORAGE_SIZE).sub(1))
+      })
+
+      it('saves if in range (below)', async () => {
+        await checkpoint.store({
+          ...VALID_CHECKPOINT,
+          transfer: BigNumber.from(2).pow(STORAGE_SIZE).mul(-1),
+        })
+        const value = await checkpoint.read()
+        expect(value.transfer).to.equal(BigNumber.from(2).pow(STORAGE_SIZE).mul(-1))
+      })
+
+      it('reverts if delta out of range (above)', async () => {
+        await expect(
+          checkpoint.store({
+            ...VALID_CHECKPOINT,
+            transfer: BigNumber.from(2).pow(STORAGE_SIZE),
+          }),
+        ).to.be.revertedWithCustomError(checkpoint, 'CheckpointStorageInvalidError')
+      })
+
+      it('reverts if delta out of range (below)', async () => {
+        await expect(
+          checkpoint.store({
+            ...VALID_CHECKPOINT,
+            transfer: BigNumber.from(2).pow(STORAGE_SIZE).add(1).mul(-1),
+          }),
+        ).to.be.revertedWithCustomError(checkpoint, 'CheckpointStorageInvalidError')
+      })
+    })
+
     describe('.collateral', async () => {
       const STORAGE_SIZE = 63
       it('saves if in range (above)', async () => {
@@ -136,88 +182,261 @@ describe('Checkpoint', () => {
         ).to.be.revertedWithCustomError(checkpoint, 'CheckpointStorageInvalidError')
       })
     })
+  })
 
-    describe('.delta', async () => {
-      const STORAGE_SIZE = 63
-      it('saves if in range (above)', async () => {
+  describe('#accumulate', () => {
+    const FROM_POSITION: PositionStruct = {
+      timestamp: 0, // unused
+      maker: parse6decimal('987'),
+      long: parse6decimal('654'),
+      short: parse6decimal('321'),
+    }
+
+    const TO_POSITION: PositionStruct = {
+      timestamp: 0, // unused
+      maker: 0,
+      long: 0,
+      short: 0,
+    }
+
+    const FROM_VERSION: VersionStruct = {
+      valid: true,
+      makerValue: { _value: parse6decimal('100') },
+      longValue: { _value: parse6decimal('200') },
+      shortValue: { _value: parse6decimal('300') },
+      makerPosFee: { _value: parse6decimal('400') },
+      makerNegFee: { _value: parse6decimal('500') },
+      takerPosFee: { _value: parse6decimal('600') },
+      takerNegFee: { _value: parse6decimal('700') },
+      settlementFee: { _value: parse6decimal('800') },
+    }
+
+    const TO_VERSION: VersionStruct = {
+      valid: true,
+      makerValue: { _value: parse6decimal('1000') },
+      longValue: { _value: parse6decimal('2000') },
+      shortValue: { _value: parse6decimal('3000') },
+      makerPosFee: { _value: parse6decimal('4000') },
+      makerNegFee: { _value: parse6decimal('5000') },
+      takerPosFee: { _value: parse6decimal('6000') },
+      takerNegFee: { _value: parse6decimal('7000') },
+      settlementFee: { _value: parse6decimal('8000') },
+    }
+
+    context('zero initial values', () => {
+      beforeEach(async () => {
         await checkpoint.store({
-          ...VALID_CHECKPOINT,
-          delta: BigNumber.from(2).pow(STORAGE_SIZE).sub(1),
+          ...DEFAULT_CHECKPOINT,
         })
+      })
+
+      it('accumulates transfer', async () => {
+        const result = await checkpoint.callStatic.accumulate(
+          { ...DEFAULT_ORDER, collateral: parse6decimal('123') },
+          { ...DEFAULT_POSITION },
+          { ...DEFAULT_VERSION },
+          { ...DEFAULT_VERSION },
+        )
+        await checkpoint.accumulate(
+          { ...DEFAULT_ORDER, collateral: parse6decimal('123') },
+          { ...DEFAULT_POSITION },
+          { ...DEFAULT_VERSION },
+          { ...DEFAULT_VERSION },
+        )
+
         const value = await checkpoint.read()
-        expect(value.delta).to.equal(BigNumber.from(2).pow(STORAGE_SIZE).sub(1))
+        expect(value.transfer).to.equal(parse6decimal('123'))
       })
 
-      it('saves if in range (below)', async () => {
-        await checkpoint.store({
-          ...VALID_CHECKPOINT,
-          delta: BigNumber.from(2).pow(STORAGE_SIZE).mul(-1),
-        })
+      it('accumulates pnl (maker)', async () => {
+        const result = await checkpoint.callStatic.accumulate(
+          { ...DEFAULT_ORDER },
+          { ...DEFAULT_POSITION, maker: parse6decimal('10') },
+          { ...DEFAULT_VERSION, makerValue: { _value: parse6decimal('100') } },
+          { ...DEFAULT_VERSION, makerValue: { _value: parse6decimal('200') } },
+        )
+        await checkpoint.accumulate(
+          { ...DEFAULT_ORDER },
+          { ...DEFAULT_POSITION, maker: parse6decimal('10') },
+          { ...DEFAULT_VERSION, makerValue: { _value: parse6decimal('100') } },
+          { ...DEFAULT_VERSION, makerValue: { _value: parse6decimal('200') } },
+        )
+        expect(result.collateral).to.equal(parse6decimal('1000'))
+
         const value = await checkpoint.read()
-        expect(value.delta).to.equal(BigNumber.from(2).pow(STORAGE_SIZE).mul(-1))
+        expect(value.collateral).to.equal(parse6decimal('1000'))
       })
 
-      it('reverts if delta out of range (above)', async () => {
-        await expect(
-          checkpoint.store({
-            ...VALID_CHECKPOINT,
-            delta: BigNumber.from(2).pow(STORAGE_SIZE),
-          }),
-        ).to.be.revertedWithCustomError(checkpoint, 'CheckpointStorageInvalidError')
+      it('accumulates pnl (long)', async () => {
+        const result = await checkpoint.callStatic.accumulate(
+          { ...DEFAULT_ORDER },
+          { ...DEFAULT_POSITION, long: parse6decimal('10') },
+          { ...DEFAULT_VERSION, longValue: { _value: parse6decimal('100') } },
+          { ...DEFAULT_VERSION, longValue: { _value: parse6decimal('200') } },
+        )
+        await checkpoint.accumulate(
+          { ...DEFAULT_ORDER },
+          { ...DEFAULT_POSITION, long: parse6decimal('10') },
+          { ...DEFAULT_VERSION, longValue: { _value: parse6decimal('100') } },
+          { ...DEFAULT_VERSION, longValue: { _value: parse6decimal('200') } },
+        )
+        expect(result.collateral).to.equal(parse6decimal('1000'))
+
+        const value = await checkpoint.read()
+        expect(value.collateral).to.equal(parse6decimal('1000'))
       })
 
-      it('reverts if delta out of range (below)', async () => {
-        await expect(
-          checkpoint.store({
-            ...VALID_CHECKPOINT,
-            delta: BigNumber.from(2).pow(STORAGE_SIZE).add(1).mul(-1),
-          }),
-        ).to.be.revertedWithCustomError(checkpoint, 'CheckpointStorageInvalidError')
+      it('accumulates pnl (short)', async () => {
+        const result = await checkpoint.callStatic.accumulate(
+          { ...DEFAULT_ORDER },
+          { ...DEFAULT_POSITION, short: parse6decimal('10') },
+          { ...DEFAULT_VERSION, shortValue: { _value: parse6decimal('100') } },
+          { ...DEFAULT_VERSION, shortValue: { _value: parse6decimal('200') } },
+        )
+        await checkpoint.accumulate(
+          { ...DEFAULT_ORDER },
+          { ...DEFAULT_POSITION, short: parse6decimal('10') },
+          { ...DEFAULT_VERSION, shortValue: { _value: parse6decimal('100') } },
+          { ...DEFAULT_VERSION, shortValue: { _value: parse6decimal('200') } },
+        )
+        expect(result.collateral).to.equal(parse6decimal('1000'))
+
+        const value = await checkpoint.read()
+        expect(value.collateral).to.equal(parse6decimal('1000'))
       })
-    })
-  })
 
-  describe('#updateCollateral', () => {
-    it('correctly updates collateral', async () => {
-      await checkpoint.store(VALID_CHECKPOINT)
-      await checkpoint.updateCollateral({ ...VALID_CHECKPOINT, delta: 100 }, { ...VALID_CHECKPOINT, delta: 200 }, 400)
+      it('accumulates fees (maker pos)', async () => {
+        const result = await checkpoint.callStatic.accumulate(
+          { ...DEFAULT_ORDER, makerPos: parse6decimal('10') },
+          { ...DEFAULT_POSITION },
+          { ...DEFAULT_VERSION },
+          { ...DEFAULT_VERSION, makerPosFee: { _value: parse6decimal('-2') } },
+        )
+        await checkpoint.accumulate(
+          { ...DEFAULT_ORDER, makerPos: parse6decimal('10') },
+          { ...DEFAULT_POSITION },
+          { ...DEFAULT_VERSION },
+          { ...DEFAULT_VERSION, makerPosFee: { _value: parse6decimal('-2') } },
+        )
+        expect(result.tradeFee).to.equal(parse6decimal('20'))
 
-      const storedCheckpoint = await checkpoint.read()
-      expect(await storedCheckpoint.collateral).to.equal(300)
-    })
-  })
+        const value = await checkpoint.read()
+        expect(value.tradeFee).to.equal(parse6decimal('20'))
+      })
 
-  describe('#updateFees', () => {
-    it('correctly updates fees', async () => {
-      await checkpoint.store(VALID_CHECKPOINT)
-      await checkpoint.updateFees(-123, 456)
+      it('accumulates fees (maker neg)', async () => {
+        const result = await checkpoint.callStatic.accumulate(
+          { ...DEFAULT_ORDER, makerNeg: parse6decimal('10') },
+          { ...DEFAULT_POSITION },
+          { ...DEFAULT_VERSION },
+          { ...DEFAULT_VERSION, makerNegFee: { _value: parse6decimal('-2') } },
+        )
+        await checkpoint.accumulate(
+          { ...DEFAULT_ORDER, makerNeg: parse6decimal('10') },
+          { ...DEFAULT_POSITION },
+          { ...DEFAULT_VERSION },
+          { ...DEFAULT_VERSION, makerNegFee: { _value: parse6decimal('-2') } },
+        )
+        expect(result.tradeFee).to.equal(parse6decimal('20'))
 
-      const storedCheckpoint = await checkpoint.read()
-      expect(await storedCheckpoint.tradeFee).to.equal(-123)
-      expect(await storedCheckpoint.settlementFee).to.equal(456)
-    })
-  })
+        const value = await checkpoint.read()
+        expect(value.tradeFee).to.equal(parse6decimal('20'))
+      })
 
-  describe('#updateDelta', () => {
-    it('correctly increments delta', async () => {
-      await checkpoint.store(VALID_CHECKPOINT)
-      await checkpoint.updateDelta(100)
+      it('accumulates fees (long pos)', async () => {
+        const result = await checkpoint.callStatic.accumulate(
+          { ...DEFAULT_ORDER, longPos: parse6decimal('10') },
+          { ...DEFAULT_POSITION },
+          { ...DEFAULT_VERSION },
+          { ...DEFAULT_VERSION, takerPosFee: { _value: parse6decimal('-2') } },
+        )
+        await checkpoint.accumulate(
+          { ...DEFAULT_ORDER, longPos: parse6decimal('10') },
+          { ...DEFAULT_POSITION },
+          { ...DEFAULT_VERSION },
+          { ...DEFAULT_VERSION, takerPosFee: { _value: parse6decimal('-2') } },
+        )
+        expect(result.tradeFee).to.equal(parse6decimal('20'))
 
-      const storedCheckpoint = await checkpoint.read()
-      expect(await storedCheckpoint.delta).to.equal(106)
-    })
-  })
+        const value = await checkpoint.read()
+        expect(value.tradeFee).to.equal(parse6decimal('20'))
+      })
 
-  describe('#next', () => {
-    it('correctly resets everything aside from delta', async () => {
-      await checkpoint.store(VALID_CHECKPOINT)
-      await checkpoint.next()
+      it('accumulates fees (short neg)', async () => {
+        const result = await checkpoint.callStatic.accumulate(
+          { ...DEFAULT_ORDER, shortNeg: parse6decimal('10') },
+          { ...DEFAULT_POSITION },
+          { ...DEFAULT_VERSION },
+          { ...DEFAULT_VERSION, takerPosFee: { _value: parse6decimal('-2') } },
+        )
+        await checkpoint.accumulate(
+          { ...DEFAULT_ORDER, shortNeg: parse6decimal('10') },
+          { ...DEFAULT_POSITION },
+          { ...DEFAULT_VERSION },
+          { ...DEFAULT_VERSION, takerPosFee: { _value: parse6decimal('-2') } },
+        )
+        expect(result.tradeFee).to.equal(parse6decimal('20'))
 
-      const storedCheckpoint = await checkpoint.read()
-      expect(await storedCheckpoint.tradeFee).to.equal(0)
-      expect(await storedCheckpoint.settlementFee).to.equal(0)
-      expect(await storedCheckpoint.collateral).to.equal(0)
-      expect(await storedCheckpoint.delta).to.equal(6)
+        const value = await checkpoint.read()
+        expect(value.tradeFee).to.equal(parse6decimal('20'))
+      })
+
+      it('accumulates fees (long neg)', async () => {
+        const result = await checkpoint.callStatic.accumulate(
+          { ...DEFAULT_ORDER, longNeg: parse6decimal('10') },
+          { ...DEFAULT_POSITION },
+          { ...DEFAULT_VERSION },
+          { ...DEFAULT_VERSION, takerNegFee: { _value: parse6decimal('-2') } },
+        )
+        await checkpoint.accumulate(
+          { ...DEFAULT_ORDER, longNeg: parse6decimal('10') },
+          { ...DEFAULT_POSITION },
+          { ...DEFAULT_VERSION },
+          { ...DEFAULT_VERSION, takerNegFee: { _value: parse6decimal('-2') } },
+        )
+        expect(result.tradeFee).to.equal(parse6decimal('20'))
+
+        const value = await checkpoint.read()
+        expect(value.tradeFee).to.equal(parse6decimal('20'))
+      })
+
+      it('accumulates fees (short pos)', async () => {
+        const result = await checkpoint.callStatic.accumulate(
+          { ...DEFAULT_ORDER, shortPos: parse6decimal('10') },
+          { ...DEFAULT_POSITION },
+          { ...DEFAULT_VERSION },
+          { ...DEFAULT_VERSION, takerNegFee: { _value: parse6decimal('-2') } },
+        )
+        await checkpoint.accumulate(
+          { ...DEFAULT_ORDER, shortPos: parse6decimal('10') },
+          { ...DEFAULT_POSITION },
+          { ...DEFAULT_VERSION },
+          { ...DEFAULT_VERSION, takerNegFee: { _value: parse6decimal('-2') } },
+        )
+        expect(result.tradeFee).to.equal(parse6decimal('20'))
+
+        const value = await checkpoint.read()
+        expect(value.tradeFee).to.equal(parse6decimal('20'))
+      })
+
+      it('accumulates settlement fee', async () => {
+        const result = await checkpoint.callStatic.accumulate(
+          { ...DEFAULT_ORDER, orders: 2 },
+          { ...DEFAULT_POSITION },
+          { ...DEFAULT_VERSION },
+          { ...DEFAULT_VERSION, settlementFee: { _value: parse6decimal('-4') } },
+        )
+        await checkpoint.accumulate(
+          { ...DEFAULT_ORDER, orders: 2 },
+          { ...DEFAULT_POSITION },
+          { ...DEFAULT_VERSION },
+          { ...DEFAULT_VERSION, settlementFee: { _value: parse6decimal('-4') } },
+        )
+        expect(result.settlementFee).to.equal(parse6decimal('8'))
+
+        const value = await checkpoint.read()
+        expect(value.settlementFee).to.equal(parse6decimal('8'))
+      })
     })
   })
 })

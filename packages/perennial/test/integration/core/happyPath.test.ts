@@ -143,9 +143,8 @@ describe('Happy Path', () => {
       collateral: COLLATERAL,
       makerPos: POSITION,
     })
-    expectCheckpointEq(await market.checkpoints(user.address, 1), {
+    expectCheckpointEq(await market.checkpoints(user.address, TIMESTAMP_1), {
       ...DEFAULT_CHECKPOINT,
-      delta: COLLATERAL,
     })
     expectPositionEq(await market.positions(user.address), {
       ...DEFAULT_POSITION,
@@ -192,9 +191,8 @@ describe('Happy Path', () => {
       ...DEFAULT_ORDER,
       timestamp: TIMESTAMP_2,
     })
-    expectCheckpointEq(await market.checkpoints(user.address, 2), {
+    expectCheckpointEq(await market.checkpoints(user.address, TIMESTAMP_2), {
       ...DEFAULT_CHECKPOINT,
-      delta: COLLATERAL,
     })
     expectPositionEq(await market.positions(user.address), {
       ...DEFAULT_POSITION,
@@ -250,9 +248,8 @@ describe('Happy Path', () => {
       collateral: COLLATERAL,
       makerPos: POSITION,
     })
-    expectCheckpointEq(await market.checkpoints(user.address, 1), {
+    expectCheckpointEq(await market.checkpoints(user.address, TIMESTAMP_1), {
       ...DEFAULT_CHECKPOINT,
-      delta: COLLATERAL,
     })
     expectPositionEq(await market.positions(user.address), {
       ...DEFAULT_POSITION,
@@ -299,9 +296,8 @@ describe('Happy Path', () => {
       ...DEFAULT_ORDER,
       timestamp: TIMESTAMP_2,
     })
-    expectCheckpointEq(await market.checkpoints(user.address, 2), {
+    expectCheckpointEq(await market.checkpoints(user.address, TIMESTAMP_2), {
       ...DEFAULT_CHECKPOINT,
-      delta: COLLATERAL,
     })
     expectPositionEq(await market.positions(user.address), {
       ...DEFAULT_POSITION,
@@ -371,9 +367,8 @@ describe('Happy Path', () => {
       orders: 1,
       makerNeg: POSITION,
     })
-    expectCheckpointEq(await market.checkpoints(user.address, 2), {
+    expectCheckpointEq(await market.checkpoints(user.address, TIMESTAMP_2), {
       ...DEFAULT_CHECKPOINT,
-      delta: COLLATERAL,
     })
     expectPositionEq(await market.positions(user.address), {
       ...DEFAULT_POSITION,
@@ -437,9 +432,8 @@ describe('Happy Path', () => {
       orders: 2,
       makerNeg: POSITION,
     })
-    expectCheckpointEq(await market.checkpoints(user.address, 2), {
+    expectCheckpointEq(await market.checkpoints(user.address, TIMESTAMP_2), {
       ...DEFAULT_CHECKPOINT,
-      delta: COLLATERAL,
     })
     expectPositionEq(await market.positions(user.address), {
       ...DEFAULT_POSITION,
@@ -522,9 +516,8 @@ describe('Happy Path', () => {
       collateral: COLLATERAL,
       makerPos: POSITION,
     })
-    expectCheckpointEq(await market.checkpoints(user.address, 1), {
+    expectCheckpointEq(await market.checkpoints(user.address, TIMESTAMP_1), {
       ...DEFAULT_CHECKPOINT,
-      delta: COLLATERAL,
     })
     expectPositionEq(await market.positions(user.address), {
       ...DEFAULT_POSITION,
@@ -545,9 +538,8 @@ describe('Happy Path', () => {
       collateral: COLLATERAL,
       longPos: POSITION_B,
     })
-    expectCheckpointEq(await market.checkpoints(userB.address, 1), {
+    expectCheckpointEq(await market.checkpoints(userB.address, TIMESTAMP_1), {
       ...DEFAULT_CHECKPOINT,
-      delta: COLLATERAL,
     })
     expectPositionEq(await market.positions(userB.address), {
       ...DEFAULT_POSITION,
@@ -616,9 +608,8 @@ describe('Happy Path', () => {
       ...DEFAULT_ORDER,
       timestamp: TIMESTAMP_3,
     })
-    expectCheckpointEq(await market.checkpoints(userB.address, 2), {
+    expectCheckpointEq(await market.checkpoints(userB.address, TIMESTAMP_3), {
       ...DEFAULT_CHECKPOINT,
-      delta: COLLATERAL,
     })
     expectPositionEq(await market.positions(userB.address), {
       ...DEFAULT_POSITION,
@@ -666,9 +657,8 @@ describe('Happy Path', () => {
       collateral: COLLATERAL,
       longPos: POSITION_B,
     })
-    expectCheckpointEq(await market.checkpoints(userB.address, 1), {
+    expectCheckpointEq(await market.checkpoints(userB.address, TIMESTAMP_1), {
       ...DEFAULT_CHECKPOINT,
-      delta: COLLATERAL,
     })
     expectPositionEq(await market.positions(userB.address), {
       ...DEFAULT_POSITION,
@@ -736,9 +726,8 @@ describe('Happy Path', () => {
       ...DEFAULT_ORDER,
       timestamp: TIMESTAMP_3,
     })
-    expectCheckpointEq(await market.checkpoints(userB.address, 2), {
+    expectCheckpointEq(await market.checkpoints(userB.address, TIMESTAMP_3), {
       ...DEFAULT_CHECKPOINT,
-      delta: COLLATERAL,
     })
     expectPositionEq(await market.positions(userB.address), {
       ...DEFAULT_POSITION,
@@ -795,9 +784,8 @@ describe('Happy Path', () => {
       orders: 1,
       longNeg: POSITION_B,
     })
-    expectCheckpointEq(await market.checkpoints(userB.address, 2), {
+    expectCheckpointEq(await market.checkpoints(userB.address, TIMESTAMP_2), {
       ...DEFAULT_CHECKPOINT,
-      delta: COLLATERAL,
     })
     expectPositionEq(await market.positions(userB.address), {
       ...DEFAULT_POSITION,
@@ -872,9 +860,8 @@ describe('Happy Path', () => {
       orders: 2,
       longNeg: POSITION_B,
     })
-    expectCheckpointEq(await market.checkpoints(userB.address, 2), {
+    expectCheckpointEq(await market.checkpoints(userB.address, TIMESTAMP_2), {
       ...DEFAULT_CHECKPOINT,
-      delta: COLLATERAL,
     })
     expectPositionEq(await market.positions(userB.address), {
       ...DEFAULT_POSITION,
@@ -1093,9 +1080,8 @@ describe('Happy Path', () => {
       collateral: -1,
       makerPos: POSITION.div(2),
     })
-    expectCheckpointEq(await market.checkpoints(user.address, 3), {
+    expectCheckpointEq(await market.checkpoints(user.address, TIMESTAMP_5), {
       ...DEFAULT_CHECKPOINT,
-      delta: COLLATERAL.sub(1),
     })
     expectPositionEq(await market.positions(user.address), {
       ...DEFAULT_POSITION,
@@ -1243,7 +1229,6 @@ describe('Happy Path', () => {
     expectCheckpointEq(await market.checkpoints(user.address, delay + 1), {
       ...DEFAULT_CHECKPOINT,
       tradeFee: (await market.checkpoints(user.address, delay + 1)).tradeFee,
-      delta: COLLATERAL.sub(1),
     })
     expectPositionEq(await market.positions(user.address), {
       ...DEFAULT_POSITION,
