@@ -14,31 +14,14 @@ contract CheckpointTester {
         return checkpoint.store(newCheckpoint);
     }
 
-    function updateCollateral(
-        Checkpoint memory previousCheckpoint,
-        Checkpoint memory currentCheckpoint,
-        Fixed6 collateral
-    ) external {
+    function accumulate(
+        Order memory order,
+        Position memory fromPosition,
+        Version memory fromVersion,
+        Version memory toVersion
+    ) external returns (Fixed6 collateral, Fixed6 tradeFee, UFixed6 settlementFee) {
         Checkpoint memory newCheckpoint = checkpoint.read();
-        newCheckpoint.updateCollateral(previousCheckpoint, currentCheckpoint, collateral);
-        checkpoint.store(newCheckpoint);
-    }
-
-    function updateFees(Fixed6 tradeFee, UFixed6 settlementFee) external {
-        Checkpoint memory newCheckpoint = checkpoint.read();
-        newCheckpoint.updateFees(tradeFee, settlementFee);
-        checkpoint.store(newCheckpoint);
-    }
-
-    function updateDelta(Fixed6 collateral) external {
-        Checkpoint memory newCheckpoint = checkpoint.read();
-        newCheckpoint.updateDelta(collateral);
-        checkpoint.store(newCheckpoint);
-    }
-
-    function next() external {
-        Checkpoint memory newCheckpoint = checkpoint.read();
-        newCheckpoint.next();
+        (collateral, tradeFee, settlementFee) = newCheckpoint.accumulate(order, fromPosition, fromVersion, toVersion);
         checkpoint.store(newCheckpoint);
     }
 }
