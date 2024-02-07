@@ -33,14 +33,10 @@ contract CheckpointTester {
         checkpoint.store(newCheckpoint);
     }
 
-    function complete(
-        Fixed6 assets,
-        Fixed6 tradeFee,
-        UFixed6 settlementFee
-    ) external {
+    function complete(PerennialCheckpoint memory marketCheckpoint) external {
         Checkpoint memory newCheckpoint = checkpoint.read();
 
-        newCheckpoint.complete(assets, tradeFee, settlementFee);
+        newCheckpoint.complete(marketCheckpoint);
 
         checkpoint.store(newCheckpoint);
     }

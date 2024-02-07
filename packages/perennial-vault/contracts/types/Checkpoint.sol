@@ -1,8 +1,10 @@
 // SPDX-License-Identifier: Apache-2.0
 pragma solidity ^0.8.13;
 
-import "@equilibria/root/number/types/UFixed6.sol";
-import "./Account.sol";
+import { UFixed6, UFixed6Lib } from "@equilibria/root/number/types/UFixed6.sol";
+import { Fixed6, Fixed6Lib } from "@equilibria/root/number/types/Fixed6.sol";
+import { Checkpoint as PerennialCheckpoint } from "@equilibria/perennial-v2/contracts/interfaces/IMarket.sol";
+import { Account } from "./Account.sol";
 
 /// @dev Checkpoint type
 struct Checkpoint {
@@ -67,13 +69,11 @@ library CheckpointLib {
     /// @notice Completes the checkpoint
     /// @dev Increments the assets by the snapshotted amount of collateral in the underlying markets
     /// @param self The checkpoint to complete
-    /// @param assets The amount of assets in the underlying markets
-    /// @param tradeFee The trade fee to register
-    /// @param settlementFee The settlement fee to register
-    function complete(Checkpoint memory self, Fixed6 assets, Fixed6 tradeFee, UFixed6 settlementFee) internal pure {
-        self.assets = self.assets.add(assets);
-        self.tradeFee = tradeFee;
-        self.settlementFee = settlementFee;
+    /// @param marketCheckpoint The checkpoint to complete with
+    function complete(Checkpoint memory self, PerennialCheckpoint memory marketCheckpoint) internal pure {
+        self.assets = self.assets.add(marketCheckpoint.collateral);
+        self.tradeFee = marketCheckpoint.tradeFee;
+        self.settlementFee = marketCheckpoint.settlementFee;
     }
 
     /// @notice Converts a given amount of assets to shares at checkpoint in the global context
