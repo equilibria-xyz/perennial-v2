@@ -14,10 +14,10 @@ contract CheckpointTester {
         return checkpoint.read();
     }
 
-    function initialize(Account memory global) external {
+    function next(uint256 timestamp, Account memory global) external {
         Checkpoint memory newCheckpoint = checkpoint.read();
 
-        newCheckpoint.initialize(global);
+        newCheckpoint.next(timestamp, global);
 
         checkpoint.store(newCheckpoint);
     }

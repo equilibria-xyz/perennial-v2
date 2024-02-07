@@ -588,10 +588,8 @@ describe('Vault', () => {
 
       const checkpoint1 = await vault.checkpoints(2)
       expect(checkpoint1.deposit).to.equal(smallDeposit)
-      expect(checkpoint1.count).to.equal(1)
-      const mapping1 = await vault.mappings(2)
-      expect(mapping1._ids[0]).to.equal(1)
-      expect(mapping1._ids[1]).to.equal(1)
+      expect(checkpoint1.orders).to.equal(1)
+      expect(checkpoint1.timestamp).to.equal((await market.pendingOrders(vault.address, 1)).timestamp)
 
       // We're underneath the collateral minimum, so we shouldn't have opened any positions.
       expect(await position()).to.equal(0)
@@ -611,10 +609,8 @@ describe('Vault', () => {
       expect(checkpoint2.deposit).to.equal(largeDeposit)
       expect(checkpoint2.assets).to.equal(smallDeposit)
       expect(checkpoint2.shares).to.equal(smallDeposit)
-      expect(checkpoint2.count).to.equal(1)
-      const mapping2 = await vault.mappings(3)
-      expect(mapping2._ids[0]).to.equal(2)
-      expect(mapping2._ids[1]).to.equal(2)
+      expect(checkpoint2.orders).to.equal(1)
+      expect(checkpoint2.timestamp).to.equal((await market.pendingOrders(vault.address, 2)).timestamp)
 
       expect((await vault.accounts(user.address)).shares).to.equal(parse6decimal('10010'))
       expect((await vault.accounts(ethers.constants.AddressZero)).shares).to.equal(parse6decimal('10010'))
@@ -1709,9 +1705,9 @@ describe('Vault', () => {
       await vault.connect(user2).update(user2.address, deposit2, 0, 0)
 
       const currentId = (await vault.accounts(ethers.constants.AddressZero)).current
-      expect((await vault.checkpoints(currentId)).count).to.equal(1)
+      expect((await vault.checkpoints(currentId)).orders).to.equal(1)
       await vault.connect(btcUser1).update(btcUser1.address, 0, 0, 0)
-      expect((await vault.checkpoints(currentId)).count).to.equal(1)
+      expect((await vault.checkpoints(currentId)).orders).to.equal(1)
     })
 
     it('doesnt bypass vault deposit cap', async () => {
