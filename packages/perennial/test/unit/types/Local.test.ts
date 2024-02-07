@@ -5,14 +5,7 @@ import HRE from 'hardhat'
 
 import { LocalTester, LocalTester__factory } from '../../../types/generated'
 import { BigNumber } from 'ethers'
-import { DEFAULT_ORDER, DEFAULT_VERSION, DEFAULT_POSITION, parse6decimal } from '../../../../common/testutil/types'
-import {
-  LocalStruct,
-  PositionStruct,
-  VersionStruct,
-  RiskParameterStruct,
-} from '../../../types/generated/contracts/Market'
-import { OracleVersionStruct } from '../../../types/generated/contracts/interfaces/IOracleProvider'
+import { LocalStruct } from '../../../types/generated/contracts/Market'
 
 const { ethers } = HRE
 use(smock.matchers)
@@ -21,7 +14,6 @@ const DEFAULT_LOCAL: LocalStruct = {
   currentId: 0,
   latestId: 0,
   collateral: 0,
-  protection: 0,
 }
 
 const DEFAULT_ADDRESS = '0x0123456789abcdef0123456789abcdef01234567'
@@ -42,7 +34,6 @@ describe('Local', () => {
       currentId: 1,
       latestId: 5,
       collateral: 2,
-      protection: 4,
     }
     it('stores a new value', async () => {
       await local.store(VALID_STORED_VALUE)
@@ -51,7 +42,6 @@ describe('Local', () => {
       expect(value.currentId).to.equal(1)
       expect(value.latestId).to.equal(5)
       expect(value.collateral).to.equal(2)
-      expect(value.protection).to.equal(4)
     })
 
     context('.currentId', async () => {
@@ -134,27 +124,6 @@ describe('Local', () => {
         ).to.be.revertedWithCustomError(local, 'LocalStorageInvalidError')
       })
     })
-
-    context('.protection', async () => {
-      const STORAGE_SIZE = 32
-      it('saves if in range', async () => {
-        await local.store({
-          ...VALID_STORED_VALUE,
-          protection: BigNumber.from(2).pow(STORAGE_SIZE).sub(1),
-        })
-        const value = await local.read()
-        expect(value.protection).to.equal(BigNumber.from(2).pow(STORAGE_SIZE).sub(1))
-      })
-
-      it('reverts if version out of range', async () => {
-        await expect(
-          local.store({
-            ...VALID_STORED_VALUE,
-            protection: BigNumber.from(2).pow(STORAGE_SIZE),
-          }),
-        ).to.be.revertedWithCustomError(local, 'LocalStorageInvalidError')
-      })
-    })
   })
 
   describe('#update', () => {
@@ -185,104 +154,6 @@ describe('Local', () => {
       const storedLocal = await local.read()
       expect(await storedLocal.collateral).to.equal(978)
       expect(await storedLocal.latestId).to.equal(11)
-    })
-  })
-
-  describe('#protect', () => {
-    const VALID_ORACLE_VERSION: OracleVersionStruct = {
-      timestamp: 12345,
-      price: parse6decimal('100'),
-      valid: true,
-    }
-
-    const VALID_RISK_PARAMETER: RiskParameterStruct = {
-      margin: 15,
-      maintenance: 1,
-      takerFee: {
-        linearFee: 2,
-        proportionalFee: 3,
-        adiabaticFee: 4,
-        scale: 14,
-      },
-      makerFee: {
-        linearFee: 5,
-        proportionalFee: 6,
-        adiabaticFee: 17,
-        scale: 14,
-      },
-      makerLimit: 7,
-      efficiencyLimit: 8,
-      liquidationFee: 9,
-      utilizationCurve: {
-        minRate: 101,
-        maxRate: 102,
-        targetRate: 103,
-        targetUtilization: 104,
-      },
-      pController: {
-        k: 201,
-        max: 202,
-      },
-      minMargin: 16,
-      minMaintenance: 12,
-      staleAfter: 13,
-      makerReceiveOnly: false,
-    }
-
-    it('doesnt protect tryProtect == false', async () => {
-      const result = await local.callStatic.protect(VALID_ORACLE_VERSION, 123, false)
-      await local.protect(VALID_ORACLE_VERSION, 123, false)
-
-      const value = await local.read()
-
-      expect(result).to.equal(false)
-
-      expect(value.protection).to.equal(0)
-    })
-
-    it('doesnt protect still protected version', async () => {
-      await local.store({
-        ...DEFAULT_LOCAL,
-        protection: 124,
-      })
-      const result = await local.callStatic.protect({ ...VALID_ORACLE_VERSION, timestamp: 123 }, 127, true)
-      await local.protect({ ...VALID_ORACLE_VERSION, timestamp: 123 }, 127, true)
-
-      const value = await local.read()
-
-      expect(result).to.equal(false)
-
-      expect(value.protection).to.equal(124)
-    })
-
-    it('protects if just settled protection', async () => {
-      await local.store({
-        ...DEFAULT_LOCAL,
-        protection: 124,
-      })
-      const result = await local.callStatic.protect({ ...VALID_ORACLE_VERSION, timestamp: 124 }, 127, true)
-      await local.protect({ ...VALID_ORACLE_VERSION, timestamp: 124 }, 127, true)
-
-      const value = await local.read()
-
-      expect(result).to.equal(true)
-
-      expect(value.protection).to.equal(127)
-    })
-
-    it('protects', async () => {
-      await local.store({
-        ...DEFAULT_LOCAL,
-        protection: 121,
-      })
-      const result = await local.callStatic.protect({ ...VALID_ORACLE_VERSION, timestamp: 124 }, 127, true)
-      await local.protect({ ...VALID_ORACLE_VERSION, timestamp: 124 }, 127, true)
-
-      const value = await local.read()
-
-      expect(result).to.equal(true)
-
-      expect(value.protection).to.equal(127)
     })
   })
 })

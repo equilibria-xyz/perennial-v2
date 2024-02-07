@@ -1789,7 +1789,7 @@ describe('Vault', () => {
           expect((await btcMarket.locals(vault.address)).collateral).to.equal(
             BigNumber.from('4428767485').add(EXPECTED_LIQUIDATION_FEE),
           ) // no shortfall
-          expect((await btcMarket.locals(vault.address)).protection).to.equal(STARTING_TIMESTAMP.add(3600 * 3))
+          expect((await btcMarket.pendingOrders(vault.address, 2)).protection).to.equal(1)
 
           await expect(vault.connect(user).update(user.address, 0, 0, 0)).to.be.reverted
 
@@ -1830,7 +1830,7 @@ describe('Vault', () => {
           expect((await btcMarket.locals(vault.address)).collateral).to.equal(
             BigNumber.from('-26673235277').add(EXPECTED_LIQUIDATION_FEE),
           ) // shortfall
-          expect((await btcMarket.locals(vault.address)).protection).to.equal(STARTING_TIMESTAMP.add(3600 * 3))
+          expect((await btcMarket.pendingOrders(vault.address, 2)).protection).to.equal(1)
 
           await expect(vault.connect(user).update(user.address, 0, 0, 0)).to.be.reverted
 
@@ -1888,7 +1888,7 @@ describe('Vault', () => {
           expect((await btcMarket.locals(vault.address)).collateral).to.equal(
             BigNumber.from('350411418').add(EXPECTED_LIQUIDATION_FEE),
           ) // no shortfall
-          expect((await btcMarket.locals(vault.address)).protection).to.equal(STARTING_TIMESTAMP.add(3600 * 6))
+          expect((await btcMarket.pendingOrders(vault.address, 3)).protection).to.equal(1)
 
           // 3. Settle the liquidation.
           // We now be able to deposit.
@@ -1927,7 +1927,7 @@ describe('Vault', () => {
           expect((await btcMarket.locals(vault.address)).collateral).to.equal(
             BigNumber.from('-480340107').add(EXPECTED_LIQUIDATION_FEE),
           ) // shortfall
-          expect((await btcMarket.locals(vault.address)).protection).to.equal(STARTING_TIMESTAMP.add(3600 * 6))
+          expect((await btcMarket.pendingOrders(vault.address, 3)).protection).to.equal(1)
 
           // 3. Settle the liquidation.
           // We now be able to deposit.

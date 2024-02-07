@@ -3635,7 +3635,6 @@ describe('Market', () => {
                   .add(EXPECTED_INTEREST_WITHOUT_FEE_5_150)
                   .sub(EXPECTED_LIQUIDATION_FEE)
                   .sub(22), // loss of precision
-                protection: ORACLE_VERSION_4.timestamp,
               })
               expect(await market.liquidators(userB.address, 3)).to.equal(liquidator.address)
               expectPositionEq(await market.positions(userB.address), {
@@ -3830,7 +3829,6 @@ describe('Market', () => {
                   .add(EXPECTED_FUNDING_WITHOUT_FEE_2_5_150.add(EXPECTED_INTEREST_WITHOUT_FEE_2).mul(4).div(5))
                   .sub(EXPECTED_LIQUIDATION_FEE)
                   .sub(16), // loss of precision
-                protection: ORACLE_VERSION_4.timestamp,
               })
               expect(await market.liquidators(userB.address, 3)).to.equal(liquidator.address)
               expectPositionEq(await market.positions(userB.address), {
@@ -4010,7 +4008,6 @@ describe('Market', () => {
                   .add(EXPECTED_INTEREST_WITHOUT_FEE_5_123)
                   .sub(EXPECTED_PNL)
                   .sub(8), // loss of precision
-                protection: ORACLE_VERSION_4.timestamp,
               })
               expect(await market.liquidators(userB.address, 3)).to.equal(liquidator.address)
               expectPositionEq(await market.positions(userB.address), {
@@ -4023,6 +4020,7 @@ describe('Market', () => {
                 timestamp: ORACLE_VERSION_4.timestamp,
                 orders: 1,
                 makerNeg: POSITION,
+                protection: 1,
               })
               expectCheckpointEq(await market.checkpoints(userB.address, ORACLE_VERSION_4.timestamp), {
                 ...DEFAULT_CHECKPOINT,
@@ -4110,7 +4108,6 @@ describe('Market', () => {
                 currentId: 4,
                 latestId: 3,
                 collateral: 0,
-                protection: ORACLE_VERSION_4.timestamp,
               })
               expect(await market.liquidators(userB.address, 3)).to.equal(liquidator.address)
               expectPositionEq(await market.positions(userB.address), {
@@ -4191,7 +4188,6 @@ describe('Market', () => {
                   .sub(EXPECTED_FUNDING_WITH_FEE_1_5_123.add(EXPECTED_INTEREST_5_123))
                   .sub(EXPECTED_FUNDING_WITH_FEE_2_5_96.add(EXPECTED_INTEREST_5_96))
                   .sub(EXPECTED_LIQUIDATION_FEE),
-                protection: ORACLE_VERSION_4.timestamp,
               })
               expect(await market.liquidators(user.address, 3)).to.equal(liquidator.address)
               expectLocalEq(await market.locals(liquidator.address), {
@@ -4341,7 +4337,6 @@ describe('Market', () => {
                 collateral: parse6decimal('216')
                   .sub(EXPECTED_FUNDING_WITH_FEE_1_5_123.add(EXPECTED_INTEREST_5_123))
                   .sub(EXPECTED_PNL),
-                protection: ORACLE_VERSION_4.timestamp,
               })
               expect(await market.liquidators(user.address, 3)).to.equal(liquidator.address)
               expectPositionEq(await market.positions(user.address), {
@@ -4354,6 +4349,7 @@ describe('Market', () => {
                 timestamp: ORACLE_VERSION_4.timestamp,
                 orders: 1,
                 longNeg: POSITION.div(2),
+                protection: 1,
               })
               expectCheckpointEq(await market.checkpoints(user.address, ORACLE_VERSION_4.timestamp), {
                 ...DEFAULT_CHECKPOINT,
@@ -4453,7 +4449,6 @@ describe('Market', () => {
                 currentId: 4,
                 latestId: 3,
                 collateral: 0,
-                protection: ORACLE_VERSION_4.timestamp,
               })
               expect(await market.liquidators(user.address, 3)).to.equal(liquidator.address)
               expectLocalEq(await market.locals(liquidator.address), {
@@ -6367,7 +6362,6 @@ describe('Market', () => {
                   .add(EXPECTED_FUNDING_WITHOUT_FEE_2_5_96.add(EXPECTED_INTEREST_WITHOUT_FEE_5_96))
                   .sub(EXPECTED_LIQUIDATION_FEE)
                   .sub(20), // loss of precision
-                protection: ORACLE_VERSION_4.timestamp,
               })
               expect(await market.liquidators(userB.address, 3)).to.equal(liquidator.address)
               expectPositionEq(await market.positions(userB.address), {
@@ -6558,7 +6552,6 @@ describe('Market', () => {
                   .add(EXPECTED_FUNDING_WITHOUT_FEE_2_5_96.add(EXPECTED_INTEREST_WITHOUT_FEE_2).mul(4).div(5))
                   .sub(EXPECTED_LIQUIDATION_FEE)
                   .sub(17), // loss of precision
-                protection: ORACLE_VERSION_4.timestamp,
               })
               expect(await market.liquidators(userB.address, 3)).to.equal(liquidator.address)
               expectPositionEq(await market.positions(userB.address), {
@@ -6730,7 +6723,6 @@ describe('Market', () => {
                   .add(EXPECTED_FUNDING_WITHOUT_FEE_1_5_123.add(EXPECTED_INTEREST_WITHOUT_FEE_5_123))
                   .sub(EXPECTED_PNL)
                   .sub(8), // loss of precision
-                protection: ORACLE_VERSION_4.timestamp,
               })
               expect(await market.liquidators(userB.address, 3)).to.equal(liquidator.address)
               expectOrderEq(await market.pendingOrders(userB.address, 3), {
@@ -6738,6 +6730,7 @@ describe('Market', () => {
                 timestamp: ORACLE_VERSION_4.timestamp,
                 orders: 1,
                 makerNeg: POSITION,
+                protection: 1,
               })
               expectCheckpointEq(await market.checkpoints(userB.address, ORACLE_VERSION_4.timestamp), {
                 ...DEFAULT_CHECKPOINT,
@@ -6823,7 +6816,6 @@ describe('Market', () => {
                 currentId: 4,
                 latestId: 3,
                 collateral: 0,
-                protection: ORACLE_VERSION_4.timestamp,
               })
               expect(await market.liquidators(userB.address, 3)).to.equal(liquidator.address)
               expectPositionEq(await market.positions(userB.address), {
@@ -6912,7 +6904,6 @@ describe('Market', () => {
                   .sub(EXPECTED_FUNDING_WITH_FEE_2_5_150)
                   .sub(EXPECTED_INTEREST_5_150)
                   .sub(EXPECTED_LIQUIDATION_FEE),
-                protection: ORACLE_VERSION_4.timestamp,
               })
               expect(await market.liquidators(user.address, 3)).to.equal(liquidator.address)
               expectPositionEq(await market.positions(user.address), {
@@ -7061,7 +7052,6 @@ describe('Market', () => {
                   .sub(EXPECTED_FUNDING_WITH_FEE_1_5_123)
                   .sub(EXPECTED_INTEREST_5_123)
                   .sub(EXPECTED_PNL),
-                protection: ORACLE_VERSION_4.timestamp,
               })
               expect(await market.liquidators(user.address, 3)).to.equal(liquidator.address)
               expectPositionEq(await market.positions(user.address), {
@@ -7074,6 +7064,7 @@ describe('Market', () => {
                 timestamp: ORACLE_VERSION_4.timestamp,
                 orders: 1,
                 shortNeg: POSITION.div(2),
+                protection: 1,
               })
               expectCheckpointEq(await market.checkpoints(user.address, ORACLE_VERSION_4.timestamp), {
                 ...DEFAULT_CHECKPOINT,
@@ -7180,7 +7171,6 @@ describe('Market', () => {
                 currentId: 4,
                 latestId: 3,
                 collateral: 0,
-                protection: ORACLE_VERSION_4.timestamp,
               })
               expect(await market.liquidators(user.address, 3)).to.equal(liquidator.address)
               expectPositionEq(await market.positions(user.address), {
@@ -9630,7 +9620,6 @@ describe('Market', () => {
                   .add(EXPECTED_INTEREST_WITHOUT_FEE_10_67_45_ALL)
                   .sub(EXPECTED_LIQUIDATION_FEE)
                   .sub(25), // loss of precision
-                protection: ORACLE_VERSION_4.timestamp,
               })
               expect(await market.liquidators(userB.address, 3)).to.equal(liquidator.address)
               expectPositionEq(await market.positions(userB.address), {
@@ -9867,7 +9856,6 @@ describe('Market', () => {
                   .add(EXPECTED_INTEREST_WITHOUT_FEE_2.mul(10).div(12))
                   .sub(EXPECTED_LIQUIDATION_FEE)
                   .sub(19), // loss of precision
-                protection: ORACLE_VERSION_4.timestamp,
               })
               expect(await market.liquidators(userB.address, 3)).to.equal(liquidator.address)
               expectPositionEq(await market.positions(userB.address), {
@@ -10054,7 +10042,6 @@ describe('Market', () => {
                   .add(EXPECTED_INTEREST_WITHOUT_FEE_10_67_123_ALL)
                   .sub(EXPECTED_PNL)
                   .sub(13), // loss of precision
-                protection: ORACLE_VERSION_4.timestamp,
               })
               expect(await market.liquidators(userB.address, 3)).to.equal(liquidator.address)
               expectPositionEq(await market.positions(userB.address), {
@@ -10067,6 +10054,7 @@ describe('Market', () => {
                 timestamp: ORACLE_VERSION_4.timestamp,
                 orders: 1,
                 makerNeg: POSITION,
+                protection: 1,
               })
               expectCheckpointEq(await market.checkpoints(userB.address, ORACLE_VERSION_4.timestamp), {
                 ...DEFAULT_CHECKPOINT,
@@ -10162,7 +10150,6 @@ describe('Market', () => {
                 currentId: 4,
                 latestId: 3,
                 collateral: 0,
-                protection: ORACLE_VERSION_4.timestamp,
               })
               expect(await market.liquidators(userB.address, 3)).to.equal(liquidator.address)
               expectPositionEq(await market.positions(userB.address), {
@@ -10269,7 +10256,6 @@ describe('Market', () => {
                   .sub(EXPECTED_INTEREST_10_67_96_ALL.div(3))
                   .sub(EXPECTED_LIQUIDATION_FEE)
                   .sub(9), // loss of precision
-                protection: ORACLE_VERSION_4.timestamp,
               })
               expect(await market.liquidators(user.address, 3)).to.equal(liquidator.address)
               expectPositionEq(await market.positions(user.address), {
@@ -10471,7 +10457,6 @@ describe('Market', () => {
                   .sub(EXPECTED_INTEREST_10_67_123_ALL.div(3))
                   .sub(EXPECTED_PNL)
                   .sub(2), // loss of precision
-                protection: ORACLE_VERSION_4.timestamp,
               })
               expect(await market.liquidators(user.address, 3)).to.equal(liquidator.address)
               expectPositionEq(await market.positions(user.address), {
@@ -10484,6 +10469,7 @@ describe('Market', () => {
                 timestamp: ORACLE_VERSION_4.timestamp,
                 orders: 1,
                 longNeg: POSITION.div(2),
+                protection: 1,
               })
               expectCheckpointEq(await market.checkpoints(user.address, ORACLE_VERSION_4.timestamp), {
                 ...DEFAULT_CHECKPOINT,
@@ -10600,7 +10586,6 @@ describe('Market', () => {
                 currentId: 4,
                 latestId: 3,
                 collateral: 0,
-                protection: ORACLE_VERSION_4.timestamp,
               })
               expect(await market.liquidators(user.address, 3)).to.equal(liquidator.address)
               expectPositionEq(await market.positions(user.address), {
@@ -11290,7 +11275,6 @@ describe('Market', () => {
             collateral: parse6decimal('216')
               .sub(EXPECTED_FUNDING_WITH_FEE_1_5_123.add(EXPECTED_INTEREST_5_123))
               .sub(EXPECTED_PNL),
-            protection: ORACLE_VERSION_4.timestamp,
           })
           expect(await market.liquidators(user.address, 3)).to.equal(liquidator.address)
           expectPositionEq(await market.positions(user.address), {
@@ -11303,6 +11287,7 @@ describe('Market', () => {
             timestamp: ORACLE_VERSION_4.timestamp,
             orders: 1,
             longNeg: POSITION.div(2),
+            protection: 1,
           })
           expectCheckpointEq(await market.checkpoints(user.address, ORACLE_VERSION_4.timestamp), {
             ...DEFAULT_CHECKPOINT,
@@ -11534,7 +11519,6 @@ describe('Market', () => {
               .sub(EXPECTED_INTEREST_5_150)
               .sub(EXPECTED_ROUND_3_ACC)
               .sub(EXPECTED_LIQUIDATION_FEE), // does not double charge
-            protection: ORACLE_VERSION_5.timestamp,
           })
           expect(await market.liquidators(user.address, 3)).to.equal(liquidator.address)
           expectPositionEq(await market.positions(user.address), {

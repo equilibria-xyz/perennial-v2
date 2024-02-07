@@ -35,6 +35,7 @@ const VALID_ORDER = {
   longNeg: parse6decimal('3'),
   shortPos: parse6decimal('6'),
   shortNeg: parse6decimal('3'),
+  protection: 1,
 }
 
 describe('Position', () => {

@@ -45,7 +45,6 @@ const GLOBAL: GlobalStruct = {
     _value: 6,
     _skew: 7,
   },
-  latestPrice: 8,
 }
 
 const FROM_POSITION: PositionStruct = {
@@ -65,6 +64,7 @@ const ORDER: OrderStruct = {
   longNeg: 0,
   shortPos: 45,
   shortNeg: 0,
+  protection: 1,
 }
 
 const TIMESTAMP = 1636401093

@@ -28,6 +28,7 @@ export interface Order {
   longNeg: BigNumberish
   shortPos: BigNumberish
   shortNeg: BigNumberish
+  protection: BigNumberish
 }
 
 export interface Position {
@@ -50,7 +51,6 @@ export interface Local {
   currentId: BigNumberish
   latestId: BigNumberish
   collateral: BigNumberish
-  protection: BigNumberish
 }
 
 export interface Version {
@@ -88,6 +88,7 @@ export function expectOrderEq(a: Order, b: Order): void {
   expect(a.longNeg).to.equal(b.longNeg, 'Order:LongNeg')
   expect(a.shortPos).to.equal(b.shortPos, 'Order:ShortPos')
   expect(a.shortNeg).to.equal(b.shortNeg, 'Order:ShortNeg')
+  expect(a.protection).to.equal(b.protection, 'Order:Protection')
 }
 
 export function expectPositionEq(a: Position, b: Position): void {
@@ -110,7 +111,6 @@ export function expectLocalEq(a: Local, b: Local): void {
   expect(a.currentId).to.equal(b.currentId, 'Local:Currentid')
   expect(a.latestId).to.equal(b.latestId, 'Local:LatestId')
   expect(a.collateral).to.equal(b.collateral, 'Local:Collateral')
-  expect(a.protection).to.equal(b.protection, 'Local:Protection')
 }
 
 export function expectVersionEq(a: Version, b: Version): void {
@@ -184,6 +184,7 @@ export const DEFAULT_ORDER: Order = {
   shortPos: 0,
   shortNeg: 0,
   collateral: 0,
+  protection: 0,
 }
 
 export const DEFAULT_VERSION: Version = {
