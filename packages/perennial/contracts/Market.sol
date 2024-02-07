@@ -336,7 +336,8 @@ contract Market is IMarket, Instance, ReentrancyGuard {
             collateral,
             newMaker,
             newLong,
-            newShort
+            newShort,
+            protect
         );
         context.currentPosition.global.update(newOrder, true);
         context.currentPosition.local.update(newOrder, true);

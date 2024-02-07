@@ -28,6 +28,7 @@ export interface Order {
   longNeg: BigNumberish
   shortPos: BigNumberish
   shortNeg: BigNumberish
+  protection: BigNumberish
 }
 
 export interface Position {
@@ -88,6 +89,7 @@ export function expectOrderEq(a: Order, b: Order): void {
   expect(a.longNeg).to.equal(b.longNeg, 'Order:LongNeg')
   expect(a.shortPos).to.equal(b.shortPos, 'Order:ShortPos')
   expect(a.shortNeg).to.equal(b.shortNeg, 'Order:ShortNeg')
+  expect(a.protection).to.equal(b.protection, 'Order:Protection')
 }
 
 export function expectPositionEq(a: Position, b: Position): void {
@@ -184,6 +186,7 @@ export const DEFAULT_ORDER: Order = {
   shortPos: 0,
   shortNeg: 0,
   collateral: 0,
+  protection: 0,
 }
 
 export const DEFAULT_VERSION: Version = {
