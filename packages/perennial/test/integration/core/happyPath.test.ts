@@ -113,17 +113,13 @@ describe('Happy Path', () => {
       .to.emit(market, 'Updated')
       .withArgs(user.address, user.address, TIMESTAMP_1, POSITION, 0, 0, COLLATERAL, false)
       .to.emit(market, 'OrderCreated')
-      .withArgs(
-        user.address,
-        {
-          ...DEFAULT_ORDER,
-          timestamp: TIMESTAMP_1,
-          orders: 1,
-          collateral: COLLATERAL,
-          makerPos: POSITION,
-        },
-        COLLATERAL,
-      )
+      .withArgs(user.address,  {
+        ...DEFAULT_ORDER,
+        timestamp: TIMESTAMP_1,
+        orders: 1,
+        collateral: COLLATERAL,
+        makerPos: POSITION,
+      })
 
     // Check user is in the correct state
     expectLocalEq(await market.locals(user.address), {
@@ -338,16 +334,12 @@ describe('Happy Path', () => {
       .to.emit(market, 'Updated')
       .withArgs(user.address, user.address, TIMESTAMP_2, 0, 0, 0, 0, false)
       .to.emit(market, 'OrderCreated')
-      .withArgs(
-        user.address,
-        {
-          ...DEFAULT_ORDER,
-          timestamp: TIMESTAMP_2,
-          orders: 1,
-          makerNeg: POSITION,
-        },
-        0,
-      )
+      .withArgs(user.address, {
+        ...DEFAULT_ORDER,
+        timestamp: TIMESTAMP_2,
+        orders: 1,
+        makerNeg: POSITION,
+      })
 
     // User state
     expectLocalEq(await market.locals(user.address), {
@@ -484,17 +476,13 @@ describe('Happy Path', () => {
       .to.emit(market, 'Updated')
       .withArgs(userB.address, userB.address, TIMESTAMP_1, 0, POSITION_B, 0, COLLATERAL, false)
       .to.emit(market, 'OrderCreated')
-      .withArgs(
-        userB.address,
-        {
-          ...DEFAULT_ORDER,
-          timestamp: TIMESTAMP_1,
-          orders: 1,
-          collateral: COLLATERAL,
-          longPos: POSITION_B,
-        },
-        COLLATERAL,
-      )
+      .withArgs(userB.address,  {
+        ...DEFAULT_ORDER,
+        timestamp: TIMESTAMP_1,
+        orders: 1,
+        collateral: COLLATERAL,
+        longPos: POSITION_B,
+      })
 
     // User State
     expectLocalEq(await market.locals(user.address), {
@@ -753,16 +741,12 @@ describe('Happy Path', () => {
       .to.emit(market, 'Updated')
       .withArgs(userB.address, userB.address, TIMESTAMP_2, 0, 0, 0, 0, false)
       .to.emit(market, 'OrderCreated')
-      .withArgs(
-        userB.address,
-        {
-          ...DEFAULT_ORDER,
-          timestamp: TIMESTAMP_2,
-          orders: 1,
-          longNeg: POSITION_B,
-        },
-        0,
-      )
+      .withArgs(userB.address, {
+        ...DEFAULT_ORDER,
+        timestamp: TIMESTAMP_2,
+        orders: 1,
+        longNeg: POSITION_B,
+      })
 
     // User State
     expectLocalEq(await market.locals(userB.address), {

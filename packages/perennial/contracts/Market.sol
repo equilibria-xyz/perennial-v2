@@ -372,7 +372,7 @@ contract Market is IMarket, Instance, ReentrancyGuard {
 
         // events
         emit Updated(msg.sender, account, context.currentTimestamp, newMaker, newLong, newShort, collateral, protect);
-        emit OrderCreated(account, newOrder, collateral);
+        emit OrderCreated(account, newOrder);
     }
 
     /// @notice Loads the context of the transaction
