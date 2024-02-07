@@ -45,16 +45,10 @@ interface IMarket is IInstance {
         Order local;
     }
 
-    struct LocalAccumulationResult {
-        Fixed6 collateral;
-        Fixed6 tradeFee;
-        UFixed6 settlementFee;
-    }
-
     event Updated(address indexed sender, address indexed account, uint256 version, UFixed6 newMaker, UFixed6 newLong, UFixed6 newShort, Fixed6 collateral, bool protect);
     event OrderCreated(address indexed account, uint256 version, Order order, Fixed6 collateral);
     event PositionProcessed(uint256 indexed fromOracleVersion, uint256 indexed toOracleVersion, uint256 fromPosition, uint256 toPosition, VersionAccumulationResult accumulationResult);
-    event AccountPositionProcessed(address indexed account, uint256 indexed fromOracleVersion, uint256 indexed toOracleVersion, uint256 fromPosition, uint256 toPosition, LocalAccumulationResult accumulationResult);
+    event AccountPositionProcessed(address indexed account, uint256 indexed fromOracleVersion, uint256 indexed toOracleVersion, uint256 fromPosition, uint256 toPosition, CheckpointAccumulationResult accumulationResult);
     event BeneficiaryUpdated(address newBeneficiary);
     event CoordinatorUpdated(address newCoordinator);
     event FeeClaimed(address indexed account, UFixed6 amount);
@@ -125,6 +119,7 @@ interface IMarket is IInstance {
     function pending() external view returns (Order memory);
     function global() external view returns (Global memory);
     function checkpoints(address account, uint256 id) external view returns (Checkpoint memory);
+    function liquidators(address account, uint256 id) external view returns (address);
     function update(address account, UFixed6 newMaker, UFixed6 newLong, UFixed6 newShort, Fixed6 collateral, bool protect) external;
     function parameter() external view returns (MarketParameter memory);
     function riskParameter() external view returns (RiskParameter memory);

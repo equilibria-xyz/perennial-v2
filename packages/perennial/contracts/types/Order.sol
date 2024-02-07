@@ -148,29 +148,6 @@ library OrderLib {
             ((long(self).isZero() && short(self).isZero()) || !marketParameter.takerCloseAlways || increasesTaker(self));
     }
 
-    /// @notice Returns the liquidation fee of the position
-    /// @dev Assumes the order must be single-sided
-    /// @param self The position object to check
-    /// @param latestVersion The latest oracle version
-    /// @param riskParameter The current risk parameter
-    /// @return The liquidation fee of the position
-    function liquidationFee(
-        Order memory self,
-        OracleVersion memory latestVersion,
-        RiskParameter memory riskParameter
-    ) internal pure returns (UFixed6) {
-        if (isEmpty(self)) return UFixed6Lib.ZERO;
-
-        UFixed6 partialMaintenance = magnitude(self).abs()
-            .mul(latestVersion.price.abs())
-            .mul(riskParameter.maintenance)
-            .max(riskParameter.minMaintenance);
-
-        return partialMaintenance.mul(riskParameter.liquidationFee)
-            .min(riskParameter.maxLiquidationFee)
-            .max(riskParameter.minLiquidationFee);
-    }
-
     /// @notice Returns whether the order is empty
     /// @param self The order object to check
     /// @return Whether the order is empty

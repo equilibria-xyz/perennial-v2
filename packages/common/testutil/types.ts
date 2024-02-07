@@ -51,8 +51,6 @@ export interface Local {
   latestId: BigNumberish
   collateral: BigNumberish
   protection: BigNumberish
-  protectionAmount: BigNumberish
-  protectionInitiator: string
 }
 
 export interface Version {
@@ -65,6 +63,7 @@ export interface Version {
   takerPosFee: Accumulator
   takerNegFee: Accumulator
   settlementFee: Accumulator
+  liquidationFee: Accumulator
 }
 
 export interface Fee {
@@ -112,8 +111,6 @@ export function expectLocalEq(a: Local, b: Local): void {
   expect(a.latestId).to.equal(b.latestId, 'Local:LatestId')
   expect(a.collateral).to.equal(b.collateral, 'Local:Collateral')
   expect(a.protection).to.equal(b.protection, 'Local:Protection')
-  expect(a.protectionAmount).to.equal(b.protectionAmount, 'Local:ProtectionAmount')
-  expect(a.protectionInitiator).to.equal(b.protectionInitiator, 'Local:ProtectionInitiator')
 }
 
 export function expectVersionEq(a: Version, b: Version): void {
@@ -125,7 +122,7 @@ export function expectVersionEq(a: Version, b: Version): void {
   expect(a.makerNegFee._value).to.equal(b.makerNegFee._value, 'Version:MakerNegFee')
   expect(a.takerPosFee._value).to.equal(b.takerPosFee._value, 'Version:TakerPosFee')
   expect(a.takerNegFee._value).to.equal(b.takerNegFee._value, 'Version:TakerNegFee')
-  expect(a.settlementFee._value).to.equal(b.settlementFee._value, 'Version:SettlementFee')
+  expect(a.settlementFee._value).to.equal(b.settlementFee._value, 'Version:SettlementFee') // TODO: add liquidationFee
 }
 
 export function parse6decimal(amount: string): BigNumber {
@@ -175,8 +172,6 @@ export const DEFAULT_LOCAL: Local = {
   latestId: 0,
   collateral: 0,
   protection: 0,
-  protectionAmount: 0,
-  protectionInitiator: constants.AddressZero,
 }
 
 export const DEFAULT_ORDER: Order = {
@@ -201,4 +196,5 @@ export const DEFAULT_VERSION: Version = {
   takerPosFee: { _value: 0 },
   takerNegFee: { _value: 0 },
   settlementFee: { _value: 0 },
+  liquidationFee: { _value: 0 },
 }
