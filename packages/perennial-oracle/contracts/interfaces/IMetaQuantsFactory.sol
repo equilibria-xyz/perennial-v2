@@ -18,5 +18,4 @@ interface IMetaQuantsFactory is IKeeperFactory {
     error MetaQuantsFactoryInputLengthMismatchError();
     error MetaQuantsFactoryInvalidSignatureError();
     error MetaQuantsFactoryInvalidIdError();
-    error MetaQuantsFactoryVersionOutsideRangeError();
 }

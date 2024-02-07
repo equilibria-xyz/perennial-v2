@@ -31,18 +31,16 @@ contract MetaQuantsFactory is IMetaQuantsFactory, KeeperFactory {
 
     /// @notice Validates and parses the update data payload against the specified version
     /// @param ids The list of price feed ids validate against
-    /// @param version The oracle version to validate against
     /// @param data The update data to validate
     /// @return prices The parsed price list if valid
     function _parsePrices(
         bytes32[] memory ids,
-        uint256 version,
         bytes calldata data
-    ) internal override returns (Fixed18[] memory prices) {
+    ) internal view override returns (PriceRecord[] memory prices) {
         UpdateAndSignature[] memory updates = abi.decode(data, (UpdateAndSignature[]));
         if (updates.length != ids.length) revert MetaQuantsFactoryInputLengthMismatchError();
 
-        prices = new Fixed18[](ids.length);
+        prices = new PriceRecord[](ids.length);
         for (uint256 i; i < updates.length; i++) {
             if (!_verifySignature(updates[i].encodedUpdate, updates[i].signature))
                 revert MetaQuantsFactoryInvalidSignatureError();
@@ -50,14 +48,14 @@ contract MetaQuantsFactory is IMetaQuantsFactory, KeeperFactory {
             MetaQuantsUpdate memory parsedUpdate = abi.decode(updates[i].encodedUpdate, (MetaQuantsUpdate));
 
             if (parsedUpdate.priceFeed.id != toUnderlyingId[ids[i]]) revert MetaQuantsFactoryInvalidIdError();
-            uint256 publishTime = parsedUpdate.priceFeed.price.publishTime;
-            if (publishTime < version + validFrom || publishTime > version + validTo)
-                revert MetaQuantsFactoryVersionOutsideRangeError();
 
             (Fixed18 significand, int256 exponent) =
                 (Fixed18.wrap(parsedUpdate.priceFeed.price.price), parsedUpdate.priceFeed.price.expo + PARSE_DECIMALS);
             Fixed18 base = Fixed18Lib.from(int256(10 ** SignedMath.abs(exponent)));
-            prices[i] = exponent < 0 ? significand.div(base) : significand.mul(base);
+            prices[i] = PriceRecord(
+                parsedUpdate.priceFeed.price.publishTime,
+                exponent < 0 ? significand.div(base) : significand.mul(base)
+            );
         }
     }
 
