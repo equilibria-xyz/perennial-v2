@@ -351,7 +351,7 @@ contract Market is IMarket, Instance, ReentrancyGuard {
         context.local.update(collateral);
 
         // protect account
-        bool protected = context.local.protect(context.latestVersion, context.currentTimestamp, protect);
+        bool protected = context.local.protect(context.latestOracleVersion, context.currentTimestamp, protect);
         if (protected) liquidators[account][context.local.currentId] = msg.sender;
 
         // request version
@@ -389,8 +389,8 @@ contract Market is IMarket, Instance, ReentrancyGuard {
         context.local = _locals[account].read();
 
         // oracle
-        (context.latestVersion, context.currentTimestamp) = oracle.status();
-        context.positionVersion = oracle.at(_position.read().timestamp);
+        (context.latestOracleVersion, context.currentTimestamp) = oracle.status();
+        context.orderOracleVersion = oracle.at(_position.read().timestamp);
     }
 
     /// @notice Stores the given context
@@ -409,30 +409,32 @@ contract Market is IMarket, Instance, ReentrancyGuard {
         context.latestPosition.local = _positions[account].read();
         context.pending.global = _pending.read();
         context.pending.local = _pendings[account].read();
+        context.latestVersion = _versions[context.latestPosition.global.timestamp].read();
+        context.latestCheckpoint = _checkpoints[account][context.latestPosition.local.timestamp].read();
 
         Order memory nextOrder;
 
         // settle
         while (
             context.global.currentId != context.global.latestId &&
-            (nextOrder = _pendingOrder[context.global.latestId + 1].read()).ready(context.latestVersion)
+            (nextOrder = _pendingOrder[context.global.latestId + 1].read()).ready(context.latestOracleVersion)
         ) _processOrderGlobal(context, context.global.latestId + 1, nextOrder);
 
         while (
             context.local.currentId != context.local.latestId &&
-            (nextOrder = _pendingOrders[account][context.local.latestId + 1].read()).ready(context.latestVersion)
+            (nextOrder = _pendingOrders[account][context.local.latestId + 1].read()).ready(context.latestOracleVersion)
         ) _processOrderLocal(context, account, context.local.latestId + 1, nextOrder);
 
         // sync
-        if (context.latestVersion.timestamp > context.latestPosition.global.timestamp) {
+        if (context.latestOracleVersion.timestamp > context.latestPosition.global.timestamp) {
             nextOrder = _pendingOrder[context.global.latestId].read();
-            nextOrder.next(context.latestVersion.timestamp);
+            nextOrder.next(context.latestOracleVersion.timestamp);
             _processOrderGlobal(context, context.global.latestId, nextOrder);
         }
 
-        if (context.latestVersion.timestamp > context.latestPosition.local.timestamp) {
+        if (context.latestOracleVersion.timestamp > context.latestPosition.local.timestamp) {
             nextOrder = _pendingOrders[account][context.local.latestId].read();
-            nextOrder.next(context.latestVersion.timestamp);
+            nextOrder.next(context.latestOracleVersion.timestamp);
             _processOrderLocal(context, account, context.local.latestId, nextOrder);
         }
 
@@ -447,24 +449,22 @@ contract Market is IMarket, Instance, ReentrancyGuard {
     /// @param newOrderId The id of the pending position to process
     /// @param newOrder The pending position to process
     function _processOrderGlobal(Context memory context, uint256 newOrderId, Order memory newOrder) private {
-        Version memory version = _versions[context.latestPosition.global.timestamp].read();
         OracleVersion memory oracleVersion = oracle.at(newOrder.timestamp);
         
         (uint256 fromTimestamp, uint256 fromId) = (context.latestPosition.global.timestamp, context.global.latestId);
         (
             VersionAccumulationResult memory accumulationResult,
             VersionFeeResult memory feeResult
-        ) = version.accumulate(
+        ) = context.latestVersion.accumulate(
             context.global,
             context.latestPosition.global,
             newOrder,
-            context.positionVersion,
+            context.orderOracleVersion,
             oracleVersion,
             context.marketParameter,
             context.riskParameter
         );
-        context.latestPosition.global.update(newOrder, oracleVersion.valid);
-        context.pending.global.sub(newOrder);
+
         context.global.incrementFees(
             feeResult.marketFee,
             feeResult.settlementFee,
@@ -473,17 +473,14 @@ contract Market is IMarket, Instance, ReentrancyGuard {
         );
         context.global.latestId = newOrderId;
         _credit(address(0), feeResult.protocolFee);
-        context.positionVersion = oracleVersion;
-        _versions[newOrder.timestamp].store(version);
 
-        // events
-        emit PositionProcessed(
-            fromTimestamp,
-            newOrder.timestamp,
-            fromId,
-            newOrderId,
-            accumulationResult
-        );
+        context.latestPosition.global.update(newOrder, oracleVersion.valid);
+        context.pending.global.sub(newOrder);
+
+        context.orderOracleVersion = oracleVersion;
+        _versions[newOrder.timestamp].store(context.latestVersion);
+
+        emit PositionProcessed(fromTimestamp, newOrder.timestamp, fromId, newOrderId, accumulationResult);
     }
 
     /// @notice Processes the given local pending position into the latest position
@@ -498,16 +495,16 @@ contract Market is IMarket, Instance, ReentrancyGuard {
         Order memory newOrder
     ) private {
         Version memory version = _versions[newOrder.timestamp].read();
-        Checkpoint memory checkpoint = _checkpoints[account][context.latestPosition.local.timestamp].read();
 
         (uint256 fromTimestamp, uint256 fromId) = (context.latestPosition.local.timestamp, context.local.latestId);
-        CheckpointAccumulationResult memory accumulationResult = checkpoint.accumulate(
+        CheckpointAccumulationResult memory accumulationResult = context.latestCheckpoint.accumulate(
             newOrder,
             context.local,
             context.latestPosition.local,
             _versions[context.latestPosition.local.timestamp].read(),
             version
         );
+
         context.local.update(
             newOrderId,
             accumulationResult.collateral,
@@ -520,9 +517,8 @@ contract Market is IMarket, Instance, ReentrancyGuard {
         context.latestPosition.local.update(newOrder, version.valid);
         context.pending.local.sub(newOrder);
 
-        _checkpoints[account][newOrder.timestamp].store(checkpoint);
+        _checkpoints[account][newOrder.timestamp].store(context.latestCheckpoint);
 
-        // events
         emit AccountPositionProcessed(
             account,
             fromTimestamp,
@@ -563,7 +559,7 @@ contract Market is IMarket, Instance, ReentrancyGuard {
         if (protected && (
             !context.pending.local.neg().eq(context.latestPosition.local.magnitude()) ||
             context.latestPosition.local.maintained(
-                context.latestVersion,
+                context.latestOracleVersion,
                 context.riskParameter,
                 context.local.collateral.sub(collateral)
             ) ||
@@ -574,7 +570,7 @@ contract Market is IMarket, Instance, ReentrancyGuard {
         if (
             !(context.currentPosition.local.magnitude().isZero() && context.latestPosition.local.magnitude().isZero()) &&   // sender has no position
             !(newOrder.isEmpty() && collateral.gte(Fixed6Lib.ZERO)) &&                                                      // sender is depositing zero or more into account, without position change
-            (context.currentTimestamp - context.latestVersion.timestamp >= context.riskParameter.staleAfter)                // price is not stale
+            (context.currentTimestamp - context.latestOracleVersion.timestamp >= context.riskParameter.staleAfter)          // price is not stale
         ) revert MarketStalePriceError();
 
         if (context.marketParameter.closed && newOrder.increasesPosition())
@@ -609,7 +605,7 @@ contract Market is IMarket, Instance, ReentrancyGuard {
         if (
             !PositionLib.margined(
                 context.latestPosition.local.magnitude().add(context.pending.local.pos()),
-                context.latestVersion,
+                context.latestOracleVersion,
                 context.riskParameter,
                 context.local.collateral
             )
