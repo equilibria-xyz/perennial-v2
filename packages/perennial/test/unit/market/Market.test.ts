@@ -692,12 +692,7 @@ describe('Market', () => {
             .to.emit(market, 'Updated')
             .withArgs(user.address, user.address, ORACLE_VERSION_2.timestamp, 0, 0, 0, COLLATERAL, false)
             .to.emit(market, 'OrderCreated')
-            .withArgs(
-              user.address,
-              ORACLE_VERSION_2.timestamp,
-              { ...DEFAULT_ORDER, timestamp: ORACLE_VERSION_2.timestamp, collateral: COLLATERAL },
-              COLLATERAL,
-            )
+            .withArgs(user.address, { ...DEFAULT_ORDER, timestamp: ORACLE_VERSION_2.timestamp, collateral: COLLATERAL }, COLLATERAL)
 
           expectLocalEq(await market.locals(user.address), {
             ...DEFAULT_LOCAL,
@@ -742,12 +737,7 @@ describe('Market', () => {
             .to.emit(market, 'Updated')
             .withArgs(user.address, user.address, ORACLE_VERSION_2.timestamp, 0, 0, 0, COLLATERAL.mul(-1), false)
             .to.emit(market, 'OrderCreated')
-            .withArgs(
-              user.address,
-              ORACLE_VERSION_2.timestamp,
-              { ...DEFAULT_ORDER, timestamp: ORACLE_VERSION_2.timestamp, collateral: -COLLATERAL },
-              COLLATERAL.mul(-1),
-            )
+            .withArgs(user.address, { ...DEFAULT_ORDER, timestamp: ORACLE_VERSION_2.timestamp, collateral: -COLLATERAL }, COLLATERAL.mul(-1))
 
           expectLocalEq(await market.locals(user.address), {
             ...DEFAULT_LOCAL,
@@ -978,7 +968,6 @@ describe('Market', () => {
               .to.emit(market, 'OrderCreated')
               .withArgs(
                 user.address,
-                ORACLE_VERSION_2.timestamp,
                 {
                   ...DEFAULT_ORDER,
                   orders: 1,
@@ -1903,7 +1892,6 @@ describe('Market', () => {
                 .to.emit(market, 'OrderCreated')
                 .withArgs(
                   user.address,
-                  ORACLE_VERSION_2.timestamp,
                   {
                     ...DEFAULT_ORDER,
                     timestamp: ORACLE_VERSION_2.timestamp,
@@ -4613,7 +4601,6 @@ describe('Market', () => {
                 .to.emit(market, 'OrderCreated')
                 .withArgs(
                   user.address,
-                  ORACLE_VERSION_2.timestamp,
                   {
                     ...DEFAULT_ORDER,
                     timestamp: ORACLE_VERSION_2.timestamp,
