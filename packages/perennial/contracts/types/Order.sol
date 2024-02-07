@@ -156,7 +156,7 @@ library OrderLib {
 
     /// @notice Returns whether the order is protected
     /// @param self The order object to check
-    /// @return Whether the order is empty
+    /// @return Whether the order is protected
     function protected(Order memory self) internal pure returns (bool) {
         return self.protection != 0;
     }
