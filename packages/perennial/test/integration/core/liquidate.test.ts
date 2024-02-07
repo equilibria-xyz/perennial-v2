@@ -32,7 +32,7 @@ describe('Liquidate', () => {
       .to.emit(market, 'Updated')
       .withArgs(userB.address, user.address, TIMESTAMP_2, 0, 0, 0, 0, true)
 
-    expect((await market.locals(user.address)).protection).to.eq(TIMESTAMP_2)
+    expect((await market.pendingOrders(user.address, 2)).protection).to.eq(1)
     expect(await market.liquidators(user.address, 2)).to.eq(userB.address)
 
     expect((await market.locals(user.address)).collateral).to.equal(COLLATERAL)
@@ -50,7 +50,7 @@ describe('Liquidate', () => {
     await market.connect(user).update(user.address, 0, 0, 0, constants.MinInt256, false) // withdraw everything
 
     expect((await market.position()).timestamp).to.eq(TIMESTAMP_2)
-    expect((await market.locals(user.address)).protection).to.eq(TIMESTAMP_2)
+    expect((await market.pendingOrders(user.address, 2)).protection).to.eq(1)
   })
 
   it('creates and resolves a shortfall', async () => {

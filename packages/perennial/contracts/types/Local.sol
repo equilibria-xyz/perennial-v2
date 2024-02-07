@@ -20,9 +20,6 @@ struct Local {
 
     /// @dev The collateral balance
     Fixed6 collateral;
-
-    /// @dev The timestamp of the latest protection
-    uint256 protection;
 }
 using LocalLib for Local global;
 struct LocalStorage { uint256 slot0; }
@@ -52,25 +49,12 @@ library LocalLib {
         UFixed6 settlementFee,
         UFixed6 liquidationFee
     ) internal pure {
-        self.collateral = self.collateral.add(collateral).sub(tradeFee).sub(Fixed6Lib.from(settlementFee)).sub(Fixed6Lib.from(liquidationFee));
+        self.collateral = self.collateral
+            .add(collateral)
+            .sub(tradeFee)
+            .sub(Fixed6Lib.from(settlementFee))
+            .sub(Fixed6Lib.from(liquidationFee));
         self.latestId = newId;
-    }
-
-    /// @notice Updates the Local to put it into a protected state for liquidation
-    /// @param self The Local object to update
-    /// @param latestVersion The latest oracle version
-    /// @param currentTimestamp The current timestamp
-    /// @param tryProtect Whether to try to protect the Local
-    /// @return Whether the protection was protected
-    function protect(
-        Local memory self,
-        OracleVersion memory latestVersion,
-        uint256 currentTimestamp,
-        bool tryProtect
-    ) internal pure returns (bool) {
-        if (!tryProtect || self.protection > latestVersion.timestamp) return false;
-        self.protection = currentTimestamp;
-        return true;
     }
 }
 
@@ -81,8 +65,7 @@ library LocalLib {
 ///         uint32 currentId;       // <= 4.29b
 ///         uint32 latestId;        // <= 4.29b
 ///         int64 collateral;       // <= 9.22t
-///         uint64 __unallocated__;
-///         uint32 protection;      // <= 4.29b
+///         uint96 __unallocated__;
 ///     }
 ///
 library LocalStorageLib {
@@ -94,8 +77,7 @@ library LocalStorageLib {
         return Local(
             uint256(slot0 << (256 - 32)) >> (256 - 32),
             uint256(slot0 << (256 - 32 - 32)) >> (256 - 32),
-            Fixed6.wrap(int256(slot0 << (256 - 32 - 32 - 64)) >> (256 - 64)),
-            (uint256(slot0) << (256 - 32 - 32 - 64 - 64 - 32)) >> (256 - 32)
+            Fixed6.wrap(int256(slot0 << (256 - 32 - 32 - 64)) >> (256 - 64))
         );
     }
 
@@ -104,13 +86,11 @@ library LocalStorageLib {
         if (newValue.latestId > uint256(type(uint32).max)) revert LocalStorageInvalidError();
         if (newValue.collateral.gt(Fixed6.wrap(type(int64).max))) revert LocalStorageInvalidError();
         if (newValue.collateral.lt(Fixed6.wrap(type(int64).min))) revert LocalStorageInvalidError();
-        if (newValue.protection > uint256(type(uint32).max)) revert LocalStorageInvalidError();
 
         uint256 encoded0 =
             uint256(newValue.currentId << (256 - 32)) >> (256 - 32) |
             uint256(newValue.latestId << (256 - 32)) >> (256 - 32 - 32) |
-            uint256(Fixed6.unwrap(newValue.collateral) << (256 - 64)) >> (256 - 32 - 32 - 64) |
-            uint256(newValue.protection << (256 - 32)) >> (256 - 32 - 32 - 64 - 64 - 32);
+            uint256(Fixed6.unwrap(newValue.collateral) << (256 - 64)) >> (256 - 32 - 32 - 64);
         assembly {
             sstore(self.slot, encoded0)
         }

@@ -31,14 +31,4 @@ contract LocalTester {
         newLocal.update(newId, collateral, tradeFee, settlementFee, liquidationFee);
         local.store(newLocal);
     }
-
-    function protect(
-        OracleVersion memory latestVersion,
-        uint256 currentTimestamp,
-        bool tryProtect
-    ) external returns (bool result) {
-        Local memory newLocal = local.read();
-        result = newLocal.protect(latestVersion, currentTimestamp, tryProtect);
-        local.store(newLocal);
-    }
 }
