@@ -46,7 +46,7 @@ interface IMarket is IInstance {
     }
 
     event Updated(address indexed sender, address indexed account, uint256 version, UFixed6 newMaker, UFixed6 newLong, UFixed6 newShort, Fixed6 collateral, bool protect);
-    event OrderCreated(address indexed account, Order order, Fixed6 collateral);
+    event OrderCreated(address indexed account, Order order);
     event PositionProcessed(uint256 indexed fromOracleVersion, uint256 indexed toOracleVersion, uint256 fromPosition, uint256 toPosition, VersionAccumulationResult accumulationResult);
     event AccountPositionProcessed(address indexed account, uint256 indexed fromOracleVersion, uint256 indexed toOracleVersion, uint256 fromPosition, uint256 toPosition, CheckpointAccumulationResult accumulationResult);
     event BeneficiaryUpdated(address newBeneficiary);
