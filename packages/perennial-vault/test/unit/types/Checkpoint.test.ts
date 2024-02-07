@@ -263,7 +263,7 @@ describe('Checkpoint', () => {
     it('completes the checkpoint', async () => {
       await checkpoint.store(VALID_CHECKPOINT)
 
-      const marketCheckpoint = { collateral: 123, tradeFee: 456, settlementFee: 78, delta: 0 }
+      const marketCheckpoint = { collateral: 123, tradeFee: 456, settlementFee: 78, transfer: 0 }
       await checkpoint.complete(marketCheckpoint)
 
       const value = await checkpoint.read()

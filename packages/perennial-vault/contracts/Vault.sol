@@ -505,8 +505,11 @@ contract Vault is IVault, Instance {
     ) public view returns (PerennialCheckpoint memory checkpoint) {
         Mapping memory mappingAtId = _mappings[id].read();
         for (uint256 marketId; marketId < mappingAtId.length(); marketId++) {
+            Order memory orderAtId = context.registrations[marketId].market
+                .pendingOrders(address(this), mappingAtId.get(marketId));
             PerennialCheckpoint memory marketCheckpoint = context.registrations[marketId].market
-                .checkpoints(address(this), mappingAtId.get(marketId));
+                .checkpoints(address(this), orderAtId.timestamp);
+
             (checkpoint.collateral, checkpoint.tradeFee, checkpoint.settlementFee) = (
                 checkpoint.collateral.add(marketCheckpoint.collateral),
                 checkpoint.tradeFee.add(marketCheckpoint.tradeFee),
