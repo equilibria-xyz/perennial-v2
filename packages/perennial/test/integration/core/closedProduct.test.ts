@@ -135,8 +135,6 @@ describe('Closed Market', () => {
     await chainlink.nextWithPriceModification(price => price.mul(2))
     await expect(market.connect(userB).update(user.address, 0, 0, 0, 0, true)).to.not.be.reverted
     expect((await market.locals(user.address)).protection).to.eq(TIMESTAMP_3)
-    expect((await market.locals(user.address)).protectionAmount).to.eq('690277557')
-    expect((await market.locals(user.address)).protectionInitiator).to.eq(userB.address)
     const parameters = { ...(await market.parameter()) }
     parameters.closed = true
     await market.updateParameter(beneficiaryB.address, AddressZero, parameters)
@@ -147,8 +145,6 @@ describe('Closed Market', () => {
 
     expect((await market.position()).timestamp).to.eq(TIMESTAMP_3)
     expect((await market.locals(user.address)).protection).to.eq(TIMESTAMP_3)
-    expect((await market.locals(user.address)).protectionAmount).to.eq('690277557')
-    expect((await market.locals(user.address)).protectionInitiator).to.eq(userB.address)
     const userCollateralBefore = (await market.locals(user.address)).collateral
     const userBCollateralBefore = (await market.locals(userB.address)).collateral
     const feesABefore = (await market.global()).protocolFee

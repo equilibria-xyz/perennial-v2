@@ -22,8 +22,6 @@ const DEFAULT_LOCAL: LocalStruct = {
   latestId: 0,
   collateral: 0,
   protection: 0,
-  protectionAmount: 0,
-  protectionInitiator: ethers.constants.AddressZero,
 }
 
 const DEFAULT_ADDRESS = '0x0123456789abcdef0123456789abcdef01234567'
@@ -45,8 +43,6 @@ describe('Local', () => {
       latestId: 5,
       collateral: 2,
       protection: 4,
-      protectionAmount: 5,
-      protectionInitiator: DEFAULT_ADDRESS,
     }
     it('stores a new value', async () => {
       await local.store(VALID_STORED_VALUE)
@@ -56,8 +52,6 @@ describe('Local', () => {
       expect(value.latestId).to.equal(5)
       expect(value.collateral).to.equal(2)
       expect(value.protection).to.equal(4)
-      expect(value.protectionAmount).to.equal(5)
-      expect(value.protectionInitiator.toLowerCase()).to.equal(DEFAULT_ADDRESS)
     })
 
     context('.currentId', async () => {
@@ -161,38 +155,6 @@ describe('Local', () => {
         ).to.be.revertedWithCustomError(local, 'LocalStorageInvalidError')
       })
     })
-
-    context('.protectionAmount', async () => {
-      const STORAGE_SIZE = 64
-      it('saves if in range', async () => {
-        await local.store({
-          ...VALID_STORED_VALUE,
-          protectionAmount: BigNumber.from(2).pow(STORAGE_SIZE).sub(1),
-        })
-        const value = await local.read()
-        expect(value.protectionAmount).to.equal(BigNumber.from(2).pow(STORAGE_SIZE).sub(1))
-      })
-
-      it('reverts if amount out of range', async () => {
-        await expect(
-          local.store({
-            ...VALID_STORED_VALUE,
-            protectionAmount: BigNumber.from(2).pow(STORAGE_SIZE),
-          }),
-        ).to.be.revertedWithCustomError(local, 'LocalStorageInvalidError')
-      })
-    })
-
-    context('.protectionInitiator', async () => {
-      it('saves', async () => {
-        await local.store({
-          ...VALID_STORED_VALUE,
-          protectionInitiator: owner.address,
-        })
-        const value = await local.read()
-        expect(value.protectionInitiator).to.equal(owner.address)
-      })
-    })
   })
 
   describe('#update', () => {
@@ -218,10 +180,10 @@ describe('Local', () => {
   describe('#update', () => {
     it('correctly updates fees', async () => {
       await local.store({ ...DEFAULT_LOCAL, collateral: 1000 })
-      await local['update(uint256,int256,int256,uint256)'](11, 567, -123, 456)
+      await local['update(uint256,int256,int256,uint256,uint256)'](11, 567, -123, 456, 256)
 
       const storedLocal = await local.read()
-      expect(await storedLocal.collateral).to.equal(1234)
+      expect(await storedLocal.collateral).to.equal(978)
       expect(await storedLocal.latestId).to.equal(11)
     })
   })
@@ -251,8 +213,6 @@ describe('Local', () => {
       makerLimit: 7,
       efficiencyLimit: 8,
       liquidationFee: 9,
-      minLiquidationFee: 10,
-      maxLiquidationFee: 11,
       utilizationCurve: {
         minRate: 101,
         maxRate: 102,
@@ -270,220 +230,59 @@ describe('Local', () => {
     }
 
     it('doesnt protect tryProtect == false', async () => {
-      const result = await local.callStatic.protect(
-        VALID_RISK_PARAMETER,
-        VALID_ORACLE_VERSION,
-        123,
-        DEFAULT_ORDER,
-        owner.address,
-        false,
-      )
-      await local.protect(VALID_RISK_PARAMETER, VALID_ORACLE_VERSION, 123, DEFAULT_ORDER, owner.address, false)
+      const result = await local.callStatic.protect(VALID_ORACLE_VERSION, 123, false)
+      await local.protect(VALID_ORACLE_VERSION, 123, false)
 
       const value = await local.read()
 
       expect(result).to.equal(false)
 
       expect(value.protection).to.equal(0)
-      expect(value.protectionAmount).to.equal(0)
-      expect(value.protectionInitiator).to.equal(ethers.constants.AddressZero)
     })
 
     it('doesnt protect still protected version', async () => {
       await local.store({
         ...DEFAULT_LOCAL,
         protection: 124,
-        protectionAmount: 5,
-        protectionInitiator: owner.address,
       })
-      const result = await local.callStatic.protect(
-        VALID_RISK_PARAMETER,
-        { ...VALID_ORACLE_VERSION, timestamp: 123 },
-        127,
-        DEFAULT_ORDER,
-        owner.address,
-        true,
-      )
-      await local.protect(
-        VALID_RISK_PARAMETER,
-        { ...VALID_ORACLE_VERSION, timestamp: 123 },
-        127,
-        DEFAULT_ORDER,
-        owner.address,
-        true,
-      )
+      const result = await local.callStatic.protect({ ...VALID_ORACLE_VERSION, timestamp: 123 }, 127, true)
+      await local.protect({ ...VALID_ORACLE_VERSION, timestamp: 123 }, 127, true)
 
       const value = await local.read()
 
       expect(result).to.equal(false)
 
       expect(value.protection).to.equal(124)
-      expect(value.protectionAmount).to.equal(5)
-      expect(value.protectionInitiator).to.equal(owner.address)
     })
 
     it('protects if just settled protection', async () => {
       await local.store({
         ...DEFAULT_LOCAL,
         protection: 124,
-        protectionAmount: 5,
-        protectionInitiator: owner.address,
       })
-      const result = await local.callStatic.protect(
-        VALID_RISK_PARAMETER,
-        { ...VALID_ORACLE_VERSION, timestamp: 124 },
-        127,
-        { ...DEFAULT_ORDER, makerPos: parse6decimal('1') },
-        owner.address,
-        true,
-      )
-      await local.protect(
-        VALID_RISK_PARAMETER,
-        { ...VALID_ORACLE_VERSION, timestamp: 124 },
-        127,
-        { ...DEFAULT_ORDER, makerPos: parse6decimal('1') },
-        owner.address,
-        true,
-      )
+      const result = await local.callStatic.protect({ ...VALID_ORACLE_VERSION, timestamp: 124 }, 127, true)
+      await local.protect({ ...VALID_ORACLE_VERSION, timestamp: 124 }, 127, true)
 
       const value = await local.read()
 
       expect(result).to.equal(true)
 
       expect(value.protection).to.equal(127)
-      expect(value.protectionAmount).to.equal(10)
-      expect(value.protectionInitiator).to.equal(owner.address)
     })
 
     it('protects', async () => {
       await local.store({
         ...DEFAULT_LOCAL,
         protection: 121,
-        protectionAmount: 5,
-        protectionInitiator: owner.address,
       })
-      const result = await local.callStatic.protect(
-        VALID_RISK_PARAMETER,
-        { ...VALID_ORACLE_VERSION, timestamp: 124 },
-        127,
-        { ...DEFAULT_ORDER, makerPos: parse6decimal('1') },
-        owner.address,
-        true,
-      )
-      await local.protect(
-        VALID_RISK_PARAMETER,
-        { ...VALID_ORACLE_VERSION, timestamp: 124 },
-        127,
-        { ...DEFAULT_ORDER, makerPos: parse6decimal('1') },
-        owner.address,
-        true,
-      )
+      const result = await local.callStatic.protect({ ...VALID_ORACLE_VERSION, timestamp: 124 }, 127, true)
+      await local.protect({ ...VALID_ORACLE_VERSION, timestamp: 124 }, 127, true)
 
       const value = await local.read()
 
       expect(result).to.equal(true)
 
       expect(value.protection).to.equal(127)
-      expect(value.protectionAmount).to.equal(10)
-      expect(value.protectionInitiator).to.equal(owner.address)
-    })
-  })
-
-  describe('#processProtection', () => {
-    const TO_VERSION: VersionStruct = {
-      valid: true,
-      makerValue: { _value: parse6decimal('1000') },
-      longValue: { _value: parse6decimal('2000') },
-      shortValue: { _value: parse6decimal('3000') },
-      makerPosFee: { _value: parse6decimal('4000') },
-      makerNegFee: { _value: parse6decimal('5000') },
-      takerPosFee: { _value: parse6decimal('6000') },
-      takerNegFee: { _value: parse6decimal('7000') },
-      settlementFee: { _value: parse6decimal('8000') },
-    }
-
-    it('does not decrement fee when invalid', async () => {
-      await local.store({
-        ...DEFAULT_LOCAL,
-        currentId: 0,
-        latestId: 0,
-        collateral: 1000,
-        protection: 123,
-        protectionAmount: 123,
-        protectionInitiator: owner.address,
-      })
-
-      const result = await local.callStatic.processProtection(DEFAULT_ORDER, { ...TO_VERSION, valid: false })
-      await local.processProtection(DEFAULT_ORDER, { ...TO_VERSION, valid: false })
-
-      const value = await local.read()
-
-      expect(result).to.equal(false)
-
-      expect(value.collateral).to.equal(1000)
-    })
-
-    it('does not decrement fee when timestamp before', async () => {
-      await local.store({
-        ...DEFAULT_LOCAL,
-        currentId: 0,
-        latestId: 0,
-        collateral: 1000,
-        protection: 123,
-        protectionAmount: 123,
-        protectionInitiator: owner.address,
-      })
-
-      const result = await local.callStatic.processProtection({ ...DEFAULT_ORDER, timestamp: 122 }, TO_VERSION)
-      await local.processProtection({ ...DEFAULT_ORDER, timestamp: 122 }, TO_VERSION)
-
-      const value = await local.read()
-
-      expect(result).to.equal(false)
-
-      expect(value.collateral).to.equal(1000)
-    })
-
-    it('does not decrement fee when timestamp after', async () => {
-      await local.store({
-        ...DEFAULT_LOCAL,
-        currentId: 0,
-        latestId: 0,
-        collateral: 1000,
-        protection: 123,
-        protectionAmount: 123,
-        protectionInitiator: owner.address,
-      })
-
-      const result = await local.callStatic.processProtection({ ...DEFAULT_ORDER, timestamp: 124 }, TO_VERSION)
-      await local.processProtection({ ...DEFAULT_ORDER, timestamp: 122 }, TO_VERSION)
-
-      const value = await local.read()
-
-      expect(result).to.equal(false)
-
-      expect(value.collateral).to.equal(1000)
-    })
-
-    it('decrements fee when valid', async () => {
-      await local.store({
-        ...DEFAULT_LOCAL,
-        currentId: 0,
-        latestId: 0,
-        collateral: 1000,
-        protection: 123,
-        protectionAmount: 123,
-        protectionInitiator: owner.address,
-      })
-
-      const result = await local.callStatic.processProtection({ ...DEFAULT_ORDER, timestamp: 123 }, TO_VERSION)
-      await local.processProtection({ ...DEFAULT_ORDER, timestamp: 123 }, TO_VERSION)
-
-      const value = await local.read()
-
-      expect(result).to.equal(true)
-
-      expect(value.collateral).to.equal(877)
     })
   })
 })

@@ -55,12 +55,14 @@ const DEFAULT_VERSION_ACCUMULATION_RESULT = {
   pnlShort: 0,
 
   settlementFee: 0,
+  liquidationFee: parse6decimal('10.000'), // will return liquidation fee unless invalid
 }
 
 const DEFAULT_LOCAL_ACCUMULATION_RESULT = {
   collateral: 0,
   tradeFee: 0,
   settlementFee: 0,
+  liquidationFee: 0,
 }
 
 const ORACLE_VERSION_0 = {
@@ -417,9 +419,7 @@ describe('Market', () => {
       },
       makerLimit: parse6decimal('1000'),
       efficiencyLimit: parse6decimal('0.2'),
-      liquidationFee: parse6decimal('0.50'),
-      minLiquidationFee: parse6decimal('0'),
-      maxLiquidationFee: parse6decimal('1000'),
+      liquidationFee: parse6decimal('10.00'),
       utilizationCurve: {
         minRate: parse6decimal('0.0'),
         maxRate: parse6decimal('1.00'),
@@ -473,8 +473,6 @@ describe('Market', () => {
       expect(riskParameterResult.makerLimit).to.equal(0)
       expect(riskParameterResult.efficiencyLimit).to.equal(0)
       expect(riskParameterResult.liquidationFee).to.equal(0)
-      expect(riskParameterResult.minLiquidationFee).to.equal(0)
-      expect(riskParameterResult.maxLiquidationFee).to.equal(0)
       expect(riskParameterResult.utilizationCurve.minRate).to.equal(0)
       expect(riskParameterResult.utilizationCurve.targetRate).to.equal(0)
       expect(riskParameterResult.utilizationCurve.maxRate).to.equal(0)
@@ -582,9 +580,7 @@ describe('Market', () => {
         },
         makerLimit: parse6decimal('2000'),
         efficiencyLimit: parse6decimal('0.2'),
-        liquidationFee: parse6decimal('0.25'),
-        minLiquidationFee: parse6decimal('10'),
-        maxLiquidationFee: parse6decimal('200'),
+        liquidationFee: parse6decimal('5.00'),
         utilizationCurve: {
           minRate: parse6decimal('0.20'),
           maxRate: parse6decimal('0.20'),
@@ -621,8 +617,6 @@ describe('Market', () => {
         expect(riskParameter.makerLimit).to.equal(defaultRiskParameter.makerLimit)
         expect(riskParameter.efficiencyLimit).to.equal(defaultRiskParameter.efficiencyLimit)
         expect(riskParameter.liquidationFee).to.equal(defaultRiskParameter.liquidationFee)
-        expect(riskParameter.minLiquidationFee).to.equal(defaultRiskParameter.minLiquidationFee)
-        expect(riskParameter.maxLiquidationFee).to.equal(defaultRiskParameter.maxLiquidationFee)
         expect(riskParameter.utilizationCurve.minRate).to.equal(defaultRiskParameter.utilizationCurve.minRate)
         expect(riskParameter.utilizationCurve.targetRate).to.equal(defaultRiskParameter.utilizationCurve.targetRate)
         expect(riskParameter.utilizationCurve.maxRate).to.equal(defaultRiskParameter.utilizationCurve.maxRate)
@@ -658,8 +652,6 @@ describe('Market', () => {
         expect(riskParameter.makerLimit).to.equal(defaultRiskParameter.makerLimit)
         expect(riskParameter.efficiencyLimit).to.equal(defaultRiskParameter.efficiencyLimit)
         expect(riskParameter.liquidationFee).to.equal(defaultRiskParameter.liquidationFee)
-        expect(riskParameter.minLiquidationFee).to.equal(defaultRiskParameter.minLiquidationFee)
-        expect(riskParameter.maxLiquidationFee).to.equal(defaultRiskParameter.maxLiquidationFee)
         expect(riskParameter.utilizationCurve.minRate).to.equal(defaultRiskParameter.utilizationCurve.minRate)
         expect(riskParameter.utilizationCurve.targetRate).to.equal(defaultRiskParameter.utilizationCurve.targetRate)
         expect(riskParameter.utilizationCurve.maxRate).to.equal(defaultRiskParameter.utilizationCurve.maxRate)
@@ -3580,7 +3572,7 @@ describe('Market', () => {
               await settle(market, userB)
 
               const EXPECTED_PNL = parse6decimal('27').mul(5)
-              const EXPECTED_LIQUIDATION_FEE = parse6decimal('225')
+              const EXPECTED_LIQUIDATION_FEE = parse6decimal('10')
 
               const oracleVersionHigherPrice = {
                 price: parse6decimal('150'),
@@ -3658,9 +3650,8 @@ describe('Market', () => {
                   .sub(EXPECTED_LIQUIDATION_FEE)
                   .sub(22), // loss of precision
                 protection: ORACLE_VERSION_4.timestamp,
-                protectionAmount: EXPECTED_LIQUIDATION_FEE,
-                protectionInitiator: liquidator.address,
               })
+              expect(await market.liquidators(userB.address, 3)).to.equal(liquidator.address)
               expectPositionEq(await market.positions(userB.address), {
                 ...DEFAULT_POSITION,
                 timestamp: ORACLE_VERSION_5.timestamp,
@@ -3758,7 +3749,7 @@ describe('Market', () => {
               await settle(market, userC)
 
               const EXPECTED_PNL = parse6decimal('27').mul(5).div(2)
-              const EXPECTED_LIQUIDATION_FEE = parse6decimal('225')
+              const EXPECTED_LIQUIDATION_FEE = parse6decimal('10')
 
               const oracleVersionHigherPrice = {
                 price: parse6decimal('150'),
@@ -3854,9 +3845,8 @@ describe('Market', () => {
                   .sub(EXPECTED_LIQUIDATION_FEE)
                   .sub(16), // loss of precision
                 protection: ORACLE_VERSION_4.timestamp,
-                protectionAmount: EXPECTED_LIQUIDATION_FEE,
-                protectionInitiator: liquidator.address,
               })
+              expect(await market.liquidators(userB.address, 3)).to.equal(liquidator.address)
               expectPositionEq(await market.positions(userB.address), {
                 ...DEFAULT_POSITION,
                 timestamp: ORACLE_VERSION_5.timestamp,
@@ -3974,11 +3964,19 @@ describe('Market', () => {
               oracle.status.returns([ORACLE_VERSION_2, ORACLE_VERSION_3.timestamp])
               oracle.request.whenCalledWith(user.address).returns()
 
+              const protocolParameter = { ...(await factory.parameter()) }
+              protocolParameter.maxFeeAbsolute = parse6decimal('100')
+              await factory.connect(owner).updateParameter(protocolParameter)
+
+              const riskParameter = { ...(await market.riskParameter()) }
+              riskParameter.liquidationFee = parse6decimal('100')
+              await market.connect(owner).updateRiskParameter(riskParameter)
+
               await settle(market, user)
               await settle(market, userB)
 
               const EXPECTED_PNL = parse6decimal('80').mul(5)
-              const EXPECTED_LIQUIDATION_FEE = parse6decimal('304.5')
+              const EXPECTED_LIQUIDATION_FEE = parse6decimal('100')
 
               const oracleVersionHigherPrice = {
                 price: parse6decimal('203'),
@@ -4027,9 +4025,8 @@ describe('Market', () => {
                   .sub(EXPECTED_PNL)
                   .sub(8), // loss of precision
                 protection: ORACLE_VERSION_4.timestamp,
-                protectionAmount: EXPECTED_LIQUIDATION_FEE,
-                protectionInitiator: liquidator.address,
               })
+              expect(await market.liquidators(userB.address, 3)).to.equal(liquidator.address)
               expectPositionEq(await market.positions(userB.address), {
                 ...DEFAULT_POSITION,
                 timestamp: ORACLE_VERSION_3.timestamp,
@@ -4128,9 +4125,8 @@ describe('Market', () => {
                 latestId: 3,
                 collateral: 0,
                 protection: ORACLE_VERSION_4.timestamp,
-                protectionAmount: EXPECTED_LIQUIDATION_FEE,
-                protectionInitiator: liquidator.address,
               })
+              expect(await market.liquidators(userB.address, 3)).to.equal(liquidator.address)
               expectPositionEq(await market.positions(userB.address), {
                 ...DEFAULT_POSITION,
                 timestamp: ORACLE_VERSION_4.timestamp,
@@ -4163,7 +4159,7 @@ describe('Market', () => {
               await settle(market, userB)
 
               const EXPECTED_PNL = parse6decimal('27').mul(5)
-              const EXPECTED_LIQUIDATION_FEE = parse6decimal('72')
+              const EXPECTED_LIQUIDATION_FEE = parse6decimal('10')
 
               const oracleVersionLowerPrice = {
                 price: parse6decimal('96'),
@@ -4210,9 +4206,8 @@ describe('Market', () => {
                   .sub(EXPECTED_FUNDING_WITH_FEE_2_5_96.add(EXPECTED_INTEREST_5_96))
                   .sub(EXPECTED_LIQUIDATION_FEE),
                 protection: ORACLE_VERSION_4.timestamp,
-                protectionAmount: EXPECTED_LIQUIDATION_FEE,
-                protectionInitiator: liquidator.address,
               })
+              expect(await market.liquidators(user.address, 3)).to.equal(liquidator.address)
               expectLocalEq(await market.locals(liquidator.address), {
                 ...DEFAULT_LOCAL,
                 currentId: 0,
@@ -4334,7 +4329,7 @@ describe('Market', () => {
               await settle(market, userB)
 
               const EXPECTED_PNL = parse6decimal('80').mul(5)
-              const EXPECTED_LIQUIDATION_FEE = parse6decimal('32.25')
+              const EXPECTED_LIQUIDATION_FEE = parse6decimal('10')
 
               const oracleVersionLowerPrice = {
                 price: parse6decimal('43'),
@@ -4361,9 +4356,8 @@ describe('Market', () => {
                   .sub(EXPECTED_FUNDING_WITH_FEE_1_5_123.add(EXPECTED_INTEREST_5_123))
                   .sub(EXPECTED_PNL),
                 protection: ORACLE_VERSION_4.timestamp,
-                protectionAmount: EXPECTED_LIQUIDATION_FEE,
-                protectionInitiator: liquidator.address,
               })
+              expect(await market.liquidators(user.address, 3)).to.equal(liquidator.address)
               expectPositionEq(await market.positions(user.address), {
                 ...DEFAULT_POSITION,
                 timestamp: ORACLE_VERSION_3.timestamp,
@@ -4474,9 +4468,8 @@ describe('Market', () => {
                 latestId: 3,
                 collateral: 0,
                 protection: ORACLE_VERSION_4.timestamp,
-                protectionAmount: EXPECTED_LIQUIDATION_FEE,
-                protectionInitiator: liquidator.address,
               })
+              expect(await market.liquidators(user.address, 3)).to.equal(liquidator.address)
               expectLocalEq(await market.locals(liquidator.address), {
                 ...DEFAULT_LOCAL,
                 currentId: 0,
@@ -6317,7 +6310,7 @@ describe('Market', () => {
               await settle(market, userB)
 
               const EXPECTED_PNL = parse6decimal('27').mul(5)
-              const EXPECTED_LIQUIDATION_FEE = parse6decimal('144')
+              const EXPECTED_LIQUIDATION_FEE = parse6decimal('10')
 
               const oracleVersionLowerPrice = {
                 price: parse6decimal('96'),
@@ -6391,9 +6384,8 @@ describe('Market', () => {
                   .sub(EXPECTED_LIQUIDATION_FEE)
                   .sub(20), // loss of precision
                 protection: ORACLE_VERSION_4.timestamp,
-                protectionAmount: EXPECTED_LIQUIDATION_FEE,
-                protectionInitiator: liquidator.address,
               })
+              expect(await market.liquidators(userB.address, 3)).to.equal(liquidator.address)
               expectPositionEq(await market.positions(userB.address), {
                 ...DEFAULT_POSITION,
                 timestamp: ORACLE_VERSION_5.timestamp,
@@ -6488,7 +6480,7 @@ describe('Market', () => {
               await settle(market, userC)
 
               const EXPECTED_PNL = parse6decimal('27').mul(5).div(2)
-              const EXPECTED_LIQUIDATION_FEE = parse6decimal('144')
+              const EXPECTED_LIQUIDATION_FEE = parse6decimal('10')
 
               // (0.08 / 365 / 24 / 60 / 60 ) * 3600 * 5 * 123 = 5620
               const EXPECTED_INTEREST_1 = BigNumber.from(5620)
@@ -6583,9 +6575,8 @@ describe('Market', () => {
                   .sub(EXPECTED_LIQUIDATION_FEE)
                   .sub(17), // loss of precision
                 protection: ORACLE_VERSION_4.timestamp,
-                protectionAmount: EXPECTED_LIQUIDATION_FEE,
-                protectionInitiator: liquidator.address,
               })
+              expect(await market.liquidators(userB.address, 3)).to.equal(liquidator.address)
               expectPositionEq(await market.positions(userB.address), {
                 ...DEFAULT_POSITION,
                 timestamp: ORACLE_VERSION_5.timestamp,
@@ -6708,7 +6699,7 @@ describe('Market', () => {
               await settle(market, userB)
 
               const EXPECTED_PNL = parse6decimal('80').mul(5)
-              const EXPECTED_LIQUIDATION_FEE = parse6decimal('64.5')
+              const EXPECTED_LIQUIDATION_FEE = parse6decimal('10')
 
               const oracleVersionHigherPrice = {
                 price: parse6decimal('43'),
@@ -6756,9 +6747,8 @@ describe('Market', () => {
                   .sub(EXPECTED_PNL)
                   .sub(8), // loss of precision
                 protection: ORACLE_VERSION_4.timestamp,
-                protectionAmount: EXPECTED_LIQUIDATION_FEE,
-                protectionInitiator: liquidator.address,
               })
+              expect(await market.liquidators(userB.address, 3)).to.equal(liquidator.address)
               expectOrderEq(await market.pendingOrders(userB.address, 3), {
                 ...DEFAULT_ORDER,
                 timestamp: ORACLE_VERSION_4.timestamp,
@@ -6850,9 +6840,8 @@ describe('Market', () => {
                 latestId: 3,
                 collateral: 0,
                 protection: ORACLE_VERSION_4.timestamp,
-                protectionAmount: EXPECTED_LIQUIDATION_FEE,
-                protectionInitiator: liquidator.address,
               })
+              expect(await market.liquidators(userB.address, 3)).to.equal(liquidator.address)
               expectPositionEq(await market.positions(userB.address), {
                 ...DEFAULT_POSITION,
                 timestamp: ORACLE_VERSION_4.timestamp,
@@ -6885,7 +6874,7 @@ describe('Market', () => {
               await settle(market, userB)
 
               const EXPECTED_PNL = parse6decimal('27').mul(5)
-              const EXPECTED_LIQUIDATION_FEE = parse6decimal('112.5')
+              const EXPECTED_LIQUIDATION_FEE = parse6decimal('10')
 
               const oracleVersionLowerPrice = {
                 price: parse6decimal('150'),
@@ -6940,9 +6929,8 @@ describe('Market', () => {
                   .sub(EXPECTED_INTEREST_5_150)
                   .sub(EXPECTED_LIQUIDATION_FEE),
                 protection: ORACLE_VERSION_4.timestamp,
-                protectionAmount: EXPECTED_LIQUIDATION_FEE,
-                protectionInitiator: liquidator.address,
               })
+              expect(await market.liquidators(user.address, 3)).to.equal(liquidator.address)
               expectPositionEq(await market.positions(user.address), {
                 ...DEFAULT_POSITION,
                 timestamp: ORACLE_VERSION_5.timestamp,
@@ -7062,7 +7050,7 @@ describe('Market', () => {
               await settle(market, userB)
 
               const EXPECTED_PNL = parse6decimal('80').mul(5)
-              const EXPECTED_LIQUIDATION_FEE = parse6decimal('152.25')
+              const EXPECTED_LIQUIDATION_FEE = parse6decimal('10')
 
               const oracleVersionHigherPrice = {
                 price: parse6decimal('203'),
@@ -7090,9 +7078,8 @@ describe('Market', () => {
                   .sub(EXPECTED_INTEREST_5_123)
                   .sub(EXPECTED_PNL),
                 protection: ORACLE_VERSION_4.timestamp,
-                protectionAmount: EXPECTED_LIQUIDATION_FEE,
-                protectionInitiator: liquidator.address,
               })
+              expect(await market.liquidators(user.address, 3)).to.equal(liquidator.address)
               expectPositionEq(await market.positions(user.address), {
                 ...DEFAULT_POSITION,
                 timestamp: ORACLE_VERSION_3.timestamp,
@@ -7210,9 +7197,8 @@ describe('Market', () => {
                 latestId: 3,
                 collateral: 0,
                 protection: ORACLE_VERSION_4.timestamp,
-                protectionAmount: EXPECTED_LIQUIDATION_FEE,
-                protectionInitiator: liquidator.address,
               })
+              expect(await market.liquidators(user.address, 3)).to.equal(liquidator.address)
               expectPositionEq(await market.positions(user.address), {
                 ...DEFAULT_POSITION,
                 timestamp: ORACLE_VERSION_4.timestamp,
@@ -9581,7 +9567,7 @@ describe('Market', () => {
               await settle(market, userB)
 
               const EXPECTED_PNL = parse6decimal('78').mul(5)
-              const EXPECTED_LIQUIDATION_FEE = parse6decimal('67.5')
+              const EXPECTED_LIQUIDATION_FEE = parse6decimal('10')
 
               const oracleVersionHigherPrice = {
                 price: parse6decimal('45'),
@@ -9661,9 +9647,8 @@ describe('Market', () => {
                   .sub(EXPECTED_LIQUIDATION_FEE)
                   .sub(25), // loss of precision
                 protection: ORACLE_VERSION_4.timestamp,
-                protectionAmount: EXPECTED_LIQUIDATION_FEE,
-                protectionInitiator: liquidator.address,
               })
+              expect(await market.liquidators(userB.address, 3)).to.equal(liquidator.address)
               expectPositionEq(await market.positions(userB.address), {
                 ...DEFAULT_POSITION,
                 timestamp: ORACLE_VERSION_5.timestamp,
@@ -9815,7 +9800,7 @@ describe('Market', () => {
               await settle(market, userD)
 
               const EXPECTED_PNL = parse6decimal('78').mul(5)
-              const EXPECTED_LIQUIDATION_FEE = parse6decimal('67.5')
+              const EXPECTED_LIQUIDATION_FEE = parse6decimal('10')
 
               const oracleVersionHigherPrice = {
                 price: parse6decimal('45'),
@@ -9899,9 +9884,8 @@ describe('Market', () => {
                   .sub(EXPECTED_LIQUIDATION_FEE)
                   .sub(19), // loss of precision
                 protection: ORACLE_VERSION_4.timestamp,
-                protectionAmount: EXPECTED_LIQUIDATION_FEE,
-                protectionInitiator: liquidator.address,
               })
+              expect(await market.liquidators(userB.address, 3)).to.equal(liquidator.address)
               expectPositionEq(await market.positions(userB.address), {
                 ...DEFAULT_POSITION,
                 timestamp: ORACLE_VERSION_5.timestamp,
@@ -10037,7 +10021,7 @@ describe('Market', () => {
               await settle(market, userB)
 
               const EXPECTED_PNL = parse6decimal('90').mul(5)
-              const EXPECTED_LIQUIDATION_FEE = parse6decimal('50') // minMaintenance * liquidationFee = 100 * 0.50 = 50
+              const EXPECTED_LIQUIDATION_FEE = parse6decimal('10')
 
               const oracleVersionHigherPrice = {
                 price: parse6decimal('33'),
@@ -10087,9 +10071,8 @@ describe('Market', () => {
                   .sub(EXPECTED_PNL)
                   .sub(13), // loss of precision
                 protection: ORACLE_VERSION_4.timestamp,
-                protectionAmount: EXPECTED_LIQUIDATION_FEE,
-                protectionInitiator: liquidator.address,
               })
+              expect(await market.liquidators(userB.address, 3)).to.equal(liquidator.address)
               expectPositionEq(await market.positions(userB.address), {
                 ...DEFAULT_POSITION,
                 timestamp: ORACLE_VERSION_3.timestamp,
@@ -10196,9 +10179,8 @@ describe('Market', () => {
                 latestId: 3,
                 collateral: 0,
                 protection: ORACLE_VERSION_4.timestamp,
-                protectionAmount: EXPECTED_LIQUIDATION_FEE,
-                protectionInitiator: liquidator.address,
               })
+              expect(await market.liquidators(userB.address, 3)).to.equal(liquidator.address)
               expectPositionEq(await market.positions(userB.address), {
                 ...DEFAULT_POSITION,
                 timestamp: ORACLE_VERSION_4.timestamp,
@@ -10233,7 +10215,7 @@ describe('Market', () => {
               await settle(market, userB)
 
               const EXPECTED_PNL = parse6decimal('27').mul(5)
-              const EXPECTED_LIQUIDATION_FEE = parse6decimal('72')
+              const EXPECTED_LIQUIDATION_FEE = parse6decimal('10')
 
               const oracleVersionLowerPrice = {
                 price: parse6decimal('96'),
@@ -10304,9 +10286,8 @@ describe('Market', () => {
                   .sub(EXPECTED_LIQUIDATION_FEE)
                   .sub(9), // loss of precision
                 protection: ORACLE_VERSION_4.timestamp,
-                protectionAmount: EXPECTED_LIQUIDATION_FEE,
-                protectionInitiator: liquidator.address,
               })
+              expect(await market.liquidators(user.address, 3)).to.equal(liquidator.address)
               expectPositionEq(await market.positions(user.address), {
                 ...DEFAULT_POSITION,
                 timestamp: ORACLE_VERSION_5.timestamp,
@@ -10464,7 +10445,7 @@ describe('Market', () => {
               await settle(market, userB)
 
               const EXPECTED_PNL = parse6decimal('80').mul(5)
-              const EXPECTED_LIQUIDATION_FEE = parse6decimal('32.25')
+              const EXPECTED_LIQUIDATION_FEE = parse6decimal('10')
 
               const oracleVersionLowerPrice = {
                 price: parse6decimal('43'),
@@ -10507,9 +10488,8 @@ describe('Market', () => {
                   .sub(EXPECTED_PNL)
                   .sub(2), // loss of precision
                 protection: ORACLE_VERSION_4.timestamp,
-                protectionAmount: EXPECTED_LIQUIDATION_FEE,
-                protectionInitiator: liquidator.address,
               })
+              expect(await market.liquidators(user.address, 3)).to.equal(liquidator.address)
               expectPositionEq(await market.positions(user.address), {
                 ...DEFAULT_POSITION,
                 timestamp: ORACLE_VERSION_3.timestamp,
@@ -10637,9 +10617,8 @@ describe('Market', () => {
                 latestId: 3,
                 collateral: 0,
                 protection: ORACLE_VERSION_4.timestamp,
-                protectionAmount: EXPECTED_LIQUIDATION_FEE,
-                protectionInitiator: liquidator.address,
               })
+              expect(await market.liquidators(user.address, 3)).to.equal(liquidator.address)
               expectPositionEq(await market.positions(user.address), {
                 ...DEFAULT_POSITION,
                 timestamp: ORACLE_VERSION_4.timestamp,
@@ -11328,9 +11307,8 @@ describe('Market', () => {
               .sub(EXPECTED_FUNDING_WITH_FEE_1_5_123.add(EXPECTED_INTEREST_5_123))
               .sub(EXPECTED_PNL),
             protection: ORACLE_VERSION_4.timestamp,
-            protectionAmount: EXPECTED_LIQUIDATION_FEE,
-            protectionInitiator: liquidator.address,
           })
+          expect(await market.liquidators(user.address, 3)).to.equal(liquidator.address)
           expectPositionEq(await market.positions(user.address), {
             ...DEFAULT_POSITION,
             timestamp: ORACLE_VERSION_3.timestamp,
@@ -11401,189 +11379,6 @@ describe('Market', () => {
         })
       })
 
-      context('liquidation w/ above max liquidation fee', async () => {
-        beforeEach(async () => {
-          dsu.transferFrom.whenCalledWith(userB.address, market.address, COLLATERAL.mul(1e12)).returns(true)
-          await market.connect(userB).update(userB.address, POSITION, 0, 0, COLLATERAL, false)
-          dsu.transferFrom.whenCalledWith(user.address, market.address, utils.parseEther('216')).returns(true)
-          await market.connect(user).update(user.address, 0, 0, POSITION.div(2), parse6decimal('216'), false)
-        })
-
-        it('default', async () => {
-          oracle.at.whenCalledWith(ORACLE_VERSION_2.timestamp).returns(ORACLE_VERSION_2)
-          oracle.status.returns([ORACLE_VERSION_2, ORACLE_VERSION_3.timestamp])
-          oracle.request.whenCalledWith(user.address).returns()
-
-          await settle(market, user)
-          await settle(market, userB)
-
-          const riskParameter = { ...(await market.riskParameter()) }
-          riskParameter.maxLiquidationFee = parse6decimal('10')
-          await market.connect(owner).updateRiskParameter(riskParameter)
-
-          const EXPECTED_PNL = parse6decimal('27').mul(5)
-          const EXPECTED_LIQUIDATION_FEE = parse6decimal('10') // 22.5
-
-          const oracleVersionLowerPrice = {
-            price: parse6decimal('150'),
-            timestamp: TIMESTAMP + 7200,
-            valid: true,
-          }
-          oracle.at.whenCalledWith(oracleVersionLowerPrice.timestamp).returns(oracleVersionLowerPrice)
-          oracle.status.returns([oracleVersionLowerPrice, ORACLE_VERSION_4.timestamp])
-          oracle.request.whenCalledWith(user.address).returns()
-
-          await settle(market, userB)
-          dsu.transfer.whenCalledWith(liquidator.address, EXPECTED_LIQUIDATION_FEE.mul(1e12)).returns(true)
-          dsu.balanceOf.whenCalledWith(market.address).returns(COLLATERAL.mul(1e12))
-
-          await expect(market.connect(liquidator).update(user.address, 0, 0, 0, 0, true))
-            .to.emit(market, 'Updated')
-            .withArgs(liquidator.address, user.address, ORACLE_VERSION_4.timestamp, 0, 0, 0, 0, true)
-
-          oracle.at.whenCalledWith(ORACLE_VERSION_4.timestamp).returns(ORACLE_VERSION_4)
-          oracle.status.returns([ORACLE_VERSION_4, ORACLE_VERSION_5.timestamp])
-          oracle.request.whenCalledWith(user.address).returns()
-
-          await settle(market, user)
-          await settle(market, userB)
-
-          const oracleVersionLowerPrice2 = {
-            price: parse6decimal('150'),
-            timestamp: TIMESTAMP + 14400,
-            valid: true,
-          }
-          oracle.at.whenCalledWith(oracleVersionLowerPrice2.timestamp).returns(oracleVersionLowerPrice2)
-          oracle.status.returns([oracleVersionLowerPrice2, oracleVersionLowerPrice2.timestamp + 3600])
-          oracle.request.whenCalledWith(user.address).returns()
-
-          await settle(market, user)
-          await settle(market, userB)
-
-          expectLocalEq(await market.locals(liquidator.address), {
-            ...DEFAULT_LOCAL,
-            currentId: 0,
-            latestId: 0,
-            collateral: EXPECTED_LIQUIDATION_FEE,
-          })
-          expectLocalEq(await market.locals(user.address), {
-            ...DEFAULT_LOCAL,
-            currentId: 5,
-            latestId: 4,
-            collateral: parse6decimal('216')
-              .sub(EXPECTED_FUNDING_WITH_FEE_1_5_123)
-              .sub(EXPECTED_INTEREST_5_123)
-              .sub(EXPECTED_FUNDING_WITH_FEE_2_5_150)
-              .sub(EXPECTED_INTEREST_5_150)
-              .sub(EXPECTED_LIQUIDATION_FEE),
-            protection: ORACLE_VERSION_4.timestamp,
-            protectionAmount: EXPECTED_LIQUIDATION_FEE,
-            protectionInitiator: liquidator.address,
-          })
-          expectPositionEq(await market.positions(user.address), {
-            ...DEFAULT_POSITION,
-            timestamp: ORACLE_VERSION_5.timestamp,
-          })
-          expectOrderEq(await market.pendingOrders(user.address, 5), {
-            ...DEFAULT_ORDER,
-            timestamp: ORACLE_VERSION_6.timestamp,
-          })
-          expectCheckpointEq(await market.checkpoints(user.address, ORACLE_VERSION_6.timestamp), {
-            ...DEFAULT_CHECKPOINT,
-          })
-          expectLocalEq(await market.locals(userB.address), {
-            ...DEFAULT_LOCAL,
-            currentId: 5,
-            latestId: 4,
-            collateral: COLLATERAL.add(EXPECTED_FUNDING_WITHOUT_FEE_1_5_123)
-              .add(EXPECTED_INTEREST_WITHOUT_FEE_5_123)
-              .add(EXPECTED_FUNDING_WITHOUT_FEE_2_5_150)
-              .add(EXPECTED_INTEREST_WITHOUT_FEE_5_150)
-              .sub(22), // loss of precision
-          })
-          expectPositionEq(await market.positions(userB.address), {
-            ...DEFAULT_POSITION,
-            timestamp: ORACLE_VERSION_5.timestamp,
-            maker: POSITION,
-          })
-          expectOrderEq(await market.pendingOrders(userB.address, 5), {
-            ...DEFAULT_ORDER,
-            timestamp: ORACLE_VERSION_6.timestamp,
-          })
-          expectCheckpointEq(await market.checkpoints(userB.address, ORACLE_VERSION_6.timestamp), {
-            ...DEFAULT_CHECKPOINT,
-          })
-          const totalFee = EXPECTED_FUNDING_FEE_1_5_123.add(EXPECTED_INTEREST_FEE_5_123)
-            .add(EXPECTED_FUNDING_FEE_2_5_150)
-            .add(EXPECTED_INTEREST_FEE_5_150)
-          expectGlobalEq(await market.global(), {
-            currentId: 5,
-            latestId: 4,
-            protocolFee: totalFee.div(2).sub(1), // loss of precision
-            oracleFee: totalFee.div(2).div(10).sub(1), // loss of precision
-            riskFee: totalFee.div(2).div(10).sub(1), // loss of precision
-            donation: totalFee.div(2).mul(8).div(10).add(4), // loss of precision
-          })
-          expectPositionEq(await market.position(), {
-            ...DEFAULT_POSITION,
-            timestamp: ORACLE_VERSION_5.timestamp,
-            maker: POSITION,
-          })
-          expectOrderEq(await market.pendingOrder(5), {
-            ...DEFAULT_ORDER,
-            timestamp: ORACLE_VERSION_6.timestamp,
-          })
-          expectVersionEq(await market.versions(ORACLE_VERSION_3.timestamp), {
-            ...DEFAULT_VERSION,
-            makerValue: {
-              _value: EXPECTED_FUNDING_WITHOUT_FEE_1_5_123.add(EXPECTED_INTEREST_WITHOUT_FEE_5_123)
-                .add(EXPECTED_PNL)
-                .div(10),
-            },
-            longValue: { _value: 0 },
-            shortValue: {
-              _value: EXPECTED_FUNDING_WITH_FEE_1_5_123.add(EXPECTED_INTEREST_5_123).add(EXPECTED_PNL).div(5).mul(-1),
-            },
-          })
-          expectVersionEq(await market.versions(ORACLE_VERSION_4.timestamp), {
-            ...DEFAULT_VERSION,
-            makerValue: {
-              _value: EXPECTED_FUNDING_WITHOUT_FEE_1_5_123.add(EXPECTED_INTEREST_WITHOUT_FEE_5_123)
-                .add(EXPECTED_FUNDING_WITHOUT_FEE_2_5_150)
-                .add(EXPECTED_INTEREST_WITHOUT_FEE_5_150)
-                .div(10)
-                .sub(2), // loss of precision
-            },
-            longValue: { _value: 0 },
-            shortValue: {
-              _value: EXPECTED_FUNDING_WITH_FEE_1_5_123.add(EXPECTED_INTEREST_5_123)
-                .add(EXPECTED_FUNDING_WITH_FEE_2_5_150)
-                .add(EXPECTED_INTEREST_5_150)
-                .div(5)
-                .mul(-1),
-            },
-          })
-          expectVersionEq(await market.versions(ORACLE_VERSION_5.timestamp), {
-            ...DEFAULT_VERSION,
-            makerValue: {
-              _value: EXPECTED_FUNDING_WITHOUT_FEE_1_5_123.add(EXPECTED_INTEREST_WITHOUT_FEE_5_123)
-                .add(EXPECTED_FUNDING_WITHOUT_FEE_2_5_150)
-                .add(EXPECTED_INTEREST_WITHOUT_FEE_5_150)
-                .div(10)
-                .sub(2), // loss of precision
-            },
-            longValue: { _value: 0 },
-            shortValue: {
-              _value: EXPECTED_FUNDING_WITH_FEE_1_5_123.add(EXPECTED_INTEREST_5_123)
-                .add(EXPECTED_FUNDING_WITH_FEE_2_5_150)
-                .add(EXPECTED_INTEREST_5_150)
-                .div(5)
-                .mul(-1),
-            },
-          })
-        })
-      })
-
       context('liquidation w/ partial closed', async () => {
         beforeEach(async () => {
           const riskParameter = { ...(await market.riskParameter()) }
@@ -11604,7 +11399,7 @@ describe('Market', () => {
         })
 
         it('default', async () => {
-          const EXPECTED_LIQUIDATION_FEE = parse6decimal('112.5') // 168.75
+          const EXPECTED_LIQUIDATION_FEE = parse6decimal('10')
 
           const oracleVersionLowerPrice = {
             price: parse6decimal('150'),
@@ -11683,7 +11478,7 @@ describe('Market', () => {
           await settle(market, userB)
 
           const EXPECTED_PNL = parse6decimal('27').mul(5)
-          const EXPECTED_LIQUIDATION_FEE = parse6decimal('112.5')
+          const EXPECTED_LIQUIDATION_FEE = parse6decimal('10')
 
           const oracleVersionLowerPrice = {
             price: parse6decimal('150'),
@@ -11756,9 +11551,8 @@ describe('Market', () => {
               .sub(EXPECTED_ROUND_3_ACC)
               .sub(EXPECTED_LIQUIDATION_FEE), // does not double charge
             protection: ORACLE_VERSION_5.timestamp,
-            protectionAmount: EXPECTED_LIQUIDATION_FEE,
-            protectionInitiator: liquidator.address,
           })
+          expect(await market.liquidators(user.address, 3)).to.equal(liquidator.address)
           expectPositionEq(await market.positions(user.address), {
             ...DEFAULT_POSITION,
             timestamp: ORACLE_VERSION_6.timestamp,
