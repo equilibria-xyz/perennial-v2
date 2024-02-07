@@ -27,7 +27,6 @@ struct Global {
 
     /// @dev The current PAccumulator state
     PAccumulator6 pAccumulator;
-
 }
 using GlobalLib for Global global;
 struct GlobalStorage { uint256 slot0; uint256 slot1; } // SECURITY: must remain at (2) slots

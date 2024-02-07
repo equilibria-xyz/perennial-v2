@@ -154,6 +154,13 @@ library OrderLib {
             ((long(self).isZero() && short(self).isZero()) || !marketParameter.takerCloseAlways || increasesTaker(self));
     }
 
+    /// @notice Returns whether the order is protected
+    /// @param self The order object to check
+    /// @return Whether the order is empty
+    function protected(Order memory self) internal pure returns (bool) {
+        return self.protection != 0;
+    }
+
     /// @notice Returns whether the order is empty
     /// @param self The order object to check
     /// @return Whether the order is empty

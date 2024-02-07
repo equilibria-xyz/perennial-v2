@@ -46,7 +46,6 @@ library CheckpointLib {
     function accumulate(
         Checkpoint memory self,
         Order memory order,
-        Local memory local,
         Position memory fromPosition,
         Version memory fromVersion,
         Version memory toVersion
@@ -55,7 +54,7 @@ library CheckpointLib {
         result.collateral = _accumulateCollateral(fromPosition, fromVersion, toVersion);
         result.tradeFee = _accumulateTradeFee(order, toVersion);
         result.settlementFee = _accumulateSettlementFee(order, toVersion);
-        result.liquidationFee = _accumulateLiquidationFee(order, local, toVersion);
+        result.liquidationFee = _accumulateLiquidationFee(order, toVersion);
 
         // update checkpoint
         self.collateral = self.collateral
@@ -108,14 +107,12 @@ library CheckpointLib {
 
     /// @notice Accumulate liquidation fees for the next position
     /// @param order The next order
-    /// @param local The local state
     /// @param toVersion The next version
     function _accumulateLiquidationFee(
         Order memory order,
-        Local memory local,
         Version memory toVersion
     ) private pure returns (UFixed6 liquidationFee) {
-        if (local.protection == order.timestamp)
+        if (order.protected())
             return toVersion.liquidationFee.accumulated(Accumulator6(Fixed6Lib.ZERO), UFixed6Lib.ONE).abs();
     }
 }

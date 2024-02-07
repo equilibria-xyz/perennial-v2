@@ -352,14 +352,13 @@ contract Market is IMarket, Instance, ReentrancyGuard {
         context.local.update(collateral);
 
         // protect account
-        bool protected = context.local.protect(context.latestOracleVersion, context.currentTimestamp, protect);
-        if (protected) liquidators[account][context.local.currentId] = msg.sender;
+        if (newOrder.protected()) liquidators[account][context.local.currentId] = msg.sender;
 
         // request version
         if (!newOrder.isEmpty()) oracle.request(IMarket(this), account);
 
         // after
-        _invariant(context, account, newOrder, collateral, protected);
+        _invariant(context, account, newOrder, collateral);
 
         // store
         _pendingOrder[context.global.currentId].store(context.order.global);
@@ -500,7 +499,6 @@ contract Market is IMarket, Instance, ReentrancyGuard {
         (uint256 fromTimestamp, uint256 fromId) = (context.latestPosition.local.timestamp, context.local.latestId);
         CheckpointAccumulationResult memory accumulationResult = context.latestCheckpoint.accumulate(
             newOrder,
-            context.local,
             context.latestPosition.local,
             _versions[context.latestPosition.local.timestamp].read(),
             version
@@ -547,17 +545,15 @@ contract Market is IMarket, Instance, ReentrancyGuard {
     /// @param account The account to verify the invariant for
     /// @param newOrder The order to verify the invariant for
     /// @param collateral The collateral change to verify the invariant for
-    /// @param protected Whether the new position is protected
     function _invariant(
         Context memory context,
         address account,
         Order memory newOrder,
-        Fixed6 collateral,
-        bool protected
+        Fixed6 collateral
     ) private view {
         if (context.pending.local.neg().gt(context.latestPosition.local.magnitude())) revert MarketOverCloseError();
 
-        if (protected && (
+        if (newOrder.protected() && (
             !context.pending.local.neg().eq(context.latestPosition.local.magnitude()) ||
             context.latestPosition.local.maintained(
                 context.latestOracleVersion,
@@ -590,7 +586,7 @@ contract Market is IMarket, Instance, ReentrancyGuard {
             )
         ) revert MarketNotSingleSidedError();
 
-        if (protected) return; // The following invariants do not apply to protected position updates (liquidations)
+        if (newOrder.protected()) return; // The following invariants do not apply to protected position updates (liquidations)
 
         if (
             msg.sender != account &&                                                        // sender is operating on own account
@@ -612,10 +608,8 @@ contract Market is IMarket, Instance, ReentrancyGuard {
             )
         ) revert MarketInsufficientMarginError();
 
-        if (
-            (context.local.protection > context.latestPosition.local.timestamp) &&
-            !newOrder.isEmpty()
-        ) revert MarketProtectedError();
+        if (context.pending.local.protected() && !newOrder.protected() && !newOrder.isEmpty())
+            revert MarketProtectedError();
 
         if (
             newOrder.liquidityCheckApplicable(context.marketParameter) &&
