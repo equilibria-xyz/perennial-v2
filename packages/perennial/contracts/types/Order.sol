@@ -45,10 +45,10 @@ using OrderStorageLocalLib for OrderStorageLocal global;
 /// @title Order
 /// @notice Holds the state for an account's update order
 library OrderLib {
-    /// @notice Returns whether the position is ready to be settled
-    /// @param self The position object to check
+    /// @notice Returns whether the order is ready to be settled
+    /// @param self The order object to check
     /// @param latestVersion The latest oracle version
-    /// @return Whether the position is ready to be settled
+    /// @return Whether the order is ready to be settled
     function ready(Order memory self, OracleVersion memory latestVersion) internal pure returns (bool) {
         return latestVersion.timestamp >= self.timestamp;
     }
