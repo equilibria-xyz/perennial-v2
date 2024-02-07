@@ -172,13 +172,14 @@ abstract contract KeeperFactory is IKeeperFactory, Factory, Kept {
     /// @param data The update data to commit
     function commit(bytes32[] memory ids, uint256 version, bytes calldata data) external payable {
         bool valid = data.length != 0;
-        Fixed18[] memory prices = valid ? _parsePrices(ids, version, data) : new Fixed18[](ids.length);
+        PriceRecord[] memory prices = valid ? _parsePrices(ids, data) : new PriceRecord[](ids.length);
+        if (valid) _validatePrices(version, prices);
         _transformPrices(ids, prices);
 
         uint256 numRequested;
         for (uint256 i; i < ids.length; i++)
             if (IKeeperOracle(address(oracles[ids[i]])).commit(
-                OracleVersion(version, Fixed6Lib.from(prices[i]), valid))
+                OracleVersion(version, Fixed6Lib.from(prices[i].price), valid))
             ) numRequested++;
 
         if (numRequested != 0) _handleKeeperFee(
@@ -280,17 +281,30 @@ abstract contract KeeperFactory is IKeeperFactory, Factory, Kept {
         return _toUnderlyingPayoff[id];
     }
 
-    function _transformPrices(bytes32[] memory ids, Fixed18[] memory prices) private view {
+    /// @notice Transforms the price records by the payoff and decimal offset
+    /// @param ids The list of price feed ids to transform
+    /// @param prices The list of price records to transform
+    function _transformPrices(bytes32[] memory ids, PriceRecord[] memory prices) private view {
         for (uint256 i; i < prices.length; i++) {
             PayoffDefinition memory payoff = _toUnderlyingPayoff[ids[i]];
             
             // apply payoff if it exists
-            if (payoff.provider != IPayoffProvider(address(0))) prices[i] = payoff.provider.payoff(prices[i]);
+            if (payoff.provider != IPayoffProvider(address(0)))
+                prices[i].price = payoff.provider.payoff(prices[i].price);
             
             // apply decimal offset
             Fixed18 base = Fixed18Lib.from(int256(10 ** SignedMath.abs(payoff.decimals)));
-            prices[i] = payoff.decimals < 0 ? prices[i].div(base) : prices[i].mul(base);
+            prices[i].price = payoff.decimals < 0 ? prices[i].price.div(base) : prices[i].price.mul(base);
         }
+    }
+
+    /// @notice Validates that the parse price record has a valid timestamp
+    /// @param version The oracle version to validate against
+    /// @param prices The list of price records to validate
+    function _validatePrices(uint256 version, PriceRecord[] memory prices) private view {
+        for (uint256 i; i < prices.length; i++)
+            if (prices[i].timestamp < version + validFrom || prices[i].timestamp > version + validTo)
+                revert KeeperFactoryVersionOutsideRangeError();
     }
 
     /// @notice Returns the applicable value for the keeper fee
@@ -303,12 +317,10 @@ abstract contract KeeperFactory is IKeeperFactory, Factory, Kept {
 
     /// @notice Validates and parses the update data payload against the specified version
     /// @param ids The list of price feed ids validate against
-    /// @param version The oracle version to validate against
     /// @param data The update data to validate
     /// @return prices The parsed price list if valid
     function _parsePrices(
         bytes32[] memory ids,
-        uint256 version,
         bytes calldata data
-    ) internal virtual returns (Fixed18[] memory prices);
+    ) internal virtual returns (PriceRecord[] memory prices);
 }

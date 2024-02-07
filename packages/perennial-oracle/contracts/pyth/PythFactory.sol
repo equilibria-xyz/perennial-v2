@@ -49,30 +49,31 @@ contract PythFactory is IPythFactory, KeeperFactory {
 
     /// @notice Validates and parses the update data payload against the specified version
     /// @param ids The list of price feed ids validate against
-    /// @param version The oracle version to validate against
     /// @param data The update data to validate
     /// @return prices The parsed price list if valid
     function _parsePrices(
         bytes32[] memory ids,
-        uint256 version,
         bytes calldata data
-    ) internal override returns (Fixed18[] memory prices) {
-        prices = new Fixed18[](ids.length);
+    ) internal override returns (PriceRecord[] memory prices) {
+        prices = new PriceRecord[](ids.length);
         bytes[] memory datas = new bytes[](1);
         datas[0] = data;
 
         PythStructs.PriceFeed[] memory parsedPrices = pyth.parsePriceFeedUpdates{value: msg.value}(
             datas,
             _toUnderlyingIds(ids),
-            SafeCast.toUint64(version + validFrom),
-            SafeCast.toUint64(version + validTo)
+            type(uint64).min,
+            type(uint64).max
         );
 
         for (uint256 i; i < parsedPrices.length; i++) {
             (Fixed18 significand, int256 exponent) =
                 (Fixed18.wrap(parsedPrices[i].price.price), parsedPrices[i].price.expo + PARSE_DECIMALS);
             Fixed18 base = Fixed18Lib.from(int256(10 ** SignedMath.abs(exponent)));
-            prices[i] = exponent < 0 ? significand.div(base) : significand.mul(base);
+            prices[i] = PriceRecord(
+                parsedPrices[i].price.publishTime,
+                exponent < 0 ? significand.div(base) : significand.mul(base)
+            );
         }
     }
 
