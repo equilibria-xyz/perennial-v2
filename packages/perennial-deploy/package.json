@@ -20,6 +20,7 @@
     "test": "hardhat test test/unit/**/*",
     "test:integration": "FORK_ENABLED=true FORK_BLOCK_NUMBER=17433260 hardhat test test/integration/**/*",
     "test:verification:arbitrum": "FORK_ENABLED=true FORK_NETWORK=arbitrum FORK_USE_REAL_DEPLOYS=true FORK_BLOCK_NUMBER=170767757 hardhat test test/verification/arbitrum/**/*",
+    "test:verification:base": "FORK_ENABLED=true FORK_NETWORK=base FORK_USE_REAL_DEPLOYS=true hardhat test test/verification/base/**/*",
     "coverage": "hardhat coverage --testfiles 'test/unit/**/*'",
     "coverage:integration": "FORK_ENABLED=true FORK_BLOCK_NUMBER=17433260 hardhat coverage --testfiles 'test/integration/**/*'",
     "lint": "eslint --fix --ext '.ts,.js' ./ && solhint 'contracts/**/*.sol' --fix",
@@ -31,7 +32,9 @@
     "node:fork:arbitrumSepolia": "FORK_ENABLED=true FORK_NETWORK=arbitrumSepolia NODE_INTERVAL_MINING=250 hardhat node",
     "deploy:fork:arbitrumSepolia": "OPTIMIZER_ENABLED=true FORK_ENABLED=true FORK_NETWORK=arbitrumSepolia hardhat deploy --network localhost",
     "node:fork:arbitrum": "FORK_ENABLED=true FORK_NETWORK=arbitrum NODE_INTERVAL_MINING=250 hardhat node",
-    "deploy:fork:arbitrum": "OPTIMIZER_ENABLED=true  FORK_ENABLED=true FORK_NETWORK=arbitrum hardhat deploy --network localhost"
+    "deploy:fork:arbitrum": "OPTIMIZER_ENABLED=true  FORK_ENABLED=true FORK_NETWORK=arbitrum hardhat deploy --network localhost",
+    "node:fork:base": "FORK_ENABLED=true FORK_NETWORK=base NODE_INTERVAL_MINING=250 hardhat node",
+    "deploy:fork:base": "OPTIMIZER_ENABLED=true  FORK_ENABLED=true FORK_NETWORK=base hardhat deploy --network localhost"
   },
   "author": "",
   "license": "APACHE-2.0",
