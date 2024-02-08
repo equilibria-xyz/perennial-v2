@@ -171,7 +171,6 @@ export const DEFAULT_LOCAL: Local = {
   currentId: 0,
   latestId: 0,
   collateral: 0,
-  protection: 0,
 }
 
 export const DEFAULT_ORDER: Order = {
