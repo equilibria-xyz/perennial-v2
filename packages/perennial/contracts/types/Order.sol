@@ -374,8 +374,8 @@ library OrderStorageLocalLib {
 
         (UFixed6 magnitudePos, UFixed6 magnitudeNeg) = (newValue.pos(), newValue.neg());
 
-        if (magnitudePos.gt(UFixed6.wrap(2 ** 63 - 1))) revert OrderStorageLib.OrderStorageInvalidError();
-        if (magnitudeNeg.gt(UFixed6.wrap(2 ** 63 - 1))) revert OrderStorageLib.OrderStorageInvalidError();
+        if (magnitudePos.gt(UFixed6.wrap(2 ** 62 - 1))) revert OrderStorageLib.OrderStorageInvalidError();
+        if (magnitudeNeg.gt(UFixed6.wrap(2 ** 62 - 1))) revert OrderStorageLib.OrderStorageInvalidError();
         if (newValue.protection > 1) revert OrderStorageLib.OrderStorageInvalidError();
 
         uint256 encoded =
