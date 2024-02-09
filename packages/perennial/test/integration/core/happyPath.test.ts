@@ -113,7 +113,7 @@ describe('Happy Path', () => {
       .to.emit(market, 'Updated')
       .withArgs(user.address, user.address, TIMESTAMP_1, POSITION, 0, 0, COLLATERAL, false)
       .to.emit(market, 'OrderCreated')
-      .withArgs(user.address,  {
+      .withArgs(user.address, {
         ...DEFAULT_ORDER,
         timestamp: TIMESTAMP_1,
         orders: 1,
@@ -166,6 +166,7 @@ describe('Happy Path', () => {
     })
     expectVersionEq(await market.versions(TIMESTAMP_0), {
       ...DEFAULT_VERSION,
+      liquidationFee: { _value: -riskParameter.liquidationFee },
     })
 
     // Settle the market with a new oracle version
@@ -271,6 +272,7 @@ describe('Happy Path', () => {
     })
     expectVersionEq(await market.versions(TIMESTAMP_0), {
       ...DEFAULT_VERSION,
+      liquidationFee: { _value: -riskParameter.liquidationFee },
     })
 
     // Settle the market with a new oracle version
@@ -386,6 +388,7 @@ describe('Happy Path', () => {
     })
     expectVersionEq(await market.versions(TIMESTAMP_1), {
       ...DEFAULT_VERSION,
+      liquidationFee: { _value: -riskParameter.liquidationFee },
     })
   })
 
@@ -451,6 +454,7 @@ describe('Happy Path', () => {
     })
     expectVersionEq(await market.versions(TIMESTAMP_1), {
       ...DEFAULT_VERSION,
+      liquidationFee: { _value: -riskParameter.liquidationFee },
     })
   })
 
@@ -476,7 +480,7 @@ describe('Happy Path', () => {
       .to.emit(market, 'Updated')
       .withArgs(userB.address, userB.address, TIMESTAMP_1, 0, POSITION_B, 0, COLLATERAL, false)
       .to.emit(market, 'OrderCreated')
-      .withArgs(userB.address,  {
+      .withArgs(userB.address, {
         ...DEFAULT_ORDER,
         timestamp: TIMESTAMP_1,
         orders: 1,
@@ -552,6 +556,7 @@ describe('Happy Path', () => {
     })
     expectVersionEq(await market.versions(TIMESTAMP_0), {
       ...DEFAULT_VERSION,
+      liquidationFee: { _value: -riskParameter.liquidationFee },
     })
 
     // One round
@@ -671,6 +676,7 @@ describe('Happy Path', () => {
     })
     expectVersionEq(await market.versions(TIMESTAMP_0), {
       ...DEFAULT_VERSION,
+      liquidationFee: { _value: -riskParameter.liquidationFee },
     })
 
     // One round
@@ -797,6 +803,7 @@ describe('Happy Path', () => {
       makerValue: { _value: 0 },
       longValue: { _value: 0 },
       shortValue: { _value: 0 },
+      liquidationFee: { _value: -riskParameter.liquidationFee },
     })
   })
 
@@ -870,6 +877,7 @@ describe('Happy Path', () => {
     })
     expectVersionEq(await market.versions(TIMESTAMP_1), {
       ...DEFAULT_VERSION,
+      liquidationFee: { _value: -riskParameter.liquidationFee },
     })
   })
 
@@ -1094,6 +1102,7 @@ describe('Happy Path', () => {
       makerValue: { _value: '-354460592731' },
       longValue: { _value: '362096873938' },
       shortValue: { _value: 0 },
+      liquidationFee: { _value: -riskParameter.liquidationFee },
     })
   })
 
