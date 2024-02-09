@@ -36,7 +36,10 @@ const VAULTS: { [key: string]: { [key: string]: string[][] } } = {
     ],
   },
   blastSepolia: {
-    AsterVault: [[ORACLE_IDS.blastSepolia.eth, '']], // ETH / None
+    AsterVault: [
+      [ORACLE_IDS.blastSepolia.eth, ''], // ETH / None
+      [ORACLE_IDS.base.btc, ''], // BTC / None
+    ],
   },
 }
 

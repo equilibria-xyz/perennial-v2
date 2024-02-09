@@ -82,7 +82,10 @@ const MARKETS: { [key: string]: string[][] } = {
     [ORACLE_IDS.base.eth, ''], // ETH / None
     [ORACLE_IDS.base.btc, ''], // BTC / None
   ],
-  blastSepolia: [[ORACLE_IDS.blastSepolia.eth, '']], // ETH / None
+  blastSepolia: [
+    [ORACLE_IDS.blastSepolia.eth, ''], // ETH / None
+    [ORACLE_IDS.base.btc, ''], // BTC / None
+  ],
 }
 
 const func: DeployFunction = async function (hre: HardhatRuntimeEnvironment) {
