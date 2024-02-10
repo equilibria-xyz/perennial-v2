@@ -586,7 +586,7 @@ describe('Vault', () => {
       await updateOracle()
       await vault.settle(user.address)
 
-      const checkpoint1 = await vault.checkpoints(2)
+      const checkpoint1 = await vault.checkpoints(1)
       expect(checkpoint1.deposit).to.equal(smallDeposit)
       expect(checkpoint1.orders).to.equal(1)
       expect(checkpoint1.timestamp).to.equal((await market.pendingOrders(vault.address, 1)).timestamp)
@@ -605,7 +605,7 @@ describe('Vault', () => {
       expect(await vault.convertToShares(parse6decimal('10'))).to.equal(parse6decimal('10'))
       await updateOracle()
       await vault.settle(user.address)
-      const checkpoint2 = await vault.checkpoints(3)
+      const checkpoint2 = await vault.checkpoints(2)
       expect(checkpoint2.deposit).to.equal(largeDeposit)
       expect(checkpoint2.assets).to.equal(smallDeposit)
       expect(checkpoint2.shares).to.equal(smallDeposit)

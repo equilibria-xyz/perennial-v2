@@ -255,17 +255,22 @@ describe('Checkpoint', () => {
     })
   })
 
-  describe('#initialize', () => {
+  describe('#next', () => {
     it('sets the checkpoint', async () => {
       await checkpoint.store(VALID_CHECKPOINT)
 
-      await checkpoint.initialize(123, VALID_ACCOUNT)
+      await checkpoint.next(123, VALID_ACCOUNT)
 
       const value = await checkpoint.read()
 
       expect(value.timestamp).to.equal(123)
       expect(value.shares).to.equal(3)
       expect(value.assets).to.equal(-9)
+      expect(value.deposit).to.equal(0)
+      expect(value.redemption).to.equal(0)
+      expect(value.tradeFee).to.equal(0)
+      expect(value.settlementFee).to.equal(0)
+      expect(value.orders).to.equal(0)
     })
   })
 
