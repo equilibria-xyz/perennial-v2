@@ -288,8 +288,6 @@ contract Market is IMarket, Instance, ReentrancyGuard {
         // load current order
         context.order.global = _pendingOrder[context.global.currentId].read();
         context.order.local = _pendingOrders[account][context.local.currentId].read();
-        context.pending.global = _pending.read();
-        context.pending.local = _pendings[account].read();
 
         // load current position
         context.currentPosition.global = context.latestPosition.global.clone();
@@ -391,10 +389,6 @@ contract Market is IMarket, Instance, ReentrancyGuard {
     function _loadSettlementContext(Context memory context, address account) private view {
         // parameters
         context.protocolParameter = IMarketFactory(address(factory())).parameter();
-
-        // state
-        context.global = _global.read();
-        context.local = _locals[account].read();
 
         // latest positions
         context.latestPosition.global = _position.read();

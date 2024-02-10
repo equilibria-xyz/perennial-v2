@@ -21,20 +21,25 @@ interface IMarket is IInstance {
     }
 
     struct Context {
-        ProtocolParameter protocolParameter;
+        // transaction context
         MarketParameter marketParameter;
         RiskParameter riskParameter;
-        uint256 currentTimestamp;
         OracleVersion latestOracleVersion;
-        OracleVersion orderOracleVersion;
+        uint256 currentTimestamp;
         Global global;
         Local local;
+        OrderContext pending;
+
+        // settlement context
+        ProtocolParameter protocolParameter;
         Version latestVersion;
         Checkpoint latestCheckpoint;
+        OracleVersion orderOracleVersion;
         PositionContext latestPosition;
-        PositionContext currentPosition;
+
+        // update context
         OrderContext order;
-        OrderContext pending;
+        PositionContext currentPosition;
     }
 
     struct PositionContext {
