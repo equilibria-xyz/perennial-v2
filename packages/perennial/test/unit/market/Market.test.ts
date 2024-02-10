@@ -11726,7 +11726,6 @@ describe('Market', () => {
                 .div(5)
                 .mul(-1),
             },
-            liquidationFee: { _value: -riskParameter.liquidationFee },
           })
           expectVersionEq(await market.versions(ORACLE_VERSION_5.timestamp), {
             ...DEFAULT_VERSION,
@@ -11882,7 +11881,6 @@ describe('Market', () => {
             ...DEFAULT_VERSION,
             valid: false,
             settlementFee: { _value: -SETTLEMENT_FEE },
-            liquidationFee: { _value: -riskParameter.liquidationFee },
           })
         })
 
@@ -12040,7 +12038,6 @@ describe('Market', () => {
             ...DEFAULT_VERSION,
             valid: false,
             settlementFee: { _value: -SETTLEMENT_FEE },
-            liquidationFee: { _value: -riskParameter.liquidationFee },
           })
           expectVersionEq(await market.versions(ORACLE_VERSION_4.timestamp), {
             ...DEFAULT_VERSION,
@@ -12201,13 +12198,11 @@ describe('Market', () => {
             ...DEFAULT_VERSION,
             valid: false,
             settlementFee: { _value: -SETTLEMENT_FEE },
-            liquidationFee: { _value: -riskParameter.liquidationFee },
           })
           expectVersionEq(await market.versions(ORACLE_VERSION_4.timestamp), {
             ...DEFAULT_VERSION,
             valid: false,
             settlementFee: { _value: -SETTLEMENT_FEE },
-            liquidationFee: { _value: -riskParameter.liquidationFee },
           })
         })
 
@@ -12357,7 +12352,6 @@ describe('Market', () => {
             ...DEFAULT_VERSION,
             valid: false,
             settlementFee: { _value: -SETTLEMENT_FEE },
-            liquidationFee: { _value: -riskParameter.liquidationFee },
           })
           expectVersionEq(await market.versions(ORACLE_VERSION_4.timestamp), {
             ...DEFAULT_VERSION,
@@ -12540,7 +12534,6 @@ describe('Market', () => {
             ...DEFAULT_VERSION,
             valid: false,
             settlementFee: { _value: -SETTLEMENT_FEE },
-            liquidationFee: { _value: -riskParameter.liquidationFee },
           })
           expectVersionEq(await market.versions(ORACLE_VERSION_4.timestamp), {
             ...DEFAULT_VERSION,
@@ -12634,7 +12627,6 @@ describe('Market', () => {
             },
             longValue: { _value: EXPECTED_FUNDING_WITH_FEE_1_5_123.add(EXPECTED_INTEREST_5_123).div(5).mul(-1) },
             shortValue: { _value: 0 },
-            liquidationFee: { _value: -riskParameter.liquidationFee },
           })
         })
       })

@@ -22,6 +22,7 @@ import { Market__factory } from '../../../types/generated'
 import { CHAINLINK_CUSTOM_CURRENCIES } from '@equilibria/perennial-v2-oracle/util/constants'
 import { loadFixture } from '@nomicfoundation/hardhat-network-helpers'
 import { ChainlinkContext } from '../helpers/chainlinkHelpers'
+import { RiskParameterStruct } from '../../../types/generated/contracts/Market'
 
 export const TIMESTAMP_0 = 1631112429
 export const TIMESTAMP_1 = 1631112904
@@ -32,6 +33,7 @@ export const TIMESTAMP_5 = 1631118731
 
 describe('Happy Path', () => {
   let instanceVars: InstanceVars
+  let riskParameter: RiskParameterStruct
 
   beforeEach(async () => {
     instanceVars = await loadFixture(deployProtocol)
@@ -48,7 +50,7 @@ describe('Happy Path', () => {
       oracle: oracle.address,
       payoff: payoff.address,
     }
-    const riskParameter = {
+    riskParameter = {
       margin: parse6decimal('0.3'),
       maintenance: parse6decimal('0.3'),
       takerFee: {
@@ -127,7 +129,6 @@ describe('Happy Path', () => {
       currentId: 1,
       latestId: 0,
       collateral: COLLATERAL,
-      protection: 0,
     })
     expectOrderEq(await market.pendingOrders(user.address, 1), {
       ...DEFAULT_ORDER,
@@ -179,7 +180,6 @@ describe('Happy Path', () => {
       currentId: 2,
       latestId: 1,
       collateral: COLLATERAL,
-      protection: 0,
     })
     expectOrderEq(await market.pendingOrders(user.address, 2), {
       ...DEFAULT_ORDER,
@@ -233,7 +233,6 @@ describe('Happy Path', () => {
       currentId: 1,
       latestId: 0,
       collateral: COLLATERAL,
-      protection: 0,
     })
     expectOrderEq(await market.pendingOrders(user.address, 1), {
       ...DEFAULT_ORDER,
@@ -285,7 +284,6 @@ describe('Happy Path', () => {
       currentId: 2,
       latestId: 1,
       collateral: COLLATERAL,
-      protection: 0,
     })
     expectOrderEq(await market.pendingOrders(user.address, 2), {
       ...DEFAULT_ORDER,
@@ -349,7 +347,6 @@ describe('Happy Path', () => {
       currentId: 2,
       latestId: 1,
       collateral: COLLATERAL,
-      protection: 0,
     })
     expectOrderEq(await market.pendingOrders(user.address, 2), {
       ...DEFAULT_ORDER,
@@ -415,7 +412,6 @@ describe('Happy Path', () => {
       currentId: 2,
       latestId: 1,
       collateral: COLLATERAL,
-      protection: 0,
     })
     expectOrderEq(await market.pendingOrders(user.address, 2), {
       ...DEFAULT_ORDER,
@@ -494,7 +490,6 @@ describe('Happy Path', () => {
       currentId: 1,
       latestId: 0,
       collateral: COLLATERAL,
-      protection: 0,
     })
     expectOrderEq(await market.pendingOrders(user.address, 1), {
       ...DEFAULT_ORDER,
@@ -516,7 +511,6 @@ describe('Happy Path', () => {
       currentId: 1,
       latestId: 0,
       collateral: COLLATERAL,
-      protection: 0,
     })
     expectOrderEq(await market.pendingOrders(userB.address, 1), {
       ...DEFAULT_ORDER,
@@ -590,7 +584,6 @@ describe('Happy Path', () => {
       currentId: 2,
       latestId: 1,
       collateral: COLLATERAL.add(BigNumber.from('1249392')),
-      protection: 0,
     })
     expectOrderEq(await market.pendingOrders(userB.address, 2), {
       ...DEFAULT_ORDER,
@@ -636,7 +629,6 @@ describe('Happy Path', () => {
       currentId: 1,
       latestId: 0,
       collateral: COLLATERAL,
-      protection: 0,
     })
     expectOrderEq(await market.pendingOrders(userB.address, 1), {
       ...DEFAULT_ORDER,
@@ -709,7 +701,6 @@ describe('Happy Path', () => {
       currentId: 2,
       latestId: 1,
       collateral: COLLATERAL.add(BigNumber.from('1249392')),
-      protection: 0,
     })
     expectOrderEq(await market.pendingOrders(userB.address, 2), {
       ...DEFAULT_ORDER,
@@ -760,7 +751,6 @@ describe('Happy Path', () => {
       currentId: 2,
       latestId: 1,
       collateral: COLLATERAL,
-      protection: 0,
     })
     expectOrderEq(await market.pendingOrders(userB.address, 2), {
       ...DEFAULT_ORDER,
@@ -837,7 +827,6 @@ describe('Happy Path', () => {
       currentId: 2,
       latestId: 1,
       collateral: COLLATERAL,
-      protection: 0,
     })
     expectOrderEq(await market.pendingOrders(userB.address, 2), {
       ...DEFAULT_ORDER,
@@ -1057,7 +1046,6 @@ describe('Happy Path', () => {
       currentId: 3,
       latestId: 2,
       collateral: '986224425',
-      protection: 0,
     })
     expectOrderEq(await market.pendingOrders(user.address, 3), {
       ...DEFAULT_ORDER,
@@ -1204,7 +1192,6 @@ describe('Happy Path', () => {
       currentId: delay + 1,
       latestId: delay,
       collateral: (await market.locals(user.address)).collateral,
-      protection: 0,
     })
     expectOrderEq(await market.pendingOrders(user.address, delay + 1), {
       ...DEFAULT_ORDER,
