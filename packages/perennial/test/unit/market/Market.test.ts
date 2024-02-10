@@ -1817,10 +1817,10 @@ describe('Market', () => {
               marketParameter.settlementFee = parse6decimal('0.50')
               await market.updateParameter(beneficiary.address, coordinator.address, marketParameter)
 
-              const MAKER_FEE = parse6decimal('3.075') // position * (0.01 * -(1.00 + 0.00) / 2 + 0.005 + 0.0025) * price
+              const MAKER_FEE = parse6decimal('15.375') // position * (0.01 * (1.00 + 0.00) / 2 + 0.005 + 0.0025) * price
               const MAKER_FEE_WITHOUT_IMPACT = parse6decimal('9.225') // position * (0.005 + 0.0025) * price
               const MAKER_FEE_FEE = MAKER_FEE_WITHOUT_IMPACT.div(10)
-              const MAKER_FEE_WITHOUT_FEE = MAKER_FEE.sub(MAKER_FEE_FEE)
+              const MAKER_FEE_WITHOUT_FEE = MAKER_FEE_WITHOUT_IMPACT.sub(MAKER_FEE_FEE)
               const SETTLEMENT_FEE = parse6decimal('0.50')
 
               await expect(market.connect(user).update(user.address, 0, 0, 0, 0, false))
@@ -1855,10 +1855,10 @@ describe('Market', () => {
               expectGlobalEq(await market.global(), {
                 currentId: 3,
                 latestId: 2,
-                protocolFee: MAKER_FEE_WITHOUT_IMPACT.div(2),
-                oracleFee: MAKER_FEE_WITHOUT_IMPACT.div(2).div(10).add(SETTLEMENT_FEE),
-                riskFee: MAKER_FEE_WITHOUT_IMPACT.div(2).div(10),
-                donation: MAKER_FEE_WITHOUT_IMPACT.div(2).mul(8).div(10),
+                protocolFee: MAKER_FEE_FEE.div(2),
+                oracleFee: MAKER_FEE_FEE.div(2).div(10).add(SETTLEMENT_FEE),
+                riskFee: MAKER_FEE_FEE.div(2).div(10),
+                donation: MAKER_FEE_FEE.div(2).mul(8).div(10),
               })
               expectPositionEq(await market.position(), {
                 ...DEFAULT_POSITION,
