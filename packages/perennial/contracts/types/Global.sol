@@ -25,6 +25,9 @@ struct Global {
     /// @dev The accrued donation
     UFixed6 donation;
 
+    /// @dev The accumulated market exposure
+    Fixed6 exposure;
+
     /// @dev The current PAccumulator state
     PAccumulator6 pAccumulator;
 }
@@ -37,28 +40,34 @@ using GlobalStorageLib for GlobalStorage global;
 library GlobalLib {
     /// @notice Increments the fees by `amount` using current parameters
     /// @param self The Global object to update
-    /// @param amount The amount to increment fees by
+    /// @param newLatestId The new latest position id
+    /// @param marketFee The amount to increment market fees by
     /// @param settlementFee The amount to increment the settlement fee by
+    /// @param marketExposure The amount to increment the market exposure by
     /// @param marketParameter The current market parameters
     /// @param protocolParameter The current protocol parameters
-    function incrementFees(
+    function update(
         Global memory self,
-        UFixed6 amount,
+        uint256 newLatestId,
+        UFixed6 marketFee,
         UFixed6 settlementFee,
+        Fixed6 marketExposure,
         MarketParameter memory marketParameter,
         ProtocolParameter memory protocolParameter
     ) internal pure {
-        UFixed6 protocolFeeAmount = amount.mul(protocolParameter.protocolFee);
-        UFixed6 marketFeeAmount = amount.sub(protocolFeeAmount);
+        UFixed6 protocolFeeAmount = marketFee.mul(protocolParameter.protocolFee);
+        UFixed6 marketFeeAmount = marketFee.sub(protocolFeeAmount);
 
         UFixed6 oracleFeeAmount = marketFeeAmount.mul(marketParameter.oracleFee);
         UFixed6 riskFeeAmount = marketFeeAmount.mul(marketParameter.riskFee);
         UFixed6 donationAmount = marketFeeAmount.sub(oracleFeeAmount).sub(riskFeeAmount);
 
+        self.latestId = newLatestId;
         self.protocolFee = self.protocolFee.add(protocolFeeAmount);
         self.oracleFee = self.oracleFee.add(settlementFee).add(oracleFeeAmount);
         self.riskFee = self.riskFee.add(riskFeeAmount);
         self.donation = self.donation.add(donationAmount);
+        self.exposure = self.exposure.add(marketExposure);
     }
 }
 
@@ -76,7 +85,8 @@ library GlobalLib {
 ///         /* slot 1 */
 ///         int32 pAccumulator.value;   // <= 214000%
 ///         int24 pAccumulator.skew;    // <= 838%
-///         int64 __unallocated__;
+///         bytes8 __DEPRECATED;        // UNSAFE UNTIL RESET
+///         int64 exposure;             // <= 9.22t
 ///     }
 ///
 library GlobalStorageLib {
@@ -92,6 +102,7 @@ library GlobalStorageLib {
             UFixed6.wrap(uint256(slot0 << (256 - 32 - 32 - 48 - 48)) >> (256 - 48)),
             UFixed6.wrap(uint256(slot0 << (256 - 32 - 32 - 48 - 48 - 48)) >> (256 - 48)),
             UFixed6.wrap(uint256(slot0 << (256 - 32 - 32 - 48 - 48 - 48 - 48)) >> (256 - 48)),
+            Fixed6.wrap(int256(slot1 << (256 - 32 - 24 - 64 - 64)) >> (256 - 64)),
             PAccumulator6(
                 Fixed6.wrap(int256(slot1 << (256 - 32)) >> (256 - 32)),
                 Fixed6.wrap(int256(slot1 << (256 - 32 - 24)) >> (256 - 24))

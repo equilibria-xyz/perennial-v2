@@ -132,6 +132,7 @@ contract Market is IMarket, Instance, ReentrancyGuard {
     function updateRiskParameter(RiskParameter memory newRiskParameter) external onlyCoordinator {
 
         // credit impact update fee to the protocol account
+        Global memory newGlobal = _global.read();
         Position memory latestPosition = _position.read();
         RiskParameter memory latestRiskParameter = _riskParameter.read();
         OracleVersion memory latestVersion = oracle.at(latestPosition.timestamp);
@@ -140,7 +141,9 @@ contract Market is IMarket, Instance, ReentrancyGuard {
             .update(newRiskParameter.makerFee, latestPosition.maker, latestVersion.price.abs())
             .add(latestRiskParameter.takerFee
                 .update(newRiskParameter.takerFee, latestPosition.skew(), latestVersion.price.abs()));
-        _credit(address(0), updateFee.mul(Fixed6Lib.NEG_ONE));
+
+        newGlobal.exposure = newGlobal.exposure.sub(updateFee);
+        _global.store(newGlobal);
         
         // update 
         _riskParameter.validateAndStore(newRiskParameter, IMarketFactory(address(factory())).parameter());
@@ -151,13 +154,30 @@ contract Market is IMarket, Instance, ReentrancyGuard {
     /// @dev Applicable fees include: protocol, oracle, risk, and donation
     function claimFee() external {
         Global memory newGlobal = _global.read();
+        Local memory newLocal = _locals[msg.sender].read();
 
         if (_claimFee(factory().owner(), newGlobal.protocolFee)) newGlobal.protocolFee = UFixed6Lib.ZERO;
         if (_claimFee(address(IMarketFactory(address(factory())).oracleFactory()), newGlobal.oracleFee))
             newGlobal.oracleFee = UFixed6Lib.ZERO;
         if (_claimFee(coordinator, newGlobal.riskFee)) newGlobal.riskFee = UFixed6Lib.ZERO;
         if (_claimFee(beneficiary, newGlobal.donation)) newGlobal.donation = UFixed6Lib.ZERO;
+        if (_claimFee(msg.sender, newLocal.claimable)) newLocal.claimable = UFixed6Lib.ZERO;
 
+        _global.store(newGlobal);
+        _locals[msg.sender].store(newLocal);
+    }
+
+    /// @notice Claims any claimeable that the sender has accrued
+    /// @dev Applicable fees include: protocol, oracle, risk, and donation
+    function claimExposure() external onlyOwner {
+        Global memory newGlobal = _global.read();
+
+        if (newGlobal.exposure.sign() == 1) token.push(msg.sender, UFixed18Lib.from(newGlobal.exposure.abs()));
+        if (newGlobal.exposure.sign() == -1) token.pull(msg.sender, UFixed18Lib.from(newGlobal.exposure.abs()));
+        
+        emit ExposureClaimed(msg.sender, newGlobal.exposure);
+
+        newGlobal.exposure = Fixed6Lib.ZERO;
         _global.store(newGlobal);
     }
 
@@ -465,14 +485,14 @@ contract Market is IMarket, Instance, ReentrancyGuard {
             context.riskParameter
         );
 
-        context.global.incrementFees(
+        context.global.update(
+            newOrderId,
             feeResult.marketFee,
             feeResult.settlementFee,
+            feeResult.protocolFee,
             context.marketParameter,
             context.protocolParameter
         );
-        context.global.latestId = newOrderId;
-        _credit(address(0), feeResult.protocolFee);
 
         context.latestPosition.global.update(newOrder, oracleVersion.valid);
         context.pending.global.sub(newOrder);
@@ -511,7 +531,7 @@ contract Market is IMarket, Instance, ReentrancyGuard {
             accumulationResult.settlementFee,
             accumulationResult.liquidationFee
         );
-        _credit(liquidators[account][newOrderId], Fixed6Lib.from(accumulationResult.liquidationFee));
+        _credit(liquidators[account][newOrderId], accumulationResult.liquidationFee);
 
         context.latestPosition.local.update(newOrder, version.valid);
         context.pending.local.sub(newOrder);
@@ -528,15 +548,15 @@ contract Market is IMarket, Instance, ReentrancyGuard {
         );
     }
 
-    /// @notice Credits an account's collateral that is out-of-context
+    /// @notice Credits an account's claimable that is out-of-context
     /// @dev The amount must have already come from a corresponing debit in the settlement flow
     /// @param account The account to credit
     /// @param amount The amount to credit
-    function _credit(address account, Fixed6 amount) private {
+    function _credit(address account, UFixed6 amount) private {
         if (amount.isZero()) return;
 
         Local memory newLocal = _locals[account].read();
-        newLocal.update(amount);
+        newLocal.credit(amount);
         _locals[account].store(newLocal);
     }
 
