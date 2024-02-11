@@ -40,8 +40,8 @@ describe('Liquidate', () => {
 
     await chainlink.next()
     await market.connect(user).update(user.address, 0, 0, 0, 0, false) // settle
-    expect((await market.locals(userB.address)).collateral).to.equal(parse6decimal('10'))
-    await market.connect(userB).update(userB.address, 0, 0, 0, constants.MinInt256, false) // liquidator withdrawal
+    expect((await market.locals(userB.address)).claimable).to.equal(parse6decimal('10'))
+    await market.connect(userB).claimFee() // liquidator withdrawal
 
     expect(await dsu.balanceOf(userB.address)).to.equal(utils.parseEther('200010')) // Original 200000 + fee
     expect((await market.locals(user.address)).collateral).to.equal(parse6decimal('1000').sub(parse6decimal('10')))

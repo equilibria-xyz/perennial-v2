@@ -185,7 +185,7 @@ contract Market is IMarket, Instance, ReentrancyGuard {
     /// @param receiver The address to receive the fee
     /// @param fee The amount of the fee to claim
     function _claimFee(address receiver, UFixed6 fee) private returns (bool) {
-        if (msg.sender != receiver) return false;
+        if (msg.sender != receiver || fee.isZero()) return false;
 
         token.push(receiver, UFixed18Lib.from(fee));
         emit FeeClaimed(receiver, fee);
