@@ -14,14 +14,16 @@ contract GlobalTester {
         return global.store(newGlobal);
     }
 
-    function incrementFees(
-        UFixed6 amount,
+    function update(
+        uint256 newLatestId,
+        UFixed6 marketFee,
         UFixed6 settlementFee,
+        Fixed6 marketExposure,
         MarketParameter memory marketParameter,
         ProtocolParameter memory protocolParameter
     ) external {
         Global memory newGlobal = global.read();
-        newGlobal.incrementFees(amount, settlementFee, marketParameter, protocolParameter);
+        newGlobal.update(newLatestId, marketFee, settlementFee, marketExposure, marketParameter, protocolParameter);
         global.store(newGlobal);
     }
 }

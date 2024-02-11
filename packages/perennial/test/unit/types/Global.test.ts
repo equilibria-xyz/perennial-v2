@@ -6,11 +6,25 @@ import HRE from 'hardhat'
 import { GlobalTester, GlobalTester__factory } from '../../../types/generated'
 import { BigNumber, BigNumberish } from 'ethers'
 import { parse6decimal } from '../../../../common/testutil/types'
-import { MarketParameterStruct } from '../../../types/generated/contracts/Market'
+import { GlobalStruct, MarketParameterStruct } from '../../../types/generated/contracts/Market'
 import { ProtocolParameterStruct } from '../../../types/generated/contracts/MarketFactory'
 
 const { ethers } = HRE
 use(smock.matchers)
+
+const DEFAULT_GLOBAL: GlobalStruct = {
+  currentId: 0,
+  latestId: 0,
+  protocolFee: 0,
+  oracleFee: 0,
+  riskFee: 0,
+  donation: 0,
+  pAccumulator: {
+    _value: 0,
+    _skew: 0,
+  },
+  exposure: 0,
+}
 
 function generateMarketParameter(oracleFee: BigNumberish, riskFee: BigNumberish): MarketParameterStruct {
   return {
@@ -64,6 +78,7 @@ describe('Global', () => {
           _value: 6,
           _skew: 7,
         },
+        exposure: 8,
       })
 
       const value = await global.read()
@@ -75,22 +90,15 @@ describe('Global', () => {
       expect(value.donation).to.equal(5)
       expect(value.pAccumulator._value).to.equal(6)
       expect(value.pAccumulator._skew).to.equal(7)
+      expect(value.exposure).to.equal(8)
     })
 
     context('.currentId', async () => {
       const STORAGE_SIZE = 32
       it('saves if in range', async () => {
         await global.store({
+          ...DEFAULT_GLOBAL,
           currentId: BigNumber.from(2).pow(STORAGE_SIZE).sub(1),
-          latestId: 0,
-          protocolFee: 0,
-          oracleFee: 0,
-          riskFee: 0,
-          donation: 0,
-          pAccumulator: {
-            _value: 0,
-            _skew: 0,
-          },
         })
         const value = await global.read()
         expect(value.currentId).to.equal(BigNumber.from(2).pow(STORAGE_SIZE).sub(1))
@@ -99,16 +107,8 @@ describe('Global', () => {
       it('reverts if currentId out of range', async () => {
         await expect(
           global.store({
+            ...DEFAULT_GLOBAL,
             currentId: BigNumber.from(2).pow(STORAGE_SIZE),
-            latestId: 0,
-            protocolFee: 0,
-            oracleFee: 0,
-            riskFee: 0,
-            donation: 0,
-            pAccumulator: {
-              _value: 0,
-              _skew: 0,
-            },
           }),
         ).to.be.revertedWithCustomError(global, 'GlobalStorageInvalidError')
       })
@@ -118,16 +118,8 @@ describe('Global', () => {
       const STORAGE_SIZE = 32
       it('saves if in range', async () => {
         await global.store({
-          currentId: 0,
+          ...DEFAULT_GLOBAL,
           latestId: BigNumber.from(2).pow(STORAGE_SIZE).sub(1),
-          protocolFee: 0,
-          oracleFee: 0,
-          riskFee: 0,
-          donation: 0,
-          pAccumulator: {
-            _value: 0,
-            _skew: 0,
-          },
         })
         const value = await global.read()
         expect(value.latestId).to.equal(BigNumber.from(2).pow(STORAGE_SIZE).sub(1))
@@ -136,16 +128,8 @@ describe('Global', () => {
       it('reverts if currentId out of range', async () => {
         await expect(
           global.store({
-            currentId: 0,
+            ...DEFAULT_GLOBAL,
             latestId: BigNumber.from(2).pow(STORAGE_SIZE),
-            protocolFee: 0,
-            oracleFee: 0,
-            riskFee: 0,
-            donation: 0,
-            pAccumulator: {
-              _value: 0,
-              _skew: 0,
-            },
           }),
         ).to.be.revertedWithCustomError(global, 'GlobalStorageInvalidError')
       })
@@ -155,16 +139,8 @@ describe('Global', () => {
       const STORAGE_SIZE = 48
       it('saves if in range', async () => {
         await global.store({
-          currentId: 0,
-          latestId: 0,
+          ...DEFAULT_GLOBAL,
           protocolFee: BigNumber.from(2).pow(STORAGE_SIZE).sub(1),
-          oracleFee: 0,
-          riskFee: 0,
-          donation: 0,
-          pAccumulator: {
-            _value: 0,
-            _skew: 0,
-          },
         })
         const value = await global.read()
         expect(value.protocolFee).to.equal(BigNumber.from(2).pow(STORAGE_SIZE).sub(1))
@@ -173,16 +149,8 @@ describe('Global', () => {
       it('reverts if currentId out of range', async () => {
         await expect(
           global.store({
-            currentId: 0,
-            latestId: 0,
+            ...DEFAULT_GLOBAL,
             protocolFee: BigNumber.from(2).pow(STORAGE_SIZE),
-            oracleFee: 0,
-            riskFee: 0,
-            donation: 0,
-            pAccumulator: {
-              _value: 0,
-              _skew: 0,
-            },
           }),
         ).to.be.revertedWithCustomError(global, 'GlobalStorageInvalidError')
       })
@@ -192,16 +160,8 @@ describe('Global', () => {
       const STORAGE_SIZE = 48
       it('saves if in range', async () => {
         await global.store({
-          currentId: 0,
-          latestId: 0,
-          protocolFee: 0,
+          ...DEFAULT_GLOBAL,
           oracleFee: BigNumber.from(2).pow(STORAGE_SIZE).sub(1),
-          riskFee: 0,
-          donation: 0,
-          pAccumulator: {
-            _value: 0,
-            _skew: 0,
-          },
         })
         const value = await global.read()
         expect(value.oracleFee).to.equal(BigNumber.from(2).pow(STORAGE_SIZE).sub(1))
@@ -210,16 +170,8 @@ describe('Global', () => {
       it('reverts if currentId out of range', async () => {
         await expect(
           global.store({
-            currentId: 0,
-            latestId: 0,
-            protocolFee: 0,
+            ...DEFAULT_GLOBAL,
             oracleFee: BigNumber.from(2).pow(STORAGE_SIZE),
-            riskFee: 0,
-            donation: 0,
-            pAccumulator: {
-              _value: 0,
-              _skew: 0,
-            },
           }),
         ).to.be.revertedWithCustomError(global, 'GlobalStorageInvalidError')
       })
@@ -229,16 +181,8 @@ describe('Global', () => {
       const STORAGE_SIZE = 48
       it('saves if in range', async () => {
         await global.store({
-          currentId: 0,
-          latestId: 0,
-          protocolFee: 0,
-          oracleFee: 0,
+          ...DEFAULT_GLOBAL,
           riskFee: BigNumber.from(2).pow(STORAGE_SIZE).sub(1),
-          donation: 0,
-          pAccumulator: {
-            _value: 0,
-            _skew: 0,
-          },
         })
         const value = await global.read()
         expect(value.riskFee).to.equal(BigNumber.from(2).pow(STORAGE_SIZE).sub(1))
@@ -247,16 +191,8 @@ describe('Global', () => {
       it('reverts if currentId out of range', async () => {
         await expect(
           global.store({
-            currentId: 0,
-            latestId: 0,
-            protocolFee: 0,
-            oracleFee: 0,
+            ...DEFAULT_GLOBAL,
             riskFee: BigNumber.from(2).pow(STORAGE_SIZE),
-            donation: 0,
-            pAccumulator: {
-              _value: 0,
-              _skew: 0,
-            },
           }),
         ).to.be.revertedWithCustomError(global, 'GlobalStorageInvalidError')
       })
@@ -266,16 +202,8 @@ describe('Global', () => {
       const STORAGE_SIZE = 48
       it('saves if in range', async () => {
         await global.store({
-          currentId: 0,
-          latestId: 0,
-          protocolFee: 0,
-          oracleFee: 0,
-          riskFee: 0,
+          ...DEFAULT_GLOBAL,
           donation: BigNumber.from(2).pow(STORAGE_SIZE).sub(1),
-          pAccumulator: {
-            _value: 0,
-            _skew: 0,
-          },
         })
         const value = await global.read()
         expect(value.donation).to.equal(BigNumber.from(2).pow(STORAGE_SIZE).sub(1))
@@ -284,16 +212,29 @@ describe('Global', () => {
       it('reverts if currentId out of range', async () => {
         await expect(
           global.store({
-            currentId: 0,
-            latestId: 0,
-            protocolFee: 0,
-            oracleFee: 0,
-            riskFee: 0,
+            ...DEFAULT_GLOBAL,
             donation: BigNumber.from(2).pow(STORAGE_SIZE),
-            pAccumulator: {
-              _value: 0,
-              _skew: 0,
-            },
+          }),
+        ).to.be.revertedWithCustomError(global, 'GlobalStorageInvalidError')
+      })
+    })
+
+    context('.exposure', async () => {
+      const STORAGE_SIZE = 63
+      it('saves if in range', async () => {
+        await global.store({
+          ...DEFAULT_GLOBAL,
+          exposure: BigNumber.from(2).pow(STORAGE_SIZE).sub(1),
+        })
+        const value = await global.read()
+        expect(value.exposure).to.equal(BigNumber.from(2).pow(STORAGE_SIZE).sub(1))
+      })
+
+      it('reverts if currentId out of range', async () => {
+        await expect(
+          global.store({
+            ...DEFAULT_GLOBAL,
+            exposure: BigNumber.from(2).pow(STORAGE_SIZE),
           }),
         ).to.be.revertedWithCustomError(global, 'GlobalStorageInvalidError')
       })
@@ -303,12 +244,7 @@ describe('Global', () => {
       const STORAGE_SIZE = 31
       it('saves if in range (above)', async () => {
         await global.store({
-          currentId: 0,
-          latestId: 0,
-          protocolFee: 0,
-          oracleFee: 0,
-          riskFee: 0,
-          donation: 0,
+          ...DEFAULT_GLOBAL,
           pAccumulator: {
             _value: BigNumber.from(2).pow(STORAGE_SIZE).sub(1),
             _skew: 0,
@@ -320,12 +256,7 @@ describe('Global', () => {
 
       it('saves if in range (below)', async () => {
         await global.store({
-          currentId: 0,
-          latestId: 0,
-          protocolFee: 0,
-          oracleFee: 0,
-          riskFee: 0,
-          donation: 0,
+          ...DEFAULT_GLOBAL,
           pAccumulator: {
             _value: BigNumber.from(2).pow(STORAGE_SIZE).mul(-1),
             _skew: 0,
@@ -338,12 +269,7 @@ describe('Global', () => {
       it('reverts if currentId out of range (above)', async () => {
         await expect(
           global.store({
-            currentId: 0,
-            latestId: 0,
-            protocolFee: 0,
-            oracleFee: 0,
-            riskFee: 0,
-            donation: 0,
+            ...DEFAULT_GLOBAL,
             pAccumulator: {
               _value: BigNumber.from(2).pow(STORAGE_SIZE),
               _skew: 0,
@@ -355,12 +281,7 @@ describe('Global', () => {
       it('reverts if currentId out of range (below)', async () => {
         await expect(
           global.store({
-            currentId: 0,
-            latestId: 0,
-            protocolFee: 0,
-            oracleFee: 0,
-            riskFee: 0,
-            donation: 0,
+            ...DEFAULT_GLOBAL,
             pAccumulator: {
               _value: BigNumber.from(2).pow(STORAGE_SIZE).add(1).mul(-1),
               _skew: 0,
@@ -374,12 +295,7 @@ describe('Global', () => {
       const STORAGE_SIZE = 23
       it('saves if in range (above)', async () => {
         await global.store({
-          currentId: 0,
-          latestId: 0,
-          protocolFee: 0,
-          oracleFee: 0,
-          riskFee: 0,
-          donation: 0,
+          ...DEFAULT_GLOBAL,
           pAccumulator: {
             _value: 0,
             _skew: BigNumber.from(2).pow(STORAGE_SIZE).sub(1),
@@ -391,12 +307,7 @@ describe('Global', () => {
 
       it('saves if in range (below)', async () => {
         await global.store({
-          currentId: 0,
-          latestId: 0,
-          protocolFee: 0,
-          oracleFee: 0,
-          riskFee: 0,
-          donation: 0,
+          ...DEFAULT_GLOBAL,
           pAccumulator: {
             _value: 0,
             _skew: BigNumber.from(2).pow(STORAGE_SIZE).mul(-1),
@@ -409,12 +320,7 @@ describe('Global', () => {
       it('reverts if currentId out of range (above)', async () => {
         await expect(
           global.store({
-            currentId: 0,
-            latestId: 0,
-            protocolFee: 0,
-            oracleFee: 0,
-            riskFee: 0,
-            donation: 0,
+            ...DEFAULT_GLOBAL,
             pAccumulator: {
               _value: 0,
               _skew: BigNumber.from(2).pow(STORAGE_SIZE),
@@ -426,12 +332,7 @@ describe('Global', () => {
       it('reverts if currentId out of range (below)', async () => {
         await expect(
           global.store({
-            currentId: 0,
-            latestId: 0,
-            protocolFee: 0,
-            oracleFee: 0,
-            riskFee: 0,
-            donation: 0,
+            ...DEFAULT_GLOBAL,
             pAccumulator: {
               _value: 0,
               _skew: BigNumber.from(2).pow(STORAGE_SIZE).add(1).mul(-1),
@@ -442,18 +343,21 @@ describe('Global', () => {
     })
   })
 
-  describe('#incrementFees', async () => {
+  describe('#update', async () => {
     context('zero settlement fee', async () => {
       it('no fees', async () => {
-        await global.incrementFees(123, 0, generateMarketParameter(0, 0), generateProtocolParameter(0))
+        await global.update(1, 123, 0, 0, generateMarketParameter(0, 0), generateProtocolParameter(0))
 
         const value = await global.read()
+        expect(value.latestId).to.equal(1)
         expect(value.donation).to.equal(123)
       })
 
       it('protocol fee', async () => {
-        await global.incrementFees(
+        await global.update(
+          1,
           123,
+          0,
           0,
           generateMarketParameter(0, 0),
           generateProtocolParameter(parse6decimal('0.1')),
@@ -465,8 +369,10 @@ describe('Global', () => {
       })
 
       it('risk fee', async () => {
-        await global.incrementFees(
+        await global.update(
+          1,
           123,
+          0,
           0,
           generateMarketParameter(0, parse6decimal('0.1')),
           generateProtocolParameter(0),
@@ -478,8 +384,10 @@ describe('Global', () => {
       })
 
       it('oracle fee', async () => {
-        await global.incrementFees(
+        await global.update(
+          1,
           123,
+          0,
           0,
           generateMarketParameter(parse6decimal('0.1'), 0),
           generateProtocolParameter(0),
@@ -491,8 +399,10 @@ describe('Global', () => {
       })
 
       it('oracle / risk fee', async () => {
-        await global.incrementFees(
+        await global.update(
+          1,
           123,
+          0,
           0,
           generateMarketParameter(parse6decimal('0.1'), parse6decimal('0.3')),
           generateProtocolParameter(0),
@@ -505,8 +415,10 @@ describe('Global', () => {
       })
 
       it('oracle / risk fee zero donation', async () => {
-        await global.incrementFees(
+        await global.update(
+          1,
           123,
+          0,
           0,
           generateMarketParameter(parse6decimal('0.1'), parse6decimal('0.9')),
           generateProtocolParameter(0),
@@ -520,8 +432,10 @@ describe('Global', () => {
 
       it('oracle / risk fee over', async () => {
         await expect(
-          global.incrementFees(
+          global.update(
+            1,
             123,
+            0,
             0,
             generateMarketParameter(parse6decimal('0.1'), parse6decimal('1.0')),
             generateProtocolParameter(0),
@@ -530,8 +444,10 @@ describe('Global', () => {
       })
 
       it('protocol / risk fee', async () => {
-        await global.incrementFees(
+        await global.update(
+          1,
           123,
+          0,
           0,
           generateMarketParameter(0, parse6decimal('0.1')),
           generateProtocolParameter(parse6decimal('0.2')),
@@ -544,8 +460,10 @@ describe('Global', () => {
       })
 
       it('protocol / risk fee zero marketFee', async () => {
-        await global.incrementFees(
+        await global.update(
+          1,
           123,
+          0,
           0,
           generateMarketParameter(0, parse6decimal('0.1')),
           generateProtocolParameter(parse6decimal('1.0')),
@@ -558,8 +476,10 @@ describe('Global', () => {
       })
 
       it('protocol / risk fee zero donation', async () => {
-        await global.incrementFees(
+        await global.update(
+          1,
           123,
+          0,
           0,
           generateMarketParameter(0, parse6decimal('1.0')),
           generateProtocolParameter(parse6decimal('0.2')),
@@ -573,8 +493,10 @@ describe('Global', () => {
 
       it('protocol / risk fee protocol over', async () => {
         await expect(
-          global.incrementFees(
+          global.update(
+            1,
             123,
+            0,
             0,
             generateMarketParameter(0, parse6decimal('0.1')),
             generateProtocolParameter(parse6decimal('1.1')),
@@ -584,8 +506,10 @@ describe('Global', () => {
 
       it('protocol / risk fee oracle over', async () => {
         await expect(
-          global.incrementFees(
+          global.update(
+            1,
             123,
+            0,
             0,
             generateMarketParameter(0, parse6decimal('1.1')),
             generateProtocolParameter(parse6decimal('0.2')),
@@ -594,8 +518,10 @@ describe('Global', () => {
       })
 
       it('protocol / oracle fee', async () => {
-        await global.incrementFees(
+        await global.update(
+          1,
           123,
+          0,
           0,
           generateMarketParameter(parse6decimal('0.1'), 0),
           generateProtocolParameter(parse6decimal('0.2')),
@@ -608,8 +534,10 @@ describe('Global', () => {
       })
 
       it('protocol / oracle fee zero marketFee', async () => {
-        await global.incrementFees(
+        await global.update(
+          1,
           123,
+          0,
           0,
           generateMarketParameter(parse6decimal('0.1'), 0),
           generateProtocolParameter(parse6decimal('1.0')),
@@ -622,8 +550,10 @@ describe('Global', () => {
       })
 
       it('protocol / oracle fee zero donation', async () => {
-        await global.incrementFees(
+        await global.update(
+          1,
           123,
+          0,
           0,
           generateMarketParameter(parse6decimal('1.0'), 0),
           generateProtocolParameter(parse6decimal('0.2')),
@@ -637,8 +567,10 @@ describe('Global', () => {
 
       it('protocol / oracle fee protocol over', async () => {
         await expect(
-          global.incrementFees(
+          global.update(
+            1,
             123,
+            0,
             0,
             generateMarketParameter(parse6decimal('0.1'), 0),
             generateProtocolParameter(parse6decimal('1.1')),
@@ -648,8 +580,10 @@ describe('Global', () => {
 
       it('protocol / oracle fee oracle over', async () => {
         await expect(
-          global.incrementFees(
+          global.update(
+            1,
             123,
+            0,
             0,
             generateMarketParameter(parse6decimal('1.1'), 0),
             generateProtocolParameter(parse6decimal('0.2')),
@@ -658,8 +592,10 @@ describe('Global', () => {
       })
 
       it('protocol / oracle / risk fee', async () => {
-        await global.incrementFees(
+        await global.update(
+          1,
           123,
+          0,
           0,
           generateMarketParameter(parse6decimal('0.1'), parse6decimal('0.3')),
           generateProtocolParameter(parse6decimal('0.2')),
@@ -673,8 +609,10 @@ describe('Global', () => {
       })
 
       it('protocol / oracle / risk fee zero marketFee', async () => {
-        await global.incrementFees(
+        await global.update(
+          1,
           123,
+          0,
           0,
           generateMarketParameter(parse6decimal('0.1'), parse6decimal('0.3')),
           generateProtocolParameter(parse6decimal('1.0')),
@@ -688,8 +626,10 @@ describe('Global', () => {
       })
 
       it('protocol / oracle / risk fee zero donation', async () => {
-        await global.incrementFees(
+        await global.update(
+          1,
           123,
+          0,
           0,
           generateMarketParameter(parse6decimal('0.1'), parse6decimal('0.9')),
           generateProtocolParameter(parse6decimal('0.2')),
@@ -702,10 +642,26 @@ describe('Global', () => {
         expect(value.donation).to.equal(1) // due to rounding
       })
 
+      it('exposure', async () => {
+        await global.update(
+          1,
+          0,
+          0,
+          123,
+          generateMarketParameter(parse6decimal('0.1'), parse6decimal('0.9')),
+          generateProtocolParameter(parse6decimal('0.2')),
+        )
+
+        const value = await global.read()
+        expect(value.exposure).to.equal(123)
+      })
+
       it('protocol / oracle / risk fee protocol over', async () => {
         await expect(
-          global.incrementFees(
+          global.update(
+            1,
             123,
+            0,
             0,
             generateMarketParameter(parse6decimal('0.1'), parse6decimal('0.3')),
             generateProtocolParameter(parse6decimal('1.1')),
@@ -715,8 +671,10 @@ describe('Global', () => {
 
       it('protocol / oracle / risk fee oracle over', async () => {
         await expect(
-          global.incrementFees(
+          global.update(
+            1,
             123,
+            0,
             0,
             generateMarketParameter(parse6decimal('0.1'), parse6decimal('1.0')),
             generateProtocolParameter(parse6decimal('0.2')),
@@ -727,16 +685,18 @@ describe('Global', () => {
 
     context('non-zero settlement fee', async () => {
       it('no fees', async () => {
-        await global.incrementFees(123, 456, generateMarketParameter(0, 0), generateProtocolParameter(0))
+        await global.update(1, 123, 456, 0, generateMarketParameter(0, 0), generateProtocolParameter(0))
 
         const value = await global.read()
         expect(value.donation).to.equal(123)
       })
 
       it('protocol fee', async () => {
-        await global.incrementFees(
+        await global.update(
+          1,
           123,
           456,
+          0,
           generateMarketParameter(0, 0),
           generateProtocolParameter(parse6decimal('0.1')),
         )
@@ -747,9 +707,11 @@ describe('Global', () => {
       })
 
       it('risk fee', async () => {
-        await global.incrementFees(
+        await global.update(
+          1,
           123,
           456,
+          0,
           generateMarketParameter(0, parse6decimal('0.1')),
           generateProtocolParameter(0),
         )
@@ -760,9 +722,11 @@ describe('Global', () => {
       })
 
       it('oracle fee', async () => {
-        await global.incrementFees(
+        await global.update(
+          1,
           123,
           456,
+          0,
           generateMarketParameter(parse6decimal('0.1'), 0),
           generateProtocolParameter(0),
         )
@@ -773,9 +737,11 @@ describe('Global', () => {
       })
 
       it('oracle / risk fee', async () => {
-        await global.incrementFees(
+        await global.update(
+          1,
           123,
           456,
+          0,
           generateMarketParameter(parse6decimal('0.1'), parse6decimal('0.3')),
           generateProtocolParameter(0),
         )
@@ -787,9 +753,11 @@ describe('Global', () => {
       })
 
       it('oracle / risk fee zero donation', async () => {
-        await global.incrementFees(
+        await global.update(
+          1,
           123,
           456,
+          0,
           generateMarketParameter(parse6decimal('0.1'), parse6decimal('0.9')),
           generateProtocolParameter(0),
         )
@@ -802,9 +770,11 @@ describe('Global', () => {
 
       it('oracle / risk fee over', async () => {
         await expect(
-          global.incrementFees(
+          global.update(
+            1,
             123,
             456,
+            0,
             generateMarketParameter(parse6decimal('0.1'), parse6decimal('1.0')),
             generateProtocolParameter(0),
           ),
@@ -812,9 +782,11 @@ describe('Global', () => {
       })
 
       it('protocol / risk fee', async () => {
-        await global.incrementFees(
+        await global.update(
+          1,
           123,
           456,
+          0,
           generateMarketParameter(0, parse6decimal('0.1')),
           generateProtocolParameter(parse6decimal('0.2')),
         )
@@ -827,9 +799,11 @@ describe('Global', () => {
       })
 
       it('protocol / risk fee zero marketFee', async () => {
-        await global.incrementFees(
+        await global.update(
+          1,
           123,
           456,
+          0,
           generateMarketParameter(0, parse6decimal('0.1')),
           generateProtocolParameter(parse6decimal('1.0')),
         )
@@ -842,9 +816,11 @@ describe('Global', () => {
       })
 
       it('protocol / risk fee zero donation', async () => {
-        await global.incrementFees(
+        await global.update(
+          1,
           123,
           456,
+          0,
           generateMarketParameter(0, parse6decimal('1.0')),
           generateProtocolParameter(parse6decimal('0.2')),
         )
@@ -858,9 +834,11 @@ describe('Global', () => {
 
       it('protocol / risk fee protocol over', async () => {
         await expect(
-          global.incrementFees(
+          global.update(
+            1,
             123,
             456,
+            0,
             generateMarketParameter(0, parse6decimal('0.1')),
             generateProtocolParameter(parse6decimal('1.1')),
           ),
@@ -869,9 +847,11 @@ describe('Global', () => {
 
       it('protocol / risk fee oracle over', async () => {
         await expect(
-          global.incrementFees(
+          global.update(
+            1,
             123,
             456,
+            0,
             generateMarketParameter(0, parse6decimal('1.1')),
             generateProtocolParameter(parse6decimal('0.2')),
           ),
@@ -879,9 +859,11 @@ describe('Global', () => {
       })
 
       it('protocol / oracle fee', async () => {
-        await global.incrementFees(
+        await global.update(
+          1,
           123,
           456,
+          0,
           generateMarketParameter(parse6decimal('0.1'), 0),
           generateProtocolParameter(parse6decimal('0.2')),
         )
@@ -893,9 +875,11 @@ describe('Global', () => {
       })
 
       it('protocol / oracle fee zero marketFee', async () => {
-        await global.incrementFees(
+        await global.update(
+          1,
           123,
           456,
+          0,
           generateMarketParameter(parse6decimal('0.1'), 0),
           generateProtocolParameter(parse6decimal('1.0')),
         )
@@ -907,9 +891,11 @@ describe('Global', () => {
       })
 
       it('protocol / oracle fee zero donation', async () => {
-        await global.incrementFees(
+        await global.update(
+          1,
           123,
           456,
+          0,
           generateMarketParameter(parse6decimal('1.0'), 0),
           generateProtocolParameter(parse6decimal('0.2')),
         )
@@ -922,8 +908,10 @@ describe('Global', () => {
 
       it('protocol / oracle fee protocol over', async () => {
         await expect(
-          global.incrementFees(
+          global.update(
+            1,
             123,
+            0,
             0,
             generateMarketParameter(parse6decimal('0.1'), 0),
             generateProtocolParameter(parse6decimal('1.1')),
@@ -933,9 +921,11 @@ describe('Global', () => {
 
       it('protocol / oracle fee oracle over', async () => {
         await expect(
-          global.incrementFees(
+          global.update(
+            1,
             123,
             456,
+            0,
             generateMarketParameter(parse6decimal('1.1'), 0),
             generateProtocolParameter(parse6decimal('0.2')),
           ),
@@ -943,9 +933,11 @@ describe('Global', () => {
       })
 
       it('protocol / oracle / risk fee', async () => {
-        await global.incrementFees(
+        await global.update(
+          1,
           123,
           456,
+          0,
           generateMarketParameter(parse6decimal('0.1'), parse6decimal('0.3')),
           generateProtocolParameter(parse6decimal('0.2')),
         )
@@ -958,9 +950,11 @@ describe('Global', () => {
       })
 
       it('protocol / oracle / risk fee zero marketFee', async () => {
-        await global.incrementFees(
+        await global.update(
+          1,
           123,
           456,
+          0,
           generateMarketParameter(parse6decimal('0.1'), parse6decimal('0.3')),
           generateProtocolParameter(parse6decimal('1.0')),
         )
@@ -973,9 +967,11 @@ describe('Global', () => {
       })
 
       it('protocol / oracle / risk fee zero donation', async () => {
-        await global.incrementFees(
+        await global.update(
+          1,
           123,
           456,
+          0,
           generateMarketParameter(parse6decimal('0.1'), parse6decimal('0.9')),
           generateProtocolParameter(parse6decimal('0.2')),
         )
@@ -989,9 +985,11 @@ describe('Global', () => {
 
       it('protocol / oracle / risk fee protocol over', async () => {
         await expect(
-          global.incrementFees(
+          global.update(
+            1,
             123,
             456,
+            0,
             generateMarketParameter(parse6decimal('0.1'), parse6decimal('0.3')),
             generateProtocolParameter(parse6decimal('1.1')),
           ),
@@ -1000,9 +998,11 @@ describe('Global', () => {
 
       it('protocol / oracle / risk fee oracle over', async () => {
         await expect(
-          global.incrementFees(
+          global.update(
+            1,
             123,
             456,
+            0,
             generateMarketParameter(parse6decimal('0.1'), parse6decimal('1.0')),
             generateProtocolParameter(parse6decimal('0.2')),
           ),
