@@ -151,7 +151,7 @@ contract Market is IMarket, Instance, ReentrancyGuard {
     }
 
     /// @notice Claims any available fee that the sender has accrued
-    /// @dev Applicable fees include: protocol, oracle, risk, and donation
+    /// @dev Applicable fees include: protocol, oracle, risk, donation, and claimable
     function claimFee() external {
         Global memory newGlobal = _global.read();
         Local memory newLocal = _locals[msg.sender].read();
@@ -167,8 +167,8 @@ contract Market is IMarket, Instance, ReentrancyGuard {
         _locals[msg.sender].store(newLocal);
     }
 
-    /// @notice Claims any claimeable that the sender has accrued
-    /// @dev Applicable fees include: protocol, oracle, risk, and donation
+    /// @notice Settles any exposure that has accrued to the market
+    /// @dev Resets exposure to zero, caller pays or receives to net out the exposure
     function claimExposure() external onlyOwner {
         Global memory newGlobal = _global.read();
 
