@@ -20,6 +20,9 @@ struct Local {
 
     /// @dev The collateral balance
     Fixed6 collateral;
+
+    /// @dev The claimable balance
+    UFixed6 claimable;
 }
 using LocalLib for Local global;
 struct LocalStorage { uint256 slot0; }
@@ -56,6 +59,13 @@ library LocalLib {
             .sub(Fixed6Lib.from(liquidationFee));
         self.latestId = newId;
     }
+
+    /// @notice Updates the claimable with the new amount
+    /// @param self The Local object to update
+    /// @param amount The amount to update the claimable by
+    function credit(Local memory self, UFixed6 amount) internal pure {
+        self.claimable = self.claimable.add(amount);
+    }
 }
 
 /// @dev Manually encodes and decodes the Local struct into storage.
@@ -65,7 +75,11 @@ library LocalLib {
 ///         uint32 currentId;       // <= 4.29b
 ///         uint32 latestId;        // <= 4.29b
 ///         int64 collateral;       // <= 9.22t
-///         uint96 __unallocated__;
+///         uint64 claimable;       // <= 18.44t
+///         bytes4 __DEPRECATED;    // UNSAFE UNTIL RESET
+///
+///         /* slot 1 */
+///         bytes28 __DEPRECATED;   // UNSAFE UNTIL RESET
 ///     }
 ///
 library LocalStorageLib {
@@ -77,7 +91,8 @@ library LocalStorageLib {
         return Local(
             uint256(slot0 << (256 - 32)) >> (256 - 32),
             uint256(slot0 << (256 - 32 - 32)) >> (256 - 32),
-            Fixed6.wrap(int256(slot0 << (256 - 32 - 32 - 64)) >> (256 - 64))
+            Fixed6.wrap(int256(slot0 << (256 - 32 - 32 - 64)) >> (256 - 64)),
+            UFixed6.wrap(uint256(slot0 << (256 - 32 - 32 - 64 - 64)) >> (256 - 64))
         );
     }
 
@@ -86,13 +101,18 @@ library LocalStorageLib {
         if (newValue.latestId > uint256(type(uint32).max)) revert LocalStorageInvalidError();
         if (newValue.collateral.gt(Fixed6.wrap(type(int64).max))) revert LocalStorageInvalidError();
         if (newValue.collateral.lt(Fixed6.wrap(type(int64).min))) revert LocalStorageInvalidError();
+        if (newValue.claimable.gt(UFixed6.wrap(type(uint64).max))) revert LocalStorageInvalidError();
 
         uint256 encoded0 =
             uint256(newValue.currentId << (256 - 32)) >> (256 - 32) |
             uint256(newValue.latestId << (256 - 32)) >> (256 - 32 - 32) |
-            uint256(Fixed6.unwrap(newValue.collateral) << (256 - 64)) >> (256 - 32 - 32 - 64);
+            uint256(Fixed6.unwrap(newValue.collateral) << (256 - 64)) >> (256 - 32 - 32 - 64) |
+            uint256(UFixed6.unwrap(newValue.claimable) << (256 - 64)) >> (256 - 32 - 32 - 64 - 64);
+        uint256 encoded1; // reset deprecated storage on settlement
+
         assembly {
             sstore(self.slot, encoded0)
+            sstore(add(self.slot, 1), encoded1)
         }
     }
 }

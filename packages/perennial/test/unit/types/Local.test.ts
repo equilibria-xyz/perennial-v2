@@ -14,6 +14,7 @@ const DEFAULT_LOCAL: LocalStruct = {
   currentId: 0,
   latestId: 0,
   collateral: 0,
+  claimable: 0,
 }
 
 const DEFAULT_ADDRESS = '0x0123456789abcdef0123456789abcdef01234567'
@@ -34,6 +35,7 @@ describe('Local', () => {
       currentId: 1,
       latestId: 5,
       collateral: 2,
+      claimable: 3,
     }
     it('stores a new value', async () => {
       await local.store(VALID_STORED_VALUE)
@@ -42,6 +44,7 @@ describe('Local', () => {
       expect(value.currentId).to.equal(1)
       expect(value.latestId).to.equal(5)
       expect(value.collateral).to.equal(2)
+      expect(value.claimable).to.equal(3)
     })
 
     context('.currentId', async () => {
@@ -120,6 +123,27 @@ describe('Local', () => {
           local.store({
             ...VALID_STORED_VALUE,
             collateral: BigNumber.from(2).pow(STORAGE_SIZE).add(1).mul(-1),
+          }),
+        ).to.be.revertedWithCustomError(local, 'LocalStorageInvalidError')
+      })
+    })
+
+    context('.claimable', async () => {
+      const STORAGE_SIZE = 64
+      it('saves if in range', async () => {
+        await local.store({
+          ...VALID_STORED_VALUE,
+          claimable: BigNumber.from(2).pow(STORAGE_SIZE).sub(1),
+        })
+        const value = await local.read()
+        expect(value.claimable).to.equal(BigNumber.from(2).pow(STORAGE_SIZE).sub(1))
+      })
+
+      it('reverts if claimable out of range', async () => {
+        await expect(
+          local.store({
+            ...VALID_STORED_VALUE,
+            claimable: BigNumber.from(2).pow(STORAGE_SIZE),
           }),
         ).to.be.revertedWithCustomError(local, 'LocalStorageInvalidError')
       })

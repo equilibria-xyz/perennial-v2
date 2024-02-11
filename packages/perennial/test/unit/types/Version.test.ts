@@ -45,6 +45,7 @@ const GLOBAL: GlobalStruct = {
     _value: 6,
     _skew: 7,
   },
+  exposure: 0,
 }
 
 const FROM_POSITION: PositionStruct = {

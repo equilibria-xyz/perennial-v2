@@ -737,7 +737,11 @@ describe('Market', () => {
             .to.emit(market, 'Updated')
             .withArgs(user.address, user.address, ORACLE_VERSION_2.timestamp, 0, 0, 0, COLLATERAL.mul(-1), false)
             .to.emit(market, 'OrderCreated')
-            .withArgs(user.address, { ...DEFAULT_ORDER, timestamp: ORACLE_VERSION_2.timestamp, collateral: -COLLATERAL })
+            .withArgs(user.address, {
+              ...DEFAULT_ORDER,
+              timestamp: ORACLE_VERSION_2.timestamp,
+              collateral: -COLLATERAL,
+            })
 
           expectLocalEq(await market.locals(user.address), {
             ...DEFAULT_LOCAL,
@@ -966,16 +970,13 @@ describe('Market', () => {
               .to.emit(market, 'Updated')
               .withArgs(user.address, user.address, ORACLE_VERSION_2.timestamp, POSITION, 0, 0, COLLATERAL, false)
               .to.emit(market, 'OrderCreated')
-              .withArgs(
-                user.address,
-                {
-                  ...DEFAULT_ORDER,
-                  orders: 1,
-                  timestamp: ORACLE_VERSION_2.timestamp,
-                  collateral: COLLATERAL,
-                  makerPos: POSITION,
-                },
-              )
+              .withArgs(user.address, {
+                ...DEFAULT_ORDER,
+                orders: 1,
+                timestamp: ORACLE_VERSION_2.timestamp,
+                collateral: COLLATERAL,
+                makerPos: POSITION,
+              })
 
             expectLocalEq(await market.locals(user.address), {
               ...DEFAULT_LOCAL,
@@ -1889,16 +1890,13 @@ describe('Market', () => {
                 .to.emit(market, 'Updated')
                 .withArgs(user.address, user.address, ORACLE_VERSION_2.timestamp, 0, POSITION, 0, COLLATERAL, false)
                 .to.emit(market, 'OrderCreated')
-                .withArgs(
-                  user.address,
-                  {
-                    ...DEFAULT_ORDER,
-                    timestamp: ORACLE_VERSION_2.timestamp,
-                    collateral: COLLATERAL,
-                    orders: 1,
-                    longPos: POSITION,
-                  },
-                )
+                .withArgs(user.address, {
+                  ...DEFAULT_ORDER,
+                  timestamp: ORACLE_VERSION_2.timestamp,
+                  collateral: COLLATERAL,
+                  orders: 1,
+                  longPos: POSITION,
+                })
 
               expectLocalEq(await market.locals(user.address), {
                 ...DEFAULT_LOCAL,
@@ -3600,7 +3598,7 @@ describe('Market', () => {
                 ...DEFAULT_LOCAL,
                 currentId: 0,
                 latestId: 0,
-                collateral: EXPECTED_LIQUIDATION_FEE,
+                claimable: EXPECTED_LIQUIDATION_FEE,
               })
               expectLocalEq(await market.locals(user.address), {
                 ...DEFAULT_LOCAL,
@@ -3806,7 +3804,7 @@ describe('Market', () => {
                 ...DEFAULT_LOCAL,
                 currentId: 0,
                 latestId: 0,
-                collateral: EXPECTED_LIQUIDATION_FEE,
+                claimable: EXPECTED_LIQUIDATION_FEE,
               })
               expectPositionEq(await market.positions(user.address), {
                 ...DEFAULT_POSITION,
@@ -4101,7 +4099,7 @@ describe('Market', () => {
                 ...DEFAULT_LOCAL,
                 currentId: 0,
                 latestId: 0,
-                collateral: EXPECTED_LIQUIDATION_FEE,
+                claimable: EXPECTED_LIQUIDATION_FEE,
               })
               expectLocalEq(await market.locals(userB.address), {
                 ...DEFAULT_LOCAL,
@@ -4194,7 +4192,7 @@ describe('Market', () => {
                 ...DEFAULT_LOCAL,
                 currentId: 0,
                 latestId: 0,
-                collateral: EXPECTED_LIQUIDATION_FEE,
+                claimable: EXPECTED_LIQUIDATION_FEE,
               })
               expectPositionEq(await market.positions(user.address), {
                 ...DEFAULT_POSITION,
@@ -4455,7 +4453,7 @@ describe('Market', () => {
                 ...DEFAULT_LOCAL,
                 currentId: 0,
                 latestId: 0,
-                collateral: EXPECTED_LIQUIDATION_FEE,
+                claimable: EXPECTED_LIQUIDATION_FEE,
               })
               expectPositionEq(await market.positions(user.address), {
                 ...DEFAULT_POSITION,
@@ -4592,16 +4590,13 @@ describe('Market', () => {
                 .to.emit(market, 'Updated')
                 .withArgs(user.address, user.address, ORACLE_VERSION_2.timestamp, 0, 0, POSITION, COLLATERAL, false)
                 .to.emit(market, 'OrderCreated')
-                .withArgs(
-                  user.address,
-                  {
-                    ...DEFAULT_ORDER,
-                    timestamp: ORACLE_VERSION_2.timestamp,
-                    collateral: COLLATERAL,
-                    orders: 1,
-                    shortPos: POSITION,
-                  },
-                )
+                .withArgs(user.address, {
+                  ...DEFAULT_ORDER,
+                  timestamp: ORACLE_VERSION_2.timestamp,
+                  collateral: COLLATERAL,
+                  orders: 1,
+                  shortPos: POSITION,
+                })
 
               expectLocalEq(await market.locals(user.address), {
                 ...DEFAULT_LOCAL,
@@ -6331,7 +6326,7 @@ describe('Market', () => {
                 ...DEFAULT_LOCAL,
                 currentId: 0,
                 latestId: 0,
-                collateral: EXPECTED_LIQUIDATION_FEE,
+                claimable: EXPECTED_LIQUIDATION_FEE,
               })
               expectLocalEq(await market.locals(user.address), {
                 ...DEFAULT_LOCAL,
@@ -6517,7 +6512,7 @@ describe('Market', () => {
                 ...DEFAULT_LOCAL,
                 currentId: 0,
                 latestId: 0,
-                collateral: EXPECTED_LIQUIDATION_FEE,
+                claimable: EXPECTED_LIQUIDATION_FEE,
               })
               expectLocalEq(await market.locals(user.address), {
                 ...DEFAULT_LOCAL,
@@ -6809,7 +6804,7 @@ describe('Market', () => {
                 ...DEFAULT_LOCAL,
                 currentId: 0,
                 latestId: 0,
-                collateral: EXPECTED_LIQUIDATION_FEE,
+                claimable: EXPECTED_LIQUIDATION_FEE,
               })
               expectLocalEq(await market.locals(userB.address), {
                 ...DEFAULT_LOCAL,
@@ -6892,7 +6887,7 @@ describe('Market', () => {
                 ...DEFAULT_LOCAL,
                 currentId: 0,
                 latestId: 0,
-                collateral: EXPECTED_LIQUIDATION_FEE,
+                claimable: EXPECTED_LIQUIDATION_FEE,
               })
               expectLocalEq(await market.locals(user.address), {
                 ...DEFAULT_LOCAL,
@@ -7164,7 +7159,7 @@ describe('Market', () => {
                 ...DEFAULT_LOCAL,
                 currentId: 0,
                 latestId: 0,
-                collateral: EXPECTED_LIQUIDATION_FEE,
+                claimable: EXPECTED_LIQUIDATION_FEE,
               })
               expectLocalEq(await market.locals(user.address), {
                 ...DEFAULT_LOCAL,
@@ -9583,7 +9578,7 @@ describe('Market', () => {
                 ...DEFAULT_LOCAL,
                 currentId: 0,
                 latestId: 0,
-                collateral: EXPECTED_LIQUIDATION_FEE,
+                claimable: EXPECTED_LIQUIDATION_FEE,
               })
               expectLocalEq(await market.locals(user.address), {
                 ...DEFAULT_LOCAL,
@@ -9818,7 +9813,7 @@ describe('Market', () => {
                 ...DEFAULT_LOCAL,
                 currentId: 0,
                 latestId: 0,
-                collateral: EXPECTED_LIQUIDATION_FEE,
+                claimable: EXPECTED_LIQUIDATION_FEE,
               })
               expectLocalEq(await market.locals(user.address), {
                 ...DEFAULT_LOCAL,
@@ -10143,7 +10138,7 @@ describe('Market', () => {
                 ...DEFAULT_LOCAL,
                 currentId: 0,
                 latestId: 0,
-                collateral: EXPECTED_LIQUIDATION_FEE,
+                claimable: EXPECTED_LIQUIDATION_FEE,
               })
               expectLocalEq(await market.locals(userB.address), {
                 ...DEFAULT_LOCAL,
@@ -10243,7 +10238,7 @@ describe('Market', () => {
                 ...DEFAULT_LOCAL,
                 currentId: 0,
                 latestId: 0,
-                collateral: EXPECTED_LIQUIDATION_FEE,
+                claimable: EXPECTED_LIQUIDATION_FEE,
               })
               expectLocalEq(await market.locals(user.address), {
                 ...DEFAULT_LOCAL,
@@ -10579,7 +10574,7 @@ describe('Market', () => {
                 ...DEFAULT_LOCAL,
                 currentId: 0,
                 latestId: 0,
-                collateral: EXPECTED_LIQUIDATION_FEE,
+                claimable: EXPECTED_LIQUIDATION_FEE,
               })
               expectLocalEq(await market.locals(user.address), {
                 ...DEFAULT_LOCAL,
@@ -11420,13 +11415,20 @@ describe('Market', () => {
             ...DEFAULT_LOCAL,
             currentId: 0,
             latestId: 0,
-            collateral: EXPECTED_LIQUIDATION_FEE,
+            claimable: EXPECTED_LIQUIDATION_FEE,
           })
           expectPositionEq(await market.positions(user.address), {
             ...DEFAULT_POSITION,
             timestamp: ORACLE_VERSION_5.timestamp,
             short: POSITION.div(4),
           })
+
+          dsu.transfer.whenCalledWith(liquidator.address, EXPECTED_LIQUIDATION_FEE.mul(1e12)).returns(true)
+          await expect(market.connect(liquidator).claimFee())
+            .to.emit(market, 'FeeClaimed')
+            .withArgs(liquidator.address, EXPECTED_LIQUIDATION_FEE)
+
+          expectLocalEq(await market.locals(liquidator.address), DEFAULT_LOCAL)
         })
       })
 
@@ -11506,7 +11508,7 @@ describe('Market', () => {
             ...DEFAULT_LOCAL,
             currentId: 0,
             latestId: 0,
-            collateral: EXPECTED_LIQUIDATION_FEE, // does not double charge
+            claimable: EXPECTED_LIQUIDATION_FEE, // does not double charge
           })
           expectLocalEq(await market.locals(user.address), {
             ...DEFAULT_LOCAL,
@@ -11629,6 +11631,13 @@ describe('Market', () => {
                 .mul(-1),
             },
           })
+
+          dsu.transfer.whenCalledWith(liquidator.address, EXPECTED_LIQUIDATION_FEE.mul(1e12)).returns(true)
+          await expect(market.connect(liquidator).claimFee())
+            .to.emit(market, 'FeeClaimed')
+            .withArgs(liquidator.address, EXPECTED_LIQUIDATION_FEE)
+
+          expectLocalEq(await market.locals(liquidator.address), DEFAULT_LOCAL)
         })
       })
 
