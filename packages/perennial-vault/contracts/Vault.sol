@@ -7,7 +7,6 @@ import "./interfaces/IVaultFactory.sol";
 import "./types/Account.sol";
 import "./types/Checkpoint.sol";
 import "./types/Registration.sol";
-import "./types/Mapping.sol";
 import "./types/VaultParameter.sol";
 import "./interfaces/IVault.sol";
 import "./lib/StrategyLib.sol";
@@ -44,8 +43,8 @@ contract Vault is IVault, Instance {
     /// @dev Per-id accounting state variables
     mapping(uint256 => CheckpointStorage) private _checkpoints;
 
-    /// @dev Per-id id-mapping state variables
-    mapping(uint256 => MappingStorage) private _mappings;
+    /// @dev DEPRECATED SLOT -- previously the mappings
+    bytes32 private __unused0__;
 
     /// @notice Initializes the vault
     /// @param asset_ The underlying asset
@@ -90,13 +89,6 @@ contract Vault is IVault, Instance {
     /// @return The checkpoint for the given id
     function checkpoints(uint256 id) external view returns (Checkpoint memory) {
         return _checkpoints[id].read();
-    }
-
-    /// @notice Returns the mapping for a given id
-    /// @param id The id to query
-    /// @return The mapping for the given id
-    function mappings(uint256 id) external view returns (Mapping memory) {
-        return _mappings[id].read();
     }
 
     /// @notice Returns the name of the vault
@@ -259,16 +251,15 @@ contract Vault is IVault, Instance {
         _saveContext(context, account);
     }
 
-    /// @notice loads or initializes the current checkpoint
+    /// @notice Loads or initializes the current checkpoint
     /// @param context The context to use
-    function _checkpoint(Context memory context) private {
+    function _checkpoint(Context memory context) private view {
         context.currentId = context.global.current;
-        if (_mappings[context.currentId].read().next(context.currentIds)) {
+        context.currentCheckpoint = _checkpoints[context.currentId].read();
+
+        if (context.currentTimestamp > context.currentCheckpoint.timestamp) {
             context.currentId++;
-            context.currentCheckpoint.initialize(context.global);
-            _mappings[context.currentId].store(context.currentIds);
-        } else {
-            context.currentCheckpoint = _checkpoints[context.currentId].read();
+            context.currentCheckpoint.next(context.currentTimestamp, context.global);
         }
     }
 
@@ -347,22 +338,22 @@ contract Vault is IVault, Instance {
     /// @dev Run before every stateful operation to settle up the latest global state of the vault
     /// @param context The context to use
     function _settle(Context memory context, address account) private {
+        Checkpoint memory nextCheckpoint;
+
         // settle global positions
         while (
             context.global.current > context.global.latest &&
-            _mappings[context.global.latest + 1].read().ready(context.latestIds)
+            context.latestTimestamp >= (nextCheckpoint = _checkpoints[context.global.latest + 1].read()).timestamp
         ) {
-            uint256 newLatestId = context.global.latest + 1;
-            context.latestCheckpoint = _checkpoints[newLatestId].read();
-            context.latestCheckpoint.complete(_checkpointAtId(context, newLatestId));
-
+            nextCheckpoint.complete(_checkpointAtId(context, nextCheckpoint.timestamp));
             context.global.processGlobal(
-                newLatestId,
-                context.latestCheckpoint,
-                context.latestCheckpoint.deposit,
-                context.latestCheckpoint.redemption
+                context.global.latest + 1,
+                nextCheckpoint,
+                nextCheckpoint.deposit,
+                nextCheckpoint.redemption
             );
-            _checkpoints[newLatestId].store(context.latestCheckpoint);
+            _checkpoints[context.global.latest].store(nextCheckpoint);
+            context.latestCheckpoint = nextCheckpoint;
         }
 
         if (account == address(0)) return;
@@ -370,17 +361,14 @@ contract Vault is IVault, Instance {
         // settle local position
         if (
             context.local.current > context.local.latest &&
-            _mappings[context.local.current].read().ready(context.latestIds)
-        ) {
-            uint256 newLatestId = context.local.current;
-            Checkpoint memory checkpoint = _checkpoints[newLatestId].read();
+            context.latestTimestamp >= (nextCheckpoint = _checkpoints[context.local.current].read()).timestamp
+        )
             context.local.processLocal(
-                newLatestId,
-                checkpoint,
+                context.local.current,
+                nextCheckpoint,
                 context.local.deposit,
                 context.local.redemption
             );
-        }
     }
 
     /// @notice Manages the internal collateral and position strategy of the vault
@@ -451,8 +439,8 @@ contract Vault is IVault, Instance {
     function _loadContext(address account) private view returns (Context memory context) {
         context.parameter = _parameter.read();
 
-        context.currentIds.initialize(totalMarkets);
-        context.latestIds.initialize(totalMarkets);
+        context.latestTimestamp = type(uint256).max;
+        context.currentTimestamp = type(uint256).max;
         context.registrations = new Registration[](totalMarkets);
         context.collaterals = new Fixed6[](totalMarkets);
 
@@ -460,14 +448,17 @@ contract Vault is IVault, Instance {
             // parameter
             Registration memory registration = _registrations[marketId].read();
             MarketParameter memory marketParameter = registration.market.parameter();
-
             context.registrations[marketId] = registration;
             context.settlementFee = context.settlementFee.add(marketParameter.settlementFee);
 
+            // version
+            (OracleVersion memory oracleVersion, uint256 currentTimestamp) = registration.market.oracle().status();
+            context.latestTimestamp = Math.min(context.latestTimestamp, oracleVersion.timestamp);
+            if (context.currentTimestamp == type(uint256).max) context.currentTimestamp = currentTimestamp;
+            else if (currentTimestamp != context.currentTimestamp) revert VaultCurrentOutOfSyncError();
+
             // local
             Local memory local = registration.market.locals(address(this));
-            context.latestIds.update(marketId, local.latestId);
-            context.currentIds.update(marketId, local.currentId);
             context.collaterals[marketId] = local.collateral;
             context.totalCollateral = context.totalCollateral.add(local.collateral);
         }
@@ -497,18 +488,15 @@ contract Vault is IVault, Instance {
 
     /// @notice Returns the aggregate perennial checkpoint for the vault at position
     /// @param context Context to use
-    /// @param id Position to use
+    /// @param timestamp The timestamp to use
     /// @return checkpoint The checkpoint at the given position
     function _checkpointAtId(
         Context memory context,
-        uint256 id
+        uint256 timestamp
     ) public view returns (PerennialCheckpoint memory checkpoint) {
-        Mapping memory mappingAtId = _mappings[id].read();
-        for (uint256 marketId; marketId < mappingAtId.length(); marketId++) {
-            Order memory orderAtId = context.registrations[marketId].market
-                .pendingOrders(address(this), mappingAtId.get(marketId));
+        for (uint256 marketId; marketId < context.registrations.length; marketId++) {
             PerennialCheckpoint memory marketCheckpoint = context.registrations[marketId].market
-                .checkpoints(address(this), orderAtId.timestamp);
+                .checkpoints(address(this), timestamp);
 
             (checkpoint.collateral, checkpoint.tradeFee, checkpoint.settlementFee) = (
                 checkpoint.collateral.add(marketCheckpoint.collateral),
