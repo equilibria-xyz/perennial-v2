@@ -570,13 +570,13 @@ describe('Market', () => {
           linearFee: parse6decimal('0.01'),
           proportionalFee: parse6decimal('0.004'),
           adiabaticFee: parse6decimal('0.003'),
-          scale: parse6decimal('100000'),
+          scale: parse6decimal('50.00'),
         },
         makerFee: {
           linearFee: parse6decimal('0.005'),
           proportionalFee: parse6decimal('0.001'),
           adiabaticFee: parse6decimal('0.004'),
-          scale: parse6decimal('100000'),
+          scale: parse6decimal('100.00'),
         },
         makerLimit: parse6decimal('2000'),
         efficiencyLimit: parse6decimal('0.2'),
@@ -637,6 +637,67 @@ describe('Market', () => {
           market,
           'RiskParameterUpdated',
         )
+
+        const riskParameter = await market.riskParameter()
+        expect(riskParameter.margin).to.equal(defaultRiskParameter.margin)
+        expect(riskParameter.maintenance).to.equal(defaultRiskParameter.maintenance)
+        expect(riskParameter.takerFee.linearFee).to.equal(defaultRiskParameter.takerFee.linearFee)
+        expect(riskParameter.takerFee.proportionalFee).to.equal(defaultRiskParameter.takerFee.proportionalFee)
+        expect(riskParameter.takerFee.adiabaticFee).to.equal(defaultRiskParameter.takerFee.adiabaticFee)
+        expect(riskParameter.takerFee.scale).to.equal(defaultRiskParameter.takerFee.scale)
+        expect(riskParameter.makerFee.linearFee).to.equal(defaultRiskParameter.makerFee.linearFee)
+        expect(riskParameter.makerFee.proportionalFee).to.equal(defaultRiskParameter.makerFee.proportionalFee)
+        expect(riskParameter.makerFee.adiabaticFee).to.equal(defaultRiskParameter.makerFee.adiabaticFee)
+        expect(riskParameter.makerFee.scale).to.equal(defaultRiskParameter.makerFee.scale)
+        expect(riskParameter.makerLimit).to.equal(defaultRiskParameter.makerLimit)
+        expect(riskParameter.efficiencyLimit).to.equal(defaultRiskParameter.efficiencyLimit)
+        expect(riskParameter.liquidationFee).to.equal(defaultRiskParameter.liquidationFee)
+        expect(riskParameter.utilizationCurve.minRate).to.equal(defaultRiskParameter.utilizationCurve.minRate)
+        expect(riskParameter.utilizationCurve.targetRate).to.equal(defaultRiskParameter.utilizationCurve.targetRate)
+        expect(riskParameter.utilizationCurve.maxRate).to.equal(defaultRiskParameter.utilizationCurve.maxRate)
+        expect(riskParameter.utilizationCurve.targetUtilization).to.equal(
+          defaultRiskParameter.utilizationCurve.targetUtilization,
+        )
+        expect(riskParameter.pController.k).to.equal(defaultRiskParameter.pController.k)
+        expect(riskParameter.pController.max).to.equal(defaultRiskParameter.pController.max)
+        expect(riskParameter.minMargin).to.equal(defaultRiskParameter.minMargin)
+        expect(riskParameter.minMaintenance).to.equal(defaultRiskParameter.minMaintenance)
+        expect(riskParameter.staleAfter).to.equal(defaultRiskParameter.staleAfter)
+        expect(riskParameter.makerReceiveOnly).to.equal(defaultRiskParameter.makerReceiveOnly)
+      })
+
+      it('updates the parameters w/ fee', async () => {
+        // setup market with POSITION skew
+        await market.connect(owner).updateParameter(beneficiary.address, coordinator.address, marketParameter)
+
+        oracle.at.whenCalledWith(ORACLE_VERSION_0.timestamp).returns(ORACLE_VERSION_0)
+        oracle.at.whenCalledWith(ORACLE_VERSION_1.timestamp).returns(ORACLE_VERSION_1)
+
+        oracle.status.returns([ORACLE_VERSION_1, ORACLE_VERSION_2.timestamp])
+        oracle.request.whenCalledWith(user.address).returns()
+
+        dsu.transferFrom.whenCalledWith(user.address, market.address, COLLATERAL.mul(1e12)).returns(true)
+        await market.connect(user).update(user.address, POSITION, 0, 0, COLLATERAL, false)
+        dsu.transferFrom.whenCalledWith(userB.address, market.address, COLLATERAL.mul(1e12)).returns(true)
+        await market.connect(userB).update(userB.address, 0, POSITION, 0, COLLATERAL, false)
+
+        oracle.at.whenCalledWith(ORACLE_VERSION_2.timestamp).returns(ORACLE_VERSION_2)
+        oracle.status.returns([ORACLE_VERSION_2, ORACLE_VERSION_3.timestamp])
+        oracle.request.whenCalledWith(user.address).returns()
+
+        await settle(market, user)
+        await settle(market, userB)
+
+        // test the risk parameter update
+        await market.connect(owner).updateParameter(beneficiary.address, coordinator.address, await market.parameter())
+        await expect(market.connect(coordinator).updateRiskParameter(defaultRiskParameter)).to.emit(
+          market,
+          'RiskParameterUpdated',
+        )
+
+        // before = 0
+        // after = (0.20 + 0) / 2 * 0.003 * 10 * 123 + (1.00 + 0.90) / 2 * 0.004 * -10 * 123 = -4.305
+        expect((await market.locals(constants.AddressZero)).collateral).to.equal(parse6decimal('4.305'))
 
         const riskParameter = await market.riskParameter()
         expect(riskParameter.margin).to.equal(defaultRiskParameter.margin)
