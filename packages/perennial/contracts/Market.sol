@@ -103,9 +103,11 @@ contract Market is IMarket, Instance, ReentrancyGuard {
         bool protect
     ) external nonReentrant whenNotPaused {
         Context memory context = _loadContext(account);
+
         _settle(context, account);
         _update(context, account, newMaker, newLong, newShort, collateral, protect);
-        _saveContext(context, account);
+        
+        _storeContext(context, account);
     }
 
     /// @notice Updates the beneficiary, coordinator, and parameter set of the market
@@ -247,31 +249,203 @@ contract Market is IMarket, Instance, ReentrancyGuard {
         return _checkpoints[account][version].read();
     }
 
-    /// @notice Loads the context for the update process
-    /// @param context The context to load to
-    /// @param account The account to query
-    function _loadUpdateContext(Context memory context, address account) private view {
-        // load current order
-        context.order.global = _pendingOrder[context.global.currentId].read();
-        context.order.local = _pendingOrders[account][context.local.currentId].read();
+    /// @notice Loads the transaction context
+    /// @param account The account to load for
+    /// @return context The transaction context
+    function _loadContext(address account) private view returns (Context memory context) {
+        // parameters
+        context.marketParameter = _parameter.read();
+        context.riskParameter = _riskParameter.read();
+
+        // oracle
+        (context.latestOracleVersion, context.currentTimestamp) = oracle.status();
+
+        // state
+        context.global = _global.read();
+        context.local = _locals[account].read();
+
+        // latest positions
+        context.latestPosition.global = _position.read();
+        context.latestPosition.local = _positions[account].read();
+
+        // aggregate pending orders
         context.pending.global = _pending.read();
         context.pending.local = _pendings[account].read();
+    }
+
+    /// @notice Stores the context for the transaction
+    /// @param context The context to store
+    /// @param account The account to store for
+    function _storeContext(Context memory context, address account) private {
+        // state
+        _global.store(context.global);
+        _locals[account].store(context.local);
+
+        // latest positions
+        _position.store(context.latestPosition.global);
+        _positions[account].store(context.latestPosition.local);
+
+        // aggregate pending orders
+        _pending.store(context.pending.global);
+        _pendings[account].store(context.pending.local);
+    }
+
+    /// @notice Loads the context for the update process
+    /// @param context The context to load to
+    /// @param account The account to load for
+    /// @return updateContext The update context
+    function _loadUpdateContext(
+        Context memory context,
+        address account
+    ) private view returns (UpdateContext memory updateContext) {
+        // load current position
+        updateContext.currentPosition.global = context.latestPosition.global.clone();
+        updateContext.currentPosition.global.update(context.pending.global, true);
+        updateContext.currentPosition.local = context.latestPosition.local.clone();
+        updateContext.currentPosition.local.update(context.pending.local, true);
+
+        // load current order
+        updateContext.order.global = _pendingOrder[context.global.currentId].read();
+        updateContext.order.local = _pendingOrders[account][context.local.currentId].read();
+    }
+
+    /// @notice Stores the context for the update process
+    /// @param context The transaction context
+    /// @param updateContext The update context to store
+    /// @param account The account to store for
+    function _storeUpdateContext(Context memory context, UpdateContext memory updateContext, address account) private {
+        // current orders
+        _pendingOrder[context.global.currentId].store(updateContext.order.global);
+        _pendingOrders[account][context.local.currentId].store(updateContext.order.local);
+    }
+
+    /// @notice Updates the current position
+    /// @param context The context to use
+    /// @param account The account to update
+    /// @param newMaker The new maker position size
+    /// @param newLong The new long position size
+    /// @param newShort The new short position size
+    /// @param collateral The change in collateral
+    /// @param protect Whether to protect the position for liquidation
+    function _update(
+        Context memory context,
+        address account,
+        UFixed6 newMaker,
+        UFixed6 newLong,
+        UFixed6 newShort,
+        Fixed6 collateral,
+        bool protect
+    ) private {
+        // load
+        UpdateContext memory updateContext = _loadUpdateContext(context, account);
+
+        // magic values
+        collateral = _processCollateralMagicValue(context, collateral);
+        newMaker = _processPositionMagicValue(context, updateContext.currentPosition.local.maker, newMaker);
+        newLong = _processPositionMagicValue(context, updateContext.currentPosition.local.long, newLong);
+        newShort = _processPositionMagicValue(context, updateContext.currentPosition.local.short, newShort);
 
         // advance to next id if applicable
-        if (context.currentTimestamp > context.order.local.timestamp) {
-            context.order.local.next(context.currentTimestamp);
+        if (context.currentTimestamp > updateContext.order.local.timestamp) {
+            updateContext.order.local.next(context.currentTimestamp);
             context.local.currentId++;
         }
-        if (context.currentTimestamp > context.order.global.timestamp) {
-            context.order.global.next(context.currentTimestamp);
+        if (context.currentTimestamp > updateContext.order.global.timestamp) {
+            updateContext.order.global.next(context.currentTimestamp);
             context.global.currentId++;
         }
 
-        // load current position
-        context.currentPosition.global = context.latestPosition.global.clone();
-        context.currentPosition.global.update(context.pending.global, true);
-        context.currentPosition.local = context.latestPosition.local.clone();
-        context.currentPosition.local.update(context.pending.local, true);
+        // update current position
+        Order memory newOrder = OrderLib.from(
+            context.currentTimestamp,
+            updateContext.currentPosition.local,
+            collateral,
+            newMaker,
+            newLong,
+            newShort,
+            protect
+        );
+        updateContext.currentPosition.global.update(newOrder, true);
+        updateContext.currentPosition.local.update(newOrder, true);
+
+        // apply new order
+        updateContext.order.local.add(newOrder);
+        updateContext.order.global.add(newOrder);
+        context.pending.global.add(newOrder);
+        context.pending.local.add(newOrder);
+
+        // update collateral
+        context.local.update(collateral);
+
+        // protect account
+        if (newOrder.protected()) liquidators[account][context.local.currentId] = msg.sender;
+
+        // request version
+        if (!newOrder.isEmpty()) oracle.request(IMarket(this), account);
+
+        // after
+        _invariant(context, updateContext, account, newOrder, collateral);
+
+        // store
+        _storeUpdateContext(context, updateContext, account);
+
+        // fund
+        if (collateral.sign() == 1) token.pull(msg.sender, UFixed18Lib.from(collateral.abs()));
+        if (collateral.sign() == -1) token.push(msg.sender, UFixed18Lib.from(collateral.abs()));
+
+        // events
+        emit Updated(msg.sender, account, context.currentTimestamp, newMaker, newLong, newShort, collateral, protect);
+        emit OrderCreated(account, newOrder);
+    }
+
+    /// @notice Loads the settlement context
+    /// @param context The transaction context
+    /// @param account The account to load for
+    /// @return settlementContext The settlement context
+    function _loadSettlementContext(
+        Context memory context,
+        address account
+    ) private view returns (SettlementContext memory settlementContext) {
+        // parameters
+        settlementContext.protocolParameter = IMarketFactory(address(factory())).parameter();
+
+        // processing accumulators
+        settlementContext.latestVersion = _versions[context.latestPosition.global.timestamp].read();
+        settlementContext.latestCheckpoint = _checkpoints[account][context.latestPosition.local.timestamp].read();
+        settlementContext.orderOracleVersion = oracle.at(context.latestPosition.global.timestamp);
+    }
+
+    /// @notice Settles the account position up to the latest version
+    /// @param context The context to use
+    /// @param account The account to settle
+    function _settle(Context memory context, address account) private {
+        SettlementContext memory settlementContext = _loadSettlementContext(context, account);
+
+        Order memory nextOrder;
+
+        // settle
+        while (
+            context.global.currentId != context.global.latestId &&
+            (nextOrder = _pendingOrder[context.global.latestId + 1].read()).ready(context.latestOracleVersion)
+        ) _processOrderGlobal(context, settlementContext, context.global.latestId + 1, nextOrder);
+
+        while (
+            context.local.currentId != context.local.latestId &&
+            (nextOrder = _pendingOrders[account][context.local.latestId + 1].read()).ready(context.latestOracleVersion)
+        ) _processOrderLocal(context, settlementContext, account, context.local.latestId + 1, nextOrder);
+
+        // sync
+        if (context.latestOracleVersion.timestamp > context.latestPosition.global.timestamp) {
+            nextOrder = _pendingOrder[context.global.latestId].read();
+            nextOrder.next(context.latestOracleVersion.timestamp);
+            _processOrderGlobal(context, settlementContext, context.global.latestId, nextOrder);
+        }
+
+        if (context.latestOracleVersion.timestamp > context.latestPosition.local.timestamp) {
+            nextOrder = _pendingOrders[account][context.local.latestId].read();
+            nextOrder.next(context.latestOracleVersion.timestamp);
+            _processOrderLocal(context, settlementContext, account, context.local.latestId, nextOrder);
+        }
     }
 
     /// @notice Modifies the collateral input per magic values
@@ -303,163 +477,27 @@ contract Market is IMarket, Instance, ReentrancyGuard {
         return newPosition;
     }
 
-    /// @notice Updates the current position
-    /// @param context The context to use
-    /// @param account The account to update
-    /// @param newMaker The new maker position size
-    /// @param newLong The new long position size
-    /// @param newShort The new short position size
-    /// @param collateral The change in collateral
-    /// @param protect Whether to protect the position for liquidation
-    function _update(
-        Context memory context,
-        address account,
-        UFixed6 newMaker,
-        UFixed6 newLong,
-        UFixed6 newShort,
-        Fixed6 collateral,
-        bool protect
-    ) private {
-        // load
-        _loadUpdateContext(context, account);
-
-        // magic values
-        collateral = _processCollateralMagicValue(context, collateral);
-        newMaker = _processPositionMagicValue(context, context.currentPosition.local.maker, newMaker);
-        newLong = _processPositionMagicValue(context, context.currentPosition.local.long, newLong);
-        newShort = _processPositionMagicValue(context, context.currentPosition.local.short, newShort);
-
-        // update current position
-        Order memory newOrder = OrderLib.from(
-            context.currentTimestamp,
-            context.currentPosition.local,
-            collateral,
-            newMaker,
-            newLong,
-            newShort,
-            protect
-        );
-        context.currentPosition.global.update(newOrder, true);
-        context.currentPosition.local.update(newOrder, true);
-
-        // apply new order
-        context.order.local.add(newOrder);
-        context.order.global.add(newOrder);
-        context.pending.global.add(newOrder);
-        context.pending.local.add(newOrder);
-
-        // update collateral
-        context.local.update(collateral);
-
-        // protect account
-        if (newOrder.protected()) liquidators[account][context.local.currentId] = msg.sender;
-
-        // request version
-        if (!newOrder.isEmpty()) oracle.request(IMarket(this), account);
-
-        // after
-        _invariant(context, account, newOrder, collateral);
-
-        // store
-        _pendingOrder[context.global.currentId].store(context.order.global);
-        _pendingOrders[account][context.local.currentId].store(context.order.local);
-        _pending.store(context.pending.global);
-        _pendings[account].store(context.pending.local);
-
-        // fund
-        if (collateral.sign() == 1) token.pull(msg.sender, UFixed18Lib.from(collateral.abs()));
-        if (collateral.sign() == -1) token.push(msg.sender, UFixed18Lib.from(collateral.abs()));
-
-        // events
-        emit Updated(msg.sender, account, context.currentTimestamp, newMaker, newLong, newShort, collateral, protect);
-        emit OrderCreated(account, newOrder);
-    }
-
-    /// @notice Loads the context of the transaction
-    /// @param account The account to load the context of
-    /// @return context The loaded context
-    function _loadContext(address account) private view returns (Context memory context) {
-        // parameters
-        context.protocolParameter = IMarketFactory(address(factory())).parameter();
-        context.marketParameter = _parameter.read();
-        context.riskParameter = _riskParameter.read();
-
-        // state
-        context.global = _global.read();
-        context.local = _locals[account].read();
-
-        // oracle
-        (context.latestOracleVersion, context.currentTimestamp) = oracle.status();
-        context.orderOracleVersion = oracle.at(_position.read().timestamp);
-    }
-
-    /// @notice Stores the given context
-    /// @param context The context to store
-    /// @param account The account to store for
-    function _saveContext(Context memory context, address account) private {
-        _global.store(context.global);
-        _locals[account].store(context.local);
-    }
-
-    /// @notice Settles the account position up to the latest version
-    /// @param context The context to use
-    /// @param account The account to settle
-    function _settle(Context memory context, address account) private {
-        context.latestPosition.global = _position.read();
-        context.latestPosition.local = _positions[account].read();
-        context.pending.global = _pending.read();
-        context.pending.local = _pendings[account].read();
-        context.latestVersion = _versions[context.latestPosition.global.timestamp].read();
-        context.latestCheckpoint = _checkpoints[account][context.latestPosition.local.timestamp].read();
-
-        Order memory nextOrder;
-
-        // settle
-        while (
-            context.global.currentId != context.global.latestId &&
-            (nextOrder = _pendingOrder[context.global.latestId + 1].read()).ready(context.latestOracleVersion)
-        ) _processOrderGlobal(context, context.global.latestId + 1, nextOrder);
-
-        while (
-            context.local.currentId != context.local.latestId &&
-            (nextOrder = _pendingOrders[account][context.local.latestId + 1].read()).ready(context.latestOracleVersion)
-        ) _processOrderLocal(context, account, context.local.latestId + 1, nextOrder);
-
-        // sync
-        if (context.latestOracleVersion.timestamp > context.latestPosition.global.timestamp) {
-            nextOrder = _pendingOrder[context.global.latestId].read();
-            nextOrder.next(context.latestOracleVersion.timestamp);
-            _processOrderGlobal(context, context.global.latestId, nextOrder);
-        }
-
-        if (context.latestOracleVersion.timestamp > context.latestPosition.local.timestamp) {
-            nextOrder = _pendingOrders[account][context.local.latestId].read();
-            nextOrder.next(context.latestOracleVersion.timestamp);
-            _processOrderLocal(context, account, context.local.latestId, nextOrder);
-        }
-
-        _position.store(context.latestPosition.global);
-        _positions[account].store(context.latestPosition.local);
-        _pending.store(context.pending.global);
-        _pendings[account].store(context.pending.local);
-    }
-
     /// @notice Processes the given global pending position into the latest position
     /// @param context The context to use
     /// @param newOrderId The id of the pending position to process
     /// @param newOrder The pending position to process
-    function _processOrderGlobal(Context memory context, uint256 newOrderId, Order memory newOrder) private {
+    function _processOrderGlobal(
+        Context memory context,
+        SettlementContext memory settlementContext,
+        uint256 newOrderId,
+        Order memory newOrder
+    ) private {
         OracleVersion memory oracleVersion = oracle.at(newOrder.timestamp);
         
         (uint256 fromTimestamp, uint256 fromId) = (context.latestPosition.global.timestamp, context.global.latestId);
         (
             VersionAccumulationResult memory accumulationResult,
             VersionFeeResult memory feeResult
-        ) = context.latestVersion.accumulate(
+        ) = settlementContext.latestVersion.accumulate(
             context.global,
             context.latestPosition.global,
             newOrder,
-            context.orderOracleVersion,
+            settlementContext.orderOracleVersion,
             oracleVersion,
             context.marketParameter,
             context.riskParameter
@@ -469,7 +507,7 @@ contract Market is IMarket, Instance, ReentrancyGuard {
             feeResult.marketFee,
             feeResult.settlementFee,
             context.marketParameter,
-            context.protocolParameter
+            settlementContext.protocolParameter
         );
         context.global.latestId = newOrderId;
         _credit(address(0), feeResult.protocolFee);
@@ -477,8 +515,8 @@ contract Market is IMarket, Instance, ReentrancyGuard {
         context.latestPosition.global.update(newOrder, oracleVersion.valid);
         context.pending.global.sub(newOrder);
 
-        context.orderOracleVersion = oracleVersion;
-        _versions[newOrder.timestamp].store(context.latestVersion);
+        settlementContext.orderOracleVersion = oracleVersion;
+        _versions[newOrder.timestamp].store(settlementContext.latestVersion);
 
         emit PositionProcessed(fromTimestamp, newOrder.timestamp, fromId, newOrderId, accumulationResult);
     }
@@ -490,6 +528,7 @@ contract Market is IMarket, Instance, ReentrancyGuard {
     /// @param newOrder The pending order to process
     function _processOrderLocal(
         Context memory context,
+        SettlementContext memory settlementContext,
         address account,
         uint256 newOrderId,
         Order memory newOrder
@@ -497,7 +536,7 @@ contract Market is IMarket, Instance, ReentrancyGuard {
         Version memory version = _versions[newOrder.timestamp].read();
 
         (uint256 fromTimestamp, uint256 fromId) = (context.latestPosition.local.timestamp, context.local.latestId);
-        CheckpointAccumulationResult memory accumulationResult = context.latestCheckpoint.accumulate(
+        CheckpointAccumulationResult memory accumulationResult = settlementContext.latestCheckpoint.accumulate(
             newOrder,
             context.latestPosition.local,
             _versions[context.latestPosition.local.timestamp].read(),
@@ -516,7 +555,7 @@ contract Market is IMarket, Instance, ReentrancyGuard {
         context.latestPosition.local.update(newOrder, version.valid);
         context.pending.local.sub(newOrder);
 
-        _checkpoints[account][newOrder.timestamp].store(context.latestCheckpoint);
+        _checkpoints[account][newOrder.timestamp].store(settlementContext.latestCheckpoint);
 
         emit AccountPositionProcessed(
             account,
@@ -547,6 +586,7 @@ contract Market is IMarket, Instance, ReentrancyGuard {
     /// @param collateral The collateral change to verify the invariant for
     function _invariant(
         Context memory context,
+        UpdateContext memory updateContext,
         address account,
         Order memory newOrder,
         Fixed6 collateral
@@ -565,7 +605,7 @@ contract Market is IMarket, Instance, ReentrancyGuard {
         )) revert MarketInvalidProtectionError();
 
         if (
-            !(context.currentPosition.local.magnitude().isZero() && context.latestPosition.local.magnitude().isZero()) &&   // sender has no position
+            !(updateContext.currentPosition.local.magnitude().isZero() && context.latestPosition.local.magnitude().isZero()) &&   // sender has no position
             !(newOrder.isEmpty() && collateral.gte(Fixed6Lib.ZERO)) &&                                                      // sender is depositing zero or more into account, without position change
             (context.currentTimestamp - context.latestOracleVersion.timestamp >= context.riskParameter.staleAfter)          // price is not stale
         ) revert MarketStalePriceError();
@@ -574,15 +614,15 @@ contract Market is IMarket, Instance, ReentrancyGuard {
             revert MarketClosedError();
 
         if (
-            context.currentPosition.global.maker.gt(context.riskParameter.makerLimit) &&
+            updateContext.currentPosition.global.maker.gt(context.riskParameter.makerLimit) &&
             newOrder.increasesMaker()
         ) revert MarketMakerOverLimitError();
 
         if (
-            !context.currentPosition.local.singleSided() || (
-                context.latestPosition.local.direction() != context.currentPosition.local.direction() &&
+            !updateContext.currentPosition.local.singleSided() || (
+                context.latestPosition.local.direction() != updateContext.currentPosition.local.direction() &&
                     !context.latestPosition.local.empty() &&
-                    !context.currentPosition.local.empty()
+                    !updateContext.currentPosition.local.empty()
             )
         ) revert MarketNotSingleSidedError();
 
@@ -613,14 +653,14 @@ contract Market is IMarket, Instance, ReentrancyGuard {
 
         if (
             newOrder.liquidityCheckApplicable(context.marketParameter) &&
-            newOrder.decreasesEfficiency(context.currentPosition.global) &&
-            context.currentPosition.global.efficiency().lt(context.riskParameter.efficiencyLimit)
+            newOrder.decreasesEfficiency(updateContext.currentPosition.global) &&
+            updateContext.currentPosition.global.efficiency().lt(context.riskParameter.efficiencyLimit)
         ) revert MarketEfficiencyUnderLimitError();
 
         if (
             newOrder.liquidityCheckApplicable(context.marketParameter) &&
-            context.currentPosition.global.socialized() &&
-            newOrder.decreasesLiquidity(context.currentPosition.global)
+            updateContext.currentPosition.global.socialized() &&
+            newOrder.decreasesLiquidity(updateContext.currentPosition.global)
         ) revert MarketInsufficientLiquidityError();
 
         if (collateral.lt(Fixed6Lib.ZERO) && context.local.collateral.lt(Fixed6Lib.ZERO))
