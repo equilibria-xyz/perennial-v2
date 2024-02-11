@@ -8,7 +8,6 @@ import { Fixed6 } from "@equilibria/root/number/types/Fixed6.sol";
 import { Token18 } from "@equilibria/root/token/types/Token18.sol";
 import { Account } from "../types/Account.sol";
 import { Checkpoint } from "../types/Checkpoint.sol";
-import { Mapping } from "../types/Mapping.sol";
 import { VaultParameter } from "../types/VaultParameter.sol";
 import { Registration } from "../types/Registration.sol";
 
@@ -19,11 +18,11 @@ interface IVault is IInstance {
 
         // markets
         uint256 currentId;
+        uint256 currentTimestamp;
+        uint256 latestTimestamp;
         Registration[] registrations;
         Fixed6[] collaterals;
         Fixed6 totalCollateral;
-        Mapping currentIds;
-        Mapping latestIds;
 
         // state
         VaultParameter parameter;
@@ -65,6 +64,8 @@ interface IVault is IInstance {
     error VaultInsufficientMinimumError();
     // sig: 0xdbdb7620
     error VaultAggregateWeightError();
+    // sig: 0x50ad85d6
+    error VaultCurrentOutOfSyncError();
 
     // sig: 0xb8a09499
     error AccountStorageInvalidError();
@@ -95,7 +96,6 @@ interface IVault is IInstance {
     function registrations(uint256 marketId) external view returns (Registration memory);
     function accounts(address account) external view returns (Account memory);
     function checkpoints(uint256 id) external view returns (Checkpoint memory);
-    function mappings(uint256 id) external view returns (Mapping memory);
     function register(IMarket market) external;
     function updateLeverage(uint256 marketId, UFixed6 newLeverage) external;
     function updateWeights(UFixed6[] calldata newWeights) external;

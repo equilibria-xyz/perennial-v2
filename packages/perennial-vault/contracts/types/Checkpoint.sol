@@ -27,7 +27,10 @@ struct Checkpoint {
     UFixed6 settlementFee;
 
     /// @dev The number of deposits and redemptions during the checkpoint
-    uint256 count;
+    uint256 orders;
+
+    // @dev The timestamp of of the checkpoint
+    uint256 timestamp;
 }
 using CheckpointLib for Checkpoint global;
 struct StoredCheckpoint {
@@ -38,10 +41,11 @@ struct StoredCheckpoint {
     int64 assets;           // <= 9.22t
 
     /* slot 1 */
-    int64 tradeFee;        // <= 9.22t
+    int64 tradeFee;         // <= 9.22t
     uint64 settlementFee;   // <= 18.44t
-    uint32 count;           // <= 4.29b
-    bytes12 __unallocated1__;
+    uint32 orders;           // <= 4.29b
+    uint32 timestamp;       // <= 4.29b
+    bytes8 __unallocated__;
 }
 struct CheckpointStorage { StoredCheckpoint value; }
 using CheckpointStorageLib for CheckpointStorage global;
@@ -52,9 +56,13 @@ library CheckpointLib {
     /// @notice Initializes the checkpoint
     /// @dev Saves the current shares, and the assets + liabilities in the vault itself (not in the markets)
     /// @param self The checkpoint to initialize
+    /// @param timestamp The timestamp of the checkpoint
     /// @param global The global account
-    function initialize(Checkpoint memory self, Account memory global) internal pure {
-        (self.shares, self.assets) = (global.shares, Fixed6Lib.from(-1, global.deposit.add(global.assets)));
+    function next(Checkpoint memory self, uint256 timestamp, Account memory global) internal pure {
+        (self.timestamp, self.shares, self.assets) =
+            (timestamp, global.shares, Fixed6Lib.from(-1, global.deposit.add(global.assets)));
+        (self.deposit, self.redemption, self.tradeFee, self.settlementFee, self.orders) =
+            (UFixed6Lib.ZERO, UFixed6Lib.ZERO, Fixed6Lib.ZERO, UFixed6Lib.ZERO, 0);
     }
 
     /// @notice Updates the checkpoint with a new deposit or redemption
@@ -62,8 +70,9 @@ library CheckpointLib {
     /// @param deposit The amount of new deposits
     /// @param redemption The amount of new redemptions
     function update(Checkpoint memory self, UFixed6 deposit, UFixed6 redemption) internal pure {
-        (self.deposit, self.redemption) = (self.deposit.add(deposit), self.redemption.add(redemption));
-        if (!deposit.isZero() || !redemption.isZero()) self.count++;
+        (self.deposit, self.redemption) =
+            (self.deposit.add(deposit), self.redemption.add(redemption));
+        if (!deposit.isZero() || !redemption.isZero()) self.orders++;
     }
 
     /// @notice Completes the checkpoint
@@ -180,9 +189,9 @@ library CheckpointLib {
     /// @param amount The amount to apply the fee to
     /// @return The amount with the settlement fee
     function _withoutSettlementFeeLocal(Checkpoint memory self, UFixed6 amount) private pure returns (UFixed6) {
-        UFixed6 settlementFeePer = self.count == 0 ?
+        UFixed6 settlementFeePer = self.orders == 0 ?
             UFixed6Lib.ZERO :
-            self.settlementFee.div(UFixed6Lib.from(self.count));
+            self.settlementFee.div(UFixed6Lib.from(self.orders));
         return _withoutSettlementFee(amount, settlementFeePer);
     }
 
@@ -216,7 +225,8 @@ library CheckpointStorageLib {
             Fixed6.wrap(int256(storedValue.assets)),
             Fixed6.wrap(int256(storedValue.tradeFee)),
             UFixed6.wrap(uint256(storedValue.settlementFee)),
-            uint256(storedValue.count)
+            uint256(storedValue.orders),
+            uint256(storedValue.timestamp)
         );
     }
 
@@ -229,7 +239,8 @@ library CheckpointStorageLib {
         if (newValue.tradeFee.gt(Fixed6.wrap(type(int64).max))) revert CheckpointStorageInvalidError();
         if (newValue.tradeFee.lt(Fixed6.wrap(type(int64).min))) revert CheckpointStorageInvalidError();
         if (newValue.settlementFee.gt(UFixed6.wrap(type(uint64).max))) revert CheckpointStorageInvalidError();
-        if (newValue.count > uint256(type(uint32).max)) revert CheckpointStorageInvalidError();
+        if (newValue.orders > uint256(type(uint32).max)) revert CheckpointStorageInvalidError();
+        if (newValue.timestamp > uint256(type(uint32).max)) revert CheckpointStorageInvalidError();
 
         self.value = StoredCheckpoint(
             uint64(UFixed6.unwrap(newValue.deposit)),
@@ -239,8 +250,9 @@ library CheckpointStorageLib {
 
             int64(Fixed6.unwrap(newValue.tradeFee)),
             uint64(UFixed6.unwrap(newValue.settlementFee)),
-            uint32(newValue.count),
-            bytes12(0)
+            uint32(newValue.orders),
+            uint32(newValue.timestamp),
+            bytes8(0)
         );
     }
 }

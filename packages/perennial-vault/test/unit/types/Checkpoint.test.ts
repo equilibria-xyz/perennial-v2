@@ -19,7 +19,8 @@ const VALID_CHECKPOINT: CheckpointStruct = {
   assets: 4,
   tradeFee: 5,
   settlementFee: 7,
-  count: 6,
+  orders: 6,
+  timestamp: 8,
 }
 
 describe('Checkpoint', () => {
@@ -45,7 +46,8 @@ describe('Checkpoint', () => {
       expect(value.assets).to.equal(4)
       expect(value.tradeFee).to.equal(5)
       expect(value.settlementFee).to.equal(7)
-      expect(value.count).to.equal(6)
+      expect(value.orders).to.equal(6)
+      expect(value.timestamp).to.equal(8)
     })
 
     describe('.deposit', async () => {
@@ -189,27 +191,6 @@ describe('Checkpoint', () => {
       })
     })
 
-    describe('.count', async () => {
-      const STORAGE_SIZE = 32
-      it('saves if in range', async () => {
-        await checkpoint.store({
-          ...VALID_CHECKPOINT,
-          count: BigNumber.from(2).pow(STORAGE_SIZE).sub(1),
-        })
-        const value = await checkpoint.read()
-        expect(value.count).to.equal(BigNumber.from(2).pow(STORAGE_SIZE).sub(1))
-      })
-
-      it('reverts if out of range', async () => {
-        await expect(
-          checkpoint.store({
-            ...VALID_CHECKPOINT,
-            count: BigNumber.from(2).pow(STORAGE_SIZE),
-          }),
-        ).to.be.revertedWithCustomError(checkpoint, 'CheckpointStorageInvalidError')
-      })
-    })
-
     describe('.settlementFee', async () => {
       const STORAGE_SIZE = 64
       it('saves if in range', async () => {
@@ -230,18 +211,66 @@ describe('Checkpoint', () => {
         ).to.be.revertedWithCustomError(checkpoint, 'CheckpointStorageInvalidError')
       })
     })
+
+    describe('.orders', async () => {
+      const STORAGE_SIZE = 32
+      it('saves if in range', async () => {
+        await checkpoint.store({
+          ...VALID_CHECKPOINT,
+          orders: BigNumber.from(2).pow(STORAGE_SIZE).sub(1),
+        })
+        const value = await checkpoint.read()
+        expect(value.orders).to.equal(BigNumber.from(2).pow(STORAGE_SIZE).sub(1))
+      })
+
+      it('reverts if out of range', async () => {
+        await expect(
+          checkpoint.store({
+            ...VALID_CHECKPOINT,
+            orders: BigNumber.from(2).pow(STORAGE_SIZE),
+          }),
+        ).to.be.revertedWithCustomError(checkpoint, 'CheckpointStorageInvalidError')
+      })
+    })
+
+    describe('.timestamp', async () => {
+      const STORAGE_SIZE = 32
+      it('saves if in range', async () => {
+        await checkpoint.store({
+          ...VALID_CHECKPOINT,
+          timestamp: BigNumber.from(2).pow(STORAGE_SIZE).sub(1),
+        })
+        const value = await checkpoint.read()
+        expect(value.timestamp).to.equal(BigNumber.from(2).pow(STORAGE_SIZE).sub(1))
+      })
+
+      it('reverts if out of range', async () => {
+        await expect(
+          checkpoint.store({
+            ...VALID_CHECKPOINT,
+            timestamp: BigNumber.from(2).pow(STORAGE_SIZE),
+          }),
+        ).to.be.revertedWithCustomError(checkpoint, 'CheckpointStorageInvalidError')
+      })
+    })
   })
 
-  describe('#initialize', () => {
+  describe('#next', () => {
     it('sets the checkpoint', async () => {
       await checkpoint.store(VALID_CHECKPOINT)
 
-      await checkpoint.initialize(VALID_ACCOUNT)
+      await checkpoint.next(123, VALID_ACCOUNT)
 
       const value = await checkpoint.read()
 
+      expect(value.timestamp).to.equal(123)
       expect(value.shares).to.equal(3)
       expect(value.assets).to.equal(-9)
+      expect(value.deposit).to.equal(0)
+      expect(value.redemption).to.equal(0)
+      expect(value.tradeFee).to.equal(0)
+      expect(value.settlementFee).to.equal(0)
+      expect(value.orders).to.equal(0)
     })
   })
 
@@ -255,7 +284,7 @@ describe('Checkpoint', () => {
 
       expect(value.deposit).to.equal(124)
       expect(value.redemption).to.equal(458)
-      expect(value.count).to.equal(7)
+      expect(value.orders).to.equal(7)
     })
   })
 
@@ -404,14 +433,14 @@ describe('Checkpoint', () => {
             shares: parse6decimal('60'),
             settlementFee: parse6decimal('10'),
             tradeFee: parse6decimal('1'),
-            count: 5,
+            orders: 5,
           })
 
           expect(await checkpoint.toSharesLocal(parse6decimal('40'))).to.equal(parse6decimal('22.8'))
         })
       })
 
-      context('count is 0', () => {
+      context('orders is 0', () => {
         it('returns shares without settlement fee', async () => {
           await checkpoint.store({
             ...VALID_CHECKPOINT,
@@ -421,7 +450,7 @@ describe('Checkpoint', () => {
             shares: parse6decimal('60'),
             settlementFee: parse6decimal('10'),
             tradeFee: parse6decimal('1'),
-            count: 0,
+            orders: 0,
           })
 
           expect(await checkpoint.toSharesLocal(parse6decimal('40'))).to.equal(parse6decimal('20.727272'))
@@ -437,7 +466,7 @@ describe('Checkpoint', () => {
           shares: parse6decimal('60'),
           settlementFee: parse6decimal('10'),
           tradeFee: parse6decimal('1'),
-          count: 5,
+          orders: 5,
         })
 
         expect(await checkpoint.toSharesLocal(parse6decimal('40'))).to.equal(parse6decimal('19.690908'))
@@ -448,7 +477,7 @@ describe('Checkpoint', () => {
   describe('#toAssetsLocal', () => {
     context('zero shares', () => {
       it('returns shares net of settlement fee', async () => {
-        await checkpoint.store({ ...VALID_CHECKPOINT, shares: 0, settlementFee: 10, count: 5 })
+        await checkpoint.store({ ...VALID_CHECKPOINT, shares: 0, settlementFee: 10, orders: 5 })
 
         const value = await checkpoint.toAssetsLocal(12)
 
@@ -467,14 +496,14 @@ describe('Checkpoint', () => {
             shares: parse6decimal('60'),
             settlementFee: parse6decimal('10'),
             tradeFee: parse6decimal('1'),
-            count: 5,
+            orders: 5,
           })
 
           expect(await checkpoint.toAssetsLocal(parse6decimal('40'))).to.equal(parse6decimal('64.666666'))
         })
       })
 
-      context('count is 0', () => {
+      context('orders is 0', () => {
         it('returns assets no settlement fee fee', async () => {
           await checkpoint.store({
             ...VALID_CHECKPOINT,
@@ -499,7 +528,7 @@ describe('Checkpoint', () => {
           shares: parse6decimal('60'),
           settlementFee: parse6decimal('10'),
           tradeFee: parse6decimal('1'),
-          count: 5,
+          orders: 5,
         })
 
         expect(await checkpoint.toAssetsLocal(parse6decimal('40'))).to.equal(parse6decimal('55.575756'))
