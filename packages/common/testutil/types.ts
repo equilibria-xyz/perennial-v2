@@ -124,7 +124,8 @@ export function expectVersionEq(a: Version, b: Version): void {
   expect(a.makerNegFee._value).to.equal(b.makerNegFee._value, 'Version:MakerNegFee')
   expect(a.takerPosFee._value).to.equal(b.takerPosFee._value, 'Version:TakerPosFee')
   expect(a.takerNegFee._value).to.equal(b.takerNegFee._value, 'Version:TakerNegFee')
-  expect(a.settlementFee._value).to.equal(b.settlementFee._value, 'Version:SettlementFee') // TODO: add liquidationFee
+  expect(a.settlementFee._value).to.equal(b.settlementFee._value, 'Version:SettlementFee')
+  expect(a.liquidationFee._value).to.equal(b.liquidationFee._value, 'Version:LiquidationFee')
 }
 
 export function parse6decimal(amount: string): BigNumber {
