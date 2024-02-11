@@ -41,7 +41,7 @@ const RISK_PARAMS = {
   makerFee: {
     linearFee: parse6decimal('0.09'),
     proportionalFee: parse6decimal('0.08'),
-    adiabaticFee: parse6decimal('0'),
+    adiabaticFee: parse6decimal('0.16'),
     scale: parse6decimal('0.0001'),
   },
   utilizationCurve: {
@@ -103,7 +103,7 @@ describe('Fees', () => {
       const accountProcessEvent: AccountPositionProcessedEventObject = (await tx.wait()).events?.find(
         e => e.event === 'AccountPositionProcessed',
       )?.args as unknown as AccountPositionProcessedEventObject
-      const expectedMakerFee = BigNumber.from('193601057') // = 3374.655169**2 * 0.0001 * (0.09 + 0.8)
+      const expectedMakerFee = BigNumber.from('102494677') // = 3374.655169**2 * 0.0001 * (0.09 + 0.08 + -(1.0 + 0.0) / 2 * 0.16)
 
       expect(accountProcessEvent?.accumulationResult.tradeFee).to.equal(expectedMakerFee)
 
@@ -113,7 +113,6 @@ describe('Fees', () => {
         currentId: 2,
         latestId: 1,
         collateral: COLLATERAL.sub(expectedMakerFee),
-        protection: 0,
       })
       expectOrderEq(await market.pendingOrders(user.address, 2), {
         ...DEFAULT_ORDER,
@@ -158,6 +157,7 @@ describe('Fees', () => {
       const riskParamsMakerFee = { ...riskParams.makerFee }
       riskParamsMakerFee.linearFee = BigNumber.from('0')
       riskParamsMakerFee.proportionalFee = BigNumber.from('0')
+      riskParamsMakerFee.adiabaticFee = BigNumber.from('0')
       riskParams.makerFee = riskParamsMakerFee
       await market.updateRiskParameter(riskParams)
 
@@ -183,7 +183,9 @@ describe('Fees', () => {
       const accountProcessEvent: AccountPositionProcessedEventObject = (await tx.wait()).events?.find(
         e => e.event === 'AccountPositionProcessed',
       )?.args as unknown as AccountPositionProcessedEventObject
-      const expectedMakerFee = BigNumber.from('193601057') // = 3374.655169**2 * 0.0001 * (0.09 + 0.08)
+      const expectedMakerBase = BigNumber.from('193601057') // = 3374.655169**2 * 0.0001 * (0.09 + 0.08)
+      const expectedMakerAdiabatic = BigNumber.from('91106380') // = 3374.655169**2 * 0.0001 * ((1.0 + 0.0) / 2 * 0.16)
+      const expectedMakerFee = expectedMakerBase.add(expectedMakerAdiabatic)
 
       expect(accountProcessEvent?.accumulationResult.tradeFee).to.equal(expectedMakerFee)
 
@@ -192,8 +194,7 @@ describe('Fees', () => {
         ...DEFAULT_LOCAL,
         currentId: 3,
         latestId: 2,
-        collateral: COLLATERAL.sub(expectedMakerFee.div(2)), // Maker gets part of their fee refunded since they were an exisiting maker
-        protection: 0,
+        collateral: COLLATERAL.sub(expectedMakerBase.div(2).add(expectedMakerAdiabatic)), // Maker gets part of their fee refunded since they were an exisiting maker
       })
       expectOrderEq(await market.pendingOrders(user.address, 3), {
         ...DEFAULT_ORDER,
@@ -235,6 +236,7 @@ describe('Fees', () => {
       const riskParamsMakerFee = { ...riskParams.makerFee }
       riskParamsMakerFee.linearFee = BigNumber.from('0')
       riskParamsMakerFee.proportionalFee = BigNumber.from('0')
+      riskParamsMakerFee.adiabaticFee = BigNumber.from('0')
       riskParams.makerFee = riskParamsMakerFee
       await market.updateRiskParameter(riskParams)
 
@@ -293,7 +295,6 @@ describe('Fees', () => {
         currentId: 2,
         latestId: 1,
         collateral: COLLATERAL.sub(expectedPositionFee),
-        protection: 0,
       })
       expectOrderEq(await market.pendingOrders(userB.address, 2), {
         ...DEFAULT_ORDER,
@@ -314,6 +315,7 @@ describe('Fees', () => {
       const riskParamsMakerFee = { ...riskParams.makerFee }
       riskParamsMakerFee.linearFee = BigNumber.from('0')
       riskParamsMakerFee.proportionalFee = BigNumber.from('0')
+      riskParamsMakerFee.adiabaticFee = BigNumber.from('0')
       riskParams.makerFee = riskParamsMakerFee
       await market.updateRiskParameter(riskParams)
 
@@ -377,7 +379,6 @@ describe('Fees', () => {
         currentId: 2,
         latestId: 1,
         collateral: COLLATERAL.sub(expectedPositionFee),
-        protection: 0,
       })
       expectOrderEq(await market.pendingOrders(userB.address, 2), {
         ...DEFAULT_ORDER,
@@ -406,7 +407,6 @@ describe('Fees', () => {
         currentId: 3,
         latestId: 2,
         collateral: COLLATERAL.add(expectedMakerFee),
-        protection: 0,
       })
       expectOrderEq(await market.pendingOrders(user.address, 3), {
         ...DEFAULT_ORDER,
@@ -519,7 +519,6 @@ describe('Fees', () => {
         currentId: 3,
         latestId: 2,
         collateral: COLLATERAL.sub(expectedPositionFee),
-        protection: 0,
       })
       expectOrderEq(await market.pendingOrders(userB.address, 3), {
         ...DEFAULT_ORDER,
@@ -547,7 +546,6 @@ describe('Fees', () => {
         currentId: 3,
         latestId: 2,
         collateral: COLLATERAL.add(expectedMakerFee),
-        protection: 0,
       })
       expectOrderEq(await market.pendingOrders(user.address, 3), {
         ...DEFAULT_ORDER,
@@ -568,6 +566,7 @@ describe('Fees', () => {
       const riskParamsMakerFee = { ...riskParams.makerFee }
       riskParamsMakerFee.linearFee = BigNumber.from('0')
       riskParamsMakerFee.proportionalFee = BigNumber.from('0')
+      riskParamsMakerFee.adiabaticFee = BigNumber.from('0')
       riskParams.makerFee = riskParamsMakerFee
       await market.updateRiskParameter(riskParams)
 
@@ -626,7 +625,6 @@ describe('Fees', () => {
         currentId: 2,
         latestId: 1,
         collateral: COLLATERAL.sub(expectedPositionFee),
-        protection: 0,
       })
       expectOrderEq(await market.pendingOrders(userB.address, 2), {
         ...DEFAULT_ORDER,
@@ -647,6 +645,7 @@ describe('Fees', () => {
       const riskParamsMakerFee = { ...riskParams.makerFee }
       riskParamsMakerFee.linearFee = BigNumber.from('0')
       riskParamsMakerFee.proportionalFee = BigNumber.from('0')
+      riskParamsMakerFee.adiabaticFee = BigNumber.from('0')
       riskParams.makerFee = riskParamsMakerFee
       await market.updateRiskParameter(riskParams)
 
@@ -709,7 +708,6 @@ describe('Fees', () => {
         currentId: 2,
         latestId: 1,
         collateral: COLLATERAL.sub(expectedPositionFee),
-        protection: 0,
       })
       expectOrderEq(await market.pendingOrders(userB.address, 2), {
         ...DEFAULT_ORDER,
@@ -738,7 +736,6 @@ describe('Fees', () => {
         currentId: 3,
         latestId: 2,
         collateral: COLLATERAL.add(expectedMakerFee),
-        protection: 0,
       })
       expectOrderEq(await market.pendingOrders(user.address, 3), {
         ...DEFAULT_ORDER,
@@ -851,7 +848,6 @@ describe('Fees', () => {
         currentId: 3,
         latestId: 2,
         collateral: COLLATERAL.sub(expectedPositionFee),
-        protection: 0,
       })
       expectOrderEq(await market.pendingOrders(userB.address, 3), {
         ...DEFAULT_ORDER,
@@ -879,7 +875,6 @@ describe('Fees', () => {
         currentId: 3,
         latestId: 2,
         collateral: COLLATERAL.add(expectedMakerFee),
-        protection: 0,
       })
       expectOrderEq(await market.pendingOrders(user.address, 3), {
         ...DEFAULT_ORDER,
