@@ -1797,8 +1797,7 @@ describe('Vault', () => {
           // We now be able to deposit.
           await updateOracle()
           await btcMarket.connect(user).update(vault.address, 0, 0, 0, 0, false)
-
-          await btcMarket.connect(user).update(user.address, 0, 0, 0, -2, false)
+          await btcMarket.connect(user).claimFee() // claim liquidation fee to pay for deposit
           await vault.connect(user).update(user.address, 2, 0, 0)
 
           await updateOracle()
@@ -1838,9 +1837,9 @@ describe('Vault', () => {
           // We now be able to deposit.
           await updateOracle()
           await btcMarket.connect(user).update(vault.address, 0, 0, 0, 0, false)
-
-          await btcMarket.connect(user).update(user.address, 0, 0, 0, -2, false)
+          await btcMarket.connect(user).claimFee() // claim liquidation fee to pay for deposit
           await vault.connect(user).update(user.address, 2, 0, 0)
+
           await updateOracle()
           await vault.settle(user.address)
 
@@ -1894,8 +1893,7 @@ describe('Vault', () => {
           // We now be able to deposit.
           await updateOracle()
           await btcMarket.connect(user).update(vault.address, 0, 0, 0, 0, false)
-
-          await btcMarket.connect(user).update(user.address, 0, 0, 0, -2, false)
+          await btcMarket.connect(user).claimFee() // claim liquidation fee to pay for deposit
           await vault.connect(user).update(user.address, 2, 0, 0)
 
           await updateOracle()
@@ -1933,8 +1931,7 @@ describe('Vault', () => {
           // We now be able to deposit.
           await updateOracle()
           await btcMarket.connect(user).update(vault.address, 0, 0, 0, 0, false)
-
-          await btcMarket.connect(user).update(user.address, 0, 0, 0, -2, false)
+          await btcMarket.connect(user).claimFee() // claim liquidation fee to pay for deposit
           await vault.connect(user).update(user.address, 2, 0, 0)
 
           await updateOracle()
