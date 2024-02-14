@@ -697,7 +697,7 @@ describe('Market', () => {
 
         // before = 0
         // after = (0.20 + 0) / 2 * 0.003 * 10 * 123 + (1.00 + 0.90) / 2 * 0.004 * -10 * 123 = -4.305
-        expect((await market.locals(constants.AddressZero)).collateral).to.equal(parse6decimal('4.305'))
+        expect((await market.global()).exposure).to.equal(parse6decimal('4.305'))
 
         const riskParameter = await market.riskParameter()
         expect(riskParameter.margin).to.equal(defaultRiskParameter.margin)
