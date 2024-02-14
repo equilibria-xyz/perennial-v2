@@ -87,6 +87,16 @@ contract Market is IMarket, Instance, ReentrancyGuard {
         oracle = definition_.oracle;
     }
 
+    /// @notice Settles the account's position and collateral
+    /// @param account The account to operate on
+    function settle(address account) external nonReentrant whenNotPaused {
+        Context memory context = _loadContext(account);
+
+        _settle(context, account);
+        
+        _storeContext(context, account);
+    }
+
     /// @notice Updates the account's position and collateral
     /// @param account The account to operate on
     /// @param newMaker The new maker position for the account
