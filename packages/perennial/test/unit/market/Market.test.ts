@@ -697,7 +697,7 @@ describe('Market', () => {
 
         // before = 0
         // after = (0.20 + 0) / 2 * 0.003 * 10 * 123 + (1.00 + 0.90) / 2 * 0.004 * -10 * 123 = -4.305
-        expect((await market.locals(constants.AddressZero)).collateral).to.equal(parse6decimal('4.305'))
+        expect((await market.global()).exposure).to.equal(parse6decimal('4.305'))
 
         const riskParameter = await market.riskParameter()
         expect(riskParameter.margin).to.equal(defaultRiskParameter.margin)
@@ -732,6 +732,99 @@ describe('Market', () => {
           market,
           'MarketNotCoordinatorError',
         )
+      })
+    })
+
+    describe('#settle', async () => {
+      beforeEach(async () => {
+        await market.connect(owner).updateParameter(beneficiary.address, coordinator.address, marketParameter)
+
+        oracle.at.whenCalledWith(ORACLE_VERSION_0.timestamp).returns(ORACLE_VERSION_0)
+        oracle.at.whenCalledWith(ORACLE_VERSION_1.timestamp).returns(ORACLE_VERSION_1)
+
+        oracle.status.returns([ORACLE_VERSION_1, ORACLE_VERSION_2.timestamp])
+        oracle.request.whenCalledWith(user.address).returns()
+
+        dsu.transferFrom.whenCalledWith(user.address, market.address, COLLATERAL.mul(1e12)).returns(true)
+      })
+
+      it('opens the position and settles', async () => {
+        await expect(market.connect(user).update(user.address, POSITION, 0, 0, COLLATERAL, false))
+          .to.emit(market, 'PositionProcessed')
+          .withArgs(0, ORACLE_VERSION_1.timestamp, 0, 0, DEFAULT_VERSION_ACCUMULATION_RESULT)
+          .to.emit(market, 'AccountPositionProcessed')
+          .withArgs(user.address, 0, ORACLE_VERSION_1.timestamp, 0, 0, DEFAULT_LOCAL_ACCUMULATION_RESULT)
+          .to.emit(market, 'Updated')
+          .withArgs(user.address, user.address, ORACLE_VERSION_2.timestamp, POSITION, 0, 0, COLLATERAL, false)
+
+        oracle.at.whenCalledWith(ORACLE_VERSION_2.timestamp).returns(ORACLE_VERSION_2)
+        oracle.status.returns([ORACLE_VERSION_2, ORACLE_VERSION_3.timestamp])
+        oracle.request.whenCalledWith(user.address).returns()
+
+        await expect(await market.settle(user.address))
+          .to.emit(market, 'PositionProcessed')
+          .withArgs(ORACLE_VERSION_1.timestamp, ORACLE_VERSION_2.timestamp, 0, 1, DEFAULT_VERSION_ACCUMULATION_RESULT)
+          .to.emit(market, 'AccountPositionProcessed')
+          .withArgs(
+            user.address,
+            ORACLE_VERSION_1.timestamp,
+            ORACLE_VERSION_2.timestamp,
+            0,
+            1,
+            DEFAULT_LOCAL_ACCUMULATION_RESULT,
+          )
+
+        expectLocalEq(await market.locals(user.address), {
+          ...DEFAULT_LOCAL,
+          currentId: 1,
+          latestId: 1,
+          collateral: COLLATERAL,
+        })
+        expectPositionEq(await market.positions(user.address), {
+          ...DEFAULT_POSITION,
+          timestamp: ORACLE_VERSION_2.timestamp,
+          maker: POSITION,
+        })
+        expectOrderEq(await market.pendingOrders(user.address, 1), {
+          ...DEFAULT_ORDER,
+          timestamp: ORACLE_VERSION_2.timestamp,
+          orders: 1,
+          makerPos: POSITION,
+          collateral: COLLATERAL,
+        })
+        expectOrderEq(await market.pendingOrders(user.address, 2), {
+          ...DEFAULT_ORDER,
+        })
+        expectCheckpointEq(await market.checkpoints(user.address, ORACLE_VERSION_3.timestamp), {
+          ...DEFAULT_CHECKPOINT,
+        })
+        expectGlobalEq(await market.global(), {
+          currentId: 1,
+          latestId: 1,
+          protocolFee: 0,
+          oracleFee: 0,
+          riskFee: 0,
+          donation: 0,
+        })
+        expectPositionEq(await market.position(), {
+          ...DEFAULT_POSITION,
+          timestamp: ORACLE_VERSION_2.timestamp,
+          maker: POSITION,
+        })
+        expectOrderEq(await market.pendingOrder(1), {
+          ...DEFAULT_ORDER,
+          timestamp: ORACLE_VERSION_2.timestamp,
+          orders: 1,
+          makerPos: POSITION,
+          collateral: COLLATERAL,
+        })
+        expectOrderEq(await market.pendingOrder(2), {
+          ...DEFAULT_ORDER,
+        })
+        expectVersionEq(await market.versions(ORACLE_VERSION_2.timestamp), {
+          ...DEFAULT_VERSION,
+          liquidationFee: { _value: -riskParameter.liquidationFee },
+        })
       })
     })
 
