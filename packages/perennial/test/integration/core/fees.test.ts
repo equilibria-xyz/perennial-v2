@@ -52,6 +52,7 @@ const RISK_PARAMS = {
   },
   pController: {
     k: BigNumber.from('1099511627775'),
+    min: 0,
     max: 0,
   },
 }
@@ -1334,6 +1335,7 @@ describe('Fees', () => {
         },
         pController: {
           k: parse6decimal('10'),
+          min: parse6decimal('-1.20'),
           max: parse6decimal('1.20'),
         },
       })

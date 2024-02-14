@@ -428,6 +428,7 @@ describe('Market', () => {
       },
       pController: {
         k: parse6decimal('40000'),
+        min: parse6decimal('-1.20'),
         max: parse6decimal('1.20'),
       },
       minMargin: parse6decimal('120'),
@@ -589,6 +590,7 @@ describe('Market', () => {
         },
         pController: {
           k: parse6decimal('40000'),
+          min: parse6decimal('-1.20'),
           max: parse6decimal('1.20'),
         },
         minMargin: parse6decimal('60'),

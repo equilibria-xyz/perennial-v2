@@ -76,6 +76,7 @@ describe('Happy Path', () => {
       },
       pController: {
         k: parse6decimal('40000'),
+        min: parse6decimal('-1.20'),
         max: parse6decimal('1.20'),
       },
       minMargin: parse6decimal('500'),
@@ -995,6 +996,7 @@ describe('Happy Path', () => {
       },
       pController: {
         k: parse6decimal('40000'),
+        min: parse6decimal('-1.20'),
         max: parse6decimal('1.20'),
       },
       minMargin: parse6decimal('500'),
@@ -1140,6 +1142,7 @@ describe('Happy Path', () => {
       },
       pController: {
         k: parse6decimal('40000'),
+        min: parse6decimal('-1.20'),
         max: parse6decimal('1.20'),
       },
       minMargin: parse6decimal('500'),

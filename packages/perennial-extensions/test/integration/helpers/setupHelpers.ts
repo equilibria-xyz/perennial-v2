@@ -241,6 +241,7 @@ export async function createMarket(
     },
     pController: {
       k: parse6decimal('40000'),
+      min: parse6decimal('-1.20'),
       max: parse6decimal('1.20'),
     },
     minMargin: parse6decimal('500'),
@@ -361,7 +362,6 @@ export async function createVault(
     payoff: constants.AddressZero,
     makerLimit: parse6decimal('1000'),
     minMaintenance: parse6decimal('50'),
-    maxLiquidationFee: parse6decimal('25000'),
     takerFee: {
       linearFee: 0,
       proportionalFee: 0,
@@ -382,7 +382,6 @@ export async function createVault(
     oracle: btcOracle.address,
     payoff: constants.AddressZero,
     minMaintenance: parse6decimal('50'),
-    maxLiquidationFee: parse6decimal('25000'),
     takerFee: {
       linearFee: 0,
       proportionalFee: 0,
