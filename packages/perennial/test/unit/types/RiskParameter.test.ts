@@ -24,15 +24,15 @@ export const VALID_RISK_PARAMETER: RiskParameterStruct = {
     linearFee: 2,
     proportionalFee: 3,
     adiabaticFee: 18,
-    scale: 4,
+    scale: 4000000,
   },
   makerFee: {
     linearFee: 5,
     proportionalFee: 6,
     adiabaticFee: 19,
-    scale: 17,
+    scale: 17000000,
   },
-  makerLimit: 7,
+  makerLimit: 7000000,
   efficiencyLimit: 8,
   liquidationFee: 9,
   utilizationCurve: {
@@ -43,6 +43,7 @@ export const VALID_RISK_PARAMETER: RiskParameterStruct = {
   },
   pController: {
     k: 201,
+    min: 203,
     max: 202,
   },
   minMargin: 16,
@@ -84,12 +85,12 @@ describe('RiskParameter', () => {
       expect(value.takerFee.linearFee).to.equal(2)
       expect(value.takerFee.proportionalFee).to.equal(3)
       expect(value.takerFee.adiabaticFee).to.equal(18)
-      expect(value.takerFee.scale).to.equal(4)
+      expect(value.takerFee.scale).to.equal(4000000)
       expect(value.makerFee.linearFee).to.equal(5)
       expect(value.makerFee.proportionalFee).to.equal(6)
       expect(value.makerFee.adiabaticFee).to.equal(19)
-      expect(value.makerFee.scale).to.equal(17)
-      expect(value.makerLimit).to.equal(7)
+      expect(value.makerFee.scale).to.equal(17000000)
+      expect(value.makerLimit).to.equal(7000000)
       expect(value.efficiencyLimit).to.equal(8)
       expect(value.liquidationFee).to.equal(9)
       expect(value.utilizationCurve.minRate).to.equal(101)
@@ -97,6 +98,7 @@ describe('RiskParameter', () => {
       expect(value.utilizationCurve.targetRate).to.equal(103)
       expect(value.utilizationCurve.targetUtilization).to.equal(104)
       expect(value.pController.k).to.equal(201)
+      expect(value.pController.min).to.equal(203)
       expect(value.pController.max).to.equal(202)
       expect(value.minMargin).to.equal(16)
       expect(value.minMaintenance).to.equal(12)
@@ -105,17 +107,17 @@ describe('RiskParameter', () => {
     })
 
     describe('.makerLimit', () => {
-      const STORAGE_SIZE = 64
+      const STORAGE_SIZE = 48
       it('saves if in range', async () => {
         await riskParameter.validateAndStore(
           {
             ...VALID_RISK_PARAMETER,
-            makerLimit: BigNumber.from(2).pow(STORAGE_SIZE).sub(1),
+            makerLimit: BigNumber.from(2).pow(STORAGE_SIZE).sub(1).mul(1000000),
           },
           PROTOCOL_PARAMETER,
         )
         const value = await riskParameter.read()
-        expect(value.makerLimit).to.equal(BigNumber.from(2).pow(STORAGE_SIZE).sub(1))
+        expect(value.makerLimit).to.equal(BigNumber.from(2).pow(STORAGE_SIZE).sub(1).mul(1000000))
       })
 
       it('reverts if out of range', async () => {
@@ -123,7 +125,7 @@ describe('RiskParameter', () => {
           riskParameter.validateAndStore(
             {
               ...VALID_RISK_PARAMETER,
-              makerLimit: BigNumber.from(2).pow(STORAGE_SIZE),
+              makerLimit: BigNumber.from(2).pow(STORAGE_SIZE).mul(1000000),
             },
             PROTOCOL_PARAMETER,
           ),
@@ -400,7 +402,7 @@ describe('RiskParameter', () => {
       })
     })
 
-    describe('.pController_max', () => {
+    describe('.pController.max', () => {
       it('saves if in range', async () => {
         await riskParameter.validateAndStore(
           {
@@ -424,6 +426,38 @@ describe('RiskParameter', () => {
               pController: {
                 ...VALID_RISK_PARAMETER.pController,
                 max: parse6decimal('0.8').add(1),
+              },
+            },
+            PROTOCOL_PARAMETER,
+          ),
+        ).to.be.revertedWithCustomError(riskParameterStorage, 'RiskParameterStorageInvalidError')
+      })
+    })
+
+    describe('.pController.min', () => {
+      it('saves if in range', async () => {
+        await riskParameter.validateAndStore(
+          {
+            ...VALID_RISK_PARAMETER,
+            pController: {
+              ...VALID_RISK_PARAMETER.pController,
+              min: -parse6decimal('0.8'),
+            },
+          },
+          PROTOCOL_PARAMETER,
+        )
+        const value = await riskParameter.read()
+        expect(value.pController.min).to.equal(parse6decimal('-0.8'))
+      })
+
+      it('reverts if invalid', async () => {
+        await expect(
+          riskParameter.validateAndStore(
+            {
+              ...VALID_RISK_PARAMETER,
+              pController: {
+                ...VALID_RISK_PARAMETER.pController,
+                min: -parse6decimal('0.8').add(1),
               },
             },
             PROTOCOL_PARAMETER,
@@ -529,20 +563,20 @@ describe('RiskParameter', () => {
     })
 
     describe('.takerFee.scale', () => {
-      const STORAGE_SIZE = 64
+      const STORAGE_SIZE = 48
       it('saves if in range', async () => {
         await riskParameter.validateAndStore(
           {
             ...VALID_RISK_PARAMETER,
             takerFee: {
               ...VALID_RISK_PARAMETER.takerFee,
-              scale: BigNumber.from(2).pow(STORAGE_SIZE).sub(1),
+              scale: BigNumber.from(2).pow(STORAGE_SIZE).sub(1).mul(1000000),
             },
           },
           PROTOCOL_PARAMETER,
         )
         const value = await riskParameter.read()
-        expect(value.takerFee.scale).to.equal(BigNumber.from(2).pow(STORAGE_SIZE).sub(1))
+        expect(value.takerFee.scale).to.equal(BigNumber.from(2).pow(STORAGE_SIZE).sub(1).mul(1000000))
       })
 
       it('reverts if out of range', async () => {
@@ -552,7 +586,7 @@ describe('RiskParameter', () => {
               ...VALID_RISK_PARAMETER,
               takerFee: {
                 ...VALID_RISK_PARAMETER.takerFee,
-                scale: BigNumber.from(2).pow(STORAGE_SIZE),
+                scale: BigNumber.from(2).pow(STORAGE_SIZE).mul(1000000),
               },
             },
             PROTOCOL_PARAMETER,
@@ -658,20 +692,20 @@ describe('RiskParameter', () => {
     })
 
     describe('.makerFee.scale', () => {
-      const STORAGE_SIZE = 64
+      const STORAGE_SIZE = 48
       it('saves if in range', async () => {
         await riskParameter.validateAndStore(
           {
             ...VALID_RISK_PARAMETER,
             makerFee: {
               ...VALID_RISK_PARAMETER.makerFee,
-              scale: BigNumber.from(2).pow(STORAGE_SIZE).sub(1),
+              scale: BigNumber.from(2).pow(STORAGE_SIZE).sub(1).mul(1000000),
             },
           },
           PROTOCOL_PARAMETER,
         )
         const value = await riskParameter.read()
-        expect(value.makerFee.scale).to.equal(BigNumber.from(2).pow(STORAGE_SIZE).sub(1))
+        expect(value.makerFee.scale).to.equal(BigNumber.from(2).pow(STORAGE_SIZE).sub(1).mul(1000000))
       })
 
       it('reverts if out of range', async () => {
@@ -681,7 +715,7 @@ describe('RiskParameter', () => {
               ...VALID_RISK_PARAMETER,
               makerFee: {
                 ...VALID_RISK_PARAMETER.makerFee,
-                scale: BigNumber.from(2).pow(STORAGE_SIZE),
+                scale: BigNumber.from(2).pow(STORAGE_SIZE).mul(1000000),
               },
             },
             PROTOCOL_PARAMETER,
@@ -750,19 +784,6 @@ describe('RiskParameter', () => {
               ...VALID_RISK_PARAMETER,
               minMargin: BigNumber.from(2).pow(48),
               minMaintenance: BigNumber.from(2).pow(48),
-            },
-            PROTOCOL_PARAMETER,
-          ),
-        ).to.be.revertedWithCustomError(riskParameterStorage, 'RiskParameterStorageInvalidError')
-      })
-
-      it('reverts if less than minLiquidationFee', async () => {
-        await expect(
-          riskParameter.validateAndStore(
-            {
-              ...VALID_RISK_PARAMETER,
-              minLiquidationFee: BigNumber.from(2).pow(48).sub(1),
-              minMaintenance: BigNumber.from(2).pow(48).sub(1).sub(1),
             },
             PROTOCOL_PARAMETER,
           ),

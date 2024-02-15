@@ -17,7 +17,7 @@ describe('Liquidate', () => {
   })
 
   it('liquidates a user', async () => {
-    const POSITION = parse6decimal('0.0001')
+    const POSITION = parse6decimal('10')
     const COLLATERAL = parse6decimal('1000')
     const { user, userB, dsu, chainlink } = instanceVars
 
@@ -54,7 +54,7 @@ describe('Liquidate', () => {
   })
 
   it('creates and resolves a shortfall', async () => {
-    const POSITION = parse6decimal('0.0001')
+    const POSITION = parse6decimal('10')
     const COLLATERAL = parse6decimal('1000')
     const { user, userB, dsu, chainlink } = instanceVars
 
@@ -81,7 +81,7 @@ describe('Liquidate', () => {
     await chainlink.nextWithPriceModification(price => price.mul(2))
     await settle(market, user)
 
-    expect((await market.locals(user.address)).collateral).to.equal(BigNumber.from('-2523154440'))
+    expect((await market.locals(user.address)).collateral).to.equal(BigNumber.from('-2523154460'))
 
     await dsu.connect(userB).approve(market.address, constants.MaxUint256)
     const userCollateral = (await market.locals(user.address)).collateral
@@ -91,7 +91,7 @@ describe('Liquidate', () => {
   })
 
   it('uses a socialization factor', async () => {
-    const POSITION = parse6decimal('0.0001')
+    const POSITION = parse6decimal('10')
     const COLLATERAL = parse6decimal('1000')
     let totalCollateral, totalFees
     const { user, userB, userC, userD, chainlink, dsu } = instanceVars
@@ -164,7 +164,7 @@ describe('Liquidate', () => {
     expect(currD.lt(newD)).to.equal(true)
 
     expect(totalCurr.add(feesCurr)).to.be.gte(totalNew.add(feesNew))
-    expect(totalCurr.add(feesCurr)).to.be.closeTo(totalNew.add(feesNew), 1)
+    expect(totalCurr.add(feesCurr)).to.be.closeTo(totalNew.add(feesNew), 100)
 
     // Expect the system to remain solvent
     totalCollateral = (await market.locals(user.address)).collateral

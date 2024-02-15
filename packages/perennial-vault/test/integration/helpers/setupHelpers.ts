@@ -62,6 +62,7 @@ export async function deployProductOnMainnetFork({
     },
     pController: {
       k: parse6decimal('40000'),
+      min: parse6decimal('-1.20'),
       max: parse6decimal('1.20'),
     },
     minMargin: minMargin ?? parse6decimal('100'),
