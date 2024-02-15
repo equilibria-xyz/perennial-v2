@@ -36,13 +36,13 @@ const RISK_PARAMS = {
     linearFee: parse6decimal('0.05'),
     proportionalFee: parse6decimal('0.06'),
     adiabaticFee: parse6decimal('0.14'),
-    scale: parse6decimal('0.00001'),
+    scale: parse6decimal('1'),
   },
   makerFee: {
     linearFee: parse6decimal('0.09'),
     proportionalFee: parse6decimal('0.08'),
     adiabaticFee: parse6decimal('0.16'),
-    scale: parse6decimal('0.0001'),
+    scale: parse6decimal('10'),
   },
   utilizationCurve: {
     minRate: 0,
@@ -74,7 +74,6 @@ describe('Fees', () => {
 
   const fixture = async () => {
     const instanceVars = await deployProtocol()
-    instanceVars.chainlink.payoff = instanceVars.payoff
     const marketFactoryParams = await instanceVars.marketFactory.parameter()
     await instanceVars.marketFactory.updateParameter({ ...marketFactoryParams, maxFee: parse6decimal('0.9') })
     return instanceVars
@@ -88,7 +87,7 @@ describe('Fees', () => {
 
   describe('position fees', () => {
     it('charges make fees on open', async () => {
-      const POSITION = parse6decimal('0.0001')
+      const POSITION = parse6decimal('10')
       const COLLATERAL = parse6decimal('1000')
       const { user, dsu } = instanceVars
 
@@ -104,7 +103,7 @@ describe('Fees', () => {
       const accountProcessEvent: AccountPositionProcessedEventObject = (await tx.wait()).events?.find(
         e => e.event === 'AccountPositionProcessed',
       )?.args as unknown as AccountPositionProcessedEventObject
-      const expectedMakerFee = BigNumber.from('102494677') // = 3374.655169**2 * 0.0001 * (0.09 + 0.08 + -(1.0 + 0.0) / 2 * 0.16)
+      const expectedMakerFee = BigNumber.from('102494680') // = 3374.655169**2 * 0.0001 * (0.09 + 0.08 + -(1.0 + 0.0) / 2 * 0.16)
 
       expect(accountProcessEvent?.accumulationResult.tradeFee).to.equal(expectedMakerFee)
 
@@ -162,7 +161,7 @@ describe('Fees', () => {
       riskParams.makerFee = riskParamsMakerFee
       await market.updateRiskParameter(riskParams)
 
-      const POSITION = parse6decimal('0.0001')
+      const POSITION = parse6decimal('10')
       const COLLATERAL = parse6decimal('1000')
       const { user, dsu } = instanceVars
 
@@ -184,7 +183,7 @@ describe('Fees', () => {
       const accountProcessEvent: AccountPositionProcessedEventObject = (await tx.wait()).events?.find(
         e => e.event === 'AccountPositionProcessed',
       )?.args as unknown as AccountPositionProcessedEventObject
-      const expectedMakerBase = BigNumber.from('193601057') // = 3374.655169**2 * 0.0001 * (0.09 + 0.08)
+      const expectedMakerBase = BigNumber.from('193601060') // = 3374.655169**2 * 0.0001 * (0.09 + 0.08)
       const expectedMakerAdiabatic = BigNumber.from('91106380') // = 3374.655169**2 * 0.0001 * ((1.0 + 0.0) / 2 * 0.16)
       const expectedMakerFee = expectedMakerBase.add(expectedMakerAdiabatic)
 
@@ -195,7 +194,7 @@ describe('Fees', () => {
         ...DEFAULT_LOCAL,
         currentId: 3,
         latestId: 2,
-        collateral: COLLATERAL.sub(expectedMakerBase.div(2).add(expectedMakerAdiabatic)), // Maker gets part of their fee refunded since they were an exisiting maker
+        collateral: COLLATERAL.sub(expectedMakerBase.div(2).add(expectedMakerAdiabatic)).sub(10), // Maker gets part of their fee refunded since they were an exisiting maker
       })
       expectOrderEq(await market.pendingOrders(user.address, 3), {
         ...DEFAULT_ORDER,
@@ -241,8 +240,8 @@ describe('Fees', () => {
       riskParams.makerFee = riskParamsMakerFee
       await market.updateRiskParameter(riskParams)
 
-      const MAKER_POSITION = parse6decimal('0.0001')
-      const LONG_POSITION = parse6decimal('0.00001')
+      const MAKER_POSITION = parse6decimal('10')
+      const LONG_POSITION = parse6decimal('1')
       const COLLATERAL = parse6decimal('1000')
       const { user, userB, dsu } = instanceVars
 
@@ -320,8 +319,8 @@ describe('Fees', () => {
       riskParams.makerFee = riskParamsMakerFee
       await market.updateRiskParameter(riskParams)
 
-      const MAKER_POSITION = parse6decimal('0.0001')
-      const LONG_POSITION = parse6decimal('0.00001')
+      const MAKER_POSITION = parse6decimal('10')
+      const LONG_POSITION = parse6decimal('1')
       const COLLATERAL = parse6decimal('1000')
       const { user, userB, dsu } = instanceVars
 
@@ -399,7 +398,7 @@ describe('Fees', () => {
         e => e.event === 'AccountPositionProcessed',
       )?.args as unknown as AccountPositionProcessedEventObject
 
-      const expectedMakerFee = BigNumber.from('6263563') // = 12527126 - Floor(12527126/2)
+      const expectedMakerFee = BigNumber.from('6263560') // = 12527126 - Floor(12527126/2)
       expect(accountProcessEventMaker.accumulationResult.collateral).to.equal(expectedMakerFee)
 
       // Maker State
@@ -446,8 +445,8 @@ describe('Fees', () => {
         fundingFee: BigNumber.from('0'),
       })
 
-      const MAKER_POSITION = parse6decimal('0.0001')
-      const LONG_POSITION = parse6decimal('0.00001')
+      const MAKER_POSITION = parse6decimal('10')
+      const LONG_POSITION = parse6decimal('1')
       const COLLATERAL = parse6decimal('1000')
       const { user, userB, dsu } = instanceVars
 
@@ -538,7 +537,7 @@ describe('Fees', () => {
         e => e.event === 'AccountPositionProcessed',
       )?.args as unknown as AccountPositionProcessedEventObject
 
-      const expectedMakerFee = BigNumber.from('2847074') // = 5694148 - Floor(5694148/2)
+      const expectedMakerFee = BigNumber.from('2847070') // = 5694148 - Floor(5694148/2)
       expect(accountProcessEventMaker.accumulationResult.collateral).to.equal(expectedMakerFee)
 
       // Maker State
@@ -571,8 +570,8 @@ describe('Fees', () => {
       riskParams.makerFee = riskParamsMakerFee
       await market.updateRiskParameter(riskParams)
 
-      const MAKER_POSITION = parse6decimal('0.0001')
-      const SHORT_POSITION = parse6decimal('0.00001')
+      const MAKER_POSITION = parse6decimal('10')
+      const SHORT_POSITION = parse6decimal('1')
       const COLLATERAL = parse6decimal('1000')
       const { user, userB, dsu } = instanceVars
 
@@ -650,8 +649,8 @@ describe('Fees', () => {
       riskParams.makerFee = riskParamsMakerFee
       await market.updateRiskParameter(riskParams)
 
-      const MAKER_POSITION = parse6decimal('0.0001')
-      const SHORT_POSITION = parse6decimal('0.00001')
+      const MAKER_POSITION = parse6decimal('10')
+      const SHORT_POSITION = parse6decimal('1')
       const COLLATERAL = parse6decimal('1000')
       const { user, userB, dsu } = instanceVars
 
@@ -728,7 +727,7 @@ describe('Fees', () => {
         e => e.event === 'AccountPositionProcessed',
       )?.args as unknown as AccountPositionProcessedEventObject
 
-      const expectedMakerFee = BigNumber.from('6263563') // = 12527126 - Floor(12527126/2)
+      const expectedMakerFee = BigNumber.from('6263560') // = 12527126 - Floor(12527126/2)
       expect(accountProcessEventMaker.accumulationResult.collateral).to.equal(expectedMakerFee)
 
       // Maker State
@@ -775,8 +774,8 @@ describe('Fees', () => {
         fundingFee: BigNumber.from('0'),
       })
 
-      const MAKER_POSITION = parse6decimal('0.0001')
-      const SHORT_POSITION = parse6decimal('0.00001')
+      const MAKER_POSITION = parse6decimal('10')
+      const SHORT_POSITION = parse6decimal('1')
       const COLLATERAL = parse6decimal('1000')
       const { user, userB, dsu } = instanceVars
 
@@ -867,7 +866,7 @@ describe('Fees', () => {
         e => e.event === 'AccountPositionProcessed',
       )?.args as unknown as AccountPositionProcessedEventObject
 
-      const expectedMakerFee = BigNumber.from('2847074') // = 5694148 - Floor(5694148/2)
+      const expectedMakerFee = BigNumber.from('2847070') // = 5694148 - Floor(5694148/2)
       expect(accountProcessEventMaker.accumulationResult.collateral).to.equal(expectedMakerFee)
 
       // Maker State
@@ -892,9 +891,9 @@ describe('Fees', () => {
     })
 
     describe('skew fee', () => {
-      const MAKER_POSITION = parse6decimal('0.0001')
-      const SHORT_POSITION = parse6decimal('0.00001')
-      const LONG_POSITION = parse6decimal('0.00001')
+      const MAKER_POSITION = parse6decimal('10')
+      const SHORT_POSITION = parse6decimal('1')
+      const LONG_POSITION = parse6decimal('1')
       const COLLATERAL = parse6decimal('1000')
 
       beforeEach(async () => {
@@ -962,7 +961,11 @@ describe('Fees', () => {
         )?.args as unknown as PositionProcessedEventObject
 
         const expectedLongSkewFee = BigNumber.from('4555319') // = 3374.655169**2 * 0.00002 * 200% * 0.01
-        expect(accountProcessEventLong.accumulationResult.tradeFee).to.equal(expectedLongSkewFee)
+
+        expect(accountProcessEventLong.accumulationResult.tradeFee).to.within(
+          expectedLongSkewFee,
+          expectedLongSkewFee.add(10),
+        )
         expect(
           positionProcessEventLong.accumulationResult.positionFeeMaker.add(
             positionProcessEventLong.accumulationResult.positionFeeProtocol,
@@ -972,9 +975,9 @@ describe('Fees', () => {
     })
 
     describe('impact fee', () => {
-      const MAKER_POSITION = parse6decimal('0.0001')
-      const SHORT_POSITION = parse6decimal('0.00001')
-      const LONG_POSITION = parse6decimal('0.00001')
+      const MAKER_POSITION = parse6decimal('10')
+      const SHORT_POSITION = parse6decimal('1')
+      const LONG_POSITION = parse6decimal('1')
       const COLLATERAL = parse6decimal('1000')
 
       beforeEach(async () => {
@@ -1116,9 +1119,9 @@ describe('Fees', () => {
     })
 
     describe('settlement fee', () => {
-      const MAKER_POSITION = parse6decimal('0.0001')
-      const SHORT_POSITION = parse6decimal('0.00001')
-      const LONG_POSITION = parse6decimal('0.00001')
+      const MAKER_POSITION = parse6decimal('10')
+      const SHORT_POSITION = parse6decimal('1')
+      const LONG_POSITION = parse6decimal('1')
       const COLLATERAL = parse6decimal('1000')
 
       beforeEach(async () => {
@@ -1212,9 +1215,9 @@ describe('Fees', () => {
   })
 
   describe('interest fee', () => {
-    const MAKER_POSITION = parse6decimal('0.0001')
-    const SHORT_POSITION = parse6decimal('0.00001')
-    const LONG_POSITION = parse6decimal('0.00001')
+    const MAKER_POSITION = parse6decimal('10')
+    const SHORT_POSITION = parse6decimal('1')
+    const LONG_POSITION = parse6decimal('1')
     const COLLATERAL = parse6decimal('1000')
 
     beforeEach(async () => {
@@ -1312,9 +1315,9 @@ describe('Fees', () => {
   })
 
   describe('funding fee', () => {
-    const MAKER_POSITION = parse6decimal('0.0001')
-    const SHORT_POSITION = parse6decimal('0.00001')
-    const LONG_POSITION = parse6decimal('0.00001')
+    const MAKER_POSITION = parse6decimal('10')
+    const SHORT_POSITION = parse6decimal('1')
+    const LONG_POSITION = parse6decimal('1')
     const COLLATERAL = parse6decimal('1000')
 
     beforeEach(async () => {

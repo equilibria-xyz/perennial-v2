@@ -105,7 +105,7 @@ describe('Happy Path', () => {
   })
 
   it('opens a make position', async () => {
-    const POSITION = parse6decimal('0.0001')
+    const POSITION = parse6decimal('10')
     const COLLATERAL = parse6decimal('1000')
     const { user, dsu, chainlink } = instanceVars
 
@@ -216,7 +216,7 @@ describe('Happy Path', () => {
   })
 
   it('opens multiple make positions', async () => {
-    const POSITION = parse6decimal('0.0001')
+    const POSITION = parse6decimal('10')
     const COLLATERAL = parse6decimal('1000')
     const { user, dsu, chainlink } = instanceVars
 
@@ -320,7 +320,7 @@ describe('Happy Path', () => {
   })
 
   it('closes a make position', async () => {
-    const POSITION = parse6decimal('0.0001')
+    const POSITION = parse6decimal('10')
     const COLLATERAL = parse6decimal('1000')
     const { user, dsu, chainlink } = instanceVars
 
@@ -391,7 +391,7 @@ describe('Happy Path', () => {
   })
 
   it('closes multiple make positions', async () => {
-    const POSITION = parse6decimal('0.0001')
+    const POSITION = parse6decimal('10')
     const COLLATERAL = parse6decimal('1000')
     const { user, dsu, chainlink } = instanceVars
 
@@ -456,8 +456,8 @@ describe('Happy Path', () => {
   })
 
   it('opens a long position', async () => {
-    const POSITION = parse6decimal('0.0001')
-    const POSITION_B = parse6decimal('0.00001')
+    const POSITION = parse6decimal('10')
+    const POSITION_B = parse6decimal('1')
     const COLLATERAL = parse6decimal('1000')
     const { user, userB, dsu, chainlink } = instanceVars
 
@@ -465,7 +465,7 @@ describe('Happy Path', () => {
 
     const riskParameter = { ...(await market.riskParameter()) }
     const riskParameterTakerFee = { ...riskParameter.takerFee }
-    riskParameterTakerFee.scale = parse6decimal('0.00001')
+    riskParameterTakerFee.scale = parse6decimal('1')
     riskParameter.takerFee = riskParameterTakerFee
     await market.updateRiskParameter(riskParameter)
 
@@ -601,8 +601,8 @@ describe('Happy Path', () => {
   })
 
   it('opens multiple take positions', async () => {
-    const POSITION = parse6decimal('0.0001')
-    const POSITION_B = parse6decimal('0.00001')
+    const POSITION = parse6decimal('10')
+    const POSITION_B = parse6decimal('1')
     const COLLATERAL = parse6decimal('1000')
     const { user, userB, dsu, chainlink } = instanceVars
 
@@ -610,7 +610,7 @@ describe('Happy Path', () => {
 
     const riskParameter = { ...(await market.riskParameter()) }
     const riskParameterTakerFee = { ...riskParameter.takerFee }
-    riskParameterTakerFee.scale = parse6decimal('0.00001')
+    riskParameterTakerFee.scale = parse6decimal('1')
     riskParameter.takerFee = riskParameterTakerFee
     await market.updateRiskParameter(riskParameter)
 
@@ -718,8 +718,8 @@ describe('Happy Path', () => {
   })
 
   it('closes a long position', async () => {
-    const POSITION = parse6decimal('0.0001')
-    const POSITION_B = parse6decimal('0.00001')
+    const POSITION = parse6decimal('10')
+    const POSITION_B = parse6decimal('1')
     const COLLATERAL = parse6decimal('1000')
     const { user, userB, dsu, chainlink } = instanceVars
 
@@ -799,8 +799,8 @@ describe('Happy Path', () => {
   })
 
   it('closes multiple long positions', async () => {
-    const POSITION = parse6decimal('0.0001')
-    const POSITION_B = parse6decimal('0.00001')
+    const POSITION = parse6decimal('10')
+    const POSITION_B = parse6decimal('1')
     const COLLATERAL = parse6decimal('1000')
     const { user, userB, dsu, chainlink } = instanceVars
 
@@ -892,8 +892,8 @@ describe('Happy Path', () => {
   })
 
   it('opens a long position and settles after max funding', async () => {
-    const POSITION = parse6decimal('0.0001')
-    const POSITION_B = parse6decimal('0.00001')
+    const POSITION = parse6decimal('10')
+    const POSITION_B = parse6decimal('1')
     const COLLATERAL = parse6decimal('1000')
     const { user, userB, dsu, chainlink } = instanceVars
 
@@ -901,7 +901,7 @@ describe('Happy Path', () => {
 
     const riskParameter = { ...(await market.riskParameter()) }
     const riskParameterTakerFee = { ...riskParameter.takerFee }
-    riskParameterTakerFee.scale = parse6decimal('0.00001')
+    riskParameterTakerFee.scale = parse6decimal('1')
     riskParameter.takerFee = riskParameterTakerFee
     await market.updateRiskParameter(riskParameter)
 
@@ -927,8 +927,8 @@ describe('Happy Path', () => {
   })
 
   it('opens a short position and settles after max funding', async () => {
-    const POSITION = parse6decimal('0.0001')
-    const POSITION_B = parse6decimal('0.00001')
+    const POSITION = parse6decimal('10')
+    const POSITION_B = parse6decimal('1')
     const COLLATERAL = parse6decimal('1000')
     const { user, userB, dsu, chainlink } = instanceVars
 
@@ -936,7 +936,7 @@ describe('Happy Path', () => {
 
     const riskParameter = { ...(await market.riskParameter()) }
     const riskParameterTakerFee = { ...riskParameter.takerFee }
-    riskParameterTakerFee.scale = parse6decimal('0.00001')
+    riskParameterTakerFee.scale = parse6decimal('1')
     riskParameter.takerFee = riskParameterTakerFee
     await market.updateRiskParameter(riskParameter)
 
@@ -964,7 +964,7 @@ describe('Happy Path', () => {
   it('delayed update w/ collateral (gas)', async () => {
     const positionFeesOn = true
 
-    const POSITION = parse6decimal('0.0001')
+    const POSITION = parse6decimal('10')
     const COLLATERAL = parse6decimal('1000')
     const { user, userB, dsu, chainlink, beneficiaryB } = instanceVars
 
@@ -983,7 +983,7 @@ describe('Happy Path', () => {
         adiabaticFee: positionFeesOn ? parse6decimal('0.0003') : 0,
         scale: parse6decimal('10000'),
       },
-      makerLimit: parse6decimal('1'),
+      makerLimit: parse6decimal('100000'),
       efficiencyLimit: parse6decimal('0.2'),
       liquidationFee: parse6decimal('0.50'),
       minLiquidationFee: parse6decimal('0'),
@@ -1047,7 +1047,7 @@ describe('Happy Path', () => {
       ...DEFAULT_LOCAL,
       currentId: 3,
       latestId: 2,
-      collateral: '986224425',
+      collateral: '986141051',
     })
     expectOrderEq(await market.pendingOrders(user.address, 3), {
       ...DEFAULT_ORDER,
@@ -1069,10 +1069,10 @@ describe('Happy Path', () => {
     expectGlobalEq(await market.global(), {
       currentId: 3,
       latestId: 2,
-      protocolFee: '306050',
+      protocolFee: '308688',
       riskFee: 0,
       oracleFee: 0,
-      donation: '306052',
+      donation: '308689',
     })
     expectOrderEq(await market.pendingOrder(3), {
       ...DEFAULT_ORDER,
@@ -1089,8 +1089,8 @@ describe('Happy Path', () => {
     })
     expectVersionEq(await market.versions(TIMESTAMP_4), {
       ...DEFAULT_VERSION,
-      makerValue: { _value: '-354460592731' },
-      longValue: { _value: '362096873938' },
+      makerValue: { _value: '-3545882' },
+      longValue: { _value: '3620965' },
       shortValue: { _value: 0 },
       liquidationFee: { _value: -riskParameter.liquidationFee },
     })
@@ -1102,7 +1102,7 @@ describe('Happy Path', () => {
     const delay = 5
     const sync = true
 
-    const POSITION = parse6decimal('0.0001')
+    const POSITION = parse6decimal('10')
     const COLLATERAL = parse6decimal('1000')
 
     const chainlink = await new ChainlinkContext(
@@ -1114,7 +1114,6 @@ describe('Happy Path', () => {
 
     const instanceVars = await deployProtocol(chainlink)
     const { user, userB, dsu, beneficiaryB, payoff } = instanceVars
-    chainlink.payoff = payoff
 
     const riskParameter = {
       margin: parse6decimal('0.3'),
@@ -1131,7 +1130,7 @@ describe('Happy Path', () => {
         adiabaticFee: positionFeesOn ? parse6decimal('0.0003') : 0,
         scale: parse6decimal('10000'),
       },
-      makerLimit: parse6decimal('1'),
+      makerLimit: parse6decimal('100000'),
       efficiencyLimit: parse6decimal('0.2'),
       liquidationFee: parse6decimal('10.00'),
       utilizationCurve: {

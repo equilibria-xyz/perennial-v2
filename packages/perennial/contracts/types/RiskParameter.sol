@@ -150,7 +150,7 @@ library RiskParameterStorageLib {
         if (self.efficiencyLimit.lt(protocolParameter.minEfficiency)) revert RiskParameterStorageInvalidError();
 
         if (self.utilizationCurve.targetUtilization.gt(UFixed6Lib.ONE)) revert RiskParameterStorageInvalidError();
-        
+
         if (self.minMaintenance.lt(self.liquidationFee)) revert RiskParameterStorageInvalidError();
 
         if (self.minMargin.lt(self.minMaintenance)) revert RiskParameterStorageInvalidError();

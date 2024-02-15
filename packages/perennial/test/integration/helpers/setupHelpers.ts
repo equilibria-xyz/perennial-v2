@@ -63,7 +63,12 @@ export async function deployProtocol(chainlinkContext?: ChainlinkContext): Promi
 
   const chainlink =
     chainlinkContext ??
-    (await new ChainlinkContext(CHAINLINK_CUSTOM_CURRENCIES.ETH, CHAINLINK_CUSTOM_CURRENCIES.USD, payoff, 1).init())
+    (await new ChainlinkContext(
+      CHAINLINK_CUSTOM_CURRENCIES.ETH,
+      CHAINLINK_CUSTOM_CURRENCIES.USD,
+      { provider: payoff, decimals: -5 },
+      1,
+    ).init())
 
   // Deploy protocol contracts
   const proxyAdmin = await new ProxyAdmin__factory(owner).deploy()
