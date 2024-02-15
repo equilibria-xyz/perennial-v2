@@ -32,7 +32,7 @@ struct StoredProtocolParameter {
     uint24 maxFee;             // <= 1677%
     uint48 maxFeeAbsolute;     // <= 281m
     uint24 maxCut;             // <= 1677%
-    uint32 maxRate;            // <= 429496%
+    uint32 maxRate;            // <= 214748% (capped at 31 bits to accommodate int32 rates)
     uint24 minMaintenance;     // <= 1677%
     uint24 minEfficiency;      // <= 1677%
 }
@@ -66,7 +66,7 @@ library ProtocolParameterStorageLib {
 
         if (newValue.maxFee.gt(UFixed6.wrap(type(uint24).max))) revert ProtocolParameterStorageInvalidError();
         if (newValue.maxFeeAbsolute.gt(UFixed6.wrap(type(uint48).max))) revert ProtocolParameterStorageInvalidError();
-        if (newValue.maxRate.gt(UFixed6.wrap(type(uint32).max))) revert ProtocolParameterStorageInvalidError();
+        if (newValue.maxRate.gt(UFixed6.wrap(type(uint32).max / 2))) revert ProtocolParameterStorageInvalidError();
         if (newValue.minMaintenance.gt(UFixed6.wrap(type(uint24).max))) revert ProtocolParameterStorageInvalidError();
         if (newValue.minEfficiency.gt(UFixed6.wrap(type(uint24).max))) revert ProtocolParameterStorageInvalidError();
 

@@ -657,7 +657,7 @@ describe('Version', () => {
           { ...VALID_MARKET_PARAMETER },
           {
             ...VALID_RISK_PARAMETER,
-            pController: { max: 0, k: parse6decimal('1') },
+            pController: { min: 0, max: 0, k: parse6decimal('1') },
             utilizationCurve: {
               minRate: 0,
               maxRate: 0,
@@ -733,7 +733,7 @@ describe('Version', () => {
           { ...VALID_MARKET_PARAMETER, positionFee: parse6decimal('0.1') },
           {
             ...VALID_RISK_PARAMETER,
-            pController: { max: 0, k: parse6decimal('1') },
+            pController: { min: 0, max: 0, k: parse6decimal('1') },
             utilizationCurve: {
               minRate: 0,
               maxRate: 0,
@@ -815,7 +815,7 @@ describe('Version', () => {
             },
             {
               ...VALID_RISK_PARAMETER,
-              pController: { max: parse6decimal('40000'), k: parse6decimal('1.2') },
+              pController: { min: parse6decimal('-40000'), max: parse6decimal('40000'), k: parse6decimal('1.2') },
               utilizationCurve: {
                 minRate: 0,
                 maxRate: 0,
@@ -861,7 +861,7 @@ describe('Version', () => {
             },
             {
               ...VALID_RISK_PARAMETER,
-              pController: { max: parse6decimal('40000'), k: parse6decimal('1.2') },
+              pController: { min: parse6decimal('-40000'), max: parse6decimal('40000'), k: parse6decimal('1.2') },
               utilizationCurve: {
                 minRate: 0,
                 maxRate: 0,
@@ -903,7 +903,7 @@ describe('Version', () => {
             },
             {
               ...VALID_RISK_PARAMETER,
-              pController: { max: parse6decimal('40000'), k: parse6decimal('1.2') },
+              pController: { min: parse6decimal('-40000'), max: parse6decimal('40000'), k: parse6decimal('1.2') },
               utilizationCurve: {
                 minRate: 0,
                 maxRate: 0,
@@ -946,7 +946,7 @@ describe('Version', () => {
             },
             {
               ...VALID_RISK_PARAMETER,
-              pController: { max: parse6decimal('40000'), k: parse6decimal('1.2') },
+              pController: { min: parse6decimal('-40000'), max: parse6decimal('40000'), k: parse6decimal('1.2') },
               utilizationCurve: {
                 minRate: 0,
                 maxRate: 0,
@@ -990,7 +990,7 @@ describe('Version', () => {
             {
               ...VALID_RISK_PARAMETER,
               makerReceiveOnly: true,
-              pController: { max: parse6decimal('40000'), k: parse6decimal('1.2') },
+              pController: { min: parse6decimal('-40000'), max: parse6decimal('40000'), k: parse6decimal('1.2') },
               utilizationCurve: {
                 minRate: 0,
                 maxRate: 0,
@@ -1035,7 +1035,7 @@ describe('Version', () => {
             },
             {
               ...VALID_RISK_PARAMETER,
-              pController: { max: 0, k: parse6decimal('999999') },
+              pController: { min: 0, max: 0, k: parse6decimal('999999') },
               utilizationCurve: {
                 minRate: parse6decimal('0.1'),
                 maxRate: parse6decimal('0.1'),
@@ -1077,7 +1077,7 @@ describe('Version', () => {
             },
             {
               ...VALID_RISK_PARAMETER,
-              pController: { max: 0, k: parse6decimal('999999') },
+              pController: { min: 0, max: 0, k: parse6decimal('999999') },
               utilizationCurve: {
                 minRate: parse6decimal('0.1'),
                 maxRate: parse6decimal('0.1'),
@@ -1126,7 +1126,7 @@ describe('Version', () => {
             },
             {
               ...VALID_RISK_PARAMETER,
-              pController: { max: 0, k: parse6decimal('999999') },
+              pController: { min: 0, max: 0, k: parse6decimal('999999') },
               utilizationCurve: {
                 minRate: parse6decimal('0.1'),
                 maxRate: parse6decimal('0.1'),
@@ -1175,7 +1175,7 @@ describe('Version', () => {
             },
             {
               ...VALID_RISK_PARAMETER,
-              pController: { max: 0, k: parse6decimal('999999') },
+              pController: { min: 0, max: 0, k: parse6decimal('999999') },
               utilizationCurve: {
                 minRate: parse6decimal('0.1'),
                 maxRate: parse6decimal('0.1'),
@@ -1220,7 +1220,7 @@ describe('Version', () => {
             },
             {
               ...VALID_RISK_PARAMETER,
-              pController: { max: 0, k: parse6decimal('999999') },
+              pController: { min: 0, max: 0, k: parse6decimal('999999') },
               utilizationCurve: {
                 minRate: 0,
                 maxRate: 0,
@@ -1278,7 +1278,7 @@ describe('Version', () => {
                   adiabaticFee: 0,
                   scale: parse6decimal('100'),
                 },
-                pController: { max: 0, k: parse6decimal('999999') },
+                pController: { min: 0, max: 0, k: parse6decimal('999999') },
                 utilizationCurve: {
                   minRate: 0,
                   maxRate: 0,
@@ -1335,7 +1335,7 @@ describe('Version', () => {
                   adiabaticFee: 0,
                   scale: parse6decimal('100'),
                 },
-                pController: { max: 0, k: parse6decimal('999999') },
+                pController: { min: 0, max: 0, k: parse6decimal('999999') },
                 utilizationCurve: {
                   minRate: 0,
                   maxRate: 0,
@@ -1392,7 +1392,7 @@ describe('Version', () => {
                   adiabaticFee: 0,
                   scale: parse6decimal('100'),
                 },
-                pController: { max: 0, k: parse6decimal('999999') },
+                pController: { min: 0, max: 0, k: parse6decimal('999999') },
                 utilizationCurve: {
                   minRate: 0,
                   maxRate: 0,
@@ -1451,7 +1451,7 @@ describe('Version', () => {
                   adiabaticFee: 0,
                   scale: parse6decimal('100'),
                 },
-                pController: { max: 0, k: parse6decimal('999999') },
+                pController: { min: 0, max: 0, k: parse6decimal('999999') },
                 utilizationCurve: {
                   minRate: 0,
                   maxRate: 0,
@@ -1508,7 +1508,7 @@ describe('Version', () => {
                   adiabaticFee: 0,
                   scale: parse6decimal('100'),
                 },
-                pController: { max: 0, k: parse6decimal('999999') },
+                pController: { min: 0, max: 0, k: parse6decimal('999999') },
                 utilizationCurve: {
                   minRate: 0,
                   maxRate: 0,
@@ -1565,7 +1565,7 @@ describe('Version', () => {
                   adiabaticFee: 0,
                   scale: parse6decimal('100'),
                 },
-                pController: { max: 0, k: parse6decimal('999999') },
+                pController: { min: 0, max: 0, k: parse6decimal('999999') },
                 utilizationCurve: {
                   minRate: 0,
                   maxRate: 0,

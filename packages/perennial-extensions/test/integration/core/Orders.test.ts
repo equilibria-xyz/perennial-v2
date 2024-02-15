@@ -27,7 +27,7 @@ const ethers = { HRE }
 export const PRICE = utils.parseEther('3374.655169')
 
 function payoff(number: BigNumber): BigNumber {
-  return number.mul(number).div(utils.parseEther('1'))
+  return number.mul(number).div(utils.parseEther('1')).div(100000)
 }
 
 describe('Orders', () => {
@@ -50,8 +50,8 @@ describe('Orders', () => {
 
     dsuCollateral = await instanceVars.dsu.balanceOf(instanceVars.user.address)
     collateral = parse6decimal('100000')
-    position = parse6decimal('.01')
-    userPosition = parse6decimal('.001')
+    position = parse6decimal('1000')
+    userPosition = parse6decimal('100')
 
     // deposit maker up to maker limit (UFixed6)
     await dsu.connect(userB).approve(market.address, dsuCollateral)
@@ -129,7 +129,7 @@ describe('Orders', () => {
   it('executes a long limit order', async () => {
     const { user, userC, chainlink } = instanceVars
 
-    const triggerPrice = payoff(PRICE.sub(utils.parseEther('0.00001'))).div(1e12)
+    const triggerPrice = payoff(PRICE.sub(utils.parseEther('0.001'))).div(1e12)
 
     const trigger = openTriggerOrder({
       delta: userPosition,
@@ -147,7 +147,7 @@ describe('Orders', () => {
     await expect(multiInvoker.connect(user).invoke(placeOrder)).to.not.be.reverted
     expect(await multiInvoker.canExecuteOrder(user.address, market.address, 1)).to.be.false
 
-    await chainlink.nextWithPriceModification(() => PRICE.sub(utils.parseEther('0.000011')))
+    await chainlink.nextWithPriceModification(() => PRICE.sub(utils.parseEther('0.0011')))
     await settle(market, user)
 
     const execute = buildExecOrder({ user: user.address, market: market.address, orderId: 1 })
@@ -160,7 +160,7 @@ describe('Orders', () => {
   it('executes a short limit order', async () => {
     const { user, userC, chainlink } = instanceVars
 
-    const triggerPrice = payoff(PRICE.add(utils.parseEther('0.00001'))).div(1e12)
+    const triggerPrice = payoff(PRICE.add(utils.parseEther('0.001'))).div(1e12)
 
     const trigger = openTriggerOrder({
       delta: userPosition,
@@ -178,7 +178,7 @@ describe('Orders', () => {
     await expect(multiInvoker.connect(user).invoke(placeOrder)).to.not.be.reverted
     expect(await multiInvoker.canExecuteOrder(user.address, market.address, 1)).to.be.false
 
-    await chainlink.nextWithPriceModification(() => PRICE.add(utils.parseEther('0.000011')))
+    await chainlink.nextWithPriceModification(() => PRICE.add(utils.parseEther('0.0011')))
     await settle(market, user)
 
     const execute = buildExecOrder({ user: user.address, market: market.address, orderId: 1 })
@@ -191,7 +191,7 @@ describe('Orders', () => {
   it('executes a long tp order', async () => {
     const { user, userC, chainlink } = instanceVars
 
-    const triggerPrice = payoff(PRICE.add(utils.parseEther('0.00001'))).div(1e12)
+    const triggerPrice = payoff(PRICE.add(utils.parseEther('0.001'))).div(1e12)
 
     const trigger = openTriggerOrder({
       delta: userPosition.mul(-1),
@@ -210,7 +210,7 @@ describe('Orders', () => {
     await expect(multiInvoker.connect(user).invoke(placeOrder)).to.not.be.reverted
     expect(await multiInvoker.canExecuteOrder(user.address, market.address, 1)).to.be.false
 
-    await chainlink.nextWithPriceModification(() => PRICE.add(utils.parseEther('0.000011')))
+    await chainlink.nextWithPriceModification(() => PRICE.add(utils.parseEther('0.0011')))
     await settle(market, user)
 
     const execute = buildExecOrder({ user: user.address, market: market.address, orderId: 1 })
@@ -223,7 +223,7 @@ describe('Orders', () => {
   it('executes a short tp order', async () => {
     const { user, userC, chainlink } = instanceVars
 
-    const triggerPrice = payoff(PRICE.sub(utils.parseEther('0.000011'))).div(1e12)
+    const triggerPrice = payoff(PRICE.sub(utils.parseEther('0.0011'))).div(1e12)
 
     const trigger = openTriggerOrder({
       delta: userPosition.mul(-1),
@@ -242,7 +242,7 @@ describe('Orders', () => {
     await expect(multiInvoker.connect(user).invoke(placeOrder)).to.not.be.reverted
     expect(await multiInvoker.canExecuteOrder(user.address, market.address, 1)).to.be.false
 
-    await chainlink.nextWithPriceModification(() => PRICE.sub(utils.parseEther('0.000011')))
+    await chainlink.nextWithPriceModification(() => PRICE.sub(utils.parseEther('0.0011')))
     await settle(market, user)
 
     const execute = buildExecOrder({ user: user.address, market: market.address, orderId: 1 })
@@ -255,7 +255,7 @@ describe('Orders', () => {
   it('executes a long sl order', async () => {
     const { user, userC, chainlink } = instanceVars
 
-    const triggerPrice = payoff(PRICE.sub(utils.parseEther('0.00001'))).div(1e12)
+    const triggerPrice = payoff(PRICE.sub(utils.parseEther('0.001'))).div(1e12)
 
     const trigger = openTriggerOrder({
       delta: userPosition.mul(-1),
@@ -274,7 +274,7 @@ describe('Orders', () => {
     await expect(multiInvoker.connect(user).invoke(placeOrder)).to.not.be.reverted
     expect(await multiInvoker.canExecuteOrder(user.address, market.address, 1)).to.be.false
 
-    await chainlink.nextWithPriceModification(() => PRICE.sub(utils.parseEther('0.000011')))
+    await chainlink.nextWithPriceModification(() => PRICE.sub(utils.parseEther('0.0011')))
     await settle(market, user)
 
     const execute = buildExecOrder({ user: user.address, market: market.address, orderId: 1 })
@@ -287,7 +287,7 @@ describe('Orders', () => {
   it('executes a short sl order', async () => {
     const { user, userC, chainlink } = instanceVars
 
-    const triggerPrice = payoff(PRICE.add(utils.parseEther('0.00001'))).div(1e12)
+    const triggerPrice = payoff(PRICE.add(utils.parseEther('0.001'))).div(1e12)
 
     const trigger = openTriggerOrder({
       delta: userPosition.mul(-1),
@@ -305,7 +305,7 @@ describe('Orders', () => {
     await expect(multiInvoker.connect(user).invoke(placeOrder)).to.not.be.reverted
     expect(await multiInvoker.canExecuteOrder(user.address, market.address, 1)).to.be.false
 
-    await chainlink.nextWithPriceModification(() => PRICE.add(utils.parseEther('0.000011')))
+    await chainlink.nextWithPriceModification(() => PRICE.add(utils.parseEther('0.0011')))
     await settle(market, user)
 
     const execute = buildExecOrder({ user: user.address, market: market.address, orderId: 1 })
@@ -318,7 +318,7 @@ describe('Orders', () => {
   it('executes a maker limit order', async () => {
     const { userB, userC, chainlink } = instanceVars
 
-    const triggerPrice = payoff(PRICE.add(utils.parseEther('0.00001'))).div(1e12)
+    const triggerPrice = payoff(PRICE.add(utils.parseEther('0.001'))).div(1e12)
 
     const trigger = openTriggerOrder({
       delta: userPosition,
@@ -336,7 +336,7 @@ describe('Orders', () => {
     await expect(multiInvoker.connect(userB).invoke(placeOrder)).to.not.be.reverted
     expect(await multiInvoker.canExecuteOrder(userB.address, market.address, 1)).to.be.false
 
-    await chainlink.nextWithPriceModification(() => PRICE.add(utils.parseEther('0.000011')))
+    await chainlink.nextWithPriceModification(() => PRICE.add(utils.parseEther('0.0011')))
     await settle(market, userB)
 
     const execute = buildExecOrder({ user: userB.address, market: market.address, orderId: 1 })
@@ -349,7 +349,7 @@ describe('Orders', () => {
   it('executes a maker above market price order', async () => {
     const { userB, userC, chainlink } = instanceVars
 
-    const triggerPrice = payoff(PRICE.sub(utils.parseEther('0.00001'))).div(1e12)
+    const triggerPrice = payoff(PRICE.sub(utils.parseEther('0.001'))).div(1e12)
 
     const trigger = openTriggerOrder({
       delta: userPosition.mul(-1),
@@ -368,7 +368,7 @@ describe('Orders', () => {
     await expect(multiInvoker.connect(userB).invoke(placeOrder)).to.not.be.reverted
     expect(await multiInvoker.canExecuteOrder(userB.address, market.address, 1)).to.be.false
 
-    await chainlink.nextWithPriceModification(() => PRICE.sub(utils.parseEther('0.000011')))
+    await chainlink.nextWithPriceModification(() => PRICE.sub(utils.parseEther('0.0011')))
     await settle(market, userB)
 
     const execute = buildExecOrder({ user: userB.address, market: market.address, orderId: 1 })
@@ -381,7 +381,7 @@ describe('Orders', () => {
   it('executes a maker below price order', async () => {
     const { userB, userC, chainlink } = instanceVars
 
-    const triggerPrice = payoff(PRICE.add(utils.parseEther('0.00001'))).div(1e12)
+    const triggerPrice = payoff(PRICE.add(utils.parseEther('0.001'))).div(1e12)
 
     const trigger = openTriggerOrder({
       delta: userPosition.mul(-1),
@@ -401,7 +401,7 @@ describe('Orders', () => {
     await expect(multiInvoker.connect(userB).invoke(placeOrder)).to.not.be.reverted
     expect(await multiInvoker.canExecuteOrder(userB.address, market.address, 1)).to.be.false
 
-    await chainlink.nextWithPriceModification(() => PRICE.add(utils.parseEther('0.000011')))
+    await chainlink.nextWithPriceModification(() => PRICE.add(utils.parseEther('0.0011')))
     await settle(market, userB)
 
     const execute = buildExecOrder({ user: userB.address, market: market.address, orderId: 1 })
@@ -414,7 +414,7 @@ describe('Orders', () => {
   it('executes an order with interface fee', async () => {
     const { user, userB, userC, chainlink, dsu } = instanceVars
 
-    const triggerPrice = payoff(PRICE.sub(utils.parseEther('0.00001'))).div(1e12)
+    const triggerPrice = payoff(PRICE.sub(utils.parseEther('0.001'))).div(1e12)
 
     const trigger = openTriggerOrder({
       delta: userPosition,
@@ -433,7 +433,7 @@ describe('Orders', () => {
     await expect(multiInvoker.connect(user).invoke(placeOrder)).to.not.be.reverted
     expect(await multiInvoker.canExecuteOrder(user.address, market.address, 1)).to.be.false
 
-    await chainlink.nextWithPriceModification(() => PRICE.sub(utils.parseEther('0.000011')))
+    await chainlink.nextWithPriceModification(() => PRICE.sub(utils.parseEther('0.0011')))
     await settle(market, user)
 
     const balanceBefore = await dsu.balanceOf(userB.address)
@@ -453,7 +453,7 @@ describe('Orders', () => {
   it('executes an order with interface fee (unwrap)', async () => {
     const { user, userB, userC, chainlink, usdc } = instanceVars
 
-    const triggerPrice = payoff(PRICE.sub(utils.parseEther('0.00001'))).div(1e12)
+    const triggerPrice = payoff(PRICE.sub(utils.parseEther('0.001'))).div(1e12)
 
     const trigger = openTriggerOrder({
       delta: userPosition,
@@ -472,7 +472,7 @@ describe('Orders', () => {
     await expect(multiInvoker.connect(user).invoke(placeOrder)).to.not.be.reverted
     expect(await multiInvoker.canExecuteOrder(user.address, market.address, 1)).to.be.false
 
-    await chainlink.nextWithPriceModification(() => PRICE.sub(utils.parseEther('0.000011')))
+    await chainlink.nextWithPriceModification(() => PRICE.sub(utils.parseEther('0.0011')))
     await settle(market, user)
 
     const balanceBefore = await usdc.balanceOf(userB.address)
@@ -535,7 +535,7 @@ describe('Orders', () => {
   it('executes a withdrawal order', async () => {
     const { user, userB, userC, chainlink, usdc } = instanceVars
 
-    const triggerPrice = payoff(PRICE.add(utils.parseEther('0.00001'))).div(1e12)
+    const triggerPrice = payoff(PRICE.add(utils.parseEther('0.001'))).div(1e12)
 
     const trigger = openTriggerOrder({
       delta: collateral.div(-4),
@@ -555,7 +555,7 @@ describe('Orders', () => {
     await expect(multiInvoker.connect(userB).invoke(placeOrder)).to.not.be.reverted
     expect(await multiInvoker.canExecuteOrder(userB.address, market.address, 1)).to.be.false
 
-    await chainlink.nextWithPriceModification(() => PRICE.add(utils.parseEther('0.000011')))
+    await chainlink.nextWithPriceModification(() => PRICE.add(utils.parseEther('0.0011')))
     await settle(market, userB)
 
     const balanceBefore = await usdc.balanceOf(userB.address)
@@ -573,7 +573,7 @@ describe('Orders', () => {
   it('executes a max withdrawal order with order fee', async () => {
     const { user, userC, chainlink, dsu, usdc } = instanceVars
 
-    const triggerPrice = payoff(PRICE.add(utils.parseEther('0.00001'))).div(1e12)
+    const triggerPrice = payoff(PRICE.add(utils.parseEther('0.001'))).div(1e12)
 
     const trigger = openTriggerOrder({
       delta: MIN_INT64,
@@ -592,7 +592,7 @@ describe('Orders', () => {
     await expect(multiInvoker.connect(user).invoke(placeOrder)).to.not.be.reverted
     expect(await multiInvoker.canExecuteOrder(user.address, market.address, 1)).to.be.false
 
-    await chainlink.nextWithPriceModification(() => PRICE.add(utils.parseEther('0.000011')))
+    await chainlink.nextWithPriceModification(() => PRICE.add(utils.parseEther('0.0011')))
     await settle(market, user)
 
     const executorBalanceBefore = await dsu.balanceOf(userC.address)
@@ -618,14 +618,13 @@ describe('Orders', () => {
 
     // ------------------- Maker close all ------------------------- //
 
-    const triggerPrice = payoff(PRICE.add(utils.parseEther('0.00001'))).div(1e12)
+    const triggerPrice = payoff(PRICE.add(utils.parseEther('0.001'))).div(1e12)
 
     const trigger = openTriggerOrder({
       delta: 0,
       price: triggerPrice,
       side: Dir.M,
       comparison: Compare.BELOW_MARKET,
-      fee: userPosition,
     })
 
     let placeOrder = buildPlaceOrder({
@@ -638,7 +637,7 @@ describe('Orders', () => {
     await expect(multiInvoker.connect(user).invoke(placeOrder)).to.not.be.reverted
     expect(await multiInvoker.canExecuteOrder(user.address, market.address, 1)).to.be.false
 
-    await chainlink.nextWithPriceModification(() => PRICE.add(utils.parseEther('0.000011')))
+    await chainlink.nextWithPriceModification(() => PRICE.add(utils.parseEther('0.0011')))
     await settle(market, user)
 
     expect((await market.positions(user.address)).maker).to.be.eq(userPosition)
@@ -648,7 +647,7 @@ describe('Orders', () => {
       .to.emit(multiInvoker, 'OrderExecuted')
       .withArgs(user.address, market.address, 1)
 
-    await chainlink.nextWithPriceModification(() => PRICE.sub(utils.parseEther('0.000011')))
+    await chainlink.nextWithPriceModification(() => PRICE.sub(utils.parseEther('0.0011')))
     await settle(market, user)
 
     expect((await market.positions(user.address)).maker).to.be.eq(0)
@@ -662,7 +661,7 @@ describe('Orders', () => {
     await expect(multiInvoker.connect(user).invoke(placeOrder)).to.not.be.reverted
     expect(await multiInvoker.canExecuteOrder(user.address, market.address, 2)).to.be.false
 
-    await chainlink.nextWithPriceModification(() => PRICE.add(utils.parseEther('0.000011')))
+    await chainlink.nextWithPriceModification(() => PRICE.add(utils.parseEther('0.0011')))
     await settle(market, user)
 
     expect((await market.positions(user.address)).long).to.be.eq(userPosition)
@@ -672,7 +671,7 @@ describe('Orders', () => {
       .to.emit(multiInvoker, 'OrderExecuted')
       .withArgs(user.address, market.address, 2)
 
-    await chainlink.nextWithPriceModification(() => PRICE.sub(utils.parseEther('0.000011')))
+    await chainlink.nextWithPriceModification(() => PRICE.sub(utils.parseEther('0.0011')))
     await settle(market, user)
 
     expect((await market.positions(user.address)).long).to.be.eq(0)
@@ -686,7 +685,7 @@ describe('Orders', () => {
     await expect(multiInvoker.connect(user).invoke(placeOrder)).to.not.be.reverted
     expect(await multiInvoker.canExecuteOrder(user.address, market.address, 3)).to.be.false
 
-    await chainlink.nextWithPriceModification(() => PRICE.add(utils.parseEther('0.000011')))
+    await chainlink.nextWithPriceModification(() => PRICE.add(utils.parseEther('0.0011')))
     await settle(market, user)
 
     expect((await market.positions(user.address)).short).to.be.eq(userPosition)
@@ -696,7 +695,7 @@ describe('Orders', () => {
       .to.emit(multiInvoker, 'OrderExecuted')
       .withArgs(user.address, market.address, 3)
 
-    await chainlink.nextWithPriceModification(() => PRICE.sub(utils.parseEther('0.000011')))
+    await chainlink.nextWithPriceModification(() => PRICE.sub(utils.parseEther('0.0011')))
     await settle(market, user)
 
     expect((await market.positions(user.address)).short).to.be.eq(0)
@@ -735,7 +734,7 @@ describe('Orders', () => {
     it('fails to place order with 0 fee', async () => {
       const { user } = instanceVars
 
-      const triggerPrice = payoff(PRICE.add(utils.parseEther('0.00001'))).div(1e12)
+      const triggerPrice = payoff(PRICE.add(utils.parseEther('0.001'))).div(1e12)
 
       const trigger = openTriggerOrder({
         delta: userPosition,
@@ -832,7 +831,7 @@ describe('Orders', () => {
     it('exceeds max trigger fee on execution', async () => {
       const { user, chainlink } = instanceVars
 
-      const triggerPrice = payoff(PRICE.add(utils.parseEther('0.00001'))).div(1e12)
+      const triggerPrice = payoff(PRICE.add(utils.parseEther('0.001'))).div(1e12)
 
       const trigger = openTriggerOrder({
         delta: userPosition,
@@ -851,7 +850,7 @@ describe('Orders', () => {
       await expect(multiInvoker.connect(user).invoke(placeOrder)).to.not.be.reverted
       expect(await multiInvoker.canExecuteOrder(user.address, market.address, 1)).to.be.false
 
-      await chainlink.nextWithPriceModification(() => PRICE.add(utils.parseEther('0.000011')))
+      await chainlink.nextWithPriceModification(() => PRICE.add(utils.parseEther('0.0011')))
       await settle(market, user)
 
       await ethers.HRE.ethers.provider.send('hardhat_setNextBlockBaseFeePerGas', ['0x1000000'])

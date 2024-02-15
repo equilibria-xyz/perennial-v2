@@ -19,7 +19,7 @@ describe('Closed Market', () => {
   })
 
   it('closes the market', async () => {
-    const POSITION = parse6decimal('0.0001')
+    const POSITION = parse6decimal('10')
     const COLLATERAL = parse6decimal('1000')
     const { owner, user, dsu, chainlink, beneficiaryB } = instanceVars
 
@@ -43,7 +43,7 @@ describe('Closed Market', () => {
 
   describe('changes to system constraints', async () => {
     let market: Market
-    const POSITION = parse6decimal('0.0001')
+    const POSITION = parse6decimal('10')
     const COLLATERAL = parse6decimal('1000')
 
     beforeEach(async () => {
@@ -80,7 +80,7 @@ describe('Closed Market', () => {
   })
 
   it('zeroes PnL and fees', async () => {
-    const POSITION = parse6decimal('0.0001')
+    const POSITION = parse6decimal('10')
     const COLLATERAL = parse6decimal('1000')
     const { user, userB, chainlink, dsu, beneficiaryB } = instanceVars
 
@@ -121,7 +121,7 @@ describe('Closed Market', () => {
   })
 
   it('handles closing during liquidations', async () => {
-    const POSITION = parse6decimal('0.0001')
+    const POSITION = parse6decimal('10')
     const COLLATERAL = parse6decimal('1000')
     const { user, userB, chainlink, dsu, beneficiaryB } = instanceVars
 
