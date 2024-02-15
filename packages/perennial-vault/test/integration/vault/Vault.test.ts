@@ -1965,7 +1965,7 @@ describe('Vault', () => {
 
         // 4. Settle the vault to recover and rebalance
         await updateOracle() // let take settle at high price
-        await vault.connect(user).update(user.address, 0, 0, 0)
+        await vault.connect(user).update(user.address, 0, 2, 0) // rebalance
 
         await updateOracle()
         await vault.settle(user.address)
@@ -1990,9 +1990,9 @@ describe('Vault', () => {
 
         expect(await collateralInVault()).to.equal(0)
         expect(await btcCollateralInVault()).to.equal(0)
-        expect((await vault.accounts(user.address)).shares).to.equal(parse6decimal('20000'))
+        expect((await vault.accounts(user.address)).shares).to.equal(parse6decimal('20000').sub(2)) // rebalance redeemed 2 shares
         expect((await vault.accounts(user.address)).assets).to.equal(0)
-        expect((await vault.accounts(constants.AddressZero)).shares).to.equal(parse6decimal('20000'))
+        expect((await vault.accounts(constants.AddressZero)).shares).to.equal(parse6decimal('20000').sub(2))
         expect((await vault.accounts(constants.AddressZero)).assets).to.equal(0)
         expect((await vault.accounts(ethers.constants.AddressZero)).assets).to.equal(0)
         expect(await asset.balanceOf(user.address)).to.equal(
