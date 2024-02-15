@@ -303,7 +303,7 @@ contract Vault is IVault, Instance {
 
         // manage assets
         asset.pull(msg.sender, UFixed18Lib.from(depositAssets));
-        _manage(context, depositAssets, claimAmount, true);
+        _manage(context, depositAssets, claimAmount, !depositAssets.isZero() || !redeemShares.isZero());
         asset.push(msg.sender, UFixed18Lib.from(claimAmount));
 
         emit Updated(msg.sender, account, context.currentId, depositAssets, redeemShares, claimAssets);
