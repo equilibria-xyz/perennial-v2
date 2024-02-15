@@ -90,7 +90,12 @@ export async function deployProtocol(chainlinkContext?: ChainlinkContext): Promi
 
   const chainlink =
     chainlinkContext ??
-    (await new ChainlinkContext(CHAINLINK_CUSTOM_CURRENCIES.ETH, CHAINLINK_CUSTOM_CURRENCIES.USD, payoff, 1).init())
+    (await new ChainlinkContext(
+      CHAINLINK_CUSTOM_CURRENCIES.ETH,
+      CHAINLINK_CUSTOM_CURRENCIES.USD,
+      { provider: payoff, decimals: -5 },
+      1,
+    ).init())
 
   // Deploy protocol contracts
   const proxyAdmin = await new ProxyAdmin__factory(owner).deploy()
@@ -230,7 +235,7 @@ export async function createMarket(
       adiabaticFee: 0,
       scale: parse6decimal('10'),
     },
-    makerLimit: parse6decimal('1000'),
+    makerLimit: parse6decimal('10000'),
     efficiencyLimit: parse6decimal('0.2'),
     liquidationFee: parse6decimal('0.50'),
     utilizationCurve: {
