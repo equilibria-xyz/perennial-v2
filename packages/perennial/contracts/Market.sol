@@ -77,6 +77,9 @@ contract Market is IMarket, Instance, ReentrancyGuard {
     /// @dev The liquidator for each id for each account
     mapping(address => mapping(uint256 => address)) public liquidators;
 
+    /// @dev The referrer for each id for each account
+    mapping(address => mapping(uint256 => address)) public referrers;
+
     /// @notice Initializes the contract state
     /// @param definition_ The market definition
     function initialize(IMarket.MarketDefinition calldata definition_) external initializer(1) {
@@ -111,11 +114,31 @@ contract Market is IMarket, Instance, ReentrancyGuard {
         UFixed6 newShort,
         Fixed6 collateral,
         bool protect
-    ) external nonReentrant whenNotPaused {
+    ) external {
+        update(account, newMaker, newLong, newShort, collateral, protect, address(0));
+    }
+
+    /// @notice Updates the account's position and collateral
+    /// @param account The account to operate on
+    /// @param newMaker The new maker position for the account
+    /// @param newMaker The new long position for the account
+    /// @param newMaker The new short position for the account
+    /// @param collateral The collateral amount to add or remove from the account
+    /// @param protect Whether to put the account into a protected status for liquidations
+    /// @param referrer The referrer of the order
+    function update(
+        address account,
+        UFixed6 newMaker,
+        UFixed6 newLong,
+        UFixed6 newShort,
+        Fixed6 collateral,
+        bool protect,
+        address referrer
+    ) public nonReentrant whenNotPaused {
         Context memory context = _loadContext(account);
 
         _settle(context, account);
-        _update(context, account, newMaker, newLong, newShort, collateral, protect);
+        _update(context, account, newMaker, newLong, newShort, collateral, protect, referrer);
 
         _storeContext(context, account);
     }
@@ -286,6 +309,7 @@ contract Market is IMarket, Instance, ReentrancyGuard {
         // parameters
         context.marketParameter = _parameter.read();
         context.riskParameter = _riskParameter.read();
+        context.protocolParameter = IMarketFactory(address(factory())).parameter();
 
         // oracle
         (context.latestOracleVersion, context.currentTimestamp) = oracle.status();
@@ -323,10 +347,12 @@ contract Market is IMarket, Instance, ReentrancyGuard {
     /// @notice Loads the context for the update process
     /// @param context The context to load to
     /// @param account The account to load for
+    /// @param referrer The referrer to load for
     /// @return updateContext The update context
     function _loadUpdateContext(
         Context memory context,
-        address account
+        address account,
+        address referrer
     ) private view returns (UpdateContext memory updateContext) {
         // load current position
         updateContext.currentPosition.global = context.latestPosition.global.clone();
@@ -337,6 +363,16 @@ contract Market is IMarket, Instance, ReentrancyGuard {
         // load current order
         updateContext.order.global = _pendingOrder[context.global.currentId].read();
         updateContext.order.local = _pendingOrders[account][context.local.currentId].read();
+
+        // load external actors
+        updateContext.liquidator = liquidators[account][context.local.currentId];
+        updateContext.referrer = referrers[account][context.local.currentId];
+
+        // load parameters
+        if (referrer != address(0)) {
+            updateContext.referralFee = IMarketFactory(address(factory())).referralFee(referrer);
+            if (updateContext.referralFee.isZero()) updateContext.referralFee = context.protocolParameter.referralFee;
+        }
     }
 
     /// @notice Stores the context for the update process
@@ -347,6 +383,10 @@ contract Market is IMarket, Instance, ReentrancyGuard {
         // current orders
         _pendingOrder[context.global.currentId].store(updateContext.order.global);
         _pendingOrders[account][context.local.currentId].store(updateContext.order.local);
+
+        // external actors
+        liquidators[account][context.local.currentId] = updateContext.liquidator;
+        referrers[account][context.local.currentId] = updateContext.referrer;
     }
 
     /// @notice Updates the current position
@@ -364,10 +404,11 @@ contract Market is IMarket, Instance, ReentrancyGuard {
         UFixed6 newLong,
         UFixed6 newShort,
         Fixed6 collateral,
-        bool protect
+        bool protect,
+        address referrer
     ) private {
         // load
-        UpdateContext memory updateContext = _loadUpdateContext(context, account);
+        UpdateContext memory updateContext = _loadUpdateContext(context, account, referrer);
 
         // magic values
         collateral = _processCollateralMagicValue(context, collateral);
@@ -393,7 +434,8 @@ contract Market is IMarket, Instance, ReentrancyGuard {
             newMaker,
             newLong,
             newShort,
-            protect
+            protect,
+            updateContext.referralFee.isZero() ? context.protocolParameter.referralFee : updateContext.referralFee
         );
         updateContext.currentPosition.global.update(newOrder, true);
         updateContext.currentPosition.local.update(newOrder, true);
@@ -408,7 +450,13 @@ contract Market is IMarket, Instance, ReentrancyGuard {
         context.local.update(collateral);
 
         // protect account
-        if (newOrder.protected()) liquidators[account][context.local.currentId] = msg.sender;
+        if (newOrder.protected()) updateContext.liquidator = msg.sender;
+
+        // apply referrer
+        if (updateContext.referrer == address(0))
+            updateContext.referrer = referrer;
+        else if (updateContext.referrer != address(0) && updateContext.referrer != referrer)
+            revert MarketInvalidReferrerError();
 
         // request version
         if (!newOrder.isEmpty()) oracle.request(IMarket(this), account);
@@ -436,9 +484,6 @@ contract Market is IMarket, Instance, ReentrancyGuard {
         Context memory context,
         address account
     ) private view returns (SettlementContext memory settlementContext) {
-        // parameters
-        settlementContext.protocolParameter = IMarketFactory(address(factory())).parameter();
-
         // processing accumulators
         settlementContext.latestVersion = _versions[context.latestPosition.global.timestamp].read();
         settlementContext.latestCheckpoint = _checkpoints[account][context.latestPosition.local.timestamp].read();
@@ -539,7 +584,7 @@ contract Market is IMarket, Instance, ReentrancyGuard {
             feeResult.settlementFee,
             feeResult.protocolFee,
             context.marketParameter,
-            settlementContext.protocolParameter
+            context.protocolParameter
         );
 
         context.latestPosition.global.update(newOrder, oracleVersion.valid);

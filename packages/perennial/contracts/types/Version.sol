@@ -63,6 +63,7 @@ struct VersionAccumulationResult {
     UFixed6 positionFee;
     UFixed6 positionFeeMaker;
     UFixed6 positionFeeProtocol;
+    UFixed6 positionFeeSubtractive;
     Fixed6 positionFeeExposure;
     Fixed6 positionFeeExposureMaker;
     Fixed6 positionFeeExposureProtocol;
@@ -111,6 +112,7 @@ library VersionLib {
     /// @param self The Version object to update
     /// @param global The global state
     /// @param fromPosition The previous latest position
+    /// @param order The new order
     /// @param fromOracleVersion The previous latest oracle version
     /// @param toOracleVersion The next latest oracle version
     /// @param marketParameter The market parameter
@@ -240,6 +242,10 @@ library VersionLib {
         self.takerLinearFee.decrement(Fixed6Lib.from(takerLinearFee), context.order.takerTotal());
 
         UFixed6 linearFee = makerLinearFee.add(takerLinearFee);
+
+        UFixed6 subtractiveFee = linearFee.muldiv(context.order.referral, context.order.total());
+        linearFee = linearFee.sub(subtractiveFee);
+
         UFixed6 protocolFee = context.fromPosition.maker.isZero() ?
             linearFee :
             context.marketParameter.positionFee.mul(linearFee);
@@ -249,6 +255,7 @@ library VersionLib {
         result.positionFee = result.positionFee.add(linearFee);
         result.positionFeeMaker = result.positionFeeMaker.add(positionFeeMaker);
         result.positionFeeProtocol = result.positionFeeProtocol.add(protocolFee);
+        result.positionFeeSubtractive = result.positionFeeSubtractive.add(subtractiveFee);
     }
 
         /// @notice Globally accumulates proportional fees since last oracle update

@@ -21,6 +21,7 @@ interface IMarket is IInstance {
     }
 
     struct Context {
+        ProtocolParameter protocolParameter;
         MarketParameter marketParameter;
         RiskParameter riskParameter;
         OracleVersion latestOracleVersion;
@@ -32,13 +33,15 @@ interface IMarket is IInstance {
     }
 
     struct SettlementContext {
-        ProtocolParameter protocolParameter;
         Version latestVersion;
         Checkpoint latestCheckpoint;
         OracleVersion orderOracleVersion;
     }
 
     struct UpdateContext {
+        address liquidator;
+        address referrer;
+        UFixed6 referralFee;
         OrderContext order;
         PositionContext currentPosition;
     }
@@ -100,6 +103,8 @@ interface IMarket is IInstance {
     error MarketInvalidMarketParameterError(uint256 code);
     // sig: 0xc5f0e98a
     error MarketInvalidRiskParameterError(uint256 code);
+    // sig: 0x9dbdc5fd
+    error MarketInvalidReferrerError();
 
     // sig: 0x2142bc27
     error GlobalStorageInvalidError();
@@ -129,6 +134,7 @@ interface IMarket is IInstance {
     function global() external view returns (Global memory);
     function checkpoints(address account, uint256 id) external view returns (Checkpoint memory);
     function liquidators(address account, uint256 id) external view returns (address);
+    function referrers(address account, uint256 id) external view returns (address);
     function settle(address account) external;
     function update(address account, UFixed6 newMaker, UFixed6 newLong, UFixed6 newShort, Fixed6 collateral, bool protect) external;
     function parameter() external view returns (MarketParameter memory);
