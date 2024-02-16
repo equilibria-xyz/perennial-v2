@@ -115,6 +115,7 @@ library OrderLib {
             makerAmount.isZero() ? referral : UFixed6Lib.ZERO
         );
         if (!isEmpty(newOrder)) newOrder.orders = 1;
+        newOrder.referral = newOrder.total().mul(referralFee);
     }
 
     /// @notice Returns whether the order increases any of the account's positions
@@ -261,6 +262,13 @@ library OrderLib {
         return self.makerNeg.add(self.longNeg).add(self.shortNeg);
     }
 
+    /// @notice The sum of all deltas on the order
+    /// @param self The order object to check
+    /// @return The sum of all deltas on the order
+    function total(Order memory self) internal pure returns (UFixed6) {
+        return pos(self).add(neg(self));
+    }
+
     /// @notice Updates the current global order with a new local order
     /// @param self The order object to update
     /// @param order The new order
@@ -281,6 +289,8 @@ library OrderLib {
             self.shortPos.add(order.shortPos),
             self.shortNeg.add(order.shortNeg)
         );
+
+        self.referral = self.referral.add(order.referral);
     }
 
     /// @notice Subtracts the latest local order from current global order
