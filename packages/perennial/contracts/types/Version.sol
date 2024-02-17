@@ -24,6 +24,18 @@ struct Version {
     /// @dev The short accumulator value
     Accumulator6 shortValue;
 
+    /// @dev The accumulated linear fee for maker orders
+    Accumulator6 makerLinearFee;
+
+    /// @dev The accumulated proportional fee for maker orders
+    Accumulator6 makerProportionalFee;
+
+    /// @dev The accumulated linear fee for taker orders
+    Accumulator6 takerLinearFee;
+
+    /// @dev The accumulated proportional fee for taker orders
+    Accumulator6 takerProportionalFee;
+
     /// @dev The accumulated fee for positive skew maker orders
     Accumulator6 makerPosFee;
 
@@ -43,7 +55,7 @@ struct Version {
     Accumulator6 liquidationFee;
 }
 using VersionLib for Version global;
-struct VersionStorage { uint256 slot0; uint256 slot1; }
+struct VersionStorage { uint256 slot0; uint256 slot1; uint256 slot2; }
 using VersionStorageLib for VersionStorage global;
 
 /// @dev Individual accumulation values
@@ -138,8 +150,14 @@ library VersionLib {
         // accumulate liquidation fee
         values.liquidationFee = _accumulateLiquidationFee(self, context);
 
-        // accumulate position fee
-        _accumulatePositionFee(self, context, values);
+        // accumulate linear fee
+        _accumulateLinearFee(self, context, values);
+
+        // accumulate proportional fee
+        _accumulateProportionalFee(self, context, values);
+
+        // accumulate adiabatic fee
+        _accumulateAdiabaticFee(self, context, values);
 
         // if closed, don't accrue anything else
         fees.marketFee = values.positionFeeProtocol;
@@ -165,6 +183,10 @@ library VersionLib {
     /// @notice Resets the per-version accumulators to prepare for the next version
     /// @param self The Version object to update
     function _next(Version memory self) internal pure {
+        self.makerLinearFee._value = Fixed6Lib.ZERO;
+        self.makerProportionalFee._value = Fixed6Lib.ZERO;
+        self.takerLinearFee._value = Fixed6Lib.ZERO;
+        self.takerProportionalFee._value = Fixed6Lib.ZERO;
         self.makerPosFee._value = Fixed6Lib.ZERO;
         self.makerNegFee._value = Fixed6Lib.ZERO;
         self.takerPosFee._value = Fixed6Lib.ZERO;
@@ -195,10 +217,82 @@ library VersionLib {
         self.liquidationFee.decrement(Fixed6Lib.from(liquidationFee), UFixed6Lib.ONE);
     }
 
-    /// @notice Globally accumulates position fees since last oracle update
+    /// @notice Globally accumulates linear fees since last oracle update
     /// @param self The Version object to update
     /// @param context The accumulation context
-    function _accumulatePositionFee(
+    function _accumulateLinearFee(
+        Version memory self,
+        AccumulationContext memory context,
+        VersionAccumulationResult memory result
+    ) private pure {
+        if (!context.toOracleVersion.valid) return;
+
+        (UFixed6 makerLinearFee, , ) = context.riskParameter.makerFee.fee(
+            UFixed6Lib.ZERO,
+            Fixed6Lib.from(context.order.makerTotal()),
+            context.toOracleVersion.price.abs()
+        );
+        self.makerLinearFee.decrement(Fixed6Lib.from(makerLinearFee), context.order.makerTotal());
+
+        (UFixed6 takerLinearFee, , ) = context.riskParameter.takerFee.fee(
+            Fixed6Lib.ZERO,
+            Fixed6Lib.from(context.order.takerTotal()),
+            context.toOracleVersion.price.abs()
+        );
+        self.takerLinearFee.decrement(Fixed6Lib.from(takerLinearFee), context.order.takerTotal());
+
+        UFixed6 linearFee = makerLinearFee.add(takerLinearFee);
+        UFixed6 protocolFee = context.fromPosition.maker.isZero() ?
+            linearFee :
+            context.marketParameter.positionFee.mul(linearFee);
+        UFixed6 positionFeeMaker = linearFee.sub(protocolFee);
+        self.makerValue.increment(Fixed6Lib.from(positionFeeMaker), context.fromPosition.maker);
+
+        result.positionFee = result.positionFee.add(linearFee);
+        result.positionFeeMaker = result.positionFeeMaker.add(positionFeeMaker);
+        result.positionFeeProtocol = result.positionFeeProtocol.add(protocolFee);
+    }
+
+        /// @notice Globally accumulates proportional fees since last oracle update
+    /// @param self The Version object to update
+    /// @param context The accumulation context
+    function _accumulateProportionalFee(
+        Version memory self,
+        AccumulationContext memory context,
+        VersionAccumulationResult memory result
+    ) private pure {
+        if (!context.toOracleVersion.valid) return;
+
+        (, UFixed6 makerProportionalFee, ) = context.riskParameter.makerFee.fee(
+            UFixed6Lib.ZERO,
+            Fixed6Lib.from(context.order.makerTotal()),
+            context.toOracleVersion.price.abs()
+        );
+        self.makerProportionalFee.decrement(Fixed6Lib.from(makerProportionalFee), context.order.makerTotal());
+
+        (, UFixed6 takerProportionalFee, ) = context.riskParameter.takerFee.fee(
+            Fixed6Lib.ZERO,
+            Fixed6Lib.from(context.order.takerTotal()),
+            context.toOracleVersion.price.abs()
+        );
+        self.takerProportionalFee.decrement(Fixed6Lib.from(takerProportionalFee), context.order.takerTotal());
+
+        UFixed6 proportionalFee = makerProportionalFee.add(takerProportionalFee);
+        UFixed6 protocolFee = context.fromPosition.maker.isZero() ?
+            proportionalFee :
+            context.marketParameter.positionFee.mul(proportionalFee);
+        UFixed6 positionFeeMaker = proportionalFee.sub(protocolFee);
+        self.makerValue.increment(Fixed6Lib.from(positionFeeMaker), context.fromPosition.maker);
+
+        result.positionFee = result.positionFee.add(proportionalFee);
+        result.positionFeeMaker = result.positionFeeMaker.add(positionFeeMaker);
+        result.positionFeeProtocol = result.positionFeeProtocol.add(protocolFee);
+    }
+
+    /// @notice Globally accumulates adiabatic fees since last oracle update
+    /// @param self The Version object to update
+    /// @param context The accumulation context
+    function _accumulateAdiabaticFee(
         Version memory self,
         AccumulationContext memory context,
         VersionAccumulationResult memory result
@@ -212,7 +306,6 @@ library VersionLib {
 
         // position fee from positive skew taker orders
         _accumulatePositionFeeComponentTaker(
-            self,
             context,
             result,
             context.riskParameter.takerFee,
@@ -223,7 +316,6 @@ library VersionLib {
 
         // position fee from negative skew taker orders
         _accumulatePositionFeeComponentTaker(
-            self,
             context,
             result,
             context.riskParameter.takerFee,
@@ -234,7 +326,6 @@ library VersionLib {
 
         // position fee from negative skew maker orders
         _accumulatePositionFeeComponentMaker(
-            self,
             context,
             result,
             context.riskParameter.makerFee,
@@ -245,7 +336,6 @@ library VersionLib {
 
         // position fee from positive skew maker orders
         _accumulatePositionFeeComponentMaker(
-            self,
             context,
             result,
             context.riskParameter.makerFee,
@@ -256,13 +346,11 @@ library VersionLib {
     }
 
     /// @notice Globally accumulates single component of the maker position fees since last oracle update
-    /// @param self The Version object to update
     /// @param context The accumulation context
     /// @param makerFee The maker fee configuration
     /// @param latestSkew The latest skew
     /// @param orderSkew The order skew
     function _accumulatePositionFeeComponentMaker(
-        Version memory self,
         AccumulationContext memory context,
         VersionAccumulationResult memory result,
         InverseAdiabatic6 memory makerFee,
@@ -270,21 +358,18 @@ library VersionLib {
         UFixed6 latestSkew,
         Fixed6 orderSkew
     ) private pure {
-        (UFixed6 linearFee, UFixed6 proportionalFee, Fixed6 adiabaticFee) =
+        (, , Fixed6 adiabaticFee) =
             makerFee.fee(latestSkew, orderSkew, context.toOracleVersion.price.abs());
 
         _accumulatePositionFeeComponentImpact(result, feeAccumulator, orderSkew.abs(), adiabaticFee);
-        _accumulatePositionFeeComponentBase(self, context, result, feeAccumulator, orderSkew.abs(), linearFee, proportionalFee);
     }
 
     /// @notice Globally accumulates single component of the taker position fees since last oracle update
-    /// @param self The Version object to update
     /// @param context The accumulation context
     /// @param takerFee The taker fee configuration
     /// @param latestSkew The latest skew
     /// @param orderSkew The order skew
     function _accumulatePositionFeeComponentTaker(
-        Version memory self,
         AccumulationContext memory context,
         VersionAccumulationResult memory result,
         LinearAdiabatic6 memory takerFee,
@@ -292,40 +377,10 @@ library VersionLib {
         Fixed6 latestSkew,
         Fixed6 orderSkew
     ) private pure  {
-        (UFixed6 linearFee, UFixed6 proportionalFee, Fixed6 adiabaticFee) =
+        (, , Fixed6 adiabaticFee) =
             takerFee.fee(latestSkew, orderSkew, context.toOracleVersion.price.abs());
 
         _accumulatePositionFeeComponentImpact(result, feeAccumulator, orderSkew.abs(), adiabaticFee);
-        _accumulatePositionFeeComponentBase(self, context, result, feeAccumulator, orderSkew.abs(), linearFee, proportionalFee);
-    }
-
-    /// @notice Globally accumulates single component of the position base fees since last oracle update
-    /// @param self The Version object to update
-    /// @param context The accumulation context
-    /// @param result The accumulation result
-    /// @param feeAccumulator The fee accumulator to update
-    /// @param orderMagnitude The order magnitude
-    /// @param linearFee The linear fee
-    /// @param proportionalFee The proportional fee
-    function _accumulatePositionFeeComponentBase(
-        Version memory self,
-        AccumulationContext memory context,
-        VersionAccumulationResult memory result,
-        Accumulator6 memory feeAccumulator,
-        UFixed6 orderMagnitude,
-        UFixed6 linearFee,
-        UFixed6 proportionalFee
-    ) private pure {
-        UFixed6 positionFee = linearFee.add(proportionalFee);
-        feeAccumulator.decrement(Fixed6Lib.from(positionFee), orderMagnitude);
-
-        UFixed6 protocolFee = context.fromPosition.maker.isZero() ? positionFee : context.marketParameter.positionFee.mul(positionFee);
-        UFixed6 positionFeeMaker = positionFee.sub(protocolFee);
-        self.makerValue.increment(Fixed6Lib.from(positionFeeMaker), context.fromPosition.maker);
-
-        result.positionFee = result.positionFee.add(positionFee);
-        result.positionFeeMaker = result.positionFeeMaker.add(positionFeeMaker);
-        result.positionFeeProtocol = result.positionFeeProtocol.add(protocolFee);
     }
 
     /// @notice Globally accumulates single component of the position impact fees since last oracle update
@@ -359,7 +414,7 @@ library VersionLib {
         Fixed6 impactExposureProtocol = context.fromPosition.maker.isZero() ? impactExposureMaker : Fixed6Lib.ZERO;
         impactExposureMaker = impactExposureMaker.sub(impactExposureProtocol);
         self.makerValue.increment(impactExposureMaker, context.fromPosition.maker);
-        
+
         result.positionFeeExposure = impactExposure;
         result.positionFeeExposureProtocol = impactExposureProtocol;
         result.positionFeeExposureMaker = impactExposureMaker;
@@ -381,7 +436,7 @@ library VersionLib {
         Fixed6 toSkew = context.toOracleVersion.valid ?
             context.fromPosition.skew().add(context.order.long()).sub(context.order.short()) :
             context.fromPosition.skew();
-    
+
         // Compute long-short funding rate
         Fixed6 funding = context.global.pAccumulator.accumulate(
             context.riskParameter.pController,
@@ -501,6 +556,12 @@ library VersionLib {
 ///         int48 takerPosFee;
 ///         int48 takerNegFee;
 ///         uint48 settlementFee;
+///
+///         /* slot 2 */
+///         int48 makerLinearFee;
+///         int48 makerProportionalFee;
+///         int48 takerLinearFee;
+///         int48 takerProportionalFee;
 ///     }
 ///
 library VersionStorageLib {
@@ -508,16 +569,23 @@ library VersionStorageLib {
     error VersionStorageInvalidError();
 
     function read(VersionStorage storage self) internal view returns (Version memory) {
-        (uint256 slot0, uint256 slot1) = (self.slot0, self.slot1);
+        (uint256 slot0, uint256 slot1, uint256 slot2) = (self.slot0, self.slot1, self.slot2);
         return Version(
             (uint256(slot0 << (256 - 8)) >> (256 - 8)) != 0,
             Accumulator6(Fixed6.wrap(int256(slot0 << (256 - 8 - 64)) >> (256 - 64))),
             Accumulator6(Fixed6.wrap(int256(slot0 << (256 - 8 - 64 - 64)) >> (256 - 64))),
             Accumulator6(Fixed6.wrap(int256(slot0 << (256 - 8 - 64 - 64 - 64)) >> (256 - 64))),
+
+            Accumulator6(Fixed6.wrap(int256(slot2 << (256 - 48)) >> (256 - 48))),
+            Accumulator6(Fixed6.wrap(int256(slot2 << (256 - 48 - 48)) >> (256 - 48))),
+            Accumulator6(Fixed6.wrap(int256(slot2 << (256 - 48 - 48 - 48)) >> (256 - 48))),
+            Accumulator6(Fixed6.wrap(int256(slot2 << (256 - 48 - 48 - 48 - 48)) >> (256 - 48))),
+
             Accumulator6(Fixed6.wrap(int256(slot1 << (256 - 48)) >> (256 - 48))),
             Accumulator6(Fixed6.wrap(int256(slot1 << (256 - 48 - 48)) >> (256 - 48))),
             Accumulator6(Fixed6.wrap(int256(slot1 << (256 - 48 - 48 - 48)) >> (256 - 48))),
             Accumulator6(Fixed6.wrap(int256(slot1 << (256 - 48 - 48 - 48 - 48)) >> (256 - 48))),
+
             Accumulator6(Fixed6.wrap(int256(slot1 << (256 - 48 - 48 - 48 - 48 - 48)) >> (256 - 48))),
             Accumulator6(Fixed6.wrap(int256(slot0 << (256 - 8 - 64 - 64 - 64 - 48)) >> (256 - 48)))
         );
@@ -530,6 +598,14 @@ library VersionStorageLib {
         if (newValue.longValue._value.lt(Fixed6.wrap(type(int64).min))) revert VersionStorageInvalidError();
         if (newValue.shortValue._value.gt(Fixed6.wrap(type(int64).max))) revert VersionStorageInvalidError();
         if (newValue.shortValue._value.lt(Fixed6.wrap(type(int64).min))) revert VersionStorageInvalidError();
+        if (newValue.makerLinearFee._value.gt(Fixed6.wrap(type(int48).max))) revert VersionStorageInvalidError();
+        if (newValue.makerLinearFee._value.lt(Fixed6.wrap(type(int48).min))) revert VersionStorageInvalidError();
+        if (newValue.makerProportionalFee._value.gt(Fixed6.wrap(type(int48).max))) revert VersionStorageInvalidError();
+        if (newValue.makerProportionalFee._value.lt(Fixed6.wrap(type(int48).min))) revert VersionStorageInvalidError();
+        if (newValue.takerLinearFee._value.gt(Fixed6.wrap(type(int48).max))) revert VersionStorageInvalidError();
+        if (newValue.takerLinearFee._value.lt(Fixed6.wrap(type(int48).min))) revert VersionStorageInvalidError();
+        if (newValue.takerProportionalFee._value.gt(Fixed6.wrap(type(int48).max))) revert VersionStorageInvalidError();
+        if (newValue.takerProportionalFee._value.lt(Fixed6.wrap(type(int48).min))) revert VersionStorageInvalidError();
         if (newValue.makerPosFee._value.gt(Fixed6.wrap(type(int48).max))) revert VersionStorageInvalidError();
         if (newValue.makerPosFee._value.lt(Fixed6.wrap(type(int48).min))) revert VersionStorageInvalidError();
         if (newValue.makerNegFee._value.gt(Fixed6.wrap(type(int48).max))) revert VersionStorageInvalidError();
@@ -555,10 +631,16 @@ library VersionStorageLib {
             uint256(Fixed6.unwrap(newValue.takerPosFee._value) << (256 - 48)) >> (256 - 48 - 48 - 48) |
             uint256(Fixed6.unwrap(newValue.takerNegFee._value) << (256 - 48)) >> (256 - 48 - 48 - 48 - 48) |
             uint256(Fixed6.unwrap(newValue.settlementFee._value) << (256 - 48)) >> (256 - 48 - 48 - 48 - 48 - 48);
+        uint256 encoded2 =
+            uint256(Fixed6.unwrap(newValue.makerLinearFee._value) << (256 - 48)) >> (256 - 48) |
+            uint256(Fixed6.unwrap(newValue.makerProportionalFee._value) << (256 - 48)) >> (256 - 48 - 48) |
+            uint256(Fixed6.unwrap(newValue.takerLinearFee._value) << (256 - 48)) >> (256 - 48 - 48 - 48) |
+            uint256(Fixed6.unwrap(newValue.takerProportionalFee._value) << (256 - 48)) >> (256 - 48 - 48 - 48 - 48);
 
         assembly {
             sstore(self.slot, encoded0)
             sstore(add(self.slot, 1), encoded1)
+            sstore(add(self.slot, 2), encoded2)
         }
     }
 }

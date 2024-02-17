@@ -1448,8 +1448,8 @@ describe('Vault', () => {
       expect(await position()).to.be.equal(collateralForRebalance.mul(leverage).mul(4).div(5).div(originalOraclePrice))
       expect(await btcPosition()).to.be.equal(collateralForRebalance.mul(leverage).div(5).div(btcOriginalOraclePrice))
 
-      const balanceOf2 = BigNumber.from('9220781249')
-      const totalAssets = BigNumber.from('11079021399')
+      const balanceOf2 = BigNumber.from('9220781262')
+      const totalAssets = BigNumber.from('11079021396')
       expect((await vault.accounts(user.address)).shares).to.equal(parse6decimal('1000'))
       expect((await vault.accounts(user2.address)).shares).to.equal(balanceOf2)
       expect(await vault.totalAssets()).to.equal(totalAssets)
@@ -1488,9 +1488,9 @@ describe('Vault', () => {
       const btcCurrentSettlementFee = (await btcMarket.checkpoints(vault.address, btcMarketPreviousCurrenTimestamp))
         .settlementFee
 
-      const unclaimed1 = BigNumber.from('1072467940')
-      const unclaimed2 = BigNumber.from('9903141462')
-      const finalTotalAssets = BigNumber.from('49861153') // last position fee + keeper
+      const unclaimed1 = BigNumber.from('1072467932')
+      const unclaimed2 = BigNumber.from('9903141436')
+      const finalTotalAssets = BigNumber.from('49861154') // last position fee + keeper
       expect(await totalCollateralInVault()).to.equal(unclaimed1.add(unclaimed2).mul(1e12))
       expect((await vault.accounts(user.address)).shares).to.equal(0)
       expect((await vault.accounts(user2.address)).shares).to.equal(0)

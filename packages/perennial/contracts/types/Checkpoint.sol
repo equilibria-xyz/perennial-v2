@@ -28,7 +28,9 @@ using CheckpointStorageLib for CheckpointStorage global;
 
 struct CheckpointAccumulationResult {
     Fixed6 collateral;
-    Fixed6 tradeFee;
+    Fixed6 linearFee;
+    Fixed6 proportionalFee;
+    Fixed6 adiabaticFee;
     UFixed6 settlementFee;
     UFixed6 liquidationFee;
 }
@@ -52,7 +54,9 @@ library CheckpointLib {
     ) internal pure returns (CheckpointAccumulationResult memory result) {
         // accumulate
         result.collateral = _accumulateCollateral(fromPosition, fromVersion, toVersion);
-        result.tradeFee = _accumulateTradeFee(order, toVersion);
+        result.linearFee = _accumulateLinearFee(order, toVersion);
+        result.proportionalFee = _accumulateProportionalFee(order, toVersion);
+        result.adiabaticFee = _accumulateAdiabaticFee(order, toVersion);
         result.settlementFee = _accumulateSettlementFee(order, toVersion);
         result.liquidationFee = _accumulateLiquidationFee(order, toVersion);
 
@@ -63,7 +67,7 @@ library CheckpointLib {
             .add(self.transfer)                       // deposit / withdrawal processed post settlement
             .add(result.collateral);                  // incorporate collateral change at this settlement
         self.transfer = order.collateral;
-        self.tradeFee = result.tradeFee;
+        self.tradeFee = result.linearFee.add(result.proportionalFee).add(result.adiabaticFee);
         self.settlementFee = result.settlementFee.add(result.liquidationFee);
     }
 
@@ -84,7 +88,31 @@ library CheckpointLib {
     /// @notice Accumulate trade fees for the next position
     /// @param order The next order
     /// @param toVersion The next version
-    function _accumulateTradeFee(
+    function _accumulateLinearFee(
+        Order memory order,
+        Version memory toVersion
+    ) private pure returns (Fixed6) {
+        return Fixed6Lib.ZERO
+            .sub(toVersion.makerLinearFee.accumulated(Accumulator6(Fixed6Lib.ZERO), order.makerTotal()))
+            .sub(toVersion.takerLinearFee.accumulated(Accumulator6(Fixed6Lib.ZERO), order.takerTotal()));
+    }
+
+    /// @notice Accumulate trade fees for the next position
+    /// @param order The next order
+    /// @param toVersion The next version
+    function _accumulateProportionalFee(
+        Order memory order,
+        Version memory toVersion
+    ) private pure returns (Fixed6) {
+        return Fixed6Lib.ZERO
+            .sub(toVersion.makerProportionalFee.accumulated(Accumulator6(Fixed6Lib.ZERO), order.makerTotal()))
+            .sub(toVersion.takerProportionalFee.accumulated(Accumulator6(Fixed6Lib.ZERO), order.takerTotal()));
+    }
+
+    /// @notice Accumulate adiabatic fees for the next position
+    /// @param order The next order
+    /// @param toVersion The next version
+    function _accumulateAdiabaticFee(
         Order memory order,
         Version memory toVersion
     ) private pure returns (Fixed6) {
@@ -94,6 +122,7 @@ library CheckpointLib {
             .sub(toVersion.takerPosFee.accumulated(Accumulator6(Fixed6Lib.ZERO), order.takerPos()))
             .sub(toVersion.takerNegFee.accumulated(Accumulator6(Fixed6Lib.ZERO), order.takerNeg()));
     }
+
 
     /// @notice Accumulate settlement fees for the next position
     /// @param order The next order
