@@ -9,7 +9,9 @@ interface ICoordinator {
     function setRiskParameterUpdater(address riskParameterUpdater_) external;
     function claimFee(IMarket market) external;
     function updateRiskParameter(IMarket market, RiskParameter calldata riskParameter) external;
-    function withdraw(Token18 token, address beneficiary) external;
+
+    event FeeClaimerSet(address feeClaimer);
+    event RiskParameterUpdaterSet(address riskParameterUpdater);
 
     error NotFeeClaimer();
     error NotRiskParameterUpdater();
