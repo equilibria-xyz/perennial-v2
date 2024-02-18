@@ -626,6 +626,7 @@ contract Market is IMarket, Instance, ReentrancyGuard {
             accumulationResult.liquidationFee
         );
         _credit(liquidators[account][newOrderId], accumulationResult.liquidationFee);
+        _credit(referrers[account][newOrderId], accumulationResult.subtractiveFee);
 
         context.latestPosition.local.update(newOrder, version.valid);
         context.pending.local.sub(newOrder);
