@@ -155,6 +155,7 @@ describe('MarketFactory', () => {
       maxRate: parse6decimal('10.00'),
       minMaintenance: parse6decimal('0.01'),
       minEfficiency: parse6decimal('0.1'),
+      referralFee: parse6decimal('0.2'),
     }
 
     it('updates the parameters', async () => {
@@ -168,6 +169,7 @@ describe('MarketFactory', () => {
       expect(parameter.maxRate).to.equal(newParameter.maxRate)
       expect(parameter.minMaintenance).to.equal(newParameter.minMaintenance)
       expect(parameter.minEfficiency).to.equal(newParameter.minEfficiency)
+      expect(parameter.referralFee).to.equal(newParameter.referralFee)
     })
 
     it('reverts if not owner', async () => {
@@ -175,6 +177,33 @@ describe('MarketFactory', () => {
         factory,
         'OwnableNotOwnerError',
       )
+    })
+  })
+
+  describe('#updateReferralFee', async () => {
+    const newParameter = {
+      protocolFee: parse6decimal('0.50'),
+      maxFee: parse6decimal('0.01'),
+      maxFeeAbsolute: parse6decimal('1000'),
+      maxCut: parse6decimal('0.50'),
+      maxRate: parse6decimal('10.00'),
+      minMaintenance: parse6decimal('0.01'),
+      minEfficiency: parse6decimal('0.1'),
+      referralFee: parse6decimal('0.2'),
+    }
+
+    it('updates the parameters', async () => {
+      await expect(factory.updateReferralFee(user.address, parse6decimal('0.3')))
+        .to.emit(factory, 'ReferralFeeUpdated')
+        .withArgs(user.address, parse6decimal('0.3'))
+
+      expect(await factory.referralFee(user.address)).to.equal(parse6decimal('0.3'))
+    })
+
+    it('reverts if not owner', async () => {
+      await expect(
+        factory.connect(user).updateReferralFee(user.address, parse6decimal('0.3')),
+      ).to.be.revertedWithCustomError(factory, 'OwnableNotOwnerError')
     })
   })
 

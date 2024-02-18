@@ -70,6 +70,7 @@ const ORDER: OrderStruct = {
   shortPos: 45,
   shortNeg: 0,
   protection: 1,
+  referral: 10,
 }
 
 const TIMESTAMP = 1636401093
@@ -815,6 +816,7 @@ describe('Version', () => {
             longNeg: parse6decimal('10'),
             shortPos: parse6decimal('50'),
             shortNeg: parse6decimal('20'),
+            referral: 0,
           },
           { ...ORACLE_VERSION_1, price: parse6decimal('121') },
           { ...ORACLE_VERSION_2 },
@@ -899,6 +901,7 @@ describe('Version', () => {
             longNeg: parse6decimal('10'),
             shortPos: parse6decimal('50'),
             shortNeg: parse6decimal('20'),
+            referral: 0,
           },
           { ...ORACLE_VERSION_1, price: parse6decimal('121') },
           { ...ORACLE_VERSION_2 },

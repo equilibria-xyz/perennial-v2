@@ -51,6 +51,7 @@ function generateProtocolParameter(protocolFee: BigNumberish): ProtocolParameter
     maxRate: 0,
     minMaintenance: 0,
     minEfficiency: 0,
+    referralFee: 0,
   }
 }
 

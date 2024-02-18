@@ -97,7 +97,9 @@ library CheckpointLib {
             .sub(toVersion.makerLinearFee.accumulated(Accumulator6(Fixed6Lib.ZERO), order.makerTotal()))
             .sub(toVersion.takerLinearFee.accumulated(Accumulator6(Fixed6Lib.ZERO), order.takerTotal()));
 
-        subtractiveFee = UFixed6Lib.from(linearFee).muldiv(order.referral, order.total());
+        subtractiveFee = order.total().isZero() ?
+            UFixed6Lib.ZERO :
+            UFixed6Lib.from(linearFee).muldiv(order.referral, order.total());
     }
 
     /// @notice Accumulate trade fees for the next position

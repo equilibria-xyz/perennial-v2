@@ -242,8 +242,9 @@ library VersionLib {
         self.takerLinearFee.decrement(Fixed6Lib.from(takerLinearFee), context.order.takerTotal());
 
         UFixed6 linearFee = makerLinearFee.add(takerLinearFee);
-
-        UFixed6 subtractiveFee = linearFee.muldiv(context.order.referral, context.order.total());
+        UFixed6 subtractiveFee = context.order.total().isZero() ?
+            UFixed6Lib.ZERO :
+            linearFee.muldiv(context.order.referral, context.order.total());
         linearFee = linearFee.sub(subtractiveFee);
 
         UFixed6 protocolFee = context.fromPosition.maker.isZero() ?

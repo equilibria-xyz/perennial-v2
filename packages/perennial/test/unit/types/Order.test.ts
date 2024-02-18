@@ -38,6 +38,7 @@ describe('Order', () => {
       shortNeg: 8,
       collateral: 9,
       protection: 1,
+      referral: 11,
     }
 
     let orderGlobal: OrderGlobalTester
@@ -203,6 +204,7 @@ describe('Order', () => {
       shortNeg: 0,
       collateral: 9,
       protection: 1,
+      referral: 11,
     }
 
     let orderLocal: OrderLocalTester
@@ -399,6 +401,7 @@ describe('Order', () => {
         expect(value.timestamp).to.equal(10)
         expect(value.orders).to.equal(2)
         expect(value.collateral).to.equal(9)
+        expect(value.referral).to.equal(11)
       })
 
       context('.timestamp', async () => {
@@ -477,6 +480,27 @@ describe('Order', () => {
             order.store({
               ...validStoredOrder,
               collateral: BigNumber.from(2).pow(STORAGE_SIZE).add(1).mul(-1),
+            }),
+          ).to.be.revertedWithCustomError(order, 'OrderStorageInvalidError')
+        })
+      })
+
+      context('.referral', async () => {
+        const STORAGE_SIZE = 64
+        it('saves if in range', async () => {
+          await order.store({
+            ...validStoredOrder,
+            referral: BigNumber.from(2).pow(STORAGE_SIZE).sub(1),
+          })
+          const value = await order.read()
+          expect(value.referral).to.equal(BigNumber.from(2).pow(STORAGE_SIZE).sub(1))
+        })
+
+        it('reverts if currentId out of range', async () => {
+          await expect(
+            order.store({
+              ...validStoredOrder,
+              referral: BigNumber.from(2).pow(STORAGE_SIZE),
             }),
           ).to.be.revertedWithCustomError(order, 'OrderStorageInvalidError')
         })

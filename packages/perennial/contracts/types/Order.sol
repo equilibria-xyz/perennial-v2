@@ -343,7 +343,7 @@ library OrderStorageGlobalLib {
             UFixed6.wrap(uint256(slot1 << (256 - 64 - 64 - 64)) >> (256 - 64)),
             UFixed6.wrap(uint256(slot1 << (256 - 64 - 64 - 64 - 64)) >> (256 - 64)),
             0,
-            UFixed6.wrap(uint256(slot2 << (256 - 24)) >> (256 - 24))
+            UFixed6.wrap(uint256(slot2 << (256 - 64)) >> (256 - 64))
         );
     }
 
@@ -369,7 +369,7 @@ library OrderStorageGlobalLib {
             uint256(UFixed6.unwrap(newValue.shortPos) << (256 - 64)) >> (256 - 64 - 64 - 64) |
             uint256(UFixed6.unwrap(newValue.shortNeg) << (256 - 64)) >> (256 - 64 - 64 - 64 - 64);
         uint256 encoded2 =
-            uint256(UFixed6.unwrap(newValue.referral) << (256 - 24)) >> (256 - 24);
+            uint256(UFixed6.unwrap(newValue.referral) << (256 - 64)) >> (256 - 64);
 
         assembly {
             sstore(self.slot, encoded0)
@@ -392,7 +392,7 @@ library OrderStorageGlobalLib {
 ///         uint1 protection;
 ///
 ///         /* slot 1 */
-///         uint24 referral;
+///         uint64 referral;
 ///     }
 ///
 library OrderStorageLocalLib {
@@ -414,7 +414,7 @@ library OrderStorageLocalLib {
             direction == 2 ? magnitudePos : UFixed6Lib.ZERO,
             direction == 2 ? magnitudeNeg : UFixed6Lib.ZERO,
             uint256(slot0 << (256 - 32 - 32 - 64 - 2 - 62 - 62 - 1)) >> (256 - 1),
-            UFixed6.wrap(uint256(slot1 << (256 - 24)) >> (256 - 24))
+            UFixed6.wrap(uint256(slot1 << (256 - 64)) >> (256 - 64))
         );
     }
 
@@ -436,7 +436,7 @@ library OrderStorageLocalLib {
             uint256(UFixed6.unwrap(magnitudeNeg) << (256 - 62)) >> (256 - 32 - 32 - 64 - 2 - 62 - 62) |
             uint256(newValue.protection << (256 - 1)) >> (256 - 32 - 32 - 64 - 2 - 62 - 62 - 1);
         uint256 encoded1 =
-            uint256(UFixed6.unwrap(newValue.referral) << (256 - 24)) >> (256 - 24);
+            uint256(UFixed6.unwrap(newValue.referral) << (256 - 64)) >> (256 - 64);
 
         assembly {
             sstore(self.slot, encoded0)
@@ -454,6 +454,6 @@ library OrderStorageLib {
         if (newValue.orders > type(uint32).max) revert OrderStorageInvalidError();
         if (newValue.collateral.gt(Fixed6.wrap(type(int64).max))) revert OrderStorageInvalidError();
         if (newValue.collateral.lt(Fixed6.wrap(type(int64).min))) revert OrderStorageInvalidError();
-        if (newValue.referral.gt(UFixed6.wrap(type(uint24).max))) revert OrderStorageInvalidError();
+        if (newValue.referral.gt(UFixed6.wrap(type(uint64).max))) revert OrderStorageInvalidError();
     }
 }
