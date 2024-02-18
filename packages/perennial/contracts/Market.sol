@@ -435,7 +435,7 @@ contract Market is IMarket, Instance, ReentrancyGuard {
             newLong,
             newShort,
             protect,
-            updateContext.referralFee.isZero() ? context.protocolParameter.referralFee : updateContext.referralFee
+            updateContext.referralFee
         );
         updateContext.currentPosition.global.update(newOrder, true);
         updateContext.currentPosition.local.update(newOrder, true);
