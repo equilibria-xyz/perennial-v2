@@ -227,15 +227,13 @@ library VersionLib {
     ) private pure {
         if (!context.toOracleVersion.valid) return;
 
-        (UFixed6 makerLinearFee, , ) = context.riskParameter.makerFee.fee(
-            UFixed6Lib.ZERO,
+        UFixed6 makerLinearFee = context.riskParameter.makerFee.linear(
             Fixed6Lib.from(context.order.makerTotal()),
             context.toOracleVersion.price.abs()
         );
         self.makerLinearFee.decrement(Fixed6Lib.from(makerLinearFee), context.order.makerTotal());
 
-        (UFixed6 takerLinearFee, , ) = context.riskParameter.takerFee.fee(
-            Fixed6Lib.ZERO,
+        UFixed6 takerLinearFee = context.riskParameter.takerFee.linear(
             Fixed6Lib.from(context.order.takerTotal()),
             context.toOracleVersion.price.abs()
         );
@@ -263,15 +261,13 @@ library VersionLib {
     ) private pure {
         if (!context.toOracleVersion.valid) return;
 
-        (, UFixed6 makerProportionalFee, ) = context.riskParameter.makerFee.fee(
-            UFixed6Lib.ZERO,
+        UFixed6 makerProportionalFee = context.riskParameter.makerFee.proportional(
             Fixed6Lib.from(context.order.makerTotal()),
             context.toOracleVersion.price.abs()
         );
         self.makerProportionalFee.decrement(Fixed6Lib.from(makerProportionalFee), context.order.makerTotal());
 
-        (, UFixed6 takerProportionalFee, ) = context.riskParameter.takerFee.fee(
-            Fixed6Lib.ZERO,
+        UFixed6 takerProportionalFee = context.riskParameter.takerFee.proportional(
             Fixed6Lib.from(context.order.takerTotal()),
             context.toOracleVersion.price.abs()
         );
@@ -304,97 +300,42 @@ library VersionLib {
 
         _accumulatePositionFeeComponentExposure(self, context, result, exposure);
 
+        Fixed6 adiabaticFee;
+
         // position fee from positive skew taker orders
-        _accumulatePositionFeeComponentTaker(
-            context,
-            result,
-            context.riskParameter.takerFee,
-            self.takerPosFee,
+        adiabaticFee = context.riskParameter.takerFee.adiabatic(
             context.fromPosition.skew(),
-            Fixed6Lib.from(context.order.takerPos())
+            Fixed6Lib.from(context.order.takerPos()),
+            context.toOracleVersion.price.abs()
         );
+        self.takerPosFee.decrement(adiabaticFee, context.order.takerPos());
+        result.positionFeeImpact = result.positionFeeImpact.add(adiabaticFee);
 
         // position fee from negative skew taker orders
-        _accumulatePositionFeeComponentTaker(
-            context,
-            result,
-            context.riskParameter.takerFee,
-            self.takerNegFee,
+        adiabaticFee = context.riskParameter.takerFee.adiabatic(
             context.fromPosition.skew().add(Fixed6Lib.from(context.order.takerPos())),
-            Fixed6Lib.from(-1, context.order.takerNeg())
+            Fixed6Lib.from(-1, context.order.takerNeg()),
+            context.toOracleVersion.price.abs()
         );
+        self.takerNegFee.decrement(adiabaticFee, context.order.takerNeg());
+        result.positionFeeImpact = result.positionFeeImpact.add(adiabaticFee);
 
         // position fee from negative skew maker orders
-        _accumulatePositionFeeComponentMaker(
-            context,
-            result,
-            context.riskParameter.makerFee,
-            self.makerNegFee,
+        adiabaticFee = context.riskParameter.makerFee.adiabatic(
             context.fromPosition.maker,
-            Fixed6Lib.from(-1, context.order.makerNeg)
+            Fixed6Lib.from(-1, context.order.makerNeg),
+            context.toOracleVersion.price.abs()
         );
+        self.makerNegFee.decrement(adiabaticFee, context.order.makerNeg);
+        result.positionFeeImpact = result.positionFeeImpact.add(adiabaticFee);
 
         // position fee from positive skew maker orders
-        _accumulatePositionFeeComponentMaker(
-            context,
-            result,
-            context.riskParameter.makerFee,
-            self.makerPosFee,
+        adiabaticFee = context.riskParameter.makerFee.adiabatic(
             context.fromPosition.maker.sub(context.order.makerNeg),
-            Fixed6Lib.from(context.order.makerPos)
+            Fixed6Lib.from(context.order.makerPos),
+            context.toOracleVersion.price.abs()
         );
-    }
-
-    /// @notice Globally accumulates single component of the maker position fees since last oracle update
-    /// @param context The accumulation context
-    /// @param makerFee The maker fee configuration
-    /// @param latestSkew The latest skew
-    /// @param orderSkew The order skew
-    function _accumulatePositionFeeComponentMaker(
-        AccumulationContext memory context,
-        VersionAccumulationResult memory result,
-        InverseAdiabatic6 memory makerFee,
-        Accumulator6 memory feeAccumulator,
-        UFixed6 latestSkew,
-        Fixed6 orderSkew
-    ) private pure {
-        (, , Fixed6 adiabaticFee) =
-            makerFee.fee(latestSkew, orderSkew, context.toOracleVersion.price.abs());
-
-        _accumulatePositionFeeComponentImpact(result, feeAccumulator, orderSkew.abs(), adiabaticFee);
-    }
-
-    /// @notice Globally accumulates single component of the taker position fees since last oracle update
-    /// @param context The accumulation context
-    /// @param takerFee The taker fee configuration
-    /// @param latestSkew The latest skew
-    /// @param orderSkew The order skew
-    function _accumulatePositionFeeComponentTaker(
-        AccumulationContext memory context,
-        VersionAccumulationResult memory result,
-        LinearAdiabatic6 memory takerFee,
-        Accumulator6 memory feeAccumulator,
-        Fixed6 latestSkew,
-        Fixed6 orderSkew
-    ) private pure  {
-        (, , Fixed6 adiabaticFee) =
-            takerFee.fee(latestSkew, orderSkew, context.toOracleVersion.price.abs());
-
-        _accumulatePositionFeeComponentImpact(result, feeAccumulator, orderSkew.abs(), adiabaticFee);
-    }
-
-    /// @notice Globally accumulates single component of the position impact fees since last oracle update
-    /// @param result The accumulation result
-    /// @param feeAccumulator The fee accumulator to update
-    /// @param orderMagnitude The order magnitude
-    /// @param adiabaticFee The adiabatic fee
-    function _accumulatePositionFeeComponentImpact(
-        VersionAccumulationResult memory result,
-        Accumulator6 memory feeAccumulator,
-        UFixed6 orderMagnitude,
-        Fixed6 adiabaticFee
-    ) private pure {
-        feeAccumulator.decrement(adiabaticFee, orderMagnitude);
+        self.makerPosFee.decrement(adiabaticFee, context.order.makerPos);
         result.positionFeeImpact = result.positionFeeImpact.add(adiabaticFee);
     }
 
