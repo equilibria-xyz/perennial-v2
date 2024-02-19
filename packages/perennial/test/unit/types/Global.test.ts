@@ -6,7 +6,11 @@ import HRE from 'hardhat'
 import { GlobalTester, GlobalTester__factory } from '../../../types/generated'
 import { BigNumber, BigNumberish } from 'ethers'
 import { parse6decimal } from '../../../../common/testutil/types'
-import { GlobalStruct, MarketParameterStruct } from '../../../types/generated/contracts/Market'
+import {
+  GlobalStruct,
+  MarketParameterStruct,
+  VersionAccumulationResultStruct,
+} from '../../../types/generated/contracts/Market'
 import { ProtocolParameterStruct } from '../../../types/generated/contracts/MarketFactory'
 
 const { ethers } = HRE
@@ -24,6 +28,40 @@ const DEFAULT_GLOBAL: GlobalStruct = {
     _skew: 0,
   },
   exposure: 0,
+}
+
+function generateAccumulationResult(
+  marketFee: BigNumberish,
+  settlementFee: BigNumberish,
+  marketExposure: BigNumberish,
+): VersionAccumulationResultStruct {
+  const interestFee = BigNumber.from(marketFee).div(10)
+  const fundingFee = BigNumber.from(marketFee).div(5)
+  const positionFeeProtocol = BigNumber.from(marketFee).sub(interestFee).sub(fundingFee)
+
+  return {
+    positionFee: 0,
+    positionFeeMaker: 0,
+    positionFeeProtocol,
+    positionFeeSubtractive: 0,
+    positionFeeExposure: 0,
+    positionFeeExposureMaker: 0,
+    positionFeeExposureProtocol: marketExposure,
+    positionFeeImpact: 0,
+    fundingMaker: 0,
+    fundingLong: 0,
+    fundingShort: 0,
+    fundingFee,
+    interestMaker: 0,
+    interestLong: 0,
+    interestShort: 0,
+    interestFee,
+    pnlMaker: 0,
+    pnlLong: 0,
+    pnlShort: 0,
+    settlementFee,
+    liquidationFee: 0,
+  }
 }
 
 function generateMarketParameter(oracleFee: BigNumberish, riskFee: BigNumberish): MarketParameterStruct {
@@ -347,7 +385,12 @@ describe('Global', () => {
   describe('#update', async () => {
     context('zero settlement fee', async () => {
       it('no fees', async () => {
-        await global.update(1, 123, 0, 0, generateMarketParameter(0, 0), generateProtocolParameter(0))
+        await global.update(
+          1,
+          generateAccumulationResult(123, 0, 0),
+          generateMarketParameter(0, 0),
+          generateProtocolParameter(0),
+        )
 
         const value = await global.read()
         expect(value.latestId).to.equal(1)
@@ -357,9 +400,7 @@ describe('Global', () => {
       it('protocol fee', async () => {
         await global.update(
           1,
-          123,
-          0,
-          0,
+          generateAccumulationResult(123, 0, 0),
           generateMarketParameter(0, 0),
           generateProtocolParameter(parse6decimal('0.1')),
         )
@@ -372,9 +413,7 @@ describe('Global', () => {
       it('risk fee', async () => {
         await global.update(
           1,
-          123,
-          0,
-          0,
+          generateAccumulationResult(123, 0, 0),
           generateMarketParameter(0, parse6decimal('0.1')),
           generateProtocolParameter(0),
         )
@@ -387,9 +426,7 @@ describe('Global', () => {
       it('oracle fee', async () => {
         await global.update(
           1,
-          123,
-          0,
-          0,
+          generateAccumulationResult(123, 0, 0),
           generateMarketParameter(parse6decimal('0.1'), 0),
           generateProtocolParameter(0),
         )
@@ -402,9 +439,7 @@ describe('Global', () => {
       it('oracle / risk fee', async () => {
         await global.update(
           1,
-          123,
-          0,
-          0,
+          generateAccumulationResult(123, 0, 0),
           generateMarketParameter(parse6decimal('0.1'), parse6decimal('0.3')),
           generateProtocolParameter(0),
         )
@@ -418,9 +453,7 @@ describe('Global', () => {
       it('oracle / risk fee zero donation', async () => {
         await global.update(
           1,
-          123,
-          0,
-          0,
+          generateAccumulationResult(123, 0, 0),
           generateMarketParameter(parse6decimal('0.1'), parse6decimal('0.9')),
           generateProtocolParameter(0),
         )
@@ -435,9 +468,7 @@ describe('Global', () => {
         await expect(
           global.update(
             1,
-            123,
-            0,
-            0,
+            generateAccumulationResult(123, 0, 0),
             generateMarketParameter(parse6decimal('0.1'), parse6decimal('1.0')),
             generateProtocolParameter(0),
           ),
@@ -447,9 +478,7 @@ describe('Global', () => {
       it('protocol / risk fee', async () => {
         await global.update(
           1,
-          123,
-          0,
-          0,
+          generateAccumulationResult(123, 0, 0),
           generateMarketParameter(0, parse6decimal('0.1')),
           generateProtocolParameter(parse6decimal('0.2')),
         )
@@ -463,9 +492,7 @@ describe('Global', () => {
       it('protocol / risk fee zero marketFee', async () => {
         await global.update(
           1,
-          123,
-          0,
-          0,
+          generateAccumulationResult(123, 0, 0),
           generateMarketParameter(0, parse6decimal('0.1')),
           generateProtocolParameter(parse6decimal('1.0')),
         )
@@ -479,9 +506,7 @@ describe('Global', () => {
       it('protocol / risk fee zero donation', async () => {
         await global.update(
           1,
-          123,
-          0,
-          0,
+          generateAccumulationResult(123, 0, 0),
           generateMarketParameter(0, parse6decimal('1.0')),
           generateProtocolParameter(parse6decimal('0.2')),
         )
@@ -496,9 +521,7 @@ describe('Global', () => {
         await expect(
           global.update(
             1,
-            123,
-            0,
-            0,
+            generateAccumulationResult(123, 0, 0),
             generateMarketParameter(0, parse6decimal('0.1')),
             generateProtocolParameter(parse6decimal('1.1')),
           ),
@@ -509,9 +532,7 @@ describe('Global', () => {
         await expect(
           global.update(
             1,
-            123,
-            0,
-            0,
+            generateAccumulationResult(123, 0, 0),
             generateMarketParameter(0, parse6decimal('1.1')),
             generateProtocolParameter(parse6decimal('0.2')),
           ),
@@ -521,9 +542,7 @@ describe('Global', () => {
       it('protocol / oracle fee', async () => {
         await global.update(
           1,
-          123,
-          0,
-          0,
+          generateAccumulationResult(123, 0, 0),
           generateMarketParameter(parse6decimal('0.1'), 0),
           generateProtocolParameter(parse6decimal('0.2')),
         )
@@ -537,9 +556,7 @@ describe('Global', () => {
       it('protocol / oracle fee zero marketFee', async () => {
         await global.update(
           1,
-          123,
-          0,
-          0,
+          generateAccumulationResult(123, 0, 0),
           generateMarketParameter(parse6decimal('0.1'), 0),
           generateProtocolParameter(parse6decimal('1.0')),
         )
@@ -553,9 +570,7 @@ describe('Global', () => {
       it('protocol / oracle fee zero donation', async () => {
         await global.update(
           1,
-          123,
-          0,
-          0,
+          generateAccumulationResult(123, 0, 0),
           generateMarketParameter(parse6decimal('1.0'), 0),
           generateProtocolParameter(parse6decimal('0.2')),
         )
@@ -570,9 +585,7 @@ describe('Global', () => {
         await expect(
           global.update(
             1,
-            123,
-            0,
-            0,
+            generateAccumulationResult(123, 0, 0),
             generateMarketParameter(parse6decimal('0.1'), 0),
             generateProtocolParameter(parse6decimal('1.1')),
           ),
@@ -583,9 +596,7 @@ describe('Global', () => {
         await expect(
           global.update(
             1,
-            123,
-            0,
-            0,
+            generateAccumulationResult(123, 0, 0),
             generateMarketParameter(parse6decimal('1.1'), 0),
             generateProtocolParameter(parse6decimal('0.2')),
           ),
@@ -595,9 +606,7 @@ describe('Global', () => {
       it('protocol / oracle / risk fee', async () => {
         await global.update(
           1,
-          123,
-          0,
-          0,
+          generateAccumulationResult(123, 0, 0),
           generateMarketParameter(parse6decimal('0.1'), parse6decimal('0.3')),
           generateProtocolParameter(parse6decimal('0.2')),
         )
@@ -612,9 +621,7 @@ describe('Global', () => {
       it('protocol / oracle / risk fee zero marketFee', async () => {
         await global.update(
           1,
-          123,
-          0,
-          0,
+          generateAccumulationResult(123, 0, 0),
           generateMarketParameter(parse6decimal('0.1'), parse6decimal('0.3')),
           generateProtocolParameter(parse6decimal('1.0')),
         )
@@ -629,9 +636,7 @@ describe('Global', () => {
       it('protocol / oracle / risk fee zero donation', async () => {
         await global.update(
           1,
-          123,
-          0,
-          0,
+          generateAccumulationResult(123, 0, 0),
           generateMarketParameter(parse6decimal('0.1'), parse6decimal('0.9')),
           generateProtocolParameter(parse6decimal('0.2')),
         )
@@ -646,9 +651,7 @@ describe('Global', () => {
       it('exposure', async () => {
         await global.update(
           1,
-          0,
-          0,
-          123,
+          generateAccumulationResult(0, 0, 123),
           generateMarketParameter(parse6decimal('0.1'), parse6decimal('0.9')),
           generateProtocolParameter(parse6decimal('0.2')),
         )
@@ -661,9 +664,7 @@ describe('Global', () => {
         await expect(
           global.update(
             1,
-            123,
-            0,
-            0,
+            generateAccumulationResult(123, 0, 0),
             generateMarketParameter(parse6decimal('0.1'), parse6decimal('0.3')),
             generateProtocolParameter(parse6decimal('1.1')),
           ),
@@ -674,9 +675,7 @@ describe('Global', () => {
         await expect(
           global.update(
             1,
-            123,
-            0,
-            0,
+            generateAccumulationResult(123, 0, 0),
             generateMarketParameter(parse6decimal('0.1'), parse6decimal('1.0')),
             generateProtocolParameter(parse6decimal('0.2')),
           ),
@@ -686,7 +685,12 @@ describe('Global', () => {
 
     context('non-zero settlement fee', async () => {
       it('no fees', async () => {
-        await global.update(1, 123, 456, 0, generateMarketParameter(0, 0), generateProtocolParameter(0))
+        await global.update(
+          1,
+          generateAccumulationResult(123, 456, 0),
+          generateMarketParameter(0, 0),
+          generateProtocolParameter(0),
+        )
 
         const value = await global.read()
         expect(value.donation).to.equal(123)
@@ -695,9 +699,7 @@ describe('Global', () => {
       it('protocol fee', async () => {
         await global.update(
           1,
-          123,
-          456,
-          0,
+          generateAccumulationResult(123, 456, 0),
           generateMarketParameter(0, 0),
           generateProtocolParameter(parse6decimal('0.1')),
         )
@@ -710,9 +712,7 @@ describe('Global', () => {
       it('risk fee', async () => {
         await global.update(
           1,
-          123,
-          456,
-          0,
+          generateAccumulationResult(123, 456, 0),
           generateMarketParameter(0, parse6decimal('0.1')),
           generateProtocolParameter(0),
         )
@@ -725,9 +725,7 @@ describe('Global', () => {
       it('oracle fee', async () => {
         await global.update(
           1,
-          123,
-          456,
-          0,
+          generateAccumulationResult(123, 456, 0),
           generateMarketParameter(parse6decimal('0.1'), 0),
           generateProtocolParameter(0),
         )
@@ -740,9 +738,7 @@ describe('Global', () => {
       it('oracle / risk fee', async () => {
         await global.update(
           1,
-          123,
-          456,
-          0,
+          generateAccumulationResult(123, 456, 0),
           generateMarketParameter(parse6decimal('0.1'), parse6decimal('0.3')),
           generateProtocolParameter(0),
         )
@@ -756,9 +752,7 @@ describe('Global', () => {
       it('oracle / risk fee zero donation', async () => {
         await global.update(
           1,
-          123,
-          456,
-          0,
+          generateAccumulationResult(123, 456, 0),
           generateMarketParameter(parse6decimal('0.1'), parse6decimal('0.9')),
           generateProtocolParameter(0),
         )
@@ -773,9 +767,7 @@ describe('Global', () => {
         await expect(
           global.update(
             1,
-            123,
-            456,
-            0,
+            generateAccumulationResult(123, 456, 0),
             generateMarketParameter(parse6decimal('0.1'), parse6decimal('1.0')),
             generateProtocolParameter(0),
           ),
@@ -785,9 +777,7 @@ describe('Global', () => {
       it('protocol / risk fee', async () => {
         await global.update(
           1,
-          123,
-          456,
-          0,
+          generateAccumulationResult(123, 456, 0),
           generateMarketParameter(0, parse6decimal('0.1')),
           generateProtocolParameter(parse6decimal('0.2')),
         )
@@ -802,9 +792,7 @@ describe('Global', () => {
       it('protocol / risk fee zero marketFee', async () => {
         await global.update(
           1,
-          123,
-          456,
-          0,
+          generateAccumulationResult(123, 456, 0),
           generateMarketParameter(0, parse6decimal('0.1')),
           generateProtocolParameter(parse6decimal('1.0')),
         )
@@ -819,9 +807,7 @@ describe('Global', () => {
       it('protocol / risk fee zero donation', async () => {
         await global.update(
           1,
-          123,
-          456,
-          0,
+          generateAccumulationResult(123, 456, 0),
           generateMarketParameter(0, parse6decimal('1.0')),
           generateProtocolParameter(parse6decimal('0.2')),
         )
@@ -837,9 +823,7 @@ describe('Global', () => {
         await expect(
           global.update(
             1,
-            123,
-            456,
-            0,
+            generateAccumulationResult(123, 456, 0),
             generateMarketParameter(0, parse6decimal('0.1')),
             generateProtocolParameter(parse6decimal('1.1')),
           ),
@@ -850,9 +834,7 @@ describe('Global', () => {
         await expect(
           global.update(
             1,
-            123,
-            456,
-            0,
+            generateAccumulationResult(123, 456, 0),
             generateMarketParameter(0, parse6decimal('1.1')),
             generateProtocolParameter(parse6decimal('0.2')),
           ),
@@ -862,9 +844,7 @@ describe('Global', () => {
       it('protocol / oracle fee', async () => {
         await global.update(
           1,
-          123,
-          456,
-          0,
+          generateAccumulationResult(123, 456, 0),
           generateMarketParameter(parse6decimal('0.1'), 0),
           generateProtocolParameter(parse6decimal('0.2')),
         )
@@ -878,9 +858,7 @@ describe('Global', () => {
       it('protocol / oracle fee zero marketFee', async () => {
         await global.update(
           1,
-          123,
-          456,
-          0,
+          generateAccumulationResult(123, 456, 0),
           generateMarketParameter(parse6decimal('0.1'), 0),
           generateProtocolParameter(parse6decimal('1.0')),
         )
@@ -894,9 +872,7 @@ describe('Global', () => {
       it('protocol / oracle fee zero donation', async () => {
         await global.update(
           1,
-          123,
-          456,
-          0,
+          generateAccumulationResult(123, 456, 0),
           generateMarketParameter(parse6decimal('1.0'), 0),
           generateProtocolParameter(parse6decimal('0.2')),
         )
@@ -911,9 +887,7 @@ describe('Global', () => {
         await expect(
           global.update(
             1,
-            123,
-            0,
-            0,
+            generateAccumulationResult(123, 0, 0),
             generateMarketParameter(parse6decimal('0.1'), 0),
             generateProtocolParameter(parse6decimal('1.1')),
           ),
@@ -924,9 +898,7 @@ describe('Global', () => {
         await expect(
           global.update(
             1,
-            123,
-            456,
-            0,
+            generateAccumulationResult(123, 456, 0),
             generateMarketParameter(parse6decimal('1.1'), 0),
             generateProtocolParameter(parse6decimal('0.2')),
           ),
@@ -936,9 +908,7 @@ describe('Global', () => {
       it('protocol / oracle / risk fee', async () => {
         await global.update(
           1,
-          123,
-          456,
-          0,
+          generateAccumulationResult(123, 456, 0),
           generateMarketParameter(parse6decimal('0.1'), parse6decimal('0.3')),
           generateProtocolParameter(parse6decimal('0.2')),
         )
@@ -953,9 +923,7 @@ describe('Global', () => {
       it('protocol / oracle / risk fee zero marketFee', async () => {
         await global.update(
           1,
-          123,
-          456,
-          0,
+          generateAccumulationResult(123, 456, 0),
           generateMarketParameter(parse6decimal('0.1'), parse6decimal('0.3')),
           generateProtocolParameter(parse6decimal('1.0')),
         )
@@ -970,9 +938,7 @@ describe('Global', () => {
       it('protocol / oracle / risk fee zero donation', async () => {
         await global.update(
           1,
-          123,
-          456,
-          0,
+          generateAccumulationResult(123, 456, 0),
           generateMarketParameter(parse6decimal('0.1'), parse6decimal('0.9')),
           generateProtocolParameter(parse6decimal('0.2')),
         )
@@ -988,9 +954,7 @@ describe('Global', () => {
         await expect(
           global.update(
             1,
-            123,
-            456,
-            0,
+            generateAccumulationResult(123, 456, 0),
             generateMarketParameter(parse6decimal('0.1'), parse6decimal('0.3')),
             generateProtocolParameter(parse6decimal('1.1')),
           ),
@@ -1001,9 +965,7 @@ describe('Global', () => {
         await expect(
           global.update(
             1,
-            123,
-            456,
-            0,
+            generateAccumulationResult(123, 456, 0),
             generateMarketParameter(parse6decimal('0.1'), parse6decimal('1.0')),
             generateProtocolParameter(parse6decimal('0.2')),
           ),

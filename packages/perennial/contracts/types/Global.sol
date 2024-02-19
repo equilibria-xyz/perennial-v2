@@ -52,7 +52,7 @@ library GlobalLib {
         MarketParameter memory marketParameter,
         ProtocolParameter memory protocolParameter
     ) internal pure {
-        UFixed6 marketFee = accumulation.positionFee
+        UFixed6 marketFee = accumulation.positionFeeProtocol
             .add(accumulation.fundingFee)
             .add(accumulation.interestFee);
 
