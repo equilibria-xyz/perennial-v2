@@ -96,6 +96,7 @@ describe('Happy Path', () => {
       makerCloseAlways: false,
       takerCloseAlways: false,
       closed: false,
+      settle: false,
     }
     const marketAddress = await marketFactory.callStatic.create(definition)
     await expect(marketFactory.create(definition)).to.emit(marketFactory, 'MarketCreated')
@@ -1082,6 +1083,7 @@ describe('Happy Path', () => {
       makerCloseAlways: false,
       takerCloseAlways: false,
       closed: false,
+      settle: false,
     }
 
     const market = await createMarket(instanceVars)
@@ -1239,6 +1241,7 @@ describe('Happy Path', () => {
       makerCloseAlways: false,
       takerCloseAlways: false,
       closed: false,
+      settle: false,
     }
 
     const market = await createMarket(instanceVars)

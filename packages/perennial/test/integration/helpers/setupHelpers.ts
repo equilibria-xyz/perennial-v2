@@ -217,6 +217,7 @@ export async function createMarket(
     makerCloseAlways: false,
     takerCloseAlways: false,
     closed: false,
+    settle: false,
     ...marketParamOverrides,
   }
   const marketAddress = await marketFactory.callStatic.create(definition)
