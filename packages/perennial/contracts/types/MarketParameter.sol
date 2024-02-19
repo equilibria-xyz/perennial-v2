@@ -52,6 +52,9 @@ struct MarketParameter {
 
     /// @dev Whether the market is in close-only mode
     bool closed;
+
+    /// @dev Whether the market is in settle-only mode
+    bool settle;
 }
 struct MarketParameterStorage { uint256 slot0; uint256 slot1; }
 using MarketParameterStorageLib for MarketParameterStorage global;
@@ -84,8 +87,8 @@ library MarketParameterStorageLib {
         (uint256 slot0, uint256 slot1) = (self.slot0, self.slot1);
 
         uint256 flags = uint256(slot0) >> (256 - 8);
-        (bool takerCloseAlways, bool makerCloseAlways, bool closed) =
-            (flags & 0x01 == 0x01, flags & 0x02 == 0x02, flags & 0x04 == 0x04);
+        (bool takerCloseAlways, bool makerCloseAlways, bool closed, bool settle) =
+            (flags & 0x01 == 0x01, flags & 0x02 == 0x02, flags & 0x04 == 0x04, flags & 0x08 == 0x08);
 
         return MarketParameter(
             UFixed6.wrap(uint256(slot0 << (256 - 24)) >> (256 - 24)),
@@ -101,7 +104,8 @@ library MarketParameterStorageLib {
             UFixed6.wrap(uint256(slot0 << (256 - 24 - 24 - 24 - 24 - 24 - 16 - 16 - 48)) >> (256 - 48)),
             takerCloseAlways,
             makerCloseAlways,
-            closed
+            closed,
+            settle
         );
     }
 
@@ -143,7 +147,8 @@ library MarketParameterStorageLib {
     function _store(MarketParameterStorage storage self, MarketParameter memory newValue) internal {
         uint256 flags = (newValue.takerCloseAlways ? 0x01 : 0x00) |
             (newValue.makerCloseAlways ? 0x02 : 0x00) |
-            (newValue.closed ? 0x04 : 0x00);
+            (newValue.closed ? 0x04 : 0x00) |
+            (newValue.settle ? 0x08 : 0x00);
 
         uint256 encoded0 =
             uint256(UFixed6.unwrap(newValue.fundingFee) << (256 - 24)) >> (256 - 24) |

@@ -70,6 +70,14 @@ contract Market is IMarket, Instance, ReentrancyGuard {
         payoff = definition_.payoff;
     }
 
+    /// @notice Settle the account's position and collateral
+    /// @param account The account to operate on
+    function settle(address account) external nonReentrant whenNotPaused {
+        Context memory context = _loadContext(account);
+        _settle(context, account);
+        _saveContext(context, account);
+    }
+
     /// @notice Updates the account's position and collateral
     /// @param account The account to operate on
     /// @param newMaker The new maker position for the account
@@ -317,6 +325,8 @@ contract Market is IMarket, Instance, ReentrancyGuard {
         Fixed6 collateral,
         bool protect
     ) private {
+        if (context.marketParameter.settle) revert MarketSettleOnlyError();
+
         // load
         _loadUpdateContext(context, account);
 
