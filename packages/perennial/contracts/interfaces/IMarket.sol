@@ -13,6 +13,7 @@ import "../types/Local.sol";
 import "../types/Global.sol";
 import "../types/Position.sol";
 import "../types/Checkpoint.sol";
+import "../libs/VersionLib.sol";
 
 interface IMarket is IInstance {
     struct MarketDefinition {

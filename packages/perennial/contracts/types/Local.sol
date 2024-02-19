@@ -9,6 +9,7 @@ import "./Position.sol";
 import "./RiskParameter.sol";
 import "./OracleVersion.sol";
 import "./Order.sol";
+import "./Checkpoint.sol";
 
 /// @dev Local type
 struct Local {
@@ -40,23 +41,16 @@ library LocalLib {
 
     /// @notice Updates the collateral with the new collateral change
     /// @param self The Local object to update
-    /// @param collateral The amount to update the collateral by
-    /// @param tradeFee The trade fee to subtract from the collateral
-    /// @param settlementFee The settlement fee to subtract from the collateral
-    /// @param liquidationFee The liquidation fee to subtract from the collateral
-    function update(
-        Local memory self,
-        uint256 newId,
-        Fixed6 collateral,
-        Fixed6 tradeFee,
-        UFixed6 settlementFee,
-        UFixed6 liquidationFee
-    ) internal pure {
+    /// @param accumulation The accumulation result
+    function update(Local memory self, uint256 newId, CheckpointAccumulationResult memory accumulation) internal pure {
+        Fixed6 tradeFee = accumulation.linearFee
+            .add(accumulation.proportionalFee)
+            .add(accumulation.adiabaticFee);
         self.collateral = self.collateral
-            .add(collateral)
+            .add(accumulation.collateral)
             .sub(tradeFee)
-            .sub(Fixed6Lib.from(settlementFee))
-            .sub(Fixed6Lib.from(liquidationFee));
+            .sub(Fixed6Lib.from(accumulation.settlementFee))
+            .sub(Fixed6Lib.from(accumulation.liquidationFee));
         self.latestId = newId;
     }
 

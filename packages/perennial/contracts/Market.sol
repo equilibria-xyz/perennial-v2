@@ -591,10 +591,10 @@ contract Market is IMarket, Instance, ReentrancyGuard {
         OracleVersion memory oracleVersion = oracle.at(newOrder.timestamp);
 
         (uint256 fromTimestamp, uint256 fromId) = (context.latestPosition.global.timestamp, context.global.latestId);
-        (
-            VersionAccumulationResult memory accumulationResult,
-            VersionFeeResult memory feeResult
-        ) = settlementContext.latestVersion.accumulate(
+
+        VersionAccumulationResult memory accumulationResult;
+        (settlementContext.latestVersion, accumulationResult) = VersionLib.accumulate(
+            settlementContext.latestVersion,
             context.global,
             context.latestPosition.global,
             newOrder,
@@ -604,14 +604,7 @@ contract Market is IMarket, Instance, ReentrancyGuard {
             context.riskParameter
         );
 
-        context.global.update(
-            newOrderId,
-            feeResult.marketFee,
-            feeResult.settlementFee,
-            feeResult.protocolFee,
-            context.marketParameter,
-            context.protocolParameter
-        );
+        context.global.update(newOrderId, accumulationResult, context.marketParameter, context.protocolParameter);
 
         context.latestPosition.global.update(newOrder, oracleVersion.valid);
         context.pending.global.sub(newOrder);
@@ -643,13 +636,7 @@ contract Market is IMarket, Instance, ReentrancyGuard {
             _versions[context.latestPosition.local.timestamp].read(),
             version
         );
-        context.local.update(
-            newOrderId,
-            accumulationResult.collateral,
-            accumulationResult.linearFee.add(accumulationResult.proportionalFee).add(accumulationResult.adiabaticFee),
-            accumulationResult.settlementFee,
-            accumulationResult.liquidationFee
-        );
+        context.local.update(newOrderId, accumulationResult);
         _credit(liquidators[account][newOrderId], accumulationResult.liquidationFee);
         _credit(referrers[account][newOrderId], accumulationResult.subtractiveFee);
 
