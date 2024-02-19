@@ -93,13 +93,20 @@ library CheckpointLib {
         Order memory order,
         Version memory toVersion
     ) private pure returns (Fixed6 linearFee, UFixed6 subtractiveFee) {
-        linearFee = Fixed6Lib.ZERO
-            .sub(toVersion.makerLinearFee.accumulated(Accumulator6(Fixed6Lib.ZERO), order.makerTotal()))
+        Fixed6 makerLinearFee = Fixed6Lib.ZERO
+            .sub(toVersion.makerLinearFee.accumulated(Accumulator6(Fixed6Lib.ZERO), order.makerTotal()));
+        Fixed6 takerLinearFee = Fixed6Lib.ZERO
             .sub(toVersion.takerLinearFee.accumulated(Accumulator6(Fixed6Lib.ZERO), order.takerTotal()));
 
-        subtractiveFee = order.total().isZero() ?
+        UFixed6 makerSubtractiveFee = order.makerTotal().isZero() ?
             UFixed6Lib.ZERO :
-            UFixed6Lib.from(linearFee).muldiv(order.referral, order.total());
+            UFixed6Lib.from(makerLinearFee).muldiv(order.makerReferral, order.makerTotal());
+        UFixed6 takerSubtractiveFee = order.takerTotal().isZero() ?
+            UFixed6Lib.ZERO :
+            UFixed6Lib.from(takerLinearFee).muldiv(order.takerReferral, order.takerTotal());
+
+        linearFee = makerLinearFee.add(takerLinearFee);
+        subtractiveFee = makerSubtractiveFee.add(takerSubtractiveFee);
     }
 
     /// @notice Accumulate trade fees for the next position

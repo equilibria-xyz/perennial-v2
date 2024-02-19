@@ -93,7 +93,11 @@ describe('Fees', () => {
 
       await dsu.connect(user).approve(market.address, COLLATERAL.mul(1e12))
 
-      await expect(market.connect(user).update(user.address, POSITION, 0, 0, COLLATERAL, false))
+      await expect(
+        market
+          .connect(user)
+          ['update(address,uint256,uint256,uint256,int256,bool)'](user.address, POSITION, 0, 0, COLLATERAL, false),
+      )
         .to.emit(market, 'Updated')
         .withArgs(user.address, user.address, TIMESTAMP_1, POSITION, 0, 0, COLLATERAL, false)
 
@@ -171,7 +175,11 @@ describe('Fees', () => {
 
       await dsu.connect(user).approve(market.address, COLLATERAL.mul(1e12))
 
-      await expect(market.connect(user).update(user.address, POSITION, 0, 0, COLLATERAL, false))
+      await expect(
+        market
+          .connect(user)
+          ['update(address,uint256,uint256,uint256,int256,bool)'](user.address, POSITION, 0, 0, COLLATERAL, false),
+      )
         .to.emit(market, 'Updated')
         .withArgs(user.address, user.address, TIMESTAMP_1, POSITION, 0, 0, COLLATERAL, false)
 
@@ -179,7 +187,7 @@ describe('Fees', () => {
       await settle(market, user)
 
       await market.updateRiskParameter(previousRiskParams)
-      await market.connect(user).update(user.address, 0, 0, 0, 0, false)
+      await market.connect(user)['update(address,uint256,uint256,uint256,int256,bool)'](user.address, 0, 0, 0, 0, false)
 
       // Settle the market with a new oracle version
       await nextWithConstantPrice()
@@ -256,8 +264,21 @@ describe('Fees', () => {
       await dsu.connect(user).approve(market.address, COLLATERAL.mul(1e12))
       await dsu.connect(userB).approve(market.address, COLLATERAL.mul(1e12))
 
-      await market.connect(user).update(user.address, MAKER_POSITION, 0, 0, COLLATERAL, false)
-      await expect(market.connect(userB).update(userB.address, 0, LONG_POSITION, 0, COLLATERAL, false))
+      await market
+        .connect(user)
+        ['update(address,uint256,uint256,uint256,int256,bool)'](user.address, MAKER_POSITION, 0, 0, COLLATERAL, false)
+      await expect(
+        market
+          .connect(userB)
+          ['update(address,uint256,uint256,uint256,int256,bool)'](
+            userB.address,
+            0,
+            LONG_POSITION,
+            0,
+            COLLATERAL,
+            false,
+          ),
+      )
         .to.emit(market, 'Updated')
         .withArgs(userB.address, userB.address, TIMESTAMP_1, 0, LONG_POSITION, 0, COLLATERAL, false)
 
@@ -339,13 +360,26 @@ describe('Fees', () => {
       await dsu.connect(user).approve(market.address, COLLATERAL.mul(1e12))
       await dsu.connect(userB).approve(market.address, COLLATERAL.mul(1e12))
 
-      await market.connect(user).update(user.address, MAKER_POSITION, 0, 0, COLLATERAL, false)
+      await market
+        .connect(user)
+        ['update(address,uint256,uint256,uint256,int256,bool)'](user.address, MAKER_POSITION, 0, 0, COLLATERAL, false)
 
       // Settle maker to give them portion of fees
       await nextWithConstantPrice()
       await settle(market, user)
 
-      await expect(market.connect(userB).update(userB.address, 0, LONG_POSITION, 0, COLLATERAL, false))
+      await expect(
+        market
+          .connect(userB)
+          ['update(address,uint256,uint256,uint256,int256,bool)'](
+            userB.address,
+            0,
+            LONG_POSITION,
+            0,
+            COLLATERAL,
+            false,
+          ),
+      )
         .to.emit(market, 'Updated')
         .withArgs(userB.address, userB.address, TIMESTAMP_2, 0, LONG_POSITION, 0, COLLATERAL, false)
 
@@ -469,8 +503,21 @@ describe('Fees', () => {
       await dsu.connect(user).approve(market.address, COLLATERAL.mul(1e12))
       await dsu.connect(userB).approve(market.address, COLLATERAL.mul(1e12))
 
-      await market.connect(user).update(user.address, MAKER_POSITION, 0, 0, COLLATERAL, false)
-      await expect(market.connect(userB).update(userB.address, 0, LONG_POSITION, 0, COLLATERAL, false))
+      await market
+        .connect(user)
+        ['update(address,uint256,uint256,uint256,int256,bool)'](user.address, MAKER_POSITION, 0, 0, COLLATERAL, false)
+      await expect(
+        market
+          .connect(userB)
+          ['update(address,uint256,uint256,uint256,int256,bool)'](
+            userB.address,
+            0,
+            LONG_POSITION,
+            0,
+            COLLATERAL,
+            false,
+          ),
+      )
         .to.emit(market, 'Updated')
         .withArgs(userB.address, userB.address, TIMESTAMP_1, 0, LONG_POSITION, 0, COLLATERAL, false)
 
@@ -493,7 +540,9 @@ describe('Fees', () => {
           adiabaticFee: BigNumber.from('0'),
         },
       })
-      await market.connect(userB).update(userB.address, 0, 0, 0, 0, false)
+      await market
+        .connect(userB)
+        ['update(address,uint256,uint256,uint256,int256,bool)'](userB.address, 0, 0, 0, 0, false)
 
       await nextWithConstantPrice()
       const txLong = await settle(market, userB)
@@ -599,8 +648,21 @@ describe('Fees', () => {
       await dsu.connect(user).approve(market.address, COLLATERAL.mul(1e12))
       await dsu.connect(userB).approve(market.address, COLLATERAL.mul(1e12))
 
-      await market.connect(user).update(user.address, MAKER_POSITION, 0, 0, COLLATERAL, false)
-      await expect(market.connect(userB).update(userB.address, 0, 0, SHORT_POSITION, COLLATERAL, false))
+      await market
+        .connect(user)
+        ['update(address,uint256,uint256,uint256,int256,bool)'](user.address, MAKER_POSITION, 0, 0, COLLATERAL, false)
+      await expect(
+        market
+          .connect(userB)
+          ['update(address,uint256,uint256,uint256,int256,bool)'](
+            userB.address,
+            0,
+            0,
+            SHORT_POSITION,
+            COLLATERAL,
+            false,
+          ),
+      )
         .to.emit(market, 'Updated')
         .withArgs(userB.address, userB.address, TIMESTAMP_1, 0, 0, SHORT_POSITION, COLLATERAL, false)
 
@@ -682,13 +744,26 @@ describe('Fees', () => {
       await dsu.connect(user).approve(market.address, COLLATERAL.mul(1e12))
       await dsu.connect(userB).approve(market.address, COLLATERAL.mul(1e12))
 
-      await market.connect(user).update(user.address, MAKER_POSITION, 0, 0, COLLATERAL, false)
+      await market
+        .connect(user)
+        ['update(address,uint256,uint256,uint256,int256,bool)'](user.address, MAKER_POSITION, 0, 0, COLLATERAL, false)
 
       // Settle maker to give them portion of fees
       await nextWithConstantPrice()
       await settle(market, user)
 
-      await expect(market.connect(userB).update(userB.address, 0, 0, SHORT_POSITION, COLLATERAL, false))
+      await expect(
+        market
+          .connect(userB)
+          ['update(address,uint256,uint256,uint256,int256,bool)'](
+            userB.address,
+            0,
+            0,
+            SHORT_POSITION,
+            COLLATERAL,
+            false,
+          ),
+      )
         .to.emit(market, 'Updated')
         .withArgs(userB.address, userB.address, TIMESTAMP_2, 0, 0, SHORT_POSITION, COLLATERAL, false)
 
@@ -812,8 +887,21 @@ describe('Fees', () => {
       await dsu.connect(user).approve(market.address, COLLATERAL.mul(1e12))
       await dsu.connect(userB).approve(market.address, COLLATERAL.mul(1e12))
 
-      await market.connect(user).update(user.address, MAKER_POSITION, 0, 0, COLLATERAL, false)
-      await expect(market.connect(userB).update(userB.address, 0, 0, SHORT_POSITION, COLLATERAL, false))
+      await market
+        .connect(user)
+        ['update(address,uint256,uint256,uint256,int256,bool)'](user.address, MAKER_POSITION, 0, 0, COLLATERAL, false)
+      await expect(
+        market
+          .connect(userB)
+          ['update(address,uint256,uint256,uint256,int256,bool)'](
+            userB.address,
+            0,
+            0,
+            SHORT_POSITION,
+            COLLATERAL,
+            false,
+          ),
+      )
         .to.emit(market, 'Updated')
         .withArgs(userB.address, userB.address, TIMESTAMP_1, 0, 0, SHORT_POSITION, COLLATERAL, false)
 
@@ -836,7 +924,9 @@ describe('Fees', () => {
           adiabaticFee: BigNumber.from('0'),
         },
       })
-      await market.connect(userB).update(userB.address, 0, 0, 0, 0, false)
+      await market
+        .connect(userB)
+        ['update(address,uint256,uint256,uint256,int256,bool)'](userB.address, 0, 0, 0, 0, false)
 
       await nextWithConstantPrice()
       const txLong = await settle(market, userB)
@@ -955,7 +1045,9 @@ describe('Fees', () => {
         await dsu.connect(userB).approve(market.address, COLLATERAL.mul(1e12))
         await dsu.connect(userC).approve(market.address, COLLATERAL.mul(1e12))
 
-        await market.connect(user).update(user.address, MAKER_POSITION, 0, 0, COLLATERAL, false)
+        await market
+          .connect(user)
+          ['update(address,uint256,uint256,uint256,int256,bool)'](user.address, MAKER_POSITION, 0, 0, COLLATERAL, false)
         await nextWithConstantPrice()
         await settle(market, user)
       })
@@ -964,7 +1056,16 @@ describe('Fees', () => {
         const { userB, userC } = instanceVars
 
         // Bring skew from 0 to 100% -> total skew change of 100%
-        await market.connect(userB).update(userB.address, 0, 0, SHORT_POSITION, COLLATERAL, false)
+        await market
+          .connect(userB)
+          ['update(address,uint256,uint256,uint256,int256,bool)'](
+            userB.address,
+            0,
+            0,
+            SHORT_POSITION,
+            COLLATERAL,
+            false,
+          )
 
         await nextWithConstantPrice()
         const txShort = await settle(market, userB)
@@ -984,7 +1085,16 @@ describe('Fees', () => {
         ).to.equal(expectedShortProportionalFee)
 
         // Bring skew from -100% to +50% -> total skew change of 150%
-        await market.connect(userC).update(userC.address, 0, LONG_POSITION.mul(2), 0, COLLATERAL, false)
+        await market
+          .connect(userC)
+          ['update(address,uint256,uint256,uint256,int256,bool)'](
+            userC.address,
+            0,
+            LONG_POSITION.mul(2),
+            0,
+            COLLATERAL,
+            false,
+          )
 
         await nextWithConstantPrice()
         const txLong = await settle(market, userC)
@@ -1039,7 +1149,9 @@ describe('Fees', () => {
         await dsu.connect(userB).approve(market.address, COLLATERAL.mul(1e12))
         await dsu.connect(userC).approve(market.address, COLLATERAL.mul(1e12))
 
-        await market.connect(user).update(user.address, MAKER_POSITION, 0, 0, COLLATERAL, false)
+        await market
+          .connect(user)
+          ['update(address,uint256,uint256,uint256,int256,bool)'](user.address, MAKER_POSITION, 0, 0, COLLATERAL, false)
         await nextWithConstantPrice()
         await settle(market, user)
       })
@@ -1048,7 +1160,16 @@ describe('Fees', () => {
         const { userB } = instanceVars
 
         // Bring skew from 0 to 100% -> total impact change of 100%
-        await market.connect(userB).update(userB.address, 0, 0, SHORT_POSITION, COLLATERAL, false)
+        await market
+          .connect(userB)
+          ['update(address,uint256,uint256,uint256,int256,bool)'](
+            userB.address,
+            0,
+            0,
+            SHORT_POSITION,
+            COLLATERAL,
+            false,
+          )
 
         await nextWithConstantPrice()
         const tx = await settle(market, userB)
@@ -1067,7 +1188,9 @@ describe('Fees', () => {
         const { userB } = instanceVars
 
         // Bring skew from 0 to 100% -> total impact change of 100%
-        await market.connect(userB).update(userB.address, 0, LONG_POSITION, 0, COLLATERAL, false)
+        await market
+          .connect(userB)
+          ['update(address,uint256,uint256,uint256,int256,bool)'](userB.address, 0, LONG_POSITION, 0, COLLATERAL, false)
 
         await nextWithConstantPrice()
         const tx = await settle(market, userB)
@@ -1086,7 +1209,16 @@ describe('Fees', () => {
         const { userB, userC } = instanceVars
 
         // Bring skew from 0 to 100% -> total impact change of 100%
-        await market.connect(userB).update(userB.address, 0, 0, SHORT_POSITION, COLLATERAL, false)
+        await market
+          .connect(userB)
+          ['update(address,uint256,uint256,uint256,int256,bool)'](
+            userB.address,
+            0,
+            0,
+            SHORT_POSITION,
+            COLLATERAL,
+            false,
+          )
 
         await nextWithConstantPrice()
         await settle(market, userB)
@@ -1102,7 +1234,9 @@ describe('Fees', () => {
           },
         })
         // Bring skew from -100% to 0% -> total impact change of -100%
-        await market.connect(userC).update(userC.address, 0, LONG_POSITION, 0, COLLATERAL, false)
+        await market
+          .connect(userC)
+          ['update(address,uint256,uint256,uint256,int256,bool)'](userC.address, 0, LONG_POSITION, 0, COLLATERAL, false)
 
         await nextWithConstantPrice()
         const tx = await settle(market, userC)
@@ -1121,7 +1255,16 @@ describe('Fees', () => {
         const { userB, userC } = instanceVars
 
         // Bring skew from 0 to 100% -> total impact change of 100%
-        await market.connect(userB).update(userB.address, 0, 0, SHORT_POSITION, COLLATERAL, false)
+        await market
+          .connect(userB)
+          ['update(address,uint256,uint256,uint256,int256,bool)'](
+            userB.address,
+            0,
+            0,
+            SHORT_POSITION,
+            COLLATERAL,
+            false,
+          )
 
         await nextWithConstantPrice()
         await settle(market, userB)
@@ -1137,7 +1280,9 @@ describe('Fees', () => {
           },
         })
         // Bring skew from -100% to 0% -> total impact change of -100%
-        await market.connect(userC).update(userC.address, 0, LONG_POSITION, 0, COLLATERAL, false)
+        await market
+          .connect(userC)
+          ['update(address,uint256,uint256,uint256,int256,bool)'](userC.address, 0, LONG_POSITION, 0, COLLATERAL, false)
 
         await nextWithConstantPrice()
         const tx = await settle(market, userC)
@@ -1184,7 +1329,9 @@ describe('Fees', () => {
         await dsu.connect(userB).approve(market.address, COLLATERAL.mul(1e12))
         await dsu.connect(userC).approve(market.address, COLLATERAL.mul(1e12))
 
-        await market.connect(user).update(user.address, MAKER_POSITION, 0, 0, COLLATERAL, false)
+        await market
+          .connect(user)
+          ['update(address,uint256,uint256,uint256,int256,bool)'](user.address, MAKER_POSITION, 0, 0, COLLATERAL, false)
         await nextWithConstantPrice()
         await settle(market, user)
 
@@ -1195,7 +1342,16 @@ describe('Fees', () => {
       })
 
       it('charges settlement fee for maker', async () => {
-        await market.connect(instanceVars.user).update(instanceVars.user.address, MAKER_POSITION.mul(2), 0, 0, 0, false)
+        await market
+          .connect(instanceVars.user)
+          ['update(address,uint256,uint256,uint256,int256,bool)'](
+            instanceVars.user.address,
+            MAKER_POSITION.mul(2),
+            0,
+            0,
+            0,
+            false,
+          )
 
         await nextWithConstantPrice()
         const tx = await settle(market, instanceVars.user)
@@ -1219,8 +1375,19 @@ describe('Fees', () => {
 
       it('charges settlement fee for taker', async () => {
         const { userB, userC } = instanceVars
-        await market.connect(userB).update(userB.address, 0, LONG_POSITION, 0, COLLATERAL, false)
-        await market.connect(userC).update(userC.address, 0, 0, SHORT_POSITION, COLLATERAL, false)
+        await market
+          .connect(userB)
+          ['update(address,uint256,uint256,uint256,int256,bool)'](userB.address, 0, LONG_POSITION, 0, COLLATERAL, false)
+        await market
+          .connect(userC)
+          ['update(address,uint256,uint256,uint256,int256,bool)'](
+            userC.address,
+            0,
+            0,
+            SHORT_POSITION,
+            COLLATERAL,
+            false,
+          )
 
         await nextWithConstantPrice()
         const txB = await settle(market, userB)
@@ -1285,7 +1452,9 @@ describe('Fees', () => {
       await dsu.connect(userB).approve(market.address, COLLATERAL.mul(1e12))
       await dsu.connect(userC).approve(market.address, COLLATERAL.mul(1e12))
 
-      await market.connect(user).update(user.address, MAKER_POSITION, 0, 0, COLLATERAL, false)
+      await market
+        .connect(user)
+        ['update(address,uint256,uint256,uint256,int256,bool)'](user.address, MAKER_POSITION, 0, 0, COLLATERAL, false)
       await nextWithConstantPrice()
       await settle(market, user)
     })
@@ -1293,7 +1462,9 @@ describe('Fees', () => {
     it('charges interest fee for long position', async () => {
       const { userB } = instanceVars
 
-      await market.connect(userB).update(userB.address, 0, LONG_POSITION, 0, COLLATERAL, false)
+      await market
+        .connect(userB)
+        ['update(address,uint256,uint256,uint256,int256,bool)'](userB.address, 0, LONG_POSITION, 0, COLLATERAL, false)
 
       await nextWithConstantPrice()
       await settle(market, userB)
@@ -1322,7 +1493,9 @@ describe('Fees', () => {
     it('charges interest fee for short position', async () => {
       const { userB } = instanceVars
 
-      await market.connect(userB).update(userB.address, 0, 0, SHORT_POSITION, COLLATERAL, false)
+      await market
+        .connect(userB)
+        ['update(address,uint256,uint256,uint256,int256,bool)'](userB.address, 0, 0, SHORT_POSITION, COLLATERAL, false)
 
       await nextWithConstantPrice()
       await settle(market, userB)
@@ -1384,7 +1557,9 @@ describe('Fees', () => {
       await dsu.connect(userB).approve(market.address, COLLATERAL.mul(1e12))
       await dsu.connect(userC).approve(market.address, COLLATERAL.mul(1e12))
 
-      await market.connect(user).update(user.address, MAKER_POSITION, 0, 0, COLLATERAL, false)
+      await market
+        .connect(user)
+        ['update(address,uint256,uint256,uint256,int256,bool)'](user.address, MAKER_POSITION, 0, 0, COLLATERAL, false)
       await nextWithConstantPrice()
       await settle(market, user)
     })
@@ -1392,7 +1567,9 @@ describe('Fees', () => {
     it('charges funding fee for long position', async () => {
       const { userB } = instanceVars
 
-      await market.connect(userB).update(userB.address, 0, LONG_POSITION, 0, COLLATERAL, false)
+      await market
+        .connect(userB)
+        ['update(address,uint256,uint256,uint256,int256,bool)'](userB.address, 0, LONG_POSITION, 0, COLLATERAL, false)
 
       await nextWithConstantPrice()
       await settle(market, userB)
@@ -1421,7 +1598,9 @@ describe('Fees', () => {
     it('charges funding fee for short position', async () => {
       const { userB } = instanceVars
 
-      await market.connect(userB).update(userB.address, 0, 0, SHORT_POSITION, COLLATERAL, false)
+      await market
+        .connect(userB)
+        ['update(address,uint256,uint256,uint256,int256,bool)'](userB.address, 0, 0, SHORT_POSITION, COLLATERAL, false)
 
       await nextWithConstantPrice()
       await settle(market, userB)

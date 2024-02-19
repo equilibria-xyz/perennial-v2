@@ -16397,6 +16397,255 @@ describe('Market', () => {
           ).to.not.be.reverted
         })
       })
+
+      context('subtractive fee', async () => {
+        beforeEach(async () => {
+          dsu.transferFrom.whenCalledWith(user.address, market.address, COLLATERAL.mul(1e12)).returns(true)
+          dsu.transferFrom.whenCalledWith(userB.address, market.address, COLLATERAL.mul(1e12)).returns(true)
+          dsu.transferFrom.whenCalledWith(userC.address, market.address, COLLATERAL.mul(1e12)).returns(true)
+        })
+
+        it('opens the position and settles later with fee (maker)', async () => {
+          factory.parameter.returns({
+            maxPendingIds: 5,
+            protocolFee: parse6decimal('0.50'),
+            maxFee: parse6decimal('0.01'),
+            maxFeeAbsolute: parse6decimal('1000'),
+            maxCut: parse6decimal('0.50'),
+            maxRate: parse6decimal('10.00'),
+            minMaintenance: parse6decimal('0.01'),
+            minEfficiency: parse6decimal('0.1'),
+            referralFee: parse6decimal('0.20'),
+          })
+
+          const riskParameter = { ...(await market.riskParameter()) }
+          const riskParameterMakerFee = { ...riskParameter.makerFee }
+          riskParameterMakerFee.linearFee = parse6decimal('0.005')
+          riskParameterMakerFee.proportionalFee = parse6decimal('0.0025')
+          riskParameterMakerFee.adiabaticFee = parse6decimal('0.01')
+          riskParameter.makerFee = riskParameterMakerFee
+          await market.updateRiskParameter(riskParameter)
+
+          const marketParameter = { ...(await market.parameter()) }
+          marketParameter.settlementFee = parse6decimal('0.50')
+          await market.updateParameter(beneficiary.address, coordinator.address, marketParameter)
+
+          const MAKER_FEE_LINEAR = parse6decimal('6.15') // position * (0.005) * price
+          const MAKER_FEE_PROPORTIONAL = parse6decimal('3.075') // position * (0.0025) * price
+          const MAKER_FEE_ADIABATIC = parse6decimal('-6.15') // position * (0.01 * -(1.00 + 0.00) / 2) * price
+
+          const MAKER_FEE = MAKER_FEE_LINEAR.add(MAKER_FEE_PROPORTIONAL).add(MAKER_FEE_ADIABATIC)
+          const MAKER_FEE_WITHOUT_IMPACT = MAKER_FEE_LINEAR.add(MAKER_FEE_PROPORTIONAL)
+          const SETTLEMENT_FEE = parse6decimal('0.50')
+
+          await expect(
+            market
+              .connect(user)
+              ['update(address,uint256,uint256,uint256,int256,bool,address)'](
+                user.address,
+                POSITION,
+                0,
+                0,
+                COLLATERAL,
+                false,
+                liquidator.address,
+              ),
+          )
+            .to.emit(market, 'Updated')
+            .withArgs(user.address, user.address, ORACLE_VERSION_2.timestamp, POSITION, 0, 0, COLLATERAL, false)
+
+          oracle.at.whenCalledWith(ORACLE_VERSION_2.timestamp).returns(ORACLE_VERSION_2)
+          oracle.at.whenCalledWith(ORACLE_VERSION_3.timestamp).returns(ORACLE_VERSION_3)
+          oracle.status.returns([ORACLE_VERSION_3, ORACLE_VERSION_4.timestamp])
+          oracle.request.whenCalledWith(user.address).returns()
+
+          await settle(market, user)
+
+          expectLocalEq(await market.locals(user.address), {
+            ...DEFAULT_LOCAL,
+            currentId: 2,
+            latestId: 1,
+            collateral: COLLATERAL.sub(MAKER_FEE).sub(SETTLEMENT_FEE),
+          })
+          expectPositionEq(await market.positions(user.address), {
+            ...DEFAULT_POSITION,
+            timestamp: ORACLE_VERSION_3.timestamp,
+            maker: POSITION,
+          })
+          expectOrderEq(await market.pendingOrders(user.address, 2), {
+            ...DEFAULT_ORDER,
+            timestamp: ORACLE_VERSION_4.timestamp,
+          })
+          expectCheckpointEq(await market.checkpoints(user.address, ORACLE_VERSION_4.timestamp), {
+            ...DEFAULT_CHECKPOINT,
+          })
+          expectLocalEq(await market.locals(liquidator.address), {
+            ...DEFAULT_LOCAL,
+            claimable: MAKER_FEE_LINEAR.mul(2).div(10),
+          })
+          const totalFee = MAKER_FEE_WITHOUT_IMPACT.sub(MAKER_FEE_LINEAR.mul(2).div(10))
+          expectGlobalEq(await market.global(), {
+            currentId: 2,
+            latestId: 1,
+            protocolFee: totalFee.div(2),
+            oracleFee: totalFee.div(2).div(10).add(SETTLEMENT_FEE),
+            riskFee: totalFee.div(2).div(10),
+            donation: totalFee.div(2).mul(8).div(10),
+          })
+          expectPositionEq(await market.position(), {
+            ...DEFAULT_POSITION,
+            timestamp: ORACLE_VERSION_3.timestamp,
+            maker: POSITION,
+          })
+          expectOrderEq(await market.pendingOrder(2), {
+            ...DEFAULT_ORDER,
+            timestamp: ORACLE_VERSION_4.timestamp,
+          })
+          expectVersionEq(await market.versions(ORACLE_VERSION_3.timestamp), {
+            ...DEFAULT_VERSION,
+            liquidationFee: { _value: -riskParameter.liquidationFee },
+          })
+        })
+
+        it('opens the position and settles later with fee (taker)', async () => {
+          await market
+            .connect(userB)
+            ['update(address,uint256,uint256,uint256,int256,bool)'](userB.address, POSITION, 0, 0, COLLATERAL, false)
+
+          factory.parameter.returns({
+            maxPendingIds: 5,
+            protocolFee: parse6decimal('0.50'),
+            maxFee: parse6decimal('0.01'),
+            maxFeeAbsolute: parse6decimal('1000'),
+            maxCut: parse6decimal('0.50'),
+            maxRate: parse6decimal('10.00'),
+            minMaintenance: parse6decimal('0.01'),
+            minEfficiency: parse6decimal('0.1'),
+            referralFee: parse6decimal('0.20'),
+          })
+
+          const riskParameter = { ...(await market.riskParameter()) }
+          const riskParameterTakerFee = { ...riskParameter.takerFee }
+          riskParameterTakerFee.linearFee = parse6decimal('0.01')
+          riskParameterTakerFee.proportionalFee = parse6decimal('0.002')
+          riskParameterTakerFee.adiabaticFee = parse6decimal('0.008')
+          riskParameter.takerFee = riskParameterTakerFee
+          await market.updateRiskParameter(riskParameter)
+
+          const marketParameter = { ...(await market.parameter()) }
+          marketParameter.settlementFee = parse6decimal('0.50')
+          await market.updateParameter(beneficiary.address, coordinator.address, marketParameter)
+
+          const TAKER_FEE_LINEAR = parse6decimal('6.15') // position * (0.01) * price
+          const TAKER_FEE_PROPORTIONAL = parse6decimal('1.23') // position * (0.002) * price
+          const TAKER_FEE_ADIABATIC = parse6decimal('2.46') // position * (0.004) * price
+
+          const TAKER_FEE = TAKER_FEE_LINEAR.add(TAKER_FEE_PROPORTIONAL).add(TAKER_FEE_ADIABATIC)
+          const TAKER_FEE_WITHOUT_IMPACT = TAKER_FEE_LINEAR.add(TAKER_FEE_PROPORTIONAL)
+          const SETTLEMENT_FEE = parse6decimal('0.50')
+
+          await expect(
+            market
+              .connect(user)
+              ['update(address,uint256,uint256,uint256,int256,bool,address)'](
+                user.address,
+                0,
+                POSITION.div(2),
+                0,
+                COLLATERAL,
+                false,
+                liquidator.address,
+              ),
+          )
+            .to.emit(market, 'Updated')
+            .withArgs(user.address, user.address, ORACLE_VERSION_2.timestamp, 0, POSITION.div(2), 0, COLLATERAL, false)
+
+          oracle.at.whenCalledWith(ORACLE_VERSION_2.timestamp).returns(ORACLE_VERSION_2)
+
+          oracle.at.whenCalledWith(ORACLE_VERSION_3.timestamp).returns(ORACLE_VERSION_3)
+          oracle.status.returns([ORACLE_VERSION_3, ORACLE_VERSION_4.timestamp])
+          oracle.request.whenCalledWith(user.address).returns()
+
+          await settle(market, user)
+          await settle(market, userB)
+
+          expectLocalEq(await market.locals(user.address), {
+            ...DEFAULT_LOCAL,
+            currentId: 2,
+            latestId: 1,
+            collateral: COLLATERAL.sub(EXPECTED_FUNDING_WITH_FEE_1_5_123)
+              .sub(EXPECTED_INTEREST_5_123)
+              .sub(TAKER_FEE)
+              .sub(SETTLEMENT_FEE.div(2)),
+          })
+          expectPositionEq(await market.positions(user.address), {
+            ...DEFAULT_POSITION,
+            timestamp: ORACLE_VERSION_3.timestamp,
+            long: POSITION.div(2),
+          })
+          expectOrderEq(await market.pendingOrders(user.address, 2), {
+            ...DEFAULT_ORDER,
+            timestamp: ORACLE_VERSION_4.timestamp,
+          })
+          expectCheckpointEq(await market.checkpoints(user.address, ORACLE_VERSION_4.timestamp), {
+            ...DEFAULT_CHECKPOINT,
+          })
+          expectLocalEq(await market.locals(userB.address), {
+            ...DEFAULT_LOCAL,
+            currentId: 2,
+            latestId: 1,
+            collateral: COLLATERAL.add(EXPECTED_FUNDING_WITHOUT_FEE_1_5_123)
+              .add(EXPECTED_INTEREST_WITHOUT_FEE_5_123)
+              .sub(SETTLEMENT_FEE.div(2))
+              .sub(8), // loss of precision
+          })
+          expectPositionEq(await market.positions(userB.address), {
+            ...DEFAULT_POSITION,
+            timestamp: ORACLE_VERSION_3.timestamp,
+            maker: POSITION,
+          })
+          expectOrderEq(await market.pendingOrders(userB.address, 2), {
+            ...DEFAULT_ORDER,
+            timestamp: ORACLE_VERSION_4.timestamp,
+          })
+          expectCheckpointEq(await market.checkpoints(userB.address, ORACLE_VERSION_4.timestamp), {
+            ...DEFAULT_CHECKPOINT,
+          })
+          expectLocalEq(await market.locals(liquidator.address), {
+            ...DEFAULT_LOCAL,
+            claimable: TAKER_FEE_LINEAR.mul(2).div(10),
+          })
+          const totalFee = EXPECTED_FUNDING_FEE_1_5_123.add(EXPECTED_INTEREST_FEE_5_123)
+            .add(TAKER_FEE_WITHOUT_IMPACT)
+            .sub(TAKER_FEE_LINEAR.mul(2).div(10))
+          expectGlobalEq(await market.global(), {
+            currentId: 2,
+            latestId: 1,
+            protocolFee: totalFee.div(2).sub(3), // loss of precision
+            oracleFee: totalFee.div(2).div(10).sub(1).add(SETTLEMENT_FEE), // loss of precision
+            riskFee: totalFee.div(2).div(10).sub(1), // loss of precision
+            donation: totalFee.div(2).mul(8).div(10).add(1), // loss of precision
+          })
+          expectPositionEq(await market.position(), {
+            ...DEFAULT_POSITION,
+            timestamp: ORACLE_VERSION_3.timestamp,
+            maker: POSITION,
+            long: POSITION.div(2),
+          })
+          expectOrderEq(await market.pendingOrder(2), {
+            ...DEFAULT_ORDER,
+            timestamp: ORACLE_VERSION_4.timestamp,
+          })
+          expectVersionEq(await market.versions(ORACLE_VERSION_3.timestamp), {
+            ...DEFAULT_VERSION,
+            makerValue: {
+              _value: EXPECTED_FUNDING_WITHOUT_FEE_1_5_123.add(EXPECTED_INTEREST_WITHOUT_FEE_5_123).div(10),
+            },
+            longValue: { _value: EXPECTED_FUNDING_WITH_FEE_1_5_123.add(EXPECTED_INTEREST_5_123).div(5).mul(-1) },
+            liquidationFee: { _value: -riskParameter.liquidationFee },
+          })
+        })
+      })
     })
 
     describe('#claimFee', async () => {

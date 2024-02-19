@@ -455,7 +455,7 @@ contract Market is IMarket, Instance, ReentrancyGuard {
         // apply referrer
         if (updateContext.referrer == address(0))
             updateContext.referrer = referrer;
-        else if (updateContext.referrer != address(0) && updateContext.referrer != referrer)
+        else if (referrer != address(0) && updateContext.referrer != referrer)
             revert MarketInvalidReferrerError();
 
         // request version
@@ -617,7 +617,6 @@ contract Market is IMarket, Instance, ReentrancyGuard {
             _versions[context.latestPosition.local.timestamp].read(),
             version
         );
-
         context.local.update(
             newOrderId,
             accumulationResult.collateral,

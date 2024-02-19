@@ -36,7 +36,8 @@ const VALID_ORDER = {
   shortPos: parse6decimal('6'),
   shortNeg: parse6decimal('3'),
   protection: 1,
-  referral: parse6decimal('4'),
+  makerReferral: parse6decimal('4'),
+  takerReferral: parse6decimal('5'),
 }
 
 describe('Position', () => {
