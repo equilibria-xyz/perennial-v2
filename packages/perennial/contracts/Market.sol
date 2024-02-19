@@ -679,6 +679,7 @@ contract Market is IMarket, Instance, ReentrancyGuard {
         _;
     }
 
+    /// @notice Only when the market is not in settle-only mode
     modifier notSettleOnly(Context memory context) {
         if (context.marketParameter.settle) revert MarketSettleOnlyError();
         _;
