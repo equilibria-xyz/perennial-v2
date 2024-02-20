@@ -19,7 +19,7 @@ library InvariantLib {
     /// @param account The account to verify the invariant for
     /// @param newOrder The order to verify the invariant for
     /// @param collateral The collateral change to verify the invariant for
-    function invariant(
+    function validate(
         IMarket.Context memory context,
         IMarket.UpdateContext memory updateContext,
         address sender,

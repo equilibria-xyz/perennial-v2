@@ -459,7 +459,7 @@ contract Market is IMarket, Instance, ReentrancyGuard {
         if (!newOrder.isEmpty()) oracle.request(IMarket(this), account);
 
         // after
-        InvariantLib.invariant(context, updateContext, msg.sender, account, newOrder, collateral);
+        InvariantLib.validate(context, updateContext, msg.sender, account, newOrder, collateral);
 
         // store
         _storeUpdateContext(context, updateContext, account);
