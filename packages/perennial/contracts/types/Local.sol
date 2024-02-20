@@ -10,6 +10,7 @@ import "./RiskParameter.sol";
 import "./OracleVersion.sol";
 import "./Order.sol";
 import "./Checkpoint.sol";
+import "../libs/CheckpointLib.sol";
 
 /// @dev Local type
 struct Local {

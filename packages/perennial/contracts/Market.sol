@@ -627,20 +627,24 @@ contract Market is IMarket, Instance, ReentrancyGuard {
         uint256 newOrderId,
         Order memory newOrder
     ) private {
-        Version memory version = _versions[newOrder.timestamp].read();
+        Version memory versionFrom = _versions[context.latestPosition.local.timestamp].read();
+        Version memory versionTo = _versions[newOrder.timestamp].read();
 
         (uint256 fromTimestamp, uint256 fromId) = (context.latestPosition.local.timestamp, context.local.latestId);
-        CheckpointAccumulationResult memory accumulationResult = settlementContext.latestCheckpoint.accumulate(
+
+        CheckpointAccumulationResult memory accumulationResult;
+        (settlementContext.latestCheckpoint, accumulationResult) = CheckpointLib.accumulate(
+            settlementContext.latestCheckpoint,
             newOrder,
             context.latestPosition.local,
-            _versions[context.latestPosition.local.timestamp].read(),
-            version
+            versionFrom,
+            versionTo
         );
         context.local.update(newOrderId, accumulationResult);
         _credit(liquidators[account][newOrderId], accumulationResult.liquidationFee);
         _credit(referrers[account][newOrderId], accumulationResult.subtractiveFee);
 
-        context.latestPosition.local.update(newOrder, version.valid);
+        context.latestPosition.local.update(newOrder, versionTo.valid);
         context.pending.local.sub(newOrder);
 
         _checkpoints[account][newOrder.timestamp].store(settlementContext.latestCheckpoint);
