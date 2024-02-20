@@ -20,8 +20,8 @@ struct CheckpointAccumulationResult {
     UFixed6 subtractiveFee;
 }
 
-/// @title Checkpoint
-/// @notice Holds the state for a checkpoint
+/// @title CheckpointLib
+/// @notice Manages the logic for the global order accumualation
 library CheckpointLib {
     /// @notice Accumulate pnl and fees from the latest position to next position
     /// @param self The Local object to update

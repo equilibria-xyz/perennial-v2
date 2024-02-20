@@ -39,9 +39,8 @@ struct VersionAccumulationResult {
     UFixed6 liquidationFee;
 }
 
-///@title Version
-/// @notice Library that manages global versioned accumulator state.
-/// @dev Manages the value accumulator which measures the change in position value over time.
+/// @title VersionLib
+/// @notice Manages the logic for the global order accumualation
 library VersionLib {
     struct AccumulationContext {
         Global global;

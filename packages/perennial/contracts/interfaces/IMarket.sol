@@ -40,6 +40,7 @@ interface IMarket is IInstance {
     }
 
     struct UpdateContext {
+        bool operator;
         address liquidator;
         address referrer;
         UFixed6 referralFee;

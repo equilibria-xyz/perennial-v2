@@ -84,7 +84,7 @@ library MarketParameterStorageLib {
         );
     }
 
-    function validate(MarketParameter memory self, ProtocolParameter memory protocolParameter) internal pure {
+    function validate(MarketParameter memory self, ProtocolParameter memory protocolParameter) private pure {
         if (self.settlementFee.gt(protocolParameter.maxFeeAbsolute)) revert MarketParameterStorageInvalidError();
 
         if (self.fundingFee.max(self.interestFee).max(self.positionFee).gt(protocolParameter.maxCut))

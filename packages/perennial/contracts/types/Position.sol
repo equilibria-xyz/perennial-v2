@@ -98,7 +98,7 @@ library PositionLib {
 
         // efficiency limit utilization of the maker position
         UFixed6 efficiencyUtilization = major(self).mul(riskParameter.efficiencyLimit).unsafeDiv(self.maker);
-        
+
         // maximum of the two utilizations, capped at 100%
         return netUtilization.max(efficiencyUtilization).min(UFixed6Lib.ONE);
     }
