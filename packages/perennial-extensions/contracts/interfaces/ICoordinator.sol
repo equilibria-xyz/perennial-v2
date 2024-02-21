@@ -5,15 +5,15 @@ import { Token18 } from "@equilibria/root/token/types/Token18.sol";
 import { IMarket, RiskParameter } from "@equilibria/perennial-v2/contracts/interfaces/IMarket.sol";
 
 interface ICoordinator {
-    function setFeeClaimer(address feeClaimer_) external;
-    function setRiskParameterUpdater(address riskParameterUpdater_) external;
+    function setComptroller(address comptroller) external;
+    function setCoordinator(address coordinator) external;
     function claimFee(IMarket market) external;
     function updateRiskParameter(IMarket market, RiskParameter calldata riskParameter) external;
 
-    event FeeClaimerSet(address feeClaimer);
-    event RiskParameterUpdaterSet(address riskParameterUpdater);
+    event ComptrollerSet(address comptroller);
+    event CoordinatorSet(address coordinator);
 
-    error NotFeeClaimer();
-    error NotRiskParameterUpdater();
+    error NotComptroller();
+    error NotCoordinator();
     error NotFeeWithdrawer();
 }

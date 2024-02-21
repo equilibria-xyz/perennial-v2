@@ -7,45 +7,45 @@ import { ICoordinator, IMarket, RiskParameter, Token18 } from "./interfaces/ICoo
 /// @title Coordinator
 /// @notice Manages claiming fees and updating risk parameters for markets
 contract Coordinator is ICoordinator, Ownable {
-    /// @dev The address of the fee claimer
-    address public feeClaimer;
+    /// @dev The address of the comptroller (who can claim the fee)
+    address public comptroller;
 
-    /// @dev The address of the risk parameter updater
-    address public riskParameterUpdater;
+    /// @dev The address of the coordinator (who can update risk parameters)
+    address public coordinator;
 
     /// @notice Constructs the contract
     constructor() {
         __Ownable__initialize();
     }
 
-    /// @notice Updates the fee claimer
-    /// @param feeClaimer_ The address of the new fee claimer
-    function setFeeClaimer(address feeClaimer_) external onlyOwner {
-        feeClaimer = feeClaimer_;
-        emit FeeClaimerSet(feeClaimer_);
+    /// @notice Updates the comptroller
+    /// @param comptroller_ The address of the new comptroller
+    function setComptroller(address comptroller_) external onlyOwner {
+        comptroller = comptroller_;
+        emit ComptrollerSet(comptroller_);
     }
 
-    /// @notice Updates the risk parameter updater
-    /// @param riskParameterUpdater_ The address of the new risk parameter updater
-    function setRiskParameterUpdater(address riskParameterUpdater_) external onlyOwner {
-        riskParameterUpdater = riskParameterUpdater_;
-        emit RiskParameterUpdaterSet(riskParameterUpdater_);
+    /// @notice Updates the coordinator
+    /// @param coordinator_ The address of the new coordinator
+    function setCoordinator(address coordinator_) external onlyOwner {
+        coordinator = coordinator_;
+        emit CoordinatorSet(coordinator_);
     }
 
     /// @notice Claims the fee for a market
     /// @param market The market to claim the fee for
     function claimFee(IMarket market) external {
-        if (msg.sender != feeClaimer) revert NotFeeClaimer();
+        if (msg.sender != comptroller) revert NotComptroller();
         market.claimFee();
         Token18 token = market.token();
-        token.push(feeClaimer, token.balanceOf());
+        token.push(comptroller, token.balanceOf());
     }
 
     /// @notice Updates the risk parameter for a market
     /// @param market The market to update the risk parameter for
     /// @param riskParameter The new risk parameter
     function updateRiskParameter(IMarket market, RiskParameter calldata riskParameter) external {
-        if (msg.sender != riskParameterUpdater) revert NotRiskParameterUpdater();
+        if (msg.sender != coordinator) revert NotCoordinator();
         market.updateRiskParameter(riskParameter);
     }
 }

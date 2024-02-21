@@ -14,9 +14,9 @@ describe('Coordinator', () => {
   let market: FakeContract<IMarket>
   let token: FakeContract<IERC20Metadata>
   let owner: SignerWithAddress
-  let feeClaimer: SignerWithAddress
-  let riskParameterUpdater: SignerWithAddress
-  let coordinator: Coordinator
+  let comptroller: SignerWithAddress
+  let coordinator: SignerWithAddress
+  let coordinatorContract: Coordinator
   const riskParameter = {
     margin: parse6decimal('0.3'),
     maintenance: parse6decimal('0.3'),
@@ -53,79 +53,78 @@ describe('Coordinator', () => {
   }
 
   beforeEach(async () => {
-    ;[owner, feeClaimer, riskParameterUpdater] = await ethers.getSigners()
+    ;[owner, comptroller, coordinator] = await ethers.getSigners()
     market = await smock.fake<IMarket>('IMarket')
     token = await smock.fake<IERC20Metadata>('IERC20Metadata')
     token.transfer.returns(true)
     market.token.returns(token.address)
 
-    coordinator = await new Coordinator__factory(owner).deploy()
+    coordinatorContract = await new Coordinator__factory(owner).deploy()
   })
 
   describe('#constructor', () => {
     it('should set the owner', async () => {
-      expect(await coordinator.owner()).to.eq(owner.address)
+      expect(await coordinatorContract.owner()).to.eq(owner.address)
     })
 
-    it('should leave the feeClaimer and riskParameterUpdater uninitialized', async () => {
-      expect(await coordinator.feeClaimer()).to.eq(constants.AddressZero)
-      expect(await coordinator.riskParameterUpdater()).to.eq(constants.AddressZero)
-    })
-  })
-
-  describe('#setFeeClaimer', () => {
-    it('should revert if not called by the owner', async () => {
-      await expect(coordinator.connect(feeClaimer).setFeeClaimer(feeClaimer.address)).to.be.revertedWithCustomError(
-        coordinator,
-        'OwnableNotOwnerError',
-      )
-    })
-
-    it('should set the feeClaimer', async () => {
-      await coordinator.setFeeClaimer(feeClaimer.address)
-      expect(await coordinator.feeClaimer()).to.eq(feeClaimer.address)
+    it('should leave the comptroller and coordinator uninitialized', async () => {
+      expect(await coordinatorContract.comptroller()).to.eq(constants.AddressZero)
+      expect(await coordinatorContract.coordinator()).to.eq(constants.AddressZero)
     })
   })
 
-  describe('#setRiskParameterUpdater', () => {
+  describe('#setComptroller', () => {
     it('should revert if not called by the owner', async () => {
       await expect(
-        coordinator.connect(riskParameterUpdater).setRiskParameterUpdater(riskParameterUpdater.address),
-      ).to.be.revertedWithCustomError(coordinator, 'OwnableNotOwnerError')
+        coordinatorContract.connect(comptroller).setComptroller(comptroller.address),
+      ).to.be.revertedWithCustomError(coordinatorContract, 'OwnableNotOwnerError')
     })
 
-    it('should set the riskParameterUpdater', async () => {
-      await coordinator.setRiskParameterUpdater(riskParameterUpdater.address)
-      expect(await coordinator.riskParameterUpdater()).to.eq(riskParameterUpdater.address)
+    it('should set the comptroller', async () => {
+      await coordinatorContract.setComptroller(comptroller.address)
+      expect(await coordinatorContract.comptroller()).to.eq(comptroller.address)
+    })
+  })
+
+  describe('#setCoordinator', () => {
+    it('should revert if not called by the owner', async () => {
+      await expect(
+        coordinatorContract.connect(coordinator).setCoordinator(coordinator.address),
+      ).to.be.revertedWithCustomError(coordinatorContract, 'OwnableNotOwnerError')
+    })
+
+    it('should set the coordinator', async () => {
+      await coordinatorContract.setCoordinator(coordinator.address)
+      expect(await coordinatorContract.coordinator()).to.eq(coordinator.address)
     })
   })
 
   describe('#claimFee', () => {
-    it('should revert if not called by the feeClaimer', async () => {
-      await expect(coordinator.connect(owner).claimFee(market.address)).to.be.revertedWithCustomError(
-        coordinator,
-        'NotFeeClaimer',
+    it('should revert if not called by the comptroller', async () => {
+      await expect(coordinatorContract.connect(owner).claimFee(market.address)).to.be.revertedWithCustomError(
+        coordinatorContract,
+        'NotComptroller',
       )
     })
 
     it('should call claimFee on the market', async () => {
-      await coordinator.setFeeClaimer(feeClaimer.address)
-      await coordinator.connect(feeClaimer).claimFee(market.address)
+      await coordinatorContract.setComptroller(comptroller.address)
+      await coordinatorContract.connect(comptroller).claimFee(market.address)
       expect(market.claimFee).to.have.been.called
       expect(token.transfer).to.have.been.called
     })
   })
 
   describe('#updateRiskParameter', () => {
-    it('should revert if not called by the riskParameterUpdater', async () => {
+    it('should revert if not called by the coordinator', async () => {
       await expect(
-        coordinator.connect(owner).updateRiskParameter(market.address, riskParameter),
-      ).to.be.revertedWithCustomError(coordinator, 'NotRiskParameterUpdater')
+        coordinatorContract.connect(owner).updateRiskParameter(market.address, riskParameter),
+      ).to.be.revertedWithCustomError(coordinatorContract, 'NotCoordinator')
     })
 
     it('should call updateRiskParameters on the market', async () => {
-      await coordinator.setRiskParameterUpdater(riskParameterUpdater.address)
-      await coordinator.connect(riskParameterUpdater).updateRiskParameter(market.address, riskParameter)
+      await coordinatorContract.setCoordinator(coordinator.address)
+      await coordinatorContract.connect(coordinator).updateRiskParameter(market.address, riskParameter)
       expect(market.updateRiskParameter).to.have.been.called
     })
   })
