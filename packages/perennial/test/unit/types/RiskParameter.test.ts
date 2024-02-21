@@ -60,6 +60,7 @@ const PROTOCOL_PARAMETER: ProtocolParameterStruct = {
   maxRate: parse6decimal('0.8'),
   minMaintenance: 1,
   minEfficiency: 2,
+  referralFee: 0,
 }
 
 describe('RiskParameter', () => {

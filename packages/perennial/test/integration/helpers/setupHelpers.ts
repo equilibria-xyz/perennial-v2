@@ -109,6 +109,7 @@ export async function deployProtocol(chainlinkContext?: ChainlinkContext): Promi
     maxRate: parse6decimal('10.00'),
     minMaintenance: parse6decimal('0.01'),
     minEfficiency: parse6decimal('0.1'),
+    referralFee: 0,
   })
   await oracleFactory.connect(owner).register(chainlink.oracleFactory.address)
   await oracleFactory.connect(owner).authorize(marketFactory.address)
@@ -231,5 +232,12 @@ export async function createMarket(
 export async function settle(market: IMarket, account: SignerWithAddress): Promise<ContractTransaction> {
   return market
     .connect(account)
-    .update(account.address, constants.MaxUint256, constants.MaxUint256, constants.MaxUint256, 0, false)
+    ['update(address,uint256,uint256,uint256,int256,bool)'](
+      account.address,
+      constants.MaxUint256,
+      constants.MaxUint256,
+      constants.MaxUint256,
+      0,
+      false,
+    )
 }

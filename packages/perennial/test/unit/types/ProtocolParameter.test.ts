@@ -19,6 +19,7 @@ export const VALID_PROTOCOL_PARAMETER: ProtocolParameterStruct = {
   maxRate: 6,
   minMaintenance: 7,
   minEfficiency: 8,
+  referralFee: 9,
 }
 
 describe('ProtocolParameter', () => {
@@ -44,6 +45,7 @@ describe('ProtocolParameter', () => {
       expect(value.maxRate).to.equal(6)
       expect(value.minMaintenance).to.equal(7)
       expect(value.minEfficiency).to.equal(8)
+      expect(value.referralFee).to.equal(9)
     })
 
     context('.protocolFee', async () => {
@@ -188,6 +190,27 @@ describe('ProtocolParameter', () => {
           protocolParameter.validateAndStore({
             ...VALID_PROTOCOL_PARAMETER,
             minEfficiency: BigNumber.from(2).pow(STORAGE_SIZE),
+          }),
+        ).to.be.revertedWithCustomError(protocolParameter, 'ProtocolParameterStorageInvalidError')
+      })
+    })
+
+    context('.referralFee', async () => {
+      const STORAGE_SIZE = 24
+      it('saves if in range', async () => {
+        await protocolParameter.validateAndStore({
+          ...VALID_PROTOCOL_PARAMETER,
+          referralFee: BigNumber.from(2).pow(STORAGE_SIZE).sub(1),
+        })
+        const value = await protocolParameter.read()
+        expect(value.referralFee).to.equal(BigNumber.from(2).pow(STORAGE_SIZE).sub(1))
+      })
+
+      it('reverts if out of range', async () => {
+        await expect(
+          protocolParameter.validateAndStore({
+            ...VALID_PROTOCOL_PARAMETER,
+            referralFee: BigNumber.from(2).pow(STORAGE_SIZE),
           }),
         ).to.be.revertedWithCustomError(protocolParameter, 'ProtocolParameterStorageInvalidError')
       })

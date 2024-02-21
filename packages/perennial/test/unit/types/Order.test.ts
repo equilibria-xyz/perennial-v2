@@ -38,6 +38,8 @@ describe('Order', () => {
       shortNeg: 8,
       collateral: 9,
       protection: 1,
+      makerReferral: 11,
+      takerReferral: 12,
     }
 
     let orderGlobal: OrderGlobalTester
@@ -203,6 +205,8 @@ describe('Order', () => {
       shortNeg: 0,
       collateral: 9,
       protection: 1,
+      makerReferral: 11,
+      takerReferral: 12,
     }
 
     let orderLocal: OrderLocalTester
@@ -399,6 +403,8 @@ describe('Order', () => {
         expect(value.timestamp).to.equal(10)
         expect(value.orders).to.equal(2)
         expect(value.collateral).to.equal(9)
+        expect(value.makerReferral).to.equal(11)
+        expect(value.takerReferral).to.equal(12)
       })
 
       context('.timestamp', async () => {
@@ -477,6 +483,48 @@ describe('Order', () => {
             order.store({
               ...validStoredOrder,
               collateral: BigNumber.from(2).pow(STORAGE_SIZE).add(1).mul(-1),
+            }),
+          ).to.be.revertedWithCustomError(order, 'OrderStorageInvalidError')
+        })
+      })
+
+      context('.makerReferral', async () => {
+        const STORAGE_SIZE = 64
+        it('saves if in range', async () => {
+          await order.store({
+            ...validStoredOrder,
+            makerReferral: BigNumber.from(2).pow(STORAGE_SIZE).sub(1),
+          })
+          const value = await order.read()
+          expect(value.makerReferral).to.equal(BigNumber.from(2).pow(STORAGE_SIZE).sub(1))
+        })
+
+        it('reverts if currentId out of range', async () => {
+          await expect(
+            order.store({
+              ...validStoredOrder,
+              makerReferral: BigNumber.from(2).pow(STORAGE_SIZE),
+            }),
+          ).to.be.revertedWithCustomError(order, 'OrderStorageInvalidError')
+        })
+      })
+
+      context('.takerReferral', async () => {
+        const STORAGE_SIZE = 64
+        it('saves if in range', async () => {
+          await order.store({
+            ...validStoredOrder,
+            takerReferral: BigNumber.from(2).pow(STORAGE_SIZE).sub(1),
+          })
+          const value = await order.read()
+          expect(value.takerReferral).to.equal(BigNumber.from(2).pow(STORAGE_SIZE).sub(1))
+        })
+
+        it('reverts if currentId out of range', async () => {
+          await expect(
+            order.store({
+              ...validStoredOrder,
+              takerReferral: BigNumber.from(2).pow(STORAGE_SIZE),
             }),
           ).to.be.revertedWithCustomError(order, 'OrderStorageInvalidError')
         })
