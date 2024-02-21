@@ -271,6 +271,7 @@ testOracles.forEach(testOracle => {
         maxRate: parse6decimal('10.00'),
         minMaintenance: parse6decimal('0.01'),
         minEfficiency: parse6decimal('0.1'),
+        referralFee: 0,
       })
 
       const riskParameter = {
