@@ -513,6 +513,36 @@ describe('Market', () => {
       await market.connect(owner).updateRiskParameter(riskParameter)
     })
 
+    describe('#updateOracle', async () => {
+      it('updates the oracle', async () => {
+        const oracle2 = await smock.fake<IOracleProvider>('IOracleProvider')
+
+        await expect(market.connect(owner).updateOracle(oracle2.address))
+          .to.emit(market, 'OracleUpdated')
+          .withArgs(oracle2.address)
+
+        expect(await market.oracle()).to.equal(oracle2.address)
+      })
+
+      it('reverts if not owner (user)', async () => {
+        const oracle2 = await smock.fake<IOracleProvider>('IOracleProvider')
+
+        await expect(market.connect(user).updateOracle(oracle2.address)).to.be.revertedWithCustomError(
+          market,
+          'InstanceNotOwnerError',
+        )
+      })
+
+      it('reverts if not owner (coordinator)', async () => {
+        const oracle2 = await smock.fake<IOracleProvider>('IOracleProvider')
+
+        await expect(market.connect(coordinator).updateOracle(oracle2.address)).to.be.revertedWithCustomError(
+          market,
+          'InstanceNotOwnerError',
+        )
+      })
+    })
+
     describe('#updateParameter', async () => {
       const defaultMarketParameter = {
         fundingFee: parse6decimal('0.03'),

@@ -63,6 +63,7 @@ interface IMarket is IInstance {
     event ExposureClaimed(address indexed account, Fixed6 amount);
     event ParameterUpdated(MarketParameter newParameter);
     event RiskParameterUpdated(RiskParameter newRiskParameter);
+    event OracleUpdated(IOracleProvider newOracle);
 
     // sig: 0x0fe90964
     error MarketInsufficientLiquidityError();
@@ -133,6 +134,7 @@ interface IMarket is IInstance {
     function update(address account, UFixed6 newMaker, UFixed6 newLong, UFixed6 newShort, Fixed6 collateral, bool protect) external;
     function parameter() external view returns (MarketParameter memory);
     function riskParameter() external view returns (RiskParameter memory);
+    function updateOracle(IOracleProvider newOracle) external;
     function updateParameter(address newBeneficiary, address newCoordinator, MarketParameter memory newParameter) external;
     function updateRiskParameter(RiskParameter memory newRiskParameter) external;
     function claimFee() external;
