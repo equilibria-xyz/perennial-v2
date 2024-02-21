@@ -496,7 +496,7 @@ contract Market is IMarket, Instance, ReentrancyGuard {
         address referrer
     ) private pure {
         if (newOrder.makerReferral.isZero() && newOrder.takerReferral.isZero()) return;
-        if (updateContext.referrer == address(0)) { updateContext.referrer = referrer; return; }
+        if (updateContext.referrer == address(0)) updateContext.referrer = referrer;
         if (updateContext.referrer == referrer) return;
 
         revert MarketInvalidReferrerError();
