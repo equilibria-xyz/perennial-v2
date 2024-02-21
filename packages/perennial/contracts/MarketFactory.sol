@@ -21,6 +21,9 @@ contract MarketFactory is IMarketFactory, Factory {
     ///      Note: address(0) is used in place of the deprecated payoff provider field
     mapping(IOracleProvider => mapping(address => IMarket)) private _markets;
 
+    /// @dev The referreral fee level for each referrer
+    mapping(address => UFixed6) public referralFee;
+
     /// @notice Constructs the contract
     /// @param oracleFactory_ The oracle factory
     /// @param implementation_ The initial market implementation contract
@@ -55,6 +58,14 @@ contract MarketFactory is IMarketFactory, Factory {
     function updateOperator(address operator, bool newEnabled) external {
         operators[msg.sender][operator] = newEnabled;
         emit OperatorUpdated(msg.sender, operator, newEnabled);
+    }
+
+    /// @notice Updates the referral fee for a referrer
+    /// @param referrer The referrer to update
+    /// @param newReferralFee The new referral fee
+    function updateReferralFee(address referrer, UFixed6 newReferralFee) external onlyOwner {
+        referralFee[referrer] = newReferralFee;
+        emit ReferralFeeUpdated(referrer, newReferralFee);
     }
 
     /// @notice Creates a new market market with the given definition

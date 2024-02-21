@@ -45,7 +45,6 @@ import {
   ProxyAdmin__factory,
   TransparentUpgradeableProxy__factory,
 } from '@equilibria/perennial-v2/types/generated'
-import { parse } from 'url'
 
 const { ethers } = HRE
 
@@ -136,6 +135,7 @@ export async function deployProtocol(chainlinkContext?: ChainlinkContext): Promi
     maxRate: parse6decimal('10.00'),
     minMaintenance: parse6decimal('0.01'),
     minEfficiency: parse6decimal('0.1'),
+    referralFee: 0,
   })
   await oracleFactory.connect(owner).register(chainlink.oracleFactory.address)
   await oracleFactory.connect(owner).authorize(marketFactory.address)
@@ -284,7 +284,14 @@ export async function createMarket(
 export async function settle(market: IMarket, account: SignerWithAddress): Promise<ContractTransaction> {
   return market
     .connect(account)
-    .update(account.address, constants.MaxUint256, constants.MaxUint256, constants.MaxUint256, 0, false)
+    ['update(address,uint256,uint256,uint256,int256,bool)'](
+      account.address,
+      constants.MaxUint256,
+      constants.MaxUint256,
+      constants.MaxUint256,
+      0,
+      false,
+    )
 }
 
 export async function createVault(
@@ -446,10 +453,46 @@ export async function createVault(
   await asset.connect(btcUser2).approve(btcMarket.address, ethers.constants.MaxUint256)
 
   // Seed markets with some activity
-  await ethMarket.connect(user).update(user.address, parse6decimal('100'), 0, 0, parse6decimal('100000'), false)
-  await ethMarket.connect(user2).update(user2.address, 0, parse6decimal('50'), 0, parse6decimal('100000'), false)
-  await btcMarket.connect(btcUser1).update(btcUser1.address, parse6decimal('20'), 0, 0, parse6decimal('100000'), false)
-  await btcMarket.connect(btcUser2).update(btcUser2.address, 0, parse6decimal('10'), 0, parse6decimal('100000'), false)
+  await ethMarket
+    .connect(user)
+    ['update(address,uint256,uint256,uint256,int256,bool)'](
+      user.address,
+      parse6decimal('100'),
+      0,
+      0,
+      parse6decimal('100000'),
+      false,
+    )
+  await ethMarket
+    .connect(user2)
+    ['update(address,uint256,uint256,uint256,int256,bool)'](
+      user2.address,
+      0,
+      parse6decimal('50'),
+      0,
+      parse6decimal('100000'),
+      false,
+    )
+  await btcMarket
+    .connect(btcUser1)
+    ['update(address,uint256,uint256,uint256,int256,bool)'](
+      btcUser1.address,
+      parse6decimal('20'),
+      0,
+      0,
+      parse6decimal('100000'),
+      false,
+    )
+  await btcMarket
+    .connect(btcUser2)
+    ['update(address,uint256,uint256,uint256,int256,bool)'](
+      btcUser2.address,
+      0,
+      parse6decimal('10'),
+      0,
+      parse6decimal('100000'),
+      false,
+    )
 
   return [vault, vaultFactory, ethSubOracle, btcSubOracle]
 }

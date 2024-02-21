@@ -33,6 +33,7 @@ struct CheckpointAccumulationResult {
     Fixed6 adiabaticFee;
     UFixed6 settlementFee;
     UFixed6 liquidationFee;
+    UFixed6 subtractiveFee;
 }
 
 /// @title Checkpoint
@@ -54,7 +55,7 @@ library CheckpointLib {
     ) internal pure returns (CheckpointAccumulationResult memory result) {
         // accumulate
         result.collateral = _accumulateCollateral(fromPosition, fromVersion, toVersion);
-        result.linearFee = _accumulateLinearFee(order, toVersion);
+        (result.linearFee, result.subtractiveFee) = _accumulateLinearFee(order, toVersion);
         result.proportionalFee = _accumulateProportionalFee(order, toVersion);
         result.adiabaticFee = _accumulateAdiabaticFee(order, toVersion);
         result.settlementFee = _accumulateSettlementFee(order, toVersion);
@@ -91,10 +92,21 @@ library CheckpointLib {
     function _accumulateLinearFee(
         Order memory order,
         Version memory toVersion
-    ) private pure returns (Fixed6) {
-        return Fixed6Lib.ZERO
-            .sub(toVersion.makerLinearFee.accumulated(Accumulator6(Fixed6Lib.ZERO), order.makerTotal()))
+    ) private pure returns (Fixed6 linearFee, UFixed6 subtractiveFee) {
+        Fixed6 makerLinearFee = Fixed6Lib.ZERO
+            .sub(toVersion.makerLinearFee.accumulated(Accumulator6(Fixed6Lib.ZERO), order.makerTotal()));
+        Fixed6 takerLinearFee = Fixed6Lib.ZERO
             .sub(toVersion.takerLinearFee.accumulated(Accumulator6(Fixed6Lib.ZERO), order.takerTotal()));
+
+        UFixed6 makerSubtractiveFee = order.makerTotal().isZero() ?
+            UFixed6Lib.ZERO :
+            UFixed6Lib.from(makerLinearFee).muldiv(order.makerReferral, order.makerTotal());
+        UFixed6 takerSubtractiveFee = order.takerTotal().isZero() ?
+            UFixed6Lib.ZERO :
+            UFixed6Lib.from(takerLinearFee).muldiv(order.takerReferral, order.takerTotal());
+
+        linearFee = makerLinearFee.add(takerLinearFee);
+        subtractiveFee = makerSubtractiveFee.add(takerSubtractiveFee);
     }
 
     /// @notice Accumulate trade fees for the next position

@@ -63,6 +63,7 @@ struct VersionAccumulationResult {
     UFixed6 positionFee;
     UFixed6 positionFeeMaker;
     UFixed6 positionFeeProtocol;
+    UFixed6 positionFeeSubtractive;
     Fixed6 positionFeeExposure;
     Fixed6 positionFeeExposureMaker;
     Fixed6 positionFeeExposureProtocol;
@@ -111,6 +112,7 @@ library VersionLib {
     /// @param self The Version object to update
     /// @param global The global state
     /// @param fromPosition The previous latest position
+    /// @param order The new order
     /// @param fromOracleVersion The previous latest oracle version
     /// @param toOracleVersion The next latest oracle version
     /// @param marketParameter The market parameter
@@ -227,19 +229,28 @@ library VersionLib {
     ) private pure {
         if (!context.toOracleVersion.valid) return;
 
-        UFixed6 makerLinearFee = context.riskParameter.makerFee.linear(
-            Fixed6Lib.from(context.order.makerTotal()),
-            context.toOracleVersion.price.abs()
+        (UFixed6 makerLinearFee, UFixed6 makerSubtractiveFee) = _accumulateSubtractiveFee(
+            context.riskParameter.makerFee.linear(
+                Fixed6Lib.from(context.order.makerTotal()),
+                context.toOracleVersion.price.abs()
+            ),
+            context.order.makerTotal(),
+            context.order.makerReferral,
+            self.makerLinearFee
         );
-        self.makerLinearFee.decrement(Fixed6Lib.from(makerLinearFee), context.order.makerTotal());
 
-        UFixed6 takerLinearFee = context.riskParameter.takerFee.linear(
-            Fixed6Lib.from(context.order.takerTotal()),
-            context.toOracleVersion.price.abs()
+        (UFixed6 takerLinearFee, UFixed6 takerSubtractiveFee) = _accumulateSubtractiveFee(
+            context.riskParameter.takerFee.linear(
+                Fixed6Lib.from(context.order.takerTotal()),
+                context.toOracleVersion.price.abs()
+            ),
+            context.order.takerTotal(),
+            context.order.takerReferral,
+            self.takerLinearFee
         );
-        self.takerLinearFee.decrement(Fixed6Lib.from(takerLinearFee), context.order.takerTotal());
 
         UFixed6 linearFee = makerLinearFee.add(takerLinearFee);
+
         UFixed6 protocolFee = context.fromPosition.maker.isZero() ?
             linearFee :
             context.marketParameter.positionFee.mul(linearFee);
@@ -249,9 +260,28 @@ library VersionLib {
         result.positionFee = result.positionFee.add(linearFee);
         result.positionFeeMaker = result.positionFeeMaker.add(positionFeeMaker);
         result.positionFeeProtocol = result.positionFeeProtocol.add(protocolFee);
+        result.positionFeeSubtractive = result.positionFeeSubtractive.add(makerSubtractiveFee).add(takerSubtractiveFee);
     }
 
-        /// @notice Globally accumulates proportional fees since last oracle update
+    /// @notice Globally accumulates subtractive fees since last oracle update
+    /// @param linearFee The linear fee to accumulate
+    /// @param total The total order size for the fee
+    /// @param referral The referral size for the fee
+    /// @param linearFeeAccumulator The accumulator for the linear fee
+    /// @return newLinearFee The new linear fee after subtractive fees
+    /// @return subtractiveFee The total subtractive fee
+    function _accumulateSubtractiveFee(
+        UFixed6 linearFee,
+        UFixed6 total,
+        UFixed6 referral,
+        Accumulator6 memory linearFeeAccumulator
+    ) private pure returns (UFixed6 newLinearFee, UFixed6 subtractiveFee) {
+        linearFeeAccumulator.decrement(Fixed6Lib.from(linearFee), total);
+        subtractiveFee = total.isZero() ? UFixed6Lib.ZERO : linearFee.muldiv(referral, total);
+        newLinearFee = linearFee.sub(subtractiveFee);
+    }
+
+    /// @notice Globally accumulates proportional fees since last oracle update
     /// @param self The Version object to update
     /// @param context The accumulation context
     function _accumulateProportionalFee(

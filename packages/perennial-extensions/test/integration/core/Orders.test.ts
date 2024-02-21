@@ -56,7 +56,9 @@ describe('Orders', () => {
     // deposit maker up to maker limit (UFixed6)
     await dsu.connect(userB).approve(market.address, dsuCollateral)
 
-    await market.connect(userB).update(userB.address, position, 0, 0, collateral, false)
+    await market
+      .connect(userB)
+      ['update(address,uint256,uint256,uint256,int256,bool)'](userB.address, position, 0, 0, collateral, false)
     await chainlink.nextWithPriceModification(() => PRICE)
     settle(market, userB)
 

@@ -39,6 +39,7 @@ const PROTOCOL_PARAMETER: ProtocolParameterStruct = {
   maxRate: parse6decimal('1'),
   minMaintenance: 0,
   minEfficiency: 0,
+  referralFee: 0,
 }
 
 describe('MarketParameter', () => {

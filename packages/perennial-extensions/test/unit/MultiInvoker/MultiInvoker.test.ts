@@ -134,7 +134,7 @@ describe('MultiInvoker', () => {
       usdc.transfer.whenCalledWith(user.address, collateral).returns(true)
 
       vault.update.returns(true)
-      market.update.returns(true)
+      market['update(address,uint256,uint256,uint256,int256,bool)'].returns(true)
     }
 
     beforeEach(async () => {
@@ -147,7 +147,14 @@ describe('MultiInvoker', () => {
       ).to.not.be.reverted
 
       expect(dsu.transferFrom).to.have.been.calledWith(user.address, multiInvoker.address, collateral.mul(1e12))
-      expect(market.update).to.have.been.calledWith(user.address, MAX_UINT, MAX_UINT, MAX_UINT, collateral, false)
+      expect(market['update(address,uint256,uint256,uint256,int256,bool)']).to.have.been.calledWith(
+        user.address,
+        MAX_UINT,
+        MAX_UINT,
+        MAX_UINT,
+        collateral,
+        false,
+      )
     })
 
     it('wraps and deposits collateral', async () => {
@@ -190,7 +197,7 @@ describe('MultiInvoker', () => {
       ).to.not.be.reverted
 
       expect(dsu.transfer).to.have.been.calledWith(user.address, dsuCollateral)
-      expect(market.update).to.have.been.calledWith(
+      expect(market['update(address,uint256,uint256,uint256,int256,bool)']).to.have.been.calledWith(
         user.address,
         MAX_UINT,
         MAX_UINT,
