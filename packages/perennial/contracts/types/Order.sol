@@ -221,6 +221,20 @@ library OrderLib {
         return self.shortPos.add(self.longNeg);
     }
 
+    /// @notice Returns the total maker delta of the order
+    /// @param self The order object to check
+    /// @return The total maker delta of the order
+    function makerTotal(Order memory self) internal pure returns (UFixed6) {
+        return self.makerPos.add(self.makerNeg);
+    }
+
+    /// @notice Returns the total taker delta of the order
+    /// @param self The order object to check
+    /// @return The total taker delta of the order
+    function takerTotal(Order memory self) internal pure returns (UFixed6) {
+        return self.takerPos().add(self.takerNeg());
+    }
+
     /// @notice Returns the positive delta of the order
     /// @param self The order object to check
     /// @return The positive delta of the order
@@ -252,7 +266,7 @@ library OrderLib {
         );
     }
 
-    /// @notice Subtracts the latest local order from current global order 
+    /// @notice Subtracts the latest local order from current global order
     /// @param self The order object to update
     /// @param order The latest order
     function sub(Order memory self, Order memory order) internal pure {

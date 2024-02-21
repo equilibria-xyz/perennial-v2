@@ -59,6 +59,10 @@ export interface Version {
   makerValue: Accumulator
   longValue: Accumulator
   shortValue: Accumulator
+  makerLinearFee: Accumulator
+  makerProportionalFee: Accumulator
+  takerLinearFee: Accumulator
+  takerProportionalFee: Accumulator
   makerPosFee: Accumulator
   makerNegFee: Accumulator
   takerPosFee: Accumulator
@@ -195,6 +199,10 @@ export const DEFAULT_VERSION: Version = {
   makerValue: { _value: 0 },
   longValue: { _value: 0 },
   shortValue: { _value: 0 },
+  makerLinearFee: { _value: 0 },
+  makerProportionalFee: { _value: 0 },
+  takerLinearFee: { _value: 0 },
+  takerProportionalFee: { _value: 0 },
   makerPosFee: { _value: 0 },
   makerNegFee: { _value: 0 },
   takerPosFee: { _value: 0 },
