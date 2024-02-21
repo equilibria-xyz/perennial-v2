@@ -60,9 +60,9 @@ contract MarketFactory is IMarketFactory, Factory {
         emit OperatorUpdated(msg.sender, operator, newEnabled);
     }
 
-    /// @notice Updates the status of an operator for the caller
+    /// @notice Updates the referral fee for a referrer
     /// @param referrer The referrer to update
-    /// @param newReferralFee The new
+    /// @param newReferralFee The new referral fee
     function updateReferralFee(address referrer, UFixed6 newReferralFee) external onlyOwner {
         referralFee[referrer] = newReferralFee;
         emit ReferralFeeUpdated(referrer, newReferralFee);

@@ -367,12 +367,7 @@ contract Market is IMarket, Instance, ReentrancyGuard {
         // load external actors
         updateContext.liquidator = liquidators[account][context.local.currentId];
         updateContext.referrer = referrers[account][context.local.currentId];
-
-        // load parameters
-        if (referrer != address(0)) {
-            updateContext.referralFee = IMarketFactory(address(factory())).referralFee(referrer);
-            if (updateContext.referralFee.isZero()) updateContext.referralFee = context.protocolParameter.referralFee;
-        }
+        updateContext.referralFee = IMarketFactory(address(factory())).referralFee(referrer);
     }
 
     /// @notice Stores the context for the update process
@@ -416,6 +411,9 @@ contract Market is IMarket, Instance, ReentrancyGuard {
         newLong = _processPositionMagicValue(context, updateContext.currentPosition.local.long, newLong);
         newShort = _processPositionMagicValue(context, updateContext.currentPosition.local.short, newShort);
 
+        // referral fee
+        UFixed6 referralFee = _processReferralFee(context, updateContext, referrer);
+
         // advance to next id if applicable
         if (context.currentTimestamp > updateContext.order.local.timestamp) {
             updateContext.order.local.next(context.currentTimestamp);
@@ -435,7 +433,7 @@ contract Market is IMarket, Instance, ReentrancyGuard {
             newLong,
             newShort,
             protect,
-            updateContext.referralFee
+            referralFee
         );
         updateContext.currentPosition.global.update(newOrder, true);
         updateContext.currentPosition.local.update(newOrder, true);
@@ -453,10 +451,7 @@ contract Market is IMarket, Instance, ReentrancyGuard {
         if (newOrder.protected()) updateContext.liquidator = msg.sender;
 
         // apply referrer
-        if (updateContext.referrer == address(0))
-            updateContext.referrer = referrer;
-        else if (referrer != address(0) && updateContext.referrer != referrer)
-            revert MarketInvalidReferrerError();
+        _processReferrer(updateContext, newOrder, referrer);
 
         // request version
         if (!newOrder.isEmpty()) oracle.request(IMarket(this), account);
@@ -474,6 +469,37 @@ contract Market is IMarket, Instance, ReentrancyGuard {
         // events
         emit Updated(msg.sender, account, context.currentTimestamp, newMaker, newLong, newShort, collateral, protect);
         emit OrderCreated(account, newOrder);
+    }
+
+    /// @notice Processes the referral fee for the given order
+    /// @param context The context to use
+    /// @param updateContext The update context to use
+    /// @param referrer The referrer of the order
+    /// @return The referral fee to apply
+    function _processReferralFee(
+        Context memory context,
+        UpdateContext memory updateContext,
+        address referrer
+    ) private pure returns (UFixed6) {
+        if (referrer == address(0)) return UFixed6Lib.ZERO;
+        if (!updateContext.referralFee.isZero()) return updateContext.referralFee;
+        return context.protocolParameter.referralFee;
+    }
+
+    /// @notice Processes the referrer for the given order
+    /// @param updateContext The update context to use
+    /// @param newOrder The order to process
+    /// @param referrer The referrer of the order
+    function _processReferrer(
+        UpdateContext memory updateContext,
+        Order memory newOrder,
+        address referrer
+    ) private pure {
+        if (newOrder.makerReferral.isZero() && newOrder.takerReferral.isZero()) return;
+        if (updateContext.referrer == address(0)) { updateContext.referrer = referrer; return; }
+        if (updateContext.referrer == referrer) return;
+
+        revert MarketInvalidReferrerError();
     }
 
     /// @notice Loads the settlement context
