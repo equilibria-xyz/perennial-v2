@@ -45,6 +45,7 @@
     "@types/isomorphic-fetch": "^0.0.37",
     "graphql": "^16.8.1",
     "graphql-request": "^6.1.0",
-    "isomorphic-fetch": "^3.0.0"
+    "isomorphic-fetch": "^3.0.0",
+    "sstore2": "https://github.com/0xsequence/sstore2"
   }
 }
