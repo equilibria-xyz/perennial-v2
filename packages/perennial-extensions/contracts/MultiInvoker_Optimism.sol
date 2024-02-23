@@ -17,11 +17,20 @@ contract MultiInvoker_Optimism is MultiInvoker, Kept_Optimism {
         IEmptySetReserve reserve_,
         uint256 keepBufferBase_,
         uint256 keepBufferCalldata_
-    ) MultiInvoker(usdc_, dsu_, marketFactory_, vaultFactory_, batcher_, reserve_, keepBufferBase_, keepBufferCalldata_) { }
+    ) MultiInvoker(
+        usdc_,
+        dsu_,
+        marketFactory_,
+        vaultFactory_,
+        batcher_,
+        reserve_,
+        keepBufferBase_,
+        keepBufferCalldata_
+    ) { }
 
     /// @dev Use the Kept_Optimism implementation for calculating the dynamic fee
     function _calldataFee(
-        bytes calldata applicableCalldata,
+        bytes memory applicableCalldata,
         UFixed18 multiplierCalldata,
         uint256 bufferCalldata
     ) internal view override(Kept_Optimism, Kept) returns (UFixed18) {
@@ -29,7 +38,10 @@ contract MultiInvoker_Optimism is MultiInvoker, Kept_Optimism {
     }
 
     /// @dev Use the PythOracle implementation for raising the keeper fee
-    function _raiseKeeperFee(UFixed18 amount, bytes memory data) internal override(MultiInvoker, Kept) {
-        MultiInvoker._raiseKeeperFee(amount, data);
+    function _raiseKeeperFee(
+        UFixed18 amount,
+        bytes memory data
+    ) internal override(MultiInvoker, Kept) returns (UFixed18) {
+        return MultiInvoker._raiseKeeperFee(amount, data);
     }
 }
