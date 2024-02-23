@@ -2,7 +2,9 @@
 pragma solidity ^0.8.13;
 
 import "@equilibria/root/number/types/UFixed6.sol";
+import "@equilibria/perennial-v2/contracts/interfaces/IMarket.sol";
 import "@equilibria/perennial-v2/contracts/types/Position.sol";
+import "./InterfaceFee.sol";
 
 struct TriggerOrder {
     uint8 side;
@@ -10,6 +12,8 @@ struct TriggerOrder {
     UFixed6 fee;
     Fixed6 price;
     Fixed6 delta;
+    InterfaceFee interfaceFee1;
+    InterfaceFee interfaceFee2;
 }
 using TriggerOrderLib for TriggerOrder global;
 struct StoredTriggerOrder {
@@ -20,6 +24,18 @@ struct StoredTriggerOrder {
     int64 price;        // <= 9.22t
     int64 delta;        // <= 9.22t
     bytes6 __unallocated0__;
+
+    /* slot 1 */
+    address interfaceFeeReceiver1;
+    uint48 interfaceFeeAmount1;      // <= 281m
+    bool interfaceFeeUnwrap1;
+    bytes5 __unallocated1__;
+
+    /* slot 2 */
+    address interfaceFeeReceiver2;
+    uint48 interfaceFeeAmount2;      // <= 281m
+    bool interfaceFeeUnwrap2;
+    bytes5 __unallocated2__;
 }
 struct TriggerOrderStorage { StoredTriggerOrder value; }
 using TriggerOrderStorageLib for TriggerOrderStorage global;
@@ -29,17 +45,33 @@ using TriggerOrderStorageLib for TriggerOrderStorage global;
  * @notice
  */
 library TriggerOrderLib {
-    function fillable(TriggerOrder memory self, Fixed6 latestPrice) internal pure returns (bool) {
-        if (self.comparison == 1) return latestPrice.gte(self.price);
-        if (self.comparison == -1) return latestPrice.lte(self.price);
+    function fillable(TriggerOrder memory self, OracleVersion memory latestVersion) internal pure returns (bool) {
+        if (!latestVersion.valid) return false;
+        if (self.comparison == 1) return latestVersion.price.gte(self.price);
+        if (self.comparison == -1) return latestVersion.price.lte(self.price);
         return false;
     }
 
     function execute(TriggerOrder memory self, Position memory currentPosition) internal pure {
+        // update position
+        if (self.side == 0)
+            currentPosition.maker = self.delta.isZero() ?
+                UFixed6Lib.ZERO :
+                UFixed6Lib.from(Fixed6Lib.from(currentPosition.maker).add(self.delta));
         if (self.side == 1)
-            currentPosition.long = UFixed6Lib.from(Fixed6Lib.from(currentPosition.long).add(self.delta));
+            currentPosition.long = self.delta.isZero() ?
+                UFixed6Lib.ZERO :
+                UFixed6Lib.from(Fixed6Lib.from(currentPosition.long).add(self.delta));
         if (self.side == 2)
-            currentPosition.short = UFixed6Lib.from(Fixed6Lib.from(currentPosition.short).add(self.delta));
+            currentPosition.short = self.delta.isZero() ?
+                UFixed6Lib.ZERO :
+                UFixed6Lib.from(Fixed6Lib.from(currentPosition.short).add(self.delta));
+
+        // update collateral (override collateral field in position since it is not used in this context)
+        // Handles collateral withdrawal magic value
+        currentPosition.collateral = (self.side == 3) ?
+            (self.delta.eq(Fixed6.wrap(type(int64).min)) ? Fixed6Lib.MIN : self.delta) :
+            Fixed6Lib.ZERO;
     }
 }
 
@@ -54,7 +86,17 @@ library TriggerOrderStorageLib {
             int8(storedValue.comparison),
             UFixed6.wrap(uint256(storedValue.fee)),
             Fixed6.wrap(int256(storedValue.price)),
-            Fixed6.wrap(int256(storedValue.delta))
+            Fixed6.wrap(int256(storedValue.delta)),
+            InterfaceFee(
+                UFixed6.wrap(uint256(storedValue.interfaceFeeAmount1)),
+                storedValue.interfaceFeeReceiver1,
+                storedValue.interfaceFeeUnwrap1
+            ),
+            InterfaceFee(
+                UFixed6.wrap(uint256(storedValue.interfaceFeeAmount2)),
+                storedValue.interfaceFeeReceiver2,
+                storedValue.interfaceFeeUnwrap2
+            )
         );
     }
 
@@ -67,6 +109,8 @@ library TriggerOrderStorageLib {
         if (newValue.price.lt(Fixed6.wrap(type(int64).min))) revert TriggerOrderStorageInvalidError();
         if (newValue.delta.gt(Fixed6.wrap(type(int64).max))) revert TriggerOrderStorageInvalidError();
         if (newValue.delta.lt(Fixed6.wrap(type(int64).min))) revert TriggerOrderStorageInvalidError();
+        if (newValue.interfaceFee1.amount.gt(UFixed6.wrap(type(uint48).max))) revert TriggerOrderStorageInvalidError();
+        if (newValue.interfaceFee2.amount.gt(UFixed6.wrap(type(uint48).max))) revert TriggerOrderStorageInvalidError();
 
         self.value = StoredTriggerOrder(
             uint8(newValue.side),
@@ -74,7 +118,15 @@ library TriggerOrderStorageLib {
             uint64(UFixed6.unwrap(newValue.fee)),
             int64(Fixed6.unwrap(newValue.price)),
             int64(Fixed6.unwrap(newValue.delta)),
-            bytes6(0)
+            bytes6(0),
+            newValue.interfaceFee1.receiver,
+            uint48(UFixed6.unwrap(newValue.interfaceFee1.amount)),
+            newValue.interfaceFee1.unwrap,
+            bytes5(0),
+            newValue.interfaceFee2.receiver,
+            uint48(UFixed6.unwrap(newValue.interfaceFee2.amount)),
+            newValue.interfaceFee2.unwrap,
+            bytes5(0)
         );
     }
 }

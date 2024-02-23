@@ -22,21 +22,10 @@ export default task('commit-price', 'Commits a price for the given price ids')
     const commitments: { action: number; args: string }[] = []
 
     for (const priceId of priceIds) {
-      const oracleFactory = await ethers.getContractAt('IOracleFactory', (await get('OracleFactory')).address)
-      const oracle = await ethers.getContractAt('Oracle', await oracleFactory.oracles(priceId))
-      const oracleGlobal = await oracle.callStatic.global()
-      const pythProvider = await ethers.getContractAt(
-        'IPythOracle',
-        (
-          await oracle.callStatic.oracles(oracleGlobal.current)
-        ).provider,
-      )
+      const pythFactory = await ethers.getContractAt('IKeeperFactory', (await get('PythFactory')).address)
 
       const pyth = new EvmPriceServiceConnection(PYTH_ENDPOINT, { priceFeedRequestConfig: { binary: true } })
-      const [minValidTime, versionListLength] = await Promise.all([
-        pythProvider.callStatic.MIN_VALID_TIME_AFTER_VERSION(),
-        pythProvider.callStatic.versionListLength(),
-      ])
+      const [minValidTime] = await Promise.all([pythFactory.callStatic.validFrom()])
 
       const vaa = await getRecentVaa({
         pyth,
@@ -46,9 +35,10 @@ export default task('commit-price', 'Commits a price for the given price ids')
       commitments.push(
         buildCommitPrice({
           ...vaa[0],
-          oracle: pythProvider.address,
+          oracleProviderFactory: pythFactory.address,
           value: 1n,
-          index: versionListLength.toBigInt(),
+          ids: [priceId],
+          version: BigInt(vaa[0].publishTime) - minValidTime.toBigInt(),
           revertOnFailure: false,
         }),
       )
@@ -93,23 +83,23 @@ const getRecentVaa = async ({
 }
 
 const buildCommitPrice = ({
-  oracle,
+  oracleProviderFactory,
   version,
   value,
-  index,
+  ids,
   vaa,
   revertOnFailure,
 }: {
-  oracle: string
+  oracleProviderFactory: string
   version: bigint
   value: bigint
-  index: bigint
+  ids: string[]
   vaa: string
   revertOnFailure: boolean
 }): { action: number; args: string } => ({
   action: 6,
   args: utils.defaultAbiCoder.encode(
-    ['address', 'uint256', 'uint256', 'uint256', 'bytes', 'bool'],
-    [oracle, value, index, version, vaa, revertOnFailure],
+    ['address', 'uint256', 'bytes32[]', 'uint256', 'bytes', 'bool'],
+    [oracleProviderFactory, value, ids, version, vaa, revertOnFailure],
   ),
 })

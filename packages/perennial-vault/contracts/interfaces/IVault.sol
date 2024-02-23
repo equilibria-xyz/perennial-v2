@@ -9,9 +9,13 @@ import "../types/Checkpoint.sol";
 import "../types/Mapping.sol";
 import "../types/VaultParameter.sol";
 import "../types/Registration.sol";
+import "../lib/StrategyLib.sol";
 
 interface IVault is IInstance {
     struct Context {
+        // strategy
+        Strategy strategy;
+
         // parameters
         UFixed6 settlementFee;
         uint256 totalWeight;
@@ -19,7 +23,7 @@ interface IVault is IInstance {
         // markets
         uint256 currentId;
         Registration[] registrations;
-        MarketContext[] markets;
+        Fixed6[] collaterals;
         Mapping currentIds;
         Mapping latestIds;
 
@@ -29,20 +33,6 @@ interface IVault is IInstance {
         Checkpoint latestCheckpoint;
         Account global;
         Account local;
-    }
-
-    struct MarketContext {
-        // latest global
-        UFixed6 latestPrice;
-
-        // current global
-        UFixed6 currentPosition;
-        UFixed6 currentNet;
-
-        // current local
-        Fixed6 collateral;
-        UFixed6 latestAccountPosition;
-        UFixed6 currentAccountPosition;
     }
 
     struct Target {
@@ -71,6 +61,7 @@ interface IVault is IInstance {
     error MappingStorageInvalidError();
     error RegistrationStorageInvalidError();
     error VaultParameterStorageInvalidError();
+    error StrategyLibInsufficientMarginError();
 
     function initialize(Token18 asset, IMarket initialMaker, UFixed6 cap, string calldata name_) external;
     function name() external view returns (string memory);

@@ -58,8 +58,8 @@ struct RiskParameter {
     /// @dev The minimum fixed amount that is required for maintenance
     UFixed6 minMaintenance;
 
-    /// @dev A virtual amount that is added to long and short for the purposes of skew calculation
-    UFixed6 virtualTaker;
+    /// @dev Scale that is used to calculate the skew % for orders
+    UFixed6 skewScale;
 
     /// @dev The maximum amount of time since the latest oracle version that update may still be called
     uint256 staleAfter;
@@ -85,7 +85,7 @@ using RiskParameterStorageLib for RiskParameterStorage global;
 //        /* slot 1 */
 //        uint24 liquidationFee;                      // <= 1677%
 //        uint48 minLiquidationFee;                   // <= 281mn
-//        uint64 virtualTaker;                        // <= 18.44t
+//        uint64 skewScale;                           // <= 18.44t
 //        uint32 utilizationCurveMinRate;             // <= 214748%
 //        uint32 utilizationCurveMaxRate;             // <= 214748%
 //        uint32 utilizationCurveTargetRate;          // <= 214748%
@@ -181,7 +181,7 @@ library RiskParameterStorageLib {
         if (newValue.efficiencyLimit.gt(UFixed6.wrap(type(uint24).max))) revert RiskParameterStorageInvalidError();
         if (newValue.makerLimit.gt(UFixed6.wrap(type(uint64).max))) revert RiskParameterStorageInvalidError();
         if (newValue.pController.k.gt(UFixed6.wrap(type(uint48).max))) revert RiskParameterStorageInvalidError();
-        if (newValue.virtualTaker.gt(UFixed6.wrap(type(uint64).max))) revert RiskParameterStorageInvalidError();
+        if (newValue.skewScale.gt(UFixed6.wrap(type(uint64).max))) revert RiskParameterStorageInvalidError();
         if (newValue.staleAfter > uint256(type(uint24).max)) revert RiskParameterStorageInvalidError();
 
         uint256 encoded0 =
@@ -198,7 +198,7 @@ library RiskParameterStorageLib {
         uint256 encoded1 =
             uint256(UFixed6.unwrap(newValue.liquidationFee)                     << (256 - 24)) >> (256 - 24) |
             uint256(UFixed6.unwrap(newValue.minLiquidationFee)                  << (256 - 48)) >> (256 - 24 - 48) |
-            uint256(UFixed6.unwrap(newValue.virtualTaker)                       << (256 - 64)) >> (256 - 24 - 48 - 64) |
+            uint256(UFixed6.unwrap(newValue.skewScale)                          << (256 - 64)) >> (256 - 24 - 48 - 64) |
             uint256(UFixed6.unwrap(newValue.utilizationCurve.minRate)           << (256 - 32)) >> (256 - 24 - 48 - 64 - 32) |
             uint256(UFixed6.unwrap(newValue.utilizationCurve.maxRate)           << (256 - 32)) >> (256 - 24 - 48 - 64 - 32 - 32) |
             uint256(UFixed6.unwrap(newValue.utilizationCurve.targetRate)        << (256 - 32)) >> (256 - 24 - 48 - 64 - 32 - 32 - 32) |

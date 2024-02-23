@@ -32,13 +32,35 @@ contract LocalTester {
         local.store(newLocal);
     }
 
-    function protect(
+    function processProtection(
         Position memory latestPosition,
-        uint256 currentTimestamp,
-        bool tryProtect
-    ) external returns (bool protection) {
+        Version memory version
+    ) external returns (bool result) {
         Local memory newLocal = local.read();
-        protection = newLocal.protect(latestPosition, currentTimestamp, tryProtect);
+        result = newLocal.processProtection(latestPosition, version);
         local.store(newLocal);
+    }
+
+    function processLiquidationFee(Local memory initiateeLocal) external {
+        Local memory newLocal = local.read();
+        newLocal.processLiquidationFee(initiateeLocal);
+        local.store(newLocal);
+    }
+
+    function protect(
+        RiskParameter memory riskParameter,
+        OracleVersion memory latestVersion,
+        uint256 currentTimestamp,
+        Order memory newOrder,
+        address initiator,
+        bool tryProtect
+    ) external returns (bool result) {
+        Local memory newLocal = local.read();
+        result = newLocal.protect(riskParameter, latestVersion, currentTimestamp, newOrder, initiator, tryProtect);
+        local.store(newLocal);
+    }
+
+    function pendingLiquidationFee(Position memory latestPosition) external view returns (UFixed6) {
+        return local.read().pendingLiquidationFee(latestPosition);
     }
 }

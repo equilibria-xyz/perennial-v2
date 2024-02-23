@@ -1,0 +1,14 @@
+diff --git a/node_modules/@nomicfoundation/ethereumjs-tx/dist/eip1559Transaction.js b/node_modules/@nomicfoundation/ethereumjs-tx/dist/eip1559Transaction.js
+index 053492c..a743983 100644
+--- a/node_modules/@nomicfoundation/ethereumjs-tx/dist/eip1559Transaction.js
++++ b/node_modules/@nomicfoundation/ethereumjs-tx/dist/eip1559Transaction.js
+@@ -57,7 +57,8 @@ class FeeMarketEIP1559Transaction extends baseTransaction_1.BaseTransaction {
+         }
+         if (this.maxFeePerGas < this.maxPriorityFeePerGas) {
+             const msg = this._errorMsg('maxFeePerGas cannot be less than maxPriorityFeePerGas (The total must be the larger of the two)');
+-            throw new Error(msg);
++            console.warn(msg)
++            // throw new Error(msg);
+         }
+         this._validateYParity();
+         this._validateHighS();

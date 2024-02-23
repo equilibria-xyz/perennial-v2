@@ -32,7 +32,7 @@ import { FakeContract, smock } from '@defi-wonderland/smock'
 import { ethers } from 'hardhat'
 import { BigNumber } from 'ethers'
 import { anyValue } from '@nomicfoundation/hardhat-chai-matchers/withArgs'
-import { openTriggerOrder } from '../../helpers/types'
+import { Compare, Dir, openTriggerOrder } from '../../helpers/types'
 
 use(smock.matchers)
 
@@ -438,7 +438,7 @@ describe('Invoke', () => {
       await updateVaultOracle()
       await vault.settle(user.address)
 
-      const funding = BigNumber.from('23084')
+      const funding = BigNumber.from('10292')
       // claim from vault
       await expect(
         multiInvoker.connect(user).invoke(
@@ -475,25 +475,162 @@ describe('Invoke', () => {
       ).to.be.revertedWith('Dollar: transfer amount exceeds allowance')
     })
 
-    it('charges fee to an interface', async () => {
-      const { user, userB, usdc } = instanceVars
+    it('charges an interface fee on deposit and pulls USDC to the receiver', async () => {
+      const { owner, user, usdc, dsu } = instanceVars
 
-      const balanceBefore = await usdc.balanceOf(userB.address)
-
-      await usdc.connect(user).approve(multiInvoker.address, collateral)
+      const balanceBefore = await usdc.balanceOf(owner.address)
+      const feeAmt = collateral.div(10)
+      await usdc.connect(user).approve(multiInvoker.address, collateral.add(feeAmt))
+      await dsu.connect(user).approve(multiInvoker.address, dsuCollateral)
+      await multiInvoker.invoke(buildApproveTarget(market.address))
 
       await expect(
-        multiInvoker.connect(user).invoke([
-          {
-            action: 9,
-            args: ethers.utils.defaultAbiCoder.encode(['address', 'uint256'], [userB.address, collateral]),
-          },
-        ]),
+        multiInvoker.connect(user).invoke(
+          buildUpdateMarket({
+            market: market.address,
+            collateral: collateral,
+            interfaceFee1: {
+              amount: feeAmt,
+              receiver: owner.address,
+              unwrap: true,
+            },
+          }),
+        ),
       )
-        .to.emit(usdc, 'Transfer')
-        .withArgs(user.address, userB.address, collateral)
+        .to.emit(multiInvoker, 'InterfaceFeeCharged')
+        .withArgs(user.address, market.address, [feeAmt, owner.address, true])
 
-      expect((await usdc.balanceOf(userB.address)).sub(balanceBefore)).to.eq(collateral)
+      expect((await usdc.balanceOf(owner.address)).sub(balanceBefore)).to.eq(feeAmt)
+    })
+
+    it('charges an interface fee on deposit and wraps USDC to DSU to the receiver', async () => {
+      const { owner, user, usdc, dsu } = instanceVars
+
+      const balanceBefore = await dsu.balanceOf(owner.address)
+      const feeAmt = collateral.div(10)
+      await usdc.connect(user).approve(multiInvoker.address, collateral)
+      await dsu.connect(user).approve(multiInvoker.address, dsuCollateral.add(feeAmt.mul(1e12)))
+      await multiInvoker.invoke(buildApproveTarget(market.address))
+
+      await expect(
+        multiInvoker.connect(user).invoke(
+          buildUpdateMarket({
+            market: market.address,
+            collateral: collateral,
+            interfaceFee1: {
+              amount: feeAmt,
+              receiver: owner.address,
+              unwrap: false,
+            },
+          }),
+        ),
+      )
+        .to.emit(multiInvoker, 'InterfaceFeeCharged')
+        .withArgs(user.address, market.address, [feeAmt, owner.address, false])
+
+      expect((await dsu.balanceOf(owner.address)).sub(balanceBefore)).to.eq(feeAmt.mul(1e12))
+    })
+
+    it('charges an interface fee on withdrawal, wraps DSU fee to USDC, and pushes USDC to the receiver', async () => {
+      const { owner, user, usdc, dsu } = instanceVars
+
+      const balanceBefore = await usdc.balanceOf(owner.address)
+      const feeAmt = collateral.div(10)
+      await usdc.connect(user).approve(multiInvoker.address, collateral)
+      await dsu.connect(user).approve(multiInvoker.address, dsuCollateral)
+      await multiInvoker.invoke(buildApproveTarget(market.address))
+
+      await expect(
+        multiInvoker.connect(user).invoke(buildUpdateMarket({ market: market.address, collateral: collateral })),
+      ).to.not.be.reverted
+
+      await expect(
+        multiInvoker.connect(user).invoke(
+          buildUpdateMarket({
+            market: market.address,
+            collateral: collateral.sub(feeAmt).mul(-1),
+            interfaceFee1: {
+              amount: feeAmt,
+              receiver: owner.address,
+              unwrap: true,
+            },
+          }),
+        ),
+      )
+        .to.emit(multiInvoker, 'InterfaceFeeCharged')
+        .withArgs(user.address, market.address, [feeAmt, owner.address, true])
+
+      expect((await usdc.balanceOf(owner.address)).sub(balanceBefore)).to.eq(feeAmt)
+    })
+
+    it('charges an interface fee on withdrawal and pushes DSU to the receiver', async () => {
+      const { owner, user, usdc, dsu } = instanceVars
+
+      const balanceBefore = await dsu.balanceOf(owner.address)
+      const feeAmt = collateral.div(10)
+      await usdc.connect(user).approve(multiInvoker.address, collateral)
+      await dsu.connect(user).approve(multiInvoker.address, dsuCollateral)
+      await multiInvoker.invoke(buildApproveTarget(market.address))
+
+      await expect(
+        multiInvoker.connect(user).invoke(buildUpdateMarket({ market: market.address, collateral: collateral })),
+      ).to.not.be.reverted
+
+      await expect(
+        multiInvoker.connect(user).invoke(
+          buildUpdateMarket({
+            market: market.address,
+            collateral: collateral.sub(feeAmt).mul(-1),
+            interfaceFee1: {
+              amount: feeAmt,
+              receiver: owner.address,
+              unwrap: false,
+            },
+          }),
+        ),
+      )
+        .to.emit(multiInvoker, 'InterfaceFeeCharged')
+        .withArgs(user.address, market.address, [feeAmt, owner.address, false])
+
+      expect((await dsu.balanceOf(owner.address)).sub(balanceBefore)).to.eq(feeAmt.mul(1e12))
+    })
+
+    it('charges multiple interface fees', async () => {
+      const { owner, user, userB, usdc, dsu } = instanceVars
+
+      const balanceBefore = await usdc.balanceOf(owner.address)
+      const balanceBefore2 = await dsu.balanceOf(userB.address)
+      const feeAmt = collateral.div(10)
+      const feeAmt2 = collateral.div(20)
+      await usdc.connect(user).approve(multiInvoker.address, collateral.add(feeAmt))
+      await dsu.connect(user).approve(multiInvoker.address, dsuCollateral)
+      await multiInvoker.invoke(buildApproveTarget(market.address))
+
+      await expect(
+        multiInvoker.connect(user).invoke(
+          buildUpdateMarket({
+            market: market.address,
+            collateral: collateral,
+            interfaceFee1: {
+              amount: feeAmt,
+              receiver: owner.address,
+              unwrap: true,
+            },
+            interfaceFee2: {
+              amount: feeAmt2,
+              receiver: userB.address,
+              unwrap: false,
+            },
+          }),
+        ),
+      )
+        .to.emit(multiInvoker, 'InterfaceFeeCharged')
+        .withArgs(user.address, market.address, [feeAmt, owner.address, true])
+        .to.emit(multiInvoker, 'InterfaceFeeCharged')
+        .withArgs(user.address, market.address, [feeAmt2, userB.address, false])
+
+      expect((await usdc.balanceOf(owner.address)).sub(balanceBefore)).to.eq(feeAmt)
+      expect((await dsu.balanceOf(userB.address)).sub(balanceBefore2)).to.eq(feeAmt2.mul(1e12))
     })
 
     it('Only allows updates to factory created markets', async () => {
@@ -523,7 +660,12 @@ describe('Invoke', () => {
     it('Fails to place an order in an address not created by MarketFactory', async () => {
       const { user } = instanceVars
 
-      const trigger = openTriggerOrder({ size: collateral, price: 1100e6 })
+      const trigger = openTriggerOrder({
+        delta: collateral,
+        price: 1100e6,
+        side: Dir.L,
+        comparison: Compare.ABOVE_MARKET,
+      })
       await expect(
         multiInvoker
           .connect(user)

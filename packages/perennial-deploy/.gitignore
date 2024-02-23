@@ -12,6 +12,7 @@ coverage.json
 # typechain generated
 types/generated
 deployments/localhost
+deployments/hardhat
 
 # eslint cache
 .eslintcache

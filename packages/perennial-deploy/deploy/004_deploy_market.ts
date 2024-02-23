@@ -65,7 +65,7 @@ const DEFAULT_RISK_PARAMETERS = {
   },
   minMargin: utils.parseUnits('10', 6),
   minMaintenance: utils.parseUnits('10', 6),
-  virtualTaker: 0,
+  skewScale: 0,
   staleAfter: 7200,
   makerReceiveOnly: false,
 }
@@ -83,6 +83,7 @@ const MARKETS: { [key: string]: string[][] } = {
     [ORACLE_IDS.arbitrumGoerli.sol, ''], // SOL / None
     [ORACLE_IDS.arbitrumGoerli.matic, ''], // MATIC / None
   ],
+  arbitrumSepolia: [[ORACLE_IDS.arbitrumSepolia.eth, '']], // ETH / None
 }
 
 const func: DeployFunction = async function (hre: HardhatRuntimeEnvironment) {

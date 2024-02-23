@@ -1,6 +1,6 @@
 {
   "name": "perennialmono",
-  "version": "1.0.0",
+  "version": "1.1.0-rc1",
   "main": "index.js",
   "license": "MIT",
   "private": true,
@@ -9,21 +9,17 @@
   ],
   "scripts": {
     "prepare": "husky install",
-    "postinstall": "patch-package",
-    "deploy:goerli": "./scripts/deploy_goerli.sh",
-    "verify:goerli": "yarn workspaces run verify --network goerli",
-    "deploy:fork:kovan": "concurrently \"yarn workspace @equilibria/perennial run node:fork:kovan --no-deploy > /dev/null\" \"./scripts/deploy_kovan_fork.sh\"",
-    "deploy:fork:goerli": "concurrently \"yarn workspace @equilibria/perennial run node:fork:goerli --no-deploy > /dev/null\" \"./scripts/deploy_goerli_fork.sh\""
+    "postinstall": "patch-package"
   },
   "devDependencies": {
     "@codechecks/client": "^0.1.10",
     "@defi-wonderland/smock": "^2.0.7",
-    "@equilibria/root": "2.0.0",
+    "@equilibria/root": "2.1.0-rc0",
     "@nomicfoundation/hardhat-chai-matchers": "^1.0.6",
     "@nomicfoundation/hardhat-network-helpers": "^1.0.8",
     "@nomicfoundation/hardhat-toolbox": "2.0.2",
     "@nomiclabs/hardhat-ethers": "^2.2.3",
-    "@nomiclabs/hardhat-etherscan": "^3.1.7",
+    "@nomiclabs/hardhat-etherscan": "^3.1.8",
     "@openzeppelin/contracts": "4.8.0",
     "@pythnetwork/pyth-sdk-solidity": "^2.2.1",
     "@typechain/ethers-v5": "^10.2.1",
