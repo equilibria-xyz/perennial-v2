@@ -19,6 +19,7 @@ const PAYOFFS = [
   'Nano',
   'PowerHalf',
   'PowerTwo',
+  'CentimilliPowerTwo',
 ]
 
 const func: DeployFunction = async function (hre: HardhatRuntimeEnvironment) {

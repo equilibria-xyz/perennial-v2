@@ -423,7 +423,7 @@ describe('Orders', () => {
       price: triggerPrice,
       side: Dir.L,
       comparison: Compare.ABOVE_MARKET,
-      interfaceFee: { amount: 50e6, receiver: userB.address, unwrap: false },
+      interfaceFee1: { amount: 50e6, receiver: userB.address, unwrap: false },
     })
 
     const placeOrder = buildPlaceOrder({
@@ -462,7 +462,7 @@ describe('Orders', () => {
       price: triggerPrice,
       side: Dir.L,
       comparison: Compare.ABOVE_MARKET,
-      interfaceFee: { amount: 50e6, receiver: userB.address, unwrap: true },
+      interfaceFee1: { amount: 50e6, receiver: userB.address, unwrap: true },
     })
 
     const placeOrder = buildPlaceOrder({
@@ -489,6 +489,49 @@ describe('Orders', () => {
       .withArgs(user.address, market.address, { receiver: userB.address, amount: 50e6, unwrap: true })
 
     expect(await usdc.balanceOf(userB.address)).to.eq(balanceBefore.add(50e6))
+  })
+
+  it('executes an order with multiple interface fees', async () => {
+    const { user, userB, userC, userD, chainlink, dsu, usdc } = instanceVars
+
+    const trigger = openTriggerOrder({
+      delta: userPosition,
+      price: payoff(marketPrice.sub(10)),
+      side: Dir.L,
+      comparison: Compare.ABOVE_MARKET,
+      interfaceFee1: { amount: 50e6, receiver: userB.address, unwrap: true },
+      interfaceFee2: { amount: 100e6, receiver: userD.address, unwrap: false },
+    })
+
+    const placeOrder = buildPlaceOrder({
+      market: market.address,
+      order: trigger,
+      collateral: collateral,
+    })
+
+    await expect(multiInvoker.connect(user).invoke(placeOrder)).to.not.be.reverted
+    expect(await multiInvoker.canExecuteOrder(user.address, market.address, 1)).to.be.false
+
+    await chainlink.nextWithPriceModification(() => marketPrice.sub(11))
+    await settle(market, user)
+
+    const balanceBefore = await usdc.balanceOf(userB.address)
+    const balanceBefore2 = await dsu.balanceOf(userD.address)
+    await ethers.provider.send('hardhat_setNextBlockBaseFeePerGas', ['0x1'])
+    const execute = buildExecOrder({ user: user.address, market: market.address, orderId: 1 })
+    await expect(multiInvoker.connect(userC).invoke(execute))
+      .to.emit(multiInvoker, 'OrderExecuted')
+      .withArgs(user.address, market.address, 1)
+      .to.emit(multiInvoker, 'KeeperCall')
+      .to.emit(market, 'Updated')
+      .withArgs(multiInvoker.address, user.address, anyValue, anyValue, anyValue, anyValue, -50e6, false)
+      .to.emit(multiInvoker, 'InterfaceFeeCharged')
+      .withArgs(user.address, market.address, { receiver: userB.address, amount: 50e6, unwrap: true })
+      .to.emit(multiInvoker, 'InterfaceFeeCharged')
+      .withArgs(user.address, market.address, { receiver: userD.address, amount: 100e6, unwrap: false })
+
+    expect(await usdc.balanceOf(userB.address)).to.eq(balanceBefore.add(50e6))
+    expect(await dsu.balanceOf(userD.address)).to.eq(balanceBefore2.add(ethers.utils.parseEther('100')))
   })
 
   it('executes a withdrawal order', async () => {
@@ -822,40 +865,43 @@ describe('Orders', () => {
     it('Fails to store TRIGGER values out of slot bounds', async () => {
       const { user } = instanceVars
 
-      const defaultOrder = openTriggerOrder({
-        delta: parse6decimal('10000'),
-        side: Dir.L,
-        comparison: Compare.ABOVE_MARKET,
-        price: BigNumber.from(1000e6),
-      })
+      const defaultOrder = () =>
+        openTriggerOrder({
+          delta: parse6decimal('10000'),
+          side: Dir.L,
+          comparison: Compare.BELOW_MARKET,
+          price: BigNumber.from(1000e6),
+        })
 
-      defaultOrder.comparison = 1
-
-      let testOrder = { ...defaultOrder }
+      let testOrder = defaultOrder()
 
       testOrder.fee = MAX_UINT64.add(1)
       await assertStoreFail(testOrder, multiInvoker, market, user)
-      testOrder = { ...defaultOrder }
+      testOrder = defaultOrder()
 
       testOrder.price = MAX_INT64.add(1)
       await assertStoreFail(testOrder, multiInvoker, market, user)
-      testOrder = { ...defaultOrder }
+      testOrder = defaultOrder()
 
       testOrder.price = MIN_INT64.sub(1)
       await assertStoreFail(testOrder, multiInvoker, market, user)
-      testOrder = { ...defaultOrder }
+      testOrder = defaultOrder()
 
       testOrder.delta = MAX_INT64.add(1)
       await assertStoreFail(testOrder, multiInvoker, market, user)
-      testOrder = { ...defaultOrder }
+      testOrder = defaultOrder()
 
       testOrder.delta = MIN_INT64.sub(1)
       await assertStoreFail(testOrder, multiInvoker, market, user)
-      testOrder = { ...defaultOrder }
+      testOrder = defaultOrder()
 
-      testOrder.interfaceFee.amount = MAX_UINT48.add(1)
+      testOrder.interfaceFee1.amount = MAX_UINT48.add(1)
       await assertStoreFail(testOrder, multiInvoker, market, user)
-      testOrder = { ...defaultOrder }
+      testOrder = defaultOrder()
+
+      testOrder.interfaceFee2.amount = MAX_UINT48.add(1)
+      await assertStoreFail(testOrder, multiInvoker, market, user)
+      testOrder = defaultOrder()
     })
   })
 })

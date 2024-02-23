@@ -31,7 +31,9 @@ contract OracleFactory is IOracleFactory, Factory {
     /// @notice Initializes the contract state
     /// @param incentive_ The token that is paid out as a fee to oracle keepers
     function initialize(Token18 incentive_) external initializer(3) {
-        __Factory__initialize();
+        // Re-initialize if owner is unset
+        if (owner() == address(0))
+            __Factory__initialize();
 
         incentive = incentive_;
     }

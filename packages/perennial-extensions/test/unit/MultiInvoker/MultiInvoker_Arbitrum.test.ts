@@ -313,7 +313,7 @@ describe('MultiInvoker_Arbitrum', () => {
           buildUpdateMarket({
             market: market.address,
             collateral: collateral,
-            interfaceFee: {
+            interfaceFee1: {
               receiver: owner.address,
               amount: feeAmt,
               unwrap: false,
@@ -339,7 +339,7 @@ describe('MultiInvoker_Arbitrum', () => {
           buildUpdateMarket({
             market: market.address,
             collateral: collateral,
-            interfaceFee: {
+            interfaceFee1: {
               receiver: owner.address,
               amount: feeAmt,
               unwrap: true,
@@ -368,7 +368,7 @@ describe('MultiInvoker_Arbitrum', () => {
           buildUpdateMarket({
             market: market.address,
             collateral: collateral.sub(feeAmt).mul(-1),
-            interfaceFee: {
+            interfaceFee1: {
               receiver: owner.address,
               amount: feeAmt,
               unwrap: false,
@@ -399,7 +399,7 @@ describe('MultiInvoker_Arbitrum', () => {
           buildUpdateMarket({
             market: market.address,
             collateral: collateral.sub(feeAmt).mul(-1),
-            interfaceFee: {
+            interfaceFee1: {
               receiver: owner.address,
               amount: feeAmt,
               unwrap: true,
@@ -461,7 +461,8 @@ describe('MultiInvoker_Arbitrum', () => {
           fee: 10e6,
           price: trigger.price,
           delta: position,
-          interfaceFee: { amount: 0, receiver: constants.AddressZero, unwrap: false },
+          interfaceFee1: { amount: 0, receiver: constants.AddressZero, unwrap: false },
+          interfaceFee2: { amount: 0, receiver: constants.AddressZero, unwrap: false },
         })
 
       expect(await multiInvoker.latestNonce()).to.eq(1)
@@ -482,7 +483,7 @@ describe('MultiInvoker_Arbitrum', () => {
         side: Dir.L,
         comparison: Compare.ABOVE_MARKET,
         price: price,
-        interfaceFee: {
+        interfaceFee1: {
           receiver: owner.address,
           amount: 100e6,
           unwrap: false,
@@ -507,7 +508,8 @@ describe('MultiInvoker_Arbitrum', () => {
           fee: 10e6,
           price: trigger.price,
           delta: position,
-          interfaceFee: { amount: 100e6, receiver: owner.address, unwrap: false },
+          interfaceFee1: { amount: 100e6, receiver: owner.address, unwrap: false },
+          interfaceFee2: { amount: 0, receiver: constants.AddressZero, unwrap: false },
         })
 
       expect(await multiInvoker.latestNonce()).to.eq(1)
@@ -518,9 +520,12 @@ describe('MultiInvoker_Arbitrum', () => {
       expect(orderState.fee).to.equal(trigger.fee)
       expect(orderState.price).to.equal(trigger.price)
       expect(orderState.delta).to.equal(trigger.delta)
-      expect(orderState.interfaceFee.amount).to.equal(100e6)
-      expect(orderState.interfaceFee.receiver).to.equal(owner.address)
-      expect(orderState.interfaceFee.unwrap).to.equal(false)
+      expect(orderState.interfaceFee1.amount).to.equal(100e6)
+      expect(orderState.interfaceFee1.receiver).to.equal(owner.address)
+      expect(orderState.interfaceFee1.unwrap).to.equal(false)
+      expect(orderState.interfaceFee2.amount).to.equal(0)
+      expect(orderState.interfaceFee2.receiver).to.equal(constants.AddressZero)
+      expect(orderState.interfaceFee2.unwrap).to.equal(false)
     })
 
     it('places a limit order w/ interface fee (unwrap)', async () => {
@@ -529,7 +534,7 @@ describe('MultiInvoker_Arbitrum', () => {
         side: Dir.L,
         comparison: Compare.ABOVE_MARKET,
         price: price,
-        interfaceFee: {
+        interfaceFee1: {
           receiver: owner.address,
           amount: 100e6,
           unwrap: true,
@@ -554,7 +559,8 @@ describe('MultiInvoker_Arbitrum', () => {
           fee: 10e6,
           price: trigger.price,
           delta: position,
-          interfaceFee: { amount: 100e6, receiver: owner.address, unwrap: true },
+          interfaceFee1: { amount: 100e6, receiver: owner.address, unwrap: true },
+          interfaceFee2: { amount: 0, receiver: constants.AddressZero, unwrap: false },
         })
 
       expect(await multiInvoker.latestNonce()).to.eq(1)
@@ -565,9 +571,12 @@ describe('MultiInvoker_Arbitrum', () => {
       expect(orderState.fee).to.equal(trigger.fee)
       expect(orderState.price).to.equal(trigger.price)
       expect(orderState.delta).to.equal(trigger.delta)
-      expect(orderState.interfaceFee.amount).to.equal(100e6)
-      expect(orderState.interfaceFee.receiver).to.equal(owner.address)
-      expect(orderState.interfaceFee.unwrap).to.equal(true)
+      expect(orderState.interfaceFee1.amount).to.equal(100e6)
+      expect(orderState.interfaceFee1.receiver).to.equal(owner.address)
+      expect(orderState.interfaceFee1.unwrap).to.equal(true)
+      expect(orderState.interfaceFee2.amount).to.equal(0)
+      expect(orderState.interfaceFee2.receiver).to.equal(constants.AddressZero)
+      expect(orderState.interfaceFee2.unwrap).to.equal(false)
     })
 
     it('places a tp order', async () => {
@@ -967,7 +976,8 @@ describe('MultiInvoker_Arbitrum', () => {
           price: BigNumber.from(1200e6),
           side: Dir.L,
           comparison: Compare.ABOVE_MARKET,
-          interfaceFee: { receiver: owner.address, amount: 100e6, unwrap: false },
+          interfaceFee1: { receiver: owner.address, amount: 100e6, unwrap: false },
+          interfaceFee2: { receiver: constants.AddressZero, amount: 0, unwrap: false },
         })
 
         const placeOrder = buildPlaceOrder({

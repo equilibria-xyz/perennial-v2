@@ -48,14 +48,16 @@ export const openTriggerOrder = ({
   side,
   comparison,
   fee,
-  interfaceFee,
+  interfaceFee1,
+  interfaceFee2,
 }: {
   delta: BigNumberish
   price: BigNumberish
   side: Dir | number
   comparison: Compare | number
   fee?: BigNumberish
-  interfaceFee?: InterfaceFeeStruct
+  interfaceFee1?: InterfaceFeeStruct
+  interfaceFee2?: InterfaceFeeStruct
 }): TriggerOrderStruct => {
   return {
     side: side,
@@ -63,7 +65,12 @@ export const openTriggerOrder = ({
     fee: fee ?? parse6decimal('10'),
     price: price,
     delta: delta,
-    interfaceFee: interfaceFee ?? {
+    interfaceFee1: interfaceFee1 ?? {
+      amount: 0,
+      receiver: constants.AddressZero,
+      unwrap: false,
+    },
+    interfaceFee2: interfaceFee2 ?? {
       amount: 0,
       receiver: constants.AddressZero,
       unwrap: false,

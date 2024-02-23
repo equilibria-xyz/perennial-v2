@@ -39,9 +39,15 @@ const VAULTS: { [key: string]: { [key: string]: string[][] } } = {
     AsterVault: [[ORACLE_IDS.arbitrumSepolia.eth, '']], // ETH / None
     BegoniaVault: [[ORACLE_IDS.arbitrumSepolia.eth, '']], // ETH / None
   },
+  base: {
+    AsterVault: [
+      [ORACLE_IDS.base.eth, ''], // ETH / None
+      [ORACLE_IDS.base.btc, ''], // BTC / None
+    ],
+  },
 }
 
-const INITIAL_AMOUNT = BigNumber.from('5000000') // 5 DSU
+export const INITIAL_AMOUNT = BigNumber.from('5000000') // 5 DSU
 
 const func: DeployFunction = async function (hre: HardhatRuntimeEnvironment) {
   const { deployments, getNamedAccounts, ethers } = hre
@@ -99,7 +105,7 @@ const func: DeployFunction = async function (hre: HardhatRuntimeEnvironment) {
   // TODO: in order to deploy vaults we need to commit new oracle versions first
   if (deployVaults) {
     const vaults = isFork() ? VAULTS[forkNetwork()] : VAULTS[getNetworkName()]
-    if ((await getOrNull('AsterVault')) == null) {
+    if ((await getOrNull('AsterVault')) == null && vaults.AsterVault) {
       const markets = vaults.AsterVault
       console.log('Creating Aster vault...')
       process.stdout.write('Setting initial amount approval...')
@@ -127,13 +133,13 @@ const func: DeployFunction = async function (hre: HardhatRuntimeEnvironment) {
       const payoffAddress1 = markets[1][1] === '' ? ethers.constants.AddressZero : (await get(markets[1][1])).address
       const initialMarket1 = await marketFactory.markets(oracleAddress1, payoffAddress1)
       await vault.register(initialMarket1)
-      await vault.updateMarket(0, 1, ethers.utils.parseUnits('1', 6))
-      await vault.updateMarket(1, 1, ethers.utils.parseUnits('1', 6))
+      await vault.updateMarket(0, ethers.utils.parseUnits('0.5', 6), ethers.utils.parseUnits('1', 6))
+      await vault.updateMarket(1, ethers.utils.parseUnits('0.5', 6), ethers.utils.parseUnits('1', 6))
 
       console.log('Aster Vault created')
     }
 
-    if ((await getOrNull('BegoniaVault')) == null) {
+    if ((await getOrNull('BegoniaVault')) == null && vaults.BegoniaVault) {
       const markets = vaults.BegoniaVault
       console.log('Creating Begonia Vault...')
       process.stdout.write('Setting initial amount approval...')
@@ -161,8 +167,8 @@ const func: DeployFunction = async function (hre: HardhatRuntimeEnvironment) {
       const payoffAddress1 = markets[1][1] === '' ? ethers.constants.AddressZero : (await get(markets[1][1])).address
       const initialMarket1 = await marketFactory.markets(oracleAddress1, payoffAddress1)
       await vault.register(initialMarket1)
-      await vault.updateMarket(0, 1, ethers.utils.parseUnits('1', 6))
-      await vault.updateMarket(1, 1, ethers.utils.parseUnits('1', 6))
+      await vault.updateMarket(0, ethers.utils.parseUnits('0.5', 6), ethers.utils.parseUnits('1', 6))
+      await vault.updateMarket(1, ethers.utils.parseUnits('0.5', 6), ethers.utils.parseUnits('1', 6))
 
       console.log('Begonia Vault created')
     }
