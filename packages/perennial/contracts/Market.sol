@@ -522,7 +522,8 @@ contract Market is IMarket, Instance, ReentrancyGuard {
             settlementContext.latestCheckpoint.tradeFee.isZero() &&
             settlementContext.latestCheckpoint.settlementFee.isZero() &&
             settlementContext.latestCheckpoint.transfer.isZero() &&
-            settlementContext.latestCheckpoint.collateral.isZero()
+            settlementContext.latestCheckpoint.collateral.isZero() &&
+            context.pending.local.collateral.isZero()
         ) settlementContext.latestCheckpoint.collateral = context.local.collateral;
     }
 
