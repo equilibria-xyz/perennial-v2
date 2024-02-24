@@ -298,6 +298,7 @@ export async function createMarket(
     makerCloseAlways: false,
     takerCloseAlways: false,
     closed: false,
+    settle: false,
     ...marketParamOverrides,
   }
 
