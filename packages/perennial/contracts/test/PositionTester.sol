@@ -8,9 +8,9 @@ abstract contract PositionTester {
 
     function store(Position memory newPosition) public virtual;
 
-    function update(Order memory newOrder, bool valid) external {
+    function update(Order memory newOrder) external {
         Position memory _position = read();
-        _position.update(newOrder, valid);
+        _position.update(newOrder);
         store(_position);
     }
 

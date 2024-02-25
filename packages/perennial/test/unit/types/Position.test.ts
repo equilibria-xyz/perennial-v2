@@ -591,32 +591,14 @@ describe('Position', () => {
             short: parse6decimal('12'),
           })
 
-          const updatedOrder = await position.callStatic.update(VALID_ORDER, true)
-          await position.update(VALID_ORDER, true)
+          const updatedOrder = await position.callStatic.update(VALID_ORDER)
+          await position.update(VALID_ORDER)
 
           const value = await position.read()
           expect(value.timestamp).to.equal(123456)
           expect(value.maker).to.equal(parse6decimal('39'))
           expect(value.long).to.equal(parse6decimal('16'))
           expect(value.short).to.equal(parse6decimal('15'))
-        })
-
-        it('doesnt update when valid', async () => {
-          await position.store({
-            ...VALID_GLOBAL_POSITION,
-            maker: parse6decimal('40'),
-            long: parse6decimal('11'),
-            short: parse6decimal('12'),
-          })
-
-          const updatedOrder = await position.callStatic.update(VALID_ORDER, false)
-          await position.update(VALID_ORDER, false)
-
-          const value = await position.read()
-          expect(value.timestamp).to.equal(123456)
-          expect(value.maker).to.equal(parse6decimal('40'))
-          expect(value.long).to.equal(parse6decimal('11'))
-          expect(value.short).to.equal(parse6decimal('12'))
         })
       })
     })

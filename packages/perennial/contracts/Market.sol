@@ -365,9 +365,9 @@ contract Market is IMarket, Instance, ReentrancyGuard {
     ) private view returns (UpdateContext memory updateContext) {
         // load current position
         updateContext.currentPosition.global = context.latestPosition.global.clone();
-        updateContext.currentPosition.global.update(context.pending.global, true);
+        updateContext.currentPosition.global.update(context.pending.global);
         updateContext.currentPosition.local = context.latestPosition.local.clone();
-        updateContext.currentPosition.local.update(context.pending.local, true);
+        updateContext.currentPosition.local.update(context.pending.local);
 
         // load current order
         updateContext.order.global = _pendingOrder[context.global.currentId].read();
@@ -445,8 +445,8 @@ contract Market is IMarket, Instance, ReentrancyGuard {
             protect,
             referralFee
         );
-        updateContext.currentPosition.global.update(newOrder, true);
-        updateContext.currentPosition.local.update(newOrder, true);
+        updateContext.currentPosition.global.update(newOrder);
+        updateContext.currentPosition.local.update(newOrder);
 
         // apply new order
         updateContext.order.local.add(newOrder);
@@ -623,7 +623,7 @@ contract Market is IMarket, Instance, ReentrancyGuard {
 
         context.global.update(newOrderId, accumulationResult, context.marketParameter, context.protocolParameter);
 
-        context.latestPosition.global.update(newOrder, oracleVersion.valid);
+        if (oracleVersion.valid) context.latestPosition.global.update(newOrder);
         context.pending.global.sub(newOrder);
 
         settlementContext.orderOracleVersion = oracleVersion;
@@ -659,7 +659,7 @@ contract Market is IMarket, Instance, ReentrancyGuard {
         _credit(liquidators[account][newOrderId], accumulationResult.liquidationFee);
         _credit(referrers[account][newOrderId], accumulationResult.subtractiveFee);
 
-        context.latestPosition.local.update(newOrder, versionTo.valid);
+        if (versionTo.valid) context.latestPosition.local.update(newOrder);
         context.pending.local.sub(newOrder);
 
         _checkpoints[account][newOrder.timestamp].store(settlementContext.latestCheckpoint);

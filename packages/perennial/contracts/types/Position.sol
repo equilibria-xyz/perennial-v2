@@ -40,9 +40,8 @@ library PositionLib {
     /// @notice Updates the position with a new order
     /// @param self The position object to update
     /// @param order The new order
-    function update(Position memory self, Order memory order, bool valid) internal pure {
+    function update(Position memory self, Order memory order) internal pure {
         self.timestamp = order.timestamp;
-        if (!valid) return;
 
         (self.maker, self.long, self.short) = (
             UFixed6Lib.from(Fixed6Lib.from(self.maker).add(order.maker())),
