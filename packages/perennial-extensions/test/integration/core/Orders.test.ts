@@ -494,9 +494,11 @@ describe('Orders', () => {
   it('executes an order with multiple interface fees', async () => {
     const { user, userB, userC, userD, chainlink, dsu, usdc } = instanceVars
 
+    const triggerPrice = payoff(PRICE.sub(utils.parseEther('0.001'))).div(1e12)
+
     const trigger = openTriggerOrder({
       delta: userPosition,
-      price: payoff(marketPrice.sub(10)),
+      price: triggerPrice,
       side: Dir.L,
       comparison: Compare.ABOVE_MARKET,
       interfaceFee1: { amount: 50e6, receiver: userB.address, unwrap: true },
@@ -512,12 +514,11 @@ describe('Orders', () => {
     await expect(multiInvoker.connect(user).invoke(placeOrder)).to.not.be.reverted
     expect(await multiInvoker.canExecuteOrder(user.address, market.address, 1)).to.be.false
 
-    await chainlink.nextWithPriceModification(() => marketPrice.sub(11))
+    await chainlink.nextWithPriceModification(() => PRICE.sub(utils.parseEther('0.0011')))
     await settle(market, user)
 
     const balanceBefore = await usdc.balanceOf(userB.address)
     const balanceBefore2 = await dsu.balanceOf(userD.address)
-    await ethers.provider.send('hardhat_setNextBlockBaseFeePerGas', ['0x1'])
     const execute = buildExecOrder({ user: user.address, market: market.address, orderId: 1 })
     await expect(multiInvoker.connect(userC).invoke(execute))
       .to.emit(multiInvoker, 'OrderExecuted')
@@ -531,7 +532,7 @@ describe('Orders', () => {
       .withArgs(user.address, market.address, { receiver: userD.address, amount: 100e6, unwrap: false })
 
     expect(await usdc.balanceOf(userB.address)).to.eq(balanceBefore.add(50e6))
-    expect(await dsu.balanceOf(userD.address)).to.eq(balanceBefore2.add(ethers.utils.parseEther('100')))
+    expect(await dsu.balanceOf(userD.address)).to.eq(balanceBefore2.add(utils.parseEther('100')))
   })
 
   it('executes a withdrawal order', async () => {
