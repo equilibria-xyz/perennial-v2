@@ -612,6 +612,9 @@ contract Market is IMarket, Instance, ReentrancyGuard {
         context.pending.global.sub(newOrder);
         if (!oracleVersion.valid) newOrder.invalidate();
 
+        context.pending.global.sub(newOrder);
+        if (!oracleVersion.valid) newOrder.invalidate();
+
         VersionAccumulationResult memory accumulationResult;
         (settlementContext.latestVersion, context.global, accumulationResult) = VersionLib.accumulate(
             settlementContext.latestVersion,
@@ -647,6 +650,9 @@ contract Market is IMarket, Instance, ReentrancyGuard {
     ) private {
         Version memory versionFrom = _versions[context.latestPosition.local.timestamp].read();
         Version memory versionTo = _versions[newOrder.timestamp].read();
+
+        context.pending.local.sub(newOrder);
+        if (!versionTo.valid) newOrder.invalidate();
 
         context.pending.local.sub(newOrder);
         if (!versionTo.valid) newOrder.invalidate();
