@@ -524,6 +524,15 @@ contract Market is IMarket, Instance, ReentrancyGuard {
         settlementContext.latestVersion = _versions[context.latestPosition.global.timestamp].read();
         settlementContext.latestCheckpoint = _checkpoints[account][context.latestPosition.local.timestamp].read();
         settlementContext.orderOracleVersion = oracle.at(context.latestPosition.global.timestamp);
+
+        // v2.2 migration (if latest checkpoint is empty, initialize with latest local collateral)
+        if (
+            settlementContext.latestCheckpoint.tradeFee.isZero() &&
+            settlementContext.latestCheckpoint.settlementFee.isZero() &&
+            settlementContext.latestCheckpoint.transfer.isZero() &&
+            settlementContext.latestCheckpoint.collateral.isZero() &&
+            context.pending.local.collateral.isZero()
+        ) settlementContext.latestCheckpoint.collateral = context.local.collateral;
     }
 
     /// @notice Settles the account position up to the latest version
