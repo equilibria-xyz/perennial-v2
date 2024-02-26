@@ -89,9 +89,6 @@ const ORACLE_VERSION_2: OracleVersionStruct = {
   valid: true,
 }
 
-// TODO: add settlement fee tests
-// TODO: add liquidation fee tests
-
 describe('Version', () => {
   let owner: SignerWithAddress
   let version: VersionTester
