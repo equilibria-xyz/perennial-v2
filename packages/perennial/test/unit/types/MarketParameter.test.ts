@@ -29,6 +29,7 @@ export const VALID_MARKET_PARAMETER: MarketParameterStruct = {
   takerCloseAlways: false,
   makerCloseAlways: false,
   closed: false,
+  settle: false,
 }
 
 const PROTOCOL_PARAMETER: ProtocolParameterStruct = {
@@ -71,6 +72,7 @@ describe('MarketParameter', () => {
       expect(value.takerCloseAlways).to.equal(false)
       expect(value.makerCloseAlways).to.equal(false)
       expect(value.closed).to.equal(false)
+      expect(value.settle).to.equal(false)
     })
 
     context('.fundingFee', async () => {
@@ -357,6 +359,18 @@ describe('MarketParameter', () => {
         )
         const value = await marketParameter.read()
         expect(value.closed).to.equal(true)
+      })
+
+      it('saves settle', async () => {
+        await marketParameter.validateAndStore(
+          {
+            ...VALID_MARKET_PARAMETER,
+            settle: true,
+          },
+          PROTOCOL_PARAMETER,
+        )
+        const value = await marketParameter.read()
+        expect(value.settle).to.equal(true)
       })
     })
   })

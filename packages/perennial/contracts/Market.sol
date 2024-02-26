@@ -411,7 +411,7 @@ contract Market is IMarket, Instance, ReentrancyGuard {
         Fixed6 collateral,
         bool protect,
         address referrer
-    ) private {
+    ) private notSettleOnly(context) {
         // load
         UpdateContext memory updateContext = _loadUpdateContext(context, account, referrer);
 
@@ -684,6 +684,12 @@ contract Market is IMarket, Instance, ReentrancyGuard {
     /// @notice Only the coordinator or the owner can call
     modifier onlyCoordinator {
         if (msg.sender != coordinator && msg.sender != factory().owner()) revert MarketNotCoordinatorError();
+        _;
+    }
+
+    /// @notice Only when the market is not in settle-only mode
+    modifier notSettleOnly(Context memory context) {
+        if (context.marketParameter.settle) revert MarketSettleOnlyError();
         _;
     }
 }
