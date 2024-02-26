@@ -128,7 +128,7 @@ library RiskParameterStorageLib {
         );
     }
 
-    function validate(RiskParameter memory self, ProtocolParameter memory protocolParameter) internal pure {
+    function validate(RiskParameter memory self, ProtocolParameter memory protocolParameter) private pure {
         if (
             self.takerFee.linearFee.max(self.takerFee.proportionalFee).max(self.takerFee.adiabaticFee)
                 .max(self.makerFee.linearFee).max(self.makerFee.proportionalFee).max(self.makerFee.adiabaticFee)

@@ -22,13 +22,10 @@ contract LocalTester {
 
     function update(
         uint256 newId,
-        Fixed6 collateral,
-        Fixed6 tradeFee,
-        UFixed6 settlementFee,
-        UFixed6 liquidationFee
+        CheckpointAccumulationResult memory accumulation
     ) external {
         Local memory newLocal = local.read();
-        newLocal.update(newId, collateral, tradeFee, settlementFee, liquidationFee);
+        newLocal.update(newId, accumulation);
         local.store(newLocal);
     }
 }

@@ -6,6 +6,7 @@ import "./RiskParameter.sol";
 import "./Global.sol";
 import "./Local.sol";
 import "./Position.sol";
+import "./MarketParameter.sol";
 
 /// @dev Order type
 struct Order {

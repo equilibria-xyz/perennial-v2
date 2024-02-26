@@ -4,6 +4,7 @@ pragma solidity ^0.8.13;
 import "@equilibria/root/pid/types/PAccumulator6.sol";
 import "./ProtocolParameter.sol";
 import "./MarketParameter.sol";
+import "../libs/VersionLib.sol";
 
 /// @dev Global type
 struct Global {
@@ -41,20 +42,20 @@ library GlobalLib {
     /// @notice Increments the fees by `amount` using current parameters
     /// @param self The Global object to update
     /// @param newLatestId The new latest position id
-    /// @param marketFee The amount to increment market fees by
-    /// @param settlementFee The amount to increment the settlement fee by
-    /// @param marketExposure The amount to increment the market exposure by
+    /// @param accumulation The accumulation result
     /// @param marketParameter The current market parameters
     /// @param protocolParameter The current protocol parameters
     function update(
         Global memory self,
         uint256 newLatestId,
-        UFixed6 marketFee,
-        UFixed6 settlementFee,
-        Fixed6 marketExposure,
+        VersionAccumulationResult memory accumulation,
         MarketParameter memory marketParameter,
         ProtocolParameter memory protocolParameter
     ) internal pure {
+        UFixed6 marketFee = accumulation.positionFeeProtocol
+            .add(accumulation.fundingFee)
+            .add(accumulation.interestFee);
+
         UFixed6 protocolFeeAmount = marketFee.mul(protocolParameter.protocolFee);
         UFixed6 marketFeeAmount = marketFee.sub(protocolFeeAmount);
 
@@ -64,10 +65,10 @@ library GlobalLib {
 
         self.latestId = newLatestId;
         self.protocolFee = self.protocolFee.add(protocolFeeAmount);
-        self.oracleFee = self.oracleFee.add(settlementFee).add(oracleFeeAmount);
+        self.oracleFee = self.oracleFee.add(accumulation.settlementFee).add(oracleFeeAmount);
         self.riskFee = self.riskFee.add(riskFeeAmount);
         self.donation = self.donation.add(donationAmount);
-        self.exposure = self.exposure.add(marketExposure);
+        self.exposure = self.exposure.add(accumulation.positionFeeExposureProtocol);
     }
 }
 

@@ -2,6 +2,7 @@
 pragma solidity ^0.8.13;
 
 import "../types/Version.sol";
+import "../libs/VersionLib.sol";
 
 contract VersionTester {
     VersionStorage public version;
@@ -22,10 +23,11 @@ contract VersionTester {
         OracleVersion memory toOracleVersion,
         MarketParameter memory marketParameter,
         RiskParameter memory riskParameter
-    ) external returns (VersionAccumulationResult memory values, VersionFeeResult memory fees) {
+    ) external returns (VersionAccumulationResult memory values) {
         Version memory newVersion = version.read();
 
-        (values, fees) = newVersion.accumulate(
+        (newVersion, values) = VersionLib.accumulate(
+            newVersion,
             global,
             fromPosition,
             order,

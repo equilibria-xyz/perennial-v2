@@ -2,6 +2,7 @@
 pragma solidity ^0.8.13;
 
 import "../types/Checkpoint.sol";
+import "../libs/CheckpointLib.sol";
 
 contract CheckpointTester {
     CheckpointStorage public checkpoint;
@@ -21,7 +22,7 @@ contract CheckpointTester {
         Version memory toVersion
     ) external returns (CheckpointAccumulationResult memory result) {
         Checkpoint memory newCheckpoint = checkpoint.read();
-        result = newCheckpoint.accumulate(order, fromPosition, fromVersion, toVersion);
+        (newCheckpoint, result) = CheckpointLib.accumulate(newCheckpoint, order, fromPosition, fromVersion, toVersion);
         checkpoint.store(newCheckpoint);
     }
 }

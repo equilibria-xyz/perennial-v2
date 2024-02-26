@@ -5,6 +5,7 @@ import "@equilibria/root/attribute/Instance.sol";
 import "@equilibria/root/attribute/ReentrancyGuard.sol";
 import "./interfaces/IMarket.sol";
 import "./interfaces/IMarketFactory.sol";
+import "./libs/InvariantLib.sol";
 
 /// @title Market
 /// @notice Manages logic and state for a single market.
@@ -365,6 +366,7 @@ contract Market is IMarket, Instance, ReentrancyGuard {
         updateContext.order.local = _pendingOrders[account][context.local.currentId].read();
 
         // load external actors
+        updateContext.operator = IMarketFactory(address(factory())).operators(account, msg.sender);
         updateContext.liquidator = liquidators[account][context.local.currentId];
         updateContext.referrer = referrers[account][context.local.currentId];
         updateContext.referralFee = IMarketFactory(address(factory())).referralFee(referrer);
@@ -457,7 +459,7 @@ contract Market is IMarket, Instance, ReentrancyGuard {
         if (!newOrder.isEmpty()) oracle.request(IMarket(this), account);
 
         // after
-        _invariant(context, updateContext, account, newOrder, collateral);
+        InvariantLib.validate(context, updateContext, msg.sender, account, newOrder, collateral);
 
         // store
         _storeUpdateContext(context, updateContext, account);
@@ -591,10 +593,10 @@ contract Market is IMarket, Instance, ReentrancyGuard {
         OracleVersion memory oracleVersion = oracle.at(newOrder.timestamp);
 
         (uint256 fromTimestamp, uint256 fromId) = (context.latestPosition.global.timestamp, context.global.latestId);
-        (
-            VersionAccumulationResult memory accumulationResult,
-            VersionFeeResult memory feeResult
-        ) = settlementContext.latestVersion.accumulate(
+
+        VersionAccumulationResult memory accumulationResult;
+        (settlementContext.latestVersion, accumulationResult) = VersionLib.accumulate(
+            settlementContext.latestVersion,
             context.global,
             context.latestPosition.global,
             newOrder,
@@ -604,14 +606,7 @@ contract Market is IMarket, Instance, ReentrancyGuard {
             context.riskParameter
         );
 
-        context.global.update(
-            newOrderId,
-            feeResult.marketFee,
-            feeResult.settlementFee,
-            feeResult.protocolFee,
-            context.marketParameter,
-            context.protocolParameter
-        );
+        context.global.update(newOrderId, accumulationResult, context.marketParameter, context.protocolParameter);
 
         context.latestPosition.global.update(newOrder, oracleVersion.valid);
         context.pending.global.sub(newOrder);
@@ -634,26 +629,24 @@ contract Market is IMarket, Instance, ReentrancyGuard {
         uint256 newOrderId,
         Order memory newOrder
     ) private {
-        Version memory version = _versions[newOrder.timestamp].read();
+        Version memory versionFrom = _versions[context.latestPosition.local.timestamp].read();
+        Version memory versionTo = _versions[newOrder.timestamp].read();
 
         (uint256 fromTimestamp, uint256 fromId) = (context.latestPosition.local.timestamp, context.local.latestId);
-        CheckpointAccumulationResult memory accumulationResult = settlementContext.latestCheckpoint.accumulate(
+
+        CheckpointAccumulationResult memory accumulationResult;
+        (settlementContext.latestCheckpoint, accumulationResult) = CheckpointLib.accumulate(
+            settlementContext.latestCheckpoint,
             newOrder,
             context.latestPosition.local,
-            _versions[context.latestPosition.local.timestamp].read(),
-            version
+            versionFrom,
+            versionTo
         );
-        context.local.update(
-            newOrderId,
-            accumulationResult.collateral,
-            accumulationResult.linearFee.add(accumulationResult.proportionalFee).add(accumulationResult.adiabaticFee),
-            accumulationResult.settlementFee,
-            accumulationResult.liquidationFee
-        );
+        context.local.update(newOrderId, accumulationResult);
         _credit(liquidators[account][newOrderId], accumulationResult.liquidationFee);
         _credit(referrers[account][newOrderId], accumulationResult.subtractiveFee);
 
-        context.latestPosition.local.update(newOrder, version.valid);
+        context.latestPosition.local.update(newOrder, versionTo.valid);
         context.pending.local.sub(newOrder);
 
         _checkpoints[account][newOrder.timestamp].store(settlementContext.latestCheckpoint);
@@ -678,94 +671,6 @@ contract Market is IMarket, Instance, ReentrancyGuard {
         Local memory newLocal = _locals[account].read();
         newLocal.credit(amount);
         _locals[account].store(newLocal);
-    }
-
-    /// @notice Verifies the invariant of the market
-    /// @param context The context to use
-    /// @param account The account to verify the invariant for
-    /// @param newOrder The order to verify the invariant for
-    /// @param collateral The collateral change to verify the invariant for
-    function _invariant(
-        Context memory context,
-        UpdateContext memory updateContext,
-        address account,
-        Order memory newOrder,
-        Fixed6 collateral
-    ) private view {
-        if (context.pending.local.neg().gt(context.latestPosition.local.magnitude())) revert MarketOverCloseError();
-
-        if (newOrder.protected() && (
-            !context.pending.local.neg().eq(context.latestPosition.local.magnitude()) ||
-            context.latestPosition.local.maintained(
-                context.latestOracleVersion,
-                context.riskParameter,
-                context.local.collateral.sub(collateral)
-            ) ||
-            collateral.lt(Fixed6Lib.ZERO) ||
-            newOrder.magnitude().gte(Fixed6Lib.ZERO)
-        )) revert MarketInvalidProtectionError();
-
-        if (
-            !(updateContext.currentPosition.local.magnitude().isZero() && context.latestPosition.local.magnitude().isZero()) &&   // sender has no position
-            !(newOrder.isEmpty() && collateral.gte(Fixed6Lib.ZERO)) &&                                                      // sender is depositing zero or more into account, without position change
-            (context.currentTimestamp - context.latestOracleVersion.timestamp >= context.riskParameter.staleAfter)          // price is not stale
-        ) revert MarketStalePriceError();
-
-        if (context.marketParameter.closed && newOrder.increasesPosition())
-            revert MarketClosedError();
-
-        if (
-            updateContext.currentPosition.global.maker.gt(context.riskParameter.makerLimit) &&
-            newOrder.increasesMaker()
-        ) revert MarketMakerOverLimitError();
-
-        if (
-            !updateContext.currentPosition.local.singleSided() || (
-                context.latestPosition.local.direction() != updateContext.currentPosition.local.direction() &&
-                    !context.latestPosition.local.empty() &&
-                    !updateContext.currentPosition.local.empty()
-            )
-        ) revert MarketNotSingleSidedError();
-
-        if (newOrder.protected()) return; // The following invariants do not apply to protected position updates (liquidations)
-
-        if (
-            msg.sender != account &&                                                        // sender is operating on own account
-            !IMarketFactory(address(factory())).operators(account, msg.sender) &&           // sender is operator approved for account
-            !(newOrder.isEmpty() && collateral.gte(Fixed6Lib.ZERO))                         // sender is depositing zero or more into account, without position change
-        ) revert MarketOperatorNotAllowedError();
-
-        if (
-            context.global.currentId > context.global.latestId + context.marketParameter.maxPendingGlobal ||
-            context.local.currentId > context.local.latestId + context.marketParameter.maxPendingLocal
-        ) revert MarketExceedsPendingIdLimitError();
-
-        if (
-            !PositionLib.margined(
-                context.latestPosition.local.magnitude().add(context.pending.local.pos()),
-                context.latestOracleVersion,
-                context.riskParameter,
-                context.local.collateral
-            )
-        ) revert MarketInsufficientMarginError();
-
-        if (context.pending.local.protected() && !newOrder.protected() && !newOrder.isEmpty())
-            revert MarketProtectedError();
-
-        if (
-            newOrder.liquidityCheckApplicable(context.marketParameter) &&
-            newOrder.decreasesEfficiency(updateContext.currentPosition.global) &&
-            updateContext.currentPosition.global.efficiency().lt(context.riskParameter.efficiencyLimit)
-        ) revert MarketEfficiencyUnderLimitError();
-
-        if (
-            newOrder.liquidityCheckApplicable(context.marketParameter) &&
-            updateContext.currentPosition.global.socialized() &&
-            newOrder.decreasesLiquidity(updateContext.currentPosition.global)
-        ) revert MarketInsufficientLiquidityError();
-
-        if (collateral.lt(Fixed6Lib.ZERO) && context.local.collateral.lt(Fixed6Lib.ZERO))
-            revert MarketInsufficientCollateralError();
     }
 
     /// @notice Only the coordinator or the owner can call

@@ -16,14 +16,12 @@ contract GlobalTester {
 
     function update(
         uint256 newLatestId,
-        UFixed6 marketFee,
-        UFixed6 settlementFee,
-        Fixed6 marketExposure,
+        VersionAccumulationResult memory accumulation,
         MarketParameter memory marketParameter,
         ProtocolParameter memory protocolParameter
     ) external {
         Global memory newGlobal = global.read();
-        newGlobal.update(newLatestId, marketFee, settlementFee, marketExposure, marketParameter, protocolParameter);
+        newGlobal.update(newLatestId, accumulation, marketParameter, protocolParameter);
         global.store(newGlobal);
     }
 }

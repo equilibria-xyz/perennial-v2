@@ -721,28 +721,26 @@ describe('Version', () => {
         expect(value.longValue._value).to.equal(2)
         expect(value.shortValue._value).to.equal(3)
 
-        expect(ret.fees.marketFee).to.equal(BigNumber.from('442'))
-
-        expect(ret[0].positionFee).to.equal(BigNumber.from('147600000'))
-        expect(ret[0].positionFeeMaker).to.equal(BigNumber.from('147599558'))
-        expect(ret[0].positionFeeProtocol).to.equal(BigNumber.from('442'))
-        expect(ret[0].positionFeeExposure).to.equal(0)
-        expect(ret[0].positionFeeExposureMaker).to.equal(0)
-        expect(ret[0].positionFeeExposureProtocol).to.equal(0)
-        expect(ret[0].positionFeeImpact).to.equal(BigNumber.from('18450000'))
-        expect(ret[0].fundingMaker).to.equal(0)
-        expect(ret[0].fundingLong).to.equal(0)
-        expect(ret[0].fundingShort).to.equal(0)
-        expect(ret[0].fundingFee).to.equal(0)
-        expect(ret[0].interestMaker).to.equal(0)
-        expect(ret[0].interestLong).to.equal(0)
-        expect(ret[0].interestShort).to.equal(0)
-        expect(ret[0].interestFee).to.equal(0)
-        expect(ret[0].pnlMaker).to.equal(0)
-        expect(ret[0].pnlLong).to.equal(0)
-        expect(ret[0].pnlShort).to.equal(0)
-        expect(ret[0].settlementFee).to.equal(parse6decimal('2'))
-        expect(ret[0].liquidationFee).to.equal(9)
+        expect(ret.positionFee).to.equal(BigNumber.from('147600000'))
+        expect(ret.positionFeeMaker).to.equal(BigNumber.from('147599558'))
+        expect(ret.positionFeeProtocol).to.equal(BigNumber.from('442'))
+        expect(ret.positionFeeExposure).to.equal(0)
+        expect(ret.positionFeeExposureMaker).to.equal(0)
+        expect(ret.positionFeeExposureProtocol).to.equal(0)
+        expect(ret.positionFeeImpact).to.equal(BigNumber.from('18450000'))
+        expect(ret.fundingMaker).to.equal(0)
+        expect(ret.fundingLong).to.equal(0)
+        expect(ret.fundingShort).to.equal(0)
+        expect(ret.fundingFee).to.equal(0)
+        expect(ret.interestMaker).to.equal(0)
+        expect(ret.interestLong).to.equal(0)
+        expect(ret.interestShort).to.equal(0)
+        expect(ret.interestFee).to.equal(0)
+        expect(ret.pnlMaker).to.equal(0)
+        expect(ret.pnlLong).to.equal(0)
+        expect(ret.pnlShort).to.equal(0)
+        expect(ret.settlementFee).to.equal(parse6decimal('2'))
+        expect(ret.liquidationFee).to.equal(9)
       })
     })
 
@@ -880,13 +878,13 @@ describe('Version', () => {
         expect(value.takerNegFee._value).to.equal(impact2.mul(-1).mul(123).div(60))
         expect(value.settlementFee._value).to.equal(-2)
 
-        expect(ret[0].positionFee).to.equal(fee)
-        expect(ret[0].positionFeeMaker).to.equal(0)
-        expect(ret[0].positionFeeProtocol).to.equal(fee)
-        expect(ret[0].positionFeeExposure).to.equal(exposure)
-        expect(ret[0].positionFeeExposureProtocol).to.equal(-exposure)
-        expect(ret[0].positionFeeExposureMaker).to.equal(0)
-        expect(ret[0].positionFeeImpact).to.equal(impact)
+        expect(ret.positionFee).to.equal(fee)
+        expect(ret.positionFeeMaker).to.equal(0)
+        expect(ret.positionFeeProtocol).to.equal(fee)
+        expect(ret.positionFeeExposure).to.equal(exposure)
+        expect(ret.positionFeeExposureProtocol).to.equal(-exposure)
+        expect(ret.positionFeeExposureMaker).to.equal(0)
+        expect(ret.positionFeeImpact).to.equal(impact)
       })
 
       it('allocates when makers', async () => {
@@ -968,13 +966,13 @@ describe('Version', () => {
         expect(value.takerNegFee._value).to.equal(impact2.mul(-1).mul(123).div(60))
         expect(value.settlementFee._value).to.equal(-2)
 
-        expect(ret[0].positionFee).to.equal(fee)
-        expect(ret[0].positionFeeMaker).to.equal(fee.mul(9).div(10))
-        expect(ret[0].positionFeeProtocol).to.equal(fee.div(10))
-        expect(ret[0].positionFeeExposure).to.equal(exposure)
-        expect(ret[0].positionFeeExposureMaker).to.equal(-exposure)
-        expect(ret[0].positionFeeExposureProtocol).to.equal(0)
-        expect(ret[0].positionFeeImpact).to.equal(impact)
+        expect(ret.positionFee).to.equal(fee)
+        expect(ret.positionFeeMaker).to.equal(fee.mul(9).div(10))
+        expect(ret.positionFeeProtocol).to.equal(fee.div(10))
+        expect(ret.positionFeeExposure).to.equal(exposure)
+        expect(ret.positionFeeExposureMaker).to.equal(-exposure)
+        expect(ret.positionFeeExposureProtocol).to.equal(0)
+        expect(ret.positionFeeImpact).to.equal(impact)
       })
     })
 
@@ -1010,10 +1008,10 @@ describe('Version', () => {
               },
             },
           )
-          expect(ret[0].fundingFee).to.equal(0)
-          expect(ret[0].fundingMaker).to.equal(0)
-          expect(ret[0].fundingLong).to.equal(0)
-          expect(ret[0].fundingShort).to.equal(0)
+          expect(ret.fundingFee).to.equal(0)
+          expect(ret.fundingMaker).to.equal(0)
+          expect(ret.fundingLong).to.equal(0)
+          expect(ret.fundingShort).to.equal(0)
 
           expect(value.makerValue._value).to.equal(0)
           expect(value.longValue._value).to.equal(0)
@@ -1056,10 +1054,10 @@ describe('Version', () => {
               },
             },
           )
-          expect(ret[0].fundingFee).to.equal(0)
-          expect(ret[0].fundingMaker).to.equal(0)
-          expect(ret[0].fundingLong).to.equal(0)
-          expect(ret[0].fundingShort).to.equal(0)
+          expect(ret.fundingFee).to.equal(0)
+          expect(ret.fundingMaker).to.equal(0)
+          expect(ret.fundingLong).to.equal(0)
+          expect(ret.fundingShort).to.equal(0)
 
           expect(value.makerValue._value).to.equal(0)
           expect(value.longValue._value).to.equal(0)
@@ -1099,10 +1097,10 @@ describe('Version', () => {
             },
           )
 
-          expect(ret[0].fundingFee).to.equal(BigNumber.from('35'))
-          expect(ret[0].fundingMaker).to.equal(BigNumber.from('584'))
-          expect(ret[0].fundingLong).to.equal(BigNumber.from('-1788'))
-          expect(ret[0].fundingShort).to.equal(BigNumber.from('1169'))
+          expect(ret.fundingFee).to.equal(BigNumber.from('35'))
+          expect(ret.fundingMaker).to.equal(BigNumber.from('584'))
+          expect(ret.fundingLong).to.equal(BigNumber.from('-1788'))
+          expect(ret.fundingShort).to.equal(BigNumber.from('1169'))
 
           expect(value.makerValue._value).to.equal(BigNumber.from('58'))
           expect(value.longValue._value).to.equal(BigNumber.from('-149'))
@@ -1142,10 +1140,10 @@ describe('Version', () => {
             },
           )
 
-          expect(ret[0].fundingFee).to.equal(BigNumber.from('35'))
-          expect(ret[0].fundingMaker).to.equal(BigNumber.from('-595'))
-          expect(ret[0].fundingLong).to.equal(BigNumber.from('-1193'))
-          expect(ret[0].fundingShort).to.equal(BigNumber.from('1753'))
+          expect(ret.fundingFee).to.equal(BigNumber.from('35'))
+          expect(ret.fundingMaker).to.equal(BigNumber.from('-595'))
+          expect(ret.fundingLong).to.equal(BigNumber.from('-1193'))
+          expect(ret.fundingShort).to.equal(BigNumber.from('1753'))
 
           expect(value.makerValue._value).to.equal(BigNumber.from('-60'))
           expect(value.longValue._value).to.equal(BigNumber.from('-150'))
@@ -1186,10 +1184,10 @@ describe('Version', () => {
             },
           )
 
-          expect(ret[0].fundingFee).to.equal(BigNumber.from('35'))
-          expect(ret[0].fundingMaker).to.equal(BigNumber.from('583'))
-          expect(ret[0].fundingLong).to.equal(BigNumber.from('1169'))
-          expect(ret[0].fundingShort).to.equal(BigNumber.from('-1787'))
+          expect(ret.fundingFee).to.equal(BigNumber.from('35'))
+          expect(ret.fundingMaker).to.equal(BigNumber.from('583'))
+          expect(ret.fundingLong).to.equal(BigNumber.from('1169'))
+          expect(ret.fundingShort).to.equal(BigNumber.from('-1787'))
 
           expect(value.makerValue._value).to.equal(BigNumber.from('58'))
           expect(value.longValue._value).to.equal(BigNumber.from('146'))
@@ -1230,10 +1228,10 @@ describe('Version', () => {
               },
             },
           )
-          expect(ret[0].interestFee).to.equal(0)
-          expect(ret[0].interestMaker).to.equal(0)
-          expect(ret[0].interestLong).to.equal(0)
-          expect(ret[0].interestShort).to.equal(0)
+          expect(ret.interestFee).to.equal(0)
+          expect(ret.interestMaker).to.equal(0)
+          expect(ret.interestLong).to.equal(0)
+          expect(ret.interestShort).to.equal(0)
 
           expect(value.makerValue._value).to.equal(0)
           expect(value.longValue._value).to.equal(0)
@@ -1279,10 +1277,10 @@ describe('Version', () => {
           // interestMaker =.014041 - 0.00028 = 0.013761
           // interestLong = .014041 * 12 / 14 * -1 = -0.012035
           // interestShort = (.014041 - .012035) * -1 = -0.002006
-          expect(ret[0].interestFee).to.equal(parse6decimal('0.00028'))
-          expect(ret[0].interestMaker).to.equal(parse6decimal('0.013761'))
-          expect(ret[0].interestLong).to.equal(parse6decimal('-0.012035'))
-          expect(ret[0].interestShort).to.equal(parse6decimal('-0.002006'))
+          expect(ret.interestFee).to.equal(parse6decimal('0.00028'))
+          expect(ret.interestMaker).to.equal(parse6decimal('0.013761'))
+          expect(ret.interestLong).to.equal(parse6decimal('-0.012035'))
+          expect(ret.interestShort).to.equal(parse6decimal('-0.002006'))
 
           expect(value.makerValue._value).to.equal(parse6decimal('0.001376'))
           expect(value.longValue._value).to.equal(parse6decimal('-0.001003'))
@@ -1328,10 +1326,10 @@ describe('Version', () => {
           // interestMaker =.014041 - 0.00028 = 0.013761
           // interestLong = .014041 * 8 / 10 * -1 = -0.0112328
           // interestShort = (.014041 - 0.0112328) * -1 = -0.002809
-          expect(ret[0].interestFee).to.equal(parse6decimal('0.00028'))
-          expect(ret[0].interestMaker).to.equal(parse6decimal('0.013761'))
-          expect(ret[0].interestLong).to.equal(parse6decimal('-0.0112328'))
-          expect(ret[0].interestShort).to.equal(parse6decimal('-0.002809'))
+          expect(ret.interestFee).to.equal(parse6decimal('0.00028'))
+          expect(ret.interestMaker).to.equal(parse6decimal('0.013761'))
+          expect(ret.interestLong).to.equal(parse6decimal('-0.0112328'))
+          expect(ret.interestShort).to.equal(parse6decimal('-0.002809'))
 
           expect(value.makerValue._value).to.equal(parse6decimal('0.000688'))
           expect(value.longValue._value).to.equal(parse6decimal('-0.0014041'))
@@ -1371,10 +1369,10 @@ describe('Version', () => {
             },
           )
 
-          expect(ret[0].interestFee).to.equal(0)
-          expect(ret[0].interestMaker).to.equal(0)
-          expect(ret[0].interestLong).to.equal(0)
-          expect(ret[0].interestShort).to.equal(0)
+          expect(ret.interestFee).to.equal(0)
+          expect(ret.interestMaker).to.equal(0)
+          expect(ret.interestLong).to.equal(0)
+          expect(ret.interestShort).to.equal(0)
 
           expect(value.makerValue._value).to.equal(0)
           expect(value.longValue._value).to.equal(0)
@@ -1416,9 +1414,9 @@ describe('Version', () => {
             },
           )
 
-          expect(ret[0].pnlMaker).to.equal(0)
-          expect(ret[0].pnlLong).to.equal(0)
-          expect(ret[0].pnlShort).to.equal(0)
+          expect(ret.pnlMaker).to.equal(0)
+          expect(ret.pnlLong).to.equal(0)
+          expect(ret.pnlShort).to.equal(0)
 
           expect(value.makerValue._value).to.equal(0)
           expect(value.longValue._value).to.equal(0)
@@ -1474,9 +1472,9 @@ describe('Version', () => {
               },
             )
 
-            expect(ret[0].pnlMaker).to.equal(parse6decimal('0'))
-            expect(ret[0].pnlLong).to.equal(parse6decimal('18'))
-            expect(ret[0].pnlShort).to.equal(parse6decimal('-18'))
+            expect(ret.pnlMaker).to.equal(parse6decimal('0'))
+            expect(ret.pnlLong).to.equal(parse6decimal('18'))
+            expect(ret.pnlShort).to.equal(parse6decimal('-18'))
 
             expect(value.makerValue._value).to.equal(0)
             expect(value.longValue._value).to.equal(parse6decimal('2'))
@@ -1531,9 +1529,9 @@ describe('Version', () => {
               },
             )
 
-            expect(ret[0].pnlMaker).to.equal(parse6decimal('14'))
-            expect(ret[0].pnlLong).to.equal(parse6decimal('4'))
-            expect(ret[0].pnlShort).to.equal(parse6decimal('-18'))
+            expect(ret.pnlMaker).to.equal(parse6decimal('14'))
+            expect(ret.pnlLong).to.equal(parse6decimal('4'))
+            expect(ret.pnlShort).to.equal(parse6decimal('-18'))
 
             expect(value.makerValue._value).to.equal(parse6decimal('1.4'))
             expect(value.longValue._value).to.equal(parse6decimal('2'))
@@ -1588,9 +1586,9 @@ describe('Version', () => {
               },
             )
 
-            expect(ret[0].pnlMaker).to.equal(parse6decimal('-10'))
-            expect(ret[0].pnlLong).to.equal(parse6decimal('40'))
-            expect(ret[0].pnlShort).to.equal(parse6decimal('-30'))
+            expect(ret.pnlMaker).to.equal(parse6decimal('-10'))
+            expect(ret.pnlLong).to.equal(parse6decimal('40'))
+            expect(ret.pnlShort).to.equal(parse6decimal('-30'))
 
             expect(value.makerValue._value).to.equal(parse6decimal('-2'))
             expect(value.longValue._value).to.equal(parse6decimal('2'))
@@ -1647,9 +1645,9 @@ describe('Version', () => {
               },
             )
 
-            expect(ret[0].pnlMaker).to.equal(parse6decimal('0'))
-            expect(ret[0].pnlLong).to.equal(parse6decimal('-18'))
-            expect(ret[0].pnlShort).to.equal(parse6decimal('18'))
+            expect(ret.pnlMaker).to.equal(parse6decimal('0'))
+            expect(ret.pnlLong).to.equal(parse6decimal('-18'))
+            expect(ret.pnlShort).to.equal(parse6decimal('18'))
 
             expect(value.makerValue._value).to.equal(0)
             expect(value.longValue._value).to.equal(parse6decimal('-2'))
@@ -1704,9 +1702,9 @@ describe('Version', () => {
               },
             )
 
-            expect(ret[0].pnlMaker).to.equal(parse6decimal('-14'))
-            expect(ret[0].pnlLong).to.equal(parse6decimal('-4'))
-            expect(ret[0].pnlShort).to.equal(parse6decimal('18'))
+            expect(ret.pnlMaker).to.equal(parse6decimal('-14'))
+            expect(ret.pnlLong).to.equal(parse6decimal('-4'))
+            expect(ret.pnlShort).to.equal(parse6decimal('18'))
 
             expect(value.makerValue._value).to.equal(parse6decimal('-1.4'))
             expect(value.longValue._value).to.equal(parse6decimal('-2'))
@@ -1761,9 +1759,9 @@ describe('Version', () => {
               },
             )
 
-            expect(ret[0].pnlMaker).to.equal(parse6decimal('10'))
-            expect(ret[0].pnlLong).to.equal(parse6decimal('-40'))
-            expect(ret[0].pnlShort).to.equal(parse6decimal('30'))
+            expect(ret.pnlMaker).to.equal(parse6decimal('10'))
+            expect(ret.pnlLong).to.equal(parse6decimal('-40'))
+            expect(ret.pnlShort).to.equal(parse6decimal('30'))
 
             expect(value.makerValue._value).to.equal(parse6decimal('2'))
             expect(value.longValue._value).to.equal(parse6decimal('-2'))
