@@ -609,6 +609,9 @@ contract Market is IMarket, Instance, ReentrancyGuard {
     ) private {
         OracleVersion memory oracleVersion = oracle.at(newOrder.timestamp);
 
+        context.pending.global.sub(newOrder);
+        if (!oracleVersion.valid) newOrder.invalidate();
+
         VersionAccumulationResult memory accumulationResult;
         (settlementContext.latestVersion, context.global, accumulationResult) = VersionLib.accumulate(
             settlementContext.latestVersion,
@@ -622,9 +625,7 @@ contract Market is IMarket, Instance, ReentrancyGuard {
         );
 
         context.global.update(newOrderId, accumulationResult, context.marketParameter, context.protocolParameter);
-
-        if (oracleVersion.valid) context.latestPosition.global.update(newOrder);
-        context.pending.global.sub(newOrder);
+        context.latestPosition.global.update(newOrder);
 
         settlementContext.orderOracleVersion = oracleVersion;
         _versions[newOrder.timestamp].store(settlementContext.latestVersion);
@@ -647,6 +648,9 @@ contract Market is IMarket, Instance, ReentrancyGuard {
         Version memory versionFrom = _versions[context.latestPosition.local.timestamp].read();
         Version memory versionTo = _versions[newOrder.timestamp].read();
 
+        context.pending.local.sub(newOrder);
+        if (!versionTo.valid) newOrder.invalidate();
+
         CheckpointAccumulationResult memory accumulationResult;
         (settlementContext.latestCheckpoint, accumulationResult) = CheckpointLib.accumulate(
             settlementContext.latestCheckpoint,
@@ -655,14 +659,14 @@ contract Market is IMarket, Instance, ReentrancyGuard {
             versionFrom,
             versionTo
         );
-        context.local.update(newOrderId, accumulationResult);
-        _credit(liquidators[account][newOrderId], accumulationResult.liquidationFee);
-        _credit(referrers[account][newOrderId], accumulationResult.subtractiveFee);
 
-        if (versionTo.valid) context.latestPosition.local.update(newOrder);
-        context.pending.local.sub(newOrder);
+        context.local.update(newOrderId, accumulationResult);
+        context.latestPosition.local.update(newOrder);
 
         _checkpoints[account][newOrder.timestamp].store(settlementContext.latestCheckpoint);
+
+        _credit(liquidators[account][newOrderId], accumulationResult.liquidationFee);
+        _credit(referrers[account][newOrderId], accumulationResult.subtractiveFee);
 
         emit AccountPositionProcessed(account, newOrderId, newOrder, accumulationResult);
     }

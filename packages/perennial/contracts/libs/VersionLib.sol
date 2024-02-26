@@ -160,8 +160,6 @@ library VersionLib {
         AccumulationContext memory context,
         VersionAccumulationResult memory result
     ) private pure {
-        if (!context.toOracleVersion.valid) return;
-
         (UFixed6 makerLinearFee, UFixed6 makerSubtractiveFee) = _accumulateSubtractiveFee(
             context.riskParameter.makerFee.linear(
                 Fixed6Lib.from(context.order.makerTotal()),
@@ -222,8 +220,6 @@ library VersionLib {
         AccumulationContext memory context,
         VersionAccumulationResult memory result
     ) private pure {
-        if (!context.toOracleVersion.valid) return;
-
         UFixed6 makerProportionalFee = context.riskParameter.makerFee.proportional(
             Fixed6Lib.from(context.order.makerTotal()),
             context.toOracleVersion.price.abs()
@@ -256,8 +252,6 @@ library VersionLib {
         AccumulationContext memory context,
         VersionAccumulationResult memory result
     ) private pure {
-        if (!context.toOracleVersion.valid) return;
-
         Fixed6 exposure = context.riskParameter.takerFee.exposure(context.fromPosition.skew())
             .add(context.riskParameter.makerFee.exposure(context.fromPosition.maker));
 
