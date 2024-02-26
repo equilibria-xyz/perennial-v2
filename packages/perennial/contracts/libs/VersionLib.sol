@@ -62,6 +62,7 @@ library VersionLib {
     /// @param marketParameter The market parameter
     /// @param riskParameter The risk parameter
     /// @return next The accumulated version
+    /// @return nextGlobal The next global state
     /// @return result The accumulation result
     function accumulate(
         Version memory self,
@@ -72,7 +73,7 @@ library VersionLib {
         OracleVersion memory toOracleVersion,
         MarketParameter memory marketParameter,
         RiskParameter memory riskParameter
-    ) internal pure returns (Version memory next, VersionAccumulationResult memory result) {
+    ) external pure returns (Version memory next, Global memory nextGlobal, VersionAccumulationResult memory result) {
         AccumulationContext memory context = AccumulationContext(
             global,
             fromPosition,
@@ -105,7 +106,7 @@ library VersionLib {
         _accumulateAdiabaticFee(next, context, result);
 
         // if closed, don't accrue anything else
-        if (marketParameter.closed) return (next, result);
+        if (marketParameter.closed) return (next, global, result);
 
         // accumulate funding
         (result.fundingMaker, result.fundingLong, result.fundingShort, result.fundingFee) =
@@ -118,7 +119,7 @@ library VersionLib {
         // accumulate P&L
         (result.pnlMaker, result.pnlLong, result.pnlShort) = _accumulatePNL(next, context);
 
-        return (next, result);
+        return (next, global, result);
     }
 
     /// @notice Copies over the version-over-version accumulators to prepare the next version

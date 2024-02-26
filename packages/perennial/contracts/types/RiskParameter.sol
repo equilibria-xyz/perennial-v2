@@ -160,7 +160,7 @@ library RiskParameterStorageLib {
         RiskParameterStorage storage self,
         RiskParameter memory newValue,
         ProtocolParameter memory protocolParameter
-    ) internal {
+    ) external {
         validate(newValue, protocolParameter);
 
         if (newValue.margin.gt(UFixed6.wrap(type(uint24).max))) revert RiskParameterStorageInvalidError();

@@ -27,7 +27,19 @@ import {
   OracleFactory__factory,
   IOracle__factory,
   IOracleFactory,
+  InvariantLib__factory,
+  VersionLib__factory,
+  GlobalStorageLib__factory,
+  MarketParameterStorageLib__factory,
+  PositionStorageGlobalLib__factory,
+  PositionStorageLocalLib__factory,
+  RiskParameterStorageLib__factory,
+  VersionStorageLib__factory,
+  MarketFactory,
+  MarketFactory__factory,
 } from '../../../types/generated'
+import { CheckpointStorageLib__factory } from '../../../types/generated/factories/@equilibria/perennial-v2/contracts/types/Checkpoint.sol' // Import directly from path due to name collision with vault type
+import { CheckpointLib__factory } from '../../../types/generated/factories/@equilibria/perennial-v2/contracts/libs/CheckpointLib__factory' // Import directly from path due to name collision with vault type
 import { ChainlinkContext } from '@equilibria/perennial-v2/test/integration/helpers/chainlinkHelpers'
 import { parse6decimal } from '../../../../common/testutil/types'
 import { CHAINLINK_CUSTOM_CURRENCIES } from '@equilibria/perennial-v2-oracle/util/constants'
@@ -38,9 +50,6 @@ import {
 import { FakeContract, smock } from '@defi-wonderland/smock'
 import { deployProductOnMainnetFork } from '@equilibria/perennial-v2-vault/test/integration/helpers/setupHelpers'
 import {
-  IMarketFactory__factory,
-  MarketFactory,
-  MarketFactory__factory,
   ProxyAdmin,
   ProxyAdmin__factory,
   TransparentUpgradeableProxy__factory,
@@ -109,7 +118,41 @@ export async function deployProtocol(chainlinkContext?: ChainlinkContext): Promi
   )
   const oracleFactory = new OracleFactory__factory(owner).attach(oracleFactoryProxy.address)
 
-  const marketImpl = await new Market__factory(owner).deploy()
+  const marketImpl = await new Market__factory(
+    {
+      '@equilibria/perennial-v2/contracts/libs/CheckpointLib.sol:CheckpointLib': (
+        await new CheckpointLib__factory(owner).deploy()
+      ).address,
+      '@equilibria/perennial-v2/contracts/libs/InvariantLib.sol:InvariantLib': (
+        await new InvariantLib__factory(owner).deploy()
+      ).address,
+      '@equilibria/perennial-v2/contracts/libs/VersionLib.sol:VersionLib': (
+        await new VersionLib__factory(owner).deploy()
+      ).address,
+      '@equilibria/perennial-v2/contracts/types/Checkpoint.sol:CheckpointStorageLib': (
+        await new CheckpointStorageLib__factory(owner).deploy()
+      ).address,
+      '@equilibria/perennial-v2/contracts/types/Global.sol:GlobalStorageLib': (
+        await new GlobalStorageLib__factory(owner).deploy()
+      ).address,
+      '@equilibria/perennial-v2/contracts/types/MarketParameter.sol:MarketParameterStorageLib': (
+        await new MarketParameterStorageLib__factory(owner).deploy()
+      ).address,
+      '@equilibria/perennial-v2/contracts/types/Position.sol:PositionStorageGlobalLib': (
+        await new PositionStorageGlobalLib__factory(owner).deploy()
+      ).address,
+      '@equilibria/perennial-v2/contracts/types/Position.sol:PositionStorageLocalLib': (
+        await new PositionStorageLocalLib__factory(owner).deploy()
+      ).address,
+      '@equilibria/perennial-v2/contracts/types/RiskParameter.sol:RiskParameterStorageLib': (
+        await new RiskParameterStorageLib__factory(owner).deploy()
+      ).address,
+      '@equilibria/perennial-v2/contracts/types/Version.sol:VersionStorageLib': (
+        await new VersionStorageLib__factory(owner).deploy()
+      ).address,
+    },
+    owner,
+  ).deploy()
 
   const factoryImpl = await new MarketFactory__factory(owner).deploy(oracleFactory.address, marketImpl.address)
 
@@ -366,9 +409,8 @@ export async function createVault(
   )
   await instanceVars.oracleFactory.connect(owner).create(BTC_PRICE_FEE_ID, vaultOracleFactory.address)
 
-  const _marketFactory = IMarketFactory__factory.connect(instanceVars.marketFactory.address, owner)
   const ethMarket = await deployProductOnMainnetFork({
-    factory: _marketFactory,
+    factory: marketFactory,
     token: instanceVars.dsu,
     owner: owner,
     oracle: ethOracle.address,
@@ -389,7 +431,7 @@ export async function createVault(
     },
   })
   const btcMarket = await deployProductOnMainnetFork({
-    factory: _marketFactory,
+    factory: marketFactory,
     token: instanceVars.dsu,
     owner: owner,
     oracle: btcOracle.address,

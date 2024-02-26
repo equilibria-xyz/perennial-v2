@@ -101,7 +101,7 @@ library MarketParameterStorageLib {
         MarketParameterStorage storage self,
         MarketParameter memory newValue,
         ProtocolParameter memory protocolParameter
-    ) internal {
+    ) external {
         validate(newValue, protocolParameter);
 
         if (newValue.maxPendingGlobal > uint256(type(uint16).max)) revert MarketParameterStorageInvalidError();

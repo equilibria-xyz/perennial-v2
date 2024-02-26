@@ -111,7 +111,7 @@ library GlobalStorageLib {
         );
     }
 
-    function store(GlobalStorage storage self, Global memory newValue) internal {
+    function store(GlobalStorage storage self, Global memory newValue) external {
         if (newValue.currentId > uint256(type(uint32).max)) revert GlobalStorageInvalidError();
         if (newValue.latestId > uint256(type(uint32).max)) revert GlobalStorageInvalidError();
         if (newValue.protocolFee.gt(UFixed6.wrap(type(uint48).max))) revert GlobalStorageInvalidError();

@@ -320,7 +320,7 @@ library PositionStorageGlobalLib {
         );
     }
 
-    function store(PositionStorageGlobal storage self, Position memory newValue) internal {
+    function store(PositionStorageGlobal storage self, Position memory newValue) external {
         PositionStorageLib.validate(newValue);
 
         if (newValue.maker.gt(UFixed6.wrap(type(uint64).max))) revert PositionStorageLib.PositionStorageInvalidError();
@@ -369,7 +369,7 @@ library PositionStorageLocalLib {
         );
     }
 
-    function store(PositionStorageLocal storage self, Position memory newValue) internal {
+    function store(PositionStorageLocal storage self, Position memory newValue) external {
         PositionStorageLib.validate(newValue);
 
         UFixed6 magnitude = newValue.magnitude();

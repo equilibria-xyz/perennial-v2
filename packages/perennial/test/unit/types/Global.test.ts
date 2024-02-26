@@ -3,7 +3,12 @@ import { SignerWithAddress } from '@nomiclabs/hardhat-ethers/signers'
 import { expect, use } from 'chai'
 import HRE from 'hardhat'
 
-import { GlobalTester, GlobalTester__factory } from '../../../types/generated'
+import {
+  GlobalStorageLib,
+  GlobalStorageLib__factory,
+  GlobalTester,
+  GlobalTester__factory,
+} from '../../../types/generated'
 import { BigNumber, BigNumberish } from 'ethers'
 import { parse6decimal } from '../../../../common/testutil/types'
 import {
@@ -97,12 +102,17 @@ function generateProtocolParameter(protocolFee: BigNumberish): ProtocolParameter
 describe('Global', () => {
   let owner: SignerWithAddress
 
+  let globalStorageLib: GlobalStorageLib
   let global: GlobalTester
 
   beforeEach(async () => {
     ;[owner] = await ethers.getSigners()
 
-    global = await new GlobalTester__factory(owner).deploy()
+    globalStorageLib = await new GlobalStorageLib__factory(owner).deploy()
+    global = await new GlobalTester__factory(
+      { 'contracts/types/Global.sol:GlobalStorageLib': globalStorageLib.address },
+      owner,
+    ).deploy()
   })
 
   describe('#store', async () => {
@@ -150,7 +160,7 @@ describe('Global', () => {
             ...DEFAULT_GLOBAL,
             currentId: BigNumber.from(2).pow(STORAGE_SIZE),
           }),
-        ).to.be.revertedWithCustomError(global, 'GlobalStorageInvalidError')
+        ).to.be.revertedWithCustomError(globalStorageLib, 'GlobalStorageInvalidError')
       })
     })
 
@@ -171,7 +181,7 @@ describe('Global', () => {
             ...DEFAULT_GLOBAL,
             latestId: BigNumber.from(2).pow(STORAGE_SIZE),
           }),
-        ).to.be.revertedWithCustomError(global, 'GlobalStorageInvalidError')
+        ).to.be.revertedWithCustomError(globalStorageLib, 'GlobalStorageInvalidError')
       })
     })
 
@@ -192,7 +202,7 @@ describe('Global', () => {
             ...DEFAULT_GLOBAL,
             protocolFee: BigNumber.from(2).pow(STORAGE_SIZE),
           }),
-        ).to.be.revertedWithCustomError(global, 'GlobalStorageInvalidError')
+        ).to.be.revertedWithCustomError(globalStorageLib, 'GlobalStorageInvalidError')
       })
     })
 
@@ -213,7 +223,7 @@ describe('Global', () => {
             ...DEFAULT_GLOBAL,
             oracleFee: BigNumber.from(2).pow(STORAGE_SIZE),
           }),
-        ).to.be.revertedWithCustomError(global, 'GlobalStorageInvalidError')
+        ).to.be.revertedWithCustomError(globalStorageLib, 'GlobalStorageInvalidError')
       })
     })
 
@@ -234,7 +244,7 @@ describe('Global', () => {
             ...DEFAULT_GLOBAL,
             riskFee: BigNumber.from(2).pow(STORAGE_SIZE),
           }),
-        ).to.be.revertedWithCustomError(global, 'GlobalStorageInvalidError')
+        ).to.be.revertedWithCustomError(globalStorageLib, 'GlobalStorageInvalidError')
       })
     })
 
@@ -255,7 +265,7 @@ describe('Global', () => {
             ...DEFAULT_GLOBAL,
             donation: BigNumber.from(2).pow(STORAGE_SIZE),
           }),
-        ).to.be.revertedWithCustomError(global, 'GlobalStorageInvalidError')
+        ).to.be.revertedWithCustomError(globalStorageLib, 'GlobalStorageInvalidError')
       })
     })
 
@@ -276,7 +286,7 @@ describe('Global', () => {
             ...DEFAULT_GLOBAL,
             exposure: BigNumber.from(2).pow(STORAGE_SIZE),
           }),
-        ).to.be.revertedWithCustomError(global, 'GlobalStorageInvalidError')
+        ).to.be.revertedWithCustomError(globalStorageLib, 'GlobalStorageInvalidError')
       })
     })
 
@@ -315,7 +325,7 @@ describe('Global', () => {
               _skew: 0,
             },
           }),
-        ).to.be.revertedWithCustomError(global, 'GlobalStorageInvalidError')
+        ).to.be.revertedWithCustomError(globalStorageLib, 'GlobalStorageInvalidError')
       })
 
       it('reverts if currentId out of range (below)', async () => {
@@ -327,7 +337,7 @@ describe('Global', () => {
               _skew: 0,
             },
           }),
-        ).to.be.revertedWithCustomError(global, 'GlobalStorageInvalidError')
+        ).to.be.revertedWithCustomError(globalStorageLib, 'GlobalStorageInvalidError')
       })
     })
 
@@ -366,7 +376,7 @@ describe('Global', () => {
               _skew: BigNumber.from(2).pow(STORAGE_SIZE),
             },
           }),
-        ).to.be.revertedWithCustomError(global, 'GlobalStorageInvalidError')
+        ).to.be.revertedWithCustomError(globalStorageLib, 'GlobalStorageInvalidError')
       })
 
       it('reverts if currentId out of range (below)', async () => {
@@ -378,7 +388,7 @@ describe('Global', () => {
               _skew: BigNumber.from(2).pow(STORAGE_SIZE).add(1).mul(-1),
             },
           }),
-        ).to.be.revertedWithCustomError(global, 'GlobalStorageInvalidError')
+        ).to.be.revertedWithCustomError(globalStorageLib, 'GlobalStorageInvalidError')
       })
     })
   })
