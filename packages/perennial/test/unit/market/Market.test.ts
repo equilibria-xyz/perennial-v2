@@ -846,7 +846,11 @@ describe('Market', () => {
       })
 
       it('settles when market is in settle-only mode', async () => {
-        await expect(market.connect(user).update(user.address, POSITION, 0, 0, COLLATERAL, false))
+        await expect(
+          market
+            .connect(user)
+            ['update(address,uint256,uint256,uint256,int256,bool)'](user.address, POSITION, 0, 0, COLLATERAL, false),
+        )
           .to.emit(market, 'PositionProcessed')
           .withArgs(0, ORACLE_VERSION_1.timestamp, 0, 0, DEFAULT_VERSION_ACCUMULATION_RESULT)
           .to.emit(market, 'AccountPositionProcessed')
@@ -13072,7 +13076,16 @@ describe('Market', () => {
 
           dsu.transferFrom.whenCalledWith(user.address, market.address, utils.parseEther('500')).returns(true)
           await expect(
-            market.connect(user).update(user.address, parse6decimal('10'), 0, 0, parse6decimal('1000'), false),
+            market
+              .connect(user)
+              ['update(address,uint256,uint256,uint256,int256,bool)'](
+                user.address,
+                parse6decimal('10'),
+                0,
+                0,
+                parse6decimal('1000'),
+                false,
+              ),
           ).to.be.revertedWithCustomError(market, 'MarketSettleOnlyError')
         })
       })
