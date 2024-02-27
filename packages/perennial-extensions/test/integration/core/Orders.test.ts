@@ -1,4 +1,4 @@
-import { BigNumber, utils } from 'ethers'
+import { BigNumber, utils, constants } from 'ethers'
 import { InstanceVars, deployProtocol, createMarket, createInvoker, settle } from '../helpers/setupHelpers'
 import { anyValue } from '@nomicfoundation/hardhat-chai-matchers/withArgs'
 
@@ -445,7 +445,17 @@ describe('Orders', () => {
       .withArgs(user.address, market.address, 1)
       .to.emit(multiInvoker, 'KeeperCall')
       .to.emit(market, 'Updated')
-      .withArgs(multiInvoker.address, user.address, anyValue, anyValue, anyValue, anyValue, -50e6, false)
+      .withArgs(
+        multiInvoker.address,
+        user.address,
+        anyValue,
+        anyValue,
+        anyValue,
+        anyValue,
+        -50e6,
+        false,
+        constants.AddressZero,
+      )
       .to.emit(multiInvoker, 'InterfaceFeeCharged')
       .withArgs(user.address, market.address, { receiver: userB.address, amount: 50e6, unwrap: false })
 
@@ -484,7 +494,17 @@ describe('Orders', () => {
       .withArgs(user.address, market.address, 1)
       .to.emit(multiInvoker, 'KeeperCall')
       .to.emit(market, 'Updated')
-      .withArgs(multiInvoker.address, user.address, anyValue, anyValue, anyValue, anyValue, -50e6, false)
+      .withArgs(
+        multiInvoker.address,
+        user.address,
+        anyValue,
+        anyValue,
+        anyValue,
+        anyValue,
+        -50e6,
+        false,
+        constants.AddressZero,
+      )
       .to.emit(multiInvoker, 'InterfaceFeeCharged')
       .withArgs(user.address, market.address, { receiver: userB.address, amount: 50e6, unwrap: true })
 
@@ -525,7 +545,17 @@ describe('Orders', () => {
       .withArgs(user.address, market.address, 1)
       .to.emit(multiInvoker, 'KeeperCall')
       .to.emit(market, 'Updated')
-      .withArgs(multiInvoker.address, user.address, anyValue, anyValue, anyValue, anyValue, -50e6, false)
+      .withArgs(
+        multiInvoker.address,
+        user.address,
+        anyValue,
+        anyValue,
+        anyValue,
+        anyValue,
+        -50e6,
+        false,
+        constants.AddressZero,
+      )
       .to.emit(multiInvoker, 'InterfaceFeeCharged')
       .withArgs(user.address, market.address, { receiver: userB.address, amount: 50e6, unwrap: true })
       .to.emit(multiInvoker, 'InterfaceFeeCharged')
@@ -568,7 +598,17 @@ describe('Orders', () => {
       .withArgs(userB.address, market.address, 1)
       .to.emit(multiInvoker, 'KeeperCall')
       .to.emit(market, 'Updated')
-      .withArgs(multiInvoker.address, userB.address, anyValue, anyValue, anyValue, anyValue, collateral.div(-4), false)
+      .withArgs(
+        multiInvoker.address,
+        userB.address,
+        anyValue,
+        anyValue,
+        anyValue,
+        anyValue,
+        collateral.div(-4),
+        false,
+        constants.AddressZero,
+      )
 
     expect(await usdc.balanceOf(userB.address)).to.eq(balanceBefore.add(collateral.div(4)))
   })
@@ -606,7 +646,17 @@ describe('Orders', () => {
       .withArgs(user.address, market.address, 1)
       .to.emit(multiInvoker, 'KeeperCall')
       .to.emit(market, 'Updated')
-      .withArgs(multiInvoker.address, user.address, anyValue, anyValue, anyValue, anyValue, anyValue, false)
+      .withArgs(
+        multiInvoker.address,
+        user.address,
+        anyValue,
+        anyValue,
+        anyValue,
+        anyValue,
+        anyValue,
+        false,
+        constants.AddressZero,
+      )
 
     const executorDSUNet = (await dsu.balanceOf(userC.address)).sub(executorBalanceBefore)
     const feeCharged = executorDSUNet.div(BigNumber.from(10).pow(12))
@@ -860,7 +910,7 @@ describe('Orders', () => {
       const execute = buildExecOrder({ user: user.address, market: market.address, orderId: 1 })
       await expect(multiInvoker.connect(user).invoke(execute, { maxFeePerGas: 16777216 }))
         .to.emit(market, 'Updated')
-        .withArgs(multiInvoker.address, user.address, 1631114005, 0, 0, 0, -10, false)
+        .withArgs(multiInvoker.address, user.address, 1631114005, 0, 0, 0, -10, false, constants.AddressZero)
     })
 
     it('Fails to store TRIGGER values out of slot bounds', async () => {
