@@ -37,8 +37,7 @@ contract Coordinator is ICoordinator, Ownable {
     function claimFee(IMarket market) external {
         if (msg.sender != comptroller) revert NotComptroller();
         market.claimFee();
-        Token18 token = market.token();
-        token.push(comptroller, token.balanceOf());
+        market.token().push(comptroller);
     }
 
     /// @notice Updates the risk parameter for a market
