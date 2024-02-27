@@ -99,7 +99,7 @@ describe('Fees', () => {
           ['update(address,uint256,uint256,uint256,int256,bool)'](user.address, POSITION, 0, 0, COLLATERAL, false),
       )
         .to.emit(market, 'Updated')
-        .withArgs(user.address, user.address, TIMESTAMP_1, POSITION, 0, 0, COLLATERAL, false)
+        .withArgs(user.address, user.address, TIMESTAMP_1, POSITION, 0, 0, COLLATERAL, false, constants.AddressZero)
 
       // Settle the market with a new oracle version
       await nextWithConstantPrice()
@@ -181,7 +181,7 @@ describe('Fees', () => {
           ['update(address,uint256,uint256,uint256,int256,bool)'](user.address, POSITION, 0, 0, COLLATERAL, false),
       )
         .to.emit(market, 'Updated')
-        .withArgs(user.address, user.address, TIMESTAMP_1, POSITION, 0, 0, COLLATERAL, false)
+        .withArgs(user.address, user.address, TIMESTAMP_1, POSITION, 0, 0, COLLATERAL, false, constants.AddressZero)
 
       await nextWithConstantPrice()
       await settle(market, user)
@@ -280,7 +280,17 @@ describe('Fees', () => {
           ),
       )
         .to.emit(market, 'Updated')
-        .withArgs(userB.address, userB.address, TIMESTAMP_1, 0, LONG_POSITION, 0, COLLATERAL, false)
+        .withArgs(
+          userB.address,
+          userB.address,
+          TIMESTAMP_1,
+          0,
+          LONG_POSITION,
+          0,
+          COLLATERAL,
+          false,
+          constants.AddressZero,
+        )
 
       await nextWithConstantPrice()
       const txLong = await settle(market, userB)
@@ -381,7 +391,17 @@ describe('Fees', () => {
           ),
       )
         .to.emit(market, 'Updated')
-        .withArgs(userB.address, userB.address, TIMESTAMP_2, 0, LONG_POSITION, 0, COLLATERAL, false)
+        .withArgs(
+          userB.address,
+          userB.address,
+          TIMESTAMP_2,
+          0,
+          LONG_POSITION,
+          0,
+          COLLATERAL,
+          false,
+          constants.AddressZero,
+        )
 
       await nextWithConstantPrice()
       const txLong = await settle(market, userB)
@@ -519,7 +539,17 @@ describe('Fees', () => {
           ),
       )
         .to.emit(market, 'Updated')
-        .withArgs(userB.address, userB.address, TIMESTAMP_1, 0, LONG_POSITION, 0, COLLATERAL, false)
+        .withArgs(
+          userB.address,
+          userB.address,
+          TIMESTAMP_1,
+          0,
+          LONG_POSITION,
+          0,
+          COLLATERAL,
+          false,
+          constants.AddressZero,
+        )
 
       await nextWithConstantPrice()
       await settle(market, userB)
@@ -664,7 +694,17 @@ describe('Fees', () => {
           ),
       )
         .to.emit(market, 'Updated')
-        .withArgs(userB.address, userB.address, TIMESTAMP_1, 0, 0, SHORT_POSITION, COLLATERAL, false)
+        .withArgs(
+          userB.address,
+          userB.address,
+          TIMESTAMP_1,
+          0,
+          0,
+          SHORT_POSITION,
+          COLLATERAL,
+          false,
+          constants.AddressZero,
+        )
 
       await nextWithConstantPrice()
       const txLong = await settle(market, userB)
@@ -765,7 +805,17 @@ describe('Fees', () => {
           ),
       )
         .to.emit(market, 'Updated')
-        .withArgs(userB.address, userB.address, TIMESTAMP_2, 0, 0, SHORT_POSITION, COLLATERAL, false)
+        .withArgs(
+          userB.address,
+          userB.address,
+          TIMESTAMP_2,
+          0,
+          0,
+          SHORT_POSITION,
+          COLLATERAL,
+          false,
+          constants.AddressZero,
+        )
 
       await nextWithConstantPrice()
       const txLong = await settle(market, userB)
@@ -903,7 +953,17 @@ describe('Fees', () => {
           ),
       )
         .to.emit(market, 'Updated')
-        .withArgs(userB.address, userB.address, TIMESTAMP_1, 0, 0, SHORT_POSITION, COLLATERAL, false)
+        .withArgs(
+          userB.address,
+          userB.address,
+          TIMESTAMP_1,
+          0,
+          0,
+          SHORT_POSITION,
+          COLLATERAL,
+          false,
+          constants.AddressZero,
+        )
 
       await nextWithConstantPrice()
       await settle(market, userB)

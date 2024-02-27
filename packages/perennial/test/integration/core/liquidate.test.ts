@@ -34,7 +34,7 @@ describe('Liquidate', () => {
       market.connect(userB)['update(address,uint256,uint256,uint256,int256,bool)'](user.address, 0, 0, 0, 0, true),
     ) // liquidate
       .to.emit(market, 'Updated')
-      .withArgs(userB.address, user.address, TIMESTAMP_2, 0, 0, 0, 0, true)
+      .withArgs(userB.address, user.address, TIMESTAMP_2, 0, 0, 0, 0, true, constants.AddressZero)
 
     expect((await market.pendingOrders(user.address, 2)).protection).to.eq(1)
     expect(await market.liquidators(user.address, 2)).to.eq(userB.address)
@@ -168,7 +168,7 @@ describe('Liquidate', () => {
       market.connect(userB)['update(address,uint256,uint256,uint256,int256,bool)'](user.address, 0, 0, 0, 0, true),
     ) // liquidate
       .to.emit(market, 'Updated')
-      .withArgs(userB.address, user.address, TIMESTAMP_2, 0, 0, 0, 0, true)
+      .withArgs(userB.address, user.address, TIMESTAMP_2, 0, 0, 0, 0, true, constants.AddressZero)
 
     await chainlink.next()
     await settle(market, user)

@@ -799,11 +799,26 @@ describe('Market', () => {
             ['update(address,uint256,uint256,uint256,int256,bool)'](user.address, POSITION, 0, 0, COLLATERAL, false),
         )
           .to.emit(market, 'PositionProcessed')
-          .withArgs(0, ORACLE_VERSION_1.timestamp, 0, 0, DEFAULT_VERSION_ACCUMULATION_RESULT)
+          .withArgs(0, { ...DEFAULT_ORDER, timestamp: ORACLE_VERSION_1.timestamp }, DEFAULT_VERSION_ACCUMULATION_RESULT)
           .to.emit(market, 'AccountPositionProcessed')
-          .withArgs(user.address, 0, ORACLE_VERSION_1.timestamp, 0, 0, DEFAULT_LOCAL_ACCUMULATION_RESULT)
+          .withArgs(
+            user.address,
+            0,
+            { ...DEFAULT_ORDER, timestamp: ORACLE_VERSION_1.timestamp },
+            DEFAULT_LOCAL_ACCUMULATION_RESULT,
+          )
           .to.emit(market, 'Updated')
-          .withArgs(user.address, user.address, ORACLE_VERSION_2.timestamp, POSITION, 0, 0, COLLATERAL, false)
+          .withArgs(
+            user.address,
+            user.address,
+            ORACLE_VERSION_2.timestamp,
+            POSITION,
+            0,
+            0,
+            COLLATERAL,
+            false,
+            constants.AddressZero,
+          )
 
         oracle.at.whenCalledWith(ORACLE_VERSION_2.timestamp).returns(ORACLE_VERSION_2)
         oracle.status.returns([ORACLE_VERSION_2, ORACLE_VERSION_3.timestamp])
@@ -811,14 +826,28 @@ describe('Market', () => {
 
         await expect(await market.settle(user.address))
           .to.emit(market, 'PositionProcessed')
-          .withArgs(ORACLE_VERSION_1.timestamp, ORACLE_VERSION_2.timestamp, 0, 1, DEFAULT_VERSION_ACCUMULATION_RESULT)
+          .withArgs(
+            1,
+            {
+              ...DEFAULT_ORDER,
+              orders: 1,
+              timestamp: ORACLE_VERSION_2.timestamp,
+              collateral: COLLATERAL,
+              makerPos: POSITION,
+            },
+            DEFAULT_VERSION_ACCUMULATION_RESULT,
+          )
           .to.emit(market, 'AccountPositionProcessed')
           .withArgs(
             user.address,
-            ORACLE_VERSION_1.timestamp,
-            ORACLE_VERSION_2.timestamp,
-            0,
             1,
+            {
+              ...DEFAULT_ORDER,
+              orders: 1,
+              timestamp: ORACLE_VERSION_2.timestamp,
+              collateral: COLLATERAL,
+              makerPos: POSITION,
+            },
             DEFAULT_LOCAL_ACCUMULATION_RESULT,
           )
 
@@ -882,11 +911,26 @@ describe('Market', () => {
             ['update(address,uint256,uint256,uint256,int256,bool)'](user.address, POSITION, 0, 0, COLLATERAL, false),
         )
           .to.emit(market, 'PositionProcessed')
-          .withArgs(0, ORACLE_VERSION_1.timestamp, 0, 0, DEFAULT_VERSION_ACCUMULATION_RESULT)
+          .withArgs(0, { ...DEFAULT_ORDER, timestamp: ORACLE_VERSION_1.timestamp }, DEFAULT_VERSION_ACCUMULATION_RESULT)
           .to.emit(market, 'AccountPositionProcessed')
-          .withArgs(user.address, 0, ORACLE_VERSION_1.timestamp, 0, 0, DEFAULT_LOCAL_ACCUMULATION_RESULT)
+          .withArgs(
+            user.address,
+            0,
+            { ...DEFAULT_ORDER, timestamp: ORACLE_VERSION_1.timestamp },
+            DEFAULT_LOCAL_ACCUMULATION_RESULT,
+          )
           .to.emit(market, 'Updated')
-          .withArgs(user.address, user.address, ORACLE_VERSION_2.timestamp, POSITION, 0, 0, COLLATERAL, false)
+          .withArgs(
+            user.address,
+            user.address,
+            ORACLE_VERSION_2.timestamp,
+            POSITION,
+            0,
+            0,
+            COLLATERAL,
+            false,
+            constants.AddressZero,
+          )
 
         oracle.at.whenCalledWith(ORACLE_VERSION_2.timestamp).returns(ORACLE_VERSION_2)
         oracle.status.returns([ORACLE_VERSION_2, ORACLE_VERSION_3.timestamp])
@@ -898,14 +942,28 @@ describe('Market', () => {
 
         await expect(await market.settle(user.address))
           .to.emit(market, 'PositionProcessed')
-          .withArgs(ORACLE_VERSION_1.timestamp, ORACLE_VERSION_2.timestamp, 0, 1, DEFAULT_VERSION_ACCUMULATION_RESULT)
+          .withArgs(
+            1,
+            {
+              ...DEFAULT_ORDER,
+              timestamp: ORACLE_VERSION_2.timestamp,
+              orders: 1,
+              collateral: COLLATERAL,
+              makerPos: POSITION,
+            },
+            DEFAULT_VERSION_ACCUMULATION_RESULT,
+          )
           .to.emit(market, 'AccountPositionProcessed')
           .withArgs(
             user.address,
-            ORACLE_VERSION_1.timestamp,
-            ORACLE_VERSION_2.timestamp,
-            0,
             1,
+            {
+              ...DEFAULT_ORDER,
+              timestamp: ORACLE_VERSION_2.timestamp,
+              orders: 1,
+              collateral: COLLATERAL,
+              makerPos: POSITION,
+            },
             DEFAULT_LOCAL_ACCUMULATION_RESULT,
           )
 
@@ -983,7 +1041,17 @@ describe('Market', () => {
               ['update(address,uint256,uint256,uint256,int256,bool)'](user.address, 0, 0, 0, COLLATERAL, false),
           )
             .to.emit(market, 'Updated')
-            .withArgs(user.address, user.address, ORACLE_VERSION_2.timestamp, 0, 0, 0, COLLATERAL, false)
+            .withArgs(
+              user.address,
+              user.address,
+              ORACLE_VERSION_2.timestamp,
+              0,
+              0,
+              0,
+              COLLATERAL,
+              false,
+              constants.AddressZero,
+            )
             .to.emit(market, 'OrderCreated')
             .withArgs(user.address, { ...DEFAULT_ORDER, timestamp: ORACLE_VERSION_2.timestamp, collateral: COLLATERAL })
 
@@ -1033,7 +1101,17 @@ describe('Market', () => {
               ['update(address,uint256,uint256,uint256,int256,bool)'](user.address, 0, 0, 0, COLLATERAL.mul(-1), false),
           )
             .to.emit(market, 'Updated')
-            .withArgs(user.address, user.address, ORACLE_VERSION_2.timestamp, 0, 0, 0, COLLATERAL.mul(-1), false)
+            .withArgs(
+              user.address,
+              user.address,
+              ORACLE_VERSION_2.timestamp,
+              0,
+              0,
+              0,
+              COLLATERAL.mul(-1),
+              false,
+              constants.AddressZero,
+            )
             .to.emit(market, 'OrderCreated')
             .withArgs(user.address, {
               ...DEFAULT_ORDER,
@@ -1083,7 +1161,17 @@ describe('Market', () => {
               ['update(address,uint256,uint256,uint256,int256,bool)'](user.address, 0, 0, 0, COLLATERAL, false),
           )
             .to.emit(market, 'Updated')
-            .withArgs(user.address, user.address, ORACLE_VERSION_2.timestamp, 0, 0, 0, COLLATERAL, false)
+            .withArgs(
+              user.address,
+              user.address,
+              ORACLE_VERSION_2.timestamp,
+              0,
+              0,
+              0,
+              COLLATERAL,
+              false,
+              constants.AddressZero,
+            )
 
           expectLocalEq(await market.locals(user.address), {
             ...DEFAULT_LOCAL,
@@ -1137,7 +1225,17 @@ describe('Market', () => {
               ['update(address,uint256,uint256,uint256,int256,bool)'](user.address, 0, 0, 0, COLLATERAL.mul(-1), false),
           )
             .to.emit(market, 'Updated')
-            .withArgs(user.address, user.address, ORACLE_VERSION_3.timestamp, 0, 0, 0, COLLATERAL.mul(-1), false)
+            .withArgs(
+              user.address,
+              user.address,
+              ORACLE_VERSION_3.timestamp,
+              0,
+              0,
+              0,
+              COLLATERAL.mul(-1),
+              false,
+              constants.AddressZero,
+            )
 
           expectLocalEq(await market.locals(user.address), {
             ...DEFAULT_LOCAL,
@@ -1184,7 +1282,17 @@ describe('Market', () => {
               ['update(address,uint256,uint256,uint256,int256,bool)'](user.address, 0, 0, 0, COLLATERAL, false),
           )
             .to.emit(market, 'Updated')
-            .withArgs(user.address, user.address, ORACLE_VERSION_2.timestamp, 0, 0, 0, COLLATERAL, false)
+            .withArgs(
+              user.address,
+              user.address,
+              ORACLE_VERSION_2.timestamp,
+              0,
+              0,
+              0,
+              COLLATERAL,
+              false,
+              constants.AddressZero,
+            )
 
           expectLocalEq(await market.locals(user.address), {
             ...DEFAULT_LOCAL,
@@ -1238,7 +1346,17 @@ describe('Market', () => {
               ['update(address,uint256,uint256,uint256,int256,bool)'](user.address, 0, 0, 0, COLLATERAL.mul(-1), false),
           )
             .to.emit(market, 'Updated')
-            .withArgs(user.address, user.address, ORACLE_VERSION_6.timestamp, 0, 0, 0, COLLATERAL.mul(-1), false)
+            .withArgs(
+              user.address,
+              user.address,
+              ORACLE_VERSION_6.timestamp,
+              0,
+              0,
+              0,
+              COLLATERAL.mul(-1),
+              false,
+              constants.AddressZero,
+            )
 
           expectLocalEq(await market.locals(user.address), {
             ...DEFAULT_LOCAL,
@@ -1298,7 +1416,17 @@ describe('Market', () => {
                 ),
             )
               .to.emit(market, 'Updated')
-              .withArgs(user.address, user.address, ORACLE_VERSION_2.timestamp, POSITION, 0, 0, COLLATERAL, false)
+              .withArgs(
+                user.address,
+                user.address,
+                ORACLE_VERSION_2.timestamp,
+                POSITION,
+                0,
+                0,
+                COLLATERAL,
+                false,
+                constants.AddressZero,
+              )
               .to.emit(market, 'OrderCreated')
               .withArgs(user.address, {
                 ...DEFAULT_ORDER,
@@ -1366,11 +1494,30 @@ describe('Market', () => {
                 ),
             )
               .to.emit(market, 'PositionProcessed')
-              .withArgs(0, ORACLE_VERSION_1.timestamp, 0, 0, DEFAULT_VERSION_ACCUMULATION_RESULT)
+              .withArgs(
+                0,
+                { ...DEFAULT_ORDER, timestamp: ORACLE_VERSION_1.timestamp },
+                DEFAULT_VERSION_ACCUMULATION_RESULT,
+              )
               .to.emit(market, 'AccountPositionProcessed')
-              .withArgs(user.address, 0, ORACLE_VERSION_1.timestamp, 0, 0, DEFAULT_LOCAL_ACCUMULATION_RESULT)
+              .withArgs(
+                user.address,
+                0,
+                { ...DEFAULT_ORDER, timestamp: ORACLE_VERSION_1.timestamp },
+                DEFAULT_LOCAL_ACCUMULATION_RESULT,
+              )
               .to.emit(market, 'Updated')
-              .withArgs(user.address, user.address, ORACLE_VERSION_2.timestamp, POSITION, 0, 0, COLLATERAL, false)
+              .withArgs(
+                user.address,
+                user.address,
+                ORACLE_VERSION_2.timestamp,
+                POSITION,
+                0,
+                0,
+                COLLATERAL,
+                false,
+                constants.AddressZero,
+              )
 
             oracle.at.whenCalledWith(ORACLE_VERSION_2.timestamp).returns(ORACLE_VERSION_2)
             oracle.status.returns([ORACLE_VERSION_2, ORACLE_VERSION_3.timestamp])
@@ -1379,19 +1526,27 @@ describe('Market', () => {
             await expect(await settle(market, user))
               .to.emit(market, 'PositionProcessed')
               .withArgs(
-                ORACLE_VERSION_1.timestamp,
-                ORACLE_VERSION_2.timestamp,
-                0,
                 1,
+                {
+                  ...DEFAULT_ORDER,
+                  timestamp: ORACLE_VERSION_2.timestamp,
+                  orders: 1,
+                  collateral: COLLATERAL,
+                  makerPos: POSITION,
+                },
                 DEFAULT_VERSION_ACCUMULATION_RESULT,
               )
               .to.emit(market, 'AccountPositionProcessed')
               .withArgs(
                 user.address,
-                ORACLE_VERSION_1.timestamp,
-                ORACLE_VERSION_2.timestamp,
-                0,
                 1,
+                {
+                  ...DEFAULT_ORDER,
+                  timestamp: ORACLE_VERSION_2.timestamp,
+                  orders: 1,
+                  collateral: COLLATERAL,
+                  makerPos: POSITION,
+                },
                 DEFAULT_LOCAL_ACCUMULATION_RESULT,
               )
 
@@ -1447,7 +1602,17 @@ describe('Market', () => {
                 ['update(address,uint256,uint256,uint256,int256,bool)'](user.address, POSITION.mul(2), 0, 0, 0, false),
             )
               .to.emit(market, 'Updated')
-              .withArgs(user.address, user.address, ORACLE_VERSION_2.timestamp, POSITION.mul(2), 0, 0, 0, false)
+              .withArgs(
+                user.address,
+                user.address,
+                ORACLE_VERSION_2.timestamp,
+                POSITION.mul(2),
+                0,
+                0,
+                0,
+                false,
+                constants.AddressZero,
+              )
 
             expectLocalEq(await market.locals(user.address), {
               ...DEFAULT_LOCAL,
@@ -1500,7 +1665,17 @@ describe('Market', () => {
                 ['update(address,uint256,uint256,uint256,int256,bool)'](user.address, POSITION.mul(2), 0, 0, 0, false),
             )
               .to.emit(market, 'Updated')
-              .withArgs(user.address, user.address, ORACLE_VERSION_2.timestamp, POSITION.mul(2), 0, 0, 0, false)
+              .withArgs(
+                user.address,
+                user.address,
+                ORACLE_VERSION_2.timestamp,
+                POSITION.mul(2),
+                0,
+                0,
+                0,
+                false,
+                constants.AddressZero,
+              )
 
             oracle.at.whenCalledWith(ORACLE_VERSION_2.timestamp).returns(ORACLE_VERSION_2)
             oracle.status.returns([ORACLE_VERSION_2, ORACLE_VERSION_3.timestamp])
@@ -1564,7 +1739,17 @@ describe('Market', () => {
                 ['update(address,uint256,uint256,uint256,int256,bool)'](user.address, POSITION.mul(2), 0, 0, 0, false),
             )
               .to.emit(market, 'Updated')
-              .withArgs(user.address, user.address, ORACLE_VERSION_3.timestamp, POSITION.mul(2), 0, 0, 0, false)
+              .withArgs(
+                user.address,
+                user.address,
+                ORACLE_VERSION_3.timestamp,
+                POSITION.mul(2),
+                0,
+                0,
+                0,
+                false,
+                constants.AddressZero,
+              )
 
             expectLocalEq(await market.locals(user.address), {
               ...DEFAULT_LOCAL,
@@ -1626,7 +1811,17 @@ describe('Market', () => {
                 ['update(address,uint256,uint256,uint256,int256,bool)'](user.address, POSITION.mul(2), 0, 0, 0, false),
             )
               .to.emit(market, 'Updated')
-              .withArgs(user.address, user.address, ORACLE_VERSION_3.timestamp, POSITION.mul(2), 0, 0, 0, false)
+              .withArgs(
+                user.address,
+                user.address,
+                ORACLE_VERSION_3.timestamp,
+                POSITION.mul(2),
+                0,
+                0,
+                0,
+                false,
+                constants.AddressZero,
+              )
 
             oracle.at.whenCalledWith(ORACLE_VERSION_3.timestamp).returns(ORACLE_VERSION_3)
             oracle.status.returns([ORACLE_VERSION_3, ORACLE_VERSION_4.timestamp])
@@ -1691,7 +1886,17 @@ describe('Market', () => {
                 ),
             )
               .to.emit(market, 'Updated')
-              .withArgs(user.address, user.address, ORACLE_VERSION_2.timestamp, POSITION, 0, 0, COLLATERAL, false)
+              .withArgs(
+                user.address,
+                user.address,
+                ORACLE_VERSION_2.timestamp,
+                POSITION,
+                0,
+                0,
+                COLLATERAL,
+                false,
+                constants.AddressZero,
+              )
 
             oracle.at.whenCalledWith(ORACLE_VERSION_2.timestamp).returns(ORACLE_VERSION_2)
             oracle.at.whenCalledWith(ORACLE_VERSION_3.timestamp).returns(ORACLE_VERSION_3)
@@ -1771,7 +1976,17 @@ describe('Market', () => {
                 ),
             )
               .to.emit(market, 'Updated')
-              .withArgs(user.address, user.address, ORACLE_VERSION_2.timestamp, POSITION, 0, 0, COLLATERAL, false)
+              .withArgs(
+                user.address,
+                user.address,
+                ORACLE_VERSION_2.timestamp,
+                POSITION,
+                0,
+                0,
+                COLLATERAL,
+                false,
+                constants.AddressZero,
+              )
 
             oracle.at.whenCalledWith(ORACLE_VERSION_2.timestamp).returns(ORACLE_VERSION_2)
             oracle.at.whenCalledWith(ORACLE_VERSION_3.timestamp).returns(ORACLE_VERSION_3)
@@ -1846,7 +2061,17 @@ describe('Market', () => {
                   ['update(address,uint256,uint256,uint256,int256,bool)'](user.address, 0, 0, 0, 0, false),
               )
                 .to.emit(market, 'Updated')
-                .withArgs(user.address, user.address, ORACLE_VERSION_3.timestamp, 0, 0, 0, 0, false)
+                .withArgs(
+                  user.address,
+                  user.address,
+                  ORACLE_VERSION_3.timestamp,
+                  0,
+                  0,
+                  0,
+                  0,
+                  false,
+                  constants.AddressZero,
+                )
 
               expectLocalEq(await market.locals(user.address), {
                 ...DEFAULT_LOCAL,
@@ -1900,7 +2125,17 @@ describe('Market', () => {
                   ['update(address,uint256,uint256,uint256,int256,bool)'](user.address, 0, 0, 0, 0, false),
               )
                 .to.emit(market, 'Updated')
-                .withArgs(user.address, user.address, ORACLE_VERSION_3.timestamp, 0, 0, 0, 0, false)
+                .withArgs(
+                  user.address,
+                  user.address,
+                  ORACLE_VERSION_3.timestamp,
+                  0,
+                  0,
+                  0,
+                  0,
+                  false,
+                  constants.AddressZero,
+                )
 
               oracle.at.whenCalledWith(ORACLE_VERSION_3.timestamp).returns(ORACLE_VERSION_3)
               oracle.status.returns([ORACLE_VERSION_3, ORACLE_VERSION_4.timestamp])
@@ -1958,7 +2193,17 @@ describe('Market', () => {
                   ['update(address,uint256,uint256,uint256,int256,bool)'](user.address, 0, 0, 0, 0, false),
               )
                 .to.emit(market, 'Updated')
-                .withArgs(user.address, user.address, ORACLE_VERSION_3.timestamp, 0, 0, 0, 0, false)
+                .withArgs(
+                  user.address,
+                  user.address,
+                  ORACLE_VERSION_3.timestamp,
+                  0,
+                  0,
+                  0,
+                  0,
+                  false,
+                  constants.AddressZero,
+                )
 
               expectLocalEq(await market.locals(user.address), {
                 ...DEFAULT_LOCAL,
@@ -2016,7 +2261,17 @@ describe('Market', () => {
                   ['update(address,uint256,uint256,uint256,int256,bool)'](user.address, 0, 0, 0, 0, false),
               )
                 .to.emit(market, 'Updated')
-                .withArgs(user.address, user.address, ORACLE_VERSION_3.timestamp, 0, 0, 0, 0, false)
+                .withArgs(
+                  user.address,
+                  user.address,
+                  ORACLE_VERSION_3.timestamp,
+                  0,
+                  0,
+                  0,
+                  0,
+                  false,
+                  constants.AddressZero,
+                )
 
               oracle.at.whenCalledWith(ORACLE_VERSION_3.timestamp).returns(ORACLE_VERSION_3)
               oracle.status.returns([ORACLE_VERSION_3, ORACLE_VERSION_4.timestamp])
@@ -2078,7 +2333,17 @@ describe('Market', () => {
                   ['update(address,uint256,uint256,uint256,int256,bool)'](user.address, 0, 0, 0, 0, false),
               )
                 .to.emit(market, 'Updated')
-                .withArgs(user.address, user.address, ORACLE_VERSION_4.timestamp, 0, 0, 0, 0, false)
+                .withArgs(
+                  user.address,
+                  user.address,
+                  ORACLE_VERSION_4.timestamp,
+                  0,
+                  0,
+                  0,
+                  0,
+                  false,
+                  constants.AddressZero,
+                )
 
               expectLocalEq(await market.locals(user.address), {
                 ...DEFAULT_LOCAL,
@@ -2140,7 +2405,17 @@ describe('Market', () => {
                   ['update(address,uint256,uint256,uint256,int256,bool)'](user.address, 0, 0, 0, 0, false),
               )
                 .to.emit(market, 'Updated')
-                .withArgs(user.address, user.address, ORACLE_VERSION_4.timestamp, 0, 0, 0, 0, false)
+                .withArgs(
+                  user.address,
+                  user.address,
+                  ORACLE_VERSION_4.timestamp,
+                  0,
+                  0,
+                  0,
+                  0,
+                  false,
+                  constants.AddressZero,
+                )
 
               oracle.at.whenCalledWith(ORACLE_VERSION_4.timestamp).returns(ORACLE_VERSION_4)
               oracle.status.returns([ORACLE_VERSION_4, ORACLE_VERSION_5.timestamp])
@@ -2194,7 +2469,17 @@ describe('Market', () => {
                   ['update(address,uint256,uint256,uint256,int256,bool)'](user.address, 0, 0, 0, 0, false),
               )
                 .to.emit(market, 'Updated')
-                .withArgs(user.address, user.address, ORACLE_VERSION_3.timestamp, 0, 0, 0, 0, false)
+                .withArgs(
+                  user.address,
+                  user.address,
+                  ORACLE_VERSION_3.timestamp,
+                  0,
+                  0,
+                  0,
+                  0,
+                  false,
+                  constants.AddressZero,
+                )
 
               oracle.at.whenCalledWith(ORACLE_VERSION_3.timestamp).returns(ORACLE_VERSION_3)
 
@@ -2268,7 +2553,17 @@ describe('Market', () => {
                   ['update(address,uint256,uint256,uint256,int256,bool)'](user.address, 0, 0, 0, 0, false),
               )
                 .to.emit(market, 'Updated')
-                .withArgs(user.address, user.address, ORACLE_VERSION_3.timestamp, 0, 0, 0, 0, false)
+                .withArgs(
+                  user.address,
+                  user.address,
+                  ORACLE_VERSION_3.timestamp,
+                  0,
+                  0,
+                  0,
+                  0,
+                  false,
+                  constants.AddressZero,
+                )
 
               oracle.at.whenCalledWith(ORACLE_VERSION_3.timestamp).returns(ORACLE_VERSION_3)
 
@@ -2356,7 +2651,17 @@ describe('Market', () => {
                   ),
               )
                 .to.emit(market, 'Updated')
-                .withArgs(user.address, user.address, ORACLE_VERSION_2.timestamp, 0, POSITION, 0, COLLATERAL, false)
+                .withArgs(
+                  user.address,
+                  user.address,
+                  ORACLE_VERSION_2.timestamp,
+                  0,
+                  POSITION,
+                  0,
+                  COLLATERAL,
+                  false,
+                  constants.AddressZero,
+                )
                 .to.emit(market, 'OrderCreated')
                 .withArgs(user.address, {
                   ...DEFAULT_ORDER,
@@ -2425,7 +2730,17 @@ describe('Market', () => {
                   ),
               )
                 .to.emit(market, 'Updated')
-                .withArgs(user.address, user.address, ORACLE_VERSION_2.timestamp, 0, POSITION, 0, COLLATERAL, false)
+                .withArgs(
+                  user.address,
+                  user.address,
+                  ORACLE_VERSION_2.timestamp,
+                  0,
+                  POSITION,
+                  0,
+                  COLLATERAL,
+                  false,
+                  constants.AddressZero,
+                )
 
               oracle.at.whenCalledWith(ORACLE_VERSION_2.timestamp).returns(ORACLE_VERSION_2)
               oracle.status.returns([ORACLE_VERSION_2, ORACLE_VERSION_3.timestamp])
@@ -2493,7 +2808,17 @@ describe('Market', () => {
                   ['update(address,uint256,uint256,uint256,int256,bool)'](user.address, 0, POSITION, 0, 0, false),
               )
                 .to.emit(market, 'Updated')
-                .withArgs(user.address, user.address, ORACLE_VERSION_2.timestamp, 0, POSITION, 0, 0, false)
+                .withArgs(
+                  user.address,
+                  user.address,
+                  ORACLE_VERSION_2.timestamp,
+                  0,
+                  POSITION,
+                  0,
+                  0,
+                  false,
+                  constants.AddressZero,
+                )
 
               expectLocalEq(await market.locals(user.address), {
                 ...DEFAULT_LOCAL,
@@ -2554,7 +2879,17 @@ describe('Market', () => {
                   ['update(address,uint256,uint256,uint256,int256,bool)'](user.address, 0, POSITION, 0, 0, false),
               )
                 .to.emit(market, 'Updated')
-                .withArgs(user.address, user.address, ORACLE_VERSION_2.timestamp, 0, POSITION, 0, 0, false)
+                .withArgs(
+                  user.address,
+                  user.address,
+                  ORACLE_VERSION_2.timestamp,
+                  0,
+                  POSITION,
+                  0,
+                  0,
+                  false,
+                  constants.AddressZero,
+                )
 
               oracle.at.whenCalledWith(ORACLE_VERSION_2.timestamp).returns(ORACLE_VERSION_2)
               oracle.status.returns([ORACLE_VERSION_2, ORACLE_VERSION_3.timestamp])
@@ -2626,7 +2961,17 @@ describe('Market', () => {
                   ['update(address,uint256,uint256,uint256,int256,bool)'](user.address, 0, POSITION, 0, 0, false),
               )
                 .to.emit(market, 'Updated')
-                .withArgs(user.address, user.address, ORACLE_VERSION_3.timestamp, 0, POSITION, 0, 0, false)
+                .withArgs(
+                  user.address,
+                  user.address,
+                  ORACLE_VERSION_3.timestamp,
+                  0,
+                  POSITION,
+                  0,
+                  0,
+                  false,
+                  constants.AddressZero,
+                )
 
               expectLocalEq(await market.locals(user.address), {
                 ...DEFAULT_LOCAL,
@@ -2696,7 +3041,17 @@ describe('Market', () => {
                   ['update(address,uint256,uint256,uint256,int256,bool)'](user.address, 0, POSITION, 0, 0, false),
               )
                 .to.emit(market, 'Updated')
-                .withArgs(user.address, user.address, ORACLE_VERSION_3.timestamp, 0, POSITION, 0, 0, false)
+                .withArgs(
+                  user.address,
+                  user.address,
+                  ORACLE_VERSION_3.timestamp,
+                  0,
+                  POSITION,
+                  0,
+                  0,
+                  false,
+                  constants.AddressZero,
+                )
 
               oracle.at.whenCalledWith(ORACLE_VERSION_3.timestamp).returns(ORACLE_VERSION_3)
               oracle.status.returns([ORACLE_VERSION_3, ORACLE_VERSION_4.timestamp])
@@ -2795,6 +3150,7 @@ describe('Market', () => {
                   0,
                   COLLATERAL,
                   false,
+                  constants.AddressZero,
                 )
 
               oracle.at.whenCalledWith(ORACLE_VERSION_2.timestamp).returns(ORACLE_VERSION_2)
@@ -2912,6 +3268,7 @@ describe('Market', () => {
                   0,
                   COLLATERAL,
                   false,
+                  constants.AddressZero,
                 )
 
               oracle.at.whenCalledWith(ORACLE_VERSION_2.timestamp).returns(ORACLE_VERSION_2)
@@ -3042,6 +3399,7 @@ describe('Market', () => {
                   0,
                   COLLATERAL,
                   false,
+                  constants.AddressZero,
                 )
 
               oracle.at.whenCalledWith(ORACLE_VERSION_3.timestamp).returns(ORACLE_VERSION_3)
@@ -3169,7 +3527,17 @@ describe('Market', () => {
                     ['update(address,uint256,uint256,uint256,int256,bool)'](user.address, 0, 0, 0, 0, false),
                 )
                   .to.emit(market, 'Updated')
-                  .withArgs(user.address, user.address, ORACLE_VERSION_3.timestamp, 0, 0, 0, 0, false)
+                  .withArgs(
+                    user.address,
+                    user.address,
+                    ORACLE_VERSION_3.timestamp,
+                    0,
+                    0,
+                    0,
+                    0,
+                    false,
+                    constants.AddressZero,
+                  )
 
                 expectLocalEq(await market.locals(user.address), {
                   ...DEFAULT_LOCAL,
@@ -3224,7 +3592,17 @@ describe('Market', () => {
                     ['update(address,uint256,uint256,uint256,int256,bool)'](user.address, 0, 0, 0, 0, false),
                 )
                   .to.emit(market, 'Updated')
-                  .withArgs(user.address, user.address, ORACLE_VERSION_3.timestamp, 0, 0, 0, 0, false)
+                  .withArgs(
+                    user.address,
+                    user.address,
+                    ORACLE_VERSION_3.timestamp,
+                    0,
+                    0,
+                    0,
+                    0,
+                    false,
+                    constants.AddressZero,
+                  )
 
                 oracle.at.whenCalledWith(ORACLE_VERSION_3.timestamp).returns(ORACLE_VERSION_3)
                 oracle.status.returns([ORACLE_VERSION_3, ORACLE_VERSION_4.timestamp])
@@ -3311,7 +3689,17 @@ describe('Market', () => {
                     ['update(address,uint256,uint256,uint256,int256,bool)'](user.address, 0, 0, 0, 0, false),
                 )
                   .to.emit(market, 'Updated')
-                  .withArgs(user.address, user.address, ORACLE_VERSION_3.timestamp, 0, 0, 0, 0, false)
+                  .withArgs(
+                    user.address,
+                    user.address,
+                    ORACLE_VERSION_3.timestamp,
+                    0,
+                    0,
+                    0,
+                    0,
+                    false,
+                    constants.AddressZero,
+                  )
 
                 expectLocalEq(await market.locals(user.address), {
                   ...DEFAULT_LOCAL,
@@ -3370,7 +3758,17 @@ describe('Market', () => {
                     ['update(address,uint256,uint256,uint256,int256,bool)'](user.address, 0, 0, 0, 0, false),
                 )
                   .to.emit(market, 'Updated')
-                  .withArgs(user.address, user.address, ORACLE_VERSION_3.timestamp, 0, 0, 0, 0, false)
+                  .withArgs(
+                    user.address,
+                    user.address,
+                    ORACLE_VERSION_3.timestamp,
+                    0,
+                    0,
+                    0,
+                    0,
+                    false,
+                    constants.AddressZero,
+                  )
 
                 oracle.at.whenCalledWith(ORACLE_VERSION_3.timestamp).returns(ORACLE_VERSION_3)
                 oracle.status.returns([ORACLE_VERSION_3, ORACLE_VERSION_4.timestamp])
@@ -3461,7 +3859,17 @@ describe('Market', () => {
                     ['update(address,uint256,uint256,uint256,int256,bool)'](user.address, 0, 0, 0, 0, false),
                 )
                   .to.emit(market, 'Updated')
-                  .withArgs(user.address, user.address, ORACLE_VERSION_4.timestamp, 0, 0, 0, 0, false)
+                  .withArgs(
+                    user.address,
+                    user.address,
+                    ORACLE_VERSION_4.timestamp,
+                    0,
+                    0,
+                    0,
+                    0,
+                    false,
+                    constants.AddressZero,
+                  )
 
                 await settle(market, user)
                 await settle(market, userB)
@@ -3560,7 +3968,17 @@ describe('Market', () => {
                     ['update(address,uint256,uint256,uint256,int256,bool)'](user.address, 0, 0, 0, 0, false),
                 )
                   .to.emit(market, 'Updated')
-                  .withArgs(user.address, user.address, ORACLE_VERSION_4.timestamp, 0, 0, 0, 0, false)
+                  .withArgs(
+                    user.address,
+                    user.address,
+                    ORACLE_VERSION_4.timestamp,
+                    0,
+                    0,
+                    0,
+                    0,
+                    false,
+                    constants.AddressZero,
+                  )
 
                 oracle.at.whenCalledWith(ORACLE_VERSION_4.timestamp).returns(ORACLE_VERSION_4)
                 oracle.status.returns([ORACLE_VERSION_4, ORACLE_VERSION_5.timestamp])
@@ -3667,7 +4085,17 @@ describe('Market', () => {
                     ['update(address,uint256,uint256,uint256,int256,bool)'](user.address, 0, 0, 0, 0, false),
                 )
                   .to.emit(market, 'Updated')
-                  .withArgs(user.address, user.address, ORACLE_VERSION_3.timestamp, 0, 0, 0, 0, false)
+                  .withArgs(
+                    user.address,
+                    user.address,
+                    ORACLE_VERSION_3.timestamp,
+                    0,
+                    0,
+                    0,
+                    0,
+                    false,
+                    constants.AddressZero,
+                  )
 
                 oracle.at.whenCalledWith(ORACLE_VERSION_3.timestamp).returns(ORACLE_VERSION_3)
 
@@ -3770,7 +4198,17 @@ describe('Market', () => {
                     ['update(address,uint256,uint256,uint256,int256,bool)'](user.address, 0, 0, 0, 0, false),
                 )
                   .to.emit(market, 'Updated')
-                  .withArgs(user.address, user.address, ORACLE_VERSION_3.timestamp, 0, 0, 0, 0, false)
+                  .withArgs(
+                    user.address,
+                    user.address,
+                    ORACLE_VERSION_3.timestamp,
+                    0,
+                    0,
+                    0,
+                    0,
+                    false,
+                    constants.AddressZero,
+                  )
 
                 oracle.at.whenCalledWith(ORACLE_VERSION_3.timestamp).returns(ORACLE_VERSION_3)
 
@@ -3969,33 +4407,47 @@ describe('Market', () => {
 
             await expect(settle(market, user))
               .to.emit(market, 'PositionProcessed')
-              .withArgs(ORACLE_VERSION_2.timestamp, oracleVersionLowerPrice.timestamp, 1, 2, {
-                ...DEFAULT_VERSION_ACCUMULATION_RESULT,
-                fundingMaker: EXPECTED_FUNDING_WITHOUT_FEE_1_5_123.add(EXPECTED_FUNDING_PRECISION_LOSS.mul(2).div(5)),
-                fundingLong: EXPECTED_FUNDING_WITH_FEE_1_5_123.mul(-1).add(
-                  EXPECTED_FUNDING_PRECISION_LOSS.mul(3).div(5),
-                ),
-                fundingFee: EXPECTED_FUNDING_FEE_1_5_123.sub(EXPECTED_FUNDING_PRECISION_LOSS),
-                interestMaker: EXPECTED_INTEREST_WITHOUT_FEE_5_123,
-                interestLong: EXPECTED_INTEREST_5_123.mul(-1),
-                interestFee: EXPECTED_INTEREST_FEE_5_123,
-                pnlMaker: EXPECTED_PNL,
-                pnlLong: EXPECTED_PNL.mul(-1),
-              })
+              .withArgs(
+                2,
+                { ...DEFAULT_ORDER, timestamp: oracleVersionLowerPrice.timestamp },
+                {
+                  ...DEFAULT_VERSION_ACCUMULATION_RESULT,
+                  fundingMaker: EXPECTED_FUNDING_WITHOUT_FEE_1_5_123.add(EXPECTED_FUNDING_PRECISION_LOSS.mul(2).div(5)),
+                  fundingLong: EXPECTED_FUNDING_WITH_FEE_1_5_123.mul(-1).add(
+                    EXPECTED_FUNDING_PRECISION_LOSS.mul(3).div(5),
+                  ),
+                  fundingFee: EXPECTED_FUNDING_FEE_1_5_123.sub(EXPECTED_FUNDING_PRECISION_LOSS),
+                  interestMaker: EXPECTED_INTEREST_WITHOUT_FEE_5_123,
+                  interestLong: EXPECTED_INTEREST_5_123.mul(-1),
+                  interestFee: EXPECTED_INTEREST_FEE_5_123,
+                  pnlMaker: EXPECTED_PNL,
+                  pnlLong: EXPECTED_PNL.mul(-1),
+                },
+              )
               .to.emit(market, 'AccountPositionProcessed')
-              .withArgs(user.address, ORACLE_VERSION_2.timestamp, oracleVersionLowerPrice.timestamp, 1, 2, {
-                ...DEFAULT_LOCAL_ACCUMULATION_RESULT,
-                collateral: EXPECTED_PNL.mul(-1).sub(EXPECTED_FUNDING_WITH_FEE_1_5_123).sub(EXPECTED_INTEREST_5_123),
-              })
+              .withArgs(
+                user.address,
+                2,
+                { ...DEFAULT_ORDER, timestamp: oracleVersionLowerPrice.timestamp },
+                {
+                  ...DEFAULT_LOCAL_ACCUMULATION_RESULT,
+                  collateral: EXPECTED_PNL.mul(-1).sub(EXPECTED_FUNDING_WITH_FEE_1_5_123).sub(EXPECTED_INTEREST_5_123),
+                },
+              )
 
             await expect(settle(market, userB))
               .to.emit(market, 'AccountPositionProcessed')
-              .withArgs(userB.address, ORACLE_VERSION_2.timestamp, oracleVersionLowerPrice.timestamp, 1, 2, {
-                ...DEFAULT_LOCAL_ACCUMULATION_RESULT,
-                collateral: EXPECTED_PNL.add(EXPECTED_FUNDING_WITHOUT_FEE_1_5_123)
-                  .add(EXPECTED_INTEREST_WITHOUT_FEE_5_123)
-                  .sub(8),
-              })
+              .withArgs(
+                userB.address,
+                2,
+                { ...DEFAULT_ORDER, timestamp: oracleVersionLowerPrice.timestamp },
+                {
+                  ...DEFAULT_LOCAL_ACCUMULATION_RESULT,
+                  collateral: EXPECTED_PNL.add(EXPECTED_FUNDING_WITHOUT_FEE_1_5_123)
+                    .add(EXPECTED_INTEREST_WITHOUT_FEE_5_123)
+                    .sub(8),
+                },
+              )
 
             expectLocalEq(await market.locals(user.address), {
               ...DEFAULT_LOCAL,
@@ -4086,33 +4538,47 @@ describe('Market', () => {
 
             await expect(settle(market, user))
               .to.emit(market, 'PositionProcessed')
-              .withArgs(ORACLE_VERSION_2.timestamp, oracleVersionHigherPrice.timestamp, 1, 2, {
-                ...DEFAULT_VERSION_ACCUMULATION_RESULT,
-                fundingMaker: EXPECTED_FUNDING_WITHOUT_FEE_1_5_123.add(EXPECTED_FUNDING_PRECISION_LOSS.mul(2).div(5)),
-                fundingLong: EXPECTED_FUNDING_WITH_FEE_1_5_123.mul(-1).add(
-                  EXPECTED_FUNDING_PRECISION_LOSS.mul(3).div(5),
-                ),
-                fundingFee: EXPECTED_FUNDING_FEE_1_5_123.sub(EXPECTED_FUNDING_PRECISION_LOSS),
-                interestMaker: EXPECTED_INTEREST_WITHOUT_FEE_5_123,
-                interestLong: EXPECTED_INTEREST_5_123.mul(-1),
-                interestFee: EXPECTED_INTEREST_FEE_5_123,
-                pnlMaker: EXPECTED_PNL,
-                pnlLong: EXPECTED_PNL.mul(-1),
-              })
+              .withArgs(
+                2,
+                { ...DEFAULT_ORDER, timestamp: oracleVersionHigherPrice.timestamp },
+                {
+                  ...DEFAULT_VERSION_ACCUMULATION_RESULT,
+                  fundingMaker: EXPECTED_FUNDING_WITHOUT_FEE_1_5_123.add(EXPECTED_FUNDING_PRECISION_LOSS.mul(2).div(5)),
+                  fundingLong: EXPECTED_FUNDING_WITH_FEE_1_5_123.mul(-1).add(
+                    EXPECTED_FUNDING_PRECISION_LOSS.mul(3).div(5),
+                  ),
+                  fundingFee: EXPECTED_FUNDING_FEE_1_5_123.sub(EXPECTED_FUNDING_PRECISION_LOSS),
+                  interestMaker: EXPECTED_INTEREST_WITHOUT_FEE_5_123,
+                  interestLong: EXPECTED_INTEREST_5_123.mul(-1),
+                  interestFee: EXPECTED_INTEREST_FEE_5_123,
+                  pnlMaker: EXPECTED_PNL,
+                  pnlLong: EXPECTED_PNL.mul(-1),
+                },
+              )
               .to.emit(market, 'AccountPositionProcessed')
-              .withArgs(user.address, ORACLE_VERSION_2.timestamp, oracleVersionHigherPrice.timestamp, 1, 2, {
-                ...DEFAULT_LOCAL_ACCUMULATION_RESULT,
-                collateral: EXPECTED_PNL.mul(-1).sub(EXPECTED_FUNDING_WITH_FEE_1_5_123).sub(EXPECTED_INTEREST_5_123),
-              })
+              .withArgs(
+                user.address,
+                2,
+                { ...DEFAULT_ORDER, timestamp: oracleVersionHigherPrice.timestamp },
+                {
+                  ...DEFAULT_LOCAL_ACCUMULATION_RESULT,
+                  collateral: EXPECTED_PNL.mul(-1).sub(EXPECTED_FUNDING_WITH_FEE_1_5_123).sub(EXPECTED_INTEREST_5_123),
+                },
+              )
 
             await expect(settle(market, userB))
               .to.emit(market, 'AccountPositionProcessed')
-              .withArgs(userB.address, ORACLE_VERSION_2.timestamp, oracleVersionHigherPrice.timestamp, 1, 2, {
-                ...DEFAULT_LOCAL_ACCUMULATION_RESULT,
-                collateral: EXPECTED_PNL.add(EXPECTED_FUNDING_WITHOUT_FEE_1_5_123)
-                  .add(EXPECTED_INTEREST_WITHOUT_FEE_5_123)
-                  .sub(8),
-              })
+              .withArgs(
+                userB.address,
+                2,
+                { ...DEFAULT_ORDER, timestamp: oracleVersionHigherPrice.timestamp },
+                {
+                  ...DEFAULT_LOCAL_ACCUMULATION_RESULT,
+                  collateral: EXPECTED_PNL.add(EXPECTED_FUNDING_WITHOUT_FEE_1_5_123)
+                    .add(EXPECTED_INTEREST_WITHOUT_FEE_5_123)
+                    .sub(8),
+                },
+              )
 
             expectLocalEq(await market.locals(user.address), {
               ...DEFAULT_LOCAL,
@@ -4247,7 +4713,17 @@ describe('Market', () => {
                   ['update(address,uint256,uint256,uint256,int256,bool)'](userB.address, 0, 0, 0, 0, true),
               )
                 .to.emit(market, 'Updated')
-                .withArgs(liquidator.address, userB.address, ORACLE_VERSION_4.timestamp, 0, 0, 0, 0, true)
+                .withArgs(
+                  liquidator.address,
+                  userB.address,
+                  ORACLE_VERSION_4.timestamp,
+                  0,
+                  0,
+                  0,
+                  0,
+                  true,
+                  constants.AddressZero,
+                )
 
               oracle.at.whenCalledWith(ORACLE_VERSION_4.timestamp).returns(ORACLE_VERSION_4)
               oracle.status.returns([ORACLE_VERSION_4, ORACLE_VERSION_5.timestamp])
@@ -4439,7 +4915,17 @@ describe('Market', () => {
                   ['update(address,uint256,uint256,uint256,int256,bool)'](userB.address, 0, 0, 0, 0, true),
               )
                 .to.emit(market, 'Updated')
-                .withArgs(liquidator.address, userB.address, ORACLE_VERSION_4.timestamp, 0, 0, 0, 0, true)
+                .withArgs(
+                  liquidator.address,
+                  userB.address,
+                  ORACLE_VERSION_4.timestamp,
+                  0,
+                  0,
+                  0,
+                  0,
+                  true,
+                  constants.AddressZero,
+                )
 
               oracle.at.whenCalledWith(ORACLE_VERSION_4.timestamp).returns(ORACLE_VERSION_4)
               oracle.status.returns([ORACLE_VERSION_4, ORACLE_VERSION_5.timestamp])
@@ -4672,7 +5158,17 @@ describe('Market', () => {
                   ['update(address,uint256,uint256,uint256,int256,bool)'](userB.address, 0, 0, 0, 0, true),
               )
                 .to.emit(market, 'Updated')
-                .withArgs(liquidator.address, userB.address, ORACLE_VERSION_4.timestamp, 0, 0, 0, 0, true)
+                .withArgs(
+                  liquidator.address,
+                  userB.address,
+                  ORACLE_VERSION_4.timestamp,
+                  0,
+                  0,
+                  0,
+                  0,
+                  true,
+                  constants.AddressZero,
+                )
 
               expectLocalEq(await market.locals(user.address), {
                 ...DEFAULT_LOCAL,
@@ -4802,6 +5298,7 @@ describe('Market', () => {
                   0,
                   shortfall.mul(-1),
                   false,
+                  constants.AddressZero,
                 )
 
               expectLocalEq(await market.locals(liquidator.address), {
@@ -4888,7 +5385,17 @@ describe('Market', () => {
                   ['update(address,uint256,uint256,uint256,int256,bool)'](user.address, 0, 0, 0, 0, true),
               )
                 .to.emit(market, 'Updated')
-                .withArgs(liquidator.address, user.address, ORACLE_VERSION_4.timestamp, 0, 0, 0, 0, true)
+                .withArgs(
+                  liquidator.address,
+                  user.address,
+                  ORACLE_VERSION_4.timestamp,
+                  0,
+                  0,
+                  0,
+                  0,
+                  true,
+                  constants.AddressZero,
+                )
 
               oracle.at.whenCalledWith(ORACLE_VERSION_4.timestamp).returns(ORACLE_VERSION_4)
               oracle.status.returns([ORACLE_VERSION_4, ORACLE_VERSION_5.timestamp])
@@ -5064,7 +5571,17 @@ describe('Market', () => {
                   ['update(address,uint256,uint256,uint256,int256,bool)'](user.address, 0, 0, 0, 0, true),
               )
                 .to.emit(market, 'Updated')
-                .withArgs(liquidator.address, user.address, ORACLE_VERSION_4.timestamp, 0, 0, 0, 0, true)
+                .withArgs(
+                  liquidator.address,
+                  user.address,
+                  ORACLE_VERSION_4.timestamp,
+                  0,
+                  0,
+                  0,
+                  0,
+                  true,
+                  constants.AddressZero,
+                )
 
               expectLocalEq(await market.locals(user.address), {
                 ...DEFAULT_LOCAL,
@@ -5190,6 +5707,7 @@ describe('Market', () => {
                   0,
                   shortfall.mul(-1),
                   false,
+                  constants.AddressZero,
                 )
 
               expectLocalEq(await market.locals(user.address), {
@@ -5371,7 +5889,17 @@ describe('Market', () => {
                   ),
               )
                 .to.emit(market, 'Updated')
-                .withArgs(user.address, user.address, ORACLE_VERSION_2.timestamp, 0, 0, POSITION, COLLATERAL, false)
+                .withArgs(
+                  user.address,
+                  user.address,
+                  ORACLE_VERSION_2.timestamp,
+                  0,
+                  0,
+                  POSITION,
+                  COLLATERAL,
+                  false,
+                  constants.AddressZero,
+                )
                 .to.emit(market, 'OrderCreated')
                 .withArgs(user.address, {
                   ...DEFAULT_ORDER,
@@ -5441,7 +5969,17 @@ describe('Market', () => {
                   ),
               )
                 .to.emit(market, 'Updated')
-                .withArgs(user.address, user.address, ORACLE_VERSION_2.timestamp, 0, 0, POSITION, COLLATERAL, false)
+                .withArgs(
+                  user.address,
+                  user.address,
+                  ORACLE_VERSION_2.timestamp,
+                  0,
+                  0,
+                  POSITION,
+                  COLLATERAL,
+                  false,
+                  constants.AddressZero,
+                )
 
               oracle.at.whenCalledWith(ORACLE_VERSION_2.timestamp).returns(ORACLE_VERSION_2)
               oracle.status.returns([ORACLE_VERSION_2, ORACLE_VERSION_3.timestamp])
@@ -5509,7 +6047,17 @@ describe('Market', () => {
                   ['update(address,uint256,uint256,uint256,int256,bool)'](user.address, 0, 0, POSITION, 0, false),
               )
                 .to.emit(market, 'Updated')
-                .withArgs(user.address, user.address, ORACLE_VERSION_2.timestamp, 0, 0, POSITION, 0, false)
+                .withArgs(
+                  user.address,
+                  user.address,
+                  ORACLE_VERSION_2.timestamp,
+                  0,
+                  0,
+                  POSITION,
+                  0,
+                  false,
+                  constants.AddressZero,
+                )
 
               expectLocalEq(await market.locals(user.address), {
                 ...DEFAULT_LOCAL,
@@ -5571,7 +6119,17 @@ describe('Market', () => {
                   ['update(address,uint256,uint256,uint256,int256,bool)'](user.address, 0, 0, POSITION, 0, false),
               )
                 .to.emit(market, 'Updated')
-                .withArgs(user.address, user.address, ORACLE_VERSION_2.timestamp, 0, 0, POSITION, 0, false)
+                .withArgs(
+                  user.address,
+                  user.address,
+                  ORACLE_VERSION_2.timestamp,
+                  0,
+                  0,
+                  POSITION,
+                  0,
+                  false,
+                  constants.AddressZero,
+                )
 
               oracle.at.whenCalledWith(ORACLE_VERSION_2.timestamp).returns(ORACLE_VERSION_2)
               oracle.status.returns([ORACLE_VERSION_2, ORACLE_VERSION_3.timestamp])
@@ -5643,7 +6201,17 @@ describe('Market', () => {
                   ['update(address,uint256,uint256,uint256,int256,bool)'](user.address, 0, 0, POSITION, 0, false),
               )
                 .to.emit(market, 'Updated')
-                .withArgs(user.address, user.address, ORACLE_VERSION_3.timestamp, 0, 0, POSITION, 0, false)
+                .withArgs(
+                  user.address,
+                  user.address,
+                  ORACLE_VERSION_3.timestamp,
+                  0,
+                  0,
+                  POSITION,
+                  0,
+                  false,
+                  constants.AddressZero,
+                )
 
               expectLocalEq(await market.locals(user.address), {
                 ...DEFAULT_LOCAL,
@@ -5713,7 +6281,17 @@ describe('Market', () => {
                   ['update(address,uint256,uint256,uint256,int256,bool)'](user.address, 0, 0, POSITION, 0, false),
               )
                 .to.emit(market, 'Updated')
-                .withArgs(user.address, user.address, ORACLE_VERSION_3.timestamp, 0, 0, POSITION, 0, false)
+                .withArgs(
+                  user.address,
+                  user.address,
+                  ORACLE_VERSION_3.timestamp,
+                  0,
+                  0,
+                  POSITION,
+                  0,
+                  false,
+                  constants.AddressZero,
+                )
 
               oracle.at.whenCalledWith(ORACLE_VERSION_3.timestamp).returns(ORACLE_VERSION_3)
               oracle.status.returns([ORACLE_VERSION_3, ORACLE_VERSION_4.timestamp])
@@ -5817,6 +6395,7 @@ describe('Market', () => {
                   POSITION.div(2),
                   COLLATERAL,
                   false,
+                  constants.AddressZero,
                 )
 
               oracle.at.whenCalledWith(ORACLE_VERSION_2.timestamp).returns(ORACLE_VERSION_2)
@@ -5938,6 +6517,7 @@ describe('Market', () => {
                   POSITION.div(2),
                   COLLATERAL,
                   false,
+                  constants.AddressZero,
                 )
 
               oracle.at.whenCalledWith(ORACLE_VERSION_2.timestamp).returns(ORACLE_VERSION_2)
@@ -6071,6 +6651,7 @@ describe('Market', () => {
                   POSITION.div(2),
                   COLLATERAL,
                   false,
+                  constants.AddressZero,
                 )
 
               oracle.at.whenCalledWith(ORACLE_VERSION_3.timestamp).returns(ORACLE_VERSION_3)
@@ -6199,7 +6780,17 @@ describe('Market', () => {
                     ['update(address,uint256,uint256,uint256,int256,bool)'](user.address, 0, 0, 0, 0, false),
                 )
                   .to.emit(market, 'Updated')
-                  .withArgs(user.address, user.address, ORACLE_VERSION_3.timestamp, 0, 0, 0, 0, false)
+                  .withArgs(
+                    user.address,
+                    user.address,
+                    ORACLE_VERSION_3.timestamp,
+                    0,
+                    0,
+                    0,
+                    0,
+                    false,
+                    constants.AddressZero,
+                  )
 
                 expectLocalEq(await market.locals(user.address), {
                   ...DEFAULT_LOCAL,
@@ -6254,7 +6845,17 @@ describe('Market', () => {
                     ['update(address,uint256,uint256,uint256,int256,bool)'](user.address, 0, 0, 0, 0, false),
                 )
                   .to.emit(market, 'Updated')
-                  .withArgs(user.address, user.address, ORACLE_VERSION_3.timestamp, 0, 0, 0, 0, false)
+                  .withArgs(
+                    user.address,
+                    user.address,
+                    ORACLE_VERSION_3.timestamp,
+                    0,
+                    0,
+                    0,
+                    0,
+                    false,
+                    constants.AddressZero,
+                  )
 
                 oracle.at.whenCalledWith(ORACLE_VERSION_3.timestamp).returns(ORACLE_VERSION_3)
                 oracle.status.returns([ORACLE_VERSION_3, ORACLE_VERSION_4.timestamp])
@@ -6342,7 +6943,17 @@ describe('Market', () => {
                     ['update(address,uint256,uint256,uint256,int256,bool)'](user.address, 0, 0, 0, 0, false),
                 )
                   .to.emit(market, 'Updated')
-                  .withArgs(user.address, user.address, ORACLE_VERSION_3.timestamp, 0, 0, 0, 0, false)
+                  .withArgs(
+                    user.address,
+                    user.address,
+                    ORACLE_VERSION_3.timestamp,
+                    0,
+                    0,
+                    0,
+                    0,
+                    false,
+                    constants.AddressZero,
+                  )
 
                 expectLocalEq(await market.locals(user.address), {
                   ...DEFAULT_LOCAL,
@@ -6401,7 +7012,17 @@ describe('Market', () => {
                     ['update(address,uint256,uint256,uint256,int256,bool)'](user.address, 0, 0, 0, 0, false),
                 )
                   .to.emit(market, 'Updated')
-                  .withArgs(user.address, user.address, ORACLE_VERSION_3.timestamp, 0, 0, 0, 0, false)
+                  .withArgs(
+                    user.address,
+                    user.address,
+                    ORACLE_VERSION_3.timestamp,
+                    0,
+                    0,
+                    0,
+                    0,
+                    false,
+                    constants.AddressZero,
+                  )
 
                 oracle.at.whenCalledWith(ORACLE_VERSION_3.timestamp).returns(ORACLE_VERSION_3)
                 oracle.status.returns([ORACLE_VERSION_3, ORACLE_VERSION_4.timestamp])
@@ -6493,7 +7114,17 @@ describe('Market', () => {
                     ['update(address,uint256,uint256,uint256,int256,bool)'](user.address, 0, 0, 0, 0, false),
                 )
                   .to.emit(market, 'Updated')
-                  .withArgs(user.address, user.address, ORACLE_VERSION_4.timestamp, 0, 0, 0, 0, false)
+                  .withArgs(
+                    user.address,
+                    user.address,
+                    ORACLE_VERSION_4.timestamp,
+                    0,
+                    0,
+                    0,
+                    0,
+                    false,
+                    constants.AddressZero,
+                  )
 
                 await settle(market, userB)
 
@@ -6592,7 +7223,17 @@ describe('Market', () => {
                     ['update(address,uint256,uint256,uint256,int256,bool)'](user.address, 0, 0, 0, 0, false),
                 )
                   .to.emit(market, 'Updated')
-                  .withArgs(user.address, user.address, ORACLE_VERSION_4.timestamp, 0, 0, 0, 0, false)
+                  .withArgs(
+                    user.address,
+                    user.address,
+                    ORACLE_VERSION_4.timestamp,
+                    0,
+                    0,
+                    0,
+                    0,
+                    false,
+                    constants.AddressZero,
+                  )
 
                 oracle.at.whenCalledWith(ORACLE_VERSION_4.timestamp).returns(ORACLE_VERSION_4)
                 oracle.status.returns([ORACLE_VERSION_4, ORACLE_VERSION_5.timestamp])
@@ -6701,7 +7342,17 @@ describe('Market', () => {
                     ['update(address,uint256,uint256,uint256,int256,bool)'](user.address, 0, 0, 0, 0, false),
                 )
                   .to.emit(market, 'Updated')
-                  .withArgs(user.address, user.address, ORACLE_VERSION_3.timestamp, 0, 0, 0, 0, false)
+                  .withArgs(
+                    user.address,
+                    user.address,
+                    ORACLE_VERSION_3.timestamp,
+                    0,
+                    0,
+                    0,
+                    0,
+                    false,
+                    constants.AddressZero,
+                  )
 
                 oracle.at.whenCalledWith(ORACLE_VERSION_3.timestamp).returns(ORACLE_VERSION_3)
 
@@ -6806,7 +7457,17 @@ describe('Market', () => {
                     ['update(address,uint256,uint256,uint256,int256,bool)'](user.address, 0, 0, 0, 0, false),
                 )
                   .to.emit(market, 'Updated')
-                  .withArgs(user.address, user.address, ORACLE_VERSION_3.timestamp, 0, 0, 0, 0, false)
+                  .withArgs(
+                    user.address,
+                    user.address,
+                    ORACLE_VERSION_3.timestamp,
+                    0,
+                    0,
+                    0,
+                    0,
+                    false,
+                    constants.AddressZero,
+                  )
 
                 oracle.at.whenCalledWith(ORACLE_VERSION_3.timestamp).returns(ORACLE_VERSION_3)
 
@@ -7006,33 +7667,47 @@ describe('Market', () => {
 
             await expect(settle(market, user))
               .to.emit(market, 'PositionProcessed')
-              .withArgs(ORACLE_VERSION_2.timestamp, oracleVersionLowerPrice.timestamp, 1, 2, {
-                ...DEFAULT_VERSION_ACCUMULATION_RESULT,
-                fundingMaker: EXPECTED_FUNDING_WITHOUT_FEE_1_5_123.add(EXPECTED_FUNDING_PRECISION_LOSS.mul(1).div(5)),
-                fundingShort: EXPECTED_FUNDING_WITH_FEE_1_5_123.mul(-1).add(
-                  EXPECTED_FUNDING_PRECISION_LOSS.mul(4).div(5),
-                ),
-                fundingFee: EXPECTED_FUNDING_FEE_1_5_123.sub(EXPECTED_FUNDING_PRECISION_LOSS),
-                interestMaker: EXPECTED_INTEREST_WITHOUT_FEE_5_123,
-                interestShort: EXPECTED_INTEREST_5_123.mul(-1),
-                interestFee: EXPECTED_INTEREST_FEE_5_123,
-                pnlMaker: EXPECTED_PNL,
-                pnlShort: EXPECTED_PNL.mul(-1),
-              })
+              .withArgs(
+                2,
+                { ...DEFAULT_ORDER, timestamp: oracleVersionLowerPrice.timestamp },
+                {
+                  ...DEFAULT_VERSION_ACCUMULATION_RESULT,
+                  fundingMaker: EXPECTED_FUNDING_WITHOUT_FEE_1_5_123.add(EXPECTED_FUNDING_PRECISION_LOSS.mul(1).div(5)),
+                  fundingShort: EXPECTED_FUNDING_WITH_FEE_1_5_123.mul(-1).add(
+                    EXPECTED_FUNDING_PRECISION_LOSS.mul(4).div(5),
+                  ),
+                  fundingFee: EXPECTED_FUNDING_FEE_1_5_123.sub(EXPECTED_FUNDING_PRECISION_LOSS),
+                  interestMaker: EXPECTED_INTEREST_WITHOUT_FEE_5_123,
+                  interestShort: EXPECTED_INTEREST_5_123.mul(-1),
+                  interestFee: EXPECTED_INTEREST_FEE_5_123,
+                  pnlMaker: EXPECTED_PNL,
+                  pnlShort: EXPECTED_PNL.mul(-1),
+                },
+              )
               .to.emit(market, 'AccountPositionProcessed')
-              .withArgs(user.address, ORACLE_VERSION_2.timestamp, oracleVersionLowerPrice.timestamp, 1, 2, {
-                ...DEFAULT_LOCAL_ACCUMULATION_RESULT,
-                collateral: EXPECTED_PNL.mul(-1).sub(EXPECTED_FUNDING_WITH_FEE_1_5_123).sub(EXPECTED_INTEREST_5_123),
-              })
+              .withArgs(
+                user.address,
+                2,
+                { ...DEFAULT_ORDER, timestamp: oracleVersionLowerPrice.timestamp },
+                {
+                  ...DEFAULT_LOCAL_ACCUMULATION_RESULT,
+                  collateral: EXPECTED_PNL.mul(-1).sub(EXPECTED_FUNDING_WITH_FEE_1_5_123).sub(EXPECTED_INTEREST_5_123),
+                },
+              )
 
             await expect(settle(market, userB))
               .to.emit(market, 'AccountPositionProcessed')
-              .withArgs(userB.address, ORACLE_VERSION_2.timestamp, oracleVersionLowerPrice.timestamp, 1, 2, {
-                ...DEFAULT_LOCAL_ACCUMULATION_RESULT,
-                collateral: EXPECTED_PNL.add(EXPECTED_FUNDING_WITHOUT_FEE_1_5_123)
-                  .add(EXPECTED_INTEREST_WITHOUT_FEE_5_123)
-                  .sub(8),
-              })
+              .withArgs(
+                userB.address,
+                2,
+                { ...DEFAULT_ORDER, timestamp: oracleVersionLowerPrice.timestamp },
+                {
+                  ...DEFAULT_LOCAL_ACCUMULATION_RESULT,
+                  collateral: EXPECTED_PNL.add(EXPECTED_FUNDING_WITHOUT_FEE_1_5_123)
+                    .add(EXPECTED_INTEREST_WITHOUT_FEE_5_123)
+                    .sub(8),
+                },
+              )
 
             expectLocalEq(await market.locals(user.address), {
               ...DEFAULT_LOCAL,
@@ -7125,33 +7800,47 @@ describe('Market', () => {
 
             await expect(settle(market, user))
               .to.emit(market, 'PositionProcessed')
-              .withArgs(ORACLE_VERSION_2.timestamp, oracleVersionHigherPrice.timestamp, 1, 2, {
-                ...DEFAULT_VERSION_ACCUMULATION_RESULT,
-                fundingMaker: EXPECTED_FUNDING_WITHOUT_FEE_1_5_123.add(EXPECTED_FUNDING_PRECISION_LOSS.mul(1).div(5)),
-                fundingShort: EXPECTED_FUNDING_WITH_FEE_1_5_123.mul(-1).add(
-                  EXPECTED_FUNDING_PRECISION_LOSS.mul(4).div(5),
-                ),
-                fundingFee: EXPECTED_FUNDING_FEE_1_5_123.sub(EXPECTED_FUNDING_PRECISION_LOSS),
-                interestMaker: EXPECTED_INTEREST_WITHOUT_FEE_5_123,
-                interestShort: EXPECTED_INTEREST_5_123.mul(-1),
-                interestFee: EXPECTED_INTEREST_FEE_5_123,
-                pnlMaker: EXPECTED_PNL,
-                pnlShort: EXPECTED_PNL.mul(-1),
-              })
+              .withArgs(
+                2,
+                { ...DEFAULT_ORDER, timestamp: oracleVersionHigherPrice.timestamp },
+                {
+                  ...DEFAULT_VERSION_ACCUMULATION_RESULT,
+                  fundingMaker: EXPECTED_FUNDING_WITHOUT_FEE_1_5_123.add(EXPECTED_FUNDING_PRECISION_LOSS.mul(1).div(5)),
+                  fundingShort: EXPECTED_FUNDING_WITH_FEE_1_5_123.mul(-1).add(
+                    EXPECTED_FUNDING_PRECISION_LOSS.mul(4).div(5),
+                  ),
+                  fundingFee: EXPECTED_FUNDING_FEE_1_5_123.sub(EXPECTED_FUNDING_PRECISION_LOSS),
+                  interestMaker: EXPECTED_INTEREST_WITHOUT_FEE_5_123,
+                  interestShort: EXPECTED_INTEREST_5_123.mul(-1),
+                  interestFee: EXPECTED_INTEREST_FEE_5_123,
+                  pnlMaker: EXPECTED_PNL,
+                  pnlShort: EXPECTED_PNL.mul(-1),
+                },
+              )
               .to.emit(market, 'AccountPositionProcessed')
-              .withArgs(user.address, ORACLE_VERSION_2.timestamp, oracleVersionHigherPrice.timestamp, 1, 2, {
-                ...DEFAULT_LOCAL_ACCUMULATION_RESULT,
-                collateral: EXPECTED_PNL.mul(-1).sub(EXPECTED_FUNDING_WITH_FEE_1_5_123).sub(EXPECTED_INTEREST_5_123),
-              })
+              .withArgs(
+                user.address,
+                2,
+                { ...DEFAULT_ORDER, timestamp: oracleVersionHigherPrice.timestamp },
+                {
+                  ...DEFAULT_LOCAL_ACCUMULATION_RESULT,
+                  collateral: EXPECTED_PNL.mul(-1).sub(EXPECTED_FUNDING_WITH_FEE_1_5_123).sub(EXPECTED_INTEREST_5_123),
+                },
+              )
 
             await expect(settle(market, userB))
               .to.emit(market, 'AccountPositionProcessed')
-              .withArgs(userB.address, ORACLE_VERSION_2.timestamp, oracleVersionHigherPrice.timestamp, 1, 2, {
-                ...DEFAULT_LOCAL_ACCUMULATION_RESULT,
-                collateral: EXPECTED_PNL.add(EXPECTED_FUNDING_WITHOUT_FEE_1_5_123)
-                  .add(EXPECTED_INTEREST_WITHOUT_FEE_5_123)
-                  .sub(8),
-              })
+              .withArgs(
+                userB.address,
+                2,
+                { ...DEFAULT_ORDER, timestamp: oracleVersionHigherPrice.timestamp },
+                {
+                  ...DEFAULT_LOCAL_ACCUMULATION_RESULT,
+                  collateral: EXPECTED_PNL.add(EXPECTED_FUNDING_WITHOUT_FEE_1_5_123)
+                    .add(EXPECTED_INTEREST_WITHOUT_FEE_5_123)
+                    .sub(8),
+                },
+              )
 
             expectLocalEq(await market.locals(user.address), {
               ...DEFAULT_LOCAL,
@@ -7290,7 +7979,17 @@ describe('Market', () => {
                   ['update(address,uint256,uint256,uint256,int256,bool)'](userB.address, 0, 0, 0, 0, true),
               )
                 .to.emit(market, 'Updated')
-                .withArgs(liquidator.address, userB.address, ORACLE_VERSION_4.timestamp, 0, 0, 0, 0, true)
+                .withArgs(
+                  liquidator.address,
+                  userB.address,
+                  ORACLE_VERSION_4.timestamp,
+                  0,
+                  0,
+                  0,
+                  0,
+                  true,
+                  constants.AddressZero,
+                )
 
               oracle.at.whenCalledWith(ORACLE_VERSION_4.timestamp).returns(ORACLE_VERSION_4)
               oracle.status.returns([ORACLE_VERSION_4, ORACLE_VERSION_5.timestamp])
@@ -7490,7 +8189,17 @@ describe('Market', () => {
                   ['update(address,uint256,uint256,uint256,int256,bool)'](userB.address, 0, 0, 0, 0, true),
               )
                 .to.emit(market, 'Updated')
-                .withArgs(liquidator.address, userB.address, ORACLE_VERSION_4.timestamp, 0, 0, 0, 0, true)
+                .withArgs(
+                  liquidator.address,
+                  userB.address,
+                  ORACLE_VERSION_4.timestamp,
+                  0,
+                  0,
+                  0,
+                  0,
+                  true,
+                  constants.AddressZero,
+                )
 
               oracle.at.whenCalledWith(ORACLE_VERSION_4.timestamp).returns(ORACLE_VERSION_4)
               oracle.status.returns([ORACLE_VERSION_4, ORACLE_VERSION_5.timestamp])
@@ -7700,7 +8409,17 @@ describe('Market', () => {
                   ['update(address,uint256,uint256,uint256,int256,bool)'](userB.address, 0, 0, 0, 0, true),
               )
                 .to.emit(market, 'Updated')
-                .withArgs(liquidator.address, userB.address, ORACLE_VERSION_4.timestamp, 0, 0, 0, 0, true)
+                .withArgs(
+                  liquidator.address,
+                  userB.address,
+                  ORACLE_VERSION_4.timestamp,
+                  0,
+                  0,
+                  0,
+                  0,
+                  true,
+                  constants.AddressZero,
+                )
 
               expectLocalEq(await market.locals(user.address), {
                 ...DEFAULT_LOCAL,
@@ -7822,6 +8541,7 @@ describe('Market', () => {
                   0,
                   shortfall.mul(-1),
                   false,
+                  constants.AddressZero,
                 )
 
               expectLocalEq(await market.locals(liquidator.address), {
@@ -7908,7 +8628,17 @@ describe('Market', () => {
                   ['update(address,uint256,uint256,uint256,int256,bool)'](user.address, 0, 0, 0, 0, true),
               )
                 .to.emit(market, 'Updated')
-                .withArgs(liquidator.address, user.address, ORACLE_VERSION_4.timestamp, 0, 0, 0, 0, true)
+                .withArgs(
+                  liquidator.address,
+                  user.address,
+                  ORACLE_VERSION_4.timestamp,
+                  0,
+                  0,
+                  0,
+                  0,
+                  true,
+                  constants.AddressZero,
+                )
 
               oracle.at.whenCalledWith(ORACLE_VERSION_4.timestamp).returns(ORACLE_VERSION_4)
               oracle.status.returns([ORACLE_VERSION_4, ORACLE_VERSION_5.timestamp])
@@ -8090,7 +8820,17 @@ describe('Market', () => {
                   ['update(address,uint256,uint256,uint256,int256,bool)'](user.address, 0, 0, 0, 0, true),
               )
                 .to.emit(market, 'Updated')
-                .withArgs(liquidator.address, user.address, ORACLE_VERSION_4.timestamp, 0, 0, 0, 0, true)
+                .withArgs(
+                  liquidator.address,
+                  user.address,
+                  ORACLE_VERSION_4.timestamp,
+                  0,
+                  0,
+                  0,
+                  0,
+                  true,
+                  constants.AddressZero,
+                )
 
               expectLocalEq(await market.locals(user.address), {
                 ...DEFAULT_LOCAL,
@@ -8218,6 +8958,7 @@ describe('Market', () => {
                   0,
                   shortfall.mul(-1),
                   false,
+                  constants.AddressZero,
                 )
 
               expectLocalEq(await market.locals(liquidator.address), {
@@ -8391,7 +9132,17 @@ describe('Market', () => {
                 ['update(address,uint256,uint256,uint256,int256,bool)'](user.address, POSITION.div(2), 0, 0, 0, false),
             )
               .to.emit(market, 'Updated')
-              .withArgs(user.address, user.address, ORACLE_VERSION_3.timestamp, POSITION.div(2), 0, 0, 0, false)
+              .withArgs(
+                user.address,
+                user.address,
+                ORACLE_VERSION_3.timestamp,
+                POSITION.div(2),
+                0,
+                0,
+                0,
+                false,
+                constants.AddressZero,
+              )
 
             const marketParameter2 = { ...(await market.parameter()) }
             marketParameter2.closed = true
@@ -8526,7 +9277,17 @@ describe('Market', () => {
                   ),
               )
                 .to.emit(market, 'Updated')
-                .withArgs(user.address, user.address, ORACLE_VERSION_2.timestamp, 0, POSITION, 0, COLLATERAL, false)
+                .withArgs(
+                  user.address,
+                  user.address,
+                  ORACLE_VERSION_2.timestamp,
+                  0,
+                  POSITION,
+                  0,
+                  COLLATERAL,
+                  false,
+                  constants.AddressZero,
+                )
 
               expectLocalEq(await market.locals(user.address), {
                 ...DEFAULT_LOCAL,
@@ -8589,7 +9350,17 @@ describe('Market', () => {
                   ),
               )
                 .to.emit(market, 'Updated')
-                .withArgs(user.address, user.address, ORACLE_VERSION_2.timestamp, 0, POSITION, 0, COLLATERAL, false)
+                .withArgs(
+                  user.address,
+                  user.address,
+                  ORACLE_VERSION_2.timestamp,
+                  0,
+                  POSITION,
+                  0,
+                  COLLATERAL,
+                  false,
+                  constants.AddressZero,
+                )
 
               oracle.at.whenCalledWith(ORACLE_VERSION_2.timestamp).returns(ORACLE_VERSION_2)
               oracle.status.returns([ORACLE_VERSION_2, ORACLE_VERSION_3.timestamp])
@@ -8658,7 +9429,17 @@ describe('Market', () => {
                   ['update(address,uint256,uint256,uint256,int256,bool)'](user.address, 0, POSITION, 0, 0, false),
               )
                 .to.emit(market, 'Updated')
-                .withArgs(user.address, user.address, ORACLE_VERSION_2.timestamp, 0, POSITION, 0, 0, false)
+                .withArgs(
+                  user.address,
+                  user.address,
+                  ORACLE_VERSION_2.timestamp,
+                  0,
+                  POSITION,
+                  0,
+                  0,
+                  false,
+                  constants.AddressZero,
+                )
 
               expectLocalEq(await market.locals(user.address), {
                 ...DEFAULT_LOCAL,
@@ -8721,7 +9502,17 @@ describe('Market', () => {
                   ['update(address,uint256,uint256,uint256,int256,bool)'](user.address, 0, POSITION, 0, 0, false),
               )
                 .to.emit(market, 'Updated')
-                .withArgs(user.address, user.address, ORACLE_VERSION_2.timestamp, 0, POSITION, 0, 0, false)
+                .withArgs(
+                  user.address,
+                  user.address,
+                  ORACLE_VERSION_2.timestamp,
+                  0,
+                  POSITION,
+                  0,
+                  0,
+                  false,
+                  constants.AddressZero,
+                )
 
               oracle.at.whenCalledWith(ORACLE_VERSION_2.timestamp).returns(ORACLE_VERSION_2)
               oracle.status.returns([ORACLE_VERSION_2, ORACLE_VERSION_3.timestamp])
@@ -8794,7 +9585,17 @@ describe('Market', () => {
                   ['update(address,uint256,uint256,uint256,int256,bool)'](user.address, 0, POSITION, 0, 0, false),
               )
                 .to.emit(market, 'Updated')
-                .withArgs(user.address, user.address, ORACLE_VERSION_3.timestamp, 0, POSITION, 0, 0, false)
+                .withArgs(
+                  user.address,
+                  user.address,
+                  ORACLE_VERSION_3.timestamp,
+                  0,
+                  POSITION,
+                  0,
+                  0,
+                  false,
+                  constants.AddressZero,
+                )
 
               expectLocalEq(await market.locals(user.address), {
                 ...DEFAULT_LOCAL,
@@ -8865,7 +9666,17 @@ describe('Market', () => {
                   ['update(address,uint256,uint256,uint256,int256,bool)'](user.address, 0, POSITION, 0, 0, false),
               )
                 .to.emit(market, 'Updated')
-                .withArgs(user.address, user.address, ORACLE_VERSION_3.timestamp, 0, POSITION, 0, 0, false)
+                .withArgs(
+                  user.address,
+                  user.address,
+                  ORACLE_VERSION_3.timestamp,
+                  0,
+                  POSITION,
+                  0,
+                  0,
+                  false,
+                  constants.AddressZero,
+                )
 
               oracle.at.whenCalledWith(ORACLE_VERSION_3.timestamp).returns(ORACLE_VERSION_3)
               oracle.status.returns([ORACLE_VERSION_3, ORACLE_VERSION_4.timestamp])
@@ -8981,6 +9792,7 @@ describe('Market', () => {
                   0,
                   COLLATERAL,
                   false,
+                  constants.AddressZero,
                 )
 
               oracle.at.whenCalledWith(ORACLE_VERSION_2.timestamp).returns(ORACLE_VERSION_2)
@@ -9123,6 +9935,7 @@ describe('Market', () => {
                   0,
                   COLLATERAL,
                   false,
+                  constants.AddressZero,
                 )
 
               oracle.at.whenCalledWith(ORACLE_VERSION_2.timestamp).returns(ORACLE_VERSION_2)
@@ -9246,6 +10059,7 @@ describe('Market', () => {
                   0,
                   COLLATERAL,
                   false,
+                  constants.AddressZero,
                 )
 
               oracle.at.whenCalledWith(ORACLE_VERSION_2.timestamp).returns(ORACLE_VERSION_2)
@@ -9364,6 +10178,7 @@ describe('Market', () => {
                   0,
                   COLLATERAL,
                   false,
+                  constants.AddressZero,
                 )
 
               oracle.at.whenCalledWith(ORACLE_VERSION_2.timestamp).returns(ORACLE_VERSION_2)
@@ -9487,6 +10302,7 @@ describe('Market', () => {
                   0,
                   COLLATERAL,
                   false,
+                  constants.AddressZero,
                 )
 
               oracle.at.whenCalledWith(ORACLE_VERSION_2.timestamp).returns(ORACLE_VERSION_2)
@@ -9605,6 +10421,7 @@ describe('Market', () => {
                   0,
                   COLLATERAL,
                   false,
+                  constants.AddressZero,
                 )
 
               oracle.at.whenCalledWith(ORACLE_VERSION_2.timestamp).returns(ORACLE_VERSION_2)
@@ -9760,7 +10577,17 @@ describe('Market', () => {
                     ['update(address,uint256,uint256,uint256,int256,bool)'](user.address, 0, 0, 0, 0, false),
                 )
                   .to.emit(market, 'Updated')
-                  .withArgs(user.address, user.address, ORACLE_VERSION_3.timestamp, 0, 0, 0, 0, false)
+                  .withArgs(
+                    user.address,
+                    user.address,
+                    ORACLE_VERSION_3.timestamp,
+                    0,
+                    0,
+                    0,
+                    0,
+                    false,
+                    constants.AddressZero,
+                  )
 
                 expectLocalEq(await market.locals(user.address), {
                   ...DEFAULT_LOCAL,
@@ -9816,7 +10643,17 @@ describe('Market', () => {
                     ['update(address,uint256,uint256,uint256,int256,bool)'](user.address, 0, 0, 0, 0, false),
                 )
                   .to.emit(market, 'Updated')
-                  .withArgs(user.address, user.address, ORACLE_VERSION_3.timestamp, 0, 0, 0, 0, false)
+                  .withArgs(
+                    user.address,
+                    user.address,
+                    ORACLE_VERSION_3.timestamp,
+                    0,
+                    0,
+                    0,
+                    0,
+                    false,
+                    constants.AddressZero,
+                  )
 
                 oracle.at.whenCalledWith(ORACLE_VERSION_3.timestamp).returns(ORACLE_VERSION_3)
                 oracle.status.returns([ORACLE_VERSION_3, ORACLE_VERSION_4.timestamp])
@@ -9918,7 +10755,17 @@ describe('Market', () => {
                     ['update(address,uint256,uint256,uint256,int256,bool)'](user.address, 0, 0, 0, 0, false),
                 )
                   .to.emit(market, 'Updated')
-                  .withArgs(user.address, user.address, ORACLE_VERSION_3.timestamp, 0, 0, 0, 0, false)
+                  .withArgs(
+                    user.address,
+                    user.address,
+                    ORACLE_VERSION_3.timestamp,
+                    0,
+                    0,
+                    0,
+                    0,
+                    false,
+                    constants.AddressZero,
+                  )
 
                 expectLocalEq(await market.locals(user.address), {
                   ...DEFAULT_LOCAL,
@@ -9978,7 +10825,17 @@ describe('Market', () => {
                     ['update(address,uint256,uint256,uint256,int256,bool)'](user.address, 0, 0, 0, 0, false),
                 )
                   .to.emit(market, 'Updated')
-                  .withArgs(user.address, user.address, ORACLE_VERSION_3.timestamp, 0, 0, 0, 0, false)
+                  .withArgs(
+                    user.address,
+                    user.address,
+                    ORACLE_VERSION_3.timestamp,
+                    0,
+                    0,
+                    0,
+                    0,
+                    false,
+                    constants.AddressZero,
+                  )
 
                 oracle.at.whenCalledWith(ORACLE_VERSION_3.timestamp).returns(ORACLE_VERSION_3)
                 oracle.status.returns([ORACLE_VERSION_3, ORACLE_VERSION_4.timestamp])
@@ -10084,7 +10941,17 @@ describe('Market', () => {
                     ['update(address,uint256,uint256,uint256,int256,bool)'](user.address, 0, 0, 0, 0, false),
                 )
                   .to.emit(market, 'Updated')
-                  .withArgs(user.address, user.address, ORACLE_VERSION_4.timestamp, 0, 0, 0, 0, false)
+                  .withArgs(
+                    user.address,
+                    user.address,
+                    ORACLE_VERSION_4.timestamp,
+                    0,
+                    0,
+                    0,
+                    0,
+                    false,
+                    constants.AddressZero,
+                  )
 
                 await settle(market, user)
                 await settle(market, userB)
@@ -10192,7 +11059,17 @@ describe('Market', () => {
                     ['update(address,uint256,uint256,uint256,int256,bool)'](user.address, 0, 0, 0, 0, false),
                 )
                   .to.emit(market, 'Updated')
-                  .withArgs(user.address, user.address, ORACLE_VERSION_4.timestamp, 0, 0, 0, 0, false)
+                  .withArgs(
+                    user.address,
+                    user.address,
+                    ORACLE_VERSION_4.timestamp,
+                    0,
+                    0,
+                    0,
+                    0,
+                    false,
+                    constants.AddressZero,
+                  )
 
                 oracle.at.whenCalledWith(ORACLE_VERSION_4.timestamp).returns(ORACLE_VERSION_4)
                 oracle.status.returns([ORACLE_VERSION_4, ORACLE_VERSION_5.timestamp])
@@ -10331,7 +11208,17 @@ describe('Market', () => {
                     ['update(address,uint256,uint256,uint256,int256,bool)'](user.address, 0, 0, 0, 0, false),
                 )
                   .to.emit(market, 'Updated')
-                  .withArgs(user.address, user.address, ORACLE_VERSION_3.timestamp, 0, 0, 0, 0, false)
+                  .withArgs(
+                    user.address,
+                    user.address,
+                    ORACLE_VERSION_3.timestamp,
+                    0,
+                    0,
+                    0,
+                    0,
+                    false,
+                    constants.AddressZero,
+                  )
 
                 oracle.at.whenCalledWith(ORACLE_VERSION_3.timestamp).returns(ORACLE_VERSION_3)
 
@@ -10424,7 +11311,17 @@ describe('Market', () => {
                     ['update(address,uint256,uint256,uint256,int256,bool)'](user.address, 0, 0, 0, 0, false),
                 )
                   .to.emit(market, 'Updated')
-                  .withArgs(user.address, user.address, ORACLE_VERSION_3.timestamp, 0, 0, 0, 0, false)
+                  .withArgs(
+                    user.address,
+                    user.address,
+                    ORACLE_VERSION_3.timestamp,
+                    0,
+                    0,
+                    0,
+                    0,
+                    false,
+                    constants.AddressZero,
+                  )
 
                 oracle.at.whenCalledWith(ORACLE_VERSION_3.timestamp).returns(ORACLE_VERSION_3)
 
@@ -10612,40 +11509,54 @@ describe('Market', () => {
 
             await expect(settle(market, user))
               .to.emit(market, 'PositionProcessed')
-              .withArgs(ORACLE_VERSION_2.timestamp, oracleVersionLowerPrice.timestamp, 1, 2, {
-                ...DEFAULT_VERSION_ACCUMULATION_RESULT,
-                fundingMaker: EXPECTED_FUNDING_WITHOUT_FEE_1_10_123_ALL.div(2),
-                fundingLong: EXPECTED_FUNDING_WITHOUT_FEE_1_10_123_ALL.div(2).add(1), // loss of precision
-                fundingShort: EXPECTED_FUNDING_WITH_FEE_1_10_123_ALL.mul(-1).add(4), // loss of precision
-                fundingFee: EXPECTED_FUNDING_FEE_1_10_123_ALL.sub(5), // loss of precision
-                interestMaker: EXPECTED_INTEREST_WITHOUT_FEE_10_67_123_ALL.sub(5), // loss of precision
-                interestLong: EXPECTED_INTEREST_10_67_123_ALL.div(3).mul(-1).add(2), // loss of precision
-                interestShort: EXPECTED_INTEREST_10_67_123_ALL.mul(2).div(3).mul(-1).add(3),
-                interestFee: EXPECTED_INTEREST_FEE_10_67_123_ALL.sub(1), // loss of precision
-                pnlMaker: EXPECTED_PNL.div(2).mul(-1),
-                pnlLong: EXPECTED_PNL.div(2).mul(-1),
-                pnlShort: EXPECTED_PNL,
-              })
+              .withArgs(
+                2,
+                { ...DEFAULT_ORDER, timestamp: oracleVersionLowerPrice.timestamp },
+                {
+                  ...DEFAULT_VERSION_ACCUMULATION_RESULT,
+                  fundingMaker: EXPECTED_FUNDING_WITHOUT_FEE_1_10_123_ALL.div(2),
+                  fundingLong: EXPECTED_FUNDING_WITHOUT_FEE_1_10_123_ALL.div(2).add(1), // loss of precision
+                  fundingShort: EXPECTED_FUNDING_WITH_FEE_1_10_123_ALL.mul(-1).add(4), // loss of precision
+                  fundingFee: EXPECTED_FUNDING_FEE_1_10_123_ALL.sub(5), // loss of precision
+                  interestMaker: EXPECTED_INTEREST_WITHOUT_FEE_10_67_123_ALL.sub(5), // loss of precision
+                  interestLong: EXPECTED_INTEREST_10_67_123_ALL.div(3).mul(-1).add(2), // loss of precision
+                  interestShort: EXPECTED_INTEREST_10_67_123_ALL.mul(2).div(3).mul(-1).add(3),
+                  interestFee: EXPECTED_INTEREST_FEE_10_67_123_ALL.sub(1), // loss of precision
+                  pnlMaker: EXPECTED_PNL.div(2).mul(-1),
+                  pnlLong: EXPECTED_PNL.div(2).mul(-1),
+                  pnlShort: EXPECTED_PNL,
+                },
+              )
               .to.emit(market, 'AccountPositionProcessed')
-              .withArgs(user.address, ORACLE_VERSION_2.timestamp, oracleVersionLowerPrice.timestamp, 1, 2, {
-                ...DEFAULT_LOCAL_ACCUMULATION_RESULT,
-                collateral: EXPECTED_PNL.div(2)
-                  .mul(-1)
-                  .add(EXPECTED_FUNDING_WITHOUT_FEE_1_10_123_ALL.div(2))
-                  .sub(EXPECTED_INTEREST_10_67_123_ALL.div(3))
-                  .sub(2), // loss of precision
-              })
+              .withArgs(
+                user.address,
+                2,
+                { ...DEFAULT_ORDER, timestamp: oracleVersionLowerPrice.timestamp },
+                {
+                  ...DEFAULT_LOCAL_ACCUMULATION_RESULT,
+                  collateral: EXPECTED_PNL.div(2)
+                    .mul(-1)
+                    .add(EXPECTED_FUNDING_WITHOUT_FEE_1_10_123_ALL.div(2))
+                    .sub(EXPECTED_INTEREST_10_67_123_ALL.div(3))
+                    .sub(2), // loss of precision
+                },
+              )
 
             await expect(settle(market, userB))
               .to.emit(market, 'AccountPositionProcessed')
-              .withArgs(userB.address, ORACLE_VERSION_2.timestamp, oracleVersionLowerPrice.timestamp, 1, 2, {
-                ...DEFAULT_LOCAL_ACCUMULATION_RESULT,
-                collateral: EXPECTED_PNL.div(2)
-                  .mul(-1)
-                  .add(EXPECTED_FUNDING_WITHOUT_FEE_1_10_123_ALL.div(2))
-                  .add(EXPECTED_INTEREST_WITHOUT_FEE_10_67_123_ALL)
-                  .sub(13), // loss of precision
-              })
+              .withArgs(
+                userB.address,
+                2,
+                { ...DEFAULT_ORDER, timestamp: oracleVersionLowerPrice.timestamp },
+                {
+                  ...DEFAULT_LOCAL_ACCUMULATION_RESULT,
+                  collateral: EXPECTED_PNL.div(2)
+                    .mul(-1)
+                    .add(EXPECTED_FUNDING_WITHOUT_FEE_1_10_123_ALL.div(2))
+                    .add(EXPECTED_INTEREST_WITHOUT_FEE_10_67_123_ALL)
+                    .sub(13), // loss of precision
+                },
+              )
 
             expectLocalEq(await market.locals(user.address), {
               ...DEFAULT_LOCAL,
@@ -10750,40 +11661,54 @@ describe('Market', () => {
 
             await expect(settle(market, user))
               .to.emit(market, 'PositionProcessed')
-              .withArgs(ORACLE_VERSION_2.timestamp, oracleVersionHigherPrice.timestamp, 1, 2, {
-                ...DEFAULT_VERSION_ACCUMULATION_RESULT,
-                fundingMaker: EXPECTED_FUNDING_WITHOUT_FEE_1_10_123_ALL.div(2),
-                fundingLong: EXPECTED_FUNDING_WITHOUT_FEE_1_10_123_ALL.div(2).add(1), // loss of precision
-                fundingShort: EXPECTED_FUNDING_WITH_FEE_1_10_123_ALL.mul(-1).add(4), // loss of precision
-                fundingFee: EXPECTED_FUNDING_FEE_1_10_123_ALL.sub(5), // loss of precision
-                interestMaker: EXPECTED_INTEREST_WITHOUT_FEE_10_67_123_ALL.sub(5), // loss of precision
-                interestLong: EXPECTED_INTEREST_10_67_123_ALL.div(3).mul(-1).add(2), // loss of precision
-                interestShort: EXPECTED_INTEREST_10_67_123_ALL.mul(2).div(3).mul(-1).add(3),
-                interestFee: EXPECTED_INTEREST_FEE_10_67_123_ALL.sub(1), // loss of precision
-                pnlMaker: EXPECTED_PNL.div(2).mul(-1),
-                pnlLong: EXPECTED_PNL.div(2).mul(-1),
-                pnlShort: EXPECTED_PNL,
-              })
+              .withArgs(
+                2,
+                { ...DEFAULT_ORDER, timestamp: oracleVersionHigherPrice.timestamp },
+                {
+                  ...DEFAULT_VERSION_ACCUMULATION_RESULT,
+                  fundingMaker: EXPECTED_FUNDING_WITHOUT_FEE_1_10_123_ALL.div(2),
+                  fundingLong: EXPECTED_FUNDING_WITHOUT_FEE_1_10_123_ALL.div(2).add(1), // loss of precision
+                  fundingShort: EXPECTED_FUNDING_WITH_FEE_1_10_123_ALL.mul(-1).add(4), // loss of precision
+                  fundingFee: EXPECTED_FUNDING_FEE_1_10_123_ALL.sub(5), // loss of precision
+                  interestMaker: EXPECTED_INTEREST_WITHOUT_FEE_10_67_123_ALL.sub(5), // loss of precision
+                  interestLong: EXPECTED_INTEREST_10_67_123_ALL.div(3).mul(-1).add(2), // loss of precision
+                  interestShort: EXPECTED_INTEREST_10_67_123_ALL.mul(2).div(3).mul(-1).add(3),
+                  interestFee: EXPECTED_INTEREST_FEE_10_67_123_ALL.sub(1), // loss of precision
+                  pnlMaker: EXPECTED_PNL.div(2).mul(-1),
+                  pnlLong: EXPECTED_PNL.div(2).mul(-1),
+                  pnlShort: EXPECTED_PNL,
+                },
+              )
               .to.emit(market, 'AccountPositionProcessed')
-              .withArgs(user.address, ORACLE_VERSION_2.timestamp, oracleVersionHigherPrice.timestamp, 1, 2, {
-                ...DEFAULT_LOCAL_ACCUMULATION_RESULT,
-                collateral: EXPECTED_PNL.div(2)
-                  .mul(-1)
-                  .add(EXPECTED_FUNDING_WITHOUT_FEE_1_10_123_ALL.div(2))
-                  .sub(EXPECTED_INTEREST_10_67_123_ALL.div(3))
-                  .sub(2), // loss of precision
-              })
+              .withArgs(
+                user.address,
+                2,
+                { ...DEFAULT_ORDER, timestamp: oracleVersionHigherPrice.timestamp },
+                {
+                  ...DEFAULT_LOCAL_ACCUMULATION_RESULT,
+                  collateral: EXPECTED_PNL.div(2)
+                    .mul(-1)
+                    .add(EXPECTED_FUNDING_WITHOUT_FEE_1_10_123_ALL.div(2))
+                    .sub(EXPECTED_INTEREST_10_67_123_ALL.div(3))
+                    .sub(2), // loss of precision
+                },
+              )
 
             await expect(settle(market, userB))
               .to.emit(market, 'AccountPositionProcessed')
-              .withArgs(userB.address, ORACLE_VERSION_2.timestamp, oracleVersionHigherPrice.timestamp, 1, 2, {
-                ...DEFAULT_LOCAL_ACCUMULATION_RESULT,
-                collateral: EXPECTED_PNL.div(2)
-                  .mul(-1)
-                  .add(EXPECTED_FUNDING_WITHOUT_FEE_1_10_123_ALL.div(2))
-                  .add(EXPECTED_INTEREST_WITHOUT_FEE_10_67_123_ALL)
-                  .sub(13), // loss of precision
-              })
+              .withArgs(
+                userB.address,
+                2,
+                { ...DEFAULT_ORDER, timestamp: oracleVersionHigherPrice.timestamp },
+                {
+                  ...DEFAULT_LOCAL_ACCUMULATION_RESULT,
+                  collateral: EXPECTED_PNL.div(2)
+                    .mul(-1)
+                    .add(EXPECTED_FUNDING_WITHOUT_FEE_1_10_123_ALL.div(2))
+                    .add(EXPECTED_INTEREST_WITHOUT_FEE_10_67_123_ALL)
+                    .sub(13), // loss of precision
+                },
+              )
 
             expectLocalEq(await market.locals(user.address), {
               ...DEFAULT_LOCAL,
@@ -10944,7 +11869,17 @@ describe('Market', () => {
                   ['update(address,uint256,uint256,uint256,int256,bool)'](userB.address, 0, 0, 0, 0, true),
               )
                 .to.emit(market, 'Updated')
-                .withArgs(liquidator.address, userB.address, ORACLE_VERSION_4.timestamp, 0, 0, 0, 0, true)
+                .withArgs(
+                  liquidator.address,
+                  userB.address,
+                  ORACLE_VERSION_4.timestamp,
+                  0,
+                  0,
+                  0,
+                  0,
+                  true,
+                  constants.AddressZero,
+                )
 
               oracle.at.whenCalledWith(ORACLE_VERSION_4.timestamp).returns(ORACLE_VERSION_4)
               oracle.status.returns([ORACLE_VERSION_4, ORACLE_VERSION_5.timestamp])
@@ -11193,7 +12128,17 @@ describe('Market', () => {
                   ['update(address,uint256,uint256,uint256,int256,bool)'](userB.address, 0, 0, 0, 0, true),
               )
                 .to.emit(market, 'Updated')
-                .withArgs(liquidator.address, userB.address, ORACLE_VERSION_4.timestamp, 0, 0, 0, 0, true)
+                .withArgs(
+                  liquidator.address,
+                  userB.address,
+                  ORACLE_VERSION_4.timestamp,
+                  0,
+                  0,
+                  0,
+                  0,
+                  true,
+                  constants.AddressZero,
+                )
 
               oracle.at.whenCalledWith(ORACLE_VERSION_4.timestamp).returns(ORACLE_VERSION_4)
               oracle.status.returns([ORACLE_VERSION_4, ORACLE_VERSION_5.timestamp])
@@ -11419,7 +12364,17 @@ describe('Market', () => {
                   ['update(address,uint256,uint256,uint256,int256,bool)'](userB.address, 0, 0, 0, 0, true),
               )
                 .to.emit(market, 'Updated')
-                .withArgs(liquidator.address, userB.address, ORACLE_VERSION_4.timestamp, 0, 0, 0, 0, true)
+                .withArgs(
+                  liquidator.address,
+                  userB.address,
+                  ORACLE_VERSION_4.timestamp,
+                  0,
+                  0,
+                  0,
+                  0,
+                  true,
+                  constants.AddressZero,
+                )
 
               expectLocalEq(await market.locals(user.address), {
                 ...DEFAULT_LOCAL,
@@ -11558,6 +12513,7 @@ describe('Market', () => {
                   0,
                   shortfall.mul(-1),
                   false,
+                  constants.AddressZero,
                 )
 
               expectLocalEq(await market.locals(liquidator.address), {
@@ -11655,7 +12611,17 @@ describe('Market', () => {
                   ['update(address,uint256,uint256,uint256,int256,bool)'](user.address, 0, 0, 0, 0, true),
               )
                 .to.emit(market, 'Updated')
-                .withArgs(liquidator.address, user.address, ORACLE_VERSION_4.timestamp, 0, 0, 0, 0, true)
+                .withArgs(
+                  liquidator.address,
+                  user.address,
+                  ORACLE_VERSION_4.timestamp,
+                  0,
+                  0,
+                  0,
+                  0,
+                  true,
+                  constants.AddressZero,
+                )
 
               oracle.at.whenCalledWith(ORACLE_VERSION_4.timestamp).returns(ORACLE_VERSION_4)
               oracle.status.returns([ORACLE_VERSION_4, ORACLE_VERSION_5.timestamp])
@@ -11891,7 +12857,17 @@ describe('Market', () => {
                   ['update(address,uint256,uint256,uint256,int256,bool)'](user.address, 0, 0, 0, 0, true),
               )
                 .to.emit(market, 'Updated')
-                .withArgs(liquidator.address, user.address, ORACLE_VERSION_4.timestamp, 0, 0, 0, 0, true)
+                .withArgs(
+                  liquidator.address,
+                  user.address,
+                  ORACLE_VERSION_4.timestamp,
+                  0,
+                  0,
+                  0,
+                  0,
+                  true,
+                  constants.AddressZero,
+                )
 
               // rate_1 = rate_0 + (elapsed * skew / k)
               // funding = (rate_0 + rate_1) / 2 * elapsed * taker * price / time_in_years
@@ -12044,6 +13020,7 @@ describe('Market', () => {
                   0,
                   shortfall.mul(-1),
                   false,
+                  constants.AddressZero,
                 )
 
               expectLocalEq(await market.locals(liquidator.address), {
@@ -12614,7 +13591,17 @@ describe('Market', () => {
               ['update(address,uint256,uint256,uint256,int256,bool)'](user.address, 0, POSITION.div(2), 0, 0, false),
           )
             .to.emit(market, 'Updated')
-            .withArgs(user.address, user.address, ORACLE_VERSION_4.timestamp, 0, POSITION.div(2), 0, 0, false)
+            .withArgs(
+              user.address,
+              user.address,
+              ORACLE_VERSION_4.timestamp,
+              0,
+              POSITION.div(2),
+              0,
+              0,
+              false,
+              constants.AddressZero,
+            )
 
           oracle.at.whenCalledWith(ORACLE_VERSION_2.timestamp).returns(ORACLE_VERSION_2)
           oracle.status.returns([ORACLE_VERSION_2, ORACLE_VERSION_5.timestamp])
@@ -12645,7 +13632,7 @@ describe('Market', () => {
               ['update(address,uint256,uint256,uint256,int256,bool)'](user.address, 0, 0, 0, 0, false),
           )
             .to.emit(market, 'Updated')
-            .withArgs(user.address, user.address, ORACLE_VERSION_5.timestamp, 0, 0, 0, 0, false)
+            .withArgs(user.address, user.address, ORACLE_VERSION_5.timestamp, 0, 0, 0, 0, false, constants.AddressZero)
 
           oracle.at.whenCalledWith(ORACLE_VERSION_4.timestamp).returns(ORACLE_VERSION_4)
           oracle.at.whenCalledWith(ORACLE_VERSION_5.timestamp).returns(ORACLE_VERSION_5)
@@ -13169,7 +14156,17 @@ describe('Market', () => {
               ['update(address,uint256,uint256,uint256,int256,bool)'](user.address, 0, 0, 0, 0, true),
           )
             .to.emit(market, 'Updated')
-            .withArgs(liquidator.address, user.address, ORACLE_VERSION_4.timestamp, 0, 0, 0, 0, true)
+            .withArgs(
+              liquidator.address,
+              user.address,
+              ORACLE_VERSION_4.timestamp,
+              0,
+              0,
+              0,
+              0,
+              true,
+              constants.AddressZero,
+            )
 
           expectLocalEq(await market.locals(user.address), {
             ...DEFAULT_LOCAL,
@@ -13333,7 +14330,17 @@ describe('Market', () => {
               ['update(address,uint256,uint256,uint256,int256,bool)'](user.address, 0, 0, POSITION.div(4), 0, true),
           )
             .to.emit(market, 'Updated')
-            .withArgs(liquidator.address, user.address, ORACLE_VERSION_5.timestamp, 0, 0, POSITION.div(4), 0, true)
+            .withArgs(
+              liquidator.address,
+              user.address,
+              ORACLE_VERSION_5.timestamp,
+              0,
+              0,
+              POSITION.div(4),
+              0,
+              true,
+              constants.AddressZero,
+            )
 
           oracle.at.whenCalledWith(ORACLE_VERSION_4.timestamp).returns(ORACLE_VERSION_4)
           oracle.at.whenCalledWith(ORACLE_VERSION_5.timestamp).returns(ORACLE_VERSION_5)
@@ -13424,7 +14431,17 @@ describe('Market', () => {
               ['update(address,uint256,uint256,uint256,int256,bool)'](user.address, 0, 0, 0, 0, true),
           )
             .to.emit(market, 'Updated')
-            .withArgs(liquidator.address, user.address, ORACLE_VERSION_4.timestamp, 0, 0, 0, 0, true)
+            .withArgs(
+              liquidator.address,
+              user.address,
+              ORACLE_VERSION_4.timestamp,
+              0,
+              0,
+              0,
+              0,
+              true,
+              constants.AddressZero,
+            )
 
           oracle.at
             .whenCalledWith(ORACLE_VERSION_4.timestamp)
@@ -13441,7 +14458,17 @@ describe('Market', () => {
               ['update(address,uint256,uint256,uint256,int256,bool)'](user.address, 0, 0, 0, 0, true),
           )
             .to.emit(market, 'Updated')
-            .withArgs(liquidator.address, user.address, ORACLE_VERSION_5.timestamp, 0, 0, 0, 0, true)
+            .withArgs(
+              liquidator.address,
+              user.address,
+              ORACLE_VERSION_5.timestamp,
+              0,
+              0,
+              0,
+              0,
+              true,
+              constants.AddressZero,
+            )
           await settle(market, userB)
 
           oracle.at.whenCalledWith(ORACLE_VERSION_5.timestamp).returns(ORACLE_VERSION_5)
@@ -13650,7 +14677,17 @@ describe('Market', () => {
               ),
           )
             .to.emit(market, 'Updated')
-            .withArgs(user.address, user.address, ORACLE_VERSION_3.timestamp, 0, POSITION.div(2), 0, COLLATERAL, false)
+            .withArgs(
+              user.address,
+              user.address,
+              ORACLE_VERSION_3.timestamp,
+              0,
+              POSITION.div(2),
+              0,
+              COLLATERAL,
+              false,
+              constants.AddressZero,
+            )
 
           oracle.at.whenCalledWith(ORACLE_VERSION_3.timestamp).returns({ ...ORACLE_VERSION_3, valid: false })
           oracle.status.returns([{ ...ORACLE_VERSION_3, valid: false }, ORACLE_VERSION_4.timestamp])
@@ -13795,7 +14832,17 @@ describe('Market', () => {
               ),
           )
             .to.emit(market, 'Updated')
-            .withArgs(user.address, user.address, ORACLE_VERSION_3.timestamp, 0, POSITION.div(2), 0, COLLATERAL, false)
+            .withArgs(
+              user.address,
+              user.address,
+              ORACLE_VERSION_3.timestamp,
+              0,
+              POSITION.div(2),
+              0,
+              COLLATERAL,
+              false,
+              constants.AddressZero,
+            )
 
           oracle.at.whenCalledWith(ORACLE_VERSION_3.timestamp).returns({ ...ORACLE_VERSION_3, valid: false })
           oracle.status.returns([{ ...ORACLE_VERSION_3, valid: false }, ORACLE_VERSION_4.timestamp])
@@ -13807,7 +14854,17 @@ describe('Market', () => {
               ['update(address,uint256,uint256,uint256,int256,bool)'](user.address, 0, POSITION.div(2), 0, 0, false),
           )
             .to.emit(market, 'Updated')
-            .withArgs(user.address, user.address, ORACLE_VERSION_4.timestamp, 0, POSITION.div(2), 0, 0, false)
+            .withArgs(
+              user.address,
+              user.address,
+              ORACLE_VERSION_4.timestamp,
+              0,
+              POSITION.div(2),
+              0,
+              0,
+              false,
+              constants.AddressZero,
+            )
 
           oracle.at.whenCalledWith(ORACLE_VERSION_4.timestamp).returns({ ...ORACLE_VERSION_4 })
           oracle.status.returns([{ ...ORACLE_VERSION_4 }, ORACLE_VERSION_5.timestamp])
@@ -13973,7 +15030,17 @@ describe('Market', () => {
               ),
           )
             .to.emit(market, 'Updated')
-            .withArgs(user.address, user.address, ORACLE_VERSION_3.timestamp, 0, POSITION.div(2), 0, COLLATERAL, false)
+            .withArgs(
+              user.address,
+              user.address,
+              ORACLE_VERSION_3.timestamp,
+              0,
+              POSITION.div(2),
+              0,
+              COLLATERAL,
+              false,
+              constants.AddressZero,
+            )
 
           oracle.at.whenCalledWith(ORACLE_VERSION_3.timestamp).returns({ ...ORACLE_VERSION_3, valid: false })
           oracle.status.returns([{ ...ORACLE_VERSION_3, valid: false }, ORACLE_VERSION_4.timestamp])
@@ -13985,7 +15052,17 @@ describe('Market', () => {
               ['update(address,uint256,uint256,uint256,int256,bool)'](user.address, 0, POSITION.div(2), 0, 0, false),
           )
             .to.emit(market, 'Updated')
-            .withArgs(user.address, user.address, ORACLE_VERSION_4.timestamp, 0, POSITION.div(2), 0, 0, false)
+            .withArgs(
+              user.address,
+              user.address,
+              ORACLE_VERSION_4.timestamp,
+              0,
+              POSITION.div(2),
+              0,
+              0,
+              false,
+              constants.AddressZero,
+            )
 
           oracle.at.whenCalledWith(ORACLE_VERSION_4.timestamp).returns({ ...ORACLE_VERSION_4, valid: false })
           oracle.status.returns([{ ...ORACLE_VERSION_4, valid: false }, ORACLE_VERSION_5.timestamp])
@@ -14147,7 +15224,17 @@ describe('Market', () => {
               ),
           )
             .to.emit(market, 'Updated')
-            .withArgs(user.address, user.address, ORACLE_VERSION_3.timestamp, 0, POSITION.div(2), 0, COLLATERAL, false)
+            .withArgs(
+              user.address,
+              user.address,
+              ORACLE_VERSION_3.timestamp,
+              0,
+              POSITION.div(2),
+              0,
+              COLLATERAL,
+              false,
+              constants.AddressZero,
+            )
 
           oracle.status.returns([{ ...ORACLE_VERSION_2 }, ORACLE_VERSION_4.timestamp])
           oracle.request.whenCalledWith(user.address).returns()
@@ -14158,7 +15245,17 @@ describe('Market', () => {
               ['update(address,uint256,uint256,uint256,int256,bool)'](user.address, 0, POSITION.div(2), 0, 0, false),
           )
             .to.emit(market, 'Updated')
-            .withArgs(user.address, user.address, ORACLE_VERSION_4.timestamp, 0, POSITION.div(2), 0, 0, false)
+            .withArgs(
+              user.address,
+              user.address,
+              ORACLE_VERSION_4.timestamp,
+              0,
+              POSITION.div(2),
+              0,
+              0,
+              false,
+              constants.AddressZero,
+            )
 
           oracle.at.whenCalledWith(ORACLE_VERSION_3.timestamp).returns({ ...ORACLE_VERSION_3, valid: false })
           oracle.at.whenCalledWith(ORACLE_VERSION_4.timestamp).returns({ ...ORACLE_VERSION_4 })
@@ -14321,7 +15418,17 @@ describe('Market', () => {
               ),
           )
             .to.emit(market, 'Updated')
-            .withArgs(user.address, user.address, ORACLE_VERSION_3.timestamp, 0, POSITION.div(2), 0, COLLATERAL, false)
+            .withArgs(
+              user.address,
+              user.address,
+              ORACLE_VERSION_3.timestamp,
+              0,
+              POSITION.div(2),
+              0,
+              COLLATERAL,
+              false,
+              constants.AddressZero,
+            )
 
           oracle.status.returns([{ ...ORACLE_VERSION_2 }, ORACLE_VERSION_4.timestamp])
           oracle.request.whenCalledWith(user.address).returns()
@@ -14332,7 +15439,17 @@ describe('Market', () => {
               ['update(address,uint256,uint256,uint256,int256,bool)'](user.address, 0, POSITION.div(2), 0, 0, false),
           )
             .to.emit(market, 'Updated')
-            .withArgs(user.address, user.address, ORACLE_VERSION_4.timestamp, 0, POSITION.div(2), 0, 0, false)
+            .withArgs(
+              user.address,
+              user.address,
+              ORACLE_VERSION_4.timestamp,
+              0,
+              POSITION.div(2),
+              0,
+              0,
+              false,
+              constants.AddressZero,
+            )
 
           oracle.at.whenCalledWith(ORACLE_VERSION_3.timestamp).returns({ ...ORACLE_VERSION_3, valid: false })
           oracle.at.whenCalledWith(ORACLE_VERSION_4.timestamp).returns({ ...ORACLE_VERSION_4 })
@@ -14345,7 +15462,17 @@ describe('Market', () => {
               ['update(address,uint256,uint256,uint256,int256,bool)'](user.address, 0, POSITION.div(2), 0, 0, false),
           )
             .to.emit(market, 'Updated')
-            .withArgs(user.address, user.address, ORACLE_VERSION_5.timestamp, 0, POSITION.div(2), 0, 0, false)
+            .withArgs(
+              user.address,
+              user.address,
+              ORACLE_VERSION_5.timestamp,
+              0,
+              POSITION.div(2),
+              0,
+              0,
+              false,
+              constants.AddressZero,
+            )
 
           oracle.at.whenCalledWith(ORACLE_VERSION_5.timestamp).returns({ ...ORACLE_VERSION_5 })
           oracle.status.returns([{ ...ORACLE_VERSION_5 }, ORACLE_VERSION_6.timestamp])
@@ -14504,7 +15631,17 @@ describe('Market', () => {
               ),
           )
             .to.emit(market, 'Updated')
-            .withArgs(user.address, user.address, ORACLE_VERSION_2.timestamp, 0, POSITION.div(2), 0, COLLATERAL, false)
+            .withArgs(
+              user.address,
+              user.address,
+              ORACLE_VERSION_2.timestamp,
+              0,
+              POSITION.div(2),
+              0,
+              COLLATERAL,
+              false,
+              constants.AddressZero,
+            )
 
           oracle.at.whenCalledWith(ORACLE_VERSION_2.timestamp).returns(ORACLE_VERSION_2)
 
@@ -14875,7 +16012,17 @@ describe('Market', () => {
               ['update(address,uint256,uint256,uint256,int256,bool)'](user.address, POSITION, 0, 0, COLLATERAL, false),
           )
             .to.emit(market, 'Updated')
-            .withArgs(operator.address, user.address, ORACLE_VERSION_2.timestamp, POSITION, 0, 0, COLLATERAL, false)
+            .withArgs(
+              operator.address,
+              user.address,
+              ORACLE_VERSION_2.timestamp,
+              POSITION,
+              0,
+              0,
+              COLLATERAL,
+              false,
+              constants.AddressZero,
+            )
 
           expectLocalEq(await market.locals(user.address), {
             ...DEFAULT_LOCAL,
@@ -16594,7 +17741,17 @@ describe('Market', () => {
               ),
           )
             .to.emit(market, 'Updated')
-            .withArgs(user.address, user.address, ORACLE_VERSION_2.timestamp, POSITION, 0, 0, COLLATERAL, false)
+            .withArgs(
+              user.address,
+              user.address,
+              ORACLE_VERSION_2.timestamp,
+              POSITION,
+              0,
+              0,
+              COLLATERAL,
+              false,
+              liquidator.address,
+            )
 
           oracle.at.whenCalledWith(ORACLE_VERSION_2.timestamp).returns(ORACLE_VERSION_2)
           oracle.at.whenCalledWith(ORACLE_VERSION_3.timestamp).returns(ORACLE_VERSION_3)
@@ -16700,7 +17857,17 @@ describe('Market', () => {
               ),
           )
             .to.emit(market, 'Updated')
-            .withArgs(user.address, user.address, ORACLE_VERSION_2.timestamp, 0, POSITION.div(2), 0, COLLATERAL, false)
+            .withArgs(
+              user.address,
+              user.address,
+              ORACLE_VERSION_2.timestamp,
+              0,
+              POSITION.div(2),
+              0,
+              COLLATERAL,
+              false,
+              liquidator.address,
+            )
 
           oracle.at.whenCalledWith(ORACLE_VERSION_2.timestamp).returns(ORACLE_VERSION_2)
 

@@ -477,7 +477,7 @@ contract Market is IMarket, Instance, ReentrancyGuard {
         if (collateral.sign() == -1) token.push(msg.sender, UFixed18Lib.from(collateral.abs()));
 
         // events
-        emit Updated(msg.sender, account, context.currentTimestamp, newMaker, newLong, newShort, collateral, protect);
+        emit Updated(msg.sender, account, context.currentTimestamp, newMaker, newLong, newShort, collateral, protect, referrer);
         emit OrderCreated(account, newOrder);
     }
 
@@ -609,8 +609,6 @@ contract Market is IMarket, Instance, ReentrancyGuard {
     ) private {
         OracleVersion memory oracleVersion = oracle.at(newOrder.timestamp);
 
-        (uint256 fromTimestamp, uint256 fromId) = (context.latestPosition.global.timestamp, context.global.latestId);
-
         VersionAccumulationResult memory accumulationResult;
         (settlementContext.latestVersion, accumulationResult) = VersionLib.accumulate(
             settlementContext.latestVersion,
@@ -631,7 +629,7 @@ contract Market is IMarket, Instance, ReentrancyGuard {
         settlementContext.orderOracleVersion = oracleVersion;
         _versions[newOrder.timestamp].store(settlementContext.latestVersion);
 
-        emit PositionProcessed(fromTimestamp, newOrder.timestamp, fromId, newOrderId, accumulationResult);
+        emit PositionProcessed(newOrderId, newOrder, accumulationResult);
     }
 
     /// @notice Processes the given local pending position into the latest position
@@ -648,8 +646,6 @@ contract Market is IMarket, Instance, ReentrancyGuard {
     ) private {
         Version memory versionFrom = _versions[context.latestPosition.local.timestamp].read();
         Version memory versionTo = _versions[newOrder.timestamp].read();
-
-        (uint256 fromTimestamp, uint256 fromId) = (context.latestPosition.local.timestamp, context.local.latestId);
 
         CheckpointAccumulationResult memory accumulationResult;
         (settlementContext.latestCheckpoint, accumulationResult) = CheckpointLib.accumulate(
@@ -668,14 +664,7 @@ contract Market is IMarket, Instance, ReentrancyGuard {
 
         _checkpoints[account][newOrder.timestamp].store(settlementContext.latestCheckpoint);
 
-        emit AccountPositionProcessed(
-            account,
-            fromTimestamp,
-            newOrder.timestamp,
-            fromId,
-            newOrderId,
-            accumulationResult
-        );
+        emit AccountPositionProcessed(account, newOrderId, newOrder, accumulationResult);
     }
 
     /// @notice Credits an account's claimable that is out-of-context

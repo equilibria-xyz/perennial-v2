@@ -119,7 +119,7 @@ describe('Happy Path', () => {
         ['update(address,uint256,uint256,uint256,int256,bool)'](user.address, POSITION, 0, 0, COLLATERAL, false),
     )
       .to.emit(market, 'Updated')
-      .withArgs(user.address, user.address, TIMESTAMP_1, POSITION, 0, 0, COLLATERAL, false)
+      .withArgs(user.address, user.address, TIMESTAMP_1, POSITION, 0, 0, COLLATERAL, false, constants.AddressZero)
       .to.emit(market, 'OrderCreated')
       .withArgs(user.address, {
         ...DEFAULT_ORDER,
@@ -237,7 +237,7 @@ describe('Happy Path', () => {
         ['update(address,uint256,uint256,uint256,int256,bool)'](user.address, POSITION, 0, 0, 0, false),
     )
       .to.emit(market, 'Updated')
-      .withArgs(user.address, user.address, TIMESTAMP_1, POSITION, 0, 0, 0, false)
+      .withArgs(user.address, user.address, TIMESTAMP_1, POSITION, 0, 0, 0, false, constants.AddressZero)
 
     // Check user is in the correct state
     expectLocalEq(await market.locals(user.address), {
@@ -348,7 +348,7 @@ describe('Happy Path', () => {
       market.connect(user)['update(address,uint256,uint256,uint256,int256,bool)'](user.address, 0, 0, 0, 0, false),
     )
       .to.emit(market, 'Updated')
-      .withArgs(user.address, user.address, TIMESTAMP_2, 0, 0, 0, 0, false)
+      .withArgs(user.address, user.address, TIMESTAMP_2, 0, 0, 0, 0, false, constants.AddressZero)
       .to.emit(market, 'OrderCreated')
       .withArgs(user.address, {
         ...DEFAULT_ORDER,
@@ -426,7 +426,7 @@ describe('Happy Path', () => {
       market.connect(user)['update(address,uint256,uint256,uint256,int256,bool)'](user.address, 0, 0, 0, 0, false),
     )
       .to.emit(market, 'Updated')
-      .withArgs(user.address, user.address, TIMESTAMP_2, 0, 0, 0, 0, false)
+      .withArgs(user.address, user.address, TIMESTAMP_2, 0, 0, 0, 0, false, constants.AddressZero)
 
     // User state
     expectLocalEq(await market.locals(user.address), {
@@ -502,7 +502,7 @@ describe('Happy Path', () => {
         ['update(address,uint256,uint256,uint256,int256,bool)'](userB.address, 0, POSITION_B, 0, COLLATERAL, false),
     )
       .to.emit(market, 'Updated')
-      .withArgs(userB.address, userB.address, TIMESTAMP_1, 0, POSITION_B, 0, COLLATERAL, false)
+      .withArgs(userB.address, userB.address, TIMESTAMP_1, 0, POSITION_B, 0, COLLATERAL, false, constants.AddressZero)
       .to.emit(market, 'OrderCreated')
       .withArgs(userB.address, {
         ...DEFAULT_ORDER,
@@ -657,7 +657,7 @@ describe('Happy Path', () => {
         ['update(address,uint256,uint256,uint256,int256,bool)'](userB.address, 0, POSITION_B, 0, 0, false),
     )
       .to.emit(market, 'Updated')
-      .withArgs(userB.address, userB.address, TIMESTAMP_1, 0, POSITION_B, 0, 0, false)
+      .withArgs(userB.address, userB.address, TIMESTAMP_1, 0, POSITION_B, 0, 0, false, constants.AddressZero)
 
     // User State
     expectLocalEq(await market.locals(userB.address), {
@@ -780,7 +780,7 @@ describe('Happy Path', () => {
       market.connect(userB)['update(address,uint256,uint256,uint256,int256,bool)'](userB.address, 0, 0, 0, 0, false),
     )
       .to.emit(market, 'Updated')
-      .withArgs(userB.address, userB.address, TIMESTAMP_2, 0, 0, 0, 0, false)
+      .withArgs(userB.address, userB.address, TIMESTAMP_2, 0, 0, 0, 0, false, constants.AddressZero)
       .to.emit(market, 'OrderCreated')
       .withArgs(userB.address, {
         ...DEFAULT_ORDER,
@@ -873,7 +873,7 @@ describe('Happy Path', () => {
       market.connect(userB)['update(address,uint256,uint256,uint256,int256,bool)'](userB.address, 0, 0, 0, 0, false),
     )
       .to.emit(market, 'Updated')
-      .withArgs(userB.address, userB.address, TIMESTAMP_2, 0, 0, 0, 0, false)
+      .withArgs(userB.address, userB.address, TIMESTAMP_2, 0, 0, 0, 0, false, constants.AddressZero)
 
     // User State
     expectLocalEq(await market.locals(userB.address), {
@@ -972,7 +972,7 @@ describe('Happy Path', () => {
         ['update(address,uint256,uint256,uint256,int256,bool)'](userB.address, 0, POSITION_B, 0, COLLATERAL, false),
     )
       .to.emit(market, 'Updated')
-      .withArgs(userB.address, userB.address, TIMESTAMP_1, 0, POSITION_B, 0, COLLATERAL, false)
+      .withArgs(userB.address, userB.address, TIMESTAMP_1, 0, POSITION_B, 0, COLLATERAL, false, constants.AddressZero)
 
     // 50 rounds (120% max)
     for (let i = 0; i < 50; i++) {
@@ -1013,7 +1013,7 @@ describe('Happy Path', () => {
         ['update(address,uint256,uint256,uint256,int256,bool)'](userB.address, 0, 0, POSITION_B, COLLATERAL, false),
     )
       .to.emit(market, 'Updated')
-      .withArgs(userB.address, userB.address, TIMESTAMP_1, 0, 0, POSITION_B, COLLATERAL, false)
+      .withArgs(userB.address, userB.address, TIMESTAMP_1, 0, 0, POSITION_B, COLLATERAL, false, constants.AddressZero)
 
     // 50 rounds (120% max)
     for (let i = 0; i < 50; i++) {
@@ -1120,7 +1120,7 @@ describe('Happy Path', () => {
         ['update(address,uint256,uint256,uint256,int256,bool)'](user.address, POSITION, 0, 0, -1, false),
     ) // 4 -> 5
       .to.emit(market, 'Updated')
-      .withArgs(user.address, user.address, TIMESTAMP_5, POSITION, 0, 0, -1, false)
+      .withArgs(user.address, user.address, TIMESTAMP_5, POSITION, 0, 0, -1, false, constants.AddressZero)
 
     // Check user is in the correct state
     expectLocalEq(await market.locals(user.address), {
@@ -1289,7 +1289,17 @@ describe('Happy Path', () => {
         ['update(address,uint256,uint256,uint256,int256,bool)'](user.address, POSITION, 0, 0, -1, false),
     )
       .to.emit(market, 'Updated')
-      .withArgs(user.address, user.address, await chainlink.oracle.current(), POSITION, 0, 0, -1, false)
+      .withArgs(
+        user.address,
+        user.address,
+        await chainlink.oracle.current(),
+        POSITION,
+        0,
+        0,
+        -1,
+        false,
+        constants.AddressZero,
+      )
 
     // Check user is in the correct state
     expectLocalEq(await market.locals(user.address), {
