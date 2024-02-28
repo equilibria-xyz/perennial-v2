@@ -11,6 +11,16 @@ import {
   IOracleProvider,
   IERC20Metadata,
   IFactory,
+  CheckpointLib__factory,
+  InvariantLib__factory,
+  VersionLib__factory,
+  CheckpointStorageLib__factory,
+  MarketParameterStorageLib__factory,
+  GlobalStorageLib__factory,
+  PositionStorageGlobalLib__factory,
+  PositionStorageLocalLib__factory,
+  RiskParameterStorageLib__factory,
+  VersionStorageLib__factory,
 } from '../../../types/generated'
 import { parse6decimal } from '../../../../common/testutil/types'
 import { constants } from 'ethers'
@@ -20,7 +30,6 @@ const { ethers } = HRE
 describe('MarketFactory', () => {
   let user: SignerWithAddress
   let owner: SignerWithAddress
-  let payoffFactory: FakeContract<IFactory>
   let oracleFactory: FakeContract<IFactory>
   let oracle: FakeContract<IOracleProvider>
   let dsu: FakeContract<IERC20Metadata>
@@ -33,8 +42,31 @@ describe('MarketFactory', () => {
     oracleFactory = await smock.fake<IFactory>('IFactory')
     oracle = await smock.fake<IOracleProvider>('IOracleProvider')
     dsu = await smock.fake<IERC20Metadata>('IERC20Metadata')
-    payoffFactory = await smock.fake<IFactory>('IFactory')
-    marketImpl = await new Market__factory(owner).deploy()
+    marketImpl = await new Market__factory(
+      {
+        'contracts/libs/CheckpointLib.sol:CheckpointLib': (await new CheckpointLib__factory(owner).deploy()).address,
+        'contracts/libs/InvariantLib.sol:InvariantLib': (await new InvariantLib__factory(owner).deploy()).address,
+        'contracts/libs/VersionLib.sol:VersionLib': (await new VersionLib__factory(owner).deploy()).address,
+        'contracts/types/Checkpoint.sol:CheckpointStorageLib': (
+          await new CheckpointStorageLib__factory(owner).deploy()
+        ).address,
+        'contracts/types/Global.sol:GlobalStorageLib': (await new GlobalStorageLib__factory(owner).deploy()).address,
+        'contracts/types/MarketParameter.sol:MarketParameterStorageLib': (
+          await new MarketParameterStorageLib__factory(owner).deploy()
+        ).address,
+        'contracts/types/Position.sol:PositionStorageGlobalLib': (
+          await new PositionStorageGlobalLib__factory(owner).deploy()
+        ).address,
+        'contracts/types/Position.sol:PositionStorageLocalLib': (
+          await new PositionStorageLocalLib__factory(owner).deploy()
+        ).address,
+        'contracts/types/RiskParameter.sol:RiskParameterStorageLib': (
+          await new RiskParameterStorageLib__factory(owner).deploy()
+        ).address,
+        'contracts/types/Version.sol:VersionStorageLib': (await new VersionStorageLib__factory(owner).deploy()).address,
+      },
+      owner,
+    ).deploy()
     factory = await new MarketFactory__factory(owner).deploy(oracleFactory.address, marketImpl.address)
     await factory.initialize()
   })

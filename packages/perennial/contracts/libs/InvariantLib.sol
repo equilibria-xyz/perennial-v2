@@ -26,7 +26,7 @@ library InvariantLib {
         address account,
         Order memory newOrder,
         Fixed6 collateral
-    ) internal pure {
+    ) external pure {
         if (context.pending.local.neg().gt(context.latestPosition.local.magnitude())) revert IMarket.MarketOverCloseError();
 
         if (newOrder.protected() && (

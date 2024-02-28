@@ -610,7 +610,7 @@ contract Market is IMarket, Instance, ReentrancyGuard {
         OracleVersion memory oracleVersion = oracle.at(newOrder.timestamp);
 
         VersionAccumulationResult memory accumulationResult;
-        (settlementContext.latestVersion, accumulationResult) = VersionLib.accumulate(
+        (settlementContext.latestVersion, context.global, accumulationResult) = VersionLib.accumulate(
             settlementContext.latestVersion,
             context.global,
             context.latestPosition.global,

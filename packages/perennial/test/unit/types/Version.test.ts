@@ -3,7 +3,14 @@ import { SignerWithAddress } from '@nomiclabs/hardhat-ethers/signers'
 import { expect, use } from 'chai'
 import HRE from 'hardhat'
 
-import { VersionTester, VersionTester__factory } from '../../../types/generated'
+import {
+  VersionLib,
+  VersionLib__factory,
+  VersionStorageLib,
+  VersionStorageLib__factory,
+  VersionTester,
+  VersionTester__factory,
+} from '../../../types/generated'
 import { BigNumber } from 'ethers'
 import { DEFAULT_ORDER, DEFAULT_VERSION, parse6decimal } from '../../../../common/testutil/types'
 import {
@@ -91,6 +98,8 @@ const ORACLE_VERSION_2: OracleVersionStruct = {
 
 describe('Version', () => {
   let owner: SignerWithAddress
+  let versionLib: VersionLib
+  let versionStorageLib: VersionStorageLib
   let version: VersionTester
 
   const accumulateWithReturn = async (
@@ -102,7 +111,7 @@ describe('Version', () => {
     marketParameter: MarketParameterStruct,
     riskParameter: RiskParameterStruct,
   ) => {
-    const ret = await version.callStatic.accumulate(
+    const accumulationResult = await version.callStatic.accumulate(
       global,
       fromPosition,
       order,
@@ -122,13 +131,21 @@ describe('Version', () => {
     )
 
     const value = await version.read()
-    return { ret, value }
+    return { ret: accumulationResult[1], value, nextGlobal: accumulationResult[0] }
   }
 
   beforeEach(async () => {
     ;[owner] = await ethers.getSigners()
 
-    version = await new VersionTester__factory(owner).deploy()
+    versionLib = await new VersionLib__factory(owner).deploy()
+    versionStorageLib = await new VersionStorageLib__factory(owner).deploy()
+    version = await new VersionTester__factory(
+      {
+        'contracts/libs/VersionLib.sol:VersionLib': versionLib.address,
+        'contracts/types/Version.sol:VersionStorageLib': versionStorageLib.address,
+      },
+      owner,
+    ).deploy()
   })
 
   describe('#store', () => {
@@ -189,7 +206,7 @@ describe('Version', () => {
             ...VALID_VERSION,
             makerValue: { _value: BigNumber.from(2).pow(STORAGE_SIZE) },
           }),
-        ).to.be.revertedWithCustomError(version, 'VersionStorageInvalidError')
+        ).to.be.revertedWithCustomError(versionStorageLib, 'VersionStorageInvalidError')
       })
 
       it('reverts if out of range (below)', async () => {
@@ -198,7 +215,7 @@ describe('Version', () => {
             ...VALID_VERSION,
             makerValue: { _value: BigNumber.from(2).pow(STORAGE_SIZE).add(1).mul(-1) },
           }),
-        ).to.be.revertedWithCustomError(version, 'VersionStorageInvalidError')
+        ).to.be.revertedWithCustomError(versionStorageLib, 'VersionStorageInvalidError')
       })
     })
 
@@ -228,7 +245,7 @@ describe('Version', () => {
             ...VALID_VERSION,
             longValue: { _value: BigNumber.from(2).pow(STORAGE_SIZE) },
           }),
-        ).to.be.revertedWithCustomError(version, 'VersionStorageInvalidError')
+        ).to.be.revertedWithCustomError(versionStorageLib, 'VersionStorageInvalidError')
       })
 
       it('reverts if out of range (below)', async () => {
@@ -237,7 +254,7 @@ describe('Version', () => {
             ...VALID_VERSION,
             longValue: { _value: BigNumber.from(2).pow(STORAGE_SIZE).add(1).mul(-1) },
           }),
-        ).to.be.revertedWithCustomError(version, 'VersionStorageInvalidError')
+        ).to.be.revertedWithCustomError(versionStorageLib, 'VersionStorageInvalidError')
       })
     })
 
@@ -267,7 +284,7 @@ describe('Version', () => {
             ...VALID_VERSION,
             shortValue: { _value: BigNumber.from(2).pow(STORAGE_SIZE) },
           }),
-        ).to.be.revertedWithCustomError(version, 'VersionStorageInvalidError')
+        ).to.be.revertedWithCustomError(versionStorageLib, 'VersionStorageInvalidError')
       })
 
       it('reverts if out of range (below)', async () => {
@@ -276,7 +293,7 @@ describe('Version', () => {
             ...VALID_VERSION,
             shortValue: { _value: BigNumber.from(2).pow(STORAGE_SIZE).add(1).mul(-1) },
           }),
-        ).to.be.revertedWithCustomError(version, 'VersionStorageInvalidError')
+        ).to.be.revertedWithCustomError(versionStorageLib, 'VersionStorageInvalidError')
       })
     })
 
@@ -306,7 +323,7 @@ describe('Version', () => {
             ...VALID_VERSION,
             makerLinearFee: { _value: BigNumber.from(2).pow(STORAGE_SIZE) },
           }),
-        ).to.be.revertedWithCustomError(version, 'VersionStorageInvalidError')
+        ).to.be.revertedWithCustomError(versionStorageLib, 'VersionStorageInvalidError')
       })
 
       it('reverts if out of range (below)', async () => {
@@ -315,7 +332,7 @@ describe('Version', () => {
             ...VALID_VERSION,
             makerLinearFee: { _value: BigNumber.from(2).pow(STORAGE_SIZE).add(1).mul(-1) },
           }),
-        ).to.be.revertedWithCustomError(version, 'VersionStorageInvalidError')
+        ).to.be.revertedWithCustomError(versionStorageLib, 'VersionStorageInvalidError')
       })
     })
 
@@ -345,7 +362,7 @@ describe('Version', () => {
             ...VALID_VERSION,
             makerProportionalFee: { _value: BigNumber.from(2).pow(STORAGE_SIZE) },
           }),
-        ).to.be.revertedWithCustomError(version, 'VersionStorageInvalidError')
+        ).to.be.revertedWithCustomError(versionStorageLib, 'VersionStorageInvalidError')
       })
 
       it('reverts if out of range (below)', async () => {
@@ -354,7 +371,7 @@ describe('Version', () => {
             ...VALID_VERSION,
             makerProportionalFee: { _value: BigNumber.from(2).pow(STORAGE_SIZE).add(1).mul(-1) },
           }),
-        ).to.be.revertedWithCustomError(version, 'VersionStorageInvalidError')
+        ).to.be.revertedWithCustomError(versionStorageLib, 'VersionStorageInvalidError')
       })
     })
 
@@ -384,7 +401,7 @@ describe('Version', () => {
             ...VALID_VERSION,
             takerLinearFee: { _value: BigNumber.from(2).pow(STORAGE_SIZE) },
           }),
-        ).to.be.revertedWithCustomError(version, 'VersionStorageInvalidError')
+        ).to.be.revertedWithCustomError(versionStorageLib, 'VersionStorageInvalidError')
       })
 
       it('reverts if out of range (below)', async () => {
@@ -393,7 +410,7 @@ describe('Version', () => {
             ...VALID_VERSION,
             takerLinearFee: { _value: BigNumber.from(2).pow(STORAGE_SIZE).add(1).mul(-1) },
           }),
-        ).to.be.revertedWithCustomError(version, 'VersionStorageInvalidError')
+        ).to.be.revertedWithCustomError(versionStorageLib, 'VersionStorageInvalidError')
       })
     })
 
@@ -423,7 +440,7 @@ describe('Version', () => {
             ...VALID_VERSION,
             takerProportionalFee: { _value: BigNumber.from(2).pow(STORAGE_SIZE) },
           }),
-        ).to.be.revertedWithCustomError(version, 'VersionStorageInvalidError')
+        ).to.be.revertedWithCustomError(versionStorageLib, 'VersionStorageInvalidError')
       })
 
       it('reverts if out of range (below)', async () => {
@@ -432,7 +449,7 @@ describe('Version', () => {
             ...VALID_VERSION,
             takerProportionalFee: { _value: BigNumber.from(2).pow(STORAGE_SIZE).add(1).mul(-1) },
           }),
-        ).to.be.revertedWithCustomError(version, 'VersionStorageInvalidError')
+        ).to.be.revertedWithCustomError(versionStorageLib, 'VersionStorageInvalidError')
       })
     })
 
@@ -462,7 +479,7 @@ describe('Version', () => {
             ...VALID_VERSION,
             makerPosFee: { _value: BigNumber.from(2).pow(STORAGE_SIZE) },
           }),
-        ).to.be.revertedWithCustomError(version, 'VersionStorageInvalidError')
+        ).to.be.revertedWithCustomError(versionStorageLib, 'VersionStorageInvalidError')
       })
 
       it('reverts if out of range (below)', async () => {
@@ -471,7 +488,7 @@ describe('Version', () => {
             ...VALID_VERSION,
             makerPosFee: { _value: BigNumber.from(2).pow(STORAGE_SIZE).add(1).mul(-1) },
           }),
-        ).to.be.revertedWithCustomError(version, 'VersionStorageInvalidError')
+        ).to.be.revertedWithCustomError(versionStorageLib, 'VersionStorageInvalidError')
       })
     })
 
@@ -501,7 +518,7 @@ describe('Version', () => {
             ...VALID_VERSION,
             makerNegFee: { _value: BigNumber.from(2).pow(STORAGE_SIZE) },
           }),
-        ).to.be.revertedWithCustomError(version, 'VersionStorageInvalidError')
+        ).to.be.revertedWithCustomError(versionStorageLib, 'VersionStorageInvalidError')
       })
 
       it('reverts if out of range (below)', async () => {
@@ -510,7 +527,7 @@ describe('Version', () => {
             ...VALID_VERSION,
             makerNegFee: { _value: BigNumber.from(2).pow(STORAGE_SIZE).add(1).mul(-1) },
           }),
-        ).to.be.revertedWithCustomError(version, 'VersionStorageInvalidError')
+        ).to.be.revertedWithCustomError(versionStorageLib, 'VersionStorageInvalidError')
       })
     })
 
@@ -540,7 +557,7 @@ describe('Version', () => {
             ...VALID_VERSION,
             takerPosFee: { _value: BigNumber.from(2).pow(STORAGE_SIZE) },
           }),
-        ).to.be.revertedWithCustomError(version, 'VersionStorageInvalidError')
+        ).to.be.revertedWithCustomError(versionStorageLib, 'VersionStorageInvalidError')
       })
 
       it('reverts if out of range (below)', async () => {
@@ -549,7 +566,7 @@ describe('Version', () => {
             ...VALID_VERSION,
             takerPosFee: { _value: BigNumber.from(2).pow(STORAGE_SIZE).add(1).mul(-1) },
           }),
-        ).to.be.revertedWithCustomError(version, 'VersionStorageInvalidError')
+        ).to.be.revertedWithCustomError(versionStorageLib, 'VersionStorageInvalidError')
       })
     })
 
@@ -579,7 +596,7 @@ describe('Version', () => {
             ...VALID_VERSION,
             takerNegFee: { _value: BigNumber.from(2).pow(STORAGE_SIZE) },
           }),
-        ).to.be.revertedWithCustomError(version, 'VersionStorageInvalidError')
+        ).to.be.revertedWithCustomError(versionStorageLib, 'VersionStorageInvalidError')
       })
 
       it('reverts if out of range (below)', async () => {
@@ -588,7 +605,7 @@ describe('Version', () => {
             ...VALID_VERSION,
             takerNegFee: { _value: BigNumber.from(2).pow(STORAGE_SIZE).add(1).mul(-1) },
           }),
-        ).to.be.revertedWithCustomError(version, 'VersionStorageInvalidError')
+        ).to.be.revertedWithCustomError(versionStorageLib, 'VersionStorageInvalidError')
       })
     })
 
@@ -618,7 +635,7 @@ describe('Version', () => {
             ...VALID_VERSION,
             settlementFee: { _value: BigNumber.from(2).pow(STORAGE_SIZE) },
           }),
-        ).to.be.revertedWithCustomError(version, 'VersionStorageInvalidError')
+        ).to.be.revertedWithCustomError(versionStorageLib, 'VersionStorageInvalidError')
       })
 
       it('reverts if out of range (below)', async () => {
@@ -627,7 +644,7 @@ describe('Version', () => {
             ...VALID_VERSION,
             settlementFee: { _value: BigNumber.from(2).pow(STORAGE_SIZE).add(1).mul(-1) },
           }),
-        ).to.be.revertedWithCustomError(version, 'VersionStorageInvalidError')
+        ).to.be.revertedWithCustomError(versionStorageLib, 'VersionStorageInvalidError')
       })
     })
 
@@ -657,7 +674,7 @@ describe('Version', () => {
             ...VALID_VERSION,
             liquidationFee: { _value: BigNumber.from(2).pow(STORAGE_SIZE) },
           }),
-        ).to.be.revertedWithCustomError(version, 'VersionStorageInvalidError')
+        ).to.be.revertedWithCustomError(versionStorageLib, 'VersionStorageInvalidError')
       })
 
       it('reverts if out of range (below)', async () => {
@@ -666,7 +683,7 @@ describe('Version', () => {
             ...VALID_VERSION,
             liquidationFee: { _value: BigNumber.from(2).pow(STORAGE_SIZE).add(1).mul(-1) },
           }),
-        ).to.be.revertedWithCustomError(version, 'VersionStorageInvalidError')
+        ).to.be.revertedWithCustomError(versionStorageLib, 'VersionStorageInvalidError')
       })
     })
   })
@@ -718,26 +735,26 @@ describe('Version', () => {
         expect(value.longValue._value).to.equal(2)
         expect(value.shortValue._value).to.equal(3)
 
-        expect(ret.positionFee).to.equal(BigNumber.from('147600000'))
-        expect(ret.positionFeeMaker).to.equal(BigNumber.from('147599558'))
-        expect(ret.positionFeeProtocol).to.equal(BigNumber.from('442'))
-        expect(ret.positionFeeExposure).to.equal(0)
-        expect(ret.positionFeeExposureMaker).to.equal(0)
-        expect(ret.positionFeeExposureProtocol).to.equal(0)
-        expect(ret.positionFeeImpact).to.equal(BigNumber.from('18450000'))
-        expect(ret.fundingMaker).to.equal(0)
-        expect(ret.fundingLong).to.equal(0)
-        expect(ret.fundingShort).to.equal(0)
-        expect(ret.fundingFee).to.equal(0)
-        expect(ret.interestMaker).to.equal(0)
-        expect(ret.interestLong).to.equal(0)
-        expect(ret.interestShort).to.equal(0)
-        expect(ret.interestFee).to.equal(0)
-        expect(ret.pnlMaker).to.equal(0)
-        expect(ret.pnlLong).to.equal(0)
-        expect(ret.pnlShort).to.equal(0)
-        expect(ret.settlementFee).to.equal(parse6decimal('2'))
-        expect(ret.liquidationFee).to.equal(9)
+        expect(ret[1].positionFee).to.equal(BigNumber.from('147600000'))
+        expect(ret[1].positionFeeMaker).to.equal(BigNumber.from('147599558'))
+        expect(ret[1].positionFeeProtocol).to.equal(BigNumber.from('442'))
+        expect(ret[1].positionFeeExposure).to.equal(0)
+        expect(ret[1].positionFeeExposureMaker).to.equal(0)
+        expect(ret[1].positionFeeExposureProtocol).to.equal(0)
+        expect(ret[1].positionFeeImpact).to.equal(BigNumber.from('18450000'))
+        expect(ret[1].fundingMaker).to.equal(0)
+        expect(ret[1].fundingLong).to.equal(0)
+        expect(ret[1].fundingShort).to.equal(0)
+        expect(ret[1].fundingFee).to.equal(0)
+        expect(ret[1].interestMaker).to.equal(0)
+        expect(ret[1].interestLong).to.equal(0)
+        expect(ret[1].interestShort).to.equal(0)
+        expect(ret[1].interestFee).to.equal(0)
+        expect(ret[1].pnlMaker).to.equal(0)
+        expect(ret[1].pnlLong).to.equal(0)
+        expect(ret[1].pnlShort).to.equal(0)
+        expect(ret[1].settlementFee).to.equal(parse6decimal('2'))
+        expect(ret[1].liquidationFee).to.equal(9)
       })
     })
 
@@ -1765,6 +1782,43 @@ describe('Version', () => {
             expect(value.shortValue._value).to.equal(parse6decimal('2'))
           })
         })
+      })
+    })
+
+    describe('global accumulator', () => {
+      it('returns updated global accumulator values', async () => {
+        await version.store(DEFAULT_VERSION)
+
+        const { nextGlobal } = await accumulateWithReturn(
+          GLOBAL,
+          {
+            ...FROM_POSITION,
+            maker: parse6decimal('10'),
+            long: parse6decimal('2'),
+            short: parse6decimal('9'),
+          },
+          ORDER,
+          ORACLE_VERSION_1,
+          ORACLE_VERSION_2,
+          {
+            ...VALID_MARKET_PARAMETER,
+            interestFee: 0,
+            fundingFee: 0,
+          },
+          {
+            ...VALID_RISK_PARAMETER,
+            pController: { min: 0, max: 0, k: parse6decimal('999999') },
+            utilizationCurve: {
+              minRate: 0,
+              maxRate: 0,
+              targetRate: 0,
+              targetUtilization: parse6decimal('0.8'),
+            },
+          },
+        )
+
+        expect(nextGlobal.pAccumulator._value).to.equal(0)
+        expect(nextGlobal.pAccumulator._skew).to.equal('-1000000')
       })
     })
   })

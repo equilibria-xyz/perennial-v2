@@ -50,7 +50,7 @@ library CheckpointStorageLib {
         );
     }
 
-    function store(CheckpointStorage storage self, Checkpoint memory newValue) internal {
+    function store(CheckpointStorage storage self, Checkpoint memory newValue) external {
         if (newValue.tradeFee.gt(Fixed6.wrap(type(int48).max))) revert CheckpointStorageInvalidError();
         if (newValue.tradeFee.lt(Fixed6.wrap(type(int48).min))) revert CheckpointStorageInvalidError();
         if (newValue.settlementFee.gt(UFixed6.wrap(type(uint48).max))) revert CheckpointStorageInvalidError();

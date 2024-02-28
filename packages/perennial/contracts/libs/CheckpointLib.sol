@@ -37,7 +37,7 @@ library CheckpointLib {
         Position memory fromPosition,
         Version memory fromVersion,
         Version memory toVersion
-    ) internal pure returns (Checkpoint memory next, CheckpointAccumulationResult memory result) {
+    ) external pure returns (Checkpoint memory next, CheckpointAccumulationResult memory result) {
         // accumulate
         result.collateral = _accumulateCollateral(fromPosition, fromVersion, toVersion);
         (result.linearFee, result.subtractiveFee) = _accumulateLinearFee(order, toVersion);

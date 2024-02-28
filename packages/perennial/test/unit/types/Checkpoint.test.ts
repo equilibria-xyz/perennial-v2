@@ -3,7 +3,14 @@ import { SignerWithAddress } from '@nomiclabs/hardhat-ethers/signers'
 import { expect, use } from 'chai'
 import HRE from 'hardhat'
 
-import { CheckpointTester, CheckpointTester__factory } from '../../../types/generated'
+import {
+  CheckpointLib,
+  CheckpointLib__factory,
+  CheckpointStorageLib,
+  CheckpointStorageLib__factory,
+  CheckpointTester,
+  CheckpointTester__factory,
+} from '../../../types/generated'
 import { BigNumber } from 'ethers'
 import { CheckpointStruct, PositionStruct, VersionStruct } from '../../../types/generated/contracts/Market'
 import {
@@ -19,6 +26,8 @@ use(smock.matchers)
 
 describe('Checkpoint', () => {
   let owner: SignerWithAddress
+  let checkpointLib: CheckpointLib
+  let checkpointStorageLib: CheckpointStorageLib
   let checkpoint: CheckpointTester
 
   const VALID_CHECKPOINT: CheckpointStruct = {
@@ -31,7 +40,15 @@ describe('Checkpoint', () => {
   beforeEach(async () => {
     ;[owner] = await ethers.getSigners()
 
-    checkpoint = await new CheckpointTester__factory(owner).deploy()
+    checkpointLib = await new CheckpointLib__factory(owner).deploy()
+    checkpointStorageLib = await new CheckpointStorageLib__factory(owner).deploy()
+    checkpoint = await new CheckpointTester__factory(
+      {
+        'contracts/libs/CheckpointLib.sol:CheckpointLib': checkpointLib.address,
+        'contracts/types/Checkpoint.sol:CheckpointStorageLib': checkpointStorageLib.address,
+      },
+      owner,
+    ).deploy()
   })
 
   describe('#store', () => {
@@ -71,7 +88,7 @@ describe('Checkpoint', () => {
             ...VALID_CHECKPOINT,
             tradeFee: BigNumber.from(2).pow(STORAGE_SIZE),
           }),
-        ).to.be.revertedWithCustomError(checkpoint, 'CheckpointStorageInvalidError')
+        ).to.be.revertedWithCustomError(checkpointStorageLib, 'CheckpointStorageInvalidError')
       })
 
       it('reverts if tradeFee out of range (below)', async () => {
@@ -80,7 +97,7 @@ describe('Checkpoint', () => {
             ...VALID_CHECKPOINT,
             tradeFee: BigNumber.from(2).pow(STORAGE_SIZE).add(1).mul(-1),
           }),
-        ).to.be.revertedWithCustomError(checkpoint, 'CheckpointStorageInvalidError')
+        ).to.be.revertedWithCustomError(checkpointStorageLib, 'CheckpointStorageInvalidError')
       })
     })
 
@@ -101,7 +118,7 @@ describe('Checkpoint', () => {
             ...VALID_CHECKPOINT,
             settlementFee: BigNumber.from(2).pow(STORAGE_SIZE),
           }),
-        ).to.be.revertedWithCustomError(checkpoint, 'CheckpointStorageInvalidError')
+        ).to.be.revertedWithCustomError(checkpointStorageLib, 'CheckpointStorageInvalidError')
       })
     })
 
@@ -131,7 +148,7 @@ describe('Checkpoint', () => {
             ...VALID_CHECKPOINT,
             transfer: BigNumber.from(2).pow(STORAGE_SIZE),
           }),
-        ).to.be.revertedWithCustomError(checkpoint, 'CheckpointStorageInvalidError')
+        ).to.be.revertedWithCustomError(checkpointStorageLib, 'CheckpointStorageInvalidError')
       })
 
       it('reverts if delta out of range (below)', async () => {
@@ -140,7 +157,7 @@ describe('Checkpoint', () => {
             ...VALID_CHECKPOINT,
             transfer: BigNumber.from(2).pow(STORAGE_SIZE).add(1).mul(-1),
           }),
-        ).to.be.revertedWithCustomError(checkpoint, 'CheckpointStorageInvalidError')
+        ).to.be.revertedWithCustomError(checkpointStorageLib, 'CheckpointStorageInvalidError')
       })
     })
 
@@ -170,7 +187,7 @@ describe('Checkpoint', () => {
             ...VALID_CHECKPOINT,
             collateral: BigNumber.from(2).pow(STORAGE_SIZE),
           }),
-        ).to.be.revertedWithCustomError(checkpoint, 'CheckpointStorageInvalidError')
+        ).to.be.revertedWithCustomError(checkpointStorageLib, 'CheckpointStorageInvalidError')
       })
 
       it('reverts if collateral out of range (below)', async () => {
@@ -179,7 +196,7 @@ describe('Checkpoint', () => {
             ...VALID_CHECKPOINT,
             collateral: BigNumber.from(2).pow(STORAGE_SIZE).add(1).mul(-1),
           }),
-        ).to.be.revertedWithCustomError(checkpoint, 'CheckpointStorageInvalidError')
+        ).to.be.revertedWithCustomError(checkpointStorageLib, 'CheckpointStorageInvalidError')
       })
     })
   })

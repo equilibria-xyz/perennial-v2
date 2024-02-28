@@ -8,11 +8,14 @@ import {
   PositionGlobalTester__factory,
   PositionLocalTester,
   PositionLocalTester__factory,
+  PositionStorageGlobalLib,
+  PositionStorageGlobalLib__factory,
+  PositionStorageLocalLib,
+  PositionStorageLocalLib__factory,
 } from '../../../types/generated'
 import { BigNumber } from 'ethers'
-import { DEFAULT_ORDER, OracleVersion, parse6decimal } from '../../../../common/testutil/types'
+import { OracleVersion, parse6decimal } from '../../../../common/testutil/types'
 import { PositionStruct } from '../../../types/generated/contracts/Market'
-import { OracleVersionStruct } from '../../../types/generated/contracts/interfaces/IOracleProvider'
 
 import { VALID_RISK_PARAMETER } from './RiskParameter.test'
 
@@ -44,6 +47,7 @@ describe('Position', () => {
   let owner: SignerWithAddress
 
   describe('global position', () => {
+    let positionStorageGlobalLib: PositionStorageGlobalLib
     let position: PositionGlobalTester
 
     const VALID_GLOBAL_POSITION: PositionStruct = {
@@ -56,7 +60,13 @@ describe('Position', () => {
     beforeEach(async () => {
       ;[owner] = await ethers.getSigners()
 
-      position = await new PositionGlobalTester__factory(owner).deploy()
+      positionStorageGlobalLib = await new PositionStorageGlobalLib__factory(owner).deploy()
+      position = await new PositionGlobalTester__factory(
+        {
+          'contracts/types/Position.sol:PositionStorageGlobalLib': positionStorageGlobalLib.address,
+        },
+        owner,
+      ).deploy()
     })
 
     describe('#store', () => {
@@ -87,7 +97,7 @@ describe('Position', () => {
               ...VALID_GLOBAL_POSITION,
               timestamp: BigNumber.from(2).pow(STORAGE_SIZE),
             }),
-          ).to.be.revertedWithCustomError(position, 'PositionStorageInvalidError')
+          ).to.be.revertedWithCustomError(positionStorageGlobalLib, 'PositionStorageInvalidError')
         })
       })
 
@@ -108,7 +118,7 @@ describe('Position', () => {
               ...VALID_GLOBAL_POSITION,
               maker: BigNumber.from(2).pow(STORAGE_SIZE),
             }),
-          ).to.be.revertedWithCustomError(position, 'PositionStorageInvalidError')
+          ).to.be.revertedWithCustomError(positionStorageGlobalLib, 'PositionStorageInvalidError')
         })
       })
 
@@ -129,7 +139,7 @@ describe('Position', () => {
               ...VALID_GLOBAL_POSITION,
               long: BigNumber.from(2).pow(STORAGE_SIZE),
             }),
-          ).to.be.revertedWithCustomError(position, 'PositionStorageInvalidError')
+          ).to.be.revertedWithCustomError(positionStorageGlobalLib, 'PositionStorageInvalidError')
         })
       })
 
@@ -150,7 +160,7 @@ describe('Position', () => {
               ...VALID_GLOBAL_POSITION,
               short: BigNumber.from(2).pow(STORAGE_SIZE),
             }),
-          ).to.be.revertedWithCustomError(position, 'PositionStorageInvalidError')
+          ).to.be.revertedWithCustomError(positionStorageGlobalLib, 'PositionStorageInvalidError')
         })
       })
     })
@@ -613,6 +623,7 @@ describe('Position', () => {
   })
 
   describe('local position', () => {
+    let positionStorageLocalLib: PositionStorageLocalLib
     let position: PositionLocalTester
 
     const VALID_LOCAL_POSITION: PositionStruct = {
@@ -625,7 +636,11 @@ describe('Position', () => {
     beforeEach(async () => {
       ;[owner] = await ethers.getSigners()
 
-      position = await new PositionLocalTester__factory(owner).deploy()
+      positionStorageLocalLib = await new PositionStorageLocalLib__factory(owner).deploy()
+      position = await new PositionLocalTester__factory(
+        { 'contracts/types/Position.sol:PositionStorageLocalLib': positionStorageLocalLib.address },
+        owner,
+      ).deploy()
     })
 
     describe('#store', () => {
@@ -694,7 +709,7 @@ describe('Position', () => {
               ...VALID_LOCAL_POSITION,
               timestamp: BigNumber.from(2).pow(STORAGE_SIZE),
             }),
-          ).to.be.revertedWithCustomError(position, 'PositionStorageInvalidError')
+          ).to.be.revertedWithCustomError(positionStorageLocalLib, 'PositionStorageInvalidError')
         })
       })
 
@@ -715,7 +730,7 @@ describe('Position', () => {
               ...VALID_LOCAL_POSITION,
               maker: BigNumber.from(2).pow(STORAGE_SIZE),
             }),
-          ).to.be.revertedWithCustomError(position, 'PositionStorageInvalidError')
+          ).to.be.revertedWithCustomError(positionStorageLocalLib, 'PositionStorageInvalidError')
         })
       })
 
@@ -736,7 +751,7 @@ describe('Position', () => {
               ...VALID_LOCAL_POSITION,
               long: BigNumber.from(2).pow(STORAGE_SIZE),
             }),
-          ).to.be.revertedWithCustomError(position, 'PositionStorageInvalidError')
+          ).to.be.revertedWithCustomError(positionStorageLocalLib, 'PositionStorageInvalidError')
         })
       })
 
@@ -757,7 +772,7 @@ describe('Position', () => {
               ...VALID_LOCAL_POSITION,
               short: BigNumber.from(2).pow(STORAGE_SIZE),
             }),
-          ).to.be.revertedWithCustomError(position, 'PositionStorageInvalidError')
+          ).to.be.revertedWithCustomError(positionStorageLocalLib, 'PositionStorageInvalidError')
         })
       })
     })

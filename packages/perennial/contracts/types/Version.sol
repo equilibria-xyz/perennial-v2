@@ -107,7 +107,7 @@ library VersionStorageLib {
         );
     }
 
-    function store(VersionStorage storage self, Version memory newValue) internal {
+    function store(VersionStorage storage self, Version memory newValue) external {
         if (newValue.makerValue._value.gt(Fixed6.wrap(type(int64).max))) revert VersionStorageInvalidError();
         if (newValue.makerValue._value.lt(Fixed6.wrap(type(int64).min))) revert VersionStorageInvalidError();
         if (newValue.longValue._value.gt(Fixed6.wrap(type(int64).max))) revert VersionStorageInvalidError();

@@ -53,7 +53,12 @@ describe('MarketParameter', () => {
     ;[owner] = await ethers.getSigners()
 
     marketParameterStorage = await new MarketParameterStorageLib__factory(owner).deploy()
-    marketParameter = await new MarketParameterTester__factory(owner).deploy()
+    marketParameter = await new MarketParameterTester__factory(
+      {
+        'contracts/types/MarketParameter.sol:MarketParameterStorageLib': marketParameterStorage.address,
+      },
+      owner,
+    ).deploy()
   })
 
   describe('#store', () => {
