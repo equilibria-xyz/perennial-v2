@@ -185,7 +185,7 @@ library StrategyLib {
         marketContext.currentAccountPosition = marketContext.latestAccountPosition.clone();
 
         Order memory pendingLocal = registration.market.pendings(address(this));
-        marketContext.currentAccountPosition.update(pendingLocal, true);
+        marketContext.currentAccountPosition.update(pendingLocal);
 
         marketContext.margin = PositionLib.margin(
             marketContext.latestAccountPosition.magnitude().add(pendingLocal.pos()),
@@ -199,7 +199,7 @@ library StrategyLib {
         // current position
         Order memory pendingGlobal = registration.market.pendings(address(this));
         marketContext.currentPosition = registration.market.position();
-        marketContext.currentPosition.update(pendingGlobal, true);
+        marketContext.currentPosition.update(pendingGlobal);
         marketContext.minPosition = marketContext.currentAccountPosition.maker
             .unsafeSub(marketContext.currentPosition.maker
                 .unsafeSub(marketContext.currentPosition.skew().abs()).min(marketContext.closable));

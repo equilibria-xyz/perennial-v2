@@ -357,7 +357,7 @@ contract MultiInvoker is IMultiInvoker, Kept {
 
         Order memory pending = market.pendings(account);
         Position memory currentPosition = market.positions(account);
-        currentPosition.update(pending, true);
+        currentPosition.update(pending);
 
         Fixed6 collateral = order.execute(currentPosition);
 

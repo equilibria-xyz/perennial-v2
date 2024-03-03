@@ -67,8 +67,15 @@ library OrderLib {
     /// @param self The order object to update
     /// @param timestamp The current timestamp
     function next(Order memory self, uint256 timestamp) internal pure  {
-        (self.timestamp, self.orders, self.collateral, self.protection, self.makerReferral, self.takerReferral) =
-            (timestamp, 0, Fixed6Lib.ZERO, 0, UFixed6Lib.ZERO, UFixed6Lib.ZERO);
+        invalidate(self);
+        (self.timestamp, self.orders, self.collateral, self.protection) = (timestamp, 0, Fixed6Lib.ZERO, 0);
+    }
+
+    /// @notice Invalidates the order
+    /// @param self The order object to update
+    function invalidate(Order memory self) internal pure {
+        (self.makerReferral, self.takerReferral) =
+            (UFixed6Lib.ZERO, UFixed6Lib.ZERO);
         (self.makerPos, self.makerNeg, self.longPos, self.longNeg, self.shortPos, self.shortNeg) =
             (UFixed6Lib.ZERO, UFixed6Lib.ZERO, UFixed6Lib.ZERO, UFixed6Lib.ZERO, UFixed6Lib.ZERO, UFixed6Lib.ZERO);
     }
