@@ -60,8 +60,8 @@ interface IMarket is IInstance {
 
     event Updated(address indexed sender, address indexed account, uint256 version, UFixed6 newMaker, UFixed6 newLong, UFixed6 newShort, Fixed6 collateral, bool protect, address referrer);
     event OrderCreated(address indexed account, Order order);
-    event PositionProcessed(uint256 orderId, Order order, VersionAccumulationResult accumulationResult);
-    event AccountPositionProcessed(address indexed account, uint256 orderId, Order order, CheckpointAccumulationResult accumulationResult);
+    event PositionProcessed(uint256 orderId, Order order, VersionAccumulation accumulation);
+    event AccountPositionProcessed(address indexed account, uint256 orderId, Order order, CheckpointAccumulation accumulation);
     event BeneficiaryUpdated(address newBeneficiary);
     event CoordinatorUpdated(address newCoordinator);
     event FeeClaimed(address indexed account, UFixed6 amount);

@@ -615,8 +615,8 @@ contract Market is IMarket, Instance, ReentrancyGuard {
         context.pending.global.sub(newOrder);
         if (!oracleVersion.valid) newOrder.invalidate();
 
-        VersionAccumulationResult memory accumulationResult;
-        (settlementContext.latestVersion, context.global, accumulationResult) = VersionLib.accumulate(
+        VersionAccumulation memory accumulation;
+        (settlementContext.latestVersion, context.global, accumulation) = VersionLib.accumulate(
             settlementContext.latestVersion,
             context.global,
             context.latestPosition.global,
@@ -627,13 +627,13 @@ contract Market is IMarket, Instance, ReentrancyGuard {
             context.riskParameter
         );
 
-        context.global.update(newOrderId, accumulationResult, context.marketParameter, context.protocolParameter);
+        context.global.update(newOrderId, accumulation, context.marketParameter, context.protocolParameter);
         context.latestPosition.global.update(newOrder);
 
         settlementContext.orderOracleVersion = oracleVersion;
         _versions[newOrder.timestamp].store(settlementContext.latestVersion);
 
-        emit PositionProcessed(newOrderId, newOrder, accumulationResult);
+        emit PositionProcessed(newOrderId, newOrder, accumulation);
     }
 
     /// @notice Processes the given local pending position into the latest position
@@ -657,8 +657,8 @@ contract Market is IMarket, Instance, ReentrancyGuard {
         context.pending.local.sub(newOrder);
         if (!versionTo.valid) newOrder.invalidate();
 
-        CheckpointAccumulationResult memory accumulationResult;
-        (settlementContext.latestCheckpoint, accumulationResult) = CheckpointLib.accumulate(
+        CheckpointAccumulation memory accumulation;
+        (settlementContext.latestCheckpoint, accumulation) = CheckpointLib.accumulate(
             settlementContext.latestCheckpoint,
             newOrder,
             context.latestPosition.local,
@@ -666,15 +666,15 @@ contract Market is IMarket, Instance, ReentrancyGuard {
             versionTo
         );
 
-        context.local.update(newOrderId, accumulationResult);
+        context.local.update(newOrderId, accumulation);
         context.latestPosition.local.update(newOrder);
 
         _checkpoints[account][newOrder.timestamp].store(settlementContext.latestCheckpoint);
 
-        _credit(liquidators[account][newOrderId], accumulationResult.liquidationFee);
-        _credit(referrers[account][newOrderId], accumulationResult.subtractiveFee);
+        _credit(liquidators[account][newOrderId], accumulation.liquidationFee);
+        _credit(referrers[account][newOrderId], accumulation.subtractiveFee);
 
-        emit AccountPositionProcessed(account, newOrderId, newOrder, accumulationResult);
+        emit AccountPositionProcessed(account, newOrderId, newOrder, accumulation);
     }
 
     /// @notice Credits an account's claimable that is out-of-context

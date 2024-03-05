@@ -10,7 +10,7 @@ import "../types/Order.sol";
 import "../types/Version.sol";
 import "../types/Checkpoint.sol";
 
-struct CheckpointAccumulationResult {
+struct CheckpointAccumulation {
     Fixed6 collateral;
     Fixed6 linearFee;
     Fixed6 proportionalFee;
@@ -37,7 +37,7 @@ library CheckpointLib {
         Position memory fromPosition,
         Version memory fromVersion,
         Version memory toVersion
-    ) external pure returns (Checkpoint memory next, CheckpointAccumulationResult memory result) {
+    ) external pure returns (Checkpoint memory next, CheckpointAccumulation memory result) {
         // accumulate
         result.collateral = _accumulateCollateral(fromPosition, fromVersion, toVersion);
         (result.linearFee, result.subtractiveFee) = _accumulateLinearFee(order, toVersion);
@@ -79,9 +79,9 @@ library CheckpointLib {
         Version memory toVersion
     ) private pure returns (Fixed6 linearFee, UFixed6 subtractiveFee) {
         Fixed6 makerLinearFee = Fixed6Lib.ZERO
-            .sub(toVersion.makerLinearFee.accumulated(Accumulator6(Fixed6Lib.ZERO), order.makerTotal()));
+            .sub(toVersion.makerLinearFee.accumulated(Accumulated6(Fixed6Lib.ZERO), order.makerTotal()));
         Fixed6 takerLinearFee = Fixed6Lib.ZERO
-            .sub(toVersion.takerLinearFee.accumulated(Accumulator6(Fixed6Lib.ZERO), order.takerTotal()));
+            .sub(toVersion.takerLinearFee.accumulated(Accumulated6(Fixed6Lib.ZERO), order.takerTotal()));
 
         UFixed6 makerSubtractiveFee = order.makerTotal().isZero() ?
             UFixed6Lib.ZERO :
@@ -102,8 +102,8 @@ library CheckpointLib {
         Version memory toVersion
     ) private pure returns (Fixed6) {
         return Fixed6Lib.ZERO
-            .sub(toVersion.makerProportionalFee.accumulated(Accumulator6(Fixed6Lib.ZERO), order.makerTotal()))
-            .sub(toVersion.takerProportionalFee.accumulated(Accumulator6(Fixed6Lib.ZERO), order.takerTotal()));
+            .sub(toVersion.makerProportionalFee.accumulated(Accumulated6(Fixed6Lib.ZERO), order.makerTotal()))
+            .sub(toVersion.takerProportionalFee.accumulated(Accumulated6(Fixed6Lib.ZERO), order.takerTotal()));
     }
 
     /// @notice Accumulate adiabatic fees for the next position
@@ -114,10 +114,10 @@ library CheckpointLib {
         Version memory toVersion
     ) private pure returns (Fixed6) {
         return Fixed6Lib.ZERO
-            .sub(toVersion.makerPosFee.accumulated(Accumulator6(Fixed6Lib.ZERO), order.makerPos))
-            .sub(toVersion.makerNegFee.accumulated(Accumulator6(Fixed6Lib.ZERO), order.makerNeg))
-            .sub(toVersion.takerPosFee.accumulated(Accumulator6(Fixed6Lib.ZERO), order.takerPos()))
-            .sub(toVersion.takerNegFee.accumulated(Accumulator6(Fixed6Lib.ZERO), order.takerNeg()));
+            .sub(toVersion.makerPosFee.accumulated(Accumulated6(Fixed6Lib.ZERO), order.makerPos))
+            .sub(toVersion.makerNegFee.accumulated(Accumulated6(Fixed6Lib.ZERO), order.makerNeg))
+            .sub(toVersion.takerPosFee.accumulated(Accumulated6(Fixed6Lib.ZERO), order.takerPos()))
+            .sub(toVersion.takerNegFee.accumulated(Accumulated6(Fixed6Lib.ZERO), order.takerNeg()));
     }
 
 
@@ -128,7 +128,7 @@ library CheckpointLib {
         Order memory order,
         Version memory toVersion
     ) private pure returns (UFixed6) {
-        return toVersion.settlementFee.accumulated(Accumulator6(Fixed6Lib.ZERO), UFixed6Lib.from(order.orders)).abs();
+        return toVersion.settlementFee.accumulated(Accumulated6(Fixed6Lib.ZERO), UFixed6Lib.from(order.orders)).abs();
     }
 
     /// @notice Accumulate liquidation fees for the next position
@@ -139,6 +139,6 @@ library CheckpointLib {
         Version memory toVersion
     ) private pure returns (UFixed6 liquidationFee) {
         if (order.protected())
-            return toVersion.liquidationFee.accumulated(Accumulator6(Fixed6Lib.ZERO), UFixed6Lib.ONE).abs();
+            return toVersion.liquidationFee.accumulated(Accumulated6(Fixed6Lib.ZERO), UFixed6Lib.ONE).abs();
     }
 }

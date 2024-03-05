@@ -10,38 +10,68 @@ import "../types/Global.sol";
 import "../types/Position.sol";
 import "../types/Version.sol";
 
+// TODO: natspec pass
+
 /// @dev Individual accumulation values
-struct VersionAccumulationResult {
-    UFixed6 positionFee;
-    UFixed6 positionFeeMaker;
-    UFixed6 positionFeeProtocol;
-    UFixed6 positionFeeSubtractive;
-    Fixed6 positionFeeExposure;
-    Fixed6 positionFeeExposureMaker;
-    Fixed6 positionFeeExposureProtocol;
-    Fixed6 positionFeeImpact;
+struct VersionAccumulation {
+    VersionLinearAccumulation linearFeeMaker;
+    VersionLinearAccumulation linearFeeTaker;
+    VersionBiAccumulation proportionalFeeMaker;
+    VersionBiAccumulation proportionalFeeTaker;
+    Fixed6 adiabaticFeeMakerPos;
+    Fixed6 adiabaticFeeMakerNeg;
+    Fixed6 adiabaticFeeTakerPos;
+    Fixed6 adiabaticFeeTakerNeg;
 
-    Fixed6 fundingMaker;
-    Fixed6 fundingLong;
-    Fixed6 fundingShort;
-    UFixed6 fundingFee;
+    VersionTriAccumulation funding;
+    VersionTriAccumulation interest;
+    VersionTriAccumulation pnl;
 
-    Fixed6 interestMaker;
-    Fixed6 interestLong;
-    Fixed6 interestShort;
-    UFixed6 interestFee;
-
-    Fixed6 pnlMaker;
-    Fixed6 pnlLong;
-    Fixed6 pnlShort;
+    BiAccumulation positionFeeExposure; // TODO
+    Fixed6 positionFeeMarketExposure; // TODO
 
     UFixed6 settlementFee;
     UFixed6 liquidationFee;
 }
 
+struct VersionLinearAccumulation {
+    BiAccumulation accumulation;
+    UFixed6 subtractiveFee;
+    UFixed6 fee;
+}
+
+struct VersionBiAccumulation {
+    BiAccumulation accumulation;
+    UFixed6 fee;
+}
+
+struct VersionTriAccumulation {
+    TriAccumulation accumulation;
+    UFixed6 fee;
+}
+
 /// @title VersionLib
 /// @notice Manages the logic for the global order accumualation
 library VersionLib {
+    struct Accumulator {
+        Accumulator6 makerValue;
+        Accumulator6 longValue;
+        Accumulator6 shortValue;
+
+        Accumulator6 makerLinearFee;
+        Accumulator6 makerProportionalFee;
+        Accumulator6 takerLinearFee;
+        Accumulator6 takerProportionalFee;
+
+        Accumulator6 makerPosFee;
+        Accumulator6 makerNegFee;
+        Accumulator6 takerPosFee;
+        Accumulator6 takerNegFee;
+
+        Accumulator6 settlementFee;
+        Accumulator6 liquidationFee;
+    }
+
     struct AccumulationContext {
         Global global;
         Position fromPosition;
@@ -61,9 +91,9 @@ library VersionLib {
     /// @param toOracleVersion The next latest oracle version
     /// @param marketParameter The market parameter
     /// @param riskParameter The risk parameter
-    /// @return next The accumulated version
-    /// @return nextGlobal The next global state
-    /// @return result The accumulation result
+    /// @return nextVersion The accumulated version
+    /// @return nextGlobal The accumulated global
+    /// @return accumulation The accumulation result
     function accumulate(
         Version memory self,
         Global memory global,
@@ -73,7 +103,26 @@ library VersionLib {
         OracleVersion memory toOracleVersion,
         MarketParameter memory marketParameter,
         RiskParameter memory riskParameter
-    ) external pure returns (Version memory next, Global memory nextGlobal, VersionAccumulationResult memory result) {
+    ) external pure returns (Version memory nextVersion, Global memory nextGlobal, VersionAccumulation memory accumulation) {
+        Accumulator memory accumulator = Accumulator(
+            self.makerValue.with(fromPosition.maker), // TODO: socialized positions?
+            self.longValue.with(fromPosition.long),
+            self.shortValue.with(fromPosition.short),
+
+            Accumulated6(Fixed6Lib.ZERO).with(order.makerTotal()),
+            Accumulated6(Fixed6Lib.ZERO).with(order.makerTotal()),
+            Accumulated6(Fixed6Lib.ZERO).with(order.takerTotal()),
+            Accumulated6(Fixed6Lib.ZERO).with(order.takerTotal()),
+
+            Accumulated6(Fixed6Lib.ZERO).with(order.makerPos),
+            Accumulated6(Fixed6Lib.ZERO).with(order.makerNeg),
+            Accumulated6(Fixed6Lib.ZERO).with(order.takerPos()),
+            Accumulated6(Fixed6Lib.ZERO).with(order.takerNeg()),
+
+            Accumulated6(Fixed6Lib.ZERO).with(UFixed6Lib.from(order.orders)),
+            Accumulated6(Fixed6Lib.ZERO).with(UFixed6Lib.ONE)
+        );
+
         AccumulationContext memory context = AccumulationContext(
             global,
             fromPosition,
@@ -84,253 +133,224 @@ library VersionLib {
             riskParameter
         );
 
-        // setup next accumulators
-        _next(self, next);
-
         // record validity
-        next.valid = toOracleVersion.valid;
+        nextVersion.valid = toOracleVersion.valid;
 
         // accumulate settlement fee
-        result.settlementFee = _accumulateSettlementFee(next, context);
+        _accumulateSettlementFee(accumulator, context, accumulation);
 
         // accumulate liquidation fee
-        result.liquidationFee = _accumulateLiquidationFee(next, context);
+        _accumulateLiquidationFee(accumulator, context, accumulation);
 
         // accumulate linear fee
-        _accumulateLinearFee(next, context, result);
+        _accumulateLinearFee(accumulator, context, accumulation);
 
         // accumulate proportional fee
-        _accumulateProportionalFee(next, context, result);
+        _accumulateProportionalFee(accumulator, context, accumulation);
 
         // accumulate adiabatic fee
-        _accumulateAdiabaticFee(next, context, result);
+        _accumulateAdiabaticFee(accumulator, context, accumulation);
+
+        // accumulate adiabatic fee exposure
+        _accumulatePositionFeeComponentExposure(accumulator, context, accumulation);
 
         // if closed, don't accrue anything else
-        if (marketParameter.closed) return (next, global, result);
+        if (marketParameter.closed) return (nextVersion, nextGlobal, accumulation);
 
         // accumulate funding
-        (result.fundingMaker, result.fundingLong, result.fundingShort, result.fundingFee) =
-            _accumulateFunding(next, context);
+        _accumulateFunding(accumulator, context, accumulation);
 
         // accumulate interest
-        (result.interestMaker, result.interestLong, result.interestShort, result.interestFee) =
-            _accumulateInterest(next, context);
+        _accumulateInterest(accumulator, context, accumulation);
 
         // accumulate P&L
-        (result.pnlMaker, result.pnlLong, result.pnlShort) = _accumulatePNL(next, context);
+        _accumulatePNL(accumulator, context, accumulation);
 
-        return (next, global, result);
-    }
 
-    /// @notice Copies over the version-over-version accumulators to prepare the next version
-    /// @param self The Version object to update
-    function _next(Version memory self, Version memory next) internal pure {
-        next.makerValue._value = self.makerValue._value;
-        next.longValue._value = self.longValue._value;
-        next.shortValue._value = self.shortValue._value;
+        // TODO: populate nextVersion?
+
+        return (nextVersion, global, accumulation);
     }
 
     /// @notice Globally accumulates settlement fees since last oracle update
     /// @param next The Version object to update
     /// @param context The accumulation context
     function _accumulateSettlementFee(
-        Version memory next,
-        AccumulationContext memory context
-    ) private pure returns (UFixed6 settlementFee) {
-        settlementFee = context.order.orders == 0 ? UFixed6Lib.ZERO : context.marketParameter.settlementFee;
-        next.settlementFee.decrement(Fixed6Lib.from(settlementFee), UFixed6Lib.from(context.order.orders));
+        Accumulator memory next,
+        AccumulationContext memory context,
+        VersionAccumulation memory result
+    ) private pure {
+        result.settlementFee = context.order.orders == 0 ? UFixed6Lib.ZERO : context.marketParameter.settlementFee;
+        next.settlementFee.decrement(Fixed6Lib.from(result.settlementFee));
     }
 
     /// @notice Globally accumulates hypothetical liquidation fee since last oracle update
     /// @param next The Version object to update
     /// @param context The accumulation context
     function _accumulateLiquidationFee(
-        Version memory next,
-        AccumulationContext memory context
-    ) private pure returns (UFixed6 liquidationFee) {
-        liquidationFee = context.toOracleVersion.valid ? context.riskParameter.liquidationFee : UFixed6Lib.ZERO;
-        next.liquidationFee.decrement(Fixed6Lib.from(liquidationFee), UFixed6Lib.ONE);
+        Accumulator memory next,
+        AccumulationContext memory context,
+        VersionAccumulation memory result
+    ) private pure {
+        result.liquidationFee = context.toOracleVersion.valid ? context.riskParameter.liquidationFee : UFixed6Lib.ZERO;
+        next.liquidationFee.decrement(Fixed6Lib.from(result.liquidationFee));
     }
 
     /// @notice Globally accumulates linear fees since last oracle update
     /// @param next The Version object to update
     /// @param context The accumulation context
     function _accumulateLinearFee(
-        Version memory next,
+        Accumulator memory next,
         AccumulationContext memory context,
-        VersionAccumulationResult memory result
+        VersionAccumulation memory result
     ) private pure {
-        (UFixed6 makerLinearFee, UFixed6 makerSubtractiveFee) = _accumulateSubtractiveFee(
-            context.riskParameter.makerFee.linear(
-                Fixed6Lib.from(context.order.makerTotal()),
-                context.toOracleVersion.price.abs()
-            ),
-            context.order.makerTotal(),
-            context.order.makerReferral,
-            next.makerLinearFee
+        if (!context.toOracleVersion.valid) return;
+
+        UFixed6 makerLinearFee = context.riskParameter.makerFee.linear(
+            Fixed6Lib.from(context.order.makerTotal()),
+            context.toOracleVersion.price.abs()
+        );
+        (makerLinearFee, result.linearFeeMaker.subtractiveFee) =
+            _accumulateSubtractiveFee(makerLinearFee, context.order.makerTotal(), context.order.makerReferral);
+        (result.linearFeeMaker.fee, result.linearFeeMaker.accumulation) = Accumulator6Lib.transfer(
+            next.makerLinearFee,
+            next.makerValue,
+            Fixed6Lib.from(makerLinearFee),
+            context.marketParameter.positionFee
         );
 
-        (UFixed6 takerLinearFee, UFixed6 takerSubtractiveFee) = _accumulateSubtractiveFee(
-            context.riskParameter.takerFee.linear(
-                Fixed6Lib.from(context.order.takerTotal()),
-                context.toOracleVersion.price.abs()
-            ),
-            context.order.takerTotal(),
-            context.order.takerReferral,
-            next.takerLinearFee
+        UFixed6 takerLinearFee = context.riskParameter.takerFee.linear(
+            Fixed6Lib.from(context.order.takerTotal()),
+            context.toOracleVersion.price.abs()
         );
-
-        UFixed6 linearFee = makerLinearFee.add(takerLinearFee);
-
-        UFixed6 protocolFee = context.fromPosition.maker.isZero() ?
-            linearFee :
-            context.marketParameter.positionFee.mul(linearFee);
-        UFixed6 positionFeeMaker = linearFee.sub(protocolFee);
-        next.makerValue.increment(Fixed6Lib.from(positionFeeMaker), context.fromPosition.maker);
-
-        result.positionFee = result.positionFee.add(linearFee);
-        result.positionFeeMaker = result.positionFeeMaker.add(positionFeeMaker);
-        result.positionFeeProtocol = result.positionFeeProtocol.add(protocolFee);
-        result.positionFeeSubtractive = result.positionFeeSubtractive.add(makerSubtractiveFee).add(takerSubtractiveFee);
+        (takerLinearFee, result.linearFeeTaker.subtractiveFee) =
+            _accumulateSubtractiveFee(takerLinearFee, context.order.takerTotal(), context.order.takerReferral);
+        (result.linearFeeTaker.fee, result.linearFeeTaker.accumulation) = Accumulator6Lib.transfer(
+            next.takerLinearFee,
+            next.makerValue,
+            Fixed6Lib.from(takerLinearFee),
+            context.marketParameter.positionFee
+        );
     }
 
     /// @notice Globally accumulates subtractive fees since last oracle update
     /// @param linearFee The linear fee to accumulate
     /// @param total The total order size for the fee
     /// @param referral The referral size for the fee
-    /// @param linearFeeAccumulator The accumulator for the linear fee
     /// @return newLinearFee The new linear fee after subtractive fees
     /// @return subtractiveFee The total subtractive fee
     function _accumulateSubtractiveFee(
         UFixed6 linearFee,
         UFixed6 total,
-        UFixed6 referral,
-        Accumulator6 memory linearFeeAccumulator
+        UFixed6 referral
     ) private pure returns (UFixed6 newLinearFee, UFixed6 subtractiveFee) {
-        linearFeeAccumulator.decrement(Fixed6Lib.from(linearFee), total);
         subtractiveFee = total.isZero() ? UFixed6Lib.ZERO : linearFee.muldiv(referral, total);
         newLinearFee = linearFee.sub(subtractiveFee);
     }
 
     /// @notice Globally accumulates proportional fees since last oracle update
-    /// @param next The Version object to update
     /// @param context The accumulation context
     function _accumulateProportionalFee(
-        Version memory next,
+        Accumulator memory next,
         AccumulationContext memory context,
-        VersionAccumulationResult memory result
+        VersionAccumulation memory result
     ) private pure {
+        if (!context.toOracleVersion.valid) return;
+
         UFixed6 makerProportionalFee = context.riskParameter.makerFee.proportional(
             Fixed6Lib.from(context.order.makerTotal()),
             context.toOracleVersion.price.abs()
         );
-        next.makerProportionalFee.decrement(Fixed6Lib.from(makerProportionalFee), context.order.makerTotal());
+        (result.proportionalFeeMaker.fee, result.proportionalFeeMaker.accumulation) = Accumulator6Lib.transfer(
+            next.makerProportionalFee,
+            next.makerValue,
+            Fixed6Lib.from(makerProportionalFee),
+            context.marketParameter.positionFee
+        );
 
         UFixed6 takerProportionalFee = context.riskParameter.takerFee.proportional(
             Fixed6Lib.from(context.order.takerTotal()),
             context.toOracleVersion.price.abs()
         );
-        next.takerProportionalFee.decrement(Fixed6Lib.from(takerProportionalFee), context.order.takerTotal());
-
-        UFixed6 proportionalFee = makerProportionalFee.add(takerProportionalFee);
-        UFixed6 protocolFee = context.fromPosition.maker.isZero() ?
-            proportionalFee :
-            context.marketParameter.positionFee.mul(proportionalFee);
-        UFixed6 positionFeeMaker = proportionalFee.sub(protocolFee);
-        next.makerValue.increment(Fixed6Lib.from(positionFeeMaker), context.fromPosition.maker);
-
-        result.positionFee = result.positionFee.add(proportionalFee);
-        result.positionFeeMaker = result.positionFeeMaker.add(positionFeeMaker);
-        result.positionFeeProtocol = result.positionFeeProtocol.add(protocolFee);
+        (result.proportionalFeeTaker.fee, result.proportionalFeeTaker.accumulation) = Accumulator6Lib.transfer(
+            next.takerProportionalFee,
+            next.makerValue,
+            Fixed6Lib.from(takerProportionalFee),
+            context.marketParameter.positionFee
+        );
     }
 
     /// @notice Globally accumulates adiabatic fees since last oracle update
     /// @param next The Version object to update
     /// @param context The accumulation context
     function _accumulateAdiabaticFee(
-        Version memory next,
+        Accumulator memory next,
         AccumulationContext memory context,
-        VersionAccumulationResult memory result
+        VersionAccumulation memory result
     ) private pure {
-        Fixed6 exposure = context.riskParameter.takerFee.exposure(context.fromPosition.skew())
-            .add(context.riskParameter.makerFee.exposure(context.fromPosition.maker));
-
-        _accumulatePositionFeeComponentExposure(next, context, result, exposure);
-
-        Fixed6 adiabaticFee;
+        if (!context.toOracleVersion.valid) return;
 
         // position fee from positive skew taker orders
-        adiabaticFee = context.riskParameter.takerFee.adiabatic(
+        result.adiabaticFeeTakerPos = context.riskParameter.takerFee.adiabatic(
             context.fromPosition.skew(),
             Fixed6Lib.from(context.order.takerPos()),
             context.toOracleVersion.price.abs()
         );
-        next.takerPosFee.decrement(adiabaticFee, context.order.takerPos());
-        result.positionFeeImpact = result.positionFeeImpact.add(adiabaticFee);
+        next.takerPosFee.decrement(result.adiabaticFeeTakerPos);
 
         // position fee from negative skew taker orders
-        adiabaticFee = context.riskParameter.takerFee.adiabatic(
+        result.adiabaticFeeTakerNeg = context.riskParameter.takerFee.adiabatic(
             context.fromPosition.skew().add(Fixed6Lib.from(context.order.takerPos())),
             Fixed6Lib.from(-1, context.order.takerNeg()),
             context.toOracleVersion.price.abs()
         );
-        next.takerNegFee.decrement(adiabaticFee, context.order.takerNeg());
-        result.positionFeeImpact = result.positionFeeImpact.add(adiabaticFee);
+        next.takerNegFee.decrement(result.adiabaticFeeTakerNeg);
 
         // position fee from negative skew maker orders
-        adiabaticFee = context.riskParameter.makerFee.adiabatic(
+        result.adiabaticFeeMakerNeg = context.riskParameter.makerFee.adiabatic(
             context.fromPosition.maker,
             Fixed6Lib.from(-1, context.order.makerNeg),
             context.toOracleVersion.price.abs()
         );
-        next.makerNegFee.decrement(adiabaticFee, context.order.makerNeg);
-        result.positionFeeImpact = result.positionFeeImpact.add(adiabaticFee);
+        next.makerNegFee.decrement(result.adiabaticFeeMakerNeg);
 
         // position fee from positive skew maker orders
-        adiabaticFee = context.riskParameter.makerFee.adiabatic(
+        result.adiabaticFeeMakerPos = context.riskParameter.makerFee.adiabatic(
             context.fromPosition.maker.sub(context.order.makerNeg),
             Fixed6Lib.from(context.order.makerPos),
             context.toOracleVersion.price.abs()
         );
-        next.makerPosFee.decrement(adiabaticFee, context.order.makerPos);
-        result.positionFeeImpact = result.positionFeeImpact.add(adiabaticFee);
+        next.makerPosFee.decrement(result.adiabaticFeeMakerPos);
     }
 
     /// @notice Globally accumulates single component of the position fees exposure since last oracle update
     /// @param next The Version object to update
     /// @param context The accumulation context
-    /// @param result The accumulation result
-    /// @param latestExposure The latest exposure
     function _accumulatePositionFeeComponentExposure(
-        Version memory next,
+        Accumulator memory next,
         AccumulationContext memory context,
-        VersionAccumulationResult memory result,
-        Fixed6 latestExposure
+        VersionAccumulation memory result
     ) private pure {
-        Fixed6 impactExposure = context.toOracleVersion.price.sub(context.fromOracleVersion.price).mul(latestExposure);
-        Fixed6 impactExposureMaker = impactExposure.mul(Fixed6Lib.NEG_ONE);
-        Fixed6 impactExposureProtocol = context.fromPosition.maker.isZero() ? impactExposureMaker : Fixed6Lib.ZERO;
-        impactExposureMaker = impactExposureMaker.sub(impactExposureProtocol);
-        next.makerValue.increment(impactExposureMaker, context.fromPosition.maker);
+        Fixed6 latestExposure = context.riskParameter.takerFee.exposure(context.fromPosition.skew())
+            .add(context.riskParameter.makerFee.exposure(context.fromPosition.maker));
 
-        result.positionFeeExposure = impactExposure;
-        result.positionFeeExposureProtocol = impactExposureProtocol;
-        result.positionFeeExposureMaker = impactExposureMaker;
+        result.positionFeeExposure.from = context.toOracleVersion.price.sub(context.fromOracleVersion.price).mul(latestExposure);
+        result.positionFeeExposure.to = result.positionFeeExposure.from.mul(Fixed6Lib.NEG_ONE);
+        result.positionFeeMarketExposure = context.fromPosition.maker.isZero() ? result.positionFeeExposure.to : Fixed6Lib.ZERO;
+        result.positionFeeExposure.to = result.positionFeeExposure.to.sub(result.positionFeeMarketExposure);
+
+        next.makerValue.increment(result.positionFeeExposure.to);
     }
 
     /// @notice Globally accumulates all long-short funding since last oracle update
-    /// @param next The Version object to update
+    /// @param next The accumulator object to update
     /// @param context The accumulation context
-    /// @return fundingMaker The total funding accrued by makers
-    /// @return fundingLong The total funding accrued by longs
-    /// @return fundingShort The total funding accrued by shorts
-    /// @return fundingFee The total fee accrued from funding accumulation
-    function _accumulateFunding(Version memory next, AccumulationContext memory context) private pure returns (
-        Fixed6 fundingMaker,
-        Fixed6 fundingLong,
-        Fixed6 fundingShort,
-        UFixed6 fundingFee
-    ) {
+    /// @param result The accumulation result
+    function _accumulateFunding(
+        Accumulator memory next,
+        AccumulationContext memory context,
+        VersionAccumulation memory result
+    ) private pure {
         Fixed6 toSkew = context.toOracleVersion.valid ?
             context.fromPosition.skew().add(context.order.long()).sub(context.order.short()) :
             context.fromPosition.skew();
@@ -348,46 +368,27 @@ library VersionLib {
         if (context.riskParameter.makerReceiveOnly && funding.sign() != context.fromPosition.skew().sign())
             funding = funding.mul(Fixed6Lib.NEG_ONE);
 
-        // Initialize long and short funding
-        (fundingLong, fundingShort) = (Fixed6Lib.NEG_ONE.mul(funding), funding);
-
-        // Compute fee spread
-        fundingFee = funding.abs().mul(context.marketParameter.fundingFee);
-        Fixed6 fundingSpread = Fixed6Lib.from(fundingFee).div(Fixed6Lib.from(2));
-
-        // Adjust funding with spread
-        (fundingLong, fundingShort) = (
-            fundingLong.sub(Fixed6Lib.from(fundingFee)).add(fundingSpread),
-            fundingShort.sub(fundingSpread)
+        // Need other data
+        (result.funding.fee, result.funding.accumulation) = Accumulator6Lib.transfer(
+            next.longValue,
+            next.shortValue,
+            next.makerValue,
+            funding,
+            context.marketParameter.fundingFee
         );
-
-        // Redirect net portion of minor's side to maker
-        if (context.fromPosition.long.gt(context.fromPosition.short)) {
-            fundingMaker = fundingShort.mul(Fixed6Lib.from(context.fromPosition.socializedMakerPortion()));
-            fundingShort = fundingShort.sub(fundingMaker);
-        }
-        if (context.fromPosition.short.gt(context.fromPosition.long)) {
-            fundingMaker = fundingLong.mul(Fixed6Lib.from(context.fromPosition.socializedMakerPortion()));
-            fundingLong = fundingLong.sub(fundingMaker);
-        }
-
-        next.makerValue.increment(fundingMaker, context.fromPosition.maker);
-        next.longValue.increment(fundingLong, context.fromPosition.long);
-        next.shortValue.increment(fundingShort, context.fromPosition.short);
     }
 
     /// @notice Globally accumulates all maker interest since last oracle update
-    /// @param next The Version object to update
+    /// @param next The accumulator object to update
     /// @param context The accumulation context
-    /// @return interestMaker The total interest accrued by makers
-    /// @return interestLong The total interest accrued by longs
-    /// @return interestShort The total interest accrued by shorts
-    /// @return interestFee The total fee accrued from interest accumulation
+    /// @param result The accumulation result
     function _accumulateInterest(
-        Version memory next,
-        AccumulationContext memory context
-    ) private pure returns (Fixed6 interestMaker, Fixed6 interestLong, Fixed6 interestShort, UFixed6 interestFee) {
-        UFixed6 notional = context.fromPosition.long.add(context.fromPosition.short).min(context.fromPosition.maker).mul(context.fromOracleVersion.price.abs());
+        Accumulator memory next,
+        AccumulationContext memory context,
+        VersionAccumulation memory result
+    ) private pure {
+        UFixed6 notional = context.fromPosition.long.add(context.fromPosition.short).min(context.fromPosition.maker)
+            .mul(context.fromOracleVersion.price.abs());
 
         // Compute maker interest
         UFixed6 interest = context.riskParameter.utilizationCurve.accumulate(
@@ -397,43 +398,49 @@ library VersionLib {
             notional
         );
 
-        // Compute fee
-        interestFee = interest.mul(context.marketParameter.interestFee);
+        UFixed6 takerRatio = context.fromPosition.long
+            .unsafeDiv(context.fromPosition.long.add(context.fromPosition.short));
 
-        // Adjust long and short funding with spread
-        interestLong = Fixed6Lib.from(
-            context.fromPosition.major().isZero() ?
-            interest :
-            interest.muldiv(context.fromPosition.long, context.fromPosition.long.add(context.fromPosition.short))
+        // TODO: consolidate
+        (UFixed6 longInterstFee, BiAccumulation memory longInterestAccumulation) = Accumulator6Lib.transfer(
+            next.longValue,
+            next.makerValue,
+            Fixed6Lib.from(interest.mul(takerRatio)),
+            context.marketParameter.interestFee
         );
-        interestShort = Fixed6Lib.from(interest).sub(interestLong);
-        interestMaker = Fixed6Lib.from(interest.sub(interestFee));
+        (UFixed6 shortInterstFee, BiAccumulation memory shortInterestAccumulation) = Accumulator6Lib.transfer(
+            next.shortValue,
+            next.makerValue,
+            Fixed6Lib.from(interest.sub(interest.mul(takerRatio))),
+            context.marketParameter.interestFee
+        );
 
-        interestLong = interestLong.mul(Fixed6Lib.NEG_ONE);
-        interestShort = interestShort.mul(Fixed6Lib.NEG_ONE);
-        next.makerValue.increment(interestMaker, context.fromPosition.maker);
-        next.longValue.increment(interestLong, context.fromPosition.long);
-        next.shortValue.increment(interestShort, context.fromPosition.short);
+        result.interest.accumulation = TriAccumulation(
+            longInterestAccumulation.from,
+            shortInterestAccumulation.from,
+            longInterestAccumulation.to.add(shortInterestAccumulation.to)
+        );
+        result.interest.fee = longInterstFee.add(shortInterstFee);
     }
 
     /// @notice Globally accumulates position profit & loss since last oracle update
-    /// @param next The Version object to update
+    /// @param next The accumulator object to update
     /// @param context The accumulation context
-    /// @return pnlMaker The total pnl accrued by makers
-    /// @return pnlLong The total pnl accrued by longs
-    /// @return pnlShort The total pnl accrued by shorts
+    /// @param result The accumulation result
     function _accumulatePNL(
-        Version memory next,
-        AccumulationContext memory context
-    ) private pure returns (Fixed6 pnlMaker, Fixed6 pnlLong, Fixed6 pnlShort) {
-        pnlLong = context.toOracleVersion.price.sub(context.fromOracleVersion.price)
-            .mul(Fixed6Lib.from(context.fromPosition.longSocialized()));
-        pnlShort = context.fromOracleVersion.price.sub(context.toOracleVersion.price)
-            .mul(Fixed6Lib.from(context.fromPosition.shortSocialized()));
-        pnlMaker = pnlLong.add(pnlShort).mul(Fixed6Lib.NEG_ONE);
+        Accumulator memory next,
+        AccumulationContext memory context,
+        VersionAccumulation memory result
+    ) private pure {
+        Fixed6 pnl = context.toOracleVersion.price.sub(context.fromOracleVersion.price)
+            .mul(Fixed6Lib.from(context.fromPosition.major()));
 
-        next.longValue.increment(pnlLong, context.fromPosition.long);
-        next.shortValue.increment(pnlShort, context.fromPosition.short);
-        next.makerValue.increment(pnlMaker, context.fromPosition.maker);
+        (result.pnl.fee, result.pnl.accumulation) = Accumulator6Lib.transfer(
+            next.longValue,
+            next.shortValue,
+            next.makerValue,
+            pnl,
+            UFixed6Lib.ZERO
+        );
     }
 }

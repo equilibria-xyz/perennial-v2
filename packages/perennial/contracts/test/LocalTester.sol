@@ -22,7 +22,7 @@ contract LocalTester {
 
     function update(
         uint256 newId,
-        CheckpointAccumulationResult memory accumulation
+        CheckpointAccumulation memory accumulation
     ) external {
         Local memory newLocal = local.read();
         newLocal.update(newId, accumulation);

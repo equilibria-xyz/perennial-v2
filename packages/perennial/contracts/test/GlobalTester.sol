@@ -16,7 +16,7 @@ contract GlobalTester {
 
     function update(
         uint256 newLatestId,
-        VersionAccumulationResult memory accumulation,
+        VersionAccumulation memory accumulation,
         MarketParameter memory marketParameter,
         ProtocolParameter memory protocolParameter
     ) external {

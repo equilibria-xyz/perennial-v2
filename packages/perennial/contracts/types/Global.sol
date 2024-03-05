@@ -48,13 +48,16 @@ library GlobalLib {
     function update(
         Global memory self,
         uint256 newLatestId,
-        VersionAccumulationResult memory accumulation,
+        VersionAccumulation memory accumulation,
         MarketParameter memory marketParameter,
         ProtocolParameter memory protocolParameter
     ) internal pure {
-        UFixed6 marketFee = accumulation.positionFeeProtocol
-            .add(accumulation.fundingFee)
-            .add(accumulation.interestFee);
+        UFixed6 marketFee = accumulation.linearFeeMaker.fee
+            .add(accumulation.linearFeeTaker.fee)
+            .add(accumulation.proportionalFeeMaker.fee)
+            .add(accumulation.proportionalFeeTaker.fee)
+            .add(accumulation.funding.fee)
+            .add(accumulation.interest.fee);
 
         UFixed6 protocolFeeAmount = marketFee.mul(protocolParameter.protocolFee);
         UFixed6 marketFeeAmount = marketFee.sub(protocolFeeAmount);
@@ -68,7 +71,7 @@ library GlobalLib {
         self.oracleFee = self.oracleFee.add(accumulation.settlementFee).add(oracleFeeAmount);
         self.riskFee = self.riskFee.add(riskFeeAmount);
         self.donation = self.donation.add(donationAmount);
-        self.exposure = self.exposure.add(accumulation.positionFeeExposureProtocol);
+        self.exposure = self.exposure.add(accumulation.positionFeeMarketExposure);
     }
 }
 

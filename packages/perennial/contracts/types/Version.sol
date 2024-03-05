@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: Apache-2.0
 pragma solidity ^0.8.13;
 
-import "@equilibria/root/accumulator/types/Accumulator6.sol";
+import "@equilibria/root/accumulator/types/Accumulated6.sol";
 import "./ProtocolParameter.sol";
 import "./MarketParameter.sol";
 import "./RiskParameter.sol";
@@ -15,43 +15,43 @@ struct Version {
     bool valid;
 
     /// @dev The maker accumulator value
-    Accumulator6 makerValue;
+    Accumulated6 makerValue;
 
     /// @dev The long accumulator value
-    Accumulator6 longValue;
+    Accumulated6 longValue;
 
     /// @dev The short accumulator value
-    Accumulator6 shortValue;
+    Accumulated6 shortValue;
 
     /// @dev The accumulated linear fee for maker orders
-    Accumulator6 makerLinearFee;
+    Accumulated6 makerLinearFee;
 
     /// @dev The accumulated proportional fee for maker orders
-    Accumulator6 makerProportionalFee;
+    Accumulated6 makerProportionalFee;
 
     /// @dev The accumulated linear fee for taker orders
-    Accumulator6 takerLinearFee;
+    Accumulated6 takerLinearFee;
 
     /// @dev The accumulated proportional fee for taker orders
-    Accumulator6 takerProportionalFee;
+    Accumulated6 takerProportionalFee;
 
     /// @dev The accumulated fee for positive skew maker orders
-    Accumulator6 makerPosFee;
+    Accumulated6 makerPosFee;
 
     /// @dev The accumulated fee for negative skew maker orders
-    Accumulator6 makerNegFee;
+    Accumulated6 makerNegFee;
 
     /// @dev The accumulated fee for positive skew taker orders
-    Accumulator6 takerPosFee;
+    Accumulated6 takerPosFee;
 
     /// @dev The accumulated fee for negative skew taker orders
-    Accumulator6 takerNegFee;
+    Accumulated6 takerNegFee;
 
     /// @dev The accumulated settlement fee for each individual order
-    Accumulator6 settlementFee;
+    Accumulated6 settlementFee;
 
     /// @dev The accumulated liquidation fee for each individual order
-    Accumulator6 liquidationFee;
+    Accumulated6 liquidationFee;
 }
 struct VersionStorage { uint256 slot0; uint256 slot1; uint256 slot2; }
 using VersionStorageLib for VersionStorage global;
@@ -88,22 +88,22 @@ library VersionStorageLib {
         (uint256 slot0, uint256 slot1, uint256 slot2) = (self.slot0, self.slot1, self.slot2);
         return Version(
             (uint256(slot0 << (256 - 8)) >> (256 - 8)) != 0,
-            Accumulator6(Fixed6.wrap(int256(slot0 << (256 - 8 - 64)) >> (256 - 64))),
-            Accumulator6(Fixed6.wrap(int256(slot0 << (256 - 8 - 64 - 64)) >> (256 - 64))),
-            Accumulator6(Fixed6.wrap(int256(slot0 << (256 - 8 - 64 - 64 - 64)) >> (256 - 64))),
+            Accumulated6(Fixed6.wrap(int256(slot0 << (256 - 8 - 64)) >> (256 - 64))),
+            Accumulated6(Fixed6.wrap(int256(slot0 << (256 - 8 - 64 - 64)) >> (256 - 64))),
+            Accumulated6(Fixed6.wrap(int256(slot0 << (256 - 8 - 64 - 64 - 64)) >> (256 - 64))),
 
-            Accumulator6(Fixed6.wrap(int256(slot2 << (256 - 48)) >> (256 - 48))),
-            Accumulator6(Fixed6.wrap(int256(slot2 << (256 - 48 - 48)) >> (256 - 48))),
-            Accumulator6(Fixed6.wrap(int256(slot2 << (256 - 48 - 48 - 48)) >> (256 - 48))),
-            Accumulator6(Fixed6.wrap(int256(slot2 << (256 - 48 - 48 - 48 - 48)) >> (256 - 48))),
+            Accumulated6(Fixed6.wrap(int256(slot2 << (256 - 48)) >> (256 - 48))),
+            Accumulated6(Fixed6.wrap(int256(slot2 << (256 - 48 - 48)) >> (256 - 48))),
+            Accumulated6(Fixed6.wrap(int256(slot2 << (256 - 48 - 48 - 48)) >> (256 - 48))),
+            Accumulated6(Fixed6.wrap(int256(slot2 << (256 - 48 - 48 - 48 - 48)) >> (256 - 48))),
 
-            Accumulator6(Fixed6.wrap(int256(slot1 << (256 - 48)) >> (256 - 48))),
-            Accumulator6(Fixed6.wrap(int256(slot1 << (256 - 48 - 48)) >> (256 - 48))),
-            Accumulator6(Fixed6.wrap(int256(slot1 << (256 - 48 - 48 - 48)) >> (256 - 48))),
-            Accumulator6(Fixed6.wrap(int256(slot1 << (256 - 48 - 48 - 48 - 48)) >> (256 - 48))),
+            Accumulated6(Fixed6.wrap(int256(slot1 << (256 - 48)) >> (256 - 48))),
+            Accumulated6(Fixed6.wrap(int256(slot1 << (256 - 48 - 48)) >> (256 - 48))),
+            Accumulated6(Fixed6.wrap(int256(slot1 << (256 - 48 - 48 - 48)) >> (256 - 48))),
+            Accumulated6(Fixed6.wrap(int256(slot1 << (256 - 48 - 48 - 48 - 48)) >> (256 - 48))),
 
-            Accumulator6(Fixed6.wrap(int256(slot1 << (256 - 48 - 48 - 48 - 48 - 48)) >> (256 - 48))),
-            Accumulator6(Fixed6.wrap(int256(slot0 << (256 - 8 - 64 - 64 - 64 - 48)) >> (256 - 48)))
+            Accumulated6(Fixed6.wrap(int256(slot1 << (256 - 48 - 48 - 48 - 48 - 48)) >> (256 - 48))),
+            Accumulated6(Fixed6.wrap(int256(slot0 << (256 - 8 - 64 - 64 - 64 - 48)) >> (256 - 48)))
         );
     }
 
