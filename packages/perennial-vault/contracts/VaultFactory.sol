@@ -1,11 +1,10 @@
 // SPDX-License-Identifier: Apache-2.0
-pragma solidity 0.8.19;
+pragma solidity 0.8.24;
 
 import "@equilibria/root/attribute/Ownable.sol";
 import "@equilibria/root/attribute/Factory.sol";
 import "@equilibria/root/attribute/Pausable.sol";
 import "./interfaces/IVaultFactory.sol";
-
 
 /// @title VaultFactory
 /// @notice Manages creating new markets and global protocol parameters.
