@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: Apache-2.0
-pragma solidity 0.8.19;
+pragma solidity ^0.8.13;
 
 import "@openzeppelin/contracts/utils/math/SafeCast.sol";
 import "@equilibria/root/attribute/Factory.sol";
@@ -51,7 +51,7 @@ abstract contract KeeperFactory is IKeeperFactory, Factory, Kept {
 
     /// @dev Mapping of which factory's instances are authorized to request from this factory's instances
     mapping(IFactory => bool) public callers;
-    
+
     /// @dev Registered payoff providers
     mapping(IPayoffProvider => bool) public payoffs;
 
@@ -287,11 +287,11 @@ abstract contract KeeperFactory is IKeeperFactory, Factory, Kept {
     function _transformPrices(bytes32[] memory ids, PriceRecord[] memory prices) private view {
         for (uint256 i; i < prices.length; i++) {
             PayoffDefinition memory payoff = _toUnderlyingPayoff[ids[i]];
-            
+
             // apply payoff if it exists
             if (payoff.provider != IPayoffProvider(address(0)))
                 prices[i].price = payoff.provider.payoff(prices[i].price);
-            
+
             // apply decimal offset
             Fixed18 base = Fixed18Lib.from(int256(10 ** SignedMath.abs(payoff.decimals)));
             prices[i].price = payoff.decimals < 0 ? prices[i].price.div(base) : prices[i].price.mul(base);
