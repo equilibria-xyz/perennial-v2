@@ -9257,6 +9257,8 @@ describe('Market', () => {
               makerValue: { _value: EXPECTED_MAKER_LINEAR.add(EXPECTED_MAKER_PROPORTIONAL).mul(9).div(10).div(10) },
               longValue: { _value: 0 },
               shortValue: { _value: 0 },
+              makerLinearFee: { _value: -EXPECTED_MAKER_LINEAR.div(5) },
+              makerProportionalFee: { _value: -EXPECTED_MAKER_PROPORTIONAL.div(5) },
               makerNegFee: { _value: -EXPECTED_MAKER_ADIABATIC.div(5) },
               settlementFee: { _value: -EXPECTED_SETTLEMENT_FEE },
               liquidationFee: { _value: -riskParameter.liquidationFee },
@@ -11424,6 +11426,8 @@ describe('Market', () => {
                       .mul(-1)
                       .sub(1), // loss of precision
                   },
+                  takerLinearFee: { _value: -EXPECTED_TAKER_LINEAR.div(5) },
+                  takerProportionalFee: { _value: -EXPECTED_TAKER_PROPORTIONAL.div(5) },
                   takerNegFee: { _value: -EXPECTED_TAKER_ADIABATIC.div(5) },
                   settlementFee: { _value: -SETTLEMENT_FEE },
                   liquidationFee: { _value: -riskParameter.liquidationFee },
@@ -15027,6 +15031,8 @@ describe('Market', () => {
           expectVersionEq(await market.versions(ORACLE_VERSION_4.timestamp), {
             ...DEFAULT_VERSION,
             makerValue: { _value: TAKER_FEE_ONLY_WITHOUT_FEE.div(10) },
+            takerLinearFee: { _value: -EXPECTED_TAKER_LINEAR.div(5) },
+            takerProportionalFee: { _value: -EXPECTED_TAKER_PROPORTIONAL.div(5) },
             takerPosFee: { _value: -EXPECTED_TAKER_ADIABATIC.div(5) },
             settlementFee: { _value: -SETTLEMENT_FEE },
             liquidationFee: { _value: -riskParameter.liquidationFee },
@@ -15651,6 +15657,8 @@ describe('Market', () => {
           expectVersionEq(await market.versions(ORACLE_VERSION_5.timestamp), {
             ...DEFAULT_VERSION,
             makerValue: { _value: TAKER_FEE_ONLY_WITHOUT_FEE.div(10) },
+            takerLinearFee: { _value: -EXPECTED_TAKER_LINEAR.div(5) },
+            takerProportionalFee: { _value: -EXPECTED_TAKER_PROPORTIONAL.div(5) },
             takerPosFee: { _value: -EXPECTED_TAKER_ADIABATIC.div(5) },
             settlementFee: { _value: -SETTLEMENT_FEE },
             liquidationFee: { _value: -riskParameter.liquidationFee },
