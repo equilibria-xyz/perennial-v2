@@ -1,22 +1,19 @@
 # Perennial v2.2 Migration Runbook
 
-[![License](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
+## Checklist
+
+0. [Pre-upgrade action items](#pre-upgrade-action-items)
+1. [Upgrade to v2.1.1](#upgrade-to-v211)
+2. [Enter *settle only* mode, and settle all accounts on all markets / vaults](#enter-settle-only-mode-and-settle-all-accounts-on-all-markets--vaults)
+3. [Upgrade to v2.2](#upgrade-to-v22)
 
 ## Pre-upgrade action items
 
 - Deploy v2.2 implementations
 - Deploy new Pyth implementation w/ all oracles
   - Including separate oracles for power perp markets
-- Update Vault parameters
-- Ensure latest is valid for all oracles
-
-## Checklist
-
-0. Pre-upgrade action items
-1. Upgrade to v2.1.1
-2. Enter `settle-only` mode
-3. Settle all accounts on all live markets / vaults
-4. Upgrade to v2.2
+- [Update Vault parameters](#update-vault-parameters)
+- [Ensure latest is valid for all oracles](#ensure-latest-is-valid-for-all-oracles)
 
 ### Update Vault parameters
 
@@ -36,11 +33,9 @@ Upgrade the protocol contracts to [v2.1.1](https://github.com/equilibria-xyz/per
 
 This is upgrade-safe since the new `settleOnly` field in the risk parameters defaults to `false`.
 
-## Enter settle only mode
+## Enter *settle only* mode, and settle all accounts on all markets / vaults
 
 Next we turn on the `settleOnly` parameter to `true`. This pauses all new updates to the markets, while still allowing settlement.
-
-## Settle all accounts on all live markets / vaults
 
 We must then go through and settle every single account that has an unsettled position present in each market. This can be batched via a multicall contract.
 
@@ -53,6 +48,19 @@ We are migrating off the pending position standard onto orders in v2.2.
 This ensures that all pending position have been fully processed, so that it is safe to ignore them going forward.
 
 see: https://github.com/equilibria-xyz/perennial-v2/pull/208.
+
+### Version
+
+Version has a considerable amount of new fields.
+
+Each of these new fields is non-aggregating, i.e. is reset each version and only use to track things like position fees for the specified version.
+
+This is upgrade safe since the legacy aggregated fields are unchanged in their storage position, and the new fields are reset to zero upon preparing a new version.
+
+see:
+- https://github.com/equilibria-xyz/perennial-v2/pull/208
+- https://github.com/equilibria-xyz/perennial-v2/pull/230
+- https://github.com/equilibria-xyz/perennial-v2/pull/255
 
 ### Checkpoint
 
@@ -81,18 +89,22 @@ see: https://github.com/equilibria-xyz/perennial-v2/pull/233.
 The upgrade to v2.2 must be processed atomically, similarly to the upgrade to v2.1:
 
 - Upgrade implementations to v2.2
-- Update Risk / Market / Protocol Parameters to new format
-- Update sub-oracles to v2.2-based oracles
-- Update oracles of power perp markets from linear to payoff oracles
+- [Update Risk / Market / Protocol Parameters to new format](#update-risk--market--protocol-parameters-to-new-format)
+- [Update sub-oracles to v2.2-based oracles](#update-sub-oracles-to-v22-based-oracles-implementations)
+- [Update oracles of power perp markets from linear to payoff oracles](#update-oracles-of-power-perp-markets-from-linear-to-payoff-oracles)
 
 ### Update Risk / Market / Protocol Parameters to new format
 
 All parameter sets have a new format. Each needs to be updated for all markets.
 
-### Update sub-oracles to v2.2-based oracles
+### Update sub-oracles to v2.2-based oracles implementations
 
-A new PythOracle implementation will be deployed with this release. A standard update is required on each market to transition to the new oracles.
+A new PythOracle implementation will be deployed with this release. A standard sub-oracle update is required on each market's oracle to transition to the new sub-oracles.
+
+see: https://github.com/equilibria-xyz/perennial-v2/pull/200.
 
 ### Update oracles of power perp markets from linear to payoff oracles
 
-Since we are moving payoffs to the oracle layer, we must update the oracles of the power perp markets specifically.
+Since we are moving payoffs to the oracle layer, we must update the power perp markets' oracles to the newly deployed power perp oracles.
+
+see: https://github.com/equilibria-xyz/perennial-v2/pull/200.
