@@ -236,6 +236,7 @@ testOracles.forEach(testOracle => {
         makerCloseAlways: false,
         takerCloseAlways: false,
         closed: false,
+        settle: false,
       }
       market = Market__factory.connect(
         await marketFactory.callStatic.create({
