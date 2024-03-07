@@ -604,7 +604,7 @@ describe('Vault', () => {
     })
   })
 
-  describe('#deposit/#redeem/#claim/#settle', () => {
+  describe('#settle', () => {
     it('simple deposits and redemptions', async () => {
       expect(await vault.convertToAssets(parse6decimal('1'))).to.equal(parse6decimal('1'))
       expect(await vault.convertToShares(parse6decimal('1'))).to.equal(parse6decimal('1'))
@@ -616,7 +616,7 @@ describe('Vault', () => {
       expect((await vault.accounts(ethers.constants.AddressZero)).shares).to.equal(0)
       expect(await vault.totalAssets()).to.equal(0)
       await updateOracle()
-      await vault.settle(user.address)
+      await vault.rebalance(user.address)
 
       const checkpoint1 = await vault.checkpoints(1)
       expect(checkpoint1.deposit).to.equal(smallDeposit)
@@ -691,6 +691,95 @@ describe('Vault', () => {
       expect((await vault.accounts(user.address)).assets).to.equal(0)
       expect((await vault.accounts(ethers.constants.AddressZero)).assets).to.equal(0)
     })
+  })
+
+  describe('#deposit/#redeem/#claim/#rebalance', () => {
+    it('simple deposits and redemptions', async () => {
+      expect(await vault.convertToAssets(parse6decimal('1'))).to.equal(parse6decimal('1'))
+      expect(await vault.convertToShares(parse6decimal('1'))).to.equal(parse6decimal('1'))
+
+      const smallDeposit = parse6decimal('10')
+      await vault.connect(user).update(user.address, smallDeposit, 0, 0)
+      expect(await collateralInVault()).to.equal(parse6decimal('8'))
+      expect(await btcCollateralInVault()).to.equal(parse6decimal('2'))
+      expect((await vault.accounts(ethers.constants.AddressZero)).shares).to.equal(0)
+      expect(await vault.totalAssets()).to.equal(0)
+      await updateOracle()
+      await vault.rebalance(user.address)
+
+      const checkpoint1 = await vault.checkpoints(1)
+      expect(checkpoint1.deposit).to.equal(smallDeposit)
+      expect(checkpoint1.orders).to.equal(1)
+      expect(checkpoint1.timestamp).to.equal((await market.pendingOrders(vault.address, 1)).timestamp)
+
+      // We're underneath the collateral minimum, so we shouldn't have opened any positions.
+      expect(await position()).to.equal(0)
+      expect(await btcPosition()).to.equal(0)
+      const largeDeposit = parse6decimal('10000')
+      await vault.connect(user).update(user.address, largeDeposit, 0, 0)
+      expect(await collateralInVault()).to.equal(parse6decimal('8008'))
+      expect(await btcCollateralInVault()).to.equal(parse6decimal('2002'))
+      expect((await vault.accounts(user.address)).shares).to.equal(smallDeposit)
+      expect((await vault.accounts(ethers.constants.AddressZero)).shares).to.equal(smallDeposit)
+      expect(await vault.totalAssets()).to.equal(smallDeposit)
+      expect(await vault.convertToAssets(parse6decimal('10'))).to.equal(parse6decimal('10'))
+      expect(await vault.convertToShares(parse6decimal('10'))).to.equal(parse6decimal('10'))
+      await updateOracle()
+      await vault.rebalance(user.address)
+      const checkpoint2 = await vault.checkpoints(2)
+      expect(checkpoint2.deposit).to.equal(largeDeposit)
+      expect(checkpoint2.assets).to.equal(smallDeposit)
+      expect(checkpoint2.shares).to.equal(smallDeposit)
+      expect(checkpoint2.orders).to.equal(1)
+      expect(checkpoint2.timestamp).to.equal((await market.pendingOrders(vault.address, 2)).timestamp)
+
+      expect((await vault.accounts(user.address)).shares).to.equal(parse6decimal('10010'))
+      expect((await vault.accounts(ethers.constants.AddressZero)).shares).to.equal(parse6decimal('10010'))
+      expect(await vault.totalAssets()).to.equal(parse6decimal('10010'))
+      expect(await vault.convertToAssets(parse6decimal('10010'))).to.equal(parse6decimal('10010'))
+      expect(await vault.convertToShares(parse6decimal('10010'))).to.equal(parse6decimal('10010'))
+
+      // Now we should have opened positions.
+      // The positions should be equal to (smallDeposit + largeDeposit) * leverage originalOraclePrice.
+      expect(await position()).to.equal(
+        smallDeposit.add(largeDeposit).mul(leverage).mul(4).div(5).div(originalOraclePrice),
+      )
+      expect(await btcPosition()).to.equal(
+        smallDeposit.add(largeDeposit).mul(leverage).div(5).div(btcOriginalOraclePrice),
+      )
+
+      // User 2 should not be able to redeem; they haven't deposited anything.
+      await expect(vault.connect(user2).update(user2.address, 0, 1, 0)).to.be.revertedWithPanic(0x11)
+      expect((await vault.accounts(user.address)).shares).to.equal(parse6decimal('10010'))
+      await vault.connect(user).update(user.address, 0, (await vault.accounts(user.address)).shares, 0)
+      await updateOracle()
+      await vault.rebalance(user.address)
+
+      // We should have closed all positions.
+      expect(await position()).to.equal(0)
+      expect(await btcPosition()).to.equal(0)
+      expect(await btcPosition()).to.equal(0)
+
+      // We should have redeemed all of our shares.
+      const fundingAmount = BigNumber.from('414858')
+      expect(await totalCollateralInVault()).to.equal(parse6decimal('10010').add(fundingAmount).mul(1e12))
+      expect((await vault.accounts(user.address)).shares).to.equal(0)
+      expect((await vault.accounts(ethers.constants.AddressZero)).shares).to.equal(0)
+      expect(await vault.totalAssets()).to.equal(0)
+      expect(await vault.convertToAssets(parse6decimal('1'))).to.equal(parse6decimal('1'))
+      expect(await vault.convertToShares(parse6decimal('1'))).to.equal(parse6decimal('1'))
+      expect((await vault.accounts(user.address)).assets).to.equal(parse6decimal('10010').add(fundingAmount))
+      expect((await vault.accounts(ethers.constants.AddressZero)).assets).to.equal(
+        parse6decimal('10010').add(fundingAmount),
+      )
+
+      await vault.connect(user).update(user.address, 0, 0, ethers.constants.MaxUint256)
+
+      expect(await totalCollateralInVault()).to.equal(0)
+      expect(await asset.balanceOf(user.address)).to.equal(parse6decimal('100000').add(fundingAmount).mul(1e12))
+      expect((await vault.accounts(user.address)).assets).to.equal(0)
+      expect((await vault.accounts(ethers.constants.AddressZero)).assets).to.equal(0)
+    })
 
     it('multiple users', async () => {
       expect(await vault.convertToAssets(parse6decimal('1'))).to.equal(parse6decimal('1'))
@@ -699,12 +788,12 @@ describe('Vault', () => {
       const smallDeposit = parse6decimal('1000')
       await vault.connect(user).update(user.address, smallDeposit, 0, 0)
       await updateOracle()
-      await vault.settle(user.address)
+      await vault.rebalance(user.address)
 
       const largeDeposit = parse6decimal('10000')
       await vault.connect(user2).update(user2.address, largeDeposit, 0, 0)
       await updateOracle()
-      await vault.settle(user2.address)
+      await vault.rebalance(user2.address)
 
       // Now we should have opened positions.
       // The positions should be equal to (smallDeposit + largeDeposit) * leverage / 2 / originalOraclePrice.
@@ -731,11 +820,11 @@ describe('Vault', () => {
 
       await vault.connect(user).update(user.address, 0, (await vault.accounts(user.address)).shares, 0)
       await updateOracle()
-      await vault.settle(user.address)
+      await vault.rebalance(user.address)
 
       await vault.connect(user2).update(user2.address, 0, (await vault.accounts(user2.address)).shares, 0)
       await updateOracle()
-      await vault.settle(user2.address)
+      await vault.rebalance(user2.address)
 
       // We should have closed all positions.
       expect(await position()).to.equal(0)
@@ -777,14 +866,14 @@ describe('Vault', () => {
       const smallDeposit = parse6decimal('1000')
       await vault.connect(user).update(user.address, smallDeposit, 0, 0)
       await updateOracle()
-      await vault.settle(user.address)
+      await vault.rebalance(user.address)
 
       const largeDeposit = parse6decimal('2000')
       await vault.connect(user2).update(user2.address, largeDeposit, 0, 0)
       await vault.connect(user).update(user.address, 0, parse6decimal('400'), 0)
       await updateOracle()
-      await vault.settle(user.address)
-      await vault.settle(user2.address)
+      await vault.rebalance(user.address)
+      await vault.rebalance(user2.address)
 
       // Now we should have opened positions.
       // The positions should be equal to (smallDeposit + largeDeposit) * leverage / 2 / originalOraclePrice.
@@ -815,11 +904,11 @@ describe('Vault', () => {
 
       await vault.connect(user).update(user.address, 0, (await vault.accounts(user.address)).shares, 0)
       await updateOracle()
-      await vault.settle(user.address)
+      await vault.rebalance(user.address)
 
       await vault.connect(user2).update(user2.address, 0, (await vault.accounts(user2.address)).shares, 0)
       await updateOracle()
-      await vault.settle(user2.address)
+      await vault.rebalance(user2.address)
 
       // We should have closed all positions.
       expect(await position()).to.equal(0)
@@ -858,7 +947,7 @@ describe('Vault', () => {
       const smallDeposit = parse6decimal('1000')
       await vault.connect(user).update(user.address, smallDeposit, 0, 0)
       await updateOracle()
-      await vault.settle(user.address)
+      await vault.rebalance(user.address)
 
       const shareAmount = BigNumber.from(parse6decimal('1000'))
       expect((await vault.accounts(user.address)).shares).to.equal(shareAmount)
@@ -866,7 +955,7 @@ describe('Vault', () => {
       const largeDeposit = parse6decimal('10000')
       await vault.connect(user).update(user.address, largeDeposit, 0, 0)
       await updateOracle()
-      await vault.settle(user.address)
+      await vault.rebalance(user.address)
 
       const shareAmount2 = BigNumber.from('9999767625')
       expect((await vault.accounts(user.address)).shares).to.equal(shareAmount.add(shareAmount2))
@@ -885,7 +974,7 @@ describe('Vault', () => {
 
       // But if we update the oracle price, we should be able to redeem the rest of our shares.
       await updateOracle()
-      await vault.settle(user.address)
+      await vault.rebalance(user.address)
 
       expect(await position()).to.equal(0)
       expect(await btcPosition()).to.equal(0)
@@ -901,7 +990,7 @@ describe('Vault', () => {
 
       await vault.connect(user).update(user.address, largeDeposit, 0, 0)
       await updateOracle()
-      await vault.settle(user.address)
+      await vault.rebalance(user.address)
 
       const currentPosition = await currentPositionGlobal(market)
       const currentNet = currentPosition.long.sub(currentPosition.short).abs()
@@ -921,7 +1010,7 @@ describe('Vault', () => {
 
       // Settle the take position
       await updateOracle()
-      await vault.settle(user.address)
+      await vault.rebalance(user.address)
 
       // The vault can close 1 ETH of maker positions in the ETH market, which means the user can redeem 5/4 this amount
       const minPosition = BigNumber.from(11212633)
@@ -941,7 +1030,7 @@ describe('Vault', () => {
 
       await vault.connect(user).update(user.address, largeDeposit, 0, 0)
       await updateOracle()
-      await vault.settle(user.address)
+      await vault.rebalance(user.address)
 
       const currentPosition = await currentPositionGlobal(btcMarket)
       const currentNet = currentPosition.long.sub(currentPosition.short).abs()
@@ -961,7 +1050,7 @@ describe('Vault', () => {
 
       // Settle the take position
       await updateOracle()
-      await vault.settle(user.address)
+      await vault.rebalance(user.address)
 
       // The vault can close 1 BTC of maker positions in the BTC market, which means the user can redeem 5/1 this amount
       const minPosition = BigNumber.from(105981)
@@ -979,7 +1068,7 @@ describe('Vault', () => {
     it('rebalances collateral', async () => {
       await vault.connect(user).update(user.address, parse6decimal('99000'), 0, 0)
       await updateOracle()
-      await vault.settle(user.address)
+      await vault.rebalance(user.address)
 
       // vault starts balanced
       expect(await collateralInVault()).to.be.closeTo((await btcCollateralInVault()).mul(4), parse6decimal('1'))
@@ -1010,13 +1099,13 @@ describe('Vault', () => {
 
       await vault.connect(user).update(user.address, oddDepositAmount, 0, 0)
       await updateOracle()
-      await vault.settle(user.address)
+      await vault.rebalance(user.address)
       expect(await asset.balanceOf(vault.address)).to.equal(0) // deposits everything into markets
       expect((await collateralInVault()).add(await btcCollateralInVault())).to.equal(oddDepositAmount)
 
       await vault.connect(user).update(user.address, oddDepositAmount, 0, 0)
       await updateOracle()
-      await vault.settle(user.address)
+      await vault.rebalance(user.address)
     })
 
     it('operate on behalf', async () => {
@@ -1030,7 +1119,7 @@ describe('Vault', () => {
       await vaultFactory.connect(user).updateOperator(liquidator.address, false)
 
       await updateOracle()
-      await vault.settle(user.address)
+      await vault.rebalance(user.address)
 
       expect((await vault.accounts(user.address)).shares).to.equal(parse6decimal('10000'))
       expect((await vault.accounts(ethers.constants.AddressZero)).shares).to.equal(parse6decimal('10000'))
@@ -1044,7 +1133,7 @@ describe('Vault', () => {
       await vault.connect(liquidator).update(user.address, 0, parse6decimal('10000'), 0)
       await vaultFactory.connect(user).updateOperator(liquidator.address, false)
       await updateOracle()
-      await vault.settle(user.address)
+      await vault.rebalance(user.address)
 
       const fundingAmount = BigNumber.from('218864')
       await expect(
@@ -1074,13 +1163,13 @@ describe('Vault', () => {
           false,
         )
       await updateOracle()
-      await vault.settle(user.address)
+      await vault.rebalance(user.address)
 
       // Deposit should create a greater position than what's available
       const largeDeposit = parse6decimal('10000')
       await vault.connect(user).update(user.address, largeDeposit, 0, 0)
       await updateOracle()
-      await vault.settle(user.address)
+      await vault.rebalance(user.address)
 
       // Now we should have opened positions.
       // The positions should be equal to (smallDeposit + largeDeposit) * leverage / 2 / originalOraclePrice.
@@ -1104,13 +1193,13 @@ describe('Vault', () => {
         )
 
       await updateOracle()
-      await vault.settle(user.address)
+      await vault.rebalance(user.address)
 
       // Deposit should create a greater position than what's available
       const largeDeposit = parse6decimal('10000')
       await vault.connect(user).update(user.address, largeDeposit, 0, 0)
       await updateOracle()
-      await vault.settle(user.address)
+      await vault.rebalance(user.address)
 
       // Now we should have opened positions.
       // The positions should be equal to (smallDeposit + largeDeposit) * leverage / 2 / originalOraclePrice.
@@ -1123,7 +1212,7 @@ describe('Vault', () => {
       const largeDeposit = parse6decimal('10000')
       await vault.connect(user).update(user.address, largeDeposit, 0, 0)
       await updateOracle()
-      await vault.settle(user.address)
+      await vault.rebalance(user.address)
 
       // Get taker product very close to the maker
       await asset.connect(perennialUser).approve(market.address, constants.MaxUint256)
@@ -1139,7 +1228,7 @@ describe('Vault', () => {
         )
 
       await updateOracle()
-      await vault.settle(user.address)
+      await vault.rebalance(user.address)
 
       const makerAvailable = BigNumber.from(2212633)
       const redeemAvailable = await vault.convertToShares(
@@ -1149,14 +1238,14 @@ describe('Vault', () => {
       // Redeem should create a greater position delta than what's available
       await vault.connect(user).update(user.address, 0, redeemAvailable, 0)
       await updateOracle()
-      await vault.settle(user.address)
+      await vault.rebalance(user.address)
     })
 
     it('product closing closes all positions', async () => {
       const largeDeposit = parse6decimal('10000')
       await vault.connect(user).update(user.address, largeDeposit, 0, 0)
       await updateOracle()
-      await vault.settle(user.address)
+      await vault.rebalance(user.address)
 
       expect(await position()).to.equal(largeDeposit.mul(leverage).mul(4).div(5).div(originalOraclePrice))
       expect(await btcPosition()).to.equal(largeDeposit.mul(leverage).div(5).div(btcOriginalOraclePrice))
@@ -1218,12 +1307,12 @@ describe('Vault', () => {
       const smallDeposit = parse6decimal('1000')
       await vault.connect(user).update(user.address, smallDeposit, 0, 0)
       await updateOracle()
-      await vault.settle(user.address)
+      await vault.rebalance(user.address)
 
       const largeDeposit = parse6decimal('10000')
       await vault.connect(user2).update(user2.address, largeDeposit, 0, 0)
       await updateOracle()
-      await vault.settle(user2.address)
+      await vault.rebalance(user2.address)
 
       // Now we should have opened positions.
       // The positions should be equal to (smallDeposit + largeDeposit) * leverage / 2 / originalOraclePrice.
@@ -1244,11 +1333,11 @@ describe('Vault', () => {
 
       await vault.connect(user).update(user.address, 0, (await vault.accounts(user.address)).shares, 0)
       await updateOracle()
-      await vault.settle(user.address)
+      await vault.rebalance(user.address)
 
       await vault.connect(user2).update(user2.address, 0, (await vault.accounts(user2.address)).shares, 0)
       await updateOracle()
-      await vault.settle(user2.address)
+      await vault.rebalance(user2.address)
 
       // We should have closed all positions.
       expect(await position()).to.equal(0)
@@ -1299,10 +1388,10 @@ describe('Vault', () => {
       expect((await vault.accounts(ethers.constants.AddressZero)).assets).to.equal(0)
 
       await updateOracle()
-      await vault.settle(user.address)
+      await vault.rebalance(user.address)
       await vault.connect(user).update(user.address, smallDeposit, 0, 0)
       await updateOracle()
-      await vault.settle(user.address)
+      await vault.rebalance(user.address)
       expect((await vault.accounts(user.address)).shares).to.equal(parse6decimal('1000'))
       expect(await vault.totalAssets()).to.equal(parse6decimal('1000').add(0))
       expect((await vault.accounts(ethers.constants.AddressZero)).shares).to.equal(parse6decimal('1000'))
@@ -1342,12 +1431,12 @@ describe('Vault', () => {
       const smallDeposit = parse6decimal('1000')
       await vault.connect(user).update(user.address, smallDeposit, 0, 0)
       await updateOracle()
-      await vault.settle(user.address)
+      await vault.rebalance(user.address)
 
       const largeDeposit = parse6decimal('10000')
       await vault.connect(user2).update(user2.address, largeDeposit, 0, 0)
       await updateOracle()
-      await vault.settle(user2.address)
+      await vault.rebalance(user2.address)
 
       // Now we should have opened positions.
       // The positions should be equal to (smallDeposit + largeDeposit) * leverage / 2 / originalOraclePrice.
@@ -1369,11 +1458,11 @@ describe('Vault', () => {
 
       await vault.connect(user).update(user.address, 0, (await vault.accounts(user.address)).shares, 0)
       await updateOracle()
-      await vault.settle(user.address)
+      await vault.rebalance(user.address)
 
       await vault.connect(user2).update(user2.address, 0, (await vault.accounts(user2.address)).shares, 0)
       await updateOracle()
-      await vault.settle(user2.address)
+      await vault.rebalance(user2.address)
 
       // We should have closed all positions.
       expect(await position()).to.equal(0)
@@ -1431,10 +1520,10 @@ describe('Vault', () => {
       expect((await vault.accounts(ethers.constants.AddressZero)).assets).to.equal(0)
 
       await updateOracle()
-      await vault.settle(user.address)
+      await vault.rebalance(user.address)
       await vault.connect(user).update(user.address, smallDeposit, 0, 0)
       await updateOracle()
-      await vault.settle(user.address)
+      await vault.rebalance(user.address)
       expect((await vault.accounts(user.address)).shares).to.equal(parse6decimal('1000'))
       expect(await vault.totalAssets()).to.equal(parse6decimal('1000').add(0))
       expect((await vault.accounts(ethers.constants.AddressZero)).shares).to.equal(parse6decimal('1000'))
@@ -1482,12 +1571,12 @@ describe('Vault', () => {
       const smallDeposit = parse6decimal('1000')
       await vault.connect(user).update(user.address, smallDeposit, 0, 0)
       await updateOracle()
-      await vault.settle(user.address)
+      await vault.rebalance(user.address)
 
       const largeDeposit = parse6decimal('10000')
       await vault.connect(user2).update(user2.address, largeDeposit, 0, 0)
       await updateOracle()
-      await vault.settle(user2.address)
+      await vault.rebalance(user2.address)
 
       // Now we should have opened positions.
       // The positions should be equal to (smallDeposit + largeDeposit) * leverage / 2 / originalOraclePrice.
@@ -1514,11 +1603,11 @@ describe('Vault', () => {
 
       await vault.connect(user).update(user.address, 0, (await vault.accounts(user.address)).shares, 0)
       await updateOracle()
-      await vault.settle(user.address)
+      await vault.rebalance(user.address)
 
       await vault.connect(user2).update(user2.address, 0, (await vault.accounts(user2.address)).shares, 0)
       await updateOracle()
-      await vault.settle(user2.address)
+      await vault.rebalance(user2.address)
 
       // We should have closed all positions.
       expect(await position()).to.equal(0)
@@ -1575,10 +1664,10 @@ describe('Vault', () => {
       expect((await vault.accounts(ethers.constants.AddressZero)).assets).to.equal(0)
 
       await updateOracle()
-      await vault.settle(user.address)
+      await vault.rebalance(user.address)
       await vault.connect(user).update(user.address, smallDeposit, 0, 0)
       await updateOracle()
-      await vault.settle(user.address)
+      await vault.rebalance(user.address)
       expect((await vault.accounts(user.address)).shares).to.equal(parse6decimal('1000'))
       expect(await vault.totalAssets()).to.equal(parse6decimal('1000').add(0))
       expect((await vault.accounts(ethers.constants.AddressZero)).shares).to.equal(parse6decimal('1000'))
@@ -1699,16 +1788,16 @@ describe('Vault', () => {
       await vault.connect(user).update(user.address, smallDeposit, 0, 0)
       await vault.connect(user2).update(user2.address, largeDeposit, 0, 0)
       await updateOracle()
-      await vault.settle(constants.AddressZero)
-      await vault.settle(user.address)
-      await vault.settle(user2.address)
+      await vault.rebalance(constants.AddressZero)
+      await vault.rebalance(user.address)
+      await vault.rebalance(user2.address)
 
       await vault.connect(user).update(user.address, 0, constants.MaxUint256, 0)
       await vault.connect(user2).update(user2.address, 0, constants.MaxUint256, 0)
       await updateOracle()
-      await vault.settle(constants.AddressZero)
-      await vault.settle(user.address)
-      await vault.settle(user2.address)
+      await vault.rebalance(constants.AddressZero)
+      await vault.rebalance(user.address)
+      await vault.rebalance(user2.address)
 
       const totalAssets = BigNumber.from('10911553329')
       expect((await vault.accounts(constants.AddressZero)).assets).to.equal(totalAssets)
@@ -1752,7 +1841,7 @@ describe('Vault', () => {
       const deposit = parse6decimal('10000')
       await vault.connect(user).update(user.address, deposit, 0, 0)
       await updateOracle()
-      await vault.settle(user.address)
+      await vault.rebalance(user.address)
 
       const deposit2 = parse6decimal('10000')
       await vault.connect(user2).update(user2.address, deposit2, 0, 0)
@@ -1774,7 +1863,7 @@ describe('Vault', () => {
       await vault.connect(user).update(user.address, deposit1, 0, 0)
 
       await updateOracle()
-      await vault.settle(user.address)
+      await vault.rebalance(user.address)
 
       const deposit2 = parse6decimal('10')
       await expect(vault.connect(user).update(user.address, deposit2, 0, 0)).to.be.reverted
@@ -1783,7 +1872,7 @@ describe('Vault', () => {
       await vault.connect(user).update(user.address, 0, redeem, 0)
 
       await updateOracle()
-      await vault.settle(user.address)
+      await vault.rebalance(user.address)
 
       const deposit3 = parse6decimal('100')
       await expect(vault.connect(user).update(user.address, deposit3, 0, 0)).to.be.reverted
@@ -1797,7 +1886,7 @@ describe('Vault', () => {
 
     it('reverts when paused', async () => {
       await vaultFactory.connect(owner).pause()
-      await expect(vault.settle(user.address)).to.revertedWithCustomError(vault, 'InstancePausedError')
+      await expect(vault.rebalance(user.address)).to.revertedWithCustomError(vault, 'InstancePausedError')
       await expect(vault.update(user.address, 0, 0, 0)).to.revertedWithCustomError(vault, 'InstancePausedError')
     })
 
@@ -1945,7 +2034,7 @@ describe('Vault', () => {
               false,
             )
           await updateOracle()
-          await vault.settle(user.address)
+          await vault.rebalance(user.address)
         })
 
         it('recovers from a liquidation', async () => {
@@ -2039,12 +2128,12 @@ describe('Vault', () => {
         // 1. Deposit initial amount into the vault
         await vault.connect(user).update(user.address, parse6decimal('100000'), 0, 0)
         await updateOracle()
-        await vault.settle(user.address)
+        await vault.rebalance(user.address)
 
         // 2. Redeem most of the amount, but leave it unclaimed
         await vault.connect(user).update(user.address, 0, parse6decimal('80000'), 0)
         await updateOracle()
-        await vault.settle(user.address)
+        await vault.rebalance(user.address)
 
         // 3. An oracle update makes the long position liquidatable, initiate take close
         await updateOracle(parse6decimal('10000'))
@@ -2061,7 +2150,7 @@ describe('Vault', () => {
         await vault.connect(user).update(user.address, 0, 2, 0) // rebalance
 
         await updateOracle()
-        await vault.settle(user.address)
+        await vault.rebalance(user.address)
 
         // 5. Vault should no longer have enough collateral to cover claims, pro-rata claim should be enabled
         const finalPosition = BigNumber.from('0')
@@ -2146,12 +2235,12 @@ describe('Vault', () => {
         const deposit0 = parse6decimal('1000')
         await vault.connect(user).update(user.address, deposit0, 0, 0)
         await updateOracle()
-        await vault.settle(user.address)
+        await vault.rebalance(user.address)
 
         const deposit1 = parse6decimal('10000')
         await vault.connect(user2).update(user2.address, deposit1, 0, 0)
         await updateOracle()
-        await vault.settle(user2.address)
+        await vault.rebalance(user2.address)
       })
 
       it('handles setting leverage to 0', async () => {
@@ -2182,12 +2271,12 @@ describe('Vault', () => {
         const deposit0 = parse6decimal('1000')
         await vault.connect(user).update(user.address, deposit0, 0, 0)
         await updateOracle()
-        await vault.settle(user.address)
+        await vault.rebalance(user.address)
 
         const deposit1 = parse6decimal('10000')
         await vault.connect(user2).update(user2.address, deposit1, 0, 0)
         await updateOracle()
-        await vault.settle(user2.address)
+        await vault.rebalance(user2.address)
       })
 
       it('handles setting weight to 0', async () => {
@@ -2222,12 +2311,12 @@ describe('Vault', () => {
         const deposit0 = parse6decimal('1000')
         await vault.connect(user).update(user.address, deposit0, 0, 0)
         await updateOracle()
-        await vault.settle(user.address)
+        await vault.rebalance(user.address)
 
         const deposit1 = parse6decimal('10000')
         await vault.connect(user2).update(user2.address, deposit1, 0, 0)
         await updateOracle()
-        await vault.settle(user2.address)
+        await vault.rebalance(user2.address)
       })
 
       it('handles re-setting weight to non-0', async () => {
