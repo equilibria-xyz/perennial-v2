@@ -136,7 +136,7 @@ contract Vault is IVault, Instance {
     /// @notice Registers a new market
     /// @param market The market to register
     function register(IMarket market) external onlyOwner {
-        settle(address(0));
+        rebalance(address(0));
 
         for (uint256 marketId; marketId < totalMarkets; marketId++) {
             if (_registrations[marketId].read().market == market) revert VaultMarketExistsError();
@@ -182,7 +182,7 @@ contract Vault is IVault, Instance {
     /// @param marketId The market id
     /// @param newLeverage The new leverage
     function updateLeverage(uint256 marketId, UFixed6 newLeverage) external onlyOwner {
-        settle(address(0));
+        rebalance(address(0));
 
         if (marketId >= totalMarkets) revert VaultMarketDoesNotExistError();
 
@@ -192,7 +192,7 @@ contract Vault is IVault, Instance {
     /// @notice Updates the set of market weights for the vault
     /// @param newWeights The new set of market weights
     function updateWeights(UFixed6[] calldata newWeights) external onlyOwner {
-        settle(address(0));
+        rebalance(address(0));
 
         if (newWeights.length != totalMarkets) revert VaultMarketDoesNotExistError();
 
@@ -208,7 +208,7 @@ contract Vault is IVault, Instance {
     /// @notice Settles, then updates the vault parameter set
     /// @param newParameter The new vault parameter set
     function updateParameter(VaultParameter memory newParameter) external onlyOwner {
-        settle(address(0));
+        rebalance(address(0));
         _updateParameter(newParameter);
     }
 
