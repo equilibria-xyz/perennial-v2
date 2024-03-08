@@ -814,6 +814,177 @@ describe('Version', () => {
       })
     })
 
+    describe('settlement fee accumulation', () => {
+      const riskParameters = {
+        ...VALID_RISK_PARAMETER,
+        pController: { min: 0, max: 0, k: parse6decimal('1') }, // TODO: what is this?
+        utilizationCurve: {
+          minRate: 0,
+          maxRate: 0,
+          targetRate: 0,
+          targetUtilization: 0,
+        },
+        makerFee: {
+          linearFee: parse6decimal('0.02'),
+          proportionalFee: parse6decimal('0.10'),
+          adiabaticFee: parse6decimal('0.20'),
+          scale: parse6decimal('100'),
+        },
+        takerFee: {
+          linearFee: parse6decimal('0.01'),
+          proportionalFee: parse6decimal('0.05'),
+          adiabaticFee: parse6decimal('0.10'),
+          scale: parse6decimal('100'),
+        },
+      }
+
+      let position = {
+        ...FROM_POSITION,
+        maker: parse6decimal('13'),
+        long: parse6decimal('83'),
+        short: parse6decimal('5'),
+      }
+
+      beforeEach(async () => {
+        // set an initial state with a meaningful position
+        await version.store(VALID_VERSION)
+
+        // accumulate single order to increase maker position by 4
+        const { ret: ret1, value: value1 } = await accumulateWithReturn(
+          GLOBAL,
+          position,
+          {
+            ...ORDER,
+            orders: 1,
+            makerNeg: 0,
+            makerPos: parse6decimal('4'),
+            longPos: 0,
+            longNeg: 0,
+            shortPos: 0,
+            shortNeg: 0,
+            makerReferral: 0,
+            takerReferral: 0,
+          },
+          { ...ORACLE_VERSION_1 },
+          { ...ORACLE_VERSION_2 },
+          { ...VALID_MARKET_PARAMETER, settlementFee: parse6decimal('0.05') },
+          riskParameters,
+        )
+        // TODO: move to it's own test so the same assertions aren't run on every setup
+        expect(value1.settlementFee._value).to.equal(parse6decimal('-0.05')) // 0 - (0.05 / 1)
+        expect(ret1.settlementFee).to.equal(parse6decimal('0.05')) // market parameter
+
+        // update initial state prior to the test
+        position = { ...position, maker: position.maker.add(parse6decimal('4')) }
+      })
+
+      it('allocates single order without fee change', async () => {
+        // accumulate single order to decrease short position by 2 without changing settlement fee
+        const { ret, value } = await accumulateWithReturn(
+          GLOBAL,
+          position,
+          {
+            ...ORDER,
+            orders: 1,
+            makerNeg: 0,
+            makerPos: 0,
+            longPos: 0,
+            longNeg: 0,
+            shortPos: 0,
+            shortNeg: parse6decimal('2'),
+            makerReferral: 0,
+            takerReferral: 0,
+          },
+          { ...ORACLE_VERSION_1 },
+          { ...ORACLE_VERSION_2 },
+          { ...VALID_MARKET_PARAMETER, settlementFee: parse6decimal('0.05') },
+          riskParameters,
+        )
+        expect(value.settlementFee._value).to.equal(parse6decimal('-0.05'))
+        expect(ret.settlementFee).to.equal(parse6decimal('0.05'))
+      })
+
+      it('allocates single order with fee change', async () => {
+        // accumulate single order to decrease short position by 2 with a reduction in settlement fee
+        const { ret, value } = await accumulateWithReturn(
+          GLOBAL,
+          position,
+          {
+            ...ORDER,
+            orders: 1,
+            makerNeg: 0,
+            makerPos: 0,
+            longPos: 0,
+            longNeg: 0,
+            shortPos: 0,
+            shortNeg: parse6decimal('2'),
+            makerReferral: 0,
+            takerReferral: 0,
+          },
+          { ...ORACLE_VERSION_1 },
+          { ...ORACLE_VERSION_2 },
+          { ...VALID_MARKET_PARAMETER, settlementFee: parse6decimal('0.04') },
+          riskParameters,
+        )
+        expect(value.settlementFee._value).to.equal(parse6decimal('-0.04'))
+        expect(ret.settlementFee).to.equal(parse6decimal('0.04'))
+      })
+
+      it('allocates multiple orders without fee change', async () => {
+        // accumulate multiple orders without changing settlement fee
+        const orderCount = 3
+        const { ret, value } = await accumulateWithReturn(
+          GLOBAL,
+          position,
+          {
+            ...ORDER,
+            orders: orderCount,
+            makerNeg: parse6decimal('2'),
+            makerPos: 0,
+            longPos: parse6decimal('7'),
+            longNeg: 0,
+            shortPos: 0,
+            shortNeg: parse6decimal('1'),
+            makerReferral: 0,
+            takerReferral: 0,
+          },
+          { ...ORACLE_VERSION_1 },
+          { ...ORACLE_VERSION_2 },
+          { ...VALID_MARKET_PARAMETER, settlementFee: parse6decimal('0.05') },
+          riskParameters,
+        )
+        expect(value.settlementFee._value).to.equal(parse6decimal('-0.05').div(orderCount).sub(1))
+        expect(ret.settlementFee).to.equal(parse6decimal('0.05'))
+      })
+
+      it('allocates multiple orders with fee change', async () => {
+        // accumulate multiple orders with an increase in settlement fee
+        const orderCount = 4
+        const { ret, value } = await accumulateWithReturn(
+          GLOBAL,
+          position,
+          {
+            ...ORDER,
+            orders: orderCount,
+            makerNeg: parse6decimal('3'),
+            makerPos: 0,
+            longPos: parse6decimal('6'),
+            longNeg: 0,
+            shortPos: parse6decimal('5'),
+            shortNeg: parse6decimal('9'),
+            makerReferral: 0,
+            takerReferral: 0,
+          },
+          { ...ORACLE_VERSION_1 },
+          { ...ORACLE_VERSION_2 },
+          { ...VALID_MARKET_PARAMETER, settlementFee: parse6decimal('0.06') },
+          riskParameters,
+        )
+        expect(value.settlementFee._value).to.equal(parse6decimal('-0.06').div(orderCount))
+        expect(ret.settlementFee).to.equal(parse6decimal('0.06'))
+      })
+    })
+
     describe('position fee accumulation', () => {
       it('allocates when no makers', async () => {
         await version.store(VALID_VERSION)
@@ -890,7 +1061,7 @@ describe('Version', () => {
         expect(value.makerNegFee._value).to.equal(0)
         expect(value.takerPosFee._value).to.equal(impact1.mul(-1).mul(123).div(50))
         expect(value.takerNegFee._value).to.equal(impact2.mul(-1).mul(123).div(60))
-        expect(value.settlementFee._value).to.equal(-2)
+        expect(value.settlementFee._value).to.equal(-2) // 0 -(-1*6 / 4) = 0 - 2 due to rounding
 
         expect(ret.positionFee).to.equal(fee)
         expect(ret.positionFeeMaker).to.equal(0)
