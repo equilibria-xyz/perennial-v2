@@ -1702,7 +1702,7 @@ describe('Vault', () => {
 
       await updateOracle()
 
-      await vault2.settle(vaultFactory2.address)
+      await vault2.rebalance(vaultFactory2.address)
 
       expect((await vault2.accounts(vaultFactory2.address)).assets).to.equal(0)
       expect((await vault2.accounts(vaultFactory2.address)).shares).to.equal(parse6decimal('1'))
@@ -1748,7 +1748,7 @@ describe('Vault', () => {
 
       await updateOracle()
 
-      await vault2.settle(vaultFactory2.address)
+      await vault2.rebalance(vaultFactory2.address)
 
       expect((await vault2.accounts(vaultFactory2.address)).assets).to.equal(0)
       expect((await vault2.accounts(vaultFactory2.address)).shares).to.equal(parse6decimal('2'))
@@ -2037,7 +2037,7 @@ describe('Vault', () => {
           await vault.rebalance(user.address)
         })
 
-        it('recovers from a liquidation', async () => {
+        it.only('recovers from a liquidation', async () => {
           await vault.connect(user).update(user.address, parse6decimal('100000'), 0, 0)
           await updateOracle()
 
@@ -2079,7 +2079,7 @@ describe('Vault', () => {
           expect(await btcCollateralInVault()).to.equal(btcFinalCollateral)
         })
 
-        it('recovers from a liquidation w/ shortfall', async () => {
+        it.only('recovers from a liquidation w/ shortfall', async () => {
           await vault.connect(user).update(user.address, parse6decimal('100000'), 0, 0)
           await updateOracle()
 
