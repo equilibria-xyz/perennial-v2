@@ -848,9 +848,7 @@ describe('Version', () => {
       beforeEach(async () => {
         // set an initial state with a meaningful position
         await version.store(VALID_VERSION)
-
-        // accumulate single order to increase maker position by 4
-        const { ret: ret1, value: value1 } = await accumulateWithReturn(
+        const { ret: ret, value: value } = await accumulateWithReturn(
           GLOBAL,
           position,
           {
@@ -870,9 +868,8 @@ describe('Version', () => {
           { ...VALID_MARKET_PARAMETER, settlementFee: parse6decimal('0.05') },
           riskParameters,
         )
-        // TODO: move to it's own test so the same assertions aren't run on every setup
-        expect(value1.settlementFee._value).to.equal(parse6decimal('-0.05')) // 0 - (0.05 / 1)
-        expect(ret1.settlementFee).to.equal(parse6decimal('0.05')) // market parameter
+        expect(value.settlementFee._value).to.equal(parse6decimal('-0.05')) // 0 - (0.05 / 1)
+        expect(ret.settlementFee).to.equal(parse6decimal('0.05')) // market parameter
 
         // update initial state prior to the test
         position = { ...position, maker: position.maker.add(parse6decimal('4')) }
@@ -982,6 +979,87 @@ describe('Version', () => {
         )
         expect(value.settlementFee._value).to.equal(parse6decimal('-0.06').div(orderCount))
         expect(ret.settlementFee).to.equal(parse6decimal('0.06'))
+      })
+    })
+
+    describe.only('liquidation fee accumulation', () => {
+      let riskParameters = {
+        ...VALID_RISK_PARAMETER,
+        pController: { min: 0, max: 0, k: parse6decimal('1') },
+        liquidationFee: parse6decimal('0.20'),
+        utilizationCurve: {
+          minRate: 0,
+          maxRate: 0,
+          targetRate: 0,
+          targetUtilization: 0,
+        },
+        makerFee: {
+          linearFee: parse6decimal('0.02'),
+          proportionalFee: parse6decimal('0.10'),
+          adiabaticFee: parse6decimal('0.20'),
+          scale: parse6decimal('100'),
+        },
+        takerFee: {
+          linearFee: parse6decimal('0.01'),
+          proportionalFee: parse6decimal('0.05'),
+          adiabaticFee: parse6decimal('0.10'),
+          scale: parse6decimal('100'),
+        },
+      }
+
+      const position = {
+        ...FROM_POSITION,
+        maker: parse6decimal('6'),
+        long: parse6decimal('9'),
+        short: parse6decimal('3'),
+      }
+
+      const order = {
+        ...ORDER,
+        orders: 1,
+        makerNeg: 0,
+        makerPos: 0,
+        longPos: parse6decimal('1'),
+        longNeg: 0,
+        shortPos: 0,
+        shortNeg: 0,
+        makerReferral: 0,
+        takerReferral: 0,
+      }
+
+      it('allocates without fee change', async () => {
+        await version.store(VALID_VERSION)
+
+        const { ret: ret, value: value } = await accumulateWithReturn(
+          GLOBAL,
+          position,
+          order,
+          { ...ORACLE_VERSION_1 },
+          { ...ORACLE_VERSION_2 },
+          { ...VALID_MARKET_PARAMETER },
+          riskParameters,
+        )
+
+        expect(value.liquidationFee._value).to.equal(parse6decimal('-0.20')) // 0 - ???
+        expect(ret.liquidationFee).to.equal(parse6decimal('0.20')) // market parameter
+      })
+
+      it('allocates with a reduced fee', async () => {
+        await version.store(VALID_VERSION)
+
+        riskParameters = { ...riskParameters, liquidationFee: parse6decimal('0.15') }
+        const { ret: ret, value: value } = await accumulateWithReturn(
+          GLOBAL,
+          position,
+          order,
+          { ...ORACLE_VERSION_1 },
+          { ...ORACLE_VERSION_2 },
+          { ...VALID_MARKET_PARAMETER },
+          riskParameters,
+        )
+
+        expect(value.liquidationFee._value).to.equal(parse6decimal('-0.15')) // 0 - ???
+        expect(ret.liquidationFee).to.equal(parse6decimal('0.15')) // market parameter
       })
     })
 
