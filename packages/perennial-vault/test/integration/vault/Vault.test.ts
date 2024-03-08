@@ -1406,7 +1406,7 @@ describe('Vault', () => {
 
       await updateOracle()
 
-      await vault2.settle(vaultFactory2.address)
+      await vault2.rebalance(vaultFactory2.address)
 
       expect((await vault2.accounts(vaultFactory2.address)).assets).to.equal(0)
       expect((await vault2.accounts(vaultFactory2.address)).shares).to.equal(parse6decimal('1'))
@@ -1448,7 +1448,7 @@ describe('Vault', () => {
 
       await updateOracle()
 
-      await vault2.settle(vaultFactory2.address)
+      await vault2.rebalance(vaultFactory2.address)
 
       expect((await vault2.accounts(vaultFactory2.address)).assets).to.equal(0)
       expect((await vault2.accounts(vaultFactory2.address)).shares).to.equal(parse6decimal('2'))
