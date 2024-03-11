@@ -817,7 +817,7 @@ describe('Version', () => {
     describe('settlement fee accumulation', () => {
       const riskParameters = {
         ...VALID_RISK_PARAMETER,
-        pController: { min: 0, max: 0, k: parse6decimal('1') }, // TODO: what is this?
+        pController: { min: 0, max: 0, k: parse6decimal('1') },
         utilizationCurve: {
           minRate: 0,
           maxRate: 0,
@@ -848,7 +848,7 @@ describe('Version', () => {
       beforeEach(async () => {
         // set an initial state with a meaningful position
         await version.store(VALID_VERSION)
-        const { ret: ret, value: value } = await accumulateWithReturn(
+        const { ret, value } = await accumulateWithReturn(
           GLOBAL,
           position,
           {
@@ -982,7 +982,7 @@ describe('Version', () => {
       })
     })
 
-    describe.only('liquidation fee accumulation', () => {
+    describe('liquidation fee accumulation', () => {
       let riskParameters = {
         ...VALID_RISK_PARAMETER,
         pController: { min: 0, max: 0, k: parse6decimal('1') },
@@ -1030,7 +1030,7 @@ describe('Version', () => {
       it('allocates without fee change', async () => {
         await version.store(VALID_VERSION)
 
-        const { ret: ret, value: value } = await accumulateWithReturn(
+        const { ret, value } = await accumulateWithReturn(
           GLOBAL,
           position,
           order,
@@ -1040,15 +1040,15 @@ describe('Version', () => {
           riskParameters,
         )
 
-        expect(value.liquidationFee._value).to.equal(parse6decimal('-0.20')) // 0 - ???
-        expect(ret.liquidationFee).to.equal(parse6decimal('0.20')) // market parameter
+        expect(value.liquidationFee._value).to.equal(parse6decimal('-0.20'))
+        expect(ret.liquidationFee).to.equal(parse6decimal('0.20')) // risk parameter
       })
 
       it('allocates with a reduced fee', async () => {
         await version.store(VALID_VERSION)
 
         riskParameters = { ...riskParameters, liquidationFee: parse6decimal('0.15') }
-        const { ret: ret, value: value } = await accumulateWithReturn(
+        const { ret, value } = await accumulateWithReturn(
           GLOBAL,
           position,
           order,
@@ -1058,8 +1058,120 @@ describe('Version', () => {
           riskParameters,
         )
 
-        expect(value.liquidationFee._value).to.equal(parse6decimal('-0.15')) // 0 - ???
-        expect(ret.liquidationFee).to.equal(parse6decimal('0.15')) // market parameter
+        expect(value.liquidationFee._value).to.equal(parse6decimal('-0.15'))
+        expect(ret.liquidationFee).to.equal(parse6decimal('0.15'))
+      })
+    })
+
+    describe.only('exposure accumulation', () => {
+      const riskParameters = {
+        ...VALID_RISK_PARAMETER,
+        pController: { min: 0, max: 0, k: parse6decimal('1') },
+        utilizationCurve: {
+          minRate: 0,
+          maxRate: 0,
+          targetRate: 0,
+          targetUtilization: 0,
+        },
+        makerFee: {
+          linearFee: parse6decimal('0.02'),
+          proportionalFee: parse6decimal('0.10'),
+          adiabaticFee: parse6decimal('0.15'),
+          scale: parse6decimal('100'),
+        },
+        takerFee: {
+          linearFee: parse6decimal('0.01'),
+          proportionalFee: parse6decimal('0.05'),
+          adiabaticFee: parse6decimal('0.15'),
+          scale: parse6decimal('100'),
+        },
+      }
+
+      const position = {
+        ...FROM_POSITION,
+        maker: parse6decimal('1.2'),
+        long: parse6decimal('5'),
+        short: parse6decimal('3'),
+      }
+
+      const order = {
+        ...ORDER,
+        orders: 1,
+        makerNeg: 0,
+        makerPos: parse6decimal('0.4'),
+        longPos: 0,
+        longNeg: 0,
+        shortPos: 0,
+        shortNeg: 0,
+        makerReferral: 0,
+        takerReferral: 0,
+      }
+
+      beforeEach(async () => {
+        await version.store(VALID_VERSION)
+      })
+
+      it('exposure unchanged with same price', async () => {
+        const { ret, value } = await accumulateWithReturn(
+          GLOBAL,
+          position,
+          { ...ORDER },
+          { ...ORACLE_VERSION_1 }, // 123
+          { ...ORACLE_VERSION_2 }, // 123
+          { ...VALID_MARKET_PARAMETER },
+          riskParameters,
+        )
+
+        // no exposure without price change
+        expect(ret.positionFeeExposure).to.equal(0)
+        expect(ret.positionFeeExposureMaker).to.equal(0)
+        expect(ret.positionFeeExposureProtocol).to.equal(0)
+      })
+
+      it('exposure changes with updated price', async () => {
+        const { ret, value } = await accumulateWithReturn(
+          GLOBAL,
+          position,
+          { ...ORDER },
+          { ...ORACLE_VERSION_1 }, // 123
+          { ...ORACLE_VERSION_2, price: parse6decimal('138') },
+          { ...VALID_MARKET_PARAMETER },
+          riskParameters,
+        )
+
+        // takerFeeExposure (linear adiabatic) = change * adiabaticFee * skew/scale / 2
+        //                                     = 2 * 0.15 * 2/100 / 2   = 0.003
+
+        // maker position excludes the pending order
+        // makerFeeExposure (inverse adiabatic) = change * adiabaticFee * (2 + changeScaled) / 2
+        //    with                       change = scale-change-scale = 100-1.2-100  = -1.2
+        //     and                 changeScaled = change/scale       = -1.2/100     = −0.012
+        //    =   -1.2 * 0.15 * (2 + −0.012) / 2 = -0.18 * 1.988 / 2 = −0.17892
+
+        // positionFeeExposure = (toPrice - fromPrice) * (takerFeeExposure + makerFeeExposure)
+        //                     = (138 - 123) * (0.003 + −0.17892) = −2.6388
+        // positionFeeExposureMaker = positionFeeExposure * -1
+        // positionFeeExposureProtocol is 0 unless maker position is 0
+
+        expect(ret.positionFeeExposure).to.equal(parse6decimal('-2.6388'))
+        expect(ret.positionFeeExposureMaker).to.equal(parse6decimal('2.6388'))
+        expect(ret.positionFeeExposureProtocol).to.equal(0)
+      })
+
+      it('exposure with no maker position', async () => {
+        // FIXME: this call reverts
+        const { ret, value } = await accumulateWithReturn(
+          GLOBAL,
+          { ...position, maker: 0, short: 0 },
+          { ...ORDER },
+          { ...ORACLE_VERSION_1, price: parse6decimal('142') },
+          { ...ORACLE_VERSION_2, price: parse6decimal('137') },
+          { ...VALID_MARKET_PARAMETER },
+          riskParameters,
+        )
+
+        // takerFeeExposure (LinearAdiabatic6) = change * adiabaticFee * skew/scale / 2
+        //                                     = 2 * 0.15 * 2/100 / 2   = 0.003
       })
     })
 
