@@ -90,6 +90,8 @@ interface IMarket is IInstance {
     error MarketInvalidMarketParameterError(uint256 code);
     // sig: 0xc5f0e98a
     error MarketInvalidRiskParameterError(uint256 code);
+    // sig: 0x5c5cb438
+    error MarketSettleOnlyError();
 
     // sig: 0x2142bc27
     error GlobalStorageInvalidError();
@@ -115,6 +117,7 @@ interface IMarket is IInstance {
     function pendingPosition(uint256 id) external view returns (Position memory);
     function position() external view returns (Position memory);
     function global() external view returns (Global memory);
+    function settle(address account) external;
     function update(address account, UFixed6 newMaker, UFixed6 newLong, UFixed6 newShort, Fixed6 collateral, bool protect) external;
     function parameter() external view returns (MarketParameter memory);
     function riskParameter() external view returns (RiskParameter memory);

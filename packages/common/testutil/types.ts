@@ -133,3 +133,12 @@ export const DEFAULT_LOCAL: Local = {
   protectionAmount: 0,
   protectionInitiator: constants.AddressZero,
 }
+
+export const DEFAULT_VERSION: Version = {
+  makerValue: { _value: 0 },
+  longValue: { _value: 0 },
+  shortValue: { _value: 0 },
+  makerReward: { _value: 0 },
+  longReward: { _value: 0 },
+  shortReward: { _value: 0 },
+}
