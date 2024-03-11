@@ -1063,7 +1063,7 @@ describe('Version', () => {
       })
     })
 
-    describe.only('exposure accumulation', () => {
+    describe('exposure accumulation', () => {
       const riskParameters = {
         ...VALID_RISK_PARAMETER,
         pController: { min: 0, max: 0, k: parse6decimal('1') },
@@ -1139,13 +1139,13 @@ describe('Version', () => {
           riskParameters,
         )
 
-        // takerFeeExposure (linear adiabatic) = change * adiabaticFee * skew/scale / 2
+        // takerFeeExposure (linear adiabatic) = skew * adiabaticFee * skew/scale / 2
         //                                     = 2 * 0.15 * 2/100 / 2   = 0.003
 
         // maker position excludes the pending order
         // makerFeeExposure (inverse adiabatic) = change * adiabaticFee * (2 + changeScaled) / 2
-        //    with                       change = scale-change-scale = 100-1.2-100  = -1.2
-        //     and                 changeScaled = change/scale       = -1.2/100     = −0.012
+        //    with                       change = scale-makerPosition-scale = 100-1.2-100  = -1.2
+        //     and                 changeScaled = change/scale       = -1.2/100 = −0.012
         //    =   -1.2 * 0.15 * (2 + −0.012) / 2 = -0.18 * 1.988 / 2 = −0.17892
 
         // positionFeeExposure = (toPrice - fromPrice) * (takerFeeExposure + makerFeeExposure)
@@ -1159,19 +1159,31 @@ describe('Version', () => {
       })
 
       it('exposure with no maker position', async () => {
-        // FIXME: this call reverts
         const { ret, value } = await accumulateWithReturn(
           GLOBAL,
-          { ...position, maker: 0, short: 0 },
-          { ...ORDER },
+          { ...position, maker: 0 },
+          { ...order, makerPos: parse6decimal('0.7'), longPos: 0 },
           { ...ORACLE_VERSION_1, price: parse6decimal('142') },
           { ...ORACLE_VERSION_2, price: parse6decimal('137') },
           { ...VALID_MARKET_PARAMETER },
           riskParameters,
         )
 
-        // takerFeeExposure (LinearAdiabatic6) = change * adiabaticFee * skew/scale / 2
+        // takerFeeExposure (linear adiabatic) = skew * adiabaticFee * skew/scale / 2
         //                                     = 2 * 0.15 * 2/100 / 2   = 0.003
+
+        // makerFeeExposure (inverse adiabatic) = change * adiabaticFee * (2 + changeScaled) / 2
+        //    with                       change = scale-makerPosition-scale = 0
+        //     and                 changeScaled = change/scale              = 0
+
+        // positionFeeExposure = (toPrice - fromPrice) * (takerFeeExposure + makerFeeExposure)
+        //                     = (137 - 142) * (0.003 + 0) = -0.015
+        // positionFeeExposureMaker = 0
+        // positionFeeExposureProtocol = positionFeeExposure * -1 = 0.015
+
+        expect(ret.positionFeeExposure).to.equal(parse6decimal('-0.015'))
+        expect(ret.positionFeeExposureMaker).to.equal(0)
+        expect(ret.positionFeeExposureProtocol).to.equal(parse6decimal('0.015'))
       })
     })
 
