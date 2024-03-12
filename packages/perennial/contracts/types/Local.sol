@@ -27,7 +27,7 @@ struct Local {
     UFixed6 claimable;
 }
 using LocalLib for Local global;
-struct LocalStorage { uint256 slot0; }
+struct LocalStorage { uint256 slot0; uint256 slot1; }
 using LocalStorageLib for LocalStorage global;
 
 /// @title Local
