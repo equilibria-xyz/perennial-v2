@@ -1010,6 +1010,24 @@ describe('Version', () => {
         expect(value.liquidationFee._value).to.equal(parse6decimal('-0.15'))
         expect(ret.liquidationFee).to.equal(parse6decimal('0.15'))
       })
+
+      it('handles invalid oracle version', async () => {
+        await version.store(VALID_VERSION)
+
+        riskParameters = { ...riskParameters, liquidationFee: parse6decimal('0.175') }
+        const { ret, value } = await accumulateWithReturn(
+          GLOBAL,
+          position,
+          order,
+          { ...ORACLE_VERSION_1 },
+          { ...ORACLE_VERSION_2, valid: false },
+          { ...VALID_MARKET_PARAMETER },
+          riskParameters,
+        )
+
+        expect(value.liquidationFee._value).to.equal(0)
+        expect(ret.liquidationFee).to.equal(0)
+      })
     })
 
     describe('exposure accumulation', () => {
