@@ -845,24 +845,26 @@ describe('Version', () => {
         short: parse6decimal('5'),
       }
 
+      const order = {
+        ...ORDER,
+        orders: 0,
+        makerNeg: 0,
+        makerPos: 0,
+        longPos: 0,
+        longNeg: 0,
+        shortPos: 0,
+        shortNeg: 0,
+        makerReferral: 0,
+        takerReferral: 0,
+      }
+
       beforeEach(async () => {
         // set an initial state with a meaningful position
         await version.store(VALID_VERSION)
         const { ret, value } = await accumulateWithReturn(
           GLOBAL,
           position,
-          {
-            ...ORDER,
-            orders: 1,
-            makerNeg: 0,
-            makerPos: parse6decimal('4'),
-            longPos: 0,
-            longNeg: 0,
-            shortPos: 0,
-            shortNeg: 0,
-            makerReferral: 0,
-            takerReferral: 0,
-          },
+          { ...order, orders: 1, makerPos: parse6decimal('4') },
           { ...ORACLE_VERSION_1 },
           { ...ORACLE_VERSION_2 },
           { ...VALID_MARKET_PARAMETER, settlementFee: parse6decimal('0.05') },
@@ -875,23 +877,27 @@ describe('Version', () => {
         position = { ...position, maker: position.maker.add(parse6decimal('4')) }
       })
 
-      it('allocates single order without fee change', async () => {
+      it('allocates zero orders', async () => {
+        // allocate zero orders to ensure fee is zero
+        const { ret, value } = await accumulateWithReturn(
+          GLOBAL,
+          position,
+          order,
+          { ...ORACLE_VERSION_1 },
+          { ...ORACLE_VERSION_2 },
+          { ...VALID_MARKET_PARAMETER, settlementFee: parse6decimal('0.04') },
+          riskParameters,
+        )
+        expect(value.settlementFee._value).to.equal(0)
+        expect(ret.settlementFee).to.equal(0)
+      })
+
+      it('allocates single order', async () => {
         // accumulate single order to decrease short position by 2 without changing settlement fee
         const { ret, value } = await accumulateWithReturn(
           GLOBAL,
           position,
-          {
-            ...ORDER,
-            orders: 1,
-            makerNeg: 0,
-            makerPos: 0,
-            longPos: 0,
-            longNeg: 0,
-            shortPos: 0,
-            shortNeg: parse6decimal('2'),
-            makerReferral: 0,
-            takerReferral: 0,
-          },
+          { ...order, orders: 1, shortNeg: parse6decimal('2') },
           { ...ORACLE_VERSION_1 },
           { ...ORACLE_VERSION_2 },
           { ...VALID_MARKET_PARAMETER, settlementFee: parse6decimal('0.05') },
@@ -901,76 +907,19 @@ describe('Version', () => {
         expect(ret.settlementFee).to.equal(parse6decimal('0.05'))
       })
 
-      it('allocates single order with fee change', async () => {
-        // accumulate single order to decrease short position by 2 with a reduction in settlement fee
-        const { ret, value } = await accumulateWithReturn(
-          GLOBAL,
-          position,
-          {
-            ...ORDER,
-            orders: 1,
-            makerNeg: 0,
-            makerPos: 0,
-            longPos: 0,
-            longNeg: 0,
-            shortPos: 0,
-            shortNeg: parse6decimal('2'),
-            makerReferral: 0,
-            takerReferral: 0,
-          },
-          { ...ORACLE_VERSION_1 },
-          { ...ORACLE_VERSION_2 },
-          { ...VALID_MARKET_PARAMETER, settlementFee: parse6decimal('0.04') },
-          riskParameters,
-        )
-        expect(value.settlementFee._value).to.equal(parse6decimal('-0.04'))
-        expect(ret.settlementFee).to.equal(parse6decimal('0.04'))
-      })
-
-      it('allocates multiple orders without fee change', async () => {
-        // accumulate multiple orders without changing settlement fee
-        const orderCount = 3
-        const { ret, value } = await accumulateWithReturn(
-          GLOBAL,
-          position,
-          {
-            ...ORDER,
-            orders: orderCount,
-            makerNeg: parse6decimal('2'),
-            makerPos: 0,
-            longPos: parse6decimal('7'),
-            longNeg: 0,
-            shortPos: 0,
-            shortNeg: parse6decimal('1'),
-            makerReferral: 0,
-            takerReferral: 0,
-          },
-          { ...ORACLE_VERSION_1 },
-          { ...ORACLE_VERSION_2 },
-          { ...VALID_MARKET_PARAMETER, settlementFee: parse6decimal('0.05') },
-          riskParameters,
-        )
-        expect(value.settlementFee._value).to.equal(parse6decimal('-0.05').div(orderCount).sub(1))
-        expect(ret.settlementFee).to.equal(parse6decimal('0.05'))
-      })
-
-      it('allocates multiple orders with fee change', async () => {
+      it('allocates multiple orders', async () => {
         // accumulate multiple orders with an increase in settlement fee
         const orderCount = 4
         const { ret, value } = await accumulateWithReturn(
           GLOBAL,
           position,
           {
-            ...ORDER,
+            ...order,
             orders: orderCount,
             makerNeg: parse6decimal('3'),
-            makerPos: 0,
             longPos: parse6decimal('6'),
-            longNeg: 0,
             shortPos: parse6decimal('5'),
             shortNeg: parse6decimal('9'),
-            makerReferral: 0,
-            takerReferral: 0,
           },
           { ...ORACLE_VERSION_1 },
           { ...ORACLE_VERSION_2 },
