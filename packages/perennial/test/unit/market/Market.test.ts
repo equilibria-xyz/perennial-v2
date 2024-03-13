@@ -364,7 +364,7 @@ async function deposit(market: Market, amount: BigNumber, account: SignerWithAdd
     )
 }
 
-describe('Market', () => {
+describe.only('Market', () => {
   let protocolTreasury: SignerWithAddress
   let owner: SignerWithAddress
   let beneficiary: SignerWithAddress
@@ -780,8 +780,10 @@ describe('Market', () => {
         )
 
         // before = 0
-        // TODO: consider using expectGlobalEq and better documenting the formula
+        // after = [(skew/scale+0)/2 * takerFee.adiabaticFee * skew * price]
+        //         + [(1+1-makerChange/scale)/2 * makerFee.adiabaticFee * makerChange * price]
         // after = (0.20 + 0) / 2 * 0.003 * 10 * 123 + (1.00 + 0.90) / 2 * 0.004 * -10 * 123 = -4.305
+        // TODO: consider using expectGlobalEq
         expect((await market.global()).exposure).to.equal(parse6decimal('4.305'))
 
         const riskParameter = await market.riskParameter()
@@ -2654,7 +2656,13 @@ describe('Market', () => {
               expectCheckpointEq(await market.checkpoints(user.address, ORACLE_VERSION_5.timestamp), {
                 ...DEFAULT_CHECKPOINT,
               })
-              // FIXME: expected exposure 6150000
+
+              // no taker position when risk parameters updated, so
+              // updateFee = 0 + [(1+1-makerPos/scale)/2 * makerFee.adiabaticFee * makerPos * price]
+              //           = 0 + 0.5 * 0.01 * -10 * 123 = −6.15
+              const EXPOSURE_BEFORE = BigNumber.from(0).sub(parse6decimal('-6.15'))
+              const EXPOSURE_AFTER = BigNumber.from(0)
+
               expectGlobalEq(await market.global(), {
                 currentId: 3,
                 latestId: 2,
@@ -2662,7 +2670,7 @@ describe('Market', () => {
                 oracleFee: MAKER_FEE_FEE.div(2).div(10).add(SETTLEMENT_FEE),
                 riskFee: MAKER_FEE_FEE.div(2).div(10),
                 donation: MAKER_FEE_FEE.div(2).mul(8).div(10),
-                exposure: 0,
+                exposure: EXPOSURE_BEFORE.add(EXPOSURE_AFTER),
               })
               expectPositionEq(await market.position(), {
                 ...DEFAULT_POSITION,
@@ -4343,7 +4351,11 @@ describe('Market', () => {
                   ...DEFAULT_CHECKPOINT,
                 })
                 const totalFee = EXPECTED_FUNDING_FEE_1_5_123.add(EXPECTED_INTEREST_FEE_5_123).add(TAKER_FEE_ONLY_FEE)
-                // FIXME: expected exposure -2460000
+                // maker exposure is 0, so
+                // updateFee = [(skew/scale+0)/2 * takerFee.adiabaticFee * skew * price] + 0
+                //           = [(5/5+0)/2 * 0.008 * 5 * 123] + 0 = 0.5 * 4.92 = 2.46
+                const EXPOSURE_BEFORE = BigNumber.from(0).sub(parse6decimal('2.46'))
+                const EXPOSURE_AFTER = BigNumber.from(0)
                 expectGlobalEq(await market.global(), {
                   currentId: 3,
                   latestId: 2,
@@ -4351,7 +4363,7 @@ describe('Market', () => {
                   oracleFee: totalFee.div(2).div(10).sub(1).add(SETTLEMENT_FEE), // loss of precision
                   riskFee: totalFee.div(2).div(10).sub(1), // loss of precision
                   donation: totalFee.div(2).mul(8).div(10).add(1), // loss of precision
-                  exposure: 0,
+                  exposure: EXPOSURE_BEFORE.add(EXPOSURE_AFTER),
                 })
                 expectPositionEq(await market.position(), {
                   ...DEFAULT_POSITION,
@@ -7629,7 +7641,11 @@ describe('Market', () => {
                   ...DEFAULT_CHECKPOINT,
                 })
                 const totalFee = EXPECTED_FUNDING_FEE_1_5_123.add(EXPECTED_INTEREST_FEE_5_123).add(TAKER_FEE_ONLY_FEE)
-                // FIXME: expected exposure -2460000
+                // maker exposure is 0, so
+                // updateFee = [(skew/scale+0)/2 * takerFee.adiabaticFee * skew * price] + makerExposure
+                //           = [(5/5+0)/2 * 0.008 * 5 * 123] + 0 = 0.5 * 4.92 = 2.46
+                const EXPOSURE_BEFORE = BigNumber.from(0).sub(parse6decimal('2.46'))
+                const EXPOSURE_AFTER = BigNumber.from(0)
                 expectGlobalEq(await market.global(), {
                   currentId: 3,
                   latestId: 2,
@@ -7637,7 +7653,7 @@ describe('Market', () => {
                   oracleFee: totalFee.div(2).div(10).sub(1).add(SETTLEMENT_FEE), // loss of precision
                   riskFee: totalFee.div(2).div(10).sub(1), // loss of precision
                   donation: totalFee.div(2).mul(8).div(10).add(1), // loss of precision
-                  exposure: 0,
+                  exposure: EXPOSURE_BEFORE.add(EXPOSURE_AFTER),
                 })
                 expectPositionEq(await market.position(), {
                   ...DEFAULT_POSITION,
@@ -9314,7 +9330,16 @@ describe('Market', () => {
               ...DEFAULT_CHECKPOINT,
             })
             const totalFee = EXPECTED_MAKER_LINEAR.add(EXPECTED_MAKER_PROPORTIONAL).div(10)
-            // FIXME: expected exposure 2460000
+            // empty position updates to maker 10 (user) and short 5 (userB)
+            // and then user reduces position to maker 5 before risk parameters updated
+            // before = [(skew/scale+0)/2 * takerFee.adiabaticFee * skew * price]
+            //          + [(1+1-maker/scale)/2 * makerFee.adiabaticFee * maker * price]
+            //        = [(0/5+0)/2 * 0.008 * 0 * 123] + [(1+1-(10/10))/2 * 0.008 * -10 * 123]
+            //        = [(-5/5+0)/2 * 0.008 * -5 * 123] + [0.5 * 0.008 * -10 * 123] =
+            //        = [-0.5 * -4.92] + [0.5 * -9.84] = 2.46 + -4.92 = -2.46
+            // after  = 0
+            const EXPOSURE_BEFORE = BigNumber.from(0)
+            const EXPOSURE_AFTER = BigNumber.from(0).sub(parse6decimal('-2.46'))
             expectGlobalEq(await market.global(), {
               currentId: 3,
               latestId: 2,
@@ -9322,7 +9347,7 @@ describe('Market', () => {
               oracleFee: totalFee.div(2).div(10).add(EXPECTED_SETTLEMENT_FEE),
               riskFee: totalFee.div(2).div(10),
               donation: totalFee.div(2).mul(8).div(10),
-              exposure: 0,
+              exposure: EXPOSURE_BEFORE.add(EXPOSURE_AFTER),
             })
             expectPositionEq(await market.position(), {
               ...DEFAULT_POSITION,
