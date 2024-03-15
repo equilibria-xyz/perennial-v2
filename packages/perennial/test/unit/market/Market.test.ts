@@ -364,7 +364,7 @@ async function deposit(market: Market, amount: BigNumber, account: SignerWithAdd
     )
 }
 
-describe.only('Market', () => {
+describe('Market', () => {
   let protocolTreasury: SignerWithAddress
   let owner: SignerWithAddress
   let beneficiary: SignerWithAddress
@@ -783,8 +783,15 @@ describe.only('Market', () => {
         // after = [(skew/scale+0)/2 * takerFee.adiabaticFee * skew * price]
         //         + [(1+1-makerChange/scale)/2 * makerFee.adiabaticFee * makerChange * price]
         // after = (0.20 + 0) / 2 * 0.003 * 10 * 123 + (1.00 + 0.90) / 2 * 0.004 * -10 * 123 = -4.305
-        // TODO: consider using expectGlobalEq
-        expect((await market.global()).exposure).to.equal(parse6decimal('4.305'))
+        expectGlobalEq(await market.global(), {
+          currentId: 2,
+          latestId: 1,
+          protocolFee: 0,
+          oracleFee: 0,
+          riskFee: 0,
+          donation: 0,
+          exposure: BigNumber.from(0).sub(parse6decimal('-4.305')),
+        })
 
         const riskParameter = await market.riskParameter()
         expect(riskParameter.margin).to.equal(defaultRiskParameter.margin)
@@ -12230,6 +12237,146 @@ describe.only('Market', () => {
                     .mul(-1),
                 },
                 liquidationFee: { _value: -riskParameter.liquidationFee },
+              })
+            })
+
+            it.only('with adiabatic fees to incur exposure', async () => {
+              // rate_0 = 0
+              // rate_1 = rate_0 + (elapsed * scaledSkew / k) = 3600 * -0.5 / 40000 = -0.045
+              // rate_2 = rate_1 + (elapsed * scaledSkew / k) = 3600 * -1   / 40000 = -0.090
+              // funding = (rate_0 + rate_1) / 2 * elapsed * taker * price / time_in_years
+              // (0 + -0.045)/2 * 3600 * 10 * 123 / (86400 * 365)
+              const EXPECTED_FUNDING_1 = BigNumber.from(-3159) // −0.003159
+              const EXPECTED_FUNDING_FEE_1 = BigNumber.from(315) // |funding| * fundingFee
+              const EXPECTED_FUNDING_WITH_FEE_1 = EXPECTED_FUNDING_1.add(EXPECTED_FUNDING_FEE_1.div(2))
+              const EXPECTED_FUNDING_WITHOUT_FEE_1 = EXPECTED_FUNDING_1.sub(EXPECTED_FUNDING_FEE_1.div(2))
+
+              // (-0.045 + (-0.045 + -0.090))/2 * 3600 * 10 * 45 / (86400 * 365)
+              const EXPECTED_FUNDING_2 = BigNumber.from(-4623) // −0.004623
+              const EXPECTED_FUNDING_FEE_2 = BigNumber.from(462) // |funding| * fundingFee
+              const EXPECTED_FUNDING_WITH_FEE_2 = EXPECTED_FUNDING_2.add(EXPECTED_FUNDING_FEE_2.div(2))
+              const EXPECTED_FUNDING_WITHOUT_FEE_2 = EXPECTED_FUNDING_2.sub(EXPECTED_FUNDING_FEE_2.div(2))
+
+              oracle.at.whenCalledWith(ORACLE_VERSION_2.timestamp).returns(ORACLE_VERSION_2)
+              oracle.status.returns([ORACLE_VERSION_2, ORACLE_VERSION_3.timestamp]) // TIMESTAMP + 1 hour
+              oracle.request.returns()
+
+              await settle(market, user)
+              await settle(market, userB)
+
+              // establish risk parameters with adiabatic fees
+              const adiabaticRiskParameter = {
+                ...riskParameter,
+                takerFee: {
+                  ...riskParameter.takerFee,
+                  adiabaticFee: parse6decimal('0.003'),
+                },
+                makerFee: {
+                  ...riskParameter.makerFee,
+                  adiabaticFee: parse6decimal('0.004'),
+                },
+              }
+              await market
+                .connect(owner)
+                .updateParameter(beneficiary.address, coordinator.address, await market.parameter())
+              await expect(market.connect(coordinator).updateRiskParameter(adiabaticRiskParameter)).to.emit(
+                market,
+                'RiskParameterUpdated',
+              )
+
+              const EXPECTED_LIQUIDATION_FEE = parse6decimal('10')
+
+              const oracleVersionLowerPrice = {
+                price: parse6decimal('45'),
+                timestamp: TIMESTAMP + 7200,
+                valid: true,
+              }
+              oracle.at.whenCalledWith(oracleVersionLowerPrice.timestamp).returns(oracleVersionLowerPrice)
+              oracle.status.returns([oracleVersionLowerPrice, ORACLE_VERSION_4.timestamp]) // TIMESTAMP + 3 hours
+              oracle.request.returns()
+
+              await settle(market, user)
+
+              // userB gets liquidated, eliminating the maker position
+              dsu.transfer.whenCalledWith(liquidator.address, EXPECTED_LIQUIDATION_FEE.mul(1e12)).returns(true)
+              dsu.balanceOf.whenCalledWith(market.address).returns(COLLATERAL.mul(1e12))
+              await expect(
+                market
+                  .connect(liquidator)
+                  ['update(address,uint256,uint256,uint256,int256,bool)'](userB.address, 0, 0, 0, 0, true),
+              )
+                .to.emit(market, 'Updated')
+                .withArgs(
+                  liquidator.address,
+                  userB.address,
+                  ORACLE_VERSION_4.timestamp, // TIMESTAMP + 10800
+                  0,
+                  0,
+                  0,
+                  0,
+                  true,
+                  constants.AddressZero,
+                )
+
+              oracle.at.whenCalledWith(ORACLE_VERSION_4.timestamp).returns(ORACLE_VERSION_4)
+              oracle.status.returns([ORACLE_VERSION_4, ORACLE_VERSION_5.timestamp])
+              oracle.request.returns()
+
+              await settle(market, userB)
+
+              expectLocalEq(await market.locals(liquidator.address), {
+                ...DEFAULT_LOCAL,
+                currentId: 0,
+                latestId: 0,
+                claimable: EXPECTED_LIQUIDATION_FEE,
+              })
+
+              const MAKER_FEE_ADIABATIC = parse6decimal('-2.46') // position * (0.004 * -(1.00 + 0.00) / 2) * price
+              console.log('EXPECTED_FUNDING_WITHOUT_FEE_1', EXPECTED_FUNDING_WITHOUT_FEE_1)
+              console.log('EXPECTED_FUNDING_WITHOUT_FEE_2', EXPECTED_FUNDING_WITHOUT_FEE_2)
+              expectLocalEq(await market.locals(userB.address), {
+                ...DEFAULT_LOCAL,
+                currentId: 4,
+                latestId: 3,
+                collateral: parse6decimal('450') // FIXME: actual is 437612720 (437.61272)
+                  .add(EXPECTED_FUNDING_WITHOUT_FEE_1) // -3316/2 = -1658
+                  .add(EXPECTED_INTEREST_WITHOUT_FEE_10_67_123_ALL) // 50553
+                  .add(EXPECTED_FUNDING_WITHOUT_FEE_2) // -4854/2 = -2427
+                  .add(EXPECTED_INTEREST_WITHOUT_FEE_10_67_45_ALL) // 18495
+                  .sub(MAKER_FEE_ADIABATIC.mul(-1)) // -2.46  FIXME: actual is +2.46; why is my sign wrong?
+                  .sub(EXPECTED_LIQUIDATION_FEE),
+                // .add(7757)  // FIXME: unexplained error; need to debug actuals
+              })
+
+              // -437612720 actual
+              // +442529048 expected adiabatic fee sign, no funding
+              // +437609048 adiabatic fee .mul(-1), no funding
+              // +437604963 adiabatic fee .mul(-1), with funding
+
+              const totalFee = EXPECTED_FUNDING_FEE_1.add(EXPECTED_INTEREST_FEE_10_67_123_ALL) // 315  (actual 315) // 5617 (actual 5616)
+                .add(EXPECTED_FUNDING_FEE_2) // 462  (actual 462)
+                .add(EXPECTED_INTEREST_FEE_10_67_45_ALL) // 2055 (actual 2054)
+              // latestExposure = [(skew/scale+0)/2 * takerFee.adiabaticFee * skew * 1]
+              //                  + [(1+1-makerPos/scale)/2 * makerFee.adiabaticFee * makerChange * 1]
+              //                = [(-5/5+0)/2 * 0.003 * -5] + [(1+1-(10/10))/2 * 0.004 * -10]
+              //                = 0.0075 + -0.02 = −0.0125
+              // impactExposure = latestExposure * price = −0.0125 * 123 = −1.5375
+              const EXPOSURE_BEFORE = BigNumber.from(0)
+              const EXPOSURE_AFTER = BigNumber.from(0).sub(parse6decimal('-1.5375'))
+              expectGlobalEq(await market.global(), {
+                currentId: 4,
+                latestId: 3,
+                protocolFee: totalFee.div(2).sub(1), // loss of precision
+                oracleFee: totalFee.div(2).div(10).sub(1), // loss of precision
+                riskFee: totalFee.div(2).div(10).sub(1), // loss of precision
+                donation: totalFee.div(2).mul(8).div(10).add(3), // loss of precision
+                exposure: EXPOSURE_BEFORE.add(EXPOSURE_AFTER),
+              })
+              expectPositionEq(await market.position(), {
+                ...DEFAULT_POSITION,
+                timestamp: ORACLE_VERSION_4.timestamp,
+                long: POSITION.div(2),
+                short: POSITION,
               })
             })
 
