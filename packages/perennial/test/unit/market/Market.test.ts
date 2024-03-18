@@ -12331,24 +12331,20 @@ describe('Market', () => {
                 claimable: EXPECTED_LIQUIDATION_FEE,
               })
 
-              const MAKER_FEE_ADIABATIC = parse6decimal('-2.46') // position * (0.004 * -(1.00 + 0.00) / 2) * price
+              const MAKER_FEE_ADIABATIC = parse6decimal('2.46') // position * (0.004 * (1.00 + 0.00) / 2) * price
               expectLocalEq(await market.locals(userB.address), {
                 ...DEFAULT_LOCAL,
                 currentId: 4,
                 latestId: 3,
-                collateral: parse6decimal('450') // FIXME: actual is 437612720 (437.61272)
-                  .add(EXPECTED_FUNDING_WITHOUT_FEE_1.div(-2)) // -3316/2 = -1658
-                  .add(EXPECTED_INTEREST_WITHOUT_FEE_10_67_123_ALL) // 50553
-                  .add(EXPECTED_FUNDING_WITHOUT_FEE_2.div(-2)) // -4854/2 = -2427
-                  .add(EXPECTED_INTEREST_WITHOUT_FEE_10_67_45_ALL) // 18495
-                  .sub(MAKER_FEE_ADIABATIC.mul(-1)) // -2.46  FIXME: actual is +2.46; why is my sign wrong?
+                collateral: parse6decimal('450')
+                  .sub(EXPECTED_FUNDING_WITH_FEE_1.div(2))
+                  .add(EXPECTED_INTEREST_WITHOUT_FEE_10_67_123_ALL)
+                  .sub(EXPECTED_FUNDING_WITH_FEE_2.div(2))
+                  .add(EXPECTED_INTEREST_WITHOUT_FEE_10_67_45_ALL)
+                  .sub(MAKER_FEE_ADIABATIC)
                   .sub(EXPECTED_LIQUIDATION_FEE)
-                  .sub(413), // FIXME: more than just rounding error; need to debug actuals
+                  .sub(25),
               })
-              // 437612720 actual
-              // 442529048 expected adiabatic fee sign, no funding
-              // 437604963 adiabatic fee .mul(-1), with funding.div(2)
-              // 437613133 adiabatic fee .mul(-1), with funding.div(-2)
 
               const totalFee = EXPECTED_FUNDING_FEE_1.add(EXPECTED_INTEREST_FEE_10_67_123_ALL)
                 .add(EXPECTED_FUNDING_FEE_2)
