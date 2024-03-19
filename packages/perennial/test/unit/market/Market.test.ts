@@ -821,6 +821,119 @@ describe('Market', () => {
         expect(riskParameter.makerReceiveOnly).to.equal(defaultRiskParameter.makerReceiveOnly)
       })
 
+      it.only('incurs exposure adding adiabatic fee with only maker position', async () => {
+        // setup from #update
+        await market.connect(owner).updateParameter(beneficiary.address, coordinator.address, marketParameter)
+        oracle.at.whenCalledWith(ORACLE_VERSION_0.timestamp).returns(ORACLE_VERSION_0)
+        oracle.at.whenCalledWith(ORACLE_VERSION_1.timestamp).returns(ORACLE_VERSION_1)
+        oracle.status.returns([ORACLE_VERSION_1, ORACLE_VERSION_2.timestamp])
+        oracle.request.whenCalledWith(user.address).returns()
+
+        // setup from all positions
+        dsu.transferFrom.whenCalledWith(user.address, market.address, COLLATERAL.mul(1e12)).returns(true)
+        const riskParameter = { ...(await market.riskParameter()) }
+        const riskParameterTakerFee = { ...riskParameter.takerFee }
+        riskParameterTakerFee.scale = POSITION
+        riskParameter.takerFee = riskParameterTakerFee
+        await market.updateRiskParameter(riskParameter)
+
+        // setup from maker - userB establishes maker position
+        dsu.transferFrom.whenCalledWith(userB.address, market.address, utils.parseEther('450')).returns(true)
+        await market
+          .connect(userB)
+          ['update(address,uint256,uint256,uint256,int256,bool)'](
+            userB.address,
+            parse6decimal('10'),
+            0,
+            0,
+            parse6decimal('450'),
+            false,
+          )
+        // user establishes long position
+        dsu.transferFrom.whenCalledWith(user.address, market.address, COLLATERAL.mul(1e12)).returns(true)
+        await market
+          .connect(user)
+          ['update(address,uint256,uint256,uint256,int256,bool)'](
+            user.address,
+            0,
+            parse6decimal('6'),
+            0,
+            COLLATERAL,
+            false,
+          )
+        // userC establishes short position
+        dsu.transferFrom.whenCalledWith(userC.address, market.address, COLLATERAL.mul(1e12)).returns(true)
+        await market
+          .connect(userC)
+          ['update(address,uint256,uint256,uint256,int256,bool)'](
+            userC.address,
+            0,
+            0,
+            parse6decimal('12'),
+            COLLATERAL,
+            false,
+          )
+
+        // update oracle and settle positions
+        oracle.at.whenCalledWith(ORACLE_VERSION_2.timestamp).returns(ORACLE_VERSION_2)
+        oracle.status.returns([ORACLE_VERSION_2, ORACLE_VERSION_3.timestamp]) // TIMESTAMP + 1 hour
+        oracle.request.returns()
+        await settle(market, user)
+        await settle(market, userB)
+        await settle(market, userC)
+        expectPositionEq(await market.position(), {
+          ...DEFAULT_POSITION,
+          timestamp: ORACLE_VERSION_2.timestamp,
+          maker: parse6decimal('10'),
+          long: parse6decimal('6'),
+          short: parse6decimal('12'),
+        })
+
+        // price drops, undercollateralizing the maker position
+        const oracleVersionLowerPrice = {
+          price: parse6decimal('45'),
+          timestamp: TIMESTAMP + 7200,
+          valid: true,
+        }
+        oracle.at.whenCalledWith(oracleVersionLowerPrice.timestamp).returns(oracleVersionLowerPrice)
+        oracle.status.returns([oracleVersionLowerPrice, ORACLE_VERSION_4.timestamp]) // TIMESTAMP + 3 hours
+        oracle.request.returns()
+        await settle(market, user)
+
+        // userB gets liquidated, eliminating the maker position
+        const EXPECTED_LIQUIDATION_FEE = parse6decimal('10')
+        dsu.transfer.whenCalledWith(liquidator.address, EXPECTED_LIQUIDATION_FEE.mul(1e12)).returns(true)
+        dsu.balanceOf.whenCalledWith(market.address).returns(COLLATERAL.mul(1e12))
+        await expect(
+          market
+            .connect(liquidator)
+            ['update(address,uint256,uint256,uint256,int256,bool)'](userB.address, 0, 0, 0, 0, true),
+        )
+          .to.emit(market, 'Updated')
+          .withArgs(
+            liquidator.address,
+            userB.address,
+            ORACLE_VERSION_4.timestamp, // TIMESTAMP + 10800
+            0,
+            0,
+            0,
+            0,
+            true,
+            constants.AddressZero,
+          )
+        oracle.at.whenCalledWith(ORACLE_VERSION_4.timestamp).returns(ORACLE_VERSION_4)
+        oracle.status.returns([ORACLE_VERSION_4, ORACLE_VERSION_5.timestamp])
+        oracle.request.returns()
+        await settle(market, userB)
+        expectPositionEq(await market.position(), {
+          ...DEFAULT_POSITION,
+          timestamp: ORACLE_VERSION_4.timestamp,
+          maker: parse6decimal('0'),
+          long: parse6decimal('6'),
+          short: parse6decimal('12'),
+        })
+      })
+
       it('reverts if not owner or coordinator', async () => {
         await expect(market.connect(user).updateRiskParameter(defaultRiskParameter)).to.be.revertedWithCustomError(
           market,
@@ -12240,7 +12353,7 @@ describe('Market', () => {
               })
             })
 
-            it.only('with adiabatic fees to incur exposure', async () => {
+            it('with adiabatic fees to incur exposure', async () => {
               // rate_0 = 0
               // rate_1 = rate_0 + (elapsed * scaledSkew / k) = 3600 * -0.5 / 40000 = -0.045
               // rate_2 = rate_1 + (elapsed * scaledSkew / k) = 3600 * -1   / 40000 = -0.090
@@ -12249,13 +12362,11 @@ describe('Market', () => {
               const EXPECTED_FUNDING_1 = BigNumber.from(-3159) // −0.003159
               const EXPECTED_FUNDING_FEE_1 = BigNumber.from(315) // |funding| * fundingFee
               const EXPECTED_FUNDING_WITH_FEE_1 = EXPECTED_FUNDING_1.add(EXPECTED_FUNDING_FEE_1.div(2))
-              const EXPECTED_FUNDING_WITHOUT_FEE_1 = EXPECTED_FUNDING_1.sub(EXPECTED_FUNDING_FEE_1.div(2))
 
               // (-0.045 + (-0.045 + -0.090))/2 * 3600 * 10 * 45 / (86400 * 365)
               const EXPECTED_FUNDING_2 = BigNumber.from(-4623) // −0.004623
               const EXPECTED_FUNDING_FEE_2 = BigNumber.from(462) // |funding| * fundingFee
               const EXPECTED_FUNDING_WITH_FEE_2 = EXPECTED_FUNDING_2.add(EXPECTED_FUNDING_FEE_2.div(2))
-              const EXPECTED_FUNDING_WITHOUT_FEE_2 = EXPECTED_FUNDING_2.sub(EXPECTED_FUNDING_FEE_2.div(2))
 
               oracle.at.whenCalledWith(ORACLE_VERSION_2.timestamp).returns(ORACLE_VERSION_2)
               oracle.status.returns([ORACLE_VERSION_2, ORACLE_VERSION_3.timestamp]) // TIMESTAMP + 1 hour
