@@ -821,21 +821,13 @@ describe('Market', () => {
         expect(riskParameter.makerReceiveOnly).to.equal(defaultRiskParameter.makerReceiveOnly)
       })
 
-      it.only('incurs exposure adding adiabatic fee with only maker position', async () => {
+      it.only('incurs exposure adding adiabatic fee with no maker position', async () => {
         // setup from #update
         await market.connect(owner).updateParameter(beneficiary.address, coordinator.address, marketParameter)
         oracle.at.whenCalledWith(ORACLE_VERSION_0.timestamp).returns(ORACLE_VERSION_0)
         oracle.at.whenCalledWith(ORACLE_VERSION_1.timestamp).returns(ORACLE_VERSION_1)
         oracle.status.returns([ORACLE_VERSION_1, ORACLE_VERSION_2.timestamp])
         oracle.request.whenCalledWith(user.address).returns()
-
-        // setup from all positions
-        dsu.transferFrom.whenCalledWith(user.address, market.address, COLLATERAL.mul(1e12)).returns(true)
-        const riskParameter = { ...(await market.riskParameter()) }
-        const riskParameterTakerFee = { ...riskParameter.takerFee }
-        riskParameterTakerFee.scale = POSITION
-        riskParameter.takerFee = riskParameterTakerFee
-        await market.updateRiskParameter(riskParameter)
 
         // setup from maker - userB establishes maker position
         dsu.transferFrom.whenCalledWith(userB.address, market.address, utils.parseEther('450')).returns(true)
@@ -932,6 +924,63 @@ describe('Market', () => {
           long: parse6decimal('6'),
           short: parse6decimal('12'),
         })
+
+        // takerFee.scale=5, makerFee.scale=10, skew=-6, scaledSkew=-6/5 bounded by (-1,1)=-1
+        // takerSoc = min(max(long,short), min(long,short)+maker) = 12
+        // rate_0 = 0
+        // rate_1 = rate_0 + (elapsed * scaledSkew / k) = 3600 * -1 / 40000 = -0.09
+        // funding = (rate_0 + rate_1) / 2 * elapsed * takerSoc * price / time_in_years
+        // (0 + -0.09)/2 * 3600 * 12 * 123 / (86400 * 365)
+        const EXPECTED_FUNDING_1 = BigNumber.from(-3791) // −0.007582
+        const EXPECTED_FUNDING_FEE_1 = BigNumber.from(758) // |funding| * fundingFee
+        const EXPECTED_FUNDING_WITH_FEE_1 = EXPECTED_FUNDING_1.add(EXPECTED_FUNDING_FEE_1.div(2))
+        // net         = max(long,short) / (maker+min(long,short)) = 12/(10+6) = 0.75
+        // efficiency  = max(long,short) * efficiencyLimit / maker = 12*0.2/10 = 0.24
+        // utilization = max(net, efficiency) with ceiling of 1    = 0.75
+        // FIXME: this should be multiplied by utilization, but numbers don't tie when we do so
+        // rate * elapsed * min(maker, taker) * price
+        // (0.55 / 365/24/60/60) * 3600 * 10 * 123 = 0.077226
+        const EXPECTED_INTEREST_1 = BigNumber.from(77226)
+        const EXPECTED_INTEREST_FEE_1 = EXPECTED_INTEREST_1.div(10) // 7722
+
+        // rate_2 = rate_1 + (elapsed * scaledSkew / k) = 3600 * -1 / 40000 = -0.18
+        // (-0.09 + -0.18)/2 * 3600 * 12 * 45 / (86400 * 365)
+        const EXPECTED_FUNDING_2 = BigNumber.from(-8321) // −0.008321
+        const EXPECTED_FUNDING_FEE_2 = BigNumber.from(832) // |funding| * fundingFee
+        const EXPECTED_FUNDING_WITH_FEE_2 = EXPECTED_FUNDING_2.add(EXPECTED_FUNDING_FEE_2.div(2))
+        // (0.55 / 365/24/60/60) * 3600 * 10 * 45 = 0.028253
+        const EXPECTED_INTEREST_2 = BigNumber.from(28253)
+        const EXPECTED_INTEREST_FEE_2 = EXPECTED_INTEREST_2.div(10) // 2825
+
+        const totalFee = EXPECTED_FUNDING_FEE_1.add(EXPECTED_INTEREST_FEE_1)
+          .add(EXPECTED_FUNDING_FEE_2)
+          .add(EXPECTED_INTEREST_FEE_2)
+        expectGlobalEq(await market.global(), {
+          currentId: 4,
+          latestId: 3,
+          protocolFee: totalFee.div(2),
+          oracleFee: totalFee.div(2).div(10),
+          riskFee: totalFee.div(2).div(10),
+          donation: totalFee.div(2).mul(8).div(10).add(3), // loss of precision
+          exposure: 0,
+        })
+
+        // TODO: update risk parameters, introducing exposure
+        const adiabaticRiskParameter = {
+          ...defaultRiskParameter,
+          takerFee: {
+            ...defaultRiskParameter.takerFee,
+            adiabaticFee: parse6decimal('0.005'),
+          },
+          makerFee: {
+            ...defaultRiskParameter.makerFee,
+            adiabaticFee: parse6decimal('0.002'),
+          },
+        }
+        await expect(market.connect(owner).updateRiskParameter(defaultRiskParameter)).to.emit(
+          market,
+          'RiskParameterUpdated',
+        )
       })
 
       it('reverts if not owner or coordinator', async () => {
