@@ -931,13 +931,12 @@ describe('Market', () => {
         // rate_1 = rate_0 + (elapsed * scaledSkew / k) = 3600 * -1 / 40000 = -0.09
         // funding = (rate_0 + rate_1) / 2 * elapsed * takerSoc * price / time_in_years
         // (0 + -0.09)/2 * 3600 * 12 * 123 / (86400 * 365)
-        const EXPECTED_FUNDING_1 = BigNumber.from(-3791) // −0.007582
+        const EXPECTED_FUNDING_1 = BigNumber.from(-7582) // −0.007582
         const EXPECTED_FUNDING_FEE_1 = BigNumber.from(758) // |funding| * fundingFee
-        const EXPECTED_FUNDING_WITH_FEE_1 = EXPECTED_FUNDING_1.add(EXPECTED_FUNDING_FEE_1.div(2))
         // net         = max(long,short) / (maker+min(long,short)) = 12/(10+6) = 0.75
         // efficiency  = max(long,short) * efficiencyLimit / maker = 12*0.2/10 = 0.24
         // utilization = max(net, efficiency) with ceiling of 1    = 0.75
-        // FIXME: this should be multiplied by utilization, but numbers don't tie when we do so
+        // TODO: determine why I don't need to multiply by utilization, like most other tests
         // rate * elapsed * min(maker, taker) * price
         // (0.55 / 365/24/60/60) * 3600 * 10 * 123 = 0.077226
         const EXPECTED_INTEREST_1 = BigNumber.from(77226)
@@ -947,7 +946,6 @@ describe('Market', () => {
         // (-0.09 + -0.18)/2 * 3600 * 12 * 45 / (86400 * 365)
         const EXPECTED_FUNDING_2 = BigNumber.from(-8321) // −0.008321
         const EXPECTED_FUNDING_FEE_2 = BigNumber.from(832) // |funding| * fundingFee
-        const EXPECTED_FUNDING_WITH_FEE_2 = EXPECTED_FUNDING_2.add(EXPECTED_FUNDING_FEE_2.div(2))
         // (0.55 / 365/24/60/60) * 3600 * 10 * 45 = 0.028253
         const EXPECTED_INTEREST_2 = BigNumber.from(28253)
         const EXPECTED_INTEREST_FEE_2 = EXPECTED_INTEREST_2.div(10) // 2825
@@ -965,22 +963,27 @@ describe('Market', () => {
           exposure: 0,
         })
 
-        // TODO: update risk parameters, introducing exposure
-        const adiabaticRiskParameter = {
-          ...defaultRiskParameter,
-          takerFee: {
-            ...defaultRiskParameter.takerFee,
-            adiabaticFee: parse6decimal('0.005'),
-          },
-          makerFee: {
-            ...defaultRiskParameter.makerFee,
-            adiabaticFee: parse6decimal('0.002'),
-          },
-        }
+        // update risk parameters, introducing exposure
         await expect(market.connect(owner).updateRiskParameter(defaultRiskParameter)).to.emit(
           market,
           'RiskParameterUpdated',
         )
+
+        // maker exposure is 0, so
+        // latestExposure = [(skew/scale+0)/2 * takerFee.adiabaticFee * skew * 1] + makerExposure
+        //                = [(-6/50+0)/2 * 0.003 * -6] + 0 = 0.00108
+        // impactExposure = latestExposure * price = 0.00108 * 123 = 0.13284
+        const EXPOSURE_BEFORE = BigNumber.from(0)
+        const EXPOSURE_AFTER = BigNumber.from(0).sub(parse6decimal('0.13284'))
+        expectGlobalEq(await market.global(), {
+          currentId: 4,
+          latestId: 3,
+          protocolFee: totalFee.div(2),
+          oracleFee: totalFee.div(2).div(10),
+          riskFee: totalFee.div(2).div(10),
+          donation: totalFee.div(2).mul(8).div(10).add(3), // loss of precision
+          exposure: EXPOSURE_BEFORE.add(EXPOSURE_AFTER),
+        })
       })
 
       it('reverts if not owner or coordinator', async () => {
