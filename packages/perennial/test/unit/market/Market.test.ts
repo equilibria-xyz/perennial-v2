@@ -821,7 +821,7 @@ describe('Market', () => {
         expect(riskParameter.makerReceiveOnly).to.equal(defaultRiskParameter.makerReceiveOnly)
       })
 
-      it.only('incurs exposure adding adiabatic fee with no maker position', async () => {
+      it('incurs exposure adding adiabatic fee with no maker position', async () => {
         // setup from #update
         await market.connect(owner).updateParameter(beneficiary.address, coordinator.address, marketParameter)
         oracle.at.whenCalledWith(ORACLE_VERSION_0.timestamp).returns(ORACLE_VERSION_0)
@@ -918,7 +918,7 @@ describe('Market', () => {
           timestamp: TIMESTAMP + 3600 * 3,
         }
         oracle.at.whenCalledWith(ORACLE_VERSION_4.timestamp).returns(oracleVersion)
-        oracle.status.returns([ORACLE_VERSION_4, ORACLE_VERSION_5.timestamp])
+        oracle.status.returns([oracleVersion, ORACLE_VERSION_5.timestamp])
         oracle.request.returns()
         await settle(market, userB)
         expectPositionEq(await market.position(), {
@@ -940,7 +940,6 @@ describe('Market', () => {
         // net         = max(long,short) / (maker+min(long,short)) = 12/(10+6) = 0.75
         // efficiency  = max(long,short) * efficiencyLimit / maker = 12*0.2/10 = 0.24
         // utilization = max(net, efficiency) with ceiling of 1    = 0.75
-        // TODO: determine why I don't need to multiply by utilization, like most other tests
         // rate * elapsed * min(maker, taker) * price
         // (0.55 / 365/24/60/60) * 3600 * 10 * 123 = 0.077226
         const EXPECTED_INTEREST_1 = BigNumber.from(77226)
@@ -976,7 +975,7 @@ describe('Market', () => {
         // maker exposure is 0, so
         // latestExposure = [(skew/scale+0)/2 * takerFee.adiabaticFee * skew * 1] + makerExposure
         //                = [(-6/50+0)/2 * 0.003 * -6] + 0 = 0.00108
-        // impactExposure = latestExposure * price = 0.00108 * 45 = 0.0486
+        // impactExposure = latestExposure * priceChange = 0.00108 * (45-0) = 0.0486
         const EXPOSURE_BEFORE_2 = BigNumber.from(0)
         const EXPOSURE_AFTER_2 = BigNumber.from(0).sub(parse6decimal('0.0486'))
         expectGlobalEq(await market.global(), {
@@ -996,21 +995,20 @@ describe('Market', () => {
           timestamp: TIMESTAMP + 3600 * 4,
         }
         oracle.at.whenCalledWith(ORACLE_VERSION_5.timestamp).returns(oracleVersion)
-        oracle.status.returns([ORACLE_VERSION_5, ORACLE_VERSION_6.timestamp])
+        oracle.status.returns([oracleVersion, ORACLE_VERSION_6.timestamp])
         oracle.request.returns()
         await settle(market, user)
 
         // rate_3 = rate_2 + (elapsed * scaledSkew / k) = -0.18 + 3600 * -1 / 40000 = −0.27
-        // FIXME: funding rate above ties out, but funding amount below does not; actual -6934 (-0.006934)
-        // (-0.18 + -0.27)/2 * 3600 * 12 * 62 / (86400 * 365) = −0.019109
+        // (-0.18 + -0.27)/2 * 3600 * 6 * 45 / (86400 * 365) = −0.006934
         const EXPECTED_FUNDING_3 = BigNumber.from(-6934)
         const EXPECTED_FUNDING_FEE_3 = BigNumber.from(693) // |funding| * fundingFee
         // no EXPECTED_INTEREST_FEE_3 because no position change
         totalFee = totalFee.add(EXPECTED_FUNDING_FEE_3)
 
-        // impactExposure = latestExposure * price = 0.00108 * 62 = 0.06696
+        // impactExposure = latestExposure * priceChange = 0.00108 * (62-45) =
         const EXPOSURE_BEFORE_3 = EXPOSURE_AFTER_2
-        const EXPOSURE_AFTER_3 = BigNumber.from(0).sub(parse6decimal('0.06696'))
+        const EXPOSURE_AFTER_3 = BigNumber.from(0).sub(parse6decimal('0.01836'))
         expectGlobalEq(await market.global(), {
           currentId: 5,
           latestId: 4,
@@ -1018,7 +1016,7 @@ describe('Market', () => {
           oracleFee: totalFee.div(2).div(10).sub(1), // loss of precision
           riskFee: totalFee.div(2).div(10).sub(1), // loss of precision
           donation: totalFee.div(2).mul(8).div(10).add(4), // loss of precision
-          exposure: /*EXPOSURE_BEFORE_3.add*/ EXPOSURE_AFTER_3, // TODO: why not add "before" value?
+          exposure: EXPOSURE_BEFORE_3.add(EXPOSURE_AFTER_3),
         })
       })
 
@@ -2866,8 +2864,8 @@ describe('Market', () => {
               })
 
               // no taker position when risk parameters updated, so
-              // updateFee = 0 + [(1+1-makerPos/scale)/2 * makerFee.adiabaticFee * makerPos * price]
-              //           = 0 + 0.5 * 0.01 * -10 * 123 = −6.15
+              // updateFee = 0 + [(1+1-makerPos/scale)/2 * makerFee.adiabaticFee * makerPos * priceChange]
+              //           = 0 + 0.5 * 0.01 * -10 * (123-0) = −6.15
               const EXPOSURE_BEFORE = BigNumber.from(0).sub(parse6decimal('-6.15'))
               const EXPOSURE_AFTER = BigNumber.from(0)
 
@@ -4560,8 +4558,8 @@ describe('Market', () => {
                 })
                 const totalFee = EXPECTED_FUNDING_FEE_1_5_123.add(EXPECTED_INTEREST_FEE_5_123).add(TAKER_FEE_ONLY_FEE)
                 // maker exposure is 0, so
-                // updateFee = [(skew/scale+0)/2 * takerFee.adiabaticFee * skew * price] + 0
-                //           = [(5/5+0)/2 * 0.008 * 5 * 123] + 0 = 0.5 * 4.92 = 2.46
+                // updateFee = [(skew/scale+0)/2 * takerFee.adiabaticFee * skew * priceChange] + 0
+                //           = [(5/5+0)/2 * 0.008 * 5 * (123-0)] + 0 = 0.5 * 4.92 = 2.46
                 const EXPOSURE_BEFORE = BigNumber.from(0).sub(parse6decimal('2.46'))
                 const EXPOSURE_AFTER = BigNumber.from(0)
                 expectGlobalEq(await market.global(), {
@@ -7850,8 +7848,8 @@ describe('Market', () => {
                 })
                 const totalFee = EXPECTED_FUNDING_FEE_1_5_123.add(EXPECTED_INTEREST_FEE_5_123).add(TAKER_FEE_ONLY_FEE)
                 // maker exposure is 0, so
-                // updateFee = [(skew/scale+0)/2 * takerFee.adiabaticFee * skew * price] + makerExposure
-                //           = [(5/5+0)/2 * 0.008 * 5 * 123] + 0 = 0.5 * 4.92 = 2.46
+                // updateFee = [(skew/scale+0)/2 * takerFee.adiabaticFee * skew * priceChange] + makerExposure
+                //           = [(5/5+0)/2 * 0.008 * 5 * (123-0)] + 0 = 0.5 * 4.92 = 2.46
                 const EXPOSURE_BEFORE = BigNumber.from(0).sub(parse6decimal('2.46'))
                 const EXPOSURE_AFTER = BigNumber.from(0)
                 expectGlobalEq(await market.global(), {
@@ -12552,7 +12550,7 @@ describe('Market', () => {
               //                  + [(1+1-makerPos/scale)/2 * makerFee.adiabaticFee * makerChange * 1]
               //                = [(-5/5+0)/2 * 0.003 * -5] + [(1+1-(10/10))/2 * 0.004 * -10]
               //                = 0.0075 + -0.02 = −0.0125
-              // impactExposure = latestExposure * price = −0.0125 * 123 = −1.5375
+              // impactExposure = latestExposure * priceChange = −0.0125 * (123-0) = −1.5375
               const EXPOSURE_BEFORE = BigNumber.from(0)
               const EXPOSURE_AFTER = BigNumber.from(0).sub(parse6decimal('-1.5375'))
               expectGlobalEq(await market.global(), {
