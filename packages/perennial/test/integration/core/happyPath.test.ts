@@ -159,6 +159,7 @@ describe('Happy Path', () => {
       riskFee: 0,
       oracleFee: 0,
       donation: 0,
+      exposure: 0,
     })
     expectOrderEq(await market.pendingOrder(1), {
       ...DEFAULT_ORDER,
@@ -208,6 +209,7 @@ describe('Happy Path', () => {
       riskFee: 0,
       oracleFee: 0,
       donation: 0,
+      exposure: 0,
     })
     expectOrderEq(await market.pendingOrder(2), {
       ...DEFAULT_ORDER,
@@ -269,6 +271,7 @@ describe('Happy Path', () => {
       riskFee: 0,
       oracleFee: 0,
       donation: 0,
+      exposure: 0,
     })
     expectOrderEq(await market.pendingOrder(1), {
       ...DEFAULT_ORDER,
@@ -318,6 +321,7 @@ describe('Happy Path', () => {
       riskFee: 0,
       oracleFee: 0,
       donation: 0,
+      exposure: 0,
     })
     expectOrderEq(await market.pendingOrder(2), {
       ...DEFAULT_ORDER,
@@ -387,6 +391,7 @@ describe('Happy Path', () => {
       riskFee: 0,
       oracleFee: 0,
       donation: 0,
+      exposure: 0,
     })
     expectOrderEq(await market.pendingOrder(2), {
       ...DEFAULT_ORDER,
@@ -458,6 +463,7 @@ describe('Happy Path', () => {
       riskFee: 0,
       oracleFee: 0,
       donation: 0,
+      exposure: 0,
     })
     expectOrderEq(await market.pendingOrder(2), {
       ...DEFAULT_ORDER,
@@ -563,6 +569,7 @@ describe('Happy Path', () => {
       riskFee: 0,
       oracleFee: 0,
       donation: 0,
+      exposure: 0,
     })
     expectOrderEq(await market.pendingOrder(1), {
       ...DEFAULT_ORDER,
@@ -595,6 +602,7 @@ describe('Happy Path', () => {
       riskFee: 0,
       oracleFee: 0,
       donation: '18',
+      exposure: 0,
     })
     expectOrderEq(await market.pendingOrder(2), {
       ...DEFAULT_ORDER,
@@ -689,6 +697,7 @@ describe('Happy Path', () => {
       riskFee: 0,
       oracleFee: 0,
       donation: 0,
+      exposure: 0,
     })
     expectOrderEq(await market.pendingOrder(1), {
       ...DEFAULT_ORDER,
@@ -721,6 +730,7 @@ describe('Happy Path', () => {
       riskFee: 0,
       oracleFee: 0,
       donation: '18',
+      exposure: 0,
     })
     expectOrderEq(await market.pendingOrder(2), {
       ...DEFAULT_ORDER,
@@ -819,6 +829,7 @@ describe('Happy Path', () => {
       riskFee: 0,
       oracleFee: 0,
       donation: 0,
+      exposure: 0,
     })
     expectOrderEq(await market.pendingOrder(2), {
       ...DEFAULT_ORDER,
@@ -905,6 +916,7 @@ describe('Happy Path', () => {
       riskFee: 0,
       oracleFee: 0,
       donation: 0,
+      exposure: 0,
     })
     expectOrderEq(await market.pendingOrder(2), {
       ...DEFAULT_ORDER,
@@ -1153,6 +1165,7 @@ describe('Happy Path', () => {
       riskFee: 0,
       oracleFee: 0,
       donation: '308690',
+      exposure: 0,
     })
     expectOrderEq(await market.pendingOrder(3), {
       ...DEFAULT_ORDER,
@@ -1331,6 +1344,7 @@ describe('Happy Path', () => {
       riskFee: (await market.global()).riskFee,
       oracleFee: (await market.global()).oracleFee,
       donation: (await market.global()).donation,
+      exposure: 0,
     })
     expectOrderEq(await market.pendingOrder(delay + 1), {
       ...DEFAULT_ORDER,
