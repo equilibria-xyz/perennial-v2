@@ -3,10 +3,11 @@ import 'hardhat'
 import { BigNumber, constants, utils } from 'ethers'
 
 import { InstanceVars, deployProtocol, createMarket, settle } from '../helpers/setupHelpers'
-import { parse6decimal } from '../../../../common/testutil/types'
+import { expectPositionEq, parse6decimal } from '../../../../common/testutil/types'
 import { loadFixture } from '@nomicfoundation/hardhat-network-helpers'
 
 export const TIMESTAMP_2 = 1631113819
+export const TIMESTAMP_3 = 1631114005
 
 describe('Liquidate', () => {
   let instanceVars: InstanceVars
@@ -221,5 +222,72 @@ describe('Liquidate', () => {
       .add((await market.global()).riskFee)
       .add((await market.global()).donation)
     expect(totalCollateral.add(totalFees)).to.be.lte(parse6decimal('22000'))
+  })
+
+  it('liquidates a user under minMaintenance', async () => {
+    const COLLATERAL = parse6decimal('1000')
+    const { user, userB, userC, dsu, chainlink } = instanceVars
+
+    const market = await createMarket(instanceVars)
+    await dsu.connect(user).approve(market.address, COLLATERAL.mul(1e12))
+    await dsu.connect(userB).approve(market.address, COLLATERAL.mul(10).mul(1e12))
+    // user establishes a maker position right at minMaintenance amount
+    await market
+      .connect(user)
+      ['update(address,uint256,uint256,uint256,int256,bool)'](
+        user.address,
+        parse6decimal('5'),
+        0,
+        0,
+        COLLATERAL.div(2),
+        false,
+      )
+    // userB takes a short position
+    await market
+      .connect(userB)
+      ['update(address,uint256,uint256,uint256,int256,bool)'](
+        userB.address,
+        0,
+        0,
+        parse6decimal('4'),
+        COLLATERAL,
+        false,
+      )
+
+    // two price drops occur while the maker has long exposure
+    expect((await chainlink.oracle.latest()).price).to.equal(parse6decimal('113.882975'))
+    await chainlink.nextWithPriceModification(price => price.div(2))
+    await settle(market, user)
+    await chainlink.nextWithPriceModification(price => price.div(4))
+    // TODO: replace setupHelper.settle with this implementation, renaming the existing
+    await market.connect(user)['settle(address)'](user.address) // avoid invariant violation
+
+    // ensure user's collateral is now lower than minMaintenance
+    const collateral = (await market.locals(user.address)).collateral
+    const riskParameter = await market.riskParameter()
+    expect(collateral).to.be.lessThan(riskParameter.minMaintenance)
+
+    // userC liquidates
+    await expect(
+      market.connect(userC)['update(address,uint256,uint256,uint256,int256,bool)'](user.address, 0, 0, 0, 0, true),
+    ) // liquidate
+      .to.emit(market, 'Updated')
+      .withArgs(userC.address, user.address, TIMESTAMP_3, 0, 0, 0, 0, true, constants.AddressZero)
+    expect((await market.pendingOrders(user.address, 3)).protection).to.eq(1)
+    expect(await market.liquidators(user.address, 3)).to.eq(userC.address)
+    expect(await dsu.balanceOf(market.address)).to.equal(utils.parseEther('1500'))
+    await chainlink.next()
+    await settle(market, user)
+    expectPositionEq(await market.position(), {
+      timestamp: TIMESTAMP_3,
+      long: 0,
+      maker: 0,
+      short: parse6decimal('4'),
+    })
+
+    // userC claims their fee
+    expect((await market.locals(userC.address)).claimable).to.equal(parse6decimal('10'))
+    await market.connect(userC).claimFee() // liquidator withdrawal
+    expect(await dsu.balanceOf(market.address)).to.equal(utils.parseEther('1500').sub(utils.parseEther('10')))
   })
 })
