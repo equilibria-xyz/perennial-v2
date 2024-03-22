@@ -147,6 +147,7 @@ describe('Fees', () => {
         riskFee: expectedRiskFee,
         oracleFee: expectedOracleFee,
         donation: expectedDonation,
+        exposure: 0,
       })
       expectOrderEq(await market.pendingOrder(2), {
         ...DEFAULT_ORDER,
@@ -236,6 +237,7 @@ describe('Fees', () => {
         riskFee: expectedRiskFee,
         oracleFee: expectedOracleFee,
         donation: expectedDonation,
+        exposure: expectedMakerAdiabatic,
       })
       expectOrderEq(await market.pendingOrder(3), {
         ...DEFAULT_ORDER,
@@ -320,6 +322,7 @@ describe('Fees', () => {
         riskFee: expectedRiskFee,
         oracleFee: expectedOracleFee,
         donation: expectedDonation,
+        exposure: 0,
       })
       expectOrderEq(await market.pendingOrder(2), {
         ...DEFAULT_ORDER,
@@ -431,6 +434,7 @@ describe('Fees', () => {
         riskFee: expectedRiskFee,
         oracleFee: expectedOracleFee,
         donation: expectedDonation,
+        exposure: 0,
       })
       expectOrderEq(await market.pendingOrder(3), {
         ...DEFAULT_ORDER,
@@ -602,6 +606,7 @@ describe('Fees', () => {
         riskFee: expectedRiskFee,
         oracleFee: expectedOracleFee,
         donation: expectedDonation,
+        exposure: 0,
       })
       expectOrderEq(await market.pendingOrder(3), {
         ...DEFAULT_ORDER,
@@ -734,6 +739,7 @@ describe('Fees', () => {
         riskFee: expectedRiskFee,
         oracleFee: expectedOracleFee,
         donation: expectedDonation,
+        exposure: 0,
       })
       expectOrderEq(await market.pendingOrder(2), {
         ...DEFAULT_ORDER,
@@ -845,6 +851,7 @@ describe('Fees', () => {
         riskFee: expectedRiskFee,
         oracleFee: expectedOracleFee,
         donation: expectedDonation,
+        exposure: 0,
       })
       expectOrderEq(await market.pendingOrder(3), {
         ...DEFAULT_ORDER,
@@ -1016,6 +1023,7 @@ describe('Fees', () => {
         riskFee: expectedRiskFee,
         oracleFee: expectedOracleFee,
         donation: expectedDonation,
+        exposure: 0,
       })
       expectOrderEq(await market.pendingOrder(3), {
         ...DEFAULT_ORDER,
@@ -1430,6 +1438,7 @@ describe('Fees', () => {
           riskFee: 0,
           oracleFee: expectedSettlementFee,
           donation: 0,
+          exposure: 0,
         })
       })
 
@@ -1471,6 +1480,7 @@ describe('Fees', () => {
           riskFee: 0,
           oracleFee: expectedSettlementFee,
           donation: 0,
+          exposure: 0,
         })
       })
     })

@@ -47,6 +47,7 @@ export interface Global {
   oracleFee: BigNumberish
   riskFee: BigNumberish
   donation: BigNumberish
+  exposure: BigNumberish
 }
 
 export interface Local {
@@ -114,6 +115,7 @@ export function expectGlobalEq(a: Global, b: Global): void {
   expect(a.oracleFee).to.equal(b.oracleFee, 'Global:OracleFee')
   expect(a.riskFee).to.equal(b.riskFee, 'Global:RiskFee')
   expect(a.donation).to.equal(b.donation, 'Global:Donation')
+  expect(a.exposure).to.equal(b.exposure, 'Global:Exposure')
 }
 
 export function expectLocalEq(a: Local, b: Local): void {
