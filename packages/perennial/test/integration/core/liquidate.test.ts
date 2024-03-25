@@ -255,17 +255,22 @@ describe('Liquidate', () => {
       )
 
     // two price drops occur while the maker has long exposure
-    expect((await chainlink.oracle.latest()).price).to.equal(parse6decimal('113.882975'))
-    await chainlink.nextWithPriceModification(price => price.div(2))
+    let price = (await chainlink.oracle.latest()).price
+    expect(price).to.equal(parse6decimal('113.882975'))
+    await chainlink.nextWithPriceModification(price => price.mul(9).div(10)) // 10% drop
     await settle(market, user)
-    await chainlink.nextWithPriceModification(price => price.div(4))
+    await chainlink.nextWithPriceModification(price => price.mul(8).div(10)) // 20% drop
     // TODO: replace setupHelper.settle with this implementation, renaming the existing
     await market.connect(user)['settle(address)'](user.address) // avoid invariant violation
+    price = (await chainlink.oracle.latest()).price
 
-    // ensure user's collateral is now lower than minMaintenance
+    // ensure user's collateral is now lower than minMaintenance but above maintenance requirement
     const collateral = (await market.locals(user.address)).collateral
     const riskParameter = await market.riskParameter()
     expect(collateral).to.be.lessThan(riskParameter.minMaintenance)
+    // maintenance = price * position * requirementRatio = price * 5 * 0.3
+    const maintenance = price.mul(5).mul(3).div(10)
+    expect(collateral).to.be.greaterThan(maintenance)
 
     // userC liquidates
     await expect(
