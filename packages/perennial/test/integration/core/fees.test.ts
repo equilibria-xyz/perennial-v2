@@ -3,7 +3,7 @@ import 'hardhat'
 import { BigNumber, constants, utils } from 'ethers'
 const { AddressZero } = constants
 
-import { InstanceVars, deployProtocol, createMarket, settle } from '../helpers/setupHelpers'
+import { InstanceVars, deployProtocol, createMarket, settle, updateNoOp } from '../helpers/setupHelpers'
 import {
   DEFAULT_CHECKPOINT,
   DEFAULT_POSITION,
@@ -103,7 +103,7 @@ describe('Fees', () => {
 
       // Settle the market with a new oracle version
       await nextWithConstantPrice()
-      const tx = await settle(market, user)
+      const tx = await updateNoOp(market, user)
       const accountProcessEvent: AccountPositionProcessedEventObject = (await tx.wait()).events?.find(
         e => e.event === 'AccountPositionProcessed',
       )?.args as unknown as AccountPositionProcessedEventObject
@@ -192,7 +192,7 @@ describe('Fees', () => {
 
       // Settle the market with a new oracle version
       await nextWithConstantPrice()
-      const tx = await settle(market, user)
+      const tx = await updateNoOp(market, user)
       const accountProcessEvent: AccountPositionProcessedEventObject = (await tx.wait()).events?.find(
         e => e.event === 'AccountPositionProcessed',
       )?.args as unknown as AccountPositionProcessedEventObject
@@ -295,7 +295,7 @@ describe('Fees', () => {
         )
 
       await nextWithConstantPrice()
-      const txLong = await settle(market, userB)
+      const txLong = await updateNoOp(market, userB)
       const accountProcessEventLong: AccountPositionProcessedEventObject = (await txLong.wait()).events?.find(
         e => e.event === 'AccountPositionProcessed',
       )?.args as unknown as AccountPositionProcessedEventObject
@@ -379,7 +379,7 @@ describe('Fees', () => {
 
       // Settle maker to give them portion of fees
       await nextWithConstantPrice()
-      await settle(market, user)
+      await updateNoOp(market, user)
 
       await expect(
         market
@@ -407,7 +407,7 @@ describe('Fees', () => {
         )
 
       await nextWithConstantPrice()
-      const txLong = await settle(market, userB)
+      const txLong = await updateNoOp(market, userB)
       const accountProcessEventLong: AccountPositionProcessedEventObject = (await txLong.wait()).events?.find(
         e => e.event === 'AccountPositionProcessed',
       )?.args as unknown as AccountPositionProcessedEventObject
@@ -467,7 +467,7 @@ describe('Fees', () => {
         long: LONG_POSITION,
       })
 
-      const txMaker = await settle(market, user)
+      const txMaker = await updateNoOp(market, user)
       const accountProcessEventMaker: AccountPositionProcessedEventObject = (await txMaker.wait()).events?.find(
         e => e.event === 'AccountPositionProcessed',
       )?.args as unknown as AccountPositionProcessedEventObject
@@ -556,8 +556,8 @@ describe('Fees', () => {
         )
 
       await nextWithConstantPrice()
-      await settle(market, userB)
-      await settle(market, user)
+      await updateNoOp(market, userB)
+      await updateNoOp(market, user)
 
       // Re-enable fees for close, disable skew and impact for ease of calculation
       await market.updateRiskParameter({
@@ -579,7 +579,7 @@ describe('Fees', () => {
         ['update(address,uint256,uint256,uint256,int256,bool)'](userB.address, 0, 0, 0, 0, false)
 
       await nextWithConstantPrice()
-      const txLong = await settle(market, userB)
+      const txLong = await updateNoOp(market, userB)
 
       const accountProcessEventLong: AccountPositionProcessedEventObject = (await txLong.wait()).events?.find(
         e => e.event === 'AccountPositionProcessed',
@@ -637,7 +637,7 @@ describe('Fees', () => {
         timestamp: TIMESTAMP_2,
       })
 
-      const txMaker = await settle(market, user)
+      const txMaker = await updateNoOp(market, user)
       const accountProcessEventMaker: AccountPositionProcessedEventObject = (await txMaker.wait()).events?.find(
         e => e.event === 'AccountPositionProcessed',
       )?.args as unknown as AccountPositionProcessedEventObject
@@ -712,7 +712,7 @@ describe('Fees', () => {
         )
 
       await nextWithConstantPrice()
-      const txLong = await settle(market, userB)
+      const txLong = await updateNoOp(market, userB)
       const accountProcessEventLong: AccountPositionProcessedEventObject = (await txLong.wait()).events?.find(
         e => e.event === 'AccountPositionProcessed',
       )?.args as unknown as AccountPositionProcessedEventObject
@@ -824,7 +824,7 @@ describe('Fees', () => {
         )
 
       await nextWithConstantPrice()
-      const txLong = await settle(market, userB)
+      const txLong = await updateNoOp(market, userB)
       const accountProcessEventLong: AccountPositionProcessedEventObject = (await txLong.wait()).events?.find(
         e => e.event === 'AccountPositionProcessed',
       )?.args as unknown as AccountPositionProcessedEventObject
@@ -996,7 +996,7 @@ describe('Fees', () => {
         ['update(address,uint256,uint256,uint256,int256,bool)'](userB.address, 0, 0, 0, 0, false)
 
       await nextWithConstantPrice()
-      const txLong = await settle(market, userB)
+      const txLong = await updateNoOp(market, userB)
 
       const accountProcessEventLong: AccountPositionProcessedEventObject = (await txLong.wait()).events?.find(
         e => e.event === 'AccountPositionProcessed',
@@ -1422,7 +1422,7 @@ describe('Fees', () => {
           )
 
         await nextWithConstantPrice()
-        const tx = await settle(market, instanceVars.user)
+        const tx = await updateNoOp(market, instanceVars.user)
 
         const accountProcessEvent: AccountPositionProcessedEventObject = (await tx.wait()).events?.find(
           e => e.event === 'AccountPositionProcessed',
@@ -1543,7 +1543,7 @@ describe('Fees', () => {
       await nextWithConstantPrice()
       await nextWithConstantPrice()
 
-      const tx = await settle(market, userB)
+      const tx = await updateNoOp(market, userB)
       const accountProcessEvent: AccountPositionProcessedEventObject = (await tx.wait()).events?.find(
         e => e.event === 'AccountPositionProcessed',
       )?.args as unknown as AccountPositionProcessedEventObject
@@ -1574,7 +1574,7 @@ describe('Fees', () => {
       await nextWithConstantPrice()
       await nextWithConstantPrice()
 
-      const tx = await settle(market, userB)
+      const tx = await updateNoOp(market, userB)
       const accountProcessEvent: AccountPositionProcessedEventObject = (await tx.wait()).events?.find(
         e => e.event === 'AccountPositionProcessed',
       )?.args as unknown as AccountPositionProcessedEventObject
@@ -1648,7 +1648,7 @@ describe('Fees', () => {
       await nextWithConstantPrice()
       await nextWithConstantPrice()
 
-      const tx = await settle(market, userB)
+      const tx = await updateNoOp(market, userB)
       const accountProcessEvent: AccountPositionProcessedEventObject = (await tx.wait()).events?.find(
         e => e.event === 'AccountPositionProcessed',
       )?.args as unknown as AccountPositionProcessedEventObject
@@ -1679,7 +1679,7 @@ describe('Fees', () => {
       await nextWithConstantPrice()
       await nextWithConstantPrice()
 
-      const tx = await settle(market, userB)
+      const tx = await updateNoOp(market, userB)
       const accountProcessEvent: AccountPositionProcessedEventObject = (await tx.wait()).events?.find(
         e => e.event === 'AccountPositionProcessed',
       )?.args as unknown as AccountPositionProcessedEventObject
