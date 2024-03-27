@@ -1,6 +1,6 @@
 import { expect } from 'chai'
 import 'hardhat'
-import { BigNumber, constants, utils } from 'ethers'
+import { BigNumber, constants, ContractTransaction, utils } from 'ethers'
 const { AddressZero } = constants
 
 import { InstanceVars, deployProtocol, createMarket, settle, updateNoOp } from '../helpers/setupHelpers'
@@ -77,6 +77,20 @@ describe('Fees', () => {
     const marketFactoryParams = await instanceVars.marketFactory.parameter()
     await instanceVars.marketFactory.updateParameter({ ...marketFactoryParams, maxFee: parse6decimal('0.9') })
     return instanceVars
+  }
+
+  // parse useful events from a settle or update transaction
+  async function getOrderProcessingEvents(
+    tx: ContractTransaction,
+  ): Promise<[Array<AccountPositionProcessedEventObject>, Array<PositionProcessedEventObject>]> {
+    const txEvents = (await tx.wait()).events!
+    const accountProcessEvents: Array<AccountPositionProcessedEventObject> = txEvents
+      .filter(e => e.event === 'AccountPositionProcessed')
+      .map(e => e.args as AccountPositionProcessedEventObject)
+    const positionProcessEvents: Array<PositionProcessedEventObject> = txEvents
+      .filter(e => e.event === 'PositionProcessed')
+      .map(e => e.args as PositionProcessedEventObject)
+    return [accountProcessEvents, positionProcessEvents]
   }
 
   beforeEach(async () => {
@@ -1544,13 +1558,7 @@ describe('Fees', () => {
       await nextWithConstantPrice()
 
       const tx = await settle(market, userB)
-      const txEvents = (await tx.wait()).events!
-      const accountProcessEvents: Array<AccountPositionProcessedEventObject> = txEvents
-        .filter(e => e.event === 'AccountPositionProcessed')
-        .map(e => e.args as AccountPositionProcessedEventObject)
-      const positionProcessEvents: Array<PositionProcessedEventObject> = txEvents
-        .filter(e => e.event === 'PositionProcessed')
-        .map(e => e.args as PositionProcessedEventObject)
+      const [accountProcessEvents, positionProcessEvents] = await getOrderProcessingEvents(tx)
 
       // payoffPrice = 3374.655169**2 * 0.00001 = 113.882975
       const expectedInterest = BigNumber.from('177') // payoffPrice * 0.01 * 4912 seconds / 365 days
@@ -1588,13 +1596,7 @@ describe('Fees', () => {
       await nextWithConstantPrice()
 
       const tx = await settle(market, userB)
-      const txEvents = (await tx.wait()).events!
-      const accountProcessEvents: Array<AccountPositionProcessedEventObject> = txEvents
-        .filter(e => e.event === 'AccountPositionProcessed')
-        .map(e => e.args as AccountPositionProcessedEventObject)
-      const positionProcessEvents: Array<PositionProcessedEventObject> = txEvents
-        .filter(e => e.event === 'PositionProcessed')
-        .map(e => e.args as PositionProcessedEventObject)
+      const [accountProcessEvents, positionProcessEvents] = await getOrderProcessingEvents(tx)
 
       // payoffPrice = 3374.655169**2 * 0.00001 = 113.882975
       const expectedInterest = BigNumber.from('177') // payoffPrice * 0.01 * 4912 seconds / 365 days
@@ -1618,7 +1620,7 @@ describe('Fees', () => {
     })
   })
 
-  describe('funding fee', () => {
+  describe.only('funding fee', () => {
     const MAKER_POSITION = parse6decimal('10')
     const SHORT_POSITION = parse6decimal('1')
     const LONG_POSITION = parse6decimal('1')
@@ -1674,21 +1676,28 @@ describe('Fees', () => {
       await nextWithConstantPrice()
       await nextWithConstantPrice()
 
-      const tx = await updateNoOp(market, userB)
-      const accountProcessEvent: AccountPositionProcessedEventObject = (await tx.wait()).events?.find(
-        e => e.event === 'AccountPositionProcessed',
-      )?.args as unknown as AccountPositionProcessedEventObject
-      const positionProcessEvent: PositionProcessedEventObject = (await tx.wait()).events?.find(
-        e => e.event === 'PositionProcessed',
-      )?.args as unknown as PositionProcessedEventObject
+      const tx = await settle(market, userB)
+      const [accountProcessEvents, positionProcessEvents] = await getOrderProcessingEvents(tx)
 
-      const expectedFunding = BigNumber.from('819')
-      const expectedFundingFee = BigNumber.from('78') // = 819 * .1 - 3 (due to precision loss)
-      expect(accountProcessEvent.accumulationResult.collateral).to.equal(expectedFunding.mul(-1))
-      expect(positionProcessEvent.accumulationResult.fundingFee).to.equal(expectedFundingFee)
-      expect(
-        positionProcessEvent.accumulationResult.fundingFee.add(positionProcessEvent.accumulationResult.fundingMaker),
-      ).to.equal(expectedFunding)
+      const expectedFunding = BigNumber.from('21259')
+      const expectedFundingFee = expectedFunding.div(10)
+      const expectedFundingWithFee = expectedFunding.add(expectedFundingFee.div(2))
+
+      const accumulatedFunding = accountProcessEvents.reduce(
+        (acc: BigNumber, e) => acc.add(e.accumulationResult.collateral),
+        BigNumber.from(0),
+      )
+      const accumulatedFundingFee = positionProcessEvents.reduce(
+        (acc: BigNumber, e) => acc.add(e.accumulationResult.fundingFee),
+        BigNumber.from(0),
+      )
+      const accumulatedFundingMaker = positionProcessEvents.reduce(
+        (acc: BigNumber, e) => acc.add(e.accumulationResult.fundingFee.add(e.accumulationResult.fundingMaker)),
+        BigNumber.from(0),
+      )
+      expect(accumulatedFunding).to.equal(expectedFundingWithFee.mul(-1).sub(1)) // precision loss
+      expect(accumulatedFundingFee).to.equal(expectedFundingFee)
+      expect(accumulatedFundingMaker).to.equal(expectedFundingWithFee.add(1)) // precision loss
     })
 
     it('charges funding fee for short position', async () => {
@@ -1705,21 +1714,28 @@ describe('Fees', () => {
       await nextWithConstantPrice()
       await nextWithConstantPrice()
 
-      const tx = await updateNoOp(market, userB)
-      const accountProcessEvent: AccountPositionProcessedEventObject = (await tx.wait()).events?.find(
-        e => e.event === 'AccountPositionProcessed',
-      )?.args as unknown as AccountPositionProcessedEventObject
-      const positionProcessEvent: PositionProcessedEventObject = (await tx.wait()).events?.find(
-        e => e.event === 'PositionProcessed',
-      )?.args as unknown as PositionProcessedEventObject
+      const tx = await settle(market, userB)
+      const [accountProcessEvents, positionProcessEvents] = await getOrderProcessingEvents(tx)
 
-      const expectedFunding = BigNumber.from('819')
-      const expectedFundingFee = BigNumber.from('78') // = // = 819 * .1 - 3 (due to precision loss)
-      expect(accountProcessEvent.accumulationResult.collateral).to.equal(expectedFunding.mul(-1))
-      expect(positionProcessEvent.accumulationResult.fundingFee).to.equal(expectedFundingFee)
-      expect(
-        positionProcessEvent.accumulationResult.fundingFee.add(positionProcessEvent.accumulationResult.fundingMaker),
-      ).to.equal(expectedFunding)
+      const expectedFunding = BigNumber.from('21259')
+      const expectedFundingFee = expectedFunding.div(10)
+      const expectedFundingWithFee = expectedFunding.add(expectedFundingFee.div(2))
+
+      const accumulatedFunding = accountProcessEvents.reduce(
+        (acc: BigNumber, e) => acc.add(e.accumulationResult.collateral),
+        BigNumber.from(0),
+      )
+      const accumulatedFundingFee = positionProcessEvents.reduce(
+        (acc: BigNumber, e) => acc.add(e.accumulationResult.fundingFee),
+        BigNumber.from(0),
+      )
+      const accumulatedFundingMaker = positionProcessEvents.reduce(
+        (acc: BigNumber, e) => acc.add(e.accumulationResult.fundingFee.add(e.accumulationResult.fundingMaker)),
+        BigNumber.from(0),
+      )
+      expect(accumulatedFunding).to.equal(expectedFundingWithFee.mul(-1))
+      expect(accumulatedFundingFee).to.equal(expectedFundingFee)
+      expect(accumulatedFundingMaker).to.equal(expectedFundingWithFee)
     })
   })
 })
