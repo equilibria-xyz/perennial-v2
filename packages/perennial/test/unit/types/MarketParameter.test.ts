@@ -26,8 +26,6 @@ export const VALID_MARKET_PARAMETER: MarketParameterStruct = {
   maxPendingGlobal: 10,
   maxPendingLocal: 11,
   settlementFee: 6,
-  takerCloseAlways: false,
-  makerCloseAlways: false,
   closed: false,
   settle: false,
 }

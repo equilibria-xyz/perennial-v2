@@ -466,8 +466,6 @@ describe('Market', () => {
       maxPendingGlobal: 5,
       maxPendingLocal: 3,
       settlementFee: 0,
-      makerCloseAlways: false,
-      takerCloseAlways: false,
       closed: false,
       settle: false,
     }
@@ -597,8 +595,6 @@ describe('Market', () => {
         maxPendingGlobal: 5,
         maxPendingLocal: 3,
         settlementFee: parse6decimal('0.09'),
-        makerCloseAlways: true,
-        takerCloseAlways: true,
         closed: true,
         settle: true,
       }

@@ -93,8 +93,6 @@ describe('Happy Path', () => {
       maxPendingGlobal: 8,
       maxPendingLocal: 8,
       settlementFee: 0,
-      makerCloseAlways: false,
-      takerCloseAlways: false,
       closed: false,
       settle: false,
     }
@@ -1092,8 +1090,6 @@ describe('Happy Path', () => {
       maxPendingGlobal: 8,
       maxPendingLocal: 8,
       positionFee: positionFeesOn ? parse6decimal('0.1') : 0,
-      makerCloseAlways: false,
-      takerCloseAlways: false,
       closed: false,
       settle: false,
     }
@@ -1251,8 +1247,6 @@ describe('Happy Path', () => {
       maxPendingGlobal: 8,
       maxPendingLocal: 8,
       positionFee: positionFeesOn ? parse6decimal('0.1') : 0,
-      makerCloseAlways: false,
-      takerCloseAlways: false,
       closed: false,
       settle: false,
     }

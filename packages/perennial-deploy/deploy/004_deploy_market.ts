@@ -32,8 +32,6 @@ const DEFAULT_MARKET_PARAMETER = {
   maxPendingGlobal: 12,
   maxPendingLocal: 6,
   settlementFee: utils.parseUnits('1.5', 6),
-  makerCloseAlways: false,
-  takerCloseAlways: true,
   closed: false,
 }
 
