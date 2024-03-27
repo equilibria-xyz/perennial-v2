@@ -220,7 +220,6 @@ contract Vault is IVault, Instance {
     }
 
     /// @notice Syncs `account`'s state up to current
-    /// @dev Rebalances only the collateral of the vault
     /// @param account The account that should be synced
     function settle(address account) public whenNotPaused {
         _settleUnderlying();
