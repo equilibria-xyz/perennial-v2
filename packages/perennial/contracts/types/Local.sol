@@ -72,9 +72,6 @@ library LocalLib {
 ///         int64 collateral;       // <= 9.22t
 ///         uint64 claimable;       // <= 18.44t
 ///         bytes4 __DEPRECATED;    // UNSAFE UNTIL RESET
-///
-///         /* slot 1 */
-///         bytes28 __DEPRECATED;   // UNSAFE UNTIL RESET
 ///     }
 ///
 library LocalStorageLib {
@@ -103,11 +100,9 @@ library LocalStorageLib {
             uint256(newValue.latestId << (256 - 32)) >> (256 - 32 - 32) |
             uint256(Fixed6.unwrap(newValue.collateral) << (256 - 64)) >> (256 - 32 - 32 - 64) |
             uint256(UFixed6.unwrap(newValue.claimable) << (256 - 64)) >> (256 - 32 - 32 - 64 - 64);
-        uint256 encoded1; // reset deprecated storage on settlement
 
         assembly {
             sstore(self.slot, encoded0)
-            sstore(add(self.slot, 1), encoded1)
         }
     }
 }

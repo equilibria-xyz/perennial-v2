@@ -144,14 +144,6 @@ contract Market is IMarket, Instance, ReentrancyGuard {
         _storeContext(context, account);
     }
 
-    /// @notice Updates the oracle of the market
-    /// @dev For the v2.1.1 -> v2.2 migration process, not to be used otherwise
-    /// @param newOracle The new oracle address
-    function updateOracle(IOracleProvider newOracle) external onlyOwner {
-        oracle = newOracle;
-        emit OracleUpdated(newOracle);
-    }
-
     /// @notice Updates the beneficiary, coordinator, and parameter set of the market
     /// @param newBeneficiary The new beneficiary address
     /// @param newCoordinator The new coordinator address
@@ -524,15 +516,6 @@ contract Market is IMarket, Instance, ReentrancyGuard {
         settlementContext.latestVersion = _versions[context.latestPosition.global.timestamp].read();
         settlementContext.latestCheckpoint = _checkpoints[account][context.latestPosition.local.timestamp].read();
         settlementContext.orderOracleVersion = oracle.at(context.latestPosition.global.timestamp);
-
-        // v2.2 migration (if latest checkpoint is empty, initialize with latest local collateral)
-        if (
-            settlementContext.latestCheckpoint.tradeFee.isZero() &&
-            settlementContext.latestCheckpoint.settlementFee.isZero() &&
-            settlementContext.latestCheckpoint.transfer.isZero() &&
-            settlementContext.latestCheckpoint.collateral.isZero() &&
-            context.pending.local.collateral.isZero()
-        ) settlementContext.latestCheckpoint.collateral = context.local.collateral;
     }
 
     /// @notice Settles the account position up to the latest version
