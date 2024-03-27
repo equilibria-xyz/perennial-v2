@@ -144,14 +144,6 @@ contract Market is IMarket, Instance, ReentrancyGuard {
         _storeContext(context, account);
     }
 
-    /// @notice Updates the oracle of the market
-    /// @dev For the v2.1.1 -> v2.2 migration process, not to be used otherwise
-    /// @param newOracle The new oracle address
-    function updateOracle(IOracleProvider newOracle) external onlyOwner {
-        oracle = newOracle;
-        emit OracleUpdated(newOracle);
-    }
-
     /// @notice Updates the beneficiary, coordinator, and parameter set of the market
     /// @param newBeneficiary The new beneficiary address
     /// @param newCoordinator The new coordinator address
