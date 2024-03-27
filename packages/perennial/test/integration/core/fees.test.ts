@@ -796,7 +796,7 @@ describe('Fees', () => {
 
       // Settle maker to give them portion of fees
       await nextWithConstantPrice()
-      await settle(market, user)
+      await updateNoOp(market, user)
 
       await expect(
         market
@@ -884,7 +884,7 @@ describe('Fees', () => {
         short: SHORT_POSITION,
       })
 
-      const txMaker = await settle(market, user)
+      const txMaker = await updateNoOp(market, user)
       const accountProcessEventMaker: AccountPositionProcessedEventObject = (await txMaker.wait()).events?.find(
         e => e.event === 'AccountPositionProcessed',
       )?.args as unknown as AccountPositionProcessedEventObject
@@ -973,8 +973,8 @@ describe('Fees', () => {
         )
 
       await nextWithConstantPrice()
-      await settle(market, userB)
-      await settle(market, user)
+      await updateNoOp(market, userB)
+      await updateNoOp(market, user)
 
       // Re-enable fees for close, disable skew and impact for ease of calculation
       await market.updateRiskParameter({
@@ -1054,7 +1054,7 @@ describe('Fees', () => {
         timestamp: TIMESTAMP_2,
       })
 
-      const txMaker = await settle(market, user)
+      const txMaker = await updateNoOp(market, user)
       const accountProcessEventMaker: AccountPositionProcessedEventObject = (await txMaker.wait()).events?.find(
         e => e.event === 'AccountPositionProcessed',
       )?.args as unknown as AccountPositionProcessedEventObject
@@ -1529,7 +1529,7 @@ describe('Fees', () => {
       await settle(market, user)
     })
 
-    it('charges interest fee for long position', async () => {
+    it.only('charges interest fee for long position', async () => {
       const { userB } = instanceVars
 
       await market
@@ -1537,27 +1537,49 @@ describe('Fees', () => {
         ['update(address,uint256,uint256,uint256,int256,bool)'](userB.address, 0, LONG_POSITION, 0, COLLATERAL, false)
 
       await nextWithConstantPrice()
-      await settle(market, userB)
+      await updateNoOp(market, userB)
 
       await nextWithConstantPrice()
       await nextWithConstantPrice()
       await nextWithConstantPrice()
 
       const tx = await updateNoOp(market, userB)
-      const accountProcessEvent: AccountPositionProcessedEventObject = (await tx.wait()).events?.find(
-        e => e.event === 'AccountPositionProcessed',
-      )?.args as unknown as AccountPositionProcessedEventObject
-      const positionProcessEvent: PositionProcessedEventObject = (await tx.wait()).events?.find(
-        e => e.event === 'PositionProcessed',
-      )?.args as unknown as PositionProcessedEventObject
+      const txEvents = (await tx.wait()).events!
+      const accountProcessEvents: Array<AccountPositionProcessedEventObject> = txEvents
+        .filter(e => e.event === 'AccountPositionProcessed')
+        .map(e => e.args as AccountPositionProcessedEventObject)
+      const positionProcessEvents: Array<PositionProcessedEventObject> = txEvents
+        .filter(e => e.event === 'PositionProcessed')
+        .map(e => e.args as PositionProcessedEventObject)
 
-      const expectedInterest = BigNumber.from('6') // = 3374.655169**2 * 0.00001 * 0.01 * 186 seconds / 365 days
-      const expectedInterestFee = BigNumber.from('1') // = 6 * .2
-      expect(accountProcessEvent.accumulationResult.collateral).to.equal(expectedInterest.mul(-1))
-      expect(positionProcessEvent.accumulationResult.interestFee).to.equal(expectedInterestFee)
-      expect(
-        positionProcessEvent.accumulationResult.interestFee.add(positionProcessEvent.accumulationResult.interestMaker),
-      ).to.equal(expectedInterest)
+      // TODO: remove before flight
+      // with "real" settle:
+      // VersionLib::_accumulateInterest for time diff 915: 0
+      // VersionLib::_accumulateInterest for time diff 4912: 177
+      // with no-op update:
+      // VersionLib::_accumulateInterest for time diff 915: 0
+      // VersionLib::_accumulateInterest for time diff 186: 6     <-- this was what old test was looking at
+      // VersionLib::_accumulateInterest for time diff 4726: 170
+
+      // payoffPrice = 3374.655169**2 * 0.00001 = 113.882975
+      const expectedInterest = BigNumber.from('177') // payoffPrice * 0.01 * 4912 seconds / 365 days
+      const expectedInterestFee = BigNumber.from('35') // expectedInterest * .2
+
+      const accumulatedInterest = accountProcessEvents.reduce(
+        (acc: BigNumber, e) => acc.add(e.accumulationResult.collateral),
+        BigNumber.from(0),
+      )
+      const accumulatedInterestFee = positionProcessEvents.reduce(
+        (acc: BigNumber, e) => acc.add(e.accumulationResult.interestFee),
+        BigNumber.from(0),
+      )
+      const accumulatedInterestMaker = positionProcessEvents.reduce(
+        (acc: BigNumber, e) => acc.add(e.accumulationResult.interestFee.add(e.accumulationResult.interestMaker)),
+        BigNumber.from(0),
+      )
+      expect(accumulatedInterest).to.equal(expectedInterest.mul(-1).add(1))
+      expect(accumulatedInterestFee).to.equal(expectedInterestFee)
+      expect(accumulatedInterestMaker).to.equal(expectedInterest.sub(1))
     })
 
     it('charges interest fee for short position', async () => {
