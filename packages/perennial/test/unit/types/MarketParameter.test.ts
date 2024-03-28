@@ -72,8 +72,6 @@ describe('MarketParameter', () => {
       expect(value.maxPendingGlobal).to.equal(10)
       expect(value.maxPendingLocal).to.equal(11)
       expect(value.settlementFee).to.equal(6)
-      expect(value.takerCloseAlways).to.equal(false)
-      expect(value.makerCloseAlways).to.equal(false)
       expect(value.closed).to.equal(false)
       expect(value.settle).to.equal(false)
     })
@@ -328,30 +326,6 @@ describe('MarketParameter', () => {
     })
 
     context('.flags', async () => {
-      it('saves takerCloseAlways', async () => {
-        await marketParameter.validateAndStore(
-          {
-            ...VALID_MARKET_PARAMETER,
-            takerCloseAlways: true,
-          },
-          PROTOCOL_PARAMETER,
-        )
-        const value = await marketParameter.read()
-        expect(value.takerCloseAlways).to.equal(true)
-      })
-
-      it('saves makerCloseAlways', async () => {
-        await marketParameter.validateAndStore(
-          {
-            ...VALID_MARKET_PARAMETER,
-            makerCloseAlways: true,
-          },
-          PROTOCOL_PARAMETER,
-        )
-        const value = await marketParameter.read()
-        expect(value.makerCloseAlways).to.equal(true)
-      })
-
       it('saves closed', async () => {
         await marketParameter.validateAndStore(
           {
