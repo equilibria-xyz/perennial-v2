@@ -108,3 +108,9 @@ see: https://github.com/equilibria-xyz/perennial-v2/pull/200.
 Since we are moving payoffs to the oracle layer, we must update the power perp markets' oracles to the newly deployed power perp oracles.
 
 see: https://github.com/equilibria-xyz/perennial-v2/pull/200.
+
+### Update Gauntlet Coordinator to v2.2 Compatible Version
+
+The risk parameter structs have been updated, so we'll need to update the Gauntlet Coordinator to be compatible with the new format.
+
+This contract has been deployed to: https://arbiscan.io/address/0x161CB5F6845c7eE7442322Fb3A3C2FEc960FaaC8#readContract
