@@ -1620,7 +1620,7 @@ describe('Fees', () => {
     })
   })
 
-  describe.only('funding fee', () => {
+  describe('funding fee', () => {
     const MAKER_POSITION = parse6decimal('10')
     const SHORT_POSITION = parse6decimal('1')
     const LONG_POSITION = parse6decimal('1')
