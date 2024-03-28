@@ -1488,7 +1488,7 @@ describe('Fees', () => {
         expect(accountProcessEventC.accumulationResult.settlementFee).to.equal(expectedSettlementFee.div(2))
 
         expectGlobalEq(await market.global(), {
-          currentId: 3,
+          currentId: 2,
           latestId: 2,
           protocolFee: 0,
           riskFee: 0,
