@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: Apache-2.0
-pragma solidity 0.8.19;
+pragma solidity 0.8.24;
 
 import "@pythnetwork/pyth-sdk-solidity/AbstractPyth.sol";
 import "@equilibria/root/attribute/Kept/Kept_Arbitrum.sol";
@@ -22,7 +22,7 @@ contract PythFactory_Arbitrum is PythFactory, Kept_Arbitrum {
 
     /// @dev Use the Kept_Arbitrum implementation for calculating the dynamic fee
     function _calldataFee(
-        bytes calldata applicableCalldata,
+        bytes memory applicableCalldata,
         UFixed18 multiplierCalldata,
         uint256 bufferCalldata
     ) internal view virtual override(Kept_Arbitrum, Kept) returns (UFixed18) {
@@ -30,7 +30,10 @@ contract PythFactory_Arbitrum is PythFactory, Kept_Arbitrum {
     }
 
     /// @dev Use the PythFactory implementation for raising the keeper fee
-    function _raiseKeeperFee(UFixed18 amount, bytes memory data) internal override(KeeperFactory, Kept) {
-        KeeperFactory._raiseKeeperFee(amount, data);
+    function _raiseKeeperFee(
+        UFixed18 amount,
+        bytes memory data
+    ) internal override(KeeperFactory, Kept) returns (UFixed18) {
+        return KeeperFactory._raiseKeeperFee(amount, data);
     }
 }

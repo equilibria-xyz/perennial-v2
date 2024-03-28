@@ -42,9 +42,13 @@ using TriggerOrderStorageLib for TriggerOrderStorage global;
 
 /**
  * @title TriggerOrderLib
- * @notice
+ * @notice Library for TriggerOrder logic and data.
  */
 library TriggerOrderLib {
+    // @notice Returns whether the trigger order is fillable at the latest price
+    // @param self The trigger order
+    // @param latestVersion The latest oracle version
+    // @return Whether the trigger order is fillable
     function fillable(TriggerOrder memory self, OracleVersion memory latestVersion) internal pure returns (bool) {
         if (!latestVersion.valid) return false;
         if (self.comparison == 1) return latestVersion.price.gte(self.price);
@@ -52,7 +56,14 @@ library TriggerOrderLib {
         return false;
     }
 
-    function execute(TriggerOrder memory self, Position memory currentPosition) internal pure {
+    // @notice Executes the trigger order on the given position
+    // @param self The trigger order
+    // @param currentPosition The current position
+    // @return The collateral delta, if any
+    function execute(
+        TriggerOrder memory self,
+        Position memory currentPosition
+    ) internal pure returns (Fixed6 collateral) {
         // update position
         if (self.side == 0)
             currentPosition.maker = self.delta.isZero() ?
@@ -67,11 +78,8 @@ library TriggerOrderLib {
                 UFixed6Lib.ZERO :
                 UFixed6Lib.from(Fixed6Lib.from(currentPosition.short).add(self.delta));
 
-        // update collateral (override collateral field in position since it is not used in this context)
         // Handles collateral withdrawal magic value
-        currentPosition.collateral = (self.side == 3) ?
-            (self.delta.eq(Fixed6.wrap(type(int64).min)) ? Fixed6Lib.MIN : self.delta) :
-            Fixed6Lib.ZERO;
+        if (self.side == 3) collateral = (self.delta.eq(Fixed6.wrap(type(int64).min)) ? Fixed6Lib.MIN : self.delta);
     }
 }
 

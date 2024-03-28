@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: Apache-2.0
-pragma solidity 0.8.19;
+pragma solidity ^0.8.13;
 
 import "@openzeppelin/contracts/utils/math/SafeCast.sol";
 import "@equilibria/root/attribute/Factory.sol";
@@ -19,31 +19,31 @@ abstract contract KeeperFactory is IKeeperFactory, Factory, Kept {
     /// @dev A Keeper update must come at most this long after a version to be valid
     uint256 public immutable validTo;
 
-    /// @dev The multiplier for the keeper reward on top of cost of commit
+    /// @dev The multiplier for the keeper fee on top of cost of commit
     UFixed18 internal immutable _keepCommitMultiplierBase;
 
-    /// @dev The fixed gas buffer that is added to the keeper reward for commits
+    /// @dev The fixed gas buffer that is added to the keeper fee for commits
     uint256 internal immutable _keepCommitBufferBase;
 
-    /// @dev The multiplier for the calldata portion of the keeper reward on top of cost of commit
+    /// @dev The multiplier for the calldata portion of the keeper fee on top of cost of commit
     UFixed18 internal immutable _keepCommitMultiplierCalldata;
 
-    /// @dev The fixed gas buffer that is added to the calldata portion of the keeper reward for commits
+    /// @dev The fixed gas buffer that is added to the calldata portion of the keeper fee for commits
     uint256 internal immutable _keepCommitBufferCalldata;
 
     /// @dev The fixed gas buffer that is added for each incremental update
     uint256 internal immutable _keepCommitIncrementalBufferCalldata;
 
-    /// @dev The multiplier for the keeper reward on top of cost of settle
+    /// @dev The multiplier for the keeper fee on top of cost of settle
     UFixed18 internal immutable _keepSettleMultiplierBase;
 
-    /// @dev The fixed gas buffer that is added to the keeper reward for settles
+    /// @dev The fixed gas buffer that is added to the keeper fee for settles
     uint256 internal immutable _keepSettleBufferBase;
 
-    /// @dev The multiplier for the calldata portion of the keeper reward on top of cost of settle
+    /// @dev The multiplier for the calldata portion of the keeper fee on top of cost of settle
     UFixed18 internal immutable _keepSettleMultiplierCalldata;
 
-    /// @dev The fixed gas buffer that is added to the calldata portion of the keeper reward for settles
+    /// @dev The fixed gas buffer that is added to the calldata portion of the keeper fee for settles
     uint256 internal immutable _keepSettleBufferCalldata;
 
     /// @dev The root oracle factory
@@ -52,14 +52,20 @@ abstract contract KeeperFactory is IKeeperFactory, Factory, Kept {
     /// @dev Mapping of which factory's instances are authorized to request from this factory's instances
     mapping(IFactory => bool) public callers;
 
+    /// @dev Registered payoff providers
+    mapping(IPayoffProvider => bool) public payoffs;
+
     /// @dev Mapping of oracle id to oracle instance
     mapping(bytes32 => IOracleProvider) public oracles;
 
     /// @dev Mapping of oracle id to underlying id
     mapping(bytes32 => bytes32) public toUnderlyingId;
 
-    /// @dev Mapping of underlying id to oracle id
-    mapping(bytes32 => bytes32) public fromUnderlyingId;
+    /// @dev Mapping of oracle id to payoff provider
+    mapping(bytes32 => PayoffDefinition) public _toUnderlyingPayoff;
+
+    /// @dev Mapping of oracle id to underlying id
+    mapping(bytes32 => mapping(IPayoffProvider => bytes32)) public fromUnderlying;
 
     /// @notice The granularity of the oracle
     Granularity private _granularity;
@@ -104,6 +110,7 @@ abstract contract KeeperFactory is IKeeperFactory, Factory, Kept {
 
         oracleFactory = oracleFactory_;
         _granularity = Granularity(0, 1, 0);
+        payoffs[IPayoffProvider(address(0))] = true;
     }
 
     /// @notice Authorizes a factory's instances to request from this factory's instances
@@ -113,29 +120,32 @@ abstract contract KeeperFactory is IKeeperFactory, Factory, Kept {
         emit CallerAuthorized(factory);
     }
 
-    /// @notice Associates an oracle id with an underlying id
-    /// @param id The oracle id
-    /// @param underlyingId The underlying price feed id within the oracle's specific implementation
-    function associate(bytes32 id, bytes32 underlyingId) external onlyOwner {
-        if (associated(id)) revert KeeperFactoryAlreadyAssociatedError();
-        toUnderlyingId[id] = underlyingId;
-        fromUnderlyingId[underlyingId] = id;
-        emit OracleAssociated(id, underlyingId);
-    }
-
-    function associated(bytes32 id) public view returns (bool) {
-        return toUnderlyingId[id] != bytes32(0);
+    /// @notice Authorizes a factory's instances to request from this factory's instances
+    /// @param payoff The payoff provider to register
+    function register(IPayoffProvider payoff) external onlyOwner {
+        payoffs[payoff] = true;
+        emit PayoffRegistered(payoff);
     }
 
     /// @notice Creates a new oracle instance
     /// @param id The id of the oracle to create
+    /// @param underlyingId The underlying id of the oracle to create
+    /// @param payoff The payoff provider for the oracle
     /// @return newOracle The newly created oracle instance
-    function create(bytes32 id) public virtual onlyOwner returns (IKeeperOracle newOracle) {
+    function create(
+        bytes32 id,
+        bytes32 underlyingId,
+        PayoffDefinition memory payoff
+     ) public virtual onlyOwner returns (IKeeperOracle newOracle) {
         if (oracles[id] != IOracleProvider(address(0))) revert KeeperFactoryAlreadyCreatedError();
-        if (!associated(id)) revert KeeperFactoryNotAssociatedError();
+        if (!payoffs[payoff.provider]) revert KeeperFactoryInvalidPayoffError();
+        if (fromUnderlying[underlyingId][payoff.provider] != bytes32(0)) revert KeeperFactoryAlreadyCreatedError();
 
         newOracle = IKeeperOracle(address(_create(abi.encodeCall(IKeeperOracle.initialize, ()))));
         oracles[id] = newOracle;
+        toUnderlyingId[id] = underlyingId;
+        _toUnderlyingPayoff[id] = payoff;
+        fromUnderlying[underlyingId][payoff.provider] = id;
 
         emit OracleCreated(newOracle, id);
     }
@@ -153,7 +163,7 @@ abstract contract KeeperFactory is IKeeperFactory, Factory, Kept {
 
     /// @notice Commits the price to specified version
     /// @dev Accepts both requested and non-requested versions.
-    ///      Requested versions will pay out a keeper reward, non-requested versions will not.
+    ///      Requested versions will pay out a keeper fee, non-requested versions will not.
     ///      Accepts any publish time in the underlying price message, as long as it is within the validity window,
     ///      which means its possible for publish times to be slightly out of order with respect to versions.
     ///      Batched updates are supported by passing in a list of price feed ids along with a valid batch update data.
@@ -162,14 +172,23 @@ abstract contract KeeperFactory is IKeeperFactory, Factory, Kept {
     /// @param data The update data to commit
     function commit(bytes32[] memory ids, uint256 version, bytes calldata data) external payable {
         bool valid = data.length != 0;
-        Fixed6[] memory prices = valid ? _parsePrices(ids, version, data) : new Fixed6[](ids.length);
+        PriceRecord[] memory prices = valid ? _parsePrices(ids, data) : new PriceRecord[](ids.length);
+        if (valid) _validatePrices(version, prices);
+        _transformPrices(ids, prices);
+
         uint256 numRequested;
-
         for (uint256 i; i < ids.length; i++)
-            if (IKeeperOracle(address(oracles[ids[i]])).commit(OracleVersion(version, prices[i], valid)))
-                numRequested++;
+            if (IKeeperOracle(address(oracles[ids[i]])).commit(
+                OracleVersion(version, Fixed6Lib.from(prices[i].price), valid))
+            ) numRequested++;
 
-        if (numRequested != 0) _handleCommitKeep(numRequested);
+        if (numRequested != 0) _handleKeeperFee(
+            commitKeepConfig(numRequested),
+            0,
+            msg.data[0:0],
+            _applicableValue(numRequested, data),
+            ""
+        );
     }
 
     /// @notice Returns the keep config for commit
@@ -201,32 +220,26 @@ abstract contract KeeperFactory is IKeeperFactory, Factory, Kept {
     /// @param maxCounts The list of maximum number of settlement callbacks to perform before exiting
     function settle(bytes32[] memory ids, IMarket[] memory markets, uint256[] memory versions, uint256[] memory maxCounts)
         external
-        keep(settleKeepConfig(), msg.data, 0, "")
+        keep(settleKeepConfig(), abi.encode(ids, markets, versions, maxCounts), 0, "")
     {
         if (
             ids.length == 0 ||
             ids.length != markets.length ||
             ids.length != versions.length ||
-            ids.length != maxCounts.length ||
-            abi.encodeCall(KeeperFactory.settle, (ids, markets, versions, maxCounts)).length != msg.data.length // Prevent calldata stuffing
-        )
-            revert KeeperFactoryInvalidSettleError();
+            ids.length != maxCounts.length
+        ) revert KeeperFactoryInvalidSettleError();
 
         for (uint256 i; i < ids.length; i++)
             IKeeperOracle(address(oracles[ids[i]])).settle(markets[i], versions[i], maxCounts[i]);
     }
 
-    /// @notice Handles paying the keeper requested for given number of requested updates
-    /// @param numRequested Number of requested price updates
-    function _handleCommitKeep(uint256 numRequested)
-        internal virtual
-        keep(commitKeepConfig(numRequested), msg.data[0:0], 0, "")
-    { }
-
-    /// @notice Pulls funds from the factory to reward the keeper
+    /// @notice Pulls funds from the factory to award the keeper
     /// @param keeperFee The keeper fee to pull
-    function _raiseKeeperFee(UFixed18 keeperFee, bytes memory) internal virtual override {
-        oracleFactory.claim(UFixed6Lib.from(keeperFee, true));
+    /// @return The keeper fee that was raised
+    function _raiseKeeperFee(UFixed18 keeperFee, bytes memory) internal virtual override returns (UFixed18) {
+        UFixed6 raisedKeeperFee = UFixed6Lib.from(keeperFee, true).min(oracleFactory.maxClaim());
+        oracleFactory.claim(raisedKeeperFee);
+        return UFixed18Lib.from(raisedKeeperFee);
     }
 
     /// @notice Returns the granularity
@@ -261,14 +274,53 @@ abstract contract KeeperFactory is IKeeperFactory, Factory, Kept {
         return callers[callerFactory];
     }
 
+    /// @notice Returns the payoff definition for the specified id
+    /// @param id The id to lookup
+    /// @return The payoff definition
+    function toUnderlyingPayoff(bytes32 id) external view returns (PayoffDefinition memory) {
+        return _toUnderlyingPayoff[id];
+    }
+
+    /// @notice Transforms the price records by the payoff and decimal offset
+    /// @param ids The list of price feed ids to transform
+    /// @param prices The list of price records to transform
+    function _transformPrices(bytes32[] memory ids, PriceRecord[] memory prices) private view {
+        for (uint256 i; i < prices.length; i++) {
+            PayoffDefinition memory payoff = _toUnderlyingPayoff[ids[i]];
+
+            // apply payoff if it exists
+            if (payoff.provider != IPayoffProvider(address(0)))
+                prices[i].price = payoff.provider.payoff(prices[i].price);
+
+            // apply decimal offset
+            Fixed18 base = Fixed18Lib.from(int256(10 ** SignedMath.abs(payoff.decimals)));
+            prices[i].price = payoff.decimals < 0 ? prices[i].price.div(base) : prices[i].price.mul(base);
+        }
+    }
+
+    /// @notice Validates that the parse price record has a valid timestamp
+    /// @param version The oracle version to validate against
+    /// @param prices The list of price records to validate
+    function _validatePrices(uint256 version, PriceRecord[] memory prices) private view {
+        for (uint256 i; i < prices.length; i++)
+            if (prices[i].timestamp < version + validFrom || prices[i].timestamp > version + validTo)
+                revert KeeperFactoryVersionOutsideRangeError();
+    }
+
+    /// @notice Returns the applicable value for the keeper fee
+    /// @param numRequested The number of requested price commits
+    /// @param data The price commit update data
+    /// @return The applicable value for the keeper fee
+    function _applicableValue(uint256 numRequested, bytes memory data) internal view virtual returns (uint256) {
+        return 0;
+    }
+
     /// @notice Validates and parses the update data payload against the specified version
     /// @param ids The list of price feed ids validate against
-    /// @param version The oracle version to validate against
     /// @param data The update data to validate
     /// @return prices The parsed price list if valid
     function _parsePrices(
         bytes32[] memory ids,
-        uint256 version,
         bytes calldata data
-    ) internal virtual returns (Fixed6[] memory prices);
+    ) internal virtual returns (PriceRecord[] memory prices);
 }

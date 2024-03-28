@@ -16,7 +16,7 @@ import { getChainId, isArbitrum, isBase, isOptimism, SupportedChain } from './te
 import { utils } from 'ethers'
 utils.Logger.setLogLevel(utils.Logger.levels.ERROR) // turn off duplicate definition warnings
 
-export const SOLIDITY_VERSION = '0.8.19'
+export const SOLIDITY_VERSION = '0.8.24'
 
 const PRIVATE_KEY_MAINNET = process.env.PRIVATE_KEY_MAINNET || ''
 const PRIVATE_KEY_TESTNET = process.env.PRIVATE_KEY_TESTNET || ''

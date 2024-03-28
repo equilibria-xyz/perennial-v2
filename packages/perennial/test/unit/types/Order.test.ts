@@ -3,607 +3,565 @@ import { SignerWithAddress } from '@nomiclabs/hardhat-ethers/signers'
 import { expect, use } from 'chai'
 import HRE from 'hardhat'
 
-import { OrderTester, OrderTester__factory } from '../../../types/generated'
+import {
+  OrderGlobalTester,
+  OrderLocalTester,
+  OrderGlobalTester__factory,
+  OrderLocalTester__factory,
+} from '../../../types/generated'
+import { BigNumber, BigNumberish } from 'ethers'
+import { OrderStruct } from '../../../types/generated/contracts/Market'
 import { parse6decimal } from '../../../../common/testutil/types'
-import { OrderStruct } from '../../../types/generated/contracts/test/OrderTester'
 import { VALID_ORACLE_VERSION } from './Position.test'
 import { VALID_MARKET_PARAMETER } from './MarketParameter.test'
-import { VALID_RISK_PARAMETER } from './RiskParameter.test'
-import { PositionStruct } from '../../../types/generated/contracts/Market'
+import { DEFAULT_POSITION, DEFAULT_ORDER } from '../../../../common/testutil/types'
 
 const { ethers } = HRE
 use(smock.matchers)
 
-export const VALID_ORDER: OrderStruct = {
-  maker: 0,
-  long: 0,
-  short: 0,
-  skew: 0,
-  impact: 0,
-  efficiency: 0,
-  fee: 0,
-  keeper: 0,
-  utilization: 0,
-  net: 0,
-}
-
-const VALID_POSITION: PositionStruct = {
-  timestamp: 2,
-  maker: 0,
-  long: 0,
-  short: 0,
-  fee: 0,
-  keeper: 0,
-  collateral: 0,
-  delta: 0,
-  invalidation: {
-    maker: 0,
-    long: 0,
-    short: 0,
-  },
-}
-
 describe('Order', () => {
   let owner: SignerWithAddress
 
-  let order: OrderTester
-
   beforeEach(async () => {
     ;[owner] = await ethers.getSigners()
-
-    order = await new OrderTester__factory(owner).deploy()
   })
 
-  describe('#registerFee', () => {
-    describe('maker fees', async () => {
-      context('positive change, negative impact (full refund)', () => {
-        it('registers fees', async () => {
-          const result = await order.registerFee(
-            {
-              ...VALID_ORDER,
-              maker: parse6decimal('10'),
-              utilization: parse6decimal('-0.5'),
-            },
-            {
-              ...VALID_ORACLE_VERSION,
-              price: parse6decimal('100'),
-            },
-            {
-              ...VALID_MARKET_PARAMETER,
-              settlementFee: parse6decimal('12'),
-            },
-            {
-              ...VALID_RISK_PARAMETER,
-              makerFee: parse6decimal('0.01'),
-              makerImpactFee: parse6decimal('0.02'),
-            },
-          )
+  describe('global', () => {
+    const VALID_STORED_ORDER: OrderStruct = {
+      timestamp: 10,
+      orders: 2,
+      makerPos: 3,
+      makerNeg: 4,
+      longPos: 5,
+      longNeg: 6,
+      shortPos: 7,
+      shortNeg: 8,
+      collateral: 9,
+      protection: 1,
+      makerReferral: 11,
+      takerReferral: 12,
+    }
 
-          expect(result.fee).to.eq(parse6decimal('0')) // = 100 * 10 * 0.01 - 100 * 10 * 0.5 * 0.02
-          expect(result.keeper).to.eq(parse6decimal('12'))
-        })
-      })
+    let orderGlobal: OrderGlobalTester
 
-      context('positive change, negative impact (excess refund)', () => {
-        it('registers fees', async () => {
-          const result = await order.registerFee(
-            {
-              ...VALID_ORDER,
-              maker: parse6decimal('10'),
-              utilization: parse6decimal('-1'),
-            },
-            {
-              ...VALID_ORACLE_VERSION,
-              price: parse6decimal('100'),
-            },
-            {
-              ...VALID_MARKET_PARAMETER,
-              settlementFee: parse6decimal('12'),
-            },
-            {
-              ...VALID_RISK_PARAMETER,
-              makerFee: parse6decimal('0.01'),
-              makerImpactFee: parse6decimal('0.02'),
-            },
-          )
-
-          expect(result.fee).to.eq(parse6decimal('0'))
-          expect(result.keeper).to.eq(parse6decimal('12'))
-        })
-      })
-
-      context('positive change, negative impact (partial refund)', () => {
-        it('registers fees', async () => {
-          const result = await order.registerFee(
-            {
-              ...VALID_ORDER,
-              maker: parse6decimal('10'),
-              utilization: parse6decimal('-0.25'),
-            },
-            {
-              ...VALID_ORACLE_VERSION,
-              price: parse6decimal('100'),
-            },
-            {
-              ...VALID_MARKET_PARAMETER,
-              settlementFee: parse6decimal('12'),
-            },
-            {
-              ...VALID_RISK_PARAMETER,
-              makerFee: parse6decimal('0.01'),
-              makerImpactFee: parse6decimal('0.02'),
-            },
-          )
-
-          expect(result.fee).to.eq(parse6decimal('5')) // = 100 * 10 * 0.01 - 100 * 10 * 0.25 * 0.02
-          expect(result.keeper).to.eq(parse6decimal('12'))
-        })
-      })
-
-      context('negative change, positive impact', () => {
-        it('registers fees', async () => {
-          const result = await order.registerFee(
-            {
-              ...VALID_ORDER,
-              maker: parse6decimal('-10'),
-              utilization: parse6decimal('0.5'),
-            },
-            {
-              ...VALID_ORACLE_VERSION,
-              price: parse6decimal('100'),
-            },
-            {
-              ...VALID_MARKET_PARAMETER,
-              settlementFee: parse6decimal('12'),
-            },
-            {
-              ...VALID_RISK_PARAMETER,
-              makerFee: parse6decimal('0.01'),
-              makerImpactFee: parse6decimal('0.02'),
-            },
-          )
-
-          expect(result.fee).to.eq(parse6decimal('20')) // = 100 * 10 * 0.01 + 100 * 10 * 0.5 * 0.02
-          expect(result.keeper).to.eq(parse6decimal('12'))
-        })
-      })
+    beforeEach(async () => {
+      orderGlobal = await new OrderGlobalTester__factory(owner).deploy()
     })
 
-    describe('taker fees', async () => {
-      ;['long', 'short'].forEach(direction => {
-        describe(direction, () => {
-          context('positive change, positive impact, positive skew', () => {
-            it('registers fees', async () => {
-              const result = await order.registerFee(
-                {
-                  ...VALID_ORDER,
-                  [direction]: parse6decimal('10'),
-                  skew: parse6decimal('0.5'),
-                  impact: parse6decimal('0.75'),
-                },
-                {
-                  ...VALID_ORACLE_VERSION,
-                  price: parse6decimal('100'),
-                },
-                {
-                  ...VALID_MARKET_PARAMETER,
-                  settlementFee: parse6decimal('12'),
-                },
-                {
-                  ...VALID_RISK_PARAMETER,
-                  takerFee: parse6decimal('0.01'),
-                  takerSkewFee: parse6decimal('0.02'),
-                  takerImpactFee: parse6decimal('0.03'),
-                },
-              )
+    describe('common behavoir', () => {
+      shouldBehaveLike(() => ({ order: orderGlobal, validStoredOrder: VALID_STORED_ORDER }))
+    })
 
-              expect(result.fee).to.eq(parse6decimal('42.5')) // = 100 * 10 * (0.01 + 0.5 * 0.02 + 0.75 * 0.03)
-              expect(result.keeper).to.eq(parse6decimal('12'))
-            })
+    describe('#store', () => {
+      it('stores a new value', async () => {
+        await orderGlobal.store(VALID_STORED_ORDER)
+
+        const value = await orderGlobal.read()
+        expect(value.makerPos).to.equal(3)
+        expect(value.makerNeg).to.equal(4)
+        expect(value.longPos).to.equal(5)
+        expect(value.longNeg).to.equal(6)
+        expect(value.shortPos).to.equal(7)
+        expect(value.shortNeg).to.equal(8)
+      })
+
+      context('.makerPos', async () => {
+        const STORAGE_SIZE = 64
+        it('saves if in range', async () => {
+          await orderGlobal.store({
+            ...DEFAULT_ORDER,
+            makerPos: BigNumber.from(2).pow(STORAGE_SIZE).sub(1),
           })
+          const value = await orderGlobal.read()
+          expect(value.makerPos).to.equal(BigNumber.from(2).pow(STORAGE_SIZE).sub(1))
+        })
 
-          context('positive change, negative impact, positive skew', () => {
-            it('registers fees', async () => {
-              const result = await order.registerFee(
-                {
-                  ...VALID_ORDER,
-                  [direction]: parse6decimal('10'),
-                  skew: parse6decimal('0.5'),
-                  impact: parse6decimal('-0.25'),
-                },
-                {
-                  ...VALID_ORACLE_VERSION,
-                  price: parse6decimal('100'),
-                },
-                {
-                  ...VALID_MARKET_PARAMETER,
-                  settlementFee: parse6decimal('12'),
-                },
-                {
-                  ...VALID_RISK_PARAMETER,
-                  takerFee: parse6decimal('0.01'),
-                  takerSkewFee: parse6decimal('0.02'),
-                  takerImpactFee: parse6decimal('0.03'),
-                },
-              )
+        it('reverts if currentId out of range', async () => {
+          await expect(
+            orderGlobal.store({
+              ...DEFAULT_ORDER,
+              makerPos: BigNumber.from(2).pow(STORAGE_SIZE),
+            }),
+          ).to.be.revertedWithCustomError(orderGlobal, 'OrderStorageInvalidError')
+        })
+      })
 
-              expect(result.fee).to.eq(parse6decimal('12.5')) // = 100 * 10 * (0.01 + 0.5 * 0.02 + -0.25 * 0.03)
-              expect(result.keeper).to.eq(parse6decimal('12'))
-            })
+      context('.makerNeg', async () => {
+        const STORAGE_SIZE = 64
+        it('saves if in range', async () => {
+          await orderGlobal.store({
+            ...DEFAULT_ORDER,
+            makerNeg: BigNumber.from(2).pow(STORAGE_SIZE).sub(1),
           })
+          const value = await orderGlobal.read()
+          expect(value.makerNeg).to.equal(BigNumber.from(2).pow(STORAGE_SIZE).sub(1))
+        })
 
-          context('negative change, negative impact, positive skew', () => {
-            it('registers fees', async () => {
-              const result = await order.registerFee(
-                {
-                  ...VALID_ORDER,
-                  [direction]: parse6decimal('-10'),
-                  skew: parse6decimal('0.5'),
-                  impact: parse6decimal('-0.25'),
-                },
-                {
-                  ...VALID_ORACLE_VERSION,
-                  price: parse6decimal('100'),
-                },
-                {
-                  ...VALID_MARKET_PARAMETER,
-                  settlementFee: parse6decimal('12'),
-                },
-                {
-                  ...VALID_RISK_PARAMETER,
-                  takerFee: parse6decimal('0.01'),
-                  takerSkewFee: parse6decimal('0.02'),
-                  takerImpactFee: parse6decimal('0.03'),
-                },
-              )
+        it('reverts if currentId out of range', async () => {
+          await expect(
+            orderGlobal.store({
+              ...DEFAULT_ORDER,
+              makerNeg: BigNumber.from(2).pow(STORAGE_SIZE),
+            }),
+          ).to.be.revertedWithCustomError(orderGlobal, 'OrderStorageInvalidError')
+        })
+      })
 
-              expect(result.fee).to.eq(parse6decimal('12.5')) // = 100 * 10 * (0.01 + 0.5 * 0.02 + -0.25 * 0.03)
-              expect(result.keeper).to.eq(parse6decimal('12'))
-            })
+      context('.longPos', async () => {
+        const STORAGE_SIZE = 64
+        it('saves if in range', async () => {
+          await orderGlobal.store({
+            ...DEFAULT_ORDER,
+            longPos: BigNumber.from(2).pow(STORAGE_SIZE).sub(1),
           })
+          const value = await orderGlobal.read()
+          expect(value.longPos).to.equal(BigNumber.from(2).pow(STORAGE_SIZE).sub(1))
+        })
 
-          context('negative change, positive impact, positive skew', () => {
-            it('registers fees', async () => {
-              const result = await order.registerFee(
-                {
-                  ...VALID_ORDER,
-                  [direction]: parse6decimal('-10'),
-                  skew: parse6decimal('0.5'),
-                  impact: parse6decimal('0.25'),
-                },
-                {
-                  ...VALID_ORACLE_VERSION,
-                  price: parse6decimal('100'),
-                },
-                {
-                  ...VALID_MARKET_PARAMETER,
-                  settlementFee: parse6decimal('12'),
-                },
-                {
-                  ...VALID_RISK_PARAMETER,
-                  takerFee: parse6decimal('0.01'),
-                  takerSkewFee: parse6decimal('0.02'),
-                  takerImpactFee: parse6decimal('0.03'),
-                },
-              )
+        it('reverts if currentId out of range', async () => {
+          await expect(
+            orderGlobal.store({
+              ...DEFAULT_ORDER,
+              longPos: BigNumber.from(2).pow(STORAGE_SIZE),
+            }),
+          ).to.be.revertedWithCustomError(orderGlobal, 'OrderStorageInvalidError')
+        })
+      })
 
-              expect(result.fee).to.eq(parse6decimal('27.5')) // = 100 * 10 * (0.01 + 0.5 * 0.02 + 0.25 * 0.03)
-              expect(result.keeper).to.eq(parse6decimal('12'))
-            })
+      context('.longNeg', async () => {
+        const STORAGE_SIZE = 64
+        it('saves if in range', async () => {
+          await orderGlobal.store({
+            ...DEFAULT_ORDER,
+            makerPos: BigNumber.from(2).pow(STORAGE_SIZE).sub(1),
           })
+          const value = await orderGlobal.read()
+          expect(value.makerPos).to.equal(BigNumber.from(2).pow(STORAGE_SIZE).sub(1))
+        })
+
+        it('reverts if currentId out of range', async () => {
+          await expect(
+            orderGlobal.store({
+              ...DEFAULT_ORDER,
+              makerPos: BigNumber.from(2).pow(STORAGE_SIZE),
+            }),
+          ).to.be.revertedWithCustomError(orderGlobal, 'OrderStorageInvalidError')
         })
       })
-    })
 
-    describe('empty', () => {
-      it('returns 0 settlement', async () => {
-        const result = await order.registerFee(
-          {
-            ...VALID_ORDER,
-            maker: 0,
-            long: 0,
-            short: 0,
-          },
-          VALID_ORACLE_VERSION,
-          {
-            ...VALID_MARKET_PARAMETER,
-            settlementFee: parse6decimal('12'),
-          },
-          VALID_RISK_PARAMETER,
-        )
+      context('.shortPos', async () => {
+        const STORAGE_SIZE = 64
+        it('saves if in range', async () => {
+          await orderGlobal.store({
+            ...DEFAULT_ORDER,
+            shortPos: BigNumber.from(2).pow(STORAGE_SIZE).sub(1),
+          })
+          const value = await orderGlobal.read()
+          expect(value.shortPos).to.equal(BigNumber.from(2).pow(STORAGE_SIZE).sub(1))
+        })
 
-        expect(result.keeper).to.eq(0)
+        it('reverts if currentId out of range', async () => {
+          await expect(
+            orderGlobal.store({
+              ...DEFAULT_ORDER,
+              shortPos: BigNumber.from(2).pow(STORAGE_SIZE),
+            }),
+          ).to.be.revertedWithCustomError(orderGlobal, 'OrderStorageInvalidError')
+        })
+      })
+
+      context('.shortNeg', async () => {
+        const STORAGE_SIZE = 64
+        it('saves if in range', async () => {
+          await orderGlobal.store({
+            ...DEFAULT_ORDER,
+            shortNeg: BigNumber.from(2).pow(STORAGE_SIZE).sub(1),
+          })
+          const value = await orderGlobal.read()
+          expect(value.shortNeg).to.equal(BigNumber.from(2).pow(STORAGE_SIZE).sub(1))
+        })
+
+        it('reverts if currentId out of range', async () => {
+          await expect(
+            orderGlobal.store({
+              ...DEFAULT_ORDER,
+              shortNeg: BigNumber.from(2).pow(STORAGE_SIZE),
+            }),
+          ).to.be.revertedWithCustomError(orderGlobal, 'OrderStorageInvalidError')
+        })
       })
     })
   })
 
-  describe('#increasesPosition', () => {
-    context('maker increase', () => {
-      it('returns true', async () => {
-        const result = await order.increasesPosition({
-          ...VALID_ORDER,
-          maker: parse6decimal('10'),
-          long: 0,
-          short: 0,
-        })
+  describe('local', () => {
+    const VALID_STORED_ORDER: OrderStruct = {
+      timestamp: 10,
+      orders: 2,
+      makerPos: 3,
+      makerNeg: 4,
+      longPos: 0,
+      longNeg: 0,
+      shortPos: 0,
+      shortNeg: 0,
+      collateral: 9,
+      protection: 1,
+      makerReferral: 11,
+      takerReferral: 12,
+    }
 
-        expect(result).to.be.true
-      })
+    let orderLocal: OrderLocalTester
+
+    beforeEach(async () => {
+      orderLocal = await new OrderLocalTester__factory(owner).deploy()
     })
 
-    context('long increase', () => {
-      it('returns true', async () => {
-        const result = await order.increasesPosition({
-          ...VALID_ORDER,
-          maker: 0,
-          long: parse6decimal('10'),
-          short: 0,
-        })
-
-        expect(result).to.be.true
-      })
+    describe('common behavoir', () => {
+      shouldBehaveLike(() => ({ order: orderLocal, validStoredOrder: VALID_STORED_ORDER }))
     })
 
-    context('short increase', () => {
-      it('returns true', async () => {
-        const result = await order.increasesPosition({
-          ...VALID_ORDER,
-          maker: 0,
-          long: 0,
-          short: parse6decimal('10'),
+    describe('#store', () => {
+      it('stores a new value', async () => {
+        await orderLocal.store(VALID_STORED_ORDER)
+
+        const value = await orderLocal.read()
+        expect(value.makerPos).to.equal(3)
+        expect(value.makerNeg).to.equal(4)
+        expect(value.longPos).to.equal(0)
+        expect(value.longNeg).to.equal(0)
+        expect(value.shortPos).to.equal(0)
+        expect(value.shortNeg).to.equal(0)
+        expect(value.protection).to.equal(1)
+      })
+
+      context('.makerPos', async () => {
+        const STORAGE_SIZE = 62
+        it('saves if in range', async () => {
+          await orderLocal.store({
+            ...DEFAULT_ORDER,
+            makerPos: BigNumber.from(2).pow(STORAGE_SIZE).sub(1),
+          })
+          const value = await orderLocal.read()
+          expect(value.makerPos).to.equal(BigNumber.from(2).pow(STORAGE_SIZE).sub(1))
         })
 
-        expect(result).to.be.true
+        it('reverts if currentId out of range', async () => {
+          await expect(
+            orderLocal.store({
+              ...DEFAULT_ORDER,
+              makerPos: BigNumber.from(2).pow(STORAGE_SIZE),
+            }),
+          ).to.be.revertedWithCustomError(orderLocal, 'OrderStorageInvalidError')
+        })
       })
-    })
 
-    context('no increase', () => {
-      it('returns false', async () => {
-        const result = await order.increasesPosition(VALID_ORDER)
+      context('.makerNeg', async () => {
+        const STORAGE_SIZE = 62
+        it('saves if in range', async () => {
+          await orderLocal.store({
+            ...DEFAULT_ORDER,
+            makerNeg: BigNumber.from(2).pow(STORAGE_SIZE).sub(1),
+          })
+          const value = await orderLocal.read()
+          expect(value.makerNeg).to.equal(BigNumber.from(2).pow(STORAGE_SIZE).sub(1))
+        })
 
-        expect(result).to.be.false
+        it('reverts if currentId out of range', async () => {
+          await expect(
+            orderLocal.store({
+              ...DEFAULT_ORDER,
+              makerNeg: BigNumber.from(2).pow(STORAGE_SIZE),
+            }),
+          ).to.be.revertedWithCustomError(orderLocal, 'OrderStorageInvalidError')
+        })
+      })
+
+      context('.longPos', async () => {
+        const STORAGE_SIZE = 62
+        it('saves if in range', async () => {
+          await orderLocal.store({
+            ...DEFAULT_ORDER,
+            longPos: BigNumber.from(2).pow(STORAGE_SIZE).sub(1),
+          })
+          const value = await orderLocal.read()
+          expect(value.longPos).to.equal(BigNumber.from(2).pow(STORAGE_SIZE).sub(1))
+        })
+
+        it('reverts if currentId out of range', async () => {
+          await expect(
+            orderLocal.store({
+              ...DEFAULT_ORDER,
+              longPos: BigNumber.from(2).pow(STORAGE_SIZE),
+            }),
+          ).to.be.revertedWithCustomError(orderLocal, 'OrderStorageInvalidError')
+        })
+      })
+
+      context('.longNeg', async () => {
+        const STORAGE_SIZE = 62
+        it('saves if in range', async () => {
+          await orderLocal.store({
+            ...DEFAULT_ORDER,
+            makerPos: BigNumber.from(2).pow(STORAGE_SIZE).sub(1),
+          })
+          const value = await orderLocal.read()
+          expect(value.makerPos).to.equal(BigNumber.from(2).pow(STORAGE_SIZE).sub(1))
+        })
+
+        it('reverts if currentId out of range', async () => {
+          await expect(
+            orderLocal.store({
+              ...DEFAULT_ORDER,
+              makerPos: BigNumber.from(2).pow(STORAGE_SIZE),
+            }),
+          ).to.be.revertedWithCustomError(orderLocal, 'OrderStorageInvalidError')
+        })
+      })
+
+      context('.shortPos', async () => {
+        const STORAGE_SIZE = 62
+        it('saves if in range', async () => {
+          await orderLocal.store({
+            ...DEFAULT_ORDER,
+            shortPos: BigNumber.from(2).pow(STORAGE_SIZE).sub(1),
+          })
+          const value = await orderLocal.read()
+          expect(value.shortPos).to.equal(BigNumber.from(2).pow(STORAGE_SIZE).sub(1))
+        })
+
+        it('reverts if currentId out of range', async () => {
+          await expect(
+            orderLocal.store({
+              ...DEFAULT_ORDER,
+              shortPos: BigNumber.from(2).pow(STORAGE_SIZE),
+            }),
+          ).to.be.revertedWithCustomError(orderLocal, 'OrderStorageInvalidError')
+        })
+      })
+
+      context('.shortNeg', async () => {
+        const STORAGE_SIZE = 62
+        it('saves if in range', async () => {
+          await orderLocal.store({
+            ...DEFAULT_ORDER,
+            shortNeg: BigNumber.from(2).pow(STORAGE_SIZE).sub(1),
+          })
+          const value = await orderLocal.read()
+          expect(value.shortNeg).to.equal(BigNumber.from(2).pow(STORAGE_SIZE).sub(1))
+        })
+
+        it('reverts if currentId out of range', async () => {
+          await expect(
+            orderLocal.store({
+              ...DEFAULT_ORDER,
+              shortNeg: BigNumber.from(2).pow(STORAGE_SIZE),
+            }),
+          ).to.be.revertedWithCustomError(orderLocal, 'OrderStorageInvalidError')
+        })
+      })
+
+      context('.protection', async () => {
+        const STORAGE_SIZE = 1
+        it('saves if in range', async () => {
+          await orderLocal.store({
+            ...DEFAULT_ORDER,
+            protection: BigNumber.from(2).pow(STORAGE_SIZE).sub(1),
+          })
+          const value = await orderLocal.read()
+          expect(value.protection).to.equal(BigNumber.from(2).pow(STORAGE_SIZE).sub(1))
+        })
+
+        it('reverts if currentId out of range', async () => {
+          await expect(
+            orderLocal.store({
+              ...DEFAULT_ORDER,
+              protection: BigNumber.from(2).pow(STORAGE_SIZE),
+            }),
+          ).to.be.revertedWithCustomError(orderLocal, 'OrderStorageInvalidError')
+        })
       })
     })
   })
 
-  describe('#increasesTaker', () => {
-    context('maker increase', () => {
-      it('returns false', async () => {
-        const result = await order.increasesTaker({
-          ...VALID_ORDER,
-          maker: parse6decimal('10'),
-          long: 0,
-          short: 0,
+  function shouldBehaveLike(
+    getter: () => {
+      order: OrderLocalTester | OrderGlobalTester
+      validStoredOrder: OrderStruct
+    },
+  ) {
+    let order: OrderLocalTester | OrderGlobalTester
+    let validStoredOrder: OrderStruct
+
+    beforeEach(async () => {
+      ;({ order, validStoredOrder } = getter())
+    })
+
+    describe('#store', () => {
+      it('stores a new value', async () => {
+        await order.store(validStoredOrder)
+
+        const value = await order.read()
+        expect(value.timestamp).to.equal(10)
+        expect(value.orders).to.equal(2)
+        expect(value.collateral).to.equal(9)
+        expect(value.makerReferral).to.equal(11)
+        expect(value.takerReferral).to.equal(12)
+      })
+
+      context('.timestamp', async () => {
+        const STORAGE_SIZE = 32
+        it('saves if in range', async () => {
+          await order.store({
+            ...validStoredOrder,
+            timestamp: BigNumber.from(2).pow(STORAGE_SIZE).sub(1),
+          })
+          const value = await order.read()
+          expect(value.timestamp).to.equal(BigNumber.from(2).pow(STORAGE_SIZE).sub(1))
         })
 
-        expect(result).to.be.false
+        it('reverts if currentId out of range', async () => {
+          await expect(
+            order.store({
+              ...validStoredOrder,
+              timestamp: BigNumber.from(2).pow(STORAGE_SIZE),
+            }),
+          ).to.be.revertedWithCustomError(order, 'OrderStorageInvalidError')
+        })
       })
-    })
 
-    context('long increase', () => {
-      it('returns true', async () => {
-        const result = await order.increasesTaker({
-          ...VALID_ORDER,
-          maker: 0,
-          long: parse6decimal('10'),
-          short: 0,
+      context('.orders', async () => {
+        const STORAGE_SIZE = 32
+        it('saves if in range', async () => {
+          await order.store({
+            ...validStoredOrder,
+            orders: BigNumber.from(2).pow(STORAGE_SIZE).sub(1),
+          })
+          const value = await order.read()
+          expect(value.orders).to.equal(BigNumber.from(2).pow(STORAGE_SIZE).sub(1))
         })
 
-        expect(result).to.be.true
+        it('reverts if currentId out of range', async () => {
+          await expect(
+            order.store({
+              ...validStoredOrder,
+              orders: BigNumber.from(2).pow(STORAGE_SIZE),
+            }),
+          ).to.be.revertedWithCustomError(order, 'OrderStorageInvalidError')
+        })
       })
-    })
 
-    context('short increase', () => {
-      it('returns true', async () => {
-        const result = await order.increasesTaker({
-          ...VALID_ORDER,
-          maker: 0,
-          long: 0,
-          short: parse6decimal('10'),
+      context('.collateral', async () => {
+        const STORAGE_SIZE = 63
+        it('saves if in range (above)', async () => {
+          await order.store({
+            ...validStoredOrder,
+            collateral: BigNumber.from(2).pow(STORAGE_SIZE).sub(1),
+          })
+          const value = await order.read()
+          expect(value.collateral).to.equal(BigNumber.from(2).pow(STORAGE_SIZE).sub(1))
         })
 
-        expect(result).to.be.true
-      })
-    })
-
-    context('no increase', () => {
-      it('returns false', async () => {
-        const result = await order.increasesTaker(VALID_ORDER)
-
-        expect(result).to.be.false
-      })
-    })
-  })
-
-  describe('#decreasesLiquidity', () => {
-    context('maker > net', () => {
-      it('returns false', async () => {
-        const result = await order.decreasesLiquidity({
-          ...VALID_ORDER,
-          maker: parse6decimal('-10'),
-          net: parse6decimal('-11'),
+        it('saves if in range (below)', async () => {
+          await order.store({
+            ...validStoredOrder,
+            collateral: BigNumber.from(2).pow(STORAGE_SIZE).mul(-1),
+          })
+          const value = await order.read()
+          expect(value.collateral).to.equal(BigNumber.from(2).pow(STORAGE_SIZE).mul(-1))
         })
 
-        expect(result).to.be.false
-      })
-    })
-
-    context('maker < net', () => {
-      it('returns false', async () => {
-        const result = await order.decreasesLiquidity({
-          ...VALID_ORDER,
-          maker: parse6decimal('10'),
-          net: parse6decimal('11'),
+        it('reverts if collateral out of range (above)', async () => {
+          await expect(
+            order.store({
+              ...validStoredOrder,
+              collateral: BigNumber.from(2).pow(STORAGE_SIZE),
+            }),
+          ).to.be.revertedWithCustomError(order, 'OrderStorageInvalidError')
         })
 
-        expect(result).to.be.true
+        it('reverts if collateral out of range (below)', async () => {
+          await expect(
+            order.store({
+              ...validStoredOrder,
+              collateral: BigNumber.from(2).pow(STORAGE_SIZE).add(1).mul(-1),
+            }),
+          ).to.be.revertedWithCustomError(order, 'OrderStorageInvalidError')
+        })
       })
-    })
 
-    context('maker == net', () => {
-      it('returns false', async () => {
-        const result = await order.decreasesLiquidity({
-          ...VALID_ORDER,
-          maker: parse6decimal('10'),
-          net: parse6decimal('10'),
+      context('.makerReferral', async () => {
+        const STORAGE_SIZE = 64
+        it('saves if in range', async () => {
+          await order.store({
+            ...validStoredOrder,
+            makerReferral: BigNumber.from(2).pow(STORAGE_SIZE).sub(1),
+          })
+          const value = await order.read()
+          expect(value.makerReferral).to.equal(BigNumber.from(2).pow(STORAGE_SIZE).sub(1))
         })
 
-        expect(result).to.be.false
-      })
-    })
-  })
-
-  describe('#singleSided', () => {
-    context('maker', () => {
-      it('maker + maker returns true', async () => {
-        expect(
-          await order.singleSided(
-            { ...VALID_ORDER, maker: parse6decimal('-10') },
-            { ...VALID_POSITION, maker: parse6decimal('10') },
-          ),
-        ).to.be.true
+        it('reverts if currentId out of range', async () => {
+          await expect(
+            order.store({
+              ...validStoredOrder,
+              makerReferral: BigNumber.from(2).pow(STORAGE_SIZE),
+            }),
+          ).to.be.revertedWithCustomError(order, 'OrderStorageInvalidError')
+        })
       })
 
-      it('maker + long returns false', async () => {
-        expect(
-          await order.singleSided(
-            { ...VALID_ORDER, maker: parse6decimal('-10') },
-            { ...VALID_POSITION, long: parse6decimal('10') },
-          ),
-        ).to.be.false
-      })
-
-      it('maker + short returns false', async () => {
-        expect(
-          await order.singleSided(
-            { ...VALID_ORDER, maker: parse6decimal('-10') },
-            { ...VALID_POSITION, short: parse6decimal('10') },
-          ),
-        ).to.be.false
-      })
-    })
-
-    context('long', () => {
-      it('long + maker returns false', async () => {
-        expect(
-          await order.singleSided(
-            { ...VALID_ORDER, long: parse6decimal('-10') },
-            { ...VALID_POSITION, maker: parse6decimal('10') },
-          ),
-        ).to.be.false
-      })
-
-      it('long + long returns true', async () => {
-        expect(
-          await order.singleSided(
-            { ...VALID_ORDER, long: parse6decimal('-10') },
-            { ...VALID_POSITION, long: parse6decimal('10') },
-          ),
-        ).to.be.true
-      })
-
-      it('long + short returns false', async () => {
-        expect(
-          await order.singleSided(
-            { ...VALID_ORDER, long: parse6decimal('-10') },
-            { ...VALID_POSITION, short: parse6decimal('10') },
-          ),
-        ).to.be.false
-      })
-    })
-
-    context('short', () => {
-      it('short + maker returns false', async () => {
-        expect(
-          await order.singleSided(
-            { ...VALID_ORDER, short: parse6decimal('-10') },
-            { ...VALID_POSITION, maker: parse6decimal('10') },
-          ),
-        ).to.be.false
-      })
-
-      it('short + long returns false', async () => {
-        expect(
-          await order.singleSided(
-            { ...VALID_ORDER, short: parse6decimal('-10') },
-            { ...VALID_POSITION, long: parse6decimal('10') },
-          ),
-        ).to.be.false
-      })
-
-      it('short + short returns true', async () => {
-        expect(
-          await order.singleSided(
-            { ...VALID_ORDER, short: parse6decimal('-10') },
-            { ...VALID_POSITION, short: parse6decimal('10') },
-          ),
-        ).to.be.true
-      })
-    })
-
-    context('2 sides', () => {
-      it('maker + long returns false', async () => {
-        expect(
-          await order.singleSided(
-            { ...VALID_ORDER, maker: parse6decimal('-10'), long: parse6decimal('-10') },
-            { ...VALID_POSITION, maker: parse6decimal('10') },
-          ),
-        ).to.be.false
-      })
-
-      it('long + short returns false', async () => {
-        expect(
-          await order.singleSided(
-            { ...VALID_ORDER, long: parse6decimal('-10'), short: parse6decimal('-10') },
-            { ...VALID_POSITION, long: parse6decimal('10') },
-          ),
-        ).to.be.false
-      })
-
-      it('short + maker returns false', async () => {
-        expect(
-          await order.singleSided(
-            { ...VALID_ORDER, short: parse6decimal('-10'), maker: parse6decimal('-10') },
-            { ...VALID_POSITION, short: parse6decimal('10') },
-          ),
-        ).to.be.false
-      })
-    })
-
-    context('3 sides', () => {
-      it('maker + long returns false', async () => {
-        expect(
-          await order.singleSided(
-            { ...VALID_ORDER, maker: parse6decimal('-10'), long: parse6decimal('-10'), short: parse6decimal('-10') },
-            { ...VALID_POSITION, maker: parse6decimal('10') },
-          ),
-        ).to.be.false
-      })
-    })
-  })
-
-  describe('#liquidityCheckApplicable', () => {
-    context('market is closed', () => {
-      it('returns false', async () => {
-        const result = await order.liquidityCheckApplicable(VALID_ORDER, {
-          ...VALID_MARKET_PARAMETER,
-          closed: true,
+      context('.takerReferral', async () => {
+        const STORAGE_SIZE = 64
+        it('saves if in range', async () => {
+          await order.store({
+            ...validStoredOrder,
+            takerReferral: BigNumber.from(2).pow(STORAGE_SIZE).sub(1),
+          })
+          const value = await order.read()
+          expect(value.takerReferral).to.equal(BigNumber.from(2).pow(STORAGE_SIZE).sub(1))
         })
 
-        expect(result).to.be.false
+        it('reverts if currentId out of range', async () => {
+          await expect(
+            order.store({
+              ...validStoredOrder,
+              takerReferral: BigNumber.from(2).pow(STORAGE_SIZE),
+            }),
+          ).to.be.revertedWithCustomError(order, 'OrderStorageInvalidError')
+        })
       })
     })
 
-    context('makerCloseAlways is true', () => {
+    describe('#ready', () => {
+      context('oracleVersion.timestamp > position.timestamp', () => {
+        it('returns true', async () => {
+          await order.store({ ...DEFAULT_ORDER, timestamp: 2 })
+          expect(await order.ready(VALID_ORACLE_VERSION)).to.be.true
+        })
+      })
+
+      context('position.timestamp = oracleVersion.timestamp', () => {
+        it('returns true', async () => {
+          await order.store({ ...DEFAULT_ORDER, timestamp: VALID_ORACLE_VERSION.timestamp })
+          expect(await order.ready(VALID_ORACLE_VERSION)).to.be.true
+        })
+      })
+
+      context('oracleVersion.timestamp < position.timestamp', () => {
+        it('returns false', async () => {
+          await order.store({ ...DEFAULT_ORDER, timestamp: 12346 })
+          expect(await order.ready(VALID_ORACLE_VERSION)).to.be.false
+        })
+      })
+    })
+
+    describe('#increasesPosition', () => {
       context('maker increase', () => {
         it('returns true', async () => {
-          const result = await order.liquidityCheckApplicable(
-            { ...VALID_ORDER, maker: 10 },
-            {
-              ...VALID_MARKET_PARAMETER,
-              takerCloseAlways: true,
-            },
-          )
+          await order.store({
+            ...DEFAULT_ORDER,
+            makerPos: parse6decimal('10'),
+          })
+          const result = await order.increasesPosition()
 
           expect(result).to.be.true
         })
@@ -611,13 +569,11 @@ describe('Order', () => {
 
       context('long increase', () => {
         it('returns true', async () => {
-          const result = await order.liquidityCheckApplicable(
-            { ...VALID_ORDER, long: 10 },
-            {
-              ...VALID_MARKET_PARAMETER,
-              takerCloseAlways: true,
-            },
-          )
+          await order.store({
+            ...DEFAULT_ORDER,
+            longPos: parse6decimal('10'),
+          })
+          const result = await order.increasesPosition()
 
           expect(result).to.be.true
         })
@@ -625,13 +581,11 @@ describe('Order', () => {
 
       context('short increase', () => {
         it('returns true', async () => {
-          const result = await order.liquidityCheckApplicable(
-            { ...VALID_ORDER, short: 10 },
-            {
-              ...VALID_MARKET_PARAMETER,
-              takerCloseAlways: true,
-            },
-          )
+          await order.store({
+            ...DEFAULT_ORDER,
+            shortPos: parse6decimal('10'),
+          })
+          const result = await order.increasesPosition()
 
           expect(result).to.be.true
         })
@@ -639,358 +593,517 @@ describe('Order', () => {
 
       context('no increase', () => {
         it('returns false', async () => {
-          const result = await order.liquidityCheckApplicable(VALID_ORDER, {
-            ...VALID_MARKET_PARAMETER,
-            takerCloseAlways: true,
+          await order.store(DEFAULT_ORDER)
+          const result = await order.increasesPosition()
+
+          expect(result).to.be.false
+        })
+      })
+    })
+
+    describe('#increasesTaker', () => {
+      context('maker increase', () => {
+        it('returns false', async () => {
+          await order.store({
+            ...DEFAULT_ORDER,
+            makerPos: parse6decimal('10'),
+          })
+          const result = await order.increasesTaker()
+
+          expect(result).to.be.false
+        })
+      })
+
+      context('long increase', () => {
+        it('returns true', async () => {
+          await order.store({
+            ...DEFAULT_ORDER,
+            longPos: parse6decimal('10'),
+          })
+          const result = await order.increasesTaker()
+
+          expect(result).to.be.true
+        })
+      })
+
+      context('short increase', () => {
+        it('returns true', async () => {
+          await order.store({
+            ...DEFAULT_ORDER,
+            shortPos: parse6decimal('10'),
+          })
+          const result = await order.increasesTaker()
+
+          expect(result).to.be.true
+        })
+      })
+
+      context('no increase', () => {
+        it('returns false', async () => {
+          await order.store(DEFAULT_ORDER)
+          const result = await order.increasesTaker()
+
+          expect(result).to.be.false
+        })
+      })
+    })
+
+    describe('#decreasesLiquidity', () => {
+      context('maker reduces', () => {
+        it('returns false', async () => {
+          await order.store({
+            ...DEFAULT_ORDER,
+            makerNeg: parse6decimal('10'),
+          })
+          const result = await order.decreasesLiquidity({
+            ...DEFAULT_POSITION,
           })
 
           expect(result).to.be.true
         })
       })
 
-      context('maker decrease', () => {
-        it('returns false', async () => {
-          const result = await order.liquidityCheckApplicable(
-            { ...VALID_ORDER, maker: -10 },
-            {
-              ...VALID_MARKET_PARAMETER,
-              takerCloseAlways: true,
-            },
-          )
-
-          expect(result).to.be.true
-        })
-      })
-
-      context('long decrease', () => {
-        it('returns false', async () => {
-          const result = await order.liquidityCheckApplicable(
-            { ...VALID_ORDER, long: -10 },
-            {
-              ...VALID_MARKET_PARAMETER,
-              takerCloseAlways: true,
-            },
-          )
+      context('maker increases', () => {
+        it('returns true', async () => {
+          await order.store({
+            ...DEFAULT_ORDER,
+            makerPos: parse6decimal('10'),
+          })
+          const result = await order.decreasesLiquidity({
+            ...DEFAULT_POSITION,
+          })
 
           expect(result).to.be.false
         })
       })
 
-      context('short decrease', () => {
+      context('maker equal', () => {
         it('returns false', async () => {
-          const result = await order.liquidityCheckApplicable(
-            { ...VALID_ORDER, short: -10 },
-            {
-              ...VALID_MARKET_PARAMETER,
-              takerCloseAlways: true,
-            },
-          )
+          await order.store(DEFAULT_ORDER)
+          const result = await order.decreasesLiquidity(DEFAULT_POSITION)
 
           expect(result).to.be.false
         })
       })
-    })
 
-    context('takerCloseAlways is true', () => {
-      context('maker increase', () => {
+      context('decreases net long', () => {
         it('returns true', async () => {
-          const result = await order.liquidityCheckApplicable(
-            { ...VALID_ORDER, maker: 10 },
-            {
-              ...VALID_MARKET_PARAMETER,
-              takerCloseAlways: true,
-            },
-          )
+          await order.store({
+            ...DEFAULT_ORDER,
+            longPos: parse6decimal('10'),
+          })
+          const result = await order.decreasesLiquidity({
+            ...DEFAULT_POSITION,
+            long: parse6decimal('10'),
+            short: parse6decimal('10'),
+          })
 
-          expect(result).to.be.true
+          expect(result).to.be.false
         })
       })
 
-      context('long increase', () => {
+      context('decreases net short', () => {
         it('returns true', async () => {
-          const result = await order.liquidityCheckApplicable(
-            { ...VALID_ORDER, long: 10 },
-            {
-              ...VALID_MARKET_PARAMETER,
-              takerCloseAlways: true,
-            },
-          )
+          await order.store({
+            ...DEFAULT_ORDER,
+            shortPos: parse6decimal('10'),
+          })
+          const result = await order.decreasesLiquidity({
+            ...DEFAULT_POSITION,
+            long: parse6decimal('10'),
+            short: parse6decimal('10'),
+          })
 
-          expect(result).to.be.true
+          expect(result).to.be.false
         })
       })
 
-      context('short increase', () => {
+      context('increases net long', () => {
         it('returns true', async () => {
-          const result = await order.liquidityCheckApplicable(
-            { ...VALID_ORDER, short: 10 },
-            {
-              ...VALID_MARKET_PARAMETER,
-              takerCloseAlways: true,
-            },
-          )
-
-          expect(result).to.be.true
-        })
-      })
-
-      context('no increase', () => {
-        it('returns false', async () => {
-          const result = await order.liquidityCheckApplicable(VALID_ORDER, {
-            ...VALID_MARKET_PARAMETER,
-            takerCloseAlways: true,
+          await order.store({
+            ...DEFAULT_ORDER,
+            longNeg: parse6decimal('10'),
+          })
+          const result = await order.decreasesLiquidity({
+            ...DEFAULT_POSITION,
+            long: parse6decimal('0'),
+            short: parse6decimal('10'),
           })
 
           expect(result).to.be.true
         })
       })
 
-      context('maker decrease', () => {
-        it('returns false', async () => {
-          const result = await order.liquidityCheckApplicable(
-            { ...VALID_ORDER, maker: -10 },
-            {
-              ...VALID_MARKET_PARAMETER,
-              takerCloseAlways: true,
-            },
-          )
+      context('increases net short', () => {
+        it('returns true', async () => {
+          await order.store({
+            ...DEFAULT_ORDER,
+            shortNeg: parse6decimal('10'),
+          })
+          const result = await order.decreasesLiquidity({
+            ...DEFAULT_POSITION,
+            long: parse6decimal('10'),
+            short: parse6decimal('0'),
+          })
 
           expect(result).to.be.true
         })
       })
 
-      context('long decrease', () => {
-        it('returns false', async () => {
-          const result = await order.liquidityCheckApplicable(
-            { ...VALID_ORDER, long: -10 },
-            {
-              ...VALID_MARKET_PARAMETER,
-              takerCloseAlways: true,
-            },
-          )
-
-          expect(result).to.be.false
-        })
-      })
-
-      context('short decrease', () => {
-        it('returns false', async () => {
-          const result = await order.liquidityCheckApplicable(
-            { ...VALID_ORDER, short: -10 },
-            {
-              ...VALID_MARKET_PARAMETER,
-              takerCloseAlways: true,
-            },
-          )
+      context('equal net', () => {
+        it('returns true', async () => {
+          await order.store({
+            ...DEFAULT_ORDER,
+          })
+          const result = await order.decreasesLiquidity({
+            ...DEFAULT_POSITION,
+            long: parse6decimal('10'),
+            short: parse6decimal('10'),
+          })
 
           expect(result).to.be.false
         })
       })
     })
 
-    context('closed, makerCloseAlways, and takerCloseAlways are false', () => {
-      context('maker increase', () => {
-        it('returns true', async () => {
-          const result = await order.liquidityCheckApplicable(
-            { ...VALID_ORDER, maker: 10 },
-            {
-              ...VALID_MARKET_PARAMETER,
-              takerCloseAlways: true,
-            },
-          )
-
-          expect(result).to.be.true
-        })
-      })
-
-      context('long increase', () => {
-        it('returns true', async () => {
-          const result = await order.liquidityCheckApplicable({ ...VALID_ORDER, long: 10 }, VALID_MARKET_PARAMETER)
-
-          expect(result).to.be.true
-        })
-      })
-
-      context('short increase', () => {
-        it('returns true', async () => {
-          const result = await order.liquidityCheckApplicable({ ...VALID_ORDER, short: 10 }, VALID_MARKET_PARAMETER)
-
-          expect(result).to.be.true
-        })
-      })
-
-      context('no increase', () => {
-        it('returns true', async () => {
-          const result = await order.liquidityCheckApplicable(VALID_ORDER, VALID_MARKET_PARAMETER)
-
-          expect(result).to.be.true
-        })
-      })
-
-      context('maker decrease', () => {
+    describe('#liquidityCheckApplicable', () => {
+      context('market is closed', () => {
         it('returns false', async () => {
-          const result = await order.liquidityCheckApplicable(
-            { ...VALID_ORDER, maker: -10 },
-            {
+          await order.store(DEFAULT_ORDER)
+          const result = await order.liquidityCheckApplicable({
+            ...VALID_MARKET_PARAMETER,
+            closed: true,
+          })
+
+          expect(result).to.be.false
+        })
+      })
+
+      context('makerCloseAlways is true', () => {
+        context('maker increase', () => {
+          it('returns true', async () => {
+            await order.store({ ...DEFAULT_ORDER, makerPos: 10 })
+            const result = await order.liquidityCheckApplicable({
               ...VALID_MARKET_PARAMETER,
               takerCloseAlways: true,
-            },
-          )
+            })
 
-          expect(result).to.be.true
+            expect(result).to.be.true
+          })
+        })
+
+        context('long increase', () => {
+          it('returns true', async () => {
+            await order.store({ ...DEFAULT_ORDER, longPos: 10 })
+            const result = await order.liquidityCheckApplicable({
+              ...VALID_MARKET_PARAMETER,
+              takerCloseAlways: true,
+            })
+
+            expect(result).to.be.true
+          })
+        })
+
+        context('short increase', () => {
+          it('returns true', async () => {
+            await order.store({ ...DEFAULT_ORDER, shortPos: 10 })
+            const result = await order.liquidityCheckApplicable({
+              ...VALID_MARKET_PARAMETER,
+              takerCloseAlways: true,
+            })
+
+            expect(result).to.be.true
+          })
+        })
+
+        context('no increase', () => {
+          it('returns false', async () => {
+            await order.store(DEFAULT_ORDER)
+            const result = await order.liquidityCheckApplicable({
+              ...VALID_MARKET_PARAMETER,
+              takerCloseAlways: true,
+            })
+
+            expect(result).to.be.true
+          })
+        })
+
+        context('maker decrease', () => {
+          it('returns false', async () => {
+            await order.store({ ...DEFAULT_ORDER, makerNeg: 10 })
+            const result = await order.liquidityCheckApplicable({
+              ...VALID_MARKET_PARAMETER,
+              takerCloseAlways: true,
+            })
+
+            expect(result).to.be.true
+          })
+        })
+
+        context('long decrease', () => {
+          it('returns false', async () => {
+            await order.store({ ...DEFAULT_ORDER, longNeg: 10 })
+            const result = await order.liquidityCheckApplicable({
+              ...VALID_MARKET_PARAMETER,
+              takerCloseAlways: true,
+            })
+
+            expect(result).to.be.false
+          })
+        })
+
+        context('short decrease', () => {
+          it('returns false', async () => {
+            await order.store({ ...DEFAULT_ORDER, shortNeg: 10 })
+            const result = await order.liquidityCheckApplicable({
+              ...VALID_MARKET_PARAMETER,
+              takerCloseAlways: true,
+            })
+
+            expect(result).to.be.false
+          })
         })
       })
 
-      context('long decrease', () => {
+      context('takerCloseAlways is true', () => {
+        context('maker increase', () => {
+          it('returns true', async () => {
+            await order.store({ ...DEFAULT_ORDER, makerPos: 10 })
+            const result = await order.liquidityCheckApplicable({
+              ...VALID_MARKET_PARAMETER,
+              takerCloseAlways: true,
+            })
+
+            expect(result).to.be.true
+          })
+        })
+
+        context('long increase', () => {
+          it('returns true', async () => {
+            await order.store({ ...DEFAULT_ORDER, longPos: 10 })
+            const result = await order.liquidityCheckApplicable({
+              ...VALID_MARKET_PARAMETER,
+              takerCloseAlways: true,
+            })
+
+            expect(result).to.be.true
+          })
+        })
+
+        context('short increase', () => {
+          it('returns true', async () => {
+            await order.store({ ...DEFAULT_ORDER, shortPos: 10 })
+            const result = await order.liquidityCheckApplicable({
+              ...VALID_MARKET_PARAMETER,
+              takerCloseAlways: true,
+            })
+
+            expect(result).to.be.true
+          })
+        })
+
+        context('no increase', () => {
+          it('returns false', async () => {
+            await order.store(DEFAULT_ORDER)
+            const result = await order.liquidityCheckApplicable({
+              ...VALID_MARKET_PARAMETER,
+              takerCloseAlways: true,
+            })
+
+            expect(result).to.be.true
+          })
+        })
+
+        context('maker decrease', () => {
+          it('returns false', async () => {
+            await order.store({ ...DEFAULT_ORDER, makerNeg: 10 })
+            const result = await order.liquidityCheckApplicable({
+              ...VALID_MARKET_PARAMETER,
+              takerCloseAlways: true,
+            })
+
+            expect(result).to.be.true
+          })
+        })
+
+        context('long decrease', () => {
+          it('returns false', async () => {
+            await order.store({ ...DEFAULT_ORDER, longNeg: 10 })
+            const result = await order.liquidityCheckApplicable({
+              ...VALID_MARKET_PARAMETER,
+              takerCloseAlways: true,
+            })
+
+            expect(result).to.be.false
+          })
+        })
+
+        context('short decrease', () => {
+          it('returns false', async () => {
+            await order.store({ ...DEFAULT_ORDER, shortNeg: 10 })
+            const result = await order.liquidityCheckApplicable({
+              ...VALID_MARKET_PARAMETER,
+              takerCloseAlways: true,
+            })
+
+            expect(result).to.be.false
+          })
+        })
+      })
+
+      context('closed, makerCloseAlways, and takerCloseAlways are false', () => {
+        context('maker increase', () => {
+          it('returns true', async () => {
+            await order.store({ ...DEFAULT_ORDER, makerPos: 10 })
+            const result = await order.liquidityCheckApplicable({
+              ...VALID_MARKET_PARAMETER,
+              takerCloseAlways: true,
+            })
+
+            expect(result).to.be.true
+          })
+        })
+
+        context('long increase', () => {
+          it('returns true', async () => {
+            await order.store({ ...DEFAULT_ORDER, longPos: 10 })
+            const result = await order.liquidityCheckApplicable(VALID_MARKET_PARAMETER)
+
+            expect(result).to.be.true
+          })
+        })
+
+        context('short increase', () => {
+          it('returns true', async () => {
+            await order.store({ ...DEFAULT_ORDER, shortPos: 10 })
+            const result = await order.liquidityCheckApplicable(VALID_MARKET_PARAMETER)
+
+            expect(result).to.be.true
+          })
+        })
+
+        context('no increase', () => {
+          it('returns true', async () => {
+            await order.store(DEFAULT_ORDER)
+            const result = await order.liquidityCheckApplicable(VALID_MARKET_PARAMETER)
+
+            expect(result).to.be.true
+          })
+        })
+
+        context('maker decrease', () => {
+          it('returns false', async () => {
+            await order.store({ ...DEFAULT_ORDER, makerNeg: 10 })
+            const result = await order.liquidityCheckApplicable({
+              ...VALID_MARKET_PARAMETER,
+              takerCloseAlways: true,
+            })
+
+            expect(result).to.be.true
+          })
+        })
+
+        context('long decrease', () => {
+          it('returns true', async () => {
+            await order.store({ ...DEFAULT_ORDER, longNeg: 10 })
+            const result = await order.liquidityCheckApplicable(VALID_MARKET_PARAMETER)
+
+            expect(result).to.be.true
+          })
+        })
+
+        context('short decrease', () => {
+          it('returns true', async () => {
+            await order.store({ ...DEFAULT_ORDER, shortNeg: 10 })
+            const result = await order.liquidityCheckApplicable(VALID_MARKET_PARAMETER)
+
+            expect(result).to.be.true
+          })
+        })
+      })
+    })
+
+    describe('#isEmpty', () => {
+      context('order is empty', () => {
         it('returns true', async () => {
-          const result = await order.liquidityCheckApplicable({ ...VALID_ORDER, long: -10 }, VALID_MARKET_PARAMETER)
+          await order.store(DEFAULT_ORDER)
+          const result = await order.isEmpty()
 
           expect(result).to.be.true
         })
       })
 
-      context('short decrease', () => {
-        it('returns true', async () => {
-          const result = await order.liquidityCheckApplicable({ ...VALID_ORDER, short: -10 }, VALID_MARKET_PARAMETER)
+      context('order is not empty (makerPos)', () => {
+        it('returns false', async () => {
+          await order.store({
+            ...DEFAULT_ORDER,
+            makerPos: parse6decimal('1'),
+          })
+          const result = await order.isEmpty()
 
-          expect(result).to.be.true
+          expect(result).to.be.false
+        })
+      })
+
+      context('order is not empty (makerNeg)', () => {
+        it('returns false', async () => {
+          await order.store({
+            ...DEFAULT_ORDER,
+            makerNeg: parse6decimal('1'),
+          })
+          const result = await order.isEmpty()
+
+          expect(result).to.be.false
+        })
+      })
+
+      context('order is not empty (longPos)', () => {
+        it('returns false', async () => {
+          await order.store({
+            ...DEFAULT_ORDER,
+            longPos: parse6decimal('1'),
+          })
+          const result = await order.isEmpty()
+
+          expect(result).to.be.false
+        })
+      })
+
+      context('order is not empty (longNeg)', () => {
+        it('returns false', async () => {
+          await order.store({
+            ...DEFAULT_ORDER,
+            longNeg: parse6decimal('1'),
+          })
+          const result = await order.isEmpty()
+
+          expect(result).to.be.false
+        })
+      })
+
+      context('order is not empty (shortPos)', () => {
+        it('returns false', async () => {
+          await order.store({
+            ...DEFAULT_ORDER,
+            shortPos: parse6decimal('1'),
+          })
+          const result = await order.isEmpty()
+
+          expect(result).to.be.false
+        })
+      })
+
+      context('order is not empty (shortNeg)', () => {
+        it('returns false', async () => {
+          await order.store({
+            ...DEFAULT_ORDER,
+            shortNeg: parse6decimal('1'),
+          })
+          const result = await order.isEmpty()
+
+          expect(result).to.be.false
         })
       })
     })
-  })
-
-  describe('#liquidationFee', () => {
-    it('returns notional * riskParameter.maintenance * riskParameter.liquidationFee', async () => {
-      expect(
-        await order.liquidationFee(
-          { ...VALID_ORDER, maker: parse6decimal('-6') },
-          { ...VALID_ORACLE_VERSION, price: parse6decimal('100') },
-          {
-            ...VALID_RISK_PARAMETER,
-            maintenance: parse6decimal('0.3'),
-            liquidationFee: parse6decimal('0.1'),
-            maxLiquidationFee: parse6decimal('1000'),
-          },
-        ),
-      ).to.equal(parse6decimal('18'))
-    })
-
-    context('riskParameter.minMaintenance > notional * riskParameter.maintenance', () => {
-      it('returns riskParameter.minMaintenance * riskParameter.liquidationFee', async () => {
-        expect(
-          await order.liquidationFee(
-            { ...VALID_ORDER, maker: parse6decimal('-6') },
-            { ...VALID_ORACLE_VERSION, price: parse6decimal('100') },
-            {
-              ...VALID_RISK_PARAMETER,
-              maintenance: parse6decimal('0.3'),
-              minMaintenance: parse6decimal('200'),
-              liquidationFee: parse6decimal('0.1'),
-              maxLiquidationFee: parse6decimal('1000'),
-            },
-          ),
-        ).to.equal(parse6decimal('20'))
-      })
-    })
-
-    context(
-      'riskParameter.maxLiquidationFee < notional * riskParameter.maintenance * riskParameter.liquidationFee',
-      () => {
-        it('returns riskParameter.maxLiquidationFee', async () => {
-          expect(
-            await order.liquidationFee(
-              { ...VALID_ORDER, maker: parse6decimal('-6') },
-              { ...VALID_ORACLE_VERSION, price: parse6decimal('100') },
-              {
-                ...VALID_RISK_PARAMETER,
-                maintenance: parse6decimal('0.3'),
-                maxLiquidationFee: parse6decimal('5'),
-                liquidationFee: parse6decimal('0.1'),
-              },
-            ),
-          ).to.equal(parse6decimal('5'))
-        })
-      },
-    )
-
-    context(
-      'riskParameter.minLiquidationFee > notional * riskParameter.maintenance * riskParameter.liquidationFee',
-      () => {
-        it('returns riskParameter.minLiquidationFee', async () => {
-          expect(
-            await order.liquidationFee(
-              { ...VALID_ORDER, maker: parse6decimal('-6') },
-              { ...VALID_ORACLE_VERSION, price: parse6decimal('100') },
-              {
-                ...VALID_RISK_PARAMETER,
-                maintenance: parse6decimal('0.3'),
-                minLiquidationFee: parse6decimal('50'),
-                liquidationFee: parse6decimal('0.1'),
-              },
-            ),
-          ).to.equal(parse6decimal('50'))
-        })
-      },
-    )
-
-    context('empty order will return no fee', () => {
-      it('returns riskParameter.minLiquidationFee', async () => {
-        expect(
-          await order.liquidationFee(
-            { ...VALID_ORDER },
-            { ...VALID_ORACLE_VERSION, price: parse6decimal('100') },
-            {
-              ...VALID_RISK_PARAMETER,
-              maintenance: parse6decimal('0.3'),
-              minLiquidationFee: parse6decimal('50'),
-              liquidationFee: parse6decimal('0.1'),
-            },
-          ),
-        ).to.equal(parse6decimal('0'))
-      })
-    })
-  })
-
-  describe('#isEmpty', () => {
-    context('order is empty', () => {
-      it('returns true', async () => {
-        const result = await order.isEmpty(VALID_ORDER)
-
-        expect(result).to.be.true
-      })
-    })
-
-    context('order is not empty (maker)', () => {
-      it('returns false', async () => {
-        const result = await order.isEmpty({
-          ...VALID_ORDER,
-          maker: parse6decimal('1'),
-        })
-
-        expect(result).to.be.false
-      })
-    })
-
-    context('order is not empty (long)', () => {
-      it('returns false', async () => {
-        const result = await order.isEmpty({
-          ...VALID_ORDER,
-          long: parse6decimal('1'),
-        })
-
-        expect(result).to.be.false
-      })
-    })
-
-    context('order is not empty (short)', () => {
-      it('returns false', async () => {
-        const result = await order.isEmpty({
-          ...VALID_ORDER,
-          short: parse6decimal('1'),
-        })
-
-        expect(result).to.be.false
-      })
-    })
-  })
+  }
 })

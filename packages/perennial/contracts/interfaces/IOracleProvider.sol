@@ -5,16 +5,15 @@ import "../types/OracleVersion.sol";
 import "./IMarket.sol";
 
 /// @dev OracleVersion Invariants
-///       - Each newly requested version must be increasing, but does not need to incrementing
-///         - We recommend using something like timestamps or blocks for versions so that intermediary non-requested
-///           versions may be posted for the purpose of expedient liquidations
+///       - Version are requested at a timestamp, the current timestamp is determined by the oracle
+///         - The current timestamp may not be equal to block.timestamp, for example when batching timestamps
 ///       - Versions are allowed to "fail" and will be marked as .valid = false
+///         - Invalid versions will always include the latest valid price as its price field
 ///       - Versions must be committed in order, i.e. all requested versions prior to latestVersion must be available
-///       - Non-requested versions may be committed, but will not receive a keeper reward
+///       - Non-requested versions may be committed, but will not receive a settlement fee
 ///         - This is useful for immediately liquidating an account with a valid off-chain price in between orders
 ///         - Satisfying the above constraints, only versions more recent than the latest version may be committed
 ///       - Current must always be greater than Latest, never equal
-///       - Request must register the same current version that was returned by Current within the same transaction
 interface IOracleProvider {
     // sig: 0x652fafab
     error OracleProviderUnauthorizedError();

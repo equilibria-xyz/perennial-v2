@@ -30,29 +30,6 @@ const func: DeployFunction = async function (hre: HardhatRuntimeEnvironment) {
 
   const proxyAdmin = new ProxyAdmin__factory(deployerSigner).attach((await get('ProxyAdmin')).address)
 
-  // Deploy Factory
-  await deploy('PayoffFactoryImpl', {
-    contract: 'PayoffFactory',
-    from: deployer,
-    skipIfAlreadyDeployed: true,
-    log: true,
-    autoMine: true,
-  })
-  const payoffFactoryInterface = new ethers.utils.Interface(['function initialize()'])
-  await deploy('PayoffFactory', {
-    contract: 'TransparentUpgradeableProxy',
-    args: [
-      (await get('PayoffFactoryImpl')).address,
-      proxyAdmin.address,
-      payoffFactoryInterface.encodeFunctionData('initialize', []),
-    ],
-    from: deployer,
-    skipIfAlreadyDeployed: true,
-    log: true,
-    autoMine: true,
-  })
-  const payoffFactory = new PayoffFactory__factory(deployerSigner).attach((await get('PayoffFactory')).address)
-
   // Deploy and register payoffs
   for (const payoffName of PAYOFFS) {
     const payoff = await deploy(payoffName, {

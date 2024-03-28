@@ -32,16 +32,8 @@ import {
   VaultUpdate,
 } from '../../helpers/invoke'
 
-import { DEFAULT_LOCAL, Local, parse6decimal } from '../../../../common/testutil/types'
-import {
-  Compare,
-  Dir,
-  openPosition,
-  openTriggerOrder,
-  setGlobalPrice,
-  setMarketPosition,
-  setPendingPosition,
-} from '../../helpers/types'
+import { DEFAULT_LOCAL, DEFAULT_POSITION, Local, parse6decimal } from '../../../../common/testutil/types'
+import { Compare, Dir, openTriggerOrder, setGlobalPrice, setMarketPosition } from '../../helpers/types'
 
 import { anyValue } from '@nomicfoundation/hardhat-chai-matchers/withArgs'
 
@@ -143,7 +135,7 @@ describe('MultiInvoker_Arbitrum', () => {
       usdc.transfer.whenCalledWith(user.address, collateral).returns(true)
 
       vault.update.returns(true)
-      market.update.returns(true)
+      market['update(address,uint256,uint256,uint256,int256,bool)'].returns(true)
     }
 
     beforeEach(async () => {
@@ -156,7 +148,14 @@ describe('MultiInvoker_Arbitrum', () => {
       ).to.not.be.reverted
 
       expect(dsu.transferFrom).to.have.been.calledWith(user.address, multiInvoker.address, collateral.mul(1e12))
-      expect(market.update).to.have.been.calledWith(user.address, MAX_UINT, MAX_UINT, MAX_UINT, collateral, false)
+      expect(market['update(address,uint256,uint256,uint256,int256,bool)']).to.have.been.calledWith(
+        user.address,
+        MAX_UINT,
+        MAX_UINT,
+        MAX_UINT,
+        collateral,
+        false,
+      )
     })
 
     it('wraps and deposits collateral', async () => {
@@ -199,7 +198,7 @@ describe('MultiInvoker_Arbitrum', () => {
       ).to.not.be.reverted
 
       expect(dsu.transfer).to.have.been.calledWith(user.address, dsuCollateral)
-      expect(market.update).to.have.been.calledWith(
+      expect(market['update(address,uint256,uint256,uint256,int256,bool)']).to.have.been.calledWith(
         user.address,
         MAX_UINT,
         MAX_UINT,
@@ -430,24 +429,10 @@ describe('MultiInvoker_Arbitrum', () => {
       maker: 0,
       long: position,
       short: position,
-      collateral: collateral,
-      fee: 0,
-      keeper: 0,
-      delta: 0,
-      invalidation: {
-        maker: 0,
-        long: 0,
-        short: 0,
-      },
-    }
-
-    const fixture = async () => {
-      market.pendingPositions.whenCalledWith(user.address, 1).returns(defaultPosition)
     }
 
     beforeEach(async () => {
       setGlobalPrice(market, BigNumber.from(1150e6))
-      await loadFixture(fixture)
       setMarketPosition(market, user, defaultPosition)
       market.locals.whenCalledWith(user.address).returns(defaultLocal)
       dsu.transferFrom.whenCalledWith(user.address, multiInvoker.address, collateral.mul(1e12)).returns(true)
@@ -857,9 +842,6 @@ describe('MultiInvoker_Arbitrum', () => {
           order: trigger,
         })
 
-        const pending = openPosition({ long: BigNumber.from(trigger.delta), collateral: collateral })
-        setPendingPosition(market, user, 0, pending)
-
         await expect(multiInvoker.connect(user).invoke(placeOrder)).to.not.be.reverted
 
         const execOrder = buildExecOrder({ user: user.address, market: market.address, orderId: 1 })
@@ -883,9 +865,6 @@ describe('MultiInvoker_Arbitrum', () => {
           collateral: collateral,
           order: triggerOrder,
         })
-
-        const pending = openPosition({ short: BigNumber.from(triggerOrder.delta).abs(), collateral: collateral })
-        setPendingPosition(market, user, 0, pending)
 
         await multiInvoker.connect(user).invoke(placeOrder)
 
@@ -912,9 +891,6 @@ describe('MultiInvoker_Arbitrum', () => {
           order: triggerOrder,
         })
 
-        const pending = openPosition({ short: BigNumber.from(triggerOrder.delta).abs(), collateral: collateral })
-        setPendingPosition(market, user, 0, pending)
-
         await multiInvoker.connect(user).invoke(placeOrder)
 
         const execOrder = buildExecOrder({ user: user.address, market: market.address, orderId: 1 })
@@ -937,9 +913,6 @@ describe('MultiInvoker_Arbitrum', () => {
           long: position,
           order: triggerOrder,
         })
-
-        const pending = openPosition({ long: BigNumber.from(triggerOrder.delta).abs(), collateral: collateral })
-        setPendingPosition(market, user, '0', pending)
 
         await multiInvoker.connect(user).invoke(placeOrder)
 
@@ -986,8 +959,8 @@ describe('MultiInvoker_Arbitrum', () => {
           order: triggerOrder,
         })
 
-        const pending = openPosition({ maker: BigNumber.from(triggerOrder.delta).abs(), collateral: collateral })
-        setPendingPosition(market, user, '0', pending)
+        market.positions.reset()
+        market.positions.whenCalledWith(user.address).returns({ ...DEFAULT_POSITION, maker: position })
 
         await multiInvoker.connect(user).invoke(placeOrder)
         const execOrder = buildExecOrder({ user: user.address, market: market.address, orderId: 1 })
@@ -1013,9 +986,6 @@ describe('MultiInvoker_Arbitrum', () => {
           order: trigger,
         })
 
-        const pending = openPosition({ long: BigNumber.from(trigger.delta), collateral: collateral })
-        setPendingPosition(market, user, 0, pending)
-
         await expect(multiInvoker.connect(user).invoke(placeOrder)).to.not.be.reverted
 
         const execOrder = buildExecOrder({ user: user.address, market: market.address, orderId: 1 })
@@ -1040,9 +1010,6 @@ describe('MultiInvoker_Arbitrum', () => {
           order: triggerOrder,
         })
 
-        const pending = openPosition({ maker: BigNumber.from(triggerOrder.delta).abs(), collateral: collateral })
-        setPendingPosition(market, user, '0', pending)
-
         await multiInvoker.connect(user).invoke(placeOrder)
         const execOrder = buildExecOrder({ user: user.address, market: market.address, orderId: 1 })
         await expect(await multiInvoker.connect(user).invoke(execOrder))
@@ -1058,8 +1025,6 @@ describe('MultiInvoker_Arbitrum', () => {
           side: Dir.L,
           comparison: Compare.ABOVE_MARKET,
         })
-        const pending = openPosition({ long: BigNumber.from(trigger.delta).abs(), collateral: collateral })
-        setPendingPosition(market, user, '0', pending)
 
         const placeOrder = buildPlaceOrder({
           market: market.address,

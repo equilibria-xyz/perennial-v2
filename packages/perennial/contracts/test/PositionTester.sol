@@ -8,71 +8,9 @@ abstract contract PositionTester {
 
     function store(Position memory newPosition) public virtual;
 
-    function ready(OracleVersion memory latestVersion) external view returns (bool result) {
-        return read().ready(latestVersion);
-    }
-
-    function update(Position memory newPosition) external {
+    function update(Order memory newOrder) external {
         Position memory _position = read();
-        _position.update(newPosition);
-        store(_position);
-    }
-
-    function update(
-        uint256 currentTimestamp,
-        UFixed6 newMaker,
-        UFixed6 newLong,
-        UFixed6 newShort
-    ) external returns (Order memory newOrder) {
-        Position memory _position = read();
-        newOrder = _position.update(currentTimestamp, newMaker, newLong, newShort);
-        store(_position);
-    }
-
-    function update(
-        uint256 currentTimestamp,
-        Order memory order,
-        RiskParameter memory riskParameter
-    ) external returns (Order memory updatedOrder) {
-        Position memory _position = read();
-        _position.update(currentTimestamp, order, riskParameter);
-        store(_position);
-        return order;
-    }
-
-    function update(Fixed6 collateralAmount) external {
-        Position memory _position = read();
-        _position.update(collateralAmount);
-        store(_position);
-    }
-
-    function prepare() external {
-        Position memory _position = read();
-        _position.prepare();
-        store(_position);
-    }
-
-    function invalidate(Position memory latestPosition) external {
-        Position memory _position = read();
-        _position.invalidate(latestPosition);
-        store(_position);
-    }
-
-    function adjust(Position memory latestPosition) external {
-        Position memory _position = read();
-        _position.adjust(latestPosition);
-        store(_position);
-    }
-
-    function sync(OracleVersion memory latestVersion) external {
-        Position memory _position = read();
-        _position.sync(latestVersion);
-        store(_position);
-    }
-
-    function registerFee(Order memory order) external {
-        Position memory _position = read();
-        _position.registerFee(order);
+        _position.update(newOrder);
         store(_position);
     }
 
@@ -88,20 +26,16 @@ abstract contract PositionTester {
         return read().minor();
     }
 
-    function net() external view returns (UFixed6) {
-        return read().net();
+    function skew() external view returns (Fixed6) {
+        return read().skew();
     }
 
-    function relativeSkew() external view returns (Fixed6) {
-        return read().relativeSkew();
+    function socializedMakerPortion() external view returns (UFixed6) {
+        return read().socializedMakerPortion();
     }
 
-    function staticSkew(RiskParameter memory riskParameter) external view returns (Fixed6) {
-        return read().staticSkew(riskParameter);
-    }
-
-    function utilization() external view returns (UFixed6) {
-        return read().utilization();
+    function utilization(RiskParameter memory riskParameter) external view returns (UFixed6) {
+        return read().utilization(riskParameter);
     }
 
     function longSocialized() external view returns (UFixed6) {

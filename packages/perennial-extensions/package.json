@@ -29,8 +29,7 @@
   "dependencies": {
     "@equilibria/emptyset-batcher": "^0.1.0",
     "@equilibria/perennial-v2": "1.1.0-rc1",
-    "@equilibria/perennial-v2-oracle": "1.1.0-rc1",
-    "@equilibria/perennial-v2-payoff": "1.1.0-rc1"
+    "@equilibria/perennial-v2-oracle": "1.1.0-rc1"
   },
   "devDependencies": {
     "@ethersproject/abstract-provider": "^5"
