@@ -170,18 +170,11 @@ library OrderLib {
         MarketParameter memory marketParameter // TODO: consider changing this to a isMarketClosed bool to save gas
     ) internal pure returns (bool) {
         return !marketParameter.closed &&
-            // TODO: optimize for gas, minimizing unwraps and <> comparisons 
-            (maker(self).lt(Fixed6Lib.ZERO) || long(self).gt(Fixed6Lib.ZERO) || short(self).gt(Fixed6Lib.ZERO));
-
-        // TODO: write an Order unit test which breaks using the implementation below
-        //  (!self.makerNeg.isZero() || !self.longPos.isZero() || !self.shortPos.isZero());
-
-        // TODO: use or remove Kevin's implementation below
         // not "a taker order that is increasing" ->
         // not (any of the following)
         //  - taker is empty (not a taker order)
         //  - taker is increasing (position going more long or short)
-            // ((long(self).isZero() && short(self).isZero()) || increasesTaker(self));
+            ((long(self).isZero() && short(self).isZero()) || increasesTaker(self));
     }
 
     /// @notice Returns whether the order is protected

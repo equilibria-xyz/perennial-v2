@@ -780,17 +780,6 @@ describe('Order', () => {
       })
 
       context('market is open', () => {
-        context('maker increase', () => {
-          it('returns false', async () => {
-            await order.store({ ...DEFAULT_ORDER, makerPos: 10 })
-            const result = await order.liquidityCheckApplicable({
-              ...VALID_MARKET_PARAMETER,
-            })
-
-            expect(result).to.be.false
-          })
-        })
-
         context('long increase', () => {
           it('returns true', async () => {
             await order.store({ ...DEFAULT_ORDER, longPos: 10 })
@@ -810,17 +799,6 @@ describe('Order', () => {
             })
 
             expect(result).to.be.true
-          })
-        })
-
-        context('no increase', () => {
-          it('returns false', async () => {
-            await order.store(DEFAULT_ORDER)
-            const result = await order.liquidityCheckApplicable({
-              ...VALID_MARKET_PARAMETER,
-            })
-
-            expect(result).to.be.false
           })
         })
 

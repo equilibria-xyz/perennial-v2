@@ -14534,13 +14534,13 @@ describe('Market', () => {
               oracle.request.whenCalledWith(user.address).returns()
               await settle(market, user)
             })
-            // FIXME: was there sufficient liquidity to close the position?
-            it('allows closing maker', async () => {
+
+            it('disallows closing maker', async () => {
               await expect(
                 market
                   .connect(userB)
                   ['update(address,uint256,uint256,uint256,int256,bool)'](userB.address, 0, 0, 0, 0, false),
-              ).to.not.be.reverted
+              ).to.revertedWithCustomError(market, 'MarketInsufficientLiquidityError')
             })
           })
         })
