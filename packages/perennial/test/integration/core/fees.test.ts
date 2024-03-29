@@ -1738,4 +1738,285 @@ describe('Fees', () => {
       expect(accumulatedFundingMaker).to.equal(expectedFundingWithFee)
     })
   })
+
+  describe('referral fees', () => {
+    const COLLATERAL = parse6decimal('600')
+    const POSITION = parse6decimal('3')
+
+    beforeEach(async () => {
+      const { owner, user, userB, userC, userD, dsu, marketFactory } = instanceVars
+      await dsu.connect(user).approve(market.address, COLLATERAL.mul(2).mul(1e12))
+      await dsu.connect(userB).approve(market.address, COLLATERAL.mul(1e12))
+      await dsu.connect(userC).approve(market.address, COLLATERAL.mul(2).mul(1e12))
+      await dsu.connect(userD).approve(market.address, COLLATERAL.mul(1e12))
+
+      // set default referral fee
+      const protocolParameters = await marketFactory.parameter()
+      await expect(
+        marketFactory.connect(owner).updateParameter({
+          ...protocolParameters,
+          referralFee: parse6decimal('0.12'),
+        }),
+      ).to.emit(marketFactory, 'ParameterUpdated')
+      expect((await marketFactory.parameter()).referralFee).to.equal(parse6decimal('0.12'))
+
+      // override referral fee for user
+      await expect(marketFactory.connect(owner).updateReferralFee(user.address, parse6decimal('0.15')))
+        .to.emit(marketFactory, 'ReferralFeeUpdated')
+        .withArgs(user.address, parse6decimal('0.15'))
+    })
+
+    it('charges user referral fee for maker position', async () => {
+      const { user, userB } = instanceVars
+
+      // userB creates a maker position, referred by user
+      await market
+        .connect(userB)
+        ['update(address,uint256,uint256,uint256,int256,bool,address)'](
+          userB.address,
+          POSITION,
+          0,
+          0,
+          COLLATERAL,
+          false,
+          user.address,
+        )
+      const expectedReferral = parse6decimal('0.15').mul(3) // referralFee * position
+      expectOrderEq(await market.pendingOrder(1), {
+        ...DEFAULT_ORDER,
+        timestamp: TIMESTAMP_1,
+        orders: 1,
+        makerPos: POSITION,
+        collateral: COLLATERAL,
+        makerReferral: expectedReferral,
+      })
+      await nextWithConstantPrice()
+      await settle(market, user)
+      await settle(market, userB)
+
+      // ensure the proper amount of the base fee is claimable by the referrer
+      // makerFeeLinear = position * linearFee * price = 3 * 0.09 * 113.882975 = 30.748403
+      // referralFee = makerFeeLinear * referral / makerPos =  30.748403 * 0.45 / 3 = 4.612260
+      const expectedClaimable = parse6decimal('4.612260')
+      expectLocalEq(await market.locals(user.address), {
+        ...DEFAULT_LOCAL,
+        currentId: 0,
+        latestId: 0,
+        claimable: expectedClaimable,
+      })
+      await expect(market.connect(user).claimFee())
+        .to.emit(market, 'FeeClaimed')
+        .withArgs(user.address, expectedClaimable)
+    })
+
+    it('charges default referral fee for taker position', async () => {
+      const { user, userB, userC } = instanceVars
+
+      // user creates a non-referred maker position to facilitate a taker order
+      await market
+        .connect(user)
+        ['update(address,uint256,uint256,uint256,int256,bool)'](
+          user.address,
+          POSITION.mul(2),
+          0,
+          0,
+          COLLATERAL.mul(2),
+          false,
+        )
+
+      // userC creates a short position referred by userB
+      await market
+        .connect(userC)
+        ['update(address,uint256,uint256,uint256,int256,bool,address)'](
+          userC.address,
+          0,
+          0,
+          POSITION,
+          COLLATERAL.mul(2),
+          false,
+          userB.address,
+        )
+      const expectedReferral = parse6decimal('0.12').mul(3) // referralFee * position
+      expectOrderEq(await market.pendingOrder(1), {
+        ...DEFAULT_ORDER,
+        timestamp: TIMESTAMP_1,
+        orders: 2,
+        makerPos: POSITION.mul(2),
+        shortPos: POSITION,
+        collateral: COLLATERAL.mul(4),
+        takerReferral: expectedReferral,
+      })
+      await nextWithConstantPrice()
+      await settle(market, user)
+      await settle(market, userB)
+      await settle(market, userC)
+
+      // ensure the proper amount of the base fee is claimable by the referrer
+      // takerFeeLinear = position * linearFee * price = 3 * 0.05 * 113.882975 = 17.082446
+      // referralFee = takerFeeLinear * referral / takerPos =  17.082446 * 0.36 / 3 = 2.049893
+      const expectedClaimable = parse6decimal('2.049893')
+      expectLocalEq(await market.locals(userB.address), {
+        ...DEFAULT_LOCAL,
+        currentId: 0,
+        latestId: 0,
+        claimable: expectedClaimable,
+      })
+      await expect(market.connect(userB).claimFee())
+        .to.emit(market, 'FeeClaimed')
+        .withArgs(userB.address, expectedClaimable)
+    })
+
+    it('handles a change in user referral fee', async () => {
+      const { owner, user, userB, marketFactory } = instanceVars
+
+      // increase referral fee for user
+      await expect(marketFactory.connect(owner).updateReferralFee(user.address, parse6decimal('0.17')))
+        .to.emit(marketFactory, 'ReferralFeeUpdated')
+        .withArgs(user.address, parse6decimal('0.17'))
+
+      // userB creates a maker position, referred by user
+      await market
+        .connect(userB)
+        ['update(address,uint256,uint256,uint256,int256,bool,address)'](
+          userB.address,
+          POSITION,
+          0,
+          0,
+          COLLATERAL,
+          false,
+          user.address,
+        )
+      const expectedReferral = parse6decimal('0.17').mul(3) // referralFee * position
+      expectOrderEq(await market.pendingOrder(1), {
+        ...DEFAULT_ORDER,
+        timestamp: TIMESTAMP_1,
+        orders: 1,
+        makerPos: POSITION,
+        collateral: COLLATERAL,
+        makerReferral: expectedReferral,
+      })
+      await nextWithConstantPrice()
+      await settle(market, user)
+      await settle(market, userB)
+
+      // ensure the proper amount of the base fee is claimable by the referrer
+      // makerFeeLinear = position * linearFee * price = 3 * 0.09 * 113.882975 = 30.748403
+      // referralFee = makerFeeLinear * referral / makerPos =  30.748403 * 0.51 / 3 = 5.227228
+      const expectedClaimable = parse6decimal('5.227228')
+      expectLocalEq(await market.locals(user.address), {
+        ...DEFAULT_LOCAL,
+        currentId: 0,
+        latestId: 0,
+        claimable: expectedClaimable,
+      })
+      await expect(market.connect(user).claimFee())
+        .to.emit(market, 'FeeClaimed')
+        .withArgs(user.address, expectedClaimable)
+    })
+
+    it('handles referral fee for multiple orders', async () => {
+      const { user, userB, userC, userD } = instanceVars
+
+      // user creates a maker position order referred by userB
+      await market
+        .connect(user)
+        ['update(address,uint256,uint256,uint256,int256,bool,address)'](
+          user.address,
+          POSITION.mul(2),
+          0,
+          0,
+          COLLATERAL.mul(2),
+          false,
+          userB.address,
+        )
+      // userC creates a long position referred by user
+      await market
+        .connect(userC)
+        ['update(address,uint256,uint256,uint256,int256,bool,address)'](
+          userC.address,
+          0,
+          POSITION,
+          0,
+          COLLATERAL.mul(2),
+          false,
+          user.address,
+        )
+      expectOrderEq(await market.pendingOrder(1), {
+        ...DEFAULT_ORDER,
+        timestamp: TIMESTAMP_1,
+        orders: 2,
+        makerPos: POSITION.mul(2),
+        longPos: POSITION,
+        collateral: COLLATERAL.mul(4),
+        makerReferral: parse6decimal('0.12').mul(6), // defaultReferralFee * position = 0.72
+        takerReferral: parse6decimal('0.15').mul(3), // userReferralFee * position    = 0.45
+      })
+
+      // settle all users
+      await nextWithConstantPrice()
+      await settle(market, user)
+      await settle(market, userB)
+      await settle(market, userC)
+
+      // userB claims the maker referral fee at the default rate
+      // makerFeeLinear = position * linearFee * price = 6 * 0.09 * 113.882975 = 61.496806
+      // referralFee = makerFeeLinear * referral / makerPos = 61.496806 * 0.72 / 6 = 7.379616
+      const expectedClaimableMakerReferral = parse6decimal('7.379616')
+      expectLocalEq(await market.locals(userB.address), {
+        ...DEFAULT_LOCAL,
+        currentId: 0,
+        latestId: 0,
+        claimable: expectedClaimableMakerReferral,
+      })
+      await expect(market.connect(userB).claimFee())
+        .to.emit(market, 'FeeClaimed')
+        .withArgs(userB.address, expectedClaimableMakerReferral)
+
+      // user should be able to claim the taker referral fee at the user rate
+      // takerFeeLinear = position * linearFee * price = 3 * 0.05 * 113.882975 = 17.082446
+      // referralFee = takerFeeLinear * referral / takerPos =  17.082446 * 0.45 / 3 = 2.562367
+      let expectedClaimableTakerReferral = parse6decimal('2.562367')
+      expectLocalEq(await market.locals(user.address), {
+        ...DEFAULT_LOCAL,
+        currentId: 1,
+        latestId: 1,
+        collateral: parse6decimal('1182.234252'),
+        claimable: expectedClaimableTakerReferral,
+      })
+
+      // userD creates a short position referred by user
+      await market
+        .connect(userD)
+        ['update(address,uint256,uint256,uint256,int256,bool,address)'](
+          userD.address,
+          0,
+          0,
+          POSITION.mul(2).div(3),
+          COLLATERAL,
+          false,
+          user.address,
+        )
+      expectOrderEq(await market.pendingOrder(2), {
+        ...DEFAULT_ORDER,
+        timestamp: TIMESTAMP_2,
+        orders: 1,
+        shortPos: POSITION.mul(2).div(3),
+        collateral: COLLATERAL,
+        takerReferral: parse6decimal('0.15').mul(2), // userReferralFee * position = 0.30
+      })
+
+      // settle relevant users
+      await nextWithConstantPrice()
+      await settle(market, user)
+      await settle(market, userD)
+
+      // user claims both taker referral fees
+      // takerFeeLinear = position * linearFee * price = 2 * 0.05 * 113.882975 = 11.388297
+      // referralFee = takerFeeLinear * referral / takerPos =  11.388297 * 0.30 / 2 = 1.70824455
+      expectedClaimableTakerReferral = expectedClaimableTakerReferral.add(parse6decimal('1.70824455'))
+      await expect(market.connect(user).claimFee())
+        .to.emit(market, 'FeeClaimed')
+        .withArgs(user.address, expectedClaimableTakerReferral)
+    })
+  })
 })
