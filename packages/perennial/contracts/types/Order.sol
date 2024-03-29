@@ -163,13 +163,13 @@ library OrderLib {
 
     /// @notice Returns whether the order is applicable for liquidity checks
     /// @param self The Order object to check
-    /// @param marketParameter The market parameter
+    /// @param isMarketClosed True if market is not accepting orders
     /// @return Whether the order is applicable for liquidity checks
     function liquidityCheckApplicable(
         Order memory self,
-        MarketParameter memory marketParameter // TODO: consider changing this to a isMarketClosed bool to save gas
+        bool isMarketClosed
     ) internal pure returns (bool) {
-        return !marketParameter.closed &&
+        return !isMarketClosed &&
         // not "a taker order that is increasing" ->
         // not (any of the following)
         //  - taker is empty (not a taker order)

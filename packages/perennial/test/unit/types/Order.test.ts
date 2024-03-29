@@ -770,10 +770,7 @@ describe('Order', () => {
       context('market is closed', () => {
         it('returns false', async () => {
           await order.store(DEFAULT_ORDER)
-          const result = await order.liquidityCheckApplicable({
-            ...VALID_MARKET_PARAMETER,
-            closed: true,
-          })
+          const result = await order.liquidityCheckApplicable(true)
 
           expect(result).to.be.false
         })
@@ -783,9 +780,7 @@ describe('Order', () => {
         context('long increase', () => {
           it('returns true', async () => {
             await order.store({ ...DEFAULT_ORDER, longPos: 10 })
-            const result = await order.liquidityCheckApplicable({
-              ...VALID_MARKET_PARAMETER,
-            })
+            const result = await order.liquidityCheckApplicable(false)
 
             expect(result).to.be.true
           })
@@ -794,9 +789,7 @@ describe('Order', () => {
         context('short increase', () => {
           it('returns true', async () => {
             await order.store({ ...DEFAULT_ORDER, shortPos: 10 })
-            const result = await order.liquidityCheckApplicable({
-              ...VALID_MARKET_PARAMETER,
-            })
+            const result = await order.liquidityCheckApplicable(false)
 
             expect(result).to.be.true
           })
@@ -805,9 +798,7 @@ describe('Order', () => {
         context('maker decrease', () => {
           it('returns true', async () => {
             await order.store({ ...DEFAULT_ORDER, makerNeg: 10 })
-            const result = await order.liquidityCheckApplicable({
-              ...VALID_MARKET_PARAMETER,
-            })
+            const result = await order.liquidityCheckApplicable(false)
 
             expect(result).to.be.true
           })
@@ -816,9 +807,7 @@ describe('Order', () => {
         context('long decrease', () => {
           it('returns false', async () => {
             await order.store({ ...DEFAULT_ORDER, longNeg: 10 })
-            const result = await order.liquidityCheckApplicable({
-              ...VALID_MARKET_PARAMETER,
-            })
+            const result = await order.liquidityCheckApplicable(false)
 
             expect(result).to.be.false
           })
@@ -827,9 +816,7 @@ describe('Order', () => {
         context('short decrease', () => {
           it('returns false', async () => {
             await order.store({ ...DEFAULT_ORDER, shortNeg: 10 })
-            const result = await order.liquidityCheckApplicable({
-              ...VALID_MARKET_PARAMETER,
-            })
+            const result = await order.liquidityCheckApplicable(false)
 
             expect(result).to.be.false
           })
