@@ -386,7 +386,7 @@ contract Market is IMarket, Instance, ReentrancyGuard {
         referrers[account][context.local.currentId] = updateContext.referrer;
     }
 
-    /// @notice Updates the current position
+    /// @notice Updates the current position with a new absolute position
     /// @param context The context to use
     /// @param account The account to update
     /// @param newMaker The new maker position size
@@ -403,7 +403,7 @@ contract Market is IMarket, Instance, ReentrancyGuard {
         Fixed6 collateral,
         bool protect,
         address referrer
-    ) private notSettleOnly(context) {
+    ) private {
         // load
         UpdateContext memory updateContext = _loadUpdateContext(context, account, referrer);
 
@@ -416,6 +416,34 @@ contract Market is IMarket, Instance, ReentrancyGuard {
         // referral fee
         UFixed6 referralFee = _processReferralFee(context, updateContext, referrer);
 
+        // create new order
+        Order memory newOrder = OrderLib.from(
+            context.currentTimestamp,
+            updateContext.currentPositionLocal,
+            collateral,
+            newMaker,
+            newLong,
+            newShort,
+            protect,
+            referralFee
+        );
+
+        _update(context, updateContext, account, newOrder, referrer);
+    }
+
+    /// @notice Updates the current position with a new order
+    /// @param context The context to use
+    /// @param updateContext The update context to use
+    /// @param account The account to update
+    /// @param newOrder The new order to apply
+    /// @param referrer The referrer of the order
+    function _update(
+        Context memory context,
+        UpdateContext memory updateContext,
+        address account,
+        Order memory newOrder,
+        address referrer
+    ) private notSettleOnly(context) {
         // advance to next id if applicable
         if (context.currentTimestamp > updateContext.orderLocal.timestamp) {
             updateContext.orderLocal.next(context.currentTimestamp);
@@ -427,16 +455,6 @@ contract Market is IMarket, Instance, ReentrancyGuard {
         }
 
         // update current position
-        Order memory newOrder = OrderLib.from(
-            context.currentTimestamp,
-            updateContext.currentPositionLocal,
-            collateral,
-            newMaker,
-            newLong,
-            newShort,
-            protect,
-            referralFee
-        );
         updateContext.currentPositionGlobal.update(newOrder);
         updateContext.currentPositionLocal.update(newOrder);
 
@@ -447,7 +465,7 @@ contract Market is IMarket, Instance, ReentrancyGuard {
         context.pendingLocal.add(newOrder);
 
         // update collateral
-        context.local.update(collateral);
+        context.local.update(newOrder.collateral);
 
         // protect account
         if (newOrder.protected()) updateContext.liquidator = msg.sender;
@@ -459,17 +477,16 @@ contract Market is IMarket, Instance, ReentrancyGuard {
         if (!newOrder.isEmpty()) oracle.request(IMarket(this), account);
 
         // after
-        InvariantLib.validate(context, updateContext, msg.sender, account, newOrder, collateral);
+        InvariantLib.validate(context, updateContext, msg.sender, account, newOrder);
 
         // store
         _storeUpdateContext(context, updateContext, account);
 
         // fund
-        if (collateral.sign() == 1) token.pull(msg.sender, UFixed18Lib.from(collateral.abs()));
-        if (collateral.sign() == -1) token.push(msg.sender, UFixed18Lib.from(collateral.abs()));
+        if (newOrder.collateral.sign() == 1) token.pull(msg.sender, UFixed18Lib.from(newOrder.collateral.abs()));
+        if (newOrder.collateral.sign() == -1) token.push(msg.sender, UFixed18Lib.from(newOrder.collateral.abs()));
 
         // events
-        emit Updated(msg.sender, account, context.currentTimestamp, newMaker, newLong, newShort, collateral, protect, referrer);
         emit OrderCreated(account, newOrder);
     }
 
