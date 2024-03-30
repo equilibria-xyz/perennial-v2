@@ -9,9 +9,11 @@ import "../types/Local.sol";
 import "../types/Order.sol";
 import "../types/Version.sol";
 import "../types/Checkpoint.sol";
+import "../types/Override.sol";
 
 struct CheckpointAccumulationResult {
     Fixed6 collateral;
+    Fixed6 priceOverride;
     Fixed6 linearFee;
     Fixed6 proportionalFee;
     Fixed6 adiabaticFee;
@@ -29,6 +31,7 @@ library CheckpointLib {
     /// @param fromPosition The previous latest position
     /// @param fromVersion The previous latest version
     /// @param toVersion The next latest version
+    /// @param priceOverride The price override
     /// @return next The next checkpoint
     /// @return result The accumulated pnl and fees
     function accumulate(
@@ -36,10 +39,12 @@ library CheckpointLib {
         Order memory order,
         Position memory fromPosition,
         Version memory fromVersion,
-        Version memory toVersion
+        Version memory toVersion,
+        Override memory priceOverride
     ) external pure returns (Checkpoint memory next, CheckpointAccumulationResult memory result) {
         // accumulate
         result.collateral = _accumulateCollateral(fromPosition, fromVersion, toVersion);
+        result.priceOverride = _accumulatePriceOverride(order, priceOverride, toVersion);
         (result.linearFee, result.subtractiveFee) = _accumulateLinearFee(order, toVersion);
         result.proportionalFee = _accumulateProportionalFee(order, toVersion);
         result.adiabaticFee = _accumulateAdiabaticFee(order, toVersion);
@@ -49,9 +54,11 @@ library CheckpointLib {
         // update checkpoint
         next.collateral = self.collateral
             .sub(self.tradeFee)                       // trade fee processed post settlement
-            .sub(Fixed6Lib.from(self.settlementFee))  // settlement / liquidation fee processed post settlement
+            .sub(Fixed6Lib.from(self.settlementFee)); // settlement / liquidation fee processed post settlement
+        next.collateral = self.collateral
             .add(self.transfer)                       // deposit / withdrawal processed post settlement
-            .add(result.collateral);                  // incorporate collateral change at this settlement
+            .add(result.collateral)                   // incorporate collateral change at this settlement
+            .add(result.priceOverride);               // incorporate price override pnl at this settlement
         next.transfer = order.collateral;
         next.tradeFee = result.linearFee.add(result.proportionalFee).add(result.adiabaticFee);
         next.settlementFee = result.settlementFee.add(result.liquidationFee);
@@ -140,5 +147,22 @@ library CheckpointLib {
     ) private pure returns (UFixed6 liquidationFee) {
         if (order.protected())
             return toVersion.liquidationFee.accumulated(Accumulator6(Fixed6Lib.ZERO), UFixed6Lib.ONE).abs();
+    }
+
+    /// @notice Accumulate price override pnl for the next position
+    /// @param order The next order
+    /// @param priceOverride The price override
+    /// @param toVersion The next version
+    function _accumulatePriceOverride(
+        Order memory order,
+        Override memory priceOverride,
+        Version memory toVersion
+    ) private pure returns (Fixed6) {
+        Fixed6 overridePnl = Fixed6Lib.from(order.pos()).mul(toVersion.price).sub(priceOverride.pricePos)
+            .add(priceOverride.priceNeg.sub(Fixed6Lib.from(order.neg()).mul(toVersion.price)));
+
+        if (!order.long().isZero()) return overridePnl;
+        if (!order.short().isZero()) return overridePnl.mul(Fixed6Lib.NEG_ONE);
+        return Fixed6Lib.ZERO; // maker positions cannot have price override pnl
     }
 }

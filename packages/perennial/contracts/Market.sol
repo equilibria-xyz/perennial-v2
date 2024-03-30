@@ -145,6 +145,8 @@ contract Market is IMarket, Instance, ReentrancyGuard {
         _update(context, account, newMaker, newLong, newShort, collateral, protect, referrer);
 
         _storeContext(context, account);
+
+        emit Updated(msg.sender, account, context.currentTimestamp, newMaker, newLong, newShort, collateral, protect, referrer);
     }
 
     /// @notice Updates the beneficiary, coordinator, and parameter set of the market
@@ -373,6 +375,7 @@ contract Market is IMarket, Instance, ReentrancyGuard {
         updateContext.liquidator = liquidators[account][context.local.currentId];
         updateContext.referrer = referrers[account][context.local.currentId];
         updateContext.referralFee = IMarketFactory(address(factory())).referralFee(referrer);
+        updateContext.priceOverride = overrides[account][context.local.currentId].read();
     }
 
     /// @notice Stores the context for the update process
@@ -387,6 +390,7 @@ contract Market is IMarket, Instance, ReentrancyGuard {
         // external actors
         liquidators[account][context.local.currentId] = updateContext.liquidator;
         referrers[account][context.local.currentId] = updateContext.referrer;
+        overrides[account][context.local.currentId].store(updateContext.priceOverride);
     }
 
     /// @notice Updates the current position with a new absolute position
@@ -431,7 +435,7 @@ contract Market is IMarket, Instance, ReentrancyGuard {
             referralFee
         );
 
-        _update(context, updateContext, account, newOrder, referrer);
+        _update(context, updateContext, account, newOrder, referrer, Fixed6Lib.ZERO);
     }
 
     /// @notice Updates the current position with a new order
@@ -445,7 +449,8 @@ contract Market is IMarket, Instance, ReentrancyGuard {
         UpdateContext memory updateContext,
         address account,
         Order memory newOrder,
-        address referrer
+        address referrer,
+        Fixed6 price
     ) private notSettleOnly(context) {
         // advance to next id if applicable
         if (context.currentTimestamp > updateContext.orderLocal.timestamp) {
@@ -475,6 +480,9 @@ contract Market is IMarket, Instance, ReentrancyGuard {
 
         // apply referrer
         _processReferrer(updateContext, newOrder, referrer);
+
+        // apply price override
+        if (!price.isZero()) updateContext.priceOverride.update(newOrder, price);
 
         // request version
         if (!newOrder.isEmpty()) oracle.request(IMarket(this), account);
@@ -650,6 +658,7 @@ contract Market is IMarket, Instance, ReentrancyGuard {
     ) private {
         Version memory versionFrom = _versions[context.latestPositionLocal.timestamp].read();
         Version memory versionTo = _versions[newOrder.timestamp].read();
+        Override memory priceOverride = overrides[account][newOrderId].read();
 
         context.pendingLocal.sub(newOrder);
         if (!versionTo.valid) newOrder.invalidate();
@@ -660,7 +669,8 @@ contract Market is IMarket, Instance, ReentrancyGuard {
             newOrder,
             context.latestPositionLocal,
             versionFrom,
-            versionTo
+            versionTo,
+            priceOverride
         );
 
         context.local.update(newOrderId, accumulationResult);

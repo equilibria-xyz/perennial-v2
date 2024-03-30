@@ -87,8 +87,8 @@ library VersionLib {
         // setup next accumulators
         _next(self, next);
 
-        // record validity
-        next.valid = toOracleVersion.valid;
+        // record oracle version
+        (next.valid, next.price) = (toOracleVersion.valid, toOracleVersion.price);
 
         // accumulate settlement fee
         result.settlementFee = _accumulateSettlementFee(next, context);
