@@ -81,6 +81,9 @@ contract Market is IMarket, Instance, ReentrancyGuard {
     /// @dev The referrer for each id for each account
     mapping(address => mapping(uint256 => address)) public referrers;
 
+    /// @dev The price override for each id for each account
+    mapping(address => mapping(uint256 => OverrideStorage)) public overrides;
+
     /// @notice Initializes the contract state
     /// @param definition_ The market definition
     function initialize(IMarket.MarketDefinition calldata definition_) external initializer(1) {
