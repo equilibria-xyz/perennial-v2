@@ -33,6 +33,7 @@ import {
   RiskParameterStorageLib__factory,
   VersionLib__factory,
   VersionStorageLib__factory,
+  PythFactory_Arbitrum__factory,
 } from '../../../types/generated'
 import { parse6decimal } from '../../../../common/testutil/types'
 import { smock } from '@defi-wonderland/smock'
@@ -73,8 +74,8 @@ const VAA_WITH_MULTIPLE_UPDATES_2 =
 
 const testOracles = [
   {
-    name: 'KeeperOracle',
-    Oracle: KeeperOracle__factory,
+    name: 'PythFactory_Arbitrum',
+    Oracle: PythFactory_Arbitrum__factory,
     gasMock: async () => {
       const gasInfo = await smock.fake<ArbGasInfo>('ArbGasInfo', {
         address: '0x000000000000000000000000000000000000006C',
@@ -85,7 +86,7 @@ const testOracles = [
 ]
 
 testOracles.forEach(testOracle => {
-  describe(testOracle.name, () => {
+  describe.only(testOracle.name, () => {
     let owner: SignerWithAddress
     let user: SignerWithAddress
     let user2: SignerWithAddress
@@ -115,8 +116,8 @@ testOracles.forEach(testOracle => {
       await oracleFactory.initialize(dsu.address)
       await oracleFactory.updateMaxClaim(parse6decimal('100'))
 
-      const keeperOracleImpl = await new testOracle.Oracle(owner).deploy(60)
-      pythOracleFactory = await new PythFactory__factory(owner).deploy(
+      const keeperOracleImpl = await new KeeperOracle__factory(owner).deploy(60)
+      pythOracleFactory = await new testOracle.Oracle(owner).deploy(
         PYTH_ADDRESS,
         keeperOracleImpl.address,
         4,
@@ -140,7 +141,7 @@ testOracles.forEach(testOracle => {
       await pythOracleFactory.authorize(oracleFactory.address)
       await pythOracleFactory.register(powerTwoPayoff.address)
 
-      keeperOracle = testOracle.Oracle.connect(
+      keeperOracle = KeeperOracle__factory.connect(
         await pythOracleFactory.callStatic.create(PYTH_ETH_USD_PRICE_FEED, PYTH_ETH_USD_PRICE_FEED, {
           provider: ethers.constants.AddressZero,
           decimals: 0,
@@ -151,7 +152,7 @@ testOracles.forEach(testOracle => {
         provider: ethers.constants.AddressZero,
         decimals: 0,
       })
-      keeperOracleBtc = testOracle.Oracle.connect(
+      keeperOracleBtc = KeeperOracle__factory.connect(
         await pythOracleFactory.callStatic.create(
           '0x0000000000000000000000000000000000000000000000000000000000000017',
           PYTH_BTC_USD_PRICE_FEED,
@@ -164,7 +165,7 @@ testOracles.forEach(testOracle => {
         PYTH_BTC_USD_PRICE_FEED,
         { provider: ethers.constants.AddressZero, decimals: 0 },
       )
-      keeperOracle2 = testOracle.Oracle.connect(
+      keeperOracle2 = KeeperOracle__factory.connect(
         await pythOracleFactory.callStatic.create(
           '0x0000000000000000000000000000000000000000000000000000000000000021',
           PYTH_ETH_USD_PRICE_FEED,
