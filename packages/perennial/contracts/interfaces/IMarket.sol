@@ -29,10 +29,10 @@ interface IMarket is IInstance {
         uint256 currentTimestamp;
         Global global;
         Local local;
-        Position latestGlobalPosition;
-        Position latestLocalPosition;
-        Order pendingGlobalOrder;
-        Order pendingLocalOrder;
+        Position latestPositionGlobal;
+        Position latestPositionLocal;
+        Order pendingGlobal;
+        Order pendingLocal;
     }
 
     struct SettlementContext {
@@ -48,8 +48,8 @@ interface IMarket is IInstance {
         UFixed6 referralFee;
         Order orderGlobal;
         Order orderLocal;
-        Position currentGlobalPosition;
-        Position currentLocalPosition;
+        Position currentPositionGlobal;
+        Position currentPositionLocal;
     }
 
     event Updated(address indexed sender, address indexed account, uint256 version, UFixed6 newMaker, UFixed6 newLong, UFixed6 newShort, Fixed6 collateral, bool protect, address referrer);

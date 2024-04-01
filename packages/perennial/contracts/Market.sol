@@ -320,12 +320,12 @@ contract Market is IMarket, Instance, ReentrancyGuard {
         context.local = _locals[account].read();
 
         // latest positions
-        context.latestGlobalPosition = _position.read();
-        context.latestLocalPosition = _positions[account].read();
+        context.latestPositionGlobal = _position.read();
+        context.latestPositionLocal = _positions[account].read();
 
         // aggregate pending orders
-        context.pendingGlobalOrder = _pending.read();
-        context.pendingLocalOrder = _pendings[account].read();
+        context.pendingGlobal = _pending.read();
+        context.pendingLocal = _pendings[account].read();
     }
 
     /// @notice Stores the context for the transaction
@@ -337,12 +337,12 @@ contract Market is IMarket, Instance, ReentrancyGuard {
         _locals[account].store(context.local);
 
         // latest positions
-        _position.store(context.latestGlobalPosition);
-        _positions[account].store(context.latestLocalPosition);
+        _position.store(context.latestPositionGlobal);
+        _positions[account].store(context.latestPositionLocal);
 
         // aggregate pending orders
-        _pending.store(context.pendingGlobalOrder);
-        _pendings[account].store(context.pendingLocalOrder);
+        _pending.store(context.pendingGlobal);
+        _pendings[account].store(context.pendingLocal);
     }
 
     /// @notice Loads the context for the update process
@@ -356,10 +356,10 @@ contract Market is IMarket, Instance, ReentrancyGuard {
         address referrer
     ) private view returns (UpdateContext memory updateContext) {
         // load current position
-        updateContext.currentGlobalPosition = context.latestGlobalPosition.clone();
-        updateContext.currentGlobalPosition.update(context.pendingGlobalOrder);
-        updateContext.currentLocalPosition = context.latestLocalPosition.clone();
-        updateContext.currentLocalPosition.update(context.pendingLocalOrder);
+        updateContext.currentPositionGlobal = context.latestPositionGlobal.clone();
+        updateContext.currentPositionGlobal.update(context.pendingGlobal);
+        updateContext.currentPositionLocal = context.latestPositionLocal.clone();
+        updateContext.currentPositionLocal.update(context.pendingLocal);
 
         // load current order
         updateContext.orderGlobal = _pendingOrder[context.global.currentId].read();
@@ -409,9 +409,9 @@ contract Market is IMarket, Instance, ReentrancyGuard {
 
         // magic values
         collateral = _processCollateralMagicValue(context, collateral);
-        newMaker = _processPositionMagicValue(context, updateContext.currentLocalPosition.maker, newMaker);
-        newLong = _processPositionMagicValue(context, updateContext.currentLocalPosition.long, newLong);
-        newShort = _processPositionMagicValue(context, updateContext.currentLocalPosition.short, newShort);
+        newMaker = _processPositionMagicValue(context, updateContext.currentPositionLocal.maker, newMaker);
+        newLong = _processPositionMagicValue(context, updateContext.currentPositionLocal.long, newLong);
+        newShort = _processPositionMagicValue(context, updateContext.currentPositionLocal.short, newShort);
 
         // referral fee
         UFixed6 referralFee = _processReferralFee(context, updateContext, referrer);
@@ -429,7 +429,7 @@ contract Market is IMarket, Instance, ReentrancyGuard {
         // update current position
         Order memory newOrder = OrderLib.from(
             context.currentTimestamp,
-            updateContext.currentLocalPosition,
+            updateContext.currentPositionLocal,
             collateral,
             newMaker,
             newLong,
@@ -437,14 +437,14 @@ contract Market is IMarket, Instance, ReentrancyGuard {
             protect,
             referralFee
         );
-        updateContext.currentGlobalPosition.update(newOrder);
-        updateContext.currentLocalPosition.update(newOrder);
+        updateContext.currentPositionGlobal.update(newOrder);
+        updateContext.currentPositionLocal.update(newOrder);
 
         // apply new order
         updateContext.orderLocal.add(newOrder);
         updateContext.orderGlobal.add(newOrder);
-        context.pendingGlobalOrder.add(newOrder);
-        context.pendingLocalOrder.add(newOrder);
+        context.pendingGlobal.add(newOrder);
+        context.pendingLocal.add(newOrder);
 
         // update collateral
         context.local.update(collateral);
@@ -513,9 +513,9 @@ contract Market is IMarket, Instance, ReentrancyGuard {
         address account
     ) private view returns (SettlementContext memory settlementContext) {
         // processing accumulators
-        settlementContext.latestVersion = _versions[context.latestGlobalPosition.timestamp].read();
-        settlementContext.latestCheckpoint = _checkpoints[account][context.latestLocalPosition.timestamp].read();
-        settlementContext.orderOracleVersion = oracle.at(context.latestGlobalPosition.timestamp);
+        settlementContext.latestVersion = _versions[context.latestPositionGlobal.timestamp].read();
+        settlementContext.latestCheckpoint = _checkpoints[account][context.latestPositionLocal.timestamp].read();
+        settlementContext.orderOracleVersion = oracle.at(context.latestPositionGlobal.timestamp);
     }
 
     /// @notice Settles the account position up to the latest version
@@ -538,13 +538,13 @@ contract Market is IMarket, Instance, ReentrancyGuard {
         ) _processOrderLocal(context, settlementContext, account, context.local.latestId + 1, nextOrder);
 
         // sync
-        if (context.latestOracleVersion.timestamp > context.latestGlobalPosition.timestamp) {
+        if (context.latestOracleVersion.timestamp > context.latestPositionGlobal.timestamp) {
             nextOrder = _pendingOrder[context.global.latestId].read();
             nextOrder.next(context.latestOracleVersion.timestamp);
             _processOrderGlobal(context, settlementContext, context.global.latestId, nextOrder);
         }
 
-        if (context.latestOracleVersion.timestamp > context.latestLocalPosition.timestamp) {
+        if (context.latestOracleVersion.timestamp > context.latestPositionLocal.timestamp) {
             nextOrder = _pendingOrders[account][context.local.latestId].read();
             nextOrder.next(context.latestOracleVersion.timestamp);
             _processOrderLocal(context, settlementContext, account, context.local.latestId, nextOrder);
@@ -575,7 +575,7 @@ contract Market is IMarket, Instance, ReentrancyGuard {
             return currentPosition;
         if (newPosition.eq(MAGIC_VALUE_FULLY_CLOSED_POSITION)) {
             if (currentPosition.isZero()) return currentPosition;
-            return currentPosition.sub(context.latestLocalPosition.magnitude().sub(context.pendingLocalOrder.neg()));
+            return currentPosition.sub(context.latestPositionLocal.magnitude().sub(context.pendingLocal.neg()));
         }
         return newPosition;
     }
@@ -592,14 +592,14 @@ contract Market is IMarket, Instance, ReentrancyGuard {
     ) private {
         OracleVersion memory oracleVersion = oracle.at(newOrder.timestamp);
 
-        context.pendingGlobalOrder.sub(newOrder);
+        context.pendingGlobal.sub(newOrder);
         if (!oracleVersion.valid) newOrder.invalidate();
 
         VersionAccumulationResult memory accumulationResult;
         (settlementContext.latestVersion, context.global, accumulationResult) = VersionLib.accumulate(
             settlementContext.latestVersion,
             context.global,
-            context.latestGlobalPosition,
+            context.latestPositionGlobal,
             newOrder,
             settlementContext.orderOracleVersion,
             oracleVersion,
@@ -608,7 +608,7 @@ contract Market is IMarket, Instance, ReentrancyGuard {
         );
 
         context.global.update(newOrderId, accumulationResult, context.marketParameter, context.protocolParameter);
-        context.latestGlobalPosition.update(newOrder);
+        context.latestPositionGlobal.update(newOrder);
 
         settlementContext.orderOracleVersion = oracleVersion;
         _versions[newOrder.timestamp].store(settlementContext.latestVersion);
@@ -628,23 +628,23 @@ contract Market is IMarket, Instance, ReentrancyGuard {
         uint256 newOrderId,
         Order memory newOrder
     ) private {
-        Version memory versionFrom = _versions[context.latestLocalPosition.timestamp].read();
+        Version memory versionFrom = _versions[context.latestPositionLocal.timestamp].read();
         Version memory versionTo = _versions[newOrder.timestamp].read();
 
-        context.pendingLocalOrder.sub(newOrder);
+        context.pendingLocal.sub(newOrder);
         if (!versionTo.valid) newOrder.invalidate();
 
         CheckpointAccumulationResult memory accumulationResult;
         (settlementContext.latestCheckpoint, accumulationResult) = CheckpointLib.accumulate(
             settlementContext.latestCheckpoint,
             newOrder,
-            context.latestLocalPosition,
+            context.latestPositionLocal,
             versionFrom,
             versionTo
         );
 
         context.local.update(newOrderId, accumulationResult);
-        context.latestLocalPosition.update(newOrder);
+        context.latestPositionLocal.update(newOrder);
 
         _checkpoints[account][newOrder.timestamp].store(settlementContext.latestCheckpoint);
 
