@@ -36,6 +36,7 @@ import {
   parse6decimal,
   expectOrderEq,
   expectCheckpointEq,
+  DEFAULT_GLOBAL,
 } from '../../../../common/testutil/types'
 import { IMarket, MarketParameterStruct, RiskParameterStruct } from '../../../types/generated/contracts/Market'
 
@@ -754,12 +755,9 @@ describe('Market', () => {
         //         + [(1+1-makerChange/scale)/2 * makerFee.adiabaticFee * makerChange * price]
         // after = (0.20 + 0) / 2 * 0.003 * 10 * 123 + (1.00 + 0.90) / 2 * 0.004 * -10 * 123 = -4.305
         expectGlobalEq(await market.global(), {
+          ...DEFAULT_GLOBAL,
           currentId: 2,
           latestId: 1,
-          protocolFee: 0,
-          oracleFee: 0,
-          riskFee: 0,
-          donation: 0,
           exposure: BigNumber.from(0).sub(parse6decimal('-4.305')),
         })
 
@@ -1095,13 +1093,9 @@ describe('Market', () => {
           ...DEFAULT_CHECKPOINT,
         })
         expectGlobalEq(await market.global(), {
+          ...DEFAULT_GLOBAL,
           currentId: 1,
           latestId: 1,
-          protocolFee: 0,
-          oracleFee: 0,
-          riskFee: 0,
-          donation: 0,
-          exposure: 0,
         })
         expectPositionEq(await market.position(), {
           ...DEFAULT_POSITION,
@@ -1212,13 +1206,9 @@ describe('Market', () => {
           ...DEFAULT_CHECKPOINT,
         })
         expectGlobalEq(await market.global(), {
+          ...DEFAULT_GLOBAL,
           currentId: 1,
           latestId: 1,
-          protocolFee: 0,
-          oracleFee: 0,
-          riskFee: 0,
-          donation: 0,
-          exposure: 0,
         })
         expectPositionEq(await market.position(), {
           ...DEFAULT_POSITION,
@@ -1294,13 +1284,8 @@ describe('Market', () => {
             ...DEFAULT_CHECKPOINT,
           })
           expectGlobalEq(await market.global(), {
+            ...DEFAULT_GLOBAL,
             currentId: 1,
-            latestId: 0,
-            protocolFee: 0,
-            oracleFee: 0,
-            riskFee: 0,
-            donation: 0,
-            exposure: 0,
           })
           expectPositionEq(await market.position(), {
             ...DEFAULT_POSITION,
@@ -1354,13 +1339,8 @@ describe('Market', () => {
             timestamp: ORACLE_VERSION_2.timestamp,
           })
           expectGlobalEq(await market.global(), {
+            ...DEFAULT_GLOBAL,
             currentId: 1,
-            latestId: 0,
-            protocolFee: 0,
-            oracleFee: 0,
-            riskFee: 0,
-            donation: 0,
-            exposure: 0,
           })
           expectPositionEq(await market.position(), {
             ...DEFAULT_POSITION,
@@ -1414,13 +1394,8 @@ describe('Market', () => {
             ...DEFAULT_CHECKPOINT,
           })
           expectGlobalEq(await market.global(), {
+            ...DEFAULT_GLOBAL,
             currentId: 1,
-            latestId: 0,
-            protocolFee: 0,
-            oracleFee: 0,
-            riskFee: 0,
-            donation: 0,
-            exposure: 0,
           })
           expectPositionEq(await market.position(), {
             ...DEFAULT_POSITION,
@@ -1476,13 +1451,9 @@ describe('Market', () => {
             collateral: -COLLATERAL,
           })
           expectGlobalEq(await market.global(), {
+            ...DEFAULT_GLOBAL,
             currentId: 2,
             latestId: 1,
-            protocolFee: 0,
-            oracleFee: 0,
-            riskFee: 0,
-            donation: 0,
-            exposure: 0,
           })
           expectPositionEq(await market.position(), {
             ...DEFAULT_POSITION,
@@ -1537,13 +1508,8 @@ describe('Market', () => {
             ...DEFAULT_CHECKPOINT,
           })
           expectGlobalEq(await market.global(), {
+            ...DEFAULT_GLOBAL,
             currentId: 1,
-            latestId: 0,
-            protocolFee: 0,
-            oracleFee: 0,
-            riskFee: 0,
-            donation: 0,
-            exposure: 0,
           })
           expectPositionEq(await market.position(), {
             ...DEFAULT_POSITION,
@@ -1599,13 +1565,9 @@ describe('Market', () => {
             collateral: -COLLATERAL,
           })
           expectGlobalEq(await market.global(), {
+            ...DEFAULT_GLOBAL,
             currentId: 2,
             latestId: 1,
-            protocolFee: 0,
-            oracleFee: 0,
-            riskFee: 0,
-            donation: 0,
-            exposure: 0,
           })
           expectPositionEq(await market.position(), {
             ...DEFAULT_POSITION,
@@ -1683,13 +1645,8 @@ describe('Market', () => {
               ...DEFAULT_CHECKPOINT,
             })
             expectGlobalEq(await market.global(), {
+              ...DEFAULT_GLOBAL,
               currentId: 1,
-              latestId: 0,
-              protocolFee: 0,
-              oracleFee: 0,
-              riskFee: 0,
-              donation: 0,
-              exposure: 0,
             })
             expectPositionEq(await market.position(), {
               ...DEFAULT_POSITION,
@@ -1797,13 +1754,9 @@ describe('Market', () => {
               ...DEFAULT_CHECKPOINT,
             })
             expectGlobalEq(await market.global(), {
+              ...DEFAULT_GLOBAL,
               currentId: 2,
               latestId: 1,
-              protocolFee: 0,
-              oracleFee: 0,
-              riskFee: 0,
-              donation: 0,
-              exposure: 0,
             })
             expectPositionEq(await market.position(), {
               ...DEFAULT_POSITION,
@@ -1863,13 +1816,8 @@ describe('Market', () => {
               ...DEFAULT_CHECKPOINT,
             })
             expectGlobalEq(await market.global(), {
+              ...DEFAULT_GLOBAL,
               currentId: 1,
-              latestId: 0,
-              protocolFee: 0,
-              oracleFee: 0,
-              riskFee: 0,
-              donation: 0,
-              exposure: 0,
             })
             expectPositionEq(await market.position(), {
               ...DEFAULT_POSITION,
@@ -1932,13 +1880,9 @@ describe('Market', () => {
               ...DEFAULT_CHECKPOINT,
             })
             expectGlobalEq(await market.global(), {
+              ...DEFAULT_GLOBAL,
               currentId: 2,
               latestId: 1,
-              protocolFee: 0,
-              oracleFee: 0,
-              riskFee: 0,
-              donation: 0,
-              exposure: 0,
             })
             expectPositionEq(await market.position(), {
               ...DEFAULT_POSITION,
@@ -2003,13 +1947,9 @@ describe('Market', () => {
               ...DEFAULT_CHECKPOINT,
             })
             expectGlobalEq(await market.global(), {
+              ...DEFAULT_GLOBAL,
               currentId: 2,
               latestId: 1,
-              protocolFee: 0,
-              oracleFee: 0,
-              riskFee: 0,
-              donation: 0,
-              exposure: 0,
             })
             expectPositionEq(await market.position(), {
               ...DEFAULT_POSITION,
@@ -2080,13 +2020,9 @@ describe('Market', () => {
               ...DEFAULT_CHECKPOINT,
             })
             expectGlobalEq(await market.global(), {
+              ...DEFAULT_GLOBAL,
               currentId: 3,
               latestId: 2,
-              protocolFee: 0,
-              oracleFee: 0,
-              riskFee: 0,
-              donation: 0,
-              exposure: 0,
             })
             expectPositionEq(await market.position(), {
               ...DEFAULT_POSITION,
@@ -2157,13 +2093,9 @@ describe('Market', () => {
               ...DEFAULT_CHECKPOINT,
             })
             expectGlobalEq(await market.global(), {
+              ...DEFAULT_GLOBAL,
               currentId: 2,
               latestId: 1,
-              protocolFee: 0,
-              oracleFee: 0,
-              riskFee: 0,
-              donation: 0,
-              exposure: 0,
             })
             expectPositionEq(await market.position(), {
               ...DEFAULT_POSITION,
@@ -2329,13 +2261,9 @@ describe('Market', () => {
                 ...DEFAULT_CHECKPOINT,
               })
               expectGlobalEq(await market.global(), {
+                ...DEFAULT_GLOBAL,
                 currentId: 2,
                 latestId: 1,
-                protocolFee: 0,
-                oracleFee: 0,
-                riskFee: 0,
-                donation: 0,
-                exposure: 0,
               })
               expectPositionEq(await market.position(), {
                 ...DEFAULT_POSITION,
@@ -2397,13 +2325,9 @@ describe('Market', () => {
                 ...DEFAULT_CHECKPOINT,
               })
               expectGlobalEq(await market.global(), {
+                ...DEFAULT_GLOBAL,
                 currentId: 3,
                 latestId: 2,
-                protocolFee: 0,
-                oracleFee: 0,
-                riskFee: 0,
-                donation: 0,
-                exposure: 0,
               })
               expectPositionEq(await market.position(), {
                 ...DEFAULT_POSITION,
@@ -2463,13 +2387,9 @@ describe('Market', () => {
                 ...DEFAULT_CHECKPOINT,
               })
               expectGlobalEq(await market.global(), {
+                ...DEFAULT_GLOBAL,
                 currentId: 2,
                 latestId: 1,
-                protocolFee: 0,
-                oracleFee: 0,
-                riskFee: 0,
-                donation: 0,
-                exposure: 0,
               })
               expectPositionEq(await market.position(), {
                 ...DEFAULT_POSITION,
@@ -2535,13 +2455,9 @@ describe('Market', () => {
                 ...DEFAULT_CHECKPOINT,
               })
               expectGlobalEq(await market.global(), {
+                ...DEFAULT_GLOBAL,
                 currentId: 3,
                 latestId: 2,
-                protocolFee: 0,
-                oracleFee: 0,
-                riskFee: 0,
-                donation: 0,
-                exposure: 0,
               })
               expectPositionEq(await market.position(), {
                 ...DEFAULT_POSITION,
@@ -2605,13 +2521,9 @@ describe('Market', () => {
                 ...DEFAULT_CHECKPOINT,
               })
               expectGlobalEq(await market.global(), {
+                ...DEFAULT_GLOBAL,
                 currentId: 3,
                 latestId: 2,
-                protocolFee: 0,
-                oracleFee: 0,
-                riskFee: 0,
-                donation: 0,
-                exposure: 0,
               })
               expectPositionEq(await market.position(), {
                 ...DEFAULT_POSITION,
@@ -2681,13 +2593,9 @@ describe('Market', () => {
                 ...DEFAULT_CHECKPOINT,
               })
               expectGlobalEq(await market.global(), {
+                ...DEFAULT_GLOBAL,
                 currentId: 4,
                 latestId: 3,
-                protocolFee: 0,
-                oracleFee: 0,
-                riskFee: 0,
-                donation: 0,
-                exposure: 0,
               })
               expectPositionEq(await market.position(), {
                 ...DEFAULT_POSITION,
@@ -2748,13 +2656,9 @@ describe('Market', () => {
                 ...DEFAULT_CHECKPOINT,
               })
               expectGlobalEq(await market.global(), {
+                ...DEFAULT_GLOBAL,
                 currentId: 3,
                 latestId: 2,
-                protocolFee: 0,
-                oracleFee: 0,
-                riskFee: 0,
-                donation: 0,
-                exposure: 0,
               })
               expectPositionEq(await market.position(), {
                 ...DEFAULT_POSITION,
@@ -2941,13 +2845,8 @@ describe('Market', () => {
                 ...DEFAULT_CHECKPOINT,
               })
               expectGlobalEq(await market.global(), {
+                ...DEFAULT_GLOBAL,
                 currentId: 1,
-                latestId: 0,
-                protocolFee: 0,
-                oracleFee: 0,
-                riskFee: 0,
-                donation: 0,
-                exposure: 0,
               })
               expectPositionEq(await market.position(), {
                 ...DEFAULT_POSITION,
@@ -3018,13 +2917,9 @@ describe('Market', () => {
                 ...DEFAULT_CHECKPOINT,
               })
               expectGlobalEq(await market.global(), {
+                ...DEFAULT_GLOBAL,
                 currentId: 2,
                 latestId: 1,
-                protocolFee: 0,
-                oracleFee: 0,
-                riskFee: 0,
-                donation: 0,
-                exposure: 0,
               })
               expectPositionEq(await market.position(), {
                 ...DEFAULT_POSITION,
@@ -3092,13 +2987,8 @@ describe('Market', () => {
                 ...DEFAULT_CHECKPOINT,
               })
               expectGlobalEq(await market.global(), {
+                ...DEFAULT_GLOBAL,
                 currentId: 1,
-                latestId: 0,
-                protocolFee: 0,
-                oracleFee: 0,
-                riskFee: 0,
-                donation: 0,
-                exposure: 0,
               })
               expectPositionEq(await market.position(), {
                 ...DEFAULT_POSITION,
@@ -3169,13 +3059,9 @@ describe('Market', () => {
                 ...DEFAULT_CHECKPOINT,
               })
               expectGlobalEq(await market.global(), {
+                ...DEFAULT_GLOBAL,
                 currentId: 2,
                 latestId: 1,
-                protocolFee: 0,
-                oracleFee: 0,
-                riskFee: 0,
-                donation: 0,
-                exposure: 0,
               })
               expectPositionEq(await market.position(), {
                 ...DEFAULT_POSITION,
@@ -3248,13 +3134,9 @@ describe('Market', () => {
                 ...DEFAULT_CHECKPOINT,
               })
               expectGlobalEq(await market.global(), {
+                ...DEFAULT_GLOBAL,
                 currentId: 2,
                 latestId: 1,
-                protocolFee: 0,
-                oracleFee: 0,
-                riskFee: 0,
-                donation: 0,
-                exposure: 0,
               })
               expectPositionEq(await market.position(), {
                 ...DEFAULT_POSITION,
@@ -3819,13 +3701,9 @@ describe('Market', () => {
                   ...DEFAULT_CHECKPOINT,
                 })
                 expectGlobalEq(await market.global(), {
+                  ...DEFAULT_GLOBAL,
                   currentId: 2,
                   latestId: 1,
-                  protocolFee: 0,
-                  oracleFee: 0,
-                  riskFee: 0,
-                  donation: 0,
-                  exposure: 0,
                 })
                 expectPositionEq(await market.position(), {
                   ...DEFAULT_POSITION,
@@ -3983,13 +3861,9 @@ describe('Market', () => {
                   ...DEFAULT_CHECKPOINT,
                 })
                 expectGlobalEq(await market.global(), {
+                  ...DEFAULT_GLOBAL,
                   currentId: 2,
                   latestId: 1,
-                  protocolFee: 0,
-                  oracleFee: 0,
-                  riskFee: 0,
-                  donation: 0,
-                  exposure: 0,
                 })
                 expectPositionEq(await market.position(), {
                   ...DEFAULT_POSITION,
@@ -4643,13 +4517,9 @@ describe('Market', () => {
               ...DEFAULT_CHECKPOINT,
             })
             expectGlobalEq(await market.global(), {
+              ...DEFAULT_GLOBAL,
               currentId: 2,
               latestId: 1,
-              protocolFee: 0,
-              oracleFee: 0,
-              riskFee: 0,
-              donation: 0,
-              exposure: 0,
             })
             expectPositionEq(await market.position(), {
               ...DEFAULT_POSITION,
@@ -6105,13 +5975,9 @@ describe('Market', () => {
               ...DEFAULT_CHECKPOINT,
             })
             expectGlobalEq(await market.global(), {
+              ...DEFAULT_GLOBAL,
               currentId: 3,
               latestId: 2,
-              protocolFee: 0,
-              oracleFee: 0,
-              riskFee: 0,
-              donation: 0,
-              exposure: 0,
             })
             expectPositionEq(await market.position(), {
               ...DEFAULT_POSITION,
@@ -6211,13 +6077,8 @@ describe('Market', () => {
                 ...DEFAULT_CHECKPOINT,
               })
               expectGlobalEq(await market.global(), {
+                ...DEFAULT_GLOBAL,
                 currentId: 1,
-                latestId: 0,
-                protocolFee: 0,
-                oracleFee: 0,
-                riskFee: 0,
-                donation: 0,
-                exposure: 0,
               })
               expectPositionEq(await market.position(), {
                 ...DEFAULT_POSITION,
@@ -6288,13 +6149,9 @@ describe('Market', () => {
                 ...DEFAULT_CHECKPOINT,
               })
               expectGlobalEq(await market.global(), {
+                ...DEFAULT_GLOBAL,
                 currentId: 2,
                 latestId: 1,
-                protocolFee: 0,
-                oracleFee: 0,
-                riskFee: 0,
-                donation: 0,
-                exposure: 0,
               })
               expectPositionEq(await market.position(), {
                 ...DEFAULT_POSITION,
@@ -6363,13 +6220,8 @@ describe('Market', () => {
                 ...DEFAULT_CHECKPOINT,
               })
               expectGlobalEq(await market.global(), {
+                ...DEFAULT_GLOBAL,
                 currentId: 1,
-                latestId: 0,
-                protocolFee: 0,
-                oracleFee: 0,
-                riskFee: 0,
-                donation: 0,
-                exposure: 0,
               })
               expectPositionEq(await market.position(), {
                 ...DEFAULT_POSITION,
@@ -6440,13 +6292,9 @@ describe('Market', () => {
                 ...DEFAULT_CHECKPOINT,
               })
               expectGlobalEq(await market.global(), {
+                ...DEFAULT_GLOBAL,
                 currentId: 2,
                 latestId: 1,
-                protocolFee: 0,
-                oracleFee: 0,
-                riskFee: 0,
-                donation: 0,
-                exposure: 0,
               })
               expectPositionEq(await market.position(), {
                 ...DEFAULT_POSITION,
@@ -6519,13 +6367,9 @@ describe('Market', () => {
                 ...DEFAULT_CHECKPOINT,
               })
               expectGlobalEq(await market.global(), {
+                ...DEFAULT_GLOBAL,
                 currentId: 2,
                 latestId: 1,
-                protocolFee: 0,
-                oracleFee: 0,
-                riskFee: 0,
-                donation: 0,
-                exposure: 0,
               })
               expectPositionEq(await market.position(), {
                 ...DEFAULT_POSITION,
@@ -7103,13 +6947,9 @@ describe('Market', () => {
                   ...DEFAULT_CHECKPOINT,
                 })
                 expectGlobalEq(await market.global(), {
+                  ...DEFAULT_GLOBAL,
                   currentId: 2,
                   latestId: 1,
-                  protocolFee: 0,
-                  oracleFee: 0,
-                  riskFee: 0,
-                  donation: 0,
-                  exposure: 0,
                 })
                 expectPositionEq(await market.position(), {
                   ...DEFAULT_POSITION,
@@ -7268,13 +7108,9 @@ describe('Market', () => {
                   ...DEFAULT_CHECKPOINT,
                 })
                 expectGlobalEq(await market.global(), {
+                  ...DEFAULT_GLOBAL,
                   currentId: 2,
                   latestId: 1,
-                  protocolFee: 0,
-                  oracleFee: 0,
-                  riskFee: 0,
-                  donation: 0,
-                  exposure: 0,
                 })
                 expectPositionEq(await market.position(), {
                   ...DEFAULT_POSITION,
@@ -7934,13 +7770,9 @@ describe('Market', () => {
               ...DEFAULT_CHECKPOINT,
             })
             expectGlobalEq(await market.global(), {
+              ...DEFAULT_GLOBAL,
               currentId: 2,
               latestId: 1,
-              protocolFee: 0,
-              oracleFee: 0,
-              riskFee: 0,
-              donation: 0,
-              exposure: 0,
             })
             expectPositionEq(await market.position(), {
               ...DEFAULT_POSITION,
@@ -9387,13 +9219,9 @@ describe('Market', () => {
               ...DEFAULT_CHECKPOINT,
             })
             expectGlobalEq(await market.global(), {
+              ...DEFAULT_GLOBAL,
               currentId: 3,
               latestId: 2,
-              protocolFee: 0,
-              oracleFee: 0,
-              riskFee: 0,
-              donation: 0,
-              exposure: 0,
             })
             expectPositionEq(await market.position(), {
               ...DEFAULT_POSITION,
@@ -9635,13 +9463,8 @@ describe('Market', () => {
                 ...DEFAULT_CHECKPOINT,
               })
               expectGlobalEq(await market.global(), {
+                ...DEFAULT_GLOBAL,
                 currentId: 1,
-                latestId: 0,
-                protocolFee: 0,
-                oracleFee: 0,
-                riskFee: 0,
-                donation: 0,
-                exposure: 0,
               })
               expectPositionEq(await market.position(), {
                 ...DEFAULT_POSITION,
@@ -9713,13 +9536,9 @@ describe('Market', () => {
                 ...DEFAULT_CHECKPOINT,
               })
               expectGlobalEq(await market.global(), {
+                ...DEFAULT_GLOBAL,
                 currentId: 2,
                 latestId: 1,
-                protocolFee: 0,
-                oracleFee: 0,
-                riskFee: 0,
-                donation: 0,
-                exposure: 0,
               })
               expectPositionEq(await market.position(), {
                 ...DEFAULT_POSITION,
@@ -9789,13 +9608,8 @@ describe('Market', () => {
                 ...DEFAULT_CHECKPOINT,
               })
               expectGlobalEq(await market.global(), {
+                ...DEFAULT_GLOBAL,
                 currentId: 1,
-                latestId: 0,
-                protocolFee: 0,
-                oracleFee: 0,
-                riskFee: 0,
-                donation: 0,
-                exposure: 0,
               })
               expectPositionEq(await market.position(), {
                 ...DEFAULT_POSITION,
@@ -9867,13 +9681,9 @@ describe('Market', () => {
                 ...DEFAULT_CHECKPOINT,
               })
               expectGlobalEq(await market.global(), {
+                ...DEFAULT_GLOBAL,
                 currentId: 2,
                 latestId: 1,
-                protocolFee: 0,
-                oracleFee: 0,
-                riskFee: 0,
-                donation: 0,
-                exposure: 0,
               })
               expectPositionEq(await market.position(), {
                 ...DEFAULT_POSITION,
@@ -9947,13 +9757,9 @@ describe('Market', () => {
                 ...DEFAULT_CHECKPOINT,
               })
               expectGlobalEq(await market.global(), {
+                ...DEFAULT_GLOBAL,
                 currentId: 2,
                 latestId: 1,
-                protocolFee: 0,
-                oracleFee: 0,
-                riskFee: 0,
-                donation: 0,
-                exposure: 0,
               })
               expectPositionEq(await market.position(), {
                 ...DEFAULT_POSITION,
@@ -10947,13 +10753,9 @@ describe('Market', () => {
                   ...DEFAULT_CHECKPOINT,
                 })
                 expectGlobalEq(await market.global(), {
+                  ...DEFAULT_GLOBAL,
                   currentId: 2,
                   latestId: 1,
-                  protocolFee: 0,
-                  oracleFee: 0,
-                  riskFee: 0,
-                  donation: 0,
-                  exposure: 0,
                 })
                 expectPositionEq(await market.position(), {
                   ...DEFAULT_POSITION,
@@ -11127,13 +10929,9 @@ describe('Market', () => {
                   ...DEFAULT_CHECKPOINT,
                 })
                 expectGlobalEq(await market.global(), {
+                  ...DEFAULT_GLOBAL,
                   currentId: 2,
                   latestId: 1,
-                  protocolFee: 0,
-                  oracleFee: 0,
-                  riskFee: 0,
-                  donation: 0,
-                  exposure: 0,
                 })
                 expectPositionEq(await market.position(), {
                   ...DEFAULT_POSITION,
@@ -11818,13 +11616,9 @@ describe('Market', () => {
               ...DEFAULT_CHECKPOINT,
             })
             expectGlobalEq(await market.global(), {
+              ...DEFAULT_GLOBAL,
               currentId: 2,
               latestId: 1,
-              protocolFee: 0,
-              oracleFee: 0,
-              riskFee: 0,
-              donation: 0,
-              exposure: 0,
             })
             expectPositionEq(await market.position(), {
               ...DEFAULT_POSITION,
@@ -13626,6 +13420,7 @@ describe('Market', () => {
               ...DEFAULT_CHECKPOINT,
             })
             expectGlobalEq(await market.global(), {
+              ...DEFAULT_GLOBAL,
               currentId: 3,
               latestId: 2,
               protocolFee: 0,
@@ -15242,13 +15037,10 @@ describe('Market', () => {
             ...DEFAULT_CHECKPOINT,
           })
           expectGlobalEq(await market.global(), {
+            ...DEFAULT_GLOBAL,
             currentId: 3,
             latestId: 2,
-            protocolFee: 0,
             oracleFee: SETTLEMENT_FEE,
-            riskFee: 0,
-            donation: 0,
-            exposure: 0,
           })
           expectPositionEq(await market.position(), {
             ...DEFAULT_POSITION,
@@ -15632,13 +15424,10 @@ describe('Market', () => {
             ...DEFAULT_CHECKPOINT,
           })
           expectGlobalEq(await market.global(), {
+            ...DEFAULT_GLOBAL,
             currentId: 4,
             latestId: 3,
-            protocolFee: 0,
             oracleFee: SETTLEMENT_FEE.mul(2),
-            riskFee: 0,
-            donation: 0,
-            exposure: 0,
           })
           expectPositionEq(await market.position(), {
             ...DEFAULT_POSITION,
@@ -15824,13 +15613,10 @@ describe('Market', () => {
             ...DEFAULT_CHECKPOINT,
           })
           expectGlobalEq(await market.global(), {
+            ...DEFAULT_GLOBAL,
             currentId: 4,
             latestId: 3,
-            protocolFee: 0,
             oracleFee: SETTLEMENT_FEE,
-            riskFee: 0,
-            donation: 0,
-            exposure: 0,
           })
           expectPositionEq(await market.position(), {
             ...DEFAULT_POSITION,
@@ -16544,13 +16330,8 @@ describe('Market', () => {
             ...DEFAULT_CHECKPOINT,
           })
           expectGlobalEq(await market.global(), {
+            ...DEFAULT_GLOBAL,
             currentId: 1,
-            latestId: 0,
-            protocolFee: 0,
-            oracleFee: 0,
-            riskFee: 0,
-            donation: 0,
-            exposure: 0,
           })
           expectPositionEq(await market.position(), {
             ...DEFAULT_POSITION,

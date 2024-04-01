@@ -184,6 +184,16 @@ export const DEFAULT_POSITION: Position = {
   short: 0,
 }
 
+export const DEFAULT_GLOBAL: Global = {
+  currentId: 0,
+  latestId: 0,
+  protocolFee: 0,
+  oracleFee: 0,
+  riskFee: 0,
+  donation: 0,
+  exposure: 0,
+}
+
 export const DEFAULT_LOCAL: Local = {
   currentId: 0,
   latestId: 0,
