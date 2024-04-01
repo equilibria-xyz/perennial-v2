@@ -88,13 +88,13 @@ library InvariantLib {
             revert IMarket.MarketProtectedError();
 
         if (
-            newOrder.liquidityCheckApplicable(context.marketParameter.closed) &&
+            newOrder.liquidityCheckApplicable(context.marketParameter) &&
             newOrder.decreasesEfficiency(updateContext.currentPosition.global) &&
             updateContext.currentPosition.global.efficiency().lt(context.riskParameter.efficiencyLimit)
         ) revert IMarket.MarketEfficiencyUnderLimitError();
 
         if (
-            newOrder.liquidityCheckApplicable(context.marketParameter.closed) &&
+            newOrder.liquidityCheckApplicable(context.marketParameter) &&
             updateContext.currentPosition.global.socialized() &&
             newOrder.decreasesLiquidity(updateContext.currentPosition.global)
         ) revert IMarket.MarketInsufficientLiquidityError();

@@ -14540,7 +14540,7 @@ describe('Market', () => {
                 market
                   .connect(userB)
                   ['update(address,uint256,uint256,uint256,int256,bool)'](userB.address, 0, 0, 0, 0, false),
-              ).to.revertedWithCustomError(market, 'MarketEfficiencyUnderLimitError')
+              ).to.revertedWithCustomError(market, 'MarketInsufficientLiquidityError')
             })
           })
         })

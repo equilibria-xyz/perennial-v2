@@ -24,8 +24,8 @@ abstract contract OrderTester {
         return read().decreasesLiquidity(currentPosition);
     }
 
-    function liquidityCheckApplicable(bool isMarketClosed) external view returns (bool) {
-        return read().liquidityCheckApplicable(isMarketClosed);
+    function liquidityCheckApplicable(MarketParameter memory marketParameter) external view returns (bool) {
+        return read().liquidityCheckApplicable(marketParameter);
     }
 
     function isEmpty() external view returns (bool) {
