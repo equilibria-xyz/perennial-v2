@@ -37,7 +37,7 @@ struct Order {
     /// @dev The negative skew short order size
     UFixed6 shortNeg;
 
-    /// @dev The protection status semaphore
+    /// @dev The protection status semaphore (local only)
     uint256 protection;
 
     /// @dev The referral fee
@@ -45,6 +45,12 @@ struct Order {
 
     /// @dev The referral fee
     UFixed6 takerReferral;
+
+    /// @dev The magnitude of the order applicable to the price override (local only)
+    Fixed6 overrideMagnitude;
+
+    /// @dev The notional of the magnitude with the price override (local only)
+    Fixed6 overrideNotional;
 }
 using OrderLib for Order global;
 struct OrderStorageGlobal { uint256 slot0; uint256 slot1; uint256 slot2; } // SECURITY: must remain at (3) slots
@@ -89,6 +95,7 @@ library OrderLib {
     /// @param newShort The new short
     /// @param protect Whether to protect the order
     /// @param referralFee The referral fee
+    /// @param priceOverride The price override
     /// @return newOrder The resulting order
     function from(
         uint256 timestamp,
@@ -98,7 +105,8 @@ library OrderLib {
         UFixed6 newLong,
         UFixed6 newShort,
         bool protect,
-        UFixed6 referralFee
+        UFixed6 referralFee,
+        Fixed6 priceOverride
     ) internal pure returns (Order memory newOrder) {
         (Fixed6 makerAmount, Fixed6 longAmount, Fixed6 shortAmount) = (
             Fixed6Lib.from(newMaker).sub(Fixed6Lib.from(position.maker)),
@@ -120,7 +128,9 @@ library OrderLib {
             shortAmount.min(Fixed6Lib.ZERO).abs(),
             protect ? 1 : 0,
             makerAmount.isZero() ? UFixed6Lib.ZERO : referral,
-            makerAmount.isZero() ? referral : UFixed6Lib.ZERO
+            makerAmount.isZero() ? referral : UFixed6Lib.ZERO,
+            priceOverride.isZero() ? Fixed6Lib.ZERO : longAmount.sub(shortAmount),
+            longAmount.sub(shortAmount).mul(priceOverride)
         );
         if (!isEmpty(newOrder)) newOrder.orders = 1;
     }
@@ -354,7 +364,9 @@ library OrderStorageGlobalLib {
             UFixed6.wrap(uint256(slot1 << (256 - 64 - 64 - 64 - 64)) >> (256 - 64)),
             0,
             UFixed6.wrap(uint256(slot2 << (256 - 64)) >> (256 - 64)),
-            UFixed6.wrap(uint256(slot2 << (256 - 64 - 64)) >> (256 - 64))
+            UFixed6.wrap(uint256(slot2 << (256 - 64 - 64)) >> (256 - 64)),
+            Fixed6Lib.ZERO,
+            Fixed6Lib.ZERO
         );
     }
 
@@ -406,6 +418,8 @@ library OrderStorageGlobalLib {
 ///         /* slot 1 */
 ///         uint64 takerReferral;
 ///         uint64 makerReferral;
+///         int64 overrideMagnitude;
+///         int64 overrideNotional;
 ///     }
 ///
 library OrderStorageLocalLib {
@@ -428,7 +442,9 @@ library OrderStorageLocalLib {
             direction == 2 ? magnitudeNeg : UFixed6Lib.ZERO,
             uint256(slot0 << (256 - 32 - 32 - 64 - 2 - 62 - 62 - 1)) >> (256 - 1),
             UFixed6.wrap(uint256(slot1 << (256 - 64)) >> (256 - 64)),
-            UFixed6.wrap(uint256(slot1 << (256 - 64 - 64)) >> (256 - 64))
+            UFixed6.wrap(uint256(slot1 << (256 - 64 - 64)) >> (256 - 64)),
+            Fixed6.wrap(int256(slot1 << (256 - 64 - 64 - 64)) >> (256 - 64)),
+            Fixed6.wrap(int256(slot1 << (256 - 64 - 64 - 64 - 64)) >> (256 - 64))
         );
     }
 
@@ -440,6 +456,10 @@ library OrderStorageLocalLib {
         if (magnitudePos.gt(UFixed6.wrap(2 ** 62 - 1))) revert OrderStorageLib.OrderStorageInvalidError();
         if (magnitudeNeg.gt(UFixed6.wrap(2 ** 62 - 1))) revert OrderStorageLib.OrderStorageInvalidError();
         if (newValue.protection > 1) revert OrderStorageLib.OrderStorageInvalidError();
+        if (newValue.overrideMagnitude.gt(Fixed6.wrap(type(int64).max))) revert OrderStorageLib.OrderStorageInvalidError();
+        if (newValue.overrideMagnitude.lt(Fixed6.wrap(type(int64).min))) revert OrderStorageLib.OrderStorageInvalidError();
+        if (newValue.overrideNotional.gt(Fixed6.wrap(type(int64).max))) revert OrderStorageLib.OrderStorageInvalidError();
+        if (newValue.overrideNotional.lt(Fixed6.wrap(type(int64).min))) revert OrderStorageLib.OrderStorageInvalidError();
 
         uint256 encoded0 =
             uint256(newValue.timestamp << (256 - 32)) >> (256 - 32) |
@@ -451,7 +471,9 @@ library OrderStorageLocalLib {
             uint256(newValue.protection << (256 - 1)) >> (256 - 32 - 32 - 64 - 2 - 62 - 62 - 1);
         uint256 encoded1 =
             uint256(UFixed6.unwrap(newValue.makerReferral) << (256 - 64)) >> (256 - 64) |
-            uint256(UFixed6.unwrap(newValue.takerReferral) << (256 - 64)) >> (256 - 64 - 64);
+            uint256(UFixed6.unwrap(newValue.takerReferral) << (256 - 64)) >> (256 - 64 - 64) |
+            uint256(Fixed6.unwrap(newValue.overrideMagnitude) << (256 - 64)) >> (256 - 64 - 64 - 64) |
+            uint256(Fixed6.unwrap(newValue.overrideNotional) << (256 - 64)) >> (256 - 64 - 64 - 64 - 64);
 
         assembly {
             sstore(self.slot, encoded0)

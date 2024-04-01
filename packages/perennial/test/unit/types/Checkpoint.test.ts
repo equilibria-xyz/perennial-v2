@@ -18,6 +18,7 @@ import {
   DEFAULT_CHECKPOINT,
   DEFAULT_VERSION,
   DEFAULT_POSITION,
+  DEFAULT_OVERRIDE,
   parse6decimal,
 } from '../../../../common/testutil/types'
 
@@ -218,6 +219,7 @@ describe('Checkpoint', () => {
 
     const FROM_VERSION: VersionStruct = {
       valid: true,
+      price: parse6decimal('123'),
       makerValue: { _value: parse6decimal('100') },
       longValue: { _value: parse6decimal('200') },
       shortValue: { _value: parse6decimal('300') },
@@ -235,6 +237,7 @@ describe('Checkpoint', () => {
 
     const TO_VERSION: VersionStruct = {
       valid: true,
+      price: parse6decimal('123'),
       makerValue: { _value: parse6decimal('1000') },
       longValue: { _value: parse6decimal('2000') },
       shortValue: { _value: parse6decimal('3000') },
@@ -273,6 +276,44 @@ describe('Checkpoint', () => {
 
         const value = await checkpoint.read()
         expect(value.transfer).to.equal(parse6decimal('123'))
+      })
+
+      it('accumulates price override pnl (long)', async () => {
+        const result = await checkpoint.callStatic.accumulate(
+          { ...DEFAULT_ORDER, overrideMagnitude: parse6decimal('3'), overrideNotional: parse6decimal('300') },
+          { ...DEFAULT_POSITION },
+          { ...DEFAULT_VERSION },
+          { ...DEFAULT_VERSION, price: parse6decimal('123') },
+        )
+        await checkpoint.accumulate(
+          { ...DEFAULT_ORDER, overrideMagnitude: parse6decimal('3'), overrideNotional: parse6decimal('300') },
+          { ...DEFAULT_POSITION },
+          { ...DEFAULT_VERSION },
+          { ...DEFAULT_VERSION, price: parse6decimal('123') },
+        )
+        expect(result.priceOverride).to.equal(parse6decimal('69')) // open 3 long @ 100 w/ 123 price
+
+        const value = await checkpoint.read()
+        expect(value.collateral).to.equal(parse6decimal('69'))
+      })
+
+      it('accumulates price override pnl (short)', async () => {
+        const result = await checkpoint.callStatic.accumulate(
+          { ...DEFAULT_ORDER, overrideMagnitude: parse6decimal('-3'), overrideNotional: parse6decimal('-300') },
+          { ...DEFAULT_POSITION },
+          { ...DEFAULT_VERSION },
+          { ...DEFAULT_VERSION, price: parse6decimal('123') },
+        )
+        await checkpoint.accumulate(
+          { ...DEFAULT_ORDER, overrideMagnitude: parse6decimal('-3'), overrideNotional: parse6decimal('-300') },
+          { ...DEFAULT_POSITION },
+          { ...DEFAULT_VERSION },
+          { ...DEFAULT_VERSION, price: parse6decimal('123') },
+        )
+        expect(result.priceOverride).to.equal(parse6decimal('-69')) // open 3 short @ 100 w/ 123 price
+
+        const value = await checkpoint.read()
+        expect(value.collateral).to.equal(parse6decimal('-69'))
       })
 
       it('accumulates pnl (maker)', async () => {

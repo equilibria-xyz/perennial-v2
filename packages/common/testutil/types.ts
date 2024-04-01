@@ -31,6 +31,8 @@ export interface Order {
   protection: BigNumberish
   makerReferral: BigNumberish
   takerReferral: BigNumberish
+  overrideMagnitude: BigNumberish
+  overrideNotional: BigNumberish
 }
 
 export interface Position {
@@ -59,6 +61,7 @@ export interface Local {
 
 export interface Version {
   valid: boolean
+  price: BigNumberish
   makerValue: Accumulator
   longValue: Accumulator
   shortValue: Accumulator
@@ -72,6 +75,13 @@ export interface Version {
   takerNegFee: Accumulator
   settlementFee: Accumulator
   liquidationFee: Accumulator
+}
+
+export interface Override {
+  magnitudePos: BigNumberish
+  magnitudeNeg: BigNumberish
+  pricePos: BigNumberish
+  priceNeg: BigNumberish
 }
 
 export interface Fee {
@@ -99,6 +109,8 @@ export function expectOrderEq(a: Order, b: Order): void {
   expect(a.protection).to.equal(b.protection, 'Order:Protection')
   expect(a.makerReferral).to.equal(b.makerReferral, 'Order:MakerReferral')
   expect(a.takerReferral).to.equal(b.takerReferral, 'Order:TakerReferral')
+  expect(a.overrideMagnitude).to.equal(b.overrideMagnitude, 'Order:OverrideMagnitude')
+  expect(a.overrideNotional).to.equal(b.overrideNotional, 'Order:OverrideNotional')
 }
 
 export function expectPositionEq(a: Position, b: Position): void {
@@ -127,6 +139,7 @@ export function expectLocalEq(a: Local, b: Local): void {
 
 export function expectVersionEq(a: Version, b: Version): void {
   expect(a.valid).to.equal(b.valid, 'Version:Valid')
+  expect(a.price).to.equal(b.price, 'Version:Price')
   expect(a.makerValue._value).to.equal(b.makerValue._value, 'Version:MakerValue')
   expect(a.longValue._value).to.equal(b.longValue._value, 'Version:LongValue')
   expect(a.shortValue._value).to.equal(b.shortValue._value, 'Version:ShortValue')
@@ -214,10 +227,13 @@ export const DEFAULT_ORDER: Order = {
   protection: 0,
   makerReferral: 0,
   takerReferral: 0,
+  overrideMagnitude: 0,
+  overrideNotional: 0,
 }
 
 export const DEFAULT_VERSION: Version = {
   valid: true,
+  price: 0,
   makerValue: { _value: 0 },
   longValue: { _value: 0 },
   shortValue: { _value: 0 },
@@ -231,4 +247,11 @@ export const DEFAULT_VERSION: Version = {
   takerNegFee: { _value: 0 },
   settlementFee: { _value: 0 },
   liquidationFee: { _value: 0 },
+}
+
+export const DEFAULT_OVERRIDE: Override = {
+  magnitudePos: 0,
+  magnitudeNeg: 0,
+  pricePos: 0,
+  priceNeg: 0,
 }

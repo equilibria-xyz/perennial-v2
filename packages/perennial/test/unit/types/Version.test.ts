@@ -30,6 +30,7 @@ use(smock.matchers)
 
 const VALID_VERSION: VersionStruct = {
   valid: true,
+  price: 18,
   makerValue: { _value: 1 },
   longValue: { _value: 2 },
   shortValue: { _value: 3 },
@@ -79,6 +80,8 @@ const ORDER: OrderStruct = {
   protection: 1,
   makerReferral: 10,
   takerReferral: 11,
+  overrideMagnitude: 12,
+  overrideNotional: 13,
 }
 
 const TIMESTAMP = 1636401093
@@ -154,6 +157,7 @@ describe('Version', () => {
 
       const value = await version.read()
       expect(value.valid).to.equal(true)
+      expect(value.price).to.equal(18)
       expect(value.makerValue._value).to.equal(1)
       expect(value.longValue._value).to.equal(2)
       expect(value.shortValue._value).to.equal(3)
@@ -177,6 +181,45 @@ describe('Version', () => {
         })
         const value = await version.read()
         expect(value.valid).to.equal(true)
+      })
+    })
+
+    describe('.price', async () => {
+      const STORAGE_SIZE = 63
+      it('saves if in range (above)', async () => {
+        await version.store({
+          ...VALID_VERSION,
+          price: BigNumber.from(2).pow(STORAGE_SIZE).sub(1),
+        })
+        const value = await version.read()
+        expect(value.price).to.equal(BigNumber.from(2).pow(STORAGE_SIZE).sub(1))
+      })
+
+      it('saves if in range (below)', async () => {
+        await version.store({
+          ...VALID_VERSION,
+          price: BigNumber.from(2).pow(STORAGE_SIZE).mul(-1),
+        })
+        const value = await version.read()
+        expect(value.price).to.equal(BigNumber.from(2).pow(STORAGE_SIZE).mul(-1))
+      })
+
+      it('reverts if out of range (above)', async () => {
+        await expect(
+          version.store({
+            ...VALID_VERSION,
+            price: BigNumber.from(2).pow(STORAGE_SIZE),
+          }),
+        ).to.be.revertedWithCustomError(versionStorageLib, 'VersionStorageInvalidError')
+      })
+
+      it('reverts if out of range (below)', async () => {
+        await expect(
+          version.store({
+            ...VALID_VERSION,
+            price: BigNumber.from(2).pow(STORAGE_SIZE).add(1).mul(-1),
+          }),
+        ).to.be.revertedWithCustomError(versionStorageLib, 'VersionStorageInvalidError')
       })
     })
 
@@ -811,6 +854,24 @@ describe('Version', () => {
           const value = await version.read()
           expect(value.valid).to.be.true
         })
+      })
+    })
+
+    describe('.price', () => {
+      it('saves price', async () => {
+        await version.store(VALID_VERSION)
+        await version.accumulate(
+          GLOBAL,
+          FROM_POSITION,
+          ORDER,
+          ORACLE_VERSION_1,
+          { ...ORACLE_VERSION_2, valid: false },
+          VALID_MARKET_PARAMETER,
+          VALID_RISK_PARAMETER,
+        )
+
+        const value = await version.read()
+        expect(value.price).to.be.equal(ORACLE_VERSION_2.price)
       })
     })
 
