@@ -31,8 +31,17 @@ export interface Order {
   protection: BigNumberish
   makerReferral: BigNumberish
   takerReferral: BigNumberish
-  overrideMagnitude: BigNumberish
-  overrideNotional: BigNumberish
+}
+
+export interface Intent {
+  intents: BigNumberish
+  makerPos: BigNumberish
+  makerNeg: BigNumberish
+  longPos: BigNumberish
+  longNeg: BigNumberish
+  shortPos: BigNumberish
+  shortNeg: BigNumberish
+  notional: BigNumberish
 }
 
 export interface Position {
@@ -77,13 +86,6 @@ export interface Version {
   liquidationFee: Accumulator
 }
 
-export interface Override {
-  magnitudePos: BigNumberish
-  magnitudeNeg: BigNumberish
-  pricePos: BigNumberish
-  priceNeg: BigNumberish
-}
-
 export interface Fee {
   protocol: BigNumberish
   market: BigNumberish
@@ -109,8 +111,17 @@ export function expectOrderEq(a: Order, b: Order): void {
   expect(a.protection).to.equal(b.protection, 'Order:Protection')
   expect(a.makerReferral).to.equal(b.makerReferral, 'Order:MakerReferral')
   expect(a.takerReferral).to.equal(b.takerReferral, 'Order:TakerReferral')
-  expect(a.overrideMagnitude).to.equal(b.overrideMagnitude, 'Order:OverrideMagnitude')
-  expect(a.overrideNotional).to.equal(b.overrideNotional, 'Order:OverrideNotional')
+}
+
+export function expectIntentEq(a: Intent, b: Intent): void {
+  expect(a.intents).to.equal(b.intents, 'Order:Intents')
+  expect(a.makerPos).to.equal(b.makerPos, 'Order:MakerPos')
+  expect(a.makerNeg).to.equal(b.makerNeg, 'Order:MakerNeg')
+  expect(a.longPos).to.equal(b.longPos, 'Order:LongPos')
+  expect(a.longNeg).to.equal(b.longNeg, 'Order:LongNeg')
+  expect(a.shortPos).to.equal(b.shortPos, 'Order:ShortPos')
+  expect(a.shortNeg).to.equal(b.shortNeg, 'Order:ShortNeg')
+  expect(a.notional).to.equal(b.notional, 'Order:Notional')
 }
 
 export function expectPositionEq(a: Position, b: Position): void {
@@ -227,8 +238,17 @@ export const DEFAULT_ORDER: Order = {
   protection: 0,
   makerReferral: 0,
   takerReferral: 0,
-  overrideMagnitude: 0,
-  overrideNotional: 0,
+}
+
+export const DEFAULT_INTENT: Intent = {
+  intents: 0,
+  makerPos: 0,
+  makerNeg: 0,
+  longPos: 0,
+  longNeg: 0,
+  shortPos: 0,
+  shortNeg: 0,
+  notional: 0,
 }
 
 export const DEFAULT_VERSION: Version = {
@@ -247,11 +267,4 @@ export const DEFAULT_VERSION: Version = {
   takerNegFee: { _value: 0 },
   settlementFee: { _value: 0 },
   liquidationFee: { _value: 0 },
-}
-
-export const DEFAULT_OVERRIDE: Override = {
-  magnitudePos: 0,
-  magnitudeNeg: 0,
-  pricePos: 0,
-  priceNeg: 0,
 }

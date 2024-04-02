@@ -12,7 +12,7 @@ struct Intent {
     Fixed6 notional;
 
     /// @dev The positive skew maker intent size
-    UFixed6 makerPos;
+    UFixed6 makerPos; // TODO: remove maker
 
     /// @dev The negative skew maker intent size
     UFixed6 makerNeg;
@@ -50,18 +50,18 @@ library IntentLib {
     function invalidate(Intent memory self) internal pure {
         (self.makerPos, self.makerNeg, self.longPos, self.longNeg, self.shortPos, self.shortNeg) =
             (UFixed6Lib.ZERO, UFixed6Lib.ZERO, UFixed6Lib.ZERO, UFixed6Lib.ZERO, UFixed6Lib.ZERO, UFixed6Lib.ZERO);
-    }
+    } // TODO: used?
 
     /// @notice Creates a new intent from an order
     /// @param order The order to create the intent from
     /// @param priceOverride The price override
     /// @return newIntent The resulting intent
     function from(Order memory order, Fixed6 priceOverride) internal pure returns (Intent memory newIntent) {
-        (newIntent.makerPos, newIntent.makerNeg, newIntent.intents) =
-            (order.makerPos, order.makerNeg, order.orders);
+        // zero price indicates no price override, maker orders cannot have a price override
+        if (priceOverride.isZero() || !order.makerTotal().isZero()) return newIntent;
 
-        (newIntent.longPos, newIntent.longNeg, newIntent.shortPos, newIntent.shortNeg) =
-            (order.longPos, order.longNeg, order.shortPos, order.shortNeg);
+        (newIntent.intents, newIntent.longPos, newIntent.longNeg, newIntent.shortPos, newIntent.shortNeg) =
+            (order.orders, order.longPos, order.longNeg, order.shortPos, order.shortNeg);
 
         newIntent.notional = taker(newIntent).mul(priceOverride);
     }
@@ -209,7 +209,6 @@ library IntentLib {
 ///     struct StoredIntentGlobal {
 ///         /* slot 0 */
 ///         uint32 intents;
-///         int64 notional;
 ///         uint64 makerPos;
 ///         uint64 makerNeg;
 ///
@@ -226,9 +225,9 @@ library IntentStorageGlobalLib {
 
         return Intent(
             uint256(slot0 << (256 - 32)) >> (256 - 32),
-            Fixed6.wrap(int256(slot0 << (256 - 32 - 64)) >> (256 - 64)),
+            Fixed6Lib.ZERO,
+            UFixed6.wrap(uint256(slot0 << (256 - 32 - 64)) >> (256 - 64)),
             UFixed6.wrap(uint256(slot0 << (256 - 32 - 64 - 64)) >> (256 - 64)),
-            UFixed6.wrap(uint256(slot0 << (256 - 32 - 64 - 64 - 64)) >> (256 - 64)),
             UFixed6.wrap(uint256(slot1 << (256 - 64)) >> (256 - 64)),
             UFixed6.wrap(uint256(slot1 << (256 - 64 - 64)) >> (256 - 64)),
             UFixed6.wrap(uint256(slot1 << (256 - 64 - 64 - 64)) >> (256 - 64)),
@@ -248,9 +247,8 @@ library IntentStorageGlobalLib {
 
         uint256 encoded0 =
             uint256(newValue.intents << (256 - 32)) >> (256 - 32) |
-            uint256(Fixed6.unwrap(newValue.notional) << (256 - 64)) >> (256 - 32 - 64) |
-            uint256(UFixed6.unwrap(newValue.makerPos) << (256 - 64)) >> (256 - 32 - 64 - 64) |
-            uint256(UFixed6.unwrap(newValue.makerNeg) << (256 - 64)) >> (256 - 32 - 64 - 64 - 64);
+            uint256(UFixed6.unwrap(newValue.makerPos) << (256 - 64)) >> (256 - 32 - 64) |
+            uint256(UFixed6.unwrap(newValue.makerNeg) << (256 - 64)) >> (256 - 32 - 64 - 64);
         uint256 encoded1 =
             uint256(UFixed6.unwrap(newValue.longPos) << (256 - 64)) >> (256 - 64) |
             uint256(UFixed6.unwrap(newValue.longNeg) << (256 - 64)) >> (256 - 64 - 64) |
@@ -302,6 +300,8 @@ library IntentStorageLocalLib {
 
         if (magnitudePos.gt(UFixed6.wrap(2 ** 62 - 1))) revert IntentStorageLib.IntentStorageInvalidError();
         if (magnitudeNeg.gt(UFixed6.wrap(2 ** 62 - 1))) revert IntentStorageLib.IntentStorageInvalidError();
+        if (newValue.notional.gt(Fixed6.wrap(type(int64).max))) revert IntentStorageLib.IntentStorageInvalidError();
+        if (newValue.notional.lt(Fixed6.wrap(type(int64).min))) revert IntentStorageLib.IntentStorageInvalidError();
 
         uint256 encoded0 =
             uint256(newValue.intents << (256 - 32)) >> (256 - 32) |
@@ -322,7 +322,5 @@ library IntentStorageLib {
 
     function validate(Intent memory newValue) internal pure {
         if (newValue.intents > type(uint32).max) revert IntentStorageInvalidError();
-        if (newValue.notional.gt(Fixed6.wrap(type(int64).max))) revert IntentStorageInvalidError();
-        if (newValue.notional.lt(Fixed6.wrap(type(int64).min))) revert IntentStorageInvalidError();
     }
 }

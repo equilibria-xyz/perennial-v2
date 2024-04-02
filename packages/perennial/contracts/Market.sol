@@ -293,6 +293,19 @@ contract Market is IMarket, Instance, ReentrancyGuard {
         return _pendingOrders[account][id].read();
     }
 
+    /// @notice Returns the global pending intent for the given id
+    /// @param id The id to query
+    function intent(uint256 id) external view returns (Intent memory) {
+        return _intent[id].read();
+    }
+
+    /// @notice Returns the local pending intent for the given account and id
+    /// @param account The account to query
+    /// @param id The id to query
+    function intents(address account, uint256 id) external view returns (Intent memory) {
+        return _intents[account][id].read();
+    }
+
     /// @notice Returns the aggregate global pending order
     function pending() external view returns (Order memory) {
         return _pending.read();

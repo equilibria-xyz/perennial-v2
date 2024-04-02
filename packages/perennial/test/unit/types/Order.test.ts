@@ -40,8 +40,6 @@ describe('Order', () => {
       protection: 1,
       makerReferral: 11,
       takerReferral: 12,
-      overrideMagnitude: 13,
-      overrideNotional: 14,
     }
 
     let orderGlobal: OrderGlobalTester
@@ -209,8 +207,6 @@ describe('Order', () => {
       protection: 1,
       makerReferral: 11,
       takerReferral: 12,
-      overrideMagnitude: 13,
-      overrideNotional: 14,
     }
 
     let orderLocal: OrderLocalTester
@@ -379,84 +375,6 @@ describe('Order', () => {
             orderLocal.store({
               ...DEFAULT_ORDER,
               protection: BigNumber.from(2).pow(STORAGE_SIZE),
-            }),
-          ).to.be.revertedWithCustomError(orderLocal, 'OrderStorageInvalidError')
-        })
-      })
-
-      context('.overrideMagnitude', async () => {
-        const STORAGE_SIZE = 63
-        it('saves if in range (above)', async () => {
-          await orderLocal.store({
-            ...DEFAULT_ORDER,
-            overrideMagnitude: BigNumber.from(2).pow(STORAGE_SIZE).sub(1),
-          })
-          const value = await orderLocal.read()
-          expect(value.overrideMagnitude).to.equal(BigNumber.from(2).pow(STORAGE_SIZE).sub(1))
-        })
-
-        it('saves if in range (below)', async () => {
-          await orderLocal.store({
-            ...DEFAULT_ORDER,
-            overrideMagnitude: BigNumber.from(2).pow(STORAGE_SIZE).mul(-1),
-          })
-          const value = await orderLocal.read()
-          expect(value.overrideMagnitude).to.equal(BigNumber.from(2).pow(STORAGE_SIZE).mul(-1))
-        })
-
-        it('reverts if overrideMagnitude out of range (above)', async () => {
-          await expect(
-            orderLocal.store({
-              ...DEFAULT_ORDER,
-              overrideMagnitude: BigNumber.from(2).pow(STORAGE_SIZE),
-            }),
-          ).to.be.revertedWithCustomError(orderLocal, 'OrderStorageInvalidError')
-        })
-
-        it('reverts if overrideMagnitude out of range (below)', async () => {
-          await expect(
-            orderLocal.store({
-              ...DEFAULT_ORDER,
-              overrideMagnitude: BigNumber.from(2).pow(STORAGE_SIZE).add(1).mul(-1),
-            }),
-          ).to.be.revertedWithCustomError(orderLocal, 'OrderStorageInvalidError')
-        })
-      })
-
-      context('.overrideNotional', async () => {
-        const STORAGE_SIZE = 63
-        it('saves if in range (above)', async () => {
-          await orderLocal.store({
-            ...DEFAULT_ORDER,
-            overrideNotional: BigNumber.from(2).pow(STORAGE_SIZE).sub(1),
-          })
-          const value = await orderLocal.read()
-          expect(value.overrideNotional).to.equal(BigNumber.from(2).pow(STORAGE_SIZE).sub(1))
-        })
-
-        it('saves if in range (below)', async () => {
-          await orderLocal.store({
-            ...DEFAULT_ORDER,
-            overrideNotional: BigNumber.from(2).pow(STORAGE_SIZE).mul(-1),
-          })
-          const value = await orderLocal.read()
-          expect(value.overrideNotional).to.equal(BigNumber.from(2).pow(STORAGE_SIZE).mul(-1))
-        })
-
-        it('reverts if overrideNotional out of range (above)', async () => {
-          await expect(
-            orderLocal.store({
-              ...DEFAULT_ORDER,
-              overrideNotional: BigNumber.from(2).pow(STORAGE_SIZE),
-            }),
-          ).to.be.revertedWithCustomError(orderLocal, 'OrderStorageInvalidError')
-        })
-
-        it('reverts if overrideNotional out of range (below)', async () => {
-          await expect(
-            orderLocal.store({
-              ...DEFAULT_ORDER,
-              overrideNotional: BigNumber.from(2).pow(STORAGE_SIZE).add(1).mul(-1),
             }),
           ).to.be.revertedWithCustomError(orderLocal, 'OrderStorageInvalidError')
         })
