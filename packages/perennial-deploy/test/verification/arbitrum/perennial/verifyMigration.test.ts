@@ -87,8 +87,6 @@ describe('Verify Markets Migration', () => {
     expect(parameter.maxPendingGlobal).to.equal(parameterBefore.maxPendingGlobal)
     expect(parameter.maxPendingLocal).to.equal(parameterBefore.maxPendingLocal)
     expect(parameter.settlementFee).to.equal(parameterBefore.settlementFee)
-    expect(parameter.makerCloseAlways).to.equal(parameterBefore.makerCloseAlways)
-    expect(parameter.takerCloseAlways).to.equal(parameterBefore.takerCloseAlways)
     expect(parameter.closed).to.equal(parameterBefore.closed)
 
     expect(riskParameter.margin).to.equal(riskParameterBefore.margin)

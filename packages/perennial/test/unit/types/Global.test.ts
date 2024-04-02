@@ -81,8 +81,6 @@ function generateMarketParameter(oracleFee: BigNumberish, riskFee: BigNumberish)
     riskFee,
     closed: false,
     settle: false,
-    makerCloseAlways: false,
-    takerCloseAlways: false,
   }
 }
 

@@ -779,25 +779,12 @@ describe('Order', () => {
         })
       })
 
-      context('makerCloseAlways is true', () => {
-        context('maker increase', () => {
-          it('returns true', async () => {
-            await order.store({ ...DEFAULT_ORDER, makerPos: 10 })
-            const result = await order.liquidityCheckApplicable({
-              ...VALID_MARKET_PARAMETER,
-              takerCloseAlways: true,
-            })
-
-            expect(result).to.be.true
-          })
-        })
-
+      context('market is open', () => {
         context('long increase', () => {
           it('returns true', async () => {
             await order.store({ ...DEFAULT_ORDER, longPos: 10 })
             const result = await order.liquidityCheckApplicable({
               ...VALID_MARKET_PARAMETER,
-              takerCloseAlways: true,
             })
 
             expect(result).to.be.true
@@ -809,19 +796,6 @@ describe('Order', () => {
             await order.store({ ...DEFAULT_ORDER, shortPos: 10 })
             const result = await order.liquidityCheckApplicable({
               ...VALID_MARKET_PARAMETER,
-              takerCloseAlways: true,
-            })
-
-            expect(result).to.be.true
-          })
-        })
-
-        context('no increase', () => {
-          it('returns false', async () => {
-            await order.store(DEFAULT_ORDER)
-            const result = await order.liquidityCheckApplicable({
-              ...VALID_MARKET_PARAMETER,
-              takerCloseAlways: true,
             })
 
             expect(result).to.be.true
@@ -829,11 +803,10 @@ describe('Order', () => {
         })
 
         context('maker decrease', () => {
-          it('returns false', async () => {
+          it('returns true', async () => {
             await order.store({ ...DEFAULT_ORDER, makerNeg: 10 })
             const result = await order.liquidityCheckApplicable({
               ...VALID_MARKET_PARAMETER,
-              takerCloseAlways: true,
             })
 
             expect(result).to.be.true
@@ -845,7 +818,6 @@ describe('Order', () => {
             await order.store({ ...DEFAULT_ORDER, longNeg: 10 })
             const result = await order.liquidityCheckApplicable({
               ...VALID_MARKET_PARAMETER,
-              takerCloseAlways: true,
             })
 
             expect(result).to.be.false
@@ -857,167 +829,9 @@ describe('Order', () => {
             await order.store({ ...DEFAULT_ORDER, shortNeg: 10 })
             const result = await order.liquidityCheckApplicable({
               ...VALID_MARKET_PARAMETER,
-              takerCloseAlways: true,
             })
 
             expect(result).to.be.false
-          })
-        })
-      })
-
-      context('takerCloseAlways is true', () => {
-        context('maker increase', () => {
-          it('returns true', async () => {
-            await order.store({ ...DEFAULT_ORDER, makerPos: 10 })
-            const result = await order.liquidityCheckApplicable({
-              ...VALID_MARKET_PARAMETER,
-              takerCloseAlways: true,
-            })
-
-            expect(result).to.be.true
-          })
-        })
-
-        context('long increase', () => {
-          it('returns true', async () => {
-            await order.store({ ...DEFAULT_ORDER, longPos: 10 })
-            const result = await order.liquidityCheckApplicable({
-              ...VALID_MARKET_PARAMETER,
-              takerCloseAlways: true,
-            })
-
-            expect(result).to.be.true
-          })
-        })
-
-        context('short increase', () => {
-          it('returns true', async () => {
-            await order.store({ ...DEFAULT_ORDER, shortPos: 10 })
-            const result = await order.liquidityCheckApplicable({
-              ...VALID_MARKET_PARAMETER,
-              takerCloseAlways: true,
-            })
-
-            expect(result).to.be.true
-          })
-        })
-
-        context('no increase', () => {
-          it('returns false', async () => {
-            await order.store(DEFAULT_ORDER)
-            const result = await order.liquidityCheckApplicable({
-              ...VALID_MARKET_PARAMETER,
-              takerCloseAlways: true,
-            })
-
-            expect(result).to.be.true
-          })
-        })
-
-        context('maker decrease', () => {
-          it('returns false', async () => {
-            await order.store({ ...DEFAULT_ORDER, makerNeg: 10 })
-            const result = await order.liquidityCheckApplicable({
-              ...VALID_MARKET_PARAMETER,
-              takerCloseAlways: true,
-            })
-
-            expect(result).to.be.true
-          })
-        })
-
-        context('long decrease', () => {
-          it('returns false', async () => {
-            await order.store({ ...DEFAULT_ORDER, longNeg: 10 })
-            const result = await order.liquidityCheckApplicable({
-              ...VALID_MARKET_PARAMETER,
-              takerCloseAlways: true,
-            })
-
-            expect(result).to.be.false
-          })
-        })
-
-        context('short decrease', () => {
-          it('returns false', async () => {
-            await order.store({ ...DEFAULT_ORDER, shortNeg: 10 })
-            const result = await order.liquidityCheckApplicable({
-              ...VALID_MARKET_PARAMETER,
-              takerCloseAlways: true,
-            })
-
-            expect(result).to.be.false
-          })
-        })
-      })
-
-      context('closed, makerCloseAlways, and takerCloseAlways are false', () => {
-        context('maker increase', () => {
-          it('returns true', async () => {
-            await order.store({ ...DEFAULT_ORDER, makerPos: 10 })
-            const result = await order.liquidityCheckApplicable({
-              ...VALID_MARKET_PARAMETER,
-              takerCloseAlways: true,
-            })
-
-            expect(result).to.be.true
-          })
-        })
-
-        context('long increase', () => {
-          it('returns true', async () => {
-            await order.store({ ...DEFAULT_ORDER, longPos: 10 })
-            const result = await order.liquidityCheckApplicable(VALID_MARKET_PARAMETER)
-
-            expect(result).to.be.true
-          })
-        })
-
-        context('short increase', () => {
-          it('returns true', async () => {
-            await order.store({ ...DEFAULT_ORDER, shortPos: 10 })
-            const result = await order.liquidityCheckApplicable(VALID_MARKET_PARAMETER)
-
-            expect(result).to.be.true
-          })
-        })
-
-        context('no increase', () => {
-          it('returns true', async () => {
-            await order.store(DEFAULT_ORDER)
-            const result = await order.liquidityCheckApplicable(VALID_MARKET_PARAMETER)
-
-            expect(result).to.be.true
-          })
-        })
-
-        context('maker decrease', () => {
-          it('returns false', async () => {
-            await order.store({ ...DEFAULT_ORDER, makerNeg: 10 })
-            const result = await order.liquidityCheckApplicable({
-              ...VALID_MARKET_PARAMETER,
-              takerCloseAlways: true,
-            })
-
-            expect(result).to.be.true
-          })
-        })
-
-        context('long decrease', () => {
-          it('returns true', async () => {
-            await order.store({ ...DEFAULT_ORDER, longNeg: 10 })
-            const result = await order.liquidityCheckApplicable(VALID_MARKET_PARAMETER)
-
-            expect(result).to.be.true
-          })
-        })
-
-        context('short decrease', () => {
-          it('returns true', async () => {
-            await order.store({ ...DEFAULT_ORDER, shortNeg: 10 })
-            const result = await order.liquidityCheckApplicable(VALID_MARKET_PARAMETER)
-
-            expect(result).to.be.true
           })
         })
       })

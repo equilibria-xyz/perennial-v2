@@ -72,8 +72,6 @@ describe('Verify Markets', () => {
     expect(parameter.maxPendingGlobal).to.equal(12)
     expect(parameter.maxPendingLocal).to.equal(6)
     expect(parameter.settlementFee).to.equal(utils.parseUnits('1.50', 6))
-    expect(parameter.makerCloseAlways).to.be.false
-    expect(parameter.takerCloseAlways).to.be.true
     expect(parameter.closed).to.be.false
 
     const riskParameter = await ethMarket.callStatic.riskParameter()
@@ -119,8 +117,6 @@ describe('Verify Markets', () => {
     expect(parameter.maxPendingGlobal).to.equal(12)
     expect(parameter.maxPendingLocal).to.equal(6)
     expect(parameter.settlementFee).to.equal(utils.parseUnits('1.50', 6))
-    expect(parameter.makerCloseAlways).to.be.false
-    expect(parameter.takerCloseAlways).to.be.true
     expect(parameter.closed).to.be.false
 
     const riskParameter = await btcMarket.callStatic.riskParameter()
@@ -166,8 +162,6 @@ describe('Verify Markets', () => {
     expect(parameter.maxPendingGlobal).to.equal(12)
     expect(parameter.maxPendingLocal).to.equal(6)
     expect(parameter.settlementFee).to.equal(utils.parseUnits('1.50', 6))
-    expect(parameter.makerCloseAlways).to.be.false
-    expect(parameter.takerCloseAlways).to.be.true
     expect(parameter.closed).to.be.false
 
     const riskParameter = await solMarket.callStatic.riskParameter()
@@ -213,8 +207,6 @@ describe('Verify Markets', () => {
     expect(parameter.maxPendingGlobal).to.equal(12)
     expect(parameter.maxPendingLocal).to.equal(6)
     expect(parameter.settlementFee).to.equal(utils.parseUnits('1.50', 6))
-    expect(parameter.makerCloseAlways).to.be.false
-    expect(parameter.takerCloseAlways).to.be.true
     expect(parameter.closed).to.be.false
 
     const riskParameter = await maticMarket.callStatic.riskParameter()

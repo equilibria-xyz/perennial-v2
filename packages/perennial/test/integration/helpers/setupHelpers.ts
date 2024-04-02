@@ -248,8 +248,6 @@ export async function createMarket(
     maxPendingGlobal: 8,
     maxPendingLocal: 8,
     settlementFee: 0,
-    makerCloseAlways: false,
-    takerCloseAlways: false,
     closed: false,
     settle: false,
     ...marketParamOverrides,

@@ -292,8 +292,6 @@ testOracles.forEach(testOracle => {
         maxPendingGlobal: 8,
         maxPendingLocal: 8,
         settlementFee: 0,
-        makerCloseAlways: false,
-        takerCloseAlways: false,
         closed: false,
         settle: false,
       }

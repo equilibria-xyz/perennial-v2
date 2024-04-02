@@ -79,8 +79,6 @@ export async function deployProductOnMainnetFork({
     settlementFee: 0,
     maxPendingGlobal: 8,
     maxPendingLocal: 8,
-    makerCloseAlways: false,
-    takerCloseAlways: false,
     closed: false,
     settle: false,
   }

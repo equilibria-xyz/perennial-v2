@@ -467,8 +467,6 @@ describe('Market', () => {
       maxPendingGlobal: 5,
       maxPendingLocal: 3,
       settlementFee: 0,
-      makerCloseAlways: false,
-      takerCloseAlways: false,
       closed: false,
       settle: false,
     }
@@ -568,8 +566,6 @@ describe('Market', () => {
         maxPendingGlobal: 5,
         maxPendingLocal: 3,
         settlementFee: parse6decimal('0.09'),
-        makerCloseAlways: true,
-        takerCloseAlways: true,
         closed: true,
         settle: true,
       }
@@ -14144,11 +14140,7 @@ describe('Market', () => {
               await settle(market, user)
             })
 
-            it('allows closing when takerCloseAlways', async () => {
-              const marketParameter = { ...(await market.parameter()) }
-              marketParameter.takerCloseAlways = true
-              await market.updateParameter(beneficiary.address, coordinator.address, marketParameter)
-
+            it('allows closing long', async () => {
               await expect(
                 market
                   .connect(user)
@@ -14156,19 +14148,7 @@ describe('Market', () => {
               ).to.not.be.reverted
             })
 
-            it('disallows closing when not takerCloseAlways', async () => {
-              await expect(
-                market
-                  .connect(user)
-                  ['update(address,uint256,uint256,uint256,int256,bool)'](user.address, 0, 0, 0, 0, false),
-              ).to.revertedWithCustomError(market, 'MarketInsufficientLiquidityError')
-            })
-
             it('disallows short increasing (efficiency)', async () => {
-              const marketParameter = { ...(await market.parameter()) }
-              marketParameter.takerCloseAlways = true
-              await market.updateParameter(beneficiary.address, coordinator.address, marketParameter)
-
               const riskParameter = { ...(await market.riskParameter()) }
               riskParameter.efficiencyLimit = parse6decimal('0.5')
               await market.updateRiskParameter(riskParameter)
@@ -14188,10 +14168,6 @@ describe('Market', () => {
             })
 
             it('disallows short increasing (liquidity)', async () => {
-              const marketParameter = { ...(await market.parameter()) }
-              marketParameter.takerCloseAlways = true
-              await market.updateParameter(beneficiary.address, coordinator.address, marketParameter)
-
               const riskParameter = { ...(await market.riskParameter()) }
               riskParameter.efficiencyLimit = parse6decimal('0.3')
               await market.updateRiskParameter(riskParameter)
@@ -14243,10 +14219,8 @@ describe('Market', () => {
               await settle(market, user)
             })
 
-            it('allows closing when takerCloseAlways', async () => {
-              const marketParameter = { ...(await market.parameter()) }
-              marketParameter.takerCloseAlways = true
-              await market.updateParameter(beneficiary.address, coordinator.address, marketParameter)
+            it('allows closing short position', async () => {
+              console.log(await market.positions(user.address))
 
               await expect(
                 market
@@ -14255,19 +14229,7 @@ describe('Market', () => {
               ).to.not.be.reverted
             })
 
-            it('disallows closing when not takerCloseAlways', async () => {
-              await expect(
-                market
-                  .connect(user)
-                  ['update(address,uint256,uint256,uint256,int256,bool)'](user.address, 0, 0, 0, 0, false),
-              ).to.revertedWithCustomError(market, 'MarketInsufficientLiquidityError')
-            })
-
             it('disallows long increasing (efficiency)', async () => {
-              const marketParameter = { ...(await market.parameter()) }
-              marketParameter.takerCloseAlways = true
-              await market.updateParameter(beneficiary.address, coordinator.address, marketParameter)
-
               const riskParameter = { ...(await market.riskParameter()) }
               riskParameter.efficiencyLimit = parse6decimal('0.5')
               await market.updateRiskParameter(riskParameter)
@@ -14287,10 +14249,6 @@ describe('Market', () => {
             })
 
             it('disallows long increasing (liquidity)', async () => {
-              const marketParameter = { ...(await market.parameter()) }
-              marketParameter.takerCloseAlways = true
-              await market.updateParameter(beneficiary.address, coordinator.address, marketParameter)
-
               const riskParameter = { ...(await market.riskParameter()) }
               riskParameter.efficiencyLimit = parse6decimal('0.3')
               await market.updateRiskParameter(riskParameter)
@@ -14342,19 +14300,7 @@ describe('Market', () => {
               await settle(market, user)
             })
 
-            it('allows closing when makerCloseAlways', async () => {
-              const marketParameter = { ...(await market.parameter()) }
-              marketParameter.makerCloseAlways = true
-              await market.updateParameter(beneficiary.address, coordinator.address, marketParameter)
-
-              await expect(
-                market
-                  .connect(userB)
-                  ['update(address,uint256,uint256,uint256,int256,bool)'](userB.address, 0, 0, 0, 0, false),
-              ).to.not.be.reverted
-            })
-
-            it('disallows closing when not makerCloseAlways', async () => {
+            it('disallows closing maker', async () => {
               await expect(
                 market
                   .connect(userB)

@@ -170,8 +170,11 @@ library OrderLib {
         MarketParameter memory marketParameter
     ) internal pure returns (bool) {
         return !marketParameter.closed &&
-            ((maker(self).isZero()) || !marketParameter.makerCloseAlways || increasesMaker(self)) &&
-            ((long(self).isZero() && short(self).isZero()) || !marketParameter.takerCloseAlways || increasesTaker(self));
+        // not "a taker order that is increasing" ->
+        // not (any of the following)
+        //  - taker is empty (not a taker order)
+        //  - taker is increasing (position going more long or short)
+            ((long(self).isZero() && short(self).isZero()) || increasesTaker(self));
     }
 
     /// @notice Returns whether the order is protected

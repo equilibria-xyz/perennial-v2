@@ -31,12 +31,6 @@ struct MarketParameter {
     /// @dev The fixed fee that is charge whenever an oracle request occurs
     UFixed6 settlementFee;
 
-    /// @dev Whether longs and shorts can always close even when they'd put the market into socialization
-    bool takerCloseAlways;
-
-    /// @dev Whether makers can always close even when they'd put the market into socialization
-    bool makerCloseAlways;
-
     /// @dev Whether the market is in close-only mode
     bool closed;
 
@@ -69,8 +63,8 @@ library MarketParameterStorageLib {
         uint256 slot0 = self.slot0;
 
         uint256 flags = uint256(slot0) >> (256 - 8);
-        (bool takerCloseAlways, bool makerCloseAlways, bool closed, bool settle) =
-            (flags & 0x01 == 0x01, flags & 0x02 == 0x02, flags & 0x04 == 0x04, flags & 0x08 == 0x08);
+        (bool closed, bool settle) =
+            (flags & 0x04 == 0x04, flags & 0x08 == 0x08);
 
         return MarketParameter(
             UFixed6.wrap(uint256(slot0 << (256 - 24)) >> (256 - 24)),
@@ -81,8 +75,6 @@ library MarketParameterStorageLib {
             uint256(slot0 << (256 - 24 - 24 - 24 - 24 - 24 - 16)) >> (256 - 16),
             uint256(slot0 << (256 - 24 - 24 - 24 - 24 - 24 - 16 - 16)) >> (256 - 16),
             UFixed6.wrap(uint256(slot0 << (256 - 24 - 24 - 24 - 24 - 24 - 16 - 16 - 48)) >> (256 - 48)),
-            takerCloseAlways,
-            makerCloseAlways,
             closed,
             settle
         );
@@ -111,9 +103,7 @@ library MarketParameterStorageLib {
     }
 
     function _store(MarketParameterStorage storage self, MarketParameter memory newValue) private {
-        uint256 flags = (newValue.takerCloseAlways ? 0x01 : 0x00) |
-            (newValue.makerCloseAlways ? 0x02 : 0x00) |
-            (newValue.closed ? 0x04 : 0x00) |
+        uint256 flags = (newValue.closed ? 0x04 : 0x00) |
             (newValue.settle ? 0x08 : 0x00);
 
         uint256 encoded0 =

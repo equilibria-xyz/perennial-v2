@@ -75,8 +75,6 @@ describe('Verify Markets', () => {
     expect(parameter.longRewardRate).to.equal(0)
     expect(parameter.shortRewardRate).to.equal(0)
     expect(parameter.settlementFee).to.equal(utils.parseUnits('1.50', 6))
-    expect(parameter.makerCloseAlways).to.be.false
-    expect(parameter.takerCloseAlways).to.be.true
     expect(parameter.closed).to.be.false
 
     const riskParameter = await ethMarket.callStatic.riskParameter()
@@ -125,8 +123,6 @@ describe('Verify Markets', () => {
     expect(parameter.longRewardRate).to.equal(0)
     expect(parameter.shortRewardRate).to.equal(0)
     expect(parameter.settlementFee).to.equal(utils.parseUnits('1.50', 6))
-    expect(parameter.makerCloseAlways).to.be.false
-    expect(parameter.takerCloseAlways).to.be.true
     expect(parameter.closed).to.be.false
 
     const riskParameter = await btcMarket.callStatic.riskParameter()
