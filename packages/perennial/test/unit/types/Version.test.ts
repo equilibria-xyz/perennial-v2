@@ -80,8 +80,6 @@ const ORDER: OrderStruct = {
   protection: 1,
   makerReferral: 10,
   takerReferral: 11,
-  overrideMagnitude: 12,
-  overrideNotional: 13,
 }
 
 const TIMESTAMP = 1636401093

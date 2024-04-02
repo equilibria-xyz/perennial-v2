@@ -643,7 +643,7 @@ contract Market is IMarket, Instance, ReentrancyGuard {
         OracleVersion memory oracleVersion = oracle.at(newOrder.timestamp);
 
         context.pendingGlobal.sub(newOrder);
-        if (!oracleVersion.valid) newOrder.invalidate();
+        if (!oracleVersion.valid) newOrder.invalidate(); // TODO: invalidate newIntent
 
         VersionAccumulationResult memory accumulationResult;
         (settlementContext.latestVersion, context.global, accumulationResult) = VersionLib.accumulate(
@@ -683,7 +683,10 @@ contract Market is IMarket, Instance, ReentrancyGuard {
         Intent memory newIntent = _intents[account][newOrderId].read();
 
         context.pendingLocal.sub(newOrder);
-        if (!versionTo.valid) newOrder.invalidate();
+        if (!versionTo.valid) {
+            newOrder.invalidate();
+            newIntent.invalidate();
+        }
 
         CheckpointAccumulationResult memory accumulationResult;
         (settlementContext.latestCheckpoint, accumulationResult) = CheckpointLib.accumulate(

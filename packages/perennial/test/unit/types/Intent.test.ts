@@ -26,12 +26,8 @@ describe('Intent', () => {
   describe('global', () => {
     const VALID_STORED_INTENT: IntentStruct = {
       intents: 2,
-      makerPos: 3,
-      makerNeg: 4,
-      longPos: 5,
-      longNeg: 6,
-      shortPos: 7,
-      shortNeg: 8,
+      takerPos: 3,
+      takerNeg: 4,
       notional: 0,
     }
 
@@ -50,139 +46,9 @@ describe('Intent', () => {
         await intentGlobal.store(VALID_STORED_INTENT)
 
         const value = await intentGlobal.read()
-        expect(value.makerPos).to.equal(3)
-        expect(value.makerNeg).to.equal(4)
-        expect(value.longPos).to.equal(5)
-        expect(value.longNeg).to.equal(6)
-        expect(value.shortPos).to.equal(7)
-        expect(value.shortNeg).to.equal(8)
+        expect(value.takerPos).to.equal(3)
+        expect(value.takerNeg).to.equal(4)
         expect(value.notional).to.equal(0)
-      })
-
-      context('.makerPos', async () => {
-        const STORAGE_SIZE = 64
-        it('saves if in range', async () => {
-          await intentGlobal.store({
-            ...DEFAULT_INTENT,
-            makerPos: BigNumber.from(2).pow(STORAGE_SIZE).sub(1),
-          })
-          const value = await intentGlobal.read()
-          expect(value.makerPos).to.equal(BigNumber.from(2).pow(STORAGE_SIZE).sub(1))
-        })
-
-        it('reverts if currentId out of range', async () => {
-          await expect(
-            intentGlobal.store({
-              ...DEFAULT_INTENT,
-              makerPos: BigNumber.from(2).pow(STORAGE_SIZE),
-            }),
-          ).to.be.revertedWithCustomError(intentGlobal, 'IntentStorageInvalidError')
-        })
-      })
-
-      context('.makerNeg', async () => {
-        const STORAGE_SIZE = 64
-        it('saves if in range', async () => {
-          await intentGlobal.store({
-            ...DEFAULT_INTENT,
-            makerNeg: BigNumber.from(2).pow(STORAGE_SIZE).sub(1),
-          })
-          const value = await intentGlobal.read()
-          expect(value.makerNeg).to.equal(BigNumber.from(2).pow(STORAGE_SIZE).sub(1))
-        })
-
-        it('reverts if currentId out of range', async () => {
-          await expect(
-            intentGlobal.store({
-              ...DEFAULT_INTENT,
-              makerNeg: BigNumber.from(2).pow(STORAGE_SIZE),
-            }),
-          ).to.be.revertedWithCustomError(intentGlobal, 'IntentStorageInvalidError')
-        })
-      })
-
-      context('.longPos', async () => {
-        const STORAGE_SIZE = 64
-        it('saves if in range', async () => {
-          await intentGlobal.store({
-            ...DEFAULT_INTENT,
-            longPos: BigNumber.from(2).pow(STORAGE_SIZE).sub(1),
-          })
-          const value = await intentGlobal.read()
-          expect(value.longPos).to.equal(BigNumber.from(2).pow(STORAGE_SIZE).sub(1))
-        })
-
-        it('reverts if currentId out of range', async () => {
-          await expect(
-            intentGlobal.store({
-              ...DEFAULT_INTENT,
-              longPos: BigNumber.from(2).pow(STORAGE_SIZE),
-            }),
-          ).to.be.revertedWithCustomError(intentGlobal, 'IntentStorageInvalidError')
-        })
-      })
-
-      context('.longNeg', async () => {
-        const STORAGE_SIZE = 64
-        it('saves if in range', async () => {
-          await intentGlobal.store({
-            ...DEFAULT_INTENT,
-            makerPos: BigNumber.from(2).pow(STORAGE_SIZE).sub(1),
-          })
-          const value = await intentGlobal.read()
-          expect(value.makerPos).to.equal(BigNumber.from(2).pow(STORAGE_SIZE).sub(1))
-        })
-
-        it('reverts if currentId out of range', async () => {
-          await expect(
-            intentGlobal.store({
-              ...DEFAULT_INTENT,
-              makerPos: BigNumber.from(2).pow(STORAGE_SIZE),
-            }),
-          ).to.be.revertedWithCustomError(intentGlobal, 'IntentStorageInvalidError')
-        })
-      })
-
-      context('.shortPos', async () => {
-        const STORAGE_SIZE = 64
-        it('saves if in range', async () => {
-          await intentGlobal.store({
-            ...DEFAULT_INTENT,
-            shortPos: BigNumber.from(2).pow(STORAGE_SIZE).sub(1),
-          })
-          const value = await intentGlobal.read()
-          expect(value.shortPos).to.equal(BigNumber.from(2).pow(STORAGE_SIZE).sub(1))
-        })
-
-        it('reverts if currentId out of range', async () => {
-          await expect(
-            intentGlobal.store({
-              ...DEFAULT_INTENT,
-              shortPos: BigNumber.from(2).pow(STORAGE_SIZE),
-            }),
-          ).to.be.revertedWithCustomError(intentGlobal, 'IntentStorageInvalidError')
-        })
-      })
-
-      context('.shortNeg', async () => {
-        const STORAGE_SIZE = 64
-        it('saves if in range', async () => {
-          await intentGlobal.store({
-            ...DEFAULT_INTENT,
-            shortNeg: BigNumber.from(2).pow(STORAGE_SIZE).sub(1),
-          })
-          const value = await intentGlobal.read()
-          expect(value.shortNeg).to.equal(BigNumber.from(2).pow(STORAGE_SIZE).sub(1))
-        })
-
-        it('reverts if currentId out of range', async () => {
-          await expect(
-            intentGlobal.store({
-              ...DEFAULT_INTENT,
-              shortNeg: BigNumber.from(2).pow(STORAGE_SIZE),
-            }),
-          ).to.be.revertedWithCustomError(intentGlobal, 'IntentStorageInvalidError')
-        })
       })
     })
   })
@@ -190,12 +56,8 @@ describe('Intent', () => {
   describe('local', () => {
     const VALID_STORED_INTENT: IntentStruct = {
       intents: 2,
-      makerPos: 3,
-      makerNeg: 4,
-      longPos: 0,
-      longNeg: 0,
-      shortPos: 0,
-      shortNeg: 0,
+      takerPos: 3,
+      takerNeg: 4,
       notional: 14,
     }
 
@@ -214,139 +76,9 @@ describe('Intent', () => {
         await intentLocal.store(VALID_STORED_INTENT)
 
         const value = await intentLocal.read()
-        expect(value.makerPos).to.equal(3)
-        expect(value.makerNeg).to.equal(4)
-        expect(value.longPos).to.equal(0)
-        expect(value.longNeg).to.equal(0)
-        expect(value.shortPos).to.equal(0)
-        expect(value.shortNeg).to.equal(0)
+        expect(value.takerPos).to.equal(3)
+        expect(value.takerNeg).to.equal(4)
         expect(value.notional).to.equal(14)
-      })
-
-      context('.makerPos', async () => {
-        const STORAGE_SIZE = 62
-        it('saves if in range', async () => {
-          await intentLocal.store({
-            ...DEFAULT_INTENT,
-            makerPos: BigNumber.from(2).pow(STORAGE_SIZE).sub(1),
-          })
-          const value = await intentLocal.read()
-          expect(value.makerPos).to.equal(BigNumber.from(2).pow(STORAGE_SIZE).sub(1))
-        })
-
-        it('reverts if currentId out of range', async () => {
-          await expect(
-            intentLocal.store({
-              ...DEFAULT_INTENT,
-              makerPos: BigNumber.from(2).pow(STORAGE_SIZE),
-            }),
-          ).to.be.revertedWithCustomError(intentLocal, 'IntentStorageInvalidError')
-        })
-      })
-
-      context('.makerNeg', async () => {
-        const STORAGE_SIZE = 62
-        it('saves if in range', async () => {
-          await intentLocal.store({
-            ...DEFAULT_INTENT,
-            makerNeg: BigNumber.from(2).pow(STORAGE_SIZE).sub(1),
-          })
-          const value = await intentLocal.read()
-          expect(value.makerNeg).to.equal(BigNumber.from(2).pow(STORAGE_SIZE).sub(1))
-        })
-
-        it('reverts if currentId out of range', async () => {
-          await expect(
-            intentLocal.store({
-              ...DEFAULT_INTENT,
-              makerNeg: BigNumber.from(2).pow(STORAGE_SIZE),
-            }),
-          ).to.be.revertedWithCustomError(intentLocal, 'IntentStorageInvalidError')
-        })
-      })
-
-      context('.longPos', async () => {
-        const STORAGE_SIZE = 62
-        it('saves if in range', async () => {
-          await intentLocal.store({
-            ...DEFAULT_INTENT,
-            longPos: BigNumber.from(2).pow(STORAGE_SIZE).sub(1),
-          })
-          const value = await intentLocal.read()
-          expect(value.longPos).to.equal(BigNumber.from(2).pow(STORAGE_SIZE).sub(1))
-        })
-
-        it('reverts if currentId out of range', async () => {
-          await expect(
-            intentLocal.store({
-              ...DEFAULT_INTENT,
-              longPos: BigNumber.from(2).pow(STORAGE_SIZE),
-            }),
-          ).to.be.revertedWithCustomError(intentLocal, 'IntentStorageInvalidError')
-        })
-      })
-
-      context('.longNeg', async () => {
-        const STORAGE_SIZE = 62
-        it('saves if in range', async () => {
-          await intentLocal.store({
-            ...DEFAULT_INTENT,
-            makerPos: BigNumber.from(2).pow(STORAGE_SIZE).sub(1),
-          })
-          const value = await intentLocal.read()
-          expect(value.makerPos).to.equal(BigNumber.from(2).pow(STORAGE_SIZE).sub(1))
-        })
-
-        it('reverts if currentId out of range', async () => {
-          await expect(
-            intentLocal.store({
-              ...DEFAULT_INTENT,
-              makerPos: BigNumber.from(2).pow(STORAGE_SIZE),
-            }),
-          ).to.be.revertedWithCustomError(intentLocal, 'IntentStorageInvalidError')
-        })
-      })
-
-      context('.shortPos', async () => {
-        const STORAGE_SIZE = 62
-        it('saves if in range', async () => {
-          await intentLocal.store({
-            ...DEFAULT_INTENT,
-            shortPos: BigNumber.from(2).pow(STORAGE_SIZE).sub(1),
-          })
-          const value = await intentLocal.read()
-          expect(value.shortPos).to.equal(BigNumber.from(2).pow(STORAGE_SIZE).sub(1))
-        })
-
-        it('reverts if currentId out of range', async () => {
-          await expect(
-            intentLocal.store({
-              ...DEFAULT_INTENT,
-              shortPos: BigNumber.from(2).pow(STORAGE_SIZE),
-            }),
-          ).to.be.revertedWithCustomError(intentLocal, 'IntentStorageInvalidError')
-        })
-      })
-
-      context('.shortNeg', async () => {
-        const STORAGE_SIZE = 62
-        it('saves if in range', async () => {
-          await intentLocal.store({
-            ...DEFAULT_INTENT,
-            shortNeg: BigNumber.from(2).pow(STORAGE_SIZE).sub(1),
-          })
-          const value = await intentLocal.read()
-          expect(value.shortNeg).to.equal(BigNumber.from(2).pow(STORAGE_SIZE).sub(1))
-        })
-
-        it('reverts if currentId out of range', async () => {
-          await expect(
-            intentLocal.store({
-              ...DEFAULT_INTENT,
-              shortNeg: BigNumber.from(2).pow(STORAGE_SIZE),
-            }),
-          ).to.be.revertedWithCustomError(intentLocal, 'IntentStorageInvalidError')
-        })
       })
 
       context('.notional', async () => {
@@ -396,12 +128,8 @@ describe('Intent', () => {
 
         expectIntentEq(newIntent, {
           intents: 1,
-          makerPos: 0,
-          makerNeg: 0,
-          longPos: parse6decimal('10'),
-          longNeg: 0,
-          shortPos: 0,
-          shortNeg: 0,
+          takerPos: parse6decimal('10'),
+          takerNeg: 0,
           notional: parse6decimal('1230'),
         })
       })
@@ -412,12 +140,8 @@ describe('Intent', () => {
 
         expectIntentEq(newIntent, {
           intents: 1,
-          makerPos: 0,
-          makerNeg: 0,
-          longPos: 0,
-          longNeg: parse6decimal('10'),
-          shortPos: 0,
-          shortNeg: 0,
+          takerPos: 0,
+          takerNeg: parse6decimal('10'),
           notional: parse6decimal('-1230'),
         })
       })
@@ -428,12 +152,8 @@ describe('Intent', () => {
 
         expectIntentEq(newIntent, {
           intents: 1,
-          makerPos: 0,
-          makerNeg: 0,
-          longPos: 0,
-          longNeg: 0,
-          shortPos: parse6decimal('10'),
-          shortNeg: 0,
+          takerPos: 0,
+          takerNeg: parse6decimal('10'),
           notional: parse6decimal('-1230'),
         })
       })
@@ -444,12 +164,8 @@ describe('Intent', () => {
 
         expectIntentEq(newIntent, {
           intents: 1,
-          makerPos: 0,
-          makerNeg: 0,
-          longPos: 0,
-          longNeg: 0,
-          shortPos: 0,
-          shortNeg: parse6decimal('10'),
+          takerPos: parse6decimal('10'),
+          takerNeg: 0,
           notional: parse6decimal('1230'),
         })
       })
@@ -460,12 +176,8 @@ describe('Intent', () => {
 
         expectIntentEq(newIntent, {
           intents: 0,
-          makerPos: 0,
-          makerNeg: 0,
-          longPos: 0,
-          longNeg: 0,
-          shortPos: 0,
-          shortNeg: 0,
+          takerPos: 0,
+          takerNeg: 0,
           notional: 0,
         })
       })
@@ -476,12 +188,8 @@ describe('Intent', () => {
 
         expectIntentEq(newIntent, {
           intents: 0,
-          makerPos: 0,
-          makerNeg: 0,
-          longPos: 0,
-          longNeg: 0,
-          shortPos: 0,
-          shortNeg: 0,
+          takerPos: 0,
+          takerNeg: 0,
           notional: 0,
         })
       })
@@ -492,12 +200,8 @@ describe('Intent', () => {
 
         expectIntentEq(newIntent, {
           intents: 0,
-          makerPos: 0,
-          makerNeg: 0,
-          longPos: 0,
-          longNeg: 0,
-          shortPos: 0,
-          shortNeg: 0,
+          takerPos: 0,
+          takerNeg: 0,
           notional: 0,
         })
       })
@@ -508,12 +212,8 @@ describe('Intent', () => {
 
         expectIntentEq(newIntent, {
           intents: 0,
-          makerPos: 0,
-          makerNeg: 0,
-          longPos: 0,
-          longNeg: 0,
-          shortPos: 0,
-          shortNeg: 0,
+          takerPos: 0,
+          takerNeg: 0,
           notional: 0,
         })
       })
@@ -557,6 +257,48 @@ describe('Intent', () => {
             intent.store({
               ...validStoredIntent,
               intents: BigNumber.from(2).pow(STORAGE_SIZE),
+            }),
+          ).to.be.revertedWithCustomError(intent, 'IntentStorageInvalidError')
+        })
+      })
+
+      context('.takerPos', async () => {
+        const STORAGE_SIZE = 64
+        it('saves if in range', async () => {
+          await intent.store({
+            ...DEFAULT_INTENT,
+            takerPos: BigNumber.from(2).pow(STORAGE_SIZE).sub(1),
+          })
+          const value = await intent.read()
+          expect(value.takerPos).to.equal(BigNumber.from(2).pow(STORAGE_SIZE).sub(1))
+        })
+
+        it('reverts if takerPos out of range', async () => {
+          await expect(
+            intent.store({
+              ...DEFAULT_INTENT,
+              takerPos: BigNumber.from(2).pow(STORAGE_SIZE),
+            }),
+          ).to.be.revertedWithCustomError(intent, 'IntentStorageInvalidError')
+        })
+      })
+
+      context('.takerNeg', async () => {
+        const STORAGE_SIZE = 64
+        it('saves if in range', async () => {
+          await intent.store({
+            ...DEFAULT_INTENT,
+            takerNeg: BigNumber.from(2).pow(STORAGE_SIZE).sub(1),
+          })
+          const value = await intent.read()
+          expect(value.takerNeg).to.equal(BigNumber.from(2).pow(STORAGE_SIZE).sub(1))
+        })
+
+        it('reverts if takerNeg out of range', async () => {
+          await expect(
+            intent.store({
+              ...DEFAULT_INTENT,
+              takerNeg: BigNumber.from(2).pow(STORAGE_SIZE),
             }),
           ).to.be.revertedWithCustomError(intent, 'IntentStorageInvalidError')
         })

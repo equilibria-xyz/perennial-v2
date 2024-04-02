@@ -35,12 +35,8 @@ export interface Order {
 
 export interface Intent {
   intents: BigNumberish
-  makerPos: BigNumberish
-  makerNeg: BigNumberish
-  longPos: BigNumberish
-  longNeg: BigNumberish
-  shortPos: BigNumberish
-  shortNeg: BigNumberish
+  takerPos: BigNumberish
+  takerNeg: BigNumberish
   notional: BigNumberish
 }
 
@@ -115,12 +111,8 @@ export function expectOrderEq(a: Order, b: Order): void {
 
 export function expectIntentEq(a: Intent, b: Intent): void {
   expect(a.intents).to.equal(b.intents, 'Order:Intents')
-  expect(a.makerPos).to.equal(b.makerPos, 'Order:MakerPos')
-  expect(a.makerNeg).to.equal(b.makerNeg, 'Order:MakerNeg')
-  expect(a.longPos).to.equal(b.longPos, 'Order:LongPos')
-  expect(a.longNeg).to.equal(b.longNeg, 'Order:LongNeg')
-  expect(a.shortPos).to.equal(b.shortPos, 'Order:ShortPos')
-  expect(a.shortNeg).to.equal(b.shortNeg, 'Order:ShortNeg')
+  expect(a.takerPos).to.equal(b.takerPos, 'Order:TakerPos')
+  expect(a.takerNeg).to.equal(b.takerNeg, 'Order:TakerNeg')
   expect(a.notional).to.equal(b.notional, 'Order:Notional')
 }
 
@@ -242,12 +234,8 @@ export const DEFAULT_ORDER: Order = {
 
 export const DEFAULT_INTENT: Intent = {
   intents: 0,
-  makerPos: 0,
-  makerNeg: 0,
-  longPos: 0,
-  longNeg: 0,
-  shortPos: 0,
-  shortNeg: 0,
+  takerPos: 0,
+  takerNeg: 0,
   notional: 0,
 }
 

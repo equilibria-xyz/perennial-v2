@@ -285,8 +285,8 @@ describe('Checkpoint', () => {
           { ...DEFAULT_ORDER, longPos: parse6decimal('10'), longNeg: parse6decimal('5') },
           {
             ...DEFAULT_INTENT,
-            longPos: parse6decimal('5'),
-            longNeg: parse6decimal('2'),
+            takerPos: parse6decimal('5'),
+            takerNeg: parse6decimal('2'),
             notional: parse6decimal('300'),
           },
           { ...DEFAULT_POSITION },
@@ -297,8 +297,8 @@ describe('Checkpoint', () => {
           { ...DEFAULT_ORDER, longPos: parse6decimal('10'), longNeg: parse6decimal('5') },
           {
             ...DEFAULT_INTENT,
-            longPos: parse6decimal('5'),
-            longNeg: parse6decimal('2'),
+            takerPos: parse6decimal('5'),
+            takerNeg: parse6decimal('2'),
             notional: parse6decimal('300'),
           },
           { ...DEFAULT_POSITION },
@@ -316,8 +316,8 @@ describe('Checkpoint', () => {
           { ...DEFAULT_ORDER, shortPos: parse6decimal('10'), shortNeg: parse6decimal('5') },
           {
             ...DEFAULT_INTENT,
-            shortPos: parse6decimal('5'),
-            shortNeg: parse6decimal('2'),
+            takerNeg: parse6decimal('5'),
+            takerPos: parse6decimal('2'),
             notional: parse6decimal('-300'),
           },
           { ...DEFAULT_POSITION },
@@ -328,8 +328,8 @@ describe('Checkpoint', () => {
           { ...DEFAULT_ORDER, shortPos: parse6decimal('10'), shortNeg: parse6decimal('5') },
           {
             ...DEFAULT_INTENT,
-            shortPos: parse6decimal('5'),
-            shortNeg: parse6decimal('2'),
+            takerNeg: parse6decimal('5'),
+            takerPos: parse6decimal('2'),
             notional: parse6decimal('-300'),
           },
           { ...DEFAULT_POSITION },
