@@ -81,6 +81,12 @@ contract Market is IMarket, Instance, ReentrancyGuard {
     /// @dev The referrer for each id for each account
     mapping(address => mapping(uint256 => address)) public referrers;
 
+    /// @dev The global pending intent for each id
+    mapping(uint256 => IntentStorageGlobal) private _intent;
+
+    /// @dev The local pending intent for each id for each account
+    mapping(address => mapping(uint256 => IntentStorageLocal)) private _intents;
+
     /// @notice Initializes the contract state
     /// @param definition_ The market definition
     function initialize(IMarket.MarketDefinition calldata definition_) external initializer(1) {
@@ -366,6 +372,8 @@ contract Market is IMarket, Instance, ReentrancyGuard {
         // load current order
         updateContext.orderGlobal = _pendingOrder[context.global.currentId].read();
         updateContext.orderLocal = _pendingOrders[account][context.local.currentId].read();
+        updateContext.intentGlobal = _intent[context.global.currentId].read();
+        updateContext.intentLocal = _intents[account][context.local.currentId].read();
 
         // load external actors
         updateContext.operator = IMarketFactory(address(factory())).operators(account, msg.sender);
@@ -382,6 +390,8 @@ contract Market is IMarket, Instance, ReentrancyGuard {
         // current orders
         _pendingOrder[context.global.currentId].store(updateContext.orderGlobal);
         _pendingOrders[account][context.local.currentId].store(updateContext.orderLocal);
+        _intent[context.global.currentId].store(updateContext.intentGlobal);
+        _intents[account][context.local.currentId].store(updateContext.intentLocal);
 
         // external actors
         liquidators[account][context.local.currentId] = updateContext.liquidator;
@@ -427,11 +437,12 @@ contract Market is IMarket, Instance, ReentrancyGuard {
             newLong,
             newShort,
             protect,
-            referralFee,
-            Fixed6Lib.ZERO
+            referralFee
         );
 
-        _update(context, updateContext, account, newOrder, referrer);
+        Intent memory newIntent = IntentLib.from(newOrder, Fixed6Lib.ZERO);
+
+        _update(context, updateContext, account, newOrder, newIntent, referrer);
     }
 
     /// @notice Updates the current position with a new order
@@ -439,21 +450,25 @@ contract Market is IMarket, Instance, ReentrancyGuard {
     /// @param updateContext The update context to use
     /// @param account The account to update
     /// @param newOrder The new order to apply
+    /// @param newIntent The new intent to apply
     /// @param referrer The referrer of the order
     function _update(
         Context memory context,
         UpdateContext memory updateContext,
         address account,
         Order memory newOrder,
+        Intent memory newIntent,
         address referrer
     ) private notSettleOnly(context) {
         // advance to next id if applicable
         if (context.currentTimestamp > updateContext.orderLocal.timestamp) {
             updateContext.orderLocal.next(context.currentTimestamp);
+            updateContext.intentLocal.next();
             context.local.currentId++;
         }
         if (context.currentTimestamp > updateContext.orderGlobal.timestamp) {
             updateContext.orderGlobal.next(context.currentTimestamp);
+            updateContext.intentGlobal.next();
             context.global.currentId++;
         }
 
@@ -466,6 +481,8 @@ contract Market is IMarket, Instance, ReentrancyGuard {
         updateContext.orderGlobal.add(newOrder);
         context.pendingGlobal.add(newOrder);
         context.pendingLocal.add(newOrder);
+        updateContext.intentGlobal.add(newIntent);
+        updateContext.intentLocal.add(newIntent);
 
         // update collateral
         context.local.update(newOrder.collateral);
@@ -650,6 +667,7 @@ contract Market is IMarket, Instance, ReentrancyGuard {
     ) private {
         Version memory versionFrom = _versions[context.latestPositionLocal.timestamp].read();
         Version memory versionTo = _versions[newOrder.timestamp].read();
+        Intent memory newIntent = _intents[account][newOrderId].read();
 
         context.pendingLocal.sub(newOrder);
         if (!versionTo.valid) newOrder.invalidate();
@@ -658,6 +676,7 @@ contract Market is IMarket, Instance, ReentrancyGuard {
         (settlementContext.latestCheckpoint, accumulationResult) = CheckpointLib.accumulate(
             settlementContext.latestCheckpoint,
             newOrder,
+            newIntent,
             context.latestPositionLocal,
             versionFrom,
             versionTo

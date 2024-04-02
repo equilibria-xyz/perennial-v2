@@ -9,6 +9,7 @@ import "../types/Local.sol";
 import "../types/Order.sol";
 import "../types/Version.sol";
 import "../types/Checkpoint.sol";
+import "../types/Intent.sol";
 
 struct CheckpointAccumulationResult {
     Fixed6 collateral;
@@ -35,13 +36,14 @@ library CheckpointLib {
     function accumulate(
         Checkpoint memory self,
         Order memory order,
+        Intent memory intent,
         Position memory fromPosition,
         Version memory fromVersion,
         Version memory toVersion
     ) external pure returns (Checkpoint memory next, CheckpointAccumulationResult memory result) {
         // accumulate
         result.collateral = _accumulateCollateral(fromPosition, fromVersion, toVersion);
-        result.priceOverride = _accumulatePriceOverride(order, toVersion);
+        result.priceOverride = _accumulatePriceOverride(intent, toVersion);
         (result.linearFee, result.subtractiveFee) = _accumulateLinearFee(order, toVersion);
         result.proportionalFee = _accumulateProportionalFee(order, toVersion);
         result.adiabaticFee = _accumulateAdiabaticFee(order, toVersion);
@@ -141,19 +143,19 @@ library CheckpointLib {
     function _accumulateLiquidationFee(
         Order memory order,
         Version memory toVersion
-    ) private pure returns (UFixed6 liquidationFee) {
-        if (order.protected())
-            return toVersion.liquidationFee.accumulated(Accumulator6(Fixed6Lib.ZERO), UFixed6Lib.ONE).abs();
+    ) private pure returns (UFixed6) {
+        if (!order.protected()) return UFixed6Lib.ZERO;
+        return toVersion.liquidationFee.accumulated(Accumulator6(Fixed6Lib.ZERO), UFixed6Lib.ONE).abs();
     }
 
     /// @notice Accumulate price override pnl for the next position
-    /// @param order The next order
+    /// @param intent The next intent
     /// @param toVersion The next version
     function _accumulatePriceOverride(
-        Order memory order,
+        Intent memory intent,
         Version memory toVersion
-    ) private pure returns (Fixed6 priceOverride) {
-        if (toVersion.valid)
-            return order.overrideMagnitude.mul(toVersion.price).sub(order.overrideNotional);
+    ) private pure returns (Fixed6) {
+        if (!toVersion.valid) return Fixed6Lib.ZERO;
+        return intent.taker().mul(toVersion.price).sub(intent.notional);
     }
 }
