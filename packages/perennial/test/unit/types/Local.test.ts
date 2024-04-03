@@ -37,7 +37,7 @@ describe('Local', () => {
       collateral: 2,
       claimable: 3,
     }
-    it('stores a new value', async () => {
+    it.only('stores a new value', async () => {
       await local.store(VALID_STORED_VALUE)
 
       const value = await local.read()

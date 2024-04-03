@@ -11,6 +11,7 @@ import "./OracleVersion.sol";
 import "./Order.sol";
 import "./Checkpoint.sol";
 import "../libs/CheckpointLib.sol";
+import "hardhat/console.sol";
 
 /// @dev Local type
 struct Local {
@@ -88,6 +89,10 @@ library LocalStorageLib {
         );
     }
 
+    struct Test {
+        uint256 encoded0;
+    }
+
     function store(LocalStorage storage self, Local memory newValue) internal {
         if (newValue.currentId > uint256(type(uint32).max)) revert LocalStorageInvalidError();
         if (newValue.latestId > uint256(type(uint32).max)) revert LocalStorageInvalidError();
@@ -95,14 +100,72 @@ library LocalStorageLib {
         if (newValue.collateral.lt(Fixed6.wrap(type(int64).min))) revert LocalStorageInvalidError();
         if (newValue.claimable.gt(UFixed6.wrap(type(uint64).max))) revert LocalStorageInvalidError();
 
-        uint256 encoded0 =
-            uint256(newValue.currentId << (256 - 32)) >> (256 - 32) |
-            uint256(newValue.latestId << (256 - 32)) >> (256 - 32 - 32) |
-            uint256(Fixed6.unwrap(newValue.collateral) << (256 - 64)) >> (256 - 32 - 32 - 64) |
-            uint256(UFixed6.unwrap(newValue.claimable) << (256 - 64)) >> (256 - 32 - 32 - 64 - 64);
+        // uint256 encoded0 =
+        //     uint256(newValue.currentId << (256 - 32)) >> (256 - 32) |
+        //     uint256(newValue.latestId << (256 - 32)) >> (256 - 32 - 32) |
+        //     uint256(Fixed6.unwrap(newValue.collateral) << (256 - 64)) >> (256 - 32 - 32 - 64) |
+        //     uint256(UFixed6.unwrap(newValue.claimable) << (256 - 64)) >> (256 - 32 - 32 - 64 - 64);
+
+        Test memory test;
+        console.logBytes32(bytes32(test.encoded0));
+
+        // bytes32 testLoc; bytes32 newValueLoc;
+
+        // assembly {
+        //     testLoc := test
+        //     newValueLoc := newValue
+        // }
+
+        // console.logBytes32(testLoc);
+        // console.logBytes32(newValueLoc);
+
+        // bytes32 mem0; bytes32 mem1; bytes32 mem2; bytes32 mem3; bytes32 mem4; bytes32 mem5; bytes32 mem6; bytes32 mem7;
+
+        // assembly {
+        //     mem0 := mload(0x80)
+        //     mem1 := mload(0x100)
+        //     mem2 := mload(0x120)
+        //     mem3 := mload(0x140)
+        //     mem4 := mload(0x160)
+        //     mem5 := mload(0x180)
+        // }
+
+        // console.logBytes32(mem0);
+        // console.logBytes32(mem1);
+        // console.logBytes32(mem2);
+        // console.logBytes32(mem3);
+        // console.logBytes32(mem4);
+        // console.logBytes32(mem5);
+        // console.logBytes32(mem6);
+        // console.logBytes32(mem7);
+
+        // assembly {
+        //     testLoc := test
+        //     newValueLoc := newValue
+        // }
+
+        // console.logBytes32(testLoc);
+        // console.logBytes32(newValueLoc);
+
+        uint256 encoded0 = encode(newValue).encoded0;
+
+        // assembly {
+        //     mcopy(add(test, 16), add(newValue, 28), 4)  // 0 -> 4   / 28 -> 32
+        //     mcopy(add(test, 8), add(newValue, 60), 4)   // 4 -> 8   / 60 -> 64
+        //     mcopy(add(test, 4), add(newValue, 88), 8)   // 8 -> 16  / 88 -> 96
+        //     mcopy(add(test, 0), add(newValue, 120), 8)  // 16-> 24  / 120 -> 128
+        // }
+
+        console.log(encoded0);
 
         assembly {
             sstore(self.slot, encoded0)
+        }
+    }
+
+    function encode(Local memory newValue) private pure returns (Test memory test) {
+        assembly {
+            mcopy(test, newValue, 32)  // 0 -> 4   / 28 -> 32
         }
     }
 }
