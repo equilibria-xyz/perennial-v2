@@ -16,26 +16,11 @@ contract VersionTester {
     }
 
     function accumulate(
-        Global memory global,
-        Position memory fromPosition,
-        Order memory order,
-        OracleVersion memory fromOracleVersion,
-        OracleVersion memory toOracleVersion,
-        MarketParameter memory marketParameter,
-        RiskParameter memory riskParameter
+        VersionAccumulationContext memory context
     ) external returns (Global memory nextGlobal, VersionAccumulationResult memory values) {
         Version memory newVersion = version.read();
 
-        (newVersion, nextGlobal, values) = VersionLib.accumulate(
-            newVersion,
-            global,
-            fromPosition,
-            order,
-            fromOracleVersion,
-            toOracleVersion,
-            marketParameter,
-            riskParameter
-        );
+        (newVersion, nextGlobal, values) = VersionLib.accumulate(newVersion, context);
 
         version.store(newVersion);
     }

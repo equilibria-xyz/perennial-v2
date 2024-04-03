@@ -44,10 +44,10 @@ library CheckpointLib {
         // accumulate
         result.collateral = _accumulateCollateral(fromPosition, fromVersion, toVersion);
         result.priceOverride = _accumulatePriceOverride(intent, toVersion);
-        (result.linearFee, result.subtractiveFee) = _accumulateLinearFee(order, toVersion);
-        result.proportionalFee = _accumulateProportionalFee(order, toVersion);
-        result.adiabaticFee = _accumulateAdiabaticFee(order, toVersion);
-        result.settlementFee = _accumulateSettlementFee(order, toVersion);
+        (result.linearFee, result.subtractiveFee) = _accumulateLinearFee(order, intent, toVersion);
+        result.proportionalFee = _accumulateProportionalFee(order, intent, toVersion);
+        result.adiabaticFee = _accumulateAdiabaticFee(order, intent, toVersion);
+        result.settlementFee = _accumulateSettlementFee(order, intent, toVersion);
         result.liquidationFee = _accumulateLiquidationFee(order, toVersion);
 
         // update checkpoint
@@ -79,22 +79,26 @@ library CheckpointLib {
 
     /// @notice Accumulate trade fees for the next position
     /// @param order The next order
+    /// @param intent The next intent
     /// @param toVersion The next version
     function _accumulateLinearFee(
         Order memory order,
+        Intent memory intent,
         Version memory toVersion
     ) private pure returns (Fixed6 linearFee, UFixed6 subtractiveFee) {
+        UFixed6 takerTotal = order.takerTotal().sub(intent.takerTotal());
+
         Fixed6 makerLinearFee = Fixed6Lib.ZERO
             .sub(toVersion.makerLinearFee.accumulated(Accumulator6(Fixed6Lib.ZERO), order.makerTotal()));
         Fixed6 takerLinearFee = Fixed6Lib.ZERO
-            .sub(toVersion.takerLinearFee.accumulated(Accumulator6(Fixed6Lib.ZERO), order.takerTotal()));
+            .sub(toVersion.takerLinearFee.accumulated(Accumulator6(Fixed6Lib.ZERO), takerTotal));
 
         UFixed6 makerSubtractiveFee = order.makerTotal().isZero() ?
             UFixed6Lib.ZERO :
             UFixed6Lib.from(makerLinearFee).muldiv(order.makerReferral, order.makerTotal());
-        UFixed6 takerSubtractiveFee = order.takerTotal().isZero() ?
+        UFixed6 takerSubtractiveFee = takerTotal.isZero() ?
             UFixed6Lib.ZERO :
-            UFixed6Lib.from(takerLinearFee).muldiv(order.takerReferral, order.takerTotal());
+            UFixed6Lib.from(takerLinearFee).muldiv(order.takerReferral, takerTotal);
 
         linearFee = makerLinearFee.add(takerLinearFee);
         subtractiveFee = makerSubtractiveFee.add(takerSubtractiveFee);
@@ -102,39 +106,52 @@ library CheckpointLib {
 
     /// @notice Accumulate trade fees for the next position
     /// @param order The next order
+    /// @param intent The next intent
     /// @param toVersion The next version
     function _accumulateProportionalFee(
         Order memory order,
+        Intent memory intent,
         Version memory toVersion
     ) private pure returns (Fixed6) {
+        UFixed6 takerTotal = order.takerTotal().sub(intent.takerTotal());
+
         return Fixed6Lib.ZERO
             .sub(toVersion.makerProportionalFee.accumulated(Accumulator6(Fixed6Lib.ZERO), order.makerTotal()))
-            .sub(toVersion.takerProportionalFee.accumulated(Accumulator6(Fixed6Lib.ZERO), order.takerTotal()));
+            .sub(toVersion.takerProportionalFee.accumulated(Accumulator6(Fixed6Lib.ZERO), takerTotal));
     }
 
     /// @notice Accumulate adiabatic fees for the next position
     /// @param order The next order
+    /// @param intent The next intent
     /// @param toVersion The next version
     function _accumulateAdiabaticFee(
         Order memory order,
+        Intent memory intent,
         Version memory toVersion
     ) private pure returns (Fixed6) {
+        (UFixed6 takerPos, UFixed6 takerNeg) =
+            (order.takerPos().sub(intent.takerPos), order.takerNeg().sub(intent.takerNeg));
+
         return Fixed6Lib.ZERO
             .sub(toVersion.makerPosFee.accumulated(Accumulator6(Fixed6Lib.ZERO), order.makerPos))
             .sub(toVersion.makerNegFee.accumulated(Accumulator6(Fixed6Lib.ZERO), order.makerNeg))
-            .sub(toVersion.takerPosFee.accumulated(Accumulator6(Fixed6Lib.ZERO), order.takerPos()))
-            .sub(toVersion.takerNegFee.accumulated(Accumulator6(Fixed6Lib.ZERO), order.takerNeg()));
+            .sub(toVersion.takerPosFee.accumulated(Accumulator6(Fixed6Lib.ZERO), takerPos))
+            .sub(toVersion.takerNegFee.accumulated(Accumulator6(Fixed6Lib.ZERO), takerNeg));
     }
 
 
     /// @notice Accumulate settlement fees for the next position
     /// @param order The next order
+    /// @param intent The next intent
     /// @param toVersion The next version
     function _accumulateSettlementFee(
         Order memory order,
+        Intent memory intent,
         Version memory toVersion
     ) private pure returns (UFixed6) {
-        return toVersion.settlementFee.accumulated(Accumulator6(Fixed6Lib.ZERO), UFixed6Lib.from(order.orders)).abs();
+        uint256 orders = order.orders - intent.intents;
+
+        return toVersion.settlementFee.accumulated(Accumulator6(Fixed6Lib.ZERO), UFixed6Lib.from(orders)).abs();
     }
 
     /// @notice Accumulate liquidation fees for the next position

@@ -42,9 +42,15 @@ library IntentLib {
     /// @notice Creates a new intent from an order
     /// @param order The order to create the intent from
     /// @param priceOverride The price override
+    /// @param settlementFee Whether the intent will still be charged the settlement fee
     /// @return newIntent The resulting intent
-    function from(Order memory order, Fixed6 priceOverride) internal pure returns (Intent memory newIntent) {
-        if (!order.takerTotal().isZero()) newIntent.intents = order.orders;
+    function from(
+        Order memory order,
+        Fixed6 priceOverride,
+        bool settlementFee
+    ) internal pure returns (Intent memory newIntent) {
+        // maker orders and one intent per fill will be required to pay the settlement fee
+        if (!order.takerTotal().isZero() && !settlementFee) newIntent.intents = order.orders;
 
         (newIntent.takerPos, newIntent.takerNeg) =
             (order.longPos.add(order.shortNeg), order.longNeg.add(order.shortPos));
