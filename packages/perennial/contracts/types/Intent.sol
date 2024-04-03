@@ -44,11 +44,10 @@ library IntentLib {
     /// @param priceOverride The price override
     /// @return newIntent The resulting intent
     function from(Order memory order, Fixed6 priceOverride) internal pure returns (Intent memory newIntent) {
-        // zero price indicates no price override, maker orders cannot have a price override
-        if (priceOverride.isZero() || !order.makerTotal().isZero()) return newIntent;
+        if (!order.takerTotal().isZero()) newIntent.intents = order.orders;
 
-        (newIntent.intents, newIntent.takerPos, newIntent.takerNeg) =
-            (order.orders, order.longPos.add(order.shortNeg), order.longNeg.add(order.shortPos));
+        (newIntent.takerPos, newIntent.takerNeg) =
+            (order.longPos.add(order.shortNeg), order.longNeg.add(order.shortPos));
 
         newIntent.notional = taker(newIntent).mul(priceOverride);
     }

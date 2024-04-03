@@ -193,30 +193,6 @@ describe('Intent', () => {
           notional: 0,
         })
       })
-
-      it('generates correct intent (taker, zero price)', async () => {
-        await intentLocal.from({ ...DEFAULT_ORDER, orders: 1, longPos: parse6decimal('10') }, parse6decimal('0'))
-        const newIntent = await intentLocal.read()
-
-        expectIntentEq(newIntent, {
-          intents: 0,
-          takerPos: 0,
-          takerNeg: 0,
-          notional: 0,
-        })
-      })
-
-      it('generates correct intent (maker, zero price)', async () => {
-        await intentLocal.from({ ...DEFAULT_ORDER, orders: 1, makerPos: parse6decimal('10') }, parse6decimal('0'))
-        const newIntent = await intentLocal.read()
-
-        expectIntentEq(newIntent, {
-          intents: 0,
-          takerPos: 0,
-          takerNeg: 0,
-          notional: 0,
-        })
-      })
     })
   })
 

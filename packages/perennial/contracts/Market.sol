@@ -142,11 +142,36 @@ contract Market is IMarket, Instance, ReentrancyGuard {
         bool protect,
         address referrer
     ) public nonReentrant whenNotPaused {
+        // settle market & account
         Context memory context = _loadContext(account);
-
         _settle(context, account);
-        _update(context, account, newMaker, newLong, newShort, collateral, protect, referrer);
 
+        // load update context
+        UpdateContext memory updateContext = _loadUpdateContext(context, account, referrer);
+
+        // magic values
+        collateral = _processCollateralMagicValue(context, collateral);
+        newMaker = _processPositionMagicValue(context, updateContext.currentPositionLocal.maker, newMaker);
+        newLong = _processPositionMagicValue(context, updateContext.currentPositionLocal.long, newLong);
+        newShort = _processPositionMagicValue(context, updateContext.currentPositionLocal.short, newShort);
+
+        // create new order & intent
+        Order memory newOrder = OrderLib.from(
+            context.currentTimestamp,
+            updateContext.currentPositionLocal,
+            collateral,
+            newMaker,
+            newLong,
+            newShort,
+            protect,
+            _processReferralFee(context, updateContext, referrer)
+        );
+        Intent memory newIntent; // no intent is created for a market order
+
+        // process update
+        _update(context, updateContext, account, newOrder, newIntent, referrer);
+
+        // store updated state
         _storeContext(context, account);
 
         emit Updated(msg.sender, account, context.currentTimestamp, newMaker, newLong, newShort, collateral, protect, referrer);
@@ -409,53 +434,6 @@ contract Market is IMarket, Instance, ReentrancyGuard {
         // external actors
         liquidators[account][context.local.currentId] = updateContext.liquidator;
         referrers[account][context.local.currentId] = updateContext.referrer;
-    }
-
-    /// @notice Updates the current position with a new absolute position
-    /// @param context The context to use
-    /// @param account The account to update
-    /// @param newMaker The new maker position size
-    /// @param newLong The new long position size
-    /// @param newShort The new short position size
-    /// @param collateral The change in collateral
-    /// @param protect Whether to protect the position for liquidation
-    function _update(
-        Context memory context,
-        address account,
-        UFixed6 newMaker,
-        UFixed6 newLong,
-        UFixed6 newShort,
-        Fixed6 collateral,
-        bool protect,
-        address referrer
-    ) private {
-        // load
-        UpdateContext memory updateContext = _loadUpdateContext(context, account, referrer);
-
-        // magic values
-        collateral = _processCollateralMagicValue(context, collateral);
-        newMaker = _processPositionMagicValue(context, updateContext.currentPositionLocal.maker, newMaker);
-        newLong = _processPositionMagicValue(context, updateContext.currentPositionLocal.long, newLong);
-        newShort = _processPositionMagicValue(context, updateContext.currentPositionLocal.short, newShort);
-
-        // referral fee
-        UFixed6 referralFee = _processReferralFee(context, updateContext, referrer);
-
-        // create new order
-        Order memory newOrder = OrderLib.from(
-            context.currentTimestamp,
-            updateContext.currentPositionLocal,
-            collateral,
-            newMaker,
-            newLong,
-            newShort,
-            protect,
-            referralFee
-        );
-
-        Intent memory newIntent = IntentLib.from(newOrder, Fixed6Lib.ZERO);
-
-        _update(context, updateContext, account, newOrder, newIntent, referrer);
     }
 
     /// @notice Updates the current position with a new order
