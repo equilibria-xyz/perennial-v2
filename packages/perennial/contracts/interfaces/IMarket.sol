@@ -13,6 +13,7 @@ import "../types/Local.sol";
 import "../types/Global.sol";
 import "../types/Position.sol";
 import "../types/Checkpoint.sol";
+import "../types/Intent.sol";
 import "../libs/VersionLib.sol";
 
 interface IMarket is IInstance {
@@ -50,6 +51,8 @@ interface IMarket is IInstance {
         Order orderLocal;
         Position currentPositionGlobal;
         Position currentPositionLocal;
+        Intent intentGlobal;
+        Intent intentLocal;
     }
 
     event Updated(address indexed sender, address indexed account, uint256 version, UFixed6 newMaker, UFixed6 newLong, UFixed6 newShort, Fixed6 collateral, bool protect, address referrer);
@@ -123,11 +126,13 @@ interface IMarket is IInstance {
     function payoff() external view returns (address);
     function positions(address account) external view returns (Position memory);
     function pendingOrders(address account, uint256 id) external view returns (Order memory);
+    function intents(address account, uint256 id) external view returns (Intent memory);
     function pendings(address account) external view returns (Order memory);
     function locals(address account) external view returns (Local memory);
     function versions(uint256 timestamp) external view returns (Version memory);
     function position() external view returns (Position memory);
     function pendingOrder(uint256 id) external view returns (Order memory);
+    function intent(uint256 id) external view returns (Intent memory);
     function pending() external view returns (Order memory);
     function global() external view returns (Global memory);
     function checkpoints(address account, uint256 id) external view returns (Checkpoint memory);

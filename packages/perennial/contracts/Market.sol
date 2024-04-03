@@ -81,6 +81,12 @@ contract Market is IMarket, Instance, ReentrancyGuard {
     /// @dev The referrer for each id for each account
     mapping(address => mapping(uint256 => address)) public referrers;
 
+    /// @dev The global pending intent for each id
+    mapping(uint256 => IntentStorageGlobal) private _intent;
+
+    /// @dev The local pending intent for each id for each account
+    mapping(address => mapping(uint256 => IntentStorageLocal)) private _intents;
+
     /// @notice Initializes the contract state
     /// @param definition_ The market definition
     function initialize(IMarket.MarketDefinition calldata definition_) external initializer(1) {
@@ -136,12 +142,39 @@ contract Market is IMarket, Instance, ReentrancyGuard {
         bool protect,
         address referrer
     ) public nonReentrant whenNotPaused {
+        // settle market & account
         Context memory context = _loadContext(account);
-
         _settle(context, account);
-        _update(context, account, newMaker, newLong, newShort, collateral, protect, referrer);
 
+        // load update context
+        UpdateContext memory updateContext = _loadUpdateContext(context, account, referrer);
+
+        // magic values
+        collateral = _processCollateralMagicValue(context, collateral);
+        newMaker = _processPositionMagicValue(context, updateContext.currentPositionLocal.maker, newMaker);
+        newLong = _processPositionMagicValue(context, updateContext.currentPositionLocal.long, newLong);
+        newShort = _processPositionMagicValue(context, updateContext.currentPositionLocal.short, newShort);
+
+        // create new order & intent
+        Order memory newOrder = OrderLib.from(
+            context.currentTimestamp,
+            updateContext.currentPositionLocal,
+            collateral,
+            newMaker,
+            newLong,
+            newShort,
+            protect,
+            _processReferralFee(context, updateContext, referrer)
+        );
+        Intent memory newIntent; // no intent is created for a market order
+
+        // process update
+        _update(context, updateContext, account, newOrder, newIntent, referrer);
+
+        // store updated state
         _storeContext(context, account);
+
+        emit Updated(msg.sender, account, context.currentTimestamp, newMaker, newLong, newShort, collateral, protect, referrer);
     }
 
     /// @notice Updates the beneficiary, coordinator, and parameter set of the market
@@ -285,6 +318,19 @@ contract Market is IMarket, Instance, ReentrancyGuard {
         return _pendingOrders[account][id].read();
     }
 
+    /// @notice Returns the global pending intent for the given id
+    /// @param id The id to query
+    function intent(uint256 id) external view returns (Intent memory) {
+        return _intent[id].read();
+    }
+
+    /// @notice Returns the local pending intent for the given account and id
+    /// @param account The account to query
+    /// @param id The id to query
+    function intents(address account, uint256 id) external view returns (Intent memory) {
+        return _intents[account][id].read();
+    }
+
     /// @notice Returns the aggregate global pending order
     function pending() external view returns (Order memory) {
         return _pending.read();
@@ -364,6 +410,8 @@ contract Market is IMarket, Instance, ReentrancyGuard {
         // load current order
         updateContext.orderGlobal = _pendingOrder[context.global.currentId].read();
         updateContext.orderLocal = _pendingOrders[account][context.local.currentId].read();
+        updateContext.intentGlobal = _intent[context.global.currentId].read();
+        updateContext.intentLocal = _intents[account][context.local.currentId].read();
 
         // load external actors
         updateContext.operator = IMarketFactory(address(factory())).operators(account, msg.sender);
@@ -380,63 +428,42 @@ contract Market is IMarket, Instance, ReentrancyGuard {
         // current orders
         _pendingOrder[context.global.currentId].store(updateContext.orderGlobal);
         _pendingOrders[account][context.local.currentId].store(updateContext.orderLocal);
+        _intent[context.global.currentId].store(updateContext.intentGlobal);
+        _intents[account][context.local.currentId].store(updateContext.intentLocal);
 
         // external actors
         liquidators[account][context.local.currentId] = updateContext.liquidator;
         referrers[account][context.local.currentId] = updateContext.referrer;
     }
 
-    /// @notice Updates the current position
+    /// @notice Updates the current position with a new order
     /// @param context The context to use
+    /// @param updateContext The update context to use
     /// @param account The account to update
-    /// @param newMaker The new maker position size
-    /// @param newLong The new long position size
-    /// @param newShort The new short position size
-    /// @param collateral The change in collateral
-    /// @param protect Whether to protect the position for liquidation
+    /// @param newOrder The new order to apply
+    /// @param newIntent The new intent to apply
+    /// @param referrer The referrer of the order
     function _update(
         Context memory context,
+        UpdateContext memory updateContext,
         address account,
-        UFixed6 newMaker,
-        UFixed6 newLong,
-        UFixed6 newShort,
-        Fixed6 collateral,
-        bool protect,
+        Order memory newOrder,
+        Intent memory newIntent,
         address referrer
     ) private notSettleOnly(context) {
-        // load
-        UpdateContext memory updateContext = _loadUpdateContext(context, account, referrer);
-
-        // magic values
-        collateral = _processCollateralMagicValue(context, collateral);
-        newMaker = _processPositionMagicValue(context, updateContext.currentPositionLocal.maker, newMaker);
-        newLong = _processPositionMagicValue(context, updateContext.currentPositionLocal.long, newLong);
-        newShort = _processPositionMagicValue(context, updateContext.currentPositionLocal.short, newShort);
-
-        // referral fee
-        UFixed6 referralFee = _processReferralFee(context, updateContext, referrer);
-
         // advance to next id if applicable
         if (context.currentTimestamp > updateContext.orderLocal.timestamp) {
             updateContext.orderLocal.next(context.currentTimestamp);
+            updateContext.intentLocal.next();
             context.local.currentId++;
         }
         if (context.currentTimestamp > updateContext.orderGlobal.timestamp) {
             updateContext.orderGlobal.next(context.currentTimestamp);
+            updateContext.intentGlobal.next();
             context.global.currentId++;
         }
 
         // update current position
-        Order memory newOrder = OrderLib.from(
-            context.currentTimestamp,
-            updateContext.currentPositionLocal,
-            collateral,
-            newMaker,
-            newLong,
-            newShort,
-            protect,
-            referralFee
-        );
         updateContext.currentPositionGlobal.update(newOrder);
         updateContext.currentPositionLocal.update(newOrder);
 
@@ -445,9 +472,11 @@ contract Market is IMarket, Instance, ReentrancyGuard {
         updateContext.orderGlobal.add(newOrder);
         context.pendingGlobal.add(newOrder);
         context.pendingLocal.add(newOrder);
+        updateContext.intentGlobal.add(newIntent);
+        updateContext.intentLocal.add(newIntent);
 
         // update collateral
-        context.local.update(collateral);
+        context.local.update(newOrder.collateral);
 
         // protect account
         if (newOrder.protected()) updateContext.liquidator = msg.sender;
@@ -459,17 +488,16 @@ contract Market is IMarket, Instance, ReentrancyGuard {
         if (!newOrder.isEmpty()) oracle.request(IMarket(this), account);
 
         // after
-        InvariantLib.validate(context, updateContext, msg.sender, account, newOrder, collateral);
+        InvariantLib.validate(context, updateContext, msg.sender, account, newOrder);
 
         // store
         _storeUpdateContext(context, updateContext, account);
 
         // fund
-        if (collateral.sign() == 1) token.pull(msg.sender, UFixed18Lib.from(collateral.abs()));
-        if (collateral.sign() == -1) token.push(msg.sender, UFixed18Lib.from(collateral.abs()));
+        if (newOrder.collateral.sign() == 1) token.pull(msg.sender, UFixed18Lib.from(newOrder.collateral.abs()));
+        if (newOrder.collateral.sign() == -1) token.push(msg.sender, UFixed18Lib.from(newOrder.collateral.abs()));
 
         // events
-        emit Updated(msg.sender, account, context.currentTimestamp, newMaker, newLong, newShort, collateral, protect, referrer);
         emit OrderCreated(account, newOrder);
     }
 
@@ -593,7 +621,7 @@ contract Market is IMarket, Instance, ReentrancyGuard {
         OracleVersion memory oracleVersion = oracle.at(newOrder.timestamp);
 
         context.pendingGlobal.sub(newOrder);
-        if (!oracleVersion.valid) newOrder.invalidate();
+        if (!oracleVersion.valid) newOrder.invalidate(); // TODO: invalidate newIntent
 
         VersionAccumulationResult memory accumulationResult;
         (settlementContext.latestVersion, context.global, accumulationResult) = VersionLib.accumulate(
@@ -630,14 +658,19 @@ contract Market is IMarket, Instance, ReentrancyGuard {
     ) private {
         Version memory versionFrom = _versions[context.latestPositionLocal.timestamp].read();
         Version memory versionTo = _versions[newOrder.timestamp].read();
+        Intent memory newIntent = _intents[account][newOrderId].read();
 
         context.pendingLocal.sub(newOrder);
-        if (!versionTo.valid) newOrder.invalidate();
+        if (!versionTo.valid) {
+            newOrder.invalidate();
+            newIntent.invalidate();
+        }
 
         CheckpointAccumulationResult memory accumulationResult;
         (settlementContext.latestCheckpoint, accumulationResult) = CheckpointLib.accumulate(
             settlementContext.latestCheckpoint,
             newOrder,
+            newIntent,
             context.latestPositionLocal,
             versionFrom,
             versionTo

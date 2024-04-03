@@ -14,6 +14,9 @@ struct Version {
     /// @dev whether this version had a valid oracle price
     bool valid;
 
+    /// @dev The price of the version
+    Fixed6 price;
+
     /// @dev The maker accumulator value
     Accumulator6 makerValue;
 
@@ -78,6 +81,7 @@ using VersionStorageLib for VersionStorage global;
 ///         int48 makerProportionalFee;
 ///         int48 takerLinearFee;
 ///         int48 takerProportionalFee;
+///         int64 price;
 ///     }
 ///
 library VersionStorageLib {
@@ -88,6 +92,7 @@ library VersionStorageLib {
         (uint256 slot0, uint256 slot1, uint256 slot2) = (self.slot0, self.slot1, self.slot2);
         return Version(
             (uint256(slot0 << (256 - 8)) >> (256 - 8)) != 0,
+            Fixed6.wrap(int256(slot2 << (256 - 48 - 48 - 48 - 48 - 64)) >> (256 - 64)),
             Accumulator6(Fixed6.wrap(int256(slot0 << (256 - 8 - 64)) >> (256 - 64))),
             Accumulator6(Fixed6.wrap(int256(slot0 << (256 - 8 - 64 - 64)) >> (256 - 64))),
             Accumulator6(Fixed6.wrap(int256(slot0 << (256 - 8 - 64 - 64 - 64)) >> (256 - 64))),
@@ -108,6 +113,8 @@ library VersionStorageLib {
     }
 
     function store(VersionStorage storage self, Version memory newValue) external {
+        if (newValue.price.gt(Fixed6.wrap(type(int64).max))) revert VersionStorageInvalidError();
+        if (newValue.price.lt(Fixed6.wrap(type(int64).min))) revert VersionStorageInvalidError();
         if (newValue.makerValue._value.gt(Fixed6.wrap(type(int64).max))) revert VersionStorageInvalidError();
         if (newValue.makerValue._value.lt(Fixed6.wrap(type(int64).min))) revert VersionStorageInvalidError();
         if (newValue.longValue._value.gt(Fixed6.wrap(type(int64).max))) revert VersionStorageInvalidError();
@@ -151,7 +158,8 @@ library VersionStorageLib {
             uint256(Fixed6.unwrap(newValue.makerLinearFee._value) << (256 - 48)) >> (256 - 48) |
             uint256(Fixed6.unwrap(newValue.makerProportionalFee._value) << (256 - 48)) >> (256 - 48 - 48) |
             uint256(Fixed6.unwrap(newValue.takerLinearFee._value) << (256 - 48)) >> (256 - 48 - 48 - 48) |
-            uint256(Fixed6.unwrap(newValue.takerProportionalFee._value) << (256 - 48)) >> (256 - 48 - 48 - 48 - 48);
+            uint256(Fixed6.unwrap(newValue.takerProportionalFee._value) << (256 - 48)) >> (256 - 48 - 48 - 48 - 48) |
+            uint256(Fixed6.unwrap(newValue.price) << (256 - 64)) >> (256 - 48 - 48 - 48 - 48 - 64);
 
         assembly {
             sstore(self.slot, encoded0)

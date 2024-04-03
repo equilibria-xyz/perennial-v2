@@ -37,7 +37,7 @@ struct Order {
     /// @dev The negative skew short order size
     UFixed6 shortNeg;
 
-    /// @dev The protection status semaphore
+    /// @dev The protection status semaphore (local only)
     uint256 protection;
 
     /// @dev The referral fee

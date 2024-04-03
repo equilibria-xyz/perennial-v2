@@ -16,16 +16,16 @@ import "../types/Checkpoint.sol";
 library InvariantLib {
     /// @notice Verifies the invariant of the market
     /// @param context The context to use
+    /// @param updateContext The update context to use
+    /// @param sender The sender of the transaction
     /// @param account The account to verify the invariant for
     /// @param newOrder The order to verify the invariant for
-    /// @param collateral The collateral change to verify the invariant for
     function validate(
         IMarket.Context memory context,
         IMarket.UpdateContext memory updateContext,
         address sender,
         address account,
-        Order memory newOrder,
-        Fixed6 collateral
+        Order memory newOrder
     ) external pure {
         if (context.pendingLocal.neg().gt(context.latestPositionLocal.magnitude())) revert IMarket.MarketOverCloseError();
 
@@ -34,15 +34,15 @@ library InvariantLib {
             context.latestPositionLocal.maintained(
                 context.latestOracleVersion,
                 context.riskParameter,
-                context.local.collateral.sub(collateral)
+                context.local.collateral.sub(newOrder.collateral)
             ) ||
-            collateral.lt(Fixed6Lib.ZERO) ||
+            newOrder.collateral.lt(Fixed6Lib.ZERO) ||
             newOrder.magnitude().gte(Fixed6Lib.ZERO)
         )) revert IMarket.MarketInvalidProtectionError();
 
         if (
-            !(updateContext.currentPositionLocal.magnitude().isZero() && context.latestPositionLocal.magnitude().isZero()) &&     // sender has no position
-            !(newOrder.isEmpty() && collateral.gte(Fixed6Lib.ZERO)) &&                                                              // sender is depositing zero or more into account, without position change
+            !(updateContext.currentPositionLocal.magnitude().isZero() && context.latestPositionLocal.magnitude().isZero()) &&       // sender has no position
+            !(newOrder.isEmpty() && newOrder.collateral.gte(Fixed6Lib.ZERO)) &&                                                     // sender is depositing zero or more into account, without position change
             (context.currentTimestamp - context.latestOracleVersion.timestamp >= context.riskParameter.staleAfter)                  // price is not stale
         ) revert IMarket.MarketStalePriceError();
 
@@ -65,9 +65,9 @@ library InvariantLib {
         if (newOrder.protected()) return; // The following invariants do not apply to protected position updates (liquidations)
 
         if (
-            sender != account &&                                    // sender is operating on own account
-            !updateContext.operator &&                                  // sender is operator approved for account
-            !(newOrder.isEmpty() && collateral.gte(Fixed6Lib.ZERO))     // sender is depositing zero or more into account, without position change
+            sender != account &&                                                // sender is operating on own account
+            !updateContext.operator &&                                          // sender is operator approved for account
+            !(newOrder.isEmpty() && newOrder.collateral.gte(Fixed6Lib.ZERO))    // sender is depositing zero or more into account, without position change
         ) revert IMarket.MarketOperatorNotAllowedError();
 
         if (
@@ -99,7 +99,7 @@ library InvariantLib {
             newOrder.decreasesLiquidity(updateContext.currentPositionGlobal)
         ) revert IMarket.MarketInsufficientLiquidityError();
 
-        if (collateral.lt(Fixed6Lib.ZERO) && context.local.collateral.lt(Fixed6Lib.ZERO))
+        if (newOrder.collateral.lt(Fixed6Lib.ZERO) && context.local.collateral.lt(Fixed6Lib.ZERO))
             revert IMarket.MarketInsufficientCollateralError();
     }
 }

@@ -215,7 +215,7 @@ describe('Order', () => {
       orderLocal = await new OrderLocalTester__factory(owner).deploy()
     })
 
-    describe('common behavoir', () => {
+    describe('common behavior', () => {
       shouldBehaveLike(() => ({ order: orderLocal, validStoredOrder: VALID_STORED_ORDER }))
     })
 

@@ -49,6 +49,7 @@ library LocalLib {
             .add(accumulation.adiabaticFee);
         self.collateral = self.collateral
             .add(accumulation.collateral)
+            .add(accumulation.priceOverride)
             .sub(tradeFee)
             .sub(Fixed6Lib.from(accumulation.settlementFee))
             .sub(Fixed6Lib.from(accumulation.liquidationFee));

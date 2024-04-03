@@ -32,6 +32,10 @@ export const TIMESTAMP_3 = 1631114005
 export const TIMESTAMP_4 = 1631115371
 export const TIMESTAMP_5 = 1631118731
 
+export const PRICE_0 = parse6decimal('113.882975')
+export const PRICE_1 = parse6decimal('113.796498')
+export const PRICE_4 = parse6decimal('117.462552')
+
 describe('Happy Path', () => {
   let instanceVars: InstanceVars
   let riskParameter: RiskParameterStruct
@@ -168,6 +172,7 @@ describe('Happy Path', () => {
     })
     expectVersionEq(await market.versions(TIMESTAMP_0), {
       ...DEFAULT_VERSION,
+      price: PRICE_0,
       liquidationFee: { _value: -riskParameter.liquidationFee },
     })
 
@@ -271,6 +276,7 @@ describe('Happy Path', () => {
     })
     expectVersionEq(await market.versions(TIMESTAMP_0), {
       ...DEFAULT_VERSION,
+      price: PRICE_0,
       liquidationFee: { _value: -riskParameter.liquidationFee },
     })
 
@@ -383,6 +389,7 @@ describe('Happy Path', () => {
     })
     expectVersionEq(await market.versions(TIMESTAMP_1), {
       ...DEFAULT_VERSION,
+      price: PRICE_1,
       liquidationFee: { _value: -riskParameter.liquidationFee },
     })
   })
@@ -451,6 +458,7 @@ describe('Happy Path', () => {
     })
     expectVersionEq(await market.versions(TIMESTAMP_1), {
       ...DEFAULT_VERSION,
+      price: PRICE_1,
       liquidationFee: { _value: -riskParameter.liquidationFee },
     })
   })
@@ -553,6 +561,7 @@ describe('Happy Path', () => {
     })
     expectVersionEq(await market.versions(TIMESTAMP_0), {
       ...DEFAULT_VERSION,
+      price: PRICE_0,
       liquidationFee: { _value: -riskParameter.liquidationFee },
     })
 
@@ -674,6 +683,7 @@ describe('Happy Path', () => {
     })
     expectVersionEq(await market.versions(TIMESTAMP_0), {
       ...DEFAULT_VERSION,
+      price: PRICE_0,
       liquidationFee: { _value: -riskParameter.liquidationFee },
     })
 
@@ -800,6 +810,7 @@ describe('Happy Path', () => {
     })
     expectVersionEq(await market.versions(TIMESTAMP_1), {
       ...DEFAULT_VERSION,
+      price: PRICE_1,
       makerValue: { _value: 0 },
       longValue: { _value: 0 },
       shortValue: { _value: 0 },
@@ -883,6 +894,7 @@ describe('Happy Path', () => {
     })
     expectVersionEq(await market.versions(TIMESTAMP_1), {
       ...DEFAULT_VERSION,
+      price: PRICE_1,
       liquidationFee: { _value: -riskParameter.liquidationFee },
     })
   })
@@ -1129,6 +1141,7 @@ describe('Happy Path', () => {
     })
     expectVersionEq(await market.versions(TIMESTAMP_4), {
       ...DEFAULT_VERSION,
+      price: PRICE_4,
       makerValue: { _value: '-3545883' },
       longValue: { _value: '3620965' },
       shortValue: { _value: 0 },

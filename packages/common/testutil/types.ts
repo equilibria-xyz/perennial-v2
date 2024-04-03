@@ -33,6 +33,13 @@ export interface Order {
   takerReferral: BigNumberish
 }
 
+export interface Intent {
+  intents: BigNumberish
+  takerPos: BigNumberish
+  takerNeg: BigNumberish
+  notional: BigNumberish
+}
+
 export interface Position {
   timestamp: BigNumberish
   maker: BigNumberish
@@ -59,6 +66,7 @@ export interface Local {
 
 export interface Version {
   valid: boolean
+  price: BigNumberish
   makerValue: Accumulator
   longValue: Accumulator
   shortValue: Accumulator
@@ -101,6 +109,13 @@ export function expectOrderEq(a: Order, b: Order): void {
   expect(a.takerReferral).to.equal(b.takerReferral, 'Order:TakerReferral')
 }
 
+export function expectIntentEq(a: Intent, b: Intent): void {
+  expect(a.intents).to.equal(b.intents, 'Order:Intents')
+  expect(a.takerPos).to.equal(b.takerPos, 'Order:TakerPos')
+  expect(a.takerNeg).to.equal(b.takerNeg, 'Order:TakerNeg')
+  expect(a.notional).to.equal(b.notional, 'Order:Notional')
+}
+
 export function expectPositionEq(a: Position, b: Position): void {
   expect(a.timestamp).to.equal(b.timestamp, 'Position:Timestamp')
   expect(a.maker).to.equal(b.maker, 'Position:Maker')
@@ -127,6 +142,7 @@ export function expectLocalEq(a: Local, b: Local): void {
 
 export function expectVersionEq(a: Version, b: Version): void {
   expect(a.valid).to.equal(b.valid, 'Version:Valid')
+  expect(a.price).to.equal(b.price, 'Version:Price')
   expect(a.makerValue._value).to.equal(b.makerValue._value, 'Version:MakerValue')
   expect(a.longValue._value).to.equal(b.longValue._value, 'Version:LongValue')
   expect(a.shortValue._value).to.equal(b.shortValue._value, 'Version:ShortValue')
@@ -216,8 +232,16 @@ export const DEFAULT_ORDER: Order = {
   takerReferral: 0,
 }
 
+export const DEFAULT_INTENT: Intent = {
+  intents: 0,
+  takerPos: 0,
+  takerNeg: 0,
+  notional: 0,
+}
+
 export const DEFAULT_VERSION: Version = {
   valid: true,
+  price: 0,
   makerValue: { _value: 0 },
   longValue: { _value: 0 },
   shortValue: { _value: 0 },
