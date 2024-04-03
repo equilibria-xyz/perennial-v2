@@ -8,8 +8,8 @@ abstract contract IntentTester {
 
     function store(Intent memory newIntent) public virtual;
 
-    function from(Order memory order, Fixed6 price) external {
-        Intent memory newIntent = IntentLib.from(order, price);
+    function from(Order memory order, Fixed6 price, bool settlementFee) external {
+        Intent memory newIntent = IntentLib.from(order, price, settlementFee);
         store(newIntent);
     }
 }

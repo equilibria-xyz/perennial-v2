@@ -123,7 +123,11 @@ describe('Intent', () => {
 
     describe('#from', () => {
       it('generates correct intent (long open)', async () => {
-        await intentLocal.from({ ...DEFAULT_ORDER, orders: 1, longPos: parse6decimal('10') }, parse6decimal('123'))
+        await intentLocal.from(
+          { ...DEFAULT_ORDER, orders: 1, longPos: parse6decimal('10') },
+          parse6decimal('123'),
+          false,
+        )
         const newIntent = await intentLocal.read()
 
         expectIntentEq(newIntent, {
@@ -135,7 +139,11 @@ describe('Intent', () => {
       })
 
       it('generates correct intent (long close)', async () => {
-        await intentLocal.from({ ...DEFAULT_ORDER, orders: 1, longNeg: parse6decimal('10') }, parse6decimal('123'))
+        await intentLocal.from(
+          { ...DEFAULT_ORDER, orders: 1, longNeg: parse6decimal('10') },
+          parse6decimal('123'),
+          false,
+        )
         const newIntent = await intentLocal.read()
 
         expectIntentEq(newIntent, {
@@ -146,8 +154,28 @@ describe('Intent', () => {
         })
       })
 
+      it('generates correct intent (long settlementFee)', async () => {
+        await intentLocal.from(
+          { ...DEFAULT_ORDER, orders: 1, longPos: parse6decimal('10') },
+          parse6decimal('123'),
+          true,
+        )
+        const newIntent = await intentLocal.read()
+
+        expectIntentEq(newIntent, {
+          intents: 0,
+          takerPos: parse6decimal('10'),
+          takerNeg: 0,
+          notional: parse6decimal('1230'),
+        })
+      })
+
       it('generates correct intent (short open)', async () => {
-        await intentLocal.from({ ...DEFAULT_ORDER, orders: 1, shortPos: parse6decimal('10') }, parse6decimal('123'))
+        await intentLocal.from(
+          { ...DEFAULT_ORDER, orders: 1, shortPos: parse6decimal('10') },
+          parse6decimal('123'),
+          false,
+        )
         const newIntent = await intentLocal.read()
 
         expectIntentEq(newIntent, {
@@ -159,7 +187,11 @@ describe('Intent', () => {
       })
 
       it('generates correct intent (short close)', async () => {
-        await intentLocal.from({ ...DEFAULT_ORDER, orders: 1, shortNeg: parse6decimal('10') }, parse6decimal('123'))
+        await intentLocal.from(
+          { ...DEFAULT_ORDER, orders: 1, shortNeg: parse6decimal('10') },
+          parse6decimal('123'),
+          false,
+        )
         const newIntent = await intentLocal.read()
 
         expectIntentEq(newIntent, {
@@ -170,8 +202,28 @@ describe('Intent', () => {
         })
       })
 
+      it('generates correct intent (short settlementFee)', async () => {
+        await intentLocal.from(
+          { ...DEFAULT_ORDER, orders: 1, shortPos: parse6decimal('10') },
+          parse6decimal('123'),
+          true,
+        )
+        const newIntent = await intentLocal.read()
+
+        expectIntentEq(newIntent, {
+          intents: 0,
+          takerPos: 0,
+          takerNeg: parse6decimal('10'),
+          notional: parse6decimal('-1230'),
+        })
+      })
+
       it('generates correct intent (maker open)', async () => {
-        await intentLocal.from({ ...DEFAULT_ORDER, orders: 1, makerPos: parse6decimal('10') }, parse6decimal('123'))
+        await intentLocal.from(
+          { ...DEFAULT_ORDER, orders: 1, makerPos: parse6decimal('10') },
+          parse6decimal('123'),
+          false,
+        )
         const newIntent = await intentLocal.read()
 
         expectIntentEq(newIntent, {
@@ -183,7 +235,11 @@ describe('Intent', () => {
       })
 
       it('generates correct intent (maker close)', async () => {
-        await intentLocal.from({ ...DEFAULT_ORDER, orders: 1, makerNeg: parse6decimal('10') }, parse6decimal('123'))
+        await intentLocal.from(
+          { ...DEFAULT_ORDER, orders: 1, makerNeg: parse6decimal('10') },
+          parse6decimal('123'),
+          false,
+        )
         const newIntent = await intentLocal.read()
 
         expectIntentEq(newIntent, {

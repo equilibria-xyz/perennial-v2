@@ -12,11 +12,12 @@ import {
   VersionTester__factory,
 } from '../../../types/generated'
 import { BigNumber } from 'ethers'
-import { DEFAULT_ORDER, DEFAULT_VERSION, parse6decimal } from '../../../../common/testutil/types'
+import { DEFAULT_ORDER, DEFAULT_VERSION, DEFAULT_INTENT, parse6decimal } from '../../../../common/testutil/types'
 import {
   GlobalStruct,
   MarketParameterStruct,
   OrderStruct,
+  IntentStruct,
   PositionStruct,
   RiskParameterStruct,
   VersionStruct,
@@ -107,29 +108,32 @@ describe('Version', () => {
     global: GlobalStruct,
     fromPosition: PositionStruct,
     order: OrderStruct,
+    intent: IntentStruct,
     fromOracleVersion: OracleVersionStruct,
     toOracleVersion: OracleVersionStruct,
     marketParameter: MarketParameterStruct,
     riskParameter: RiskParameterStruct,
   ) => {
-    const accumulationResult = await version.callStatic.accumulate(
+    const accumulationResult = await version.callStatic.accumulate({
       global,
       fromPosition,
       order,
+      intent,
       fromOracleVersion,
       toOracleVersion,
       marketParameter,
       riskParameter,
-    )
-    await version.accumulate(
+    })
+    await version.accumulate({
       global,
       fromPosition,
       order,
+      intent,
       fromOracleVersion,
       toOracleVersion,
       marketParameter,
       riskParameter,
-    )
+    })
 
     const value = await version.read()
     return { ret: accumulationResult[1], value, nextGlobal: accumulationResult[0] }
@@ -734,10 +738,11 @@ describe('Version', () => {
       it('only accumulates fee', async () => {
         await version.store(VALID_VERSION)
 
-        const ret = await version.callStatic.accumulate(
+        const { ret, value } = await accumulateWithReturn(
           GLOBAL,
           { ...FROM_POSITION, long: parse6decimal('10'), short: parse6decimal('10'), maker: parse6decimal('10') },
           { ...DEFAULT_ORDER, orders: 1, longPos: parse6decimal('10') },
+          { ...DEFAULT_INTENT },
           ORACLE_VERSION_1,
           ORACLE_VERSION_2,
           { ...VALID_MARKET_PARAMETER, settlementFee: parse6decimal('2'), closed: true },
@@ -751,51 +756,32 @@ describe('Version', () => {
             },
           },
         )
-        await version.accumulate(
-          GLOBAL,
-          { ...FROM_POSITION, long: parse6decimal('10'), short: parse6decimal('10'), maker: parse6decimal('10') },
-          { ...DEFAULT_ORDER, orders: 1, longPos: parse6decimal('10') },
-          ORACLE_VERSION_1,
-          ORACLE_VERSION_2,
-          { ...VALID_MARKET_PARAMETER, settlementFee: parse6decimal('2'), closed: true },
-          {
-            ...VALID_RISK_PARAMETER,
-            takerFee: {
-              linearFee: parse6decimal('0.1'),
-              proportionalFee: parse6decimal('0.2'),
-              adiabaticFee: parse6decimal('0.3'),
-              scale: parse6decimal('100'),
-            },
-          },
-        )
-
-        const value = await version.read()
 
         expect(value.valid).to.be.true
         expect(value.makerValue._value).to.equal(BigNumber.from('14759956'))
         expect(value.longValue._value).to.equal(2)
         expect(value.shortValue._value).to.equal(3)
 
-        expect(ret[1].positionFee).to.equal(BigNumber.from('147600000'))
-        expect(ret[1].positionFeeMaker).to.equal(BigNumber.from('147599558'))
-        expect(ret[1].positionFeeProtocol).to.equal(BigNumber.from('442'))
-        expect(ret[1].positionFeeExposure).to.equal(0)
-        expect(ret[1].positionFeeExposureMaker).to.equal(0)
-        expect(ret[1].positionFeeExposureProtocol).to.equal(0)
-        expect(ret[1].positionFeeImpact).to.equal(BigNumber.from('18450000'))
-        expect(ret[1].fundingMaker).to.equal(0)
-        expect(ret[1].fundingLong).to.equal(0)
-        expect(ret[1].fundingShort).to.equal(0)
-        expect(ret[1].fundingFee).to.equal(0)
-        expect(ret[1].interestMaker).to.equal(0)
-        expect(ret[1].interestLong).to.equal(0)
-        expect(ret[1].interestShort).to.equal(0)
-        expect(ret[1].interestFee).to.equal(0)
-        expect(ret[1].pnlMaker).to.equal(0)
-        expect(ret[1].pnlLong).to.equal(0)
-        expect(ret[1].pnlShort).to.equal(0)
-        expect(ret[1].settlementFee).to.equal(parse6decimal('2'))
-        expect(ret[1].liquidationFee).to.equal(9)
+        expect(ret.positionFee).to.equal(BigNumber.from('147600000'))
+        expect(ret.positionFeeMaker).to.equal(BigNumber.from('147599558'))
+        expect(ret.positionFeeProtocol).to.equal(BigNumber.from('442'))
+        expect(ret.positionFeeExposure).to.equal(0)
+        expect(ret.positionFeeExposureMaker).to.equal(0)
+        expect(ret.positionFeeExposureProtocol).to.equal(0)
+        expect(ret.positionFeeImpact).to.equal(BigNumber.from('18450000'))
+        expect(ret.fundingMaker).to.equal(0)
+        expect(ret.fundingLong).to.equal(0)
+        expect(ret.fundingShort).to.equal(0)
+        expect(ret.fundingFee).to.equal(0)
+        expect(ret.interestMaker).to.equal(0)
+        expect(ret.interestLong).to.equal(0)
+        expect(ret.interestShort).to.equal(0)
+        expect(ret.interestFee).to.equal(0)
+        expect(ret.pnlMaker).to.equal(0)
+        expect(ret.pnlLong).to.equal(0)
+        expect(ret.pnlShort).to.equal(0)
+        expect(ret.settlementFee).to.equal(parse6decimal('2'))
+        expect(ret.liquidationFee).to.equal(9)
       })
     })
 
@@ -803,10 +789,11 @@ describe('Version', () => {
       context('invalid toOracleVersion', () => {
         it('marks version invalid', async () => {
           await version.store(VALID_VERSION)
-          await version.accumulate(
+          await accumulateWithReturn(
             GLOBAL,
             FROM_POSITION,
             ORDER,
+            { ...DEFAULT_INTENT },
             ORACLE_VERSION_1,
             { ...ORACLE_VERSION_2, valid: false },
             VALID_MARKET_PARAMETER,
@@ -821,10 +808,11 @@ describe('Version', () => {
       context('valid toOracleVersion', () => {
         it('marks version valid', async () => {
           await version.store({ ...VALID_VERSION, valid: false })
-          await version.accumulate(
+          await accumulateWithReturn(
             GLOBAL,
             FROM_POSITION,
             ORDER,
+            { ...DEFAULT_INTENT },
             ORACLE_VERSION_1,
             ORACLE_VERSION_2,
             VALID_MARKET_PARAMETER,
@@ -839,10 +827,11 @@ describe('Version', () => {
       context('market closed, currently invalid, toOracleVersion.valid = true', () => {
         it('marks the version as valid', async () => {
           await version.store({ ...VALID_VERSION, valid: false })
-          await version.accumulate(
+          await accumulateWithReturn(
             GLOBAL,
             FROM_POSITION,
             ORDER,
+            { ...DEFAULT_INTENT },
             ORACLE_VERSION_1,
             ORACLE_VERSION_2,
             { ...VALID_MARKET_PARAMETER, closed: true },
@@ -858,10 +847,11 @@ describe('Version', () => {
     describe('.price', () => {
       it('saves price', async () => {
         await version.store(VALID_VERSION)
-        await version.accumulate(
+        await accumulateWithReturn(
           GLOBAL,
           FROM_POSITION,
           ORDER,
+          { ...DEFAULT_INTENT },
           ORACLE_VERSION_1,
           { ...ORACLE_VERSION_2, valid: false },
           VALID_MARKET_PARAMETER,
@@ -924,6 +914,7 @@ describe('Version', () => {
           GLOBAL,
           position,
           { ...order, orders: 1, makerPos: parse6decimal('4') },
+          { ...DEFAULT_INTENT },
           { ...ORACLE_VERSION_1 },
           { ...ORACLE_VERSION_2 },
           { ...VALID_MARKET_PARAMETER, settlementFee: parse6decimal('0.05') },
@@ -942,6 +933,7 @@ describe('Version', () => {
           GLOBAL,
           position,
           order,
+          { ...DEFAULT_INTENT },
           { ...ORACLE_VERSION_1 },
           { ...ORACLE_VERSION_2 },
           { ...VALID_MARKET_PARAMETER, settlementFee: parse6decimal('0.04') },
@@ -957,6 +949,7 @@ describe('Version', () => {
           GLOBAL,
           position,
           { ...order, orders: 1, shortNeg: parse6decimal('2') },
+          { ...DEFAULT_INTENT },
           { ...ORACLE_VERSION_1 },
           { ...ORACLE_VERSION_2 },
           { ...VALID_MARKET_PARAMETER, settlementFee: parse6decimal('0.05') },
@@ -980,12 +973,38 @@ describe('Version', () => {
             shortPos: parse6decimal('5'),
             shortNeg: parse6decimal('9'),
           },
+          { ...DEFAULT_INTENT },
           { ...ORACLE_VERSION_1 },
           { ...ORACLE_VERSION_2 },
           { ...VALID_MARKET_PARAMETER, settlementFee: parse6decimal('0.06') },
           riskParameters,
         )
         expect(value.settlementFee._value).to.equal(parse6decimal('-0.06').div(orderCount))
+        expect(ret.settlementFee).to.equal(parse6decimal('0.06'))
+      })
+
+      it('skips intent orders', async () => {
+        // accumulate multiple orders with an increase in settlement fee
+        const orderCount = 4
+        const intentCount = 2
+        const { ret, value } = await accumulateWithReturn(
+          GLOBAL,
+          position,
+          {
+            ...order,
+            orders: orderCount,
+            makerNeg: parse6decimal('3'),
+            longPos: parse6decimal('6'),
+            shortPos: parse6decimal('5'),
+            shortNeg: parse6decimal('9'),
+          },
+          { ...DEFAULT_INTENT, intents: intentCount },
+          { ...ORACLE_VERSION_1 },
+          { ...ORACLE_VERSION_2 },
+          { ...VALID_MARKET_PARAMETER, settlementFee: parse6decimal('0.06') },
+          riskParameters,
+        )
+        expect(value.settlementFee._value).to.equal(parse6decimal('-0.06').div(orderCount - intentCount))
         expect(ret.settlementFee).to.equal(parse6decimal('0.06'))
       })
     })
@@ -1042,6 +1061,7 @@ describe('Version', () => {
           GLOBAL,
           position,
           order,
+          { ...DEFAULT_INTENT },
           { ...ORACLE_VERSION_1 },
           { ...ORACLE_VERSION_2 },
           { ...VALID_MARKET_PARAMETER },
@@ -1060,6 +1080,7 @@ describe('Version', () => {
           GLOBAL,
           position,
           order,
+          { ...DEFAULT_INTENT },
           { ...ORACLE_VERSION_1 },
           { ...ORACLE_VERSION_2 },
           { ...VALID_MARKET_PARAMETER },
@@ -1078,6 +1099,7 @@ describe('Version', () => {
           GLOBAL,
           position,
           order,
+          { ...DEFAULT_INTENT },
           { ...ORACLE_VERSION_1 },
           { ...ORACLE_VERSION_2, valid: false },
           { ...VALID_MARKET_PARAMETER },
@@ -1142,6 +1164,7 @@ describe('Version', () => {
           GLOBAL,
           position,
           { ...ORDER },
+          { ...DEFAULT_INTENT },
           { ...ORACLE_VERSION_1 }, // 123
           { ...ORACLE_VERSION_2 }, // 123
           { ...VALID_MARKET_PARAMETER },
@@ -1159,6 +1182,7 @@ describe('Version', () => {
           GLOBAL,
           position,
           { ...ORDER },
+          { ...DEFAULT_INTENT },
           { ...ORACLE_VERSION_1 }, // 123
           { ...ORACLE_VERSION_2, price: parse6decimal('138') },
           { ...VALID_MARKET_PARAMETER },
@@ -1189,6 +1213,7 @@ describe('Version', () => {
           GLOBAL,
           { ...position, maker: 0 },
           { ...order, makerPos: parse6decimal('0.7'), longPos: 0 },
+          { ...DEFAULT_INTENT },
           { ...ORACLE_VERSION_1, price: parse6decimal('142') },
           { ...ORACLE_VERSION_2, price: parse6decimal('137') },
           { ...VALID_MARKET_PARAMETER },
@@ -1231,6 +1256,7 @@ describe('Version', () => {
             makerReferral: 0,
             takerReferral: 0,
           },
+          { ...DEFAULT_INTENT },
           { ...ORACLE_VERSION_1, price: parse6decimal('121') },
           { ...ORACLE_VERSION_2 },
           { ...VALID_MARKET_PARAMETER },
@@ -1317,6 +1343,96 @@ describe('Version', () => {
             makerReferral: 0,
             takerReferral: 0,
           },
+          { ...DEFAULT_INTENT },
+          { ...ORACLE_VERSION_1, price: parse6decimal('121') },
+          { ...ORACLE_VERSION_2 },
+          { ...VALID_MARKET_PARAMETER, positionFee: parse6decimal('0.1') },
+          {
+            ...VALID_RISK_PARAMETER,
+            pController: { min: 0, max: 0, k: parse6decimal('1') },
+            utilizationCurve: {
+              minRate: 0,
+              maxRate: 0,
+              targetRate: 0,
+              targetUtilization: 0,
+            },
+            makerFee: {
+              linearFee: parse6decimal('0.02'),
+              proportionalFee: parse6decimal('0.10'),
+              adiabaticFee: parse6decimal('0.20'),
+              scale: parse6decimal('100'),
+            },
+            takerFee: {
+              linearFee: parse6decimal('0.01'),
+              proportionalFee: parse6decimal('0.05'),
+              adiabaticFee: parse6decimal('0.10'),
+              scale: parse6decimal('100'),
+            },
+          },
+        )
+
+        const takerExposure = parse6decimal('0.05') // 0 -> -10 / 100 = -5 / 100 = -0.05 * -10 * 0.1
+        const makerExposure = parse6decimal('-7.5') // 100 -> 50 / 100 = 75 / 100 = 0.75 * 50 * 0.2
+        const exposure = takerExposure.add(makerExposure).mul(2) // price delta
+
+        const linear1 = parse6decimal('0.6') // 30 * 0.02
+        const linear2 = parse6decimal('1.1') // 110 * 0.01
+        const linear = linear1.add(linear2).mul(123) // price
+
+        const proportional1 = parse6decimal('0.9') // 30 * 0.03
+        const proportional2 = parse6decimal('6.05') // 110 * 0.055
+        const proportional = proportional1.add(proportional2).mul(123) // price
+
+        const fee = linear.add(proportional)
+
+        const impact1 = parse6decimal('.75') // -10 -> 40 / 100 = 15 / 100 = 0.15 * 50 * 0.1
+        const impact2 = parse6decimal('-0.6') // 40 -> -20 / 100 = -10 / 100 = -0.1 * 60 * 0.1
+        const impact3 = parse6decimal('1.1') // 50 -> 60 / 100 = 55 / 100 = 0.55 * 10 * 0.2
+        const impact4 = parse6decimal('-2.0') // 60 -> 40 / 100 = -50 / 100 = -.5 * 20 * 0.2
+        const impact = impact1.add(impact2).add(impact3).add(impact4).mul(123) // price
+
+        expect(value.makerValue._value).to.equal(
+          fee.mul(9).div(10).sub(exposure).add(parse6decimal('2').mul(10)).div(50).add(1),
+        )
+        expect(value.longValue._value).to.equal(parse6decimal('2').add(2))
+        expect(value.shortValue._value).to.equal(parse6decimal('-2').add(3))
+        expect(value.makerLinearFee._value).to.equal(linear1.mul(-1).mul(123).div(30))
+        expect(value.makerProportionalFee._value).to.equal(proportional1.mul(-1).mul(123).div(30))
+        expect(value.takerLinearFee._value).to.equal(linear2.mul(-1).mul(123).div(110))
+        expect(value.takerProportionalFee._value).to.equal(proportional2.mul(-1).mul(123).div(110))
+        expect(value.makerPosFee._value).to.equal(impact4.mul(-1).mul(123).div(20))
+        expect(value.makerNegFee._value).to.equal(impact3.mul(-1).mul(123).div(10))
+        expect(value.takerPosFee._value).to.equal(impact1.mul(-1).mul(123).div(50))
+        expect(value.takerNegFee._value).to.equal(impact2.mul(-1).mul(123).div(60))
+        expect(value.settlementFee._value).to.equal(-2)
+
+        expect(ret.positionFee).to.equal(fee)
+        expect(ret.positionFeeMaker).to.equal(fee.mul(9).div(10))
+        expect(ret.positionFeeProtocol).to.equal(fee.div(10))
+        expect(ret.positionFeeExposure).to.equal(exposure)
+        expect(ret.positionFeeExposureMaker).to.equal(-exposure)
+        expect(ret.positionFeeExposureProtocol).to.equal(0)
+        expect(ret.positionFeeImpact).to.equal(impact)
+      })
+
+      it('allocates when makers and intents', async () => {
+        await version.store(VALID_VERSION)
+
+        const { ret, value } = await accumulateWithReturn(
+          GLOBAL,
+          { ...FROM_POSITION, long: parse6decimal('20'), short: parse6decimal('30'), maker: parse6decimal('50') },
+          {
+            ...ORDER,
+            makerNeg: parse6decimal('10'),
+            makerPos: parse6decimal('20'),
+            longPos: parse6decimal('50'), // 20 intent
+            longNeg: parse6decimal('20'), // 10 intent
+            shortPos: parse6decimal('80'), // 30 intent
+            shortNeg: parse6decimal('40'), // 20 intent
+            makerReferral: 0,
+            takerReferral: 0,
+          },
+          { ...DEFAULT_INTENT, takerPos: parse6decimal('40'), takerNeg: parse6decimal('40') },
           { ...ORACLE_VERSION_1, price: parse6decimal('121') },
           { ...ORACLE_VERSION_2 },
           { ...VALID_MARKET_PARAMETER, positionFee: parse6decimal('0.1') },
@@ -1403,6 +1519,7 @@ describe('Version', () => {
               short: parse6decimal('2'),
             },
             ORDER,
+            { ...DEFAULT_INTENT },
             ORACLE_VERSION_1,
             ORACLE_VERSION_1,
             {
@@ -1449,6 +1566,7 @@ describe('Version', () => {
               makerPos: ORDER.makerPos,
               makerNeg: 0,
             },
+            { ...DEFAULT_INTENT },
             ORACLE_VERSION_1,
             ORACLE_VERSION_2,
             {
@@ -1491,6 +1609,7 @@ describe('Version', () => {
               short: parse6decimal('8'),
             },
             ORDER,
+            { ...DEFAULT_INTENT },
             ORACLE_VERSION_1,
             ORACLE_VERSION_2,
             {
@@ -1534,6 +1653,7 @@ describe('Version', () => {
               short: parse6decimal('12'),
             },
             ORDER,
+            { ...DEFAULT_INTENT },
             ORACLE_VERSION_1,
             ORACLE_VERSION_2,
             {
@@ -1577,6 +1697,7 @@ describe('Version', () => {
               short: parse6decimal('12'),
             },
             ORDER,
+            { ...DEFAULT_INTENT },
             ORACLE_VERSION_1,
             ORACLE_VERSION_2,
             {
@@ -1623,6 +1744,7 @@ describe('Version', () => {
               short: parse6decimal('2'),
             },
             ORDER,
+            { ...DEFAULT_INTENT },
             ORACLE_VERSION_1,
             ORACLE_VERSION_1,
             {
@@ -1665,6 +1787,7 @@ describe('Version', () => {
               short: parse6decimal('2'),
             },
             ORDER,
+            { ...DEFAULT_INTENT },
             ORACLE_VERSION_1,
             ORACLE_VERSION_2,
             {
@@ -1714,6 +1837,7 @@ describe('Version', () => {
               short: parse6decimal('2'),
             },
             ORDER,
+            { ...DEFAULT_INTENT },
             ORACLE_VERSION_1,
             ORACLE_VERSION_2,
             {
@@ -1763,6 +1887,7 @@ describe('Version', () => {
               short: 0,
             },
             ORDER,
+            { ...DEFAULT_INTENT },
             ORACLE_VERSION_1,
             ORACLE_VERSION_2,
             {
@@ -1808,6 +1933,7 @@ describe('Version', () => {
               short: parse6decimal('9'),
             },
             ORDER,
+            { ...DEFAULT_INTENT },
             ORACLE_VERSION_1,
             ORACLE_VERSION_2,
             {
@@ -1851,6 +1977,7 @@ describe('Version', () => {
                 short: parse6decimal('9'),
               },
               ORDER,
+              { ...DEFAULT_INTENT },
               ORACLE_VERSION_1,
               {
                 ...ORACLE_VERSION_2,
@@ -1908,6 +2035,7 @@ describe('Version', () => {
                 short: parse6decimal('9'),
               },
               ORDER,
+              { ...DEFAULT_INTENT },
               ORACLE_VERSION_1,
               {
                 ...ORACLE_VERSION_2,
@@ -1965,6 +2093,7 @@ describe('Version', () => {
                 short: parse6decimal('15'),
               },
               ORDER,
+              { ...DEFAULT_INTENT },
               ORACLE_VERSION_1,
               {
                 ...ORACLE_VERSION_2,
@@ -2024,6 +2153,7 @@ describe('Version', () => {
                 short: parse6decimal('9'),
               },
               ORDER,
+              { ...DEFAULT_INTENT },
               ORACLE_VERSION_1,
               {
                 ...ORACLE_VERSION_2,
@@ -2081,6 +2211,7 @@ describe('Version', () => {
                 short: parse6decimal('9'),
               },
               ORDER,
+              { ...DEFAULT_INTENT },
               ORACLE_VERSION_1,
               {
                 ...ORACLE_VERSION_2,
@@ -2138,6 +2269,7 @@ describe('Version', () => {
                 short: parse6decimal('15'),
               },
               ORDER,
+              { ...DEFAULT_INTENT },
               ORACLE_VERSION_1,
               {
                 ...ORACLE_VERSION_2,
@@ -2197,6 +2329,7 @@ describe('Version', () => {
             short: parse6decimal('9'),
           },
           ORDER,
+          { ...DEFAULT_INTENT },
           ORACLE_VERSION_1,
           ORACLE_VERSION_2,
           {

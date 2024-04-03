@@ -619,21 +619,27 @@ contract Market is IMarket, Instance, ReentrancyGuard {
         Order memory newOrder
     ) private {
         OracleVersion memory oracleVersion = oracle.at(newOrder.timestamp);
+        Intent memory newIntent = _intent[newOrderId].read();
 
         context.pendingGlobal.sub(newOrder);
-        if (!oracleVersion.valid) newOrder.invalidate(); // TODO: invalidate newIntent
+        if (!oracleVersion.valid) {
+            newOrder.invalidate();
+            newIntent.invalidate();
+        }
 
-        VersionAccumulationResult memory accumulationResult;
-        (settlementContext.latestVersion, context.global, accumulationResult) = VersionLib.accumulate(
-            settlementContext.latestVersion,
+        VersionAccumulationContext memory accumulationContext = VersionAccumulationContext(
             context.global,
             context.latestPositionGlobal,
             newOrder,
+            newIntent,
             settlementContext.orderOracleVersion,
             oracleVersion,
             context.marketParameter,
             context.riskParameter
         );
+        VersionAccumulationResult memory accumulationResult;
+        (settlementContext.latestVersion, context.global, accumulationResult) =
+            VersionLib.accumulate(settlementContext.latestVersion, accumulationContext);
 
         context.global.update(newOrderId, accumulationResult, context.marketParameter, context.protocolParameter);
         context.latestPositionGlobal.update(newOrder);
