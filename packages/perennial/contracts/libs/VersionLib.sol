@@ -57,6 +57,9 @@ library VersionLib {
     /// @notice Accumulates the global state for the period from `fromVersion` to `toOracleVersion`
     /// @param self The Version object to update
     /// @param context The accumulation context
+    /// @return next The accumulated version
+    /// @return nextGlobal The next global state
+    /// @return result The accumulation result
     function accumulate(
         Version memory self,
         VersionAccumulationContext memory context
