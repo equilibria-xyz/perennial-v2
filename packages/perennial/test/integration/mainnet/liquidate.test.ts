@@ -5,6 +5,7 @@ import { BigNumber, constants, utils } from 'ethers'
 import { InstanceVars, deployProtocol, createMarket, settle } from '../helpers/setupHelpers'
 import { expectPositionEq, parse6decimal } from '../../../../common/testutil/types'
 import { loadFixture } from '@nomicfoundation/hardhat-network-helpers'
+import { mainnetProtcocolFixture } from './mainnetHelpers'
 
 export const TIMESTAMP_2 = 1631113819
 export const TIMESTAMP_3 = 1631114005
@@ -13,7 +14,7 @@ describe('Liquidate', () => {
   let instanceVars: InstanceVars
 
   beforeEach(async () => {
-    instanceVars = await loadFixture(deployProtocol)
+    instanceVars = await loadFixture(mainnetProtcocolFixture)
     await instanceVars.chainlink.reset()
   })
 

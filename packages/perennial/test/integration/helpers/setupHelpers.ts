@@ -38,14 +38,9 @@ import {
   PowerTwo__factory,
   IPayoffProvider,
   IPayoffProvider__factory,
-  IOracleFactory,
 } from '@equilibria/perennial-v2-oracle/types/generated'
 import { Address } from 'hardhat-deploy/dist/types'
 const { deployments, ethers } = HRE
-
-// TODO: to keep helpers chain-agnostic, have caller pass these addresses in
-export const USDC_HOLDER = '0x0A59649758aa4d66E25f08Dd01271e891fe52199'
-const DSU_MINTER = '0xD05aCe63789cCb35B9cE71d01e4d632a0486Da4B'
 
 export interface InstanceVarsBasic {
   owner: SignerWithAddress
@@ -66,7 +61,6 @@ export interface InstanceVarsBasic {
 export interface InstanceVars extends InstanceVarsBasic {
   proxyAdmin: ProxyAdmin
   oracleFactory: OracleFactory
-  usdcHolder: SignerWithAddress
   chainlink: ChainlinkContext
 }
 
@@ -133,13 +127,31 @@ async function deployMarketFactory(
   return marketFactory
 }
 
-// Deploys the protocol configured to use a mocked chainlink oracle
-export async function deployProtocol(chainlinkContext?: ChainlinkContext): Promise<InstanceVars> {
-  const [owner, pauser, user, userB, userC, userD, beneficiaryB] = await ethers.getSigners()
-
+async function fundWallets(
+  owner: SignerWithAddress,
+  dsuMinter: Address,
+  user: SignerWithAddress,
+  userB: SignerWithAddress,
+  userC: SignerWithAddress,
+  userD: SignerWithAddress,
+): Promise<[IPayoffProvider, IERC20Metadata, IERC20Metadata]> {
   const payoff = IPayoffProvider__factory.connect((await new PowerTwo__factory(owner).deploy()).address, owner)
   const dsu = IERC20Metadata__factory.connect((await deployments.get('DSU')).address, owner)
   const usdc = IERC20Metadata__factory.connect((await deployments.get('USDC')).address, owner)
+
+  await fundWallet(dsu, user, dsuMinter)
+  await fundWallet(dsu, userB, dsuMinter)
+  await fundWallet(dsu, userC, dsuMinter)
+  await fundWallet(dsu, userD, dsuMinter)
+
+  return [payoff, dsu, usdc]
+}
+
+// Deploys the protocol configured to use a mocked chainlink oracle
+export async function deployProtocol(dsuMinter: Address, chainlinkContext?: ChainlinkContext): Promise<InstanceVars> {
+  const [owner, pauser, user, userB, userC, userD, beneficiaryB] = await ethers.getSigners()
+
+  const [payoff, dsu, usdc] = await fundWallets(owner, dsuMinter, user, userB, userC, userD)
 
   const chainlink =
     chainlinkContext ??
@@ -177,13 +189,6 @@ export async function deployProtocol(chainlinkContext?: ChainlinkContext): Promi
   )
   await oracleFactory.connect(owner).create(chainlink.id, chainlink.oracleFactory.address)
 
-  // Set state
-  await fundWallet(dsu, user)
-  await fundWallet(dsu, userB)
-  await fundWallet(dsu, userC)
-  await fundWallet(dsu, userD)
-  const usdcHolder = await impersonate.impersonateWithBalance(USDC_HOLDER, utils.parseEther('10'))
-
   return {
     owner,
     pauser,
@@ -196,7 +201,6 @@ export async function deployProtocol(chainlinkContext?: ChainlinkContext): Promi
     payoff,
     dsu,
     usdc,
-    usdcHolder,
     proxyAdmin,
     oracleFactory,
     marketFactory,
@@ -214,10 +218,6 @@ export async function deployProtocolForOracle(
 ): Promise<InstanceVarsBasic> {
   const [owner, pauser, user, userB, userC, userD, beneficiaryB] = await ethers.getSigners()
 
-  const payoff = IPayoffProvider__factory.connect((await new PowerTwo__factory(owner).deploy()).address, owner)
-  const dsu = IERC20Metadata__factory.connect((await deployments.get('DSU')).address, owner)
-  const usdc = IERC20Metadata__factory.connect((await deployments.get('USDC')).address, owner)
-
   // Deploy protocol contracts
   const marketImpl = await deployMarketImplementation(owner)
   const marketFactory = await deployMarketFactory(owner, pauser, oracleFactory.address, marketImpl.address)
@@ -230,10 +230,7 @@ export async function deployProtocolForOracle(
   )
   await oracleFactory.connect(oracleFactoryOwner).authorize(marketFactory.address)
 
-  await fundWallet(dsu, user, dsuMinter)
-  await fundWallet(dsu, userB, dsuMinter)
-  await fundWallet(dsu, userC, dsuMinter)
-  await fundWallet(dsu, userD, dsuMinter)
+  const [payoff, dsu, usdc] = await fundWallets(owner, dsuMinter, user, userB, userC, userD)
 
   return {
     owner,
@@ -252,11 +249,7 @@ export async function deployProtocolForOracle(
   }
 }
 
-export async function fundWallet(
-  dsu: IERC20Metadata,
-  wallet: SignerWithAddress,
-  minter: Address = DSU_MINTER,
-): Promise<void> {
+export async function fundWallet(dsu: IERC20Metadata, wallet: SignerWithAddress, minter: Address): Promise<void> {
   const dsuMinter = await impersonate.impersonateWithBalance(minter, utils.parseEther('10'))
   const dsuIface = new utils.Interface(['function mint(uint256)'])
   await dsuMinter.sendTransaction({

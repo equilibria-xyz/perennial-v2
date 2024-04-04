@@ -3,7 +3,7 @@ import 'hardhat'
 import { BigNumber, constants, utils } from 'ethers'
 const { AddressZero } = constants
 
-import { InstanceVars, deployProtocol, createMarket, settle } from '../helpers/setupHelpers'
+import { InstanceVars, createMarket, settle } from '../helpers/setupHelpers'
 import {
   DEFAULT_CHECKPOINT,
   DEFAULT_POSITION,
@@ -22,6 +22,7 @@ import {
   AccountPositionProcessedEventObject,
   PositionProcessedEventObject,
 } from '../../../types/generated/contracts/Market'
+import { mainnetProtcocolFixture } from './mainnetHelpers'
 
 export const PRICE = utils.parseEther('3374.655169')
 export const TIMESTAMP_0 = 1631112429
@@ -72,15 +73,10 @@ describe('Fees', () => {
     return instanceVars.chainlink.nextWithPriceModification(() => PRICE)
   }
 
-  const fixture = async () => {
-    const instanceVars = await deployProtocol()
+  beforeEach(async () => {
+    instanceVars = await loadFixture(mainnetProtcocolFixture)
     const marketFactoryParams = await instanceVars.marketFactory.parameter()
     await instanceVars.marketFactory.updateParameter({ ...marketFactoryParams, maxFee: parse6decimal('0.9') })
-    return instanceVars
-  }
-
-  beforeEach(async () => {
-    instanceVars = await loadFixture(fixture)
     await instanceVars.chainlink.reset()
     market = await createMarket(instanceVars, undefined, RISK_PARAMS, MARKET_PARAMS)
   })

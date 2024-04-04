@@ -23,6 +23,7 @@ import { CHAINLINK_CUSTOM_CURRENCIES } from '@equilibria/perennial-v2-oracle/uti
 import { loadFixture } from '@nomicfoundation/hardhat-network-helpers'
 import { ChainlinkContext } from '../helpers/chainlinkHelpers'
 import { RiskParameterStruct } from '../../../types/generated/contracts/Market'
+import { mainnetProtcocolFixture } from './mainnetHelpers'
 
 export const TIMESTAMP_0 = 1631112429
 export const TIMESTAMP_1 = 1631112904
@@ -36,7 +37,7 @@ describe('Happy Path', () => {
   let riskParameter: RiskParameterStruct
 
   beforeEach(async () => {
-    instanceVars = await loadFixture(deployProtocol)
+    instanceVars = await loadFixture(mainnetProtcocolFixture)
     await instanceVars.chainlink.reset()
   })
 
@@ -172,6 +173,7 @@ describe('Happy Path', () => {
       ...DEFAULT_POSITION,
       timestamp: TIMESTAMP_0,
     })
+    // FIXME: riskParameter variable is assigned in the test above; this is not selfstanding
     expectVersionEq(await market.versions(TIMESTAMP_0), {
       ...DEFAULT_VERSION,
       liquidationFee: { _value: -riskParameter.liquidationFee },
@@ -1205,7 +1207,7 @@ describe('Happy Path', () => {
       delay,
     ).init()
 
-    const instanceVars = await deployProtocol(chainlink)
+    const instanceVars = await mainnetProtcocolFixture(chainlink)
     const { user, userB, dsu, beneficiaryB, payoff } = instanceVars
 
     const riskParameter = {

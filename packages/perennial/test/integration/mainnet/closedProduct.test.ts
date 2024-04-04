@@ -7,6 +7,7 @@ import { InstanceVars, deployProtocol, createMarket, settle } from '../helpers/s
 import { Market } from '../../../types/generated'
 import { parse6decimal } from '../../../../common/testutil/types'
 import { loadFixture } from '@nomicfoundation/hardhat-network-helpers'
+import { mainnetProtcocolFixture } from './mainnetHelpers'
 
 export const TIMESTAMP_3 = 1631114005
 
@@ -14,7 +15,7 @@ describe('Closed Market', () => {
   let instanceVars: InstanceVars
 
   beforeEach(async () => {
-    instanceVars = await loadFixture(deployProtocol)
+    instanceVars = await loadFixture(mainnetProtcocolFixture)
     instanceVars.chainlink.reset()
   })
 
