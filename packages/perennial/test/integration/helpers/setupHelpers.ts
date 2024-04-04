@@ -38,13 +38,16 @@ import {
   PowerTwo__factory,
   IPayoffProvider,
   IPayoffProvider__factory,
+  IOracleFactory,
 } from '@equilibria/perennial-v2-oracle/types/generated'
+import { Address } from 'hardhat-deploy/dist/types'
 const { deployments, ethers } = HRE
 
+// TODO: move such addresses into a network-mapped structure
 export const USDC_HOLDER = '0x0A59649758aa4d66E25f08Dd01271e891fe52199'
 const DSU_MINTER = '0xD05aCe63789cCb35B9cE71d01e4d632a0486Da4B'
 
-export interface InstanceVars {
+export interface InstanceVarsBasic {
   owner: SignerWithAddress
   pauser: SignerWithAddress
   user: SignerWithAddress
@@ -52,16 +55,19 @@ export interface InstanceVars {
   userC: SignerWithAddress
   userD: SignerWithAddress
   beneficiaryB: SignerWithAddress
-  proxyAdmin: ProxyAdmin
-  oracleFactory: OracleFactory
   marketFactory: MarketFactory
   payoff: IPayoffProvider
   dsu: IERC20Metadata
   usdc: IERC20Metadata
-  usdcHolder: SignerWithAddress
-  chainlink: ChainlinkContext
   oracle: IOracleProvider
   marketImpl: Market
+}
+
+export interface InstanceVars extends InstanceVarsBasic {
+  proxyAdmin: ProxyAdmin
+  oracleFactory: OracleFactory
+  usdcHolder: SignerWithAddress
+  chainlink: ChainlinkContext
 }
 
 export async function deployProtocol(chainlinkContext?: ChainlinkContext): Promise<InstanceVars> {
@@ -181,8 +187,97 @@ export async function deployProtocol(chainlinkContext?: ChainlinkContext): Promi
   }
 }
 
-export async function fundWallet(dsu: IERC20Metadata, wallet: SignerWithAddress): Promise<void> {
-  const dsuMinter = await impersonate.impersonateWithBalance(DSU_MINTER, utils.parseEther('10'))
+export async function deployProtocolForOracle(
+  oracleFactory: OracleFactory,
+  oracle: IOracleProvider,
+  dsuMinter: Address,
+): Promise<InstanceVarsBasic> {
+  const [owner, pauser, user, userB, userC, userD, beneficiaryB] = await ethers.getSigners()
+
+  const payoff = IPayoffProvider__factory.connect((await new PowerTwo__factory(owner).deploy()).address, owner)
+  const dsu = IERC20Metadata__factory.connect((await deployments.get('DSU')).address, owner)
+  const usdc = IERC20Metadata__factory.connect((await deployments.get('USDC')).address, owner)
+
+  // Deploy protocol contracts
+  const proxyAdmin = await new ProxyAdmin__factory(owner).deploy()
+
+  const marketImpl = await new Market__factory(
+    {
+      'contracts/libs/CheckpointLib.sol:CheckpointLib': (await new CheckpointLib__factory(owner).deploy()).address,
+      'contracts/libs/InvariantLib.sol:InvariantLib': (await new InvariantLib__factory(owner).deploy()).address,
+      'contracts/libs/VersionLib.sol:VersionLib': (await new VersionLib__factory(owner).deploy()).address,
+      'contracts/types/Checkpoint.sol:CheckpointStorageLib': (
+        await new CheckpointStorageLib__factory(owner).deploy()
+      ).address,
+      'contracts/types/Global.sol:GlobalStorageLib': (await new GlobalStorageLib__factory(owner).deploy()).address,
+      'contracts/types/MarketParameter.sol:MarketParameterStorageLib': (
+        await new MarketParameterStorageLib__factory(owner).deploy()
+      ).address,
+      'contracts/types/Position.sol:PositionStorageGlobalLib': (
+        await new PositionStorageGlobalLib__factory(owner).deploy()
+      ).address,
+      'contracts/types/Position.sol:PositionStorageLocalLib': (
+        await new PositionStorageLocalLib__factory(owner).deploy()
+      ).address,
+      'contracts/types/RiskParameter.sol:RiskParameterStorageLib': (
+        await new RiskParameterStorageLib__factory(owner).deploy()
+      ).address,
+      'contracts/types/Version.sol:VersionStorageLib': (await new VersionStorageLib__factory(owner).deploy()).address,
+    },
+    owner,
+  ).deploy()
+
+  // Initialize the market
+  const factoryImpl = await new MarketFactory__factory(owner).deploy(oracleFactory.address, marketImpl.address)
+  const factoryProxy = await new TransparentUpgradeableProxy__factory(owner).deploy(
+    factoryImpl.address,
+    proxyAdmin.address,
+    [],
+  )
+  const marketFactory = new MarketFactory__factory(owner).attach(factoryProxy.address)
+  await marketFactory.connect(owner).initialize()
+
+  // Params
+  await marketFactory.updatePauser(pauser.address)
+  await marketFactory.updateParameter({
+    protocolFee: parse6decimal('0.50'),
+    maxFee: parse6decimal('0.01'),
+    maxFeeAbsolute: parse6decimal('1000'),
+    maxCut: parse6decimal('0.50'),
+    maxRate: parse6decimal('10.00'),
+    minMaintenance: parse6decimal('0.01'),
+    minEfficiency: parse6decimal('0.1'),
+    referralFee: 0,
+  })
+
+  await fundWallet(dsu, user, dsuMinter)
+  await fundWallet(dsu, userB, dsuMinter)
+  await fundWallet(dsu, userC, dsuMinter)
+  await fundWallet(dsu, userD, dsuMinter)
+
+  return {
+    owner,
+    pauser,
+    user,
+    userB,
+    userC,
+    userD,
+    beneficiaryB,
+    payoff,
+    dsu,
+    usdc,
+    marketFactory,
+    oracle,
+    marketImpl,
+  }
+}
+
+export async function fundWallet(
+  dsu: IERC20Metadata,
+  wallet: SignerWithAddress,
+  minter: Address = DSU_MINTER,
+): Promise<void> {
+  const dsuMinter = await impersonate.impersonateWithBalance(minter, utils.parseEther('10'))
   const dsuIface = new utils.Interface(['function mint(uint256)'])
   await dsuMinter.sendTransaction({
     to: dsu.address,
@@ -193,7 +288,7 @@ export async function fundWallet(dsu: IERC20Metadata, wallet: SignerWithAddress)
 }
 
 export async function createMarket(
-  instanceVars: InstanceVars,
+  instanceVars: InstanceVarsBasic,
   oracleOverride?: IOracleProvider,
   riskParamOverrides?: Partial<RiskParameterStruct>,
   marketParamOverrides?: Partial<MarketParameterStruct>,
@@ -228,6 +323,7 @@ export async function createMarket(
       targetRate: parse6decimal('0.80'),
       targetUtilization: parse6decimal('0.80'),
     },
+
     pController: {
       k: parse6decimal('40000'),
       min: parse6decimal('-1.20'),
