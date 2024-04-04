@@ -43,7 +43,7 @@ import {
 import { Address } from 'hardhat-deploy/dist/types'
 const { deployments, ethers } = HRE
 
-// TODO: move such addresses into a network-mapped structure
+// TODO: to keep helpers chain-agnostic, have caller pass these addresses in
 export const USDC_HOLDER = '0x0A59649758aa4d66E25f08Dd01271e891fe52199'
 const DSU_MINTER = '0xD05aCe63789cCb35B9cE71d01e4d632a0486Da4B'
 
@@ -70,6 +70,70 @@ export interface InstanceVars extends InstanceVarsBasic {
   chainlink: ChainlinkContext
 }
 
+// Deploys an empty market used by the factory as a template for creating new markets
+async function deployMarketImplementation(owner: SignerWithAddress): Promise<Market> {
+  const marketImpl = await new Market__factory(
+    {
+      'contracts/libs/CheckpointLib.sol:CheckpointLib': (await new CheckpointLib__factory(owner).deploy()).address,
+      'contracts/libs/InvariantLib.sol:InvariantLib': (await new InvariantLib__factory(owner).deploy()).address,
+      'contracts/libs/VersionLib.sol:VersionLib': (await new VersionLib__factory(owner).deploy()).address,
+      'contracts/types/Checkpoint.sol:CheckpointStorageLib': (
+        await new CheckpointStorageLib__factory(owner).deploy()
+      ).address,
+      'contracts/types/Global.sol:GlobalStorageLib': (await new GlobalStorageLib__factory(owner).deploy()).address,
+      'contracts/types/MarketParameter.sol:MarketParameterStorageLib': (
+        await new MarketParameterStorageLib__factory(owner).deploy()
+      ).address,
+      'contracts/types/Position.sol:PositionStorageGlobalLib': (
+        await new PositionStorageGlobalLib__factory(owner).deploy()
+      ).address,
+      'contracts/types/Position.sol:PositionStorageLocalLib': (
+        await new PositionStorageLocalLib__factory(owner).deploy()
+      ).address,
+      'contracts/types/RiskParameter.sol:RiskParameterStorageLib': (
+        await new RiskParameterStorageLib__factory(owner).deploy()
+      ).address,
+      'contracts/types/Version.sol:VersionStorageLib': (await new VersionStorageLib__factory(owner).deploy()).address,
+    },
+    owner,
+  ).deploy()
+  return marketImpl
+}
+
+// Deploys the market factory and configures default protocol parameters
+async function deployMarketFactory(
+  owner: SignerWithAddress,
+  pauser: SignerWithAddress,
+  oracleFactoryAddress: Address,
+  marketImplAddress: Address,
+): Promise<MarketFactory> {
+  const proxyAdmin = await new ProxyAdmin__factory(owner).deploy()
+  const factoryImpl = await new MarketFactory__factory(owner).deploy(oracleFactoryAddress, marketImplAddress)
+  const factoryProxy = await new TransparentUpgradeableProxy__factory(owner).deploy(
+    factoryImpl.address,
+    proxyAdmin.address,
+    [],
+  )
+  const marketFactory = new MarketFactory__factory(owner).attach(factoryProxy.address)
+  await marketFactory.connect(owner).initialize()
+
+  // Set protocol parameters
+  await marketFactory.updatePauser(pauser.address)
+  await marketFactory.updateParameter({
+    protocolFee: parse6decimal('0.50'),
+    maxFee: parse6decimal('0.01'),
+    maxFeeAbsolute: parse6decimal('1000'),
+    maxCut: parse6decimal('0.50'),
+    maxRate: parse6decimal('10.00'),
+    minMaintenance: parse6decimal('0.01'),
+    minEfficiency: parse6decimal('0.1'),
+    referralFee: 0,
+  })
+
+  return marketFactory
+}
+
+// Deploys the protocol configured to use a mocked chainlink oracle
 export async function deployProtocol(chainlinkContext?: ChainlinkContext): Promise<InstanceVars> {
   const [owner, pauser, user, userB, userC, userD, beneficiaryB] = await ethers.getSigners()
 
@@ -99,58 +163,12 @@ export async function deployProtocol(chainlinkContext?: ChainlinkContext): Promi
   )
   const oracleFactory = new OracleFactory__factory(owner).attach(oracleFactoryProxy.address)
 
-  const marketImpl = await new Market__factory(
-    {
-      'contracts/libs/CheckpointLib.sol:CheckpointLib': (await new CheckpointLib__factory(owner).deploy()).address,
-      'contracts/libs/InvariantLib.sol:InvariantLib': (await new InvariantLib__factory(owner).deploy()).address,
-      'contracts/libs/VersionLib.sol:VersionLib': (await new VersionLib__factory(owner).deploy()).address,
-      'contracts/types/Checkpoint.sol:CheckpointStorageLib': (
-        await new CheckpointStorageLib__factory(owner).deploy()
-      ).address,
-      'contracts/types/Global.sol:GlobalStorageLib': (await new GlobalStorageLib__factory(owner).deploy()).address,
-      'contracts/types/MarketParameter.sol:MarketParameterStorageLib': (
-        await new MarketParameterStorageLib__factory(owner).deploy()
-      ).address,
-      'contracts/types/Position.sol:PositionStorageGlobalLib': (
-        await new PositionStorageGlobalLib__factory(owner).deploy()
-      ).address,
-      'contracts/types/Position.sol:PositionStorageLocalLib': (
-        await new PositionStorageLocalLib__factory(owner).deploy()
-      ).address,
-      'contracts/types/RiskParameter.sol:RiskParameterStorageLib': (
-        await new RiskParameterStorageLib__factory(owner).deploy()
-      ).address,
-      'contracts/types/Version.sol:VersionStorageLib': (await new VersionStorageLib__factory(owner).deploy()).address,
-    },
-    owner,
-  ).deploy()
+  const marketImpl = await deployMarketImplementation(owner)
 
-  const factoryImpl = await new MarketFactory__factory(owner).deploy(oracleFactory.address, marketImpl.address)
+  const marketFactory = await deployMarketFactory(owner, pauser, oracleFactory.address, marketImpl.address)
 
-  const factoryProxy = await new TransparentUpgradeableProxy__factory(owner).deploy(
-    factoryImpl.address,
-    proxyAdmin.address,
-    [],
-  )
-
-  const marketFactory = new MarketFactory__factory(owner).attach(factoryProxy.address)
-
-  // Init
+  // Initialize oracle
   await oracleFactory.connect(owner).initialize(dsu.address)
-  await marketFactory.connect(owner).initialize()
-
-  // Params
-  await marketFactory.updatePauser(pauser.address)
-  await marketFactory.updateParameter({
-    protocolFee: parse6decimal('0.50'),
-    maxFee: parse6decimal('0.01'),
-    maxFeeAbsolute: parse6decimal('1000'),
-    maxCut: parse6decimal('0.50'),
-    maxRate: parse6decimal('10.00'),
-    minMaintenance: parse6decimal('0.01'),
-    minEfficiency: parse6decimal('0.1'),
-    referralFee: 0,
-  })
   await oracleFactory.connect(owner).register(chainlink.oracleFactory.address)
   await oracleFactory.connect(owner).authorize(marketFactory.address)
   const oracle = IOracle__factory.connect(
@@ -187,8 +205,10 @@ export async function deployProtocol(chainlinkContext?: ChainlinkContext): Promi
   }
 }
 
+// Deploys the protocol using an existing "real" oracle
 export async function deployProtocolForOracle(
   oracleFactory: OracleFactory,
+  oracleFactoryOwnerAddress: Address,
   oracle: IOracleProvider,
   dsuMinter: Address,
 ): Promise<InstanceVarsBasic> {
@@ -199,56 +219,16 @@ export async function deployProtocolForOracle(
   const usdc = IERC20Metadata__factory.connect((await deployments.get('USDC')).address, owner)
 
   // Deploy protocol contracts
-  const proxyAdmin = await new ProxyAdmin__factory(owner).deploy()
+  const marketImpl = await deployMarketImplementation(owner)
+  const marketFactory = await deployMarketFactory(owner, pauser, oracleFactory.address, marketImpl.address)
 
-  const marketImpl = await new Market__factory(
-    {
-      'contracts/libs/CheckpointLib.sol:CheckpointLib': (await new CheckpointLib__factory(owner).deploy()).address,
-      'contracts/libs/InvariantLib.sol:InvariantLib': (await new InvariantLib__factory(owner).deploy()).address,
-      'contracts/libs/VersionLib.sol:VersionLib': (await new VersionLib__factory(owner).deploy()).address,
-      'contracts/types/Checkpoint.sol:CheckpointStorageLib': (
-        await new CheckpointStorageLib__factory(owner).deploy()
-      ).address,
-      'contracts/types/Global.sol:GlobalStorageLib': (await new GlobalStorageLib__factory(owner).deploy()).address,
-      'contracts/types/MarketParameter.sol:MarketParameterStorageLib': (
-        await new MarketParameterStorageLib__factory(owner).deploy()
-      ).address,
-      'contracts/types/Position.sol:PositionStorageGlobalLib': (
-        await new PositionStorageGlobalLib__factory(owner).deploy()
-      ).address,
-      'contracts/types/Position.sol:PositionStorageLocalLib': (
-        await new PositionStorageLocalLib__factory(owner).deploy()
-      ).address,
-      'contracts/types/RiskParameter.sol:RiskParameterStorageLib': (
-        await new RiskParameterStorageLib__factory(owner).deploy()
-      ).address,
-      'contracts/types/Version.sol:VersionStorageLib': (await new VersionStorageLib__factory(owner).deploy()).address,
-    },
-    owner,
-  ).deploy()
-
-  // Initialize the market
-  const factoryImpl = await new MarketFactory__factory(owner).deploy(oracleFactory.address, marketImpl.address)
-  const factoryProxy = await new TransparentUpgradeableProxy__factory(owner).deploy(
-    factoryImpl.address,
-    proxyAdmin.address,
-    [],
+  // Impersonate the owner of the oracle factory to authorize it for the newly-deployed market factory
+  oracleFactory = new OracleFactory__factory(owner).attach(oracleFactory.address)
+  const oracleFactoryOwner = await impersonate.impersonateWithBalance(
+    oracleFactoryOwnerAddress,
+    utils.parseEther('0.01'),
   )
-  const marketFactory = new MarketFactory__factory(owner).attach(factoryProxy.address)
-  await marketFactory.connect(owner).initialize()
-
-  // Params
-  await marketFactory.updatePauser(pauser.address)
-  await marketFactory.updateParameter({
-    protocolFee: parse6decimal('0.50'),
-    maxFee: parse6decimal('0.01'),
-    maxFeeAbsolute: parse6decimal('1000'),
-    maxCut: parse6decimal('0.50'),
-    maxRate: parse6decimal('10.00'),
-    minMaintenance: parse6decimal('0.01'),
-    minEfficiency: parse6decimal('0.1'),
-    referralFee: 0,
-  })
+  await oracleFactory.connect(oracleFactoryOwner).authorize(marketFactory.address)
 
   await fundWallet(dsu, user, dsuMinter)
   await fundWallet(dsu, userB, dsuMinter)
