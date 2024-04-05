@@ -1,6 +1,6 @@
 import { expect } from 'chai'
-import HRE from 'hardhat'
-import { constants } from 'ethers'
+import HRE, { ethers } from 'hardhat'
+import { constants, utils } from 'ethers'
 import { createMarket, deployProtocolForOracle, InstanceVarsBasic, settle } from '../helpers/setupHelpers'
 import {
   DEFAULT_ORDER,
@@ -17,20 +17,33 @@ import {
   expectCheckpointEq,
 } from '../../../../common/testutil/types'
 import { loadFixture } from '@nomicfoundation/hardhat-network-helpers'
-import { Market } from '@equilibria/perennial-v2-oracle/types/generated'
+import { Market, PythFactory__factory } from '@equilibria/perennial-v2-oracle/types/generated'
 import { currentBlockTimestamp, increaseTo } from '../../../../common/testutil/time'
+import { impersonateWithBalance } from '../../../../common/testutil/impersonate'
 
 const { AddressZero } = constants
 
 // arbitrum addresses
+// TODO: improve naming; "FACTORY" is ambiguous
+const ORACLE_TOP_FACTORY = '0x6b60e7c96B4d11A63891F249eA826f8a73Ef4E6E' // for deploying the top level oracles
 const ORACLE_FACTORY = '0x8CDa59615C993f925915D3eb4394BAdB3feEF413'
 const ORACLE_FACTORY_OWNER = '0xdA381aeD086f544BaC66e73C071E158374cc105B'
-const ETH_USDC_ORACLE_PROVIDER = '0x048BeB57D408b9270847Af13F6827FB5ea4F617A'
+const PYTH_ETH_USD_PRICE_FEED = '0xff61491a931112ddf1bd8147cd1b641375f79f5825126d665480874634fd0ace'
+const ETH_USD_ORACLE_PROVIDER = '0x048BeB57D408b9270847Af13F6827FB5ea4F617A'
 const DSU_MINTER = '0x0d49c416103Cbd276d9c3cd96710dB264e3A0c27'
 
 // fork-relevant timestamps
 const TIMESTAMP_0 = 1712161580
-const TIMESTAMP_1 = TIMESTAMP_0 + 10 * 60
+const TIMESTAMP_1 = TIMESTAMP_0 + 10 * 60 // ten minutes later
+const TIMESTAMP_2 = TIMESTAMP_0 + 3600 // hour later
+
+// queried from https://hermes.pyth.network/docs/#/rest/get_vaa
+const VAA_HOUR_LATER =
+  'UE5BVQEAAAADuAEAAAADDQF1qHkUupuhCBFVGh5RAyxAHN5cfMki8m3fQmQwVso4JWqrrNIV9Ch+sXVAn0k/YH2R5zWyIwYuPBCtodXpvFmZAAIP3JKeIB/SuHT1sIw20hOjCGFihO86zQmFGHhmNfjisjuqS4BAJbGNrmmxwOvRqJrCFGRQSb1B9wHoc6KYcp88AANMAKU5Y57f6HgL91bRA0YjfcUiHOfM5oMHIaqI7Ct7u0HXB6wWu9SLQ1koqHzEK00+FTCqnj2zZcxUFcj2jxlKAARr0mbDQvl8qZ65BZ0/JstJsmtDSlxIBgDMkCumBHLXxXA2T6/Gabk5ksR0rXDm114zZqSWL4IkDAPthLxIr/J/AQZ/GhH2aZMhcsx3tt7Bzx3YyiyWCTK7Zr5jXzI0Pv4wWnNqlmAFuXjyFarZLNzUcFnrgTWwa5DdaH3SX2FEMVuTAAfn6sEq+8p72qSfxEAMugF2A+3gLV508m+YMjZLDrjjGXftB2mSIatdkPb89/SmHEG9mGZgmBLo88zOpwea3Py3AQhvXRARaHwHMykE1Lf6VefEjbje8ZnI4N88UZZiV/eVfi/BkLTwrt6jDjueS4rYRxoj/lORlvr5NVcHz6O5N0bHAQmH0k2GHEIZQhuWbnOixSaK3KHmDXxf5/gdcP72uoAUl3yh/JpsJH1N9wsZrbrC+Yb4UwGrKL2Y8Z2WvZLvn8I4AQo9+4EOru3+6k9VpJOVGI92auV+0HeZXYzOsxusFhQK+13L25P52DVUp4LstfK7I9g81BE0iCVhdL9UUZkVnDZ1AAvMlwnwgy+RiFgyg+wyK28nKYBytMylVy1mKR7ALYgnKQnybcpQLa1MnW0bTLrTY1yH3sSV6t11q8mjTYTH8uIJAAzdfpFA6UgUaGm13XGKy7JH3jcE5KQ4I6stAxA65SWb7x7kVF4kTUZ0qveIcoa94JXAbW8Vjpza11oeAvrVyznvABFTc/mflv3KduUd/LPNgCOc3ZQh9Q4lRcnwOzAldamIhh80YpFAI+nkXbzNWvMFELd74oCfZ7ur+3Ont10U6uiHABKc0UY8kRY2nVCtg3qeLJnafrsPwky7AwJH2kME384uFzF4/J5TSXmKg3yKqQp3Bbrecqoj3+6cBo1cf7E2jUezAGYNkTwAAAAAABrhAfrtrFhR4yubI7X5QRqMK6xKrj7U3XuBHdGnLqSqcQAAAAAC4JBfAUFVV1YAAAAAAAfqgJkAACcQwzVXXh45o5XuoipbS6tHUGLOr2gBAFUA/2FJGpMREt3xvYFHzRtkE3X3n1glEm1mVICHRjT9Cs4AAABNxDg2IAAAAAAMXBdJ////+AAAAABmDZE8AAAAAGYNkTsAAABN7bhLwAAAAAAP8g77CvACukv/Z/XwPv2pp3OgsvdOcPBUrts9R4Hgcz6qR9V6pOPgww1tJU0efEK1mzTeAWykMPQ9NJ6Q4R6bOE4ovJE1HoqYaxeOeXo5A2sVjzj3+EVrSL3D0Fk7ZhvE4mq11ta+xU83W8vUSVjPvP7B6tZ3ca7vABbyU4NPD3w50tD4xjICZVMTQFLWMEvFg2w8474FkSDYxxq/jEvKzy++P9OT1YviTj7K39aY2WT3ihDvYXZ+HkNyzhecSH3hfqbIvBfiD6HuALiZ'
+const VAA_2HRS_LATER =
+  'UE5BVQEAAAADuAEAAAADDQFsBUnwLPrSZoV4WQiY3GUg2Q66NyAaldoyH5ZIJ0ZkETzvfhkRWbjoBrSpYZhHVbuRYdZTPZtBrGyg6j4sxiCAAQL32kcgJLK96UTlfdX3SoEyhocpsEEERIrQlFvc7DwJUxkphb/NZ4ClThdKLy2R7o8Jn61Ca5tNXiw0vUV4EB0NAQPdMFrLNBLVc5KZxTgHWlitEjOYa3Gdp2EYNJlxwznhMFBiL19cubTC2NvBzH/2d4XMziMQIesdUPCyYHHIve3hAAR3dzw9JKtnPjC2AI1rhOB2oPYqLE5Z3JsTvfnjuiFS4WimZ4EYLtxBUlMnwmgZvdPrH4nAroey1ZtBojzFCeMbAAaCMLaKaEQTch8hC7DUfHMm7LeZJciXhHgcSFtJVV8KjBrY2b1eXYQciztShmewcnS6TDGg/eDX4yRdbgcVQCQFAQeK4c3gHFKVGFzW+J6TTb/mPM5p4SiZcxdIb9Ka49QAYHzzeVCMgBXpCSuVczaZAdvAdbr63WB9aojA27ahTJ5DAQqJon4VIghzlzd3oUCWHakeBwrBGQ3YMCatBSEO572L8XH6GcgbzR4+ds+f+TESaKoHTWcnJOhzQSzqZidTAnC7AAuE1P3Wg/byq0hcM7Q6OF4CVILHoJZZrbG+AWY7IhTuDHbW9H255u6G+yI5DKB1N8YTjZuxZ5O5rUbO887UQQ7BAAyIqdkFpu/5cK5l6uRtLbf/k1id++UQRi8n7CfPac+Ryzvow2wI1UVPKAaNXMjQAwlMbiUKGKwbRmuRN7ChnpEFAA4TktPaoYqH7mATAtXXBc1tuoG/qlfGGW2qBbaPySGQRGANAArwMmlosmNdE+LCLu5q/mnCBGUZq7hTCFJMYeB5ABDt0vlPLLj54ba9LjA+pv0livhFYugldTyNetyKr2kDuwWZkECwZ4I4wfbPZIVAST6TafASe7fhR5Gads8BpO0xABEOJGx3I6SZI9dj+yIS/iNG5M0lyR9q64NsR0K0iqxj7wC1kdDHs97tfcDqlchc4ijnBemIl8KhOED295r/UggkARIFUrj9ANvPfSFqNFZAIEVmwDwz9B3rDOy0xhU1glOvq3uNPtwa1+zXcogYdHsmNCO2KVxurBzd92gJ2/hFRBBWAWYNn0wAAAAAABrhAfrtrFhR4yubI7X5QRqMK6xKrj7U3XuBHdGnLqSqcQAAAAAC4LERAUFVV1YAAAAAAAfqob8AACcQS7Wu2jbRAfmb9mV40YZnWnP8y64BAFUA/2FJGpMREt3xvYFHzRtkE3X3n1glEm1mVICHRjT9Cs4AAABMlUOsWQAAAAAeHuzk////+AAAAABmDZ9MAAAAAGYNn0sAAABNjKCk4AAAAAASmqlyCqbX7ce3zjatJ3hfg8zxh/mwYPl0yID2YqpGFtPHvS1AVLhx/oMnEJJDlt7Eq1WbUlpe+7jrJzb2Ixq+kzOI6Iat6srSSrY+ROo4CUTiejdpy7TujH9yJSPZdM50t6AVksSN5bnA+gWvX7AboBSlHBI4bGTkRfiQydXONlH/CwJCFDLJwl+E3CwnKDMRXv9+Dn8QVffWnNwJzk26d2R4D2Oo0hZpAiojvP19Ut/iXSIvxGC/UC2oQpiBkLQzAQxQFxxSiWxxUZJs'
+const VAA_3HRS_LATER =
+  'UE5BVQEAAAADuAEAAAADDQFLc0pVHyH+14tnsJjxnKT/wj63ixUYmKoHhZ5uV0oMiD0iWbknaNLHyTn35rQVSJlN+zGYv2gBiknMgKn98u39AQJeVQRTmgq9oxtfK4iwQ+KEE6wzcF5vD3g3WU60GUTYS0xujiyfYakRcASWCpYHX+nMRHrUDY+0is1trL4SufDAAQO9Yyclqwn3eY/4M4XP4JdXb7O539d9w59hyVDlqsHTwiuznX5lk5BvhvnLCgmn0pLlqg3INiD/Bk9ngn3SB0JgAQSgq+lzkpJrUSh86Xg0CrJ8FjTJ2kZDNtw3WQpOLF7AJGGkxCrU+64C0gaW7+wPSY77d+OOJQ0md+nuNIw25ZZkAAa/ihmPU89rl4hRBqrca2mFi40YFmp9xbK505fmMNXi5nyCEhUL4IWreicVaAu4P83omLLw4Tmfs/TVtoGdagAjAAfg6a6BfhZ8uvxOr1mMecpoxsp2+FaVfY/QJpssmMw0ezSSIAQbsWfiLJ9FpcoQMpcrgp2wN73Pw9wxmNiaNeScAQgnXa1wWpTwyjC+vl9aKG2DuB/B8o8IuvXUjQClDOOH+CvFzzCcNcW+XmOk4FjMkDrmjEdwNy6osytnGVNCzTq/AAmEDVlLjpTpLcl/yJIGpA8MxWRbHpjN2cedfy5yyA+8Q168/nUgw8gOV0FnQiaEjvyhpQZCWVOOJudNSthIxm37AAq8VzuMy2gMRWxNjAmEP1BcaQDnvdy6UUKCReocfScSh1wHSzbehYFBcCI8PsfSSzckynK4FKx5/8hmrZrmacTAAQu63uGHiAdV/Zp2iJ1REmoyUXQAvXDrHmJdPhrPOlTiBhKtcAplwuykXGd7eh7EzSWSKHeeYqDnuXf7M87bic/5AQ4uY/Uv4PzfcSzfz6yYOaWZij6t5MLzZu+pS0F2bHe4fxI7tTBq42ioyf3VIn8IGw+Ky/XxleApo7FIHXO2C/3PABBUL2zhLCTk2MnV4e2+2BCgtJ3cZKmF3H+XbN98ZMY5R3ib9rEZCKDskH8+JBVbBLDA1QbHpKBD0iYowR85a7dYARIEs3dpxCzHWS4o0db3K04X3k2X009B5qXkvmai9T3L2FgeV9GQTsJ21/9KUHUBO59Yy1gnJrcMrGIVH89MSylxAWYNrV0AAAAAABrhAfrtrFhR4yubI7X5QRqMK6xKrj7U3XuBHdGnLqSqcQAAAAAC4NI2AUFVV1YAAAAAAAfqwuQAACcQP5+7HJdtj8XLYFHmk/ebNWySvXoBAFUA/2FJGpMREt3xvYFHzRtkE3X3n1glEm1mVICHRjT9Cs4AAABNRudPrQAAAAAOey6T////+AAAAABmDa1cAAAAAGYNrVsAAABNXSuYoAAAAAARDtbmCiLr7CAcorRSNORl1Vcn5SDNz6oNDBuIKRKRVXWSfVaJkCthK5YZ2ODZguHwr08Gb7DmkpYttcy2jBBOlo3/rdGdU3xkwtctADhqxv5xxrw8DsIrb4uNduCVWN51l+kKwFVkLEtez3/jq4xJb6DK+K6k0zngXAlX2Ubswrc7yjG84wJsAmOOZQdWsB24cbUuVuvgL9KfwUMUtEFWcMUjIeRrW/vXKlz5mZJz/vqgDn+szgao+0PJDrXl6KdvyWUKhuPvHsbD77h3'
 
 describe('End to End Flow', () => {
   let instanceVars: InstanceVarsBasic
@@ -38,7 +51,7 @@ describe('End to End Flow', () => {
 
   const realOracleFixture = async () => {
     const oracleFactory = await HRE.ethers.getContractAt('IOracleProviderFactory', ORACLE_FACTORY)
-    const oracleProvider = await HRE.ethers.getContractAt('IOracleProvider', ETH_USDC_ORACLE_PROVIDER)
+    const oracleProvider = await HRE.ethers.getContractAt('IOracleProvider', ETH_USD_ORACLE_PROVIDER)
 
     expect(oracleProvider.address).to.not.be.undefined
     instanceVars = await deployProtocolForOracle(oracleFactory, ORACLE_FACTORY_OWNER, oracleProvider, DSU_MINTER)
@@ -66,6 +79,41 @@ describe('End to End Flow', () => {
     expect(latestVersion.valid).to.equal(true)
     expect(currentTimestamp).to.be.greaterThanOrEqual(TIMESTAMP_0)
     console.log('oracle currentTimestamp is', currentTimestamp)
+  })
+
+  it.only('allows oracle price to be updated', async () => {
+    const { owner, user, oracle } = instanceVars
+
+    const pythOracleFactory = await new PythFactory__factory(owner).attach(ORACLE_TOP_FACTORY)
+
+    // determine the granularity, needed to calculate starting time for an update period
+    const { latestGranularity, currentGranularity, effectiveAfter } = await pythOracleFactory.granularity()
+    console.log(latestGranularity, currentGranularity, effectiveAfter)
+    expect(latestGranularity).to.equal(1)
+    expect(currentGranularity).to.equal(10)
+    expect(effectiveAfter).to.equal(1705331638)
+    const granularity = currentGranularity.toNumber()
+
+    const granularStartingTime = Math.ceil(TIMESTAMP_2 / granularity + 1) * granularity
+
+    // FIXME: suspect this isn't decoding right; this hexstring is 2505 chars,
+    // while the examples in PythOracleFactory.test.ts are 3433 chars
+    // may be helpful: https://github.com/pyth-network/pyth-js/issues/71
+    const decodedVaa = '0x' + Buffer.from(ethers.utils.base64.decode(VAA_HOUR_LATER)).toString('hex')
+    console.log('decodedVaa', decodedVaa)
+
+    // FIXME: reverts with InvalidArgumentsError: Errors encountered in param 1: Invalid value "0x016345785d8a0000" supplied to : QUANTITY
+    const oracleFactoryOwner = await impersonateWithBalance(ORACLE_FACTORY_OWNER, utils.parseEther('0.1'))
+    await expect(
+      pythOracleFactory
+        .connect(oracleFactoryOwner)
+        .commit([PYTH_ETH_USD_PRICE_FEED], granularStartingTime, decodedVaa, {
+          value: 1,
+          maxFeePerGas: 100000000,
+        }),
+    )
+      .to.emit(ETH_USD_ORACLE_PROVIDER, 'OracleProviderVersionFulfilled')
+      .withArgs({ timestamp: granularStartingTime, price: '1838207180', valid: true })
   })
 
   it('opens a make position', async () => {
@@ -118,7 +166,6 @@ describe('End to End Flow', () => {
       ...DEFAULT_POSITION,
       timestamp: TIMESTAMP_0,
     })
-    return
 
     // Check global state
     expectGlobalEq(await market.global(), {
@@ -150,6 +197,7 @@ describe('End to End Flow', () => {
     // TODO: update oracle
     //await chainlink.next()
     await settle(market, user)
+    return
 
     // check user state
     expectLocalEq(await market.locals(user.address), {
