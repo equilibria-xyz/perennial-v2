@@ -463,7 +463,8 @@ describe('Market', () => {
       interestFee: parse6decimal('0.1'),
       oracleFee: parse6decimal('0.1'),
       riskFee: parse6decimal('0.1'),
-      positionFee: parse6decimal('0.1'),
+      makerFee: parse6decimal('0.1'),
+      takerFee: parse6decimal('0.1'),
       maxPendingGlobal: 5,
       maxPendingLocal: 3,
       settlementFee: 0,
@@ -533,7 +534,8 @@ describe('Market', () => {
       const marketParameterResult = await market.parameter()
       expect(marketParameterResult.fundingFee).to.equal(0)
       expect(marketParameterResult.interestFee).to.equal(0)
-      expect(marketParameterResult.positionFee).to.equal(0)
+      expect(marketParameterResult.makerFee).to.equal(0)
+      expect(marketParameterResult.takerFee).to.equal(0)
       expect(marketParameterResult.oracleFee).to.equal(0)
       expect(marketParameterResult.riskFee).to.equal(0)
       expect(marketParameterResult.maxPendingGlobal).to.equal(0)
@@ -560,7 +562,8 @@ describe('Market', () => {
       const defaultMarketParameter = {
         fundingFee: parse6decimal('0.03'),
         interestFee: parse6decimal('0.02'),
-        positionFee: parse6decimal('0.01'),
+        makerFee: parse6decimal('0.01'),
+        takerFee: parse6decimal('0.01'),
         oracleFee: parse6decimal('0.04'),
         riskFee: parse6decimal('0.05'),
         maxPendingGlobal: 5,
@@ -584,7 +587,8 @@ describe('Market', () => {
         const marketParameter = await market.parameter()
         expect(marketParameter.fundingFee).to.equal(defaultMarketParameter.fundingFee)
         expect(marketParameter.interestFee).to.equal(defaultMarketParameter.interestFee)
-        expect(marketParameter.positionFee).to.equal(defaultMarketParameter.positionFee)
+        expect(marketParameter.makerFee).to.equal(defaultMarketParameter.makerFee)
+        expect(marketParameter.takerFee).to.equal(defaultMarketParameter.takerFee)
         expect(marketParameter.oracleFee).to.equal(defaultMarketParameter.oracleFee)
         expect(marketParameter.riskFee).to.equal(defaultMarketParameter.riskFee)
         expect(marketParameter.maxPendingGlobal).to.equal(defaultMarketParameter.maxPendingGlobal)

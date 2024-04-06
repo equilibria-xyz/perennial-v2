@@ -21,7 +21,7 @@ struct RiskParameter {
     LinearAdiabatic6 takerFee;
 
     /// @dev The maker fee configuration
-    InverseAdiabatic6 makerFee; // TODO: adiabatic fee no longer needed
+    InverseAdiabatic6 makerFee;
 
     /// @dev The maximum amount of maker positions that opened
     UFixed6 makerLimit;

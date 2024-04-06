@@ -76,6 +76,9 @@ library VersionLib {
         // accumulate liquidation fee
         result.liquidationFee = _accumulateLiquidationFee(next, context);
 
+        // accumulate fee
+        _accumulateFee(next, context, result);
+
         // accumulate linear fee
         _accumulateLinearFee(next, context, result);
 
@@ -180,14 +183,21 @@ library VersionLib {
         );
         next.makerOffset.decrement(Fixed6Lib.from(makerLinearFee), context.order.makerTotal());
 
-        UFixed6 takerTotal = context.order.takerTotal().sub(context.intent.takerTotal());
-        UFixed6 takerLinearFee = context.riskParameter.takerFee.linear(
-            Fixed6Lib.from(takerTotal),
+        UFixed6 takerPosTotal = context.order.takerPos().sub(context.intent.takerPos);
+        UFixed6 takerPosLinearFee = context.riskParameter.takerFee.linear(
+            Fixed6Lib.from(takerPosTotal),
             context.toOracleVersion.price.abs()
         );
-        next.takerFee.decrement(Fixed6Lib.from(takerLinearFee), takerTotal);
+        next.takerPosOffset.decrement(Fixed6Lib.from(takerPosLinearFee), takerPosTotal);
 
-        UFixed6 linearFee = makerLinearFee.add(takerLinearFee);
+        UFixed6 takerNegTotal = context.order.takerNeg().sub(context.intent.takerNeg);
+        UFixed6 takerNegLinearFee = context.riskParameter.takerFee.linear(
+            Fixed6Lib.from(takerNegTotal),
+            context.toOracleVersion.price.abs()
+        );
+        next.takerNegOffset.decrement(Fixed6Lib.from(takerNegLinearFee), takerNegTotal);
+
+        UFixed6 linearFee = makerLinearFee.add(takerPosLinearFee).add(takerNegLinearFee);
         UFixed6 tradeFee = context.fromPosition.maker.isZero() ? linearFee : UFixed6Lib.ZERO;
         UFixed6 makerFee = linearFee.sub(tradeFee);
         next.makerValue.increment(Fixed6Lib.from(makerFee), context.fromPosition.maker);

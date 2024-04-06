@@ -129,11 +129,11 @@ library VersionStorageLib {
             uint256(Fixed6.unwrap(newValue.shortValue._value) << (256 - 64)) >> (256 - 8 - 64 - 64 - 64) |
             uint256(Fixed6.unwrap(newValue.liquidationFee._value) << (256 - 48)) >> (256 - 8 - 64 - 64 - 64 - 48);
         uint256 encoded1 =
-            uint256(Fixed6.unwrap(newValue.price) << (256 - 48)) >> (256 - 48) |
-            uint256(Fixed6.unwrap(newValue.makerOffset._value) << (256 - 48)) >> (256 - 48 - 48) |
-            uint256(Fixed6.unwrap(newValue.takerPosOffset._value) << (256 - 48)) >> (256 - 48 - 48 - 48) |
-            uint256(Fixed6.unwrap(newValue.takerNegOffset._value) << (256 - 48)) >> (256 - 48 - 48 - 48 - 48) |
-            uint256(Fixed6.unwrap(newValue.settlementFee._value) << (256 - 48)) >> (256 - 48 - 48 - 48 - 48 - 48);
+            uint256(Fixed6.unwrap(newValue.price) << (256 - 64)) >> (256 - 64) |
+            uint256(Fixed6.unwrap(newValue.makerOffset._value) << (256 - 48)) >> (256 - 64 - 48) |
+            uint256(Fixed6.unwrap(newValue.takerPosOffset._value) << (256 - 48)) >> (256 - 64 - 48 - 48) |
+            uint256(Fixed6.unwrap(newValue.takerNegOffset._value) << (256 - 48)) >> (256 - 64 - 48 - 48 - 48) |
+            uint256(Fixed6.unwrap(newValue.settlementFee._value) << (256 - 48)) >> (256 - 64 - 48 - 48 - 48 - 48);
         uint256 encoded2 =
             uint256(Fixed6.unwrap(newValue.makerFee._value) << (256 - 48)) >> (256 - 48) |
             uint256(Fixed6.unwrap(newValue.takerFee._value) << (256 - 48)) >> (256 - 48 - 48);
