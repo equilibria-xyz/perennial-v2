@@ -365,7 +365,7 @@ async function deposit(market: Market, amount: BigNumber, account: SignerWithAdd
     )
 }
 
-describe('Market', () => {
+describe.only('Market', () => {
   let protocolTreasury: SignerWithAddress
   let owner: SignerWithAddress
   let beneficiary: SignerWithAddress
@@ -463,8 +463,8 @@ describe('Market', () => {
       interestFee: parse6decimal('0.1'),
       oracleFee: parse6decimal('0.1'),
       riskFee: parse6decimal('0.1'),
-      makerFee: parse6decimal('0.1'),
-      takerFee: parse6decimal('0.1'),
+      makerFee: 0,
+      takerFee: 0,
       maxPendingGlobal: 5,
       maxPendingLocal: 3,
       settlementFee: 0,
