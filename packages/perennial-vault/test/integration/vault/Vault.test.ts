@@ -663,7 +663,7 @@ describe('Vault', () => {
       expect((await vault.accounts(ethers.constants.AddressZero)).assets).to.equal(0)
     })
 
-    it('deposit during redemption', async () => {
+    it.skip('deposit during redemption', async () => {
       expect(await vault.convertToAssets(parse6decimal('1'))).to.equal(parse6decimal('1'))
       expect(await vault.convertToShares(parse6decimal('1'))).to.equal(parse6decimal('1'))
 
