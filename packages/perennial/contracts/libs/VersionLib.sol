@@ -14,8 +14,10 @@ import "../types/Version.sol";
 struct VersionAccumulationResult {
     UFixed6 tradeFee;
     UFixed6 subtractiveFee;
+
     Fixed6 tradeOffset;
     Fixed6 tradeOffsetMaker;
+    UFixed6 tradeOffsetMarket;
 
     Fixed6 adiabaticExposure;
     Fixed6 adiabaticExposureMaker;
@@ -198,12 +200,13 @@ library VersionLib {
         next.takerNegOffset.decrement(Fixed6Lib.from(takerNegLinearFee), takerNegTotal);
 
         UFixed6 linearFee = makerLinearFee.add(takerPosLinearFee).add(takerNegLinearFee);
-        UFixed6 tradeFee = context.fromPosition.maker.isZero() ? linearFee : UFixed6Lib.ZERO;
-        UFixed6 makerFee = linearFee.sub(tradeFee);
+        UFixed6 marketFee = context.fromPosition.maker.isZero() ? linearFee : UFixed6Lib.ZERO;
+        UFixed6 makerFee = linearFee.sub(marketFee);
         next.makerValue.increment(Fixed6Lib.from(makerFee), context.fromPosition.maker);
 
         result.tradeOffset = result.tradeOffset.add(Fixed6Lib.from(linearFee));
         result.tradeOffsetMaker = result.tradeOffsetMaker.add(Fixed6Lib.from(makerFee));
+        result.tradeOffsetMarket = result.tradeOffsetMarket.add(marketFee);
     }
 
     /// @notice Globally accumulates proportional fees since last oracle update
@@ -235,12 +238,13 @@ library VersionLib {
         next.takerNegOffset.decrement(Fixed6Lib.from(takerNegProportionalFee), takerNeg);
 
         UFixed6 proportionalFee = makerProportionalFee.add(takerPosProportionalFee).add(takerNegProportionalFee);
-        UFixed6 tradeFee = context.fromPosition.maker.isZero() ? proportionalFee : UFixed6Lib.ZERO;
-        UFixed6 makerFee = proportionalFee.sub(tradeFee);
+        UFixed6 marketFee = context.fromPosition.maker.isZero() ? proportionalFee : UFixed6Lib.ZERO;
+        UFixed6 makerFee = proportionalFee.sub(marketFee);
         next.makerValue.increment(Fixed6Lib.from(makerFee), context.fromPosition.maker);
 
         result.tradeOffset = result.tradeOffset.add(Fixed6Lib.from(proportionalFee));
         result.tradeOffsetMaker = result.tradeOffsetMaker.add(Fixed6Lib.from(makerFee));
+        result.tradeOffsetMarket = result.tradeOffsetMarket.add(marketFee);
     }
 
     /// @notice Globally accumulates adiabatic fees since last oracle update
