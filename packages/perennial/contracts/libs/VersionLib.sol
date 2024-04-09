@@ -204,7 +204,6 @@ library VersionLib {
 
         result.tradeOffset = result.tradeOffset.add(Fixed6Lib.from(linearFee));
         result.tradeOffsetMaker = result.tradeOffsetMaker.add(Fixed6Lib.from(makerFee));
-        result.tradeFee = result.tradeFee.add(tradeFee);
     }
 
     /// @notice Globally accumulates proportional fees since last oracle update
@@ -242,7 +241,6 @@ library VersionLib {
 
         result.tradeOffset = result.tradeOffset.add(Fixed6Lib.from(proportionalFee));
         result.tradeOffsetMaker = result.tradeOffsetMaker.add(Fixed6Lib.from(makerFee));
-        result.tradeFee = result.tradeFee.add(tradeFee);
     }
 
     /// @notice Globally accumulates adiabatic fees since last oracle update
@@ -285,8 +283,7 @@ library VersionLib {
         VersionAccumulationContext memory context,
         VersionAccumulationResult memory result
     ) private pure {
-        Fixed6 exposure = context.riskParameter.takerFee.exposure(context.fromPosition.skew())
-            .add(context.riskParameter.makerFee.exposure(context.fromPosition.maker));
+        Fixed6 exposure = context.riskParameter.takerFee.exposure(context.fromPosition.skew());
 
         Fixed6 adiabaticExposure = context.toOracleVersion.price.sub(context.fromOracleVersion.price).mul(exposure);
         Fixed6 adiabaticExposureMaker = adiabaticExposure.mul(Fixed6Lib.NEG_ONE);
