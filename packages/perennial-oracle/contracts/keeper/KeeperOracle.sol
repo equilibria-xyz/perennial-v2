@@ -9,8 +9,7 @@ import "../interfaces/IKeeperFactory.sol";
 /// @title KeeperOracle
 /// @notice Generic implementation of the IOracle interface for keeper-based oracles.
 /// @dev One instance per price feed should be deployed. Multiple products may use the same
-///      KeeperOracle instance if their payoff functions are based on the same underlying oracle.
-///      This implementation only supports non-negative prices.
+///      KeeperOracle. This implementation only supports non-negative prices.
 contract KeeperOracle is IKeeperOracle, Instance {
     using EnumerableSet for EnumerableSet.AddressSet;
 
