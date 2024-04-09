@@ -17,20 +17,22 @@ import {
   expectCheckpointEq,
 } from '../../../../common/testutil/types'
 import { loadFixture } from '@nomicfoundation/hardhat-network-helpers'
-import { Market, PythFactory__factory } from '@equilibria/perennial-v2-oracle/types/generated'
+import { KeeperOracle__factory, Market, PythFactory__factory } from '@equilibria/perennial-v2-oracle/types/generated'
 import { currentBlockTimestamp, increaseTo } from '../../../../common/testutil/time'
-import { impersonateWithBalance } from '../../../../common/testutil/impersonate'
+import { impersonate, impersonateWithBalance } from '../../../../common/testutil/impersonate'
 
 const { AddressZero } = constants
 
 // arbitrum addresses
 // TODO: improve naming; "FACTORY" is ambiguous
-const ORACLE_TOP_FACTORY = '0x6b60e7c96B4d11A63891F249eA826f8a73Ef4E6E' // for deploying the top level oracles
-const ORACLE_FACTORY = '0x8CDa59615C993f925915D3eb4394BAdB3feEF413'
-const ORACLE_FACTORY_OWNER = '0xdA381aeD086f544BaC66e73C071E158374cc105B'
+const ORACLE_TOP_FACTORY = '0x6b60e7c96B4d11A63891F249eA826f8a73Ef4E6E' // PythFactory_Arbitrum for deploying the top level oracles
+const ORACLE_FACTORY = '0x8CDa59615C993f925915D3eb4394BAdB3feEF413' // OracleFactory used by MarketFactory
+const ORACLE_FACTORY_OWNER = '0xdA381aeD086f544BaC66e73C071E158374cc105B' // TimelockController
 const PYTH_ETH_USD_PRICE_FEED = '0xff61491a931112ddf1bd8147cd1b641375f79f5825126d665480874634fd0ace'
-const ETH_USD_ORACLE_PROVIDER = '0x048BeB57D408b9270847Af13F6827FB5ea4F617A'
-const DSU_MINTER = '0x0d49c416103Cbd276d9c3cd96710dB264e3A0c27'
+const ETH_USD_KEEPER_ORACLE = '0xf9249EC6785221226Cb3f66fa049aA1E5B6a4A57' // KeeperOracle
+const ETH_USD_ORACLE = '0x048BeB57D408b9270847Af13F6827FB5ea4F617A' // Oracle with id 0xff61491a931112ddf1bd8147cd1b641375f79f5825126d665480874634fd0ace
+const DSU_MINTER = '0x0d49c416103Cbd276d9c3cd96710dB264e3A0c27' // DSU SimpleReserve
+const DSU_HOLDER = '0x90a664846960aafa2c164605aebb8e9ac338f9a0' // Market implementation
 
 // fork-relevant timestamps
 const TIMESTAMP_0 = 1712161580
@@ -51,19 +53,25 @@ describe('End to End Flow', () => {
 
   const realOracleFixture = async () => {
     const oracleFactory = await HRE.ethers.getContractAt('IOracleProviderFactory', ORACLE_FACTORY)
-    const oracleProvider = await HRE.ethers.getContractAt('IOracleProvider', ETH_USD_ORACLE_PROVIDER)
+    const oracleProvider = await HRE.ethers.getContractAt('IOracleProvider', ETH_USD_ORACLE)
 
     expect(oracleProvider.address).to.not.be.undefined
     instanceVars = await deployProtocolForOracle(oracleFactory, ORACLE_FACTORY_OWNER, oracleProvider, DSU_MINTER)
+    const { user, oracle, dsu } = instanceVars
+
+    market = await createMarket(instanceVars, oracle)
+    await dsu.connect(user).approve(market.address, parse6decimal('10000').mul(1e12))
+
+    // const dsuHolder = await impersonateWithBalance(DSU_HOLDER, utils.parseEther('10'))
+    // await dsu.connect(dsuHolder).transfer(oracleFactory.address, utils.parseEther('100000'))
+    // await dsu.connect(dsuHolder).transfer(ORACLE_FACTORY_OWNER, utils.parseEther('100000'))
+    // await dsu.connect(dsuHolder).transfer(ORACLE_TOP_FACTORY, utils.parseEther('100000'))
   }
 
   beforeEach(async () => {
     await loadFixture(realOracleFixture)
-    const { user, oracle, dsu } = instanceVars
-
-    // TODO: move into fixture if this is the only market we'll create
-    market = await createMarket(instanceVars, oracle)
-    await dsu.connect(user).approve(market.address, parse6decimal('10000').mul(1e12))
+    // Base fee isn't working properly in coverage, so set it manually
+    await ethers.provider.send('hardhat_setNextBlockBaseFeePerGas', ['0x5F5E100'])
   })
 
   it('creates a market using real oracle', async () => {
@@ -78,10 +86,9 @@ describe('End to End Flow', () => {
     expect(latestVersion.price).to.equal(parse6decimal('3355.394928'))
     expect(latestVersion.valid).to.equal(true)
     expect(currentTimestamp).to.be.greaterThanOrEqual(TIMESTAMP_0)
-    console.log('oracle currentTimestamp is', currentTimestamp)
   })
 
-  it.only('allows oracle price to be updated', async () => {
+  it('updates oracle price to be updated by committing VAA to factory', async () => {
     const { owner, user, oracle } = instanceVars
 
     const pythOracleFactory = await new PythFactory__factory(owner).attach(ORACLE_TOP_FACTORY)
@@ -92,18 +99,21 @@ describe('End to End Flow', () => {
     expect(latestGranularity).to.equal(1)
     expect(currentGranularity).to.equal(10)
     expect(effectiveAfter).to.equal(1705331638)
-    const granularity = currentGranularity.toNumber()
+    const granularity = latestGranularity.toNumber()
 
+    // TODO: should I just call pythOracleFactory.current to get the timestamp?
     const granularStartingTime = Math.ceil(TIMESTAMP_2 / granularity + 1) * granularity
+    console.log('granularStartingTime', granularStartingTime)
 
     // FIXME: suspect this isn't decoding right; this hexstring is 2505 chars,
     // while the examples in PythOracleFactory.test.ts are 3433 chars
     // may be helpful: https://github.com/pyth-network/pyth-js/issues/71
-    const decodedVaa = '0x' + Buffer.from(ethers.utils.base64.decode(VAA_HOUR_LATER)).toString('hex')
+    // const decodedVaa = '0x' + Buffer.from(ethers.utils.base64.decode(VAA_HOUR_LATER)).toString('hex')
+    const decodedVaa = '0x' + Buffer.from(VAA_HOUR_LATER, 'base64').toString('hex')
     console.log('decodedVaa', decodedVaa)
 
-    // FIXME: reverts with InvalidArgumentsError: Errors encountered in param 1: Invalid value "0x016345785d8a0000" supplied to : QUANTITY
-    const oracleFactoryOwner = await impersonateWithBalance(ORACLE_FACTORY_OWNER, utils.parseEther('0.1'))
+    // FIXME: reverts inside parseAndVerifyBatchAttestationVM, making a call to wormhole 0xebe57e8045f2f230872523bbff7374986e45c486
+    const oracleFactoryOwner = await impersonateWithBalance(ORACLE_FACTORY_OWNER, utils.parseEther('10'))
     await expect(
       pythOracleFactory
         .connect(oracleFactoryOwner)
@@ -112,8 +122,34 @@ describe('End to End Flow', () => {
           maxFeePerGas: 100000000,
         }),
     )
-      .to.emit(ETH_USD_ORACLE_PROVIDER, 'OracleProviderVersionFulfilled')
+      .to.emit(ETH_USD_ORACLE, 'OracleProviderVersionFulfilled')
       .withArgs({ timestamp: granularStartingTime, price: '1838207180', valid: true })
+  })
+
+  it.only('updates oracle price by committing oracle version to KeeperOracle', async () => {
+    const { owner, user, oracle } = instanceVars
+
+    const oracleProvider = await new KeeperOracle__factory(owner).attach(ETH_USD_KEEPER_ORACLE)
+    console.log(await oracleProvider.latest())
+
+    const oracleFactory = await impersonateWithBalance(ORACLE_TOP_FACTORY, utils.parseEther('10'))
+    const oracleVersion = {
+      timestamp: TIMESTAMP_2,
+      price: parse6decimal('3377.429922'),
+      valid: true,
+    }
+    await expect(
+      oracleProvider.connect(oracleFactory).commit(oracleVersion, {
+        maxFeePerGas: 100000000,
+      }),
+    ).to.emit(oracleProvider, 'OracleProviderVersionFulfilled')
+
+    const [latestVersion, currentTimestamp] = await oracle.status()
+    expect(latestVersion.timestamp).to.equal(TIMESTAMP_2)
+    expect(latestVersion.price).to.equal(parse6decimal('3377.429922'))
+    expect(latestVersion.valid).to.equal(true)
+    expect(currentTimestamp).to.be.greaterThanOrEqual(TIMESTAMP_2)
+    console.log('oracle latestVersion.timestamp', latestVersion.timestamp, 'currentTimestamp', currentTimestamp)
   })
 
   it('opens a make position', async () => {
