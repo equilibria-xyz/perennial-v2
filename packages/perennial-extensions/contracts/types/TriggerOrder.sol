@@ -23,13 +23,12 @@ struct StoredTriggerOrder {
     uint64 fee;         // <= 18.44tb
     int64 price;        // <= 9.22t
     int64 delta;        // <= 9.22t
-    bytes6 __unallocated0__;
+    uint48 interfaceFeeAmount1; // <= 281m
 
     /* slot 1 */
     address interfaceFeeReceiver1;
-    uint48 interfaceFeeAmount1;      // <= 281m
     bool interfaceFeeUnwrap1;
-    bytes5 __unallocated1__;
+    bytes11 __unallocated0__;
 
     /* slot 2 */
     address interfaceFeeReceiver2;
@@ -126,11 +125,10 @@ library TriggerOrderStorageLib {
             uint64(UFixed6.unwrap(newValue.fee)),
             int64(Fixed6.unwrap(newValue.price)),
             int64(Fixed6.unwrap(newValue.delta)),
-            bytes6(0),
-            newValue.interfaceFee1.receiver,
             uint48(UFixed6.unwrap(newValue.interfaceFee1.amount)),
+            newValue.interfaceFee1.receiver,
             newValue.interfaceFee1.unwrap,
-            bytes5(0),
+            bytes11(0),
             newValue.interfaceFee2.receiver,
             uint48(UFixed6.unwrap(newValue.interfaceFee2.amount)),
             newValue.interfaceFee2.unwrap,
