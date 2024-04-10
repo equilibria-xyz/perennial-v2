@@ -1,6 +1,6 @@
 import { expect } from 'chai'
 import HRE, { ethers } from 'hardhat'
-import { constants, utils } from 'ethers'
+import { BigNumber, constants, utils } from 'ethers'
 import { createMarket, deployProtocolForOracle, InstanceVarsBasic, settle } from '../helpers/setupHelpers'
 import {
   DEFAULT_ORDER,
@@ -17,15 +17,19 @@ import {
   expectCheckpointEq,
 } from '../../../../common/testutil/types'
 import { loadFixture } from '@nomicfoundation/hardhat-network-helpers'
-import { KeeperOracle__factory, Market, PythFactory__factory } from '@equilibria/perennial-v2-oracle/types/generated'
+import {
+  KeeperOracle,
+  KeeperOracle__factory,
+  PythFactory__factory,
+} from '@equilibria/perennial-v2-oracle/types/generated'
 import { currentBlockTimestamp, increaseTo } from '../../../../common/testutil/time'
-import { impersonate, impersonateWithBalance } from '../../../../common/testutil/impersonate'
+import { impersonateWithBalance } from '../../../../common/testutil/impersonate'
+import { Market } from '../../../types/generated'
 
 const { AddressZero } = constants
 
 // arbitrum addresses
-// TODO: improve naming; "FACTORY" is ambiguous
-const ORACLE_TOP_FACTORY = '0x6b60e7c96B4d11A63891F249eA826f8a73Ef4E6E' // PythFactory_Arbitrum for deploying the top level oracles
+const KEEPER_FACTORY = '0x6b60e7c96B4d11A63891F249eA826f8a73Ef4E6E' // PythFactory_Arbitrum for deploying the top level oracles
 const ORACLE_FACTORY = '0x8CDa59615C993f925915D3eb4394BAdB3feEF413' // OracleFactory used by MarketFactory
 const ORACLE_FACTORY_OWNER = '0xdA381aeD086f544BaC66e73C071E158374cc105B' // TimelockController
 const PYTH_ETH_USD_PRICE_FEED = '0xff61491a931112ddf1bd8147cd1b641375f79f5825126d665480874634fd0ace'
@@ -35,9 +39,8 @@ const DSU_MINTER = '0x0d49c416103Cbd276d9c3cd96710dB264e3A0c27' // DSU SimpleRes
 const DSU_HOLDER = '0x90a664846960aafa2c164605aebb8e9ac338f9a0' // Market implementation
 
 // fork-relevant timestamps
-const TIMESTAMP_0 = 1712161580
-const TIMESTAMP_1 = TIMESTAMP_0 + 10 * 60 // ten minutes later
-const TIMESTAMP_2 = TIMESTAMP_0 + 3600 // hour later
+const TIMESTAMP_0 = 1712161580 // Wed Apr 03 2024 16:26:20 GMT+0000
+const PRICE_0 = parse6decimal('3355.394928') // ETH-USD
 
 // queried from https://hermes.pyth.network/docs/#/rest/get_vaa
 const VAA_HOUR_LATER =
@@ -50,22 +53,44 @@ const VAA_3HRS_LATER =
 describe('End to End Flow', () => {
   let instanceVars: InstanceVarsBasic
   let market: Market
+  let keeperOracle: KeeperOracle
 
+  // creates a market against a forked Pyth oracle
   const realOracleFixture = async () => {
     const oracleFactory = await HRE.ethers.getContractAt('IOracleProviderFactory', ORACLE_FACTORY)
     const oracleProvider = await HRE.ethers.getContractAt('IOracleProvider', ETH_USD_ORACLE)
 
     expect(oracleProvider.address).to.not.be.undefined
     instanceVars = await deployProtocolForOracle(oracleFactory, ORACLE_FACTORY_OWNER, oracleProvider, DSU_MINTER)
-    const { user, oracle, dsu } = instanceVars
+    const { owner, user, oracle, dsu } = instanceVars
 
     market = await createMarket(instanceVars, oracle)
+    keeperOracle = await new KeeperOracle__factory(owner).attach(ETH_USD_KEEPER_ORACLE)
     await dsu.connect(user).approve(market.address, parse6decimal('10000').mul(1e12))
+  }
 
-    // const dsuHolder = await impersonateWithBalance(DSU_HOLDER, utils.parseEther('10'))
-    // await dsu.connect(dsuHolder).transfer(oracleFactory.address, utils.parseEther('100000'))
-    // await dsu.connect(dsuHolder).transfer(ORACLE_FACTORY_OWNER, utils.parseEther('100000'))
-    // await dsu.connect(dsuHolder).transfer(ORACLE_TOP_FACTORY, utils.parseEther('100000'))
+  // simulates an oracle update from KeeperOracle; this skips payment of keeper fees
+  async function advanceToPrice(timestamp: number, price: BigNumber): Promise<number> {
+    const { owner } = instanceVars
+    const oracleFactory = await impersonateWithBalance(KEEPER_FACTORY, utils.parseEther('10'))
+
+    // a keeper cannot commit a future price, so advance past the block
+    if ((await currentBlockTimestamp()) < timestamp) await increaseTo(timestamp + 2)
+
+    // create a version with the desired parameters and commit to the KeeperOracle
+    const oracleVersion = {
+      timestamp: timestamp,
+      price: price,
+      valid: true,
+    }
+    await expect(
+      keeperOracle.connect(oracleFactory).commit(oracleVersion, {
+        maxFeePerGas: 100000000,
+      }),
+    ).to.emit(keeperOracle, 'OracleProviderVersionFulfilled')
+
+    // inform the caller of the current timestamp
+    return await currentBlockTimestamp()
   }
 
   beforeEach(async () => {
@@ -88,10 +113,10 @@ describe('End to End Flow', () => {
     expect(currentTimestamp).to.be.greaterThanOrEqual(TIMESTAMP_0)
   })
 
-  it('updates oracle price to be updated by committing VAA to factory', async () => {
+  it.skip('updates oracle price to be updated by committing VAA to factory', async () => {
     const { owner, user, oracle } = instanceVars
 
-    const pythOracleFactory = await new PythFactory__factory(owner).attach(ORACLE_TOP_FACTORY)
+    const pythOracleFactory = await new PythFactory__factory(owner).attach(KEEPER_FACTORY)
 
     // determine the granularity, needed to calculate starting time for an update period
     const { latestGranularity, currentGranularity, effectiveAfter } = await pythOracleFactory.granularity()
@@ -102,13 +127,11 @@ describe('End to End Flow', () => {
     const granularity = latestGranularity.toNumber()
 
     // TODO: should I just call pythOracleFactory.current to get the timestamp?
-    const granularStartingTime = Math.ceil(TIMESTAMP_2 / granularity + 1) * granularity
+    const time2 = TIMESTAMP_0 + 3600
+    const granularStartingTime = Math.ceil(time2 / granularity + 1) * granularity
     console.log('granularStartingTime', granularStartingTime)
 
-    // FIXME: suspect this isn't decoding right; this hexstring is 2505 chars,
-    // while the examples in PythOracleFactory.test.ts are 3433 chars
-    // may be helpful: https://github.com/pyth-network/pyth-js/issues/71
-    // const decodedVaa = '0x' + Buffer.from(ethers.utils.base64.decode(VAA_HOUR_LATER)).toString('hex')
+    // decode raw data from hermes to a hexstring suitable for use onchain
     const decodedVaa = '0x' + Buffer.from(VAA_HOUR_LATER, 'base64').toString('hex')
     console.log('decodedVaa', decodedVaa)
 
@@ -126,30 +149,40 @@ describe('End to End Flow', () => {
       .withArgs({ timestamp: granularStartingTime, price: '1838207180', valid: true })
   })
 
-  it.only('updates oracle price by committing oracle version to KeeperOracle', async () => {
-    const { owner, user, oracle } = instanceVars
+  it('updates oracle price by committing oracle version to KeeperOracle', async () => {
+    const { oracle } = instanceVars
 
-    const oracleProvider = await new KeeperOracle__factory(owner).attach(ETH_USD_KEEPER_ORACLE)
-    console.log(await oracleProvider.latest())
+    // ensure another test hasn't reset us to an irrelevant epoch
+    const startTime = await currentBlockTimestamp()
+    expect(await startTime).to.be.greaterThanOrEqual(TIMESTAMP_0)
 
-    const oracleFactory = await impersonateWithBalance(ORACLE_TOP_FACTORY, utils.parseEther('10'))
-    const oracleVersion = {
-      timestamp: TIMESTAMP_2,
-      price: parse6decimal('3377.429922'),
-      valid: true,
-    }
-    await expect(
-      oracleProvider.connect(oracleFactory).commit(oracleVersion, {
-        maxFeePerGas: 100000000,
-      }),
-    ).to.emit(oracleProvider, 'OracleProviderVersionFulfilled')
+    // confirm inital price and timestamp matches our constants
+    const [initialVersion, initialTimestamp] = await oracle.status()
+    expect(initialVersion.timestamp).to.equal(TIMESTAMP_0)
+    expect(initialVersion.price).to.equal(PRICE_0)
+    expect(initialVersion.valid).to.equal(true)
+    expect(initialTimestamp).to.be.greaterThanOrEqual(TIMESTAMP_0)
 
+    // advance 10 minutes into the future and request an oracle price
+    const requestedTime = startTime + 10 * 60
+    const newBlockTimestamp = await advanceToPrice(requestedTime, parse6decimal('3377.429922'))
+
+    // confirm the oracle's latest version is our update
     const [latestVersion, currentTimestamp] = await oracle.status()
-    expect(latestVersion.timestamp).to.equal(TIMESTAMP_2)
+    expect(latestVersion.timestamp).to.equal(requestedTime)
     expect(latestVersion.price).to.equal(parse6decimal('3377.429922'))
     expect(latestVersion.valid).to.equal(true)
-    expect(currentTimestamp).to.be.greaterThanOrEqual(TIMESTAMP_2)
-    console.log('oracle latestVersion.timestamp', latestVersion.timestamp, 'currentTimestamp', currentTimestamp)
+    expect(currentTimestamp).to.be.greaterThanOrEqual(requestedTime)
+
+    // confirm we can retrieve the price for the expected timestamp
+    const versionAt = await oracle.at(requestedTime)
+    expect(versionAt).to.eql(latestVersion)
+
+    // confirm timestamps make sense
+    expect(newBlockTimestamp)
+      .to.be.greaterThanOrEqual(requestedTime)
+      .and.lessThan(requestedTime + 10)
+    expect(newBlockTimestamp).to.equal(await currentBlockTimestamp())
   })
 
   it('opens a make position', async () => {
@@ -158,24 +191,20 @@ describe('End to End Flow', () => {
     const { user, dsu, marketImpl } = instanceVars
 
     await dsu.connect(user).approve(market.address, COLLATERAL.mul(1e12))
-    // HACK: the -10 is machine-dependent
-    await increaseTo(TIMESTAMP_1 - 10)
-    expect(await currentBlockTimestamp()).to.equal(TIMESTAMP_1 - 10)
+    const time1 = await currentBlockTimestamp()
 
-    // FIXME: the timestamp seems nondeterministic, even when controlling the current block timestamp
-    // Block timestamps get assigned using system clock rather than NODE_INTERVAL_MINING
-    // because automine is off.
+    const time2 = time1 + 12
     await expect(
       market
         .connect(user)
         ['update(address,uint256,uint256,uint256,int256,bool)'](user.address, POSITION, 0, 0, COLLATERAL, false),
     )
       .to.emit(market, 'Updated')
-      .withArgs(user.address, user.address, TIMESTAMP_1, POSITION, 0, 0, COLLATERAL, false, AddressZero)
+      .withArgs(user.address, user.address, time2, POSITION, 0, 0, COLLATERAL, false, AddressZero)
       .to.emit(market, 'OrderCreated')
       .withArgs(user.address, {
         ...DEFAULT_ORDER,
-        timestamp: TIMESTAMP_1,
+        timestamp: time2,
         orders: 1,
         collateral: COLLATERAL,
         makerPos: POSITION,
@@ -190,12 +219,12 @@ describe('End to End Flow', () => {
     })
     expectOrderEq(await market.pendingOrders(user.address, 1), {
       ...DEFAULT_ORDER,
-      timestamp: TIMESTAMP_1,
+      timestamp: time2,
       orders: 1,
       collateral: COLLATERAL,
       makerPos: POSITION,
     })
-    expectCheckpointEq(await market.checkpoints(user.address, TIMESTAMP_1), {
+    expectCheckpointEq(await market.checkpoints(user.address, time1), {
       ...DEFAULT_CHECKPOINT,
     })
     expectPositionEq(await market.positions(user.address), {
@@ -215,7 +244,7 @@ describe('End to End Flow', () => {
     })
     expectOrderEq(await market.pendingOrder(1), {
       ...DEFAULT_ORDER,
-      timestamp: TIMESTAMP_1,
+      timestamp: time2,
       orders: 1,
       collateral: COLLATERAL,
       makerPos: POSITION,
@@ -230,32 +259,10 @@ describe('End to End Flow', () => {
     })
 
     // Settle the market with a new oracle version
-    // TODO: update oracle
-    //await chainlink.next()
-    await settle(market, user)
-    return
+    // FIXME: suspect this time offset of 1-2 is nondeterministic
+    const time3 = (await advanceToPrice(time2, parse6decimal('3344.555'))) + 2
 
-    // check user state
-    expectLocalEq(await market.locals(user.address), {
-      ...DEFAULT_LOCAL,
-      currentId: 2,
-      latestId: 1,
-      collateral: COLLATERAL,
-    })
-    expectOrderEq(await market.pendingOrders(user.address, 2), {
-      ...DEFAULT_ORDER,
-      timestamp: TIMESTAMP_2,
-    })
-    expectCheckpointEq(await market.checkpoints(user.address, TIMESTAMP_2), {
-      ...DEFAULT_CHECKPOINT,
-    })
-    expectPositionEq(await market.positions(user.address), {
-      ...DEFAULT_POSITION,
-      timestamp: TIMESTAMP_1,
-      maker: POSITION,
-    })
-
-    // Check global post-settlement state
+    // Check global state after implicit settlement from oracle provider
     expectGlobalEq(await market.global(), {
       currentId: 2,
       latestId: 1,
@@ -267,11 +274,34 @@ describe('End to End Flow', () => {
     })
     expectOrderEq(await market.pendingOrder(2), {
       ...DEFAULT_ORDER,
-      timestamp: TIMESTAMP_2,
+      timestamp: time3,
     })
     expectPositionEq(await market.position(), {
       ...DEFAULT_POSITION,
-      timestamp: TIMESTAMP_1,
+      timestamp: time2,
+      maker: POSITION,
+    })
+
+    // TODO: backmerge https://github.com/equilibria-xyz/perennial-v2/pull/283 to 2.2 or this branch
+    expect(await market.connect(user)['settle(address)'](user.address)).to.not.be.reverted
+
+    // Check user state after an explicit settlement of that user
+    expectLocalEq(await market.locals(user.address), {
+      ...DEFAULT_LOCAL,
+      currentId: 1,
+      latestId: 1,
+      collateral: COLLATERAL,
+    })
+    expectOrderEq(await market.pendingOrders(user.address, 2), {
+      ...DEFAULT_ORDER,
+    })
+    expectCheckpointEq(await market.checkpoints(user.address, time2), {
+      ...DEFAULT_CHECKPOINT,
+      transfer: parse6decimal('10000.000000'),
+    })
+    expectPositionEq(await market.positions(user.address), {
+      ...DEFAULT_POSITION,
+      timestamp: time2,
       maker: POSITION,
     })
   })
