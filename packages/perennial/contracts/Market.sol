@@ -424,9 +424,11 @@ contract Market is IMarket, Instance, ReentrancyGuard {
         // referral fee
         UFixed6 referralFee = _processReferralFee(context, updateContext, referrer);
 
-        // advance to next id if applicable
+        // advance to next id if applicable, resetting referrer and liquidator
         if (context.currentTimestamp > updateContext.order.local.timestamp) {
             updateContext.order.local.next(context.currentTimestamp);
+            updateContext.referrer = address(0);
+            updateContext.liquidator = address(0);
             context.local.currentId++;
         }
         if (context.currentTimestamp > updateContext.order.global.timestamp) {

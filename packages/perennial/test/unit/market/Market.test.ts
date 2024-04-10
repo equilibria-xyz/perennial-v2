@@ -15150,6 +15150,156 @@ describe('Market', () => {
         })
       })
 
+      context('liquidation w/ referrer', async () => {
+        beforeEach(async () => {
+          dsu.transferFrom.whenCalledWith(userB.address, market.address, COLLATERAL.mul(1e12)).returns(true)
+          await market
+            .connect(userB)
+            ['update(address,uint256,uint256,uint256,int256,bool)'](userB.address, POSITION, 0, 0, COLLATERAL, false)
+          dsu.transferFrom.whenCalledWith(user.address, market.address, utils.parseEther('216')).returns(true)
+          await market
+            .connect(user)
+            ['update(address,uint256,uint256,uint256,int256,bool)'](
+              user.address,
+              0,
+              POSITION.div(2),
+              0,
+              parse6decimal('216'),
+              false,
+            )
+        })
+
+        it('sets related accounts', async () => {
+          factory.parameter.returns({
+            maxPendingIds: 5,
+            protocolFee: parse6decimal('0.50'),
+            maxFee: parse6decimal('0.01'),
+            maxFeeAbsolute: parse6decimal('1000'),
+            maxCut: parse6decimal('0.50'),
+            maxRate: parse6decimal('10.00'),
+            minMaintenance: parse6decimal('0.01'),
+            minEfficiency: parse6decimal('0.1'),
+            referralFee: parse6decimal('0.20'),
+          })
+
+          oracle.at.whenCalledWith(ORACLE_VERSION_2.timestamp).returns(ORACLE_VERSION_2)
+          oracle.status.returns([ORACLE_VERSION_2, ORACLE_VERSION_3.timestamp])
+          oracle.request.whenCalledWith(user.address).returns()
+
+          await settle(market, user)
+          await settle(market, userB)
+
+          const EXPECTED_PNL = parse6decimal('80').mul(5)
+          const EXPECTED_LIQUIDATION_FEE = parse6decimal('50') // 6.45 -> under minimum
+
+          const oracleVersionLowerPrice = {
+            price: parse6decimal('43'),
+            timestamp: TIMESTAMP + 7200,
+            valid: true,
+          }
+          oracle.at.whenCalledWith(oracleVersionLowerPrice.timestamp).returns(oracleVersionLowerPrice)
+          oracle.status.returns([oracleVersionLowerPrice, ORACLE_VERSION_4.timestamp])
+          oracle.request.whenCalledWith(user.address).returns()
+
+          await settle(market, userB)
+          dsu.transfer.whenCalledWith(liquidator.address, EXPECTED_LIQUIDATION_FEE.mul(1e12)).returns(true)
+          dsu.balanceOf.whenCalledWith(market.address).returns(COLLATERAL.mul(1e12))
+
+          await expect(
+            market
+              .connect(liquidator)
+              ['update(address,uint256,uint256,uint256,int256,bool,address)'](
+                user.address,
+                0,
+                0,
+                0,
+                0,
+                true,
+                userB.address,
+              ),
+          )
+            .to.emit(market, 'Updated')
+            .withArgs(liquidator.address, user.address, ORACLE_VERSION_4.timestamp, 0, 0, 0, 0, true, userB.address)
+
+          expect((await market.locals(user.address)).currentId).to.equal(3)
+          expect(await market.liquidators(user.address, 3)).to.equal(liquidator.address)
+          expect(await market.referrers(user.address, 3)).to.equal(userB.address)
+        })
+
+        it('resets related accounts on update', async () => {
+          factory.parameter.returns({
+            maxPendingIds: 5,
+            protocolFee: parse6decimal('0.50'),
+            maxFee: parse6decimal('0.01'),
+            maxFeeAbsolute: parse6decimal('1000'),
+            maxCut: parse6decimal('0.50'),
+            maxRate: parse6decimal('10.00'),
+            minMaintenance: parse6decimal('0.01'),
+            minEfficiency: parse6decimal('0.1'),
+            referralFee: parse6decimal('0.20'),
+          })
+
+          oracle.at.whenCalledWith(ORACLE_VERSION_2.timestamp).returns(ORACLE_VERSION_2)
+          oracle.status.returns([ORACLE_VERSION_2, ORACLE_VERSION_3.timestamp])
+          oracle.request.whenCalledWith(user.address).returns()
+
+          await settle(market, user)
+          await settle(market, userB)
+
+          const EXPECTED_LIQUIDATION_FEE = parse6decimal('50') // 6.45 -> under minimum
+
+          const oracleVersionLowerPrice = {
+            price: parse6decimal('43'),
+            timestamp: TIMESTAMP + 7200,
+            valid: true,
+          }
+          oracle.at.whenCalledWith(oracleVersionLowerPrice.timestamp).returns(oracleVersionLowerPrice)
+          oracle.status.returns([oracleVersionLowerPrice, ORACLE_VERSION_4.timestamp])
+          oracle.request.whenCalledWith(user.address).returns()
+
+          await settle(market, userB)
+          dsu.transfer.whenCalledWith(liquidator.address, EXPECTED_LIQUIDATION_FEE.mul(1e12)).returns(true)
+          dsu.balanceOf.whenCalledWith(market.address).returns(COLLATERAL.mul(1e12))
+
+          await expect(
+            market
+              .connect(liquidator)
+              ['update(address,uint256,uint256,uint256,int256,bool,address)'](
+                user.address,
+                0,
+                0,
+                0,
+                0,
+                true,
+                userB.address,
+              ),
+          )
+            .to.emit(market, 'Updated')
+            .withArgs(liquidator.address, user.address, ORACLE_VERSION_4.timestamp, 0, 0, 0, 0, true, userB.address)
+
+          oracle.at.whenCalledWith(ORACLE_VERSION_4.timestamp).returns(ORACLE_VERSION_4)
+          oracle.status.returns([ORACLE_VERSION_4, ORACLE_VERSION_5.timestamp])
+          oracle.request.whenCalledWith(user.address).returns()
+
+          dsu.transferFrom.whenCalledWith(user.address, market.address, utils.parseEther('1000')).returns(true)
+          await market
+            .connect(user)
+            ['update(address,uint256,uint256,uint256,int256,bool)'](
+              user.address,
+              0,
+              POSITION.div(5),
+              0,
+              parse6decimal('1000'),
+              false,
+            )
+          await settle(market, user)
+
+          expect((await market.locals(user.address)).currentId).to.equal(4)
+          expect(await market.liquidators(user.address, 4)).to.equal(constants.AddressZero)
+          expect(await market.referrers(user.address, 4)).to.equal(constants.AddressZero)
+        })
+      })
+
       context('invalid oracle version', async () => {
         beforeEach(async () => {
           dsu.transferFrom.whenCalledWith(user.address, market.address, COLLATERAL.mul(1e12)).returns(true)
