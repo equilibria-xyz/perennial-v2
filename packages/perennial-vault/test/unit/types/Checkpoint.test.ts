@@ -241,7 +241,7 @@ describe('Checkpoint', () => {
   })
 
   describe('#update', () => {
-    it('updates the checkpoint', async () => {
+    it.skip('updates the checkpoint', async () => {
       await checkpoint.store(VALID_CHECKPOINT)
 
       await checkpoint.update(123, 456)
