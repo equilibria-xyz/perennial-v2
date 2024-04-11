@@ -15,11 +15,10 @@ import {
 } from '../../../types/generated'
 import { utils, BigNumber } from 'ethers'
 import { SignerWithAddress } from '@nomiclabs/hardhat-ethers/signers'
-import { fail } from 'assert'
 import { FakeContract, smock } from '@defi-wonderland/smock'
 import { parse6decimal } from '../../../../common/testutil/types'
 import { expect } from 'chai'
-import { currentBlockTimestamp, increase, increaseTo } from '../../../../common/testutil/time'
+import { currentBlockTimestamp, increase } from '../../../../common/testutil/time'
 import { impersonateWithBalance } from '../../../../common/testutil/impersonate'
 import { loadFixture } from '@nomicfoundation/hardhat-network-helpers'
 
@@ -126,6 +125,10 @@ describe('KeeperOracle', () => {
     await ethers.provider.send('hardhat_setNextBlockBaseFeePerGas', ['0x5F5E100'])
   })
 
+  afterEach(async () => {
+    await ethers.provider.send('hardhat_setNextBlockBaseFeePerGas', ['0x1'])
+  })
+
   it('can commit new prices', async () => {
     // validate initial (empty) state
     let version = await keeperOracle.latest()
@@ -166,7 +169,9 @@ describe('KeeperOracle', () => {
 
     // request a version
     increase(10)
-    const tx = await keeperOracle.connect(oracleSigner).request(market.address, user.address)
+    const tx = await keeperOracle.connect(oracleSigner).request(market.address, user.address, {
+      maxFeePerGas: 100000000,
+    })
     // TODO: weaponize this transaction-to-blocktime facility into a utility function
     const requestedTime = (await ethers.provider.getBlock(tx.blockNumber!)).timestamp
 
