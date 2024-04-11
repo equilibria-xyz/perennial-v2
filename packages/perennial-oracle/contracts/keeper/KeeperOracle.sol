@@ -26,6 +26,9 @@ contract KeeperOracle is IKeeperOracle, Instance {
     /// @dev Mapping from oracle version to oracle version data
     mapping(uint256 => Fixed6) private _prices;
 
+    /// @dev Flags expired versions as invalid, indicating they hold a carryover price
+    mapping(uint256 => bool) private _invalidVersions;
+
     /// @dev Mapping from version to a set of registered markets for settlement callback
     mapping(uint256 => EnumerableSet.AddressSet) private _globalCallbacks;
 
@@ -108,7 +111,7 @@ contract KeeperOracle is IKeeperOracle, Instance {
     /// @return oracleVersion Oracle version at version `version`
     function at(uint256 timestamp) public view returns (OracleVersion memory oracleVersion) {
         (oracleVersion.timestamp, oracleVersion.price) = (timestamp, _prices[timestamp]);
-        oracleVersion.valid = !oracleVersion.price.isZero();
+        oracleVersion.valid = !oracleVersion.price.isZero() && !_invalidVersions[timestamp];
     }
 
     /// @notice Commits the price to specified version
@@ -147,7 +150,7 @@ contract KeeperOracle is IKeeperOracle, Instance {
     }
 
     /// @notice Commits the price to a requested version
-    /// @dev This commit function will pay out a keeper fee if the committed version is valid
+    /// @dev This commit function will pay out a keeper fee for providing a valid price or carrying over latest price
     /// @param version The oracle version to commit
     /// @return Whether the commit was requested
     function _commitRequested(OracleVersion memory version) private returns (bool) {
@@ -156,6 +159,7 @@ contract KeeperOracle is IKeeperOracle, Instance {
             _prices[version.timestamp] = version.price;
         } else {
             _prices[version.timestamp] = _prices[_global.latestVersion];
+            _invalidVersions[version.timestamp] = true;
         }
         _global.latestIndex++;
         return true;

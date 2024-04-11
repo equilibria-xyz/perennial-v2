@@ -170,13 +170,14 @@ describe('KeeperOracle', () => {
     // TODO: weaponize this transaction-to-blocktime facility into a utility function
     const requestedTime = (await ethers.provider.getBlock(tx.blockNumber!)).timestamp
 
-    // commit a requested price older than the timeout
+    // attempt to commit a requested price older than the timeout
     increase(KEEPER_ORACLE_TIMEOUT + 1)
     await commitPrice(requestedTime, parse6decimal('3333.444'))
 
-    const badPrice = await keeperOracle.at(requestedTime)
-    expect(badPrice.timestamp).to.equal(requestedTime)
-    expect(badPrice.price).to.equal(0)
-    expect(badPrice.valid).to.be.false
+    // ensure carryover price is received instead of invalid price
+    const invalidPrice = await keeperOracle.at(requestedTime)
+    expect(invalidPrice.timestamp).to.equal(requestedTime)
+    expect(invalidPrice.price).to.equal(parse6decimal('3333.777'))
+    expect(invalidPrice.valid).to.be.false
   })
 })
