@@ -6,7 +6,7 @@ import 'hardhat'
 
 import { expect } from 'chai'
 import { parse6decimal } from '../../../../common/testutil/types'
-import { IMultiInvoker, Market, MultiInvoker } from '../../../types/generated'
+import { Market, MultiInvoker } from '../../../types/generated'
 import { Compare, Dir, openTriggerOrder } from '../../helpers/types'
 import {
   MAX_INT64,
