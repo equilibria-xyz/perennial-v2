@@ -4,12 +4,12 @@ import { HardhatRuntimeEnvironment, TaskArguments } from 'hardhat/types'
 import { gql, request } from 'graphql-request'
 import { IMarket } from '../types/generated'
 import { isArbitrum } from '../../common/testutil/network'
-import { constants } from 'ethers'
+import { utils } from 'ethers'
 
 const QueryPageSize = 1000
 const MultiCallAddress = '0xcA11bde05977b3631167028862bE2a173976CA11'
 
-export default task('check-solvency', 'Check the solvency of the given market').setAction(
+export default task('check-solvency', 'Check the solvency of all markets').setAction(
   async (args: TaskArguments, HRE: HardhatRuntimeEnvironment) => {
     const {
       ethers,
@@ -28,7 +28,7 @@ export default task('check-solvency', 'Check the solvency of the given market').
       ).address,
     )
     const markets = await marketFactory.queryFilter(marketFactory.filters.InstanceRegistered(), 0, 'latest')
-    let totalShortfall = 0
+    let totalShortfall = 0n
 
     for (const marketEvent of markets) {
       const marketAddress = marketEvent.args.instance
@@ -54,16 +54,26 @@ export default task('check-solvency', 'Check the solvency of the given market').
       const shortfalls = decoded
         .map((r, i) => ({ result: r, account: liquidations[i] }))
         .filter(r => BigInt(r.result?.at(0).collateral) < 0n)
-        .map(r => ({ account: r.account, shortfall: Number(r.result?.at(0).collateral) / 1e6 }))
-      const marketShortfall = shortfalls.reduce((acc, s) => acc + s.shortfall, 0)
+        .map(r => ({ account: r.account, shortfall: r.result?.at(0).collateral.toBigInt() }))
+      const marketShortfall = shortfalls.reduce((acc, s) => acc + s.shortfall, 0n)
       console.log(
-        `${marketAddress}: Found ${shortfalls.length} accounts with shortfalls totalling ${marketShortfall} USD`,
+        `${marketAddress}: Found ${shortfalls.length} accounts with shortfalls totalling ${utils.formatUnits(
+          marketShortfall,
+          6,
+        )} USD`,
       )
-      console.log('Shortfalls:', JSON.stringify(shortfalls, null, 2))
+      console.log(
+        'Shortfalls:',
+        JSON.stringify(
+          shortfalls.map(s => ({ ...s, shortfall: utils.formatUnits(s.shortfall, 6) })),
+          null,
+          2,
+        ),
+      )
       totalShortfall += marketShortfall
     }
     console.log('-------------------')
-    console.log(`Total shortfall: ${totalShortfall} USD`)
+    console.log(`Total shortfall: ${utils.formatUnits(totalShortfall, 6)} USD`)
   },
 )
 
@@ -106,19 +116,12 @@ function settleAndReadLocalsMulticallPayload(
   market: IMarket,
   account: string,
 ): { callData: string; allowFailure: boolean; target: string }[] {
-  const settle = market.interface.encodeFunctionData('update', [
-    account,
-    constants.MaxUint256,
-    constants.MaxUint256,
-    constants.MaxUint256,
-    0,
-    false,
-  ])
+  const settle = market.interface.encodeFunctionData('settle', [account])
   const locals = market.interface.encodeFunctionData('locals', [account])
   return [settle, locals].map(callData => ({ callData, allowFailure: true, target: market.address }))
 }
 
-const MultiCallABI = [
+export const MultiCallABI = [
   'function aggregate(tuple(address target, bytes callData)[] calls) payable returns (uint256 blockNumber, bytes[] returnData)',
   'function aggregate3(tuple(address target, bool allowFailure, bytes callData)[] calls) payable returns (tuple(bool success, bytes returnData)[] returnData)',
   'function aggregate3Value(tuple(address target, bool allowFailure, uint256 value, bytes callData)[] calls) payable returns (tuple(bool success, bytes returnData)[] returnData)',
