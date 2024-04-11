@@ -197,7 +197,7 @@ library StrategyLib {
         marketContext.closable = marketContext.latestAccountPosition.magnitude().sub(pendingLocal.neg());
 
         // current position
-        Order memory pendingGlobal = registration.market.pendings(address(this));
+        Order memory pendingGlobal = registration.market.pending();
         marketContext.currentPosition = registration.market.position();
         marketContext.currentPosition.update(pendingGlobal);
         marketContext.minPosition = marketContext.currentAccountPosition.maker
