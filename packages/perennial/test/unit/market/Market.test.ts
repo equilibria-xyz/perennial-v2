@@ -365,7 +365,7 @@ async function deposit(market: Market, amount: BigNumber, account: SignerWithAdd
     )
 }
 
-describe.only('Market', () => {
+describe('Market', () => {
   let protocolTreasury: SignerWithAddress
   let owner: SignerWithAddress
   let beneficiary: SignerWithAddress
@@ -752,13 +752,12 @@ describe.only('Market', () => {
 
         // before = 0
         // after = [(skew/scale+0)/2 * takerFee.adiabaticFee * skew * price]
-        //         + [(1+1-makerChange/scale)/2 * makerFee.adiabaticFee * makerChange * price]
-        // after = (0.20 + 0) / 2 * 0.003 * 10 * 123 + (1.00 + 0.90) / 2 * 0.004 * -10 * 123 = -4.305
+        // after = (0.20 + 0) / 2 * 0.003 * 10 * 123 = 0.369
         expectGlobalEq(await market.global(), {
           ...DEFAULT_GLOBAL,
           currentId: 2,
           latestId: 1,
-          exposure: BigNumber.from(0).sub(parse6decimal('-4.305')),
+          exposure: BigNumber.from(0).sub(parse6decimal('0.369')),
         })
 
         const riskParameter = await market.riskParameter()
@@ -2131,7 +2130,7 @@ describe.only('Market', () => {
             const riskParameterMakerFee = { ...riskParameter.makerFee }
             riskParameterMakerFee.linearFee = parse6decimal('0.005')
             riskParameterMakerFee.proportionalFee = parse6decimal('0.0025')
-            riskParameterMakerFee.adiabaticFee = parse6decimal('0.01')
+            riskParameterMakerFee.adiabaticFee = BigNumber.from(0)
             riskParameter.makerFee = riskParameterMakerFee
             await market.updateRiskParameter(riskParameter)
 
@@ -2139,8 +2138,7 @@ describe.only('Market', () => {
             marketParameter.settlementFee = parse6decimal('0.50')
             await market.updateParameter(beneficiary.address, coordinator.address, marketParameter)
 
-            const MAKER_FEE = parse6decimal('3.075') // position * (0.01 * -(1.00 + 0.00) / 2 + 0.005 + 0.0025) * price
-            const MAKER_FEE_WITHOUT_IMPACT = parse6decimal('9.225') // position * (0.005 + 0.0025) * price
+            const MAKER_FEE = parse6decimal('9.225') // position * (0.005 + 0.0025) * price
             const SETTLEMENT_FEE = parse6decimal('0.50')
 
             await expect(
@@ -2196,10 +2194,10 @@ describe.only('Market', () => {
             expectGlobalEq(await market.global(), {
               currentId: 2,
               latestId: 1,
-              protocolFee: MAKER_FEE_WITHOUT_IMPACT.div(2),
-              oracleFee: MAKER_FEE_WITHOUT_IMPACT.div(2).div(10).add(SETTLEMENT_FEE),
-              riskFee: MAKER_FEE_WITHOUT_IMPACT.div(2).div(10),
-              donation: MAKER_FEE_WITHOUT_IMPACT.div(2).mul(8).div(10),
+              protocolFee: MAKER_FEE.div(2),
+              oracleFee: MAKER_FEE.div(2).div(10).add(SETTLEMENT_FEE),
+              riskFee: MAKER_FEE.div(2).div(10),
+              donation: MAKER_FEE.div(2).mul(8).div(10),
               exposure: 0,
             })
             expectPositionEq(await market.position(), {
@@ -2701,18 +2699,17 @@ describe.only('Market', () => {
               const riskParameterMakerFee = { ...riskParameter.makerFee }
               riskParameterMakerFee.linearFee = parse6decimal('0.005')
               riskParameterMakerFee.proportionalFee = parse6decimal('0.0025')
-              riskParameterMakerFee.adiabaticFee = parse6decimal('0.01')
+              riskParameterMakerFee.adiabaticFee = BigNumber.from(0)
               riskParameter.makerFee = riskParameterMakerFee
               await market.updateRiskParameter(riskParameter)
 
               const marketParameter = { ...(await market.parameter()) }
               marketParameter.settlementFee = parse6decimal('0.50')
+              marketParameter.makerFee = parse6decimal('0.01')
               await market.updateParameter(beneficiary.address, coordinator.address, marketParameter)
 
-              const MAKER_FEE = parse6decimal('15.375') // position * (0.01 * (1.00 + 0.00) / 2 + 0.005 + 0.0025) * price
-              const MAKER_FEE_WITHOUT_IMPACT = parse6decimal('9.225') // position * (0.005 + 0.0025) * price
-              const MAKER_FEE_FEE = MAKER_FEE_WITHOUT_IMPACT.div(10)
-              const MAKER_FEE_WITHOUT_FEE = MAKER_FEE_WITHOUT_IMPACT.sub(MAKER_FEE_FEE)
+              const MAKER_OFFSET = parse6decimal('9.225') // position * (0.005 + 0.0025) * price
+              const MAKER_FEE = parse6decimal('12.3') // position * (0.01) * price
               const SETTLEMENT_FEE = parse6decimal('0.50')
 
               await expect(
@@ -2745,7 +2742,7 @@ describe.only('Market', () => {
                 ...DEFAULT_LOCAL,
                 currentId: 3,
                 latestId: 2,
-                collateral: COLLATERAL.sub(MAKER_FEE).add(MAKER_FEE_WITHOUT_FEE).sub(SETTLEMENT_FEE),
+                collateral: COLLATERAL.sub(MAKER_FEE).sub(MAKER_OFFSET).add(MAKER_OFFSET).sub(SETTLEMENT_FEE),
               })
               expectPositionEq(await market.positions(user.address), {
                 ...DEFAULT_POSITION,
@@ -2759,20 +2756,14 @@ describe.only('Market', () => {
                 ...DEFAULT_CHECKPOINT,
               })
 
-              // no taker position when risk parameters updated, so
-              // updateFee = 0 + [(1+1-makerPos/scale)/2 * makerFee.adiabaticFee * makerPos * priceChange]
-              //           = 0 + 0.5 * 0.01 * -10 * (123-0) = −6.15
-              const EXPOSURE_BEFORE = BigNumber.from(0).sub(parse6decimal('-6.15'))
-              const EXPOSURE_AFTER = BigNumber.from(0)
-
               expectGlobalEq(await market.global(), {
                 currentId: 3,
                 latestId: 2,
-                protocolFee: MAKER_FEE_FEE.div(2),
-                oracleFee: MAKER_FEE_FEE.div(2).div(10).add(SETTLEMENT_FEE),
-                riskFee: MAKER_FEE_FEE.div(2).div(10),
-                donation: MAKER_FEE_FEE.div(2).mul(8).div(10),
-                exposure: EXPOSURE_BEFORE.add(EXPOSURE_AFTER),
+                protocolFee: MAKER_FEE.div(2),
+                oracleFee: MAKER_FEE.div(2).div(10).add(SETTLEMENT_FEE),
+                riskFee: MAKER_FEE.div(2).div(10),
+                donation: MAKER_FEE.div(2).mul(8).div(10),
+                exposure: 0,
               })
               expectPositionEq(await market.position(), {
                 ...DEFAULT_POSITION,
@@ -2784,7 +2775,7 @@ describe.only('Market', () => {
               })
               expectVersionEq(await market.versions(ORACLE_VERSION_4.timestamp), {
                 ...DEFAULT_VERSION,
-                makerValue: { _value: MAKER_FEE_WITHOUT_FEE.div(10) },
+                makerValue: { _value: MAKER_OFFSET.div(10) },
                 price: PRICE,
                 liquidationFee: { _value: -riskParameter.liquidationFee },
               })
@@ -3539,12 +3530,12 @@ describe.only('Market', () => {
 
               const marketParameter = { ...(await market.parameter()) }
               marketParameter.settlementFee = parse6decimal('0.50')
+              marketParameter.takerFee = parse6decimal('0.01')
               await market.updateParameter(beneficiary.address, coordinator.address, marketParameter)
 
-              const TAKER_FEE = parse6decimal('9.84') // position * (0.01 + 0.002 + 0.004) * price
-              const TAKER_FEE_ONLY = parse6decimal('7.38') // position * (0.01 + 0.002) * price
-              const TAKER_FEE_ONLY_FEE = TAKER_FEE_ONLY.div(10)
-              const TAKER_FEE_ONLY_WITHOUT_FEE = TAKER_FEE_ONLY.sub(TAKER_FEE_ONLY_FEE)
+              const TAKER_OFFSET = parse6decimal('9.84') // position * (0.01 + 0.002 + 0.004) * price
+              const TAKER_OFFSET_MAKER = parse6decimal('7.38') // position * (0.01 + 0.002) * price
+              const TAKER_FEE = parse6decimal('6.15') // position * (0.01) * price
               const SETTLEMENT_FEE = parse6decimal('0.50')
 
               await expect(
@@ -3588,6 +3579,7 @@ describe.only('Market', () => {
                 collateral: COLLATERAL.sub(EXPECTED_FUNDING_WITH_FEE_1_5_123)
                   .sub(EXPECTED_INTEREST_5_123)
                   .sub(TAKER_FEE)
+                  .sub(TAKER_OFFSET)
                   .sub(SETTLEMENT_FEE),
               })
               expectPositionEq(await market.positions(user.address), {
@@ -3607,7 +3599,7 @@ describe.only('Market', () => {
                 ...DEFAULT_LOCAL,
                 currentId: 2,
                 latestId: 1,
-                collateral: COLLATERAL.add(TAKER_FEE_ONLY_WITHOUT_FEE)
+                collateral: COLLATERAL.add(TAKER_OFFSET_MAKER)
                   .add(EXPECTED_FUNDING_WITHOUT_FEE_1_5_123)
                   .add(EXPECTED_INTEREST_WITHOUT_FEE_5_123)
                   .sub(8), // loss of precision
@@ -3624,7 +3616,7 @@ describe.only('Market', () => {
               expectCheckpointEq(await market.checkpoints(userB.address, ORACLE_VERSION_5.timestamp), {
                 ...DEFAULT_CHECKPOINT,
               })
-              const totalFee = EXPECTED_FUNDING_FEE_1_5_123.add(EXPECTED_INTEREST_FEE_5_123).add(TAKER_FEE_ONLY_FEE)
+              const totalFee = EXPECTED_FUNDING_FEE_1_5_123.add(EXPECTED_INTEREST_FEE_5_123).add(TAKER_FEE)
               expectGlobalEq(await market.global(), {
                 currentId: 3,
                 latestId: 2,
@@ -3647,7 +3639,7 @@ describe.only('Market', () => {
               expectVersionEq(await market.versions(ORACLE_VERSION_4.timestamp), {
                 ...DEFAULT_VERSION,
                 makerValue: {
-                  _value: TAKER_FEE_ONLY_WITHOUT_FEE.add(EXPECTED_FUNDING_WITHOUT_FEE_1_5_123)
+                  _value: TAKER_OFFSET_MAKER.add(EXPECTED_FUNDING_WITHOUT_FEE_1_5_123)
                     .add(EXPECTED_INTEREST_WITHOUT_FEE_5_123)
                     .div(10),
                 },
@@ -4363,12 +4355,12 @@ describe.only('Market', () => {
 
                 const marketParameter = { ...(await market.parameter()) }
                 marketParameter.settlementFee = parse6decimal('0.50')
+                marketParameter.takerFee = parse6decimal('0.01')
                 await market.updateParameter(beneficiary.address, coordinator.address, marketParameter)
 
-                const TAKER_FEE = parse6decimal('4.92') // position * (0.01 + 0.002 - 0.004) * price
-                const TAKER_FEE_ONLY = parse6decimal('7.38') // position * (0.01 + 0.002) * price
-                const TAKER_FEE_ONLY_FEE = TAKER_FEE_ONLY.div(10)
-                const TAKER_FEE_ONLY_WITHOUT_FEE = TAKER_FEE_ONLY.sub(TAKER_FEE_ONLY_FEE)
+                const TAKER_OFFSET = parse6decimal('4.92') // position * (0.01 + 0.002 - 0.004) * price
+                const TAKER_OFFSET_MAKER = parse6decimal('7.38') // position * (0.01 + 0.002) * price
+                const TAKER_FEE = parse6decimal('6.15') // position * (0.01) * price
                 const SETTLEMENT_FEE = parse6decimal('0.50')
 
                 await expect(
@@ -4405,6 +4397,7 @@ describe.only('Market', () => {
                   collateral: COLLATERAL.sub(EXPECTED_FUNDING_WITH_FEE_1_5_123)
                     .sub(EXPECTED_INTEREST_5_123)
                     .sub(TAKER_FEE)
+                    .sub(TAKER_OFFSET)
                     .sub(SETTLEMENT_FEE),
                 })
                 expectPositionEq(await market.positions(user.address), {
@@ -4424,7 +4417,7 @@ describe.only('Market', () => {
                   latestId: 1,
                   collateral: COLLATERAL.add(EXPECTED_FUNDING_WITHOUT_FEE_1_5_123)
                     .add(EXPECTED_INTEREST_WITHOUT_FEE_5_123)
-                    .add(TAKER_FEE_ONLY_WITHOUT_FEE)
+                    .add(TAKER_OFFSET_MAKER)
                     .sub(8), // loss of precision
                 })
                 expectPositionEq(await market.positions(userB.address), {
@@ -4439,7 +4432,7 @@ describe.only('Market', () => {
                 expectCheckpointEq(await market.checkpoints(userB.address, ORACLE_VERSION_5.timestamp), {
                   ...DEFAULT_CHECKPOINT,
                 })
-                const totalFee = EXPECTED_FUNDING_FEE_1_5_123.add(EXPECTED_INTEREST_FEE_5_123).add(TAKER_FEE_ONLY_FEE)
+                const totalFee = EXPECTED_FUNDING_FEE_1_5_123.add(EXPECTED_INTEREST_FEE_5_123).add(TAKER_FEE)
                 // maker exposure is 0, so
                 // updateFee = [(skew/scale+0)/2 * takerFee.adiabaticFee * skew * priceChange] + 0
                 //           = [(5/5+0)/2 * 0.008 * 5 * (123-0)] + 0 = 0.5 * 4.92 = 2.46
@@ -4467,7 +4460,7 @@ describe.only('Market', () => {
                   ...DEFAULT_VERSION,
                   makerValue: {
                     _value: EXPECTED_FUNDING_WITHOUT_FEE_1_5_123.add(EXPECTED_INTEREST_WITHOUT_FEE_5_123)
-                      .add(TAKER_FEE_ONLY_WITHOUT_FEE)
+                      .add(TAKER_OFFSET_MAKER)
                       .div(10),
                   },
                   longValue: {
@@ -6813,17 +6806,17 @@ describe.only('Market', () => {
 
               const marketParameter = { ...(await market.parameter()) }
               marketParameter.settlementFee = parse6decimal('0.50')
+              marketParameter.takerFee = parse6decimal('0.01')
               await market.updateParameter(beneficiary.address, coordinator.address, marketParameter)
 
-              const TAKER_FEE = parse6decimal('9.84') // position * (0.01 + 0.002 + 0.008) * price
-              const TAKER_FEE_ONLY = parse6decimal('7.38') // position * (0.01 + 0.002) * price
-              const TAKER_FEE_ONLY_FEE = TAKER_FEE_ONLY.div(10)
-              const TAKER_FEE_ONLY_WITHOUT_FEE = TAKER_FEE_ONLY.sub(TAKER_FEE_ONLY_FEE)
+              const TAKER_OFFSET = parse6decimal('9.84') // position * (0.01 + 0.002 + 0.008) * price
+              const TAKER_OFFSET_MAKER = parse6decimal('7.38') // position * (0.01 + 0.002) * price
+              const TAKER_FEE = parse6decimal('6.15') // position * (0.01) * price
               const SETTLEMENT_FEE = parse6decimal('0.50')
 
-              dsu.transferFrom
-                .whenCalledWith(user.address, market.address, COLLATERAL.add(TAKER_FEE).mul(1e12))
-                .returns(true)
+              // dsu.transferFrom
+              //   .whenCalledWith(user.address, market.address, COLLATERAL.add(TAKER_FEE).mul(1e12))
+              //   .returns(true)
               await expect(
                 market
                   .connect(user)
@@ -6865,6 +6858,7 @@ describe.only('Market', () => {
                 collateral: COLLATERAL.sub(EXPECTED_FUNDING_WITH_FEE_1_5_123)
                   .sub(EXPECTED_INTEREST_5_123)
                   .sub(TAKER_FEE)
+                  .sub(TAKER_OFFSET)
                   .sub(SETTLEMENT_FEE),
               })
               expectPositionEq(await market.positions(user.address), {
@@ -6884,9 +6878,7 @@ describe.only('Market', () => {
                 currentId: 2,
                 latestId: 1,
                 collateral: COLLATERAL.add(
-                  TAKER_FEE_ONLY_WITHOUT_FEE.add(
-                    EXPECTED_FUNDING_WITHOUT_FEE_1_5_123.add(EXPECTED_INTEREST_WITHOUT_FEE_5_123),
-                  ),
+                  TAKER_OFFSET_MAKER.add(EXPECTED_FUNDING_WITHOUT_FEE_1_5_123.add(EXPECTED_INTEREST_WITHOUT_FEE_5_123)),
                 ).sub(8), // loss of precision
               })
               expectPositionEq(await market.positions(userB.address), {
@@ -6901,7 +6893,7 @@ describe.only('Market', () => {
               expectCheckpointEq(await market.checkpoints(user.address, ORACLE_VERSION_5.timestamp), {
                 ...DEFAULT_CHECKPOINT,
               })
-              const totalFee = EXPECTED_FUNDING_FEE_1_5_123.add(EXPECTED_INTEREST_FEE_5_123).add(TAKER_FEE_ONLY_FEE)
+              const totalFee = EXPECTED_FUNDING_FEE_1_5_123.add(EXPECTED_INTEREST_FEE_5_123).add(TAKER_FEE)
               expectGlobalEq(await market.global(), {
                 currentId: 3,
                 latestId: 2,
@@ -6924,7 +6916,7 @@ describe.only('Market', () => {
               expectVersionEq(await market.versions(ORACLE_VERSION_4.timestamp), {
                 ...DEFAULT_VERSION,
                 makerValue: {
-                  _value: TAKER_FEE_ONLY_WITHOUT_FEE.add(EXPECTED_FUNDING_WITHOUT_FEE_1_5_123)
+                  _value: TAKER_OFFSET_MAKER.add(EXPECTED_FUNDING_WITHOUT_FEE_1_5_123)
                     .add(EXPECTED_INTEREST_WITHOUT_FEE_5_123)
                     .div(10),
                 },
@@ -7646,15 +7638,15 @@ describe.only('Market', () => {
 
                 const marketParameter = { ...(await market.parameter()) }
                 marketParameter.settlementFee = parse6decimal('0.50')
+                marketParameter.takerFee = parse6decimal('0.01')
                 await market.updateParameter(beneficiary.address, coordinator.address, marketParameter)
 
-                const TAKER_FEE = parse6decimal('4.92') // position * (0.01 + 0.002 - 0.004) * price
-                const TAKER_FEE_ONLY = parse6decimal('7.38') // position * (0.01 + 0.002) * price
-                const TAKER_FEE_ONLY_FEE = TAKER_FEE_ONLY.div(10)
-                const TAKER_FEE_ONLY_WITHOUT_FEE = TAKER_FEE_ONLY.sub(TAKER_FEE_ONLY_FEE)
+                const TAKER_OFFSET = parse6decimal('4.92') // position * (0.01 + 0.002 - 0.004) * price
+                const TAKER_OFFSET_MAKER = parse6decimal('7.38') // position * (0.01 + 0.002) * price
+                const TAKER_FEE = parse6decimal('6.15') // position * (0.01) * price
                 const SETTLEMENT_FEE = parse6decimal('0.50')
 
-                dsu.transferFrom.whenCalledWith(user.address, market.address, TAKER_FEE.mul(1e12)).returns(true)
+                // dsu.transferFrom.whenCalledWith(user.address, market.address, TAKER_FEE.mul(1e12)).returns(true)
                 await expect(
                   market
                     .connect(user)
@@ -7689,6 +7681,7 @@ describe.only('Market', () => {
                   collateral: COLLATERAL.sub(EXPECTED_FUNDING_WITH_FEE_1_5_123)
                     .sub(EXPECTED_INTEREST_5_123)
                     .sub(TAKER_FEE)
+                    .sub(TAKER_OFFSET)
                     .sub(SETTLEMENT_FEE),
                 })
                 expectPositionEq(await market.positions(user.address), {
@@ -7708,7 +7701,7 @@ describe.only('Market', () => {
                   latestId: 1,
                   collateral: COLLATERAL.add(EXPECTED_FUNDING_WITHOUT_FEE_1_5_123)
                     .add(EXPECTED_INTEREST_WITHOUT_FEE_5_123)
-                    .add(TAKER_FEE_ONLY_WITHOUT_FEE)
+                    .add(TAKER_OFFSET_MAKER)
                     .sub(8), // loss of precision
                 })
                 expectPositionEq(await market.positions(userB.address), {
@@ -7723,7 +7716,7 @@ describe.only('Market', () => {
                 expectCheckpointEq(await market.checkpoints(userB.address, ORACLE_VERSION_5.timestamp), {
                   ...DEFAULT_CHECKPOINT,
                 })
-                const totalFee = EXPECTED_FUNDING_FEE_1_5_123.add(EXPECTED_INTEREST_FEE_5_123).add(TAKER_FEE_ONLY_FEE)
+                const totalFee = EXPECTED_FUNDING_FEE_1_5_123.add(EXPECTED_INTEREST_FEE_5_123).add(TAKER_FEE)
                 // maker exposure is 0, so
                 // updateFee = [(skew/scale+0)/2 * takerFee.adiabaticFee * skew * priceChange] + makerExposure
                 //           = [(5/5+0)/2 * 0.008 * 5 * (123-0)] + 0 = 0.5 * 4.92 = 2.46
@@ -7751,7 +7744,7 @@ describe.only('Market', () => {
                   ...DEFAULT_VERSION,
                   makerValue: {
                     _value: EXPECTED_FUNDING_WITHOUT_FEE_1_5_123.add(EXPECTED_INTEREST_WITHOUT_FEE_5_123)
-                      .add(TAKER_FEE_ONLY_WITHOUT_FEE)
+                      .add(TAKER_OFFSET_MAKER)
                       .div(10),
                   },
                   longValue: { _value: 0 },
@@ -9339,19 +9332,20 @@ describe.only('Market', () => {
             const riskParameterMakerFee = { ...riskParameter.makerFee }
             riskParameterMakerFee.linearFee = parse6decimal('0.01')
             riskParameterMakerFee.proportionalFee = parse6decimal('0.004')
-            riskParameterMakerFee.adiabaticFee = parse6decimal('0.008')
+            riskParameterMakerFee.adiabaticFee = BigNumber.from(0)
             riskParameter.takerFee = riskParmeterTakerFee
             riskParameter.makerFee = riskParameterMakerFee
             await market.updateRiskParameter(riskParameter)
 
             const marketParameter = { ...(await market.parameter()) }
             marketParameter.settlementFee = parse6decimal('0.50')
+            marketParameter.makerFee = parse6decimal('0.01')
             await market.updateParameter(beneficiary.address, coordinator.address, marketParameter)
 
+            const EXPECTED_MAKER_FEE = parse6decimal('6.15') // position * (0.01) * price
             const EXPECTED_SETTLEMENT_FEE = parse6decimal('0.50')
             const EXPECTED_MAKER_LINEAR = parse6decimal('6.15') // position * (0.01) * price
             const EXPECTED_MAKER_PROPORTIONAL = parse6decimal('1.23') // position * (0.004 * 0.5) * price
-            const EXPECTED_MAKER_ADIABATIC = parse6decimal('1.23') // position * (0.008 * (0.0 + 0.5) / 2) * price
 
             await expect(
               market
@@ -9386,9 +9380,7 @@ describe.only('Market', () => {
               ...DEFAULT_LOCAL,
               currentId: 3,
               latestId: 2,
-              collateral: COLLATERAL.sub(EXPECTED_SETTLEMENT_FEE)
-                .sub(EXPECTED_MAKER_LINEAR.add(EXPECTED_MAKER_PROPORTIONAL).div(10))
-                .sub(EXPECTED_MAKER_ADIABATIC),
+              collateral: COLLATERAL.sub(EXPECTED_SETTLEMENT_FEE).sub(EXPECTED_MAKER_FEE), // offset is returned to maker since it was previously in the pool
             })
             expectPositionEq(await market.positions(user.address), {
               ...DEFAULT_POSITION,
@@ -9420,24 +9412,22 @@ describe.only('Market', () => {
             expectCheckpointEq(await market.checkpoints(userB.address, ORACLE_VERSION_4.timestamp), {
               ...DEFAULT_CHECKPOINT,
             })
-            const totalFee = EXPECTED_MAKER_LINEAR.add(EXPECTED_MAKER_PROPORTIONAL).div(10)
             // empty position updates to maker 10 (user) and short 5 (userB)
             // and then user reduces position to maker 5 before risk parameters updated
             // before = [(skew/scale+0)/2 * takerFee.adiabaticFee * skew * price]
-            //          + [(1+1-maker/scale)/2 * makerFee.adiabaticFee * maker * price]
-            //        = [(0/5+0)/2 * 0.008 * 0 * 123] + [(1+1-(10/10))/2 * 0.008 * -10 * 123]
-            //        = [(-5/5+0)/2 * 0.008 * -5 * 123] + [0.5 * 0.008 * -10 * 123] =
-            //        = [-0.5 * -4.92] + [0.5 * -9.84] = 2.46 + -4.92 = -2.46
+            //        = [(0/5+0)/2 * 0.008 * 0 * 123]
+            //        = [(-5/5+0)/2 * 0.008 * -5 * 123]
+            //        = [-0.5 * -4.92] = 2.46
             // after  = 0
             const EXPOSURE_BEFORE = BigNumber.from(0)
-            const EXPOSURE_AFTER = BigNumber.from(0).sub(parse6decimal('-2.46'))
+            const EXPOSURE_AFTER = BigNumber.from(0).sub(parse6decimal('2.46'))
             expectGlobalEq(await market.global(), {
               currentId: 3,
               latestId: 2,
-              protocolFee: totalFee.div(2),
-              oracleFee: totalFee.div(2).div(10).add(EXPECTED_SETTLEMENT_FEE),
-              riskFee: totalFee.div(2).div(10),
-              donation: totalFee.div(2).mul(8).div(10),
+              protocolFee: EXPECTED_MAKER_FEE.div(2),
+              oracleFee: EXPECTED_MAKER_FEE.div(2).div(10).add(EXPECTED_SETTLEMENT_FEE),
+              riskFee: EXPECTED_MAKER_FEE.div(2).div(10),
+              donation: EXPECTED_MAKER_FEE.div(2).mul(8).div(10),
               exposure: EXPOSURE_BEFORE.add(EXPOSURE_AFTER),
             })
             expectPositionEq(await market.position(), {
@@ -9452,12 +9442,11 @@ describe.only('Market', () => {
             })
             expectVersionEq(await market.versions(ORACLE_VERSION_3.timestamp), {
               ...DEFAULT_VERSION,
-              makerValue: { _value: EXPECTED_MAKER_LINEAR.add(EXPECTED_MAKER_PROPORTIONAL).mul(9).div(10).div(10) },
+              makerValue: { _value: EXPECTED_MAKER_LINEAR.add(EXPECTED_MAKER_PROPORTIONAL).div(10) },
               longValue: { _value: 0 },
               shortValue: { _value: 0 },
-              makerLinearFee: { _value: -EXPECTED_MAKER_LINEAR.div(5) },
-              makerProportionalFee: { _value: -EXPECTED_MAKER_PROPORTIONAL.div(5) },
-              makerNegFee: { _value: -EXPECTED_MAKER_ADIABATIC.div(5) },
+              makerOffset: { _value: -EXPECTED_MAKER_LINEAR.add(EXPECTED_MAKER_PROPORTIONAL).div(5) },
+              makerFee: { _value: -EXPECTED_MAKER_FEE.div(5) },
               settlementFee: { _value: -EXPECTED_SETTLEMENT_FEE },
               price: PRICE,
               liquidationFee: { _value: -riskParameter.liquidationFee },
@@ -10131,18 +10120,21 @@ describe.only('Market', () => {
 
               const marketParameter = { ...(await market.parameter()) }
               marketParameter.settlementFee = parse6decimal('0.50')
+              marketParameter.takerFee = parse6decimal('0.01')
               await market.updateParameter(beneficiary.address, coordinator.address, marketParameter)
 
+              const EXPECTED_TAKER_FEE = parse6decimal('6.15') // position * (0.01) * price
               const EXPECTED_TAKER_LINEAR = parse6decimal('6.15') // position * (0.01) * price
-              const EXPECTED_TAKER_PROPORTIONAL = parse6decimal('1.845') // position * (0.003) * price // 0.50 + 1.00 skew from setup
+              const EXPECTED_TAKER_PROPORTIONAL = parse6decimal('0.615') // position * (0.001) * price // 0.50 skew from setup
               const EXPECTED_TAKER_ADIABATIC = parse6decimal('0.615') // position * (0.001) * price
 
+              const EXPECTED_TAKER_FEE_C = parse6decimal('12.30') // position * (0.01) * price
               const EXPECTED_TAKER_LINEAR_C = parse6decimal('12.30') // position * (0.01) * price
-              const EXPECTED_TAKER_PROPORTIONAL_C = parse6decimal('3.69') // position * (0.003) * price // 0.50 + 1.00 skew from setup
+              const EXPECTED_TAKER_PROPORTIONAL_C = parse6decimal('2.46') // position * (0.002) * price // 1.00 skew from setup
 
-              const TAKER_FEE = EXPECTED_TAKER_LINEAR.add(EXPECTED_TAKER_PROPORTIONAL).add(EXPECTED_TAKER_ADIABATIC)
-              const TAKER_FEE_ONLY = EXPECTED_TAKER_LINEAR.add(EXPECTED_TAKER_PROPORTIONAL)
-              const TAKER_FEE_ONLY_C = EXPECTED_TAKER_LINEAR_C.add(EXPECTED_TAKER_PROPORTIONAL_C)
+              const TAKER_OFFSET = EXPECTED_TAKER_LINEAR.add(EXPECTED_TAKER_PROPORTIONAL).add(EXPECTED_TAKER_ADIABATIC)
+              const TAKER_OFFSET_MAKER = EXPECTED_TAKER_LINEAR.add(EXPECTED_TAKER_PROPORTIONAL)
+              const TAKER_OFFSET_MAKER_C = EXPECTED_TAKER_LINEAR_C.add(EXPECTED_TAKER_PROPORTIONAL_C)
               const SETTLEMENT_FEE = parse6decimal('0.50')
 
               await expect(
@@ -10185,7 +10177,8 @@ describe.only('Market', () => {
                 latestId: 1,
                 collateral: COLLATERAL.add(EXPECTED_FUNDING_WITHOUT_FEE_1_10_123_ALL.div(2)) // 50% to long, 50% to maker
                   .sub(EXPECTED_INTEREST_10_67_123_ALL.div(3)) // 33% from long, 67% from short
-                  .sub(TAKER_FEE)
+                  .sub(EXPECTED_TAKER_FEE)
+                  .sub(TAKER_OFFSET)
                   .sub(SETTLEMENT_FEE.div(3).add(1))
                   .sub(2), // loss of precision
               })
@@ -10223,8 +10216,10 @@ describe.only('Market', () => {
                 ...DEFAULT_CHECKPOINT,
               })
               const totalFee = EXPECTED_FUNDING_FEE_1_10_123_ALL.add(EXPECTED_INTEREST_FEE_10_67_123_ALL)
-                .add(TAKER_FEE_ONLY)
-                .add(TAKER_FEE_ONLY_C)
+                .add(EXPECTED_TAKER_FEE)
+                .add(EXPECTED_TAKER_FEE_C)
+                .add(TAKER_OFFSET_MAKER)
+                .add(TAKER_OFFSET_MAKER_C)
               expectGlobalEq(await market.global(), {
                 currentId: 2,
                 latestId: 1,
@@ -11541,16 +11536,17 @@ describe.only('Market', () => {
 
                 const marketParameter = { ...(await market.parameter()) }
                 marketParameter.settlementFee = parse6decimal('0.50')
+                marketParameter.takerFee = parse6decimal('0.01')
                 await market.updateParameter(beneficiary.address, coordinator.address, marketParameter)
 
+                const EXPECTED_TAKER_FEE = parse6decimal('6.15') // position * (0.01) * price
                 const EXPECTED_TAKER_LINEAR = parse6decimal('6.15') // position * (0.01) * price
                 const EXPECTED_TAKER_PROPORTIONAL = parse6decimal('0.615') // position * (0.001) * price
                 const EXPECTED_TAKER_ADIABATIC = parse6decimal('1.845') // position * (0.003) * price
 
-                const TAKER_FEE = EXPECTED_TAKER_LINEAR.add(EXPECTED_TAKER_PROPORTIONAL).add(EXPECTED_TAKER_ADIABATIC)
-                const TAKER_FEE_ONLY = EXPECTED_TAKER_LINEAR.add(EXPECTED_TAKER_PROPORTIONAL)
-                const TAKER_FEE_ONLY_FEE = TAKER_FEE_ONLY.div(10)
-                const TAKER_FEE_ONLY_WITHOUT_FEE = TAKER_FEE_ONLY.sub(TAKER_FEE_ONLY_FEE)
+                const TAKER_OFFSET =
+                  EXPECTED_TAKER_LINEAR.add(EXPECTED_TAKER_PROPORTIONAL).add(EXPECTED_TAKER_ADIABATIC)
+                const TAKER_OFFSET_MAKER = EXPECTED_TAKER_LINEAR.add(EXPECTED_TAKER_PROPORTIONAL)
                 const SETTLEMENT_FEE = parse6decimal('0.50')
 
                 await expect(
@@ -11586,7 +11582,8 @@ describe.only('Market', () => {
                   latestId: 2,
                   collateral: COLLATERAL.add(EXPECTED_FUNDING_WITHOUT_FEE_1_10_123_ALL.div(2))
                     .sub(EXPECTED_INTEREST_10_67_123_ALL.div(3))
-                    .sub(TAKER_FEE)
+                    .sub(EXPECTED_TAKER_FEE)
+                    .sub(TAKER_OFFSET)
                     .sub(SETTLEMENT_FEE)
                     .sub(2), // loss of precision
                 })
@@ -11616,7 +11613,7 @@ describe.only('Market', () => {
                   makerValue: {
                     _value: EXPECTED_FUNDING_WITHOUT_FEE_1_10_123_ALL.div(2)
                       .add(EXPECTED_INTEREST_WITHOUT_FEE_10_67_123_ALL)
-                      .add(TAKER_FEE_ONLY_WITHOUT_FEE)
+                      .add(TAKER_OFFSET_MAKER)
                       .div(10)
                       .sub(1), // loss of precision
                   },
@@ -11632,9 +11629,8 @@ describe.only('Market', () => {
                       .mul(-1)
                       .sub(1), // loss of precision
                   },
-                  takerLinearFee: { _value: -EXPECTED_TAKER_LINEAR.div(5) },
-                  takerProportionalFee: { _value: -EXPECTED_TAKER_PROPORTIONAL.div(5) },
-                  takerNegFee: { _value: -EXPECTED_TAKER_ADIABATIC.div(5) },
+                  takerNegOffset: { _value: -TAKER_OFFSET.div(5) },
+                  takerFee: { _value: -EXPECTED_TAKER_FEE.div(5) },
                   settlementFee: { _value: -SETTLEMENT_FEE },
                   price: PRICE,
                   liquidationFee: { _value: -riskParameter.liquidationFee },
@@ -12345,10 +12341,6 @@ describe.only('Market', () => {
                   ...riskParameter.takerFee,
                   adiabaticFee: parse6decimal('0.003'),
                 },
-                makerFee: {
-                  ...riskParameter.makerFee,
-                  adiabaticFee: parse6decimal('0.004'),
-                },
               }
               await market
                 .connect(owner)
@@ -12405,7 +12397,6 @@ describe.only('Market', () => {
                 claimable: EXPECTED_LIQUIDATION_FEE,
               })
 
-              const MAKER_FEE_ADIABATIC = parse6decimal('2.46') // position * (0.004 * (1.00 + 0.00) / 2) * price
               expectLocalEq(await market.locals(userB.address), {
                 ...DEFAULT_LOCAL,
                 currentId: 4,
@@ -12415,7 +12406,6 @@ describe.only('Market', () => {
                   .add(EXPECTED_INTEREST_WITHOUT_FEE_10_67_123_ALL)
                   .sub(EXPECTED_FUNDING_WITH_FEE_2.div(2))
                   .add(EXPECTED_INTEREST_WITHOUT_FEE_10_67_45_ALL)
-                  .sub(MAKER_FEE_ADIABATIC)
                   .sub(EXPECTED_LIQUIDATION_FEE)
                   .sub(25),
               })
@@ -12424,12 +12414,11 @@ describe.only('Market', () => {
                 .add(EXPECTED_FUNDING_FEE_2)
                 .add(EXPECTED_INTEREST_FEE_10_67_45_ALL)
               // latestExposure = [(skew/scale+0)/2 * takerFee.adiabaticFee * skew * 1]
-              //                  + [(1+1-makerPos/scale)/2 * makerFee.adiabaticFee * makerChange * 1]
-              //                = [(-5/5+0)/2 * 0.003 * -5] + [(1+1-(10/10))/2 * 0.004 * -10]
-              //                = 0.0075 + -0.02 = −0.0125
-              // impactExposure = latestExposure * priceChange = −0.0125 * (123-0) = −1.5375
+              //                = [(-5/5+0)/2 * 0.003 * -5]
+              //                = 0.0075
+              // impactExposure = latestExposure * priceChange = 0.0075 * (123-0) = 0.9225
               const EXPOSURE_BEFORE = BigNumber.from(0)
-              const EXPOSURE_AFTER = BigNumber.from(0).sub(parse6decimal('-1.5375'))
+              const EXPOSURE_AFTER = BigNumber.from(0).sub(parse6decimal('0.9225'))
               expectGlobalEq(await market.global(), {
                 currentId: 4,
                 latestId: 3,
@@ -15165,17 +15154,17 @@ describe.only('Market', () => {
 
           const marketParameter = { ...(await market.parameter()) }
           marketParameter.settlementFee = parse6decimal('0.50')
+          marketParameter.takerFee = parse6decimal('0.01')
           await market.updateParameter(beneficiary.address, coordinator.address, marketParameter)
 
           const EXPECTED_TAKER_LINEAR = parse6decimal('6.15') // position * (0.01) * price
           const EXPECTED_TAKER_PROPORTIONAL = parse6decimal('1.23') // position * (0.002) * price
           const EXPECTED_TAKER_ADIABATIC = parse6decimal('2.46') // position * (0.004) * price
 
-          const TAKER_FEE = EXPECTED_TAKER_LINEAR.add(EXPECTED_TAKER_PROPORTIONAL).add(EXPECTED_TAKER_ADIABATIC)
-          const TAKER_FEE_ONLY = EXPECTED_TAKER_LINEAR.add(EXPECTED_TAKER_PROPORTIONAL)
+          const TAKER_OFFSET = EXPECTED_TAKER_LINEAR.add(EXPECTED_TAKER_PROPORTIONAL).add(EXPECTED_TAKER_ADIABATIC)
+          const TAKER_OFFSET_MAKER = EXPECTED_TAKER_LINEAR.add(EXPECTED_TAKER_PROPORTIONAL)
 
-          const TAKER_FEE_ONLY_FEE = TAKER_FEE_ONLY.div(10)
-          const TAKER_FEE_ONLY_WITHOUT_FEE = TAKER_FEE_ONLY.sub(TAKER_FEE_ONLY_FEE)
+          const TAKER_FEE = parse6decimal('6.15') // position * (0.01) * price
           const SETTLEMENT_FEE = parse6decimal('0.50')
 
           await expect(
@@ -15236,7 +15225,7 @@ describe.only('Market', () => {
             ...DEFAULT_LOCAL,
             currentId: 3,
             latestId: 2,
-            collateral: COLLATERAL.sub(TAKER_FEE).sub(SETTLEMENT_FEE.mul(2)),
+            collateral: COLLATERAL.sub(TAKER_OFFSET).sub(TAKER_FEE).sub(SETTLEMENT_FEE.mul(2)),
           })
           expectPositionEq(await market.positions(user.address), {
             ...DEFAULT_POSITION,
@@ -15263,7 +15252,7 @@ describe.only('Market', () => {
           })
           expectCheckpointEq(await market.checkpoints(user.address, ORACLE_VERSION_4.timestamp), {
             ...DEFAULT_CHECKPOINT,
-            tradeFee: TAKER_FEE,
+            tradeFee: TAKER_OFFSET.add(TAKER_FEE),
             settlementFee: SETTLEMENT_FEE,
             collateral: COLLATERAL.sub(SETTLEMENT_FEE),
           })
@@ -15278,7 +15267,7 @@ describe.only('Market', () => {
             ...DEFAULT_LOCAL,
             currentId: 2,
             latestId: 1,
-            collateral: COLLATERAL.add(TAKER_FEE_ONLY_WITHOUT_FEE),
+            collateral: COLLATERAL.add(TAKER_OFFSET_MAKER),
           })
           expectPositionEq(await market.positions(userB.address), {
             ...DEFAULT_POSITION,
@@ -15306,10 +15295,10 @@ describe.only('Market', () => {
           expectGlobalEq(await market.global(), {
             currentId: 4,
             latestId: 3,
-            protocolFee: TAKER_FEE_ONLY_FEE.div(2),
-            oracleFee: TAKER_FEE_ONLY_FEE.div(2).div(10).add(SETTLEMENT_FEE.mul(2)),
-            riskFee: TAKER_FEE_ONLY_FEE.div(2).div(10),
-            donation: TAKER_FEE_ONLY_FEE.div(2).mul(8).div(10),
+            protocolFee: TAKER_FEE.div(2),
+            oracleFee: TAKER_FEE.div(2).div(10).add(SETTLEMENT_FEE.mul(2)),
+            riskFee: TAKER_FEE.div(2).div(10),
+            donation: TAKER_FEE.div(2).mul(8).div(10),
             exposure: 0,
           })
           expectPositionEq(await market.position(), {
@@ -15348,10 +15337,11 @@ describe.only('Market', () => {
           })
           expectVersionEq(await market.versions(ORACLE_VERSION_4.timestamp), {
             ...DEFAULT_VERSION,
-            makerValue: { _value: TAKER_FEE_ONLY_WITHOUT_FEE.div(10) },
-            takerLinearFee: { _value: -EXPECTED_TAKER_LINEAR.div(5) },
-            takerProportionalFee: { _value: -EXPECTED_TAKER_PROPORTIONAL.div(5) },
-            takerPosFee: { _value: -EXPECTED_TAKER_ADIABATIC.div(5) },
+            makerValue: { _value: TAKER_OFFSET_MAKER.div(10) },
+            takerPosOffset: {
+              _value: -EXPECTED_TAKER_LINEAR.add(EXPECTED_TAKER_PROPORTIONAL).add(EXPECTED_TAKER_ADIABATIC).div(5),
+            },
+            takerFee: { _value: -TAKER_FEE.div(5) },
             settlementFee: { _value: -SETTLEMENT_FEE },
             price: PRICE,
             liquidationFee: { _value: -riskParameter.liquidationFee },
@@ -15759,17 +15749,17 @@ describe.only('Market', () => {
 
           const marketParameter = { ...(await market.parameter()) }
           marketParameter.settlementFee = parse6decimal('0.50')
+          marketParameter.takerFee = parse6decimal('0.01')
           await market.updateParameter(beneficiary.address, coordinator.address, marketParameter)
 
           const EXPECTED_TAKER_LINEAR = parse6decimal('6.15') // position * (0.01) * price
           const EXPECTED_TAKER_PROPORTIONAL = parse6decimal('1.23') // position * (0.002) * price
           const EXPECTED_TAKER_ADIABATIC = parse6decimal('2.46') // position * (0.004) * price
 
-          const TAKER_FEE = EXPECTED_TAKER_LINEAR.add(EXPECTED_TAKER_PROPORTIONAL).add(EXPECTED_TAKER_ADIABATIC)
-          const TAKER_FEE_ONLY = EXPECTED_TAKER_LINEAR.add(EXPECTED_TAKER_PROPORTIONAL)
+          const TAKER_OFFSET = EXPECTED_TAKER_LINEAR.add(EXPECTED_TAKER_PROPORTIONAL).add(EXPECTED_TAKER_ADIABATIC)
+          const TAKER_OFFSET_MAKER = EXPECTED_TAKER_LINEAR.add(EXPECTED_TAKER_PROPORTIONAL)
 
-          const TAKER_FEE_ONLY_FEE = TAKER_FEE_ONLY.div(10)
-          const TAKER_FEE_ONLY_WITHOUT_FEE = TAKER_FEE_ONLY.sub(TAKER_FEE_ONLY_FEE)
+          const TAKER_FEE = parse6decimal('6.15') // position * (0.01) * price
           const SETTLEMENT_FEE = parse6decimal('0.50')
 
           await expect(
@@ -15852,7 +15842,7 @@ describe.only('Market', () => {
             ...DEFAULT_LOCAL,
             currentId: 4,
             latestId: 3,
-            collateral: COLLATERAL.sub(SETTLEMENT_FEE.mul(2)).sub(TAKER_FEE),
+            collateral: COLLATERAL.sub(SETTLEMENT_FEE.mul(2)).sub(TAKER_OFFSET).sub(TAKER_FEE),
           })
           expectPositionEq(await market.positions(user.address), {
             ...DEFAULT_POSITION,
@@ -15887,7 +15877,7 @@ describe.only('Market', () => {
           })
           expectCheckpointEq(await market.checkpoints(user.address, ORACLE_VERSION_5.timestamp), {
             ...DEFAULT_CHECKPOINT,
-            tradeFee: TAKER_FEE,
+            tradeFee: TAKER_OFFSET.add(TAKER_FEE),
             settlementFee: SETTLEMENT_FEE,
             collateral: COLLATERAL.sub(SETTLEMENT_FEE),
           })
@@ -15902,7 +15892,7 @@ describe.only('Market', () => {
             ...DEFAULT_LOCAL,
             currentId: 2,
             latestId: 1,
-            collateral: COLLATERAL.add(TAKER_FEE_ONLY_WITHOUT_FEE),
+            collateral: COLLATERAL.add(TAKER_OFFSET_MAKER),
           })
           expectPositionEq(await market.positions(userB.address), {
             ...DEFAULT_POSITION,
@@ -15930,10 +15920,10 @@ describe.only('Market', () => {
           expectGlobalEq(await market.global(), {
             currentId: 5,
             latestId: 4,
-            protocolFee: TAKER_FEE_ONLY_FEE.div(2),
-            oracleFee: TAKER_FEE_ONLY_FEE.div(20).add(SETTLEMENT_FEE.mul(2)),
-            riskFee: TAKER_FEE_ONLY_FEE.div(20),
-            donation: TAKER_FEE_ONLY_FEE.mul(2).div(5),
+            protocolFee: TAKER_FEE.div(2),
+            oracleFee: TAKER_FEE.div(20).add(SETTLEMENT_FEE.mul(2)),
+            riskFee: TAKER_FEE.div(20),
+            donation: TAKER_FEE.mul(2).div(5),
             exposure: 0,
           })
           expectPositionEq(await market.position(), {
@@ -15981,10 +15971,11 @@ describe.only('Market', () => {
           })
           expectVersionEq(await market.versions(ORACLE_VERSION_5.timestamp), {
             ...DEFAULT_VERSION,
-            makerValue: { _value: TAKER_FEE_ONLY_WITHOUT_FEE.div(10) },
-            takerLinearFee: { _value: -EXPECTED_TAKER_LINEAR.div(5) },
-            takerProportionalFee: { _value: -EXPECTED_TAKER_PROPORTIONAL.div(5) },
-            takerPosFee: { _value: -EXPECTED_TAKER_ADIABATIC.div(5) },
+            makerValue: { _value: TAKER_OFFSET_MAKER.div(10) },
+            takerPosOffset: {
+              _value: -EXPECTED_TAKER_LINEAR.add(EXPECTED_TAKER_PROPORTIONAL).add(EXPECTED_TAKER_ADIABATIC).div(5),
+            },
+            takerFee: { _value: -TAKER_FEE.div(5) },
             settlementFee: { _value: -SETTLEMENT_FEE },
             price: PRICE,
             liquidationFee: { _value: -riskParameter.liquidationFee },
@@ -18088,24 +18079,13 @@ describe.only('Market', () => {
             referralFee: parse6decimal('0.20'),
           })
 
-          const riskParameter = { ...(await market.riskParameter()) }
-          const riskParameterMakerFee = { ...riskParameter.makerFee }
-          riskParameterMakerFee.linearFee = parse6decimal('0.005')
-          riskParameterMakerFee.proportionalFee = parse6decimal('0.0025')
-          riskParameterMakerFee.adiabaticFee = parse6decimal('0.01')
-          riskParameter.makerFee = riskParameterMakerFee
-          await market.updateRiskParameter(riskParameter)
-
           const marketParameter = { ...(await market.parameter()) }
           marketParameter.settlementFee = parse6decimal('0.50')
+          marketParameter.fundingFee = BigNumber.from(0)
+          marketParameter.makerFee = parse6decimal('0.005')
           await market.updateParameter(beneficiary.address, coordinator.address, marketParameter)
 
-          const MAKER_FEE_LINEAR = parse6decimal('6.15') // position * (0.005) * price
-          const MAKER_FEE_PROPORTIONAL = parse6decimal('3.075') // position * (0.0025) * price
-          const MAKER_FEE_ADIABATIC = parse6decimal('-6.15') // position * (0.01 * -(1.00 + 0.00) / 2) * price
-
-          const MAKER_FEE = MAKER_FEE_LINEAR.add(MAKER_FEE_PROPORTIONAL).add(MAKER_FEE_ADIABATIC)
-          const MAKER_FEE_WITHOUT_IMPACT = MAKER_FEE_LINEAR.add(MAKER_FEE_PROPORTIONAL)
+          const MAKER_FEE = parse6decimal('6.15') // position * (0.005) * price
           const SETTLEMENT_FEE = parse6decimal('0.50')
 
           await expect(
@@ -18161,9 +18141,9 @@ describe.only('Market', () => {
           })
           expectLocalEq(await market.locals(liquidator.address), {
             ...DEFAULT_LOCAL,
-            claimable: MAKER_FEE_LINEAR.mul(2).div(10),
+            claimable: MAKER_FEE.mul(2).div(10),
           })
-          const totalFee = MAKER_FEE_WITHOUT_IMPACT.sub(MAKER_FEE_LINEAR.mul(2).div(10))
+          const totalFee = MAKER_FEE.sub(MAKER_FEE.mul(2).div(10))
           expectGlobalEq(await market.global(), {
             currentId: 2,
             latestId: 1,
@@ -18190,10 +18170,6 @@ describe.only('Market', () => {
         })
 
         it('opens the position and settles later with fee (taker)', async () => {
-          await market
-            .connect(userB)
-            ['update(address,uint256,uint256,uint256,int256,bool)'](userB.address, POSITION, 0, 0, COLLATERAL, false)
-
           factory.parameter.returns({
             maxPendingIds: 5,
             protocolFee: parse6decimal('0.50'),
@@ -18206,25 +18182,17 @@ describe.only('Market', () => {
             referralFee: parse6decimal('0.20'),
           })
 
-          const riskParameter = { ...(await market.riskParameter()) }
-          const riskParameterTakerFee = { ...riskParameter.takerFee }
-          riskParameterTakerFee.linearFee = parse6decimal('0.01')
-          riskParameterTakerFee.proportionalFee = parse6decimal('0.002')
-          riskParameterTakerFee.adiabaticFee = parse6decimal('0.008')
-          riskParameter.takerFee = riskParameterTakerFee
-          await market.updateRiskParameter(riskParameter)
-
           const marketParameter = { ...(await market.parameter()) }
           marketParameter.settlementFee = parse6decimal('0.50')
+          marketParameter.takerFee = parse6decimal('0.01')
           await market.updateParameter(beneficiary.address, coordinator.address, marketParameter)
 
-          const TAKER_FEE_LINEAR = parse6decimal('6.15') // position * (0.01) * price
-          const TAKER_FEE_PROPORTIONAL = parse6decimal('1.23') // position * (0.002) * price
-          const TAKER_FEE_ADIABATIC = parse6decimal('2.46') // position * (0.004) * price
-
-          const TAKER_FEE = TAKER_FEE_LINEAR.add(TAKER_FEE_PROPORTIONAL).add(TAKER_FEE_ADIABATIC)
-          const TAKER_FEE_WITHOUT_IMPACT = TAKER_FEE_LINEAR.add(TAKER_FEE_PROPORTIONAL)
+          const TAKER_FEE = parse6decimal('6.15') // position * (0.01) * price
           const SETTLEMENT_FEE = parse6decimal('0.50')
+
+          await market
+            .connect(userB)
+            ['update(address,uint256,uint256,uint256,int256,bool)'](userB.address, POSITION, 0, 0, COLLATERAL, false)
 
           await expect(
             market
@@ -18305,11 +18273,11 @@ describe.only('Market', () => {
           })
           expectLocalEq(await market.locals(liquidator.address), {
             ...DEFAULT_LOCAL,
-            claimable: TAKER_FEE_LINEAR.mul(2).div(10),
+            claimable: TAKER_FEE.mul(2).div(10),
           })
-          const totalFee = EXPECTED_FUNDING_FEE_1_5_123.add(EXPECTED_INTEREST_FEE_5_123)
-            .add(TAKER_FEE_WITHOUT_IMPACT)
-            .sub(TAKER_FEE_LINEAR.mul(2).div(10))
+          const totalFee = EXPECTED_FUNDING_FEE_1_5_123.add(EXPECTED_INTEREST_FEE_5_123).add(
+            TAKER_FEE.sub(TAKER_FEE.mul(2).div(10)),
+          )
           expectGlobalEq(await market.global(), {
             currentId: 2,
             latestId: 1,
