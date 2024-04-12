@@ -543,7 +543,7 @@ contract Market is IMarket, Instance, ReentrancyGuard {
 
         Order memory nextOrder;
 
-        // settle
+        // settle - process orders whose requested prices are now available from oracle
         while (
             context.global.currentId != context.global.latestId &&
             (nextOrder = _pendingOrder[context.global.latestId + 1].read()).ready(context.latestOracleVersion)
@@ -554,7 +554,7 @@ contract Market is IMarket, Instance, ReentrancyGuard {
             (nextOrder = _pendingOrders[account][context.local.latestId + 1].read()).ready(context.latestOracleVersion)
         ) _processOrderLocal(context, settlementContext, account, context.local.latestId + 1, nextOrder);
 
-        // sync
+        // sync - advance position timestamps with the latest oracle version
         if (context.latestOracleVersion.timestamp > context.latestPosition.global.timestamp) {
             nextOrder = _pendingOrder[context.global.latestId].read();
             nextOrder.next(context.latestOracleVersion.timestamp);
