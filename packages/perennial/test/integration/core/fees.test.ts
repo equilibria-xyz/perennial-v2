@@ -1488,7 +1488,7 @@ describe('Fees', () => {
         expect(accountProcessEventC.accumulationResult.settlementFee).to.equal(expectedSettlementFee.div(2))
 
         expectGlobalEq(await market.global(), {
-          currentId: 3,
+          currentId: 2,
           latestId: 2,
           protocolFee: 0,
           riskFee: 0,
@@ -1800,7 +1800,7 @@ describe('Fees', () => {
       const expectedClaimable = parse6decimal('4.612260')
       expectLocalEq(await market.locals(user.address), {
         ...DEFAULT_LOCAL,
-        currentId: 1,
+        currentId: 0,
         latestId: 0,
         claimable: expectedClaimable,
       })
@@ -1857,7 +1857,7 @@ describe('Fees', () => {
       const expectedClaimable = parse6decimal('2.049893')
       expectLocalEq(await market.locals(userB.address), {
         ...DEFAULT_LOCAL,
-        currentId: 1,
+        currentId: 0,
         latestId: 0,
         claimable: expectedClaimable,
       })
@@ -1905,7 +1905,7 @@ describe('Fees', () => {
       const expectedClaimable = parse6decimal('5.227228')
       expectLocalEq(await market.locals(user.address), {
         ...DEFAULT_LOCAL,
-        currentId: 1,
+        currentId: 0,
         latestId: 0,
         claimable: expectedClaimable,
       })
@@ -1964,7 +1964,7 @@ describe('Fees', () => {
       const expectedClaimableMakerReferral = parse6decimal('7.379616')
       expectLocalEq(await market.locals(userB.address), {
         ...DEFAULT_LOCAL,
-        currentId: 1,
+        currentId: 0,
         latestId: 0,
         claimable: expectedClaimableMakerReferral,
       })
@@ -1978,7 +1978,7 @@ describe('Fees', () => {
       let expectedClaimableTakerReferral = parse6decimal('2.562367')
       expectLocalEq(await market.locals(user.address), {
         ...DEFAULT_LOCAL,
-        currentId: 2,
+        currentId: 1,
         latestId: 1,
         collateral: parse6decimal('1182.234252'),
         claimable: expectedClaimableTakerReferral,
