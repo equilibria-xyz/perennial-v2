@@ -14,6 +14,15 @@ import "../interfaces/IKeeperFactory.sol";
 contract KeeperOracle is IKeeperOracle, Instance {
     using EnumerableSet for EnumerableSet.AddressSet;
 
+    /// @dev Records a price alongside a validity indicator
+    struct PriceStorage {
+        /// @dev Oracle price of the asset
+        Fixed6 price;
+
+        /// @dev If false, this price is a carryover from a previous valid version
+        bool valid;
+    }
+
     /// @dev After this amount of time has passed for a version without being committed, the version can be invalidated.
     uint256 public immutable timeout;
 
@@ -24,10 +33,7 @@ contract KeeperOracle is IKeeperOracle, Instance {
     Global private _global;
 
     /// @dev Mapping from oracle version to oracle version data
-    mapping(uint256 => Fixed6) private _prices;
-
-    /// @dev Flags expired versions as invalid, indicating they hold a carryover price
-    mapping(uint256 => bool) private _invalidVersions;
+    mapping(uint256 => PriceStorage) private _prices;
 
     /// @dev Mapping from version to a set of registered markets for settlement callback
     mapping(uint256 => EnumerableSet.AddressSet) private _globalCallbacks;
@@ -110,8 +116,8 @@ contract KeeperOracle is IKeeperOracle, Instance {
     /// @param timestamp The timestamp of which to lookup
     /// @return oracleVersion Oracle version at version `version`
     function at(uint256 timestamp) public view returns (OracleVersion memory oracleVersion) {
-        (oracleVersion.timestamp, oracleVersion.price) = (timestamp, _prices[timestamp]);
-        oracleVersion.valid = !oracleVersion.price.isZero() && !_invalidVersions[timestamp];
+        PriceStorage storage price = _prices[timestamp];
+        (oracleVersion.timestamp, oracleVersion.price, oracleVersion.valid) = (timestamp, price.price, price.valid);
     }
 
     /// @notice Commits the price to specified version
@@ -154,12 +160,14 @@ contract KeeperOracle is IKeeperOracle, Instance {
     /// @param version The oracle version to commit
     /// @return Whether the commit was requested
     function _commitRequested(OracleVersion memory version) private returns (bool) {
+        PriceStorage storage price = _prices[version.timestamp];
         if (block.timestamp <= (next() + timeout)) {
             if (!version.valid) revert KeeperOracleInvalidPriceError();
-            _prices[version.timestamp] = version.price;
+            price.price = version.price;
+            price.valid = true;
         } else {
-            _prices[version.timestamp] = _prices[_global.latestVersion];
-            _invalidVersions[version.timestamp] = true;
+            price.price = _prices[_global.latestVersion].price;
+            price.valid = false;
         }
         _global.latestIndex++;
         return true;
@@ -172,7 +180,9 @@ contract KeeperOracle is IKeeperOracle, Instance {
         if (!version.valid) revert KeeperOracleInvalidPriceError();
         if (version.timestamp <= _global.latestVersion || (next() != 0 && version.timestamp >= next()))
             revert KeeperOracleVersionOutsideRangeError();
-        _prices[version.timestamp] = version.price;
+        PriceStorage storage price = _prices[version.timestamp];
+        price.price = version.price;
+        price.valid = true;
         return false;
     }
 
