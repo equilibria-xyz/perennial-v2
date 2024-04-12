@@ -1073,19 +1073,13 @@ describe('Version', () => {
         // takerFeeExposure (linear adiabatic) = skew * adiabaticFee * skew/scale / 2
         //                                     = 2 * 0.15 * 2/100 / 2   = 0.003
 
-        // maker position excludes the pending order
-        // makerFeeExposure (inverse adiabatic) = change * adiabaticFee * (2 + changeScaled) / 2
-        //    with                       change = scale-makerPosition-scale = 100-1.2-100  = -1.2
-        //     and                 changeScaled = change/scale       = -1.2/100 = −0.012
-        //    =   -1.2 * 0.15 * (2 + −0.012) / 2 = -0.18 * 1.988 / 2 = −0.17892
-
         // positionFeeExposure = (toPrice - fromPrice) * (takerFeeExposure + makerFeeExposure)
-        //                     = (138 - 123) * (0.003 + −0.17892) = −2.6388
+        //                     = (138 - 123) * (0.003) = 0.045
         // positionFeeExposureMaker = positionFeeExposure * -1
         // positionFeeExposureProtocol is 0 unless maker position is 0
 
-        expect(ret.adiabaticExposure).to.equal(parse6decimal('-2.6388'))
-        expect(ret.adiabaticExposureMaker).to.equal(parse6decimal('2.6388'))
+        expect(ret.adiabaticExposure).to.equal(parse6decimal('0.045'))
+        expect(ret.adiabaticExposureMaker).to.equal(parse6decimal('-0.045'))
         expect(ret.adiabaticExposureMarket).to.equal(0)
       })
 
@@ -1217,7 +1211,8 @@ describe('Version', () => {
 
         expect(ret.tradeOffset).to.equal(offset.add(impact))
         expect(ret.tradeOffsetMaker).to.equal(0)
-        expect(ret.tradeFee).to.equal(offset.add(fee))
+        expect(ret.tradeOffsetMarket).to.equal(offset)
+        expect(ret.tradeFee).to.equal(fee)
         expect(ret.adiabaticExposure).to.equal(exposure)
         expect(ret.adiabaticExposureMarket).to.equal(-exposure)
         expect(ret.adiabaticExposureMaker).to.equal(0)
@@ -1269,8 +1264,7 @@ describe('Version', () => {
         )
 
         const takerExposure = parse6decimal('0.05') // 0 -> -10 / 100 = -5 / 100 = -0.05 * -10 * 0.1
-        const makerExposure = parse6decimal('-7.5') // 100 -> 50 / 100 = 75 / 100 = 0.75 * 50 * 0.2
-        const exposure = takerExposure.add(makerExposure).mul(2) // price delta
+        const exposure = takerExposure.mul(2) // price delta
 
         const makerFee = parse6decimal('0.6') // 30 * 0.02
         const takerFee = parse6decimal('1.1') // 110 * 0.01
@@ -1372,8 +1366,7 @@ describe('Version', () => {
         )
 
         const takerExposure = parse6decimal('0.05') // 0 -> -10 / 100 = -5 / 100 = -0.05 * -10 * 0.1
-        const makerExposure = parse6decimal('-7.5') // 100 -> 50 / 100 = 75 / 100 = 0.75 * 50 * 0.2
-        const exposure = takerExposure.add(makerExposure).mul(2) // price delta
+        const exposure = takerExposure.mul(2) // price delta
 
         const makerFee = parse6decimal('0.6') // 30 * 0.02
         const takerFee = parse6decimal('1.9') // 190 * 0.01

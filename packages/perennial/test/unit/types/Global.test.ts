@@ -48,6 +48,7 @@ function generateAccumulationResult(
     tradeFee: tradeFee,
     tradeOffset: 0,
     tradeOffsetMaker: 0,
+    tradeOffsetMarket: 0,
     subtractiveFee: 0,
     adiabaticExposure: 0,
     adiabaticExposureMaker: 0,
