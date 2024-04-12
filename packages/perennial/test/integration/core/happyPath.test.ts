@@ -1059,7 +1059,7 @@ describe('Happy Path', () => {
       makerFee: {
         linearFee: positionFeesOn ? parse6decimal('0.0005') : 0,
         proportionalFee: positionFeesOn ? parse6decimal('0.0002') : 0,
-        adiabaticFee: positionFeesOn ? parse6decimal('0.0003') : 0,
+        adiabaticFee: 0,
         scale: parse6decimal('10000'),
       },
       makerLimit: parse6decimal('100000'),
@@ -1220,7 +1220,7 @@ describe('Happy Path', () => {
       makerFee: {
         linearFee: positionFeesOn ? parse6decimal('0.0005') : 0,
         proportionalFee: positionFeesOn ? parse6decimal('0.0002') : 0,
-        adiabaticFee: positionFeesOn ? parse6decimal('0.0003') : 0,
+        adiabaticFee: 0,
         scale: parse6decimal('10000'),
       },
       makerLimit: parse6decimal('100000'),
