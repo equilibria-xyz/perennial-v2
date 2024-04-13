@@ -1581,7 +1581,7 @@ describe('Vault', () => {
       // Now we should have opened positions.
       // The positions should be equal to (smallDeposit + largeDeposit) * leverage / 2 / originalOraclePrice.
       const settlementFeeCharged = parse6decimal('0.333334').mul(2)
-      const tradeFeeCharged = parse6decimal('-63.436277').add(parse6decimal('-15.97597')) // -15.975979 -63.436277
+      const tradeFeeCharged = parse6decimal('16.078157').add(parse6decimal('4.003259')) // 16.078157 4.003259 (trade fees from order id 1)
       const collateralForRebalance = smallDeposit
         .add(largeDeposit)
         .sub(tradeFeeCharged)
@@ -1590,8 +1590,8 @@ describe('Vault', () => {
       expect(await position()).to.be.equal(collateralForRebalance.mul(leverage).mul(4).div(5).div(originalOraclePrice))
       expect(await btcPosition()).to.be.equal(collateralForRebalance.mul(leverage).div(5).div(btcOriginalOraclePrice))
 
-      const balanceOf2 = BigNumber.from('9220781262')
-      const totalAssets = BigNumber.from('11079021396')
+      const balanceOf2 = BigNumber.from('10157967555')
+      const totalAssets = BigNumber.from('10979524758')
       expect((await vault.accounts(user.address)).shares).to.equal(parse6decimal('1000'))
       expect((await vault.accounts(user2.address)).shares).to.equal(balanceOf2)
       expect(await vault.totalAssets()).to.equal(totalAssets)
@@ -1630,9 +1630,9 @@ describe('Vault', () => {
       const btcCurrentSettlementFee = (await btcMarket.checkpoints(vault.address, btcMarketPreviousCurrenTimestamp))
         .settlementFee
 
-      const unclaimed1 = BigNumber.from('1072467932')
-      const unclaimed2 = BigNumber.from('9903141436')
-      const finalTotalAssets = BigNumber.from('49861154') // last position fee + keeper
+      const unclaimed1 = BigNumber.from('973380891')
+      const unclaimed2 = BigNumber.from('9903679394')
+      const finalTotalAssets = BigNumber.from('49864248') // last position fee + keeper
       expect(await totalCollateralInVault()).to.equal(unclaimed1.add(unclaimed2).mul(1e12))
       expect((await vault.accounts(user.address)).shares).to.equal(0)
       expect((await vault.accounts(user2.address)).shares).to.equal(0)
