@@ -261,7 +261,7 @@ describe('Liquidate', () => {
     await settle(market, user)
     await chainlink.nextWithPriceModification(price => price.mul(8).div(10)) // 20% drop
     // TODO: replace setupHelper.settle with this implementation, renaming the existing
-    await market.connect(user)['settle(address)'](user.address) // avoid invariant violation
+    await market.connect(user).settle(user.address) // avoid invariant violation
     price = (await chainlink.oracle.latest()).price
 
     // ensure user's collateral is now lower than minMaintenance but above maintenance requirement

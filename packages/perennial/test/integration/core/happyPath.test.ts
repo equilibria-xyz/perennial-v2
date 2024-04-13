@@ -24,6 +24,12 @@ import { loadFixture } from '@nomicfoundation/hardhat-network-helpers'
 import { ChainlinkContext } from '../helpers/chainlinkHelpers'
 import { RiskParameterStruct } from '../../../types/generated/contracts/Market'
 
+export const PRICE = parse6decimal('1')
+
+export const PRICE_1 = parse6decimal('113.882975')
+export const PRICE_2 = parse6decimal('113.796498')
+export const PRICE_3 = parse6decimal('115.046259')
+
 export const TIMESTAMP_0 = 1631112429
 export const TIMESTAMP_1 = 1631112904
 export const TIMESTAMP_2 = 1631113819
@@ -159,6 +165,7 @@ describe('Happy Path', () => {
       riskFee: 0,
       oracleFee: 0,
       donation: 0,
+      latestPrice: PRICE_1,
       exposure: 0,
     })
     expectOrderEq(await market.pendingOrder(1), {
@@ -209,6 +216,7 @@ describe('Happy Path', () => {
       riskFee: 0,
       oracleFee: 0,
       donation: 0,
+      latestPrice: PRICE_2,
       exposure: 0,
     })
     expectOrderEq(await market.pendingOrder(2), {
@@ -271,6 +279,7 @@ describe('Happy Path', () => {
       riskFee: 0,
       oracleFee: 0,
       donation: 0,
+      latestPrice: PRICE_1,
       exposure: 0,
     })
     expectOrderEq(await market.pendingOrder(1), {
@@ -321,6 +330,7 @@ describe('Happy Path', () => {
       riskFee: 0,
       oracleFee: 0,
       donation: 0,
+      latestPrice: PRICE_2,
       exposure: 0,
     })
     expectOrderEq(await market.pendingOrder(2), {
@@ -391,6 +401,7 @@ describe('Happy Path', () => {
       riskFee: 0,
       oracleFee: 0,
       donation: 0,
+      latestPrice: PRICE_2,
       exposure: 0,
     })
     expectOrderEq(await market.pendingOrder(2), {
@@ -463,6 +474,7 @@ describe('Happy Path', () => {
       riskFee: 0,
       oracleFee: 0,
       donation: 0,
+      latestPrice: PRICE_2,
       exposure: 0,
     })
     expectOrderEq(await market.pendingOrder(2), {
@@ -569,6 +581,7 @@ describe('Happy Path', () => {
       riskFee: 0,
       oracleFee: 0,
       donation: 0,
+      latestPrice: PRICE_1,
       exposure: 0,
     })
     expectOrderEq(await market.pendingOrder(1), {
@@ -602,6 +615,7 @@ describe('Happy Path', () => {
       riskFee: 0,
       oracleFee: 0,
       donation: '18',
+      latestPrice: PRICE_3,
       exposure: 0,
     })
     expectOrderEq(await market.pendingOrder(2), {
@@ -697,6 +711,7 @@ describe('Happy Path', () => {
       riskFee: 0,
       oracleFee: 0,
       donation: 0,
+      latestPrice: PRICE_1,
       exposure: 0,
     })
     expectOrderEq(await market.pendingOrder(1), {
@@ -730,6 +745,7 @@ describe('Happy Path', () => {
       riskFee: 0,
       oracleFee: 0,
       donation: '18',
+      latestPrice: PRICE_3,
       exposure: 0,
     })
     expectOrderEq(await market.pendingOrder(2), {
@@ -829,6 +845,7 @@ describe('Happy Path', () => {
       riskFee: 0,
       oracleFee: 0,
       donation: 0,
+      latestPrice: PRICE_2,
       exposure: 0,
     })
     expectOrderEq(await market.pendingOrder(2), {
@@ -916,6 +933,7 @@ describe('Happy Path', () => {
       riskFee: 0,
       oracleFee: 0,
       donation: 0,
+      latestPrice: PRICE_2,
       exposure: 0,
     })
     expectOrderEq(await market.pendingOrder(2), {
@@ -1165,6 +1183,7 @@ describe('Happy Path', () => {
       riskFee: 0,
       oracleFee: 0,
       donation: '308690',
+      latestPrice: '117462552',
       exposure: 0,
     })
     expectOrderEq(await market.pendingOrder(3), {
@@ -1344,6 +1363,7 @@ describe('Happy Path', () => {
       riskFee: (await market.global()).riskFee,
       oracleFee: (await market.global()).oracleFee,
       donation: (await market.global()).donation,
+      latestPrice: PRICE,
       exposure: 0,
     })
     expectOrderEq(await market.pendingOrder(delay + 1), {
