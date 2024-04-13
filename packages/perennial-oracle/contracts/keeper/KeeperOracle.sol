@@ -5,6 +5,7 @@ import "@openzeppelin/contracts/utils/math/SafeCast.sol";
 import "@openzeppelin/contracts/utils/structs/EnumerableSet.sol";
 import "@equilibria/root/attribute/Instance.sol";
 import "../interfaces/IKeeperFactory.sol";
+import "./types/Price.sol";
 
 /// @title KeeperOracle
 /// @notice Generic implementation of the IOracle interface for keeper-based oracles.
@@ -13,15 +14,6 @@ import "../interfaces/IKeeperFactory.sol";
 ///      This implementation only supports non-negative prices.
 contract KeeperOracle is IKeeperOracle, Instance {
     using EnumerableSet for EnumerableSet.AddressSet;
-
-    /// @dev Records a price alongside a validity indicator
-    struct PriceStorage {
-        /// @dev Oracle price of the asset
-        Fixed6 price;
-
-        /// @dev If false, this price is a carryover from a previous valid version
-        bool valid;
-    }
 
     /// @dev After this amount of time has passed for a version without being committed, the version can be invalidated.
     uint256 public immutable timeout;
@@ -115,9 +107,8 @@ contract KeeperOracle is IKeeperOracle, Instance {
     /// @notice Returns the oracle version at version `version`
     /// @param timestamp The timestamp of which to lookup
     /// @return oracleVersion Oracle version at version `version`
-    function at(uint256 timestamp) public view returns (OracleVersion memory oracleVersion) {
-        PriceStorage storage price = _prices[timestamp];
-        (oracleVersion.timestamp, oracleVersion.price, oracleVersion.valid) = (timestamp, price.price, price.valid);
+    function at(uint256 timestamp) public view returns (OracleVersion memory) {
+        return _prices[timestamp].read().toOracleVersion(timestamp);
     }
 
     /// @notice Commits the price to specified version
@@ -160,14 +151,12 @@ contract KeeperOracle is IKeeperOracle, Instance {
     /// @param version The oracle version to commit
     /// @return Whether the commit was requested
     function _commitRequested(OracleVersion memory version) private returns (bool) {
-        PriceStorage storage price = _prices[version.timestamp];
         if (block.timestamp <= (next() + timeout)) {
             if (!version.valid) revert KeeperOracleInvalidPriceError();
-            price.price = version.price;
-            price.valid = true;
+            _prices[version.timestamp].store(Price(version.price, true));
         } else {
-            price.price = _prices[_global.latestVersion].price;
-            price.valid = false;
+            Price memory latestPrice = _prices[_global.latestVersion].read();
+            _prices[version.timestamp].store(Price(latestPrice.price, false));
         }
         _global.latestIndex++;
         return true;
@@ -180,9 +169,10 @@ contract KeeperOracle is IKeeperOracle, Instance {
         if (!version.valid) revert KeeperOracleInvalidPriceError();
         if (version.timestamp <= _global.latestVersion || (next() != 0 && version.timestamp >= next()))
             revert KeeperOracleVersionOutsideRangeError();
-        PriceStorage storage price = _prices[version.timestamp];
-        price.price = version.price;
-        price.valid = true;
+        if (version.price.gt(Fixed6.wrap(type(int64).max)) || version.price.lt(Fixed6.wrap(type(int64).min)))
+            revert KeeperOracleInvalidPriceError();
+
+        _prices[version.timestamp].store(Price(version.price, true));
         return false;
     }
 
