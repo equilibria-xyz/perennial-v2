@@ -417,17 +417,17 @@ contract Vault is IVault, Instance {
     function _ineligable(Context memory context, UFixed6 withdrawal) private pure returns (UFixed6) {
         // assets eligable for redemption
         UFixed6 redemptionEligable = UFixed6Lib.unsafeFrom(context.totalCollateral)
-            .unsafeSub(withdrawal)
-            .unsafeSub(context.global.assets)
+            // assets pending claim (use latest global assets before withdrawal for redeemability)
+            .unsafeSub(context.global.assets.add(withdrawal))
+            // assets pending deposit
             .unsafeSub(context.global.deposit);
 
         return redemptionEligable
             // approximate assets up for redemption
             .mul(context.global.redemption.unsafeDiv(context.global.shares.add(context.global.redemption)))
-            // assets pending claim
-            .add(context.global.assets)
-            // assets withdrawing
-            .add(withdrawal);
+            // assets pending claim (use new global assets after withdrawal for eligability)
+            .add(context.global.assets);
+            // assets pending deposit are eligable for allocation
     }
 
     /// @notice Adjusts the position on `market` to `targetPosition`
