@@ -346,7 +346,7 @@ describe('Checkpoint', () => {
 
           const value = await checkpoint.toSharesGlobal(12)
 
-          expect(value).to.equal(5) // 12 - 7
+          expect(value).to.equal(9) // 12 - 3
         })
       })
 
@@ -362,7 +362,8 @@ describe('Checkpoint', () => {
             tradeFee: parse6decimal('1'),
           })
 
-          expect(await checkpoint.toSharesGlobal(parse6decimal('40'))).to.equal(parse6decimal('18'))
+          // (40 * 60 / 100) - 10 * 6 / 15 * 60 / 100
+          expect(await checkpoint.toSharesGlobal(parse6decimal('40'))).to.equal(parse6decimal('21.60000'))
         })
       })
 
@@ -377,8 +378,8 @@ describe('Checkpoint', () => {
           tradeFee: parse6decimal('1'),
         })
 
-        // (40 * 60 / 100) * ((400 + 200 * 100 / 60 - 1) / (400 + 200 * 100 / 60)) - 10 * 60 / 100
-        expect(await checkpoint.toSharesGlobal(parse6decimal('40'))).to.equal(parse6decimal('17.967272'))
+        // (40 * 60 / 100) * ((400 + 200 * 100 / 60 - 1) / (400 + 200 * 100 / 60)) - 10 * 60 / 100 * 6 / 15
+        expect(await checkpoint.toSharesGlobal(parse6decimal('40'))).to.equal(parse6decimal('21.567272'))
       })
     })
   })
@@ -390,7 +391,7 @@ describe('Checkpoint', () => {
 
         const value = await checkpoint.toAssetsGlobal(12)
 
-        expect(value).to.equal(5)
+        expect(value).to.equal(7) // 12 - 5
       })
     })
 
@@ -407,7 +408,8 @@ describe('Checkpoint', () => {
             tradeFee: parse6decimal('1'),
           })
 
-          expect(await checkpoint.toAssetsGlobal(parse6decimal('40'))).to.equal(parse6decimal('56.666666'))
+          // (40 * 100 / 60) - 10 * 9 / 15
+          expect(await checkpoint.toAssetsGlobal(parse6decimal('40'))).to.equal(parse6decimal('60.666666'))
         })
       })
 
@@ -422,8 +424,8 @@ describe('Checkpoint', () => {
           tradeFee: parse6decimal('1'),
         })
 
-        // (40 * 100 / 60) * ((400 + 200 * 100 / 60 - 1) / (400 + 200 * 100 / 60)) - 10
-        expect(await checkpoint.toAssetsGlobal(parse6decimal('40'))).to.equal(parse6decimal('56.575757').sub(1))
+        // (40 * 100 / 60) * ((400 + 200 * 100 / 60 - 1) / (400 + 200 * 100 / 60)) - 10 * 9 / 15
+        expect(await checkpoint.toAssetsGlobal(parse6decimal('40'))).to.equal(parse6decimal('60.575757').sub(1))
       })
     })
   })

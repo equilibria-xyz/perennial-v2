@@ -98,9 +98,10 @@ library CheckpointLib {
         if (self.shares.isZero()) return assets;
 
         // if vault is insolvent, default to par value
+        UFixed6 settlementFee = _settlementFeeForOrders(self, self.deposits);
         return self.assets.lte(Fixed6Lib.ZERO) ?
-            assets.unsafeSub(self.settlementFee) :
-            _toShares(self, assets).unsafeSub(_toSharesExact(self, self.settlementFee));
+            assets.unsafeSub(settlementFee) :
+            _toShares(self, assets).unsafeSub(_toSharesExact(self, settlementFee));
     }
 
     /// @notice Converts a given amount of shares to assets with checkpoint in the global context
@@ -108,7 +109,8 @@ library CheckpointLib {
     /// @return Amount of assets for the given shares at checkpoint
     function toAssetsGlobal(Checkpoint memory self, UFixed6 shares) internal pure returns (UFixed6) {
         // vault is fresh, use par value
-        return (self.shares.isZero() ? shares : _toAssets(self, shares)).unsafeSub(self.settlementFee);
+        UFixed6 settlementFee = _settlementFeeForOrders(self, self.redemptions);
+        return (self.shares.isZero() ? shares : _toAssets(self, shares)).unsafeSub(settlementFee);
     }
 
     /// @notice Converts a given amount of assets to shares at checkpoint in the local context
@@ -119,9 +121,10 @@ library CheckpointLib {
         if (self.shares.isZero()) return assets;
 
         // if vault is insolvent, default to par value
+        UFixed6 settlementFee = _settlementFeeForOrders(self, 1);
         return self.assets.lte(Fixed6Lib.ZERO) ?
-            assets.unsafeSub(_settlementFeePerOrder(self)) :
-            _toShares(self, assets).unsafeSub(_toSharesExact(self, _settlementFeePerOrder(self)));
+            assets.unsafeSub(settlementFee) :
+            _toShares(self, assets).unsafeSub(_toSharesExact(self, settlementFee));
     }
 
     /// @notice Converts a given amount of shares to assets with checkpoint in the local context
@@ -129,7 +132,8 @@ library CheckpointLib {
     /// @return Amount of assets for the given shares at checkpoint
     function toAssetsLocal(Checkpoint memory self, UFixed6 shares) internal pure returns (UFixed6) {
         // vault is fresh, use par value
-        return (self.shares.isZero() ? shares : _toAssets(self, shares)).unsafeSub(_settlementFeePerOrder(self));
+        UFixed6 settlementFee = _settlementFeeForOrders(self, 1);
+        return (self.shares.isZero() ? shares : _toAssets(self, shares)).unsafeSub(settlementFee);
     }
 
     /// @notice Converts a given amount of shares to assets with checkpoint in the global context
@@ -168,9 +172,11 @@ library CheckpointLib {
             amount.muldiv(totalAmountIncludingFee, totalAmount);
     }
 
-    function _settlementFeePerOrder(Checkpoint memory self) private pure returns (UFixed6) {
-        UFixed6 orders = UFixed6Lib.from(self.deposits + self.redemptions);
-        return orders.isZero() ? UFixed6Lib.ZERO : self.settlementFee.divOut(orders);
+    function _settlementFeeForOrders(Checkpoint memory self, uint256 orders) private pure returns (UFixed6) {
+        UFixed6 totalOrders = UFixed6Lib.from(self.deposits + self.redemptions);
+        return totalOrders.isZero() ?
+            UFixed6Lib.ZERO :
+            self.settlementFee.muldivOut(UFixed6Lib.from(orders), totalOrders);
     }
 
     function _toAssetsExact(Checkpoint memory self, UFixed6 shares) private pure returns (UFixed6) {

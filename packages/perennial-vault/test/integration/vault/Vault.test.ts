@@ -943,6 +943,34 @@ describe('Vault', () => {
       expect((await vault.accounts(ethers.constants.AddressZero)).assets).to.equal(0)
     })
 
+    it('deposit / redemption global-local share sync', async () => {
+      expect(await vault.convertToAssets(parse6decimal('1'))).to.equal(parse6decimal('1'))
+      expect(await vault.convertToShares(parse6decimal('1'))).to.equal(parse6decimal('1'))
+
+      await market.updateParameter(ethers.constants.AddressZero, ethers.constants.AddressZero, {
+        ...(await market.parameter()),
+        settlementFee: parse6decimal('5'),
+      })
+      await btcMarket.updateParameter(ethers.constants.AddressZero, ethers.constants.AddressZero, {
+        ...(await btcMarket.parameter()),
+        settlementFee: parse6decimal('5'),
+      })
+
+      const smallDeposit = parse6decimal('11000')
+      await vault.connect(user).update(user.address, smallDeposit, 0, 0)
+      await updateOracle()
+      await vault.settle(user.address)
+
+      await vault.connect(user2).update(user2.address, smallDeposit, 0, 0)
+      await vault.connect(user).update(user.address, 0, parse6decimal('10000'), 0)
+      await updateOracle()
+      await vault.settle(user.address)
+      await vault.settle(user2.address)
+
+      const localShares = (await vault.accounts(user.address)).shares.add((await vault.accounts(user2.address)).shares)
+      expect(await vault.totalShares()).to.equal(localShares)
+    })
+
     it('max redeem', async () => {
       const smallDeposit = parse6decimal('1000')
       await vault.connect(user).update(user.address, smallDeposit, 0, 0)
